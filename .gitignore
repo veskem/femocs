@@ -1,0 +1,10 @@
+*.o
+*.d
+femocs
+*~
+/.settings/
+.project
+.cproject
+doc/html/
+doc/latex/
+tetgen-tmpfile*
