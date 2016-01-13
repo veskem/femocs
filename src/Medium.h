@@ -8,9 +8,9 @@
 #ifndef MEDIUM_H_
 #define MEDIUM_H_
 
-//#include "Smoother.h"
-#include "AtomReader.h"
+#include <string>
 #include <vector>
+
 using namespace std;
 
 namespace femocs {
@@ -19,28 +19,47 @@ namespace femocs {
  * Routines and data related to making a surface
  */
 class Surface {
-	public:
-		/** Surface constructor */
-		Surface(int);
-		/** Surface destructor */
-		~Surface(){};
-		/** Function to reduce surface roughness */
-		//void smooth(Smoother s);
-		/** Function to add atom to surface */
-		const void add(const double, const double, const double, const int, const int);
-		const void output(const string&);
-		const double getX(const int);
-		const double getY(const int);
-		const double getZ(const int);
-		const int getType(const int);
-		const int getN();
+public:
+    /**
+     * Surface constructor
+     * @param nr_of_atoms - number of atoms on a surface
+     */
+    Surface(int nr_of_atoms);
+    ~Surface() {};
 
-	private:
-		vector <double> x, y, z;	//< Real coordinates
-		vector <double> Sx, Sy, Sz; //< Surface area components
-		vector <int> coordination;	//< Number of nearest neighbours in cutoff radius
-		vector <int> type;			//< Atom type (-1-fixed, 1-bulk, 2-surface, 3-vacancy)
-		vector <bool> isEvaporated; //< List of evaporated atoms
+    /**
+     * Function to add atom to Surface
+     * @param x - x coordinate of atom
+     * @param y - y coordinate of atom
+     * @param z - z coordinate of atom
+     * @param coord - coordination of atom
+     * @param type - atom type
+     */
+    const void add(const double x, const double y, const double z, const int coord, const int type);
+
+    /**
+     * Function to export the data of Surface.
+     * @param file_name - path for file to save the data
+     */
+    const void output(const string& file_name);
+
+    /** Return x-coordinate of i-th atom */
+    const double getX(const int i);
+    /** Return y-coordinate of i-th atom */
+    const double getY(const int i);
+    /** Return z-coordinate of i-th atom */
+    const double getZ(const int i);
+    /** Return type of i-th atom */
+    const int getType(const int i);
+    /** Return number of atoms in a Surface */
+    const int getN();
+
+private:
+    vector<double> x, y, z;	//!< Real coordinates
+    vector<double> Sx, Sy, Sz; //!< Surface area components
+    vector<int> coordination;	//!< Number of nearest neighbours in cutoff radius
+    vector<int> type;			//!< Atom type (-1-fixed, 1-bulk, 2-surface, 3-vacancy)
+    vector<bool> isEvaporated; //!< List of evaporated atoms
 };
 
 } /* namespace femocs */

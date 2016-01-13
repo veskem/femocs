@@ -8,11 +8,14 @@
 #ifndef MESHER_H_
 #define MESHER_H_
 
-#include "Medium.h"
-#include "AtomReader.h"
-#include "../lib/tetgen.h"
-#include <string>
 #include <memory>
+#include <string>
+#include <vector>
+
+#include "../lib/tetgen.h"
+#include "AtomReader.h"
+#include "Medium.h"
+
 using namespace std;
 
 namespace femocs {
@@ -23,23 +26,23 @@ namespace femocs {
  */
 class Mesher {
 public:
-	Mesher(string);
-	virtual ~Mesher(){};
-	void generate_mesh(shared_ptr<Surface>, string);
-	void clean_mesh(string, double);
-	void mark_mesh(AtomReader::Data, string);
-	void smooth_mesh(int);
-	void output_mesh();
+    Mesher(string mesher);
+    virtual ~Mesher() {};
+    void generate_mesh(shared_ptr<Surface> surf, string cmd);
+    void clean_mesh(string cmd, double rmax);
+    void mark_mesh(AtomReader::Data data, string cmd);
+    void smooth_mesh(int nr_of_iterations);
+    void output_mesh();
 
 private:
-	tetgenio tetgenIn;
-	tetgenio tetgenOut;
-	tetgenbehavior tetgenbeh;
-	void clean_elements(tetgenio*, double);
-	void clean_faces(tetgenio*, double);
-	void clean_edges(tetgenio*, double);
-	void calculate(string, tetgenio*, tetgenio*);
-	void update_list(int*, int*, vector<bool>, int);
+    tetgenio tetgenIn;
+    tetgenio tetgenOut;
+    tetgenbehavior tetgenbeh;
+    void clean_elements(tetgenio* tetIO, double rmax);
+    void clean_faces(tetgenio* tetIO, double rmax);
+    void clean_edges(tetgenio* tetIO, double rmax);
+    void calculate(string cmd, tetgenio* t1, tetgenio* t2);
+    void update_list(int* list, int* list_size, vector<bool> is_quality, int M);
 };
 
 } /* namespace femocs */

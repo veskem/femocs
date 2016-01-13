@@ -8,40 +8,48 @@
 #ifndef ATOMREADER_H_
 #define ATOMREADER_H_
 
-#include <vector>
 #include <string>
+#include <vector>
 
 using namespace std;
 namespace femocs {
 
 /**
- * Class to import atom coordinates and types
+ * Class to import atom coordinates and types.
  */
 class AtomReader {
 public:
-	/**
-	 * Class to import atomic coordinates and atom types from file
-	 * @param file name with type .xyz (Parcas) or .dump (Lammps)
-	 */
-	AtomReader(const string&);
-	virtual ~AtomReader() {};
-	struct Data {
-	    vector<double> x, y, z;
-	    vector<int> type;
-	    double xmin, xmax, ymin, ymax, zmin, zmax;
-	    const int type_bulk=1, type_surf=2, type_vac=3; 
-	};
-	Data data;
+    /**
+     * Constructor for AtomReader.
+     * @param file_name - path to input file with atomic data in .xyz (PARCAS), .dump (LAMMPS) or .ckx (KIMOCS) format
+     */
+    AtomReader(const string& file_name);
+    virtual ~AtomReader() {};
+
+    /** Struct for holding data of the whole simulation cell. */
+    struct Data {
+        vector<double> x;   //!< x-coordinates of atoms
+        vector<double> y;   //!< y-coordinates of atoms
+        vector<double> z;   //!< z-coordinates of atoms
+        vector<int> type;   //!< types of atoms
+        double xmin;        //!< minimum x-coordinate in simulation cell
+        double xmax;        //!< maximum x-coordinate in simulation cell
+        double ymin;        //!< minimum y-coordinate in simulation cell
+        double ymax;        //!< maximum y-coordinate in simulation cell
+        double zmin;        //!< minimum z-coordinate in simulation cell
+        double zmax;        //!< maximum z-coordinate in simulation cell
+//	    const int type_bulk=1, type_surf=2, type_vac=3;
+    };
+    Data data; //!< AtomReader data
 
 private:
-	/**
-	 * Functions to import atoms from file
-	 * @param file name
-	 * @return error code
-	 */
-	int import_xyz(const string&);
-	int import_ckx(const string&);
-	int import_dump(const string&);
+    /**
+     * Functions to import atoms from different types of file.
+     * @param file_name - path to file with atomic data
+     */
+    const void import_xyz(const string& file_name);
+    const void import_ckx(const string& file_name);
+    const void import_dump(const string& file_name);
 };
 
 } /* namespace femocs */
