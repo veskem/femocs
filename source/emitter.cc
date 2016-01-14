@@ -2,15 +2,6 @@
 
 #include "../include/currents_and_heating.h"
 
-/*
-int main() {
-	Laplace laplace_problem;
-	laplace_problem.run();
-
-	return 0;
-}
-*/
-
 
 int main() {
 	try {
