@@ -1,16 +1,18 @@
 
-#include "../include/laplace.h"
+#include "laplace.h"
+#include "utility.h"
 
-namespace Laplace2d {
+
+namespace Emitter {
 
 Laplace::Laplace() :
 		fe(2), dof_handler(triangulation) {
 }
 
 
-class PostProcessor : public DataPostprocessorVector<2> {
+class LaplacePostProcessor : public DataPostprocessorVector<2> {
 public:
-	PostProcessor();
+	LaplacePostProcessor();
 
 	virtual void
     compute_derived_quantities_scalar (const std::vector<double>            	&uh,
@@ -21,9 +23,9 @@ public:
                                        std::vector<Vector<double> >          	&computed_quantities) const;
 };
 
-PostProcessor::PostProcessor() : DataPostprocessorVector<2>("Field", update_values | update_gradients) {}
+LaplacePostProcessor::LaplacePostProcessor() : DataPostprocessorVector<2>("Field", update_values | update_gradients) {}
 
-void PostProcessor::
+void LaplacePostProcessor::
 compute_derived_quantities_scalar (	const std::vector<double>            	&uh,
 									const std::vector<Tensor<1,2> >  		&duh,
 									const std::vector<Tensor<2,2> >  		&/*dduh*/,
@@ -39,14 +41,6 @@ compute_derived_quantities_scalar (	const std::vector<double>            	&uh,
 	    	computed_quantities[i](d) = duh[i][d];
 
 	}
-}
-
-// Method to output the mesh to a specified .eps file
-void output_mesh(Triangulation<2>& mesh, std::string name) {
-	std::ofstream out(name);
-	GridOut grid_out;
-	grid_out.write_eps(mesh, out);
-	std::cout << "Grid written to " << name << std::endl;
 }
 
 // Makes a geometry with protrusion-like shape
@@ -311,7 +305,7 @@ double Laplace::probe_field(const Point<2> &p) const {
 }
 
 void Laplace::output_results() const {
-	PostProcessor field_calculator; // needs to be before data_out
+	LaplacePostProcessor field_calculator; // needs to be before data_out
 	DataOut<2> data_out;
 	data_out.attach_dof_handler(dof_handler);
 	data_out.add_data_vector(solution, "potential_v");

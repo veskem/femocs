@@ -21,7 +21,6 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_out.h>
 #include <deal.II/grid/manifold_lib.h>
-#include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_accessor.templates.h>
 #include <deal.II/grid/tria_iterator.templates.h>
 #include <deal.II/grid/grid_tools.h>
@@ -66,9 +65,9 @@
 #include <set>
 
 
-#include "../include/laplace.h"
+#include "laplace.h"
 
-namespace CurrentsAndHeating2d {
+namespace Emitter {
 
 using namespace dealii;
 
@@ -82,14 +81,13 @@ private:
 	void make_grid();
 	void setup_system();
 	void assemble_system();
+	void assemble_system_newton();
 	void solve();
 	void output_results(const unsigned int iteration) const;
 
-	double el_cond(double t);
-	double th_cond(double t);
 	double em_current(const Point<2> &p, double t);
 
-	Laplace2d::Laplace laplace_problem;
+	Laplace laplace_problem;
 
 	Triangulation<2> triangulation;
 	FESystem<2> fe;

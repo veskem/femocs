@@ -19,6 +19,9 @@ SET(TARGET_SRC ${TARGET_SRC}  ${TARGET_INC})
 #  ${TARGET}.cc
 #  )
 
+# Manual config
+include_directories(./include) 
+
 # Usually, you will not need to modify anything beyond this point...
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)

@@ -1,12 +1,12 @@
 
 
-#include "../include/currents_and_heating.h"
+#include "currents_and_heating.h"
 
 
 int main() {
 	try {
 		using namespace dealii;
-		using namespace CurrentsAndHeating2d;
+		using namespace Emitter;
 
 		deallog.depth_console(1);
 

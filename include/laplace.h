@@ -59,7 +59,7 @@
 #include <vector>
 #include <set>
 
-namespace Laplace2d {
+namespace Emitter {
 using namespace dealii;
 
 class Laplace {
