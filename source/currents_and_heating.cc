@@ -1,10 +1,40 @@
 
 
 #include "currents_and_heating.h"
-#include "physics.h"
 #include "utility.h"
 
 namespace Emitter {
+
+// ------------------------------------------------------------------------------------
+// Physics definitions
+
+double emission_current(double field, double temp) {
+	double j_e = field*field*std::exp(-1.0/field)/(80.0*3.0*3.0); // field emission
+	double j_t = temp*temp/(1000.0*1500.0*1500.0); //thermionic emission
+	return j_e+j_t;
+}
+
+/**
+ * Electrical conductivity and it's derivative
+ */
+double sigma(double temperature) {
+	return 5.0/std::max(temperature,300.0);
+}
+double dsigma(double temperature) {
+	return -5.0/(std::max(temperature,300.0)*std::max(temperature,300.0));
+}
+
+/**
+ * Thermal conductivity and derivative
+ */
+double kappa(double temperature) {
+	return 0.5/std::max(temperature,300.0);
+}
+double dkappa(double temperature) {
+	return -0.5/(std::max(temperature,300.0)*std::max(temperature,300.0));
+}
+
+// ------------------------------------------------------------------------------------
 
 CurrentsAndHeating::CurrentsAndHeating() :
 		fe (FE_Q<2>(1), 1, 	// Finite element type (Q = usual ?) (1)
@@ -45,7 +75,7 @@ compute_derived_quantities_vector (	const std::vector< Vector< double > > &  	uh
 		double t = uh[i][1]; // temperature
 		for (unsigned int d=0; d<2; ++d) {
 			double e_field = duh[i][0][d]; // gradient of the 0-st vector (i.e. potential)
-			computed_quantities[i](d) = el_conductivity(t)*e_field;
+			computed_quantities[i](d) = sigma(t)*e_field;
 		}
 	}
 }
@@ -197,6 +227,12 @@ void CurrentsAndHeating::assemble_system() {
 	QGauss<2> quadrature_formula(2);
 	QGauss<1> face_quadrature_formula(2);
 
+	/*
+	system_matrix.reinit(sparsity_pattern);
+	solution.reinit(dof_handler.n_dofs());
+	system_rhs.reinit(dof_handler.n_dofs());
+	*/
+
 	FEValues<2> fe_values(fe, quadrature_formula,
 			update_values | update_gradients | update_quadrature_points
 					| update_JxW_values);
@@ -246,10 +282,10 @@ void CurrentsAndHeating::assemble_system() {
 					const Tensor<1,2> grad_phi_j_p	= fe_values[potential].gradient(j, q);
 					const Tensor<1,2> grad_phi_j_t	= fe_values[temperature].gradient(j, q);
 
-					cell_matrix(i, j) += (	- (grad_phi_i_p * el_conductivity(prev_sol_temperature_values[q]) * grad_phi_j_p)
-											+ (phi_i_t * el_conductivity(prev_sol_temperature_values[q])
+					cell_matrix(i, j) += (	- (grad_phi_i_p * sigma(prev_sol_temperature_values[q]) * grad_phi_j_p)
+											+ (phi_i_t * sigma(prev_sol_temperature_values[q])
 												* prev_sol_potential_gradients[q] * grad_phi_j_p)
-											- (grad_phi_i_t * th_conductivity(prev_sol_temperature_values[q]) * grad_phi_j_t)
+											- (grad_phi_i_t * kappa(prev_sol_temperature_values[q]) * grad_phi_j_t)
 										 ) * fe_values.JxW(q);
 
 				}
@@ -325,8 +361,10 @@ void CurrentsAndHeating::assemble_system_newton() {
 
 	std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
+
 	std::vector<Tensor<1,2>> prev_sol_potential_gradients (n_q_points);
 	std::vector<double> prev_sol_temperature_values (n_q_points);
+	std::vector<Tensor<1,2>> prev_sol_temperature_gradients (n_q_points);
 
     const FEValuesExtractors::Scalar potential (0);
     const FEValuesExtractors::Scalar temperature (1);
@@ -344,9 +382,14 @@ void CurrentsAndHeating::assemble_system_newton() {
 
 		fe_values[potential].get_function_gradients(previous_solution, prev_sol_potential_gradients);
 		fe_values[temperature].get_function_values(previous_solution, prev_sol_temperature_values);
-		// Better to calculate the conductivities once here...
+		fe_values[temperature].get_function_gradients(previous_solution, prev_sol_temperature_gradients);
 
 		for (unsigned int q = 0; q < n_q_points; ++q) {
+
+			double prev_temp = prev_sol_temperature_values[q];
+			const Tensor<1,2> prev_pot_grad = prev_sol_potential_gradients[q];
+			const Tensor<1,2> prev_temp_grad = prev_sol_temperature_gradients[q];
+
 			for (unsigned int i = 0; i < dofs_per_cell; ++i) {
 
 				const Tensor<1,2> grad_phi_i_p	= fe_values[potential].gradient(i, q);
@@ -356,33 +399,37 @@ void CurrentsAndHeating::assemble_system_newton() {
 				for (unsigned int j = 0; j < dofs_per_cell; ++j) {
 
 					const Tensor<1,2> grad_phi_j_p	= fe_values[potential].gradient(j, q);
+					const double phi_j_t 			= fe_values[temperature].value(j, q);
 					const Tensor<1,2> grad_phi_j_t	= fe_values[temperature].gradient(j, q);
 
-					cell_matrix(i, j) += (	- (grad_phi_i_p * el_conductivity(prev_sol_temperature_values[q]) * grad_phi_j_p)
-											+ (phi_i_t * el_conductivity(prev_sol_temperature_values[q])
-												* prev_sol_potential_gradients[q] * grad_phi_j_p)
-											- (grad_phi_i_t * th_conductivity(prev_sol_temperature_values[q]) * grad_phi_j_t)
+					cell_matrix(i, j) += (	- (grad_phi_i_p * sigma(prev_temp) * grad_phi_j_p)
+											- (grad_phi_i_p * dsigma(prev_temp) * prev_pot_grad * phi_j_t)
+											+ (phi_i_t * sigma(prev_temp) * 2 * prev_pot_grad * grad_phi_j_p)
+											+ (phi_i_t * dsigma(prev_temp) * prev_pot_grad * prev_pot_grad * phi_j_t)
+											- (grad_phi_i_t * dkappa(prev_temp) * prev_temp_grad * phi_j_t)
+											- (grad_phi_i_t * kappa(prev_temp) * grad_phi_j_t)
 										 ) * fe_values.JxW(q);
 
 				}
 
-				// RHS is 0 in our case...
+				// RHS is 0 in our case... but Neumann BC's will affect this
 				cell_rhs(i) += ( 0 * fe_values.JxW(q));
 			}
 		}
 
 		// Neumann boundary conditions...
 		for (unsigned int f = 0; f < GeometryInfo<2>::faces_per_cell; ++f)
-			if (cell->face(f)->at_boundary()
-					&& cell->face(f)->boundary_id() == copper_boundary) {
+			if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == copper_boundary) {
 				fe_face_values.reinit(cell, f);
-				for (unsigned int q_index = 0; q_index < n_face_q_points;
-						++q_index) {
+				for (unsigned int q = 0; q < n_face_q_points; ++q) {
+
+					double prev_temp = prev_sol_temperature_values[q];
+
 					for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-						// Current density BC on copper boundary
-						cell_rhs(i) +=  - fe_face_values[potential].value(i, q_index)
-												* em_current(fe_face_values.quadrature_point(q_index), prev_sol_temperature_values[q_index])
-												* fe_face_values.JxW(q_index);
+						// BCs from the bilinear form...
+						cell_rhs(i) += 	(	- (fe_face_values[potential].value(i, q)
+													* em_current(fe_face_values.quadrature_point(q), prev_temp))
+										) * fe_face_values.JxW(q);
 					}
 				}
 			}

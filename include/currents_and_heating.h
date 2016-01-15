@@ -95,10 +95,10 @@ private:
 
 	SparsityPattern sparsity_pattern;
 	SparseMatrix<double> system_matrix;
+	Vector<double> system_rhs;
 
 	Vector<double> solution; // u_{k+1}
 	Vector<double> previous_solution; // u_k
-	Vector<double> system_rhs;
 
 	enum BoundaryId {
 		not_specified = 0, // all boundaries which will have natural BCs

@@ -10,7 +10,6 @@
 
 
 #include <deal.II/grid/tria.h>
-#include <deal.II/grid/grid_out.h>
 
 #include <string>
 
@@ -19,13 +18,7 @@ namespace Emitter {
 using namespace dealii;
 
 // Method to output the mesh to a specified .eps file
-void output_mesh(Triangulation<2>& mesh, std::string name) {
-	std::ofstream out(name);
-	GridOut grid_out;
-	grid_out.write_eps(mesh, out);
-	std::cout << "Grid written to " << name << std::endl;
-}
-
+void output_mesh(Triangulation<2>& mesh, std::string name);
 
 }
 
