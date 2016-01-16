@@ -99,7 +99,7 @@ double CurrentsAndHeating::em_current(const Point<2> &p, double temperature) {
 
 // ----------------------------------------------------------------------------------------
 
-
+// Creates the mesh of the metal domain
 void CurrentsAndHeating::make_grid() {
 
 	double r = radius;	//radius of the tip
@@ -212,6 +212,11 @@ void CurrentsAndHeating::setup_system() {
 
 	DoFRenumbering::component_wise (dof_handler);
 
+	unsigned int n_components = dof_handler.get_fe().n_components();
+	dofs_per_component.resize(n_components);
+	DoFTools::count_dofs_per_component(dof_handler, dofs_per_component);
+	std::cout << "num temp dofs " << dofs_per_component[1] << std::endl;
+
 	DynamicSparsityPattern dsp(dof_handler.n_dofs());
 	DoFTools::make_sparsity_pattern(dof_handler, dsp);
 	sparsity_pattern.copy_from(dsp);
@@ -223,15 +228,10 @@ void CurrentsAndHeating::setup_system() {
 	system_rhs.reinit(dof_handler.n_dofs());
 }
 
+// Assembles the linear system for one Picard iteration
 void CurrentsAndHeating::assemble_system() {
 	QGauss<2> quadrature_formula(2);
 	QGauss<1> face_quadrature_formula(2);
-
-	/*
-	system_matrix.reinit(sparsity_pattern);
-	solution.reinit(dof_handler.n_dofs());
-	system_rhs.reinit(dof_handler.n_dofs());
-	*/
 
 	FEValues<2> fe_values(fe, quadrature_formula,
 			update_values | update_gradients | update_quadrature_points
@@ -341,7 +341,9 @@ void CurrentsAndHeating::assemble_system() {
 			solution, system_rhs);
 }
 
-void CurrentsAndHeating::assemble_system_newton() {
+
+// Assembles the linear system for one Newton iteration (not working)
+void CurrentsAndHeating::assemble_system_newton(const bool first_step) {
 	QGauss<2> quadrature_formula(2);
 	QGauss<1> face_quadrature_formula(2);
 
@@ -361,6 +363,11 @@ void CurrentsAndHeating::assemble_system_newton() {
 
 	std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
+	// evaluate and store different kinds of quantities from current solution
+	std::vector<double> global_sigma_values (dofs_per_component[1]);
+
+
+
 
 	std::vector<Tensor<1,2>> prev_sol_potential_gradients (n_q_points);
 	std::vector<double> prev_sol_temperature_values (n_q_points);
@@ -379,7 +386,7 @@ void CurrentsAndHeating::assemble_system_newton() {
 		cell_rhs = 0;
 
 		//electric_conductivity.value_list(fe_values.get_quadrature_points(), el_conductivity_values);
-
+		//fe_values[potential].get
 		fe_values[potential].get_function_gradients(previous_solution, prev_sol_potential_gradients);
 		fe_values[temperature].get_function_values(previous_solution, prev_sol_temperature_values);
 		fe_values[temperature].get_function_gradients(previous_solution, prev_sol_temperature_gradients);
@@ -412,7 +419,6 @@ void CurrentsAndHeating::assemble_system_newton() {
 
 				}
 
-				// RHS is 0 in our case... but Neumann BC's will affect this
 				cell_rhs(i) += ( 0 * fe_values.JxW(q));
 			}
 		}
@@ -455,10 +461,17 @@ void CurrentsAndHeating::assemble_system_newton() {
 	MatrixTools::apply_boundary_values(current_dirichlet, system_matrix,
 			solution, system_rhs);
 
+
 	// 300K at bulk bottom
 	std::map<types::global_dof_index, double> temperature_dirichlet;
-	VectorTools::interpolate_boundary_values(dof_handler, bulk_bottom, AmbientTemperature<2>(),
-			temperature_dirichlet, fe.component_mask(temperature));
+
+	if (first_step) {
+		VectorTools::interpolate_boundary_values(dof_handler, bulk_bottom, AmbientTemperature<2>(),
+				temperature_dirichlet, fe.component_mask(temperature));
+	} else {
+		VectorTools::interpolate_boundary_values(dof_handler, bulk_bottom, ZeroFunction<2>(2),
+						temperature_dirichlet, fe.component_mask(temperature));
+	}
 
 	MatrixTools::apply_boundary_values(temperature_dirichlet, system_matrix,
 			solution, system_rhs);
@@ -468,7 +481,7 @@ void CurrentsAndHeating::assemble_system_newton() {
 void CurrentsAndHeating::solve() {
 
 	/*
-	// CG doesn't seem to work...
+	// CG doesn't work as the matrix is not symmetric
 	deallog << "Solving linear system with CG... ";
 	SolverControl solver_control(2000, 1e-12);
 	SolverCG<> solver(solver_control);
@@ -512,10 +525,13 @@ void CurrentsAndHeating::run() {
 	make_grid();
 	setup_system();
 
-	// 10 Picard iterations
-	for (unsigned int iteration=0; iteration<10; ++iteration) {
-
+	// Picard iterations
+	for (unsigned int iteration=0; iteration<15; ++iteration) {
 		std::cout << "    Iteration " << iteration << std::endl;
+
+		// reset the state of the linear system
+		system_matrix.reinit(sparsity_pattern);
+		system_rhs.reinit(dof_handler.n_dofs());
 
 		Timer timer;
 		timer.start ();
@@ -544,6 +560,48 @@ void CurrentsAndHeating::run() {
 
 		previous_solution = solution;
 	}
+
+	/*
+	// Newton iterations
+	for (unsigned int iteration=0; iteration<10; ++iteration) {
+		std::cout << "    Newton iteration " << iteration << std::endl;
+
+		// reset the state of the linear system
+		system_matrix.reinit(sparsity_pattern);
+		system_rhs.reinit(dof_handler.n_dofs());
+
+		Timer timer;
+		timer.start ();
+		assemble_system_newton(iteration==0);
+		timer.stop ();
+
+		deallog << "system assembled in "
+				<< timer ()
+				<< "s"
+				<< std::endl;
+
+		timer.restart();
+		solve();
+		// u_{k+1} = \alpha * \delta
+		solution *= 1.0;
+		solution.add(1.0, previous_solution);
+		timer.stop ();
+
+		deallog << "solver finished in "
+				<< timer ()
+				<< "s"
+				<< std::endl;
+
+		output_results(iteration);
+
+		Vector<double> difference(dof_handler.n_dofs());
+		difference = solution;
+		difference -= previous_solution;
+		std::cout << "    ||u_k-u_{k-1}|| = " << difference.l2_norm() << std::endl;
+
+		previous_solution = solution;
+	}
+	*/
 
 }
 

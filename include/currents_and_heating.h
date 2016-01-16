@@ -80,8 +80,12 @@ public:
 private:
 	void make_grid();
 	void setup_system();
+
+	// Assembles the system for Picard iterations
 	void assemble_system();
-	void assemble_system_newton();
+	// Assembles the system for Newton iterations (not working)
+	void assemble_system_newton(const bool first_step);
+
 	void solve();
 	void output_results(const unsigned int iteration) const;
 
@@ -92,6 +96,8 @@ private:
 	Triangulation<2> triangulation;
 	FESystem<2> fe;
 	DoFHandler<2> dof_handler;
+
+	std::vector<types::global_dof_index> dofs_per_component;
 
 	SparsityPattern sparsity_pattern;
 	SparseMatrix<double> system_matrix;
