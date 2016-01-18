@@ -212,10 +212,10 @@ void CurrentsAndHeating::setup_system() {
 
 	DoFRenumbering::component_wise (dof_handler);
 
-	unsigned int n_components = dof_handler.get_fe().n_components();
-	dofs_per_component.resize(n_components);
-	DoFTools::count_dofs_per_component(dof_handler, dofs_per_component);
-	std::cout << "num temp dofs " << dofs_per_component[1] << std::endl;
+	//unsigned int n_components = dof_handler.get_fe().n_components();
+	//dofs_per_component.resize(n_components);
+	//DoFTools::count_dofs_per_component(dof_handler, dofs_per_component);
+	//std::cout << "num temp dofs " << dofs_per_component[1] << std::endl;
 
 	DynamicSparsityPattern dsp(dof_handler.n_dofs());
 	DoFTools::make_sparsity_pattern(dof_handler, dsp);
@@ -352,7 +352,8 @@ void CurrentsAndHeating::assemble_system_newton(const bool first_step) {
 					| update_JxW_values);
 
 	FEFaceValues<2> fe_face_values(fe, face_quadrature_formula,
-			update_values | update_normal_vectors | update_quadrature_points | update_JxW_values);
+			update_values | update_gradients | update_normal_vectors
+					| update_quadrature_points | update_JxW_values);
 
 	const unsigned int dofs_per_cell = fe.dofs_per_cell;
 	const unsigned int n_q_points = quadrature_formula.size();
@@ -363,15 +364,15 @@ void CurrentsAndHeating::assemble_system_newton(const bool first_step) {
 
 	std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
-	// evaluate and store different kinds of quantities from current solution
-	std::vector<double> global_sigma_values (dofs_per_component[1]);
 
-
-
-
+	// The previous solution values in the cell quadrature points
 	std::vector<Tensor<1,2>> prev_sol_potential_gradients (n_q_points);
 	std::vector<double> prev_sol_temperature_values (n_q_points);
 	std::vector<Tensor<1,2>> prev_sol_temperature_gradients (n_q_points);
+
+	// The previous solution values in the face quadrature points
+	std::vector<Tensor<1,2>> prev_sol_face_potential_gradients (n_face_q_points);
+	std::vector<double> prev_sol_face_temperature_values (n_face_q_points);
 
     const FEValuesExtractors::Scalar potential (0);
     const FEValuesExtractors::Scalar temperature (1);
@@ -385,8 +386,6 @@ void CurrentsAndHeating::assemble_system_newton(const bool first_step) {
 		cell_matrix = 0;
 		cell_rhs = 0;
 
-		//electric_conductivity.value_list(fe_values.get_quadrature_points(), el_conductivity_values);
-		//fe_values[potential].get
 		fe_values[potential].get_function_gradients(previous_solution, prev_sol_potential_gradients);
 		fe_values[temperature].get_function_values(previous_solution, prev_sol_temperature_values);
 		fe_values[temperature].get_function_gradients(previous_solution, prev_sol_temperature_gradients);
@@ -419,23 +418,43 @@ void CurrentsAndHeating::assemble_system_newton(const bool first_step) {
 
 				}
 
-				cell_rhs(i) += ( 0 * fe_values.JxW(q));
+				cell_rhs(i) += (	grad_phi_i_p * sigma(prev_temp) * prev_pot_grad
+									- phi_i_t * sigma(prev_temp) * prev_pot_grad * prev_pot_grad
+									+ grad_phi_i_t * kappa(prev_temp) * prev_temp_grad
+								) * fe_values.JxW(q);
 			}
 		}
 
-		// Neumann boundary conditions...
+		// integration over the boundary (cell faces)
 		for (unsigned int f = 0; f < GeometryInfo<2>::faces_per_cell; ++f)
-			if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == copper_boundary) {
+			if (cell->face(f)->at_boundary()) {
 				fe_face_values.reinit(cell, f);
-				for (unsigned int q = 0; q < n_face_q_points; ++q) {
 
-					double prev_temp = prev_sol_temperature_values[q];
+				fe_face_values[potential].get_function_gradients(previous_solution, prev_sol_face_potential_gradients);
+				fe_face_values[temperature].get_function_values(previous_solution, prev_sol_face_temperature_values);
 
-					for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-						// BCs from the bilinear form...
-						cell_rhs(i) += 	(	- (fe_face_values[potential].value(i, q)
-													* em_current(fe_face_values.quadrature_point(q), prev_temp))
-										) * fe_face_values.JxW(q);
+				if (cell->face(f)->boundary_id() == copper_boundary) {
+					// loop thought the quadrature points
+					for (unsigned int q = 0; q < n_face_q_points; ++q) {
+
+						double prev_temp = prev_sol_face_temperature_values[q];
+						const Tensor<1,2> prev_pot_grad = prev_sol_face_potential_gradients[q];
+
+						for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+							const double phi_i_p = fe_face_values[potential].value(i, q);
+							// neumann BC for the current, one from LHS and one from RHS
+							cell_rhs(i) += 	(	- (phi_i_p * em_current(fe_face_values.quadrature_point(q), prev_temp))
+											) * fe_face_values.JxW(q);
+
+							for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+								const double phi_j_t = fe_face_values[temperature].value(j, q);
+
+								cell_matrix(i, j) += (	phi_i_p * fe_face_values.normal_vector(q)
+														* prev_pot_grad * dsigma(prev_temp) * phi_j_t
+													 ) * fe_face_values.JxW(q);
+							}
+
+						}
 					}
 				}
 			}
@@ -462,7 +481,7 @@ void CurrentsAndHeating::assemble_system_newton(const bool first_step) {
 			solution, system_rhs);
 
 
-	// 300K at bulk bottom
+	// 300K at bulk bottom if initial step, 0 otherwise
 	std::map<types::global_dof_index, double> temperature_dirichlet;
 
 	if (first_step) {
@@ -524,7 +543,7 @@ void CurrentsAndHeating::run() {
 
 	make_grid();
 	setup_system();
-
+	/*
 	// Picard iterations
 	for (unsigned int iteration=0; iteration<15; ++iteration) {
 		std::cout << "    Iteration " << iteration << std::endl;
@@ -560,10 +579,10 @@ void CurrentsAndHeating::run() {
 
 		previous_solution = solution;
 	}
+	*/
 
-	/*
 	// Newton iterations
-	for (unsigned int iteration=0; iteration<10; ++iteration) {
+	for (unsigned int iteration=0; iteration<15; ++iteration) {
 		std::cout << "    Newton iteration " << iteration << std::endl;
 
 		// reset the state of the linear system
@@ -583,7 +602,8 @@ void CurrentsAndHeating::run() {
 		timer.restart();
 		solve();
 		// u_{k+1} = \alpha * \delta
-		solution *= 1.0;
+		if (iteration!=0)
+			solution *= 1.0; // alpha
 		solution.add(1.0, previous_solution);
 		timer.stop ();
 
@@ -601,7 +621,7 @@ void CurrentsAndHeating::run() {
 
 		previous_solution = solution;
 	}
-	*/
+
 
 }
 
