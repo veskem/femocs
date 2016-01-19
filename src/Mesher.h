@@ -28,7 +28,7 @@ class Mesher {
 public:
     Mesher(string mesher);
     virtual ~Mesher() {};
-    void generate_mesh(shared_ptr<Surface> surf, string cmd);
+    void generate_mesh(shared_ptr<Surface> bulk, shared_ptr<Surface> surf, string cmd);
     void clean_mesh(string cmd, double rmax);
     void mark_mesh(AtomReader::Data data, string cmd);
     void smooth_mesh(int nr_of_iterations);
@@ -38,6 +38,10 @@ private:
     tetgenio tetgenIn;
     tetgenio tetgenOut;
     tetgenbehavior tetgenbeh;
+    void add_point(const double x, const double y, const double z, const int pmarker, const int i, tetgenio* tetIO);
+    void generate_surface_mesh(shared_ptr<Surface> surf, tetgenio* tetIO);
+    void generate_volume_mesh(shared_ptr<Surface> bulk, shared_ptr<Surface> surf, tetgenio* tetIO);
+    void sort_surface(vector<int>& permutation_indxs, shared_ptr<Surface> surf);
     void clean_elements(tetgenio* tetIO, double rmax);
     void clean_faces(tetgenio* tetIO, double rmax);
     void clean_edges(tetgenio* tetIO, double rmax);
