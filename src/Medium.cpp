@@ -1,80 +1,85 @@
 /*
  * Medium.cpp
  *
- *  Created on: 14.12.2015
+ *  Created on: 21.1.2016
  *      Author: veske
  */
 
 #include "Medium.h"
 
+#include <algorithm>
 #include <fstream>
+#include <iostream>
 
 using namespace std;
-
 namespace femocs {
 
-// Constructor initializes arrays
-Surface::Surface(int nr_of_atoms) {
-    this->x.reserve(nr_of_atoms);				// Default values are 0
-    this->y.reserve(nr_of_atoms);
-    this->z.reserve(nr_of_atoms);
-    this->Sx.reserve(nr_of_atoms);
-    this->Sy.reserve(nr_of_atoms);
-    this->Sz.reserve(nr_of_atoms);
-    this->coordination.reserve(nr_of_atoms);
-    this->type.reserve(nr_of_atoms);
-    this->isEvaporated.reserve(nr_of_atoms);	// Default values are False
-}
-;
+// Function to calculate the indices of sorted array
+template<class Vals>
+void get_sort_permutation(const Vals& values, vector<int>* v) {
+    int size = values.size();
+    v->clear();
+    v->reserve(size);
+    for (int i = 0; i < size; ++i)
+        v->push_back(i);
 
-// Add atom coordinates
-const void Surface::add(const double x, const double y, const double z, const int coord,
-        const int type) {
-    this->x.push_back(x);
-    this->y.push_back(y);
-    this->z.push_back(z);
-    this->coordination.push_back(coord);
-    this->type.push_back(type);
+    sort(v->begin(), v->end(), [&values](int a, int b) -> bool {
+        return values[a] < values[b];
+    });
 }
 
 // Get element from x, y or z vector
-const double Surface::getX(const int i) {
+const double Medium::getX(const int i) {
     return x[i];
 }
-const double Surface::getY(const int i) {
+const double Medium::getY(const int i) {
     return y[i];
 }
-const double Surface::getZ(const int i) {
+const double Medium::getZ(const int i) {
     return z[i];
 }
-
 // Get atom type
-const int Surface::getType(const int i) {
+const int Medium::getType(const int i) {
     return type[i];
 }
-
 // Get number of atoms on surface
-const int Surface::getN() {
-    return x.size();
+const int Medium::getN() {
+    return N;
 }
-
 // Output surface data to file
-const void Surface::output(const string& file_name) {
+const void Medium::output(const string& file_name) {
     int nrOfAtoms = this->x.size();
     ofstream myfile;
     myfile.open(file_name);
     myfile << nrOfAtoms << "\n";
-    myfile << "Surface of the nanotip\n";
+    myfile << "Data of the nanotip: id x y z type\n";
 
     for (int i = 0; i < nrOfAtoms; ++i) {
         myfile << i << " ";
         myfile << this->x[i] << " ";
         myfile << this->y[i] << " ";
         myfile << this->z[i] << " ";
-        myfile << "1" << " ";
-        myfile << this->coordination[i] << endl;
+        myfile << this->type[i] << endl;
     }
     myfile.close();
 }
+// Function to sort the surface atoms according to their radial distance on xy-plane
+void Medium::sort_atoms(vector<int>* permutation_indxs) {
+    int i;
+    double xloc, yloc;
+    vector<double> r2;
+    r2.reserve(N);
+
+    for (i = 0; i < N; ++i) {
+        xloc = this->x[i];
+        yloc = this->y[i];
+        r2.push_back(xloc * xloc + yloc * yloc);
+    }
+    get_sort_permutation(r2, permutation_indxs);
+
+    for (i = 0; i < N; ++i)
+        cout << r2[i] << endl;
+}
 
 } /* namespace femocs */
+

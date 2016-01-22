@@ -1,7 +1,7 @@
 /*
  * Medium.h
  *
- *  Created on: 14.12.2015
+ *  Created on: 21.1.2016
  *      Author: veske
  */
 
@@ -12,33 +12,12 @@
 #include <vector>
 
 using namespace std;
-
 namespace femocs {
 
-/**
- * Routines and data related to making a surface
- */
-class Surface {
+class Medium {
 public:
     /**
-     * Surface constructor
-     * @param nr_of_atoms - number of atoms on a surface
-     */
-    Surface(int nr_of_atoms);
-    ~Surface() {};
-
-    /**
-     * Function to add atom to Surface
-     * @param x - x coordinate of atom
-     * @param y - y coordinate of atom
-     * @param z - z coordinate of atom
-     * @param coord - coordination of atom
-     * @param type - atom type
-     */
-    const void add(const double x, const double y, const double z, const int coord, const int type);
-
-    /**
-     * Function to export the data of Surface.
+     * Function to export the data of Medium.
      * @param file_name - path for file to save the data
      */
     const void output(const string& file_name);
@@ -51,15 +30,15 @@ public:
     const double getZ(const int i);
     /** Return type of i-th atom */
     const int getType(const int i);
-    /** Return number of atoms in a Surface */
+    /** Return number of atoms in a Medium */
     const int getN();
+    /** Sort Medium atoms by their radial coordinate */
+    void sort_atoms(vector<int>* permutation_indxs);
 
-private:
-    vector<double> x, y, z;	//!< Real coordinates
-    vector<double> Sx, Sy, Sz; //!< Surface area components
-    vector<int> coordination;	//!< Number of nearest neighbours in cutoff radius
-    vector<int> type;			//!< Atom type (-1-fixed, 1-bulk, 2-surface, 3-vacancy)
-    vector<bool> isEvaporated; //!< List of evaporated atoms
+protected:
+    vector<double> x, y, z; //!< Real coordinates
+    vector<int> type;       //!< Atom type
+    int N;                  //!< Nr of atoms in Medium
 };
 
 } /* namespace femocs */

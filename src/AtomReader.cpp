@@ -16,22 +16,35 @@
 using namespace std;
 namespace femocs {
 
-AtomReader::AtomReader(const string& file_name) {
-    int start = file_name.find_last_of('.') + 1;
-    int end = file_name.size();
-    string fileType = file_name.substr(start, end);
-
-    if (fileType == "xyz")
-        import_xyz(file_name);
-    else if (fileType == "ckx")
-        import_ckx(file_name);
-    else if (fileType == "dump")
-        import_dump(file_name);
-    else
-        cout << "Unknown file type: " << fileType << endl;
+AtomReader::AtomReader() {
 }
 
-const void AtomReader::import_xyz(const string& file_name) {
+const void AtomReader::import_file(const string& file_name, Femocs::SimuCell* cell) {
+    string file_type = get_file_type(file_name);
+
+    if (file_type == "xyz")
+        import_xyz(file_name, cell);
+    else if (file_type == "ckx")
+        import_ckx(file_name, cell);
+    else if (file_type == "dump")
+        import_dump(file_name, cell);
+    else
+        cout << "Unknown file type: " << file_type << endl;
+}
+
+const string AtomReader::get_file_type(const string& file_name) {
+    int start = file_name.find_last_of('.') + 1;
+    int end = file_name.size();
+    string file_type = file_name.substr(start, end);
+
+    if (file_type == "xyz") this->data.simu_type = "md";
+    if (file_type == "dump") this->data.simu_type = "md";
+    if (file_type == "ckx") this->data.simu_type = "kmc";
+
+    return file_type;
+}
+
+const void AtomReader::import_xyz(const string& file_name, Femocs::SimuCell* cell) {
     ifstream in_file(file_name, ios::in);
     if (!in_file.is_open()) {
         cout << "Did not find a file " << file_name << endl;
@@ -41,47 +54,29 @@ const void AtomReader::import_xyz(const string& file_name) {
     double x, y, z;
     int type;
     string elem, line, dummy;
-    size_t nrOfAtoms;
+    size_t natoms;
     istringstream iss;
 
     getline(in_file, line); 	// Read number of atoms
     iss.clear();
     iss.str(line);
-    iss >> nrOfAtoms;
-    this->data.x.reserve(nrOfAtoms);
-    this->data.y.reserve(nrOfAtoms);
-    this->data.z.reserve(nrOfAtoms);
-    this->data.type.reserve(nrOfAtoms);
-    this->data.xmin = DBL_MAX;
-    this->data.xmax = DBL_MIN;
-    this->data.ymin = DBL_MAX;
-    this->data.ymax = DBL_MIN;
-    this->data.zmin = DBL_MAX;
-    this->data.zmax = DBL_MIN;
+    iss >> natoms;
+    init_data(natoms, cell);
 
     getline(in_file, line);    // Skip comments line
 
     // keep storing values from the text file so long as data exists:
-    while ((--nrOfAtoms > 0) && getline(in_file, line)) {
+    while ((--natoms > 0) && getline(in_file, line)) {
         iss.clear();
         iss.str(line);
         iss >> elem >> x >> y >> z >> type;
-        this->data.x.push_back(x);
-        this->data.y.push_back(y);
-        this->data.z.push_back(z);
-        this->data.type.push_back(type);
-        if (x > this->data.xmax) this->data.xmax = x;
-        if (y > this->data.ymax) this->data.ymax = y;
-        if (z > this->data.zmax) this->data.zmax = z;
-        if (x < this->data.xmin) this->data.xmin = x;
-        if (y < this->data.ymin) this->data.ymin = y;
-        if (z < this->data.zmin) this->data.zmin = z;
+        add_data(x, y, z, type, cell);
     }
 
     return;
 }
 
-const void AtomReader::import_ckx(const string& file_name) {
+const void AtomReader::import_ckx(const string& file_name, Femocs::SimuCell* cell) {
     ifstream in_file(file_name, ios::in);
     if (!in_file.is_open()) {
         cout << "Did not find a file " << file_name << endl;
@@ -91,47 +86,59 @@ const void AtomReader::import_ckx(const string& file_name) {
     double x, y, z;
     int type;
     string line, dummy;
-    size_t nrOfAtoms;
+    size_t natoms;
     istringstream iss;
 
     getline(in_file, line); 	// Read number of atoms
     iss.clear();
     iss.str(line);
-    iss >> nrOfAtoms;
-    this->data.x.reserve(nrOfAtoms);
-    this->data.y.reserve(nrOfAtoms);
-    this->data.z.reserve(nrOfAtoms);
-    this->data.type.reserve(nrOfAtoms);
-    this->data.xmin = DBL_MAX;
-    this->data.xmax = DBL_MIN;
-    this->data.ymin = DBL_MAX;
-    this->data.ymax = DBL_MIN;
-    this->data.zmin = DBL_MAX;
-    this->data.zmax = DBL_MIN;
+    iss >> natoms;
+    init_data(natoms, cell);
 
     getline(in_file, line);    // Skip comments line
 
     // keep storing values from the text file so long as data exists:
-    while ((--nrOfAtoms > 0) && getline(in_file, line)) {
+    while ((--natoms > 0) && getline(in_file, line)) {
         iss.clear();
         iss.str(line);
         iss >> type >> x >> y >> z;
-        this->data.x.push_back(x);
-        this->data.y.push_back(y);
-        this->data.z.push_back(z);
-        this->data.type.push_back(type);
-        if (x > this->data.xmax) this->data.xmax = x;
-        if (y > this->data.ymax) this->data.ymax = y;
-        if (z > this->data.zmax) this->data.zmax = z;
-        if (x < this->data.xmin) this->data.xmin = x;
-        if (y < this->data.ymin) this->data.ymin = y;
-        if (z < this->data.zmin) this->data.zmin = z;
+        add_data(x, y, z, type, cell);
     }
 
     return;
 }
 
-const void AtomReader::import_dump(const string& file_name) {
+const void AtomReader::init_data(const int natoms, Femocs::SimuCell* cell) {
+    this->data.x.reserve(natoms);
+    this->data.y.reserve(natoms);
+    this->data.z.reserve(natoms);
+    this->data.type.reserve(natoms);
+    cell->xmin = DBL_MAX;
+    cell->xmax = DBL_MIN;
+    cell->ymin = DBL_MAX;
+    cell->ymax = DBL_MIN;
+    cell->zmin = DBL_MAX;
+    cell->zmax = DBL_MIN;
+    return;
+}
+
+const void AtomReader::add_data(const double x, const double y, const double z, const int type,
+        Femocs::SimuCell* cell) {
+    this->data.x.push_back(x);
+    this->data.y.push_back(y);
+    this->data.z.push_back(z);
+    this->data.type.push_back(type);
+
+    if (x > cell->xmax) cell->xmax = x;
+    if (y > cell->ymax) cell->ymax = y;
+    if (z > cell->zmax) cell->zmax = z;
+    if (x < cell->xmin) cell->xmin = x;
+    if (y < cell->ymin) cell->ymin = y;
+    if (z < cell->zmin) cell->zmin = z;
+    return;
+}
+
+const void AtomReader::import_dump(const string& file_name, Femocs::SimuCell* cell) {
     return;
 }
 

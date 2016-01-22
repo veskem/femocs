@@ -12,7 +12,8 @@
 #include <string>
 
 #include "AtomReader.h"
-#include "Medium.h"
+#include "Femocs.h"
+#include "Surface.h"
 
 using namespace std;
 namespace femocs {
@@ -26,45 +27,63 @@ public:
      * Constructor for surface atom extractor from bulk material.
      * @param adapter - method used to extract the surface
      * @param cutoff - cutoff distance used in coordination calculation
+     * @param latconst - lattice constant of extracted material
      * @param nnn - expected number of nearest neighbours
      * @param nt - number of OpenMP threads
      */
-    SurfaceExtractor(const string& adapter, const double cutoff, const int nnn, const int nt);
-    virtual ~SurfaceExtractor() {};
+    SurfaceExtractor(const string& adapter, const double cutoff, const double latconst,
+            const int nnn, const int nt);
+    virtual ~SurfaceExtractor() {
+    }
+    ;
 
     /**
      * Function to choose suitable method to extract surface.
-     * @param data - x, y and z coordinates of atoms from AtomReader
+     * @param data - x, y and z coordinates and types of atoms
+     * @param cell - simulation cell parameters
      * @return extracted surface
      */
-    const virtual shared_ptr<Surface> extract_surface(const AtomReader::Data data);
+    const virtual shared_ptr<Surface> extract_surface(const AtomReader::Data* data,
+            const Femocs::SimuCell* cell);
 
 private:
-    string adapter;     //!< specify the method to extract the surface (coordination or centrosymmetry)
+    string adapter;  //!< specify the method to extract the surface (coordination or centrosymmetry)
     double cutoff2;	    //!< squared cutoff radius for coordination and common neighbour analysis
     int nnn;            //!< number of nearest neighbours for given crystallographic structure
-    double surfEps;	    //!< distance from the simulation cell edges that contain non-interesting surface
+    double surfEps; //!< distance from the simulation cell edges that contain non-interesting surface
     int nrOfOmpThreads; //!< number of OpenMP threads
+    double latconst;    //!< lattice constant of extractable material
 
     /**
      * Function to check whether the atom is on the boundary of simulation cell.
      * @param i - index of atom under investigation
+     * @param dat - atom coordinates data
+     * @param cell - simulation cell data
      * @return Boolean whether the atom is on the edge of horizontal plane or on the bottom of simulation cell
      */
-    const virtual bool isBoundary(const int i, const AtomReader::Data dat);
+    const virtual bool is_boundary(const int i, const AtomReader::Data* dat,
+            const Femocs::SimuCell* cell);
+
+    /**
+     * Extract surface by the atom types given by kMC simulation.
+     */
+    const shared_ptr<Surface> kmc_extract(const AtomReader::Data* dat,
+            const Femocs::SimuCell* cell);
 
     /**
      * Extract surface by the coordination analysis - atoms having coordination less than the number
      * of nearest neighbours in given crystal are considered to belong to surface.
      */
-    const virtual shared_ptr<Surface> coordination_extract(const AtomReader::Data dat);
+    const virtual shared_ptr<Surface> coordination_extract(const AtomReader::Data* dat,
+            const Femocs::SimuCell* cell);
 
     /**
      * Extract surface by the centrosymmetry analysis - atoms having centrosymmetry less than
      * threshold are considered to belong to surface.
      * @todo Implement it!
      */
-    const virtual shared_ptr<Surface> centrosymmetry_extract(const AtomReader::Data dat);
+    const virtual shared_ptr<Surface> centrosymmetry_extract(const AtomReader::Data* dat,
+            const Femocs::SimuCell* cell);
 };
 
 } /* namespace femocs */

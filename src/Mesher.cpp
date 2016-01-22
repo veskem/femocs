@@ -7,138 +7,57 @@
 
 #include "Mesher.h"
 
+#include <stdio.h>
+#include <cmath>
+#include <cstring>
 #include <iostream>
 #include <numeric>
-#include <algorithm>
-#include <vector>
+#include <sstream>
+
+#include "Vacuum.h"
 
 using namespace std;
 namespace femocs {
-
-// Function to calculate the indices of sorted array
-template<class Vals>
-void get_sort_permutation(const Vals& values, std::vector<int>& v) {
-    int size = values.size();
-    v.clear();
-    v.reserve(size);
-    for (int i = 0; i < size; ++i)
-        v.push_back(i);
-
-    sort(v.begin(), v.end(), [&values](int a, int b) -> bool {
-        return values[a] < values[b];
-    });
-}
 
 Mesher::Mesher(string mesher) {
     if (mesher != "tetgen") cout << "Unknown mesher: " + mesher << endl;
 }
 
 // Function to generate mesh between surface atoms
-void Mesher::generate_mesh(shared_ptr<Surface> bulk, shared_ptr<Surface> surf, string cmd) {
+void Mesher::generate_mesh(const Femocs::SimuCell* cell, shared_ptr<Surface> bulk,
+        shared_ptr<Surface> surf, Vacuum* vacuum, string cmd) {
 //    generate_surface_mesh(surf, &tetgenIn);
-    generate_volume_mesh(bulk, surf, &tetgenIn);
+    generate_volume_mesh(bulk, vacuum, &tetgenIn);
     calculate(cmd, &tetgenIn, &tetgenOut);
 }
 
-// Function to sort the surface atoms according to their radial distance on xy-plane
-void Mesher::sort_surface(vector<int>& permutation_indxs, shared_ptr<Surface> surf) {
-    int i;
-    int N = surf->getN();
-    double x, y;
-    vector<double> r2;
-    r2.reserve(N);
-    for (i = 0; i < N; ++i) {
-        x = surf->getX(i);
-        y = surf->getY(i);
-        r2.push_back(x*x + y*y);
-    }
-    get_sort_permutation(r2, permutation_indxs);
-
-//    for (i = 0; i < N; ++i)
-//        cout << permutation_indxs[i] << ": " << r2[permutation_indxs[i]] << endl;
-}
-/*
- * TODO: add bulk material atoms to the mesh and avoid using surface atoms twice when
- * generating vacuum virtual atoms as surface atoms elevated in z direction
- * Also replace the elevation factor from 2^i to double^i
-
- * To remove every second atom from surface, they must be sorted first.
- * It can be done by first calculating the atomic radial coordinates in
- * xy-plane, then finding sort indices for them (like described here)
- * http://stackoverflow.com/questions/17074324/how-can-i-sort-two-vectors-in-the-same-way-with-criteria-that-uses-only-one-of
- * and finally sorting(or just using sort indices for) the x,y,z,type... vectors.
- */
-
 // Function to generate volumetric mesh between surface atoms and vacuum
-void Mesher::generate_volume_mesh(shared_ptr<Surface> bulk, shared_ptr<Surface> surf, tetgenio* tetIO) {
-    int i, j, k1, k2;
-    int nlayers = 1;            // number of node layers
-    int N_bulk = bulk->getN();  // number of atoms in bulk material
-    int N_surf = surf->getN();  // number of atoms in surface
-
-    // sum of Nsurf/2^1 + Nsurf/2^2 +...+ Nsurf/2^nlayers = Nsurf*( 1 - 1/2^nlayers )/(1 - 1/2)
-    int M = ceil(4*nlayers + N_bulk + N_surf*(1.0 - 1.0/(1 << nlayers))); // total number of nodes
+void Mesher::generate_volume_mesh(shared_ptr<Surface> bulk, Vacuum* vacuum, tetgenio* tetIO) {
+    int N_bulk = bulk->getN();      // number of atoms in bulk material
+    int N_vacuum = vacuum->getN();  // number of atoms in vacuum
+    int M = N_bulk + N_vacuum;      // total number of nodes
 
     tetIO->numberofpoints = M;
     tetIO->pointlist = new REAL[3 * M];
     tetIO->pointmarkerlist = new int[M];
 
-    // TODO!!! GET THOSE CORNERS AUTOMATICALLY!!!
-    const double pos_corn = 74.99;
-    const double neg_corn = -74.99;
-    const double zmax = 100;
-    const double dz = 15;
-    double znew = zmax;
-
-    vector<int> iperm;
-    sort_surface(iperm, surf);
-    k1 = 0; k2 = 0;
-
+    int i;
+    int j = 0;
     // Add bulk atoms
-    k1 = 0;
     for (i = 0; i < N_bulk; ++i) {
-        add_point(bulk->getX(i), bulk->getY(i), bulk->getZ(i), bulk->getType(i), k1, tetIO);
-        k1 += 3;
+        add_point(bulk->getX(i), bulk->getY(i), bulk->getZ(i), bulk->getType(i), j, tetIO);
+        j += 3;
     }
-
-    // Add every 2nd atom to the next layer as compared to previous one
-    for (i = 1; i <= nlayers; ++i) {
-        for (j = 0; j < N_surf / (1 << i); ++j) {
-            k2 = iperm[j * (1 << i)];
-            //k2 = j * (1 << i);
-
-            //cout << k1 << " " << k2 << " " << znew << endl;
-            if (k1 >= 3 * M) {
-                cout << "k1 out of limits!, i,j=" << i << "," << j << endl; exit(EXIT_FAILURE);
-            }
-            if (k2 >= N_surf) {
-                cout << "k2 out of limits!" << endl; exit(EXIT_FAILURE);
-            }
-
-            znew = dz * i + surf->getZ(k2);
-//            znew = surf->getZ(k2) + pow(dz, i);
-            if (znew > zmax) znew = zmax;
-
-            add_point(surf->getX(k2), surf->getY(k2), znew, surf->getType(k2), k1, tetIO);
-            k1 += 3;
-        }
-
-        add_point(pos_corn, pos_corn, znew, 1, k1, tetIO); k1 += 3;
-        add_point(pos_corn, neg_corn, znew, 1, k1, tetIO); k1 += 3;
-        add_point(neg_corn, pos_corn, znew, 1, k1, tetIO); k1 += 3;
-        add_point(neg_corn, neg_corn, znew, 1, k1, tetIO); k1 += 3;
-    }
-
-    // Compensate the mismatch between allocated array size and actually inserted points
-    // Mismatch is caused by the rounding error in double->int conversion
-    while(k1 / 3 < M) {
-        add_point(surf->getX(0), surf->getY(0), surf->getZ(0), surf->getType(0), k1, tetIO);
-        k1 += 3;
+    // Add vacuum atoms
+    for (i = 0; i < N_vacuum; ++i) {
+        add_point(vacuum->getX(i), vacuum->getY(i), vacuum->getZ(i), vacuum->getType(i), j, tetIO);
+        j += 3;
     }
 }
 
 // Function to add point with coordinates and maker to tetgen list
-void Mesher::add_point(const double x, const double y, const double z, const int pmarker, const int i, tetgenio* tetIO) {
+void Mesher::add_point(const double x, const double y, const double z, const int pmarker,
+        const int i, tetgenio* tetIO) {
     tetIO->pointmarkerlist[i / 3] = pmarker;
     tetIO->pointlist[i + 0] = (REAL) x;
     tetIO->pointlist[i + 1] = (REAL) y;
@@ -168,99 +87,111 @@ void Mesher::clean_mesh(string cmd, double rmax) {
     clean_elements(&tetgenOut, rmax);
     clean_faces(&tetgenOut, rmax);
     clean_edges(&tetgenOut, rmax);
+    calculate(cmd, &tetgenOut, &tetgenOut);
+}
 
+// Function to mark the elements and faces of mesh
+void Mesher::mark_mesh(const Femocs::SimuCell* cell, string cmd) {
+    mark_faces(cell, &tetgenOut);
+    mark_elems(cell, &tetgenOut);
     calculate(cmd, &tetgenOut, &tetgenOut);
 }
 
 // Function to mark the outer edges of simulation cell
-void Mesher::mark_mesh(AtomReader::Data data, string cmd) {
+void Mesher::mark_elems(const Femocs::SimuCell* cell, tetgenio* tetIO) {
+    int i, j, k, l1, l2, l3, l4, m1, m2;
+    int N = tetIO->numberoftetrahedra;
+
+    REAL* node = tetIO->pointlist;       // pointer to nodes
+    int* elem = tetIO->tetrahedronlist;  // pointer to tetrahedrons
+    tetIO->tetrahedronattributelist = new double[N];
+    double* emarker = tetIO->tetrahedronattributelist; // pointer to tetrahedron attributes
+
+    const double xyz[6] = { cell->xmin, cell->xmax, cell->ymin, cell->ymax, cell->zmin,
+            cell->zmaxbox };
+    const int ncoords = 3; // nr of coordinates
+    const int nnodes = 4;  // nr of nodes per element
+
+    // Loop through the elements
+    for (i = 0; i < N; ++i) {
+        j = nnodes * i;
+        emarker[i] = ncoords; // Set default maker value
+
+        // Loop through x, y and z coordinates
+        for (k = 0; k < ncoords; ++k) {
+            l1 = ncoords * elem[j + 0] + k; // index of x, y or z coordinate of 1st node
+            l2 = ncoords * elem[j + 1] + k; // ..2nd node
+            l3 = ncoords * elem[j + 2] + k; // ..3rd node
+            l4 = ncoords * elem[j + 3] + k; // ..4th node
+
+            m1 = 2 * k + 0; // index for min x, y or z-coordinate
+            m2 = 2 * k + 1; //           max x, y or z-coordinate
+
+            // element on negative direction edge
+            if (on_face(node[l1], node[l2], node[l3], xyz[m1], xyz[m1], xyz[m1])
+                    || on_face(node[l1], node[l2], node[l4], xyz[m1], xyz[m1], xyz[m1])
+                    || on_face(node[l1], node[l3], node[l4], xyz[m1], xyz[m1], xyz[m1])
+                    || on_face(node[l2], node[l3], node[l4], xyz[m1], xyz[m1], xyz[m1]))
+                emarker[i] = ncoords - k - 1;
+
+            // element on positive direction edge
+            if (on_face(node[l1], node[l2], node[l3], xyz[m2], xyz[m2], xyz[m2])
+                    || on_face(node[l1], node[l2], node[l4], xyz[m2], xyz[m2], xyz[m2])
+                    || on_face(node[l1], node[l3], node[l4], xyz[m2], xyz[m2], xyz[m2])
+                    || on_face(node[l2], node[l3], node[l4], xyz[m2], xyz[m2], xyz[m2]))
+                emarker[i] = ncoords + k + 1;
+        }
+    }
+}
+
+// Function to mark the outer edges of simulation cell
+void Mesher::mark_faces(const Femocs::SimuCell* cell, tetgenio* tetIO) {
     int i, j, k, l1, l2, l3, m1, m2;
-    int N = tetgenOut.numberoftrifaces;
+    int N = tetIO->numberoftrifaces;
 
-    REAL* node = tetgenOut.pointlist;	// pointer to nodes
-    int* face = tetgenOut.trifacelist;	// pointer to tetrahedron faces
+    REAL* node = tetIO->pointlist;	// pointer to nodes
+    int* face = tetIO->trifacelist;	// pointer to tetrahedron faces
+    tetIO->trifacemarkerlist = new int[N];
+    int* fmarker = tetIO->trifacemarkerlist; // pointer to face markers
 
-    tetgenOut.trifacemarkerlist = new int[N];
-    int* fmarker = tetgenOut.trifacemarkerlist; // pointer to face markers
-    tetgenIn.pointmarkerlist = new int[tetgenOut.numberofpoints];
-//    int* pmarker = tetgenOut.pointmarkerlist;   // pointer to point markers
-
-    double eps = 0.1;
-
-    double xyz[6] = { data.xmin, data.xmax, data.ymin, data.ymax, data.zmin, data.zmax };
-    bool dif[6];
+    const double xyz[6] = { cell->xmin, cell->xmax, cell->ymin, cell->ymax, cell->zmin,
+            cell->zmaxbox };
+    const int ncoords = 3; // nr of coordinates
+    const int nnodes = 3;  // nr of nodes per face
 
     // Loop through the faces
     for (i = 0; i < N; ++i) {
-        j = 3 * i;
-        fmarker[i] = 66; // Set default maker value
+        j = nnodes * i;
+        fmarker[i] = ncoords; // Set default maker value
 
         // Loop through x, y and z coordinates
-        for (k = 0; k < 3; ++k) {
-            l1 = 3 * face[j + 0] + k; // index of x, y or z coordinate of 1st node
-            l2 = 3 * face[j + 1] + k;	// ..2nd node
-            l3 = 3 * face[j + 2] + k; // ..3rd node
+        for (k = 0; k < ncoords; ++k) {
+            l1 = ncoords * face[j + 0] + k; // index of x, y or z coordinate of 1st node
+            l2 = ncoords * face[j + 1] + k; // ..2nd node
+            l3 = ncoords * face[j + 2] + k; // ..3rd node
 
-            m1 = 2 * k + 0;
-            m2 = 2 * k + 1;
+            m1 = 2 * k + 0; // index for min x, y or z-coordinate
+            m2 = 2 * k + 1; //           max x, y or z-coordinate
 
-            dif[0] = (fabs(node[l1] - xyz[m1]) < eps);
-            dif[1] = (fabs(node[l2] - xyz[m1]) < eps);
-            dif[2] = (fabs(node[l3] - xyz[m1]) < eps);
+            // outer face in negative direction
+            if (on_face(node[l1], node[l2], node[l3], xyz[m1], xyz[m1], xyz[m1]))
+                fmarker[i] = ncoords - k - 1;
 
-            dif[3] = (fabs(node[l1] - xyz[m2]) < eps);
-            dif[4] = (fabs(node[l2] - xyz[m2]) < eps);
-            dif[5] = (fabs(node[l3] - xyz[m2]) < eps);
-
-            if (dif[0] && dif[1] && dif[2]) {
-                //      cout << node[l1] << " " << node[l2] << " " << node[l3] << endl;
-                fmarker[i] = 10 * (k + 1); // outer face in negative direction
-//                pmarker[face[j+0]] = 10*(k+1);
-//                pmarker[face[j+1]] = 10*(k+1);
-//                pmarker[face[j+2]] = 10*(k+1);
-            }
-
-            if (dif[3] && dif[4] && dif[5]) {
-                fmarker[i] = k + 1;   // outer face in positive direction
-//                pmarker[face[j+0]] = (k+1);
-//                pmarker[face[j+1]] = (k+1);
-//                pmarker[face[j+2]] = (k+1);
-            }
-
+            // outer face in positive direction
+            if (on_face(node[l1], node[l2], node[l3], xyz[m2], xyz[m2], xyz[m2]))
+                fmarker[i] = ncoords + k + 1;
         }
-//        l1 = face[j + 0]; // index of 1st node
-//        l2 = face[j + 1];	// ..2nd node
-//        l3 = face[j + 2]; // ..3rd node
-//        if ( pmarker[l1] == (pmarker[l2] == (pmarker[l3] == data.type_surf))) fmarker[i] = 100;
     }
-
-    calculate(cmd, &tetgenOut, &tetgenOut);
 }
 
-// Function to make the mesh smoother
-void Mesher::smooth_mesh(int nr_of_iterations) {
-    REAL* node = tetgenOut.pointlist;		// pointer to nodes
-    int* face = tetgenOut.trifacelist;		// pointer to triangular faces
-    int N = tetgenOut.numberoftrifaces;
-    int i, j, k, l1, l2, l3;
-    double mean;
-
-    // TODO: exclude boundary nodes from averaging to keep the size of simulation box constant
-
-    // Do several iterations
-    for (j = 0; j < nr_of_iterations; ++j) {
-        // Loop through the faces
-        for (i = 0; i < N; ++i) {
-            // Loop through x, y and z coordinates
-            for (k = 0; k < 3; ++k) {
-                l1 = 3 * face[j + 0] + k; // index of x,y or z coordinate of 1st node
-                l2 = 3 * face[j + 1] + k;	// ..2nd node
-                l3 = 3 * face[j + 2] + k; // ..3rd node
-                mean = (node[l1] + node[l2] + node[l3]) / 3.0;
-                node[l1] = node[l2] = node[l3] = mean;
-            }
-        }
-    }
+// Determine whether the nodes of two faces are overlapping
+bool Mesher::on_face(const double f1n1, const double f1n2, const double f1n3, const double f2n1,
+        const double f2n2, const double f2n3) {
+    double eps = 0.1;
+    bool dif1 = (fabs(f1n1 - f2n1) < eps);
+    bool dif2 = (fabs(f1n2 - f2n2) < eps);
+    bool dif3 = (fabs(f1n3 - f2n3) < eps);
+    return dif1 && dif2 && dif3;
 }
 
 // Function to remove too big tetrahedra from the mesh
@@ -388,9 +319,116 @@ void Mesher::update_list(int* list, int* list_size, vector<bool> is_quality, int
     }
 }
 
-// Function to output mesh in .vtk format that can be read by ParaView
-void Mesher::output_mesh() {
-    calculate("k", &tetgenOut, NULL);
+// Function to output mesh in .vtk format
+void Mesher::write_vtk(const string file_name, const int nnodes, const int ncells,
+        const int nmarkers, const REAL* nodes, const int* cells, const char* markerstr,
+        const int celltype, const int nnodes_per_cell) {
+    int i, j;
+    char file_name_char[1024];
+    strcpy(file_name_char, file_name.c_str());
+
+    FILE *outfile;
+    outfile = fopen(file_name_char, "w");
+    if (outfile == (FILE *) NULL) {
+        printf("File I/O Error:  Cannot create file %s.\n", file_name_char);
+        return;
+    }
+
+    fprintf(outfile, "# vtk DataFile Version 2.0\n");
+    fprintf(outfile, "Unstructured Grid\n");
+    fprintf(outfile, "ASCII\n"); // another option is BINARY
+    fprintf(outfile, "DATASET UNSTRUCTURED_GRID\n");
+
+    // Output the nodes
+    if (nnodes > 0) {
+        fprintf(outfile, "POINTS %d double\n", nnodes);
+        for (i = 0; i < 3 * nnodes; i += 3)
+            fprintf(outfile, "%.8g %.8g %.8g\n", nodes[i + 0], nodes[i + 1], nodes[i + 2]);
+        fprintf(outfile, "\n");
+    }
+
+    // Output the cells (tetrahedra or triangles)
+    if (ncells > 0) {
+        fprintf(outfile, "CELLS %d %d\n", ncells, ncells * (nnodes_per_cell + 1));
+        for (i = 0; i < nnodes_per_cell * ncells; i += nnodes_per_cell) {
+            fprintf(outfile, "%d ", nnodes_per_cell);
+            for (j = 0; j < nnodes_per_cell; ++j)
+                fprintf(outfile, "%d ", cells[i + j]);
+            fprintf(outfile, "\n");
+        }
+        fprintf(outfile, "\n");
+    }
+
+    // Output the types of cells, 10=tetrahedron, 5=triangle
+    if (ncells > 0) {
+        fprintf(outfile, "CELL_TYPES %d\n", ncells);
+        for (i = 0; i < ncells; ++i)
+            fprintf(outfile, "%d\n", celltype);
+        fprintf(outfile, "\n");
+    }
+
+    // Output cell attributes
+    if (nmarkers > 0) {
+        fprintf(outfile, "CELL_DATA %d\n", nmarkers);
+        fprintf(outfile, "SCALARS Cell_markers int\n");
+        fprintf(outfile, "LOOKUP_TABLE default\n");
+        fprintf(outfile, "%s", markerstr);
+    }
+
+    fclose(outfile);
+}
+
+// Function to output faces in .vtk format
+void Mesher::write_faces(const string file_name) {
+    tetgenio* tetIO;
+    tetIO = &tetgenOut;
+    ostringstream markerstr;
+
+    const int celltype = 5;
+    const int nnodes_per_cell = 3;
+
+    int nnodes = tetIO->numberofpoints;
+    int nfaces = tetIO->numberoftrifaces;
+    int nmarkers = tetIO->numberoftrifaces;
+    REAL* nodes = tetIO->pointlist;              // pointer to nodes
+    int* faces = tetIO->trifacelist;             // pointer to face nodes
+    int* markers = tetIO->trifacemarkerlist;    // pointer to face markers
+
+    // Convert cell attributes to string stream
+    for (int i = 0; i < nmarkers; ++i)
+        markerstr << markers[i] << "\n";
+
+    write_vtk(file_name, nnodes, nfaces, nmarkers, nodes, faces, markerstr.str().c_str(), celltype,
+            nnodes_per_cell);
+}
+
+// Function to output faces in .vtk format
+void Mesher::write_elems(const string file_name) {
+    tetgenio* tetIO;
+    tetIO = &tetgenOut;
+    ostringstream markerstr;
+
+    const int celltype = 10; // 5-triangle, 10-tetrahedron
+    const int nnodes_per_cell = 4;
+
+    int nnodes = tetIO->numberofpoints;
+    int nelems = tetIO->numberoftetrahedra;
+    int nmarkers = tetIO->numberoftetrahedra;
+    REAL* nodes = tetIO->pointlist;              // pointer to nodes
+    int* elems = tetIO->tetrahedronlist;             // pointer to faces nodes
+    double* markers = tetIO->tetrahedronattributelist;    // pointer to faces markers
+
+    // Convert cell attributes to string stream
+    for (int i = 0; i < nmarkers; ++i)
+        markerstr << (int) markers[i] << "\n";
+
+    write_vtk(file_name, nnodes, nelems, nmarkers, nodes, elems, markerstr.str().c_str(), celltype,
+            nnodes_per_cell);
+}
+
+// Function to perform standalone mesh refinement operations
+void Mesher::refine(const string cmd) {
+    calculate(cmd, &tetgenOut, &tetgenOut);
 }
 
 // Function to perform tetgen calculation on input and output data
