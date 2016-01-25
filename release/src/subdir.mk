@@ -8,21 +8,27 @@ CPP_SRCS += \
 ../src/Femocs.cpp \
 ../src/Medium.cpp \
 ../src/Mesher.cpp \
-../src/SurfaceExtractor.cpp 
+../src/Surface.cpp \
+../src/SurfaceExtractor.cpp \
+../src/Vacuum.cpp 
 
 OBJS += \
 ./src/AtomReader.o \
 ./src/Femocs.o \
 ./src/Medium.o \
 ./src/Mesher.o \
-./src/SurfaceExtractor.o 
+./src/Surface.o \
+./src/SurfaceExtractor.o \
+./src/Vacuum.o 
 
 CPP_DEPS += \
 ./src/AtomReader.d \
 ./src/Femocs.d \
 ./src/Medium.d \
 ./src/Mesher.d \
-./src/SurfaceExtractor.d 
+./src/Surface.d \
+./src/SurfaceExtractor.d \
+./src/Vacuum.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
