@@ -8,3 +8,4 @@ femocs
 doc/html/
 doc/latex/
 tetgen-tmpfile*
+/release/
