@@ -24,6 +24,7 @@ class Vacuum: public Medium {
 public:
     Vacuum();
     const void generate(const Femocs::SimuCell* cell, shared_ptr<Surface> surf);
+    const void generate_simple(const Femocs::SimuCell* cell);
 
 private:
     const void initialise_vars(const int natoms);

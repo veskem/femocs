@@ -36,15 +36,23 @@ public:
     ;
     void generate_mesh(const Femocs::SimuCell* cell, shared_ptr<Surface> bulk,
             shared_ptr<Surface> surf, Vacuum* vacuum, string cmd);
-    void clean_mesh(string cmd, double rmax);
+    void clean_mesh(string cmd, double rmax, const Femocs::SimuCell* cell);
     void mark_mesh(const Femocs::SimuCell* cell, const string cmd);
+    void add_vacuum(const string cmd, Femocs::SimuCell* cell);
     void write_faces(const string file_name);
     void write_elems(const string file_name);
     void refine(const string cmd);
+    void generate_surface_mesh(shared_ptr<Surface> surf);
+    void generate_bulk_mesh(const Femocs::SimuCell* cell, shared_ptr<Surface> bulk);
+    void generate_volume_mesh(shared_ptr<Surface> bulk, Vacuum* vacuum);
+    void unite(const string cmd, const Mesher* mesh2);
+    void unite2(const string cmd, const Mesher* mesh2, const Femocs::SimuCell* cell);
+    void unite3(const tetgenio* tetIO_bulk, const tetgenio* tetIO_surf, const Femocs::SimuCell* cell, const string cmd);
+
+    void calc(const string cmd);
+    tetgenio tetgenOut;
 
 private:
-    tetgenio tetgenIn;
-    tetgenio tetgenOut;
     tetgenbehavior tetgenbeh;
 
     void mark_faces(const Femocs::SimuCell* cell, tetgenio* tetIO);
@@ -54,14 +62,13 @@ private:
             const REAL* nodes, const int* cells, const char* markerstr, const int celltype,
             const int nnodes_per_cell);
 
-    bool on_face(const double face1_x, const double face1_y, const double face1_z,
-            const double face2_x, const double face2_y, const double face2_z);
+    bool on_face(const double f1n1, const double f1n2, const double f1n3, const double f2);
     void add_point(const double x, const double y, const double z, const int pmarker, const int i,
             tetgenio* tetIO);
-    void generate_surface_mesh(shared_ptr<Surface> surf, tetgenio* tetIO);
-    void generate_volume_mesh(shared_ptr<Surface> bulk, Vacuum* vacuum, tetgenio* tetIO);
+
     void clean_elements(tetgenio* tetIO, double rmax);
     void clean_faces(tetgenio* tetIO, double rmax);
+    void clean_faces2(tetgenio* tetIO, double rmax, const Femocs::SimuCell* cell);
     void clean_edges(tetgenio* tetIO, double rmax);
     void calculate(string cmd, tetgenio* t1, tetgenio* t2);
     void update_list(int* list, int* list_size, vector<bool> is_quality, int M);

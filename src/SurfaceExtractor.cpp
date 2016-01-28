@@ -103,6 +103,8 @@ const shared_ptr<Surface> SurfaceExtractor::coordination_extract(const AtomReade
     } else {
 
 #pragma omp parallel for shared(coords,is_surface) private(i,j,dx,dy,dz,r2) reduction(+:coord,nsurface_atoms)
+
+
         for (i = 0; i < natoms; ++i) {
             coord = 0;
             for (j = 0; j < natoms; ++j) {

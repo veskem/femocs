@@ -53,6 +53,13 @@ public:
         int type_vacancy = 3; //!< type of vacancies
         int type_vacuum = 3;  //!< type of vacuum
         int type_fixed = -1;  //!< type of fixed atoms
+        int type_xmin = 4;  //!< type of atom on negative x-face of simulation cell
+        int type_ymin = 5;  //!< type of atom on negative y-face of simulation cell
+        int type_zmin = 6;  //!< type of atom on negative z-face of simulation cell
+        int type_xmax = 10;  //!< type of atom on positive x-face of simulation cell
+        int type_ymax = 9;  //!< type of atom on positive y-face of simulation cell
+        int type_zmax = 8;  //!< type of atom on positive z-face of simulation cell
+        int type_none = 7;  //!< type of atom with unknown position
     };
 
     Config conf;          //!< Femocs configuration parameters

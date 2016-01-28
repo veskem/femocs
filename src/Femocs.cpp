@@ -28,9 +28,9 @@ Femocs::Femocs(const string& file_name) {
 // Get simulation parameters
 const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
     Config conf;
-    conf.latconst = 1.0; //3.51;       // lattice constant
+    conf.latconst = 1.0; //3.51; //1.0;       // lattice constant
     conf.coord_cutoff = 3.3;	// coordination analysis cut off radius
-    conf.tetgen_cutoff = 14.2; //8.0;			// max_length^2 of tetrahedra's edge
+    conf.tetgen_cutoff = 4.1; //14.2; //5.0;			// max_length^2 of tetrahedra's edge
     conf.nnn = 12;						    // number of nearest neighbours in bulk
     conf.extracter = "coordination";	    // surface extraction algorithm
     conf.mesher = "tetgen";				    // mesher algorithm
@@ -43,7 +43,7 @@ const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
 const Femocs::SimuCell Femocs::init_simucell() const {
     SimuCell sc;
     sc.xmin = sc.xmax = sc.ymin = sc.ymax = sc.zmin = sc.zmax = 0;
-    sc.zmaxbox = 100.0;
+    sc.zmaxbox = 70.0;
     return sc;
 }
 
@@ -102,7 +102,8 @@ int main(int argc, char* argv[]) {
 
     t0 = start_msg("=== Generating vacuum...");
     Vacuum vacuum;
-    vacuum.generate(&femocs.simucell, surf);
+//    vacuum.generate(&femocs.simucell, surf);
+    vacuum.generate_simple(&femocs.simucell);
     end_msg(t0);
 
 //    t0 = start_msg("=== Writing surface, bulk and vacuum to output/...");
@@ -111,27 +112,96 @@ int main(int argc, char* argv[]) {
 //    vacuum.output(vacuum_file);
 //    end_msg(t0);
 
-    t0 = start_msg("=== Generating surface mesh...\n");
-    Mesher mesher(femocs.conf.mesher);
-    mesher.generate_mesh(&femocs.simucell, bulk, surf, &vacuum, "Q");
+// ===============================================
+
+    t0 = start_msg("=== Generating mesh...\n");
+    Mesher bulk_mesher(femocs.conf.mesher);
+    bulk_mesher.generate_bulk_mesh(&femocs.simucell, bulk);
+    bulk_mesher.calc("Q");
+    Mesher volume_mesher(femocs.conf.mesher);
+    volume_mesher.generate_volume_mesh(bulk, &vacuum);
+    volume_mesher.calc("Q");
+//    volume_mesher.generate_mesh(&femocs.simucell, bulk, surf, &vacuum, "Q");
     end_msg(t0);
 
-//    t0 = start_msg("=== Cleaning surface mesh...\n");
-//    mesher.clean_mesh("r", femocs.conf.tetgen_cutoff);
-//    end_msg(t0);
+    t0 = start_msg("=== Cleaning mesh...\n");
+    bulk_mesher.clean_mesh("r", femocs.conf.tetgen_cutoff, &femocs.simucell);
+    end_msg(t0);
 
 //    t0 = start_msg("=== Refining mesh...");
-//    mesher.refine("rq1.414a100Y");
+//    volume_mesher.refine("rq1.414a50");
+//    bulk_mesher.refine("rq1.414a50");
 //    end_msg(t0);
+
+    t0 = start_msg("=== Marking mesh...");
+    volume_mesher.mark_mesh(&femocs.simucell, "r");
+    bulk_mesher.mark_mesh(&femocs.simucell, "r");
+    end_msg(t0);
+
+    t0 = start_msg("=== Uniting meshes...\n");
+    Mesher mesher(femocs.conf.mesher);
+    mesher.unite3(&volume_mesher.tetgenOut, &bulk_mesher.tetgenOut, &femocs.simucell, "r");
+    end_msg(t0);
+
+    t0 = start_msg("=== Marking mesh...");
+    mesher.mark_mesh(&femocs.simucell, "r");
+    end_msg(t0);
+
+    t0 = start_msg("=== Refining mesh...");
+    mesher.refine("rq1.414a50");
+    end_msg(t0);
 
     t0 = start_msg("=== Marking mesh...");
     mesher.mark_mesh(&femocs.simucell, "r");
     end_msg(t0);
 
     t0 = start_msg("=== Outputting mesh...");
-    mesher.write_faces("output/faces.vtk");
-    mesher.write_elems("output/elems.vtk");
+    bulk_mesher.write_faces("output/bulk_faces.vtk");
+    bulk_mesher.write_elems("output/bulk_elems.vtk");
+    volume_mesher.write_faces("output/volume_faces.vtk");
+    volume_mesher.write_elems("output/volume_elems.vtk");
+    mesher.write_faces("output/union_faces.vtk");
+    mesher.write_elems("output/union_elems.vtk");
     end_msg(t0);
+
+
+//    t0 = start_msg("=== Marking mesh...");
+//    volume_mesher.mark_mesh(&femocs.simucell, "r");
+//    end_msg(t0);
+//
+//    t0 = start_msg("=== Outputting mesh...");
+//    volume_mesher.write_faces("output/faces.vtk");
+//    volume_mesher.write_elems("output/elems.vtk");
+//    end_msg(t0);
+
+    // ===============================================
+
+//    t0 = start_msg("=== Generating mesh...\n");
+//    Mesher mesher(femocs.conf.mesher);
+//    mesher.generate_mesh(&femocs.simucell, bulk, surf, &vacuum, "Q");
+//    end_msg(t0);
+//
+//    t0 = start_msg("=== Cleaning mesh...\n");
+//    mesher.clean_mesh("r", femocs.conf.tetgen_cutoff);
+//    end_msg(t0);
+//
+//    t0 = start_msg("=== Adding vacuum to bulk mesh...\n");
+//    mesher.add_vacuum("r", &femocs.simucell);
+//    end_msg(t0);
+//
+//    t0 = start_msg("=== Refining mesh...");
+//    mesher.refine("rq1.414a50Y");
+//    end_msg(t0);
+//
+//
+//    t0 = start_msg("=== Marking mesh...");
+//    mesher.mark_mesh(&femocs.simucell, "r");
+//    end_msg(t0);
+//
+//    t0 = start_msg("=== Outputting mesh...");
+//    mesher.write_faces("output/faces.vtk");
+//    mesher.write_elems("output/elems.vtk");
+//    end_msg(t0);
 
     cout << "\n======= Femocs finished! =======\n";
 

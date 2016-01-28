@@ -26,6 +26,17 @@ const void Vacuum::initialise_vars(const int natoms) {
 Vacuum::Vacuum() {
 }
 
+const void Vacuum::generate_simple(const Femocs::SimuCell* cell) {
+    int M = 4; // total number of nodes
+    initialise_vars(M);
+
+    // Add points to the xy-plane corners on current layer
+    addpoint(cell->xmax, cell->ymax, cell->zmaxbox, cell->type_vacuum);
+    addpoint(cell->xmax, cell->ymin, cell->zmaxbox, cell->type_vacuum);
+    addpoint(cell->xmin, cell->ymax, cell->zmaxbox, cell->type_vacuum);
+    addpoint(cell->xmin, cell->ymin, cell->zmaxbox, cell->type_vacuum);
+}
+
 const void Vacuum::generate(const Femocs::SimuCell* cell, shared_ptr<Surface> surf) {
     const double layer_exp = 1.7; // Magic number used to get nicer mesh distribution in z-direction
     const double zmax = cell->zmaxbox;
