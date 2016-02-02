@@ -26,15 +26,26 @@ const void Vacuum::initialise_vars(const int natoms) {
 Vacuum::Vacuum() {
 }
 
+const void Vacuum::generate_bottom(const Femocs::SimuCell* cell) {
+    int M = 4; // total number of nodes
+    initialise_vars(M);
+
+    // Add points to the xy-plane corners on current layer
+    add_point(cell->xmax, cell->ymax, cell->zminbox, cell->type_vacuum);
+    add_point(cell->xmax, cell->ymin, cell->zminbox, cell->type_vacuum);
+    add_point(cell->xmin, cell->ymax, cell->zminbox, cell->type_vacuum);
+    add_point(cell->xmin, cell->ymin, cell->zminbox, cell->type_vacuum);
+}
+
 const void Vacuum::generate_simple(const Femocs::SimuCell* cell) {
     int M = 4; // total number of nodes
     initialise_vars(M);
 
     // Add points to the xy-plane corners on current layer
-    addpoint(cell->xmax, cell->ymax, cell->zmaxbox, cell->type_vacuum);
-    addpoint(cell->xmax, cell->ymin, cell->zmaxbox, cell->type_vacuum);
-    addpoint(cell->xmin, cell->ymax, cell->zmaxbox, cell->type_vacuum);
-    addpoint(cell->xmin, cell->ymin, cell->zmaxbox, cell->type_vacuum);
+    add_point(cell->xmax, cell->ymax, cell->zmaxbox, cell->type_vacuum);
+    add_point(cell->xmax, cell->ymin, cell->zmaxbox, cell->type_vacuum);
+    add_point(cell->xmin, cell->ymax, cell->zmaxbox, cell->type_vacuum);
+    add_point(cell->xmin, cell->ymin, cell->zmaxbox, cell->type_vacuum);
 }
 
 const void Vacuum::generate(const Femocs::SimuCell* cell, shared_ptr<Surface> surf) {
@@ -71,18 +82,18 @@ const void Vacuum::generate(const Femocs::SimuCell* cell, shared_ptr<Surface> su
             znew = dz * pow(layer_exp, i) + surf->getZ(k);
             if (znew > zmax) znew = zmax;
 
-            addpoint(surf->getX(k), surf->getY(k), znew, cell->type_vacuum);
+            add_point(surf->getX(k), surf->getY(k), znew, cell->type_vacuum);
         }
 
         // Add points to the xy-plane corners on current layer
-        addpoint(cell->xmax, cell->ymax, znew, cell->type_vacuum);
-        addpoint(cell->xmax, cell->ymin, znew, cell->type_vacuum);
-        addpoint(cell->xmin, cell->ymax, znew, cell->type_vacuum);
-        addpoint(cell->xmin, cell->ymin, znew, cell->type_vacuum);
+        add_point(cell->xmax, cell->ymax, znew, cell->type_vacuum);
+        add_point(cell->xmax, cell->ymin, znew, cell->type_vacuum);
+        add_point(cell->xmin, cell->ymax, znew, cell->type_vacuum);
+        add_point(cell->xmin, cell->ymin, znew, cell->type_vacuum);
     }
 }
 
-const void Vacuum::addpoint(const double x, const double y, const double z, const int type) {
+const void Vacuum::add_point(const double x, const double y, const double z, const int type) {
 //    if (this->N >= this->x.size()) {
 //        cout << "Size of Vacuum exceeded!" << endl;
 //    }

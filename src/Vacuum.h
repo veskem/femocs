@@ -25,10 +25,11 @@ public:
     Vacuum();
     const void generate(const Femocs::SimuCell* cell, shared_ptr<Surface> surf);
     const void generate_simple(const Femocs::SimuCell* cell);
+    const void generate_bottom(const Femocs::SimuCell* cell);
 
 private:
     const void initialise_vars(const int natoms);
-    const void addpoint(const double x, const double y, const double z, const int type);
+    const void add_point(const double x, const double y, const double z, const int type);
 };
 
 } /* namespace femocs */

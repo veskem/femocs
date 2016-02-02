@@ -7,6 +7,7 @@ CPP_SRCS += \
 ../src/AtomReader.cpp \
 ../src/Femocs.cpp \
 ../src/Medium.cpp \
+../src/Mesh.cpp \
 ../src/Mesher.cpp \
 ../src/Surface.cpp \
 ../src/SurfaceExtractor.cpp \
@@ -16,6 +17,7 @@ OBJS += \
 ./src/AtomReader.o \
 ./src/Femocs.o \
 ./src/Medium.o \
+./src/Mesh.o \
 ./src/Mesher.o \
 ./src/Surface.o \
 ./src/SurfaceExtractor.o \
@@ -25,6 +27,7 @@ CPP_DEPS += \
 ./src/AtomReader.d \
 ./src/Femocs.d \
 ./src/Medium.d \
+./src/Mesh.d \
 ./src/Mesher.d \
 ./src/Surface.d \
 ./src/SurfaceExtractor.d \

@@ -28,9 +28,17 @@ Femocs::Femocs(const string& file_name) {
 // Get simulation parameters
 const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
     Config conf;
-    conf.latconst = 1.0; //3.51; //1.0;       // lattice constant
-    conf.coord_cutoff = 3.3;	// coordination analysis cut off radius
-    conf.tetgen_cutoff = 4.1; //14.2; //5.0;			// max_length^2 of tetrahedra's edge
+
+    conf.infile = "input/mushroomish_surface.ckx";
+    conf.latconst = 1.0;        // lattice constant
+    conf.coord_cutoff = 3.3;    // coordination analysis cut off radius
+    conf.tetgen_cutoff = 4.1;   // max_length^2 of tetrahedra's edge
+
+//    conf.infile = "input/nanotip_medium.xyz";
+//    conf.latconst = 3.51;       // lattice constant
+//    conf.coord_cutoff = 3.3;	// coordination analysis cut off radius
+//    conf.tetgen_cutoff = 16.0;  // max_length^2 of tetrahedra's edge
+
     conf.nnn = 12;						    // number of nearest neighbours in bulk
     conf.extracter = "coordination";	    // surface extraction algorithm
     conf.mesher = "tetgen";				    // mesher algorithm
@@ -44,6 +52,7 @@ const Femocs::SimuCell Femocs::init_simucell() const {
     SimuCell sc;
     sc.xmin = sc.xmax = sc.ymin = sc.ymax = sc.zmin = sc.zmax = 0;
     sc.zmaxbox = 70.0;
+    sc.zminbox = 0.0;
     return sc;
 }
 
@@ -64,24 +73,16 @@ inline void end_msg(double t0) {
 // ***********************************************
 int main(int argc, char* argv[]) {
     using namespace femocs;
-//    string in_file_name = "input/nanotip_medium.xyz";
-    string in_file_name = "input/mushroomish_surface.ckx";
-    string surface_file = "output/surface.xyz";
-    string bulk_file = "output/bulk.xyz";
-    string vacuum_file = "output/vacuum.xyz";
 
-    int nt;
     double t0;
     Femocs femocs("");
+    int nt = femocs.conf.nt;
+    string in_file_name = femocs.conf.infile;
 
     // If input file specified on command line, use that instead of default
-    if (argc == 2) in_file_name = argv[1];
+    if (argc >= 2) in_file_name = argv[1];
     // The same with number of OpenMP threads
-    nt = femocs.conf.nt;
-    if (argc == 3) {
-        in_file_name = argv[1];
-        nt = stod(argv[2]);
-    }
+    if (argc >= 3) nt = stod(argv[2]);
 
     t0 = start_msg("=== Reading atoms from " + in_file_name);
     AtomReader reader;
@@ -102,106 +103,84 @@ int main(int argc, char* argv[]) {
 
     t0 = start_msg("=== Generating vacuum...");
     Vacuum vacuum;
-//    vacuum.generate(&femocs.simucell, surf);
     vacuum.generate_simple(&femocs.simucell);
+    Vacuum bottom;
+    bottom.generate_bottom(&femocs.simucell);
     end_msg(t0);
 
-//    t0 = start_msg("=== Writing surface, bulk and vacuum to output/...");
-//    surf->output(surface_file);
-//    bulk->output(bulk_file);
-//    vacuum.output(vacuum_file);
-//    end_msg(t0);
+    t0 = start_msg("=== Writing surface, bulk and vacuum to output/...");
+    surf->output("output/surface.xyz");
+    bulk->output("output/bulk.xyz");
+    vacuum.output("output/vacuum.xyz");
+    end_msg(t0);
 
 // ===============================================
 
-    t0 = start_msg("=== Generating mesh...\n");
-    Mesher bulk_mesher(femocs.conf.mesher);
-    bulk_mesher.generate_bulk_mesh(&femocs.simucell, bulk);
-    bulk_mesher.calc("Q");
-    Mesher volume_mesher(femocs.conf.mesher);
-    volume_mesher.generate_volume_mesh(bulk, &vacuum);
-    volume_mesher.calc("Q");
-//    volume_mesher.generate_mesh(&femocs.simucell, bulk, surf, &vacuum, "Q");
+/*
+ * Vahur's recipe for making tetgen mesh:
+ *
+ * generate mesh1 for bulk material
+ * remove elements
+ * rebuild mesh1
+ *
+ * generate mesh2 with rebuilt elements from mesh1 with -r
+ * remove faces
+ * rebuild mesh2
+ *
+ * now mesh2 = bulk elements + bulk faces
+ * from mesh2, remove faces on simucell edges
+ * now mesh2 = material-vacuum interface faces
+ *
+ * make mesh3 with material atoms + 4 points on top of simucell
+ * now mesh3 = face list for the outer edges of simucell
+ *
+ * make mesh4 = mesh3 faces + mesh2 faces
+ * mark mesh4  x,y,z min-max edges and material surface
+ *
+ * rebuild mesh4 with max volume and min quality restrictions
+ *
+ */
+
+    t0 = start_msg("=== Step1...");
+
+    Mesher mesher1(femocs.conf.mesher);
+    auto mesh1 = mesher1.get_bulk_mesh(bulk, "Q");
+    mesh1->write_faces("output/faces0.vtk");
+    mesh1->write_elems("output/elems0.vtk");
+
+    mesher1.clean_elems(mesh1, femocs.conf.tetgen_cutoff, "r");
+    mesh1->write_faces("output/faces1.vtk");
+    mesh1->write_elems("output/elems1.vtk");
+
+    mesher1.mark_faces(mesh1, &femocs.simucell);
+    mesh1->write_faces("output/faces2.vtk");
+    mesh1->write_elems("output/elems2.vtk");
+
     end_msg(t0);
+    t0 = start_msg("=== Step2...");
 
-    t0 = start_msg("=== Cleaning mesh...\n");
-    bulk_mesher.clean_mesh("r", femocs.conf.tetgen_cutoff, &femocs.simucell);
+    Mesher mesher2(femocs.conf.mesher);
+    auto mesh2 = mesher2.get_volume_mesh(bulk, &vacuum, "Q");
+    mesh2->write_faces("output/faces3.vtk");
+    mesh2->write_elems("output/elems3.vtk");
+
+    mesh2->calculate("Qrq1.414a100");
+    mesh2->write_faces("output/faces4.vtk");
+    mesh2->write_elems("output/elems4.vtk");
+
     end_msg(t0);
+    t0 = start_msg("=== Step3...");
 
-//    t0 = start_msg("=== Refining mesh...");
-//    volume_mesher.refine("rq1.414a50");
-//    bulk_mesher.refine("rq1.414a50");
-//    end_msg(t0);
+    Mesher mesher3(femocs.conf.mesher);
+    auto mesh3 = mesher3.get_union_mesh(mesh1, mesh2, &femocs.simucell, "rQ");
+    mesh3->write_faces("output/faces5.vtk");
+    mesh3->write_elems("output/elems5.vtk");
 
-    t0 = start_msg("=== Marking mesh...");
-    volume_mesher.mark_mesh(&femocs.simucell, "r");
-    bulk_mesher.mark_mesh(&femocs.simucell, "r");
+    mesher3.mark_faces(mesh3, &femocs.simucell);
+    mesh3->write_faces("output/faces6.vtk");
+    mesh3->write_elems("output/elems6.vtk");
+
     end_msg(t0);
-
-    t0 = start_msg("=== Uniting meshes...\n");
-    Mesher mesher(femocs.conf.mesher);
-    mesher.unite3(&volume_mesher.tetgenOut, &bulk_mesher.tetgenOut, &femocs.simucell, "r");
-    end_msg(t0);
-
-    t0 = start_msg("=== Marking mesh...");
-    mesher.mark_mesh(&femocs.simucell, "r");
-    end_msg(t0);
-
-    t0 = start_msg("=== Refining mesh...");
-    mesher.refine("rq1.414a50");
-    end_msg(t0);
-
-    t0 = start_msg("=== Marking mesh...");
-    mesher.mark_mesh(&femocs.simucell, "r");
-    end_msg(t0);
-
-    t0 = start_msg("=== Outputting mesh...");
-    bulk_mesher.write_faces("output/bulk_faces.vtk");
-    bulk_mesher.write_elems("output/bulk_elems.vtk");
-    volume_mesher.write_faces("output/volume_faces.vtk");
-    volume_mesher.write_elems("output/volume_elems.vtk");
-    mesher.write_faces("output/union_faces.vtk");
-    mesher.write_elems("output/union_elems.vtk");
-    end_msg(t0);
-
-
-//    t0 = start_msg("=== Marking mesh...");
-//    volume_mesher.mark_mesh(&femocs.simucell, "r");
-//    end_msg(t0);
-//
-//    t0 = start_msg("=== Outputting mesh...");
-//    volume_mesher.write_faces("output/faces.vtk");
-//    volume_mesher.write_elems("output/elems.vtk");
-//    end_msg(t0);
-
-    // ===============================================
-
-//    t0 = start_msg("=== Generating mesh...\n");
-//    Mesher mesher(femocs.conf.mesher);
-//    mesher.generate_mesh(&femocs.simucell, bulk, surf, &vacuum, "Q");
-//    end_msg(t0);
-//
-//    t0 = start_msg("=== Cleaning mesh...\n");
-//    mesher.clean_mesh("r", femocs.conf.tetgen_cutoff);
-//    end_msg(t0);
-//
-//    t0 = start_msg("=== Adding vacuum to bulk mesh...\n");
-//    mesher.add_vacuum("r", &femocs.simucell);
-//    end_msg(t0);
-//
-//    t0 = start_msg("=== Refining mesh...");
-//    mesher.refine("rq1.414a50Y");
-//    end_msg(t0);
-//
-//
-//    t0 = start_msg("=== Marking mesh...");
-//    mesher.mark_mesh(&femocs.simucell, "r");
-//    end_msg(t0);
-//
-//    t0 = start_msg("=== Outputting mesh...");
-//    mesher.write_faces("output/faces.vtk");
-//    mesher.write_elems("output/elems.vtk");
-//    end_msg(t0);
 
     cout << "\n======= Femocs finished! =======\n";
 

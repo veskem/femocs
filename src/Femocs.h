@@ -31,6 +31,7 @@ public:
     struct Config {
         string extracter;       //!< surface extracter from bulk material
         string mesher;          //!< simulation cell finite element mesher
+        string infile;          //!< path to input script
         double latconst;        //!< lattice constant
         double coord_cutoff;    //!< cutoff distance in Angstroms for Coordination analysis
         double tetgen_cutoff;   //!< cutoff distance in Angstroms for removing too big mesh elements
@@ -47,6 +48,7 @@ public:
         double ymax;    //!< maximum y-coordinate of atoms
         double zmin;    //!< minimum z-coordinate of atoms
         double zmax;    //!< maximum z-coordinate of atoms
+        double zminbox;
         double zmaxbox; //!< maximum z-coordinate of simulation box
         int type_bulk = 1; //!< type of bulk material
         int type_surf = 2; //!< type of open material surface
