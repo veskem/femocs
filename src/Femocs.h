@@ -13,6 +13,8 @@
 using namespace std;
 namespace femocs {
 
+#define DEBUGMODE true
+
 /**
  * Main class to hold Femocs object
  */

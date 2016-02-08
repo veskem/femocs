@@ -29,14 +29,16 @@ Femocs::Femocs(const string& file_name) {
 const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
     Config conf;
 
-    conf.infile = "input/mushroomish_surface.ckx";
+//    conf.infile = "input/mushroomish_surface.ckx";
+    conf.infile = "input/rough100.ckx";
+//    conf.infile = "input/kmc_tiny.ckx";
     conf.latconst = 1.0;        // lattice constant
     conf.coord_cutoff = 3.3;    // coordination analysis cut off radius
     conf.tetgen_cutoff = 4.1;   // max_length^2 of tetrahedra's edge
 
 //    conf.infile = "input/nanotip_medium.xyz";
 //    conf.latconst = 3.51;       // lattice constant
-//    conf.coord_cutoff = 3.3;	// coordination analysis cut off radius
+//    conf.coord_cutoff = 3.4;	// coordination analysis cut off radius
 //    conf.tetgen_cutoff = 16.0;  // max_length^2 of tetrahedra's edge
 
     conf.nnn = 12;						    // number of nearest neighbours in bulk
@@ -51,7 +53,7 @@ const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
 const Femocs::SimuCell Femocs::init_simucell() const {
     SimuCell sc;
     sc.xmin = sc.xmax = sc.ymin = sc.ymax = sc.zmin = sc.zmax = 0;
-    sc.zmaxbox = 70.0;
+    sc.zmaxbox = 30*conf.latconst;
     sc.zminbox = 0.0;
     return sc;
 }
@@ -83,6 +85,9 @@ int main(int argc, char* argv[]) {
     if (argc >= 2) in_file_name = argv[1];
     // The same with number of OpenMP threads
     if (argc >= 3) nt = stod(argv[2]);
+
+    // Max tetrahedron volume is ~1000x the volume of regular tetrahedron with edge == latconst
+    string Vmax = to_string(  (int)(1000.0*0.118*pow(femocs.conf.latconst,3.0) ) );
 
     t0 = start_msg("=== Reading atoms from " + in_file_name);
     AtomReader reader;
@@ -147,15 +152,21 @@ int main(int argc, char* argv[]) {
     auto mesh1 = mesher1.get_bulk_mesh(bulk, "Q");
     mesh1->write_faces("output/faces0.vtk");
     mesh1->write_elems("output/elems0.vtk");
+    cout << "im here0" << endl;
+    mesher1.clean_elems(mesh1, femocs.conf.tetgen_cutoff, "rQ");
 
-    mesher1.clean_elems(mesh1, femocs.conf.tetgen_cutoff, "r");
+    cout << "im here1" << endl;
+
     mesh1->write_faces("output/faces1.vtk");
     mesh1->write_elems("output/elems1.vtk");
 
-    mesher1.mark_faces(mesh1, &femocs.simucell);
+    mesher1.mark_faces(mesh1, surf, &femocs.simucell);
+    cout << "im here2" << endl;
+    mesher1.calc_statistics(mesh1);
+    cout << "im here3" << endl;
     mesh1->write_faces("output/faces2.vtk");
     mesh1->write_elems("output/elems2.vtk");
-
+    cout << "im here4" << endl;
     end_msg(t0);
     t0 = start_msg("=== Step2...");
 
@@ -164,7 +175,7 @@ int main(int argc, char* argv[]) {
     mesh2->write_faces("output/faces3.vtk");
     mesh2->write_elems("output/elems3.vtk");
 
-    mesh2->calculate("Qrq1.414a100");
+    mesh2->recalc("rq1.414a"+Vmax);
     mesh2->write_faces("output/faces4.vtk");
     mesh2->write_elems("output/elems4.vtk");
 
@@ -172,11 +183,14 @@ int main(int argc, char* argv[]) {
     t0 = start_msg("=== Step3...");
 
     Mesher mesher3(femocs.conf.mesher);
-    auto mesh3 = mesher3.get_union_mesh(mesh1, mesh2, &femocs.simucell, "rQ");
+    auto mesh3 = mesher3.get_union_mesh(mesh1, mesh2, &femocs.simucell);
     mesh3->write_faces("output/faces5.vtk");
     mesh3->write_elems("output/elems5.vtk");
 
-    mesher3.mark_faces(mesh3, &femocs.simucell);
+
+    mesher3.mark_faces(mesh3, surf, &femocs.simucell);
+    mesher3.mark_elems_byvol(mesh3, &femocs.simucell);
+//    mesh3->recalc("pqAa"+Vmax);
     mesh3->write_faces("output/faces6.vtk");
     mesh3->write_elems("output/elems6.vtk");
 

@@ -38,6 +38,16 @@ const void Surface::add(const double x, const double y, const double z, const in
     this->type.push_back(type);
 }
 
+vector<double>* Surface::getXs() {
+    return &x;
+}
+vector<double>* Surface::getYs() {
+    return &y;
+}
+vector<double>* Surface::getZs() {
+    return &z;
+}
+
 // Get element from x, y or z vector
 const double Surface::getX(const int i) {
     return x[i];

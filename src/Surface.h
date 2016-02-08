@@ -45,6 +45,10 @@ public:
      */
     const void output(const string& file_name);
 
+    vector<double>* getXs();
+    vector<double>* getYs();
+    vector<double>* getZs();
+
     /** Return x-coordinate of i-th atom */
     const double getX(const int i);
     /** Return y-coordinate of i-th atom */

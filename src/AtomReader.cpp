@@ -73,6 +73,8 @@ const void AtomReader::import_xyz(const string& file_name, Femocs::SimuCell* cel
         add_data(x, y, z, type, cell);
     }
 
+    cell->zmaxbox += cell->zmax;
+
     return;
 }
 
@@ -104,6 +106,8 @@ const void AtomReader::import_ckx(const string& file_name, Femocs::SimuCell* cel
         iss >> type >> x >> y >> z;
         add_data(x, y, z, type, cell);
     }
+
+    cell->zmaxbox += cell->zmax;
 
     return;
 }

@@ -30,9 +30,9 @@ SurfaceExtractor::SurfaceExtractor(const string& adapter, const double cutoff,
 const shared_ptr<Surface> SurfaceExtractor::extract_surface(const AtomReader::Data* data,
         const Femocs::SimuCell* cell) {
     if (adapter == "coordination" && data->simu_type == "md")
-        return SurfaceExtractor::coordination_extract(data, cell);
+        return coordination_extract(data, cell);
     else if (data->simu_type == "kmc")
-        return SurfaceExtractor::kmc_extract(data, cell);
+        return kmc_extract(data, cell);
     else
         return shared_ptr<Surface>();
 }
@@ -103,8 +103,6 @@ const shared_ptr<Surface> SurfaceExtractor::coordination_extract(const AtomReade
     } else {
 
 #pragma omp parallel for shared(coords,is_surface) private(i,j,dx,dy,dz,r2) reduction(+:coord,nsurface_atoms)
-
-
         for (i = 0; i < natoms; ++i) {
             coord = 0;
             for (j = 0; j < natoms; ++j) {
