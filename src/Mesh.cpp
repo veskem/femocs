@@ -382,15 +382,15 @@ void Mesh::write_vtk(const string file_name, const int nnodes, const int ncells,
         fprintf(outfile, "\n\n");
     }
 
-    // Output point attributes
-    if (nnodemarkers > 0) {
-        fprintf(outfile, "POINT_DATA %d\n", nnodemarkers);
-        fprintf(outfile, "SCALARS Point_markers int\n");
-        fprintf(outfile, "LOOKUP_TABLE default\n");
-        for (i = 0; i < nnodemarkers; ++i)
-            fprintf(outfile, "%d\n", nodemarkers[i]);
-        fprintf(outfile, "\n");
-    }
+//    // Output point attributes
+//    if (nnodemarkers > 0) {
+//        fprintf(outfile, "POINT_DATA %d\n", nnodemarkers);
+//        fprintf(outfile, "SCALARS Point_markers int\n");
+//        fprintf(outfile, "LOOKUP_TABLE default\n");
+//        for (i = 0; i < nnodemarkers; ++i)
+//            fprintf(outfile, "%d\n", nodemarkers[i]);
+//        fprintf(outfile, "\n");
+//    }
 
     // Output cell attributes
     if (nmarkers > 0) {

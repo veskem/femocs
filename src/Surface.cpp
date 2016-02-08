@@ -66,6 +66,10 @@ const double Surface::getLatconst() {
 const int Surface::getType(const int i) {
     return type[i];
 }
+// Get atom coordination
+const int Surface::getCoordination(const int i) {
+    return coordination[i];
+}
 
 // Get number of atoms on surface
 const int Surface::getN() {

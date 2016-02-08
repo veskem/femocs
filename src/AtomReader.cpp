@@ -32,6 +32,10 @@ const void AtomReader::import_file(const string& file_name, Femocs::SimuCell* ce
         cout << "Unknown file type: " << file_type << endl;
 }
 
+const int AtomReader::getN() {
+    return this->data.x.size();
+}
+
 const string AtomReader::get_file_type(const string& file_name) {
     int start = file_name.find_last_of('.') + 1;
     int end = file_name.size();

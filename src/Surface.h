@@ -57,6 +57,8 @@ public:
     const double getZ(const int i);
     /** Return type of i-th atom */
     const int getType(const int i);
+    /** Return coordination of i-th atom */
+    const int getCoordination(const int i);
     /** Return number of atoms in a Surface */
     const int getN();
     /** Return lattice constant of extracted material */

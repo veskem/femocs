@@ -36,6 +36,12 @@ public:
      */
     const void import_file(const string& file_name, Femocs::SimuCell* cell);
 
+    /**
+     * Function to get number of atoms in AtomReader
+     * @return Number of atoms in AtomReader
+     */
+    const int getN();
+
     /** Struct for holding data of the whole simulation cell. */
     struct Data {
         vector<double> x;   //!< x-coordinates of atoms

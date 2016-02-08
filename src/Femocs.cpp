@@ -29,9 +29,7 @@ Femocs::Femocs(const string& file_name) {
 const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
     Config conf;
 
-//    conf.infile = "input/mushroomish_surface.ckx";
-    conf.infile = "input/rough100.ckx";
-//    conf.infile = "input/kmc_tiny.ckx";
+    conf.infile = "input/mushroom1.ckx";
     conf.latconst = 1.0;        // lattice constant
     conf.coord_cutoff = 3.3;    // coordination analysis cut off radius
     conf.tetgen_cutoff = 4.1;   // max_length^2 of tetrahedra's edge
@@ -53,7 +51,7 @@ const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
 const Femocs::SimuCell Femocs::init_simucell() const {
     SimuCell sc;
     sc.xmin = sc.xmax = sc.ymin = sc.ymax = sc.zmin = sc.zmax = 0;
-    sc.zmaxbox = 30*conf.latconst;
+    sc.zmaxbox = 30*conf.latconst; // Electric field will be applied that much higer from the highest coordinate of simubox
     sc.zminbox = 0.0;
     return sc;
 }
@@ -77,40 +75,35 @@ int main(int argc, char* argv[]) {
     using namespace femocs;
 
     double t0;
-    Femocs femocs("");
-    int nt = femocs.conf.nt;
-    string in_file_name = femocs.conf.infile;
+    Femocs femocs("/path/to/input.script");
 
     // If input file specified on command line, use that instead of default
-    if (argc >= 2) in_file_name = argv[1];
+    if (argc >= 2) femocs.conf.infile = argv[1];
     // The same with number of OpenMP threads
-    if (argc >= 3) nt = stod(argv[2]);
+    if (argc >= 3) femocs.conf.nt = stod(argv[2]);
 
     // Max tetrahedron volume is ~1000x the volume of regular tetrahedron with edge == latconst
     string Vmax = to_string(  (int)(1000.0*0.118*pow(femocs.conf.latconst,3.0) ) );
 
-    t0 = start_msg("=== Reading atoms from " + in_file_name);
+    t0 = start_msg("=== Reading atoms from " + femocs.conf.infile);
     AtomReader reader;
-    reader.import_file(in_file_name, &femocs.simucell);
+    reader.import_file(femocs.conf.infile, &femocs.simucell);
     end_msg(t0);
 
     t0 = start_msg("=== Extracting surface...");
-    SurfaceExtractor surf_extractor(femocs.conf.extracter, femocs.conf.coord_cutoff,
-            femocs.conf.latconst, femocs.conf.nnn, nt);
+    SurfaceExtractor surf_extractor(&femocs.conf);
     auto surf = surf_extractor.extract_surface(&reader.data, &femocs.simucell);
     end_msg(t0);
 
     t0 = start_msg("=== Extracting bulk...");
-    SurfaceExtractor bulk_extractor(femocs.conf.extracter, 0, femocs.conf.latconst, femocs.conf.nnn,
-            nt);
-    auto bulk = bulk_extractor.extract_surface(&reader.data, &femocs.simucell);
+    SurfaceExtractor bulk_extractor(&femocs.conf);
+//    auto bulk = bulk_extractor.extract_bulk_reduced(surf, &femocs.simucell);
+    auto bulk = bulk_extractor.extract_bulk(&reader.data, &femocs.simucell);
     end_msg(t0);
 
     t0 = start_msg("=== Generating vacuum...");
     Vacuum vacuum;
     vacuum.generate_simple(&femocs.simucell);
-    Vacuum bottom;
-    bottom.generate_bottom(&femocs.simucell);
     end_msg(t0);
 
     t0 = start_msg("=== Writing surface, bulk and vacuum to output/...");
@@ -152,21 +145,16 @@ int main(int argc, char* argv[]) {
     auto mesh1 = mesher1.get_bulk_mesh(bulk, "Q");
     mesh1->write_faces("output/faces0.vtk");
     mesh1->write_elems("output/elems0.vtk");
-    cout << "im here0" << endl;
+
     mesher1.clean_elems(mesh1, femocs.conf.tetgen_cutoff, "rQ");
-
-    cout << "im here1" << endl;
-
     mesh1->write_faces("output/faces1.vtk");
     mesh1->write_elems("output/elems1.vtk");
 
     mesher1.mark_faces(mesh1, surf, &femocs.simucell);
-    cout << "im here2" << endl;
     mesher1.calc_statistics(mesh1);
-    cout << "im here3" << endl;
     mesh1->write_faces("output/faces2.vtk");
     mesh1->write_elems("output/elems2.vtk");
-    cout << "im here4" << endl;
+
     end_msg(t0);
     t0 = start_msg("=== Step2...");
 

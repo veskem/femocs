@@ -31,8 +31,7 @@ public:
      * @param nnn - expected number of nearest neighbours
      * @param nt - number of OpenMP threads
      */
-    SurfaceExtractor(const string& adapter, const double cutoff, const double latconst,
-            const int nnn, const int nt);
+    SurfaceExtractor(const Femocs::Config* conf);
     virtual ~SurfaceExtractor() {
     }
     ;
@@ -45,6 +44,10 @@ public:
      */
     const virtual shared_ptr<Surface> extract_surface(const AtomReader::Data* data,
             const Femocs::SimuCell* cell);
+
+    const shared_ptr<Surface> extract_bulk(const AtomReader::Data* data, const Femocs::SimuCell* cell);
+    const shared_ptr<Surface> extract_edge(const shared_ptr<Surface> surf, const Femocs::SimuCell* cell);
+    const shared_ptr<Surface> extract_bulk_reduced(const shared_ptr<Surface> surf, const Femocs::SimuCell* cell);
 
 private:
     string adapter;  //!< specify the method to extract the surface (coordination or centrosymmetry)
@@ -84,6 +87,8 @@ private:
      */
     const virtual shared_ptr<Surface> centrosymmetry_extract(const AtomReader::Data* dat,
             const Femocs::SimuCell* cell);
+
+    const bool on_edge(const double x, const double y, const Femocs::SimuCell* cell);
 };
 
 } /* namespace femocs */

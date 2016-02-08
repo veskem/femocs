@@ -50,12 +50,13 @@ public:
         double ymax;    //!< maximum y-coordinate of atoms
         double zmin;    //!< minimum z-coordinate of atoms
         double zmax;    //!< maximum z-coordinate of atoms
-        double zminbox;
+        double zminbox; //!< minimum z-coordinate of simulation box
         double zmaxbox; //!< maximum z-coordinate of simulation box
         int type_bulk = 1; //!< type of bulk material
         int type_surf = 2; //!< type of open material surface
         int type_vacancy = 3; //!< type of vacancies
         int type_vacuum = 3;  //!< type of vacuum
+        int type_edge = 0;  //!< type of the rim/outer edge of surface
         int type_fixed = -1;  //!< type of fixed atoms
         int type_xmin = 4;  //!< type of atom on negative x-face of simulation cell
         int type_ymin = 5;  //!< type of atom on negative y-face of simulation cell
