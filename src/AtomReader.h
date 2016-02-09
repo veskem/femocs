@@ -37,6 +37,15 @@ public:
     const void import_file(const string& file_name, Femocs::SimuCell* cell);
 
     /**
+     * Function to transform atomic data from Helmod format into AtomReader one
+     */
+    const void import_helmod();
+    /**
+     * Function to transform atomic data from Kimocs format into AtomReader one
+     */
+    const void import_kimocs();
+
+    /**
      * Function to get number of atoms in AtomReader
      * @return Number of atoms in AtomReader
      */

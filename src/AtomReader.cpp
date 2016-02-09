@@ -19,6 +19,14 @@ namespace femocs {
 AtomReader::AtomReader() {
 }
 
+const void AtomReader::import_helmod() {
+    cout << "AtomReader::read_helmod() not implemented!" << endl;
+}
+
+const void AtomReader::import_kimocs() {
+    cout << "AtomReader::read_kimocs() not implemented!" << endl;
+}
+
 const void AtomReader::import_file(const string& file_name, Femocs::SimuCell* cell) {
     string file_type = get_file_type(file_name);
 

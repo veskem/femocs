@@ -8,12 +8,17 @@
 #ifndef FEMOCS_H_
 #define FEMOCS_H_
 
+#include <memory>
 #include <string>
 
 using namespace std;
 namespace femocs {
 
 #define DEBUGMODE true
+#define LIBARYMODE false
+#define HELMODMODE false
+#define KIMOCSMODE false
+
 
 /**
  * Main class to hold Femocs object
@@ -25,9 +30,6 @@ public:
      * @param file_name - path to Femocs input script.
      */
     Femocs(const string& file_name);
-    ~Femocs() {
-    }
-    ;
 
     /** Struct holding data about input parameters. */
     struct Config {
@@ -70,6 +72,16 @@ public:
     Config conf;          //!< Femocs configuration parameters
     SimuCell simucell;    //!< General data about simulation cell
 
+    /**
+     * The function to get input data, to start the Femocs simulation and
+     * to return simulation results to the caller.
+     * @param E0 - long range electric field
+     * @param BC - boundary conditions
+     * @param phi_guess - guess values of field potential for FEM solver
+     * @param grid_spacing - FDM grid spacing in x, y and z direction
+     */
+    const void run_femocs(const double E0, double*** BC, double*** phi_guess, const double* grid_spacing);
+
 private:
     /**
      * Function to get configuration parameters from input script
@@ -80,6 +92,9 @@ private:
 
     /** Function to initialise SimuCell values */
     const SimuCell init_simucell() const;
+
+    /** Function to run the simulation commands */
+
 };
 
 } /* namespace femocs */

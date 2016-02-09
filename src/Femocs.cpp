@@ -11,7 +11,6 @@
 #include <iostream>
 #include <memory>
 
-#include "AtomReader.h"
 #include "Mesher.h"
 #include "SurfaceExtractor.h"
 #include "Vacuum.h"
@@ -56,54 +55,54 @@ const Femocs::SimuCell Femocs::init_simucell() const {
     return sc;
 }
 
-} /* namespace femocs */
-
-// Inliners to print informative and timing messages about processes
+// Inliners to print messages and execution times about processes
 inline double start_msg(string s) {
+#if DEBUGMODE
     cout << endl << s;
     cout.flush();
+#endif
     return omp_get_wtime();
 }
 inline void end_msg(double t0) {
+#if DEBUGMODE
     cout << ", time: " << omp_get_wtime() - t0 << endl;
+#endif
 }
 
-// ===============================================
-// ========== Start of Femocs interface ==========
-// ***********************************************
-int main(int argc, char* argv[]) {
-    using namespace femocs;
-
-    double t0;
-    Femocs femocs("/path/to/input.script");
-
-    // If input file specified on command line, use that instead of default
-    if (argc >= 2) femocs.conf.infile = argv[1];
-    // The same with number of OpenMP threads
-    if (argc >= 3) femocs.conf.nt = stod(argv[2]);
-
-    // Max tetrahedron volume is ~1000x the volume of regular tetrahedron with edge == latconst
-    string Vmax = to_string(  (int)(1000.0*0.118*pow(femocs.conf.latconst,3.0) ) );
-
-    t0 = start_msg("=== Reading atoms from " + femocs.conf.infile);
+// Workhorse function to run Femocs simulation
+const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess, const double* grid_spacing) {
     AtomReader reader;
-    reader.import_file(femocs.conf.infile, &femocs.simucell);
+    double t0;
+    // Max tetrahedron volume is ~1000x the volume of regular tetrahedron with edge == latconst
+    string Vmax = to_string(  (int)(1000.0*0.118*pow(conf.latconst,3.0) ) );
+
+#if not LIBRARYMODE
+    t0 = start_msg("=== Reading atoms from " + conf.infile);
+    reader.import_file(conf.infile, &simucell);
     end_msg(t0);
+#elif HELMODMODE
+    reader.import_helmod(E0, BC, phi_guess,...);
+#elif KIMOCSMODE
+    reader.import_kimocs();
+#else
+    cout << "Check definitions in Femocs.h !" << endl;
+    exit(EXIT_FAILURE);
+#endif
 
     t0 = start_msg("=== Extracting surface...");
-    SurfaceExtractor surf_extractor(&femocs.conf);
-    auto surf = surf_extractor.extract_surface(&reader.data, &femocs.simucell);
+    SurfaceExtractor surf_extractor(&conf);
+    auto surf = surf_extractor.extract_surface(&reader.data, &simucell);
     end_msg(t0);
 
     t0 = start_msg("=== Extracting bulk...");
-    SurfaceExtractor bulk_extractor(&femocs.conf);
+    SurfaceExtractor bulk_extractor(&conf);
 //    auto bulk = bulk_extractor.extract_bulk_reduced(surf, &femocs.simucell);
-    auto bulk = bulk_extractor.extract_bulk(&reader.data, &femocs.simucell);
+    auto bulk = bulk_extractor.extract_bulk(&reader.data, &simucell);
     end_msg(t0);
 
     t0 = start_msg("=== Generating vacuum...");
     Vacuum vacuum;
-    vacuum.generate_simple(&femocs.simucell);
+    vacuum.generate_simple(&simucell);
     end_msg(t0);
 
     t0 = start_msg("=== Writing surface, bulk and vacuum to output/...");
@@ -141,16 +140,16 @@ int main(int argc, char* argv[]) {
 
     t0 = start_msg("=== Step1...");
 
-    Mesher mesher1(femocs.conf.mesher);
+    Mesher mesher1(conf.mesher);
     auto mesh1 = mesher1.get_bulk_mesh(bulk, "Q");
     mesh1->write_faces("output/faces0.vtk");
     mesh1->write_elems("output/elems0.vtk");
 
-    mesher1.clean_elems(mesh1, femocs.conf.tetgen_cutoff, "rQ");
+    mesher1.clean_elems(mesh1, conf.tetgen_cutoff, "rQ");
     mesh1->write_faces("output/faces1.vtk");
     mesh1->write_elems("output/elems1.vtk");
 
-    mesher1.mark_faces(mesh1, surf, &femocs.simucell);
+    mesher1.mark_faces(mesh1, surf, &simucell);
     mesher1.calc_statistics(mesh1);
     mesh1->write_faces("output/faces2.vtk");
     mesh1->write_elems("output/elems2.vtk");
@@ -158,7 +157,7 @@ int main(int argc, char* argv[]) {
     end_msg(t0);
     t0 = start_msg("=== Step2...");
 
-    Mesher mesher2(femocs.conf.mesher);
+    Mesher mesher2(conf.mesher);
     auto mesh2 = mesher2.get_volume_mesh(bulk, &vacuum, "Q");
     mesh2->write_faces("output/faces3.vtk");
     mesh2->write_elems("output/elems3.vtk");
@@ -170,21 +169,63 @@ int main(int argc, char* argv[]) {
     end_msg(t0);
     t0 = start_msg("=== Step3...");
 
-    Mesher mesher3(femocs.conf.mesher);
-    auto mesh3 = mesher3.get_union_mesh(mesh1, mesh2, &femocs.simucell);
+    Mesher mesher3(conf.mesher);
+    auto mesh3 = mesher3.get_union_mesh(mesh1, mesh2, &simucell);
     mesh3->write_faces("output/faces5.vtk");
     mesh3->write_elems("output/elems5.vtk");
 
 
-    mesher3.mark_faces(mesh3, surf, &femocs.simucell);
-    mesher3.mark_elems_byvol(mesh3, &femocs.simucell);
+    mesher3.mark_faces(mesh3, surf, &simucell);
+    mesher3.mark_elems_byvol(mesh3, &simucell);
 //    mesh3->recalc("pqAa"+Vmax);
     mesh3->write_faces("output/faces6.vtk");
     mesh3->write_elems("output/elems6.vtk");
 
     end_msg(t0);
 
-    cout << "\n======= Femocs finished! =======\n";
+    start_msg("======= Femocs finished! =======\n");
+}
+
+} /* namespace femocs */
+
+
+// ================================================
+// ==== Main function to run standalone Femocs ====
+// ************************************************
+#if not LIBARYMODE
+
+int main(int argc, char* argv[]) {
+    using namespace femocs;
+
+    Femocs femocs("/path/to/input.script");
+
+    // If input file specified on command line, use that instead of default
+    if (argc >= 2) femocs.conf.infile = argv[1];
+    // The same with number of OpenMP threads
+    if (argc >= 3) femocs.conf.nt = stod(argv[2]);
+
+
+    // Make some dummy variables that resemble Helmod input/output format
+    const int N = 2;
+    int i, j;
+    double E0 = 0.0;
+    double grid_spacing[3] = {femocs.conf.latconst, femocs.conf.latconst, femocs.conf.latconst};
+    double*** BC = new double**[N];
+    double*** phi_guess = new double**[N];
+
+    for (i = 0; i < N; ++i) {
+        BC[i] = new double*[N];
+        phi_guess[i] = new double*[N];
+        for (j = 0; j < N; ++j) {
+            BC[i][j] = new double[N];
+            phi_guess[i][j] = new double[N];
+        }
+    }
+
+    // Run the actual script
+    femocs.run_femocs(E0, BC, phi_guess, grid_spacing);
 
     return 0;
 }
+
+#endif
