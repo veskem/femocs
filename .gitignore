@@ -5,9 +5,9 @@
 doc/html/
 doc/latex/
 tetgen-tmpfile*
-/output/*
-/release/
+
 /CMakeFiles/
+/output/*
 femocs
 .cproject
 .project
