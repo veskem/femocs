@@ -27,6 +27,37 @@ Mesh::Mesh() {
 // =================================
 // *** GETTERS: ***************
 
+const double Mesh::getNode(int i, int xyz) {
+#if DEBUGMODE
+    if(i < 0 || i > getNnodes() || xyz < 0 || xyz > 2) {
+        cout << "Index out of number of nodes bounds" << endl;
+        return -1.0;
+    }
+#endif
+    return tetIO.pointlist[3*i+xyz];
+}
+
+const int Mesh::getFace(int i, int node) {
+#if DEBUGMODE
+    if(  (i < 0) || (i > getNfaces()) || (node < 0) || (node > 2) ) {
+        cout << "Index out of number of faces bounds" << endl;
+        return -1;
+    }
+#endif
+    return tetIO.trifacelist[3*i+node];
+}
+
+const int Mesh::getElem(int i, int node) {
+
+#if DEBUGMODE
+    if( (i < 0) || (i > getNelems()) || (node < 0) || (node > 3) ) {
+        cout << "Index out of number of elems bounds" << endl;
+        return -1;
+    }
+#endif
+    return tetIO.tetrahedronlist[4*i+node];
+}
+
 double* Mesh::getNodes() {
     return tetIO.pointlist;
 }
@@ -175,7 +206,7 @@ void Mesh::add_elem(const int e1, const int e2, const int e3, const int e4) {
     tetIO.tetrahedronlist[i + 0] = e1;
     tetIO.tetrahedronlist[i + 1] = e2;
     tetIO.tetrahedronlist[i + 2] = e3;
-    tetIO.tetrahedronlist[i + 4] = e4;
+    tetIO.tetrahedronlist[i + 3] = e4;
     ielems++;
 }
 
@@ -344,12 +375,8 @@ void Mesh::write_vtk(const string file_name, const int nnodes, const int ncells,
     }
 
 //    fprintf(outfile, "# vtk DataFile Version 2.0\n");
-//    fprintf(outfile, "Unstructured Grid\n");
-//    fprintf(outfile, "ASCII\n"); // another option is BINARY
-//    fprintf(outfile, "DATASET UNSTRUCTURED_GRID\n\n");
-
     fprintf(outfile, "# vtk DataFile Version 3.0\n");
-    fprintf(outfile, "# This file is generated to be tested in Deal.II\n");
+    fprintf(outfile, "# Unstructured grid\n");
     fprintf(outfile, "ASCII\n"); // another option is BINARY
     fprintf(outfile, "DATASET UNSTRUCTURED_GRID\n\n");
 

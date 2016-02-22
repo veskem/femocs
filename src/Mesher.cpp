@@ -26,6 +26,87 @@ Mesher::Mesher(string mesher) {
     if (mesher != "tetgen") cout << "Unknown mesher: " + mesher << endl;
 }
 
+// Function to generate mesh from bulk and vacuum atoms
+const shared_ptr<Mesh> Mesher::get_simple_mesh() {
+    const int nnodes = 4;
+    const int nfaces = 4;
+    const int nelems = 1;
+
+    shared_ptr<Mesh> new_mesh(new Mesh());
+
+    new_mesh->init_nodes(nnodes);
+    new_mesh->add_node( 1.0, 0.0, 0.7);
+    new_mesh->add_node(-1.0, 0.0, 0.7);
+    new_mesh->add_node( 0.0, 1.0,-0.7);
+    new_mesh->add_node( 0.0,-1.0,-0.7);
+
+    new_mesh->init_faces(nfaces);
+    new_mesh->add_face(0,1,3);
+    new_mesh->add_face(1,2,3);
+    new_mesh->add_face(2,0,3);
+    new_mesh->add_face(0,1,2);
+
+    new_mesh->init_elems(nelems);
+    new_mesh->add_elem(0,1,2,3);
+
+    return new_mesh;
+}
+
+// Function to generate union mesh from bulk and vacuum meshes
+const shared_ptr<Mesh> Mesher::extract_vacuum_mesh(shared_ptr<Mesh> mesh, const Femocs::SimuCell* cell) {
+    shared_ptr<Mesh> new_mesh(new Mesh());
+    int i, j;
+
+    int nnodes = mesh->getNnodes();
+    int nfaces = mesh->getNfaces();
+    int nelems = mesh->getNelems();
+        
+//    double* nodes = mesh->getNodes();
+    int* faces = mesh->getFaces();
+    int* elems = mesh->getElems();
+
+    vector<bool> is_quality_face(nfaces);
+    vector<bool> is_quality_elem(nelems);
+
+    // Mark the faces on the vacuum boundary
+    for (i = 0; i < nfaces; ++i) {
+        bool not_edge = mesh->getFacemarker(i) != cell->type_edge;
+        bool not_zmin = mesh->getFacemarker(i) != cell->type_zmin;
+        bool not_none = mesh->getFacemarker(i) != cell->type_none;
+        is_quality_face[i] = not_edge & not_zmin & not_none;
+    }
+    // Mark the elems in the vacuum        
+    for (i = 0; i < nelems; ++i)
+        is_quality_elem[i] = mesh->getElemmarker(i) == cell->type_vacuum;
+      
+    int nquality_faces = accumulate(is_quality_face.begin(), is_quality_face.end(), 0);
+    int nquality_elems = accumulate(is_quality_elem.begin(), is_quality_elem.end(), 0);
+
+    new_mesh->init_nodes(nnodes);
+    new_mesh->init_nodemarkers(nnodes);
+    new_mesh->init_faces(nquality_faces);
+    new_mesh->init_elems(nquality_elems);
+
+    // Copy the nodes without modification
+    new_mesh->copy_nodes(mesh);
+    new_mesh->copy_nodemarkers(mesh);
+ //*     
+    // Copy the faces from vacuum boundary 
+    for (i = 0; i < nfaces; ++i)
+        if (is_quality_face[i]) {
+            j = 3 * i;
+            new_mesh->add_face(faces[j+0], faces[j+1], faces[j+2]);
+        }
+    // Copy the elements from vacuum    
+    for (i = 0; i < nelems; ++i)
+        if (is_quality_elem[i]) {
+            j = 4 * i;
+            new_mesh->add_elem(elems[j+0], elems[j+1], elems[j+2], elems[j+3]);
+        }    
+//*/
+    return new_mesh;
+}
+
 // Function to generate union mesh from bulk and vacuum meshes
 const shared_ptr<Mesh> Mesher::get_union_mesh(shared_ptr<Mesh> mesh_bulk,
         shared_ptr<Mesh> mesh_volume, const Femocs::SimuCell* cell) {

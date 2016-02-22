@@ -80,6 +80,10 @@ public:
     int* getFaces();
     int* getElems();
 
+    const double getNode(int i, int xyz);
+    const int getFace(int i, int node);
+    const int getElem(int i, int node);
+
     void calc_volumes();
     void calc_volume_statistics();
 

@@ -5,15 +5,17 @@
  *      Author: veske
  */
 
-#include "Femocs.h"
-
 #include <omp.h>
 #include <iostream>
 #include <memory>
 
+#include "Femocs.h"
 #include "Mesher.h"
 #include "SurfaceExtractor.h"
 #include "Vacuum.h"
+#include "tethex.h"
+#include "DealII.h"
+#include "Mesh.h"
 
 using namespace std;
 namespace femocs {
@@ -27,17 +29,20 @@ Femocs::Femocs(const string& file_name) {
 // Get simulation parameters
 const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
     Config conf;
-
+//*
     conf.infile = "input/mushroom1.ckx";
+//    conf.infile = "input/kmc_tiny.ckx";
     conf.latconst = 1.0;        // lattice constant
     conf.coord_cutoff = 3.3;    // coordination analysis cut off radius
     conf.tetgen_cutoff = 4.1;   // max_length^2 of tetrahedra's edge
-
+//*/
+/*
 //    conf.infile = "input/nanotip_medium.xyz";
-//    conf.latconst = 3.51;       // lattice constant
-//    conf.coord_cutoff = 3.4;	// coordination analysis cut off radius
-//    conf.tetgen_cutoff = 16.0;  // max_length^2 of tetrahedra's edge
-
+    conf.infile = "input/boundary_grid_small.xyz";
+    conf.latconst = 3.51;       // lattice constant
+    conf.coord_cutoff = 3.4;	// coordination analysis cut off radius
+    conf.tetgen_cutoff = 16.0;  // max_length^2 of tetrahedra's edge
+//*/
     conf.nnn = 12;						    // number of nearest neighbours in bulk
     conf.extracter = "coordination";	    // surface extraction algorithm
     conf.mesher = "tetgen";				    // mesher algorithm
@@ -50,7 +55,7 @@ const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
 const Femocs::SimuCell Femocs::init_simucell() const {
     SimuCell sc;
     sc.xmin = sc.xmax = sc.ymin = sc.ymax = sc.zmin = sc.zmax = 0;
-    sc.zmaxbox = 30*conf.latconst; // Electric field will be applied that much higer from the highest coordinate of simubox
+    sc.zmaxbox = conf.latconst*10; //*30; // Electric field will be applied that much higer from the highest coordinate of simubox
     sc.zminbox = 0.0;
     return sc;
 }
@@ -72,10 +77,12 @@ inline void end_msg(double t0) {
 // Workhorse function to run Femocs simulation
 const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess, const double* grid_spacing) {
     AtomReader reader;
-    double t0;
-    // Max tetrahedron volume is ~1000x the volume of regular tetrahedron with edge == latconst
-    string Vmax = to_string(  (int)(1000.0*0.118*pow(conf.latconst,3.0) ) );
-
+    double t0, tstart;
+    // Max tetrahedron volume is ~100000x the volume of regular tetrahedron with edge == latconst
+    string Vmax = to_string(  (int)(100000.0*0.118*pow(conf.latconst,3.0) ) );
+    
+    tstart = start_msg("======= Femocs started =======");
+        
 #if not LIBRARYMODE
     t0 = start_msg("=== Reading atoms from " + conf.infile);
     reader.import_file(conf.infile, &simucell);
@@ -137,7 +144,6 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
  * rebuild mesh4 with max volume and min quality restrictions
  *
  */
-
     t0 = start_msg("=== Step1...");
 
     Mesher mesher1(conf.mesher);
@@ -162,7 +168,7 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     mesh2->write_faces("output/faces3.vtk");
     mesh2->write_elems("output/elems3.vtk");
 
-    mesh2->recalc("rq1.414a"+Vmax);
+    mesh2->recalc("rq1.914a"+Vmax);
     mesh2->write_faces("output/faces4.vtk");
     mesh2->write_elems("output/elems4.vtk");
 
@@ -174,15 +180,84 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     mesh3->write_faces("output/faces5.vtk");
     mesh3->write_elems("output/elems5.vtk");
 
-
     mesher3.mark_faces(mesh3, surf, &simucell);
     mesher3.mark_elems_byvol(mesh3, &simucell);
 //    mesh3->recalc("pqAa"+Vmax);
     mesh3->write_faces("output/faces6.vtk");
     mesh3->write_elems("output/elems6.vtk");
+    
+    end_msg(t0);
+    t0 = start_msg("=== Step4...");
+    
+    Mesher mesher4(conf.mesher);
+    auto mesh4 = mesher4.extract_vacuum_mesh(mesh3, &simucell);   
+
+    mesh4->recalc("rQ");
+    mesh4->write_faces("output/faces7.vtk");
+    mesh4->write_elems("output/elems7.vtk");
 
     end_msg(t0);
+    t0 = start_msg("Making test mesh...");
+    
+    Mesher simplemesher(conf.mesher);
+    auto testmesh = simplemesher.get_simple_mesh();
+    testmesh->recalc("rQ");
+    testmesh->write_elems("output/testelems.vtk");
+    testmesh->write_faces("output/testfaces.vtk");
+    
+    end_msg(t0);
+    t0 = start_msg("Initialising tethex...");
+    
+    tethex::Mesh tethex_mesh;
+    tethex_mesh.read_femocs(mesh4);
+    
+    end_msg(t0);
+    t0 = start_msg("Converting tetrahedra to hexahedra...");
+    
+    tethex_mesh.convert();
+   
+    end_msg(t0);
+//*
+    t0 = start_msg("Writing tethex to file...");
+    tethex_mesh.write("output/tethex.msh");
+    tethex_mesh.write_vtk_faces("output/tethex_faces.vtk");
+    tethex_mesh.write_vtk_elems("output/tethex_elems.vtk");
+    end_msg(t0);
+//*/
+    
+    DealII laplace;
+        
+    t0 = start_msg("Importing tethex mesh into Deal.II...");
+//	  laplace.import_tethex_grid(&tethex_mesh);
+    laplace.import_file("output/tethex.msh");
+    end_msg(t0);
+    
+    t0 = start_msg("Writing Deal.II internal grid out...");
+    laplace.output_mesh("output/dealii_mesh.vtk");
+    end_msg(t0);
+    
+    t0 = start_msg("System setup...");
+    laplace.setup_system();
+    end_msg(t0);
 
+    t0 = start_msg("Inserting boundary contitions...");
+    laplace.mark_boundary(&simucell);
+    end_msg(t0);
+    
+    t0 = start_msg("Assembling system...");
+    laplace.assemble_system();
+    end_msg(t0);
+
+    t0 = start_msg("Solving...");
+//    laplace.solve_cg();
+    laplace.solve_umfpack();
+    end_msg(t0);
+
+    t0 = start_msg("Outputting results...");
+    laplace.output_results("output/final-results.vtk");
+    end_msg(t0);
+
+    cout << "\nTotal time: " << omp_get_wtime() - tstart << "\n";
     start_msg("======= Femocs finished! =======\n");
 }
 
