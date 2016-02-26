@@ -78,6 +78,7 @@ public:
         int nnn;                //!< number of nearest neighbours for given crystal structure
         int nt;                 //!< number of OpenMP threads
         double zmaxbox;         //!< maximum z-coordinate of simulation box
+        int poly_degree;        //!< polynomial degree of the finite element (1-linear, 2-quadratic,..)
     };
 
     /** Struct holding data about general simulation cell parameters. */

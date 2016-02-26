@@ -47,6 +47,7 @@ const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
     conf.extracter = "coordination";	    // surface extraction algorithm
     conf.mesher = "tetgen";				    // mesher algorithm
     conf.nt = 4;						    // number of OpenMP threads
+    conf.poly_degree = 1;                   // finite element polynomial degree
 
     return conf;
 }
@@ -55,7 +56,7 @@ const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
 const Femocs::SimuCell Femocs::init_simucell() const {
     SimuCell sc;
     sc.xmin = sc.xmax = sc.ymin = sc.ymax = sc.zmin = sc.zmax = 0;
-    sc.zmaxbox = conf.latconst*10; //*30; // Electric field will be applied that much higer from the highest coordinate of simubox
+    sc.zmaxbox = conf.latconst*30; //*30; // Electric field will be applied that much higer from the highest coordinate of simubox
     sc.zminbox = 0.0;
     return sc;
 }
@@ -225,23 +226,19 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     end_msg(t0);
 //*/
     
-    DealII laplace;
+    DealII laplace(conf.poly_degree, &simucell);
         
     t0 = start_msg("Importing tethex mesh into Deal.II...");
-//	  laplace.import_tethex_grid(&tethex_mesh);
+//	  laplace.import_tethex_mesh(&tethex_mesh);
     laplace.import_file("output/tethex.msh");
-    end_msg(t0);
-    
-    t0 = start_msg("Writing Deal.II internal grid out...");
-    laplace.output_mesh("output/dealii_mesh.vtk");
     end_msg(t0);
     
     t0 = start_msg("System setup...");
     laplace.setup_system();
     end_msg(t0);
 
-    t0 = start_msg("Inserting boundary contitions...");
-    laplace.mark_boundary(&simucell);
+    t0 = start_msg("Marking the boundary...");
+    laplace.mark_boundary();
     end_msg(t0);
     
     t0 = start_msg("Assembling system...");
@@ -255,6 +252,7 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
 
     t0 = start_msg("Outputting results...");
     laplace.output_results("output/final-results.vtk");
+    laplace.output_mesh("output/dealii_mesh.vtk");
     end_msg(t0);
 
     cout << "\nTotal time: " << omp_get_wtime() - tstart << "\n";

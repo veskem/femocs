@@ -19,13 +19,12 @@ LINK_DIRECTORIES(../lib/)
 SET(LIBRARIES tet)
 
 # specify whether to build in debug or release mode
-#SET(CMAKE_BUILD_TYPE Release)
-SET(CMAKE_BUILD_TYPE Debug)
+SET(CMAKE_BUILD_TYPE Release)
+#SET(CMAKE_BUILD_TYPE Debug)
 
 # disable or enable all warnings
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -w")
-#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wpedantic")
-
+SET(CMAKE_CXX_FLAGS_RELEASE "-w -O3")
+SET(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wpedantic -O2")
 # ==============================================
 
 FIND_PACKAGE(deal.II 8.3 REQUIRED
