@@ -48,7 +48,8 @@ const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
     conf.mesher = "tetgen";				    // mesher algorithm
     conf.nt = 4;						    // number of OpenMP threads
     conf.poly_degree = 1;                   // finite element polynomial degree
-
+    conf.neumann = 10.0;                    // Neumann boundary condition value
+    
     return conf;
 }
 
@@ -113,11 +114,13 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     vacuum.generate_simple(&simucell);
     end_msg(t0);
 
+#if DEBUGMODE
     t0 = start_msg("=== Writing surface, bulk and vacuum to output/...");
     surf->output("output/surface.xyz");
     bulk->output("output/bulk.xyz");
     vacuum.output("output/vacuum.xyz");
     end_msg(t0);
+#endif
 
 // ===============================================
 
@@ -149,44 +152,53 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
 
     Mesher mesher1(conf.mesher);
     auto mesh1 = mesher1.get_bulk_mesh(bulk, "Q");
+#if DEBUGMODE
     mesh1->write_faces("output/faces0.vtk");
     mesh1->write_elems("output/elems0.vtk");
+#endif
 
     mesher1.clean_elems(mesh1, conf.tetgen_cutoff, "rQ");
+#if DEBUGMODE
     mesh1->write_faces("output/faces1.vtk");
     mesh1->write_elems("output/elems1.vtk");
+#endif
 
     mesher1.mark_faces(mesh1, surf, &simucell);
     mesher1.calc_statistics(mesh1);
+#if DEBUGMODE
     mesh1->write_faces("output/faces2.vtk");
     mesh1->write_elems("output/elems2.vtk");
-
+#endif
     end_msg(t0);
     t0 = start_msg("=== Step2...");
 
     Mesher mesher2(conf.mesher);
     auto mesh2 = mesher2.get_volume_mesh(bulk, &vacuum, "Q");
+#if DEBUGMODE
     mesh2->write_faces("output/faces3.vtk");
     mesh2->write_elems("output/elems3.vtk");
-
+#endif
     mesh2->recalc("rq1.914a"+Vmax);
+#if DEBUGMODE
     mesh2->write_faces("output/faces4.vtk");
     mesh2->write_elems("output/elems4.vtk");
-
+#endif
     end_msg(t0);
     t0 = start_msg("=== Step3...");
 
     Mesher mesher3(conf.mesher);
     auto mesh3 = mesher3.get_union_mesh(mesh1, mesh2, &simucell);
+#if DEBUGMODE
     mesh3->write_faces("output/faces5.vtk");
     mesh3->write_elems("output/elems5.vtk");
-
+#endif
     mesher3.mark_faces(mesh3, surf, &simucell);
     mesher3.mark_elems_byvol(mesh3, &simucell);
 //    mesh3->recalc("pqAa"+Vmax);
+#if DEBUGMODE
     mesh3->write_faces("output/faces6.vtk");
     mesh3->write_elems("output/elems6.vtk");
-    
+#endif
     end_msg(t0);
     t0 = start_msg("=== Step4...");
     
@@ -194,39 +206,40 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     auto mesh4 = mesher4.extract_vacuum_mesh(mesh3, &simucell);   
 
     mesh4->recalc("rQ");
+#if DEBUGMODE
     mesh4->write_faces("output/faces7.vtk");
     mesh4->write_elems("output/elems7.vtk");
-
+#endif
     end_msg(t0);
     t0 = start_msg("Making test mesh...");
     
+#if DEBUGMODE
     Mesher simplemesher(conf.mesher);
     auto testmesh = simplemesher.get_simple_mesh();
     testmesh->recalc("rQ");
     testmesh->write_elems("output/testelems.vtk");
     testmesh->write_faces("output/testfaces.vtk");
-    
+#endif
     end_msg(t0);
+
     t0 = start_msg("Initialising tethex...");
-    
     tethex::Mesh tethex_mesh;
     tethex_mesh.read_femocs(mesh4);
-    
     end_msg(t0);
+    
     t0 = start_msg("Converting tetrahedra to hexahedra...");
-    
     tethex_mesh.convert();
-   
     end_msg(t0);
-//*
+
     t0 = start_msg("Writing tethex to file...");
     tethex_mesh.write("output/tethex.msh");
+#if DEBUGMODE
     tethex_mesh.write_vtk_faces("output/tethex_faces.vtk");
     tethex_mesh.write_vtk_elems("output/tethex_elems.vtk");
+#endif
     end_msg(t0);
-//*/
     
-    DealII laplace(conf.poly_degree, &simucell);
+    DealII laplace(conf.poly_degree, conf.neumann, &simucell);
         
     t0 = start_msg("Importing tethex mesh into Deal.II...");
 //	  laplace.import_tethex_mesh(&tethex_mesh);
@@ -246,13 +259,15 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     end_msg(t0);
 
     t0 = start_msg("Solving...");
-//    laplace.solve_cg();
-    laplace.solve_umfpack();
+    laplace.solve_cg();
+//    laplace.solve_umfpack();
     end_msg(t0);
 
     t0 = start_msg("Outputting results...");
+#if DEBUGMODE
     laplace.output_results("output/final-results.vtk");
     laplace.output_mesh("output/dealii_mesh.vtk");
+#endif
     end_msg(t0);
 
     cout << "\nTotal time: " << omp_get_wtime() - tstart << "\n";

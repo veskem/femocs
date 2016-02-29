@@ -56,9 +56,11 @@ using namespace std;
 using namespace dealii;
 namespace femocs {
 
+const int DIM = 3;
+
 class DealII {
 public:
-    DealII(const int degree, Femocs::SimuCell* simucell);
+    DealII(const int poly_degree, const double neumann, Femocs::SimuCell* simucell);
     void run();
     void import_file(const string file_name);
     void make_simple_mesh();
@@ -72,32 +74,26 @@ public:
     void setup_system();
     void mark_boundary();
     void assemble_system();
-    void assemble_system_old();
     void solve_umfpack();
     void solve_cg();
     void distort_solution(const double dist_ampl);
     void distort_solution_const(const double dist_ampl);
     void distort_solution_one(const double dist_ampl, const int i);
 
+
 private:
-    const unsigned int DIM = 3;
+
     const string get_file_type(const string& file_name);
     bool on_boundary(const double face, const double face_min, const double face_max);
 
     Triangulation<3> triangulation;
-    FE_Q<3> fe;
+    FE_Q<DIM> fe;
     DoFHandler<3> dof_handler;
     SparsityPattern sparsity_pattern;
     SparseMatrix<double> system_matrix;
     Vector<double> solution;
     Vector<double> system_rhs;
     ConstraintMatrix constraints;
-
-    // Neumann is the gradient length for the solution at some boundary. In our case the top.
-    double neumann = 10.0;
-
-    // Mesh global refinement level
-    double refine_level = 4;
 
     //Declare enumerators for domain distinction. To be implemented when we apply multiphysics.
     struct Types {
@@ -115,13 +111,13 @@ private:
         double ymax;
         double zmin;
         double zmax;
+        double zmaxbox;
+        double zminbox;
     };
 
     Types types;
     Sizes sizes;
-
-    int interface = 3;
-    bool first_run;
+    double neumann;  //!< gradient length for the solution at some boundary (in current case at the top)
 };
 
 } /* namespace femocs */

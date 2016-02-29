@@ -20,9 +20,9 @@ namespace femocs {
 
 // Define main class constructor. Number in fe(2) determines the interpolation type. 1 would be linear etc.
 //DealII::DealII() : fe(1), dof_handler(triangulation) {
-DealII::DealII(const int degree, Femocs::SimuCell* simucell) :
-        fe(degree), dof_handler(triangulation) {
-    first_run = true;
+DealII::DealII(const int poly_degree, const double neumann, Femocs::SimuCell* simucell) :
+        fe(poly_degree), dof_handler(triangulation) {
+    this->neumann = neumann;
     types.bulk = simucell->type_bulk;
     types.side = simucell->type_edge;
     types.surface = simucell->type_surf;
@@ -34,20 +34,22 @@ DealII::DealII(const int degree, Femocs::SimuCell* simucell) :
     sizes.ymin = simucell->ymin;
     sizes.zmax = simucell->zmax;
     sizes.zmin = simucell->zmin;
+    sizes.zmaxbox = simucell->zmaxbox;
+    sizes.zminbox = simucell->zminbox;
 }
 
 // Import mesh from vtk or msh file
 void DealII::import_file(const string file_name) {
-    GridIn<3, 3> gi;
+    GridIn<DIM, DIM> gi;
 
     gi.attach_triangulation(triangulation);
     string file_type = get_file_type(file_name);
-    ifstream in(file_name);
+    ifstream in_file(file_name);
 
     if (file_type == "vtk")
-        gi.read_vtk(in);
+        gi.read_vtk(in_file);
     else if (file_type == "msh")
-        gi.read_msh(in);
+        gi.read_msh(in_file);
     else
         cout << "Unknown file type!\n";
 }
@@ -61,23 +63,36 @@ const string DealII::get_file_type(const string& file_name) {
 
 // Import hexahedral mesh from tethex
 void DealII::import_tethex_mesh(tethex::Mesh* mesh) {
-    int n_elems, n_verts, n_verts_in_elem;
+    int n_elems, n_faces, n_verts;
+    int n_verts_in_face, n_verts_in_elem;
 
+    n_verts = mesh->get_n_vertices();
+    n_faces = mesh->get_n_quadrangles();
     n_elems = mesh->get_n_hexahedra();
+    n_verts_in_face = GeometryInfo<DIM-1>::vertices_per_cell;
+    n_verts_in_elem = GeometryInfo<DIM>::vertices_per_cell;
 
     if (n_elems < 0) {
         cout << "Number of elements in input mesh < 1!";
         return;
     }
 
-    n_verts = mesh->get_n_vertices();
-    n_verts_in_elem = GeometryInfo<3>::vertices_per_cell; //mesh->get_hexahedron(0).get_n_vertices();
+/*
+    // magic numbers that turn elements to follow right sequence
+    const int order_of_faces[] = { 0, 1, 3, 2, 4, 5, 7, 6 };
+    // generate hexahedra vertice indexes
+    vector<CellData<2>> faces(n_faces, CellData<2>());
 
+    for (int face = 0; face < n_faces; ++face) {
+        faces[face].material_id = 0;
+        for (int vert = 0; vert < n_verts_in_face; ++vert)
+            faces[face].vertices[vert] = face * n_verts_in_face + order_of_faces[vert];
+    }
+ //*/   
     // magic numbers that turn elements to follow right sequence
     const int order_of_elems[] = { 0, 1, 3, 2, 4, 5, 7, 6 };
-
     // generate hexahedra vertice indexes
-    vector<CellData<3>> elems(n_elems, CellData<3>());
+    vector<CellData<DIM>> elems(n_elems, CellData<DIM>());
 
     for (int elem = 0; elem < n_elems; ++elem) {
         elems[elem].material_id = 0;
@@ -87,7 +102,7 @@ void DealII::import_tethex_mesh(tethex::Mesh* mesh) {
 
     // magic numbers that turn vertices to follow right sequence
     const int order_of_verts[] = { 0, 1, 5, 4, 3, 2, 6, 7 };
-    vector<Point<3>> vertices(n_elems * n_verts_in_elem);
+    vector<Point<DIM>> vertices(n_elems * n_verts_in_elem);
     int vert_cntr = 0;
 
     // transfer nodes from tethex to deal.ii mesh
@@ -97,7 +112,7 @@ void DealII::import_tethex_mesh(tethex::Mesh* mesh) {
             double v1 = mesh->get_vertex(vert2).get_coord(0);
             double v2 = mesh->get_vertex(vert2).get_coord(1);
             double v3 = mesh->get_vertex(vert2).get_coord(2);
-            vertices[vert_cntr++] = Point<3>(v1, v2, v3);
+            vertices[vert_cntr++] = Point<DIM>(v1, v2, v3);
         }
 
     //   invert_all_cells_of_negative_grid and reorder_cells function of GridReordering
@@ -107,7 +122,15 @@ void DealII::import_tethex_mesh(tethex::Mesh* mesh) {
     //   GridReordering<DIM>::reorder_cells(elems, use_new_style_ordering);
 
     // combine vertices and hexahedra into triangulation object
+//    triangulation.create_triangulation(vertices, faces, SubCellData());
     triangulation.create_triangulation(vertices, elems, SubCellData());
+
+//    Triangulation<2> tri_2d;
+//    tri_2d.create_triangulation(vertices, faces, SubCellData());
+//
+//    GridGenerator::merge_triangulations(tri_2d, triangulation, triangulation);
+//
+//   tri_2d.clear();
 }
 
 void DealII::import_tethex_mesh_old(tethex::Mesh* mesh) {
@@ -121,19 +144,19 @@ void DealII::import_tethex_mesh_old(tethex::Mesh* mesh) {
     }
 
     n_verts = mesh->get_n_vertices();
-    n_verts_in_elem = GeometryInfo<3>::vertices_per_cell; //mesh->get_hexahedron(0).get_n_vertices();
+    n_verts_in_elem = GeometryInfo<DIM>::vertices_per_cell; //mesh->get_hexahedron(0).get_n_vertices();
 
     // copy nodes from tethex to deal.ii mesh
-    vector<Point<3>> vertices(n_verts);
+    vector<Point<DIM>> vertices(n_verts);
     for (int vert = 0; vert < n_verts; ++vert) {
         double v1 = mesh->get_vertex(vert).get_coord(0);
         double v2 = mesh->get_vertex(vert).get_coord(1);
         double v3 = mesh->get_vertex(vert).get_coord(2);
-        vertices[vert] = Point<3>(v1, v2, v3);
+        vertices[vert] = Point<DIM>(v1, v2, v3);
     }
 
     // copy hexahedra from tethex to deal.ii mesh
-    vector<CellData<3>> elems(n_elems, CellData<3>());
+    vector<CellData<DIM>> elems(n_elems, CellData<DIM>());
     for (int elem = 0; elem < n_elems; ++elem) {
         elems[elem].material_id = 0;
         for (int vert = 0; vert < n_verts_in_elem; ++vert)
@@ -144,8 +167,8 @@ void DealII::import_tethex_mesh_old(tethex::Mesh* mesh) {
     // before creating the triangulation
 
     const bool use_new_style_ordering = true;
-    GridReordering<3>::invert_all_cells_of_negative_grid(vertices, elems);
-    GridReordering<3>::reorder_cells(elems, use_new_style_ordering);
+    GridReordering<DIM>::invert_all_cells_of_negative_grid(vertices, elems);
+    GridReordering<DIM>::reorder_cells(elems, use_new_style_ordering);
 
     triangulation.create_triangulation(vertices, elems, SubCellData());
 }
@@ -155,10 +178,10 @@ void DealII::import_tetgen_mesh(shared_ptr<Mesh> mesh) {
     const int n_nodes_in_elem = 4;
     const int n_coords = 3;
 
-    Triangulation<3> tr1;
-    Triangulation<3> tr2;
-    vector<Point<3>> vertices1(3 + 1);
-    vector<Point<3>> vertices2(3 + 1);
+    Triangulation<DIM> tr1;
+    Triangulation<DIM> tr2;
+    vector<Point<DIM>> vertices1(3 + 1);
+    vector<Point<DIM>> vertices2(3 + 1);
 
     int i, j, node, elem;
     int n_elems = mesh->getNelems();
@@ -293,7 +316,7 @@ void DealII::setup_system() {
     system_matrix.reinit(sparsity_pattern);
     system_rhs.reinit(dof_handler.n_dofs());
 
-    if (first_run) solution.reinit(dof_handler.n_dofs());
+    solution.reinit(dof_handler.n_dofs());
 }
 
 void DealII::distort_solution(const double dist_ampl) {
@@ -312,19 +335,43 @@ void DealII::distort_solution_one(const double dist_ampl, const int i) {
 
 // Mark the boundary faces of mesh
 void DealII::mark_boundary() {
-    typename Triangulation<3>::active_face_iterator face;
+/*
+    typename Triangulation<DIM>::active_cell_iterator cell;
+    const unsigned int faces_per_cell = GeometryInfo<DIM>::faces_per_cell;
 
     // Loop through the faces and mark them according the location of its centre
-    for (face = triangulation.begin_active_face(); face != triangulation.end_face(); ++face) {
-        if (on_boundary(face->center()[0], sizes.xmin, sizes.xmax))
-            face->set_all_boundary_ids(types.side);
-        else if (on_boundary(face->center()[1], sizes.ymin, sizes.ymax))
-            face->set_all_boundary_ids(types.side);
-        else if (on_boundary(face->center()[2], sizes.zmax, sizes.zmax))
-            face->set_all_boundary_ids(types.top);
-        else
-            face->set_all_boundary_ids(types.surface);
+    for(cell = triangulation.begin_active(); cell != triangulation.end(); ++cell)
+        for (unsigned int f = 0; f < faces_per_cell; ++f)
+            if(cell->face(f)->at_boundary()) {
+                if (on_boundary(cell->face(f)->center()[0], sizes.xmin, sizes.xmax))
+                    cell->face(f)->set_all_boundary_ids(types.side);
+                else if (on_boundary(cell->face(f)->center()[1], sizes.ymin, sizes.ymax))
+                    cell->face(f)->set_all_boundary_ids(types.side);
+                else if (on_boundary(cell->face(f)->center()[2], sizes.zmaxbox, sizes.zmaxbox))
+                    cell->face(f)->set_all_boundary_ids(types.top);
+                else
+                    cell->face(f)->set_all_boundary_ids(types.surface);
+            }
+//*/
+//*
+    typename Triangulation<DIM>::active_face_iterator face;
+
+   
+    // Loop through the faces and mark them according the location of its centre
+    for(face = triangulation.begin_active_face(); face != triangulation.end(); ++face) {
+        if(face->at_boundary()) {
+            if (on_boundary(face->center()[0], sizes.xmin, sizes.xmax))
+                face->set_all_boundary_ids(types.side);
+            else if (on_boundary(face->center()[1], sizes.ymin, sizes.ymax))
+                face->set_all_boundary_ids(types.side);
+            else if (on_boundary(face->center()[2], sizes.zmaxbox, sizes.zmaxbox))
+                face->set_all_boundary_ids(types.top);
+            else
+                face->set_all_boundary_ids(types.surface);
+        }
     }
+
+ //*/
 }
 
 // Function to determine whether the center of face is on the boundary of simulation cell or not
@@ -332,25 +379,26 @@ bool DealII::on_boundary(const double face, const double face_min, const double 
     const double eps = 0.1;
     bool b1 = fabs(face - face_min) < eps;
     bool b2 = fabs(face_max - face) < eps;
-    return b1 | b2;
+    return b1 || b2;
 }
 
 // Insert boundary conditions to the system
 void DealII::assemble_system() {
     // Set up quadrature system for quads and faces
-    const QGauss<3> quadrature_formula(3);
-    const QGauss<2> face_quadrature_formula(3);
+    const QGauss<3> quadrature_formula(DIM);
+    const QGauss<2> face_quadrature_formula(DIM);
     unsigned int i, j;
 
+
     // Calculate necessary values (derived from weak form of Laplace equation)
-    FEValues<3> fe_values(fe, quadrature_formula,
+    FEValues<DIM> fe_values(fe, quadrature_formula,
             update_values | update_gradients | update_quadrature_points | update_JxW_values);
-    FEFaceValues<3> fe_face_values(fe, face_quadrature_formula,
+    FEFaceValues<DIM> fe_face_values(fe, face_quadrature_formula,
             update_values | update_gradients | update_quadrature_points | update_JxW_values);
-//        update_values|update_quadrature_points|update_JxW_values);
 
     // Parametrize necessary entities.
     const unsigned int dofs_per_cell = fe.dofs_per_cell;
+    const unsigned int faces_per_cell = GeometryInfo<DIM>::faces_per_cell;
     const unsigned int n_q_points = quadrature_formula.size();
     const unsigned int n_face_q_points = face_quadrature_formula.size();
 
@@ -362,7 +410,9 @@ void DealII::assemble_system() {
     vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     //Start iterator cycles over all cells to set local terms for each cell
-    DoFHandler<3>::active_cell_iterator cell;
+    DoFHandler<DIM>::active_cell_iterator cell;
+
+    const double space_charge = 0.0;
 
     for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell) {
         fe_values.reinit(cell);
@@ -371,12 +421,10 @@ void DealII::assemble_system() {
 
         // Integration of the cell by looping over all quadrature points
         for (unsigned int q_index = 0; q_index < n_q_points; ++q_index) {
-
-            // Assemble the right hand side by integrating over the shape function i times the right hand side function;
-            // which we choose to be the function with constant value one
-            // SHOULDN'T 1 BE 0? ACCORDING TO KRISJAN THIS IS RELATED TO SPACE CHARGE (No space charge, so f=0)
+            // Assemble the right hand side by integrating over the shape function i times the
+            // right hand side function; we choose it to be the function with constant value one
             for (i = 0; i < dofs_per_cell; ++i)
-                cell_rhs(i) += fe_values.shape_value(i, q_index) * 1 * fe_values.JxW(q_index);
+                cell_rhs(i) += fe_values.shape_value(i, q_index) * space_charge * fe_values.JxW(q_index);
 
             // Assemble the matrix
             for (i = 0; i < dofs_per_cell; ++i)
@@ -385,18 +433,16 @@ void DealII::assemble_system() {
                             * fe_values.shape_grad(j, q_index) * fe_values.JxW(q_index);
 
             // Cycle for faces of each cell
-            for (unsigned int f = 0; f < GeometryInfo<2>::faces_per_cell; ++f)
-                // Check if face is at boundary and marked as upper boundary 1
-                if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == types.top) {
+            for (unsigned int f = 0; f < faces_per_cell; ++f)
+                // Check if face is located at top boundary  
+                if ( cell->face(f)->boundary_id() == types.top ) {
                     fe_face_values.reinit(cell, f);
-
                     // Set boundary conditions
                     for (unsigned int fq_index = 0; fq_index < n_face_q_points; ++fq_index)
                         for (i = 0; i < dofs_per_cell; ++i)
-                            // Set Neumann boundary value.
+                            // Set Neumann boundary value
                             cell_rhs(i) += fe_face_values.shape_value(i, fq_index) * neumann
                                     * fe_face_values.JxW(fq_index);
-
                 }
         }
 
@@ -411,115 +457,13 @@ void DealII::assemble_system() {
 
     }
 
-    // Declare boundaries.
+    // Declare boundaries
     map<types::global_dof_index, double> copper_boundary_value;
 
-    // Add Dirichlet' boundary condition to faces denoted with integer 2. We did this in make_grid.
-    // !!! WHAT IS THIS 2 ACTUALLY? Robert says its face marker, Kristjan says its potential
-//    VectorTools::interpolate_boundary_values(dof_handler, 2, ZeroFunction<3>(), copper_boundary_value);
-    VectorTools::interpolate_boundary_values(dof_handler, types.side, ZeroFunction<3>(), copper_boundary_value);
+    // Add Dirichlet' boundary condition to faces denoted as surface
+    VectorTools::interpolate_boundary_values(dof_handler, types.surface, ZeroFunction<DIM>(), copper_boundary_value);
 
-    // Apply boundary values to system matrix.
-    MatrixTools::apply_boundary_values(copper_boundary_value, system_matrix, solution, system_rhs);
-
-    // The following code adds a Dirichlet boundary condition to boundaries with id 2,
-    // but as Neumann conditions are used there, this is ignored.
-
-    // 1 V at the vacuum boundary
-//  std::map<types::global_dof_index,double> vacuum_boundary_values;
-//  VectorTools::interpolate_boundary_values (dof_handler, 2, ConstantFunction<2>(1), vacuum_boundary_values);
-//  MatrixTools::apply_boundary_values (vacuum_boundary_values, system_matrix, solution, system_rhs);    
-}
-
-// Set boundary values and
-void DealII::assemble_system_old() {
-    // Set up quadrature system for quads and faces
-    const QGauss<3> quadrature_formula(3);
-    const QGauss<2> face_quadrature_formula(3);
-
-    // Calculate necessary values (derived from weak form of Laplace equation)
-    FEValues<3> fe_values(fe, quadrature_formula,
-            update_values | update_gradients | update_quadrature_points | update_JxW_values);
-    FEFaceValues<3> fe_face_values(fe, face_quadrature_formula,
-            update_values | update_gradients | update_quadrature_points | update_JxW_values);
-
-    // Parametrize necessary entities.
-    const unsigned int dofs_per_cell = fe.dofs_per_cell;
-    const unsigned int n_q_points = quadrature_formula.size();
-    const unsigned int n_face_q_points = face_quadrature_formula.size();
-
-    // Declare cell matrix and right-hand-side matrix (sets coordinate system so we get real positive cells)
-    FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
-    Vector<double> cell_rhs(dofs_per_cell);
-
-    // Create a vector of local degrees of freedom for each cell.
-    std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-
-    //Start iterator cycles over all cells to set local terms for each cell
-    typename DoFHandler<3>::active_cell_iterator cell = dof_handler.begin_active(), endc =
-            dof_handler.end();
-
-    for (; cell != endc; ++cell) {
-        cell_matrix = 0;
-        cell_rhs = 0;
-        fe_values.reinit(cell);
-
-        for (unsigned int q_index = 0; q_index != n_q_points; ++q_index) {
-            for (unsigned int i = 0; i != dofs_per_cell; ++i) {
-
-                // Cycle for cells
-                for (unsigned int j = 0; j != dofs_per_cell; ++j) {
-                    cell_matrix(i, j) += (fe_values.shape_grad(i, q_index)
-                            * fe_values.shape_grad(j, q_index) * fe_values.JxW(q_index));
-                    cell_rhs(i) += (fe_values.shape_value(i, q_index) * 1 * fe_values.JxW(q_index));
-                }
-            }
-            // Cycle for faces of each cell
-            for (unsigned int f = 0; f != GeometryInfo<2>::faces_per_cell; ++f) {
-                // Check if face is at boundary
-                if (cell->face(f)->at_boundary()) {
-                    fe_face_values.reinit(cell, f);
-                    // Check if face is face is on our marked upper boundary 1
-                    if (cell->face(f)->boundary_id() == 1) {
-
-                        // Set boundary conditions
-                        for (unsigned int fq_index = 0; fq_index != n_face_q_points; ++fq_index) {
-                            for (unsigned int i = 0; i != dofs_per_cell; ++i) {
-                                for (unsigned int j = 0; j != dofs_per_cell; ++j) {
-
-                                    // Set Neumann boundary value.
-                                    cell_rhs(i) += fe_face_values.shape_value(i, fq_index) * neumann
-                                            * fe_face_values.JxW(fq_index);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        // Apply set conditions and rewrite system matrix and rhs
-        cell->get_dof_indices(local_dof_indices);
-
-        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-            for (unsigned int j = 0; j < dofs_per_cell; ++j)
-                system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
-        }
-
-        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-            system_rhs(local_dof_indices[i]) += cell_rhs(i);
-        }
-
-        //constraints.distribute_local_to_global(cell_matrix,cell_rhs,local_dof_indices,system_matrix,system_rhs);
-    }
-
-// Declare boundaries.
-    std::map<types::global_dof_index, double> copper_boundary_value;
-
-// Add Dirichlet' boundary condition to faces denoted with integer 2. We did this in make_grid.
-    VectorTools::interpolate_boundary_values(dof_handler, 2, ZeroFunction<3>(),
-            copper_boundary_value);
-
-// apply boundary values to system matrix.
+    // Apply boundary values to system matrix
     MatrixTools::apply_boundary_values(copper_boundary_value, system_matrix, solution, system_rhs);
 }
 
@@ -540,8 +484,6 @@ void DealII::solve_cg() {
      //make constraints apply to solution
      constraints.distribute(solution);
      //*/
-
-    first_run = false;
 }
 
 // Run the calculation with UMFPACK solver
@@ -549,13 +491,11 @@ void DealII::solve_umfpack() {
     SparseDirectUMFPACK A_direct;
     A_direct.initialize(system_matrix);
     A_direct.vmult(solution, system_rhs);
-
-    first_run = false;
 }
 
 // Output the calculation results to vtk file
 void DealII::output_results(const string file_name) {
-    DataOut<3> data_out;
+    DataOut<DIM> data_out;
 
     data_out.attach_dof_handler(dof_handler);
     data_out.add_data_vector(solution, "solution");
