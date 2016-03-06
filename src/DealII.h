@@ -44,8 +44,8 @@
 #include <deal.II/fe/fe_system.h>
 #include <deal.II/base/timer.h>
 #include <deal.II/numerics/matrix_tools.h>
-
 #include <deal.II/grid/grid_reordering.h>
+#include <deal.II/grid/grid_tools.h>
 
 #include <memory>
 #include "Femocs.h"
@@ -63,10 +63,11 @@ public:
     DealII(const int poly_degree, const double neumann, Femocs::SimuCell* simucell);
     void run();
     void import_file(const string file_name);
+    void import_file_vol2(const string file_name);
+
     void make_simple_mesh();
     void import_tetgen_mesh(shared_ptr<Mesh> mesh);
     void import_tethex_mesh(tethex::Mesh* mesh);
-    void import_tethex_mesh_old(tethex::Mesh* mesh);
 
     void output_mesh(const string file_name);
     void output_results(const string file_name);

@@ -232,7 +232,7 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     end_msg(t0);
 
     t0 = start_msg("Writing tethex to file...");
-    tethex_mesh.write("output/tethex.msh");
+//    tethex_mesh.write("output/tethex.msh");
 #if DEBUGMODE
     tethex_mesh.write_vtk_faces("output/tethex_faces.vtk");
     tethex_mesh.write_vtk_elems("output/tethex_elems.vtk");
@@ -242,8 +242,8 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     DealII laplace(conf.poly_degree, conf.neumann, &simucell);
         
     t0 = start_msg("Importing tethex mesh into Deal.II...");
-//	  laplace.import_tethex_mesh(&tethex_mesh);
-    laplace.import_file("output/tethex.msh");
+	laplace.import_tethex_mesh(&tethex_mesh);
+//    laplace.import_file("output/tethex.msh");
     end_msg(t0);
     
     t0 = start_msg("System setup...");
@@ -266,7 +266,7 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     t0 = start_msg("Outputting results...");
 #if DEBUGMODE
     laplace.output_results("output/final-results.vtk");
-    laplace.output_mesh("output/dealii_mesh.vtk");
+    laplace.output_mesh("output/dealii_mesh_3.msh");
 #endif
     end_msg(t0);
 
