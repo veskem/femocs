@@ -63,6 +63,19 @@ public:
     const int getN();
     /** Return lattice constant of extracted material */
     const double getLatconst();
+    /** Calculate statistics about Surface atoms */
+    const void calc_statistics();
+
+    struct Sizes {
+        double xmin;
+        double xmax;
+        double ymin;
+        double ymax;
+        double zmin;
+        double zmax;
+    };
+
+    Sizes sizes;
 
 private:
     vector<double> x, y, z;	//!< Real coordinates
@@ -71,6 +84,8 @@ private:
     vector<int> type;			//!< Atom type (-1-fixed, 1-bulk, 2-surface, 3-vacancy)
     vector<bool> isEvaporated; //!< List of evaporated atoms
     double latconst;            //!< lattice constant of extracted material
+
+    const void init_statistics();
 };
 
 } /* namespace femocs */

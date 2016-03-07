@@ -409,15 +409,15 @@ void Mesh::write_vtk(const string file_name, const int nnodes, const int ncells,
         fprintf(outfile, "\n\n");
     }
 
-//    // Output point attributes
-//    if (nnodemarkers > 0) {
-//        fprintf(outfile, "POINT_DATA %d\n", nnodemarkers);
-//        fprintf(outfile, "SCALARS Point_markers int\n");
-//        fprintf(outfile, "LOOKUP_TABLE default\n");
-//        for (i = 0; i < nnodemarkers; ++i)
-//            fprintf(outfile, "%d\n", nodemarkers[i]);
-//        fprintf(outfile, "\n");
-//    }
+    // Output point attributes
+    if (nnodemarkers > 0) {
+        fprintf(outfile, "POINT_DATA %d\n", nnodemarkers);
+        fprintf(outfile, "SCALARS Point_markers int\n");
+        fprintf(outfile, "LOOKUP_TABLE default\n");
+        for (i = 0; i < nnodemarkers; ++i)
+            fprintf(outfile, "%d\n", nodemarkers[i]);
+        fprintf(outfile, "\n");
+    }
 
     // Output cell attributes
     if (nmarkers > 0) {
@@ -434,6 +434,10 @@ void Mesh::write_vtk(const string file_name, const int nnodes, const int ncells,
 
 // Function to output faces in .vtk format
 void Mesh::write_faces(const string file_name) {
+#if not DEBUGMODE
+    return;
+#endif
+
     const int celltype = 5; // 5-triangle, 10-tetrahedron
     const int nnodes_in_cell = 3;
 
@@ -446,13 +450,15 @@ void Mesh::write_faces(const string file_name) {
     int* nodemakers = getNodemarkers();
     vector<int>* cellmarkers = &facemarkers;    // pointer to face markers
 
-//    write_vtk(file_name, nnodes, nfaces, nmarkers, nodes, faces, markers, celltype, nnodes_in_cell);
     write_vtk(file_name, nnodes, nfaces, nnodemarkers, nmarkers, nodes, faces, nodemakers,
             cellmarkers, celltype, nnodes_in_cell);
 }
 
 // Function to output faces in .vtk format
 void Mesh::write_elems(const string file_name) {
+#if not DEBUGMODE
+    return;
+#endif
     const int celltype = 10; // 5-triangle, 10-tetrahedron
     const int nnodes_in_cell = 4;
 
@@ -464,8 +470,6 @@ void Mesh::write_elems(const string file_name) {
     int* elems = getElems();     // pointer to faces nodes
     int* nodemakers = getNodemarkers();
     vector<int>* cellmarkers = &elemmarkers;    // pointer to element markers
-
-    //write_vtk(file_name, nnodes, nelems, nmarkers, nodes, elems, markers, celltype, nnodes_in_cell);
 
     write_vtk(file_name, nnodes, nelems, nnodemarkers, nmarkers, nodes, elems, nodemakers,
             cellmarkers, celltype, nnodes_in_cell);

@@ -45,9 +45,11 @@ public:
     const virtual shared_ptr<Surface> extract_surface(const AtomReader::Data* data,
             const Femocs::SimuCell* cell);
 
+    const shared_ptr<Surface> extract_reduced_bulk(const shared_ptr<Surface> surf, const Femocs::SimuCell* cell);
+    const shared_ptr<Surface> extract_truncated_bulk(const AtomReader::Data* data, const double zmin, const Femocs::SimuCell* cell);
     const shared_ptr<Surface> extract_bulk(const AtomReader::Data* data, const Femocs::SimuCell* cell);
     const shared_ptr<Surface> extract_edge(const shared_ptr<Surface> surf, const Femocs::SimuCell* cell);
-    const shared_ptr<Surface> extract_bulk_reduced(const shared_ptr<Surface> surf, const Femocs::SimuCell* cell);
+
 
 private:
     string adapter;  //!< specify the method to extract the surface (coordination or centrosymmetry)

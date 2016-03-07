@@ -53,7 +53,7 @@ const bool SurfaceExtractor::on_edge(const double x, const double y, const Femoc
 }
 
 // Function to make bulk material with nodes on surface and on by-hand made bottom coordinates
-const shared_ptr<Surface> SurfaceExtractor::extract_bulk_reduced(const shared_ptr<Surface> surf,
+const shared_ptr<Surface> SurfaceExtractor::extract_reduced_bulk(const shared_ptr<Surface> surf,
         const Femocs::SimuCell* cell) {
 
     int i;
@@ -74,6 +74,26 @@ const shared_ptr<Surface> SurfaceExtractor::extract_bulk_reduced(const shared_pt
 }
 
 // Function to extract bulk material from input atomistic data
+const shared_ptr<Surface> SurfaceExtractor::extract_truncated_bulk(const AtomReader::Data* data, const double zmin, const Femocs::SimuCell* cell) {
+    int i;
+    int N = data->x.size();
+    vector<bool> is_quality(N);
+
+    for (i = 0; i < N; ++i)
+        is_quality[i] = (data->type[i] != cell->type_vacancy) &&
+            (data->z[i] > (zmin - 1.5*this->latconst));
+
+    int M = accumulate(is_quality.begin(), is_quality.end(), 0);
+    shared_ptr<Surface> bulk( new Surface(M, this->latconst) );
+    for (i = 0; i < N; ++i)
+        if ( is_quality[i] )
+            bulk->add(data->x[i], data->y[i], data->z[i], 0, cell->type_bulk);
+
+    bulk->calc_statistics();
+    return bulk;
+}
+
+// Function to extract bulk material from input atomistic data
 const shared_ptr<Surface> SurfaceExtractor::extract_bulk(const AtomReader::Data* data, const Femocs::SimuCell* cell) {
     int i;
     int N = data->x.size();
@@ -88,6 +108,7 @@ const shared_ptr<Surface> SurfaceExtractor::extract_bulk(const AtomReader::Data*
         if ( is_quality[i] )
             bulk->add(data->x[i], data->y[i], data->z[i], 0, cell->type_bulk);
 
+    bulk->calc_statistics();
     return bulk;
 }
 
@@ -128,6 +149,7 @@ const shared_ptr<Surface> SurfaceExtractor::kmc_extract(const AtomReader::Data* 
         if (is_surface[i])
             surf->add(dat->x[i], dat->y[i], dat->z[i], 0, dat->type[i]);
 
+    surf->calc_statistics();
     return surf;
 }
 
@@ -140,8 +162,6 @@ const shared_ptr<Surface> SurfaceExtractor::coordination_extract(const AtomReade
     double r2, dx, dy, dz;
     vector<bool> is_surface(N);
     vector<int> coords(N);
-
-    omp_set_num_threads(this->nrOfOmpThreads);
 
     coord = 0;
 
@@ -168,6 +188,7 @@ const shared_ptr<Surface> SurfaceExtractor::coordination_extract(const AtomReade
         if ( is_surface[i] )
             surf->add(dat->x[i], dat->y[i], dat->z[i], coords[i], dat->type[i]);
 
+    surf->calc_statistics();
     return surf;
 }
 

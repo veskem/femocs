@@ -6,6 +6,7 @@
  */
 
 #include "Surface.h"
+#include <float.h>
 
 #include <fstream>
 
@@ -25,6 +26,7 @@ Surface::Surface(const int natoms, double latconst) {
     this->type.reserve(natoms);
     this->isEvaporated.reserve(natoms);	// Default values are False
     this->latconst = latconst;
+    init_statistics();
 }
 ;
 
@@ -74,6 +76,23 @@ const int Surface::getCoordination(const int i) {
 // Get number of atoms on surface
 const int Surface::getN() {
     return x.size();
+}
+
+const void Surface::calc_statistics() {
+    init_statistics();
+    for (int i = 0; i < getN(); ++i) {
+        if(sizes.xmax < getX(i)) sizes.xmax = getX(i);
+        if(sizes.xmin > getX(i)) sizes.xmin = getX(i);
+        if(sizes.ymax < getY(i)) sizes.ymax = getY(i);
+        if(sizes.ymin > getY(i)) sizes.ymin = getY(i);
+        if(sizes.zmax < getZ(i)) sizes.zmax = getZ(i);
+        if(sizes.zmin > getZ(i)) sizes.zmin = getZ(i);
+    }
+}
+
+const void Surface::init_statistics() {
+    sizes.xmin = sizes.ymin = sizes.zmin = DBL_MAX;
+    sizes.xmax = sizes.ymax = sizes.zmax = DBL_MIN;
 }
 
 // Output surface data to file
