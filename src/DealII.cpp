@@ -302,7 +302,7 @@ void DealII::import_tethex_mesh(tethex::Mesh* mesh) {
     // do some clean-up on vertices...
     GridTools::delete_unused_vertices(vertices, cells, subcelldata);
     // ... and cells
-//    GridReordering<DIM, DIM>::invert_all_cells_of_negative_grid(vertices, cells);
+    GridReordering<DIM, DIM>::invert_all_cells_of_negative_grid(vertices, cells);
 //    GridReordering<DIM, DIM>::reorder_cells(cells);
     triangulation.create_triangulation_compatibility(vertices, cells, subcelldata);
 }

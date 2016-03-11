@@ -26,7 +26,7 @@ Mesher::Mesher(string mesher) {
     if (mesher != "tetgen") cout << "Unknown mesher: " + mesher << endl;
 }
 
-// Function to generate mesh from bulk and vacuum atoms
+// Function to generate simple mesh that consists of one tetrahedron
 const shared_ptr<Mesh> Mesher::get_simple_mesh() {
     const int nnodes = 4;
     const int nfaces = 4;
@@ -73,7 +73,7 @@ const shared_ptr<Mesh> Mesher::extract_vacuum_mesh(shared_ptr<Mesh> mesh, const 
         bool not_edge = mesh->getFacemarker(i) != cell->type_edge;
         bool not_zmin = mesh->getFacemarker(i) != cell->type_zmin;
         bool not_none = mesh->getFacemarker(i) != cell->type_none;
-        is_quality_face[i] = not_edge & not_zmin & not_none;
+        is_quality_face[i] = not_edge && not_zmin && not_none;
     }
     // Mark the elems in the vacuum        
     for (i = 0; i < nelems; ++i)
@@ -106,6 +106,47 @@ const shared_ptr<Mesh> Mesher::extract_vacuum_mesh(shared_ptr<Mesh> mesh, const 
 //*/
     return new_mesh;
 }
+
+
+const shared_ptr<Mesh> Mesher::extract_vacuum_mesh_vol2(shared_ptr<Mesh> mesh, const int nmax, const Femocs::SimuCell* cell, const string cmd) {
+    const int n_nodes_per_elem = 4;
+
+    shared_ptr<Mesh> new_mesh(new Mesh());
+    int i, j;
+    int n_nodes = mesh->getNnodes();
+    int n_elems = mesh->getNelems();
+
+    int* elems = mesh->getElems();
+    bool difs[n_nodes_per_elem];
+    vector<bool> is_vacuum(n_elems);
+
+    for (i = 0; i < n_elems; ++i) {
+        for (j = 0; j < n_nodes_per_elem; ++j)
+            difs[j] = mesh->getElem(i,j) >= nmax;
+        is_vacuum[i] = difs[0] || difs[1] || difs[2] || difs[3];
+    }
+
+    int n_vacuum_elems = accumulate(is_vacuum.begin(), is_vacuum.end(), 0);
+
+    // Copy the nodes from input mesh without modification
+    new_mesh->init_nodes(n_nodes);
+    new_mesh->copy_nodes(mesh);
+
+    // Copy only the elements from input mesh that have the node outside the bulk nodes
+    new_mesh->init_elems(n_vacuum_elems);
+
+    for (i = 0; i < n_elems; ++i)
+        if(is_vacuum[i]) {
+            j = n_nodes_per_elem * i;
+            new_mesh->add_elem(elems[j+0], elems[j+1], elems[j+2], elems[j+3]);
+        }
+
+
+    new_mesh->recalc(cmd);
+
+    return new_mesh;
+}
+
 
 // Function to generate union mesh from bulk and vacuum meshes
 const shared_ptr<Mesh> Mesher::get_union_mesh(shared_ptr<Mesh> mesh_bulk,
@@ -152,6 +193,66 @@ const shared_ptr<Mesh> Mesher::get_union_mesh(shared_ptr<Mesh> mesh_bulk,
             f2 = faces[j+1];
             f3 = faces[j+2];
             new_mesh->add_face(f1, f2, f3);
+        }
+
+    return new_mesh;
+}
+
+// Function to generate surface faces into available mesh
+const shared_ptr<Mesh> Mesher::get_union_mesh_vol2(shared_ptr<Mesh> mesh, const int nmax, const Femocs::SimuCell* cell) {
+    const int n_nodes_per_face = 3;
+    const int n_nodes_per_elem = 4;
+
+    shared_ptr<Mesh> new_mesh(new Mesh());
+    int i, j, n1, n2, n3;
+    bool difs[n_nodes_per_elem];
+    int n_elems = mesh->getNelems();
+    int n_nodes = mesh->getNnodes();
+    int n_faces = mesh->getNfaces();
+
+    int* elems = mesh->getElems();
+    vector<bool> is_quality(n_elems);
+
+    // Mark the faces on the edge of simulation cell
+    for (i = 0; i < n_elems; ++i) {
+        for (j = 0; j < n_nodes_per_elem; ++j)
+            difs[j] = mesh->getElem(i,j) < nmax;
+        is_quality[i] = difs[0]+difs[1]+difs[2]+difs[3] == 3;
+    }
+
+    int n_qualityfaces = accumulate(is_quality.begin(), is_quality.end(), 0);
+
+    new_mesh->init_nodes(n_nodes);
+    new_mesh->init_nodemarkers(n_nodes);
+    new_mesh->init_elems(n_elems);
+    new_mesh->init_faces(n_faces + n_qualityfaces);
+
+    // Copy the nodes of input mesh without modification
+    new_mesh->copy_nodes(mesh);
+    // Copy the node markers of input mesh without modification
+    new_mesh->copy_nodemarkers(mesh);
+    // Copy the elements of input mesh without modification
+    new_mesh->copy_elems(mesh, 0);
+    // Copy the side faces of input mesh
+    new_mesh->copy_faces(mesh, 0);
+
+    // Generate the faces that separate material and vacuum
+    for (i = 0; i < n_elems; ++i)
+        if (is_quality[i]) {
+            for (j = 0; j < n_nodes_per_elem; ++j)
+                difs[j] = mesh->getElem(i,j) < nmax;
+            j = n_nodes_per_elem * i;
+
+            /* The possible combinations of difs and n1,n2,n3:
+             * difs: 1110  1101  1011  0111
+             *   n1: elem0 elem0 elem0 elem1
+             *   n2: elem1 elem1 elem2 elem2
+             *   n3: elem2 elem3 elem3 elem3
+             */
+            n1 = difs[0] * elems[j+0] + (!difs[0]) * elems[j+1];
+            n2 = (difs[0]&difs[1]) * elems[j+1] + (difs[2]&difs[3]) * elems[j+2];
+            n3 = (!difs[3]) * elems[j+2] + difs[3] * elems[j+3];
+            new_mesh->add_face(n1, n2, n3);
         }
 
     return new_mesh;
@@ -218,7 +319,7 @@ void Mesher::mark_faces(shared_ptr<Mesh> mesh, shared_ptr<Surface> surf,
     int N = mesh->getNfaces();
     mesh->init_facemarkers(N);
 
-    const double xyz[6] = { cell->xmin, cell->xmax, cell->ymin, cell->ymax, cell->zmin,
+    const double xyz[6]  = { cell->xmin, cell->xmax, cell->ymin, cell->ymax, cell->zmin,
             cell->zmaxbox };
     const int markers[6] = { cell->type_xmin, cell->type_xmax, cell->type_ymin, cell->type_ymax,
             cell->type_zmin, cell->type_zmax };
@@ -315,6 +416,106 @@ void Mesher::mark_elems_byvol(shared_ptr<Mesh> mesh, const Femocs::SimuCell* cel
             mesh->add_elemmarker(cell->type_bulk);
         else
             mesh->add_elemmarker(cell->type_vacuum);
+    }
+}
+
+// Mark elements by comparing the centres of elements with the ones in bulk mesh
+void Mesher::mark_elems_bycentre(shared_ptr<Mesh> mesh, shared_ptr<Mesh> bulk_mesh, const Femocs::SimuCell* cell) {
+    int N = mesh->getNelems();
+
+    mesh->calc_centres();
+    bulk_mesh->calc_centres();
+
+    mesh->init_elemmarkers(N);
+
+    for (int i = 0; i < N; ++i)
+        if( mesh->centre_found_in(i, bulk_mesh) )
+            mesh->add_elemmarker(cell->type_bulk);
+        else
+            mesh->add_elemmarker(cell->type_vacuum);
+
+}
+
+/*
+    The idea is, that when tetgen adds nodes to the mesh, it add them to the end of nodelist
+    In that ways the first nodes will always be the bulk (or surface) nodes and there is
+    no need to search them later on. Those nodes can be used to find the faces on the surface.
+*/
+void Mesher::mark_elems_bynode(shared_ptr<Mesh> mesh, const int nmax, const Femocs::SimuCell* cell) {
+    int N = mesh->getNelems();
+    mesh->init_elemmarkers(N);
+    bool difs[4];
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < 4; ++j)
+            difs[j] = mesh->getElem(i,j) < nmax;
+    
+        if( difs[0]+difs[1]+difs[2]+difs[3] == 3 ) {
+            //mesh->add_elemmarker(cell->type_surf);
+            if     (difs[0] & difs[3])
+                mesh->add_elemmarker(1);
+            else if(difs[0] & (!difs[3]))
+                mesh->add_elemmarker(2);
+            else if((!difs[0]) & difs[3])
+                mesh->add_elemmarker(2);
+            else if((!difs[0]) & (!difs[3]))
+                mesh->add_elemmarker(4);
+        }
+        else
+            //mesh->add_elemmarker(cell->type_none);
+            mesh->add_elemmarker(0);
+    }
+}
+
+// Mark elements by comparing the centres of elements with the ones in bulk mesh
+void Mesher::mark_faces_bynode(shared_ptr<Mesh> mesh, const int nmax, const Femocs::SimuCell* cell) {
+    int N = mesh->getNfaces();
+    mesh->init_facemarkers(N);
+    const int n_nodes_per_face = 3;
+    bool difs[n_nodes_per_face];
+    
+    int* face = mesh->getFaces();
+
+    vector<int> face_indxs(N);
+
+    for(int i = 0; i < n_nodes_per_face*N; ++i)
+        face_indxs[face[i]] = i;
+
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < n_nodes_per_face; ++j)
+            difs[j] = mesh->getFace(i,j) < nmax;
+
+        if( difs[0]+difs[1]+difs[2] == 3 )
+            //mesh->add_elemmarker(cell->type_bulk);
+            mesh->add_facemarker(cell->type_surf);
+        else
+            //mesh->add_elemmarker(cell->type_vacuum);
+            mesh->add_facemarker(cell->type_none);
+    }
+}
+
+// Mark elements by comparing the centres of elements with the ones in bulk mesh
+void Mesher::mark_faces_bysequence(shared_ptr<Mesh> mesh, const int nmax, const Femocs::SimuCell* cell) {
+    int N = mesh->getNfaces();
+    mesh->init_facemarkers(N);
+    const int n_nodes_per_face = 3;
+    bool difs[n_nodes_per_face];
+
+    int* face = mesh->getFaces();
+
+    vector<int> face_indxs(N);
+
+    for(int i = 0; i < n_nodes_per_face*N; ++i)
+        face_indxs[face[i]] = (int) i/n_nodes_per_face;
+
+    for (int i = 0; i < N; ++i)
+        mesh->add_facemarker(cell->type_none);
+
+    for (int i = (N-1); i >= 0; --i) {
+        for (int j = 0; j < n_nodes_per_face; ++j)
+            difs[j] = mesh->getFace(i,j) < nmax;
+    
+        if( difs[0]+difs[1]+difs[2] == 3 )
+            mesh->setFacemarker(face_indxs[i], cell->type_surf);
     }
 }
 

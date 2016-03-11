@@ -19,6 +19,22 @@ using namespace std;
 namespace femocs {
 
 /**
+ * Class describing the centre of tetrahedral element
+ */
+class Centre {
+public:
+    Centre(double x, double y, double z);
+
+    bool is_equal(Centre centre);
+    double x;
+    double y;
+    double z;
+
+private:
+   // double r2;
+};
+
+/**
  * Class to create and handle FEM mesh in tetgen format
  * http://wias-berlin.de/software/tetgen/1.5/
  */
@@ -35,7 +51,9 @@ public:
     void init_nodemarkers(const int N);
 
     void init_volumes(const int N);
+    void init_centres(const int N);
 
+    void setFacemarker(const int i, const int m);
 
     void add_node(const double x, const double y, const double z);
     void add_face(const int f1, const int f2, const int f3);
@@ -46,6 +64,7 @@ public:
     void add_elemmarker(const int m);
 
     void add_volume(const double V);
+    void add_centre(const double x, const double y, const double z);
 
     void copy_statistics(shared_ptr<Mesh> mesh);
 
@@ -71,6 +90,7 @@ public:
     const int getFacemarker(const int i);
     const int getElemmarker(const int i);
     double getVolume(const int i);
+    Centre getCentre(const int i);
 
     int* getNodemarkers();
     vector<int>* getFacemarkers();
@@ -84,6 +104,7 @@ public:
     const int getFace(int i, int node);
     const int getElem(int i, int node);
 
+    void calc_centres();
     void calc_volumes();
     void calc_volume_statistics();
 
@@ -92,6 +113,8 @@ public:
 
     void write_faces(const string file_name);
     void write_elems(const string file_name);
+
+    bool centre_found_in(const int i, shared_ptr<Mesh> mesh);
 
     void transform_elemmarkers();
 
@@ -117,12 +140,13 @@ private:
     vector<int> facemarkers;
     vector<int> elemmarkers;
     vector<double> volumes;
+    vector<Centre> centres;
 
     // Function to output mesh in .vtk format
 //    void write_vtk(const string file_name, const int nnodes, const int ncells, const int nmarkers,
 //            const REAL* nodes, const int* cells, const vector<int>* markers, const int celltype,
 //            const int nnodes_per_cell);
-    void write_vtk(const string file_name, const int nnodes, const int ncells, const int nnodemarkers, const int nmarkers,
+    void write_vtk    (const string file_name, const int nnodes, const int ncells, const int nnodemarkers, const int nmarkers,
             const REAL* nodes, const int* cells, const int* nodemarkers, const vector<int>* markers, const int celltype,
             const int nnodes_in_cell);
 };

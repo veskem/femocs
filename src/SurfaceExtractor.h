@@ -46,7 +46,7 @@ public:
             const Femocs::SimuCell* cell);
 
     const shared_ptr<Surface> extract_reduced_bulk(const shared_ptr<Surface> surf, const Femocs::SimuCell* cell);
-    const shared_ptr<Surface> extract_truncated_bulk(const AtomReader::Data* data, const double zmin, const Femocs::SimuCell* cell);
+    const shared_ptr<Surface> extract_truncated_bulk(const AtomReader::Data* data, shared_ptr<Surface> surf,const double* xyz_min_max, const Femocs::SimuCell* cell);
     const shared_ptr<Surface> extract_bulk(const AtomReader::Data* data, const Femocs::SimuCell* cell);
     const shared_ptr<Surface> extract_edge(const shared_ptr<Surface> surf, const Femocs::SimuCell* cell);
 
@@ -91,6 +91,7 @@ private:
             const Femocs::SimuCell* cell);
 
     const bool on_edge(const double x, const double y, const Femocs::SimuCell* cell);
+    const bool on_edge_vol2(const double x, const double x_boundary);
 };
 
 } /* namespace femocs */

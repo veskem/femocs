@@ -15,6 +15,21 @@
 using namespace std;
 namespace femocs {
 
+Centre::Centre(double x, double y, double z) {
+    this->x = x;
+    this->y = y;
+    this->z = z;
+    //this->r2 = x*x + y*y + z*z;
+}
+
+bool Centre::is_equal(Centre centre) {
+    const double eps = 0.1;
+    bool dif1 = fabs(this->x - centre.x) < eps;
+    bool dif2 = fabs(this->y - centre.y) < eps;
+    bool dif3 = fabs(this->z - centre.z) < eps;
+    return dif1 && dif2 && dif3;
+}
+
 Mesh::Mesh() {
     inodes = 0;
     ielems = 0;
@@ -74,6 +89,10 @@ double Mesh::getVolume(const int i) {
     return volumes[i];
 }
 
+Centre Mesh::getCentre(const int i) {
+    return centres[i];
+}
+
 const int Mesh::getNodemarker(const int i) {
 #if DEBUGMODE
     if (i >= tetIO.numberofpoints) {
@@ -99,6 +118,10 @@ int* Mesh::getNodemarkers() {
 
 vector<int>* Mesh::getFacemarkers() {
     return &facemarkers;
+}
+
+void Mesh::setFacemarker(const int i, const int m) {
+    facemarkers[i] = m;
 }
 
 vector<int>* Mesh::getElemmarkers() {
@@ -174,8 +197,16 @@ void Mesh::init_volumes(const int N) {
     volumes.reserve(N);
 }
 
+void Mesh::init_centres(const int N) {
+    centres.reserve(N);
+}
+
 // =================================
 // *** ADDERS: ***************
+
+void Mesh::add_centre(const double x, const double y, const double z) {
+    centres.push_back(Centre(x,y,z));
+}
 
 void Mesh::add_volume(const double V) {
     volumes.push_back(V);
@@ -286,6 +317,42 @@ void Mesh::copy_elemmarkers(shared_ptr<Mesh> mesh) {
 
 // =================================
 // *** VARIA: ***************
+bool Mesh::centre_found_in(const int i, shared_ptr<Mesh> mesh) {
+    Centre centre = getCentre(i);
+    for (int c = 0; c < mesh->getNelems(); ++c)
+        if ( centre.is_equal(mesh->getCentre(c)) )
+            return true;
+
+    return false;
+}
+
+void Mesh::calc_centres() {
+    int i, j, k, n1, n2, n3, n4;
+    double xyz[3];
+
+    const int ncoords = 3; // nr of coordinates
+    const int nnodes = 4;  // nr of nodes per element
+    int N = getNelems();
+    double* nodes = getNodes();
+    int* elems = getElems();
+
+    init_centres(N);
+
+    // Loop through the elements
+    for (i = 0; i < N; ++i) {
+        j = nnodes * i;
+        // Loop through x, y and z coordinates
+        for (k = 0; k < ncoords; ++k) {
+            n1 = ncoords * elems[j + 0] + k; // index of x, y or z coordinate of 1st node
+            n2 = ncoords * elems[j + 1] + k; // ..2nd node
+            n3 = ncoords * elems[j + 2] + k; // ..3rd node
+            n4 = ncoords * elems[j + 3] + k; // ..4th node
+            // Calculate the centre coordinate of element
+            xyz[k] = (nodes[n1] + nodes[n2] + nodes[n3] + nodes[n4]) / nnodes;
+        }
+        add_centre(xyz[0], xyz[1], xyz[2]);
+    }
+}
 
 void Mesh::calc_volumes() {
     int i, j, k, n1, n2, n3, n4;
@@ -410,14 +477,14 @@ void Mesh::write_vtk(const string file_name, const int nnodes, const int ncells,
     }
 
     // Output point attributes
-    if (nnodemarkers > 0) {
-        fprintf(outfile, "POINT_DATA %d\n", nnodemarkers);
-        fprintf(outfile, "SCALARS Point_markers int\n");
-        fprintf(outfile, "LOOKUP_TABLE default\n");
-        for (i = 0; i < nnodemarkers; ++i)
-            fprintf(outfile, "%d\n", nodemarkers[i]);
-        fprintf(outfile, "\n");
-    }
+//    if (nnodemarkers > 0) {
+//        fprintf(outfile, "POINT_DATA %d\n", nnodemarkers);
+//        fprintf(outfile, "SCALARS Point_markers int\n");
+//        fprintf(outfile, "LOOKUP_TABLE default\n");
+//        for (i = 0; i < nnodemarkers; ++i)
+//            fprintf(outfile, "%d\n", nodemarkers[i]);
+//        fprintf(outfile, "\n");
+//    }
 
     // Output cell attributes
     if (nmarkers > 0) {

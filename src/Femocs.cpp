@@ -30,12 +30,12 @@ Femocs::Femocs(const string& file_name) {
 const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
     Config conf;
 //*
-//    conf.infile = "input/rough100.ckx";
-    conf.infile = "input/mushroom1.ckx";
+    conf.infile = "input/rough110.ckx";
+//    conf.infile = "input/mushroom1.ckx";
 //    conf.infile = "input/kmc_tiny.ckx";
     conf.latconst = 1.0;        // lattice constant
     conf.coord_cutoff = 3.3;    // coordination analysis cut off radius
-    conf.tetgen_cutoff = 4.1;   // max_length^2 of tetrahedra's edge
+    conf.tetgen_cutoff = 14.2;   // max_length^2 of tetrahedra's edge
 //*/
 /*
     conf.infile = "input/nanotip_medium.xyz";
@@ -83,6 +83,7 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     double t0, tstart;
     // Max tetrahedron volume is ~100000x the volume of regular tetrahedron with edge == latconst
     string Vmax = to_string(  (int)(100000.0*0.118*pow(conf.latconst,3.0) ) );
+    string Vmax_small = to_string(  (int)(1000.0*0.118*pow(conf.latconst,3.0) ) );
     
     omp_set_num_threads(conf.nt);
 
@@ -108,7 +109,9 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
 
     t0 = start_msg("=== Extracting bulk...");
     SurfaceExtractor bulk_extractor(&conf);
-    auto bulk = bulk_extractor.extract_truncated_bulk(&reader.data, surf->sizes.zmin, &simucell);
+    double xyz_min_max[6] = {surf->sizes.xmin, surf->sizes.xmax, surf->sizes.ymin, surf->sizes.ymax, surf->sizes.zmin, surf->sizes.zmax};
+    auto bulk = bulk_extractor.extract_truncated_bulk(&reader.data, surf, xyz_min_max, &simucell);
+ //   auto bulk = bulk_extractor.extract_reduced_bulk( surf, &simucell);
 //    auto bulk = bulk_extractor.extract_bulk(&reader.data, &simucell);
     end_msg(t0);
 
@@ -149,6 +152,7 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
  * rebuild mesh4 with max volume and min quality restrictions
  *
  */
+/*
     t0 = start_msg("=== Step1...");
 
     Mesher mesher1(conf.mesher);
@@ -156,7 +160,13 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     mesh1->write_faces("output/faces0.vtk");
     mesh1->write_elems("output/elems0.vtk");
 
+//    mesh1->recalc("rQ");
+//    mesh1->recalc("rpq3.914a"+Vmax_small);
+//    mesh1->write_faces("output/faces1.vtk");
+//    mesh1->write_elems("output/elems1.vtk");
+
     mesher1.clean_elems(mesh1, conf.tetgen_cutoff, "rQ");
+
     mesher1.mark_faces(mesh1, surf, &simucell);
     mesher1.calc_statistics(mesh1);
     mesh1->write_faces("output/faces2.vtk");
@@ -167,9 +177,13 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
 
     Mesher mesher2(conf.mesher);
     auto mesh2 = mesher2.get_volume_mesh(bulk, &vacuum, "Q");
-    mesh2->write_faces("output/faces3.vtk");
-    mesh2->write_elems("output/elems3.vtk");
+//    mesher2.mark_faces_bynode(mesh2, surf->getN(), &simucell);
+//    mesher2.mark_elems_bynode(mesh2, surf->getN(), &simucell);
+//    mesh2->write_faces("output/faces3.vtk");
+//    mesh2->write_elems("output/elems3.vtk");
     mesh2->recalc("rq1.914a"+Vmax);
+//    mesher2.mark_faces_bynode(mesh2, surf->getN(), &simucell);
+//    mesher2.mark_elems_bynode(mesh2, surf->getN(), &simucell);
     mesh2->write_faces("output/faces4.vtk");
     mesh2->write_elems("output/elems4.vtk");
     end_msg(t0);
@@ -178,24 +192,57 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
 
     Mesher mesher3(conf.mesher);
     auto mesh3 = mesher3.get_union_mesh(mesh1, mesh2, &simucell);
+//    auto mesh3 = mesher3.get_union_mesh_vol2(mesh2, surf->getN(), &simucell);
     mesh3->write_faces("output/faces5.vtk");
     mesh3->write_elems("output/elems5.vtk");
+
     mesher3.mark_faces(mesh3, surf, &simucell);
     mesher3.mark_elems_byvol(mesh3, &simucell);
+//    mesher3.mark_elems_bycentre(mesh3, mesh1, &simucell);
+//    mesher3.mark_faces_bysequence(mesh3, surf->getN(), &simucell);
+//    mesher3.mark_faces_bynode(mesh3, surf->getN(), &simucell);
+//    mesher3.mark_elems_bynode(mesh3, surf->getN(), &simucell);
+
+
 //    mesh3->recalc("pqAa"+Vmax);
+//    mesh3->output("A");
+
     mesh3->write_faces("output/faces6.vtk");
     mesh3->write_elems("output/elems6.vtk");
     end_msg(t0);
-
+    
     t0 = start_msg("=== Step4...");
     
     Mesher mesher4(conf.mesher);
-    auto mesh4 = mesher4.extract_vacuum_mesh(mesh3, &simucell);   
+    auto mesh4 = mesher4.extract_vacuum_mesh(mesh3, &simucell);
     mesh4->recalc("rQ");
     mesh4->write_faces("output/faces7.vtk");
     mesh4->write_elems("output/elems7.vtk");
     end_msg(t0);
+ */
+
     
+    t0 = start_msg("=== Making big mesh...");
+
+    Mesher mesher1(conf.mesher);
+    auto mesh1 = mesher1.get_volume_mesh(bulk, &vacuum, "Q");
+    mesh1->write_faces("output/faces0.vtk");
+    mesh1->write_elems("output/elems0.vtk");
+    mesh1->recalc("rq2.914a"+Vmax);
+    mesher1.mark_elems_bynode(mesh1, bulk->getN(), &simucell);
+    mesh1->write_faces("output/faces1.vtk");
+    mesh1->write_elems("output/elems1.vtk");
+    end_msg(t0);
+
+    t0 = start_msg("=== Separating vacuum and surface mesh...");
+
+    Mesher mesher2(conf.mesher);
+    auto mesh4 = mesher2.extract_vacuum_mesh_vol2(mesh1, bulk->getN(), &simucell, "rQ");
+    mesh4->write_faces("output/faces7.vtk");
+    mesh4->write_elems("output/elems7.vtk");
+    end_msg(t0);
+
+
 //    t0 = start_msg("Making test mesh...");
 //    Mesher simplemesher(conf.mesher);
 //    auto testmesh = simplemesher.get_simple_mesh();
@@ -243,7 +290,7 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     end_msg(t0);
 
     t0 = start_msg("Outputting results...");
-//    laplace.output_results("output/final-results.vtk");
+    laplace.output_results("output/final-results.vtk");
 //    laplace.output_mesh("output/dealii_mesh_3.msh");
     end_msg(t0);
 
