@@ -46,9 +46,10 @@ public:
             const Femocs::SimuCell* cell);
 
     const shared_ptr<Surface> extract_reduced_bulk(const shared_ptr<Surface> surf, const Femocs::SimuCell* cell);
-    const shared_ptr<Surface> extract_truncated_bulk(const AtomReader::Data* data, shared_ptr<Surface> surf,const double* xyz_min_max, const Femocs::SimuCell* cell);
+    const shared_ptr<Surface> extract_truncated_bulk(const AtomReader::Data* data, const Femocs::SimuCell* cell);
     const shared_ptr<Surface> extract_bulk(const AtomReader::Data* data, const Femocs::SimuCell* cell);
     const shared_ptr<Surface> extract_edge(const shared_ptr<Surface> surf, const Femocs::SimuCell* cell);
+    const void rectangularize_bulk(shared_ptr<Surface> bulk, const Femocs::SimuCell* cell);
 
 
 private:

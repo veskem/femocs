@@ -318,15 +318,15 @@ void DealII::import_tetgen_mesh(shared_ptr<Mesh> mesh) {
     vector<Point<DIM>> vertices2(3 + 1);
 
     int i, j, node, elem;
-    int n_elems = mesh->getNelems();
+    int n_elems = mesh->get_n_elems();
     triangulation.clear();
 
     if (n_elems < 1) return;
 
     for (i = 0; i < n_nodes_in_elem; ++i) {
-        node = mesh->getElem(0, i);
+        node = mesh->get_elem(0, i);
         for (j = 0; j < n_coords; ++j)
-            vertices1[i](j) = mesh->getNode(node, j);
+            vertices1[i](j) = mesh->get_node(node, j);
     }
 
     if (n_elems == 1) {
@@ -335,9 +335,9 @@ void DealII::import_tetgen_mesh(shared_ptr<Mesh> mesh) {
     }
 
     for (i = 0; i < n_nodes_in_elem; ++i) {
-        node = mesh->getElem(1, i);
+        node = mesh->get_elem(1, i);
         for (j = 0; j < n_coords; ++j)
-            vertices2[i](j) = mesh->getNode(node, j);
+            vertices2[i](j) = mesh->get_node(node, j);
     }
     GridGenerator::simplex(tr1, vertices1);
     GridGenerator::simplex(tr2, vertices2);
@@ -349,9 +349,9 @@ void DealII::import_tetgen_mesh(shared_ptr<Mesh> mesh) {
     for (elem = 2; elem < n_elems; ++elem) {
         if (elem % 10 == 0) cout << elem << "/" << n_elems << "\n";
         for (i = 0; i < n_nodes_in_elem; ++i) {
-            node = mesh->getElem(elem, i);
+            node = mesh->get_elem(elem, i);
             for (j = 0; j < n_coords; ++j)
-                vertices1[i](j) = mesh->getNode(node, j);
+                vertices1[i](j) = mesh->get_node(node, j);
         }
         GridGenerator::simplex(tr1, vertices1);
         GridGenerator::merge_triangulations(tr1, triangulation, triangulation);

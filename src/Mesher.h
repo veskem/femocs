@@ -32,7 +32,7 @@ public:
     }
     ;
     const shared_ptr<Mesh> extract_vacuum_mesh(shared_ptr<Mesh> mesh, const Femocs::SimuCell* cell);
-    const shared_ptr<Mesh> extract_vacuum_mesh_vol2(shared_ptr<Mesh> mesh, const int nmax, const Femocs::SimuCell* cell, const string cmd);
+    const shared_ptr<Mesh> extract_vacuum_mesh_vol2(shared_ptr<Mesh> mesh, const int nmax, const double latconst, const Femocs::SimuCell* cell, const string cmd);
     const shared_ptr<Mesh> get_union_mesh(shared_ptr<Mesh> mesh_bulk, shared_ptr<Mesh> mesh_volume, const Femocs::SimuCell* cell);
     const shared_ptr<Mesh> get_volume_mesh(shared_ptr<Surface> bulk, Vacuum* vacuum, const string cmd);
     const shared_ptr<Mesh> get_bulk_mesh(shared_ptr<Surface> bulk, const string cmd);

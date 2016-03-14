@@ -29,21 +29,21 @@ void get_sort_permutation(const Vals& values, vector<int>* v) {
 }
 
 // Get element from x, y or z vector
-const double Medium::getX(const int i) {
+const double Medium::get_x(const int i) {
     return x[i];
 }
-const double Medium::getY(const int i) {
+const double Medium::get_y(const int i) {
     return y[i];
 }
-const double Medium::getZ(const int i) {
+const double Medium::get_z(const int i) {
     return z[i];
 }
 // Get atom type
-const int Medium::getType(const int i) {
+const int Medium::get_type(const int i) {
     return type[i];
 }
 // Get number of atoms on surface
-const int Medium::getN() {
+const int Medium::get_N() {
     return N;
 }
 // Output surface data to file

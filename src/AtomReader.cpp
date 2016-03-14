@@ -40,7 +40,7 @@ const void AtomReader::import_file(const string& file_name, Femocs::SimuCell* ce
         cout << "Unknown file type: " << file_type << endl;
 }
 
-const int AtomReader::getN() {
+const int AtomReader::get_N() {
     return this->data.x.size();
 }
 

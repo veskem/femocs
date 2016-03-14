@@ -51,9 +51,9 @@ const void Vacuum::generate_simple(const Femocs::SimuCell* cell) {
 const void Vacuum::generate(const Femocs::SimuCell* cell, shared_ptr<Surface> surf) {
     const double layer_exp = 1.7; // Magic number used to get nicer mesh distribution in z-direction
     const double zmax = cell->zmaxbox;
-    const double dz = surf->getLatconst();
+    const double dz = surf->sizes.latconst;
     int nlayers = ceil(log(zmax / dz) / log(layer_exp));  // number of node layers
-    int N_surf = surf->getN();                          // number of atoms in surface
+    int N_surf = surf->get_N();                          // number of atoms in surface
 
     // sum of Nsurf/2^1 + Nsurf/2^2 +...+ Nsurf/2^nlayers = Nsurf*( 1 - 1/2^nlayers )/(1 - 1/2)
     int M = ceil(4 * nlayers + N_surf * (1.0 - 1.0 / (1 << nlayers))); // total number of nodes
@@ -79,10 +79,10 @@ const void Vacuum::generate(const Femocs::SimuCell* cell, shared_ptr<Surface> su
                 exit(EXIT_FAILURE);
             }
 
-            znew = dz * pow(layer_exp, i) + surf->getZ(k);
+            znew = dz * pow(layer_exp, i) + surf->get_z(k);
             if (znew > zmax) znew = zmax;
 
-            add_point(surf->getX(k), surf->getY(k), znew, cell->type_vacuum);
+            add_point(surf->get_x(k), surf->get_y(k), znew, cell->type_vacuum);
         }
 
         // Add points to the xy-plane corners on current layer

@@ -53,7 +53,7 @@ public:
     void init_volumes(const int N);
     void init_centres(const int N);
 
-    void setFacemarker(const int i, const int m);
+    void set_facemarker(const int i, const int m);
 
     void add_node(const double x, const double y, const double z);
     void add_face(const int f1, const int f2, const int f3);
@@ -76,33 +76,33 @@ public:
     void copy_facemarkers(shared_ptr<Mesh> mesh);
     void copy_elemmarkers(shared_ptr<Mesh> mesh);
 
-    const int getNnodes();
-    const int getNelems();
-    const int getNfaces();
+    const int get_n_nodes();
+    const int get_n_elems();
+    const int get_n_faces();
 
-    const int getNnodemarkers();
-    const int getNfacemarkers();
-    const int getNelemmarkers();
+    const int get_n_nodemarkers();
+    const int get_n_facemarkers();
+    const int get_n_elemmarkers();
 
-    const int getNvolumes();
+    const int get_n_volumes();
 
-    const int getNodemarker(const int i);
-    const int getFacemarker(const int i);
-    const int getElemmarker(const int i);
-    double getVolume(const int i);
-    Centre getCentre(const int i);
+    const int get_nodemarker(const int i);
+    const int get_facemarker(const int i);
+    const int get_elemmarker(const int i);
+    double get_volume(const int i);
+    Centre get_centre(const int i);
 
-    int* getNodemarkers();
-    vector<int>* getFacemarkers();
-    vector<int>* getElemmarkers();
+    int* get_nodemarkers();
+    vector<int>* get_facemarkers();
+    vector<int>* get_elemmarkers();
 
-    double* getNodes();
-    int* getFaces();
-    int* getElems();
+    double* get_nodes();
+    int* get_faces();
+    int* get_elems();
 
-    const double getNode(int i, int xyz);
-    const int getFace(int i, int node);
-    const int getElem(int i, int node);
+    const double get_node(int i, int xyz);
+    const int get_face(int i, int node);
+    const int get_elem(int i, int node);
 
     void calc_centres();
     void calc_volumes();

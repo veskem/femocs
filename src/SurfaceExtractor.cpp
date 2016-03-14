@@ -25,9 +25,9 @@ SurfaceExtractor::SurfaceExtractor(const Femocs::Config* conf) {
     this->nrOfOmpThreads = conf->nt;
 }
 
-const shared_ptr<Surface> SurfaceExtractor::extract_edge(const shared_ptr<Surface> surf,
+const shared_ptr<Surface> SurfaceExtractor::extract_edge(const shared_ptr<Surface> atoms,
         const Femocs::SimuCell* cell) {
-    int N = surf->getN();
+    int N = atoms->get_N();
     int i, n_atoms;
     vector<bool> is_xmin(N);
     vector<bool> is_xmax(N);
@@ -35,10 +35,10 @@ const shared_ptr<Surface> SurfaceExtractor::extract_edge(const shared_ptr<Surfac
     vector<bool> is_ymax(N);
 
     for (i = 0; i < N; ++i) {
-        is_xmin[i] = on_edge_vol2(surf->getX(i), cell->xmin);
-        is_xmax[i] = on_edge_vol2(surf->getX(i), cell->xmax);
-        is_ymin[i] = on_edge_vol2(surf->getY(i), cell->ymin);
-        is_ymax[i] = on_edge_vol2(surf->getY(i), cell->ymax);
+        is_xmin[i] = on_edge_vol2(atoms->get_x(i), cell->xmin);
+        is_xmax[i] = on_edge_vol2(atoms->get_x(i), cell->xmax);
+        is_ymin[i] = on_edge_vol2(atoms->get_y(i), cell->ymin);
+        is_ymax[i] = on_edge_vol2(atoms->get_y(i), cell->ymax);
     }
 
     n_atoms = accumulate(is_xmin.begin(), is_xmin.end(), 0)
@@ -49,24 +49,25 @@ const shared_ptr<Surface> SurfaceExtractor::extract_edge(const shared_ptr<Surfac
     shared_ptr<Surface> edge(new Surface(n_atoms, this->latconst));
 
     for (i = 0; i < N; ++i) {
-        if (is_xmin[i]) edge->add(cell->xmin, surf->getY(i), surf->sizes.zmin, 0, cell->type_edge);
-        if (is_xmax[i]) edge->add(cell->xmax, surf->getY(i), surf->sizes.zmin, 0, cell->type_edge);
-        if (is_ymin[i]) edge->add(surf->getX(i), cell->ymin, surf->sizes.zmin, 0, cell->type_edge);
-        if (is_ymax[i]) edge->add(surf->getX(i), cell->ymax, surf->sizes.zmin, 0, cell->type_edge);
+//        if (is_xmin[i]) edge->add(cell->xmin, atoms->getY(i), atoms->sizes.zmin, 0, cell->type_edge);
+//        if (is_xmax[i]) edge->add(cell->xmax, atoms->getY(i), atoms->sizes.zmin, 0, cell->type_edge);
+//        if (is_ymin[i]) edge->add(atoms->getX(i), cell->ymin, atoms->sizes.zmin, 0, cell->type_edge);
+//        if (is_ymax[i]) edge->add(atoms->getX(i), cell->ymax, atoms->sizes.zmin, 0, cell->type_edge);
 
-//        if (is_xmin[i]) edge->add(cell->xmin, surf->getY(i), surf->getZ(i), 0, cell->type_edge);
-//        if (is_xmax[i]) edge->add(cell->xmax, surf->getY(i), surf->getZ(i), 0, cell->type_edge);
-//        if (is_ymin[i]) edge->add(surf->getX(i), cell->ymin, surf->getZ(i), 0, cell->type_edge);
-//        if (is_ymax[i]) edge->add(surf->getX(i), cell->ymax, surf->getZ(i), 0, cell->type_edge);
+        if (is_xmin[i]) edge->add_atom(cell->xmin, atoms->get_y(i), atoms->get_z(i), 0, cell->type_edge);
+        if (is_xmax[i]) edge->add_atom(cell->xmax, atoms->get_y(i), atoms->get_z(i), 0, cell->type_edge);
+        if (is_ymin[i]) edge->add_atom(atoms->get_x(i), cell->ymin, atoms->get_z(i), 0, cell->type_edge);
+        if (is_ymax[i]) edge->add_atom(atoms->get_x(i), cell->ymax, atoms->get_z(i), 0, cell->type_edge);
     }
 
     return edge;
 }
 
 // TODO !!! REPLACE WITH COORDINATION DATA !!!
+// MAKE IT INLINE
 const bool SurfaceExtractor::on_edge_vol2(const double x, const double x_boundary) {
-    const double eps = 0.5;
-    return fabs(x - x_boundary) < eps;
+    const double eps = 1.0;
+    return fabs(x - x_boundary) <= eps;
 }
 
 // TODO !!! REPLACE WITH COORDINATION DATA !!!
@@ -84,82 +85,72 @@ const shared_ptr<Surface> SurfaceExtractor::extract_reduced_bulk(const shared_pt
     int i;
     auto edge = extract_edge(surf, cell);
 
-    int nsurf = surf->getN();
+    int nsurf = surf->get_N();
     int nedge = 4; //edge->getN();
 
     // Create empty surface and add atoms by their coord
     shared_ptr<Surface> bulk(new Surface(nsurf + nedge, this->latconst));
     for (i = 0; i < nsurf; ++i)
-        bulk->add(surf->getX(i), surf->getY(i), surf->getZ(i), 0, cell->type_surf);
+        bulk->add_atom(surf->get_x(i), surf->get_y(i), surf->get_z(i), 0, cell->type_surf);
 
 //    for (i = 0; i < nedge; ++i)
 //        bulk->add(edge->getX(i), edge->getY(i), cell->zmin, 0, cell->type_surf);
 
-    bulk->add(cell->xmin, cell->ymin, cell->zmin, 0, cell->type_bulk);
-    bulk->add(cell->xmin, cell->ymax, cell->zmin, 0, cell->type_bulk);
-    bulk->add(cell->xmax, cell->ymin, cell->zmin, 0, cell->type_bulk);
-    bulk->add(cell->xmax, cell->ymax, cell->zmin, 0, cell->type_bulk);
+    bulk->add_atom(cell->xmin, cell->ymin, cell->zmin, 0, cell->type_bulk);
+    bulk->add_atom(cell->xmin, cell->ymax, cell->zmin, 0, cell->type_bulk);
+    bulk->add_atom(cell->xmax, cell->ymin, cell->zmin, 0, cell->type_bulk);
+    bulk->add_atom(cell->xmax, cell->ymax, cell->zmin, 0, cell->type_bulk);
 
     bulk->calc_statistics();
     return bulk;
 }
 
 // Function to extract bulk material from input atomistic data
-const shared_ptr<Surface> SurfaceExtractor::extract_truncated_bulk(const AtomReader::Data* data,
-        shared_ptr<Surface> surf, const double* xyz_min_max, const Femocs::SimuCell* cell) {
+const shared_ptr<Surface> SurfaceExtractor::extract_truncated_bulk(const AtomReader::Data* data, const Femocs::SimuCell* cell) {
+
     int i;
     int N = data->x.size();
     vector<bool> is_bulk(N);
-    vector<bool> is_bottom(N);
-    double zmin = xyz_min_max[4];// - 1.5*this->latconst;
-    double zmin2 = zmin - 1*this->latconst;
-
-    auto edge = extract_edge(surf, cell);
-
-    edge->output("output/edge.xyz");
 
     for (i = 0; i < N; ++i)
-        is_bulk[i] = (data->type[i] != cell->type_vacancy) && (data->z[i] > zmin);
+        is_bulk[i] = (data->type[i] != cell->type_vacancy) && (data->z[i] > cell->zmin);
 
-    for (i = 0; i < N; ++i)
-        is_bottom[i] = (data->type[i] != cell->type_vacancy) && (data->z[i] >= zmin2) && (data->z[i] <= zmin - 0*this->latconst);
-
-//    int M = 4 + edge->getN() + surf->getN() + accumulate(is_quality.begin(), is_quality.end(), 0);
-    int M = 4 + edge->getN() +
-            accumulate(is_bulk.begin(), is_bulk.end(), 0) +
-            accumulate(is_bottom.begin(), is_bottom.end(), 0);
+    int M = accumulate(is_bulk.begin(), is_bulk.end(), 0);
 
     shared_ptr<Surface> bulk(new Surface(M, this->latconst));
 
     // Add initial bulk atoms
     for (i = 0; i < N; ++i)
-        if (is_bulk[i]) bulk->add(data->x[i], data->y[i], data->z[i], 0, cell->type_bulk);
-
-    for (i = 0; i < N; ++i)
-        if (is_bottom[i]) bulk->add(data->x[i], data->y[i], (zmin - this->latconst), 0, cell->type_bulk);
-
-    // Add lined-up edge atoms
-    for (i = 0; i < edge->getN(); ++i)
-        bulk->add(edge->getX(i), edge->getY(i), edge->getZ(i), 0, cell->type_bulk);
-
-//    // Add lined-up edge atoms
-//    for (i = 0; i < edge->getN(); ++i)
-//        bulk->add(edge->getX(i), edge->getY(i), zmin2, 0, cell->type_bulk);
-//
-//
-//    // Add additional atoms to the very bottom of the system to get square bottom
-//    bulk->add(xyz_min_max[0], xyz_min_max[2], zmin, 0, cell->type_bulk);
-//    bulk->add(xyz_min_max[0], xyz_min_max[3], zmin, 0, cell->type_bulk);
-//    bulk->add(xyz_min_max[1], xyz_min_max[2], zmin, 0, cell->type_bulk);
-//    bulk->add(xyz_min_max[1], xyz_min_max[3], zmin, 0, cell->type_bulk);
-
-    bulk->add(xyz_min_max[0], xyz_min_max[2], zmin2, 0, cell->type_bulk);
-    bulk->add(xyz_min_max[0], xyz_min_max[3], zmin2, 0, cell->type_bulk);
-    bulk->add(xyz_min_max[1], xyz_min_max[2], zmin2, 0, cell->type_bulk);
-    bulk->add(xyz_min_max[1], xyz_min_max[3], zmin2, 0, cell->type_bulk);
+        if (is_bulk[i]) bulk->add_atom(data->x[i], data->y[i], data->z[i], 0, cell->type_bulk);
 
     bulk->calc_statistics();
     return bulk;
+}
+
+// Function to extract bulk material from input atomistic data
+const void SurfaceExtractor::rectangularize_bulk(shared_ptr<Surface> bulk, const Femocs::SimuCell* cell) {
+
+    double zmin_up   = bulk->sizes.zmin + bulk->sizes.latconst;
+    double zmin_down = bulk->sizes.zmin;
+
+    for (int i = 0; i < bulk->get_N(); ++i) {
+        // Flatten the atoms on bottom layer
+//        if( (bulk->get_z(i) >= zmin_down) && (bulk->get_z(i) <= zmin_up) ) bulk->set_z(i, bulk->sizes.zmin + 0.5*bulk->sizes.latconst);
+
+        // Flatten the atoms on the sides of simulation box
+        if( on_edge_vol2(bulk->get_x(i), cell->xmin) ) bulk->set_x(i, cell->xmin);
+        if( on_edge_vol2(bulk->get_x(i), cell->xmax) ) bulk->set_x(i, cell->xmax);
+        if( on_edge_vol2(bulk->get_y(i), cell->ymin) ) bulk->set_y(i, cell->ymin);
+        if( on_edge_vol2(bulk->get_y(i), cell->ymax) ) bulk->set_y(i, cell->ymax);
+    }
+
+    // Add atoms to the bottom corner of the simulation cell
+//    bulk->add(bulk->sizes.xmin, bulk->sizes.ymin, zmin_down, 0, cell->type_bulk);
+//    bulk->add(bulk->sizes.xmin, bulk->sizes.ymax, zmin_down, 0, cell->type_bulk);
+//    bulk->add(bulk->sizes.xmax, bulk->sizes.ymin, zmin_down, 0, cell->type_bulk);
+//    bulk->add(bulk->sizes.xmax, bulk->sizes.ymax, zmin_down, 0, cell->type_bulk);
+
+    //bulk->calc_statistics();
 }
 
 // Function to extract bulk material from input atomistic data
@@ -175,7 +166,7 @@ const shared_ptr<Surface> SurfaceExtractor::extract_bulk(const AtomReader::Data*
     int M = accumulate(is_quality.begin(), is_quality.end(), 0);
     shared_ptr<Surface> bulk(new Surface(M, this->latconst));
     for (i = 0; i < N; ++i)
-        if (is_quality[i]) bulk->add(data->x[i], data->y[i], data->z[i], 0, cell->type_bulk);
+        if (is_quality[i]) bulk->add_atom(data->x[i], data->y[i], data->z[i], 0, cell->type_bulk);
 
     bulk->calc_statistics();
     return bulk;
@@ -215,7 +206,7 @@ const shared_ptr<Surface> SurfaceExtractor::kmc_extract(const AtomReader::Data* 
     // Create empty surface and add atoms
     shared_ptr<Surface> surf(new Surface(M, this->latconst));
     for (i = 0; i < N; ++i)
-        if (is_surface[i]) surf->add(dat->x[i], dat->y[i], dat->z[i], 0, dat->type[i]);
+        if (is_surface[i]) surf->add_atom(dat->x[i], dat->y[i], dat->z[i], 0, dat->type[i]);
 
     surf->calc_statistics();
     return surf;
@@ -253,7 +244,7 @@ const shared_ptr<Surface> SurfaceExtractor::coordination_extract(const AtomReade
     int M = accumulate(is_surface.begin(), is_surface.end(), 0);
     shared_ptr<Surface> surf(new Surface(M, this->latconst));
     for (i = 0; i < N; ++i)
-        if (is_surface[i]) surf->add(dat->x[i], dat->y[i], dat->z[i], coords[i], dat->type[i]);
+        if (is_surface[i]) surf->add_atom(dat->x[i], dat->y[i], dat->z[i], coords[i], dat->type[i]);
 
     surf->calc_statistics();
     return surf;

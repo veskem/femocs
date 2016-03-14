@@ -49,7 +49,7 @@ public:
      * Function to get number of atoms in AtomReader
      * @return Number of atoms in AtomReader
      */
-    const int getN();
+    const int get_N();
 
     /** Struct for holding data of the whole simulation cell. */
     struct Data {

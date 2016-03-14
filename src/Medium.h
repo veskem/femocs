@@ -23,15 +23,15 @@ public:
     const void output(const string& file_name);
 
     /** Return x-coordinate of i-th atom */
-    const double getX(const int i);
+    const double get_x(const int i);
     /** Return y-coordinate of i-th atom */
-    const double getY(const int i);
+    const double get_y(const int i);
     /** Return z-coordinate of i-th atom */
-    const double getZ(const int i);
+    const double get_z(const int i);
     /** Return type of i-th atom */
-    const int getType(const int i);
+    const int get_type(const int i);
     /** Return number of atoms in a Medium */
-    const int getN();
+    const int get_N();
     /** Sort Medium atoms by their radial coordinate */
     void sort_atoms(vector<int>* permutation_indxs);
 

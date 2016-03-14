@@ -42,9 +42,9 @@ Mesh::Mesh() {
 // =================================
 // *** GETTERS: ***************
 
-const double Mesh::getNode(int i, int xyz) {
+const double Mesh::get_node(int i, int xyz) {
 #if DEBUGMODE
-    if(i < 0 || i > getNnodes() || xyz < 0 || xyz > 2) {
+    if(i < 0 || i > get_n_nodes() || xyz < 0 || xyz > 2) {
         cout << "Index out of number of nodes bounds" << endl;
         return -1.0;
     }
@@ -52,9 +52,9 @@ const double Mesh::getNode(int i, int xyz) {
     return tetIO.pointlist[3*i+xyz];
 }
 
-const int Mesh::getFace(int i, int node) {
+const int Mesh::get_face(int i, int node) {
 #if DEBUGMODE
-    if(  (i < 0) || (i > getNfaces()) || (node < 0) || (node > 2) ) {
+    if(  (i < 0) || (i > get_n_faces()) || (node < 0) || (node > 2) ) {
         cout << "Index out of number of faces bounds" << endl;
         return -1;
     }
@@ -62,10 +62,9 @@ const int Mesh::getFace(int i, int node) {
     return tetIO.trifacelist[3*i+node];
 }
 
-const int Mesh::getElem(int i, int node) {
-
+const int Mesh::get_elem(int i, int node) {
 #if DEBUGMODE
-    if( (i < 0) || (i > getNelems()) || (node < 0) || (node > 3) ) {
+    if( (i < 0) || (i > get_n_elems()) || (node < 0) || (node > 3) ) {
         cout << "Index out of number of elems bounds" << endl;
         return -1;
     }
@@ -73,27 +72,27 @@ const int Mesh::getElem(int i, int node) {
     return tetIO.tetrahedronlist[4*i+node];
 }
 
-double* Mesh::getNodes() {
+double* Mesh::get_nodes() {
     return tetIO.pointlist;
 }
 
-int* Mesh::getFaces() {
+int* Mesh::get_faces() {
     return tetIO.trifacelist;
 }
 
-int* Mesh::getElems() {
+int* Mesh::get_elems() {
     return tetIO.tetrahedronlist;
 }
 
-double Mesh::getVolume(const int i) {
+double Mesh::get_volume(const int i) {
     return volumes[i];
 }
 
-Centre Mesh::getCentre(const int i) {
+Centre Mesh::get_centre(const int i) {
     return centres[i];
 }
 
-const int Mesh::getNodemarker(const int i) {
+const int Mesh::get_nodemarker(const int i) {
 #if DEBUGMODE
     if (i >= tetIO.numberofpoints) {
         cout << "Index exceeds node attributes size!" << endl;
@@ -104,56 +103,56 @@ const int Mesh::getNodemarker(const int i) {
     //    return nodemarkers[i];
 }
 
-const int Mesh::getFacemarker(const int i) {
+const int Mesh::get_facemarker(const int i) {
     return facemarkers[i];
 }
 
-const int Mesh::getElemmarker(const int i) {
+const int Mesh::get_elemmarker(const int i) {
     return elemmarkers[i];
 }
 
-int* Mesh::getNodemarkers() {
+int* Mesh::get_nodemarkers() {
     return tetIO.pointmarkerlist;
 }
 
-vector<int>* Mesh::getFacemarkers() {
+vector<int>* Mesh::get_facemarkers() {
     return &facemarkers;
 }
 
-void Mesh::setFacemarker(const int i, const int m) {
-    facemarkers[i] = m;
-}
-
-vector<int>* Mesh::getElemmarkers() {
+vector<int>* Mesh::get_elemmarkers() {
     return &elemmarkers;
 }
 
-const int Mesh::getNnodes() {
+void Mesh::set_facemarker(const int i, const int m) {
+    facemarkers[i] = m;
+}
+
+const int Mesh::get_n_nodes() {
     return tetIO.numberofpoints;
 }
 
-const int Mesh::getNelems() {
+const int Mesh::get_n_elems() {
     return tetIO.numberoftetrahedra;
 }
 
-const int Mesh::getNfaces() {
+const int Mesh::get_n_faces() {
     return tetIO.numberoftrifaces;
 }
 
-const int Mesh::getNnodemarkers() {
+const int Mesh::get_n_nodemarkers() {
     return tetIO.numberofpoints;
     //    return nodemarkers.size();
 }
 
-const int Mesh::getNfacemarkers() {
+const int Mesh::get_n_facemarkers() {
     return facemarkers.size();
 }
 
-const int Mesh::getNelemmarkers() {
+const int Mesh::get_n_elemmarkers() {
     return elemmarkers.size();
 }
 
-const int Mesh::getNvolumes() {
+const int Mesh::get_n_volumes() {
     return volumes.size();
 }
 
@@ -268,59 +267,59 @@ void Mesh::copy_statistics(shared_ptr<Mesh> mesh) {
 }
 
 void Mesh::copy_nodes(shared_ptr<Mesh> mesh) {
-    int N = mesh->getNnodes();
+    int N = mesh->get_n_nodes();
     for (int i = 0; i < 3 * N; ++i)
-        tetIO.pointlist[i] = mesh->getNodes()[i];
+        tetIO.pointlist[i] = mesh->get_nodes()[i];
     inodes = N;
 }
 
 void Mesh::copy_faces(shared_ptr<Mesh> mesh, const int offset) {
-    int N = mesh->getNfaces();
+    int N = mesh->get_n_faces();
     if (offset == 0)
         for (int i = 0; i < 3 * N; ++i)
-            tetIO.trifacelist[i] = mesh->getFaces()[i];
+            tetIO.trifacelist[i] = mesh->get_faces()[i];
     else
         for (int i = 0; i < 3 * N; ++i)
-            tetIO.trifacelist[i] = offset + mesh->getFaces()[i];
+            tetIO.trifacelist[i] = offset + mesh->get_faces()[i];
     ifaces = N;
 }
 
 void Mesh::copy_elems(shared_ptr<Mesh> mesh, const int offset) {
-    int N = mesh->getNelems();
+    int N = mesh->get_n_elems();
     if (offset == 0)
         for (int i = 0; i < 4 * N; ++i)
-            tetIO.tetrahedronlist[i] = mesh->getElems()[i];
+            tetIO.tetrahedronlist[i] = mesh->get_elems()[i];
     else
         for (int i = 0; i < 4 * N; ++i)
-            tetIO.tetrahedronlist[i] = offset + mesh->getElems()[i];
+            tetIO.tetrahedronlist[i] = offset + mesh->get_elems()[i];
     ielems = N;
 }
 
 void Mesh::copy_nodemarkers(shared_ptr<Mesh> mesh) {
-    int N = mesh->getNnodemarkers();
+    int N = mesh->get_n_nodemarkers();
     for (int i = 0; i < N; ++i)
-        tetIO.pointmarkerlist[i] = mesh->getNodemarker(i);
+        tetIO.pointmarkerlist[i] = mesh->get_nodemarker(i);
     inodemarker = N;
 }
 
 void Mesh::copy_facemarkers(shared_ptr<Mesh> mesh) {
-    int N = mesh->getNfacemarkers();
+    int N = mesh->get_n_facemarkers();
     for (int i = 0; i < N; ++i)
-        facemarkers.push_back(mesh->getFacemarker(i));
+        facemarkers.push_back(mesh->get_facemarker(i));
 }
 
 void Mesh::copy_elemmarkers(shared_ptr<Mesh> mesh) {
-    int N = mesh->getNelemmarkers();
+    int N = mesh->get_n_elemmarkers();
     for (int i = 0; i < N; ++i)
-        elemmarkers.push_back(mesh->getElemmarker(i));
+        elemmarkers.push_back(mesh->get_elemmarker(i));
 }
 
 // =================================
 // *** VARIA: ***************
 bool Mesh::centre_found_in(const int i, shared_ptr<Mesh> mesh) {
-    Centre centre = getCentre(i);
-    for (int c = 0; c < mesh->getNelems(); ++c)
-        if ( centre.is_equal(mesh->getCentre(c)) )
+    Centre centre = get_centre(i);
+    for (int c = 0; c < mesh->get_n_elems(); ++c)
+        if ( centre.is_equal(mesh->get_centre(c)) )
             return true;
 
     return false;
@@ -332,9 +331,9 @@ void Mesh::calc_centres() {
 
     const int ncoords = 3; // nr of coordinates
     const int nnodes = 4;  // nr of nodes per element
-    int N = getNelems();
-    double* nodes = getNodes();
-    int* elems = getElems();
+    int N = get_n_elems();
+    double* nodes = get_nodes();
+    int* elems = get_elems();
 
     init_centres(N);
 
@@ -361,9 +360,9 @@ void Mesh::calc_volumes() {
 
     const int ncoords = 3; // nr of coordinates
     const int nnodes = 4;  // nr of nodes per element
-    int N = getNelems();
-    double* nodes = getNodes();
-    int* elems = getElems();
+    int N = get_n_elems();
+    double* nodes = get_nodes();
+    int* elems = get_elems();
 
     // Loop through the elements
     for (i = 0; i < N; ++i) {
@@ -508,13 +507,13 @@ void Mesh::write_faces(const string file_name) {
     const int celltype = 5; // 5-triangle, 10-tetrahedron
     const int nnodes_in_cell = 3;
 
-    int nnodes = getNnodes();
-    int nfaces = getNfaces();
-    int nmarkers = getNfacemarkers();
-    int nnodemarkers = getNnodemarkers();
-    REAL* nodes = getNodes();          // pointer to nodes
-    int* faces = getFaces();         // pointer to face nodes
-    int* nodemakers = getNodemarkers();
+    int nnodes = get_n_nodes();
+    int nfaces = get_n_faces();
+    int nmarkers = get_n_facemarkers();
+    int nnodemarkers = get_n_nodemarkers();
+    REAL* nodes = get_nodes();          // pointer to nodes
+    int* faces = get_faces();         // pointer to face nodes
+    int* nodemakers = get_nodemarkers();
     vector<int>* cellmarkers = &facemarkers;    // pointer to face markers
 
     write_vtk(file_name, nnodes, nfaces, nnodemarkers, nmarkers, nodes, faces, nodemakers,
@@ -529,13 +528,13 @@ void Mesh::write_elems(const string file_name) {
     const int celltype = 10; // 5-triangle, 10-tetrahedron
     const int nnodes_in_cell = 4;
 
-    int nnodes = getNnodes();
-    int nelems = getNelems();
-    int nmarkers = getNelemmarkers();
-    int nnodemarkers = getNnodemarkers();
-    REAL* nodes = getNodes();          // pointer to nodes
-    int* elems = getElems();     // pointer to faces nodes
-    int* nodemakers = getNodemarkers();
+    int nnodes = get_n_nodes();
+    int nelems = get_n_elems();
+    int nmarkers = get_n_elemmarkers();
+    int nnodemarkers = get_n_nodemarkers();
+    REAL* nodes = get_nodes();          // pointer to nodes
+    int* elems = get_elems();     // pointer to faces nodes
+    int* nodemakers = get_nodemarkers();
     vector<int>* cellmarkers = &elemmarkers;    // pointer to element markers
 
     write_vtk(file_name, nnodes, nelems, nnodemarkers, nmarkers, nodes, elems, nodemakers,

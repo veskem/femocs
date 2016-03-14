@@ -16,22 +16,14 @@ namespace femocs {
 
 // Constructor initializes arrays
 Surface::Surface(const int natoms, double latconst) {
-    this->x.reserve(natoms);				// Default values are 0
-    this->y.reserve(natoms);
-    this->z.reserve(natoms);
-    this->Sx.reserve(natoms);
-    this->Sy.reserve(natoms);
-    this->Sz.reserve(natoms);
-    this->coordination.reserve(natoms);
-    this->type.reserve(natoms);
-    this->isEvaporated.reserve(natoms);	// Default values are False
-    this->latconst = latconst;
+    reserve(natoms);
     init_statistics();
+    sizes.latconst = latconst;
 }
 ;
 
 // Add atom coordinates
-const void Surface::add(const double x, const double y, const double z, const int coord,
+const void Surface::add_atom(const double x, const double y, const double z, const int coord,
         const int type) {
     this->x.push_back(x);
     this->y.push_back(y);
@@ -40,53 +32,74 @@ const void Surface::add(const double x, const double y, const double z, const in
     this->type.push_back(type);
 }
 
-vector<double>* Surface::getXs() {
+const void Surface::reserve(const int N) {
+    this->x.reserve(N);                // Default values are 0
+    this->y.reserve(N);
+    this->z.reserve(N);
+    this->Sx.reserve(N);
+    this->Sy.reserve(N);
+    this->Sz.reserve(N);
+    this->coordination.reserve(N);
+    this->type.reserve(N);
+    this->isEvaporated.reserve(N);    // Default values are False
+}
+
+vector<double>* Surface::get_xs() {
     return &x;
 }
-vector<double>* Surface::getYs() {
+vector<double>* Surface::get_ys() {
     return &y;
 }
-vector<double>* Surface::getZs() {
+vector<double>* Surface::get_zs() {
     return &z;
 }
 
+void Surface::set_x(const int i, const double x) {
+    this->x[i] = x;
+}
+
+void Surface::set_y(const int i, const double y) {
+    this->y[i] = y;
+}
+
+void Surface::set_z(const int i, const double z) {
+    this->z[i] = z;
+}
+
 // Get element from x, y or z vector
-const double Surface::getX(const int i) {
+const double Surface::get_x(const int i) {
     return x[i];
 }
-const double Surface::getY(const int i) {
+const double Surface::get_y(const int i) {
     return y[i];
 }
-const double Surface::getZ(const int i) {
+const double Surface::get_z(const int i) {
     return z[i];
 }
-// Get lattice constant
-const double Surface::getLatconst() {
-    return latconst;
-}
+
 // Get atom type
-const int Surface::getType(const int i) {
+const int Surface::get_type(const int i) {
     return type[i];
 }
 // Get atom coordination
-const int Surface::getCoordination(const int i) {
+const int Surface::get_coordination(const int i) {
     return coordination[i];
 }
 
 // Get number of atoms on surface
-const int Surface::getN() {
+const int Surface::get_N() {
     return x.size();
 }
 
 const void Surface::calc_statistics() {
     init_statistics();
-    for (int i = 0; i < getN(); ++i) {
-        if(sizes.xmax < getX(i)) sizes.xmax = getX(i);
-        if(sizes.xmin > getX(i)) sizes.xmin = getX(i);
-        if(sizes.ymax < getY(i)) sizes.ymax = getY(i);
-        if(sizes.ymin > getY(i)) sizes.ymin = getY(i);
-        if(sizes.zmax < getZ(i)) sizes.zmax = getZ(i);
-        if(sizes.zmin > getZ(i)) sizes.zmin = getZ(i);
+    for (int i = 0; i < get_N(); ++i) {
+        if(sizes.xmax < get_x(i)) sizes.xmax = get_x(i);
+        if(sizes.xmin > get_x(i)) sizes.xmin = get_x(i);
+        if(sizes.ymax < get_y(i)) sizes.ymax = get_y(i);
+        if(sizes.ymin > get_y(i)) sizes.ymin = get_y(i);
+        if(sizes.zmax < get_z(i)) sizes.zmax = get_z(i);
+        if(sizes.zmin > get_z(i)) sizes.zmin = get_z(i);
     }
 }
 

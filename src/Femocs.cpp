@@ -83,7 +83,6 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     double t0, tstart;
     // Max tetrahedron volume is ~100000x the volume of regular tetrahedron with edge == latconst
     string Vmax = to_string(  (int)(100000.0*0.118*pow(conf.latconst,3.0) ) );
-    string Vmax_small = to_string(  (int)(1000.0*0.118*pow(conf.latconst,3.0) ) );
     
     omp_set_num_threads(conf.nt);
 
@@ -105,14 +104,14 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     t0 = start_msg("=== Extracting surface...");
     SurfaceExtractor surf_extractor(&conf);
     auto surf = surf_extractor.extract_surface(&reader.data, &simucell);
+    simucell.zmin = surf->sizes.zmin - surf->sizes.latconst;
     end_msg(t0);
 
     t0 = start_msg("=== Extracting bulk...");
     SurfaceExtractor bulk_extractor(&conf);
-    double xyz_min_max[6] = {surf->sizes.xmin, surf->sizes.xmax, surf->sizes.ymin, surf->sizes.ymax, surf->sizes.zmin, surf->sizes.zmax};
-    auto bulk = bulk_extractor.extract_truncated_bulk(&reader.data, surf, xyz_min_max, &simucell);
- //   auto bulk = bulk_extractor.extract_reduced_bulk( surf, &simucell);
 //    auto bulk = bulk_extractor.extract_bulk(&reader.data, &simucell);
+    auto bulk = bulk_extractor.extract_truncated_bulk(&reader.data, &simucell);
+    bulk_extractor.rectangularize_bulk(bulk, &simucell);
     end_msg(t0);
 
     t0 = start_msg("=== Generating vacuum...");
@@ -120,126 +119,32 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     vacuum.generate_simple(&simucell);
     end_msg(t0);
 
-    t0 = start_msg("=== Writing surface, bulk and vacuum to output/...");
-    surf->output("output/surface.xyz");
-    bulk->output("output/bulk.xyz");
-    vacuum.output("output/vacuum.xyz");
-    end_msg(t0);
+//    t0 = start_msg("=== Writing surface, bulk and vacuum to output/...");
+//    surf->output("output/surface.xyz");
+//    bulk->output("output/bulk.xyz");
+//    vacuum.output("output/vacuum.xyz");
+//    end_msg(t0);
 
 // ===============================================
-
-/*
- * Vahur's recipe for making tetgen mesh:
- *
- * generate mesh1 for bulk material
- * remove elements
- * rebuild mesh1
- *
- * generate mesh2 with rebuilt elements from mesh1 with -r
- * remove faces
- * rebuild mesh2
- *
- * now mesh2 = bulk elements + bulk faces
- * from mesh2, remove faces on simucell edges
- * now mesh2 = material-vacuum interface faces
- *
- * make mesh3 with material atoms + 4 points on top of simucell
- * now mesh3 = face list for the outer edges of simucell
- *
- * make mesh4 = mesh3 faces + mesh2 faces
- * mark mesh4  x,y,z min-max edges and material surface
- *
- * rebuild mesh4 with max volume and min quality restrictions
- *
- */
-/*
-    t0 = start_msg("=== Step1...");
-
-    Mesher mesher1(conf.mesher);
-    auto mesh1 = mesher1.get_bulk_mesh(bulk, "Q");
-    mesh1->write_faces("output/faces0.vtk");
-    mesh1->write_elems("output/elems0.vtk");
-
-//    mesh1->recalc("rQ");
-//    mesh1->recalc("rpq3.914a"+Vmax_small);
-//    mesh1->write_faces("output/faces1.vtk");
-//    mesh1->write_elems("output/elems1.vtk");
-
-    mesher1.clean_elems(mesh1, conf.tetgen_cutoff, "rQ");
-
-    mesher1.mark_faces(mesh1, surf, &simucell);
-    mesher1.calc_statistics(mesh1);
-    mesh1->write_faces("output/faces2.vtk");
-    mesh1->write_elems("output/elems2.vtk");
-    end_msg(t0);
-
-    t0 = start_msg("=== Step2...");
-
-    Mesher mesher2(conf.mesher);
-    auto mesh2 = mesher2.get_volume_mesh(bulk, &vacuum, "Q");
-//    mesher2.mark_faces_bynode(mesh2, surf->getN(), &simucell);
-//    mesher2.mark_elems_bynode(mesh2, surf->getN(), &simucell);
-//    mesh2->write_faces("output/faces3.vtk");
-//    mesh2->write_elems("output/elems3.vtk");
-    mesh2->recalc("rq1.914a"+Vmax);
-//    mesher2.mark_faces_bynode(mesh2, surf->getN(), &simucell);
-//    mesher2.mark_elems_bynode(mesh2, surf->getN(), &simucell);
-    mesh2->write_faces("output/faces4.vtk");
-    mesh2->write_elems("output/elems4.vtk");
-    end_msg(t0);
-
-    t0 = start_msg("=== Step3...");
-
-    Mesher mesher3(conf.mesher);
-    auto mesh3 = mesher3.get_union_mesh(mesh1, mesh2, &simucell);
-//    auto mesh3 = mesher3.get_union_mesh_vol2(mesh2, surf->getN(), &simucell);
-    mesh3->write_faces("output/faces5.vtk");
-    mesh3->write_elems("output/elems5.vtk");
-
-    mesher3.mark_faces(mesh3, surf, &simucell);
-    mesher3.mark_elems_byvol(mesh3, &simucell);
-//    mesher3.mark_elems_bycentre(mesh3, mesh1, &simucell);
-//    mesher3.mark_faces_bysequence(mesh3, surf->getN(), &simucell);
-//    mesher3.mark_faces_bynode(mesh3, surf->getN(), &simucell);
-//    mesher3.mark_elems_bynode(mesh3, surf->getN(), &simucell);
-
-
-//    mesh3->recalc("pqAa"+Vmax);
-//    mesh3->output("A");
-
-    mesh3->write_faces("output/faces6.vtk");
-    mesh3->write_elems("output/elems6.vtk");
-    end_msg(t0);
-    
-    t0 = start_msg("=== Step4...");
-    
-    Mesher mesher4(conf.mesher);
-    auto mesh4 = mesher4.extract_vacuum_mesh(mesh3, &simucell);
-    mesh4->recalc("rQ");
-    mesh4->write_faces("output/faces7.vtk");
-    mesh4->write_elems("output/elems7.vtk");
-    end_msg(t0);
- */
-
     
     t0 = start_msg("=== Making big mesh...");
 
     Mesher mesher1(conf.mesher);
-    auto mesh1 = mesher1.get_volume_mesh(bulk, &vacuum, "Q");
-    mesh1->write_faces("output/faces0.vtk");
-    mesh1->write_elems("output/elems0.vtk");
-    mesh1->recalc("rq2.914a"+Vmax);
-    mesher1.mark_elems_bynode(mesh1, bulk->getN(), &simucell);
-    mesh1->write_faces("output/faces1.vtk");
-    mesh1->write_elems("output/elems1.vtk");
+    auto big_mesh = mesher1.get_volume_mesh(bulk, &vacuum, "Q");
+    big_mesh->write_faces("output/faces0.vtk");
+    big_mesh->write_elems("output/elems0.vtk");
+    big_mesh->recalc("rq2.914a"+Vmax);
+//    mesher1.mark_elems_bynode(mesh1, bulk->get_N(), &simucell);
+    big_mesh->write_faces("output/faces1.vtk");
+    big_mesh->write_elems("output/elems1.vtk");
     end_msg(t0);
 
     t0 = start_msg("=== Separating vacuum and surface mesh...");
 
     Mesher mesher2(conf.mesher);
-    auto mesh4 = mesher2.extract_vacuum_mesh_vol2(mesh1, bulk->getN(), &simucell, "rQ");
-    mesh4->write_faces("output/faces7.vtk");
-    mesh4->write_elems("output/elems7.vtk");
+    auto vacuum_mesh = mesher2.extract_vacuum_mesh_vol2(big_mesh, bulk->get_N(), bulk->sizes.latconst, &simucell, "rQ");
+    vacuum_mesh->write_faces("output/faces7.vtk");
+    vacuum_mesh->write_elems("output/elems7.vtk");
     end_msg(t0);
 
 
@@ -253,7 +158,7 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
 
     t0 = start_msg("Initialising tethex...");
     tethex::Mesh tethex_mesh;
-    tethex_mesh.read_femocs(mesh4);
+    tethex_mesh.read_femocs(vacuum_mesh);
     end_msg(t0);
     
     t0 = start_msg("Converting tetrahedra to hexahedra...");
@@ -291,7 +196,7 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
 
     t0 = start_msg("Outputting results...");
     laplace.output_results("output/final-results.vtk");
-//    laplace.output_mesh("output/dealii_mesh_3.msh");
+//    laplace.output_mesh("output/dealii_mesh.msh");
     end_msg(t0);
 
     cout << "\nTotal time: " << omp_get_wtime() - tstart << "\n";
