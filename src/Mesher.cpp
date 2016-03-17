@@ -132,6 +132,8 @@ const shared_ptr<Mesh> Mesher::extract_vacuum_mesh_vol2(shared_ptr<Mesh> mesh, c
 
         elem_in_vacuum[i] = ( node_not_bottom[0] && node_not_bottom[1] && node_not_bottom[2] && node_not_bottom[3] )
                  && (node_in_vacuum[0] || node_in_vacuum[1] || node_in_vacuum[2] || node_in_vacuum[3]);
+//        elem_in_vacuum[i] = (node_in_vacuum[0] || node_in_vacuum[1] || node_in_vacuum[2] || node_in_vacuum[3]);
+//        elem_in_vacuum[i] = (node_in_vacuum[0] && node_in_vacuum[1] && node_in_vacuum[2] && node_in_vacuum[3]);
     }
 
     int n_vacuum_elems = accumulate(elem_in_vacuum.begin(), elem_in_vacuum.end(), 0);
@@ -268,8 +270,8 @@ const shared_ptr<Mesh> Mesher::get_union_mesh_vol2(shared_ptr<Mesh> mesh, const 
 const shared_ptr<Mesh> Mesher::get_volume_mesh(shared_ptr<Surface> bulk, Vacuum* vacuum,
         const string cmd) {
     int i;
-    int nbulk = bulk->get_N();
-    int nvacuum = vacuum->get_N();
+    int nbulk = bulk->get_n_atoms();
+    int nvacuum = vacuum->get_n_atoms();
     shared_ptr<Mesh> new_mesh(new Mesh());
 
     new_mesh->init_nodes(nbulk + nvacuum);
@@ -287,10 +289,40 @@ const shared_ptr<Mesh> Mesher::get_volume_mesh(shared_ptr<Surface> bulk, Vacuum*
     return new_mesh;
 }
 
+// Function to generate mesh from bulk and vacuum atoms
+const shared_ptr<Mesh> Mesher::get_volume_mesh_vol2(shared_ptr<Surface> bulk, shared_ptr<Surface> surf, Vacuum* vacuum,
+        const string cmd) {
+
+    int i;
+    int n_bulk = bulk->get_n_atoms();
+    int n_surf = surf->get_n_atoms();
+    int n_vacuum = vacuum->get_n_atoms();
+    shared_ptr<Mesh> new_mesh(new Mesh());
+
+    new_mesh->init_nodes(n_bulk + n_surf + n_vacuum);
+    new_mesh->init_nodemarkers(n_bulk + n_surf + n_vacuum);
+
+    for (i = 0; i < n_bulk; ++i) {
+        new_mesh->add_node(bulk->get_x(i), bulk->get_y(i), bulk->get_z(i));
+        new_mesh->add_nodemarker(bulk->get_type(i));
+    }
+    for (i = 0; i < n_surf; ++i) {
+        new_mesh->add_node(surf->get_x(i), surf->get_y(i), surf->get_z(i));
+        new_mesh->add_nodemarker(surf->get_type(i));
+    }
+    for (i = 0; i < n_vacuum; ++i) {
+        new_mesh->add_node(vacuum->get_x(i), vacuum->get_y(i), vacuum->get_z(i));
+        new_mesh->add_nodemarker(vacuum->get_type(i));
+    }
+
+    new_mesh->recalc(cmd);
+    return new_mesh;
+}
+
 // Function to generate mesh from bulk atoms
 const shared_ptr<Mesh> Mesher::get_bulk_mesh(shared_ptr<Surface> bulk, const string cmd) {
     int i;
-    int nbulk = bulk->get_N();
+    int nbulk = bulk->get_n_atoms();
     shared_ptr<Mesh> new_mesh(new Mesh());
 
     new_mesh->init_nodes(nbulk);
@@ -547,7 +579,7 @@ bool Mesher::on_surface(const double f1n1, const double f1n2, const double f1n3,
         shared_ptr<Surface> surf, const int xn) {
 
     vector<double>* nodes;
-    int N = surf->get_N();
+    int N = surf->get_n_atoms();
 
     if (xn == 0)
         nodes = surf->get_xs();

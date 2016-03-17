@@ -49,7 +49,9 @@ public:
      * Function to get number of atoms in AtomReader
      * @return Number of atoms in AtomReader
      */
-    const int get_N();
+    const int get_n_atoms();
+
+    const void calc_coordination(const Femocs::SimuCell* cell, const double cutoff, const int nnn);
 
     /** Struct for holding data of the whole simulation cell. */
     struct Data {
@@ -57,6 +59,7 @@ public:
         vector<double> y;   //!< y-coordinates of atoms
         vector<double> z;   //!< z-coordinates of atoms
         vector<int> type;   //!< types of atoms
+        vector<int> coordination;  //!< coordinations of atoms
         double xmin;        //!< minimum x-coordinate in simulation cell
         double xmax;        //!< maximum x-coordinate in simulation cell
         double ymin;        //!< minimum y-coordinate in simulation cell
@@ -80,6 +83,9 @@ private:
     const void import_xyz(const string& file_name, Femocs::SimuCell* cell);
     const void import_ckx(const string& file_name, Femocs::SimuCell* cell);
     const void import_dump(const string& file_name, Femocs::SimuCell* cell);
+
+    const void calc_md_coordination(const Femocs::SimuCell* cell, const double cutoff, const int nnn);
+    const void calc_kmc_coordination(const Femocs::SimuCell* cell, const int nnn);
 
     const void init_data(const int natoms, Femocs::SimuCell* cell);
     const void add_data(const double x, const double y, const double z, const int type,

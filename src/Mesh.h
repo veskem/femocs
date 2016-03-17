@@ -111,6 +111,7 @@ public:
     void recalc(const string cmd);
     void output(const string cmd);
 
+    void write_nodes(const string file_name);
     void write_faces(const string file_name);
     void write_elems(const string file_name);
 

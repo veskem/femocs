@@ -53,7 +53,7 @@ const void Vacuum::generate(const Femocs::SimuCell* cell, shared_ptr<Surface> su
     const double zmax = cell->zmaxbox;
     const double dz = surf->sizes.latconst;
     int nlayers = ceil(log(zmax / dz) / log(layer_exp));  // number of node layers
-    int N_surf = surf->get_N();                          // number of atoms in surface
+    int N_surf = surf->get_n_atoms();                          // number of atoms in surface
 
     // sum of Nsurf/2^1 + Nsurf/2^2 +...+ Nsurf/2^nlayers = Nsurf*( 1 - 1/2^nlayers )/(1 - 1/2)
     int M = ceil(4 * nlayers + N_surf * (1.0 - 1.0 / (1 << nlayers))); // total number of nodes

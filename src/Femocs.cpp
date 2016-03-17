@@ -33,14 +33,14 @@ const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
     conf.infile = "input/rough110.ckx";
 //    conf.infile = "input/mushroom1.ckx";
 //    conf.infile = "input/kmc_tiny.ckx";
-    conf.latconst = 1.0;        // lattice constant
+    conf.latconst = 2.0;        // lattice constant
     conf.coord_cutoff = 3.3;    // coordination analysis cut off radius
     conf.tetgen_cutoff = 14.2;   // max_length^2 of tetrahedra's edge
 //*/
 /*
     conf.infile = "input/nanotip_medium.xyz";
 //    conf.infile = "input/boundary_grid_small.xyz";
-    conf.latconst = 3.51;       // lattice constant
+    conf.latconst = 3.61;       // lattice constant
     conf.coord_cutoff = 3.4;	// coordination analysis cut off radius
     conf.tetgen_cutoff = 16.0;  // max_length^2 of tetrahedra's edge
 //*/
@@ -58,7 +58,7 @@ const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
 const Femocs::SimuCell Femocs::init_simucell() const {
     SimuCell sc;
     sc.xmin = sc.xmax = sc.ymin = sc.ymax = sc.zmin = sc.zmax = 0;
-    sc.zmaxbox = conf.latconst*30; //*30; // Electric field will be applied that much higer from the highest coordinate of simubox
+    sc.zmaxbox = conf.latconst*20; // Electric field will be applied that much higer from the highest coordinate of simubox
     sc.zminbox = 0.0;
     return sc;
 }
@@ -82,9 +82,7 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     AtomReader reader;
     double t0, tstart;
     // Max tetrahedron volume is ~100000x the volume of regular tetrahedron with edge == latconst
-    string Vmax = to_string(  (int)(100000.0*0.118*pow(conf.latconst,3.0) ) );
-    
-    omp_set_num_threads(conf.nt);
+    //string Vmax = to_string(  (int)(100000.0*0.118*pow(conf.latconst,3.0) ) );
 
     tstart = start_msg("======= Femocs started =======");
         
@@ -92,6 +90,11 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     t0 = start_msg("=== Reading atoms from " + conf.infile);
     reader.import_file(conf.infile, &simucell);
     end_msg(t0);
+
+    t0 = start_msg("=== Calculating coordinations of atoms...");
+    reader.calc_coordination(&simucell, conf.coord_cutoff, conf.nnn);
+    end_msg(t0);
+
 #elif HELMODMODE
     reader.import_helmod(E0, BC, phi_guess,...);
 #elif KIMOCSMODE
@@ -104,14 +107,19 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     t0 = start_msg("=== Extracting surface...");
     SurfaceExtractor surf_extractor(&conf);
     auto surf = surf_extractor.extract_surface(&reader.data, &simucell);
-    simucell.zmin = surf->sizes.zmin - surf->sizes.latconst;
+    simucell.zmin = surf->sizes.zmin - 2*surf->sizes.latconst;
+    simucell.zbox = simucell.zmax - simucell.zmin;
     end_msg(t0);
 
     t0 = start_msg("=== Extracting bulk...");
     SurfaceExtractor bulk_extractor(&conf);
 //    auto bulk = bulk_extractor.extract_bulk(&reader.data, &simucell);
     auto bulk = bulk_extractor.extract_truncated_bulk(&reader.data, &simucell);
-    bulk_extractor.rectangularize_bulk(bulk, &simucell);
+    end_msg(t0);
+
+    t0 = start_msg("=== Rectangularizing surface and bulk...");
+//    bulk_extractor.rectangularize(surf, &simucell);
+    bulk_extractor.rectangularize(bulk, &simucell);
     end_msg(t0);
 
     t0 = start_msg("=== Generating vacuum...");
@@ -119,11 +127,11 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     vacuum.generate_simple(&simucell);
     end_msg(t0);
 
-//    t0 = start_msg("=== Writing surface, bulk and vacuum to output/...");
-//    surf->output("output/surface.xyz");
-//    bulk->output("output/bulk.xyz");
-//    vacuum.output("output/vacuum.xyz");
-//    end_msg(t0);
+    t0 = start_msg("=== Writing surface, bulk and vacuum to output/...");
+    surf->output("output/surface.xyz");
+    bulk->output("output/bulk.xyz");
+    vacuum.output("output/vacuum.xyz");
+    end_msg(t0);
 
 // ===============================================
     
@@ -131,22 +139,24 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
 
     Mesher mesher1(conf.mesher);
     auto big_mesh = mesher1.get_volume_mesh(bulk, &vacuum, "Q");
+    //    auto big_mesh = mesher1.get_volume_mesh_vol2(bulk, surf, &vacuum, "Q");
     big_mesh->write_faces("output/faces0.vtk");
     big_mesh->write_elems("output/elems0.vtk");
-    big_mesh->recalc("rq2.914a"+Vmax);
+//    big_mesh->recalc("rq2.914a"+Vmax);
+    big_mesh->recalc("rq2.514");
 //    mesher1.mark_elems_bynode(mesh1, bulk->get_N(), &simucell);
     big_mesh->write_faces("output/faces1.vtk");
     big_mesh->write_elems("output/elems1.vtk");
+    big_mesh->write_nodes("output/nodes1.xyz");
     end_msg(t0);
 
     t0 = start_msg("=== Separating vacuum and surface mesh...");
 
     Mesher mesher2(conf.mesher);
-    auto vacuum_mesh = mesher2.extract_vacuum_mesh_vol2(big_mesh, bulk->get_N(), bulk->sizes.latconst, &simucell, "rQ");
+    auto vacuum_mesh = mesher2.extract_vacuum_mesh_vol2(big_mesh, bulk->get_n_atoms(), bulk->sizes.latconst, &simucell, "rQ");
     vacuum_mesh->write_faces("output/faces7.vtk");
     vacuum_mesh->write_elems("output/elems7.vtk");
     end_msg(t0);
-
 
 //    t0 = start_msg("Making test mesh...");
 //    Mesher simplemesher(conf.mesher);

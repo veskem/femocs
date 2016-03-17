@@ -31,7 +31,7 @@ public:
     /** Return type of i-th atom */
     const int get_type(const int i);
     /** Return number of atoms in a Medium */
-    const int get_N();
+    const int get_n_atoms();
     /** Sort Medium atoms by their radial coordinate */
     void sort_atoms(vector<int>* permutation_indxs);
 

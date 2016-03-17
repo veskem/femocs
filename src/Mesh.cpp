@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <cstring>
 #include <iostream>
+#include <fstream>
 #include <algorithm>
 
 using namespace std;
@@ -539,6 +540,30 @@ void Mesh::write_elems(const string file_name) {
 
     write_vtk(file_name, nnodes, nelems, nnodemarkers, nmarkers, nodes, elems, nodemakers,
             cellmarkers, celltype, nnodes_in_cell);
+}
+
+// Function to output faces in .vtk format
+void Mesh::write_nodes(const string file_name) {
+#if not DEBUGMODE
+    return;
+#endif
+    int n_nodes = get_n_nodes();
+    int n_markers = get_n_elemmarkers();
+    REAL* nodes = get_nodes();          // pointer to nodes
+
+    ofstream myfile;
+    myfile.open(file_name);
+    myfile << n_nodes << "\n";
+    myfile << "Nodes of a mesh\n";
+
+    for (int i = 0; i < n_nodes; ++i) {
+        myfile << i << " ";
+        myfile << get_node(i, 0) << " ";
+        myfile << get_node(i, 1) << " ";
+        myfile << get_node(i, 2) << " ";
+        myfile << "1" << endl;
+    }
+    myfile.close();
 }
 
 // =================================

@@ -70,7 +70,7 @@ public:
     /** Return coordination of i-th atom */
     const int get_coordination(const int i);
     /** Return number of atoms in a Surface */
-    const int get_N();
+    const int get_n_atoms();
     /** Calculate statistics about Surface atoms */
     const void calc_statistics();
 

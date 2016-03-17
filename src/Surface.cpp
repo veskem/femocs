@@ -9,6 +9,7 @@
 #include <float.h>
 
 #include <fstream>
+#include <iostream>
 
 using namespace std;
 
@@ -63,6 +64,10 @@ void Surface::set_y(const int i, const double y) {
 }
 
 void Surface::set_z(const int i, const double z) {
+    if(i < 0 || i >= get_n_atoms()) {
+        cout << "i out of range in Surface::set_z!\n";
+        return;
+    }
     this->z[i] = z;
 }
 
@@ -87,13 +92,13 @@ const int Surface::get_coordination(const int i) {
 }
 
 // Get number of atoms on surface
-const int Surface::get_N() {
+const int Surface::get_n_atoms() {
     return x.size();
 }
 
 const void Surface::calc_statistics() {
     init_statistics();
-    for (int i = 0; i < get_N(); ++i) {
+    for (int i = 0; i < get_n_atoms(); ++i) {
         if(sizes.xmax < get_x(i)) sizes.xmax = get_x(i);
         if(sizes.xmin > get_x(i)) sizes.xmin = get_x(i);
         if(sizes.ymax < get_y(i)) sizes.ymax = get_y(i);

@@ -43,7 +43,7 @@ const int Medium::get_type(const int i) {
     return type[i];
 }
 // Get number of atoms on surface
-const int Medium::get_N() {
+const int Medium::get_n_atoms() {
     return N;
 }
 // Output surface data to file

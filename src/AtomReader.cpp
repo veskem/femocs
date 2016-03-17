@@ -12,11 +12,70 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <cmath>
 
 using namespace std;
 namespace femocs {
 
 AtomReader::AtomReader() {
+}
+
+const int AtomReader::get_n_atoms() {
+    return this->data.x.size();
+}
+
+const void AtomReader::calc_coordination(const Femocs::SimuCell* cell, const double cutoff, const int nnn) {
+    if (this->data.simu_type == "md")
+        calc_md_coordination(cell, cutoff, nnn);
+    else if (this->data.simu_type == "kmc")
+        calc_kmc_coordination(cell, nnn);
+}
+
+const void AtomReader::calc_md_coordination(const Femocs::SimuCell* cell, const double cutoff, const int nnn) {
+    int N = get_n_atoms();
+    int i, j, coord;
+    double r2, dx, dy, dz;
+    double cutoff2 = cutoff*cutoff;
+
+    data.coordination.reserve(N);
+
+//    omp_set_num_threads(this->nrOfOmpThreads);
+//#pragma omp parallel for shared(coords,is_surface) private(i,j,dx,dy,dz,r2) reduction(+:coord,N)
+    for (i = 0; i < N; ++i) {
+        coord = 0;
+        for (j = 0; j < N; ++j) {
+            if (i == j) continue;
+            dx = fabs(data.x[i] - data.x[j]);
+            dy = fabs(data.y[i] - data.y[j]);
+            dz = fabs(data.z[i] - data.z[j]);
+
+            dx = min(dx, fabs(dx-cell->xbox));  // apply periodic boundary condition in x-direction
+            dy = min(dy, fabs(dy-cell->ybox));  // apply periodic boundary condition in y-direction
+            //dz = min(dz, fabs(dz-cell->zbox));  // apply periodic boundary condition in z-direction
+
+            r2 = dx * dx + dy * dy + dz * dz;
+            if (r2 <= cutoff2) coord++;
+            if (coord >= nnn) break; // Coordination can't be bigger than the biggest expected
+        }
+
+        data.coordination[i] = coord;
+    }
+}
+
+const void AtomReader::calc_kmc_coordination(const Femocs::SimuCell* cell, const int nnn) {
+    int N = get_n_atoms();
+    int i, j, coord;
+
+    data.coordination.reserve(N);
+
+    for (i = 0; i < N; ++i) {
+        if(data.type[i] == cell->type_bulk)
+            data.coordination[i] = nnn;
+        else if(data.type[i] == cell->type_surf)
+            data.coordination[i] = (int) nnn/2;
+        else
+            data.coordination[i] = 0;
+    }
 }
 
 const void AtomReader::import_helmod() {
@@ -38,29 +97,17 @@ const void AtomReader::import_file(const string& file_name, Femocs::SimuCell* ce
         import_dump(file_name, cell);
     else
         cout << "Unknown file type: " << file_type << endl;
-}
 
-const int AtomReader::get_N() {
-    return this->data.x.size();
-}
-
-const string AtomReader::get_file_type(const string& file_name) {
-    int start = file_name.find_last_of('.') + 1;
-    int end = file_name.size();
-    string file_type = file_name.substr(start, end);
-
-    if (file_type == "xyz") this->data.simu_type = "md";
-    if (file_type == "dump") this->data.simu_type = "md";
-    if (file_type == "ckx") this->data.simu_type = "kmc";
-
-    return file_type;
+    cell->zmaxbox += cell->zmax;
+    cell->xbox = cell->xmax - cell->xmin;
+    cell->ybox = cell->ymax - cell->ymin;
+    cell->zbox = cell->zmax - cell->zmin;
 }
 
 const void AtomReader::import_xyz(const string& file_name, Femocs::SimuCell* cell) {
     ifstream in_file(file_name, ios::in);
     if (!in_file.is_open()) {
-        cout << "Did not find a file " << file_name << endl;
-        return;
+        cout << "\nDid not find a file " << file_name << endl;
     }
 
     double x, y, z;
@@ -84,8 +131,6 @@ const void AtomReader::import_xyz(const string& file_name, Femocs::SimuCell* cel
         iss >> elem >> x >> y >> z >> type;
         add_data(x, y, z, type, cell);
     }
-
-    cell->zmaxbox += cell->zmax;
 
     return;
 }
@@ -119,9 +164,23 @@ const void AtomReader::import_ckx(const string& file_name, Femocs::SimuCell* cel
         add_data(x, y, z, type, cell);
     }
 
-    cell->zmaxbox += cell->zmax;
-
     return;
+}
+
+const void AtomReader::import_dump(const string& file_name, Femocs::SimuCell* cell) {
+    cout << "AtomReader::import_dump not implemented!" << endl;
+}
+
+const string AtomReader::get_file_type(const string& file_name) {
+    int start = file_name.find_last_of('.') + 1;
+    int end = file_name.size();
+    string file_type = file_name.substr(start, end);
+
+    if (file_type == "xyz") this->data.simu_type = "md";
+    if (file_type == "dump") this->data.simu_type = "md";
+    if (file_type == "ckx") this->data.simu_type = "kmc";
+
+    return file_type;
 }
 
 const void AtomReader::init_data(const int natoms, Femocs::SimuCell* cell) {
@@ -151,10 +210,6 @@ const void AtomReader::add_data(const double x, const double y, const double z, 
     if (x < cell->xmin) cell->xmin = x;
     if (y < cell->ymin) cell->ymin = y;
     if (z < cell->zmin) cell->zmin = z;
-    return;
-}
-
-const void AtomReader::import_dump(const string& file_name, Femocs::SimuCell* cell) {
     return;
 }
 

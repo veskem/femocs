@@ -78,7 +78,7 @@ public:
         int nnn;                //!< number of nearest neighbours for given crystal structure
         int nt;                 //!< number of OpenMP threads
         double zmaxbox;         //!< maximum z-coordinate of simulation box
-        int poly_degree;        //!< polynomial degree of the finite element (1-linear, 2-quadratic,..)
+        int poly_degree;     //!< polynomial degree of the finite element (1-linear, 2-quadratic,..)
         double neumann;         //!< value of Neumann boundary condition
     };
 
@@ -92,6 +92,9 @@ public:
         double zmax;    //!< maximum z-coordinate of atoms
         double zminbox; //!< minimum z-coordinate of simulation box
         double zmaxbox; //!< maximum z-coordinate of simulation box
+        double xbox;    //!< simulation box size in x-direction
+        double ybox;    //!< simulation box size in y-direction
+        double zbox;    //!< simulation box size in z-direction
         int type_bulk = 1; //!< type of bulk material
         int type_surf = 2; //!< type of open material surface
         int type_vacancy = 3; //!< type of vacancies
@@ -118,7 +121,8 @@ public:
      * @param phi_guess - guess values of field potential for FEM solver
      * @param grid_spacing - FDM grid spacing in x, y and z direction
      */
-    const void run_femocs(const double E0, double*** BC, double*** phi_guess, const double* grid_spacing);
+    const void run_femocs(const double E0, double*** BC, double*** phi_guess,
+            const double* grid_spacing);
 
 private:
     /**
