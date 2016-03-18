@@ -26,7 +26,7 @@ SurfaceExtractor::SurfaceExtractor(const Femocs::Config* conf) {
 
 // Determine whether an atom is near the edge of simulation box
 const bool SurfaceExtractor::on_edge(const double x, const double x_boundary) {
-    return fabs(x - x_boundary) <= this->latconst / 2.3;
+    return fabs(x - x_boundary) <= this->latconst / 2.1;
 }
 
 // Exctract the atoms near the simulation box sides
@@ -202,7 +202,7 @@ const shared_ptr<Surface> SurfaceExtractor::coordination_extract(const AtomReade
 const void SurfaceExtractor::rectangularize(shared_ptr<Surface> atoms,
         const Femocs::SimuCell* cell) {
 
-    double zmin_up = atoms->sizes.zmin + atoms->sizes.latconst/2.3;
+    double zmin_up = atoms->sizes.zmin + atoms->sizes.latconst/2.1;
     double zmin_down = atoms->sizes.zmin;
 
     for (int i = 0; i < atoms->get_n_atoms(); ++i) {

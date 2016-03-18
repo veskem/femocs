@@ -36,7 +36,7 @@ const Femocs::Config Femocs::parse_input_script(const string& fileName) const {
     conf.coord_cutoff = 3.3;    // coordination analysis cut off radius
 //*/
 /*
-    conf.infile = "input/nanotip_big.xyz";
+    conf.infile = "input/nanotip_medium.xyz";
     conf.latconst = 3.61;       // lattice constant
     conf.coord_cutoff = 3.4;	// coordination analysis cut off radius
 //*/
@@ -127,11 +127,13 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     end_msg(t0);
 
 // ===============================================
+    Mesher mesher(conf.mesher, bulk->sizes.latconst);
+    shared_ptr<Mesh> big_mesh(new Mesh());
+    shared_ptr<Mesh> bulk_mesh(new Mesh());
+    shared_ptr<Mesh> vacuum_mesh(new Mesh());
     
     t0 = start_msg("=== Making big mesh...");
-
-    Mesher mesher1(conf.mesher);
-    auto big_mesh = mesher1.get_volume_mesh(bulk, &vacuum, "Q");
+    mesher.get_volume_mesh(big_mesh, bulk, &vacuum, "Q");
     big_mesh->write_faces("output/faces0.vtk");
     big_mesh->write_elems("output/elems0.vtk");
 
@@ -140,16 +142,19 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     big_mesh->write_elems("output/elems1.vtk");
     end_msg(t0);
 
-    t0 = start_msg("=== Separating vacuum and surface mesh...");
+    t0 = start_msg("=== Separating vacuum and bulk mesh...");
+//    mesher.extract_vacuum_mesh(vacuum_mesh, big_mesh, bulk->get_n_atoms(), surf->get_n_atoms(), simucell.zmin, "rQ");
+//    mesher.extract_bulk_mesh(bulk_mesh, big_mesh, bulk->get_n_atoms(), surf->get_n_atoms(), simucell.zmin, "rQ");
+    mesher.separate_meshes(bulk_mesh, vacuum_mesh, big_mesh, bulk->get_n_atoms(), surf->get_n_atoms(), simucell.zmin, "rQ");
 
-    Mesher mesher2(conf.mesher);
-    auto vacuum_mesh = mesher2.extract_vacuum_mesh(big_mesh, bulk->get_n_atoms(), surf->get_n_atoms(), bulk->sizes.latconst, &simucell, "rQ");
-    vacuum_mesh->write_faces("output/faces7.vtk");
-    vacuum_mesh->write_elems("output/elems7.vtk");
+    bulk_mesh->write_faces("output/faces_bulk.vtk");
+    bulk_mesh->write_elems("output/elems_bulk.vtk");
+    vacuum_mesh->write_faces("output/faces_vacuum.vtk");
+    vacuum_mesh->write_elems("output/elems_vacuum.vtk");
     end_msg(t0);
 
 //    t0 = start_msg("Making test mesh...");
-//    Mesher simplemesher(conf.mesher);
+//    Mesher simplemesher(conf.mesher, bulk->sizes.latconst);
 //    auto testmesh = simplemesher.get_simple_mesh();
 //    testmesh->recalc("rQ");
 //    testmesh->write_elems("output/testelems.vtk");

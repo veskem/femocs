@@ -22,8 +22,9 @@
 using namespace std;
 namespace femocs {
 
-Mesher::Mesher(string mesher) {
+Mesher::Mesher(string mesher, const double latconst) {
     if (mesher != "tetgen") cout << "Unknown mesher: " + mesher << endl;
+    this->latconst = latconst;
 }
 
 // Function to generate simple mesh that consists of one tetrahedron
@@ -52,16 +53,32 @@ const shared_ptr<Mesh> Mesher::get_simple_mesh() {
     return new_mesh;
 }
 
-const shared_ptr<Mesh> Mesher::extract_vacuum_mesh(shared_ptr<Mesh> mesh, const int nmax, const int n_surf, const double latconst, const Femocs::SimuCell* cell, const string cmd) {
-    const int n_nodes_per_elem  = 4;
+// Function to generate mesh from bulk and vacuum atoms
+const void Mesher::get_volume_mesh(shared_ptr<Mesh> new_mesh, shared_ptr<Surface> bulk, Vacuum* vacuum,
+        const string cmd) {
+    int i;
+    int n_bulk = bulk->get_n_atoms();
+    int n_vacuum = vacuum->get_n_atoms();
 
-    shared_ptr<Mesh> new_mesh(new Mesh());
+    new_mesh->init_nodes(n_bulk + n_vacuum);
+    new_mesh->init_nodemarkers(n_bulk + n_vacuum);
+    for (i = 0; i < n_bulk; ++i) {
+        new_mesh->add_node(bulk->get_x(i), bulk->get_y(i), bulk->get_z(i));
+        new_mesh->add_nodemarker(bulk->get_type(i));
+    }
+    for (i = 0; i < n_vacuum; ++i) {
+        new_mesh->add_node(vacuum->get_x(i), vacuum->get_y(i), vacuum->get_z(i));
+        new_mesh->add_nodemarker(vacuum->get_type(i));
+    }
+
+    new_mesh->recalc(cmd);
+}
+
+const void Mesher::extract_mesh(vector<bool>* is_vacuum, shared_ptr<Mesh> big_mesh, const int nmax, const int n_surf, const double zmin) {
     int i, j;
-    int n_nodes = mesh->get_n_nodes();
-    int n_elems = mesh->get_n_elems();
-    int* elems = mesh->get_elems();
+    int n_elems = big_mesh->get_n_elems();
 
-    vector<bool> elem_in_vacuum(n_elems);
+    is_vacuum->resize(n_elems);
 
     int nmax_bulk = nmax - n_surf;
     int n_vacuum, n_not_bottom, n_not_bulk;
@@ -71,38 +88,107 @@ const shared_ptr<Mesh> Mesher::extract_vacuum_mesh(shared_ptr<Mesh> mesh, const 
 
         // Find nodes that are not inside the bulk
         for (j = 0; j < n_nodes_per_elem; ++j)
-            if (mesh->get_elem(i,j) >= nmax) n_vacuum++;
+            if (big_mesh->get_elem(i,j) >= nmax) n_vacuum++;
 
         // Find nodes that are not in floating element
         for (j = 0; j < n_nodes_per_elem; ++j)
-            if (mesh->get_elem(i,j) >= nmax_bulk) n_not_bulk++;
+            if (big_mesh->get_elem(i,j) >= nmax_bulk) n_not_bulk++;
 
         // Find elements not belonging to the bottom of simulation cell
         for (j = 0; j < n_nodes_per_elem; ++j) {
-            int node = mesh->get_elem(i,j);
-            if ( fabs(mesh->get_z(node) - cell->zmin ) > 1.0*latconst ) n_not_bottom++;
+            int node = big_mesh->get_elem(i,j);
+            if ( fabs(big_mesh->get_z(node) - zmin ) > 1.0*latconst ) n_not_bottom++;
         }
 
-        elem_in_vacuum[i] = (n_vacuum > 0)&&(n_not_bulk > 1)&&(n_not_bottom == n_nodes_per_elem);
+        (*is_vacuum)[i] = (n_vacuum > 0)&&(n_not_bulk > 1)&&(n_not_bottom == n_nodes_per_elem);
     }
+}
+
+const void Mesher::extract_vacuum_mesh(shared_ptr<Mesh> vacuum_mesh, shared_ptr<Mesh> big_mesh, const int nmax, const int n_surf, const double zmin, const string cmd) {
+    int* elems = big_mesh->get_elems();
+
+    vector<bool> elem_in_vacuum;
+    extract_mesh(&elem_in_vacuum, big_mesh, nmax, n_surf, zmin);
 
     int n_vacuum_elems = accumulate(elem_in_vacuum.begin(), elem_in_vacuum.end(), 0);
 
     // Copy the nodes from input mesh without modification
-    new_mesh->init_nodes(n_nodes);
-    new_mesh->copy_nodes(mesh);
+    vacuum_mesh->init_nodes(big_mesh->get_n_nodes());
+    vacuum_mesh->copy_nodes(big_mesh);
 
     // Copy only the elements from input mesh that have the node outside the bulk nodes
-    new_mesh->init_elems(n_vacuum_elems);
+    vacuum_mesh->init_elems(n_vacuum_elems);
+
+    for (int i = 0; i < big_mesh->get_n_elems(); ++i)
+        if(elem_in_vacuum[i]) {
+            int j = n_nodes_per_elem * i;
+            vacuum_mesh->add_elem(elems[j+0], elems[j+1], elems[j+2], elems[j+3]);
+        }
+
+    vacuum_mesh->recalc(cmd);
+}
+
+const void Mesher::extract_bulk_mesh(shared_ptr<Mesh> bulk, shared_ptr<Mesh> big_mesh, const int nmax, const int n_surf, const double zmin, const string cmd) {
+    int* elems = big_mesh->get_elems();
+    int n_elems = big_mesh->get_n_elems();
+
+    vector<bool> elem_in_vacuum;
+    extract_mesh(&elem_in_vacuum, big_mesh, nmax, n_surf, zmin);
+
+    int n_vacuum_elems = accumulate(elem_in_vacuum.begin(), elem_in_vacuum.end(), 0);
+
+    // Copy the nodes from input mesh without modification
+    bulk->init_nodes(big_mesh->get_n_nodes());
+    bulk->copy_nodes(big_mesh);
+
+    // Copy only the elements from input mesh that have the node outside the bulk nodes
+    bulk->init_elems(n_elems - n_vacuum_elems);
+
+    for (int i = 0; i < n_elems; ++i)
+        if(!elem_in_vacuum[i]) {
+            int j = n_nodes_per_elem * i;
+            bulk->add_elem(elems[j+0], elems[j+1], elems[j+2], elems[j+3]);
+        }
+
+    bulk->recalc(cmd);
+}
+
+const void Mesher::separate_meshes(shared_ptr<Mesh> bulk, shared_ptr<Mesh> vacuum, shared_ptr<Mesh> big_mesh,
+        const int nmax, const int n_surf, const double zmin, const string cmd)  {
+
+    int i, j;
+    int n_nodes = big_mesh->get_n_nodes();
+    int n_elems = big_mesh->get_n_elems();
+    int* elems = big_mesh->get_elems();
+
+    vector<bool> elem_in_vacuum;
+    extract_mesh(&elem_in_vacuum, big_mesh, nmax, n_surf, zmin);
+
+    int n_vacuum_elems = accumulate(elem_in_vacuum.begin(), elem_in_vacuum.end(), 0);
+
+    // Copy the nodes from input mesh without modification
+    vacuum->init_nodes(n_nodes);
+    vacuum->copy_nodes(big_mesh);
+
+    bulk->init_nodes(n_nodes);
+    bulk->copy_nodes(big_mesh);
+
+    // Copy only the elements from input mesh that have the node outside the bulk nodes
+    vacuum->init_elems(n_vacuum_elems);
+    bulk->init_elems(n_elems - n_vacuum_elems);
 
     for (i = 0; i < n_elems; ++i)
         if(elem_in_vacuum[i]) {
             j = n_nodes_per_elem * i;
-            new_mesh->add_elem(elems[j+0], elems[j+1], elems[j+2], elems[j+3]);
+            vacuum->add_elem(elems[j+0], elems[j+1], elems[j+2], elems[j+3]);
+        }
+        else {
+            j = n_nodes_per_elem * i;
+            bulk->add_elem(elems[j+0], elems[j+1], elems[j+2], elems[j+3]);
         }
 
-    new_mesh->recalc(cmd);
-    return new_mesh;
+    vacuum->recalc(cmd);
+    bulk->recalc(cmd);
 }
 
 // Function to generate union mesh from bulk and vacuum meshes
@@ -157,9 +243,6 @@ const shared_ptr<Mesh> Mesher::get_union_mesh(shared_ptr<Mesh> mesh_bulk,
 
 // Function to generate surface faces into available mesh
 const shared_ptr<Mesh> Mesher::get_union_mesh_vol2(shared_ptr<Mesh> mesh, const int nmax, const Femocs::SimuCell* cell) {
-    const int n_nodes_per_face = 3;
-    const int n_nodes_per_elem = 4;
-
     shared_ptr<Mesh> new_mesh(new Mesh());
     int i, j, n1, n2, n3;
     bool difs[n_nodes_per_elem];
@@ -212,29 +295,6 @@ const shared_ptr<Mesh> Mesher::get_union_mesh_vol2(shared_ptr<Mesh> mesh, const 
             new_mesh->add_face(n1, n2, n3);
         }
 
-    return new_mesh;
-}
-
-// Function to generate mesh from bulk and vacuum atoms
-const shared_ptr<Mesh> Mesher::get_volume_mesh(shared_ptr<Surface> bulk, Vacuum* vacuum,
-        const string cmd) {
-    int i;
-    int n_bulk = bulk->get_n_atoms();
-    int n_vacuum = vacuum->get_n_atoms();
-    shared_ptr<Mesh> new_mesh(new Mesh());
-
-    new_mesh->init_nodes(n_bulk + n_vacuum);
-    new_mesh->init_nodemarkers(n_bulk + n_vacuum);
-    for (i = 0; i < n_bulk; ++i) {
-        new_mesh->add_node(bulk->get_x(i), bulk->get_y(i), bulk->get_z(i));
-        new_mesh->add_nodemarker(bulk->get_type(i));
-    }
-    for (i = 0; i < n_vacuum; ++i) {
-        new_mesh->add_node(vacuum->get_x(i), vacuum->get_y(i), vacuum->get_z(i));
-        new_mesh->add_nodemarker(vacuum->get_type(i));
-    }
-
-    new_mesh->recalc(cmd);
     return new_mesh;
 }
 
@@ -410,7 +470,6 @@ void Mesher::mark_elems_bynode(shared_ptr<Mesh> mesh, const int nmax, const Femo
 void Mesher::mark_faces_bynode(shared_ptr<Mesh> mesh, const int nmax, const Femocs::SimuCell* cell) {
     int N = mesh->get_n_faces();
     mesh->init_facemarkers(N);
-    const int n_nodes_per_face = 3;
     bool difs[n_nodes_per_face];
     
     int* face = mesh->get_faces();
@@ -437,7 +496,6 @@ void Mesher::mark_faces_bynode(shared_ptr<Mesh> mesh, const int nmax, const Femo
 void Mesher::mark_faces_bysequence(shared_ptr<Mesh> mesh, const int nmax, const Femocs::SimuCell* cell) {
     int N = mesh->get_n_faces();
     mesh->init_facemarkers(N);
-    const int n_nodes_per_face = 3;
     bool difs[n_nodes_per_face];
 
     int* face = mesh->get_faces();
