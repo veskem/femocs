@@ -28,112 +28,62 @@ Mesher::Mesher(string mesher) {
 
 // Function to generate simple mesh that consists of one tetrahedron
 const shared_ptr<Mesh> Mesher::get_simple_mesh() {
-    const int nnodes = 4;
-    const int nfaces = 4;
-    const int nelems = 1;
+    const int n_nodes = 4;
+    const int n_faces = 4;
+    const int n_elems = 1;
 
     shared_ptr<Mesh> new_mesh(new Mesh());
 
-    new_mesh->init_nodes(nnodes);
+    new_mesh->init_nodes(n_nodes);
     new_mesh->add_node( 1.0, 0.0, 0.7);
     new_mesh->add_node(-1.0, 0.0, 0.7);
     new_mesh->add_node( 0.0, 1.0,-0.7);
     new_mesh->add_node( 0.0,-1.0,-0.7);
 
-    new_mesh->init_faces(nfaces);
+    new_mesh->init_faces(n_faces);
     new_mesh->add_face(0,1,3);
     new_mesh->add_face(1,2,3);
     new_mesh->add_face(2,0,3);
     new_mesh->add_face(0,1,2);
 
-    new_mesh->init_elems(nelems);
+    new_mesh->init_elems(n_elems);
     new_mesh->add_elem(0,1,2,3);
 
     return new_mesh;
 }
 
-// Function to generate union mesh from bulk and vacuum meshes
-const shared_ptr<Mesh> Mesher::extract_vacuum_mesh(shared_ptr<Mesh> mesh, const Femocs::SimuCell* cell) {
-    shared_ptr<Mesh> new_mesh(new Mesh());
-    int i, j;
-
-    int nnodes = mesh->get_n_nodes();
-    int nfaces = mesh->get_n_faces();
-    int nelems = mesh->get_n_elems();
-        
-//    double* nodes = mesh->getNodes();
-    int* faces = mesh->get_faces();
-    int* elems = mesh->get_elems();
-
-    vector<bool> is_quality_face(nfaces);
-    vector<bool> is_quality_elem(nelems);
-
-    // Mark the faces on the vacuum boundary
-    for (i = 0; i < nfaces; ++i) {
-        bool not_edge = mesh->get_facemarker(i) != cell->type_edge;
-        bool not_zmin = mesh->get_facemarker(i) != cell->type_zmin;
-        bool not_none = mesh->get_facemarker(i) != cell->type_none;
-        is_quality_face[i] = not_edge && not_zmin && not_none;
-    }
-    // Mark the elems in the vacuum        
-    for (i = 0; i < nelems; ++i)
-        is_quality_elem[i] = mesh->get_elemmarker(i) == cell->type_vacuum;
-      
-    int nquality_faces = accumulate(is_quality_face.begin(), is_quality_face.end(), 0);
-    int nquality_elems = accumulate(is_quality_elem.begin(), is_quality_elem.end(), 0);
-
-    new_mesh->init_nodes(nnodes);
-    new_mesh->init_nodemarkers(nnodes);
-    new_mesh->init_faces(nquality_faces);
-    new_mesh->init_elems(nquality_elems);
-
-    // Copy the nodes without modification
-    new_mesh->copy_nodes(mesh);
-    new_mesh->copy_nodemarkers(mesh);
- //*     
-    // Copy the faces from vacuum boundary 
-    for (i = 0; i < nfaces; ++i)
-        if (is_quality_face[i]) {
-            j = 3 * i;
-            new_mesh->add_face(faces[j+0], faces[j+1], faces[j+2]);
-        }
-    // Copy the elements from vacuum    
-    for (i = 0; i < nelems; ++i)
-        if (is_quality_elem[i]) {
-            j = 4 * i;
-            new_mesh->add_elem(elems[j+0], elems[j+1], elems[j+2], elems[j+3]);
-        }    
-//*/
-    return new_mesh;
-}
-
-const shared_ptr<Mesh> Mesher::extract_vacuum_mesh_vol2(shared_ptr<Mesh> mesh, const int nmax, const double latconst, const Femocs::SimuCell* cell, const string cmd) {
+const shared_ptr<Mesh> Mesher::extract_vacuum_mesh(shared_ptr<Mesh> mesh, const int nmax, const int n_surf, const double latconst, const Femocs::SimuCell* cell, const string cmd) {
     const int n_nodes_per_elem  = 4;
 
     shared_ptr<Mesh> new_mesh(new Mesh());
     int i, j;
     int n_nodes = mesh->get_n_nodes();
     int n_elems = mesh->get_n_elems();
-
     int* elems = mesh->get_elems();
 
-    bool node_in_vacuum[n_nodes_per_elem];
-    bool node_not_bottom[n_nodes_per_elem];
     vector<bool> elem_in_vacuum(n_elems);
 
-    for (i = 0; i < n_elems; ++i) {
-        for (j = 0; j < n_nodes_per_elem; ++j)
-            node_in_vacuum[j] = (mesh->get_elem(i,j) >= nmax);
+    int nmax_bulk = nmax - n_surf;
+    int n_vacuum, n_not_bottom, n_not_bulk;
 
+    for (i = 0; i < n_elems; ++i) {
+        n_vacuum = n_not_bottom = n_not_bulk = 0;
+
+        // Find nodes that are not inside the bulk
+        for (j = 0; j < n_nodes_per_elem; ++j)
+            if (mesh->get_elem(i,j) >= nmax) n_vacuum++;
+
+        // Find nodes that are not in floating element
+        for (j = 0; j < n_nodes_per_elem; ++j)
+            if (mesh->get_elem(i,j) >= nmax_bulk) n_not_bulk++;
+
+        // Find elements not belonging to the bottom of simulation cell
         for (j = 0; j < n_nodes_per_elem; ++j) {
             int node = mesh->get_elem(i,j);
-            node_not_bottom[j] = fabs(mesh->get_node(node, 2) - cell->zmin ) > 1.0*latconst;
+            if ( fabs(mesh->get_z(node) - cell->zmin ) > 1.0*latconst ) n_not_bottom++;
         }
 
-        elem_in_vacuum[i] = ( node_not_bottom[0] && node_not_bottom[1] && node_not_bottom[2] && node_not_bottom[3] )
-                 && (node_in_vacuum[0] || node_in_vacuum[1] || node_in_vacuum[2] || node_in_vacuum[3]);
-//        elem_in_vacuum[i] = (node_in_vacuum[0] || node_in_vacuum[1] || node_in_vacuum[2] || node_in_vacuum[3]);
-//        elem_in_vacuum[i] = (node_in_vacuum[0] && node_in_vacuum[1] && node_in_vacuum[2] && node_in_vacuum[3]);
+        elem_in_vacuum[i] = (n_vacuum > 0)&&(n_not_bulk > 1)&&(n_not_bottom == n_nodes_per_elem);
     }
 
     int n_vacuum_elems = accumulate(elem_in_vacuum.begin(), elem_in_vacuum.end(), 0);
@@ -154,7 +104,6 @@ const shared_ptr<Mesh> Mesher::extract_vacuum_mesh_vol2(shared_ptr<Mesh> mesh, c
     new_mesh->recalc(cmd);
     return new_mesh;
 }
-
 
 // Function to generate union mesh from bulk and vacuum meshes
 const shared_ptr<Mesh> Mesher::get_union_mesh(shared_ptr<Mesh> mesh_bulk,
@@ -270,66 +219,19 @@ const shared_ptr<Mesh> Mesher::get_union_mesh_vol2(shared_ptr<Mesh> mesh, const 
 const shared_ptr<Mesh> Mesher::get_volume_mesh(shared_ptr<Surface> bulk, Vacuum* vacuum,
         const string cmd) {
     int i;
-    int nbulk = bulk->get_n_atoms();
-    int nvacuum = vacuum->get_n_atoms();
-    shared_ptr<Mesh> new_mesh(new Mesh());
-
-    new_mesh->init_nodes(nbulk + nvacuum);
-    new_mesh->init_nodemarkers(nbulk + nvacuum);
-    for (i = 0; i < nbulk; ++i) {
-        new_mesh->add_node(bulk->get_x(i), bulk->get_y(i), bulk->get_z(i));
-        new_mesh->add_nodemarker(bulk->get_type(i));
-    }
-    for (i = 0; i < nvacuum; ++i) {
-        new_mesh->add_node(vacuum->get_x(i), vacuum->get_y(i), vacuum->get_z(i));
-        new_mesh->add_nodemarker(vacuum->get_type(i));
-    }
-
-    new_mesh->recalc(cmd);
-    return new_mesh;
-}
-
-// Function to generate mesh from bulk and vacuum atoms
-const shared_ptr<Mesh> Mesher::get_volume_mesh_vol2(shared_ptr<Surface> bulk, shared_ptr<Surface> surf, Vacuum* vacuum,
-        const string cmd) {
-
-    int i;
     int n_bulk = bulk->get_n_atoms();
-    int n_surf = surf->get_n_atoms();
     int n_vacuum = vacuum->get_n_atoms();
     shared_ptr<Mesh> new_mesh(new Mesh());
 
-    new_mesh->init_nodes(n_bulk + n_surf + n_vacuum);
-    new_mesh->init_nodemarkers(n_bulk + n_surf + n_vacuum);
-
+    new_mesh->init_nodes(n_bulk + n_vacuum);
+    new_mesh->init_nodemarkers(n_bulk + n_vacuum);
     for (i = 0; i < n_bulk; ++i) {
         new_mesh->add_node(bulk->get_x(i), bulk->get_y(i), bulk->get_z(i));
         new_mesh->add_nodemarker(bulk->get_type(i));
     }
-    for (i = 0; i < n_surf; ++i) {
-        new_mesh->add_node(surf->get_x(i), surf->get_y(i), surf->get_z(i));
-        new_mesh->add_nodemarker(surf->get_type(i));
-    }
     for (i = 0; i < n_vacuum; ++i) {
         new_mesh->add_node(vacuum->get_x(i), vacuum->get_y(i), vacuum->get_z(i));
         new_mesh->add_nodemarker(vacuum->get_type(i));
-    }
-
-    new_mesh->recalc(cmd);
-    return new_mesh;
-}
-
-// Function to generate mesh from bulk atoms
-const shared_ptr<Mesh> Mesher::get_bulk_mesh(shared_ptr<Surface> bulk, const string cmd) {
-    int i;
-    int nbulk = bulk->get_n_atoms();
-    shared_ptr<Mesh> new_mesh(new Mesh());
-
-    new_mesh->init_nodes(nbulk);
-    new_mesh->init_nodemarkers(nbulk);
-    for (i = 0; i < nbulk; ++i) {
-        new_mesh->add_node(bulk->get_x(i), bulk->get_y(i), bulk->get_z(i));
-        new_mesh->add_nodemarker(bulk->get_type(i));
     }
 
     new_mesh->recalc(cmd);
@@ -693,51 +595,6 @@ void Mesher::clean_faces(shared_ptr<Mesh> mesh, const double rmax, const string 
     // Insert faces with suitable quality
     update_list(mesh->get_faces(), temp_mesh->get_faces(), isQuality, 3);
 
-    mesh->recalc(cmd);
-}
-
-// Function to remove too big faces from the mesh
-// SHOULD BUT FOR SOME REASON DOESN'T REMOVE TO FACES ON SIMU CELL EDGES
-void Mesher::clean_facets(shared_ptr<Mesh> mesh, const Femocs::SimuCell* cell, const string cmd) {
-    REAL* node = mesh->get_nodes();      // pointer to nodes
-    int* face = mesh->get_faces();     // pointer to triangular faces
-
-    int i, j, k, l1, l2, l3;
-    bool on_simucell_edge;
-    int N = mesh->get_n_faces();
-    vector<bool> isQuality(N);
-
-    const double xyz[6] = { cell->xmin, cell->xmax, cell->ymin, cell->ymax, cell->zmin,
-            cell->zmaxbox };
-
-    // Loop through the faces
-    for (i = 0; i < N; ++i) {
-        j = 3 * i;
-        // Loop through x, y and z coordinates
-        on_simucell_edge = 0;
-        for (k = 0; k < 3; ++k) {
-            l1 = 3 * face[j + 0] + k; // index of x,y or z coordinate of 1st node
-            l2 = 3 * face[j + 1] + k; // ..2nd node
-            l3 = 3 * face[j + 2] + k; // ..3rd node
-
-            // Detect whether the face is on the edge of simulation box
-            on_simucell_edge |= on_face(node[l1], node[l2], node[l3], xyz[2 * k + 0]);
-            on_simucell_edge |= on_face(node[l1], node[l2], node[l3], xyz[2 * k + 1]);
-        }
-        // Keep only the faces with appropriate quality
-        isQuality[i] = (!on_simucell_edge);
-    }
-
-    // Make temporary copy from the input mesh
-    shared_ptr<Mesh> temp_mesh(new Mesh());
-    temp_mesh->init_faces(mesh->get_n_faces());
-    temp_mesh->copy_faces(mesh, 0);
-
-    // Initialise and fill the input mesh with cleaned elements
-    mesh->init_faces(accumulate(isQuality.begin(), isQuality.end(), 0));
-
-    // Insert faces with suitable quality
-    update_list(mesh->get_faces(), temp_mesh->get_faces(), isQuality, 3);
     mesh->recalc(cmd);
 }
 

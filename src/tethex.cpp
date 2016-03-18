@@ -762,11 +762,11 @@ void Mesh::read_femocs(std::shared_ptr<femocs::Mesh> femocs_mesh) {
     // Cartesian coordinates of the vertex
     double coord[Point::n_coord];
 
-    for (int ver = 0; ver < n_vertices; ++ver) {
+    for (int vert = 0; vert < n_vertices; ++vert) {
         for (int i = 0; i < Point::n_coord; ++i)
-            coord[i] = femocs_mesh->get_node(ver, i);
+            coord[i] = femocs_mesh->get_node(vert, i);
 
-        vertices[ver] = Point(coord); // save the vertex
+        vertices[vert] = Point(coord); // save the vertex
     }
 
     const int phys_domain = 0; // the physical domain where the element takes place

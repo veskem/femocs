@@ -85,19 +85,29 @@ const shared_ptr<Surface> SurfaceExtractor::extract_truncated_bulk(const AtomRea
     int i;
     int N = data->x.size();
     vector<bool> is_bulk(N);
+    vector<bool> is_surf(N);
 
     // Get number and locations of bulk atoms
     for (i = 0; i < N; ++i)
-        is_bulk[i] = (data->type[i] != cell->type_vacancy) && (data->z[i] > cell->zmin);
+        is_bulk[i] = (data->type[i] == cell->type_bulk || data->type[i] == cell->type_surf)
+            && (data->z[i] > cell->zmin);
         //is_bulk[i] = (data->z[i] > cell->zmin) && (data->type[i] == cell->type_bulk);
+
+    for (i = 0; i < N; ++i)
+        is_surf[i] = (data->coordination[i] > 0) && (data->coordination[i] < this->nnn);
 
     int M = accumulate(is_bulk.begin(), is_bulk.end(), 0);
     shared_ptr<Surface> bulk(new Surface(M, this->latconst));
 
     // Add bulk atoms
     for (i = 0; i < N; ++i)
-        if (is_bulk[i])
+        if (is_bulk[i] && !is_surf[i])
             bulk->add_atom(data->x[i], data->y[i], data->z[i], data->coordination[i], cell->type_bulk);
+
+    // Add surface atoms
+    for (i = 0; i < N; ++i)
+        if (is_bulk[i] && is_surf[i])
+            bulk->add_atom(data->x[i], data->y[i], data->z[i], data->coordination[i], cell->type_surf);
 
     bulk->calc_statistics();
     return bulk;

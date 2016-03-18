@@ -71,6 +71,14 @@ void Surface::set_z(const int i, const double z) {
     this->z[i] = z;
 }
 
+void Surface::set_type(const int i, const int type) {
+    this->type[i] = type;
+}
+
+void Surface::set_coordination(const int i, const int coord) {
+    this->coordination[i] = coord;
+}
+
 // Get element from x, y or z vector
 const double Surface::get_x(const int i) {
     return x[i];

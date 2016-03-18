@@ -100,6 +100,9 @@ public:
     int* get_faces();
     int* get_elems();
 
+    const double get_x(int i);
+    const double get_y(int i);
+    const double get_z(int i);
     const double get_node(int i, int xyz);
     const int get_face(int i, int node);
     const int get_elem(int i, int node);

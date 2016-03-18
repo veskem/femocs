@@ -74,7 +74,6 @@ public:
         string infile;          //!< path to input script
         double latconst;        //!< lattice constant
         double coord_cutoff;    //!< cutoff distance in Angstroms for Coordination analysis
-        double tetgen_cutoff;   //!< cutoff distance in Angstroms for removing too big mesh elements
         int nnn;                //!< number of nearest neighbours for given crystal structure
         int nt;                 //!< number of OpenMP threads
         double zmaxbox;         //!< maximum z-coordinate of simulation box

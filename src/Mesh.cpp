@@ -43,12 +43,22 @@ Mesh::Mesh() {
 // =================================
 // *** GETTERS: ***************
 
+const double Mesh::get_x(int i) {
+    return tetIO.pointlist[3*i+0];
+}
+
+const double Mesh::get_y(int i) {
+    return tetIO.pointlist[3*i+1];
+}
+
+const double Mesh::get_z(int i) {
+    return tetIO.pointlist[3*i+2];
+}
+
 const double Mesh::get_node(int i, int xyz) {
 #if DEBUGMODE
-    if(i < 0 || i > get_n_nodes() || xyz < 0 || xyz > 2) {
-        cout << "Index out of number of nodes bounds" << endl;
-        return -1.0;
-    }
+    if(  (i < 0) || (i > get_n_nodes()) || (xyz < 0) || (xyz > 2) )
+        cout << "Index out of number of faces bounds" << endl;
 #endif
     return tetIO.pointlist[3*i+xyz];
 }
@@ -542,7 +552,7 @@ void Mesh::write_elems(const string file_name) {
             cellmarkers, celltype, nnodes_in_cell);
 }
 
-// Function to output faces in .vtk format
+// Function to output nodes in .xyz format
 void Mesh::write_nodes(const string file_name) {
 #if not DEBUGMODE
     return;
@@ -558,10 +568,10 @@ void Mesh::write_nodes(const string file_name) {
 
     for (int i = 0; i < n_nodes; ++i) {
         myfile << i << " ";
-        myfile << get_node(i, 0) << " ";
-        myfile << get_node(i, 1) << " ";
-        myfile << get_node(i, 2) << " ";
-        myfile << "1" << endl;
+        myfile << get_x(i) << " ";
+        myfile << get_y(i) << " ";
+        myfile << get_z(i) << " ";
+        myfile << get_nodemarker(i) << endl;
     }
     myfile.close();
 }

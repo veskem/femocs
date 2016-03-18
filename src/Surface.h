@@ -55,6 +55,10 @@ public:
     void set_y(const int i, const double y);
     /** Set the z-coordinate of i-th atom */
     void set_z(const int i, const double z);
+    /** Set the type of i-th atom */
+    void set_type(const int i, const int type);
+    /** Set the coordination of i-th atom */
+    void set_coordination(const int i, const int coord);
 
     /** Reserve N entries to the Surface data arrays */
     const void reserve(const int N);
