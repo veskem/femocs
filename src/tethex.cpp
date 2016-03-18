@@ -757,14 +757,14 @@ void Mesh::read_femocs(std::shared_ptr<femocs::Mesh> femocs_mesh) {
     clean(); // free the memory for mesh elements
 
     // read the mesh vertices
-    int n_vertices = femocs_mesh->getNnodes(); // the number of all mesh vertices (that are saved in the file)
+    int n_vertices = femocs_mesh->get_n_nodes(); // the number of all mesh vertices (that are saved in the file)
     vertices.resize(n_vertices); // allocate the memory for mesh vertices
     // Cartesian coordinates of the vertex
     double coord[Point::n_coord];
 
     for (int ver = 0; ver < n_vertices; ++ver) {
         for (int i = 0; i < Point::n_coord; ++i)
-            coord[i] = femocs_mesh->getNode(ver, i);
+            coord[i] = femocs_mesh->get_node(ver, i);
 
         vertices[ver] = Point(coord); // save the vertex
     }
@@ -772,24 +772,24 @@ void Mesh::read_femocs(std::shared_ptr<femocs::Mesh> femocs_mesh) {
     const int phys_domain = 0; // the physical domain where the element takes place
 
     // read the mesh elements
-    int n_elements = femocs_mesh->getNelems(); // the number of mesh elements
+    int n_elements = femocs_mesh->get_n_elems(); // the number of mesh elements
     const int n_elem_nodes = 4; // the number of nodes per element
     for (int el = 0; el < n_elements; ++el) {
         std::vector<int> nodes(n_elem_nodes); // allocate memory for nodes
         for (int i = 0; i < n_elem_nodes; ++i)
-            nodes[i] = femocs_mesh->getElem(el, i); // read the of nodes
+            nodes[i] = femocs_mesh->get_elem(el, i); // read the of nodes
             
         tetrahedra.push_back(new Tetrahedron(nodes, phys_domain));
         nodes.clear();
     } // Read elements
     
     // read the mesh faces
-    int n_faces = femocs_mesh->getNfaces(); // the number of mesh faces
+    int n_faces = femocs_mesh->get_n_faces(); // the number of mesh faces
     const int n_face_nodes = 3; // the number of nodes per element
     for (int face = 0; face < n_faces; ++face) {
         std::vector<int> nodes(n_face_nodes); // allocate memory for nodes
         for (int i = 0; i < n_face_nodes; ++i)
-            nodes[i] = femocs_mesh->getFace(face, i); // read the nodes
+            nodes[i] = femocs_mesh->get_face(face, i); // read the nodes
             
         triangles.push_back(new Triangle(nodes, phys_domain));
         nodes.clear();
