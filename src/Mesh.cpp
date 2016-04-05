@@ -31,13 +31,27 @@ bool Centre::is_equal(Centre centre) {
     return dif1 && dif2 && dif3;
 }
 
+// Mesh constructor
 Mesh::Mesh() {
     inodes = 0;
     ielems = 0;
     ifaces = 0;
-    inodemarker = 0;
+    i_nodemarker = 0;
 
     stat.Vmin = stat.Vmax = stat.Vmedian = stat.Vaverage = 0;
+}
+
+// Mesh destructor
+Mesh::~Mesh() {
+//    delete tetIO;
+//    delete stat;
+//    delete tetgenbeh;
+//
+//    delete nodemarkers;
+//    delete facemarkers;
+//    delete elemmarkers;
+//    delete volumes;
+//    delete centres;
 }
 
 // =================================
@@ -57,16 +71,16 @@ const double Mesh::get_z(int i) {
 
 const double Mesh::get_node(int i, int xyz) {
 #if DEBUGMODE
-    if(  (i < 0) || (i > get_n_nodes()) || (xyz < 0) || (xyz > 2) )
-        cout << "Index out of number of faces bounds" << endl;
+    if(  (i < 0) || (i >= get_n_nodes()) || (xyz < 0) || (xyz > 2) )
+        cout << "Index out of number of nodes or coordinates bounds!" << endl;
 #endif
     return tetIO.pointlist[3*i+xyz];
 }
 
 const int Mesh::get_face(int i, int node) {
 #if DEBUGMODE
-    if(  (i < 0) || (i > get_n_faces()) || (node < 0) || (node > 2) ) {
-        cout << "Index out of number of faces bounds" << endl;
+    if(  (i < 0) || (i >= get_n_faces()) || (node < 0) || (node > 2) ) {
+        cout << "Index out of number of faces or nodes bounds!" << endl;
         return -1;
     }
 #endif
@@ -75,12 +89,39 @@ const int Mesh::get_face(int i, int node) {
 
 const int Mesh::get_elem(int i, int node) {
 #if DEBUGMODE
-    if( (i < 0) || (i > get_n_elems()) || (node < 0) || (node > 3) ) {
-        cout << "Index out of number of elems bounds" << endl;
+    if( (i < 0) || (i >= get_n_elems()) || (node < 0) || (node > 3) ) {
+        cout << "Index out of number of elements or nodes bounds!" << endl;
         return -1;
     }
 #endif
     return tetIO.tetrahedronlist[4*i+node];
+}
+
+const double Mesh::get_face_centre(int i, int xyz) {
+#if DEBUGMODE
+    if( (i < 0) || (i >= get_n_faces()) || (xyz < 0) || (xyz > 2) ) {
+        cout << "Index out of number of faces or coordinates bounds!" << endl;
+        return -1.0;
+    }
+#endif
+    double node1 = get_node(get_face(i, 0), xyz);
+    double node2 = get_node(get_face(i, 1), xyz);
+    double node3 = get_node(get_face(i, 2), xyz);
+    return (node1 + node2 + node3) / 3.0;
+}
+
+const double Mesh::get_elem_centre(int i, int xyz) {
+#if DEBUGMODE
+    if( (i < 0) || (i >= get_n_elems()) || (xyz < 0) || (xyz > 2) ) {
+        cout << "Index out of number of elements or coordinates bounds!" << endl;
+        return -1.0;
+    }
+#endif
+    double node1 = get_node(get_elem(i, 0), xyz);
+    double node2 = get_node(get_elem(i, 1), xyz);
+    double node3 = get_node(get_elem(i, 2), xyz);
+    double node4 = get_node(get_elem(i, 3), xyz);
+    return (node1 + node2 + node3 + node4) / 4.0;
 }
 
 double* Mesh::get_nodes() {
@@ -174,7 +215,7 @@ void Mesh::init_nodemarkers(const int N) {
 //    nodemarkers.reserve(N);
 //    tetIO.numberofpointattributes = N;
     tetIO.pointmarkerlist = new int[N];
-    inodemarker = 0;
+    i_nodemarker = 0;
 }
 
 void Mesh::init_facemarkers(const int N) {
@@ -224,13 +265,13 @@ void Mesh::add_volume(const double V) {
 
 void Mesh::add_nodemarker(const int m) {
 #if DEBUGMODE
-    if (inodemarker >= tetIO.numberofpoints) {
+    if (i_nodemarker >= tetIO.numberofpoints) {
         cout << "Node marker list is full!" << endl;
         return;
     }
 #endif
-    tetIO.pointmarkerlist[inodemarker] = m;
-    inodemarker++;
+    tetIO.pointmarkerlist[i_nodemarker] = m;
+    i_nodemarker++;
 //    nodemarkers.push_back(m);
 }
 
@@ -270,21 +311,21 @@ void Mesh::add_node(const double x, const double y, const double z) {
 // =================================
 // *** REPLICATORS: ***************
 
-void Mesh::copy_statistics(shared_ptr<Mesh> mesh) {
+void Mesh::copy_statistics(Mesh* mesh) {
     stat.Vmin = mesh->stat.Vmin;
     stat.Vmax = mesh->stat.Vmax;
     stat.Vaverage = mesh->stat.Vaverage;
     stat.Vmedian = mesh->stat.Vmedian;
 }
 
-void Mesh::copy_nodes(shared_ptr<Mesh> mesh) {
+void Mesh::copy_nodes(Mesh* mesh) {
     int N = mesh->get_n_nodes();
     for (int i = 0; i < 3 * N; ++i)
         tetIO.pointlist[i] = mesh->get_nodes()[i];
     inodes = N;
 }
 
-void Mesh::copy_faces(shared_ptr<Mesh> mesh, const int offset) {
+void Mesh::copy_faces(Mesh* mesh, const int offset) {
     int N = mesh->get_n_faces();
     if (offset == 0)
         for (int i = 0; i < 3 * N; ++i)
@@ -295,7 +336,7 @@ void Mesh::copy_faces(shared_ptr<Mesh> mesh, const int offset) {
     ifaces = N;
 }
 
-void Mesh::copy_elems(shared_ptr<Mesh> mesh, const int offset) {
+void Mesh::copy_elems(Mesh* mesh, const int offset) {
     int N = mesh->get_n_elems();
     if (offset == 0)
         for (int i = 0; i < 4 * N; ++i)
@@ -306,20 +347,20 @@ void Mesh::copy_elems(shared_ptr<Mesh> mesh, const int offset) {
     ielems = N;
 }
 
-void Mesh::copy_nodemarkers(shared_ptr<Mesh> mesh) {
+void Mesh::copy_nodemarkers(Mesh* mesh) {
     int N = mesh->get_n_nodemarkers();
     for (int i = 0; i < N; ++i)
         tetIO.pointmarkerlist[i] = mesh->get_nodemarker(i);
-    inodemarker = N;
+    i_nodemarker = N;
 }
 
-void Mesh::copy_facemarkers(shared_ptr<Mesh> mesh) {
+void Mesh::copy_facemarkers(Mesh* mesh) {
     int N = mesh->get_n_facemarkers();
     for (int i = 0; i < N; ++i)
         facemarkers.push_back(mesh->get_facemarker(i));
 }
 
-void Mesh::copy_elemmarkers(shared_ptr<Mesh> mesh) {
+void Mesh::copy_elemmarkers(Mesh* mesh) {
     int N = mesh->get_n_elemmarkers();
     for (int i = 0; i < N; ++i)
         elemmarkers.push_back(mesh->get_elemmarker(i));
@@ -327,14 +368,6 @@ void Mesh::copy_elemmarkers(shared_ptr<Mesh> mesh) {
 
 // =================================
 // *** VARIA: ***************
-bool Mesh::centre_found_in(const int i, shared_ptr<Mesh> mesh) {
-    Centre centre = get_centre(i);
-    for (int c = 0; c < mesh->get_n_elems(); ++c)
-        if ( centre.is_equal(mesh->get_centre(c)) )
-            return true;
-
-    return false;
-}
 
 void Mesh::calc_centres() {
     int i, j, k, n1, n2, n3, n4;

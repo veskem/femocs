@@ -15,8 +15,8 @@
  * GNU General Public License for more details.
  */
 
-#ifndef TETHEX_TETHEX_H
-#define TETHEX_TETHEX_H
+#ifndef TETHEX_H_
+#define TETHEX_H_
 
 #include <iostream>
 #include <map>
@@ -854,7 +854,7 @@ public:
                 * Import the mesh data from Femocs Mesh
                 * @param femocs_mesh - pointer to Femocs mesh
                 */
-  void read_femocs(std::shared_ptr<femocs::Mesh> femocs_mesh);
+  void read_femocs(femocs::Mesh* femocs_mesh);
 
                 /**
                  * Conversion from simplices to bricks.
@@ -1235,4 +1235,4 @@ void write_elements(std::ostream &out,
 
 } // namespace tethex
 
-#endif // TETHEX_TETHEX_H
+#endif // TETHEX_H_

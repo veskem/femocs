@@ -45,21 +45,34 @@ public:
      */
     const void import_kimocs();
 
-    /**
-     * Function to get number of atoms in AtomReader
-     * @return Number of atoms in AtomReader
-     */
+    /** Get number of atoms in AtomReader */
     const int get_n_atoms();
 
+    /** Get x-coordinate of i-th atom in AtomReader */
+    const double get_x(const int i);
+
+    /** Get y-coordinate of i-th atom in AtomReader */
+    const double get_y(const int i);
+
+    /** Get z-coordinate of i-th atom in AtomReader */
+    const double get_z(const int i);
+
+    /** Get type of i-th atom in AtomReader */
+    const int get_type(const int i);
+
+    /** Get coordinatino of i-th atom in AtomReader */
+    const int get_coord(const int i);
+
+    /**
+     * Calculate coordination for all the atoms in AtomReader
+     * @param cell - data where simulation cell sizes is saved
+     * @param cutoff - cut off radius for coordination analysis
+     * @param nnn - number of nearest neighbours in a crystal
+     */
     const void calc_coordination(const Femocs::SimuCell* cell, const double cutoff, const int nnn);
 
     /** Struct for holding data of the whole simulation cell. */
     struct Data {
-        vector<double> x;   //!< x-coordinates of atoms
-        vector<double> y;   //!< y-coordinates of atoms
-        vector<double> z;   //!< z-coordinates of atoms
-        vector<int> type;   //!< types of atoms
-        vector<int> coordination;  //!< coordinations of atoms
         double xmin;        //!< minimum x-coordinate in simulation cell
         double xmax;        //!< maximum x-coordinate in simulation cell
         double ymin;        //!< minimum y-coordinate in simulation cell
@@ -71,6 +84,12 @@ public:
     Data data; //!< AtomReader data
 
 private:
+    vector<double> x;   //!< x-coordinates of atoms
+    vector<double> y;   //!< y-coordinates of atoms
+    vector<double> z;   //!< z-coordinates of atoms
+    vector<int> type;   //!< types of atoms
+    vector<int> coordination;  //!< coordinations of atoms
+
     /**
      * Function to extract file extension from file name
      * @param file_name - name of the file with extension
@@ -88,7 +107,7 @@ private:
     const void calc_kmc_coordination(const Femocs::SimuCell* cell, const int nnn);
 
     const void init_data(const int natoms, Femocs::SimuCell* cell);
-    const void add_data(const double x, const double y, const double z, const int type,
+    const void add_atom(const double x, const double y, const double z, const int type,
             Femocs::SimuCell* cell);
 };
 

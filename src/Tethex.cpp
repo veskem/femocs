@@ -15,8 +15,8 @@
  * GNU General Public License for more details.
  */
 
-#include "tethex.h"
-//#include "config.h"
+#include "Tethex.h"
+
 #include <algorithm>
 #include <fstream>
 #include <cmath>
@@ -753,7 +753,7 @@ void Mesh::read(const std::string &file) {
     in.close(); // close the file
 }
 
-void Mesh::read_femocs(std::shared_ptr<femocs::Mesh> femocs_mesh) {
+void Mesh::read_femocs(femocs::Mesh* femocs_mesh) {
     clean(); // free the memory for mesh elements
 
     // read the mesh vertices

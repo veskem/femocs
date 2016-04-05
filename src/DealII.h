@@ -31,7 +31,6 @@
 #include <deal.II/numerics/data_out.h>
 #include <deal.II/grid/grid_out.h>
 #include <deal.II/base/logstream.h>
-#include <deal.II/lac/vector.h>
 #include <deal.II/grid/manifold_lib.h>
 #include <deal.II/fe/fe_values.h>
 #include <deal.II/numerics/data_out.h>
@@ -47,10 +46,22 @@
 #include <deal.II/grid/grid_reordering.h>
 #include <deal.II/grid/grid_tools.h>
 
+#include <stdio.h>
+#include <fstream>
+#include <iostream>
+#include <cmath>
+#include <iomanip>
+#include <omp.h>
 #include <memory>
+#include <string>
+
 #include "Femocs.h"
 #include "Mesh.h"
-#include "tethex.h"
+#include "Tethex.h"
+
+namespace tethex {
+class Mesh;
+} /* namespace tethex */
 
 using namespace std;
 using namespace dealii;
@@ -63,7 +74,6 @@ public:
     DealII(const int poly_degree, const double neumann, Femocs::SimuCell* simucell);
     void run();
     void import_file(const string file_name);
-    void import_file_vol2(const string file_name);
 
     void make_simple_mesh();
     void import_tetgen_mesh(shared_ptr<Mesh> mesh);

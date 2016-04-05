@@ -5,17 +5,16 @@
  *      Author: veske
  */
 
-#include <omp.h>
-#include <iostream>
-#include <memory>
 
 #include "Femocs.h"
-#include "Mesher.h"
-#include "SurfaceExtractor.h"
-#include "Vacuum.h"
-#include "tethex.h"
+
+#include "AtomReader.h"
 #include "DealII.h"
+#include "Macros.h"
+#include "Media.h"
 #include "Mesh.h"
+#include "Mesher.h"
+#include "Tethex.h"
 
 using namespace std;
 namespace femocs {
@@ -60,20 +59,6 @@ const Femocs::SimuCell Femocs::init_simucell() const {
     return sc;
 }
 
-// Inliners to print messages and execution times about processes
-inline double start_msg(string s) {
-#if DEBUGMODE
-    cout << endl << s;
-    cout.flush();
-#endif
-    return omp_get_wtime();
-}
-inline void end_msg(double t0) {
-#if DEBUGMODE
-    cout << ", time: " << omp_get_wtime() - t0 << endl;
-#endif
-}
-
 // Workhorse function to run Femocs simulation
 const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess, const double* grid_spacing) {
     AtomReader reader;
@@ -81,14 +66,14 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     // Max tetrahedron volume is ~100000x the volume of regular tetrahedron with edge == latconst
     //string Vmax = to_string(  (int)(100000.0*0.118*pow(conf.latconst,3.0) ) );
 
-    tstart = start_msg("======= Femocs started =======");
+    start_msg(tstart, "======= Femocs started =======");
         
-#if not LIBRARYMODE
-    t0 = start_msg("=== Reading atoms from " + conf.infile);
+#if STANDALONEMODE
+    start_msg(t0, "=== Reading atoms from " + conf.infile);
     reader.import_file(conf.infile, &simucell);
     end_msg(t0);
 
-    t0 = start_msg("=== Calculating coordinations of atoms...");
+    start_msg(t0, "=== Calculating coordinations of atoms...");
     reader.calc_coordination(&simucell, conf.coord_cutoff, conf.nnn);
     end_msg(t0);
 
@@ -97,73 +82,77 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
 #elif KIMOCSMODE
     reader.import_kimocs();
 #else
-    cout << "Check definitions in Femocs.h !" << endl;
+    cout << "Incorrent MODE definitions in Macros.h !" << endl;
     exit(EXIT_FAILURE);
 #endif
 
-    t0 = start_msg("=== Extracting surface...");
-    SurfaceExtractor surf_extractor(&conf);
-    auto surf = surf_extractor.extract_surface(&reader.data, &simucell);
-    simucell.zmin = surf->sizes.zmin - surf->sizes.latconst;
+    start_msg(t0, "=== Extracting surface...");
+    Surface surf(conf.latconst, conf.nnn);
+    surf.extract_surface(&reader, &simucell);
+    simucell.zmin = surf.sizes.zmin - surf.crys_struct.latconst;
     simucell.zbox = simucell.zmax - simucell.zmin;
     end_msg(t0);
 
-    t0 = start_msg("=== Extracting bulk...");
-    SurfaceExtractor bulk_extractor(&conf);
-//    auto bulk = bulk_extractor.extract_bulk(&reader.data, &simucell);
-    auto bulk = bulk_extractor.extract_truncated_bulk(&reader.data, &simucell);
-    bulk_extractor.rectangularize(bulk, &simucell);
+    start_msg(t0, "=== Extracting bulk...");
+//    shared_ptr<Bulk> bulk(new Bulk(conf.latconst, conf.nnn));
+    Bulk bulk(conf.latconst, conf.nnn);
+//    bulk.extract_bulk(&reader.data, &simucell);
+    bulk.extract_truncated_bulk(&reader, &simucell);
+    bulk.rectangularize(&simucell);
     end_msg(t0);
 
-    t0 = start_msg("=== Generating vacuum...");
+    start_msg(t0, "=== Generating vacuum...");
     Vacuum vacuum;
     vacuum.generate_simple(&simucell);
     end_msg(t0);
 
-    t0 = start_msg("=== Writing surface, bulk and vacuum to output...");
-    surf->output("output/surface.xyz");
-    bulk->output("output/bulk.xyz");
+    start_msg(t0, "=== Writing surface, bulk and vacuum to output...");
+    surf.output("output/surface.xyz");
+    bulk.output("output/bulk.xyz");
     vacuum.output("output/vacuum.xyz");
     end_msg(t0);
 
 // ===============================================
-    Mesher mesher(conf.mesher, bulk->sizes.latconst);
-    shared_ptr<Mesh> big_mesh(new Mesh());
-    shared_ptr<Mesh> bulk_mesh(new Mesh());
-    shared_ptr<Mesh> vacuum_mesh(new Mesh());
+    Mesher mesher(conf.mesher, conf.latconst);
+//    shared_ptr<Mesh> big_mesh(new Mesh());
+//    shared_ptr<Mesh> bulk_mesh(new Mesh());
+//    shared_ptr<Mesh> vacuum_mesh(new Mesh());
     
-    t0 = start_msg("=== Making big mesh...");
-    mesher.get_volume_mesh(big_mesh, bulk, &vacuum, "Q");
-    big_mesh->write_faces("output/faces0.vtk");
-    big_mesh->write_elems("output/elems0.vtk");
+    start_msg(t0, "=== Making big mesh...");
+    Mesh big_mesh;
+    mesher.get_volume_mesh(&big_mesh, &bulk, &vacuum, "Q");
 
-    big_mesh->recalc("rq2.514"); //a"+Vmax);
-    big_mesh->write_faces("output/faces1.vtk");
-    big_mesh->write_elems("output/elems1.vtk");
+    big_mesh.write_faces("output/faces0.vtk");
+    big_mesh.write_elems("output/elems0.vtk");
+    big_mesh.recalc("rq2.514"); //a"+Vmax);
+    big_mesh.write_faces("output/faces1.vtk");
+    big_mesh.write_elems("output/elems1.vtk");
     end_msg(t0);
 
-    t0 = start_msg("=== Separating vacuum and bulk mesh...");
-//    mesher.extract_vacuum_mesh(vacuum_mesh, big_mesh, bulk->get_n_atoms(), surf->get_n_atoms(), simucell.zmin, "rQ");
-//    mesher.extract_bulk_mesh(bulk_mesh, big_mesh, bulk->get_n_atoms(), surf->get_n_atoms(), simucell.zmin, "rQ");
-    mesher.separate_meshes(bulk_mesh, vacuum_mesh, big_mesh, bulk->get_n_atoms(), surf->get_n_atoms(), simucell.zmin, "rQ");
+    start_msg(t0, "=== Separating vacuum and bulk mesh...");
+    Mesh bulk_mesh;
+    Mesh vacuum_mesh;
+//    mesher.separate_vacuum_mesh(&vacuum_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), simucell.zmin, "rQ");
+//    mesher.separate_bulk_mesh(&bulk_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), simucell.zmin, "rQ");
+    mesher.separate_meshes(&bulk_mesh, &vacuum_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), simucell.zmin, "rQ");
 
-    bulk_mesh->write_faces("output/faces_bulk.vtk");
-    bulk_mesh->write_elems("output/elems_bulk.vtk");
-    vacuum_mesh->write_faces("output/faces_vacuum.vtk");
-    vacuum_mesh->write_elems("output/elems_vacuum.vtk");
+    bulk_mesh.write_faces("output/faces_bulk.vtk");
+    bulk_mesh.write_elems("output/elems_bulk.vtk");
+    vacuum_mesh.write_faces("output/faces_vacuum.vtk");
+    vacuum_mesh.write_elems("output/elems_vacuum.vtk");
     end_msg(t0);
 
-//    t0 = start_msg("Making test mesh...");
-//    Mesher simplemesher(conf.mesher, bulk->sizes.latconst);
-//    auto testmesh = simplemesher.get_simple_mesh();
+//    start_msg(t0, "Making test mesh...");
+//    shared_ptr<Mesh> test_mesh(new Mesh());
+//    mesher.get_test_mesh(test_mesh);
 //    testmesh->recalc("rQ");
 //    testmesh->write_elems("output/testelems.vtk");
 //    testmesh->write_faces("output/testfaces.vtk");
 //    end_msg(t0);
 
-    t0 = start_msg("Converting tetrahedra to hexahedra...");
+    start_msg(t0, "Converting tetrahedra to hexahedra...");
     tethex::Mesh tethex_mesh;
-    tethex_mesh.read_femocs(vacuum_mesh);
+    tethex_mesh.read_femocs(&vacuum_mesh);
     tethex_mesh.convert();
     end_msg(t0);
 
@@ -175,33 +164,33 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     
     DealII laplace(conf.poly_degree, conf.neumann, &simucell);
         
-    t0 = start_msg("Importing tethex mesh into Deal.II...");
+    start_msg(t0, "Importing tethex mesh into Deal.II...");
 	laplace.import_tethex_mesh(&tethex_mesh);
     end_msg(t0);
     
-    t0 = start_msg("System setup...");
+    start_msg(t0, "System setup...");
     laplace.setup_system();
     end_msg(t0);
 
-    t0 = start_msg("Marking the boundary...");
+    start_msg(t0, "Marking the boundary...");
     laplace.mark_boundary();
     end_msg(t0);
     
-    t0 = start_msg("Assembling system...");
+    start_msg(t0, "Assembling system...");
     laplace.assemble_system();
     end_msg(t0);
 
-    t0 = start_msg("Solving...");
+    start_msg(t0, "Solving...");
     laplace.solve_cg();
 //    laplace.solve_umfpack();
     end_msg(t0);
 
-    t0 = start_msg("Outputting results...");
+    start_msg(t0, "Outputting results...");
     laplace.output_results("output/final-results.vtk");
     end_msg(t0);
 
     cout << "\nTotal time: " << omp_get_wtime() - tstart << "\n";
-    start_msg("======= Femocs finished! =======\n");
+    start_msg(t0, "======= Femocs finished! =======\n");
 }
 
 } /* namespace femocs */

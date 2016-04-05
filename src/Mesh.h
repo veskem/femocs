@@ -41,6 +41,7 @@ private:
 class Mesh {
 public:
     Mesh();
+    ~Mesh();
 
     void init_nodes(const int N);
     void init_faces(const int N);
@@ -66,15 +67,15 @@ public:
     void add_volume(const double V);
     void add_centre(const double x, const double y, const double z);
 
-    void copy_statistics(shared_ptr<Mesh> mesh);
+    void copy_statistics(Mesh* mesh);
 
-    void copy_nodes(shared_ptr<Mesh> mesh);
-    void copy_faces(shared_ptr<Mesh> mesh, const int offset);
-    void copy_elems(shared_ptr<Mesh> mesh, const int offset);
+    void copy_nodes(Mesh* mesh);
+    void copy_faces(Mesh* mesh, const int offset);
+    void copy_elems(Mesh* mesh, const int offset);
 
-    void copy_nodemarkers(shared_ptr<Mesh> mesh);
-    void copy_facemarkers(shared_ptr<Mesh> mesh);
-    void copy_elemmarkers(shared_ptr<Mesh> mesh);
+    void copy_nodemarkers(Mesh* mesh);
+    void copy_facemarkers(Mesh* mesh);
+    void copy_elemmarkers(Mesh* mesh);
 
     const int get_n_nodes();
     const int get_n_elems();
@@ -107,6 +108,9 @@ public:
     const int get_face(int i, int node);
     const int get_elem(int i, int node);
 
+    const double get_face_centre(int i, int xyz);    
+    const double get_elem_centre(int i, int xyz);
+
     void calc_centres();
     void calc_volumes();
     void calc_volume_statistics();
@@ -117,8 +121,6 @@ public:
     void write_nodes(const string file_name);
     void write_faces(const string file_name);
     void write_elems(const string file_name);
-
-    bool centre_found_in(const int i, shared_ptr<Mesh> mesh);
 
     void transform_elemmarkers();
 
@@ -138,7 +140,7 @@ private:
     int ielems;
     int ifaces;
 
-    int inodemarker;
+    int i_nodemarker;
 
     vector<int> nodemarkers;
     vector<int> facemarkers;

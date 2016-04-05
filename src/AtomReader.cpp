@@ -21,8 +21,29 @@ AtomReader::AtomReader() {
 }
 
 const int AtomReader::get_n_atoms() {
-    return this->data.x.size();
+    return x.size();
 }
+
+const double AtomReader::get_x(const int i) {
+    return x[i];
+}
+
+const double AtomReader::get_y(const int i) {
+    return y[i];
+}
+
+const double AtomReader::get_z(const int i) {
+    return z[i];
+}
+
+const int AtomReader::get_type(const int i) {
+    return type[i];
+}
+
+const int AtomReader::get_coord(const int i) {
+    return coordination[i];
+}
+
 
 const void AtomReader::calc_coordination(const Femocs::SimuCell* cell, const double cutoff, const int nnn) {
     if (this->data.simu_type == "md")
@@ -37,7 +58,7 @@ const void AtomReader::calc_md_coordination(const Femocs::SimuCell* cell, const 
     double r2, dx, dy, dz;
     double cutoff2 = cutoff*cutoff;
 
-    data.coordination.reserve(N);
+    coordination.reserve(N);
 
 //    omp_set_num_threads(this->nrOfOmpThreads);
 //#pragma omp parallel for shared(coords,is_surface) private(i,j,dx,dy,dz,r2) reduction(+:coord,N)
@@ -45,9 +66,9 @@ const void AtomReader::calc_md_coordination(const Femocs::SimuCell* cell, const 
         coord = 0;
         for (j = 0; j < N; ++j) {
             if (i == j) continue;
-            dx = fabs(data.x[i] - data.x[j]);
-            dy = fabs(data.y[i] - data.y[j]);
-            dz = fabs(data.z[i] - data.z[j]);
+            dx = fabs(x[i] - x[j]);
+            dy = fabs(y[i] - y[j]);
+            dz = fabs(z[i] - z[j]);
 
             dx = min(dx, fabs(dx-cell->xbox));  // apply periodic boundary condition in x-direction
             dy = min(dy, fabs(dy-cell->ybox));  // apply periodic boundary condition in y-direction
@@ -58,7 +79,7 @@ const void AtomReader::calc_md_coordination(const Femocs::SimuCell* cell, const 
             if (coord >= nnn) break; // Coordination can't be bigger than the biggest expected
         }
 
-        data.coordination[i] = coord;
+        coordination[i] = coord;
     }
 }
 
@@ -66,15 +87,15 @@ const void AtomReader::calc_kmc_coordination(const Femocs::SimuCell* cell, const
     int N = get_n_atoms();
     int i, j, coord;
 
-    data.coordination.reserve(N);
+    coordination.reserve(N);
 
     for (i = 0; i < N; ++i) {
-        if(data.type[i] == cell->type_bulk)
-            data.coordination[i] = nnn;
-        else if(data.type[i] == cell->type_surf)
-            data.coordination[i] = (int) nnn/2;
+        if(type[i] == cell->type_bulk)
+            coordination[i] = nnn;
+        else if(type[i] == cell->type_surf)
+            coordination[i] = (int) nnn/2;
         else
-            data.coordination[i] = 0;
+            coordination[i] = 0;
     }
 }
 
@@ -129,7 +150,7 @@ const void AtomReader::import_xyz(const string& file_name, Femocs::SimuCell* cel
         iss.clear();
         iss.str(line);
         iss >> elem >> x >> y >> z >> type;
-        add_data(x, y, z, type, cell);
+        add_atom(x, y, z, type, cell);
     }
 
     return;
@@ -161,7 +182,7 @@ const void AtomReader::import_ckx(const string& file_name, Femocs::SimuCell* cel
         iss.clear();
         iss.str(line);
         iss >> type >> x >> y >> z;
-        add_data(x, y, z, type, cell);
+        add_atom(x, y, z, type, cell);
     }
 
     return;
@@ -184,25 +205,22 @@ const string AtomReader::get_file_type(const string& file_name) {
 }
 
 const void AtomReader::init_data(const int natoms, Femocs::SimuCell* cell) {
-    this->data.x.reserve(natoms);
-    this->data.y.reserve(natoms);
-    this->data.z.reserve(natoms);
-    this->data.type.reserve(natoms);
-    cell->xmin = DBL_MAX;
-    cell->xmax = DBL_MIN;
-    cell->ymin = DBL_MAX;
-    cell->ymax = DBL_MIN;
-    cell->zmin = DBL_MAX;
-    cell->zmax = DBL_MIN;
+    this->x.reserve(natoms);
+    this->y.reserve(natoms);
+    this->z.reserve(natoms);
+    this->type.reserve(natoms);
+
+    cell->xmin = cell->ymin = cell->zmin = DBL_MAX;
+    cell->xmax = cell->ymax = cell->zmax = DBL_MIN;
     return;
 }
 
-const void AtomReader::add_data(const double x, const double y, const double z, const int type,
+const void AtomReader::add_atom(const double x, const double y, const double z, const int type,
         Femocs::SimuCell* cell) {
-    this->data.x.push_back(x);
-    this->data.y.push_back(y);
-    this->data.z.push_back(z);
-    this->data.type.push_back(type);
+    this->x.push_back(x);
+    this->y.push_back(y);
+    this->z.push_back(z);
+    this->type.push_back(type);
 
     if (x > cell->xmax) cell->xmax = x;
     if (y > cell->ymax) cell->ymax = y;
