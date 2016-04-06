@@ -8,21 +8,9 @@
 #ifndef MESHER_H_
 #define MESHER_H_
 
-#include <memory>
-#include <string>
-#include <vector>
-#include <cmath>
-#include <iostream>
-#include <numeric>
-
-#include "../lib/tetgen.h"
-#include "Femocs.h"
+#include "AtomReader.h"
 #include "Media.h"
 #include "Mesh.h"
-
-namespace femocs {
-class Vacuum;
-} /* namespace femocs */
 
 using namespace std;
 
@@ -37,7 +25,7 @@ public:
 
     const void get_test_mesh(Mesh* new_mesh);
     const void get_volume_mesh(Mesh* new_mesh, Bulk* bulk, Vacuum* vacuum, const string cmd);
-    const void generate_surf_faces(Mesh* mesh, const int nmax, const Femocs::SimuCell* cell);
+    const void generate_surf_faces(Mesh* mesh, const int nmax);
 
     const void separate_vacuum_mesh(Mesh* vacuum_mesh, Mesh* big_mesh, const int nmax,
             const int n_surf, const double zmin, const string cmd);
@@ -49,11 +37,9 @@ public:
     void clean_faces(Mesh* mesh, const double rmax, const string cmd);
     void clean_elems(Mesh* mesh, const double rmax, const string cmd);
 
-    void mark_faces(Mesh* mesh, const Femocs::SimuCell* cell);
-    void mark_faces_bynode(Mesh* mesh, const int nmax, const Femocs::SimuCell* cell);
-    void mark_elems_bynode(Mesh* mesh, const int nmax, const Femocs::SimuCell* cell);
-
-    void calc_statistics(shared_ptr<Mesh> mesh);
+    void mark_faces(Mesh* mesh, const AtomReader::Sizes* sizes, const AtomReader::Types* types);
+    void mark_faces_bynode(Mesh* mesh, const int nmax, const AtomReader::Types* types);
+    void mark_elems_bynode(Mesh* mesh, const int nmax, const AtomReader::Types* types);
 
 private:
     const int n_nodes_per_elem = 4;

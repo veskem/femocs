@@ -8,12 +8,14 @@
 #ifndef MESH_H_
 #define MESH_H_
 
-#include <memory>
 #include <string>
 #include <vector>
+#include <iostream>
+#include <fstream>
+#include <algorithm>
 
 #include "../lib/tetgen.h"
-#include "Femocs.h"
+#include "Macros.h"
 
 using namespace std;
 namespace femocs {

@@ -7,12 +7,6 @@
 
 #include "Mesh.h"
 
-#include <stdio.h>
-#include <cstring>
-#include <iostream>
-#include <fstream>
-#include <algorithm>
-
 using namespace std;
 namespace femocs {
 

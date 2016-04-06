@@ -55,8 +55,7 @@
 #include <memory>
 #include <string>
 
-#include "Femocs.h"
-#include "Mesh.h"
+#include "AtomReader.h"
 #include "Tethex.h"
 
 namespace tethex {
@@ -71,7 +70,7 @@ const int DIM = 3;
 
 class DealII {
 public:
-    DealII(const int poly_degree, const double neumann, Femocs::SimuCell* simucell);
+    DealII(const int poly_degree, const double neumann);
     void run();
     void import_file(const string file_name);
 
@@ -83,8 +82,8 @@ public:
     void output_results(const string file_name);
 
     void setup_system();
-    void mark_boundary();
-    void assemble_system();
+    void mark_boundary(const AtomReader::Sizes* sizes, const AtomReader::Types* types);
+    void assemble_system(const AtomReader::Types* types);
     void solve_umfpack();
     void solve_cg();
     void distort_solution(const double dist_ampl);
@@ -106,28 +105,6 @@ private:
     Vector<double> system_rhs;
     ConstraintMatrix constraints;
 
-    //Declare enumerators for domain distinction. To be implemented when we apply multiphysics.
-    struct Types {
-        unsigned int vacuum;
-        unsigned int bulk;
-        unsigned int top;
-        unsigned int surface;
-        unsigned int side;
-    };
-
-    struct Sizes {
-        double xmin;
-        double xmax;
-        double ymin;
-        double ymax;
-        double zmin;
-        double zmax;
-        double zmaxbox;
-        double zminbox;
-    };
-
-    Types types;
-    Sizes sizes;
     double neumann;  //!< gradient length for the solution at some boundary (in current case at the top)
 };
 

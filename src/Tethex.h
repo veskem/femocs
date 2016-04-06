@@ -25,6 +25,9 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <algorithm>
+#include <fstream>
+#include <cmath>
 
 #include "Mesh.h"
 

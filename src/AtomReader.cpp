@@ -18,6 +18,38 @@ using namespace std;
 namespace femocs {
 
 AtomReader::AtomReader() {
+    init_statistics();
+}
+
+const void AtomReader::init_statistics() {
+    sizes.xmin = sizes.ymin = sizes.zmin = DBL_MAX;
+    sizes.xmax = sizes.ymax = sizes.zmax = DBL_MIN;
+}
+
+// Calculate the statistics about coordinates in AtomReader
+const void AtomReader::calc_statistics() {
+    init_statistics();
+
+    for (int i = 0; i < get_n_atoms(); ++i) {
+        if (sizes.xmax < get_x(i)) sizes.xmax = get_x(i);
+        if (sizes.xmin > get_x(i)) sizes.xmin = get_x(i);
+        if (sizes.ymax < get_y(i)) sizes.ymax = get_y(i);
+        if (sizes.ymin > get_y(i)) sizes.ymin = get_y(i);
+        if (sizes.zmax < get_z(i)) sizes.zmax = get_z(i);
+        if (sizes.zmin > get_z(i)) sizes.zmin = get_z(i);
+    }
+
+    sizes.xbox = sizes.xmax - sizes.xmin;
+    sizes.ybox = sizes.ymax - sizes.ymin;
+    sizes.zbox = sizes.zmax - sizes.zmin;
+    sizes.zminbox = sizes.zmin;
+    sizes.zmaxbox = sizes.zmax;
+}
+
+const void AtomReader::resize_box(const double zmin, const double zmax) {
+    sizes.zminbox = zmin;
+    sizes.zmaxbox = zmax;
+    sizes.zbox = zmax - zmin;
 }
 
 const int AtomReader::get_n_atoms() {
@@ -44,19 +76,17 @@ const int AtomReader::get_coord(const int i) {
     return coordination[i];
 }
 
-
-const void AtomReader::calc_coordination(const Femocs::SimuCell* cell, const double cutoff, const int nnn) {
-    if (this->data.simu_type == "md")
-        calc_md_coordination(cell, cutoff, nnn);
-    else if (this->data.simu_type == "kmc")
-        calc_kmc_coordination(cell, nnn);
+const void AtomReader::calc_coordination(const double cutoff, const int nnn) {
+    if (types.simu_type == "md")
+        calc_md_coordination(cutoff, nnn);
+    else if (types.simu_type == "kmc") calc_kmc_coordination(nnn);
 }
 
-const void AtomReader::calc_md_coordination(const Femocs::SimuCell* cell, const double cutoff, const int nnn) {
+const void AtomReader::calc_md_coordination(const double cutoff, const int nnn) {
     int N = get_n_atoms();
     int i, j, coord;
     double r2, dx, dy, dz;
-    double cutoff2 = cutoff*cutoff;
+    double cutoff2 = cutoff * cutoff;
 
     coordination.reserve(N);
 
@@ -70,9 +100,9 @@ const void AtomReader::calc_md_coordination(const Femocs::SimuCell* cell, const 
             dy = fabs(y[i] - y[j]);
             dz = fabs(z[i] - z[j]);
 
-            dx = min(dx, fabs(dx-cell->xbox));  // apply periodic boundary condition in x-direction
-            dy = min(dy, fabs(dy-cell->ybox));  // apply periodic boundary condition in y-direction
-            //dz = min(dz, fabs(dz-cell->zbox));  // apply periodic boundary condition in z-direction
+            dx = min(dx, fabs(dx - sizes.xbox)); // apply periodic boundary condition in x-direction
+            dy = min(dy, fabs(dy - sizes.ybox)); // apply periodic boundary condition in y-direction
+            //dz = min(dz, fabs(dz - sizes.zbox)); // apply periodic boundary condition in z-direction
 
             r2 = dx * dx + dy * dy + dz * dz;
             if (r2 <= cutoff2) coord++;
@@ -83,17 +113,17 @@ const void AtomReader::calc_md_coordination(const Femocs::SimuCell* cell, const 
     }
 }
 
-const void AtomReader::calc_kmc_coordination(const Femocs::SimuCell* cell, const int nnn) {
+const void AtomReader::calc_kmc_coordination(const int nnn) {
     int N = get_n_atoms();
     int i, j, coord;
 
     coordination.reserve(N);
 
     for (i = 0; i < N; ++i) {
-        if(type[i] == cell->type_bulk)
+        if (type[i] == types.type_bulk)
             coordination[i] = nnn;
-        else if(type[i] == cell->type_surf)
-            coordination[i] = (int) nnn/2;
+        else if (type[i] == types.type_surf)
+            coordination[i] = (int) nnn / 2;
         else
             coordination[i] = 0;
     }
@@ -107,25 +137,22 @@ const void AtomReader::import_kimocs() {
     cout << "AtomReader::read_kimocs() not implemented!" << endl;
 }
 
-const void AtomReader::import_file(const string& file_name, Femocs::SimuCell* cell) {
+const void AtomReader::import_file(const string file_name) {
     string file_type = get_file_type(file_name);
 
     if (file_type == "xyz")
-        import_xyz(file_name, cell);
+        import_xyz(file_name);
     else if (file_type == "ckx")
-        import_ckx(file_name, cell);
+        import_ckx(file_name);
     else if (file_type == "dump")
-        import_dump(file_name, cell);
+        import_dump(file_name);
     else
         cout << "Unknown file type: " << file_type << endl;
 
-    cell->zmaxbox += cell->zmax;
-    cell->xbox = cell->xmax - cell->xmin;
-    cell->ybox = cell->ymax - cell->ymin;
-    cell->zbox = cell->zmax - cell->zmin;
+    calc_statistics();
 }
 
-const void AtomReader::import_xyz(const string& file_name, Femocs::SimuCell* cell) {
+const void AtomReader::import_xyz(const string file_name) {
     ifstream in_file(file_name, ios::in);
     if (!in_file.is_open()) {
         cout << "\nDid not find a file " << file_name << endl;
@@ -134,101 +161,84 @@ const void AtomReader::import_xyz(const string& file_name, Femocs::SimuCell* cel
     double x, y, z;
     int type;
     string elem, line, dummy;
-    size_t natoms;
+    size_t n_atoms;
     istringstream iss;
 
     getline(in_file, line); 	// Read number of atoms
     iss.clear();
     iss.str(line);
-    iss >> natoms;
-    init_data(natoms, cell);
+    iss >> n_atoms;
+    reserve(n_atoms);
 
     getline(in_file, line);    // Skip comments line
 
-    // keep storing values from the text file so long as data exists:
-    while ((--natoms > 0) && getline(in_file, line)) {
+    // keep storing values from the text file as long as data exists:
+    while ((--n_atoms > 0) && getline(in_file, line)) {
         iss.clear();
         iss.str(line);
         iss >> elem >> x >> y >> z >> type;
-        add_atom(x, y, z, type, cell);
+        add_atom(x, y, z, type);
     }
-
-    return;
 }
 
-const void AtomReader::import_ckx(const string& file_name, Femocs::SimuCell* cell) {
+const void AtomReader::import_ckx(const string file_name) {
     ifstream in_file(file_name, ios::in);
     if (!in_file.is_open()) {
-        cout << "Did not find a file " << file_name << endl;
-        return;
+        cout << "\nDid not find a file " << file_name << endl;
     }
 
     double x, y, z;
     int type;
     string line, dummy;
-    size_t natoms;
+    size_t n_atoms;
     istringstream iss;
 
     getline(in_file, line); 	// Read number of atoms
     iss.clear();
     iss.str(line);
-    iss >> natoms;
-    init_data(natoms, cell);
+    iss >> n_atoms;
+
+    reserve(n_atoms);
 
     getline(in_file, line);    // Skip comments line
 
-    // keep storing values from the text file so long as data exists:
-    while ((--natoms > 0) && getline(in_file, line)) {
+    // keep storing values from the text file as long as data exists:
+    while ((--n_atoms > 0) && getline(in_file, line)) {
         iss.clear();
         iss.str(line);
         iss >> type >> x >> y >> z;
-        add_atom(x, y, z, type, cell);
+        add_atom(x, y, z, type);
     }
-
-    return;
 }
 
-const void AtomReader::import_dump(const string& file_name, Femocs::SimuCell* cell) {
+const void AtomReader::import_dump(const string file_name) {
     cout << "AtomReader::import_dump not implemented!" << endl;
 }
 
-const string AtomReader::get_file_type(const string& file_name) {
+const string AtomReader::get_file_type(const string file_name) {
     int start = file_name.find_last_of('.') + 1;
     int end = file_name.size();
     string file_type = file_name.substr(start, end);
 
-    if (file_type == "xyz") this->data.simu_type = "md";
-    if (file_type == "dump") this->data.simu_type = "md";
-    if (file_type == "ckx") this->data.simu_type = "kmc";
+    if (file_type == "xyz") this->types.simu_type = "md";
+    if (file_type == "dump") this->types.simu_type = "md";
+    if (file_type == "ckx") this->types.simu_type = "kmc";
 
     return file_type;
 }
 
-const void AtomReader::init_data(const int natoms, Femocs::SimuCell* cell) {
-    this->x.reserve(natoms);
-    this->y.reserve(natoms);
-    this->z.reserve(natoms);
-    this->type.reserve(natoms);
-
-    cell->xmin = cell->ymin = cell->zmin = DBL_MAX;
-    cell->xmax = cell->ymax = cell->zmax = DBL_MIN;
-    return;
+const void AtomReader::reserve(const int n_atoms) {
+    x.reserve(n_atoms);
+    y.reserve(n_atoms);
+    z.reserve(n_atoms);
+    type.reserve(n_atoms);
 }
 
-const void AtomReader::add_atom(const double x, const double y, const double z, const int type,
-        Femocs::SimuCell* cell) {
+const void AtomReader::add_atom(const double x, const double y, const double z, const int type) {
     this->x.push_back(x);
     this->y.push_back(y);
     this->z.push_back(z);
     this->type.push_back(type);
-
-    if (x > cell->xmax) cell->xmax = x;
-    if (y > cell->ymax) cell->ymax = y;
-    if (z > cell->zmax) cell->zmax = z;
-    if (x < cell->xmin) cell->xmin = x;
-    if (y < cell->ymin) cell->ymin = y;
-    if (z < cell->zmin) cell->zmin = z;
-    return;
 }
 
 } /* namespace femocs */

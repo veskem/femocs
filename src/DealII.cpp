@@ -14,22 +14,9 @@ namespace femocs {
 
 // Define main class constructor. Number in fe(2) determines the interpolation type. 1 would be linear etc.
 //DealII::DealII() : fe(1), dof_handler(triangulation) {
-DealII::DealII(const int poly_degree, const double neumann, Femocs::SimuCell* simucell) :
+DealII::DealII(const int poly_degree, const double neumann) :
         fe(poly_degree), dof_handler(triangulation) {
     this->neumann = neumann;
-    types.bulk = simucell->type_bulk;
-    types.side = simucell->type_edge;
-    types.surface = simucell->type_surf;
-    types.top = simucell->type_zmax;
-    types.vacuum = simucell->type_vacuum;
-    sizes.xmax = simucell->xmax;
-    sizes.xmin = simucell->xmin;
-    sizes.ymax = simucell->ymax;
-    sizes.ymin = simucell->ymin;
-    sizes.zmax = simucell->zmax;
-    sizes.zmin = simucell->zmin;
-    sizes.zmaxbox = simucell->zmaxbox;
-    sizes.zminbox = simucell->zminbox;
 }
 
 // Import mesh from vtk or msh file
@@ -282,20 +269,20 @@ void DealII::distort_solution_one(const double dist_ampl, const int i) {
 }
 
 // Mark the boundary faces of mesh
-void DealII::mark_boundary() {
+void DealII::mark_boundary(const AtomReader::Sizes* sizes, const AtomReader::Types* types) {
     typename Triangulation<DIM>::active_face_iterator face;
 
     // Loop through the faces and mark them according the location of its centre
     for (face = triangulation.begin_active_face(); face != triangulation.end(); ++face) {
         if (face->at_boundary()) {
-            if (on_boundary(face->center()[0], sizes.xmin, sizes.xmax))
-                face->set_all_boundary_ids(types.side);
-            else if (on_boundary(face->center()[1], sizes.ymin, sizes.ymax))
-                face->set_all_boundary_ids(types.side);
-            else if (on_boundary(face->center()[2], sizes.zmaxbox, sizes.zmaxbox))
-                face->set_all_boundary_ids(types.top);
+            if (on_boundary(face->center()[0], sizes->xmin, sizes->xmax))
+                face->set_all_boundary_ids(types->type_edge);
+            else if (on_boundary(face->center()[1], sizes->ymin, sizes->ymax))
+                face->set_all_boundary_ids(types->type_edge);
+            else if (on_boundary(face->center()[2], sizes->zmaxbox, sizes->zmaxbox))
+                face->set_all_boundary_ids(types->type_zmax);
             else
-                face->set_all_boundary_ids(types.surface);
+                face->set_all_boundary_ids(types->type_surf);
         }
     }
 }
@@ -309,7 +296,7 @@ bool DealII::on_boundary(const double face, const double face_min, const double 
 }
 
 // Insert boundary conditions to the system
-void DealII::assemble_system() {
+void DealII::assemble_system(const AtomReader::Types* types) {
     // Set up quadrature system for quads and faces
     const QGauss<3> quadrature_formula(DIM);
     const QGauss<2> face_quadrature_formula(DIM);
@@ -361,7 +348,7 @@ void DealII::assemble_system() {
             // Cycle for faces of each cell
             for (unsigned int f = 0; f < faces_per_cell; ++f)
                 // Check if face is located at top boundary  
-                if (cell->face(f)->boundary_id() == types.top) {
+                if (cell->face(f)->boundary_id() == types->type_zmax) {
                     fe_face_values.reinit(cell, f);
                     // Set boundary conditions
                     for (unsigned int fq_index = 0; fq_index < n_face_q_points; ++fq_index)
@@ -387,7 +374,7 @@ void DealII::assemble_system() {
     map<types::global_dof_index, double> copper_boundary_value;
 
     // Add Dirichlet' boundary condition to faces denoted as surface
-    VectorTools::interpolate_boundary_values(dof_handler, types.surface, ZeroFunction<DIM>(),
+    VectorTools::interpolate_boundary_values(dof_handler, types->type_surf, ZeroFunction<DIM>(),
             copper_boundary_value);
 
     // Apply boundary values to system matrix

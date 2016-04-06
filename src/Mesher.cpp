@@ -175,7 +175,7 @@ const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, Mesh* big_mesh, con
 }
 
 // Function to generate surface faces into available mesh
-const void Mesher::generate_surf_faces(Mesh* mesh, const int nmax, const Femocs::SimuCell* cell) {
+const void Mesher::generate_surf_faces(Mesh* mesh, const int nmax) {
     int i, j, n1, n2, n3;
     bool difs[n_nodes_per_elem];
     int n_elems = mesh->get_n_elems();
@@ -224,20 +224,12 @@ const void Mesher::generate_surf_faces(Mesh* mesh, const int nmax, const Femocs:
         }
 }
 
-// Function to calculate statistics about mesh
-void Mesher::calc_statistics(shared_ptr<Mesh> mesh) {
-    int N = mesh->get_n_nodes();
-    mesh->init_volumes(N);
-    mesh->calc_volumes();
-    mesh->calc_volume_statistics();
-}
-
 /*
- The idea is, that when tetgen adds nodes to the mesh, it add them to the end of nodelist
+ The idea is, that when tetgen adds nodes to the mesh, it adds them to the end of node list
  In that ways the first nodes will always be the bulk (or surface) nodes and there is
  no need to search them later on. Those nodes can be used to find the faces on the surface.
  */
-void Mesher::mark_elems_bynode(Mesh* mesh, const int nmax, const Femocs::SimuCell* cell) {
+void Mesher::mark_elems_bynode(Mesh* mesh, const int nmax, const AtomReader::Types* types) {
     int N = mesh->get_n_elems();
     mesh->init_elemmarkers(N);
     bool difs[4];
@@ -246,7 +238,6 @@ void Mesher::mark_elems_bynode(Mesh* mesh, const int nmax, const Femocs::SimuCel
             difs[j] = mesh->get_elem(i, j) < nmax;
 
         if (difs[0] + difs[1] + difs[2] + difs[3] == 3) {
-            //mesh->add_elemmarker(cell->type_surf);
             if (difs[0] & difs[3])
                 mesh->add_elemmarker(1);
             else if (difs[0] & (!difs[3]))
@@ -255,13 +246,12 @@ void Mesher::mark_elems_bynode(Mesh* mesh, const int nmax, const Femocs::SimuCel
                 mesh->add_elemmarker(2);
             else if ((!difs[0]) & (!difs[3])) mesh->add_elemmarker(4);
         } else
-            //mesh->add_elemmarker(cell->type_none);
-            mesh->add_elemmarker(0);
+            mesh->add_elemmarker(types->type_none);
     }
 }
 
 // Mark elements by comparing the centres of elements with the ones in bulk mesh
-void Mesher::mark_faces_bynode(Mesh* mesh, const int nmax, const Femocs::SimuCell* cell) {
+void Mesher::mark_faces_bynode(Mesh* mesh, const int nmax, const AtomReader::Types* types) {
     int N = mesh->get_n_faces();
     mesh->init_facemarkers(N);
     bool difs[n_nodes_per_face];
@@ -271,11 +261,9 @@ void Mesher::mark_faces_bynode(Mesh* mesh, const int nmax, const Femocs::SimuCel
             difs[j] = mesh->get_face(i, j) < nmax;
 
         if (difs[0] + difs[1] + difs[2] == 3)
-            //mesh->add_elemmarker(cell->type_bulk);
-            mesh->add_facemarker(cell->type_surf);
+            mesh->add_facemarker(types->type_surf);
         else
-            //mesh->add_elemmarker(cell->type_vacuum);
-            mesh->add_facemarker(cell->type_none);
+            mesh->add_facemarker(types->type_none);
     }
 }
 
@@ -286,25 +274,25 @@ inline bool on_boundary(const double face, const double face_max) {
 }
 
 // Mark the boundary faces of mesh
-void Mesher::mark_faces(Mesh* mesh, const Femocs::SimuCell* cell) {
+void Mesher::mark_faces(Mesh* mesh, const AtomReader::Sizes* sizes, const AtomReader::Types* types) {
     int N = mesh->get_n_faces();
     mesh->init_facemarkers(N);
 
     for (int i = 0; i < N; ++i) {
-        if (on_boundary(mesh->get_face_centre(i, 0), cell->xmin))
-            mesh->add_facemarker(cell->type_xmin);
-        else if (on_boundary(mesh->get_face_centre(i, 0), cell->xmax))
-            mesh->add_facemarker(cell->type_xmax);
-        else if (on_boundary(mesh->get_face_centre(i, 1), cell->ymin))
-            mesh->add_facemarker(cell->type_ymin);
-        else if (on_boundary(mesh->get_face_centre(i, 1), cell->ymax))
-            mesh->add_facemarker(cell->type_ymax);
-        else if (on_boundary(mesh->get_face_centre(i, 2), cell->zmin))
-            mesh->add_facemarker(cell->type_zmin);
-        else if (on_boundary(mesh->get_face_centre(i, 2), cell->zmax))
-            mesh->add_facemarker(cell->type_zmax);
+        if (on_boundary(mesh->get_face_centre(i, 0), sizes->xmin))
+            mesh->add_facemarker(types->type_xmin);
+        else if (on_boundary(mesh->get_face_centre(i, 0), sizes->xmax))
+            mesh->add_facemarker(types->type_xmax);
+        else if (on_boundary(mesh->get_face_centre(i, 1), sizes->ymin))
+            mesh->add_facemarker(types->type_ymin);
+        else if (on_boundary(mesh->get_face_centre(i, 1), sizes->ymax))
+            mesh->add_facemarker(types->type_ymax);
+        else if (on_boundary(mesh->get_face_centre(i, 2), sizes->zminbox))
+            mesh->add_facemarker(types->type_zmin);
+        else if (on_boundary(mesh->get_face_centre(i, 2), sizes->zmaxbox))
+            mesh->add_facemarker(types->type_zmax);
         else
-            mesh->add_facemarker(cell->type_surf);
+            mesh->add_facemarker(types->type_surf);
     }
 }
 

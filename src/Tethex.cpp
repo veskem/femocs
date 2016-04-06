@@ -17,10 +17,6 @@
 
 #include "Tethex.h"
 
-#include <algorithm>
-#include <fstream>
-#include <cmath>
-
 namespace tethex {
 
 //-------------------------------------------------------
