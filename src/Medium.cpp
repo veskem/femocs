@@ -7,6 +7,10 @@
 
 #include "Medium.h"
 
+#include <fstream>
+#include <sstream>
+#include <float.h>
+
 using namespace std;
 namespace femocs {
 
@@ -20,12 +24,12 @@ const void Medium::init_statistics() {
 const void Medium::calc_statistics() {
     init_statistics();
     for (int i = 0; i < get_n_atoms(); ++i) {
-        if(sizes.xmax < get_x(i)) sizes.xmax = get_x(i);
-        if(sizes.xmin > get_x(i)) sizes.xmin = get_x(i);
-        if(sizes.ymax < get_y(i)) sizes.ymax = get_y(i);
-        if(sizes.ymin > get_y(i)) sizes.ymin = get_y(i);
-        if(sizes.zmax < get_z(i)) sizes.zmax = get_z(i);
-        if(sizes.zmin > get_z(i)) sizes.zmin = get_z(i);
+        if (sizes.xmax < get_x(i)) sizes.xmax = get_x(i);
+        if (sizes.xmin > get_x(i)) sizes.xmin = get_x(i);
+        if (sizes.ymax < get_y(i)) sizes.ymax = get_y(i);
+        if (sizes.ymin > get_y(i)) sizes.ymin = get_y(i);
+        if (sizes.zmax < get_z(i)) sizes.zmax = get_z(i);
+        if (sizes.zmin > get_z(i)) sizes.zmin = get_z(i);
     }
 }
 
@@ -84,14 +88,15 @@ const void Medium::output(const string& file_name) {
 
     for (int i = 0; i < n_atoms; ++i)
         myfile << get_data_string(i) << endl;
-    
+
     myfile.close();
 }
 
 // Compile data string from the data vectors
 const string Medium::get_data_string(const int i) {
     ostringstream strs;
-    strs << i << " " << get_x(i) << " " << get_y(i) << " " << get_z(i) <<" "<< get_coordination(i);
+    strs << i << " " << get_x(i) << " " << get_y(i) << " " << get_z(i) << " "
+            << get_coordination(i);
     return strs.str();
 }
 

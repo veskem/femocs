@@ -8,14 +8,9 @@
 #ifndef MESH_H_
 #define MESH_H_
 
-#include <string>
-#include <vector>
-#include <iostream>
-#include <fstream>
-#include <algorithm>
+#include "Macros.h"
 
 #include "../lib/tetgen.h"
-#include "Macros.h"
 
 using namespace std;
 namespace femocs {
@@ -33,7 +28,6 @@ public:
     double z;
 
 private:
-   // double r2;
 };
 
 /**
@@ -110,7 +104,7 @@ public:
     const int get_face(int i, int node);
     const int get_elem(int i, int node);
 
-    const double get_face_centre(int i, int xyz);    
+    const double get_face_centre(int i, int xyz);
     const double get_elem_centre(int i, int xyz);
 
     void calc_centres();
@@ -135,6 +129,7 @@ public:
         double Vaverage;
     };
     Stat stat;
+
 private:
     tetgenbehavior tetgenbeh;
 
@@ -151,11 +146,9 @@ private:
     vector<Centre> centres;
 
     // Function to output mesh in .vtk format
-//    void write_vtk(const string file_name, const int nnodes, const int ncells, const int nmarkers,
-//            const REAL* nodes, const int* cells, const vector<int>* markers, const int celltype,
-//            const int nnodes_per_cell);
-    void write_vtk    (const string file_name, const int nnodes, const int ncells, const int nnodemarkers, const int nmarkers,
-            const REAL* nodes, const int* cells, const int* nodemarkers, const vector<int>* markers, const int celltype,
+    void write_vtk(const string file_name, const int nnodes, const int ncells,
+            const int nnodemarkers, const int nmarkers, const REAL* nodes, const int* cells,
+            const int* nodemarkers, const vector<int>* markers, const int celltype,
             const int nnodes_in_cell);
 };
 

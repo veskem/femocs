@@ -8,14 +8,12 @@
 #ifndef MEDIA_H_
 #define MEDIA_H_
 
-#include <memory>
-
+#include "Macros.h"
 #include "AtomReader.h"
 #include "Medium.h"
 
 using namespace std;
 namespace femocs {
-
 
 /** Routines and data related to making a Vacuum */
 class Vacuum: public Medium {
@@ -28,7 +26,6 @@ public:
 
 private:
 };
-
 
 /** Routines and data related to making a Surface */
 class Surface: public Medium {
@@ -58,7 +55,6 @@ private:
     const void coordination_extract(AtomReader* reader);
 };
 
-
 /** Routines and data related to making a Bulk */
 class Bulk: public Medium {
 public:
@@ -80,7 +76,6 @@ private:
     // Determine whether an atom is near the edge of simulation box
     const bool on_edge(const double x, const double x_boundary);
 };
-
 
 /** Routines and data related to making an Edge */
 class Edge: public Medium {

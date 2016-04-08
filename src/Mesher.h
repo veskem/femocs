@@ -8,9 +8,16 @@
 #ifndef MESHER_H_
 #define MESHER_H_
 
+#include "Macros.h"
 #include "AtomReader.h"
 #include "Media.h"
 #include "Mesh.h"
+
+namespace femocs {
+class Bulk;
+class Mesh;
+class Vacuum;
+} /* namespace femocs */
 
 using namespace std;
 

@@ -9,11 +9,13 @@
 
 #include "AtomReader.h"
 #include "DealII.h"
-#include "Macros.h"
 #include "Media.h"
 #include "Mesh.h"
 #include "Mesher.h"
 #include "Tethex.h"
+
+#include <omp.h>
+#include <iostream>
 
 using namespace std;
 namespace femocs {
@@ -32,11 +34,11 @@ const Femocs::Config Femocs::parse_input_script(const string fileName) const {
     conf.latconst = 2.0;        // lattice constant
     conf.coord_cutoff = 3.3;    // coordination analysis cut off radius
 //*/
-/*
-    conf.infile = "input/nanotip_medium.xyz";
-    conf.latconst = 3.61;       // lattice constant
-    conf.coord_cutoff = 3.4;	// coordination analysis cut off radius
- //*/
+            /*
+             conf.infile = "input/nanotip_medium.xyz";
+             conf.latconst = 3.61;       // lattice constant
+             conf.coord_cutoff = 3.4;	// coordination analysis cut off radius
+             //*/
 
     conf.nnn = 12;						    // number of nearest neighbours in bulk
     conf.mesher = "tetgen";				    // mesher algorithm
@@ -48,25 +50,25 @@ const Femocs::Config Femocs::parse_input_script(const string fileName) const {
 }
 
 // Workhorse function to run Femocs simulation
-const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess,
-        const double* grid_spacing) {
+//const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess, const double* grid_spacing) {
+const void Femocs::run_femocs() {
     AtomReader reader;
 
     double t0, tstart;  // Variables used to measure the start time of a section
 
     start_msg(tstart, "======= Femocs started =======");
-
+    //*
     start_msg(t0, "=== Importing atoms...");
-#if STANDALONEMODE
+//#if STANDALONEMODE
     reader.import_file(conf.infile);
-#elif HELMODMODE
-    reader.import_helmod(E0, BC, phi_guess,...);
-#elif KIMOCSMODE
-    reader.import_kimocs();
-#else
-    cout << "Incorrent MODE definitions in Macros.h !" << endl;
-    exit(EXIT_FAILURE);
-#endif
+//#elif HELMODMODE
+//    reader.import_helmod();
+//#elif KIMOCSMODE
+//    reader.import_kimocs();
+//#else
+//    cout << "Incorrent MODE definitions in Macros.h !" << endl;
+//    exit(EXIT_FAILURE);
+//#endif
     end_msg(t0);
 
     start_msg(t0, "=== Calculating coordinations of atoms...");
@@ -120,7 +122,8 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
     Mesh vacuum_mesh;
 //    mesher.separate_vacuum_mesh(&vacuum_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), bulk.sizes.zmin, "rQ");
 //    mesher.separate_bulk_mesh(&bulk_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), bulk.sizes.zmin, "rQ");
-    mesher.separate_meshes(&bulk_mesh, &vacuum_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), reader.sizes.zminbox, "rQ");
+    mesher.separate_meshes(&bulk_mesh, &vacuum_mesh, &big_mesh, bulk.get_n_atoms(),
+            surf.get_n_atoms(), reader.sizes.zminbox, "rQ");
 
     bulk_mesh.write_faces("output/faces_bulk.vtk");
     bulk_mesh.write_elems("output/elems_bulk.vtk");
@@ -177,6 +180,7 @@ const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess
 
     cout << "\nTotal time: " << omp_get_wtime() - tstart << "\n";
     start_msg(t0, "======= Femocs finished! =======\n");
+    //*/
 }
 
 } /* namespace femocs */
@@ -200,7 +204,7 @@ int main(int argc, char* argv[]) {
     const int N = 2;
     int i, j;
     double E0 = 0.0;
-    double grid_spacing[3] = { femocs.conf.latconst, femocs.conf.latconst, femocs.conf.latconst };
+    double grid_spacing[3] = {femocs.conf.latconst, femocs.conf.latconst, femocs.conf.latconst};
     double*** BC = new double**[N];
     double*** phi_guess = new double**[N];
 
@@ -214,9 +218,17 @@ int main(int argc, char* argv[]) {
     }
 
     // Run the actual script
-    femocs.run_femocs(E0, BC, phi_guess, grid_spacing);
+//    femocs.run_femocs(E0, BC, phi_guess, grid_spacing);
+    femocs.run_femocs();
 
     return 0;
 }
 
 #endif // STANDALONEMODE
+
+#if HELMODMODE
+void femocs_speaker() {
+    femocs::Femocs fem("/path/to/input.script");
+    fem.run_femocs();
+}
+#endif // HELMODMODE

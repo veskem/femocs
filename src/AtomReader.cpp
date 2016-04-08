@@ -46,34 +46,18 @@ const void AtomReader::calc_statistics() {
     sizes.zmaxbox = sizes.zmax;
 }
 
-const void AtomReader::resize_box(const double zmin, const double zmax) {
-    sizes.zminbox = zmin;
-    sizes.zmaxbox = zmax;
-    sizes.zbox = zmax - zmin;
+const void AtomReader::reserve(const int n_atoms) {
+    x.reserve(n_atoms);
+    y.reserve(n_atoms);
+    z.reserve(n_atoms);
+    type.reserve(n_atoms);
 }
 
-const int AtomReader::get_n_atoms() {
-    return x.size();
-}
-
-const double AtomReader::get_x(const int i) {
-    return x[i];
-}
-
-const double AtomReader::get_y(const int i) {
-    return y[i];
-}
-
-const double AtomReader::get_z(const int i) {
-    return z[i];
-}
-
-const int AtomReader::get_type(const int i) {
-    return type[i];
-}
-
-const int AtomReader::get_coord(const int i) {
-    return coordination[i];
+const void AtomReader::add_atom(const double x, const double y, const double z, const int type) {
+    this->x.push_back(x);
+    this->y.push_back(y);
+    this->z.push_back(z);
+    this->type.push_back(type);
 }
 
 const void AtomReader::calc_coordination(const double cutoff, const int nnn) {
@@ -128,6 +112,54 @@ const void AtomReader::calc_kmc_coordination(const int nnn) {
             coordination[i] = 0;
     }
 }
+
+const void AtomReader::resize_box(const double zmin, const double zmax) {
+    sizes.zminbox = zmin;
+    sizes.zmaxbox = zmax;
+    sizes.zbox = zmax - zmin;
+}
+
+// =================================
+// *** GETTERS: ***************
+
+const int AtomReader::get_n_atoms() {
+    return x.size();
+}
+
+const double AtomReader::get_x(const int i) {
+    return x[i];
+}
+
+const double AtomReader::get_y(const int i) {
+    return y[i];
+}
+
+const double AtomReader::get_z(const int i) {
+    return z[i];
+}
+
+const int AtomReader::get_type(const int i) {
+    return type[i];
+}
+
+const int AtomReader::get_coord(const int i) {
+    return coordination[i];
+}
+
+const string AtomReader::get_file_type(const string file_name) {
+    int start = file_name.find_last_of('.') + 1;
+    int end = file_name.size();
+    string file_type = file_name.substr(start, end);
+
+    if (file_type == "xyz") this->types.simu_type = "md";
+    if (file_type == "dump") this->types.simu_type = "md";
+    if (file_type == "ckx") this->types.simu_type = "kmc";
+
+    return file_type;
+}
+
+// =================================
+// *** IMPORTERS: ***************
 
 const void AtomReader::import_helmod() {
     cout << "AtomReader::read_helmod() not implemented!" << endl;
@@ -213,32 +245,6 @@ const void AtomReader::import_ckx(const string file_name) {
 
 const void AtomReader::import_dump(const string file_name) {
     cout << "AtomReader::import_dump not implemented!" << endl;
-}
-
-const string AtomReader::get_file_type(const string file_name) {
-    int start = file_name.find_last_of('.') + 1;
-    int end = file_name.size();
-    string file_type = file_name.substr(start, end);
-
-    if (file_type == "xyz") this->types.simu_type = "md";
-    if (file_type == "dump") this->types.simu_type = "md";
-    if (file_type == "ckx") this->types.simu_type = "kmc";
-
-    return file_type;
-}
-
-const void AtomReader::reserve(const int n_atoms) {
-    x.reserve(n_atoms);
-    y.reserve(n_atoms);
-    z.reserve(n_atoms);
-    type.reserve(n_atoms);
-}
-
-const void AtomReader::add_atom(const double x, const double y, const double z, const int type) {
-    this->x.push_back(x);
-    this->y.push_back(y);
-    this->z.push_back(z);
-    this->type.push_back(type);
 }
 
 } /* namespace femocs */

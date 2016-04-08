@@ -6,9 +6,9 @@
  */
 
 #include "Media.h"
+#include <algorithm>
 
 using namespace std;
-
 namespace femocs {
 
 // =================================================
@@ -50,8 +50,8 @@ Bulk::Bulk(const double latconst, const int nnn) {
 // Function to make bulk material with nodes on surface and on by-hand made bottom coordinates
 const void Bulk::extract_reduced_bulk(Surface* surf, const AtomReader::Sizes* sizes) {
     int i;
-    shared_ptr<Edge> edge(new Edge(crys_struct.latconst, crys_struct.nnn));
-    edge->extract_edge(surf, sizes);
+//    shared_ptr<Edge> edge(new Edge(crys_struct.latconst, crys_struct.nnn));
+//    edge->extract_edge(surf, sizes);
 
     int n_surf = surf->get_n_atoms();
     int n_edge = 4; //edge->getN();

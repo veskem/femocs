@@ -8,10 +8,11 @@
 #ifndef FEMOCS_H_
 #define FEMOCS_H_
 
-#include <memory>
-#include <string>
-#include <omp.h>
-#include <iostream>
+#include "Macros.h"
+
+#if not STANDALONEMODE
+extern "C" {
+#endif // STANDALONEMODE
 
 using namespace std;
 namespace femocs {
@@ -49,8 +50,9 @@ public:
      * @param phi_guess - guess values of field potential for FEM solver
      * @param grid_spacing - FDM grid spacing in x, y and z direction
      */
-    const void run_femocs(const double E0, double*** BC, double*** phi_guess,
-            const double* grid_spacing);
+//    const void run_femocs(const double E0, double*** BC, double*** phi_guess,
+//            const double* grid_spacing);
+    const void run_femocs();
 
 private:
     /**
@@ -63,4 +65,11 @@ private:
 };
 
 } /* namespace femocs */
+
+void femocs_speaker();
+
+#if not STANDALONEMODE
+}
+#endif // STANDALONEMODE
+
 #endif /* FEMOCS_H_ */

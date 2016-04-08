@@ -7,6 +7,10 @@
 
 #include "Mesher.h"
 
+#include <memory>
+#include <iostream>
+#include <algorithm>
+
 using namespace std;
 namespace femocs {
 
@@ -274,7 +278,8 @@ inline bool on_boundary(const double face, const double face_max) {
 }
 
 // Mark the boundary faces of mesh
-void Mesher::mark_faces(Mesh* mesh, const AtomReader::Sizes* sizes, const AtomReader::Types* types) {
+void Mesher::mark_faces(Mesh* mesh, const AtomReader::Sizes* sizes,
+        const AtomReader::Types* types) {
     int N = mesh->get_n_faces();
     mesh->init_facemarkers(N);
 
@@ -298,56 +303,56 @@ void Mesher::mark_faces(Mesh* mesh, const AtomReader::Sizes* sizes, const AtomRe
 
 // Function to remove too big tetrahedra from the mesh
 void Mesher::clean_elems(Mesh* mesh, const double rmax, const string cmd) {
-    REAL* node = mesh->get_nodes();      // pointer to nodes
-    int* elem = mesh->get_elems(); // pointer to tetrahedron corners
-
-    double dx, r12, r13, r14, r23, r24, r34;
-    int i, j, k, l1, l2, l3, l4;
-
-    int N = mesh->get_n_elems();
-    vector<bool> isQuality(N);
-
-    // Loop through the tetrahedra
-    for (i = 0; i < N; ++i) {
-        j = 4 * i;
-        // Loop through x, y and z coordinates
-        r12 = r13 = r14 = r23 = r24 = r34 = 0;
-        for (k = 0; k < 3; ++k) {
-            l1 = 3 * elem[j + 0] + k; // index of x,y or z coordinate of 1st node
-            l2 = 3 * elem[j + 1] + k;   // ..2nd node
-            l3 = 3 * elem[j + 2] + k; // ..3rd node
-            l4 = 3 * elem[j + 3] + k; // ..4th node
-
-            dx = node[l1] - node[l2];
-            r12 += dx * dx; // length^2 of tetrahedron 1st edge
-            dx = node[l1] - node[l3];
-            r13 += dx * dx; // ..2nd edge
-            dx = node[l1] - node[l4];
-            r14 += dx * dx; // ..3rd edge
-            dx = node[l2] - node[l3];
-            r23 += dx * dx; // ..4th edge
-            dx = node[l2] - node[l4];
-            r24 += dx * dx; // ..5th edge
-            dx = node[l3] - node[l4];
-            r34 += dx * dx; // ..6th edge
-        }
-        // Keep only the elements with appropriate quality
-        isQuality[i] = (r12 < rmax) & (r13 < rmax) & (r14 < rmax) & (r23 < rmax) & (r24 < rmax)
-                & (r34 < rmax);
-    }
-
-    // Make temporary copy from the input mesh
-    shared_ptr<Mesh> temp_mesh(new Mesh());
-    temp_mesh->init_elems(mesh->get_n_elems());
-    temp_mesh->copy_elems(mesh, 0);
-
-    // Initialise and fill the input mesh with cleaned elements
-    mesh->init_elems(accumulate(isQuality.begin(), isQuality.end(), 0));
-
-    // Insert tetrahedra with suitable quality
-    update_list(mesh->get_elems(), temp_mesh->get_elems(), isQuality, 4);
-
-    mesh->recalc(cmd);
+//    REAL* node = mesh->get_nodes();      // pointer to nodes
+//    int* elem = mesh->get_elems(); // pointer to tetrahedron corners
+//
+//    double dx, r12, r13, r14, r23, r24, r34;
+//    int i, j, k, l1, l2, l3, l4;
+//
+//    int N = mesh->get_n_elems();
+//    vector<bool> isQuality(N);
+//
+//    // Loop through the tetrahedra
+//    for (i = 0; i < N; ++i) {
+//        j = 4 * i;
+//        // Loop through x, y and z coordinates
+//        r12 = r13 = r14 = r23 = r24 = r34 = 0;
+//        for (k = 0; k < 3; ++k) {
+//            l1 = 3 * elem[j + 0] + k; // index of x,y or z coordinate of 1st node
+//            l2 = 3 * elem[j + 1] + k;   // ..2nd node
+//            l3 = 3 * elem[j + 2] + k; // ..3rd node
+//            l4 = 3 * elem[j + 3] + k; // ..4th node
+//
+//            dx = node[l1] - node[l2];
+//            r12 += dx * dx; // length^2 of tetrahedron 1st edge
+//            dx = node[l1] - node[l3];
+//            r13 += dx * dx; // ..2nd edge
+//            dx = node[l1] - node[l4];
+//            r14 += dx * dx; // ..3rd edge
+//            dx = node[l2] - node[l3];
+//            r23 += dx * dx; // ..4th edge
+//            dx = node[l2] - node[l4];
+//            r24 += dx * dx; // ..5th edge
+//            dx = node[l3] - node[l4];
+//            r34 += dx * dx; // ..6th edge
+//        }
+//        // Keep only the elements with appropriate quality
+//        isQuality[i] = (r12 < rmax) & (r13 < rmax) & (r14 < rmax) & (r23 < rmax) & (r24 < rmax)
+//                & (r34 < rmax);
+//    }
+//
+//    // Make temporary copy from the input mesh
+//    shared_ptr<Mesh> temp_mesh(new Mesh());
+//    temp_mesh->init_elems(mesh->get_n_elems());
+//    temp_mesh->copy_elems(mesh, 0);
+//
+//    // Initialise and fill the input mesh with cleaned elements
+//    mesh->init_elems(accumulate(isQuality.begin(), isQuality.end(), 0));
+//
+//    // Insert tetrahedra with suitable quality
+//    update_list(mesh->get_elems(), temp_mesh->get_elems(), isQuality, 4);
+//
+//    mesh->recalc(cmd);
 }
 
 // Function to remove too big faces from the mesh

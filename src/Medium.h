@@ -8,13 +8,7 @@
 #ifndef MEDIUM_H_
 #define MEDIUM_H_
 
-#include <algorithm>
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#include <string>
-#include <vector>
-#include <float.h>
+#include "Macros.h"
 
 using namespace std;
 namespace femocs {
@@ -39,10 +33,10 @@ public:
      * @param file_name - path for file to save the data
      */
     const void output(const string& file_name);
-    
+
     /** Calculate statistics about the coordinates in Medium */
     const void calc_statistics();
-    
+
     /** Set the x-coordinate of i-th atom */
     void set_x(const int i, const double x);
     /** Set the y-coordinate of i-th atom */
@@ -51,7 +45,7 @@ public:
     void set_z(const int i, const double z);
     /** Set the coordination of i-th atom */
     void set_coordination(const int i, const int coord);
-   
+
     /** Return x-coordinate of i-th atom */
     const double get_x(const int i);
     /** Return y-coordinate of i-th atom */
@@ -75,22 +69,22 @@ public:
 
     /** Statistics about system size */
     Sizes sizes;
-    
+
     struct CrysStruct {
         double latconst;    //!< Lattice constant
         int nnn;            //!< Number of nearest neighbours
     };
-    
+
     /** Statistics about crystal structure */
     CrysStruct crys_struct;
-    
+
 protected:
     vector<double> x, y, z;   //!< Atom coordinates
     vector<int> coordination; //!< Atom coordination - nr of nearest neighbours within cut off radius
-    
+
     /** Initialise statistics about the coordinates in Medium */
     const void init_statistics();
-    
+
     /** Get i-th entry from all data vectors */
     const string get_data_string(const int i);
 };

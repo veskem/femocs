@@ -46,15 +46,7 @@
 #include <deal.II/grid/grid_reordering.h>
 #include <deal.II/grid/grid_tools.h>
 
-#include <stdio.h>
-#include <fstream>
-#include <iostream>
-#include <cmath>
-#include <iomanip>
-#include <omp.h>
-#include <memory>
-#include <string>
-
+#include "Macros.h"
 #include "AtomReader.h"
 #include "Tethex.h"
 
@@ -75,7 +67,7 @@ public:
     void import_file(const string file_name);
 
     void make_simple_mesh();
-    void import_tetgen_mesh(shared_ptr<Mesh> mesh);
+    void import_tetgen_mesh(femocs::Mesh* mesh);
     void import_tethex_mesh(tethex::Mesh* mesh);
 
     void output_mesh(const string file_name);
@@ -90,10 +82,9 @@ public:
     void distort_solution_const(const double dist_ampl);
     void distort_solution_one(const double dist_ampl, const int i);
 
-
 private:
 
-    const string get_file_type(const string& file_name);
+    const string get_file_type(const string file_name);
     bool on_boundary(const double face, const double face_min, const double face_max);
 
     Triangulation<3> triangulation;
@@ -105,7 +96,7 @@ private:
     Vector<double> system_rhs;
     ConstraintMatrix constraints;
 
-    double neumann;  //!< gradient length for the solution at some boundary (in current case at the top)
+    double neumann; //!< gradient length for the solution at some boundary (in current case at the top)
 };
 
 } /* namespace femocs */

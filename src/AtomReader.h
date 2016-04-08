@@ -8,8 +8,7 @@
 #ifndef ATOMREADER_H_
 #define ATOMREADER_H_
 
-#include <string>
-#include <vector>
+#include "Macros.h"
 
 using namespace std;
 namespace femocs {

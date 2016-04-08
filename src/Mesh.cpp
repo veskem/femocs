@@ -7,6 +7,10 @@
 
 #include "Mesh.h"
 
+#include <iostream>
+#include <fstream>
+#include <algorithm>
+
 using namespace std;
 namespace femocs {
 
@@ -14,7 +18,6 @@ Centre::Centre(double x, double y, double z) {
     this->x = x;
     this->y = y;
     this->z = z;
-    //this->r2 = x*x + y*y + z*z;
 }
 
 bool Centre::is_equal(Centre centre) {
@@ -52,48 +55,48 @@ Mesh::~Mesh() {
 // *** GETTERS: ***************
 
 const double Mesh::get_x(int i) {
-    return tetIO.pointlist[3*i+0];
+    return tetIO.pointlist[3 * i + 0];
 }
 
 const double Mesh::get_y(int i) {
-    return tetIO.pointlist[3*i+1];
+    return tetIO.pointlist[3 * i + 1];
 }
 
 const double Mesh::get_z(int i) {
-    return tetIO.pointlist[3*i+2];
+    return tetIO.pointlist[3 * i + 2];
 }
 
 const double Mesh::get_node(int i, int xyz) {
 #if DEBUGMODE
-    if(  (i < 0) || (i >= get_n_nodes()) || (xyz < 0) || (xyz > 2) )
+    if ((i < 0) || (i >= get_n_nodes()) || (xyz < 0) || (xyz > 2))
         cout << "Index out of number of nodes or coordinates bounds!" << endl;
 #endif
-    return tetIO.pointlist[3*i+xyz];
+    return tetIO.pointlist[3 * i + xyz];
 }
 
 const int Mesh::get_face(int i, int node) {
 #if DEBUGMODE
-    if(  (i < 0) || (i >= get_n_faces()) || (node < 0) || (node > 2) ) {
+    if ((i < 0) || (i >= get_n_faces()) || (node < 0) || (node > 2)) {
         cout << "Index out of number of faces or nodes bounds!" << endl;
         return -1;
     }
 #endif
-    return tetIO.trifacelist[3*i+node];
+    return tetIO.trifacelist[3 * i + node];
 }
 
 const int Mesh::get_elem(int i, int node) {
 #if DEBUGMODE
-    if( (i < 0) || (i >= get_n_elems()) || (node < 0) || (node > 3) ) {
+    if ((i < 0) || (i >= get_n_elems()) || (node < 0) || (node > 3)) {
         cout << "Index out of number of elements or nodes bounds!" << endl;
         return -1;
     }
 #endif
-    return tetIO.tetrahedronlist[4*i+node];
+    return tetIO.tetrahedronlist[4 * i + node];
 }
 
 const double Mesh::get_face_centre(int i, int xyz) {
 #if DEBUGMODE
-    if( (i < 0) || (i >= get_n_faces()) || (xyz < 0) || (xyz > 2) ) {
+    if ((i < 0) || (i >= get_n_faces()) || (xyz < 0) || (xyz > 2)) {
         cout << "Index out of number of faces or coordinates bounds!" << endl;
         return -1.0;
     }
@@ -106,7 +109,7 @@ const double Mesh::get_face_centre(int i, int xyz) {
 
 const double Mesh::get_elem_centre(int i, int xyz) {
 #if DEBUGMODE
-    if( (i < 0) || (i >= get_n_elems()) || (xyz < 0) || (xyz > 2) ) {
+    if ((i < 0) || (i >= get_n_elems()) || (xyz < 0) || (xyz > 2)) {
         cout << "Index out of number of elements or coordinates bounds!" << endl;
         return -1.0;
     }
@@ -250,7 +253,7 @@ void Mesh::init_centres(const int N) {
 // *** ADDERS: ***************
 
 void Mesh::add_centre(const double x, const double y, const double z) {
-    centres.push_back(Centre(x,y,z));
+    centres.push_back(Centre(x, y, z));
 }
 
 void Mesh::add_volume(const double V) {

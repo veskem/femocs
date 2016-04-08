@@ -1,5 +1,10 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
 
+# specify the compilers
+ENABLE_LANGUAGE(C Fortran)
+SET(CMAKE_Fortran_COMPILER /usr/bin/gfortran)
+SET(CMAKE_C_COMPILER /usr/bin/g++)
+
 # specify the path to deal.II files
 SET(DEAL_II_DIR ~/bin/deal.II)
 
@@ -23,7 +28,7 @@ SET(CMAKE_BUILD_TYPE Release)
 #SET(CMAKE_BUILD_TYPE Debug)
 
 # disable or enable all warnings
-SET(CMAKE_CXX_FLAGS_RELEASE "-w -O3")
+SET(CMAKE_CXX_FLAGS_RELEASE "-w -O3 -lstdc++ -lgfortran")
 SET(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wpedantic -O2")
 # ==============================================
 
@@ -41,6 +46,7 @@ IF(OPENMP_FOUND)
 ENDIF()
 
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
-ADD_EXECUTABLE(${TARGET} ${TARGET_SRC} ${TARGET_INC})
+ADD_EXECUTABLE(${TARGET} ../src/Helmod.f90 ${TARGET_SRC} ${TARGET_INC})
+#ADD_EXECUTABLE(${TARGET} ${TARGET_SRC} ${TARGET_INC})
 TARGET_LINK_LIBRARIES(${TARGET} ${LIBRARIES})
 DEAL_II_SETUP_TARGET(${TARGET})

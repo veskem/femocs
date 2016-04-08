@@ -7,6 +7,9 @@
 
 #include "DealII.h"
 
+#include <stdio.h>
+#include <fstream>
+
 using namespace std;
 using namespace dealii;
 
@@ -36,7 +39,7 @@ void DealII::import_file(const string file_name) {
 }
 
 // Extract the file type from file name
-const string DealII::get_file_type(const string& file_name) {
+const string DealII::get_file_type(const string file_name) {
     int start = file_name.find_last_of('.') + 1;
     int end = file_name.size();
     return file_name.substr(start, end);
@@ -109,7 +112,7 @@ void DealII::import_tethex_mesh(tethex::Mesh* mesh) {
 }
 
 // Import tetrahedral mesh
-void DealII::import_tetgen_mesh(shared_ptr<Mesh> mesh) {
+void DealII::import_tetgen_mesh(femocs::Mesh* mesh) {
     const int n_nodes_in_elem = 4;
     const int n_coords = 3;
 

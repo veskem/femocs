@@ -17,7 +17,26 @@
 
 #include "Tethex.h"
 
+#include <sstream>
+#include <stdexcept>
+#include <memory>
+#include <algorithm>
+#include <fstream>
+#include <cmath>
+
 namespace tethex {
+
+//-------------------------------------------------------
+//
+// d2s - convert data to string
+//
+//-------------------------------------------------------
+template<typename T>
+inline std::string d2s(T data) {
+    std::ostringstream o;
+    if (!(o << data)) throw std::runtime_error("Bad conversion of data to string!");
+    return o.str();
+}
 
 //-------------------------------------------------------
 //
@@ -774,11 +793,11 @@ void Mesh::read_femocs(femocs::Mesh* femocs_mesh) {
         std::vector<int> nodes(n_elem_nodes); // allocate memory for nodes
         for (int i = 0; i < n_elem_nodes; ++i)
             nodes[i] = femocs_mesh->get_elem(el, i); // read the of nodes
-            
+
         tetrahedra.push_back(new Tetrahedron(nodes, phys_domain));
         nodes.clear();
     } // Read elements
-    
+
     // read the mesh faces
     int n_faces = femocs_mesh->get_n_faces(); // the number of mesh faces
     const int n_face_nodes = 3; // the number of nodes per element
@@ -786,7 +805,7 @@ void Mesh::read_femocs(femocs::Mesh* femocs_mesh) {
         std::vector<int> nodes(n_face_nodes); // allocate memory for nodes
         for (int i = 0; i < n_face_nodes; ++i)
             nodes[i] = femocs_mesh->get_face(face, i); // read the nodes
-            
+
         triangles.push_back(new Triangle(nodes, phys_domain));
         nodes.clear();
     } // Read faces
@@ -1287,8 +1306,8 @@ void Mesh::write(const std::string &file) {
     out.close();
 }
 
-
-void Mesh::write_vtk(const std::string &file, const std::vector<MeshElement*> &elems, const int &nnodes_in_cell, const int &celltype) {
+void Mesh::write_vtk(const std::string &file, const std::vector<MeshElement*> &elems,
+        const int &nnodes_in_cell, const int &celltype) {
     std::ofstream out(file.c_str());
     require(out, "File " + file + " cannot be opened for writing!");
 
