@@ -32,7 +32,7 @@ public:
      * Function to export the data of Medium
      * @param file_name - path for file to save the data
      */
-    const void output(const string& file_name);
+    const void output(const string file_name);
 
     /** Calculate statistics about the coordinates in Medium */
     const void calc_statistics();

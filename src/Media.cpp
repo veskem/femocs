@@ -167,7 +167,8 @@ Surface::Surface(const double latconst, const int nnn) {
 const void Surface::extract_surface(AtomReader* reader) {
     if (reader->types.simu_type == "md")
         coordination_extract(reader);
-    else if (reader->types.simu_type == "kmc") kmc_extract(reader);
+    else if (reader->types.simu_type == "kmc")
+        kmc_extract(reader);
 
     calc_statistics();
 }

@@ -24,9 +24,13 @@ namespace femocs {
 
 // Definitions for development and debugging mode
 #if DEBUGMODE
-#define assert(condition, message) \
+#define require(condition, message) \
         if (!(condition))              \
-          requirement_fails(__FILE__, __LINE__, message)
+          __requirement_fails(__FILE__, __LINE__, message)
+
+#define expect(condition, message) \
+        if (!(condition))              \
+          __expectation_fails(__FILE__, __LINE__, message)
 
 /** Definition to print progress messages and to find the start time of code execution */
 #define start_msg(t0, message) t0 = __start_msg(message)
@@ -36,13 +40,17 @@ namespace femocs {
 
 // In release(-like) versions nothing happens
 #else
-#define assert(condition, message) {}
+#define require(condition, message) {}
+#define expect(condition, message) {}
 #define start_msg(t0, message) {}
 #define end_msg(t0) {}
 #endif // DEBUGMODE
 
 /** Throw an informative exception if expectation fails */
-void requirement_fails(const char *file, int line, char* message);
+void __requirement_fails(const char *file, int line, string message);
+
+/** Throw an warning if expectation fails */
+void __expectation_fails(const char *file, int line, string message);
 
 const double __start_msg(const char* message);
 

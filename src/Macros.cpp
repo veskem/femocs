@@ -15,7 +15,7 @@
 using namespace std;
 namespace femocs {
 
-/** Template to convert data to string */
+/* Template to convert data to string */
 template<typename T>
 inline string d2s(T data) {
     ostringstream o;
@@ -23,10 +23,18 @@ inline string d2s(T data) {
     return o.str();
 }
 
-void requirement_fails(const char *file, int line, char* message) {
+// Function to handle failed requirement
+void __requirement_fails(const char *file, int line, string message) {
     string exc = "Exception:\nfile = " + string(file) + "\nline = " + d2s(line) + "\nmessage = "
-            + string(message) + "\n";
+            + message + "\n";
     throw runtime_error(exc);
+}
+
+// Function to handle failed expectation
+void __expectation_fails(const char *file, int line, string message) {
+    string exc = "Warning:\nfile = " + string(file) + "\nline = " + d2s(line) + "\nmessage = "
+            + message + "\n";
+    cout << exc << endl;
 }
 
 const double __start_msg(const char* message) {

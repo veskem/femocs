@@ -51,6 +51,8 @@ public:
 private:
     const int n_nodes_per_elem = 4;
     const int n_nodes_per_face = 3;
+    const int n_coordinates = 3;
+
     double latconst;
 
     const void extract_mesh(vector<bool>* is_vacuum, Mesh* big_mesh, const int nmax,

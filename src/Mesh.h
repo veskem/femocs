@@ -16,21 +16,6 @@ using namespace std;
 namespace femocs {
 
 /**
- * Class describing the centre of tetrahedral element
- */
-class Centre {
-public:
-    Centre(double x, double y, double z);
-
-    bool is_equal(Centre centre);
-    double x;
-    double y;
-    double z;
-
-private:
-};
-
-/**
  * Class to create and handle FEM mesh in tetgen format
  * http://wias-berlin.de/software/tetgen/1.5/
  */
@@ -48,9 +33,6 @@ public:
     void init_nodemarkers(const int N);
 
     void init_volumes(const int N);
-    void init_centres(const int N);
-
-    void set_facemarker(const int i, const int m);
 
     void add_node(const double x, const double y, const double z);
     void add_face(const int f1, const int f2, const int f3);
@@ -61,7 +43,6 @@ public:
     void add_elemmarker(const int m);
 
     void add_volume(const double V);
-    void add_centre(const double x, const double y, const double z);
 
     void copy_statistics(Mesh* mesh);
 
@@ -87,7 +68,6 @@ public:
     const int get_facemarker(const int i);
     const int get_elemmarker(const int i);
     double get_volume(const int i);
-    Centre get_centre(const int i);
 
     int* get_nodemarkers();
     vector<int>* get_facemarkers();
@@ -107,18 +87,15 @@ public:
     const double get_face_centre(int i, int xyz);
     const double get_elem_centre(int i, int xyz);
 
-    void calc_centres();
     void calc_volumes();
     void calc_volume_statistics();
 
     void recalc(const string cmd);
-    void output(const string cmd);
+    void output();
 
     void write_nodes(const string file_name);
     void write_faces(const string file_name);
     void write_elems(const string file_name);
-
-    void transform_elemmarkers();
 
     tetgenio tetIO;
     /** Struct holding data about mesh statistics */
@@ -131,25 +108,27 @@ public:
     Stat stat;
 
 private:
+    const int n_nodes_per_elem = 4;
+    const int n_nodes_per_face = 3;
+    const int n_coordinates = 3;
+
     tetgenbehavior tetgenbeh;
 
-    int inodes;
-    int ielems;
-    int ifaces;
+    int i_nodes;
+    int i_elems;
+    int i_faces;
 
-    int i_nodemarker;
+    int i_nodemarkers;
 
     vector<int> nodemarkers;
     vector<int> facemarkers;
     vector<int> elemmarkers;
     vector<double> volumes;
-    vector<Centre> centres;
 
     // Function to output mesh in .vtk format
-    void write_vtk(const string file_name, const int nnodes, const int ncells,
-            const int nnodemarkers, const int nmarkers, const REAL* nodes, const int* cells,
-            const int* nodemarkers, const vector<int>* markers, const int celltype,
-            const int nnodes_in_cell);
+    void write_vtk(const string file_name, const int n_nodes, const int n_cells,
+            const int n_markers, const REAL* nodes, const int* cells, const vector<int>* markers,
+            const int celltype, const int n_nodes_in_cell);
 };
 
 } /* namespace femocs */
