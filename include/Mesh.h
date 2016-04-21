@@ -9,12 +9,7 @@
 #define MESH_H_
 
 #include "Macros.h"
-
-<<<<<<< HEAD:src/Mesh.h
-#include "../lib/tetgen.h"
-=======
 #include "Tetgen.h"
->>>>>>> Intro of C/Fortran api, restructuring the filesystem:include/Mesh.h
 
 using namespace std;
 namespace femocs {

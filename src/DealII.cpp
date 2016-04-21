@@ -19,11 +19,7 @@ namespace femocs {
 // Define main class constructor. Number in fe(2) determines the interpolation type. 1 would be linear etc.
 //DealII::DealII() : fe(1), dof_handler(triangulation) {
 DealII::DealII(const int poly_degree, const double neumann) :
-<<<<<<< HEAD
         fe(poly_degree), dof_handler(triangulation) {
-=======
-            fe(poly_degree), dof_handler(triangulation) {
->>>>>>> Intro of C/Fortran api, restructuring the filesystem
     this->neumann = neumann;
 }
 
@@ -368,13 +364,9 @@ void DealII::assemble_system(const AtomReader::Types* types) {
     map<types::global_dof_index, double> copper_boundary_value;
 
     // Add Dirichlet' boundary condition to faces denoted as surface
-<<<<<<< HEAD
     VectorTools::interpolate_boundary_values(dof_handler, types->type_surf, ZeroFunction<DIM>(),
             copper_boundary_value);
 
-=======
-    VectorTools::interpolate_boundary_values(dof_handler, types->type_surf, ZeroFunction<DIM>(), copper_boundary_value);
->>>>>>> Intro of C/Fortran api, restructuring the filesystem
     // Apply boundary values to system matrix
     MatrixTools::apply_boundary_values(copper_boundary_value, system_matrix, solution, system_rhs);
 }

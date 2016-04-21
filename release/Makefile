@@ -1,7 +1,7 @@
 
 FC = gfortran-4.9
 DEALII = ../deal.II/lib
-EXEC = ../test/Standalone.cpp
+EXEC = ../test/Helmod.f90
 
 FCFLAGS = -Wall -Wextra -L../lib -L${DEALII} -I../lib -I../include
 LDFLAGS = -lfemocs -ltet -ldeal_II -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -std=c++11

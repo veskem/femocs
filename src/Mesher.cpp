@@ -8,10 +8,6 @@
 #include "Mesher.h"
 
 #include <memory>
-<<<<<<< HEAD
-#include <iostream>
-=======
->>>>>>> Intro of C/Fortran api, restructuring the filesystem
 #include <algorithm>
 
 using namespace std;

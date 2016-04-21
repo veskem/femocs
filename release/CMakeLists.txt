@@ -1,17 +1,7 @@
 
-<<<<<<< HEAD
-# specify the compilers
-ENABLE_LANGUAGE(C Fortran)
-SET(CMAKE_Fortran_COMPILER /usr/bin/gfortran)
-SET(CMAKE_C_COMPILER /usr/bin/g++)
-
-# specify the path to deal.II files
-SET(DEAL_II_DIR ~/bin/deal.II)
-=======
 cmake_minimum_required (VERSION 2.6)
 project (femocs C CXX Fortran)
 SET(CMAKE_Fortran_COMPILER gfortran-4.9)
->>>>>>> Intro of C/Fortran api, restructuring the filesystem
 
 # specify the name of the library
 SET(LIB_NAME "femocs")
@@ -34,13 +24,8 @@ INCLUDE_DIRECTORIES(../include)
 SET(CMAKE_BUILD_TYPE Release)
 #SET(CMAKE_BUILD_TYPE Debug)
 
-<<<<<<< HEAD
-# disable or enable all warnings
-SET(CMAKE_CXX_FLAGS_RELEASE "-w -O3 -lstdc++ -lgfortran")
-=======
 # Specify warnings and optimization level
 SET(CMAKE_CXX_FLAGS_RELEASE "-w -O3")
->>>>>>> Intro of C/Fortran api, restructuring the filesystem
 SET(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wpedantic -O2")
 
 FIND_PACKAGE(deal.II 8.3 REQUIRED HINTS ${DEAL_II_DIR})
@@ -54,12 +39,5 @@ IF(OPENMP_FOUND)
 ENDIF()
 
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
-<<<<<<< HEAD
-ADD_EXECUTABLE(${TARGET} ../src/Helmod.f90 ${TARGET_SRC} ${TARGET_INC})
-#ADD_EXECUTABLE(${TARGET} ${TARGET_SRC} ${TARGET_INC})
-TARGET_LINK_LIBRARIES(${TARGET} ${LIBRARIES})
-DEAL_II_SETUP_TARGET(${TARGET})
-=======
 ADD_LIBRARY (${LIB_NAME} STATIC ${TARGET_SRC})
 DEAL_II_SETUP_TARGET (${LIB_NAME})
->>>>>>> Intro of C/Fortran api, restructuring the filesystem
