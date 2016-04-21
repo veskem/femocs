@@ -6,6 +6,7 @@
  */
 
 #include "DealII.h"
+#include <fstream>
 
 #include <stdio.h>
 #include <fstream>
@@ -18,7 +19,11 @@ namespace femocs {
 // Define main class constructor. Number in fe(2) determines the interpolation type. 1 would be linear etc.
 //DealII::DealII() : fe(1), dof_handler(triangulation) {
 DealII::DealII(const int poly_degree, const double neumann) :
+<<<<<<< HEAD
         fe(poly_degree), dof_handler(triangulation) {
+=======
+            fe(poly_degree), dof_handler(triangulation) {
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
     this->neumann = neumann;
 }
 
@@ -45,7 +50,7 @@ const string DealII::get_file_type(const string file_name) {
     return file_name.substr(start, end);
 }
 
-// Inspiration from the grid_in source,
+// Modified version of grid_in function,
 // https://github.com/dealii/dealii/blob/master/source/grid/grid_in.cc
 void DealII::import_tethex_mesh(tethex::Mesh* mesh) {
 
@@ -257,20 +262,6 @@ void DealII::setup_system() {
     solution.reinit(dof_handler.n_dofs());
 }
 
-void DealII::distort_solution(const double dist_ampl) {
-    for (int i = 0; i < solution.size(); ++i)
-        solution[i] += dist_ampl * random();
-}
-
-void DealII::distort_solution_const(const double dist_ampl) {
-    for (int i = 0; i < solution.size(); ++i)
-        solution[i] += dist_ampl;
-}
-
-void DealII::distort_solution_one(const double dist_ampl, const int i) {
-    solution[i] += dist_ampl;
-}
-
 // Mark the boundary faces of mesh
 void DealII::mark_boundary(const AtomReader::Sizes* sizes, const AtomReader::Types* types) {
     typename Triangulation<DIM>::active_face_iterator face;
@@ -377,30 +368,23 @@ void DealII::assemble_system(const AtomReader::Types* types) {
     map<types::global_dof_index, double> copper_boundary_value;
 
     // Add Dirichlet' boundary condition to faces denoted as surface
+<<<<<<< HEAD
     VectorTools::interpolate_boundary_values(dof_handler, types->type_surf, ZeroFunction<DIM>(),
             copper_boundary_value);
 
+=======
+    VectorTools::interpolate_boundary_values(dof_handler, types->type_surf, ZeroFunction<DIM>(), copper_boundary_value);
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
     // Apply boundary values to system matrix
     MatrixTools::apply_boundary_values(copper_boundary_value, system_matrix, solution, system_rhs);
 }
 
 // Run the calculation with conjugate gradient solver
 void DealII::solve_cg() {
-    //declare Conjugate Gradient solver tolerance and number if iterations used to achieve a converged solution
+    // Declare Conjugate Gradient solver tolerance and max number of iterations
     SolverControl solver_control(10000, 1e-9);
     SolverCG<> solver(solver_control);
     solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
-    /*
-     // Initialize solver
-     PreconditionSSOR<> preconditioner;
-     preconditioner.initialize(system_matrix, 1.2);
-
-     //run solver
-     solver.solve(system_matrix, solution, system_rhs, preconditioner);
-
-     //make constraints apply to solution
-     constraints.distribute(solution);
-     //*/
 }
 
 // Run the calculation with UMFPACK solver

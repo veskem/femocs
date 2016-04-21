@@ -10,12 +10,7 @@
 
 #include "Macros.h"
 
-#if not STANDALONEMODE
-extern "C" {
-#endif // STANDALONEMODE
-
 using namespace std;
-namespace femocs {
 
 /**
  * Main class to hold Femocs object
@@ -26,7 +21,7 @@ public:
      * Constructor of Femocs reads in and stores input parameters.
      * @param file_name - path to Femocs input script.
      */
-    Femocs(const string file_name);
+    Femocs(string file_name);
 
     /** Struct holding data about input parameters. */
     struct Config {
@@ -52,24 +47,11 @@ public:
      */
 //    const void run_femocs(const double E0, double*** BC, double*** phi_guess,
 //            const double* grid_spacing);
-    const void run_femocs();
+    const void run(double c);
 
 private:
-    /**
-     * Function to get configuration parameters from input script
-     * @param file_name - path to input script
-     * @return configuration parameters to Femocs::Config struct
-     */
-    const Config parse_input_script(const string file_name) const;
-
 };
 
-} /* namespace femocs */
-
-void femocs_speaker();
-
-#if not STANDALONEMODE
-}
-#endif // STANDALONEMODE
+const void femocs_speaker(string path);
 
 #endif /* FEMOCS_H_ */

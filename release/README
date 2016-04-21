@@ -1,0 +1,39 @@
+Instructions to build the femocs library
+----------------------------------------
+
+* Specify the location of deal.II library in system by modifing the DEAL_II_DIR variable
+  in femocs/release/CMakeLists.txt;
+
+* Do the femocs build while being in a femocs/release/build directory:
+mkdir build; cd build;
+
+* If it's dirty from previous usage, clean it up:
+rm * -r
+
+* Build make files:
+cmake ..
+
+* Make them:
+make
+
+* As a result the static library libfemocs.a and fortran module file libfemocs.mod
+  will be generated in directories femocs/lib and femocs/include, respectively.
+
+========================================
+
+Testing the femocs library
+----------------------------------------
+
+* Select from femocs/test directory suitable testing program that is
+  whether standalone code or mimics the behaviour of Helmod or Kimocs;
+
+* Specify the path of selected file as a variable EXEC in femocs/release/Makefile;
+
+* Specify the location of deal.II static library libdeal_II.a by modifing the
+  variable DEALII in femocs/release/Makefile;
+
+* In a folder femocs/release, make the Makefile:
+make
+
+* Run the testcode while being in femocs directory:
+./release/femocs

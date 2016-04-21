@@ -15,6 +15,7 @@
 #include "Tethex.h"
 
 #include <omp.h>
+<<<<<<< HEAD
 #include <iostream>
 
 using namespace std;
@@ -47,16 +48,46 @@ const Femocs::Config Femocs::parse_input_script(const string fileName) const {
     conf.neumann = 10.0;                    // Neumann boundary condition value
 
     return conf;
+=======
+
+using namespace std;
+
+// Femocs constructor, specifies simulation parameters
+Femocs::Femocs(string file_name) {
+    //*
+    //    conf.infile = "input/rough110.ckx";
+    conf.infile = "input/mushroom1.ckx";
+    conf.latconst = 2.0;        // lattice constant
+    conf.coord_cutoff = 3.3;    // coordination analysis cut off radius
+    //*/
+    /*
+     conf.infile = "input/nanotip_medium.xyz";
+     conf.latconst = 3.61;       // lattice constant
+     conf.coord_cutoff = 3.4;   // coordination analysis cut off radius
+     //*/
+
+    conf.nnn = 12;                          // number of nearest neighbours in bulk
+    conf.mesher = "tetgen";                 // mesher algorithm
+    conf.nt = 4;                            // number of OpenMP threads
+    conf.poly_degree = 1;                   // finite element polynomial degree
+    conf.neumann = 10.0;                    // Neumann boundary condition value
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
 }
 
 // Workhorse function to run Femocs simulation
 //const void Femocs::run_femocs(const double E0, double*** BC, double*** phi_guess, const double* grid_spacing) {
+<<<<<<< HEAD
 const void Femocs::run_femocs() {
     AtomReader reader;
+=======
+const void Femocs::run(double c) {
+    femocs::AtomReader reader;
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
 
     double t0, tstart;  // Variables used to measure the start time of a section
 
     start_msg(tstart, "======= Femocs started =======");
+<<<<<<< HEAD
     //*
     start_msg(t0, "=== Importing atoms...");
 //#if STANDALONEMODE
@@ -69,6 +100,11 @@ const void Femocs::run_femocs() {
 //    cout << "Incorrent MODE definitions in Macros.h !" << endl;
 //    exit(EXIT_FAILURE);
 //#endif
+=======
+
+    start_msg(t0, "=== Importing atoms...");
+    reader.import_file(conf.infile);
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
     end_msg(t0);
 
     start_msg(t0, "=== Calculating coordinations of atoms...");
@@ -76,7 +112,11 @@ const void Femocs::run_femocs() {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting surface...");
+<<<<<<< HEAD
     Surface surf(conf.latconst, conf.nnn);
+=======
+    femocs::Surface surf(conf.latconst, conf.nnn);
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
     surf.extract_surface(&reader);
     end_msg(t0);
 
@@ -86,14 +126,23 @@ const void Femocs::run_femocs() {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting bulk...");
+<<<<<<< HEAD
     Bulk bulk(conf.latconst, conf.nnn);
+=======
+    femocs::Bulk bulk(conf.latconst, conf.nnn);
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
 //    bulk.extract_bulk(&reader);
     bulk.extract_truncated_bulk(&reader);
     bulk.rectangularize(&reader.sizes);
     end_msg(t0);
 
+<<<<<<< HEAD
     start_msg(t0, "=== Generating vacuum...");
     Vacuum vacuum;
+=======
+    start_msg(t0, "=== Generating new vacuum...");
+    femocs::Vacuum vacuum;
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
     vacuum.generate_simple(&reader.sizes);
     end_msg(t0);
 
@@ -104,10 +153,14 @@ const void Femocs::run_femocs() {
     end_msg(t0);
 
 // ===============================================
+<<<<<<< HEAD
     Mesher mesher(conf.mesher, conf.latconst);
+=======
+    femocs::Mesher mesher(conf.mesher, conf.latconst);
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
 
     start_msg(t0, "=== Making big mesh...");
-    Mesh big_mesh;
+    femocs::Mesh big_mesh(conf.mesher);
     mesher.get_volume_mesh(&big_mesh, &bulk, &vacuum, "Q");
 
     big_mesh.write_faces("output/faces0.vtk");
@@ -118,8 +171,13 @@ const void Femocs::run_femocs() {
     end_msg(t0);
 
     start_msg(t0, "=== Separating vacuum and bulk mesh...");
+<<<<<<< HEAD
     Mesh bulk_mesh;
     Mesh vacuum_mesh;
+=======
+    femocs::Mesh bulk_mesh(conf.mesher);
+    femocs::Mesh vacuum_mesh(conf.mesher);
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
 //    mesher.separate_vacuum_mesh(&vacuum_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), bulk.sizes.zmin, "rQ");
 //    mesher.separate_bulk_mesh(&bulk_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), bulk.sizes.zmin, "rQ");
     mesher.separate_meshes(&bulk_mesh, &vacuum_mesh, &big_mesh, bulk.get_n_atoms(),
@@ -151,7 +209,11 @@ const void Femocs::run_femocs() {
 //    tethex_mesh.write_vtk_elems("output/tethex_elems.vtk");
 //    end_msg(t0);
 
+<<<<<<< HEAD
     DealII laplace(conf.poly_degree, conf.neumann);
+=======
+    femocs::DealII laplace(conf.poly_degree, conf.neumann);
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
 
     start_msg(t0, "=== Importing tethex mesh into Deal.II...");
     laplace.import_tethex_mesh(&tethex_mesh);
@@ -183,6 +245,7 @@ const void Femocs::run_femocs() {
     //*/
 }
 
+<<<<<<< HEAD
 } /* namespace femocs */
 
 // ================================================
@@ -232,3 +295,9 @@ void femocs_speaker() {
     fem.run_femocs();
 }
 #endif // HELMODMODE
+=======
+const void femocs_speaker(string path) {
+    Femocs fem(path);
+    fem.run(1.0);
+}
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem

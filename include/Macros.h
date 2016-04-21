@@ -12,15 +12,16 @@
  * Disabling the debug mode makes code to run faster and removes the debug messages */
 #define DEBUGMODE true
 
-#define STANDALONEMODE false
-#define HELMODMODE true
-#define KIMOCSMODE false
+//#define STANDALONEMODE false
+//#define HELMODMODE true
+//#define KIMOCSMODE false
 
+#include <iostream>
 #include <string>
 #include <vector>
 
 using namespace std;
-namespace femocs {
+//namespace femocs {
 
 // Definitions for development and debugging mode
 #if DEBUGMODE
@@ -56,6 +57,6 @@ const double __start_msg(const char* message);
 
 const void __end_msg(const double t0);
 
-} /* namespace femocs */
+//} /* namespace femocs */
 
 #endif /* MACROS_H_ */

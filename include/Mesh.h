@@ -10,7 +10,11 @@
 
 #include "Macros.h"
 
+<<<<<<< HEAD:src/Mesh.h
 #include "../lib/tetgen.h"
+=======
+#include "Tetgen.h"
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem:include/Mesh.h
 
 using namespace std;
 namespace femocs {
@@ -21,7 +25,7 @@ namespace femocs {
  */
 class Mesh {
 public:
-    Mesh();
+    Mesh(const string mesher);
     ~Mesh();
 
     void init_nodes(const int N);

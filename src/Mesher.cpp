@@ -8,15 +8,18 @@
 #include "Mesher.h"
 
 #include <memory>
+<<<<<<< HEAD
 #include <iostream>
+=======
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
 #include <algorithm>
 
 using namespace std;
 namespace femocs {
 
-Mesher::Mesher(string mesher, const double latconst) {
-    if (mesher != "tetgen") cout << "Unknown mesher: " + mesher << endl;
+Mesher::Mesher(const string mesher, const double latconst) {
     this->latconst = latconst;
+    this->mesher = mesher;
 }
 
 // Function to generate simple mesh that consists of one tetrahedron
@@ -199,7 +202,7 @@ const void Mesher::generate_surf_faces(Mesh* mesh, const int nmax) {
     int n_qualityfaces = accumulate(is_quality.begin(), is_quality.end(), 0);
 
     // Make temporary copy of available faces
-    Mesh temp_mesh;
+    Mesh temp_mesh(this->mesher);
     temp_mesh.init_faces(n_faces);
     temp_mesh.copy_faces(mesh, 0);
 
@@ -387,7 +390,7 @@ void Mesher::clean_faces(Mesh* mesh, const double rmax, const string cmd) {
     }
 
     // Make temporary copy from the input mesh
-    shared_ptr<Mesh> temp_mesh(new Mesh());
+    shared_ptr<Mesh> temp_mesh(new Mesh(this->mesher));
     temp_mesh->init_faces(mesh->get_n_faces());
     temp_mesh->copy_faces(mesh, 0);
 

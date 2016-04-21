@@ -25,7 +25,7 @@ namespace femocs {
 
 class Mesher {
 public:
-    Mesher(string mesher, const double latconst);
+    Mesher(const string mesher, const double latconst);
     virtual ~Mesher() {
     }
     ;
@@ -54,6 +54,7 @@ private:
     const int n_coordinates = 3;
 
     double latconst;
+    string mesher;
 
     const void extract_mesh(vector<bool>* is_vacuum, Mesh* big_mesh, const int nmax,
             const int n_surf, const double zmin);

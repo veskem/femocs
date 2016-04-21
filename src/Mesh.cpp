@@ -7,7 +7,10 @@
 
 #include "Mesh.h"
 
+<<<<<<< HEAD
 #include <iostream>
+=======
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
 #include <fstream>
 #include <algorithm>
 
@@ -15,7 +18,13 @@ using namespace std;
 namespace femocs {
 
 // Mesh constructor
+<<<<<<< HEAD
 Mesh::Mesh() {
+=======
+Mesh::Mesh(const string mesher) {
+    require(mesher == "tetgen", "Unimplemented mesher!");
+
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
     i_nodes = 0;
     i_elems = 0;
     i_faces = 0;
@@ -220,6 +229,7 @@ void Mesh::add_node(const double x, const double y, const double z) {
     tetIO.pointlist[i + 2] = (REAL) z;
     i_nodes++;
 }
+<<<<<<< HEAD
 
 void Mesh::add_face(const int f1, const int f2, const int f3) {
     require(get_n_faces() < tetIO.numberoftrifaces, "Allocated size of elements exceeded!");
@@ -230,6 +240,18 @@ void Mesh::add_face(const int f1, const int f2, const int f3) {
     i_faces++;
 }
 
+=======
+
+void Mesh::add_face(const int f1, const int f2, const int f3) {
+    require(get_n_faces() < tetIO.numberoftrifaces, "Allocated size of elements exceeded!");
+    int i = 3 * i_faces;
+    tetIO.trifacelist[i + 0] = f1;
+    tetIO.trifacelist[i + 1] = f2;
+    tetIO.trifacelist[i + 2] = f3;
+    i_faces++;
+}
+
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
 void Mesh::add_elem(const int e1, const int e2, const int e3, const int e4) {
     require(get_n_elems() < tetIO.numberoftetrahedra, "Allocated size of elements exceeded!");
     int i = 4 * i_elems;

@@ -1,5 +1,5 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
 
+<<<<<<< HEAD
 # specify the compilers
 ENABLE_LANGUAGE(C Fortran)
 SET(CMAKE_Fortran_COMPILER /usr/bin/gfortran)
@@ -7,37 +7,45 @@ SET(CMAKE_C_COMPILER /usr/bin/g++)
 
 # specify the path to deal.II files
 SET(DEAL_II_DIR ~/bin/deal.II)
+=======
+cmake_minimum_required (VERSION 2.6)
+project (femocs C CXX Fortran)
+SET(CMAKE_Fortran_COMPILER gfortran-4.9)
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
 
-# specify the name of the final executable
-SET(TARGET "femocs")
+# specify the name of the library
+SET(LIB_NAME "femocs")
 
-# path to source files
-FILE(GLOB_RECURSE TARGET_SRC "../src/*.cpp")
+# Specify folders where libfemocs and its .mod-file will be written
+# Those paths are (not like others) specified in relation to the location of Makefile
+SET (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ../../lib)
+SET (CMAKE_Fortran_MODULE_DIRECTORY ../../include)
 
-# path to headers
-FILE(GLOB_RECURSE TARGET_INC "../src/*.h")
+# Specify the path to deal.II files
+SET(DEAL_II_DIR ../deal.II)
 
-# path to libraries
-LINK_DIRECTORIES(../lib/)
+# Find source files
+FILE(GLOB_RECURSE TARGET_SRC "../src/*")
 
-# specify the names of the libraries
-SET(LIBRARIES tet)
+# Add the directory with headers to search path
+INCLUDE_DIRECTORIES(../include)
 
 # specify whether to build in debug or release mode
 SET(CMAKE_BUILD_TYPE Release)
 #SET(CMAKE_BUILD_TYPE Debug)
 
+<<<<<<< HEAD
 # disable or enable all warnings
 SET(CMAKE_CXX_FLAGS_RELEASE "-w -O3 -lstdc++ -lgfortran")
+=======
+# Specify warnings and optimization level
+SET(CMAKE_CXX_FLAGS_RELEASE "-w -O3")
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
 SET(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wpedantic -O2")
-# ==============================================
 
-FIND_PACKAGE(deal.II 8.3 REQUIRED
-  HINTS ${DEAL_II_DIR} ../ ../../ $ENV{DEAL_II_DIR}
-  )
+FIND_PACKAGE(deal.II 8.3 REQUIRED HINTS ${DEAL_II_DIR})
 IF(NOT ${deal.II_FOUND})
-  MESSAGE(FATAL_ERROR "\nCould not locate a (sufficiently recent)"
-    "version of deal.II from" ${DEAL_II_DIR} "\n")
+  MESSAGE(FATAL_ERROR "\nCould not find deal.II from" ${DEAL_II_DIR} "\n")
 ENDIF()
 
 FIND_PACKAGE(OpenMP)
@@ -46,7 +54,12 @@ IF(OPENMP_FOUND)
 ENDIF()
 
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
+<<<<<<< HEAD
 ADD_EXECUTABLE(${TARGET} ../src/Helmod.f90 ${TARGET_SRC} ${TARGET_INC})
 #ADD_EXECUTABLE(${TARGET} ${TARGET_SRC} ${TARGET_INC})
 TARGET_LINK_LIBRARIES(${TARGET} ${LIBRARIES})
 DEAL_II_SETUP_TARGET(${TARGET})
+=======
+ADD_LIBRARY (${LIB_NAME} STATIC ${TARGET_SRC})
+DEAL_II_SETUP_TARGET (${LIB_NAME})
+>>>>>>> Intro of C/Fortran api, restructuring the filesystem
