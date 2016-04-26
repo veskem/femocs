@@ -36,7 +36,7 @@ public:
     /**
      * Function to transform atomic data from Helmod format into AtomReader one
      */
-    const void import_helmod();
+    const void import_helmod(int n_atoms, double* x, double* y, double* z, int* types);
     /**
      * Function to transform atomic data from Kimocs format into AtomReader one
      */
@@ -58,7 +58,7 @@ public:
     const int get_type(const int i);
 
     /** Get coordination of i-th atom in AtomReader */
-    const int get_coord(const int i);
+    const int get_coordination(const int i);
 
     /**
      * Calculate coordination for all the atoms in AtomReader
@@ -73,6 +73,9 @@ public:
 
     /** Redefine the min and max values for z-coordinates */
     const void resize_box(const double zmin, const double zmax);
+
+    /** Output surface data to file in xyz format */
+    const void output(const string file_name);
 
     /** Struct for holding data of the whole simulation cell. */
     struct Types {
@@ -126,6 +129,9 @@ private:
      */
     const string get_file_type(const string file_name);
 
+    /** Compile data string from the data vectors */
+    const string get_data_string(const int i);
+
     /**
      * Functions to import atoms from different types of file.
      * @param file_name - path to file with atomic data
@@ -134,8 +140,8 @@ private:
     const void import_ckx(const string file_name);
     const void import_dump(const string file_name);
 
-    const void calc_md_coordination(const double cutoff, const int nnn);
-    const void calc_kmc_coordination(const int nnn);
+    const void calc_slow_coordination(const double cutoff, const int nnn);
+    const void calc_dummy_coordination(const int nnn);
 
     const void reserve(const int n_atoms);
     const void add_atom(const double x, const double y, const double z, const int type);

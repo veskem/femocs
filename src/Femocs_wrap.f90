@@ -19,11 +19,23 @@ module libfemocs
             type(c_ptr), value :: femocs
         end subroutine
 
-        subroutine femocs_run_c(femocs, c) bind(C, name="femocs_run")
+        subroutine femocs_run_c(femocs, E_field, phi) bind(C, name="femocs_run")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
-            real(c_double), intent(in), value :: c
+            real(c_double), intent(in), value :: E_field
+            real(c_double) :: phi(:,:,:)
+        end subroutine
+        
+        subroutine femocs_import_atoms_c(femocs, n_atoms, x, y, z, types) bind(C, name="femocs_import_atoms")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int), value :: n_atoms
+            real(c_double) :: x(*)
+            real(c_double) :: y(*)
+            real(c_double) :: z(*)
+            integer(c_int) :: types(*)
         end subroutine
 
         ! void functions maps to subroutines
@@ -42,8 +54,9 @@ module libfemocs
         ! We can bind some functions to this type, allowing for a cleaner syntax.
         final :: delete_femocs ! Destructor
         procedure :: delete => delete_femocs_polymorph ! Destructor for gfortran
-        ! Function member
+        ! Function members
         procedure :: run => femocs_run
+        procedure :: import_atoms => femocs_import_atoms
     end type
 
     ! This function will act as the constructor for femocs type
@@ -82,11 +95,23 @@ contains ! Implementation of the functions. We just wrap the C function here.
         call delete_femocs_c(this%ptr)
     end subroutine
 
-    subroutine femocs_run(this, c)
+    subroutine femocs_run(this, E_field, phi)
         implicit none
         class(femocs), intent(in) :: this
-        double precision, intent(in) :: c
-        call femocs_run_c(this%ptr, c)
+        real(c_double), intent(in) :: E_field
+        real(c_double) :: phi(:,:,:)
+        call femocs_run_c(this%ptr, E_field, phi)
+    end subroutine
+    
+    subroutine femocs_import_atoms(this, n_atoms, x, y, z, types)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: n_atoms
+        real(c_double) :: x(*)
+        real(c_double) :: y(*)
+        real(c_double) :: z(*)
+        integer(c_int) :: types(*)
+        call femocs_import_atoms_c(this%ptr, n_atoms, x, y, z, types)
     end subroutine
 
     subroutine femocs_speaker(str)

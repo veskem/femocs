@@ -7,7 +7,6 @@
 
 #include "Femocs.h"
 
-#include "AtomReader.h"
 #include "DealII.h"
 #include "Media.h"
 #include "Mesh.h"
@@ -24,12 +23,12 @@ Femocs::Femocs(string file_name) {
     //    conf.infile = "input/rough110.ckx";
     conf.infile = "input/mushroom1.ckx";
     conf.latconst = 2.0;        // lattice constant
-    conf.coord_cutoff = 3.3;    // coordination analysis cut off radius
+    conf.coord_cutoff = 0.0; //3.3;    // coordination analysis cut off radius
     //*/
     /*
-     conf.infile = "input/nanotip_medium.xyz";
+     conf.infile = "input/nanotip_big.xyz";
      conf.latconst = 3.61;       // lattice constant
-     conf.coord_cutoff = 3.4;   // coordination analysis cut off radius
+     conf.coord_cutoff = 0.0; //3.4;   // coordination analysis cut off radius
      //*/
 
     conf.nnn = 12;                          // number of nearest neighbours in bulk
@@ -40,48 +39,41 @@ Femocs::Femocs(string file_name) {
 }
 
 // Workhorse function to run Femocs simulation
-const void Femocs::run(double c) {
-    femocs::AtomReader reader;
+const void Femocs::run(double E_field, double*** phi) {
 
     double t0, tstart;  // Variables used to measure the start time of a section
+    tstart = omp_get_wtime();
 
-    start_msg(tstart, "======= Femocs started =======");
-
-    start_msg(t0, "=== Importing atoms...");
-    reader.import_file(conf.infile);
-    end_msg(t0);
-
-    start_msg(t0, "=== Calculating coordinations of atoms...");
-    reader.calc_coordination(conf.coord_cutoff, conf.nnn);
-    end_msg(t0);
+    start_msg(t0, "======= Femocs started =======");
 
     start_msg(t0, "=== Extracting surface...");
     femocs::Surface surf(conf.latconst, conf.nnn);
     surf.extract_surface(&reader);
+    surf.output("output/surface.xyz");
     end_msg(t0);
 
     start_msg(t0, "=== Resizing simulation box...");
     // Electric field is applied 20 lattice constants above the surface highest point
-    reader.resize_box(surf.sizes.zmin - conf.latconst, surf.sizes.zmax + 20 * conf.latconst);
+    if(surf.get_n_atoms() > 0)
+        reader.resize_box(surf.sizes.zmin - conf.latconst, surf.sizes.zmax + 20 * conf.latconst);
+    else
+        reader.resize_box(reader.sizes.zmin, reader.sizes.zmax + 20 * conf.latconst);
     end_msg(t0);
 
     start_msg(t0, "=== Extracting bulk...");
     femocs::Bulk bulk(conf.latconst, conf.nnn);
 //    bulk.extract_bulk(&reader);
     bulk.extract_truncated_bulk(&reader);
-    bulk.rectangularize(&reader.sizes);
+//    bulk.rectangularize(&reader.sizes);
+    bulk.output("output/bulk.xyz");
     end_msg(t0);
 
     start_msg(t0, "=== Generating new vacuum...");
     femocs::Vacuum vacuum;
     vacuum.generate_simple(&reader.sizes);
-    end_msg(t0);
-
-    start_msg(t0, "=== Writing surface, bulk and vacuum to output...");
-    surf.output("output/surface.xyz");
-    bulk.output("output/bulk.xyz");
     vacuum.output("output/vacuum.xyz");
     end_msg(t0);
+
 
 // ===============================================
     femocs::Mesher mesher(conf.mesher, conf.latconst);
@@ -93,6 +85,7 @@ const void Femocs::run(double c) {
     big_mesh.write_faces("output/faces0.vtk");
     big_mesh.write_elems("output/elems0.vtk");
     big_mesh.recalc("rq2.514");
+    //big_mesh.recalc("rq10.5");
     big_mesh.write_faces("output/faces1.vtk");
     big_mesh.write_elems("output/elems1.vtk");
     end_msg(t0);
@@ -163,7 +156,29 @@ const void Femocs::run(double c) {
     //*/
 }
 
+const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int* types) {
+    double t0;
+
+    start_msg(t0, "=== Importing atoms...");
+
+    if(n_atoms  < 1)
+        reader.import_file(conf.infile);
+    else
+        reader.import_helmod(n_atoms, x, y, z, types);
+
+    end_msg(t0);
+
+    start_msg(t0, "=== Calculating coordinations of atoms...");
+    reader.calc_coordination(conf.coord_cutoff, conf.nnn);
+    end_msg(t0);
+
+    start_msg(t0, "=== Outputting AtomReader atoms...");
+    reader.output("output/atoms.xyz");
+    end_msg(t0);
+}
+
 const void femocs_speaker(string path) {
-    Femocs fem(path);
-    fem.run(1.0);
+    double x[5] = {1, 2, 3, 4, 5};
+    //Femocs fem(path);
+    //fem.run(1.0, x);
 }

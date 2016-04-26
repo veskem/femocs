@@ -115,7 +115,7 @@ const string Medium::get_data_string(const int i) {
 
 // Reserve memory for data vectors
 const void Medium::reserve(const int n_atoms) {
-    require(n_atoms > 0, "Invalid number of atoms!");
+    require(n_atoms >= 0, "Invalid number of atoms!");
     this->x.reserve(n_atoms);
     this->y.reserve(n_atoms);
     this->z.reserve(n_atoms);

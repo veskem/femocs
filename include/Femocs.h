@@ -9,6 +9,7 @@
 #define FEMOCS_H_
 
 #include "Macros.h"
+#include "AtomReader.h"
 
 using namespace std;
 
@@ -45,11 +46,12 @@ public:
      * @param phi_guess - guess values of field potential for FEM solver
      * @param grid_spacing - FDM grid spacing in x, y and z direction
      */
-//    const void run_femocs(const double E0, double*** BC, double*** phi_guess,
-//            const double* grid_spacing);
-    const void run(double c);
+    const void run(double E_field, double*** phi);
+
+    const void import_atoms(int n_atoms, double* x, double* y, double* z, int* types);
 
 private:
+    femocs::AtomReader reader;
 };
 
 const void femocs_speaker(string path);

@@ -46,13 +46,13 @@ public:
 
 private:
     /** Extract surface by the atom types given by kMC simulation */
-    const void kmc_extract(AtomReader* reader);
+    const void extract_by_type(AtomReader* reader);
 
     /**
      * Extract surface by the coordination analysis - atoms having coordination less than the number
      * of nearest neighbours in given crystal are considered to belong to surface.
      */
-    const void coordination_extract(AtomReader* reader);
+    const void extract_by_coordination(AtomReader* reader);
 };
 
 /** Routines and data related to making a Bulk */

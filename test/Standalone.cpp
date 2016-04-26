@@ -21,22 +21,26 @@ int main(int argc, char* argv[]) {
     const int N = 2;
     int i, j;
     double E0 = 0.0;
+    double x[2] = {0.0, 0.0};
+
     double grid_spacing[3] = {femocs.conf.latconst, femocs.conf.latconst, femocs.conf.latconst};
-    double*** BC = new double**[N];
-    double*** phi_guess = new double**[N];
+    int*** BC = new int**[N];
+    double*** phi = new double**[N];
 
     for (i = 0; i < N; ++i) {
-        BC[i] = new double*[N];
-        phi_guess[i] = new double*[N];
+        BC[i] = new int*[N];
+        phi[i] = new double*[N];
         for (j = 0; j < N; ++j) {
-            BC[i][j] = new double[N];
-            phi_guess[i][j] = new double[N];
+            BC[i][j] = new int[N];
+            phi[i][j] = new double[N];
         }
     }
 
     // Run the actual script
 //    femocs.run(E0, BC, phi_guess, grid_spacing);
-    femocs.run(1.0);
+
+    femocs.import_atoms(0, x, x, x);
+    femocs.run(E0, phi);
 
     return 0;
 }

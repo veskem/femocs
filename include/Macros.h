@@ -12,10 +12,6 @@
  * Disabling the debug mode makes code to run faster and removes the debug messages */
 #define DEBUGMODE true
 
-//#define STANDALONEMODE false
-//#define HELMODMODE true
-//#define KIMOCSMODE false
-
 #include <iostream>
 #include <string>
 #include <vector>

@@ -70,15 +70,15 @@ const void AtomReader::add_atom(const double x, const double y, const double z, 
 // Calculate coordination (nnn within cutoff radius) of all the atoms
 // Pick suitable algorithm depending simulation type (MD or KMC)
 const void AtomReader::calc_coordination(const double cutoff, const int nnn) {
-	require(cutoff > 0 && nnn >= 0, "Invalid cutoff or nnn!");
-    if (types.simu_type == "md")
-        calc_md_coordination(cutoff, nnn);
-    else if (types.simu_type == "kmc")
-    	calc_kmc_coordination(nnn);
+	require(nnn > 0, "Invalid number of nearest neighbors!");
+    if (cutoff > 0)
+        calc_slow_coordination(cutoff, nnn);
+    else
+    	calc_dummy_coordination(nnn);
 }
 
 // Calculate coordination for atoms coming from MD simulations
-const void AtomReader::calc_md_coordination(const double cutoff, const int nnn) {
+const void AtomReader::calc_slow_coordination(const double cutoff, const int nnn) {
 	require(cutoff > 0 && nnn >= 0, "Invalid cutoff or nnn!");
     int N = get_n_atoms();
     int i, j, coord;
@@ -112,14 +112,13 @@ const void AtomReader::calc_md_coordination(const double cutoff, const int nnn) 
 }
 
 // Calculate coordination for atoms coming from KMC simulations
-const void AtomReader::calc_kmc_coordination(const int nnn) {
-	require(nnn >= 0, "Invalid nnn!");
-    int N = get_n_atoms();
-    int i, j, coord;
+const void AtomReader::calc_dummy_coordination(const int nnn) {
+	require(nnn > 0, "Invalid number of nearest neighbors!");
+    int n_atoms = get_n_atoms();
 
-    coordination.reserve(N);
+    coordination.reserve(n_atoms);
 
-    for (i = 0; i < N; ++i) {
+    for (int i = 0; i < n_atoms; ++i) {
         if (type[i] == types.type_bulk)
             coordination[i] = nnn;
         else if (type[i] == types.type_surf)
@@ -163,7 +162,7 @@ const int AtomReader::get_type(const int i) {
     return type[i];
 }
 
-const int AtomReader::get_coord(const int i) {
+const int AtomReader::get_coordination(const int i) {
 	require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     return coordination[i];
 }
@@ -180,15 +179,45 @@ const string AtomReader::get_file_type(const string file_name) {
     return file_type;
 }
 
+// Output surface data to file in xyz format
+const void AtomReader::output(const string file_name) {
+    int n_atoms = get_n_atoms();
+
+    ofstream out_file(file_name);
+    require(out_file.is_open(), "Can't open a file " + file_name);
+
+    out_file << n_atoms << "\n";
+    out_file << "Data of the nanotip: id x y z type\n";
+
+    for (int i = 0; i < n_atoms; ++i)
+        out_file << get_data_string(i) << endl;
+
+    out_file.close();
+}
+
+// Compile data string from the data vectors
+const string AtomReader::get_data_string(const int i) {
+    ostringstream strs;
+    strs << i << " " << get_x(i) << " " << get_y(i) << " " << get_z(i) << " " << get_type(i);
+        //<< " " << get_coordination(i);
+    return strs.str();
+}
+
 // =================================
 // *** IMPORTERS: ***************
 
-const void AtomReader::import_helmod() {
-	require(false, "AtomReader::import_helmod() not implemented!");
+const void AtomReader::import_kimocs() {
+    require(false, "AtomReader::import_kimocs() not implemented!");
 }
 
-const void AtomReader::import_kimocs() {
-	require(false, "AtomReader::import_kimocs() not implemented!");
+const void AtomReader::import_helmod(int n_atoms, double* x, double* y, double* z, int* types) {
+	require(n_atoms > 0, "Zero input atoms detected!");
+
+	this->types.simu_type = "md";
+    reserve(n_atoms);
+    for(int i = 0; i < n_atoms; ++i)
+        add_atom(x[i], y[i], z[i], types[i]);
+    calc_statistics();
 }
 
 const void AtomReader::import_file(const string file_name) {

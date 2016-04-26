@@ -88,19 +88,19 @@ const void Bulk::extract_truncated_bulk(AtomReader* reader) {
                         || reader->get_type(i) == reader->types.type_surf);
 
     for (i = 0; i < N; ++i)
-        is_surf[i] = (reader->get_coord(i) > 0) && (reader->get_coord(i) < crys_struct.nnn);
+        is_surf[i] = (reader->get_coordination(i) > 0) && (reader->get_coordination(i) < crys_struct.nnn);
 
     reserve(accumulate(is_bulk.begin(), is_bulk.end(), 0));
 
     // Add bulk atoms
     for (i = 0; i < N; ++i)
         if (is_bulk[i] && !is_surf[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coord(i));
+            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coordination(i));
 
     // Add surface atoms
     for (i = 0; i < N; ++i)
         if (is_bulk[i] && is_surf[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coord(i));
+            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coordination(i));
 
     calc_statistics();
 }
@@ -118,7 +118,7 @@ const void Bulk::extract_bulk(AtomReader* reader) {
 
     for (i = 0; i < N; ++i)
         if (is_bulk[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coord(i));
+            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coordination(i));
 
     calc_statistics();
 }
@@ -165,16 +165,16 @@ Surface::Surface(const double latconst, const int nnn) {
 
 // Function to pick suitable extraction function
 const void Surface::extract_surface(AtomReader* reader) {
-    if (reader->types.simu_type == "md")
-        coordination_extract(reader);
-    else if (reader->types.simu_type == "kmc")
-        kmc_extract(reader);
+    //if (reader->types.simu_type == "md")
+    //    extract_by_coordination(reader);
+    //else if (reader->types.simu_type == "kmc")
+        extract_by_type(reader);
 
     calc_statistics();
 }
 
 // Extract surface by coordination analysis
-const void Surface::kmc_extract(AtomReader* reader) {
+const void Surface::extract_by_type(AtomReader* reader) {
     int i;
     int N = reader->get_n_atoms();
     vector<bool> is_surface(N);
@@ -189,28 +189,27 @@ const void Surface::kmc_extract(AtomReader* reader) {
     // Add surface atoms to Surface
     for (i = 0; i < N; ++i)
         if (is_surface[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coord(i));
+            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coordination(i));
 }
 
 // Extract surface by coordination analysis
-const void Surface::coordination_extract(AtomReader* reader) {
-    int N = reader->get_n_atoms();
-    int i, j;
-    double r2, dx, dy, dz;
+const void Surface::extract_by_coordination(AtomReader* reader) {
+    int n_atoms = reader->get_n_atoms();
+    int i;
     double zmin = reader->sizes.zminbox + crys_struct.latconst;
 
-    vector<bool> is_surface(N);
+    vector<bool> is_surface(n_atoms);
 
-    for (i = 0; i < N; ++i)
-        is_surface[i] = (reader->get_z(i) > zmin) && (reader->get_coord(i) > 0)
-                && (reader->get_coord(i) < crys_struct.nnn);
+    for (i = 0; i < n_atoms; ++i)
+        is_surface[i] = (reader->get_z(i) > zmin) && (reader->get_coordination(i) > 0)
+                && (reader->get_coordination(i) < crys_struct.nnn);
 
     // Preallocate memory for Surface atoms
     reserve(accumulate(is_surface.begin(), is_surface.end(), 0));
 
-    for (i = 0; i < N; ++i)
+    for (i = 0; i < n_atoms; ++i)
         if (is_surface[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coord(i));
+            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coordination(i));
 }
 
 // =================================================
