@@ -75,7 +75,7 @@ const void Bulk::extract_reduced_bulk(Surface* surf, const AtomReader::Sizes* si
 }
 
 // Function to extract bulk material from input atomistic data
-const void Bulk::extract_truncated_bulk(AtomReader* reader) {
+const void Bulk::extract_truncated_bulk_old(AtomReader* reader) {
     int i;
     const int N = reader->get_n_atoms();
     vector<bool> is_bulk(N);
@@ -100,6 +100,26 @@ const void Bulk::extract_truncated_bulk(AtomReader* reader) {
     // Add surface atoms
     for (i = 0; i < N; ++i)
         if (is_bulk[i] && is_surf[i])
+            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coordination(i));
+
+    calc_statistics();
+}
+
+// Function to extract bulk material from input atomistic data
+const void Bulk::extract_truncated_bulk(AtomReader* reader) {
+    int i;
+    const int N = reader->get_n_atoms();
+    vector<bool> is_bulk(N);
+
+    // Get number and locations of bulk atoms
+    for (i = 0; i < N; ++i)
+        is_bulk[i] = (reader->get_z(i) > reader->sizes.zminbox) && (reader->get_type(i) == reader->types.type_bulk);
+
+    reserve( accumulate(is_bulk.begin(), is_bulk.end(), 0) );
+
+    // Add bulk atoms
+    for (i = 0; i < N; ++i)
+        if (is_bulk[i])
             add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coordination(i));
 
     calc_statistics();

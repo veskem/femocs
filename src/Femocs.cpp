@@ -19,6 +19,7 @@ using namespace std;
 
 // Femocs constructor, specifies simulation parameters
 Femocs::Femocs(string file_name) {
+    start_msg(double t0, "\n======= Femocs started! =======\n");
     //*
     //    conf.infile = "input/rough110.ckx";
     conf.infile = "input/mushroom1.ckx";
@@ -35,7 +36,11 @@ Femocs::Femocs(string file_name) {
     conf.mesher = "tetgen";                 // mesher algorithm
     conf.nt = 4;                            // number of OpenMP threads
     conf.poly_degree = 1;                   // finite element polynomial degree
-    conf.neumann = 10.0;                    // Neumann boundary condition value
+}
+
+// Destructor, deletes data and prints bye-bye-message
+Femocs::~Femocs() {
+    start_msg(double t0, "\n======= Femocs finished! =======\n");
 }
 
 // Workhorse function to run Femocs simulation
@@ -43,8 +48,10 @@ const void Femocs::run(double E_field, double*** phi) {
 
     double t0, tstart;  // Variables used to measure the start time of a section
     tstart = omp_get_wtime();
+    conf.neumann = E_field;
 
-    start_msg(t0, "======= Femocs started =======");
+
+    // ===== Converting imported data =====
 
     start_msg(t0, "=== Extracting surface...");
     femocs::Surface surf(conf.latconst, conf.nnn);
@@ -75,24 +82,28 @@ const void Femocs::run(double E_field, double*** phi) {
     end_msg(t0);
 
 
-// ===============================================
+    // ===== Making FEM mesh =====
+
     femocs::Mesher mesher(conf.mesher, conf.latconst);
 
     start_msg(t0, "=== Making big mesh...");
     femocs::Mesh big_mesh(conf.mesher);
-    mesher.get_volume_mesh(&big_mesh, &bulk, &vacuum, "Q");
 
-    big_mesh.write_faces("output/faces0.vtk");
-    big_mesh.write_elems("output/elems0.vtk");
+    mesher.get_volume_mesh(&big_mesh, &bulk, &surf, &vacuum, "Q");
+    big_mesh.write_faces("output/faces_0.vtk");
+    big_mesh.write_elems("output/elems_0.vtk");
     big_mesh.recalc("rq2.514");
-    //big_mesh.recalc("rq10.5");
-    big_mesh.write_faces("output/faces1.vtk");
-    big_mesh.write_elems("output/elems1.vtk");
+    big_mesh.write_faces("output/faces_1.vtk");
+    big_mesh.write_elems("output/elems_1.vtk");
+    mesher.generate_surf_faces(&big_mesh, bulk.get_n_atoms(), surf.get_n_atoms());
+    big_mesh.write_faces("output/faces_2.vtk");
+    big_mesh.write_elems("output/elems_2.vtk");
     end_msg(t0);
 
     start_msg(t0, "=== Separating vacuum and bulk mesh...");
     femocs::Mesh bulk_mesh(conf.mesher);
     femocs::Mesh vacuum_mesh(conf.mesher);
+
 //    mesher.separate_vacuum_mesh(&vacuum_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), bulk.sizes.zmin, "rQ");
 //    mesher.separate_bulk_mesh(&bulk_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), bulk.sizes.zmin, "rQ");
     mesher.separate_meshes(&bulk_mesh, &vacuum_mesh, &big_mesh, bulk.get_n_atoms(),
@@ -124,6 +135,9 @@ const void Femocs::run(double E_field, double*** phi) {
 //    tethex_mesh.write_vtk_elems("output/tethex_elems.vtk");
 //    end_msg(t0);
 
+
+    // ===== Running FEM solver =====
+
     femocs::DealII laplace(conf.poly_degree, conf.neumann);
 
     start_msg(t0, "=== Importing tethex mesh into Deal.II...");
@@ -152,8 +166,6 @@ const void Femocs::run(double E_field, double*** phi) {
     end_msg(t0);
 
     cout << "\nTotal time: " << omp_get_wtime() - tstart << "\n";
-    start_msg(t0, "======= Femocs finished! =======\n");
-    //*/
 }
 
 const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int* types) {
@@ -179,6 +191,5 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
 
 const void femocs_speaker(string path) {
     double x[5] = {1, 2, 3, 4, 5};
-    //Femocs fem(path);
-    //fem.run(1.0, x);
+    Femocs f(path);
 }

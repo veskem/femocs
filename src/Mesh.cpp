@@ -20,7 +20,6 @@ Mesh::Mesh(const string mesher) {
     i_nodes = 0;
     i_elems = 0;
     i_faces = 0;
-    i_nodemarkers = 0;
 
     stat.Vmin = stat.Vmax = stat.Vmedian = stat.Vaverage = 0;
 }
@@ -93,8 +92,8 @@ double Mesh::get_volume(const int i) {
 
 const int Mesh::get_nodemarker(const int i) {
     require(i >= 0 && i < get_n_nodemarkers(), "Invalid index!");
-    return tetIO.pointmarkerlist[i];
-//    return nodemarkers[i];
+//    return tetIO.pointmarkerlist[i];
+    return nodemarkers[i];
 }
 
 const int Mesh::get_facemarker(const int i) {
@@ -119,18 +118,6 @@ int* Mesh::get_elems() {
     return tetIO.tetrahedronlist;
 }
 
-int* Mesh::get_nodemarkers() {
-    return tetIO.pointmarkerlist;
-}
-
-vector<int>* Mesh::get_facemarkers() {
-    return &facemarkers;
-}
-
-vector<int>* Mesh::get_elemmarkers() {
-    return &elemmarkers;
-}
-
 const int Mesh::get_n_nodes() {
     return i_nodes;
     //return tetIO.numberofpoints;
@@ -147,9 +134,7 @@ const int Mesh::get_n_elems() {
 }
 
 const int Mesh::get_n_nodemarkers() {
-    return i_nodemarkers;
-    //return tetIO.numberofpoints;
-    //    return nodemarkers.size();
+    return nodemarkers.size();
 }
 
 const int Mesh::get_n_facemarkers() {
@@ -169,10 +154,7 @@ const int Mesh::get_n_volumes() {
 
 void Mesh::init_nodemarkers(const int N) {
     require(N > 0, "Invalid number of node markers!");
-//    nodemarkers.reserve(N);
-    tetIO.numberofpointattributes = N;
-    tetIO.pointmarkerlist = new int[N];
-    i_nodemarkers = 0;
+    nodemarkers.reserve(N);
 }
 
 void Mesh::init_facemarkers(const int N) {
@@ -247,23 +229,17 @@ void Mesh::add_volume(const double V) {
 }
 
 void Mesh::add_nodemarker(const int m) {
-    // nodemarkers use tetgen internal data structure, therefore they are "require"-d not "expect"-ed
-    require(get_n_nodemarkers() < tetIO.numberofpointattributes,
-            "Allocated size of nodemarkers exceeded!");
-    tetIO.pointmarkerlist[i_nodemarkers] = m;
-    i_nodemarkers++;
-//    nodemarkers.push_back(m);
+    expect(get_n_nodemarkers() < nodemarkers.capacity(), "Allocated size of nodemarkers exceeded!");
+    nodemarkers.push_back(m);
 }
 
 void Mesh::add_facemarker(const int m) {
-    expect(get_n_facemarkers() < this->facemarkers.capacity(),
-            "Allocated size of facemarkers exceeded!");
+    expect(get_n_facemarkers() < facemarkers.capacity(), "Allocated size of facemarkers exceeded!");
     facemarkers.push_back(m);
 }
 
 void Mesh::add_elemmarker(const int m) {
-    expect(get_n_elemmarkers() < this->elemmarkers.capacity(),
-            "Allocated size of elemmarkers exceeded!");
+    expect(get_n_elemmarkers() < elemmarkers.capacity(), "Allocated size of elemmarkers exceeded!");
     elemmarkers.push_back(m);
 }
 
@@ -309,8 +285,7 @@ void Mesh::copy_elems(Mesh* mesh, const int offset) {
 void Mesh::copy_nodemarkers(Mesh* mesh) {
     int N = mesh->get_n_nodemarkers();
     for (int i = 0; i < N; ++i)
-        tetIO.pointmarkerlist[i] = mesh->get_nodemarker(i);
-    i_nodemarkers = N;
+        nodemarkers.push_back(mesh->get_nodemarker(i));
 }
 
 void Mesh::copy_facemarkers(Mesh* mesh) {
@@ -504,7 +479,6 @@ void Mesh::write_nodes(const string file_name) {
 
     int n_nodes = get_n_nodes();
     int n_markers = get_n_elemmarkers();
-    REAL* nodes = get_nodes();          // pointer to nodes
 
     ofstream out_file(file_name);
     require(out_file.is_open(), "Can't open a file " + file_name);

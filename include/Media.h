@@ -66,6 +66,8 @@ public:
     // Function to extract bulk material from input atomistic data
     const void extract_truncated_bulk(AtomReader* reader);
 
+    const void extract_truncated_bulk_old(AtomReader* reader);
+
     // Function to extract bulk material from input atomistic data
     const void extract_bulk(AtomReader* reader);
 

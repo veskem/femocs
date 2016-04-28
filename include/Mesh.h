@@ -68,10 +68,6 @@ public:
     const int get_elemmarker(const int i);
     double get_volume(const int i);
 
-    int* get_nodemarkers();
-    vector<int>* get_facemarkers();
-    vector<int>* get_elemmarkers();
-
     double* get_nodes();
     int* get_faces();
     int* get_elems();
@@ -116,8 +112,6 @@ private:
     int i_nodes;
     int i_elems;
     int i_faces;
-
-    int i_nodemarkers;
 
     vector<int> nodemarkers;
     vector<int> facemarkers;

@@ -41,31 +41,34 @@ const void Mesher::get_test_mesh(Mesh* new_mesh) {
 }
 
 // Function to generate mesh from bulk and vacuum atoms
-const void Mesher::get_volume_mesh(Mesh* new_mesh, Bulk* bulk_mesh, Vacuum* vacuum_mesh,
+const void Mesher::get_volume_mesh(Mesh* new_mesh, Bulk* bulk, Surface* surf, Vacuum* vacuum,
         const string cmd) {
     int i;
-    int n_bulk = bulk_mesh->get_n_atoms();
-    int n_vacuum = vacuum_mesh->get_n_atoms();
+    int n_bulk = bulk->get_n_atoms();
+    int n_surf = surf->get_n_atoms();
+    int n_vacuum = vacuum->get_n_atoms();
 
-    new_mesh->init_nodes(n_bulk + n_vacuum);
+    new_mesh->init_nodes(n_bulk + n_surf + n_vacuum);
 
     for (i = 0; i < n_bulk; ++i)
-        new_mesh->add_node(bulk_mesh->get_x(i), bulk_mesh->get_y(i), bulk_mesh->get_z(i));
+        new_mesh->add_node(bulk->get_x(i), bulk->get_y(i), bulk->get_z(i));
+
+    for (i = 0; i < n_surf; ++i)
+        new_mesh->add_node(surf->get_x(i), surf->get_y(i), surf->get_z(i));
 
     for (i = 0; i < n_vacuum; ++i)
-        new_mesh->add_node(vacuum_mesh->get_x(i), vacuum_mesh->get_y(i), vacuum_mesh->get_z(i));
+        new_mesh->add_node(vacuum->get_x(i), vacuum->get_y(i), vacuum->get_z(i));
 
     new_mesh->recalc(cmd);
 }
 
-const void Mesher::extract_mesh(vector<bool>* is_vacuum, Mesh* big_mesh, const int nmax,
+const void Mesher::extract_mesh(vector<bool>* is_vacuum, Mesh* big_mesh, const int n_bulk,
         const int n_surf, const double zmin) {
     int i, j;
     int n_elems = big_mesh->get_n_elems();
 
     is_vacuum->resize(n_elems);
 
-    int nmax_bulk = nmax - n_surf;
     int n_vacuum, n_not_bottom, n_not_bulk;
 
     for (i = 0; i < n_elems; ++i) {
@@ -73,11 +76,11 @@ const void Mesher::extract_mesh(vector<bool>* is_vacuum, Mesh* big_mesh, const i
 
         // Find nodes that are not inside the bulk
         for (j = 0; j < n_nodes_per_elem; ++j)
-            if (big_mesh->get_elem(i, j) >= nmax) n_vacuum++;
+            if (big_mesh->get_elem(i, j) >= (n_bulk+n_surf)) n_vacuum++;
 
         // Find nodes that are not in floating element
         for (j = 0; j < n_nodes_per_elem; ++j)
-            if (big_mesh->get_elem(i, j) >= nmax_bulk) n_not_bulk++;
+            if (big_mesh->get_elem(i, j) >= n_bulk) n_not_bulk++;
 
         // Find elements not belonging to the bottom of simulation cell
         for (j = 0; j < n_nodes_per_elem; ++j) {
@@ -90,12 +93,12 @@ const void Mesher::extract_mesh(vector<bool>* is_vacuum, Mesh* big_mesh, const i
     }
 }
 
-const void Mesher::separate_vacuum_mesh(Mesh* vacuum_mesh, Mesh* big_mesh, const int nmax,
+const void Mesher::separate_vacuum_mesh(Mesh* vacuum_mesh, Mesh* big_mesh, const int n_bulk,
         const int n_surf, const double zmin, const string cmd) {
     int* elems = big_mesh->get_elems();
 
     vector<bool> elem_in_vacuum;
-    extract_mesh(&elem_in_vacuum, big_mesh, nmax, n_surf, zmin);
+    extract_mesh(&elem_in_vacuum, big_mesh, n_bulk, n_surf, zmin);
 
     int n_vacuum_elems = accumulate(elem_in_vacuum.begin(), elem_in_vacuum.end(), 0);
 
@@ -115,13 +118,13 @@ const void Mesher::separate_vacuum_mesh(Mesh* vacuum_mesh, Mesh* big_mesh, const
     vacuum_mesh->recalc(cmd);
 }
 
-const void Mesher::separate_bulk_mesh(Mesh* bulk, Mesh* big_mesh, const int nmax, const int n_surf,
-        const double zmin, const string cmd) {
+const void Mesher::separate_bulk_mesh(Mesh* bulk, Mesh* big_mesh, const int n_bulk,
+        const int n_surf, const double zmin, const string cmd) {
     int* elems = big_mesh->get_elems();
     int n_elems = big_mesh->get_n_elems();
 
     vector<bool> elem_in_vacuum;
-    extract_mesh(&elem_in_vacuum, big_mesh, nmax, n_surf, zmin);
+    extract_mesh(&elem_in_vacuum, big_mesh, n_bulk, n_surf, zmin);
 
     int n_vacuum_elems = accumulate(elem_in_vacuum.begin(), elem_in_vacuum.end(), 0);
 
@@ -141,7 +144,7 @@ const void Mesher::separate_bulk_mesh(Mesh* bulk, Mesh* big_mesh, const int nmax
     bulk->recalc(cmd);
 }
 
-const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, Mesh* big_mesh, const int nmax,
+const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, Mesh* big_mesh, const int n_bulk,
         const int n_surf, const double zmin, const string cmd) {
 
     int i, j;
@@ -150,7 +153,7 @@ const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, Mesh* big_mesh, con
     int* elems = big_mesh->get_elems();
 
     vector<bool> elem_in_vacuum;
-    extract_mesh(&elem_in_vacuum, big_mesh, nmax, n_surf, zmin);
+    extract_mesh(&elem_in_vacuum, big_mesh, n_bulk, n_surf, zmin);
 
     int n_vacuum_elems = accumulate(elem_in_vacuum.begin(), elem_in_vacuum.end(), 0);
 
@@ -179,24 +182,41 @@ const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, Mesh* big_mesh, con
 }
 
 // Function to manually generate surface faces into available mesh
-const void Mesher::generate_surf_faces(Mesh* mesh, const int nmax) {
+const void Mesher::generate_surf_faces(Mesh* mesh, const int n_bulk, const int n_surf) {
     int i, j, n1, n2, n3;
-    bool difs[n_nodes_per_elem];
+    int locs[n_nodes_per_elem];
+    bool b_locs[n_nodes_per_elem];
+
     int n_elems = mesh->get_n_elems();
     int n_nodes = mesh->get_n_nodes();
     int n_faces = mesh->get_n_faces();
 
     int* elems = mesh->get_elems();
-    vector<bool> is_quality(n_elems);
+    vector<bool> is_surface(n_elems);
 
-    // Mark the faces on the edge of simulation cell
+    // Mark the elements that have exactly one face on the surface and one node in the vacuum
     for (i = 0; i < n_elems; ++i) {
-        for (j = 0; j < n_nodes_per_elem; ++j)
-            difs[j] = mesh->get_elem(i, j) < nmax;
-        is_quality[i] = difs[0] + difs[1] + difs[2] + difs[3] == 3;
+        for (j = 0; j < n_nodes_per_elem; ++j) {
+            int elem = mesh->get_elem(i, j);
+            // Node in bulk?
+            if (elem < n_bulk)
+                locs[j] = -1;
+
+            // Node in vacuum?
+            else if (elem > (n_bulk + n_surf))
+                locs[j] = 0;
+
+            // Node in surface!
+            else
+                locs[j] = 1;
+        }
+
+        // Bulk, surf and vacuum are encoded in such a way that
+        // sum(locs) == 3 only if 3 nodes are on surface and 1 in vacuum
+        is_surface[i] = locs[0] + locs[1] + locs[2] + locs[3] == 3;
     }
 
-    int n_qualityfaces = accumulate(is_quality.begin(), is_quality.end(), 0);
+    int n_surf_faces = accumulate(is_surface.begin(), is_surface.end(), 0);
 
     // Make temporary copy of available faces
     Mesh temp_mesh(this->mesher);
@@ -204,28 +224,35 @@ const void Mesher::generate_surf_faces(Mesh* mesh, const int nmax) {
     temp_mesh.copy_faces(mesh, 0);
 
     // Make face list size bigger
-    mesh->init_faces(n_faces + n_qualityfaces);
+    mesh->init_faces(n_faces + n_surf_faces);
     // Copy back already available faces
     mesh->copy_faces(&temp_mesh, 0);
 
     // Generate the faces that separate material and vacuum
+    // It is assumed that each element has only one face on the surface
     for (i = 0; i < n_elems; ++i)
-        if (is_quality[i]) {
+        if (is_surface[i]) {
             for (j = 0; j < n_nodes_per_elem; ++j)
-                difs[j] = mesh->get_elem(i, j) < nmax;
-            j = n_nodes_per_elem * i;
+                b_locs[j] = mesh->get_elem(i, j) <= (n_bulk + n_surf);
 
-            /* The possible combinations of difs and n1,n2,n3:
-             * difs: 1110  1101  1011  0111
-             *   n1: elem0 elem0 elem0 elem1
-             *   n2: elem1 elem1 elem2 elem2
-             *   n3: elem2 elem3 elem3 elem3
+            /* The possible combinations of b_locs and n1,n2,n3:
+             * b_locs: 1110  1101  1011  0111
+             *     n1: elem0 elem0 elem0 elem1
+             *     n2: elem1 elem1 elem2 elem2
+             *     n3: elem2 elem3 elem3 elem3
              */
-            n1 = difs[0] * elems[j + 0] + (!difs[0]) * elems[j + 1];
-            n2 = (difs[0] & difs[1]) * elems[j + 1] + (difs[2] & difs[3]) * elems[j + 2];
-            n3 = (!difs[3]) * elems[j + 2] + difs[3] * elems[j + 3];
+            j = n_nodes_per_elem * i;
+            n1 = b_locs[0] * elems[j + 0] + (!b_locs[0]) * elems[j + 1];
+            n2 = (b_locs[0] & b_locs[1]) * elems[j + 1] + (b_locs[2] & b_locs[3]) * elems[j + 2];
+            n3 = (!b_locs[3]) * elems[j + 2] + b_locs[3] * elems[j + 3];
             mesh->add_face(n1, n2, n3);
         }
+}
+
+// Function to mark nodes with ray-triangle intersection technique
+// http://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle
+void mark_nodes(Mesh* mesh, const AtomReader::Types* types) {
+
 }
 
 /*

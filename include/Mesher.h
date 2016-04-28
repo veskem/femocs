@@ -31,14 +31,14 @@ public:
     ;
 
     const void get_test_mesh(Mesh* new_mesh);
-    const void get_volume_mesh(Mesh* new_mesh, Bulk* bulk, Vacuum* vacuum, const string cmd);
-    const void generate_surf_faces(Mesh* mesh, const int nmax);
+    const void get_volume_mesh(Mesh* new_mesh, Bulk* bulk, Surface* surf, Vacuum* vacuum, const string cmd);
+    const void generate_surf_faces(Mesh* mesh, const int n_bulk, const int n_surf);
 
-    const void separate_vacuum_mesh(Mesh* vacuum_mesh, Mesh* big_mesh, const int nmax,
+    const void separate_vacuum_mesh(Mesh* vacuum_mesh, Mesh* big_mesh, const int n_bulk,
             const int n_surf, const double zmin, const string cmd);
-    const void separate_bulk_mesh(Mesh* bulk_mesh, Mesh* big_mesh, const int nmax, const int n_surf,
+    const void separate_bulk_mesh(Mesh* bulk_mesh, Mesh* big_mesh, const int n_bulk, const int n_surf,
             const double zmin, const string cmd);
-    const void separate_meshes(Mesh* bulk_mesh, Mesh* vacuum_mesh, Mesh* big_mesh, const int nmax,
+    const void separate_meshes(Mesh* bulk_mesh, Mesh* vacuum_mesh, Mesh* big_mesh, const int n_bulk,
             const int n_surf, const double zmin, const string cmd);
 
     void clean_faces(Mesh* mesh, const double rmax, const string cmd);
@@ -47,6 +47,7 @@ public:
     void mark_faces(Mesh* mesh, const AtomReader::Sizes* sizes, const AtomReader::Types* types);
     void mark_faces_bynode(Mesh* mesh, const int nmax, const AtomReader::Types* types);
     void mark_elems_bynode(Mesh* mesh, const int nmax, const AtomReader::Types* types);
+    void mark_nodes(Mesh* mesh, const AtomReader::Types* types);
 
 private:
     const int n_nodes_per_elem = 4;
@@ -56,7 +57,7 @@ private:
     double latconst;
     string mesher;
 
-    const void extract_mesh(vector<bool>* is_vacuum, Mesh* big_mesh, const int nmax,
+    const void extract_mesh(vector<bool>* is_vacuum, Mesh* big_mesh, const int n_bulk,
             const int n_surf, const double zmin);
     void update_list(int* new_list, int* old_list, vector<bool> is_quality, int M);
 

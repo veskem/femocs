@@ -7,9 +7,11 @@ program Helmod2
     integer :: i, j, k
     real(c_double), dimension(n_atoms) :: x
     real(c_double), dimension(n_atoms,n_atoms,n_atoms) :: phi
+    integer(c_int), dimension(n_atoms) :: types
     type(femocs) :: f
     
-    x = (/ 1,2,3,4,5,6,7,8,9,10 /)
+    x =     (/ 1,2,3,4,5,6,7,8,9,10 /)
+    types = (/ 1,1,1,1,1,1,1,1,1,1  /)
     
     do i = 1, n_atoms
       do j = 1, n_atoms
@@ -24,7 +26,7 @@ program Helmod2
 
     ! Call bound procedures (member functions)
     write(*,*) "Running femocs.import_atoms"
-    call f%import_atoms(0, x, x, x)
+    call f%import_atoms(0, x, x, x, types)
     
     write(*,*) "Running femocs.run"
     call f%run(10d0, phi)

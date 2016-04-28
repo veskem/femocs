@@ -24,6 +24,9 @@ public:
      */
     Femocs(string file_name);
 
+    /** Femocs destructor */
+    ~Femocs();
+
     /** Struct holding data about input parameters. */
     struct Config {
         string mesher;          //!< simulation cell finite element mesher
