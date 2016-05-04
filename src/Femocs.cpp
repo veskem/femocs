@@ -21,8 +21,8 @@ using namespace std;
 Femocs::Femocs(string file_name) {
     start_msg(double t0, "\n======= Femocs started! =======\n");
     //*
-    //    conf.infile = "input/rough110.ckx";
-    conf.infile = "input/mushroom1.ckx";
+    //conf.infile = "input/rough111.ckx";
+    conf.infile = "input/mushroom2.ckx";
     conf.latconst = 2.0;        // lattice constant
     conf.coord_cutoff = 0.0; //3.3;    // coordination analysis cut off radius
     //*/
@@ -50,12 +50,12 @@ const void Femocs::run(double E_field, double*** phi) {
     tstart = omp_get_wtime();
     conf.neumann = E_field;
 
-
     // ===== Converting imported data =====
 
     start_msg(t0, "=== Extracting surface...");
     femocs::Surface surf(conf.latconst, conf.nnn);
     surf.extract_surface(&reader);
+    surf.rectangularize(&reader.sizes);
     surf.output("output/surface.xyz");
     end_msg(t0);
 
@@ -70,12 +70,13 @@ const void Femocs::run(double E_field, double*** phi) {
     start_msg(t0, "=== Extracting bulk...");
     femocs::Bulk bulk(conf.latconst, conf.nnn);
 //    bulk.extract_bulk(&reader);
-    bulk.extract_truncated_bulk(&reader);
+//    bulk.extract_truncated_bulk(&reader);
 //    bulk.rectangularize(&reader.sizes);
+    bulk.generate_simple(&reader.sizes, &reader.types);
     bulk.output("output/bulk.xyz");
     end_msg(t0);
 
-    start_msg(t0, "=== Generating new vacuum...");
+    start_msg(t0, "=== Generating vacuum...");
     femocs::Vacuum vacuum;
     vacuum.generate_simple(&reader.sizes);
     vacuum.output("output/vacuum.xyz");
@@ -95,9 +96,15 @@ const void Femocs::run(double E_field, double*** phi) {
     big_mesh.recalc("rq2.514");
     big_mesh.write_faces("output/faces_1.vtk");
     big_mesh.write_elems("output/elems_1.vtk");
-    mesher.generate_surf_faces(&big_mesh, bulk.get_n_atoms(), surf.get_n_atoms());
+    //mesher.generate_monolayer_surf_faces(&big_mesh, bulk.get_n_atoms(), surf.get_n_atoms());
+    mesher.generate_surf_faces(&big_mesh, surf.get_n_atoms());
     big_mesh.write_faces("output/faces_2.vtk");
     big_mesh.write_elems("output/elems_2.vtk");
+    end_msg(t0);
+
+    start_msg(t0, "=== Marking nodes...");
+    mesher.mark_nodes(&big_mesh, &reader.types, surf.get_n_atoms());
+    big_mesh.write_nodes("output/nodes.xyz");
     end_msg(t0);
 
     start_msg(t0, "=== Separating vacuum and bulk mesh...");
@@ -106,8 +113,9 @@ const void Femocs::run(double E_field, double*** phi) {
 
 //    mesher.separate_vacuum_mesh(&vacuum_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), bulk.sizes.zmin, "rQ");
 //    mesher.separate_bulk_mesh(&bulk_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), bulk.sizes.zmin, "rQ");
-    mesher.separate_meshes(&bulk_mesh, &vacuum_mesh, &big_mesh, bulk.get_n_atoms(),
-            surf.get_n_atoms(), reader.sizes.zminbox, "rQ");
+//    mesher.separate_meshes(&bulk_mesh, &vacuum_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), reader.sizes.zminbox, "rQ");
+
+    mesher.separate_meshes_bymarker(&bulk_mesh, &vacuum_mesh, &big_mesh, &reader.types, "rQ");
 
     bulk_mesh.write_faces("output/faces_bulk.vtk");
     bulk_mesh.write_elems("output/elems_bulk.vtk");
@@ -123,11 +131,18 @@ const void Femocs::run(double E_field, double*** phi) {
 //    testmesh->write_faces("output/testfaces.vtk");
 //    end_msg(t0);
 
+
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
     tethex::Mesh tethex_mesh;
     tethex_mesh.read_femocs(&vacuum_mesh);
     tethex_mesh.convert();
     end_msg(t0);
+
+#if DEBUGMODE
+    cout << "Bulk:   #elems=" << bulk_mesh.get_n_elems() << ", #faces=" << bulk_mesh.get_n_faces() << endl;
+    cout << "Vacuum: #elems=" << vacuum_mesh.get_n_elems() << ", #faces=" << vacuum_mesh.get_n_faces() << endl;
+    cout << "Tetgen: #elems=" << tethex_mesh.get_n_hexahedra() << ", #faces=" << tethex_mesh.get_n_quadrangles() << endl;
+#endif
 
 //    t0 = start_msg("Writing tethex to file...");
 //    tethex_mesh.write("output/tethex.msh");
@@ -184,9 +199,9 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
     reader.calc_coordination(conf.coord_cutoff, conf.nnn);
     end_msg(t0);
 
-    start_msg(t0, "=== Outputting AtomReader atoms...");
-    reader.output("output/atoms.xyz");
-    end_msg(t0);
+//    start_msg(t0, "=== Outputting AtomReader atoms...");
+//    reader.output("output/atoms.xyz");
+//    end_msg(t0);
 }
 
 const void femocs_speaker(string path) {

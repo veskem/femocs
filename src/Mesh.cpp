@@ -33,35 +33,35 @@ Mesh::~Mesh() {
 
 const double Mesh::get_x(int i) {
     require(i >= 0 && i < get_n_nodes(), "Invalid index!");
-    return tetIO.pointlist[3 * i + 0];
+    return tetIO.pointlist[n_coordinates * i + 0];
 }
 
 const double Mesh::get_y(int i) {
     require(i >= 0 && i < get_n_nodes(), "Invalid index!");
-    return tetIO.pointlist[3 * i + 1];
+    return tetIO.pointlist[n_coordinates * i + 1];
 }
 
 const double Mesh::get_z(int i) {
     expect(i >= 0 && i < get_n_nodes(), "Invalid index!");
-    return tetIO.pointlist[3 * i + 2];
+    return tetIO.pointlist[n_coordinates * i + 2];
 }
 
 const double Mesh::get_node(int i, int xyz) {
     require(i >= 0 && i < get_n_nodes(), "Invalid index!");
     require(xyz >= 0 && xyz < n_coordinates, "Invalid coordinate!");
-    return tetIO.pointlist[3 * i + xyz];
+    return tetIO.pointlist[n_coordinates * i + xyz];
 }
 
 const int Mesh::get_face(int i, int node) {
     require(i >= 0 && i < get_n_faces(), "Invalid index!");
     require(node >= 0 && node < n_nodes_per_face, "Invalid node!");
-    return tetIO.trifacelist[3 * i + node];
+    return tetIO.trifacelist[n_nodes_per_face * i + node];
 }
 
 const int Mesh::get_elem(int i, int node) {
     require(i >= 0 && i < get_n_elems(), "Invalid index!");
     require(node >= 0 && node < n_nodes_per_elem, "Invalid element!");
-    return tetIO.tetrahedronlist[4 * i + node];
+    return tetIO.tetrahedronlist[n_nodes_per_elem * i + node];
 }
 
 const double Mesh::get_face_centre(int i, int xyz) {
@@ -416,7 +416,7 @@ void Mesh::write_vtk(const string file_name, const int n_nodes, const int n_cell
     if (n_cells > 0) {
         fprintf(out_file, "CELL_TYPES %d\n", n_cells);
         for (i = 0; i < n_cells; ++i)
-            fprintf(out_file, "%d ", celltype);
+            fprintf(out_file, "%d \n", celltype);
         fprintf(out_file, "\n\n");
     }
 
@@ -439,7 +439,7 @@ void Mesh::write_faces(const string file_name) {
     return;
 #endif
 
-    const int celltype = 5; // 5-triangle, 10-tetrahedron
+    const int celltype = 5; // 1-vertex, 5-triangle, 10-tetrahedron
 
     int n_nodes = get_n_nodes();
     int n_faces = get_n_faces();
@@ -458,7 +458,7 @@ void Mesh::write_elems(const string file_name) {
     return;
 #endif
 
-    const int celltype = 10; // 5-triangle, 10-tetrahedron
+    const int celltype = 10; // 1-vertex, 5-triangle, 10-tetrahedron
 
     int n_nodes = get_n_nodes();
     int n_elems = get_n_elems();
@@ -471,29 +471,48 @@ void Mesh::write_elems(const string file_name) {
             n_nodes_per_elem);
 }
 
-// Function to output nodes in .xyz format
 void Mesh::write_nodes(const string file_name) {
 #if not DEBUGMODE
     return;
 #endif
 
+    int start = file_name.find_last_of('.') + 1;
+    int end = file_name.size();
+    string file_type = file_name.substr(start, end);
+
+    require(file_type == "xyz" || file_type == "vtk", "Unknown file type!");
+
     int n_nodes = get_n_nodes();
-    int n_markers = get_n_elemmarkers();
+    int n_markers = get_n_nodemarkers();
 
-    ofstream out_file(file_name);
-    require(out_file.is_open(), "Can't open a file " + file_name);
+    if (file_type == "vtk") {
+        const int celltype = 1;     // 1-vertex, 5-triangle, 10-tetrahedron
+        REAL* nodes = get_nodes();           // pointer to nodes
+        vector<int>* markers = &nodemarkers; // pointer to node markers
 
-    out_file << n_nodes << "\n";
-    out_file << "Nodes of a mesh\n";
+        int node_indx[n_nodes];
+        for(int i = 0; i < n_nodes; ++i)
+            node_indx[i] = i;
 
-    for (int i = 0; i < n_nodes; ++i) {
-        out_file << i << " ";
-        out_file << get_x(i) << " ";
-        out_file << get_y(i) << " ";
-        out_file << get_z(i) << " ";
-        out_file << get_nodemarker(i) << endl;
+        write_vtk(file_name, n_nodes, n_nodes, n_markers, nodes, node_indx, markers, celltype, 1);
+
+    } else {
+        ofstream out_file(file_name);
+        require(out_file.is_open(), "Can't open a file " + file_name);
+
+        out_file << n_nodes << "\n";
+        out_file << "Data of the nanotip: id x y z type\n";
+
+        for (int i = 0; i < n_nodes; ++i) {
+            out_file << i << " ";
+            out_file << get_node(i, 0) << " ";
+            out_file << get_node(i, 1) << " ";
+            out_file << get_node(i, 2) << " ";
+            out_file << get_nodemarker(i) << endl;
+        }
+
+        out_file.close();
     }
-    out_file.close();
 }
 
 // =================================

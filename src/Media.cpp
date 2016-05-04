@@ -74,6 +74,21 @@ const void Bulk::extract_reduced_bulk(Surface* surf, const AtomReader::Sizes* si
     calc_statistics();
 }
 
+// Function to make bulk material with nodes on surface and on by-hand made bottom coordinates
+const void Bulk::generate_simple(const AtomReader::Sizes* sizes, const AtomReader::Types* types) {
+    int M = 4; // total number of nodes
+    reserve(M);
+
+    // Add atoms to the bottom corner edges of simulation cell
+    add_atom(sizes->xmin, sizes->ymin, sizes->zminbox, types->type_bulk);
+    add_atom(sizes->xmin, sizes->ymax, sizes->zminbox, types->type_bulk);
+    add_atom(sizes->xmax, sizes->ymin, sizes->zminbox, types->type_bulk);
+    add_atom(sizes->xmax, sizes->ymax, sizes->zminbox, types->type_bulk);
+
+    init_statistics();
+    calc_statistics();
+}
+
 // Function to extract bulk material from input atomistic data
 const void Bulk::extract_truncated_bulk_old(AtomReader* reader) {
     int i;
@@ -230,6 +245,23 @@ const void Surface::extract_by_coordination(AtomReader* reader) {
     for (i = 0; i < n_atoms; ++i)
         if (is_surface[i])
             add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coordination(i));
+}
+
+// Function to flatten the atoms on the sides of simulation box
+const void Surface::rectangularize(const AtomReader::Sizes* sizes) {
+    // Loop through all the atoms
+    for (int i = 0; i < get_n_atoms(); ++i) {
+        // Flatten the atoms on the sides of simulation box
+        if (on_edge(get_x(i), sizes->xmin)) set_x(i, sizes->xmin);
+        if (on_edge(get_x(i), sizes->xmax)) set_x(i, sizes->xmax);
+        if (on_edge(get_y(i), sizes->ymin)) set_y(i, sizes->ymin);
+        if (on_edge(get_y(i), sizes->ymax)) set_y(i, sizes->ymax);
+    }
+}
+
+// Determine whether an atom is near the edge of simulation box
+const bool Surface::on_edge(const double x, const double x_boundary) {
+    return fabs(x - x_boundary) <= crys_struct.latconst / 2.0;
 }
 
 // =================================================

@@ -44,6 +44,9 @@ public:
      */
     const void extract_surface(AtomReader* reader);
 
+    /** Function to flatten the atoms on the sides of simulation box */
+    const void rectangularize(const AtomReader::Sizes* sizes);
+
 private:
     /** Extract surface by the atom types given by kMC simulation */
     const void extract_by_type(AtomReader* reader);
@@ -53,6 +56,9 @@ private:
      * of nearest neighbours in given crystal are considered to belong to surface.
      */
     const void extract_by_coordination(AtomReader* reader);
+
+    /** Determine whether an atom is near the edge of simulation box */
+    const bool on_edge(const double x, const double x_boundary);
 };
 
 /** Routines and data related to making a Bulk */
@@ -62,6 +68,7 @@ public:
 
     // Function to make bulk material with nodes on surface and on by-hand made bottom coordinates
     const void extract_reduced_bulk(Surface* surf, const AtomReader::Sizes* sizes);
+    const void generate_simple(const AtomReader::Sizes* sizes, const AtomReader::Types* types);
 
     // Function to extract bulk material from input atomistic data
     const void extract_truncated_bulk(AtomReader* reader);
