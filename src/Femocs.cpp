@@ -22,7 +22,7 @@ Femocs::Femocs(string file_name) {
     start_msg(double t0, "\n======= Femocs started! =======\n");
     //*
     //conf.infile = "input/rough111.ckx";
-    conf.infile = "input/mushroom2.ckx";
+    conf.infile = "input/mushroom1.ckx";
     conf.latconst = 2.0;        // lattice constant
     conf.coord_cutoff = 0.0; //3.3;    // coordination analysis cut off radius
     //*/
@@ -61,7 +61,7 @@ const void Femocs::run(double E_field, double*** phi) {
 
     start_msg(t0, "=== Resizing simulation box...");
     // Electric field is applied 20 lattice constants above the surface highest point
-    if(surf.get_n_atoms() > 0)
+    if (surf.get_n_atoms() > 0)
         reader.resize_box(surf.sizes.zmin - conf.latconst, surf.sizes.zmax + 20 * conf.latconst);
     else
         reader.resize_box(reader.sizes.zmin, reader.sizes.zmax + 20 * conf.latconst);
@@ -81,7 +81,6 @@ const void Femocs::run(double E_field, double*** phi) {
     vacuum.generate_simple(&reader.sizes);
     vacuum.output("output/vacuum.xyz");
     end_msg(t0);
-
 
     // ===== Making FEM mesh =====
 
@@ -131,7 +130,6 @@ const void Femocs::run(double E_field, double*** phi) {
 //    testmesh->write_faces("output/testfaces.vtk");
 //    end_msg(t0);
 
-
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
     tethex::Mesh tethex_mesh;
     tethex_mesh.read_femocs(&vacuum_mesh);
@@ -149,7 +147,6 @@ const void Femocs::run(double E_field, double*** phi) {
 //    tethex_mesh.write_vtk_faces("output/tethex_faces.vtk");
 //    tethex_mesh.write_vtk_elems("output/tethex_elems.vtk");
 //    end_msg(t0);
-
 
     // ===== Running FEM solver =====
 
@@ -176,6 +173,10 @@ const void Femocs::run(double E_field, double*** phi) {
 //    laplace.solve_umfpack();
     end_msg(t0);
 
+    start_msg(t0, "=== Extracting electric field...");
+    laplace.extract_elfield_at_surf(&surf, "output/results_at_surf.xyz");
+    end_msg(t0);
+
     start_msg(t0, "=== Outputting results...");
     laplace.output_results("output/final-results.vtk");
     end_msg(t0);
@@ -188,7 +189,7 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
 
     start_msg(t0, "=== Importing atoms...");
 
-    if(n_atoms  < 1)
+    if (n_atoms < 1)
         reader.import_file(conf.infile);
     else
         reader.import_helmod(n_atoms, x, y, z, types);
@@ -205,6 +206,6 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
 }
 
 const void femocs_speaker(string path) {
-    double x[5] = {1, 2, 3, 4, 5};
+    double x[5] = { 1, 2, 3, 4, 5 };
     Femocs f(path);
 }
