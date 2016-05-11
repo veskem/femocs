@@ -142,6 +142,11 @@ const int AtomReader::get_n_atoms() {
     return x.size();
 }
 
+const Point3d AtomReader::get_point(const int i) {
+    require(i >= 0 && i < get_n_atoms(), "Invalid index!");
+    return Point3d(x[i], y[i], z[i]);
+}
+
 const double AtomReader::get_x(const int i) {
 	require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     return x[i];

@@ -40,6 +40,12 @@ const int Medium::get_n_atoms() {
     return x.size();
 }
 
+// Get i-th point
+Point3d Medium::get_point(const int i) {
+    require(i >= 0 && i < get_n_atoms(), "Invalid index!");
+    return Point3d(x[i], y[i], z[i]);
+}
+
 // Get entry from x coordinate vector
 const double Medium::get_x(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");

@@ -35,9 +35,12 @@ namespace femocs {
 
 const int DIM = 3;
 
+/** Class to calculate electric field from electric potential */
 class LaplacePostProcessor : public DataPostprocessorVector<DIM> {
 public:
-    LaplacePostProcessor(const string data_name);
+    LaplacePostProcessor(const string data_name) :
+        DataPostprocessorVector<DIM>(data_name, update_values | update_gradients) {
+    }
 
     virtual void compute_derived_quantities_scalar (
             const vector<double>           &uh,
@@ -45,9 +48,19 @@ public:
             const vector<Tensor<2,DIM>>    &dduh,
             const vector<Point<DIM>>       &normals,
             const vector<Point<DIM>>       &evaluation_points,
-            vector<Vector<double>>         &computed_quantities) const;
+            vector<Vector<double>>         &computed_quantities) const {
+
+        Assert(computed_quantities.size() == uh.size(),
+                ExcDimensionMismatch(computed_quantities.size(), uh.size()));
+        for (unsigned int i = 0; i < computed_quantities.size(); ++i)
+            for (unsigned int coord = 0; coord < 2; ++coord)
+                computed_quantities[i](coord) = duh[i][coord];
+    }
 };
 
+/**
+ * Class to solve differential equations with finite element method taking as input the FEM mesh
+ */
 class DealII {
 public:
     DealII(const int poly_degree, const double neumann);
@@ -68,7 +81,7 @@ public:
     void solve_cg();
 
     void probe_results(const int N);
-    void extract_elfield_at_surf(Surface* surf, const string file_name);
+    void extract_elfield_at_surf(Surface &surf, const string file_name);
 
 private:
     const unsigned int n_verts_per_elem = GeometryInfo<DIM>::vertices_per_cell;
@@ -97,10 +110,10 @@ private:
 
     Tensor<1,DIM> get_elfield_at_node(Point<DIM> &node, const unsigned int &cell, const unsigned int &vert_indx);
     Tensor<1,DIM> get_elfield_at_node_old(Point<DIM> &node);
-
     Tensor<1,DIM> get_elfield_at_point(Point<DIM> &point);
 
     vector<unsigned int> get_node2elem_map(const int n_surf);
+    vector<int> get_surface_map(Surface &surf);
 };
 
 } /* namespace femocs */

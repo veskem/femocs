@@ -9,6 +9,7 @@
 #define ATOMREADER_H_
 
 #include "Macros.h"
+#include "Medium.h"
 
 using namespace std;
 namespace femocs {
@@ -44,6 +45,9 @@ public:
 
     /** Get number of atoms in AtomReader */
     const int get_n_atoms();
+
+    /** Get Point3d instance for i-th atom in AtomReader */
+    const Point3d get_point(const int i);
 
     /** Get x-coordinate of i-th atom in AtomReader */
     const double get_x(const int i);

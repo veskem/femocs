@@ -10,6 +10,7 @@
 
 #include "Macros.h"
 #include "Tetgen.h"
+#include "Medium.h"
 
 using namespace std;
 namespace femocs {
@@ -78,6 +79,8 @@ public:
     const double get_node(int i, int xyz);
     const int get_face(int i, int node);
     const int get_elem(int i, int node);
+
+    const Point3d get_point(const int i);
 
     const double get_face_centre(int i, int xyz);
     const double get_elem_centre(int i, int xyz);

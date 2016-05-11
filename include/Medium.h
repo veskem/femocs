@@ -9,9 +9,43 @@
 #define MEDIUM_H_
 
 #include "Macros.h"
+#include "Vec3.h"
+#include <deal.II/numerics/vector_tools.h>
 
 using namespace std;
 namespace femocs {
+
+/** Class to define elementary operations between points with double coordinates*/
+class Point3d{
+public:
+
+    Point3d(double xx, double yy, double zz) :
+            x(xx), y(yy), z(zz) {}
+
+    double distance(const Point3d &n) {
+        Vec3d dif(x - n.x, y - n.y, z - n.z);
+        return dif.length();
+    }
+
+    double distance(const dealii::Point<3> &p) {
+        Vec3d dif(x - p[0], y - p[1], z - p[2]);
+        return dif.length();
+    }
+
+    bool operator ==(const dealii::Point<3> &p) {
+        return x == p[0] && y == p[1] && z == p[2];
+    }
+
+    // Point3d accessors
+    const double& operator [](uint8_t i) const {
+        return (&x)[i];
+    }
+    double& operator [](uint8_t i) {
+        return (&x)[i];
+    }
+
+    double x,y,z;
+};
 
 class Medium {
 public:
@@ -45,6 +79,9 @@ public:
     void set_z(const int i, const double z);
     /** Set the coordination of i-th atom */
     void set_coordination(const int i, const int coord);
+
+    /** Return x-, y- and z-coordinate and associated operators for i-th atom */
+    Point3d get_point(const int i);
 
     /** Return x-coordinate of i-th atom */
     const double get_x(const int i);

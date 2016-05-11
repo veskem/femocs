@@ -174,7 +174,7 @@ const void Femocs::run(double E_field, double*** phi) {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting electric field...");
-    laplace.extract_elfield_at_surf(&surf, "output/results_at_surf.xyz");
+    laplace.extract_elfield_at_surf(surf, "output/results_at_surf.xyz");
     end_msg(t0);
 
     start_msg(t0, "=== Outputting results...");

@@ -10,29 +10,11 @@
 
 #include <stdio.h>
 #include <fstream>
-#include <deal.II/fe/mapping_cartesian.h>
-#include <deal.II/fe/mapping_q.h>
 
 using namespace std;
 using namespace dealii;
 
 namespace femocs {
-
-LaplacePostProcessor::LaplacePostProcessor(const string data_name) :
-        DataPostprocessorVector<DIM>(data_name, update_values | update_gradients) {
-}
-
-void LaplacePostProcessor::compute_derived_quantities_scalar(const vector<double> &uh,
-        const vector<Tensor<1, DIM>> &duh, const vector<Tensor<2, DIM>> &dduh,
-        const vector<Point<DIM>> &normals, const vector<Point<DIM>> &evaluation_points,
-        vector<Vector<double>> &computed_quantities) const {
-
-    Assert(computed_quantities.size() == uh.size(),
-            ExcDimensionMismatch(computed_quantities.size(), uh.size()));
-    for (unsigned int i = 0; i < computed_quantities.size(); ++i)
-        for (unsigned int coord = 0; coord < 2; ++coord)
-            computed_quantities[i](coord) = duh[i][coord];
-}
 
 // Define main class constructor
 // Number in fe() determines the interpolation type. 1 is linear etc.
@@ -431,11 +413,46 @@ vector<unsigned int> DealII::get_node2elem_map(const int n_surf) {
     return map;
 }
 
-void DealII::extract_elfield_at_surf(Surface* surf, const string file_name) {
+// Return mapping between surface atoms and mesh nodes
+// Value -1 indicates that there's no mapping, i.e
+// in the mesh there's no node that corresponds to the given surface atom
+vector<int> DealII::get_surface_map(Surface &surf) {
+    int i;
+    int n_atoms = surf.get_n_atoms();
+    vector<int> map(n_atoms, -1);
+
+    typename Triangulation<DIM>::active_vertex_iterator vert;
+
+    // Loop through mesh vertices that potentially could be on the surface
+    for (vert = triangulation.begin_active_vertex(); vert != triangulation.end_vertex(); ++vert) {
+        // Only the first vertices could be on the surface
+        if(vert->vertex_index() >= n_atoms)
+            continue;
+
+        // Loop through surface atoms
+        for (i = 0; i < n_atoms; ++i) {
+            // If map entry already available, take next atom
+            if (map[i] >= 0)
+                continue;
+
+            if( surf.get_point(i) == vert->vertex() )
+                map[i] = vert->vertex_index();
+        }
+    }
+
+    return map;
+}
+
+void DealII::extract_elfield_at_surf(Surface &surf, const string file_name) {
     int n_nodes = triangulation.n_vertices();//surf->get_n_atoms();
     int node;
     Point<DIM> point;
     Tensor<1,DIM> ef;
+    double potential;
+
+    vector<int> map2 = get_surface_map(surf);
+
+    return;
 
     vector<unsigned int> map = get_node2elem_map(n_nodes);
 
@@ -454,11 +471,13 @@ void DealII::extract_elfield_at_surf(Surface* surf, const string file_name) {
     for(vert = triangulation.begin_active_vertex(); vert != triangulation.end_vertex(); ++vert) {
         point = vert->vertex();
         ef = get_elfield_at_node(point, map[2*node+0], map[2*node+1]);
+        potential = get_potential_at_node(point);
         elfield.push_back(ef);
         elfield_norm.push_back(ef.norm());
 
         out_file << node << " ";
         out_file << point << " ";
+        out_file << potential << " ";
         out_file << ef << " ";
         out_file << ef.norm() << endl;
         ++node;

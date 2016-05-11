@@ -31,6 +31,12 @@ Mesh::~Mesh() {
 // =================================
 // *** GETTERS: ***************
 
+const Point3d Mesh::get_point(const int i) {
+    require(i >= 0 && i < get_n_nodes(), "Invalid index!");
+    const int n = n_coordinates * i;
+    return Point3d(tetIO.pointlist[n+0], tetIO.pointlist[n+1], tetIO.pointlist[n+2]);
+}
+
 const double Mesh::get_x(int i) {
     require(i >= 0 && i < get_n_nodes(), "Invalid index!");
     return tetIO.pointlist[n_coordinates * i + 0];
