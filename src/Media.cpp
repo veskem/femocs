@@ -16,8 +16,7 @@ namespace femocs {
 // =================================================
 
 // Constructor of Vacuum class
-Vacuum::Vacuum() {
-    init_statistics();
+Vacuum::Vacuum() : Medium(){
 }
 
 // Generates Vacuum by adding four points to the top of simulation cell
@@ -40,8 +39,7 @@ const void Vacuum::generate_simple(const AtomReader::Sizes* sizes) {
 // =================================================
 
 // Constructor for Bulk class
-Bulk::Bulk(const double latconst, const int nnn) {
-    init_statistics();
+Bulk::Bulk(const double latconst, const int nnn) : Medium(){
     crys_struct.latconst = latconst;
     crys_struct.nnn = nnn;
 }
@@ -191,8 +189,7 @@ const bool Bulk::on_edge(const double x, const double x_boundary) {
 // =================================================
 
 // Constructor for Surface class
-Surface::Surface(const double latconst, const int nnn) {
-    init_statistics();
+Surface::Surface(const double latconst, const int nnn) : Medium() {
     crys_struct.latconst = latconst;
     crys_struct.nnn = nnn;
 }
@@ -269,8 +266,7 @@ const bool Surface::on_edge(const double x, const double x_boundary) {
 // =================================================
 
 // Constructor for Edge class
-Edge::Edge(const double latconst, const int nnn) {
-    init_statistics();
+Edge::Edge(const double latconst, const int nnn) : Medium(){
     crys_struct.latconst = latconst;
     crys_struct.nnn = nnn;
 }

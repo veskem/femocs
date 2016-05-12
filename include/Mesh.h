@@ -10,7 +10,7 @@
 
 #include "Macros.h"
 #include "Tetgen.h"
-#include "Medium.h"
+#include "Primitives.h"
 
 using namespace std;
 namespace femocs {
@@ -125,6 +125,13 @@ private:
     void write_vtk(const string file_name, const int n_nodes, const int n_cells,
             const int n_markers, const REAL* nodes, const int* cells, const vector<int>* markers,
             const int celltype, const int n_nodes_in_cell);
+
+    // Function to output nodes in .xyz format
+    void write_xyz(const string file_name, const int n_nodes, const int n_markers,
+            const REAL* nodes, const vector<int>* markers);
+
+    // Function to extract file type from file name
+    const string get_file_type(const string file_name);
 };
 
 } /* namespace femocs */

@@ -14,6 +14,11 @@
 using namespace std;
 namespace femocs {
 
+Medium::Medium() {
+    init_statistics();
+    reserve(0);
+}
+
 // Initialize statistics about Medium
 const void Medium::init_statistics() {
     sizes.xmin = sizes.ymin = sizes.zmin = DBL_MAX;
@@ -95,6 +100,13 @@ void Medium::set_coordination(const int i, const int coord) {
     this->coordination[i] = coord;
 }
 
+// Extract file type from file name
+const string Medium::get_file_type(const string file_name) {
+    int start = file_name.find_last_of('.') + 1;
+    int end = file_name.size();
+    return file_name.substr(start, end);
+}
+
 // Output surface data to file in xyz format
 const void Medium::output(const string file_name) {
     int n_atoms = get_n_atoms();
@@ -103,7 +115,7 @@ const void Medium::output(const string file_name) {
     require(out_file.is_open(), "Can't open a file " + file_name);
 
     out_file << n_atoms << "\n";
-    out_file << "Data of the nanotip: id x y z type\n";
+    out_file << get_data_string(-1) << endl;
 
     for (int i = 0; i < n_atoms; ++i)
         out_file << get_data_string(i) << endl;
@@ -113,9 +125,11 @@ const void Medium::output(const string file_name) {
 
 // Compile data string from the data vectors
 const string Medium::get_data_string(const int i) {
+    if(i < 0)
+        return "Types of data: id x y z coordination";
+
     ostringstream strs;
-    strs << i << " " << get_x(i) << " " << get_y(i) << " " << get_z(i) << " "
-            << get_coordination(i);
+    strs << i << " " << get_point(i) << " " << get_coordination(i);
     return strs.str();
 }
 

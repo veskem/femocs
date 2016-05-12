@@ -71,28 +71,31 @@ const void Mesher::extract_mesh(vector<bool>* is_vacuum, Mesh* big_mesh, const i
 
     is_vacuum->resize(n_elems);
 
-    int n_vacuum, n_not_bottom, n_not_bulk;
+    int n_vacuum, n_not_bottom, n_not_bulk, n_surface;
 
     for (i = 0; i < n_elems; ++i) {
-        n_vacuum = n_not_bottom = n_not_bulk = 0;
+        n_vacuum = n_not_bottom = n_not_bulk = n_surface = 0;
 
         // Find nodes that are not inside the bulk
         for (j = 0; j < n_nodes_per_elem; ++j)
             if (big_mesh->get_elem(i, j) >= (n_bulk + n_surf)) n_vacuum++;
 
+        for (j = 0; j < n_nodes_per_elem; ++j)
+            if (big_mesh->get_elem(i, j) < n_surf) n_surface++;
+
         // Find nodes that are not in floating element
         for (j = 0; j < n_nodes_per_elem; ++j)
-            if ((big_mesh->get_elem(i, j) >= n_bulk) || (big_mesh->get_elem(i, j) < n_surf))
+            if ((big_mesh->get_elem(i, j) >= (n_bulk + n_surf)) || (big_mesh->get_elem(i, j) < n_surf))
                 n_not_bulk++;
 
-        // Find elements not belonging to the bottom of simulation cell
-        for (j = 0; j < n_nodes_per_elem; ++j) {
-            int node = big_mesh->get_elem(i, j);
-            if (fabs(big_mesh->get_z(node) - zmin) > 1.0 * latconst) n_not_bottom++;
-        }
+//        // Find elements not belonging to the bottom of simulation cell
+//        for (j = 0; j < n_nodes_per_elem; ++j) {
+//            int node = big_mesh->get_elem(i, j);
+//            if (fabs(big_mesh->get_z(node) - zmin) > 1.0 * latconst) n_not_bottom++;
+//        }
 
         //(*is_vacuum)[i] = (n_vacuum > 0) && (n_not_bulk > 1) && (n_not_bottom == n_nodes_per_elem);
-        (*is_vacuum)[i] = (n_vacuum > 0) && (n_not_bulk > 1);
+        (*is_vacuum)[i] = ((n_vacuum > 0)  || (n_surface > 3)) && (n_not_bulk > 1);// && (n_not_bulk > 1);
     }
 }
 
@@ -102,10 +105,10 @@ const void Mesher::extract_mesh_bymarker(vector<bool>* is_vacuum, Mesh* big_mesh
 
     is_vacuum->resize(n_elems);
 
-    int n_vacuum, n_not_bulk;
+    int n_vacuum, n_surface, n_bulk;
 
     for (elem = 0; elem < n_elems; ++elem) {
-        n_vacuum = n_not_bulk = 0;
+        n_vacuum = n_surface = n_bulk = 0;
 
         // Find nodes that are not inside the bulk
         for (node = 0; node < n_nodes_per_elem; ++node)
@@ -114,10 +117,14 @@ const void Mesher::extract_mesh_bymarker(vector<bool>* is_vacuum, Mesh* big_mesh
 
         // Find nodes that are in the surface
         for (node = 0; node < n_nodes_per_elem; ++node)
-            if ( big_mesh->get_nodemarker(big_mesh->get_elem(elem,node)) != types->type_bulk )
-                n_not_bulk++;
+            if ( big_mesh->get_nodemarker(big_mesh->get_elem(elem,node)) == types->type_surf )
+                n_surface++;
 
-        (*is_vacuum)[elem] = (n_vacuum > 0) && (n_not_bulk > 1);
+        for (node = 0; node < n_nodes_per_elem; ++node)
+            if ( big_mesh->get_nodemarker(big_mesh->get_elem(elem,node)) == types->type_bulk )
+                n_bulk++;
+
+        (*is_vacuum)[elem] = ((n_vacuum > 0) || (n_surface > 2)) && (n_bulk < 1);//&& (n_not_bulk > 1);
     }
 }
 

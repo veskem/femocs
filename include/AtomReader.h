@@ -17,7 +17,7 @@ namespace femocs {
 /**
  * Class to import atom coordinates and types.
  */
-class AtomReader {
+class AtomReader: public Medium {
 public:
     /**
      * Constructor for AtomReader.
@@ -26,6 +26,9 @@ public:
     virtual ~AtomReader() {
     }
     ;
+
+    /** Get type of i-th atom in AtomReader */
+    const int get_type(const int i);
 
     /**
      * Function to import file with atom coordinates and types.
@@ -43,27 +46,6 @@ public:
      */
     const void import_kimocs();
 
-    /** Get number of atoms in AtomReader */
-    const int get_n_atoms();
-
-    /** Get Point3d instance for i-th atom in AtomReader */
-    const Point3d get_point(const int i);
-
-    /** Get x-coordinate of i-th atom in AtomReader */
-    const double get_x(const int i);
-
-    /** Get y-coordinate of i-th atom in AtomReader */
-    const double get_y(const int i);
-
-    /** Get z-coordinate of i-th atom in AtomReader */
-    const double get_z(const int i);
-
-    /** Get type of i-th atom in AtomReader */
-    const int get_type(const int i);
-
-    /** Get coordination of i-th atom in AtomReader */
-    const int get_coordination(const int i);
-
     /**
      * Calculate coordination for all the atoms in AtomReader
      * @param cell - data where simulation cell sizes is saved
@@ -78,8 +60,8 @@ public:
     /** Redefine the min and max values for z-coordinates */
     const void resize_box(const double zmin, const double zmax);
 
-    /** Output surface data to file in xyz format */
-    const void output(const string file_name);
+//    /** Output surface data to file in xyz format */
+//    const void output(const string file_name);
 
     /** Struct for holding data of the whole simulation cell. */
     struct Types {
@@ -121,19 +103,9 @@ public:
     Sizes sizes;
 
 private:
-    vector<double> x;   //!< x-coordinates of atoms
-    vector<double> y;   //!< y-coordinates of atoms
-    vector<double> z;   //!< z-coordinates of atoms
     vector<int> type;   //!< types of atoms
-    vector<int> coordination;  //!< coordinations of atoms
 
-    /**
-     * Function to extract file extension from file name
-     * @param file_name - name of the file with extension
-     */
-    const string get_file_type(const string file_name);
-
-    /** Compile data string from the data vectors */
+    /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     const string get_data_string(const int i);
 
     /**

@@ -17,14 +17,16 @@ using namespace std;
 namespace femocs {
 
 // AtomReader constructor
-AtomReader::AtomReader() {
-    init_statistics();
+AtomReader::AtomReader() : Medium(){
 }
 
 // Initialise statistics about coordinates
 const void AtomReader::init_statistics() {
     sizes.xmin = sizes.ymin = sizes.zmin = DBL_MAX;
     sizes.xmax = sizes.ymax = sizes.zmax = DBL_MIN;
+    sizes.xbox = sizes.ybox = sizes.zbox = 0;
+    sizes.zminbox = DBL_MAX;
+    sizes.zmaxbox = DBL_MIN;
 }
 
 // Calculate the statistics about coordinates
@@ -51,19 +53,13 @@ const void AtomReader::calc_statistics() {
 
 // Reserve memory for data vectors
 const void AtomReader::reserve(const int n_atoms) {
-	require(n_atoms > 0, "Invalid number of atoms!");
-    x.reserve(n_atoms);
-    y.reserve(n_atoms);
-    z.reserve(n_atoms);
+    Medium::reserve(n_atoms);
     type.reserve(n_atoms);
 }
 
 // Add atom with its coordinates and type
 const void AtomReader::add_atom(const double x, const double y, const double z, const int type) {
-	expect(get_n_atoms() < this->x.capacity(), "Allocated vector sizes exceeded!");
-    this->x.push_back(x);
-    this->y.push_back(y);
-    this->z.push_back(z);
+    Medium::add_atom(x, y, z, 0);
     this->type.push_back(type);
 }
 
@@ -84,8 +80,6 @@ const void AtomReader::calc_slow_coordination(const double cutoff, const int nnn
     int i, j, coord;
     double r2, dx, dy, dz;
     double cutoff2 = cutoff * cutoff;
-
-    coordination.reserve(N);
 
 //    omp_set_num_threads(this->nrOfOmpThreads);
 //#pragma omp parallel for shared(coords,is_surface) private(i,j,dx,dy,dz,r2) reduction(+:coord,N)
@@ -116,8 +110,6 @@ const void AtomReader::calc_dummy_coordination(const int nnn) {
 	require(nnn > 0, "Invalid number of nearest neighbors!");
     int n_atoms = get_n_atoms();
 
-    coordination.reserve(n_atoms);
-
     for (int i = 0; i < n_atoms; ++i) {
         if (type[i] == types.type_bulk)
             coordination[i] = nnn;
@@ -138,73 +130,21 @@ const void AtomReader::resize_box(const double zmin, const double zmax) {
 
 // =================================
 // *** GETTERS: ***************
-const int AtomReader::get_n_atoms() {
-    return x.size();
-}
-
-const Point3d AtomReader::get_point(const int i) {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    return Point3d(x[i], y[i], z[i]);
-}
-
-const double AtomReader::get_x(const int i) {
-	require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    return x[i];
-}
-
-const double AtomReader::get_y(const int i) {
-	require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    return y[i];
-}
-
-const double AtomReader::get_z(const int i) {
-	require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    return z[i];
-}
 
 const int AtomReader::get_type(const int i) {
 	require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     return type[i];
 }
 
-const int AtomReader::get_coordination(const int i) {
-	require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    return coordination[i];
-}
-
-const string AtomReader::get_file_type(const string file_name) {
-    int start = file_name.find_last_of('.') + 1;
-    int end = file_name.size();
-    string file_type = file_name.substr(start, end);
-
-    if (file_type == "xyz") this->types.simu_type = "md";
-    if (file_type == "dump") this->types.simu_type = "md";
-    if (file_type == "ckx") this->types.simu_type = "kmc";
-
-    return file_type;
-}
-
-// Output surface data to file in xyz format
-const void AtomReader::output(const string file_name) {
-    int n_atoms = get_n_atoms();
-
-    ofstream out_file(file_name);
-    require(out_file.is_open(), "Can't open a file " + file_name);
-
-    out_file << n_atoms << "\n";
-    out_file << "Data of the nanotip: id x y z type\n";
-
-    for (int i = 0; i < n_atoms; ++i)
-        out_file << get_data_string(i) << endl;
-
-    out_file.close();
-}
-
 // Compile data string from the data vectors
 const string AtomReader::get_data_string(const int i) {
+    if(i < 0)
+        return "Types of data: id x y z type";
+
     ostringstream strs;
-    strs << i << " " << get_x(i) << " " << get_y(i) << " " << get_z(i) << " " << get_type(i);
-        //<< " " << get_coordination(i);
+    strs << i << " " << get_point(i) << " " << get_type(i);
+
+    if(i < coordination.size()) strs << " " << get_coordination(i);
     return strs.str();
 }
 
@@ -228,12 +168,18 @@ const void AtomReader::import_helmod(int n_atoms, double* x, double* y, double* 
 const void AtomReader::import_file(const string file_name) {
     string file_type = get_file_type(file_name);
 
-    if (file_type == "xyz")
+    if (file_type == "xyz") {
+        this->types.simu_type = "md";
         import_xyz(file_name);
-    else if (file_type == "ckx")
+    }
+    else if (file_type == "ckx") {
+        this->types.simu_type = "kmc";
         import_ckx(file_name);
-    else if (file_type == "dump")
+    }
+    else if (file_type == "dump") {
+        this->types.simu_type = "md";
         import_dump(file_name);
+    }
     else
     	require(false, "Unknown file type: " + file_type);
 

@@ -22,7 +22,7 @@ Femocs::Femocs(string file_name) {
     start_msg(double t0, "\n======= Femocs started! =======\n");
     //*
     //conf.infile = "input/rough111.ckx";
-    conf.infile = "input/mushroom1.ckx";
+    conf.infile = "input/mushroom2.ckx";
     conf.latconst = 2.0;        // lattice constant
     conf.coord_cutoff = 0.0; //3.3;    // coordination analysis cut off radius
     //*/
@@ -120,6 +120,7 @@ const void Femocs::run(double E_field, double*** phi) {
     bulk_mesh.write_elems("output/elems_bulk.vtk");
     vacuum_mesh.write_faces("output/faces_vacuum.vtk");
     vacuum_mesh.write_elems("output/elems_vacuum.vtk");
+    vacuum_mesh.write_nodes("output/nodes_vacuum.xyz");
     end_msg(t0);
 
 //    start_msg(t0, "Making test mesh...");
@@ -142,8 +143,8 @@ const void Femocs::run(double E_field, double*** phi) {
     cout << "Tetgen: #elems=" << tethex_mesh.get_n_hexahedra() << ", #faces=" << tethex_mesh.get_n_quadrangles() << endl;
 #endif
 
-//    t0 = start_msg("Writing tethex to file...");
-//    tethex_mesh.write("output/tethex.msh");
+//    start_msg(t0, "Writing tethex to file...");
+////    tethex_mesh.write("output/tethex.msh");
 //    tethex_mesh.write_vtk_faces("output/tethex_faces.vtk");
 //    tethex_mesh.write_vtk_elems("output/tethex_elems.vtk");
 //    end_msg(t0);
@@ -173,12 +174,13 @@ const void Femocs::run(double E_field, double*** phi) {
 //    laplace.solve_umfpack();
     end_msg(t0);
 
-    start_msg(t0, "=== Extracting electric field...");
-    laplace.extract_elfield_at_surf(surf, "output/results_at_surf.xyz");
+    start_msg(t0, "=== Extracting solution...");
+    laplace.extract_solution_at_medium(surf);
     end_msg(t0);
 
     start_msg(t0, "=== Outputting results...");
-    laplace.output_results("output/final-results.vtk");
+    laplace.output_results("output/results_vacuum.vtk");
+    laplace.output_results("output/results_surface.xyz");
     end_msg(t0);
 
     cout << "\nTotal time: " << omp_get_wtime() - tstart << "\n";
@@ -196,13 +198,15 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
 
     end_msg(t0);
 
+    start_msg(t0, "=== Outputting AtomReader atoms...");
+    reader.output("output/atoms.xyz");
+    end_msg(t0);
+
     start_msg(t0, "=== Calculating coordinations of atoms...");
     reader.calc_coordination(conf.coord_cutoff, conf.nnn);
     end_msg(t0);
 
-//    start_msg(t0, "=== Outputting AtomReader atoms...");
-//    reader.output("output/atoms.xyz");
-//    end_msg(t0);
+
 }
 
 const void femocs_speaker(string path) {

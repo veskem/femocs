@@ -7,9 +7,7 @@
 
 #include "DealII.h"
 #include <fstream>
-
 #include <stdio.h>
-#include <fstream>
 
 using namespace std;
 using namespace dealii;
@@ -21,6 +19,7 @@ namespace femocs {
 DealII::DealII(const int poly_degree, const double neumann) :
         fe(poly_degree), dof_handler(triangulation) {
     this->neumann = neumann;
+    reserve_solution(0);
 }
 
 // Extract the file type from file name
@@ -251,7 +250,7 @@ void DealII::setup_system() {
     system_matrix.reinit(sparsity_pattern);
     system_rhs.reinit(dof_handler.n_dofs());
 
-    potential.reinit(dof_handler.n_dofs());
+    laplace_solution.reinit(dof_handler.n_dofs());
 }
 
 // Mark the boundary faces of mesh
@@ -363,7 +362,7 @@ void DealII::assemble_system(const AtomReader::Types* types) {
             copper_boundary_value);
 
     // Apply boundary values to system matrix
-    MatrixTools::apply_boundary_values(copper_boundary_value, system_matrix, potential, system_rhs);
+    MatrixTools::apply_boundary_values(copper_boundary_value, system_matrix, laplace_solution, system_rhs);
 }
 
 // Run the calculation with conjugate gradient solver
@@ -371,226 +370,200 @@ void DealII::solve_cg() {
     // Declare Conjugate Gradient solver tolerance and max number of iterations
     SolverControl solver_control(10000, 1e-9);
     SolverCG<> solver(solver_control);
-    solver.solve(system_matrix, potential, system_rhs, PreconditionIdentity());
+    solver.solve(system_matrix, laplace_solution, system_rhs, PreconditionIdentity());
 }
 
 // Run the calculation with UMFPACK solver
 void DealII::solve_umfpack() {
     SparseDirectUMFPACK A_direct;
     A_direct.initialize(system_matrix);
-    A_direct.vmult(potential, system_rhs);
+    A_direct.vmult(laplace_solution, system_rhs);
 }
 
-void DealII::probe_results(const int N) {
-    Point<DIM> point1(0.5, 0.5, 11.5);
-    Point<DIM> point2(0.0, 0.0, 11.0);
+void DealII::extract_solution_at_medium(Medium &medium) {
+    int node, n;
+    Point<DIM> point;
+    Tensor<1, DIM> ef;
+    double pot;
 
-    elfield.reserve(N);
+    int n_nodes = medium.get_n_atoms();
+    reserve_solution(n_nodes);
 
-    for (int i = 0; i < N; ++i) {
-        elfield.push_back(get_elfield_at_node_old(point2));
+    vector<int> medium2node_map = get_medium2node_map(medium);
+    vector<int> node2elem_map = get_node2elem_map();
+    vector<int> node2vert_map = get_node2vert_map();
+
+    for (node = 0; node < n_nodes; ++node) {
+        n = medium2node_map[node];
+        if (n >= 0) {
+            ef = get_elfield_at_node(node2elem_map[n], node2vert_map[n]);
+            //pot = get_potential_at_node(node2elem_map[n], node2vert_map[n]);
+        } else
+            ef[0] = ef[1] = ef[2] = pot = 1e20;
+
+        solution.point.push_back(medium.get_point(node));
+        solution.elfield.push_back( Vec3d(ef[0], ef[1], ef[2]) );
+        solution.elfield_norm.push_back(ef.norm());
+        solution.potential.push_back(pot);
     }
 }
 
-vector<unsigned int> DealII::get_node2elem_map(const int n_surf) {
-    const int n_verts = triangulation.n_used_vertices();
-    vector<unsigned int> map(2 * n_verts);
+// Reserve memory for solution vectors
+void DealII::reserve_solution(const int n_nodes) {
+    solution.point.reserve(n_nodes);
+    solution.elfield.reserve(n_nodes);
+    solution.elfield_norm.reserve(n_nodes);
+    solution.potential.reserve(n_nodes);
+}
 
+// Map the indices of nodes to the indices of the elements and vertices
+// where the nodes are located in those elements.
+// The index of element and vertex are stored sequentally, so that
+// map[2*node_index] == element_index, map[2*node_index+1] == vertex_index
+vector<int> DealII::get_node2elem_map() {
+    vector<int> map(triangulation.n_used_vertices());
     typename DoFHandler<DIM>::active_cell_iterator cell;
 
+    // Loop through all the elements
     for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell)
+        // Loop through all the vertices in the element
         for (unsigned int vertex = 0; vertex < n_verts_per_elem; ++vertex)
-            //if(cell->vertex_index(vertex) < n_surf) {
-            if(true) {
-                map[2 * cell->vertex_index(vertex) + 0] = (unsigned int) cell->active_cell_index();
-                map[2 * cell->vertex_index(vertex) + 1] = vertex;
-//                cout << "node: " << cell->vertex_index(vertex)
-//                        << " coords: " << cell->vertex(vertex)
-//                        << " cell: " << cell->index()
-//                        << " vert: " << vertex << endl;
-            }
+            map[cell->vertex_index(vertex)] = cell->active_cell_index();
 
     return map;
 }
 
-// Return mapping between surface atoms and mesh nodes
-// Value -1 indicates that there's no mapping, i.e
-// in the mesh there's no node that corresponds to the given surface atom
-vector<int> DealII::get_surface_map(Surface &surf) {
+vector<int> DealII::get_node2vert_map() {
+    vector<int> map(triangulation.n_used_vertices());
+    typename DoFHandler<DIM>::active_cell_iterator cell;
+
+    // Loop through all the elements
+    for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell)
+        // Loop through all the vertices in the element
+        for (unsigned int vertex = 0; vertex < n_verts_per_elem; ++vertex)
+            map[cell->vertex_index(vertex)] = vertex;
+
+    return map;
+}
+
+// Return mapping between Medium atoms and DealII mesh nodes
+// Value -1 indicates that there's no node in the mesh that corresponds to the given atom
+vector<int> DealII::get_medium2node_map(Medium &medium) {
     int i;
-    int n_atoms = surf.get_n_atoms();
+    int n_atoms = medium.get_n_atoms();
     vector<int> map(n_atoms, -1);
 
     typename Triangulation<DIM>::active_vertex_iterator vert;
+    vert = triangulation.begin_active_vertex();
 
     // Loop through mesh vertices that potentially could be on the surface
-    for (vert = triangulation.begin_active_vertex(); vert != triangulation.end_vertex(); ++vert) {
-        // Only the first vertices could be on the surface
-        if(vert->vertex_index() >= n_atoms)
-            continue;
-
+    for (int vert_cntr = 0; vert_cntr < n_atoms; ++vert_cntr, ++vert)
         // Loop through surface atoms
         for (i = 0; i < n_atoms; ++i) {
             // If map entry already available, take next atom
-            if (map[i] >= 0)
-                continue;
-
-            if( surf.get_point(i) == vert->vertex() )
-                map[i] = vert->vertex_index();
+            if (map[i] >= 0) continue;
+            if (medium.get_point(i) == vert->vertex()) map[i] = vert->vertex_index();
         }
-    }
 
     return map;
-}
-
-void DealII::extract_elfield_at_surf(Surface &surf, const string file_name) {
-    int n_nodes = triangulation.n_vertices();//surf->get_n_atoms();
-    int node;
-    Point<DIM> point;
-    Tensor<1,DIM> ef;
-    double potential;
-
-    vector<int> map2 = get_surface_map(surf);
-
-    return;
-
-    vector<unsigned int> map = get_node2elem_map(n_nodes);
-
-    ofstream out_file(file_name);
-    expect(out_file.is_open(), "Can't open a file " + file_name);
-
-    out_file << n_nodes << "\n";
-    out_file << " Data of the surface: id x y z potential E.x E.y E.z E.norm\n";
-
-    elfield_norm.reserve(n_nodes);
-    elfield.reserve(n_nodes);
-
-    typename Triangulation<DIM>::active_vertex_iterator  vert;
-    node = 0;
-
-    for(vert = triangulation.begin_active_vertex(); vert != triangulation.end_vertex(); ++vert) {
-        point = vert->vertex();
-        ef = get_elfield_at_node(point, map[2*node+0], map[2*node+1]);
-        potential = get_potential_at_node(point);
-        elfield.push_back(ef);
-        elfield_norm.push_back(ef.norm());
-
-        out_file << node << " ";
-        out_file << point << " ";
-        out_file << potential << " ";
-        out_file << ef << " ";
-        out_file << ef.norm() << endl;
-        ++node;
-    }
-
-//    for (node = 0; node < n_nodes; ++node) {
-//        point[0] = surf->get_x(node);
-//        point[1] = surf->get_y(node);
-//        point[2] = surf->get_z(node);
-//
-//        ef = get_elfield_at_node(point, map[2*node+0], map[2*node+1]);
-//        elfield.push_back(ef);
-//        elfield_norm.push_back(ef.norm());
-//
-//        out_file << node << " ";
-//        out_file << point << " ";
-//        out_file << ef << " ";
-//        out_file << ef.norm() << endl;
-//    }
-
-    out_file.close();
 }
 
 // Calculate electric field from arbitrary point inside the mesh
 Tensor<1, DIM> DealII::get_elfield_at_point(Point<DIM> &point) {
-    return VectorTools::point_gradient(dof_handler, potential, point);
+    return VectorTools::point_gradient(dof_handler, laplace_solution, point);
 }
 
 // Calculate electric field at node point
-Tensor<1, DIM> DealII::get_elfield_at_node(Point<DIM> &node, const unsigned int &cell_indx, const unsigned int &vert_indx) {
+Tensor<1, DIM> DealII::get_elfield_at_node(const int &cell_indx, const int &vert_indx) {
     vector<Tensor<1, DIM>> solution_gradients;
     QTrapez<DIM> only_vertices_quadrature_formula;
     FEValues<DIM> fe_values(fe, only_vertices_quadrature_formula, update_gradients);
+    solution_gradients.resize(only_vertices_quadrature_formula.size());
 
     typename DoFHandler<DIM>::active_cell_iterator cell;
 
     cell = dof_handler.begin_active();
-    for(int i = 0; i < cell_indx; ++i)
+    for (unsigned int i = 0; i < cell_indx; ++i)
         ++cell;
 
-//    cout << cell_indx << " " << vert_indx << " " << cell << endl;
-
-    solution_gradients.resize(only_vertices_quadrature_formula.size());
     fe_values.reinit(cell);
-    fe_values.get_function_gradients(potential, solution_gradients);
+    fe_values.get_function_gradients(laplace_solution, solution_gradients);
 
     return solution_gradients.at(vert_indx);
 }
 
-// Calculate electric field at node point
-Tensor<1, DIM> DealII::get_elfield_at_node_old(Point<DIM> &node) {
-    vector<Tensor<1, DIM>> solution_gradients;
-    QTrapez<DIM> only_vertices_quadrature_formula;
-    FEValues<DIM> fe_values(fe, only_vertices_quadrature_formula, update_gradients);
-
-    typename DoFHandler<DIM>::active_cell_iterator cell;
-    solution_gradients.resize(only_vertices_quadrature_formula.size());
-    for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell)
-        for (unsigned int vertex = 0; vertex < n_verts_per_elem; ++vertex)
-            if (cell->vertex(vertex) == node) {
-                fe_values.reinit(cell);
-                fe_values.get_function_gradients(potential, solution_gradients);
-
-                return solution_gradients.at(vertex);
-            }
-
-    return solution_gradients[0];
-}
-
-
 // Calculate potential at arbitrary point inside the mesh
 double DealII::get_potential_at_point(Point<DIM> &point) {
-    return VectorTools::point_value(dof_handler, potential, point);
+    return VectorTools::point_value(dof_handler, laplace_solution, point);
 }
 
-// Get potential at node point
-double DealII::get_potential_at_node(Point<DIM> &node) {
+// Get potential at mesh node
+double DealII::get_potential_at_node(const int &cell_indx, const int &vert_indx) {
     typename DoFHandler<DIM>::active_cell_iterator cell;
 
-// Loop through all the cells
-    for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell) {
-        for (unsigned int vertex = 0; vertex < GeometryInfo<DIM>::vertices_per_cell; ++vertex)
-            if (cell->vertex(vertex) == node) return potential(cell->vertex_dof_index(vertex, 0));
+    cell = dof_handler.begin_active();
+    for (unsigned int i = 0; i < cell_indx; ++i)
+        ++cell;
 
-    }
-
-    return 1e20;
+    return laplace_solution(cell->vertex_dof_index(vert_indx, 0));
 }
 
 // Write the potential and electric field to the file
 void DealII::output_results(const string file_name) {
-    string file_type = get_file_type(file_name);
-    expect(file_type == "vtk" || file_type == "eps", "Unsupported file type!");
+    string ftype = get_file_type(file_name);
+    expect(ftype == "vtk" || ftype == "eps" || ftype == "xyz", "Unsupported file type!");
 
-    LaplacePostProcessor field_calculator("Electric field");
+//    LaplacePostProcessor field_calculator("Electric field");
     DataOut<DIM> data_out;
     data_out.attach_dof_handler(dof_handler);
-    data_out.add_data_vector(potential, "Potential");
-    data_out.add_data_vector(potential, field_calculator);
+    data_out.add_data_vector(laplace_solution, "Potential");
+//    data_out.add_data_vector(potential, field_calculator);
     data_out.build_patches();
 
     ofstream output(file_name);
-
-    if (file_type == "vtk")
+    if (ftype == "vtk")
         data_out.write_vtk(output);
-    else if (file_type == "eps") data_out.write_eps(output);
+    else if (ftype == "eps")
+        data_out.write_eps(output);
+    else if (ftype == "xyz")
+        write_xyz(file_name);
 }
 
-// Output the mesh 
+// Write the mesh to file
 void DealII::output_mesh(const string file_name) {
+    string ftype = get_file_type(file_name);
+    expect(ftype == "vtk" || ftype == "msh" || ftype == "eps", "Unsupported file type!");
+
     ofstream outfile(file_name);
     GridOut gout;
     gout.write_msh(triangulation, outfile);
+    if (ftype == "vtk")
+        gout.write_vtk(triangulation, outfile);
+    else if (ftype == "msh")
+        gout.write_msh(triangulation, outfile);
+    else if (ftype == "eps")
+        gout.write_eps(triangulation, outfile);
+}
+
+void DealII::write_xyz(const string file_name) {
+    const int n_verts = solution.point.size();
+
+    ofstream out_file(file_name);
+    expect(out_file.is_open(), "Can't open a file " + file_name);
+
+    out_file << n_verts << "\n";
+    out_file << "Solution of DealII operations: id  x y z  E.x E.y E.z  E.norm  potential\n";
+
+    // Loop through mesh vertices that potentially could be on the surface
+    for (int i = 0; i < n_verts; ++i) {
+        out_file << i << " ";
+        out_file << solution.point[i] << " ";
+        out_file << solution.elfield[i] << " ";
+        out_file << solution.elfield_norm[i] << " ";
+        out_file << solution.potential[i] << " ";
+        out_file << endl;
+    }
+    out_file.close();
 }
 
 } /* namespace femocs */

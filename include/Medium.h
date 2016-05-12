@@ -9,46 +9,15 @@
 #define MEDIUM_H_
 
 #include "Macros.h"
-#include "Vec3.h"
-#include <deal.II/numerics/vector_tools.h>
+#include "Primitives.h"
 
 using namespace std;
 namespace femocs {
 
-/** Class to define elementary operations between points with double coordinates*/
-class Point3d{
-public:
-
-    Point3d(double xx, double yy, double zz) :
-            x(xx), y(yy), z(zz) {}
-
-    double distance(const Point3d &n) {
-        Vec3d dif(x - n.x, y - n.y, z - n.z);
-        return dif.length();
-    }
-
-    double distance(const dealii::Point<3> &p) {
-        Vec3d dif(x - p[0], y - p[1], z - p[2]);
-        return dif.length();
-    }
-
-    bool operator ==(const dealii::Point<3> &p) {
-        return x == p[0] && y == p[1] && z == p[2];
-    }
-
-    // Point3d accessors
-    const double& operator [](uint8_t i) const {
-        return (&x)[i];
-    }
-    double& operator [](uint8_t i) {
-        return (&x)[i];
-    }
-
-    double x,y,z;
-};
-
 class Medium {
 public:
+    /** Medium constructor */
+    Medium();
 
     /** Reserve memory for data vectors */
     const void reserve(const int n_atoms);
@@ -122,8 +91,14 @@ protected:
     /** Initialise statistics about the coordinates in Medium */
     const void init_statistics();
 
-    /** Get i-th entry from all data vectors */
+    /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     const string get_data_string(const int i);
+
+    /**
+     * Function to extract file extension from file name
+     * @param file_name - name of the file with extension
+     */
+    const string get_file_type(const string file_name);
 };
 
 } /* namespace femocs */

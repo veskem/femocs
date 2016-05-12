@@ -12,7 +12,7 @@
 #include "AtomReader.h"
 #include "Media.h"
 #include "Mesh.h"
-#include "Vec3.h"
+#include "Primitives.h"
 
 using namespace std;
 namespace femocs {

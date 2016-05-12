@@ -23,7 +23,8 @@
 #include "Macros.h"
 #include "AtomReader.h"
 #include "Tethex.h"
-#include "Media.h"
+#include "Medium.h"
+#include "Primitives.h"
 
 namespace tethex {
 class Mesh;
@@ -42,7 +43,7 @@ public:
         DataPostprocessorVector<DIM>(data_name, update_values | update_gradients) {
     }
 
-    virtual void compute_derived_quantities_scalar (
+    void compute_derived_quantities_scalar (
             const vector<double>           &uh,
             const vector<Tensor<1,DIM>>    &duh,
             const vector<Tensor<2,DIM>>    &dduh,
@@ -56,6 +57,8 @@ public:
             for (unsigned int coord = 0; coord < 2; ++coord)
                 computed_quantities[i](coord) = duh[i][coord];
     }
+
+
 };
 
 /**
@@ -80,8 +83,17 @@ public:
     void solve_umfpack();
     void solve_cg();
 
-    void probe_results(const int N);
-    void extract_elfield_at_surf(Surface &surf, const string file_name);
+    void extract_solution_at_medium(Medium &surf);
+    void extract_elfield_at_surf_old(Medium &surf, const string file_name);
+
+    struct Solution {
+        vector<Point3d> point;
+        vector<Vec3d> elfield;
+        vector<double> elfield_norm;
+        vector<double> potential;
+    };
+
+    Solution solution;
 
 private:
     const unsigned int n_verts_per_elem = GeometryInfo<DIM>::vertices_per_cell;
@@ -95,25 +107,25 @@ private:
     DoFHandler<3> dof_handler;
     SparsityPattern sparsity_pattern;
     SparseMatrix<double> system_matrix;
-    Vector<double> potential;
+    Vector<double> laplace_solution;
     Vector<double> system_rhs;
     ConstraintMatrix constraints;
-
-    std::vector<Tensor<1,DIM>> elfield;
-    std::vector<double> elfield_norm;
 
     const string get_file_type(const string file_name);
     bool on_boundary(const double face, const double face_min, const double face_max);
 
-    double get_potential_at_node(Point<DIM> &node);
+    double get_potential_at_node(const int &cell_indx, const int &vert_indx);
     double get_potential_at_point(Point<DIM> &point);
 
-    Tensor<1,DIM> get_elfield_at_node(Point<DIM> &node, const unsigned int &cell, const unsigned int &vert_indx);
-    Tensor<1,DIM> get_elfield_at_node_old(Point<DIM> &node);
+    Tensor<1,DIM> get_elfield_at_node(const int &cell, const int &vert_indx);
     Tensor<1,DIM> get_elfield_at_point(Point<DIM> &point);
 
-    vector<unsigned int> get_node2elem_map(const int n_surf);
-    vector<int> get_surface_map(Surface &surf);
+    vector<int> get_medium2node_map(Medium &medium);
+    vector<int> get_node2elem_map();
+    vector<int> get_node2vert_map();
+
+    void reserve_solution(const int n_nodes);
+    void write_xyz(const string file_name);
 };
 
 } /* namespace femocs */

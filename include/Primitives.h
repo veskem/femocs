@@ -1,27 +1,25 @@
 /*
- * Vec3.h
+ * Primitives.h
  *
  *  Created on: 29.04.2016
- *  Author: scratchapixel
+ *  Author: veske & scratchapixel
  *  http://www.scratchapixel.com/code.php?id=9&origin=/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle&src=1
  */
 
-#ifndef VEC3_H_
-#define VEC3_H_
+#ifndef PRIMITIVES_H_
+#define PRIMITIVES_H_
 
 #include <math.h>
+#include <deal.II/numerics/vector_tools.h>
 
 /** Template class to define the 3D vector with its operations */
 template<typename T>
 class Vec3 {
 public:
     /** Vec3 constructors */
-    Vec3() :
-            x(T(0)), y(T(0)), z(T(0)) {}
-    Vec3(T xx) :
-            x(xx), y(xx), z(xx) {}
-    Vec3(T xx, T yy, T zz) :
-            x(xx), y(yy), z(zz) {}
+    Vec3() : x(T(0)), y(T(0)), z(T(0)) {}
+    Vec3(T xx) : x(xx), y(xx), z(xx) {}
+    Vec3(T xx, T yy, T zz) : x(xx), y(yy), z(zz) {}
 
     /** Addition of two vectors */
     Vec3 operator +(const Vec3 &v) const {
@@ -93,7 +91,7 @@ public:
     }
 
     /**
-     The next two operators are called access operators or accessors.
+     Define access operators or accessors.
      The Vec3 coordinates can be accessed that way v[0], v[1], v[2], rather than v.x, v.y, v.z.
      This is useful in loops: the coordinates can be accessed with the loop index (e.g. v[i]).
      */
@@ -106,7 +104,7 @@ public:
 
     /** Defining the behaviour of cout */
     friend std::ostream& operator <<(std::ostream &s, const Vec3<T> &v) {
-        return s << '[' << v.x << ' ' << v.y << ' ' << v.z << ']';
+        return s << v.x << ' ' << v.y << ' ' << v.z;
     }
 
     T x, y, z;
@@ -116,5 +114,57 @@ typedef Vec3<double> Vec3d; //!> 3D vector class with double values
 typedef Vec3<float> Vec3f;  //!> 3D vector class with float values
 typedef Vec3<int> Vec3i;    //!> 3D vector class with integer values
 
-#endif /* VEC3_H_ */
 
+/** Class to define elementary operations between points */
+template<typename T>
+class Point3{
+public:
+
+    /** Constructors of Point3 class */
+    Point3() : x(0), y(0), z(0) {}
+    Point3(T xx) : x(xx), y(xx), z(xx) {}
+    Point3(T xx, T yy, T zz) : x(xx), y(yy), z(zz) {}
+
+    /** Defining the distance between two Point3-s */
+    double distance(const Point3 &p) {
+        Vec3d dif(x - p.x, y - p.y, z - p.z);
+        return dif.length();
+    }
+
+    /** Defining the distance between a Point3 and dealii::Point<3> */
+    double distance(const dealii::Point<3> &p) {
+        Vec3d dif(x - p[0], y - p[1], z - p[2]);
+        return dif.length();
+    }
+
+    /** Defining the comparison operator between two Point3-s */
+    bool operator ==(const Point3 &p) {
+        return x == p.x && y == p.y && z == p.z;
+    }
+
+    /** Defining the comparison operator between a Point3 and dealii::Point<3> */
+    bool operator ==(const dealii::Point<3> &p) {
+        return x == p[0] && y == p[1] && z == p[2];
+    }
+
+    /** Define accessors */
+    const T& operator [](uint8_t i) const {
+        return (&x)[i];
+    }
+    T& operator [](uint8_t i) {
+        return (&x)[i];
+    }
+
+    /** Defining the behaviour of cout */
+    friend std::ostream& operator <<(std::ostream &s, const Point3 &p) {
+        return s << p.x << ' ' << p.y << ' ' << p.z;
+    }
+
+    T x, y, z;
+};
+
+typedef Point3<double> Point3d; //!> 3D point class with double values
+typedef Point3<float> Point3f;  //!> 3D point class with float values
+typedef Point3<int> Point3i;    //!> 3D point class with integer values
+
+#endif /* PRIMITIVES_H_ */
