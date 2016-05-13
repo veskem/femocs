@@ -53,11 +53,18 @@ const void Femocs::run(double E_field, double*** phi) {
     // ===== Converting imported data =====
 
     start_msg(t0, "=== Extracting surface...");
-    femocs::Surface surf(conf.latconst, conf.nnn);
-    surf.extract_surface(&reader);
-    surf.rectangularize(&reader.sizes);
+    femocs::Surface dense_surf(conf.latconst, conf.nnn);
+    dense_surf.extract_surface(&reader);
+//    dense_surf.rectangularize(&reader.sizes, conf.latconst/2.0);
+    dense_surf.output("output/dense_surface.xyz");
+    end_msg(t0);
+
+    start_msg(t0, "=== Coarsening surface...");
+    femocs::Surface surf = dense_surf.coarsen(11.0, 16, &reader.sizes);
     surf.output("output/surface.xyz");
     end_msg(t0);
+
+    //exit(1);
 
     start_msg(t0, "=== Resizing simulation box...");
     // Electric field is applied 20 lattice constants above the surface highest point
@@ -198,9 +205,9 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
 
     end_msg(t0);
 
-    start_msg(t0, "=== Outputting AtomReader atoms...");
-    reader.output("output/atoms.xyz");
-    end_msg(t0);
+//    start_msg(t0, "=== Outputting AtomReader atoms...");
+//    reader.output("output/atoms.xyz");
+//    end_msg(t0);
 
     start_msg(t0, "=== Calculating coordinations of atoms...");
     reader.calc_coordination(conf.coord_cutoff, conf.nnn);

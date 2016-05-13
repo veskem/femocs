@@ -12,7 +12,7 @@
 #include <math.h>
 #include <deal.II/numerics/vector_tools.h>
 
-/** Template class to define the 3D vector with its operations */
+/** Template class to define the 3-dimensional vector with its operations */
 template<typename T>
 class Vec3 {
 public:
@@ -110,12 +110,7 @@ public:
     T x, y, z;
 };
 
-typedef Vec3<double> Vec3d; //!> 3D vector class with double values
-typedef Vec3<float> Vec3f;  //!> 3D vector class with float values
-typedef Vec3<int> Vec3i;    //!> 3D vector class with integer values
-
-
-/** Class to define elementary operations between points */
+/** Class to define elementary operations between 3-dimensional points */
 template<typename T>
 class Point3{
 public:
@@ -126,19 +121,23 @@ public:
     Point3(T xx, T yy, T zz) : x(xx), y(yy), z(zz) {}
 
     /** Defining the distance between two Point3-s */
-    double distance(const Point3 &p) {
-        Vec3d dif(x - p.x, y - p.y, z - p.z);
-        return dif.length();
+    T distance(const Point3<T> &p) const {
+        T xx = x - p.x;
+        T yy = y - p.y;
+        T zz = z - p.z;
+        return (T) sqrt(xx * xx + yy * yy + zz * zz);
     }
 
     /** Defining the distance between a Point3 and dealii::Point<3> */
-    double distance(const dealii::Point<3> &p) {
-        Vec3d dif(x - p[0], y - p[1], z - p[2]);
-        return dif.length();
+    T distance(const dealii::Point<3> &p) const {
+        T xx = x - p[0];
+        T yy = y - p[1];
+        T zz = z - p[2];
+        return (T) sqrt(xx * xx + yy * yy + zz * zz);
     }
 
     /** Defining the comparison operator between two Point3-s */
-    bool operator ==(const Point3 &p) {
+    bool operator ==(const Point3<T> &p) const {
         return x == p.x && y == p.y && z == p.z;
     }
 
@@ -163,8 +162,61 @@ public:
     T x, y, z;
 };
 
-typedef Point3<double> Point3d; //!> 3D point class with double values
-typedef Point3<float> Point3f;  //!> 3D point class with float values
-typedef Point3<int> Point3i;    //!> 3D point class with integer values
+/** Class to define elementary operations between 3-dimensional points */
+template<typename T>
+class Point2{
+public:
+
+    /** Constructors of Point2 class */
+    Point2() : x(0), y(0) {}
+    Point2(T xx) : x(xx), y(xx) {}
+    Point2(T xx, T yy) : x(xx), y(yy) {}
+
+    /** Defining the distance between two Point2-s */
+    double distance(const Point2<T> &p) const {
+        T xx = x - p.x;
+        T yy = y - p.y;
+        return sqrt(xx * xx + yy * yy);
+    }
+
+    /** Defining the squared distance between two Point2-s; it's a bit faster than distance */
+    T distance2(const Point2<T> &p) const {
+        T xx = x - p.x;
+        T yy = y - p.y;
+        return xx * xx + yy * yy;
+    }
+
+    /** Defining the comparison operator between two Point2-s */
+    bool operator ==(const Point2<T> &p) const {
+        return x == p.x && y == p.y;
+    }
+
+    /** Define accessors */
+    const T& operator [](uint8_t i) const {
+        return (&x)[i];
+    }
+    T& operator [](uint8_t i) {
+        return (&x)[i];
+    }
+
+    /** Defining the behaviour of cout */
+    friend std::ostream& operator <<(std::ostream &s, const Point2 &p) {
+        return s << p.x << ' ' << p.y;
+    }
+
+    T x, y;
+};
+
+typedef Vec3<double> Vec3d; //!> 3D vector class with double values
+typedef Vec3<float> Vec3f;  //!> 3D vector class with float values
+typedef Vec3<int> Vec3i;    //!> 3D vector class with integer values
+
+typedef Point3<double> Point3d; //!> 3-dimensional point class with double values
+typedef Point3<float> Point3f;  //!> 3-dimensional point class with float values
+typedef Point3<int> Point3i;    //!> 3-dimensional point class with integer values
+
+typedef Point2<double> Point2d; //!> 2-dimensional point class with double values
+typedef Point2<float> Point2f;  //!> 2-dimensional point class with float values
+typedef Point2<int> Point2i;    //!> 2-dimensional point class with integer values
 
 #endif /* PRIMITIVES_H_ */

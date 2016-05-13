@@ -14,18 +14,11 @@
 using namespace std;
 namespace femocs {
 
-/**
- * Class to import atom coordinates and types.
- */
+/** Class to import atom coordinates and types. */
 class AtomReader: public Medium {
 public:
-    /**
-     * Constructor for AtomReader.
-     */
+    /** Constructor for AtomReader. */
     AtomReader();
-    virtual ~AtomReader() {
-    }
-    ;
 
     /** Get type of i-th atom in AtomReader */
     const int get_type(const int i);
@@ -37,13 +30,10 @@ public:
      */
     const void import_file(const string file_name);
 
-    /**
-     * Function to transform atomic data from Helmod format into AtomReader one
-     */
+    /** Function to transform atomic data from Helmod format into AtomReader one */
     const void import_helmod(int n_atoms, double* x, double* y, double* z, int* types);
-    /**
-     * Function to transform atomic data from Kimocs format into AtomReader one
-     */
+
+    /** Function to transform atomic data from Kimocs format into AtomReader one */
     const void import_kimocs();
 
     /**
@@ -59,9 +49,6 @@ public:
 
     /** Redefine the min and max values for z-coordinates */
     const void resize_box(const double zmin, const double zmax);
-
-//    /** Output surface data to file in xyz format */
-//    const void output(const string file_name);
 
     /** Struct for holding data of the whole simulation cell. */
     struct Types {
@@ -105,9 +92,6 @@ public:
 private:
     vector<int> type;   //!< types of atoms
 
-    /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
-    const string get_data_string(const int i);
-
     /**
      * Functions to import atoms from different types of file.
      * @param file_name - path to file with atomic data
@@ -124,6 +108,9 @@ private:
 
     /** Initialise statistics about coordinates in AtomReader */
     const void init_statistics();
+
+    /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
+    const string get_data_string(const int i);
 };
 
 } /* namespace femocs */

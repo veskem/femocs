@@ -41,8 +41,13 @@ const void Medium::calc_statistics() {
 }
 
 // Get number of atoms in Medium
-const int Medium::get_n_atoms() {
+int Medium::get_n_atoms() {
     return x.size();
+}
+
+const Point2d Medium::get_point2d(const int i) {
+    require(i >= 0 && i < get_n_atoms(), "Invalid index!");
+    return Point2d(x[i], y[i]);
 }
 
 // Get i-th point

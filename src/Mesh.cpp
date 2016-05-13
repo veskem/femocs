@@ -91,7 +91,7 @@ const double Mesh::get_elem_centre(int i, int xyz) {
     return (node1 + node2 + node3 + node4) / 4.0;
 }
 
-double Mesh::get_volume(const int i) {
+const double Mesh::get_volume(const int i) {
     require(i >= 0 && i < get_n_volumes(), "Invalid index!");
     return volumes[i];
 }
@@ -111,16 +111,15 @@ const int Mesh::get_elemmarker(const int i) {
     require(i >= 0 && i < get_n_elemmarkers(), "Invalid index!");
     return elemmarkers[i];
 }
-
-double* Mesh::get_nodes() {
+const double* Mesh::get_nodes() {
     return tetIO.pointlist;
 }
 
-int* Mesh::get_faces() {
+const int* Mesh::get_faces() {
     return tetIO.trifacelist;
 }
 
-int* Mesh::get_elems() {
+const int* Mesh::get_elems() {
     return tetIO.tetrahedronlist;
 }
 
@@ -158,50 +157,50 @@ const int Mesh::get_n_volumes() {
 // =================================
 // *** INITIALIZERS: ***************
 
-void Mesh::init_nodemarkers(const int N) {
+const void Mesh::init_nodemarkers(const int N) {
     require(N > 0, "Invalid number of node markers!");
     nodemarkers.reserve(N);
 }
 
-void Mesh::init_facemarkers(const int N) {
+const void Mesh::init_facemarkers(const int N) {
     require(N > 0, "Invalid number of face markers!");
     facemarkers.reserve(N);
 }
 
-void Mesh::init_elemmarkers(const int N) {
+const void Mesh::init_elemmarkers(const int N) {
     require(N > 0, "Invalid number of element markers!");
     elemmarkers.reserve(N);
 }
 
-void Mesh::init_nodes(const int N) {
+const void Mesh::init_nodes(const int N) {
     require(N > 0, "Invalid number of nodes!");
     i_nodes = 0;
     tetIO.numberofpoints = N;
     tetIO.pointlist = new REAL[3 * N];
 }
 
-void Mesh::init_faces(const int N) {
+const void Mesh::init_faces(const int N) {
     require(N > 0, "Invalid number of faces!");
     i_faces = 0;
     tetIO.numberoftrifaces = N;
     tetIO.trifacelist = new int[3 * N];
 }
 
-void Mesh::init_elems(const int N) {
+const void Mesh::init_elems(const int N) {
     require(N > 0, "Invalid number of elements!");
     i_elems = 0;
     tetIO.numberoftetrahedra = N;
     tetIO.tetrahedronlist = new int[4 * N];
 }
 
-void Mesh::init_volumes(const int N) {
+const void Mesh::init_volumes(const int N) {
     require(N > 0, "Invalid number of volumes!");
     volumes.reserve(N);
 }
 
 // =================================
 // *** ADDERS: ***************
-void Mesh::add_node(const double x, const double y, const double z) {
+const void Mesh::add_node(const double x, const double y, const double z) {
     require(get_n_nodes() < tetIO.numberofpoints, "Allocated size of elements exceeded!");
     int i = 3 * i_nodes;
     tetIO.pointlist[i + 0] = (REAL) x;
@@ -210,7 +209,7 @@ void Mesh::add_node(const double x, const double y, const double z) {
     i_nodes++;
 }
 
-void Mesh::add_face(const int f1, const int f2, const int f3) {
+const void Mesh::add_face(const int f1, const int f2, const int f3) {
     require(get_n_faces() < tetIO.numberoftrifaces, "Allocated size of elements exceeded!");
     int i = 3 * i_faces;
     tetIO.trifacelist[i + 0] = f1;
@@ -219,7 +218,7 @@ void Mesh::add_face(const int f1, const int f2, const int f3) {
     i_faces++;
 }
 
-void Mesh::add_elem(const int e1, const int e2, const int e3, const int e4) {
+const void Mesh::add_elem(const int e1, const int e2, const int e3, const int e4) {
     require(get_n_elems() < tetIO.numberoftetrahedra, "Allocated size of elements exceeded!");
     int i = 4 * i_elems;
     tetIO.tetrahedronlist[i + 0] = e1;
@@ -229,22 +228,22 @@ void Mesh::add_elem(const int e1, const int e2, const int e3, const int e4) {
     i_elems++;
 }
 
-void Mesh::add_volume(const double V) {
+const void Mesh::add_volume(const double V) {
     expect(get_n_volumes() < this->volumes.capacity(), "Allocated size of volumes exceeded!");
     volumes.push_back(V);
 }
 
-void Mesh::add_nodemarker(const int m) {
+const void Mesh::add_nodemarker(const int m) {
     expect(get_n_nodemarkers() < nodemarkers.capacity(), "Allocated size of nodemarkers exceeded!");
     nodemarkers.push_back(m);
 }
 
-void Mesh::add_facemarker(const int m) {
+const void Mesh::add_facemarker(const int m) {
     expect(get_n_facemarkers() < facemarkers.capacity(), "Allocated size of facemarkers exceeded!");
     facemarkers.push_back(m);
 }
 
-void Mesh::add_elemmarker(const int m) {
+const void Mesh::add_elemmarker(const int m) {
     expect(get_n_elemmarkers() < elemmarkers.capacity(), "Allocated size of elemmarkers exceeded!");
     elemmarkers.push_back(m);
 }
@@ -252,21 +251,21 @@ void Mesh::add_elemmarker(const int m) {
 // =================================
 // *** REPLICATORS: ***************
 
-void Mesh::copy_statistics(Mesh* mesh) {
+const void Mesh::copy_statistics(Mesh* mesh) {
     stat.Vmin = mesh->stat.Vmin;
     stat.Vmax = mesh->stat.Vmax;
     stat.Vaverage = mesh->stat.Vaverage;
     stat.Vmedian = mesh->stat.Vmedian;
 }
 
-void Mesh::copy_nodes(Mesh* mesh) {
+const void Mesh::copy_nodes(Mesh* mesh) {
     int N = mesh->get_n_nodes();
     for (int i = 0; i < 3 * N; ++i)
         tetIO.pointlist[i] = mesh->get_nodes()[i];
     i_nodes = N;
 }
 
-void Mesh::copy_faces(Mesh* mesh, const int offset) {
+const void Mesh::copy_faces(Mesh* mesh, const int offset) {
     int N = mesh->get_n_faces();
     if (offset == 0)
         for (int i = 0; i < 3 * N; ++i)
@@ -277,7 +276,7 @@ void Mesh::copy_faces(Mesh* mesh, const int offset) {
     i_faces = N;
 }
 
-void Mesh::copy_elems(Mesh* mesh, const int offset) {
+const void Mesh::copy_elems(Mesh* mesh, const int offset) {
     int N = mesh->get_n_elems();
     if (offset == 0)
         for (int i = 0; i < 4 * N; ++i)
@@ -288,19 +287,19 @@ void Mesh::copy_elems(Mesh* mesh, const int offset) {
     i_elems = N;
 }
 
-void Mesh::copy_nodemarkers(Mesh* mesh) {
+const void Mesh::copy_nodemarkers(Mesh* mesh) {
     int N = mesh->get_n_nodemarkers();
     for (int i = 0; i < N; ++i)
         nodemarkers.push_back(mesh->get_nodemarker(i));
 }
 
-void Mesh::copy_facemarkers(Mesh* mesh) {
+const void Mesh::copy_facemarkers(Mesh* mesh) {
     int N = mesh->get_n_facemarkers();
     for (int i = 0; i < N; ++i)
         facemarkers.push_back(mesh->get_facemarker(i));
 }
 
-void Mesh::copy_elemmarkers(Mesh* mesh) {
+const void Mesh::copy_elemmarkers(Mesh* mesh) {
     int N = mesh->get_n_elemmarkers();
     for (int i = 0; i < N; ++i)
         elemmarkers.push_back(mesh->get_elemmarker(i));
@@ -309,14 +308,14 @@ void Mesh::copy_elemmarkers(Mesh* mesh) {
 // =================================
 // *** VARIA: ***************
 
-void Mesh::calc_volumes() {
+const void Mesh::calc_volumes() {
     int i, j, k, n1, n2, n3, n4;
     double V;
     double u[3], v[3], w[3];
 
     int N = get_n_elems();
-    double* nodes = get_nodes();
-    int* elems = get_elems();
+    const double* nodes = get_nodes();
+    const int* elems = get_elems();
 
     // Loop through the elements
     for (i = 0; i < N; ++i) {
@@ -340,7 +339,7 @@ void Mesh::calc_volumes() {
     }
 }
 
-void Mesh::calc_volume_statistics() {
+const void Mesh::calc_volume_statistics() {
     size_t n_volumes = get_n_volumes();
     // Make a copy of the volumes vector
     vector<double> tempvec;
@@ -362,7 +361,7 @@ void Mesh::calc_volume_statistics() {
 }
 
 // Function to perform tetgen calculation on input and output data
-void Mesh::recalc(const string cmd) {
+const void Mesh::recalc(const string cmd) {
     tetgenbeh.parse_commandline(const_cast<char*>(cmd.c_str()));
     tetrahedralize(&tetgenbeh, &tetIO, &tetIO);
 
@@ -373,14 +372,14 @@ void Mesh::recalc(const string cmd) {
 
 // Write tetgen mesh into files with its internal functions
 // Files are written into working directory with their default names
-void Mesh::output() {
+const void Mesh::output() {
     const string cmd = "Q";
     tetgenbeh.parse_commandline(const_cast<char*>(cmd.c_str()));
     tetrahedralize(&tetgenbeh, &tetIO, NULL);
 }
 
 // Function to output mesh in .vtk format
-void Mesh::write_vtk(const string file_name, const int n_nodes, const int n_cells,
+const void Mesh::write_vtk(const string file_name, const int n_nodes, const int n_cells,
         const int n_markers, const REAL* nodes, const int* cells, const vector<int>* markers,
         const int celltype, const int n_nodes_in_cell) {
 
@@ -440,7 +439,7 @@ void Mesh::write_vtk(const string file_name, const int n_nodes, const int n_cell
 }
 
 // Function to output nodes in .xyz format
-void Mesh::write_xyz(const string file_name, const int n_nodes, const int n_markers, const REAL* nodes, const vector<int>* markers) {
+const void Mesh::write_xyz(const string file_name, const int n_nodes, const int n_markers, const REAL* nodes, const vector<int>* markers) {
     ofstream out_file(file_name);
     require(out_file.is_open(), "Can't open a file " + file_name);
 
@@ -465,7 +464,7 @@ void Mesh::write_xyz(const string file_name, const int n_nodes, const int n_mark
 }
 
 // Function to write faces to .vtk file
-void Mesh::write_faces(const string file_name) {
+const void Mesh::write_faces(const string file_name) {
 #if not DEBUGMODE
     return;
 #endif
@@ -477,8 +476,8 @@ void Mesh::write_faces(const string file_name) {
     int n_nodes = get_n_nodes();
     int n_faces = get_n_faces();
     int n_markers = get_n_facemarkers();
-    REAL* nodes = get_nodes();          // pointer to nodes
-    int* faces = get_faces();           // pointer to face nodes
+    const REAL* nodes = get_nodes();          // pointer to nodes
+    const int* faces = get_faces();           // pointer to face nodes
     vector<int>* cellmarkers = &facemarkers;    // pointer to face markers
 
     write_vtk(file_name, n_nodes, n_faces, n_markers, nodes, faces, cellmarkers, celltype,
@@ -486,7 +485,7 @@ void Mesh::write_faces(const string file_name) {
 }
 
 // Function to write elements to .vtk file
-void Mesh::write_elems(const string file_name) {
+const void Mesh::write_elems(const string file_name) {
 #if not DEBUGMODE
     return;
 #endif
@@ -498,8 +497,8 @@ void Mesh::write_elems(const string file_name) {
     int n_nodes = get_n_nodes();
     int n_elems = get_n_elems();
     int n_markers = get_n_elemmarkers();
-    REAL* nodes = get_nodes();          // pointer to nodes
-    int* elems = get_elems();           // pointer to faces nodes
+    const REAL* nodes = get_nodes();          // pointer to nodes
+    const int* elems = get_elems();           // pointer to faces nodes
     vector<int>* cellmarkers = &elemmarkers;    // pointer to element markers
 
     write_vtk(file_name, n_nodes, n_elems, n_markers, nodes, elems, cellmarkers, celltype,
@@ -507,7 +506,7 @@ void Mesh::write_elems(const string file_name) {
 }
 
 // Function to write nodes to .xyz or .vtk file
-void Mesh::write_nodes(const string file_name) {
+const void Mesh::write_nodes(const string file_name) {
 #if not DEBUGMODE
     return;
 #endif
@@ -516,7 +515,7 @@ void Mesh::write_nodes(const string file_name) {
 
     int n_nodes = get_n_nodes();
     int n_markers = get_n_nodemarkers();
-    REAL* nodes = get_nodes();           // pointer to nodes
+    const REAL* nodes = get_nodes();           // pointer to nodes
     vector<int>* markers = &nodemarkers; // pointer to node markers
 
     if (file_type == "vtk") {

@@ -52,6 +52,9 @@ public:
     /** Return x-, y- and z-coordinate and associated operators for i-th atom */
     Point3d get_point(const int i);
 
+    /** Return x- and y-coordinate and associated operators for i-th atom */
+    const Point2d get_point2d(const int i);
+
     /** Return x-coordinate of i-th atom */
     const double get_x(const int i);
     /** Return y-coordinate of i-th atom */
@@ -62,7 +65,7 @@ public:
     const int get_coordination(const int i);
 
     /** Return number of atoms in a Medium */
-    const int get_n_atoms();
+    int get_n_atoms();
 
     struct Sizes {
         double xmin;    //!< Minimum value of x-coordinate

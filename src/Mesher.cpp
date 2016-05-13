@@ -130,7 +130,7 @@ const void Mesher::extract_mesh_bymarker(vector<bool>* is_vacuum, Mesh* big_mesh
 
 const void Mesher::separate_vacuum_mesh(Mesh* vacuum_mesh, Mesh* big_mesh, const int n_bulk,
         const int n_surf, const double zmin, const string cmd) {
-    int* elems = big_mesh->get_elems();
+    const int* elems = big_mesh->get_elems();
 
     vector<bool> elem_in_vacuum;
     extract_mesh(&elem_in_vacuum, big_mesh, n_bulk, n_surf, zmin);
@@ -155,7 +155,7 @@ const void Mesher::separate_vacuum_mesh(Mesh* vacuum_mesh, Mesh* big_mesh, const
 
 const void Mesher::separate_bulk_mesh(Mesh* bulk, Mesh* big_mesh, const int n_bulk,
         const int n_surf, const double zmin, const string cmd) {
-    int* elems = big_mesh->get_elems();
+    const int* elems = big_mesh->get_elems();
     int n_elems = big_mesh->get_n_elems();
 
     vector<bool> elem_in_vacuum;
@@ -185,7 +185,7 @@ const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, Mesh* big_mesh, con
     int i, j;
     int n_nodes = big_mesh->get_n_nodes();
     int n_elems = big_mesh->get_n_elems();
-    int* elems = big_mesh->get_elems();
+    const int* elems = big_mesh->get_elems();
 
     vector<bool> elem_in_vacuum;
     extract_mesh(&elem_in_vacuum, big_mesh, n_bulk, n_surf, zmin);
@@ -222,7 +222,7 @@ const void Mesher::separate_meshes_bymarker(Mesh* bulk, Mesh* vacuum, Mesh* big_
     int i, j;
     int n_nodes = big_mesh->get_n_nodes();
     int n_elems = big_mesh->get_n_elems();
-    int* elems = big_mesh->get_elems();
+    const int* elems = big_mesh->get_elems();
 
     vector<bool> elem_in_vacuum;
     extract_mesh_bymarker(&elem_in_vacuum, big_mesh, types);
@@ -263,7 +263,7 @@ const void Mesher::generate_monolayer_surf_faces(Mesh* mesh, const int n_bulk, c
     int n_nodes = mesh->get_n_nodes();
     int n_faces = mesh->get_n_faces();
 
-    int* elems = mesh->get_elems();
+    const int* elems = mesh->get_elems();
     vector<bool> is_surface(n_elems);
 
     // Mark the elements that have exactly one face on the surface and one node in the vacuum
@@ -328,7 +328,7 @@ const void Mesher::generate_surf_faces(Mesh* mesh, const int n_surf) {
     int elem, node, n0, n1, n2;
 
     int n_elems = mesh->get_n_elems();
-    int* elems = mesh->get_elems();
+    const int* elems = mesh->get_elems();
 
     vector<bool> elem_in_surface(n_elems);
     bool surf_locs[n_nodes_per_elem];
@@ -365,7 +365,7 @@ const void Mesher::generate_surf_faces(Mesh* mesh, const int n_surf) {
         }
 }
 
-void Mesher::precompute_triangles(Mesh* mesh, const Vec3d &direction) {
+const void Mesher::precompute_triangles(Mesh* mesh, const Vec3d &direction) {
     Vec3d v0, v1, v2, e1, e2, pv;
     int face, coord;
     double det, i_det;
@@ -402,7 +402,7 @@ void Mesher::precompute_triangles(Mesh* mesh, const Vec3d &direction) {
 }
 
 // Moller-Trumbore algorithm to find whether the ray and the triangle intersect or not
-bool Mesher::ray_intersects_triangle(const Vec3d &origin, const Vec3d &direction, const int face) {
+const bool Mesher::ray_intersects_triangle(const Vec3d &origin, const Vec3d &direction, const int face) {
     const double zero = -1.0 * epsilon; // Ray little bit outside the triangle is also OK
     const double one = 1.0 + epsilon;
 
@@ -428,7 +428,7 @@ bool Mesher::ray_intersects_triangle(const Vec3d &origin, const Vec3d &direction
 }
 
 // Determine how many times the ray intersects with triangles on the surface mesh
-int Mesher::ray_surface_intersects(Mesh* mesh, const Vec3d &origin, const Vec3d &direction) {
+const int Mesher::ray_surface_intersects(Mesh* mesh, const Vec3d &origin, const Vec3d &direction) {
     int face, n0, n1, n2;
     int crossings = 0;
 
@@ -458,7 +458,7 @@ int Mesher::ray_surface_intersects(Mesh* mesh, const Vec3d &origin, const Vec3d 
 }
 
 // Determine whether the ray intersects with any of the triangles on the surface mesh
-bool Mesher::ray_surface_intersects_fast(Mesh* mesh, const Vec3d &origin, const Vec3d &direction) {
+const bool Mesher::ray_surface_intersects_fast(Mesh* mesh, const Vec3d &origin, const Vec3d &direction) {
     // Loop through all the faces
     for (int face = 0; face < mesh->get_n_faces(); ++face) {
         if (ray_intersects_triangle(origin, direction, face))
@@ -476,7 +476,7 @@ bool Mesher::ray_surface_intersects_fast(Mesh* mesh, const Vec3d &origin, const 
  * The technique works perfectly with surface without "mushroomish" tips. The mushrooms give
  * some false nodes but because of their low spatial density they can be ignored.
  */
-void Mesher::mark_nodes(Mesh* mesh, const AtomReader::Types* types, const int n_surf) {
+const void Mesher::mark_nodes(Mesh* mesh, const AtomReader::Types* types, const int n_surf) {
     int node, coord;
     Vec3d ray_origin, ray_direction(0, 0, 1);
 
@@ -510,7 +510,7 @@ void Mesher::mark_nodes(Mesh* mesh, const AtomReader::Types* types, const int n_
  * too many crossings. The workaround is to change the ray direction for the problematic nodes
  * to make sure the ray crosses only "quality" triangles.
  */
-void Mesher::mark_nodes_long(Mesh* mesh, const AtomReader::Types* types, const int n_surf) {
+const void Mesher::mark_nodes_long(Mesh* mesh, const AtomReader::Types* types, const int n_surf) {
     int node, coord;
     Vec3d ray_origin, ray_direction(0, 0, 1);
     vector<int> markers(mesh->get_n_nodes(), types->type_none);
@@ -574,7 +574,7 @@ void Mesher::mark_nodes_long(Mesh* mesh, const AtomReader::Types* types, const i
  * In that ways the first nodes will always be the surface and bulk nodes and there is no need
  * to search them later on.
  */
-void Mesher::mark_elems_bynode(Mesh* mesh, const int nmax, const AtomReader::Types* types) {
+const void Mesher::mark_elems_bynode(Mesh* mesh, const int nmax, const AtomReader::Types* types) {
     int N = mesh->get_n_elems();
     mesh->init_elemmarkers(N);
     bool difs[4];
@@ -596,7 +596,7 @@ void Mesher::mark_elems_bynode(Mesh* mesh, const int nmax, const AtomReader::Typ
 }
 
 // Mark faces by the sequence of nodes
-void Mesher::mark_faces_bynode(Mesh* mesh, const int nmax, const AtomReader::Types* types) {
+const void Mesher::mark_faces_bynode(Mesh* mesh, const int nmax, const AtomReader::Types* types) {
     int N = mesh->get_n_faces();
     mesh->init_facemarkers(N);
     bool difs[n_nodes_per_face];
@@ -619,7 +619,7 @@ inline bool on_boundary(const double face, const double face_max) {
 }
 
 // Mark the boundary faces of mesh
-void Mesher::mark_faces(Mesh* mesh, const AtomReader::Sizes* sizes,
+const void Mesher::mark_faces(Mesh* mesh, const AtomReader::Sizes* sizes,
         const AtomReader::Types* types) {
     int N = mesh->get_n_faces();
     mesh->init_facemarkers(N);
@@ -643,9 +643,9 @@ void Mesher::mark_faces(Mesh* mesh, const AtomReader::Sizes* sizes,
 }
 
 // Function to remove too big tetrahedra from the mesh
-void Mesher::clean_elems(Mesh* mesh, const double rmax, const string cmd) {
-    REAL* node = mesh->get_nodes();      // pointer to nodes
-    int* elem = mesh->get_elems(); // pointer to tetrahedron corners
+const void Mesher::clean_elems(Mesh* mesh, const double rmax, const string cmd) {
+    const REAL* node = mesh->get_nodes();      // pointer to nodes
+    const int* elem = mesh->get_elems(); // pointer to tetrahedron corners
 
     double dx, r12, r13, r14, r23, r24, r34;
     int i, j, k, l1, l2, l3, l4;
@@ -691,15 +691,15 @@ void Mesher::clean_elems(Mesh* mesh, const double rmax, const string cmd) {
     mesh->init_elems(accumulate(isQuality.begin(), isQuality.end(), 0));
 
     // Insert tetrahedra with suitable quality
-    update_list(mesh->get_elems(), temp_mesh->get_elems(), isQuality, 4);
+    update_list((int*)mesh->get_elems(), temp_mesh->get_elems(), isQuality, 4);
 
     mesh->recalc(cmd);
 }
 
 // Function to remove too big faces from the mesh
-void Mesher::clean_faces(Mesh* mesh, const double rmax, const string cmd) {
-    REAL* node = mesh->get_nodes();		// pointer to nodes
-    int* face = mesh->get_faces();		// pointer to triangular faces
+const void Mesher::clean_faces(Mesh* mesh, const double rmax, const string cmd) {
+    const REAL* node = mesh->get_nodes();		// pointer to nodes
+    const int* face = mesh->get_faces();		// pointer to triangular faces
 
     double dx, r12, r13, r23;
     int i, j, k, l1, l2, l3;
@@ -736,24 +736,23 @@ void Mesher::clean_faces(Mesh* mesh, const double rmax, const string cmd) {
     mesh->init_faces(accumulate(isQuality.begin(), isQuality.end(), 0));
 
     // Insert faces with suitable quality
-    update_list(mesh->get_faces(), temp_mesh->get_faces(), isQuality, 3);
+    update_list((int*)mesh->get_faces(), temp_mesh->get_faces(), isQuality, 3);
 
     mesh->recalc(cmd);
 }
 
 // Function to remove the objects from element, face or edge list
-void Mesher::update_list(int* new_list, int* old_list, vector<bool> is_quality, int M) {
+const void Mesher::update_list(int* new_list, const int* old_list, const vector<bool> is_quality, int M) {
     int i, j, k;
     int N = is_quality.size();
     j = 0;
     // loop through the old array and move quality objects to the left
-    for (i = 0; i < N; ++i) {
+    for (i = 0; i < N; ++i)
         if (is_quality[i]) {
             for (k = 0; k < M; ++k)
                 new_list[j + k] = old_list[M * i + k];
             j += M;
         }
-    }
 }
 
 } /* namespace femocs */

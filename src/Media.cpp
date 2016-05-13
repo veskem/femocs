@@ -16,7 +16,8 @@ namespace femocs {
 // =================================================
 
 // Constructor of Vacuum class
-Vacuum::Vacuum() : Medium(){
+Vacuum::Vacuum() :
+        Medium() {
 }
 
 // Generates Vacuum by adding four points to the top of simulation cell
@@ -39,7 +40,8 @@ const void Vacuum::generate_simple(const AtomReader::Sizes* sizes) {
 // =================================================
 
 // Constructor for Bulk class
-Bulk::Bulk(const double latconst, const int nnn) : Medium(){
+Bulk::Bulk(const double latconst, const int nnn) :
+        Medium() {
     crys_struct.latconst = latconst;
     crys_struct.nnn = nnn;
 }
@@ -101,19 +103,22 @@ const void Bulk::extract_truncated_bulk_old(AtomReader* reader) {
                         || reader->get_type(i) == reader->types.type_surf);
 
     for (i = 0; i < N; ++i)
-        is_surf[i] = (reader->get_coordination(i) > 0) && (reader->get_coordination(i) < crys_struct.nnn);
+        is_surf[i] = (reader->get_coordination(i) > 0)
+                && (reader->get_coordination(i) < crys_struct.nnn);
 
     reserve(accumulate(is_bulk.begin(), is_bulk.end(), 0));
 
     // Add bulk atoms
     for (i = 0; i < N; ++i)
         if (is_bulk[i] && !is_surf[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coordination(i));
+            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i),
+                    reader->get_coordination(i));
 
     // Add surface atoms
     for (i = 0; i < N; ++i)
         if (is_bulk[i] && is_surf[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coordination(i));
+            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i),
+                    reader->get_coordination(i));
 
     calc_statistics();
 }
@@ -126,14 +131,16 @@ const void Bulk::extract_truncated_bulk(AtomReader* reader) {
 
     // Get number and locations of bulk atoms
     for (i = 0; i < N; ++i)
-        is_bulk[i] = (reader->get_z(i) > reader->sizes.zminbox) && (reader->get_type(i) == reader->types.type_bulk);
+        is_bulk[i] = (reader->get_z(i) > reader->sizes.zminbox)
+                && (reader->get_type(i) == reader->types.type_bulk);
 
-    reserve( accumulate(is_bulk.begin(), is_bulk.end(), 0) );
+    reserve(accumulate(is_bulk.begin(), is_bulk.end(), 0));
 
     // Add bulk atoms
     for (i = 0; i < N; ++i)
         if (is_bulk[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coordination(i));
+            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i),
+                    reader->get_coordination(i));
 
     calc_statistics();
 }
@@ -151,7 +158,8 @@ const void Bulk::extract_bulk(AtomReader* reader) {
 
     for (i = 0; i < N; ++i)
         if (is_bulk[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coordination(i));
+            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i),
+                    reader->get_coordination(i));
 
     calc_statistics();
 }
@@ -189,18 +197,95 @@ const bool Bulk::on_edge(const double x, const double x_boundary) {
 // =================================================
 
 // Constructor for Surface class
-Surface::Surface(const double latconst, const int nnn) : Medium() {
+Surface::Surface(const double latconst, const int nnn) :
+        Medium() {
     crys_struct.latconst = latconst;
     crys_struct.nnn = nnn;
 }
 ;
+
+const Surface Surface::coarsen(const double r_cut, const double zmax, const AtomReader::Sizes* ar_sizes) {
+    Surface dense_surf(crys_struct.latconst, crys_struct.nnn);
+    Surface coarse_surf(crys_struct.latconst, crys_struct.nnn);
+    const double r_cut2 = r_cut * r_cut;
+    int i, j;
+
+    int n_atoms = get_n_atoms();
+
+    vector<bool> is_dense(n_atoms);
+    vector<int> coarse_indxs;
+
+    Point2d origin2d((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
+
+    // Create a map from atoms in- and outside the dense region
+    for (i = 0; i < n_atoms; ++i)
+        is_dense[i] = ( (get_point2d(i).distance(origin2d) < r_cut) || (get_z(i) >= zmax) );
+
+    int n_dense_atoms = accumulate(is_dense.begin(), is_dense.end(), 0);
+    int n_coarse_atoms = n_atoms - n_dense_atoms;
+
+    dense_surf.reserve(n_dense_atoms);
+    coarse_indxs.reserve(n_coarse_atoms);
+
+    // Copy the all the atoms from dense region and save the indices of atoms to be coarsened
+    for (i = 0; i < n_atoms; ++i) {
+        if (is_dense[i])
+            dense_surf.add_atom(x[i], y[i], z[i], coordination[i]);
+        else
+            coarse_indxs.push_back(i);
+    }
+
+    Point3d origin3d(origin2d[0], origin2d[1], zmax);
+
+    // Mark the atoms that are too close to each other in coarse region
+    for (i = 0; i < (coarse_indxs.size() - 1); ++i) {
+        // Skip already deleted atoms
+        if (coarse_indxs[i] < 0) continue;
+
+        Point3d point1 = get_point(coarse_indxs[i]);
+
+        double dist = point1.distance(origin3d);
+        //double cutoff = 0.5*crys_struct.latconst * log( 10 + (dist - r_cut) );
+        double cutoff = 0.5*crys_struct.latconst * sqrt( 1 + (dist - r_cut) );
+
+        for (j = i + 1; j < coarse_indxs.size(); ++j) {
+            // Skip already deleted atoms
+            if (coarse_indxs[j] < 0) continue;
+
+            // Delete atom that is too close to given atom
+            if (point1.distance(get_point(coarse_indxs[j])) < cutoff) {
+                coarse_indxs[j] = -1;
+                --n_coarse_atoms;
+            }
+        }
+    }
+
+    require(n_coarse_atoms >= 0, "Invalid number of coarse atoms!");
+
+    // Compile the sub-surface from coarsened atoms
+    coarse_surf.reserve(4 + n_coarse_atoms);
+
+    for (int ci : coarse_indxs)
+        if (ci >= 0) coarse_surf.add_atom(x[ci], y[ci], z[ci], coordination[ci]);
+
+    coarse_surf.rectangularize(ar_sizes, 1.0*crys_struct.latconst);
+
+    // Add 4 atoms to the corners of input surface
+    coarse_surf.add_atom(sizes.xmin, sizes.ymin, sizes.zmin, 0);
+    coarse_surf.add_atom(sizes.xmin, sizes.ymax, sizes.zmin, 0);
+    coarse_surf.add_atom(sizes.xmax, sizes.ymin, sizes.zmin, 0);
+    coarse_surf.add_atom(sizes.xmax, sizes.ymax, sizes.zmin, 0);
+
+    return coarse_surf + dense_surf;
+}
+
 
 // Function to pick suitable extraction function
 const void Surface::extract_surface(AtomReader* reader) {
     //if (reader->types.simu_type == "md")
     //    extract_by_coordination(reader);
     //else if (reader->types.simu_type == "kmc")
-        extract_by_type(reader);
+    extract_by_type(reader);
 
     calc_statistics();
 }
@@ -221,7 +306,8 @@ const void Surface::extract_by_type(AtomReader* reader) {
     // Add surface atoms to Surface
     for (i = 0; i < N; ++i)
         if (is_surface[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coordination(i));
+            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i),
+                    reader->get_coordination(i));
 }
 
 // Extract surface by coordination analysis
@@ -241,24 +327,25 @@ const void Surface::extract_by_coordination(AtomReader* reader) {
 
     for (i = 0; i < n_atoms; ++i)
         if (is_surface[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i), reader->get_coordination(i));
+            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i),
+                    reader->get_coordination(i));
 }
 
 // Function to flatten the atoms on the sides of simulation box
-const void Surface::rectangularize(const AtomReader::Sizes* sizes) {
+const void Surface::rectangularize(const AtomReader::Sizes* sizes, const double r_cut) {
     // Loop through all the atoms
     for (int i = 0; i < get_n_atoms(); ++i) {
         // Flatten the atoms on the sides of simulation box
-        if (on_edge(get_x(i), sizes->xmin)) set_x(i, sizes->xmin);
-        if (on_edge(get_x(i), sizes->xmax)) set_x(i, sizes->xmax);
-        if (on_edge(get_y(i), sizes->ymin)) set_y(i, sizes->ymin);
-        if (on_edge(get_y(i), sizes->ymax)) set_y(i, sizes->ymax);
+        if (on_edge(get_x(i), sizes->xmin, r_cut)) set_x(i, sizes->xmin);
+        if (on_edge(get_x(i), sizes->xmax, r_cut)) set_x(i, sizes->xmax);
+        if (on_edge(get_y(i), sizes->ymin, r_cut)) set_y(i, sizes->ymin);
+        if (on_edge(get_y(i), sizes->ymax, r_cut)) set_y(i, sizes->ymax);
     }
 }
 
 // Determine whether an atom is near the edge of simulation box
-const bool Surface::on_edge(const double x, const double x_boundary) {
-    return fabs(x - x_boundary) <= crys_struct.latconst / 2.0;
+const bool Surface::on_edge(const double x, const double x_boundary, const double r_cut) {
+    return fabs(x - x_boundary) <= r_cut;
 }
 
 // =================================================
@@ -266,7 +353,8 @@ const bool Surface::on_edge(const double x, const double x_boundary) {
 // =================================================
 
 // Constructor for Edge class
-Edge::Edge(const double latconst, const int nnn) : Medium(){
+Edge::Edge(const double latconst, const int nnn) :
+        Medium() {
     crys_struct.latconst = latconst;
     crys_struct.nnn = nnn;
 }

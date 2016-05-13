@@ -7,17 +7,16 @@
 
 #include "AtomReader.h"
 
-#include <stddef.h>
 #include <cfloat>
 #include <fstream>
 #include <sstream>
-#include <cmath>
 
 using namespace std;
 namespace femocs {
 
 // AtomReader constructor
-AtomReader::AtomReader() : Medium(){
+AtomReader::AtomReader() :
+        Medium() {
 }
 
 // Initialise statistics about coordinates
@@ -66,16 +65,16 @@ const void AtomReader::add_atom(const double x, const double y, const double z, 
 // Calculate coordination (nnn within cutoff radius) of all the atoms
 // Pick suitable algorithm depending simulation type (MD or KMC)
 const void AtomReader::calc_coordination(const double cutoff, const int nnn) {
-	require(nnn > 0, "Invalid number of nearest neighbors!");
+    require(nnn > 0, "Invalid number of nearest neighbors!");
     if (cutoff > 0)
         calc_slow_coordination(cutoff, nnn);
     else
-    	calc_dummy_coordination(nnn);
+        calc_dummy_coordination(nnn);
 }
 
 // Calculate coordination for atoms coming from MD simulations
 const void AtomReader::calc_slow_coordination(const double cutoff, const int nnn) {
-	require(cutoff > 0 && nnn >= 0, "Invalid cutoff or nnn!");
+    require(cutoff > 0 && nnn >= 0, "Invalid cutoff or nnn!");
     int N = get_n_atoms();
     int i, j, coord;
     double r2, dx, dy, dz;
@@ -107,7 +106,7 @@ const void AtomReader::calc_slow_coordination(const double cutoff, const int nnn
 
 // Calculate coordination for atoms coming from KMC simulations
 const void AtomReader::calc_dummy_coordination(const int nnn) {
-	require(nnn > 0, "Invalid number of nearest neighbors!");
+    require(nnn > 0, "Invalid number of nearest neighbors!");
     int n_atoms = get_n_atoms();
 
     for (int i = 0; i < n_atoms; ++i) {
@@ -122,7 +121,7 @@ const void AtomReader::calc_dummy_coordination(const int nnn) {
 
 // Redefine simubox size for example to insert electric field height
 const void AtomReader::resize_box(const double zmin, const double zmax) {
-	require(zmin <= zmax, "Invalid size for simulation box!");
+    require(zmin <= zmax, "Invalid size for simulation box!");
     sizes.zminbox = zmin;
     sizes.zmaxbox = zmax;
     sizes.zbox = zmax - zmin;
@@ -132,19 +131,18 @@ const void AtomReader::resize_box(const double zmin, const double zmax) {
 // *** GETTERS: ***************
 
 const int AtomReader::get_type(const int i) {
-	require(i >= 0 && i < get_n_atoms(), "Invalid index!");
+    require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     return type[i];
 }
 
 // Compile data string from the data vectors
 const string AtomReader::get_data_string(const int i) {
-    if(i < 0)
-        return "Types of data: id x y z type";
+    if (i < 0) return "Types of data: id x y z type";
 
     ostringstream strs;
     strs << i << " " << get_point(i) << " " << get_type(i);
 
-    if(i < coordination.size()) strs << " " << get_coordination(i);
+    if (i < coordination.size()) strs << " " << get_coordination(i);
     return strs.str();
 }
 
@@ -156,11 +154,11 @@ const void AtomReader::import_kimocs() {
 }
 
 const void AtomReader::import_helmod(int n_atoms, double* x, double* y, double* z, int* types) {
-	require(n_atoms > 0, "Zero input atoms detected!");
+    require(n_atoms > 0, "Zero input atoms detected!");
 
-	this->types.simu_type = "md";
+    this->types.simu_type = "md";
     reserve(n_atoms);
-    for(int i = 0; i < n_atoms; ++i)
+    for (int i = 0; i < n_atoms; ++i)
         add_atom(x[i], y[i], z[i], types[i]);
     calc_statistics();
 }
@@ -171,17 +169,14 @@ const void AtomReader::import_file(const string file_name) {
     if (file_type == "xyz") {
         this->types.simu_type = "md";
         import_xyz(file_name);
-    }
-    else if (file_type == "ckx") {
+    } else if (file_type == "ckx") {
         this->types.simu_type = "kmc";
         import_ckx(file_name);
-    }
-    else if (file_type == "dump") {
+    } else if (file_type == "dump") {
         this->types.simu_type = "md";
         import_dump(file_name);
-    }
-    else
-    	require(false, "Unknown file type: " + file_type);
+    } else
+    require(false, "Unknown file type: " + file_type);
 
     calc_statistics();
 }

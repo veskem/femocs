@@ -510,6 +510,9 @@ double DealII::get_potential_at_node(const int &cell_indx, const int &vert_indx)
 
 // Write the potential and electric field to the file
 void DealII::output_results(const string file_name) {
+#if not DEBUGMODE
+    return;
+#endif
     string ftype = get_file_type(file_name);
     expect(ftype == "vtk" || ftype == "eps" || ftype == "xyz", "Unsupported file type!");
 
