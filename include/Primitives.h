@@ -120,7 +120,23 @@ public:
     Point3(T xx) : x(xx), y(xx), z(xx) {}
     Point3(T xx, T yy, T zz) : x(xx), y(yy), z(zz) {}
 
-    /** Defining the distance between two Point3-s */
+    /** Squared distance between two Point3-s */
+    T distance2(const Point3<T> &p) const {
+        T xx = x - p.x;
+        T yy = y - p.y;
+        T zz = z - p.z;
+        return (T) (xx * xx + yy * yy + zz * zz);
+    }
+
+    /** Squared distance between a Point3 and dealii::Point<3> */
+    T distance2(const dealii::Point<3> &p) const {
+        T xx = x - p[0];
+        T yy = y - p[1];
+        T zz = z - p[2];
+        return (T) (xx * xx + yy * yy + zz * zz);
+    }
+
+    /** Distance between two Point3-s */
     T distance(const Point3<T> &p) const {
         T xx = x - p.x;
         T yy = y - p.y;
@@ -128,7 +144,7 @@ public:
         return (T) sqrt(xx * xx + yy * yy + zz * zz);
     }
 
-    /** Defining the distance between a Point3 and dealii::Point<3> */
+    /** Distance between a Point3 and dealii::Point<3> */
     T distance(const dealii::Point<3> &p) const {
         T xx = x - p[0];
         T yy = y - p[1];
@@ -136,17 +152,46 @@ public:
         return (T) sqrt(xx * xx + yy * yy + zz * zz);
     }
 
-    /** Defining the comparison operator between two Point3-s */
+    /** Function to figure out whether point is near some coordinate.
+     * Non-negative return value indicates the index of coordinate near the Point,
+     * -1 indicates that Point is not near any given coordinate.
+     */
+    const int near(const T &p0, const T eps) const {
+        if(fabs(x - p0) <= eps)
+            return 0;
+        else
+            return -1;
+    }
+    const int near(const T &p0, const T &p1, const T eps) const {
+        if(fabs(x - p0) <= eps)
+            return 0;
+        else if (fabs(y - p1) <= eps)
+            return 1;
+        else
+            return -1;
+    }
+    const int near(const T &p0, const T &p1, const T &p2, const T eps) const {
+        if(fabs(x - p0) <= eps)
+            return 0;
+        else if (fabs(y - p1) <= eps)
+            return 1;
+        else if (fabs(z - p2) <= eps)
+            return 2;
+        else
+            return -1;
+    }
+
+    /** Comparison operator between two Point3-s */
     bool operator ==(const Point3<T> &p) const {
         return x == p.x && y == p.y && z == p.z;
     }
 
-    /** Defining the comparison operator between a Point3 and dealii::Point<3> */
+    /** Comparison operator between a Point3 and dealii::Point<3> */
     bool operator ==(const dealii::Point<3> &p) {
         return x == p[0] && y == p[1] && z == p[2];
     }
 
-    /** Define accessors */
+    /** Point3 accessors */
     const T& operator [](uint8_t i) const {
         return (&x)[i];
     }
@@ -172,26 +217,45 @@ public:
     Point2(T xx) : x(xx), y(xx) {}
     Point2(T xx, T yy) : x(xx), y(yy) {}
 
-    /** Defining the distance between two Point2-s */
+    /** Function to figure out whether point is near some coordinate.
+     * Non-negative return value indicates the index of coordinate near the Point,
+     * -1 indicates that Point is not near any given coordinate.
+     */
+    const int near(const T &p0, const T eps) const {
+        if(fabs(x - p0) <= eps)
+            return 0;
+        else
+            return -1;
+    }
+    const int near(const T &p0, const T &p1, const T eps) const {
+        if(fabs(x - p0) <= eps)
+            return 0;
+        else if (fabs(y - p1) <= eps)
+            return 1;
+        else
+            return -1;
+    }
+
+    /** Distance between two Point2-s */
     double distance(const Point2<T> &p) const {
         T xx = x - p.x;
         T yy = y - p.y;
         return sqrt(xx * xx + yy * yy);
     }
 
-    /** Defining the squared distance between two Point2-s; it's a bit faster than distance */
+    /** Squared distance between two Point2-s; it's a bit faster than distance */
     T distance2(const Point2<T> &p) const {
         T xx = x - p.x;
         T yy = y - p.y;
         return xx * xx + yy * yy;
     }
 
-    /** Defining the comparison operator between two Point2-s */
+    /** Comparison operator between two Point2-s */
     bool operator ==(const Point2<T> &p) const {
         return x == p.x && y == p.y;
     }
 
-    /** Define accessors */
+    /** Point2 accessors */
     const T& operator [](uint8_t i) const {
         return (&x)[i];
     }

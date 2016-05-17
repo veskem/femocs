@@ -85,6 +85,10 @@ public:
     const double get_face_centre(int i, int xyz);
     const double get_elem_centre(int i, int xyz);
 
+    const void set_nodemarker(const int node, const int m);
+    const void set_facemarker(const int face, const int m);
+    const void set_elemmarker(const int elem, const int m);
+
     const void calc_volumes();
     const void calc_volume_statistics();
 
@@ -127,8 +131,7 @@ private:
             const int celltype, const int n_nodes_in_cell);
 
     // Function to output nodes in .xyz format
-    const void write_xyz(const string file_name, const int n_nodes, const int n_markers,
-            const REAL* nodes, const vector<int>* markers);
+    const void write_xyz(const string file_name);
 
     // Function to extract file type from file name
     const string get_file_type(const string file_name);

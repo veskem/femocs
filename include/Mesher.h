@@ -66,9 +66,15 @@ private:
     double latconst;
     string mesher;
 
+    const void mark_elems(Mesh* mesh, const AtomReader::Types* types);
+    const void mark_elems_again(Mesh* mesh, const AtomReader::Types* types);
+    const void post_process_marking(Mesh* mesh, const AtomReader::Types* types);
+
     const void extract_mesh(vector<bool>* is_vacuum, Mesh* big_mesh, const int n_bulk,
             const int n_surf, const double zmin);
-    const void extract_mesh_bymarker(vector<bool>* is_vacuum, Mesh* big_mesh, const AtomReader::Types* types);
+    const void get_vacuum_elem_indices_old(vector<bool>* is_vacuum, Mesh* big_mesh, const AtomReader::Types* types);
+
+    const vector<bool> get_vacuum_elem_indices(Mesh* big_mesh, const AtomReader::Types* types);
 
     const void update_list(int* new_list, const int* old_list, const vector<bool> is_quality, const int M);
 

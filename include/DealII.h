@@ -57,8 +57,6 @@ public:
             for (unsigned int coord = 0; coord < 2; ++coord)
                 computed_quantities[i](coord) = duh[i][coord];
     }
-
-
 };
 
 /**

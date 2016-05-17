@@ -155,6 +155,23 @@ const int Mesh::get_n_volumes() {
 }
 
 // =================================
+// *** SETTERS: ********************
+// =================================
+
+const void Mesh::set_nodemarker(const int node, const int m) {
+    require(node >= 0 && node < get_n_nodemarkers(), "Invalid index!");
+    nodemarkers[node] = m;
+}
+const void Mesh::set_facemarker(const int face, const int m) {
+    require(face >= 0 && face < get_n_facemarkers(), "Invalid index!");
+    facemarkers[face] = m;
+}
+const void Mesh::set_elemmarker(const int elem, const int m){
+    require(elem >= 0 && elem < get_n_elemmarkers(), "Invalid index!");
+    elemmarkers[elem] = m;
+}
+
+// =================================
 // *** INITIALIZERS: ***************
 
 const void Mesh::init_nodemarkers(const int N) {
@@ -391,7 +408,6 @@ const void Mesh::write_vtk(const string file_name, const int n_nodes, const int 
     out_file = fopen(file_name_char, "w");
     require(out_file != (FILE *) NULL, "Can't open a file " + file_name);
 
-//    fprintf(outfile, "# vtk DataFile Version 2.0\n");
     fprintf(out_file, "# vtk DataFile Version 3.0\n");
     fprintf(out_file, "# Unstructured grid\n");
     fprintf(out_file, "ASCII\n"); // another option is BINARY
@@ -405,7 +421,7 @@ const void Mesh::write_vtk(const string file_name, const int n_nodes, const int 
         fprintf(out_file, "\n");
     }
 
-    // Output the cells (tetrahedra or triangles)
+    // Output the cells (tetrahedra, triangles or vertices)
     if (n_cells > 0) {
         fprintf(out_file, "CELLS %d %d\n", n_cells, n_cells * (n_nodes_in_cell + 1));
         for (i = 0; i < n_nodes_in_cell * n_cells; i += n_nodes_in_cell) {
@@ -417,7 +433,7 @@ const void Mesh::write_vtk(const string file_name, const int n_nodes, const int 
         fprintf(out_file, "\n");
     }
 
-    // Output the types of cells, 10=tetrahedron, 5=triangle
+    // Output the types of cells, 10=tetrahedron, 5=triangle, 1=vertex
     if (n_cells > 0) {
         fprintf(out_file, "CELL_TYPES %d\n", n_cells);
         for (i = 0; i < n_cells; ++i)
@@ -439,18 +455,19 @@ const void Mesh::write_vtk(const string file_name, const int n_nodes, const int 
 }
 
 // Function to output nodes in .xyz format
-const void Mesh::write_xyz(const string file_name, const int n_nodes, const int n_markers, const REAL* nodes, const vector<int>* markers) {
+const void Mesh::write_xyz(const string file_name) {
     ofstream out_file(file_name);
     require(out_file.is_open(), "Can't open a file " + file_name);
 
-    out_file << n_nodes << "\n";
-    out_file << "Data of the nanotip: id x y z marker\n";
+    const int n_nodes = get_n_nodes();
+    const int n_markers = get_n_nodemarkers();
+
+    out_file << get_n_nodes() << "\n";
+    out_file << "Mesh nodes: id x y z marker\n";
 
     for (int i = 0; i < n_nodes; ++i) {
         out_file << i << " ";
-        out_file << nodes[3*i+0] << " ";
-        out_file << nodes[3*i+1] << " ";
-        out_file << nodes[3*i+2] << " ";
+        out_file << get_point(i) << " ";
 
         if(n_nodes == n_markers)
             out_file << get_nodemarker(i) << " ";
@@ -484,6 +501,13 @@ const void Mesh::write_faces(const string file_name) {
             n_nodes_per_face);
 }
 
+// Function to extract file type from file name
+const string Mesh::get_file_type(const string file_name) {
+    int start = file_name.find_last_of('.') + 1;
+    int end = file_name.size();
+    return file_name.substr(start, end);
+}
+
 // Function to write elements to .vtk file
 const void Mesh::write_elems(const string file_name) {
 #if not DEBUGMODE
@@ -513,30 +537,24 @@ const void Mesh::write_nodes(const string file_name) {
     string file_type = get_file_type(file_name);
     require(file_type == "xyz" || file_type == "vtk", "Unknown file type!");
 
-    int n_nodes = get_n_nodes();
-    int n_markers = get_n_nodemarkers();
-    const REAL* nodes = get_nodes();           // pointer to nodes
-    vector<int>* markers = &nodemarkers; // pointer to node markers
+    if (file_type == "xyz")
+        write_xyz(file_name);
 
-    if (file_type == "vtk") {
+    else {
         const int celltype = 1;     // 1-vertex, 5-triangle, 10-tetrahedron
+
+        int n_nodes = get_n_nodes();
+        int n_markers = get_n_nodemarkers();
+        const REAL* nodes = get_nodes();           // pointer to nodes
+        vector<int>* markers = &nodemarkers; // pointer to node markers
 
         int node_indx[n_nodes];
         for(int i = 0; i < n_nodes; ++i)
             node_indx[i] = i;
 
         write_vtk(file_name, n_nodes, n_nodes, n_markers, nodes, node_indx, markers, celltype, 1);
+    }
 
-    } else
-        write_xyz(file_name, n_nodes, n_markers, nodes, markers);
-
-}
-
-// Function to extract file type from file name
-const string Mesh::get_file_type(const string file_name) {
-    int start = file_name.find_last_of('.') + 1;
-    int end = file_name.size();
-    return file_name.substr(start, end);
 }
 
 // =================================

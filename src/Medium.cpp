@@ -14,9 +14,27 @@
 using namespace std;
 namespace femocs {
 
-Medium::Medium() {
+Medium::Medium(){
     init_statistics();
     reserve(0);
+}
+
+// Reserve memory for data vectors
+const void Medium::reserve(const int n_atoms) {
+    require(n_atoms >= 0, "Invalid number of atoms!");
+    this->x.reserve(n_atoms);
+    this->y.reserve(n_atoms);
+    this->z.reserve(n_atoms);
+    this->coordination.reserve(n_atoms);
+}
+
+// Add atom's parameters to data vectors
+const void Medium::add_atom(const double x, const double y, const double z, const int coord) {
+    expect(get_n_atoms() <= this->x.capacity(), "Allocated vector sizes exceeded!");
+    this->x.push_back(x);
+    this->y.push_back(y);
+    this->z.push_back(z);
+    this->coordination.push_back(coord);
 }
 
 // Initialize statistics about Medium
@@ -45,12 +63,13 @@ int Medium::get_n_atoms() {
     return x.size();
 }
 
+// Get i-th 2-dimensional point
 const Point2d Medium::get_point2d(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     return Point2d(x[i], y[i]);
 }
 
-// Get i-th point
+// Get i-th 3-dimensional point
 Point3d Medium::get_point(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     return Point3d(x[i], y[i], z[i]);
@@ -105,15 +124,15 @@ void Medium::set_coordination(const int i, const int coord) {
     this->coordination[i] = coord;
 }
 
-// Extract file type from file name
-const string Medium::get_file_type(const string file_name) {
-    int start = file_name.find_last_of('.') + 1;
-    int end = file_name.size();
-    return file_name.substr(start, end);
-}
-
-// Output surface data to file in xyz format
+// Pick the suitable write function based on the file type
+// Function works only in debug mode
 const void Medium::output(const string file_name) {
+#if not DEBUGMODE
+    return;
+#endif
+    string ftype = get_file_type(file_name);
+    expect(ftype == "xyz", "Unsupported file type!");
+
     int n_atoms = get_n_atoms();
 
     ofstream out_file(file_name);
@@ -128,6 +147,13 @@ const void Medium::output(const string file_name) {
     out_file.close();
 }
 
+// Extract file extension from file name
+const string Medium::get_file_type(const string file_name) {
+    int start = file_name.find_last_of('.') + 1;
+    int end = file_name.size();
+    return file_name.substr(start, end);
+}
+
 // Compile data string from the data vectors
 const string Medium::get_data_string(const int i) {
     if(i < 0)
@@ -138,22 +164,4 @@ const string Medium::get_data_string(const int i) {
     return strs.str();
 }
 
-// Reserve memory for data vectors
-const void Medium::reserve(const int n_atoms) {
-    require(n_atoms >= 0, "Invalid number of atoms!");
-    this->x.reserve(n_atoms);
-    this->y.reserve(n_atoms);
-    this->z.reserve(n_atoms);
-    this->coordination.reserve(n_atoms);
-}
-
-const void Medium::add_atom(const double x, const double y, const double z, const int coord) {
-    expect(get_n_atoms() <= this->x.capacity(), "Allocated vector sizes exceeded!");
-    this->x.push_back(x);
-    this->y.push_back(y);
-    this->z.push_back(z);
-    this->coordination.push_back(coord);
-}
-
 } /* namespace femocs */
-

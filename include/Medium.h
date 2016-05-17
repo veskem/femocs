@@ -19,6 +19,20 @@ public:
     /** Medium constructor */
     Medium();
 
+    /** Define the addition of two Mediums */
+    Medium& operator +=(Medium &s) {
+        int n_atoms1 = get_n_atoms();
+        int n_atoms2 = s.get_n_atoms();
+
+        this->reserve(n_atoms1 + n_atoms2);
+
+        for(int i = 0; i < n_atoms2; ++i)
+            add_atom(s.get_x(i), s.get_y(i), s.get_z(i), s.get_coordination(i));
+
+        this->calc_statistics();
+        return *this;
+    }
+
     /** Reserve memory for data vectors */
     const void reserve(const int n_atoms);
 
@@ -35,7 +49,7 @@ public:
      * Function to export the data of Medium
      * @param file_name - path for file to save the data
      */
-    const void output(const string file_name);
+//    const void output(const string file_name);
 
     /** Calculate statistics about the coordinates in Medium */
     const void calc_statistics();
@@ -67,6 +81,9 @@ public:
     /** Return number of atoms in a Medium */
     int get_n_atoms();
 
+    /** Function to export the data to file */
+    const void output(const string file_name);
+
     struct Sizes {
         double xmin;    //!< Minimum value of x-coordinate
         double xmax;    //!< Maximum value of x-coordinate
@@ -94,14 +111,11 @@ protected:
     /** Initialise statistics about the coordinates in Medium */
     const void init_statistics();
 
+    /** Function to extract file extension from file name */
+    const string get_file_type(const string file_name);
+
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     const string get_data_string(const int i);
-
-    /**
-     * Function to extract file extension from file name
-     * @param file_name - name of the file with extension
-     */
-    const string get_file_type(const string file_name);
 };
 
 } /* namespace femocs */

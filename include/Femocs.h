@@ -10,6 +10,7 @@
 
 #include "Macros.h"
 #include "AtomReader.h"
+#include "Primitives.h"
 
 using namespace std;
 
@@ -35,8 +36,12 @@ public:
         double coord_cutoff;    //!< cutoff distance in Angstroms for Coordination analysis
         int nnn;                //!< number of nearest neighbours for given crystal structure
         int nt;                 //!< number of OpenMP threads
-        int poly_degree;     //!< polynomial degree of the finite element (1-linear, 2-quadratic,..)
+        int poly_degree;        //!< polynomial degree of the finite elements (1-linear, 2-quadratic, ...)
         double neumann;         //!< value of Neumann boundary condition
+        double zmax_coarse;     //!< maximum z-coordinate of hollow cylinder where coarsening of surface atoms takes place
+        double rmin_coarse;     //!< inner radius of hollow cylinder where coarsening of surface atoms takes place
+        bool coarsen;           //!< flag controlling whether to coarsen or not the surface atoms
+        string mesh_quality;    //!< the minimum quality (maximum radius-edge ratio) of tetrahedra
     };
 
     Config conf;          //!< Femocs configuration parameters
