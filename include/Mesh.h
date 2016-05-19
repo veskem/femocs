@@ -11,6 +11,7 @@
 #include "Macros.h"
 #include "Tetgen.h"
 #include "Primitives.h"
+#include "AtomReader.h"
 
 using namespace std;
 namespace femocs {
@@ -89,8 +90,10 @@ public:
     const void set_facemarker(const int face, const int m);
     const void set_elemmarker(const int elem, const int m);
 
+    const void init_statistics();
+
     const void calc_volumes();
-    const void calc_volume_statistics();
+    const void calc_statistics(const AtomReader::Types *types);
 
     const void recalc(const string cmd);
     const void output();
@@ -106,8 +109,35 @@ public:
         double Vmax;
         double Vmedian;
         double Vaverage;
+        int n_bulk;         //!< Number of nodes in bulk material
+        int n_surface;      //!< Number of nodes on the surface of material
+        int n_vacuum;       //!< Number of nodes in vacuum
+        double xmin;    //!< Minimum value of x-coordinate
+        double xmax;    //!< Maximum value of x-coordinate
+        double xmean;   //!< Average value of x-coordinate
+        double ymin;    //!< Minimum value of y-coordinate
+        double ymax;    //!< Maximum value of y-coordinate
+        double ymean;   //!< Average value of y-coordinate
+        double zmin;    //!< Minimum value of z-coordinate
+        double zmax;    //!< Maximum value of z-coordinate
+        double zmean;   //!< Average value of z-coordinate
+    };
+
+    /** Struct holding the indexes about nodes with known locations.
+     * It's useful in finding the initially inserted nodes,
+     * because when Tetgen adds nodes to the mesh, it adds them to the end of node list.
+     */
+    struct Indexes {
+        int surf_start;
+        int surf_end;
+        int bulk_start;
+        int bulk_end;
+        int vacuum_start;
+        int vacuum_end;
+        int tetgen_start;
     };
     Stat stat;
+    Indexes indxs;
 
 private:
     const int n_nodes_per_elem = 4;

@@ -27,11 +27,12 @@ public:
     const void extract_edge(Medium* atoms, const AtomReader::Sizes* sizes, const double r_cut);
 
     /** Make sure all the atoms in Edge are not closer than r_cut */
-    const Edge coarsen(const double r_cut);
+    const Edge clean(const double r_cut);
 
-    const Edge clean();
+    const Edge clean(const double r_cut, const double coarse_factor);
 
 private:
+    const bool on_boundary(const double x_point, const double x_boundary, const double r_cut);
 };
 
 
@@ -56,6 +57,7 @@ public:
      * @param nnn - number of nearest neighbors
      */
     Surface(const double latconst, const int nnn);
+    Surface();
 
     /**
      * Function to choose suitable method to extract surface.
@@ -64,17 +66,14 @@ public:
      */
     const void extract_surface(AtomReader* reader);
 
-    const Surface coarsen(const double r_cut, const double zmax, const AtomReader::Sizes* sizes);
+    const Surface coarsen(const double r_cut, const double coarse_factor, const AtomReader::Sizes* sizes);
 
     /** Function to flatten the atoms on the sides of simulation box */
-    const void rectangularize(const AtomReader::Sizes* sizes, const double r_cut);
-
-    const Surface rectangularize_vol2(const AtomReader::Sizes* sizes, const double r_cut);
-
-    const bool contains(Point2d &p);
-    const bool contains(Point3d &p);
+    const Surface rectangularize(const AtomReader::Sizes* sizes, const double r_cut);
 
     const Surface clean();
+    const Surface clean(const double r_cut);
+    const Surface clean(const Point3d &origin, const double r_cut, const double multiplier);
 
 private:
     /** Extract surface by the atom types given by kMC simulation */
@@ -91,6 +90,7 @@ private:
 class Bulk: public Medium {
 public:
     Bulk(const double latconst, const int nnn);
+    Bulk();
 
     // Function to make bulk material with nodes on surface and on by-hand made bottom coordinates
     const void extract_reduced_bulk(Surface* surf, const AtomReader::Sizes* sizes);
@@ -108,8 +108,6 @@ public:
     const void rectangularize(const AtomReader::Sizes* sizes, const double r_cut);
 
 private:
-    // Determine whether an atom is near the edge of simulation box
-    const bool on_edge(const double x, const double x_boundary);
 };
 
 } /* namespace femocs */

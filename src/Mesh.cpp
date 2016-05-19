@@ -6,9 +6,8 @@
  */
 
 #include "Mesh.h"
-
 #include <fstream>
-#include <algorithm>
+#include <float.h>
 
 using namespace std;
 namespace femocs {
@@ -273,6 +272,9 @@ const void Mesh::copy_statistics(Mesh* mesh) {
     stat.Vmax = mesh->stat.Vmax;
     stat.Vaverage = mesh->stat.Vaverage;
     stat.Vmedian = mesh->stat.Vmedian;
+    stat.n_bulk = mesh->stat.n_bulk;
+    stat.n_surface = mesh->stat.n_surface;
+    stat.n_vacuum = mesh->stat.n_vacuum;
 }
 
 const void Mesh::copy_nodes(Mesh* mesh) {
@@ -356,25 +358,63 @@ const void Mesh::calc_volumes() {
     }
 }
 
-const void Mesh::calc_volume_statistics() {
+const void Mesh::init_statistics() {
+    stat.n_bulk = stat.n_surface = stat.n_vacuum = 0;
+    stat.Vmin = stat.Vmax = stat.Vaverage = stat.Vmedian = 0;
+    stat.xmin = stat.ymin = stat.zmin = DBL_MAX;
+    stat.xmax = stat.ymax = stat.zmax = DBL_MIN;
+}
+
+const void Mesh::calc_statistics(const AtomReader::Types *types) {
+    init_statistics();
     size_t n_volumes = get_n_volumes();
-    // Make a copy of the volumes vector
-    vector<double> tempvec;
-    tempvec.reserve(n_volumes);
-    copy(volumes.begin(), volumes.end(), back_inserter(tempvec));
+    size_t n_markers = get_n_nodemarkers();
+    size_t n_nodes = get_n_nodes();
 
-    sort(tempvec.begin(), tempvec.end());
+    // Find the min and max coordinates of all nodes
+    if (n_nodes > 0)
+        for (int i = 0; i < n_nodes; ++i) {
+            Point3d point = get_point(i);
+            stat.xmax = max(stat.xmax, point.x);
+            stat.xmin = min(stat.xmin, point.x);
+            stat.ymax = max(stat.ymax, point.y);
+            stat.ymin = min(stat.ymin, point.y);
+            stat.zmax = max(stat.zmax, point.z);
+            stat.zmin = min(stat.zmin, point.z);
+        }
 
-    // Store min, max and average volume
-    stat.Vmin = tempvec[0];
-    stat.Vmax = tempvec[n_volumes - 1];
-    stat.Vaverage = accumulate(tempvec.begin(), tempvec.end(), 0) / n_volumes;
+    // Find the number of nodes in various regions
+    if (n_markers > 0)
+        // Loop through all the node markers
+        for (int marker : nodemarkers) {
+            if (marker == types->type_bulk)
+                stat.n_bulk++;
+            else if (marker == types->type_vacuum)
+                stat.n_vacuum++;
+            else if (marker == types->type_surf)
+                stat.n_surface++;
+        }
 
-    // Store the median volume
-    if (n_volumes % 2 == 0)
-        stat.Vmedian = (tempvec[n_volumes / 2 - 1] + tempvec[n_volumes / 2]) / 2;
-    else
-        stat.Vmedian = tempvec[n_volumes / 2];
+    // Calculate the statistics about the volumes of elements
+    if (n_volumes > 0) {
+        // Make a copy of the volumes vector
+        vector<double> tempvec;
+        tempvec.reserve(n_volumes);
+        copy(volumes.begin(), volumes.end(), back_inserter(tempvec));
+
+        sort(tempvec.begin(), tempvec.end());
+
+        // Store min, max and average volume
+        stat.Vmin = tempvec[0];
+        stat.Vmax = tempvec[n_volumes - 1];
+        stat.Vaverage = vector_sum(tempvec) / n_volumes;
+
+        // Store the median volume
+        if (n_volumes % 2 == 0)
+            stat.Vmedian = (tempvec[n_volumes / 2 - 1] + tempvec[n_volumes / 2]) / 2;
+        else
+            stat.Vmedian = tempvec[n_volumes / 2];
+    }
 }
 
 // Function to perform tetgen calculation on input and output data

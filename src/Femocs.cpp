@@ -21,8 +21,8 @@ using namespace std;
 Femocs::Femocs(string file_name) {
     start_msg(double t0, "\n======= Femocs started! =======\n");
     //*
-    //conf.infile = "input/rough110.ckx";
-    conf.infile = "input/mushroom1.ckx";
+    conf.infile = "input/rough110.ckx";
+    //conf.infile = "input/mushroom2.ckx";
     conf.latconst = 2.0;        // lattice constant
     conf.coord_cutoff = 0.0; //3.3;    // coordination analysis cut off radius
     //*/
@@ -37,9 +37,10 @@ Femocs::Femocs(string file_name) {
     conf.mesh_quality = "2.914";
     conf.nt = 4;                    // number of OpenMP threads
     conf.poly_degree = 1;           // finite element polynomial degree
-    conf.zmax_coarse = 16.0;        // zmax of coarsening cylinder
-    conf.coarsen = false;           // enable/disable the coarsening of surface atoms
-    conf.rmin_coarse = 10.0;        // inner radius of coarsening cylinder
+    conf.rmin_coarse = 15.0;        // inner radius of coarsening cylinder
+    conf.coarse_factor = 0.7;       // coarsening factor; bigger number gives coarser surface
+
+    conf.rmin_rectancularize = conf.latconst / 1.9; // 1.5+ for <110>, 1.0 for all others
 }
 
 
@@ -62,13 +63,10 @@ const void Femocs::run(double E_field, double*** phi) {
     start_msg(t0, "=== Extracting surface...");
     dense_surf.extract_surface(&reader);
 
-    if(conf.coarsen) {
-        coarse_surf = dense_surf.coarsen(conf.rmin_coarse, conf.zmax_coarse, &reader.sizes);
-        coarse_surf = coarse_surf.clean();
-    } else {
-        coarse_surf = dense_surf;
-        coarse_surf = coarse_surf.rectangularize_vol2(&reader.sizes, conf.latconst/1.9);
-    }
+    if(conf.coarse_factor > 0)
+        coarse_surf = dense_surf.coarsen(conf.rmin_coarse, conf.coarse_factor, &reader.sizes);
+    else
+        coarse_surf = dense_surf.rectangularize(&reader.sizes, conf.rmin_rectancularize);
 
     dense_surf.output("output/dense_surface.xyz");
     coarse_surf.output("output/surface.xyz");
@@ -77,16 +75,15 @@ const void Femocs::run(double E_field, double*** phi) {
     start_msg(t0, "=== Resizing simulation box...");
     // Electric field is applied 20 lattice constants above the surface highest point
     if (coarse_surf.get_n_atoms() > 0)
-        reader.resize_box(coarse_surf.sizes.zmin - conf.latconst, coarse_surf.sizes.zmax + 20 * conf.latconst);
+        reader.resize_box(coarse_surf.sizes.zmin - 20 * conf.latconst, coarse_surf.sizes.zmax + 20 * conf.latconst);
     else
-        reader.resize_box(reader.sizes.zmin, reader.sizes.zmax + 20 * conf.latconst);
+        reader.resize_box(reader.sizes.zmax - 20 * conf.latconst, reader.sizes.zmax + 20 * conf.latconst);
     end_msg(t0);
 
     start_msg(t0, "=== Extracting bulk...");
     femocs::Bulk bulk(conf.latconst, conf.nnn);
 //    bulk.extract_bulk(&reader);
 //    bulk.extract_truncated_bulk(&reader);
-//    bulk.rectangularize(&reader.sizes);
     bulk.generate_simple(&reader.sizes, &reader.types);
     bulk.output("output/bulk.xyz");
     end_msg(t0);
@@ -99,7 +96,7 @@ const void Femocs::run(double E_field, double*** phi) {
 
     // ===== Making FEM mesh =====
 
-    femocs::Mesher mesher(conf.mesher, conf.latconst);
+    femocs::Mesher mesher(conf.mesher);
 
     start_msg(t0, "=== Making big mesh...");
     femocs::Mesh big_mesh(conf.mesher);
@@ -111,13 +108,13 @@ const void Femocs::run(double E_field, double*** phi) {
     big_mesh.write_faces("output/faces_1.vtk");
     big_mesh.write_elems("output/elems_1.vtk");
     //mesher.generate_monolayer_surf_faces(&big_mesh, bulk.get_n_atoms(), surf.get_n_atoms());
-    mesher.generate_surf_faces(&big_mesh, coarse_surf.get_n_atoms());
+    mesher.generate_surf_faces(&big_mesh);
     big_mesh.write_faces("output/faces_2.vtk");
     big_mesh.write_elems("output/elems_2.vtk");
-    end_msg(t0);
+    end_msg(t0)
 
     start_msg(t0, "=== Marking nodes...");
-    mesher.mark_nodes(&big_mesh, &reader.types, coarse_surf.get_n_atoms());
+    mesher.mark_nodes(&big_mesh, &reader.types);
     big_mesh.write_nodes("output/nodes.xyz");
     big_mesh.write_nodes("output/nodes.vtk");
     big_mesh.write_faces("output/faces_3.vtk");
@@ -128,10 +125,7 @@ const void Femocs::run(double E_field, double*** phi) {
     femocs::Mesh bulk_mesh(conf.mesher);
     femocs::Mesh vacuum_mesh(conf.mesher);
 
-//    mesher.separate_vacuum_mesh(&vacuum_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), bulk.sizes.zmin, "rQ");
-//    mesher.separate_bulk_mesh(&bulk_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), bulk.sizes.zmin, "rQ");
 //    mesher.separate_meshes(&bulk_mesh, &vacuum_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), reader.sizes.zminbox, "rQ");
-
     mesher.separate_meshes_bymarker(&bulk_mesh, &vacuum_mesh, &big_mesh, &reader.types, "rQ");
 
     bulk_mesh.write_faces("output/faces_bulk.vtk");
@@ -140,6 +134,8 @@ const void Femocs::run(double E_field, double*** phi) {
     vacuum_mesh.write_elems("output/elems_vacuum.vtk");
     vacuum_mesh.write_nodes("output/nodes_vacuum.xyz");
     end_msg(t0);
+
+//    exit(1);
 
 //    start_msg(t0, "Making test mesh...");
 //    shared_ptr<Mesh> test_mesh(new Mesh());

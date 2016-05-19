@@ -20,17 +20,29 @@ public:
     Medium();
 
     /** Define the addition of two Mediums */
-    Medium& operator +=(Medium &s) {
+    Medium& operator +=(Medium &m) {
         int n_atoms1 = get_n_atoms();
-        int n_atoms2 = s.get_n_atoms();
+        int n_atoms2 = m.get_n_atoms();
 
         this->reserve(n_atoms1 + n_atoms2);
 
         for(int i = 0; i < n_atoms2; ++i)
-            add_atom(s.get_x(i), s.get_y(i), s.get_z(i), s.get_coordination(i));
+            add_atom(m.get_x(i), m.get_y(i), m.get_z(i), m.get_coordination(i));
 
         this->calc_statistics();
         return *this;
+    }
+
+    const void add(Medium *m) {
+        int n_atoms1 = get_n_atoms();
+        int n_atoms2 = m->get_n_atoms();
+
+        this->reserve(n_atoms1 + n_atoms2);
+
+        for(int i = 0; i < n_atoms2; ++i)
+            add_atom(m->get_x(i), m->get_y(i), m->get_z(i), m->get_coordination(i));
+
+        this->calc_statistics();
     }
 
     /** Reserve memory for data vectors */
@@ -87,10 +99,13 @@ public:
     struct Sizes {
         double xmin;    //!< Minimum value of x-coordinate
         double xmax;    //!< Maximum value of x-coordinate
+        double xmean;   //!< Average value of x-coordinate
         double ymin;    //!< Minimum value of y-coordinate
         double ymax;    //!< Maximum value of y-coordinate
+        double ymean;   //!< Average value of y-coordinate
         double zmin;    //!< Minimum value of z-coordinate
         double zmax;    //!< Maximum value of z-coordinate
+        double zmean;   //!< Average value of z-coordinate
     };
 
     /** Statistics about system size */

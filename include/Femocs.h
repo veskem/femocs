@@ -31,6 +31,7 @@ public:
     /** Struct holding data about input parameters. */
     struct Config {
         string mesher;          //!< simulation cell finite element mesher
+        string mesh_quality;    //!< the minimum quality (maximum radius-edge ratio) of tetrahedra
         string infile;          //!< path to input script
         double latconst;        //!< lattice constant
         double coord_cutoff;    //!< cutoff distance in Angstroms for Coordination analysis
@@ -38,10 +39,13 @@ public:
         int nt;                 //!< number of OpenMP threads
         int poly_degree;        //!< polynomial degree of the finite elements (1-linear, 2-quadratic, ...)
         double neumann;         //!< value of Neumann boundary condition
-        double zmax_coarse;     //!< maximum z-coordinate of hollow cylinder where coarsening of surface atoms takes place
-        double rmin_coarse;     //!< inner radius of hollow cylinder where coarsening of surface atoms takes place
-        bool coarsen;           //!< flag controlling whether to coarsen or not the surface atoms
-        string mesh_quality;    //!< the minimum quality (maximum radius-edge ratio) of tetrahedra
+
+        //!< Radius of cylinder where surface atoms are not coarsened; zero enables coarsening of all atoms.
+        double rmin_coarse;
+        //!< Factor that is proportional to the extent of surface coarsening; zero turns coarsening off.
+        double coarse_factor;
+        //!< Distance from surface edge where atoms are picked for rectangularization
+        double rmin_rectancularize;
     };
 
     Config conf;          //!< Femocs configuration parameters

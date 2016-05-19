@@ -41,21 +41,31 @@ const void Medium::add_atom(const double x, const double y, const double z, cons
 const void Medium::init_statistics() {
     sizes.xmin = sizes.ymin = sizes.zmin = DBL_MAX;
     sizes.xmax = sizes.ymax = sizes.zmax = DBL_MIN;
+    sizes.xmean = sizes.ymean = sizes.zmean = 0.0;
 }
 
 // Calculate the statistics about Medium
 const void Medium::calc_statistics() {
+    double xx, yy, zz;
+    int n_atoms = get_n_atoms();
     init_statistics();
 
     // Find min and max coordinates
-    for (int i = 0; i < get_n_atoms(); ++i) {
-        if (sizes.xmax < get_x(i)) sizes.xmax = get_x(i);
-        if (sizes.xmin > get_x(i)) sizes.xmin = get_x(i);
-        if (sizes.ymax < get_y(i)) sizes.ymax = get_y(i);
-        if (sizes.ymin > get_y(i)) sizes.ymin = get_y(i);
-        if (sizes.zmax < get_z(i)) sizes.zmax = get_z(i);
-        if (sizes.zmin > get_z(i)) sizes.zmin = get_z(i);
+    for (int i = 0; i < n_atoms; ++i) {
+        xx = get_x(i);
+        yy = get_y(i);
+        zz = get_z(i);
+        sizes.xmax = max(sizes.xmax, xx);
+        sizes.xmin = min(sizes.xmin, xx);
+        sizes.ymax = max(sizes.ymax, yy);
+        sizes.ymin = min(sizes.ymin, yy);
+        sizes.zmax = max(sizes.zmax, zz);
+        sizes.zmin = min(sizes.zmin, zz);
     }
+
+    sizes.xmean = vector_sum(x) / n_atoms;
+    sizes.ymean = vector_sum(y) / n_atoms;
+    sizes.zmean = vector_sum(z) / n_atoms;
 }
 
 // Get number of atoms in Medium

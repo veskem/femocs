@@ -15,15 +15,20 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 using namespace std;
 //namespace femocs {
 
-// Definitions for development and debugging mode
-#if DEBUGMODE
 #define require(condition, message) \
         if (!(condition))              \
           __requirement_fails(__FILE__, __LINE__, message)
+
+// Definitions for development and debugging mode
+#if DEBUGMODE
+//#define require(condition, message) \
+//        if (!(condition))              \
+//          __requirement_fails(__FILE__, __LINE__, message)
 
 #define expect(condition, message) \
         if (!(condition))              \
@@ -37,11 +42,16 @@ using namespace std;
 
 // In release(-like) versions nothing happens
 #else
-#define require(condition, message) {}
+//#define require(condition, message) {}
 #define expect(condition, message) {}
 #define start_msg(t0, message) {}
 #define end_msg(t0) {}
 #endif // DEBUGMODE
+
+/** Sum of the elements in vector */
+const inline int vector_sum(vector<bool> v) { return accumulate(v.begin(), v.end(), 0); }
+const inline int vector_sum(vector<int> v) { return accumulate(v.begin(), v.end(), 0); }
+const inline double vector_sum(vector<double> v) { return accumulate(v.begin(), v.end(), 0); }
 
 /** Throw an informative exception if expectation fails */
 void __requirement_fails(const char *file, int line, string message);
