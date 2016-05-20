@@ -25,10 +25,10 @@ const void Vacuum::generate_simple(const AtomReader::Sizes* sizes) {
     reserve(M);
 
     // Add points to the xy-plane corners on current layer
-    add_atom(sizes->xmax, sizes->ymax, sizes->zmaxbox, 0);
-    add_atom(sizes->xmax, sizes->ymin, sizes->zmaxbox, 0);
-    add_atom(sizes->xmin, sizes->ymax, sizes->zmaxbox, 0);
-    add_atom(sizes->xmin, sizes->ymin, sizes->zmaxbox, 0);
+    add_atom(-1, Point3d(sizes->xmax, sizes->ymax, sizes->zmaxbox), 0);
+    add_atom(-1, Point3d(sizes->xmax, sizes->ymin, sizes->zmaxbox), 0);
+    add_atom(-1, Point3d(sizes->xmin, sizes->ymax, sizes->zmaxbox), 0);
+    add_atom(-1, Point3d(sizes->xmin, sizes->ymin, sizes->zmaxbox), 0);
 
     init_statistics();
     calc_statistics();
@@ -59,16 +59,16 @@ const void Bulk::extract_reduced_bulk(Surface* surf, const AtomReader::Sizes* si
     reserve(n_surf + n_edge);
 
     for (i = 0; i < n_surf; ++i)
-        add_atom(surf->get_x(i), surf->get_y(i), surf->get_z(i), surf->get_coordination(i));
+        add_atom(surf->get_id(i), surf->get_point(i), surf->get_coordination(i));
 
 //    for (i = 0; i < n_edge; ++i)
 //        add_atom(edge->get_x(i), edge->get_y(i), sizes->zmin, edge->get_coordination(i));
 
     // Add extra atoms to the bottom corner edges of simulation cell
-    add_atom(sizes->xmin, sizes->ymin, sizes->zminbox, 0);
-    add_atom(sizes->xmin, sizes->ymax, sizes->zminbox, 0);
-    add_atom(sizes->xmax, sizes->ymin, sizes->zminbox, 0);
-    add_atom(sizes->xmax, sizes->ymax, sizes->zminbox, 0);
+    add_atom(-1, Point3d(sizes->xmin, sizes->ymin, sizes->zminbox), 0);
+    add_atom(-1, Point3d(sizes->xmin, sizes->ymax, sizes->zminbox), 0);
+    add_atom(-1, Point3d(sizes->xmax, sizes->ymin, sizes->zminbox), 0);
+    add_atom(-1, Point3d(sizes->xmax, sizes->ymax, sizes->zminbox), 0);
 
     calc_statistics();
 }
@@ -79,10 +79,10 @@ const void Bulk::generate_simple(const AtomReader::Sizes* sizes, const AtomReade
     reserve(M);
 
     // Add atoms to the bottom corner edges of simulation cell
-    add_atom(sizes->xmin, sizes->ymin, sizes->zminbox, types->type_bulk);
-    add_atom(sizes->xmin, sizes->ymax, sizes->zminbox, types->type_bulk);
-    add_atom(sizes->xmax, sizes->ymin, sizes->zminbox, types->type_bulk);
-    add_atom(sizes->xmax, sizes->ymax, sizes->zminbox, types->type_bulk);
+    add_atom(-1, Point3d(sizes->xmin, sizes->ymin, sizes->zminbox), types->type_bulk);
+    add_atom(-1, Point3d(sizes->xmin, sizes->ymax, sizes->zminbox), types->type_bulk);
+    add_atom(-1, Point3d(sizes->xmax, sizes->ymin, sizes->zminbox), types->type_bulk);
+    add_atom(-1, Point3d(sizes->xmax, sizes->ymax, sizes->zminbox), types->type_bulk);
 
     init_statistics();
     calc_statistics();
@@ -97,7 +97,7 @@ const void Bulk::extract_truncated_bulk_old(AtomReader* reader) {
 
     // Get number and locations of bulk atoms
     for (i = 0; i < N; ++i)
-        is_bulk[i] = (reader->get_z(i) > reader->sizes.zminbox)
+        is_bulk[i] = (reader->get_point(i).z > reader->sizes.zminbox)
                 && (reader->get_type(i) == reader->types.type_bulk
                         || reader->get_type(i) == reader->types.type_surf);
 
@@ -110,14 +110,12 @@ const void Bulk::extract_truncated_bulk_old(AtomReader* reader) {
     // Add bulk atoms
     for (i = 0; i < N; ++i)
         if (is_bulk[i] && !is_surf[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i),
-                    reader->get_coordination(i));
+            add_atom(reader->get_id(i), reader->get_point(i), reader->get_coordination(i));
 
     // Add surface atoms
     for (i = 0; i < N; ++i)
         if (is_bulk[i] && is_surf[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i),
-                    reader->get_coordination(i));
+            add_atom(reader->get_id(i), reader->get_point(i), reader->get_coordination(i));
 
     calc_statistics();
 }
@@ -130,7 +128,7 @@ const void Bulk::extract_truncated_bulk(AtomReader* reader) {
 
     // Get number and locations of bulk atoms
     for (i = 0; i < N; ++i)
-        is_bulk[i] = (reader->get_z(i) > reader->sizes.zminbox)
+        is_bulk[i] = (reader->get_point(i).z > reader->sizes.zminbox)
                 && (reader->get_type(i) == reader->types.type_bulk);
 
     reserve(vector_sum(is_bulk));
@@ -138,8 +136,7 @@ const void Bulk::extract_truncated_bulk(AtomReader* reader) {
     // Add bulk atoms
     for (i = 0; i < N; ++i)
         if (is_bulk[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i),
-                    reader->get_coordination(i));
+            add_atom(reader->get_id(i), reader->get_point(i), reader->get_coordination(i));
 
     calc_statistics();
 }
@@ -157,8 +154,7 @@ const void Bulk::extract_bulk(AtomReader* reader) {
 
     for (i = 0; i < N; ++i)
         if (is_bulk[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i),
-                    reader->get_coordination(i));
+            add_atom(reader->get_id(i), reader->get_point(i), reader->get_coordination(i));
 
     calc_statistics();
 }
@@ -170,7 +166,7 @@ const void Bulk::rectangularize(const AtomReader::Sizes* sizes, const double r_c
 
     for (int i = 0; i < get_n_atoms(); ++i) {
         // Flatten the atoms on bottom layer
-        if ((get_z(i) >= zmin_down) && (get_z(i) <= zmin_up)) set_z(i, zmin_down);
+        if ((get_point(i).z >= zmin_down) && (get_point(i).z <= zmin_up)) set_z(i, zmin_down);
 
         Point2d point = get_point2d(i);
         int near1 = point.near(sizes->xmin, sizes->ymin, r_cut);
@@ -230,9 +226,9 @@ const Surface Surface::coarsen(const double r_cut, const double coarse_factor,
     // Separate the atoms from dense and coarse regions
     for (i = 0; i < n_atoms; ++i) {
         if (is_dense[i])
-            dense_surf.add_atom(x[i], y[i], z[i], coordination[i]);
+            dense_surf.add_atom(id[i], point[i], coordination[i]);
         else
-            coarse_surf.add_atom(x[i], y[i], z[i], coordination[i]);
+            coarse_surf.add_atom(id[i], point[i], coordination[i]);
     }
 
     // Among the other things calculate the average z-coordinate of coarse_surf atoms
@@ -271,8 +267,7 @@ const void Surface::extract_by_type(AtomReader* reader) {
     // Add surface atoms to Surface
     for (i = 0; i < N; ++i)
         if (is_surface[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i),
-                    reader->get_coordination(i));
+            add_atom(reader->get_id(i), reader->get_point(i), reader->get_coordination(i));
 }
 
 // Extract surface by coordination analysis
@@ -284,7 +279,7 @@ const void Surface::extract_by_coordination(AtomReader* reader) {
     vector<bool> is_surface(n_atoms);
 
     for (i = 0; i < n_atoms; ++i)
-        is_surface[i] = (reader->get_z(i) > zmin) && (reader->get_coordination(i) > 0)
+        is_surface[i] = (reader->get_point(i).z > zmin) && (reader->get_coordination(i) > 0)
                 && (reader->get_coordination(i) < crys_struct.nnn);
 
     // Preallocate memory for Surface atoms
@@ -292,8 +287,7 @@ const void Surface::extract_by_coordination(AtomReader* reader) {
 
     for (i = 0; i < n_atoms; ++i)
         if (is_surface[i])
-            add_atom(reader->get_x(i), reader->get_y(i), reader->get_z(i),
-                    reader->get_coordination(i));
+            add_atom(reader->get_id(i), reader->get_point(i), reader->get_coordination(i));
 }
 
 // Function to flatten the atoms on the sides of simulation box
@@ -358,7 +352,7 @@ const Surface Surface::clean(const Point3d &origin, const double r_cut, const do
     surf.reserve( n_atoms - vector_sum(do_delete) );
     for (i = 0; i < n_atoms; ++i)
         if(!do_delete[i])
-            surf.add_atom(x[i], y[i], z[i], coordination[i]);
+            surf.add_atom(id[i], point[i], coordination[i]);
 
     surf.calc_statistics();
     return surf;
@@ -391,10 +385,10 @@ const void Edge::extract_edge(Medium* atoms, const AtomReader::Sizes* sizes, con
     reserve(4 + n_atoms);
 
     // Add 4 atoms to the bottom corners of the edge
-    add_atom(sizes->xmin, sizes->ymin, atoms->sizes.zmin, 0);
-    add_atom(sizes->xmin, sizes->ymax, atoms->sizes.zmin, 0);
-    add_atom(sizes->xmax, sizes->ymin, atoms->sizes.zmin, 0);
-    add_atom(sizes->xmax, sizes->ymax, atoms->sizes.zmin, 0);
+    add_atom(-1, Point3d(sizes->xmin, sizes->ymin, atoms->sizes.zmin), 0);
+    add_atom(-1, Point3d(sizes->xmin, sizes->ymax, atoms->sizes.zmin), 0);
+    add_atom(-1, Point3d(sizes->xmax, sizes->ymin, atoms->sizes.zmin), 0);
+    add_atom(-1, Point3d(sizes->xmax, sizes->ymax, atoms->sizes.zmin), 0);
 
     // Get the atoms from
     for (i = 0; i < n_atoms; ++i) {
@@ -403,16 +397,17 @@ const void Edge::extract_edge(Medium* atoms, const AtomReader::Sizes* sizes, con
         int near2 = point.near(sizes->xmax, sizes->ymax, r_cut);
 
         if (near1 >= 0 || near2 >= 0)
-            add_atom(point.x, point.y, point.z, atoms->get_coordination(i));
+            add_atom(atoms->get_id(i), point, atoms->get_coordination(i));
     }
 
     // Loop through all the added atoms
     // and flatten the atoms on the sides of simulation box
     for (i = 0; i < get_n_atoms(); ++i) {
-        if ( on_boundary(get_x(i), sizes->xmin, r_cut) ) set_x(i, sizes->xmin);
-        if ( on_boundary(get_x(i), sizes->xmax, r_cut) ) set_x(i, sizes->xmax);
-        if ( on_boundary(get_y(i), sizes->ymin, r_cut) ) set_y(i, sizes->ymin);
-        if ( on_boundary(get_y(i), sizes->ymax, r_cut) ) set_y(i, sizes->ymax);
+        Point3d point = get_point(i);
+        if ( on_boundary(point.x, sizes->xmin, r_cut) ) set_x(i, sizes->xmin);
+        if ( on_boundary(point.x, sizes->xmax, r_cut) ) set_x(i, sizes->xmax);
+        if ( on_boundary(point.y, sizes->ymin, r_cut) ) set_y(i, sizes->ymin);
+        if ( on_boundary(point.y, sizes->ymax, r_cut) ) set_y(i, sizes->ymax);
     }
 
     // Among other things calculate the average value of z-coordinate
@@ -463,7 +458,7 @@ const Edge Edge::clean(const double r_cut, const double coarse_factor) {
     // Compile coarsened Edge
     for (i = 0; i < n_atoms; ++i)
         if (!do_delete[i])
-            edge.add_atom(get_x(i), get_y(i), get_z(i), get_coordination(i));
+            edge.add_atom(get_id(i), get_point(i), get_coordination(i));
 
     edge.calc_statistics();
     return edge;

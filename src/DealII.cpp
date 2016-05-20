@@ -14,12 +14,14 @@ using namespace dealii;
 
 namespace femocs {
 
-// Define main class constructor
+// Laplace solver constructor
 // Number in fe() determines the interpolation type. 1 is linear etc.
-DealII::DealII(const int poly_degree, const double neumann) :
-        fe(poly_degree), dof_handler(triangulation) {
-    this->neumann = neumann;
+DealII::DealII() : fe(POLY_DEGREE), dof_handler(triangulation) {
     reserve_solution(0);
+}
+
+const void DealII::set_neumann(const double neumann) {
+    this->neumann = neumann;
 }
 
 // Extract the file type from file name
@@ -30,7 +32,7 @@ const string DealII::get_file_type(const string file_name) {
 }
 
 // Import mesh from vtk or msh file
-void DealII::import_file(const string file_name) {
+const void DealII::import_file(const string file_name) {
     GridIn<DIM, DIM> gi;
 
     gi.attach_triangulation(triangulation);
@@ -47,7 +49,7 @@ void DealII::import_file(const string file_name) {
 
 // Modified version of grid_in function,
 // https://github.com/dealii/dealii/blob/master/source/grid/grid_in.cc
-void DealII::import_tethex_mesh(tethex::Mesh* mesh) {
+const void DealII::import_tethex_mesh(tethex::Mesh* mesh) {
     unsigned int n_vertices = mesh->get_n_vertices();
     unsigned int n_elems = mesh->get_n_hexahedra();
     unsigned int n_faces = mesh->get_n_quadrangles();
@@ -108,7 +110,7 @@ void DealII::import_tethex_mesh(tethex::Mesh* mesh) {
 }
 
 // Import tetrahedral mesh
-void DealII::import_tetgen_mesh(femocs::Mesh* mesh) {
+const void DealII::import_tetgen_mesh(femocs::Mesh* mesh) {
     const int n_nodes_in_elem = 4;
     const int n_coords = 3;
 
@@ -160,7 +162,7 @@ void DealII::import_tetgen_mesh(femocs::Mesh* mesh) {
 }
 
 // Generate simple mesh for test purposes
-void DealII::make_simple_mesh() {
+const void DealII::make_simple_mesh() {
     const unsigned int d = 3;
     Triangulation<DIM> tr1;
     Triangulation<DIM> tr2;
@@ -238,7 +240,7 @@ void DealII::make_simple_mesh() {
 }
 
 // Setup initial grid and number the vertices i.e. distribute degrees of freedom.
-void DealII::setup_system() {
+const void DealII::setup_system() {
     dof_handler.distribute_dofs(fe);
 
     cout << "\nNumber of degrees of freedom: " << dof_handler.n_dofs() << endl;
@@ -254,7 +256,7 @@ void DealII::setup_system() {
 }
 
 // Mark the boundary faces of mesh
-void DealII::mark_boundary(const AtomReader::Sizes* sizes, const AtomReader::Types* types) {
+const void DealII::mark_boundary(const AtomReader::Sizes* sizes, const AtomReader::Types* types) {
     typename Triangulation<DIM>::active_face_iterator face;
 
     // Loop through the faces and mark them according the location of its centre
@@ -273,7 +275,7 @@ void DealII::mark_boundary(const AtomReader::Sizes* sizes, const AtomReader::Typ
 }
 
 // Function to determine whether the center of face is on the boundary of simulation cell or not
-bool DealII::on_boundary(const double face, const double face_min, const double face_max) {
+const bool DealII::on_boundary(const double face, const double face_min, const double face_max) {
     const double eps = 0.1;
     bool b1 = fabs(face - face_min) < eps;
     bool b2 = fabs(face_max - face) < eps;
@@ -281,7 +283,7 @@ bool DealII::on_boundary(const double face, const double face_min, const double 
 }
 
 // Insert boundary conditions to the system
-void DealII::assemble_system(const AtomReader::Types* types) {
+const void DealII::assemble_system(const AtomReader::Types* types) {
     // Set up quadrature system for quads and faces
     const QGauss<3> quadrature_formula(DIM);
     const QGauss<2> face_quadrature_formula(DIM);
@@ -366,7 +368,7 @@ void DealII::assemble_system(const AtomReader::Types* types) {
 }
 
 // Run the calculation with conjugate gradient solver
-void DealII::solve_cg() {
+const void DealII::solve_cg() {
     // Declare Conjugate Gradient solver tolerance and max number of iterations
     SolverControl solver_control(10000, 1e-9);
     SolverCG<> solver(solver_control);
@@ -374,13 +376,13 @@ void DealII::solve_cg() {
 }
 
 // Run the calculation with UMFPACK solver
-void DealII::solve_umfpack() {
+const void DealII::solve_umfpack() {
     SparseDirectUMFPACK A_direct;
     A_direct.initialize(system_matrix);
     A_direct.vmult(laplace_solution, system_rhs);
 }
 
-void DealII::extract_solution_at_medium(Medium &medium) {
+const void DealII::extract_solution_at_medium(Medium &medium) {
     int node, n;
     Point<DIM> point;
     Tensor<1, DIM> ef;
@@ -397,10 +399,11 @@ void DealII::extract_solution_at_medium(Medium &medium) {
         n = medium2node_map[node];
         if (n >= 0) {
             ef = get_elfield_at_node(node2elem_map[n], node2vert_map[n]);
-            //pot = get_potential_at_node(node2elem_map[n], node2vert_map[n]);
+            pot = get_potential_at_node(node2elem_map[n], node2vert_map[n]);
         } else
             ef[0] = ef[1] = ef[2] = pot = 1e20;
 
+        solution.id.push_back(medium.get_id(node));
         solution.point.push_back(medium.get_point(node));
         solution.elfield.push_back( Vec3d(ef[0], ef[1], ef[2]) );
         solution.elfield_norm.push_back(ef.norm());
@@ -409,7 +412,8 @@ void DealII::extract_solution_at_medium(Medium &medium) {
 }
 
 // Reserve memory for solution vectors
-void DealII::reserve_solution(const int n_nodes) {
+const void DealII::reserve_solution(const int n_nodes) {
+    solution.id.reserve(n_nodes);
     solution.point.reserve(n_nodes);
     solution.elfield.reserve(n_nodes);
     solution.elfield_norm.reserve(n_nodes);
@@ -420,7 +424,7 @@ void DealII::reserve_solution(const int n_nodes) {
 // where the nodes are located in those elements.
 // The index of element and vertex are stored sequentally, so that
 // map[2*node_index] == element_index, map[2*node_index+1] == vertex_index
-vector<int> DealII::get_node2elem_map() {
+const vector<int> DealII::get_node2elem_map() {
     vector<int> map(triangulation.n_used_vertices());
     typename DoFHandler<DIM>::active_cell_iterator cell;
 
@@ -433,7 +437,7 @@ vector<int> DealII::get_node2elem_map() {
     return map;
 }
 
-vector<int> DealII::get_node2vert_map() {
+const vector<int> DealII::get_node2vert_map() {
     vector<int> map(triangulation.n_used_vertices());
     typename DoFHandler<DIM>::active_cell_iterator cell;
 
@@ -448,7 +452,7 @@ vector<int> DealII::get_node2vert_map() {
 
 // Return mapping between Medium atoms and DealII mesh nodes
 // Value -1 indicates that there's no node in the mesh that corresponds to the given atom
-vector<int> DealII::get_medium2node_map(Medium &medium) {
+const vector<int> DealII::get_medium2node_map(Medium &medium) {
     int i;
     int n_atoms = medium.get_n_atoms();
     vector<int> map(n_atoms, -1);
@@ -469,12 +473,12 @@ vector<int> DealII::get_medium2node_map(Medium &medium) {
 }
 
 // Calculate electric field from arbitrary point inside the mesh
-Tensor<1, DIM> DealII::get_elfield_at_point(Point<DIM> &point) {
+const Tensor<1, DIM> DealII::get_elfield_at_point(Point<DIM> &point) {
     return VectorTools::point_gradient(dof_handler, laplace_solution, point);
 }
 
 // Calculate electric field at node point
-Tensor<1, DIM> DealII::get_elfield_at_node(const int &cell_indx, const int &vert_indx) {
+const Tensor<1, DIM> DealII::get_elfield_at_node(const int &cell_indx, const int &vert_indx) {
     vector<Tensor<1, DIM>> solution_gradients;
     QTrapez<DIM> only_vertices_quadrature_formula;
     FEValues<DIM> fe_values(fe, only_vertices_quadrature_formula, update_gradients);
@@ -493,12 +497,12 @@ Tensor<1, DIM> DealII::get_elfield_at_node(const int &cell_indx, const int &vert
 }
 
 // Calculate potential at arbitrary point inside the mesh
-double DealII::get_potential_at_point(Point<DIM> &point) {
+const double DealII::get_potential_at_point(Point<DIM> &point) {
     return VectorTools::point_value(dof_handler, laplace_solution, point);
 }
 
 // Get potential at mesh node
-double DealII::get_potential_at_node(const int &cell_indx, const int &vert_indx) {
+const double DealII::get_potential_at_node(const int &cell_indx, const int &vert_indx) {
     typename DoFHandler<DIM>::active_cell_iterator cell;
 
     cell = dof_handler.begin_active();
@@ -509,7 +513,7 @@ double DealII::get_potential_at_node(const int &cell_indx, const int &vert_indx)
 }
 
 // Write the potential and electric field to the file
-void DealII::output_results(const string file_name) {
+const void DealII::output_results(const string file_name) {
 #if not DEBUGMODE
     return;
 #endif
@@ -533,7 +537,7 @@ void DealII::output_results(const string file_name) {
 }
 
 // Write the mesh to file
-void DealII::output_mesh(const string file_name) {
+const void DealII::output_mesh(const string file_name) {
     string ftype = get_file_type(file_name);
     expect(ftype == "vtk" || ftype == "msh" || ftype == "eps", "Unsupported file type!");
 
@@ -548,7 +552,7 @@ void DealII::output_mesh(const string file_name) {
         gout.write_eps(triangulation, outfile);
 }
 
-void DealII::write_xyz(const string file_name) {
+const void DealII::write_xyz(const string file_name) {
     const int n_verts = solution.point.size();
 
     ofstream out_file(file_name);
@@ -559,7 +563,7 @@ void DealII::write_xyz(const string file_name) {
 
     // Loop through mesh vertices that potentially could be on the surface
     for (int i = 0; i < n_verts; ++i) {
-        out_file << i << " ";
+        out_file << solution.id[i] << " ";
         out_file << solution.point[i] << " ";
         out_file << solution.elfield[i] << " ";
         out_file << solution.elfield_norm[i] << " ";
@@ -569,4 +573,32 @@ void DealII::write_xyz(const string file_name) {
     out_file.close();
 }
 
+const void DealII::export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+    expect(n_atoms >= solution.id.size(), "Solution vector longer than requested!")
+
+    int indx;
+    vector<bool> solution_passed(n_atoms, false);
+
+    indx = 0;
+
+    // Pass the the real electric field for atoms that were in the mesh
+    for (int id : solution.id) {
+        if(id < 0 || id >= n_atoms) continue;
+        Ex[id] = solution.elfield[indx].x;
+        Ey[id] = solution.elfield[indx].y;
+        Ez[id] = solution.elfield[indx].z;
+        Enorm[id] = solution.elfield_norm[indx];
+        solution_passed[id] = true;
+        indx++;
+    }
+
+    // Pass the zero electric field for atoms that were not in the mesh
+    for (indx = 0; indx < n_atoms; ++indx) {
+        if (solution_passed[indx]) continue;
+        Ex[indx] = 0;
+        Ey[indx] = 0;
+        Ez[indx] = 0;
+        Enorm[indx] = 0;
+    }
+}
 } /* namespace femocs */

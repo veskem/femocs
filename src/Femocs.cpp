@@ -21,8 +21,8 @@ using namespace std;
 Femocs::Femocs(string file_name) {
     start_msg(double t0, "\n======= Femocs started! =======\n");
     //*
-    conf.infile = "input/rough110.ckx";
-    //conf.infile = "input/mushroom2.ckx";
+    //conf.infile = "input/rough110.ckx";
+    conf.infile = "input/mushroom2.ckx";
     conf.latconst = 2.0;        // lattice constant
     conf.coord_cutoff = 0.0; //3.3;    // coordination analysis cut off radius
     //*/
@@ -36,11 +36,10 @@ Femocs::Femocs(string file_name) {
     conf.mesher = "tetgen";         // mesher algorithm
     conf.mesh_quality = "2.914";
     conf.nt = 4;                    // number of OpenMP threads
-    conf.poly_degree = 1;           // finite element polynomial degree
-    conf.rmin_coarse = 15.0;        // inner radius of coarsening cylinder
-    conf.coarse_factor = 0.7;       // coarsening factor; bigger number gives coarser surface
+    conf.rmin_coarse = 16.0;        // inner radius of coarsening cylinder
+    conf.coarse_factor = 1.0;       // coarsening factor; bigger number gives coarser surface
 
-    conf.rmin_rectancularize = conf.latconst / 1.9; // 1.5+ for <110>, 1.0 for all others
+    conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110>, 1.0 for all others
 }
 
 
@@ -165,7 +164,7 @@ const void Femocs::run(double E_field, double*** phi) {
 
     // ===== Running FEM solver =====
 
-    femocs::DealII laplace(conf.poly_degree, conf.neumann);
+    laplace.set_neumann(conf.neumann);
 
     start_msg(t0, "=== Importing tethex mesh into Deal.II...");
     laplace.import_tethex_mesh(&tethex_mesh);
@@ -221,6 +220,13 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
     end_msg(t0);
 
 
+}
+
+const void Femocs::export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+    double t0;
+    start_msg(t0, "=== Exporting results...");
+    laplace.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);
+    end_msg(t0);
 }
 
 const void femocs_speaker(string path) {

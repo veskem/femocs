@@ -22,18 +22,15 @@ Medium::Medium(){
 // Reserve memory for data vectors
 const void Medium::reserve(const int n_atoms) {
     require(n_atoms >= 0, "Invalid number of atoms!");
-    this->x.reserve(n_atoms);
-    this->y.reserve(n_atoms);
-    this->z.reserve(n_atoms);
+    this->id.reserve(n_atoms);
+    this->point.reserve(n_atoms);
     this->coordination.reserve(n_atoms);
 }
 
-// Add atom's parameters to data vectors
-const void Medium::add_atom(const double x, const double y, const double z, const int coord) {
-    expect(get_n_atoms() <= this->x.capacity(), "Allocated vector sizes exceeded!");
-    this->x.push_back(x);
-    this->y.push_back(y);
-    this->z.push_back(z);
+const void Medium::add_atom(const int id, const Point3d &point, const int coord) {
+    expect(get_n_atoms() <= this->point.capacity(), "Allocated vector sizes exceeded!");
+    this->id.push_back(id);
+    this->point.push_back(point);
     this->coordination.push_back(coord);
 }
 
@@ -50,57 +47,46 @@ const void Medium::calc_statistics() {
     int n_atoms = get_n_atoms();
     init_statistics();
 
+    Point3d average(0,0,0);
+
     // Find min and max coordinates
     for (int i = 0; i < n_atoms; ++i) {
-        xx = get_x(i);
-        yy = get_y(i);
-        zz = get_z(i);
-        sizes.xmax = max(sizes.xmax, xx);
-        sizes.xmin = min(sizes.xmin, xx);
-        sizes.ymax = max(sizes.ymax, yy);
-        sizes.ymin = min(sizes.ymin, yy);
-        sizes.zmax = max(sizes.zmax, zz);
-        sizes.zmin = min(sizes.zmin, zz);
+        Point3d point = get_point(i);
+        average += point;
+        sizes.xmax = max(sizes.xmax, point.x);
+        sizes.xmin = min(sizes.xmin, point.x);
+        sizes.ymax = max(sizes.ymax, point.y);
+        sizes.ymin = min(sizes.ymin, point.y);
+        sizes.zmax = max(sizes.zmax, point.z);
+        sizes.zmin = min(sizes.zmin, point.z);
     }
 
-    sizes.xmean = vector_sum(x) / n_atoms;
-    sizes.ymean = vector_sum(y) / n_atoms;
-    sizes.zmean = vector_sum(z) / n_atoms;
+    sizes.xmean = average.x / n_atoms;
+    sizes.ymean = average.y / n_atoms;
+    sizes.zmean = average.z / n_atoms;
 }
 
 // Get number of atoms in Medium
 int Medium::get_n_atoms() {
-    return x.size();
+    return point.size();
 }
 
 // Get i-th 2-dimensional point
 const Point2d Medium::get_point2d(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    return Point2d(x[i], y[i]);
+    return Point2d(point[i].x, point[i].y);
 }
 
 // Get i-th 3-dimensional point
 Point3d Medium::get_point(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    return Point3d(x[i], y[i], z[i]);
+    return point[i];
 }
 
-// Get entry from x coordinate vector
-const double Medium::get_x(const int i) {
+// Get entry from ID-s vector
+const int Medium::get_id(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    return x[i];
-}
-
-// Get entry from y coordinate vector
-const double Medium::get_y(const int i) {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    return y[i];
-}
-
-// Get entry from z coordinate vector
-const double Medium::get_z(const int i) {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    return z[i];
+    return id[i];
 }
 
 // Get atom coordination
@@ -112,19 +98,19 @@ const int Medium::get_coordination(const int i) {
 // Set entry to x coordinate vector
 void Medium::set_x(const int i, const double x) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    this->x[i] = x;
+    point[i].x = x;
 }
 
 // Set entry to y coordinate vector
 void Medium::set_y(const int i, const double y) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    this->y[i] = y;
+    point[i].y = y;
 }
 
 // Set entry to z coordinate vector
 void Medium::set_z(const int i, const double z) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    this->z[i] = z;
+    point[i].z = z;
 }
 
 // Set coordination of atom
@@ -170,7 +156,7 @@ const string Medium::get_data_string(const int i) {
         return "Types of data: id x y z coordination";
 
     ostringstream strs;
-    strs << i << " " << get_point(i) << " " << get_coordination(i);
+    strs << get_id(i) << " " << get_point(i) << " " << get_coordination(i);
     return strs.str();
 }
 

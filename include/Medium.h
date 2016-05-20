@@ -27,7 +27,7 @@ public:
         this->reserve(n_atoms1 + n_atoms2);
 
         for(int i = 0; i < n_atoms2; ++i)
-            add_atom(m.get_x(i), m.get_y(i), m.get_z(i), m.get_coordination(i));
+            add_atom(m.get_id(i), m.get_point(i), m.get_coordination(i));
 
         this->calc_statistics();
         return *this;
@@ -40,7 +40,7 @@ public:
         this->reserve(n_atoms1 + n_atoms2);
 
         for(int i = 0; i < n_atoms2; ++i)
-            add_atom(m->get_x(i), m->get_y(i), m->get_z(i), m->get_coordination(i));
+            add_atom(m->get_id(i), m->get_point(i), m->get_coordination(i));
 
         this->calc_statistics();
     }
@@ -50,12 +50,11 @@ public:
 
     /**
      * Add atom with its parameters to the data vectors
-     * @param x - x-coordinate of the atom
-     * @param y - y-coordinate of the atom
-     * @param z - z-coordinate of the atom
+     * @param id - ID of the atom
+     * @param point - coordinates of the atom in Point form
      * @param coord - coordination of the atom; 0 in case of none
      */
-    const void add_atom(const double x, const double y, const double z, const int coord);
+    const void add_atom(const int id, const Point3d &point, const int coord);
 
     /**
      * Function to export the data of Medium
@@ -77,16 +76,11 @@ public:
 
     /** Return x-, y- and z-coordinate and associated operators for i-th atom */
     Point3d get_point(const int i);
-
     /** Return x- and y-coordinate and associated operators for i-th atom */
     const Point2d get_point2d(const int i);
 
-    /** Return x-coordinate of i-th atom */
-    const double get_x(const int i);
-    /** Return y-coordinate of i-th atom */
-    const double get_y(const int i);
-    /** Return z-coordinate of i-th atom */
-    const double get_z(const int i);
+    /** Return ID of i-th atom */
+    const int get_id(const int i);
     /** Return coordination of i-th atom */
     const int get_coordination(const int i);
 
@@ -120,7 +114,8 @@ public:
     CrysStruct crys_struct;
 
 protected:
-    vector<double> x, y, z;   //!< Atom coordinates
+    vector<int> id;           //!< Atom IDs
+    vector<Point3d> point;    //!< Atom coordinates in Point form
     vector<int> coordination; //!< Atom coordination - nr of nearest neighbours within cut off radius
 
     /** Initialise statistics about the coordinates in Medium */

@@ -216,12 +216,13 @@ const void Mesh::init_volumes(const int N) {
 
 // =================================
 // *** ADDERS: ***************
-const void Mesh::add_node(const double x, const double y, const double z) {
+
+const void Mesh::add_node(const Point3d &point) {
     require(get_n_nodes() < tetIO.numberofpoints, "Allocated size of elements exceeded!");
     int i = 3 * i_nodes;
-    tetIO.pointlist[i + 0] = (REAL) x;
-    tetIO.pointlist[i + 1] = (REAL) y;
-    tetIO.pointlist[i + 2] = (REAL) z;
+    tetIO.pointlist[i + 0] = (REAL) point.x;
+    tetIO.pointlist[i + 1] = (REAL) point.y;
+    tetIO.pointlist[i + 2] = (REAL) point.z;
     i_nodes++;
 }
 

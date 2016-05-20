@@ -34,7 +34,8 @@ using namespace std;
 using namespace dealii;
 namespace femocs {
 
-const int DIM = 3;
+const int DIM = 3;          //!< dimensionality of solver
+const int POLY_DEGREE = 1;  //!< polynomial degree of the finite elements (1-linear, 2-quadratic, ...)
 
 /** Class to calculate electric field from electric potential */
 class LaplacePostProcessor : public DataPostprocessorVector<DIM> {
@@ -64,27 +65,32 @@ public:
  */
 class DealII {
 public:
-    DealII(const int poly_degree, const double neumann);
-    void run();
-    void import_file(const string file_name);
+    DealII();
 
-    void make_simple_mesh();
-    void import_tetgen_mesh(femocs::Mesh* mesh);
-    void import_tethex_mesh(tethex::Mesh* mesh);
+    const void set_neumann(const double neumann);
+    const void run();
+    const void import_file(const string file_name);
 
-    void output_mesh(const string file_name);
-    void output_results(const string file_name);
+    const void make_simple_mesh();
+    const void import_tetgen_mesh(femocs::Mesh* mesh);
+    const void import_tethex_mesh(tethex::Mesh* mesh);
 
-    void setup_system();
-    void mark_boundary(const AtomReader::Sizes* sizes, const AtomReader::Types* types);
-    void assemble_system(const AtomReader::Types* types);
-    void solve_umfpack();
-    void solve_cg();
+    const void output_mesh(const string file_name);
+    const void output_results(const string file_name);
 
-    void extract_solution_at_medium(Medium &surf);
-    void extract_elfield_at_surf_old(Medium &surf, const string file_name);
+    const void setup_system();
+    const void mark_boundary(const AtomReader::Sizes* sizes, const AtomReader::Types* types);
+    const void assemble_system(const AtomReader::Types* types);
+    const void solve_umfpack();
+    const void solve_cg();
+
+    const void extract_solution_at_medium(Medium &surf);
+    const void extract_elfield_at_surf_old(Medium &surf, const string file_name);
+
+    const void export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
     struct Solution {
+        vector<int> id;
         vector<Point3d> point;
         vector<Vec3d> elfield;
         vector<double> elfield_norm;
@@ -110,20 +116,20 @@ private:
     ConstraintMatrix constraints;
 
     const string get_file_type(const string file_name);
-    bool on_boundary(const double face, const double face_min, const double face_max);
+    const bool on_boundary(const double face, const double face_min, const double face_max);
 
-    double get_potential_at_node(const int &cell_indx, const int &vert_indx);
-    double get_potential_at_point(Point<DIM> &point);
+    const double get_potential_at_node(const int &cell_indx, const int &vert_indx);
+    const double get_potential_at_point(Point<DIM> &point);
 
-    Tensor<1,DIM> get_elfield_at_node(const int &cell, const int &vert_indx);
-    Tensor<1,DIM> get_elfield_at_point(Point<DIM> &point);
+    const Tensor<1,DIM> get_elfield_at_node(const int &cell, const int &vert_indx);
+    const Tensor<1,DIM> get_elfield_at_point(Point<DIM> &point);
 
-    vector<int> get_medium2node_map(Medium &medium);
-    vector<int> get_node2elem_map();
-    vector<int> get_node2vert_map();
+    const vector<int> get_medium2node_map(Medium &medium);
+    const vector<int> get_node2elem_map();
+    const vector<int> get_node2vert_map();
 
-    void reserve_solution(const int n_nodes);
-    void write_xyz(const string file_name);
+    const void reserve_solution(const int n_nodes);
+    const void write_xyz(const string file_name);
 };
 
 } /* namespace femocs */

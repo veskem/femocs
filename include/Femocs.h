@@ -10,6 +10,7 @@
 
 #include "Macros.h"
 #include "AtomReader.h"
+#include "DealII.h"
 #include "Primitives.h"
 
 using namespace std;
@@ -37,7 +38,6 @@ public:
         double coord_cutoff;    //!< cutoff distance in Angstroms for Coordination analysis
         int nnn;                //!< number of nearest neighbours for given crystal structure
         int nt;                 //!< number of OpenMP threads
-        int poly_degree;        //!< polynomial degree of the finite elements (1-linear, 2-quadratic, ...)
         double neumann;         //!< value of Neumann boundary condition
 
         //!< Radius of cylinder where surface atoms are not coarsened; zero enables coarsening of all atoms.
@@ -61,9 +61,11 @@ public:
     const void run(double E_field, double*** phi);
 
     const void import_atoms(int n_atoms, double* x, double* y, double* z, int* types);
+    const void export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
 private:
     femocs::AtomReader reader;
+    femocs::DealII laplace;
 };
 
 const void femocs_speaker(string path);

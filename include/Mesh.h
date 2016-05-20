@@ -35,7 +35,7 @@ public:
 
     const void init_volumes(const int N);
 
-    const void add_node(const double x, const double y, const double z);
+    const void add_node(const Point3d &point);
     const void add_face(const int f1, const int f2, const int f3);
     const void add_elem(const int e1, const int e2, const int e3, const int e4);
 

@@ -21,10 +21,10 @@ const void Mesher::get_test_mesh(Mesh* new_mesh) {
     const int n_elems = 1;
 
     new_mesh->init_nodes(n_nodes);
-    new_mesh->add_node(1.0, 0.0, 0.7);
-    new_mesh->add_node(-1.0, 0.0, 0.7);
-    new_mesh->add_node(0.0, 1.0, -0.7);
-    new_mesh->add_node(0.0, -1.0, -0.7);
+    new_mesh->add_node(Point3d(1.0, 0.0, 0.7));
+    new_mesh->add_node(Point3d(-1.0, 0.0, 0.7));
+    new_mesh->add_node(Point3d(0.0, 1.0, -0.7));
+    new_mesh->add_node(Point3d(0.0, -1.0, -0.7));
 
     new_mesh->init_faces(n_faces);
     new_mesh->add_face(0, 1, 3);
@@ -47,13 +47,13 @@ const void Mesher::get_volume_mesh(Mesh* new_mesh, Bulk* bulk, Surface* surf, Va
     new_mesh->init_nodes(n_bulk + n_surf + n_vacuum);
 
     for (i = 0; i < n_surf; ++i)
-        new_mesh->add_node(surf->get_x(i), surf->get_y(i), surf->get_z(i));
+        new_mesh->add_node(surf->get_point(i));
 
     for (i = 0; i < n_bulk; ++i)
-        new_mesh->add_node(bulk->get_x(i), bulk->get_y(i), bulk->get_z(i));
+        new_mesh->add_node(bulk->get_point(i));
 
     for (i = 0; i < n_vacuum; ++i)
-        new_mesh->add_node(vacuum->get_x(i), vacuum->get_y(i), vacuum->get_z(i));
+        new_mesh->add_node(vacuum->get_point(i));
 
     new_mesh->indxs.surf_start = 0;
     new_mesh->indxs.surf_end = n_surf - 1;

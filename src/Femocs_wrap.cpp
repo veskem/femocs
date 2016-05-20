@@ -25,6 +25,8 @@ const void femocs_run(FEMOCS* femocs, double E_field, double*** phi);
 
 const void femocs_import_atoms(FEMOCS* femocs, int n_atoms, double* x, double* y, double* z, int* types);
 
+const void femocs_export_solution(FEMOCS* femocs, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
+
 // Standalone function to call Femocs
 const void femocs_speaker(const char* s);
 
@@ -48,6 +50,10 @@ const void femocs_run(FEMOCS* femocs, double E_field, double*** phi){
 
 const void femocs_import_atoms(FEMOCS* femocs, int n_atoms, double* x, double* y, double* z, int* types){
     femocs->import_atoms(n_atoms, x, y, z, types);
+}
+
+const void femocs_export_solution(FEMOCS* femocs, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm){
+    femocs->export_solution(n_atoms, Ex, Ey, Ez, Enorm);
 }
 
 const void femocs_speaker(const char* s) {

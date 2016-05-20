@@ -34,12 +34,13 @@ const void AtomReader::calc_statistics() {
 
     // Find min and max of coordinates
     for (int i = 0; i < get_n_atoms(); ++i) {
-        if (sizes.xmax < get_x(i)) sizes.xmax = get_x(i);
-        if (sizes.xmin > get_x(i)) sizes.xmin = get_x(i);
-        if (sizes.ymax < get_y(i)) sizes.ymax = get_y(i);
-        if (sizes.ymin > get_y(i)) sizes.ymin = get_y(i);
-        if (sizes.zmax < get_z(i)) sizes.zmax = get_z(i);
-        if (sizes.zmin > get_z(i)) sizes.zmin = get_z(i);
+        Point3d point = get_point(i);
+        sizes.xmax = max(sizes.xmax, point.x);
+        sizes.xmin = min(sizes.xmin, point.x);
+        sizes.ymax = max(sizes.ymax, point.y);
+        sizes.ymin = min(sizes.ymin, point.y);
+        sizes.zmax = max(sizes.zmax, point.z);
+        sizes.zmin = min(sizes.zmin, point.z);
     }
 
     // Define size of simubox
@@ -57,8 +58,8 @@ const void AtomReader::reserve(const int n_atoms) {
 }
 
 // Add atom with its coordinates and type
-const void AtomReader::add_atom(const double x, const double y, const double z, const int type) {
-    Medium::add_atom(x, y, z, 0);
+const void AtomReader::add_atom(const int id, const Point3d &point, const int type) {
+    Medium::add_atom(id, point, 0);
     this->type.push_back(type);
 }
 
@@ -75,6 +76,8 @@ const void AtomReader::calc_coordination(const double cutoff, const int nnn) {
 // Calculate coordination for atoms coming from MD simulations
 const void AtomReader::calc_slow_coordination(const double cutoff, const int nnn) {
     require(cutoff > 0 && nnn >= 0, "Invalid cutoff or nnn!");
+
+    Point3d point1, dpoint;
     int N = get_n_atoms();
     int i, j, coord;
     double r2, dx, dy, dz;
@@ -84,12 +87,15 @@ const void AtomReader::calc_slow_coordination(const double cutoff, const int nnn
 //#pragma omp parallel for shared(coords,is_surface) private(i,j,dx,dy,dz,r2) reduction(+:coord,N)
     for (i = 0; i < N; ++i) {
         coord = 0;
+        point1 = get_point(i);
         //!< TODO Implement neighborlist here!
         for (j = 0; j < N; ++j) {
             if (i == j) continue;
-            dx = fabs(x[i] - x[j]);
-            dy = fabs(y[i] - y[j]);
-            dz = fabs(z[i] - z[j]);
+            dpoint = point1 - get_point(j);
+
+            dx = fabs(dpoint.x);
+            dy = fabs(dpoint.y);
+            dz = fabs(dpoint.z);
 
             dx = min(dx, fabs(dx - sizes.xbox)); // apply periodic boundary condition in x-direction
             dy = min(dy, fabs(dy - sizes.ybox)); // apply periodic boundary condition in y-direction
@@ -140,7 +146,7 @@ const string AtomReader::get_data_string(const int i) {
     if (i < 0) return "Types of data: id x y z type";
 
     ostringstream strs;
-    strs << i << " " << get_point(i) << " " << get_type(i);
+    strs << get_id(i) << " " << get_point(i) << " " << get_type(i);
 
     if (i < coordination.size()) strs << " " << get_coordination(i);
     return strs.str();
@@ -159,7 +165,8 @@ const void AtomReader::import_helmod(int n_atoms, double* x, double* y, double* 
     this->types.simu_type = "md";
     reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
-        add_atom(x[i], y[i], z[i], types[i]);
+        add_atom(i, Point3d(x[i], y[i], z[i]), types[i]);
+
     calc_statistics();
 }
 
@@ -186,7 +193,7 @@ const void AtomReader::import_xyz(const string file_name) {
     require(in_file.is_open(), "Did not find a file " + file_name);
 
     double x, y, z;
-    int type;
+    int type, id;
     string elem, line, dummy;
     size_t n_atoms;
     istringstream iss;
@@ -199,12 +206,13 @@ const void AtomReader::import_xyz(const string file_name) {
 
     getline(in_file, line);     // Skip comments line
 
+    id = 0;
     // keep storing values from the text file as long as data exists:
     while ((--n_atoms > 0) && getline(in_file, line)) {
         iss.clear();
         iss.str(line);
         iss >> elem >> x >> y >> z >> type;
-        add_atom(x, y, z, type);
+        add_atom(id++, Point3d(x, y, z), type);
     }
 }
 
@@ -213,7 +221,7 @@ const void AtomReader::import_ckx(const string file_name) {
     require(in_file.is_open(), "Did not find a file " + file_name);
 
     double x, y, z;
-    int type;
+    int type, id;
     string line, dummy;
     size_t n_atoms;
     istringstream iss;
@@ -227,12 +235,13 @@ const void AtomReader::import_ckx(const string file_name) {
 
     getline(in_file, line);    // Skip comments line
 
+    id = 0;
     // keep storing values from the text file as long as data exists:
     while ((--n_atoms > 0) && getline(in_file, line)) {
         iss.clear();
         iss.str(line);
         iss >> type >> x >> y >> z;
-        add_atom(x, y, z, type);
+        add_atom(id++, Point3d(x, y, z), type);
     }
 }
 

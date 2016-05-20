@@ -181,6 +181,17 @@ public:
             return -1;
     }
 
+    /** Adding a point to existing one */
+    Point3& operator +=(const Point3<T> &p) {
+        x += p.x, y += p.y, z += p.z;
+        return *this;
+    }
+
+    /** Subtraction of two Point3-d */
+    Point3<T> operator -(const Point3<T> &p) const {
+        return Point3(x - p.x, y - p.y, z - p.z);
+    }
+
     /** Comparison operator between two Point3-s */
     bool operator ==(const Point3<T> &p) const {
         return x == p.x && y == p.y && z == p.z;
@@ -248,6 +259,11 @@ public:
         T xx = x - p.x;
         T yy = y - p.y;
         return xx * xx + yy * yy;
+    }
+
+    /** Subtraction of two Point2-d */
+    Point2<T> operator -(const Point2<T> &p) const {
+        return Point2(x - p.x, y - p.y);
     }
 
     /** Comparison operator between two Point2-s */
