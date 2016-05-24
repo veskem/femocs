@@ -435,7 +435,7 @@ const void Mesher::mark_elems(Mesh* mesh, const AtomReader::Types* types) {
  * The technique works perfectly with surface without "mushroomish" tips. The mushrooms give
  * some false nodes but because of their low spatial density they can be ignored.
  */
-const void Mesher::mark_nodes(Mesh* mesh, const AtomReader::Types* types) {
+const void Mesher::mark_nodes(Mesh* mesh, const AtomReader::Types* types, const bool postprocess) {
     int node, elem, coord;
     Vec3d ray_origin, ray_direction(0, 0, 1);
 
@@ -473,7 +473,8 @@ const void Mesher::mark_nodes(Mesh* mesh, const AtomReader::Types* types) {
     mark_elems(mesh, types);
 
     // Post process the nodes in shadow areas
-    //post_process_node_marking(mesh, types);
+    if (postprocess)
+        post_process_node_marking(mesh, types);
 }
 
 const void Mesher::post_process_node_marking(Mesh* mesh, const AtomReader::Types* types) {

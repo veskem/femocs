@@ -239,11 +239,16 @@ const void DealII::make_simple_mesh() {
     GridGenerator::merge_triangulations(tr1, triangulation, triangulation);
 }
 
+// Get number of degrees of freedom
+const int DealII::get_n_dofs() {
+    return  dof_handler.n_dofs();
+}
+
 // Setup initial grid and number the vertices i.e. distribute degrees of freedom.
 const void DealII::setup_system() {
     dof_handler.distribute_dofs(fe);
 
-    cout << "\nNumber of degrees of freedom: " << dof_handler.n_dofs() << endl;
+//    cout << "\nNumber of degrees of freedom: " << dof_handler.n_dofs() << endl;
 
     DynamicSparsityPattern dsp(dof_handler.n_dofs());
     DoFTools::make_sparsity_pattern(dof_handler, dsp);
@@ -259,7 +264,7 @@ const void DealII::setup_system() {
 const void DealII::mark_boundary(const AtomReader::Sizes* sizes, const AtomReader::Types* types) {
     typename Triangulation<DIM>::active_face_iterator face;
 
-    // Loop through the faces and mark them according the location of its centre
+    // Loop through the faces and mark them according the location of their centre
     for (face = triangulation.begin_active_face(); face != triangulation.end(); ++face) {
         if (face->at_boundary()) {
             if (on_boundary(face->center()[0], sizes->xmin, sizes->xmax))
@@ -400,10 +405,12 @@ const void DealII::extract_solution_at_medium(Medium &medium) {
         if (n >= 0) {
             ef = get_elfield_at_node(node2elem_map[n], node2vert_map[n]);
             pot = get_potential_at_node(node2elem_map[n], node2vert_map[n]);
-        } else
+            solution.id.push_back(medium.get_id(node));
+        } else {
             ef[0] = ef[1] = ef[2] = pot = 1e20;
+            solution.id.push_back(-1);
+        }
 
-        solution.id.push_back(medium.get_id(node));
         solution.point.push_back(medium.get_point(node));
         solution.elfield.push_back( Vec3d(ef[0], ef[1], ef[2]) );
         solution.elfield_norm.push_back(ef.norm());
@@ -520,11 +527,11 @@ const void DealII::output_results(const string file_name) {
     string ftype = get_file_type(file_name);
     expect(ftype == "vtk" || ftype == "eps" || ftype == "xyz", "Unsupported file type!");
 
-//    LaplacePostProcessor field_calculator("Electric field");
+    LaplacePostProcessor field_calculator("Electric field");
     DataOut<DIM> data_out;
     data_out.attach_dof_handler(dof_handler);
-    data_out.add_data_vector(laplace_solution, "Potential");
-//    data_out.add_data_vector(potential, field_calculator);
+//    data_out.add_data_vector(laplace_solution, "Potential");
+    data_out.add_data_vector(laplace_solution, field_calculator);
     data_out.build_patches();
 
     ofstream output(file_name);
@@ -538,6 +545,9 @@ const void DealII::output_results(const string file_name) {
 
 // Write the mesh to file
 const void DealII::output_mesh(const string file_name) {
+#if not DEBUGMODE
+    return;
+#endif
     string ftype = get_file_type(file_name);
     expect(ftype == "vtk" || ftype == "msh" || ftype == "eps", "Unsupported file type!");
 
@@ -574,31 +584,26 @@ const void DealII::write_xyz(const string file_name) {
 }
 
 const void DealII::export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+    int i;
     expect(n_atoms >= solution.id.size(), "Solution vector longer than requested!")
 
-    int indx;
-    vector<bool> solution_passed(n_atoms, false);
-
-    indx = 0;
-
-    // Pass the the real electric field for atoms that were in the mesh
-    for (int id : solution.id) {
-        if(id < 0 || id >= n_atoms) continue;
-        Ex[id] = solution.elfield[indx].x;
-        Ey[id] = solution.elfield[indx].y;
-        Ez[id] = solution.elfield[indx].z;
-        Enorm[id] = solution.elfield_norm[indx];
-        solution_passed[id] = true;
-        indx++;
+    // Pass the zero electric field initially for all atoms
+    for (i = 0; i < n_atoms; ++i) {
+        Ex[i] = 0;
+        Ey[i] = 0;
+        Ez[i] = 0;
+        Enorm[i] = 0.0;
     }
 
-    // Pass the zero electric field for atoms that were not in the mesh
-    for (indx = 0; indx < n_atoms; ++indx) {
-        if (solution_passed[indx]) continue;
-        Ex[indx] = 0;
-        Ey[indx] = 0;
-        Ez[indx] = 0;
-        Enorm[indx] = 0;
+    // Pass the the real electric field for atoms that were in the mesh
+    for (i = 0; i < solution.id.size(); ++i) {
+        int id = solution.id[i];
+        if(id < 0 || id >= n_atoms) continue;
+
+        Ex[id] = solution.elfield[i].x;
+        Ey[id] = solution.elfield[i].y;
+        Ez[id] = solution.elfield[i].z;
+        Enorm[id] = solution.elfield_norm[i];
     }
 }
 } /* namespace femocs */

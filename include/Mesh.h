@@ -12,6 +12,7 @@
 #include "Tetgen.h"
 #include "Primitives.h"
 #include "AtomReader.h"
+#include "Medium.h"
 
 using namespace std;
 namespace femocs {
@@ -96,13 +97,17 @@ public:
     const void calc_statistics(const AtomReader::Types *types);
 
     const void recalc(const string cmd);
-    const void output();
+    const void output(const string file_name);
+
+    const Medium to_medium();
 
     const void write_nodes(const string file_name);
     const void write_faces(const string file_name);
     const void write_elems(const string file_name);
 
+    // Tetgen data structure
     tetgenio tetIO;
+
     /** Struct holding data about mesh statistics */
     struct Stat {
         double Vmin;
@@ -143,8 +148,6 @@ private:
     const int n_nodes_per_elem = 4;
     const int n_nodes_per_face = 3;
     const int n_coordinates = 3;
-
-    tetgenbehavior tetgenbeh;
 
     int i_nodes;
     int i_elems;

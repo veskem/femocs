@@ -39,6 +39,7 @@ public:
         int nnn;                //!< number of nearest neighbours for given crystal structure
         int nt;                 //!< number of OpenMP threads
         double neumann;         //!< value of Neumann boundary condition
+        bool postprocess_marking; //!< make extra effort to mark correctly the vacuum nodes in shadowed area
 
         //!< Radius of cylinder where surface atoms are not coarsened; zero enables coarsening of all atoms.
         double rmin_coarse;

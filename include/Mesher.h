@@ -36,7 +36,7 @@ public:
 
     const void mark_faces(Mesh* mesh, const AtomReader::Sizes* sizes, const AtomReader::Types* types);
     const void mark_faces_bynode(Mesh* mesh, const int nmax, const AtomReader::Types* types);
-    const void mark_nodes(Mesh* mesh, const AtomReader::Types* types);
+    const void mark_nodes(Mesh* mesh, const AtomReader::Types* types, const bool postprocess);
     const void mark_nodes_long(Mesh* mesh, const AtomReader::Types* types);
 
     const void clean_faces(Mesh* mesh, const double rmax, const string cmd);

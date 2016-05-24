@@ -328,6 +328,18 @@ const void Mesh::copy_elemmarkers(Mesh* mesh) {
 // =================================
 // *** VARIA: ***************
 
+const Medium Mesh::to_medium() {
+    int n_atoms = get_n_nodes();
+    Medium medium;
+    medium.reserve(n_atoms);
+
+    for(int i = 0; i < n_atoms; ++i)
+        medium.add_atom(i, get_point(i), 0);
+
+    medium.calc_statistics();
+    return medium;
+}
+
 const void Mesh::calc_volumes() {
     int i, j, k, n1, n2, n3, n4;
     double V;
@@ -420,8 +432,7 @@ const void Mesh::calc_statistics(const AtomReader::Types *types) {
 
 // Function to perform tetgen calculation on input and output data
 const void Mesh::recalc(const string cmd) {
-    tetgenbeh.parse_commandline(const_cast<char*>(cmd.c_str()));
-    tetrahedralize(&tetgenbeh, &tetIO, &tetIO);
+    tetrahedralize(const_cast<char*>(cmd.c_str()), &tetIO, &tetIO);
 
     i_nodes = tetIO.numberofpoints;
     i_faces = tetIO.numberoftrifaces;
@@ -429,10 +440,14 @@ const void Mesh::recalc(const string cmd) {
 }
 
 // Write tetgen mesh into files with its internal functions
-// Files are written into working directory with their default names
-const void Mesh::output() {
+const void Mesh::output(const string file_name) {
     const string cmd = "Q";
+    tetgenbehavior tetgenbeh;
+
     tetgenbeh.parse_commandline(const_cast<char*>(cmd.c_str()));
+    for (int i = 0; i < file_name.size(); ++i)
+        tetgenbeh.outfilename[i] = file_name[i];
+
     tetrahedralize(&tetgenbeh, &tetIO, NULL);
 }
 

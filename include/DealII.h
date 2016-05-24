@@ -68,6 +68,8 @@ public:
     DealII();
 
     const void set_neumann(const double neumann);
+    const int get_n_dofs();
+
     const void run();
     const void import_file(const string file_name);
 

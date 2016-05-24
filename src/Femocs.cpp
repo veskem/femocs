@@ -8,6 +8,7 @@
 #include "Femocs.h"
 
 #include "DealII.h"
+#include "Medium.h"
 #include "Media.h"
 #include "Mesh.h"
 #include "Mesher.h"
@@ -21,7 +22,7 @@ using namespace std;
 Femocs::Femocs(string file_name) {
     start_msg(double t0, "\n======= Femocs started! =======\n");
     //*
-    //conf.infile = "input/rough110.ckx";
+    //conf.infile = "input/rough111.ckx";
     conf.infile = "input/mushroom2.ckx";
     conf.latconst = 2.0;        // lattice constant
     conf.coord_cutoff = 0.0; //3.3;    // coordination analysis cut off radius
@@ -36,10 +37,10 @@ Femocs::Femocs(string file_name) {
     conf.mesher = "tetgen";         // mesher algorithm
     conf.mesh_quality = "2.914";
     conf.nt = 4;                    // number of OpenMP threads
-    conf.rmin_coarse = 16.0;        // inner radius of coarsening cylinder
+    conf.rmin_coarse = 16.5;        // inner radius of coarsening cylinder
     conf.coarse_factor = 1.0;       // coarsening factor; bigger number gives coarser surface
-
-    conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110>, 1.0 for all others
+    conf.postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
+    conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
 }
 
 
@@ -53,7 +54,9 @@ const void Femocs::run(double E_field, double*** phi) {
 
     double t0, tstart;  // Variables used to measure the start time of a section
     tstart = omp_get_wtime();
-    conf.neumann = E_field;
+
+    // The field on upper boundary is on the limit of zmax->inf exactly 27x higher than conf.neumann..
+    conf.neumann = E_field / 27.0;
 
     // ===== Converting imported data =====
     femocs::Surface dense_surf(conf.latconst, conf.nnn);
@@ -74,7 +77,7 @@ const void Femocs::run(double E_field, double*** phi) {
     start_msg(t0, "=== Resizing simulation box...");
     // Electric field is applied 20 lattice constants above the surface highest point
     if (coarse_surf.get_n_atoms() > 0)
-        reader.resize_box(coarse_surf.sizes.zmin - 20 * conf.latconst, coarse_surf.sizes.zmax + 20 * conf.latconst);
+        reader.resize_box(coarse_surf.sizes.zmin - 20 * conf.latconst, coarse_surf.sizes.zmax + 100 * conf.latconst);
     else
         reader.resize_box(reader.sizes.zmax - 20 * conf.latconst, reader.sizes.zmax + 20 * conf.latconst);
     end_msg(t0);
@@ -103,7 +106,7 @@ const void Femocs::run(double E_field, double*** phi) {
     mesher.get_volume_mesh(&big_mesh, &bulk, &coarse_surf, &vacuum, "Q");
     big_mesh.write_faces("output/faces_0.vtk");
     big_mesh.write_elems("output/elems_0.vtk");
-    big_mesh.recalc("rq" + conf.mesh_quality);
+    big_mesh.recalc("rQq" + conf.mesh_quality);
     big_mesh.write_faces("output/faces_1.vtk");
     big_mesh.write_elems("output/elems_1.vtk");
     //mesher.generate_monolayer_surf_faces(&big_mesh, bulk.get_n_atoms(), surf.get_n_atoms());
@@ -113,7 +116,7 @@ const void Femocs::run(double E_field, double*** phi) {
     end_msg(t0)
 
     start_msg(t0, "=== Marking nodes...");
-    mesher.mark_nodes(&big_mesh, &reader.types);
+    mesher.mark_nodes(&big_mesh, &reader.types, conf.postprocess_marking);
     big_mesh.write_nodes("output/nodes.xyz");
     big_mesh.write_nodes("output/nodes.vtk");
     big_mesh.write_faces("output/faces_3.vtk");
@@ -134,8 +137,6 @@ const void Femocs::run(double E_field, double*** phi) {
     vacuum_mesh.write_nodes("output/nodes_vacuum.xyz");
     end_msg(t0);
 
-//    exit(1);
-
 //    start_msg(t0, "Making test mesh...");
 //    shared_ptr<Mesh> test_mesh(new Mesh());
 //    mesher.get_test_mesh(test_mesh);
@@ -149,12 +150,6 @@ const void Femocs::run(double E_field, double*** phi) {
     tethex_mesh.read_femocs(&vacuum_mesh);
     tethex_mesh.convert();
     end_msg(t0);
-
-#if DEBUGMODE
-    cout << "Bulk:   #elems=" << bulk_mesh.get_n_elems() << ", #faces=" << bulk_mesh.get_n_faces() << endl;
-    cout << "Vacuum: #elems=" << vacuum_mesh.get_n_elems() << ", #faces=" << vacuum_mesh.get_n_faces() << endl;
-    cout << "Tetgen: #elems=" << tethex_mesh.get_n_hexahedra() << ", #faces=" << tethex_mesh.get_n_quadrangles() << endl;
-#endif
 
 //    start_msg(t0, "Writing tethex to file...");
 ////    tethex_mesh.write("output/tethex.msh");
@@ -174,6 +169,13 @@ const void Femocs::run(double E_field, double*** phi) {
     laplace.setup_system();
     end_msg(t0);
 
+#if DEBUGMODE
+    cout << "Bulk:   #elems=" << bulk_mesh.get_n_elems() << ", #faces=" << bulk_mesh.get_n_faces() << endl;
+    cout << "Vacuum: #elems=" << vacuum_mesh.get_n_elems() << ", #faces=" << vacuum_mesh.get_n_faces() << endl;
+    cout << "Tetgen: #elems=" << tethex_mesh.get_n_hexahedra() << ", #faces=" << tethex_mesh.get_n_quadrangles() << endl;
+    cout << "Number of degrees of freedom: " << laplace.get_n_dofs() << endl;
+#endif
+
     start_msg(t0, "=== Marking the boundary...");
     laplace.mark_boundary(&reader.sizes, &reader.types);
     end_msg(t0);
@@ -188,12 +190,14 @@ const void Femocs::run(double E_field, double*** phi) {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting solution...");
-    laplace.extract_solution_at_medium(coarse_surf);
+    femocs::Medium medium = vacuum_mesh.to_medium();
+    laplace.extract_solution_at_medium(medium);
+    //    laplace.extract_solution_at_medium(coarse_surf);
     end_msg(t0);
 
     start_msg(t0, "=== Outputting results...");
-    laplace.output_results("output/results_vacuum.vtk");
-    laplace.output_results("output/results_surface.xyz");
+    //laplace.output_results("output/results_vacuum.vtk");
+    laplace.output_results("output/results_vacuum.xyz");
     end_msg(t0);
 
     cout << "\nTotal time: " << omp_get_wtime() - tstart << "\n";
@@ -218,8 +222,6 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
     start_msg(t0, "=== Calculating coordinations of atoms...");
     reader.calc_coordination(conf.coord_cutoff, conf.nnn);
     end_msg(t0);
-
-
 }
 
 const void Femocs::export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
