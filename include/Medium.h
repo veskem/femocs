@@ -54,7 +54,7 @@ public:
      * @param point - coordinates of the atom in Point form
      * @param coord - coordination of the atom; 0 in case of none
      */
-    const void add_atom(const int id, const Point3d &point, const int coord);
+    const void add_atom(const int id, const Point3 &point, const int coord);
 
     /**
      * Function to export the data of Medium
@@ -75,9 +75,9 @@ public:
     void set_coordination(const int i, const int coord);
 
     /** Return x-, y- and z-coordinate and associated operators for i-th atom */
-    Point3d get_point(const int i);
+    const Point3 get_point(const int i);
     /** Return x- and y-coordinate and associated operators for i-th atom */
-    const Point2d get_point2d(const int i);
+    const Point2 get_point2(const int i);
 
     /** Return ID of i-th atom */
     const int get_id(const int i);
@@ -115,7 +115,7 @@ public:
 
 protected:
     vector<int> id;           //!< Atom IDs
-    vector<Point3d> point;    //!< Atom coordinates in Point form
+    vector<Point3> point;    //!< Atom coordinates in Point form
     vector<int> coordination; //!< Atom coordination - nr of nearest neighbours within cut off radius
 
     /** Initialise statistics about the coordinates in Medium */

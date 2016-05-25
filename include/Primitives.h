@@ -12,66 +12,190 @@
 #include <math.h>
 #include <deal.II/numerics/vector_tools.h>
 
-/** Template class to define the 3-dimensional vector with its operations */
+namespace femocs {
+
+/** Template class to define the operations between the indices of face nodes */
 template<typename T>
-class Vec3 {
+class SimpleFace_T {
 public:
-    /** Vec3 constructors */
-    Vec3() : x(T(0)), y(T(0)), z(T(0)) {}
-    Vec3(T xx) : x(xx), y(xx), z(xx) {}
-    Vec3(T xx, T yy, T zz) : x(xx), y(yy), z(zz) {}
+    /** SimpleFace constructors */
+    SimpleFace_T() : n1(0), n2(0), n3(0){}
+    SimpleFace_T(T n) : n1(n), n2(n), n3(n) {}
+    SimpleFace_T(T nn1, T nn2, T nn3) : n1(nn1), n2(nn2), n3(nn3) {}
 
-    /** Addition of two vectors */
-    Vec3 operator +(const Vec3 &v) const {
-        return Vec3(x + v.x, y + v.y, z + v.z);
-    }
-
-    /** Subtraction of two vectors */
-    Vec3 operator -(const Vec3 &v) const {
-        return Vec3(x - v.x, y - v.y, z - v.z);
-    }
-    Vec3 operator -() const {
-        return Vec3(-x, -y, -z);
-    }
-
-    /** Scalar multiplication of vector with a scalar and with another vector */
-    Vec3 operator *(const T &r) const {
-        return Vec3(x * r, y * r, z * r);
-    }
-    Vec3 operator *(const Vec3 &v) const {
-        return Vec3(x * v.x, y * v.y, z * v.z);
-    }
-    Vec3& operator *=(const T &r) {
-        x *= r, y *= r, z *= r;
-        return *this;
-    }
-    friend Vec3 operator *(const T &r, const Vec3 &v) {
-        return Vec3<T>(v.x * r, v.y * r, v.z * r);
+    /** Number of vertices in SimpleFace */
+    const T n_verts() const {
+        return 3;
     }
 
     /** Equals operator */
-    bool operator ==(const Vec3 &v) const {
+    bool operator ==(const SimpleFace_T &t) const {
+        return (n1 == t.n1 || n1 == t.n2 || n1 == t.n3)
+                && (n2 == t.n1 || n2 == t.n2 || n2 == t.n3)
+                && (n3 == t.n1 || n3 == t.n2 || n3 == t.n3);
+    }
+
+    /** Less than, less than or equal, bigger than, bigger than or equal operators */
+    vector<bool> operator <=(const T &t) const {
+        return {n1 <= t, n2 <= t, n3 <= t};
+    }
+    vector<bool> operator <(const T &t) const {
+        return {n1 < t, n2 < t, n3 < t};
+    }
+    vector<bool> operator >=(const T &t) const {
+        return {n1 >= t, n2 >= t, n3 >= t};
+    }
+    vector<bool> operator >(const T &t) const {
+        return {n1 > t, n2 > t, n3 > t};
+    }
+
+    /** Define access operators or accessors. */
+    const T& operator [](uint8_t i) const {
+        require(i < 3, "Invalid index!");
+        return (&n1)[i];
+    }
+    T& operator [](uint8_t i) {
+        require(i < 3, "Invalid index!");
+        return (&n1)[i];
+    }
+
+    /** Defining the behaviour of cout */
+    friend std::ostream& operator <<(std::ostream &s, const SimpleFace_T<T> &t) {
+        return s << t.n1 << ' ' << t.n2 << ' ' << t.n3;
+    }
+
+    /** Transform SimpleFace to vector */
+    vector<int> to_vector() const {
+        return vector<int> {n1, n2, n3};
+    }
+
+    T n1, n2, n3;
+};
+
+/** Template class to define the operations between the indices of element nodes */
+template<typename T>
+class SimpleElement_T {
+public:
+    /** SimpleFace constructors */
+    SimpleElement_T() : n1(0), n2(0), n3(0), n4(0){}
+    SimpleElement_T(T n) : n1(n), n2(n), n3(n), n4(n) {}
+    SimpleElement_T(T nn1, T nn2, T nn3, T nn4) : n1(nn1), n2(nn2), n3(nn3), n4(nn4) {}
+
+    /** Number of vertices in tetrahedron */
+    const T n_verts() const {
+        return 4;
+    }
+
+    /** Transform SimpleElement to vector */
+    vector<int> to_vector() const {
+        return vector<int> {n1, n2, n3, n4};
+    }
+
+    /** Equals operator */
+    bool operator ==(const SimpleElement_T &t) const {
+        return (n1 == t.n1 || n1 == t.n2 || n1 == t.n3 || n1 = t.n4)
+                && (n2 == t.n1 || n2 == t.n2 || n2 == t.n3 || n2 = t.n4)
+                && (n3 == t.n1 || n3 == t.n2 || n3 == t.n3 || n3 = t.n4)
+                && (n4 == t.n1 || n4 == t.n2 || n4 == t.n3 || n4 = t.n4);
+        }
+
+    /** Less than, less than or equal, bigger than, bigger than or equal operators */
+    vector<bool> operator <=(const T &t) const {
+        return {n1 <= t, n2 <= t, n3 <= t, n4 <= t};
+    }
+    vector<bool> operator <(const T &t) const {
+        return {n1 < t, n2 < t, n3 < t, n4 < t};
+    }
+    vector<bool> operator >=(const T &t) const {
+        return {n1 >= t, n2 >= t, n3 >= t, n4 >= t};
+    }
+    vector<bool> operator >(const T &t) const {
+        return {n1 > t, n2 > t, n3 > t, n4 > t};
+    }
+
+    /** Define access operators or accessors */
+    const T& operator [](uint8_t i) const {
+        require(i < 4, "Invalid index!");
+        return (&n1)[i];
+    }
+    T& operator [](uint8_t i) {
+        require(i < 4, "Invalid index!");
+        return (&n1)[i];
+    }
+
+    /** Defining the behaviour of cout */
+    friend std::ostream& operator <<(std::ostream &s, const SimpleElement_T &t) {
+        return s << t.n1 << ' ' << t.n2 << ' ' << t.n3 << ' ' << t.n4;
+    }
+
+    T n1, n2, n3, n4;
+};
+
+/** Template class to define the 3-dimensional vector with its operations */
+template<typename T>
+class Vec3_T {
+public:
+    /** Vec3 constructors */
+    Vec3_T() : x(T(0)), y(T(0)), z(T(0)) {}
+    Vec3_T(T xx) : x(xx), y(xx), z(xx) {}
+    Vec3_T(T xx, T yy, T zz) : x(xx), y(yy), z(zz) {}
+
+    /** Dimensionality of vector */
+    const int size() const {
+        return 3;
+    }
+
+    /** Addition of two vectors */
+    Vec3_T operator +(const Vec3_T &v) const {
+        return Vec3_T(x + v.x, y + v.y, z + v.z);
+    }
+
+    /** Subtraction of two vectors */
+    Vec3_T operator -(const Vec3_T &v) const {
+        return Vec3_T(x - v.x, y - v.y, z - v.z);
+    }
+    Vec3_T operator -() const {
+        return Vec3_T(-x, -y, -z);
+    }
+
+    /** Scalar multiplication of vector with a scalar and with another vector */
+    Vec3_T operator *(const T &r) const {
+        return Vec3_T(x * r, y * r, z * r);
+    }
+    Vec3_T operator *(const Vec3_T &v) const {
+        return Vec3_T(x * v.x, y * v.y, z * v.z);
+    }
+    Vec3_T& operator *=(const T &r) {
+        x *= r, y *= r, z *= r;
+        return *this;
+    }
+    friend Vec3_T operator *(const T &r, const Vec3_T &v) {
+        return Vec3_T<T>(v.x * r, v.y * r, v.z * r);
+    }
+
+    /** Equals operator */
+    bool operator ==(const Vec3_T &v) const {
         return x == v.x && y == v.y && z == v.z;
     }
 
     /** Scalar division of vector with a scalar or with another vector */
-    Vec3 operator /(const T &r) const {
-        return Vec3(x / r, y / r, z / r);
+    Vec3_T operator /(const T &r) const {
+        return Vec3_T(x / r, y / r, z / r);
     }
-    Vec3& operator /=(const T &r) {
+    Vec3_T& operator /=(const T &r) {
         x /= r, y /= r, z /= r;
         return *this;
     }
-    friend Vec3 operator /(const T &r, const Vec3 &v) {
-        return Vec3<T>(r / v.x, r / v.y, r / v.z);
+    friend Vec3_T operator /(const T &r, const Vec3_T &v) {
+        return Vec3_T<T>(r / v.x, r / v.y, r / v.z);
     }
 
     /** Dot product, cross product, norm and length */
-    T dotProduct(const Vec3<T> &v) const {
+    T dotProduct(const Vec3_T<T> &v) const {
         return x * v.x + y * v.y + z * v.z;
     }
-    Vec3 crossProduct(const Vec3<T> &v) const {
-        return Vec3<T>(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
+    Vec3_T crossProduct(const Vec3_T<T> &v) const {
+        return Vec3_T<T>(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
     }
     T norm() const {
         return x * x + y * y + z * z;
@@ -81,7 +205,7 @@ public:
     }
 
     /** Function to normalize the vector */
-    Vec3& normalize() {
+    Vec3_T& normalize() {
         T n = norm();
         if (n > 0) {
             T factor = 1 / sqrt(n);
@@ -103,7 +227,7 @@ public:
     }
 
     /** Defining the behaviour of cout */
-    friend std::ostream& operator <<(std::ostream &s, const Vec3<T> &v) {
+    friend std::ostream& operator <<(std::ostream &s, const Vec3_T<T> &v) {
         return s << v.x << ' ' << v.y << ' ' << v.z;
     }
 
@@ -112,16 +236,26 @@ public:
 
 /** Class to define elementary operations between 3-dimensional points */
 template<typename T>
-class Point3{
+class Point3_T{
 public:
 
     /** Constructors of Point3 class */
-    Point3() : x(0), y(0), z(0) {}
-    Point3(T xx) : x(xx), y(xx), z(xx) {}
-    Point3(T xx, T yy, T zz) : x(xx), y(yy), z(zz) {}
+    Point3_T() : x(0), y(0), z(0) {}
+    Point3_T(T xx) : x(xx), y(xx), z(xx) {}
+    Point3_T(T xx, T yy, T zz) : x(xx), y(yy), z(zz) {}
+
+    /** Dimensionality of Point */
+    const int size() const {
+        return 3;
+    }
+
+    /** Transform Point3 to Vec3 */
+    Vec3_T<T> to_vec() const {
+        return Vec3_T<T> (x, y, z);
+    }
 
     /** Squared distance between two Point3-s */
-    T distance2(const Point3<T> &p) const {
+    const double distance2(const Point3_T<T> &p) const {
         T xx = x - p.x;
         T yy = y - p.y;
         T zz = z - p.z;
@@ -129,7 +263,7 @@ public:
     }
 
     /** Squared distance between a Point3 and dealii::Point<3> */
-    T distance2(const dealii::Point<3> &p) const {
+    const double distance2(const dealii::Point<3> &p) const {
         T xx = x - p[0];
         T yy = y - p[1];
         T zz = z - p[2];
@@ -137,7 +271,7 @@ public:
     }
 
     /** Distance between two Point3-s */
-    T distance(const Point3<T> &p) const {
+    const double distance(const Point3_T<T> &p) const {
         T xx = x - p.x;
         T yy = y - p.y;
         T zz = z - p.z;
@@ -145,7 +279,7 @@ public:
     }
 
     /** Distance between a Point3 and dealii::Point<3> */
-    T distance(const dealii::Point<3> &p) const {
+    const double distance(const dealii::Point<3> &p) const {
         T xx = x - p[0];
         T yy = y - p[1];
         T zz = z - p[2];
@@ -181,23 +315,46 @@ public:
             return -1;
     }
 
+    /** Subtraction of two Point3-d */
+    Point3_T<T> operator -(const Point3_T<T> &p) const {
+        return Point3_T(x - p.x, y - p.y, z - p.z);
+    }
+
     /** Adding a point to existing one */
-    Point3& operator +=(const Point3<T> &p) {
+    Point3_T& operator +=(const Point3_T<T> &p) {
         x += p.x, y += p.y, z += p.z;
         return *this;
     }
-
-    /** Subtraction of two Point3-d */
-    Point3<T> operator -(const Point3<T> &p) const {
-        return Point3(x - p.x, y - p.y, z - p.z);
+    /** Subtracting a point from existing one */
+    Point3_T& operator -=(const Point3_T<T> &p) {
+        x -= p.x, y -= p.y, z -= p.z;
+        return *this;
+    }
+    /** Multiplying a Point with constant */
+    Point3_T& operator *=(const T &r) {
+        x *= r, y *= r, z *= r;
+        return *this;
+    }
+    /** Dividing a Point with constant */
+    Point3_T& operator /=(const T &r) {
+        x /= r, y /= r, z /= r;
+        return *this;
     }
 
+
+
     /** Comparison operator between two Point3-s */
-    bool operator ==(const Point3<T> &p) const {
+    const bool operator ==(const Point3_T<T> &p) const {
+        return x == p.x && y == p.y && z == p.z;
+    }
+    bool operator ==(const Point3_T<T> &p) {
         return x == p.x && y == p.y && z == p.z;
     }
 
     /** Comparison operator between a Point3 and dealii::Point<3> */
+    const bool operator ==(const dealii::Point<3> &p) const {
+        return x == p[0] && y == p[1] && z == p[2];
+    }
     bool operator ==(const dealii::Point<3> &p) {
         return x == p[0] && y == p[1] && z == p[2];
     }
@@ -211,22 +368,27 @@ public:
     }
 
     /** Defining the behaviour of cout */
-    friend std::ostream& operator <<(std::ostream &s, const Point3 &p) {
+    friend std::ostream& operator <<(std::ostream &s, const Point3_T &p) {
         return s << p.x << ' ' << p.y << ' ' << p.z;
     }
 
     T x, y, z;
 };
 
-/** Class to define elementary operations between 3-dimensional points */
+/** Class to define elementary operations between 2-dimensional points */
 template<typename T>
-class Point2{
+class Point2_T{
 public:
 
     /** Constructors of Point2 class */
-    Point2() : x(0), y(0) {}
-    Point2(T xx) : x(xx), y(xx) {}
-    Point2(T xx, T yy) : x(xx), y(yy) {}
+    Point2_T() : x(0), y(0) {}
+    Point2_T(T xx) : x(xx), y(xx) {}
+    Point2_T(T xx, T yy) : x(xx), y(yy) {}
+
+    /** Dimensionality of Point */
+    const int size() const {
+        return 2;
+    }
 
     /** Function to figure out whether point is near some coordinate.
      * Non-negative return value indicates the index of coordinate near the Point,
@@ -248,26 +410,26 @@ public:
     }
 
     /** Distance between two Point2-s */
-    double distance(const Point2<T> &p) const {
+    const double distance(const Point2_T<T> &p) const {
         T xx = x - p.x;
         T yy = y - p.y;
         return sqrt(xx * xx + yy * yy);
     }
 
     /** Squared distance between two Point2-s; it's a bit faster than distance */
-    T distance2(const Point2<T> &p) const {
+    const double distance2(const Point2_T<T> &p) const {
         T xx = x - p.x;
         T yy = y - p.y;
         return xx * xx + yy * yy;
     }
 
     /** Subtraction of two Point2-d */
-    Point2<T> operator -(const Point2<T> &p) const {
-        return Point2(x - p.x, y - p.y);
+    Point2_T<T> operator -(const Point2_T<T> &p) const {
+        return Point2_T(x - p.x, y - p.y);
     }
 
     /** Comparison operator between two Point2-s */
-    bool operator ==(const Point2<T> &p) const {
+    bool operator ==(const Point2_T<T> &p) const {
         return x == p.x && y == p.y;
     }
 
@@ -280,23 +442,20 @@ public:
     }
 
     /** Defining the behaviour of cout */
-    friend std::ostream& operator <<(std::ostream &s, const Point2 &p) {
+    friend std::ostream& operator <<(std::ostream &s, const Point2_T &p) {
         return s << p.x << ' ' << p.y;
     }
 
     T x, y;
 };
 
-typedef Vec3<double> Vec3d; //!> 3D vector class with double values
-typedef Vec3<float> Vec3f;  //!> 3D vector class with float values
-typedef Vec3<int> Vec3i;    //!> 3D vector class with integer values
+typedef SimpleFace_T<unsigned int> SimpleFace;          //!> face class without Point data
+typedef SimpleElement_T<unsigned int> SimpleElement;    //!> element class without Point data
 
-typedef Point3<double> Point3d; //!> 3-dimensional point class with double values
-typedef Point3<float> Point3f;  //!> 3-dimensional point class with float values
-typedef Point3<int> Point3i;    //!> 3-dimensional point class with integer values
+typedef Vec3_T<double> Vec3;     //!> 3-dimensional vector class with double values
+typedef Point3_T<double> Point3; //!> 3-dimensional point class with double values
+typedef Point2_T<double> Point2; //!> 2-dimensional point class with double values
 
-typedef Point2<double> Point2d; //!> 2-dimensional point class with double values
-typedef Point2<float> Point2f;  //!> 2-dimensional point class with float values
-typedef Point2<int> Point2i;    //!> 2-dimensional point class with integer values
+} // namaspace femocs
 
 #endif /* PRIMITIVES_H_ */

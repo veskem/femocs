@@ -104,7 +104,7 @@ private:
     const void calc_dummy_coordination(const int nnn);
 
     const void reserve(const int n_atoms);
-    const void add_atom(const int id, const Point3d &point, const int type);
+    const void add_atom(const int id, const Point3 &point, const int type);
 
     /** Initialise statistics about coordinates in AtomReader */
     const void init_statistics();

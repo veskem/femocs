@@ -118,28 +118,31 @@ const void DealII::import_tetgen_mesh(femocs::Mesh* mesh) {
     Triangulation<DIM> tr2;
     vector<Point<DIM>> vertices1(3 + 1);
     vector<Point<DIM>> vertices2(3 + 1);
+    SimpleElement selem;
+    Point3 node;
 
-    int i, j, node, elem;
+    int i, j, elem;
     int n_elems = mesh->get_n_elems();
     triangulation.clear();
 
     if (n_elems < 1) return;
 
-    for (i = 0; i < n_nodes_in_elem; ++i) {
-        node = mesh->get_elem(0, i);
+    selem = mesh->get_simpleelem(0);
+
+    for (i = 0; i < n_nodes_in_elem; ++i)
         for (j = 0; j < n_coords; ++j)
-            vertices1[i](j) = mesh->get_node(node, j);
-    }
+            vertices1[i](j) = mesh->get_node(selem[i])[j];
+
 
     if (n_elems == 1) {
         GridGenerator::simplex(triangulation, vertices1);
         return;
     }
 
+    selem = mesh->get_simpleelem(1);
     for (i = 0; i < n_nodes_in_elem; ++i) {
-        node = mesh->get_elem(1, i);
         for (j = 0; j < n_coords; ++j)
-            vertices2[i](j) = mesh->get_node(node, j);
+            vertices2[i](j) = mesh->get_node(selem[i])[j];
     }
     GridGenerator::simplex(tr1, vertices1);
     GridGenerator::simplex(tr2, vertices2);
@@ -150,10 +153,10 @@ const void DealII::import_tetgen_mesh(femocs::Mesh* mesh) {
     // loop through tetrahedra, convert them into hexahedron and add to big triangulations
     for (elem = 2; elem < n_elems; ++elem) {
         if (elem % 10 == 0) cout << elem << "/" << n_elems << "\n";
+        selem = mesh->get_simpleelem(elem);
         for (i = 0; i < n_nodes_in_elem; ++i) {
-            node = mesh->get_elem(elem, i);
             for (j = 0; j < n_coords; ++j)
-                vertices1[i](j) = mesh->get_node(node, j);
+                vertices1[i](j) = mesh->get_node(selem[i])[j];
         }
         GridGenerator::simplex(tr1, vertices1);
         GridGenerator::merge_triangulations(tr1, triangulation, triangulation);
@@ -412,7 +415,7 @@ const void DealII::extract_solution_at_medium(Medium &medium) {
         }
 
         solution.point.push_back(medium.get_point(node));
-        solution.elfield.push_back( Vec3d(ef[0], ef[1], ef[2]) );
+        solution.elfield.push_back( Vec3(ef[0], ef[1], ef[2]) );
         solution.elfield_norm.push_back(ef.norm());
         solution.potential.push_back(pot);
     }

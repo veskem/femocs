@@ -30,10 +30,46 @@ Mesh::~Mesh() {
 // =================================
 // *** GETTERS: ***************
 
-const Point3d Mesh::get_point(const int i) {
+const Point3 Mesh::get_node(const int i) {
     require(i >= 0 && i < get_n_nodes(), "Invalid index!");
     const int n = n_coordinates * i;
-    return Point3d(tetIO.pointlist[n+0], tetIO.pointlist[n+1], tetIO.pointlist[n+2]);
+    return Point3(tetIO.pointlist[n+0], tetIO.pointlist[n+1], tetIO.pointlist[n+2]);
+}
+
+const SimpleFace Mesh::get_simpleface(const int i) {
+    require(i >= 0 && i < get_n_faces(), "Invalid index!");
+    const int I = n_nodes_per_face * i;
+    return SimpleFace(tetIO.trifacelist[I], tetIO.trifacelist[I+1], tetIO.trifacelist[I+2]);
+}
+
+const SimpleElement Mesh::get_simpleelem(const int i) {
+    require(i >= 0 && i < get_n_elems(), "Invalid index!");
+    const int I = n_nodes_per_elem * i;
+    return SimpleElement(tetIO.tetrahedronlist[I], tetIO.tetrahedronlist[I+1], tetIO.tetrahedronlist[I+2], tetIO.tetrahedronlist[I+3]);
+}
+
+const Point3 Mesh::get_face_centre(int i) {
+    require(i >= 0 && i < get_n_faces(), "Invalid index!");
+
+    Point3 verts;
+    SimpleFace face = get_simpleface(i);
+    for (int v = 0; v < n_nodes_per_face; ++v)
+        verts += get_node(face[v]);
+    verts /= 1.0*n_nodes_per_face;
+
+    return verts;
+}
+
+const Point3 Mesh::get_elem_centre(int i) {
+    require(i >= 0 && i < get_n_elems(), "Invalid index!");
+
+    Point3 verts;
+    SimpleElement elem = get_simpleelem(i);
+    for (int v = 0; v < n_nodes_per_elem; ++v)
+        verts += get_node(elem[v]);
+    verts /= 1.0*n_nodes_per_elem;
+
+    return verts;
 }
 
 const double Mesh::get_x(int i) {
@@ -47,47 +83,8 @@ const double Mesh::get_y(int i) {
 }
 
 const double Mesh::get_z(int i) {
-    expect(i >= 0 && i < get_n_nodes(), "Invalid index!");
-    return tetIO.pointlist[n_coordinates * i + 2];
-}
-
-const double Mesh::get_node(int i, int xyz) {
     require(i >= 0 && i < get_n_nodes(), "Invalid index!");
-    require(xyz >= 0 && xyz < n_coordinates, "Invalid coordinate!");
-    return tetIO.pointlist[n_coordinates * i + xyz];
-}
-
-const int Mesh::get_face(int i, int node) {
-    require(i >= 0 && i < get_n_faces(), "Invalid index!");
-    require(node >= 0 && node < n_nodes_per_face, "Invalid node!");
-    return tetIO.trifacelist[n_nodes_per_face * i + node];
-}
-
-const int Mesh::get_elem(int i, int node) {
-    require(i >= 0 && i < get_n_elems(), "Invalid index!");
-    require(node >= 0 && node < n_nodes_per_elem, "Invalid element!");
-    return tetIO.tetrahedronlist[n_nodes_per_elem * i + node];
-}
-
-const double Mesh::get_face_centre(int i, int xyz) {
-    require(i >= 0 && i < get_n_faces(), "Invalid index!");
-    require(xyz >= 0 && xyz < n_coordinates, "Invalid coordinate!");
-
-    double node1 = get_node(get_face(i, 0), xyz);
-    double node2 = get_node(get_face(i, 1), xyz);
-    double node3 = get_node(get_face(i, 2), xyz);
-    return (node1 + node2 + node3) / 3.0;
-}
-
-const double Mesh::get_elem_centre(int i, int xyz) {
-    require(i >= 0 && i < get_n_elems(), "Invalid index!");
-    require(xyz >= 0 && xyz < n_coordinates, "Invalid coordinate!");
-
-    double node1 = get_node(get_elem(i, 0), xyz);
-    double node2 = get_node(get_elem(i, 1), xyz);
-    double node3 = get_node(get_elem(i, 2), xyz);
-    double node4 = get_node(get_elem(i, 3), xyz);
-    return (node1 + node2 + node3 + node4) / 4.0;
+    return tetIO.pointlist[n_coordinates * i + 2];
 }
 
 const double Mesh::get_volume(const int i) {
@@ -97,7 +94,6 @@ const double Mesh::get_volume(const int i) {
 
 const int Mesh::get_nodemarker(const int i) {
     require(i >= 0 && i < get_n_nodemarkers(), "Invalid index!");
-//    return tetIO.pointmarkerlist[i];
     return nodemarkers[i];
 }
 
@@ -110,6 +106,7 @@ const int Mesh::get_elemmarker(const int i) {
     require(i >= 0 && i < get_n_elemmarkers(), "Invalid index!");
     return elemmarkers[i];
 }
+
 const double* Mesh::get_nodes() {
     return tetIO.pointlist;
 }
@@ -217,7 +214,7 @@ const void Mesh::init_volumes(const int N) {
 // =================================
 // *** ADDERS: ***************
 
-const void Mesh::add_node(const Point3d &point) {
+const void Mesh::add_node(const Point3 &point) {
     require(get_n_nodes() < tetIO.numberofpoints, "Allocated size of elements exceeded!");
     int i = 3 * i_nodes;
     tetIO.pointlist[i + 0] = (REAL) point.x;
@@ -334,7 +331,7 @@ const Medium Mesh::to_medium() {
     medium.reserve(n_atoms);
 
     for(int i = 0; i < n_atoms; ++i)
-        medium.add_atom(i, get_point(i), 0);
+        medium.add_atom(i, get_node(i), 0);
 
     medium.calc_statistics();
     return medium;
@@ -387,7 +384,7 @@ const void Mesh::calc_statistics(const AtomReader::Types *types) {
     // Find the min and max coordinates of all nodes
     if (n_nodes > 0)
         for (int i = 0; i < n_nodes; ++i) {
-            Point3d point = get_point(i);
+            Point3 point = get_node(i);
             stat.xmax = max(stat.xmax, point.x);
             stat.xmin = min(stat.xmin, point.x);
             stat.ymax = max(stat.ymax, point.y);
@@ -523,7 +520,7 @@ const void Mesh::write_xyz(const string file_name) {
 
     for (int i = 0; i < n_nodes; ++i) {
         out_file << i << " ";
-        out_file << get_point(i) << " ";
+        out_file << get_node(i) << " ";
 
         if(n_nodes == n_markers)
             out_file << get_nodemarker(i) << " ";

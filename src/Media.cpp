@@ -25,10 +25,10 @@ const void Vacuum::generate_simple(const AtomReader::Sizes* sizes) {
     reserve(M);
 
     // Add points to the xy-plane corners on current layer
-    add_atom(-1, Point3d(sizes->xmax, sizes->ymax, sizes->zmaxbox), 0);
-    add_atom(-1, Point3d(sizes->xmax, sizes->ymin, sizes->zmaxbox), 0);
-    add_atom(-1, Point3d(sizes->xmin, sizes->ymax, sizes->zmaxbox), 0);
-    add_atom(-1, Point3d(sizes->xmin, sizes->ymin, sizes->zmaxbox), 0);
+    add_atom(-1, Point3(sizes->xmax, sizes->ymax, sizes->zmaxbox), 0);
+    add_atom(-1, Point3(sizes->xmax, sizes->ymin, sizes->zmaxbox), 0);
+    add_atom(-1, Point3(sizes->xmin, sizes->ymax, sizes->zmaxbox), 0);
+    add_atom(-1, Point3(sizes->xmin, sizes->ymin, sizes->zmaxbox), 0);
 
     init_statistics();
     calc_statistics();
@@ -65,10 +65,10 @@ const void Bulk::extract_reduced_bulk(Surface* surf, const AtomReader::Sizes* si
 //        add_atom(edge->get_x(i), edge->get_y(i), sizes->zmin, edge->get_coordination(i));
 
     // Add extra atoms to the bottom corner edges of simulation cell
-    add_atom(-1, Point3d(sizes->xmin, sizes->ymin, sizes->zminbox), 0);
-    add_atom(-1, Point3d(sizes->xmin, sizes->ymax, sizes->zminbox), 0);
-    add_atom(-1, Point3d(sizes->xmax, sizes->ymin, sizes->zminbox), 0);
-    add_atom(-1, Point3d(sizes->xmax, sizes->ymax, sizes->zminbox), 0);
+    add_atom(-1, Point3(sizes->xmin, sizes->ymin, sizes->zminbox), 0);
+    add_atom(-1, Point3(sizes->xmin, sizes->ymax, sizes->zminbox), 0);
+    add_atom(-1, Point3(sizes->xmax, sizes->ymin, sizes->zminbox), 0);
+    add_atom(-1, Point3(sizes->xmax, sizes->ymax, sizes->zminbox), 0);
 
     calc_statistics();
 }
@@ -79,10 +79,10 @@ const void Bulk::generate_simple(const AtomReader::Sizes* sizes, const AtomReade
     reserve(M);
 
     // Add atoms to the bottom corner edges of simulation cell
-    add_atom(-1, Point3d(sizes->xmin, sizes->ymin, sizes->zminbox), types->type_bulk);
-    add_atom(-1, Point3d(sizes->xmin, sizes->ymax, sizes->zminbox), types->type_bulk);
-    add_atom(-1, Point3d(sizes->xmax, sizes->ymin, sizes->zminbox), types->type_bulk);
-    add_atom(-1, Point3d(sizes->xmax, sizes->ymax, sizes->zminbox), types->type_bulk);
+    add_atom(-1, Point3(sizes->xmin, sizes->ymin, sizes->zminbox), types->type_bulk);
+    add_atom(-1, Point3(sizes->xmin, sizes->ymax, sizes->zminbox), types->type_bulk);
+    add_atom(-1, Point3(sizes->xmax, sizes->ymin, sizes->zminbox), types->type_bulk);
+    add_atom(-1, Point3(sizes->xmax, sizes->ymax, sizes->zminbox), types->type_bulk);
 
     init_statistics();
     calc_statistics();
@@ -168,7 +168,7 @@ const void Bulk::rectangularize(const AtomReader::Sizes* sizes, const double r_c
         // Flatten the atoms on bottom layer
         if ((get_point(i).z >= zmin_down) && (get_point(i).z <= zmin_up)) set_z(i, zmin_down);
 
-        Point2d point = get_point2d(i);
+        Point2 point = get_point2(i);
         int near1 = point.near(sizes->xmin, sizes->ymin, r_cut);
         int near2 = point.near(sizes->xmax, sizes->ymax, r_cut);
 
@@ -202,7 +202,7 @@ const Surface Surface::coarsen(const double r_cut, const double coarse_factor,
     int n_atoms = get_n_atoms();
     vector<bool> is_dense(n_atoms);
 
-    Point2d origin2d((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
+    Point2 origin2d((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
     Surface dense_surf(crys_struct.latconst, crys_struct.nnn);
     Surface coarse_surf(crys_struct.latconst, crys_struct.nnn);
 
@@ -215,7 +215,7 @@ const Surface Surface::coarsen(const double r_cut, const double coarse_factor,
 
     // Create a map from atoms in- and outside the dense region
     for (i = 0; i < n_atoms; ++i)
-        is_dense[i] = (origin2d.distance2(get_point2d(i)) < r_cut2);
+        is_dense[i] = (origin2d.distance2(get_point2(i)) < r_cut2);
 
     int n_dense_atoms = vector_sum(is_dense);
     int n_coarse_atoms = n_atoms - n_dense_atoms + edge.get_n_atoms();
@@ -233,7 +233,7 @@ const Surface Surface::coarsen(const double r_cut, const double coarse_factor,
 
     // Among the other things calculate the average z-coordinate of coarse_surf atoms
     coarse_surf.calc_statistics();
-    Point3d origin3d(origin2d[0], origin2d[1], coarse_surf.sizes.zmean);
+    Point3 origin3d(origin2d[0], origin2d[1], coarse_surf.sizes.zmean);
 
     coarse_surf = coarse_surf.clean(origin3d, r_cut, coarse_factor);
     dense_surf += coarse_surf;
@@ -304,7 +304,7 @@ const Surface Surface::rectangularize(const AtomReader::Sizes* sizes, const doub
 
 // Function to clean the Surface from overlapping atoms
 const Surface Surface::clean() {
-    Point3d origin;
+    Point3 origin;
     double r_cut = 0;
     double multiplier = 0;
     return clean(origin, r_cut, multiplier);
@@ -312,11 +312,11 @@ const Surface Surface::clean() {
 
 const Surface Surface::clean(const double r_cut) {
     require(r_cut >= 0, "Cutoff distance between atoms must be non-negative!");
-    Point3d origin;
+    Point3 origin;
     return clean(origin, -1, r_cut);
 }
 
-const Surface Surface::clean(const Point3d &origin, const double r_cut, const double multiplier) {
+const Surface Surface::clean(const Point3 &origin, const double r_cut, const double multiplier) {
     Surface surf(crys_struct.latconst, crys_struct.nnn);
     int i, j;
     double cutoff2 = 0;
@@ -327,7 +327,7 @@ const Surface Surface::clean(const Point3d &origin, const double r_cut, const do
     if (r_cut < 0) cutoff2 = multiplier;
 
 
-    Point3d point1;
+    Point3 point1;
     int n_atoms = get_n_atoms();
 
     vector<bool> do_delete(n_atoms, false);
@@ -385,14 +385,14 @@ const void Edge::extract_edge(Medium* atoms, const AtomReader::Sizes* sizes, con
     reserve(4 + n_atoms);
 
     // Add 4 atoms to the bottom corners of the edge
-    add_atom(-1, Point3d(sizes->xmin, sizes->ymin, atoms->sizes.zmin), 0);
-    add_atom(-1, Point3d(sizes->xmin, sizes->ymax, atoms->sizes.zmin), 0);
-    add_atom(-1, Point3d(sizes->xmax, sizes->ymin, atoms->sizes.zmin), 0);
-    add_atom(-1, Point3d(sizes->xmax, sizes->ymax, atoms->sizes.zmin), 0);
+    add_atom(-1, Point3(sizes->xmin, sizes->ymin, atoms->sizes.zmin), 0);
+    add_atom(-1, Point3(sizes->xmin, sizes->ymax, atoms->sizes.zmin), 0);
+    add_atom(-1, Point3(sizes->xmax, sizes->ymin, atoms->sizes.zmin), 0);
+    add_atom(-1, Point3(sizes->xmax, sizes->ymax, atoms->sizes.zmin), 0);
 
     // Get the atoms from
     for (i = 0; i < n_atoms; ++i) {
-        Point3d point = atoms->get_point(i);
+        Point3 point = atoms->get_point(i);
         int near1 = point.near(sizes->xmin, sizes->ymin, r_cut);
         int near2 = point.near(sizes->xmax, sizes->ymax, r_cut);
 
@@ -403,7 +403,7 @@ const void Edge::extract_edge(Medium* atoms, const AtomReader::Sizes* sizes, con
     // Loop through all the added atoms
     // and flatten the atoms on the sides of simulation box
     for (i = 0; i < get_n_atoms(); ++i) {
-        Point3d point = get_point(i);
+        Point3 point = get_point(i);
         if ( on_boundary(point.x, sizes->xmin, r_cut) ) set_x(i, sizes->xmin);
         if ( on_boundary(point.x, sizes->xmax, r_cut) ) set_x(i, sizes->xmax);
         if ( on_boundary(point.y, sizes->ymin, r_cut) ) set_y(i, sizes->ymin);
@@ -432,7 +432,7 @@ const Edge Edge::clean(const double r_cut, const double coarse_factor) {
     if (r_cut < 0)
         cutoff2 = coarse_factor * coarse_factor;
 
-    Point3d point1;
+    Point3 point1;
 
     Edge edge(crys_struct.latconst, crys_struct.nnn);
     vector<bool> do_delete(n_atoms, false);

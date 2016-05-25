@@ -34,7 +34,7 @@ const void AtomReader::calc_statistics() {
 
     // Find min and max of coordinates
     for (int i = 0; i < get_n_atoms(); ++i) {
-        Point3d point = get_point(i);
+        Point3 point = get_point(i);
         sizes.xmax = max(sizes.xmax, point.x);
         sizes.xmin = min(sizes.xmin, point.x);
         sizes.ymax = max(sizes.ymax, point.y);
@@ -58,7 +58,7 @@ const void AtomReader::reserve(const int n_atoms) {
 }
 
 // Add atom with its coordinates and type
-const void AtomReader::add_atom(const int id, const Point3d &point, const int type) {
+const void AtomReader::add_atom(const int id, const Point3 &point, const int type) {
     Medium::add_atom(id, point, 0);
     this->type.push_back(type);
 }
@@ -77,7 +77,7 @@ const void AtomReader::calc_coordination(const double cutoff, const int nnn) {
 const void AtomReader::calc_slow_coordination(const double cutoff, const int nnn) {
     require(cutoff > 0 && nnn >= 0, "Invalid cutoff or nnn!");
 
-    Point3d point1, dpoint;
+    Point3 point1, dpoint;
     int N = get_n_atoms();
     int i, j, coord;
     double r2, dx, dy, dz;
@@ -165,7 +165,7 @@ const void AtomReader::import_helmod(int n_atoms, double* x, double* y, double* 
     this->types.simu_type = "md";
     reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
-        add_atom(i, Point3d(x[i], y[i], z[i]), types[i]);
+        add_atom(i, Point3(x[i], y[i], z[i]), types[i]);
 
     calc_statistics();
 }
@@ -212,7 +212,7 @@ const void AtomReader::import_xyz(const string file_name) {
         iss.clear();
         iss.str(line);
         iss >> elem >> x >> y >> z >> type;
-        add_atom(id++, Point3d(x, y, z), type);
+        add_atom(id++, Point3(x, y, z), type);
     }
 }
 
@@ -241,7 +241,7 @@ const void AtomReader::import_ckx(const string file_name) {
         iss.clear();
         iss.str(line);
         iss >> type >> x >> y >> z;
-        add_atom(id++, Point3d(x, y, z), type);
+        add_atom(id++, Point3(x, y, z), type);
     }
 }
 

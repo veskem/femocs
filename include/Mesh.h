@@ -36,7 +36,7 @@ public:
 
     const void init_volumes(const int N);
 
-    const void add_node(const Point3d &point);
+    const void add_node(const Point3 &point);
     const void add_face(const int f1, const int f2, const int f3);
     const void add_elem(const int e1, const int e2, const int e3, const int e4);
 
@@ -78,14 +78,12 @@ public:
     const double get_x(int i);
     const double get_y(int i);
     const double get_z(int i);
-    const double get_node(int i, int xyz);
-    const int get_face(int i, int node);
-    const int get_elem(int i, int node);
 
-    const Point3d get_point(const int i);
-
-    const double get_face_centre(int i, int xyz);
-    const double get_elem_centre(int i, int xyz);
+    const Point3 get_node(const int i);
+    const SimpleFace get_simpleface(const int i);
+    const SimpleElement get_simpleelem(const int i);
+    const Point3 get_face_centre(int i);
+    const Point3 get_elem_centre(int i);
 
     const void set_nodemarker(const int node, const int m);
     const void set_facemarker(const int face, const int m);
@@ -144,11 +142,11 @@ public:
     Stat stat;
     Indexes indxs;
 
-private:
     const int n_nodes_per_elem = 4;
     const int n_nodes_per_face = 3;
     const int n_coordinates = 3;
 
+private:
     int i_nodes;
     int i_elems;
     int i_faces;

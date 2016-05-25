@@ -93,8 +93,8 @@ public:
 
     struct Solution {
         vector<int> id;
-        vector<Point3d> point;
-        vector<Vec3d> elfield;
+        vector<Point3> point;
+        vector<Vec3> elfield;
         vector<double> elfield_norm;
         vector<double> potential;
     };

@@ -73,7 +73,7 @@ public:
 
     const Surface clean();
     const Surface clean(const double r_cut);
-    const Surface clean(const Point3d &origin, const double r_cut, const double multiplier);
+    const Surface clean(const Point3 &origin, const double r_cut, const double multiplier);
 
 private:
     /** Extract surface by the atom types given by kMC simulation */

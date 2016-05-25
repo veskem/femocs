@@ -27,7 +27,7 @@ const void Medium::reserve(const int n_atoms) {
     this->coordination.reserve(n_atoms);
 }
 
-const void Medium::add_atom(const int id, const Point3d &point, const int coord) {
+const void Medium::add_atom(const int id, const Point3 &point, const int coord) {
     expect(get_n_atoms() <= this->point.capacity(), "Allocated vector sizes exceeded!");
     this->id.push_back(id);
     this->point.push_back(point);
@@ -47,11 +47,11 @@ const void Medium::calc_statistics() {
     int n_atoms = get_n_atoms();
     init_statistics();
 
-    Point3d average(0,0,0);
+    Point3 average(0,0,0);
 
     // Find min and max coordinates
     for (int i = 0; i < n_atoms; ++i) {
-        Point3d point = get_point(i);
+        Point3 point = get_point(i);
         average += point;
         sizes.xmax = max(sizes.xmax, point.x);
         sizes.xmin = min(sizes.xmin, point.x);
@@ -72,13 +72,13 @@ int Medium::get_n_atoms() {
 }
 
 // Get i-th 2-dimensional point
-const Point2d Medium::get_point2d(const int i) {
+const Point2 Medium::get_point2(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    return Point2d(point[i].x, point[i].y);
+    return Point2(point[i].x, point[i].y);
 }
 
 // Get i-th 3-dimensional point
-Point3d Medium::get_point(const int i) {
+const Point3 Medium::get_point(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     return point[i];
 }
