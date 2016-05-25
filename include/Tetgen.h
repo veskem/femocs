@@ -19,6 +19,8 @@
 #ifndef tetgenH
 #define tetgenH
 
+//namespace tetgen {
+
 // To compile TetGen as a library instead of an executable program, define
 //   the TETLIBRARY symbol.
 
@@ -3380,6 +3382,7 @@ inline REAL tetgenmesh::norm2(REAL x, REAL y, REAL z)
   return (x) * (x) + (y) * (y) + (z) * (z);
 }
 
+//} // namespace tetgen
 
 #endif // #ifndef tetgenH
 

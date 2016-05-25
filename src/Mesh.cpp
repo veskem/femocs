@@ -27,6 +27,62 @@ Mesh::Mesh(const string mesher) {
 Mesh::~Mesh() {
 }
 
+// Function to generate simple mesh that consists of one tetrahedron
+const void Mesh::generate_simple(const string cmd) {
+    const int n_nodes = 4;
+    const int n_faces = 4;
+    const int n_elems = 1;
+
+    init_nodes(n_nodes);
+    add_node(Point3(1.0, 0.0, 0.7));
+    add_node(Point3(-1.0, 0.0, 0.7));
+    add_node(Point3(0.0, 1.0, -0.7));
+    add_node(Point3(0.0, -1.0, -0.7));
+
+    init_faces(n_faces);
+    add_face(0, 1, 3);
+    add_face(1, 2, 3);
+    add_face(2, 0, 3);
+    add_face(0, 1, 2);
+
+    init_elems(n_elems);
+    add_elem(0, 1, 2, 3);
+
+    recalc(cmd);
+}
+
+// Function to generate mesh from surface, bulk and vacuum atoms
+const void Mesh::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string cmd) {
+    int i;
+    int n_bulk = bulk.get_n_atoms();
+    int n_surf = surf.get_n_atoms();
+    int n_vacuum = vacuum.get_n_atoms();
+
+    init_nodes(n_bulk + n_surf + n_vacuum);
+
+    // Add surface atoms first,...
+    for (i = 0; i < n_surf; ++i)
+        add_node(surf.get_point(i));
+
+    // ... bulk atoms second,...
+    for (i = 0; i < n_bulk; ++i)
+        add_node(bulk.get_point(i));
+
+    // ... and vacuum atoms last
+    for (i = 0; i < n_vacuum; ++i)
+        add_node(vacuum.get_point(i));
+
+    indxs.surf_start = 0;
+    indxs.surf_end = indxs.surf_start + n_surf - 1;
+    indxs.bulk_start = indxs.surf_end + 1;
+    indxs.bulk_end = indxs.bulk_start + n_bulk - 1;
+    indxs.vacuum_start = indxs.bulk_end + 1;
+    indxs.vacuum_end = indxs.vacuum_start + n_vacuum - 1;
+    indxs.tetgen_start = indxs.vacuum_end + 1;
+
+    recalc(cmd);
+}
+
 // =================================
 // *** GETTERS: ***************
 

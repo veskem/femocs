@@ -67,8 +67,6 @@ public:
     }
     ;
 
-    const void get_test_mesh(Mesh* new_mesh);
-    const void get_volume_mesh(Mesh* new_mesh, Bulk* bulk, Surface* surf, Vacuum* vacuum, const string cmd);
     const void generate_monolayer_surf_faces(Mesh* mesh);
     const void generate_surf_faces(Mesh* mesh);
 

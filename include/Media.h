@@ -11,7 +11,6 @@
 #include "Macros.h"
 #include "AtomReader.h"
 #include "Medium.h"
-#include "Mesh.h"
 
 using namespace std;
 namespace femocs {

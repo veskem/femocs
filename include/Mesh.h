@@ -9,10 +9,11 @@
 #define MESH_H_
 
 #include "Macros.h"
-#include "Tetgen.h"
 #include "Primitives.h"
 #include "AtomReader.h"
+#include "Media.h"
 #include "Medium.h"
+#include "Tetgen.h"
 
 using namespace std;
 namespace femocs {
@@ -25,6 +26,12 @@ class Mesh {
 public:
     Mesh(const string mesher);
     ~Mesh();
+
+    /** Function to generate simple mesh that consists of one tetrahedron */
+    const void generate_simple(const string cmd);
+
+    /** Function to generate mesh from surface, bulk and vacuum atoms */
+    const void generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string cmd);
 
     const void init_nodes(const int N);
     const void init_faces(const int N);

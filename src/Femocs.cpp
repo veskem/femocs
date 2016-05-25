@@ -75,7 +75,8 @@ const void Femocs::run(double E_field, double*** phi) {
     end_msg(t0);
 
     start_msg(t0, "=== Resizing simulation box...");
-    // Electric field is applied 20 lattice constants above the surface highest point
+    // Electric field is applied 100 lattice constants above the highest point of surface
+    // and bulk is extended 20 lattice constants below the minimum point of surface
     if (coarse_surf.get_n_atoms() > 0)
         reader.resize_box(coarse_surf.sizes.zmin - 20 * conf.latconst, coarse_surf.sizes.zmax + 100 * conf.latconst);
     else
@@ -103,7 +104,7 @@ const void Femocs::run(double E_field, double*** phi) {
     start_msg(t0, "=== Making big mesh...");
     femocs::Mesh big_mesh(conf.mesher);
 
-    mesher.get_volume_mesh(&big_mesh, &bulk, &coarse_surf, &vacuum, "Q");
+    big_mesh.generate_mesh(bulk, coarse_surf, vacuum, "Q");
     big_mesh.write_faces("output/faces_0.vtk");
     big_mesh.write_elems("output/elems_0.vtk");
     big_mesh.recalc("rQq" + conf.mesh_quality);
@@ -118,7 +119,6 @@ const void Femocs::run(double E_field, double*** phi) {
     start_msg(t0, "=== Marking nodes...");
     mesher.mark_nodes(&big_mesh, &reader.types, conf.postprocess_marking);
     big_mesh.write_nodes("output/nodes.xyz");
-    big_mesh.write_nodes("output/nodes.vtk");
     big_mesh.write_faces("output/faces_3.vtk");
     big_mesh.write_elems("output/elems_3.vtk");
     end_msg(t0);
@@ -138,11 +138,10 @@ const void Femocs::run(double E_field, double*** phi) {
     end_msg(t0);
 
 //    start_msg(t0, "Making test mesh...");
-//    shared_ptr<Mesh> test_mesh(new Mesh());
-//    mesher.get_test_mesh(test_mesh);
-//    testmesh->recalc("rQ");
-//    testmesh->write_elems("output/testelems.vtk");
-//    testmesh->write_faces("output/testfaces.vtk");
+//    femocs::Mesh testmesh(conf.mesher);
+//    testmesh.generate_simple("rQ");
+//    testmesh.write_elems("output/testelems.vtk");
+//    testmesh.write_faces("output/testfaces.vtk");
 //    end_msg(t0);
 
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
@@ -207,12 +206,10 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
     double t0;
 
     start_msg(t0, "=== Importing atoms...");
-
     if (n_atoms < 1)
         reader.import_file(conf.infile);
     else
         reader.import_helmod(n_atoms, x, y, z, types);
-
     end_msg(t0);
 
 //    start_msg(t0, "=== Outputting AtomReader atoms...");

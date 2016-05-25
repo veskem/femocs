@@ -71,19 +71,19 @@ int Medium::get_n_atoms() {
     return point.size();
 }
 
-// Get i-th 2-dimensional point
+// Get 2-dimensional coordinates of i-th atom
 const Point2 Medium::get_point2(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     return Point2(point[i].x, point[i].y);
 }
 
-// Get i-th 3-dimensional point
+// Get 3-dimensional coordinates of i-th atom
 const Point3 Medium::get_point(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     return point[i];
 }
 
-// Get entry from ID-s vector
+// Get atom ID
 const int Medium::get_id(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     return id[i];

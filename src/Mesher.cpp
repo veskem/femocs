@@ -134,58 +134,6 @@ Mesher::Mesher(const string mesher) {
     this->mesher = mesher;
 }
 
-// Function to generate simple mesh that consists of one tetrahedron
-const void Mesher::get_test_mesh(Mesh* new_mesh) {
-    const int n_nodes = 4;
-    const int n_faces = 4;
-    const int n_elems = 1;
-
-    new_mesh->init_nodes(n_nodes);
-    new_mesh->add_node(Point3(1.0, 0.0, 0.7));
-    new_mesh->add_node(Point3(-1.0, 0.0, 0.7));
-    new_mesh->add_node(Point3(0.0, 1.0, -0.7));
-    new_mesh->add_node(Point3(0.0, -1.0, -0.7));
-
-    new_mesh->init_faces(n_faces);
-    new_mesh->add_face(0, 1, 3);
-    new_mesh->add_face(1, 2, 3);
-    new_mesh->add_face(2, 0, 3);
-    new_mesh->add_face(0, 1, 2);
-
-    new_mesh->init_elems(n_elems);
-    new_mesh->add_elem(0, 1, 2, 3);
-}
-
-// Function to generate mesh from surface, bulk and vacuum atoms
-const void Mesher::get_volume_mesh(Mesh* new_mesh, Bulk* bulk, Surface* surf, Vacuum* vacuum,
-        const string cmd) {
-    int i;
-    int n_bulk = bulk->get_n_atoms();
-    int n_surf = surf->get_n_atoms();
-    int n_vacuum = vacuum->get_n_atoms();
-
-    new_mesh->init_nodes(n_bulk + n_surf + n_vacuum);
-
-    for (i = 0; i < n_surf; ++i)
-        new_mesh->add_node(surf->get_point(i));
-
-    for (i = 0; i < n_bulk; ++i)
-        new_mesh->add_node(bulk->get_point(i));
-
-    for (i = 0; i < n_vacuum; ++i)
-        new_mesh->add_node(vacuum->get_point(i));
-
-    new_mesh->indxs.surf_start = 0;
-    new_mesh->indxs.surf_end = n_surf - 1;
-    new_mesh->indxs.bulk_start = n_surf;
-    new_mesh->indxs.bulk_end = n_surf + n_bulk - 1;
-    new_mesh->indxs.vacuum_start = n_surf + n_bulk;
-    new_mesh->indxs.vacuum_end = n_surf + n_bulk + n_vacuum - 1;
-    new_mesh->indxs.tetgen_start = n_surf + n_bulk + n_vacuum;
-
-    new_mesh->recalc(cmd);
-}
-
 const vector<bool> Mesher::get_vacuum_indices(Mesh* mesh, const int n_bulk, const int n_surf,
         const double zmin) {
 
