@@ -48,6 +48,12 @@ const inline int vector_sum(vector<bool> v) { return accumulate(v.begin(), v.end
 const inline int vector_sum(vector<int> v) { return accumulate(v.begin(), v.end(), 0); }
 const inline double vector_sum(vector<double> v) { return accumulate(v.begin(), v.end(), 0); }
 
+/** Return mask of indices that doesn't contain the entry */
+const vector<bool> vector_not(const vector<int> *v, const int entry);
+
+/** Return mask of indices that do contain the entry */
+const vector<bool> vector_equal(vector<int> *v, const int entry);
+
 /** Throw an informative exception if expectation fails */
 void __requirement_fails(const char *file, int line, string message);
 

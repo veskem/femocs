@@ -249,11 +249,6 @@ public:
         return 3;
     }
 
-    /** Transform Point3 to Vec3 */
-    Vec3_T<T> to_vec() const {
-        return Vec3_T<T> (x, y, z);
-    }
-
     /** Squared distance between two Point3-s */
     const double distance2(const Point3_T<T> &p) const {
         T xx = x - p.x;

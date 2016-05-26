@@ -16,6 +16,7 @@ namespace femocs {
 Mesh::Mesh(const string mesher) {
     require(mesher == "tetgen", "Unimplemented mesher!");
 
+    this->mesher = mesher;
     i_nodes = 0;
     i_elems = 0;
     i_faces = 0;
@@ -27,64 +28,14 @@ Mesh::Mesh(const string mesher) {
 Mesh::~Mesh() {
 }
 
-// Function to generate simple mesh that consists of one tetrahedron
-const void Mesh::generate_simple(const string cmd) {
-    const int n_nodes = 4;
-    const int n_faces = 4;
-    const int n_elems = 1;
-
-    init_nodes(n_nodes);
-    add_node(Point3(1.0, 0.0, 0.7));
-    add_node(Point3(-1.0, 0.0, 0.7));
-    add_node(Point3(0.0, 1.0, -0.7));
-    add_node(Point3(0.0, -1.0, -0.7));
-
-    init_faces(n_faces);
-    add_face(0, 1, 3);
-    add_face(1, 2, 3);
-    add_face(2, 0, 3);
-    add_face(0, 1, 2);
-
-    init_elems(n_elems);
-    add_elem(0, 1, 2, 3);
-
-    recalc(cmd);
-}
-
-// Function to generate mesh from surface, bulk and vacuum atoms
-const void Mesh::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string cmd) {
-    int i;
-    int n_bulk = bulk.get_n_atoms();
-    int n_surf = surf.get_n_atoms();
-    int n_vacuum = vacuum.get_n_atoms();
-
-    init_nodes(n_bulk + n_surf + n_vacuum);
-
-    // Add surface atoms first,...
-    for (i = 0; i < n_surf; ++i)
-        add_node(surf.get_point(i));
-
-    // ... bulk atoms second,...
-    for (i = 0; i < n_bulk; ++i)
-        add_node(bulk.get_point(i));
-
-    // ... and vacuum atoms last
-    for (i = 0; i < n_vacuum; ++i)
-        add_node(vacuum.get_point(i));
-
-    indxs.surf_start = 0;
-    indxs.surf_end = indxs.surf_start + n_surf - 1;
-    indxs.bulk_start = indxs.surf_end + 1;
-    indxs.bulk_end = indxs.bulk_start + n_bulk - 1;
-    indxs.vacuum_start = indxs.bulk_end + 1;
-    indxs.vacuum_end = indxs.vacuum_start + n_vacuum - 1;
-    indxs.tetgen_start = indxs.vacuum_end + 1;
-
-    recalc(cmd);
-}
-
 // =================================
 // *** GETTERS: ***************
+
+const Vec3 Mesh::get_vec(const int i) {
+    require(i >= 0 && i < get_n_nodes(), "Invalid index!");
+    const int n = n_coordinates * i;
+    return Vec3(tetIO.pointlist[n+0], tetIO.pointlist[n+1], tetIO.pointlist[n+2]);
+}
 
 const Point3 Mesh::get_node(const int i) {
     require(i >= 0 && i < get_n_nodes(), "Invalid index!");
@@ -128,19 +79,9 @@ const Point3 Mesh::get_elem_centre(int i) {
     return verts;
 }
 
-const double Mesh::get_x(int i) {
-    require(i >= 0 && i < get_n_nodes(), "Invalid index!");
-    return tetIO.pointlist[n_coordinates * i + 0];
-}
-
-const double Mesh::get_y(int i) {
-    require(i >= 0 && i < get_n_nodes(), "Invalid index!");
-    return tetIO.pointlist[n_coordinates * i + 1];
-}
-
-const double Mesh::get_z(int i) {
-    require(i >= 0 && i < get_n_nodes(), "Invalid index!");
-    return tetIO.pointlist[n_coordinates * i + 2];
+const double Mesh::get_area(const int i) {
+    require(i >= 0 && i < get_n_areas(), "Invalid index!");
+    return areas[i];
 }
 
 const double Mesh::get_volume(const int i) {
@@ -175,6 +116,18 @@ const int* Mesh::get_elems() {
     return tetIO.tetrahedronlist;
 }
 
+const vector<int>* Mesh::get_nodemarkers() {
+    return &nodemarkers;
+}
+
+const vector<int>* Mesh::get_facemarkers() {
+    return &facemarkers;
+}
+
+const vector<int>* Mesh::get_elemmarkers() {
+    return &elemmarkers;
+}
+
 const int Mesh::get_n_nodes() {
     return i_nodes;
     //return tetIO.numberofpoints;
@@ -206,6 +159,9 @@ const int Mesh::get_n_volumes() {
     return volumes.size();
 }
 
+const int Mesh::get_n_areas() {
+    return areas.size();
+}
 // =================================
 // *** SETTERS: ********************
 // =================================
@@ -262,16 +218,11 @@ const void Mesh::init_elems(const int N) {
     tetIO.tetrahedronlist = new int[4 * N];
 }
 
-const void Mesh::init_volumes(const int N) {
-    require(N > 0, "Invalid number of volumes!");
-    volumes.reserve(N);
-}
-
 // =================================
 // *** ADDERS: ***************
 
 const void Mesh::add_node(const Point3 &point) {
-    require(get_n_nodes() < tetIO.numberofpoints, "Allocated size of elements exceeded!");
+    require(get_n_nodes() < tetIO.numberofpoints, "Allocated size of nodes exceeded!");
     int i = 3 * i_nodes;
     tetIO.pointlist[i + 0] = (REAL) point.x;
     tetIO.pointlist[i + 1] = (REAL) point.y;
@@ -280,7 +231,7 @@ const void Mesh::add_node(const Point3 &point) {
 }
 
 const void Mesh::add_face(const int f1, const int f2, const int f3) {
-    require(get_n_faces() < tetIO.numberoftrifaces, "Allocated size of elements exceeded!");
+    require(get_n_faces() < tetIO.numberoftrifaces, "Allocated size of faces exceeded!");
     int i = 3 * i_faces;
     tetIO.trifacelist[i + 0] = f1;
     tetIO.trifacelist[i + 1] = f2;
@@ -298,9 +249,18 @@ const void Mesh::add_elem(const int e1, const int e2, const int e3, const int e4
     i_elems++;
 }
 
-const void Mesh::add_volume(const double V) {
-    expect(get_n_volumes() < this->volumes.capacity(), "Allocated size of volumes exceeded!");
-    volumes.push_back(V);
+const void Mesh::add_face(const SimpleFace& face) {
+    require(get_n_faces() < tetIO.numberoftrifaces, "Allocated size of faces exceeded!");
+    for (int i = n_nodes_per_face * i_faces; i < n_nodes_per_face * (i_faces + 1); ++i)
+        tetIO.tetrahedronlist[i] = face[i];
+    i_faces++;
+}
+
+const void Mesh::add_elem(const SimpleElement& elem) {
+    require(get_n_elems() < tetIO.numberoftetrahedra, "Allocated size of elements exceeded!");
+    for (int i = n_nodes_per_elem * i_elems; i < n_nodes_per_elem * (i_elems+1); ++i)
+        tetIO.tetrahedronlist[i] = elem[i];
+    i_elems++;
 }
 
 const void Mesh::add_nodemarker(const int m) {
@@ -332,32 +292,40 @@ const void Mesh::copy_statistics(Mesh* mesh) {
 }
 
 const void Mesh::copy_nodes(Mesh* mesh) {
-    int N = mesh->get_n_nodes();
-    for (int i = 0; i < 3 * N; ++i)
-        tetIO.pointlist[i] = mesh->get_nodes()[i];
-    i_nodes = N;
+    int n_nodes = mesh->get_n_nodes();
+    const double* nodes = mesh->get_nodes();
+
+    init_nodes(n_nodes);
+    for (int i = 0; i < n_coordinates * n_nodes; ++i)
+        tetIO.pointlist[i] = nodes[i];
+    i_nodes = n_nodes;
 }
 
-const void Mesh::copy_faces(Mesh* mesh, const int offset) {
-    int N = mesh->get_n_faces();
-    if (offset == 0)
-        for (int i = 0; i < 3 * N; ++i)
-            tetIO.trifacelist[i] = mesh->get_faces()[i];
-    else
-        for (int i = 0; i < 3 * N; ++i)
-            tetIO.trifacelist[i] = offset + mesh->get_faces()[i];
-    i_faces = N;
+const void Mesh::copy_nodes(Mesh* mesh, const vector<bool> &mask) {
+    init_nodes(vector_sum(mask));
+    for (int i = 0; i < mesh->get_n_nodes(); ++i)
+        if (mask[i])
+            add_node(mesh->get_node(i));
 }
 
-const void Mesh::copy_elems(Mesh* mesh, const int offset) {
-    int N = mesh->get_n_elems();
-    if (offset == 0)
-        for (int i = 0; i < 4 * N; ++i)
-            tetIO.tetrahedronlist[i] = mesh->get_elems()[i];
-    else
-        for (int i = 0; i < 4 * N; ++i)
-            tetIO.tetrahedronlist[i] = offset + mesh->get_elems()[i];
-    i_elems = N;
+const void Mesh::copy_faces(Mesh* mesh) {
+    int n_faces = mesh->get_n_faces();
+    const int* faces = mesh->get_faces();
+
+    init_nodes(n_faces);
+    for (int i = 0; i < n_nodes_per_face * n_faces; ++i)
+        tetIO.trifacelist[i] = faces[i];
+    i_faces = n_faces;
+}
+
+const void Mesh::copy_elems(Mesh* mesh) {
+    int n_elems = mesh->get_n_elems();
+    const int* elems = mesh->get_elems();
+
+    init_nodes(n_elems);
+    for (int i = 0; i < n_nodes_per_elem * n_elems; ++i)
+        tetIO.tetrahedronlist[i] = elems[i];
+    i_elems = n_elems;
 }
 
 const void Mesh::copy_nodemarkers(Mesh* mesh) {
@@ -393,35 +361,51 @@ const Medium Mesh::to_medium() {
     return medium;
 }
 
-const void Mesh::calc_volumes() {
-    int i, j, k, n1, n2, n3, n4;
-    double V;
-    double u[3], v[3], w[3];
+const double Mesh::calc_volume(const int i) {
+    require(i >= 0 && i < get_n_elems(), "Invalid index!");
 
-    int N = get_n_elems();
-    const double* nodes = get_nodes();
-    const int* elems = get_elems();
+    SimpleElement elem = get_simpleelem(i);
+    Vec3 base = get_vec(elem[0]);
+    Vec3 edge1 = base - get_vec(elem[1]);
+    Vec3 edge2 = base - get_vec(elem[2]);
+    Vec3 edge3 = base - get_vec(elem[3]);
+
+    double volume = edge1.dotProduct(edge2.crossProduct(edge3));
+    return fabs(volume) / 6.0;
+}
+
+const double Mesh::calc_area(const int i) {
+    require(i >= 0 && i < get_n_faces(), "Invalid index!");
+
+    SimpleFace face = get_simpleface(i);
+    Vec3 base = get_vec(face[0]);
+    Vec3 edge1 = base - get_vec(face[1]);
+    Vec3 edge2 = base - get_vec(face[2]);
+
+    double area = edge1.crossProduct(edge2).length();
+    return fabs(area) / 2.0;
+}
+
+const void Mesh::calc_volumes() {
+    int elem;
+    int n_elems = get_n_elems();
+
+    volumes.reserve(n_elems);
 
     // Loop through the elements
-    for (i = 0; i < N; ++i) {
-        j = n_nodes_per_elem * i;
-        // Loop through x, y and z coordinates
-        for (k = 0; k < n_coordinates; ++k) {
-            n1 = n_coordinates * elems[j + 0] + k; // index of x, y or z coordinate of 1st node
-            n2 = n_coordinates * elems[j + 1] + k; // ..2nd node
-            n3 = n_coordinates * elems[j + 2] + k; // ..3rd node
-            n4 = n_coordinates * elems[j + 3] + k; // ..4th node
+    for (elem = 0; elem < n_elems; ++elem)
+        volumes.push_back(calc_volume(elem));
+}
 
-            u[k] = nodes[n1] - nodes[n2];
-            v[k] = nodes[n1] - nodes[n3];
-            w[k] = nodes[n1] - nodes[n4];
-        }
-        // Volume of a rhomboedron equals to the vector product of the vectors forming its sides
-        V = u[0] * (v[1] * w[2] - v[2] * w[1]) - u[1] * (v[0] * w[2] - v[2] * w[0])
-                + u[2] * (v[0] * w[1] - v[1] * w[0]);
-        // Volume of tetrahedron = 1/6 of its rhomboedron
-        add_volume(fabs(V) / 6.0);
-    }
+const void Mesh::calc_areas() {
+    int face;
+    int n_faces = get_n_faces();
+
+    areas.reserve(n_faces);
+
+    // Loop through the faces
+    for (face = 0; face < n_faces; ++face)
+        areas.push_back(calc_area(face));
 }
 
 const void Mesh::init_statistics() {
@@ -483,7 +467,7 @@ const void Mesh::calc_statistics(const AtomReader::Types *types) {
     }
 }
 
-// Function to perform tetgen calculation on input and output data
+// Function to perform tetgen calculation on input and write_tetgen data
 const void Mesh::recalc(const string cmd) {
     tetrahedralize(const_cast<char*>(cmd.c_str()), &tetIO, &tetIO);
 
@@ -493,7 +477,7 @@ const void Mesh::recalc(const string cmd) {
 }
 
 // Write tetgen mesh into files with its internal functions
-const void Mesh::output(const string file_name) {
+const void Mesh::write_tetgen(const string file_name) {
     const string cmd = "Q";
     tetgenbehavior tetgenbeh;
 
@@ -504,7 +488,7 @@ const void Mesh::output(const string file_name) {
     tetrahedralize(&tetgenbeh, &tetIO, NULL);
 }
 
-// Function to output mesh in .vtk format
+// Function to write_tetgen mesh in .vtk format
 const void Mesh::write_vtk(const string file_name, const int n_nodes, const int n_cells,
         const int n_markers, const REAL* nodes, const int* cells, const vector<int>* markers,
         const int celltype, const int n_nodes_in_cell) {
@@ -563,7 +547,7 @@ const void Mesh::write_vtk(const string file_name, const int n_nodes, const int 
     fclose(out_file);
 }
 
-// Function to output nodes in .xyz format
+// Function to write_tetgen nodes in .xyz format
 const void Mesh::write_xyz(const string file_name) {
     ofstream out_file(file_name);
     require(out_file.is_open(), "Can't open a file " + file_name);
@@ -608,13 +592,6 @@ const void Mesh::write_faces(const string file_name) {
 
     write_vtk(file_name, n_nodes, n_faces, n_markers, nodes, faces, cellmarkers, celltype,
             n_nodes_per_face);
-}
-
-// Function to extract file type from file name
-const string Mesh::get_file_type(const string file_name) {
-    int start = file_name.find_last_of('.') + 1;
-    int end = file_name.size();
-    return file_name.substr(start, end);
 }
 
 // Function to write elements to .vtk file
@@ -664,6 +641,13 @@ const void Mesh::write_nodes(const string file_name) {
         write_vtk(file_name, n_nodes, n_nodes, n_markers, nodes, node_indx, markers, celltype, 1);
     }
 
+}
+
+// Function to extract file type from file name
+const string Mesh::get_file_type(const string file_name) {
+    int start = file_name.find_last_of('.') + 1;
+    int end = file_name.size();
+    return file_name.substr(start, end);
 }
 
 // =================================

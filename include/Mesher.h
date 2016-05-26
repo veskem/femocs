@@ -62,34 +62,34 @@ private:
 
 class Mesher {
 public:
-    Mesher(const string mesher);
+    Mesher(Mesh* mesh);
     virtual ~Mesher() {
     }
     ;
 
-    const void generate_monolayer_surf_faces(Mesh* mesh);
-    const void generate_surf_faces(Mesh* mesh);
+    /** Function to generate simple mesh that consists of one tetrahedron */
+    const void generate_simple(const string cmd);
 
-    const void separate_meshes(Mesh* bulk_mesh, Mesh* vacuum_mesh, Mesh* big_mesh, const int n_bulk,
-            const int n_surf, const double zmin, const string cmd);
-    const void separate_meshes_bymarker(Mesh* bulk, Mesh* vacuum, Mesh* big_mesh,
-            const AtomReader::Types* types, const string cmd);
+    /** Function to generate mesh from surface, bulk and vacuum atoms */
+    const void generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string cmd);
 
-    const void mark_faces(Mesh* mesh, const AtomReader::Sizes* sizes, const AtomReader::Types* types);
-    const void mark_faces_bynode(Mesh* mesh, const int nmax, const AtomReader::Types* types);
-    const void mark_nodes(Mesh* mesh, const AtomReader::Types* types, const bool postprocess);
-    const void mark_nodes_long(Mesh* mesh, const AtomReader::Types* types);
+    const void generate_monolayer_surf_faces();
+    const void generate_surf_faces();
 
-    const void clean_faces(Mesh* mesh, const double rmax, const string cmd);
-    const void clean_elems(Mesh* mesh, const double rmax, const string cmd);
+    const void separate_meshes_byseq(Mesh* bulk, Mesh* vacuum, const string cmd);
+    const void separate_meshes(Mesh* bulk, Mesh* vacuum, const AtomReader::Types* types, const string cmd);
+
+    const void mark_mesh(const AtomReader::Types* types, const bool postprocess);
+    const void mark_nodes_long(const AtomReader::Types* types);
 
 private:
-    string mesher;
+    Mesh* mesh;
 
-    const void mark_elems(Mesh* mesh, const AtomReader::Types* types);
-    const void post_process_node_marking(Mesh* mesh, const AtomReader::Types* types);
+    const void mark_faces(const AtomReader::Types* types);
+    const void mark_elems(const AtomReader::Types* types);
+    const void post_process_marking(const AtomReader::Types* types);
 
-    const vector<bool> get_vacuum_indices(Mesh* big_mesh, const int n_bulk, const int n_surf, const double zmin);
+    const vector<bool> get_vacuum_indices();
     const void update_list(int* new_list, const int* old_list, const vector<bool> is_quality, const int M);
 
 };

@@ -99,25 +99,24 @@ const void Femocs::run(double E_field, double*** phi) {
 
     // ===== Making FEM mesh =====
 
-    femocs::Mesher mesher(conf.mesher);
-
     start_msg(t0, "=== Making big mesh...");
     femocs::Mesh big_mesh(conf.mesher);
+    femocs::Mesher mesher(&big_mesh);
 
-    big_mesh.generate_mesh(bulk, coarse_surf, vacuum, "Q");
+    mesher.generate_mesh(bulk, coarse_surf, vacuum, "Q");
     big_mesh.write_faces("output/faces_0.vtk");
     big_mesh.write_elems("output/elems_0.vtk");
     big_mesh.recalc("rQq" + conf.mesh_quality);
     big_mesh.write_faces("output/faces_1.vtk");
     big_mesh.write_elems("output/elems_1.vtk");
     //mesher.generate_monolayer_surf_faces(&big_mesh, bulk.get_n_atoms(), surf.get_n_atoms());
-    mesher.generate_surf_faces(&big_mesh);
+    mesher.generate_surf_faces();
     big_mesh.write_faces("output/faces_2.vtk");
     big_mesh.write_elems("output/elems_2.vtk");
     end_msg(t0)
 
     start_msg(t0, "=== Marking nodes...");
-    mesher.mark_nodes(&big_mesh, &reader.types, conf.postprocess_marking);
+    mesher.mark_mesh(&reader.types, conf.postprocess_marking);
     big_mesh.write_nodes("output/nodes.xyz");
     big_mesh.write_faces("output/faces_3.vtk");
     big_mesh.write_elems("output/elems_3.vtk");
@@ -127,11 +126,11 @@ const void Femocs::run(double E_field, double*** phi) {
     femocs::Mesh bulk_mesh(conf.mesher);
     femocs::Mesh vacuum_mesh(conf.mesher);
 
-//    mesher.separate_meshes(&bulk_mesh, &vacuum_mesh, &big_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), reader.sizes.zminbox, "rQ");
-    mesher.separate_meshes_bymarker(&bulk_mesh, &vacuum_mesh, &big_mesh, &reader.types, "rQ");
-
+//    mesher.separate_meshes_byseq(&bulk_mesh, &vacuum_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), reader.sizes.zminbox, "rQ");
+    mesher.separate_meshes(&bulk_mesh, &vacuum_mesh, &reader.types, "rQ");
     bulk_mesh.write_faces("output/faces_bulk.vtk");
     bulk_mesh.write_elems("output/elems_bulk.vtk");
+    bulk_mesh.write_nodes("output/nodes_bulk.xyz");
     vacuum_mesh.write_faces("output/faces_vacuum.vtk");
     vacuum_mesh.write_elems("output/elems_vacuum.vtk");
     vacuum_mesh.write_nodes("output/nodes_vacuum.xyz");
@@ -150,7 +149,7 @@ const void Femocs::run(double E_field, double*** phi) {
     tethex_mesh.convert();
     end_msg(t0);
 
-//    start_msg(t0, "Writing tethex to file...");
+//    start_msg(t0, "=== Writing tethex to file...");
 ////    tethex_mesh.write("output/tethex.msh");
 //    tethex_mesh.write_vtk_faces("output/tethex_faces.vtk");
 //    tethex_mesh.write_vtk_elems("output/tethex_elems.vtk");
