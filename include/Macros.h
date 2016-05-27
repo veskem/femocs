@@ -8,7 +8,7 @@
 #ifndef MACROS_H_
 #define MACROS_H_
 
-/** In case of debugmode = true more information is printed out and all the asserts are operating.
+/** In case of debugmode == true more information is printed out and all the asserts are operating.
  * Disabling the debug mode makes code to run faster and removes the debug messages */
 #define DEBUGMODE true
 
@@ -24,7 +24,7 @@ using namespace std;
         if (!(condition))              \
           __requirement_fails(__FILE__, __LINE__, message)
 
-// Definitions for development and debugging mode
+// Definitions for development in debugging mode
 #if DEBUGMODE
 #define expect(condition, message) \
         if (!(condition))              \
@@ -53,6 +53,23 @@ const vector<bool> vector_not(const vector<int> *v, const int entry);
 
 /** Return mask of indices that do contain the entry */
 const vector<bool> vector_equal(vector<int> *v, const int entry);
+
+/** Determine whether the value is close to one of the boundary values or not */
+const inline bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps) {
+    return (fabs(val - boundary1) <= eps) || (fabs(val - boundary2) <= eps);
+}
+
+/** Determine whether the value is close to the boundary value or not */
+const inline bool on_boundary(const double val, const double boundary, const double eps) {
+    return fabs(val - boundary) <= eps;
+}
+
+/** Extract file type from file name */
+const inline string get_file_type(const string file_name) {
+    const int start = file_name.find_last_of('.') + 1;
+    const int end = file_name.size();
+    return file_name.substr(start, end);
+}
 
 /** Throw an informative exception if expectation fails */
 void __requirement_fails(const char *file, int line, string message);

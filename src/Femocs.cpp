@@ -106,10 +106,11 @@ const void Femocs::run(double E_field, double*** phi) {
     mesher.generate_mesh(bulk, coarse_surf, vacuum, "Q");
     big_mesh.write_faces("output/faces_0.vtk");
     big_mesh.write_elems("output/elems_0.vtk");
+
     big_mesh.recalc("rQq" + conf.mesh_quality);
     big_mesh.write_faces("output/faces_1.vtk");
     big_mesh.write_elems("output/elems_1.vtk");
-    //mesher.generate_monolayer_surf_faces(&big_mesh, bulk.get_n_atoms(), surf.get_n_atoms());
+
     mesher.generate_surf_faces();
     big_mesh.write_faces("output/faces_2.vtk");
     big_mesh.write_elems("output/elems_2.vtk");
@@ -117,28 +118,27 @@ const void Femocs::run(double E_field, double*** phi) {
 
     start_msg(t0, "=== Marking nodes...");
     mesher.mark_mesh(&reader.types, conf.postprocess_marking);
-    big_mesh.write_nodes("output/nodes.xyz");
-    big_mesh.write_faces("output/faces_3.vtk");
-    big_mesh.write_elems("output/elems_3.vtk");
+    big_mesh.write_nodes("output/nodes_big.xyz");
+    big_mesh.write_faces("output/faces_big.vtk");
+    big_mesh.write_elems("output/elems_big.vtk");
     end_msg(t0);
 
     start_msg(t0, "=== Separating vacuum and bulk mesh...");
     femocs::Mesh bulk_mesh(conf.mesher);
     femocs::Mesh vacuum_mesh(conf.mesher);
 
-//    mesher.separate_meshes_byseq(&bulk_mesh, &vacuum_mesh, bulk.get_n_atoms(), surf.get_n_atoms(), reader.sizes.zminbox, "rQ");
     mesher.separate_meshes(&bulk_mesh, &vacuum_mesh, &reader.types, "rQ");
+    bulk_mesh.write_nodes("output/nodes_bulk.xyz");
     bulk_mesh.write_faces("output/faces_bulk.vtk");
     bulk_mesh.write_elems("output/elems_bulk.vtk");
-    bulk_mesh.write_nodes("output/nodes_bulk.xyz");
+    vacuum_mesh.write_nodes("output/nodes_vacuum.xyz");
     vacuum_mesh.write_faces("output/faces_vacuum.vtk");
     vacuum_mesh.write_elems("output/elems_vacuum.vtk");
-    vacuum_mesh.write_nodes("output/nodes_vacuum.xyz");
     end_msg(t0);
 
 //    start_msg(t0, "Making test mesh...");
 //    femocs::Mesh testmesh(conf.mesher);
-//    testmesh.generate_simple("rQ");
+//    testmesh.generate_simple();
 //    testmesh.write_elems("output/testelems.vtk");
 //    testmesh.write_faces("output/testfaces.vtk");
 //    end_msg(t0);
@@ -194,7 +194,6 @@ const void Femocs::run(double E_field, double*** phi) {
     end_msg(t0);
 
     start_msg(t0, "=== Outputting results...");
-    //laplace.output_results("output/results_vacuum.vtk");
     laplace.output_results("output/results_vacuum.xyz");
     end_msg(t0);
 

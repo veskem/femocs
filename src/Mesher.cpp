@@ -134,30 +134,6 @@ Mesher::Mesher(Mesh* mesh) {
     this->mesh = mesh;
 }
 
-// Function to generate simple mesh that consists of one tetrahedron
-const void Mesher::generate_simple(const string cmd) {
-    const int n_nodes = 4;
-    const int n_faces = 4;
-    const int n_elems = 1;
-
-    mesh->init_nodes(n_nodes);
-    mesh->add_node(Point3(1.0, 0.0, 0.7));
-    mesh->add_node(Point3(-1.0, 0.0, 0.7));
-    mesh->add_node(Point3(0.0, 1.0, -0.7));
-    mesh->add_node(Point3(0.0, -1.0, -0.7));
-
-    mesh->init_faces(n_faces);
-    mesh->add_face(0, 1, 3);
-    mesh->add_face(1, 2, 3);
-    mesh->add_face(2, 0, 3);
-    mesh->add_face(0, 1, 2);
-
-    mesh->init_elems(n_elems);
-    mesh->add_elem(0, 1, 2, 3);
-
-    mesh->recalc(cmd);
-}
-
 // Function to generate mesh from surface, bulk and vacuum atoms
 const void Mesher::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string cmd) {
     int i;
@@ -253,6 +229,7 @@ const void Mesher::separate_meshes_byseq(Mesh* bulk, Mesh* vacuum, const string 
     bulk->recalc(cmd);
 }
 
+// Separate bulk and vacuum mesh from the union mesh by the node and element markers
 const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, const AtomReader::Types* types, const string cmd) {
     int i, j;
     int n_nodes = mesh->get_n_nodes();
@@ -375,6 +352,7 @@ const void Mesher::generate_surf_faces() {
     }
 
     // Reserve memory for faces in the mesh
+    // and delete previously calculated faces to reduce the node marker execution time
     mesh->init_faces(vector_sum(elem_in_surface));
 
     // Generate the faces that separate material and vacuum
@@ -402,8 +380,8 @@ const void Mesher::generate_surf_faces() {
  *
  * When the ray from the node in z-direction crosses the surface, the node is located in material,
  * otherwise it's in vacuum.
- * The technique works perfectly with surface without "mushroomish" tips. The mushrooms give
- * some false nodes but because of their low spatial density they can be ignored.
+ * The technique works perfectly with completely convex surface. The concaves give some false
+ * nodes but because of their low spatial density they can be eliminated in postprocessor.
  */
 const void Mesher::mark_mesh(const AtomReader::Types* types, const bool postprocess) {
     int node, elem, coord;
@@ -451,6 +429,7 @@ const void Mesher::mark_mesh(const AtomReader::Types* types, const bool postproc
         post_process_marking(types);
 }
 
+// Force the bulk nodes in vacuum elements to become vacuum nodes
 const void Mesher::post_process_marking(const AtomReader::Types* types) {
     int elem, node, location;
     int n_elems = mesh->get_n_elems();
@@ -514,7 +493,7 @@ const void Mesher::post_process_marking(const AtomReader::Types* types) {
  * too many crossings. The workaround is to change the ray direction for the problematic nodes
  * to make sure the ray crosses only "quality" triangles.
  */
-const void Mesher::mark_nodes_long(const AtomReader::Types* types) {
+const void Mesher::mark_mesh_long(const AtomReader::Types* types) {
     int node, coord;
     Vec3 ray_origin, ray_direction(0.0, 0.0, 1.0);
     vector<int> markers(mesh->get_n_nodes(), types->type_none);
@@ -580,6 +559,7 @@ const void Mesher::mark_nodes_long(const AtomReader::Types* types) {
         mesh->add_nodemarker(markers[node]);
 }
 
+// Mark elements by the node markers
 const void Mesher::mark_elems(const AtomReader::Types* types) {
     int elem, node, location;
     int n_elems = mesh->get_n_elems();
@@ -611,31 +591,26 @@ const void Mesher::mark_elems(const AtomReader::Types* types) {
     }
 }
 
-// Function to determine whether the center of face is on the boundary of simulation cell or not
-inline bool on_boundary(const double face, const double face_max) {
-    const double eps = 0.1;
-    return fabs(face - face_max) < eps;
-}
-
 // Mark the boundary faces of mesh
 const void Mesher::mark_faces(const AtomReader::Types* types) {
+    const int eps = 0.1;
     int N = mesh->get_n_faces();
     mesh->init_facemarkers(N);
 
     for (int i = 0; i < N; ++i) {
         Point3 centre = mesh->get_face_centre(i);
 
-        if (on_boundary(centre.x, mesh->stat.xmin))
+        if ( on_boundary(centre.x, mesh->stat.xmin, eps) )
             mesh->add_facemarker(types->type_xmin);
-        else if (on_boundary(centre.x, mesh->stat.xmax))
+        else if ( on_boundary(centre.x, mesh->stat.xmax, eps) )
             mesh->add_facemarker(types->type_xmax);
-        else if (on_boundary(centre.y, mesh->stat.ymin))
+        else if ( on_boundary(centre.y, mesh->stat.ymin, eps) )
             mesh->add_facemarker(types->type_ymin);
-        else if (on_boundary(centre.y, mesh->stat.ymax))
+        else if ( on_boundary(centre.y, mesh->stat.ymax, eps) )
             mesh->add_facemarker(types->type_ymax);
-        else if (on_boundary(centre.z, mesh->stat.zmin))
+        else if ( on_boundary(centre.z, mesh->stat.zmin, eps) )
             mesh->add_facemarker(types->type_zmin);
-        else if (on_boundary(centre.z, mesh->stat.zmax))
+        else if ( on_boundary(centre.z, mesh->stat.zmax, eps) )
             mesh->add_facemarker(types->type_zmax);
         else
             mesh->add_facemarker(types->type_surf);

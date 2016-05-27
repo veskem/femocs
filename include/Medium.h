@@ -121,9 +121,6 @@ protected:
     /** Initialise statistics about the coordinates in Medium */
     const void init_statistics();
 
-    /** Function to extract file extension from file name */
-    const string get_file_type(const string file_name);
-
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     const string get_data_string(const int i);
 };

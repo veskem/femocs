@@ -29,9 +29,6 @@ public:
     const Edge clean(const double r_cut);
 
     const Edge clean(const double r_cut, const double coarse_factor);
-
-private:
-    const bool on_boundary(const double x_point, const double x_boundary, const double r_cut);
 };
 
 

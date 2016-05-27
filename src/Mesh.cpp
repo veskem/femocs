@@ -28,6 +28,30 @@ Mesh::Mesh(const string mesher) {
 Mesh::~Mesh() {
 }
 
+// Function to generate simple mesh that consists of one element
+const void Mesh::generate_simple() {
+    const int n_nodes = 4;
+    const int n_faces = 4;
+    const int n_elems = 1;
+
+    init_nodes(n_nodes);
+    add_node(Point3(1.0, 0.0, 0.7));
+    add_node(Point3(-1.0, 0.0, 0.7));
+    add_node(Point3(0.0, 1.0, -0.7));
+    add_node(Point3(0.0, -1.0, -0.7));
+
+    init_faces(n_faces);
+    add_face(0, 1, 3);
+    add_face(1, 2, 3);
+    add_face(2, 0, 3);
+    add_face(0, 1, 2);
+
+    init_elems(n_elems);
+    add_elem(0, 1, 2, 3);
+
+    recalc("rQ");
+}
+
 // =================================
 // *** GETTERS: ***************
 
@@ -641,13 +665,6 @@ const void Mesh::write_nodes(const string file_name) {
         write_vtk(file_name, n_nodes, n_nodes, n_markers, nodes, node_indx, markers, celltype, 1);
     }
 
-}
-
-// Function to extract file type from file name
-const string Mesh::get_file_type(const string file_name) {
-    int start = file_name.find_last_of('.') + 1;
-    int end = file_name.size();
-    return file_name.substr(start, end);
 }
 
 // =================================

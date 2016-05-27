@@ -117,9 +117,6 @@ private:
     Vector<double> system_rhs;
     ConstraintMatrix constraints;
 
-    const string get_file_type(const string file_name);
-    const bool on_boundary(const double face, const double face_min, const double face_max);
-
     const double get_potential_at_node(const int &cell_indx, const int &vert_indx);
     const double get_potential_at_point(Point<DIM> &point);
 

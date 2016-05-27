@@ -28,13 +28,6 @@ public:
         return 3;
     }
 
-    /** Equals operator */
-    bool operator ==(const SimpleFace_T &t) const {
-        return (n1 == t.n1 || n1 == t.n2 || n1 == t.n3)
-                && (n2 == t.n1 || n2 == t.n2 || n2 == t.n3)
-                && (n3 == t.n1 || n3 == t.n2 || n3 == t.n3);
-    }
-
     /** Less than, less than or equal, bigger than, bigger than or equal operators */
     vector<bool> operator <=(const T &t) const {
         return {n1 <= t, n2 <= t, n3 <= t};
@@ -90,14 +83,6 @@ public:
     vector<int> to_vector() const {
         return vector<int> {n1, n2, n3, n4};
     }
-
-    /** Equals operator */
-    bool operator ==(const SimpleElement_T &t) const {
-        return (n1 == t.n1 || n1 == t.n2 || n1 == t.n3 || n1 = t.n4)
-                && (n2 == t.n1 || n2 == t.n2 || n2 == t.n3 || n2 = t.n4)
-                && (n3 == t.n1 || n3 == t.n2 || n3 == t.n3 || n3 = t.n4)
-                && (n4 == t.n1 || n4 == t.n2 || n4 == t.n3 || n4 = t.n4);
-        }
 
     /** Less than, less than or equal, bigger than, bigger than or equal operators */
     vector<bool> operator <=(const T &t) const {
@@ -281,35 +266,6 @@ public:
         return (T) sqrt(xx * xx + yy * yy + zz * zz);
     }
 
-    /** Function to figure out whether point is near some coordinate.
-     * Non-negative return value indicates the index of coordinate near the Point,
-     * -1 indicates that Point is not near any given coordinate.
-     */
-    const int near(const T &p0, const T eps) const {
-        if(fabs(x - p0) <= eps)
-            return 0;
-        else
-            return -1;
-    }
-    const int near(const T &p0, const T &p1, const T eps) const {
-        if(fabs(x - p0) <= eps)
-            return 0;
-        else if (fabs(y - p1) <= eps)
-            return 1;
-        else
-            return -1;
-    }
-    const int near(const T &p0, const T &p1, const T &p2, const T eps) const {
-        if(fabs(x - p0) <= eps)
-            return 0;
-        else if (fabs(y - p1) <= eps)
-            return 1;
-        else if (fabs(z - p2) <= eps)
-            return 2;
-        else
-            return -1;
-    }
-
     /** Subtraction of two Point3-d */
     Point3_T<T> operator -(const Point3_T<T> &p) const {
         return Point3_T(x - p.x, y - p.y, z - p.z);
@@ -335,8 +291,6 @@ public:
         x /= r, y /= r, z /= r;
         return *this;
     }
-
-
 
     /** Comparison operator between two Point3-s */
     const bool operator ==(const Point3_T<T> &p) const {
@@ -383,25 +337,6 @@ public:
     /** Dimensionality of Point */
     const int size() const {
         return 2;
-    }
-
-    /** Function to figure out whether point is near some coordinate.
-     * Non-negative return value indicates the index of coordinate near the Point,
-     * -1 indicates that Point is not near any given coordinate.
-     */
-    const int near(const T &p0, const T eps) const {
-        if(fabs(x - p0) <= eps)
-            return 0;
-        else
-            return -1;
-    }
-    const int near(const T &p0, const T &p1, const T eps) const {
-        if(fabs(x - p0) <= eps)
-            return 0;
-        else if (fabs(y - p1) <= eps)
-            return 1;
-        else
-            return -1;
     }
 
     /** Distance between two Point2-s */

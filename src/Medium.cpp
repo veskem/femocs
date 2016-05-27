@@ -143,13 +143,6 @@ const void Medium::output(const string file_name) {
     out_file.close();
 }
 
-// Extract file extension from file name
-const string Medium::get_file_type(const string file_name) {
-    int start = file_name.find_last_of('.') + 1;
-    int end = file_name.size();
-    return file_name.substr(start, end);
-}
-
 // Compile data string from the data vectors
 const string Medium::get_data_string(const int i) {
     if(i < 0)

@@ -80,7 +80,7 @@ public:
     const void separate_meshes(Mesh* bulk, Mesh* vacuum, const AtomReader::Types* types, const string cmd);
 
     const void mark_mesh(const AtomReader::Types* types, const bool postprocess);
-    const void mark_nodes_long(const AtomReader::Types* types);
+    const void mark_mesh_long(const AtomReader::Types* types);
 
 private:
     Mesh* mesh;

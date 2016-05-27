@@ -161,22 +161,20 @@ const void Bulk::extract_bulk(AtomReader* reader) {
 
 // Function to extract bulk material from input atomistic data
 const void Bulk::rectangularize(const AtomReader::Sizes* sizes, const double r_cut) {
-    double zmin_up = this->sizes.zmin + crys_struct.latconst / 2.1;
-    double zmin_down = this->sizes.zmin;
+    const double zmin_up = this->sizes.zmin + crys_struct.latconst / 2.1;
+    const double zmin_down = this->sizes.zmin;
 
     for (int i = 0; i < get_n_atoms(); ++i) {
-        // Flatten the atoms on bottom layer
-        if ((get_point(i).z >= zmin_down) && (get_point(i).z <= zmin_up)) set_z(i, zmin_down);
+        Point3 point = get_point(i);
 
-        Point2 point = get_point2(i);
-        int near1 = point.near(sizes->xmin, sizes->ymin, r_cut);
-        int near2 = point.near(sizes->xmax, sizes->ymax, r_cut);
+        // Flatten the atoms on bottom layer
+        if ( point.z <= zmin_up ) set_z(i, zmin_down);
 
         // Flatten the atoms on the sides of simulation box
-        if (near1 == 0) set_x(i, sizes->xmin);
-        else if (near1 == 1) set_y(i, sizes->ymin);
-        else if (near2 == 0) set_x(i, sizes->xmax);
-        else if (near2 == 1) set_y(i, sizes->ymax);
+        if ( on_boundary(point.x, sizes->xmin, r_cut) ) set_x(i, sizes->xmin);
+        else if ( on_boundary(point.y, sizes->ymin, r_cut) ) set_y(i, sizes->ymin);
+        else if ( on_boundary(point.x, sizes->xmax, r_cut) ) set_x(i, sizes->xmax);
+        else if ( on_boundary(point.y, sizes->ymax, r_cut) ) set_y(i, sizes->ymax);
     }
 }
 
@@ -371,11 +369,6 @@ Edge::Edge(const double latconst, const int nnn) :
 ;
 Edge::Edge() : Edge(0, 0) {};
 
-// Function to determine whether the center of face is on the boundary of simulation cell or not
-const bool Edge::on_boundary(const double x_point, const double x_boundary, const double r_cut) {
-    return fabs(x_point - x_boundary) <= r_cut;
-}
-
 // Exctract the atoms near the simulation box sides
 const void Edge::extract_edge(Medium* atoms, const AtomReader::Sizes* sizes, const double r_cut) {
     int i;
@@ -390,13 +383,13 @@ const void Edge::extract_edge(Medium* atoms, const AtomReader::Sizes* sizes, con
     add_atom(-1, Point3(sizes->xmax, sizes->ymin, atoms->sizes.zmin), 0);
     add_atom(-1, Point3(sizes->xmax, sizes->ymax, atoms->sizes.zmin), 0);
 
-    // Get the atoms from
+    // Get the atoms from edge areas
     for (i = 0; i < n_atoms; ++i) {
         Point3 point = atoms->get_point(i);
-        int near1 = point.near(sizes->xmin, sizes->ymin, r_cut);
-        int near2 = point.near(sizes->xmax, sizes->ymax, r_cut);
+        const bool near1 = on_boundary(point.x, sizes->xmin, sizes->xmax, r_cut);
+        const bool near2 = on_boundary(point.y, sizes->ymin, sizes->ymax, r_cut);
 
-        if (near1 >= 0 || near2 >= 0)
+        if (near1 || near2)
             add_atom(atoms->get_id(i), point, atoms->get_coordination(i));
     }
 

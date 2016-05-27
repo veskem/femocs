@@ -24,13 +24,6 @@ const void DealII::set_neumann(const double neumann) {
     this->neumann = neumann;
 }
 
-// Extract the file type from file name
-const string DealII::get_file_type(const string file_name) {
-    int start = file_name.find_last_of('.') + 1;
-    int end = file_name.size();
-    return file_name.substr(start, end);
-}
-
 // Import mesh from vtk or msh file
 const void DealII::import_file(const string file_name) {
     GridIn<DIM, DIM> gi;
@@ -266,28 +259,21 @@ const void DealII::setup_system() {
 // Mark the boundary faces of mesh
 const void DealII::mark_boundary(const AtomReader::Sizes* sizes, const AtomReader::Types* types) {
     typename Triangulation<DIM>::active_face_iterator face;
+    const double eps = 0.1;
 
     // Loop through the faces and mark them according the location of their centre
     for (face = triangulation.begin_active_face(); face != triangulation.end(); ++face) {
         if (face->at_boundary()) {
-            if (on_boundary(face->center()[0], sizes->xmin, sizes->xmax))
+            if (on_boundary(face->center()[0], sizes->xmin, sizes->xmax, eps))
                 face->set_all_boundary_ids(types->type_edge);
-            else if (on_boundary(face->center()[1], sizes->ymin, sizes->ymax))
+            else if (on_boundary(face->center()[1], sizes->ymin, sizes->ymax, eps))
                 face->set_all_boundary_ids(types->type_edge);
-            else if (on_boundary(face->center()[2], sizes->zmaxbox, sizes->zmaxbox))
+            else if (on_boundary(face->center()[2], sizes->zmaxbox, sizes->zmaxbox, eps))
                 face->set_all_boundary_ids(types->type_zmax);
             else
                 face->set_all_boundary_ids(types->type_surf);
         }
     }
-}
-
-// Function to determine whether the center of face is on the boundary of simulation cell or not
-const bool DealII::on_boundary(const double face, const double face_min, const double face_max) {
-    const double eps = 0.1;
-    bool b1 = fabs(face - face_min) < eps;
-    bool b2 = fabs(face_max - face) < eps;
-    return b1 || b2;
 }
 
 // Insert boundary conditions to the system

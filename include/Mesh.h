@@ -27,6 +27,9 @@ public:
     Mesh(const string mesher);
     ~Mesh();
 
+    /** Function to generate simple mesh that consists of one element */
+    const void generate_simple();
+
     const void init_nodes(const int N);
     const void init_faces(const int N);
     const void init_elems(const int N);
@@ -170,9 +173,6 @@ private:
 
     // Function to output nodes in .xyz format
     const void write_xyz(const string file_name);
-
-    // Function to extract file type from file name
-    const string get_file_type(const string file_name);
 };
 
 } /* namespace femocs */
