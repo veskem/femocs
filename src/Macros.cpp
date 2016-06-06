@@ -10,7 +10,6 @@
 #include <omp.h>
 #include <stdexcept>
 #include <sstream>
-#include <iostream>
 
 using namespace std;
 

@@ -1,25 +1,15 @@
-program Helmod2
+program Helmod
     use libfemocs
     use iso_c_binding
     implicit none
     
     integer(c_int), parameter :: n_atoms = 10
-    integer :: i, j, k
     real(c_double), dimension(n_atoms) :: x
-    real(c_double), dimension(n_atoms,n_atoms,n_atoms) :: phi
     integer(c_int), dimension(n_atoms) :: types
     type(femocs) :: f
     
     x =     (/ 1,2,3,4,5,6,7,8,9,10 /)
     types = (/ 1,1,1,1,1,1,1,1,1,1  /)
-    
-    do i = 1, n_atoms
-      do j = 1, n_atoms
-        do k = 1, n_atoms
-          phi(i,j,k) = i*j*k
-        end do
-      end do
-    end do
 
     ! Create an object of type foo
     f = femocs("path/to/input/script")
@@ -29,15 +19,7 @@ program Helmod2
     call f%import_atoms(0, x, x, x, types)
     
     write(*,*) "Running femocs.run"
-    call f%run(10d0, phi)
-    
-!    do i = 1, n_atoms
-!      do j = 1, n_atoms
-!        do k = 1, n_atoms
-!          write(*,*) 'phi',i,j,k, phi(i,j,k)
-!        end do
-!      end do
-!    end do
+    call f%run(10d0)
     
     !write(*,*) "Running femocs_speaker..."
     !call femocs_speaker("From Fortran!")

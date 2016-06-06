@@ -8,10 +8,8 @@
 #ifndef FEMOCS_H_
 #define FEMOCS_H_
 
-#include "Macros.h"
 #include "AtomReader.h"
-#include "DealII.h"
-#include "Primitives.h"
+#include "SolutionReader.h"
 
 using namespace std;
 
@@ -52,21 +50,17 @@ public:
     Config conf;          //!< Femocs configuration parameters
 
     /**
-     * The function to get input data, to start the Femocs simulation and
-     * to return simulation results to the caller.
-     * @param E0 - long range electric field
-     * @param BC - boundary conditions
-     * @param phi_guess - guess values of field potential for FEM solver
-     * @param grid_spacing - FDM grid spacing in x, y and z direction
+     * The function to generate FEM mesh and to solve differential equation(s).
+     * @param E_field - long range electric field
      */
-    const void run(double E_field, double*** phi);
+    const void run(double E_field);
 
     const void import_atoms(int n_atoms, double* x, double* y, double* z, int* types);
     const void export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
 private:
     femocs::AtomReader reader;
-    femocs::DealII laplace;
+    femocs::SolutionReader solution;
 };
 
 const void femocs_speaker(string path);

@@ -18,6 +18,7 @@ class Medium {
 public:
     /** Medium constructor */
     Medium();
+    //virtual ~Medium() = 0;
 
     /** Define the addition of two Mediums */
     Medium& operator +=(Medium &m) {
@@ -91,15 +92,33 @@ public:
     const void output(const string file_name);
 
     struct Sizes {
-        double xmin;    //!< Minimum value of x-coordinate
-        double xmax;    //!< Maximum value of x-coordinate
-        double xmean;   //!< Average value of x-coordinate
-        double ymin;    //!< Minimum value of y-coordinate
-        double ymax;    //!< Maximum value of y-coordinate
-        double ymean;   //!< Average value of y-coordinate
-        double zmin;    //!< Minimum value of z-coordinate
-        double zmax;    //!< Maximum value of z-coordinate
-        double zmean;   //!< Average value of z-coordinate
+//        double xmin;    //!< Minimum value of x-coordinate
+//        double xmax;    //!< Maximum value of x-coordinate
+//        double xmean;   //!< Average value of x-coordinate
+//        double ymin;    //!< Minimum value of y-coordinate
+//
+//        double fifth_variable_gets_segfault_dont_delete_me;
+//
+//        double ymax;    //!< Maximum value of y-coordinate
+//        double ymean;   //!< Average value of y-coordinate
+//        double zmin;    //!< Minimum value of z-coordinate
+//        double zmax;    //!< Maximum value of z-coordinate
+//        double zmean;   //!< Average value of z-coordinate
+
+        double xmin;    //!< minimum x-coordinate of atoms
+        double xmax;    //!< maximum x-coordinate of atoms
+        double ymin;    //!< minimum y-coordinate of atoms
+        double ymax;    //!< maximum y-coordinate of atoms
+        double zmin;    //!< minimum z-coordinate of atoms
+        double zmax;    //!< maximum z-coordinate of atoms
+        double zminbox; //!< minimum z-coordinate of simulation box
+        double zmaxbox; //!< maximum z-coordinate of simulation box
+        double xbox;    //!< simulation box size in x-direction
+        double ybox;    //!< simulation box size in y-direction
+        double zbox;    //!< simulation box size in z-direction
+        double xmean;   //!< average value of x-coordinate
+        double ymean;   //!< average value of y-coordinate
+        double zmean;   //!< average value of z-coordinate
     };
 
     /** Statistics about system size */

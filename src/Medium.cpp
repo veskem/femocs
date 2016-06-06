@@ -39,6 +39,10 @@ const void Medium::init_statistics() {
     sizes.xmin = sizes.ymin = sizes.zmin = DBL_MAX;
     sizes.xmax = sizes.ymax = sizes.zmax = DBL_MIN;
     sizes.xmean = sizes.ymean = sizes.zmean = 0.0;
+
+    sizes.xbox = sizes.ybox = sizes.zbox = 0;
+    sizes.zminbox = DBL_MAX;
+    sizes.zmaxbox = DBL_MIN;
 }
 
 // Calculate the statistics about Medium
@@ -64,6 +68,13 @@ const void Medium::calc_statistics() {
     sizes.xmean = average.x / n_atoms;
     sizes.ymean = average.y / n_atoms;
     sizes.zmean = average.z / n_atoms;
+
+    // Define size of simubox
+    sizes.xbox = sizes.xmax - sizes.xmin;
+    sizes.ybox = sizes.ymax - sizes.ymin;
+    sizes.zbox = sizes.zmax - sizes.zmin;
+    sizes.zminbox = sizes.zmin;
+    sizes.zmaxbox = sizes.zmax;
 }
 
 // Get number of atoms in Medium

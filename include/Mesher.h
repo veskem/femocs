@@ -36,6 +36,15 @@ public:
     /** Function to precompute the data needed to execute the Moller-Trumbore algorithm */
     const void precompute_triangles(const Vec3 &direction);
 
+    /** Function to generate surface faces from already existing elements and surface nodes */
+    const void generate_surf_faces();
+
+    /** Function to generate surface faces from already existing elements, surface nodes and vacuum nodes */
+    const void generate_monolayer_surf_faces();
+
+    /** Function to output surface faces in .vtk format */
+    const void write_faces(const string file_name);
+
 private:
     /** Constants to specify the tolerances */
     const double epsilon = 1e-8;
@@ -52,6 +61,9 @@ private:
     vector<Vec3> pvec;
     vector<bool> is_parallel;
 
+    /** Manually calculated surface faces */
+    vector<SimpleFace> faces;
+
     /** Function to find with Moller-Trumbore algorithm whether the ray and the triangle intersect or not */
     const bool ray_intersects_triangle(const Vec3 &origin, const Vec3 &direction, const int face);
 
@@ -67,20 +79,14 @@ public:
     }
     ;
 
-    /** Function to generate simple mesh that consists of one tetrahedron */
-    const void generate_simple(const string cmd);
-
     /** Function to generate mesh from surface, bulk and vacuum atoms */
     const void generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string cmd);
 
-    const void generate_monolayer_surf_faces();
-    const void generate_surf_faces();
+    const void mark_mesh(const AtomReader::Types* types, const bool postprocess);
+    const void mark_mesh_long(const AtomReader::Types* types);
 
     const void separate_meshes_byseq(Mesh* bulk, Mesh* vacuum, const string cmd);
     const void separate_meshes(Mesh* bulk, Mesh* vacuum, const AtomReader::Types* types, const string cmd);
-
-    const void mark_mesh(const AtomReader::Types* types, const bool postprocess);
-    const void mark_mesh_long(const AtomReader::Types* types);
 
 private:
     Mesh* mesh;
@@ -90,8 +96,6 @@ private:
     const void post_process_marking(const AtomReader::Types* types);
 
     const vector<bool> get_vacuum_indices();
-    const void update_list(int* new_list, const int* old_list, const vector<bool> is_quality, const int M);
-
 };
 
 } /* namespace femocs */

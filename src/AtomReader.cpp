@@ -19,38 +19,6 @@ AtomReader::AtomReader() :
         Medium() {
 }
 
-// Initialise statistics about coordinates
-const void AtomReader::init_statistics() {
-    sizes.xmin = sizes.ymin = sizes.zmin = DBL_MAX;
-    sizes.xmax = sizes.ymax = sizes.zmax = DBL_MIN;
-    sizes.xbox = sizes.ybox = sizes.zbox = 0;
-    sizes.zminbox = DBL_MAX;
-    sizes.zmaxbox = DBL_MIN;
-}
-
-// Calculate the statistics about coordinates
-const void AtomReader::calc_statistics() {
-    init_statistics();
-
-    // Find min and max of coordinates
-    for (int i = 0; i < get_n_atoms(); ++i) {
-        Point3 point = get_point(i);
-        sizes.xmax = max(sizes.xmax, point.x);
-        sizes.xmin = min(sizes.xmin, point.x);
-        sizes.ymax = max(sizes.ymax, point.y);
-        sizes.ymin = min(sizes.ymin, point.y);
-        sizes.zmax = max(sizes.zmax, point.z);
-        sizes.zmin = min(sizes.zmin, point.z);
-    }
-
-    // Define size of simubox
-    sizes.xbox = sizes.xmax - sizes.xmin;
-    sizes.ybox = sizes.ymax - sizes.ymin;
-    sizes.zbox = sizes.zmax - sizes.zmin;
-    sizes.zminbox = sizes.zmin;
-    sizes.zmaxbox = sizes.zmax;
-}
-
 // Reserve memory for data vectors
 const void AtomReader::reserve(const int n_atoms) {
     Medium::reserve(n_atoms);

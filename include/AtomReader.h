@@ -44,8 +44,8 @@ public:
      */
     const void calc_coordination(const double cutoff, const int nnn);
 
-    /** Calculate statistics about the coordinates in AtomReader */
-    const void calc_statistics();
+//    /** Calculate statistics about the coordinates in AtomReader */
+//    const void calc_statistics();
 
     /** Redefine the min and max values for z-coordinates */
     const void resize_box(const double zmin, const double zmax);
@@ -69,25 +69,8 @@ public:
         string simu_type;   //!< Type of simulation; md | kmc | standalone
     };
 
-    struct Sizes {
-        double xmin;    //!< minimum x-coordinate of atoms
-        double xmax;    //!< maximum x-coordinate of atoms
-        double ymin;    //!< minimum y-coordinate of atoms
-        double ymax;    //!< maximum y-coordinate of atoms
-        double zmin;    //!< minimum z-coordinate of atoms
-        double zmax;    //!< maximum z-coordinate of atoms
-        double zminbox; //!< minimum z-coordinate of simulation box
-        double zmaxbox; //!< maximum z-coordinate of simulation box
-        double xbox;    //!< simulation box size in x-direction
-        double ybox;    //!< simulation box size in y-direction
-        double zbox;    //!< simulation box size in z-direction
-    };
-
     /** Types of regions used in the simulation */
     Types types;
-
-    /** Statistics about system size */
-    Sizes sizes;
 
 private:
     vector<int> type;   //!< types of atoms
@@ -106,8 +89,8 @@ private:
     const void reserve(const int n_atoms);
     const void add_atom(const int id, const Point3 &point, const int type);
 
-    /** Initialise statistics about coordinates in AtomReader */
-    const void init_statistics();
+//    /** Initialise statistics about coordinates in AtomReader */
+//    const void init_statistics();
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     const string get_data_string(const int i);

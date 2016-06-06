@@ -23,12 +23,10 @@
 #include "Macros.h"
 #include "AtomReader.h"
 #include "Tethex.h"
-#include "Medium.h"
-#include "Primitives.h"
 
 namespace tethex {
 class Mesh;
-} /* namespace tethex */
+}
 
 using namespace std;
 using namespace dealii;
@@ -68,12 +66,12 @@ public:
     DealII();
 
     const void set_neumann(const double neumann);
+    const double get_efield();
     const int get_n_dofs();
-
-    const void run();
-    const void import_file(const string file_name);
+    const int get_n_nodes();
 
     const void make_simple_mesh();
+    const void import_file(const string file_name);
     const void import_tetgen_mesh(femocs::Mesh* mesh);
     const void import_tethex_mesh(tethex::Mesh* mesh);
 
@@ -86,49 +84,28 @@ public:
     const void solve_umfpack();
     const void solve_cg();
 
-    const void extract_solution_at_medium(Medium &surf);
-    const void extract_elfield_at_surf_old(Medium &surf, const string file_name);
+    const double get_potential_at_node(const int &cell_indx, const int &vert_indx);
+    const double get_potential_at_point(Point<DIM> &point);
+    const Tensor<1,DIM> get_elfield_at_node(const int &cell, const int &vert_indx);
+    const Tensor<1,DIM> get_elfield_at_point(Point<DIM> &point);
 
-    const void export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
-
-    struct Solution {
-        vector<int> id;
-        vector<Point3> point;
-        vector<Vec3> elfield;
-        vector<double> elfield_norm;
-        vector<double> potential;
-    };
-
-    Solution solution;
-
-private:
     const unsigned int n_verts_per_elem = GeometryInfo<DIM>::vertices_per_cell;
     const unsigned int n_verts_per_face = GeometryInfo<DIM-1>::vertices_per_cell;
     const unsigned int n_faces_per_elem = GeometryInfo<DIM>::faces_per_cell;
 
-    double neumann;         //!< Gradient length for the solution at top boundary
+    Triangulation<DIM> triangulation;
+    DoFHandler<DIM> dof_handler;
 
-    Triangulation<3> triangulation;
+private:
+    double neumann;         //!< Neumann boundary condition value applied to upper region faces
+    double efield;          //!< Electric field applied at upper region
+
     FE_Q<DIM> fe;
-    DoFHandler<3> dof_handler;
     SparsityPattern sparsity_pattern;
     SparseMatrix<double> system_matrix;
     Vector<double> laplace_solution;
     Vector<double> system_rhs;
     ConstraintMatrix constraints;
-
-    const double get_potential_at_node(const int &cell_indx, const int &vert_indx);
-    const double get_potential_at_point(Point<DIM> &point);
-
-    const Tensor<1,DIM> get_elfield_at_node(const int &cell, const int &vert_indx);
-    const Tensor<1,DIM> get_elfield_at_point(Point<DIM> &point);
-
-    const vector<int> get_medium2node_map(Medium &medium);
-    const vector<int> get_node2elem_map();
-    const vector<int> get_node2vert_map();
-
-    const void reserve_solution(const int n_nodes);
-    const void write_xyz(const string file_name);
 };
 
 } /* namespace femocs */

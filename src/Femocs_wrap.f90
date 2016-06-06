@@ -19,12 +19,11 @@ module libfemocs
             type(c_ptr), value :: femocs
         end subroutine
 
-        subroutine femocs_run_c(femocs, E_field, phi) bind(C, name="femocs_run")
+        subroutine femocs_run_c(femocs, E_field) bind(C, name="femocs_run")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
             real(c_double), intent(in), value :: E_field
-            real(c_double) :: phi(:,:,:)
         end subroutine
         
         subroutine femocs_import_atoms_c(femocs, n_atoms, x, y, z, types) bind(C, name="femocs_import_atoms")
@@ -107,12 +106,11 @@ contains ! Implementation of the functions. We just wrap the C function here.
         call delete_femocs_c(this%ptr)
     end subroutine
 
-    subroutine femocs_run(this, E_field, phi)
+    subroutine femocs_run(this, E_field)
         implicit none
         class(femocs), intent(in) :: this
         real(c_double), intent(in) :: E_field
-        real(c_double) :: phi(:,:,:)
-        call femocs_run_c(this%ptr, E_field, phi)
+        call femocs_run_c(this%ptr, E_field)
     end subroutine
     
     subroutine femocs_import_atoms(this, n_atoms, x, y, z, types)

@@ -38,9 +38,10 @@ public:
     const void init_elemmarkers(const int N);
     const void init_nodemarkers(const int N);
 
-    const void add_node(const Point3 &point);
+    const void add_node(const double n1, const double n2, const double n3);
     const void add_face(const int f1, const int f2, const int f3);
     const void add_elem(const int e1, const int e2, const int e3, const int e4);
+    const void add_node(const Point3 &point);
     const void add_face(const SimpleFace& face);
     const void add_elem(const SimpleElement& elem);
 
@@ -100,6 +101,7 @@ public:
     const void calc_statistics(const AtomReader::Types *types);
 
     const void recalc(const string cmd);
+    const void double_recalc(const string cmd1, const string cmd2);
     const Medium to_medium();
 
     const void write_tetgen(const string file_name);
@@ -108,7 +110,8 @@ public:
     const void write_elems(const string file_name);
 
     // Tetgen data structure
-    tetgenio tetIO;
+    tetgenio tetIOin;
+    tetgenio tetIOout;
 
     /** Struct holding data about mesh statistics */
     struct Stat {
@@ -146,12 +149,12 @@ public:
     Stat stat;
     Indexes indxs;
 
-    const int n_nodes_per_elem = 4;
-    const int n_nodes_per_face = 3;
-    const int n_coordinates = 3;
-    string mesher;
+    static const int n_nodes_per_elem = 4;
+    static const int n_nodes_per_face = 3;
+    static const int n_coordinates = 3;
 
 private:
+    string mesher;
     int i_nodes;
     int i_elems;
     int i_faces;

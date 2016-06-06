@@ -793,7 +793,7 @@ void Mesh::read_femocs(femocs::Mesh* femocs_mesh) {
 
     // requirements after reading elements
     require(!triangles.empty() || !tetrahedra.empty() || !quadrangles.empty() || !hexahedra.empty(),
-            "There are no any 2D or 3D elements in the mesh!");
+            "There are no 2D or 3D elements in the mesh!");
 }
 
 void Mesh::convert() {
@@ -870,6 +870,7 @@ void Mesh::convert_2D() {
 }
 
 void Mesh::convert_3D() {
+
     // firstly - edge numeration
     const IncidenceMatrix incidence_matrix(vertices.size(), tetrahedra);
 
@@ -933,11 +934,10 @@ void Mesh::convert_3D() {
     // because after adding new vertices they need to be redefined
     redefine_lines(incidence_matrix, n_old_vertices);
 
-#if !defined(TESTING)
+#if defined(DELETE_SIMPLICES)
     edges.clear();
     faces.clear();
 #endif
-
 }
 
 void Mesh::convert_tetrahedra(int n_old_vertices, const IncidenceMatrix &incidence_matrix,

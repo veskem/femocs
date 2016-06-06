@@ -21,7 +21,7 @@ FEMOCS* create_femocs(const char* s);
 // Destructor
 void delete_femocs(FEMOCS* femocs);
 
-const void femocs_run(FEMOCS* femocs, double E_field, double*** phi);
+const void femocs_run(FEMOCS* femocs, double E_field);
 
 const void femocs_import_atoms(FEMOCS* femocs, int n_atoms, double* x, double* y, double* z, int* types);
 
@@ -44,8 +44,8 @@ void delete_femocs(FEMOCS* femocs){
     delete femocs;
 }
 
-const void femocs_run(FEMOCS* femocs, double E_field, double*** phi){
-    femocs->run(E_field, phi);
+const void femocs_run(FEMOCS* femocs, double E_field){
+    femocs->run(E_field);
 }
 
 const void femocs_import_atoms(FEMOCS* femocs, int n_atoms, double* x, double* y, double* z, int* types){

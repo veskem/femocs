@@ -9,8 +9,9 @@
 #ifndef PRIMITIVES_H_
 #define PRIMITIVES_H_
 
+#include "Macros.h"
+#include "deal.II/numerics/vector_tools.h"
 #include <math.h>
-#include <deal.II/numerics/vector_tools.h>
 
 namespace femocs {
 

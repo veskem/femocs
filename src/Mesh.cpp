@@ -58,31 +58,31 @@ const void Mesh::generate_simple() {
 const Vec3 Mesh::get_vec(const int i) {
     require(i >= 0 && i < get_n_nodes(), "Invalid index!");
     const int n = n_coordinates * i;
-    return Vec3(tetIO.pointlist[n+0], tetIO.pointlist[n+1], tetIO.pointlist[n+2]);
+    return Vec3(tetIOout.pointlist[n+0], tetIOout.pointlist[n+1], tetIOout.pointlist[n+2]);
 }
 
 const Point3 Mesh::get_node(const int i) {
     require(i >= 0 && i < get_n_nodes(), "Invalid index!");
     const int n = n_coordinates * i;
-    return Point3(tetIO.pointlist[n+0], tetIO.pointlist[n+1], tetIO.pointlist[n+2]);
+    return Point3(tetIOout.pointlist[n+0], tetIOout.pointlist[n+1], tetIOout.pointlist[n+2]);
 }
 
 const SimpleFace Mesh::get_simpleface(const int i) {
     require(i >= 0 && i < get_n_faces(), "Invalid index!");
     const int I = n_nodes_per_face * i;
-    return SimpleFace(tetIO.trifacelist[I], tetIO.trifacelist[I+1], tetIO.trifacelist[I+2]);
+    return SimpleFace(tetIOout.trifacelist[I], tetIOout.trifacelist[I+1], tetIOout.trifacelist[I+2]);
 }
 
 const SimpleElement Mesh::get_simpleelem(const int i) {
     require(i >= 0 && i < get_n_elems(), "Invalid index!");
     const int I = n_nodes_per_elem * i;
-    return SimpleElement(tetIO.tetrahedronlist[I], tetIO.tetrahedronlist[I+1], tetIO.tetrahedronlist[I+2], tetIO.tetrahedronlist[I+3]);
+    return SimpleElement(tetIOout.tetrahedronlist[I], tetIOout.tetrahedronlist[I+1], tetIOout.tetrahedronlist[I+2], tetIOout.tetrahedronlist[I+3]);
 }
 
 const Point3 Mesh::get_face_centre(int i) {
     require(i >= 0 && i < get_n_faces(), "Invalid index!");
 
-    Point3 verts;
+    Point3 verts(0, 0, 0);
     SimpleFace face = get_simpleface(i);
     for (int v = 0; v < n_nodes_per_face; ++v)
         verts += get_node(face[v]);
@@ -129,15 +129,15 @@ const int Mesh::get_elemmarker(const int i) {
 }
 
 const double* Mesh::get_nodes() {
-    return tetIO.pointlist;
+    return tetIOout.pointlist;
 }
 
 const int* Mesh::get_faces() {
-    return tetIO.trifacelist;
+    return tetIOout.trifacelist;
 }
 
 const int* Mesh::get_elems() {
-    return tetIO.tetrahedronlist;
+    return tetIOout.tetrahedronlist;
 }
 
 const vector<int>* Mesh::get_nodemarkers() {
@@ -224,66 +224,76 @@ const void Mesh::init_elemmarkers(const int N) {
 const void Mesh::init_nodes(const int N) {
     require(N > 0, "Invalid number of nodes!");
     i_nodes = 0;
-    tetIO.numberofpoints = N;
-    tetIO.pointlist = new REAL[3 * N];
+    tetIOin.numberofpoints = N;
+    tetIOin.pointlist = new REAL[3 * N];
 }
 
 const void Mesh::init_faces(const int N) {
     require(N > 0, "Invalid number of faces!");
     i_faces = 0;
-    tetIO.numberoftrifaces = N;
-    tetIO.trifacelist = new int[3 * N];
+    tetIOin.numberoftrifaces = N;
+    tetIOin.trifacelist = new int[3 * N];
 }
 
 const void Mesh::init_elems(const int N) {
     require(N > 0, "Invalid number of elements!");
     i_elems = 0;
-    tetIO.numberoftetrahedra = N;
-    tetIO.tetrahedronlist = new int[4 * N];
+    tetIOin.numberoftetrahedra = N;
+    tetIOin.tetrahedronlist = new int[4 * N];
 }
 
 // =================================
 // *** ADDERS: ***************
 
-const void Mesh::add_node(const Point3 &point) {
-    require(get_n_nodes() < tetIO.numberofpoints, "Allocated size of nodes exceeded!");
+const void Mesh::add_node(const double n1, const double n2, const double n3) {
+    require(get_n_nodes() < tetIOin.numberofpoints, "Allocated size of nodes exceeded!");
     int i = 3 * i_nodes;
-    tetIO.pointlist[i + 0] = (REAL) point.x;
-    tetIO.pointlist[i + 1] = (REAL) point.y;
-    tetIO.pointlist[i + 2] = (REAL) point.z;
+    tetIOout.pointlist[i] = n1;
+    tetIOout.pointlist[++i] = n2;
+    tetIOout.pointlist[++i] = n3;
     i_nodes++;
 }
 
 const void Mesh::add_face(const int f1, const int f2, const int f3) {
-    require(get_n_faces() < tetIO.numberoftrifaces, "Allocated size of faces exceeded!");
+    require(get_n_faces() < tetIOin.numberoftrifaces, "Allocated size of faces exceeded!");
     int i = 3 * i_faces;
-    tetIO.trifacelist[i + 0] = f1;
-    tetIO.trifacelist[i + 1] = f2;
-    tetIO.trifacelist[i + 2] = f3;
+    tetIOin.trifacelist[i] = f1;
+    tetIOin.trifacelist[++i] = f2;
+    tetIOin.trifacelist[++i] = f3;
     i_faces++;
 }
 
 const void Mesh::add_elem(const int e1, const int e2, const int e3, const int e4) {
-    require(get_n_elems() < tetIO.numberoftetrahedra, "Allocated size of elements exceeded!");
+    require(get_n_elems() < tetIOin.numberoftetrahedra, "Allocated size of elements exceeded!");
     int i = 4 * i_elems;
-    tetIO.tetrahedronlist[i + 0] = e1;
-    tetIO.tetrahedronlist[i + 1] = e2;
-    tetIO.tetrahedronlist[i + 2] = e3;
-    tetIO.tetrahedronlist[i + 3] = e4;
+    tetIOin.tetrahedronlist[i] = e1;
+    tetIOin.tetrahedronlist[++i] = e2;
+    tetIOin.tetrahedronlist[++i] = e3;
+    tetIOin.tetrahedronlist[++i] = e4;
     i_elems++;
 }
 
+const void Mesh::add_node(const Point3 &point) {
+    require(get_n_nodes() < tetIOin.numberofpoints, "Allocated size of nodes exceeded!");
+    int cntr = 0;
+    for (int i = n_coordinates * i_nodes; i < n_coordinates * (i_nodes + 1); ++i)
+        tetIOin.pointlist[i] = point[cntr++];
+    i_nodes++;
+}
+
 const void Mesh::add_face(const SimpleFace& face) {
-    require(get_n_faces() < tetIO.numberoftrifaces, "Allocated size of faces exceeded!");
+    require(get_n_faces() < tetIOin.numberoftrifaces, "Allocated size of faces exceeded!");
+    int cntr = 0;
     for (int i = n_nodes_per_face * i_faces; i < n_nodes_per_face * (i_faces + 1); ++i)
-        tetIO.tetrahedronlist[i] = face[i];
+        tetIOin.tetrahedronlist[i] = face[cntr++];
     i_faces++;
 }
 
 const void Mesh::add_elem(const SimpleElement& elem) {
-    require(get_n_elems() < tetIO.numberoftetrahedra, "Allocated size of elements exceeded!");
+    require(get_n_elems() < tetIOin.numberoftetrahedra, "Allocated size of elements exceeded!");
+    int cntr = 0;
     for (int i = n_nodes_per_elem * i_elems; i < n_nodes_per_elem * (i_elems+1); ++i)
-        tetIO.tetrahedronlist[i] = elem[i];
+        tetIOin.tetrahedronlist[i] = elem[cntr++];
     i_elems++;
 }
 
@@ -321,7 +331,7 @@ const void Mesh::copy_nodes(Mesh* mesh) {
 
     init_nodes(n_nodes);
     for (int i = 0; i < n_coordinates * n_nodes; ++i)
-        tetIO.pointlist[i] = nodes[i];
+        tetIOin.pointlist[i] = nodes[i];
     i_nodes = n_nodes;
 }
 
@@ -338,7 +348,7 @@ const void Mesh::copy_faces(Mesh* mesh) {
 
     init_nodes(n_faces);
     for (int i = 0; i < n_nodes_per_face * n_faces; ++i)
-        tetIO.trifacelist[i] = faces[i];
+        tetIOin.trifacelist[i] = faces[i];
     i_faces = n_faces;
 }
 
@@ -348,7 +358,7 @@ const void Mesh::copy_elems(Mesh* mesh) {
 
     init_nodes(n_elems);
     for (int i = 0; i < n_nodes_per_elem * n_elems; ++i)
-        tetIO.tetrahedronlist[i] = elems[i];
+        tetIOin.tetrahedronlist[i] = elems[i];
     i_elems = n_elems;
 }
 
@@ -493,11 +503,23 @@ const void Mesh::calc_statistics(const AtomReader::Types *types) {
 
 // Function to perform tetgen calculation on input and write_tetgen data
 const void Mesh::recalc(const string cmd) {
-    tetrahedralize(const_cast<char*>(cmd.c_str()), &tetIO, &tetIO);
+    tetrahedralize(const_cast<char*>(cmd.c_str()), &tetIOin, &tetIOout);
 
-    i_nodes = tetIO.numberofpoints;
-    i_faces = tetIO.numberoftrifaces;
-    i_elems = tetIO.numberoftetrahedra;
+    i_nodes = tetIOout.numberofpoints;
+    i_faces = tetIOout.numberoftrifaces;
+    i_elems = tetIOout.numberoftetrahedra;
+}
+
+// Function to perform tetgen calculation on input and write_tetgen data
+const void Mesh::double_recalc(const string cmd1, const string cmd2) {
+    tetgenio tetIOtemp;
+
+    tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOtemp);
+    tetrahedralize(const_cast<char*>(cmd2.c_str()), &tetIOtemp, &tetIOout);
+
+    i_nodes = tetIOout.numberofpoints;
+    i_faces = tetIOout.numberoftrifaces;
+    i_elems = tetIOout.numberoftetrahedra;
 }
 
 // Write tetgen mesh into files with its internal functions
@@ -509,7 +531,7 @@ const void Mesh::write_tetgen(const string file_name) {
     for (int i = 0; i < file_name.size(); ++i)
         tetgenbeh.outfilename[i] = file_name[i];
 
-    tetrahedralize(&tetgenbeh, &tetIO, NULL);
+    tetrahedralize(&tetgenbeh, &tetIOout, NULL);
 }
 
 // Function to write_tetgen mesh in .vtk format
@@ -523,7 +545,7 @@ const void Mesh::write_vtk(const string file_name, const int n_nodes, const int 
 
     FILE *out_file;
     out_file = fopen(file_name_char, "w");
-    require(out_file != (FILE *) NULL, "Can't open a file " + file_name);
+    require(out_file != (FILE*) NULL, "Can't open a file " + file_name);
 
     fprintf(out_file, "# vtk DataFile Version 3.0\n");
     fprintf(out_file, "# Unstructured grid\n");
