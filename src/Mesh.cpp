@@ -113,6 +113,11 @@ const double Mesh::get_volume(const int i) {
     return volumes[i];
 }
 
+const double Mesh::get_quality(const int i) {
+    require(i >= 0 && i < get_n_qualities(), "Invalid index!");
+    return qualities[i];
+}
+
 const int Mesh::get_nodemarker(const int i) {
     require(i >= 0 && i < get_n_nodemarkers(), "Invalid index!");
     return nodemarkers[i];
@@ -186,6 +191,11 @@ const int Mesh::get_n_volumes() {
 const int Mesh::get_n_areas() {
     return areas.size();
 }
+
+const int Mesh::get_n_qualities() {
+    return qualities.size();
+}
+
 // =================================
 // *** SETTERS: ********************
 // =================================
@@ -440,6 +450,98 @@ const void Mesh::calc_areas() {
     // Loop through the faces
     for (face = 0; face < n_faces; ++face)
         areas.push_back(calc_area(face));
+}
+
+// Return determinant of matrix composed of n1, n2 and n3
+const double Mesh::determinant(const Vec3 &n1, const Vec3 &n2, const Vec3 &n3) {
+    return n1.x * (n2.y*n3.z - n2.z*n3.y)
+            - n1.y * (n1.x*n3.z - n1.z*n3.x)
+            + n1.z * (n1.x*n2.y - n1.y*n2.x);
+}
+
+// Return determinant of matrix composed of n1, n2, n3 and n4
+double Mesh::determinant(const double* n1, const double* n2, const double* n3, const double* n4, bool ones) {
+    double det1 = determinant(Vec3(n1[1],n1[2],n1[3]), Vec3(n2[1],n2[2],n2[3]), Vec3(n3[1],n3[2],n3[3]));
+    double det2 = determinant(Vec3(n1[0],n1[2],n1[3]), Vec3(n2[0],n2[2],n2[3]), Vec3(n3[0],n3[2],n3[3]));
+    double det3 = determinant(Vec3(n1[0],n1[1],n1[3]), Vec3(n2[0],n2[1],n2[3]), Vec3(n3[0],n3[1],n3[3]));
+    double det4 = determinant(Vec3(n1[0],n1[1],n1[2]), Vec3(n2[0],n2[1],n2[2]), Vec3(n3[0],n3[1],n3[2]));
+
+    if(ones) return det1 - det2 + det3 - det4;
+    else return n4[0] * det1 - n4[1] * det2 + n4[2] * det3 - n4[3] * det4;
+}
+
+// circumsphere of tetrahedron: http://mathworld.wolfram.com/Circumsphere.html
+const void Mesh::calc_qualities_byelem() {
+    const int n_elems = get_n_elems();
+    qualities.resize(n_elems);
+
+    for(int el = 0; el < n_elems; ++el) {
+        SimpleElement elem = get_simpleelem(el);
+        Vec3 node1 = get_vec(elem.n1);
+        Vec3 node2 = get_vec(elem.n2);
+        Vec3 node3 = get_vec(elem.n3);
+        Vec3 node4 = get_vec(elem.n4);
+
+        // Tetrahedron edge lengths
+        double e1 = (node1 - node2).length();
+        double e2 = (node1 - node3).length();
+        double e3 = (node1 - node4).length();
+        double e4 = (node2 - node3).length();
+        double e5 = (node2 - node4).length();
+        double e6 = (node3 - node4).length();
+
+        // The length of the tetrahedron shortest edge
+        double min_edge = min(e1, min(e2, min(e3, min(e4, min(e5, e6)))));
+
+        double norm[] = {node1.norm(), node2.norm(), node3.norm(), node4.norm()};
+        double xx[] = {node1.x, node2.x, node3.x, node4.x};
+        double yy[] = {node1.y, node2.y, node3.y, node4.y};
+        double zz[] = {node1.z, node2.z, node3.z, node4.z};
+        double one[] = {1.0, 1.0, 1.0, 1.0};
+
+        double a  = determinant(xx, yy, zz, one, true);
+        double Dx = determinant(norm, yy, zz, one, true);
+        double Dy = -1.0*determinant(norm, xx, zz, one, true);
+        double Dz = determinant(norm, xx, yy, one, true);
+        double c  = determinant(norm, xx, yy, zz, false);
+
+        // The radius of tetrahedron circumsphere
+        double r = sqrt(Dx*Dx + Dy*Dy + Dz*Dz - 4*a*c) / (2*fabs(a));
+        qualities[el] = (r / min_edge);
+    }
+}
+
+// Quality of elem = max(quality of face) = max(circumradius / min(length of edge))
+// circumradius of triangle: http://mathworld.wolfram.com/Circumradius.html
+const void Mesh::calc_qualities_byface() {
+    const int n_elems = get_n_elems();
+    qualities.resize(n_elems);
+
+    for(int el = 0; el < n_elems; ++el) {
+        SimpleElement elem = get_simpleelem(el);
+        Vec3 node1 = get_vec(elem.n1);
+        Vec3 node2 = get_vec(elem.n2);
+        Vec3 node3 = get_vec(elem.n3);
+        Vec3 node4 = get_vec(elem.n4);
+
+        double q1 = calc_face_quality(node1, node2, node3);
+        double q2 = calc_face_quality(node1, node2, node4);
+        double q3 = calc_face_quality(node1, node3, node4);
+        double q4 = calc_face_quality(node2, node3, node4);
+        qualities[el] = (max(q1, max(q2, max(q3, q4))));
+    }
+}
+
+const double Mesh::calc_face_quality(const Vec3 &node1, const Vec3 &node2, const Vec3 &node3) {
+    double a = (node1 - node2).length();
+    double b = (node1 - node3).length();
+    double c = (node2 - node3).length();
+    double D = (a + b + c) * (b + c - a) * (c + a - b) * (a + b - c);
+
+    double min_edge = min(a, min(b, c));
+    double R = a * b * c / sqrt(D);
+
+    return R / min_edge;
 }
 
 const void Mesh::init_statistics() {

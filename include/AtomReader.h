@@ -30,11 +30,16 @@ public:
      */
     const void import_file(const string file_name);
 
+    /** Function to transform atomic data from Parcas format into AtomReader one */
+    const void import_parcas(int n_atoms, const double* coordinates, const double* box);
+
     /** Function to transform atomic data from Helmod format into AtomReader one */
     const void import_helmod(int n_atoms, double* x, double* y, double* z, int* types);
 
     /** Function to transform atomic data from Kimocs format into AtomReader one */
     const void import_kimocs();
+
+    const void output(const string file_name);
 
     /**
      * Calculate coordination for all the atoms in AtomReader
@@ -43,6 +48,10 @@ public:
      * @param nnn - number of nearest neighbours in a crystal
      */
     const void calc_coordination(const double cutoff, const int nnn);
+
+    const void calc_coordination(double cutoff, int nnn, const int* nborlist);
+
+    const void extract_types(int nnn);
 
 //    /** Calculate statistics about the coordinates in AtomReader */
 //    const void calc_statistics();

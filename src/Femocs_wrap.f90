@@ -25,7 +25,7 @@ module libfemocs
             type(c_ptr), intent(in), value :: femocs
             real(c_double), intent(in), value :: E_field
         end subroutine
-        
+       
         subroutine femocs_import_atoms_c(femocs, n_atoms, x, y, z, types) bind(C, name="femocs_import_atoms")
             use iso_c_binding
             implicit none
@@ -37,6 +37,16 @@ module libfemocs
             integer(c_int) :: types(*)
         end subroutine
 
+        subroutine femocs_import_atoms2_c(femocs, n_atoms, coordinates, box, nborlist) bind(C, name="femocs_import_atoms2")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int), value :: n_atoms
+            real(c_double) :: coordinates(*)
+            real(c_double) :: box(*)
+            integer(c_int) :: nborlist(*)
+        end subroutine
+        
         subroutine femocs_export_solution_c(femocs, n_atoms, Ex, Ey, Ez, Enorm) bind(C, name="femocs_export_solution")
             use iso_c_binding
             implicit none
@@ -67,6 +77,7 @@ module libfemocs
         ! Function members
         procedure :: run => femocs_run
         procedure :: import_atoms => femocs_import_atoms
+        procedure :: import_atoms2 => femocs_import_atoms2
         procedure :: export_solution => femocs_export_solution
     end type
 
@@ -75,7 +86,7 @@ module libfemocs
         procedure create_femocs
     end interface
 
-contains ! Implementation of the functions. We just wrap the C function here.
+    contains ! Implementation of the functions. We just wrap the C function here.
     function create_femocs(str)
         implicit none
         type(femocs) :: create_femocs
@@ -123,6 +134,16 @@ contains ! Implementation of the functions. We just wrap the C function here.
         integer(c_int) :: types(*)
         call femocs_import_atoms_c(this%ptr, n_atoms, x, y, z, types)
     end subroutine
+    
+    subroutine femocs_import_atoms2(this, n_atoms, coordinates, box, nborlist)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: n_atoms
+        real(c_double) :: coordinates(*)
+        real(c_double) :: box(*)
+        integer(c_int) :: nborlist(*)
+        call femocs_import_atoms2_c(this%ptr, n_atoms, coordinates, box, nborlist)
+    end subroutine    
     
     subroutine femocs_export_solution(this, n_atoms, Ex, Ey, Ez, Enorm)
         implicit none

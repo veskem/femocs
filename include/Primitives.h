@@ -49,7 +49,7 @@ public:
         return (&n1)[i];
     }
     T& operator [](uint8_t i) {
-        require(i < 3, "Invalid index!");
+        require((i >= 0) && (i < 3), "Invalid index!");
         return (&n1)[i];
     }
 
@@ -105,7 +105,7 @@ public:
         return (&n1)[i];
     }
     T& operator [](uint8_t i) {
-        require(i < 4, "Invalid index!");
+        require((i >= 0) && (i < 4), "Invalid index!");
         return (&n1)[i];
     }
 
@@ -251,7 +251,24 @@ public:
         return (T) (xx * xx + yy * yy + zz * zz);
     }
 
-    /** Distance between two Point3-s */
+    /** Squared distance between two Point3-s taking into account the simulation cell periodicity.
+     * Period == 0 in some direction gives the result without periodicity in that direction.
+     */
+    const double periodic_distance2(const Point3_T<T> &p, double period_x = 0, double period_y = 0,
+            double period_z = 0) const {
+        T dx = fabs(x - p.x);
+        T dy = fabs(y - p.y);
+        T dz = fabs(z - p.z);
+
+        dx = min(dx, fabs(dx - period_x)); // apply periodic boundary condition in x-direction
+        dy = min(dy, fabs(dy - period_y)); // apply periodic boundary condition in y-direction
+        dz = min(dz, fabs(dz - period_z)); // apply periodic boundary condition in z-direction
+
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    /** Di
+     * stance between two Point3-s */
     const double distance(const Point3_T<T> &p) const {
         T xx = x - p.x;
         T yy = y - p.y;

@@ -226,6 +226,9 @@ const void RaySurfaceIntersect::generate_monolayer_surf_faces() {
 
 // Function to output surface faces in .vtk format
 const void RaySurfaceIntersect::write_faces(const string file_name) {
+#if not DEBUGMODE
+    return;
+#endif
     const string ftype = get_file_type(file_name);
     require(ftype == "vtk", "Unimplemented file type!");
 
@@ -507,8 +510,8 @@ const void Mesher::post_process_marking(const AtomReader::Types* types) {
     }
 
     mesh->calc_statistics(types);
-    require(mesh->stat.n_bulk > 0, "Nodemarker post processing deleted all the bulk atoms.\n"
-            "Consider altering the surface refinement factor.");
+    require(mesh->stat.n_bulk >= 4, "Nodemarker post-processor deleted the bulk atoms.\n"
+            "Consider altering the surface refinement factor or disabling the post-processing.");
 }
 
 /* Function to mark nodes with ray-triangle intersection technique

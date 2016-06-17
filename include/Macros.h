@@ -20,26 +20,24 @@
 using namespace std;
 //namespace femocs {
 
-// Definitions for development in debugging mode
-#if DEBUGMODE
-
 #define require(condition, message) \
         if (!(condition))              \
           __requirement_fails(__FILE__, __LINE__, message)
 
-#define expect(condition, message) \
-        if (!(condition))              \
-          __expectation_fails(__FILE__, __LINE__, message)
-
+// Definitions for development in debugging mode
+#if DEBUGMODE
 /** Definition to print progress messages and to find the start time of code execution */
 #define start_msg(t0, message) t0 = __start_msg(message)
 
 /** Definition to print the execution time of code */
 #define end_msg(t0) __end_msg(t0);
+#define expect(condition, message) \
+        if (!(condition))              \
+          __expectation_fails(__FILE__, __LINE__, message)
 
 // In release(-like) versions nothing happens
 #else
-#define require(condition, message) {}
+//#define require(condition, message) {}
 #define expect(condition, message) {}
 #define start_msg(t0, message) {}
 #define end_msg(t0) {}

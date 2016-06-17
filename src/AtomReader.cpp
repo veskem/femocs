@@ -11,6 +11,8 @@
 #include <fstream>
 #include <sstream>
 
+#include <omp.h>
+
 using namespace std;
 namespace femocs {
 
@@ -93,12 +95,72 @@ const void AtomReader::calc_dummy_coordination(const int nnn) {
     }
 }
 
+const void AtomReader::extract_types(int nnn) {
+    const int n_atoms = get_n_atoms();
+    for (int i = 0; i < n_atoms; ++i) {
+        if( coordination[i] >= (nnn - 1) )
+            type[i] = types.type_bulk;
+        else if(point[i].z < (sizes.zmin + 10.0)) //*crys_struct.latconst))
+            type[i] = types.type_fixed;
+        else
+            type[i] = types.type_surf;
+    }
+}
+
+const void AtomReader::calc_coordination(double cutoff, int nnn, const int* nborlist) {
+    require(cutoff > 0 && nnn >= 0, "Invalid cutoff or nnn!");
+
+    const int n_nbors_max = 150;
+    const int n_atoms = get_n_atoms();
+    const double cutoff2 = cutoff * cutoff;
+    int nbor_indx;
+
+    nbor_indx = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point1 = get_point(i);
+
+        // Loop through neighbours in neighbour list
+        int n_nbors = nborlist[nbor_indx++];
+        for (int j = 0; j < n_nbors; ++j) {
+            int nbor = nborlist[nbor_indx + j] - 1;
+            double r2 = point1.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox);
+
+            if (r2 <= cutoff2) {
+                if(coordination[i] < nnn) coordination[i]++;
+                if(coordination[nbor] < nnn) coordination[nbor]++;
+            }
+        }
+        nbor_indx += n_nbors;
+    }
+}
+
 // Redefine simubox size for example to insert electric field height
 const void AtomReader::resize_box(const double zmin, const double zmax) {
     require(zmin <= zmax, "Invalid size for simulation box!");
     sizes.zminbox = zmin;
     sizes.zmaxbox = zmax;
     sizes.zbox = zmax - zmin;
+}
+
+const void AtomReader::output(const string file_name) {
+#if not DEBUGMODE
+    return;
+#endif
+    string ftype = get_file_type(file_name);
+    expect(ftype == "xyz", "Unsupported file type!");
+
+    int n_atoms = get_n_atoms();
+
+    ofstream out_file(file_name);
+    require(out_file.is_open(), "Can't open a file " + file_name);
+
+    out_file << n_atoms << "\n";
+    out_file << get_data_string(-1) << endl;
+
+    for (int i = 0; i < n_atoms; ++i)
+        out_file << get_data_string(i) << endl;
+
+    out_file.close();
 }
 
 // =================================
@@ -111,12 +173,10 @@ const int AtomReader::get_type(const int i) {
 
 // Compile data string from the data vectors
 const string AtomReader::get_data_string(const int i) {
-    if (i < 0) return "Types of data: id x y z type";
+    if (i < 0) return "Types of data: id x y z type coordination";
 
     ostringstream strs;
-    strs << get_id(i) << " " << get_point(i) << " " << get_type(i);
-
-    if (i < coordination.size()) strs << " " << get_coordination(i);
+    strs << get_id(i) << " " << get_point(i) << " " << get_type(i) << " " << get_coordination(i);
     return strs.str();
 }
 
@@ -134,6 +194,17 @@ const void AtomReader::import_helmod(int n_atoms, double* x, double* y, double* 
     reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
         add_atom(i, Point3(x[i], y[i], z[i]), types[i]);
+
+    calc_statistics();
+}
+
+const void AtomReader::import_parcas(int n_atoms, const double* xyz, const double* box) {
+    require(n_atoms > 0, "Zero input atoms detected!");
+
+    this->types.simu_type = "md";
+    reserve(n_atoms);
+    for (int i = 0; i < 3*n_atoms; i+=3)
+        add_atom(i/3, Point3(xyz[i+0]*box[0], xyz[i+1]*box[1], xyz[i+2]*box[2]), types.type_bulk);
 
     calc_statistics();
 }

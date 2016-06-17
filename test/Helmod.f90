@@ -19,7 +19,7 @@ program Helmod
     call f%import_atoms(0, x, x, x, types)
     
     write(*,*) "Running femocs.run"
-    call f%run(10d0)
+    call f%run(0.1d0)
     
     !write(*,*) "Running femocs_speaker..."
     !call femocs_speaker("From Fortran!")

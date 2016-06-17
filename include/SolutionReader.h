@@ -20,7 +20,9 @@ public:
     /** SolutionReader conctructor */
     SolutionReader();
     const void extract_solution(DealII* fem, Medium &medium);
+    const void extract_statistics(Mesh &mesh);
     const void export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
+    const void output(const string file_name);
 
 private:
     DealII* fem;
@@ -28,6 +30,8 @@ private:
     vector<Vec3> elfield;
     vector<double> elfield_norm;
     vector<double> potential;
+    vector<double> face_qualities;
+    vector<double> elem_qualities;
 
     /** Reserve memory for solution vectors */
     const void reserve(const int n_nodes);
@@ -43,6 +47,9 @@ private:
     const vector<int> get_node2elem_map();
 
     const vector<int> get_node2vert_map();
+
+    const vector<int> get_node2face_map(Mesh &mesh, int node);
+    const vector<int> get_node2elem_map(Mesh &mesh, int node);
 
     /** Return mapping between Medium atoms and DealII mesh nodes.
      * Value -1 indicates that there's no node in the mesh that corresponds to the given atom.

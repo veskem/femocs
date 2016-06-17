@@ -22,7 +22,7 @@ DealII::DealII() :
 const void DealII::set_neumann(const double efield) {
     // The field on upper boundary is on the limit of zmax->inf exactly 27x higher than efield
     this->neumann = efield / 27.0;
-    this->efield = efield;
+    this->efield = -1.0*efield;
 }
 
 // Get long range electric field value
@@ -365,10 +365,10 @@ const void DealII::output_results(const string file_name) {
     string ftype = get_file_type(file_name);
     expect(ftype == "vtk" || ftype == "eps", "Unsupported file type!");
 
-    LaplacePostProcessor field_calculator("Electric field");
+    LaplacePostProcessor field_calculator("Electric_field");
     DataOut<DIM> data_out;
     data_out.attach_dof_handler(dof_handler);
-//    data_out.add_data_vector(laplace_solution, "Potential");
+    data_out.add_data_vector(laplace_solution, "Potential");
     data_out.add_data_vector(laplace_solution, field_calculator);
     data_out.build_patches();
 

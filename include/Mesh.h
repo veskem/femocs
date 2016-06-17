@@ -69,6 +69,7 @@ public:
 
     const int get_n_areas();
     const int get_n_volumes();
+    const int get_n_qualities();
 
     const int get_nodemarker(const int i);
     const int get_facemarker(const int i);
@@ -76,6 +77,7 @@ public:
 
     const double get_area(const int i);
     const double get_volume(const int i);
+    const double get_quality(const int i);
 
     const double* get_nodes();
     const int* get_faces();
@@ -96,6 +98,8 @@ public:
     const void set_facemarker(const int face, const int m);
     const void set_elemmarker(const int elem, const int m);
 
+    const void calc_qualities_byface();
+    const void calc_qualities_byelem();
     const void calc_areas();
     const void calc_volumes();
     const void calc_statistics(const AtomReader::Types *types);
@@ -164,8 +168,13 @@ private:
     vector<int> elemmarkers;
     vector<double> volumes;
     vector<double> areas;
+    vector<double> qualities;
 
     const void init_statistics();
+
+    double determinant(const double* n1, const double* n2, const double* n3, const double* n4, bool ones);
+    const double determinant(const Vec3 &n1, const Vec3 &n2, const Vec3 &n3);
+    const double calc_face_quality(const Vec3 &node1, const Vec3 &node2, const Vec3 &node3);
     const double calc_volume(const int i);
     const double calc_area(const int i);
 

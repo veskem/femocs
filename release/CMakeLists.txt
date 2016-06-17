@@ -26,7 +26,8 @@ SET(CMAKE_BUILD_TYPE Release)
 
 # Specify warnings and optimization level
 SET(CMAKE_CXX_FLAGS_RELEASE "-w -O3")
-SET(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wpedantic -O2")
+#SET(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wpedantic -O2")
+SET(CMAKE_CXX_FLAGS_DEBUG "-g2 -w -O0")
 
 FIND_PACKAGE(deal.II 8.3 REQUIRED HINTS ${DEAL_II_DIR})
 IF(NOT ${deal.II_FOUND})

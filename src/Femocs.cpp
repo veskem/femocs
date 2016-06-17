@@ -19,13 +19,14 @@
 using namespace std;
 
 // Femocs constructor, specifies simulation parameters
-Femocs::Femocs(string file_name) {
+Femocs::Femocs(string file_name) :
+        solution_valid(false) {
     start_msg(double t0, "======= Femocs started! =======\n");
     //*
     //conf.infile = "input/rough111.ckx";
-    conf.infile = "input/mushroom1.ckx";
+    conf.infile = "input/mushroom2.ckx";
     conf.latconst = 2.0;        // lattice constant
-    conf.coord_cutoff = 0.0; //3.3;    // coordination analysis cut off radius
+    conf.coord_cutoff = 3.1;    // coordination analysis cut off radius
     //*/
     /*
      conf.infile = "input/nanotip_big.xyz";
@@ -35,10 +36,11 @@ Femocs::Femocs(string file_name) {
 
     conf.nnn = 12;                  // number of nearest neighbours in bulk
     conf.mesher = "tetgen";         // mesher algorithm
-    conf.mesh_quality = "2.414";
+    conf.mesh_quality = "2.914";
     conf.nt = 4;                    // number of OpenMP threads
-    conf.rmin_coarse = 16.5;        // inner radius of coarsening cylinder
-    conf.coarse_factor = 0.5;       // coarsening factor; bigger number gives coarser surface
+    conf.rmin_coarse = 17.0;        // inner radius of coarsening cylinder
+    conf.rmax_coarse = 37.0;        // radius of constant cutoff coarsening cylinder
+    conf.coarse_factor = 0.4;       // coarsening factor; bigger number gives coarser surface
     conf.postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
 }
@@ -51,9 +53,16 @@ Femocs::~Femocs() {
 // Workhorse function to run Femocs simulation
 const void Femocs::run(double E_field) {
     double t0, tstart;  // Variables used to measure the start time of a section
-    tstart = omp_get_wtime();
+    solution_valid = false;
+
+//    const double eps = 1e-5;
+//    if (E_field < eps) {
+//        conf.neumann = 0.0;
+//        return;
+//    }
 
     conf.neumann = E_field;
+    tstart = omp_get_wtime();
 
     // ====================================
     // ===== Converting imported data =====
@@ -66,7 +75,8 @@ const void Femocs::run(double E_field) {
     dense_surf.extract_surface(&reader);
 
     if (conf.coarse_factor > 0)
-        coarse_surf = dense_surf.coarsen(conf.rmin_coarse, conf.coarse_factor, &reader.sizes);
+        coarse_surf = dense_surf.coarsen(conf.rmin_coarse, conf.rmax_coarse, conf.coarse_factor,
+                &reader.sizes);
     else
         coarse_surf = dense_surf.rectangularize(&reader.sizes, conf.rmin_rectancularize);
 
@@ -77,8 +87,8 @@ const void Femocs::run(double E_field) {
     start_msg(t0, "=== Resizing simulation box...");
     // Electric field is applied 100 lattice constants above the highest point of surface
     // and bulk is extended 20 lattice constants below the minimum point of surface
-    const double zmaxbox = coarse_surf.sizes.zmax + 100 * conf.latconst;
-    const double zminbox = coarse_surf.sizes.zmin - 20 * conf.latconst;
+    const double zmaxbox = coarse_surf.sizes.zmax + 60 * conf.latconst;
+    const double zminbox = coarse_surf.sizes.zmin - 15 * conf.latconst;
     reader.resize_box(zminbox, zmaxbox);
     end_msg(t0);
 
@@ -103,8 +113,12 @@ const void Femocs::run(double E_field) {
     start_msg(t0, "=== Making big mesh...");
     femocs::Mesh big_mesh(conf.mesher);
     femocs::Mesher mesher(&big_mesh);
-
-    mesher.generate_mesh(bulk, coarse_surf, vacuum, "rQq" + conf.mesh_quality);
+    try {
+        mesher.generate_mesh(bulk, coarse_surf, vacuum, "rQq" + conf.mesh_quality);
+    } catch (int e) {
+        cout << "!!! Exception " << e << " occured while making mesh! Field calcualtion will be skipped!\n";
+        return;
+    }
     big_mesh.write_nodes("output/nodes_generated.xyz");
     big_mesh.write_faces("output/faces_generated.vtk");
     big_mesh.write_elems("output/elems_generated.vtk");
@@ -113,6 +127,7 @@ const void Femocs::run(double E_field) {
     start_msg(t0, "=== Marking nodes...");
     mesher.mark_mesh(&reader.types, conf.postprocess_marking);
     big_mesh.write_nodes("output/nodes_big.xyz");
+    big_mesh.write_nodes("output/nodes_big.vtk");
     big_mesh.write_faces("output/faces_big.vtk");
     big_mesh.write_elems("output/elems_big.vtk");
     end_msg(t0);
@@ -164,9 +179,12 @@ const void Femocs::run(double E_field) {
     end_msg(t0);
 
 #if DEBUGMODE
-    cout << "Bulk:   #elems=" << bulk_mesh.get_n_elems() << ", #faces=" << bulk_mesh.get_n_faces() << endl;
-    cout << "Vacuum: #elems=" << vacuum_mesh.get_n_elems() << ", #faces=" << vacuum_mesh.get_n_faces() << endl;
-    cout << "Tetgen: #elems=" << tethex_mesh.get_n_hexahedra() << ", #faces=" << tethex_mesh.get_n_quadrangles() << endl;
+    cout << "Bulk:   #elems=" << bulk_mesh.get_n_elems() << ",\t#faces=" << bulk_mesh.get_n_faces()
+             << ",\t#nodes=" << bulk_mesh.get_n_nodes() << endl;
+    cout << "Vacuum: #elems=" << vacuum_mesh.get_n_elems() << ",\t#faces="
+            << vacuum_mesh.get_n_faces() << ",\t#nodes=" << vacuum_mesh.get_n_nodes() << endl;
+    cout << "Tethex: #elems=" << tethex_mesh.get_n_hexahedra() << ",\t#faces="
+            << tethex_mesh.get_n_quadrangles() << ",\t#nodes=" << tethex_mesh.get_n_vertices() << endl;
     cout << "# degrees of freedom: " << laplace.get_n_dofs() << endl;
     cout << "# input atoms: " << reader.get_n_atoms() << endl;
 #endif
@@ -181,22 +199,47 @@ const void Femocs::run(double E_field) {
 
     start_msg(t0, "=== Solving...");
     laplace.solve_cg();
-    //    laplace.solve_umfpack();
+//     laplace.solve_umfpack();
     end_msg(t0);
 
     start_msg(t0, "=== Extracting solution...");
-//     femocs::Medium medium = vacuum_mesh.to_medium();
-//     solution.extract_solution_at_medium(&laplace, medium);
+//    femocs::Medium medium = vacuum_mesh.to_medium();
+//    solution.extract_solution(&laplace, medium);
     solution.extract_solution(&laplace, coarse_surf);
     end_msg(t0);
 
-    start_msg(t0, "=== Outputting results...");
-    solution.output("output/results_surface.xyz");
+//    start_msg(t0, "=== Extracting statistics...");
+//    solution.extract_statistics(vacuum_mesh);
+//    end_msg(t0);
+
+//    start_msg(t0, "=== Outputting results...");
+//    solution.output("output/results_surface.xyz");
+//    laplace.output_results("output/results_deal.vtk");
+//    end_msg(t0);
+
+//#if DEBUGMODE
+    cout << "\nTotal time: " << omp_get_wtime() - tstart << "\n";
+//#endif
+    solution_valid = true;
+}
+
+const void Femocs::import_atoms(int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
+    double t0;
+    start_msg(t0, "=== Importing atoms...");
+    reader.import_parcas(n_atoms, coordinates, box);
     end_msg(t0);
 
-#if DEBUGMODE
-    cout << "\nTotal time: " << omp_get_wtime() - tstart << "\n";
-#endif
+    start_msg(t0, "=== Calculating coordinations...");
+    reader.calc_coordination(conf.coord_cutoff, conf.nnn, nborlist);
+    end_msg(t0);
+
+    start_msg(t0, "=== Extracting atom types...");
+    reader.extract_types(conf.nnn);
+    end_msg(t0);
+
+    start_msg(t0, "=== Outputting AtomReader...");
+    reader.output("output/reader.xyz");
+    end_msg(t0);
 }
 
 const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int* types) {
@@ -215,9 +258,15 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
 }
 
 const void Femocs::export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    start_msg(double t0, "=== Exporting results...");
-    solution.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);
-    end_msg(t0);
+    if (solution_valid) {
+        start_msg(double t0, "=== Exporting results...");
+        solution.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);
+        end_msg(t0);
+    }
+//    else if (conf.neumann == 0)
+//        for (int i = 0; i < n_atoms; ++i) {
+//            Ex[i] = 0; Ey[i] = 0; Ez[i] = 0; Enorm[i] = 0;
+//        }
 }
 
 const void femocs_speaker(string path) {

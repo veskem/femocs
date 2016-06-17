@@ -62,14 +62,14 @@ public:
      */
     const void extract_surface(AtomReader* reader);
 
-    const Surface coarsen(const double r_cut, const double coarse_factor, const AtomReader::Sizes* sizes);
+    const Surface coarsen(double r_cut, double const_r_cut, double coarse_factor, const AtomReader::Sizes* ar_sizes);
 
     /** Function to flatten the atoms on the sides of simulation box */
     const Surface rectangularize(const AtomReader::Sizes* sizes, const double r_cut);
 
     const Surface clean();
     const Surface clean(const double r_cut);
-    const Surface clean(const Point3 &origin, const double r_cut, const double multiplier);
+    const Surface clean(const Point3 &origin, double r_in, double r_out, double multiplier);
 
 private:
     /** Extract surface by the atom types given by kMC simulation */

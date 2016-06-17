@@ -41,6 +41,8 @@ public:
 
         //!< Radius of cylinder where surface atoms are not coarsened; zero enables coarsening of all atoms.
         double rmin_coarse;
+        //!< Radius of cylinder out of which the surface atoms are coarsened with constant cutoff.
+        double rmax_coarse;
         //!< Factor that is proportional to the extent of surface coarsening; zero turns coarsening off.
         double coarse_factor;
         //!< Distance from surface edge where atoms are picked for rectangularization
@@ -55,10 +57,12 @@ public:
      */
     const void run(double E_field);
 
+    const void import_atoms(int n_atoms, const double* coordinates, const double* box, const int* nborlist);
     const void import_atoms(int n_atoms, double* x, double* y, double* z, int* types);
     const void export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
 private:
+    bool solution_valid;
     femocs::AtomReader reader;
     femocs::SolutionReader solution;
 };
