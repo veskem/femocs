@@ -36,11 +36,11 @@ Femocs::Femocs(string file_name) :
 
     conf.nnn = 12;                  // number of nearest neighbours in bulk
     conf.mesher = "tetgen";         // mesher algorithm
-    conf.mesh_quality = "2.914";
+    conf.mesh_quality = "2.9";//"2.914";
     conf.nt = 4;                    // number of OpenMP threads
     conf.rmin_coarse = 17.0;        // inner radius of coarsening cylinder
     conf.rmax_coarse = 37.0;        // radius of constant cutoff coarsening cylinder
-    conf.coarse_factor = 0.4;       // coarsening factor; bigger number gives coarser surface
+    conf.coarse_factor = 1.2;       // coarsening factor; bigger number gives coarser surface
     conf.postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
 }
@@ -54,12 +54,6 @@ Femocs::~Femocs() {
 const void Femocs::run(double E_field) {
     double t0, tstart;  // Variables used to measure the start time of a section
     solution_valid = false;
-
-//    const double eps = 1e-5;
-//    if (E_field < eps) {
-//        conf.neumann = 0.0;
-//        return;
-//    }
 
     conf.neumann = E_field;
     tstart = omp_get_wtime();
@@ -87,8 +81,8 @@ const void Femocs::run(double E_field) {
     start_msg(t0, "=== Resizing simulation box...");
     // Electric field is applied 100 lattice constants above the highest point of surface
     // and bulk is extended 20 lattice constants below the minimum point of surface
-    const double zmaxbox = coarse_surf.sizes.zmax + 60 * conf.latconst;
-    const double zminbox = coarse_surf.sizes.zmin - 15 * conf.latconst;
+    const double zmaxbox = coarse_surf.sizes.zmax + 100 * conf.latconst;
+    const double zminbox = coarse_surf.sizes.zmin - 20 * conf.latconst;
     reader.resize_box(zminbox, zmaxbox);
     end_msg(t0);
 
@@ -124,8 +118,8 @@ const void Femocs::run(double E_field) {
     big_mesh.write_elems("output/elems_generated.vtk");
     end_msg(t0);
 
-    start_msg(t0, "=== Marking nodes...");
-    mesher.mark_mesh(&reader.types, conf.postprocess_marking);
+    start_msg(t0, "=== Marking big mesh...");
+    mesher.mark_mesh(&reader.types, conf.postprocess_marking, 1.5*coarse_surf.get_roughness());
     big_mesh.write_nodes("output/nodes_big.xyz");
     big_mesh.write_nodes("output/nodes_big.vtk");
     big_mesh.write_faces("output/faces_big.vtk");
@@ -230,7 +224,7 @@ const void Femocs::import_atoms(int n_atoms, const double* coordinates, const do
     end_msg(t0);
 
     start_msg(t0, "=== Calculating coordinations...");
-    reader.calc_coordination(conf.coord_cutoff, conf.nnn, nborlist);
+    reader.calc_coordination(conf.nnn, conf.coord_cutoff, nborlist);
     end_msg(t0);
 
     start_msg(t0, "=== Extracting atom types...");
@@ -253,7 +247,7 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
     end_msg(t0);
 
     start_msg(t0, "=== Calculating coordinations of atoms...");
-    reader.calc_coordination(conf.coord_cutoff, conf.nnn);
+    reader.calc_coordination(conf.nnn);
     end_msg(t0);
 }
 
@@ -263,10 +257,6 @@ const void Femocs::export_solution(int n_atoms, double* Ex, double* Ey, double* 
         solution.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);
         end_msg(t0);
     }
-//    else if (conf.neumann == 0)
-//        for (int i = 0; i < n_atoms; ++i) {
-//            Ex[i] = 0; Ey[i] = 0; Ez[i] = 0; Enorm[i] = 0;
-//        }
 }
 
 const void femocs_speaker(string path) {

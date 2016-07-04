@@ -45,14 +45,15 @@ const void __end_msg(const double t0) {
     cout << ", time: " << omp_get_wtime() - t0 << endl;
 }
 
-/** Return mask of indices that doesn't contain the entry */
+// Return mask of indices that doesn't contain the entry
 const vector<bool> vector_not(const vector<int> *v, const int entry) {
     vector<bool> mask(v->size());
     for (int i = 0; i < v->size(); ++i)
         mask[i] = (*v)[i] != entry;
     return mask;
 }
-/** Return mask of indices that do contain the entry */
+
+// Return mask of indices that do contain the entry
 const vector<bool> vector_equal(vector<int> *v, const int entry) {
     vector<bool> mask(v->size());
     for (int i = 0; i < v->size(); ++i)

@@ -71,7 +71,12 @@ public:
     const Surface clean(const double r_cut);
     const Surface clean(const Point3 &origin, double r_in, double r_out, double multiplier);
 
+    const void calc_statistics();
+    const double get_roughness();
+
 private:
+    double roughness;
+
     /** Extract surface by the atom types given by kMC simulation */
     const void extract_by_type(AtomReader* reader);
 

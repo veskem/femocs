@@ -56,6 +56,11 @@ const void RaySurfaceIntersect::precompute_triangles(const Vec3 &direction) {
         pvec[face] = pv * i_det;
         is_parallel[face] = fabs(det) < epsilon;
     }
+
+    // Calculate the min & max of x, y & z coordinates
+    mesh->calc_statistics();
+    // Store the coordinates of surface corner node
+    corner_node = mesh->get_node(0);
 }
 
 // Moller-Trumbore algorithm to find whether the ray and the triangle intersect or not
@@ -127,6 +132,18 @@ const bool RaySurfaceIntersect::ray_intersects_surface_fast(const Vec3 &origin,
     return false;
 }
 
+// Determine whether the ray intersects with any of the triangles on the surface mesh
+const bool RaySurfaceIntersect::node_on_mean_plane(const Vec3 &node, double latconst) {
+    // Check only nodes that are on the edge of surface
+    const double eps = 1e-5;
+    const bool not_on_x_edge = !on_boundary(node.x, mesh->stat.xmin, mesh->stat.xmax, eps);
+    const bool not_on_y_edge = !on_boundary(node.y, mesh->stat.ymin, mesh->stat.ymax, eps);
+    if (not_on_x_edge && not_on_y_edge) return false;
+
+    // Check whether the node is close to mean plane
+    return fabs(node.z - corner_node.z) < latconst;
+}
+
 // Function to manually generate surface faces from elements and surface nodes
 const void RaySurfaceIntersect::generate_surf_faces() {
     int elem;
@@ -147,10 +164,14 @@ const void RaySurfaceIntersect::generate_surf_faces() {
     }
 
     // Reserve memory for surface faces
-    faces.reserve(vector_sum(elem_in_surface));
+    faces.reserve(2 + vector_sum(elem_in_surface));
+
+    // Make two big faces that pass the xy-min-max corners of surface
+    faces.push_back(SimpleFace(0, 1, 2));
+    faces.push_back(SimpleFace(0, 2, 3));
 
     // Generate the faces that separate material and vacuum
-    // It is assumed that each element has only one face on the surface
+    // The faces are taken from the elements that have exactly one face on the surface
     for (elem = 0; elem < n_elems; ++elem)
         if (elem_in_surface[elem]) {
             // Find the indices of nodes that are on the surface
@@ -364,33 +385,36 @@ const void Mesher::separate_meshes_byseq(Mesh* bulk, Mesh* vacuum, const string 
 // Separate bulk and vacuum mesh from the union mesh by the node and element markers
 const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, const AtomReader::Types* types,
         const string cmd) {
+
     int i, j;
-    int n_nodes = mesh->get_n_nodes();
-    int n_elems = mesh->get_n_elems();
-    const int* elems = mesh->get_elems();
+    const int n_nodes = mesh->get_n_nodes();
+    const int n_elems = mesh->get_n_elems();
 
     const vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), types->type_bulk);
     const vector<bool> node_in_vacuum = vector_not(mesh->get_nodemarkers(), types->type_bulk);
     const vector<bool> node_in_bulk = vector_not(mesh->get_nodemarkers(), types->type_vacuum);
 
-    int n_vacuum_elems = vector_sum(elem_in_vacuum);
-
-    // Copy the non-bulk nodes from input mesh and generate mapping between old and new node indices
+    // Copy the non-bulk nodes from input mesh
     vacuum->copy_nodes(this->mesh, node_in_vacuum);
+    // Generate mapping between old and new node indices
     vector<int> vacm_map(n_nodes, -1);
     for (i = 0, j = 0; i < n_nodes; ++i)
         if (node_in_vacuum[i]) vacm_map[i] = j++;
 
-    // Copy the non-vacuum nodes from input mesh and generate mapping between old and new node indices
+    // Copy the non-vacuum nodes from input mesh
     bulk->copy_nodes(this->mesh, node_in_bulk);
+    // Generate mapping between old and new node indices
     vector<int> bulk_map(n_nodes, -1);
     for (i = 0, j = 0; i < n_nodes; ++i)
         if (node_in_bulk[i]) bulk_map[i] = j++;
 
-    // Separate vacuum and bulk elements and correct also the node indices
+    const int n_vacuum_elems = vector_sum(elem_in_vacuum);
+    const int n_bulk_elems = n_elems - n_vacuum_elems;
     vacuum->init_elems(n_vacuum_elems);
-    bulk->init_elems(n_elems - n_vacuum_elems);
-    for (i = 0; i < n_elems; ++i) {
+    bulk->init_elems(n_bulk_elems);
+
+    // Separate vacuum and bulk elements and arrange the node indices
+    for (int i = 0; i < n_elems; ++i) {
         SimpleElement se = mesh->get_simpleelem(i);
         if (elem_in_vacuum[i])
             vacuum->add_elem(vacm_map[se.n1], vacm_map[se.n2], vacm_map[se.n3], vacm_map[se.n4]);
@@ -409,7 +433,7 @@ const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, const AtomReader::T
  * The technique works perfectly with completely convex surface. The concaves give some false
  * nodes but because of their low spatial density they can be eliminated in postprocessor.
  */
-const void Mesher::mark_mesh(const AtomReader::Types* types, const bool postprocess) {
+const void Mesher::mark_mesh(const AtomReader::Types* types, bool postprocess, double mean_thickness) {
     int node, elem, coord;
     const Vec3 ray_direction(0, 0, 1);
     Vec3 ray_origin;
@@ -447,7 +471,10 @@ const void Mesher::mark_mesh(const AtomReader::Types* types, const bool postproc
 
         // If ray intersects at least one surface triangle, the node
         // is considered to be located in bulk, otherwise it's located to vacuum
-        if (rsi.ray_intersects_surface_fast(ray_origin, ray_direction))
+        if (rsi.node_on_mean_plane(ray_origin, mean_thickness))
+            mesh->add_nodemarker(types->type_surf);
+        else
+            if (rsi.ray_intersects_surface_fast(ray_origin, ray_direction))
             mesh->add_nodemarker(types->type_bulk);
         else
             mesh->add_nodemarker(types->type_vacuum);
@@ -468,7 +495,7 @@ const void Mesher::post_process_marking(const AtomReader::Types* types) {
     bool node_changed = true;
 
     // Make as many recheck loops as necessary, but no more than 10
-    for (int safety_cntr = 0; safety_cntr < 10, node_changed; ++safety_cntr) {
+    for (int safety_cntr = 0; (safety_cntr < 10) && node_changed; ++safety_cntr) {
         // Post-process the wrongly marked nodes in vacuum
         node_changed = false;
         for (elem = 0; elem < n_elems; ++elem) {
@@ -477,12 +504,12 @@ const void Mesher::post_process_marking(const AtomReader::Types* types) {
             SimpleElement selem = mesh->get_simpleelem(elem);
 
             // Force all the nodes in vacuum elements to be non-bulk ones
-            for (node = 0; node < mesh->n_nodes_per_elem; ++node) {
+            for (node = 0; node < mesh->n_nodes_per_elem; ++node)
                 if (mesh->get_nodemarker(selem[node]) == types->type_bulk) {
                     mesh->set_nodemarker(selem[node], types->type_vacuum);
                     node_changed = true;
                 }
-            }
+
         }
 
         // If some of the nodes were changed,
@@ -509,6 +536,7 @@ const void Mesher::post_process_marking(const AtomReader::Types* types) {
         }
     }
 
+    // Among the other things calculate the number of atoms with given types
     mesh->calc_statistics(types);
     require(mesh->stat.n_bulk >= 4, "Nodemarker post-processor deleted the bulk atoms.\n"
             "Consider altering the surface refinement factor or disabling the post-processing.");

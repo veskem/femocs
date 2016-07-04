@@ -187,57 +187,18 @@ Surface::Surface(const double latconst, const int nnn) :
         Medium() {
     crys_struct.latconst = latconst;
     crys_struct.nnn = nnn;
+    roughness = 0;
 }
 ;
 Surface::Surface() : Surface(0, 0) {};
 
-// Function to coarsen the atoms outside the cylinder in the middle of simulation cell
-const Surface Surface::coarsen(double r_in, double r_out, double coarse_factor,
-        const AtomReader::Sizes* ar_sizes) {
+const void Surface::calc_statistics() {
+    Medium::calc_statistics();
+    roughness = (sizes.zmax - sizes.zmin) / 2.0;
+}
 
-    const double r_cut2 = r_in * r_in;
-
-    int i, j;
-    const int n_atoms = get_n_atoms();
-    vector<bool> is_dense(n_atoms);
-
-    Point2 origin2d((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
-    Surface dense_surf(crys_struct.latconst, crys_struct.nnn);
-    Surface coarse_surf(crys_struct.latconst, crys_struct.nnn);
-
-    Edge edge;//(crys_struct.latconst, crys_struct.nnn);
-    edge.extract_edge(this, ar_sizes, 2.0*crys_struct.latconst);
-
-    // Add edge atoms to the beginning of coarse surface
-    // to give them higher priority of survival during clean-up
-    coarse_surf += edge;
-
-    // Create a map from atoms in- and outside the dense region
-    for (i = 0; i < n_atoms; ++i)
-        is_dense[i] = (origin2d.distance2(get_point2(i)) < r_cut2);
-
-    int n_dense_atoms = vector_sum(is_dense);
-    int n_coarse_atoms = n_atoms - n_dense_atoms + edge.get_n_atoms();
-
-    dense_surf.reserve(n_dense_atoms);
-    coarse_surf.reserve(n_coarse_atoms);
-
-    // Separate the atoms from dense and coarse regions
-    for (i = 0; i < n_atoms; ++i) {
-        if (is_dense[i])
-            dense_surf.add_atom(id[i], point[i], coordination[i]);
-        else
-            coarse_surf.add_atom(id[i], point[i], coordination[i]);
-    }
-
-    // Among the other things calculate the average z-coordinate of coarse_surf atoms
-    coarse_surf.calc_statistics();
-    Point3 origin3d(origin2d[0], origin2d[1], coarse_surf.sizes.zmean);
-
-    coarse_surf = coarse_surf.clean(origin3d, r_in, r_out, coarse_factor);
-    dense_surf += coarse_surf;
-
-    return dense_surf;
+const double Surface::get_roughness() {
+    return roughness;
 }
 
 // Function to pick suitable extraction function
@@ -289,6 +250,55 @@ const void Surface::extract_by_coordination(AtomReader* reader) {
             add_atom(reader->get_id(i), reader->get_point(i), reader->get_coordination(i));
 }
 
+// Function to coarsen the atoms outside the cylinder in the middle of simulation cell
+const Surface Surface::coarsen(double r_in, double r_out, double coarse_factor,
+        const AtomReader::Sizes* ar_sizes) {
+
+    const double r_cut2 = r_in * r_in;
+
+    int i, j;
+    const int n_atoms = get_n_atoms();
+    vector<bool> is_dense(n_atoms);
+
+    Point2 origin2d((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
+    Surface dense_surf(crys_struct.latconst, crys_struct.nnn);
+    Surface coarse_surf(crys_struct.latconst, crys_struct.nnn);
+
+    Edge edge;//(crys_struct.latconst, crys_struct.nnn);
+    edge.extract_edge(this, ar_sizes, 2.0*crys_struct.latconst);
+
+    // Add edge atoms to the beginning of coarse surface
+    // to give them higher priority of survival during clean-up
+    coarse_surf += edge;
+
+    // Create a map from atoms in- and outside the dense region
+    for (i = 0; i < n_atoms; ++i)
+        is_dense[i] = (origin2d.distance2(get_point2(i)) < r_cut2);
+
+    int n_dense_atoms = vector_sum(is_dense);
+    int n_coarse_atoms = n_atoms - n_dense_atoms + edge.get_n_atoms();
+
+    dense_surf.reserve(n_dense_atoms);
+    coarse_surf.reserve(n_coarse_atoms);
+
+    // Separate the atoms from dense and coarse regions
+    for (i = 0; i < n_atoms; ++i) {
+        if (is_dense[i])
+            dense_surf.add_atom(id[i], point[i], coordination[i]);
+        else
+            coarse_surf.add_atom(id[i], point[i], coordination[i]);
+    }
+
+    // Among the other things calculate the average z-coordinate of coarse_surf atoms
+    coarse_surf.calc_statistics();
+    Point3 origin3d(origin2d[0], origin2d[1], coarse_surf.sizes.zmean);
+
+    coarse_surf = coarse_surf.clean(origin3d, r_in, r_out, coarse_factor);
+    coarse_surf += dense_surf;
+
+    return coarse_surf;
+}
+
 // Function to flatten the atoms on the sides of simulation box
 const Surface Surface::rectangularize(const AtomReader::Sizes* sizes, const double r_cut) {
     Edge edge;
@@ -332,6 +342,9 @@ const Surface Surface::clean(const Point3 &origin, double r_in, double r_out, do
 
         Point3 point1 = get_point(i);
 
+
+        // r_cutoff(r) = A * sqrt(r - r_in), if r >  r_in
+        //             = 0,                  if r <= r_in
         if(use_non_constant_cutoff) {
             double dist = min(r_out, point1.distance(origin));
             cutoff2 = A2 * (dist - r_in);
@@ -376,9 +389,9 @@ const void Edge::extract_edge(Medium* atoms, const AtomReader::Sizes* sizes, con
 
     // Add 4 atoms to the bottom corners of the edge
     add_atom(-1, Point3(sizes->xmin, sizes->ymin, atoms->sizes.zmin), 0);
-    add_atom(-1, Point3(sizes->xmin, sizes->ymax, atoms->sizes.zmin), 0);
     add_atom(-1, Point3(sizes->xmax, sizes->ymin, atoms->sizes.zmin), 0);
     add_atom(-1, Point3(sizes->xmax, sizes->ymax, atoms->sizes.zmin), 0);
+    add_atom(-1, Point3(sizes->xmin, sizes->ymax, atoms->sizes.zmin), 0);
 
     // Get the atoms from edge areas
     for (i = 0; i < n_atoms; ++i) {

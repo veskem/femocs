@@ -47,9 +47,9 @@ public:
      * @param cutoff - cut off radius for coordination analysis
      * @param nnn - number of nearest neighbours in a crystal
      */
-    const void calc_coordination(const double cutoff, const int nnn);
+    const void calc_coordination(int nnn, double cutoff = 0.0);
 
-    const void calc_coordination(double cutoff, int nnn, const int* nborlist);
+    const void calc_coordination(int nnn, double cutoff, const int* nborlist);
 
     const void extract_types(int nnn);
 

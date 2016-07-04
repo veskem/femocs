@@ -56,30 +56,36 @@ const void Mesh::generate_simple() {
 // *** GETTERS: ***************
 
 const Vec3 Mesh::get_vec(const int i) {
+    require(get_n_nodes() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_nodes(), "Invalid index!");
     const int n = n_coordinates * i;
     return Vec3(tetIOout.pointlist[n+0], tetIOout.pointlist[n+1], tetIOout.pointlist[n+2]);
 }
 
 const Point3 Mesh::get_node(const int i) {
+    require(get_n_nodes() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_nodes(), "Invalid index!");
     const int n = n_coordinates * i;
     return Point3(tetIOout.pointlist[n+0], tetIOout.pointlist[n+1], tetIOout.pointlist[n+2]);
 }
 
 const SimpleFace Mesh::get_simpleface(const int i) {
+    require(get_n_faces() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_faces(), "Invalid index!");
     const int I = n_nodes_per_face * i;
     return SimpleFace(tetIOout.trifacelist[I], tetIOout.trifacelist[I+1], tetIOout.trifacelist[I+2]);
 }
 
 const SimpleElement Mesh::get_simpleelem(const int i) {
+    require(get_n_elems() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_elems(), "Invalid index!");
     const int I = n_nodes_per_elem * i;
-    return SimpleElement(tetIOout.tetrahedronlist[I], tetIOout.tetrahedronlist[I+1], tetIOout.tetrahedronlist[I+2], tetIOout.tetrahedronlist[I+3]);
+    return SimpleElement(tetIOout.tetrahedronlist[I], tetIOout.tetrahedronlist[I+1],
+            tetIOout.tetrahedronlist[I+2], tetIOout.tetrahedronlist[I+3]);
 }
 
 const Point3 Mesh::get_face_centre(int i) {
+    require(get_n_faces() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_faces(), "Invalid index!");
 
     Point3 verts(0, 0, 0);
@@ -92,6 +98,7 @@ const Point3 Mesh::get_face_centre(int i) {
 }
 
 const Point3 Mesh::get_elem_centre(int i) {
+    require(get_n_elems() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_elems(), "Invalid index!");
 
     Point3 verts;
@@ -158,18 +165,18 @@ const vector<int>* Mesh::get_elemmarkers() {
 }
 
 const int Mesh::get_n_nodes() {
-    return i_nodes;
-    //return tetIO.numberofpoints;
+//    return i_nodes;
+    return tetIOout.numberofpoints;
 }
 
 const int Mesh::get_n_faces() {
-    return i_faces;
-    //return tetIO.numberoftrifaces;
+//    return i_faces;
+    return tetIOout.numberoftrifaces;
 }
 
 const int Mesh::get_n_elems() {
-    return i_elems;
-    //return tetIO.numberoftetrahedra;
+//    return i_elems;
+    return tetIOout.numberoftetrahedra;
 }
 
 const int Mesh::get_n_nodemarkers() {
@@ -256,7 +263,7 @@ const void Mesh::init_elems(const int N) {
 // *** ADDERS: ***************
 
 const void Mesh::add_node(const double n1, const double n2, const double n3) {
-    require(get_n_nodes() < tetIOin.numberofpoints, "Allocated size of nodes exceeded!");
+    require(i_nodes < tetIOin.numberofpoints, "Allocated size of nodes exceeded!");
     int i = 3 * i_nodes;
     tetIOout.pointlist[i] = n1;
     tetIOout.pointlist[++i] = n2;
@@ -265,7 +272,8 @@ const void Mesh::add_node(const double n1, const double n2, const double n3) {
 }
 
 const void Mesh::add_face(const int f1, const int f2, const int f3) {
-    require(get_n_faces() < tetIOin.numberoftrifaces, "Allocated size of faces exceeded!");
+    require(i_faces < tetIOin.numberoftrifaces, "Allocated size of faces exceeded!");
+    require(f1 >= 0 && f2 >= 0 && f3 >= 0, "Invalid node index!");
     int i = 3 * i_faces;
     tetIOin.trifacelist[i] = f1;
     tetIOin.trifacelist[++i] = f2;
@@ -274,7 +282,9 @@ const void Mesh::add_face(const int f1, const int f2, const int f3) {
 }
 
 const void Mesh::add_elem(const int e1, const int e2, const int e3, const int e4) {
-    require(get_n_elems() < tetIOin.numberoftetrahedra, "Allocated size of elements exceeded!");
+    require(i_elems < tetIOin.numberoftetrahedra, "Allocated size of elements exceeded!");
+    require(e1 >= 0 && e2 >= 0 && e3 >= 0 && e4 >= 0, "Invalid node index!");
+
     int i = 4 * i_elems;
     tetIOin.tetrahedronlist[i] = e1;
     tetIOin.tetrahedronlist[++i] = e2;
@@ -284,26 +294,28 @@ const void Mesh::add_elem(const int e1, const int e2, const int e3, const int e4
 }
 
 const void Mesh::add_node(const Point3 &point) {
-    require(get_n_nodes() < tetIOin.numberofpoints, "Allocated size of nodes exceeded!");
-    int cntr = 0;
-    for (int i = n_coordinates * i_nodes; i < n_coordinates * (i_nodes + 1); ++i)
-        tetIOin.pointlist[i] = point[cntr++];
+    require(i_nodes < tetIOin.numberofpoints, "Allocated size of nodes exceeded!");
+    int i, j;
+    for (i = n_coordinates * i_nodes, j = 0; j < n_coordinates; ++i, ++j)
+        tetIOin.pointlist[i] = point[j];
     i_nodes++;
 }
 
 const void Mesh::add_face(const SimpleFace& face) {
-    require(get_n_faces() < tetIOin.numberoftrifaces, "Allocated size of faces exceeded!");
-    int cntr = 0;
-    for (int i = n_nodes_per_face * i_faces; i < n_nodes_per_face * (i_faces + 1); ++i)
-        tetIOin.tetrahedronlist[i] = face[cntr++];
+    require(i_faces < tetIOin.numberoftrifaces, "Allocated size of faces exceeded!");
+    require(face.n1 >= 0 && face.n2 >= 0 && face.n3 >= 0, "Invalid face!");
+    int i, j;
+    for (i = n_nodes_per_face * i_faces, j = 0; j < n_nodes_per_face; ++i, ++j)
+        tetIOin.trifacelist[i] = face[j];
     i_faces++;
 }
 
 const void Mesh::add_elem(const SimpleElement& elem) {
-    require(get_n_elems() < tetIOin.numberoftetrahedra, "Allocated size of elements exceeded!");
-    int cntr = 0;
-    for (int i = n_nodes_per_elem * i_elems; i < n_nodes_per_elem * (i_elems+1); ++i)
-        tetIOin.tetrahedronlist[i] = elem[cntr++];
+    require(i_elems < tetIOin.numberoftetrahedra, "Allocated size of elements exceeded!");
+    require(elem.n1 >= 0 && elem.n2 >= 0 && elem.n3 >= 0 && elem.n4 >= 0, "Invalid element!");
+    int i, j;
+    for (i = n_nodes_per_elem * i_elems, j = 0; j < n_nodes_per_elem; ++i, ++j)
+        tetIOin.tetrahedronlist[i] = elem[j];
     i_elems++;
 }
 
@@ -551,6 +563,22 @@ const void Mesh::init_statistics() {
     stat.xmax = stat.ymax = stat.zmax = DBL_MIN;
 }
 
+const void Mesh::calc_statistics() {
+    init_statistics();
+    size_t n_nodes = get_n_nodes();
+
+    // Find the min and max coordinates of all nodes
+    for (int i = 0; i < n_nodes; ++i) {
+        Point3 point = get_node(i);
+        stat.xmax = max(stat.xmax, point.x);
+        stat.xmin = min(stat.xmin, point.x);
+        stat.ymax = max(stat.ymax, point.y);
+        stat.ymin = min(stat.ymin, point.y);
+        stat.zmax = max(stat.zmax, point.z);
+        stat.zmin = min(stat.zmin, point.z);
+    }
+}
+
 const void Mesh::calc_statistics(const AtomReader::Types *types) {
     init_statistics();
     size_t n_volumes = get_n_volumes();
@@ -645,6 +673,8 @@ const void Mesh::write_vtk(const string file_name, const int n_nodes, const int 
     char file_name_char[1024];
     strcpy(file_name_char, file_name.c_str());
 
+    expect(n_nodes > 0, "Zero nodes detected!");
+
     FILE *out_file;
     out_file = fopen(file_name_char, "w");
     require(out_file != (FILE*) NULL, "Can't open a file " + file_name);
@@ -657,7 +687,7 @@ const void Mesh::write_vtk(const string file_name, const int n_nodes, const int 
     // Output the nodes
     if (n_nodes > 0) {
         fprintf(out_file, "POINTS %d double\n", n_nodes);
-        for (i = 0; i < 3 * n_nodes; i += 3)
+        for (i = 0; i < n_coordinates * n_nodes; i += n_coordinates)
             fprintf(out_file, "%.8g %.8g %.8g\n", nodes[i + 0], nodes[i + 1], nodes[i + 2]);
         fprintf(out_file, "\n");
     }
@@ -697,11 +727,13 @@ const void Mesh::write_vtk(const string file_name, const int n_nodes, const int 
 
 // Function to write_tetgen nodes in .xyz format
 const void Mesh::write_xyz(const string file_name) {
-    ofstream out_file(file_name);
-    require(out_file.is_open(), "Can't open a file " + file_name);
-
     const int n_nodes = get_n_nodes();
     const int n_markers = get_n_nodemarkers();
+
+    expect(n_nodes > 0, "Zero nodes detected!");
+
+    ofstream out_file(file_name);
+    require(out_file.is_open(), "Can't open a file " + file_name);
 
     out_file << get_n_nodes() << "\n";
     out_file << "Mesh nodes: id x y z marker\n";

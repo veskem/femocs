@@ -103,7 +103,7 @@ public:
     const void calc_areas();
     const void calc_volumes();
     const void calc_statistics(const AtomReader::Types *types);
-
+    const void calc_statistics();
     const void recalc(const string cmd);
     const void double_recalc(const string cmd1, const string cmd2);
     const Medium to_medium();
@@ -153,9 +153,9 @@ public:
     Stat stat;
     Indexes indxs;
 
-    static const int n_nodes_per_elem = 4;
-    static const int n_nodes_per_face = 3;
-    static const int n_coordinates = 3;
+    const int n_nodes_per_elem = 4;
+    const int n_nodes_per_face = 3;
+    const int n_coordinates = 3;
 
 private:
     string mesher;

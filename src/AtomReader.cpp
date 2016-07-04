@@ -35,7 +35,7 @@ const void AtomReader::add_atom(const int id, const Point3 &point, const int typ
 
 // Calculate coordination (nnn within cutoff radius) of all the atoms
 // Pick suitable algorithm depending simulation type (MD or KMC)
-const void AtomReader::calc_coordination(const double cutoff, const int nnn) {
+const void AtomReader::calc_coordination(int nnn, double cutoff) {
     require(nnn > 0, "Invalid number of nearest neighbors!");
     if (cutoff > 0)
         calc_slow_coordination(cutoff, nnn);
@@ -100,15 +100,16 @@ const void AtomReader::extract_types(int nnn) {
     for (int i = 0; i < n_atoms; ++i) {
         if( coordination[i] >= (nnn - 1) )
             type[i] = types.type_bulk;
-        else if(point[i].z < (sizes.zmin + 10.0)) //*crys_struct.latconst))
+        else if(point[i].z < (sizes.zmin + 10.0)) // *crys_struct.latconst))
             type[i] = types.type_fixed;
         else
             type[i] = types.type_surf;
     }
 }
 
-const void AtomReader::calc_coordination(double cutoff, int nnn, const int* nborlist) {
-    require(cutoff > 0 && nnn >= 0, "Invalid cutoff or nnn!");
+const void AtomReader::calc_coordination(int nnn, double cutoff, const int* nborlist) {
+    require(cutoff > 0, "Invalid cutoff!");
+    require(nnn >= 0, "Invalid # nearest neighbors!");
 
     const int n_nbors_max = 150;
     const int n_atoms = get_n_atoms();

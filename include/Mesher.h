@@ -33,6 +33,9 @@ public:
     /** Function to find with Moller-Trumbore algorithm whether the ray and the surface intersect or not */
     const bool ray_intersects_surface_fast(const Vec3 &origin, const Vec3 &direction);
 
+    /** Function to determine whether the origin is close to surface plane or not */
+    const bool node_on_mean_plane(const Vec3 &origin, double latconst);
+    
     /** Function to precompute the data needed to execute the Moller-Trumbore algorithm */
     const void precompute_triangles(const Vec3 &direction);
 
@@ -61,6 +64,9 @@ private:
     vector<Vec3> pvec;
     vector<bool> is_parallel;
 
+    /** Corner of mean plane */
+    Point3 corner_node;
+
     /** Manually calculated surface faces */
     vector<SimpleFace> faces;
 
@@ -82,7 +88,7 @@ public:
     /** Function to generate mesh from surface, bulk and vacuum atoms */
     const void generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string cmd);
 
-    const void mark_mesh(const AtomReader::Types* types, const bool postprocess);
+    const void mark_mesh(const AtomReader::Types* types, bool postprocess, double mean_thickness);
     const void mark_mesh_long(const AtomReader::Types* types);
 
     const void separate_meshes_byseq(Mesh* bulk, Mesh* vacuum, const string cmd);
