@@ -3,43 +3,37 @@
 #include "currents_and_heating.h"
 #include "utility.h"
 
-namespace Emitter {
 
-// ------------------------------------------------------------------------------------
-// Physics definitions
-
-double emission_current(double field, double temp) {
-	double j_e = field*field*std::exp(-1.0/field)/(80.0*3.0*3.0); // field emission
-	double j_t = temp*temp/(1000.0*1500.0*1500.0); //thermionic emission
-	return j_e+j_t;
-}
+#include <fstream>
+#include <iostream>
+#include <cmath>
+#include <vector>
+#include <set>
 
 /**
- * Electrical conductivity and it's derivative
+ *  Initial working (numerically converging) expressions for
+ *  electrical and thermal conductivities and their derivatives
  */
-double sigma(double temperature) {
-	return 5.0/std::max(temperature,300.0);
+double sigma1(double temperature) {
+	return 5.0/std::max(temperature,200.0);
 }
-double dsigma(double temperature) {
-	return -5.0/(std::max(temperature,300.0)*std::max(temperature,300.0));
+double dsigma1(double temperature) {
+	return -5.0/(std::max(temperature,200.0)*std::max(temperature,200.0));
 }
-
-/**
- * Thermal conductivity and derivative
- */
-double kappa(double temperature) {
-	return 0.5/std::max(temperature,300.0);
+double kappa1(double temperature) {
+	return 0.5/std::max(temperature,200.0);
 }
-double dkappa(double temperature) {
-	return -0.5/(std::max(temperature,300.0)*std::max(temperature,300.0));
+double dkappa1(double temperature) {
+	return -0.5/(std::max(temperature,200.0)*std::max(temperature,200.0));
 }
 
 // ------------------------------------------------------------------------------------
 
-CurrentsAndHeating::CurrentsAndHeating() :
+CurrentsAndHeating::CurrentsAndHeating(PhysicalQuantities physical_quantities) :
 		fe (FE_Q<2>(1), 1, 	// Finite element type (Q = usual ?) (1)
 			FE_Q<2>(1), 1),	// additionally, for how many variables
-		dof_handler(triangulation) {
+		dof_handler(triangulation),
+		pq(physical_quantities){
 }
 
 // ----------------------------------------------------------------------------------------
@@ -75,7 +69,8 @@ compute_derived_quantities_vector (	const std::vector< Vector< double > > &  	uh
 		double t = uh[i][1]; // temperature
 		for (unsigned int d=0; d<2; ++d) {
 			double e_field = duh[i][0][d]; // gradient of the 0-st vector (i.e. potential)
-			computed_quantities[i](d) = sigma(t)*e_field;
+			//computed_quantities[i](d) = sigma(t)*e_field; pq.sigma is needed here somehow!!!
+			computed_quantities[i](d) = 1*e_field;
 		}
 	}
 }
@@ -92,9 +87,9 @@ double AmbientTemperature<dim>::value (const Point<dim> &/*p */, const unsigned 
 	return 300;
 }
 
-double CurrentsAndHeating::em_current(const Point<2> &p, double temperature) {
+double CurrentsAndHeating::emission_at_point(const Point<2> &p, double temperature) {
 	double e_field = laplace_problem.probe_field(p);
-	return emission_current(e_field, temperature);
+	return pq.evaluate_current(e_field, temperature);
 }
 
 // ----------------------------------------------------------------------------------------
@@ -282,10 +277,10 @@ void CurrentsAndHeating::assemble_system() {
 					const Tensor<1,2> grad_phi_j_p	= fe_values[potential].gradient(j, q);
 					const Tensor<1,2> grad_phi_j_t	= fe_values[temperature].gradient(j, q);
 
-					cell_matrix(i, j) += (	- (grad_phi_i_p * sigma(prev_sol_temperature_values[q]) * grad_phi_j_p)
-											+ (phi_i_t * sigma(prev_sol_temperature_values[q])
+					cell_matrix(i, j) += (	- (grad_phi_i_p * pq.sigma(prev_sol_temperature_values[q]) * grad_phi_j_p)
+											+ (phi_i_t * pq.sigma(prev_sol_temperature_values[q])
 												* prev_sol_potential_gradients[q] * grad_phi_j_p)
-											- (grad_phi_i_t * kappa(prev_sol_temperature_values[q]) * grad_phi_j_t)
+											- (grad_phi_i_t * pq.kappa(prev_sol_temperature_values[q]) * grad_phi_j_t)
 										 ) * fe_values.JxW(q);
 
 				}
@@ -305,7 +300,7 @@ void CurrentsAndHeating::assemble_system() {
 					for (unsigned int i = 0; i < dofs_per_cell; ++i) {
 						// Current density BC on copper boundary
 						cell_rhs(i) +=  - fe_face_values[potential].value(i, q_index)
-												* em_current(fe_face_values.quadrature_point(q_index), prev_sol_temperature_values[q_index])
+												* emission_at_point(fe_face_values.quadrature_point(q_index), prev_sol_temperature_values[q_index])
 												* fe_face_values.JxW(q_index);
 					}
 				}
@@ -408,19 +403,19 @@ void CurrentsAndHeating::assemble_system_newton(const bool first_step) {
 					const double phi_j_t 			= fe_values[temperature].value(j, q);
 					const Tensor<1,2> grad_phi_j_t	= fe_values[temperature].gradient(j, q);
 
-					cell_matrix(i, j) += (	- (grad_phi_i_p * sigma(prev_temp) * grad_phi_j_p)
-											- (grad_phi_i_p * dsigma(prev_temp) * prev_pot_grad * phi_j_t)
-											+ (phi_i_t * sigma(prev_temp) * 2 * prev_pot_grad * grad_phi_j_p)
-											+ (phi_i_t * dsigma(prev_temp) * prev_pot_grad * prev_pot_grad * phi_j_t)
-											- (grad_phi_i_t * dkappa(prev_temp) * prev_temp_grad * phi_j_t)
-											- (grad_phi_i_t * kappa(prev_temp) * grad_phi_j_t)
+					cell_matrix(i, j) += (	- (grad_phi_i_p * pq.sigma(prev_temp) * grad_phi_j_p)
+											- (grad_phi_i_p * pq.dsigma(prev_temp) * prev_pot_grad * phi_j_t)
+											+ (phi_i_t * pq.sigma(prev_temp) * 2 * prev_pot_grad * grad_phi_j_p)
+											+ (phi_i_t * pq.dsigma(prev_temp) * prev_pot_grad * prev_pot_grad * phi_j_t)
+											- (grad_phi_i_t * pq.dkappa(prev_temp) * prev_temp_grad * phi_j_t)
+											- (grad_phi_i_t * pq.kappa(prev_temp) * grad_phi_j_t)
 										 ) * fe_values.JxW(q);
 
 				}
 
-				cell_rhs(i) += (	grad_phi_i_p * sigma(prev_temp) * prev_pot_grad
-									- phi_i_t * sigma(prev_temp) * prev_pot_grad * prev_pot_grad
-									+ grad_phi_i_t * kappa(prev_temp) * prev_temp_grad
+				cell_rhs(i) += (	grad_phi_i_p * pq.sigma(prev_temp) * prev_pot_grad
+									- phi_i_t * pq.sigma(prev_temp) * prev_pot_grad * prev_pot_grad
+									+ grad_phi_i_t * pq.kappa(prev_temp) * prev_temp_grad
 								) * fe_values.JxW(q);
 			}
 		}
@@ -443,14 +438,14 @@ void CurrentsAndHeating::assemble_system_newton(const bool first_step) {
 						for (unsigned int i = 0; i < dofs_per_cell; ++i) {
 							const double phi_i_p = fe_face_values[potential].value(i, q);
 							// neumann BC for the current, one from LHS and one from RHS
-							cell_rhs(i) += 	(	- (phi_i_p * em_current(fe_face_values.quadrature_point(q), prev_temp))
+							cell_rhs(i) += 	(	- (phi_i_p * emission_at_point(fe_face_values.quadrature_point(q), prev_temp))
 											) * fe_face_values.JxW(q);
 
 							for (unsigned int j = 0; j < dofs_per_cell; ++j) {
 								const double phi_j_t = fe_face_values[temperature].value(j, q);
 
 								cell_matrix(i, j) += (	phi_i_p * fe_face_values.normal_vector(q)
-														* prev_pot_grad * dsigma(prev_temp) * phi_j_t
+														* prev_pot_grad * pq.dsigma(prev_temp) * phi_j_t
 													 ) * fe_face_values.JxW(q);
 							}
 
@@ -537,13 +532,14 @@ void CurrentsAndHeating::output_results(const unsigned int iteration) const {
 
 void CurrentsAndHeating::run() {
 
-
 	// calculate the field
 	laplace_problem.run();
 
 	make_grid();
 	setup_system();
-	/*
+
+
+/*
 	// Picard iterations
 	for (unsigned int iteration=0; iteration<15; ++iteration) {
 		std::cout << "    Iteration " << iteration << std::endl;
@@ -579,10 +575,11 @@ void CurrentsAndHeating::run() {
 
 		previous_solution = solution;
 	}
-	*/
+*/
+
 
 	// Newton iterations
-	for (unsigned int iteration=0; iteration<15; ++iteration) {
+	for (unsigned int iteration=0; iteration<5; ++iteration) {
 		std::cout << "    Newton iteration " << iteration << std::endl;
 
 		// reset the state of the linear system
@@ -625,5 +622,4 @@ void CurrentsAndHeating::run() {
 
 }
 
-} // end namespace
 

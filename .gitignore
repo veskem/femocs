@@ -41,4 +41,4 @@ cmake_install.cmake
 *.pdf
 currents_and_heating
 emitter
-build
+build/
