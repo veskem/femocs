@@ -12,7 +12,6 @@
 
 #include "utility.h"
 
-namespace Emitter {
 
 void output_mesh(Triangulation<2>& mesh, std::string name) {
 	std::ofstream out(name);
@@ -21,4 +20,5 @@ void output_mesh(Triangulation<2>& mesh, std::string name) {
 	std::cout << "Grid written to " << name << std::endl;
 }
 
-}
+
+

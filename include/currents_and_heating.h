@@ -57,23 +57,16 @@
 #include <deal.II/lac/iterative_inverse.h>
 #include <deal.II/lac/sparse_direct.h>	// UMFpack
 
-#include <fstream>
-#include <iostream>
-#include <cmath>
 #include <string>
-#include <vector>
-#include <set>
 
-
+#include "physical_quantities.h"
 #include "laplace.h"
-
-namespace Emitter {
 
 using namespace dealii;
 
 class CurrentsAndHeating {
 public:
-	CurrentsAndHeating();
+	CurrentsAndHeating(PhysicalQuantities physical_quantities);
 
 	void run();
 
@@ -89,7 +82,7 @@ private:
 	void solve();
 	void output_results(const unsigned int iteration) const;
 
-	double em_current(const Point<2> &p, double t);
+	double emission_at_point(const Point<2> &p, double temperature);
 
 	Laplace laplace_problem;
 
@@ -113,9 +106,9 @@ private:
 
 	static constexpr double radius = 1.0;
 	static constexpr double height = 4.0;
-};
 
-}
+	PhysicalQuantities pq;
+};
 
 
 

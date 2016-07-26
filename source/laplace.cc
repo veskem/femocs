@@ -3,8 +3,6 @@
 #include "utility.h"
 
 
-namespace Emitter {
-
 Laplace::Laplace() :
 		fe(2), dof_handler(triangulation) {
 }
@@ -242,7 +240,7 @@ void Laplace::assemble_system() {
 			}
 		}
 
-		// Neumann boundary condition 1.0 V/nm at faces with boundary_id vacuum_top
+		// Neumann boundary condition 10.0 V/nm at faces with boundary_id vacuum_top
 		for (unsigned int f = 0; f < GeometryInfo<2>::faces_per_cell; ++f)
 			if (cell->face(f)->at_boundary()
 					&& cell->face(f)->boundary_id() == vacuum_top) {
@@ -252,7 +250,7 @@ void Laplace::assemble_system() {
 						++q_index) {
 					for (unsigned int i = 0; i < dofs_per_cell; ++i) {
 						cell_rhs(i) += (fe_face_values.shape_value(i, q_index)
-								* 1.0 * fe_face_values.JxW(q_index));
+								* 10.0 * fe_face_values.JxW(q_index));
 					}
 				}
 			}
@@ -333,4 +331,3 @@ void Laplace::run() {
 	output_results();
 }
 
-} //end namespace

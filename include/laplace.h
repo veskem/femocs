@@ -59,7 +59,6 @@
 #include <vector>
 #include <set>
 
-namespace Emitter {
 using namespace dealii;
 
 class Laplace {
@@ -95,6 +94,5 @@ private:
 	};
 };
 
-}
 
 #endif /* LAPLACE_H_ */
