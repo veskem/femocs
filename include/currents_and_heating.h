@@ -75,8 +75,8 @@ private:
 	void setup_system();
 
 	// Assembles the system for Picard iterations
-	void assemble_system();
-	// Assembles the system for Newton iterations (not working)
+	void assemble_system_picard();
+	// Assembles the system for Newton iterations
 	void assemble_system_newton(const bool first_step);
 
 	void solve();

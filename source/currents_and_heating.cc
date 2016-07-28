@@ -76,17 +76,6 @@ compute_derived_quantities_vector (	const std::vector< Vector< double > > &  	uh
 }
 
 
-template <int dim>
-class AmbientTemperature : public Function<dim> {
-public:
-	AmbientTemperature() : Function<dim>(2) {} // The number of components needs to be passed to Function, probably...
-	virtual double value (const Point<dim> &p, const unsigned int component = 0) const;
-};
-template <int dim>
-double AmbientTemperature<dim>::value (const Point<dim> &/*p */, const unsigned int /*component */) const {
-	return 300;
-}
-
 double CurrentsAndHeating::emission_at_point(const Point<2> &p, double temperature) {
 	double e_field = laplace_problem.probe_field(p);
 	return pq.evaluate_current(e_field, temperature);
@@ -224,7 +213,7 @@ void CurrentsAndHeating::setup_system() {
 }
 
 // Assembles the linear system for one Picard iteration
-void CurrentsAndHeating::assemble_system() {
+void CurrentsAndHeating::assemble_system_picard() {
 	QGauss<2> quadrature_formula(2);
 	QGauss<1> face_quadrature_formula(2);
 
@@ -329,7 +318,7 @@ void CurrentsAndHeating::assemble_system() {
 
 	// 300K at bulk bottom
 	std::map<types::global_dof_index, double> temperature_dirichlet;
-	VectorTools::interpolate_boundary_values(dof_handler, bulk_bottom, AmbientTemperature<2>(),
+	VectorTools::interpolate_boundary_values(dof_handler, bulk_bottom, ConstantFunction<2>(300.0),
 			temperature_dirichlet, fe.component_mask(temperature));
 
 	MatrixTools::apply_boundary_values(temperature_dirichlet, system_matrix,
@@ -337,7 +326,7 @@ void CurrentsAndHeating::assemble_system() {
 }
 
 
-// Assembles the linear system for one Newton iteration (not working)
+// Assembles the linear system for one Newton iteration
 void CurrentsAndHeating::assemble_system_newton(const bool first_step) {
 	QGauss<2> quadrature_formula(2);
 	QGauss<1> face_quadrature_formula(2);
@@ -480,7 +469,7 @@ void CurrentsAndHeating::assemble_system_newton(const bool first_step) {
 	std::map<types::global_dof_index, double> temperature_dirichlet;
 
 	if (first_step) {
-		VectorTools::interpolate_boundary_values(dof_handler, bulk_bottom, AmbientTemperature<2>(),
+		VectorTools::interpolate_boundary_values(dof_handler, bulk_bottom, ConstantFunction<2>(300.0, 2),
 				temperature_dirichlet, fe.component_mask(temperature));
 	} else {
 		VectorTools::interpolate_boundary_values(dof_handler, bulk_bottom, ZeroFunction<2>(2),
@@ -550,7 +539,7 @@ void CurrentsAndHeating::run() {
 
 		Timer timer;
 		timer.start ();
-		assemble_system();
+		assemble_system_picard();
 		timer.stop ();
 
 		deallog << "system assembled in "
@@ -618,8 +607,6 @@ void CurrentsAndHeating::run() {
 
 		previous_solution = solution;
 	}
-
-
 }
 
 
