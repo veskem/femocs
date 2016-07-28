@@ -31,14 +31,14 @@ public:
 	 * @param temperature Temperature in (K)
 	 * @return resistivity in (Ohm*m)
 	 */
-	double evaluate_resistivity(double temperature);
+	double evaluate_resistivity(double temperature) const;
 
 	double evaluate_resistivity_derivative(double temperature);
 
 	/**
 	 * electrical conductivity in (1/(Ohm*nm))
 	 */
-	double sigma(double temperature);
+	double sigma(double temperature) const;
 
 	/**
 	 * electrical conductivity derivative
@@ -77,7 +77,7 @@ private:
 	/**
 	 * 1d linear interpolation with constant extrapolation using binary search
 	 */
-	double linear_interp(double x, std::vector<std::pair<double, double>> data);
+	double linear_interp(double x, std::vector<std::pair<double, double>> data) const;
 
 	/**
 	 * 1d linear interpolation of the derivative with constant extrapolation using binary search
@@ -92,7 +92,7 @@ private:
 	 * 2d bilinear interpolation with constant extrapolation
 	 * NB: Assumes uniform grid
 	 */
-	double bilinear_interp(double x, double y, InterpolationGrid grid_data);
+	double bilinear_interp(double x, double y, const InterpolationGrid &grid_data);
 
 };
 

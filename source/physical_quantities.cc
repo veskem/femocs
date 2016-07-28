@@ -18,7 +18,7 @@ double PhysicalQuantities::evaluate_current(double field, double temperature) {
 	return std::exp(bilinear_interp(std::log(field), temperature, emission_grid))*1.0e-18;
 }
 
-double PhysicalQuantities::evaluate_resistivity(double temperature) {
+double PhysicalQuantities::evaluate_resistivity(double temperature) const {
 	return linear_interp(temperature, resistivity_data);
 }
 
@@ -26,7 +26,7 @@ double PhysicalQuantities::evaluate_resistivity_derivative(double temperature) {
 	return deriv_linear_interp(temperature, resistivity_data);
 }
 
-double PhysicalQuantities::sigma(double temperature) {
+double PhysicalQuantities::sigma(double temperature) const {
 	if (temperature < 200) temperature = 200;
 	if (temperature > 1400) temperature = 1400;
 	double rho = evaluate_resistivity(temperature)*1.0e9;
@@ -107,7 +107,7 @@ bool PhysicalQuantities::load_resistivity_data(std::string filepath) {
 	return true;
 }
 
-double PhysicalQuantities::linear_interp(double x, std::vector<std::pair<double, double>> data) {
+double PhysicalQuantities::linear_interp(double x, std::vector<std::pair<double, double>> data) const {
 	if (x <= data[0].first)
 		return data[0].second;
 	if (x >= data.back().first)
@@ -182,7 +182,7 @@ double PhysicalQuantities::deriv_linear_interp(double x, std::vector<std::pair<d
 }
 
 // NB: This assumes uniform grid
-double PhysicalQuantities::bilinear_interp(double x, double y, InterpolationGrid grid_data) {
+double PhysicalQuantities::bilinear_interp(double x, double y, const InterpolationGrid &grid_data) {
 //std::printf("%f, %f, %f\n", x, grid_data.xmin, grid_data.xmax);
 //std::printf("%f, %f, %f\n", y, grid_data.ymin, grid_data.ymax);
 	double eps = 1e-10;

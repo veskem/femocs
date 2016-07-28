@@ -1,50 +1,84 @@
+/*
+ * main.cc
+ *
+ *  Created on: Jul 26, 2016
+ *      Author: kristjan
+ */
 
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
 
-
-#include "utility.h"
-#include "currents_and_heating.h"
+#include "laplace.h"
+#include "mesh_preparer.h"
 #include "physical_quantities.h"
-
+#include "currents_and_heating.h"
 
 int main() {
-
-	PhysicalQuantities physical_quantities;
-
-	if (!physical_quantities.load_emission_data("../data/gtf_grid_1000x1000.dat")) return EXIT_FAILURE;
-	if (!physical_quantities.load_resistivity_data("../data/cu_res_mod.dat")) return EXIT_FAILURE;
-
-	//physical_quantities.output_to_files();
-
-	try {
-		using namespace dealii;
-
-		deallog.depth_console(1);
-
-		CurrentsAndHeating problem(physical_quantities);
-		problem.run();
-
-	} catch (std::exception &exc) {
-		std::cerr << std::endl << std::endl
-				<< "----------------------------------------------------"
-				<< std::endl;
-		std::cerr << "Exception on processing: " << std::endl
-				<< exc.what() << std::endl
-				<< "Aborting!" << std::endl
-				<< "----------------------------------------------------"
-				<< std::endl;
+/*
+	Timer timer;
+	timer.start();
+	PhysicalQuantities pq;
+	if (!pq.load_emission_data("../res/physical_quantities/gtf_grid_1000x1000.dat"))
 		return EXIT_FAILURE;
-	} catch (...) {
-		std::cerr << std::endl << std::endl
-				<< "----------------------------------------------------"
-				<< std::endl;
-		std::cerr << "Unknown exception!" << std::endl
-				<< "Aborting!" << std::endl
-				<< "----------------------------------------------------"
-				<< std::endl;
+	if (!pq.load_resistivity_data("../res/physical_quantities/cu_res_mod.dat"))
 		return EXIT_FAILURE;
+	timer.stop();
+	std::cout << "-------- Loaded physical quantities: " << timer() << "s" << std::endl;
+
+	std::cout << pq.evaluate_current(1.0, 1000.0) << std::endl;
+*/
+
+	MeshPreparer<3> mesh_preparer;
+	Laplace<3> laplace_problem;
+	Timer timer;
+
+	timer.start ();
+	Triangulation<3> *p_vacuum_mesh = laplace_problem.getp_triangulation();
+	mesh_preparer.import_mesh_from_file(p_vacuum_mesh, "../res/tethex_vacuum.msh");
+	mesh_preparer.output_mesh(p_vacuum_mesh, "vacuum_mesh.vtk");
+	mesh_preparer.mark_vacuum_boundary(p_vacuum_mesh);
+	timer.stop();
+	std::cout << "-------- Imported, outputted and marked vacuum mesh: " << timer() << "s" << std::endl;
+
+
+	timer.restart();
+	laplace_problem.run();
+	timer.stop();
+	std::cout << "-------- Solved Laplace problem: " << timer() << "s" << std::endl;
+
+	timer.restart();
+	for (int i = 0; i < 100; i++) {
+		laplace_problem.probe_field(Point<3>(20.0, 20.0, 40.0));
 	}
-	return EXIT_SUCCESS;
+	timer.stop();
+	std::cout << "Probing field: " << timer() << std::endl;
 
+
+/*
+	timer.restart();
+	PhysicalQuantities physical_quantities;
+	if (!physical_quantities.load_emission_data("../res/physical_quantities/gtf_grid_1000x1000.dat"))
+		return EXIT_FAILURE;
+	if (!physical_quantities.load_resistivity_data("../res/physical_quantities/cu_res_mod.dat"))
+		return EXIT_FAILURE;
+	timer.stop();
+	std::cout << "-------- Loaded physical quantities: " << timer() << "s" << std::endl;
+
+	timer.restart();
+	CurrentsAndHeating<3> currents_and_heating(physical_quantities, &laplace_problem);
+	Triangulation<3> *p_copper_mesh = currents_and_heating.getp_triangulation();
+	mesh_preparer.import_mesh_from_file(p_copper_mesh, "../res/tethex_copper.msh");
+	mesh_preparer.output_mesh(p_copper_mesh, "copper_mesh.vtk");
+	mesh_preparer.mark_copper_boundary(p_copper_mesh);
+	timer.stop();
+	std::cout << "-------- Imported, outputted and marked copper mesh: " << timer() << "s" << std::endl;
+
+	timer.restart();
+
+	timer.stop();
+	currents_and_heating.run();
+	std::cout << "-------- Solved currents and heating: " << timer() << "s" << std::endl;
+*/
+
+	return EXIT_SUCCESS;
 }
