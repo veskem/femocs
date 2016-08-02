@@ -383,16 +383,15 @@ const void Mesher::separate_meshes_byseq(Mesh* bulk, Mesh* vacuum, const string 
 }
 
 // Separate bulk and vacuum mesh from the union mesh by the node and element markers
-const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, const AtomReader::Types* types,
-        const string cmd) {
+const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, const string cmd) {
 
     int i, j;
     const int n_nodes = mesh->get_n_nodes();
     const int n_elems = mesh->get_n_elems();
 
-    const vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), types->type_bulk);
-    const vector<bool> node_in_vacuum = vector_not(mesh->get_nodemarkers(), types->type_bulk);
-    const vector<bool> node_in_bulk = vector_not(mesh->get_nodemarkers(), types->type_vacuum);
+    const vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), TYPES.BULK);
+    const vector<bool> node_in_vacuum = vector_not(mesh->get_nodemarkers(), TYPES.BULK);
+    const vector<bool> node_in_bulk = vector_not(mesh->get_nodemarkers(), TYPES.VACUUM);
 
     // Copy the non-bulk nodes from input mesh
     vacuum->copy_nodes(this->mesh, node_in_vacuum);
@@ -414,12 +413,40 @@ const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, const AtomReader::T
     bulk->init_elems(n_bulk_elems);
 
     // Separate vacuum and bulk elements and arrange the node indices
-    for (int i = 0; i < n_elems; ++i) {
+    for (i = 0; i < n_elems; ++i) {
         SimpleElement se = mesh->get_simpleelem(i);
         if (elem_in_vacuum[i])
             vacuum->add_elem(vacm_map[se.n1], vacm_map[se.n2], vacm_map[se.n3], vacm_map[se.n4]);
         else
             bulk->add_elem(bulk_map[se.n1], bulk_map[se.n2], bulk_map[se.n3], bulk_map[se.n4]);
+    }
+
+    vacuum->recalc(cmd);
+    bulk->recalc(cmd);
+}
+
+// Separate bulk and vacuum mesh from the union mesh by the node and element markers
+const void Mesher::separate_meshes_noclean(Mesh* bulk, Mesh* vacuum, const string cmd) {
+
+    const int n_elems = mesh->get_n_elems();
+    const vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), TYPES.BULK);
+
+    // Copy the non-bulk nodes from input mesh without modification
+    vacuum->copy_nodes(this->mesh);
+    // Copy the non-vacuum nodes from input mesh without modification
+    bulk->copy_nodes(this->mesh);
+
+    const int n_vacuum_elems = vector_sum(elem_in_vacuum);
+    const int n_bulk_elems = n_elems - n_vacuum_elems;
+    vacuum->init_elems(n_vacuum_elems);
+    bulk->init_elems(n_bulk_elems);
+
+    // Separate vacuum and bulk elements and arrange the node indices
+    for (int i = 0; i < n_elems; ++i) {
+        if (elem_in_vacuum[i])
+            vacuum->add_elem(mesh->get_simpleelem(i));
+        else
+            bulk->add_elem(mesh->get_simpleelem(i));
     }
 
     vacuum->recalc(cmd);
@@ -433,7 +460,7 @@ const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, const AtomReader::T
  * The technique works perfectly with completely convex surface. The concaves give some false
  * nodes but because of their low spatial density they can be eliminated in postprocessor.
  */
-const void Mesher::mark_mesh(const AtomReader::Types* types, bool postprocess, double mean_thickness) {
+const void Mesher::mark_mesh(bool postprocess, double mean_thickness) {
     int node, elem, coord;
     const Vec3 ray_direction(0, 0, 1);
     Vec3 ray_origin;
@@ -444,24 +471,24 @@ const void Mesher::mark_mesh(const AtomReader::Types* types, bool postprocess, d
     rsi.write_faces("output/faces_raysurf.vtk");
 
     // Calculate the min and max-s of nodes
-    mesh->calc_statistics(types);
+    mesh->calc_statistics(0);
     // Mark faces by their location in relation to simulation cell edges
-    mark_faces(types);
+    mark_faces();
 
     // Reserve memory for the node markers
     mesh->init_nodemarkers(mesh->get_n_nodes());
 
     // Mark surface nodes by their known position in array
     for (node = mesh->indxs.surf_start; node <= mesh->indxs.surf_end; ++node)
-        mesh->add_nodemarker(types->type_surf);
+        mesh->add_nodemarker(TYPES.SURFACE);
 
     // Mark bulk nodes by their known position in array
     for (node = mesh->indxs.bulk_start; node <= mesh->indxs.bulk_end; ++node)
-        mesh->add_nodemarker(types->type_bulk);
+        mesh->add_nodemarker(TYPES.BULK);
 
     // Mark vacuum nodes by their known position in array
     for (node = mesh->indxs.vacuum_start; node <= mesh->indxs.vacuum_end; ++node)
-        mesh->add_nodemarker(types->type_vacuum);
+        mesh->add_nodemarker(TYPES.VACUUM);
 
     // Loop through all the nodes made by tetgen
     // and mark them by vertical-ray-intersects-surface-faces-technique
@@ -471,24 +498,24 @@ const void Mesher::mark_mesh(const AtomReader::Types* types, bool postprocess, d
 
         // If ray intersects at least one surface triangle, the node
         // is considered to be located in bulk, otherwise it's located to vacuum
-        if (rsi.node_on_mean_plane(ray_origin, mean_thickness))
-            mesh->add_nodemarker(types->type_surf);
+        if (postprocess && rsi.node_on_mean_plane(ray_origin, mean_thickness))
+            mesh->add_nodemarker(TYPES.SURFACE);
         else
             if (rsi.ray_intersects_surface_fast(ray_origin, ray_direction))
-            mesh->add_nodemarker(types->type_bulk);
+            mesh->add_nodemarker(TYPES.BULK);
         else
-            mesh->add_nodemarker(types->type_vacuum);
+            mesh->add_nodemarker(TYPES.VACUUM);
     }
 
     // Mark the elements by the node markers
-    mark_elems(types);
+    mark_elems();
 
     // Post process the nodes in shadow areas
-    if (postprocess) post_process_marking(types);
+    if (postprocess) post_process_marking();
 }
 
 // Force the bulk nodes in vacuum elements to become vacuum nodes
-const void Mesher::post_process_marking(const AtomReader::Types* types) {
+const void Mesher::post_process_marking() {
     int elem, node, location;
     int n_elems = mesh->get_n_elems();
 
@@ -499,14 +526,14 @@ const void Mesher::post_process_marking(const AtomReader::Types* types) {
         // Post-process the wrongly marked nodes in vacuum
         node_changed = false;
         for (elem = 0; elem < n_elems; ++elem) {
-            if (mesh->get_elemmarker(elem) != types->type_vacuum) continue;
+            if (mesh->get_elemmarker(elem) != TYPES.VACUUM) continue;
 
             SimpleElement selem = mesh->get_simpleelem(elem);
 
             // Force all the nodes in vacuum elements to be non-bulk ones
             for (node = 0; node < mesh->n_nodes_per_elem; ++node)
-                if (mesh->get_nodemarker(selem[node]) == types->type_bulk) {
-                    mesh->set_nodemarker(selem[node], types->type_vacuum);
+                if (mesh->get_nodemarker(selem[node]) == TYPES.BULK) {
+                    mesh->set_nodemarker(selem[node], TYPES.VACUUM);
                     node_changed = true;
                 }
 
@@ -515,29 +542,29 @@ const void Mesher::post_process_marking(const AtomReader::Types* types) {
         // If some of the nodes were changed,
         // mark all the surface and bulk elements again
         if (node_changed) for (elem = 0; elem < n_elems; ++elem) {
-            if (mesh->get_elemmarker(elem) == types->type_vacuum) continue;
+            if (mesh->get_elemmarker(elem) == TYPES.VACUUM) continue;
 
             SimpleElement selem = mesh->get_simpleelem(elem);
             location = 0;
             // Loop through all the nodes in element
             for (node = 0; node < mesh->n_nodes_per_elem; ++node) {
                 int nodemarker = mesh->get_nodemarker(selem[node]);
-                if (nodemarker == types->type_vacuum)
+                if (nodemarker == TYPES.VACUUM)
                     location += 3; // If the element has node both in vacuum and bulk, mark it as vacuum
-                else if (nodemarker == types->type_bulk) location--;
+                else if (nodemarker == TYPES.BULK) location--;
             }
 
             if (location > 0)
-                mesh->set_elemmarker(elem, types->type_vacuum);
+                mesh->set_elemmarker(elem, TYPES.VACUUM);
             else if (location < 0)
-                mesh->set_elemmarker(elem, types->type_bulk);
+                mesh->set_elemmarker(elem, TYPES.BULK);
             else
-                mesh->set_elemmarker(elem, types->type_surf);
+                mesh->set_elemmarker(elem, TYPES.SURFACE);
         }
     }
 
     // Among the other things calculate the number of atoms with given types
-    mesh->calc_statistics(types);
+    mesh->calc_statistics(0);
     require(mesh->stat.n_bulk >= 4, "Nodemarker post-processor deleted the bulk atoms.\n"
             "Consider altering the surface refinement factor or disabling the post-processing.");
 }
@@ -550,10 +577,10 @@ const void Mesher::post_process_marking(const AtomReader::Types* types) {
  * too many crossings. The workaround is to change the ray direction for the problematic nodes
  * to make sure the ray crosses only "quality" triangles.
  */
-const void Mesher::mark_mesh_long(const AtomReader::Types* types) {
+const void Mesher::mark_mesh_long() {
     int node, coord;
     Vec3 ray_origin, ray_direction(0.0, 0.0, 1.0);
-    vector<int> markers(mesh->get_n_nodes(), types->type_none);
+    vector<int> markers(mesh->get_n_nodes(), TYPES.NONE);
     RaySurfaceIntersect rsi(mesh);
     rsi.generate_surf_faces();
 
@@ -565,15 +592,15 @@ const void Mesher::mark_mesh_long(const AtomReader::Types* types) {
 
     // Mark surface nodes by their known position in array
     for (node = mesh->indxs.surf_start; node <= mesh->indxs.surf_end; ++node)
-        mesh->add_nodemarker(types->type_surf);
+        mesh->add_nodemarker(TYPES.SURFACE);
 
     // Mark bulk nodes by their known position in array
     for (node = mesh->indxs.bulk_start; node <= mesh->indxs.bulk_end; ++node)
-        mesh->add_nodemarker(types->type_bulk);
+        mesh->add_nodemarker(TYPES.BULK);
 
     // Mark vacuum nodes by their known position in array
     for (node = mesh->indxs.vacuum_start; node <= mesh->indxs.vacuum_end; ++node)
-        mesh->add_nodemarker(types->type_vacuum);
+        mesh->add_nodemarker(TYPES.VACUUM);
 
     bool all_nodes_done = false;
 
@@ -595,7 +622,7 @@ const void Mesher::mark_mesh_long(const AtomReader::Types* types) {
             // Loop through all the nodes inserted by tetgen
             for (node = mesh->indxs.tetgen_start; node < mesh->get_n_nodes(); ++node) {
                 // If node is already checked, skip it
-                if (markers[node] != types->type_none) continue;
+                if (markers[node] != TYPES.NONE) continue;
 
                 // Compose the ray_origin vector
                 ray_origin = mesh->get_vec(node);
@@ -603,9 +630,9 @@ const void Mesher::mark_mesh_long(const AtomReader::Types* types) {
                 int crossings = rsi.ray_intersects_surface_fast(ray_origin, ray_direction);
 
                 if (crossings == 0)
-                    markers[node] = types->type_vacuum;
+                    markers[node] = TYPES.VACUUM;
                 else if (crossings == 1)
-                    markers[node] = types->type_bulk;
+                    markers[node] = TYPES.BULK;
                 else
                     all_nodes_done = false;
             }
@@ -618,7 +645,7 @@ const void Mesher::mark_mesh_long(const AtomReader::Types* types) {
 }
 
 // Mark elements by the node markers
-const void Mesher::mark_elems(const AtomReader::Types* types) {
+const void Mesher::mark_elems() {
     int elem, node, location;
     int n_elems = mesh->get_n_elems();
     mesh->init_elemmarkers(n_elems);
@@ -632,24 +659,24 @@ const void Mesher::mark_elems(const AtomReader::Types* types) {
         for (node = 0; node < mesh->n_nodes_per_elem; ++node) {
             int nodemarker = mesh->get_nodemarker(selem[node]);
 
-            if (nodemarker == types->type_vacuum)
+            if (nodemarker == TYPES.VACUUM)
                 location += 3; // If element has node both in vacuum and bulk, mark it as vacuum
-            else if (nodemarker == types->type_bulk) location--;
+            else if (nodemarker == TYPES.BULK) location--;
         }
         // Element in vacuum is supposed not to have nodes in bulk
         if (location > 0)
-            mesh->add_elemmarker(types->type_vacuum);
+            mesh->add_elemmarker(TYPES.VACUUM);
         // Element in bulk is supposed not to have nodes in vacuum
         else if (location < 0)
-            mesh->add_elemmarker(types->type_bulk);
+            mesh->add_elemmarker(TYPES.BULK);
         // Element in surface is supposed consist only of nodes in surface
         else
-            mesh->add_elemmarker(types->type_surf);
+            mesh->add_elemmarker(TYPES.SURFACE);
     }
 }
 
 // Mark the boundary faces of mesh
-const void Mesher::mark_faces(const AtomReader::Types* types) {
+const void Mesher::mark_faces() {
     const int eps = 0.1;
     int N = mesh->get_n_faces();
     mesh->init_facemarkers(N);
@@ -658,19 +685,19 @@ const void Mesher::mark_faces(const AtomReader::Types* types) {
         Point3 centre = mesh->get_face_centre(i);
 
         if (on_boundary(centre.x, mesh->stat.xmin, eps))
-            mesh->add_facemarker(types->type_xmin);
+            mesh->add_facemarker(TYPES.XMIN);
         else if (on_boundary(centre.x, mesh->stat.xmax, eps))
-            mesh->add_facemarker(types->type_xmax);
+            mesh->add_facemarker(TYPES.XMAX);
         else if (on_boundary(centre.y, mesh->stat.ymin, eps))
-            mesh->add_facemarker(types->type_ymin);
+            mesh->add_facemarker(TYPES.YMIN);
         else if (on_boundary(centre.y, mesh->stat.ymax, eps))
-            mesh->add_facemarker(types->type_ymax);
+            mesh->add_facemarker(TYPES.YMAX);
         else if (on_boundary(centre.z, mesh->stat.zmin, eps))
-            mesh->add_facemarker(types->type_zmin);
+            mesh->add_facemarker(TYPES.ZMIN);
         else if (on_boundary(centre.z, mesh->stat.zmax, eps))
-            mesh->add_facemarker(types->type_zmax);
+            mesh->add_facemarker(TYPES.ZMAX);
         else
-            mesh->add_facemarker(types->type_surf);
+            mesh->add_facemarker(TYPES.SURFACE);
     }
 }
 

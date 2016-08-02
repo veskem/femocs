@@ -16,18 +16,17 @@ namespace femocs {
 // Laplace solver constructor
 // Number in fe() determines the interpolation type. 1 is linear etc.
 DealII::DealII() :
-        fe(POLY_DEGREE), dof_handler(triangulation), efield(0), neumann(0) {
+        fe(POLY_DEGREE), dof_handler(triangulation), neumann(0) {
 }
 
-const void DealII::set_neumann(const double efield) {
-    // The field on upper boundary is on the limit of zmax->inf exactly 27x higher than efield
-    this->neumann = efield / 27.0;
-    this->efield = -1.0*efield;
+// Specify the Neumann boundary condition value
+const void DealII::set_neumann(const double neumann) {
+    this->neumann = neumann;
 }
 
 // Get long range electric field value
 const double DealII::get_efield() {
-    return efield;
+    return -1.0 * neumann;
 }
 
 // Get number of degrees of freedom
@@ -77,7 +76,7 @@ const void DealII::make_simple_mesh() {
 // Import mesh from vtk or msh file
 const void DealII::import_file(const string file_name) {
     const string file_type = get_file_type(file_name);
-    expect(file_type == "vtk" || file_type == "msh", "Unknown file type!")
+    expect(file_type == "vtk" || file_type == "msh", "Unknown file type: " + file_type)
 
     GridIn<DIM, DIM> gi;
     gi.attach_triangulation(triangulation);
@@ -184,7 +183,7 @@ const void DealII::import_tetgen_mesh(femocs::Mesh* mesh) {
 }
 
 // Mark the boundary faces of mesh
-const void DealII::mark_boundary(const AtomReader::Sizes* sizes, const AtomReader::Types* types) {
+const void DealII::mark_boundary(const AtomReader::Sizes* sizes) {
     typename Triangulation<DIM>::active_face_iterator face;
     const double eps = 0.1;
 
@@ -192,13 +191,13 @@ const void DealII::mark_boundary(const AtomReader::Sizes* sizes, const AtomReade
     for (face = triangulation.begin_face(); face != triangulation.end_face(); ++face)
         if (face->at_boundary()) {
             if (on_boundary(face->center()[0], sizes->xmin, sizes->xmax, eps))
-                face->set_all_boundary_ids(types->type_edge);
+                face->set_all_boundary_ids(TYPES.EDGE);
             else if (on_boundary(face->center()[1], sizes->ymin, sizes->ymax, eps))
-                face->set_all_boundary_ids(types->type_edge);
+                face->set_all_boundary_ids(TYPES.EDGE);
             else if (on_boundary(face->center()[2], sizes->zmaxbox, eps))
-                face->set_all_boundary_ids(types->type_zmax);
+                face->set_all_boundary_ids(TYPES.ZMAX);
             else
-                face->set_all_boundary_ids(types->type_surf);
+                face->set_all_boundary_ids(TYPES.SURFACE);
         }
 }
 
@@ -212,16 +211,15 @@ const void DealII::setup_system() {
 
     system_matrix.reinit(sparsity_pattern);
     system_rhs.reinit(dof_handler.n_dofs());
-
     laplace_solution.reinit(dof_handler.n_dofs());
 }
 
 // Insert boundary conditions to the system
-const void DealII::assemble_system(const AtomReader::Types* types) {
+const void DealII::assemble_system() {
     // Set up quadrature system for quads and faces
-    const QGauss<3> quadrature_formula(DIM);
-    const QGauss<2> face_quadrature_formula(DIM);
-    unsigned int i, j;
+    const QGauss<DIM> quadrature_formula(2);
+    const QGauss<DIM-1> face_quadrature_formula(2);
+    unsigned int i, j, q_index;
 
     // Calculate necessary values (derived from weak form of Laplace equation)
     FEValues<DIM> fe_values(fe, quadrature_formula,
@@ -230,76 +228,71 @@ const void DealII::assemble_system(const AtomReader::Types* types) {
             update_values | update_gradients | update_quadrature_points | update_JxW_values);
 
     // Parametrize necessary entities.
-    const unsigned int n_dofs_per_elem = fe.dofs_per_cell;
-    const unsigned int n_q_points = quadrature_formula.size();
-    const unsigned int n_face_q_points = face_quadrature_formula.size();
+    const unsigned int n_dofs_per_cell = fe.dofs_per_cell;
+//    const double space_charge = 0.0;
 
     // Declare cell matrix and right-hand-side matrix (sets coordinate system so we get real positive cells)
-    FullMatrix<double> cell_matrix(n_dofs_per_elem, n_dofs_per_elem);
-    Vector<double> cell_rhs(n_dofs_per_elem);
+    FullMatrix<double> cell_matrix(n_dofs_per_cell, n_dofs_per_cell);
+    Vector<double> cell_rhs(n_dofs_per_cell);
 
     // Create a vector of local degrees of freedom for each cell.
-    vector<types::global_dof_index> local_dof_indices(n_dofs_per_elem);
+    vector<types::global_dof_index> local_dof_indices(n_dofs_per_cell);
 
     //Start iterator cycles over all cells to set local terms for each cell
     DoFHandler<DIM>::active_cell_iterator cell;
-
-    const double space_charge = 0.0;
-
     for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell) {
         fe_values.reinit(cell);
         cell_matrix = 0;
         cell_rhs = 0;
 
         // Integration of the cell by looping over all quadrature points
-        for (unsigned int q_index = 0; q_index < n_q_points; ++q_index) {
-            // Assemble the right hand side by integrating over the shape function i times the
-            // right hand side function; we choose it to be the function with constant value one
-            for (i = 0; i < n_dofs_per_elem; ++i)
-                cell_rhs(i) += fe_values.shape_value(i, q_index) * space_charge
-                        * fe_values.JxW(q_index);
+        for (q_index = 0; q_index < quadrature_formula.size(); ++q_index) {
+//            // Assemble the right hand side by integrating over the shape function i times the
+//            // right hand side function; we choose it to be the function with constant value one
+//            for (i = 0; i < n_dofs_per_cell; ++i)
+//                cell_rhs(i) += fe_values.shape_value(i, q_index) * space_charge
+//                    * fe_values.JxW(q_index);
 
             // Assemble the matrix
-            for (i = 0; i < n_dofs_per_elem; ++i)
-                for (j = 0; j < n_dofs_per_elem; ++j)
-                    cell_matrix(i, j) += fe_values.shape_grad(i, q_index)
-                            * fe_values.shape_grad(j, q_index) * fe_values.JxW(q_index);
-
-            // Cycle for faces of each cell
-            for (unsigned int f = 0; f < n_faces_per_elem; ++f)
-                // Check if face is located at top boundary
-                if (cell->face(f)->boundary_id() == types->type_zmax) {
-                    fe_face_values.reinit(cell, f);
-                    // Set boundary conditions
-                    for (unsigned int fq_index = 0; fq_index < n_face_q_points; ++fq_index)
-                        for (i = 0; i < n_dofs_per_elem; ++i)
-                            // Set Neumann boundary value
-                            cell_rhs(i) += fe_face_values.shape_value(i, fq_index) * neumann
-                                    * fe_face_values.JxW(fq_index);
-                }
+            for (i = 0; i < n_dofs_per_cell; ++i)
+                for (j = 0; j < n_dofs_per_cell; ++j)
+                    cell_matrix(i, j) += fe_values.shape_grad(i, q_index) * fe_values.JxW(q_index)
+                        * fe_values.shape_grad(j, q_index);
         }
 
-        // Apply set conditions and rewrite system matrix and rhs
+        // Cycle for faces of each cell
+        for (unsigned int f = 0; f < n_faces_per_elem; ++f) {
+            // Check if face is located at top boundary
+            if (cell->face(f)->boundary_id() == TYPES.ZMAX) {
+                fe_face_values.reinit(cell, f);
+
+                // Apply Neumann boundary condition
+                for (q_index = 0; q_index < face_quadrature_formula.size(); ++q_index)
+                    for (i = 0; i < n_dofs_per_cell; ++i)
+                        cell_rhs(i) += fe_face_values.shape_value(i, q_index) * neumann
+                                * fe_face_values.JxW(q_index);
+            }
+        }
+
+        // Apply set conditions and rewrite system matrix & rhs
         cell->get_dof_indices(local_dof_indices);
-        for (i = 0; i < n_dofs_per_elem; ++i)
-            for (j = 0; j < n_dofs_per_elem; ++j)
+        for (i = 0; i < n_dofs_per_cell; ++i)
+            for (j = 0; j < n_dofs_per_cell; ++j)
                 system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
 
-        for (i = 0; i < n_dofs_per_elem; ++i)
+        for (i = 0; i < n_dofs_per_cell; ++i)
             system_rhs(local_dof_indices[i]) += cell_rhs(i);
 
     }
 
     // Declare boundaries
-    map<types::global_dof_index, double> copper_boundary_value;
+    map<types::global_dof_index, double> bv;
 
     // Add Dirichlet' boundary condition to faces denoted as surface
-    VectorTools::interpolate_boundary_values(dof_handler, types->type_surf, ZeroFunction<DIM>(),
-            copper_boundary_value);
+    VectorTools::interpolate_boundary_values(dof_handler, TYPES.SURFACE, ZeroFunction<DIM>(), bv);
 
     // Apply boundary values to system matrix
-    MatrixTools::apply_boundary_values(copper_boundary_value, system_matrix, laplace_solution,
-            system_rhs);
+    MatrixTools::apply_boundary_values(bv, system_matrix, laplace_solution, system_rhs);
 }
 
 // Run the calculation with conjugate gradient solver
@@ -350,6 +343,7 @@ const double DealII::get_potential_at_point(Point<DIM> &point) {
 const double DealII::get_potential_at_node(const int &cell_indx, const int &vert_indx) {
     typename DoFHandler<DIM>::active_cell_iterator cell;
 
+    cell = dof_handler.begin_active();
     cell = dof_handler.begin_active();
     for (unsigned int i = 0; i < cell_indx; ++i)
         ++cell;

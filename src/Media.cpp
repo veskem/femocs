@@ -74,15 +74,15 @@ const void Bulk::extract_reduced_bulk(Surface* surf, const AtomReader::Sizes* si
 }
 
 // Function to make bulk material with nodes on surface and on by-hand made bottom coordinates
-const void Bulk::generate_simple(const AtomReader::Sizes* sizes, const AtomReader::Types* types) {
+const void Bulk::generate_simple(const AtomReader::Sizes* sizes) {
     int M = 4; // total number of nodes
     reserve(M);
 
     // Add atoms to the bottom corner edges of simulation cell
-    add_atom(-1, Point3(sizes->xmin, sizes->ymin, sizes->zminbox), types->type_bulk);
-    add_atom(-1, Point3(sizes->xmin, sizes->ymax, sizes->zminbox), types->type_bulk);
-    add_atom(-1, Point3(sizes->xmax, sizes->ymin, sizes->zminbox), types->type_bulk);
-    add_atom(-1, Point3(sizes->xmax, sizes->ymax, sizes->zminbox), types->type_bulk);
+    add_atom(-1, Point3(sizes->xmin, sizes->ymin, sizes->zminbox), TYPES.BULK);
+    add_atom(-1, Point3(sizes->xmin, sizes->ymax, sizes->zminbox), TYPES.BULK);
+    add_atom(-1, Point3(sizes->xmax, sizes->ymin, sizes->zminbox), TYPES.BULK);
+    add_atom(-1, Point3(sizes->xmax, sizes->ymax, sizes->zminbox), TYPES.BULK);
 
     init_statistics();
     calc_statistics();
@@ -98,8 +98,8 @@ const void Bulk::extract_truncated_bulk_old(AtomReader* reader) {
     // Get number and locations of bulk atoms
     for (i = 0; i < N; ++i)
         is_bulk[i] = (reader->get_point(i).z > reader->sizes.zminbox)
-                && (reader->get_type(i) == reader->types.type_bulk
-                        || reader->get_type(i) == reader->types.type_surf);
+                && (reader->get_type(i) == TYPES.BULK
+                        || reader->get_type(i) == TYPES.SURFACE);
 
     for (i = 0; i < N; ++i)
         is_surf[i] = (reader->get_coordination(i) > 0)
@@ -129,7 +129,7 @@ const void Bulk::extract_truncated_bulk(AtomReader* reader) {
     // Get number and locations of bulk atoms
     for (i = 0; i < N; ++i)
         is_bulk[i] = (reader->get_point(i).z > reader->sizes.zminbox)
-                && (reader->get_type(i) == reader->types.type_bulk);
+                && (reader->get_type(i) == TYPES.BULK);
 
     reserve(vector_sum(is_bulk));
 
@@ -148,7 +148,7 @@ const void Bulk::extract_bulk(AtomReader* reader) {
     vector<bool> is_bulk(N);
 
     for (i = 0; i < N; ++i)
-        is_bulk[i] = reader->get_type(i) != reader->types.type_vacancy;
+        is_bulk[i] = reader->get_type(i) != TYPES.VACANCY;
 
     reserve(vector_sum(is_bulk));
 
@@ -219,7 +219,7 @@ const void Surface::extract_by_type(AtomReader* reader) {
 
     // Get number and locations of surface atoms
     for (i = 0; i < N; ++i)
-        is_surface[i] = (reader->get_type(i) == reader->types.type_surf);
+        is_surface[i] = (reader->get_type(i) == TYPES.SURFACE);
 
     // Preallocate memory for Surface atoms
     reserve(vector_sum(is_surface));

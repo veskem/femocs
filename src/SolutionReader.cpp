@@ -222,12 +222,12 @@ const void SolutionReader::output(const string file_name) {
 // Compile data string from the data vectors
 const string SolutionReader::get_data_string(const int i) {
     if (i < 0)
-        return "Solution of DealII operations: id x y z coordination Ex Ey Ez Enorm potential face_quality elem_quality";
+        return "Solution of DealII operations: id x y z coordination Ex Ey Ez Enorm potential";// face_quality elem_quality";
 
     ostringstream strs;
     strs << id[i] << " " << point[i] << " " << coordination[i] << " " << elfield[i] << " "
-            << elfield_norm[i] << " " << potential[i] << " " << face_qualities[i] << " "
-            << elem_qualities[i];
+            << elfield_norm[i] << " " << potential[i];
+            // << " " << face_qualities[i] << " " << elem_qualities[i];
     return strs.str();
 }
 

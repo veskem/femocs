@@ -86,9 +86,9 @@ const void AtomReader::calc_dummy_coordination(const int nnn) {
     int n_atoms = get_n_atoms();
 
     for (int i = 0; i < n_atoms; ++i) {
-        if (type[i] == types.type_bulk)
+        if (type[i] == TYPES.BULK)
             coordination[i] = nnn;
-        else if (type[i] == types.type_surf)
+        else if (type[i] == TYPES.SURFACE)
             coordination[i] = (int) nnn / 2;
         else
             coordination[i] = 0;
@@ -99,11 +99,11 @@ const void AtomReader::extract_types(int nnn) {
     const int n_atoms = get_n_atoms();
     for (int i = 0; i < n_atoms; ++i) {
         if( coordination[i] >= (nnn - 1) )
-            type[i] = types.type_bulk;
+            type[i] = TYPES.BULK;
         else if(point[i].z < (sizes.zmin + 10.0)) // *crys_struct.latconst))
-            type[i] = types.type_fixed;
+            type[i] = TYPES.FIXED;
         else
-            type[i] = types.type_surf;
+            type[i] = TYPES.SURFACE;
     }
 }
 
@@ -191,7 +191,6 @@ const void AtomReader::import_kimocs() {
 const void AtomReader::import_helmod(int n_atoms, double* x, double* y, double* z, int* types) {
     require(n_atoms > 0, "Zero input atoms detected!");
 
-    this->types.simu_type = "md";
     reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
         add_atom(i, Point3(x[i], y[i], z[i]), types[i]);
@@ -202,10 +201,9 @@ const void AtomReader::import_helmod(int n_atoms, double* x, double* y, double* 
 const void AtomReader::import_parcas(int n_atoms, const double* xyz, const double* box) {
     require(n_atoms > 0, "Zero input atoms detected!");
 
-    this->types.simu_type = "md";
     reserve(n_atoms);
     for (int i = 0; i < 3*n_atoms; i+=3)
-        add_atom(i/3, Point3(xyz[i+0]*box[0], xyz[i+1]*box[1], xyz[i+2]*box[2]), types.type_bulk);
+        add_atom(i/3, Point3(xyz[i+0]*box[0], xyz[i+1]*box[1], xyz[i+2]*box[2]), TYPES.BULK);
 
     calc_statistics();
 }
@@ -213,17 +211,14 @@ const void AtomReader::import_parcas(int n_atoms, const double* xyz, const doubl
 const void AtomReader::import_file(const string file_name) {
     string file_type = get_file_type(file_name);
 
-    if (file_type == "xyz") {
-        this->types.simu_type = "md";
+    if (file_type == "xyz")
         import_xyz(file_name);
-    } else if (file_type == "ckx") {
-        this->types.simu_type = "kmc";
+    else if (file_type == "ckx")
         import_ckx(file_name);
-    } else if (file_type == "dump") {
-        this->types.simu_type = "md";
+    else if (file_type == "dump")
         import_dump(file_name);
-    } else
-    require(false, "Unknown file type: " + file_type);
+    else
+        require(false, "Unknown file type: " + file_type);
 
     calc_statistics();
 }

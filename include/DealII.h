@@ -53,7 +53,7 @@ public:
         Assert(computed_quantities.size() == uh.size(),
                 ExcDimensionMismatch(computed_quantities.size(), uh.size()));
         for (unsigned int i = 0; i < computed_quantities.size(); ++i)
-            for (unsigned int coord = 0; coord < 2; ++coord)
+            for (unsigned int coord = 0; coord < DIM; ++coord)
                 computed_quantities[i](coord) = duh[i][coord];
     }
 };
@@ -79,8 +79,8 @@ public:
     const void output_results(const string file_name);
 
     const void setup_system();
-    const void mark_boundary(const AtomReader::Sizes* sizes, const AtomReader::Types* types);
-    const void assemble_system(const AtomReader::Types* types);
+    const void mark_boundary(const AtomReader::Sizes* sizes);
+    const void assemble_system();
     const void solve_umfpack();
     const void solve_cg();
 
@@ -98,7 +98,6 @@ public:
 
 private:
     double neumann;         //!< Neumann boundary condition value applied to upper region faces
-    double efield;          //!< Electric field applied at upper region
 
     FE_Q<DIM> fe;
     SparsityPattern sparsity_pattern;

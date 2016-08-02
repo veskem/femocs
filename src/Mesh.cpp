@@ -579,7 +579,7 @@ const void Mesh::calc_statistics() {
     }
 }
 
-const void Mesh::calc_statistics(const AtomReader::Types *types) {
+const void Mesh::calc_statistics(const int i) {
     init_statistics();
     size_t n_volumes = get_n_volumes();
     size_t n_markers = get_n_nodemarkers();
@@ -601,11 +601,11 @@ const void Mesh::calc_statistics(const AtomReader::Types *types) {
     if (n_markers > 0)
         // Loop through all the node markers
         for (int marker : nodemarkers) {
-            if (marker == types->type_bulk)
+            if (marker == TYPES.BULK)
                 stat.n_bulk++;
-            else if (marker == types->type_vacuum)
+            else if (marker == TYPES.VACUUM)
                 stat.n_vacuum++;
-            else if (marker == types->type_surf)
+            else if (marker == TYPES.SURFACE)
                 stat.n_surface++;
         }
 
@@ -759,7 +759,7 @@ const void Mesh::write_faces(const string file_name) {
     return;
 #endif
     string file_type = get_file_type(file_name);
-    require(file_type == "vtk", "Unknown file type!");
+    require(file_type == "vtk", "Unknown file type: " + file_type);
 
     const int celltype = 5; // 1-vertex, 5-triangle, 10-tetrahedron
 
@@ -780,7 +780,7 @@ const void Mesh::write_elems(const string file_name) {
     return;
 #endif
     string file_type = get_file_type(file_name);
-    require(file_type == "vtk", "Unknown file type!");
+    require(file_type == "vtk", "Unknown file type: " + file_type);
 
     const int celltype = 10; // 1-vertex, 5-triangle, 10-tetrahedron
 
@@ -801,7 +801,7 @@ const void Mesh::write_nodes(const string file_name) {
     return;
 #endif
     string file_type = get_file_type(file_name);
-    require(file_type == "xyz" || file_type == "vtk", "Unknown file type!");
+    require(file_type == "xyz" || file_type == "vtk", "Unknown file type: " + file_type);
 
     if (file_type == "xyz")
         write_xyz(file_name);

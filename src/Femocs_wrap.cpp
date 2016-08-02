@@ -1,4 +1,6 @@
 
+#define MAINFILE
+
 #include "Femocs.h"
 #include <iostream>
 

@@ -29,6 +29,7 @@ public:
 
     /** Struct holding data about input parameters. */
     struct Config {
+        string path_to_script;  //!< path to input script
         string mesher;          //!< simulation cell finite element mesher
         string mesh_quality;    //!< the minimum quality (maximum radius-edge ratio) of tetrahedra
         string infile;          //!< path to input script

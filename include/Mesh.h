@@ -102,7 +102,7 @@ public:
     const void calc_qualities_byelem();
     const void calc_areas();
     const void calc_volumes();
-    const void calc_statistics(const AtomReader::Types *types);
+    const void calc_statistics(const int i);
     const void calc_statistics();
     const void recalc(const string cmd);
     const void double_recalc(const string cmd1, const string cmd2);

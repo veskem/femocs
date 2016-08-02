@@ -8,9 +8,11 @@
 #ifndef MACROS_H_
 #define MACROS_H_
 
-/** In case of debugmode == true more information is printed out and all the asserts are operating.
- * Disabling the debug mode makes code to run faster and removes the debug messages */
+/** If DEBUGMODE then the asserts are operating. Disabling it makes the code to run faster. */
 #define DEBUGMODE true
+
+/** If VERBOSE then the debug information about the code execution is printed out. */
+#define VERBOSE true
 
 #include <iostream>
 #include <string>
@@ -20,28 +22,55 @@
 using namespace std;
 //namespace femocs {
 
-#define require(condition, message) \
-        if (!(condition))              \
-          __requirement_fails(__FILE__, __LINE__, message)
+/** Types of regions used in the simulation */
+struct Types {
+    const int BULK = 1;    //!< type of bulk material
+    const int SURFACE = 2; //!< type of open material surface
+    const int VACANCY = 3; //!< type of vacancies
+    const int VACUUM = 3;  //!< type of vacuum
+    const int EDGE = 0;    //!< type of the rim/outer edge of surface
+    const int FIXED = -1;  //!< type of fixed atoms
+    const int XMIN = 4;    //!< type of atom on negative x-face of simulation cell
+    const int YMIN = 5;    //!< type of atom on negative y-face of simulation cell
+    const int ZMIN = 6;    //!< type of atom on negative z-face of simulation cell
+    const int XMAX = 10;   //!< type of atom on positive x-face of simulation cell
+    const int YMAX = 9;    //!< type of atom on positive y-face of simulation cell
+    const int ZMAX = 8;    //!< type of atom on positive z-face of simulation cell
+    const int NONE = 7;    //!< type of atom with unknown position
+};
 
-// Definitions for development in debugging mode
+#ifdef MAINFILE
+    Types TYPES;
+#else
+    extern Types TYPES;
+#endif
+
 #if DEBUGMODE
-/** Definition to print progress messages and to find the start time of code execution */
-#define start_msg(t0, message) t0 = __start_msg(message)
-
-/** Definition to print the execution time of code */
-#define end_msg(t0) __end_msg(t0);
-#define expect(condition, message) \
-        if (!(condition))              \
-          __expectation_fails(__FILE__, __LINE__, message)
+    #define require(condition, message) \
+            if (!(condition)) __requirement_fails(__FILE__, __LINE__, message)
 
 // In release(-like) versions nothing happens
 #else
-//#define require(condition, message) {}
-#define expect(condition, message) {}
-#define start_msg(t0, message) {}
-#define end_msg(t0) {}
+    #define require(condition, message) {}
 #endif // DEBUGMODE
+
+// Definitions for development in VERBOSE mode
+#if VERBOSE
+    /** Definition to print progress messages and to find the start time of code execution */
+    #define start_msg(t0, message) t0 = __start_msg(message)
+
+    /** Definition to print the execution time of code */
+    #define end_msg(t0) __end_msg(t0);
+    #define expect(condition, message) \
+            if (!(condition))              \
+              __expectation_fails(__FILE__, __LINE__, message)
+
+// In release(-like) versions nothing happens
+#else
+    #define expect(condition, message) {}
+    #define start_msg(t0, message) {}
+    #define end_msg(t0) {}
+#endif // VERBOSE
 
 /** Sum of the elements in vector */
 const inline int vector_sum(vector<bool> v) { return accumulate(v.begin(), v.end(), 0); }

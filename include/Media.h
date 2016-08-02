@@ -95,7 +95,7 @@ public:
 
     // Function to make bulk material with nodes on surface and on by-hand made bottom coordinates
     const void extract_reduced_bulk(Surface* surf, const AtomReader::Sizes* sizes);
-    const void generate_simple(const AtomReader::Sizes* sizes, const AtomReader::Types* types);
+    const void generate_simple(const AtomReader::Sizes* sizes);
 
     // Function to extract bulk material from input atomistic data
     const void extract_truncated_bulk(AtomReader* reader);

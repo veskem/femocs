@@ -88,18 +88,19 @@ public:
     /** Function to generate mesh from surface, bulk and vacuum atoms */
     const void generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string cmd);
 
-    const void mark_mesh(const AtomReader::Types* types, bool postprocess, double mean_thickness);
-    const void mark_mesh_long(const AtomReader::Types* types);
+    const void mark_mesh(bool postprocess, double mean_thickness);
+    const void mark_mesh_long();
 
     const void separate_meshes_byseq(Mesh* bulk, Mesh* vacuum, const string cmd);
-    const void separate_meshes(Mesh* bulk, Mesh* vacuum, const AtomReader::Types* types, const string cmd);
+    const void separate_meshes(Mesh* bulk, Mesh* vacuum, const string cmd);
+    const void separate_meshes_noclean(Mesh* bulk, Mesh* vacuum, const string cmd);
 
 private:
     Mesh* mesh;
 
-    const void mark_faces(const AtomReader::Types* types);
-    const void mark_elems(const AtomReader::Types* types);
-    const void post_process_marking(const AtomReader::Types* types);
+    const void mark_faces();
+    const void mark_elems();
+    const void post_process_marking();
 
     const vector<bool> get_vacuum_indices();
 };

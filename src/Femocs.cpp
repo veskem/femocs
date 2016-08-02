@@ -22,6 +22,7 @@ using namespace std;
 Femocs::Femocs(string file_name) :
         solution_valid(false) {
     start_msg(double t0, "======= Femocs started! =======\n");
+    conf.path_to_script = file_name;
     //*
     //conf.infile = "input/rough111.ckx";
     conf.infile = "input/mushroom2.ckx";
@@ -39,8 +40,8 @@ Femocs::Femocs(string file_name) :
     conf.mesh_quality = "2.9";//"2.914";
     conf.nt = 4;                    // number of OpenMP threads
     conf.rmin_coarse = 17.0;        // inner radius of coarsening cylinder
-    conf.rmax_coarse = 37.0;        // radius of constant cutoff coarsening cylinder
-    conf.coarse_factor = 1.2;       // coarsening factor; bigger number gives coarser surface
+    conf.rmax_coarse = 8000.0;        // radius of constant cutoff coarsening cylinder
+    conf.coarse_factor = 1.0;       // coarsening factor; bigger number gives coarser surface
     conf.postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
 }
@@ -81,7 +82,7 @@ const void Femocs::run(double E_field) {
     start_msg(t0, "=== Resizing simulation box...");
     // Electric field is applied 100 lattice constants above the highest point of surface
     // and bulk is extended 20 lattice constants below the minimum point of surface
-    const double zmaxbox = coarse_surf.sizes.zmax + 100 * conf.latconst;
+    const double zmaxbox = coarse_surf.sizes.zmax + 50 * conf.latconst;
     const double zminbox = coarse_surf.sizes.zmin - 20 * conf.latconst;
     reader.resize_box(zminbox, zmaxbox);
     end_msg(t0);
@@ -90,7 +91,7 @@ const void Femocs::run(double E_field) {
     femocs::Bulk bulk(conf.latconst, conf.nnn);
     //    bulk.extract_bulk(&reader);
     //    bulk.extract_truncated_bulk(&reader);
-    bulk.generate_simple(&reader.sizes, &reader.types);
+    bulk.generate_simple(&reader.sizes);
     bulk.output("output/bulk.xyz");
     end_msg(t0);
 
@@ -119,7 +120,7 @@ const void Femocs::run(double E_field) {
     end_msg(t0);
 
     start_msg(t0, "=== Marking big mesh...");
-    mesher.mark_mesh(&reader.types, conf.postprocess_marking, 1.5*coarse_surf.get_roughness());
+    mesher.mark_mesh(conf.postprocess_marking, 1.5*coarse_surf.get_roughness());
     big_mesh.write_nodes("output/nodes_big.xyz");
     big_mesh.write_nodes("output/nodes_big.vtk");
     big_mesh.write_faces("output/faces_big.vtk");
@@ -130,13 +131,13 @@ const void Femocs::run(double E_field) {
     femocs::Mesh bulk_mesh(conf.mesher);
     femocs::Mesh vacuum_mesh(conf.mesher);
 
-    mesher.separate_meshes(&bulk_mesh, &vacuum_mesh, &reader.types, "rQ");
+    mesher.separate_meshes_noclean(&bulk_mesh, &vacuum_mesh, "rQ");
     bulk_mesh.write_nodes("output/nodes_bulk.xyz");
     bulk_mesh.write_faces("output/faces_bulk.vtk");
     bulk_mesh.write_elems("output/elems_bulk.vtk");
     vacuum_mesh.write_nodes("output/nodes_vacuum.xyz");
     vacuum_mesh.write_faces("output/faces_vacuum.vtk");
-    vacuum_mesh.write_elems("output/elems_vacuum.vtk");
+    vacuum_mesh.write_elems(conf.path_to_script);
     end_msg(t0);
 
 //     start_msg(t0, "=== Making test mesh...");
@@ -153,9 +154,9 @@ const void Femocs::run(double E_field) {
     end_msg(t0);
 
 //     start_msg(t0, "=== Writing tethex to file...");
-//     tethex_mesh.write("output/tethex.msh");
-//     tethex_mesh.write_vtk_faces("output/tethex_faces.vtk");
-//     tethex_mesh.write_vtk_elems("output/tethex_elems.vtk");
+//     tethex_mesh.write("output/tethex_bulk.msh");
+//     tethex_mesh.write_vtk_faces("output/tethex_faces_vacuum.vtk");
+//     tethex_mesh.write_vtk_elems("output/tethex_elems_vacuum.vtk");
 //     end_msg(t0);
 
     // ==============================
@@ -166,13 +167,14 @@ const void Femocs::run(double E_field) {
 
     start_msg(t0, "=== Importing tethex mesh into Deal.II...");
     laplace.import_tethex_mesh(&tethex_mesh);
+//    laplace.import_file("/home/veske/femocs_heating/res/tethex_vacuum.msh");
     end_msg(t0);
 
     start_msg(t0, "=== System setup...");
     laplace.setup_system();
     end_msg(t0);
 
-#if DEBUGMODE
+#if VERBOSE
     cout << "Bulk:   #elems=" << bulk_mesh.get_n_elems() << ",\t#faces=" << bulk_mesh.get_n_faces()
              << ",\t#nodes=" << bulk_mesh.get_n_nodes() << endl;
     cout << "Vacuum: #elems=" << vacuum_mesh.get_n_elems() << ",\t#faces="
@@ -184,11 +186,11 @@ const void Femocs::run(double E_field) {
 #endif
 
     start_msg(t0, "=== Marking the boundary...");
-    laplace.mark_boundary(&reader.sizes, &reader.types);
+    laplace.mark_boundary(&reader.sizes);
     end_msg(t0);
 
     start_msg(t0, "=== Assembling system...");
-    laplace.assemble_system(&reader.types);
+    laplace.assemble_system();
     end_msg(t0);
 
     start_msg(t0, "=== Solving...");
@@ -197,9 +199,9 @@ const void Femocs::run(double E_field) {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting solution...");
-//    femocs::Medium medium = vacuum_mesh.to_medium();
-//    solution.extract_solution(&laplace, medium);
-    solution.extract_solution(&laplace, coarse_surf);
+    femocs::Medium medium = vacuum_mesh.to_medium();
+    solution.extract_solution(&laplace, medium);
+//    solution.extract_solution(&laplace, coarse_surf);
     end_msg(t0);
 
 //    start_msg(t0, "=== Extracting statistics...");
@@ -207,12 +209,12 @@ const void Femocs::run(double E_field) {
 //    end_msg(t0);
 
 //    start_msg(t0, "=== Outputting results...");
-//    solution.output("output/results_surface.xyz");
-//    laplace.output_results("output/results_deal.vtk");
+//    solution.output("output/results.xyz");
+//    laplace.output_results("output/results.vtk");
 //    end_msg(t0);
 
-//#if DEBUGMODE
-    cout << "\nTotal time: " << omp_get_wtime() - tstart << "\n";
+//#if VERBOSE
+    cout << "\nTotal time of Femocs: " << omp_get_wtime() - tstart << "\n";
 //#endif
     solution_valid = true;
 }
