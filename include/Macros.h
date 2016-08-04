@@ -77,11 +77,36 @@ const inline int vector_sum(vector<bool> v) { return accumulate(v.begin(), v.end
 const inline int vector_sum(vector<int> v) { return accumulate(v.begin(), v.end(), 0); }
 const inline double vector_sum(vector<double> v) { return accumulate(v.begin(), v.end(), 0); }
 
-/** Return mask of indices that doesn't contain the entry */
-const vector<bool> vector_not(const vector<int> *v, const int entry);
 
-/** Return mask of indices that do contain the entry */
-const vector<bool> vector_equal(vector<int> *v, const int entry);
+/** Template to return mask of indices that satisfy the comparison condition with an entry */
+template<typename T, typename Op>
+const vector<bool> __vector_compare(const vector<T> *v, const T entry) {
+    vector<bool> mask(v->size());
+    Op op;
+    for (int i = 0; i < v->size(); ++i)
+        mask[i] = op((*v)[i], entry);
+
+    return mask;
+}
+
+/** Return mask of indices that are equal to the scalar */
+const vector<bool> vector_equal(const vector<int> *v, const int s);
+
+/** Return mask of indices that are not equal to the scalar */
+const vector<bool> vector_not(const vector<int> *v, const int s);
+
+/** Return mask of indices that are greater than the scalar */
+const vector<bool> vector_greater(const vector<double> *v, const double s);
+
+/** Return mask of indices that are greater or equal than the scalar */
+const vector<bool> vector_ge(const vector<double> *v, const double s);
+
+/** Return mask of indices that are less than the scalar */
+const vector<bool> vector_less(const vector<double> *v, const double s);
+
+/** Return mask of indices that are less or equal than the scalar */
+const vector<bool> vector_less_equal(const vector<double> *v, const double s);
+
 
 /** Determine whether the value is close to one of the boundary values or not */
 const inline bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps) {

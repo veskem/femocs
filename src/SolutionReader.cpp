@@ -37,7 +37,7 @@ const void SolutionReader::extract_solution(DealII* fem, Medium &medium) {
             pot = fem->get_potential_at_node(node2elem_map[n], node2vert_map[n]);
             add_atom(medium.get_id(node), medium.get_point(node), medium.get_coordination(node));
         } else {
-            ef[0] = ef[1] = ef[2] = pot = 1e20;
+            ef[0] = ef[1] = ef[2] = pot = error_field;
             add_atom(-1, medium.get_point(node), medium.get_coordination(node));
         }
 
@@ -117,12 +117,77 @@ const void SolutionReader::extract_statistics(Mesh &mesh) {
     }
 }
 
+// Calculate up moving average of electric field norm for i-th atom
+inline double SolutionReader::get_up_moving_average(const int i, const int n_samples) {
+    double running_average = 0.0;
+    for(int j = i; j < i + n_samples ; ++j)
+        running_average += elfield_norm[j];
+
+    return running_average / n_samples;
+}
+
+// Calculate down moving average of electric field norm for i-th atom
+inline double SolutionReader::get_down_moving_average(const int i, const int n_samples) {
+    double running_average = 0.0;
+    for(int j = i; j > i - n_samples ; --j)
+        running_average += elfield_norm[j];
+
+    return running_average / n_samples;
+}
+
+const void SolutionReader::smoothen_result(const int n_average, const int repetitions) {
+    if (n_average <= 0 || repetitions <= 0) return;
+
+    // Atoms from non-enhanced electric field regions will be skipped from averaging
+    const vector<bool> skip_atom = vector_less_equal(&elfield_norm, fabs(longrange_efield));
+    const int n_atoms = get_n_atoms();
+    const int n_average_half = floor(n_average / 2);
+
+    // Repeat the averaging cycles for desired times to get properly centered results
+    for (int r = 0; r < repetitions; ++r) {
+        // Average by moving up
+        // moving up is more sensitive, thus the division by two of n_average
+        for (int i = 0; i < (n_atoms - n_average_half); ++i) {
+            if (skip_atom[i]) continue;
+
+            double ra = get_up_moving_average(i, n_average_half);
+            elfield[i] *= ra / elfield_norm[i];
+            elfield_norm[i] = ra;
+        }
+        // Average by moving down
+        for (int i = (n_atoms - 1); i >= (n_average - 1); --i) {
+            if (skip_atom[i]) continue;
+
+            double ra = get_down_moving_average(i, n_average);
+            elfield[i] *= ra / elfield_norm[i];
+            elfield_norm[i] = ra;
+        }
+    }
+
+    // Print some statistics about the top region of tip
+    double zmax = 33.0;
+    double mn = 1e20; double mx = -1e20; double avg = 0; int cntr = 0;
+
+    for(int i = 0; i < n_atoms; ++i)
+        if (point[i].z > zmax) {
+            mn = min(mn, elfield_norm[i]);
+            mx = max(mx, elfield_norm[i]);
+            avg += elfield_norm[i];
+            cntr++;
+        }
+
+    cout << "\n\nzmax, n_atoms, n_average: " << zmax << ", " << cntr << ", " << n_average
+            << "\nmin, max: " << mn << ", " << mx
+            << "\nspan: " << mx-mn << "\naverage: " << avg / cntr << "\n\n";
+}
+
 const void SolutionReader::export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez,
         double* Enorm) {
     int i;
-    expect(n_atoms >= solution.id.size(), "Solution vector longer than requested!")
+    expect(n_atoms >= get_n_atoms(), "Solution vector longer than requested!")
 
-    // Initially pass the non-amplified electric field for all the atoms
+    // Initially pass the long range electric field for all the atoms
+    // NB!! THAT FIELD IS ALSO PASSED FOR THE BULK ATOMS (IT SHOULDN'T). FIX THIS!
     for (i = 0; i < n_atoms; ++i) {
         Ex[i] = 0;
         Ey[i] = 0;
@@ -130,7 +195,7 @@ const void SolutionReader::export_helmod(int n_atoms, double* Ex, double* Ey, do
         Enorm[i] = fabs(longrange_efield);
     }
 
-    // Pass the the real electric field for atoms that were in the mesh
+    // Pass the the real electric field for surface atoms that were in the mesh
     for (i = 0; i < get_n_atoms(); ++i) {
         int identifier = id[i];
         if (identifier < 0 || identifier >= n_atoms) continue;

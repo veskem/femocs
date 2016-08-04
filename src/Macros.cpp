@@ -45,18 +45,31 @@ const void __end_msg(const double t0) {
     cout << ", time: " << omp_get_wtime() - t0 << endl;
 }
 
-// Return mask of indices that doesn't contain the entry
-const vector<bool> vector_not(const vector<int> *v, const int entry) {
-    vector<bool> mask(v->size());
-    for (int i = 0; i < v->size(); ++i)
-        mask[i] = (*v)[i] != entry;
-    return mask;
+// Return mask of indices that are not equal to the scalar
+const vector<bool> vector_not(const vector<int> *v, const int s) {
+    return __vector_compare<int, std::not_equal_to<int>>(v, s);
 }
 
-// Return mask of indices that do contain the entry
-const vector<bool> vector_equal(vector<int> *v, const int entry) {
-    vector<bool> mask(v->size());
-    for (int i = 0; i < v->size(); ++i)
-        mask[i] = (*v)[i] == entry;
-    return mask;
+// Return mask of indices that are equal to the scalar
+const vector<bool> vector_equal(const vector<int> *v, const int s) {
+    return __vector_compare<int, std::equal_to<int>>(v, s);
+}
+
+// Return mask of indices that are greater than the scalar
+const vector<bool> vector_greater(const vector<double> *v, const double s) {
+    return __vector_compare<double, std::greater<double>>(v, s);
+}
+// Return mask of indices that are greater or equal than the entry
+const vector<bool> vector_ge(const vector<double> *v, const double s) {
+    return __vector_compare<double, std::greater_equal<double>>(v, s);
+}
+
+// Return mask of indices that are less than the scalar
+const vector<bool> vector_less(const vector<double> *v, const double s) {
+    return __vector_compare<double, std::less<double>>(v, s);
+}
+
+// Return mask of indices that are less or equal than the scalar
+const vector<bool> vector_less_equal(const vector<double> *v, const double s) {
+    return __vector_compare<double, std::less_equal<double>>(v, s);
 }

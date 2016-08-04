@@ -25,7 +25,8 @@ Femocs::Femocs(string file_name) :
     conf.path_to_script = file_name;
     //*
     //conf.infile = "input/rough111.ckx";
-    conf.infile = "input/mushroom2.ckx";
+    //conf.infile = "input/mushroom2.ckx";
+    conf.infile = "input/nanotip_hr5.ckx";
     conf.latconst = 2.0;        // lattice constant
     conf.coord_cutoff = 3.1;    // coordination analysis cut off radius
     //*/
@@ -39,10 +40,10 @@ Femocs::Femocs(string file_name) :
     conf.mesher = "tetgen";         // mesher algorithm
     conf.mesh_quality = "2.9";//"2.914";
     conf.nt = 4;                    // number of OpenMP threads
-    conf.rmin_coarse = 17.0;        // inner radius of coarsening cylinder
+    conf.rmin_coarse = 7.0;        // inner radius of coarsening cylinder
     conf.rmax_coarse = 8000.0;        // radius of constant cutoff coarsening cylinder
-    conf.coarse_factor = 1.0;       // coarsening factor; bigger number gives coarser surface
-    conf.postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
+    conf.coarse_factor = 0.5;       // coarsening factor; bigger number gives coarser surface
+    conf.postprocess_marking = false; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
 }
 
@@ -199,19 +200,23 @@ const void Femocs::run(double E_field) {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting solution...");
-    femocs::Medium medium = vacuum_mesh.to_medium();
-    solution.extract_solution(&laplace, medium);
-//    solution.extract_solution(&laplace, coarse_surf);
+//    femocs::Medium medium = vacuum_mesh.to_medium();
+//    solution.extract_solution(&laplace, medium);
+    solution.extract_solution(&laplace, coarse_surf);
+    end_msg(t0);
+
+    start_msg(t0, "=== Smoothing solution...");
+    solution.smoothen_result(4, 2);
     end_msg(t0);
 
 //    start_msg(t0, "=== Extracting statistics...");
 //    solution.extract_statistics(vacuum_mesh);
 //    end_msg(t0);
 
-//    start_msg(t0, "=== Outputting results...");
-//    solution.output("output/results.xyz");
-//    laplace.output_results("output/results.vtk");
-//    end_msg(t0);
+    start_msg(t0, "=== Outputting results...");
+    solution.output("output/results.xyz");
+    laplace.output_results("output/results.vtk");
+    end_msg(t0);
 
 //#if VERBOSE
     cout << "\nTotal time of Femocs: " << omp_get_wtime() - tstart << "\n";

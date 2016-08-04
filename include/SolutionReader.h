@@ -21,6 +21,7 @@ public:
     SolutionReader();
     const void extract_solution(DealII* fem, Medium &medium);
     const void extract_statistics(Mesh &mesh);
+    const void smoothen_result(const int n_samples, const int repetitions);
     const void export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
     const void output(const string file_name);
 
@@ -32,6 +33,12 @@ private:
     vector<double> potential;
     vector<double> face_qualities;
     vector<double> elem_qualities;
+
+    const double error_field = 1e20; //!< Field that is assigned to atoms not found from mesh
+
+
+    inline double get_down_moving_average(const int i, const int n_samples);
+    inline double get_up_moving_average(const int i, const int n_samples);
 
     /** Reserve memory for solution vectors */
     const void reserve(const int n_nodes);
