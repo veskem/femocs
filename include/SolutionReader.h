@@ -34,11 +34,24 @@ private:
     vector<double> face_qualities;
     vector<double> elem_qualities;
 
-    const double error_field = 1e20; //!< Field that is assigned to atoms not found from mesh
+    const double error_field = 1e20; //!< Field that is assigned to atoms not found from mesh. Its value is BIG to make it immediately visible from data set.
 
+    const void smoothen_result_ema(const int n_samples);
+    const void smoothen_result_ema_curl(const int n_samples);
+    const void smoothen_result_sma(const int n_samples);
+    const void smoothen_result_sma_curl(const int n_average);
 
-    inline double get_down_moving_average(const int i, const int n_samples);
-    inline double get_up_moving_average(const int i, const int n_samples);
+    const vector<int> get_radial_direction_map();
+
+    inline Vec3 get_ema(const int i0, const int i1, const int n_samples);
+
+    inline Vec3 get_sma_down(const int i, const int n_samples, const vector<int>* map);
+    inline Vec3 get_sma_up(const int i, const int n_samples, const vector<int>* map);
+    inline Vec3 get_sma_down(const int i, const int n_samples);
+    inline Vec3 get_sma_up(const int i, const int n_samples);
+
+    inline double get_movavg_down(const int i, const int n_samples);
+    inline double get_movavg_up(const int i, const int n_samples);
 
     /** Reserve memory for solution vectors */
     const void reserve(const int n_nodes);
@@ -52,9 +65,7 @@ private:
      * map[2*node_index] == element_index, map[2*node_index+1] == vertex_index
      */
     const vector<int> get_node2elem_map();
-
     const vector<int> get_node2vert_map();
-
     const vector<int> get_node2face_map(Mesh &mesh, int node);
     const vector<int> get_node2elem_map(Mesh &mesh, int node);
 

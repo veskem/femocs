@@ -135,6 +135,10 @@ public:
     Vec3_T operator +(const Vec3_T &v) const {
         return Vec3_T(x + v.x, y + v.y, z + v.z);
     }
+    Vec3_T& operator +=(const Vec3_T &v) {
+        x += v.x, y += v.y, z += v.z;
+        return *this;
+    }
 
     /** Subtraction of two vectors */
     Vec3_T operator -(const Vec3_T &v) const {
@@ -142,6 +146,10 @@ public:
     }
     Vec3_T operator -() const {
         return Vec3_T(-x, -y, -z);
+    }
+    Vec3_T& operator -=(const Vec3_T &v) {
+        x -= v.x, y -= v.y, z -= v.z;
+        return *this;
     }
 
     /** Scalar multiplication of vector with a scalar and with another vector */
@@ -151,29 +159,32 @@ public:
     Vec3_T operator *(const Vec3_T &v) const {
         return Vec3_T(x * v.x, y * v.y, z * v.z);
     }
-    Vec3_T& operator *=(const T &r) {
-        x *= r, y *= r, z *= r;
-        return *this;
-    }
     friend Vec3_T operator *(const T &r, const Vec3_T &v) {
         return Vec3_T<T>(v.x * r, v.y * r, v.z * r);
     }
-
-    /** Equals operator */
-    bool operator ==(const Vec3_T &v) const {
-        return x == v.x && y == v.y && z == v.z;
+    Vec3_T& operator *=(const T &r) {
+        x *= r, y *= r, z *= r;
+        return *this;
     }
 
     /** Scalar division of vector with a scalar or with another vector */
     Vec3_T operator /(const T &r) const {
         return Vec3_T(x / r, y / r, z / r);
     }
+    Vec3_T operator /(const Vec3_T &v) const {
+        return Vec3_T(x / v.x, y / v.y, z / v.z);
+    }
+    friend Vec3_T operator /(const T &r, const Vec3_T &v) {
+        return Vec3_T<T>(r / v.x, r / v.y, r / v.z);
+    }
     Vec3_T& operator /=(const T &r) {
         x /= r, y /= r, z /= r;
         return *this;
     }
-    friend Vec3_T operator /(const T &r, const Vec3_T &v) {
-        return Vec3_T<T>(r / v.x, r / v.y, r / v.z);
+
+    /** Equals operator */
+    bool operator ==(const Vec3_T &v) const {
+        return x == v.x && y == v.y && z == v.z;
     }
 
     /** Dot product, cross product, norm and length */

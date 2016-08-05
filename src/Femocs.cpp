@@ -24,9 +24,9 @@ Femocs::Femocs(string file_name) :
     start_msg(double t0, "======= Femocs started! =======\n");
     conf.path_to_script = file_name;
     //*
-    //conf.infile = "input/rough111.ckx";
-    //conf.infile = "input/mushroom2.ckx";
-    conf.infile = "input/nanotip_hr5.ckx";
+//    conf.infile = "input/rough111.ckx";
+    conf.infile = "input/mushroom2.ckx";
+//    conf.infile = "input/nanotip_hr5.ckx";
     conf.latconst = 2.0;        // lattice constant
     conf.coord_cutoff = 3.1;    // coordination analysis cut off radius
     //*/
@@ -38,12 +38,12 @@ Femocs::Femocs(string file_name) :
 
     conf.nnn = 12;                  // number of nearest neighbours in bulk
     conf.mesher = "tetgen";         // mesher algorithm
-    conf.mesh_quality = "2.9";//"2.914";
+    conf.mesh_quality = "2.0";//"2.914";
     conf.nt = 4;                    // number of OpenMP threads
-    conf.rmin_coarse = 7.0;        // inner radius of coarsening cylinder
+    conf.rmin_coarse = 17.0;        // inner radius of coarsening cylinder
     conf.rmax_coarse = 8000.0;        // radius of constant cutoff coarsening cylinder
-    conf.coarse_factor = 0.5;       // coarsening factor; bigger number gives coarser surface
-    conf.postprocess_marking = false; // make extra effort to mark correctly the vacuum nodes in shadow area
+    conf.coarse_factor = 0.8;       // coarsening factor; bigger number gives coarser surface
+    conf.postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
 }
 
@@ -206,7 +206,7 @@ const void Femocs::run(double E_field) {
     end_msg(t0);
 
     start_msg(t0, "=== Smoothing solution...");
-    solution.smoothen_result(4, 2);
+    solution.smoothen_result(6, 1);
     end_msg(t0);
 
 //    start_msg(t0, "=== Extracting statistics...");

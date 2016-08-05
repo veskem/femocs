@@ -118,7 +118,7 @@ const void SolutionReader::extract_statistics(Mesh &mesh) {
 }
 
 // Calculate up moving average of electric field norm for i-th atom
-inline double SolutionReader::get_up_moving_average(const int i, const int n_samples) {
+inline double SolutionReader::get_movavg_up(const int i, const int n_samples) {
     double running_average = 0.0;
     for(int j = i; j < i + n_samples ; ++j)
         running_average += elfield_norm[j];
@@ -127,7 +127,7 @@ inline double SolutionReader::get_up_moving_average(const int i, const int n_sam
 }
 
 // Calculate down moving average of electric field norm for i-th atom
-inline double SolutionReader::get_down_moving_average(const int i, const int n_samples) {
+inline double SolutionReader::get_movavg_down(const int i, const int n_samples) {
     double running_average = 0.0;
     for(int j = i; j > i - n_samples ; --j)
         running_average += elfield_norm[j];
@@ -135,40 +135,80 @@ inline double SolutionReader::get_down_moving_average(const int i, const int n_s
     return running_average / n_samples;
 }
 
+inline Vec3 SolutionReader::get_sma_up(const int i, const int n_samples) {
+    Vec3 movavg(0.0);
+    for(int j = i; j < i + n_samples ; ++j)
+        movavg += elfield[j];
+
+    return movavg / n_samples;
+}
+
+inline Vec3 SolutionReader::get_sma_down(const int i, const int n_samples) {
+    Vec3 movavg(0.0);
+    for(int j = i; j > i - n_samples ; --j)
+        movavg += elfield[j];
+
+    return movavg / n_samples;
+}
+
+inline Vec3 SolutionReader::get_sma_up(const int i, const int n_samples, const vector<int>* map) {
+    Vec3 movavg(0.0);
+    for(int j = i; j < i + n_samples ; ++j)
+        movavg += elfield[(*map)[j]];
+
+    return movavg / n_samples;
+}
+
+inline Vec3 SolutionReader::get_sma_down(const int i, const int n_samples, const vector<int>* map) {
+    Vec3 movavg(0.0);
+    for(int j = i; j > i - n_samples ; --j)
+        movavg += elfield[(*map)[j]];
+
+    return movavg / n_samples;
+}
+
+inline Vec3 SolutionReader::get_ema(const int i_active, const int i_neighb, const int n_average) {
+    const double k = 2.0 / (n_average + 1);
+    return (elfield[i_active] * k) + (elfield[i_neighb] * (1 - k));
+}
+
+const vector<int> SolutionReader::get_radial_direction_map() {
+    const int n_atoms = get_n_atoms();
+    vector<double> radiuses(n_atoms);
+
+    calc_statistics();
+    Point2 origin((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
+
+    for(int i = 0; i < n_atoms; ++i)
+        radiuses[i] = origin.distance2(get_point2(i));
+
+    // Generate vector with indices [0, n_atoms-1]
+    vector<int> indxs(n_atoms);
+    size_t n(0);
+    generate(indxs.begin(), indxs.end(), [&]{ return n++; });
+
+    // Sort indexes by the radiuses
+    auto comparator = [&radiuses](int a, int b){ return radiuses[a] < radiuses[b]; };
+    sort(indxs.begin(), indxs.end(), comparator);
+
+    return indxs;
+}
+
 const void SolutionReader::smoothen_result(const int n_average, const int repetitions) {
     if (n_average <= 0 || repetitions <= 0) return;
 
-    // Atoms from non-enhanced electric field regions will be skipped from averaging
-    const vector<bool> skip_atom = vector_less_equal(&elfield_norm, fabs(longrange_efield));
-    const int n_atoms = get_n_atoms();
-    const int n_average_half = floor(n_average / 2);
-
     // Repeat the averaging cycles for desired times to get properly centered results
     for (int r = 0; r < repetitions; ++r) {
-        // Average by moving up
-        // moving up is more sensitive, thus the division by two of n_average
-        for (int i = 0; i < (n_atoms - n_average_half); ++i) {
-            if (skip_atom[i]) continue;
-
-            double ra = get_up_moving_average(i, n_average_half);
-            elfield[i] *= ra / elfield_norm[i];
-            elfield_norm[i] = ra;
-        }
-        // Average by moving down
-        for (int i = (n_atoms - 1); i >= (n_average - 1); --i) {
-            if (skip_atom[i]) continue;
-
-            double ra = get_down_moving_average(i, n_average);
-            elfield[i] *= ra / elfield_norm[i];
-            elfield_norm[i] = ra;
-        }
+        smoothen_result_ema(n_average);
+//        smoothen_result_sma(n_average);
+//        smoothen_result_sma_curl(1);
     }
 
     // Print some statistics about the top region of tip
     double zmax = 33.0;
     double mn = 1e20; double mx = -1e20; double avg = 0; int cntr = 0;
 
-    for(int i = 0; i < n_atoms; ++i)
+    for (int i = 0; i < get_n_atoms(); ++i)
         if (point[i].z > zmax) {
             mn = min(mn, elfield_norm[i]);
             mx = max(mx, elfield_norm[i]);
@@ -180,6 +220,116 @@ const void SolutionReader::smoothen_result(const int n_average, const int repeti
             << "\nmin, max: " << mn << ", " << mx
             << "\nspan: " << mx-mn << "\naverage: " << avg / cntr << "\n\n";
 }
+
+const void SolutionReader::smoothen_result_sma(const int n_average) {
+    const int n_atoms = get_n_atoms();
+    const int n_average_half = n_average / 2; //floor(n_average / 2);
+
+    // Atoms from non-enhanced electric field regions will be skipped from averaging
+    const vector<bool> skip_atom = vector_less_equal(&elfield_norm, fabs(longrange_efield));
+
+    // Average by moving up
+    // moving up is more sensitive, thus the division by two of n_average
+    for (int i = 0; i < (n_atoms - n_average_half); ++i) {
+        if (skip_atom[i]) continue;
+        elfield[i] = get_sma_up(i, n_average_half);
+        elfield_norm[i] = elfield[i].length();
+    }
+    // Average by moving down
+    for (int i = (n_atoms - 1); i >= (n_average - 1); --i) {
+        if (skip_atom[i]) continue;
+        elfield[i] = get_sma_down(i, n_average);
+        elfield_norm[i] = elfield[i].length();
+    }
+}
+
+const void SolutionReader::smoothen_result_sma_curl(const int n_average) {
+    const int n_atoms = get_n_atoms();
+    const int n_average_half = n_average; //floor(n_average / 2);
+
+    // Atoms from non-enhanced electric field regions will be skipped from averaging
+    const vector<bool> skip_atom = vector_less_equal(&elfield_norm, fabs(longrange_efield));
+    // Atoms will be averaged in radial direction
+    const vector<int> map = get_radial_direction_map();
+
+    // Average by moving up
+    // moving up is more sensitive, thus the division by two of n_average
+    for (int i = 0; i < (n_atoms - n_average_half); ++i) {
+        int I = map[i];
+        if (skip_atom[I]) continue;
+        elfield[I] = get_sma_up(i, n_average_half, &map);
+        elfield_norm[I] = elfield[I].length();
+    }
+//    // Average by moving down
+//    for (int i = (n_atoms - 1); i >= (n_average - 1); --i) {
+//        int I = map[i];
+//        if (skip_atom[I]) continue;
+//        elfield[I] = get_sma_down(i, n_average, &map);
+//        elfield_norm[I] = elfield[I].length();
+//    }
+}
+
+const void SolutionReader::smoothen_result_ema(const int n_average) {
+    // Atoms from non-enhanced electric field regions will be skipped from averaging
+    const int n_atoms = get_n_atoms();
+    const int n_average_half = 2; //floor(n_average / 2);
+
+    const vector<bool> skip_atom = vector_less_equal(&elfield_norm, fabs(longrange_efield));
+
+    // Average by moving up
+    // moving up is more sensitive, thus the division by two of n_average
+    for (int i = 1; i < n_atoms; ++i) {
+        int i_active = i;
+        int i_neighb = i-1;
+
+        if (skip_atom[i_active]) continue;
+
+        elfield[i_active] = get_ema(i_active, i_neighb, n_average);
+        elfield_norm[i_active] = elfield[i_active].length();
+    }
+    // Average by moving down
+//    for (int i = (n_atoms - 2); i >= 0; --i) {
+//        int i_active = i;
+//        int i_neighb = i+1;
+//
+//        if (skip_atom[i_active]) continue;
+//
+//        elfield[i_active] = get_ema(i_active, i_neighb, n_average_half);
+//        elfield_norm[i_active] = elfield[i_active].length();
+//    }
+}
+
+const void SolutionReader::smoothen_result_ema_curl(const int n_average) {
+    // Atoms from non-enhanced electric field regions will be skipped from averaging
+    const int n_atoms = get_n_atoms();
+    const int n_average_half = n_average; //floor(n_average / 2);
+
+    const vector<bool> skip_atom = vector_less_equal(&elfield_norm, fabs(longrange_efield));
+    const vector<int> rd_map = get_radial_direction_map();
+
+    // Average by moving up
+    // moving up is more sensitive, thus the division by two of n_average
+    for (int i = 1; i < n_atoms; ++i) {
+        int i_active = rd_map[i];
+        int i_neighb = rd_map[i-1];
+
+        if (skip_atom[i_active]) continue;
+
+        elfield[i_active] = get_ema(i_active, i_neighb, n_average_half);
+        elfield_norm[i_active] = elfield[i_active].length();
+    }
+    // Average by moving down
+    for (int i = (n_atoms - 2); i >= 0; --i) {
+        int i_active = rd_map[i];
+        int i_neighb = rd_map[i+1];
+
+        if (skip_atom[i_active]) continue;
+
+        elfield[i_active] = get_ema(i_active, i_neighb, n_average);
+        elfield_norm[i_active] = elfield[i_active].length();
+    }
+}
+
 
 const void SolutionReader::export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez,
         double* Enorm) {
@@ -290,7 +440,8 @@ const string SolutionReader::get_data_string(const int i) {
         return "Solution of DealII operations: id x y z coordination Ex Ey Ez Enorm potential";// face_quality elem_quality";
 
     ostringstream strs;
-    strs << id[i] << " " << point[i] << " " << coordination[i] << " " << elfield[i] << " "
+//    strs << id[i] << " " << point[i] << " " << coordination[i] << " " << elfield[i] << " "
+    strs << i << " " << point[i] << " " << id[i] << " " << elfield[i] << " "
             << elfield_norm[i] << " " << potential[i];
             // << " " << face_qualities[i] << " " << elem_qualities[i];
     return strs.str();
