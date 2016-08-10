@@ -13,7 +13,33 @@
 #include "physical_quantities.h"
 #include "currents_and_heating.h"
 
+#include "field_currents_heating.h"
+
 int main() {
+
+	MeshPreparer<2> mesh_preparer;
+	PhysicalQuantities pq;
+	if (!pq.load_emission_data("../res/physical_quantities/gtf_grid_1000x1000.dat"))
+			return EXIT_FAILURE;
+	if (!pq.load_nottingham_data("../res/physical_quantities/nottingham_grid_300x300.dat"))
+			return EXIT_FAILURE;
+	if (!pq.load_resistivity_data("../res/physical_quantities/cu_res_mod.dat"))
+			return EXIT_FAILURE;
+	field_currents_heating::FieldCurrentsHeating<2> fch(pq);
+	Triangulation<2> *p_mesh = fch.getp_triangulation();
+	mesh_preparer.import_mesh_from_file(p_mesh, "../res/2d_meshes/both.msh");
+	mesh_preparer.output_mesh(p_mesh, "both_mesh_2d.vtk");
+
+	fch.run();
+
+/*
+	MeshPreparer<2> mesh_preparer;
+	Laplace<2> laplace_problem;
+	Triangulation<2> *p_vacuum_mesh = laplace_problem.getp_triangulation();
+	mesh_preparer.import_mesh_from_file(p_vacuum_mesh, "../res/2d_meshes/both.msh");
+	mesh_preparer.output_mesh(p_vacuum_mesh, "both_mesh_2d.vtk");
+*/
+
 /*
 	Timer timer;
 	timer.start();
@@ -27,7 +53,7 @@ int main() {
 
 	std::cout << pq.evaluate_current(1.0, 1000.0) << std::endl;
 */
-
+/*
 	MeshPreparer<3> mesh_preparer;
 	Laplace<3> laplace_problem;
 	Timer timer;
@@ -45,14 +71,15 @@ int main() {
 	laplace_problem.run();
 	timer.stop();
 	std::cout << "-------- Solved Laplace problem: " << timer() << "s" << std::endl;
-
+*/
+/*
 	timer.restart();
 	for (int i = 0; i < 100; i++) {
 		laplace_problem.probe_field(Point<3>(20.0, 20.0, 40.0));
 	}
 	timer.stop();
 	std::cout << "Probing field: " << timer() << std::endl;
-
+*/
 
 /*
 	timer.restart();
@@ -74,9 +101,8 @@ int main() {
 	std::cout << "-------- Imported, outputted and marked copper mesh: " << timer() << "s" << std::endl;
 
 	timer.restart();
-
-	timer.stop();
 	currents_and_heating.run();
+	timer.stop();
 	std::cout << "-------- Solved currents and heating: " << timer() << "s" << std::endl;
 */
 

@@ -16,6 +16,7 @@ class PhysicalQuantities {
 public:
 
 	bool load_emission_data(std::string filepath);
+	bool load_nottingham_data(std::string filepath);
 	bool load_resistivity_data(std::string filepath);
 
 	/**
@@ -24,7 +25,15 @@ public:
 	 * @param temperature Temperature in (K)
 	 * @return Emission current density in (A/nm^2)
 	 */
-	double evaluate_current(double field, double temperature);
+	double emission_current(double field, double temperature);
+
+	/**
+	 * Evaluates the nottingham delta energy
+	 * @param field electric field in (GV/m)
+	 * @param temperature Temperature in (K)
+	 * @return nottingham delta energy in (eV)
+	 */
+	double nottingham_de(double field, double temperature);
 
 	/**
 	 * Evaluates the electrical conductivity
@@ -71,6 +80,7 @@ private:
 		double xmin = 0, xmax = 0, ymin = 0, ymax = 0;
 	};
 	InterpolationGrid emission_grid;
+	InterpolationGrid nottingham_grid;
 
 	std::vector<std::pair<double, double> > resistivity_data;
 
@@ -93,6 +103,8 @@ private:
 	 * NB: Assumes uniform grid
 	 */
 	double bilinear_interp(double x, double y, const InterpolationGrid &grid_data);
+
+	bool load_grid_data(std::string filepath, InterpolationGrid &grid);
 
 };
 

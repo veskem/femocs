@@ -23,10 +23,10 @@ Triangulation<dim>* CurrentsAndHeating<dim>::getp_triangulation() {
 }
 
 template <int dim>
-double CurrentsAndHeating<dim>::emission_at_point(const Point<dim> &p, double temperature) {
+double CurrentsAndHeating<dim>::emission_at_point(const Point<dim> &/*p*/, double temperature) {
 	//double e_field = laplace->probe_field(p);
-	double e_field = 1.0;
-	return pq.evaluate_current(e_field, temperature);
+	double e_field = 10.0;
+	return pq.emission_current(e_field, temperature);
 }
 
 
@@ -124,6 +124,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 
 			for (unsigned int i = 0; i < dofs_per_cell; ++i) {
 
+				// these should be evaluated outside the loops (into an array)
 				const Tensor<1,dim> grad_phi_i_p	= fe_values[potential].gradient(i, q);
 				const double phi_i_t 				= fe_values[temperature].value(i, q);
 				const Tensor<1,dim> grad_phi_i_t	= fe_values[temperature].gradient(i, q);
@@ -262,7 +263,7 @@ void CurrentsAndHeating<dim>::run() {
 	setup_system();
 
 	// Newton iterations
-	for (unsigned int iteration=0; iteration<2; ++iteration) {
+	for (unsigned int iteration=0; iteration<5; ++iteration) {
 		std::cout << "    Newton iteration " << iteration << std::endl;
 
 		// reset the state of the linear system
@@ -304,10 +305,8 @@ void CurrentsAndHeating<dim>::run() {
 }
 
 
-
 // ----------------------------------------------------------------------------------------
 // Class for outputting the current density distribution (calculated from potential distr.)
-
 template <int dim>
 class CurrentPostProcessor : public DataPostprocessorVector<dim> {
 	PhysicalQuantities pq;
@@ -315,7 +314,6 @@ public:
 	CurrentPostProcessor(PhysicalQuantities pq_)
 		: DataPostprocessorVector<dim>("current_density", update_values | update_gradients),
 		  pq(pq_){}
-
 
 	void
 	compute_derived_quantities_vector (	const std::vector< Vector< double > > &  					uh,
@@ -335,9 +333,29 @@ public:
 		}
 	}
 };
+// Class for outputting the electrical conductivity distribution
+template <int dim>
+class SigmaPostProcessor : public DataPostprocessorScalar<dim> {
+	PhysicalQuantities pq;
+public:
+	SigmaPostProcessor(PhysicalQuantities pq_)
+		: DataPostprocessorScalar<dim>("sigma", update_values),
+		  pq(pq_){}
 
-
-
+	void
+	compute_derived_quantities_vector (	const std::vector< Vector< double > > &  					uh,
+											const std::vector< std::vector< Tensor< 1, dim > > > &  /*duh*/,
+											const std::vector< std::vector< Tensor< 2, dim > > > &  /*dduh*/,
+											const std::vector< Point< dim > > &  					/*normals*/,
+											const std::vector< Point< dim > > &  					/*evaluation_points*/,
+											std::vector< Vector< double > > &  						computed_quantities
+										  ) const {
+		for (unsigned int i=0; i<computed_quantities.size(); i++) {
+			double t = uh[i][1]; // temperature
+			computed_quantities[i](0) = pq.sigma(t);
+		}
+	}
+};
 // ----------------------------------------------------------------------------------------
 
 template <int dim>
@@ -347,12 +365,14 @@ void CurrentsAndHeating<dim>::output_results(const unsigned int iteration) const
 
 	std::vector<std::string> solution_names {"potential", "temperature"};
 
-	CurrentPostProcessor<dim> current_calculator(pq); // needs to be before data_out
+	CurrentPostProcessor<dim> current_post_processor(pq); // needs to be before data_out
+	SigmaPostProcessor<dim> sigma_post_processor(pq); // needs to be before data_out
 
 	DataOut<dim> data_out;
 	data_out.attach_dof_handler(dof_handler);
 	data_out.add_data_vector(solution, solution_names);
-	data_out.add_data_vector(solution, current_calculator);
+	data_out.add_data_vector(solution, current_post_processor);
+	data_out.add_data_vector(solution, sigma_post_processor);
 	data_out.build_patches();
 
 	std::ofstream output(filename.c_str());

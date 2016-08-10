@@ -14,30 +14,34 @@
 #include <iostream>
 #include <algorithm>
 
-double PhysicalQuantities::evaluate_current(double field, double temperature) {
+double PhysicalQuantities::emission_current(double field, double temperature) {
 	return std::exp(bilinear_interp(std::log(field), temperature, emission_grid))*1.0e-18;
 }
 
+double PhysicalQuantities::nottingham_de(double field, double temperature) {
+	return std::exp(bilinear_interp(std::log(field), temperature, nottingham_grid));
+}
+
 double PhysicalQuantities::evaluate_resistivity(double temperature) const {
-	return linear_interp(temperature, resistivity_data);
+	return linear_interp(temperature, resistivity_data)*1.0e9;
 }
 
 double PhysicalQuantities::evaluate_resistivity_derivative(double temperature) {
-	return deriv_linear_interp(temperature, resistivity_data);
+	return deriv_linear_interp(temperature, resistivity_data)*1.0e9;
 }
 
 double PhysicalQuantities::sigma(double temperature) const {
 	if (temperature < 200) temperature = 200;
 	if (temperature > 1400) temperature = 1400;
-	double rho = evaluate_resistivity(temperature)*1.0e9;
+	double rho = evaluate_resistivity(temperature);
 	return 1.0 / rho;
 }
 
 double PhysicalQuantities::dsigma(double temperature) {
 	if (temperature < 200) temperature = 200;
 	if (temperature > 1400) temperature = 1400;
-	double rho = evaluate_resistivity(temperature)*1.0e9;
-	return -evaluate_resistivity_derivative(temperature)*1.0e9 / (rho * rho);
+	double rho = evaluate_resistivity(temperature);
+	return -evaluate_resistivity_derivative(temperature) / (rho * rho);
 }
 
 double PhysicalQuantities::kappa(double temperature) {
@@ -54,7 +58,7 @@ double PhysicalQuantities::dkappa(double temperature) {
 	return lorentz * (sigma(temperature) + temperature * dsigma(temperature));
 }
 
-bool PhysicalQuantities::load_emission_data(std::string filepath) {
+bool PhysicalQuantities::load_grid_data(std::string filepath, InterpolationGrid &grid) {
 	std::ifstream infile(filepath);
 	if (!infile) {
 		std::cerr << "Couldn't open \"" << filepath << "\"\n";
@@ -64,7 +68,7 @@ bool PhysicalQuantities::load_emission_data(std::string filepath) {
 	std::vector<double> row;
 	std::string line;
 	double last_x = 0, last_y = 0;
-	bool first_line = 1;
+	bool first_line = true;
 
 	while (std::getline(infile, line)) {
 		if (line[0] == '%')
@@ -74,23 +78,31 @@ bool PhysicalQuantities::load_emission_data(std::string filepath) {
 		stm >> x >> y >> z;
 
 		if (first_line) {
-			emission_grid.xmin = x;
-			emission_grid.ymin = y;
-			first_line = 0;
+			grid.xmin = x;
+			grid.ymin = y;
+			first_line = false;
 		} else if (last_x != x) {
-			emission_grid.grid.push_back(row);
+			grid.grid.push_back(row);
 			row.clear();
 		}
 		row.push_back(z);
 		last_x = x;
 		last_y = y;
 	}
-	emission_grid.grid.push_back(row);
-	emission_grid.xmax = last_x;
-	emission_grid.ymax = last_y;
+	grid.grid.push_back(row);
+	grid.xmax = last_x;
+	grid.ymax = last_y;
 
 	infile.close();
 	return true;
+}
+
+bool PhysicalQuantities::load_emission_data(std::string filepath) {
+	return load_grid_data(filepath, emission_grid);
+}
+
+bool PhysicalQuantities::load_nottingham_data(std::string filepath) {
+	return load_grid_data(filepath, nottingham_grid);
 }
 
 bool PhysicalQuantities::load_resistivity_data(std::string filepath) {
@@ -151,7 +163,7 @@ void PhysicalQuantities::output_to_files() {
 	}
 
 	for (double f = 0.01; f < 10.0; f+=0.01) {
-		fprintf(emission_file, "%.5e %.5e %.16e\n", f, temperature, evaluate_current(f, temperature));
+		fprintf(emission_file, "%.5e %.5e %.16e\n", f, temperature, emission_current(f, temperature));
 	}
 
 	fclose(rho_file);
