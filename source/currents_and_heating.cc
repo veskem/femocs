@@ -92,11 +92,11 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
     timer.stop();
     std::cout << "Initialization: " << timer() << std::endl;
 
-    double total_matrix = 0.0;
-    double total_faces = 0.0;
-    double total_add_global = 0.0;
+    double total_matrix_time = 0.0;
+    double total_faces_time = 0.0;
+    double total_add_global_time = 0.0;
 
-    int probe_count = 0;
+    int field_probe_count = 0;
 
 	typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
 			endc = dof_handler.end();
@@ -152,7 +152,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 
 
 		timer.stop();
-		total_matrix += timer();
+		total_matrix_time += timer();
 		timer.restart();
 
 		// integration over the boundary (cell faces)
@@ -171,7 +171,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 						const Tensor<1,dim> prev_pot_grad = prev_sol_face_potential_gradients[q];
 
 						double dsigma = pq.dsigma(prev_temp);
-						probe_count++;
+						field_probe_count++;
 						double emission_current = emission_at_point(fe_face_values.quadrature_point(q), prev_temp);
 
 						for (unsigned int i = 0; i < dofs_per_cell; ++i) {
@@ -194,7 +194,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 			}
 
 		timer.stop();
-		total_faces += timer();
+		total_faces_time += timer();
 		timer.restart();
 
 		cell->get_dof_indices(local_dof_indices);
@@ -208,7 +208,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 		}
 
 		timer.stop();
-		total_add_global += timer();
+		total_add_global_time += timer();
 	}
 	timer.restart();
 	// Setting Dirichlet boundary values //
@@ -238,11 +238,11 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 
 	timer.stop();
 
-	std::cout << "Total matrix: " << total_matrix << "s" << std::endl;
-	std::cout << "Total faces: " << total_faces << "s" << std::endl;
-	std::cout << "Total global addition: " << total_add_global << "s" << std::endl;
+	std::cout << "Total matrix: " << total_matrix_time << "s" << std::endl;
+	std::cout << "Total faces: " << total_faces_time << "s" << std::endl;
+	std::cout << "Total global addition: " << total_add_global_time << "s" << std::endl;
 	std::cout << "End stuff: " << timer() << "s" << std::endl;
-	std::cout << "Probe count: " << probe_count << std::endl;
+	std::cout << "Probe count: " << field_probe_count << std::endl;
 }
 
 

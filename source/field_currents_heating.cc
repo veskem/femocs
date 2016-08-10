@@ -196,6 +196,7 @@ void FieldCurrentsHeating<dim>::assemble_system_newton (const bool first_iterati
 
 	// The previous solution values in the face quadrature points
 	std::vector<Tensor<1,dim>> prev_sol_face_potential_gradients (common_face_quadrature.size());
+	std::vector<Tensor<1,dim>> prev_sol_face_temperature_gradients (common_face_quadrature.size());
 	std::vector<double> prev_sol_face_temperature_values (common_face_quadrature.size());
 	std::vector<Tensor<1,dim>> prev_sol_face_field (common_face_quadrature.size());
 
@@ -326,6 +327,7 @@ void FieldCurrentsHeating<dim>::assemble_system_newton (const bool first_iterati
 	    				local_interface_rhs = 0;
 
 	    				copper_fe_face_values[potential_c].get_function_gradients(previous_solution, prev_sol_face_potential_gradients);
+	    				copper_fe_face_values[temperature].get_function_gradients(previous_solution, prev_sol_face_temperature_gradients);
 	    				copper_fe_face_values[temperature].get_function_values(previous_solution, prev_sol_face_temperature_values);
 	    				field_fe_face_values[potential_v].get_function_gradients(previous_solution, prev_sol_face_field);
 
@@ -339,25 +341,42 @@ void FieldCurrentsHeating<dim>::assemble_system_newton (const bool first_iterati
 							// (eV*A/nm^2) -> (eV*n*q_e/(s*nm^2)) -> (J*n/(s*nm^2)) -> (W/nm^2)
 							double nottingham_flux = pq.nottingham_de(e_field, prev_temp)*emission_current;
 
-							const Tensor<1,dim> prev_pot_grad = prev_sol_face_potential_gradients[q];
+							const Tensor<1,dim> prev_face_pot_grad = prev_sol_face_potential_gradients[q];
+							const Tensor<1,dim> prev_face_temp_grad = prev_sol_face_temperature_gradients[q];
+
 							double dsigma = pq.dsigma(prev_temp);
+							double dkappa = pq.dkappa(prev_temp);
+
+							const Tensor<1,dim> face_normal_vector = copper_fe_face_values.normal_vector(q);
 
 							for (unsigned int i = 0; i < copper_fe_face_values.dofs_per_cell; ++i) {
 								const double potential_c_phi_i = copper_fe_face_values[potential_c].value(i, q);
 								const double temperature_phi_i = copper_fe_face_values[temperature].value(i, q);
 
-								// Emission current and nottingham effect bc-s
+								// Emission current and nottingham effect bc-s for deltas
+								// for first newton iteration only!
+								if (first_iteration) {
+									local_interface_rhs(i) += ( - potential_c_phi_i * emission_current
+																- temperature_phi_i * nottingham_flux
+																) * copper_fe_face_values.JxW(q);
+								}
+								// Potential and T gradients are also in the rhs for the "previous iteration"
+								// Let's use BC-s for those also...
 								local_interface_rhs(i) += ( - potential_c_phi_i * emission_current
 															- temperature_phi_i * nottingham_flux
 															) * copper_fe_face_values.JxW(q);
+
 
 								for (unsigned int j = 0; j < copper_fe_face_values.dofs_per_cell; ++j) {
 									const double temperature_phi_j = copper_fe_face_values[temperature].value(j, q);
 
 									local_interface_matrix(i, j)
-										+= ( potential_c_phi_i * copper_fe_face_values.normal_vector(q)
-												* prev_pot_grad * dsigma * temperature_phi_j
+										+= ( potential_c_phi_i * face_normal_vector * dsigma
+												* prev_face_pot_grad * temperature_phi_j
+											+ temperature_phi_i * face_normal_vector * dkappa
+												* prev_face_temp_grad * temperature_phi_j
 										   ) * copper_fe_face_values.JxW(q);
+
 								}
 							}
 
