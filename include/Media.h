@@ -40,8 +40,6 @@ public:
 
     /** Generates Vacuum by adding four points to the top of simulation cell */
     const void generate_simple(const AtomReader::Sizes* sizes);
-
-private:
 };
 
 /** Routines and data related to making a Surface */
@@ -81,8 +79,8 @@ private:
     const void extract_by_type(AtomReader* reader);
 
     /**
-     * Extract surface by the coordination analysis - atoms having coordination less than the number
-     * of nearest neighbours in given crystal are considered to belong to surface.
+     * Extract surface by the coordination analysis - atoms having coordination less than the
+     * number of nearest neighbours in given crystal are considered to belong to surface.
      */
     const void extract_by_coordination(AtomReader* reader);
 };
@@ -107,8 +105,6 @@ public:
 
     // Function to extract bulk material from input atomistic data
     const void rectangularize(const AtomReader::Sizes* sizes, const double r_cut);
-
-private:
 };
 
 } /* namespace femocs */

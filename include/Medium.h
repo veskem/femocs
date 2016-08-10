@@ -18,36 +18,16 @@ class Medium {
 public:
     /** Medium constructor */
     Medium();
-    //virtual ~Medium() = 0;
+    virtual ~Medium() {}; // = 0;
 
     /** Define the addition of two Mediums */
-    Medium& operator +=(Medium &m) {
-        int n_atoms1 = get_n_atoms();
-        int n_atoms2 = m.get_n_atoms();
+    Medium& operator +=(Medium &m);
 
-        this->reserve(n_atoms1 + n_atoms2);
-
-        for(int i = 0; i < n_atoms2; ++i)
-            add_atom(m.get_id(i), m.get_point(i), m.get_coordination(i));
-
-        this->calc_statistics();
-        return *this;
-    }
-
-    const void add(Medium *m) {
-        int n_atoms1 = get_n_atoms();
-        int n_atoms2 = m->get_n_atoms();
-
-        this->reserve(n_atoms1 + n_atoms2);
-
-        for(int i = 0; i < n_atoms2; ++i)
-            add_atom(m->get_id(i), m->get_point(i), m->get_coordination(i));
-
-        this->calc_statistics();
-    }
+    /** Add data from other Medium to current one */
+    const void add(Medium *m);
 
     /** Reserve memory for data vectors */
-    const void reserve(const int n_atoms);
+    virtual const void reserve(const int n_atoms);
 
     /**
      * Add atom with its parameters to the data vectors
@@ -55,56 +35,43 @@ public:
      * @param point - coordinates of the atom in Point form
      * @param coord - coordination of the atom; 0 in case of none
      */
-    const void add_atom(const int id, const Point3 &point, const int coord);
+    virtual const void add_atom(const int id, const Point3 &point, const int coord);
 
     /**
-     * Function to export the data of Medium
+     * Export the data of Medium to file
      * @param file_name - path for file to save the data
      */
-//    const void output(const string file_name);
+    virtual void output(const string file_name);
 
     /** Calculate statistics about the coordinates in Medium */
-    const void calc_statistics();
+    virtual const void calc_statistics();
 
     /** Set the x-coordinate of i-th atom */
-    void set_x(const int i, const double x);
+    const void set_x(const int i, const double x);
     /** Set the y-coordinate of i-th atom */
-    void set_y(const int i, const double y);
+    const void set_y(const int i, const double y);
     /** Set the z-coordinate of i-th atom */
-    void set_z(const int i, const double z);
+    const void set_z(const int i, const double z);
     /** Set the coordination of i-th atom */
-    void set_coordination(const int i, const int coord);
+    const void set_coordination(const int i, const int coord);
 
     /** Return x-, y- and z-coordinate and associated operators for i-th atom */
     const Point3 get_point(const int i);
+
     /** Return x- and y-coordinate and associated operators for i-th atom */
     const Point2 get_point2(const int i);
 
     /** Return ID of i-th atom */
     const int get_id(const int i);
+
     /** Return coordination of i-th atom */
     const int get_coordination(const int i);
 
     /** Return number of atoms in a Medium */
-    int get_n_atoms();
+    const int get_n_atoms();
 
-    /** Function to export the data to file */
-    const void output(const string file_name);
-
+    /** Statistics about system size */
     struct Sizes {
-//        double xmin;    //!< Minimum value of x-coordinate
-//        double xmax;    //!< Maximum value of x-coordinate
-//        double xmean;   //!< Average value of x-coordinate
-//        double ymin;    //!< Minimum value of y-coordinate
-//
-//        double fifth_variable_gets_segfault_dont_delete_me;
-//
-//        double ymax;    //!< Maximum value of y-coordinate
-//        double ymean;   //!< Average value of y-coordinate
-//        double zmin;    //!< Minimum value of z-coordinate
-//        double zmax;    //!< Maximum value of z-coordinate
-//        double zmean;   //!< Average value of z-coordinate
-
         double xmin;    //!< minimum x-coordinate of atoms
         double xmax;    //!< maximum x-coordinate of atoms
         double ymin;    //!< minimum y-coordinate of atoms
@@ -119,29 +86,25 @@ public:
         double xmean;   //!< average value of x-coordinate
         double ymean;   //!< average value of y-coordinate
         double zmean;   //!< average value of z-coordinate
-    };
+    } sizes;
 
-    /** Statistics about system size */
-    Sizes sizes;
-
+    /** Statistics about crystal structure */
     struct CrysStruct {
         double latconst;    //!< Lattice constant
         int nnn;            //!< Number of nearest neighbours
-    };
+    } crys_struct;
 
-    /** Statistics about crystal structure */
-    CrysStruct crys_struct;
 
 protected:
     vector<int> id;           //!< Atom IDs
-    vector<Point3> point;    //!< Atom coordinates in Point form
+    vector<Point3> point;     //!< Atom coordinates in Point3 form
     vector<int> coordination; //!< Atom coordination - nr of nearest neighbours within cut off radius
 
     /** Initialise statistics about the coordinates in Medium */
     const void init_statistics();
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
-    const string get_data_string(const int i);
+    virtual const string get_data_string(const int i);
 };
 
 } /* namespace femocs */

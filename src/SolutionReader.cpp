@@ -330,7 +330,6 @@ const void SolutionReader::smoothen_result_ema_curl(const int n_average) {
     }
 }
 
-
 const void SolutionReader::export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez,
         double* Enorm) {
     int i;
@@ -413,31 +412,9 @@ const vector<int> SolutionReader::get_medium2node_map(Medium &medium) {
     return map;
 }
 
-const void SolutionReader::output(const string file_name) {
-#if not DEBUGMODE
-    return;
-#endif
-    string ftype = get_file_type(file_name);
-    expect(ftype == "xyz", "Unsupported file type!");
-
-    int n_atoms = get_n_atoms();
-
-    ofstream out_file(file_name);
-    expect(out_file.is_open(), "Can't open a file " + file_name);
-
-    out_file << n_atoms << "\n";
-    out_file << get_data_string(-1) << endl;
-
-    for (int i = 0; i < n_atoms; ++i)
-        out_file << get_data_string(i) << endl;
-
-    out_file.close();
-}
-
 // Compile data string from the data vectors
 const string SolutionReader::get_data_string(const int i) {
-    if (i < 0)
-        return "Solution of DealII operations: id x y z coordination Ex Ey Ez Enorm potential";// face_quality elem_quality";
+    if (i < 0) return "SolutionReader data: id x y z coordination Ex Ey Ez Enorm potential";// face_quality elem_quality";
 
     ostringstream strs;
 //    strs << id[i] << " " << point[i] << " " << coordination[i] << " " << elfield[i] << " "

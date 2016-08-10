@@ -27,6 +27,25 @@ const void Medium::reserve(const int n_atoms) {
     this->coordination.reserve(n_atoms);
 }
 
+// Define the addition of two Mediums
+Medium& Medium::operator +=(Medium &m) {
+    add(&m);
+    return *this;
+}
+
+// Add data from other Medium to current one
+const void Medium::add(Medium *m) {
+    const int n_atoms1 = get_n_atoms();
+    const int n_atoms2 = m->get_n_atoms();
+
+    this->reserve(n_atoms1 + n_atoms2);
+
+    for(int i = 0; i < n_atoms2; ++i)
+        add_atom(m->get_id(i), m->get_point(i), m->get_coordination(i));
+
+    this->calc_statistics();
+}
+
 const void Medium::add_atom(const int id, const Point3 &point, const int coord) {
     expect(get_n_atoms() <= this->point.capacity(), "Allocated vector sizes exceeded!");
     this->id.push_back(id);
@@ -78,7 +97,7 @@ const void Medium::calc_statistics() {
 }
 
 // Get number of atoms in Medium
-int Medium::get_n_atoms() {
+const int Medium::get_n_atoms() {
     return point.size();
 }
 
@@ -107,25 +126,25 @@ const int Medium::get_coordination(const int i) {
 }
 
 // Set entry to x coordinate vector
-void Medium::set_x(const int i, const double x) {
+const void Medium::set_x(const int i, const double x) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     point[i].x = x;
 }
 
 // Set entry to y coordinate vector
-void Medium::set_y(const int i, const double y) {
+const void Medium::set_y(const int i, const double y) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     point[i].y = y;
 }
 
 // Set entry to z coordinate vector
-void Medium::set_z(const int i, const double z) {
+const void Medium::set_z(const int i, const double z) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     point[i].z = z;
 }
 
 // Set coordination of atom
-void Medium::set_coordination(const int i, const int coord) {
+const void Medium::set_coordination(const int i, const int coord) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     require(coord >= 0, "Invalid coordination!");
     this->coordination[i] = coord;
@@ -133,14 +152,14 @@ void Medium::set_coordination(const int i, const int coord) {
 
 // Pick the suitable write function based on the file type
 // Function works only in debug mode
-const void Medium::output(const string file_name) {
+void Medium::output(const string file_name) {
 #if not DEBUGMODE
     return;
 #endif
     string ftype = get_file_type(file_name);
-    expect(ftype == "xyz", "Unsupported file type!");
+    expect(ftype == "xyz", "Unsupported file type: " + ftype);
 
-    int n_atoms = get_n_atoms();
+    const int n_atoms = get_n_atoms();
 
     ofstream out_file(file_name);
     require(out_file.is_open(), "Can't open a file " + file_name);
@@ -156,8 +175,7 @@ const void Medium::output(const string file_name) {
 
 // Compile data string from the data vectors
 const string Medium::get_data_string(const int i) {
-    if(i < 0)
-        return "Types of data: id x y z coordination";
+    if(i < 0) return "Medium data: id x y z coordination";
 
     ostringstream strs;
     strs << get_id(i) << " " << get_point(i) << " " << get_coordination(i);

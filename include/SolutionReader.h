@@ -19,11 +19,11 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader conctructor */
     SolutionReader();
+
     const void extract_solution(DealII* fem, Medium &medium);
     const void extract_statistics(Mesh &mesh);
     const void smoothen_result(const int n_samples, const int repetitions);
     const void export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
-    const void output(const string file_name);
 
 private:
     DealII* fem;

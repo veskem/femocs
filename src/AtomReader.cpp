@@ -143,27 +143,6 @@ const void AtomReader::resize_box(const double zmin, const double zmax) {
     sizes.zbox = zmax - zmin;
 }
 
-const void AtomReader::output(const string file_name) {
-#if not DEBUGMODE
-    return;
-#endif
-    string ftype = get_file_type(file_name);
-    expect(ftype == "xyz", "Unsupported file type!");
-
-    int n_atoms = get_n_atoms();
-
-    ofstream out_file(file_name);
-    require(out_file.is_open(), "Can't open a file " + file_name);
-
-    out_file << n_atoms << "\n";
-    out_file << get_data_string(-1) << endl;
-
-    for (int i = 0; i < n_atoms; ++i)
-        out_file << get_data_string(i) << endl;
-
-    out_file.close();
-}
-
 // =================================
 // *** GETTERS: ***************
 
@@ -174,7 +153,7 @@ const int AtomReader::get_type(const int i) {
 
 // Compile data string from the data vectors
 const string AtomReader::get_data_string(const int i) {
-    if (i < 0) return "Types of data: id x y z type coordination";
+    if (i < 0) return "AtomReader data: id x y z type coordination";
 
     ostringstream strs;
     strs << get_id(i) << " " << get_point(i) << " " << get_type(i) << " " << get_coordination(i);
@@ -218,7 +197,7 @@ const void AtomReader::import_file(const string file_name) {
     else if (file_type == "dump")
         import_dump(file_name);
     else
-        require(false, "Unknown file type: " + file_type);
+        require(false, "Unsupported file type: " + file_type);
 
     calc_statistics();
 }
