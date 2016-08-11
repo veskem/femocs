@@ -239,14 +239,14 @@ void FieldCurrentsHeating<dim>::assemble_system_newton (const bool first_iterati
 	        // Only for 1st Newton iteration
 	        if (first_iteration) {
 				for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
-					// If face is on vacuum top boundary, apply Neumann BC of (4.0)
+					// If face is on vacuum top boundary, apply Neumann BC
 					if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == BoundaryId::vacuum_top) {
 						field_fe_face_values.reinit(cell, f);
 
 						for (unsigned int q_index = 0; q_index < field_fe_face_values.n_quadrature_points; ++q_index) {
 							for (unsigned int i = 0; i < dofs_per_cell; ++i) {
 								local_rhs(i) += (field_fe_face_values[potential_v].value(i, q_index)
-										* 4.0 * field_fe_face_values.JxW(q_index));
+										* 2.0 * field_fe_face_values.JxW(q_index));
 							}
 						}
 					}
@@ -344,6 +344,8 @@ void FieldCurrentsHeating<dim>::assemble_system_newton (const bool first_iterati
 							const Tensor<1,dim> prev_face_pot_grad = prev_sol_face_potential_gradients[q];
 							const Tensor<1,dim> prev_face_temp_grad = prev_sol_face_temperature_gradients[q];
 
+							//double sigma = pq.sigma(prev_temp);
+							//double kappa = pq.kappa(prev_temp);
 							double dsigma = pq.dsigma(prev_temp);
 							double dkappa = pq.dkappa(prev_temp);
 
@@ -362,11 +364,16 @@ void FieldCurrentsHeating<dim>::assemble_system_newton (const bool first_iterati
 								}
 								// Potential and T gradients are also in the rhs for the "previous iteration"
 								// Let's use BC-s for those also...
+
 								local_interface_rhs(i) += ( - potential_c_phi_i * emission_current
 															- temperature_phi_i * nottingham_flux
 															) * copper_fe_face_values.JxW(q);
 
-
+								/*
+								local_interface_rhs(i) += ( - potential_c_phi_i * face_normal_vector * prev_face_pot_grad * sigma
+															- temperature_phi_i * face_normal_vector * prev_face_temp_grad * kappa
+															) * copper_fe_face_values.JxW(q);
+								*/
 								for (unsigned int j = 0; j < copper_fe_face_values.dofs_per_cell; ++j) {
 									const double temperature_phi_j = copper_fe_face_values[temperature].value(j, q);
 

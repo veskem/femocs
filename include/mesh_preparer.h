@@ -25,10 +25,10 @@ using namespace dealii;
 
 enum BoundaryId {
 	copper_surface = 0,
-	vacuum_sides = 1,
-	vacuum_top = 2,
-	copper_sides = 3,
-	copper_bottom = 4
+	vacuum_top = 1,
+	copper_bottom = 2,
+	vacuum_sides = 3,
+	copper_sides = 4
 };
 
 template <int dim>
@@ -46,6 +46,8 @@ public:
 	void mark_vacuum_boundary(Triangulation<dim> *triangulation);
 
 	void mark_copper_boundary(Triangulation<dim> *triangulation);
+
+	void mark_top_and_bottom_boundary(Triangulation<dim> *triangulation);
 
 
 };

@@ -48,6 +48,34 @@ void MeshPreparer<dim>::import_mesh_from_file(Triangulation<dim> *triangulation,
         gi.read_msh(in_file);
 }
 
+
+template <int dim>
+void MeshPreparer<dim>::mark_top_and_bottom_boundary(Triangulation<dim> *triangulation) {
+	typename Triangulation<dim>::active_face_iterator face;
+	double eps = 0.1;
+	double zmin = 1e16, zmax = 1e-16;
+
+    // Loop through the faces and find maximum and minimum values for coordinates
+    for (face = triangulation->begin_face(); face != triangulation->end_face(); ++face) {
+    	if (face->at_boundary()) {
+			double z = face->center()[2];
+			if (z < zmin) zmin = z;
+			if (z > zmax) zmax = z;
+    	}
+    }
+    for (face = triangulation->begin_face(); face != triangulation->end_face(); ++face) {
+    	if (face->at_boundary()) {
+			double z = face->center()[2];
+
+			if (fabs(z-zmax) < eps) {
+				face->set_all_boundary_ids(BoundaryId::vacuum_top);
+			} else  if (fabs(z-zmin) < eps) {
+				face->set_all_boundary_ids(BoundaryId::copper_bottom);
+			}
+    	}
+    }
+}
+
 template <int dim>
 void MeshPreparer<dim>::mark_vacuum_boundary(Triangulation<dim> *triangulation) {
 	typename Triangulation<dim>::active_face_iterator face;
