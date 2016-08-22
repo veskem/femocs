@@ -95,6 +95,7 @@ public:
     const void separate_meshes(Mesh* bulk, Mesh* vacuum, const string cmd);
     const void separate_meshes_noclean(Mesh* bulk, Mesh* vacuum, const string cmd);
 
+    const vector<int> get_new_indxs();
 private:
     Mesh* mesh;
 

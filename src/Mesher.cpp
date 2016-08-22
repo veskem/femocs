@@ -701,4 +701,31 @@ const void Mesher::mark_faces() {
     }
 }
 
+const vector<int> Mesher::get_new_indxs() {
+    const int new_zmax = 1;    
+    const int new_zmin = 2;
+    const int new_surf = 3;
+    const int new_edge = 4;
+    
+    const int n_faces = mesh->get_n_faces();
+    mark_faces();
+    vector<int> new_indxs(n_faces);
+    
+    for (int i = 0; i < n_faces; ++i) {
+        int marker = mesh->get_facemarker(i);
+        if (marker == TYPES.SURFACE)
+            new_indxs[i] = new_surf;
+        else if (marker == TYPES.ZMIN)
+            new_indxs[i] = new_zmin;
+        else if (marker == TYPES.ZMAX)
+            new_indxs[i] = new_zmax;
+        else if (marker == TYPES.EDGE)
+            new_indxs[i] = new_edge;
+        else
+            new_indxs[i] = TYPES.NONE;
+    }
+    
+    return new_indxs;
+}
+
 } /* namespace femocs */

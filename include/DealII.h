@@ -66,7 +66,7 @@ public:
     DealII();
 
     const void set_neumann(const double neumann);
-    const double get_efield();
+    const double get_elfield();
     const int get_n_dofs();
     const int get_n_nodes();
 
@@ -85,9 +85,13 @@ public:
     const void solve_cg();
 
     const double get_potential_at_node(const int &cell_indx, const int &vert_indx);
+    const vector<double> get_potential_at_node(const vector<int> &cell_indxs, const vector<int> &vert_indxs);
     const double get_potential_at_point(Point<DIM> &point);
+    const double get_potential_at_point(const double x, const double y, const double z);
     const Tensor<1,DIM> get_elfield_at_node(const int &cell, const int &vert_indx);
+    const vector<Vec3> get_elfield_at_node(const vector<int> &cell_indxs, const vector<int> &vert_indxs);
     const Tensor<1,DIM> get_elfield_at_point(Point<DIM> &point);
+    const Tensor<1,DIM> get_elfield_at_point(const double x, const double y, const double z);
 
     const unsigned int n_verts_per_elem = GeometryInfo<DIM>::vertices_per_cell;
     const unsigned int n_verts_per_face = GeometryInfo<DIM-1>::vertices_per_cell;

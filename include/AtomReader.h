@@ -26,7 +26,6 @@ public:
     /**
      * Function to import file with atom coordinates and types.
      * @param file_name - path to input file with atomic data in .xyz (PARCAS), .dump (LAMMPS) or .ckx (KIMOCS) format
-     * @param cell - pointer to struct holding the data about simulation cell size
      */
     const void import_file(const string file_name);
 
@@ -67,6 +66,7 @@ private:
 
     const void calc_slow_coordination(const double cutoff, const int nnn);
     const void calc_dummy_coordination(const int nnn);
+    const void check_coordination();
 
     const void reserve(const int n_atoms);
     const void add_atom(const int id, const Point3 &point, const int type);

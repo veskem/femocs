@@ -33,14 +33,51 @@ const void AtomReader::add_atom(const int id, const Point3 &point, const int typ
     this->type.push_back(type);
 }
 
-// Calculate coordination (nnn within cutoff radius) of all the atoms
-// Pick suitable algorithm depending simulation type (MD or KMC)
+const void AtomReader::calc_coordination(int nnn, double cutoff, const int* nborlist) {
+    require(cutoff > 0, "Invalid cutoff: " + to_string(cutoff));
+    require(nnn >= 0, "Invalid # nearest neighbors: " + nnn);
+
+    const int n_atoms = get_n_atoms();
+    const double cutoff2 = cutoff * cutoff;
+    int nbor_indx;
+
+    nbor_indx = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point1 = get_point(i);
+
+        // Loop through neighbours in neighbour list
+        int n_nbors = nborlist[nbor_indx++];
+        for (int j = 0; j < n_nbors; ++j) {
+            int nbor = nborlist[nbor_indx + j] - 1;
+            double r2 = point1.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox);
+
+            if (r2 <= cutoff2) {
+                if(coordination[i] < nnn) coordination[i]++;
+                if(coordination[nbor] < nnn) coordination[nbor]++;
+            }
+        }
+        nbor_indx += n_nbors;
+    }
+    check_coordination();
+}
+
+// Calculate coordination (# nearest neighbours within cutoff radius) for all the atoms
 const void AtomReader::calc_coordination(int nnn, double cutoff) {
-    require(nnn > 0, "Invalid number of nearest neighbors!");
+    require(nnn > 0, "Invalid number of nearest neighbors: " + nnn);
     if (cutoff > 0)
         calc_slow_coordination(cutoff, nnn);
     else
         calc_dummy_coordination(nnn);
+    check_coordination();
+}
+
+// Check for evaporated atoms
+const void AtomReader::check_coordination() {
+    const int coord_max = 1;
+    const int coord_min = 0;
+    for (int coord : coordination)
+        if ((coord < coord_max) && (coord >= coord_min))
+            cout << endl << "WARNING: evaporated atom detected!" << endl;
 }
 
 // Calculate coordination for atoms coming from MD simulations
@@ -58,7 +95,7 @@ const void AtomReader::calc_slow_coordination(const double cutoff, const int nnn
     for (i = 0; i < N; ++i) {
         coord = 0;
         point1 = get_point(i);
-        //!< TODO Implement neighborlist here!
+
         for (j = 0; j < N; ++j) {
             if (i == j) continue;
             dpoint = point1 - get_point(j);
@@ -104,34 +141,6 @@ const void AtomReader::extract_types(int nnn) {
             type[i] = TYPES.FIXED;
         else
             type[i] = TYPES.SURFACE;
-    }
-}
-
-const void AtomReader::calc_coordination(int nnn, double cutoff, const int* nborlist) {
-    require(cutoff > 0, "Invalid cutoff!");
-    require(nnn >= 0, "Invalid # nearest neighbors!");
-
-    const int n_nbors_max = 150;
-    const int n_atoms = get_n_atoms();
-    const double cutoff2 = cutoff * cutoff;
-    int nbor_indx;
-
-    nbor_indx = 0;
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 point1 = get_point(i);
-
-        // Loop through neighbours in neighbour list
-        int n_nbors = nborlist[nbor_indx++];
-        for (int j = 0; j < n_nbors; ++j) {
-            int nbor = nborlist[nbor_indx + j] - 1;
-            double r2 = point1.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox);
-
-            if (r2 <= cutoff2) {
-                if(coordination[i] < nnn) coordination[i]++;
-                if(coordination[nbor] < nnn) coordination[nbor]++;
-            }
-        }
-        nbor_indx += n_nbors;
     }
 }
 

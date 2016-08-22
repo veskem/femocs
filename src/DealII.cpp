@@ -8,6 +8,8 @@
 #include "DealII.h"
 #include <fstream>
 
+#include <omp.h>
+
 using namespace std;
 using namespace dealii;
 
@@ -25,7 +27,7 @@ const void DealII::set_neumann(const double neumann) {
 }
 
 // Get long range electric field value
-const double DealII::get_efield() {
+const double DealII::get_elfield() {
     return -1.0 * neumann;
 }
 
@@ -169,6 +171,7 @@ const void DealII::import_tetgen_mesh(femocs::Mesh* mesh) {
 
     // loop through tetrahedra, convert them into hexahedra and add to big triangulations
     for (elem = 2; elem < n_elems; ++elem) {
+        // show progress after every 10th step
         if (elem % 10 == 0) cout << elem << "/" << n_elems << "\n";
         selem = mesh->get_simpleelem(elem);
         for (i = 0; i < n_verts_per_elem; ++i) {
@@ -184,6 +187,8 @@ const void DealII::import_tetgen_mesh(femocs::Mesh* mesh) {
 
 // Mark the boundary faces of mesh
 const void DealII::mark_boundary(const AtomReader::Sizes* sizes) {
+
+
     typename Triangulation<DIM>::active_face_iterator face;
     const double eps = 0.1;
 
@@ -315,23 +320,74 @@ const Tensor<1, DIM> DealII::get_elfield_at_point(Point<DIM> &point) {
     return -1.0 * VectorTools::point_gradient(dof_handler, laplace_solution, point);
 }
 
+const Tensor<1, DIM> DealII::get_elfield_at_point(const double x, const double y, const double z) {
+    return -1.0 * VectorTools::point_gradient(dof_handler, laplace_solution, Point<DIM>(x, y, z));
+}
+
 // Calculate electric field at node point
 const Tensor<1, DIM> DealII::get_elfield_at_node(const int &cell_indx, const int &vert_indx) {
+    static bool firsttime = true;
+    double tstart, t0, t1, t2, t3, t4;
+
+    tstart = omp_get_wtime();
+    vector<Tensor<1, DIM>> solution_gradients;
+    QTrapez<DIM> only_vertices_quadrature_formula;
+    FEValues<DIM> fe_values(fe, only_vertices_quadrature_formula, update_gradients);
+    t0 = omp_get_wtime() - tstart;
+
+    solution_gradients.resize(only_vertices_quadrature_formula.size());
+
+    typename DoFHandler<DIM>::active_cell_iterator cell;
+    cell = dof_handler.begin_active();
+    t1 = omp_get_wtime() - t0 - tstart;
+
+    std::advance(cell, cell_indx);
+
+    t2 = omp_get_wtime() - t1- t0 - tstart;
+
+    fe_values.reinit(cell);
+
+    t3 = omp_get_wtime() - t2- t1- t0 - tstart;
+
+    fe_values.get_function_gradients(laplace_solution, solution_gradients);
+
+    t4 = omp_get_wtime() - t3- t2- t1- t0 - tstart;
+
+    tstart = omp_get_wtime()- tstart;
+
+    if(firsttime)
+        cout << "\nper0: " << t0/tstart << "\nper1: " << t1/tstart << "\nper2: " << t2/tstart << "\nper3: " << t3/tstart << "\nper4: " << t4/tstart << endl;
+
+    firsttime = false;
+
+    return -1.0 * solution_gradients.at(vert_indx);
+}
+
+const vector<Vec3> DealII::get_elfield_at_node(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
+    const int n_cells = cell_indxs.size();
+    vector<Vec3> elfield;
+    elfield.reserve(n_cells);
+
     vector<Tensor<1, DIM>> solution_gradients;
     QTrapez<DIM> only_vertices_quadrature_formula;
     FEValues<DIM> fe_values(fe, only_vertices_quadrature_formula, update_gradients);
     solution_gradients.resize(only_vertices_quadrature_formula.size());
 
-    typename DoFHandler<DIM>::active_cell_iterator cell;
+//    typename DoFHandler<DIM>::active_cell_iterator cell;
 
-    cell = dof_handler.begin_active();
-    for (unsigned int i = 0; i < cell_indx; ++i)
-        ++cell;
+    for (int i = 0; i < n_cells; ++i) {
+//        cell = dof_handler.begin_active();
+//        std::advance(cell, cell_indxs[i]);
+        auto cell = std::next(dof_handler.begin_active(), cell_indxs[i]);
+        fe_values.reinit(cell);
 
-    fe_values.reinit(cell);
-    fe_values.get_function_gradients(laplace_solution, solution_gradients);
+        fe_values.get_function_gradients(laplace_solution, solution_gradients);
 
-    return -1.0 * solution_gradients.at(vert_indx);
+        Tensor<1, DIM> ef = -1.0 * solution_gradients.at(vert_indxs[i]);
+        elfield.push_back( Vec3(ef[0], ef[1], ef[2]) );
+    }
+
+    return elfield;
 }
 
 // Calculate potential at arbitrary point inside the mesh
@@ -339,16 +395,32 @@ const double DealII::get_potential_at_point(Point<DIM> &point) {
     return VectorTools::point_value(dof_handler, laplace_solution, point);
 }
 
+const double DealII::get_potential_at_point(const double x, const double y, const double z) {
+    return VectorTools::point_value(dof_handler, laplace_solution, Point<DIM>(x, y, z));
+}
+
 // Get potential at mesh node
 const double DealII::get_potential_at_node(const int &cell_indx, const int &vert_indx) {
     typename DoFHandler<DIM>::active_cell_iterator cell;
-
     cell = dof_handler.begin_active();
-    cell = dof_handler.begin_active();
-    for (unsigned int i = 0; i < cell_indx; ++i)
-        ++cell;
+    std::advance(cell, cell_indx);
 
     return laplace_solution(cell->vertex_dof_index(vert_indx, 0));
+}
+
+// Get potential at mesh node
+const vector<double> DealII::get_potential_at_node(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
+    const int n_cells = cell_indxs.size();
+    vector<double> potentials;
+    potentials.reserve(n_cells);
+    typename DoFHandler<DIM>::active_cell_iterator cell;
+
+    for (int i = 0; i < n_cells; ++i) {
+        auto cell = std::next(dof_handler.begin_active(), cell_indxs[i]);
+        potentials.push_back( laplace_solution(cell->vertex_dof_index(vert_indxs[i], 0)) );
+    }
+
+    return potentials;
 }
 
 // Write the potential and electric field to the file

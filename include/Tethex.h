@@ -747,11 +747,14 @@ public:
     void read(const std::string &file);
 
     /**
-     * Import the mesh data from Femocs Mesh
-     * @param femocs_mesh - pointer to Femocs mesh
+     * Import tetrahedral mesh from Femocs
+     * @param femocs_mesh - pointer to mesh generated with Tetgen and Femocs
+     * @param domain - the ID of physical domain where the mesh is located
      */
-    void read_femocs(femocs::Mesh* femocs_mesh);
+    void read_femocs(femocs::Mesh* femocs_mesh, const int domain);
 
+    //void read_domains(femocs::Mesh* dom1_mesh, const int domain1, femocs::Mesh* dom2_mesh, const int domain2);
+    void read_domains(femocs::Mesh* bulk_mesh, femocs::Mesh* vacuum_mesh, vector<int>& bulk_indxs, vector<int>& vacuum_indxs);
     /**
      * Conversion from simplices to bricks.
      * Specifically, in 2D - conversion from triangles to quadrangles,

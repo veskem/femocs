@@ -12,7 +12,7 @@ program Helmod
     types = (/ 1,1,1,1,1,1,1,1,1,1  /)
 
     ! Create an object of type foo
-    f = femocs("path/to/input/script")
+    f = femocs("output/elems_vacuum.vtk")
 
     ! Call bound procedures (member functions)
     write(*,*) "Running femocs.import_atoms"

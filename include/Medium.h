@@ -32,19 +32,19 @@ public:
     /**
      * Add atom with its parameters to the data vectors
      * @param id - ID of the atom
-     * @param point - coordinates of the atom in Point form
+     * @param point - coordinates of the atom in Point3 form
      * @param coord - coordination of the atom; 0 in case of none
      */
-    virtual const void add_atom(const int id, const Point3 &point, const int coord);
+    const void add_atom(const int id, const Point3 &point, const int coord);
 
     /**
      * Export the data of Medium to file
      * @param file_name - path for file to save the data
      */
-    virtual void output(const string file_name);
+    void output(const string file_name);
 
     /** Calculate statistics about the coordinates in Medium */
-    virtual const void calc_statistics();
+    const void calc_statistics();
 
     /** Set the x-coordinate of i-th atom */
     const void set_x(const int i, const double x);

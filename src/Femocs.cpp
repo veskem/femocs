@@ -43,8 +43,9 @@ Femocs::Femocs(string file_name) :
     conf.rmin_coarse = 17.0;        // inner radius of coarsening cylinder
     conf.rmax_coarse = 8000.0;        // radius of constant cutoff coarsening cylinder
     conf.coarse_factor = 0.8;       // coarsening factor; bigger number gives coarser surface
-    conf.postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
+    conf.postprocess_marking = true; //true;//false; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
+    conf.movavg_width = 2;           // width of moving average in electric field smoother
 }
 
 // Destructor, deletes data and prints bye-bye-message
@@ -122,10 +123,10 @@ const void Femocs::run(double E_field) {
 
     start_msg(t0, "=== Marking big mesh...");
     mesher.mark_mesh(conf.postprocess_marking, 1.5*coarse_surf.get_roughness());
-    big_mesh.write_nodes("output/nodes_big.xyz");
-    big_mesh.write_nodes("output/nodes_big.vtk");
-    big_mesh.write_faces("output/faces_big.vtk");
-    big_mesh.write_elems("output/elems_big.vtk");
+    big_mesh.write_nodes("output/nodes_marked.xyz");
+    big_mesh.write_nodes("output/nodes_marked.vtk");
+    big_mesh.write_faces("output/faces_marked.vtk");
+    big_mesh.write_elems("output/elems_marked.vtk");
     end_msg(t0);
 
     start_msg(t0, "=== Separating vacuum and bulk mesh...");
@@ -141,24 +142,29 @@ const void Femocs::run(double E_field) {
     vacuum_mesh.write_elems(conf.path_to_script);
     end_msg(t0);
 
-//     start_msg(t0, "=== Making test mesh...");
-//     femocs::Mesh testmesh(conf.mesher);
-//     testmesh.generate_simple();
-//     testmesh.write_elems("output/testelems.vtk");
-//     testmesh.write_faces("output/testfaces.vtk");
-//     end_msg(t0);
-
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
     tethex::Mesh tethex_mesh;
-    tethex_mesh.read_femocs(&vacuum_mesh);
+    int material_ID = 10;
+    tethex_mesh.read_femocs(&vacuum_mesh, material_ID);
     tethex_mesh.convert();
     end_msg(t0);
 
-//     start_msg(t0, "=== Writing tethex to file...");
-//     tethex_mesh.write("output/tethex_bulk.msh");
-//     tethex_mesh.write_vtk_faces("output/tethex_faces_vacuum.vtk");
-//     tethex_mesh.write_vtk_elems("output/tethex_elems_vacuum.vtk");
-//     end_msg(t0);
+/*
+    start_msg(t0, "=== Making union mesh...");
+    tethex::Mesh tethex_union_mesh;
+    femocs::Mesher bulk_mesher(&bulk_mesh);
+    femocs::Mesher vacuum_mesher(&vacuum_mesh);
+    vector<int> bi = bulk_mesher.get_new_indxs();
+    vector<int> vi = vacuum_mesher.get_new_indxs();
+        
+    tethex_union_mesh.read_domains(&bulk_mesh, &vacuum_mesh, bi, vi);
+    tethex_union_mesh.convert();
+    end_msg(t0);
+
+    start_msg(t0, "=== Writing tethex to file...");
+    tethex_union_mesh.write("output/mushroom.msh");
+    end_msg(t0);
+//*/     
 
     // ==============================
     // ===== Running FEM solver =====
@@ -196,17 +202,17 @@ const void Femocs::run(double E_field) {
 
     start_msg(t0, "=== Solving...");
     laplace.solve_cg();
-//     laplace.solve_umfpack();
+//    laplace.solve_umfpack();
     end_msg(t0);
 
     start_msg(t0, "=== Extracting solution...");
 //    femocs::Medium medium = vacuum_mesh.to_medium();
 //    solution.extract_solution(&laplace, medium);
-    solution.extract_solution(&laplace, coarse_surf);
+    solution.extract_solution_vol2(&laplace, coarse_surf);
     end_msg(t0);
 
     start_msg(t0, "=== Smoothing solution...");
-    solution.smoothen_result(6, 1);
+    solution.smoothen_result(conf.movavg_width, 1);
     end_msg(t0);
 
 //    start_msg(t0, "=== Extracting statistics...");
@@ -215,7 +221,7 @@ const void Femocs::run(double E_field) {
 
     start_msg(t0, "=== Outputting results...");
     solution.output("output/results.xyz");
-    laplace.output_results("output/results.vtk");
+//    laplace.output_results("output/results.vtk");
     end_msg(t0);
 
 //#if VERBOSE
@@ -238,9 +244,9 @@ const void Femocs::import_atoms(int n_atoms, const double* coordinates, const do
     reader.extract_types(conf.nnn);
     end_msg(t0);
 
-    start_msg(t0, "=== Outputting AtomReader...");
-    reader.output("output/reader.xyz");
-    end_msg(t0);
+//    start_msg(t0, "=== Outputting AtomReader...");
+//    reader.output("output/reader.xyz");
+//    end_msg(t0);
 }
 
 const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int* types) {
@@ -256,9 +262,21 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
     start_msg(t0, "=== Calculating coordinations of atoms...");
     reader.calc_coordination(conf.nnn);
     end_msg(t0);
+
+//    start_msg(t0, "=== Outputting AtomReader...");
+//    reader.output("output/reader.xyz");
+//    end_msg(t0);
 }
 
 const void Femocs::export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+    if (solution_valid) {
+        start_msg(double t0, "=== Exporting results...");
+        solution.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);
+        end_msg(t0);
+    }
+}
+
+const void Femocs::export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm, const int* nborlist) {
     if (solution_valid) {
         start_msg(double t0, "=== Exporting results...");
         solution.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);

@@ -58,6 +58,18 @@ module libfemocs
             real(c_double) :: Enorm(*)
         end subroutine
         
+        subroutine femocs_export_solution2_c(femocs, n_atoms, Ex, Ey, Ez, Enorm, nborlist) bind(C, name="femocs_export_solution2")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int), value :: n_atoms
+            real(c_double) :: Ex(*)
+            real(c_double) :: Ey(*)
+            real(c_double) :: Ez(*)
+            real(c_double) :: Enorm(*)
+            integer(c_int) :: nborlist(*)
+        end subroutine
+        
         ! void functions maps to subroutines
         subroutine femocs_speaker_c(str) bind(C, name="femocs_speaker")
             use iso_c_binding
@@ -79,6 +91,7 @@ module libfemocs
         procedure :: import_atoms => femocs_import_atoms
         procedure :: import_atoms2 => femocs_import_atoms2
         procedure :: export_solution => femocs_export_solution
+        procedure :: export_solution2 => femocs_export_solution2
     end type
 
     ! This function will act as the constructor for femocs type
@@ -154,6 +167,18 @@ module libfemocs
         real(c_double) :: Ez(*)
         real(c_double) :: Enorm(*)
         call femocs_export_solution_c(this%ptr, n_atoms, Ex, Ey, Ez, Enorm)
+    end subroutine
+    
+    subroutine femocs_export_solution2(this, n_atoms, Ex, Ey, Ez, Enorm, nborlist)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: n_atoms
+        real(c_double) :: Ex(*)
+        real(c_double) :: Ey(*)
+        real(c_double) :: Ez(*)
+        real(c_double) :: Enorm(*)
+        integer(c_int) :: nborlist(*)
+        call femocs_export_solution2_c(this%ptr, n_atoms, Ex, Ey, Ez, Enorm, nborlist)
     end subroutine
 
     subroutine femocs_speaker(str)

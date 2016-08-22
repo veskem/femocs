@@ -48,6 +48,8 @@ public:
         double coarse_factor;
         //!< Distance from surface edge where atoms are picked for rectangularization
         double rmin_rectancularize;
+        //!< Width of moving average while smoothing the electric field; 0 turns smoothing off
+        int movavg_width;
     };
 
     Config conf;          //!< Femocs configuration parameters
@@ -61,6 +63,7 @@ public:
     const void import_atoms(int n_atoms, const double* coordinates, const double* box, const int* nborlist);
     const void import_atoms(int n_atoms, double* x, double* y, double* z, int* types);
     const void export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
+    const void export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm, const int* nborlist);
 
 private:
     bool solution_valid;
