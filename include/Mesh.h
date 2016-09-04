@@ -104,8 +104,9 @@ public:
     const void calc_volumes();
     const void calc_statistics(const int i);
     const void calc_statistics();
-    const void recalc(const string cmd);
-    const void double_recalc(const string cmd1, const string cmd2);
+    const void recalc();
+    const void recalc(const string& cmd);
+    const void recalc(const string& cmd1, const string& cmd2);
     const Medium to_medium();
 
     const void write_tetgen(const string file_name);

@@ -14,67 +14,51 @@ using namespace std;
 namespace femocs {
 
 // SolutionReader constructor
-SolutionReader::SolutionReader() :
-        longrange_efield(0) {
+SolutionReader::SolutionReader() : longrange_efield(0) {
     reserve(0);
 }
 
-const void SolutionReader::extract_solution(DealII* fem, Medium &medium) {
-    dealii::Tensor<1, DIM> ef;
-    double pot;
+// Return the mapping between atoms & nodes, nodes & elements and nodes & vertices
+const void SolutionReader::get_maps(Medium& medium, vector<int>& medium2node, vector<int>& node2elem, vector<int>& node2vert) {
+    const int n_atoms = medium.get_n_atoms();
+    const int n_nodes = fem->get_n_nodes();
 
-    double t0, t1, tstart;
+    medium2node.resize(n_atoms, -1);
+    node2elem.resize(n_nodes);
+    node2vert.resize(n_nodes);
 
-    tstart = omp_get_wtime();
+    typename Triangulation<DIM>::active_vertex_iterator vertex;
+    typename DoFHandler<DIM>::active_cell_iterator cell;
 
-    this->fem = fem;
-    longrange_efield = fem->get_elfield();
-    int n_nodes = medium.get_n_atoms();
-    reserve(n_nodes);
+    int i, j;
 
-    vector<int> medium2node_map = get_medium2node_map(medium);
-    vector<int> node2elem_map = get_node2elem_map();
-    vector<int> node2vert_map = get_node2vert_map();
+    // Loop through mesh vertices that potentially could be on the Medium
+    for (j = 0, vertex = fem->triangulation.begin_active_vertex(); j < n_atoms; ++j, ++vertex)
+        // Loop through Medium atoms
+        for (i = 0; i < n_atoms; ++i)
+            if ( (medium2node[i] < 0) && (medium.get_point(i) == vertex->vertex()) ) {
+                medium2node[i] = vertex->vertex_index();
+                break;
+            }
 
-    t0 = omp_get_wtime() - tstart;
-
-    for (int node = 0; node < n_nodes; ++node) {
-        int n = medium2node_map[node];
-        if (n >= 0) {
-            ef = fem->get_elfield_at_node(node2elem_map[n], node2vert_map[n]);
-            pot = fem->get_potential_at_node(node2elem_map[n], node2vert_map[n]);
-            add_atom(medium.get_id(node), medium.get_point(node), medium.get_coordination(node));
-        } else {
-            ef[0] = ef[1] = ef[2] = pot = error_field;
-            add_atom(-1, medium.get_point(node), medium.get_coordination(node));
+    // Loop through all the mesh elements
+    for (cell = fem->dof_handler.begin_active(); cell != fem->dof_handler.end(); ++cell)
+        // Loop through all the vertices in the element
+        for (i = 0; i < fem->n_verts_per_elem; ++i) {
+            node2elem[cell->vertex_index(i)] = cell->active_cell_index();
+            node2vert[cell->vertex_index(i)] = i;
         }
-
-        elfield.push_back(Vec3(ef[0], ef[1], ef[2]));
-        elfield_norm.push_back(ef.norm());
-        potential.push_back(pot);
-    }
-
-    t1 = omp_get_wtime() - t0 - tstart;
-    tstart = omp_get_wtime() - tstart;
-
-    cout << "\npercentage 0: " << t0/tstart << "\npercentage 1: " << t1/tstart << endl;
 }
 
-const void SolutionReader::extract_solution_vol2(DealII* fem, Medium &medium) {
-    double t0, t1, tstart;
-    tstart = omp_get_wtime();
-
+// Extract the electric potential and electric field values on Medium atoms from FEM solution
+const void SolutionReader::extract_solution(DealII* fem, Medium &medium) {
     this->fem = fem;
     longrange_efield = fem->get_elfield();
     int n_nodes = medium.get_n_atoms();
     reserve(n_nodes);
 
-    vector<int> medium2node_map = get_medium2node_map(medium);
-    vector<int> node2elem_map = get_node2elem_map();
-    vector<int> node2vert_map = get_node2vert_map();
-
-    t0 = omp_get_wtime() - tstart;
-
+    vector<int> medium2node, node2elem, node2vert;
+    get_maps(medium, medium2node, node2elem, node2vert);
 
     elfield.resize(n_nodes, Vec3(error_field));
     potential.resize(n_nodes, error_field);
@@ -85,31 +69,25 @@ const void SolutionReader::extract_solution_vol2(DealII* fem, Medium &medium) {
     cell_indxs.reserve(n_nodes);
     vert_indxs.reserve(n_nodes);
 
-    for (int n : medium2node_map)
+    for (int n : medium2node)
         if (n >= 0) {
-            cell_indxs.push_back(node2elem_map[n]);
-            vert_indxs.push_back(node2vert_map[n]);
+            cell_indxs.push_back(node2elem[n]);
+            vert_indxs.push_back(node2vert[n]);
         }
 
     vector<Vec3> ef = fem->get_elfield_at_node(cell_indxs, vert_indxs);
-//    vector<double> pot = fem->get_potential_at_node(cell_indxs, vert_indxs);
+    vector<double> pot = fem->get_potential_at_node(cell_indxs, vert_indxs);
 
-    int indx = 0;
+    int i, node;
 
-    for (int node = 0; node < n_nodes; ++node)
-        if (medium2node_map[node] >= 0) {
-//            potential[node] = pot[indx];
-            elfield[node] = ef[indx++];
+    for (i = 0, node = 0; node < n_nodes; ++node)
+        if (medium2node[node] >= 0) {
+            potential[node] = pot[i];
+            elfield[node] = ef[i++];
             elfield_norm[node] = elfield[node].length();
             add_atom(medium.get_id(node), medium.get_point(node), medium.get_coordination(node));
-        } else {
+        } else
             add_atom(-1, medium.get_point(node), medium.get_coordination(node));
-        }
-
-    t1 = omp_get_wtime() - t0 - tstart;
-    tstart = omp_get_wtime() - tstart;
-
-    cout << "\npercentage 0: " << t0/tstart << "\npercentage 1: " << t1/tstart << endl;
 }
 
 const vector<int> SolutionReader::get_node2face_map(Mesh &mesh, int node) {
@@ -135,55 +113,6 @@ const vector<int> SolutionReader::get_node2elem_map(Mesh &mesh, int node) {
         SimpleElement elem = mesh.get_simpleelem(i);
         map[elem[node]] = i;
     }
-    return map;
-}
-
-// Map the indices of nodes to the indices of the elements
-const vector<int> SolutionReader::get_node2elem_map() {
-    vector<int> map(fem->get_n_nodes());
-    typename DoFHandler<DIM>::active_cell_iterator cell;
-
-    // Loop through all the elements
-    for (cell = fem->dof_handler.begin_active(); cell != fem->dof_handler.end(); ++cell)
-        // Loop through all the vertices in the element
-        for (unsigned int vertex = 0; vertex < fem->n_verts_per_elem; ++vertex)
-            map[cell->vertex_index(vertex)] = cell->active_cell_index();
-
-    return map;
-}
-
-// Map the indices of nodes to the indices of the vertex of elements
-const vector<int> SolutionReader::get_node2vert_map() {
-    vector<int> map(fem->get_n_nodes());
-    typename DoFHandler<DIM>::active_cell_iterator cell;
-
-    // Loop through all the elements
-    for (cell = fem->dof_handler.begin_active(); cell != fem->dof_handler.end(); ++cell)
-        // Loop through all the vertices in the element
-        for (unsigned int vertex = 0; vertex < fem->n_verts_per_elem; ++vertex)
-            map[cell->vertex_index(vertex)] = vertex;
-
-    return map;
-}
-
-// Get mapping between Medium atoms and DealII mesh nodes
-const vector<int> SolutionReader::get_medium2node_map(Medium &medium) {
-    int i;
-    int n_atoms = medium.get_n_atoms();
-    vector<int> map(n_atoms, -1);
-
-    typename Triangulation<DIM>::active_vertex_iterator vert;
-    vert = fem->triangulation.begin_active_vertex();
-
-    // Loop through mesh vertices that potentially could be on the surface
-    for (int vert_cntr = 0; vert_cntr < n_atoms; ++vert_cntr, ++vert)
-        // Loop through surface atoms
-        for (i = 0; i < n_atoms; ++i) {
-            // If map entry already available, take next atom
-            if (map[i] >= 0) continue;
-            if (medium.get_point(i) == vert->vertex()) map[i] = vert->vertex_index();
-        }
-
     return map;
 }
 
@@ -329,6 +258,7 @@ const vector<int> SolutionReader::get_cartesian_map(const int x1, const int x2) 
     return indxs;
 }
 
+// Function to pick suitable electric field smoothing function
 const void SolutionReader::smoothen_result(const int n_average, const int repetitions) {
     if (n_average <= 0 || repetitions <= 0) return;
 
@@ -418,16 +348,6 @@ const void SolutionReader::smoothen_result_ema(const int n_average) {
         elfield[i_active] = get_ema(i_active, i_neighb, n_average);
         elfield_norm[i_active] = elfield[i_active].length();
     }
-    // Average by moving down
-//    for (int i = (n_atoms - 2); i >= 0; --i) {
-//        int i_active = i;
-//        int i_neighb = i+1;
-//
-//        if (skip_atom[i_active]) continue;
-//
-//        elfield[i_active] = get_ema(i_active, i_neighb, n_average);
-//        elfield_norm[i_active] = elfield[i_active].length();
-//    }
 }
 
 const void SolutionReader::smoothen_result_ema(const int n_average, const vector<int>& sort_map) {
@@ -445,16 +365,6 @@ const void SolutionReader::smoothen_result_ema(const int n_average, const vector
         elfield[i_active] = get_ema(i_active, i_neighb, n_average);
         elfield_norm[i_active] = elfield[i_active].length();
     }
-    // Average by moving down
-//    for (int i = (n_atoms - 2); i >= 0; --i) {
-//        int i_active = sort_map[i];
-//        int i_neighb = sort_map[i+1];
-//
-//        if (skip_atom[i_active]) continue;
-//
-//        elfield[i_active] = get_ema(i_active, i_neighb, n_average);
-//        elfield_norm[i_active] = elfield[i_active].length();
-//    }
 }
 
 const void SolutionReader::export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez,
@@ -482,6 +392,7 @@ const void SolutionReader::export_helmod(int n_atoms, double* Ex, double* Ey, do
         Enorm[identifier] = elfield_norm[i];
     }
 }
+
 // Reserve memory for solution vectors
 const void SolutionReader::reserve(const int n_nodes) {
     Medium::reserve(n_nodes);
@@ -490,7 +401,7 @@ const void SolutionReader::reserve(const int n_nodes) {
     potential.reserve(n_nodes);
 }
 
-// Compile data string from the data vectors
+// Compile data string from the data vectors for file output
 const string SolutionReader::get_data_string(const int i) {
     if (i < 0) return "SolutionReader data: id x y z coordination Ex Ey Ez Enorm potential";// face_quality elem_quality";
 

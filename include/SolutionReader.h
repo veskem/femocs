@@ -20,8 +20,8 @@ public:
     /** SolutionReader conctructor */
     SolutionReader();
 
+    /** Extract the electric potential and electric field values on Medium atoms from FEM solution */
     const void extract_solution(DealII* fem, Medium &medium);
-    const void extract_solution_vol2(DealII* fem, Medium &medium);
     const void extract_statistics(Mesh &mesh);
     const void smoothen_result(const int n_samples, const int repetitions);
     const void export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
@@ -60,20 +60,14 @@ private:
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     const string get_data_string(const int i);
 
-    /** Map the indices of nodes to the indices of the elements and vertices
-     * where the nodes are located in those elements.
-     * The index of element and vertex are stored sequentally, so that
-     * map[2*node_index] == element_index, map[2*node_index+1] == vertex_index
-     */
-    const vector<int> get_node2elem_map();
-    const vector<int> get_node2vert_map();
     const vector<int> get_node2face_map(Mesh &mesh, int node);
     const vector<int> get_node2elem_map(Mesh &mesh, int node);
 
-    /** Return mapping between Medium atoms and DealII mesh nodes.
-     * Value -1 indicates that there's no node in the mesh that corresponds to the given atom.
+    /**
+     * Return the mapping between atoms & nodes, nodes & elements and nodes & vertices.
+     * In medium2node the value -1 indicates that there's no node in the mesh that corresponds to the given atom.
      */
-    const vector<int> get_medium2node_map(Medium &medium);
+    const void get_maps(Medium& medium, vector<int>& medium2node, vector<int>& node2elem, vector<int>& node2vert);
 };
 
 } /* namespace femocs */

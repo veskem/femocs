@@ -130,13 +130,15 @@ const void Femocs::run(double E_field) {
     end_msg(t0);
 
     start_msg(t0, "=== Separating vacuum and bulk mesh...");
-    femocs::Mesh bulk_mesh(conf.mesher);
+//    femocs::Mesh bulk_mesh(conf.mesher);
     femocs::Mesh vacuum_mesh(conf.mesher);
 
-    mesher.separate_meshes_noclean(&bulk_mesh, &vacuum_mesh, "rQ");
-    bulk_mesh.write_nodes("output/nodes_bulk.xyz");
-    bulk_mesh.write_faces("output/faces_bulk.vtk");
-    bulk_mesh.write_elems("output/elems_bulk.vtk");
+    mesher.separate_meshes_noclean(&vacuum_mesh, "rQ");
+//    mesher.separate_meshes_noclean(&vacuum_mesh, &bulk_mesh, "rQ");
+
+//    bulk_mesh.write_nodes("output/nodes_bulk.xyz");
+//    bulk_mesh.write_faces("output/faces_bulk.vtk");
+//    bulk_mesh.write_elems("output/elems_bulk.vtk");
     vacuum_mesh.write_nodes("output/nodes_vacuum.xyz");
     vacuum_mesh.write_faces("output/faces_vacuum.vtk");
     vacuum_mesh.write_elems(conf.path_to_script);
@@ -157,7 +159,7 @@ const void Femocs::run(double E_field) {
     vector<int> bi = bulk_mesher.get_new_indxs();
     vector<int> vi = vacuum_mesher.get_new_indxs();
         
-    tethex_union_mesh.read_domains(&bulk_mesh, &vacuum_mesh, bi, vi);
+    tethex_union_mesh.read_femocs(&bulk_mesh, &vacuum_mesh, bi, vi);
     tethex_union_mesh.convert();
     end_msg(t0);
 
@@ -182,8 +184,8 @@ const void Femocs::run(double E_field) {
     end_msg(t0);
 
 #if VERBOSE
-    cout << "Bulk:   #elems=" << bulk_mesh.get_n_elems() << ",\t#faces=" << bulk_mesh.get_n_faces()
-             << ",\t#nodes=" << bulk_mesh.get_n_nodes() << endl;
+//    cout << "Bulk:   #elems=" << bulk_mesh.get_n_elems() << ",\t#faces=" << bulk_mesh.get_n_faces()
+//             << ",\t#nodes=" << bulk_mesh.get_n_nodes() << endl;
     cout << "Vacuum: #elems=" << vacuum_mesh.get_n_elems() << ",\t#faces="
             << vacuum_mesh.get_n_faces() << ",\t#nodes=" << vacuum_mesh.get_n_nodes() << endl;
     cout << "Tethex: #elems=" << tethex_mesh.get_n_hexahedra() << ",\t#faces="
@@ -208,7 +210,7 @@ const void Femocs::run(double E_field) {
     start_msg(t0, "=== Extracting solution...");
 //    femocs::Medium medium = vacuum_mesh.to_medium();
 //    solution.extract_solution(&laplace, medium);
-    solution.extract_solution_vol2(&laplace, coarse_surf);
+    solution.extract_solution(&laplace, coarse_surf);
     end_msg(t0);
 
     start_msg(t0, "=== Smoothing solution...");

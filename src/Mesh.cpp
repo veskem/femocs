@@ -242,21 +242,21 @@ const void Mesh::init_nodes(const int N) {
     require(N > 0, "Invalid number of nodes!");
     i_nodes = 0;
     tetIOin.numberofpoints = N;
-    tetIOin.pointlist = new REAL[3 * N];
+    tetIOin.pointlist = new REAL[n_coordinates * N];
 }
 
 const void Mesh::init_faces(const int N) {
     require(N > 0, "Invalid number of faces!");
     i_faces = 0;
     tetIOin.numberoftrifaces = N;
-    tetIOin.trifacelist = new int[3 * N];
+    tetIOin.trifacelist = new int[n_nodes_per_face * N];
 }
 
 const void Mesh::init_elems(const int N) {
     require(N > 0, "Invalid number of elements!");
     i_elems = 0;
     tetIOin.numberoftetrahedra = N;
-    tetIOin.tetrahedronlist = new int[4 * N];
+    tetIOin.tetrahedronlist = new int[n_nodes_per_elem * N];
 }
 
 // =================================
@@ -631,8 +631,31 @@ const void Mesh::calc_statistics(const int i) {
     }
 }
 
+const void Mesh::recalc() {
+    i_nodes = tetIOin.numberofpoints;
+    i_faces = tetIOin.numberoftrifaces;
+    i_elems = tetIOin.numberoftetrahedra;
+
+    tetIOout.numberofpoints = i_nodes;
+    tetIOout.numberoftrifaces = i_faces;
+    tetIOout.numberoftetrahedra = i_elems;
+
+    tetIOout.pointlist = new REAL[n_coordinates * i_nodes];
+    tetIOout.trifacelist = new int[n_nodes_per_face * i_faces];
+    tetIOout.tetrahedronlist = new int[n_nodes_per_elem * i_elems];
+
+    for (int i = 0; i < n_coordinates * i_nodes; ++i)
+        tetIOout.pointlist[i] = tetIOin.pointlist[i];
+
+    for (int i = 0; i < n_nodes_per_face * i_faces; ++i)
+        tetIOout.trifacelist[i] = tetIOin.trifacelist[i];
+
+    for (int i = 0; i < n_nodes_per_elem * i_elems; ++i)
+        tetIOout.tetrahedronlist[i] = tetIOin.tetrahedronlist[i];
+}
+
 // Function to perform tetgen calculation on input and write_tetgen data
-const void Mesh::recalc(const string cmd) {
+const void Mesh::recalc(const string& cmd) {
     tetrahedralize(const_cast<char*>(cmd.c_str()), &tetIOin, &tetIOout);
 
     i_nodes = tetIOout.numberofpoints;
@@ -641,7 +664,7 @@ const void Mesh::recalc(const string cmd) {
 }
 
 // Function to perform tetgen calculation on input and write_tetgen data
-const void Mesh::double_recalc(const string cmd1, const string cmd2) {
+const void Mesh::recalc(const string& cmd1, const string& cmd2) {
     tetgenio tetIOtemp;
 
     tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOtemp);

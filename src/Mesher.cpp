@@ -289,7 +289,7 @@ Mesher::Mesher(Mesh* mesh) {
 }
 
 // Function to generate mesh from surface, bulk and vacuum atoms
-const void Mesher::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string cmd) {
+const void Mesher::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string& cmd) {
     int i;
     int n_bulk = bulk.get_n_atoms();
     int n_surf = surf.get_n_atoms();
@@ -317,74 +317,11 @@ const void Mesher::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, cons
     mesh->indxs.vacuum_end = mesh->indxs.vacuum_start + n_vacuum - 1;
     mesh->indxs.tetgen_start = mesh->indxs.vacuum_end + 1;
 
-    mesh->double_recalc("Q", cmd);
+    mesh->recalc("Q", cmd);
 }
 
-const vector<bool> Mesher::get_vacuum_indices() {
-    int i, j;
-    int n_elems = mesh->get_n_elems();
-
-    vector<bool> is_vacuum;
-    is_vacuum.resize(n_elems);
-
-    int n_vacuum, n_not_bulk, n_surface;
-
-    for (i = 0; i < n_elems; ++i) {
-        n_vacuum = n_not_bulk = n_surface = 0;
-        SimpleElement elem = mesh->get_simpleelem(i);
-
-        // Find nodes that are not inside the bulk
-        for (j = 0; j < mesh->n_nodes_per_elem; ++j)
-            if (elem[j] >= mesh->indxs.vacuum_start) n_vacuum++;
-
-        for (j = 0; j < mesh->n_nodes_per_elem; ++j)
-            if (elem[j] <= mesh->indxs.surf_end) n_surface++;
-
-        // Find nodes that are not in floating element
-        for (j = 0; j < mesh->n_nodes_per_elem; ++j)
-            if (elem[j] < mesh->indxs.bulk_start || elem[j] > mesh->indxs.bulk_end) n_not_bulk++;
-
-        is_vacuum[i] = ((n_vacuum > 0) || (n_surface > 3)) && (n_not_bulk > 1);
-    }
-    return is_vacuum;
-}
-
-const void Mesher::separate_meshes_byseq(Mesh* bulk, Mesh* vacuum, const string cmd) {
-    int i, j;
-    int n_nodes = mesh->get_n_nodes();
-    int n_elems = mesh->get_n_elems();
-    const int* elems = mesh->get_elems();
-
-    vector<bool> elem_in_vacuum = get_vacuum_indices();
-    int n_vacuum_elems = vector_sum(elem_in_vacuum);
-
-    // Copy the nodes from input mesh without modification
-    vacuum->init_nodes(n_nodes);
-    vacuum->copy_nodes(mesh);
-
-    bulk->init_nodes(n_nodes);
-    bulk->copy_nodes(mesh);
-
-    // Copy only the elements from input mesh that have the node outside the bulk nodes
-    vacuum->init_elems(n_vacuum_elems);
-    bulk->init_elems(n_elems - n_vacuum_elems);
-
-    for (i = 0; i < n_elems; ++i)
-        if (elem_in_vacuum[i]) {
-            j = mesh->n_nodes_per_elem * i;
-            vacuum->add_elem(elems[j + 0], elems[j + 1], elems[j + 2], elems[j + 3]);
-        } else {
-            j = mesh->n_nodes_per_elem * i;
-            bulk->add_elem(elems[j + 0], elems[j + 1], elems[j + 2], elems[j + 3]);
-        }
-
-    vacuum->recalc(cmd);
-    bulk->recalc(cmd);
-}
-
-// Separate bulk and vacuum mesh from the union mesh by the node and element markers
-const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, const string cmd) {
-
+// Separate vacuum and bulk mesh from the union mesh by the node and element markers
+const void Mesher::separate_meshes(Mesh* vacuum, Mesh* bulk, const string& cmd) {
     int i, j;
     const int n_nodes = mesh->get_n_nodes();
     const int n_elems = mesh->get_n_elems();
@@ -407,6 +344,7 @@ const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, const string cmd) {
     for (i = 0, j = 0; i < n_nodes; ++i)
         if (node_in_bulk[i]) bulk_map[i] = j++;
 
+    // Reserve memory for elements
     const int n_vacuum_elems = vector_sum(elem_in_vacuum);
     const int n_bulk_elems = n_elems - n_vacuum_elems;
     vacuum->init_elems(n_vacuum_elems);
@@ -425,9 +363,37 @@ const void Mesher::separate_meshes(Mesh* bulk, Mesh* vacuum, const string cmd) {
     bulk->recalc(cmd);
 }
 
-// Separate bulk and vacuum mesh from the union mesh by the node and element markers
-const void Mesher::separate_meshes_noclean(Mesh* bulk, Mesh* vacuum, const string cmd) {
+// Separate vacuum mesh from the union mesh by the node and element markers
+const void Mesher::separate_meshes(Mesh* vacuum, const string& cmd) {
+    int i, j;
+    const int n_nodes = mesh->get_n_nodes();
+    const int n_elems = mesh->get_n_elems();
 
+    const vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), TYPES.BULK);
+    const vector<bool> node_in_vacuum = vector_not(mesh->get_nodemarkers(), TYPES.BULK);
+
+    // Copy the non-bulk nodes from input mesh
+    vacuum->copy_nodes(this->mesh, node_in_vacuum);
+    // Generate mapping between old and new node indices
+    vector<int> vacm_map(n_nodes, -1);
+    for (i = 0, j = 0; i < n_nodes; ++i)
+        if (node_in_vacuum[i]) vacm_map[i] = j++;
+
+    // Reserve memory for elements
+    vacuum->init_elems(vector_sum(elem_in_vacuum));
+
+    // Separate vacuum elements and arrange the node indices
+    for (i = 0; i < n_elems; ++i)
+        if (elem_in_vacuum[i]) {
+            SimpleElement se = mesh->get_simpleelem(i);
+            vacuum->add_elem(vacm_map[se.n1], vacm_map[se.n2], vacm_map[se.n3], vacm_map[se.n4]);
+        }
+
+    vacuum->recalc(cmd);
+}
+
+// Separate bulk and vacuum mesh from the union mesh by the element markers
+const void Mesher::separate_meshes_noclean(Mesh* vacuum, Mesh* bulk, const string& cmd) {
     const int n_elems = mesh->get_n_elems();
     const vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), TYPES.BULK);
 
@@ -436,12 +402,13 @@ const void Mesher::separate_meshes_noclean(Mesh* bulk, Mesh* vacuum, const strin
     // Copy the non-vacuum nodes from input mesh without modification
     bulk->copy_nodes(this->mesh);
 
+    // Reserve memory for elements
     const int n_vacuum_elems = vector_sum(elem_in_vacuum);
     const int n_bulk_elems = n_elems - n_vacuum_elems;
     vacuum->init_elems(n_vacuum_elems);
     bulk->init_elems(n_bulk_elems);
 
-    // Separate vacuum and bulk elements and arrange the node indices
+    // Separate vacuum and bulk elements
     for (int i = 0; i < n_elems; ++i) {
         if (elem_in_vacuum[i])
             vacuum->add_elem(mesh->get_simpleelem(i));
@@ -449,8 +416,26 @@ const void Mesher::separate_meshes_noclean(Mesh* bulk, Mesh* vacuum, const strin
             bulk->add_elem(mesh->get_simpleelem(i));
     }
 
+    vacuum->recalc();
+    bulk->recalc();
+}
+
+// Separate vacuum mesh from the union mesh by the element markers
+const void Mesher::separate_meshes_noclean(Mesh* vacuum, const string& cmd) {
+    const int n_elems = mesh->get_n_elems();
+    const vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), TYPES.BULK);
+
+    // Copy the non-bulk nodes from input mesh without modification
+    vacuum->copy_nodes(this->mesh);
+    // Reserve memory for elements
+    vacuum->init_elems(vector_sum(elem_in_vacuum));
+
+    // Separate vacuum elements
+    for (int i = 0; i < n_elems; ++i)
+        if (elem_in_vacuum[i])
+            vacuum->add_elem(mesh->get_simpleelem(i));
+
     vacuum->recalc(cmd);
-    bulk->recalc(cmd);
 }
 
 /* Function to mark nodes with ray-triangle intersection technique

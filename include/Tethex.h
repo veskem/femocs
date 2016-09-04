@@ -752,9 +752,8 @@ public:
      * @param domain - the ID of physical domain where the mesh is located
      */
     void read_femocs(femocs::Mesh* femocs_mesh, const int domain);
+    void read_femocs(femocs::Mesh* bulk_mesh, femocs::Mesh* vacuum_mesh, vector<int>& bulk_indxs, vector<int>& vacuum_indxs);
 
-    //void read_domains(femocs::Mesh* dom1_mesh, const int domain1, femocs::Mesh* dom2_mesh, const int domain2);
-    void read_domains(femocs::Mesh* bulk_mesh, femocs::Mesh* vacuum_mesh, vector<int>& bulk_indxs, vector<int>& vacuum_indxs);
     /**
      * Conversion from simplices to bricks.
      * Specifically, in 2D - conversion from triangles to quadrangles,

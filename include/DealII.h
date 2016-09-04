@@ -69,11 +69,14 @@ public:
     const double get_elfield();
     const int get_n_dofs();
     const int get_n_nodes();
+    const int get_n_faces();
+    const int get_n_cells();
 
     const void make_simple_mesh();
     const void import_file(const string file_name);
     const void import_tetgen_mesh(femocs::Mesh* mesh);
     const void import_tethex_mesh(tethex::Mesh* mesh);
+    const void import_tethex_mesh_vol2(tethex::Mesh* mesh);
 
     const void output_mesh(const string file_name);
     const void output_results(const string file_name);

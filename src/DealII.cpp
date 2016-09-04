@@ -41,6 +41,16 @@ const int DealII::get_n_nodes() {
     return triangulation.n_used_vertices();
 }
 
+// Get number of used faces in mesh
+const int DealII::get_n_faces() {
+    return triangulation.n_active_faces();
+}
+
+// Get number of used cells in mesh
+const int DealII::get_n_cells() {
+    return triangulation.n_active_cells();
+}
+
 // Generate simple mesh for test purposes
 const void DealII::make_simple_mesh() {
     Triangulation<DIM> tr1, tr2;
@@ -130,10 +140,44 @@ const void DealII::import_tethex_mesh(tethex::Mesh* mesh) {
     GridReordering<DIM, DIM>::invert_all_cells_of_negative_grid(vertices, cells);
 //    GridReordering<DIM, DIM>::reorder_cells(cells);
 
-    triangulation.create_triangulation_compatibility(vertices, cells, subcelldata);
+//    triangulation.create_triangulation_compatibility(vertices, cells, subcelldata);
+    triangulation.create_triangulation_compatibility(vertices, cells, SubCellData());
+}
+
+const void DealII::import_tethex_mesh_vol2(tethex::Mesh* mesh) {
+    const unsigned int n_verts = mesh->get_n_vertices();
+    const unsigned int n_elems = mesh->get_n_hexahedra();
+    const unsigned int n_faces = mesh->get_n_quadrangles();
+    unsigned int i;
+
+    vector<Point<DIM> > vertices(n_verts);       // array for vertices
+    vector<CellData<DIM> > cells(n_elems);       // array for elements
+    SubCellData subcelldata;
+    subcelldata.boundary_quads.reserve(n_faces); // array for faces
+
+    // copy vertices
+    for (unsigned int vertex = 0; vertex < n_verts; ++vertex)
+        for (i = 0; i < DIM; ++i)
+            vertices[vertex](i) = mesh->get_vertex(vertex).get_coord(i);
+
+    // copy hexahedra
+    for (unsigned int elem = 0; elem < n_elems; ++elem) {
+        cells[elem] = CellData<DIM>();
+        for (i = 0; i < n_verts_per_elem; ++i)
+            cells[elem].vertices[i] = mesh->get_hexahedron(elem).get_vertex(i);
+    }
+
+    // Do some clean-up on vertices...
+    GridTools::delete_unused_vertices(vertices, cells, subcelldata);
+    // ... and on cells
+    GridReordering<DIM, DIM>::invert_all_cells_of_negative_grid(vertices, cells);
+//    GridReordering<DIM, DIM>::reorder_cells(cells);
+
+    triangulation.create_triangulation_compatibility(vertices, cells, SubCellData());
 }
 
 // Import tetrahedral mesh
+// WARNING: It's extremely slow function
 const void DealII::import_tetgen_mesh(femocs::Mesh* mesh) {
     Triangulation<DIM> tr1, tr2;
     vector<Point<DIM>> vertices1(DIM + 1), vertices2(DIM + 1);
@@ -315,77 +359,68 @@ const void DealII::solve_umfpack() {
     A_direct.vmult(laplace_solution, system_rhs);
 }
 
-// Calculate electric field from arbitrary point inside the mesh
+// Calculate electric field at arbitrary point inside the mesh
 const Tensor<1, DIM> DealII::get_elfield_at_point(Point<DIM> &point) {
     return -1.0 * VectorTools::point_gradient(dof_handler, laplace_solution, point);
 }
 
+// Calculate electric field at arbitrary point inside the mesh
 const Tensor<1, DIM> DealII::get_elfield_at_point(const double x, const double y, const double z) {
     return -1.0 * VectorTools::point_gradient(dof_handler, laplace_solution, Point<DIM>(x, y, z));
 }
 
-// Calculate electric field at node point
+// Calculate electric field at a mesh node
 const Tensor<1, DIM> DealII::get_elfield_at_node(const int &cell_indx, const int &vert_indx) {
-    static bool firsttime = true;
-    double tstart, t0, t1, t2, t3, t4;
-
-    tstart = omp_get_wtime();
     vector<Tensor<1, DIM>> solution_gradients;
     QTrapez<DIM> only_vertices_quadrature_formula;
     FEValues<DIM> fe_values(fe, only_vertices_quadrature_formula, update_gradients);
-    t0 = omp_get_wtime() - tstart;
 
     solution_gradients.resize(only_vertices_quadrature_formula.size());
 
     typename DoFHandler<DIM>::active_cell_iterator cell;
     cell = dof_handler.begin_active();
-    t1 = omp_get_wtime() - t0 - tstart;
 
     std::advance(cell, cell_indx);
-
-    t2 = omp_get_wtime() - t1- t0 - tstart;
-
     fe_values.reinit(cell);
-
-    t3 = omp_get_wtime() - t2- t1- t0 - tstart;
-
     fe_values.get_function_gradients(laplace_solution, solution_gradients);
-
-    t4 = omp_get_wtime() - t3- t2- t1- t0 - tstart;
-
-    tstart = omp_get_wtime()- tstart;
-
-    if(firsttime)
-        cout << "\nper0: " << t0/tstart << "\nper1: " << t1/tstart << "\nper2: " << t2/tstart << "\nper3: " << t3/tstart << "\nper4: " << t4/tstart << endl;
-
-    firsttime = false;
 
     return -1.0 * solution_gradients.at(vert_indx);
 }
 
+// Calculate electric field at a set of mesh nodes
 const vector<Vec3> DealII::get_elfield_at_node(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
     const int n_cells = cell_indxs.size();
-    vector<Vec3> elfield;
-    elfield.reserve(n_cells);
+    vector<Vec3> elfield(n_cells);
 
     vector<Tensor<1, DIM>> solution_gradients;
     QTrapez<DIM> only_vertices_quadrature_formula;
     FEValues<DIM> fe_values(fe, only_vertices_quadrature_formula, update_gradients);
     solution_gradients.resize(only_vertices_quadrature_formula.size());
 
-//    typename DoFHandler<DIM>::active_cell_iterator cell;
+    // Generate vector with indices [0, n_atoms-1]
+    vector<int> sort_indxs(n_cells);
+    size_t n(0);
+    generate(sort_indxs.begin(), sort_indxs.end(), [&]{ return n++; });
 
-    for (int i = 0; i < n_cells; ++i) {
-//        cell = dof_handler.begin_active();
-//        std::advance(cell, cell_indxs[i]);
-        auto cell = std::next(dof_handler.begin_active(), cell_indxs[i]);
-        fe_values.reinit(cell);
+    // Sort indexes by the cell_indxs to make it possible to iterate sequentially though the cells
+    auto comparator = [&cell_indxs](int a, int b){ return cell_indxs[a] < cell_indxs[b]; };
+    sort(sort_indxs.begin(), sort_indxs.end(), comparator);
 
-        fe_values.get_function_gradients(laplace_solution, solution_gradients);
+    int i, j;
+    int si = sort_indxs[0];
+    typename DoFHandler<DIM>::active_cell_iterator cell;
 
-        Tensor<1, DIM> ef = -1.0 * solution_gradients.at(vert_indxs[i]);
-        elfield.push_back( Vec3(ef[0], ef[1], ef[2]) );
-    }
+    // Iterate through all the cells and get the electric field from ones listed in cell_indxs
+    for (i = 0, j = 0, cell = dof_handler.begin_active(); cell != dof_handler.end(); i++, cell++)
+        if (i == cell_indxs[si]) {
+            fe_values.reinit(cell);
+            fe_values.get_function_gradients(laplace_solution, solution_gradients);
+
+            Tensor<1, DIM> ef = -1.0 * solution_gradients.at(vert_indxs[si]);
+            elfield[si] = Vec3(ef[0], ef[1], ef[2]);
+
+            si = sort_indxs[++j];
+        }
 
     return elfield;
 }
@@ -395,11 +430,12 @@ const double DealII::get_potential_at_point(Point<DIM> &point) {
     return VectorTools::point_value(dof_handler, laplace_solution, point);
 }
 
+// Calculate potential at arbitrary point inside the mesh
 const double DealII::get_potential_at_point(const double x, const double y, const double z) {
     return VectorTools::point_value(dof_handler, laplace_solution, Point<DIM>(x, y, z));
 }
 
-// Get potential at mesh node
+// Get potential at a mesh node
 const double DealII::get_potential_at_node(const int &cell_indx, const int &vert_indx) {
     typename DoFHandler<DIM>::active_cell_iterator cell;
     cell = dof_handler.begin_active();
@@ -408,17 +444,31 @@ const double DealII::get_potential_at_node(const int &cell_indx, const int &vert
     return laplace_solution(cell->vertex_dof_index(vert_indx, 0));
 }
 
-// Get potential at mesh node
+// Get potential at a set of mesh nodes
 const vector<double> DealII::get_potential_at_node(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
     const int n_cells = cell_indxs.size();
-    vector<double> potentials;
-    potentials.reserve(n_cells);
+
+    vector<double> potentials(n_cells);
+
+    // Generate vector with indices [0, n_atoms-1]
+    vector<int> sort_indxs(n_cells);
+    size_t n(0);
+    generate(sort_indxs.begin(), sort_indxs.end(), [&]{ return n++; });
+
+    // Sort indexes by the cell_indxs to make it possible to iterate sequentially though the cells
+    auto comparator = [&cell_indxs](int a, int b){ return cell_indxs[a] < cell_indxs[b]; };
+    sort(sort_indxs.begin(), sort_indxs.end(), comparator);
+
+    int i, j;
+    int si = sort_indxs[0];
     typename DoFHandler<DIM>::active_cell_iterator cell;
 
-    for (int i = 0; i < n_cells; ++i) {
-        auto cell = std::next(dof_handler.begin_active(), cell_indxs[i]);
-        potentials.push_back( laplace_solution(cell->vertex_dof_index(vert_indxs[i], 0)) );
-    }
+    // Iterate through all the cells and get the potential from the ones listed in cell_indxs
+    for (i = 0, j = 0, cell = dof_handler.begin_active(); cell != dof_handler.end(); i++, cell++)
+        if (i == cell_indxs[si]) {
+            potentials[si] = laplace_solution( cell->vertex_dof_index(vert_indxs[si], 0) );
+            si = sort_indxs[++j];
+        }
 
     return potentials;
 }

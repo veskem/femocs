@@ -796,7 +796,7 @@ void Mesh::read_femocs(femocs::Mesh* femocs_mesh, const int domain) {
 }
 
 // Import tetrahedral mesh from Femocs 
-void Mesh::read_domains(femocs::Mesh* bulk_mesh, femocs::Mesh* vacuum_mesh, vector<int>& bulk_indxs, vector<int>& vacuum_indxs) {
+void Mesh::read_femocs(femocs::Mesh* bulk_mesh, femocs::Mesh* vacuum_mesh, vector<int>& bulk_indxs, vector<int>& vacuum_indxs) {
     clean(); // free the memory for mesh elements
 
     int n_verts1, n_verts2, n_elems1, n_elems2, n_faces1, n_faces2;

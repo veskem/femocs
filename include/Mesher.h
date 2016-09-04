@@ -86,14 +86,15 @@ public:
     ;
 
     /** Function to generate mesh from surface, bulk and vacuum atoms */
-    const void generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string cmd);
+    const void generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string& cmd);
 
     const void mark_mesh(bool postprocess, double mean_thickness);
     const void mark_mesh_long();
 
-    const void separate_meshes_byseq(Mesh* bulk, Mesh* vacuum, const string cmd);
-    const void separate_meshes(Mesh* bulk, Mesh* vacuum, const string cmd);
-    const void separate_meshes_noclean(Mesh* bulk, Mesh* vacuum, const string cmd);
+    const void separate_meshes(Mesh* vacuum, Mesh* bulk, const string& cmd);
+    const void separate_meshes(Mesh* vacuum, const string& cmd);
+    const void separate_meshes_noclean(Mesh* vacuum, Mesh* bulk, const string& cmd);
+    const void separate_meshes_noclean(Mesh* vacuum, const string& cmd);
 
     const vector<int> get_new_indxs();
 private:
@@ -102,8 +103,6 @@ private:
     const void mark_faces();
     const void mark_elems();
     const void post_process_marking();
-
-    const vector<bool> get_vacuum_indices();
 };
 
 } /* namespace femocs */
