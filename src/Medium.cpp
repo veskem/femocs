@@ -103,50 +103,50 @@ const int Medium::get_n_atoms() {
 
 // Get 2-dimensional coordinates of i-th atom
 const Point2 Medium::get_point2(const int i) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + i);
+    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
     return Point2(point[i].x, point[i].y);
 }
 
 // Get 3-dimensional coordinates of i-th atom
 const Point3 Medium::get_point(const int i) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + i);
+    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
     return point[i];
 }
 
 // Get atom ID
 const int Medium::get_id(const int i) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + i);
+    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
     return id[i];
 }
 
 // Get atom coordination
 const int Medium::get_coordination(const int i) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + i);
+    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
     return coordination[i];
 }
 
 // Set entry to x coordinate vector
 const void Medium::set_x(const int i, const double x) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + i);
+    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
     point[i].x = x;
 }
 
 // Set entry to y coordinate vector
 const void Medium::set_y(const int i, const double y) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + i);
+    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
     point[i].y = y;
 }
 
 // Set entry to z coordinate vector
 const void Medium::set_z(const int i, const double z) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + i);
+    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
     point[i].z = z;
 }
 
 // Set coordination of atom
 const void Medium::set_coordination(const int i, const int coord) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + i);
-    require(coord >= 0, "Invalid coordination: " + coord);
+    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    require(coord >= 0, "Invalid coordination: " + to_string(coord));
     this->coordination[i] = coord;
 }
 

@@ -58,6 +58,11 @@ public:
         return s << t.n1 << ' ' << t.n2 << ' ' << t.n3;
     }
 
+    /** Return data as string */
+    string to_str() const {
+        return to_string(n1) + " " + to_string(n2) + " " + to_string(n3);
+    }
+
     /** Transform SimpleFace to vector */
     vector<int> to_vector() const {
         return vector<int> {n1, n2, n3};
@@ -112,6 +117,11 @@ public:
     /** Defining the behaviour of cout */
     friend std::ostream& operator <<(std::ostream &s, const SimpleElement_T &t) {
         return s << t.n1 << ' ' << t.n2 << ' ' << t.n3 << ' ' << t.n4;
+    }
+
+    /** Return data as string */
+    string to_str() const {
+        return to_string(n1) + " " + to_string(n2) + " " + to_string(n3) + " " + to_string(n4);
     }
 
     T n1, n2, n3, n4;
@@ -228,6 +238,10 @@ public:
         return s << v.x << ' ' << v.y << ' ' << v.z;
     }
 
+    /** Return data as string */
+    string to_str() const{
+        return to_string(x) + " " + to_string(y) + " " + to_string(z);
+    }
     T x, y, z;
 };
 
@@ -350,6 +364,11 @@ public:
         return s << p.x << ' ' << p.y << ' ' << p.z;
     }
 
+    /** Return data as string */
+    string to_str() const {
+        return to_string(x) + " " + to_string(y) + " " + to_string(z);
+    }
+
     T x, y, z;
 };
 
@@ -403,6 +422,11 @@ public:
     /** Defining the behaviour of cout */
     friend std::ostream& operator <<(std::ostream &s, const Point2_T &p) {
         return s << p.x << ' ' << p.y;
+    }
+
+    /** Return SimpleFace data as string */
+    string to_string() const {
+        return to_string(x) + " " + to_string(y);
     }
 
     T x, y;

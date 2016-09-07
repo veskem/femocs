@@ -57,28 +57,28 @@ const void Mesh::generate_simple() {
 
 const Vec3 Mesh::get_vec(const int i) {
     require(get_n_nodes() > 0, "Inquiry from empty mesh!");
-    require(i >= 0 && i < get_n_nodes(), "Invalid index!");
+    require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
     const int n = n_coordinates * i;
     return Vec3(tetIOout.pointlist[n+0], tetIOout.pointlist[n+1], tetIOout.pointlist[n+2]);
 }
 
 const Point3 Mesh::get_node(const int i) {
     require(get_n_nodes() > 0, "Inquiry from empty mesh!");
-    require(i >= 0 && i < get_n_nodes(), "Invalid index!");
+    require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
     const int n = n_coordinates * i;
     return Point3(tetIOout.pointlist[n+0], tetIOout.pointlist[n+1], tetIOout.pointlist[n+2]);
 }
 
 const SimpleFace Mesh::get_simpleface(const int i) {
     require(get_n_faces() > 0, "Inquiry from empty mesh!");
-    require(i >= 0 && i < get_n_faces(), "Invalid index!");
+    require(i >= 0 && i < get_n_faces(), "Invalid index: " + to_string(i));
     const int I = n_nodes_per_face * i;
     return SimpleFace(tetIOout.trifacelist[I], tetIOout.trifacelist[I+1], tetIOout.trifacelist[I+2]);
 }
 
 const SimpleElement Mesh::get_simpleelem(const int i) {
     require(get_n_elems() > 0, "Inquiry from empty mesh!");
-    require(i >= 0 && i < get_n_elems(), "Invalid index!");
+    require(i >= 0 && i < get_n_elems(), "Invalid index: " + to_string(i));
     const int I = n_nodes_per_elem * i;
     return SimpleElement(tetIOout.tetrahedronlist[I], tetIOout.tetrahedronlist[I+1],
             tetIOout.tetrahedronlist[I+2], tetIOout.tetrahedronlist[I+3]);
@@ -86,7 +86,7 @@ const SimpleElement Mesh::get_simpleelem(const int i) {
 
 const Point3 Mesh::get_face_centre(int i) {
     require(get_n_faces() > 0, "Inquiry from empty mesh!");
-    require(i >= 0 && i < get_n_faces(), "Invalid index!");
+    require(i >= 0 && i < get_n_faces(), "Invalid index: " + to_string(i));
 
     Point3 verts(0, 0, 0);
     SimpleFace face = get_simpleface(i);
@@ -99,7 +99,7 @@ const Point3 Mesh::get_face_centre(int i) {
 
 const Point3 Mesh::get_elem_centre(int i) {
     require(get_n_elems() > 0, "Inquiry from empty mesh!");
-    require(i >= 0 && i < get_n_elems(), "Invalid index!");
+    require(i >= 0 && i < get_n_elems(), "Invalid index: " + to_string(i));
 
     Point3 verts;
     SimpleElement elem = get_simpleelem(i);
@@ -111,32 +111,32 @@ const Point3 Mesh::get_elem_centre(int i) {
 }
 
 const double Mesh::get_area(const int i) {
-    require(i >= 0 && i < get_n_areas(), "Invalid index!");
+    require(i >= 0 && i < get_n_areas(), "Invalid index: " + to_string(i));
     return areas[i];
 }
 
 const double Mesh::get_volume(const int i) {
-    require(i >= 0 && i < get_n_volumes(), "Invalid index!");
+    require(i >= 0 && i < get_n_volumes(), "Invalid index: " + to_string(i));
     return volumes[i];
 }
 
 const double Mesh::get_quality(const int i) {
-    require(i >= 0 && i < get_n_qualities(), "Invalid index!");
+    require(i >= 0 && i < get_n_qualities(), "Invalid index: " + to_string(i));
     return qualities[i];
 }
 
 const int Mesh::get_nodemarker(const int i) {
-    require(i >= 0 && i < get_n_nodemarkers(), "Invalid index!");
+    require(i >= 0 && i < get_n_nodemarkers(), "Invalid index: " + to_string(i));
     return nodemarkers[i];
 }
 
 const int Mesh::get_facemarker(const int i) {
-    require(i >= 0 && i < get_n_facemarkers(), "Invalid index!");
+    require(i >= 0 && i < get_n_facemarkers(), "Invalid index: " + to_string(i));
     return facemarkers[i];
 }
 
 const int Mesh::get_elemmarker(const int i) {
-    require(i >= 0 && i < get_n_elemmarkers(), "Invalid index!");
+    require(i >= 0 && i < get_n_elemmarkers(), "Invalid index: " + to_string(i));
     return elemmarkers[i];
 }
 
@@ -208,15 +208,15 @@ const int Mesh::get_n_qualities() {
 // =================================
 
 const void Mesh::set_nodemarker(const int node, const int m) {
-    require(node >= 0 && node < get_n_nodemarkers(), "Invalid index!");
+    require(node >= 0 && node < get_n_nodemarkers(), "Invalid index: " + to_string(node));
     nodemarkers[node] = m;
 }
 const void Mesh::set_facemarker(const int face, const int m) {
-    require(face >= 0 && face < get_n_facemarkers(), "Invalid index!");
+    require(face >= 0 && face < get_n_facemarkers(), "Invalid index: " + to_string(face));
     facemarkers[face] = m;
 }
 const void Mesh::set_elemmarker(const int elem, const int m){
-    require(elem >= 0 && elem < get_n_elemmarkers(), "Invalid index!");
+    require(elem >= 0 && elem < get_n_elemmarkers(), "Invalid index: " + to_string(elem));
     elemmarkers[elem] = m;
 }
 
@@ -224,36 +224,36 @@ const void Mesh::set_elemmarker(const int elem, const int m){
 // *** INITIALIZERS: ***************
 
 const void Mesh::init_nodemarkers(const int N) {
-    require(N > 0, "Invalid number of node markers!");
+    require(N > 0, "Invalid number of node markers: " + to_string(N));
     nodemarkers.reserve(N);
 }
 
 const void Mesh::init_facemarkers(const int N) {
-    require(N > 0, "Invalid number of face markers!");
+    require(N > 0, "Invalid number of face markers: " + to_string(N));
     facemarkers.reserve(N);
 }
 
 const void Mesh::init_elemmarkers(const int N) {
-    require(N > 0, "Invalid number of element markers!");
+    require(N > 0, "Invalid number of element markers: " + to_string(N));
     elemmarkers.reserve(N);
 }
 
 const void Mesh::init_nodes(const int N) {
-    require(N > 0, "Invalid number of nodes!");
+    require(N > 0, "Invalid number of nodes: " + to_string(N));
     i_nodes = 0;
     tetIOin.numberofpoints = N;
     tetIOin.pointlist = new REAL[n_coordinates * N];
 }
 
 const void Mesh::init_faces(const int N) {
-    require(N > 0, "Invalid number of faces!");
+    require(N > 0, "Invalid number of faces: " + to_string(N));
     i_faces = 0;
     tetIOin.numberoftrifaces = N;
     tetIOin.trifacelist = new int[n_nodes_per_face * N];
 }
 
 const void Mesh::init_elems(const int N) {
-    require(N > 0, "Invalid number of elements!");
+    require(N > 0, "Invalid number of elements: " + to_string(N));
     i_elems = 0;
     tetIOin.numberoftetrahedra = N;
     tetIOin.tetrahedronlist = new int[n_nodes_per_elem * N];
@@ -273,7 +273,9 @@ const void Mesh::add_node(const double n1, const double n2, const double n3) {
 
 const void Mesh::add_face(const int f1, const int f2, const int f3) {
     require(i_faces < tetIOin.numberoftrifaces, "Allocated size of faces exceeded!");
-    require(f1 >= 0 && f2 >= 0 && f3 >= 0, "Invalid node index!");
+    require(f1 >= 0 && f2 >= 0 && f3 >= 0, "Invalid node index: "
+            + to_string(f1) + " " + to_string(f2) + " " + to_string(f3));
+
     int i = 3 * i_faces;
     tetIOin.trifacelist[i] = f1;
     tetIOin.trifacelist[++i] = f2;
@@ -283,7 +285,8 @@ const void Mesh::add_face(const int f1, const int f2, const int f3) {
 
 const void Mesh::add_elem(const int e1, const int e2, const int e3, const int e4) {
     require(i_elems < tetIOin.numberoftetrahedra, "Allocated size of elements exceeded!");
-    require(e1 >= 0 && e2 >= 0 && e3 >= 0 && e4 >= 0, "Invalid node index!");
+    require(e1 >= 0 && e2 >= 0 && e3 >= 0 && e4 >= 0, "Invalid node index: "
+            + to_string(e1) + " " + to_string(e2) + " " + to_string(e3) + " " + to_string(e4));
 
     int i = 4 * i_elems;
     tetIOin.tetrahedronlist[i] = e1;
@@ -303,19 +306,19 @@ const void Mesh::add_node(const Point3 &point) {
 
 const void Mesh::add_face(const SimpleFace& face) {
     require(i_faces < tetIOin.numberoftrifaces, "Allocated size of faces exceeded!");
-    require(face.n1 >= 0 && face.n2 >= 0 && face.n3 >= 0, "Invalid face!");
+    require(face.n1 >= 0 && face.n2 >= 0 && face.n3 >= 0, "Invalid face: " + face.to_str());
     int i, j;
     for (i = n_nodes_per_face * i_faces, j = 0; j < n_nodes_per_face; ++i, ++j)
         tetIOin.trifacelist[i] = face[j];
     i_faces++;
 }
 
-const void Mesh::add_elem(const SimpleElement& elem) {
+const void Mesh::add_elem(const SimpleElement& el) {
     require(i_elems < tetIOin.numberoftetrahedra, "Allocated size of elements exceeded!");
-    require(elem.n1 >= 0 && elem.n2 >= 0 && elem.n3 >= 0 && elem.n4 >= 0, "Invalid element!");
+    require(el.n1 >= 0 && el.n2 >= 0 && el.n3 >= 0 && el.n4 >= 0, "Invalid element: " + el.to_str());
     int i, j;
     for (i = n_nodes_per_elem * i_elems, j = 0; j < n_nodes_per_elem; ++i, ++j)
-        tetIOin.tetrahedronlist[i] = elem[j];
+        tetIOin.tetrahedronlist[i] = el[j];
     i_elems++;
 }
 
@@ -418,7 +421,7 @@ const Medium Mesh::to_medium() {
 }
 
 const double Mesh::calc_volume(const int i) {
-    require(i >= 0 && i < get_n_elems(), "Invalid index!");
+    require(i >= 0 && i < get_n_elems(), "Invalid index: " + to_string(i));
 
     SimpleElement elem = get_simpleelem(i);
     Vec3 base = get_vec(elem[0]);
@@ -431,7 +434,7 @@ const double Mesh::calc_volume(const int i) {
 }
 
 const double Mesh::calc_area(const int i) {
-    require(i >= 0 && i < get_n_faces(), "Invalid index!");
+    require(i >= 0 && i < get_n_faces(), "Invalid index: " + to_string(i));
 
     SimpleFace face = get_simpleface(i);
     Vec3 base = get_vec(face[0]);

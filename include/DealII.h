@@ -2,7 +2,7 @@
  * DealII.h
  *
  *  Created on: 11.2.2016
- *      Author: veske
+ *      Author: veske, Kristjan Eimre, Robert Aare
  */
 
 #ifndef DEALII_H_
