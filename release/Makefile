@@ -1,5 +1,5 @@
 
-FC = gfortran-4.9
+FC = gfortran-5
 DEALII = ../deal.II/lib
 EXEC = ../test/Helmod.f90
 

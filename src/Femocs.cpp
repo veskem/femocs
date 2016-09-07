@@ -72,8 +72,8 @@ const void Femocs::run(double E_field) {
     dense_surf.extract_surface(&reader);
 
     if (conf.coarse_factor > 0)
-        coarse_surf = dense_surf.coarsen(conf.rmin_coarse, conf.rmax_coarse, conf.coarse_factor,
-                &reader.sizes);
+        coarse_surf = dense_surf.coarsen(conf.coord_cutoff, conf.rmin_coarse, conf.rmax_coarse,
+                conf.coarse_factor, &reader.sizes);
     else
         coarse_surf = dense_surf.rectangularize(&reader.sizes, conf.rmin_rectancularize);
 
@@ -84,7 +84,7 @@ const void Femocs::run(double E_field) {
     start_msg(t0, "=== Resizing simulation box...");
     // Electric field is applied 100 lattice constants above the highest point of surface
     // and bulk is extended 20 lattice constants below the minimum point of surface
-    const double zmaxbox = coarse_surf.sizes.zmax + 50 * conf.latconst;
+    const double zmaxbox = coarse_surf.sizes.zmax + 100 * conf.latconst;
     const double zminbox = coarse_surf.sizes.zmin - 20 * conf.latconst;
     reader.resize_box(zminbox, zmaxbox);
     end_msg(t0);

@@ -60,7 +60,7 @@ public:
      */
     const void extract_surface(AtomReader* reader);
 
-    const Surface coarsen(double r_cut, double const_r_cut, double coarse_factor, const AtomReader::Sizes* ar_sizes);
+    const Surface coarsen(const double coord_cutoff, const double r_in, const double r_out, const double coarse_factor, const AtomReader::Sizes* ar_sizes);
 
     /** Function to flatten the atoms on the sides of simulation box */
     const Surface rectangularize(const AtomReader::Sizes* sizes, const double r_cut);
@@ -68,6 +68,7 @@ public:
     const Surface clean();
     const Surface clean(const double r_cut);
     const Surface clean(const Point3 &origin, double r_in, double r_out, double multiplier);
+    const Surface clean_lonely_atoms(const double r_cut);
 
     const void calc_statistics();
     const double get_roughness();

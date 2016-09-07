@@ -1,7 +1,7 @@
 
 cmake_minimum_required (VERSION 2.6)
 project (femocs C CXX Fortran)
-SET(CMAKE_Fortran_COMPILER gfortran-4.9)
+SET(CMAKE_Fortran_COMPILER gfortran-5)
 
 # specify the name of the library
 SET(LIB_NAME "femocs")

@@ -79,7 +79,6 @@ const void SolutionReader::extract_solution(DealII* fem, Medium &medium) {
     vector<double> pot = fem->get_potential_at_node(cell_indxs, vert_indxs);
 
     int i, node;
-
     for (i = 0, node = 0; node < n_nodes; ++node)
         if (medium2node[node] >= 0) {
             potential[node] = pot[i];

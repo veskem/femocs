@@ -406,20 +406,20 @@ const vector<Vec3> DealII::get_elfield_at_node(const vector<int> &cell_indxs, co
     auto comparator = [&cell_indxs](int a, int b){ return cell_indxs[a] < cell_indxs[b]; };
     sort(sort_indxs.begin(), sort_indxs.end(), comparator);
 
-    int i, j;
-    int si = sort_indxs[0];
+    int i, si;
     typename DoFHandler<DIM>::active_cell_iterator cell;
+    cell = dof_handler.begin_active();
 
     // Iterate through all the cells and get the electric field from ones listed in cell_indxs
-    for (i = 0, j = 0, cell = dof_handler.begin_active(); cell != dof_handler.end(); i++, cell++)
-        if (i == cell_indxs[si]) {
+    for (i = 1, si = sort_indxs[0]; cell != dof_handler.end(), i < n_cells; cell++)
+        if (cell->active_cell_index() == cell_indxs[si]) {
             fe_values.reinit(cell);
             fe_values.get_function_gradients(laplace_solution, solution_gradients);
 
             Tensor<1, DIM> ef = -1.0 * solution_gradients.at(vert_indxs[si]);
             elfield[si] = Vec3(ef[0], ef[1], ef[2]);
 
-            si = sort_indxs[++j];
+            si = sort_indxs[i++];
         }
 
     return elfield;
@@ -459,16 +459,16 @@ const vector<double> DealII::get_potential_at_node(const vector<int> &cell_indxs
     auto comparator = [&cell_indxs](int a, int b){ return cell_indxs[a] < cell_indxs[b]; };
     sort(sort_indxs.begin(), sort_indxs.end(), comparator);
 
-    int i, j;
-    int si = sort_indxs[0];
+    int i, si;
     typename DoFHandler<DIM>::active_cell_iterator cell;
+    cell = dof_handler.begin_active();
 
     // Iterate through all the cells and get the potential from the ones listed in cell_indxs
-    for (i = 0, j = 0, cell = dof_handler.begin_active(); cell != dof_handler.end(); i++, cell++)
-        if (i == cell_indxs[si]) {
-            potentials[si] = laplace_solution( cell->vertex_dof_index(vert_indxs[si], 0) );
-            si = sort_indxs[++j];
-        }
+    for (i = 1, si = sort_indxs[0]; cell != dof_handler.end(), i < n_cells; cell++) {
+        if (cell->active_cell_index() == cell_indxs[si])
+             potentials[si] = laplace_solution( cell->vertex_dof_index(vert_indxs[si], 0) );
+             si = sort_indxs[i++];
+         }
 
     return potentials;
 }

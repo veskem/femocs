@@ -251,8 +251,8 @@ const void Surface::extract_by_coordination(AtomReader* reader) {
 }
 
 // Function to coarsen the atoms outside the cylinder in the middle of simulation cell
-const Surface Surface::coarsen(double r_in, double r_out, double coarse_factor,
-        const AtomReader::Sizes* ar_sizes) {
+const Surface Surface::coarsen(const double coord_cutoff, const double r_in, const double r_out,
+        const double coarse_factor, const AtomReader::Sizes* ar_sizes) {
 
     const double r_cut2 = r_in * r_in;
 
@@ -294,6 +294,7 @@ const Surface Surface::coarsen(double r_in, double r_out, double coarse_factor,
     Point3 origin3d(origin2d[0], origin2d[1], coarse_surf.sizes.zmean);
 
     coarse_surf = coarse_surf.clean(origin3d, r_in, r_out, coarse_factor);
+    dense_surf = dense_surf.clean_lonely_atoms(coord_cutoff);
     coarse_surf += dense_surf;
 
     return coarse_surf;
@@ -342,7 +343,6 @@ const Surface Surface::clean(const Point3 &origin, double r_in, double r_out, do
 
         Point3 point1 = get_point(i);
 
-
         // r_cutoff(r) = A * sqrt(r - r_in), if r >  r_in
         //             = 0,                  if r <= r_in
         if(use_non_constant_cutoff) {
@@ -360,6 +360,47 @@ const Surface Surface::clean(const Point3 &origin, double r_in, double r_out, do
     surf.reserve( n_atoms - vector_sum(do_delete) );
     for (i = 0; i < n_atoms; ++i)
         if(!do_delete[i])
+            surf.add_atom(id[i], point[i], coordination[i]);
+
+    surf.calc_statistics();
+    return surf;
+}
+
+// Function to delete atoms that are separate from others
+// Atom is considered lonely if its coordination is lower than coord_min
+const Surface Surface::clean_lonely_atoms(const double r_cut) {
+    const double cutoff2 = r_cut * r_cut;
+    const int n_atoms = get_n_atoms();
+    const int coord_min = 2;
+
+    Surface surf(crys_struct.latconst, crys_struct.nnn);
+    int i, j;
+
+    vector<bool> atom_not_lonely(n_atoms, false);
+    vector<int> coords(n_atoms, 0);
+
+    // Loop through all the atoms
+    for(i = 0; i < n_atoms-1; ++i) {
+        // Skip already processed atoms
+        if (atom_not_lonely[i]) continue;
+
+        Point3 point1 = get_point(i);
+
+        // Loop through the possible neighbours of the atom
+        for (j = i+1; j < n_atoms; ++j) {
+            // Skip already processed atoms
+            if (atom_not_lonely[j]) continue;
+
+            if (point1.distance2(get_point(j)) <= cutoff2) {
+                atom_not_lonely[i] = ++coords[i] >= coord_min;
+                atom_not_lonely[j] = ++coords[j] >= coord_min;
+            }
+        }
+    }
+
+    surf.reserve( vector_sum(atom_not_lonely) );
+    for (i = 0; i < n_atoms; ++i)
+        if (atom_not_lonely[i])
             surf.add_atom(id[i], point[i], coordination[i]);
 
     surf.calc_statistics();
