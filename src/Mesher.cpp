@@ -443,7 +443,7 @@ const void Mesher::separate_meshes_noclean(Mesh* vacuum, const string& cmd) {
  * When the ray from the node in z-direction crosses the surface, the node is located in material,
  * otherwise it's in vacuum.
  * The technique works perfectly with completely convex surface. The concaves give some false
- * nodes but because of their low spatial density they can be eliminated in postprocessor.
+ * nodes but because of their low spatial density they can be eliminated in post-processor.
  */
 const void Mesher::mark_mesh(bool postprocess, double mean_thickness) {
     int node, elem, coord;

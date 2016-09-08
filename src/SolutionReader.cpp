@@ -84,9 +84,12 @@ const void SolutionReader::extract_solution(DealII* fem, Medium &medium) {
             potential[node] = pot[i];
             elfield[node] = ef[i++];
             elfield_norm[node] = elfield[node].length();
-            add_atom(medium.get_id(node), medium.get_point(node), medium.get_coordination(node));
-        } else
-            add_atom(-1, medium.get_point(node), medium.get_coordination(node));
+            add_atom(medium.get_atom(node));
+        } else {
+            add_atom(medium.get_atom(node));
+            set_id(node, -1);
+        }
+
 }
 
 const vector<int> SolutionReader::get_node2face_map(Mesh &mesh, int node) {
@@ -229,8 +232,11 @@ const vector<int> SolutionReader::get_cartesian_map(const int x1, const int x2) 
     size_t n(0);
     generate(indxs.begin(), indxs.end(), [&]{ return n++; });
 
+    // TODO LOOK THAT SYSTEM UP !!!
     // Generate duplicate of points
-    vector<Point3> points = point;
+    vector<Point3> points(get_n_atoms());
+    for (Atom atom : atoms)
+        points.push_back(atom.point);
 
     // Sort indices by x-coordinates
     auto comparator_x = [&points](int a, int b) { return points[a].x < points[b].x; };
@@ -266,26 +272,30 @@ const void SolutionReader::smoothen_result(const int n_average, const int repeti
         smoothen_result_ema(n_average, get_cartesian_map(1, 0));
         smoothen_result_ema(n_average, get_cartesian_map(0, 1));
     }
+}
 
-#if VERBOSE
-    // Print some statistics about the top region of tip
+// Print some statistics about the top region of tip
+const void SolutionReader::print_statistics() {
+#if not VERBOSE
+    return;
+#endif
+
     calc_statistics();
 
     double zmax = sizes.zmax - 3.0;// 33.0;
     double mn = 1e20; double mx = -1e20; double avg = 0; int cntr = 0;
 
     for (int i = 0; i < get_n_atoms(); ++i)
-        if (point[i].z > zmax) {
+        if (get_point(i).z > zmax) {
             mn = min(mn, elfield_norm[i]);
             mx = max(mx, elfield_norm[i]);
             avg += elfield_norm[i];
             cntr++;
         }
 
-    cout << "\n\nzmax, n_atoms, n_average: " << zmax << ", " << cntr << ", " << n_average
-            << "\nmin, max: " << mn << ", " << mx
-            << "\nspan: " << mx-mn << "\naverage: " << avg / cntr << "\n\n";
-#endif
+    cout << "zmax, n_atoms:\t" << zmax << ", " << cntr
+            << "\nmin, max, span:\t" << mn << ", " << mx << ", " << mx-mn <<
+            "\naverage:\t" << avg / cntr << endl;
 }
 
 const void SolutionReader::smoothen_result_sma(const int n_average) {
@@ -382,7 +392,7 @@ const void SolutionReader::export_helmod(int n_atoms, double* Ex, double* Ey, do
 
     // Pass the the real electric field for surface atoms that were in the mesh
     for (i = 0; i < get_n_atoms(); ++i) {
-        int identifier = id[i];
+        int identifier = get_id(i);
         if (identifier < 0 || identifier >= n_atoms) continue;
 
         Ex[identifier] = elfield[i].x;
@@ -405,9 +415,7 @@ const string SolutionReader::get_data_string(const int i) {
     if (i < 0) return "SolutionReader data: id x y z coordination Ex Ey Ez Enorm potential";// face_quality elem_quality";
 
     ostringstream strs;
-//    strs << id[i] << " " << point[i] << " " << coordination[i] << " " << elfield[i] << " "
-    strs << i << " " << point[i] << " " << id[i] << " " << elfield[i] << " "
-            << elfield_norm[i] << " " << potential[i];
+    strs << atoms[i] << " " << elfield[i] << " " << elfield_norm[i] << " " << potential[i];
             // << " " << face_qualities[i] << " " << elem_qualities[i];
     return strs.str();
 }

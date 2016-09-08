@@ -43,7 +43,7 @@ Femocs::Femocs(string file_name) :
     conf.rmin_coarse = 17.0;        // inner radius of coarsening cylinder
     conf.rmax_coarse = 8000.0;        // radius of constant cutoff coarsening cylinder
     conf.coarse_factor = 0.8;       // coarsening factor; bigger number gives coarser surface
-    conf.postprocess_marking = true; //true;//false; // make extra effort to mark correctly the vacuum nodes in shadow area
+    conf.postprocess_marking = false; //true;//false; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
     conf.movavg_width = 2;           // width of moving average in electric field smoother
 }
@@ -72,7 +72,7 @@ const void Femocs::run(double E_field) {
     dense_surf.extract_surface(&reader);
 
     if (conf.coarse_factor > 0)
-        coarse_surf = dense_surf.coarsen(conf.coord_cutoff, conf.rmin_coarse, conf.rmax_coarse,
+        coarse_surf = dense_surf.coarsen_vol2(conf.coord_cutoff, conf.rmin_coarse, conf.rmax_coarse,
                 conf.coarse_factor, &reader.sizes);
     else
         coarse_surf = dense_surf.rectangularize(&reader.sizes, conf.rmin_rectancularize);
@@ -91,8 +91,6 @@ const void Femocs::run(double E_field) {
 
     start_msg(t0, "=== Extracting bulk...");
     femocs::Bulk bulk(conf.latconst, conf.nnn);
-    //    bulk.extract_bulk(&reader);
-    //    bulk.extract_truncated_bulk(&reader);
     bulk.generate_simple(&reader.sizes);
     bulk.output("output/bulk.xyz");
     end_msg(t0);
@@ -130,8 +128,8 @@ const void Femocs::run(double E_field) {
     end_msg(t0);
 
     start_msg(t0, "=== Separating vacuum and bulk mesh...");
-//    femocs::Mesh bulk_mesh(conf.mesher);
     femocs::Mesh vacuum_mesh(conf.mesher);
+//    femocs::Mesh bulk_mesh(conf.mesher);
 
     mesher.separate_meshes_noclean(&vacuum_mesh, "rQ");
 //    mesher.separate_meshes_noclean(&vacuum_mesh, &bulk_mesh, "rQ");
@@ -176,7 +174,6 @@ const void Femocs::run(double E_field) {
 
     start_msg(t0, "=== Importing tethex mesh into Deal.II...");
     laplace.import_tethex_mesh(&tethex_mesh);
-//    laplace.import_file("/home/veske/femocs_heating/res/tethex_vacuum.msh");
     end_msg(t0);
 
     start_msg(t0, "=== System setup...");
@@ -184,10 +181,10 @@ const void Femocs::run(double E_field) {
     end_msg(t0);
 
 #if VERBOSE
-//    cout << "Bulk:   #elems=" << bulk_mesh.get_n_elems() << ",\t#faces=" << bulk_mesh.get_n_faces()
-//             << ",\t#nodes=" << bulk_mesh.get_n_nodes() << endl;
     cout << "Vacuum: #elems=" << vacuum_mesh.get_n_elems() << ",\t#faces="
             << vacuum_mesh.get_n_faces() << ",\t#nodes=" << vacuum_mesh.get_n_nodes() << endl;
+//    cout << "Bulk:   #elems=" << bulk_mesh.get_n_elems() << ",\t#faces=" << bulk_mesh.get_n_faces()
+//             << ",\t#nodes=" << bulk_mesh.get_n_nodes() << endl;
     cout << "Tethex: #elems=" << tethex_mesh.get_n_hexahedra() << ",\t#faces="
             << tethex_mesh.get_n_quadrangles() << ",\t#nodes=" << tethex_mesh.get_n_vertices() << endl;
     cout << "# degrees of freedom: " << laplace.get_n_dofs() << endl;
@@ -216,6 +213,7 @@ const void Femocs::run(double E_field) {
     start_msg(t0, "=== Smoothing solution...");
     solution.smoothen_result(conf.movavg_width, 1);
     end_msg(t0);
+    solution.print_statistics();
 
 //    start_msg(t0, "=== Extracting statistics...");
 //    solution.extract_statistics(vacuum_mesh);

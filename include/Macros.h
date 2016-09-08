@@ -107,6 +107,14 @@ const vector<bool> vector_less(const vector<double> *v, const double s);
 /** Return mask of indices that are less or equal than the scalar */
 const vector<bool> vector_less_equal(const vector<double> *v, const double s);
 
+/** Return randomly shuffled indices */
+vector<size_t> get_shuffle_indices(const int nmax, const int nmin = 0);
+
+/** Return sorting indexes for one vector */
+vector<size_t> get_sort_indices(const vector<double> &v, const string& direction = "up");
+
+/** Return sorting indexes for two vectors */
+vector<size_t> get_sort_indices(const vector<double> &v1, const vector<double> &v2, const string& direction = "up");
 
 /** Determine whether the value is close to one of the boundary values or not */
 const inline bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps) {

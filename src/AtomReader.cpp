@@ -23,19 +23,20 @@ AtomReader::AtomReader() :
 
 // Reserve memory for data vectors
 const void AtomReader::reserve(const int n_atoms) {
+    require(n_atoms > 0, "Invalid # atoms: " + to_string(n_atoms));
     Medium::reserve(n_atoms);
     type.reserve(n_atoms);
 }
 
 // Add atom with its coordinates and type
 const void AtomReader::add_atom(const int id, const Point3 &point, const int type) {
-    Medium::add_atom(id, point, 0);
+    Medium::add_atom( Atom(id, point, 0) );
     this->type.push_back(type);
 }
 
 const void AtomReader::calc_coordination(int nnn, double cutoff, const int* nborlist) {
     require(cutoff > 0, "Invalid cutoff: " + to_string(cutoff));
-    require(nnn >= 0, "Invalid # nearest neighbors: " + nnn);
+    require(nnn >= 0, "Invalid # nearest neighbors: " + to_string(nnn));
 
     const int n_atoms = get_n_atoms();
     const double cutoff2 = cutoff * cutoff;
@@ -49,11 +50,13 @@ const void AtomReader::calc_coordination(int nnn, double cutoff, const int* nbor
         int n_nbors = nborlist[nbor_indx++];
         for (int j = 0; j < n_nbors; ++j) {
             int nbor = nborlist[nbor_indx + j] - 1;
+            require (nbor >= 0 && nbor < n_atoms, "Invalid neighbour: " + to_string(nbor));
+
             double r2 = point1.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox);
 
             if (r2 <= cutoff2) {
-                if(coordination[i] < nnn) coordination[i]++;
-                if(coordination[nbor] < nnn) coordination[nbor]++;
+                if(atoms[i].coord < nnn) atoms[i].coord++;
+                if(atoms[nbor].coord < nnn) atoms[nbor].coord++;
             }
         }
         nbor_indx += n_nbors;
@@ -63,7 +66,7 @@ const void AtomReader::calc_coordination(int nnn, double cutoff, const int* nbor
 
 // Calculate coordination (# nearest neighbours within cutoff radius) for all the atoms
 const void AtomReader::calc_coordination(int nnn, double cutoff) {
-    require(nnn > 0, "Invalid number of nearest neighbors: " + nnn);
+    require(nnn > 0, "Invalid number of nearest neighbors: " + to_string(nnn));
     if (cutoff > 0)
         calc_slow_coordination(cutoff, nnn);
     else
@@ -75,8 +78,8 @@ const void AtomReader::calc_coordination(int nnn, double cutoff) {
 const void AtomReader::check_coordination() {
     const int coord_max = 1;
     const int coord_min = 0;
-    for (int coord : coordination)
-        if ((coord < coord_max) && (coord >= coord_min))
+    for (Atom a : atoms)
+        if ((a.coord < coord_max) && (a.coord >= coord_min))
             cout << endl << "WARNING: evaporated atom detected!" << endl;
 }
 
@@ -113,7 +116,7 @@ const void AtomReader::calc_slow_coordination(const double cutoff, const int nnn
             if (coord >= nnn) break; // Coordination can't be bigger than the biggest expected
         }
 
-        coordination[i] = coord;
+        set_coordination(i, coord);
     }
 }
 
@@ -124,20 +127,20 @@ const void AtomReader::calc_dummy_coordination(const int nnn) {
 
     for (int i = 0; i < n_atoms; ++i) {
         if (type[i] == TYPES.BULK)
-            coordination[i] = nnn;
+            set_coordination(i, nnn);
         else if (type[i] == TYPES.SURFACE)
-            coordination[i] = (int) nnn / 2;
+            set_coordination(i, (int) nnn / 2);
         else
-            coordination[i] = 0;
+            set_coordination(i, 0);
     }
 }
 
 const void AtomReader::extract_types(int nnn) {
     const int n_atoms = get_n_atoms();
     for (int i = 0; i < n_atoms; ++i) {
-        if( coordination[i] >= (nnn - 1) )
+        if( get_coordination(i) >= (nnn - 1) )
             type[i] = TYPES.BULK;
-        else if(point[i].z < (sizes.zmin + 10.0)) // *crys_struct.latconst))
+        else if(get_point(i).z < (sizes.zmin + 10.0)) // *crys_struct.latconst))
             type[i] = TYPES.FIXED;
         else
             type[i] = TYPES.SURFACE;
@@ -162,10 +165,10 @@ const int AtomReader::get_type(const int i) {
 
 // Compile data string from the data vectors
 const string AtomReader::get_data_string(const int i) {
-    if (i < 0) return "AtomReader data: id x y z type coordination";
+    if (i < 0) return "AtomReader data: id x y z coordination type";
 
     ostringstream strs;
-    strs << get_id(i) << " " << get_point(i) << " " << get_type(i) << " " << get_coordination(i);
+    strs << atoms[i] << " " << get_type(i);
     return strs.str();
 }
 

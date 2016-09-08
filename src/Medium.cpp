@@ -14,17 +14,27 @@
 using namespace std;
 namespace femocs {
 
-Medium::Medium(){
+Medium::Medium() {
     init_statistics();
     reserve(0);
+}
+
+// Sort the atoms by their radial coordinate from origin
+const void Medium::sort_atoms(const Point2 &origin, const string& direction) {
+    const int n_atoms = get_n_atoms();
+    for(int i = 0; i < n_atoms; ++i)
+        atoms[i].point.r = origin.distance2(get_point2(i));
+
+    if (direction == "up" || direction == "asc")
+        sort(atoms.begin(), atoms.end(), Atom::sort_up(3));
+    else if (direction == "down" || direction == "desc")
+        sort(atoms.begin(), atoms.end(), Atom::sort_down(3));
 }
 
 // Reserve memory for data vectors
 const void Medium::reserve(const int n_atoms) {
     require(n_atoms >= 0, "Invalid number of atoms: " + n_atoms);
-    this->id.reserve(n_atoms);
-    this->point.reserve(n_atoms);
-    this->coordination.reserve(n_atoms);
+    atoms.reserve(n_atoms);
 }
 
 // Define the addition of two Mediums
@@ -41,16 +51,15 @@ const void Medium::add(Medium *m) {
     this->reserve(n_atoms1 + n_atoms2);
 
     for(int i = 0; i < n_atoms2; ++i)
-        add_atom(m->get_id(i), m->get_point(i), m->get_coordination(i));
+        add_atom(m->get_atom(i));
 
     this->calc_statistics();
 }
 
-const void Medium::add_atom(const int id, const Point3 &point, const int coord) {
-    expect(get_n_atoms() <= this->point.capacity(), "Allocated vector sizes exceeded!");
-    this->id.push_back(id);
-    this->point.push_back(point);
-    this->coordination.push_back(coord);
+// Add atom to atoms vector
+const void Medium::add_atom(const Atom& atom) {
+    expect(get_n_atoms() <= this->atoms.capacity(), "Allocated vector sizes exceeded!");
+    this->atoms.push_back(atom);
 }
 
 // Initialize statistics about Medium
@@ -98,56 +107,74 @@ const void Medium::calc_statistics() {
 
 // Get number of atoms in Medium
 const int Medium::get_n_atoms() {
-    return point.size();
+    return atoms.size();
 }
 
 // Get 2-dimensional coordinates of i-th atom
 const Point2 Medium::get_point2(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
-    return Point2(point[i].x, point[i].y);
+    return Point2(atoms[i].point.x, atoms[i].point.y);
 }
 
 // Get 3-dimensional coordinates of i-th atom
 const Point3 Medium::get_point(const int i) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
-    return point[i];
+    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i) + "/" + to_string(get_n_atoms()));
+    return atoms[i].point;
 }
 
 // Get atom ID
 const int Medium::get_id(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
-    return id[i];
+    return atoms[i].id;
 }
 
 // Get atom coordination
 const int Medium::get_coordination(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
-    return coordination[i];
+    return atoms[i].coord;
+}
+
+// Get i-th Atom
+const Atom Medium::get_atom(const int i) {
+    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    return atoms[i];
+}
+
+// Set entry to id-s vector
+const void Medium::set_id(const int i, const int id) {
+    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    atoms[i].id = id;
+}
+
+// Set entry to point-s vector
+const void Medium::set_point(const int i, const Point3& p) {
+    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    atoms[i].point = p;
 }
 
 // Set entry to x coordinate vector
 const void Medium::set_x(const int i, const double x) {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
-    point[i].x = x;
+    atoms[i].point.x = x;
 }
 
 // Set entry to y coordinate vector
 const void Medium::set_y(const int i, const double y) {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
-    point[i].y = y;
+    atoms[i].point.y = y;
 }
 
 // Set entry to z coordinate vector
 const void Medium::set_z(const int i, const double z) {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
-    point[i].z = z;
+    atoms[i].point.z = z;
 }
 
 // Set coordination of atom
 const void Medium::set_coordination(const int i, const int coord) {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
     require(coord >= 0, "Invalid coordination: " + to_string(coord));
-    this->coordination[i] = coord;
+    atoms[i].coord = coord;
 }
 
 // Pick the suitable write function based on the file type
@@ -178,7 +205,7 @@ const string Medium::get_data_string(const int i) {
     if(i < 0) return "Medium data: id x y z coordination";
 
     ostringstream strs;
-    strs << get_id(i) << " " << get_point(i) << " " << get_coordination(i);
+    strs << atoms[i];
     return strs.str();
 }
 

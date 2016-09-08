@@ -414,7 +414,7 @@ const Medium Mesh::to_medium() {
     medium.reserve(n_atoms);
 
     for(int i = 0; i < n_atoms; ++i)
-        medium.add_atom(i, get_node(i), 0);
+        medium.add_atom( Atom(i, get_node(i), 0) );
 
     medium.calc_statistics();
     return medium;

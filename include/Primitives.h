@@ -251,9 +251,9 @@ class Point3_T{
 public:
 
     /** Constructors of Point3 class */
-    Point3_T() : x(0), y(0), z(0) {}
-    Point3_T(T xx) : x(xx), y(xx), z(xx) {}
-    Point3_T(T xx, T yy, T zz) : x(xx), y(yy), z(zz) {}
+    Point3_T() : x(0), y(0), z(0), r(0) {}
+    Point3_T(T xx) : x(xx), y(xx), z(xx), r(0) {}
+    Point3_T(T xx, T yy, T zz) : x(xx), y(yy), z(zz), r(0) {}
 
     /** Dimensionality of Point */
     const int size() const {
@@ -292,21 +292,14 @@ public:
         return dx * dx + dy * dy + dz * dz;
     }
 
-    /** Di
-     * stance between two Point3-s */
+    /** Distance between two Point3-s */
     const double distance(const Point3_T<T> &p) const {
-        T xx = x - p.x;
-        T yy = y - p.y;
-        T zz = z - p.z;
-        return (T) sqrt(xx * xx + yy * yy + zz * zz);
+        return sqrt(distance2(p));
     }
 
     /** Distance between a Point3 and dealii::Point<3> */
     const double distance(const dealii::Point<3> &p) const {
-        T xx = x - p[0];
-        T yy = y - p[1];
-        T zz = z - p[2];
-        return (T) sqrt(xx * xx + yy * yy + zz * zz);
+        return sqrt(distance2(p));
     }
 
     /** Subtraction of two Point3-d */
@@ -336,12 +329,19 @@ public:
     }
 
     /** Comparison operator between two Point3-s */
-    const bool operator ==(const Point3_T<T> &p) const {
-        return x == p.x && y == p.y && z == p.z;
-    }
-    bool operator ==(const Point3_T<T> &p) {
-        return x == p.x && y == p.y && z == p.z;
-    }
+    const bool operator ==(const Point3_T<T> &p) const
+        { return x == p.x && y == p.y && z == p.z; }
+    bool operator ==(const Point3_T<T> &p)
+        { return x == p.x && y == p.y && z == p.z; }
+
+    const bool operator >(const Point3_T<T> &p) const { return r > p.r; }
+    bool operator >(const Point3_T<T> &p) { return r > p.r; }
+    const bool operator <(const Point3_T<T> &p) const { return r < p.r; }
+    bool operator <(const Point3_T<T> &p) { return r < p.r; }
+    const bool operator >=(const Point3_T<T> &p) const { return r >= p.r; }
+    bool operator >=(const Point3_T<T> &p) { return r >= p.r; }
+    const bool operator <=(const Point3_T<T> &p) const { return r <= p.r; }
+    bool operator <=(const Point3_T<T> &p) { return r <= p.r; }
 
     /** Comparison operator between a Point3 and dealii::Point<3> */
     const bool operator ==(const dealii::Point<3> &p) const {
@@ -369,18 +369,17 @@ public:
         return to_string(x) + " " + to_string(y) + " " + to_string(z);
     }
 
-    T x, y, z;
+    T x, y, z, r;
 };
 
 /** Class to define elementary operations between 2-dimensional points */
 template<typename T>
 class Point2_T{
 public:
-
     /** Constructors of Point2 class */
-    Point2_T() : x(0), y(0) {}
-    Point2_T(T xx) : x(xx), y(xx) {}
-    Point2_T(T xx, T yy) : x(xx), y(yy) {}
+    Point2_T() : x(0), y(0), r(0) {}
+    Point2_T(T xx) : x(xx), y(xx), r(0) {}
+    Point2_T(T xx, T yy) : x(xx), y(yy), r(0) {}
 
     /** Dimensionality of Point */
     const int size() const {
@@ -407,9 +406,19 @@ public:
     }
 
     /** Comparison operator between two Point2-s */
-    bool operator ==(const Point2_T<T> &p) const {
-        return x == p.x && y == p.y;
-    }
+    bool operator ==(const Point2_T<T> &p) const
+        { return x == p.x && y == p.y; }
+    bool operator ==(const Point2_T<T> &p)
+        { return x == p.x && y == p.y; }
+
+    const bool operator >(const Point2_T<T> &p) const { return r > p.r; }
+    bool operator >(const Point2_T<T> &p) { return r > p.r; }
+    const bool operator <(const Point2_T<T> &p) const { return r < p.r; }
+    bool operator <(const Point2_T<T> &p) { return r < p.r; }
+    const bool operator >=(const Point2_T<T> &p) const { return r >= p.r; }
+    bool operator >=(const Point2_T<T> &p) { return r >= p.r; }
+    const bool operator <=(const Point2_T<T> &p) const { return r <= p.r; }
+    bool operator <=(const Point2_T<T> &p) { return r <= p.r; }
 
     /** Point2 accessors */
     const T& operator [](uint8_t i) const {
@@ -429,7 +438,7 @@ public:
         return to_string(x) + " " + to_string(y);
     }
 
-    T x, y;
+    T x, y, r;
 };
 
 typedef SimpleFace_T<unsigned int> SimpleFace;          //!> face class without Point data
@@ -438,6 +447,44 @@ typedef SimpleElement_T<unsigned int> SimpleElement;    //!> element class witho
 typedef Vec3_T<double> Vec3;     //!> 3-dimensional vector class with double values
 typedef Point3_T<double> Point3; //!> 3-dimensional point class with double values
 typedef Point2_T<double> Point2; //!> 2-dimensional point class with double values
+
+
+/** Class to define elementary operations between atoms */
+class Atom {
+public:
+
+    /** Constructors of Atom class */
+    Atom() : id(0), point(0), coord(0) {}
+    Atom(int i, Point3 &p, int c) : id(i), point(p.x, p.y, p.z), coord(c) {}
+    Atom(const int i, const Point3 &p, const int c) : id(i), point(p.x, p.y, p.z), coord(c) {}
+
+    /** Comparison operator between two Atom-s */
+    const bool operator ==(const Atom &a) const
+        { return id == a.id && point == a.point && coord == a.coord; }
+    bool operator ==(const Atom &a)
+        { return id == a.id && point == a.point && coord == a.coord; }
+
+    /** Defining the behaviour of cout */
+    friend std::ostream& operator <<(std::ostream &s, const Atom &a) {
+        return s << a.id << ' ' << a.point << ' ' << a.coord;
+    }
+
+    /** Define the functors for sort() */
+    struct sort_up {
+        int I;      //!< coordinate along which the atoms are sorted; 0=x, 1=y, 2=z, 3=radial
+        sort_up(int d = 3) : I(d) {}
+        inline bool operator() (const Atom& a1, const Atom& a2) { return a1.point[I] < a2.point[I]; }
+    };
+    struct sort_down {
+        int I;      //!< coordinate along which the atoms are sorted; 0=x, 1=y, 2=z, 3=radial
+        sort_down(int d = 3) : I(d) {}
+        inline bool operator() (const Atom& a1, const Atom& a2) { return a1.point[I] > a2.point[I]; }
+    };
+
+    Point3 point;
+    int id;
+    int coord;
+};
 
 } // namaspace femocs
 

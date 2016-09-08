@@ -20,6 +20,9 @@ public:
     Medium();
     virtual ~Medium() {}; // = 0;
 
+    /** Sort the atoms by their radial coordinate from origin */
+    const void sort_atoms(const Point2 &origin, const string& direction = "up");
+
     /** Define the addition of two Mediums */
     Medium& operator +=(Medium &m);
 
@@ -29,13 +32,8 @@ public:
     /** Reserve memory for data vectors */
     virtual const void reserve(const int n_atoms);
 
-    /**
-     * Add atom with its parameters to the data vectors
-     * @param id - ID of the atom
-     * @param point - coordinates of the atom in Point3 form
-     * @param coord - coordination of the atom; 0 in case of none
-     */
-    const void add_atom(const int id, const Point3 &point, const int coord);
+    /** Add Atom to the system */
+    const void add_atom(const Atom& atom);
 
     /**
      * Export the data of Medium to file
@@ -45,7 +43,10 @@ public:
 
     /** Calculate statistics about the coordinates in Medium */
     const void calc_statistics();
-
+    /** Set the id of i-th atom */
+    const void set_id(const int i, const int id);
+    /** Set the coordinates of i-th atom */
+    const void set_point(const int i, const Point3& p);
     /** Set the x-coordinate of i-th atom */
     const void set_x(const int i, const double x);
     /** Set the y-coordinate of i-th atom */
@@ -55,18 +56,16 @@ public:
     /** Set the coordination of i-th atom */
     const void set_coordination(const int i, const int coord);
 
+    /** Return i-th Atom */
+    const Atom get_atom(const int i);
     /** Return x-, y- and z-coordinate and associated operators for i-th atom */
     const Point3 get_point(const int i);
-
     /** Return x- and y-coordinate and associated operators for i-th atom */
     const Point2 get_point2(const int i);
-
     /** Return ID of i-th atom */
     const int get_id(const int i);
-
     /** Return coordination of i-th atom */
     const int get_coordination(const int i);
-
     /** Return number of atoms in a Medium */
     const int get_n_atoms();
 
@@ -94,11 +93,8 @@ public:
         int nnn;            //!< Number of nearest neighbours
     } crys_struct;
 
-
 protected:
-    vector<int> id;           //!< Atom IDs
-    vector<Point3> point;     //!< Atom coordinates in Point3 form
-    vector<int> coordination; //!< Atom coordination - nr of nearest neighbours within cut off radius
+    vector<Atom> atoms;
 
     /** Initialise statistics about the coordinates in Medium */
     const void init_statistics();

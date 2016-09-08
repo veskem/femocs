@@ -50,7 +50,7 @@ public:
 
 private:
     /** Constants to specify the tolerances */
-    const double epsilon = 1e-8;
+    const double epsilon = 1e-3;
     const double zero = -1.0 * epsilon;
     const double one = 1.0 + epsilon;
 

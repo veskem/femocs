@@ -53,6 +53,8 @@ public:
     Surface(const double latconst, const int nnn);
     Surface();
 
+    const void generate_simple(const AtomReader::Sizes* sizes, const double z);
+
     /**
      * Function to choose suitable method to extract surface.
      * @param data - x, y and z coordinates and types of atoms
@@ -61,6 +63,7 @@ public:
     const void extract_surface(AtomReader* reader);
 
     const Surface coarsen(const double coord_cutoff, const double r_in, const double r_out, const double coarse_factor, const AtomReader::Sizes* ar_sizes);
+    const Surface coarsen_vol2(const double coord_cutoff, const double r_in, const double r_out, const double coarse_factor, const AtomReader::Sizes* ar_sizes);
 
     /** Function to flatten the atoms on the sides of simulation box */
     const Surface rectangularize(const AtomReader::Sizes* sizes, const double r_cut);
