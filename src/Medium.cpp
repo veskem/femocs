@@ -20,15 +20,26 @@ Medium::Medium() {
 }
 
 // Sort the atoms by their radial coordinate from origin
-const void Medium::sort_atoms(const Point2 &origin, const string& direction) {
-    const int n_atoms = get_n_atoms();
-    for(int i = 0; i < n_atoms; ++i)
-        atoms[i].point.r = origin.distance2(get_point2(i));
+const void Medium::sort_atoms(const int coord, const string& direction, const Point2 &origin) {
+    require(coord >= 0 && coord <= 3, "Invalid coordinate: " + to_string(coord));
+
+    if (coord == 3)
+        for(int i = 0; i < get_n_atoms(); ++i)
+            atoms[i].point.r = origin.distance2(get_point2(i));
 
     if (direction == "up" || direction == "asc")
-        sort(atoms.begin(), atoms.end(), Atom::sort_up(3));
+        sort(atoms.begin(), atoms.end(), Atom::sort_up(coord));
     else if (direction == "down" || direction == "desc")
-        sort(atoms.begin(), atoms.end(), Atom::sort_down(3));
+        sort(atoms.begin(), atoms.end(), Atom::sort_down(coord));
+}
+
+const void Medium::sort_atoms(const int x1, const int x2, const string& direction) {
+    require(x1 >= 0 && x1 <= 3 && x2 >= 0 && x2 <= 3, "Invalid coordinates: " + to_string(x1) + ", " + to_string(x2));
+
+    if (direction == "up" || direction == "asc")
+        sort( atoms.begin(), atoms.end(), Atom::sort_up2(x1, x2) );
+    else if (direction == "down" || direction == "desc")
+        sort( atoms.begin(), atoms.end(), Atom::sort_down2(x1, x2) );
 }
 
 // Reserve memory for data vectors

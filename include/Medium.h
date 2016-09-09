@@ -20,8 +20,9 @@ public:
     Medium();
     virtual ~Medium() {}; // = 0;
 
-    /** Sort the atoms by their radial coordinate from origin */
-    const void sort_atoms(const Point2 &origin, const string& direction = "up");
+    /** Sort the atoms by their x, y or z coordinate or radial coordinate from origin */
+    const void sort_atoms(const int coord, const string& direction="up", const Point2 &origin = Point2(0,0));
+    const void sort_atoms(const int x1, const int x2, const string& direction = "up");
 
     /** Define the addition of two Mediums */
     Medium& operator +=(Medium &m);

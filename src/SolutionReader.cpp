@@ -54,15 +54,11 @@ const void SolutionReader::get_maps(Medium& medium, vector<int>& medium2node, ve
 const void SolutionReader::extract_solution(DealII* fem, Medium &medium) {
     this->fem = fem;
     longrange_efield = fem->get_elfield();
-    int n_nodes = medium.get_n_atoms();
+    const int n_nodes = medium.get_n_atoms();
     reserve(n_nodes);
 
     vector<int> medium2node, node2elem, node2vert;
     get_maps(medium, medium2node, node2elem, node2vert);
-
-    elfield.resize(n_nodes, Vec3(error_field));
-    potential.resize(n_nodes, error_field);
-    elfield_norm.resize(n_nodes, error_field);
 
     vector<int> cell_indxs;
     vector<int> vert_indxs;
@@ -81,15 +77,14 @@ const void SolutionReader::extract_solution(DealII* fem, Medium &medium) {
     int i, node;
     for (i = 0, node = 0; node < n_nodes; ++node)
         if (medium2node[node] >= 0) {
-            potential[node] = pot[i];
-            elfield[node] = ef[i++];
-            elfield_norm[node] = elfield[node].length();
+            solution.push_back( Solution(ef[i], ef[i].length(), pot[i]) );
             add_atom(medium.get_atom(node));
+            i++;
         } else {
+            solution.push_back( Solution(Vec3(error_field), error_field, error_field) );
             add_atom(medium.get_atom(node));
             set_id(node, -1);
         }
-
 }
 
 const vector<int> SolutionReader::get_node2face_map(Mesh &mesh, int node) {
@@ -162,116 +157,55 @@ const void SolutionReader::extract_statistics(Mesh &mesh) {
     }
 }
 
+// Get simple moving average value in up direction
 inline Vec3 SolutionReader::get_sma_up(const int i, const int n_samples) {
     Vec3 movavg(0.0);
     for(int j = i; j < i + n_samples ; ++j)
-        movavg += elfield[j];
+        movavg += solution[j].elfield;
 
     return movavg / n_samples;
 }
 
+// Get simple moving average value in down direction
 inline Vec3 SolutionReader::get_sma_down(const int i, const int n_samples) {
     Vec3 movavg(0.0);
     for(int j = i; j > i - n_samples ; --j)
-        movavg += elfield[j];
+        movavg += solution[j].elfield;
 
     return movavg / n_samples;
 }
 
-inline Vec3 SolutionReader::get_sma_up(const int i, const int n_samples, const vector<int>& map) {
-    Vec3 movavg(0.0);
-    for(int j = i; j < i + n_samples ; ++j)
-        movavg += elfield[map[j]];
-
-    return movavg / n_samples;
-}
-
-inline Vec3 SolutionReader::get_sma_down(const int i, const int n_samples, const vector<int>& map) {
-    Vec3 movavg(0.0);
-    for(int j = i; j > i - n_samples ; --j)
-        movavg += elfield[map[j]];
-
-    return movavg / n_samples;
-}
-
-inline Vec3 SolutionReader::get_ema(const int i_active, const int i_neighb, const int n_average) {
+// Get exponential moving average value
+inline Vec3 SolutionReader::get_ema(const int i_active, const int i_neighb, const double n_average) {
     const double k = 2.0 / (n_average + 1);
-    return (elfield[i_active] * k) + (elfield[i_neighb] * (1 - k));
+    return (solution[i_active].elfield * k) + (solution[i_neighb].elfield * (1 - k));
 }
 
-// Function to get sorting indices for atoms that are sorted by their radial coordinates
-const vector<int> SolutionReader::get_radial_map() {
+// Function to perform smoothing of electric field
+const void SolutionReader::smoothen_result(const double smooth_width) {
+    if (smooth_width <= 0) return;
+
     const int n_atoms = get_n_atoms();
 
-    calc_statistics();
+    // Sort atoms first by x- and then by y-coordinate
+    for (int i = 0; i < n_atoms; ++i) atoms[i].sort_indx = i;
+    sort_atoms(0, 1, "up");
 
-    // Calculate the vector with atom distances from the centre axis of simubox
-    vector<double> radiuses(n_atoms);
-    Point2 origin((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
-    for(int i = 0; i < n_atoms; ++i)
-        radiuses[i] = origin.distance2(get_point2(i));
+    // Sort solution vectors into same order as atoms
+    for (int i = 0; i < n_atoms; ++i) solution[atoms[i].sort_indx].sort_indx = i;
+    sort( solution.begin(), solution.end(), Solution::sort_up() );
 
-    // Generate vector with indices [0, n_atoms-1]
-    vector<int> indxs(n_atoms);
-    size_t n(0);
-    generate(indxs.begin(), indxs.end(), [&]{ return n++; });
+    smoothen_result_ema(smooth_width);
 
-    // Sort indexes by the radiuses
-    auto comparator = [&radiuses](int a, int b){ return radiuses[a] < radiuses[b]; };
-    sort(indxs.begin(), indxs.end(), comparator);
+    // Sort atoms first by y- and then by x-coordinate
+    for (int i = 0; i < n_atoms; ++i) atoms[i].sort_indx = i;
+    sort_atoms(1, 0, "up");
 
-    return indxs;
-}
+    // Sort solution vectors into same order as atoms
+    for (int i = 0; i < n_atoms; ++i) solution[atoms[i].sort_indx].sort_indx = i;
+    sort( solution.begin(), solution.end(), Solution::sort_up() );
 
-// Function to get sorting indices for atoms that are sorted by their x- and y-coordinates
-const vector<int> SolutionReader::get_cartesian_map(const int x1, const int x2) {
-    expect((x1 == 0 || x1 == 1) && (x2 == -1 || x2 == 0 || x2 == 1), "Invalid arguments!");
-
-    // Generate vector with indices [0, n_atoms-1]
-    vector<int> indxs(get_n_atoms());
-    size_t n(0);
-    generate(indxs.begin(), indxs.end(), [&]{ return n++; });
-
-    // TODO LOOK THAT SYSTEM UP !!!
-    // Generate duplicate of points
-    vector<Point3> points(get_n_atoms());
-    for (Atom atom : atoms)
-        points.push_back(atom.point);
-
-    // Sort indices by x-coordinates
-    auto comparator_x = [&points](int a, int b) { return points[a].x < points[b].x; };
-    // Sort indices by y-coordinates
-    auto comparator_y = [&points](int a, int b) { return points[a].y < points[b].y; };
-
-    // Sort indices first by x and then by y coordinates
-    auto comparator_xy = [&points](int a, int b) {
-        return (points[a].x < points[b].x) || ((points[a].x == points[b].x) && (points[a].y < points[b].y)); };
-    // Sort indices first by y and then by x coordinates
-    auto comparator_yx = [&points](int a, int b) {
-        return (points[a].y < points[b].y) || ((points[a].y == points[b].y) && (points[a].x < points[b].x)); };
-
-    // Sort indices according to function arguments
-    if (x1 == 0 && x2 == 1)
-        sort(indxs.begin(), indxs.end(), comparator_xy);
-    else if (x1 == 1 && x2 == 0)
-        sort(indxs.begin(), indxs.end(), comparator_yx);
-    else if (x1 == 0 && (x2 == 0 || x2 == -1))
-        sort(indxs.begin(), indxs.end(), comparator_x);
-    else if (x1 == 1 && (x2 == 1 || x2 == -1))
-        sort(indxs.begin(), indxs.end(), comparator_y);
-
-    return indxs;
-}
-
-// Function to pick suitable electric field smoothing function
-const void SolutionReader::smoothen_result(const int n_average, const int repetitions) {
-    if (n_average <= 0 || repetitions <= 0) return;
-
-    // Repeat the averaging cycles for desired times to get properly centred results
-    for (int r = 0; r < repetitions; ++r) {
-        smoothen_result_ema(n_average, get_cartesian_map(1, 0));
-        smoothen_result_ema(n_average, get_cartesian_map(0, 1));
-    }
+    smoothen_result_ema(smooth_width);
 }
 
 // Print some statistics about the top region of tip
@@ -287,9 +221,9 @@ const void SolutionReader::print_statistics() {
 
     for (int i = 0; i < get_n_atoms(); ++i)
         if (get_point(i).z > zmax) {
-            mn = min(mn, elfield_norm[i]);
-            mx = max(mx, elfield_norm[i]);
-            avg += elfield_norm[i];
+            mn = min(mn, solution[i].el_norm);
+            mx = max(mx, solution[i].el_norm);
+            avg += solution[i].el_norm;
             cntr++;
         }
 
@@ -298,81 +232,50 @@ const void SolutionReader::print_statistics() {
             "\naverage:\t" << avg / cntr << endl;
 }
 
+// Smoothen the electric field with simple moving average technique
 const void SolutionReader::smoothen_result_sma(const int n_average) {
-    // Atoms from non-enhanced electric field regions will be skipped from averaging
-    const vector<bool> skip_atom = vector_less_equal(&elfield_norm, fabs(longrange_efield));
     const int n_atoms = get_n_atoms();
+
+    // Atoms from non-enhanced electric field regions will be skipped from averaging
+    vector<bool> skip_atom(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        skip_atom[i] = solution[i].el_norm <= fabs(longrange_efield);
 
     // Average by moving up
     // moving up is more sensitive, thus the division by two of n_average
     for (int i = 0; i < (n_atoms - n_average); ++i) {
         if (skip_atom[i]) continue;
 
-        elfield[i] = get_sma_up(i, n_average);
-        elfield_norm[i] = elfield[i].length();
+        solution[i].elfield = get_sma_up(i, n_average);
+        solution[i].el_norm = solution[i].elfield.length();
     }
     // Average by moving down
     for (int i = (n_atoms - 1); i >= (n_average - 1); --i) {
         if (skip_atom[i]) continue;
 
-        elfield[i] = get_sma_down(i, n_average);
-        elfield_norm[i] = elfield[i].length();
+        solution[i].elfield = get_sma_down(i, n_average);
+        solution[i].el_norm = solution[i].elfield.length();
     }
 }
 
-const void SolutionReader::smoothen_result_sma(const int n_average, const vector<int>& sort_map) {
-    // Atoms from non-enhanced electric field regions will be skipped from averaging
-    const vector<bool> skip_atom = vector_less_equal(&elfield_norm, fabs(longrange_efield));
+// Smoothen the electric field with exponential moving average technique
+const void SolutionReader::smoothen_result_ema(const double smooth_width) {
     const int n_atoms = get_n_atoms();
 
-    // Average by moving up
-    // moving up is more sensitive, thus the division by two of n_average
-    for (int i = 0; i < (n_atoms - n_average); ++i) {
-        int I = sort_map[i];
-        if (skip_atom[I]) continue;
-        elfield[I] = get_sma_up(i, n_average, sort_map);
-        elfield_norm[I] = elfield[I].length();
-    }
-//    // Average by moving down
-//    for (int i = (n_atoms - 1); i >= (n_average - 1); --i) {
-//        int I = sort_map[i];
-//        if (skip_atom[I]) continue;
-//        elfield[I] = get_sma_down(i, n_average, sort_map);
-//        elfield_norm[I] = elfield[I].length();
-//    }
-}
-
-const void SolutionReader::smoothen_result_ema(const int n_average) {
     // Atoms from non-enhanced electric field regions will be skipped from averaging
-    const vector<bool> skip_atom = vector_less_equal(&elfield_norm, fabs(longrange_efield));
-    const int n_atoms = get_n_atoms();
+    vector<bool> skip_atom(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        skip_atom[i] = solution[i].el_norm <= fabs(longrange_efield);
 
     // Average by moving up
-    for (int i = 1; i < n_atoms; ++i) {
+    for (int i = 0; i < n_atoms-1; ++i) {
         int i_active = i;
-        int i_neighb = i-1;
+        int i_neighb = i+1;
 
         if (skip_atom[i_active]) continue;
 
-        elfield[i_active] = get_ema(i_active, i_neighb, n_average);
-        elfield_norm[i_active] = elfield[i_active].length();
-    }
-}
-
-const void SolutionReader::smoothen_result_ema(const int n_average, const vector<int>& sort_map) {
-    // Atoms from non-enhanced electric field regions will be skipped from averaging
-    const vector<bool> skip_atom = vector_less_equal(&elfield_norm, fabs(longrange_efield));
-    const int n_atoms = get_n_atoms();
-
-    // Average by moving up
-    for (int i = 1; i < n_atoms; ++i) {
-        int i_active = sort_map[i];
-        int i_neighb = sort_map[i-1];
-
-        if (skip_atom[i_active]) continue;
-
-        elfield[i_active] = get_ema(i_active, i_neighb, n_average);
-        elfield_norm[i_active] = elfield[i_active].length();
+        solution[i_active].elfield = get_ema(i_active, i_neighb, smooth_width);
+        solution[i_active].el_norm = solution[i_active].elfield.length();
     }
 }
 
@@ -395,19 +298,17 @@ const void SolutionReader::export_helmod(int n_atoms, double* Ex, double* Ey, do
         int identifier = get_id(i);
         if (identifier < 0 || identifier >= n_atoms) continue;
 
-        Ex[identifier] = elfield[i].x;
-        Ey[identifier] = elfield[i].y;
-        Ez[identifier] = elfield[i].z;
-        Enorm[identifier] = elfield_norm[i];
+        Ex[identifier] = solution[i].elfield.x;
+        Ey[identifier] = solution[i].elfield.y;
+        Ez[identifier] = solution[i].elfield.z;
+        Enorm[identifier] = solution[i].el_norm;
     }
 }
 
 // Reserve memory for solution vectors
 const void SolutionReader::reserve(const int n_nodes) {
     Medium::reserve(n_nodes);
-    elfield.reserve(n_nodes);
-    elfield_norm.reserve(n_nodes);
-    potential.reserve(n_nodes);
+    solution.reserve(n_nodes);
 }
 
 // Compile data string from the data vectors for file output
@@ -415,7 +316,8 @@ const string SolutionReader::get_data_string(const int i) {
     if (i < 0) return "SolutionReader data: id x y z coordination Ex Ey Ez Enorm potential";// face_quality elem_quality";
 
     ostringstream strs;
-    strs << atoms[i] << " " << elfield[i] << " " << elfield_norm[i] << " " << potential[i];
+//    strs << i << " " << atoms[i].point << " 0" << " " << solution[i];
+    strs << atoms[i] << " " << solution[i];
             // << " " << face_qualities[i] << " " << elem_qualities[i];
     return strs.str();
 }

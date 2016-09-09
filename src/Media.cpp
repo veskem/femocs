@@ -195,13 +195,20 @@ Surface::Surface() : Surface(0, 0) {};
 // Generate Surface with 4 atoms at the corners of simulation cell
 const void Surface::generate_simple(const AtomReader::Sizes* sizes, const double z) {
     // Reserve memory for atoms
-    reserve(4);
+    reserve(8);
 
     // Add 4 atoms to the corners of simulation cell
+    // The insertion order determines the orientation of big surface triangles
     add_atom( Atom(-1, Point3(sizes->xmin, sizes->ymin, z), 0) );
     add_atom( Atom(-1, Point3(sizes->xmax, sizes->ymin, z), 0) );
     add_atom( Atom(-1, Point3(sizes->xmax, sizes->ymax, z), 0) );
     add_atom( Atom(-1, Point3(sizes->xmin, sizes->ymax, z), 0) );
+
+    // Add 4 atoms to the middle corners of simulation cell
+    add_atom( Atom(-1, Point3(sizes->xmin, (sizes->ymin + sizes->ymax) / 2, z), 0) );
+    add_atom( Atom(-1, Point3(sizes->xmax, (sizes->ymin + sizes->ymax) / 2, z), 0) );
+    add_atom( Atom(-1, Point3((sizes->xmin + sizes->xmax) / 2, sizes->ymin, z), 0) );
+    add_atom( Atom(-1, Point3((sizes->xmin + sizes->xmax) / 2, sizes->ymax, z), 0) );
 }
 
 const void Surface::calc_statistics() {
@@ -352,8 +359,8 @@ const Surface Surface::coarsen_vol2(const double coord_cutoff, const double r_in
     // Sort edge and coarse_surf atoms in radial direction
     // to get proper order in deleting atoms too close to each other
 
-    edge.sort_atoms(Point2(origin3d.x, origin3d.y), "down");
-    coarse_surf.sort_atoms(Point2(origin3d.x, origin3d.y), "down");
+    edge.sort_atoms(3, "down", Point2(origin3d.x, origin3d.y));
+    coarse_surf.sort_atoms(3, "down", Point2(origin3d.x, origin3d.y));
     dense_surf = dense_surf.clean_lonely_atoms(coord_cutoff);
 
     // Build up union surface atoms in the order of their survival priority during clean-up

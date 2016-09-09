@@ -49,7 +49,7 @@ public:
         //!< Distance from surface edge where atoms are picked for rectangularization
         double rmin_rectancularize;
         //!< Width of moving average while smoothing the electric field; 0 turns smoothing off
-        int movavg_width;
+        double movavg_width;
     };
 
     Config conf;          //!< Femocs configuration parameters

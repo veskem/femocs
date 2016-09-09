@@ -69,7 +69,7 @@ const vector<bool> vector_greater(const vector<double> *v, const double s) {
     return __vector_compare<double, std::greater<double>>(v, s);
 }
 // Return mask of indices that are greater or equal than the entry
-const vector<bool> vector_ge(const vector<double> *v, const double s) {
+const vector<bool> vector_greater_equal(const vector<double> *v, const double s) {
     return __vector_compare<double, std::greater_equal<double>>(v, s);
 }
 
@@ -83,19 +83,6 @@ const vector<bool> vector_less_equal(const vector<double> *v, const double s) {
     return __vector_compare<double, std::less_equal<double>>(v, s);
 }
 
-vector<size_t> get_shuffle_indices(const int nmax, const int nmin) {
-    // Generate indices from [nmin nmax]
-    require(nmax >= nmin, "Invalid arguments: " + to_string(nmax) + ", " + to_string(nmin));
-
-    vector<size_t> indxs(nmax - nmin + 1);
-    size_t n(nmin);
-    generate(indxs.begin(), indxs.end(), [&]{ return n++; });
-
-    // Shuffle the generated indices
-    random_shuffle(indxs.begin(), indxs.end());
-
-    return indxs;
-}
 // Return sorting indexes for vector
 vector<size_t> get_sort_indices(const vector<double> &v, const string& direction) {
     // initialize original index locations
@@ -107,25 +94,6 @@ vector<size_t> get_sort_indices(const vector<double> &v, const string& direction
       sort(idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
     else if (direction == "desc" || direction == "down")
       sort(idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return v[i1] > v[i2];});
-
-    return idx;
-}
-
-vector<size_t> get_sort_indices(const vector<double> &v1, const vector<double> &v2, const string& direction) {
-    // initialize original index locations
-    require(v1.size() == v2.size(), "Input vectors must be with equal size!");
-
-    vector<size_t> idx(v1.size());
-    iota(idx.begin(), idx.end(), 0);
-
-    // Get sort indexes by sorting first v1 and then v2
-    if (direction == "asc" || direction == "up")
-        sort( idx.begin(), idx.end(), [&v1, &v2](size_t a, size_t b)
-                { return (v1[a] < v1[b]) || ((v1[a] == v1[b]) && (v2[a] < v2[b])); } );
-
-    else if (direction == "desc" || direction == "down")
-        sort( idx.begin(), idx.end(), [&v1, &v2](size_t a, size_t b)
-                { return (v1[a] > v1[b]) || ((v1[a] == v1[b]) && (v2[a] > v2[b])); } );
 
     return idx;
 }

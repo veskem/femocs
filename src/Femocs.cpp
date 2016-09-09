@@ -42,7 +42,7 @@ Femocs::Femocs(string file_name) :
     conf.nt = 4;                    // number of OpenMP threads
     conf.rmin_coarse = 17.0;        // inner radius of coarsening cylinder
     conf.rmax_coarse = 8000.0;        // radius of constant cutoff coarsening cylinder
-    conf.coarse_factor = 0.8;       // coarsening factor; bigger number gives coarser surface
+    conf.coarse_factor = 1.0;       // coarsening factor; bigger number gives coarser surface
     conf.postprocess_marking = false; //true;//false; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
     conf.movavg_width = 2;           // width of moving average in electric field smoother
@@ -161,7 +161,7 @@ const void Femocs::run(double E_field) {
     tethex_union_mesh.convert();
     end_msg(t0);
 
-    start_msg(t0, "=== Writing tethex to file...");
+    start_msg(t0, "=== Writing tethen_averagex to file...");
     tethex_union_mesh.write("output/mushroom.msh");
     end_msg(t0);
 //*/     
@@ -211,7 +211,7 @@ const void Femocs::run(double E_field) {
     end_msg(t0);
 
     start_msg(t0, "=== Smoothing solution...");
-    solution.smoothen_result(conf.movavg_width, 1);
+    solution.smoothen_result(conf.movavg_width);
     end_msg(t0);
     solution.print_statistics();
 
