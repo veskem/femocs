@@ -34,7 +34,7 @@ const void Medium::sort_atoms(const int coord, const string& direction, const Po
 }
 
 const void Medium::sort_atoms(const int x1, const int x2, const string& direction) {
-    require(x1 >= 0 && x1 <= 3 && x2 >= 0 && x2 <= 3, "Invalid coordinates: " + to_string(x1) + ", " + to_string(x2));
+    require(x1 >= 0 && x1 <= 2 && x2 >= 0 && x2 <= 2, "Invalid coordinates: " + to_string(x1) + ", " + to_string(x2));
 
     if (direction == "up" || direction == "asc")
         sort( atoms.begin(), atoms.end(), Atom::sort_up2(x1, x2) );

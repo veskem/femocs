@@ -60,10 +60,8 @@ const void SolutionReader::extract_solution(DealII* fem, Medium &medium) {
     vector<int> medium2node, node2elem, node2vert;
     get_maps(medium, medium2node, node2elem, node2vert);
 
-    vector<int> cell_indxs;
-    vector<int> vert_indxs;
-    cell_indxs.reserve(n_nodes);
-    vert_indxs.reserve(n_nodes);
+    vector<int> cell_indxs; cell_indxs.reserve(n_nodes);
+    vector<int> vert_indxs; vert_indxs.reserve(n_nodes);
 
     for (int n : medium2node)
         if (n >= 0) {
@@ -81,7 +79,7 @@ const void SolutionReader::extract_solution(DealII* fem, Medium &medium) {
             add_atom(medium.get_atom(node));
             i++;
         } else {
-            solution.push_back( Solution(Vec3(error_field), error_field, error_field) );
+            solution.push_back( Solution(error_field) );
             add_atom(medium.get_atom(node));
             set_id(node, -1);
         }
@@ -181,57 +179,6 @@ inline Vec3 SolutionReader::get_ema(const int i_active, const int i_neighb, cons
     return (solution[i_active].elfield * k) + (solution[i_neighb].elfield * (1 - k));
 }
 
-// Function to perform smoothing of electric field
-const void SolutionReader::smoothen_result(const double smooth_width) {
-    if (smooth_width <= 0) return;
-
-    const int n_atoms = get_n_atoms();
-
-    // Sort atoms first by x- and then by y-coordinate
-    for (int i = 0; i < n_atoms; ++i) atoms[i].sort_indx = i;
-    sort_atoms(0, 1, "up");
-
-    // Sort solution vectors into same order as atoms
-    for (int i = 0; i < n_atoms; ++i) solution[atoms[i].sort_indx].sort_indx = i;
-    sort( solution.begin(), solution.end(), Solution::sort_up() );
-
-    smoothen_result_ema(smooth_width);
-
-    // Sort atoms first by y- and then by x-coordinate
-    for (int i = 0; i < n_atoms; ++i) atoms[i].sort_indx = i;
-    sort_atoms(1, 0, "up");
-
-    // Sort solution vectors into same order as atoms
-    for (int i = 0; i < n_atoms; ++i) solution[atoms[i].sort_indx].sort_indx = i;
-    sort( solution.begin(), solution.end(), Solution::sort_up() );
-
-    smoothen_result_ema(smooth_width);
-}
-
-// Print some statistics about the top region of tip
-const void SolutionReader::print_statistics() {
-#if not VERBOSE
-    return;
-#endif
-
-    calc_statistics();
-
-    double zmax = sizes.zmax - 3.0;// 33.0;
-    double mn = 1e20; double mx = -1e20; double avg = 0; int cntr = 0;
-
-    for (int i = 0; i < get_n_atoms(); ++i)
-        if (get_point(i).z > zmax) {
-            mn = min(mn, solution[i].el_norm);
-            mx = max(mx, solution[i].el_norm);
-            avg += solution[i].el_norm;
-            cntr++;
-        }
-
-    cout << "zmax, n_atoms:\t" << zmax << ", " << cntr
-            << "\nmin, max, span:\t" << mn << ", " << mx << ", " << mx-mn <<
-            "\naverage:\t" << avg / cntr << endl;
-}
-
 // Smoothen the electric field with simple moving average technique
 const void SolutionReader::smoothen_result_sma(const int n_average) {
     const int n_atoms = get_n_atoms();
@@ -277,6 +224,64 @@ const void SolutionReader::smoothen_result_ema(const double smooth_width) {
         solution[i_active].elfield = get_ema(i_active, i_neighb, smooth_width);
         solution[i_active].el_norm = solution[i_active].elfield.length();
     }
+}
+
+// Sort the atoms and results
+const void SolutionReader::sort_atoms(const int x1, const int x2, const string& direction) {
+    const int n_atoms = get_n_atoms();
+
+    // Sort atoms into desired order
+    for (int i = 0; i < n_atoms; ++i)
+        atoms[i].sort_indx = i;
+    Medium::sort_atoms(x1, x2, direction);
+
+    // Sort solution vectors into same order as atoms
+    for (int i = 0; i < n_atoms; ++i)
+        solution[atoms[i].sort_indx].sort_indx = i;
+
+    if (direction == "up" || direction == "asc")
+        sort( solution.begin(), solution.end(), Solution::sort_up() );
+    else if (direction == "down" || direction == "desc")
+        sort( solution.begin(), solution.end(), Solution::sort_down() );
+}
+
+// Function to perform smoothing of electric field
+const void SolutionReader::smoothen_result(const double smooth_width) {
+    if (smooth_width <= 0) return;
+
+    // Sort atoms first by x- and then by y-coordinate
+    sort_atoms(0, 1, "up");
+    // Sweep the results in sorted order
+    smoothen_result_ema(smooth_width);
+
+    // Sort atoms first by y- and then by x-coordinate
+    sort_atoms(1, 0, "up");
+    // Sweep the results in sorted order
+    smoothen_result_ema(smooth_width);
+}
+
+// Print some statistics about the top region of tip
+const void SolutionReader::print_statistics() {
+#if not VERBOSE
+    return;
+#endif
+
+    calc_statistics();
+
+    double zmax = sizes.zmax - 3.0;// 33.0;
+    double mn = 1e20; double mx = -1e20; double avg = 0; int cntr = 0;
+
+    for (int i = 0; i < get_n_atoms(); ++i)
+        if (get_point(i).z > zmax) {
+            mn = min(mn, solution[i].el_norm);
+            mx = max(mx, solution[i].el_norm);
+            avg += solution[i].el_norm;
+            cntr++;
+        }
+
+    cout << "zmax, n_atoms:\t" << zmax << ", " << cntr
+            << "\nmin, max, span:\t" << mn << ", " << mx << ", " << mx-mn <<
+            "\naverage:\t" << avg / cntr << endl;
 }
 
 const void SolutionReader::export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez,

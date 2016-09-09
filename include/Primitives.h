@@ -532,6 +532,7 @@ public:
 class Solution {
 public:
     Solution() : elfield(Vec3(0)), el_norm(0), potential(0), sort_indx(0) {}
+    Solution(double d) : elfield(Vec3(d)), el_norm(d), potential(d), sort_indx(0) {}
     Solution(Vec3& v, double en, double pot) : elfield(v), el_norm(en), potential(pot), sort_indx(0) {}
     Solution(const Vec3& v, const double en, const double pot) : elfield(v), el_norm(en), potential(pot), sort_indx(0) {}
 

@@ -26,6 +26,7 @@ public:
     const void smoothen_result(const double smooth_width);
     const void export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
     const void print_statistics();
+    const void sort_atoms(const int x1, const int x2, const string& direction = "up");
 
 private:
     DealII* fem;
