@@ -32,9 +32,6 @@ public:
 
     /** Function to find with Moller-Trumbore algorithm whether the ray and the surface intersect or not */
     const bool ray_intersects_surface_fast(const Vec3 &origin, const Vec3 &direction);
-
-    /** Function to determine whether the origin is close to surface plane or not */
-    const bool node_on_mean_plane(const Vec3 &origin, double latconst);
     
     /** Function to precompute the data needed to execute the Moller-Trumbore algorithm */
     const void precompute_triangles(const Vec3 &direction);

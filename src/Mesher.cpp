@@ -132,18 +132,6 @@ const bool RaySurfaceIntersect::ray_intersects_surface_fast(const Vec3 &origin,
     return false;
 }
 
-// Determine whether the ray intersects with any of the triangles on the surface mesh
-const bool RaySurfaceIntersect::node_on_mean_plane(const Vec3 &node, double latconst) {
-    // Check only nodes that are on the edge of surface
-    const double eps = 1e-5;
-    const bool not_on_x_edge = !on_boundary(node.x, mesh->stat.xmin, mesh->stat.xmax, eps);
-    const bool not_on_y_edge = !on_boundary(node.y, mesh->stat.ymin, mesh->stat.ymax, eps);
-    if (not_on_x_edge && not_on_y_edge) return false;
-
-    // Check whether the node is close to mean plane
-    return fabs(node.z - corner_node.z) < latconst;
-}
-
 // Function to manually generate surface faces from elements and surface nodes
 const void RaySurfaceIntersect::generate_surf_faces() {
     int elem;
@@ -424,6 +412,7 @@ const void Mesher::separate_meshes_noclean(Mesh* vacuum, Mesh* bulk, const strin
 const void Mesher::separate_meshes_noclean(Mesh* vacuum, const string& cmd) {
     const int n_elems = mesh->get_n_elems();
     const vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), TYPES.BULK);
+//    const vector<bool> elem_in_vacuum = vector_equal(mesh->get_elemmarkers(), TYPES.VACUUM);
 
     // Copy the non-bulk nodes from input mesh without modification
     vacuum->copy_nodes(this->mesh);
@@ -483,10 +472,7 @@ const void Mesher::mark_mesh(bool postprocess, double mean_thickness) {
 
         // If ray intersects at least one surface triangle, the node
         // is considered to be located in bulk, otherwise it's located to vacuum
-        if (postprocess && rsi.node_on_mean_plane(ray_origin, mean_thickness))
-            mesh->add_nodemarker(TYPES.SURFACE);
-        else
-            if (rsi.ray_intersects_surface_fast(ray_origin, ray_direction))
+        if (rsi.ray_intersects_surface_fast(ray_origin, ray_direction))
             mesh->add_nodemarker(TYPES.BULK);
         else
             mesh->add_nodemarker(TYPES.VACUUM);
@@ -502,12 +488,12 @@ const void Mesher::mark_mesh(bool postprocess, double mean_thickness) {
 // Force the bulk nodes in vacuum elements to become vacuum nodes
 const void Mesher::post_process_marking() {
     int elem, node, location;
-    int n_elems = mesh->get_n_elems();
+    const int n_elems = mesh->get_n_elems();
 
     bool node_changed = true;
 
     // Make as many recheck loops as necessary, but no more than 10
-    for (int safety_cntr = 0; (safety_cntr < 10) && node_changed; ++safety_cntr) {
+    for (int safety_cntr = 0; (safety_cntr < 100) && node_changed; ++safety_cntr) {
         // Post-process the wrongly marked nodes in vacuum
         node_changed = false;
         for (elem = 0; elem < n_elems; ++elem) {
@@ -521,31 +507,32 @@ const void Mesher::post_process_marking() {
                     mesh->set_nodemarker(selem[node], TYPES.VACUUM);
                     node_changed = true;
                 }
-
         }
 
         // If some of the nodes were changed,
         // mark all the surface and bulk elements again
-        if (node_changed) for (elem = 0; elem < n_elems; ++elem) {
-            if (mesh->get_elemmarker(elem) == TYPES.VACUUM) continue;
+        if (node_changed)
+            for (elem = 0; elem < n_elems; ++elem) {
+                if (mesh->get_elemmarker(elem) == TYPES.VACUUM) continue;
 
-            SimpleElement selem = mesh->get_simpleelem(elem);
-            location = 0;
-            // Loop through all the nodes in element
-            for (node = 0; node < mesh->n_nodes_per_elem; ++node) {
-                int nodemarker = mesh->get_nodemarker(selem[node]);
-                if (nodemarker == TYPES.VACUUM)
-                    location += 3; // If the element has node both in vacuum and bulk, mark it as vacuum
-                else if (nodemarker == TYPES.BULK) location--;
-            }
+                SimpleElement selem = mesh->get_simpleelem(elem);
+                location = 0;
+                // Loop through all the nodes in element
+                for (node = 0; node < mesh->n_nodes_per_elem; ++node) {
+                    int nodemarker = mesh->get_nodemarker(selem[node]);
+                    // Encode element location into integer
+                    if (nodemarker == TYPES.VACUUM)
+                        location += 1;//++;
+                    else if (nodemarker == TYPES.BULK) location--;
+                }
 
-            if (location > 0)
-                mesh->set_elemmarker(elem, TYPES.VACUUM);
-            else if (location < 0)
-                mesh->set_elemmarker(elem, TYPES.BULK);
-            else
-                mesh->set_elemmarker(elem, TYPES.SURFACE);
-        }
+                if (location > 0)
+                    mesh->set_elemmarker(elem, TYPES.VACUUM);
+                else if (location < 0)
+                    mesh->set_elemmarker(elem, TYPES.BULK);
+                else
+                    mesh->set_elemmarker(elem, TYPES.SURFACE);
+           }
     }
 
     // Among the other things calculate the number of atoms with given types
@@ -644,8 +631,9 @@ const void Mesher::mark_elems() {
         for (node = 0; node < mesh->n_nodes_per_elem; ++node) {
             int nodemarker = mesh->get_nodemarker(selem[node]);
 
+            // Encode element location into integer
             if (nodemarker == TYPES.VACUUM)
-                location += 3; // If element has node both in vacuum and bulk, mark it as vacuum
+                location += 1;//++;
             else if (nodemarker == TYPES.BULK) location--;
         }
         // Element in vacuum is supposed not to have nodes in bulk

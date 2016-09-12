@@ -19,7 +19,7 @@ Medium::Medium() {
     reserve(0);
 }
 
-// Sort the atoms by their radial coordinate from origin
+// Sort the atoms by their cartesian coordinate or radial coordinate from origin
 const void Medium::sort_atoms(const int coord, const string& direction, const Point2 &origin) {
     require(coord >= 0 && coord <= 3, "Invalid coordinate: " + to_string(coord));
 
@@ -33,6 +33,7 @@ const void Medium::sort_atoms(const int coord, const string& direction, const Po
         sort(atoms.begin(), atoms.end(), Atom::sort_down(coord));
 }
 
+// Sort the atoms first by first and then by second cartesian coordinate
 const void Medium::sort_atoms(const int x1, const int x2, const string& direction) {
     require(x1 >= 0 && x1 <= 2 && x2 >= 0 && x2 <= 2, "Invalid coordinates: " + to_string(x1) + ", " + to_string(x2));
 
