@@ -189,20 +189,20 @@ const void RaySurfaceIntersect::generate_monolayer_surf_faces() {
 
     // Mark the elements that have exactly one face on the surface and one node in the vacuum
     for (i = 0; i < n_elems; ++i) {
-        SimpleElement elem = mesh->get_simpleelem(i);
+
         int location = 0;
-        for (j = 0; j < mesh->n_nodes_per_elem; ++j) {
+        for (int node : mesh->get_simpleelem(i)) {
             // Node in bulk?
-            if ((elem[j] >= mesh->indxs.bulk_start) && (elem[j] <= (mesh->indxs.bulk_end)))
+            if ((node >= mesh->indxs.bulk_start) && (node <= mesh->indxs.bulk_end))
                 location--;
 
             // Node in surface?
-            else if (elem[j] <= mesh->indxs.surf_end)
+            else if (node <= mesh->indxs.surf_end)
                 location++;
 
             // Node in vacuum!
-            else
-                location += 0;
+//            else
+//                location += 0;
         }
 
         // Bulk, surface and vacuum are encoded in such a way that
@@ -412,7 +412,42 @@ const void Mesher::separate_meshes_noclean(Mesh* vacuum, Mesh* bulk, const strin
 const void Mesher::separate_meshes_noclean(Mesh* vacuum, const string& cmd) {
     const int n_elems = mesh->get_n_elems();
     const vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), TYPES.BULK);
-//    const vector<bool> elem_in_vacuum = vector_equal(mesh->get_elemmarkers(), TYPES.VACUUM);
+
+    // Copy the non-bulk nodes from input mesh without modification
+    vacuum->copy_nodes(this->mesh);
+    // Reserve memory for elements
+    vacuum->init_elems(vector_sum(elem_in_vacuum));
+
+    // Separate vacuum elements
+    for (int i = 0; i < n_elems; ++i)
+        if (elem_in_vacuum[i])
+            vacuum->add_elem(mesh->get_simpleelem(i));
+
+    vacuum->recalc(cmd);
+}
+
+// Separate vacuum mesh from the union mesh by the element markers
+const void Mesher::separate_meshes_vol2(Mesh* vacuum, const string& cmd) {
+    const int n_elems = mesh->get_n_elems();
+    const int n_nodes = mesh->get_n_nodes();
+
+    const vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), TYPES.BULK);
+
+    vector<int> n_elems_for_node(n_nodes, 0);
+
+    // Get the number of elements the node is connected with
+    for (int elem = 0; elem < n_elems; ++elem)
+        if (elem_in_vacuum[elem]) {
+            for (int node : mesh->get_simpleelem(elem))
+                n_elems_for_node[node]++;
+        }
+
+   for (int elem = 0; elem < n_elems; ++elem) {
+       bool elem_is_sharp = false;
+       for (int node : mesh->get_simpleelem(elem))
+           elem_is_sharp |= n_elems_for_node[node] > 1;
+    }
+
 
     // Copy the non-bulk nodes from input mesh without modification
     vacuum->copy_nodes(this->mesh);
@@ -487,24 +522,21 @@ const void Mesher::mark_mesh(bool postprocess, double mean_thickness) {
 
 // Force the bulk nodes in vacuum elements to become vacuum nodes
 const void Mesher::post_process_marking() {
-    int elem, node, location;
     const int n_elems = mesh->get_n_elems();
 
     bool node_changed = true;
 
-    // Make as many recheck loops as necessary, but no more than 10
+    // Make as many re-check loops as necessary, but no more than 100
     for (int safety_cntr = 0; (safety_cntr < 100) && node_changed; ++safety_cntr) {
         // Post-process the wrongly marked nodes in vacuum
         node_changed = false;
-        for (elem = 0; elem < n_elems; ++elem) {
+        for (int elem = 0; elem < n_elems; ++elem) {
             if (mesh->get_elemmarker(elem) != TYPES.VACUUM) continue;
 
-            SimpleElement selem = mesh->get_simpleelem(elem);
-
             // Force all the nodes in vacuum elements to be non-bulk ones
-            for (node = 0; node < mesh->n_nodes_per_elem; ++node)
-                if (mesh->get_nodemarker(selem[node]) == TYPES.BULK) {
-                    mesh->set_nodemarker(selem[node], TYPES.VACUUM);
+            for (int node : mesh->get_simpleelem(elem))
+                if (mesh->get_nodemarker(node) == TYPES.BULK) {
+                    mesh->set_nodemarker(node, TYPES.VACUUM);
                     node_changed = true;
                 }
         }
@@ -512,18 +544,18 @@ const void Mesher::post_process_marking() {
         // If some of the nodes were changed,
         // mark all the surface and bulk elements again
         if (node_changed)
-            for (elem = 0; elem < n_elems; ++elem) {
+            for (int elem = 0; elem < n_elems; ++elem) {
                 if (mesh->get_elemmarker(elem) == TYPES.VACUUM) continue;
 
-                SimpleElement selem = mesh->get_simpleelem(elem);
-                location = 0;
+                int location = 0;
                 // Loop through all the nodes in element
-                for (node = 0; node < mesh->n_nodes_per_elem; ++node) {
-                    int nodemarker = mesh->get_nodemarker(selem[node]);
+                for (int node : mesh->get_simpleelem(elem)) {
+                    int nodemarker = mesh->get_nodemarker(node);
                     // Encode element location into integer
                     if (nodemarker == TYPES.VACUUM)
-                        location += 1;//++;
-                    else if (nodemarker == TYPES.BULK) location--;
+                        location++;
+                    else if (nodemarker == TYPES.BULK)
+                        location--;
                 }
 
                 if (location > 0)
@@ -618,24 +650,25 @@ const void Mesher::mark_mesh_long() {
 
 // Mark elements by the node markers
 const void Mesher::mark_elems() {
-    int elem, node, location;
-    int n_elems = mesh->get_n_elems();
+    const int n_elems = mesh->get_n_elems();
+
     mesh->init_elemmarkers(n_elems);
 
     // Loop through all the elements
-    for (elem = 0; elem < n_elems; ++elem) {
-        location = 0;
-        SimpleElement selem = mesh->get_simpleelem(elem);
+    for (int elem = 0; elem < n_elems; ++elem) {
+        int location = 0;
 
         // Loop through all the nodes in element
-        for (node = 0; node < mesh->n_nodes_per_elem; ++node) {
-            int nodemarker = mesh->get_nodemarker(selem[node]);
+        for (int node : mesh->get_simpleelem(elem)) {
+            int nodemarker = mesh->get_nodemarker(node);
 
             // Encode element location into integer
             if (nodemarker == TYPES.VACUUM)
-                location += 1;//++;
-            else if (nodemarker == TYPES.BULK) location--;
+                location++;
+            else if (nodemarker == TYPES.BULK)
+                location--;
         }
+
         // Element in vacuum is supposed not to have nodes in bulk
         if (location > 0)
             mesh->add_elemmarker(TYPES.VACUUM);
@@ -672,33 +705,6 @@ const void Mesher::mark_faces() {
         else
             mesh->add_facemarker(TYPES.SURFACE);
     }
-}
-
-const vector<int> Mesher::get_new_indxs() {
-    const int new_zmax = 1;    
-    const int new_zmin = 2;
-    const int new_surf = 3;
-    const int new_edge = 4;
-    
-    const int n_faces = mesh->get_n_faces();
-    mark_faces();
-    vector<int> new_indxs(n_faces);
-    
-    for (int i = 0; i < n_faces; ++i) {
-        int marker = mesh->get_facemarker(i);
-        if (marker == TYPES.SURFACE)
-            new_indxs[i] = new_surf;
-        else if (marker == TYPES.ZMIN)
-            new_indxs[i] = new_zmin;
-        else if (marker == TYPES.ZMAX)
-            new_indxs[i] = new_zmax;
-        else if (marker == TYPES.EDGE)
-            new_indxs[i] = new_edge;
-        else
-            new_indxs[i] = TYPES.NONE;
-    }
-    
-    return new_indxs;
 }
 
 } /* namespace femocs */

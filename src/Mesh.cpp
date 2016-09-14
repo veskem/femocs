@@ -89,9 +89,8 @@ const Point3 Mesh::get_face_centre(int i) {
     require(i >= 0 && i < get_n_faces(), "Invalid index: " + to_string(i));
 
     Point3 verts(0, 0, 0);
-    SimpleFace face = get_simpleface(i);
-    for (int v = 0; v < n_nodes_per_face; ++v)
-        verts += get_node(face[v]);
+    for (int v : get_simpleface(i))
+        verts += get_node(v);
     verts /= 1.0*n_nodes_per_face;
 
     return verts;
@@ -102,9 +101,8 @@ const Point3 Mesh::get_elem_centre(int i) {
     require(i >= 0 && i < get_n_elems(), "Invalid index: " + to_string(i));
 
     Point3 verts;
-    SimpleElement elem = get_simpleelem(i);
-    for (int v = 0; v < n_nodes_per_elem; ++v)
-        verts += get_node(elem[v]);
+    for (int v : get_simpleelem(i))
+        verts += get_node(v);
     verts /= 1.0*n_nodes_per_elem;
 
     return verts;

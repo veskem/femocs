@@ -354,7 +354,10 @@ const Surface Surface::coarsen_vol2(const double coord_cutoff, const double r_in
     Point3 origin3d(origin2d[0], origin2d[1], coarse_surf.sizes.zmean);
 
     Edge edge;
-    edge.extract_edge(&coarse_surf, ar_sizes, 2.0*crys_struct.latconst);
+//    edge.extract_edge(&coarse_surf, ar_sizes, 2.0*crys_struct.latconst);
+
+    const double r_cut = 1.1*coarse_factor * crys_struct.latconst * sqrt(sqrt(2)*sizes.xbox/2 - r_in);
+    edge.generate_uniform(ar_sizes, coarse_surf.sizes.zmean, r_cut);
 
     // Sort edge and coarse_surf atoms in radial direction
     // to get proper order in deleting atoms too close to each other
@@ -366,7 +369,7 @@ const Surface Surface::coarsen_vol2(const double coord_cutoff, const double r_in
     // Build up union surface atoms in the order of their survival priority during clean-up
 
     Surface union_surf(crys_struct.latconst, crys_struct.nnn);
-    union_surf.generate_simple(ar_sizes, coarse_surf.sizes.zmean);
+//    union_surf.generate_simple(ar_sizes, coarse_surf.sizes.zmean);
     union_surf += edge;
     union_surf += coarse_surf;
 
@@ -521,6 +524,36 @@ const void Edge::extract_edge(Medium* atoms, const AtomReader::Sizes* sizes, con
         if ( on_boundary(point.x, sizes->xmax, r_cut) ) set_x(i, sizes->xmax);
         if ( on_boundary(point.y, sizes->ymin, r_cut) ) set_y(i, sizes->ymin);
         if ( on_boundary(point.y, sizes->ymax, r_cut) ) set_y(i, sizes->ymax);
+    }
+}
+
+// Generate Edge with regular atom distribution
+const void Edge::generate_uniform(const AtomReader::Sizes* sizes, const double z, const double r_cut) {
+    const int n_atoms_per_side_x = sizes->xbox / r_cut + 1;
+    const int n_atoms_per_side_y = sizes->ybox / r_cut + 1;
+
+    // Reserve memory for atoms
+    reserve( 2 * (n_atoms_per_side_x + n_atoms_per_side_y) );
+
+    // Add 4 atoms to the corners of simulation cell
+    // The insertion order determines the orientation of big surface triangles
+    add_atom( Atom(-1, Point3(sizes->xmin, sizes->ymin, z), 0) );
+    add_atom( Atom(-1, Point3(sizes->xmax, sizes->ymin, z), 0) );
+    add_atom( Atom(-1, Point3(sizes->xmax, sizes->ymax, z), 0) );
+    add_atom( Atom(-1, Point3(sizes->xmin, sizes->ymax, z), 0) );
+
+    // Add atoms in x-direction
+    for (int i = 1; i < n_atoms_per_side_x; ++i) {
+        double coordinate = sizes->xmin + i * sizes->xbox / n_atoms_per_side_x;
+        add_atom( Atom(-1, Point3(sizes->xmin, coordinate, z), 0) );
+        add_atom( Atom(-1, Point3(sizes->xmax, coordinate, z), 0) );
+    }
+
+    // Add atoms in y-direction
+    for (int i = 1; i < n_atoms_per_side_y; ++i) {
+        double coordinate = sizes->ymin + i * sizes->ybox / n_atoms_per_side_y;
+        add_atom( Atom(-1, Point3(coordinate, sizes->ymin, z), 0) );
+        add_atom( Atom(-1, Point3(coordinate, sizes->ymax, z), 0) );
     }
 }
 

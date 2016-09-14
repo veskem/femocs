@@ -15,6 +15,26 @@
 
 namespace femocs {
 
+/** Template class to enable iterators and range-based for-loops in other Primitives */
+template<typename T, typename R>
+class Iterator {
+public:
+    Iterator (const T* dat, uint8_t i) : data(dat), iter_indx(i) {}
+    /** Function to compare two iterators */
+    bool operator!= (const Iterator& rhs) const { return iter_indx != rhs.iter_indx; }
+    /** Function to access member of iterator */
+    R operator* () const { return (*data)[iter_indx]; }
+    /** Function to advance iterator */
+    const Iterator& operator++ () {
+        ++iter_indx;
+        return *this;
+    }
+
+private:
+    uint8_t iter_indx;
+    const T* data;
+};
+
 /** Template class to define the operations between the indices of face nodes */
 template<typename T>
 class SimpleFace_T {
@@ -24,51 +44,42 @@ public:
     SimpleFace_T(T n) : n1(n), n2(n), n3(n) {}
     SimpleFace_T(T nn1, T nn2, T nn3) : n1(nn1), n2(nn2), n3(nn3) {}
 
+    /** Less than, bigger than, less than or equal, bigger than or equal operators */
+    vector<bool> operator <(const T &t) const { return {n1 < t, n2 < t, n3 < t}; }
+    vector<bool> operator >(const T &t) const { return {n1 > t, n2 > t, n3 > t}; }
+    vector<bool> operator <=(const T &t) const { return {n1 <= t, n2 <= t, n3 <= t}; }
+    vector<bool> operator >=(const T &t) const { return {n1 >= t, n2 >= t, n3 >= t}; }
+
     /** Number of vertices in SimpleFace */
-    const T n_verts() const {
-        return 3;
-    }
+    int n_verts() const { return 3; }
 
-    /** Less than, less than or equal, bigger than, bigger than or equal operators */
-    vector<bool> operator <=(const T &t) const {
-        return {n1 <= t, n2 <= t, n3 <= t};
-    }
-    vector<bool> operator <(const T &t) const {
-        return {n1 < t, n2 < t, n3 < t};
-    }
-    vector<bool> operator >=(const T &t) const {
-        return {n1 >= t, n2 >= t, n3 >= t};
-    }
-    vector<bool> operator >(const T &t) const {
-        return {n1 > t, n2 > t, n3 > t};
-    }
-
-    /** Define access operators or accessors. */
+    /** Define access operators or accessors */
     const T& operator [](uint8_t i) const {
-        require(i < 3, "Invalid index!");
+        require(i >= 0 && i < n_verts(), "Invalid index: " + to_string(i));
         return (&n1)[i];
     }
     T& operator [](uint8_t i) {
-        require((i >= 0) && (i < 3), "Invalid index!");
+        require((i >= 0) && (i < n_verts()), "Invalid index: " + to_string(i));
         return (&n1)[i];
     }
 
-    /** Defining the behaviour of cout */
+    /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &s, const SimpleFace_T<T> &t) {
         return s << t.n1 << ' ' << t.n2 << ' ' << t.n3;
     }
 
     /** Return data as string */
-    string to_str() const {
-        return to_string(n1) + " " + to_string(n2) + " " + to_string(n3);
-    }
+    string to_str() const { stringstream ss; ss << this; return ss.str(); }
 
     /** Transform SimpleFace to vector */
-    vector<int> to_vector() const {
-        return vector<int> {n1, n2, n3};
-    }
+    vector<int> to_vector() const { return vector<int> {n1, n2, n3}; }
 
-    T n1, n2, n3;
+    /** Attach iterator */
+    typedef Iterator<SimpleFace_T, T> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, n_verts()); }
+
+    T n1, n2, n3;          //!< Vertices of SimpleFace
 };
 
 /** Template class to define the operations between the indices of element nodes */
@@ -80,51 +91,42 @@ public:
     SimpleElement_T(T n) : n1(n), n2(n), n3(n), n4(n) {}
     SimpleElement_T(T nn1, T nn2, T nn3, T nn4) : n1(nn1), n2(nn2), n3(nn3), n4(nn4) {}
 
-    /** Number of vertices in tetrahedron */
-    const T n_verts() const {
-        return 4;
-    }
+    /** Number of vertices in SimpleElement */
+    uint8_t n_verts() const { return 4; }
 
     /** Transform SimpleElement to vector */
-    vector<int> to_vector() const {
-        return vector<int> {n1, n2, n3, n4};
-    }
+    vector<int> to_vector() const { return vector<int> {n1, n2, n3, n4}; }
 
-    /** Less than, less than or equal, bigger than, bigger than or equal operators */
-    vector<bool> operator <=(const T &t) const {
-        return {n1 <= t, n2 <= t, n3 <= t, n4 <= t};
-    }
-    vector<bool> operator <(const T &t) const {
-        return {n1 < t, n2 < t, n3 < t, n4 < t};
-    }
-    vector<bool> operator >=(const T &t) const {
-        return {n1 >= t, n2 >= t, n3 >= t, n4 >= t};
-    }
-    vector<bool> operator >(const T &t) const {
-        return {n1 > t, n2 > t, n3 > t, n4 > t};
-    }
+    /** Less than, bigger than, less than or equal, bigger than or equal operators */
+    vector<bool> operator <(const T &t) const { return {n1 < t, n2 < t, n3 < t, n4 < t}; }
+    vector<bool> operator >(const T &t) const { return {n1 > t, n2 > t, n3 > t, n4 > t}; }
+    vector<bool> operator <=(const T &t) const { return {n1 <= t, n2 <= t, n3 <= t, n4 <= t}; }
+    vector<bool> operator >=(const T &t) const { return {n1 >= t, n2 >= t, n3 >= t, n4 >= t}; }
 
     /** Define access operators or accessors */
     const T& operator [](uint8_t i) const {
-        require(i < 4, "Invalid index!");
+        require(i >= 0 && i < n_verts(), "Invalid index: " + to_string(i));
         return (&n1)[i];
     }
     T& operator [](uint8_t i) {
-        require((i >= 0) && (i < 4), "Invalid index!");
+        require((i >= 0) && (i < n_verts()), "Invalid index: " + to_string(i));
         return (&n1)[i];
     }
 
-    /** Defining the behaviour of cout */
+    /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &s, const SimpleElement_T &t) {
         return s << t.n1 << ' ' << t.n2 << ' ' << t.n3 << ' ' << t.n4;
     }
 
     /** Return data as string */
-    string to_str() const {
-        return to_string(n1) + " " + to_string(n2) + " " + to_string(n3) + " " + to_string(n4);
-    }
+    string to_str() const { stringstream ss; ss << this; return ss.str(); }
 
-    T n1, n2, n3, n4;
+    /** Attach iterator */
+    typedef Iterator<SimpleElement_T, T> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, n_verts()); }
+
+    T n1, n2, n3, n4;      //!< Vertices of SimpleElement
 };
 
 /** Template class to define the 3-dimensional vector with its operations */
@@ -226,26 +228,26 @@ public:
      The Vec3 coordinates can be accessed that way v[0], v[1], v[2], rather than v.x, v.y, v.z.
      This is useful in loops: the coordinates can be accessed with the loop index (e.g. v[i]).
      */
-    const T& operator [](uint8_t i) const {
-        return (&x)[i];
-    }
-    T& operator [](uint8_t i) {
-        return (&x)[i];
-    }
+    const T& operator [](uint8_t i) const { return (&x)[i]; }
+    T& operator [](uint8_t i) { return (&x)[i]; }
 
-    /** Defining the behaviour of cout */
+    /** Attach iterator */
+    typedef Iterator<Vec3_T, T> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, size()); }
+
+    /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &s, const Vec3_T<T> &v) {
         return s << v.x << ' ' << v.y << ' ' << v.z;
     }
 
     /** Return data as string */
-    string to_str() const{
-        return to_string(x) + " " + to_string(y) + " " + to_string(z);
-    }
+    string to_str() const { stringstream ss; ss << this; return ss.str(); }
+
     T x, y, z;
 };
 
-/** Class to define elementary operations between 3-dimensional points */
+/** Template class to define elementary operations between 3-dimensional points */
 template<typename T>
 class Point3_T{
 public:
@@ -359,20 +361,23 @@ public:
         return (&x)[i];
     }
 
-    /** Defining the behaviour of cout */
+    /** Attach iterator */
+    typedef Iterator<Point3_T, T> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, size()); }
+
+    /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &s, const Point3_T &p) {
         return s << p.x << ' ' << p.y << ' ' << p.z;
     }
 
     /** Return data as string */
-    string to_str() const {
-        return to_string(x) + " " + to_string(y) + " " + to_string(z);
-    }
+    string to_str() const { stringstream ss; ss << this; return ss.str(); }
 
     T x, y, z, r;
 };
 
-/** Class to define elementary operations between 2-dimensional points */
+/** Template class to define elementary operations between 2-dimensional points */
 template<typename T>
 class Point2_T{
 public:
@@ -428,15 +433,18 @@ public:
         return (&x)[i];
     }
 
-    /** Defining the behaviour of cout */
+    /** Attach iterator */
+    typedef Iterator<Point2_T, T> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, size()); }
+
+    /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &s, const Point2_T &p) {
         return s << p.x << ' ' << p.y;
     }
 
-    /** Return SimpleFace data as string */
-    string to_string() const {
-        return to_string(x) + " " + to_string(y);
-    }
+    /** Return data as string */
+    string to_str() const { stringstream ss; ss << this; return ss.str(); }
 
     T x, y, r;
 };
@@ -464,7 +472,7 @@ public:
     bool operator ==(const Atom &a)
         { return id == a.id && point == a.point && coord == a.coord; }
 
-    /** Defining the behaviour of cout */
+    /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &s, const Atom &a) {
         return s << a.id << ' ' << a.point << ' ' << a.coord;
     }
@@ -529,6 +537,7 @@ public:
     int sort_indx;
 };
 
+/** Class to hold solution data and its operations */
 class Solution {
 public:
     Solution() : elfield(Vec3(0)), el_norm(0), potential(0), sort_indx(0) {}
@@ -536,7 +545,7 @@ public:
     Solution(Vec3& v, double en, double pot) : elfield(v), el_norm(en), potential(pot), sort_indx(0) {}
     Solution(const Vec3& v, const double en, const double pot) : elfield(v), el_norm(en), potential(pot), sort_indx(0) {}
 
-    /** Defining the behaviour of cout */
+    /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &ss, const Solution &sol) {
         return ss << sol.elfield << ' ' << sol.el_norm << ' ' << sol.potential;
     }

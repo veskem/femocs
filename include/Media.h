@@ -25,6 +25,8 @@ public:
     /** Extract the atoms near the simulation box sides */
     const void extract_edge(Medium* atoms, const AtomReader::Sizes* sizes, const double r_cut);
 
+    const void generate_uniform(const AtomReader::Sizes* sizes, const double z, const double r_cut);
+
     /** Make sure all the atoms in Edge are not closer than r_cut */
     const Edge clean(const double r_cut);
 

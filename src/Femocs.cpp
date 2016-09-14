@@ -42,7 +42,7 @@ Femocs::Femocs(string file_name) :
     conf.nt = 4;                    // number of OpenMP threads
     conf.rmin_coarse = 27.0;        // inner radius of coarsening cylinder
     conf.rmax_coarse = 8000.0;        // radius of constant cutoff coarsening cylinder
-    conf.coarse_factor = 1.0;       // coarsening factor; bigger number gives coarser surface
+    conf.coarse_factor = 0.8;       // coarsening factor; bigger number gives coarser surface
     conf.postprocess_marking = true; //true;//false; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
     conf.movavg_width = 2;           // width of moving average in electric field smoother
