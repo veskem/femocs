@@ -35,7 +35,54 @@ private:
     const T* data;
 };
 
-/** Template class to define the operations between the indices of face nodes */
+/** Template class to define the operations for the indices of edge nodes */
+template<typename T>
+class SimpleEdge_T {
+public:
+    /** SimpleFace constructors */
+    SimpleEdge_T() : n1(0), n2(0) {}
+    SimpleEdge_T(T n) : n1(n), n2(n) {}
+    SimpleEdge_T(T nn1, T nn2) : n1(nn1), n2(nn2) {}
+
+    /** Less than, bigger than, less than or equal, bigger than or equal operators */
+    vector<bool> operator <(const T &t) const { return {n1 < t, n2 < t}; }
+    vector<bool> operator >(const T &t) const { return {n1 > t, n2 > t}; }
+    vector<bool> operator <=(const T &t) const { return {n1 <= t, n2 <= t}; }
+    vector<bool> operator >=(const T &t) const { return {n1 >= t, n2 >= t}; }
+
+    /** Number of vertices */
+    int n_verts() const { return 2; }
+
+    /** Define access operators or accessors */
+    const T& operator [](uint8_t i) const {
+        require(i >= 0 && i < n_verts(), "Invalid index: " + to_string(i));
+        return (&n1)[i];
+    }
+    T& operator [](uint8_t i) {
+        require((i >= 0) && (i < n_verts()), "Invalid index: " + to_string(i));
+        return (&n1)[i];
+    }
+
+    /** Define the behaviour of string stream */
+    friend std::ostream& operator <<(std::ostream &s, const SimpleEdge_T<T> &t) {
+        return s << t.n1 << ' ' << t.n2;
+    }
+
+    /** Return data as string */
+    string to_str() const { stringstream ss; ss << this; return ss.str(); }
+
+    /** Transform SimpleEdge to vector */
+    vector<int> to_vector() const { return vector<int> {n1, n2}; }
+
+    /** Attach iterator */
+    typedef Iterator<SimpleEdge_T, T> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, n_verts()); }
+
+    T n1, n2;          //!< vertices of SimpleEdge
+};
+
+/** Template class to define the operations for the indices of face nodes */
 template<typename T>
 class SimpleFace_T {
 public:
@@ -82,7 +129,7 @@ public:
     T n1, n2, n3;          //!< Vertices of SimpleFace
 };
 
-/** Template class to define the operations between the indices of element nodes */
+/** Template class to define the operations for the indices of element nodes */
 template<typename T>
 class SimpleElement_T {
 public:
@@ -449,6 +496,7 @@ public:
     T x, y, r;
 };
 
+typedef SimpleEdge_T<unsigned int> SimpleEdge;          //!> edge class without Point data
 typedef SimpleFace_T<unsigned int> SimpleFace;          //!> face class without Point data
 typedef SimpleElement_T<unsigned int> SimpleElement;    //!> element class without Point data
 

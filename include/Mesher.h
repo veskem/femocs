@@ -91,7 +91,9 @@ public:
     const void separate_meshes(Mesh* vacuum, Mesh* bulk, const string& cmd);
     const void separate_meshes(Mesh* vacuum, const string& cmd);
 
+    const void separate_meshes_vol3(Mesh* vacuum, const string& cmd);
     const void separate_meshes_vol2(Mesh* vacuum, const string& cmd);
+    const void separate_meshes_vol2(Mesh* vacuum, Mesh* bulk, const string& cmd);
 
     const void separate_meshes_noclean(Mesh* vacuum, Mesh* bulk, const string& cmd);
     const void separate_meshes_noclean(Mesh* vacuum, const string& cmd);

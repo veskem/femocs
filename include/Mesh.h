@@ -34,9 +34,10 @@ public:
     const void init_faces(const int N);
     const void init_elems(const int N);
 
+    const void init_nodemarkers(const int N);
+    const void init_edgemarkers(const int N);
     const void init_facemarkers(const int N);
     const void init_elemmarkers(const int N);
-    const void init_nodemarkers(const int N);
 
     const void add_node(const double n1, const double n2, const double n3);
     const void add_face(const int f1, const int f2, const int f3);
@@ -46,6 +47,7 @@ public:
     const void add_elem(const SimpleElement& elem);
 
     const void add_nodemarker(const int m);
+    const void add_edgemarker(const int m);
     const void add_facemarker(const int m);
     const void add_elemmarker(const int m);
 
@@ -56,14 +58,21 @@ public:
     const void copy_elems(Mesh* mesh);
 
     const void copy_nodemarkers(Mesh* mesh);
+    const void copy_edgemarkers(Mesh* mesh);
     const void copy_facemarkers(Mesh* mesh);
     const void copy_elemmarkers(Mesh* mesh);
 
+    const int get_node2elem(const int i);
+    const int get_face2elem(const int i);
+    const int get_edge2elem(const int i);
+
     const int get_n_nodes();
+    const int get_n_edges();
     const int get_n_elems();
     const int get_n_faces();
 
     const int get_n_nodemarkers();
+    const int get_n_edgemarkers();
     const int get_n_facemarkers();
     const int get_n_elemmarkers();
 
@@ -72,6 +81,7 @@ public:
     const int get_n_qualities();
 
     const int get_nodemarker(const int i);
+    const int get_edgemarker(const int i);
     const int get_facemarker(const int i);
     const int get_elemmarker(const int i);
 
@@ -80,21 +90,26 @@ public:
     const double get_quality(const int i);
 
     const double* get_nodes();
+    const int* get_edges();
     const int* get_faces();
     const int* get_elems();
 
     const vector<int>* get_nodemarkers();
+    const vector<int>* get_edgemarkers();
     const vector<int>* get_facemarkers();
     const vector<int>* get_elemmarkers();
 
     const Vec3 get_vec(const int i);
     const Point3 get_node(const int i);
+    const SimpleEdge get_simpleedge(const int i);
     const SimpleFace get_simpleface(const int i);
     const SimpleElement get_simpleelem(const int i);
+
     const Point3 get_face_centre(int i);
     const Point3 get_elem_centre(int i);
 
     const void set_nodemarker(const int node, const int m);
+    const void set_edgemarker(const int edge, const int m);
     const void set_facemarker(const int face, const int m);
     const void set_elemmarker(const int elem, const int m);
 
@@ -154,17 +169,19 @@ public:
     Stat stat;
     Indexes indxs;
 
-    const int n_nodes_per_elem = 4;
+    const int n_nodes_per_edge = 2;
     const int n_nodes_per_face = 3;
+    const int n_nodes_per_elem = 4;
     const int n_coordinates = 3;
 
 private:
     string mesher;
     int i_nodes;
-    int i_elems;
     int i_faces;
+    int i_elems;
 
     vector<int> nodemarkers;
+    vector<int> edgemarkers;
     vector<int> facemarkers;
     vector<int> elemmarkers;
     vector<double> volumes;

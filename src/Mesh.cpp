@@ -69,6 +69,13 @@ const Point3 Mesh::get_node(const int i) {
     return Point3(tetIOout.pointlist[n+0], tetIOout.pointlist[n+1], tetIOout.pointlist[n+2]);
 }
 
+const SimpleEdge Mesh::get_simpleedge(const int i) {
+    require(get_n_edges() > 0, "Inquiry from empty mesh!");
+    require(i >= 0 && i < get_n_edges(), "Invalid index: " + to_string(i));
+    const int I = n_nodes_per_edge * i;
+    return SimpleEdge(tetIOout.edgelist[I], tetIOout.edgelist[I+1]);
+}
+
 const SimpleFace Mesh::get_simpleface(const int i) {
     require(get_n_faces() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_faces(), "Invalid index: " + to_string(i));
@@ -128,6 +135,11 @@ const int Mesh::get_nodemarker(const int i) {
     return nodemarkers[i];
 }
 
+const int Mesh::get_edgemarker(const int i) {
+    require(i >= 0 && i < get_n_edgemarkers(), "Invalid index: " + to_string(i));
+    return nodemarkers[i];
+}
+
 const int Mesh::get_facemarker(const int i) {
     require(i >= 0 && i < get_n_facemarkers(), "Invalid index: " + to_string(i));
     return facemarkers[i];
@@ -142,6 +154,10 @@ const double* Mesh::get_nodes() {
     return tetIOout.pointlist;
 }
 
+const int* Mesh::get_edges() {
+    return tetIOout.edgelist;
+}
+
 const int* Mesh::get_faces() {
     return tetIOout.trifacelist;
 }
@@ -154,6 +170,10 @@ const vector<int>* Mesh::get_nodemarkers() {
     return &nodemarkers;
 }
 
+const vector<int>* Mesh::get_edgemarkers() {
+    return &edgemarkers;
+}
+
 const vector<int>* Mesh::get_facemarkers() {
     return &facemarkers;
 }
@@ -162,23 +182,43 @@ const vector<int>* Mesh::get_elemmarkers() {
     return &elemmarkers;
 }
 
+const int Mesh::get_node2elem(const int i) {
+    require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
+    return tetIOout.point2tetlist[i];
+}
+
+const int Mesh::get_face2elem(const int i) {
+    require(i >= 0 && i < get_n_faces(), "Invalid index: " + to_string(i));
+    return tetIOout.face2tetlist[i];
+}
+
+const int Mesh::get_edge2elem(const int i) {
+    require(i >= 0 && i < get_n_edges(), "Invalid index: " + to_string(i));
+    return tetIOout.edge2tetlist[i];
+}
+
 const int Mesh::get_n_nodes() {
-//    return i_nodes;
     return tetIOout.numberofpoints;
 }
 
+const int Mesh::get_n_edges() {
+    return tetIOout.numberofedges;
+}
+
 const int Mesh::get_n_faces() {
-//    return i_faces;
     return tetIOout.numberoftrifaces;
 }
 
 const int Mesh::get_n_elems() {
-//    return i_elems;
     return tetIOout.numberoftetrahedra;
 }
 
 const int Mesh::get_n_nodemarkers() {
     return nodemarkers.size();
+}
+
+const int Mesh::get_n_edgemarkers() {
+    return facemarkers.size();
 }
 
 const int Mesh::get_n_facemarkers() {
@@ -209,6 +249,10 @@ const void Mesh::set_nodemarker(const int node, const int m) {
     require(node >= 0 && node < get_n_nodemarkers(), "Invalid index: " + to_string(node));
     nodemarkers[node] = m;
 }
+const void Mesh::set_edgemarker(const int edge, const int m) {
+    require(edge >= 0 && edge < get_n_edgemarkers(), "Invalid index: " + to_string(edge));
+    edgemarkers[edge] = m;
+}
 const void Mesh::set_facemarker(const int face, const int m) {
     require(face >= 0 && face < get_n_facemarkers(), "Invalid index: " + to_string(face));
     facemarkers[face] = m;
@@ -224,6 +268,11 @@ const void Mesh::set_elemmarker(const int elem, const int m){
 const void Mesh::init_nodemarkers(const int N) {
     require(N > 0, "Invalid number of node markers: " + to_string(N));
     nodemarkers.reserve(N);
+}
+
+const void Mesh::init_edgemarkers(const int N) {
+    require(N > 0, "Invalid number of edge markers: " + to_string(N));
+    edgemarkers.reserve(N);
 }
 
 const void Mesh::init_facemarkers(const int N) {
@@ -325,6 +374,11 @@ const void Mesh::add_nodemarker(const int m) {
     nodemarkers.push_back(m);
 }
 
+const void Mesh::add_edgemarker(const int m) {
+    expect(get_n_edgemarkers() < edgemarkers.capacity(), "Allocated size of edgemarkers exceeded!");
+    edgemarkers.push_back(m);
+}
+
 const void Mesh::add_facemarker(const int m) {
     expect(get_n_facemarkers() < facemarkers.capacity(), "Allocated size of facemarkers exceeded!");
     facemarkers.push_back(m);
@@ -389,6 +443,12 @@ const void Mesh::copy_nodemarkers(Mesh* mesh) {
     int N = mesh->get_n_nodemarkers();
     for (int i = 0; i < N; ++i)
         nodemarkers.push_back(mesh->get_nodemarker(i));
+}
+
+const void Mesh::copy_edgemarkers(Mesh* mesh) {
+    int N = mesh->get_n_edgemarkers();
+    for (int i = 0; i < N; ++i)
+        edgemarkers.push_back(mesh->get_edgemarker(i));
 }
 
 const void Mesh::copy_facemarkers(Mesh* mesh) {

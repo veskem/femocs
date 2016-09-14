@@ -25,8 +25,8 @@ Femocs::Femocs(string file_name) :
     conf.path_to_script = file_name;
     //*
 //    conf.infile = "input/rough111.ckx";
-    conf.infile = "input/mushroom2.ckx";
-//    conf.infile = "input/nanotip_hr5.ckx";
+//    conf.infile = "input/mushroom2.ckx";
+    conf.infile = "input/nanotip_hr5.ckx";
     conf.latconst = 2.0;        // lattice constant
     conf.coord_cutoff = 3.1;    // coordination analysis cut off radius
     //*/
@@ -40,7 +40,7 @@ Femocs::Femocs(string file_name) :
     conf.mesher = "tetgen";         // mesher algorithm
     conf.mesh_quality = "2.0";//"2.914";
     conf.nt = 4;                    // number of OpenMP threads
-    conf.rmin_coarse = 27.0;        // inner radius of coarsening cylinder
+    conf.rmin_coarse = 7.0;        // inner radius of coarsening cylinder
     conf.rmax_coarse = 8000.0;        // radius of constant cutoff coarsening cylinder
     conf.coarse_factor = 0.8;       // coarsening factor; bigger number gives coarser surface
     conf.postprocess_marking = true; //true;//false; // make extra effort to mark correctly the vacuum nodes in shadow area
@@ -129,14 +129,17 @@ const void Femocs::run(double E_field) {
 
     start_msg(t0, "=== Separating vacuum and bulk mesh...");
     femocs::Mesh vacuum_mesh(conf.mesher);
-//    femocs::Mesh bulk_mesh(conf.mesher);
+    femocs::Mesh bulk_mesh(conf.mesher);
 
-    mesher.separate_meshes_noclean(&vacuum_mesh, "rQ");
+    mesher.separate_meshes_vol2(&vacuum_mesh, &bulk_mesh, "rQ");
+
+
+//    mesher.separate_meshes_noclean(&vacuum_mesh, "rQ");
 //    mesher.separate_meshes_noclean(&vacuum_mesh, &bulk_mesh, "rQ");
 
-//    bulk_mesh.write_nodes("output/nodes_bulk.xyz");
-//    bulk_mesh.write_faces("output/faces_bulk.vtk");
-//    bulk_mesh.write_elems("output/elems_bulk.vtk");
+    bulk_mesh.write_nodes("output/nodes_bulk.xyz");
+    bulk_mesh.write_faces("output/faces_bulk.vtk");
+    bulk_mesh.write_elems("output/elems_bulk.vtk");
     vacuum_mesh.write_nodes("output/nodes_vacuum.xyz");
     vacuum_mesh.write_faces("output/faces_vacuum.vtk");
     vacuum_mesh.write_elems(conf.path_to_script);

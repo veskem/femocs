@@ -427,27 +427,124 @@ const void Mesher::separate_meshes_noclean(Mesh* vacuum, const string& cmd) {
 }
 
 // Separate vacuum mesh from the union mesh by the element markers
+// Handle nodes that belong only to one element
 const void Mesher::separate_meshes_vol2(Mesh* vacuum, const string& cmd) {
     const int n_elems = mesh->get_n_elems();
     const int n_nodes = mesh->get_n_nodes();
-
-    const vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), TYPES.BULK);
-
-    vector<int> n_elems_for_node(n_nodes, 0);
+    vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), TYPES.BULK);
 
     // Get the number of elements the node is connected with
+    vector<int> n_elems_for_node(n_nodes, 0);
+
     for (int elem = 0; elem < n_elems; ++elem)
         if (elem_in_vacuum[elem]) {
             for (int node : mesh->get_simpleelem(elem))
                 n_elems_for_node[node]++;
         }
 
-   for (int elem = 0; elem < n_elems; ++elem) {
-       bool elem_is_sharp = false;
-       for (int node : mesh->get_simpleelem(elem))
-           elem_is_sharp |= n_elems_for_node[node] > 1;
-    }
+    // Assign elements that are sharp in vacuum to bulk where they are blunt
+   for (int elem = 0; elem < n_elems; ++elem)
+       if (elem_in_vacuum[elem]) {
+           bool elem_is_blunt = true;
 
+           // element is sharp if at least one of its nodes belongs to only one element
+           // nodes 0-3 are the corners of surface, so skip them because their sharpness is OK
+           for (int node : mesh->get_simpleelem(elem))
+               elem_is_blunt &= (n_elems_for_node[node] > 1) || (node < 4);
+
+           elem_in_vacuum[elem] = elem_is_blunt ;
+       }
+
+    // Copy the non-bulk nodes from input mesh without modification
+    vacuum->copy_nodes(this->mesh);
+    // Reserve memory for elements
+    vacuum->init_elems(vector_sum(elem_in_vacuum));
+
+    // Separate vacuum elements
+    for (int i = 0; i < n_elems; ++i)
+        if (elem_in_vacuum[i])
+            vacuum->add_elem(mesh->get_simpleelem(i));
+
+    vacuum->recalc(cmd);
+}
+
+// Separate vacuum and bulk mesh from the union mesh by the element markers
+// Handle nodes that belong only to one element
+const void Mesher::separate_meshes_vol2(Mesh* vacuum, Mesh* bulk, const string& cmd) {
+    const int n_elems = mesh->get_n_elems();
+    const int n_nodes = mesh->get_n_nodes();
+    vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), TYPES.BULK);
+
+    // Get the number of elements the node is connected with
+    vector<int> n_elems_for_node(n_nodes, 0);
+
+    for (int elem = 0; elem < n_elems; ++elem)
+        if (elem_in_vacuum[elem])
+            for (int node : mesh->get_simpleelem(elem))
+                n_elems_for_node[node]++;
+
+    // Assign elements that are sharp in vacuum to bulk where they are blunt
+   for (int elem = 0; elem < n_elems; ++elem)
+       if (elem_in_vacuum[elem]) {
+           bool elem_is_blunt = true;
+
+           // element is sharp if at least one of its nodes belongs to only one element
+           // nodes 0-3 are the corners of surface, so skip them because their sharpness is OK
+           for (int node : mesh->get_simpleelem(elem))
+               elem_is_blunt &= (n_elems_for_node[node] > 1) || (node < 4);
+
+           elem_in_vacuum[elem] = elem_is_blunt ;
+       }
+
+    // Copy the non-bulk nodes from input mesh without modification
+    vacuum->copy_nodes(this->mesh);
+    bulk->copy_nodes(this->mesh);
+
+    // Reserve memory for elements
+    const int n_vacuum_elems = vector_sum(elem_in_vacuum);
+    const int n_bulk_elems = n_elems - n_vacuum_elems;
+    vacuum->init_elems(n_vacuum_elems);
+    bulk->init_elems(n_bulk_elems);
+
+    // Separate vacuum elements
+    for (int i = 0; i < n_elems; ++i)
+        if (elem_in_vacuum[i])
+            vacuum->add_elem(mesh->get_simpleelem(i));
+        else
+            bulk->add_elem(mesh->get_simpleelem(i));
+
+    vacuum->recalc(cmd);
+    bulk->recalc(cmd);
+}
+
+// Separate vacuum mesh from the union mesh by the element markers
+// Handle edges that belong only to one element
+const void Mesher::separate_meshes_vol3(Mesh* vacuum, const string& cmd) {
+    const int n_elems = mesh->get_n_elems();
+    const int n_nodes = mesh->get_n_nodes();
+    vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), TYPES.BULK);
+
+    // Get the number of elements the node is connected with
+    vector<int> n_elems_for_node(n_nodes, 0);
+
+    for (int elem = 0; elem < n_elems; ++elem)
+        if (elem_in_vacuum[elem]) {
+            for (int node : mesh->get_simpleelem(elem))
+                n_elems_for_node[node]++;
+        }
+
+    // Assign elements that are sharp in vacuum to bulk where they are blunt
+   for (int elem = 0; elem < n_elems; ++elem)
+       if (elem_in_vacuum[elem]) {
+           bool elem_is_blunt = true;
+
+           // element is sharp if at least one of its nodes belongs to only one element
+           // nodes 0-3 are the corners of surface, so skip them because their sharpness is OK
+           for (int node : mesh->get_simpleelem(elem))
+               elem_is_blunt &= (n_elems_for_node[node] > 1) || (node < 4);
+
+           elem_in_vacuum[elem] = elem_is_blunt ;
+       }
 
     // Copy the non-bulk nodes from input mesh without modification
     vacuum->copy_nodes(this->mesh);
