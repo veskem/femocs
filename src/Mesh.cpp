@@ -13,25 +13,20 @@ using namespace std;
 namespace femocs {
 
 // Mesh constructor
-Mesh::Mesh(const string mesher) {
+Mesh::Mesh(const string& mesher) : i_nodes(0), i_edges(0), i_elems(0), i_faces(0) {
     require(mesher == "tetgen", "Unimplemented mesher!");
-
     this->mesher = mesher;
-    i_nodes = 0;
-    i_elems = 0;
-    i_faces = 0;
-
     stat.Vmin = stat.Vmax = stat.Vmedian = stat.Vaverage = 0;
 }
 
 // Mesh destructor
-Mesh::~Mesh() {
-}
+Mesh::~Mesh() {}
 
 // Function to generate simple mesh that consists of one element
 const void Mesh::generate_simple() {
-    const int n_nodes = 4;
-    const int n_faces = 4;
+    const int n_nodes = n_nodes_per_elem;
+    const int n_edges = n_edges_per_elem;
+    const int n_faces = n_faces_per_elem;
     const int n_elems = 1;
 
     init_nodes(n_nodes);
@@ -45,6 +40,14 @@ const void Mesh::generate_simple() {
     add_face(1, 2, 3);
     add_face(2, 0, 3);
     add_face(0, 1, 2);
+
+    init_edges(n_edges);
+    add_edge(0, 1);
+    add_edge(0, 2);
+    add_edge(0, 3);
+    add_edge(1, 2);
+    add_edge(1, 3);
+    add_edge(2, 3);
 
     init_elems(n_elems);
     add_elem(0, 1, 2, 3);
@@ -137,7 +140,7 @@ const int Mesh::get_nodemarker(const int i) {
 
 const int Mesh::get_edgemarker(const int i) {
     require(i >= 0 && i < get_n_edgemarkers(), "Invalid index: " + to_string(i));
-    return nodemarkers[i];
+    return edgemarkers[i];
 }
 
 const int Mesh::get_facemarker(const int i) {
@@ -182,19 +185,11 @@ const vector<int>* Mesh::get_elemmarkers() {
     return &elemmarkers;
 }
 
-const int Mesh::get_node2elem(const int i) {
-    require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
-    return tetIOout.point2tetlist[i];
-}
-
-const int Mesh::get_face2elem(const int i) {
-    require(i >= 0 && i < get_n_faces(), "Invalid index: " + to_string(i));
-    return tetIOout.face2tetlist[i];
-}
-
-const int Mesh::get_edge2elem(const int i) {
-    require(i >= 0 && i < get_n_edges(), "Invalid index: " + to_string(i));
-    return tetIOout.edge2tetlist[i];
+const vector<int> Mesh::get_elem_neighbours(const int i) {
+    require(i >= 0 && i < get_n_elems(), "Invalid index: " + to_string(i));
+    const int I = n_faces_per_elem * i;
+    return vector<int> {tetIOout.neighborlist[I+0], tetIOout.neighborlist[I+1],
+        tetIOout.neighborlist[I+2], tetIOout.neighborlist[I+3]};
 }
 
 const int Mesh::get_n_nodes() {
@@ -218,7 +213,7 @@ const int Mesh::get_n_nodemarkers() {
 }
 
 const int Mesh::get_n_edgemarkers() {
-    return facemarkers.size();
+    return edgemarkers.size();
 }
 
 const int Mesh::get_n_facemarkers() {
@@ -249,14 +244,17 @@ const void Mesh::set_nodemarker(const int node, const int m) {
     require(node >= 0 && node < get_n_nodemarkers(), "Invalid index: " + to_string(node));
     nodemarkers[node] = m;
 }
+
 const void Mesh::set_edgemarker(const int edge, const int m) {
     require(edge >= 0 && edge < get_n_edgemarkers(), "Invalid index: " + to_string(edge));
     edgemarkers[edge] = m;
 }
+
 const void Mesh::set_facemarker(const int face, const int m) {
     require(face >= 0 && face < get_n_facemarkers(), "Invalid index: " + to_string(face));
     facemarkers[face] = m;
 }
+
 const void Mesh::set_elemmarker(const int elem, const int m){
     require(elem >= 0 && elem < get_n_elemmarkers(), "Invalid index: " + to_string(elem));
     elemmarkers[elem] = m;
@@ -292,11 +290,20 @@ const void Mesh::init_nodes(const int N) {
     tetIOin.pointlist = new REAL[n_coordinates * N];
 }
 
+// NB! Edges are added to tetIOout not to tetIOin.
+// That's because inserted edges are intended to be valid immediately without re-calc in tetgen
+const void Mesh::init_edges(const int N) {
+    require(N > 0, "Invalid number of edges: " + to_string(N));
+    i_edges = 0;
+    tetIOout.numberofedges = N;
+    tetIOout.edgelist = new int[n_nodes_per_edge * N];
+}
+
 const void Mesh::init_faces(const int N) {
     require(N > 0, "Invalid number of faces: " + to_string(N));
     i_faces = 0;
-    tetIOin.numberoftrifaces = N;
-    tetIOin.trifacelist = new int[n_nodes_per_face * N];
+    tetIOout.numberoftrifaces = N;
+    tetIOout.trifacelist = new int[n_nodes_per_face * N];
 }
 
 const void Mesh::init_elems(const int N) {
@@ -309,63 +316,56 @@ const void Mesh::init_elems(const int N) {
 // =================================
 // *** ADDERS: ***************
 
-const void Mesh::add_node(const double n1, const double n2, const double n3) {
-    require(i_nodes < tetIOin.numberofpoints, "Allocated size of nodes exceeded!");
-    int i = 3 * i_nodes;
-    tetIOout.pointlist[i] = n1;
-    tetIOout.pointlist[++i] = n2;
-    tetIOout.pointlist[++i] = n3;
-    i_nodes++;
+const void Mesh::add_node(const double x, const double y, const double z) {
+    add_node(Point3(x, y, z));
 }
 
-const void Mesh::add_face(const int f1, const int f2, const int f3) {
-    require(i_faces < tetIOin.numberoftrifaces, "Allocated size of faces exceeded!");
-    require(f1 >= 0 && f2 >= 0 && f3 >= 0, "Invalid node index: "
-            + to_string(f1) + " " + to_string(f2) + " " + to_string(f3));
-
-    int i = 3 * i_faces;
-    tetIOin.trifacelist[i] = f1;
-    tetIOin.trifacelist[++i] = f2;
-    tetIOin.trifacelist[++i] = f3;
-    i_faces++;
+const void Mesh::add_edge(const int n1, const int n2) {
+    add_edge(SimpleEdge(n1, n2));
 }
 
-const void Mesh::add_elem(const int e1, const int e2, const int e3, const int e4) {
-    require(i_elems < tetIOin.numberoftetrahedra, "Allocated size of elements exceeded!");
-    require(e1 >= 0 && e2 >= 0 && e3 >= 0 && e4 >= 0, "Invalid node index: "
-            + to_string(e1) + " " + to_string(e2) + " " + to_string(e3) + " " + to_string(e4));
+const void Mesh::add_face(const int n1, const int n2, const int n3) {
+    add_face(SimpleFace(n1, n2, n3));
+}
 
-    int i = 4 * i_elems;
-    tetIOin.tetrahedronlist[i] = e1;
-    tetIOin.tetrahedronlist[++i] = e2;
-    tetIOin.tetrahedronlist[++i] = e3;
-    tetIOin.tetrahedronlist[++i] = e4;
-    i_elems++;
+const void Mesh::add_elem(const int n1, const int n2, const int n3, const int n4) {
+    add_elem(SimpleElement(n1, n2, n3, n4));
 }
 
 const void Mesh::add_node(const Point3 &point) {
     require(i_nodes < tetIOin.numberofpoints, "Allocated size of nodes exceeded!");
-    int i, j;
-    for (i = n_coordinates * i_nodes, j = 0; j < n_coordinates; ++i, ++j)
-        tetIOin.pointlist[i] = point[j];
+    int i = n_coordinates * i_nodes;
+    for (double node : point)
+        tetIOin.pointlist[i++] = node;
     i_nodes++;
 }
 
+// NB! Edges are added to tetIOout not to tetIOin.
+// That's because inserted edges are intended to be valid immediately without re-calc in tetgen
+const void Mesh::add_edge(const SimpleEdge& edge) {
+    require(i_edges < tetIOout.numberofedges, "Allocated size of edges exceeded!");
+    require(edge.n1 >= 0 && edge.n2 >= 0, "Invalid edge: " + edge.to_str());
+    int i = n_nodes_per_edge * i_edges;
+    for (int node : edge)
+        tetIOout.edgelist[i++] = node;
+    i_edges++;
+}
+
 const void Mesh::add_face(const SimpleFace& face) {
-    require(i_faces < tetIOin.numberoftrifaces, "Allocated size of faces exceeded!");
+    require(i_faces < tetIOout.numberoftrifaces, "Allocated size of faces exceeded!");
     require(face.n1 >= 0 && face.n2 >= 0 && face.n3 >= 0, "Invalid face: " + face.to_str());
-    int i, j;
-    for (i = n_nodes_per_face * i_faces, j = 0; j < n_nodes_per_face; ++i, ++j)
-        tetIOin.trifacelist[i] = face[j];
+    int i = n_nodes_per_face * i_faces;
+    for (int node : face)
+        tetIOout.trifacelist[i++] = node;
     i_faces++;
 }
 
 const void Mesh::add_elem(const SimpleElement& el) {
     require(i_elems < tetIOin.numberoftetrahedra, "Allocated size of elements exceeded!");
     require(el.n1 >= 0 && el.n2 >= 0 && el.n3 >= 0 && el.n4 >= 0, "Invalid element: " + el.to_str());
-    int i, j;
-    for (i = n_nodes_per_elem * i_elems, j = 0; j < n_nodes_per_elem; ++i, ++j)
-        tetIOin.tetrahedronlist[i] = el[j];
+    int i = n_nodes_per_elem * i_elems;
+    for (int node : el)
+        tetIOin.tetrahedronlist[i++] = node;
     i_elems++;
 }
 
@@ -417,6 +417,23 @@ const void Mesh::copy_nodes(Mesh* mesh, const vector<bool> &mask) {
     for (int i = 0; i < mesh->get_n_nodes(); ++i)
         if (mask[i])
             add_node(mesh->get_node(i));
+}
+
+const void Mesh::copy_edges(Mesh* mesh) {
+    const int n_edges = mesh->get_n_edges();
+    init_edges(n_edges);
+    for (int i = 0; i < n_edges; ++i)
+        add_edge(mesh->get_simpleedge(i));
+}
+
+const void Mesh::copy_edges(const vector<SimpleEdge> &edges, const vector<bool> &mask) {
+    const int n_edges = edges.size();
+    require(n_edges == mask.size(), "Incompatible vector sizes!");
+
+    init_edges(vector_sum(mask));
+    for (int i = 0; i < n_edges; ++i)
+        if (mask[i])
+            add_edge(edges[i]);
 }
 
 const void Mesh::copy_faces(Mesh* mesh) {
@@ -641,22 +658,10 @@ const void Mesh::calc_statistics() {
 }
 
 const void Mesh::calc_statistics(const int i) {
-    init_statistics();
     size_t n_volumes = get_n_volumes();
     size_t n_markers = get_n_nodemarkers();
-    size_t n_nodes = get_n_nodes();
 
-    // Find the min and max coordinates of all nodes
-    if (n_nodes > 0)
-        for (int i = 0; i < n_nodes; ++i) {
-            Point3 point = get_node(i);
-            stat.xmax = max(stat.xmax, point.x);
-            stat.xmin = min(stat.xmin, point.x);
-            stat.ymax = max(stat.ymax, point.y);
-            stat.ymin = min(stat.ymin, point.y);
-            stat.zmax = max(stat.zmax, point.z);
-            stat.zmin = min(stat.zmin, point.z);
-        }
+    calc_statistics();
 
     // Find the number of nodes in various regions
     if (n_markers > 0)
@@ -797,7 +802,7 @@ const void Mesh::write_vtk(const string file_name, const int n_nodes, const int 
     }
 
     // Output cell attributes
-    if (n_markers > 0) {
+    if ((n_markers > 0) && (n_markers == n_cells)) {
         fprintf(out_file, "CELL_DATA %d\n", n_markers);
         fprintf(out_file, "SCALARS Cell_markers int\n");
         fprintf(out_file, "LOOKUP_TABLE default\n");
@@ -837,6 +842,27 @@ const void Mesh::write_xyz(const string file_name) {
     out_file.close();
 }
 
+// Function to write edges to .vtk file
+const void Mesh::write_edges(const string file_name) {
+#if not DEBUGMODE
+    return;
+#endif
+    string file_type = get_file_type(file_name);
+    require(file_type == "vtk", "Unknown file type: " + file_type);
+
+    const int celltype = 3; // 1-vertex, 3-line, 5-triangle, 10-tetrahedron
+
+    const int n_nodes = get_n_nodes();
+    const int n_edges = get_n_edges();
+    const int n_markers = get_n_edgemarkers();
+    const REAL* nodes = get_nodes();          // pointer to nodes
+    const int* edges = get_edges();           // pointer to edge nodes
+    vector<int>* cellmarkers = &edgemarkers;  // pointer to edge markers
+
+    write_vtk(file_name, n_nodes, n_edges, n_markers, nodes, edges, cellmarkers, celltype,
+            n_nodes_per_edge);
+}
+
 // Function to write faces to .vtk file
 const void Mesh::write_faces(const string file_name) {
 #if not DEBUGMODE
@@ -847,9 +873,9 @@ const void Mesh::write_faces(const string file_name) {
 
     const int celltype = 5; // 1-vertex, 5-triangle, 10-tetrahedron
 
-    int n_nodes = get_n_nodes();
-    int n_faces = get_n_faces();
-    int n_markers = get_n_facemarkers();
+    const int n_nodes = get_n_nodes();
+    const int n_faces = get_n_faces();
+    const int n_markers = get_n_facemarkers();
     const REAL* nodes = get_nodes();          // pointer to nodes
     const int* faces = get_faces();           // pointer to face nodes
     vector<int>* cellmarkers = &facemarkers;    // pointer to face markers
@@ -868,9 +894,9 @@ const void Mesh::write_elems(const string file_name) {
 
     const int celltype = 10; // 1-vertex, 5-triangle, 10-tetrahedron
 
-    int n_nodes = get_n_nodes();
-    int n_elems = get_n_elems();
-    int n_markers = get_n_elemmarkers();
+    const int n_nodes = get_n_nodes();
+    const int n_elems = get_n_elems();
+    const int n_markers = get_n_elemmarkers();
     const REAL* nodes = get_nodes();          // pointer to nodes
     const int* elems = get_elems();           // pointer to faces nodes
     vector<int>* cellmarkers = &elemmarkers;    // pointer to element markers
@@ -891,10 +917,9 @@ const void Mesh::write_nodes(const string file_name) {
         write_xyz(file_name);
 
     else {
-        const int celltype = 1;     // 1-vertex, 5-triangle, 10-tetrahedron
-
-        int n_nodes = get_n_nodes();
-        int n_markers = get_n_nodemarkers();
+        const int celltype = 1;     // 1-vertex, 3-line, 5-triangle, 10-tetrahedron
+        const int n_nodes = get_n_nodes();
+        const int n_markers = get_n_nodemarkers();
         const REAL* nodes = get_nodes();           // pointer to nodes
         vector<int>* markers = &nodemarkers; // pointer to node markers
 

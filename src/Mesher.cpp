@@ -17,7 +17,7 @@ namespace femocs {
 
 RaySurfaceIntersect::RaySurfaceIntersect(Mesh* mesh) {
     reserve(0);
-    faces.reserve(0);
+//    faces.reserve(0);
     this->mesh = mesh;
 }
 
@@ -32,14 +32,14 @@ const void RaySurfaceIntersect::reserve(const int n) {
 
 // Precompute the data needed to execute the Moller-Trumbore algorithm
 const void RaySurfaceIntersect::precompute_triangles(const Vec3 &direction) {
-    const int n_faces = faces.size();
+    const int n_faces = mesh->get_n_faces();// faces.size();
 
     // Reserve memory for precomputation data
     reserve(n_faces);
 
     // Loop through all the faces
     for (int face = 0; face < n_faces; ++face) {
-        SimpleFace sface = faces[face];
+        SimpleFace sface = mesh->get_simpleface(face);
         Vec3 v0 = mesh->get_vec(sface[0]);
         Vec3 v1 = mesh->get_vec(sface[1]);
         Vec3 v2 = mesh->get_vec(sface[2]);
@@ -93,7 +93,7 @@ const bool RaySurfaceIntersect::ray_intersects_triangle(const Vec3 &origin, cons
 
 // Determine how many times the ray intersects with triangles on the surface mesh
 const int RaySurfaceIntersect::ray_intersects_surface(const Vec3 &origin, const Vec3 &direction) {
-    const int n_faces = faces.size();
+    const int n_faces = mesh->get_n_faces();
     int crossings = 0;
 
     vector<bool> node_passed(mesh->get_n_nodes(), false);
@@ -102,7 +102,7 @@ const int RaySurfaceIntersect::ray_intersects_surface(const Vec3 &origin, const 
     for (int face = 0; face < n_faces; ++face) {
         if (is_parallel[face]) continue;
 
-        SimpleFace sface = faces[face];
+        SimpleFace sface = mesh->get_simpleface(face);
 
         // If the ray has already passed neighbouring triangle, skip current one
         if (node_passed[sface[0]] || node_passed[sface[1]] || node_passed[sface[2]]) continue;
@@ -120,9 +120,8 @@ const int RaySurfaceIntersect::ray_intersects_surface(const Vec3 &origin, const 
 }
 
 // Determine whether the ray intersects with any of the triangles on the surface mesh
-const bool RaySurfaceIntersect::ray_intersects_surface_fast(const Vec3 &origin,
-        const Vec3 &direction) {
-    const int n_faces = faces.size();
+const bool RaySurfaceIntersect::ray_intersects_surface_fast(const Vec3 &origin, const Vec3 &direction) {
+    const int n_faces = mesh->get_n_faces();
 
     // Loop through all the faces
     for (int face = 0; face < n_faces; ++face) {
@@ -152,11 +151,11 @@ const void RaySurfaceIntersect::generate_surf_faces() {
     }
 
     // Reserve memory for surface faces
-    faces.reserve(2 + vector_sum(elem_in_surface));
+    mesh->init_faces( 2 + vector_sum(elem_in_surface) );
 
     // Make two big faces that pass the xy-min-max corners of surface
-    faces.push_back(SimpleFace(0, 1, 2));
-    faces.push_back(SimpleFace(0, 2, 3));
+    mesh->add_face(SimpleFace(0, 1, 2));
+    mesh->add_face(SimpleFace(0, 2, 3));
 
     // Generate the faces that separate material and vacuum
     // The faces are taken from the elements that have exactly one face on the surface
@@ -176,60 +175,7 @@ const void RaySurfaceIntersect::generate_surf_faces() {
             int n1 = (surf_locs[0] & surf_locs[1]) * elems[node + 1]
                     + (surf_locs[2] & surf_locs[3]) * elems[node + 2];
             int n2 = (!surf_locs[3]) * elems[node + 2] + surf_locs[3] * elems[node + 3];
-            faces.push_back(SimpleFace(n0, n1, n2));
-        }
-}
-
-// Function to manually generate surface faces from elements, surface nodes and vacuum nodes
-const void RaySurfaceIntersect::generate_monolayer_surf_faces() {
-    int i, j;
-    const int n_elems = mesh->get_n_elems();
-    const int* elems = mesh->get_elems();
-    vector<bool> is_surface(n_elems);
-
-    // Mark the elements that have exactly one face on the surface and one node in the vacuum
-    for (i = 0; i < n_elems; ++i) {
-
-        int location = 0;
-        for (int node : mesh->get_simpleelem(i)) {
-            // Node in bulk?
-            if ((node >= mesh->indxs.bulk_start) && (node <= mesh->indxs.bulk_end))
-                location--;
-
-            // Node in surface?
-            else if (node <= mesh->indxs.surf_end)
-                location++;
-
-            // Node in vacuum!
-//            else
-//                location += 0;
-        }
-
-        // Bulk, surface and vacuum are encoded in such a way that
-        // location == 3 only if 3 nodes are on surface and 1 in vacuum
-        is_surface[i] = location == 3;
-    }
-
-    faces.reserve(vector_sum(is_surface));
-
-    // Generate the faces that separate material and vacuum
-    // It is assumed that each element has only one face on the surface
-    for (i = 0; i < n_elems; ++i)
-        if (is_surface[i]) {
-            vector<bool> surf_locs = mesh->get_simpleelem(i) <= mesh->indxs.bulk_end;
-
-            /* The possible combinations of b_locs and n1,n2,n3:
-             * b_locs: 1110  1101  1011  0111
-             *     n1: elem0 elem0 elem0 elem1
-             *     n2: elem1 elem1 elem2 elem2
-             *     n3: elem2 elem3 elem3 elem3
-             */
-            j = mesh->n_nodes_per_elem * i;
-            int n1 = surf_locs[0] * elems[j + 0] + (!surf_locs[0]) * elems[j + 1];
-            int n2 = (surf_locs[0] & surf_locs[1]) * elems[j + 1]
-                    + (surf_locs[2] & surf_locs[3]) * elems[j + 2];
-            int n3 = (!surf_locs[3]) * elems[j + 2] + surf_locs[3] * elems[j + 3];
-            faces.push_back(SimpleFace(n1, n2, n3));
+            mesh->add_face(SimpleFace(n0, n1, n2));
         }
 }
 
@@ -252,7 +198,7 @@ const void RaySurfaceIntersect::write_faces(const string file_name) {
     out << "DATASET UNSTRUCTURED_GRID\n\n";
 
     const size_t n_nodes = mesh->get_n_nodes();
-    const size_t n_faces = faces.size();
+    const size_t n_faces = mesh->get_n_faces();
     const size_t celltype = 5; // 1-vertex, 5-triangle, 10-tetrahedron
 
     out << "POINTS " << n_nodes << " double\n";
@@ -261,7 +207,7 @@ const void RaySurfaceIntersect::write_faces(const string file_name) {
 
     out << "CELLS " << n_faces << " " << n_faces * (mesh->n_nodes_per_face + 1) << "\n";
     for (size_t face = 0; face < n_faces; ++face)
-        out << mesh->n_nodes_per_face << " " << faces[face] << "\n";
+        out << mesh->n_nodes_per_face << " " << mesh->get_simpleface(face) << "\n";
 
     out << "CELL_TYPES " << n_faces << "\n";
     for (size_t i = 0; i < n_faces; ++i)
@@ -517,6 +463,8 @@ const void Mesher::separate_meshes_vol2(Mesh* vacuum, Mesh* bulk, const string& 
     bulk->recalc(cmd);
 }
 
+
+
 // Separate vacuum mesh from the union mesh by the element markers
 // Handle edges that belong only to one element
 const void Mesher::separate_meshes_vol3(Mesh* vacuum, const string& cmd) {
@@ -524,27 +472,37 @@ const void Mesher::separate_meshes_vol3(Mesh* vacuum, const string& cmd) {
     const int n_nodes = mesh->get_n_nodes();
     vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), TYPES.BULK);
 
-    // Get the number of elements the node is connected with
-    vector<int> n_elems_for_node(n_nodes, 0);
+    mesh->calc_statistics();
+    generate_edges();
+    remark_boundary_nodes();
+    mark_edges();
 
-    for (int elem = 0; elem < n_elems; ++elem)
-        if (elem_in_vacuum[elem]) {
-            for (int node : mesh->get_simpleelem(elem))
-                n_elems_for_node[node]++;
-        }
+    mesh->write_edges("output/edges_marked.vtk");
 
-    // Assign elements that are sharp in vacuum to bulk where they are blunt
-   for (int elem = 0; elem < n_elems; ++elem)
-       if (elem_in_vacuum[elem]) {
-           bool elem_is_blunt = true;
+    vector<int> n_neighbours_in_vacuum(n_elems, 0);
+    vector<bool> elem_on_edge(n_elems);
 
-           // element is sharp if at least one of its nodes belongs to only one element
-           // nodes 0-3 are the corners of surface, so skip them because their sharpness is OK
-           for (int node : mesh->get_simpleelem(elem))
-               elem_is_blunt &= (n_elems_for_node[node] > 1) || (node < 4);
+    for (int i = 0; i < n_elems; ++i) {
+        int I = i * mesh->n_edges_per_elem;
+        bool on_edge = false;
+        for (int j = 0; j < mesh->n_edges_per_elem; ++j)
+            on_edge |= mesh->get_edgemarker(I+j) == TYPES.EDGE;
+        elem_on_edge[i] = on_edge;
+    }
 
-           elem_in_vacuum[elem] = elem_is_blunt ;
-       }
+    // Find the number of neighbours for elements assigned to vacuum
+    for (int elem = 0; elem < n_elems; ++elem) {
+        if (elem_in_vacuum[elem])
+            for (int node : mesh->get_elem_neighbours(elem))
+                if (node >= 0 && elem_in_vacuum[node])
+                    n_neighbours_in_vacuum[elem]++;
+    }
+
+    // Pick only elements that have at least 3 neighbours
+    for (int elem = 0; elem < n_elems; ++elem) {
+        const bool b1 = (n_neighbours_in_vacuum[elem] >= 3);
+        elem_in_vacuum[elem] = elem_in_vacuum[elem] && (b1 || elem_on_edge[elem]);
+    }
 
     // Copy the non-bulk nodes from input mesh without modification
     vacuum->copy_nodes(this->mesh);
@@ -557,6 +515,62 @@ const void Mesher::separate_meshes_vol3(Mesh* vacuum, const string& cmd) {
             vacuum->add_elem(mesh->get_simpleelem(i));
 
     vacuum->recalc(cmd);
+}
+
+const void Mesher::remark_boundary_nodes() {
+    const int eps = 0.1;
+    const int n_nodes = mesh->get_n_nodes();
+
+    for (int node = 0; node < n_nodes; ++node) {
+        Point3 point = mesh->get_node(node);
+        // Point on xmin or xmax of simubox?
+        const bool bound_x = on_boundary(point.x, mesh->stat.xmin, mesh->stat.xmax, eps);
+        // Point on ymin or ymax of simubox?
+        const bool bound_y = on_boundary(point.y, mesh->stat.ymin, mesh->stat.ymax, eps);
+        // Point on zmax of simubox?
+        const bool bound_z = on_boundary(point.z, mesh->stat.zmax, eps);
+        // Point on the perimeter of surface?
+        const bool bound_surf = (mesh->get_nodemarker(node) == TYPES.SURFACE) && (bound_x || bound_y);
+        // Point not in the bulk area?
+        const bool not_bulk = mesh->get_nodemarker(node) != TYPES.BULK;
+
+        if ( not_bulk && ((bound_x && bound_y) || (bound_x && bound_z) || (bound_y && bound_z) || bound_surf) )
+            mesh->set_nodemarker(node, TYPES.EDGE);
+    }
+}
+
+const void Mesher::mark_edges() {
+    const int n_edges = mesh->get_n_edges();
+    mesh->init_edgemarkers(n_edges);
+
+    for (int edge = 0; edge < n_edges; ++edge) {
+        SimpleEdge sedge = mesh->get_simpleedge(edge);
+        const int m1 = mesh->get_nodemarker(sedge.n1);
+        const int m2 = mesh->get_nodemarker(sedge.n2);
+
+        if (m1 == TYPES.EDGE && m2 == TYPES.EDGE)
+            mesh->add_edgemarker(TYPES.EDGE);
+        else
+            mesh->add_edgemarker(TYPES.NONE);
+    }
+}
+
+const void Mesher::generate_edges() {
+    const int n_elems = mesh->get_n_elems();
+    const int n_edges = mesh->n_edges_per_elem * n_elems;
+
+    vector<bool> copy_edge(n_edges, true);
+    vector<SimpleEdge> edges;
+    edges.reserve(n_edges);
+
+    // Initially generate edges from all the
+    for (int elem = 0; elem < n_elems; ++elem) {
+        SimpleElement selem = mesh->get_simpleelem(elem);
+        for (int edge = 0; edge < mesh->n_edges_per_elem; ++edge)
+            edges.push_back(selem.edge(edge));
+    }
+
+    mesh->copy_edges(edges, copy_edge);
 }
 
 /* Function to mark nodes with ray-triangle intersection technique

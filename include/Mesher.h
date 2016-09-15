@@ -40,7 +40,7 @@ public:
     const void generate_surf_faces();
 
     /** Function to generate surface faces from already existing elements, surface nodes and vacuum nodes */
-    const void generate_monolayer_surf_faces();
+//    const void generate_monolayer_surf_faces();
 
     /** Function to output surface faces in .vtk format */
     const void write_faces(const string file_name);
@@ -64,9 +64,6 @@ private:
     /** Corner of mean plane */
     Point3 corner_node;
 
-    /** Manually calculated surface faces */
-    vector<SimpleFace> faces;
-
     /** Function to find with Moller-Trumbore algorithm whether the ray and the triangle intersect or not */
     const bool ray_intersects_triangle(const Vec3 &origin, const Vec3 &direction, const int face);
 
@@ -85,6 +82,8 @@ public:
     /** Function to generate mesh from surface, bulk and vacuum atoms */
     const void generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string& cmd);
 
+    const void generate_edges();
+
     const void mark_mesh(bool postprocess, double mean_thickness);
     const void mark_mesh_long();
 
@@ -101,6 +100,8 @@ public:
 private:
     Mesh* mesh;
 
+    const void remark_boundary_nodes();
+    const void mark_edges();
     const void mark_faces();
     const void mark_elems();
     const void post_process_marking();
