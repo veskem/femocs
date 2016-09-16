@@ -24,19 +24,19 @@ using namespace std;
 
 /** Types of regions used in the simulation */
 struct Types {
+    const int NONE = 0;    //!< type of atom with unknown position
     const int BULK = 1;    //!< type of bulk material
     const int SURFACE = 2; //!< type of open material surface
-    const int VACANCY = 3; //!< type of vacancies
     const int VACUUM = 3;  //!< type of vacuum
-    const int EDGE = 0;    //!< type of the rim/outer edge of surface
+    const int VACANCY = 3; //!< type of vacancies
+    const int PERIMETER = 4;    //!< type of the rim/outer edge of surface
     const int FIXED = -1;  //!< type of fixed atoms
-    const int XMIN = 4;    //!< type of atom on negative x-face of simulation cell
-    const int YMIN = 5;    //!< type of atom on negative y-face of simulation cell
-    const int ZMIN = 6;    //!< type of atom on negative z-face of simulation cell
+    const int XMIN = 5;    //!< type of atom on negative x-face of simulation cell
+    const int YMIN = 6;    //!< type of atom on negative y-face of simulation cell
+    const int ZMIN = 7;    //!< type of atom on negative z-face of simulation cell
     const int XMAX = 10;   //!< type of atom on positive x-face of simulation cell
     const int YMAX = 9;    //!< type of atom on positive y-face of simulation cell
     const int ZMAX = 8;    //!< type of atom on positive z-face of simulation cell
-    const int NONE = 7;    //!< type of atom with unknown position
 };
 
 #ifdef MAINFILE

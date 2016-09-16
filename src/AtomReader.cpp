@@ -17,9 +17,7 @@ using namespace std;
 namespace femocs {
 
 // AtomReader constructor
-AtomReader::AtomReader() :
-        Medium() {
-}
+AtomReader::AtomReader() : Medium(), simu_type("") {}
 
 // Reserve memory for data vectors
 const void AtomReader::reserve(const int n_atoms) {
@@ -67,10 +65,13 @@ const void AtomReader::calc_coordination(int nnn, double cutoff, const int* nbor
 // Calculate coordination (# nearest neighbours within cutoff radius) for all the atoms
 const void AtomReader::calc_coordination(int nnn, double cutoff) {
     require(nnn > 0, "Invalid number of nearest neighbors: " + to_string(nnn));
-    if (cutoff > 0)
+    if (simu_type == "md")
         calc_slow_coordination(cutoff, nnn);
-    else
+    else if (simu_type == "kmc")
         calc_dummy_coordination(nnn);
+    else
+        require(false, "Incorrect simulation type: " + simu_type);
+
     check_coordination();
 }
 
@@ -87,6 +88,8 @@ const void AtomReader::check_coordination() {
 const void AtomReader::calc_slow_coordination(const double cutoff, const int nnn) {
     require(cutoff > 0 && nnn >= 0, "Invalid cutoff or nnn!");
 
+    expect(false, "WARNING: Running unoptimized coordination calculation!");
+
     Point3 point1, dpoint;
     int N = get_n_atoms();
     int i, j, coord;
@@ -101,17 +104,18 @@ const void AtomReader::calc_slow_coordination(const double cutoff, const int nnn
 
         for (j = 0; j < N; ++j) {
             if (i == j) continue;
-            dpoint = point1 - get_point(j);
-
-            dx = fabs(dpoint.x);
-            dy = fabs(dpoint.y);
-            dz = fabs(dpoint.z);
-
-            dx = min(dx, fabs(dx - sizes.xbox)); // apply periodic boundary condition in x-direction
-            dy = min(dy, fabs(dy - sizes.ybox)); // apply periodic boundary condition in y-direction
-            //dz = min(dz, fabs(dz - sizes.zbox)); // apply periodic boundary condition in z-direction
-
-            r2 = dx * dx + dy * dy + dz * dz;
+//            dpoint = point1 - get_point(j);
+//
+//            dx = fabs(dpoint.x);
+//            dy = fabs(dpoint.y);
+//            dz = fabs(dpoint.z);
+//
+//            dx = min(dx, fabs(dx - sizes.xbox)); // apply periodic boundary condition in x-direction
+//            dy = min(dy, fabs(dy - sizes.ybox)); // apply periodic boundary condition in y-direction
+//            //dz = min(dz, fabs(dz - sizes.zbox)); // apply periodic boundary condition in z-direction
+//
+//            r2 = dx * dx + dy * dy + dz * dz;
+            r2 = point1.periodic_distance2(get_point(j), sizes.xbox, sizes.ybox);
             if (r2 <= cutoff2) coord++;
             if (coord >= nnn) break; // Coordination can't be bigger than the biggest expected
         }
@@ -149,7 +153,7 @@ const void AtomReader::extract_types(int nnn) {
 
 // Redefine simubox size for example to insert electric field height
 const void AtomReader::resize_box(const double zmin, const double zmax) {
-    require(zmin <= zmax, "Invalid size for simulation box!");
+    require(zmin <= zmax, "Invalid size for simulation box: " + to_string(zmin) + ", " + to_string(zmax));
     sizes.zminbox = zmin;
     sizes.zmaxbox = zmax;
     sizes.zbox = zmax - zmin;
@@ -177,11 +181,12 @@ const string AtomReader::get_data_string(const int i) {
 
 const void AtomReader::import_kimocs() {
     require(false, "AtomReader::import_kimocs() not implemented!");
+    simu_type = "kmc";
 }
 
 const void AtomReader::import_helmod(int n_atoms, double* x, double* y, double* z, int* types) {
     require(n_atoms > 0, "Zero input atoms detected!");
-
+    simu_type = "md";
     reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
         add_atom(i, Point3(x[i], y[i], z[i]), types[i]);
@@ -191,7 +196,7 @@ const void AtomReader::import_helmod(int n_atoms, double* x, double* y, double* 
 
 const void AtomReader::import_parcas(int n_atoms, const double* xyz, const double* box) {
     require(n_atoms > 0, "Zero input atoms detected!");
-
+    simu_type = "md";
     reserve(n_atoms);
     for (int i = 0; i < 3*n_atoms; i+=3)
         add_atom(i/3, Point3(xyz[i+0]*box[0], xyz[i+1]*box[1], xyz[i+2]*box[2]), TYPES.BULK);
@@ -202,12 +207,21 @@ const void AtomReader::import_parcas(int n_atoms, const double* xyz, const doubl
 const void AtomReader::import_file(const string file_name) {
     string file_type = get_file_type(file_name);
 
-    if (file_type == "xyz")
+    if (file_type == "xyz") {
+        simu_type = "md";
         import_xyz(file_name);
-    else if (file_type == "ckx")
+    }
+
+    else if (file_type == "ckx") {
+        simu_type = "kmc";
         import_ckx(file_name);
-    else if (file_type == "dump")
+    }
+
+    else if (file_type == "dump") {
+        simu_type = "md";
         import_dump(file_name);
+    }
+
     else
         require(false, "Unsupported file type: " + file_type);
 

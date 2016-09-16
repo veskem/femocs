@@ -36,15 +36,6 @@ public:
     /** Function to precompute the data needed to execute the Moller-Trumbore algorithm */
     const void precompute_triangles(const Vec3 &direction);
 
-    /** Function to generate surface faces from already existing elements and surface nodes */
-    const void generate_surf_faces();
-
-    /** Function to generate surface faces from already existing elements, surface nodes and vacuum nodes */
-//    const void generate_monolayer_surf_faces();
-
-    /** Function to output surface faces in .vtk format */
-    const void write_faces(const string file_name);
-
 private:
     /** Constants to specify the tolerances */
     const double epsilon = 1e-3;
@@ -82,29 +73,35 @@ public:
     /** Function to generate mesh from surface, bulk and vacuum atoms */
     const void generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string& cmd);
 
-    const void generate_edges();
+    const void generate_mesh_appendices();
 
-    const void mark_mesh(bool postprocess, double mean_thickness);
-    const void mark_mesh_long();
+    const void mark_mesh(const bool postprocess);
 
     const void separate_meshes(Mesh* vacuum, Mesh* bulk, const string& cmd);
     const void separate_meshes(Mesh* vacuum, const string& cmd);
 
-    const void separate_meshes_vol3(Mesh* vacuum, const string& cmd);
-    const void separate_meshes_vol2(Mesh* vacuum, const string& cmd);
     const void separate_meshes_vol2(Mesh* vacuum, Mesh* bulk, const string& cmd);
 
     const void separate_meshes_noclean(Mesh* vacuum, Mesh* bulk, const string& cmd);
     const void separate_meshes_noclean(Mesh* vacuum, const string& cmd);
 
+    const void swap_sharp_elements(vector<bool> &elem_in_vacuum, vector<bool> &elem_on_perim);
+
 private:
     Mesh* mesh;
 
-    const void remark_boundary_nodes();
+    const void mark_nodes();
     const void mark_edges();
     const void mark_faces();
     const void mark_elems();
+    const void remark_perimeter_nodes();
+    const void remark_elems(const int skip_type);
     const void post_process_marking();
+
+    const void generate_edges();
+
+    /** Function to generate surface faces from already existing elements and surface nodes */
+    const void generate_surf_faces();
 };
 
 } /* namespace femocs */

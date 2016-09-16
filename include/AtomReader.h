@@ -54,6 +54,7 @@ public:
     const void resize_box(const double zmin, const double zmax);
 
 private:
+    string simu_type;
     vector<int> type;   //!< types of atoms
 
     /**

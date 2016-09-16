@@ -212,14 +212,14 @@ const void SolutionReader::smoothen_result_ema(const double smooth_width) {
     // Atoms from non-enhanced electric field regions will be skipped from averaging
     vector<bool> skip_atom(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
-        skip_atom[i] = solution[i].el_norm <= fabs(longrange_efield);
+        skip_atom[i] = (solution[i].el_norm <= fabs(longrange_efield)) || (solution[i].el_norm == error_field);
 
     // Average by moving up
     for (int i = 0; i < n_atoms-1; ++i) {
         int i_active = i;
         int i_neighb = i+1;
 
-        if (skip_atom[i_active]) continue;
+        if (skip_atom[i_active] || skip_atom[i_neighb]) continue;
 
         solution[i_active].elfield = get_ema(i_active, i_neighb, smooth_width);
         solution[i_active].el_norm = solution[i_active].elfield.length();
@@ -272,7 +272,7 @@ const void SolutionReader::print_statistics() {
     double mn = 1e20; double mx = -1e20; double avg = 0; int cntr = 0;
 
     for (int i = 0; i < get_n_atoms(); ++i)
-        if (get_point(i).z > zmax) {
+        if (get_point(i).z > zmax && solution[i].el_norm < error_field) {
             mn = min(mn, solution[i].el_norm);
             mx = max(mx, solution[i].el_norm);
             avg += solution[i].el_norm;

@@ -19,10 +19,9 @@
 using namespace std;
 
 // Femocs constructor, specifies simulation parameters
-Femocs::Femocs(string file_name) :
-        solution_valid(false) {
+Femocs::Femocs(string message) : solution_valid(false) {
     start_msg(double t0, "======= Femocs started! =======\n");
-    conf.path_to_script = file_name;
+    conf.external_msg = message;
     //*
 //    conf.infile = "input/rough111.ckx";
     conf.infile = "input/mushroom2.ckx";
@@ -33,19 +32,19 @@ Femocs::Femocs(string file_name) :
     /*
      conf.infile = "input/nanotip_big.xyz";
      conf.latconst = 3.61;       // lattice constant
-     conf.coord_cutoff = 0.0; //3.4;   // coordination analysis cut off radius
+     conf.coord_cutoff = 3.6;   // coordination analysis cut off radius
      //*/
 
     conf.nnn = 12;                  // number of nearest neighbours in bulk
     conf.mesher = "tetgen";         // mesher algorithm
-    conf.mesh_quality = "2.0";//"2.914";
+    conf.mesh_quality = "2.0";
     conf.nt = 4;                    // number of OpenMP threads
-    conf.rmin_coarse = 17.0;        // inner radius of coarsening cylinder
+    conf.rmin_coarse = 27.0;        // inner radius of coarsening cylinder
     conf.rmax_coarse = 8000.0;        // radius of constant cutoff coarsening cylinder
     conf.coarse_factor = 0.8;       // coarsening factor; bigger number gives coarser surface
     conf.postprocess_marking = true; //true;//false; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
-    conf.movavg_width = 2;           // width of moving average in electric field smoother
+    conf.movavg_width = 2.0;           // width of moving average in electric field smoother
 }
 
 // Destructor, deletes data and prints bye-bye-message
@@ -77,8 +76,8 @@ const void Femocs::run(double E_field) {
     else
         coarse_surf = dense_surf.rectangularize(&reader.sizes, conf.rmin_rectancularize);
 
-    dense_surf.output("output/dense_surface.xyz");
-    coarse_surf.output("output/coarse_surface.xyz");
+    dense_surf.output("output/surface_dense.xyz");
+    coarse_surf.output("output/surface_coarse.xyz");
     end_msg(t0);
 
     start_msg(t0, "=== Resizing simulation box...");
@@ -121,10 +120,16 @@ const void Femocs::run(double E_field) {
     big_mesh.write_elems("output/elems_generated.vtk");
     end_msg(t0);
 
+    start_msg(t0, "=== Making big mesh appendices...");
+    mesher.generate_mesh_appendices();
+    big_mesh.write_edges("output/edges_generated2.vtk");
+    big_mesh.write_faces("output/faces_generated2.vtk");
+    end_msg(t0);
+
     start_msg(t0, "=== Marking big mesh...");
-    mesher.mark_mesh(conf.postprocess_marking, 1.5*coarse_surf.get_roughness());
+    mesher.mark_mesh(conf.postprocess_marking);
     big_mesh.write_nodes("output/nodes_marked.xyz");
-    big_mesh.write_nodes("output/nodes_marked.vtk");
+    big_mesh.write_edges("output/edges_marked.vtk");
     big_mesh.write_faces("output/faces_marked.vtk");
     big_mesh.write_elems("output/elems_marked.vtk");
     end_msg(t0);
@@ -133,19 +138,19 @@ const void Femocs::run(double E_field) {
     femocs::Mesh vacuum_mesh(conf.mesher);
     femocs::Mesh bulk_mesh(conf.mesher);
 
-    mesher.separate_meshes_vol3(&vacuum_mesh, "rQ");
+    mesher.separate_meshes_vol2(&vacuum_mesh, &bulk_mesh, "rQ");
 
 //    mesher.separate_meshes_noclean(&vacuum_mesh, "rQ");
 //    mesher.separate_meshes_noclean(&vacuum_mesh, &bulk_mesh, "rQ");
 
-//    bulk_mesh.write_nodes("output/nodes_bulk.xyz");
-//    bulk_mesh.write_edges("output/edges_bulk.vtk");
-//    bulk_mesh.write_faces("output/faces_bulk.vtk");
-//    bulk_mesh.write_elems("output/elems_bulk.vtk");
+    bulk_mesh.write_nodes("output/nodes_bulk.xyz");
+    bulk_mesh.write_edges("output/edges_bulk.vtk");
+    bulk_mesh.write_faces("output/faces_bulk.vtk");
+    bulk_mesh.write_elems("output/elems_bulk.vtk");
     vacuum_mesh.write_nodes("output/nodes_vacuum.xyz");
     vacuum_mesh.write_edges("output/edges_vacuum.vtk");
     vacuum_mesh.write_faces("output/faces_vacuum.vtk");
-    vacuum_mesh.write_elems(conf.path_to_script);
+    vacuum_mesh.write_elems(conf.external_msg);
     end_msg(t0);
 
 
@@ -267,7 +272,7 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
     end_msg(t0);
 
     start_msg(t0, "=== Calculating coordinations of atoms...");
-    reader.calc_coordination(conf.nnn);
+    reader.calc_coordination(conf.nnn, conf.coord_cutoff);
     end_msg(t0);
 
 //    start_msg(t0, "=== Outputting AtomReader...");

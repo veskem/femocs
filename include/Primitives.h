@@ -94,9 +94,6 @@ public:
     SimpleFace_T(T n) : n1(n), n2(n), n3(n) {}
     SimpleFace_T(T nn1, T nn2, T nn3) : n1(nn1), n2(nn2), n3(nn3) {}
 
-    bool operator ==(const SimpleEdge_T<T> &e) const
-            { return (n1 == e.n1 || n2 == e.n1 || n3 == e.n1) && (n1 == e.n2 || n2 == e.n2 || n3 == e.n2); }
-
     /** Get i-th edge of the face */
     SimpleEdge_T<T> edge(const int i) const {
         if (i <= 0) return SimpleEdge_T<T>(n1, n2);
@@ -151,29 +148,9 @@ public:
     SimpleElement_T(T n) : n1(n), n2(n), n3(n), n4(n) {}
     SimpleElement_T(T nn1, T nn2, T nn3, T nn4) : n1(nn1), n2(nn2), n3(nn3), n4(nn4) {}
 
-    bool operator ==(const SimpleEdge_T<T> &e) const {
-        return (n1 == e.n1 || n2 == e.n1 || n3 == e.n1 || n4 == e.n1) && (n1 == e.n2 || n2 == e.n2 || n3 == e.n2 || n4 == e.n2);
-    }
-
-    /** If two elements differ with more than 1 node they can't be neighbours */
-    bool not_neighbour(const SimpleElement_T<T> &s) const {
-        int misses(0);
-        for (int node : s) {
-            if (node != n1 && node != n2 && node != n3 && node != n4)
-                if (++misses > 1) return false;
-        }
-        return true;
-    }
-
-    /** If two elements share at least 3 nodes they are neighbours */
-    bool neighbour(const SimpleElement_T<T> &s) const {
-        int hits(0);
-        for (int node : s) {
-            if (node == n1 || node == n2 || node == n3 || node == n4)
-                if (++hits > 2) return true;
-        }
-        return false;
-    }
+    /** Comparison with scalar */
+    bool operator !=(const T &m) const { return n1 != m && n2 != m && n3 != m && n4 != m; }
+    bool operator ==(const T &m) const { return n1 == m && n2 == m && n3 == m && n4 == m; }
 
     /** Number of vertices in SimpleElement */
     uint8_t n_verts() const { return 4; }

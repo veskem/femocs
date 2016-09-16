@@ -240,9 +240,9 @@ const void DealII::mark_boundary(const AtomReader::Sizes* sizes) {
     for (face = triangulation.begin_face(); face != triangulation.end_face(); ++face)
         if (face->at_boundary()) {
             if (on_boundary(face->center()[0], sizes->xmin, sizes->xmax, eps))
-                face->set_all_boundary_ids(TYPES.EDGE);
+                face->set_all_boundary_ids(TYPES.PERIMETER);
             else if (on_boundary(face->center()[1], sizes->ymin, sizes->ymax, eps))
-                face->set_all_boundary_ids(TYPES.EDGE);
+                face->set_all_boundary_ids(TYPES.PERIMETER);
             else if (on_boundary(face->center()[2], sizes->zmaxbox, eps))
                 face->set_all_boundary_ids(TYPES.ZMAX);
             else
