@@ -19,11 +19,12 @@ module libfemocs
             type(c_ptr), value :: femocs
         end subroutine
 
-        subroutine femocs_run_c(femocs, E_field) bind(C, name="femocs_run")
+        subroutine femocs_run_c(femocs, E_field, message) bind(C, name="femocs_run")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
             real(c_double), intent(in), value :: E_field
+            character(len=1, kind=C_CHAR), intent(in) :: message(*)
         end subroutine
        
         subroutine femocs_import_atoms_c(femocs, n_atoms, x, y, z, types) bind(C, name="femocs_import_atoms")
@@ -45,6 +46,13 @@ module libfemocs
             real(c_double) :: coordinates(*)
             real(c_double) :: box(*)
             integer(c_int) :: nborlist(*)
+        end subroutine
+        
+        subroutine femocs_import_file_c(femocs, file_name) bind(C, name="femocs_import_file")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            character(len=1, kind=C_CHAR), intent(in) :: file_name(*)
         end subroutine
         
         subroutine femocs_export_solution_c(femocs, n_atoms, Ex, Ey, Ez, Enorm) bind(C, name="femocs_export_solution")
@@ -90,6 +98,7 @@ module libfemocs
         procedure :: run => femocs_run
         procedure :: import_atoms => femocs_import_atoms
         procedure :: import_atoms2 => femocs_import_atoms2
+        procedure :: import_file => femocs_import_file
         procedure :: export_solution => femocs_export_solution
         procedure :: export_solution2 => femocs_export_solution2
     end type
@@ -130,11 +139,22 @@ module libfemocs
         call delete_femocs_c(this%ptr)
     end subroutine
 
-    subroutine femocs_run(this, E_field)
+    subroutine femocs_run(this, E_field, message)
         implicit none
         class(femocs), intent(in) :: this
         real(c_double), intent(in) :: E_field
-        call femocs_run_c(this%ptr, E_field)
+        character(len=*), intent(in) :: message
+        character(len=1, kind=C_CHAR) :: c_str(len_trim(message) + 1)
+        integer :: N, i
+
+        ! Converting Fortran string to C string
+        N = len_trim(message)
+        do i = 1, N
+            c_str(i) = message(i:i)
+        end do
+        c_str(N + 1) = C_NULL_CHAR
+
+        call femocs_run_c(this%ptr, E_field, c_str)
     end subroutine
     
     subroutine femocs_import_atoms(this, n_atoms, x, y, z, types)
@@ -157,6 +177,23 @@ module libfemocs
         integer(c_int) :: nborlist(*)
         call femocs_import_atoms2_c(this%ptr, n_atoms, coordinates, box, nborlist)
     end subroutine    
+
+    subroutine femocs_import_file(this, file_name)
+        implicit none
+        class(femocs), intent(in) :: this
+        character(len=*), intent(in) :: file_name
+        character(len=1, kind=C_CHAR) :: c_str(len_trim(file_name) + 1)
+        integer :: N, i
+
+        ! Converting Fortran string to C string
+        N = len_trim(file_name)
+        do i = 1, N
+            c_str(i) = file_name(i:i)
+        end do
+        c_str(N + 1) = C_NULL_CHAR
+
+        call femocs_import_file_c(this%ptr, c_str)
+    end subroutine
     
     subroutine femocs_export_solution(this, n_atoms, Ex, Ey, Ez, Enorm)
         implicit none

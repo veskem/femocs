@@ -78,10 +78,6 @@ const void SolutionReader::extract_solution(DealII* fem, Medium &medium) {
             solution.push_back( Solution(ef[i], ef[i].length(), pot[i]) );
             add_atom(medium.get_atom(node));
             i++;
-        } else {
-            solution.push_back( Solution(error_field) );
-            add_atom(medium.get_atom(node));
-            set_id(node, -1);
         }
 }
 
@@ -312,6 +308,9 @@ const void SolutionReader::export_helmod(int n_atoms, double* Ex, double* Ey, do
 
 // Reserve memory for solution vectors
 const void SolutionReader::reserve(const int n_nodes) {
+    atoms.clear();
+    solution.clear();
+
     Medium::reserve(n_nodes);
     solution.reserve(n_nodes);
 }

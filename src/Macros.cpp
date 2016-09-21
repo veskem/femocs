@@ -25,14 +25,14 @@ inline string d2s(T data) {
 
 // Function to handle failed requirement
 void __requirement_fails(const char *file, int line, string message) {
-    string exc = "Exception:\nfile = " + string(file) + "\nline = " + d2s(line) + "\nmessage = "
+    string exc = "\nException:\nfile = " + string(file) + "\nline = " + d2s(line) + "\nmessage = "
             + message + "\n";
     throw runtime_error(exc);
 }
 
 // Function to handle failed expectation
 void __expectation_fails(const char *file, int line, string message) {
-    string exc = "Warning:\nfile = " + string(file) + "\nline = " + d2s(line) + "\nmessage = "
+    string exc = "\nWarning:\nfile = " + string(file) + "\nline = " + d2s(line) + "\nmessage = "
             + message + "\n";
     cout << exc << endl;
 }

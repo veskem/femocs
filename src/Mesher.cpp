@@ -175,7 +175,7 @@ const void Mesher::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, cons
 // Generate manually edges and surface faces
 const void Mesher::generate_mesh_appendices() {
     // Generate edges from elements
-    generate_edges();
+//    generate_edges();
     // Generate surface faces from elements
     generate_surf_faces();
 }
@@ -369,7 +369,7 @@ const void Mesher::separate_meshes_vol2(Mesh* vacuum, Mesh* bulk, const string& 
 //    vector<bool> elem_in_vacuum = vector_not(mesh->get_elemmarkers(), TYPES.BULK);
     vector<bool> elem_in_vacuum = vector_equal(mesh->get_elemmarkers(), TYPES.VACUUM);
 
-//    // Mark elements that are on the perimeter of simulation box
+    // Mark elements that are on the perimeter of simulation box
 //    vector<bool> elem_on_perim(n_elems);
 //    for (int i = 0; i < n_elems; ++i) {
 //        int I = i * mesh->n_edges_per_elem;
@@ -378,7 +378,7 @@ const void Mesher::separate_meshes_vol2(Mesh* vacuum, Mesh* bulk, const string& 
 //            on_edge |= mesh->get_edgemarker(I+j) == TYPES.PERIMETER;
 //        elem_on_perim[i] = on_edge;
 //    }
-
+//
 //    swap_sharp_elements(elem_in_vacuum, elem_on_perim);
 //    swap_sharp_elements(elem_in_vacuum, elem_on_perim);
 //    swap_sharp_elements(elem_in_vacuum, elem_on_perim);
@@ -436,7 +436,9 @@ const void Mesher::swap_sharp_elements(vector<bool> &elem_in_vacuum, vector<bool
 }
 
 // Mark mesh nodes, edges, faces and elements
-const void Mesher::mark_mesh(const bool postprocess) {
+const bool Mesher::mark_mesh(const bool postprocess) {
+    bool marking_successful = true;
+
     // Mark nodes with ray-triangle intersection technique
     mark_nodes();
 
@@ -444,20 +446,25 @@ const void Mesher::mark_mesh(const bool postprocess) {
     mark_elems();
 
     // Post process the nodes in shadow areas
-    if (postprocess) post_process_marking();
+    if (postprocess) marking_successful = post_process_marking();
 
-    // Mark nodes on simulation cell perimeter
-    remark_perimeter_nodes();
+    if (!marking_successful)
+        return false;
 
-    // Mark edges by the node markers
-    mark_edges();
+//    // Mark nodes on simulation cell perimeter
+//    remark_perimeter_nodes();
+//
+//    // Mark edges by the node markers
+//    mark_edges();
 
     // Mark faces on simulation cell edges
 //    mark_faces;
+
+    return marking_successful;
 }
 
 // Force the bulk nodes in vacuum elements to become vacuum nodes
-const void Mesher::post_process_marking() {
+const bool Mesher::post_process_marking() {
     const int n_elems = mesh->get_n_elems();
 
     bool node_changed = true;
@@ -483,8 +490,11 @@ const void Mesher::post_process_marking() {
 
     // Among the other things calculate the number of atoms with given types
     mesh->calc_statistics(0);
-    require(mesh->stat.n_bulk >= 4, "Nodemarker post-processor deleted the bulk atoms.\n"
+    expect(mesh->stat.n_bulk > 4, "Nodemarker post-processor deleted the bulk atoms.\n"
             "Consider altering the surface refinement factor or disabling the post-processing.");
+
+    // Return value indicates whether the new system is valid or not
+    return mesh->stat.n_bulk > 4;
 }
 
 /* Function to mark nodes with ray-triangle intersection technique

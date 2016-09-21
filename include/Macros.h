@@ -12,7 +12,7 @@
 #define DEBUGMODE true
 
 /** If VERBOSE then the debug information about the code execution is printed out. */
-#define VERBOSE true
+#define VERBOSE false
 
 #include <iostream>
 #include <string>

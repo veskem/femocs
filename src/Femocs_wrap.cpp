@@ -23,7 +23,9 @@ FEMOCS* create_femocs(const char* s);
 // Destructor
 void delete_femocs(FEMOCS* femocs);
 
-const void femocs_run(FEMOCS* femocs, double E_field);
+const void femocs_run(FEMOCS* femocs, double E_field, const char* message);
+
+const void femocs_import_file(FEMOCS* femocs, const char* s);
 
 const void femocs_import_atoms2(FEMOCS* femocs, int n_atoms, const double* coordinates, const double* box, const int* nborlist);
 
@@ -50,8 +52,12 @@ void delete_femocs(FEMOCS* femocs){
     delete femocs;
 }
 
-const void femocs_run(FEMOCS* femocs, double E_field){
-    femocs->run(E_field);
+const void femocs_run(FEMOCS* femocs, double E_field, const char* message){
+    femocs->run(E_field, string(message));
+}
+
+const void femocs_import_file(FEMOCS* femocs, const char* s) {
+    femocs->import_atoms(string(s));
 }
 
 const void femocs_import_atoms2(FEMOCS* femocs, int n_atoms, const double* coordinates, const double* box, const int* nborlist) {

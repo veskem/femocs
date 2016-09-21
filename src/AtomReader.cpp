@@ -22,6 +22,9 @@ AtomReader::AtomReader() : Medium(), simu_type("") {}
 // Reserve memory for data vectors
 const void AtomReader::reserve(const int n_atoms) {
     require(n_atoms > 0, "Invalid # atoms: " + to_string(n_atoms));
+    atoms.clear();
+    type.clear();
+
     Medium::reserve(n_atoms);
     type.reserve(n_atoms);
 }
@@ -32,7 +35,31 @@ const void AtomReader::add_atom(const int id, const Point3 &point, const int typ
     this->type.push_back(type);
 }
 
-const void AtomReader::calc_coordination(int nnn, double cutoff, const int* nborlist) {
+const bool AtomReader::equals_previous_run(const double eps) {
+    const int n_atoms = get_n_atoms();
+    const double eps2 = eps * eps;
+
+    if (n_atoms != previous_point.size())
+        return false;
+
+    for (int i = 0; i < n_atoms; ++i)
+        if ( get_point(i).distance2(previous_point[i]) > eps )
+            return false;
+
+    return true;
+}
+
+const void AtomReader::save_current_run_points() {
+    const int n_atoms = get_n_atoms();
+
+    if (n_atoms != previous_point.size())
+        previous_point.resize(n_atoms);
+
+    for (int i = 0; i < n_atoms; ++i)
+        previous_point[i] = get_point(i);
+}
+
+const void AtomReader::calc_coordination(const int nnn, const double cutoff, const int* nborlist) {
     require(cutoff > 0, "Invalid cutoff: " + to_string(cutoff));
     require(nnn >= 0, "Invalid # nearest neighbors: " + to_string(nnn));
 
@@ -53,8 +80,10 @@ const void AtomReader::calc_coordination(int nnn, double cutoff, const int* nbor
             double r2 = point1.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox);
 
             if (r2 <= cutoff2) {
-                if(atoms[i].coord < nnn) atoms[i].coord++;
-                if(atoms[nbor].coord < nnn) atoms[nbor].coord++;
+                atoms[i].coord++;
+                atoms[nbor].coord++;
+//                if(atoms[i].coord < nnn) atoms[i].coord++;
+//                if(atoms[nbor].coord < nnn) atoms[nbor].coord++;
             }
         }
         nbor_indx += n_nbors;
@@ -63,14 +92,14 @@ const void AtomReader::calc_coordination(int nnn, double cutoff, const int* nbor
 }
 
 // Calculate coordination (# nearest neighbours within cutoff radius) for all the atoms
-const void AtomReader::calc_coordination(int nnn, double cutoff) {
+const void AtomReader::calc_coordination(const int nnn, const double cutoff) {
     require(nnn > 0, "Invalid number of nearest neighbors: " + to_string(nnn));
+    require(simu_type == "md" || simu_type == "kmc", "Incorrect simulation type: " + simu_type);
+
     if (simu_type == "md")
-        calc_slow_coordination(cutoff, nnn);
+        calc_slow_coordination(cutoff);
     else if (simu_type == "kmc")
         calc_dummy_coordination(nnn);
-    else
-        require(false, "Incorrect simulation type: " + simu_type);
 
     check_coordination();
 }
@@ -81,53 +110,39 @@ const void AtomReader::check_coordination() {
     const int coord_min = 0;
     for (Atom a : atoms)
         if ((a.coord < coord_max) && (a.coord >= coord_min))
-            cout << endl << "WARNING: evaporated atom detected!" << endl;
+            expect(false, "WARNING: evaporated atom detected!");
 }
 
-// Calculate coordination for atoms coming from MD simulations
-const void AtomReader::calc_slow_coordination(const double cutoff, const int nnn) {
-    require(cutoff > 0 && nnn >= 0, "Invalid cutoff or nnn!");
+// Calculate without neighbour list the coordination for atoms coming from MD simulations
+const void AtomReader::calc_slow_coordination(const double cutoff) {
+    require(cutoff > 0, "Invalid cutoff: " + to_string(cutoff));
 
-    expect(false, "WARNING: Running unoptimized coordination calculation!");
+    expect(false, "WARNING: Running slow coordination calculation!");
 
-    Point3 point1, dpoint;
-    int N = get_n_atoms();
-    int i, j, coord;
-    double r2, dx, dy, dz;
-    double cutoff2 = cutoff * cutoff;
+    const int n_atoms = get_n_atoms();
+    const double cutoff2 = cutoff * cutoff;
 
-//    omp_set_num_threads(this->nrOfOmpThreads);
-//#pragma omp parallel for shared(coords,is_surface) private(i,j,dx,dy,dz,r2) reduction(+:coord,N)
-    for (i = 0; i < N; ++i) {
-        coord = 0;
-        point1 = get_point(i);
+    vector<int> coordinations(n_atoms, 0);
 
-        for (j = 0; j < N; ++j) {
-            if (i == j) continue;
-//            dpoint = point1 - get_point(j);
-//
-//            dx = fabs(dpoint.x);
-//            dy = fabs(dpoint.y);
-//            dz = fabs(dpoint.z);
-//
-//            dx = min(dx, fabs(dx - sizes.xbox)); // apply periodic boundary condition in x-direction
-//            dy = min(dy, fabs(dy - sizes.ybox)); // apply periodic boundary condition in y-direction
-//            //dz = min(dz, fabs(dz - sizes.zbox)); // apply periodic boundary condition in z-direction
-//
-//            r2 = dx * dx + dy * dy + dz * dz;
-            r2 = point1.periodic_distance2(get_point(j), sizes.xbox, sizes.ybox);
-            if (r2 <= cutoff2) coord++;
-            if (coord >= nnn) break; // Coordination can't be bigger than the biggest expected
+    for (int i = 0; i < n_atoms - 1; ++i) {
+        Point3 point1 = get_point(i);
+        for (int j = i + 1; j < n_atoms; ++j) {
+            double r2 = point1.periodic_distance2(get_point(j), sizes.xbox, sizes.ybox);
+            if (r2 <= cutoff2) {
+                coordinations[i]++;
+                coordinations[j]++;
+            }
         }
-
-        set_coordination(i, coord);
     }
+
+    for (int i = 0; i < n_atoms; ++i)
+        set_coordination(i, coordinations[i]);
 }
 
 // Calculate coordination for atoms coming from KMC simulations
 const void AtomReader::calc_dummy_coordination(const int nnn) {
     require(nnn > 0, "Invalid number of nearest neighbors!");
-    int n_atoms = get_n_atoms();
+    const int n_atoms = get_n_atoms();
 
     for (int i = 0; i < n_atoms; ++i) {
         if (type[i] == TYPES.BULK)
@@ -139,12 +154,15 @@ const void AtomReader::calc_dummy_coordination(const int nnn) {
     }
 }
 
-const void AtomReader::extract_types(int nnn) {
+const void AtomReader::extract_types(const int nnn, const double latconst) {
     const int n_atoms = get_n_atoms();
+    calc_statistics();
+    crys_struct.latconst = latconst;
+
     for (int i = 0; i < n_atoms; ++i) {
         if( get_coordination(i) >= (nnn - 1) )
             type[i] = TYPES.BULK;
-        else if(get_point(i).z < (sizes.zmin + 10.0)) // *crys_struct.latconst))
+        else if(get_point(i).z < (sizes.zmin + 2.0 * crys_struct.latconst))
             type[i] = TYPES.FIXED;
         else
             type[i] = TYPES.SURFACE;

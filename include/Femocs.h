@@ -39,6 +39,9 @@ public:
         int nt;                 //!< number of OpenMP threads
         double neumann;         //!< value of Neumann boundary condition
         bool postprocess_marking; //!< make extra effort to mark correctly the vacuum nodes in shadowed area
+        /**  minimum distance between atoms from current and previous run so that
+         * their movement is considered to be sufficiently big to recalculate electric field */
+        double significant_distance;
 
         //!< Radius of cylinder where surface atoms are not coarsened; zero enables coarsening of all atoms.
         double rmin_coarse;
@@ -58,12 +61,15 @@ public:
      * The function to generate FEM mesh and to solve differential equation(s).
      * @param E_field - long range electric field
      */
-    const void run(double E_field);
+    const void run(double E_field, string msg);
 
-    const void import_atoms(int n_atoms, const double* coordinates, const double* box, const int* nborlist);
+    const void import_atoms(int n_atoms, const double* coordinates, const double* box,
+            const int* nborlist);
     const void import_atoms(int n_atoms, double* x, double* y, double* z, int* types);
+    const void import_atoms(string file_name);
     const void export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
-    const void export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm, const int* nborlist);
+    const void export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm,
+            const int* nborlist);
 
 private:
     bool solution_valid;

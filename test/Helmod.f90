@@ -12,14 +12,15 @@ program Helmod
     types = (/ 1,1,1,1,1,1,1,1,1,1  /)
 
     ! Create an object of type foo
-    f = femocs("output/elems_vacuum.vtk")
+    f = femocs("")
 
     ! Call bound procedures (member functions)
     write(*,*) "Running femocs.import_atoms"
-    call f%import_atoms(0, x, x, x, types)
-    
+    ! call f%import_atoms(0, x, x, x, types)
+    call f%import_file("")
+     
     write(*,*) "Running femocs.run"
-    call f%run(0.1d0)
+    call f%run(0.1d0, "elems.vtk")
     
     !write(*,*) "Running femocs_speaker..."
     !call femocs_speaker("From Fortran!")

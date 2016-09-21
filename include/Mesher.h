@@ -75,7 +75,7 @@ public:
 
     const void generate_mesh_appendices();
 
-    const void mark_mesh(const bool postprocess);
+    const bool mark_mesh(const bool postprocess);
 
     const void separate_meshes(Mesh* vacuum, Mesh* bulk, const string& cmd);
     const void separate_meshes(Mesh* vacuum, const string& cmd);
@@ -96,7 +96,7 @@ private:
     const void mark_elems();
     const void remark_perimeter_nodes();
     const void remark_elems(const int skip_type);
-    const void post_process_marking();
+    const bool post_process_marking();
 
     const void generate_edges();
 

@@ -354,16 +354,15 @@ const Surface Surface::coarsen_vol2(const double coord_cutoff, const double r_in
     Point3 origin3d(origin2d[0], origin2d[1], coarse_surf.sizes.zmean);
 
     Edge edge;
-//    edge.extract_edge(&coarse_surf, ar_sizes, 2.0*crys_struct.latconst);
+//    edge.extract_edge(&coarse_surf, ar_sizes, crys_struct.latconst);
 
-    const double r_cut = 1.1*coarse_factor * crys_struct.latconst * sqrt(sqrt(2)*sizes.xbox/2 - r_in);
+    const double r_cut = 1.1* (coarse_factor * crys_struct.latconst * sqrt(sqrt(2)*sizes.xbox/2 - r_in));
     edge.generate_uniform(ar_sizes, coarse_surf.sizes.zmean, r_cut);
 
     // Sort edge and coarse_surf atoms in radial direction
     // to get proper order in deleting atoms too close to each other
 
-    edge.sort_atoms(3, "down", Point2(origin3d.x, origin3d.y));
-    coarse_surf.sort_atoms(3, "down", Point2(origin3d.x, origin3d.y));
+    edge.sort_atoms(3, "down", origin2d);
     dense_surf = dense_surf.clean_lonely_atoms(coord_cutoff);
 
     // Build up union surface atoms in the order of their survival priority during clean-up
@@ -378,6 +377,50 @@ const Surface Surface::coarsen_vol2(const double coord_cutoff, const double r_in
     union_surf += dense_surf;
 
     return union_surf;
+}
+
+// Function to coarsen the atoms outside the cylinder in the middle of simulation cell
+Surface Surface::coarsen_vol3(const double coord_cutoff, const double r_in, const double r_out,
+        const double coarse_factor, const AtomReader::Sizes* ar_sizes) {
+
+    const double r_cut2 = r_in * r_in;
+
+    int i, j;
+    const int n_atoms = get_n_atoms();
+    vector<bool> is_coarse(n_atoms);
+
+    Point2 origin2d((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
+    Surface coarse_surf(crys_struct.latconst, crys_struct.nnn);
+
+    // Create a map from atoms in- and outside the dense region
+    for (i = 0; i < n_atoms; ++i)
+        is_coarse[i] = (origin2d.distance2(get_point2(i)) > r_cut2);
+
+    coarse_surf.reserve(vector_sum(is_coarse));
+
+    // Separate the atoms from coarse region
+    for (i = 0; i < n_atoms; ++i)
+        if (is_coarse[i])
+            coarse_surf.add_atom(get_atom(i));
+
+    // Among the other things calculate the average z-coordinate of coarse_surf atoms
+    coarse_surf.calc_statistics();
+    Point3 origin3d(origin2d[0], origin2d[1], coarse_surf.sizes.zmean);
+
+    double dense_cutoff = crys_struct.latconst;
+    const double edge_cutoff = 1.1 * (coarse_factor * crys_struct.latconst * sqrt(sqrt(2)*sizes.xbox/2 - r_in) + dense_cutoff);
+
+    Edge edge;
+    edge.generate_uniform(ar_sizes, coarse_surf.sizes.zmean, edge_cutoff);
+
+    edge.sort_atoms(3, "down", origin2d);
+    this->sort_atoms(3, 2, "down", origin2d);
+
+    Surface union_surf(crys_struct.latconst, crys_struct.nnn);
+    union_surf += edge;
+    union_surf.add(this);
+
+    return union_surf.clean_vol2(coarse_factor, r_in, dense_cutoff, origin3d);
 }
 
 // Function to flatten the atoms on the sides of simulation box
@@ -398,26 +441,28 @@ const Surface Surface::clean() {
 }
 
 // Function to clean the Surface from atoms with distance smaller than constant cutoff
-const Surface Surface::clean(const double r_cut) {
+const Surface Surface::clean(const double r_cut, const double offset) {
     require(r_cut >= 0, "Cutoff distance between atoms must be non-negative!");
-    return this->clean(Point3(), -1, 1e20, r_cut);
+    return this->clean(Point3(), -1, 1e20, r_cut, offset);
 }
 
 // Function to clean the Surface from atoms with distance smaller than radially increasing cutoff
-const Surface Surface::clean(const Point3 &origin, double r_in, double r_out, double multiplier) {
+const Surface Surface::clean(const Point3 &origin, const double r_in, const double r_out,
+        const double multiplier, const double offset) {
+
     Surface surf(crys_struct.latconst, crys_struct.nnn);
-    int i, j;
-    double cutoff2 = 0.0;
     const double A2 = multiplier * crys_struct.latconst * multiplier * crys_struct.latconst;
+    const double A = multiplier * crys_struct.latconst;
+    double cutoff2 = offset * offset;
 
     const bool use_non_constant_cutoff = multiplier > 0 && r_in >= 0;
-    if (r_in < 0) cutoff2 = multiplier * multiplier;
+    if (r_in < 0) cutoff2 = (multiplier + offset) * (multiplier + offset);
 
     const int n_atoms = get_n_atoms();
     vector<bool> do_delete(n_atoms, false);
 
     // Loop through all the atoms
-    for(i = 0; i < n_atoms-1; ++i) {
+    for(int i = 0; i < n_atoms-1; ++i) {
         // Skip already deleted atoms
         if (do_delete[i]) continue;
 
@@ -427,10 +472,12 @@ const Surface Surface::clean(const Point3 &origin, double r_in, double r_out, do
         //             = 0,                  if r <= r_in
         if(use_non_constant_cutoff) {
             double dist = min(r_out, point1.distance(origin));
-            cutoff2 = A2 * (dist - r_in);
+//            cutoff2 = A2 * (dist - r_in);
+            cutoff2 = A * sqrt(dist - r_in) + offset;
+            cutoff2 *= cutoff2;
         }
 
-        for (j = i+1; j < n_atoms; ++j) {
+        for (int j = i+1; j < n_atoms; ++j) {
             // Skip already deleted atoms
             if (do_delete[j]) continue;
             do_delete[j] = point1.distance2(get_point(j)) <= cutoff2;
@@ -438,11 +485,55 @@ const Surface Surface::clean(const Point3 &origin, double r_in, double r_out, do
     }
 
     surf.reserve( n_atoms - vector_sum(do_delete) );
-    for (i = 0; i < n_atoms; ++i)
+    for (int i = 0; i < n_atoms; ++i)
         if(!do_delete[i])
             surf.add_atom(get_atom(i));
 
     surf.calc_statistics();
+    return surf;
+}
+
+// Function to clean the Surface from atoms with distance smaller than radially increasing cutoff
+const Surface Surface::clean_vol2(const double multiplier, const double r_in, const double offset, const Point3 &origin) {
+    const int n_atoms = get_n_atoms();
+    const double A = multiplier * crys_struct.latconst;
+    const double r_in2 = r_in * r_in;
+    Point2 origin2d(origin.x, origin.y);
+
+    double dist, cutoff2;
+
+    Surface surf(crys_struct.latconst, crys_struct.nnn);
+    vector<bool> do_delete(n_atoms, false);
+
+    // Loop through all the atoms
+    for(int i = 0; i < n_atoms-1; ++i) {
+        // Skip already deleted atoms
+        if (do_delete[i]) continue;
+
+        // r_cutoff(r) = A * sqrt(r - r_in), if r >  r_in
+        //             = 0,                  if r <= r_in
+        Point3 point1 = get_point(i);
+        if ( origin2d.distance2(Point2(point1.x, point1.y)) > r_in2 ) {
+            cutoff2 = A * sqrt( fabs(origin.distance(point1) - r_in) ) + offset;
+            cutoff2 *= cutoff2;
+        }
+        else
+            cutoff2 = offset * offset;
+
+        for (int j = i+1; j < n_atoms; ++j) {
+            // Skip already deleted atoms
+            if (do_delete[j]) continue;
+            do_delete[j] = point1.distance2(get_point(j)) <= cutoff2;
+        }
+    }
+
+    surf.reserve( n_atoms - vector_sum(do_delete) );
+    for (int i = 0; i < n_atoms; ++i)
+        if(!do_delete[i])
+            surf.add_atom(get_atom(i));
+
+    surf.calc_statistics();
+
     return surf;
 }
 
