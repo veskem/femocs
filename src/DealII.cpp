@@ -417,6 +417,7 @@ const vector<Vec3> DealII::get_elfield_at_node(const vector<int> &cell_indxs, co
             fe_values.get_function_gradients(laplace_solution, solution_gradients);
 
             Tensor<1, DIM> ef = -1.0 * solution_gradients.at(vert_indxs[si]);
+            solution_gradients[vert_indxs[si]];
             elfield[si] = Vec3(ef[0], ef[1], ef[2]);
 
             si = sort_indxs[i++];

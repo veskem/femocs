@@ -28,6 +28,8 @@ public:
     const void print_statistics();
     const void sort_atoms(const int x1, const int x2, const string& direction = "up");
 
+    const Solution get_solution(const int i);
+
 private:
     DealII* fem;
     double longrange_efield;
@@ -60,6 +62,56 @@ private:
      * In medium2node the value -1 indicates that there's no node in the mesh that corresponds to the given atom.
      */
     const void get_maps(Medium& medium, vector<int>& medium2node, vector<int>& node2elem, vector<int>& node2vert);
+};
+
+/** Class to linearly interpolate solution inside tetrahedral mesh */
+
+/* Useful links
+ *
+ * Compact theory how to find barycentric coordintes (bbc):
+ * http://steve.hollasch.net/cgindex/geometry/ptintet.html
+ *
+ * Properties of determinant:
+ * http://www.vitutor.com/alg/determinants/properties_determinants.html
+ * http://www.vitutor.com/alg/determinants/minor_cofactor.html
+ *
+ * c++ code to find and handle bcc-s:
+ * http://dennis2society.de/painless-tetrahedral-barycentric-mapping
+ *
+ * Interpolating inside the element using bcc:
+ * http://www.cwscholz.net/projects/diss/html/node37.html
+ *
+ * */
+class Interpolator {
+public:
+    /** Interpolator conctructor */
+    Interpolator();
+    Interpolator(Mesh* mesh, SolutionReader* solution);
+
+    const void reserve(const int N);
+
+    const void test();
+
+private:
+    SolutionReader* solution;
+    Mesh* mesh;
+
+    vector<Point3> centroid;
+    vector<double> det0;
+    vector<Vec4> det1;
+    vector<Vec4> det2;
+    vector<Vec4> det3;
+    vector<Vec4> det4;
+
+    const void precompute_tetrahedra();
+
+    const double determinant(const Vec3 &v1, const Vec3 &v2);
+    const double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3);
+    const double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4);
+    const double determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4);
+    const Vec4 get_bcc(const Point3 &point, const int elem);
+    const Vec3 get_interpolation(const Point3 &point, const int elem);
+
 };
 
 } /* namespace femocs */

@@ -652,7 +652,7 @@ const void Mesher::mark_faces() {
     mesh->init_facemarkers(n_faces);
 
     for (int i = 0; i < n_faces; ++i) {
-        Point3 centre = mesh->get_face_centre(i);
+        Point3 centre = mesh->get_face_centroid(i);
 
         if (on_boundary(centre.x, mesh->stat.xmin, eps))
             mesh->add_facemarker(TYPES.XMIN);

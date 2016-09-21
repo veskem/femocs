@@ -13,9 +13,217 @@
 using namespace std;
 namespace femocs {
 
+Interpolator::Interpolator() {
+    this->mesh = NULL;
+    this->solution = NULL;
+    reserve(0);
+};
+
+Interpolator::Interpolator(Mesh* mesh, SolutionReader* solution) {
+    this->mesh = mesh;
+    this->solution = solution;
+    reserve(0);
+};
+
+const void Interpolator::reserve(const int N) {
+    centroid.reserve(N);
+    det0.reserve(N);
+    det1.reserve(N);
+    det2.reserve(N);
+    det3.reserve(N);
+    det4.reserve(N);
+}
+
+const void Interpolator::precompute_tetrahedra() {
+    const int n_elems = mesh->get_n_elems();
+    double d0, d1, d2, d3, d4;
+
+    reserve(n_elems);
+
+    // Calculate centroids of elements
+    for (int i = 0; i < n_elems; ++i)
+        centroid.push_back(mesh->get_elem_centroid(i));
+
+    /* Calculate main and minor determinants for 1st, 2nd, 3rd and 4th
+     * barycentric coordinate of tetrahedra using the relations below */
+    for (int i = 0; i < n_elems; ++i) {
+        SimpleElement se = mesh->get_simpleelem(i);
+        Vec3 v1 = mesh->get_vec(se.n1);
+        Vec3 v2 = mesh->get_vec(se.n2);
+        Vec3 v3 = mesh->get_vec(se.n3);
+        Vec3 v4 = mesh->get_vec(se.n4);
+
+        /* =====================================================================================
+         * det0 = |x1 y1 z1 1|
+                  |x2 y2 z2 1|
+                  |x3 y3 z3 1|
+                  |x4 y4 z4 1|  */
+        d0 = determinant(v1, v2, v3, v4);
+        expect(d0 != 0, "Coplanar elements are not allowed!");
+
+        det0.push_back(1.0 / d0);
+
+        /* =====================================================================================
+         * det1 = |x  y  z  1| = + x * |y2 z2 1| - y * |x2 z2 1| + z * |x2 y2 1| - |x2 y2 z2|
+                  |x2 y2 z2 1|         |y3 z3 1|       |x3 z3 1|       |x3 y3 1|   |x3 y3 z3|
+                  |x3 y3 z3 1|         |y4 z4 1|       |x4 z4 1|       |x4 y4 1|   |x4 y4 z4|
+                  |x4 y4 z4 1|  */
+        d1 = determinant(Vec3(v2.y, v3.y, v4.y), Vec3(v2.z, v3.z, v4.z));
+        d2 = determinant(Vec3(v2.x, v3.x, v4.x), Vec3(v2.z, v3.z, v4.z));
+        d3 = determinant(Vec3(v2.x, v3.x, v4.x), Vec3(v2.y, v3.y, v4.y));
+        d4 = determinant(Vec3(v2.x, v3.x, v4.x), Vec3(v2.y, v3.y, v4.y), Vec3(v2.z, v3.z, v4.z));
+
+        det1.push_back(Vec4(d1, -d2, d3, -d4));
+
+        /* =====================================================================================
+         * det2 = |x1 y1 z1 1| = - x * |y1 z1 1| + y * |x1 z1 1| - z * |x1 y1 1| + |x1 y1 z1|
+                  |x  y  z  1|         |y3 z3 1|       |x3 z3 1|       |x3 y3 1|   |x3 y3 z3|
+                  |x3 y3 z3 1|         |y4 z4 1|       |x4 z4 1|       |x4 y4 1|   |x4 y4 z4|
+                  |x4 y4 z4 1|  */
+        d1 = determinant(Vec3(v1.y, v3.y, v4.y), Vec3(v1.z, v3.z, v4.z));
+        d2 = determinant(Vec3(v1.x, v3.x, v4.x), Vec3(v1.z, v3.z, v4.z));
+        d3 = determinant(Vec3(v1.x, v3.x, v4.x), Vec3(v1.y, v3.y, v4.y));
+        d4 = determinant(Vec3(v1.x, v3.x, v4.x), Vec3(v1.y, v3.y, v4.y), Vec3(v1.z, v3.z, v4.z));
+
+        det2.push_back(Vec4(-d1, d2, -d3, d4));
+
+        /* =====================================================================================
+         * det3 = |x1 y1 z1 1| = + x * |y1 z1 1| - y * |x1 z1 1| + z * |x1 y1 1| - |x1 y1 z1|
+                  |x2 y2 z2 1|         |y2 z2 1|       |x2 z2 1|       |x2 y2 1|   |x2 y2 z2|
+                  |x  y  z  1|         |y4 z4 1|       |x4 z4 1|       |x4 y4 1|   |x4 y4 z4|
+                  |x4 y4 z4 1|  */
+        d1 = determinant(Vec3(v1.y, v2.y, v4.y), Vec3(v1.z, v2.z, v4.z));
+        d2 = determinant(Vec3(v1.x, v2.x, v4.x), Vec3(v1.z, v2.z, v4.z));
+        d3 = determinant(Vec3(v1.x, v2.x, v4.x), Vec3(v1.y, v2.y, v4.y));
+        d4 = determinant(Vec3(v1.x, v2.x, v4.x), Vec3(v1.y, v2.y, v4.y), Vec3(v1.z, v2.z, v4.z));
+
+        det3.push_back(Vec4(d1, -d2, d3, -d4));
+
+        /* =====================================================================================
+         * det4 = |x1 y1 z1 1| = - x * |y1 z1 1| + y * |x1 z1 1| - z * |x1 y1 1| + |x1 y1 z1|
+                  |x2 y2 z2 1|         |y2 z2 1|       |x2 z2 1|       |x2 y2 1|   |x2 y2 z2|
+                  |x3 y3 z3 1|         |y3 z3 1|       |x3 z3 1|       |x3 y3 1|   |x3 y3 z3|
+                  |x  y  z  1|  */
+
+        d1 = determinant(Vec3(v1.y, v2.y, v3.y), Vec3(v1.z, v2.z, v3.z));
+        d2 = determinant(Vec3(v1.x, v2.x, v3.x), Vec3(v1.z, v2.z, v3.z));
+        d3 = determinant(Vec3(v1.x, v2.x, v3.x), Vec3(v1.y, v2.y, v3.y));
+        d4 = determinant(v1, v2, v3);
+
+        det4.push_back(Vec4(-d1, d2, -d3, d4));
+    }
+}
+
+// Determinant of 3x3 matrix which's last column consists of ones
+const double Interpolator::determinant(const Vec3 &v1, const Vec3 &v2) {
+    return v1.y * v2.z - v2.y * v1.z
+         - v1.x * v2.z + v2.x * v1.z
+         + v1.x * v2.y - v2.x * v1.y;
+}
+
+// Determinant of 3x3 matrix which's columns consist of Vec3-s
+const double Interpolator::determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3) {
+    return v1.x * (v2.y * v3.z - v2.z * v3.y)
+         - v1.y * (v1.x * v3.z - v1.z * v3.x)
+         + v1.z * (v1.x * v2.y - v1.y * v2.x);
+}
+
+// Determinant of 4x4 matrix which's last column consists of ones
+const double Interpolator::determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4) {
+    const double det1 = determinant(v2, v3, v4);
+    const double det2 = determinant(v1, v3, v4);
+    const double det3 = determinant(v1, v2, v4);
+    const double det4 = determinant(v1, v2, v3);
+
+    return det1 - det2 + det3 - det4;
+}
+
+// Determinant of 4x4 matrix which's columns consist of Vec4-s
+const double Interpolator::determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4) {
+    return      v1.w*v2.z*v3.y*v4.x - v1.z*v2.w*v3.y*v4.x -
+                v1.w*v2.y*v3.z*v4.x + v1.y*v2.w*v3.z*v4.x +
+
+                v1.z*v2.y*v3.w*v4.x - v1.y*v2.z*v3.w*v4.x -
+                v1.w*v2.z*v3.x*v4.y + v1.z*v2.w*v3.x*v4.y +
+
+                v1.w*v2.x*v3.z*v4.y - v1.x*v2.w*v3.z*v4.y -
+                v1.z*v2.x*v3.w*v4.y + v1.x*v2.z*v3.w*v4.y +
+
+                v1.w*v2.y*v3.x*v4.z - v1.y*v2.w*v3.x*v4.z -
+                v1.w*v2.x*v3.y*v4.z + v1.x*v2.w*v3.y*v4.z +
+
+                v1.y*v2.x*v3.w*v4.z - v1.x*v2.y*v3.w*v4.z -
+                v1.z*v2.y*v3.x*v4.w + v1.y*v2.z*v3.x*v4.w +
+
+                v1.z*v2.x*v3.y*v4.w - v1.x*v2.z*v3.y*v4.w -
+                v1.y*v2.x*v3.z*v4.w + v1.x*v2.y*v3.z*v4.w;
+
+
+
+    double det1 = determinant(Vec3(v1[1],v1[2],v1[3]), Vec3(v2[1],v2[2],v2[3]), Vec3(v3[1],v3[2],v3[3]));
+    double det2 = determinant(Vec3(v1[0],v1[2],v1[3]), Vec3(v2[0],v2[2],v2[3]), Vec3(v3[0],v3[2],v3[3]));
+    double det3 = determinant(Vec3(v1[0],v1[1],v1[3]), Vec3(v2[0],v2[1],v2[3]), Vec3(v3[0],v3[1],v3[3]));
+    double det4 = determinant(Vec3(v1[0],v1[1],v1[2]), Vec3(v2[0],v2[1],v2[2]), Vec3(v3[0],v3[1],v3[2]));
+
+    return v4[0] * det1 - v4[1] * det2 + v4[2] * det3 - v4[3] * det4;
+}
+
+// Calculate barycentric coordinates for point in tetrahedron
+const Vec4 Interpolator::get_bcc(const Point3 &point, const int elem) {
+    expect(elem >= 0 && elem < mesh->get_n_elems(), "Index out of bounds: " + to_string(elem));
+
+    double bcc1 = det0[elem] * det1[elem].dotProduct(Vec4(point,1));
+    double bcc2 = det0[elem] * det2[elem].dotProduct(Vec4(point,1));
+    double bcc3 = det0[elem] * det3[elem].dotProduct(Vec4(point,1));
+    double bcc4 = det0[elem] * det4[elem].dotProduct(Vec4(point,1));
+
+    return Vec4(bcc1, bcc2, bcc3, bcc4);
+}
+
+// Calculate barycentric coordinates for point in tetrahedron
+const Vec3 Interpolator::get_interpolation(const Point3 &point, const int elem) {
+    expect(elem >= 0 && elem < mesh->get_n_elems(), "Index out of bounds: " + to_string(elem));
+
+    Vec4 bcc = get_bcc(point, elem);
+    SimpleElement selem = mesh->get_simpleelem(elem);
+
+    Vec3 interpolation(0.0);
+    for (int i = 0; i < mesh->n_nodes_per_elem; ++i)
+        interpolation += solution->get_solution(selem[i]).elfield * bcc[i];
+
+    return interpolation;
+}
+
+const void Interpolator::test() {
+    Vec3 v1(1, 2, 3);
+    Vec3 v2(4, 5, 6);
+    Vec3 v3(7, 8, 9);
+    Vec3 v9(10, 11, 12);
+    Vec3 v0(1);
+
+    Vec4 v4(1);
+    Vec4 v5(1, 20, 3, 4);
+    Vec4 v6(5, 6, 7, 8);
+    Vec4 v7(9, 100, 11, 12);
+    Vec4 v8(130, 14, 15, 16);
+
+    cout << "\ndet\n" << v1 << "\n" << v2 << "\n" << v3 << "\n = " << determinant(v1, v2, v3) << endl;
+    cout << "\ndet\n" << v1 << "\n" << v2 << "\n" << v0 << "\n = " << determinant(v1, v2) << endl;
+    cout << "\ndet\n" << v0 << "\n" << v2 << "\n" << v3 << "\n = " << determinant(v2, v3) << endl;
+
+    cout << "\ndet\n" << v5 << "\n" << v6 << "\n" << v7 << "\n" << v8 << "\n = " << determinant(v5, v6, v7, v8) << endl;
+    cout << "\ndet\n" << v1 << " 1\n" << v2 << " 1\n" << v3 << " 1\n" << v9 << " 1\n = " << determinant(v1, v2, v3, v9) << endl;
+}
+
+
 // SolutionReader constructor
 SolutionReader::SolutionReader() : longrange_efield(0) {
     reserve(0);
+}
+
+const Solution SolutionReader::get_solution(const int i) {
+    expect(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    return solution[i];
 }
 
 // Return the mapping between atoms & nodes, nodes & elements and nodes & vertices

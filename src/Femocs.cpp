@@ -79,7 +79,6 @@ const void Femocs::run(double E_field, string message) {
         }
     }
 
-
     // ====================================
     // ===== Converting imported data =====
     // ====================================

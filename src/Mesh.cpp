@@ -94,7 +94,7 @@ const SimpleElement Mesh::get_simpleelem(const int i) {
             tetIOout.tetrahedronlist[I+2], tetIOout.tetrahedronlist[I+3]);
 }
 
-const Point3 Mesh::get_face_centre(int i) {
+const Point3 Mesh::get_face_centroid(int i) {
     require(get_n_faces() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_faces(), "Invalid index: " + to_string(i));
 
@@ -106,14 +106,14 @@ const Point3 Mesh::get_face_centre(int i) {
     return verts;
 }
 
-const Point3 Mesh::get_elem_centre(int i) {
+const Point3 Mesh::get_elem_centroid(int i) {
     require(get_n_elems() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_elems(), "Invalid index: " + to_string(i));
 
     Point3 verts;
     for (int v : get_simpleelem(i))
         verts += get_node(v);
-    verts /= 1.0*n_nodes_per_elem;
+    verts *= 1.0/n_nodes_per_elem;
 
     return verts;
 }
@@ -583,7 +583,7 @@ const void Mesh::calc_qualities_byelem() {
         // The length of the tetrahedron shortest edge
         double min_edge = min(e1, min(e2, min(e3, min(e4, min(e5, e6)))));
 
-        double norm[] = {node1.norm(), node2.norm(), node3.norm(), node4.norm()};
+        double norm[] = {node1.length(), node2.length(), node3.length(), node4.length()};
         double xx[] = {node1.x, node2.x, node3.x, node4.x};
         double yy[] = {node1.y, node2.y, node3.y, node4.y};
         double zz[] = {node1.z, node2.z, node3.z, node4.z};

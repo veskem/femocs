@@ -208,124 +208,6 @@ public:
     T n1, n2, n3, n4;      //!< Vertices of SimpleElement
 };
 
-/** Template class to define the 3-dimensional vector with its operations */
-template<typename T>
-class Vec3_T {
-public:
-    /** Vec3 constructors */
-    Vec3_T() : x(T(0)), y(T(0)), z(T(0)) {}
-    Vec3_T(T xx) : x(xx), y(xx), z(xx) {}
-    Vec3_T(T xx, T yy, T zz) : x(xx), y(yy), z(zz) {}
-
-    /** Dimensionality of vector */
-    const int size() const {
-        return 3;
-    }
-
-    /** Addition of two vectors */
-    Vec3_T operator +(const Vec3_T &v) const {
-        return Vec3_T(x + v.x, y + v.y, z + v.z);
-    }
-    Vec3_T& operator +=(const Vec3_T &v) {
-        x += v.x, y += v.y, z += v.z;
-        return *this;
-    }
-
-    /** Subtraction of two vectors */
-    Vec3_T operator -(const Vec3_T &v) const {
-        return Vec3_T(x - v.x, y - v.y, z - v.z);
-    }
-    Vec3_T operator -() const {
-        return Vec3_T(-x, -y, -z);
-    }
-    Vec3_T& operator -=(const Vec3_T &v) {
-        x -= v.x, y -= v.y, z -= v.z;
-        return *this;
-    }
-
-    /** Scalar multiplication of vector with a scalar and with another vector */
-    Vec3_T operator *(const T &r) const {
-        return Vec3_T(x * r, y * r, z * r);
-    }
-    Vec3_T operator *(const Vec3_T &v) const {
-        return Vec3_T(x * v.x, y * v.y, z * v.z);
-    }
-    friend Vec3_T operator *(const T &r, const Vec3_T &v) {
-        return Vec3_T<T>(v.x * r, v.y * r, v.z * r);
-    }
-    Vec3_T& operator *=(const T &r) {
-        x *= r, y *= r, z *= r;
-        return *this;
-    }
-
-    /** Scalar division of vector with a scalar or with another vector */
-    Vec3_T operator /(const T &r) const {
-        return Vec3_T(x / r, y / r, z / r);
-    }
-    Vec3_T operator /(const Vec3_T &v) const {
-        return Vec3_T(x / v.x, y / v.y, z / v.z);
-    }
-    friend Vec3_T operator /(const T &r, const Vec3_T &v) {
-        return Vec3_T<T>(r / v.x, r / v.y, r / v.z);
-    }
-    Vec3_T& operator /=(const T &r) {
-        x /= r, y /= r, z /= r;
-        return *this;
-    }
-
-    /** Equals operator */
-    bool operator ==(const Vec3_T &v) const {
-        return x == v.x && y == v.y && z == v.z;
-    }
-
-    /** Dot product, cross product, norm and length */
-    T dotProduct(const Vec3_T<T> &v) const {
-        return x * v.x + y * v.y + z * v.z;
-    }
-    Vec3_T crossProduct(const Vec3_T<T> &v) const {
-        return Vec3_T<T>(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
-    }
-    T norm() const {
-        return x * x + y * y + z * z;
-    }
-    T length() const {
-        return sqrt(norm());
-    }
-
-    /** Function to normalize the vector */
-    Vec3_T& normalize() {
-        T n = norm();
-        if (n > 0) {
-            T factor = 1 / sqrt(n);
-            x *= factor, y *= factor, z *= factor;
-        }
-        return *this;
-    }
-
-    /**
-     Define access operators or accessors.
-     The Vec3 coordinates can be accessed that way v[0], v[1], v[2], rather than v.x, v.y, v.z.
-     This is useful in loops: the coordinates can be accessed with the loop index (e.g. v[i]).
-     */
-    const T& operator [](uint8_t i) const { return (&x)[i]; }
-    T& operator [](uint8_t i) { return (&x)[i]; }
-
-    /** Attach iterator */
-    typedef Iterator<Vec3_T, T> iterator;
-    iterator begin() const { return iterator(this, 0); }
-    iterator end() const { return iterator(this, size()); }
-
-    /** Define the behaviour of string stream */
-    friend std::ostream& operator <<(std::ostream &s, const Vec3_T<T> &v) {
-        return s << v.x << ' ' << v.y << ' ' << v.z;
-    }
-
-    /** Return data as string */
-    string to_str() const { stringstream ss; ss << this; return ss.str(); }
-
-    T x, y, z;
-};
-
 /** Template class to define elementary operations between 3-dimensional points */
 template<typename T>
 class Point3_T{
@@ -528,10 +410,238 @@ public:
     T x, y, r;
 };
 
+/** Template class to define the 3-dimensional vector with its operations */
+template<typename T>
+class Vec3_T {
+public:
+    /** Vec3 constructors */
+    Vec3_T() : x(T(0)), y(T(0)), z(T(0)) {}
+    Vec3_T(T xx) : x(xx), y(xx), z(xx) {}
+    Vec3_T(T xx, T yy, T zz) : x(xx), y(yy), z(zz) {}
+
+    /** Dimensionality of vector */
+    const int size() const {
+        return 3;
+    }
+
+    /** Addition of two vectors */
+    Vec3_T operator +(const Vec3_T &v) const {
+        return Vec3_T(x + v.x, y + v.y, z + v.z);
+    }
+    Vec3_T& operator +=(const Vec3_T &v) {
+        x += v.x, y += v.y, z += v.z;
+        return *this;
+    }
+
+    /** Subtraction of two vectors */
+    Vec3_T operator -(const Vec3_T &v) const {
+        return Vec3_T(x - v.x, y - v.y, z - v.z);
+    }
+    Vec3_T& operator -=(const Vec3_T &v) {
+        x -= v.x, y -= v.y, z -= v.z;
+        return *this;
+    }
+
+    /** Scalar multiplication of vector with a scalar and with another vector */
+    Vec3_T operator *(const T &r) const {
+        return Vec3_T(x * r, y * r, z * r);
+    }
+    Vec3_T operator *(const Vec3_T &v) const {
+        return Vec3_T(x * v.x, y * v.y, z * v.z);
+    }
+    friend Vec3_T operator *(const T &r, const Vec3_T &v) {
+        return Vec3_T<T>(v.x * r, v.y * r, v.z * r);
+    }
+    Vec3_T& operator *=(const T &r) {
+        x *= r, y *= r, z *= r;
+        return *this;
+    }
+
+    /** Scalar division of vector with a scalar or with another vector */
+    Vec3_T operator /(const T &r) const {
+        return Vec3_T(x / r, y / r, z / r);
+    }
+    Vec3_T operator /(const Vec3_T &v) const {
+        return Vec3_T(x / v.x, y / v.y, z / v.z);
+    }
+    friend Vec3_T operator /(const T &r, const Vec3_T &v) {
+        return Vec3_T<T>(r / v.x, r / v.y, r / v.z);
+    }
+    Vec3_T& operator /=(const T &r) {
+        x /= r, y /= r, z /= r;
+        return *this;
+    }
+
+    /** Equals operator */
+    bool operator ==(const Vec3_T &v) const {
+        return x == v.x && y == v.y && z == v.z;
+    }
+
+    /** Dot product, cross product, norm and length */
+    T dotProduct(const Vec3_T<T> &v) const {
+        return x * v.x + y * v.y + z * v.z;
+    }
+    Vec3_T crossProduct(const Vec3_T<T> &v) const {
+        return Vec3_T<T>(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
+    }
+    T length2() const {
+        return x * x + y * y + z * z;
+    }
+    T length() const {
+        return sqrt(length2());
+    }
+
+    /** Function to normalize the vector */
+    Vec3_T& normalize() {
+        T n = length();
+        if (n > 0) {
+            T factor = 1 / sqrt(n);
+            x *= factor, y *= factor, z *= factor;
+        }
+        return *this;
+    }
+
+    /**
+     Define access operators or accessors.
+     The Vec3 coordinates can be accessed that way v[0], v[1], v[2], rather than v.x, v.y, v.z.
+     This is useful in loops: the coordinates can be accessed with the loop index (e.g. v[i]).
+     */
+    const T& operator [](uint8_t i) const { return (&x)[i]; }
+    T& operator [](uint8_t i) { return (&x)[i]; }
+
+    /** Attach iterator */
+    typedef Iterator<Vec3_T, T> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, size()); }
+
+    /** Define the behaviour of string stream */
+    friend std::ostream& operator <<(std::ostream &s, const Vec3_T<T> &v) {
+        return s << v.x << ' ' << v.y << ' ' << v.z;
+    }
+
+    /** Return data as string */
+    string to_str() const { stringstream ss; ss << this; return ss.str(); }
+
+    T x, y, z;
+};
+
+/** Template class to define the 4-dimensional vector with its operations */
+template<typename T>
+class Vec4_T {
+public:
+    /** Vec4 constructors */
+    Vec4_T() : x(T(0)), y(T(0)), z(T(0)), w(T(0)) {}
+    Vec4_T(T xx) : x(xx), y(xx), z(xx), w(xx) {}
+    Vec4_T(T xx, T yy, T zz, T ww) : x(xx), y(yy), z(zz), w(ww) {}
+    Vec4_T(const Vec3_T<T> &v, T ww) : x(v.x), y(v.y), z(v.z), w(ww) {}
+    Vec4_T(const Point3_T<T> &p, T ww) : x(p.x), y(p.y), z(p.z), w(ww) {}
+
+    /** Dimensionality of vector */
+    const int size() const {
+        return 4;
+    }
+
+    /** Addition of two vectors */
+    Vec4_T operator +(const Vec4_T &v) const {
+        return Vec4_T(x + v.x, y + v.y, z + v.z, w + v.w);
+    }
+    Vec4_T& operator +=(const Vec4_T &v) {
+        x += v.x, y += v.y, z += v.z, w += v.w;
+        return *this;
+    }
+
+    /** Subtraction of two vectors */
+    Vec4_T operator -(const Vec4_T &v) const {
+        return Vec4_T(x - v.x, y - v.y, z - v.z, w - v.w);
+    }
+    Vec4_T& operator -=(const Vec4_T &v) {
+        x -= v.x, y -= v.y, z -= v.z, w -= v.w;
+        return *this;
+    }
+
+    /** Scalar multiplication of vector with a scalar and with another vector */
+    Vec4_T operator *(const T &r) const {
+        return Vec4_T(x * r, y * r, z * r, w * r);
+    }
+    Vec4_T operator *(const Vec4_T &v) const {
+        return Vec4_T(x * v.x, y * v.y, z * v.z, w * v.w);
+    }
+    Vec4_T& operator *=(const T &r) {
+        x *= r, y *= r, z *= r, w *= r;
+        return *this;
+    }
+    Vec4_T& operator *=(const Vec4_T &v) const {
+        x *= v.x, y *= v.y, z *= v.z, w *= v.w;
+        return *this;
+    }
+
+    /** Scalar division of vector with a scalar or with another vector */
+    Vec4_T operator /(const T &r) const {
+        return Vec4_T(x / r, y / r, z / r, w / r);
+    }
+    Vec4_T operator /(const Vec4_T &v) const {
+        return Vec4_T(x / v.x, y / v.y, z / v.z, w / v.w);
+    }
+    Vec4_T& operator /=(const T &r) {
+        x /= r, y /= r, z /= r, w /= r;
+        return *this;
+    }
+    Vec4_T& operator /=(const Vec4_T &v) const {
+        x /= v.x, y /= v.y, z /= v.z, w /= v.w;
+        return *this;
+    }
+
+    /** Equals operator */
+    bool operator ==(const Vec4_T &v) const {
+        return x == v.x && y == v.y && z == v.z && w == v.w;
+    }
+
+    /** Dot product and length */
+    T dotProduct(const Vec4_T<T> &v) const {
+        return x * v.x + y * v.y + z * v.z + w * v.w;
+    }
+    T length2() const {
+        return x * x + y * y + z * z + w * w;
+    }
+    T length() const {
+        return sqrt(length2());
+    }
+
+    /** Function to normalize the vector */
+    Vec4_T& normalize() {
+        T n = length();
+        if (n > 0) {
+            T factor = 1 / sqrt(n);
+            x *= factor, y *= factor, z *= factor;
+        }
+        return *this;
+    }
+
+    /** Define access operators */
+    const T& operator [](uint8_t i) const { return (&x)[i]; }
+    T& operator [](uint8_t i) { return (&x)[i]; }
+
+    /** Attach iterator */
+    typedef Iterator<Vec4_T, T> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, size()); }
+
+    /** Define the behaviour of string stream */
+    friend std::ostream& operator <<(std::ostream &s, const Vec4_T<T> &v) {
+        return s << v.x << ' ' << v.y << ' ' << v.z << ' ' << v.w;
+    }
+
+    /** Return data as string */
+    string to_str() const { stringstream ss; ss << this; return ss.str(); }
+
+    T x, y, z, w;
+};
+
 typedef SimpleEdge_T<unsigned int> SimpleEdge;          //!> edge class without Point data
 typedef SimpleFace_T<unsigned int> SimpleFace;          //!> face class without Point data
 typedef SimpleElement_T<unsigned int> SimpleElement;    //!> element class without Point data
 
+typedef Vec4_T<double> Vec4;     //!> 4-dimensional vector class with double values
 typedef Vec3_T<double> Vec3;     //!> 3-dimensional vector class with double values
 typedef Point3_T<double> Point3; //!> 3-dimensional point class with double values
 typedef Point2_T<double> Point2; //!> 2-dimensional point class with double values

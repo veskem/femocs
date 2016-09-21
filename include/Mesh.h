@@ -108,8 +108,8 @@ public:
     const SimpleFace get_simpleface(const int i);
     const SimpleElement get_simpleelem(const int i);
 
-    const Point3 get_face_centre(int i);
-    const Point3 get_elem_centre(int i);
+    const Point3 get_face_centroid(int i);
+    const Point3 get_elem_centroid(int i);
 
     const void set_nodemarker(const int node, const int m);
     const void set_edgemarker(const int edge, const int m);
