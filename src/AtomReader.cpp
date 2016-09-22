@@ -162,7 +162,7 @@ const void AtomReader::extract_types(const int nnn, const double latconst) {
     for (int i = 0; i < n_atoms; ++i) {
         if( get_coordination(i) >= (nnn - 1) )
             type[i] = TYPES.BULK;
-        else if(get_point(i).z < (sizes.zmin + 2.0 * crys_struct.latconst))
+        else if(get_point(i).z < (sizes.zmin + crys_struct.latconst))
             type[i] = TYPES.FIXED;
         else
             type[i] = TYPES.SURFACE;

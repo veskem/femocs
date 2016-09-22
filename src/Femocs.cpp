@@ -22,14 +22,14 @@ using namespace std;
 Femocs::Femocs(string message) : solution_valid(false) {
     start_msg(double t0, "======= Femocs started! =======\n");
     conf.external_msg = message;
-    /*
+    //*
 //    conf.infile = "input/rough111.ckx";
-    conf.infile = "input/mushroom2.ckx";
-//    conf.infile = "input/nanotip_hr5.ckx";
+//    conf.infile = "input/mushroom2.ckx";
+    conf.infile = "input/nanotip_hr5.ckx";
     conf.latconst = 2.0;        // lattice constant
     conf.coord_cutoff = 3.1;    // coordination analysis cut off radius
     /*/
-    //*
+    /*
      conf.infile = "input/nanotip_medium.xyz";
      conf.latconst = 3.61;       // lattice constant
      conf.coord_cutoff = 3.1;   // coordination analysis cut off radius
@@ -39,14 +39,14 @@ Femocs::Femocs(string message) : solution_valid(false) {
     conf.mesher = "tetgen";          // mesher algorithm
     conf.mesh_quality = "2.0";
     conf.nt = 4;                     // number of OpenMP threads
-    conf.rmin_coarse = 27.0;         // inner radius of coarsening cylinder
+    conf.rmin_coarse = 17.0;         // inner radius of coarsening cylinder
     conf.rmax_coarse = 8000.0;       // radius of constant cutoff coarsening cylinder
     conf.coarse_factor = 0.4;        // coarsening factor; bigger number gives coarser surface
     conf.postprocess_marking = true; //true;//false; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
-    conf.movavg_width = 1.5;         // width of moving average in electric field smoother
+    conf.movavg_width = 2.0;         // width of moving average in electric field smoother
 
-    conf.significant_distance = conf.latconst / 2.0;
+    conf.significant_distance = 0.0;//conf.latconst / 2.0;
 }
 
 // Destructor, deletes data and prints bye-bye-message
@@ -63,9 +63,14 @@ const void Femocs::run(double E_field, string message) {
     conf.neumann = E_field;
     tstart = omp_get_wtime();
 
-//    start_msg(t0, "=== Outputting AtomReader...");
-//    reader.output("output/reader.xyz");
-//    end_msg(t0);
+//    femocs::Interpolator interp;
+//    interp.test();
+//
+//    return;
+
+    start_msg(t0, "=== Outputting AtomReader...");
+    reader.output("output/reader.xyz");
+    end_msg(t0);
 
     if (conf.significant_distance > 0.0) {
         start_msg(t0, "=== Comparing with previous run...");
@@ -90,7 +95,7 @@ const void Femocs::run(double E_field, string message) {
     dense_surf.extract_surface(&reader);
 
     if (conf.coarse_factor > 0)
-        coarse_surf = dense_surf.coarsen_vol3(conf.coord_cutoff, conf.rmin_coarse, conf.rmax_coarse,
+        coarse_surf = dense_surf.coarsen_vol2(conf.coord_cutoff, conf.rmin_coarse, conf.rmax_coarse,
                 conf.coarse_factor, &reader.sizes);
     else
         coarse_surf = dense_surf.rectangularize(&reader.sizes, conf.rmin_rectancularize);
@@ -165,23 +170,14 @@ const void Femocs::run(double E_field, string message) {
 
     mesher.separate_meshes_vol2(&vacuum_mesh, &bulk_mesh, "rQ");
 
-//    mesher.separate_meshes_noclean(&vacuum_mesh, "rQ");
-//    mesher.separate_meshes_noclean(&vacuum_mesh, &bulk_mesh, "rQ");
-
     bulk_mesh.write_nodes("output/nodes_bulk.xyz");
     bulk_mesh.write_edges("output/edges_bulk.vtk");
     bulk_mesh.write_faces("output/faces_bulk.vtk");
 
-//    cout << "message is: " << message;
-//
-//    remove(message.begin(), message.end(), ' ');
-
     bulk_mesh.write_elems("output/bulk_" + message);
-//    bulk_mesh.write_elems("output/bulk_elems.vtk");
     vacuum_mesh.write_nodes("output/nodes_vacuum.xyz");
     vacuum_mesh.write_edges("output/edges_vacuum.vtk");
     vacuum_mesh.write_faces("output/faces_vacuum.vtk");
-//    vacuum_mesh.write_elems("output/vacuum_elems.vtk");
     vacuum_mesh.write_elems("output/vacuum_" + message);
     end_msg(t0);
 
@@ -227,8 +223,8 @@ const void Femocs::run(double E_field, string message) {
 #if VERBOSE
     cout << "Vacuum: #elems=" << vacuum_mesh.get_n_elems() << ",\t#faces="
             << vacuum_mesh.get_n_faces() << ",\t#nodes=" << vacuum_mesh.get_n_nodes() << endl;
-//    cout << "Bulk:   #elems=" << bulk_mesh.get_n_elems() << ",\t#faces=" << bulk_mesh.get_n_faces()
-//             << ",\t#nodes=" << bulk_mesh.get_n_nodes() << endl;
+    cout << "Bulk:   #elems=" << bulk_mesh.get_n_elems() << ",\t#faces=" << bulk_mesh.get_n_faces()
+             << ",\t#nodes=" << bulk_mesh.get_n_nodes() << endl;
     cout << "Tethex: #elems=" << tethex_mesh.get_n_hexahedra() << ",\t#faces="
             << tethex_mesh.get_n_quadrangles() << ",\t#nodes=" << tethex_mesh.get_n_vertices() << endl;
     cout << "# degrees of freedom: " << laplace.get_n_dofs() << endl;
@@ -249,9 +245,9 @@ const void Femocs::run(double E_field, string message) {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting solution...");
-//    femocs::Medium medium = vacuum_mesh.to_medium();
-//    solution.extract_solution(&laplace, medium);
-    solution.extract_solution(&laplace, coarse_surf);
+    femocs::Medium medium = vacuum_mesh.to_medium();
+    solution.extract_solution(&laplace, medium);
+//    solution.extract_solution(&laplace, coarse_surf);
     end_msg(t0);
 
     start_msg(t0, "=== Smoothing solution...");
@@ -259,19 +255,13 @@ const void Femocs::run(double E_field, string message) {
     end_msg(t0);
     solution.print_statistics();
 
-//    start_msg(t0, "=== Extracting statistics...");
-//    solution.extract_statistics(vacuum_mesh);
-//    end_msg(t0);
-
     start_msg(t0, "=== Saving results...");
     solution.output("output/results.xyz");
-    if (conf.significant_distance > 0.0) reader.save_current_run_points();
 //    laplace.output_results("output/results.vtk");
+    if (conf.significant_distance > 0.0) reader.save_current_run_points();
     end_msg(t0);
 
-//#if VERBOSE
     cout << "\nTotal time of Femocs: " << omp_get_wtime() - tstart << "\n";
-//#endif
     solution_valid = true;
 }
 

@@ -9,36 +9,58 @@
 #include <fstream>
 
 #include <omp.h>
+#include <float.h>
 
 using namespace std;
 namespace femocs {
 
 Interpolator::Interpolator() {
     this->mesh = NULL;
-    this->solution = NULL;
     reserve(0);
+    reserve_precompute(0);
 };
 
-Interpolator::Interpolator(Mesh* mesh, SolutionReader* solution) {
+Interpolator::Interpolator(Mesh* mesh) {
     this->mesh = mesh;
-    this->solution = solution;
     reserve(0);
+    reserve_precompute(0);
 };
 
-const void Interpolator::reserve(const int N) {
+// Compile data string from the data vectors for file output
+const string Interpolator::get_data_string(const int i) {
+    if (i < 0) return "SolutionReader data: id x y z coordination Ex Ey Ez Enorm potential";
+
+    ostringstream strs;
+    strs << atoms[i] << " " << interpolation[i];
+    return strs.str();
+}
+
+// Reserve memory for precomputed data
+const void Interpolator::reserve_precompute(const int N) {
     centroid.reserve(N);
     det0.reserve(N);
     det1.reserve(N);
     det2.reserve(N);
     det3.reserve(N);
     det4.reserve(N);
+    tet_not_valid.reserve(N);
 }
 
+// Reserve memory for interpolation vectors
+const void Interpolator::reserve(const int n_nodes) {
+    atoms.clear();
+    interpolation.clear();
+
+    Medium::reserve(n_nodes);
+    interpolation.reserve(n_nodes);
+}
+
+// Precompute the data to tetrahedra to make later bcc calculations faster
 const void Interpolator::precompute_tetrahedra() {
     const int n_elems = mesh->get_n_elems();
     double d0, d1, d2, d3, d4;
 
-    reserve(n_elems);
+    reserve_precompute(n_elems);
 
     // Calculate centroids of elements
     for (int i = 0; i < n_elems; ++i)
@@ -59,8 +81,7 @@ const void Interpolator::precompute_tetrahedra() {
                   |x3 y3 z3 1|
                   |x4 y4 z4 1|  */
         d0 = determinant(v1, v2, v3, v4);
-        expect(d0 != 0, "Coplanar elements are not allowed!");
-
+        tet_not_valid.push_back(fabs(d0) < epsilon);
         det0.push_back(1.0 / d0);
 
         /* =====================================================================================
@@ -114,18 +135,144 @@ const void Interpolator::precompute_tetrahedra() {
     }
 }
 
+// Check with barycentric coordinates whether the point is inside the i-th tetrahedron
+const bool Interpolator::point_in_tetrahedron(const Point3 &point, const int i) {
+    // Get barycentric coordinates of point
+    expect(elem >= 0 && elem < mesh->get_n_elems(), "Index out of bounds: " + to_string(elem));
+
+    // Ignore co-planar tetrahedra
+    if (tet_not_valid[i]) return false;
+
+    Vec4 pt(point, 1);
+
+    // If one of the barycentric coordinates is < zero, the point is outside the tetrahedron
+    // Source: http://steve.hollasch.net/cgindex/geometry/ptintet.html
+    if (det0[i] * pt.dotProduct(det1[i]) < zero) return false;
+    if (det0[i] * pt.dotProduct(det2[i]) < zero) return false;
+    if (det0[i] * pt.dotProduct(det3[i]) < zero) return false;
+    if (det0[i] * pt.dotProduct(det4[i]) < zero) return false;
+
+    // All bcc-s are >= 0, so point is inside the tetrahedron
+    return true;
+}
+
+// Calculate barycentric coordinates for point
+const Vec4 Interpolator::get_bcc(const Point3 &point, const int elem) {
+    expect(elem >= 0 && elem < mesh->get_n_elems(), "Index out of bounds: " + to_string(elem));
+
+    Vec4 pt(point, 1);
+
+    double bcc1 = det0[elem] * pt.dotProduct(det1[elem]);
+    double bcc2 = det0[elem] * pt.dotProduct(det2[elem]);
+    double bcc3 = det0[elem] * pt.dotProduct(det3[elem]);
+    double bcc4 = det0[elem] * pt.dotProduct(det4[elem]);
+
+    return Vec4(bcc1, bcc2, bcc3, bcc4);
+}
+
+// Find the element which contains the point or is the closest to it
+const int Interpolator::locate_element(const Point3 &point, const int elem_guess) {
+    const int n_elems = mesh->get_n_elems();
+
+    // Check first the guessed element
+    if (point_in_tetrahedron(point, elem_guess)) return elem_guess;
+
+    // Check then the neighbours of guessed element
+    for (int nbr : mesh->get_elem_neighbours(elem_guess))
+        if (point_in_tetrahedron(point, nbr))
+            return nbr;
+
+    double min_distance2 = DBL_MAX;
+    int min_index = 0;
+
+    // If no success, loop through all the elements
+    for (int elem = 0; elem < mesh->get_n_elems(); ++elem) {
+        // If correct element is found, we're done
+        if (point_in_tetrahedron(point, elem)) return elem;
+
+        // Otherwise look for the element whose centroid distance to the point is the smallest
+        else {
+            double distance2 = point.distance2(centroid[elem]);
+            if (distance2 < min_distance2) {
+                min_distance2 = distance2;
+                min_index = elem;
+            }
+        }
+    }
+
+    // If no perfect element found, return the best
+    return min_index;
+}
+
+const Solution Interpolator::get_interpolation(const SolutionReader &solution, const Point3 &point, int &elem) {
+    expect(elem >= 0 && elem < mesh->get_n_elems(), "Index out of bounds: " + to_string(elem));
+
+    // Find the element that contains or is closest to the point
+    elem = locate_element(point, elem);
+
+    // Get barycentric coordinates of point in tetrahedron
+    Vec4 bcc = get_bcc(point, elem);
+
+    SimpleElement selem = mesh->get_simpleelem(elem);
+
+    // Interpolate electric field
+    Vec3 elfield_i(0.0);
+    for (int i = 0; i < mesh->n_nodes_per_elem; ++i)
+        elfield_i += solution.get_solution(selem[i]).elfield * bcc[i];
+
+    // Interpolate potential
+    double potential_i(0.0);
+    for (int i = 0; i < mesh->n_nodes_per_elem; ++i)
+        potential_i += solution.get_solution(selem[i]).potential * bcc[i];
+
+    return Solution(elfield_i, elfield_i.length(), potential_i);
+}
+
+const void Interpolator::extract_interpolation(const SolutionReader &solution, const Medium &medium) {
+    const int n_atoms = medium.get_n_atoms();
+
+    reserve(n_atoms);
+    precompute_tetrahedra();
+
+    int elem_guess = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        add_atom(medium.get_atom(i));
+        interpolation.push_back( get_interpolation(solution, medium.get_point(i), elem_guess) );
+    }
+}
+
+const void Interpolator::test() {
+    Vec3 v1(109, 2007, 3);
+    Vec3 v2(40, 5, 62);
+    Vec3 v3(7, 8, 9);
+    Vec3 v9(10, 11, 12);
+    Vec3 v0(1);
+
+    Vec4 v4(1);
+    Vec4 v5(109, 2007, 3, 4);
+    Vec4 v6(40, 5, 62, 8);
+    Vec4 v7(7, 8, 9, 12);
+    Vec4 v8(10, 11, 12, 16);
+
+    cout << "\ndet\n" << v1 << "\n" << v2 << "\n" << v3 << "\n = " << determinant(v1, v2, v3) << endl;
+    cout << "\ndet\n" << v1 << "\n" << v2 << "\n" << v0 << "\n = " << determinant(v1, v2) << endl;
+
+    cout << "\ndet\n" << v5 << "\n" << v6 << "\n" << v7 << "\n" << v8 << "\n = " << determinant(v5, v6, v7, v8) << endl;
+    cout << "\ndet\n" << v1 << " 1\n" << v2 << " 1\n" << v3 << " 1\n" << v9 << " 1\n = " << determinant(v1, v2, v3, v9) << endl;
+}
+
 // Determinant of 3x3 matrix which's last column consists of ones
 const double Interpolator::determinant(const Vec3 &v1, const Vec3 &v2) {
-    return v1.y * v2.z - v2.y * v1.z
-         - v1.x * v2.z + v2.x * v1.z
-         + v1.x * v2.y - v2.x * v1.y;
+    return v1.x * (v2.y - v2.z)
+         - v1.y * (v2.x - v2.z)
+         + v1.z * (v2.x - v2.y);
 }
 
 // Determinant of 3x3 matrix which's columns consist of Vec3-s
 const double Interpolator::determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3) {
-    return v1.x * (v2.y * v3.z - v2.z * v3.y)
-         - v1.y * (v1.x * v3.z - v1.z * v3.x)
-         + v1.z * (v1.x * v2.y - v1.y * v2.x);
+    return v1.x * (v2.y * v3.z - v3.y * v2.z)
+         - v2.x * (v1.y * v3.z - v3.y * v1.z)
+         + v3.x * (v1.y * v2.z - v2.y * v1.z);
 }
 
 // Determinant of 4x4 matrix which's last column consists of ones
@@ -135,93 +282,25 @@ const double Interpolator::determinant(const Vec3 &v1, const Vec3 &v2, const Vec
     const double det3 = determinant(v1, v2, v4);
     const double det4 = determinant(v1, v2, v3);
 
-    return det1 - det2 + det3 - det4;
+    return det4 - det3 + det2 - det1;
 }
 
 // Determinant of 4x4 matrix which's columns consist of Vec4-s
 const double Interpolator::determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4) {
-    return      v1.w*v2.z*v3.y*v4.x - v1.z*v2.w*v3.y*v4.x -
-                v1.w*v2.y*v3.z*v4.x + v1.y*v2.w*v3.z*v4.x +
+    double det1 = determinant(Vec3(v1.y,v1.z,v1.w), Vec3(v2.y,v2.z,v2.w), Vec3(v3.y,v3.z,v3.w));
+    double det2 = determinant(Vec3(v1.x,v1.z,v1.w), Vec3(v2.x,v2.z,v2.w), Vec3(v3.x,v3.z,v3.w));
+    double det3 = determinant(Vec3(v1.x,v1.y,v1.w), Vec3(v2.x,v2.y,v2.w), Vec3(v3.x,v3.y,v3.w));
+    double det4 = determinant(Vec3(v1.x,v1.y,v1.z), Vec3(v2.x,v2.y,v2.z), Vec3(v3.x,v3.y,v3.z));
 
-                v1.z*v2.y*v3.w*v4.x - v1.y*v2.z*v3.w*v4.x -
-                v1.w*v2.z*v3.x*v4.y + v1.z*v2.w*v3.x*v4.y +
-
-                v1.w*v2.x*v3.z*v4.y - v1.x*v2.w*v3.z*v4.y -
-                v1.z*v2.x*v3.w*v4.y + v1.x*v2.z*v3.w*v4.y +
-
-                v1.w*v2.y*v3.x*v4.z - v1.y*v2.w*v3.x*v4.z -
-                v1.w*v2.x*v3.y*v4.z + v1.x*v2.w*v3.y*v4.z +
-
-                v1.y*v2.x*v3.w*v4.z - v1.x*v2.y*v3.w*v4.z -
-                v1.z*v2.y*v3.x*v4.w + v1.y*v2.z*v3.x*v4.w +
-
-                v1.z*v2.x*v3.y*v4.w - v1.x*v2.z*v3.y*v4.w -
-                v1.y*v2.x*v3.z*v4.w + v1.x*v2.y*v3.z*v4.w;
-
-
-
-    double det1 = determinant(Vec3(v1[1],v1[2],v1[3]), Vec3(v2[1],v2[2],v2[3]), Vec3(v3[1],v3[2],v3[3]));
-    double det2 = determinant(Vec3(v1[0],v1[2],v1[3]), Vec3(v2[0],v2[2],v2[3]), Vec3(v3[0],v3[2],v3[3]));
-    double det3 = determinant(Vec3(v1[0],v1[1],v1[3]), Vec3(v2[0],v2[1],v2[3]), Vec3(v3[0],v3[1],v3[3]));
-    double det4 = determinant(Vec3(v1[0],v1[1],v1[2]), Vec3(v2[0],v2[1],v2[2]), Vec3(v3[0],v3[1],v3[2]));
-
-    return v4[0] * det1 - v4[1] * det2 + v4[2] * det3 - v4[3] * det4;
+    return v4.w * det4 - v4.z * det3 + v4.y * det2 - v4.x * det1;
 }
-
-// Calculate barycentric coordinates for point in tetrahedron
-const Vec4 Interpolator::get_bcc(const Point3 &point, const int elem) {
-    expect(elem >= 0 && elem < mesh->get_n_elems(), "Index out of bounds: " + to_string(elem));
-
-    double bcc1 = det0[elem] * det1[elem].dotProduct(Vec4(point,1));
-    double bcc2 = det0[elem] * det2[elem].dotProduct(Vec4(point,1));
-    double bcc3 = det0[elem] * det3[elem].dotProduct(Vec4(point,1));
-    double bcc4 = det0[elem] * det4[elem].dotProduct(Vec4(point,1));
-
-    return Vec4(bcc1, bcc2, bcc3, bcc4);
-}
-
-// Calculate barycentric coordinates for point in tetrahedron
-const Vec3 Interpolator::get_interpolation(const Point3 &point, const int elem) {
-    expect(elem >= 0 && elem < mesh->get_n_elems(), "Index out of bounds: " + to_string(elem));
-
-    Vec4 bcc = get_bcc(point, elem);
-    SimpleElement selem = mesh->get_simpleelem(elem);
-
-    Vec3 interpolation(0.0);
-    for (int i = 0; i < mesh->n_nodes_per_elem; ++i)
-        interpolation += solution->get_solution(selem[i]).elfield * bcc[i];
-
-    return interpolation;
-}
-
-const void Interpolator::test() {
-    Vec3 v1(1, 2, 3);
-    Vec3 v2(4, 5, 6);
-    Vec3 v3(7, 8, 9);
-    Vec3 v9(10, 11, 12);
-    Vec3 v0(1);
-
-    Vec4 v4(1);
-    Vec4 v5(1, 20, 3, 4);
-    Vec4 v6(5, 6, 7, 8);
-    Vec4 v7(9, 100, 11, 12);
-    Vec4 v8(130, 14, 15, 16);
-
-    cout << "\ndet\n" << v1 << "\n" << v2 << "\n" << v3 << "\n = " << determinant(v1, v2, v3) << endl;
-    cout << "\ndet\n" << v1 << "\n" << v2 << "\n" << v0 << "\n = " << determinant(v1, v2) << endl;
-    cout << "\ndet\n" << v0 << "\n" << v2 << "\n" << v3 << "\n = " << determinant(v2, v3) << endl;
-
-    cout << "\ndet\n" << v5 << "\n" << v6 << "\n" << v7 << "\n" << v8 << "\n = " << determinant(v5, v6, v7, v8) << endl;
-    cout << "\ndet\n" << v1 << " 1\n" << v2 << " 1\n" << v3 << " 1\n" << v9 << " 1\n = " << determinant(v1, v2, v3, v9) << endl;
-}
-
 
 // SolutionReader constructor
 SolutionReader::SolutionReader() : longrange_efield(0) {
     reserve(0);
 }
 
-const Solution SolutionReader::get_solution(const int i) {
+const Solution SolutionReader::get_solution(const int i) const {
     expect(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
     return solution[i];
 }

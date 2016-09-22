@@ -122,36 +122,36 @@ const void Medium::calc_statistics() {
 }
 
 // Get number of atoms in Medium
-const int Medium::get_n_atoms() {
+const int Medium::get_n_atoms() const {
     return atoms.size();
 }
 
 // Get 2-dimensional coordinates of i-th atom
-const Point2 Medium::get_point2(const int i) {
+const Point2 Medium::get_point2(const int i) const {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
     return Point2(atoms[i].point.x, atoms[i].point.y);
 }
 
 // Get 3-dimensional coordinates of i-th atom
-const Point3 Medium::get_point(const int i) {
+const Point3 Medium::get_point(const int i) const {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i) + "/" + to_string(get_n_atoms()));
     return atoms[i].point;
 }
 
 // Get atom ID
-const int Medium::get_id(const int i) {
+const int Medium::get_id(const int i) const {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
     return atoms[i].id;
 }
 
 // Get atom coordination
-const int Medium::get_coordination(const int i) {
+const int Medium::get_coordination(const int i) const {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
     return atoms[i].coord;
 }
 
 // Get i-th Atom
-const Atom Medium::get_atom(const int i) {
+const Atom Medium::get_atom(const int i) const {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
     return atoms[i];
 }

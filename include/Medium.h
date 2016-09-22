@@ -58,17 +58,17 @@ public:
     const void set_coordination(const int i, const int coord);
 
     /** Return i-th Atom */
-    const Atom get_atom(const int i);
+    const Atom get_atom(const int i) const;
     /** Return x-, y- and z-coordinate and associated operators for i-th atom */
-    const Point3 get_point(const int i);
+    const Point3 get_point(const int i) const;
     /** Return x- and y-coordinate and associated operators for i-th atom */
-    const Point2 get_point2(const int i);
+    const Point2 get_point2(const int i) const;
     /** Return ID of i-th atom */
-    const int get_id(const int i);
+    const int get_id(const int i) const;
     /** Return coordination of i-th atom */
-    const int get_coordination(const int i);
+    const int get_coordination(const int i) const;
     /** Return number of atoms in a Medium */
-    const int get_n_atoms();
+    const int get_n_atoms() const;
 
     /** Statistics about system size */
     struct Sizes {

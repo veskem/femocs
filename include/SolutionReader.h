@@ -28,7 +28,7 @@ public:
     const void print_statistics();
     const void sort_atoms(const int x1, const int x2, const string& direction = "up");
 
-    const Solution get_solution(const int i);
+    const Solution get_solution(const int i) const;
 
 private:
     DealII* fem;
@@ -82,36 +82,49 @@ private:
  * http://www.cwscholz.net/projects/diss/html/node37.html
  *
  * */
-class Interpolator {
+class Interpolator: public Medium {
 public:
     /** Interpolator conctructor */
     Interpolator();
-    Interpolator(Mesh* mesh, SolutionReader* solution);
-
-    const void reserve(const int N);
+    Interpolator(Mesh* mesh);
 
     const void test();
+    const void extract_interpolation(const SolutionReader &solution, const Medium &medium);
+    const Solution get_interpolation(const SolutionReader &solution, const Point3 &point, int &elem_guess);
+    const void precompute_tetrahedra();
 
 private:
-    SolutionReader* solution;
-    Mesh* mesh;
+    /** Constants to specify the tolerances */
+    const double epsilon = 1e-1;
+    const double zero = -1.0 * epsilon;
+    const double one = 1.0 + epsilon;
 
+    Mesh* mesh;                      //!< tetrahedral finite element mesh
+    vector<Solution> interpolation;  //!< interpolation data
+
+    /** Vectors holding precomputed data */
     vector<Point3> centroid;
     vector<double> det0;
     vector<Vec4> det1;
     vector<Vec4> det2;
     vector<Vec4> det3;
     vector<Vec4> det4;
+    vector<bool> tet_not_valid;
 
-    const void precompute_tetrahedra();
+    const int locate_element(const Point3 &point, const int elem_guess);
+    const Vec4 get_bcc(const Point3 &point, const int elem);
+    const bool point_in_tetrahedron(const Point3 &point, const int i);
 
     const double determinant(const Vec3 &v1, const Vec3 &v2);
     const double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3);
     const double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4);
     const double determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4);
-    const Vec4 get_bcc(const Point3 &point, const int elem);
-    const Vec3 get_interpolation(const Point3 &point, const int elem);
 
+    /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
+    const string get_data_string(const int i);
+
+    const void reserve(const int N);
+    const void reserve_precompute(const int N);
 };
 
 } /* namespace femocs */
