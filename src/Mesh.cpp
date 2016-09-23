@@ -58,35 +58,35 @@ const void Mesh::generate_simple() {
 // =================================
 // *** GETTERS: ***************
 
-const Vec3 Mesh::get_vec(const int i) {
+const Vec3 Mesh::get_vec(const int i) const {
     require(get_n_nodes() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
     const int n = n_coordinates * i;
     return Vec3(tetIOout.pointlist[n+0], tetIOout.pointlist[n+1], tetIOout.pointlist[n+2]);
 }
 
-const Point3 Mesh::get_node(const int i) {
+const Point3 Mesh::get_node(const int i) const {
     require(get_n_nodes() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
     const int n = n_coordinates * i;
     return Point3(tetIOout.pointlist[n+0], tetIOout.pointlist[n+1], tetIOout.pointlist[n+2]);
 }
 
-const SimpleEdge Mesh::get_simpleedge(const int i) {
+const SimpleEdge Mesh::get_simpleedge(const int i) const {
     require(get_n_edges() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_edges(), "Invalid index: " + to_string(i));
     const int I = n_nodes_per_edge * i;
     return SimpleEdge(tetIOout.edgelist[I], tetIOout.edgelist[I+1]);
 }
 
-const SimpleFace Mesh::get_simpleface(const int i) {
+const SimpleFace Mesh::get_simpleface(const int i) const {
     require(get_n_faces() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_faces(), "Invalid index: " + to_string(i));
     const int I = n_nodes_per_face * i;
     return SimpleFace(tetIOout.trifacelist[I], tetIOout.trifacelist[I+1], tetIOout.trifacelist[I+2]);
 }
 
-const SimpleElement Mesh::get_simpleelem(const int i) {
+const SimpleElement Mesh::get_simpleelem(const int i) const {
     require(get_n_elems() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_elems(), "Invalid index: " + to_string(i));
     const int I = n_nodes_per_elem * i;
@@ -94,7 +94,7 @@ const SimpleElement Mesh::get_simpleelem(const int i) {
             tetIOout.tetrahedronlist[I+2], tetIOout.tetrahedronlist[I+3]);
 }
 
-const Point3 Mesh::get_face_centroid(int i) {
+const Point3 Mesh::get_face_centroid(int i) const {
     require(get_n_faces() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_faces(), "Invalid index: " + to_string(i));
 
@@ -106,7 +106,7 @@ const Point3 Mesh::get_face_centroid(int i) {
     return verts;
 }
 
-const Point3 Mesh::get_elem_centroid(int i) {
+const Point3 Mesh::get_elem_centroid(int i) const {
     require(get_n_elems() > 0, "Inquiry from empty mesh!");
     require(i >= 0 && i < get_n_elems(), "Invalid index: " + to_string(i));
 
@@ -118,37 +118,37 @@ const Point3 Mesh::get_elem_centroid(int i) {
     return verts;
 }
 
-const double Mesh::get_area(const int i) {
+const double Mesh::get_area(const int i) const {
     require(i >= 0 && i < get_n_areas(), "Invalid index: " + to_string(i));
     return areas[i];
 }
 
-const double Mesh::get_volume(const int i) {
+const double Mesh::get_volume(const int i) const {
     require(i >= 0 && i < get_n_volumes(), "Invalid index: " + to_string(i));
     return volumes[i];
 }
 
-const double Mesh::get_quality(const int i) {
+const double Mesh::get_quality(const int i) const {
     require(i >= 0 && i < get_n_qualities(), "Invalid index: " + to_string(i));
     return qualities[i];
 }
 
-const int Mesh::get_nodemarker(const int i) {
+const int Mesh::get_nodemarker(const int i) const {
     require(i >= 0 && i < get_n_nodemarkers(), "Invalid index: " + to_string(i));
     return nodemarkers[i];
 }
 
-const int Mesh::get_edgemarker(const int i) {
+const int Mesh::get_edgemarker(const int i) const {
     require(i >= 0 && i < get_n_edgemarkers(), "Invalid index: " + to_string(i));
     return edgemarkers[i];
 }
 
-const int Mesh::get_facemarker(const int i) {
+const int Mesh::get_facemarker(const int i) const {
     require(i >= 0 && i < get_n_facemarkers(), "Invalid index: " + to_string(i));
     return facemarkers[i];
 }
 
-const int Mesh::get_elemmarker(const int i) {
+const int Mesh::get_elemmarker(const int i) const {
     require(i >= 0 && i < get_n_elemmarkers(), "Invalid index: " + to_string(i));
     return elemmarkers[i];
 }
@@ -185,54 +185,59 @@ const vector<int>* Mesh::get_elemmarkers() {
     return &elemmarkers;
 }
 
-const vector<int> Mesh::get_elem_neighbours(const int i) {
+const vector<int> Mesh::get_elem_neighbours(const int i) const {
     require(i >= 0 && i < get_n_elems(), "Invalid index: " + to_string(i));
+
     const int I = n_faces_per_elem * i;
-    return vector<int> {tetIOout.neighborlist[I+0], tetIOout.neighborlist[I+1],
-        tetIOout.neighborlist[I+2], tetIOout.neighborlist[I+3]};
+    if (tetIOout.neighborlist)
+        return vector<int> {tetIOout.neighborlist[I+0], tetIOout.neighborlist[I+1],
+            tetIOout.neighborlist[I+2], tetIOout.neighborlist[I+3]};
+
+    require(false, "Query from empty neighbour list!");
+    return vector<int> {i};
 }
 
-const int Mesh::get_n_nodes() {
+const int Mesh::get_n_nodes() const {
     return tetIOout.numberofpoints;
 }
 
-const int Mesh::get_n_edges() {
+const int Mesh::get_n_edges() const {
     return tetIOout.numberofedges;
 }
 
-const int Mesh::get_n_faces() {
+const int Mesh::get_n_faces() const {
     return tetIOout.numberoftrifaces;
 }
 
-const int Mesh::get_n_elems() {
+const int Mesh::get_n_elems() const {
     return tetIOout.numberoftetrahedra;
 }
 
-const int Mesh::get_n_nodemarkers() {
+const int Mesh::get_n_nodemarkers() const {
     return nodemarkers.size();
 }
 
-const int Mesh::get_n_edgemarkers() {
+const int Mesh::get_n_edgemarkers() const {
     return edgemarkers.size();
 }
 
-const int Mesh::get_n_facemarkers() {
+const int Mesh::get_n_facemarkers() const {
     return facemarkers.size();
 }
 
-const int Mesh::get_n_elemmarkers() {
+const int Mesh::get_n_elemmarkers() const {
     return elemmarkers.size();
 }
 
-const int Mesh::get_n_volumes() {
+const int Mesh::get_n_volumes() const {
     return volumes.size();
 }
 
-const int Mesh::get_n_areas() {
+const int Mesh::get_n_areas() const {
     return areas.size();
 }
 
-const int Mesh::get_n_qualities() {
+const int Mesh::get_n_qualities() const {
     return qualities.size();
 }
 
@@ -483,7 +488,7 @@ const void Mesh::copy_elemmarkers(Mesh* mesh) {
 // =================================
 // *** VARIA: ***************
 
-const Medium Mesh::to_medium() {
+const Medium Mesh::to_medium() const {
     int n_atoms = get_n_nodes();
     Medium medium;
     medium.reserve(n_atoms);

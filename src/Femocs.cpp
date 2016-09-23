@@ -39,12 +39,12 @@ Femocs::Femocs(string message) : solution_valid(false) {
     conf.mesher = "tetgen";          // mesher algorithm
     conf.mesh_quality = "2.0";
     conf.nt = 4;                     // number of OpenMP threads
-    conf.rmin_coarse = 17.0;         // inner radius of coarsening cylinder
+    conf.rmin_coarse = 7.0;         // inner radius of coarsening cylinder
     conf.rmax_coarse = 8000.0;       // radius of constant cutoff coarsening cylinder
     conf.coarse_factor = 0.4;        // coarsening factor; bigger number gives coarser surface
     conf.postprocess_marking = true; //true;//false; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
-    conf.movavg_width = 2.0;         // width of moving average in electric field smoother
+    conf.movavg_width = 1.5;         // width of moving average in electric field smoother
 
     conf.significant_distance = 0.0;//conf.latconst / 2.0;
 }
@@ -62,11 +62,6 @@ const void Femocs::run(double E_field, string message) {
 
     conf.neumann = E_field;
     tstart = omp_get_wtime();
-
-//    femocs::Interpolator interp;
-//    interp.test();
-//
-//    return;
 
     start_msg(t0, "=== Outputting AtomReader...");
     reader.output("output/reader.xyz");
@@ -95,7 +90,7 @@ const void Femocs::run(double E_field, string message) {
     dense_surf.extract_surface(&reader);
 
     if (conf.coarse_factor > 0)
-        coarse_surf = dense_surf.coarsen_vol2(conf.coord_cutoff, conf.rmin_coarse, conf.rmax_coarse,
+        coarse_surf = dense_surf.coarsen_vol3(conf.coord_cutoff, conf.rmin_coarse, conf.rmax_coarse,
                 conf.coarse_factor, &reader.sizes);
     else
         coarse_surf = dense_surf.rectangularize(&reader.sizes, conf.rmin_rectancularize);
@@ -168,7 +163,7 @@ const void Femocs::run(double E_field, string message) {
     femocs::Mesh vacuum_mesh(conf.mesher);
     femocs::Mesh bulk_mesh(conf.mesher);
 
-    mesher.separate_meshes_vol2(&vacuum_mesh, &bulk_mesh, "rQ");
+    mesher.separate_meshes_vol2(&vacuum_mesh, &bulk_mesh, "rnQ");
 
     bulk_mesh.write_nodes("output/nodes_bulk.xyz");
     bulk_mesh.write_edges("output/edges_bulk.vtk");
@@ -255,8 +250,16 @@ const void Femocs::run(double E_field, string message) {
     end_msg(t0);
     solution.print_statistics();
 
+    start_msg(t0, "=== Interpolating solution...");
+    dense_surf.sort_atoms(0, 1, "up");
+
+    femocs::Interpolator interpolation(&vacuum_mesh);
+    interpolation.extract_interpolation(solution, dense_surf);
+    end_msg(t0);
+
     start_msg(t0, "=== Saving results...");
     solution.output("output/results.xyz");
+    interpolation.output("output/interpolation.xyz");
 //    laplace.output_results("output/results.vtk");
     if (conf.significant_distance > 0.0) reader.save_current_run_points();
     end_msg(t0);

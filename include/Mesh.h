@@ -67,28 +67,28 @@ public:
     const void copy_facemarkers(Mesh* mesh);
     const void copy_elemmarkers(Mesh* mesh);
 
-    const int get_n_nodes();
-    const int get_n_edges();
-    const int get_n_elems();
-    const int get_n_faces();
+    const int get_n_nodes() const;
+    const int get_n_edges() const;
+    const int get_n_elems() const;
+    const int get_n_faces() const;
 
-    const int get_n_nodemarkers();
-    const int get_n_edgemarkers();
-    const int get_n_facemarkers();
-    const int get_n_elemmarkers();
+    const int get_n_nodemarkers() const;
+    const int get_n_edgemarkers() const;
+    const int get_n_facemarkers() const;
+    const int get_n_elemmarkers() const;
 
-    const int get_n_areas();
-    const int get_n_volumes();
-    const int get_n_qualities();
+    const int get_n_areas() const;
+    const int get_n_volumes() const;
+    const int get_n_qualities() const;
 
-    const int get_nodemarker(const int i);
-    const int get_edgemarker(const int i);
-    const int get_facemarker(const int i);
-    const int get_elemmarker(const int i);
+    const int get_nodemarker(const int i) const;
+    const int get_edgemarker(const int i) const;
+    const int get_facemarker(const int i) const;
+    const int get_elemmarker(const int i) const;
 
-    const double get_area(const int i);
-    const double get_volume(const int i);
-    const double get_quality(const int i);
+    const double get_area(const int i) const;
+    const double get_volume(const int i) const;
+    const double get_quality(const int i) const;
 
     const double* get_nodes();
     const int* get_edges();
@@ -100,16 +100,16 @@ public:
     const vector<int>* get_facemarkers();
     const vector<int>* get_elemmarkers();
 
-    const vector<int> get_elem_neighbours(const int i);
+    const vector<int> get_elem_neighbours(const int i) const;
 
-    const Vec3 get_vec(const int i);
-    const Point3 get_node(const int i);
-    const SimpleEdge get_simpleedge(const int i);
-    const SimpleFace get_simpleface(const int i);
-    const SimpleElement get_simpleelem(const int i);
+    const Vec3 get_vec(const int i) const;
+    const Point3 get_node(const int i) const;
+    const SimpleEdge get_simpleedge(const int i) const;
+    const SimpleFace get_simpleface(const int i) const;
+    const SimpleElement get_simpleelem(const int i) const;
 
-    const Point3 get_face_centroid(int i);
-    const Point3 get_elem_centroid(int i);
+    const Point3 get_face_centroid(int i) const;
+    const Point3 get_elem_centroid(int i) const;
 
     const void set_nodemarker(const int node, const int m);
     const void set_edgemarker(const int edge, const int m);
@@ -125,7 +125,7 @@ public:
     const void recalc();
     const void recalc(const string& cmd);
     const void recalc(const string& cmd1, const string& cmd2);
-    const Medium to_medium();
+    const Medium to_medium() const;
 
     const void write_tetgen(const string file_name);
     const void write_nodes(const string file_name);

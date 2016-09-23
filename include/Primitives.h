@@ -667,6 +667,11 @@ public:
         return s << a.id << ' ' << a.point << ' ' << a.coord;
     }
 
+    /** Functor for sorting atoms in ascending order by their ID */
+    struct sort_id {
+        inline bool operator() (const Atom& a1, const Atom& a2) { return a1.id < a2.id; }
+    };
+
     /** Functor for sorting atoms in ascending order by their x, y, z or radial coordinate */
     struct sort_up {
         int I;           //!< coordinate along which the atoms are sorted; 0=x, 1=y, 2=z, 3=radial

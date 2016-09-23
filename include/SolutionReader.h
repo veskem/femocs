@@ -27,6 +27,7 @@ public:
     const void export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
     const void print_statistics();
     const void sort_atoms(const int x1, const int x2, const string& direction = "up");
+    const void sort_atom_id();
 
     const Solution get_solution(const int i) const;
 
@@ -89,15 +90,19 @@ public:
     Interpolator(Mesh* mesh);
 
     const void test();
+    const void test(const SolutionReader& solution);
+
     const void extract_interpolation(const SolutionReader &solution, const Medium &medium);
-    const Solution get_interpolation(const SolutionReader &solution, const Point3 &point, int &elem_guess);
+    const Solution get_interpolation(const SolutionReader &solution, const Point3 &point, const int elem);
+    const Solution get_interpolation(const vector<Solution> &solution, const Point3 &point, const int elem);
+
     const void precompute_tetrahedra();
 
 private:
     /** Constants to specify the tolerances */
-    const double epsilon = 1e-1;
+    const double epsilon = 1e-2;
+    // making zero a bit negative allows to interpolate outside the tetrahedron
     const double zero = -1.0 * epsilon;
-    const double one = 1.0 + epsilon;
 
     Mesh* mesh;                      //!< tetrahedral finite element mesh
     vector<Solution> interpolation;  //!< interpolation data

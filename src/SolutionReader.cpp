@@ -37,6 +37,14 @@ const string Interpolator::get_data_string(const int i) {
 
 // Reserve memory for precomputed data
 const void Interpolator::reserve_precompute(const int N) {
+    centroid.clear();
+    det0.clear();
+    det1.clear();
+    det2.clear();
+    det3.clear();
+    det4.clear();
+    tet_not_valid.clear();
+
     centroid.reserve(N);
     det0.reserve(N);
     det1.reserve(N);
@@ -137,11 +145,10 @@ const void Interpolator::precompute_tetrahedra() {
 
 // Check with barycentric coordinates whether the point is inside the i-th tetrahedron
 const bool Interpolator::point_in_tetrahedron(const Point3 &point, const int i) {
-    // Get barycentric coordinates of point
-    expect(elem >= 0 && elem < mesh->get_n_elems(), "Index out of bounds: " + to_string(elem));
+    expect(elem >= 0 && elem < det0.size(), "Index out of bounds: " + to_string(elem));
 
     // Ignore co-planar tetrahedra
-    if (tet_not_valid[i]) return false;
+//    if (tet_not_valid[i]) return false;
 
     Vec4 pt(point, 1);
 
@@ -158,7 +165,7 @@ const bool Interpolator::point_in_tetrahedron(const Point3 &point, const int i) 
 
 // Calculate barycentric coordinates for point
 const Vec4 Interpolator::get_bcc(const Point3 &point, const int elem) {
-    expect(elem >= 0 && elem < mesh->get_n_elems(), "Index out of bounds: " + to_string(elem));
+    expect(elem >= 0 && elem < det0.size(), "Index out of bounds: " + to_string(elem));
 
     Vec4 pt(point, 1);
 
@@ -172,21 +179,23 @@ const Vec4 Interpolator::get_bcc(const Point3 &point, const int elem) {
 
 // Find the element which contains the point or is the closest to it
 const int Interpolator::locate_element(const Point3 &point, const int elem_guess) {
-    const int n_elems = mesh->get_n_elems();
+
+    static int n_first = 0;
 
     // Check first the guessed element
     if (point_in_tetrahedron(point, elem_guess)) return elem_guess;
 
     // Check then the neighbours of guessed element
     for (int nbr : mesh->get_elem_neighbours(elem_guess))
-        if (point_in_tetrahedron(point, nbr))
+        if (nbr >= 0 && point_in_tetrahedron(point, nbr))
             return nbr;
 
+    const int n_elems = det0.size();
     double min_distance2 = DBL_MAX;
     int min_index = 0;
 
     // If no success, loop through all the elements
-    for (int elem = 0; elem < mesh->get_n_elems(); ++elem) {
+    for (int elem = 0; elem < n_elems; ++elem) {
         // If correct element is found, we're done
         if (point_in_tetrahedron(point, elem)) return elem;
 
@@ -204,11 +213,8 @@ const int Interpolator::locate_element(const Point3 &point, const int elem_guess
     return min_index;
 }
 
-const Solution Interpolator::get_interpolation(const SolutionReader &solution, const Point3 &point, int &elem) {
+const Solution Interpolator::get_interpolation(const SolutionReader &solution, const Point3 &point, const int elem) {
     expect(elem >= 0 && elem < mesh->get_n_elems(), "Index out of bounds: " + to_string(elem));
-
-    // Find the element that contains or is closest to the point
-    elem = locate_element(point, elem);
 
     // Get barycentric coordinates of point in tetrahedron
     Vec4 bcc = get_bcc(point, elem);
@@ -228,16 +234,40 @@ const Solution Interpolator::get_interpolation(const SolutionReader &solution, c
     return Solution(elfield_i, elfield_i.length(), potential_i);
 }
 
+const Solution Interpolator::get_interpolation(const vector<Solution> &solution, const Point3 &point, const int elem) {
+    expect(elem >= 0 && elem < mesh->get_n_elems(), "Index out of bounds: " + to_string(elem));
+
+    // Get barycentric coordinates of point in tetrahedron
+    Vec4 bcc = get_bcc(point, elem);
+
+    // Interpolate electric field
+    Vec3 elfield_i(0.0);
+    for (int i = 0; i < solution.size(); ++i)
+        elfield_i += solution[i].elfield * bcc[i];
+
+    // Interpolate potential
+    double potential_i(0.0);
+    for (int i = 0; i < solution.size(); ++i)
+        potential_i += solution[i].potential * bcc[i];
+
+    return Solution(elfield_i, elfield_i.length(), potential_i);
+}
+
 const void Interpolator::extract_interpolation(const SolutionReader &solution, const Medium &medium) {
     const int n_atoms = medium.get_n_atoms();
 
     reserve(n_atoms);
     precompute_tetrahedra();
 
-    int elem_guess = 0;
+    int elem = 0;
     for (int i = 0; i < n_atoms; ++i) {
-        add_atom(medium.get_atom(i));
-        interpolation.push_back( get_interpolation(solution, medium.get_point(i), elem_guess) );
+        Atom atom = medium.get_atom(i);
+        add_atom(atom);
+
+        // Find the element that contains or is closest to the point
+        elem = locate_element(atom.point, elem);
+        // Calculate the interpolation
+        interpolation.push_back( get_interpolation(solution, atom.point, elem) );
     }
 }
 
@@ -259,6 +289,51 @@ const void Interpolator::test() {
 
     cout << "\ndet\n" << v5 << "\n" << v6 << "\n" << v7 << "\n" << v8 << "\n = " << determinant(v5, v6, v7, v8) << endl;
     cout << "\ndet\n" << v1 << " 1\n" << v2 << " 1\n" << v3 << " 1\n" << v9 << " 1\n = " << determinant(v1, v2, v3, v9) << endl;
+}
+
+const void Interpolator::test(const SolutionReader& solution) {
+    int elem = 0;
+
+    for (int i = 0; i < mesh->get_n_elems(); ++i)
+        for (int n : mesh->get_simpleelem(i))
+            if (mesh->get_node(n) == Point3(4,4,5)) elem = i;
+
+    SimpleElement selem = mesh->get_simpleelem(elem);
+    vector<Solution> sol;//(n_nodes);
+    vector<Point3> mesh_node;//(n_nodes);
+    vector<Point3> solution_node;
+
+    for (int n : selem) {
+        sol.push_back(solution.get_solution(n));
+        mesh_node.push_back(mesh->get_node(n));
+        solution_node.push_back(solution.get_atom(n).point);
+    }
+
+    vector<Point3> points;
+    points.push_back(Point3(4, 4, 5));
+    points.push_back(Point3(6, 4, 5));
+    points.push_back(Point3(8, 4, 5));
+    points.push_back(Point3(10, 4, 5));
+    points.push_back(Point3(12, 4, 5));
+    points.push_back(Point3(14, 4, 5));
+
+    cout << "Element:\n" << selem << endl;
+
+    cout << "\nMesh nodes:" << endl;
+    for (Point3 s : mesh_node) cout << s << endl;
+
+    cout << "\nSolution nodes:" << endl;
+    for (Point3 s : solution_node) cout << s << endl;
+
+    cout << "\nBCCs:" << endl;
+    for (Point3 s : mesh_node) cout << get_bcc(s, elem) << endl;
+
+    cout << "\nSolutions:" << endl;
+    for (Solution s : sol) cout << s.el_norm << endl;
+
+    cout << "\nInterpolations:" << endl;
+    for (Point3 p : points) cout << get_interpolation(solution, p, elem).el_norm << endl;
+
 }
 
 // Determinant of 3x3 matrix which's last column consists of ones
@@ -366,6 +441,11 @@ const void SolutionReader::extract_solution(DealII* fem, Medium &medium) {
             add_atom(medium.get_atom(node));
             i++;
         }
+        else {
+            solution.push_back( Solution(error_field) );
+            add_atom(medium.get_atom(node));
+        }
+
 }
 
 const vector<int> SolutionReader::get_node2face_map(Mesh &mesh, int node) {
@@ -509,6 +589,19 @@ const void SolutionReader::smoothen_result_ema(const double smooth_width) {
     }
 }
 
+const void SolutionReader::sort_atom_id() {
+    const int n_atoms = get_n_atoms();
+
+    // Sort atoms by their ID
+    for (int i = 0; i < n_atoms; ++i)
+        atoms[i].sort_indx = i;
+    sort(atoms.begin(), atoms.end(), Atom::sort_id());
+
+    // Sort solution vectors into same order as atoms
+    for (int i = 0; i < n_atoms; ++i)
+        solution[atoms[i].sort_indx].sort_indx = i;
+    sort( solution.begin(), solution.end(), Solution::sort_up() );
+}
 // Sort the atoms and results
 const void SolutionReader::sort_atoms(const int x1, const int x2, const string& direction) {
     const int n_atoms = get_n_atoms();
@@ -541,6 +634,9 @@ const void SolutionReader::smoothen_result(const double smooth_width) {
     sort_atoms(1, 0, "up");
     // Sweep the results in sorted order
     smoothen_result_ema(smooth_width);
+
+    // Sort atoms back to their initial order
+    sort_atom_id();
 }
 
 // Print some statistics about the top region of tip
