@@ -431,8 +431,8 @@ const void SolutionReader::extract_solution(DealII* fem, Medium &medium) {
             vert_indxs.push_back(node2vert[n]);
         }
 
-    vector<Vec3> ef = fem->get_elfield_at_node(cell_indxs, vert_indxs);
-    vector<double> pot = fem->get_potential_at_node(cell_indxs, vert_indxs);
+    vector<Vec3> ef = fem->get_elfield(cell_indxs, vert_indxs);
+    vector<double> pot = fem->get_potential(cell_indxs, vert_indxs);
 
     int i, node;
     for (i = 0, node = 0; node < n_nodes; ++node)

@@ -102,7 +102,7 @@ const void DealII::import_file(const string file_name) {
 
 // Modified version of grid_in function,
 // https://github.com/dealii/dealii/blob/master/source/grid/grid_in.cc
-const void DealII::import_tethex_mesh(tethex::Mesh* mesh) {
+const void DealII::import_mesh(tethex::Mesh* mesh) {
     const unsigned int n_verts = mesh->get_n_vertices();
     const unsigned int n_elems = mesh->get_n_hexahedra();
     const unsigned int n_faces = mesh->get_n_quadrangles();
@@ -144,7 +144,7 @@ const void DealII::import_tethex_mesh(tethex::Mesh* mesh) {
     triangulation.create_triangulation_compatibility(vertices, cells, SubCellData());
 }
 
-const void DealII::import_tethex_mesh_vol2(tethex::Mesh* mesh) {
+const void DealII::import_mesh_wo_faces(tethex::Mesh* mesh) {
     const unsigned int n_verts = mesh->get_n_vertices();
     const unsigned int n_elems = mesh->get_n_hexahedra();
     const unsigned int n_faces = mesh->get_n_quadrangles();
@@ -178,7 +178,7 @@ const void DealII::import_tethex_mesh_vol2(tethex::Mesh* mesh) {
 
 // Import tetrahedral mesh
 // WARNING: It's extremely slow function
-const void DealII::import_tetgen_mesh(femocs::Mesh* mesh) {
+const void DealII::import_mesh(femocs::Mesh* mesh) {
     Triangulation<DIM> tr1, tr2;
     vector<Point<DIM>> vertices1(DIM + 1), vertices2(DIM + 1);
     SimpleElement selem;
@@ -229,10 +229,19 @@ const void DealII::import_tetgen_mesh(femocs::Mesh* mesh) {
     }
 }
 
+const void DealII::smooth_and_refine_mesh(const Point3 &origin, const double eps) {
+    const double eps2 = eps * eps;
+
+    typename Triangulation<DIM>::active_cell_iterator cell;
+    for (cell = triangulation.begin_active(); cell != triangulation.end(); ++cell)
+        if ((origin.distance2(cell->center()) < eps2))
+            cell->set_refine_flag ();
+
+    triangulation.execute_coarsening_and_refinement();
+}
+
 // Mark the boundary faces of mesh
-const void DealII::mark_boundary(const AtomReader::Sizes* sizes) {
-
-
+const void DealII::mark_boundary_faces(const AtomReader::Sizes* sizes) {
     typename Triangulation<DIM>::active_face_iterator face;
     const double eps = 0.1;
 
@@ -360,17 +369,12 @@ const void DealII::solve_umfpack() {
 }
 
 // Calculate electric field at arbitrary point inside the mesh
-const Tensor<1, DIM> DealII::get_elfield_at_point(Point<DIM> &point) {
-    return -1.0 * VectorTools::point_gradient(dof_handler, laplace_solution, point);
-}
-
-// Calculate electric field at arbitrary point inside the mesh
-const Tensor<1, DIM> DealII::get_elfield_at_point(const double x, const double y, const double z) {
+const Tensor<1, DIM> DealII::get_elfield(const double x, const double y, const double z) {
     return -1.0 * VectorTools::point_gradient(dof_handler, laplace_solution, Point<DIM>(x, y, z));
 }
 
 // Calculate electric field at a mesh node
-const Tensor<1, DIM> DealII::get_elfield_at_node(const int &cell_indx, const int &vert_indx) {
+const Tensor<1, DIM> DealII::get_elfield(const int &cell_indx, const int &vert_indx) {
     vector<Tensor<1, DIM>> solution_gradients;
     QTrapez<DIM> only_vertices_quadrature_formula;
     FEValues<DIM> fe_values(fe, only_vertices_quadrature_formula, update_gradients);
@@ -388,7 +392,7 @@ const Tensor<1, DIM> DealII::get_elfield_at_node(const int &cell_indx, const int
 }
 
 // Calculate electric field at a set of mesh nodes
-const vector<Vec3> DealII::get_elfield_at_node(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
+const vector<Vec3> DealII::get_elfield(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
     const int n_cells = cell_indxs.size();
     vector<Vec3> elfield(n_cells);
 
@@ -427,17 +431,12 @@ const vector<Vec3> DealII::get_elfield_at_node(const vector<int> &cell_indxs, co
 }
 
 // Calculate potential at arbitrary point inside the mesh
-const double DealII::get_potential_at_point(Point<DIM> &point) {
-    return VectorTools::point_value(dof_handler, laplace_solution, point);
-}
-
-// Calculate potential at arbitrary point inside the mesh
-const double DealII::get_potential_at_point(const double x, const double y, const double z) {
+const double DealII::get_potential(const double x, const double y, const double z) {
     return VectorTools::point_value(dof_handler, laplace_solution, Point<DIM>(x, y, z));
 }
 
 // Get potential at a mesh node
-const double DealII::get_potential_at_node(const int &cell_indx, const int &vert_indx) {
+const double DealII::get_potential(const int &cell_indx, const int &vert_indx) {
     typename DoFHandler<DIM>::active_cell_iterator cell;
     cell = dof_handler.begin_active();
     std::advance(cell, cell_indx);
@@ -446,7 +445,7 @@ const double DealII::get_potential_at_node(const int &cell_indx, const int &vert
 }
 
 // Get potential at a set of mesh nodes
-const vector<double> DealII::get_potential_at_node(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
+const vector<double> DealII::get_potential(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
     const int n_cells = cell_indxs.size();
 
     vector<double> potentials(n_cells);
@@ -505,7 +504,7 @@ const void DealII::output_mesh(const string file_name) {
 
     ofstream outfile(file_name);
     GridOut gout;
-    gout.write_msh(triangulation, outfile);
+
     if (ftype == "vtk")
         gout.write_vtk(triangulation, outfile);
     else if (ftype == "msh")

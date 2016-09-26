@@ -44,7 +44,7 @@ Femocs::Femocs(string message) : solution_valid(false) {
     conf.coarse_factor = 0.4;        // coarsening factor; bigger number gives coarser surface
     conf.postprocess_marking = true; //true;//false; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
-    conf.movavg_width = 1.5;         // width of moving average in electric field smoother
+    conf.movavg_width = 1.0;         // width of moving average in electric field smoother
 
     conf.significant_distance = 0.0;//conf.latconst / 2.0;
 }
@@ -208,12 +208,23 @@ const void Femocs::run(double E_field, string message) {
     laplace.set_neumann(conf.neumann);
 
     start_msg(t0, "=== Importing tethex mesh into Deal.II...");
-    laplace.import_tethex_mesh(&tethex_mesh);
+    laplace.import_mesh(&tethex_mesh);
     end_msg(t0);
+
+
+    start_msg(t0, "=== Refining mesh...");
+    bulk.calc_statistics();
+    // TODO Fix invalid bulk zmax
+    femocs::Point3 origin((bulk.sizes.xmin+bulk.sizes.xmax)/2, (bulk.sizes.ymin+bulk.sizes.ymax)/2, 34);
+    laplace.smooth_and_refine_mesh(origin, 7*conf.latconst);
+    laplace.output_mesh("output/elems_dealii.vtk");
+    end_msg(t0);
+
 
     start_msg(t0, "=== System setup...");
     laplace.setup_system();
     end_msg(t0);
+
 
 #if VERBOSE
     cout << "Vacuum: #elems=" << vacuum_mesh.get_n_elems() << ",\t#faces="
@@ -227,7 +238,7 @@ const void Femocs::run(double E_field, string message) {
 #endif
 
     start_msg(t0, "=== Marking the boundary...");
-    laplace.mark_boundary(&reader.sizes);
+    laplace.mark_boundary_faces(&reader.sizes);
     end_msg(t0);
 
     start_msg(t0, "=== Assembling system...");
@@ -245,10 +256,10 @@ const void Femocs::run(double E_field, string message) {
 //    solution.extract_solution(&laplace, coarse_surf);
     end_msg(t0);
 
-    start_msg(t0, "=== Smoothing solution...");
-    solution.smoothen_result(conf.movavg_width);
-    end_msg(t0);
-    solution.print_statistics();
+//    start_msg(t0, "=== Smoothing solution...");
+//    solution.smoothen_result(conf.movavg_width);
+//    end_msg(t0);
+//    solution.print_statistics();
 
     start_msg(t0, "=== Interpolating solution...");
     dense_surf.sort_atoms(0, 1, "up");
