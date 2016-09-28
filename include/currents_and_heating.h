@@ -49,6 +49,7 @@
 #include "laplace.h"
 
 using namespace dealii;
+using namespace laplace;
 
 template<int dim>
 class CurrentsAndHeating {
