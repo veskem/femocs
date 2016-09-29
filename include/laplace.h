@@ -41,33 +41,41 @@
 #include "mesh_preparer.h" // for BoundaryId-s.. probably should think of a better place for them
 
 
-using namespace dealii;
+namespace laplace {
+	using namespace dealii;
 
-template<int dim>
-class Laplace {
-public:
-	Laplace();
-	void run();
+	template<int dim>
+	class Laplace {
+	public:
+		Laplace();
+		void run();
 
-	Triangulation<dim>* getp_triangulation();
-	double probe_field(const Point<dim> &p) const;
+		Triangulation<dim>* getp_triangulation();
+		double probe_field(const Point<dim> &p) const;
 
-private:
-	void setup_system();
-	void assemble_system();
-	void solve();
-	void output_results() const;
+	private:
+		void setup_system();
+		void assemble_system();
+		void solve();
+		void output_results() const;
 
-	Triangulation<dim> triangulation;
-	FE_Q<dim> fe;
-	DoFHandler<dim> dof_handler;
+		static constexpr unsigned int shape_degree = 1;
+		static constexpr unsigned int quadrature_degree = shape_degree + 1;
 
-	SparsityPattern sparsity_pattern;
-	SparseMatrix<double> system_matrix;
+		static constexpr double applied_field = 10.0;
 
-	Vector<double> solution;
-	Vector<double> system_rhs;
+		Triangulation<dim> triangulation;
+		FE_Q<dim> fe;
+		DoFHandler<dim> dof_handler;
 
-};
+		SparsityPattern sparsity_pattern;
+		SparseMatrix<double> system_matrix;
+
+		Vector<double> solution;
+		Vector<double> system_rhs;
+
+	};
+
+} // namespace laplace
 
 #endif /* INCLUDE_LAPLACE_H_ */

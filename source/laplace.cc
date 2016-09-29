@@ -2,6 +2,9 @@
 
 #include "laplace.h"
 
+namespace laplace {
+using namespace dealii;
+
 
 // ----------------------------------------------------------------------------------------
 // Class for outputting the resulting field distribution (calculated from potential distr.)
@@ -34,7 +37,7 @@ public:
 
 template<int dim>
 Laplace<dim>::Laplace() :
-		fe(1), dof_handler(triangulation) {
+		fe(shape_degree), dof_handler(triangulation) {
 }
 
 template<int dim>
@@ -65,8 +68,8 @@ void Laplace<dim>::setup_system() {
 
 template<int dim>
 void Laplace<dim>::assemble_system() {
-	QGauss<dim> quadrature_formula(2);
-	QGauss<dim-1> face_quadrature_formula(2);
+	QGauss<dim> quadrature_formula(quadrature_degree);
+	QGauss<dim-1> face_quadrature_formula(quadrature_degree);
 
 	FEValues<dim> fe_values(fe, quadrature_formula,
 			update_values | update_gradients | update_quadrature_points | update_JxW_values);
@@ -90,11 +93,11 @@ void Laplace<dim>::assemble_system() {
 		cell_matrix = 0;
 		cell_rhs = 0;
 
-		for (unsigned int q_index = 0; q_index < n_q_points; ++q_index) {
+		for (unsigned int q = 0; q < n_q_points; ++q) {
 			for (unsigned int i = 0; i < dofs_per_cell; ++i) {
 				for (unsigned int j = 0; j < dofs_per_cell; ++j)
-					cell_matrix(i, j) += (fe_values.shape_grad(i, q_index) * fe_values.shape_grad(j, q_index)
-							* fe_values.JxW(q_index));
+					cell_matrix(i, j) += (fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
+							* fe_values.JxW(q));
 
 				//cell_rhs(i) += (fe_values.shape_value(i, q_index) * right_hand_side * fe_values.JxW(q_index));
 			}
@@ -105,10 +108,10 @@ void Laplace<dim>::assemble_system() {
 			if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == BoundaryId::vacuum_top) {
 				fe_face_values.reinit(cell, f);
 
-				for (unsigned int q_index = 0; q_index < n_face_q_points; ++q_index) {
+				for (unsigned int q = 0; q < n_face_q_points; ++q) {
 					for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-						cell_rhs(i) += (fe_face_values.shape_value(i, q_index)
-								* 10.0 * fe_face_values.JxW(q_index));
+						cell_rhs(i) += (fe_face_values.shape_value(i, q)
+								* applied_field * fe_face_values.JxW(q));
 					}
 				}
 			}
@@ -149,7 +152,7 @@ void Laplace<dim>::output_results() const {
 
 	data_out.build_patches();
 
-	std::ofstream output("solution.vtk");
+	std::ofstream output("field_solution.vtk");
 	data_out.write_vtk(output);
 }
 
@@ -166,3 +169,4 @@ void Laplace<dim>::run() {
 template class Laplace<2> ;
 template class Laplace<3> ;
 
+} // namespace laplace

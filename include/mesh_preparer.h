@@ -24,11 +24,11 @@ using namespace std;
 using namespace dealii;
 
 enum BoundaryId {
-	copper_surface = 0,
-	vacuum_top = 1,
-	copper_bottom = 2,
-	vacuum_sides = 3,
-	copper_sides = 4
+	copper_surface = 1,
+	vacuum_top = 2,
+	copper_bottom = 3,
+	vacuum_sides = 4,
+	copper_sides = 5
 };
 
 template <int dim>
@@ -48,6 +48,10 @@ public:
 	void mark_copper_boundary(Triangulation<dim> *triangulation);
 
 	void mark_top_and_bottom_boundary(Triangulation<dim> *triangulation);
+
+	Triangulation<dim> remove_cells_with_id(Triangulation<dim> *triangulation, int id);
+
+	void mark_boundary(Triangulation<dim> *triangulation, char top, char bottom, char sides, char other);
 
 
 };
