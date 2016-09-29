@@ -15,17 +15,13 @@ public:
 	LaplacePostProcessor() : DataPostprocessorVector<dim>("Field", update_values | update_gradients) {}
 
 	void
-	compute_derived_quantities_scalar (	const std::vector<double>            	&uh,
+	compute_derived_quantities_scalar (	const std::vector<double>            	&/*uh*/,
 										const std::vector<Tensor<1,dim> >  		&duh,
 										const std::vector<Tensor<2,dim> >  		&/*dduh*/,
 										const std::vector<Point<dim> >        	&/*normals*/,
 										const std::vector<Point<dim> >          &/*evaluation_points*/,
 										std::vector<Vector<double> >          	&computed_quantities) const {
-		Assert(computed_quantities.size() == uh.size(),
-		       ExcDimensionMismatch (computed_quantities.size(), uh.size()));
 		for (unsigned int i=0; i<computed_quantities.size(); i++) {
-		    Assert(computed_quantities[i].size() == dim,
-		           ExcDimensionMismatch (computed_quantities[i].size(), dim));
 		    for (unsigned int d=0; d<dim; ++d)
 		    	computed_quantities[i](d) = duh[i][d];
 
