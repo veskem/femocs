@@ -221,7 +221,7 @@ void FieldCurrentsHeating<dim>::assemble_system_newton (const bool first_iterati
 	    local_rhs.reinit (cell->get_fe().dofs_per_cell);
 
 	    // -----------------------------------------------------------------------------------------------
-	    // Cell is in vacuum domain
+	    // Cell is in vacuum domains
 	    // -------------------------------
 	    if (cell_is_in_vacuum_domain (cell)) {
 	    	const unsigned int dofs_per_cell = cell->get_fe().dofs_per_cell;
