@@ -17,7 +17,7 @@
 
 int main() {
 
-	/*
+
 	PhysicalQuantities pq;
 	if (!pq.load_emission_data("../res/physical_quantities/gtf_grid_1000x1000.dat"))
 			return EXIT_FAILURE;
@@ -25,7 +25,7 @@ int main() {
 			return EXIT_FAILURE;
 	if (!pq.load_resistivity_data("../res/physical_quantities/cu_res_mod.dat"))
 			return EXIT_FAILURE;
-	*/
+
 
 
 /*
@@ -44,12 +44,17 @@ int main() {
 	MeshPreparer<2> mesh_preparer;
 
 	laplace::Laplace<2> field;
-	Triangulation<2> *p_mesh = field.getp_triangulation();
-	mesh_preparer.import_mesh_from_file(p_mesh, "../res/2d_meshes/vacuum_aligned.msh");
-	mesh_preparer.output_mesh(p_mesh, "vacuum_mesh.vtk");
-
+	Triangulation<2> *p_vmesh = field.getp_triangulation();
+	mesh_preparer.import_mesh_from_file(p_vmesh, "../res/2d_meshes/vacuum_aligned.msh");
+	mesh_preparer.output_mesh(p_vmesh, "vacuum_mesh.vtk");
 	field.run();
 
+	currents_heating::CurrentsAndHeating<2> ch(pq, &field);
+	Triangulation<2> *p_cmesh = ch.getp_triangulation();
+	mesh_preparer.import_mesh_from_file(p_cmesh, "../res/2d_meshes/copper_aligned.msh");
+	mesh_preparer.output_mesh(p_cmesh, "copper_mesh.vtk");
+
+	ch.run();
 
 	return EXIT_SUCCESS;
 }

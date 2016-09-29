@@ -38,8 +38,13 @@
 #include <fstream>
 #include <iostream>
 
+#include "currents_and_heating.h" // for friend class declaration
 #include "mesh_preparer.h" // for BoundaryId-s.. probably should think of a better place for them
 
+namespace currents_heating {
+	template<int dim>
+	class CurrentsAndHeating;
+} // ugly stuff....
 
 namespace laplace {
 	using namespace dealii;
@@ -74,6 +79,8 @@ namespace laplace {
 		Vector<double> solution;
 		Vector<double> system_rhs;
 
+
+		friend class CurrentsAndHeating<dim>;
 	};
 
 } // namespace laplace

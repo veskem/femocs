@@ -48,40 +48,52 @@
 #include "physical_quantities.h"
 #include "laplace.h"
 
-using namespace dealii;
-using namespace laplace;
+namespace currents_heating {
+	using namespace dealii;
+	using namespace laplace;
 
-template<int dim>
-class CurrentsAndHeating {
-public:
-	CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim> *laplace_);
-	void run();
+	template<int dim>
+	class CurrentsAndHeating {
+	public:
+		CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim> *laplace_);
+		void run();
 
-	Triangulation<dim>* getp_triangulation();
+		Triangulation<dim>* getp_triangulation();
 
-private:
-	void setup_system();
-	void assemble_system_newton(bool first_iteration);
-	void solve();
-	void output_results(const unsigned int iteration) const;
+	private:
+		void setup_system();
+		void assemble_system_newton(bool first_iteration);
+		void solve();
+		void output_results(const unsigned int iteration) const;
 
-	Triangulation<dim> triangulation;
-	FESystem<dim> fe;
-	DoFHandler<dim> dof_handler;
+		void setup_mapping();
 
-	SparsityPattern sparsity_pattern;
-	SparseMatrix<double> system_matrix;
+		static constexpr unsigned int currents_degree = 1;
+		static constexpr unsigned int heating_degree  = 1;
 
-	Vector<double> solution;
-	Vector<double> previous_solution;
-	Vector<double> system_rhs;
+		Triangulation<dim> triangulation;
+		FESystem<dim> fe;
+		DoFHandler<dim> dof_handler;
 
-	PhysicalQuantities pq;
-	Laplace<dim> *laplace;
+		SparsityPattern sparsity_pattern;
+		SparseMatrix<double> system_matrix;
 
-	double emission_at_point(const Point<dim> &p, double temperature);
-};
+		Vector<double> solution;
+		Vector<double> previous_solution;
+		Vector<double> system_rhs;
 
+		PhysicalQuantities pq;
+		Laplace<dim> *laplace;
+
+		/** Bijective mapping of interface faces
+		 * (copper_cell_index, copper_cell_face) <-> (vacuum_cell_index, vacuum_cell_face)
+		 */
+		std::map< std::pair<unsigned int, char>, std::pair<unsigned int, char> > interface_map;
+
+		double emission_at_point(const Point<dim> &p, double temperature);
+	};
+
+} // end currents_heating namespace
 
 
 #endif /* INCLUDE_CURRENTS_AND_HEATING_H_ */
