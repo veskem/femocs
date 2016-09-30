@@ -63,9 +63,9 @@ const void Femocs::run(double E_field, string message) {
     conf.neumann = E_field;
     tstart = omp_get_wtime();
 
-    start_msg(t0, "=== Outputting AtomReader...");
-    reader.output("output/reader.xyz");
-    end_msg(t0);
+//    start_msg(t0, "=== Outputting AtomReader...");
+//    reader.output("output/reader.xyz");
+//    end_msg(t0);
 
     if (conf.significant_distance > 0.0) {
         start_msg(t0, "=== Comparing with previous run...");

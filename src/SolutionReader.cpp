@@ -78,10 +78,10 @@ const void Interpolator::precompute_tetrahedra() {
      * barycentric coordinate of tetrahedra using the relations below */
     for (int i = 0; i < n_elems; ++i) {
         SimpleElement se = mesh->get_simpleelem(i);
-        Vec3 v1 = mesh->get_vec(se.n1);
-        Vec3 v2 = mesh->get_vec(se.n2);
-        Vec3 v3 = mesh->get_vec(se.n3);
-        Vec3 v4 = mesh->get_vec(se.n4);
+        Vec3 v1 = mesh->get_vec(se[0]);
+        Vec3 v2 = mesh->get_vec(se[1]);
+        Vec3 v3 = mesh->get_vec(se[2]);
+        Vec3 v4 = mesh->get_vec(se[3]);
 
         /* =====================================================================================
          * det0 = |x1 y1 z1 1|
@@ -369,6 +369,7 @@ const double Interpolator::determinant(const Vec4 &v1, const Vec4 &v2, const Vec
 
     return v4.w * det4 - v4.z * det3 + v4.y * det2 - v4.x * det1;
 }
+
 
 // SolutionReader constructor
 SolutionReader::SolutionReader() : longrange_efield(0) {

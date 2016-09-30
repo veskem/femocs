@@ -8,11 +8,13 @@
 #ifndef MESHER_H_
 #define MESHER_H_
 
+#include <TetgenCells.h>
 #include "Macros.h"
 #include "AtomReader.h"
+#include "Primitives.h"
 #include "Media.h"
 #include "Mesh.h"
-#include "Primitives.h"
+
 
 using namespace std;
 namespace femocs {

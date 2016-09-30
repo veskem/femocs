@@ -19,6 +19,7 @@
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/grid/grid_reordering.h>
 #include <deal.II/grid/grid_tools.h>
+#include <TetgenCells.h>
 
 #include "Macros.h"
 #include "AtomReader.h"

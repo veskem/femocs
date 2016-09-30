@@ -191,8 +191,9 @@ const void Mesher::generate_edges() {
     // Generate edges from all the elements and leave
     for (int elem = 0; elem < n_elems; ++elem) {
         SimpleElement selem = mesh->get_simpleelem(elem);
-        for (int edge = 0; edge < mesh->n_edges_per_elem; ++edge)
-            mesh->add_edge(selem.edge(edge));
+        cout << selem.edge(0);
+        for (unsigned int ed = 0; ed < mesh->n_edges_per_elem; ++ed)
+            mesh->add_edge(selem.edge(ed));
     }
 }
 
@@ -213,7 +214,6 @@ const void Mesher::generate_surf_faces() {
         surf_locs = mesh->get_simpleelem(elem) <= max_surf_indx;
         elem_in_surface[elem] = (vector_sum(surf_locs) == 3);
     }
-
     // Reserve memory for surface faces
     mesh->init_faces( 2 + vector_sum(elem_in_surface) );
 
@@ -277,9 +277,9 @@ const void Mesher::separate_meshes(Mesh* vacuum, Mesh* bulk, const string& cmd) 
     for (i = 0; i < n_elems; ++i) {
         SimpleElement se = mesh->get_simpleelem(i);
         if (elem_in_vacuum[i])
-            vacuum->add_elem(vacm_map[se.n1], vacm_map[se.n2], vacm_map[se.n3], vacm_map[se.n4]);
+            vacuum->add_elem(vacm_map[se[0]], vacm_map[se[1]], vacm_map[se[2]], vacm_map[se[3]]);
         else
-            bulk->add_elem(bulk_map[se.n1], bulk_map[se.n2], bulk_map[se.n3], bulk_map[se.n4]);
+            bulk->add_elem(bulk_map[se[0]], bulk_map[se[1]], bulk_map[se[2]], bulk_map[se[3]]);
     }
 
     vacuum->recalc(cmd);
@@ -309,7 +309,7 @@ const void Mesher::separate_meshes(Mesh* vacuum, const string& cmd) {
     for (i = 0; i < n_elems; ++i)
         if (elem_in_vacuum[i]) {
             SimpleElement se = mesh->get_simpleelem(i);
-            vacuum->add_elem(vacm_map[se.n1], vacm_map[se.n2], vacm_map[se.n3], vacm_map[se.n4]);
+            vacuum->add_elem(vacm_map[se[0]], vacm_map[se[1]], vacm_map[se[2]], vacm_map[se[3]]);
         }
 
     vacuum->recalc(cmd);
@@ -634,8 +634,8 @@ const void Mesher::mark_edges() {
 
     for (int edge = 0; edge < n_edges; ++edge) {
         SimpleEdge sedge = mesh->get_simpleedge(edge);
-        const int m1 = mesh->get_nodemarker(sedge.n1);
-        const int m2 = mesh->get_nodemarker(sedge.n2);
+        const int m1 = mesh->get_nodemarker(sedge[0]);
+        const int m2 = mesh->get_nodemarker(sedge[1]);
 
         if (m1 == TYPES.PERIMETER && m2 == TYPES.PERIMETER)
             mesh->add_edgemarker(TYPES.PERIMETER);

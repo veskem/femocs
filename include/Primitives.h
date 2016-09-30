@@ -35,177 +35,131 @@ private:
     const T* data;
 };
 
-/** Template class to define the operations for the indices of edge nodes */
-template<typename T>
-class SimpleEdge_T {
+/** Template class for finite element cell */
+template <size_t dim>
+class SimpleCell {
 public:
-    /** SimpleFace constructors */
-    SimpleEdge_T() : n1(0), n2(0) {}
-    SimpleEdge_T(T n) : n1(n), n2(n) {}
-    SimpleEdge_T(T nn1, T nn2) : n1(nn1), n2(nn2) {}
 
-    bool operator ==(const SimpleEdge_T<T> &e) const
-        { return (n1 == e.n1 || n2 == e.n1) && (n1 == e.n2 || n2 == e.n2); }
+    /** SimpleCell constructors */
+    SimpleCell() { std::fill_n(node, dim, int()); }
+    SimpleCell(const unsigned int &nn) { std::fill_n(node, dim, nn); }
 
     /** Less than, bigger than, less than or equal, bigger than or equal operators */
-    vector<bool> operator <(const T &t) const { return {n1 < t, n2 < t}; }
-    vector<bool> operator >(const T &t) const { return {n1 > t, n2 > t}; }
-    vector<bool> operator <=(const T &t) const { return {n1 <= t, n2 <= t}; }
-    vector<bool> operator >=(const T &t) const { return {n1 >= t, n2 >= t}; }
-
-    /** Number of vertices */
-    int n_verts() const { return 2; }
+    vector<bool> operator <(const unsigned int &t) const {
+        vector<bool> v(dim);
+        for (unsigned int n : node) v.push_back(n < t);
+        return v;
+    }
+    vector<bool> operator >(const unsigned int &t) const {
+        vector<bool> v(dim);
+        for (unsigned int n : node) v.push_back(n > t);
+        return v;
+    }
+    vector<bool> operator <=(const unsigned int &t) const {
+        vector<bool> v(dim);
+        for (unsigned int n : node) v.push_back(n <= t);
+        return v;
+    }
+    vector<bool> operator >=(const unsigned int &t) const {
+        vector<bool> v(dim);
+        for (unsigned int n : node) v.push_back(n >= t);
+        return v;
+    }
 
     /** Define access operators or accessors */
-    const T& operator [](uint8_t i) const {
-        require(i >= 0 && i < n_verts(), "Invalid index: " + to_string(i));
-        return (&n1)[i];
+    const unsigned int operator [](size_t i) const {
+        require(i >= 0 && i < dim, "Invalid index: " + to_string(i));
+        return node[i];
     }
-    T& operator [](uint8_t i) {
-        require((i >= 0) && (i < n_verts()), "Invalid index: " + to_string(i));
-        return (&n1)[i];
+    unsigned int operator [](size_t i) {
+        require((i >= 0) && (i < dim), "Invalid index: " + to_string(i));
+        return node[i];
     }
 
     /** Define the behaviour of string stream */
-    friend std::ostream& operator <<(std::ostream &s, const SimpleEdge_T<T> &t) {
-        return s << t.n1 << ' ' << t.n2;
+    friend std::ostream& operator <<(std::ostream &s, const SimpleCell<dim> &t) {
+        for (unsigned int nn : t.node) s << nn << ' ';
+        return s;
     }
 
     /** Return data as string */
     string to_str() const { stringstream ss; ss << this; return ss.str(); }
 
-    /** Transform SimpleEdge to vector */
-    vector<int> to_vector() const { return vector<int> {n1, n2}; }
+    /** Transform SimpleCell to vector */
+    vector<int> to_vector() const { return vector<int>(std::begin(node), std::end(node)); }
 
     /** Attach iterator */
-    typedef Iterator<SimpleEdge_T, T> iterator;
+    typedef Iterator<SimpleCell, unsigned int> iterator;
     iterator begin() const { return iterator(this, 0); }
-    iterator end() const { return iterator(this, n_verts()); }
+    iterator end() const { return iterator(this, dim); }
 
-    T n1, n2;          //!< vertices of SimpleEdge
+    unsigned int node[dim]; //!< vertices of SimpleCell
 };
 
-/** Template class to define the operations for the indices of face nodes */
-template<typename T>
-class SimpleFace_T {
+/** Node class without Point data */
+class SimpleNode: public SimpleCell<1> {
+public:
+    /** SimpleNode constructors */
+    SimpleNode() : SimpleCell<1>() {}
+    SimpleNode(const unsigned int &n1) : SimpleCell<1>(n1) {}
+};
+
+/** Edge class without Point data */
+class SimpleEdge: public SimpleCell<2> {
+public:
+    /** SimpleEdge constructors */
+    SimpleEdge() : SimpleCell<2>() {}
+    SimpleEdge(const unsigned int &n1) : SimpleCell<2>(n1) {}
+    SimpleEdge(const unsigned int &n1, const unsigned int &n2) {
+        node[0] = n1; node[1] = n2;
+    }
+};
+
+/** Face class without Point data */
+class SimpleFace : public SimpleCell<3> {
 public:
     /** SimpleFace constructors */
-    SimpleFace_T() : n1(0), n2(0), n3(0){}
-    SimpleFace_T(T n) : n1(n), n2(n), n3(n) {}
-    SimpleFace_T(T nn1, T nn2, T nn3) : n1(nn1), n2(nn2), n3(nn3) {}
+    SimpleFace() : SimpleCell<3>() {}
+    SimpleFace(const unsigned int &n1) : SimpleCell<3>(n1) {}
+    SimpleFace(const unsigned int &n1, const unsigned int &n2, const unsigned int &n3) {
+        node[0] = n1; node[1] = n2; node[2] = n3;
+    }
 
     /** Get i-th edge of the face */
-    SimpleEdge_T<T> edge(const int i) const {
-        if (i <= 0) return SimpleEdge_T<T>(n1, n2);
-        if (i == 1) return SimpleEdge_T<T>(n1, n3);
-        else return SimpleEdge_T<T>(n2, n3);
+    const SimpleEdge edge(const unsigned int i) const {
+        if (i <= 0) return SimpleEdge(node[0], node[1]);
+        if (i == 1) return SimpleEdge(node[0], node[2]);
+        else        return SimpleEdge(node[1], node[2]);
     }
-
-    /** Less than, bigger than, less than or equal, bigger than or equal operators */
-    vector<bool> operator <(const T &t) const { return {n1 < t, n2 < t, n3 < t}; }
-    vector<bool> operator >(const T &t) const { return {n1 > t, n2 > t, n3 > t}; }
-    vector<bool> operator <=(const T &t) const { return {n1 <= t, n2 <= t, n3 <= t}; }
-    vector<bool> operator >=(const T &t) const { return {n1 >= t, n2 >= t, n3 >= t}; }
-
-    /** Number of vertices in SimpleFace */
-    int n_verts() const { return 3; }
-
-    /** Define access operators or accessors */
-    const T& operator [](uint8_t i) const {
-        require(i >= 0 && i < n_verts(), "Invalid index: " + to_string(i));
-        return (&n1)[i];
-    }
-    T& operator [](uint8_t i) {
-        require((i >= 0) && (i < n_verts()), "Invalid index: " + to_string(i));
-        return (&n1)[i];
-    }
-
-    /** Define the behaviour of string stream */
-    friend std::ostream& operator <<(std::ostream &s, const SimpleFace_T<T> &t) {
-        return s << t.n1 << ' ' << t.n2 << ' ' << t.n3;
-    }
-
-    /** Return data as string */
-    string to_str() const { stringstream ss; ss << this; return ss.str(); }
-
-    /** Transform SimpleFace to vector */
-    vector<int> to_vector() const { return vector<int> {n1, n2, n3}; }
-
-    /** Attach iterator */
-    typedef Iterator<SimpleFace_T, T> iterator;
-    iterator begin() const { return iterator(this, 0); }
-    iterator end() const { return iterator(this, n_verts()); }
-
-    T n1, n2, n3;          //!< Vertices of SimpleFace
 };
 
-/** Template class to define the operations for the indices of element nodes */
-template<typename T>
-class SimpleElement_T {
+/** Element class without Point data */
+class SimpleElement : public SimpleCell<4> {
 public:
-    /** SimpleFace constructors */
-    SimpleElement_T() : n1(0), n2(0), n3(0), n4(0){}
-    SimpleElement_T(T n) : n1(n), n2(n), n3(n), n4(n) {}
-    SimpleElement_T(T nn1, T nn2, T nn3, T nn4) : n1(nn1), n2(nn2), n3(nn3), n4(nn4) {}
-
-    /** Comparison with scalar */
-    bool operator !=(const T &m) const { return n1 != m && n2 != m && n3 != m && n4 != m; }
-    bool operator ==(const T &m) const { return n1 == m && n2 == m && n3 == m && n4 == m; }
-
-    /** Number of vertices in SimpleElement */
-    uint8_t n_verts() const { return 4; }
-
-    /** Transform SimpleElement to vector */
-    vector<int> to_vector() const { return vector<int> {n1, n2, n3, n4}; }
-
-    /** Less than, bigger than, less than or equal, bigger than or equal operators */
-    vector<bool> operator <(const T &t) const { return {n1 < t, n2 < t, n3 < t, n4 < t}; }
-    vector<bool> operator >(const T &t) const { return {n1 > t, n2 > t, n3 > t, n4 > t}; }
-    vector<bool> operator <=(const T &t) const { return {n1 <= t, n2 <= t, n3 <= t, n4 <= t}; }
-    vector<bool> operator >=(const T &t) const { return {n1 >= t, n2 >= t, n3 >= t, n4 >= t}; }
+    /** SimpleEdge constructors */
+    SimpleElement() : SimpleCell<4>() {}
+    SimpleElement(const unsigned int &n1) : SimpleCell<4>(n1) {}
+    SimpleElement(const unsigned int &n1, const unsigned int &n2, const unsigned int &n3, const unsigned int &n4) {
+        node[0] = n1; node[1] = n2; node[2] = n3; node[3] = n4;
+    }
 
     /** Get i-th edge of the element */
-    SimpleEdge_T<T> edge(const int i) const {
-        if (i <= 0) return SimpleEdge_T<T>(n1, n2);
-        if (i == 1) return SimpleEdge_T<T>(n1, n3);
-        if (i == 2) return SimpleEdge_T<T>(n1, n4);
-        if (i == 3) return SimpleEdge_T<T>(n2, n3);
-        if (i == 4) return SimpleEdge_T<T>(n2, n4);
-        else return SimpleEdge_T<T>(n3, n4);
+    const SimpleEdge edge(const unsigned int i) const {
+        if (i <= 0) return SimpleEdge(node[0], node[1]);
+        if (i == 1) return SimpleEdge(node[0], node[2]);
+        if (i == 2) return SimpleEdge(node[0], node[3]);
+        if (i == 3) return SimpleEdge(node[1], node[2]);
+        if (i == 4) return SimpleEdge(node[1], node[3]);
+        else        return SimpleEdge(node[2], node[3]);
     }
 
     /** Get i-th face of the element */
-    SimpleFace_T<T> face(const int i) const {
-        if (i <= 0) return SimpleFace_T<T>(n1, n2, n3);
-        if (i == 1) return SimpleFace_T<T>(n1, n2, n4);
-        if (i == 2) return SimpleFace_T<T>(n2, n3, n4);
-        else return SimpleFace_T<T>(n3, n1, n4);
+    const SimpleFace face(const unsigned int i) const {
+        if (i <= 0) return SimpleFace(node[0], node[1], node[2]);
+        if (i == 1) return SimpleFace(node[0], node[1], node[3]);
+        if (i == 2) return SimpleFace(node[1], node[2], node[3]);
+        else        return SimpleFace(node[2], node[0], node[1]);
     }
-
-    /** Define access operators or accessors */
-    const T& operator [](uint8_t i) const {
-        require(i >= 0 && i < n_verts(), "Invalid index: " + to_string(i));
-        return (&n1)[i];
-    }
-    T& operator [](uint8_t i) {
-        require((i >= 0) && (i < n_verts()), "Invalid index: " + to_string(i));
-        return (&n1)[i];
-    }
-
-    /** Define the behaviour of string stream */
-    friend std::ostream& operator <<(std::ostream &s, const SimpleElement_T &t) {
-        return s << t.n1 << ' ' << t.n2 << ' ' << t.n3 << ' ' << t.n4;
-    }
-
-    /** Return data as string */
-    string to_str() const { stringstream ss; ss << this; return ss.str(); }
-
-    /** Attach iterator */
-    typedef Iterator<SimpleElement_T, T> iterator;
-    iterator begin() const { return iterator(this, 0); }
-    iterator end() const { return iterator(this, n_verts()); }
-
-    T n1, n2, n3, n4;      //!< Vertices of SimpleElement
 };
 
 /** Template class to define elementary operations between 3-dimensional points */
@@ -218,7 +172,7 @@ public:
     Point3_T(T xx) : x(xx), y(xx), z(xx), r(0) {}
     Point3_T(T xx, T yy, T zz) : x(xx), y(yy), z(zz), r(0) {}
 
-    /** Dimensionality of Point */
+    /** Dimensionality of SimpleCell_T */
     const int size() const {
         return 3;
     }
@@ -231,7 +185,7 @@ public:
         return (T) (xx * xx + yy * yy + zz * zz);
     }
 
-    /** Squared distance between a Point3 and dealii::Point<3> */
+    /** Squared distance between a Point3 and dealii::SimpleCell_T<3> */
     const double distance2(const dealii::Point<3> &p) const {
         T xx = x - p[0];
         T yy = y - p[1];
@@ -260,7 +214,7 @@ public:
         return sqrt(distance2(p));
     }
 
-    /** Distance between a Point3 and dealii::Point<3> */
+    /** Distance between a Point3 and dealii::SimpleCell_T<3> */
     const double distance(const dealii::Point<3> &p) const {
         return sqrt(distance2(p));
     }
@@ -280,12 +234,12 @@ public:
         x -= p.x, y -= p.y, z -= p.z;
         return *this;
     }
-    /** Multiplying a Point with constant */
+    /** Multiplying a SimpleCell_T with constant */
     Point3_T& operator *=(const T &r) {
         x *= r, y *= r, z *= r;
         return *this;
     }
-    /** Dividing a Point with constant */
+    /** Dividing a SimpleCell_T with constant */
     Point3_T& operator /=(const T &r) {
         x /= r, y /= r, z /= r;
         return *this;
@@ -306,7 +260,7 @@ public:
     const bool operator <=(const Point3_T<T> &p) const { return r <= p.r; }
     bool operator <=(const Point3_T<T> &p) { return r <= p.r; }
 
-    /** Comparison operator between a Point3 and dealii::Point<3> */
+    /** Comparison operator between a Point3 and dealii::SimpleCell_T<3> */
     const bool operator ==(const dealii::Point<3> &p) const {
         return x == p[0] && y == p[1] && z == p[2];
     }
@@ -333,7 +287,7 @@ public:
     }
 
     /** Return data as string */
-    string to_str() const { stringstream ss; ss << this; return ss.str(); }
+    string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
     T x, y, z, r;
 };
@@ -347,7 +301,7 @@ public:
     Point2_T(T xx) : x(xx), y(xx), r(0) {}
     Point2_T(T xx, T yy) : x(xx), y(yy), r(0) {}
 
-    /** Dimensionality of Point */
+    /** Dimensionality of SimpleCell_T */
     const int size() const {
         return 2;
     }
@@ -405,7 +359,7 @@ public:
     }
 
     /** Return data as string */
-    string to_str() const { stringstream ss; ss << this; return ss.str(); }
+    string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
     T x, y, r;
 };
@@ -520,7 +474,7 @@ public:
     }
 
     /** Return data as string */
-    string to_str() const { stringstream ss; ss << this; return ss.str(); }
+    string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
     T x, y, z;
 };
@@ -632,14 +586,10 @@ public:
     }
 
     /** Return data as string */
-    string to_str() const { stringstream ss; ss << this; return ss.str(); }
+    string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
     T x, y, z, w;
 };
-
-typedef SimpleEdge_T<unsigned int> SimpleEdge;          //!> edge class without Point data
-typedef SimpleFace_T<unsigned int> SimpleFace;          //!> face class without Point data
-typedef SimpleElement_T<unsigned int> SimpleElement;    //!> element class without Point data
 
 typedef Vec4_T<double> Vec4;     //!> 4-dimensional vector class with double values
 typedef Vec3_T<double> Vec3;     //!> 3-dimensional vector class with double values

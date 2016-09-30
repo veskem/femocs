@@ -12,9 +12,13 @@
 using namespace std;
 namespace femocs {
 
+TetgenMesh::TetgenMesh() {}
+
+
 // Mesh constructor
 Mesh::Mesh(const string& mesher) : i_nodes(0), i_edges(0), i_elems(0), i_faces(0) {
     require(mesher == "tetgen", "Unimplemented mesher!");
+
     this->mesher = mesher;
     stat.Vmin = stat.Vmax = stat.Vmedian = stat.Vaverage = 0;
 }
@@ -187,14 +191,11 @@ const vector<int>* Mesh::get_elemmarkers() {
 
 const vector<int> Mesh::get_elem_neighbours(const int i) const {
     require(i >= 0 && i < get_n_elems(), "Invalid index: " + to_string(i));
+    require(tetIOout.neighborlist, "Query from empty neighbour list!");
 
     const int I = n_faces_per_elem * i;
-    if (tetIOout.neighborlist)
-        return vector<int> {tetIOout.neighborlist[I+0], tetIOout.neighborlist[I+1],
-            tetIOout.neighborlist[I+2], tetIOout.neighborlist[I+3]};
-
-    require(false, "Query from empty neighbour list!");
-    return vector<int> {i};
+    return vector<int> {tetIOout.neighborlist[I+0], tetIOout.neighborlist[I+1],
+        tetIOout.neighborlist[I+2], tetIOout.neighborlist[I+3]};
 }
 
 const int Mesh::get_n_nodes() const {
@@ -349,7 +350,7 @@ const void Mesh::add_node(const Point3 &point) {
 // That's because inserted edges are intended to be valid immediately without re-calc in tetgen
 const void Mesh::add_edge(const SimpleEdge& edge) {
     require(i_edges < tetIOout.numberofedges, "Allocated size of edges exceeded!");
-    require(edge.n1 >= 0 && edge.n2 >= 0, "Invalid edge: " + edge.to_str());
+    require(vector_sum(edge >= 0) == n_nodes_per_edge, "Invalid edge: " + edge.to_str());
     int i = n_nodes_per_edge * i_edges;
     for (int node : edge)
         tetIOout.edgelist[i++] = node;
@@ -358,18 +359,18 @@ const void Mesh::add_edge(const SimpleEdge& edge) {
 
 const void Mesh::add_face(const SimpleFace& face) {
     require(i_faces < tetIOout.numberoftrifaces, "Allocated size of faces exceeded!");
-    require(face.n1 >= 0 && face.n2 >= 0 && face.n3 >= 0, "Invalid face: " + face.to_str());
+    require(vector_sum(face >= 0) == n_nodes_per_face, "Invalid face: " + face.to_str());
     int i = n_nodes_per_face * i_faces;
     for (int node : face)
         tetIOout.trifacelist[i++] = node;
     i_faces++;
 }
 
-const void Mesh::add_elem(const SimpleElement& el) {
+const void Mesh::add_elem(const SimpleElement& elem) {
     require(i_elems < tetIOin.numberoftetrahedra, "Allocated size of elements exceeded!");
-    require(el.n1 >= 0 && el.n2 >= 0 && el.n3 >= 0 && el.n4 >= 0, "Invalid element: " + el.to_str());
+    require(vector_sum(elem >= 0) == n_nodes_per_elem, "Invalid element: " + elem.to_str());
     int i = n_nodes_per_elem * i_elems;
-    for (int node : el)
+    for (int node : elem)
         tetIOin.tetrahedronlist[i++] = node;
     i_elems++;
 }
@@ -572,10 +573,10 @@ const void Mesh::calc_qualities_byelem() {
 
     for(int el = 0; el < n_elems; ++el) {
         SimpleElement elem = get_simpleelem(el);
-        Vec3 node1 = get_vec(elem.n1);
-        Vec3 node2 = get_vec(elem.n2);
-        Vec3 node3 = get_vec(elem.n3);
-        Vec3 node4 = get_vec(elem.n4);
+        Vec3 node1 = get_vec(elem[0]);
+        Vec3 node2 = get_vec(elem[1]);
+        Vec3 node3 = get_vec(elem[2]);
+        Vec3 node4 = get_vec(elem[3]);
 
         // Tetrahedron edge lengths
         double e1 = (node1 - node2).length();
@@ -614,10 +615,10 @@ const void Mesh::calc_qualities_byface() {
 
     for(int el = 0; el < n_elems; ++el) {
         SimpleElement elem = get_simpleelem(el);
-        Vec3 node1 = get_vec(elem.n1);
-        Vec3 node2 = get_vec(elem.n2);
-        Vec3 node3 = get_vec(elem.n3);
-        Vec3 node4 = get_vec(elem.n4);
+        Vec3 node1 = get_vec(elem[0]);
+        Vec3 node2 = get_vec(elem[1]);
+        Vec3 node3 = get_vec(elem[2]);
+        Vec3 node4 = get_vec(elem[3]);
 
         double q1 = calc_face_quality(node1, node2, node3);
         double q2 = calc_face_quality(node1, node2, node4);
