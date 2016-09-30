@@ -41,10 +41,8 @@
 #include "currents_and_heating.h" // for friend class declaration
 #include "mesh_preparer.h" // for BoundaryId-s.. probably should think of a better place for them
 
-namespace currents_heating {
-	template<int dim>
-	class CurrentsAndHeating;
-} // ugly stuff....
+// forward declaration for friend class
+namespace currents_heating {template<int dim> class CurrentsAndHeating;}
 
 namespace laplace {
 	using namespace dealii;
@@ -80,7 +78,7 @@ namespace laplace {
 		Vector<double> system_rhs;
 
 
-		friend class CurrentsAndHeating<dim>;
+		friend class currents_heating::CurrentsAndHeating<dim>;
 	};
 
 } // namespace laplace

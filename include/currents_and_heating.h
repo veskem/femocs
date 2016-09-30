@@ -38,6 +38,7 @@
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 #include <deal.II/lac/solver_cg.h>
+#include <deal.II/lac/solver_gmres.h>
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/sparse_direct.h>	// UMFpack
 
@@ -47,6 +48,9 @@
 #include "mesh_preparer.h" // for BoundaryId-s.. probably should think of a better place for them
 #include "physical_quantities.h"
 #include "laplace.h"
+
+// forward declaration for Laplace to exist when declaring CurrentsAndHeating
+namespace laplace {template<int dim> class Laplace;}
 
 namespace currents_heating {
 	using namespace dealii;
@@ -88,9 +92,7 @@ namespace currents_heating {
 		/** Bijective mapping of interface faces
 		 * (copper_cell_index, copper_cell_face) <-> (vacuum_cell_index, vacuum_cell_face)
 		 */
-		std::map< std::pair<unsigned int, char>, std::pair<unsigned int, char> > interface_map;
-
-		double emission_at_point(const Point<dim> &p, double temperature);
+		std::map< std::pair<unsigned, unsigned>, std::pair<unsigned, unsigned> > interface_map;
 	};
 
 } // end currents_heating namespace

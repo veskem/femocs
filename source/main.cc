@@ -53,8 +53,24 @@ int main() {
 	Triangulation<2> *p_cmesh = ch.getp_triangulation();
 	mesh_preparer.import_mesh_from_file(p_cmesh, "../res/2d_meshes/copper_aligned.msh");
 	mesh_preparer.output_mesh(p_cmesh, "copper_mesh.vtk");
-
 	ch.run();
+
+/*
+	MeshPreparer<3> mesh_preparer;
+
+	laplace::Laplace<3> field;
+	Triangulation<3> *p_vmesh = field.getp_triangulation();
+	mesh_preparer.import_mesh_from_file(p_vmesh, "../res/3d_meshes/");
+	mesh_preparer.output_mesh(p_vmesh, "vacuum_mesh.vtk");
+	field.run();
+
+	currents_heating::CurrentsAndHeating<2> ch(pq, &field);
+	Triangulation<2> *p_cmesh = ch.getp_triangulation();
+	mesh_preparer.import_mesh_from_file(p_cmesh, "../res/3d_meshes/");
+	mesh_preparer.output_mesh(p_cmesh, "copper_mesh.vtk");
+	ch.run();
+*/
+
 
 	return EXIT_SUCCESS;
 }

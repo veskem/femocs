@@ -25,13 +25,6 @@ Triangulation<dim>* CurrentsAndHeating<dim>::getp_triangulation() {
 	return &triangulation;
 }
 
-template <int dim>
-double CurrentsAndHeating<dim>::emission_at_point(const Point<dim> &/*p*/, double temperature) {
-	//double e_field = laplace->probe_field(p);
-	double e_field = 10.0;
-	return pq.emission_current(e_field, temperature);
-}
-
 
 template <int dim>
 void CurrentsAndHeating<dim>::setup_system() {
@@ -68,7 +61,7 @@ void CurrentsAndHeating<dim>::setup_mapping() {
 		vac_cell = laplace->dof_handler.begin_active(),
 		vac_endc = laplace->dof_handler.end();
 	for (; vac_cell != vac_endc; ++vac_cell) {
-		for (char f=0; f < GeometryInfo<dim>::faces_per_cell; f++) {
+		for (unsigned int f=0; f < GeometryInfo<dim>::faces_per_cell; f++) {
 			if (vac_cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
 				vacuum_interface_indexes.push_back(vac_cell->index());
 				vacuum_interface_face.push_back(f);
@@ -86,15 +79,16 @@ void CurrentsAndHeating<dim>::setup_mapping() {
 		cop_endc = dof_handler.end();
 
 	for (; cop_cell != cop_endc; ++cop_cell) {
-		for (char f=0; f < GeometryInfo<dim>::faces_per_cell; f++) {
+		for (unsigned int f=0; f < GeometryInfo<dim>::faces_per_cell; f++) {
 			if (cop_cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
 				Point<dim> cop_face_center = cop_cell->face(f)->center();
 				// Loop over vacuum side and find corresponding (cell, face) pair
 				for (unsigned int i=0; i < vacuum_interface_indexes.size(); i++) {
 					if (cop_face_center.distance(vacuum_interface_centers[i]) < eps) {
-						std::pair< std::pair<unsigned int, char>, std::pair<unsigned int, char> > pair;
-						pair.first = std::pair<unsigned int, char>(cop_cell->index(), f);
-						pair.second = std::pair<unsigned int, char>(vacuum_interface_indexes[i], vacuum_interface_face[i]);
+						std::pair< std::pair<unsigned, unsigned>,
+								   std::pair<unsigned, unsigned> > pair;
+						pair.first = std::pair<unsigned, unsigned>(cop_cell->index(), f);
+						pair.second = std::pair<unsigned, unsigned>(vacuum_interface_indexes[i], vacuum_interface_face[i]);
 						interface_map.insert(pair);
 					}
 				}
@@ -110,8 +104,12 @@ void CurrentsAndHeating<dim>::setup_mapping() {
 template <int dim>
 void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration) {
 
+	TimerOutput timer(std::cout, TimerOutput::never, TimerOutput::wall_times);
+	timer.enter_section("Pre-assembly");
+
 	QGauss<dim> quadrature_formula(std::max(currents_degree, heating_degree)+2);
-	QGauss<dim-1> face_quadrature_formula(std::max(currents_degree, heating_degree)+2);
+	QGauss<dim-1> face_quadrature_formula(std::max(std::max(currents_degree,
+			heating_degree), laplace->shape_degree)+2);
 
 	FEValues<dim> fe_values(fe, quadrature_formula,
 			update_values | update_gradients | update_quadrature_points
@@ -120,6 +118,11 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 	FEFaceValues<dim> fe_face_values(fe, face_quadrature_formula,
 			update_values | update_gradients | update_normal_vectors
 					| update_quadrature_points | update_JxW_values);
+
+	// For evaluating E field at the copper surface
+	FEFaceValues<dim> vacuum_fe_face_values(laplace->fe, face_quadrature_formula,
+				update_gradients | update_quadrature_points | update_JxW_values);
+
 
 	const unsigned int dofs_per_cell = fe.dofs_per_cell;
 	const unsigned int n_q_points = quadrature_formula.size();
@@ -147,10 +150,16 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 	std::vector< Tensor<1, dim> >	potential_phi_grad (dofs_per_cell);
 	std::vector<double> 			temperature_phi (dofs_per_cell);
 	std::vector< Tensor<1, dim> >	temperature_phi_grad (dofs_per_cell);
+
+	// Electric field values from laplace solver
+	std::vector< Tensor<1, dim> > electric_field_values (n_face_q_points);
 	// ----------------------------------------------------------------------------------------------
 
     const FEValuesExtractors::Scalar potential (0);
     const FEValuesExtractors::Scalar temperature (1);
+
+    timer.exit_section();
+    timer.enter_section("Loop header");
 
 	typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
 			endc = dof_handler.end();
@@ -165,10 +174,14 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 		fe_values[temperature].get_function_values(previous_solution, prev_sol_temperature_values);
 		fe_values[temperature].get_function_gradients(previous_solution, prev_sol_temperature_gradients);
 
+		timer.exit_section();
+		timer.enter_section("Matrix assembly 1");
+
 		// ---------------------------------------------------------------------------------------------
 		// Local matrix assembly
 		// ---------------------------------------------------------------------------------------------
 		for (unsigned int q = 0; q < n_q_points; ++q) {
+
 			double prev_temp = prev_sol_temperature_values[q];
 			const Tensor<1,dim> prev_pot_grad = prev_sol_potential_gradients[q];
 			const Tensor<1,dim> prev_temp_grad = prev_sol_temperature_gradients[q];
@@ -183,6 +196,10 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 				temperature_phi[k] = fe_values[temperature].value (k, q);
 				temperature_phi_grad[k] = fe_values[temperature].gradient (k, q);
 			}
+
+			timer.exit_section();
+			timer.enter_section("Matrix assembly 2");
+
 			for (unsigned int i = 0; i < dofs_per_cell; ++i) {
 				for (unsigned int j = 0; j < dofs_per_cell; ++j) {
 					cell_matrix(i, j)
@@ -200,9 +217,12 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 						 + temperature_phi_grad[i] * kappa * prev_temp_grad
 					   ) * fe_values.JxW(q);
 			}
+			timer.exit_section();
+			timer.enter_section("Matrix assembly 1");
 		}
 		// ---------------------------------------------------------------------------------------------
-
+		timer.exit_section();
+		timer.enter_section("Rhs assembly");
 		// ---------------------------------------------------------------------------------------------
 		// Local right-hand side assembly
 		// ---------------------------------------------------------------------------------------------
@@ -217,8 +237,15 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 				if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
 					// ---------------------------------------------------------------------------------------------
 					// Vacuum side stuff
-					interface_map[std::pair<cell->index(), f>];
+					// find the corresponding vacuum side face to the copper side face
+					std::pair<unsigned, unsigned> vac_cell_info =
+							interface_map[std::pair<unsigned, unsigned>(cell->index(), f)];
+					// Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+					typename DoFHandler<dim>::active_cell_iterator vac_cell(&(laplace->triangulation),
+							0, vac_cell_info.first, &(laplace->dof_handler));
 
+					vacuum_fe_face_values.reinit(vac_cell, vac_cell_info.second);
+					vacuum_fe_face_values.get_function_gradients(laplace->solution, electric_field_values);
 					// ---------------------------------------------------------------------------------------------
 
 					// loop thought the quadrature points
@@ -228,7 +255,8 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 						const Tensor<1,dim> prev_pot_grad = prev_sol_face_potential_gradients[q];
 
 						double dsigma = pq.dsigma(prev_temp);
-						double emission_current = emission_at_point(fe_face_values.quadrature_point(q), prev_temp);
+						double e_field = electric_field_values[q].norm();
+						double emission_current = pq.emission_current(e_field, prev_temp);
 
 						for (unsigned int k=0; k<dofs_per_cell; ++k) {
 							potential_phi[k] = fe_values[potential].value (k, q);
@@ -251,6 +279,8 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 		}
 		// ---------------------------------------------------------------------------------------------
 
+		timer.exit_section();
+		timer.enter_section("Loop footer");
 
 		cell->get_dof_indices(local_dof_indices);
 
@@ -261,9 +291,13 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 
 			system_rhs(local_dof_indices[i]) += cell_rhs(i);
 		}
-
-
+		timer.exit_section();
+		timer.enter_section("Loop header");
 	}
+
+	timer.exit_section();
+	timer.enter_section("Post assembly");
+
 	// Setting Dirichlet boundary values //
 
 	// 0 potential at the bulk bottom boundary
@@ -289,6 +323,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 	MatrixTools::apply_boundary_values(temperature_dirichlet, system_matrix,
 			solution, system_rhs);
 
+	timer.exit_section();
 }
 
 
@@ -296,8 +331,17 @@ template <int dim>
 void CurrentsAndHeating<dim>::solve() {
 	// CG doesn't work as the matrix is not symmetric
 
+	// GMRES
+	/*
+	SolverControl solver_control(400000, 1e-9);
+	SolverGMRES<> solver_gmres(solver_control, SolverGMRES<>::AdditionalData(50));
+	solver_gmres.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
+	std::cout << "   " << solver_control.last_step() << " GMRES iterations needed to obtain convergence." << std::endl;
+	*/
+
+
 	// UMFPACK solver
-	deallog << "Solving linear system with UMFPACK... ";
+	deallog << "Solving linear system with UMFPACK... " << std::endl;
 	SparseDirectUMFPACK  A_direct;
 	A_direct.initialize(system_matrix);
 	A_direct.vmult (solution, system_rhs);
@@ -306,10 +350,20 @@ void CurrentsAndHeating<dim>::solve() {
 template <int dim>
 void CurrentsAndHeating<dim>::run() {
 
-	setup_system();
+	std::cout << "/--------------------------------------------------------------/" << std::endl
+		      << "    CurrentsAndHeating run" << std::endl
+			  << "/--------------------------------------------------------------/" << std::endl;
 
+	Timer timer;
+	timer.start ();
+
+	setup_system();
 	setup_mapping();
-/*
+
+	deallog << "Setup: " << timer () << "s" << std::endl;
+
+
+
 	// Newton iterations
 	for (unsigned int iteration=0; iteration<5; ++iteration) {
 		std::cout << "    Newton iteration " << iteration << std::endl;
@@ -318,15 +372,10 @@ void CurrentsAndHeating<dim>::run() {
 		system_matrix.reinit(sparsity_pattern);
 		system_rhs.reinit(dof_handler.n_dofs());
 
-		Timer timer;
-		timer.start ();
+		timer.restart();
 		assemble_system_newton(iteration == 0);
-		timer.stop ();
 
-		deallog << "system assembled in "
-				<< timer ()
-				<< "s"
-				<< std::endl;
+		deallog << "Assembly: " << timer () << "s" << std::endl;
 
 		timer.restart();
 		solve();
@@ -334,12 +383,8 @@ void CurrentsAndHeating<dim>::run() {
 		if (iteration!=0)
 			solution *= 1.0; // alpha
 		solution.add(1.0, previous_solution);
-		timer.stop ();
 
-		deallog << "solver finished in "
-				<< timer ()
-				<< "s"
-				<< std::endl;
+		deallog << "Solver: " << timer () << "s" << std::endl;
 
 		output_results(iteration);
 
@@ -350,7 +395,7 @@ void CurrentsAndHeating<dim>::run() {
 
 		previous_solution = solution;
 	}
-*/
+
 }
 
 
