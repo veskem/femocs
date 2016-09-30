@@ -50,7 +50,7 @@ template<int dim>
 void Laplace<dim>::setup_system() {
 	dof_handler.distribute_dofs(fe);
 
-	std::cout << "   Number of degrees of freedom: " << dof_handler.n_dofs() << std::endl;
+	std::cout << "    Number of degrees of freedom: " << dof_handler.n_dofs() << std::endl;
 
 	DynamicSparsityPattern dsp(dof_handler.n_dofs());
 	DoFTools::make_sparsity_pattern(dof_handler, dsp);
@@ -134,7 +134,7 @@ void Laplace<dim>::solve() {
 	SolverCG<> solver(solver_control);
 	solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
 
-	std::cout << "   " << solver_control.last_step() << " CG iterations needed to obtain convergence." << std::endl;
+	//std::cout << "   " << solver_control.last_step() << " CG iterations needed to obtain convergence." << std::endl;
 }
 
 template<int dim>
@@ -154,11 +154,18 @@ void Laplace<dim>::output_results() const {
 
 template<int dim>
 void Laplace<dim>::run() {
-
+	Timer timer;
+	std::cout << "/---------------------------------------------------------------/" << std::endl;
+	std::cout << "Laplace solver: " << std::endl;
 	setup_system();
+	std::cout << "    setup_system(): " << timer.wall_time() << " s" << std::endl; timer.restart();
 	assemble_system();
+	std::cout << "    assemble_system(): " << timer.wall_time() << " s" << std::endl; timer.restart();
 	solve();
+	std::cout << "    solve(): " << timer.wall_time() << " s" << std::endl; timer.restart();
 	output_results();
+	std::cout << "    output_results(): " << timer.wall_time() << " s" << std::endl; timer.restart();
+	std::cout << "/---------------------------------------------------------------/" << std::endl;
 
 }
 

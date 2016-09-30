@@ -350,43 +350,44 @@ void CurrentsAndHeating<dim>::solve() {
 template <int dim>
 void CurrentsAndHeating<dim>::run() {
 
-	std::cout << "/--------------------------------------------------------------/" << std::endl
-		      << "    CurrentsAndHeating run" << std::endl
-			  << "/--------------------------------------------------------------/" << std::endl;
+	std::cout << "/---------------------------------------------------------------/" << std::endl
+		      << "CurrentsAndHeating run():" << std::endl;
 
 	Timer timer;
-	timer.start ();
 
 	setup_system();
 	setup_mapping();
 
-	deallog << "Setup: " << timer () << "s" << std::endl;
+	std::cout << "    Setup: " << timer.wall_time() << " s" << std::endl;
 
 
 
 	// Newton iterations
 	for (unsigned int iteration=0; iteration<5; ++iteration) {
-		std::cout << "    Newton iteration " << iteration << std::endl;
+		std::cout << "/--------------------------------/" << std::endl;
+		std::cout << "Newton iteration " << iteration << std::endl;
 
+		timer.restart();
 		// reset the state of the linear system
 		system_matrix.reinit(sparsity_pattern);
 		system_rhs.reinit(dof_handler.n_dofs());
+		std::cout << "    Reset state: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 		timer.restart();
 		assemble_system_newton(iteration == 0);
 
-		deallog << "Assembly: " << timer () << "s" << std::endl;
+		std::cout << "    Assembly: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
-		timer.restart();
 		solve();
 		// u_{k+1} = \alpha * \delta
 		if (iteration!=0)
 			solution *= 1.0; // alpha
 		solution.add(1.0, previous_solution);
 
-		deallog << "Solver: " << timer () << "s" << std::endl;
+		std::cout << "    Solver: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 		output_results(iteration);
+		std::cout << "    output_results: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 		Vector<double> difference(dof_handler.n_dofs());
 		difference = solution;
@@ -394,8 +395,9 @@ void CurrentsAndHeating<dim>::run() {
 		std::cout << "    ||u_k-u_{k-1}|| = " << difference.l2_norm() << std::endl;
 
 		previous_solution = solution;
+		std::cout << "    conv & prev_sol: " << timer.wall_time() << " s" << std::endl; timer.restart();
 	}
-
+	std::cout << "/---------------------------------------------------------------/" << std::endl;
 }
 
 

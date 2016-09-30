@@ -40,7 +40,7 @@ int main() {
 	fch.run();
 */
 
-
+/*
 	MeshPreparer<2> mesh_preparer;
 
 	laplace::Laplace<2> field;
@@ -54,23 +54,27 @@ int main() {
 	mesh_preparer.import_mesh_from_file(p_cmesh, "../res/2d_meshes/copper_aligned.msh");
 	mesh_preparer.output_mesh(p_cmesh, "copper_mesh.vtk");
 	ch.run();
+*/
 
-/*
 	MeshPreparer<3> mesh_preparer;
 
 	laplace::Laplace<3> field;
 	Triangulation<3> *p_vmesh = field.getp_triangulation();
-	mesh_preparer.import_mesh_from_file(p_vmesh, "../res/3d_meshes/");
-	mesh_preparer.output_mesh(p_vmesh, "vacuum_mesh.vtk");
+	mesh_preparer.import_mesh_from_file(p_vmesh, "../res/3d_meshes/mushroom_vacuum.msh");
+	mesh_preparer.mark_vacuum_boundary(p_vmesh);
+	mesh_preparer.output_mesh(p_vmesh, "vacuum_mesh.msh");
 	field.run();
 
-	currents_heating::CurrentsAndHeating<2> ch(pq, &field);
-	Triangulation<2> *p_cmesh = ch.getp_triangulation();
-	mesh_preparer.import_mesh_from_file(p_cmesh, "../res/3d_meshes/");
+
+	currents_heating::CurrentsAndHeating<3> ch(pq, &field);
+	Triangulation<3> *p_cmesh = ch.getp_triangulation();
+	mesh_preparer.import_mesh_from_file(p_cmesh, "../res/3d_meshes/mushroom_copper.msh");
+	mesh_preparer.mark_copper_boundary(p_cmesh);
 	mesh_preparer.output_mesh(p_cmesh, "copper_mesh.vtk");
 	ch.run();
-*/
-
 
 	return EXIT_SUCCESS;
 }
+
+
+
