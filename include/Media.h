@@ -79,11 +79,16 @@ public:
 
     const Surface clean_lonely_atoms(const double r_cut);
 
+    const Surface smoothen(const Point2 &origin, const double r_in);
+    const void smoothen_laplace(const Point2 &origin, const double r_in);
+
     const void calc_statistics();
     const double get_roughness();
 
 private:
     double roughness;
+
+    inline double smooth_func(const double distance) const;
 
     /** Extract surface by the atom types given by kMC simulation */
     const void extract_by_type(AtomReader* reader);

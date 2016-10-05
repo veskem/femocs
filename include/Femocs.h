@@ -39,6 +39,8 @@ public:
         int nt;                 //!< number of OpenMP threads
         double neumann;         //!< value of Neumann boundary condition
         bool postprocess_marking; //!< make extra effort to mark correctly the vacuum nodes in shadowed area
+        bool refine_apex;       //!< add elements to the nanotip apex
+
         /**  minimum distance between atoms from current and previous run so that
          * their movement is considered to be sufficiently big to recalculate electric field */
         double significant_distance;

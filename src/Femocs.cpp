@@ -41,12 +41,13 @@ Femocs::Femocs(string message) : solution_valid(false) {
     conf.nt = 4;                     // number of OpenMP threads
     conf.rmin_coarse = 7.0;         // inner radius of coarsening cylinder
     conf.rmax_coarse = 8000.0;       // radius of constant cutoff coarsening cylinder
-    conf.coarse_factor = 0.4;        // coarsening factor; bigger number gives coarser surface
+    conf.coarse_factor = 0.5;        // coarsening factor; bigger number gives coarser surface
     conf.postprocess_marking = true; //true;//false; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
     conf.movavg_width = 1.0;         // width of moving average in electric field smoother
 
-    conf.significant_distance = 0.0;//conf.latconst / 2.0;
+    conf.refine_apex = true;         // refine nanotip apex
+    conf.significant_distance = 0.0; //conf.latconst / 2.0;
 }
 
 // Destructor, deletes data and prints bye-bye-message
@@ -211,20 +212,19 @@ const void Femocs::run(double E_field, string message) {
     laplace.import_mesh(&tethex_mesh);
     end_msg(t0);
 
+    if (conf.refine_apex) {
+        start_msg(t0, "=== Refining mesh...");
+        bulk.calc_statistics();
+        // TODO Fix invalid bulk zmax
+        femocs::Point3 origin((bulk.sizes.xmin+bulk.sizes.xmax)/2, (bulk.sizes.ymin+bulk.sizes.ymax)/2, 34);
+        laplace.smooth_and_refine_mesh(origin, 7*conf.latconst);
+        laplace.output_mesh("output/elems_dealii.vtk");
+        end_msg(t0);
+    }
 
-    start_msg(t0, "=== Refining mesh...");
-    bulk.calc_statistics();
-    // TODO Fix invalid bulk zmax
-    femocs::Point3 origin((bulk.sizes.xmin+bulk.sizes.xmax)/2, (bulk.sizes.ymin+bulk.sizes.ymax)/2, 34);
-    laplace.smooth_and_refine_mesh(origin, 7*conf.latconst);
-    laplace.output_mesh("output/elems_dealii.vtk");
-    end_msg(t0);
-
-
-    start_msg(t0, "=== System setup...");
-    laplace.setup_system();
-    end_msg(t0);
-
+        start_msg(t0, "=== System setup...");
+        laplace.setup_system();
+        end_msg(t0);
 
 #if VERBOSE
     cout << "Vacuum: #elems=" << vacuum_mesh.get_n_elems() << ",\t#faces="
@@ -256,10 +256,12 @@ const void Femocs::run(double E_field, string message) {
 //    solution.extract_solution(&laplace, coarse_surf);
     end_msg(t0);
 
-//    start_msg(t0, "=== Smoothing solution...");
-//    solution.smoothen_result(conf.movavg_width);
-//    end_msg(t0);
-//    solution.print_statistics();
+    if (conf.movavg_width > 1.0) {
+        start_msg(t0, "=== Smoothing solution...");
+        solution.smoothen_result(conf.movavg_width);
+        end_msg(t0);
+        solution.print_statistics();
+    }
 
     start_msg(t0, "=== Interpolating solution...");
     dense_surf.sort_atoms(0, 1, "up");
