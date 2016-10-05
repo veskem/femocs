@@ -141,8 +141,8 @@ const void Femocs::run(double E_field, string message) {
 
     start_msg(t0, "=== Making big mesh appendices...");
     mesher.generate_mesh_appendices();
-    big_mesh.write_edges("output/edges_generated2.vtk");
-    big_mesh.write_faces("output/faces_generated2.vtk");
+    big_mesh.write_edges("output/edges_appended.vtk");
+    big_mesh.write_faces("output/faces_appended.vtk");
     end_msg(t0);
 
     start_msg(t0, "=== Marking big mesh...");

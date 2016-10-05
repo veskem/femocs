@@ -46,22 +46,22 @@ public:
 
     /** Less than, bigger than, less than or equal, bigger than or equal operators */
     vector<bool> operator <(const unsigned int &t) const {
-        vector<bool> v(dim);
+        vector<bool> v; v.reserve(dim);
         for (unsigned int n : node) v.push_back(n < t);
         return v;
     }
     vector<bool> operator >(const unsigned int &t) const {
-        vector<bool> v(dim);
+        vector<bool> v; v.reserve(dim);
         for (unsigned int n : node) v.push_back(n > t);
         return v;
     }
     vector<bool> operator <=(const unsigned int &t) const {
-        vector<bool> v(dim);
+        vector<bool> v; v.reserve(dim);
         for (unsigned int n : node) v.push_back(n <= t);
         return v;
     }
     vector<bool> operator >=(const unsigned int &t) const {
-        vector<bool> v(dim);
+        vector<bool> v; v.reserve(dim);
         for (unsigned int n : node) v.push_back(n >= t);
         return v;
     }
