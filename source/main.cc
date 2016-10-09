@@ -27,44 +27,42 @@ int main() {
 			return EXIT_FAILURE;
 
 
-
 /*
-	MeshPreparer<3> mesh_preparer;
-	field_currents_heating::FieldCurrentsHeating<3> fch(pq);
+	MeshPreparer<2> mesh_preparer_fch;
+	field_currents_heating::FieldCurrentsHeating<2> fch(pq);
 
-	Triangulation<3> *p_mesh = fch.getp_triangulation();
-	mesh_preparer.import_mesh_from_file(p_mesh, "../res/3d_meshes/mushroom_mod.msh");
-	mesh_preparer.mark_top_and_bottom_boundary(p_mesh);
-	mesh_preparer.output_mesh(p_mesh, "mesh_3d.vtk");
+	Triangulation<2> *p_mesh = fch.getp_triangulation();
+	mesh_preparer_fch.import_mesh_from_file(p_mesh, "../res/2d_meshes/mod.msh");
+	mesh_preparer_fch.mark_top_and_bottom_boundary(p_mesh);
+	mesh_preparer_fch.output_mesh(p_mesh, "mesh_2d.vtk");
 
 	fch.run();
 */
 
-/*
+
 	MeshPreparer<2> mesh_preparer;
 
 	laplace::Laplace<2> field;
 	Triangulation<2> *p_vmesh = field.getp_triangulation();
-	mesh_preparer.import_mesh_from_file(p_vmesh, "../res/2d_meshes/vacuum_aligned.msh");
+	mesh_preparer.import_mesh_from_file(p_vmesh, "../res/2d_meshes/vacuum_aligned_dense.msh");
 	mesh_preparer.output_mesh(p_vmesh, "vacuum_mesh.vtk");
 	field.run();
 
 	currents_heating::CurrentsAndHeating<2> ch(pq, &field);
 	Triangulation<2> *p_cmesh = ch.getp_triangulation();
-	mesh_preparer.import_mesh_from_file(p_cmesh, "../res/2d_meshes/copper_aligned.msh");
+	mesh_preparer.import_mesh_from_file(p_cmesh, "../res/2d_meshes/copper_aligned_dense.msh");
 	mesh_preparer.output_mesh(p_cmesh, "copper_mesh.vtk");
 	ch.run();
-*/
 
+/*
 	MeshPreparer<3> mesh_preparer;
 
 	laplace::Laplace<3> field;
 	Triangulation<3> *p_vmesh = field.getp_triangulation();
 	mesh_preparer.import_mesh_from_file(p_vmesh, "../res/3d_meshes/mushroom_vacuum.msh");
 	mesh_preparer.mark_vacuum_boundary(p_vmesh);
-	mesh_preparer.output_mesh(p_vmesh, "vacuum_mesh.msh");
+	mesh_preparer.output_mesh(p_vmesh, "vacuum_mesh.vtk");
 	field.run();
-
 
 	currents_heating::CurrentsAndHeating<3> ch(pq, &field);
 	Triangulation<3> *p_cmesh = ch.getp_triangulation();
@@ -72,7 +70,17 @@ int main() {
 	mesh_preparer.mark_copper_boundary(p_cmesh);
 	mesh_preparer.output_mesh(p_cmesh, "copper_mesh.vtk");
 	ch.run();
+*/
 
+/* Mesh creation */
+/*
+	MeshPreparer<2> mesh_preparer;
+	Triangulation<2> mesh;
+	mesh_preparer.import_mesh_from_file(&mesh, "../res/2d_meshes/both_dense.msh");
+	Triangulation<2> new_mesh = mesh_preparer.remove_cells_with_id(&mesh, 20);
+	mesh_preparer.mark_vacuum_boundary(&new_mesh);
+	mesh_preparer.output_mesh(&new_mesh, "vacuum_aligned_dense.msh");
+*/
 	return EXIT_SUCCESS;
 }
 

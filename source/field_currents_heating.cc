@@ -246,7 +246,7 @@ void FieldCurrentsHeating<dim>::assemble_system_newton (const bool first_iterati
 						for (unsigned int q_index = 0; q_index < field_fe_face_values.n_quadrature_points; ++q_index) {
 							for (unsigned int i = 0; i < dofs_per_cell; ++i) {
 								local_rhs(i) += (field_fe_face_values[potential_v].value(i, q_index)
-										* 2.0 * field_fe_face_values.JxW(q_index));
+										* applied_field * field_fe_face_values.JxW(q_index));
 							}
 						}
 					}
@@ -285,7 +285,7 @@ void FieldCurrentsHeating<dim>::assemble_system_newton (const bool first_iterati
 	            		local_matrix(i, j)
 							+= ( - (potential_c_phi_grad[i] * sigma * potential_c_phi_grad[j])
 								 - (potential_c_phi_grad[i] * dsigma * prev_pot_grad * temperature_phi[j])
-								 + (temperature_phi[i] * sigma * 2 * prev_pot_grad * potential_c_phi_grad[j])
+								 + (temperature_phi[i] * 2 * sigma * prev_pot_grad * potential_c_phi_grad[j])
 								 + (temperature_phi[i] * dsigma * prev_pot_grad * prev_pot_grad * temperature_phi[j])
 								 - (temperature_phi_grad[i] * dkappa * prev_temp_grad * temperature_phi[j])
 								 - (temperature_phi_grad[i] * kappa * temperature_phi_grad[j])
@@ -340,6 +340,7 @@ void FieldCurrentsHeating<dim>::assemble_system_newton (const bool first_iterati
 							// Nottingham heat flux in
 							// (eV*A/nm^2) -> (eV*n*q_e/(s*nm^2)) -> (J*n/(s*nm^2)) -> (W/nm^2)
 							double nottingham_flux = pq.nottingham_de(e_field, prev_temp)*emission_current;
+							nottingham_flux = 0.0;
 
 							const Tensor<1,dim> prev_face_pot_grad = prev_sol_face_potential_gradients[q];
 							const Tensor<1,dim> prev_face_temp_grad = prev_sol_face_temperature_gradients[q];
@@ -354,16 +355,6 @@ void FieldCurrentsHeating<dim>::assemble_system_newton (const bool first_iterati
 							for (unsigned int i = 0; i < copper_fe_face_values.dofs_per_cell; ++i) {
 								const double potential_c_phi_i = copper_fe_face_values[potential_c].value(i, q);
 								const double temperature_phi_i = copper_fe_face_values[temperature].value(i, q);
-
-								// Emission current and nottingham effect bc-s for deltas
-								// for first newton iteration only!
-								if (first_iteration) {
-									local_interface_rhs(i) += ( - potential_c_phi_i * emission_current
-																- temperature_phi_i * nottingham_flux
-																) * copper_fe_face_values.JxW(q);
-								}
-								// Potential and T gradients are also in the rhs for the "previous iteration"
-								// Let's use BC-s for those also...
 
 								local_interface_rhs(i) += ( - potential_c_phi_i * emission_current
 															- temperature_phi_i * nottingham_flux
@@ -456,21 +447,49 @@ public:
 		}
 	}
 };
+// Class for outputting the resulting current distribution
+template <int dim>
+class CurrentPostProcessor : public DataPostprocessorVector<dim> {
+	PhysicalQuantities pq;
+public:
+	CurrentPostProcessor(PhysicalQuantities pq_)
+		: DataPostprocessorVector<dim>("current_density", update_values | update_gradients),
+		  pq(pq_){}
+	void
+	compute_derived_quantities_vector (	const std::vector< Vector< double > > &  					uh,
+											const std::vector< std::vector< Tensor< 1, dim > > > &  duh,
+											const std::vector< std::vector< Tensor< 2, dim > > > &  /*dduh*/,
+											const std::vector< Point< dim > > &  					/*normals*/,
+											const std::vector< Point< dim > > &  					/*evaluation_points*/,
+											std::vector< Vector< double > > &  						computed_quantities
+										  ) const {
+		for (unsigned int i=0; i<computed_quantities.size(); i++) {
+			double t = uh[i][2]; // temperature
+			double sigma = pq.sigma(t);
+			for (unsigned int d=0; d<dim; ++d) {
+				double e_field = -duh[i][1][d]; // 0 - pot_v, 1 - pot_c, 2 - temp
+				computed_quantities[i](d) = sigma*e_field;
+			}
+		}
+	}
+};
 // ----------------------------------------------------------------------------
 
 template <int dim>
 void FieldCurrentsHeating<dim>::output_results (const unsigned int iteration) const {
-	std::string filename = "solution-" + Utilities::int_to_string(iteration) + ".vtk";
+	std::string filename = "solution-fch-" + Utilities::int_to_string(iteration) + ".vtk";
 
 	std::vector<std::string> solution_names {"potential_v", "potential_c", "temperature"};
 
 	EFieldPostProcessor<dim> efield_post_processor; // needs to be before data_out
+	CurrentPostProcessor<dim> current_post_processor(pq); // needs to be before data_out
 
 	DataOut<dim,hp::DoFHandler<dim> > data_out;
 	data_out.attach_dof_handler (dof_handler);
 
 	data_out.add_data_vector(solution, solution_names);
 	data_out.add_data_vector(solution, efield_post_processor);
+	data_out.add_data_vector(solution, current_post_processor);
 	data_out.build_patches();
 
 	std::ofstream output(filename.c_str());

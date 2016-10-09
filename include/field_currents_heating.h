@@ -62,8 +62,8 @@ namespace field_currents_heating {
 		Triangulation<dim>* getp_triangulation();
 
 		enum BoundaryId {
-			vacuum_top = 1,
-			bulk_bottom = 2
+			vacuum_top = 2,
+			bulk_bottom = 3
 		};
 
 		enum MaterialId {
@@ -85,6 +85,8 @@ namespace field_currents_heating {
 		static const unsigned int    field_degree		= 1;
 		static const unsigned int    currents_degree	= 1;
 		static const unsigned int    heating_degree 	= 1;
+
+		static constexpr double applied_field = 4.0;
 
 		Triangulation<dim>    triangulation;
 		FESystem<dim>         vacuum_fe;

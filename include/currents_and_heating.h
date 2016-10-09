@@ -72,8 +72,8 @@ namespace currents_heating {
 
 		void setup_mapping();
 
-		static constexpr unsigned int currents_degree = 1;
-		static constexpr unsigned int heating_degree  = 1;
+		static constexpr unsigned int currents_degree = 2;
+		static constexpr unsigned int heating_degree  = 2;
 
 		Triangulation<dim> triangulation;
 		FESystem<dim> fe;
@@ -82,8 +82,8 @@ namespace currents_heating {
 		SparsityPattern sparsity_pattern;
 		SparseMatrix<double> system_matrix;
 
-		Vector<double> solution;
-		Vector<double> previous_solution;
+		Vector<double> present_solution;
+		Vector<double> newton_update;
 		Vector<double> system_rhs;
 
 		PhysicalQuantities pq;

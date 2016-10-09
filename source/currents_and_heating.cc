@@ -40,8 +40,8 @@ void CurrentsAndHeating<dim>::setup_system() {
 
 	system_matrix.reinit(sparsity_pattern);
 
-	solution.reinit(dof_handler.n_dofs());
-	previous_solution.reinit(dof_handler.n_dofs());
+	newton_update.reinit(dof_handler.n_dofs());
+	present_solution.reinit(dof_handler.n_dofs());
 	system_rhs.reinit(dof_handler.n_dofs());
 }
 
@@ -144,6 +144,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 	// The previous solution values in the face quadrature points
 	std::vector<Tensor<1,dim>> prev_sol_face_potential_gradients (n_face_q_points);
 	std::vector<double> prev_sol_face_temperature_values (n_face_q_points);
+	std::vector<Tensor<1,dim>> prev_sol_face_temperature_gradients (n_face_q_points);
 
 	// Shape function values and gradients (arrays for every cell DOF)
 	std::vector<double>				potential_phi (dofs_per_cell);
@@ -170,9 +171,9 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 		cell_matrix = 0;
 		cell_rhs = 0;
 
-		fe_values[potential].get_function_gradients(previous_solution, prev_sol_potential_gradients);
-		fe_values[temperature].get_function_values(previous_solution, prev_sol_temperature_values);
-		fe_values[temperature].get_function_gradients(previous_solution, prev_sol_temperature_gradients);
+		fe_values[potential].get_function_gradients(present_solution, prev_sol_potential_gradients);
+		fe_values[temperature].get_function_values(present_solution, prev_sol_temperature_values);
+		fe_values[temperature].get_function_gradients(present_solution, prev_sol_temperature_gradients);
 
 		timer.exit_section();
 		timer.enter_section("Matrix assembly 1");
@@ -205,7 +206,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 					cell_matrix(i, j)
 						+= ( - (potential_phi_grad[i] * sigma * potential_phi_grad[j])
 							 - (potential_phi_grad[i] * dsigma * prev_pot_grad * temperature_phi[j])
-							 + (temperature_phi[i] * sigma * 2 * prev_pot_grad * potential_phi_grad[j])
+							 + (temperature_phi[i] * 2 * sigma * prev_pot_grad * potential_phi_grad[j])
 							 + (temperature_phi[i] * dsigma * prev_pot_grad * prev_pot_grad * temperature_phi[j])
 							 - (temperature_phi_grad[i] * dkappa * prev_temp_grad * temperature_phi[j])
 							 - (temperature_phi_grad[i] * kappa * temperature_phi_grad[j])
@@ -231,8 +232,9 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 			if (cell->face(f)->at_boundary()) {
 				fe_face_values.reinit(cell, f);
 
-				fe_face_values[potential].get_function_gradients(previous_solution, prev_sol_face_potential_gradients);
-				fe_face_values[temperature].get_function_values(previous_solution, prev_sol_face_temperature_values);
+				fe_face_values[potential].get_function_gradients(present_solution, prev_sol_face_potential_gradients);
+				fe_face_values[temperature].get_function_values(present_solution, prev_sol_face_temperature_values);
+				fe_face_values[temperature].get_function_gradients(present_solution, prev_sol_face_temperature_gradients);
 
 				if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
 					// ---------------------------------------------------------------------------------------------
@@ -253,22 +255,38 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 
 						double prev_temp = prev_sol_face_temperature_values[q];
 						const Tensor<1,dim> prev_pot_grad = prev_sol_face_potential_gradients[q];
+						const Tensor<1,dim> prev_temp_grad = prev_sol_face_temperature_gradients[q];
 
+						const Tensor<1,dim> normal_vector = fe_face_values.normal_vector(q);
+
+						//double sigma = pq.sigma(prev_temp);
+						//double kappa = pq.kappa(prev_temp);
 						double dsigma = pq.dsigma(prev_temp);
+						double dkappa = pq.dkappa(prev_temp);
 						double e_field = electric_field_values[q].norm();
 						double emission_current = pq.emission_current(e_field, prev_temp);
+						// Nottingham heat flux in
+						// (eV*A/nm^2) -> (eV*n*q_e/(s*nm^2)) -> (J*n/(s*nm^2)) -> (W/nm^2)
+						double nottingham_flux = pq.nottingham_de(e_field, prev_temp)*emission_current;
 
 						for (unsigned int k=0; k<dofs_per_cell; ++k) {
-							potential_phi[k] = fe_values[potential].value (k, q);
-							temperature_phi[k] = fe_values[temperature].value (k, q);
+							potential_phi[k] = fe_face_values[potential].value(k, q);
+							temperature_phi[k] = fe_face_values[temperature].value(k, q);
 						}
 						for (unsigned int i = 0; i < dofs_per_cell; ++i) {
 							cell_rhs(i) += 	(- (potential_phi[i] * emission_current)
+											 - (temperature_phi[i] * nottingham_flux)
 											)* fe_face_values.JxW(q);
 
+							/*
+							std::cout << (potential_phi[i] * sigma * normal_vector * prev_pot_grad) << " "
+									  << (potential_phi[i] * emission_current) << std::endl;
+							*/
 							for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-								cell_matrix(i, j) += (	potential_phi[i] * fe_face_values.normal_vector(q)
-														* prev_pot_grad * dsigma * temperature_phi[j]
+								cell_matrix(i, j) += ( (potential_phi[i] * normal_vector * dsigma
+														 	  * prev_pot_grad * temperature_phi[j])
+													  + (temperature_phi[i] * normal_vector * dkappa
+															  * prev_temp_grad * temperature_phi[j])
 													 ) * fe_face_values.JxW(q);
 							}
 
@@ -306,7 +324,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 			current_dirichlet, fe.component_mask(potential));
 
 	MatrixTools::apply_boundary_values(current_dirichlet, system_matrix,
-			solution, system_rhs);
+			newton_update, system_rhs);
 
 
 	// 300K at bulk bottom if initial step, 0 otherwise
@@ -321,7 +339,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 	}
 
 	MatrixTools::apply_boundary_values(temperature_dirichlet, system_matrix,
-			solution, system_rhs);
+			newton_update, system_rhs);
 
 	timer.exit_section();
 }
@@ -344,7 +362,7 @@ void CurrentsAndHeating<dim>::solve() {
 	deallog << "Solving linear system with UMFPACK... " << std::endl;
 	SparseDirectUMFPACK  A_direct;
 	A_direct.initialize(system_matrix);
-	A_direct.vmult (solution, system_rhs);
+	A_direct.vmult (newton_update, system_rhs);
 }
 
 template <int dim>
@@ -359,8 +377,6 @@ void CurrentsAndHeating<dim>::run() {
 	setup_mapping();
 
 	std::cout << "    Setup: " << timer.wall_time() << " s" << std::endl;
-
-
 
 	// Newton iterations
 	for (unsigned int iteration=0; iteration<5; ++iteration) {
@@ -379,23 +395,16 @@ void CurrentsAndHeating<dim>::run() {
 		std::cout << "    Assembly: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 		solve();
-		// u_{k+1} = \alpha * \delta
-		if (iteration!=0)
-			solution *= 1.0; // alpha
-		solution.add(1.0, previous_solution);
+		present_solution.add(1.0, newton_update); // alpha = 1.0
 
 		std::cout << "    Solver: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 		output_results(iteration);
 		std::cout << "    output_results: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
-		Vector<double> difference(dof_handler.n_dofs());
-		difference = solution;
-		difference -= previous_solution;
-		std::cout << "    ||u_k-u_{k-1}|| = " << difference.l2_norm() << std::endl;
+		std::cout << "    ||u_k-u_{k-1}|| = " << newton_update.l2_norm() << std::endl;
+		std::cout << "    Residual = " << system_rhs.l2_norm() << std::endl;
 
-		previous_solution = solution;
-		std::cout << "    conv & prev_sol: " << timer.wall_time() << " s" << std::endl; timer.restart();
 	}
 	std::cout << "/---------------------------------------------------------------/" << std::endl;
 }
@@ -423,7 +432,7 @@ public:
 			double t = uh[i][1]; // temperature
 			double sigma = pq.sigma(t);
 			for (unsigned int d=0; d<dim; ++d) {
-				double e_field = duh[i][0][d]; // gradient of the 0-th vector (i.e. potential)
+				double e_field = -duh[i][0][d]; // gradient of the 0-th vector (i.e. potential)
 				computed_quantities[i](d) = sigma*e_field;
 			}
 		}
@@ -466,9 +475,9 @@ void CurrentsAndHeating<dim>::output_results(const unsigned int iteration) const
 
 	DataOut<dim> data_out;
 	data_out.attach_dof_handler(dof_handler);
-	data_out.add_data_vector(solution, solution_names);
-	data_out.add_data_vector(solution, current_post_processor);
-	data_out.add_data_vector(solution, sigma_post_processor);
+	data_out.add_data_vector(present_solution, solution_names);
+	data_out.add_data_vector(present_solution, current_post_processor);
+	data_out.add_data_vector(present_solution, sigma_post_processor);
 	data_out.build_patches();
 
 	std::ofstream output(filename.c_str());
