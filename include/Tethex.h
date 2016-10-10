@@ -751,8 +751,20 @@ public:
      * @param femocs_mesh - pointer to mesh generated with Tetgen and Femocs
      * @param domain - the ID of physical domain where the mesh is located
      */
-    void read_femocs(femocs::Mesh* femocs_mesh, const int domain);
+    void read_femocs(femocs::Mesh* femocs_mesh, vector<int> ids);
     void read_femocs(femocs::Mesh* bulk_mesh, femocs::Mesh* vacuum_mesh, vector<int>& bulk_indxs, vector<int>& vacuum_indxs);
+
+    /**
+     * Smooth hexahedral mesh elements on vacuum-bulk boundary
+     * @param origin - centre of the cylindrical interesting region
+     * @param r_in - radius of the cylindrical interesting region
+     * @param r_cut - cut off radius for searching the nearest neighbors
+     */
+    void smoothen_func(const femocs::Point2 &origin, double r_in, int n_surf);
+    void smoothen_laplace(const femocs::Point2 &origin, double r_in, double r_cut);
+    vector<bool> get_interesting_indxs(const femocs::Point2 &origin, double r_in);
+    vector<bool> get_mod_indxs(const femocs::Point2 &origin, double r_in, int n_surf);
+    inline double smooth_func(const double distance) const;
 
     /**
      * Conversion from simplices to bricks.
@@ -886,6 +898,18 @@ public:
     MeshElement& get_hexahedron(int number) const;
 
 private:
+    /** id of vertex with unknown position */
+    int id_none;
+
+    /** id of bulk vertex */
+    int id_bulk;
+
+    /** id of surface vertex */
+    int id_surface;
+
+    /** id of vecuum vertex */
+    int id_vacuum;
+
     /**
      * Mesh vertices (nodes in terms of Gmsh)
      */
@@ -1008,7 +1032,8 @@ private:
      * @param shift - to make dense sequence of vertices we need to
      *                point out from what number new type of vertices starts
      */
-    void set_new_vertices(const std::vector<MeshElement*> &elements, int n_old_vertices, int shift);
+    void set_new_vertices_old(const std::vector<MeshElement*> &elements, int n_old_vertices, int shift);
+    void set_new_vertices(const std::vector<MeshElement*> &elements, int shift);
 
     /**
      * Conversion from tetrahedra to hexahedra.

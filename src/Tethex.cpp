@@ -457,9 +457,9 @@ inline int IncidenceMatrix::get_n_nonzero() const {
 // Mesh
 //
 //-------------------------------------------------------
-Mesh::Mesh() :
-        vertices(), points(), lines(), edges(), faces(), triangles(), tetrahedra(), quadrangles(), hexahedra(), n_converted_quadrangles(
-                0), n_converted_hexahedra(0), physical_names() {
+Mesh::Mesh() : id_none(-1), id_surface(-1), id_bulk(-1), id_vacuum(-1),
+        vertices(), points(), lines(), edges(), faces(), triangles(), tetrahedra(), quadrangles(), hexahedra(),
+        n_converted_quadrangles(0), n_converted_hexahedra(0), physical_names() {
 }
 
 Mesh::~Mesh() {
@@ -769,26 +769,49 @@ void Mesh::read(const std::string &file) {
 }
 
 // Import tetrahedral mesh from Femocs
-void Mesh::read_femocs(femocs::Mesh* femocs_mesh, const int domain) {
+void Mesh::read_femocs(femocs::Mesh* femocs_mesh, vector<int> ids) {
     clean(); // free the memory for mesh elements
+
+    require(ids.size() == 4, "ids must include only the ids of none, bulk, surface and vacuum!");
+
+    id_none = ids[0];
+    id_bulk = ids[1];
+    id_surface = ids[2];
+    id_vacuum = ids[3];
 
     // read the mesh vertices
     int n_vertices = femocs_mesh->get_n_nodes(); // the number of all mesh vertices (that are saved in the file)
     vertices.resize(n_vertices); // allocate the memory for mesh vertices
+    points.resize(n_vertices);
+
+    // Read vertex coordinates
     for (int vert = 0; vert < n_vertices; ++vert) {
         femocs::Point3 point = femocs_mesh->get_node(vert);
         vertices[vert] = Point(point.x, point.y, point.z); // save the vertex
     }
 
+    // Read vertex id-s
+    require(n_vertices == femocs_mesh->get_n_nodemarkers(), "Node ids are required to smooth the bulk-vacuum boundary!");
+    for (int vert = 0; vert < n_vertices; ++vert)
+        points[vert] = new PhysPoint(vert, femocs_mesh->get_nodemarker(vert));
+
     // read the mesh elements
     int n_elements = femocs_mesh->get_n_elems(); // the number of mesh elements
-    for (int el = 0; el < n_elements; ++el)
-        tetrahedra.push_back(new Tetrahedron(femocs_mesh->get_simpleelem(el).to_vector(), domain));
+    if (n_elements == femocs_mesh->get_n_elemmarkers())
+        for (int el = 0; el < n_elements; ++el)
+            tetrahedra.push_back(new Tetrahedron(femocs_mesh->get_simpleelem(el).to_vector(), femocs_mesh->get_elemmarker(el)));
+    else
+        for (int el = 0; el < n_elements; ++el)
+            tetrahedra.push_back(new Tetrahedron(femocs_mesh->get_simpleelem(el).to_vector()));
 
     // read the mesh faces
-    int n_faces = femocs_mesh->get_n_faces(); // the number of mesh faces
-    for (int face = 0; face < n_faces; ++face)
-        triangles.push_back(new Triangle(femocs_mesh->get_simpleface(face).to_vector(), domain));
+//    int n_faces = femocs_mesh->get_n_faces(); // the number of mesh faces
+//    if (n_faces == femocs_mesh->get_n_facemarkers())
+//        for (int face = 0; face < n_faces; ++face)
+//            triangles.push_back(new Triangle(femocs_mesh->get_simpleface(face).to_vector(), femocs_mesh->get_facemarker(face)));
+//    else
+//        for (int face = 0; face < n_faces; ++face)
+//            triangles.push_back(new Triangle(femocs_mesh->get_simpleface(face).to_vector()));
 
     // requirements after reading elements
     require(!triangles.empty() || !tetrahedra.empty() || !quadrangles.empty() || !hexahedra.empty(),
@@ -840,6 +863,118 @@ void Mesh::read_femocs(femocs::Mesh* bulk_mesh, femocs::Mesh* vacuum_mesh, vecto
             "There are no 2D or 3D elements in the mesh!");
 }
 
+inline double Mesh::smooth_func(const double distance) const {
+    const double a = 1.0;
+    const double b = 2.0;
+    return a * exp(-1.0 * b * distance);
+}
+
+// Find indexes of atoms in interesting region
+vector<bool> Mesh::get_interesting_indxs(const femocs::Point2 &origin, double r_in) {
+    const int n_atoms = get_n_points();
+    const double r_in2 = r_in * r_in;
+
+    // Find atoms in interesting region
+    vector<bool> skip_atom(n_atoms);
+    for(int i = 0; i < n_atoms; ++i) {
+        const bool not_on_surf = get_point(i).get_material_id() != id_surface;
+        const Point p = get_vertex(i);
+        const double dx = p.get_coord(0) - origin.x;
+        const double dy = p.get_coord(1) - origin.y;
+        skip_atom[i] = not_on_surf || (dx*dx + dy*dy) > r_in2;
+    }
+
+    return skip_atom;
+}
+
+// Find indexes of atoms in interesting region
+vector<bool> Mesh::get_mod_indxs(const femocs::Point2 &origin, double r_in, int n_surf) {
+    const int n_atoms = get_n_points();
+    const double r_in2 = r_in * r_in;
+
+    // Find atoms in interesting region
+    vector<bool> mod_atom(n_atoms, false);
+    for(int i = n_surf; i < n_atoms; ++i) {
+        const bool on_surf = get_point(i).get_material_id() == id_surface;
+        const Point p = get_vertex(i);
+        const double dx = p.get_coord(0) - origin.x;
+        const double dy = p.get_coord(1) - origin.y;
+        mod_atom[i] = on_surf && (dx*dx + dy*dy) <= r_in2;
+    }
+
+    return mod_atom;
+}
+
+
+
+void Mesh::smoothen_func(const femocs::Point2 &origin, double r_in, int n_surf) {
+    const int n_atoms = get_n_points();
+
+    vector<bool> skip_atom = get_interesting_indxs(origin, r_in);
+    vector<bool> mod_atom = get_mod_indxs(origin, r_in, n_surf);
+
+    // Make copy of points in interesting region
+    vector<femocs::Point3> points(n_atoms);
+    for(int i = 0; i < n_atoms; ++i)
+        if(!skip_atom[i]) {
+            Point p = get_vertex(i);
+            points[i] = femocs::Point3(p.get_coord(0), p.get_coord(1), p.get_coord(2));
+        }
+
+    for(int i = 0; i < n_atoms; ++i) {
+        if (!skip_atom[i]) {
+            femocs::Point3 point1 = points[i];
+            femocs::Point3 correction = point1;
+            double w_sum = 1.0;
+
+            for (int j = 0; j < n_atoms; ++j) {
+                if (skip_atom[j] || i == j) continue;
+                femocs::Point3 point2 = points[j];
+                double w = smooth_func(point1.distance(point2));
+                w_sum += w;
+                point2 *= w;
+                correction += point2;
+            }
+
+            correction *= 1.0 / w_sum;
+
+            for (int coord = 0; coord < Point::n_coord; ++coord)
+                vertices[i].set_coord(coord, correction[coord]);
+        }
+    }
+}
+
+void Mesh::smoothen_laplace(const femocs::Point2 &origin, double r_in, double r_cut) {
+    const int n_atoms = get_n_points();
+
+    vector<bool> skip_atom = get_interesting_indxs(origin, r_in);
+
+    for(int i = 0; i < n_atoms; ++i) {
+        if (skip_atom[i]) continue;
+
+        Point p1 = get_vertex(i);
+        femocs::Point3 point1 = femocs::Point3(p1.get_coord(0), p1.get_coord(1), p1.get_coord(2));
+        femocs::Point3 correction(0,0,0);
+
+        int neighbors = 0;
+        for (int j = 0; j < n_atoms; ++j) {
+            if (skip_atom[j] || i == j) continue;
+            Point p2 = get_vertex(j);
+            femocs::Point3 point2 = femocs::Point3(p2.get_coord(0), p2.get_coord(1), p2.get_coord(2));
+            if (point1.distance(point2) < r_cut) {
+                correction += point2;
+                neighbors++;
+            }
+        }
+
+        correction *= 1.0/neighbors;
+        point1 += correction;
+
+        for (int coord = 0; coord < Point::n_coord; ++coord)
+            vertices[i].set_coord(coord, correction[coord]);
+    }
+}
+
 void Mesh::convert() {
     if (!tetrahedra.empty())
         convert_3D();
@@ -850,7 +985,7 @@ void Mesh::convert() {
     if (!quadrangles.empty()) convert_quadrangles();
 }
 
-void Mesh::set_new_vertices(const std::vector<MeshElement*> &elements, int n_old_vertices,
+void Mesh::set_new_vertices_old(const std::vector<MeshElement*> &elements, int n_old_vertices,
         int shift) {
     for (size_t elem = 0; elem < elements.size(); ++elem) {
         for (int coord = 0; coord < Point::n_coord; ++coord) {
@@ -865,6 +1000,44 @@ void Mesh::set_new_vertices(const std::vector<MeshElement*> &elements, int n_old
                     coordinate / elements[elem]->get_n_vertices());
         }
     }
+}
+
+void Mesh::set_new_vertices(const std::vector<MeshElement*> &elements, int shift) {
+    const int n_vertices_per_elem = elements[0]->get_n_vertices();
+
+    // Append vertices to the middle of elements
+    for (size_t elem = 0; elem < elements.size(); ++elem) {
+        for (int coord = 0; coord < Point::n_coord; ++coord) {
+            double coordinate = 0.;
+            for (int ver = 0; ver < elements[elem]->get_n_vertices(); ++ver) {
+                const int cur_vertex = elements[elem]->get_vertex(ver);
+                expect(cur_vertex < n_old_vertices,
+                        "The element has a vertex (" + d2s(cur_vertex) + ") that is more than the number of old vertices (" + d2s(n_old_vertices) + ")");
+                coordinate += vertices[cur_vertex].get_coord(coord);
+            }
+            vertices[shift + elem].set_coord
+                ( coord, coordinate / elements[elem]->get_n_vertices() );
+        }
+    }
+
+    // Append id to the appended vertices
+    for (size_t elem = 0; elem < elements.size(); ++elem) {
+        int shift_indx = shift + elem;
+
+        int n_surface = 0;  // Number of points on surface per element
+        for (int ver = 0; ver < elements[elem]->get_n_vertices(); ++ver) {
+            const int cur_vertex = elements[elem]->get_vertex(ver);
+            if ( points[cur_vertex]->get_material_id() == id_surface )
+                n_surface++;
+        }
+
+        // If all the nodes of element are on the surface, the new one will be also
+        if (n_surface == n_vertices_per_elem)
+            points[shift_indx] = new PhysPoint(shift_indx, id_surface);
+        else
+            points[shift_indx] = new PhysPoint(shift_indx, id_none);
+    }
+
 }
 
 void Mesh::convert_2D() {
@@ -883,12 +1056,10 @@ void Mesh::convert_2D() {
     vertices.resize(n_old_vertices + edges.size() + triangles.size());
 
     // add 'edge'-nodes - at the middle of edge
-    set_new_vertices(edges, n_old_vertices, 0);
-    //add_edge_nodes(n_old_vertices);
+    set_new_vertices_old(edges, n_old_vertices, 0);
 
     // add 'triangle'-nodes - at the center of triangle
-    set_new_vertices(triangles, n_old_vertices, edges.size());
-    //add_triangle_nodes(triangles, n_old_vertices);
+    set_new_vertices_old(triangles, n_old_vertices, edges.size());
 
     // convert triangles into quadrangles.
     // third parameter - whether we need to numerate edges of triangles,
@@ -945,17 +1116,16 @@ void Mesh::convert_3D() {
     // one node at the center of every tetrahedron
     const int n_old_vertices = vertices.size();
     vertices.resize(n_old_vertices + edges.size() + faces.size() + tetrahedra.size());
+    points.resize(n_old_vertices + edges.size() + faces.size() + tetrahedra.size());
 
     // add 'edge'-nodes - at the middle of edge
-    set_new_vertices(edges, n_old_vertices, 0);
-    //add_edge_nodes(n_old_vertices);
+    set_new_vertices(edges, n_old_vertices);
 
     // add 'face'-nodes - at the center of face
-    set_new_vertices(faces, n_old_vertices, edges.size());
-    //add_triangle_nodes(faces, n_old_vertices);
+    set_new_vertices(faces, n_old_vertices + edges.size());
 
     // add 'tetrahedron'-nodes - at the center of every tetrahedron
-    set_new_vertices(tetrahedra, n_old_vertices, edges.size() + faces.size());
+    set_new_vertices(tetrahedra, n_old_vertices + edges.size() + faces.size());
 
     // now we generate hexahedrons
     convert_tetrahedra(n_old_vertices, incidence_matrix, edge_vertex_incidence);
@@ -967,7 +1137,7 @@ void Mesh::convert_3D() {
 
     // third parameter - whether we need to numerate edges of triangles,
     // yes, because for boundary triangles we haven't done it before
-    convert_triangles(incidence_matrix, n_old_vertices, true, edge_vertex_incidence);
+//    convert_triangles(incidence_matrix, n_old_vertices, true, edge_vertex_incidence);
 
     // now we don't need triangles anymore
 #if defined(DELETE_SIMPLICES)
@@ -976,7 +1146,7 @@ void Mesh::convert_3D() {
 
     // after that we check lines (1D boundary elements),
     // because after adding new vertices they need to be redefined
-    redefine_lines(incidence_matrix, n_old_vertices);
+//    redefine_lines(incidence_matrix, n_old_vertices);
 
 #if defined(DELETE_SIMPLICES)
     edges.clear();

@@ -47,10 +47,10 @@ public:
 
         //!< Radius of cylinder where surface atoms are not coarsened; zero enables coarsening of all atoms.
         double rmin_coarse;
-        //!< Radius of cylinder out of which the surface atoms are coarsened with constant cutoff.
-        double rmax_coarse;
         //!< Factor that is proportional to the extent of surface coarsening; zero turns coarsening off.
         double coarse_factor;
+        //!< Factor that is proportional to the extent of surface smoothing; zero turns smoothing off.
+        double smooth_factor;
         //!< Distance from surface edge where atoms are picked for rectangularization
         double rmin_rectancularize;
         //!< Width of moving average while smoothing the electric field; 0 turns smoothing off

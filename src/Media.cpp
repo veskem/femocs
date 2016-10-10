@@ -410,24 +410,73 @@ Surface Surface::coarsen_vol3(const double coord_cutoff, const double r_in, cons
     coarse_surf.calc_statistics();
     Point3 origin3d(origin2d[0], origin2d[1], coarse_surf.sizes.zmean);
 
-    double dense_cutoff = crys_struct.latconst / 1.0;
+    double dense_cutoff = crys_struct.latconst / 1.3;
     const double edge_cutoff = 1.1 * (coarse_factor * crys_struct.latconst * sqrt(sqrt(2)*sizes.xbox/2 - r_in) + dense_cutoff);
 
     Edge edge;
     edge.generate_uniform(ar_sizes, coarse_surf.sizes.zmean, edge_cutoff);
-
     edge.sort_atoms(3, "down", origin2d);
-
-    sort_atoms(3, "up", origin2d);
-    Surface smoothed_surf = smoothen(origin2d, r_in);
-    smoothed_surf.sort_atoms(3, 2, "down", origin2d);
+    sort_atoms(3, 2, "down", origin2d);
 
     Surface union_surf(crys_struct.latconst, crys_struct.nnn);
     union_surf += edge;
-//    union_surf.add(this);
-    union_surf += smoothed_surf;
+    union_surf.add(this);
 
     return union_surf.clean_vol2(coarse_factor, r_in, dense_cutoff, origin3d);
+}
+
+const double Surface::get_zmean_in_flat(Point2 &origin, double radius) {
+    const double r_cut2 = radius * radius;
+    const int n_atoms = get_n_atoms();
+
+    // Create a map from atoms in- and outside the dense region
+    vector<bool> is_flat(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        is_flat[i] = (origin.distance2(get_point2(i)) > r_cut2);
+
+    // Calculate the average z coordinate of atom in flat region
+    double zsum = 0;
+    int n_coarse = vector_sum(is_flat);
+
+    for (int i = 0; i < n_atoms; ++i)
+        if (is_flat[i])
+            zsum += get_atom(i).point.z;
+
+    return zsum / n_coarse;
+}
+
+// Function to coarsen the atoms outside the cylinder in the middle of simulation cell
+Surface Surface::coarsen(const double r_in, const double coarse_factor, const AtomReader::Sizes* reader) {
+    Point2 origin2d((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
+
+    const double zmean = get_zmean_in_flat(origin2d, r_in);
+    const double zmax = sizes.zmax - 0.5*r_in;
+    const double diagonal = sqrt(sizes.xbox*sizes.xbox + sizes.ybox*sizes.ybox);
+
+    Point3 origin3d(origin2d[0], origin2d[1], zmean);
+    Point3 apex(origin2d[0], origin2d[1], zmax);
+
+    const double A_tip = 0.5 * crys_struct.latconst;
+    const double A_flat = coarse_factor * crys_struct.latconst;
+    const double r0_sphere = 0.0;
+    const double r0_cylinder = 1.0 * crys_struct.latconst;
+    const double r0_edge = 1.1 * (A_flat * sqrt(0.5 * diagonal - r_in) + r0_cylinder);
+
+    Coarseners coarseners;
+    coarseners.attach_coarsener(make_shared<NanotipCoarsener>(apex, r_in, A_tip, r0_sphere, r0_cylinder));
+    coarseners.attach_coarsener(make_shared<FlatlandCoarsener>(origin3d, r_in, A_flat, r0_cylinder));
+
+    Edge edge;
+    edge.generate_uniform(reader, zmean, r0_edge);
+    edge.sort_atoms(3, "down", origin2d);
+
+    this->sort_atoms(3, 2, "down", origin2d);
+
+    Surface union_surf(crys_struct.latconst, crys_struct.nnn);
+    union_surf += edge;
+    union_surf.add(this);
+
+    return union_surf.clean(coarseners);
 }
 
 // Function to flatten the atoms on the sides of simulation box
@@ -544,6 +593,37 @@ const Surface Surface::clean_vol2(const double multiplier, const double r_in, co
     return surf;
 }
 
+Surface Surface::clean(Coarseners &coarseners) {
+    const int n_atoms = get_n_atoms();
+
+    Surface surf(crys_struct.latconst, crys_struct.nnn);
+    vector<bool> do_delete(n_atoms, false);
+
+    // Loop through all the atoms
+    for(int i = 0; i < n_atoms-1; ++i) {
+        // Skip already deleted atoms
+        if (do_delete[i]) continue;
+
+        Point3 point1 = get_point(i);
+        coarseners.pick_cutoff(point1);
+
+        for (int j = i+1; j < n_atoms; ++j) {
+            // Skip already deleted atoms
+            if (do_delete[j]) continue;
+            do_delete[j] = coarseners.nearby(point1, get_point(j));
+        }
+    }
+
+    surf.reserve( n_atoms - vector_sum(do_delete) );
+    for (int i = 0; i < n_atoms; ++i)
+        if(!do_delete[i])
+            surf.add_atom(get_atom(i));
+
+    surf.calc_statistics();
+
+    return surf;
+}
+
 // Function to delete atoms that are separate from others
 // Atom is considered lonely if its coordination is lower than coord_min
 const Surface Surface::clean_lonely_atoms(const double r_cut) {
@@ -585,13 +665,62 @@ const Surface Surface::clean_lonely_atoms(const double r_cut) {
     return surf;
 }
 
-inline double Surface::smooth_func(const double distance) const {
-    const double a = 1.0;
-    const double b = 2.0;
-    return a * exp(-1.0 * b * distance * distance);
+const void Surface::smoothen(const double r_in, const double smooth_factor) {
+    // TODO For some reason atoms must be sorted from this point on
+    Point2 origin2d((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
+    sort_atoms(3, 2, "down", origin2d);
+
+    if (smooth_factor < 0.1)
+        return;
+
+    smoothen_func(origin2d, r_in, smooth_factor);
+//    smoothen_laplace(origin2d, r_in, 3.1);
 }
 
-const void Surface::smoothen_laplace(const Point2 &origin, const double r_in) {
+inline double Surface::smooth_func(const double distance, const double b) const {
+    const double a = 1.0;
+//    const double b = 0.7;
+//    return a * exp(-1.0 * b * distance);
+    return a * exp(-1.0 * distance / b);
+}
+
+const void Surface::smoothen_func(const Point2 &origin, const double r_in, const double smooth_factor) {
+    const int n_atoms = get_n_atoms();
+    const double r_in2 = r_in * r_in;
+
+    // Find atoms in interesting region
+    vector<bool> skip_atom(n_atoms);
+    for(int i = 0; i < n_atoms; ++i)
+        skip_atom[i] = origin.distance2(get_point2(i)) > r_in2;
+
+    // Make copy of points in interesting region
+    vector<Point3> points(n_atoms);
+    for(int i = 0; i < n_atoms; ++i)
+        if(!skip_atom[i])
+            points[i] = get_point(i);
+
+    for(int i = 0; i < n_atoms; ++i) {
+        if (skip_atom[i]) continue;
+
+        Point3 point1 = points[i];
+        Point3 correction = point1;
+        double w_sum = 1.0;
+
+        for (int j = 0; j < n_atoms; ++j) {
+            if (skip_atom[j] || i == j) continue;
+            Point3 point2 = points[j];
+            double w = smooth_func(point1.distance(point2), smooth_factor);
+            w_sum += w;
+            point2 *= w;
+            correction += point2;
+        }
+
+        correction *= 1.0 / w_sum;
+        set_point(i, correction);
+    }
+}
+
+const void Surface::smoothen_laplace(const Point2 &origin, const double r_in, const double coord_cutoff) {
     const int n_atoms = get_n_atoms();
     const double r_in2 = r_in * r_in;
 
@@ -609,7 +738,7 @@ const void Surface::smoothen_laplace(const Point2 &origin, const double r_in) {
         for (int j = 0; j < n_atoms; ++j) {
             if (skip_atom[j] || i == j) continue;
             Point3 point2 = get_point(j);
-            if (point1.distance(point2) < 3.1) {
+            if (point1.distance(point2) < coord_cutoff) {
                 correction += point2;
                 neighbors++;
             }
@@ -618,54 +747,15 @@ const void Surface::smoothen_laplace(const Point2 &origin, const double r_in) {
         correction *= 1.0/neighbors;
         point1 += correction;
 
-        set_point(i, correction);
+        set_point(i, point1);
     }
-}
-
-const Surface Surface::smoothen(const Point2 &origin, const double r_in) {
-    const int n_atoms = get_n_atoms();
-    const double r_in2 = r_in * r_in;
-
-    Surface surf(this->crys_struct.latconst, this->crys_struct.nnn);
-    surf.reserve(n_atoms);
-
-    vector<bool> skip_atom(n_atoms);
-    for(int i = 0; i < n_atoms; ++i)
-        skip_atom[i] = origin.distance2(get_point2(i)) > r_in2;
-
-    for(int i = 0; i < n_atoms; ++i) {
-        Atom atom = get_atom(i);
-
-        if (!skip_atom[i]) {
-            Point3 point1 = get_point(i);
-            Point3 correction = point1;
-
-            double w_sum = 1.0;
-
-            for (int j = 0; j < n_atoms; ++j) {
-                if (skip_atom[j] || i == j) continue;
-                Point3 point2 = get_point(j);
-                double w = smooth_func(point1.distance(point2));
-                w_sum += w;
-                point2 *= w;
-                correction += point2;
-            }
-
-            correction *= 1.0 / w_sum;
-            atom.point = correction;
-        }
-
-        surf.add_atom(atom);
-    }
-
-    return surf;
 }
 
 // =================================================
 //              Implementation of Edge
 // =================================================
 
-// Constructors for Edge class
+// Constructors for Edge classpo
 Edge::Edge(const double latconst, const int nnn) :
         Medium() {
     crys_struct.latconst = latconst;

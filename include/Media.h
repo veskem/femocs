@@ -8,6 +8,7 @@
 #ifndef MEDIA_H_
 #define MEDIA_H_
 
+#include "Coarseners.h"
 #include "Macros.h"
 #include "AtomReader.h"
 #include "Medium.h"
@@ -67,9 +68,12 @@ public:
     const Surface coarsen(const double coord_cutoff, const double r_in, const double r_out, const double coarse_factor, const AtomReader::Sizes* ar_sizes);
     const Surface coarsen_vol2(const double coord_cutoff, const double r_in, const double r_out, const double coarse_factor, const AtomReader::Sizes* ar_sizes);
     Surface coarsen_vol3(const double coord_cutoff, const double r_in, const double r_out, const double coarse_factor, const AtomReader::Sizes* ar_sizes);
+    Surface coarsen(const double r_in, const double coarse_factor, const AtomReader::Sizes* ar_sizes);
 
     /** Function to flatten the atoms on the sides of simulation box */
     const Surface rectangularize(const AtomReader::Sizes* sizes, const double r_cut);
+
+    Surface clean(Coarseners &coarseners);
 
     const Surface clean();
     const Surface clean(const double r_cut, const double offset = 0.0);
@@ -79,8 +83,7 @@ public:
 
     const Surface clean_lonely_atoms(const double r_cut);
 
-    const Surface smoothen(const Point2 &origin, const double r_in);
-    const void smoothen_laplace(const Point2 &origin, const double r_in);
+    const void smoothen(const double r_in, const double smooth_factor);
 
     const void calc_statistics();
     const double get_roughness();
@@ -88,7 +91,11 @@ public:
 private:
     double roughness;
 
-    inline double smooth_func(const double distance) const;
+    const double get_zmean_in_flat(Point2 &origin, double radius);
+
+    inline double smooth_func(const double distance, const double a) const;
+    const void smoothen_func(const Point2 &origin, const double r_in, const double smooth_factor);
+    const void smoothen_laplace(const Point2 &origin, const double r_in, const double coord_cutoff);
 
     /** Extract surface by the atom types given by kMC simulation */
     const void extract_by_type(AtomReader* reader);

@@ -386,6 +386,8 @@ const void Mesher::separate_meshes_vol2(Mesh* vacuum, Mesh* bulk, const string& 
     // Copy the non-bulk nodes from input mesh without modification
     vacuum->copy_nodes(this->mesh);
     bulk->copy_nodes(this->mesh);
+    vacuum->copy_nodemarkers(this->mesh);
+    bulk->copy_nodemarkers(this->mesh);
 
     // Reserve memory for elements
     const int n_elems_vacuum = vector_sum(elem_in_vacuum);
