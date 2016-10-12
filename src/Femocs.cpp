@@ -39,9 +39,9 @@ Femocs::Femocs(string message) : solution_valid(false) {
     conf.mesher = "tetgen";          // mesher algorithm
     conf.mesh_quality = "2.0";
     conf.nt = 4;                     // number of OpenMP threads
-    conf.rmin_coarse = 12.0;          // inner radius of coarsening cylinder
-    conf.coarse_factor = 0.6;        // coarsening factor; bigger number gives coarser surface
-    conf.smooth_factor = 1.4;        // surface smoothing factor; bigger number gives smoother surface
+    conf.radius = 12.0;          // inner radius of coarsening cylinder
+    conf.coarse_factor = 0.5;        // coarsening factor; bigger number gives coarser surface
+    conf.smooth_factor = 0.6;        // surface smoothing factor; bigger number gives smoother surface
     conf.postprocess_marking = true; //true;//false; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
     conf.movavg_width = 1.0;         // width of moving average in electric field smoother
@@ -96,7 +96,7 @@ const void Femocs::run(double E_field, string message) {
     if (conf.coarse_factor > 0)
 //        coarse_surf = dense_surf.coarsen_vol3(conf.coord_cutoff, conf.rmin_coarse, conf.rmax_coarse,
 //                conf.coarse_factor, &reader.sizes);
-        coarse_surf = dense_surf.coarsen(conf.rmin_coarse, conf.coarse_factor, &reader.sizes);
+        coarse_surf = dense_surf.coarsen(conf.radius, conf.coarse_factor, &reader.sizes);
     else
         coarse_surf = dense_surf.rectangularize(&reader.sizes, conf.rmin_rectancularize);
 
@@ -104,7 +104,7 @@ const void Femocs::run(double E_field, string message) {
     end_msg(t0);
 
     start_msg(t0, "=== Smoothing surface...");
-    coarse_surf.smoothen(conf.rmin_coarse, conf.smooth_factor);
+    coarse_surf.smoothen(conf.radius, conf.smooth_factor, conf.coord_cutoff);
     coarse_surf.output("output/surface_smooth.xyz");
     end_msg(t0);
 
@@ -177,27 +177,28 @@ const void Femocs::run(double E_field, string message) {
     bulk_mesh.write_nodes("output/nodes_bulk.xyz");
     bulk_mesh.write_edges("output/edges_bulk.vtk");
     bulk_mesh.write_faces("output/faces_bulk.vtk");
+    bulk_mesh.write_elems("output/elems_bulk" + message + ".vtk");
 
-    bulk_mesh.write_elems("output/bulk_" + message);
     vacuum_mesh.write_nodes("output/nodes_vacuum.xyz");
     vacuum_mesh.write_edges("output/edges_vacuum.vtk");
     vacuum_mesh.write_faces("output/faces_vacuum.vtk");
-    vacuum_mesh.write_elems("output/vacuum_" + message);
+    vacuum_mesh.write_elems("output/elems_vacuum" + message + ".vtk");
     end_msg(t0);
 
 
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
     tethex::Mesh tethex_mesh;
     tethex_mesh.read_femocs(&vacuum_mesh, {TYPES.NONE, TYPES.BULK, TYPES.SURFACE, TYPES.VACUUM});
-//    tethex_mesh.read_femocs(&bulk_mesh, {TYPES.NONE, TYPES.BULK, TYPES.SURFACE, TYPES.VACUUM});
     tethex_mesh.convert();
+    end_msg(t0);
 
-//    femocs::Point2 origin2( (reader.sizes.xmin+reader.sizes.xmax)/2, (reader.sizes.ymin+reader.sizes.ymax)/2 );
-//    tethex_mesh.write_vtk_elems("output/tethex_before.vtk");
-////    tethex_mesh.smoothen_laplace(origin2, conf.rmin_coarse, conf.coord_cutoff);
-////    tethex_mesh.smoothen_func(origin2, conf.rmin_coarse, coarse_surf.get_n_atoms());
-//    tethex_mesh.write_vtk_elems("output/tethex_after.vtk");
-
+    start_msg(t0, "=== Smoothing hexahedra...");
+    femocs::Point2 origin2( (reader.sizes.xmin+reader.sizes.xmax)/2, (reader.sizes.ymin+reader.sizes.ymax)/2 );
+    tethex_mesh.smoothen(conf.radius, conf.smooth_factor, conf.coord_cutoff);
+    tethex_mesh.export_vertices(&vacuum_mesh);
+#if DEBUGMODE
+    tethex_mesh.write_vtk_elems("output/elems_smooth.vtk");
+#endif
     end_msg(t0);
 
 /*
@@ -224,7 +225,6 @@ const void Femocs::run(double E_field, string message) {
     laplace.set_neumann(conf.neumann);
 
     start_msg(t0, "=== Importing tethex mesh into Deal.II...");
-//    laplace.import_mesh(&tethex_mesh);
     laplace.import_mesh_wo_faces(&tethex_mesh);
     end_msg(t0);
 

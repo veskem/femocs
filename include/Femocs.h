@@ -46,7 +46,7 @@ public:
         double significant_distance;
 
         //!< Radius of cylinder where surface atoms are not coarsened; zero enables coarsening of all atoms.
-        double rmin_coarse;
+        double radius;
         //!< Factor that is proportional to the extent of surface coarsening; zero turns coarsening off.
         double coarse_factor;
         //!< Factor that is proportional to the extent of surface smoothing; zero turns smoothing off.

@@ -36,6 +36,9 @@ public:
     /** Add Atom to the system */
     const void add_atom(const Atom& atom);
 
+    /** Add Atom with default id and coordination to the system */
+    const void add_atom(const Point3& point);
+
     /**
      * Export the data of Medium to file
      * @param file_name - path for file to save the data

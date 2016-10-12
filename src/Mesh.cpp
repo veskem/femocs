@@ -246,6 +246,13 @@ const int Mesh::get_n_qualities() const {
 // *** SETTERS: ********************
 // =================================
 
+const void Mesh::set_node(const int node, const Point3 &point) {
+    require(node >= 0 && node < get_n_nodes(), "Invalid index: " + to_string(node));
+    int i = n_coordinates * node;
+    for (double n : point)
+        tetIOout.pointlist[i++] = n;
+}
+
 const void Mesh::set_nodemarker(const int node, const int m) {
     require(node >= 0 && node < get_n_nodemarkers(), "Invalid index: " + to_string(node));
     nodemarkers[node] = m;

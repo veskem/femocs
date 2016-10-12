@@ -183,6 +183,7 @@ public:
     const Point3 get_face_centroid(int i) const;
     const Point3 get_elem_centroid(int i) const;
 
+    const void set_node(const int node, const Point3 &point);
     const void set_nodemarker(const int node, const int m);
     const void set_edgemarker(const int edge, const int m);
     const void set_facemarker(const int face, const int m);

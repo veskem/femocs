@@ -235,11 +235,18 @@ public:
         return *this;
     }
     /** Multiplying a SimpleCell_T with constant */
+    /** Scalar multiplication of vector with a scalar and with another vector */
+    Point3_T operator *(const T &r) const {
+        return Point3_T(x * r, y * r, z * r);
+    }
     Point3_T& operator *=(const T &r) {
         x *= r, y *= r, z *= r;
         return *this;
     }
     /** Dividing a SimpleCell_T with constant */
+    Point3_T operator /(const T &r) const {
+        return Point3_T(x / r, y / r, z / r);
+    }
     Point3_T& operator /=(const T &r) {
         x /= r, y /= r, z /= r;
         return *this;

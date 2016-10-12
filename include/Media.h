@@ -54,6 +54,7 @@ public:
      * @param nnn - number of nearest neighbors
      */
     Surface(const double latconst, const int nnn);
+    Surface(const int n_atoms);
     Surface();
 
     const void generate_simple(const AtomReader::Sizes* sizes, const double z);
@@ -65,37 +66,27 @@ public:
      */
     const void extract_surface(AtomReader* reader);
 
-    const Surface coarsen(const double coord_cutoff, const double r_in, const double r_out, const double coarse_factor, const AtomReader::Sizes* ar_sizes);
-    const Surface coarsen_vol2(const double coord_cutoff, const double r_in, const double r_out, const double coarse_factor, const AtomReader::Sizes* ar_sizes);
-    Surface coarsen_vol3(const double coord_cutoff, const double r_in, const double r_out, const double coarse_factor, const AtomReader::Sizes* ar_sizes);
-    Surface coarsen(const double r_in, const double coarse_factor, const AtomReader::Sizes* ar_sizes);
+    const Surface coarsen(const double radius, const double coarse_factor, const AtomReader::Sizes* ar_sizes);
 
     /** Function to flatten the atoms on the sides of simulation box */
     const Surface rectangularize(const AtomReader::Sizes* sizes, const double r_cut);
 
-    Surface clean(Coarseners &coarseners);
-
-    const Surface clean();
-    const Surface clean(const double r_cut, const double offset = 0.0);
-    const Surface clean(const Point3 &origin, const double r_in, const double r_out, const double multiplier, const double offset = 0.0);
-
-    const Surface clean_vol2(const double multiplier, const double r_in, const double offset, const Point3 &origin);
+    const Surface clean(Coarseners &coarseners);
 
     const Surface clean_lonely_atoms(const double r_cut);
 
-    const void smoothen(const double r_in, const double smooth_factor);
+    const void smoothen(double radius, double smooth_factor, double r_cut);
 
-    const void calc_statistics();
-    const double get_roughness();
+    const void smoothen(const Point2 &origin, double radius, double smooth_factor, double r_cut);
 
 private:
-    double roughness;
+    inline double smooth_function(double distance, double smooth_factor) const;
+
+    const void smoothen(double smooth_factor, double r_cut);
 
     const double get_zmean_in_flat(Point2 &origin, double radius);
 
-    inline double smooth_func(const double distance, const double a) const;
-    const void smoothen_func(const Point2 &origin, const double r_in, const double smooth_factor);
-    const void smoothen_laplace(const Point2 &origin, const double r_in, const double coord_cutoff);
+    const void smoothen_laplace(const Point2 &origin, const double radius, const double r_cut);
 
     /** Extract surface by the atom types given by kMC simulation */
     const void extract_by_type(AtomReader* reader);

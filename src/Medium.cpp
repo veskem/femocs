@@ -74,8 +74,14 @@ const void Medium::add(Medium *m) {
 
 // Add atom to atoms vector
 const void Medium::add_atom(const Atom& atom) {
-    expect(get_n_atoms() <= this->atoms.capacity(), "Allocated vector sizes exceeded!");
-    this->atoms.push_back(atom);
+    expect(get_n_atoms() <= atoms.capacity(), "Allocated vector sizes exceeded!");
+    atoms.push_back(atom);
+}
+
+// Add atom with defalt id and coordination to atoms vector
+const void Medium::add_atom(const Point3& point) {
+    expect(get_n_atoms() <= atoms.capacity(), "Allocated vector sizes exceeded!");
+    atoms.push_back(Atom(-1, point, 0));
 }
 
 // Initialize statistics about Medium

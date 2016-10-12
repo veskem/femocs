@@ -20,7 +20,7 @@ program Helmod
     call f%import_file("")
      
     write(*,*) "Running femocs.run"
-    call f%run(0.1d0, "elems.vtk")
+    call f%run(0.1d0, "")
     
     !write(*,*) "Running femocs_speaker..."
     !call femocs_speaker("From Fortran!")

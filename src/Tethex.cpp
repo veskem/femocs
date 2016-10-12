@@ -863,116 +863,45 @@ void Mesh::read_femocs(femocs::Mesh* bulk_mesh, femocs::Mesh* vacuum_mesh, vecto
             "There are no 2D or 3D elements in the mesh!");
 }
 
-inline double Mesh::smooth_func(const double distance) const {
-    const double a = 1.0;
-    const double b = 2.0;
-    return a * exp(-1.0 * b * distance);
-}
+// Export vertex coordinates to femocs mesh
+void Mesh::export_vertices(femocs::Mesh* femocs_mesh) {
+    // the number of all femocs mesh vertices
+    const int n_verts = femocs_mesh->get_n_nodes();
 
-// Find indexes of atoms in interesting region
-vector<bool> Mesh::get_interesting_indxs(const femocs::Point2 &origin, double r_in) {
-    const int n_atoms = get_n_points();
-    const double r_in2 = r_in * r_in;
-
-    // Find atoms in interesting region
-    vector<bool> skip_atom(n_atoms);
-    for(int i = 0; i < n_atoms; ++i) {
-        const bool not_on_surf = get_point(i).get_material_id() != id_surface;
-        const Point p = get_vertex(i);
-        const double dx = p.get_coord(0) - origin.x;
-        const double dy = p.get_coord(1) - origin.y;
-        skip_atom[i] = not_on_surf || (dx*dx + dy*dy) > r_in2;
+    // Export vertex coordinates
+    for (int vert = 0; vert < n_verts; ++vert) {
+        Point p = vertices[vert];
+        femocs_mesh->set_node(vert, femocs::Point3(p.get_coord(0), p.get_coord(1), p.get_coord(2)));
     }
-
-    return skip_atom;
 }
 
-// Find indexes of atoms in interesting region
-vector<bool> Mesh::get_mod_indxs(const femocs::Point2 &origin, double r_in, int n_surf) {
-    const int n_atoms = get_n_points();
-    const double r_in2 = r_in * r_in;
-
-    // Find atoms in interesting region
-    vector<bool> mod_atom(n_atoms, false);
-    for(int i = n_surf; i < n_atoms; ++i) {
-        const bool on_surf = get_point(i).get_material_id() == id_surface;
-        const Point p = get_vertex(i);
-        const double dx = p.get_coord(0) - origin.x;
-        const double dy = p.get_coord(1) - origin.y;
-        mod_atom[i] = on_surf && (dx*dx + dy*dy) <= r_in2;
-    }
-
-    return mod_atom;
-}
-
-
-
-void Mesh::smoothen_func(const femocs::Point2 &origin, double r_in, int n_surf) {
+// Smoothen the surface vertices
+void Mesh::smoothen(double radius, double smooth_factor, double r_cut) {
     const int n_atoms = get_n_points();
 
-    vector<bool> skip_atom = get_interesting_indxs(origin, r_in);
-    vector<bool> mod_atom = get_mod_indxs(origin, r_in, n_surf);
-
-    // Make copy of points in interesting region
-    vector<femocs::Point3> points(n_atoms);
+    // Find atoms in vacuum-bulk boundary
+    vector<bool> hot_node(n_atoms);
     for(int i = 0; i < n_atoms; ++i)
-        if(!skip_atom[i]) {
+        hot_node[i] = get_point(i).get_material_id() == id_surface;
+
+    // Turn atoms on boundary into surface
+    femocs::Surface surf(accumulate(hot_node.begin(), hot_node.end(), 0));
+    for(int i = 0; i < n_atoms; ++i)
+        if(hot_node[i]) {
             Point p = get_vertex(i);
-            points[i] = femocs::Point3(p.get_coord(0), p.get_coord(1), p.get_coord(2));
+            surf.add_atom( femocs::Point3(p.get_coord(0), p.get_coord(1), p.get_coord(2)) );
         }
 
-    for(int i = 0; i < n_atoms; ++i) {
-        if (!skip_atom[i]) {
-            femocs::Point3 point1 = points[i];
-            femocs::Point3 correction = point1;
-            double w_sum = 1.0;
+    // Smoothen the surface
+    surf.smoothen(radius, smooth_factor, r_cut);
 
-            for (int j = 0; j < n_atoms; ++j) {
-                if (skip_atom[j] || i == j) continue;
-                femocs::Point3 point2 = points[j];
-                double w = smooth_func(point1.distance(point2));
-                w_sum += w;
-                point2 *= w;
-                correction += point2;
-            }
-
-            correction *= 1.0 / w_sum;
-
-            for (int coord = 0; coord < Point::n_coord; ++coord)
-                vertices[i].set_coord(coord, correction[coord]);
+    // Write smoothed vertices back to mesh
+    int j = 0;
+    for(int i = 0; i < n_atoms; ++i)
+        if(hot_node[i]) {
+            femocs::Point3 point = surf.get_point(j++);
+            vertices[i] = Point(point.x, point.y, point.z);
         }
-    }
-}
-
-void Mesh::smoothen_laplace(const femocs::Point2 &origin, double r_in, double r_cut) {
-    const int n_atoms = get_n_points();
-
-    vector<bool> skip_atom = get_interesting_indxs(origin, r_in);
-
-    for(int i = 0; i < n_atoms; ++i) {
-        if (skip_atom[i]) continue;
-
-        Point p1 = get_vertex(i);
-        femocs::Point3 point1 = femocs::Point3(p1.get_coord(0), p1.get_coord(1), p1.get_coord(2));
-        femocs::Point3 correction(0,0,0);
-
-        int neighbors = 0;
-        for (int j = 0; j < n_atoms; ++j) {
-            if (skip_atom[j] || i == j) continue;
-            Point p2 = get_vertex(j);
-            femocs::Point3 point2 = femocs::Point3(p2.get_coord(0), p2.get_coord(1), p2.get_coord(2));
-            if (point1.distance(point2) < r_cut) {
-                correction += point2;
-                neighbors++;
-            }
-        }
-
-        correction *= 1.0/neighbors;
-        point1 += correction;
-
-        for (int coord = 0; coord < Point::n_coord; ++coord)
-            vertices[i].set_coord(coord, correction[coord]);
-    }
 }
 
 void Mesh::convert() {
@@ -985,59 +914,50 @@ void Mesh::convert() {
     if (!quadrangles.empty()) convert_quadrangles();
 }
 
-void Mesh::set_new_vertices_old(const std::vector<MeshElement*> &elements, int n_old_vertices,
-        int shift) {
-    for (size_t elem = 0; elem < elements.size(); ++elem) {
-        for (int coord = 0; coord < Point::n_coord; ++coord) {
-            double coordinate = 0.;
-            for (int ver = 0; ver < elements[elem]->get_n_vertices(); ++ver) {
-                const int cur_vertex = elements[elem]->get_vertex(ver);
-                expect(cur_vertex < n_old_vertices,
-                        "The element has a vertex (" + d2s(cur_vertex) + ") that is more than the number of old vertices (" + d2s(n_old_vertices) + ")");
-                coordinate += vertices[cur_vertex].get_coord(coord);
-            }
-            vertices[n_old_vertices + shift + elem].set_coord(coord,
-                    coordinate / elements[elem]->get_n_vertices());
-        }
-    }
-}
-
 void Mesh::set_new_vertices(const std::vector<MeshElement*> &elements, int shift) {
     const int n_vertices_per_elem = elements[0]->get_n_vertices();
 
     // Append vertices to the middle of elements
-    for (size_t elem = 0; elem < elements.size(); ++elem) {
+    for (size_t elem = 0; elem < elements.size(); ++elem)
         for (int coord = 0; coord < Point::n_coord; ++coord) {
             double coordinate = 0.;
-            for (int ver = 0; ver < elements[elem]->get_n_vertices(); ++ver) {
+            for (int ver = 0; ver < n_vertices_per_elem; ++ver) {
                 const int cur_vertex = elements[elem]->get_vertex(ver);
                 expect(cur_vertex < n_old_vertices,
                         "The element has a vertex (" + d2s(cur_vertex) + ") that is more than the number of old vertices (" + d2s(n_old_vertices) + ")");
                 coordinate += vertices[cur_vertex].get_coord(coord);
             }
-            vertices[shift + elem].set_coord
-                ( coord, coordinate / elements[elem]->get_n_vertices() );
+            vertices[shift + elem].set_coord(coord, coordinate / n_vertices_per_elem);
         }
-    }
 
-    // Append id to the appended vertices
+    // Append ID to the appended vertices
     for (size_t elem = 0; elem < elements.size(); ++elem) {
         int shift_indx = shift + elem;
 
-        int n_surface = 0;  // Number of points on surface per element
-        for (int ver = 0; ver < elements[elem]->get_n_vertices(); ++ver) {
+        int n_surface = 0; // Number of element nodes on surface
+        int n_bulk = 0;    // Number of element nodes in bulk
+        int n_vacuum = 0;  // Number of element nodes in vacuum
+
+        for (int ver = 0; ver < n_vertices_per_elem; ++ver) {
             const int cur_vertex = elements[elem]->get_vertex(ver);
             if ( points[cur_vertex]->get_material_id() == id_surface )
                 n_surface++;
+            if ( points[cur_vertex]->get_material_id() == id_bulk )
+                n_bulk++;
+            if ( points[cur_vertex]->get_material_id() == id_vacuum )
+                n_vacuum++;
         }
 
-        // If all the nodes of element are on the surface, the new one will be also
+        // If all the nodes of element are on the surface, bulk or vacuum, the new one will be also
         if (n_surface == n_vertices_per_elem)
             points[shift_indx] = new PhysPoint(shift_indx, id_surface);
+        else if (n_bulk == n_vertices_per_elem)
+            points[shift_indx] = new PhysPoint(shift_indx, id_bulk);
+        else if (n_vacuum == n_vertices_per_elem)
+            points[shift_indx] = new PhysPoint(shift_indx, id_vacuum);
         else
             points[shift_indx] = new PhysPoint(shift_indx, id_none);
     }
-
 }
 
 void Mesh::convert_2D() {
@@ -1056,10 +976,10 @@ void Mesh::convert_2D() {
     vertices.resize(n_old_vertices + edges.size() + triangles.size());
 
     // add 'edge'-nodes - at the middle of edge
-    set_new_vertices_old(edges, n_old_vertices, 0);
+    set_new_vertices(edges, n_old_vertices);
 
     // add 'triangle'-nodes - at the center of triangle
-    set_new_vertices_old(triangles, n_old_vertices, edges.size());
+    set_new_vertices(triangles, n_old_vertices + edges.size());
 
     // convert triangles into quadrangles.
     // third parameter - whether we need to numerate edges of triangles,
@@ -1501,8 +1421,7 @@ void Mesh::write(const std::string &file) {
     out.close();
 }
 
-void Mesh::write_vtk(const std::string &file, const std::vector<MeshElement*> &elems,
-        const int &nnodes_in_cell, const int &celltype) {
+void Mesh::write_vtk(const std::string &file, const std::vector<MeshElement*> &elems, const int nnodes_in_cell, const int celltype) {
     std::ofstream out(file.c_str());
     require(out, "File " + file + " cannot be opened for writing!");
 
@@ -1533,9 +1452,22 @@ void Mesh::write_vtk(const std::string &file, const std::vector<MeshElement*> &e
     }
 
     out << "CELL_TYPES " << ncells << "\n";
-    for (size_t i = 0; i < ncells; ++i)
+    for (size_t el = 0; el < ncells; ++el)
         out << celltype << "\n";
     out << "\n";
+
+
+    out << "CELL_DATA " << ncells << "\n";
+    out << "SCALARS Cell_markers int\nLOOKUP_TABLE default\n";
+    for (size_t el = 0; el < ncells; ++el)
+        out << elems[el]->get_material_id() << "\n";
+    out << "\n";
+}
+
+void Mesh::write_vtk_nodes(const std::string &file) {
+    int nnodes_in_cell = 1;
+    int celltype = 1;
+    write_vtk(file, points, nnodes_in_cell, celltype);
 }
 
 void Mesh::write_vtk_faces(const std::string &file) {

@@ -753,18 +753,14 @@ public:
      */
     void read_femocs(femocs::Mesh* femocs_mesh, vector<int> ids);
     void read_femocs(femocs::Mesh* bulk_mesh, femocs::Mesh* vacuum_mesh, vector<int>& bulk_indxs, vector<int>& vacuum_indxs);
-
+    void export_vertices(femocs::Mesh* femocs_mesh);
     /**
      * Smooth hexahedral mesh elements on vacuum-bulk boundary
-     * @param origin - centre of the cylindrical interesting region
-     * @param r_in - radius of the cylindrical interesting region
-     * @param r_cut - cut off radius for searching the nearest neighbors
+     * @param radius - radius of the cylindrical interesting region
+     * @param smooth_factor - smoothing factor, usually something around 1.0
+     * @param r_cut - cut off radius for searching the nearest neighbours
      */
-    void smoothen_func(const femocs::Point2 &origin, double r_in, int n_surf);
-    void smoothen_laplace(const femocs::Point2 &origin, double r_in, double r_cut);
-    vector<bool> get_interesting_indxs(const femocs::Point2 &origin, double r_in);
-    vector<bool> get_mod_indxs(const femocs::Point2 &origin, double r_in, int n_surf);
-    inline double smooth_func(const double distance) const;
+    void smoothen(double radius, double smooth_factor, double r_cut);
 
     /**
      * Conversion from simplices to bricks.
@@ -779,8 +775,7 @@ public:
      */
     void write(const std::string &file);
 
-    void write_vtk(const std::string &file, const std::vector<MeshElement*> &elems,
-            const int &nnodes_in_cell, const int &celltype);
+    void write_vtk_nodes(const std::string &file);
 
     void write_vtk_faces(const std::string &file);
 
@@ -978,6 +973,15 @@ private:
     std::vector<std::string> physical_names;
 
     /**
+     * Write cells to file in .vtk format
+     * @param file - name of the file
+     * @param elems - cells to be written to file
+     * @param nnodes_in_cell - number of nodes in the cell; node: 1, line: 2, triangle: 3, tetrahedron: 4, quadrangle: 4,  hexahedron: 8
+     * @param celltype - vtk cell type; node: 1, line: 3, triangle: 5, tetrahedron: 10, quadrangle: 9, hexahedron: 12
+     */
+    void write_vtk(const std::string &file, const std::vector<MeshElement*> &elems, const int nnodes_in_cell, const int celltype);
+
+    /**
      * Free the memory to read again, for example
      */
     void clean();
@@ -1023,16 +1027,13 @@ private:
             const VectorMap &edge_vertex_incidence) const;
 
     /**
-     * During conversion we add new vertices -
-     * at the centers of edges, triangles, tetrahedra.
+     * During conversion we add new vertices at the centers of edges, triangles, tetrahedra.
      * This procedure unifies the approach to adding new vertices
      * @param elements - elements to which new vertices belong.
      *                   They may be edges, triangles or tetrahedra.
-     * @param n_old_vertices - the number of original mesh vertices
      * @param shift - to make dense sequence of vertices we need to
      *                point out from what number new type of vertices starts
      */
-    void set_new_vertices_old(const std::vector<MeshElement*> &elements, int n_old_vertices, int shift);
     void set_new_vertices(const std::vector<MeshElement*> &elements, int shift);
 
     /**
