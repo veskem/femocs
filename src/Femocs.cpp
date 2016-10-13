@@ -22,32 +22,30 @@ using namespace std;
 Femocs::Femocs(string message) : solution_valid(false) {
     start_msg(double t0, "======= Femocs started! =======\n");
     conf.external_msg = message;
-    //*
+
 //    conf.infile = "input/rough111.ckx";
 //    conf.infile = "input/mushroom2.ckx";
-    conf.infile = "input/nanotip_hr5.ckx";
-    conf.latconst = 2.0;        // lattice constant
-    conf.coord_cutoff = 3.1;    // coordination analysis cut off radius
-    /*/
-    /*
-     conf.infile = "input/nanotip_medium.xyz";
-     conf.latconst = 3.61;       // lattice constant
-     conf.coord_cutoff = 3.1;   // coordination analysis cut off radius
-     //*/
+//    conf.infile = "input/nanotip_hr5.ckx";
+//    conf.latconst = 2.0;
+
+    conf.infile = "input/nanotip_medium.xyz";
+    conf.latconst = 3.61;
+
+    conf.coord_cutoff = 3.1;         // coordination analysis cut-off radius
 
     conf.nnn = 12;                   // number of nearest neighbours in bulk
     conf.mesher = "tetgen";          // mesher algorithm
     conf.mesh_quality = "2.0";
     conf.nt = 4;                     // number of OpenMP threads
-    conf.radius = 12.0;          // inner radius of coarsening cylinder
+    conf.radius = 20.0;              // inner radius of coarsening cylinder
     conf.coarse_factor = 0.5;        // coarsening factor; bigger number gives coarser surface
-    conf.smooth_factor = 0.6;        // surface smoothing factor; bigger number gives smoother surface
-    conf.postprocess_marking = true; //true;//false; // make extra effort to mark correctly the vacuum nodes in shadow area
+    conf.smooth_factor = 0.7;        // surface smoothing factor; bigger number gives smoother surface
+    conf.postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
     conf.movavg_width = 1.0;         // width of moving average in electric field smoother
 
-    conf.refine_apex = false;         // refine nanotip apex
-    conf.significant_distance = 0.0; //conf.latconst / 2.0;
+    conf.refine_apex = false;        // refine nanotip apex
+    conf.significant_distance = conf.latconst / 2.0;
 }
 
 // Destructor, deletes data and prints bye-bye-message
@@ -58,7 +56,7 @@ Femocs::~Femocs() {
 // Workhorse function to run Femocs simulation
 const void Femocs::run(double E_field, string message) {
     double t0, tstart;  // Variables used to measure the start time of a section
-    bool process_success;
+    bool success;
     solution_valid = false;
 
     conf.neumann = E_field;
@@ -70,14 +68,9 @@ const void Femocs::run(double E_field, string message) {
 
     if (conf.significant_distance > 0.0) {
         start_msg(t0, "=== Comparing with previous run...");
-        process_success = reader.equals_previous_run(conf.significant_distance);
+        success = !reader.equals_previous_run(conf.significant_distance);
+        check_success(success, "Atoms haven't moved significantly since last run! Field calculation will be skipped!")
         end_msg(t0);
-        if (process_success) {
-#if VERBOSE
-            cout << "\nAtoms haven't moved significantly since last run! Field calculation will be skipped!\n";
-#endif
-            return;
-        }
     }
 
     // ====================================
@@ -104,7 +97,7 @@ const void Femocs::run(double E_field, string message) {
     end_msg(t0);
 
     start_msg(t0, "=== Smoothing surface...");
-    coarse_surf.smoothen(conf.radius, conf.smooth_factor, conf.coord_cutoff);
+    coarse_surf.smoothen(conf.radius, conf.smooth_factor, 2 * conf.coord_cutoff);
     coarse_surf.output("output/surface_smooth.xyz");
     end_msg(t0);
 
@@ -135,13 +128,11 @@ const void Femocs::run(double E_field, string message) {
     start_msg(t0, "=== Making big mesh...");
     femocs::Mesh big_mesh(conf.mesher);
     femocs::Mesher mesher(&big_mesh);
-    try {
-        // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
-        mesher.generate_mesh(bulk, coarse_surf, vacuum, "rnQq" + conf.mesh_quality);
-    } catch (int e) {
-        cout << "\nException " << e << " occured while making the mesh! Field calculation will be skipped!\n";
-        return;
-    }
+
+    // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
+    success = mesher.generate_mesh(bulk, coarse_surf, vacuum, "rnQq" + conf.mesh_quality);
+    check_success(success, "Triangulation failed! Field calculation will be skipped!\n");
+
     big_mesh.write_nodes("output/nodes_generated.xyz");
     big_mesh.write_edges("output/edges_generated.vtk");
     big_mesh.write_faces("output/faces_generated.vtk");
@@ -155,17 +146,12 @@ const void Femocs::run(double E_field, string message) {
     end_msg(t0);
 
     start_msg(t0, "=== Marking big mesh...");
-    process_success = mesher.mark_mesh(conf.postprocess_marking);
+    success = mesher.mark_mesh(conf.postprocess_marking);
     big_mesh.write_nodes("output/nodes_marked.xyz");
     big_mesh.write_edges("output/edges_marked.vtk");
     big_mesh.write_faces("output/faces_marked.vtk");
     big_mesh.write_elems("output/elems_marked.vtk");
-
-    if ( !process_success ) {
-        cout << "\nMesh marking failed! Field calcualtion will be skipped!\n";
-        return;
-    }
-
+    check_success(success, "Mesh marking failed! Field calcualtion will be skipped!");
     end_msg(t0);
 
     start_msg(t0, "=== Separating vacuum and bulk mesh...");
@@ -177,46 +163,34 @@ const void Femocs::run(double E_field, string message) {
     bulk_mesh.write_nodes("output/nodes_bulk.xyz");
     bulk_mesh.write_edges("output/edges_bulk.vtk");
     bulk_mesh.write_faces("output/faces_bulk.vtk");
-    bulk_mesh.write_elems("output/elems_bulk" + message + ".vtk");
+    bulk_mesh.write_elems("output/elems_bulk.vtk");
 
     vacuum_mesh.write_nodes("output/nodes_vacuum.xyz");
     vacuum_mesh.write_edges("output/edges_vacuum.vtk");
     vacuum_mesh.write_faces("output/faces_vacuum.vtk");
-    vacuum_mesh.write_elems("output/elems_vacuum" + message + ".vtk");
+    vacuum_mesh.write_elems("output/elems_vacuum.vtk");
     end_msg(t0);
 
 
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
-    tethex::Mesh tethex_mesh;
-    tethex_mesh.read_femocs(&vacuum_mesh, {TYPES.NONE, TYPES.BULK, TYPES.SURFACE, TYPES.VACUUM});
-    tethex_mesh.convert();
+    tethex::Mesh tethex_big;
+    tethex_big.read_femocs(&big_mesh, {TYPES.NONE, TYPES.BULK, TYPES.SURFACE, TYPES.VACUUM});
+    tethex_big.convert();
     end_msg(t0);
 
     start_msg(t0, "=== Smoothing hexahedra...");
-    femocs::Point2 origin2( (reader.sizes.xmin+reader.sizes.xmax)/2, (reader.sizes.ymin+reader.sizes.ymax)/2 );
-    tethex_mesh.smoothen(conf.radius, conf.smooth_factor, conf.coord_cutoff);
-    tethex_mesh.export_vertices(&vacuum_mesh);
-#if DEBUGMODE
-    tethex_mesh.write_vtk_elems("output/elems_smooth.vtk");
-#endif
+    tethex_big.smoothen(conf.radius, conf.smooth_factor, conf.coord_cutoff);
+    tethex_big.export_vertices(&vacuum_mesh);
     end_msg(t0);
 
-/*
-    start_msg(t0, "=== Making union mesh...");
-    tethex::Mesh tethex_union_mesh;
-    femocs::Mesher bulk_mesher(&bulk_mesh);
-    femocs::Mesher vacuum_mesher(&vacuum_mesh);
-    vector<int> bi = bulk_mesher.get_new_indxs();
-    vector<int> vi = vacuum_mesher.get_new_indxs();
-        
-    tethex_union_mesh.read_femocs(&bulk_mesh, &vacuum_mesh, bi, vi);
-    tethex_union_mesh.convert();
-    end_msg(t0);
+    start_msg(t0, "=== Separating hexahedra...");
+    tethex::Mesh tethex_bulk;
+    tethex::Mesh tethex_vacuum;
+    tethex_big.separate_meshes(&tethex_bulk, &tethex_vacuum);
 
-    start_msg(t0, "=== Writing tethen_averagex to file...");
-    tethex_union_mesh.write("output/mushroom.msh");
+    tethex_bulk.write_vtk_elems("output/bulk_smooth" + message + ".vtk");
+    tethex_vacuum.write_vtk_elems("output/vacuum_smooth" + message + ".vtk");
     end_msg(t0);
-//*/     
 
     // ==============================
     // ===== Running FEM solver =====
@@ -225,9 +199,9 @@ const void Femocs::run(double E_field, string message) {
     laplace.set_neumann(conf.neumann);
 
     start_msg(t0, "=== Importing tethex mesh into Deal.II...");
-    laplace.import_mesh_wo_faces(&tethex_mesh);
+    success = laplace.import_mesh_wo_faces(&tethex_vacuum);
+    check_success(success, "Importing mesh to Deal.II failed! Field calculation will be skipped!");
     end_msg(t0);
-
 
     if (conf.refine_apex) {
         start_msg(t0, "=== Refining mesh...");
@@ -239,17 +213,17 @@ const void Femocs::run(double E_field, string message) {
         end_msg(t0);
     }
 
-        start_msg(t0, "=== System setup...");
-        laplace.setup_system();
-        end_msg(t0);
+    start_msg(t0, "=== System setup...");
+    laplace.setup_system();
+    end_msg(t0);
 
 #if VERBOSE
     cout << "Vacuum: #elems=" << vacuum_mesh.get_n_elems() << ",\t#faces="
-            << vacuum_mesh.get_n_faces() << ",\t#nodes=" << vacuum_mesh.get_n_nodes() << endl;
+           << vacuum_mesh.get_n_faces() << ",\t#nodes=" << vacuum_mesh.get_n_nodes() << endl;
     cout << "Bulk:   #elems=" << bulk_mesh.get_n_elems() << ",\t#faces=" << bulk_mesh.get_n_faces()
-             << ",\t#nodes=" << bulk_mesh.get_n_nodes() << endl;
-    cout << "Tethex: #elems=" << tethex_mesh.get_n_hexahedra() << ",\t#faces="
-            << tethex_mesh.get_n_quadrangles() << ",\t#nodes=" << tethex_mesh.get_n_vertices() << endl;
+           << ",\t#nodes=" << bulk_mesh.get_n_nodes() << endl;
+    cout << "Tethex: #elems=" << tethex_vacuum.get_n_hexahedra() << ",\t#faces="
+           << tethex_vacuum.get_n_quadrangles() << ",\t#nodes=" << tethex_vacuum.get_n_vertices() << endl;
     cout << "# degrees of freedom: " << laplace.get_n_dofs() << endl;
     cout << "# input atoms: " << reader.get_n_atoms() << endl;
 #endif
@@ -289,7 +263,7 @@ const void Femocs::run(double E_field, string message) {
 
     start_msg(t0, "=== Saving results...");
     solution.output("output/results.xyz");
-    interpolation.output("output/interpolation.xyz");
+    interpolation.output("output/interpolation" + message + ".xyz");
     laplace.output_results("output/results.vtk");
     if (conf.significant_distance > 0.0) reader.save_current_run_points();
     end_msg(t0);

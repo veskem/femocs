@@ -56,6 +56,8 @@ struct Types {
 
 // Definitions for development in VERBOSE mode
 #if VERBOSE
+    #define check_success(success, message) if (!(success)) { __success_fails(__FILE__, __LINE__, message); return; }
+
     /** Definition to print progress messages and to find the start time of code execution */
     #define start_msg(t0, message) t0 = __start_msg(message)
 
@@ -67,6 +69,7 @@ struct Types {
 
 // In release(-like) versions nothing happens
 #else
+    #define check_success(success, message) if (!(success)) return;
     #define expect(condition, message) {}
     #define start_msg(t0, message) {}
     #define end_msg(t0) {}
@@ -132,6 +135,9 @@ void __requirement_fails(const char *file, int line, string message);
 
 /** Throw an warning if expectation fails */
 void __expectation_fails(const char *file, int line, string message);
+
+/** Throw an message if some process fails */
+void __success_fails(const char *file, int line, string message);
 
 const double __start_msg(const char* message);
 

@@ -144,7 +144,7 @@ const void DealII::import_mesh(tethex::Mesh* mesh) {
     triangulation.create_triangulation_compatibility(vertices, cells, SubCellData());
 }
 
-const void DealII::import_mesh_wo_faces(tethex::Mesh* mesh) {
+const bool DealII::import_mesh_wo_faces(tethex::Mesh* mesh) {
     const unsigned int n_verts = mesh->get_n_vertices();
     const unsigned int n_elems = mesh->get_n_hexahedra();
     const unsigned int n_faces = mesh->get_n_quadrangles();
@@ -167,13 +167,20 @@ const void DealII::import_mesh_wo_faces(tethex::Mesh* mesh) {
             cells[elem].vertices[i] = mesh->get_hexahedron(elem).get_vertex(i);
     }
 
-    // Do some clean-up on vertices...
-    GridTools::delete_unused_vertices(vertices, cells, subcelldata);
-    // ... and on cells
-    GridReordering<DIM, DIM>::invert_all_cells_of_negative_grid(vertices, cells);
-//    GridReordering<DIM, DIM>::reorder_cells(cells);
+    try {
+        // Do some clean-up on vertices...
+        GridTools::delete_unused_vertices(vertices, cells, subcelldata);
+        // ... and on cells
+        GridReordering<DIM, DIM>::invert_all_cells_of_negative_grid(vertices, cells);
+//        GridReordering<DIM, DIM>::reorder_cells(cells);
 
-    triangulation.create_triangulation_compatibility(vertices, cells, SubCellData());
+        triangulation.create_triangulation_compatibility(vertices, cells, SubCellData());
+    }
+    catch (exception &exc) {
+//        cout << exc.what() << std::endl;
+        return false;
+    }
+    return true;
 }
 
 // Import tetrahedral mesh

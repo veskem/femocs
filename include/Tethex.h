@@ -18,7 +18,6 @@
 #ifndef TETHEX_H_
 #define TETHEX_H_
 
-#include "Macros.h"
 #include "Mesh.h"
 
 #include <map>
@@ -230,6 +229,11 @@ public:
      */
     bool contains(const int vertex) const;
 
+    /**
+     * Copy constructor
+     */
+    MeshElement(const MeshElement &elem);
+
 protected:
     /**
      * The number of vertices describing the element.
@@ -290,11 +294,6 @@ protected:
      * @param el_type - type of the element in Gmsh
      */
     MeshElement(int n_ver = 0, int n_edg = 0, int n_fac = 0, int el_type = 0);
-
-    /**
-     * Copy constructor
-     */
-    MeshElement(const MeshElement &elem);
 
     /**
      * Copy assignment operator
@@ -749,11 +748,12 @@ public:
     /**
      * Import tetrahedral mesh from Femocs
      * @param femocs_mesh - pointer to mesh generated with Tetgen and Femocs
-     * @param domain - the ID of physical domain where the mesh is located
+     * @param ids - the IDs of physical domain where the mesh is located
      */
     void read_femocs(femocs::Mesh* femocs_mesh, vector<int> ids);
-    void read_femocs(femocs::Mesh* bulk_mesh, femocs::Mesh* vacuum_mesh, vector<int>& bulk_indxs, vector<int>& vacuum_indxs);
     void export_vertices(femocs::Mesh* femocs_mesh);
+    void separate_meshes(tethex::Mesh* bulk, tethex::Mesh* vacuum);
+
     /**
      * Smooth hexahedral mesh elements on vacuum-bulk boundary
      * @param radius - radius of the cylindrical interesting region
@@ -892,6 +892,21 @@ public:
      */
     MeshElement& get_hexahedron(int number) const;
 
+    /**
+     * Mesh vertices (nodes in terms of Gmsh)
+     */
+    std::vector<Point> vertices;
+
+    /**
+     * Physical points.
+     */
+    std::vector<MeshElement*> points;
+
+    /**
+     * Mesh hexahedra
+     */
+    std::vector<MeshElement*> hexahedra;
+
 private:
     /** id of vertex with unknown position */
     int id_none;
@@ -904,17 +919,6 @@ private:
 
     /** id of vecuum vertex */
     int id_vacuum;
-
-    /**
-     * Mesh vertices (nodes in terms of Gmsh)
-     */
-    std::vector<Point> vertices;
-
-    /**
-     * Physical points.
-     *They are not treated - just copied into new mesh file.
-     */
-    std::vector<MeshElement*> points;
 
     /**
      * Mesh lines - mean physical lines
@@ -945,11 +949,6 @@ private:
      * Mesh quadrangles
      */
     std::vector<MeshElement*> quadrangles;
-
-    /**
-     * Mesh hexahedra
-     */
-    std::vector<MeshElement*> hexahedra;
 
     typedef std::vector<std::map<int, int> > VectorMap;
 

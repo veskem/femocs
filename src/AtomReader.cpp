@@ -117,7 +117,7 @@ const void AtomReader::check_coordination() {
 const void AtomReader::calc_slow_coordination(const double cutoff) {
     require(cutoff > 0, "Invalid cutoff: " + to_string(cutoff));
 
-    expect(false, "WARNING: Running slow coordination calculation!");
+    expect(false, "Running slow coordination calculation!");
 
     const int n_atoms = get_n_atoms();
     const double cutoff2 = cutoff * cutoff;

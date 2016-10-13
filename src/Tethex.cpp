@@ -16,6 +16,7 @@
  */
 
 #include "Tethex.h"
+#include "Macros.h"
 
 #include <sstream>
 #include <stdexcept>
@@ -804,63 +805,36 @@ void Mesh::read_femocs(femocs::Mesh* femocs_mesh, vector<int> ids) {
         for (int el = 0; el < n_elements; ++el)
             tetrahedra.push_back(new Tetrahedron(femocs_mesh->get_simpleelem(el).to_vector()));
 
-    // read the mesh faces
-//    int n_faces = femocs_mesh->get_n_faces(); // the number of mesh faces
-//    if (n_faces == femocs_mesh->get_n_facemarkers())
-//        for (int face = 0; face < n_faces; ++face)
-//            triangles.push_back(new Triangle(femocs_mesh->get_simpleface(face).to_vector(), femocs_mesh->get_facemarker(face)));
-//    else
-//        for (int face = 0; face < n_faces; ++face)
-//            triangles.push_back(new Triangle(femocs_mesh->get_simpleface(face).to_vector()));
-
     // requirements after reading elements
     require(!triangles.empty() || !tetrahedra.empty() || !quadrangles.empty() || !hexahedra.empty(),
             "There are no 2D or 3D elements in the mesh!");
 }
 
-// Import tetrahedral mesh from Femocs 
-void Mesh::read_femocs(femocs::Mesh* bulk_mesh, femocs::Mesh* vacuum_mesh, vector<int>& bulk_indxs, vector<int>& vacuum_indxs) {
-    clean(); // free the memory for mesh elements
+void Mesh::separate_meshes(tethex::Mesh* bulk, tethex::Mesh* vacuum) {
+    const int n_elems = get_n_hexahedra();
 
-    int n_verts1, n_verts2, n_elems1, n_elems2, n_faces1, n_faces2;
-    
-    const int type_bulk = 20;
-    const int type_vacuum = 10;
- 
-    // read the vertices
-    n_verts1 = bulk_mesh->get_n_nodes();   // the number of all mesh1 vertices (that are saved in the file)
-    n_verts2 = vacuum_mesh->get_n_nodes(); // the number of all mesh2 vertices (that are saved in the file)
-    vertices.resize(n_verts1 + n_verts2);  // allocate the memory for mesh vertices
+    // Make the element map
+    vector<bool> elem_in_vacuum(n_elems);
+    for (int elem = 0; elem < n_elems; ++elem)
+        elem_in_vacuum[elem] = hexahedra[elem]->get_material_id() == id_vacuum;
 
-    for (int vert = 0; vert < n_verts1; ++vert) {
-        femocs::Point3 point = bulk_mesh->get_node(vert);
-        vertices[vert] = Point(point.x, point.y, point.z); // save the vertex
-    }
+    // Copy the nodes without modification
+    vacuum->vertices = vertices;
+    bulk->vertices = vertices;
 
-    for (int vert = 0; vert < n_verts2; ++vert) {
-        femocs::Point3 point = vacuum_mesh->get_node(vert);
-        vertices[vert + n_verts1] = Point(point.x, point.y, point.z); // save the vertex
-    }
+    // Reserve memory for elements
+    const int n_elems_vacuum = vector_sum(elem_in_vacuum);
+    const int n_elems_bulk = n_elems - n_elems_vacuum;
 
-    // read the elements
-    n_elems1 = bulk_mesh->get_n_elems();   // the number of mesh1 elements
-    n_elems2 = vacuum_mesh->get_n_elems(); // the number of mesh2 elements
-    for (int el = 0; el < n_elems1; ++el)
-        tetrahedra.push_back(new Tetrahedron(bulk_mesh->get_simpleelem(el).to_vector(), type_bulk));
-    for (int el = 0; el < n_elems2; ++el)
-        tetrahedra.push_back(new Tetrahedron(vacuum_mesh->get_simpleelem(el).to_vector(), type_vacuum));
+    vacuum->hexahedra.reserve(n_elems_vacuum);
+    bulk->hexahedra.reserve(n_elems_bulk);
 
-    // read the faces
-    n_faces1 = bulk_mesh->get_n_faces();   // the number of mesh1 faces
-    n_faces2 = vacuum_mesh->get_n_faces(); // the number of mesh2 faces
-    for (int face = 0; face < n_faces1; ++face)
-        triangles.push_back(new Triangle(bulk_mesh->get_simpleface(face).to_vector(), bulk_indxs[face]));
-    for (int face = 0; face < n_faces2; ++face)
-        triangles.push_back(new Triangle(vacuum_mesh->get_simpleface(face).to_vector(), vacuum_indxs[face]));
-
-    // requirements after reading elements
-    require(!triangles.empty() || !tetrahedra.empty() || !quadrangles.empty() || !hexahedra.empty(),
-            "There are no 2D or 3D elements in the mesh!");
+    // Separate vacuum and bulk elements
+    for (int elem = 0; elem < n_elems; ++elem)
+        if (elem_in_vacuum[elem])
+            vacuum->hexahedra.push_back( new MeshElement(get_hexahedron(elem)) );
+        else
+            bulk->hexahedra.push_back( new MeshElement(get_hexahedron(elem)) );
 }
 
 // Export vertex coordinates to femocs mesh
@@ -885,7 +859,7 @@ void Mesh::smoothen(double radius, double smooth_factor, double r_cut) {
         hot_node[i] = get_point(i).get_material_id() == id_surface;
 
     // Turn atoms on boundary into surface
-    femocs::Surface surf(accumulate(hot_node.begin(), hot_node.end(), 0));
+    femocs::Surface surf( vector_sum(hot_node) );
     for(int i = 0; i < n_atoms; ++i)
         if(hot_node[i]) {
             Point p = get_vertex(i);
@@ -1422,6 +1396,10 @@ void Mesh::write(const std::string &file) {
 }
 
 void Mesh::write_vtk(const std::string &file, const std::vector<MeshElement*> &elems, const int nnodes_in_cell, const int celltype) {
+#if not DEBUGMODE
+    return;
+#endif
+
     std::ofstream out(file.c_str());
     require(out, "File " + file + " cannot be opened for writing!");
 

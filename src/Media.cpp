@@ -314,12 +314,7 @@ const Surface Surface::coarsen(const double radius, const double coarse_factor, 
     union_surf += edge;
     union_surf.add(this);
 
-    union_surf = union_surf.clean(coarseners);
-
-    // TODO For some reason atoms must be sorted from this point on
-//    union_surf.sort_atoms(3, 2, "down", origin2d);
-
-    return union_surf;
+    return union_surf.clean(coarseners);
 }
 
 // Function to flatten the atoms on the sides of simulation box
@@ -521,7 +516,7 @@ const void Surface::smoothen_laplace(const Point2 &origin, const double radius, 
 //              Implementation of Edge
 // =================================================
 
-// Constructors for Edge classpo
+// Constructors for Edge class
 Edge::Edge(const double latconst, const int nnn) :
         Medium() {
     crys_struct.latconst = latconst;

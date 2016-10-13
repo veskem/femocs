@@ -77,7 +77,7 @@ public:
     const void import_file(const string file_name);
     const void import_mesh(femocs::Mesh* mesh);
     const void import_mesh(tethex::Mesh* mesh);
-    const void import_mesh_wo_faces(tethex::Mesh* mesh);
+    const bool import_mesh_wo_faces(tethex::Mesh* mesh);
 
     const void smooth_and_refine_mesh(const Point3 &origin, const double eps);
 

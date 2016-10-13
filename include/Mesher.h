@@ -72,8 +72,9 @@ public:
     }
     ;
 
-    /** Function to generate mesh from surface, bulk and vacuum atoms */
-    const void generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string& cmd);
+    /** Function to generate mesh from surface, bulk and vacuum atoms.
+     * Return value indicates the success of it. */
+    const bool generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string& cmd);
 
     const void generate_mesh_appendices();
 

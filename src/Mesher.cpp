@@ -140,7 +140,7 @@ Mesher::Mesher(Mesh* mesh) {
 }
 
 // Function to generate mesh from surface, bulk and vacuum atoms
-const void Mesher::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string& cmd) {
+const bool Mesher::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string& cmd) {
     int i;
     int n_bulk = bulk.get_n_atoms();
     int n_surf = surf.get_n_atoms();
@@ -169,7 +169,10 @@ const void Mesher::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, cons
     mesh->indxs.vacuum_end = mesh->indxs.vacuum_start + n_vacuum - 1;
     mesh->indxs.tetgen_start = mesh->indxs.vacuum_end + 1;
 
-    mesh->recalc("Q", cmd);
+    try { mesh->recalc("Q", cmd); }
+    catch (int e) { return false; }
+
+    return true;
 }
 
 // Generate manually edges and surface faces
