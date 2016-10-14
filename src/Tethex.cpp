@@ -1407,7 +1407,7 @@ void Mesh::write_vtk(const std::string &file, const std::vector<MeshElement*> &e
     out.precision(8);
 
     out << "# vtk DataFile Version 3.0\n";
-    out << "# This file is generated to be tested in Deal.II\n";
+    out << "# Tethex mesh\n";
     out << "ASCII\n";
     out << "DATASET UNSTRUCTURED_GRID\n\n";
 

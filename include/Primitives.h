@@ -162,143 +162,6 @@ public:
     }
 };
 
-/** Template class to define elementary operations between 3-dimensional points */
-template<typename T>
-class Point3_T{
-public:
-
-    /** Constructors of Point3 class */
-    Point3_T() : x(0), y(0), z(0), r(0) {}
-    Point3_T(T xx) : x(xx), y(xx), z(xx), r(0) {}
-    Point3_T(T xx, T yy, T zz) : x(xx), y(yy), z(zz), r(0) {}
-
-    /** Dimensionality of SimpleCell_T */
-    const int size() const {
-        return 3;
-    }
-
-    /** Squared distance between two Point3-s */
-    const double distance2(const Point3_T<T> &p) const {
-        T xx = x - p.x;
-        T yy = y - p.y;
-        T zz = z - p.z;
-        return (T) (xx * xx + yy * yy + zz * zz);
-    }
-
-    /** Squared distance between a Point3 and dealii::SimpleCell_T<3> */
-    const double distance2(const dealii::Point<3> &p) const {
-        T xx = x - p[0];
-        T yy = y - p[1];
-        T zz = z - p[2];
-        return (T) (xx * xx + yy * yy + zz * zz);
-    }
-
-    /** Squared distance between two Point3-s taking into account the simulation cell periodicity.
-     * Period == 0 in some direction gives the result without periodicity in that direction.
-     */
-    const double periodic_distance2(const Point3_T<T> &p, double period_x = 0, double period_y = 0,
-            double period_z = 0) const {
-        T dx = fabs(x - p.x);
-        T dy = fabs(y - p.y);
-        T dz = fabs(z - p.z);
-
-        dx = min(dx, fabs(dx - period_x)); // apply periodic boundary condition in x-direction
-        dy = min(dy, fabs(dy - period_y)); // apply periodic boundary condition in y-direction
-        dz = min(dz, fabs(dz - period_z)); // apply periodic boundary condition in z-direction
-
-        return dx * dx + dy * dy + dz * dz;
-    }
-
-    /** Distance between two Point3-s */
-    const double distance(const Point3_T<T> &p) const {
-        return sqrt(distance2(p));
-    }
-
-    /** Distance between a Point3 and dealii::SimpleCell_T<3> */
-    const double distance(const dealii::Point<3> &p) const {
-        return sqrt(distance2(p));
-    }
-
-    /** Subtraction of two Point3-d */
-    Point3_T<T> operator -(const Point3_T<T> &p) const {
-        return Point3_T(x - p.x, y - p.y, z - p.z);
-    }
-
-    /** Adding a point to existing one */
-    Point3_T& operator +=(const Point3_T<T> &p) {
-        x += p.x, y += p.y, z += p.z;
-        return *this;
-    }
-    /** Subtracting a point from existing one */
-    Point3_T& operator -=(const Point3_T<T> &p) {
-        x -= p.x, y -= p.y, z -= p.z;
-        return *this;
-    }
-    /** Multiplying a SimpleCell_T with constant */
-    /** Scalar multiplication of vector with a scalar and with another vector */
-    Point3_T operator *(const T &r) const {
-        return Point3_T(x * r, y * r, z * r);
-    }
-    Point3_T& operator *=(const T &r) {
-        x *= r, y *= r, z *= r;
-        return *this;
-    }
-    /** Dividing a SimpleCell_T with constant */
-    Point3_T operator /(const T &r) const {
-        return Point3_T(x / r, y / r, z / r);
-    }
-    Point3_T& operator /=(const T &r) {
-        x /= r, y /= r, z /= r;
-        return *this;
-    }
-
-    /** Comparison operator between two Point3-s */
-    const bool operator ==(const Point3_T<T> &p) const
-        { return x == p.x && y == p.y && z == p.z; }
-    bool operator ==(const Point3_T<T> &p)
-        { return x == p.x && y == p.y && z == p.z; }
-
-    const bool operator >(const Point3_T<T> &p) const { return r > p.r; }
-    bool operator >(const Point3_T<T> &p) { return r > p.r; }
-    const bool operator <(const Point3_T<T> &p) const { return r < p.r; }
-    bool operator <(const Point3_T<T> &p) { return r < p.r; }
-    const bool operator >=(const Point3_T<T> &p) const { return r >= p.r; }
-    bool operator >=(const Point3_T<T> &p) { return r >= p.r; }
-    const bool operator <=(const Point3_T<T> &p) const { return r <= p.r; }
-    bool operator <=(const Point3_T<T> &p) { return r <= p.r; }
-
-    /** Comparison operator between a Point3 and dealii::SimpleCell_T<3> */
-    const bool operator ==(const dealii::Point<3> &p) const {
-        return x == p[0] && y == p[1] && z == p[2];
-    }
-    bool operator ==(const dealii::Point<3> &p) {
-        return x == p[0] && y == p[1] && z == p[2];
-    }
-
-    /** Point3 accessors */
-    const T& operator [](uint8_t i) const {
-        return (&x)[i];
-    }
-    T& operator [](uint8_t i) {
-        return (&x)[i];
-    }
-
-    /** Attach iterator */
-    typedef Iterator<Point3_T, T> iterator;
-    iterator begin() const { return iterator(this, 0); }
-    iterator end() const { return iterator(this, size()); }
-
-    /** Define the behaviour of string stream */
-    friend std::ostream& operator <<(std::ostream &s, const Point3_T &p) {
-        return s << p.x << ' ' << p.y << ' ' << p.z;
-    }
-
-    /** Return data as string */
-    string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
-
-    T x, y, z, r;
-};
-
 /** Template class to define elementary operations between 2-dimensional points */
 template<typename T>
 class Point2_T{
@@ -369,6 +232,147 @@ public:
     string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
     T x, y, r;
+};
+
+/** Template class to define elementary operations between 3-dimensional points */
+template<typename T>
+class Point3_T{
+public:
+
+    /** Constructors of Point3 class */
+    Point3_T() : x(0), y(0), z(0), r(0) {}
+    Point3_T(T xx) : x(xx), y(xx), z(xx), r(0) {}
+    Point3_T(T xx, T yy, T zz) : x(xx), y(yy), z(zz), r(0) {}
+
+    /** Dimensionality of SimpleCell_T */
+    const int size() const {
+        return 3;
+    }
+
+    /** Squared distance between two Point3-s */
+    const double distance2(const Point3_T<T> &p) const {
+        T xx = x - p.x;
+        T yy = y - p.y;
+        T zz = z - p.z;
+        return (T) (xx * xx + yy * yy + zz * zz);
+    }
+
+    /** Squared distance between a Point3 and dealii::SimpleCell_T<3> */
+    const double distance2(const dealii::Point<3> &p) const {
+        T xx = x - p[0];
+        T yy = y - p[1];
+        T zz = z - p[2];
+        return (T) (xx * xx + yy * yy + zz * zz);
+    }
+
+    /** Squared distance between two Point3-s taking into account the simulation cell periodicity.
+     * Period == 0 in some direction gives the result without periodicity in that direction.
+     */
+    const double periodic_distance2(const Point3_T<T> &p, double period_x = 0, double period_y = 0,
+            double period_z = 0) const {
+        T dx = fabs(x - p.x);
+        T dy = fabs(y - p.y);
+        T dz = fabs(z - p.z);
+
+        dx = min(dx, fabs(dx - period_x)); // apply periodic boundary condition in x-direction
+        dy = min(dy, fabs(dy - period_y)); // apply periodic boundary condition in y-direction
+        dz = min(dz, fabs(dz - period_z)); // apply periodic boundary condition in z-direction
+
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    /** Distance between two Point3-s */
+    const double distance(const Point3_T<T> &p) const {
+        return sqrt(distance2(p));
+    }
+
+    /** Distance between a Point3 and dealii::SimpleCell_T<3> */
+    const double distance(const dealii::Point<3> &p) const {
+        return sqrt(distance2(p));
+    }
+
+    /** Subtraction of two Point3-d */
+    Point3_T<T> operator -(const Point3_T<T> &p) const {
+        return Point3_T(x - p.x, y - p.y, z - p.z);
+    }
+
+    /** Adding a point to existing one */
+    Point3_T& operator +=(const Point3_T<T> &p) {
+        x += p.x, y += p.y, z += p.z;
+        return *this;
+    }
+    Point3_T& operator +=(const Point2_T<T> &p) {
+        x += p.x, y += p.y;
+        return *this;
+    }
+    /** Subtracting a point from existing one */
+    Point3_T& operator -=(const Point3_T<T> &p) {
+        x -= p.x, y -= p.y, z -= p.z;
+        return *this;
+    }
+    /** Multiplying a SimpleCell_T with constant */
+    /** Scalar multiplication of vector with a scalar and with another vector */
+    Point3_T operator *(const T &r) const {
+        return Point3_T(x * r, y * r, z * r);
+    }
+    Point3_T& operator *=(const T &r) {
+        x *= r, y *= r, z *= r;
+        return *this;
+    }
+    /** Dividing a SimpleCell_T with constant */
+    Point3_T operator /(const T &r) const {
+        return Point3_T(x / r, y / r, z / r);
+    }
+    Point3_T& operator /=(const T &r) {
+        x /= r, y /= r, z /= r;
+        return *this;
+    }
+
+    /** Comparison operator between two Point3-s */
+    const bool operator ==(const Point3_T<T> &p) const
+        { return x == p.x && y == p.y && z == p.z; }
+    bool operator ==(const Point3_T<T> &p)
+        { return x == p.x && y == p.y && z == p.z; }
+
+    const bool operator >(const Point3_T<T> &p) const { return r > p.r; }
+    bool operator >(const Point3_T<T> &p) { return r > p.r; }
+    const bool operator <(const Point3_T<T> &p) const { return r < p.r; }
+    bool operator <(const Point3_T<T> &p) { return r < p.r; }
+    const bool operator >=(const Point3_T<T> &p) const { return r >= p.r; }
+    bool operator >=(const Point3_T<T> &p) { return r >= p.r; }
+    const bool operator <=(const Point3_T<T> &p) const { return r <= p.r; }
+    bool operator <=(const Point3_T<T> &p) { return r <= p.r; }
+
+    /** Comparison operator between a Point3 and dealii::SimpleCell_T<3> */
+    const bool operator ==(const dealii::Point<3> &p) const {
+        return x == p[0] && y == p[1] && z == p[2];
+    }
+    bool operator ==(const dealii::Point<3> &p) {
+        return x == p[0] && y == p[1] && z == p[2];
+    }
+
+    /** Point3 accessors */
+    const T& operator [](uint8_t i) const {
+        return (&x)[i];
+    }
+    T& operator [](uint8_t i) {
+        return (&x)[i];
+    }
+
+    /** Attach iterator */
+    typedef Iterator<Point3_T, T> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, size()); }
+
+    /** Define the behaviour of string stream */
+    friend std::ostream& operator <<(std::ostream &s, const Point3_T &p) {
+        return s << p.x << ' ' << p.y << ' ' << p.z;
+    }
+
+    /** Return data as string */
+    string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
+
+    T x, y, z, r;
 };
 
 /** Template class to define the 3-dimensional vector with its operations */

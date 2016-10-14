@@ -25,11 +25,11 @@ Femocs::Femocs(string message) : solution_valid(false) {
 
 //    conf.infile = "input/rough111.ckx";
 //    conf.infile = "input/mushroom2.ckx";
-//    conf.infile = "input/nanotip_hr5.ckx";
-//    conf.latconst = 2.0;
+    conf.infile = "input/nanotip_hr5.ckx";
+    conf.latconst = 2.0;
 
-    conf.infile = "input/nanotip_medium.xyz";
-    conf.latconst = 3.61;
+//    conf.infile = "input/nanotip_medium.xyz";
+//    conf.latconst = 3.61;
 
     conf.coord_cutoff = 3.1;         // coordination analysis cut-off radius
 

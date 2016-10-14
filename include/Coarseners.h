@@ -33,6 +33,9 @@ public:
         return p1.distance2(p2) <= cutoff2;
     }
 
+    /** Output Coarsener contours in .vtk format */
+    void write(const string &file_name) const;
+
 protected:
     Point3 origin3d;  //!< centre of the coarsener
     double cutoff2;   //!< squared cut off radius
@@ -59,6 +62,8 @@ protected:
     virtual inline bool in_region(const Point3 &point) const {
         return false;
     }
+
+    virtual void get_write_data(vector<Point3> &points, vector<vector<int>> &nodes) const {}
 };
 
 
@@ -119,6 +124,7 @@ protected:
 
 private:
     Point2 origin2d;
+    void get_write_data(vector<Point3> &points, vector<vector<int>> &nodes) const;
 };
 
 /** Class to coarsen surface inside one infinite vertical nanotip */
@@ -143,6 +149,7 @@ protected:
 
 private:
     Point2 origin2d;
+    void get_write_data(vector<Point3> &points, vector<vector<int>> &nodes) const;
 };
 
 /** Class to coarsen surface inside one infinite tilted nanotip */
@@ -154,6 +161,8 @@ public:
 private:
     Vec3 bottom, axis;
     double height2;
+
+//    void get_write_data(vector<Point3> &points, vector<vector<int>> &nodes) const;
 
     /** Point in infinite tilted cylinder? */
     inline bool in_region(const Point3 &point) const {
