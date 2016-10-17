@@ -262,50 +262,46 @@ const void Surface::extract_by_coordination(AtomReader* reader) {
             add_atom(reader->get_atom(i));
 }
 
-// Get mean z-coordinate outside the infinite cylinder
-const double Surface::get_zmean_in_flat(Point2 &origin, double radius) {
+const void Surface::generate_coarseners(Coarseners &coars, const double radius, const double coarse_factor) {
+    Point2 origin2d((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
     const double r_cut2 = radius * radius;
     const int n_atoms = get_n_atoms();
 
     // Create a map from atoms in- and outside the dense region
     vector<bool> is_flat(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
-        is_flat[i] = (origin.distance2(get_point2(i)) > r_cut2);
+        is_flat[i] = (origin2d.distance2(get_point2(i)) > r_cut2);
+
+    const double zmax = sizes.zmax - 0.5*radius;
 
     // Calculate the average z coordinate of atom in flat region
-    double zsum = 0;
-    int n_coarse = vector_sum(is_flat);
-
+    coars.zmean = 0;
     for (int i = 0; i < n_atoms; ++i)
         if (is_flat[i])
-            zsum += get_atom(i).point.z;
+            coars.zmean += get_atom(i).point.z;
 
-    return zsum / n_coarse;
-}
+    coars.zmean = coars.zmean / vector_sum(is_flat);
 
-// Function to coarsen the atoms outside the cylinder in the middle of simulation cell
-const Surface Surface::coarsen(const double radius, const double coarse_factor, const AtomReader::Sizes* reader) {
-    Point2 origin2d((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
-
-    const double zmean = get_zmean_in_flat(origin2d, radius);
-    const double zmax = sizes.zmax - 0.5*radius;
-    const double diagonal = sqrt(sizes.xbox*sizes.xbox + sizes.ybox*sizes.ybox);
-
-    Point3 origin3d(origin2d[0], origin2d[1], zmean);
+    Point3 origin3d(origin2d[0], origin2d[1], coars.zmean);
     Point3 apex(origin2d[0], origin2d[1], zmax);
 
     const double A_tip = 0.5 * crys_struct.latconst;
     const double A_flat = coarse_factor * crys_struct.latconst;
     const double r0_sphere = 0.0;
     const double r0_cylinder = 1.0 * crys_struct.latconst;
-    const double r0_edge = 1.1 * (A_flat * sqrt(0.5 * diagonal - radius) + r0_cylinder);
+    const double diagonal = sqrt(sizes.xbox*sizes.xbox + sizes.ybox*sizes.ybox);
+    coars.r0_inf = 1.1 * (A_flat * sqrt(0.5 * diagonal - radius) + r0_cylinder);
 
-    Coarseners coarseners;
-    coarseners.attach_coarsener(make_shared<NanotipCoarsener>(apex, radius, A_tip, r0_sphere, r0_cylinder));
-    coarseners.attach_coarsener(make_shared<FlatlandCoarsener>(origin3d, radius, A_flat, r0_cylinder));
+    coars.attach_coarsener( make_shared<NanotipCoarsener>(apex, radius, A_tip, r0_sphere, r0_cylinder) );
+    coars.attach_coarsener( make_shared<FlatlandCoarsener>(origin3d, radius, A_flat, r0_cylinder) );
+}
+
+// Function to coarsen the atoms with coarsener
+const Surface Surface::coarsen(Coarseners &coarseners, const AtomReader::Sizes* reader) {
+    Point2 origin2d((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
 
     Edge edge;
-    edge.generate_uniform(reader, zmean, r0_edge);
+    edge.generate_uniform(reader, coarseners.zmean, coarseners.r0_inf);
     edge.sort_atoms(3, "down", origin2d);
 
     this->sort_atoms(3, 2, "down", origin2d);

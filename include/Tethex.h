@@ -121,11 +121,12 @@ public:
      */
     void set_coord(int number, double value);
 
-private:
     /**
      * Cartesian coordinates of the point
      */
     double coord[n_coord];
+
+private:
 };
 
 //-------------------------------------------------------
@@ -195,6 +196,12 @@ public:
      * @return global number of face (among other mesh faces)
      */
     int get_face(int number) const;
+
+    /**
+     * Set the material id of element
+     * @param id - new material id of the element
+     */
+    void set_material_id(int id);
 
     /**
      * Set the number of vertex
@@ -753,6 +760,8 @@ public:
     void read_femocs(femocs::Mesh* femocs_mesh, vector<int> ids);
     void export_vertices(femocs::Mesh* femocs_mesh);
     void separate_meshes(tethex::Mesh* bulk, tethex::Mesh* vacuum);
+    void calc_hex_qualities();
+
 
     /**
      * Smooth hexahedral mesh elements on vacuum-bulk boundary

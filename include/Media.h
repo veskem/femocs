@@ -66,7 +66,9 @@ public:
      */
     const void extract_surface(AtomReader* reader);
 
-    const Surface coarsen(const double radius, const double coarse_factor, const AtomReader::Sizes* ar_sizes);
+    const Surface coarsen(Coarseners &coarseners, const AtomReader::Sizes* reader);
+
+    const void generate_coarseners(Coarseners &coarseners, const double radius, const double coarse_factor);
 
     /** Function to flatten the atoms on the sides of simulation box */
     const Surface rectangularize(const AtomReader::Sizes* sizes, const double r_cut);
@@ -83,8 +85,6 @@ private:
     inline double smooth_function(double distance, double smooth_factor) const;
 
     const void smoothen(double smooth_factor, double r_cut);
-
-    const double get_zmean_in_flat(Point2 &origin, double radius);
 
     const void smoothen_laplace(const Point2 &origin, const double radius, const double r_cut);
 

@@ -174,6 +174,10 @@ int MeshElement::get_face(int number) const {
     return faces[number];
 }
 
+void MeshElement::set_material_id(int id) {
+    material_id = id;
+}
+
 void MeshElement::set_vertex(int local_number, int global_number) {
     expect(local_number >= 0 && local_number < get_n_vertices(),
             "Local number (" + d2s(local_number) + ") is incorrect. It must be in the range [0, " + d2s(n_edges) + ")");
@@ -845,7 +849,40 @@ void Mesh::export_vertices(femocs::Mesh* femocs_mesh) {
     // Export vertex coordinates
     for (int vert = 0; vert < n_verts; ++vert) {
         Point p = vertices[vert];
-        femocs_mesh->set_node(vert, femocs::Point3(p.get_coord(0), p.get_coord(1), p.get_coord(2)));
+        femocs_mesh->set_node(vert, femocs::Point3(p.coord[0], p.coord[1], p.coord[2]));
+    }
+}
+
+void Mesh::calc_hex_qualities() {
+    const int n_elems = hexahedra.size();
+    const int n_edges_per_hex = hexahedra[0]->get_n_edges();
+    const int n_verts_per_hex = hexahedra[0]->get_n_vertices();
+    const double Q = 10000.0; //1.0 / n_edges_per_hex;
+
+    double len, len_sum, len_min;
+
+    // loop through hexahedra
+    for (int i = 0; i < n_elems; ++i) {
+        // loop through the nodes of hexahedron
+        len_sum = 0.0;
+        len_min = 1e20;
+
+        // calculate all pairs of
+        for (int j = 0; j < n_verts_per_hex-1; ++j) {
+            Point P1 = vertices[hexahedra[i]->get_vertex(j)];
+            femocs::Point3 p1 = femocs::Point3(P1.coord[0], P1.coord[1], P1.coord[2]);
+
+            for (int k = j+1; k < n_verts_per_hex; ++k) {
+                Point P2 = vertices[hexahedra[i]->get_vertex(k)];
+                femocs::Point3 p2 = femocs::Point3(P2.coord[0], P2.coord[1], P2.coord[2]);
+                len = p1.distance(p2);
+                len_sum += len;
+                len_min = min(len_min, len);
+            }
+        }
+
+        // Set the hexahedron id to be proportional to its quality
+        hexahedra[i]->set_material_id(min(100.0, Q*len_min/len_sum));
     }
 }
 

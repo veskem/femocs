@@ -15,6 +15,7 @@
 #include "Mesher.h"
 #include "Tethex.h"
 #include "DealII.h"
+#include "Coarseners.h"
 
 using namespace std;
 
@@ -25,11 +26,12 @@ Femocs::Femocs(string message) : solution_valid(false) {
 
 //    conf.infile = "input/rough111.ckx";
 //    conf.infile = "input/mushroom2.ckx";
-    conf.infile = "input/nanotip_hr5.ckx";
-    conf.latconst = 2.0;
 
-//    conf.infile = "input/nanotip_medium.xyz";
-//    conf.latconst = 3.61;
+//    conf.infile = "input/nanotip_hr5.ckx";
+//    conf.latconst = 2.0;
+
+    conf.infile = "input/nanotip_medium.xyz";
+    conf.latconst = 3.61;
 
     conf.coord_cutoff = 3.1;         // coordination analysis cut-off radius
 
@@ -37,9 +39,9 @@ Femocs::Femocs(string message) : solution_valid(false) {
     conf.mesher = "tetgen";          // mesher algorithm
     conf.mesh_quality = "2.0";
     conf.nt = 4;                     // number of OpenMP threads
-    conf.radius = 20.0;              // inner radius of coarsening cylinder
+    conf.radius = 24.0;              // inner radius of coarsening cylinder
     conf.coarse_factor = 0.5;        // coarsening factor; bigger number gives coarser surface
-    conf.smooth_factor = 0.7;        // surface smoothing factor; bigger number gives smoother surface
+    conf.smooth_factor = 0.6;        // surface smoothing factor; bigger number gives smoother surface
     conf.postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
     conf.movavg_width = 1.0;         // width of moving average in electric field smoother
@@ -85,11 +87,14 @@ const void Femocs::run(double E_field, string message) {
 
     start_msg(t0, "=== Coarsening surface...");
     femocs::Surface coarse_surf(conf.latconst, conf.nnn);
+    femocs::Coarseners coarseners;
+    dense_surf.generate_coarseners(coarseners, conf.radius, conf.coarse_factor);
+    coarseners.write("output/coarseners" + message + ".vtk");
 
     if (conf.coarse_factor > 0)
 //        coarse_surf = dense_surf.coarsen_vol3(conf.coord_cutoff, conf.rmin_coarse, conf.rmax_coarse,
 //                conf.coarse_factor, &reader.sizes);
-        coarse_surf = dense_surf.coarsen(conf.radius, conf.coarse_factor, &reader.sizes);
+        coarse_surf = dense_surf.coarsen(coarseners, &reader.sizes);
     else
         coarse_surf = dense_surf.rectangularize(&reader.sizes, conf.rmin_rectancularize);
 
@@ -187,6 +192,9 @@ const void Femocs::run(double E_field, string message) {
     tethex::Mesh tethex_bulk;
     tethex::Mesh tethex_vacuum;
     tethex_big.separate_meshes(&tethex_bulk, &tethex_vacuum);
+
+    tethex_bulk.calc_hex_qualities();
+    tethex_vacuum.calc_hex_qualities();
 
     tethex_bulk.write_vtk_elems("output/bulk_smooth" + message + ".vtk");
     tethex_vacuum.write_vtk_elems("output/vacuum_smooth" + message + ".vtk");
