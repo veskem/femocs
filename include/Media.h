@@ -68,8 +68,6 @@ public:
 
     const Surface coarsen(Coarseners &coarseners, const AtomReader::Sizes* reader);
 
-    const void generate_coarseners(Coarseners &coarseners, const double radius, const double coarse_factor);
-
     /** Function to flatten the atoms on the sides of simulation box */
     const Surface rectangularize(const AtomReader::Sizes* sizes, const double r_cut);
 
@@ -85,8 +83,6 @@ private:
     inline double smooth_function(double distance, double smooth_factor) const;
 
     const void smoothen(double smooth_factor, double r_cut);
-
-    const void smoothen_laplace(const Point2 &origin, const double radius, const double r_cut);
 
     /** Extract surface by the atom types given by kMC simulation */
     const void extract_by_type(AtomReader* reader);

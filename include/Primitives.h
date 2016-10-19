@@ -143,6 +143,11 @@ public:
         node[0] = n1; node[1] = n2; node[2] = n3; node[3] = n4;
     }
 
+    /** Check whether element contains node */
+    bool operator ==(const unsigned int n) const {
+        return node[0] == n || node[1] == n || node[2] == n || node[3] == n;
+    }
+
     /** Get i-th edge of the element */
     const SimpleEdge edge(const unsigned int i) const {
         if (i <= 0) return SimpleEdge(node[0], node[1]);

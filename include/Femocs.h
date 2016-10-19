@@ -9,7 +9,7 @@
 #define FEMOCS_H_
 
 #include "AtomReader.h"
-#include "SolutionReader.h"
+#include "Interpolator.h"
 
 using namespace std;
 
@@ -55,6 +55,9 @@ public:
         double rmin_rectancularize;
         //!< Width of moving average while smoothing the electric field; 0 turns smoothing off
         double movavg_width;
+
+        //!< number of bins in smoother histogram; 1 or less turns off the histogram smoother
+        int n_bins;
     };
 
     Config conf;          //!< Femocs configuration parameters
@@ -76,7 +79,7 @@ public:
 private:
     bool solution_valid;
     femocs::AtomReader reader;
-    femocs::SolutionReader solution;
+    femocs::Interpolator interpolation;
 };
 
 const void femocs_speaker(string path);

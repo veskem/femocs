@@ -16,6 +16,7 @@
 #include "Tethex.h"
 #include "DealII.h"
 #include "Coarseners.h"
+#include "SolutionReader.h"
 
 using namespace std;
 
@@ -27,6 +28,7 @@ Femocs::Femocs(string message) : solution_valid(false) {
 //    conf.infile = "input/rough111.ckx";
 //    conf.infile = "input/mushroom2.ckx";
 
+//    conf.infile = "input/tower_hl2p5.ckx";
 //    conf.infile = "input/nanotip_hr5.ckx";
 //    conf.latconst = 2.0;
 
@@ -39,9 +41,10 @@ Femocs::Femocs(string message) : solution_valid(false) {
     conf.mesher = "tetgen";          // mesher algorithm
     conf.mesh_quality = "2.0";
     conf.nt = 4;                     // number of OpenMP threads
-    conf.radius = 24.0;              // inner radius of coarsening cylinder
+    conf.radius = 30.0;              // inner radius of coarsening cylinder
     conf.coarse_factor = 0.5;        // coarsening factor; bigger number gives coarser surface
     conf.smooth_factor = 0.6;        // surface smoothing factor; bigger number gives smoother surface
+    conf.n_bins = 20;                // number of bins in histogram smoother
     conf.postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
     conf.movavg_width = 1.0;         // width of moving average in electric field smoother
@@ -68,12 +71,9 @@ const void Femocs::run(double E_field, string message) {
 //    reader.output("output/reader.xyz");
 //    end_msg(t0);
 
-    if (conf.significant_distance > 0.0) {
-        start_msg(t0, "=== Comparing with previous run...");
-        success = !reader.equals_previous_run(conf.significant_distance);
-        check_success(success, "Atoms haven't moved significantly since last run! Field calculation will be skipped!")
-        end_msg(t0);
-    }
+    start_msg(t0, "=== Comparing with previous run...");
+    if ( reader.equals_previous_run(conf.significant_distance) ) return;
+    end_msg(t0);
 
     // ====================================
     // ===== Converting imported data =====
@@ -88,12 +88,9 @@ const void Femocs::run(double E_field, string message) {
     start_msg(t0, "=== Coarsening surface...");
     femocs::Surface coarse_surf(conf.latconst, conf.nnn);
     femocs::Coarseners coarseners;
-    dense_surf.generate_coarseners(coarseners, conf.radius, conf.coarse_factor);
-    coarseners.write("output/coarseners" + message + ".vtk");
+    coarseners.generate(dense_surf, conf.radius, conf.coarse_factor);
 
     if (conf.coarse_factor > 0)
-//        coarse_surf = dense_surf.coarsen_vol3(conf.coord_cutoff, conf.rmin_coarse, conf.rmax_coarse,
-//                conf.coarse_factor, &reader.sizes);
         coarse_surf = dense_surf.coarsen(coarseners, &reader.sizes);
     else
         coarse_surf = dense_surf.rectangularize(&reader.sizes, conf.rmin_rectancularize);
@@ -136,7 +133,7 @@ const void Femocs::run(double E_field, string message) {
 
     // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
     success = mesher.generate_mesh(bulk, coarse_surf, vacuum, "rnQq" + conf.mesh_quality);
-    check_success(success, "Triangulation failed! Field calculation will be skipped!\n");
+    check_success(success, "Triangulation failed! Field calculation will be skipped!");
 
     big_mesh.write_nodes("output/nodes_generated.xyz");
     big_mesh.write_edges("output/edges_generated.vtk");
@@ -196,13 +193,12 @@ const void Femocs::run(double E_field, string message) {
     tethex_bulk.calc_hex_qualities();
     tethex_vacuum.calc_hex_qualities();
 
-    tethex_bulk.write_vtk_elems("output/bulk_smooth" + message + ".vtk");
-    tethex_vacuum.write_vtk_elems("output/vacuum_smooth" + message + ".vtk");
     end_msg(t0);
 
     // ==============================
     // ===== Running FEM solver =====
     // ==============================
+
     femocs::DealII laplace;
     laplace.set_neumann(conf.neumann);
 
@@ -249,32 +245,42 @@ const void Femocs::run(double E_field, string message) {
 //    laplace.solve_umfpack();
     end_msg(t0);
 
+    // ========================================
+    // ===== Post-processing FEM solution =====
+    // ========================================
+
     start_msg(t0, "=== Extracting solution...");
     femocs::Medium medium = vacuum_mesh.to_medium();
-    solution.extract_solution(&laplace, medium);
-//    solution.extract_solution(&laplace, coarse_surf);
+    femocs::SolutionReader solution(&vacuum_mesh);
+    solution.extract_solution(laplace);
     end_msg(t0);
 
-    if (conf.movavg_width > 1.0) {
-        start_msg(t0, "=== Smoothing solution...");
-        solution.smoothen_result(conf.movavg_width);
-        end_msg(t0);
-        solution.print_statistics();
-    }
+    start_msg(t0, "=== Cleaning solution...");
+    solution.clean(conf.n_bins);
+    end_msg(t0);
+    solution.print_statistics();
 
     start_msg(t0, "=== Interpolating solution...");
     dense_surf.sort_atoms(0, 1, "up");
+    interpolation.extract_interpolation(&vacuum_mesh, &solution, dense_surf);
+    end_msg(t0);
 
-    femocs::Interpolator interpolation(&vacuum_mesh);
-    interpolation.extract_interpolation(solution, dense_surf);
+    start_msg(t0, "=== Cleaning interpolation...");
+    interpolation.clean(conf.n_bins);
     end_msg(t0);
 
     start_msg(t0, "=== Saving results...");
     solution.output("output/results.xyz");
     interpolation.output("output/interpolation" + message + ".xyz");
     laplace.output_results("output/results.vtk");
-    if (conf.significant_distance > 0.0) reader.save_current_run_points();
+
+    coarseners.write("output/coarseners" + message + ".vtk");
+
+    tethex_bulk.write_vtk_elems("output/bulk_smooth" + message + ".vtk");
+    tethex_vacuum.write_vtk_elems("output/vacuum_smooth" + message + ".vtk");
     end_msg(t0);
+
+    if (conf.significant_distance > 0.0) reader.save_current_run_points();
 
     cout << "\nTotal time of Femocs: " << omp_get_wtime() - tstart << "\n";
     solution_valid = true;
@@ -325,14 +331,14 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
 const void Femocs::export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     if (!solution_valid) return;
     start_msg(double t0, "=== Exporting results...");
-    solution.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);
+    interpolation.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);
     end_msg(t0);
 }
 
 const void Femocs::export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm, const int* nborlist) {
     if (!solution_valid) return;
     start_msg(double t0, "=== Exporting results...");
-    solution.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);
+    interpolation.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);
     end_msg(t0);
 }
 

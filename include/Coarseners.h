@@ -9,6 +9,7 @@
 #define COARSENER_H_
 
 #include "Primitives.h"
+#include "Medium.h"
 
 using namespace std;
 namespace femocs {
@@ -73,9 +74,7 @@ protected:
     double get_inf_cutoff() const { return -1e20; }
 
     /** Point in region? */
-    virtual inline bool in_region(const Point3 &point) const {
-        return false;
-    }
+    virtual inline bool in_region(const Point3 &point) const { return false; }
 };
 
 
@@ -232,6 +231,9 @@ public:
 
     /** Write the contours of coarseners to file in .vtk format */
     void write(const string &file_name);
+
+    /** Generate coarseners for one nanotip system */
+    void generate(const Medium &medium, const double radius, const double coarse_factor);
 
     double r0_inf;
     double zmean;

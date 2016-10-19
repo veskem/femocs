@@ -12,7 +12,7 @@
 #define DEBUGMODE true
 
 /** If VERBOSE then the debug information about the code execution is printed out. */
-#define VERBOSE true
+#define VERBOSE false
 
 #include <iostream>
 #include <string>
@@ -45,6 +45,8 @@ struct Types {
     extern Types TYPES;
 #endif
 
+#define check_success(success, message) if (!(success)) { __success_fails(__FILE__, __LINE__, message); return; }
+
 #if DEBUGMODE
     #define require(condition, message) \
             if (!(condition)) __requirement_fails(__FILE__, __LINE__, message)
@@ -56,7 +58,6 @@ struct Types {
 
 // Definitions for development in VERBOSE mode
 #if VERBOSE
-    #define check_success(success, message) if (!(success)) { __success_fails(__FILE__, __LINE__, message); return; }
 
     /** Definition to print progress messages and to find the start time of code execution */
     #define start_msg(t0, message) t0 = __start_msg(message)
@@ -69,7 +70,6 @@ struct Types {
 
 // In release(-like) versions nothing happens
 #else
-    #define check_success(success, message) if (!(success)) return;
     #define expect(condition, message) {}
     #define start_msg(t0, message) {}
     #define end_msg(t0) {}

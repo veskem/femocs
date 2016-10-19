@@ -36,6 +36,9 @@ const void AtomReader::add_atom(const int id, const Point3 &point, const int typ
 }
 
 const bool AtomReader::equals_previous_run(const double eps) {
+    if (eps < 1e-5)
+        return false;
+
     const int n_atoms = get_n_atoms();
     const double eps2 = eps * eps;
 

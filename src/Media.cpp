@@ -262,40 +262,6 @@ const void Surface::extract_by_coordination(AtomReader* reader) {
             add_atom(reader->get_atom(i));
 }
 
-const void Surface::generate_coarseners(Coarseners &coars, const double radius, const double coarse_factor) {
-    Point2 origin2d((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
-    const double r_cut2 = radius * radius;
-    const int n_atoms = get_n_atoms();
-
-    // Create a map from atoms in- and outside the dense region
-    vector<bool> is_flat(n_atoms);
-    for (int i = 0; i < n_atoms; ++i)
-        is_flat[i] = (origin2d.distance2(get_point2(i)) > r_cut2);
-
-    const double zmax = sizes.zmax - 0.5*radius;
-
-    // Calculate the average z coordinate of atom in flat region
-    coars.zmean = 0;
-    for (int i = 0; i < n_atoms; ++i)
-        if (is_flat[i])
-            coars.zmean += get_atom(i).point.z;
-
-    coars.zmean = coars.zmean / vector_sum(is_flat);
-
-    Point3 origin3d(origin2d[0], origin2d[1], coars.zmean);
-    Point3 apex(origin2d[0], origin2d[1], zmax);
-
-    const double A_tip = 0.5 * crys_struct.latconst;
-    const double A_flat = coarse_factor * crys_struct.latconst;
-    const double r0_sphere = 0.0;
-    const double r0_cylinder = 1.0 * crys_struct.latconst;
-    const double diagonal = sqrt(sizes.xbox*sizes.xbox + sizes.ybox*sizes.ybox);
-    coars.r0_inf = 1.1 * (A_flat * sqrt(0.5 * diagonal - radius) + r0_cylinder);
-
-    coars.attach_coarsener( make_shared<NanotipCoarsener>(apex, radius, A_tip, r0_sphere, r0_cylinder) );
-    coars.attach_coarsener( make_shared<FlatlandCoarsener>(origin3d, radius, A_flat, r0_cylinder) );
-}
-
 // Function to coarsen the atoms with coarsener
 const Surface Surface::coarsen(Coarseners &coarseners, const AtomReader::Sizes* reader) {
     Point2 origin2d((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
@@ -401,17 +367,17 @@ const Surface Surface::clean_lonely_atoms(const double r_cut) {
     return surf;
 }
 
+inline double Surface::smooth_function(double distance, double smooth_factor) const {
+    const double a = 1.0;
+    return a * exp(-1.0 * distance / smooth_factor);
+}
+
 const void Surface::smoothen(double radius, double smooth_factor, double r_cut) {
     // Calculate the horizontal span of the surface
     calc_statistics();
     Point2 origin2d((sizes.xmax + sizes.xmin) / 2, (sizes.ymax + sizes.ymin) / 2);
 
     smoothen(origin2d, radius, smooth_factor, r_cut);
-}
-
-inline double Surface::smooth_function(double distance, double smooth_factor) const {
-    const double a = 1.0;
-    return a * exp(-1.0 * distance / smooth_factor);
 }
 
 const void Surface::smoothen(const Point2 &origin, double radius, double smooth_factor, double r_cut) {
@@ -475,37 +441,6 @@ const void Surface::smoothen(double smooth_factor, double r_cut) {
     // Normalise smoothed vertices
     for (int i = 0; i < n_atoms; ++i)
         atoms[i].point *= 1.0 / weights_sum[i];
-}
-
-const void Surface::smoothen_laplace(const Point2 &origin, const double radius, const double r_cut) {
-    const int n_atoms = get_n_atoms();
-    const double radius2 = radius * radius;
-
-    vector<bool> skip_atom(n_atoms);
-    for(int i = 0; i < n_atoms; ++i)
-        skip_atom[i] = origin.distance2(get_point2(i)) > radius2;
-
-    for(int i = 0; i < n_atoms; ++i) {
-        if (skip_atom[i]) continue;
-
-        Point3 point1 = get_point(i);
-        Point3 correction(0,0,0);
-
-        int neighbors = 0;
-        for (int j = 0; j < n_atoms; ++j) {
-            if (skip_atom[j] || i == j) continue;
-            Point3 point2 = get_point(j);
-            if (point1.distance(point2) < r_cut) {
-                correction += point2;
-                neighbors++;
-            }
-        }
-
-        correction *= 1.0/neighbors;
-        point1 += correction;
-
-        set_point(i, point1);
-    }
 }
 
 // =================================================

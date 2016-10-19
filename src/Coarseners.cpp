@@ -129,7 +129,7 @@ vector<vector<int>> NanotipCoarsener::get_polygons() {
 vector<Point3> NanotipCoarsener::get_points() {
     const double circle_res = 2 * M_PI / n_nodes_per_circle;
     const double line_res = 2 * M_PI / 4;
-    const double zbottom = origin3d.z - 2*radius;
+    const double zbottom = -2.0 * radius;
 
     // Reserve memory for points
     vector<Point3> points;
@@ -137,7 +137,7 @@ vector<Point3> NanotipCoarsener::get_points() {
 
     // Make points for apex circle
     for (double a = 0; a < 2*M_PI; a += circle_res)
-        points.push_back(Point3(radius*cos(a), radius*sin(a), origin3d.z));
+        points.push_back(Point3(radius*cos(a), radius*sin(a), 0));
 
     // Make points for bottom circle
     for (double a = 0; a < 2*M_PI; a += circle_res)
@@ -145,29 +145,64 @@ vector<Point3> NanotipCoarsener::get_points() {
 
     // Make points for circle in y-z plane
     for (double a = 0; a < 2*M_PI; a += circle_res)
-        points.push_back(Point3(0, radius*cos(a), origin3d.z+radius*sin(a)));
+        points.push_back(Point3(0, radius*cos(a), radius*sin(a)));
 
     // Make points for circle in x-z plane
     for (double a = 0; a < 2*M_PI; a += circle_res)
-        points.push_back(Point3(radius*cos(a), 0, origin3d.z+radius*sin(a)));
+        points.push_back(Point3(radius*cos(a), 0, radius*sin(a)));
 
     // Make points for vertical lines
     for (double a = 0; a < 2*M_PI; a += line_res) {
-        points.push_back( Point3(radius*cos(a), radius*sin(a), origin3d.z) );
+        points.push_back( Point3(radius*cos(a), radius*sin(a), 0) );
         points.push_back( Point3(radius*cos(a), radius*sin(a), zbottom-1) );
     }
 
     // Make points for horizontal lines
-    points.push_back( Point3(radius, 0, origin3d.z) );
-    points.push_back( Point3(-radius,0, origin3d.z) );
-    points.push_back( Point3(0, radius, origin3d.z) );
-    points.push_back( Point3(0,-radius, origin3d.z) );
+    points.push_back( Point3(radius, 0, 0) );
+    points.push_back( Point3(-radius,0, 0) );
+    points.push_back( Point3(0, radius, 0) );
+    points.push_back( Point3(0,-radius, 0) );
 
-    // Shift points to the origin
+    // Shift points according to the origin
     for (int i = 0; i < points.size(); ++i)
-        points[i] += origin2d;
+        points[i] += origin3d;
 
     return points;
+}
+
+// Generate coarseners for one nanotip system
+void Coarseners::generate(const Medium &m, const double radius, const double coarse_factor) {
+    Point2 origin2d((m.sizes.xmax + m.sizes.xmin) / 2, (m.sizes.ymax + m.sizes.ymin) / 2);
+    const double r_cut2 = radius * radius;
+    const int n_atoms = m.get_n_atoms();
+
+    // Create a map from atoms in- and outside the dense region
+    vector<bool> is_flat(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        is_flat[i] = (origin2d.distance2(m.get_point2(i)) > r_cut2);
+
+    const double zmax = m.sizes.zmax - 0.5*radius;
+
+    // Calculate the average z coordinate of atom in flat region
+    zmean = 0;
+    for (int i = 0; i < n_atoms; ++i)
+        if (is_flat[i])
+            zmean += m.get_atom(i).point.z;
+
+    zmean = zmean / vector_sum(is_flat);
+
+    Point3 origin3d(origin2d[0], origin2d[1], zmean);
+    Point3 apex(origin2d[0], origin2d[1], zmax);
+
+    const double A_tip = 0.5 * m.crys_struct.latconst;
+    const double A_flat = coarse_factor * m.crys_struct.latconst;
+    const double r0_sphere = 0.0;
+    const double r0_cylinder = 1.0 * m.crys_struct.latconst;
+    const double diagonal = sqrt(m.sizes.xbox*m.sizes.xbox + m.sizes.ybox*m.sizes.ybox);
+    r0_inf = 1.1 * (A_flat * sqrt(0.5 * diagonal - radius) + r0_cylinder);
+
+    attach_coarsener( make_shared<NanotipCoarsener>(apex, radius, A_tip, r0_sphere, r0_cylinder) );
+    attach_coarsener( make_shared<FlatlandCoarsener>(origin3d, radius, A_flat, r0_cylinder) );
 }
 
 void Coarseners::write(const string &file_name) {
