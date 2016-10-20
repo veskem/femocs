@@ -255,10 +255,13 @@ const void Femocs::run(double E_field, string message) {
     solution.extract_solution(laplace);
     end_msg(t0);
 
-    start_msg(t0, "=== Cleaning solution...");
-    solution.clean(conf.n_bins);
-    end_msg(t0);
-    solution.print_statistics();
+//    start_msg(t0, "=== Cleaning solution...");
+//    solution.clean(0, conf.n_bins);
+//    solution.clean(1, conf.n_bins);
+//    solution.clean(2, conf.n_bins);
+//    solution.clean(3, conf.n_bins);
+//    end_msg(t0);
+//    solution.print_statistics();
 
     start_msg(t0, "=== Interpolating solution...");
     dense_surf.sort_atoms(0, 1, "up");
@@ -266,7 +269,10 @@ const void Femocs::run(double E_field, string message) {
     end_msg(t0);
 
     start_msg(t0, "=== Cleaning interpolation...");
-    interpolation.clean(conf.n_bins);
+    interpolation.clean_vol2(0, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
+    interpolation.clean_vol2(1, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
+    interpolation.clean_vol2(2, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
+    interpolation.clean_vol2(3, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
     end_msg(t0);
 
     start_msg(t0, "=== Saving results...");

@@ -240,31 +240,45 @@ const void SolutionReader::smoothen_result(const double smooth_width) {
     sort_atom_id();
 }
 
-const void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds) {
-    const int n_atoms = solution.size();
+const void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, const int coord) {
+//    require(coord >= 0 && coord <= 3, "Invalid component: " + to_string(coord));
+
+    const int n_atoms = get_n_atoms();
     const int n_bins = bins.size();
     const int n_bounds = bounds.size();
+    const double eps = 1e-5;
 
-    double el_norm_min = DBL_MAX;
-    double el_norm_max = DBL_MIN;
-    for (int i = 0; i < n_atoms; ++i)
-        if (solution[i].el_norm < error_field) {
-            el_norm_min = min(el_norm_min, solution[i].el_norm);
-            el_norm_max = max(el_norm_max, solution[i].el_norm);
+    // Find minimum and maximum values from all non-error values
+    double value_min = 1e100;
+    double value_max =-1e100;
+    double value;
+    for (int i = 0; i < n_atoms; ++i) {
+        if (coord == 3) value = abs(solution[i].el_norm);
+        else            value = abs(solution[i].elfield[coord]);
+
+        if (value < error_field) {
+            value_min = min(value_min, value);
+            value_max = max(value_max, value);
         }
+    }
 
-    double el_norm_step = (el_norm_max - el_norm_min) / (n_bins-0);
+    // Fill the bounds with values value_min:value_step:(value_max + epsilon)
+    // Epsilon is added to value_max to include the maximum value in the up-most bin
+    double value_step = (value_max - value_min) / n_bins;
     for (int i = 0; i < n_bounds; ++i)
-        bounds[i] = el_norm_min + el_norm_step * i;
-
-    bounds[n_bounds-1] += 1e-5;
+        bounds[i] = value_min + value_step * i;
+    bounds[n_bounds-1] += eps;
 
     for (int i = 0; i < n_atoms; ++i)
-        for (int j = 0; j < n_bins; ++j)
-            if (solution[i].el_norm >= bounds[j] && solution[i].el_norm < bounds[j+1]) {
+        for (int j = 0; j < n_bins; ++j) {
+            if (coord == 3) value = abs(solution[i].el_norm);
+            else            value = abs(solution[i].elfield[coord]);
+
+            if (value >= bounds[j] && value < bounds[j+1]) {
                 bins[j]++;
                 continue;
             }
+        }
 }
 
 // Return the element index that contains n-th node
@@ -279,46 +293,66 @@ const Vec3 SolutionReader::get_average_solution(const int I) {
     int elem = get_elem(I);                  // get some element that contains I-th node
     if (elem < 0) return Vec3(error_field);  // if no such element exists, return error field
 
-    SimpleElement selem = mesh->get_simpleelem(elem);
+    vector<SimpleElement> selems;
+    selems.push_back(mesh->get_simpleelem(elem));
+    for (int nbr : mesh->get_elem_neighbours(elem))
+        if (nbr >= 0 && mesh->get_simpleelem(nbr) == I)
+            selems.push_back(mesh->get_simpleelem(nbr));
+
     Vec3 average(0.0);
     int n_averages = 0;
 
     // Average the node value over other nodes of the element
-    for (int i = 0; i < mesh->n_nodes_per_elem; ++i)
-        if (i != I) {
-            average += solution[selem[i]].elfield;
-            n_averages++;
-        }
+    for (SimpleElement selem : selems)
+        for (int i = 0; i < mesh->n_nodes_per_elem; ++i)
+            if (selem[i] != I) {
+                average += solution[selem[i]].elfield;
+                n_averages++;
+            }
 
     average *= (1.0 / n_averages);
     return average;
 }
 
 // Function to clean the result from peaks
-const void SolutionReader::clean(const int n_bins) {
+const void SolutionReader::clean(const int coordinate, const int n_bins) {
+//    require(coordinate >= 0 && coordinate <= 3, "Invalid coordinate: " + to_string(coordinate));
     if (n_bins <= 1) return;
 
     const int n_atoms = get_n_atoms();
 
     vector<int> bins(n_bins, 0);
     vector<double> bounds(n_bins+1);
-    get_histogram(bins, bounds);
+    get_histogram(bins, bounds, coordinate);
 
     // Find the first bin with zero entries; this will determine the maximum allowed elfield norm
-    double el_norm_max = bounds[n_bins];
+    double value_max = bounds[n_bins];
     for (int i = n_bins-1; i >= 0; --i)
-        if (bins[i] == 0)
-            el_norm_max = bounds[i];
+        if (bins[i] == 0) value_max = bounds[i];
+
+    cout.precision(3);
+    cout << endl << coordinate << " " << value_max << endl;
+    for (int i = 0; i < bins.size(); ++i)
+        cout << bins[i] << " ";
+    cout << endl;
+    for (int i = 0; i < bounds.size(); ++i)
+        cout << bounds[i] << " ";
+    cout << endl;
 
     // If all the bins are filled, no blocking will be applied
-    if (el_norm_max == bounds[n_bins])
+    if (value_max == bounds[n_bins])
         return;
 
-    for (int i = 0; i < n_atoms; ++i)
-        if (solution[i].el_norm > el_norm_max) {
+    double value;
+    for (int i = 0; i < n_atoms; ++i) {
+        if (coordinate == 3) value = abs(solution[i].el_norm);
+        else                 value = abs(solution[i].elfield[coordinate]);
+
+        if (value > value_max) {
             solution[i].elfield = get_average_solution(i);
             solution[i].el_norm = solution[i].elfield.length();
         }
+    }
 }
 
 // Print some statistics about the top region of tip

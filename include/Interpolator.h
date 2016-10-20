@@ -45,13 +45,18 @@ public:
     const void export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
     /** Function to clean the result from peaks */
-    const void clean(const int n_bins);
+    const void clean(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut);
+    const void clean_vol2(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut);
 
 private:
     /** Constants to specify the tolerances.
      * Making zero a bit negative allows to interpolate outside the tetrahedron */
     const double epsilon = 1e-2;
     const double zero = -1.0 * epsilon;
+
+    /** Electric field that is assigned to atoms not found from mesh.
+     *  Its value is BIG to make it immediately visible from data set. */
+    const double error_field = 1e10;
 
     Mesh* mesh;                      //!< tetrahedral mesh
     SolutionReader* solution;        //!< solution data
@@ -69,8 +74,8 @@ private:
     const Solution get_interpolation(const Point3 &point, const int elem);
     const void precompute_tetrahedra();
 
-    const void get_histogram(vector<int> &bins, vector<double> &bounds);
-    const Vec3 get_average_solution(const int I);
+    const void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
+    const Vec3 get_average_solution(const int I, const double smooth_factor, const double r_cut);
     const int locate_element(const Point3 &point, const int elem_guess);
     const Vec4 get_bcc(const Point3 &point, const int elem);
     const bool point_in_tetrahedron(const Point3 &point, const int i);

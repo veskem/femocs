@@ -19,39 +19,10 @@ Interpolator::Interpolator() : solution(NULL), mesh(NULL) {
     reserve_precompute(0);
 };
 
-const void Interpolator::get_histogram(vector<int> &bins, vector<double> &bounds) {
-    const int n_atoms = get_n_atoms();
-    const int n_bins = bins.size();
-    const int n_bounds = bounds.size();
-    const double error_field = 1e20;
-
-    double el_norm_min = DBL_MAX;
-    double el_norm_max = DBL_MIN;
-    for (int i = 0; i < n_atoms; ++i)
-        if (interpolation[i].el_norm < error_field) {
-            el_norm_min = min(el_norm_min, interpolation[i].el_norm);
-            el_norm_max = max(el_norm_max, interpolation[i].el_norm);
-        }
-
-    double el_norm_step = (el_norm_max - el_norm_min) / (n_bins-0);
-    for (int i = 0; i < n_bounds; ++i)
-        bounds[i] = el_norm_min + el_norm_step * i;
-
-    bounds[n_bounds-1] += 1e-5;
-
-    for (int i = 0; i < n_atoms; ++i)
-        for (int j = 0; j < n_bins; ++j)
-            if (interpolation[i].el_norm >= bounds[j] && interpolation[i].el_norm < bounds[j+1]) {
-                bins[j]++;
-                continue;
-            }
-}
-
-const Vec3 Interpolator::get_average_solution(const int I) {
-    const double cutoff2 = 3.1 * 3.1;
+// Get average electric field around I-th solution point
+const Vec3 Interpolator::get_average_solution(const int I, const double smooth_factor, const double r_cut) {
+    const double r_cut2 = r_cut * r_cut;
     const double a = 1.0;
-    const double b = 1.0;
-    const double error_field = 1e19;
 
     Vec3 average(0.0);
     Point3 point1 = get_point(I);
@@ -60,9 +31,9 @@ const Vec3 Interpolator::get_average_solution(const int I) {
     for (int i = 0; i < get_n_atoms(); ++i)
         if (i != I) {
             double dist2 = point1.distance2(get_point(i));
-            if (dist2 > cutoff2 || interpolation[i].el_norm >= error_field) continue;
+            if (dist2 > r_cut2 || interpolation[i].el_norm >= error_field) continue;
 
-            double w = a * exp(-1.0 * sqrt(dist2) / b);
+            double w = a * exp(-1.0 * sqrt(dist2) / smooth_factor);
             w_sum += w;
             average += interpolation[i].elfield * w;
         }
@@ -71,31 +42,139 @@ const Vec3 Interpolator::get_average_solution(const int I) {
     return average;
 }
 
+// Get histogram for electric field x,y,z component or for its norm
+const void Interpolator::get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate) {
+//    require(coord >= 0 && coord <= 3, "Invalid component: " + to_string(coord));
+
+    const int n_atoms = get_n_atoms();
+    const int n_bins = bins.size();
+    const int n_bounds = bounds.size();
+    const double eps = 1e-5;
+
+    // Find minimum and maximum values from all non-error values
+    double value_min = 1e100;
+    double value_max =-1e100;
+    double value;
+    for (int i = 0; i < n_atoms; ++i) {
+        if (coordinate == 3) value = interpolation[i].el_norm;
+        else                 value = interpolation[i].elfield[coordinate];
+
+        if (abs(value) < error_field) {
+            value_min = min(value_min, value);
+            value_max = max(value_max, value);
+        }
+    }
+
+    // Fill the bounds with values value_min:value_step:(value_max + epsilon)
+    // Epsilon is added to value_max to include the maximum value in the up-most bin
+    double value_step = (value_max - value_min) / n_bins;
+    for (int i = 0; i < n_bounds; ++i)
+        bounds[i] = value_min + value_step * i;
+    bounds[n_bounds-1] += eps;
+
+    for (int i = 0; i < n_atoms; ++i)
+        for (int j = 0; j < n_bins; ++j) {
+            if (coordinate == 3) value = interpolation[i].el_norm;
+            else                 value = interpolation[i].elfield[coordinate];
+
+            if (value >= bounds[j] && value < bounds[j+1]) {
+                bins[j]++;
+                continue;
+            }
+        }
+}
+
 // Function to clean the result from peaks
-const void Interpolator::clean(const int n_bins) {
+const void Interpolator::clean(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut) {
+//    require(coordinate >= 0 && coordinate <= 3, "Invalid coordinate: " + to_string(coordinate));
     if (n_bins <= 1) return;
 
     const int n_atoms = get_n_atoms();
 
     vector<int> bins(n_bins, 0);
     vector<double> bounds(n_bins+1);
-    get_histogram(bins, bounds);
+    get_histogram(bins, bounds, coordinate);
 
     // Find the first bin with zero entries; this will determine the maximum allowed elfield norm
-    double el_norm_max = bounds[n_bins];
+    double value_max = bounds[n_bins];
     for (int i = n_bins-1; i >= 0; --i)
-        if (bins[i] == 0)
-            el_norm_max = bounds[i];
+        if (bins[i] == 0) value_max = bounds[i];
+
+    cout.precision(3);
+    cout << endl << coordinate << " " << value_max << endl;
+    for (int i = 0; i < bins.size(); ++i)
+        cout << bins[i] << " ";
+    cout << endl;
+    for (int i = 0; i < bounds.size(); ++i)
+        cout << bounds[i] << " ";
+    cout << endl;
 
     // If all the bins are filled, no blocking will be applied
-    if (el_norm_max == bounds[n_bins])
+    if (value_max == bounds[n_bins])
         return;
 
-    for (int i = 0; i < n_atoms; ++i)
-        if (interpolation[i].el_norm > el_norm_max) {
-            interpolation[i].elfield = get_average_solution(i);
+    double value;
+    for (int i = 0; i < n_atoms; ++i) {
+        if (coordinate == 3) value = abs(interpolation[i].el_norm);
+        else                 value = abs(interpolation[i].elfield[coordinate]);
+
+        if (value > value_max) {
+            interpolation[i].elfield = get_average_solution(i, smooth_factor, r_cut);
             interpolation[i].el_norm = interpolation[i].elfield.length();
         }
+    }
+}
+
+// Function to clean the result from peaks
+const void Interpolator::clean_vol2(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut) {
+//    require(coordinate >= 0 && coordinate <= 3, "Invalid coordinate: " + to_string(coordinate));
+    if (n_bins <= 1) return;
+
+    const int n_atoms = get_n_atoms();
+
+    vector<int> bins(n_bins, 0);
+    vector<double> bounds(n_bins+1);
+    get_histogram(bins, bounds, coordinate);
+
+    // Find the first bin with zero entries from positive edge of bounds;
+    // this will determine the maximum allowed elfield value
+    double value_max = bounds[n_bins];
+    for (int i = n_bins-1; i >= 0; --i) {
+        if (bounds[i] < 0) break;
+        if (bins[i] == 0) value_max = bounds[i];
+    }
+
+    // Find the last bin with zero entries from negative edge of bounds;
+    // this will determine the minimum allowed elfield value
+    double value_min = bounds[0];
+    for (int i = 0; i < n_bins; ++i) {
+        if (bounds[i+1] > 0) break;
+        if (bins[i] == 0) value_min = bounds[i+1];
+    }
+
+//    require(value_min < value_max, "Error in histogram cleaner!");
+
+    cout.precision(3);
+    cout << endl << coordinate << " " << value_min << " " << value_max << endl;
+    for (int i = 0; i < bins.size(); ++i) cout << bins[i] << " ";
+    cout << endl;
+    for (int i = 0; i < bounds.size(); ++i) cout << bounds[i] << " ";
+    cout << endl;
+
+    // If all the bins are filled, no blocking will be applied
+    if (value_min == bounds[0] && value_max == bounds[n_bins])
+        return;
+
+    double value;
+    for (int i = 0; i < n_atoms; ++i) {
+        if (coordinate == 3) value = abs(interpolation[i].el_norm);
+        else                 value = abs(interpolation[i].elfield[coordinate]);
+
+        if (value < value_min || value > value_max) {
+            interpolation[i].elfield = get_average_solution(i, smooth_factor, r_cut);
+            interpolation[i].el_norm = interpolation[i].elfield.length();
+        }
+    }
 }
 
 // Compile data string from the data vectors for file output

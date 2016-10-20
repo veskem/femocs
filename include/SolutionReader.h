@@ -27,7 +27,7 @@ public:
     const void extract_solution(DealII& fem);
 
     const void smoothen_result(const double smooth_width);
-    const void clean(const int n_bins);
+    const void clean(const int coordinate, const int n_bins);
 
     const void print_statistics();
     const void sort_atoms(const int x1, const int x2, const string& direction = "up");
@@ -50,7 +50,7 @@ private:
     const void smoothen_result_ema(const double smooth_width);
     const void smoothen_result_sma(const int n_samples);
 
-    const void get_histogram(vector<int> &bins, vector<double> &bounds);
+    const void get_histogram(vector<int> &bins, vector<double> &bounds, const int coord);
     inline Vec3 get_ema(const int i0, const int i1, const double smooth_width);
     inline Vec3 get_sma_up(const int i, const int n_samples);
     inline Vec3 get_sma_down(const int i, const int n_samples);

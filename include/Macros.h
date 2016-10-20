@@ -8,12 +8,6 @@
 #ifndef MACROS_H_
 #define MACROS_H_
 
-/** If DEBUGMODE then the asserts are operating. Disabling it makes the code to run faster. */
-#define DEBUGMODE true
-
-/** If VERBOSE then the debug information about the code execution is printed out. */
-#define VERBOSE false
-
 #include <iostream>
 #include <string>
 #include <vector>
@@ -22,21 +16,28 @@
 using namespace std;
 //namespace femocs {
 
+/** If DEBUGMODE then the asserts and file writers are operating.
+ *  Disabling it makes the code to run faster. */
+#define DEBUGMODE true
+
+/** If VERBOSE then the debug information about the code execution is printed to console. */
+#define VERBOSE false
+
 /** Types of regions used in the simulation */
 struct Types {
-    const int NONE = 0;    //!< type of atom with unknown position
-    const int BULK = 1;    //!< type of bulk material
-    const int SURFACE = 2; //!< type of open material surface
-    const int VACUUM = 3;  //!< type of vacuum
-    const int VACANCY = 3; //!< type of vacancies
-    const int PERIMETER = 4;    //!< type of the rim/outer edge of surface
-    const int FIXED = -1;  //!< type of fixed atoms
-    const int XMIN = 5;    //!< type of atom on negative x-face of simulation cell
-    const int YMIN = 6;    //!< type of atom on negative y-face of simulation cell
-    const int ZMIN = 7;    //!< type of atom on negative z-face of simulation cell
-    const int XMAX = 10;   //!< type of atom on positive x-face of simulation cell
-    const int YMAX = 9;    //!< type of atom on positive y-face of simulation cell
-    const int ZMAX = 8;    //!< type of atom on positive z-face of simulation cell
+    const int NONE = 0;      //!< type of atom with unknown position
+    const int BULK = 1;      //!< type of bulk material
+    const int SURFACE = 2;   //!< type of open material surface
+    const int VACUUM = 3;    //!< type of vacuum
+    const int VACANCY = 3;   //!< type of vacancies
+    const int PERIMETER = 4; //!< type of the rim/outer edge of surface
+    const int FIXED = -1;    //!< type of fixed atoms
+    const int XMIN = 5;      //!< type of atom on negative x-face of simulation cell
+    const int YMIN = 6;      //!< type of atom on negative y-face of simulation cell
+    const int ZMIN = 7;      //!< type of atom on negative z-face of simulation cell
+    const int XMAX = 10;     //!< type of atom on positive x-face of simulation cell
+    const int YMAX = 9;      //!< type of atom on positive y-face of simulation cell
+    const int ZMAX = 8;      //!< type of atom on positive z-face of simulation cell
 };
 
 #ifdef MAINFILE
