@@ -12,13 +12,15 @@ using namespace dealii;
 using namespace laplace;
 
 template <int dim>
-CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim>* laplace_) :
+CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim>* laplace_,
+		   double tip_temp_prediction_, double tip_pot_prediction_) :
+		tip_temp_prediction(tip_temp_prediction_),
+		tip_pot_prediction(tip_pot_prediction_),
 		fe (FE_Q<dim>(currents_degree), 1, 	// Finite element type (1) = linear, etc and number of components
 			FE_Q<dim>(heating_degree), 1),	// (we have 2 variables: potential and T with 1 component each)
 		dof_handler(triangulation),
 		pq(pq_),
-		laplace(laplace_) {
-}
+		laplace(laplace_) {}
 
 template <int dim>
 Triangulation<dim>* CurrentsAndHeating<dim>::getp_triangulation() {
@@ -100,16 +102,57 @@ void CurrentsAndHeating<dim>::setup_mapping() {
 }
 
 
+template <int dim>
+class InitialValues : public Function<dim> {
+	double tip_pot, tip_temp, amb_temp, zmax, zmin;
+public:
+	InitialValues (double tip_pot, double tip_temp, double amb_temp, double zmax, double zmin)
+		: Function<dim>(2), tip_pot(tip_pot), tip_temp(tip_temp), amb_temp(amb_temp), zmax(zmax), zmin(zmin) {}
+	double value (const Point<dim> &p,
+				  const unsigned int component = 0) const {
+		double z = 0.0;
+		if (dim == 2) z = p(1);
+		else z = p(2);
+
+		double x = (z-zmin)/(zmax-zmin);
+
+		if (component == 0) return tip_pot*x*x*x*x;
+		else return amb_temp+(tip_temp-amb_temp)*x*x*x*x;
+	}
+};
+
+template <int dim>
+void CurrentsAndHeating<dim>::set_initial_condition() {
+
+	typename Triangulation<dim>::active_face_iterator face;
+	double zmax = -1e16, zmin = 1e16;
+
+	// Loop through the faces and find maximum and minimum values for coordinates
+	for (face = triangulation.begin_face(); face != triangulation.end_face(); ++face) {
+		if (face->at_boundary()) {
+			double z = face->center()[dim-1];
+			if (z > zmax) zmax = z;
+			if (z < zmin) zmin = z;
+		}
+	}
+	// Set initial values such that the dirichlet BCs are satisfied
+	// and the tip has the  predicted potential and temperature values.
+	VectorTools::interpolate(dof_handler,
+			InitialValues<dim>(tip_pot_prediction, tip_temp_prediction, ambient_temperature, zmax, zmin),
+			present_solution);
+}
+
+
 // Assembles the linear system for one Newton iteration
 template <int dim>
 void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration) {
 
-	TimerOutput timer(std::cout, TimerOutput::never, TimerOutput::wall_times);
+	TimerOutput timer(std::cout, TimerOutput::summary, TimerOutput::wall_times);
 	timer.enter_section("Pre-assembly");
 
-	QGauss<dim> quadrature_formula(std::max(currents_degree, heating_degree)+2);
+	QGauss<dim> quadrature_formula(std::max(currents_degree, heating_degree)+1);
 	QGauss<dim-1> face_quadrature_formula(std::max(std::max(currents_degree,
-			heating_degree), laplace->shape_degree)+2);
+			heating_degree), laplace->shape_degree)+1);
 
 	FEValues<dim> fe_values(fe, quadrature_formula,
 			update_values | update_gradients | update_quadrature_points
@@ -211,6 +254,14 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 							 - (temperature_phi_grad[i] * dkappa * prev_temp_grad * temperature_phi[j])
 							 - (temperature_phi_grad[i] * kappa * temperature_phi_grad[j])
 						   ) * fe_values.JxW(q);
+					cell_matrix(i, j)
+						+= ( - (potential_phi_grad[i] * sigma * potential_phi_grad[j])
+							 - (potential_phi_grad[i] * dsigma * prev_pot_grad * temperature_phi[j])
+							 + (temperature_phi[i] * 2 * sigma * prev_pot_grad * potential_phi_grad[j])
+							 + (temperature_phi[i] * dsigma * prev_pot_grad * prev_pot_grad * temperature_phi[j])
+							 - (temperature_phi_grad[i] * dkappa * prev_temp_grad * temperature_phi[j])
+							 - (temperature_phi_grad[i] * kappa * temperature_phi_grad[j])
+						   ) * fe_values.JxW(q);
 				}
 				cell_rhs(i)
 					+= (   potential_phi_grad[i] * sigma * prev_pot_grad
@@ -250,7 +301,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 					vacuum_fe_face_values.get_function_gradients(laplace->solution, electric_field_values);
 					// ---------------------------------------------------------------------------------------------
 
-					// loop thought the quadrature points
+					// loop through the quadrature points
 					for (unsigned int q = 0; q < n_face_q_points; ++q) {
 
 						double prev_temp = prev_sol_face_temperature_values[q];
@@ -332,7 +383,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 
 	if (first_iteration) {
 		VectorTools::interpolate_boundary_values(dof_handler, BoundaryId::copper_bottom,
-				ConstantFunction<dim>(300.0, 2), temperature_dirichlet, fe.component_mask(temperature));
+				ConstantFunction<dim>(ambient_temperature, 2), temperature_dirichlet, fe.component_mask(temperature));
 	} else {
 		VectorTools::interpolate_boundary_values(dof_handler, BoundaryId::copper_bottom,
 				ZeroFunction<dim>(2), temperature_dirichlet, fe.component_mask(temperature));
@@ -371,15 +422,22 @@ void CurrentsAndHeating<dim>::run() {
 	std::cout << "/---------------------------------------------------------------/" << std::endl
 		      << "CurrentsAndHeating run():" << std::endl;
 
+	double temperature_tolerance = 1.0;
+
 	Timer timer;
 
 	setup_system();
 	setup_mapping();
 
-	std::cout << "    Setup: " << timer.wall_time() << " s" << std::endl;
+	// Sets the initial state based on a prediction.
+	// Dirichlet BCs need to hold for this state
+	// and 0 dirichlet BC should be applied for all Newton iterations
+	set_initial_condition();
+
+	std::cout << "    Setup and IC: " << timer.wall_time() << " s" << std::endl;
 
 	// Newton iterations
-	for (unsigned int iteration=0; iteration<5; ++iteration) {
+	for (unsigned int iteration=0; iteration<10; ++iteration) {
 		std::cout << "/--------------------------------/" << std::endl;
 		std::cout << "Newton iteration " << iteration << std::endl;
 
@@ -390,7 +448,9 @@ void CurrentsAndHeating<dim>::run() {
 		std::cout << "    Reset state: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 		timer.restart();
-		assemble_system_newton(iteration == 0);
+		//assemble_system_newton(iteration == 0);
+		// No need to set dirichlet BC-s because they are set in set_initial_condition
+		assemble_system_newton(false);
 
 		std::cout << "    Assembly: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
@@ -402,9 +462,14 @@ void CurrentsAndHeating<dim>::run() {
 		output_results(iteration);
 		std::cout << "    output_results: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
-		std::cout << "    ||u_k-u_{k-1}|| = " << newton_update.l2_norm() << std::endl;
+		std::cout << "    ||u_k-u_{k-1}||_L2 = " << newton_update.l2_norm() << std::endl;
+		std::cout << "    ||u_k-u_{k-1}||_Linf = " << newton_update.linfty_norm() << std::endl;
 		std::cout << "    Residual = " << system_rhs.l2_norm() << std::endl;
 
+		if (newton_update.linfty_norm() < temperature_tolerance) {
+			std::cout << "    Maximum temperature change less than tolerance: converged!" << std::endl;
+			break;
+		}
 	}
 	std::cout << "/---------------------------------------------------------------/" << std::endl;
 }

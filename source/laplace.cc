@@ -68,7 +68,7 @@ void Laplace<dim>::assemble_system() {
 	QGauss<dim-1> face_quadrature_formula(quadrature_degree);
 
 	FEValues<dim> fe_values(fe, quadrature_formula,
-			update_values | update_gradients | update_quadrature_points | update_JxW_values);
+			update_gradients | update_quadrature_points | update_JxW_values);
 
 	FEFaceValues<dim> fe_face_values(fe, face_quadrature_formula,
 				update_values | update_quadrature_points | update_JxW_values);

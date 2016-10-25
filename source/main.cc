@@ -39,7 +39,7 @@ int main() {
 	fch.run();
 */
 
-
+/*
 	MeshPreparer<2> mesh_preparer;
 
 	laplace::Laplace<2> field;
@@ -53,8 +53,8 @@ int main() {
 	mesh_preparer.import_mesh_from_file(p_cmesh, "../res/2d_meshes/copper_aligned_dense.msh");
 	mesh_preparer.output_mesh(p_cmesh, "copper_mesh.vtk");
 	ch.run();
+*/
 
-/*
 	MeshPreparer<3> mesh_preparer;
 
 	laplace::Laplace<3> field;
@@ -64,13 +64,13 @@ int main() {
 	mesh_preparer.output_mesh(p_vmesh, "vacuum_mesh.vtk");
 	field.run();
 
-	currents_heating::CurrentsAndHeating<3> ch(pq, &field);
+	currents_heating::CurrentsAndHeating<3> ch(pq, &field, 898, 0.0137);
 	Triangulation<3> *p_cmesh = ch.getp_triangulation();
 	mesh_preparer.import_mesh_from_file(p_cmesh, "../res/3d_meshes/mushroom_copper.msh");
 	mesh_preparer.mark_copper_boundary(p_cmesh);
 	mesh_preparer.output_mesh(p_cmesh, "copper_mesh.vtk");
 	ch.run();
-*/
+
 
 /* Mesh creation */
 /*
