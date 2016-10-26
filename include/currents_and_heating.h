@@ -59,11 +59,18 @@ namespace currents_heating {
 	template<int dim>
 	class CurrentsAndHeating {
 	public:
+		CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim> *laplace_);
+
 		CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim> *laplace_,
-						   double tip_temp_prediction_ = 300.0, double tip_pot_prediction_ = 0.0);
+				Triangulation<dim>* previous_triangulation_,
+				DoFHandler<dim>* previous_dof_handler_,
+				Vector<double>* previous_solution_);
+
 		void run();
 
 		Triangulation<dim>* getp_triangulation();
+		Vector<double>* getp_solution();
+		DoFHandler<dim>* getp_dof_handler();
 
 	private:
 		void setup_system();
@@ -73,14 +80,12 @@ namespace currents_heating {
 
 		void setup_mapping();
 		void set_initial_condition();
+		void set_initial_condition_slow();
 
 		static constexpr unsigned int currents_degree = 1;
 		static constexpr unsigned int heating_degree  = 1;
 
 		static constexpr double ambient_temperature = 300.0;
-
-		double tip_temp_prediction;
-		double tip_pot_prediction;
 
 		Triangulation<dim> triangulation;
 		FESystem<dim> fe;
@@ -100,6 +105,12 @@ namespace currents_heating {
 		 * (copper_cell_index, copper_cell_face) <-> (vacuum_cell_index, vacuum_cell_face)
 		 */
 		std::map< std::pair<unsigned, unsigned>, std::pair<unsigned, unsigned> > interface_map;
+
+		/** Previous step mesh and solution for setting the initial condition */
+		Triangulation<dim>* previous_triangulation;
+		DoFHandler<dim>* previous_dof_handler;
+		Vector<double>* previous_solution;
+		bool interp_initial_conditions;
 	};
 
 } // end currents_heating namespace

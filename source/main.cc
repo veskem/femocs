@@ -61,18 +61,35 @@ int main() {
 	Triangulation<3> *p_vmesh = field.getp_triangulation();
 	mesh_preparer.import_mesh_from_file(p_vmesh, "../res/3d_meshes/mushroom_vacuum.msh");
 	mesh_preparer.mark_vacuum_boundary(p_vmesh);
-	mesh_preparer.output_mesh(p_vmesh, "vacuum_mesh.vtk");
+	mesh_preparer.output_mesh(p_vmesh, "vacuum_mesh1.vtk");
 	field.run();
 
-	currents_heating::CurrentsAndHeating<3> ch(pq, &field, 898, 0.0137);
+	currents_heating::CurrentsAndHeating<3> ch(pq, &field);
 	Triangulation<3> *p_cmesh = ch.getp_triangulation();
 	mesh_preparer.import_mesh_from_file(p_cmesh, "../res/3d_meshes/mushroom_copper.msh");
 	mesh_preparer.mark_copper_boundary(p_cmesh);
-	mesh_preparer.output_mesh(p_cmesh, "copper_mesh.vtk");
+	mesh_preparer.output_mesh(p_cmesh, "copper_mesh1.vtk");
 	ch.run();
 
+	Vector<double>* p_ch_solution = ch.getp_solution();
+	DoFHandler<3>* p_dof_handler = ch.getp_dof_handler();
 
-/* Mesh creation */
+	laplace::Laplace<3> field2;
+	Triangulation<3> *p_vmesh2 = field2.getp_triangulation();
+	mesh_preparer.import_mesh_from_file(p_vmesh2, "../res/3d_meshes/mushroom_vacuum.msh");
+	mesh_preparer.mark_vacuum_boundary(p_vmesh2);
+	mesh_preparer.output_mesh(p_vmesh2, "vacuum_mesh.vtk");
+	field2.run();
+
+	currents_heating::CurrentsAndHeating<3> ch2(pq, &field2, p_cmesh, p_dof_handler, p_ch_solution);
+	Triangulation<3> *p_cmesh2 = ch2.getp_triangulation();
+	mesh_preparer.import_mesh_from_file(p_cmesh2, "../res/3d_meshes/mushroom_copper.msh");
+	mesh_preparer.mark_copper_boundary(p_cmesh2);
+	mesh_preparer.output_mesh(p_cmesh2, "copper_mesh.vtk");
+	ch2.run();
+
+
+/* 2d Mesh creation */
 /*
 	MeshPreparer<2> mesh_preparer;
 	Triangulation<2> mesh;

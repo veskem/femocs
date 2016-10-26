@@ -65,7 +65,7 @@ namespace laplace {
 		static constexpr unsigned int shape_degree = 1;
 		static constexpr unsigned int quadrature_degree = shape_degree + 1;
 
-		static constexpr double applied_field = 2.2;
+		static constexpr double applied_field = 2.0;
 
 		Triangulation<dim> triangulation;
 		FE_Q<dim> fe;

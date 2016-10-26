@@ -7,24 +7,52 @@
 
 #include "currents_and_heating.h"
 
+#include "utility.h"
+
 namespace currents_heating {
 using namespace dealii;
 using namespace laplace;
 
 template <int dim>
-CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim>* laplace_,
-		   double tip_temp_prediction_, double tip_pot_prediction_) :
-		tip_temp_prediction(tip_temp_prediction_),
-		tip_pot_prediction(tip_pot_prediction_),
+CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim>* laplace_) :
 		fe (FE_Q<dim>(currents_degree), 1, 	// Finite element type (1) = linear, etc and number of components
 			FE_Q<dim>(heating_degree), 1),	// (we have 2 variables: potential and T with 1 component each)
 		dof_handler(triangulation),
 		pq(pq_),
-		laplace(laplace_) {}
+		laplace(laplace_),
+		previous_triangulation(0),
+		previous_dof_handler(0),
+		previous_solution(0),
+		interp_initial_conditions(false) {}
+
+template <int dim>
+CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim>* laplace_,
+			Triangulation<dim>* previous_triangulation_,
+			DoFHandler<dim>* previous_dof_handler_,
+			Vector<double>* previous_solution_) :
+		fe (FE_Q<dim>(currents_degree), 1, 	// Finite element type (1) = linear, etc and number of components
+			FE_Q<dim>(heating_degree), 1),	// (we have 2 variables: potential and T with 1 component each)
+		dof_handler(triangulation),
+		pq(pq_),
+		laplace(laplace_),
+		previous_triangulation(previous_triangulation_),
+		previous_dof_handler(previous_dof_handler_),
+		previous_solution(previous_solution_),
+		interp_initial_conditions(true) {}
 
 template <int dim>
 Triangulation<dim>* CurrentsAndHeating<dim>::getp_triangulation() {
 	return &triangulation;
+}
+
+template <int dim>
+Vector<double>* CurrentsAndHeating<dim>::getp_solution() {
+	return &present_solution;
+}
+
+template <int dim>
+DoFHandler<dim>* CurrentsAndHeating<dim>::getp_dof_handler() {
+	return &dof_handler;
 }
 
 
@@ -101,45 +129,219 @@ void CurrentsAndHeating<dim>::setup_mapping() {
 
 }
 
-
 template <int dim>
-class InitialValues : public Function<dim> {
-	double tip_pot, tip_temp, amb_temp, zmax, zmin;
-public:
-	InitialValues (double tip_pot, double tip_temp, double amb_temp, double zmax, double zmin)
-		: Function<dim>(2), tip_pot(tip_pot), tip_temp(tip_temp), amb_temp(amb_temp), zmax(zmax), zmin(zmin) {}
-	double value (const Point<dim> &p,
-				  const unsigned int component = 0) const {
-		double z = 0.0;
-		if (dim == 2) z = p(1);
-		else z = p(2);
+void CurrentsAndHeating<dim>::set_initial_condition_slow() {
+	/* To set the initial condition based on previous solution, we need to find the values
+	 * at present mesh nodes based on the values of the previous mesh nodes. Present mesh
+	 * nodes can be outside the old mesh. The number of nodes can also be different. One
+	 * way to find the values is for every node of the new mesh to loop over all the nodes
+	 * in the old mesh and find the closest node and set the values from that. This could
+	 * be sped up by spactially grouping the nodes but this is not done at present moment.
+	 */
 
-		double x = (z-zmin)/(zmax-zmin);
+	std::vector<Point<dim> > vertex_points;
+	std::vector<unsigned> vertex_indexes;
 
-		if (component == 0) return tip_pot*x*x*x*x;
-		else return amb_temp+(tip_temp-amb_temp)*x*x*x*x;
+	typename Triangulation<dim>::vertex_iterator it_v = previous_triangulation->begin_vertex(),
+			endv = previous_triangulation->end_vertex();
+	for (; it_v != endv; it_v++) {
+		vertex_points.push_back(it_v->vertex(0));
+		vertex_indexes.push_back(it_v->vertex_index(0));
 	}
-};
+	/* -------------------------------------------------- */
+
+	// Generate a map of "global vertex index" -> "cells" for the old system and the current one
+	std::vector<std::set<typename Triangulation<dim>::active_cell_iterator> > old_vc_map =
+			GridTools::vertex_to_cell_map(*previous_triangulation);
+
+	std::vector<std::set<typename Triangulation<dim>::active_cell_iterator> > vc_map =
+				GridTools::vertex_to_cell_map(triangulation);
+
+	/* Iterate all vertices of the current system */
+	typename Triangulation<dim>::vertex_iterator it_cs = triangulation.begin_vertex(),
+				end_cs = triangulation.end_vertex();
+	for (; it_cs != end_cs; it_cs++) {
+		const Point<dim> p = it_cs->vertex(0);
+
+		double dist = 1e16;
+		unsigned best_i = 0;
+		/* Iterate through all vertices of the old system (with the correct x value) */
+		/* and find the corresponding vertex index */
+		for (unsigned i = 0; i < vertex_points.size(); i++) {
+			double c_dist = p.distance(vertex_points[i]);
+			if (c_dist < dist) {
+				dist = c_dist;
+				best_i = i;
+			}
+		}
+
+		//std::cout << "dist " << dist << std::endl;
+
+		unsigned old_vertex_index = vertex_indexes[best_i];
+
+		typename Triangulation<dim>::active_cell_iterator old_cell = *(old_vc_map[old_vertex_index].begin());
+		typename DoFHandler<dim>::active_cell_iterator old_dof_cell(previous_triangulation, old_cell->level(),
+				old_cell->index(), previous_dof_handler);
+
+		/* Find the potential and temperature values in the corresponding old vertex */
+		double pot = 0.0;
+		double temp = 0.0;
+		for (unsigned int j=0; j<GeometryInfo<dim>::vertices_per_cell; ++j) {
+			if (old_cell->vertex_index(j) == old_vertex_index) {
+				pot = (*previous_solution)[old_dof_cell->vertex_dof_index(j, 0)];
+				temp = (*previous_solution)[old_dof_cell->vertex_dof_index(j, 1)];
+			}
+		}
+
+		typename Triangulation<dim>::active_cell_iterator cell = *(vc_map[it_cs->vertex_index(0)].begin());
+		typename DoFHandler<dim>::active_cell_iterator dof_cell(&triangulation, cell->level(),
+				cell->index(), &dof_handler);
+
+		/* Set the potential and temperature values in the new vertex */
+		for (unsigned int j=0; j<GeometryInfo<dim>::vertices_per_cell; ++j) {
+			if (cell->vertex_index(j) == it_cs->vertex_index(0)) {
+				present_solution[dof_cell->vertex_dof_index(j, 0)] = pot;
+				present_solution[dof_cell->vertex_dof_index(j, 1)] = temp;
+			}
+		}
+	}
+
+}
 
 template <int dim>
 void CurrentsAndHeating<dim>::set_initial_condition() {
 
-	typename Triangulation<dim>::active_face_iterator face;
-	double zmax = -1e16, zmin = 1e16;
+	/* To set the initial condition based on previous solution, we need to find the values
+	 * at present mesh nodes based on the values of the previous mesh nodes. Present mesh
+	 * nodes can be outside the old mesh. The number of nodes can also be different. One
+	 * way to find the values is for every node of the new mesh to loop over all the nodes
+	 * in the old mesh and find the closest node and set the values from that. This is too
+	 * slow. To speed things up the nodes at the previous mesh are grouped near support points.
+	 */
 
-	// Loop through the faces and find maximum and minimum values for coordinates
-	for (face = triangulation.begin_face(); face != triangulation.end_face(); ++face) {
-		if (face->at_boundary()) {
-			double z = face->center()[dim-1];
-			if (z > zmax) zmax = z;
-			if (z < zmin) zmin = z;
+	std::vector< Point<dim> > support_points;
+
+	/* each support point has nearest vertices and their indexes stored */
+	std::vector< std::vector<Point<dim> > >  sup_to_vertex_point;
+	std::vector< std::vector<unsigned > >  sup_to_vertex_index;
+
+	unsigned total_vertices = previous_triangulation->n_used_vertices();
+
+
+	typename Triangulation<dim>::vertex_iterator it_v = previous_triangulation->begin_vertex(),
+			endv = previous_triangulation->end_vertex();
+
+	/* Find the bounding box*/
+	Point<dim> max_values, min_values;
+	for (int d = 0; d<dim; d++) {
+		max_values[d] = -1e16;
+		min_values[d] = 1e16;
+	}
+	for (; it_v != endv; it_v++) {
+		const Point<dim> p = it_v->vertex(0);
+		for (int d = 0; d<dim; d++) {
+			if (p[d] > max_values[d]) max_values[d] = p[d];
+			if (p[d] < min_values[d]) min_values[d] = p[d];
 		}
 	}
-	// Set initial values such that the dirichlet BCs are satisfied
-	// and the tip has the  predicted potential and temperature values.
-	VectorTools::interpolate(dof_handler,
-			InitialValues<dim>(tip_pot_prediction, tip_temp_prediction, ambient_temperature, zmax, zmin),
-			present_solution);
+	/* ------------------------------------------------- */
+	/* Number of support points in one direction */
+	unsigned num_sp_1d = std::pow(std::sqrt(total_vertices), 1./dim);
+	Point<dim> dx;
+	for (int d = 0; d<dim; d++)
+		dx[d] = (max_values[d]-min_values[d])/num_sp_1d;
+
+	for (int ix = 0; ix < num_sp_1d; ix++) {
+		for (int iy = 0; iy < num_sp_1d; iy++) {
+			if (dim == 3) {
+				for (int iz = 0; iz < num_sp_1d; iz++)
+					support_points.push_back(Point<dim>(min_values[0] + dx[0]*ix,
+														min_values[1] + dx[1]*iy,
+														min_values[2] + dx[2]*iz));
+			} else {
+				support_points.push_back(Point<dim>(min_values[0] + dx[0]*ix, min_values[1] + dx[1]*iy));
+			}
+		}
+	}
+
+	sup_to_vertex_point.resize(support_points.size());
+	sup_to_vertex_index.resize(support_points.size());
+
+	it_v = previous_triangulation->begin_vertex();
+	for (; it_v != endv; it_v++) {
+		Point<dim> p = it_v->vertex(0);
+
+		unsigned index = nearest_point_index(p, support_points);
+		sup_to_vertex_point[index].push_back(p);
+		sup_to_vertex_index[index].push_back(it_v->vertex_index(0));
+	}
+
+	// Remove "empty" support points
+	for (int i = 0; i < sup_to_vertex_point.size();) {
+		if (sup_to_vertex_point[i].size() == 0) {
+			sup_to_vertex_point.erase(sup_to_vertex_point.begin() + i);
+			sup_to_vertex_index.erase(sup_to_vertex_index.begin() + i);
+			support_points.erase(support_points.begin() + i);
+		} else {
+			i++;
+		}
+	}
+	// Map of support point -> all nearby vertices and their global indexes is now complete
+
+	/*
+	for (int i = 0; i < sup_to_vertex_point.size(); i++) {
+		std::cout << sup_to_vertex_point[i].size() << std::endl;
+	}
+	*/
+	// Maps from vertex to cells for previous triangulation and the current one
+	std::vector<std::set<typename Triangulation<dim>::active_cell_iterator> > old_vc_map =
+			GridTools::vertex_to_cell_map(*previous_triangulation);
+	std::vector<std::set<typename Triangulation<dim>::active_cell_iterator> > vc_map =
+				GridTools::vertex_to_cell_map(triangulation);
+
+
+	/* Iterate all vertices of the current system */
+	typename Triangulation<dim>::vertex_iterator it_cs = triangulation.begin_vertex(),
+				end_cs = triangulation.end_vertex();
+	for (; it_cs != end_cs; it_cs++) {
+		const Point<dim> p = it_cs->vertex(0);
+
+		// find the nearest support point
+		unsigned sp_index = nearest_point_index(p, support_points);
+
+		// find the nearest vertex associated with that support point
+		unsigned v_index = nearest_point_index(p, sup_to_vertex_point[sp_index]);
+
+		// global index of the previous system vertex
+		unsigned old_vertex_global_index = sup_to_vertex_index[sp_index][v_index];
+
+
+		typename Triangulation<dim>::active_cell_iterator old_cell = *(old_vc_map[old_vertex_global_index].begin());
+		typename DoFHandler<dim>::active_cell_iterator old_dof_cell(previous_triangulation, old_cell->level(),
+				old_cell->index(), previous_dof_handler);
+
+		/* Find the potential and temperature values in the corresponding old vertex */
+		double pot = 0.0;
+		double temp = 0.0;
+		for (unsigned int j=0; j<GeometryInfo<dim>::vertices_per_cell; ++j) {
+			if (old_cell->vertex_index(j) == old_vertex_global_index) {
+				pot = (*previous_solution)[old_dof_cell->vertex_dof_index(j, 0)];
+				temp = (*previous_solution)[old_dof_cell->vertex_dof_index(j, 1)];
+			}
+		}
+
+		typename Triangulation<dim>::active_cell_iterator cell = *(vc_map[it_cs->vertex_index(0)].begin());
+		typename DoFHandler<dim>::active_cell_iterator dof_cell(&triangulation, cell->level(),
+				cell->index(), &dof_handler);
+
+		/* Set the potential and temperature values in the new vertex */
+		for (unsigned int j=0; j<GeometryInfo<dim>::vertices_per_cell; ++j) {
+			if (cell->vertex_index(j) == it_cs->vertex_index(0)) {
+				present_solution[dof_cell->vertex_dof_index(j, 0)] = pot;
+				present_solution[dof_cell->vertex_dof_index(j, 1)] = temp;
+			}
+		}
+	}
 }
 
 
@@ -429,15 +631,16 @@ void CurrentsAndHeating<dim>::run() {
 	setup_system();
 	setup_mapping();
 
-	// Sets the initial state based on a prediction.
+	// Sets the initial state
 	// Dirichlet BCs need to hold for this state
 	// and 0 dirichlet BC should be applied for all Newton iterations
-	set_initial_condition();
+	if (interp_initial_conditions)
+		set_initial_condition();
 
 	std::cout << "    Setup and IC: " << timer.wall_time() << " s" << std::endl;
 
 	// Newton iterations
-	for (unsigned int iteration=0; iteration<10; ++iteration) {
+	for (unsigned int iteration=0; iteration<5; ++iteration) {
 		std::cout << "/--------------------------------/" << std::endl;
 		std::cout << "Newton iteration " << iteration << std::endl;
 
@@ -448,9 +651,9 @@ void CurrentsAndHeating<dim>::run() {
 		std::cout << "    Reset state: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 		timer.restart();
-		//assemble_system_newton(iteration == 0);
+		assemble_system_newton(iteration == 0 && !interp_initial_conditions);
 		// No need to set dirichlet BC-s because they are set in set_initial_condition
-		assemble_system_newton(false);
+		//assemble_system_newton(false);
 
 		std::cout << "    Assembly: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
