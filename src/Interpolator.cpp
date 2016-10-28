@@ -130,7 +130,7 @@ const void Interpolator::clean(const int coordinate, const int n_bins, const dou
 
         if (value < value_min || value > value_max) {
             interpolation[i].elfield = get_average_solution(i, smooth_factor, r_cut);
-            interpolation[i].el_norm = interpolation[i].elfield.length();
+            interpolation[i].el_norm = interpolation[i].elfield.norm();
         }
     }
 }
@@ -333,7 +333,7 @@ const Solution Interpolator::get_interpolation(const Point3 &point, const int el
     for (int i = 0; i < mesh->n_nodes_per_elem; ++i)
         potential_i += solution->get_solution(selem[i]).potential * bcc[i];
 
-    return Solution(elfield_i, elfield_i.length(), potential_i);
+    return Solution(elfield_i, elfield_i.norm(), potential_i);
 }
 
 // Linearly interpolate solution on Medium atoms

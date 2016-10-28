@@ -90,7 +90,7 @@ const void SolutionReader::extract_solution(DealII &fem) {
 
         // If there is a common node between tet and hex meshes, store actual solution
         if (tet2hex[node] >= 0) {
-            solution.push_back( Solution(ef[i], ef[i].length(), pot[i]) );
+            solution.push_back( Solution(ef[i], ef[i].norm(), pot[i]) );
             i++;
         }
         

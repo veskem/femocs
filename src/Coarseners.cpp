@@ -50,7 +50,7 @@ TiltedNanotipCoarsener::TiltedNanotipCoarsener(const Point3 &apex, const Point3 
 
     Vec3 top(apex.x, apex.y, apex.z);
     axis = top - bottom;
-    height2 = axis.length2();
+    height2 = axis.norm2();
 }
 
 vector<vector<int>> CylinderCoarsener::get_polygons() {

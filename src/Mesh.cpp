@@ -529,7 +529,7 @@ const double Mesh::calc_area(const int i) {
     Vec3 edge1 = base - get_vec(face[1]);
     Vec3 edge2 = base - get_vec(face[2]);
 
-    double area = edge1.crossProduct(edge2).length();
+    double area = edge1.crossProduct(edge2).norm();
     return fabs(area) / 2.0;
 }
 
@@ -586,17 +586,17 @@ const void Mesh::calc_qualities_byelem() {
         Vec3 node4 = get_vec(elem[3]);
 
         // Tetrahedron edge lengths
-        double e1 = (node1 - node2).length();
-        double e2 = (node1 - node3).length();
-        double e3 = (node1 - node4).length();
-        double e4 = (node2 - node3).length();
-        double e5 = (node2 - node4).length();
-        double e6 = (node3 - node4).length();
+        double e1 = (node1 - node2).norm();
+        double e2 = (node1 - node3).norm();
+        double e3 = (node1 - node4).norm();
+        double e4 = (node2 - node3).norm();
+        double e5 = (node2 - node4).norm();
+        double e6 = (node3 - node4).norm();
 
         // The length of the tetrahedron shortest edge
         double min_edge = min(e1, min(e2, min(e3, min(e4, min(e5, e6)))));
 
-        double norm[] = {node1.length(), node2.length(), node3.length(), node4.length()};
+        double norm[] = {node1.norm(), node2.norm(), node3.norm(), node4.norm()};
         double xx[] = {node1.x, node2.x, node3.x, node4.x};
         double yy[] = {node1.y, node2.y, node3.y, node4.y};
         double zz[] = {node1.z, node2.z, node3.z, node4.z};
@@ -636,9 +636,9 @@ const void Mesh::calc_qualities_byface() {
 }
 
 const double Mesh::calc_face_quality(const Vec3 &node1, const Vec3 &node2, const Vec3 &node3) {
-    double a = (node1 - node2).length();
-    double b = (node1 - node3).length();
-    double c = (node2 - node3).length();
+    double a = (node1 - node2).norm();
+    double b = (node1 - node3).norm();
+    double c = (node2 - node3).norm();
     double D = (a + b + c) * (b + c - a) * (c + a - b) * (a + b - c);
 
     double min_edge = min(a, min(b, c));

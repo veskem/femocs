@@ -198,7 +198,7 @@ private:
         //            return false;
 
         // check the squared distance to the cylinder axis
-        return (bot2point.length2() - dot*dot / height2) <= radius2;
+        return (bot2point.norm2() - dot*dot / height2) <= radius2;
     }
 };
 

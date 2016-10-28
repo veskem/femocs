@@ -44,11 +44,11 @@ public:
     virtual ~TetgenCells() {};
 
     /** Initialize cell appending */
-    const void init_cells(const int N) {
+    const void init(const int N) {
         require(N > 0, "Invalid number of cells: " + to_string(N));
         i_cells = 0;
-        n_cells_r = N;
-        nodes_r = new int[dim * N];
+        *n_cells_w = N;
+        nodes_w = new int[dim * N];
     }
 
     /** Initialize marker appending */
@@ -58,20 +58,26 @@ public:
     }
 
     /** Append cell to mesh */
-    const void add_cell(const SimpleCell<dim> &cell) {
+    const void append(const SimpleCell<dim> &cell) {
         require(i_cells < *n_cells_r, "Allocated size of cells exceeded!");
         require(vector_sum(cell >= 0) == dim, "Invalid cell: " + cell.to_str());
 
         int i = dim * i_cells;
         for (unsigned int node : cell)
-            nodes_r[i++] = node;
+            nodes_w[i++] = node;
         i_cells++;
     }
 
     /** Append cell marker */
-    const void add_marker(const int &m) {
+    const void append_marker(const int &m) {
         expect(get_n_markers() < markers.capacity(), "Allocated size of markers exceeded!");
         markers.push_back(m);
+    }
+
+    /** Set the number of available cells */
+    void set_counter(const int n_cells) {
+        require(n_cells >= 0, "Invalid number of cells: " + to_string(n_cells));
+        i_cells = n_cells;
     }
 
 //    const void copy_cells(Mesh* mesh, const vector<bool> &mask={});
@@ -92,9 +98,6 @@ public:
         const int n = n_coordinates * i;
         return Point3(points_r[n+0], points_r[n+1], points_r[n+2]);
     }
-
-    /** Return i-th cell */
-    virtual const SimpleCell<dim> get_cell(const int i) { return SimpleCell<dim>(); }
 
     /** Return i-th marker */
     const int get_marker(const int i) const {
@@ -143,6 +146,14 @@ public:
         write_vtk(file_name, celltype);
     }
 
+    /** Define accessor for accessing i-th cell */
+    const SimpleCell<dim> operator [](size_t i) const { return get_cell(i); }
+
+    /** Attach iterator */
+    typedef Iterator<TetgenCells, SimpleCell<dim>> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, get_n_cells()); }
+
 protected:
     const int n_coordinates = 3;
     const size_t DIM = dim;
@@ -159,62 +170,11 @@ protected:
     const int* n_cells_r;
     int* n_cells_w;
 
+    /** Return i-th cell */
+    virtual const SimpleCell<dim> get_cell(const int i) const { return SimpleCell<dim>(); }
+
     /** Output mesh in .vtk format */
-    const void write_vtk(const string &file_name, const int celltype) {
-        const int n_markers = get_n_markers();
-        const int n_nodes = get_n_nodes();
-        const int n_cells = *n_cells_r;
-
-        char file_name_char[1024];
-        strcpy(file_name_char, file_name.c_str());
-
-        expect(n_nodes > 0, "Zero nodes detected!");
-
-        FILE *out_file;
-        out_file = fopen(file_name_char, "w");
-        require(out_file != (FILE*) NULL, "Can't open a file " + file_name);
-
-        fprintf(out_file, "# vtk DataFile Version 3.0\n");
-        fprintf(out_file, "# Unstructured grid\n");
-        fprintf(out_file, "ASCII\n"); // another option is BINARY
-        fprintf(out_file, "DATASET UNSTRUCTURED_GRID\n\n");
-
-        // Output the nodes
-        if (n_nodes > 0) {
-            fprintf(out_file, "POINTS %d double\n", n_nodes);
-            for (int i = 0; i < n_nodes; ++i)
-                fprintf(out_file, "%s\n", get_node(i).to_str().c_str());
-            fprintf(out_file, "\n");
-        }
-
-        // Output the cells (tetrahedra, triangles, edges or vertices)
-        if (n_cells > 0) {
-            fprintf(out_file, "CELLS %d %d\n", n_cells, n_cells * (dim + 1));
-            for (int i = 0; i < n_cells; ++i)
-                fprintf( out_file, "%d %s\n", (dim, get_cell(i).to_str().c_str()) );
-            fprintf(out_file, "\n");
-        }
-
-        // Output the types of cells
-        if (n_cells_r > 0) {
-            fprintf(out_file, "CELL_TYPES %d\n", n_cells);
-            for (int i = 0; i < n_cells; ++i)
-                fprintf(out_file, "%d \n", celltype);
-            fprintf(out_file, "\n\n");
-        }
-
-        // Output cell markers
-        if ((n_markers > 0) && (n_markers == n_cells)) {
-            fprintf(out_file, "CELL_DATA %d\n", n_markers);
-            fprintf(out_file, "SCALARS Cell_markers int\n");
-            fprintf(out_file, "LOOKUP_TABLE default\n");
-            for (int i = 0; i < n_markers; ++i)
-                fprintf(out_file, "%d\n", get_marker(i));
-            fprintf(out_file, "\n");
-        }
-
-        fclose(out_file);
-    }
+    const void write_vtk(const string &file_name, const int celltype);
 };
 
 /** Class for holding simple nodes */
@@ -229,24 +189,11 @@ public:
         TetgenCells<1>(read->pointlist, &read->numberofpoints, NULL, NULL, &read->numberofpoints, NULL),
         points_w(write->pointlist), n_points_w(&write->numberofpoints) {}
 
-    /** Return index of i-th node */
-    const SimpleNode get_cell(const int i) const;
-
-    /** init_cells does not have meaning for nodes, so it's disabled */
-    const void init_cells(const int N) {
-        require(false, "Invalid usage of SimpleNodes!");
-    }
-
     /** Initialize node appending */
-    const void init_nodes(const int N);
-
-    /** add_cell does not have meaning for nodes, so it's disabled */
-    const void add_cell(const SimpleCell<1> &cell) {
-        require(false, "Invalid usage of SimpleNodes!");
-    }
+    const void init(const int N);
 
     /** Append node to mesh */
-    const void add_node(const Point3 &point);
+    const void append(const Point3 &point);
 
     /** Return the coordinates of i-th node as a 3D vector */
     const Vec3 get_vec(const int i) const;
@@ -254,10 +201,51 @@ public:
     /** Write node data to file */
     const void write(const string &file_name);
 
+    const void save_indices(const int n_surf, const int n_bulk, const int n_vacuum);
+
+    const void init_statistics();
+
+    const void calc_statistics();
+
+    /** Struct holding the indexes about nodes with known locations.
+     * It's useful in finding the initially inserted nodes,
+     * because when Tetgen adds nodes to the mesh, it adds them to the end of node list.
+     */
+    struct Indexes {
+        int surf_start, surf_end;
+        int bulk_start, bulk_end;
+        int vacuum_start, vacuum_end;
+        int tetgen_start;
+    } indxs;
+
+    /** Struct holding statistics about nodes */
+    struct Stat {
+        int n_bulk;     //!< Number of nodes in bulk material
+        int n_surface;  //!< Number of nodes on the surface of material
+        int n_vacuum;   //!< Number of nodes in vacuum
+
+        double xmin;    //!< Minimum value of x-coordinate
+        double xmax;    //!< Maximum value of x-coordinate
+
+        double ymin;    //!< Minimum value of y-coordinate
+        double ymax;    //!< Maximum value of y-coordinate
+
+        double zmin;    //!< Minimum value of z-coordinate
+        double zmax;    //!< Maximum value of z-coordinate
+    } stat;
+
 private:
     /** Pointers to Tetgen data */
     double* points_w;
     int* n_points_w;
+
+    /** Return index of i-th node */
+    const SimpleCell<1> get_cell(const int i) const;
+
+    /** Appending cell does not have meaning for nodes, so it's disabled */
+    const void append(const SimpleCell<1> &cell) {
+        require(false, "Invalid usage of SimpleNodes!");
+    }
 
     /** Write node data to .xyz file */
     const void write_xyz(const string &file_name);
@@ -272,7 +260,7 @@ public:
         : TetgenCells<2>(read->pointlist, &read->numberofpoints, read->edgelist, write->edgelist, &read->numberofedges, &write->numberofedges) {}
 
     /** Return i-th edge */
-    const SimpleEdge get_cell(const int i) const;
+    const SimpleCell<2> get_cell(const int i) const;
 };
 
 /** Class for holding Tetgen triangular faces */
@@ -283,8 +271,9 @@ public:
     TetgenFaces(tetgenio *read, tetgenio *write)
         : TetgenCells<3>(read->pointlist, &read->numberofpoints, read->edgelist, write->edgelist, &read->numberofedges, &write->numberofedges) {}
 
+private:
     /** Return i-th face */
-    const SimpleFace get_cell(const int i) const;
+    const SimpleCell<3> get_cell(const int i) const;
 };
 
 /** Class for holding Tetgen tetrahedral elements */
@@ -300,14 +289,14 @@ public:
         TetgenCells<4>(read->pointlist, &read->numberofpoints, read->edgelist, write->edgelist, &read->numberofedges, &write->numberofedges),
         neighborlist(read->neighborlist) {}
 
-    /** Return i-th element */
-    const SimpleElement get_cell(const int i) const;
-
     /** Get indices of neighbouring elements of i-th element */
     const vector<int> get_neighbours(const int i) const;
 
 private:
     const int* neighborlist;
+
+    /** Return i-th element */
+    const SimpleCell<4> get_cell(const int i) const;
 };
 
 } /* namespace femocs */
