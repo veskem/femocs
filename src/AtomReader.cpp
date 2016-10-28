@@ -17,7 +17,7 @@ using namespace std;
 namespace femocs {
 
 // AtomReader constructor
-AtomReader::AtomReader() : Medium(), simu_type("") {}
+AtomReader::AtomReader() : Medium() {}
 
 // Reserve memory for data vectors
 const void AtomReader::reserve(const int n_atoms) {
@@ -52,7 +52,8 @@ const bool AtomReader::equals_previous_run(const double eps) {
     return true;
 }
 
-const void AtomReader::save_current_run_points() {
+const void AtomReader::save_current_run_points(const double eps) {
+    if (eps < 1e-5) return;
     const int n_atoms = get_n_atoms();
 
     if (n_atoms != previous_point.size())
@@ -62,6 +63,16 @@ const void AtomReader::save_current_run_points() {
         previous_point[i] = get_point(i);
 }
 
+// Check for evaporated atoms
+const void AtomReader::check_coordination() {
+    const int coord_max = 1;
+    const int coord_min = 0;
+    for (Atom a : atoms)
+        if ((a.coord < coord_max) && (a.coord >= coord_min))
+            expect(false, "WARNING: evaporated atom detected!");
+}
+
+// Calculate coordination for all the atoms
 const void AtomReader::calc_coordination(const int nnn, const double cutoff, const int* nborlist) {
     require(cutoff > 0, "Invalid cutoff: " + to_string(cutoff));
     require(nnn >= 0, "Invalid # nearest neighbors: " + to_string(nnn));
@@ -94,30 +105,8 @@ const void AtomReader::calc_coordination(const int nnn, const double cutoff, con
     check_coordination();
 }
 
-// Calculate coordination (# nearest neighbours within cutoff radius) for all the atoms
-const void AtomReader::calc_coordination(const int nnn, const double cutoff) {
-    require(nnn > 0, "Invalid number of nearest neighbors: " + to_string(nnn));
-    require(simu_type == "md" || simu_type == "kmc", "Incorrect simulation type: " + simu_type);
-
-    if (simu_type == "md")
-        calc_slow_coordination(cutoff);
-    else if (simu_type == "kmc")
-        calc_dummy_coordination(nnn);
-
-    check_coordination();
-}
-
-// Check for evaporated atoms
-const void AtomReader::check_coordination() {
-    const int coord_max = 1;
-    const int coord_min = 0;
-    for (Atom a : atoms)
-        if ((a.coord < coord_max) && (a.coord >= coord_min))
-            expect(false, "WARNING: evaporated atom detected!");
-}
-
-// Calculate without neighbour list the coordination for atoms coming from MD simulations
-const void AtomReader::calc_slow_coordination(const double cutoff) {
+// Calculate coordination for all the atoms without neighborlist
+const void AtomReader::calc_coordination(const double cutoff) {
     require(cutoff > 0, "Invalid cutoff: " + to_string(cutoff));
 
     expect(false, "Running slow coordination calculation!");
@@ -140,10 +129,12 @@ const void AtomReader::calc_slow_coordination(const double cutoff) {
 
     for (int i = 0; i < n_atoms; ++i)
         set_coordination(i, coordinations[i]);
+
+    check_coordination();
 }
 
-// Calculate coordination for atoms coming from KMC simulations
-const void AtomReader::calc_dummy_coordination(const int nnn) {
+// Calculate coordination for all the atoms using the atom types
+const void AtomReader::calc_coordination(const int nnn) {
     require(nnn > 0, "Invalid number of nearest neighbors!");
     const int n_atoms = get_n_atoms();
 
@@ -155,8 +146,11 @@ const void AtomReader::calc_dummy_coordination(const int nnn) {
         else
             set_coordination(i, 0);
     }
+
+    check_coordination();
 }
 
+// Extract atom types from calculated coordinations
 const void AtomReader::extract_types(const int nnn, const double latconst) {
     const int n_atoms = get_n_atoms();
     calc_statistics();
@@ -202,12 +196,10 @@ const string AtomReader::get_data_string(const int i) {
 
 const void AtomReader::import_kimocs() {
     require(false, "AtomReader::import_kimocs() not implemented!");
-    simu_type = "kmc";
 }
 
 const void AtomReader::import_helmod(int n_atoms, double* x, double* y, double* z, int* types) {
     require(n_atoms > 0, "Zero input atoms detected!");
-    simu_type = "md";
     reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
         add_atom(i, Point3(x[i], y[i], z[i]), types[i]);
@@ -217,7 +209,6 @@ const void AtomReader::import_helmod(int n_atoms, double* x, double* y, double* 
 
 const void AtomReader::import_parcas(int n_atoms, const double* xyz, const double* box) {
     require(n_atoms > 0, "Zero input atoms detected!");
-    simu_type = "md";
     reserve(n_atoms);
     for (int i = 0; i < 3*n_atoms; i+=3)
         add_atom(i/3, Point3(xyz[i+0]*box[0], xyz[i+1]*box[1], xyz[i+2]*box[2]), TYPES.BULK);
@@ -228,21 +219,12 @@ const void AtomReader::import_parcas(int n_atoms, const double* xyz, const doubl
 const void AtomReader::import_file(const string file_name) {
     string file_type = get_file_type(file_name);
 
-    if (file_type == "xyz") {
-        simu_type = "md";
+    if (file_type == "xyz")
         import_xyz(file_name);
-    }
-
-    else if (file_type == "ckx") {
-        simu_type = "kmc";
+    else if (file_type == "ckx")
         import_ckx(file_name);
-    }
-
-    else if (file_type == "dump") {
-        simu_type = "md";
+    else if (file_type == "dump")
         import_dump(file_name);
-    }
-
     else
         require(false, "Unsupported file type: " + file_type);
 

@@ -39,14 +39,13 @@ public:
     Interpolator();
 
     /** Interpolate in medium atoms using the solution on tetrahedral mesh nodes */
-    const void extract_interpolation(Mesh* mesh, SolutionReader* solution, const Medium &medium);
+    const void extract_interpolation(SolutionReader* solution, const Medium &medium);
 
     /** Export calculated electic field distribution to HOLMOD */
     const void export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
     /** Function to clean the result from peaks */
     const void clean(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut);
-    const void clean_vol2(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut);
 
 private:
     /** Constants to specify the tolerances.
@@ -56,7 +55,7 @@ private:
 
     /** Electric field that is assigned to atoms not found from mesh.
      *  Its value is BIG to make it immediately visible from data set. */
-    const double error_field = 1e10;
+    const double error_field = 1e20;
 
     Mesh* mesh;                      //!< tetrahedral mesh
     SolutionReader* solution;        //!< solution data
@@ -95,11 +94,9 @@ private:
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     const string get_data_string(const int i);
 
-    /** Reserve memory for atom data */
+    /** Reserve memory for interpolation and pre-compute vectors */
     const void reserve(const int N);
 
-    /** Reserve memory for interpolation precomputation data */
-    const void reserve_precompute(const int N);
 };
 
 } /* namespace femocs */

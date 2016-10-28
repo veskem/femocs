@@ -41,17 +41,6 @@ inline std::string d2s(T data) {
 
 //-------------------------------------------------------
 //
-// expect and require
-//
-//-------------------------------------------------------
-void requirement_fails(const char *file, int line, std::string message) {
-    std::string exc = "Exception:\nfile = " + std::string(file) + "\nline = " + d2s(line)
-            + "\nmessage = " + message + "\n";
-    throw std::runtime_error(exc);
-}
-
-//-------------------------------------------------------
-//
 // Point
 //
 //-------------------------------------------------------
@@ -934,8 +923,6 @@ void Mesh::set_new_vertices(const std::vector<MeshElement*> &elements, int shift
             double coordinate = 0.;
             for (int ver = 0; ver < n_vertices_per_elem; ++ver) {
                 const int cur_vertex = elements[elem]->get_vertex(ver);
-                expect(cur_vertex < n_old_vertices,
-                        "The element has a vertex (" + d2s(cur_vertex) + ") that is more than the number of old vertices (" + d2s(n_old_vertices) + ")");
                 coordinate += vertices[cur_vertex].get_coord(coord);
             }
             vertices[shift + elem].set_coord(coord, coordinate / n_vertices_per_elem);

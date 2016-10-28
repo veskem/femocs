@@ -15,6 +15,17 @@
 
 using namespace std;
 
+/* Template to return mask of indices that satisfy the comparison condition with an entry */
+template<typename T, typename Op>
+const vector<bool> __vector_compare(const vector<T> *v, const T entry) {
+    vector<bool> mask(v->size());
+    Op op;
+    for (int i = 0; i < v->size(); ++i)
+        mask[i] = op((*v)[i], entry);
+
+    return mask;
+}
+
 /* Template to convert data to string */
 template<typename T>
 inline string d2s(T data) {
@@ -95,9 +106,9 @@ vector<size_t> get_sort_indices(const vector<double> &v, const string& direction
 
     // sort indexes based on comparing values in v
     if (direction == "asc" || direction == "up")
-      sort(idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return v[i1] < v[i2];});
+        sort( idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return v[i1] < v[i2];} );
     else if (direction == "desc" || direction == "down")
-      sort(idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return v[i1] > v[i2];});
+        sort( idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return v[i1] > v[i2];} );
 
     return idx;
 }

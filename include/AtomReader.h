@@ -43,9 +43,12 @@ public:
      * @param cutoff - cut off radius for coordination analysis
      * @param nnn - number of nearest neighbours in a crystal
      */
-    const void calc_coordination(const int nnn, const double cutoff);
 
     const void calc_coordination(const int nnn, const double cutoff, const int* nborlist);
+
+    const void calc_coordination(const double cutoff);
+
+    const void calc_coordination(const int nnn);
 
     const void extract_types(const int nnn, const double latconst);
 
@@ -53,10 +56,9 @@ public:
     const void resize_box(const double zmin, const double zmax);
 
     const bool equals_previous_run(const double eps);
-    const void save_current_run_points();
+    const void save_current_run_points(const double eps);
 
 private:
-    string simu_type;
     vector<int> type;   //!< types of atoms
     vector<Point3> previous_point;
 
@@ -68,8 +70,6 @@ private:
     const void import_ckx(const string file_name);
     const void import_dump(const string file_name);
 
-    const void calc_slow_coordination(const double cutoff);
-    const void calc_dummy_coordination(const int nnn);
     const void check_coordination();
 
     const void reserve(const int n_atoms);

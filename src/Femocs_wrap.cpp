@@ -10,8 +10,8 @@ using namespace std;
 
 #ifdef __cplusplus // Are we compiling this with a C++ compiler ?
 extern "C" {
-    class Femocs;
-    typedef Femocs FEMOCS;
+    class femocs::Femocs;
+    typedef femocs::Femocs FEMOCS;
 #else
     // From the C side, we use an opaque pointer.
     typedef struct FEMOCS FEMOCS;
@@ -27,13 +27,13 @@ const void femocs_run(FEMOCS* femocs, double E_field, const char* message);
 
 const void femocs_import_file(FEMOCS* femocs, const char* s);
 
-const void femocs_import_atoms2(FEMOCS* femocs, int n_atoms, const double* coordinates, const double* box, const int* nborlist);
+const void femocs_import_parcas(FEMOCS* femocs, int n_atoms, const double* coordinates, const double* box, const int* nborlist);
 
 const void femocs_import_atoms(FEMOCS* femocs, int n_atoms, double* x, double* y, double* z, int* types);
 
 const void femocs_export_solution(FEMOCS* femocs, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
-const void femocs_export_solution2(FEMOCS* femocs, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm, const int* nborlist);
+const void femocs_interpolate_solution(FEMOCS* femocs, int n_atoms, double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm);
 
 // Standalone function to call Femocs
 const void femocs_speaker(const char* s);
@@ -45,7 +45,7 @@ const void femocs_speaker(const char* s);
 // =================== Implementation =======================
 
 FEMOCS* create_femocs(const char* s){
-    return new Femocs(string(s));
+    return new femocs::Femocs(string(s));
 }
 
 void delete_femocs(FEMOCS* femocs){
@@ -60,7 +60,7 @@ const void femocs_import_file(FEMOCS* femocs, const char* s) {
     femocs->import_atoms(string(s));
 }
 
-const void femocs_import_atoms2(FEMOCS* femocs, int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
+const void femocs_import_parcas(FEMOCS* femocs, int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
     femocs->import_atoms(n_atoms, coordinates, box, nborlist);
 }
 
@@ -72,8 +72,8 @@ const void femocs_export_solution(FEMOCS* femocs, int n_atoms, double* Ex, doubl
     femocs->export_solution(n_atoms, Ex, Ey, Ez, Enorm);
 }
 
-const void femocs_export_solution2(FEMOCS* femocs, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm, const int* nborlist){
-    femocs->export_solution(n_atoms, Ex, Ey, Ez, Enorm, nborlist);
+const void femocs_interpolate_solution(FEMOCS* femocs, int n_atoms, double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm){
+    femocs->interpolate_solution(n_atoms, x, y, z, Ex, Ey, Ez, Enorm);
 }
 
 const void femocs_speaker(const char* s) {

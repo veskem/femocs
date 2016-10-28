@@ -19,7 +19,6 @@
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/grid/grid_reordering.h>
 #include <deal.II/grid/grid_tools.h>
-#include <TetgenCells.h>
 
 #include "Macros.h"
 #include "AtomReader.h"
@@ -73,29 +72,26 @@ public:
     const int get_n_faces();
     const int get_n_cells();
 
-    const void make_simple_mesh();
-    const void import_file(const string file_name);
-    const void import_mesh(femocs::Mesh* mesh);
+    const void import_mesh(const string &file_name);
     const void import_mesh(tethex::Mesh* mesh);
     const bool import_mesh_wo_faces(tethex::Mesh* mesh);
 
-    const void smooth_and_refine_mesh(const Point3 &origin, const double eps);
+    const void smooth_and_refine_mesh(const Point3 &origin, const double r_cut);
 
-    const void output_mesh(const string file_name);
-    const void output_results(const string file_name);
+    const void output_mesh(const string &file_name);
+    const void output_results(const string &file_name);
 
-    const void setup_system();
-    const void mark_boundary_faces(const AtomReader::Sizes* sizes);
+    const void setup_system(const AtomReader::Sizes* sizes);
     const void assemble_system();
     const void solve_umfpack();
     const void solve_cg();
 
     const double get_potential(const double x, const double y, const double z);
-    const double get_potential(const int &cell_indx, const int &vert_indx);
+    const double get_potential(const int cell_indx, const int vert_indx);
     const vector<double> get_potential(const vector<int> &cell_indxs, const vector<int> &vert_indxs);
 
     const Tensor<1,DIM> get_elfield(const double x, const double y, const double z);
-    const Tensor<1,DIM> get_elfield(const int &cell, const int &vert_indx);
+    const Tensor<1,DIM> get_elfield(const int cell_indx, const int vert_indx);
     const vector<Vec3> get_elfield(const vector<int> &cell_indxs, const vector<int> &vert_indxs);
 
     const unsigned int n_verts_per_elem = GeometryInfo<DIM>::vertices_per_cell;
@@ -114,6 +110,8 @@ private:
     Vector<double> laplace_solution;
     Vector<double> system_rhs;
     ConstraintMatrix constraints;
+    
+    const void mark_boundary_faces(const AtomReader::Sizes* sizes);
 };
 
 } /* namespace femocs */

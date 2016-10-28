@@ -12,6 +12,7 @@
 #include "Interpolator.h"
 
 using namespace std;
+namespace femocs {
 
 /**
  * Main class to hold Femocs object
@@ -29,7 +30,6 @@ public:
 
     /** Struct holding data about input parameters. */
     struct Config {
-        string external_msg;  //!< path to input script
         string mesher;          //!< simulation cell finite element mesher
         string mesh_quality;    //!< the minimum quality (maximum radius-edge ratio) of tetrahedra
         string infile;          //!< path to input script
@@ -41,26 +41,34 @@ public:
         bool postprocess_marking; //!< make extra effort to mark correctly the vacuum nodes in shadowed area
         bool refine_apex;       //!< add elements to the nanotip apex
 
-        /**  minimum distance between atoms from current and previous run so that
-         * their movement is considered to be sufficiently big to recalculate electric field */
+        /** Minimum distance between atoms from current and previous run so that
+         * their movement is considered to be sufficiently big to recalculate electric field;
+         * zero turns the check off */
         double significant_distance;
 
-        //!< Radius of cylinder where surface atoms are not coarsened; zero enables coarsening of all atoms.
+        /** Radius of cylinder where surface atoms are not coarsened;
+         * zero enables coarsening of all atoms. */
         double radius;
-        //!< Factor that is proportional to the extent of surface coarsening; zero turns coarsening off.
+        
+        /** Factor that is proportional to the extent of surface coarsening; 
+         * zero turns coarsening off. */
         double coarse_factor;
-        //!< Factor that is proportional to the extent of surface smoothing; zero turns smoothing off.
+        
+        /** Factor that is proportional to the extent of surface smoothing; 
+         * zero turns smoothing off. */
         double smooth_factor;
-        //!< Distance from surface edge where atoms are picked for rectangularization
+        
+        /** Distance from surface edge where atoms are picked for rectangularization */
         double rmin_rectancularize;
-        //!< Width of moving average while smoothing the electric field; 0 turns smoothing off
+        
+        /** Width of moving average while smoothing the electric field; 
+         * 0 turns smoothing off */
         double movavg_width;
 
-        //!< number of bins in smoother histogram; 1 or less turns off the histogram smoother
+        /** number of bins in smoother histogram; 
+         * 1 or less turns off the histogram smoother */
         int n_bins;
-    };
-
-    Config conf;          //!< Femocs configuration parameters
+    } conf;
 
     /**
      * The function to generate FEM mesh and to solve differential equation(s).
@@ -68,19 +76,23 @@ public:
      */
     const void run(double E_field, string msg);
 
-    const void import_atoms(int n_atoms, const double* coordinates, const double* box,
-            const int* nborlist);
+    const void import_atoms(int n_atoms, const double* coordinates, const double* box, const int* nborlist);
     const void import_atoms(int n_atoms, double* x, double* y, double* z, int* types);
     const void import_atoms(string file_name);
+    
     const void export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
-    const void export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm,
-            const int* nborlist);
+    
+    const void interpolate_solution(int n_atoms, double* x, double* y, double* z, 
+                                    double* Ex, double* Ey, double* Ez, double* Enorm);
 
 private:
+    string home;
     bool solution_valid;
-    femocs::AtomReader reader;
-    femocs::Interpolator interpolation;
+    AtomReader reader;
+    Interpolator interpolation;
 };
+
+} /* namespace femocs */
 
 const void femocs_speaker(string path);
 

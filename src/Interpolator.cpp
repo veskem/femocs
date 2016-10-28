@@ -16,7 +16,6 @@ namespace femocs {
 
 Interpolator::Interpolator() : solution(NULL), mesh(NULL) {
     reserve(0);
-    reserve_precompute(0);
 };
 
 // Get average electric field around I-th solution point
@@ -44,7 +43,7 @@ const Vec3 Interpolator::get_average_solution(const int I, const double smooth_f
 
 // Get histogram for electric field x,y,z component or for its norm
 const void Interpolator::get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate) {
-//    require(coord >= 0 && coord <= 3, "Invalid component: " + to_string(coord));
+    require(coordinate >= 0 && coordinate <= 3, "Invalid component: " + to_string(coordinate));
 
     const int n_atoms = get_n_atoms();
     const int n_bins = bins.size();
@@ -52,8 +51,8 @@ const void Interpolator::get_histogram(vector<int> &bins, vector<double> &bounds
     const double eps = 1e-5;
 
     // Find minimum and maximum values from all non-error values
-    double value_min = 1e100;
-    double value_max =-1e100;
+    double value_min = DBL_MAX;
+    double value_max =-DBL_MAX;
     double value;
     for (int i = 0; i < n_atoms; ++i) {
         if (coordinate == 3) value = interpolation[i].el_norm;
@@ -86,48 +85,7 @@ const void Interpolator::get_histogram(vector<int> &bins, vector<double> &bounds
 
 // Function to clean the result from peaks
 const void Interpolator::clean(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut) {
-//    require(coordinate >= 0 && coordinate <= 3, "Invalid coordinate: " + to_string(coordinate));
-    if (n_bins <= 1) return;
-
-    const int n_atoms = get_n_atoms();
-
-    vector<int> bins(n_bins, 0);
-    vector<double> bounds(n_bins+1);
-    get_histogram(bins, bounds, coordinate);
-
-    // Find the first bin with zero entries; this will determine the maximum allowed elfield norm
-    double value_max = bounds[n_bins];
-    for (int i = n_bins-1; i >= 0; --i)
-        if (bins[i] == 0) value_max = bounds[i];
-
-    cout.precision(3);
-    cout << endl << coordinate << " " << value_max << endl;
-    for (int i = 0; i < bins.size(); ++i)
-        cout << bins[i] << " ";
-    cout << endl;
-    for (int i = 0; i < bounds.size(); ++i)
-        cout << bounds[i] << " ";
-    cout << endl;
-
-    // If all the bins are filled, no blocking will be applied
-    if (value_max == bounds[n_bins])
-        return;
-
-    double value;
-    for (int i = 0; i < n_atoms; ++i) {
-        if (coordinate == 3) value = abs(interpolation[i].el_norm);
-        else                 value = abs(interpolation[i].elfield[coordinate]);
-
-        if (value > value_max) {
-            interpolation[i].elfield = get_average_solution(i, smooth_factor, r_cut);
-            interpolation[i].el_norm = interpolation[i].elfield.length();
-        }
-    }
-}
-
-// Function to clean the result from peaks
-const void Interpolator::clean_vol2(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut) {
-//    require(coordinate >= 0 && coordinate <= 3, "Invalid coordinate: " + to_string(coordinate));
+    require(coordinate >= 0 && coordinate <= 3, "Invalid coordinate: " + to_string(coordinate));
     if (n_bins <= 1) return;
 
     const int n_atoms = get_n_atoms();
@@ -152,14 +110,14 @@ const void Interpolator::clean_vol2(const int coordinate, const int n_bins, cons
         if (bins[i] == 0) value_min = bounds[i+1];
     }
 
-//    require(value_min < value_max, "Error in histogram cleaner!");
+    require(value_min < value_max, "Error in histogram cleaner!");
 
-    cout.precision(3);
-    cout << endl << coordinate << " " << value_min << " " << value_max << endl;
-    for (int i = 0; i < bins.size(); ++i) cout << bins[i] << " ";
-    cout << endl;
-    for (int i = 0; i < bounds.size(); ++i) cout << bounds[i] << " ";
-    cout << endl;
+//    cout.precision(3);
+//    cout << endl << coordinate << " " << value_min << " " << value_max << endl;
+//    for (int i = 0; i < bins.size(); ++i) cout << bins[i] << " ";
+//    cout << endl;
+//    for (int i = 0; i < bounds.size(); ++i) cout << bounds[i] << " ";
+//    cout << endl;
 
     // If all the bins are filled, no blocking will be applied
     if (value_min == bounds[0] && value_max == bounds[n_bins])
@@ -186,8 +144,11 @@ const string Interpolator::get_data_string(const int i) {
     return strs.str();
 }
 
-// Reserve memory for precomputed data
-const void Interpolator::reserve_precompute(const int N) {
+// Reserve memory for interpolation and pre-compute vectors
+const void Interpolator::reserve(const int n_nodes) {
+    atoms.clear();
+    interpolation.clear();
+
     centroid.clear();
     det0.clear();
     det1.clear();
@@ -196,30 +157,22 @@ const void Interpolator::reserve_precompute(const int N) {
     det4.clear();
     tet_not_valid.clear();
 
-    centroid.reserve(N);
-    det0.reserve(N);
-    det1.reserve(N);
-    det2.reserve(N);
-    det3.reserve(N);
-    det4.reserve(N);
-    tet_not_valid.reserve(N);
-}
-
-// Reserve memory for interpolation vectors
-const void Interpolator::reserve(const int n_nodes) {
-    atoms.clear();
-    interpolation.clear();
-
     Medium::reserve(n_nodes);
     interpolation.reserve(n_nodes);
+
+    centroid.reserve(n_nodes);
+    det0.reserve(n_nodes);
+    det1.reserve(n_nodes);
+    det2.reserve(n_nodes);
+    det3.reserve(n_nodes);
+    det4.reserve(n_nodes);
+    tet_not_valid.reserve(n_nodes);
 }
 
 // Precompute the data to tetrahedra to make later bcc calculations faster
 const void Interpolator::precompute_tetrahedra() {
     const int n_elems = mesh->get_n_elems();
     double d0, d1, d2, d3, d4;
-
-    reserve_precompute(n_elems);
 
     // Calculate centroids of elements
     for (int i = 0; i < n_elems; ++i)
@@ -296,7 +249,7 @@ const void Interpolator::precompute_tetrahedra() {
 
 // Check with barycentric coordinates whether the point is inside the i-th tetrahedron
 const bool Interpolator::point_in_tetrahedron(const Point3 &point, const int i) {
-    expect(elem >= 0 && elem < det0.size(), "Index out of bounds: " + to_string(elem));
+    expect(i >= 0 && i < det0.size(), "Index out of bounds: " + to_string(i));
 
     // Ignore co-planar tetrahedra
 //    if (tet_not_valid[i]) return false;
@@ -361,6 +314,7 @@ const int Interpolator::locate_element(const Point3 &point, const int elem_guess
     return min_index;
 }
 
+// Calculate interpolation for point inside or near the elem-th tetrahedron
 const Solution Interpolator::get_interpolation(const Point3 &point, const int elem) {
     expect(elem >= 0 && elem < mesh->get_n_elems(), "Index out of bounds: " + to_string(elem));
 
@@ -382,9 +336,10 @@ const Solution Interpolator::get_interpolation(const Point3 &point, const int el
     return Solution(elfield_i, elfield_i.length(), potential_i);
 }
 
-const void Interpolator::extract_interpolation(Mesh* mesh, SolutionReader *solution, const Medium &medium) {
+// Linearly interpolate solution on Medium atoms
+const void Interpolator::extract_interpolation(SolutionReader *solution, const Medium &medium) {
     const int n_atoms = medium.get_n_atoms();
-    this->mesh = mesh;
+    this->mesh = solution->get_mesh();
     this->solution = solution;
 
     reserve(n_atoms);
@@ -437,8 +392,9 @@ const double Interpolator::determinant(const Vec4 &v1, const Vec4 &v2, const Vec
     return v4.w * det4 - v4.z * det3 + v4.y * det2 - v4.x * det1;
 }
 
+// Export interpolated electric field to helmod
 const void Interpolator::export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    expect(n_atoms >= get_n_atoms(), "Solution vector longer than requested!");
+    require(n_atoms >= get_n_atoms(), "Solution vector longer than requested!");
 
     // Initially pass the zero electric field for all the atoms
     for (int i = 0; i < n_atoms; ++i) {
@@ -453,7 +409,7 @@ const void Interpolator::export_helmod(int n_atoms, double* Ex, double* Ey, doub
         int identifier = get_id(i);
         if (identifier < 0) continue;
 
-        expect(identifier < n_atoms, "Mismatch between import and export data sizes detected!");
+        require(identifier < n_atoms, "Mismatch between import and export data sizes detected!");
 
         Ex[identifier] = interpolation[i].elfield.x;
         Ey[identifier] = interpolation[i].elfield.y;

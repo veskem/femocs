@@ -51,44 +51,10 @@ const int DealII::get_n_cells() {
     return triangulation.n_active_cells();
 }
 
-// Generate simple mesh for test purposes
-const void DealII::make_simple_mesh() {
-    Triangulation<DIM> tr1, tr2;
-
-    vector<Point<DIM> > vertices1(DIM + 1);
-    vector<Point<DIM> > vertices2(DIM + 1);
-    vector<Point<DIM> > vertices3(DIM + 1);
-
-    vertices1[0] = Point<DIM>(1.0, 0.0, 0.7);
-    vertices1[1] = Point<DIM>(-1.0, 0.0, 0.7);
-    vertices1[2] = Point<DIM>(0.0, 1.0, -0.7);
-    vertices1[3] = Point<DIM>(0.0, -1.0, -0.7);
-
-    vertices2[0] = Point<DIM>(1.0 + 2.0, 0.0 + 2.0, 0.7 + 2.0);
-    vertices2[1] = Point<DIM>(-1.0 + 2.0, 0.0 + 2.0, 0.7 + 2.0);
-    vertices2[2] = Point<DIM>(0.0 + 2.0, 1.0 + 2.0, -0.7 + 2.0);
-    vertices2[3] = Point<DIM>(0.0 + 2.0, -1.0 + 2.0, -0.7 + 2.0);
-
-    vertices3[0] = Point<DIM>(1.0 + 4.0, 0.0 + 4.0, 0.7 + 4.0);
-    vertices3[1] = Point<DIM>(-1.0 + 4.0, 0.0 + 4.0, 0.7 + 4.0);
-    vertices3[2] = Point<DIM>(0.0 + 4.0, 1.0 + 4.0, -0.7 + 4.0);
-    vertices3[3] = Point<DIM>(0.0 + 4.0, -1.0 + 4.0, -0.7 + 4.0);
-
-    GridGenerator::simplex(tr1, vertices1);
-    GridGenerator::simplex(tr2, vertices2);
-    GridGenerator::merge_triangulations(tr1, tr2, triangulation);
-
-    tr1.clear();
-    tr2.clear();
-
-    GridGenerator::simplex(tr1, vertices3);
-    GridGenerator::merge_triangulations(tr1, triangulation, triangulation);
-}
-
 // Import mesh from vtk or msh file
-const void DealII::import_file(const string file_name) {
+const void DealII::import_mesh(const string &file_name) {
     const string file_type = get_file_type(file_name);
-    expect(file_type == "vtk" || file_type == "msh", "Unknown file type: " + file_type)
+    require(file_type == "vtk" || file_type == "msh", "Unknown file type: " + file_type);
 
     GridIn<DIM, DIM> gi;
     gi.attach_triangulation(triangulation);
@@ -106,7 +72,6 @@ const void DealII::import_mesh(tethex::Mesh* mesh) {
     const unsigned int n_verts = mesh->get_n_vertices();
     const unsigned int n_elems = mesh->get_n_hexahedra();
     const unsigned int n_faces = mesh->get_n_quadrangles();
-    unsigned int i;
 
     vector<Point<DIM> > vertices(n_verts);       // array for vertices
     vector<CellData<DIM> > cells(n_elems);       // array for elements
@@ -115,20 +80,20 @@ const void DealII::import_mesh(tethex::Mesh* mesh) {
 
     // copy vertices
     for (unsigned int vertex = 0; vertex < n_verts; ++vertex)
-        for (i = 0; i < DIM; ++i)
+        for (unsigned int i = 0; i < DIM; ++i)
             vertices[vertex](i) = mesh->get_vertex(vertex).get_coord(i);
 
     // copy quadrangles
     for (unsigned int face = 0; face < n_faces; ++face) {
         subcelldata.boundary_quads[face] = CellData<2>();
-        for (i = 0; i < n_verts_per_face; ++i)
+        for (unsigned int i = 0; i < n_verts_per_face; ++i)
             subcelldata.boundary_quads[face].vertices[i] = mesh->get_quadrangle(face).get_vertex(i);
     }
 
     // copy hexahedra
     for (unsigned int elem = 0; elem < n_elems; ++elem) {
         cells[elem] = CellData<DIM>();
-        for (i = 0; i < n_verts_per_elem; ++i)
+        for (unsigned int i = 0; i < n_verts_per_elem; ++i)
             cells[elem].vertices[i] = mesh->get_hexahedron(elem).get_vertex(i);
     }
 
@@ -140,30 +105,26 @@ const void DealII::import_mesh(tethex::Mesh* mesh) {
     GridReordering<DIM, DIM>::invert_all_cells_of_negative_grid(vertices, cells);
 //    GridReordering<DIM, DIM>::reorder_cells(cells);
 
-//    triangulation.create_triangulation_compatibility(vertices, cells, subcelldata);
-    triangulation.create_triangulation_compatibility(vertices, cells, SubCellData());
+    triangulation.create_triangulation_compatibility(vertices, cells, subcelldata);
 }
 
 const bool DealII::import_mesh_wo_faces(tethex::Mesh* mesh) {
     const unsigned int n_verts = mesh->get_n_vertices();
     const unsigned int n_elems = mesh->get_n_hexahedra();
-    const unsigned int n_faces = mesh->get_n_quadrangles();
-    unsigned int i;
 
-    vector<Point<DIM> > vertices(n_verts);       // array for vertices
-    vector<CellData<DIM> > cells(n_elems);       // array for elements
-    SubCellData subcelldata;
-    subcelldata.boundary_quads.reserve(n_faces); // array for faces
+    vector<Point<DIM> > vertices(n_verts); // array for vertices
+    vector<CellData<DIM> > cells(n_elems); // array for elements
+    SubCellData subcelldata;               // array for faces; only required while cleaning vertices
 
     // copy vertices
     for (unsigned int vertex = 0; vertex < n_verts; ++vertex)
-        for (i = 0; i < DIM; ++i)
+        for (unsigned int i = 0; i < DIM; ++i)
             vertices[vertex](i) = mesh->get_vertex(vertex).get_coord(i);
 
     // copy hexahedra
     for (unsigned int elem = 0; elem < n_elems; ++elem) {
         cells[elem] = CellData<DIM>();
-        for (i = 0; i < n_verts_per_elem; ++i)
+        for (unsigned int i = 0; i < n_verts_per_elem; ++i)
             cells[elem].vertices[i] = mesh->get_hexahedron(elem).get_vertex(i);
     }
 
@@ -183,66 +144,14 @@ const bool DealII::import_mesh_wo_faces(tethex::Mesh* mesh) {
     return true;
 }
 
-// Import tetrahedral mesh
-// WARNING: It's extremely slow function
-const void DealII::import_mesh(femocs::Mesh* mesh) {
-    Triangulation<DIM> tr1, tr2;
-    vector<Point<DIM>> vertices1(DIM + 1), vertices2(DIM + 1);
-    SimpleElement selem;
-    Point3 node;
-
-    int i, j, elem;
-    int n_elems = mesh->get_n_elems();
-    triangulation.clear();
-
-    if (n_elems < 1) return;
-
-    selem = mesh->get_simpleelem(0);
-    for (i = 0; i < n_verts_per_elem; ++i) {
-        node = mesh->get_node(selem[i]);
-        vertices1[i] = Point<DIM>(node.x, node.y, node.z);
-    }
-
-    if (n_elems == 1) {
-        GridGenerator::simplex(triangulation, vertices1);
-        return;
-    }
-
-    selem = mesh->get_simpleelem(1);
-    for (i = 0; i < n_verts_per_elem; ++i) {
-        node = mesh->get_node(selem[i]);
-        vertices2[i] = Point<DIM>(node.x, node.y, node.z);
-    }
-
-    GridGenerator::simplex(tr1, vertices1);
-    GridGenerator::simplex(tr2, vertices2);
-    GridGenerator::merge_triangulations(tr1, tr2, triangulation);
-    tr1.clear();
-    tr2.clear();
-
-    // loop through tetrahedra, convert them into hexahedra and add to big triangulations
-    for (elem = 2; elem < n_elems; ++elem) {
-        // show progress after every 10th step
-        if (elem % 10 == 0) cout << elem << "/" << n_elems << "\n";
-        selem = mesh->get_simpleelem(elem);
-        for (i = 0; i < n_verts_per_elem; ++i) {
-            node = mesh->get_node(selem[i]);
-            vertices1[i] = Point<DIM>(node.x, node.y, node.z);
-        }
-
-        GridGenerator::simplex(tr1, vertices1);
-        GridGenerator::merge_triangulations(tr1, triangulation, triangulation);
-        tr1.clear();
-    }
-}
-
-const void DealII::smooth_and_refine_mesh(const Point3 &origin, const double eps) {
-    const double eps2 = eps * eps;
+// Make mesh 4x denser around origin
+const void DealII::smooth_and_refine_mesh(const Point3 &origin, const double r_cut) {
+    const double r_cut2 = r_cut * r_cut;
 
     typename Triangulation<DIM>::active_cell_iterator cell;
     for (cell = triangulation.begin_active(); cell != triangulation.end(); ++cell)
-        if ((origin.distance2(cell->center()) < eps2))
-            cell->set_refine_flag ();
+        if ( origin.distance2(cell->center()) < r_cut2 )
+            cell->set_refine_flag();
 
     triangulation.execute_coarsening_and_refinement();
 }
@@ -267,7 +176,9 @@ const void DealII::mark_boundary_faces(const AtomReader::Sizes* sizes) {
 }
 
 // Setup initial grid and number the vertices i.e. distribute degrees of freedom.
-const void DealII::setup_system() {
+const void DealII::setup_system(const AtomReader::Sizes* sizes) {
+    mark_boundary_faces(sizes);
+    
     dof_handler.distribute_dofs(fe);
 
     DynamicSparsityPattern dsp(dof_handler.n_dofs());
@@ -362,7 +273,7 @@ const void DealII::assemble_system() {
 
 // Run the calculation with conjugate gradient solver
 const void DealII::solve_cg() {
-    // Declare Conjugate Gradient solver tolerance and max number of iterations
+    // Declare Conjugate Gradient max number of iterations and solver tolerance
     SolverControl solver_control(10000, 1e-9);
     SolverCG<> solver(solver_control);
     solver.solve(system_matrix, laplace_solution, system_rhs, PreconditionIdentity());
@@ -381,7 +292,7 @@ const Tensor<1, DIM> DealII::get_elfield(const double x, const double y, const d
 }
 
 // Calculate electric field at a mesh node
-const Tensor<1, DIM> DealII::get_elfield(const int &cell_indx, const int &vert_indx) {
+const Tensor<1, DIM> DealII::get_elfield(const int cell_indx, const int vert_indx) {
     vector<Tensor<1, DIM>> solution_gradients;
     QTrapez<DIM> only_vertices_quadrature_formula;
     FEValues<DIM> fe_values(fe, only_vertices_quadrature_formula, update_gradients);
@@ -418,17 +329,19 @@ const vector<Vec3> DealII::get_elfield(const vector<int> &cell_indxs, const vect
     sort(sort_indxs.begin(), sort_indxs.end(), comparator);
 
     int i, si;
-    typename DoFHandler<DIM>::active_cell_iterator cell;
-    cell = dof_handler.begin_active();
+    typename DoFHandler<DIM>::active_cell_iterator cell = dof_handler.begin_active();
 
     // Iterate through all the cells and get the electric field from ones listed in cell_indxs
-    for (i = 1, si = sort_indxs[0]; cell != dof_handler.end(), i < n_cells; cell++)
+    for (i = 1, si = sort_indxs[0]; cell != dof_handler.end(), i < n_cells; ++cell)
         if (cell->active_cell_index() == cell_indxs[si]) {
             fe_values.reinit(cell);
             fe_values.get_function_gradients(laplace_solution, solution_gradients);
 
             Tensor<1, DIM> ef = -1.0 * solution_gradients.at(vert_indxs[si]);
+            
+            //!< TODO What is this?
             solution_gradients[vert_indxs[si]];
+            
             elfield[si] = Vec3(ef[0], ef[1], ef[2]);
 
             si = sort_indxs[i++];
@@ -443,7 +356,7 @@ const double DealII::get_potential(const double x, const double y, const double 
 }
 
 // Get potential at a mesh node
-const double DealII::get_potential(const int &cell_indx, const int &vert_indx) {
+const double DealII::get_potential(const int cell_indx, const int vert_indx) {
     typename DoFHandler<DIM>::active_cell_iterator cell;
     cell = dof_handler.begin_active();
     std::advance(cell, cell_indx);
@@ -467,26 +380,25 @@ const vector<double> DealII::get_potential(const vector<int> &cell_indxs, const 
     sort(sort_indxs.begin(), sort_indxs.end(), comparator);
 
     int i, si;
-    typename DoFHandler<DIM>::active_cell_iterator cell;
-    cell = dof_handler.begin_active();
+    typename DoFHandler<DIM>::active_cell_iterator cell = dof_handler.begin_active();
 
     // Iterate through all the cells and get the potential from the ones listed in cell_indxs
     for (i = 1, si = sort_indxs[0]; cell != dof_handler.end(), i < n_cells; cell++) {
         if (cell->active_cell_index() == cell_indxs[si])
              potentials[si] = laplace_solution( cell->vertex_dof_index(vert_indxs[si], 0) );
              si = sort_indxs[i++];
-         }
+        }
 
     return potentials;
 }
 
 // Write the potential and electric field to the file
-const void DealII::output_results(const string file_name) {
+const void DealII::output_results(const string &file_name) {
 #if not DEBUGMODE
     return;
 #endif
     string ftype = get_file_type(file_name);
-    expect(ftype == "vtk" || ftype == "eps", "Unsupported file type!");
+    require(ftype == "vtk" || ftype == "eps", "Unsupported file type: " + ftype);
 
     LaplacePostProcessor field_calculator("Electric_field");
     DataOut<DIM> data_out;
@@ -502,12 +414,12 @@ const void DealII::output_results(const string file_name) {
 }
 
 // Write the mesh to file
-const void DealII::output_mesh(const string file_name) {
+const void DealII::output_mesh(const string &file_name) {
 #if not DEBUGMODE
     return;
 #endif
     string ftype = get_file_type(file_name);
-    expect(ftype == "vtk" || ftype == "msh" || ftype == "eps", "Unsupported file type!");
+    require(ftype == "vtk" || ftype == "msh" || ftype == "eps", "Unsupported file type: " + ftype);
 
     ofstream outfile(file_name);
     GridOut gout;

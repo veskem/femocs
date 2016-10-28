@@ -29,37 +29,6 @@ namespace tethex {
 
 //-------------------------------------------------------
 //
-// expect and require
-// (the idea was firstly discovered in deal.II sources,
-//  so thanks to its authors for that)
-//
-//-------------------------------------------------------
-#if DEBUG
-#define expect(condition, message) \
-    if (!(condition))                \
-      requirement_fails(__FILE__,     \
-                        __LINE__,     \
-                        message)
-#else
-// in release (or release-like) versions
-// nothing happens
-#define expect(condition, message) { }
-#endif // DEBUG
-
-#define require(condition, message) \
-  if (!(condition))                 \
-    requirement_fails(__FILE__,     \
-                      __LINE__,     \
-                      message)
-
-/**
- * Throw an informative exception,
- * if requirement or expectation fails
- */
-void requirement_fails(const char *file, int line, std::string message);
-
-//-------------------------------------------------------
-//
 // Point
 //
 //-------------------------------------------------------

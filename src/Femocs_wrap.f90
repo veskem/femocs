@@ -38,7 +38,7 @@ module libfemocs
             integer(c_int) :: types(*)
         end subroutine
 
-        subroutine femocs_import_atoms2_c(femocs, n_atoms, coordinates, box, nborlist) bind(C, name="femocs_import_atoms2")
+        subroutine femocs_import_parcas_c(femocs, n_atoms, coordinates, box, nborlist) bind(C, name="femocs_import_parcas")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
@@ -66,19 +66,21 @@ module libfemocs
             real(c_double) :: Enorm(*)
         end subroutine
         
-        subroutine femocs_export_solution2_c(femocs, n_atoms, Ex, Ey, Ez, Enorm, nborlist) bind(C, name="femocs_export_solution2")
+        subroutine femocs_interpolate_solution_c(femocs, n_atoms, x, y, z, Ex, Ey, Ez, Enorm) &
+                                                 bind(C, name="femocs_interpolate_solution")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
             integer(c_int), value :: n_atoms
+            real(c_double) :: x(*)
+            real(c_double) :: y(*)
+            real(c_double) :: z(*)
             real(c_double) :: Ex(*)
             real(c_double) :: Ey(*)
             real(c_double) :: Ez(*)
             real(c_double) :: Enorm(*)
-            integer(c_int) :: nborlist(*)
         end subroutine
         
-        ! void functions maps to subroutines
         subroutine femocs_speaker_c(str) bind(C, name="femocs_speaker")
             use iso_c_binding
             implicit none
@@ -86,7 +88,7 @@ module libfemocs
         end subroutine
     end interface
 
-    ! We'll use a Fortan type to represent a C++ class here, in an opaque maner
+    ! We'll use a Fortan type to represent a C++ class here in an opaque manner
     type femocs
         private
         type(c_ptr) :: ptr ! pointer to the Femocs class
@@ -97,10 +99,10 @@ module libfemocs
         ! Function members
         procedure :: run => femocs_run
         procedure :: import_atoms => femocs_import_atoms
-        procedure :: import_atoms2 => femocs_import_atoms2
+        procedure :: import_parcas => femocs_import_parcas
         procedure :: import_file => femocs_import_file
         procedure :: export_solution => femocs_export_solution
-        procedure :: export_solution2 => femocs_export_solution2
+        procedure :: interpolate_solution => femocs_interpolate_solution
     end type
 
     ! This function will act as the constructor for femocs type
@@ -108,7 +110,8 @@ module libfemocs
         procedure create_femocs
     end interface
 
-    contains ! Implementation of the functions. We just wrap the C function here.
+    ! Implementation of the functions. We just wrap the C function here.
+    contains 
     function create_femocs(str)
         implicit none
         type(femocs) :: create_femocs
@@ -168,14 +171,14 @@ module libfemocs
         call femocs_import_atoms_c(this%ptr, n_atoms, x, y, z, types)
     end subroutine
     
-    subroutine femocs_import_atoms2(this, n_atoms, coordinates, box, nborlist)
+    subroutine femocs_import_parcas(this, n_atoms, coordinates, box, nborlist)
         implicit none
         class(femocs), intent(in) :: this
         integer(c_int) :: n_atoms
         real(c_double) :: coordinates(*)
         real(c_double) :: box(*)
         integer(c_int) :: nborlist(*)
-        call femocs_import_atoms2_c(this%ptr, n_atoms, coordinates, box, nborlist)
+        call femocs_import_parcas_c(this%ptr, n_atoms, coordinates, box, nborlist)
     end subroutine    
 
     subroutine femocs_import_file(this, file_name)
@@ -206,16 +209,18 @@ module libfemocs
         call femocs_export_solution_c(this%ptr, n_atoms, Ex, Ey, Ez, Enorm)
     end subroutine
     
-    subroutine femocs_export_solution2(this, n_atoms, Ex, Ey, Ez, Enorm, nborlist)
+    subroutine femocs_interpolate_solution(this, n_atoms, x, y, z, Ex, Ey, Ez, Enorm)
         implicit none
         class(femocs), intent(in) :: this
         integer(c_int) :: n_atoms
+        real(c_double) :: x(*)
+        real(c_double) :: y(*)
+        real(c_double) :: z(*)
         real(c_double) :: Ex(*)
         real(c_double) :: Ey(*)
         real(c_double) :: Ez(*)
         real(c_double) :: Enorm(*)
-        integer(c_int) :: nborlist(*)
-        call femocs_export_solution2_c(this%ptr, n_atoms, Ex, Ey, Ez, Enorm, nborlist)
+        call femocs_interpolate_solution_c(this%ptr, n_atoms, x, y, z, Ex, Ey, Ez, Enorm)
     end subroutine
 
     subroutine femocs_speaker(str)
