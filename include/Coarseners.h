@@ -233,7 +233,7 @@ public:
     void write(const string &file_name);
 
     /** Generate coarseners for one nanotip system */
-    void generate(const Medium &medium, const double radius, const double coarse_factor);
+    void generate(Medium &medium, const double radius, const double coarse_factor);
 
     double r0_inf;
     double zmean;

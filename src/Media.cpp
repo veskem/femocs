@@ -47,33 +47,6 @@ Bulk::Bulk(const double latconst, const int nnn) :
 Bulk::Bulk() : Bulk(0, 0) {};
 
 // Function to make bulk material with nodes on surface and on by-hand made bottom coordinates
-const void Bulk::extract_reduced_bulk(Surface* surf, const AtomReader::Sizes* sizes) {
-    int i;
-//    shared_ptr<Edge> edge(new Edge(crys_struct.latconst, crys_struct.nnn));
-//    edge->extract_edge(surf, sizes);
-
-    int n_surf = surf->get_n_atoms();
-    int n_edge = 4; //edge->getN();
-
-    // Reserve memory for bulk atoms and their parameters
-    reserve(n_surf + n_edge);
-
-    for (i = 0; i < n_surf; ++i)
-        add_atom(surf->get_atom(i));
-
-//    for (i = 0; i < n_edge; ++i)
-//        add_atom(edge->get_atom(i));
-
-    // Add extra atoms to the bottom corner edges of simulation cell
-    add_atom( Atom(-1, Point3(sizes->xmin, sizes->ymin, sizes->zminbox), 0) );
-    add_atom( Atom(-1, Point3(sizes->xmin, sizes->ymax, sizes->zminbox), 0) );
-    add_atom( Atom(-1, Point3(sizes->xmax, sizes->ymin, sizes->zminbox), 0) );
-    add_atom( Atom(-1, Point3(sizes->xmax, sizes->ymax, sizes->zminbox), 0) );
-
-    calc_statistics();
-}
-
-// Function to make bulk material with nodes on surface and on by-hand made bottom coordinates
 const void Bulk::generate_simple(const AtomReader::Sizes* sizes) {
     int M = 4; // total number of nodes
     reserve(M);
@@ -89,70 +62,16 @@ const void Bulk::generate_simple(const AtomReader::Sizes* sizes) {
 }
 
 // Function to extract bulk material from input atomistic data
-const void Bulk::extract_truncated_bulk_old(AtomReader* reader) {
-    int i;
-    const int N = reader->get_n_atoms();
-    vector<bool> is_bulk(N);
-    vector<bool> is_surf(N);
-
-    // Get number and locations of bulk atoms
-    for (i = 0; i < N; ++i)
-        is_bulk[i] = (reader->get_point(i).z > reader->sizes.zminbox)
-                && (reader->get_type(i) == TYPES.BULK
-                        || reader->get_type(i) == TYPES.SURFACE);
-
-    for (i = 0; i < N; ++i)
-        is_surf[i] = (reader->get_coordination(i) > 0)
-                && (reader->get_coordination(i) < crys_struct.nnn);
-
-    reserve(vector_sum(is_bulk));
-
-    // Add bulk atoms
-    for (i = 0; i < N; ++i)
-        if (is_bulk[i] && !is_surf[i])
-            add_atom(reader->get_atom(i));
-
-    // Add surface atoms
-    for (i = 0; i < N; ++i)
-        if (is_bulk[i] && is_surf[i])
-            add_atom(reader->get_atom(i));
-
-    calc_statistics();
-}
-
-// Function to extract bulk material from input atomistic data
-const void Bulk::extract_truncated_bulk(AtomReader* reader) {
-    int i;
+const void Bulk::extract(AtomReader* reader) {
     const int N = reader->get_n_atoms();
     vector<bool> is_bulk(N);
 
-    // Get number and locations of bulk atoms
-    for (i = 0; i < N; ++i)
-        is_bulk[i] = (reader->get_point(i).z > reader->sizes.zminbox)
-                && (reader->get_type(i) == TYPES.BULK);
-
-    reserve(vector_sum(is_bulk));
-
-    // Add bulk atoms
-    for (i = 0; i < N; ++i)
-        if (is_bulk[i])
-            add_atom(reader->get_atom(i));
-
-    calc_statistics();
-}
-
-// Function to extract bulk material from input atomistic data
-const void Bulk::extract_bulk(AtomReader* reader) {
-    int i;
-    int N = reader->get_n_atoms();
-    vector<bool> is_bulk(N);
-
-    for (i = 0; i < N; ++i)
+    for (int i = 0; i < N; ++i)
         is_bulk[i] = reader->get_type(i) != TYPES.VACANCY;
 
     reserve(vector_sum(is_bulk));
 
-    for (i = 0; i < N; ++i)
+    for (int i = 0; i < N; ++i)
         if (is_bulk[i])
             add_atom(reader->get_atom(i));
 
@@ -183,13 +102,12 @@ const void Bulk::rectangularize(const AtomReader::Sizes* sizes, const double r_c
 // =================================================
 
 // Constructor for Surface class
-Surface::Surface(const double latconst, const int nnn) :
-        Medium() {
+Surface::Surface(const double latconst, const int nnn) : Medium() {
     crys_struct.latconst = latconst;
     crys_struct.nnn = nnn;
 }
-;
-Surface::Surface() : Surface(0, 0) {};
+
+Surface::Surface() : Surface(0, 0) {}
 
 Surface::Surface(const int n_atoms) : Surface(0, 0) {
     reserve(n_atoms);
@@ -215,13 +133,11 @@ const void Surface::generate_simple(const AtomReader::Sizes* sizes, const double
 }
 
 // Function to pick suitable extraction function
-const void Surface::extract_surface(AtomReader* reader) {
+const void Surface::extract(AtomReader* reader) {
     //if (reader->types.simu_type == "md")
     //    extract_by_coordination(reader);
     //else if (reader->types.simu_type == "kmc")
     extract_by_type(reader);
-
-    calc_statistics();
 }
 
 // Extract surface by coordination analysis
@@ -285,7 +201,7 @@ const Surface Surface::rectangularize(const AtomReader::Sizes* sizes, const doub
     coarseners.attach_coarsener(make_shared<ConstCoarsener>(crys_struct.latconst / 3.0));
 
     Edge edge;
-    edge.extract_edge(this, sizes, r_cut);
+    edge.extract(this, sizes, r_cut);
 
     Surface surf(crys_struct.latconst, crys_struct.nnn);
     surf += edge;
@@ -329,29 +245,28 @@ const Surface Surface::clean(Coarseners &coarseners) {
 // Function to delete atoms that are separate from others
 // Atom is considered lonely if its coordination is lower than coord_min
 const Surface Surface::clean_lonely_atoms(const double r_cut) {
-    const double cutoff2 = r_cut * r_cut;
+    const double r_cut2 = r_cut * r_cut;
     const int n_atoms = get_n_atoms();
     const int coord_min = 2;
 
     Surface surf(crys_struct.latconst, crys_struct.nnn);
-    int i, j;
 
     vector<bool> atom_not_lonely(n_atoms, false);
     vector<int> coords(n_atoms, 0);
 
     // Loop through all the atoms
-    for(i = 0; i < n_atoms-1; ++i) {
+    for(int i = 0; i < n_atoms-1; ++i) {
         // Skip already processed atoms
         if (atom_not_lonely[i]) continue;
 
         Point3 point1 = get_point(i);
 
         // Loop through the possible neighbours of the atom
-        for (j = i+1; j < n_atoms; ++j) {
+        for (int j = i+1; j < n_atoms; ++j) {
             // Skip already processed atoms
             if (atom_not_lonely[j]) continue;
 
-            if (point1.distance2(get_point(j)) <= cutoff2) {
+            if (point1.distance2(get_point(j)) <= r_cut2) {
                 atom_not_lonely[i] = ++coords[i] >= coord_min;
                 atom_not_lonely[j] = ++coords[j] >= coord_min;
             }
@@ -359,7 +274,7 @@ const Surface Surface::clean_lonely_atoms(const double r_cut) {
     }
 
     surf.reserve( vector_sum(atom_not_lonely) );
-    for (i = 0; i < n_atoms; ++i)
+    for (int i = 0; i < n_atoms; ++i)
         if (atom_not_lonely[i])
             surf.add_atom(get_atom(i));
 
@@ -457,7 +372,7 @@ Edge::Edge(const double latconst, const int nnn) :
 Edge::Edge() : Edge(0, 0) {};
 
 // Exctract the atoms near the simulation box sides
-const void Edge::extract_edge(Medium* atoms, const AtomReader::Sizes* sizes, const double r_cut) {
+const void Edge::extract(Medium* atoms, const AtomReader::Sizes* sizes, const double r_cut) {
     const int n_atoms = atoms->get_n_atoms();
 
     // Reserve memory for atoms

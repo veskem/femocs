@@ -90,9 +90,9 @@ const bool RaySurfaceIntersect2::ray_intersects_surface(const Vec3 &origin, cons
     return false;
 }
 
-// Function to generate simple mesh that consists of one element
-const void TetgenMesh::generate_simple() {
-    const int n_nodes = n_nodes_per_elem;
+// Function to generate simple mesh that consists of one tetrahedron
+const bool TetgenMesh::generate_simple() {
+    const int n_nodes = elems.DIM;
     const int n_edges = n_edges_per_elem;
     const int n_faces = n_faces_per_elem;
     const int n_elems = 1;
@@ -120,52 +120,62 @@ const void TetgenMesh::generate_simple() {
     elems.init(n_elems);
     elems.append(SimpleElement(0, 1, 2, 3));
 
-    recalc("rQ");
+    return recalc("rQ");
 }
 
-//// Copy mesh from input to output without modification
-//const void TetgenMesh::recalc() {
-////    nodes.copy(TetgenNodes(tetIOin));
-////    edges.copy(TetgenEdges(tetIOin));
-////    faces.copy(TetgenFaces(tetIOin));
-////    elems.copy(TetgenElements(tetIOin));
-//}
-
-// Function to perform tetgen calculation on input and write_tetgen data
-const void TetgenMesh::recalc(const string& cmd) {
-    tetrahedralize(const_cast<char*>(cmd.c_str()), &tetIOin, &tetIOout);
-
-    nodes.set_counter(tetIOout.numberofpoints);
-    faces.set_counter(tetIOout.numberoftrifaces);
-    elems.set_counter(tetIOout.numberoftetrahedra);
+// Copy mesh from input to output without modification
+const bool TetgenMesh::recalc() {
+    nodes.copy(TetgenNodes(&tetIOin));
+    edges.copy(TetgenEdges(&tetIOin));
+    faces.copy(TetgenFaces(&tetIOin));
+    elems.copy(TetgenElements(&tetIOin));
+    return true;
 }
 
 // Function to perform tetgen calculation on input and write_tetgen data
-const void TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
-    tetgenio tetIOtemp;
+const bool TetgenMesh::recalc(const string& cmd) {
+    try {
+        tetrahedralize(const_cast<char*>(cmd.c_str()), &tetIOin, &tetIOout);
 
-    tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOtemp);
-    tetrahedralize(const_cast<char*>(cmd2.c_str()), &tetIOtemp, &tetIOout);
+        nodes.set_counter(tetIOout.numberofpoints);
+        faces.set_counter(tetIOout.numberoftrifaces);
+        elems.set_counter(tetIOout.numberoftetrahedra);
+    } catch (int e) { return false; }
+    return true;
+}
 
-    nodes.set_counter(tetIOout.numberofpoints);
-    faces.set_counter(tetIOout.numberoftrifaces);
-    elems.set_counter(tetIOout.numberoftetrahedra);
+// Function to perform tetgen calculation on input and write_tetgen data
+const bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
+    try {
+        tetgenio tetIOtemp;
+        tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOtemp);
+        tetrahedralize(const_cast<char*>(cmd2.c_str()), &tetIOtemp, &tetIOout);
+        nodes.set_counter(tetIOout.numberofpoints);
+        faces.set_counter(tetIOout.numberoftrifaces);
+        elems.set_counter(tetIOout.numberoftetrahedra);
+    } catch (int e) { return false; }
+
+    return true;
 }
 
 // Write mesh into files with Tetgen functions
-const void TetgenMesh::write_tetgen(const string file_name) {
+const bool TetgenMesh::write_tetgen(const string file_name) {
     const string cmd = "Q";
     tetgenbehavior tetgenbeh;
 
-    tetgenbeh.parse_commandline(const_cast<char*>(cmd.c_str()));
-    for (int i = 0; i < file_name.size(); ++i)
-        tetgenbeh.outfilename[i] = file_name[i];
+    try {
+        tetgenbeh.parse_commandline(const_cast<char*>(cmd.c_str()));
+        for (int i = 0; i < file_name.size(); ++i)
+            tetgenbeh.outfilename[i] = file_name[i];
 
-    tetrahedralize(&tetgenbeh, &tetIOout, NULL);
+        tetrahedralize(&tetgenbeh, &tetIOout, NULL);
+    } catch (int e) { return false; }
+
+    return true;
 }
 
 // Function to generate mesh from surface, bulk and vacuum atoms
-const void TetgenMesh::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string& cmd) {
+const bool TetgenMesh::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string& cmd) {
     const int n_bulk = bulk.get_n_atoms();
     const int n_surf = surf.get_n_atoms();
     const int n_vacuum = vacuum.get_n_atoms();
@@ -187,15 +197,16 @@ const void TetgenMesh::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, 
     // Memorize the positions of different types of nodes to speed up later calculations
     nodes.save_indices(n_surf, n_bulk, n_vacuum);
 
-    recalc("Q", cmd);
+    return recalc("Q", cmd);
 }
 
 // Generate manually edges and surface faces
-const void TetgenMesh::generate_mesh_appendices() {
+const bool TetgenMesh::generate_mesh_appendices() {
     // Generate edges from elements
 //    generate_edges();
     // Generate surface faces from elements
     generate_surf_faces();
+    return true;
 }
 
 // Function to generate edges from the elements
@@ -218,21 +229,20 @@ const void TetgenMesh::generate_edges() {
 const void TetgenMesh::generate_surf_faces() {
     const int n_elems = elems.get_n_cells();
     const int max_surf_indx = nodes.indxs.surf_end;
-    const int* elem = elems.get_cells();
 
     // booleans showing whether element i has exactly one face on the surface or not
-    vector<bool> elem_in_surface; elem_in_surface.reserve(n_elems);
+    vector<bool> elem_on_surface; elem_on_surface.reserve(n_elems);
     // booleans showing whether node i is on the surface or not
     vector<bool> surf_locs;
 
     // Mark the elements that have exactly one face on the surface
     for (SimpleElement selem : elems) {
-        surf_locs = selem <= max_surf_indx;
-        elem_in_surface.push_back(vector_sum(surf_locs) == 3);
+        surf_locs = (selem <= max_surf_indx);
+        elem_on_surface.push_back(vector_sum(surf_locs) == 3);
     }
 
     // Reserve memory for surface faces
-    faces.init( 2 + vector_sum(elem_in_surface) );
+    faces.init( 2 + vector_sum(elem_on_surface) );
 
     // Make two big faces that pass the xy-min-max corners of surface
     faces.append(SimpleFace(0, 1, 2));
@@ -241,50 +251,49 @@ const void TetgenMesh::generate_surf_faces() {
     // Generate the faces that separate material and vacuum
     // The faces are taken from the elements that have exactly one face on the surface
     for (int el = 0; el < n_elems; ++el)
-        if (elem_in_surface[el]) {
+        if (elem_on_surface[el]) {
+            SimpleElement elem = elems[el];
+
             // Find the indices of nodes that are on the surface
-            surf_locs = elems[el] <= max_surf_indx;
+            surf_locs = (elem <= max_surf_indx);
 
             /* The possible combinations of surf_locs and n0,n1,n2:
              * surf_locs: 1110   1101   1011   0111
              *        n0: elem0  elem0  elem0  elem1
              *        n1: elem1  elem1  elem2  elem2
-             *        n2: elem2  elem3  elem3  elem3
-             */
-            int node = n_nodes_per_elem * el;
-            int n0 = surf_locs[0] * elem[node + 0] + (!surf_locs[0]) * elem[node + 1];
-            int n1 = (surf_locs[0] & surf_locs[1]) * elem[node + 1] + (surf_locs[2] & surf_locs[3]) * elem[node + 2];
-            int n2 = (!surf_locs[3]) * elem[node + 2] + surf_locs[3] * elem[node + 3];
+             *        n2: elem2  elem3  elem3  elem3   */
+            int n0 = surf_locs[0] * elem[0] + (!surf_locs[0]) * elem[1];
+            int n1 = (surf_locs[0] & surf_locs[1]) * elem[1] + (surf_locs[2] & surf_locs[3]) * elem[2];
+            int n2 = (!surf_locs[3]) * elem[2] + surf_locs[3] * elem[3];
             faces.append(SimpleFace(n0, n1, n2));
         }
 }
 
-//// Separate vacuum and bulk mesh from the union mesh by the element markers
-//const void TetgenMesh::separate_meshes(TetgenMesh &vacuum, TetgenMesh &bulk, const string &cmd) {
-//    const int n_elems = elems.get_n_cells();
-//    const int n_nodes = nodes.get_n_nodes();
-//    vector<bool> elem_in_vacuum = vector_equal(elems.get_markers(), TYPES.VACUUM);
-//
-//    // Copy the non-bulk nodes from input mesh without modification
-//    vacuum.nodes.copy(this->nodes);
-//    bulk.nodes.copy(this->nodes);
-//
-//    // Reserve memory for elements
-//    const int n_elems_vacuum = vector_sum(elem_in_vacuum);
-//    const int n_elems_bulk = n_elems - n_elems_vacuum;
-//    vacuum.elems.init(n_elems_vacuum);
-//    bulk.elems.init(n_elems_bulk);
-//
-//    // Separate vacuum and bulk elements
-//    for (int elem = 0; elem < n_elems; ++elem)
-//        if (elem_in_vacuum[elem])
-//            vacuum.elems.append(elems.get_cell(elem));
-//        else
-//            bulk.elems.append(elems.get_cell(elem));
-//
-//    vacuum.recalc(cmd);
-//    bulk.recalc(cmd);
-//}
+// Separate vacuum and bulk mesh from the union mesh by the element markers
+const bool TetgenMesh::separate_meshes(TetgenMesh &vacuum, TetgenMesh &bulk, const string &cmd) {
+    const int n_elems = elems.get_n_cells();
+    const int n_nodes = nodes.get_n_nodes();
+    vector<bool> elem_in_vacuum = vector_equal(elems.get_markers(), TYPES.VACUUM);
+
+    // Copy the non-bulk nodes from input mesh without modification
+    vacuum.nodes.copy(this->nodes);
+    bulk.nodes.copy(this->nodes);
+
+    // Reserve memory for elements
+    const int n_elems_vacuum = vector_sum(elem_in_vacuum);
+    const int n_elems_bulk = n_elems - n_elems_vacuum;
+    vacuum.elems.init(n_elems_vacuum);
+    bulk.elems.init(n_elems_bulk);
+
+    // Separate vacuum and bulk elements
+    for (int elem = 0; elem < n_elems; ++elem)
+        if (elem_in_vacuum[elem])
+            vacuum.elems.append(elems[elem]);
+        else
+            bulk.elems.append(elems[elem]);
+
+    return vacuum.recalc(cmd) &&  bulk.recalc(cmd);
+}
 
 // Mark mesh nodes, edges, faces and elements
 const bool TetgenMesh::mark_mesh(const bool postprocess) {

@@ -6,83 +6,41 @@
  */
 
 #include <TetgenCells.h>
-#include <fstream>
 #include <float.h>
 
 using namespace std;
 namespace femocs {
 
-template<size_t dim>
-const void TetgenCells<dim>::write_vtk(const string &file_name, const int celltype) {
-    const int n_markers = get_n_markers();
-    const int n_nodes = get_n_nodes();
-    const int n_cells = *n_cells_r;
-
-    expect(n_nodes > 0, "Zero nodes detected!");
-
-    std::ofstream out(file_name.c_str());
-    require(out, "Can't open a file " + file_name);
-
-    out.setf(std::ios::scientific);
-    out.precision(8);
-
-    out << "# vtk DataFile Version 3.0\n";
-    out << "# TetgenCells data\n";
-    out << "ASCII\n";
-    out << "DATASET UNSTRUCTURED_GRID\n\n";
-
-    // Output the nodes
-    out << "POINTS " << n_nodes << " double\n";
-    for (size_t ver = 0; ver < n_nodes; ++ver)
-        out << get_node(ver) << "\n";
-
-    // Output the cells (tetrahedra, triangles, edges or vertices)
-    out << "\nCELLS " << n_cells << " " << n_cells * (dim + 1) << "\n";
-    for (size_t el = 0; el < n_cells; ++el)
-        out << dim << " " << get_cell(el) << "\n";
-
-    // Output cell types
-    out << "\nCELL_TYPES " << n_cells << "\n";
-    for (size_t el = 0; el < n_cells; ++el)
-        out << celltype << "\n";
-
-    // Output cell markers
-    if ((n_markers > 0) && (n_markers == n_cells)) {
-        out << "\nCELL_DATA " << n_cells << "\n";
-        out << "SCALARS Cell_markers int\nLOOKUP_TABLE default\n";
-        for (size_t el = 0; el < n_cells; ++el)
-            out << get_marker(el) << "\n";
-    }
-}
-
 // Get i-th edge from the mesh
 const SimpleCell<2> TetgenEdges::get_cell(const int i) const {
     require(i >= 0 && i < get_n_cells(), "Invalid index: " + to_string(i));
     const int I = DIM * i;
-    return SimpleEdge(nodes_r[I], nodes_r[I+1]);
+    return SimpleEdge(reads->edgelist[I], reads->edgelist[I+1]);
 }
 
 // Get i-th face from the mesh
 const SimpleCell<3> TetgenFaces::get_cell(const int i) const {
     require(i >= 0 && i < get_n_cells(), "Invalid index: " + to_string(i));
     const int I = DIM * i;
-    return SimpleFace(nodes_r[I], nodes_r[I+1], nodes_r[I+2]);
+    return SimpleFace(reads->trifacelist[I], reads->trifacelist[I+1], reads->trifacelist[I+2]);
 }
 
 // Get i-th element from the mesh
 const SimpleCell<4> TetgenElements::get_cell(const int i) const {
     require(i >= 0 && i < get_n_cells(), "Invalid index: " + to_string(i));
     const int I = DIM * i;
-    return SimpleElement(nodes_r[I], nodes_r[I+1], nodes_r[I+2], nodes_r[I+3]);
+    return SimpleElement(reads->tetrahedronlist[I], reads->tetrahedronlist[I+1],
+            reads->tetrahedronlist[I+2], reads->tetrahedronlist[I+3]);
 }
 
 // Get indices of neighbouring elements of i-th element
 const vector<int> TetgenElements::get_neighbours(const int i) const {
     require(i >= 0 && i < get_n_cells(), "Invalid index: " + to_string(i));
-    require(neighborlist, "Query from empty neighbour list!");
+    require(reads->neighborlist, "Query from empty neighbour list!");
 
     const int I = DIM * i;
-    return vector<int> {neighborlist[I+0], neighborlist[I+1], neighborlist[I+2], neighborlist[I+3]};
+    const int* nborlist = reads->neighborlist;
+    return vector<int> {nborlist[I+0], nborlist[I+1], nborlist[I+2], nborlist[I+3]};
 }
 
 // Get i-th node from the mesh
@@ -95,24 +53,7 @@ const SimpleCell<1> TetgenNodes::get_cell(const int i) const {
 const Vec3 TetgenNodes::get_vec(const int i) const {
     require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
     const int n = n_coordinates * i;
-    return Vec3(points_r[n+0], points_r[n+1], points_r[n+2]);
-}
-
-// Initialize node appending
-const void TetgenNodes::init(const int N) {
-    require(N > 0, "Invalid number of nodes: " + to_string(N));
-    i_cells = 0;
-    *n_points_w = N;
-    points_w = new double[n_coordinates * N];
-}
-
-// Append node to mesh
-const void TetgenNodes::append(const Point3 &point) {
-    require(i_cells < *n_points_w, "Allocated size of nodes exceeded!");
-    int i = n_coordinates * i_cells;
-    for (double node : point)
-        points_w[i++] = node;
-    i_cells++;
+    return Vec3(reads->pointlist[n+0], reads->pointlist[n+1], reads->pointlist[n+2]);
 }
 
 const void TetgenNodes::save_indices(const int n_surf, const int n_bulk, const int n_vacuum) {

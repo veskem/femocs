@@ -23,25 +23,27 @@ namespace femocs {
 class TetgenMesh {
 public:
     TetgenMesh() {}
-    ~TetgenMesh();
+    ~TetgenMesh() {}
 
     /** Function to generate simple mesh that consists of one element */
-    const void generate_simple();
+    const bool generate_simple();
 
     /** Function to generate mesh from surface, bulk and vacuum atoms */
-    const void generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string& cmd);
+    const bool generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string& cmd);
 
-    const void generate_mesh_appendices();
+    const bool generate_mesh_appendices();
 
     const bool mark_mesh(const bool postprocess);
 
-    const void separate_meshes(TetgenMesh &vacuum, TetgenMesh &bulk, const string &cmd);
+    const bool separate_meshes(TetgenMesh &vacuum, TetgenMesh &bulk, const string &cmd);
 
-    const void write_tetgen(const string file_name);
+    const bool write_tetgen(const string file_name);
 
-    const void recalc();
-    const void recalc(const string& cmd);
-    const void recalc(const string& cmd1, const string& cmd2);
+    const bool recalc();
+
+    const bool recalc(const string& cmd);
+
+    const bool recalc(const string& cmd1, const string& cmd2);
 
     // Tetgen data structure
     tetgenio tetIOin;
@@ -54,10 +56,6 @@ public:
     TetgenElements elems = TetgenElements(&tetIOout, &tetIOin);
 
     const int n_coordinates = 3;
-    const int n_nodes_per_edge = 2;
-    const int n_nodes_per_face = 3;
-    const int n_nodes_per_elem = 4;
-    const int n_edges_per_node = 3;
     const int n_edges_per_face = 3;
     const int n_edges_per_elem = 6;
     const int n_faces_per_elem = 4;
@@ -69,7 +67,9 @@ private:
     const void mark_elems();
 
     const void remark_perimeter_nodes();
+
     const void remark_elems(const int skip_type);
+
     const bool post_process_marking();
 
     const void generate_edges();

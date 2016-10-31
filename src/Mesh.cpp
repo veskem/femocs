@@ -12,9 +12,6 @@
 using namespace std;
 namespace femocs {
 
-TetgenMesh::TetgenMesh() {}
-
-
 // Mesh constructor
 Mesh::Mesh(const string& mesher) : i_nodes(0), i_edges(0), i_elems(0), i_faces(0) {
     require(mesher == "tetgen", "Unimplemented mesher!");

@@ -24,7 +24,7 @@ public:
     Edge();
 
     /** Extract the atoms near the simulation box sides */
-    const void extract_edge(Medium* atoms, const AtomReader::Sizes* sizes, const double r_cut);
+    const void extract(Medium* atoms, const AtomReader::Sizes* sizes, const double r_cut);
 
     const void generate_uniform(const AtomReader::Sizes* sizes, const double z, const double r_cut);
 
@@ -64,7 +64,7 @@ public:
      * @param data - x, y and z coordinates and types of atoms
      * @param cell - simulation cell parameters
      */
-    const void extract_surface(AtomReader* reader);
+    const void extract(AtomReader* reader);
 
     const Surface coarsen(Coarseners &coarseners, const AtomReader::Sizes* reader);
 
@@ -100,17 +100,10 @@ public:
     Bulk(const double latconst, const int nnn);
     Bulk();
 
-    // Function to make bulk material with nodes on surface and on by-hand made bottom coordinates
-    const void extract_reduced_bulk(Surface* surf, const AtomReader::Sizes* sizes);
     const void generate_simple(const AtomReader::Sizes* sizes);
 
     // Function to extract bulk material from input atomistic data
-    const void extract_truncated_bulk(AtomReader* reader);
-
-    const void extract_truncated_bulk_old(AtomReader* reader);
-
-    // Function to extract bulk material from input atomistic data
-    const void extract_bulk(AtomReader* reader);
+    const void extract(AtomReader* reader);
 
     // Function to extract bulk material from input atomistic data
     const void rectangularize(const AtomReader::Sizes* sizes, const double r_cut);

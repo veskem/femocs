@@ -8,7 +8,6 @@
 #ifndef MESH_H_
 #define MESH_H_
 
-#include <TetgenCells.h>
 #include "Macros.h"
 #include "Primitives.h"
 #include "AtomReader.h"
@@ -18,77 +17,6 @@
 
 using namespace std;
 namespace femocs {
-
-
-class TetgenMesh {
-public:
-    TetgenMesh();
-    ~TetgenMesh();
-
-    /** Function to generate simple mesh that consists of one element */
-    const void generate_simple();
-
-    const void calc_statistics(const int i);
-
-    const void write_tetgen(const string file_name);
-
-    const void recalc();
-    const void recalc(const string& cmd);
-    const void recalc(const string& cmd1, const string& cmd2);
-
-    // Tetgen data structure
-    tetgenio tetIOin;
-    tetgenio tetIOout;
-
-    // Objects holding operations for accessing cell data
-    TetgenNodes nodes = TetgenNodes(&tetIOin, &tetIOout);
-    TetgenEdges edges = TetgenEdges(&tetIOout);
-    TetgenFaces faces = TetgenFaces(&tetIOout);
-    TetgenElements elems = TetgenElements(&tetIOin, &tetIOout);
-
-    /** Struct holding data about mesh statistics */
-    struct Stat {
-        int n_bulk;     //!< Number of nodes in bulk material
-        int n_surface;  //!< Number of nodes on the surface of material
-        int n_vacuum;   //!< Number of nodes in vacuum
-
-        double xmin;    //!< Minimum value of x-coordinate
-        double xmax;    //!< Maximum value of x-coordinate
-        double xmean;   //!< Average value of x-coordinate
-
-        double ymin;    //!< Minimum value of y-coordinate
-        double ymax;    //!< Maximum value of y-coordinate
-        double ymean;   //!< Average value of y-coordinate
-
-        double zmin;    //!< Minimum value of z-coordinate
-        double zmax;    //!< Maximum value of z-coordinate
-        double zmean;   //!< Average value of z-coordinate
-    } stat;
-
-    /** Struct holding the indexes about nodes with known locations.
-     * It's useful in finding the initially inserted nodes,
-     * because when Tetgen adds nodes to the mesh, it adds them to the end of node list.
-     */
-    struct Indexes {
-        int surf_start, surf_end;
-        int bulk_start, bulk_end;
-        int vacuum_start, vacuum_end;
-        int tetgen_start;
-    } indxs;
-
-    const int n_coordinates = 3;
-    const int n_nodes_per_edge = 2;
-    const int n_nodes_per_face = 3;
-    const int n_nodes_per_elem = 4;
-    const int n_edges_per_node = 3;
-    const int n_edges_per_face = 3;
-    const int n_edges_per_elem = 6;
-    const int n_faces_per_elem = 4;
-
-private:
-    const void init_statistics();
-};
-
 
 /**
  * Class to create and handle FEM mesh in tetgen format

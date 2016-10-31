@@ -68,6 +68,12 @@ public:
         /** number of bins in smoother histogram; 
          * 1 or less turns off the histogram smoother */
         int n_bins;
+
+        /** Space added above the maximum z-coordinate of surface */
+        double zbox_above;
+
+        /** Space added below the minimum z-coordinate of surface */
+        double zbox_below;
     } conf;
 
     /**

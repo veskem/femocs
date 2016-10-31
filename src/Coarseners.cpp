@@ -171,7 +171,9 @@ vector<Point3> NanotipCoarsener::get_points() {
 }
 
 // Generate coarseners for one nanotip system
-void Coarseners::generate(const Medium &m, const double radius, const double coarse_factor) {
+void Coarseners::generate(Medium &m, const double radius, const double coarse_factor) {
+    m.calc_statistics(); // calculate the span of atoms in medium
+
     Point2 origin2d((m.sizes.xmax + m.sizes.xmin) / 2, (m.sizes.ymax + m.sizes.ymin) / 2);
     const double r_cut2 = radius * radius;
     const int n_atoms = m.get_n_atoms();

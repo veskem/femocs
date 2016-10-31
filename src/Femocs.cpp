@@ -13,6 +13,7 @@
 #include "Media.h"
 #include "Mesh.h"
 #include "Mesher.h"
+#include "TetgenMesh.h"
 #include "Tethex.h"
 #include "DealII.h"
 #include "Coarseners.h"
@@ -52,7 +53,12 @@ Femocs::Femocs(string message) : solution_valid(false) {
     conf.movavg_width = 1.0;         // width of moving average in electric field smoother
 
     conf.refine_apex = false;        // refine nanotip apex
-    conf.significant_distance = conf.latconst;
+    conf.significant_distance = 0.5*conf.latconst;
+
+    // Electric field is applied 100 lattice constants above the highest point of surface
+    // and bulk is extended 20 lattice constants below the minimum point of surface
+    conf.zbox_above = 100 * conf.latconst;
+    conf.zbox_below = 20 * conf.latconst;
 }
 
 // Destructor, deletes data and prints bye-bye-message
@@ -83,7 +89,7 @@ const void Femocs::run(double E_field, string message) {
 
     start_msg(t0, "=== Extracting surface...");
     Surface dense_surf(conf.latconst, conf.nnn);
-    dense_surf.extract_surface(&reader);
+    dense_surf.extract(&reader);
     dense_surf.output(home + "output/surface_dense.xyz");
     end_msg(t0);
 
@@ -106,15 +112,12 @@ const void Femocs::run(double E_field, string message) {
     end_msg(t0);
 
     start_msg(t0, "=== Resizing simulation box...");
-    // Electric field is applied 100 lattice constants above the highest point of surface
-    // and bulk is extended 20 lattice constants below the minimum point of surface
-    const double zmaxbox = coarse_surf.sizes.zmax + 100 * conf.latconst;
-    const double zminbox = coarse_surf.sizes.zmin - 20 * conf.latconst;
-    reader.resize_box(zminbox, zmaxbox);
+    coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
+    reader.resize_box(coarse_surf.sizes.zmin - conf.zbox_below, coarse_surf.sizes.zmax + conf.zbox_above);
     end_msg(t0);
 
     start_msg(t0, "=== Extracting bulk...");
-    Bulk bulk(conf.latconst, conf.nnn);
+    Bulk bulk;
     bulk.generate_simple(&reader.sizes);
     bulk.output(home + "output/bulk.xyz");
     end_msg(t0);
@@ -129,6 +132,26 @@ const void Femocs::run(double E_field, string message) {
     // ===== Making FEM mesh =====
     // ===========================
 
+//    start_msg(t0, "=== Making big mesh...");
+//    TetgenMesh mesh;
+//    // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
+//    success = mesh.generate_mesh(bulk, coarse_surf, vacuum, "rnQq" + conf.mesh_quality);
+//    check_success(success, "Triangulation failed! Field calculation will be skipped!");
+//
+//    mesh.nodes.write(home + "output/nodes_generated.xyz");
+//    mesh.edges.write(home + "output/edges_generated.vtk");
+//    mesh.faces.write(home + "output/faces_generated.vtk");
+//    mesh.elems.write(home + "output/elems_generated.vtk");
+//    end_msg(t0);
+//
+//    start_msg(t0, "=== Making big mesh appendices...");
+//    mesh.generate_mesh_appendices();
+//    mesh.edges.write(home + "output/edges_appended.vtk");
+//    mesh.faces.write(home + "output/faces_appended.vtk");
+//    end_msg(t0);
+//
+//    return;
+
     start_msg(t0, "=== Making big mesh...");
     Mesh big_mesh(conf.mesher);
     Mesher mesher(&big_mesh);
@@ -141,6 +164,7 @@ const void Femocs::run(double E_field, string message) {
     big_mesh.write_edges(home + "output/edges_generated.vtk");
     big_mesh.write_faces(home + "output/faces_generated.vtk");
     big_mesh.write_elems(home + "output/elems_generated.vtk");
+
     end_msg(t0);
 
     start_msg(t0, "=== Making big mesh appendices...");

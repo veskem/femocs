@@ -18,7 +18,7 @@ namespace femocs {
 template<typename T, typename R>
 class Iterator {
 public:
-    Iterator (const T* dat, uint8_t i) : data(dat), iter_indx(i) {}
+    Iterator (const T* dat, unsigned int i) : data(dat), iter_indx(i) {}
     /** Function to compare two iterators */
     bool operator!= (const Iterator& rhs) const { return iter_indx != rhs.iter_indx; }
     /** Function to access member of iterator */
@@ -30,7 +30,7 @@ public:
     }
 
 private:
-    uint8_t iter_indx;
+    unsigned int iter_indx;
     const T* data;
 };
 
