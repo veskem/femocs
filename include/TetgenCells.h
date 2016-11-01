@@ -1,12 +1,12 @@
 /*
- * SimpleCell.h
+ * TetgenCells.h
  *
  *  Created on: 27.9.2016
  *      Author: veske
  */
 
-#ifndef SIMPLECELL_H_
-#define SIMPLECELL_H_
+#ifndef TETGENCELLS_H_
+#define TETGENCELLS_H_
 
 #include "Macros.h"
 #include "Primitives.h"
@@ -377,4 +377,4 @@ private:
 
 } /* namespace femocs */
 
-#endif /* SIMPLECELL_H_ */
+#endif /* TETGENCELLS_H_ */

@@ -109,19 +109,19 @@ const SimpleCell<1> TetgenNodes::get_cell(const int i) const {
     return SimpleNode(i);
 }
 
+// Return the coordinates of i-th node as a 3D vector
+const Vec3 TetgenNodes::get_vec(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    const int n = n_coordinates * i;
+    return Vec3(reads->pointlist[n+0], reads->pointlist[n+1], reads->pointlist[n+2]);
+}
+
 // Modify the coordinates of i-th node
 const void TetgenNodes::set_node(const int i, const Point3 &point) {
     require(i >= 0 && i < get_n_nodes(), "Index out of bounds: " + to_string(i));
     int I = n_coordinates * i;
     for (double node : point)
         reads->pointlist[I++] = node;
-}
-
-// Return the coordinates of i-th node as a 3D vector
-const Vec3 TetgenNodes::get_vec(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    const int n = n_coordinates * i;
-    return Vec3(reads->pointlist[n+0], reads->pointlist[n+1], reads->pointlist[n+2]);
 }
 
 const void TetgenNodes::save_indices(const int n_surf, const int n_bulk, const int n_vacuum) {

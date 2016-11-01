@@ -65,12 +65,6 @@ public:
         return v;
     }
 
-    /** Define access operators or accessors */
-    const unsigned int operator [](size_t i) const {
-        require(i >= 0 && i < dim, "Invalid index: " + to_string(i));
-        return node[i];
-    }
-
     /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &s, const SimpleCell<dim> &t) {
         for (unsigned int nn : t.node) s << nn << ' ';
@@ -83,7 +77,13 @@ public:
     /** Transform SimpleCell to vector */
     vector<int> to_vector() const { return vector<int>(std::begin(node), std::end(node)); }
 
-    /** Attach iterator */
+    /** Accessor for accessing the i-th node */
+    const unsigned int operator [](size_t i) const {
+        require(i >= 0 && i < dim, "Invalid index: " + to_string(i));
+        return node[i];
+    }
+
+    /** Iterator to access the cell nodes */
     typedef Iterator<SimpleCell, unsigned int> iterator;
     iterator begin() const { return iterator(this, 0); }
     iterator end() const { return iterator(this, dim); }
@@ -132,8 +132,6 @@ public:
     SimpleFace(const SimpleCell<3> &s) {
         std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
     }
-
-    //node[0] = s.node[0], node[1] = s.node[1], node[2] = s.node[2]; }
 
     /** Check whether face contains node */
     bool operator ==(const unsigned int n) const {
@@ -221,10 +219,10 @@ public:
     const bool operator >=(const Point2_T<T> &p) const { return r >= p.r; }
     const bool operator <=(const Point2_T<T> &p) const { return r <= p.r; }
 
-    /** Point2 accessor */
+    /** Accessor for accessing the i-th coordinate */
     const T& operator [](uint8_t i) const { return (&x)[i]; }
 
-    /** Attach iterator */
+    /** Iterator for accessing the coordinates */
     typedef Iterator<Point2_T, T> iterator;
     iterator begin() const { return iterator(this, 0); }
     iterator end() const { return iterator(this, size()); }
@@ -323,10 +321,10 @@ public:
     const bool operator >=(const Point3_T<T> &p) const { return r >= p.r; }
     const bool operator <=(const Point3_T<T> &p) const { return r <= p.r; }
 
-    /** Point3 accessor */
+    /** Accessor for accessing the i-th coordinate */
     const T& operator [](uint8_t i) const { return (&x)[i]; }
 
-    /** Attach iterator */
+    /** Iterator for accessing the coordinates */
     typedef Iterator<Point3_T, T> iterator;
     iterator begin() const { return iterator(this, 0); }
     iterator end() const { return iterator(this, size()); }
@@ -402,7 +400,7 @@ public:
      */
     const T& operator [](uint8_t i) const { return (&x)[i]; }
 
-    /** Attach iterator */
+    /** Attach iterator for accessing the vector components */
     typedef Iterator<Vec3_T, T> iterator;
     iterator begin() const { return iterator(this, 0); }
     iterator end() const { return iterator(this, size()); }
@@ -473,7 +471,7 @@ public:
     /** Define access operator */
     const T& operator [](uint8_t i) const { return (&x)[i]; }
 
-    /** Attach iterator */
+    /** Attach iterator for accessing the vector components */
     typedef Iterator<Vec4_T, T> iterator;
     iterator begin() const { return iterator(this, 0); }
     iterator end() const { return iterator(this, size()); }

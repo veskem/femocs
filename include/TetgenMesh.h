@@ -85,7 +85,7 @@ private:
     const void generate_surf_faces();
 };
 
-/** Class to mark Mesh nodes with ray-triangle intersection technique,
+/** Class to mark mesh nodes with ray-triangle intersection technique,
  * http://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle */
 class RaySurfaceIntersect {
 public:
@@ -101,8 +101,8 @@ public:
 private:
     /** Constants to specify the tolerances */
     const double epsilon = 1e-3;
-    const double zero = -1.0 * epsilon;
-    const double one = 1.0 + epsilon;
+    const double zero = 0.0 - epsilon;
+    const double one  = 1.0 + epsilon;
 
     /** Pointer to Mesh with nodes and surface faces */
     TetgenMesh* mesh;
