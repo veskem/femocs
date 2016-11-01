@@ -18,7 +18,7 @@
 #ifndef TETHEX_H_
 #define TETHEX_H_
 
-#include "Mesh.h"
+#include "TetgenMesh.h"
 
 #include <map>
 #include <iostream>
@@ -723,14 +723,12 @@ public:
 
     /**
      * Import tetrahedral mesh from Femocs
-     * @param femocs_mesh - pointer to mesh generated with Tetgen and Femocs
-     * @param ids - the IDs of physical domain where the mesh is located
+     * @param mesh - reference to mesh generated with Tetgen and Femocs
      */
-    void read_femocs(femocs::Mesh* femocs_mesh, vector<int> ids);
-    void export_vertices(femocs::Mesh* femocs_mesh);
-    void separate_meshes(tethex::Mesh* bulk, tethex::Mesh* vacuum);
+    void read_femocs(femocs::TetgenMesh& mesh);
+    void export_vertices(femocs::TetgenMesh& mesh);
+    void separate_meshes(tethex::Mesh& bulk, tethex::Mesh& vacuum);
     void calc_hex_qualities();
-
 
     /**
      * Smooth hexahedral mesh elements on vacuum-bulk boundary
@@ -886,18 +884,6 @@ public:
     std::vector<MeshElement*> hexahedra;
 
 private:
-    /** id of vertex with unknown position */
-    int id_none;
-
-    /** id of bulk vertex */
-    int id_bulk;
-
-    /** id of surface vertex */
-    int id_surface;
-
-    /** id of vecuum vertex */
-    int id_vacuum;
-
     /**
      * Mesh lines - mean physical lines
      */

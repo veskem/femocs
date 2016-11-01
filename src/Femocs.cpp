@@ -11,8 +11,6 @@
 #include "Macros.h"
 #include "Medium.h"
 #include "Media.h"
-#include "Mesh.h"
-#include "Mesher.h"
 #include "TetgenMesh.h"
 #include "Tethex.h"
 #include "DealII.h"
@@ -46,7 +44,7 @@ Femocs::Femocs(string message) : solution_valid(false) {
     conf.nt = 4;                     // number of OpenMP threads
     conf.radius = 12.0;              // inner radius of coarsening cylinder
     conf.coarse_factor = 0.5;        // coarsening factor; bigger number gives coarser surface
-    conf.smooth_factor = 0.6;        // surface smoothing factor; bigger number gives smoother surface
+    conf.smooth_factor = 0.7;        // surface smoothing factor; bigger number gives smoother surface
     conf.n_bins = 20;                // number of bins in histogram smoother
     conf.postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
@@ -132,93 +130,60 @@ const void Femocs::run(double E_field, string message) {
     // ===== Making FEM mesh =====
     // ===========================
 
-//    start_msg(t0, "=== Making big mesh...");
-//    TetgenMesh mesh;
-//    // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
-//    success = mesh.generate_mesh(bulk, coarse_surf, vacuum, "rnQq" + conf.mesh_quality);
-//    check_success(success, "Triangulation failed! Field calculation will be skipped!");
-//
-//    mesh.nodes.write(home + "output/nodes_generated.xyz");
-//    mesh.edges.write(home + "output/edges_generated.vtk");
-//    mesh.faces.write(home + "output/faces_generated.vtk");
-//    mesh.elems.write(home + "output/elems_generated.vtk");
-//    end_msg(t0);
-//
-//    start_msg(t0, "=== Making big mesh appendices...");
-//    mesh.generate_mesh_appendices();
-//    mesh.edges.write(home + "output/edges_appended.vtk");
-//    mesh.faces.write(home + "output/faces_appended.vtk");
-//    end_msg(t0);
-//
-//    return;
-
     start_msg(t0, "=== Making big mesh...");
-    Mesh big_mesh(conf.mesher);
-    Mesher mesher(&big_mesh);
-
+    TetgenMesh tetmesh_big;
     // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
-    success = mesher.generate_mesh(bulk, coarse_surf, vacuum, "rnQq" + conf.mesh_quality);
+    success = tetmesh_big.generate(bulk, coarse_surf, vacuum, "rnQq" + conf.mesh_quality);
     check_success(success, "Triangulation failed! Field calculation will be skipped!");
 
-    big_mesh.write_nodes(home + "output/nodes_generated.xyz");
-    big_mesh.write_edges(home + "output/edges_generated.vtk");
-    big_mesh.write_faces(home + "output/faces_generated.vtk");
-    big_mesh.write_elems(home + "output/elems_generated.vtk");
-
+    tetmesh_big.nodes.write(home + "output/nodes_generated.xyz");
+    tetmesh_big.faces.write(home + "output/faces_generated.vtk");
+    tetmesh_big.elems.write(home + "output/elems_generated.vtk");
     end_msg(t0);
 
     start_msg(t0, "=== Making big mesh appendices...");
-    mesher.generate_mesh_appendices();
-    big_mesh.write_edges(home + "output/edges_appended.vtk");
-    big_mesh.write_faces(home + "output/faces_appended.vtk");
+    tetmesh_big.generate_appendices();
+    tetmesh_big.faces.write(home + "output/faces_appended.vtk");
     end_msg(t0);
 
     start_msg(t0, "=== Marking big mesh...");
-    success = mesher.mark_mesh(conf.postprocess_marking);
-    big_mesh.write_nodes(home + "output/nodes_marked.xyz");
-    big_mesh.write_edges(home + "output/edges_marked.vtk");
-    big_mesh.write_faces(home + "output/faces_marked.vtk");
-    big_mesh.write_elems(home + "output/elems_marked.vtk");
+    success = tetmesh_big.mark_mesh(conf.postprocess_marking);
+    tetmesh_big.nodes.write(home + "output/nodes_marked.xyz");
+    tetmesh_big.faces.write(home + "output/faces_marked.vtk");
+    tetmesh_big.elems.write(home + "output/elems_marked.vtk");
     check_success(success, "Mesh marking failed! Field calcualtion will be skipped!");
     end_msg(t0);
 
-    start_msg(t0, "=== Separating vacuum and bulk mesh...");
-    Mesh vacuum_mesh(conf.mesher);
-    Mesh bulk_mesh(conf.mesher);
-
-    mesher.separate_meshes_vol2(&vacuum_mesh, &bulk_mesh, "rnQ");
-
-    bulk_mesh.write_nodes(home + "output/nodes_bulk.xyz");
-    bulk_mesh.write_edges(home + "output/edges_bulk.vtk");
-    bulk_mesh.write_faces(home + "output/faces_bulk.vtk");
-    bulk_mesh.write_elems(home + "output/elems_bulk.vtk");
-
-    vacuum_mesh.write_nodes(home + "output/nodes_vacuum.xyz");
-    vacuum_mesh.write_edges(home + "output/edges_vacuum.vtk");
-    vacuum_mesh.write_faces(home + "output/faces_vacuum.vtk");
-    vacuum_mesh.write_elems(home + "output/elems_vacuum.vtk");
-    end_msg(t0);
-
-
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
-    tethex::Mesh tethex_big;
-    tethex_big.read_femocs(&big_mesh, {TYPES.NONE, TYPES.BULK, TYPES.SURFACE, TYPES.VACUUM});
-    tethex_big.convert();
+    tethex::Mesh hexmesh_big;
+    hexmesh_big.read_femocs(tetmesh_big);
+    hexmesh_big.convert();
     end_msg(t0);
 
     start_msg(t0, "=== Smoothing hexahedra...");
-    tethex_big.smoothen(conf.radius, conf.smooth_factor, conf.coord_cutoff);
-    tethex_big.export_vertices(&vacuum_mesh);
+    hexmesh_big.smoothen(conf.radius, conf.smooth_factor, conf.coord_cutoff);
     end_msg(t0);
 
-    start_msg(t0, "=== Separating hexahedra...");
-    tethex::Mesh tethex_bulk;
-    tethex::Mesh tethex_vacuum;
-    tethex_big.separate_meshes(&tethex_bulk, &tethex_vacuum);
+    start_msg(t0, "=== Separating tetrahedral mesh...");
+    hexmesh_big.export_vertices(tetmesh_big);  // correct the nodes in tetrahedral mesh
 
-    tethex_bulk.calc_hex_qualities();
-    tethex_vacuum.calc_hex_qualities();
+    TetgenMesh tetmesh_vacuum;
+    TetgenMesh tetmesh_bulk;
+    tetmesh_big.separate_meshes(tetmesh_bulk, tetmesh_vacuum, "rnQ");
 
+    tetmesh_bulk.nodes.write(home + "output/nodes_bulk.xyz");
+    tetmesh_bulk.faces.write(home + "output/faces_bulk.vtk");
+    tetmesh_bulk.elems.write(home + "output/elems_bulk.vtk");
+
+    tetmesh_vacuum.nodes.write(home + "output/nodes_vacuum.xyz");
+    tetmesh_vacuum.faces.write(home + "output/faces_vacuum.vtk");
+    tetmesh_vacuum.elems.write(home + "output/elems_vacuum.vtk");
+    end_msg(t0);
+    
+    start_msg(t0, "=== Separating hexahedral mesh...");
+    tethex::Mesh hexmesh_bulk;
+    tethex::Mesh hexmesh_vacuum;
+    hexmesh_big.separate_meshes(hexmesh_bulk, hexmesh_vacuum);
     end_msg(t0);
 
     // ==============================
@@ -229,33 +194,27 @@ const void Femocs::run(double E_field, string message) {
     laplace.set_neumann(conf.neumann);
 
     start_msg(t0, "=== Importing tethex mesh into Deal.II...");
-    success = laplace.import_mesh_wo_faces(&tethex_vacuum);
+    success = laplace.import_mesh_wo_faces(hexmesh_vacuum);
     check_success(success, "Importing mesh to Deal.II failed! Field calculation will be skipped!");
     end_msg(t0);
 
     if (conf.refine_apex) {
         start_msg(t0, "=== Refining mesh...");
-        bulk.calc_statistics();
-        // TODO Fix invalid bulk zmax
-        Point3 origin((bulk.sizes.xmin+bulk.sizes.xmax)/2, (bulk.sizes.ymin+bulk.sizes.ymax)/2, 34);
-        laplace.smooth_and_refine_mesh(origin, 7*conf.latconst);
+        Point3 origin(coarse_surf.sizes.xmid, coarse_surf.sizes.ymid, coarse_surf.sizes.zmax);
+        laplace.refine_mesh(origin, 7*conf.latconst);
         laplace.output_mesh(home + "output/elems_dealii.vtk");
         end_msg(t0);
     }
 
     start_msg(t0, "=== System setup...");
-    laplace.setup_system(&reader.sizes);
+    laplace.setup_system(reader.sizes);
     end_msg(t0);
 
 #if VERBOSEMODE
-    cout << "Vacuum: #elems=" << vacuum_mesh.get_n_elems() << ",\t#faces="
-           << vacuum_mesh.get_n_faces() << ",\t#nodes=" << vacuum_mesh.get_n_nodes() << endl;
-    cout << "Bulk:   #elems=" << bulk_mesh.get_n_elems() << ",\t#faces=" << bulk_mesh.get_n_faces()
-           << ",\t#nodes=" << bulk_mesh.get_n_nodes() << endl;
-    cout << "Tethex: #elems=" << tethex_vacuum.get_n_hexahedra() << ",\t#faces="
-           << tethex_vacuum.get_n_quadrangles() << ",\t#nodes=" << tethex_vacuum.get_n_vertices() << endl;
-    cout << "# degrees of freedom: " << laplace.get_n_dofs() << endl;
-    cout << "# input atoms: " << reader.get_n_atoms() << endl;
+    cout << "#input atoms: " << reader.get_n_atoms() << endl;
+    cout << "Vacuum:  " << tetmesh_vacuum << endl;
+    cout << "Bulk:    " << tetmesh_bulk << endl;
+    cout << "Laplace: " << laplace << endl;
 #endif
 
     start_msg(t0, "=== Assembling system...");
@@ -267,13 +226,12 @@ const void Femocs::run(double E_field, string message) {
 //    laplace.solve_umfpack();
     end_msg(t0);
 
-    // ========================================
-    // ===== Post-processing FEM solution =====
-    // ========================================
+    // =======================================================
+    // ===== Extracting and post-processing FEM solution =====
+    // =======================================================
 
     start_msg(t0, "=== Extracting solution...");
-    Medium medium = vacuum_mesh.to_medium();
-    SolutionReader solution(&vacuum_mesh);
+    SolutionReader solution(&tetmesh_vacuum);
     solution.extract_solution(laplace);
     end_msg(t0);
 
@@ -290,14 +248,14 @@ const void Femocs::run(double E_field, string message) {
     end_msg(t0);
 
     start_msg(t0, "=== Saving results...");
-    solution.output(home + "output/results.xyz");
+    laplace.output_results(home + "output/result.vtk");
+    solution.output(home + "output/result.xyz");
     interpolation.output(home + "output/interpolation" + message + ".xyz");
-    laplace.output_results(home + "output/results.vtk");
 
     coarseners.write(home + "output/coarseners" + message + ".vtk");
 
-    tethex_bulk.write_vtk_elems(home + "output/bulk_smooth" + message + ".vtk");
-    tethex_vacuum.write_vtk_elems(home + "output/vacuum_smooth" + message + ".vtk");
+    hexmesh_bulk.write_vtk_elems(home + "output/bulk_smooth" + message + ".vtk");
+    hexmesh_vacuum.write_vtk_elems(home + "output/vacuum_smooth" + message + ".vtk");
     end_msg(t0);
 
     reader.save_current_run_points(conf.significant_distance);

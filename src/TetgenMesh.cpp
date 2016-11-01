@@ -11,12 +11,12 @@
 using namespace std;
 namespace femocs {
 
-RaySurfaceIntersect2::RaySurfaceIntersect2(TetgenMesh* mesh) : mesh(mesh) {
+RaySurfaceIntersect::RaySurfaceIntersect(TetgenMesh* mesh) : mesh(mesh) {
     reserve(0);
 }
 
 // Reserve memory for precompute data
-const void RaySurfaceIntersect2::reserve(const int n) {
+const void RaySurfaceIntersect::reserve(const int n) {
     edge1.clear(); edge1.reserve(n);
     edge2.clear(); edge2.reserve(n);
     vert0.clear(); vert0.reserve(n);
@@ -25,8 +25,8 @@ const void RaySurfaceIntersect2::reserve(const int n) {
 }
 
 // Precompute the data needed to execute the Moller-Trumbore algorithm
-const void RaySurfaceIntersect2::precompute_triangles(const Vec3 &direction) {
-    const int n_faces = mesh->faces.get_n_cells();
+const void RaySurfaceIntersect::precompute_triangles(const Vec3 &direction) {
+    const int n_faces = mesh->faces.size();
 
     // Reserve memory for precomputation data
     reserve(n_faces);
@@ -52,7 +52,7 @@ const void RaySurfaceIntersect2::precompute_triangles(const Vec3 &direction) {
 }
 
 // Moller-Trumbore algorithm to find whether the ray and the triangle intersect or not
-const bool RaySurfaceIntersect2::ray_intersects_triangle(const Vec3 &origin, const Vec3 &direction,
+const bool RaySurfaceIntersect::ray_intersects_triangle(const Vec3 &origin, const Vec3 &direction,
         const int face) {
     Vec3 s, q;
     double u, v;
@@ -80,8 +80,8 @@ const bool RaySurfaceIntersect2::ray_intersects_triangle(const Vec3 &origin, con
 }
 
 // Determine whether the ray intersects with any of the triangles on the surface mesh
-const bool RaySurfaceIntersect2::ray_intersects_surface(const Vec3 &origin, const Vec3 &direction) {
-    const int n_faces = mesh->faces.get_n_cells();
+const bool RaySurfaceIntersect::ray_intersects_surface(const Vec3 &origin, const Vec3 &direction) {
+    const int n_faces = mesh->faces.size();
 
     // Loop through all the faces
     for (int face = 0; face < n_faces; ++face)
@@ -136,8 +136,8 @@ const bool TetgenMesh::recalc() {
 const bool TetgenMesh::recalc(const string& cmd) {
     try {
         tetrahedralize(const_cast<char*>(cmd.c_str()), &tetIOin, &tetIOout);
-
         nodes.set_counter(tetIOout.numberofpoints);
+        edges.set_counter(tetIOout.numberofedges);
         faces.set_counter(tetIOout.numberoftrifaces);
         elems.set_counter(tetIOout.numberoftetrahedra);
     } catch (int e) { return false; }
@@ -151,6 +151,7 @@ const bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
         tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOtemp);
         tetrahedralize(const_cast<char*>(cmd2.c_str()), &tetIOtemp, &tetIOout);
         nodes.set_counter(tetIOout.numberofpoints);
+        edges.set_counter(tetIOout.numberofedges);
         faces.set_counter(tetIOout.numberoftrifaces);
         elems.set_counter(tetIOout.numberoftetrahedra);
     } catch (int e) { return false; }
@@ -175,7 +176,7 @@ const bool TetgenMesh::write_tetgen(const string file_name) {
 }
 
 // Function to generate mesh from surface, bulk and vacuum atoms
-const bool TetgenMesh::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string& cmd) {
+const bool TetgenMesh::generate(const Bulk &bulk, const Surface &surf, const Vacuum &vacuum, const string& cmd) {
     const int n_bulk = bulk.get_n_atoms();
     const int n_surf = surf.get_n_atoms();
     const int n_vacuum = vacuum.get_n_atoms();
@@ -201,7 +202,7 @@ const bool TetgenMesh::generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, 
 }
 
 // Generate manually edges and surface faces
-const bool TetgenMesh::generate_mesh_appendices() {
+const bool TetgenMesh::generate_appendices() {
     // Generate edges from elements
 //    generate_edges();
     // Generate surface faces from elements
@@ -212,7 +213,7 @@ const bool TetgenMesh::generate_mesh_appendices() {
 // Function to generate edges from the elements
 // Overlapping edges are not cleaned to make it easier to match them with element
 const void TetgenMesh::generate_edges() {
-    const int n_elems = elems.get_n_cells();
+    const int n_elems = elems.size();
     const int n_edges = n_edges_per_elem * n_elems;
 
     edges.init(n_edges);
@@ -227,7 +228,7 @@ const void TetgenMesh::generate_edges() {
 // Function to manually generate surface faces from elements and surface nodes
 // Overlapping faces are not cleaned for computational efficiency purposes
 const void TetgenMesh::generate_surf_faces() {
-    const int n_elems = elems.get_n_cells();
+    const int n_elems = elems.size();
     const int max_surf_indx = nodes.indxs.surf_end;
 
     // booleans showing whether element i has exactly one face on the surface or not
@@ -270,9 +271,9 @@ const void TetgenMesh::generate_surf_faces() {
 }
 
 // Separate vacuum and bulk mesh from the union mesh by the element markers
-const bool TetgenMesh::separate_meshes(TetgenMesh &vacuum, TetgenMesh &bulk, const string &cmd) {
-    const int n_elems = elems.get_n_cells();
-    const int n_nodes = nodes.get_n_nodes();
+const bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd) {
+    const int n_elems = elems.size();
+    const int n_nodes = nodes.size();
     vector<bool> elem_in_vacuum = vector_equal(elems.get_markers(), TYPES.VACUUM);
 
     // Copy the non-bulk nodes from input mesh without modification
@@ -297,7 +298,7 @@ const bool TetgenMesh::separate_meshes(TetgenMesh &vacuum, TetgenMesh &bulk, con
 
 // Mark mesh nodes, edges, faces and elements
 const bool TetgenMesh::mark_mesh(const bool postprocess) {
-    bool marking_successful = true;
+    bool success = true;
 
     // Mark nodes with ray-triangle intersection technique
     mark_nodes();
@@ -307,9 +308,9 @@ const bool TetgenMesh::mark_mesh(const bool postprocess) {
 
     // Post process the nodes in shadow areas
     if (postprocess)
-        marking_successful = post_process_marking();
+        success = post_process_marking();
 
-    if (!marking_successful)
+    if (!success)
         return false;
 
 //    // Mark nodes on simulation cell perimeter
@@ -321,12 +322,12 @@ const bool TetgenMesh::mark_mesh(const bool postprocess) {
     // Mark faces on simulation cell edges
 //    mark_faces;
 
-    return marking_successful;
+    return success;
 }
 
 // Force the bulk nodes in vacuum elements to become vacuum nodes
 const bool TetgenMesh::post_process_marking() {
-    const int n_elems = elems.get_n_cells();
+    const int n_elems = elems.size();
 
     bool node_changed = true;
 
@@ -368,7 +369,7 @@ const bool TetgenMesh::post_process_marking() {
 const void TetgenMesh::mark_nodes() {
     int node, elem, coord;
     const Vec3 ray_direction(0, 0, 1);
-    RaySurfaceIntersect2 rsi(this);
+    RaySurfaceIntersect rsi(this);
     rsi.precompute_triangles(ray_direction);
 
     // Calculate the min and max-s of nodes
@@ -377,7 +378,7 @@ const void TetgenMesh::mark_nodes() {
     mark_faces();
 
     // Reserve memory for the node markers
-    nodes.init_markers(nodes.get_n_nodes());
+    nodes.init_markers(nodes.size());
 
     // Mark surface nodes by their known position in array
     for (node = nodes.indxs.surf_start; node <= nodes.indxs.surf_end; ++node)
@@ -393,7 +394,7 @@ const void TetgenMesh::mark_nodes() {
 
     // Loop through all the nodes made by tetgen
     // and mark them by vertical-ray-intersects-surface-faces-technique
-    for (node = nodes.indxs.tetgen_start; node < nodes.get_n_nodes(); ++node) {
+    for (node = nodes.indxs.tetgen_start; node < nodes.size(); ++node) {
         // Compose the ray_origin vector
         Vec3 ray_origin = nodes.get_vec(node);
 
@@ -409,10 +410,10 @@ const void TetgenMesh::mark_nodes() {
 // Remark vacuum nodes on simulation cell perimeter
 const void TetgenMesh::remark_perimeter_nodes() {
     const int eps = 0.1;
-    const int n_nodes = nodes.get_n_nodes();
+    const int n_nodes = nodes.size();
 
     for (int node = 0; node < n_nodes; ++node) {
-        Point3 point = nodes.get_node(node);
+        Point3 point = nodes[node];
         // Point on xmin or xmax of simubox?
         const bool bound_x = on_boundary(point.x, nodes.stat.xmin, nodes.stat.xmax, eps);
         // Point on ymin or ymax of simubox?
@@ -431,17 +432,17 @@ const void TetgenMesh::remark_perimeter_nodes() {
 
 // Mark elements by the node markers
 const void TetgenMesh::mark_elems() {
-    const int n_elems = elems.get_n_cells();
+    const int n_elems = elems.size();
 
     elems.init_markers(n_elems);
 
     // Loop through all the elements
-    for (int elem = 0; elem < n_elems; ++elem) {
+    for (SimpleElement elem : elems) {
         int location = 0;
 
         // Loop through all the nodes in element
-        for (int node : elems[elem]) {
-            int nodemarker = elems.get_marker(node);
+        for (int node : elem) {
+            const int nodemarker = nodes.get_marker(node);
 
             // Encode element location into integer
             if (nodemarker == TYPES.VACUUM)
@@ -465,7 +466,7 @@ const void TetgenMesh::mark_elems() {
 // Remark elements skipping the ones marked as skip_type
 const void TetgenMesh::remark_elems(const int skip_type) {
     // Loop through all the non-vacuum elements
-    for (int elem = 0; elem < elems.get_n_cells(); ++elem) {
+    for (int elem = 0; elem < elems.size(); ++elem) {
         if (elems.get_marker(elem) == skip_type) continue;
 
         int location = 0;
@@ -490,7 +491,7 @@ const void TetgenMesh::remark_elems(const int skip_type) {
 
 // Mark the edges on the simulation cell perimeter by the node markers
 const void TetgenMesh::mark_edges() {
-    const int n_edges = edges.get_n_cells();
+    const int n_edges = edges.size();
     edges.init_markers(n_edges);
 
     for (int edge = 0; edge < n_edges; ++edge) {
@@ -508,7 +509,7 @@ const void TetgenMesh::mark_edges() {
 // Mark the boundary faces of mesh
 const void TetgenMesh::mark_faces() {
     const int eps = 0.1;
-    const int n_faces = faces.get_n_cells();
+    const int n_faces = faces.size();
 
     faces.init_markers(n_faces);
     nodes.calc_statistics();

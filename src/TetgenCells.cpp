@@ -11,23 +11,68 @@
 using namespace std;
 namespace femocs {
 
+// Initialize edge appending
+const void TetgenEdges::init(const int N) {
+    TetgenCells::init(N);
+    writes->edgelist = new int[DIM * N];
+}
+
+// Append edge to mesh
+const void TetgenEdges::append(const SimpleEdge &cell) {
+    require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
+    int i = DIM * i_cells;
+    for (unsigned int node : cell)
+        writes->edgelist[i++] = node;
+    i_cells++;
+}
+
 // Get i-th edge from the mesh
 const SimpleCell<2> TetgenEdges::get_cell(const int i) const {
-    require(i >= 0 && i < get_n_cells(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     const int I = DIM * i;
     return SimpleEdge(reads->edgelist[I], reads->edgelist[I+1]);
 }
 
+// Initialize face appending
+const void TetgenFaces::init(const int N) {
+    TetgenCells::init(N);
+    writes->trifacelist = new int[DIM * N];
+}
+
+// Append face to mesh
+const void TetgenFaces::append(const SimpleFace &cell) {
+    require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
+    int i = DIM * i_cells;
+    for (unsigned int node : cell)
+        writes->trifacelist[i++] = node;
+    i_cells++;
+}
+
 // Get i-th face from the mesh
 const SimpleCell<3> TetgenFaces::get_cell(const int i) const {
-    require(i >= 0 && i < get_n_cells(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     const int I = DIM * i;
     return SimpleFace(reads->trifacelist[I], reads->trifacelist[I+1], reads->trifacelist[I+2]);
 }
 
+// Initialize element appending
+const void TetgenElements::init(const int N) {
+    TetgenCells::init(N);
+    writes->tetrahedronlist = new int[DIM * N];
+}
+
+// Append element to mesh
+const void TetgenElements::append(const SimpleElement &cell) {
+    require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
+    int i = DIM * i_cells;
+    for (unsigned int node : cell)
+        writes->tetrahedronlist[i++] = node;
+    i_cells++;
+}
+
 // Get i-th element from the mesh
 const SimpleCell<4> TetgenElements::get_cell(const int i) const {
-    require(i >= 0 && i < get_n_cells(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     const int I = DIM * i;
     return SimpleElement(reads->tetrahedronlist[I], reads->tetrahedronlist[I+1],
             reads->tetrahedronlist[I+2], reads->tetrahedronlist[I+3]);
@@ -35,7 +80,7 @@ const SimpleCell<4> TetgenElements::get_cell(const int i) const {
 
 // Get indices of neighbouring elements of i-th element
 const vector<int> TetgenElements::get_neighbours(const int i) const {
-    require(i >= 0 && i < get_n_cells(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     require(reads->neighborlist, "Query from empty neighbour list!");
 
     const int I = DIM * i;
@@ -43,15 +88,38 @@ const vector<int> TetgenElements::get_neighbours(const int i) const {
     return vector<int> {nborlist[I+0], nborlist[I+1], nborlist[I+2], nborlist[I+3]};
 }
 
+// Initialize node appending
+const void TetgenNodes::init(const int N) {
+    TetgenCells::init(N);
+    writes->pointlist = new double[n_coordinates * N];
+}
+
+// Append node to mesh
+const void TetgenNodes::append(const Point3 &point) {
+    require(i_cells < *n_cells_w, "Allocated size of nodes exceeded!");
+    int i = n_coordinates * i_cells;
+    for (double node : point)
+        writes->pointlist[i++] = node;
+    i_cells++;
+}
+
 // Get i-th node from the mesh
 const SimpleCell<1> TetgenNodes::get_cell(const int i) const {
-    require(i >= 0 && i < get_n_cells(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return SimpleNode(i);
+}
+
+// Modify the coordinates of i-th node
+const void TetgenNodes::set_node(const int i, const Point3 &point) {
+    require(i >= 0 && i < get_n_nodes(), "Index out of bounds: " + to_string(i));
+    int I = n_coordinates * i;
+    for (double node : point)
+        reads->pointlist[I++] = node;
 }
 
 // Return the coordinates of i-th node as a 3D vector
 const Vec3 TetgenNodes::get_vec(const int i) const {
-    require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     const int n = n_coordinates * i;
     return Vec3(reads->pointlist[n+0], reads->pointlist[n+1], reads->pointlist[n+2]);
 }
@@ -74,7 +142,7 @@ const void TetgenNodes::init_statistics() {
 
 const void TetgenNodes::calc_statistics() {
     init_statistics();
-    size_t n_nodes = get_n_nodes();
+    size_t n_nodes = size();
     size_t n_markers = get_n_markers();
 
     // Find the min and max coordinates of all nodes
@@ -101,8 +169,30 @@ const void TetgenNodes::calc_statistics() {
         }
 }
 
+// Copy the nodes from another mesh
+const void TetgenNodes::copy(const TetgenNodes& nodes, const vector<bool>& mask) {
+    const int n_nodes = nodes.size();
+
+    // In case of empty or non-aligned mask, copy all the nodes
+    if (n_nodes != mask.size()) {
+        init(n_nodes);
+        for (int i = 0; i < n_nodes; ++i)
+            append(nodes[i]);
+        i_cells = n_nodes;
+
+    // In case of aligned mask, copy only the nodes specified by the mask
+    } else {
+        const int n_mask = vector_sum(mask);
+        init(n_mask);
+        for (int i = 0; i < n_nodes; ++i)
+            if (mask[i])
+                append(nodes[i]);
+        i_cells = n_mask;
+    }
+}
+
 // Write node data to file
-const void TetgenNodes::write(const string &file_name) {
+const void TetgenNodes::write(const string &file_name) const {
 #if not DEBUGMODE
     return;
 #endif
@@ -118,8 +208,8 @@ const void TetgenNodes::write(const string &file_name) {
 }
 
 // Write node data to .xyz file
-const void TetgenNodes::write_xyz(const string &file_name) {
-    const int n_nodes = get_n_nodes();
+const void TetgenNodes::write_xyz(const string &file_name) const {
+    const int n_nodes = size();
     const int n_markers = get_n_markers();
 
     expect(n_nodes > 0, "Zero nodes detected!");

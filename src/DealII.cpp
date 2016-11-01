@@ -26,31 +26,6 @@ const void DealII::set_neumann(const double neumann) {
     this->neumann = neumann;
 }
 
-// Get long range electric field value
-const double DealII::get_elfield() {
-    return -1.0 * neumann;
-}
-
-// Get number of degrees of freedom
-const int DealII::get_n_dofs() {
-    return dof_handler.n_dofs();
-}
-
-// Get number of used nodes in mesh
-const int DealII::get_n_nodes() {
-    return triangulation.n_used_vertices();
-}
-
-// Get number of used faces in mesh
-const int DealII::get_n_faces() {
-    return triangulation.n_active_faces();
-}
-
-// Get number of used cells in mesh
-const int DealII::get_n_cells() {
-    return triangulation.n_active_cells();
-}
-
 // Import mesh from vtk or msh file
 const void DealII::import_mesh(const string &file_name) {
     const string file_type = get_file_type(file_name);
@@ -66,12 +41,11 @@ const void DealII::import_mesh(const string &file_name) {
         gi.read_msh(in_file);
 }
 
-// Modified version of grid_in function,
-// https://github.com/dealii/dealii/blob/master/source/grid/grid_in.cc
-const void DealII::import_mesh(tethex::Mesh* mesh) {
-    const unsigned int n_verts = mesh->get_n_vertices();
-    const unsigned int n_elems = mesh->get_n_hexahedra();
-    const unsigned int n_faces = mesh->get_n_quadrangles();
+// Import vertices, quadrangles and hexahedra
+const void DealII::import_mesh(tethex::Mesh& mesh) {
+    const unsigned int n_verts = mesh.get_n_vertices();
+    const unsigned int n_elems = mesh.get_n_hexahedra();
+    const unsigned int n_faces = mesh.get_n_quadrangles();
 
     vector<Point<DIM> > vertices(n_verts);       // array for vertices
     vector<CellData<DIM> > cells(n_elems);       // array for elements
@@ -81,20 +55,20 @@ const void DealII::import_mesh(tethex::Mesh* mesh) {
     // copy vertices
     for (unsigned int vertex = 0; vertex < n_verts; ++vertex)
         for (unsigned int i = 0; i < DIM; ++i)
-            vertices[vertex](i) = mesh->get_vertex(vertex).get_coord(i);
+            vertices[vertex](i) = mesh.get_vertex(vertex).get_coord(i);
 
     // copy quadrangles
     for (unsigned int face = 0; face < n_faces; ++face) {
         subcelldata.boundary_quads[face] = CellData<2>();
         for (unsigned int i = 0; i < n_verts_per_face; ++i)
-            subcelldata.boundary_quads[face].vertices[i] = mesh->get_quadrangle(face).get_vertex(i);
+            subcelldata.boundary_quads[face].vertices[i] = mesh.get_quadrangle(face).get_vertex(i);
     }
 
     // copy hexahedra
     for (unsigned int elem = 0; elem < n_elems; ++elem) {
         cells[elem] = CellData<DIM>();
         for (unsigned int i = 0; i < n_verts_per_elem; ++i)
-            cells[elem].vertices[i] = mesh->get_hexahedron(elem).get_vertex(i);
+            cells[elem].vertices[i] = mesh.get_hexahedron(elem).get_vertex(i);
     }
 
     // Check consistency of subcelldata
@@ -108,9 +82,10 @@ const void DealII::import_mesh(tethex::Mesh* mesh) {
     triangulation.create_triangulation_compatibility(vertices, cells, subcelldata);
 }
 
-const bool DealII::import_mesh_wo_faces(tethex::Mesh* mesh) {
-    const unsigned int n_verts = mesh->get_n_vertices();
-    const unsigned int n_elems = mesh->get_n_hexahedra();
+// Import vertices and hexahedra and ignore quadrangles
+const bool DealII::import_mesh_wo_faces(tethex::Mesh& mesh) {
+    const unsigned int n_verts = mesh.get_n_vertices();
+    const unsigned int n_elems = mesh.get_n_hexahedra();
 
     vector<Point<DIM> > vertices(n_verts); // array for vertices
     vector<CellData<DIM> > cells(n_elems); // array for elements
@@ -119,13 +94,13 @@ const bool DealII::import_mesh_wo_faces(tethex::Mesh* mesh) {
     // copy vertices
     for (unsigned int vertex = 0; vertex < n_verts; ++vertex)
         for (unsigned int i = 0; i < DIM; ++i)
-            vertices[vertex](i) = mesh->get_vertex(vertex).get_coord(i);
+            vertices[vertex](i) = mesh.get_vertex(vertex).get_coord(i);
 
     // copy hexahedra
     for (unsigned int elem = 0; elem < n_elems; ++elem) {
         cells[elem] = CellData<DIM>();
         for (unsigned int i = 0; i < n_verts_per_elem; ++i)
-            cells[elem].vertices[i] = mesh->get_hexahedron(elem).get_vertex(i);
+            cells[elem].vertices[i] = mesh.get_hexahedron(elem).get_vertex(i);
     }
 
     try {
@@ -145,7 +120,7 @@ const bool DealII::import_mesh_wo_faces(tethex::Mesh* mesh) {
 }
 
 // Make mesh 4x denser around origin
-const void DealII::smooth_and_refine_mesh(const Point3 &origin, const double r_cut) {
+const void DealII::refine_mesh(const Point3 &origin, const double r_cut) {
     const double r_cut2 = r_cut * r_cut;
 
     typename Triangulation<DIM>::active_cell_iterator cell;
@@ -157,18 +132,18 @@ const void DealII::smooth_and_refine_mesh(const Point3 &origin, const double r_c
 }
 
 // Mark the boundary faces of mesh
-const void DealII::mark_boundary_faces(const AtomReader::Sizes* sizes) {
-    typename Triangulation<DIM>::active_face_iterator face;
+const void DealII::mark_boundary_faces(const AtomReader::Sizes& sizes) {
     const double eps = 0.1;
+    typename Triangulation<DIM>::active_face_iterator face;
 
-    // Loop through the faces and mark them according the location of their centre
+    // Loop through the faces and mark them according to the location of their centre
     for (face = triangulation.begin_face(); face != triangulation.end_face(); ++face)
         if (face->at_boundary()) {
-            if (on_boundary(face->center()[0], sizes->xmin, sizes->xmax, eps))
+            if (on_boundary(face->center()[0], sizes.xmin, sizes.xmax, eps))
                 face->set_all_boundary_ids(TYPES.PERIMETER);
-            else if (on_boundary(face->center()[1], sizes->ymin, sizes->ymax, eps))
+            else if (on_boundary(face->center()[1], sizes.ymin, sizes.ymax, eps))
                 face->set_all_boundary_ids(TYPES.PERIMETER);
-            else if (on_boundary(face->center()[2], sizes->zmaxbox, eps))
+            else if (on_boundary(face->center()[2], sizes.zmaxbox, eps))
                 face->set_all_boundary_ids(TYPES.ZMAX);
             else
                 face->set_all_boundary_ids(TYPES.SURFACE);
@@ -176,7 +151,7 @@ const void DealII::mark_boundary_faces(const AtomReader::Sizes* sizes) {
 }
 
 // Setup initial grid and number the vertices i.e. distribute degrees of freedom.
-const void DealII::setup_system(const AtomReader::Sizes* sizes) {
+const void DealII::setup_system(const AtomReader::Sizes& sizes) {
     mark_boundary_faces(sizes);
     
     dof_handler.distribute_dofs(fe);
@@ -271,10 +246,12 @@ const void DealII::assemble_system() {
     MatrixTools::apply_boundary_values(bv, system_matrix, laplace_solution, system_rhs);
 }
 
-// Run the calculation with conjugate gradient solver
+// Run the calculation with Conjugate Gradient solver
 const void DealII::solve_cg() {
     // Declare Conjugate Gradient max number of iterations and solver tolerance
-    SolverControl solver_control(10000, 1e-9);
+    const int n_steps = 10000;
+    const double tolerance = 1e-9;
+    SolverControl solver_control(n_steps, tolerance);
     SolverCG<> solver(solver_control);
     solver.solve(system_matrix, laplace_solution, system_rhs, PreconditionIdentity());
 }

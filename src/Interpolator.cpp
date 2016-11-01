@@ -171,21 +171,20 @@ const void Interpolator::reserve(const int n_nodes) {
 
 // Precompute the data to tetrahedra to make later bcc calculations faster
 const void Interpolator::precompute_tetrahedra() {
-    const int n_elems = mesh->get_n_elems();
+    const int n_elems = mesh->elems.size();
     double d0, d1, d2, d3, d4;
 
     // Calculate centroids of elements
     for (int i = 0; i < n_elems; ++i)
-        centroid.push_back(mesh->get_elem_centroid(i));
+        centroid.push_back(mesh->elems.get_centroid(i));
 
     /* Calculate main and minor determinants for 1st, 2nd, 3rd and 4th
      * barycentric coordinate of tetrahedra using the relations below */
-    for (int i = 0; i < n_elems; ++i) {
-        SimpleElement se = mesh->get_simpleelem(i);
-        Vec3 v1 = mesh->get_vec(se[0]);
-        Vec3 v2 = mesh->get_vec(se[1]);
-        Vec3 v3 = mesh->get_vec(se[2]);
-        Vec3 v4 = mesh->get_vec(se[3]);
+    for (SimpleElement se : mesh->elems) {
+        Vec3 v1 = mesh->nodes.get_vec(se[0]);
+        Vec3 v2 = mesh->nodes.get_vec(se[1]);
+        Vec3 v3 = mesh->nodes.get_vec(se[2]);
+        Vec3 v4 = mesh->nodes.get_vec(se[3]);
 
         /* =====================================================================================
          * det0 = |x1 y1 z1 1|
@@ -287,7 +286,7 @@ const int Interpolator::locate_element(const Point3 &point, const int elem_guess
     if (point_in_tetrahedron(point, elem_guess)) return elem_guess;
 
     // Check then the neighbours of guessed element
-    for (int nbr : mesh->get_elem_neighbours(elem_guess))
+    for (int nbr : mesh->elems.get_neighbours(elem_guess))
         if (nbr >= 0 && point_in_tetrahedron(point, nbr))
             return nbr;
 
@@ -316,21 +315,21 @@ const int Interpolator::locate_element(const Point3 &point, const int elem_guess
 
 // Calculate interpolation for point inside or near the elem-th tetrahedron
 const Solution Interpolator::get_interpolation(const Point3 &point, const int elem) {
-    expect(elem >= 0 && elem < mesh->get_n_elems(), "Index out of bounds: " + to_string(elem));
+    expect(elem >= 0 && elem < mesh->elems.size(), "Index out of bounds: " + to_string(elem));
 
     // Get barycentric coordinates of point in tetrahedron
     Vec4 bcc = get_bcc(point, elem);
 
-    SimpleElement selem = mesh->get_simpleelem(elem);
+    SimpleElement selem = mesh->elems[elem];
 
     // Interpolate electric field
     Vec3 elfield_i(0.0);
-    for (int i = 0; i < mesh->n_nodes_per_elem; ++i)
+    for (int i = 0; i < mesh->elems.DIM; ++i)
         elfield_i += solution->get_solution(selem[i]).elfield * bcc[i];
 
     // Interpolate potential
     double potential_i(0.0);
-    for (int i = 0; i < mesh->n_nodes_per_elem; ++i)
+    for (int i = 0; i < mesh->elems.DIM; ++i)
         potential_i += solution->get_solution(selem[i]).potential * bcc[i];
 
     return Solution(elfield_i, elfield_i.norm(), potential_i);

@@ -10,7 +10,7 @@
 
 #include "Primitives.h"
 #include "DealII.h"
-#include "Mesh.h"
+#include "TetgenMesh.h"
 #include "Medium.h"
 
 using namespace std;
@@ -21,7 +21,7 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader conctructors */
     SolutionReader();
-    SolutionReader(Mesh* mesh);
+    SolutionReader(TetgenMesh* mesh);
 
     /** Extract the electric potential and electric field values on Medium atoms from FEM solution */
     const void extract_solution(DealII &fem);
@@ -38,10 +38,10 @@ public:
      *  Its value is BIG to make it immediately visible from data set. */
     const double error_field = 1e20;
 
-    Mesh* get_mesh();
+    TetgenMesh* get_mesh();
 
 private:
-    Mesh* mesh;
+    TetgenMesh* mesh;
     vector<Solution> solution;
     
     /** Reserve memory for solution vectors */

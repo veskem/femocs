@@ -24,10 +24,6 @@
 #include "AtomReader.h"
 #include "Tethex.h"
 
-namespace tethex {
-class Mesh;
-}
-
 using namespace std;
 using namespace dealii;
 namespace femocs {
@@ -66,22 +62,22 @@ public:
     DealII();
 
     const void set_neumann(const double neumann);
-    const double get_elfield();
-    const int get_n_dofs();
-    const int get_n_nodes();
-    const int get_n_faces();
-    const int get_n_cells();
+    const int get_n_dofs() const;
+    const int get_n_nodes() const;
+    const int get_n_edges() const;
+    const int get_n_faces() const;
+    const int get_n_elems() const;
 
     const void import_mesh(const string &file_name);
-    const void import_mesh(tethex::Mesh* mesh);
-    const bool import_mesh_wo_faces(tethex::Mesh* mesh);
+    const void import_mesh(tethex::Mesh& mesh);
+    const bool import_mesh_wo_faces(tethex::Mesh& mesh);
 
-    const void smooth_and_refine_mesh(const Point3 &origin, const double r_cut);
+    const void refine_mesh(const Point3 &origin, const double r_cut);
 
     const void output_mesh(const string &file_name);
     const void output_results(const string &file_name);
 
-    const void setup_system(const AtomReader::Sizes* sizes);
+    const void setup_system(const AtomReader::Sizes& sizes);
     const void assemble_system();
     const void solve_umfpack();
     const void solve_cg();
@@ -93,6 +89,16 @@ public:
     const Tensor<1,DIM> get_elfield(const double x, const double y, const double z);
     const Tensor<1,DIM> get_elfield(const int cell_indx, const int vert_indx);
     const vector<Vec3> get_elfield(const vector<int> &cell_indxs, const vector<int> &vert_indxs);
+
+    /** string stream prints the statistics about the system */
+    friend std::ostream& operator <<(std::ostream &os, const DealII& d) {
+        os << "#elems=" << d.triangulation.n_active_cells()
+                << ",\t#faces=" << d.triangulation.n_active_faces()
+                << ",\t#edges=" << d.triangulation.n_active_lines()
+                << ",\t#nodes=" << d.triangulation.n_used_vertices()
+                << ",\t#dofs=" << d.dof_handler.n_dofs();
+        return os;
+    }
 
     const unsigned int n_verts_per_elem = GeometryInfo<DIM>::vertices_per_cell;
     const unsigned int n_verts_per_face = GeometryInfo<DIM-1>::vertices_per_cell;
@@ -111,7 +117,7 @@ private:
     Vector<double> system_rhs;
     ConstraintMatrix constraints;
     
-    const void mark_boundary_faces(const AtomReader::Sizes* sizes);
+    const void mark_boundary_faces(const AtomReader::Sizes& sizes);
 };
 
 } /* namespace femocs */

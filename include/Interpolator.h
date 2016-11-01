@@ -11,7 +11,7 @@
 #include "Primitives.h"
 #include "SolutionReader.h"
 #include "Medium.h"
-#include "Mesh.h"
+#include "TetgenMesh.h"
 
 using namespace std;
 namespace femocs {
@@ -57,7 +57,7 @@ private:
      *  Its value is BIG to make it immediately visible from data set. */
     const double error_field = 1e20;
 
-    Mesh* mesh;                      //!< tetrahedral mesh
+    TetgenMesh* mesh;                      //!< tetrahedral mesh
     SolutionReader* solution;        //!< solution data
     vector<Solution> interpolation;  //!< interpolation data
 

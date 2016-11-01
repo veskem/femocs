@@ -89,6 +89,9 @@ public:
         double xmean;   //!< average value of x-coordinate
         double ymean;   //!< average value of y-coordinate
         double zmean;   //!< average value of z-coordinate
+        double xmid;    //!< middle value of x-coordinate
+        double ymid;    //!< middle value of y-coordinate
+        double zmid;    //!< middle value of z-coordinate
     } sizes;
 
     /** Statistics about crystal structure */

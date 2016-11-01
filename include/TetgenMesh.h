@@ -29,13 +29,13 @@ public:
     const bool generate_simple();
 
     /** Function to generate mesh from surface, bulk and vacuum atoms */
-    const bool generate_mesh(Bulk &bulk, Surface &surf, Vacuum &vacuum, const string& cmd);
+    const bool generate(const Bulk &bulk, const Surface &surf, const Vacuum &vacuum, const string& cmd);
 
-    const bool generate_mesh_appendices();
+    const bool generate_appendices();
 
     const bool mark_mesh(const bool postprocess);
 
-    const bool separate_meshes(TetgenMesh &vacuum, TetgenMesh &bulk, const string &cmd);
+    const bool separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd);
 
     const bool write_tetgen(const string file_name);
 
@@ -44,10 +44,6 @@ public:
     const bool recalc(const string& cmd);
 
     const bool recalc(const string& cmd1, const string& cmd2);
-
-    // Tetgen data structure
-    tetgenio tetIOin;
-    tetgenio tetIOout;
 
     // Objects holding operations for accessing cell data
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
@@ -60,7 +56,18 @@ public:
     const int n_edges_per_elem = 6;
     const int n_faces_per_elem = 4;
 
+    /** string stream prints the statistics about the mesh */
+    friend std::ostream& operator <<(std::ostream &s, const TetgenMesh &t) {
+        s << "#elems=" << t.elems.size() << ",\t#faces=" << t.faces.size()
+                << ",\t#edges=" << t.edges.size() << ",\t#nodes=" << t.nodes.size();
+        return s;
+    }
+
 private:
+    /** Tetgen data structure */
+    tetgenio tetIOin;
+    tetgenio tetIOout;
+
     const void mark_nodes();
     const void mark_edges();
     const void mark_faces();
@@ -80,10 +87,10 @@ private:
 
 /** Class to mark Mesh nodes with ray-triangle intersection technique,
  * http://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle */
-class RaySurfaceIntersect2 {
+class RaySurfaceIntersect {
 public:
     /** Constructor of RaySurfaceIntersect  */
-    RaySurfaceIntersect2(TetgenMesh* mesh);
+    RaySurfaceIntersect(TetgenMesh* mesh);
 
     /** Function to find with Moller-Trumbore algorithm whether the ray and the surface intersect or not */
     const bool ray_intersects_surface(const Vec3 &origin, const Vec3 &direction);

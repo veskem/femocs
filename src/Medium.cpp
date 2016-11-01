@@ -87,12 +87,13 @@ const void Medium::add_atom(const Point3& point) {
 // Initialize statistics about Medium
 const void Medium::init_statistics() {
     sizes.xmin = sizes.ymin = sizes.zmin = DBL_MAX;
-    sizes.xmax = sizes.ymax = sizes.zmax = DBL_MIN;
+    sizes.xmax = sizes.ymax = sizes.zmax =-DBL_MAX;
     sizes.xmean = sizes.ymean = sizes.zmean = 0.0;
+    sizes.xmid = sizes.ymid = sizes.zmid = 0.0;
 
     sizes.xbox = sizes.ybox = sizes.zbox = 0;
     sizes.zminbox = DBL_MAX;
-    sizes.zmaxbox = DBL_MIN;
+    sizes.zmaxbox =-DBL_MAX;
 }
 
 // Calculate the statistics about Medium
@@ -107,17 +108,19 @@ const void Medium::calc_statistics() {
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point = get_point(i);
         average += point;
-        sizes.xmax = max(sizes.xmax, point.x);
         sizes.xmin = min(sizes.xmin, point.x);
-        sizes.ymax = max(sizes.ymax, point.y);
+        sizes.xmax = max(sizes.xmax, point.x);
         sizes.ymin = min(sizes.ymin, point.y);
-        sizes.zmax = max(sizes.zmax, point.z);
+        sizes.ymax = max(sizes.ymax, point.y);
         sizes.zmin = min(sizes.zmin, point.z);
+        sizes.zmax = max(sizes.zmax, point.z);
     }
 
-    sizes.xmean = average.x / n_atoms;
-    sizes.ymean = average.y / n_atoms;
-    sizes.zmean = average.z / n_atoms;
+    // Define average coordinates
+    average *= (1.0 / n_atoms);
+    sizes.xmean = average.x;
+    sizes.ymean = average.y;
+    sizes.zmean = average.z;
 
     // Define size of simubox
     sizes.xbox = sizes.xmax - sizes.xmin;
@@ -125,6 +128,11 @@ const void Medium::calc_statistics() {
     sizes.zbox = sizes.zmax - sizes.zmin;
     sizes.zminbox = sizes.zmin;
     sizes.zmaxbox = sizes.zmax;
+
+    // Define the centre of simubox
+    sizes.xmid = (sizes.xmax + sizes.xmin) / 2;
+    sizes.ymid = (sizes.ymax + sizes.ymin) / 2;
+    sizes.zmid = (sizes.zmax + sizes.zmin) / 2;
 }
 
 // Get number of atoms in Medium

@@ -19,12 +19,12 @@ SolutionReader::SolutionReader() : mesh(NULL) {
     reserve(0);
 }
 
-SolutionReader::SolutionReader(Mesh* mesh) : mesh(mesh) {
+SolutionReader::SolutionReader(TetgenMesh* mesh) : mesh(mesh) {
     reserve(0);
 }
 
 // Return pointer to the tetrahedral mesh SolutionReader is using
-Mesh* SolutionReader::get_mesh() {
+TetgenMesh* SolutionReader::get_mesh() {
     return mesh;
 }
 
@@ -36,8 +36,8 @@ const Solution SolutionReader::get_solution(const int i) const {
 /* Return the mapping between tetrahedral & hexahedral mesh nodes, 
    nodes & hexahedral elements and nodes & element's vertices  */
 const void SolutionReader::get_maps(DealII& fem, vector<int>& tet2hex, vector<int>& node2hex, vector<int>& node2vert) {
-    const int n_tet_nodes = mesh->get_n_nodes();
-    const int n_hex_nodes = fem.get_n_nodes();
+    const int n_tet_nodes = mesh->nodes.size();
+    const int n_hex_nodes = fem.triangulation.n_used_vertices();
 
     tet2hex.resize(n_tet_nodes, -1);
     node2hex.resize(n_hex_nodes);
@@ -48,7 +48,7 @@ const void SolutionReader::get_maps(DealII& fem, vector<int>& tet2hex, vector<in
     for (int j = 0; j < n_tet_nodes; ++j, ++vertex)
         // Loop through tetrahedral mesh vertices
         for (int i = 0; i < n_tet_nodes; ++i)
-            if ( (tet2hex[i] < 0) && (mesh->get_node(i) == vertex->vertex()) ) {
+            if ( (tet2hex[i] < 0) && (mesh->nodes[i] == vertex->vertex()) ) {
                 tet2hex[i] = vertex->vertex_index();
                 break;
             }
@@ -65,7 +65,7 @@ const void SolutionReader::get_maps(DealII& fem, vector<int>& tet2hex, vector<in
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
 const void SolutionReader::extract_solution(DealII &fem) {
-    const int n_nodes = mesh->get_n_nodes();
+    const int n_nodes = mesh->nodes.size();
     reserve(n_nodes);
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
@@ -86,7 +86,7 @@ const void SolutionReader::extract_solution(DealII &fem) {
 
     int i = 0;
     for (int node = 0; node < n_nodes; ++node) {
-        add_atom( mesh->get_node(node) );
+        add_atom( mesh->nodes[node] );
 
         // If there is a common node between tet and hex meshes, store actual solution
         if (tet2hex[node] >= 0) {
