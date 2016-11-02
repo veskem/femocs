@@ -1,7 +1,7 @@
 *.o
 *.d
 *~
-.settings/
+.settings
 doc/html/
 doc/latex/
 tetgen-tmpfile*
@@ -13,3 +13,5 @@ femocs
 deal.II
 lib/libfemocs.a
 include/libfemocs.mod
+heating
+old

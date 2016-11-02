@@ -160,7 +160,7 @@ const bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
 }
 
 // Write mesh into files with Tetgen functions
-const bool TetgenMesh::write_tetgen(const string file_name) {
+const bool TetgenMesh::write_tetgen(const string& file_name) {
     const string cmd = "Q";
     tetgenbehavior tetgenbeh;
 

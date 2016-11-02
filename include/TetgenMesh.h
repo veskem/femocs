@@ -18,7 +18,7 @@ using namespace std;
 namespace femocs {
 
 /**
- * Class to create and handle finite element mesh in Tetgen format
+ * Class to create and handle finite element mesh in Tetgen format, see
  * http://wias-berlin.de/software/tetgen/1.5/ */
 class TetgenMesh {
 public:
@@ -37,7 +37,7 @@ public:
 
     const bool separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd);
 
-    const bool write_tetgen(const string file_name);
+    const bool write_tetgen(const string& file_name);
 
     const bool recalc();
 
@@ -45,7 +45,7 @@ public:
 
     const bool recalc(const string& cmd1, const string& cmd2);
 
-    // Objects holding operations for accessing cell data
+    /** Objects holding operations for accessing cell data */
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
     TetgenEdges edges = TetgenEdges(&tetIOout);
     TetgenFaces faces = TetgenFaces(&tetIOout);
@@ -56,17 +56,18 @@ public:
     const int n_edges_per_elem = 6;
     const int n_faces_per_elem = 4;
 
-    /** string stream prints the statistics about the mesh */
+    /** String stream prints the statistics about the mesh */
     friend std::ostream& operator <<(std::ostream &s, const TetgenMesh &t) {
-        s << "#elems=" << t.elems.size() << ",\t#faces=" << t.faces.size()
-                << ",\t#edges=" << t.edges.size() << ",\t#nodes=" << t.nodes.size();
+        s << "#elems=" << t.elems.size()
+                << ",\t#faces=" << t.faces.size()
+                << ",\t#edges=" << t.edges.size()
+                << ",\t#nodes=" << t.nodes.size();
         return s;
     }
 
 private:
-    /** Tetgen data structure */
-    tetgenio tetIOin;
-    tetgenio tetIOout;
+    tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
+    tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
 
     const void mark_nodes();
     const void mark_edges();

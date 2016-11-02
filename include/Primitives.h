@@ -78,7 +78,7 @@ public:
     vector<int> to_vector() const { return vector<int>(std::begin(node), std::end(node)); }
 
     /** Accessor for accessing the i-th node */
-    const unsigned int operator [](size_t i) const {
+    const unsigned int& operator [](size_t i) const {
         require(i >= 0 && i < dim, "Invalid index: " + to_string(i));
         return node[i];
     }
@@ -182,110 +182,99 @@ public:
     }
 };
 
-/** Template class to define elementary operations between 2-dimensional points */
-template<typename T>
-class Point2_T{
+/** Class to define basic operations with 2-dimensional points */
+class Point2{
 public:
     /** Constructors of Point2 class */
-    Point2_T() : x(0), y(0), r(0) {}
-    Point2_T(T xx) : x(xx), y(xx), r(0) {}
-    Point2_T(T xx, T yy) : x(xx), y(yy), r(0) {}
+    Point2() : x(0), y(0), r(0) {}
+    Point2(double xx) : x(xx), y(xx), r(0) {}
+    Point2(double xx, double yy) : x(xx), y(yy), r(0) {}
 
     /** Dimensionality of point */
-    const int size() const {
-        return 2;
-    }
+    const int size() const { return 2; }
 
     /** Squared distance between two points; it's a bit faster than distance */
-    const T distance2(const Point2_T<T> &p) const {
-        T xx = x - p.x;
-        T yy = y - p.y;
-        return (T) (xx * xx + yy * yy);
+    const double distance2(const Point2 &p) const {
+        const double xx = x - p.x;
+        const double yy = y - p.y;
+        return xx * xx + yy * yy;
     }
 
     /** Distance between two points */
-    const double distance(const Point2_T<T> &p) const { return sqrt(distance2(p)); }
+    const double distance(const Point2 &p) const { return sqrt(distance2(p)); }
 
     /** Subtraction of two points */
-    Point2_T<T> operator -(const Point2_T<T> &p) const {
-        return Point2_T(x - p.x, y - p.y);
+    Point2 operator -(const Point2 &p) const {
+        return Point2(x - p.x, y - p.y);
     }
 
     /** Comparison operators between two points */
-    const bool operator ==(const Point2_T<T> &p) const { return x == p.x && y == p.y; }
+    const bool operator ==(const Point2 &p) const { return x == p.x && y == p.y; }
 
-    const bool operator  >(const Point2_T<T> &p) const { return r > p.r; }
-    const bool operator  <(const Point2_T<T> &p) const { return r < p.r; }
-    const bool operator >=(const Point2_T<T> &p) const { return r >= p.r; }
-    const bool operator <=(const Point2_T<T> &p) const { return r <= p.r; }
+    const bool operator  >(const Point2 &p) const { return r > p.r; }
+    const bool operator  <(const Point2 &p) const { return r < p.r; }
+    const bool operator >=(const Point2 &p) const { return r >= p.r; }
+    const bool operator <=(const Point2 &p) const { return r <= p.r; }
 
     /** Accessor for accessing the i-th coordinate */
-    const T& operator [](uint8_t i) const { return (&x)[i]; }
+    const double& operator [](size_t i) const { return (&x)[i]; }
 
     /** Iterator for accessing the coordinates */
-    typedef Iterator<Point2_T, T> iterator;
+    typedef Iterator<Point2, double> iterator;
     iterator begin() const { return iterator(this, 0); }
     iterator end() const { return iterator(this, size()); }
 
     /** Define the behaviour of string stream */
-    friend std::ostream& operator <<(std::ostream &s, const Point2_T &p) {
+    friend std::ostream& operator <<(std::ostream &s, const Point2 &p) {
         return s << p.x << ' ' << p.y;
     }
 
     /** Return data as string */
     string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
-    T x, y, r;
+    double x, y;    ///< Cartesian coordinates
+    double r;       ///< Radial coordinate
 };
 
-/** Template class to define elementary operations between 3-dimensional points */
-template<typename T>
-class Point3_T{
+/** Class to define basic operations with 3-dimensional points */
+class Point3 {
 public:
-
     /** Constructors of Point3 class */
-    Point3_T() : x(0), y(0), z(0), r(0) {}
-    Point3_T(T xx) : x(xx), y(xx), z(xx), r(0) {}
-    Point3_T(T xx, T yy, T zz) : x(xx), y(yy), z(zz), r(0) {}
+    Point3() : x(0), y(0), z(0), r(0) {}
+    Point3(double xx) : x(xx), y(xx), z(xx), r(0) {}
+    Point3(double xx, double yy, double zz) : x(xx), y(yy), z(zz), r(0) {}
 
     /** Dimensionality of SimpleCell_T */
-    const int size() const {
-        return 3;
-    }
+    const int size() const { return 3; }
 
     /** Squared distance between two Point3-s */
-    const double distance2(const Point3_T<T> &p) const {
-        T xx = x - p.x;
-        T yy = y - p.y;
-        T zz = z - p.z;
-        return (T) (xx * xx + yy * yy + zz * zz);
+    const double distance2(const Point3 &p) const {
+        double xx = x - p.x;
+        double yy = y - p.y;
+        double zz = z - p.z;
+        return xx * xx + yy * yy + zz * zz;
     }
 
     /** Distance between two Point3-s */
-    const double distance(const Point3_T<T> &p) const {
-        return sqrt(distance2(p));
-    }
+    const double distance(const Point3 &p) const { return sqrt(distance2(p)); }
 
     /** Squared distance between a Point3 and dealii::Point<3> */
     const double distance2(const dealii::Point<3> &p) const {
-        T xx = x - p[0];
-        T yy = y - p[1];
-        T zz = z - p[2];
-        return (T) (xx * xx + yy * yy + zz * zz);
+        double xx = x - p[0];
+        double yy = y - p[1];
+        double zz = z - p[2];
+        return xx * xx + yy * yy + zz * zz;
     }
 
     /** Distance between a Point3 and dealii::SimpleCell_T<3> */
-    const double distance(const dealii::Point<3> &p) const {
-        return sqrt(distance2(p));
-    }
+    const double distance(const dealii::Point<3> &p) const { return sqrt(distance2(p)); }
 
     /** Squared distance between two Point3-s taking into account the simulation cell periodicity.
      * Period == 0 in some direction gives the result without periodicity in that direction. */
-    const double periodic_distance2(const Point3_T<T> &p, double period_x = 0, double period_y = 0,
-            double period_z = 0) const {
-        T dx = fabs(x - p.x);
-        T dy = fabs(y - p.y);
-        T dz = fabs(z - p.z);
+    const double periodic_distance2(const Point3 &p, double period_x = 0, double period_y = 0, double period_z = 0) const {
+        double dx = fabs(x - p.x);
+        double dy = fabs(y - p.y);
+        double dz = fabs(z - p.z);
 
         dx = min(dx, fabs(dx - period_x)); // apply periodic boundary condition in x-direction
         dy = min(dy, fabs(dy - period_y)); // apply periodic boundary condition in y-direction
@@ -295,99 +284,97 @@ public:
     }
 
     /** Addition of two points */
-    Point3_T& operator +=(const Point2_T<T> &p) { x += p.x, y += p.y; return *this; }
-    Point3_T& operator +=(const Point3_T<T> &p) { x += p.x, y += p.y, z += p.z; return *this; }
+    Point3& operator +=(const Point2 &p) { x += p.x, y += p.y; return *this; }
+    Point3& operator +=(const Point3 &p) { x += p.x, y += p.y, z += p.z; return *this; }
 
     /** Subtraction of two points */
-    Point3_T operator -(const Point3_T<T> &p) const { return Point3_T(x-p.x, y-p.y, z-p.z); }
-    Point3_T& operator -=(const Point3_T<T> &p) { x -= p.x, y -= p.y, z -= p.z; return *this; }
+    Point3 operator -(const Point3 &p) const { return Point3(x-p.x, y-p.y, z-p.z); }
+    Point3& operator -=(const Point3 &p) { x -= p.x, y -= p.y, z -= p.z; return *this; }
 
     /** Multiplying point with a scalar */
-    Point3_T operator *(const T &r) const { return Point3_T(x * r, y * r, z * r); }
-    Point3_T& operator *=(const T &r) { x *= r, y *= r, z *= r; return *this; }
+    Point3 operator *(const double &r) const { return Point3(x * r, y * r, z * r); }
+    Point3& operator *=(const double &r) { x *= r, y *= r, z *= r; return *this; }
 
     /** Dividing point with a scalar */
-    Point3_T operator /(const T &r) const { return Point3_T(x / r, y / r, z / r); }
-    Point3_T& operator /=(const T &r) { x /= r, y /= r, z /= r; return *this; }
+    Point3 operator /(const double &r) const { return Point3(x / r, y / r, z / r); }
+    Point3& operator /=(const double &r) { x /= r, y /= r, z /= r; return *this; }
 
     /** Comparison operators between two 3D points */
-    const bool operator ==(const Point3_T<T> &p) const { return x == p.x && y == p.y && z == p.z; }
+    const bool operator ==(const Point3 &p) const { return x == p.x && y == p.y && z == p.z; }
     const bool operator ==(const dealii::Point<3> &p) const {
         return x == p[0] && y == p[1] && z == p[2];
     }
 
-    const bool operator  >(const Point3_T<T> &p) const { return r > p.r; }
-    const bool operator  <(const Point3_T<T> &p) const { return r < p.r; }
-    const bool operator >=(const Point3_T<T> &p) const { return r >= p.r; }
-    const bool operator <=(const Point3_T<T> &p) const { return r <= p.r; }
+    const bool operator  >(const Point3 &p) const { return r > p.r; }
+    const bool operator  <(const Point3 &p) const { return r < p.r; }
+    const bool operator >=(const Point3 &p) const { return r >= p.r; }
+    const bool operator <=(const Point3 &p) const { return r <= p.r; }
 
     /** Accessor for accessing the i-th coordinate */
-    const T& operator [](uint8_t i) const { return (&x)[i]; }
+    const double& operator [](size_t i) const { return (&x)[i]; }
 
     /** Iterator for accessing the coordinates */
-    typedef Iterator<Point3_T, T> iterator;
+    typedef Iterator<Point3, double> iterator;
     iterator begin() const { return iterator(this, 0); }
     iterator end() const { return iterator(this, size()); }
 
     /** Define the behaviour of string stream */
-    friend std::ostream& operator <<(std::ostream &s, const Point3_T &p) {
+    friend std::ostream& operator <<(std::ostream &s, const Point3 &p) {
         return s << p.x << ' ' << p.y << ' ' << p.z;
     }
 
     /** Return data as string */
     string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
-    T x, y, z, r;
+    double x, y, z; ///< Cartesian coordinates
+    double r;       ///< Radial coordinate
 };
 
-/** Template class to define the 3-dimensional vector with its operations */
-template<typename T>
-class Vec3_T {
+/** Class to define basic operations with 3-dimensional vector */
+class Vec3 {
 public:
     /** Vec3 constructors */
-    Vec3_T() : x(T(0)), y(T(0)), z(T(0)) {}
-    Vec3_T(T xx) : x(xx), y(xx), z(xx) {}
-    Vec3_T(T xx, T yy, T zz) : x(xx), y(yy), z(zz) {}
+    Vec3() : x(0), y(0), z(0) {}
+    Vec3(double xx) : x(xx), y(xx), z(xx) {}
+    Vec3(double xx, double yy, double zz) : x(xx), y(yy), z(zz) {}
 
     /** Dimensionality of vector */
-    const int size() const {
-        return 3;
-    }
+    const int size() const { return 3; }
 
     /** Compare one vector with another */
-    const bool operator ==(const Vec3_T &v) const { return x == v.x && y == v.y && z == v.z; }
+    const bool operator ==(const Vec3 &v) const { return x == v.x && y == v.y && z == v.z; }
 
     /** Addition of two vectors */
-    Vec3_T operator +(const Vec3_T &v) const { return Vec3_T(x + v.x, y + v.y, z + v.z); }
-    Vec3_T& operator +=(const Vec3_T &v) { x += v.x, y += v.y, z += v.z; return *this; }
+    Vec3 operator +(const Vec3 &v) const { return Vec3(x + v.x, y + v.y, z + v.z); }
+    Vec3& operator +=(const Vec3 &v) { x += v.x, y += v.y, z += v.z; return *this; }
 
     /** Subtraction of two vectors */
-    Vec3_T operator -(const Vec3_T &v) const { return Vec3_T(x - v.x, y - v.y, z - v.z); }
-    Vec3_T& operator -=(const Vec3_T &v) { x -= v.x, y -= v.y, z -= v.z; return *this; }
+    Vec3 operator -(const Vec3 &v) const { return Vec3(x - v.x, y - v.y, z - v.z); }
+    Vec3& operator -=(const Vec3 &v) { x -= v.x, y -= v.y, z -= v.z; return *this; }
 
     /** Scalar multiplication of vector with a scalar */
-    Vec3_T operator *(const T &r) const { return Vec3_T(x * r, y * r, z * r); }
-    Vec3_T& operator *=(const T &r) { x *= r, y *= r, z *= r; return *this; }
+    Vec3 operator *(const double &r) const { return Vec3(x * r, y * r, z * r); }
+    Vec3& operator *=(const double &r) { x *= r, y *= r, z *= r; return *this; }
 
     /** Scalar division of vector with a scalar */
-    Vec3_T operator /(const T &r) const { return Vec3_T(x / r, y / r, z / r); }
-    Vec3_T& operator /=(const T &r) { x /= r, y /= r, z /= r; return *this; }
+    Vec3 operator /(const double &r) const { return Vec3(x / r, y / r, z / r); }
+    Vec3& operator /=(const double &r) { x /= r, y /= r, z /= r; return *this; }
 
     /** Dot product and cross product of two vectors */
-    T dotProduct(const Vec3_T<T> &v) const { return x * v.x + y * v.y + z * v.z; }
-    Vec3_T crossProduct(const Vec3_T<T> &v) const {
-        return Vec3_T(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
+    double dotProduct(const Vec3 &v) const { return x * v.x + y * v.y + z * v.z; }
+    Vec3 crossProduct(const Vec3 &v) const {
+        return Vec3(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
     }
 
     /** Vector norm */
-    T norm2() const { return x * x + y * y + z * z; }
-    T norm() const { return sqrt(x * x + y * y + z * z); }
+    double norm2() const { return x * x + y * y + z * z; }
+    double norm() const { return sqrt(x * x + y * y + z * z); }
 
     /** Normalize the vector */
-    Vec3_T& normalize() {
-        T n = norm();
+    Vec3 normalize() {
+        double n = norm();
         if (n > 0) {
-            T factor = 1 / sqrt(n);
+            double factor = 1 / sqrt(n);
             x *= factor, y *= factor, z *= factor;
         }
         return *this;
@@ -398,100 +385,91 @@ public:
      The Vec3 coordinates can be accessed that way v[0], v[1], v[2], rather than v.x, v.y, v.z.
      This is useful in loops: the coordinates can be accessed with the loop index (e.g. v[i]).
      */
-    const T& operator [](uint8_t i) const { return (&x)[i]; }
+    const double& operator [](size_t i) const { return (&x)[i]; }
 
     /** Attach iterator for accessing the vector components */
-    typedef Iterator<Vec3_T, T> iterator;
+    typedef Iterator<Vec3, double> iterator;
     iterator begin() const { return iterator(this, 0); }
     iterator end() const { return iterator(this, size()); }
 
     /** Define the behaviour of string stream */
-    friend std::ostream& operator <<(std::ostream &s, const Vec3_T<T> &v) {
+    friend std::ostream& operator <<(std::ostream &s, const Vec3 &v) {
         return s << v.x << ' ' << v.y << ' ' << v.z;
     }
 
     /** Return data as string */
     string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
-    T x, y, z;
+    double x, y, z; ///< Cartesian coordinates
 };
 
-/** Template class to define the 4-dimensional vector with its operations */
-template<typename T>
-class Vec4_T {
+/** Class to define basic operations with 4-dimensional vector */
+class Vec4 {
 public:
     /** Vec4 constructors */
-    Vec4_T() : x(T(0)), y(T(0)), z(T(0)), w(T(0)) {}
-    Vec4_T(T xx) : x(xx), y(xx), z(xx), w(xx) {}
-    Vec4_T(T xx, T yy, T zz, T ww) : x(xx), y(yy), z(zz), w(ww) {}
-    Vec4_T(const Vec3_T<T> &v, T ww) : x(v.x), y(v.y), z(v.z), w(ww) {}
-    Vec4_T(const Point3_T<T> &p, T ww) : x(p.x), y(p.y), z(p.z), w(ww) {}
+    Vec4() : x(0), y(0), z(0), w(0) {}
+    Vec4(double xx) : x(xx), y(xx), z(xx), w(xx) {}
+    Vec4(double xx, double yy, double zz, double ww) : x(xx), y(yy), z(zz), w(ww) {}
+    Vec4(const Vec3 &v, double ww) : x(v.x), y(v.y), z(v.z), w(ww) {}
+    Vec4(const Point3 &p, double ww) : x(p.x), y(p.y), z(p.z), w(ww) {}
 
     /** Dimensionality of vector */
-    const int size() const {
-        return 4;
-    }
+    const int size() const { return 4; }
 
     /** Define equality of two vectors */
-    bool operator ==(const Vec4_T &v) const { return x == v.x && y == v.y && z == v.z && w == v.w; }
+    bool operator ==(const Vec4 &v) const { return x == v.x && y == v.y && z == v.z && w == v.w; }
 
     /** Addition of two vectors */
-    Vec4_T operator +(const Vec4_T &v) const { return Vec4_T(x + v.x, y + v.y, z + v.z, w + v.w); }
-    Vec4_T& operator +=(const Vec4_T &v) { x += v.x, y += v.y, z += v.z, w += v.w; return *this; }
+    Vec4 operator +(const Vec4 &v) const { return Vec4(x + v.x, y + v.y, z + v.z, w + v.w); }
+    Vec4& operator +=(const Vec4 &v) { x += v.x, y += v.y, z += v.z, w += v.w; return *this; }
 
     /** Subtraction of two vectors */
-    Vec4_T operator -(const Vec4_T &v) const { return Vec4_T(x - v.x, y - v.y, z - v.z, w - v.w); }
-    Vec4_T& operator -=(const Vec4_T &v) { x -= v.x, y -= v.y, z -= v.z, w -= v.w; return *this; }
+    Vec4 operator -(const Vec4 &v) const { return Vec4(x - v.x, y - v.y, z - v.z, w - v.w); }
+    Vec4& operator -=(const Vec4 &v) { x -= v.x, y -= v.y, z -= v.z, w -= v.w; return *this; }
 
     /** Scalar multiplication of vector with a scalar */
-    Vec4_T operator *(const T &r) const { return Vec4_T(x * r, y * r, z * r, w * r); }
-    Vec4_T& operator *=(const T &r) { x *= r, y *= r, z *= r, w *= r; return *this; }
+    Vec4 operator *(const double &r) const { return Vec4(x * r, y * r, z * r, w * r); }
+    Vec4& operator *=(const double &r) { x *= r, y *= r, z *= r, w *= r; return *this; }
 
     /** Scalar division of vector with a scalar */
-    Vec4_T operator /(const T &r) const { return Vec4_T(x / r, y / r, z / r, w / r); }
-    Vec4_T& operator /=(const T &r) {  x /= r, y /= r, z /= r, w /= r; return *this; }
+    Vec4 operator /(const double &r) const { return Vec4(x / r, y / r, z / r, w / r); }
+    Vec4& operator /=(const double &r) {  x /= r, y /= r, z /= r, w /= r; return *this; }
 
     /** Dot product of two vectors */
-    T dotProduct(const Vec4_T<T> &v) const { return x * v.x + y * v.y + z * v.z + w * v.w; }
+    double dotProduct(const Vec4 &v) const { return x * v.x + y * v.y + z * v.z + w * v.w; }
 
     /** Vector norm */
-    T norm2() const { return x * x + y * y + z * z + w * w; }
-    T norm() const { return sqrt(x * x + y * y + z * z + w * w); }
+    double norm2() const { return x * x + y * y + z * z + w * w; }
+    double norm() const { return sqrt(x * x + y * y + z * z + w * w); }
 
     /** Function to normalize the vector */
-    Vec4_T& normalize() {
-        T n = norm();
+    Vec4& normalize() {
+        double n = norm();
         if (n > 0) {
-            T factor = 1 / sqrt(n);
+            double factor = 1 / sqrt(n);
             x *= factor, y *= factor, z *= factor;
         }
         return *this;
     }
 
     /** Define access operator */
-    const T& operator [](uint8_t i) const { return (&x)[i]; }
+    const double& operator [](size_t i) const { return (&x)[i]; }
 
     /** Attach iterator for accessing the vector components */
-    typedef Iterator<Vec4_T, T> iterator;
+    typedef Iterator<Vec4, double> iterator;
     iterator begin() const { return iterator(this, 0); }
     iterator end() const { return iterator(this, size()); }
 
     /** Define the behaviour of string stream */
-    friend std::ostream& operator <<(std::ostream &s, const Vec4_T<T> &v) {
+    friend std::ostream& operator <<(std::ostream &s, const Vec4 &v) {
         return s << v.x << ' ' << v.y << ' ' << v.z << ' ' << v.w;
     }
 
     /** Return data as string */
     string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
-    T x, y, z, w;
+    double x, y, z, w;    ///< Cartesian coordinates
 };
-
-typedef Vec4_T<double> Vec4;     ///< 4-dimensional vector class with double values
-typedef Vec3_T<double> Vec3;     ///< 3-dimensional vector class with double values
-typedef Point3_T<double> Point3; ///< 3-dimensional point class with double values
-typedef Point2_T<double> Point2; ///< 2-dimensional point class with double values
-
 
 /** Class to define elementary operations between atoms */
 class Atom {
