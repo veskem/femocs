@@ -39,8 +39,7 @@ Femocs::Femocs(string message) : solution_valid(false) {
     conf.coord_cutoff = 3.1;         // coordination analysis cut-off radius
 
     conf.nnn = 12;                   // number of nearest neighbours in bulk
-    conf.mesher = "tetgen";          // mesher algorithm
-    conf.mesh_quality = "2.0";
+    conf.mesh_quality = "2.0";       // minimum mesh quality Tetgen is allowed to make
     conf.nt = 4;                     // number of OpenMP threads
     conf.radius = 12.0;              // inner radius of coarsening cylinder
     conf.coarse_factor = 0.5;        // coarsening factor; bigger number gives coarser surface

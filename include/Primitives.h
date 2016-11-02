@@ -487,10 +487,10 @@ public:
     T x, y, z, w;
 };
 
-typedef Vec4_T<double> Vec4;     //!> 4-dimensional vector class with double values
-typedef Vec3_T<double> Vec3;     //!> 3-dimensional vector class with double values
-typedef Point3_T<double> Point3; //!> 3-dimensional point class with double values
-typedef Point2_T<double> Point2; //!> 2-dimensional point class with double values
+typedef Vec4_T<double> Vec4;     ///< 4-dimensional vector class with double values
+typedef Vec3_T<double> Vec3;     ///< 3-dimensional vector class with double values
+typedef Point3_T<double> Point3; ///< 3-dimensional point class with double values
+typedef Point2_T<double> Point2; ///< 2-dimensional point class with double values
 
 
 /** Class to define elementary operations between atoms */
