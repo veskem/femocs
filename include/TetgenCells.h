@@ -143,7 +143,7 @@ public:
 
     /** Function to write cell data to file */
     const void write(const string &file_name) const {
-    #if not DEBUGMODE
+    #if not FILEWRITEMODE
         return;
     #endif
         string file_type = get_file_type(file_name);

@@ -74,7 +74,7 @@ const void Femocs::run(double E_field, string message) {
     tstart = omp_get_wtime();
 
     start_msg(t0, "=== Outputting AtomReader...");
-    reader.output(home + "output/reader.xyz");
+    reader.write(home + "output/reader.xyz");
     end_msg(t0);
 
     start_msg(t0, "=== Comparing with previous run...");
@@ -88,7 +88,7 @@ const void Femocs::run(double E_field, string message) {
     start_msg(t0, "=== Extracting surface...");
     Surface dense_surf(conf.latconst, conf.nnn);
     dense_surf.extract(&reader);
-    dense_surf.output(home + "output/surface_dense.xyz");
+    dense_surf.write(home + "output/surface_dense.xyz");
     end_msg(t0);
 
     start_msg(t0, "=== Coarsening surface...");
@@ -101,12 +101,12 @@ const void Femocs::run(double E_field, string message) {
     else
         coarse_surf = dense_surf.rectangularize(&reader.sizes, conf.rmin_rectancularize);
 
-    coarse_surf.output(home + "output/surface_coarse.xyz");
+    coarse_surf.write(home + "output/surface_coarse.xyz");
     end_msg(t0);
 
     start_msg(t0, "=== Smoothing surface...");
     coarse_surf.smoothen(conf.radius, conf.smooth_factor, 2 * conf.coord_cutoff);
-    coarse_surf.output(home + "output/surface_smooth.xyz");
+    coarse_surf.write(home + "output/surface_smooth.xyz");
     end_msg(t0);
 
     start_msg(t0, "=== Resizing simulation box...");
@@ -117,13 +117,13 @@ const void Femocs::run(double E_field, string message) {
     start_msg(t0, "=== Extracting bulk...");
     Bulk bulk;
     bulk.generate_simple(&reader.sizes);
-    bulk.output(home + "output/bulk.xyz");
+    bulk.write(home + "output/bulk.xyz");
     end_msg(t0);
 
     start_msg(t0, "=== Generating vacuum...");
     Vacuum vacuum;
     vacuum.generate_simple(&reader.sizes);
-    vacuum.output(home + "output/vacuum.xyz");
+    vacuum.write(home + "output/vacuum.xyz");
     end_msg(t0);
 
     // ===========================
@@ -202,7 +202,7 @@ const void Femocs::run(double E_field, string message) {
         start_msg(t0, "=== Refining mesh...");
         Point3 origin(coarse_surf.sizes.xmid, coarse_surf.sizes.ymid, coarse_surf.sizes.zmax);
         laplace.refine_mesh(origin, 7*conf.latconst);
-        laplace.output_mesh(home + "output/elems_dealii.vtk");
+        laplace.write_mesh(home + "output/elems_dealii.vtk");
         end_msg(t0);
     }
 
@@ -248,9 +248,9 @@ const void Femocs::run(double E_field, string message) {
     end_msg(t0);
 
     start_msg(t0, "=== Saving results...");
-    laplace.output_results(home + "output/result.vtk");
-    solution.output(home + "output/result.xyz");
-    interpolation.output(home + "output/interpolation" + message + ".xyz");
+    laplace.write_results(home + "output/result.vtk");
+    solution.write(home + "output/result.xyz");
+    interpolation.write(home + "output/interpolation" + message + ".xyz");
 
     coarseners.write(home + "output/coarseners" + message + ".vtk");
 

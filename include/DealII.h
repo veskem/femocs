@@ -8,7 +8,6 @@
 #ifndef DEALII_H_
 #define DEALII_H_
 
-#include <deal.II/grid/grid_generator.h>
 #include <deal.II/dofs/dof_tools.h>
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/lac/precondition.h>
@@ -28,8 +27,8 @@ using namespace std;
 using namespace dealii;
 namespace femocs {
 
-const int DIM = 3;          //!< dimensionality of solver
-const int POLY_DEGREE = 1;  //!< polynomial degree of the finite elements (1-linear, 2-quadratic, ...)
+const int DIM = 3;         //!< dimensionality of solver
+const int POLY_DEGREE = 1; //!< polynomial degree of the finite elements (1-linear, 2-quadratic etc)
 
 /** Class to calculate electric field from electric potential */
 class LaplacePostProcessor : public DataPostprocessorVector<DIM> {
@@ -54,40 +53,60 @@ public:
     }
 };
 
-/**
- * Class to solve differential equations with finite element method taking as input the FEM mesh
- */
+/** Class to solve differential equations with finite element method taking as input the FEM mesh */
 class DealII {
 public:
     DealII();
 
+    /** Specify the Neumann boundary condition value */
     const void set_neumann(const double neumann);
-    const int get_n_dofs() const;
-    const int get_n_nodes() const;
-    const int get_n_edges() const;
-    const int get_n_faces() const;
-    const int get_n_elems() const;
 
-    const void import_mesh(const string &file_name);
-    const void import_mesh(tethex::Mesh& mesh);
+    /** Import mesh from file */
+    const bool import_mesh(const string &file_name);
+
+    /** Import vertices, quadrangles and hexahedra */
+    const bool import_mesh(tethex::Mesh& mesh);
+
+    /** Import vertices and hexahedra and ignore quadrangles */
     const bool import_mesh_wo_faces(tethex::Mesh& mesh);
 
+    /** Make mesh 4x denser in the sphere with the centre in origin and radius r_cut */
     const void refine_mesh(const Point3 &origin, const double r_cut);
 
-    const void output_mesh(const string &file_name);
-    const void output_results(const string &file_name);
+    /** Write the mesh to file */
+    const void write_mesh(const string &file_name);
 
+    /** Write the calculated electric potential and electric field to file */
+    const void write_results(const string &file_name);
+
+    /** Mark boundary faces, distribute degrees of freedom  and initialise data */
     const void setup_system(const AtomReader::Sizes& sizes);
+
+    /** Insert boundary conditions to the system */
     const void assemble_system();
+
+    /** Run the calculation with UMFPACK solver */
     const void solve_umfpack();
+
+    /** Run the calculation with Conjugate Gradient solver */
     const void solve_cg();
 
+    /** Calculate electric potential at an arbitrary point inside the mesh.
+     * Point outside the mesh gives an error. */
     const double get_potential(const double x, const double y, const double z);
-    const double get_potential(const int cell_indx, const int vert_indx);
+
+    /** Calculate electric potential at a set of mesh nodes
+     * * @param cell_indxs - indices of elements where the node is located
+     * @param vert_indxs - indices of vertices of the element where the node is located */
     const vector<double> get_potential(const vector<int> &cell_indxs, const vector<int> &vert_indxs);
 
-    const Tensor<1,DIM> get_elfield(const double x, const double y, const double z);
-    const Tensor<1,DIM> get_elfield(const int cell_indx, const int vert_indx);
+    /** Calculate electric field at an arbitrary point inside the mesh.
+     * Point outside the mesh gives an error. */
+    const Vec3 get_elfield(const double x, const double y, const double z);
+
+    /** Calculate electric field at a set of mesh nodes
+     * @param cell_indxs - indices of elements where the node is located
+     * @param vert_indxs - indices of vertices of the element where the node is located */
     const vector<Vec3> get_elfield(const vector<int> &cell_indxs, const vector<int> &vert_indxs);
 
     /** string stream prints the statistics about the system */
@@ -100,9 +119,8 @@ public:
         return os;
     }
 
-    const unsigned int n_verts_per_elem = GeometryInfo<DIM>::vertices_per_cell;
-    const unsigned int n_verts_per_face = GeometryInfo<DIM-1>::vertices_per_cell;
-    const unsigned int n_faces_per_elem = GeometryInfo<DIM>::faces_per_cell;
+    const unsigned int n_verts_per_elem = GeometryInfo<3>::vertices_per_cell; //!< # vertices in element
+    const unsigned int n_verts_per_face = GeometryInfo<2>::vertices_per_cell; //!< # vertices in face
 
     Triangulation<DIM> triangulation;
     DoFHandler<DIM> dof_handler;
@@ -115,8 +133,8 @@ private:
     SparseMatrix<double> system_matrix;
     Vector<double> laplace_solution;
     Vector<double> system_rhs;
-    ConstraintMatrix constraints;
     
+    /** Mark the boundary faces of the mesh */
     const void mark_boundary_faces(const AtomReader::Sizes& sizes);
 };
 

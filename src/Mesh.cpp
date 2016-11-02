@@ -854,7 +854,7 @@ const void Mesh::write_xyz(const string file_name) {
 
 // Function to write edges to .vtk file
 const void Mesh::write_edges(const string file_name) {
-#if not DEBUGMODE
+#if not FILEWRITEMODE
     return;
 #endif
     string file_type = get_file_type(file_name);
@@ -875,7 +875,7 @@ const void Mesh::write_edges(const string file_name) {
 
 // Function to write faces to .vtk file
 const void Mesh::write_faces(const string file_name) {
-#if not DEBUGMODE
+#if not FILEWRITEMODE
     return;
 #endif
     string file_type = get_file_type(file_name);
@@ -896,7 +896,7 @@ const void Mesh::write_faces(const string file_name) {
 
 // Function to write elements to .vtk file
 const void Mesh::write_elems(const string file_name) {
-#if not DEBUGMODE
+#if not FILEWRITEMODE
     return;
 #endif
     string file_type = get_file_type(file_name);
@@ -917,7 +917,7 @@ const void Mesh::write_elems(const string file_name) {
 
 // Function to write nodes to .xyz or .vtk file
 const void Mesh::write_nodes(const string file_name) {
-#if not DEBUGMODE
+#if not FILEWRITEMODE
     return;
 #endif
     string file_type = get_file_type(file_name);

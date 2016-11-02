@@ -2,13 +2,11 @@
  * DealII.cpp
  /*
  *  Created on: 11.2.2016
- *      Author: veske, Kristjan Eimre, Robert Aare
+ *      Author: Mihkel Veske, Kristjan Eimre
  */
 
 #include "DealII.h"
 #include <fstream>
-
-#include <omp.h>
 
 using namespace std;
 using namespace dealii;
@@ -16,33 +14,34 @@ using namespace dealii;
 namespace femocs {
 
 // Laplace solver constructor
-// Number in fe() determines the interpolation type. 1 is linear etc.
+// Number in fe() determines the interpolation type; 1 is linear etc.
 DealII::DealII() :
-        fe(POLY_DEGREE), dof_handler(triangulation), neumann(0) {
-}
+        fe(POLY_DEGREE), dof_handler(triangulation), neumann(0) {}
 
 // Specify the Neumann boundary condition value
 const void DealII::set_neumann(const double neumann) {
     this->neumann = neumann;
 }
 
-// Import mesh from vtk or msh file
-const void DealII::import_mesh(const string &file_name) {
+// Import mesh from file
+const bool DealII::import_mesh(const string &file_name) {
     const string file_type = get_file_type(file_name);
     require(file_type == "vtk" || file_type == "msh", "Unknown file type: " + file_type);
 
     GridIn<DIM, DIM> gi;
     gi.attach_triangulation(triangulation);
     ifstream in_file(file_name);
+    require(in_file, "File " + file_name + " could not be opened!");
 
     if (file_type == "vtk")
         gi.read_vtk(in_file);
-    else if (file_type == "msh")
-        gi.read_msh(in_file);
+    else if (file_type == "msh") gi.read_msh(in_file);
+
+    return true;
 }
 
 // Import vertices, quadrangles and hexahedra
-const void DealII::import_mesh(tethex::Mesh& mesh) {
+const bool DealII::import_mesh(tethex::Mesh& mesh) {
     const unsigned int n_verts = mesh.get_n_vertices();
     const unsigned int n_elems = mesh.get_n_hexahedra();
     const unsigned int n_faces = mesh.get_n_quadrangles();
@@ -53,9 +52,9 @@ const void DealII::import_mesh(tethex::Mesh& mesh) {
     subcelldata.boundary_quads.reserve(n_faces); // array for faces
 
     // copy vertices
-    for (unsigned int vertex = 0; vertex < n_verts; ++vertex)
+    for (unsigned int vert = 0; vert < n_verts; ++vert)
         for (unsigned int i = 0; i < DIM; ++i)
-            vertices[vertex](i) = mesh.get_vertex(vertex).get_coord(i);
+            vertices[vert](i) = mesh.get_vertex(vert).get_coord(i);
 
     // copy quadrangles
     for (unsigned int face = 0; face < n_faces; ++face) {
@@ -73,28 +72,34 @@ const void DealII::import_mesh(tethex::Mesh& mesh) {
 
     // Check consistency of subcelldata
     Assert(subcelldata.check_consistency(DIM), ExcInternalError());
-    // Do some clean-up on vertices...
-    GridTools::delete_unused_vertices(vertices, cells, subcelldata);
-    // ... and on cells
-    GridReordering<DIM, DIM>::invert_all_cells_of_negative_grid(vertices, cells);
-//    GridReordering<DIM, DIM>::reorder_cells(cells);
+    try {
+        // Do some clean-up on vertices...
+        GridTools::delete_unused_vertices(vertices, cells, subcelldata);
+        // ... and on cells
+        GridReordering<DIM, DIM>::invert_all_cells_of_negative_grid(vertices, cells);
+//        GridReordering<DIM, DIM>::reorder_cells(cells);
 
-    triangulation.create_triangulation_compatibility(vertices, cells, subcelldata);
+        triangulation.create_triangulation_compatibility(vertices, cells, subcelldata);
+    } catch (exception &exc) {
+        return false;
+    }
+    return true;
 }
 
 // Import vertices and hexahedra and ignore quadrangles
+// It's preferred function because Deal.II makes the faces together with all the other stuff it needs itself anyways
 const bool DealII::import_mesh_wo_faces(tethex::Mesh& mesh) {
     const unsigned int n_verts = mesh.get_n_vertices();
     const unsigned int n_elems = mesh.get_n_hexahedra();
 
     vector<Point<DIM> > vertices(n_verts); // array for vertices
     vector<CellData<DIM> > cells(n_elems); // array for elements
-    SubCellData subcelldata;               // array for faces; only required while cleaning vertices
+    SubCellData subcelldata;               // empty array for faces
 
     // copy vertices
-    for (unsigned int vertex = 0; vertex < n_verts; ++vertex)
+    for (unsigned int vert = 0; vert < n_verts; ++vert)
         for (unsigned int i = 0; i < DIM; ++i)
-            vertices[vertex](i) = mesh.get_vertex(vertex).get_coord(i);
+            vertices[vert](i) = mesh.get_vertex(vert).get_coord(i);
 
     // copy hexahedra
     for (unsigned int elem = 0; elem < n_elems; ++elem) {
@@ -111,9 +116,7 @@ const bool DealII::import_mesh_wo_faces(tethex::Mesh& mesh) {
 //        GridReordering<DIM, DIM>::reorder_cells(cells);
 
         triangulation.create_triangulation_compatibility(vertices, cells, SubCellData());
-    }
-    catch (exception &exc) {
-//        cout << exc.what() << std::endl;
+    } catch (exception &exc) {
         return false;
     }
     return true;
@@ -125,8 +128,7 @@ const void DealII::refine_mesh(const Point3 &origin, const double r_cut) {
 
     typename Triangulation<DIM>::active_cell_iterator cell;
     for (cell = triangulation.begin_active(); cell != triangulation.end(); ++cell)
-        if ( origin.distance2(cell->center()) < r_cut2 )
-            cell->set_refine_flag();
+        if (origin.distance2(cell->center()) < r_cut2) cell->set_refine_flag();
 
     triangulation.execute_coarsening_and_refinement();
 }
@@ -150,10 +152,10 @@ const void DealII::mark_boundary_faces(const AtomReader::Sizes& sizes) {
         }
 }
 
-// Setup initial grid and number the vertices i.e. distribute degrees of freedom.
+// Mark boundary faces, distribute degrees of freedom and initialise data
 const void DealII::setup_system(const AtomReader::Sizes& sizes) {
     mark_boundary_faces(sizes);
-    
+
     dof_handler.distribute_dofs(fe);
 
     DynamicSparsityPattern dsp(dof_handler.n_dofs());
@@ -169,7 +171,7 @@ const void DealII::setup_system(const AtomReader::Sizes& sizes) {
 const void DealII::assemble_system() {
     // Set up quadrature system for quads and faces
     const QGauss<DIM> quadrature_formula(2);
-    const QGauss<DIM-1> face_quadrature_formula(2);
+    const QGauss<DIM - 1> face_quadrature_formula(2);
     unsigned int i, j, q_index;
 
     // Calculate necessary values (derived from weak form of Laplace equation)
@@ -180,6 +182,7 @@ const void DealII::assemble_system() {
 
     // Parametrize necessary entities.
     const unsigned int n_dofs_per_cell = fe.dofs_per_cell;
+    const unsigned int n_faces_per_elem = GeometryInfo<3>::faces_per_cell;
 //    const double space_charge = 0.0;
 
     // Declare cell matrix and right-hand-side matrix (sets coordinate system so we get real positive cells)
@@ -198,8 +201,8 @@ const void DealII::assemble_system() {
 
         // Integration of the cell by looping over all quadrature points
         for (q_index = 0; q_index < quadrature_formula.size(); ++q_index) {
-//            // Assemble the right hand side by integrating over the shape function i times the
-//            // right hand side function; we choose it to be the function with constant value one
+            // Assemble the right hand side by integrating over the shape function i times the
+            // right hand side function; we choose it to be the function with constant value one
 //            for (i = 0; i < n_dofs_per_cell; ++i)
 //                cell_rhs(i) += fe_values.shape_value(i, q_index) * space_charge
 //                    * fe_values.JxW(q_index);
@@ -208,7 +211,7 @@ const void DealII::assemble_system() {
             for (i = 0; i < n_dofs_per_cell; ++i)
                 for (j = 0; j < n_dofs_per_cell; ++j)
                     cell_matrix(i, j) += fe_values.shape_grad(i, q_index) * fe_values.JxW(q_index)
-                        * fe_values.shape_grad(j, q_index);
+                            * fe_values.shape_grad(j, q_index);
         }
 
         // Cycle for faces of each cell
@@ -248,9 +251,8 @@ const void DealII::assemble_system() {
 
 // Run the calculation with Conjugate Gradient solver
 const void DealII::solve_cg() {
-    // Declare Conjugate Gradient max number of iterations and solver tolerance
-    const int n_steps = 10000;
-    const double tolerance = 1e-9;
+    const int n_steps = 10000;      // max number of iterations
+    const double tolerance = 1e-9;  // solver tolerance
     SolverControl solver_control(n_steps, tolerance);
     SolverCG<> solver(solver_control);
     solver.solve(system_matrix, laplace_solution, system_rhs, PreconditionIdentity());
@@ -264,30 +266,14 @@ const void DealII::solve_umfpack() {
 }
 
 // Calculate electric field at arbitrary point inside the mesh
-const Tensor<1, DIM> DealII::get_elfield(const double x, const double y, const double z) {
-    return -1.0 * VectorTools::point_gradient(dof_handler, laplace_solution, Point<DIM>(x, y, z));
-}
-
-// Calculate electric field at a mesh node
-const Tensor<1, DIM> DealII::get_elfield(const int cell_indx, const int vert_indx) {
-    vector<Tensor<1, DIM>> solution_gradients;
-    QTrapez<DIM> only_vertices_quadrature_formula;
-    FEValues<DIM> fe_values(fe, only_vertices_quadrature_formula, update_gradients);
-
-    solution_gradients.resize(only_vertices_quadrature_formula.size());
-
-    typename DoFHandler<DIM>::active_cell_iterator cell;
-    cell = dof_handler.begin_active();
-
-    std::advance(cell, cell_indx);
-    fe_values.reinit(cell);
-    fe_values.get_function_gradients(laplace_solution, solution_gradients);
-
-    return -1.0 * solution_gradients.at(vert_indx);
+const Vec3 DealII::get_elfield(const double x, const double y, const double z) {
+    Tensor<1, DIM> ef = -1.0 * VectorTools::point_gradient(dof_handler, laplace_solution, Point<DIM>(x, y, z));
+    return Vec3(ef[0], ef[1], ef[2]);
 }
 
 // Calculate electric field at a set of mesh nodes
-const vector<Vec3> DealII::get_elfield(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
+const vector<Vec3> DealII::get_elfield(const vector<int> &cell_indxs,
+        const vector<int> &vert_indxs) {
     const int n_cells = cell_indxs.size();
     vector<Vec3> elfield(n_cells);
 
@@ -296,14 +282,8 @@ const vector<Vec3> DealII::get_elfield(const vector<int> &cell_indxs, const vect
     FEValues<DIM> fe_values(fe, only_vertices_quadrature_formula, update_gradients);
     solution_gradients.resize(only_vertices_quadrature_formula.size());
 
-    // Generate vector with indices [0, n_atoms-1]
-    vector<int> sort_indxs(n_cells);
-    size_t n(0);
-    generate(sort_indxs.begin(), sort_indxs.end(), [&]{ return n++; });
-
-    // Sort indexes by the cell_indxs to make it possible to iterate sequentially though the cells
-    auto comparator = [&cell_indxs](int a, int b){ return cell_indxs[a] < cell_indxs[b]; };
-    sort(sort_indxs.begin(), sort_indxs.end(), comparator);
+    // Generate sort indices for cell_indxs so that elements could be accessed sequentially
+    vector<size_t> sort_indxs = get_sort_indices(cell_indxs, "up");
 
     int i, si;
     typename DoFHandler<DIM>::active_cell_iterator cell = dof_handler.begin_active();
@@ -315,10 +295,6 @@ const vector<Vec3> DealII::get_elfield(const vector<int> &cell_indxs, const vect
             fe_values.get_function_gradients(laplace_solution, solution_gradients);
 
             Tensor<1, DIM> ef = -1.0 * solution_gradients.at(vert_indxs[si]);
-            
-            //!< TODO What is this?
-            solution_gradients[vert_indxs[si]];
-            
             elfield[si] = Vec3(ef[0], ef[1], ef[2]);
 
             si = sort_indxs[i++];
@@ -332,29 +308,15 @@ const double DealII::get_potential(const double x, const double y, const double 
     return VectorTools::point_value(dof_handler, laplace_solution, Point<DIM>(x, y, z));
 }
 
-// Get potential at a mesh node
-const double DealII::get_potential(const int cell_indx, const int vert_indx) {
-    typename DoFHandler<DIM>::active_cell_iterator cell;
-    cell = dof_handler.begin_active();
-    std::advance(cell, cell_indx);
-
-    return laplace_solution(cell->vertex_dof_index(vert_indx, 0));
-}
-
 // Get potential at a set of mesh nodes
-const vector<double> DealII::get_potential(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
+const vector<double> DealII::get_potential(const vector<int> &cell_indxs,
+        const vector<int> &vert_indxs) {
     const int n_cells = cell_indxs.size();
 
     vector<double> potentials(n_cells);
 
-    // Generate vector with indices [0, n_atoms-1]
-    vector<int> sort_indxs(n_cells);
-    size_t n(0);
-    generate(sort_indxs.begin(), sort_indxs.end(), [&]{ return n++; });
-
-    // Sort indexes by the cell_indxs to make it possible to iterate sequentially though the cells
-    auto comparator = [&cell_indxs](int a, int b){ return cell_indxs[a] < cell_indxs[b]; };
-    sort(sort_indxs.begin(), sort_indxs.end(), comparator);
+    // Generate sort indices for cell_indxs so that elements could be accessed sequentially
+    vector<size_t> sort_indxs = get_sort_indices(cell_indxs, "up");
 
     int i, si;
     typename DoFHandler<DIM>::active_cell_iterator cell = dof_handler.begin_active();
@@ -362,16 +324,16 @@ const vector<double> DealII::get_potential(const vector<int> &cell_indxs, const 
     // Iterate through all the cells and get the potential from the ones listed in cell_indxs
     for (i = 1, si = sort_indxs[0]; cell != dof_handler.end(), i < n_cells; cell++) {
         if (cell->active_cell_index() == cell_indxs[si])
-             potentials[si] = laplace_solution( cell->vertex_dof_index(vert_indxs[si], 0) );
-             si = sort_indxs[i++];
-        }
+            potentials[si] = laplace_solution(cell->vertex_dof_index(vert_indxs[si], 0));
+        si = sort_indxs[i++];
+    }
 
     return potentials;
 }
 
 // Write the potential and electric field to the file
-const void DealII::output_results(const string &file_name) {
-#if not DEBUGMODE
+const void DealII::write_results(const string &file_name) {
+#if not FILEWRITEMODE
     return;
 #endif
     string ftype = get_file_type(file_name);
@@ -384,21 +346,23 @@ const void DealII::output_results(const string &file_name) {
     data_out.add_data_vector(laplace_solution, field_calculator);
     data_out.build_patches();
 
-    ofstream output(file_name);
+    ofstream outfile(file_name);
+    require(outfile, "File " + file_name + " cannot be opened for writing!");
     if (ftype == "vtk")
-        data_out.write_vtk(output);
-    else if (ftype == "eps") data_out.write_eps(output);
+        data_out.write_vtk(outfile);
+    else if (ftype == "eps") data_out.write_eps(outfile);
 }
 
-// Write the mesh to file
-const void DealII::output_mesh(const string &file_name) {
-#if not DEBUGMODE
+// Write the mesh to the file
+const void DealII::write_mesh(const string &file_name) {
+#if not FILEWRITEMODE
     return;
 #endif
     string ftype = get_file_type(file_name);
     require(ftype == "vtk" || ftype == "msh" || ftype == "eps", "Unsupported file type: " + ftype);
 
     ofstream outfile(file_name);
+    require(outfile, "File " + file_name + " cannot be opened for writing!");
     GridOut gout;
 
     if (ftype == "vtk")

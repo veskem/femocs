@@ -208,7 +208,7 @@ void Coarseners::generate(Medium &m, const double radius, const double coarse_fa
 }
 
 void Coarseners::write(const string &file_name) {
-#if not DEBUGMODE
+#if not FILEWRITEMODE
     return;
 #endif
 

@@ -1410,7 +1410,7 @@ void Mesh::write(const std::string &file) {
 }
 
 void Mesh::write_vtk(const std::string &file, const std::vector<MeshElement*> &elems, const int nnodes_in_cell, const int celltype) {
-#if not DEBUGMODE
+#if not FILEWRITEMODE
     return;
 #endif
 

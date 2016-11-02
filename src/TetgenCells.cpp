@@ -193,7 +193,7 @@ const void TetgenNodes::copy(const TetgenNodes& nodes, const vector<bool>& mask)
 
 // Write node data to file
 const void TetgenNodes::write(const string &file_name) const {
-#if not DEBUGMODE
+#if not FILEWRITEMODE
     return;
 #endif
     string file_type = get_file_type(file_name);

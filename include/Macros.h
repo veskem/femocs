@@ -15,11 +15,13 @@
 
 using namespace std;
 
-/** If DEBUGMODE then the asserts and file writers are operating.
- *  Disabling it makes the code to run faster. */
-#define DEBUGMODE true
+/** If FILEWRITEMODE then file writes are operating normally, otherwise they return immediately. */
+#define FILEWRITEMODE true
 
-/** If VERBOSEMODE then the debug information about the code execution is printed to console. */
+/** If ASSERTMODE then the asserts are operating. Disabling it makes the code to run faster. */
+#define ASSERTMODE true
+
+/** If VERBOSEMODE then the information about the code execution progress is printed to console. */
 #define VERBOSEMODE true
               
 /** Types of regions used in the simulation */
@@ -50,14 +52,14 @@ struct Types {
 #define check_success(success, message) if (!(success)) { __success_fails(__FILE__, __LINE__, message); return; }
 
 // Definitions for development in debug mode
-#if DEBUGMODE
+#if ASSERTMODE
     /** Definition to give informative error if the requirement is not met */
     #define require(condition, message) if (!(condition)) __requirement_fails(__FILE__, __LINE__, message)
 
 // In release(-like) versions nothing happens
 #else
     #define require(condition, message) {}
-#endif // DEBUGMODE
+#endif // ASSERTMODE
 
 // Definitions for development in verbose mode
 #if VERBOSEMODE
@@ -101,7 +103,7 @@ const vector<bool> vector_less(const vector<double> *v, const double s);
 const vector<bool> vector_less_equal(const vector<double> *v, const double s);
 
 /** Return sorting indexes for one vector */
-vector<size_t> get_sort_indices(const vector<double> &v, const string& direction = "up");
+vector<size_t> get_sort_indices(const vector<int> &v, const string& direction = "up");
 
 /** Determine whether the value is close to one of the boundary values or not */
 const inline bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps) {
