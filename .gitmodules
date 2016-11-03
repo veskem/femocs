@@ -1,0 +1,3 @@
+[submodule "dealii"]
+	path = dealii
+	url = https://github.com/dealii/dealii.git
