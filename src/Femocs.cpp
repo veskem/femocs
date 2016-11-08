@@ -11,11 +11,9 @@
 #include "Macros.h"
 #include "Medium.h"
 #include "Media.h"
-#include "TetgenMesh.h"
 #include "Tethex.h"
 #include "DealII.h"
 #include "Coarseners.h"
-#include "SolutionReader.h"
 
 using namespace std;
 namespace femocs {
@@ -166,8 +164,6 @@ const void Femocs::run(double E_field, string message) {
     start_msg(t0, "=== Separating tetrahedral mesh...");
     hexmesh_big.export_vertices(tetmesh_big);  // correct the nodes in tetrahedral mesh
 
-    TetgenMesh tetmesh_vacuum;
-    TetgenMesh tetmesh_bulk;
     tetmesh_big.separate_meshes(tetmesh_bulk, tetmesh_vacuum, "rnQ");
 
     tetmesh_bulk.nodes.write(home + "output/nodes_bulk.xyz");
@@ -230,7 +226,6 @@ const void Femocs::run(double E_field, string message) {
     // =======================================================
 
     start_msg(t0, "=== Extracting solution...");
-    SolutionReader solution(&tetmesh_vacuum);
     solution.extract_solution(laplace);
     end_msg(t0);
 
@@ -320,11 +315,17 @@ const void Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* E
 }
 
 const void Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    require(false, "Femocs::interpolate_elfield not implemented yet!");
+    if (!solution_valid) return;
+    start_msg(double t0, "=== Interpolating electric field...");
+    Interpolator i; i.extract_elfield(&solution, n_points, x, y, z, Ex, Ey, Ez, Enorm);
+    end_msg(t0);
 }
 
 const void Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi) {
-    require(false, "Femocs::interpolate_phi not implemented yet!");
+    if (!solution_valid) return;
+    start_msg(double t0, "=== Interpolating electric field...");
+    Interpolator i; i.extract_potential(&solution, n_points, x, y, z, phi);
+    end_msg(t0);
 }
 
 } /* namespace femocs */

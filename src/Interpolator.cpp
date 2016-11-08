@@ -357,6 +357,40 @@ const void Interpolator::extract_interpolation(SolutionReader *solution, const M
     }
 }
 
+// Linearly interpolate electric field on the set of points
+const void Interpolator::extract_elfield(SolutionReader *solution, int n_points,
+        double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm) {
+
+    Medium medium;
+    medium.reserve(n_points);
+    for (int i = 0; i < n_points; ++i)
+        medium.add_atom(Point3(x[i], y[i], z[i]));
+
+    extract_interpolation(solution, medium);
+
+    for (int i = 0; i < n_points; ++i) {
+        Ex[i] = interpolation[i].elfield.x;
+        Ey[i] = interpolation[i].elfield.y;
+        Ez[i] = interpolation[i].elfield.z;
+        Enorm[i] = interpolation[i].el_norm;
+    }
+}
+
+// Linearly interpolate electric potential on the set of points
+const void Interpolator::extract_potential(SolutionReader *solution, int n_points,
+        double* x, double* y, double* z, double* phi) {
+
+    Medium medium;
+    medium.reserve(n_points);
+    for (int i = 0; i < n_points; ++i)
+        medium.add_atom(Point3(x[i], y[i], z[i]));
+
+    extract_interpolation(solution, medium);
+
+    for (int i = 0; i < n_points; ++i)
+        phi[i] = interpolation[i].potential;
+}
+
 // Determinant of 3x3 matrix which's last column consists of ones
 const double Interpolator::determinant(const Vec3 &v1, const Vec3 &v2) {
     return v1.x * (v2.y - v2.z)

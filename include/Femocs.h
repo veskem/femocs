@@ -10,6 +10,8 @@
 
 #include "AtomReader.h"
 #include "Interpolator.h"
+#include "TetgenMesh.h"
+#include "SolutionReader.h"
 
 using namespace std;
 namespace femocs {
@@ -129,6 +131,9 @@ private:
     bool solution_valid;
     AtomReader reader;
     Interpolator interpolation;
+    TetgenMesh tetmesh_vacuum;
+    TetgenMesh tetmesh_bulk;
+    SolutionReader solution = SolutionReader(&tetmesh_vacuum);
 };
 
 } /* namespace femocs */

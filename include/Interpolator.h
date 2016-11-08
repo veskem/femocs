@@ -41,6 +41,12 @@ public:
     /** Interpolate in medium atoms using the solution on tetrahedral mesh nodes */
     const void extract_interpolation(SolutionReader* solution, const Medium &medium);
 
+    const void extract_elfield(SolutionReader *solution, int n_points,
+            double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm);
+
+    const void extract_potential(SolutionReader *solution, int n_points,
+            double* x, double* y, double* z, double* phi);
+
     /** Export calculated electic field distribution to HOLMOD */
     const void export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
