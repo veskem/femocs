@@ -93,9 +93,14 @@ module libfemocs
         private
         type(c_ptr) :: ptr ! pointer to the Femocs class
     contains
-        ! We can bind some functions to this type, allowing for a cleaner syntax.
-        final :: delete_femocs ! Destructor
-        procedure :: delete => delete_femocs_polymorph ! Destructor for gfortran
+        ! Compiler gives the following warning when this line is uncommented: 
+        ! Only array FINAL procedures declared for derived type ‘femocs’ defined at (1), suggest also scalar one [-Wsurprising]
+        ! For some reason the original sample of the wrapper had that function and I'm not exactly sure what it does, therefore I didn't dare to erase it.
+        ! However, it seems wrapper can perfectly do without it
+!         final :: delete_femocs
+
+        ! Destructor for gfortran
+        procedure :: delete => delete_femocs_polymorph
         ! Function members
         procedure :: run => femocs_run
         procedure :: import_atoms => femocs_import_atoms
@@ -129,11 +134,12 @@ module libfemocs
         create_femocs%ptr = create_femocs_c(c_str)
     end function
 
-    subroutine delete_femocs(this)
-        implicit none
-        type(femocs) :: this
-        call delete_femocs_c(this%ptr)
-    end subroutine
+    ! See the comment about compiler warnings above
+!     subroutine delete_femocs(this)
+!         implicit none
+!         type(femocs) :: this
+!         call delete_femocs_c(this%ptr)
+!     end subroutine
 
     ! Bounds procedure needs to take a polymorphic (class) argument
     subroutine delete_femocs_polymorph(this)

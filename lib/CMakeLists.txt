@@ -8,17 +8,19 @@ SET(LIB_NAME "femocs")
 
 # Specify folders where libfemocs and its .mod-file will be written
 # Those paths are (not like others) specified in relation to the location of Makefile
-SET (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ../../lib)
-SET (CMAKE_Fortran_MODULE_DIRECTORY ../../include)
+#SET (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ../../lib)
+#SET (CMAKE_Fortran_MODULE_DIRECTORY ../../include)
+SET (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ..)
+SET (CMAKE_Fortran_MODULE_DIRECTORY ..)
 
 # Specify the path to deal.II files
-SET(DEAL_II_DIR ../deal.II)
+SET(DEAL_II_DIR ../dealii)
 
 # Find source files
 FILE(GLOB_RECURSE TARGET_SRC "../src/*")
 
 # Add the directory with headers to search path
-INCLUDE_DIRECTORIES(../include)
+INCLUDE_DIRECTORIES(../include ../tetgen)
 
 # specify whether to build in debug or release mode
 SET(CMAKE_BUILD_TYPE Release)
