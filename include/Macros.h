@@ -11,7 +11,6 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <algorithm>
 
 using namespace std;
 
@@ -80,9 +79,9 @@ struct Types {
 #endif // VERBOSEMODE
 
 /** Sum of the elements in vector */
-const inline int vector_sum(vector<bool> v) { return accumulate(v.begin(), v.end(), 0); }
-const inline int vector_sum(vector<int> v) { return accumulate(v.begin(), v.end(), 0); }
-const inline double vector_sum(vector<double> v) { return accumulate(v.begin(), v.end(), 0); }
+const int vector_sum(const vector<bool> &v);
+const int vector_sum(const vector<int> &v);
+const double vector_sum(const vector<double> &v);
 
 /** Return mask of indices that are equal to the scalar */
 const vector<bool> vector_equal(const vector<int> *v, const int s);
@@ -106,21 +105,13 @@ const vector<bool> vector_less_equal(const vector<double> *v, const double s);
 vector<size_t> get_sort_indices(const vector<int> &v, const string& direction = "up");
 
 /** Determine whether the value is close to one of the boundary values or not */
-const inline bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps) {
-    return (fabs(val - boundary1) <= eps) || (fabs(val - boundary2) <= eps);
-}
+const bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps);
 
 /** Determine whether the value is close to the boundary value or not */
-const inline bool on_boundary(const double val, const double boundary, const double eps) {
-    return fabs(val - boundary) <= eps;
-}
+const bool on_boundary(const double val, const double boundary, const double eps);
 
 /** Extract file type from file name */
-const inline string get_file_type(const string file_name) {
-    const int start = file_name.find_last_of('.') + 1;
-    const int end = file_name.size();
-    return file_name.substr(start, end);
-}
+const string get_file_type(const string& file_name);
 
 /** Throw an informative error if requirement fails */
 void __requirement_fails(const char *file, int line, string message);

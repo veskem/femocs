@@ -312,15 +312,19 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
     end_msg(t0);
 }
 
-const void Femocs::export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+const void Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     if (!solution_valid) return;
     start_msg(double t0, "=== Exporting results...");
     interpolation.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);
     end_msg(t0);
 }
 
-const void Femocs::interpolate_solution(int n_atoms, double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    require(false, "Femocs::interpolate_solution not implemented yet!");
+const void Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm) {
+    require(false, "Femocs::interpolate_elfield not implemented yet!");
+}
+
+const void Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi) {
+    require(false, "Femocs::interpolate_phi not implemented yet!");
 }
 
 } /* namespace femocs */

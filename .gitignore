@@ -7,10 +7,12 @@
 tetgen-tmpfile*
 doc/html
 doc/latex
+dealii/*
+!dealii/dealii-*.tar.gz
+lib/libtet.a
 lib/libfemocs.a
 lib/libfemocs.mod
 lib/build/**/*
 output/*
 !output/.gitkeep
 release/femocs
-tetgen/libtet.a

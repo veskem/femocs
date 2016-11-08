@@ -31,9 +31,11 @@ const void femocs_import_parcas(FEMOCS* femocs, int n_atoms, const double* coord
 
 const void femocs_import_atoms(FEMOCS* femocs, int n_atoms, double* x, double* y, double* z, int* types);
 
-const void femocs_export_solution(FEMOCS* femocs, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
+const void femocs_export_elfield(FEMOCS* femocs, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
-const void femocs_interpolate_solution(FEMOCS* femocs, int n_atoms, double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm);
+const void femocs_interpolate_elfield(FEMOCS* femocs, int n_points, double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm);
+
+const void femocs_interpolate_phi(FEMOCS* femocs, int n_points, double* x, double* y, double* z, double* phi);
 
 // Standalone function to call Femocs
 const void femocs_speaker(const char* s);
@@ -68,12 +70,16 @@ const void femocs_import_atoms(FEMOCS* femocs, int n_atoms, double* x, double* y
     femocs->import_atoms(n_atoms, x, y, z, types);
 }
 
-const void femocs_export_solution(FEMOCS* femocs, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm){
-    femocs->export_solution(n_atoms, Ex, Ey, Ez, Enorm);
+const void femocs_export_elfield(FEMOCS* femocs, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm){
+    femocs->export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
 }
 
-const void femocs_interpolate_solution(FEMOCS* femocs, int n_atoms, double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm){
-    femocs->interpolate_solution(n_atoms, x, y, z, Ex, Ey, Ez, Enorm);
+const void femocs_interpolate_elfield(FEMOCS* femocs, int n_points, double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm) {
+    femocs->interpolate_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm);
+}
+
+const void femocs_interpolate_phi(FEMOCS* femocs, int n_points, double* x, double* y, double* z, double* phi) {
+    femocs->interpolate_phi(n_points, x, y, z, phi);
 }
 
 const void femocs_speaker(const char* s) {

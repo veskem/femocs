@@ -55,7 +55,7 @@ module libfemocs
             character(len=1, kind=C_CHAR), intent(in) :: file_name(*)
         end subroutine
         
-        subroutine femocs_export_solution_c(femocs, n_atoms, Ex, Ey, Ez, Enorm) bind(C, name="femocs_export_solution")
+        subroutine femocs_export_elfield_c(femocs, n_atoms, Ex, Ey, Ez, Enorm) bind(C, name="femocs_export_elfield")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
@@ -66,12 +66,12 @@ module libfemocs
             real(c_double) :: Enorm(*)
         end subroutine
         
-        subroutine femocs_interpolate_solution_c(femocs, n_atoms, x, y, z, Ex, Ey, Ez, Enorm) &
-                                                 bind(C, name="femocs_interpolate_solution")
+        subroutine femocs_interpolate_elfield_c(femocs, n_points, x, y, z, Ex, Ey, Ez, Enorm) &
+                                                 bind(C, name="femocs_interpolate_elfield")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
-            integer(c_int), value :: n_atoms
+            integer(c_int), value :: n_points
             real(c_double) :: x(*)
             real(c_double) :: y(*)
             real(c_double) :: z(*)
@@ -79,6 +79,18 @@ module libfemocs
             real(c_double) :: Ey(*)
             real(c_double) :: Ez(*)
             real(c_double) :: Enorm(*)
+        end subroutine
+        
+        subroutine femocs_interpolate_phi_c(femocs, n_points, x, y, z, phi) &
+                                                 bind(C, name="femocs_interpolate_phi")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int), value :: n_points
+            real(c_double) :: x(*)
+            real(c_double) :: y(*)
+            real(c_double) :: z(*)
+            real(c_double) :: phi(*)
         end subroutine
         
         subroutine femocs_speaker_c(str) bind(C, name="femocs_speaker")
@@ -106,8 +118,9 @@ module libfemocs
         procedure :: import_atoms => femocs_import_atoms
         procedure :: import_parcas => femocs_import_parcas
         procedure :: import_file => femocs_import_file
-        procedure :: export_solution => femocs_export_solution
-        procedure :: interpolate_solution => femocs_interpolate_solution
+        procedure :: export_elfield => femocs_export_elfield
+        procedure :: interpolate_elfield => femocs_interpolate_elfield
+        procedure :: interpolate_phi => femocs_interpolate_phi
     end type
 
     ! This function will act as the constructor for femocs type
@@ -204,7 +217,7 @@ module libfemocs
         call femocs_import_file_c(this%ptr, c_str)
     end subroutine
     
-    subroutine femocs_export_solution(this, n_atoms, Ex, Ey, Ez, Enorm)
+    subroutine femocs_export_elfield(this, n_atoms, Ex, Ey, Ez, Enorm)
         implicit none
         class(femocs), intent(in) :: this
         integer(c_int) :: n_atoms
@@ -212,13 +225,13 @@ module libfemocs
         real(c_double) :: Ey(*)
         real(c_double) :: Ez(*)
         real(c_double) :: Enorm(*)
-        call femocs_export_solution_c(this%ptr, n_atoms, Ex, Ey, Ez, Enorm)
+        call femocs_export_elfield_c(this%ptr, n_atoms, Ex, Ey, Ez, Enorm)
     end subroutine
     
-    subroutine femocs_interpolate_solution(this, n_atoms, x, y, z, Ex, Ey, Ez, Enorm)
+    subroutine femocs_interpolate_elfield(this, n_points, x, y, z, Ex, Ey, Ez, Enorm)
         implicit none
         class(femocs), intent(in) :: this
-        integer(c_int) :: n_atoms
+        integer(c_int) :: n_points
         real(c_double) :: x(*)
         real(c_double) :: y(*)
         real(c_double) :: z(*)
@@ -226,7 +239,18 @@ module libfemocs
         real(c_double) :: Ey(*)
         real(c_double) :: Ez(*)
         real(c_double) :: Enorm(*)
-        call femocs_interpolate_solution_c(this%ptr, n_atoms, x, y, z, Ex, Ey, Ez, Enorm)
+        call femocs_interpolate_elfield_c(this%ptr, n_points, x, y, z, Ex, Ey, Ez, Enorm)
+    end subroutine
+    
+    subroutine femocs_interpolate_phi(this, n_points, x, y, z, phi)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: n_points
+        real(c_double) :: x(*)
+        real(c_double) :: y(*)
+        real(c_double) :: z(*)
+        real(c_double) :: phi(*)
+        call femocs_interpolate_phi_c(this%ptr, n_points, x, y, z, phi)
     end subroutine
 
     subroutine femocs_speaker(str)

@@ -100,10 +100,10 @@ public:
      * @param Ez        z-component of electric field
      * @param Enorm     norm of electric field
      */
-    const void export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
+    const void export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
     
     /** Function to linearly interpolate electric field at given points
-     * @param n_atoms   number of points where electric field is interpolated
+     * @param n_points  number of points where electric field is interpolated
      * @param x         x-coordinates of the points of interest
      * @param y         y-coordinates of the points of interest
      * @param z         z-coordinates of the points of interest
@@ -112,8 +112,17 @@ public:
      * @param Ez        z-component of the interpolated electric field
      * @param Enorm     norm of the interpolated electric field
      */
-    const void interpolate_solution(int n_atoms, double* x, double* y, double* z, 
-                                    double* Ex, double* Ey, double* Ez, double* Enorm);
+    const void interpolate_elfield(int n_points, double* x, double* y, double* z, double* Ex,
+            double* Ey, double* Ez, double* Enorm);
+
+    /** Function to linearly interpolate electric potential at given points
+     * @param n_points  number of points where electric potential is interpolated
+     * @param x         x-coordinates of the points of interest
+     * @param y         y-coordinates of the points of interest
+     * @param z         z-coordinates of the points of interest
+     * @param phi       electric potential
+     */
+    const void interpolate_phi(int n_points, double* x, double* y, double* z, double* phi);
 
 private:
     string home;

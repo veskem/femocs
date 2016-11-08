@@ -8,10 +8,12 @@
 #include "Macros.h"
 
 #include <omp.h>
+#include <string.h>
+#include <math.h>
 #include <stdexcept>
 #include <sstream>
-#include <string.h>
 #include <algorithm>
+#include <numeric>
 
 using namespace std;
 
@@ -69,6 +71,11 @@ const void __end_msg(const double t0) {
     cout << "time: " << omp_get_wtime() - t0 << endl;
 }
 
+// Sum of the elements in vector
+const int vector_sum(const vector<bool> &v) { return accumulate(v.begin(), v.end(), 0); }
+const int vector_sum(const vector<int> &v) { return accumulate(v.begin(), v.end(), 0); }
+const double vector_sum(const vector<double> &v) { return accumulate(v.begin(), v.end(), 0); }
+
 // Return mask of indices that are not equal to the scalar
 const vector<bool> vector_not(const vector<int> *v, const int s) {
     return __vector_compare<int, std::not_equal_to<int>>(v, s);
@@ -111,4 +118,21 @@ vector<size_t> get_sort_indices(const vector<int> &v, const string& direction) {
         sort( idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return v[i1] > v[i2];} );
 
     return idx;
+}
+
+// Determine whether the value is close to one of the boundary values or not
+const bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps) {
+    return (fabs(val - boundary1) <= eps) || (fabs(val - boundary2) <= eps);
+}
+
+// Determine whether the value is close to the boundary value or not
+const bool on_boundary(const double val, const double boundary, const double eps) {
+    return fabs(val - boundary) <= eps;
+}
+
+// Extract file type from file name
+const string get_file_type(const string& file_name) {
+    const int start = file_name.find_last_of('.') + 1;
+    const int end = file_name.size();
+    return file_name.substr(start, end);
 }
