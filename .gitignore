@@ -14,5 +14,4 @@ lib/libfemocs.a
 lib/libfemocs.mod
 lib/build/**/*
 output/*
-!output/.gitkeep
 release/femocs
