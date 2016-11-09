@@ -7,6 +7,7 @@
 
 #include "Coarseners.h"
 #include <fstream>
+#include <numeric>
 
 using namespace std;
 namespace femocs {

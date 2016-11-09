@@ -7,9 +7,10 @@
 
 #include "Medium.h"
 
+#include <float.h>
 #include <fstream>
 #include <sstream>
-#include <float.h>
+#include <numeric>
 
 using namespace std;
 namespace femocs {
