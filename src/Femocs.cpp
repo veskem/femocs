@@ -22,6 +22,10 @@ namespace femocs {
 Femocs::Femocs(string message) : skip_calculations(false) {
     start_msg(double t0, "======= Femocs started! =======\n");
 
+    // Create the output folder if it doesn't exist
+    system("mkdir -p output");
+
+    // Specify the root folder location
     home = "./";
 
 //    conf.infile = home + "input/rough111.ckx";
@@ -39,9 +43,9 @@ Femocs::Femocs(string message) : skip_calculations(false) {
     conf.nnn = 12;                   // number of nearest neighbours in bulk
     conf.mesh_quality = "2.0";       // minimum mesh quality Tetgen is allowed to make
     conf.nt = 4;                     // number of OpenMP threads
-    conf.radius = 24.0;              // inner radius of coarsening cylinder
-    conf.coarse_factor = 0.7;        // coarsening factor; bigger number gives coarser surface
-    conf.smooth_factor = 0.7;        // surface smoothing factor; bigger number gives smoother surface
+    conf.radius = 12.0;              // inner radius of coarsening cylinder
+    conf.coarse_factor = 0.5;        // coarsening factor; bigger number gives coarser surface
+    conf.smooth_factor = 0.5;        // surface smoothing factor; bigger number gives smoother surface
     conf.n_bins = 20;                // number of bins in histogram smoother
     conf.postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
     conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others

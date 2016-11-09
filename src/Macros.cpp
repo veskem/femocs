@@ -101,9 +101,9 @@ const vector<bool> vector_less_equal(const vector<double> *v, const double s) {
 }
 
 // Return sorting indexes for vector
-vector<size_t> get_sort_indices(const vector<int> &v, const string& direction) {
+vector<unsigned int> get_sort_indices(const vector<int> &v, const string& direction) {
     // initialize original index locations
-    vector<size_t> idx(v.size());
+    vector<unsigned int> idx(v.size());
     iota(idx.begin(), idx.end(), 0);
 
     // sort indexes based on comparing values in v

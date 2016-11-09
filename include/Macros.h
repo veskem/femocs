@@ -97,7 +97,7 @@ const vector<bool> vector_less(const vector<double> *v, const double s);
 const vector<bool> vector_less_equal(const vector<double> *v, const double s);
 
 /** Return sorting indexes for one vector */
-vector<size_t> get_sort_indices(const vector<int> &v, const string& direction = "up");
+vector<unsigned int> get_sort_indices(const vector<int> &v, const string& direction = "up");
 
 /** Sum of the elements in vector */
 const int vector_sum(const vector<bool> &v);

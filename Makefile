@@ -10,10 +10,10 @@ LDFLAGS = -lfemocs -ltet -ldeal_II -fopenmp -ltbb -lpthread -lumfpack -lblas -ll
 
 all: release/femocs
 
-release/femocs: lib/build/Makefile lib/libfemocs.mod lib/libtet.a include/Tetgen.h release/femocs.o src/* include/*
+release/femocs: lib/build/Makefile lib/libtet.a include/Tetgen.h release/femocs.o src/* include/*
 	${COMPILER} release/femocs.o ${WARNINGS} ${FCFLAGS} ${LDFLAGS} -o release/femocs	
 
-release/femocs.o: ${MAIN} src/* include/*
+release/femocs.o: ${MAIN} lib/libfemocs.mod src/* include/*
 	cd lib/build; make -j${NPROCS}
 	${COMPILER} -c ${MAIN} ${WARNINGS} ${FCFLAGS} ${LDFLAGS} -o release/femocs.o
 	
