@@ -79,7 +79,7 @@ public:
      * @param box           size on simulation box in Angstroms
      * @param nborlist      neighbour list for atoms
      */
-    const void import_atoms(int n_atoms, const double* coordinates, const double* box, const int* nborlist);
+    const void import_atoms(int n_atoms, double* coordinates, double* box, int* nborlist);
 
     /** Function to import coordinates of atoms
      * @param n_atoms   number of imported atoms
@@ -93,7 +93,7 @@ public:
     /** Function to import atoms from file
      * @param file_name path to the file
      */
-    const void import_atoms(string file_name);
+    const void import_atoms(const string& file_name);
     
     /** Function to export the calculated electric field
      * @param n_atoms   number of points where electric field was calculted
@@ -128,7 +128,7 @@ public:
 
 private:
     string home;
-    bool solution_valid;
+    bool skip_calculations;
     AtomReader reader;
     Interpolator interpolation;
     TetgenMesh tetmesh_vacuum;

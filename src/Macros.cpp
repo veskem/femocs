@@ -71,11 +71,6 @@ const void __end_msg(const double t0) {
     cout << "time: " << omp_get_wtime() - t0 << endl;
 }
 
-// Sum of the elements in vector
-const int vector_sum(const vector<bool> &v) { return accumulate(v.begin(), v.end(), 0); }
-const int vector_sum(const vector<int> &v) { return accumulate(v.begin(), v.end(), 0); }
-const double vector_sum(const vector<double> &v) { return accumulate(v.begin(), v.end(), 0); }
-
 // Return mask of indices that are not equal to the scalar
 const vector<bool> vector_not(const vector<int> *v, const int s) {
     return __vector_compare<int, std::not_equal_to<int>>(v, s);
@@ -119,6 +114,11 @@ vector<size_t> get_sort_indices(const vector<int> &v, const string& direction) {
 
     return idx;
 }
+
+// Sum of the elements in vector
+const int vector_sum(const vector<bool> &v) { return accumulate(v.begin(), v.end(), 0); }
+const int vector_sum(const vector<int> &v) { return accumulate(v.begin(), v.end(), 0); }
+const double vector_sum(const vector<double> &v) { return accumulate(v.begin(), v.end(), 0); }
 
 // Determine whether the value is close to one of the boundary values or not
 const bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps) {

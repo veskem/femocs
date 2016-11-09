@@ -78,11 +78,6 @@ struct Types {
     #define end_msg(t0) {}
 #endif // VERBOSEMODE
 
-/** Sum of the elements in vector */
-const int vector_sum(const vector<bool> &v);
-const int vector_sum(const vector<int> &v);
-const double vector_sum(const vector<double> &v);
-
 /** Return mask of indices that are equal to the scalar */
 const vector<bool> vector_equal(const vector<int> *v, const int s);
 
@@ -103,6 +98,11 @@ const vector<bool> vector_less_equal(const vector<double> *v, const double s);
 
 /** Return sorting indexes for one vector */
 vector<size_t> get_sort_indices(const vector<int> &v, const string& direction = "up");
+
+/** Sum of the elements in vector */
+const int vector_sum(const vector<bool> &v);
+const int vector_sum(const vector<int> &v);
+const double vector_sum(const vector<double> &v);
 
 /** Determine whether the value is close to one of the boundary values or not */
 const bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps);

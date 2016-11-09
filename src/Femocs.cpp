@@ -19,7 +19,7 @@ using namespace std;
 namespace femocs {
 
 // Femocs constructor, specifies simulation parameters
-Femocs::Femocs(string message) : solution_valid(false) {
+Femocs::Femocs(string message) : skip_calculations(false) {
     start_msg(double t0, "======= Femocs started! =======\n");
 
     home = "./";
@@ -39,8 +39,8 @@ Femocs::Femocs(string message) : solution_valid(false) {
     conf.nnn = 12;                   // number of nearest neighbours in bulk
     conf.mesh_quality = "2.0";       // minimum mesh quality Tetgen is allowed to make
     conf.nt = 4;                     // number of OpenMP threads
-    conf.radius = 12.0;              // inner radius of coarsening cylinder
-    conf.coarse_factor = 0.5;        // coarsening factor; bigger number gives coarser surface
+    conf.radius = 24.0;              // inner radius of coarsening cylinder
+    conf.coarse_factor = 0.7;        // coarsening factor; bigger number gives coarser surface
     conf.smooth_factor = 0.7;        // surface smoothing factor; bigger number gives smoother surface
     conf.n_bins = 20;                // number of bins in histogram smoother
     conf.postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
@@ -65,18 +65,16 @@ Femocs::~Femocs() {
 const void Femocs::run(double E_field, string message) {
     double t0, tstart;  // Variables used to measure the start time of a section
     bool success;
-    solution_valid = false;
+
+    if(skip_calculations) return;
+    skip_calculations = true;
 
     conf.neumann = E_field;
     tstart = omp_get_wtime();
 
-    start_msg(t0, "=== Outputting AtomReader...");
-    reader.write(home + "output/reader.xyz");
-    end_msg(t0);
-
-    start_msg(t0, "=== Comparing with previous run...");
-    if ( reader.equals_previous_run(conf.significant_distance) ) return;
-    end_msg(t0);
+//    start_msg(t0, "=== Outputting AtomReader...");
+//    reader.write(home + "output/reader.xyz");
+//    end_msg(t0);
 
     // ====================================
     // ===== Converting imported data =====
@@ -163,7 +161,6 @@ const void Femocs::run(double E_field, string message) {
 
     start_msg(t0, "=== Separating tetrahedral mesh...");
     hexmesh_big.export_vertices(tetmesh_big);  // correct the nodes in tetrahedral mesh
-
     tetmesh_big.separate_meshes(tetmesh_bulk, tetmesh_vacuum, "rnQ");
 
     tetmesh_bulk.nodes.write(home + "output/nodes_bulk.xyz");
@@ -242,7 +239,7 @@ const void Femocs::run(double E_field, string message) {
     end_msg(t0);
 
     start_msg(t0, "=== Saving results...");
-    laplace.write_results(home + "output/result.vtk");
+//    laplace.write_results(home + "output/result.vtk");
     solution.write(home + "output/result.xyz");
     interpolation.write(home + "output/interpolation" + message + ".xyz");
 
@@ -255,10 +252,10 @@ const void Femocs::run(double E_field, string message) {
     reader.save_current_run_points(conf.significant_distance);
 
     cout << "\nTotal time of Femocs: " << omp_get_wtime() - tstart << "\n";
-    solution_valid = true;
+    skip_calculations = false;
 }
 
-const void Femocs::import_atoms(string file_name) {
+const void Femocs::import_atoms(const string& file_name) {
     double t0;
     string file_type;
     if (file_name == "") file_type = get_file_type(conf.infile);
@@ -269,6 +266,11 @@ const void Femocs::import_atoms(string file_name) {
     if (file_name == "") reader.import_file(conf.infile);
     else                 reader.import_file(file_name);
     end_msg(t0);
+
+    start_msg(t0, "=== Comparing with previous run...");
+    skip_calculations = reader.equals_previous_run(conf.significant_distance);
+    end_msg(t0);
+    if (skip_calculations) return;
 
     if (file_type == "xyz") {
         start_msg(t0, "=== Calculating coordinations and atom types...");
@@ -282,12 +284,17 @@ const void Femocs::import_atoms(string file_name) {
     }
 }
 
-const void Femocs::import_atoms(int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
+const void Femocs::import_atoms(int n_atoms, double* coordinates, double* box, int* nborlist) {
     double t0;
 
     start_msg(t0, "=== Importing atoms...");
     reader.import_parcas(n_atoms, coordinates, box);
     end_msg(t0);
+
+    start_msg(t0, "=== Comparing with previous run...");
+    skip_calculations = reader.equals_previous_run(conf.significant_distance);
+    end_msg(t0);
+    if (skip_calculations) return;
 
     start_msg(t0, "=== Calculating coordinations and atom types...");
     reader.calc_coordination(conf.nnn, conf.coord_cutoff, nborlist);
@@ -302,27 +309,32 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
     reader.import_helmod(n_atoms, x, y, z, types);
     end_msg(t0);
 
+    start_msg(t0, "=== Comparing with previous run...");
+    skip_calculations = reader.equals_previous_run(conf.significant_distance);
+    end_msg(t0);
+    if (skip_calculations) return;
+
     start_msg(t0, "=== Calculating coordinations from atom types...");
     reader.calc_coordination(conf.nnn);
     end_msg(t0);
 }
 
 const void Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    if (!solution_valid) return;
+    if (skip_calculations) return;
     start_msg(double t0, "=== Exporting results...");
     interpolation.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);
     end_msg(t0);
 }
 
 const void Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    if (!solution_valid) return;
+    if (skip_calculations) return;
     start_msg(double t0, "=== Interpolating electric field...");
     Interpolator i; i.extract_elfield(&solution, n_points, x, y, z, Ex, Ey, Ez, Enorm);
     end_msg(t0);
 }
 
 const void Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi) {
-    if (!solution_valid) return;
+    if (skip_calculations) return;
     start_msg(double t0, "=== Interpolating electric field...");
     Interpolator i; i.extract_potential(&solution, n_points, x, y, z, phi);
     end_msg(t0);

@@ -27,7 +27,7 @@ const void femocs_run(FEMOCS* femocs, double E_field, const char* message);
 
 const void femocs_import_file(FEMOCS* femocs, const char* s);
 
-const void femocs_import_parcas(FEMOCS* femocs, int n_atoms, const double* coordinates, const double* box, const int* nborlist);
+const void femocs_import_parcas(FEMOCS* femocs, int n_atoms, double* coordinates, double* box, int* nborlist);
 
 const void femocs_import_atoms(FEMOCS* femocs, int n_atoms, double* x, double* y, double* z, int* types);
 
@@ -62,7 +62,7 @@ const void femocs_import_file(FEMOCS* femocs, const char* s) {
     femocs->import_atoms(string(s));
 }
 
-const void femocs_import_parcas(FEMOCS* femocs, int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
+const void femocs_import_parcas(FEMOCS* femocs, int n_atoms, double* coordinates, double* box, int* nborlist) {
     femocs->import_atoms(n_atoms, coordinates, box, nborlist);
 }
 

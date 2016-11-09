@@ -13,14 +13,14 @@ all: release/femocs
 release/femocs: lib/build/Makefile lib/libfemocs.mod lib/libtet.a include/Tetgen.h release/femocs.o src/* include/*
 	${COMPILER} release/femocs.o ${WARNINGS} ${FCFLAGS} ${LDFLAGS} -o release/femocs	
 
-release/femocs.o: ${MAIN}
+release/femocs.o: ${MAIN} src/* include/*
 	cd lib/build; make -j${NPROCS}
 	${COMPILER} -c ${MAIN} ${WARNINGS} ${FCFLAGS} ${LDFLAGS} -o release/femocs.o
 	
-lib/libfemocs.mod: src/* include/*
+lib/libfemocs.mod:
 	cd lib; mkdir -p build; cd build; rm * -r; cmake ..
 
-lib/build/Makefile: dealii/lib/libdeal_II.a src/* include/*
+lib/build/Makefile: dealii/lib/libdeal_II.a
 	cd lib; mkdir -p build; cd build; rm * -r; cmake ..
 
 include/Tetgen.h:
