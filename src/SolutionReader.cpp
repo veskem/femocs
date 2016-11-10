@@ -48,7 +48,7 @@ const void SolutionReader::get_maps(DealII& fem, vector<int>& tet2hex, vector<in
     for (int j = 0; j < n_tet_nodes; ++j, ++vertex)
         // Loop through tetrahedral mesh vertices
         for (int i = 0; i < n_tet_nodes; ++i)
-            if ( (tet2hex[i] < 0) && (mesh->nodes[i] == vertex->vertex()) ) {
+            if ( (tet2hex[i] < 0) && (mesh->nodes[i] == vertex->vertex() ) ) {
                 tet2hex[i] = vertex->vertex_index();
                 break;
             }

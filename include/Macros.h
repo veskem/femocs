@@ -21,7 +21,7 @@ using namespace std;
 #define ASSERTMODE true
 
 /** If VERBOSEMODE then the information about the code execution progress is printed to console. */
-#define VERBOSEMODE true
+#define VERBOSEMODE false
               
 /** Types of regions used in the simulation */
 struct Types {

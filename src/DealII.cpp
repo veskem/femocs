@@ -8,6 +8,15 @@
 #include "DealII.h"
 #include <fstream>
 
+#include <deal.II/grid/grid_in.h>
+#include <deal.II/grid/grid_out.h>
+#include <deal.II/grid/grid_tools.h>
+#include <deal.II/grid/grid_reordering.h>
+#include <deal.II/numerics/matrix_tools.h>
+#include <deal.II/lac/precondition.h>
+#include <deal.II/numerics/vector_tools.h>
+#include <deal.II/dofs/dof_tools.h>
+
 using namespace std;
 using namespace dealii;
 

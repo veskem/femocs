@@ -243,11 +243,11 @@ const void TetgenMesh::generate_surf_faces() {
     }
 
     // Reserve memory for surface faces
-    faces.init( vector_sum(elem_on_surface) );//+ 2 );
+    faces.init( vector_sum(elem_on_surface) + 2 );
 
     // Make two big faces that pass the xy-min-max corners of surface
-//    faces.append(SimpleFace(0, 1, 2));
-//    faces.append(SimpleFace(0, 2, 3));
+    faces.append(SimpleFace(0, 1, 2));
+    faces.append(SimpleFace(0, 2, 3));
 
     // Generate the faces that separate material and vacuum
     // The faces are taken from the elements that have exactly one face on the surface
