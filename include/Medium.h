@@ -18,6 +18,7 @@ class Medium {
 public:
     /** Medium constructor */
     Medium();
+    Medium(const int n_atoms);
     virtual ~Medium() {}; // = 0;
 
     /** Sort the atoms by their x, y or z coordinate or radial coordinate from origin */
@@ -41,7 +42,7 @@ public:
 
     /**
      * Export the data of Medium to file
-     * @param file_name - path for file to save the data
+     * @param file_name     path for file to save the data
      */
     void write(const string file_name);
 
@@ -75,33 +76,27 @@ public:
 
     /** Statistics about system size */
     struct Sizes {
-        double xmin;    //!< minimum x-coordinate of atoms
-        double xmax;    //!< maximum x-coordinate of atoms
-        double ymin;    //!< minimum y-coordinate of atoms
-        double ymax;    //!< maximum y-coordinate of atoms
-        double zmin;    //!< minimum z-coordinate of atoms
-        double zmax;    //!< maximum z-coordinate of atoms
-        double zminbox; //!< minimum z-coordinate of simulation box
-        double zmaxbox; //!< maximum z-coordinate of simulation box
-        double xbox;    //!< simulation box size in x-direction
-        double ybox;    //!< simulation box size in y-direction
-        double zbox;    //!< simulation box size in z-direction
-        double xmean;   //!< average value of x-coordinate
-        double ymean;   //!< average value of y-coordinate
-        double zmean;   //!< average value of z-coordinate
-        double xmid;    //!< middle value of x-coordinate
-        double ymid;    //!< middle value of y-coordinate
-        double zmid;    //!< middle value of z-coordinate
+        double xmin;     ///< minimum x-coordinate of atoms
+        double xmax;     ///< maximum x-coordinate of atoms
+        double ymin;     ///< minimum y-coordinate of atoms
+        double ymax;     ///< maximum y-coordinate of atoms
+        double zmin;     ///< minimum z-coordinate of atoms
+        double zmax;     ///< maximum z-coordinate of atoms
+        double zminbox;  ///< minimum z-coordinate of simulation box
+        double zmaxbox;  ///< maximum z-coordinate of simulation box
+        double xbox;     ///< simulation box size in x-direction
+        double ybox;     ///< simulation box size in y-direction
+        double zbox;     ///< simulation box size in z-direction
+        double xmean;    ///< average value of x-coordinate
+        double ymean;    ///< average value of y-coordinate
+        double zmean;    ///< average value of z-coordinate
+        double xmid;     ///< middle value of x-coordinate
+        double ymid;     ///< middle value of y-coordinate
+        double zmid;     ///< middle value of z-coordinate
     } sizes;
 
-    /** Statistics about crystal structure */
-    struct CrysStruct {
-        double latconst;    //!< Lattice constant
-        int nnn;            //!< Number of nearest neighbours
-    } crys_struct;
-
 protected:
-    vector<Atom> atoms;
+    vector<Atom> atoms;  ///< vector holding atom coordinates and meta data
 
     /** Initialise statistics about the coordinates in Medium */
     const void init_statistics();

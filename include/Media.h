@@ -19,19 +19,13 @@ namespace femocs {
 /** Routines and data related to making an Edge */
 class Edge: public Medium {
 public:
-    /** Constructor for Edge */
-    Edge(const double latconst, const int nnn);
+    /** Edge constructor */
     Edge();
 
     /** Extract the atoms near the simulation box sides */
-    const void extract(Medium* atoms, const AtomReader::Sizes* sizes, const double r_cut);
+    const void extract(const Medium* atoms, const AtomReader::Sizes* sizes, const double eps);
 
-    const void generate_uniform(const AtomReader::Sizes* sizes, const double z, const double r_cut);
-
-    /** Make sure all the atoms in Edge are not closer than r_cut */
-    const Edge clean(const double r_cut);
-
-    const Edge clean(const double r_cut, const double coarse_factor);
+    const void generate_uniform(const AtomReader::Sizes* sizes, const double z, const double eps);
 };
 
 
@@ -48,28 +42,19 @@ public:
 /** Routines and data related to making a Surface */
 class Surface: public Medium {
 public:
-    /**
-     * Surface constructor
-     * @param latconst - lattice constant
-     * @param nnn - number of nearest neighbors
-     */
-    Surface(const double latconst, const int nnn);
+    /** Surface constructors */
     Surface(const int n_atoms);
     Surface();
 
     const void generate_simple(const AtomReader::Sizes* sizes, const double z);
 
-    /**
-     * Function to choose suitable method to extract surface.
-     * @param data - x, y and z coordinates and types of atoms
-     * @param cell - simulation cell parameters
-     */
+    /** Extract surface by the atom types */
     const void extract(AtomReader* reader);
 
     const Surface coarsen(Coarseners &coarseners, const AtomReader::Sizes* reader);
 
     /** Function to flatten the atoms on the sides of simulation box */
-    const Surface rectangularize(const AtomReader::Sizes* sizes, const double r_cut);
+    const Surface rectangularize(const AtomReader::Sizes* sizes, const double eps, const double latconst);
 
     const Surface clean(Coarseners &coarseners);
 
@@ -83,30 +68,19 @@ private:
     inline double smooth_function(double distance, double smooth_factor) const;
 
     const void smoothen(double smooth_factor, double r_cut);
-
-    /** Extract surface by the atom types given by kMC simulation */
-    const void extract_by_type(AtomReader* reader);
-
-    /**
-     * Extract surface by the coordination analysis - atoms having coordination less than the
-     * number of nearest neighbours in given crystal are considered to belong to surface.
-     */
-    const void extract_by_coordination(AtomReader* reader);
 };
 
 /** Routines and data related to making a Bulk */
 class Bulk: public Medium {
 public:
-    Bulk(const double latconst, const int nnn);
     Bulk();
 
     const void generate_simple(const AtomReader::Sizes* sizes);
 
-    // Function to extract bulk material from input atomistic data
+    /** Function to extract bulk material from input atomistic data */
     const void extract(AtomReader* reader);
 
-    // Function to extract bulk material from input atomistic data
-    const void rectangularize(const AtomReader::Sizes* sizes, const double r_cut);
+    const void rectangularize(const AtomReader::Sizes* sizes, const double eps, const double latconst);
 };
 
 } /* namespace femocs */

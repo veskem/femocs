@@ -172,10 +172,10 @@ vector<Point3> NanotipCoarsener::get_points() {
 }
 
 // Generate coarseners for one nanotip system
-void Coarseners::generate(Medium &m, const double radius, const double coarse_factor) {
+void Coarseners::generate(Medium &m, const double radius, const double coarse_factor, const double latconst) {
     m.calc_statistics(); // calculate the span of atoms in medium
 
-    Point2 origin2d((m.sizes.xmax + m.sizes.xmin) / 2, (m.sizes.ymax + m.sizes.ymin) / 2);
+    Point2 origin2d(m.sizes.xmid, m.sizes.ymid);
     const double r_cut2 = radius * radius;
     const int n_atoms = m.get_n_atoms();
 
@@ -197,10 +197,10 @@ void Coarseners::generate(Medium &m, const double radius, const double coarse_fa
     Point3 origin3d(origin2d[0], origin2d[1], zmean);
     Point3 apex(origin2d[0], origin2d[1], zmax);
 
-    const double A_tip = 0.5 * m.crys_struct.latconst;
-    const double A_flat = coarse_factor * m.crys_struct.latconst;
+    const double A_tip = 0.5 * latconst;
+    const double A_flat = coarse_factor * latconst;
     const double r0_sphere = 0.0;
-    const double r0_cylinder = 1.0 * m.crys_struct.latconst;
+    const double r0_cylinder = 1.0 * latconst;
     const double diagonal = sqrt(m.sizes.xbox*m.sizes.xbox + m.sizes.ybox*m.sizes.ybox);
     r0_inf = 1.1 * (A_flat * sqrt(0.5 * diagonal - radius) + r0_cylinder);
 

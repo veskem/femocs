@@ -12,6 +12,7 @@
 #include "Interpolator.h"
 #include "TetgenMesh.h"
 #include "SolutionReader.h"
+#include "Media.h"
 
 using namespace std;
 namespace femocs {
@@ -30,17 +31,18 @@ public:
 
     /** Struct holding data about input parameters. */
     struct Config {
-        string mesh_quality;      ///< Minimum quality (maximum radius-edge ratio) of tetrahedra
-        string infile;            ///< Path to input script
-        double latconst;          ///< Lattice constant
-        double coord_cutoff;      ///< Cut-off distance in Angstroms for Coordination analysis
-        int nnn;                  ///< Number of nearest neighbours for given crystal structure
-        int nt;                   ///< Number of OpenMP threads
-        double neumann;           ///< Value of Neumann boundary condition
-        bool postprocess_marking; ///< Make extra effort to mark correctly the vacuum nodes in shadowed area
-        bool refine_apex;         ///< Add elements to the nanotip apex
-        double zbox_above;        ///< Space added above the maximum z-coordinate of surface
-        double zbox_below;        ///< Space added below the minimum z-coordinate of surface
+        string mesh_quality;        ///< Minimum quality (maximum radius-edge ratio) of tetrahedra
+        string infile;              ///< Path to input script
+        string message;             ///< data string from the host code
+        double latconst;            ///< Lattice constant
+        double coord_cutoff;        ///< Cut-off distance in Angstroms for Coordination analysis
+        int nnn;                    ///< Number of nearest neighbours for given crystal structure
+        int nt;                     ///< Number of OpenMP threads
+        double neumann;             ///< Value of Neumann boundary condition
+        bool postprocess_marking;   ///< Make extra effort to mark correctly the vacuum nodes in shadowed area
+        bool refine_apex;           ///< Add elements to the nanotip apex
+        double zbox_above;          ///< Space added above the maximum z-coordinate of surface
+        double zbox_below;          ///< Space added below the minimum z-coordinate of surface
 
         /// Distance from surface edge where atoms are picked for rectangularization
         double rmin_rectancularize;
@@ -58,9 +60,6 @@ public:
         
         /// Factor that is proportional to the extent of surface smoothing; 0 turns smoothing off
         double smooth_factor;
-        
-        /// Width of moving average while smoothing the electric field; 0 turns smoothing off
-        double movavg_width;
 
         /// Number of bins in smoother histogram; 1 or less turns off the histogram smoother
         int n_bins;
@@ -113,9 +112,10 @@ public:
      * @param Ey        y-component of the interpolated electric field
      * @param Ez        z-component of the interpolated electric field
      * @param Enorm     norm of the interpolated electric field
+     * @param flag      index of first point outside the mesh; index is 1-based; flag == 0 means all the points were in the mesh
      */
-    const void interpolate_elfield(int n_points, double* x, double* y, double* z, double* Ex,
-            double* Ey, double* Ez, double* Enorm);
+    const void interpolate_elfield(int n_points, double* x, double* y, double* z,
+            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 
     /** Function to linearly interpolate electric potential at given points
      * @param n_points  number of points where electric potential is interpolated
@@ -123,17 +123,19 @@ public:
      * @param y         y-coordinates of the points of interest
      * @param z         z-coordinates of the points of interest
      * @param phi       electric potential
+     * @param flag      index of first point outside the mesh; index is 1-based; flag == 0 means all the points were in the mesh
      */
-    const void interpolate_phi(int n_points, double* x, double* y, double* z, double* phi);
+    const void interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag);
 
 private:
     string home;
     bool skip_calculations;
     AtomReader reader;
-    Interpolator interpolation;
+    Surface dense_surf;
     TetgenMesh tetmesh_vacuum;
     TetgenMesh tetmesh_bulk;
     SolutionReader solution = SolutionReader(&tetmesh_vacuum);
+    Interpolator interpolator = Interpolator(&solution);
 };
 
 } /* namespace femocs */

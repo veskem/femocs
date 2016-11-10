@@ -37,15 +37,23 @@ class Interpolator: public Medium {
 public:
     /** Interpolator conctructor */
     Interpolator();
+    Interpolator(SolutionReader* sr);
 
-    /** Interpolate in medium atoms using the solution on tetrahedral mesh nodes */
-    const void extract_interpolation(SolutionReader* solution, const Medium &medium);
+    /** Pre-compute data about tetrahedra to make interpolation faster */
+    const void precompute_tetrahedra();
 
-    const void extract_elfield(SolutionReader *solution, int n_points,
-            double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm);
+    /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
+     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
+    const int extract_interpolation(const Medium &medium);
 
-    const void extract_potential(SolutionReader *solution, int n_points,
-            double* x, double* y, double* z, double* phi);
+    /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
+     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
+    const int extract_elfield(int n_points, double* x, double* y, double* z,
+            double* Ex, double* Ey, double* Ez, double* Enorm);
+
+    /** Interpolate electric potential on set of points using the solution on tetrahedral mesh nodes
+     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
+    const int extract_potential(int n_points, double* x, double* y, double* z, double* phi);
 
     /** Export calculated electic field distribution to HOLMOD */
     const void export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
@@ -77,8 +85,6 @@ private:
     vector<bool> tet_not_valid;
 
     const Solution get_interpolation(const Point3 &point, const int elem);
-    const void precompute_tetrahedra();
-
     const void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
     const Vec3 get_average_solution(const int I, const double smooth_factor, const double r_cut);
     const int locate_element(const Point3 &point, const int elem_guess);
@@ -100,9 +106,11 @@ private:
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     const string get_data_string(const int i);
 
-    /** Reserve memory for interpolation and pre-compute vectors */
+    /** Reserve memory for interpolation data */
     const void reserve(const int N);
 
+    /** Reserve memory for pre-compute data */
+    const void reserve_precompute(const int N);
 };
 
 } /* namespace femocs */

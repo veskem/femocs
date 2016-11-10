@@ -16,6 +16,12 @@ namespace femocs {
 
 Interpolator::Interpolator() : solution(NULL), mesh(NULL) {
     reserve(0);
+    reserve_precompute(0);
+};
+
+Interpolator::Interpolator(SolutionReader* sr) : solution(sr), mesh(sr->get_mesh()) {
+    reserve(0);
+    reserve_precompute(0);
 };
 
 // Get average electric field around I-th solution point
@@ -144,11 +150,17 @@ const string Interpolator::get_data_string(const int i) {
     return strs.str();
 }
 
-// Reserve memory for interpolation and pre-compute vectors
-const void Interpolator::reserve(const int n_nodes) {
+// Reserve memory for interpolation data
+const void Interpolator::reserve(const int N) {
     atoms.clear();
     interpolation.clear();
 
+    Medium::reserve(N);
+    interpolation.reserve(N);
+}
+
+// Reserve memory for pre-compute data
+const void Interpolator::reserve_precompute(const int N) {
     centroid.clear();
     det0.clear();
     det1.clear();
@@ -157,22 +169,21 @@ const void Interpolator::reserve(const int n_nodes) {
     det4.clear();
     tet_not_valid.clear();
 
-    Medium::reserve(n_nodes);
-    interpolation.reserve(n_nodes);
-
-    centroid.reserve(n_nodes);
-    det0.reserve(n_nodes);
-    det1.reserve(n_nodes);
-    det2.reserve(n_nodes);
-    det3.reserve(n_nodes);
-    det4.reserve(n_nodes);
-    tet_not_valid.reserve(n_nodes);
+    centroid.reserve(N);
+    det0.reserve(N);
+    det1.reserve(N);
+    det2.reserve(N);
+    det3.reserve(N);
+    det4.reserve(N);
+    tet_not_valid.reserve(N);
 }
 
 // Precompute the data to tetrahedra to make later bcc calculations faster
 const void Interpolator::precompute_tetrahedra() {
     const int n_elems = mesh->elems.size();
     double d0, d1, d2, d3, d4;
+
+    reserve_precompute(n_elems);
 
     // Calculate centroids of elements
     for (int i = 0; i < n_elems; ++i)
@@ -309,8 +320,8 @@ const int Interpolator::locate_element(const Point3 &point, const int elem_guess
         }
     }
 
-    // If no perfect element found, return the best
-    return min_index;
+    // If no perfect element found, return the best; indicate the imperfectness with the minus sign
+    return -min_index;
 }
 
 // Calculate interpolation for point inside or near the elem-th tetrahedron
@@ -336,37 +347,40 @@ const Solution Interpolator::get_interpolation(const Point3 &point, const int el
 }
 
 // Linearly interpolate solution on Medium atoms
-const void Interpolator::extract_interpolation(SolutionReader *solution, const Medium &medium) {
+const int Interpolator::extract_interpolation(const Medium &medium) {
     const int n_atoms = medium.get_n_atoms();
-    this->mesh = solution->get_mesh();
-    this->solution = solution;
-
     reserve(n_atoms);
-    precompute_tetrahedra();
 
     int elem = 0;
+    int first_outside = -1;
+
     for (int i = 0; i < n_atoms; ++i) {
         Atom atom = medium.get_atom(i);
         add_atom(atom);
 
-        // Find the element that contains or is closest to the point
-        elem = locate_element(atom.point, elem);
+        // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
+        elem = locate_element(atom.point, abs(elem));
+
+        // Store the index of first point outside the mesh
+        if (elem < 0 && first_outside < 0) first_outside = i;
 
         // Calculate the interpolation
-        interpolation.push_back( get_interpolation(atom.point, elem) );
+        interpolation.push_back( get_interpolation(atom.point, abs(elem)) );
     }
+
+    return first_outside;
 }
 
 // Linearly interpolate electric field on the set of points
-const void Interpolator::extract_elfield(SolutionReader *solution, int n_points,
-        double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm) {
+const int Interpolator::extract_elfield(int n_points, double* x, double* y, double* z,
+        double* Ex, double* Ey, double* Ez, double* Enorm) {
 
-    Medium medium;
-    medium.reserve(n_points);
+    Medium medium(n_points);
     for (int i = 0; i < n_points; ++i)
         medium.add_atom(Point3(x[i], y[i], z[i]));
 
-    extract_interpolation(solution, medium);
+    // Interpolate solution and store the index of first point outside the mesh
+    int first_outside = extract_interpolation(medium);
 
     for (int i = 0; i < n_points; ++i) {
         Ex[i] = interpolation[i].elfield.x;
@@ -374,21 +388,23 @@ const void Interpolator::extract_elfield(SolutionReader *solution, int n_points,
         Ez[i] = interpolation[i].elfield.z;
         Enorm[i] = interpolation[i].el_norm;
     }
+
+    return first_outside;
 }
 
 // Linearly interpolate electric potential on the set of points
-const void Interpolator::extract_potential(SolutionReader *solution, int n_points,
-        double* x, double* y, double* z, double* phi) {
-
-    Medium medium;
-    medium.reserve(n_points);
+const int Interpolator::extract_potential(int n_points, double* x, double* y, double* z, double* phi) {
+    Medium medium(n_points);
     for (int i = 0; i < n_points; ++i)
         medium.add_atom(Point3(x[i], y[i], z[i]));
 
-    extract_interpolation(solution, medium);
+    // Interpolate solution and store the index of first point outside the mesh
+    int first_outside = extract_interpolation(medium);
 
     for (int i = 0; i < n_points; ++i)
         phi[i] = interpolation[i].potential;
+
+    return first_outside;
 }
 
 // Determinant of 3x3 matrix which's last column consists of ones

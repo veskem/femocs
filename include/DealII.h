@@ -73,11 +73,11 @@ public:
     /** Make mesh 4x denser in the sphere with the centre in origin and radius r_cut */
     const void refine_mesh(const Point3 &origin, const double r_cut);
 
+    /** Write the calculated electric potential and electric field to file */
+    const void write(const string &file_name);
+
     /** Write the mesh to file */
     const void write_mesh(const string &file_name);
-
-    /** Write the calculated electric potential and electric field to file */
-    const void write_results(const string &file_name);
 
     /** Mark boundary faces, distribute degrees of freedom  and initialise data */
     const void setup_system(const AtomReader::Sizes& sizes);

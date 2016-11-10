@@ -20,6 +20,11 @@ Medium::Medium() {
     reserve(0);
 }
 
+Medium::Medium(const int n_atoms) {
+    init_statistics();
+    reserve(n_atoms);
+}
+
 // Sort the atoms by their cartesian coordinate or radial coordinate from origin
 const void Medium::sort_atoms(const int coord, const string& direction, const Point2 &origin) {
     require(coord >= 0 && coord <= 3, "Invalid coordinate: " + to_string(coord));
@@ -51,6 +56,7 @@ const void Medium::sort_atoms(const int x1, const int x2, const string& directio
 // Reserve memory for data vectors
 const void Medium::reserve(const int n_atoms) {
     require(n_atoms >= 0, "Invalid number of atoms: " + n_atoms);
+    atoms.clear();
     atoms.reserve(n_atoms);
 }
 
@@ -65,8 +71,7 @@ const void Medium::add(Medium *m) {
     const int n_atoms1 = get_n_atoms();
     const int n_atoms2 = m->get_n_atoms();
 
-    this->reserve(n_atoms1 + n_atoms2);
-
+    atoms.reserve(n_atoms1 + n_atoms2);
     for(int i = 0; i < n_atoms2; ++i)
         add_atom(m->get_atom(i));
 

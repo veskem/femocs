@@ -330,7 +330,7 @@ const vector<double> DealII::get_potential(const vector<int> &cell_indxs, const 
 }
 
 // Write the potential and electric field to the file
-const void DealII::write_results(const string &file_name) {
+const void DealII::write(const string &file_name) {
 #if not FILEWRITEMODE
     return;
 #endif

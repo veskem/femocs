@@ -66,7 +66,7 @@ module libfemocs
             real(c_double) :: Enorm(*)
         end subroutine
         
-        subroutine femocs_interpolate_elfield_c(femocs, n_points, x, y, z, Ex, Ey, Ez, Enorm) &
+        subroutine femocs_interpolate_elfield_c(femocs, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag) &
                                                  bind(C, name="femocs_interpolate_elfield")
             use iso_c_binding
             implicit none
@@ -79,9 +79,10 @@ module libfemocs
             real(c_double) :: Ey(*)
             real(c_double) :: Ez(*)
             real(c_double) :: Enorm(*)
+            integer(c_int) :: flag(*)
         end subroutine
         
-        subroutine femocs_interpolate_phi_c(femocs, n_points, x, y, z, phi) &
+        subroutine femocs_interpolate_phi_c(femocs, n_points, x, y, z, phi, flag) &
                                                  bind(C, name="femocs_interpolate_phi")
             use iso_c_binding
             implicit none
@@ -91,6 +92,7 @@ module libfemocs
             real(c_double) :: y(*)
             real(c_double) :: z(*)
             real(c_double) :: phi(*)
+            integer(c_int) :: flag(*)
         end subroutine
         
         subroutine femocs_speaker_c(str) bind(C, name="femocs_speaker")
@@ -228,7 +230,7 @@ module libfemocs
         call femocs_export_elfield_c(this%ptr, n_atoms, Ex, Ey, Ez, Enorm)
     end subroutine
     
-    subroutine femocs_interpolate_elfield(this, n_points, x, y, z, Ex, Ey, Ez, Enorm)
+    subroutine femocs_interpolate_elfield(this, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag)
         implicit none
         class(femocs), intent(in) :: this
         integer(c_int) :: n_points
@@ -239,10 +241,11 @@ module libfemocs
         real(c_double) :: Ey(*)
         real(c_double) :: Ez(*)
         real(c_double) :: Enorm(*)
-        call femocs_interpolate_elfield_c(this%ptr, n_points, x, y, z, Ex, Ey, Ez, Enorm)
+        integer(c_int) :: flag(*)
+        call femocs_interpolate_elfield_c(this%ptr, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag)
     end subroutine
     
-    subroutine femocs_interpolate_phi(this, n_points, x, y, z, phi)
+    subroutine femocs_interpolate_phi(this, n_points, x, y, z, phi, flag)
         implicit none
         class(femocs), intent(in) :: this
         integer(c_int) :: n_points
@@ -250,7 +253,8 @@ module libfemocs
         real(c_double) :: y(*)
         real(c_double) :: z(*)
         real(c_double) :: phi(*)
-        call femocs_interpolate_phi_c(this%ptr, n_points, x, y, z, phi)
+        integer(c_int) :: flag(*)
+        call femocs_interpolate_phi_c(this%ptr, n_points, x, y, z, phi, flag)
     end subroutine
 
     subroutine femocs_speaker(str)

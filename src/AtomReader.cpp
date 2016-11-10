@@ -79,20 +79,19 @@ const void AtomReader::calc_coordination(const int nnn, const double cutoff, con
 
     const int n_atoms = get_n_atoms();
     const double cutoff2 = cutoff * cutoff;
-    int nbor_indx;
 
-    nbor_indx = 0;
+    int nbor_indx = 0;
+    // Loop through all the atoms
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point1 = get_point(i);
 
-        // Loop through neighbours in neighbour list
+        // Loop through atom neighbours
         int n_nbors = nborlist[nbor_indx++];
         for (int j = 0; j < n_nbors; ++j) {
             int nbor = nborlist[nbor_indx + j] - 1;
             require (nbor >= 0 && nbor < n_atoms, "Invalid neighbour: " + to_string(nbor));
 
             double r2 = point1.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox);
-
             if (r2 <= cutoff2) {
                 atoms[i].coord++;
                 atoms[nbor].coord++;
@@ -154,12 +153,11 @@ const void AtomReader::calc_coordination(const int nnn) {
 const void AtomReader::extract_types(const int nnn, const double latconst) {
     const int n_atoms = get_n_atoms();
     calc_statistics();
-    crys_struct.latconst = latconst;
 
     for (int i = 0; i < n_atoms; ++i) {
         if( get_coordination(i) >= (nnn - 1) )
             type[i] = TYPES.BULK;
-        else if(get_point(i).z < (sizes.zmin + crys_struct.latconst))
+        else if(get_point(i).z < (sizes.zmin + latconst))
             type[i] = TYPES.FIXED;
         else
             type[i] = TYPES.SURFACE;

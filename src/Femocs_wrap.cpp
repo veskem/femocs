@@ -33,9 +33,10 @@ const void femocs_import_atoms(FEMOCS* femocs, int n_atoms, double* x, double* y
 
 const void femocs_export_elfield(FEMOCS* femocs, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
-const void femocs_interpolate_elfield(FEMOCS* femocs, int n_points, double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm);
+const void femocs_interpolate_elfield(FEMOCS* femocs, int n_points, double* x, double* y, double* z,
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 
-const void femocs_interpolate_phi(FEMOCS* femocs, int n_points, double* x, double* y, double* z, double* phi);
+const void femocs_interpolate_phi(FEMOCS* femocs, int n_points, double* x, double* y, double* z, double* phi, int* flag);
 
 // Standalone function to call Femocs
 const void femocs_speaker(const char* s);
@@ -74,12 +75,13 @@ const void femocs_export_elfield(FEMOCS* femocs, int n_atoms, double* Ex, double
     femocs->export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
 }
 
-const void femocs_interpolate_elfield(FEMOCS* femocs, int n_points, double* x, double* y, double* z, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    femocs->interpolate_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm);
+const void femocs_interpolate_elfield(FEMOCS* femocs, int n_points, double* x, double* y, double* z,
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
+    femocs->interpolate_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
 }
 
-const void femocs_interpolate_phi(FEMOCS* femocs, int n_points, double* x, double* y, double* z, double* phi) {
-    femocs->interpolate_phi(n_points, x, y, z, phi);
+const void femocs_interpolate_phi(FEMOCS* femocs, int n_points, double* x, double* y, double* z, double* phi, int* flag) {
+    femocs->interpolate_phi(n_points, x, y, z, phi, flag);
 }
 
 const void femocs_speaker(const char* s) {
