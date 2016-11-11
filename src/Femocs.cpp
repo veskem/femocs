@@ -13,6 +13,7 @@
 #include "Tethex.h"
 #include "DealII.h"
 #include "Coarseners.h"
+#include "Config.h"
 
 using namespace std;
 namespace femocs {
@@ -20,6 +21,9 @@ namespace femocs {
 // Femocs constructor, specifies simulation parameters
 Femocs::Femocs(string message) : skip_calculations(false) {
     start_msg(double t0, "======= Femocs started! =======\n");
+
+    Config config;
+    config.read_all("input/conf.in");
 
 #if FILEWRITEMODE
     // Create the output folder if it doesn't exist
@@ -42,7 +46,7 @@ Femocs::Femocs(string message) : skip_calculations(false) {
     conf.nnn = 12;                   // number of nearest neighbours in bulk
     conf.mesh_quality = "2.0";       // minimum mesh quality Tetgen is allowed to make
     conf.nt = 4;                     // number of OpenMP threads
-    conf.radius = 10.0;              // inner radius of coarsening cylinder
+    conf.radius = 12.0;              // inner radius of coarsening cylinder
     conf.coarse_factor = 0.4;        // coarsening factor; bigger number gives coarser surface
     conf.smooth_factor = 0.5;        // surface smoothing factor; bigger number gives smoother surface
     conf.n_bins = 20;                // number of bins in histogram smoother

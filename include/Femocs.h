@@ -30,7 +30,7 @@ public:
     ~Femocs();
 
     /** Struct holding data about input parameters. */
-    struct Config {
+    struct FemocsConfig {
         string mesh_quality;        ///< Minimum quality (maximum radius-edge ratio) of tetrahedra
         string infile;              ///< Path to input script
         string message;             ///< data string from the host code
