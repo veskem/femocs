@@ -293,20 +293,22 @@ const vector<Vec3> DealII::get_elfield(const vector<int> &cell_indxs, const vect
     // Generate sort indices for cell_indxs so that elements could be accessed sequentially
     vector<unsigned int> sort_indxs = get_sort_indices(cell_indxs, "up");
 
-    int i, si;
     typename DoFHandler<DIM>::active_cell_iterator cell = dof_handler.begin_active();
 
     // Iterate through all the cells and get the electric field from ones listed in cell_indxs
-    for (i = 1, si = sort_indxs[0]; cell != dof_handler.end(), i < n_cells; ++cell)
+    for (int i = 0; i < n_cells, cell != dof_handler.end(); ) {
+        int si = sort_indxs[i];
         if (cell->active_cell_index() == cell_indxs[si]) {
-            fe_values.reinit(cell);
-            fe_values.get_function_gradients(laplace_solution, solution_gradients);
+             fe_values.reinit(cell);
+             fe_values.get_function_gradients(laplace_solution, solution_gradients);
 
-            Tensor<1, DIM> ef = -1.0 * solution_gradients.at(vert_indxs[si]);
-            elfields[si] = Vec3(ef[0], ef[1], ef[2]);
+             Tensor<1, DIM> ef = -1.0 * solution_gradients.at(vert_indxs[si]);
+             elfields[si] = Vec3(ef[0], ef[1], ef[2]);
 
-            si = sort_indxs[i++];
-        }
+             ++i;
+         }
+         else ++cell;
+    }
 
     return elfields;
 }
@@ -320,20 +322,23 @@ const double DealII::get_potential(const double x, const double y, const double 
 const vector<double> DealII::get_potential(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
     const int n_cells = cell_indxs.size();
 
-    vector<double> potentials(n_cells);
+    // Initialise potentials with a value that is immediately visible if it's not changed to proper one
+    vector<double> potentials(n_cells, 1e20);
 
     // Generate sort indices for cell_indxs so that elements could be accessed sequentially
     vector<unsigned int> sort_indxs = get_sort_indices(cell_indxs, "up");
 
-    int i, si;
     typename DoFHandler<DIM>::active_cell_iterator cell = dof_handler.begin_active();
 
     // Iterate through all the cells and get the potential from the ones listed in cell_indxs
-    for (i = 1, si = sort_indxs[0]; cell != dof_handler.end(), i < n_cells; ++cell)
+    for (int i = 0; i < n_cells, cell != dof_handler.end(); ) {
+        int si = sort_indxs[i];
         if (cell->active_cell_index() == cell_indxs[si]) {
             potentials[si] = laplace_solution( cell->vertex_dof_index(vert_indxs[si], 0) );
-            si = sort_indxs[i++];
+             ++i;
         }
+        else ++cell;
+    }
 
     return potentials;
 }
