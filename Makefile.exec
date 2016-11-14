@@ -1,0 +1,31 @@
+DEALII_VER = 8.4.1
+MAIN = release/Standalone.cpp
+NPROCS = 4
+
+all: release/femocs
+
+release/femocs: release/build/Makefile lib/libtet.a ${MAIN} src/* include/* include/Tetgen.h
+	cd release/build; make -j${NPROCS}
+
+release/build/Makefile: dealii/lib/libdeal_II.so.${DEALII_VER}
+	cd release; mkdir -p build; cd build; rm * -r; cmake ..
+
+include/Tetgen.h:
+	cp tetgen/Tetgen.h include/Tetgen.h
+	
+lib/libtet.a:
+	cd tetgen; rm -rf build; mkdir build
+	cd tetgen/build; cmake ..; make -j${NPROCS}
+	cd tetgen; mv build/libtet.a ../lib; rm -rf build
+	
+dealii/lib/libdeal_II.so.${DEALII_VER}: dealii/dealii-${DEALII_VER}.tar.gz
+	cd dealii; mv dealii-${DEALII_VER}.tar.gz ..; rm -rf *; mv ../dealii-${DEALII_VER}.tar.gz .
+	cd dealii; tar -xvf dealii-${DEALII_VER}.tar.gz; cd dealii-*; mkdir build
+	cd dealii/dealii-*/build; cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../.. ..; make -j${NPROCS} install
+	cd dealii; rm -r dealii-${DEALII_VER}; rm -r examples
+
+dealii/dealii-${DEALII_VER}.tar.gz:
+	cd dealii; wget https://github.com/dealii/dealii/releases/download/v${DEALII_VER}/dealii-${DEALII_VER}.tar.gz
+
+clean:
+	rm release/femocs release/build/Makefile

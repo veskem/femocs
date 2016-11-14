@@ -8,6 +8,9 @@ WARNINGS = -Wall -Wextra
 FCFLAGS = -Llib -Ldealii/lib -Ilib -Iinclude -Idealii/include
 LDFLAGS = -lfemocs -ltet -ldeal_II -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -std=c++11
 
+.phony exec: Makefile.exec
+	make -f Makefile.exec
+	
 all: release/femocs
 
 release/femocs: lib/build/Makefile lib/libtet.a include/Tetgen.h release/femocs.o src/* include/*
@@ -41,4 +44,4 @@ dealii/dealii-${DEALII_VER}.tar.gz:
 	cd dealii; wget https://github.com/dealii/dealii/releases/download/v${DEALII_VER}/dealii-${DEALII_VER}.tar.gz
 
 clean:
-	rm release/femocs release/femocs.o lib/libfemocs.a lib/libfemocs.mod
+	rm -rf release/femocs release/femocs.o lib/build/Makefile release/build/Makefile lib/libfemocs.a lib/libfemocs.mod
