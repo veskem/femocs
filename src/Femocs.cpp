@@ -35,11 +35,11 @@ Femocs::Femocs(string message) : skip_calculations(false) {
 //    conf.infile = home + "input/rough111.ckx";
 //    conf.infile = home + "input/mushroom2.ckx";
 //    conf.infile = home + "input/tower_hl2p5.ckx";
-    conf.infile = home + "input/nanotip_hr5.ckx";
+//    conf.infile = home + "input/nanotip_hr5.ckx";
     conf.latconst = 2.0;
 
-    // conf.infile = home + "input/nanotip_medium.xyz";
-    // conf.latconst = 3.61;
+     conf.infile = home + "input/reader.ckx";
+//     conf.latconst = 3.61;
 
     conf.coord_cutoff = 3.1;         // coordination analysis cut-off radius
 
@@ -75,6 +75,7 @@ const void Femocs::run(double E_field, string message) {
     if(skip_calculations) return;
     skip_calculations = true;
 
+    reader.write("output/reader.xyz");
     conf.neumann = E_field;
     conf.message = message;
     tstart = omp_get_wtime();

@@ -293,15 +293,15 @@ const vector<Vec3> DealII::get_elfield(const vector<int> &cell_indxs, const vect
     solution_gradients.resize(only_vertices_quadrature_formula.size());
 
     // Generate sort indices for cell_indxs so that elements could be accessed sequentially
-//    vector<int> sort_indxs = get_sort_indices(cell_indxs, "up");
-    vector<int> sort_indxs(cell_indxs.size());
-    iota(sort_indxs.begin(), sort_indxs.end(), 0);
-    sort( sort_indxs.begin(), sort_indxs.end(), [&cell_indxs](size_t i1, size_t i2) {return cell_indxs[i1] < cell_indxs[i2];} );
+    vector<int> sort_indxs = get_sort_indices(cell_indxs, "up");
+//    vector<int> sort_indxs(cell_indxs.size());
+//    iota(sort_indxs.begin(), sort_indxs.end(), 0);
+//    sort( sort_indxs.begin(), sort_indxs.end(), [&cell_indxs](size_t i1, size_t i2) {return cell_indxs[i1] < cell_indxs[i2];} );
 
     typename DoFHandler<DIM>::active_cell_iterator cell = dof_handler.begin_active();
 
     // Iterate through all the cells and get the electric field from ones listed in cell_indxs
-    for (int i = 0; i < n_cells, cell != dof_handler.end(); ) {
+    for (int i = 0; (i < n_cells) && (cell != dof_handler.end()); ) {
         int si = sort_indxs[i];
         if (cell->active_cell_index() == cell_indxs[si]) {
             require(vert_indxs[si] >= 0 && vert_indxs[si] < n_verts_per_elem, "Invalid index: " + to_string(vert_indxs[si]));
@@ -331,15 +331,15 @@ const vector<double> DealII::get_potential(const vector<int> &cell_indxs, const 
     vector<double> potentials(n_cells, 1e15);
 
     // Generate sort indices for cell_indxs so that elements could be accessed sequentially
-//    vector<int> sort_indxs = get_sort_indices(cell_indxs, "up");
-    vector<int> sort_indxs(cell_indxs.size());
-    iota(sort_indxs.begin(), sort_indxs.end(), 0);
-    sort( sort_indxs.begin(), sort_indxs.end(), [&cell_indxs](size_t i1, size_t i2) {return cell_indxs[i1] < cell_indxs[i2];} );
+    vector<int> sort_indxs = get_sort_indices(cell_indxs, "up");
+//    vector<int> sort_indxs(cell_indxs.size());
+//    iota(sort_indxs.begin(), sort_indxs.end(), 0);
+//    sort( sort_indxs.begin(), sort_indxs.end(), [&cell_indxs](size_t i1, size_t i2) {return cell_indxs[i1] < cell_indxs[i2];} );
 
     typename DoFHandler<DIM>::active_cell_iterator cell = dof_handler.begin_active();
 
     // Iterate through all the cells and get the potential from the ones listed in cell_indxs
-    for (int i = 0; i < n_cells, cell != dof_handler.end(); ) {
+    for (int i = 0; (i < n_cells) && (cell != dof_handler.end()); ) {
         int si = sort_indxs[i];
         if (cell->active_cell_index() == cell_indxs[si]) {
             require(vert_indxs[si] >= 0 && vert_indxs[si] < n_verts_per_elem, "Invalid index: " + to_string(vert_indxs[si]));
