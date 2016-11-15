@@ -7,21 +7,17 @@ NPROCS = 4
 WARNINGS = -Wall -Wextra
 FCFLAGS = -Llib -Ldealii/lib -Ilib -Iinclude -Idealii/include
 LDFLAGS = -lfemocs -ltet -ldeal_II -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -std=c++11
-
-.phony exec: Makefile.debug
-	make -f Makefile.debug
 	
 all: release/femocs
 
-release/femocs: lib/build/Makefile lib/libtet.a include/Tetgen.h release/femocs.o src/* include/*
+release/femocs: lib/build/Makefile lib/libtet.a include/Tetgen.h release/femocs.o src/* include/* 
 	${COMPILER} release/femocs.o ${WARNINGS} ${FCFLAGS} ${LDFLAGS} -o release/femocs	
 
-release/femocs.o: ${MAIN} lib/libfemocs.mod src/* include/*
-	cd lib/build; make -j${NPROCS}
+release/femocs.o: ${MAIN} lib/libfemocs.mod 
 	${COMPILER} -c ${MAIN} ${WARNINGS} ${FCFLAGS} ${LDFLAGS} -o release/femocs.o
 	
 lib/libfemocs.mod:
-	cd lib; mkdir -p build; cd build; rm * -r; cmake ..
+	cd lib; mkdir -p build; cd build; rm * -r; cmake ..; make -j${NPROCS}
 
 lib/build/Makefile: dealii/lib/libdeal_II.a
 	cd lib; mkdir -p build; cd build; rm * -r; cmake ..
@@ -44,4 +40,4 @@ dealii/dealii-${DEALII_VER}.tar.gz:
 	cd dealii; wget https://github.com/dealii/dealii/releases/download/v${DEALII_VER}/dealii-${DEALII_VER}.tar.gz
 
 clean:
-	rm -rf release/femocs debug/femocs release/femocs.o lib/build/Makefile debug/build/Makefile release/build/Makefile lib/libfemocs.a lib/libfemocs.mod
+	rm -rf release/femocs debug/femocs release/femocs.o lib/build/Makefile debug/build/Makefile release/build/Makefile lib/libfemocs.a lib/libfemocs.mod src/*.o

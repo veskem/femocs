@@ -16,6 +16,7 @@
 #include <deal.II/lac/precondition.h>
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/dofs/dof_tools.h>
+#include <numeric>
 
 using namespace std;
 using namespace dealii;
