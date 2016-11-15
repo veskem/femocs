@@ -19,8 +19,8 @@ using namespace std;
 using namespace dealii;
 namespace femocs {
 
-const int DIM = 3;         //!< dimensionality of solver
-const int POLY_DEGREE = 1; //!< polynomial degree of the finite elements (1-linear, 2-quadratic etc)
+const int DIM = 3;         ///< dimensionality of solver
+const int POLY_DEGREE = 1; ///< polynomial degree of the finite elements (1-linear, 2-quadratic etc)
 
 /** Class to calculate electric field from electric potential */
 class LaplacePostProcessor : public DataPostprocessorVector<DIM> {
@@ -111,14 +111,14 @@ public:
         return os;
     }
 
-    const unsigned int n_verts_per_elem = GeometryInfo<3>::vertices_per_cell; //!< # vertices in element
-    const unsigned int n_verts_per_face = GeometryInfo<2>::vertices_per_cell; //!< # vertices in face
+    const unsigned int n_verts_per_elem = GeometryInfo<3>::vertices_per_cell; ///< # vertices in element
+    const unsigned int n_verts_per_face = GeometryInfo<2>::vertices_per_cell; ///< # vertices in face
 
     Triangulation<DIM> triangulation;
     DoFHandler<DIM> dof_handler;
 
 private:
-    double neumann;         //!< Neumann boundary condition value applied to upper region faces
+    double neumann;         ///< Neumann boundary condition value applied to upper region faces
 
     FE_Q<DIM> fe;
     SparsityPattern sparsity_pattern;

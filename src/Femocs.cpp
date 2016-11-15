@@ -342,18 +342,18 @@ const void Femocs::interpolate_elfield(int n_points, double* x, double* y, doubl
     if (skip_calculations) return;
 
     start_msg(double t0, "=== Interpolating electric field...");
-    flag[0] = 1 + interpolator.extract_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm);
-    interpolator.write("output/elfield_on_points.xyz");
+    interpolator.extract_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
+    interpolator.write("output/elfield_on_points.xyz");
 }
 
 const void Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
     if (skip_calculations) return;
 
     start_msg(double t0, "=== Interpolating electric potential...");
-    flag[0] = 1 + interpolator.extract_potential(n_points, x, y, z, phi);
-    interpolator.write("output/phi_on_points.xyz");
+    interpolator.extract_potential(n_points, x, y, z, phi, flag);
     end_msg(t0);
+    interpolator.write("output/phi_on_points.xyz");
 }
 
 } /* namespace femocs */

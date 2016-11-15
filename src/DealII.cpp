@@ -283,7 +283,8 @@ const Vec3 DealII::get_elfield(const double x, const double y, const double z) {
 // Calculate electric field at a set of mesh nodes
 const vector<Vec3> DealII::get_elfield(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
     const int n_cells = cell_indxs.size();
-    vector<Vec3> elfields(n_cells);
+    // Initialise potentials with a value that is immediately visible if it's not changed to proper one
+    vector<Vec3> elfields(n_cells, Vec3(1e15));
 
     vector<Tensor<1, DIM>> solution_gradients;
     QTrapez<DIM> only_vertices_quadrature_formula;
@@ -291,7 +292,10 @@ const vector<Vec3> DealII::get_elfield(const vector<int> &cell_indxs, const vect
     solution_gradients.resize(only_vertices_quadrature_formula.size());
 
     // Generate sort indices for cell_indxs so that elements could be accessed sequentially
-    vector<unsigned int> sort_indxs = get_sort_indices(cell_indxs, "up");
+//    vector<int> sort_indxs = get_sort_indices(cell_indxs, "up");
+    vector<int> sort_indxs(cell_indxs.size());
+    iota(sort_indxs.begin(), sort_indxs.end(), 0);
+    sort( sort_indxs.begin(), sort_indxs.end(), [&cell_indxs](size_t i1, size_t i2) {return cell_indxs[i1] < cell_indxs[i2];} );
 
     typename DoFHandler<DIM>::active_cell_iterator cell = dof_handler.begin_active();
 
@@ -299,17 +303,17 @@ const vector<Vec3> DealII::get_elfield(const vector<int> &cell_indxs, const vect
     for (int i = 0; i < n_cells, cell != dof_handler.end(); ) {
         int si = sort_indxs[i];
         if (cell->active_cell_index() == cell_indxs[si]) {
-             fe_values.reinit(cell);
-             fe_values.get_function_gradients(laplace_solution, solution_gradients);
+            require(vert_indxs[si] >= 0 && vert_indxs[si] < n_verts_per_elem, "Invalid index: " + to_string(vert_indxs[si]));
+            fe_values.reinit(cell);
+            fe_values.get_function_gradients(laplace_solution, solution_gradients);
 
-             Tensor<1, DIM> ef = -1.0 * solution_gradients.at(vert_indxs[si]);
-             elfields[si] = Vec3(ef[0], ef[1], ef[2]);
+            Tensor<1, DIM> ef = -1.0 * solution_gradients.at(vert_indxs[si]);
+            elfields[si] = Vec3(ef[0], ef[1], ef[2]);
 
-             ++i;
-         }
-         else ++cell;
+            ++i;
+        }
+        else ++cell;
     }
-
     return elfields;
 }
 
@@ -323,10 +327,13 @@ const vector<double> DealII::get_potential(const vector<int> &cell_indxs, const 
     const int n_cells = cell_indxs.size();
 
     // Initialise potentials with a value that is immediately visible if it's not changed to proper one
-    vector<double> potentials(n_cells, 1e20);
+    vector<double> potentials(n_cells, 1e15);
 
     // Generate sort indices for cell_indxs so that elements could be accessed sequentially
-    vector<unsigned int> sort_indxs = get_sort_indices(cell_indxs, "up");
+//    vector<int> sort_indxs = get_sort_indices(cell_indxs, "up");
+    vector<int> sort_indxs(cell_indxs.size());
+    iota(sort_indxs.begin(), sort_indxs.end(), 0);
+    sort( sort_indxs.begin(), sort_indxs.end(), [&cell_indxs](size_t i1, size_t i2) {return cell_indxs[i1] < cell_indxs[i2];} );
 
     typename DoFHandler<DIM>::active_cell_iterator cell = dof_handler.begin_active();
 
@@ -334,6 +341,7 @@ const vector<double> DealII::get_potential(const vector<int> &cell_indxs, const 
     for (int i = 0; i < n_cells, cell != dof_handler.end(); ) {
         int si = sort_indxs[i];
         if (cell->active_cell_index() == cell_indxs[si]) {
+            require(vert_indxs[si] >= 0 && vert_indxs[si] < n_verts_per_elem, "Invalid index: " + to_string(vert_indxs[si]));
             potentials[si] = laplace_solution( cell->vertex_dof_index(vert_indxs[si], 0) );
              ++i;
         }

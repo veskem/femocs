@@ -55,7 +55,7 @@ const void Medium::sort_atoms(const int x1, const int x2, const string& directio
 
 // Reserve memory for data vectors
 const void Medium::reserve(const int n_atoms) {
-    require(n_atoms >= 0, "Invalid number of atoms: " + n_atoms);
+    require(n_atoms >= 0, "Invalid number of atoms: " + to_string(n_atoms));
     atoms.clear();
     atoms.reserve(n_atoms);
 }

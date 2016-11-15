@@ -16,3 +16,4 @@ lib/build/**/*
 output/*
 release/femocs
 release/build/**/*
+debug/build/**/*

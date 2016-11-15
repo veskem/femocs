@@ -116,7 +116,7 @@ const void Interpolator::clean(const int coordinate, const int n_bins, const dou
         if (bins[i] == 0) value_min = bounds[i+1];
     }
 
-    require(value_min < value_max, "Error in histogram cleaner!");
+    require(value_min <= value_max, "Error in histogram cleaner!");
 
 //    cout.precision(3);
 //    cout << endl << coordinate << " " << value_min << " " << value_max << endl;
@@ -347,12 +347,11 @@ const Solution Interpolator::get_interpolation(const Point3 &point, const int el
 }
 
 // Linearly interpolate solution on Medium atoms
-const int Interpolator::extract_interpolation(const Medium &medium) {
+const void Interpolator::extract_interpolation(const Medium &medium) {
     const int n_atoms = medium.get_n_atoms();
     reserve(n_atoms);
 
     int elem = 0;
-    int first_outside = -1;
 
     for (int i = 0; i < n_atoms; ++i) {
         Atom atom = medium.get_atom(i);
@@ -361,50 +360,48 @@ const int Interpolator::extract_interpolation(const Medium &medium) {
         // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
         elem = locate_element(atom.point, abs(elem));
 
-        // Store the index of first point outside the mesh
-        if (elem < 0 && first_outside < 0) first_outside = i;
+        // Store the data whether the point is in- of outside the mesh
+        if (elem < 0) set_coordination(i, 1);
+        else          set_coordination(i, 0);
 
         // Calculate the interpolation
         interpolation.push_back( get_interpolation(atom.point, abs(elem)) );
     }
-
-    return first_outside;
 }
 
 // Linearly interpolate electric field on the set of points
-const int Interpolator::extract_elfield(int n_points, double* x, double* y, double* z,
-        double* Ex, double* Ey, double* Ez, double* Enorm) {
+const void Interpolator::extract_elfield(int n_points, double* x, double* y, double* z,
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
 
     Medium medium(n_points);
     for (int i = 0; i < n_points; ++i)
         medium.add_atom(Point3(x[i], y[i], z[i]));
 
     // Interpolate solution and store the index of first point outside the mesh
-    int first_outside = extract_interpolation(medium);
+    extract_interpolation(medium);
 
     for (int i = 0; i < n_points; ++i) {
         Ex[i] = interpolation[i].elfield.x;
         Ey[i] = interpolation[i].elfield.y;
         Ez[i] = interpolation[i].elfield.z;
         Enorm[i] = interpolation[i].el_norm;
+        flag[i] = atoms[i].coord;
     }
-
-    return first_outside;
 }
 
 // Linearly interpolate electric potential on the set of points
-const int Interpolator::extract_potential(int n_points, double* x, double* y, double* z, double* phi) {
+const void Interpolator::extract_potential(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
     Medium medium(n_points);
     for (int i = 0; i < n_points; ++i)
         medium.add_atom(Point3(x[i], y[i], z[i]));
 
     // Interpolate solution and store the index of first point outside the mesh
-    int first_outside = extract_interpolation(medium);
+    extract_interpolation(medium);
 
-    for (int i = 0; i < n_points; ++i)
+    for (int i = 0; i < n_points; ++i) {
         phi[i] = interpolation[i].potential;
-
-    return first_outside;
+        flag[i] = atoms[i].coord;
+    }
 }
 
 // Determinant of 3x3 matrix which's last column consists of ones
@@ -443,7 +440,7 @@ const double Interpolator::determinant(const Vec4 &v1, const Vec4 &v2, const Vec
 
 // Export interpolated electric field to helmod
 const void Interpolator::export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    require(n_atoms >= get_n_atoms(), "Solution vector longer than requested!");
+    //require(n_atoms <= get_n_atoms(), "Solution vector is shorter than requested: " + to_string(get_n_atoms()));
 
     // Initially pass the zero electric field for all the atoms
     for (int i = 0; i < n_atoms; ++i) {
@@ -457,6 +454,7 @@ const void Interpolator::export_helmod(int n_atoms, double* Ex, double* Ey, doub
     for (int i = 0; i < get_n_atoms(); ++i) {
         int identifier = get_id(i);
         if (identifier < 0) continue;
+
 
         require(identifier < n_atoms, "Mismatch between import and export data sizes detected!");
 

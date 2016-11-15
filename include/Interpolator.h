@@ -44,16 +44,16 @@ public:
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    const int extract_interpolation(const Medium &medium);
+    const void extract_interpolation(const Medium &medium);
 
     /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    const int extract_elfield(int n_points, double* x, double* y, double* z,
-            double* Ex, double* Ey, double* Ez, double* Enorm);
+    const void extract_elfield(int n_points, double* x, double* y, double* z,
+            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 
     /** Interpolate electric potential on set of points using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    const int extract_potential(int n_points, double* x, double* y, double* z, double* phi);
+    const void extract_potential(int n_points, double* x, double* y, double* z, double* phi, int* flag);
 
     /** Export calculated electic field distribution to HOLMOD */
     const void export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);

@@ -75,21 +75,36 @@ const void SolutionReader::extract_solution(DealII &fem) {
     vector<int> cell_indxs; cell_indxs.reserve(n_nodes);
     vector<int> vert_indxs; vert_indxs.reserve(n_nodes);
 
+//    cout << "im here1\n";
+
     for (int n : tet2hex)
         if (n >= 0) {
             cell_indxs.push_back(node2hex[n]);
             vert_indxs.push_back(node2vert[n]);
         }
 
+//    cout << "im here2\n";
+
     vector<Vec3> ef = fem.get_elfield(cell_indxs, vert_indxs);      // electric field
+//    vector<double> pot(ef.size());
     vector<double> pot = fem.get_potential(cell_indxs, vert_indxs); // electric potential
+//    vector<Vec3> ef(pot.size());
+//    vector<Vec3> ef = fem.get_elfield(cell_indxs, vert_indxs);      // electric field
+
+    require( ef.size() == pot.size(), "Mismatch of vector sizes: "
+            + to_string(ef.size())  + ", " + to_string(pot.size()) );
+
+//    cout << "im here3\n";
 
     int i = 0;
     for (int node = 0; node < n_nodes; ++node) {
         add_atom( mesh->nodes[node] );
 
+//        cout << node << ", " << i << endl;
+
         // If there is a common node between tet and hex meshes, store actual solution
         if (tet2hex[node] >= 0) {
+            require(i < ef.size(), "Invalid index: " + to_string(i));
             solution.push_back( Solution(ef[i], ef[i].norm(), pot[i]) );
             i++;
         }
@@ -160,10 +175,12 @@ const void SolutionReader::print_statistics() {
 
 // Reserve memory for solution vectors
 const void SolutionReader::reserve(const int n_nodes) {
+    require(n_nodes >= 0, "Invalid number of atoms: " + to_string(n_nodes));
+
     atoms.clear();
     solution.clear();
 
-    Medium::reserve(n_nodes);
+    atoms.reserve(n_nodes);
     solution.reserve(n_nodes);
 }
 
@@ -172,7 +189,6 @@ const string SolutionReader::get_data_string(const int i) {
     if (i < 0) return "SolutionReader data: id x y z coordination Ex Ey Ez Enorm potential";
 
     ostringstream strs;
-//    strs << i << " " << atoms[i].point << " 0" << " " << solution[i];
     strs << atoms[i] << " " << solution[i];
     return strs.str();
 }
