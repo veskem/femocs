@@ -1,43 +1,52 @@
+#############################################################################
+#   	  Makefile for building Finite Elements on Crystal Surfaces
+#                              Mihkel Veske 2016
+# 
+#############################################################################
 
-COMPILER = gfortran-5
-DEALII_VER = 8.4.1
-MAIN = release/Helmod.f90
-NPROCS = 4
+include release/makefile.defs
 
-WARNINGS = -Wall -Wextra
-FCFLAGS = -Llib -Ldealii/lib -Ilib -Iinclude -Idealii/include
-LDFLAGS = -lfemocs -ltet -ldeal_II -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -std=c++11
+all: debug 
+
+lib: lib/libfemocs.a 
+lib/libfemocs.a: src/* include/* 
+	make -f release/makefile.lib
+		
+release: femocs.release
+femocs.release: ${MAIN_CPP} src/* include/* 
+	make -f release/makefile.release
 	
-all: release/femocs
-
-release/femocs: lib/build/Makefile lib/libtet.a include/Tetgen.h release/femocs.o src/* include/* 
-	${COMPILER} release/femocs.o ${WARNINGS} ${FCFLAGS} ${LDFLAGS} -o release/femocs	
-
-release/femocs.o: ${MAIN} lib/libfemocs.mod 
-	${COMPILER} -c ${MAIN} ${WARNINGS} ${FCFLAGS} ${LDFLAGS} -o release/femocs.o
+debug: femocs.debug
+femocs.debug: ${MAIN_CPP} src/* include/* 
+	make -f release/makefile.debug
 	
-lib/libfemocs.mod:
-	cd lib; mkdir -p build; cd build; rm * -r; cmake ..; make -j${NPROCS}
-
-lib/build/Makefile: dealii/lib/libdeal_II.a
-	cd lib; mkdir -p build; cd build; rm * -r; cmake ..
-
-include/Tetgen.h:
-	cp tetgen/Tetgen.h include/Tetgen.h
+fortran: femocs.fortran
+femocs.fortran: ${MAIN_F90} src/* include/*
+	make -f release/makefile.fortran
 	
-lib/libtet.a:
-	cd tetgen; rm -rf build; mkdir build
-	cd tetgen/build; cmake ..; make -j${NPROCS}
-	cd tetgen; mv build/libtet.a ../lib; rm -rf build
+install:
+	make -f release/makefile.install
 	
-dealii/lib/libdeal_II.a: dealii/dealii-${DEALII_VER}.tar.gz
-	cd dealii; mv dealii-${DEALII_VER}.tar.gz ..; rm -rf *; mv ../dealii-${DEALII_VER}.tar.gz .
-	cd dealii; tar -xvf dealii-${DEALII_VER}.tar.gz; cd dealii-*; mkdir build
-	cd dealii/dealii-*/build; cmake -DCMAKE_BUILD_TYPE=Release -DDEAL_II_STATIC_EXECUTABLE=ON -DCMAKE_INSTALL_PREFIX=../.. ..; make -j${NPROCS} install
-	cd dealii; rm -r dealii-${DEALII_VER}; rm -r examples
-
-dealii/dealii-${DEALII_VER}.tar.gz:
-	cd dealii; wget https://github.com/dealii/dealii/releases/download/v${DEALII_VER}/dealii-${DEALII_VER}.tar.gz
-
 clean:
-	rm -rf release/femocs debug/femocs release/femocs.o lib/build/Makefile debug/build/Makefile release/build/Makefile lib/libfemocs.a lib/libfemocs.mod src/*.o
+	make -s -f release/makefile.lib clean
+	make -s -f release/makefile.debug clean
+	make -s -f release/makefile.release clean
+	make -s -f release/makefile.fortran clean
+
+clean-all:
+	make -s -f release/makefile.lib clean-all
+	make -s -f release/makefile.debug clean-all
+	make -s -f release/makefile.release clean-all
+	make -s -f release/makefile.fortran clean-all
+	make -s -f release/makefile.install clean-all
+help:
+	@echo ''
+	@echo 'make all        pick default build type for Femocs'
+	@echo 'make lib        build Femocs as static library'
+	@echo 'make release    build Femocs executable with highest optimization level'
+	@echo 'make debug      build Femocs executable with debugging features enabled'
+	@echo 'make fortran    build Femocs executable by building Femocs as a static library and using the libray in Fortran code'
+	@echo 'make install    build all the external libraries that Femocs needs'
+	@echo 'make clean      delete key files excluding installed libraries to start building from the scratch'
+	@echo 'make clean-all  delete all the files and folders produced during make process'
+	@echo ''

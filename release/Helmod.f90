@@ -28,7 +28,7 @@ program Helmod
     call fem%import_file("")
 
     ! Run Laplace solver
-    call fem%run(0.1d0, "")
+    call fem%run(0.18d0, "")
     
     ! Export electric field on atoms
     call fem%export_elfield(100000, Ex, Ey, Ez, Enorm)

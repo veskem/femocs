@@ -294,9 +294,6 @@ const vector<Vec3> DealII::get_elfield(const vector<int> &cell_indxs, const vect
 
     // Generate sort indices for cell_indxs so that elements could be accessed sequentially
     vector<int> sort_indxs = get_sort_indices(cell_indxs, "up");
-//    vector<int> sort_indxs(cell_indxs.size());
-//    iota(sort_indxs.begin(), sort_indxs.end(), 0);
-//    sort( sort_indxs.begin(), sort_indxs.end(), [&cell_indxs](size_t i1, size_t i2) {return cell_indxs[i1] < cell_indxs[i2];} );
 
     typename DoFHandler<DIM>::active_cell_iterator cell = dof_handler.begin_active();
 
@@ -332,9 +329,6 @@ const vector<double> DealII::get_potential(const vector<int> &cell_indxs, const 
 
     // Generate sort indices for cell_indxs so that elements could be accessed sequentially
     vector<int> sort_indxs = get_sort_indices(cell_indxs, "up");
-//    vector<int> sort_indxs(cell_indxs.size());
-//    iota(sort_indxs.begin(), sort_indxs.end(), 0);
-//    sort( sort_indxs.begin(), sort_indxs.end(), [&cell_indxs](size_t i1, size_t i2) {return cell_indxs[i1] < cell_indxs[i2];} );
 
     typename DoFHandler<DIM>::active_cell_iterator cell = dof_handler.begin_active();
 

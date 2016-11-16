@@ -35,11 +35,8 @@ Femocs::Femocs(string message) : skip_calculations(false) {
 //    conf.infile = home + "input/rough111.ckx";
 //    conf.infile = home + "input/mushroom2.ckx";
 //    conf.infile = home + "input/tower_hl2p5.ckx";
-//    conf.infile = home + "input/nanotip_hr5.ckx";
-    conf.latconst = 2.0;
-
-     conf.infile = home + "input/reader.ckx";
-//     conf.latconst = 3.61;
+    conf.infile = home + "input/nanotip_hr5.ckx";
+    conf.latconst = 2.0; //3.61
 
     conf.coord_cutoff = 3.1;         // coordination analysis cut-off radius
 
