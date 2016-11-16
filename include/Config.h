@@ -14,24 +14,28 @@ using namespace std;
 namespace femocs {
 
 /** Class to read configuration parameters from configuration file */
-
-/* This is a simple reader; more complicated ones could be obtained by
- * using dedicated library, for example libconfig,
- * http://www.hyperrealm.com/libconfig/
- *
- * See more
- * http://stackoverflow.com/questions/6892754/creating-a-simple-configuration-file-and-parser-in-c
- * */
 class Config {
 public:
+
+    /** Constructor */
     Config();
 
+    /** Read the configuration parameters from input script */
     const void read_all(const string& file_name);
+
+    /** Look up the configuration parameter with string argument */
     const void read_parameter(const string& param, string& value);
+
+    /** Look up the configuration parameter with boolean argument */
     const void read_parameter(const string& param, bool& value);
+
+    /** Look up the configuration parameter with integer argument */
     const void read_parameter(const string& param, int& value);
+
+    /** Look up the configuration parameter with double argument */
     const void read_parameter(const string& param, double& value);
 
+    string infile;              ///< Path to the file with atom coordinates and types
     string mesh_quality;        ///< Minimum quality (maximum radius-edge ratio) of tetrahedra
     string message;             ///< data string from the host code
     double latconst;            ///< Lattice constant
@@ -50,7 +54,7 @@ public:
     /** Minimum distance between atoms from current and previous run so that their
      * movement is considered to be sufficiently big to recalculate electric field;
      * 0 turns the check off */
-    double significant_distance;
+    double distance_tol;
 
     /// Radius of cylinder where surface atoms are not coarsened; 0 enables coarsening of all atoms
     double radius;
@@ -64,8 +68,15 @@ public:
     /// Number of bins in smoother histogram; 1 or less turns off the histogram smoother
     int n_bins;
 private:
-    string infile;              ///< Path to input script
+    vector<vector<string>> data;  ///< Commands and their parameters found from the input script
+
+    const string comment_symbols = "!#/%";
+    const string data_symbols = "_.0123456789abcdefghijklmnopqrstuvwxyz";
+
+    /** Initialize configuration parameters */
     const void init_values();
+
+    /** Remove the noise from the beginning and end of the string */
     const void trim(string& str);
 };
 
