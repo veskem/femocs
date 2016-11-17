@@ -1,0 +1,7 @@
+  # just a random comment      
+Smooth_Factor = 0.5  # this is comment
+ PARA_4   5   THIS is also #= comment  
+# comment = in the middle of # the file  
+pa&$am5=6 this = comment   # this is second comment with = and # and so one
+n_bins 70r.5t9345, asdf, and something more :_# closed by comment
+postprocess_marking true  # this is also comment # this is second also comment with = and # and so one

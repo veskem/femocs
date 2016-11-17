@@ -22,15 +22,15 @@ namespace femocs {
 Femocs::Femocs(string message) : skip_calculations(false) {
     start_msg(double t0, "======= Femocs started! =======\n");
 
-    Config config;
-    config.read_all("input/conf.in");
-
 #if FILEWRITEMODE
     // Create the output folder if it doesn't exist
     system("mkdir -p output");
 #endif
     // Specify the root folder location
     home = "./";
+
+    Config config;
+    config.read_all(home + "input/md.in");
 
 //    conf.infile = home + "input/rough111.ckx";
 //    conf.infile = home + "input/mushroom2.ckx";
