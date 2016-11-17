@@ -22,7 +22,7 @@ program Helmod
     call cpu_time(t1)
     
     ! Create the femocs object
-    fem = femocs("")
+    fem = femocs("input/md.in")
 
     ! Import the atoms to femocs
     call fem%import_file("")

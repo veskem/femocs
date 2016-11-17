@@ -17,7 +17,7 @@ namespace femocs {
 class Config {
 public:
 
-    /** Constructor */
+    /** Config constructor */
     Config();
 
     /** Read the configuration parameters from input script */
@@ -34,6 +34,9 @@ public:
 
     /** Look up the configuration parameter with double argument */
     const void read_parameter(const string& param, double& value);
+
+    /** Print the stored commands and parameters */
+    const void print_data();
 
     string infile;              ///< Path to the file with atom coordinates and types
     string mesh_quality;        ///< Minimum quality (maximum radius-edge ratio) of tetrahedra
@@ -70,13 +73,15 @@ public:
 private:
     vector<vector<string>> data;  ///< Commands and their parameters found from the input script
 
-    const string comment_symbols = "!#/%";
-    const string data_symbols = "_.0123456789abcdefghijklmnopqrstuvwxyz";
+    const string comment_symbols = "!#%";
+    const string data_symbols = "/*_.0123456789abcdefghijklmnopqrstuvwxyz";
+
+    const void parse_file(const string& file_name);
 
     /** Initialize configuration parameters */
     const void init_values();
 
-    /** Remove the noise from the beginning and end of the string */
+    /** Remove the noise from the beginning of the string */
     const void trim(string& str);
 };
 

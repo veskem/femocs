@@ -9,6 +9,7 @@
 #define FEMOCS_H_
 
 #include "AtomReader.h"
+#include "Config.h"
 #include "Interpolator.h"
 #include "TetgenMesh.h"
 #include "SolutionReader.h"
@@ -21,50 +22,13 @@ namespace femocs {
 class Femocs {
 public:
     /**
-     * Constructor of Femocs reads in and stores input parameters
-     * @param file_name - path to Femocs input script
+     * Femocs constructor reads and stores configuration parameters
+     * @param path_to_conf      path to input script holding the configuration parameters
      */
-    Femocs(string file_name);
+    Femocs(string path_to_conf);
 
     /** Femocs destructor */
     ~Femocs();
-
-    /** Struct holding data about input parameters. */
-    struct FemocsConfig {
-        string mesh_quality;        ///< Minimum quality (maximum radius-edge ratio) of tetrahedra
-        string infile;              ///< Path to input script
-        string message;             ///< data string from the host code
-        double latconst;            ///< Lattice constant
-        double coord_cutoff;        ///< Cut-off distance in Angstroms for Coordination analysis
-        int nnn;                    ///< Number of nearest neighbours for given crystal structure
-        int nt;                     ///< Number of OpenMP threads
-        double neumann;             ///< Value of Neumann boundary condition
-        bool postprocess_marking;   ///< Make extra effort to mark correctly the vacuum nodes in shadowed area
-        bool refine_apex;           ///< Add elements to the nanotip apex
-        double zbox_above;          ///< Space added above the maximum z-coordinate of surface
-        double zbox_below;          ///< Space added below the minimum z-coordinate of surface
-
-        /// Distance from surface edge where atoms are picked for rectangularization
-        double rmin_rectancularize;
-
-        /** Minimum distance between atoms from current and previous run so that their
-         * movement is considered to be sufficiently big to recalculate electric field;
-         * 0 turns the check off */
-        double significant_distance;
-
-        /// Radius of cylinder where surface atoms are not coarsened; 0 enables coarsening of all atoms
-        double radius;
-        
-        /// Factor that is proportional to the extent of surface coarsening; 0 turns coarsening off
-        double coarse_factor;
-        
-        /// Factor that is proportional to the extent of surface smoothing; 0 turns smoothing off
-        double smooth_factor;
-
-        /// Number of bins in smoother histogram; 1 or less turns off the histogram smoother
-        int n_bins;
-
-    } conf;
 
     /** Function to generate FEM mesh and to solve differential equation(s)
      * @param E_field   long range electric field strength
@@ -131,6 +95,7 @@ private:
     string home;
     bool skip_calculations;
     AtomReader reader;
+    Config conf;
     Surface dense_surf;
     TetgenMesh tetmesh_vacuum;
     TetgenMesh tetmesh_bulk;

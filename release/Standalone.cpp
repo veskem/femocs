@@ -31,7 +31,7 @@ int main() {
         x[i] = 0; y[i] = 0; z[i] = 1.0 * i;
     }
 
-    femocs::Femocs femocs("");
+    femocs::Femocs femocs("input/md.in");
     femocs.import_atoms("");
     femocs.run(0.1, "");
     femocs.export_elfield(n_atoms, Ex, Ey, Ez, Enorm);

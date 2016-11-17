@@ -34,7 +34,7 @@ const void Config::init_values() {
     nnn = 12;                    // number of nearest neighbours in bulk
     mesh_quality = "2.0";        // minimum mesh quality Tetgen is allowed to make
     nt = 4;                      // number of OpenMP threads
-    radius = 10.0;               // inner radius of coarsening cylinder
+    radius = 14.0;               // inner radius of coarsening cylinder
     coarse_factor = 0.4;         // coarsening factor; bigger number gives coarser surface
     smooth_factor = 0.5;         // surface smoothing factor; bigger number gives smoother surface
     n_bins = 20;                 // number of bins in histogram smoother
@@ -50,38 +50,17 @@ const void Config::init_values() {
     zbox_below = 20 * latconst;
 }
 
-// Remove the noise from the beginning and end of the string
+// Remove the noise from the beginning of the string
 const void Config::trim(string& str) {
     str.erase(0, str.find_first_of(comment_symbols + data_symbols));
-    str.erase(str.find_last_of(data_symbols) + 1);
 }
 
 // Read the configuration parameters from input script
 const void Config::read_all(const string& file_name) {
-    ifstream file(file_name);
-    require(file, "File not found: " + file_name);
+    if(file_name == "") return;
 
-    string line;
-    data.clear();
-
-    // loop through the lines in a file
-    while (getline(file, line)) {
-        // force all the characters in a line to lower case
-        std::transform(line.begin(), line.end(), line.begin(), ::tolower);
-
-        bool line_started = true;
-        // store the command and its parameters from non-empty and non-pure-comment lines
-        while(line.size() > 0) {
-            trim(line);
-            int i = line.find_first_not_of(data_symbols);
-            if (i <= 0) break;
-
-            if (line_started) data.push_back({});
-            data.back().push_back( line.substr(0, i) );
-            line = line.substr(i);
-            line_started = false;
-        }
-    }
+    // Store the commands and their arguments
+    parse_file(file_name);
 
     // Modify the parameters that are correctly specified in input script
     read_parameter("infile", infile);
@@ -99,6 +78,37 @@ const void Config::read_all(const string& file_name) {
     read_parameter("rmin_rectancularize", rmin_rectancularize);
     read_parameter("zbox_above", zbox_above);
     read_parameter("zbox_below", zbox_below);
+}
+
+const void Config::parse_file(const string& file_name) {
+    ifstream file(file_name);
+    require(file, "File not found: " + file_name);
+
+    string line;
+    data.clear();
+
+    // loop through the lines in a file
+    while (getline(file, line)) {
+        // force all the characters in a line to lower case
+        std::transform(line.begin(), line.end(), line.begin(), ::tolower);
+
+        line += " "; // needed to find the end of line
+
+        bool line_started = true;
+        // store the command and its parameters from non-empty and non-pure-comment lines
+        while(line.size() > 0) {
+            trim(line);
+            int i = line.find_first_not_of(data_symbols);
+            if (i <= 0) break;
+
+            if (line_started && line.substr(0, i) == "end") return;
+            if (line_started) data.push_back({});
+
+            data.back().push_back( line.substr(0, i) );
+            line = line.substr(i);
+            line_started = false;
+        }
+    }
 }
 
 // Look up the parameter with string argument
@@ -151,5 +161,15 @@ const void Config::read_parameter(const string& param, double& arg) {
     }
 }
 
-} // namespace femocs
+// Print the stored commands and parameters
+const void Config::print_data() {
+#if VERBOSEMODE
+    for (vector<string> line : data) {
+        for (string l : line)
+            cout << l << "\t";
+        cout << endl;
+    }
+#endif
+}
 
+} // namespace femocs

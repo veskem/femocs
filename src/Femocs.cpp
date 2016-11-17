@@ -8,19 +8,19 @@
 #include <omp.h>
 #include "Femocs.h"
 
+#include "Coarseners.h"
+#include "DealII.h"
 #include "Macros.h"
 #include "Medium.h"
 #include "Tethex.h"
-#include "DealII.h"
-#include "Coarseners.h"
-#include "Config.h"
 
 using namespace std;
 namespace femocs {
 
 // Femocs constructor, specifies simulation parameters
-Femocs::Femocs(string message) : skip_calculations(false) {
-    start_msg(double t0, "======= Femocs started! =======\n");
+Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
+    double t0;
+    start_msg(t0, "======= Femocs started! =======\n");
 
 #if FILEWRITEMODE
     // Create the output folder if it doesn't exist
@@ -29,34 +29,11 @@ Femocs::Femocs(string message) : skip_calculations(false) {
     // Specify the root folder location
     home = "./";
 
-    Config config;
-    config.read_all(home + "input/md.in");
+    start_msg(t0, "=== Reading configuration parameters...");
+    conf.read_all(path_to_conf);
+    end_msg(t0);
 
-//    conf.infile = home + "input/rough111.ckx";
-//    conf.infile = home + "input/mushroom2.ckx";
-//    conf.infile = home + "input/tower_hl2p5.ckx";
-    conf.infile = home + "input/nanotip_hr5.ckx";
-    conf.latconst = 2.0; //3.61
-
-    conf.coord_cutoff = 3.1;         // coordination analysis cut-off radius
-
-    conf.nnn = 12;                   // number of nearest neighbours in bulk
-    conf.mesh_quality = "2.0";       // minimum mesh quality Tetgen is allowed to make
-    conf.nt = 4;                     // number of OpenMP threads
-    conf.radius = 12.0;              // inner radius of coarsening cylinder
-    conf.coarse_factor = 0.4;        // coarsening factor; bigger number gives coarser surface
-    conf.smooth_factor = 0.5;        // surface smoothing factor; bigger number gives smoother surface
-    conf.n_bins = 20;                // number of bins in histogram smoother
-    conf.postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
-    conf.rmin_rectancularize = conf.latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
-
-    conf.refine_apex = false;        // refine nanotip apex
-    conf.significant_distance = 0.5*conf.latconst;
-
-    // Electric field is applied 100 lattice constants above the highest point of surface
-    // and bulk is extended 20 lattice constants below the minimum point of surface
-    conf.zbox_above = 100 * conf.latconst;
-    conf.zbox_below = 20 * conf.latconst;
+    conf.print_data();
 }
 
 // Destructor, deletes data and prints bye-bye-message
@@ -238,7 +215,7 @@ const void Femocs::run(double E_field, string message) {
     hexmesh_vacuum.write_vtk_elems(home + "output/vacuum_smooth" + message + ".vtk");
     end_msg(t0);
 
-    reader.save_current_run_points(conf.significant_distance);
+    reader.save_current_run_points(conf.distance_tol);
 
     cout << "\nTotal time of Femocs: " << omp_get_wtime() - tstart << "\n";
     skip_calculations = false;
@@ -259,7 +236,7 @@ const void Femocs::import_atoms(const string& file_name) {
     end_msg(t0);
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.equals_previous_run(conf.significant_distance);
+    skip_calculations = reader.equals_previous_run(conf.distance_tol);
     end_msg(t0);
     if (skip_calculations) return;
 
@@ -283,7 +260,7 @@ const void Femocs::import_atoms(int n_atoms, double* coordinates, double* box, i
     end_msg(t0);
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.equals_previous_run(conf.significant_distance);
+    skip_calculations = reader.equals_previous_run(conf.distance_tol);
     end_msg(t0);
     if (skip_calculations) return;
 
@@ -301,7 +278,7 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
     end_msg(t0);
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.equals_previous_run(conf.significant_distance);
+    skip_calculations = reader.equals_previous_run(conf.distance_tol);
     end_msg(t0);
     if (skip_calculations) return;
 
