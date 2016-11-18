@@ -8,8 +8,6 @@ SET(LIB_NAME "femocs")
 
 # Specify folders where libfemocs and its .mod-file will be written
 # Those paths are (not like others) specified in relation to the location of Makefile
-#SET (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ../../lib)
-#SET (CMAKE_Fortran_MODULE_DIRECTORY ../../include)
 SET (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ..)
 SET (CMAKE_Fortran_MODULE_DIRECTORY ..)
 
@@ -27,11 +25,10 @@ SET(CMAKE_BUILD_TYPE Release)
 #SET(CMAKE_BUILD_TYPE Debug)
 
 # Specify warnings and optimization level
-SET(CMAKE_CXX_FLAGS_RELEASE "-w -O3")
-#SET(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wpedantic -O2")
-SET(CMAKE_CXX_FLAGS_DEBUG "-g2 -w -O0")
+SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
+SET(CMAKE_CXX_FLAGS_DEBUG "-g2 -O0 -w") #-Wall -Wpedantic")
 
-FIND_PACKAGE(deal.II 8.3 REQUIRED HINTS ${DEAL_II_DIR})
+FIND_PACKAGE(deal.II 8.4 REQUIRED HINTS ${DEAL_II_DIR})
 IF(NOT ${deal.II_FOUND})
   MESSAGE(FATAL_ERROR "\nCould not find deal.II from" ${DEAL_II_DIR} "\n")
 ENDIF()

@@ -1,13 +1,13 @@
 
 include release/makefile.defs
-	
+
 all: release/femocs
 
 release/femocs: release/femocs.o
-	${F90} release/femocs.o ${WARNINGS} ${FCFLAGS} ${LDFLAGS} -o release/femocs	
+	${F90} release/femocs.o ${OPT} ${FCFLAGS} ${LDFLAGS} -o release/femocs
 
 release/femocs.o: lib/libfemocs.a lib/build/Makefile ${MAIN_F90} src/* include/*
-	${F90} -c ${MAIN_F90} ${WARNINGS} ${FCFLAGS} ${LDFLAGS} -o release/femocs.o
+	${F90} -c ${MAIN_F90} ${OPT} ${FCFLAGS} ${LDFLAGS} -o release/femocs.o
 
 lib/libfemocs.a:
 	make -f release/makefile.lib

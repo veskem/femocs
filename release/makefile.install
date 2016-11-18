@@ -1,25 +1,23 @@
 
 include release/makefile.defs
 
-all: lib/libtet.a dealii/lib/libdeal_II.a dealii/lib/libdeal_II.so
+all: lib/libtet.a dealii/lib/libdeal_II.a dealii/lib/libdeal_II.so.${DEALII_VER}
 
 lib/libtet.a:
 	cd tetgen; rm -rf build; mkdir build
 	cd tetgen/build; cmake ..; make -j${NPROCS}
 	cd tetgen; mv build/libtet.a ../lib; rm -rf build
-	
+
 dealii/lib/libdeal_II.a: dealii/dealii-${DEALII_VER}.tar.gz
-	cd dealii; mv dealii-${DEALII_VER}.tar.gz ..; rm -rf *; mv ../dealii-${DEALII_VER}.tar.gz .
 	cd dealii; tar -xvf dealii-${DEALII_VER}.tar.gz; mkdir dealii-${DEALII_VER}/build
 	cd dealii/dealii-*/build; cmake -DCMAKE_BUILD_TYPE=Release -DDEAL_II_STATIC_EXECUTABLE=ON -DCMAKE_INSTALL_PREFIX=../.. ..; make -j${NPROCS} install
 	cd dealii; rm -rf examples dealii-${DEALII_VER};
 
-dealii/lib/libdeal_II.so: dealii/dealii-${DEALII_VER}.tar.gz
+dealii/lib/libdeal_II.so.${DEALII_VER}: dealii/dealii-${DEALII_VER}.tar.gz
 	cd dealii; tar -xvf dealii-${DEALII_VER}.tar.gz; mkdir dealii-${DEALII_VER}/build
 	cd dealii/dealii-*/build; cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../.. ..; make -j${NPROCS} install
-	cd dealii; rm -rf examples dealii-${DEALII_VER};
-# cd dealii; rm -rf lib/cmake; mv dealii-*/build/lib/* lib/; rm -rf dealii-${DEALII_VER}
-	
+	cd dealii; rm -rf examples lib/libdeal_II.so dealii-${DEALII_VER};
+
 dealii/dealii-${DEALII_VER}.tar.gz:
 	cd dealii; wget https://github.com/dealii/dealii/releases/download/v${DEALII_VER}/dealii-${DEALII_VER}.tar.gz
 

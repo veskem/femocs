@@ -5,6 +5,7 @@ MAIN_C = release/Kimocs.c
 NPROCS = 4
 
 F90 = gfortran-5
-WARNINGS = -Wall -Wextra
 FCFLAGS = -Llib -Ldealii/lib -Ilib -Iinclude -Idealii/include
 LDFLAGS = -lfemocs -ltet -ldeal_II -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -std=c++11
+OPT = -O3 -Wall -Wpedantic
+#OPT = -g -O0 -Wall -Wpedantic

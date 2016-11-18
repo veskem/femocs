@@ -389,7 +389,6 @@ const void Interpolator::extract_elfield(int n_points, double* x, double* y, dou
     }
 }
 
-
 // Linearly interpolate electric potential on the set of points
 const void Interpolator::extract_potential(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
     Medium medium(n_points);

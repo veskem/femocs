@@ -10,7 +10,7 @@ SET (CMAKE_RUNTIME_OUTPUT_DIRECTORY ..)
 SET(TARGET "femocs")
 
 # path to file with main function
-SET(MAIN "../Standalone.cpp")
+#SET(MAIN "../Standalone.cpp")
 
 # path to source files
 FILE(GLOB_RECURSE SOURCE "../src/*.cpp")
@@ -24,18 +24,18 @@ LINK_DIRECTORIES(../lib)
 # names of the libraries
 SET(LIBRARIES tet)
 
-# specify whether to build in debug or release mode
+# Specify whether to build in debug or release mode
 #SET(CMAKE_BUILD_TYPE Release)
 #SET(CMAKE_BUILD_TYPE Debug)
 
-# disable or enable all warnings
-SET(CMAKE_CXX_FLAGS_RELEASE "-w -O3")
-SET(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -w") # "-Wall -Wpedantic")
+# Specify warnings and optimization level
+SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
+SET(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -w") # "-Wall -Wpedantic")
 # ==============================================
 
-FIND_PACKAGE(deal.II 8.4 REQUIRED HINTS ${DEAL_II_DIR} ../ ../../ $ENV{DEAL_II_DIR} )
+FIND_PACKAGE(deal.II 8.4 REQUIRED HINTS ${DEAL_II_DIR})
 IF(NOT ${deal.II_FOUND})
-  MESSAGE(FATAL_ERROR "\nCould not locate deal.II from" ${DEAL_II_DIR} "\n")
+  MESSAGE(FATAL_ERROR "\nCould not find deal.II from" ${DEAL_II_DIR} "\n")
 ENDIF()
 
 FIND_PACKAGE(OpenMP)
