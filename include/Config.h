@@ -24,16 +24,16 @@ public:
     const void read_all(const string& file_name);
 
     /** Look up the configuration parameter with string argument */
-    const void read_parameter(const string& param, string& value);
+    const int read_parameter(const string& param, string& value);
 
     /** Look up the configuration parameter with boolean argument */
-    const void read_parameter(const string& param, bool& value);
+    const int read_parameter(const string& param, bool& value);
 
     /** Look up the configuration parameter with integer argument */
-    const void read_parameter(const string& param, int& value);
+    const int read_parameter(const string& param, int& value);
 
     /** Look up the configuration parameter with double argument */
-    const void read_parameter(const string& param, double& value);
+    const int read_parameter(const string& param, double& value);
 
     /** Print the stored commands and parameters */
     const void print_data();

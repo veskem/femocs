@@ -259,9 +259,10 @@ const void Interpolator::precompute_tetrahedra() {
 
 // Check with barycentric coordinates whether the point is inside the i-th tetrahedron
 const bool Interpolator::point_in_tetrahedron(const Point3 &point, const int i) {
-    expect(i >= 0 && i < det0.size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < det0.size(), "Index out of bounds: " + to_string(i));
 
     // Ignore co-planar tetrahedra
+    // no need to check because Tetgen guarantees non-co-planar tetrahedra
 //    if (tet_not_valid[i]) return false;
 
     Vec4 pt(point, 1);
@@ -279,10 +280,9 @@ const bool Interpolator::point_in_tetrahedron(const Point3 &point, const int i) 
 
 // Calculate barycentric coordinates for point
 const Vec4 Interpolator::get_bcc(const Point3 &point, const int elem) {
-    expect(elem >= 0 && elem < det0.size(), "Index out of bounds: " + to_string(elem));
+    require(elem >= 0 && elem < det0.size(), "Index out of bounds: " + to_string(elem));
 
     Vec4 pt(point, 1);
-
     double bcc1 = det0[elem] * pt.dotProduct(det1[elem]);
     double bcc2 = det0[elem] * pt.dotProduct(det2[elem]);
     double bcc3 = det0[elem] * pt.dotProduct(det3[elem]);
@@ -326,7 +326,7 @@ const int Interpolator::locate_element(const Point3 &point, const int elem_guess
 
 // Calculate interpolation for point inside or near the elem-th tetrahedron
 const Solution Interpolator::get_interpolation(const Point3 &point, const int elem) {
-    expect(elem >= 0 && elem < mesh->elems.size(), "Index out of bounds: " + to_string(elem));
+    require(elem >= 0 && elem < mesh->elems.size(), "Index out of bounds: " + to_string(elem));
 
     // Get barycentric coordinates of point in tetrahedron
     Vec4 bcc = get_bcc(point, elem);
@@ -441,7 +441,7 @@ const double Interpolator::determinant(const Vec4 &v1, const Vec4 &v2, const Vec
 
 // Export interpolated electric field to helmod
 const void Interpolator::export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    //require(n_atoms <= get_n_atoms(), "Solution vector is shorter than requested: " + to_string(get_n_atoms()));
+//    require(n_atoms <= get_n_atoms(), "Solution vector is shorter than requested: " + to_string(n_atoms));
 
     // Initially pass the zero electric field for all the atoms
     for (int i = 0; i < n_atoms; ++i) {
@@ -455,7 +455,6 @@ const void Interpolator::export_helmod(int n_atoms, double* Ex, double* Ey, doub
     for (int i = 0; i < get_n_atoms(); ++i) {
         int identifier = get_id(i);
         if (identifier < 0) continue;
-
 
         require(identifier < n_atoms, "Mismatch between import and export data sizes detected!");
 

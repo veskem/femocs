@@ -112,18 +112,17 @@ const void Config::parse_file(const string& file_name) {
 }
 
 // Look up the parameter with string argument
-const void Config::read_parameter(const string& param, string& arg) {
+const int Config::read_parameter(const string& param, string& arg) {
     // loop through all the commands that were found from input script
-    for (vector<string> str : data) {
+    for (vector<string> str : data)
         if (str.size() >= 2 && str[0] == param) {
-            arg = str[1];
-            return;
+            arg = str[1]; return 0;
         }
-    }
+    return 1;
 }
 
 // Look up the parameter with boolean argument
-const void Config::read_parameter(const string& param, bool& arg) {
+const int Config::read_parameter(const string& param, bool& arg) {
     // loop through all the commands that were found from input script
     for (vector<string> str : data)
         if (str.size() >= 2 && str[0] == param) {
@@ -131,34 +130,36 @@ const void Config::read_parameter(const string& param, bool& arg) {
             istringstream is2(str[1]);
             bool result;
             // try to parse the bool argument in text format
-            if (is1 >> std::boolalpha >> result) arg = result;
+            if (is1 >> std::boolalpha >> result) { arg = result; return 0; }
             // try to parse the bool argument in numeric format
-            else if (is2 >> result) arg = result;
-            return;
+            else if (is2 >> result) { arg = result; return 0; }
+            return 1;
         }
+    return 1;
 }
 
 // Look up the parameter with integer argument
-const void Config::read_parameter(const string& param, int& arg) {
+const int Config::read_parameter(const string& param, int& arg) {
     // loop through all the commands that were found from input script
     for (vector<string> str : data)
         if (str.size() >= 2 && str[0] == param) {
             istringstream is(str[1]); int result;
-            if (is >> result) arg = result;
-            return;
+            if (is >> result) { arg = result; return 0; }
+            return 1;
         }
+    return 1;
 }
 
 // Look up the parameter with double argument
-const void Config::read_parameter(const string& param, double& arg) {
+const int Config::read_parameter(const string& param, double& arg) {
     // loop through all the commands that were found from input script
-    for (vector<string> str : data) {
+    for (vector<string> str : data)
         if (str.size() >= 2 && str[0] == param) {
             istringstream is(str[1]); double result;
-            if (is >> result) arg = result;
-            return;
+            if (is >> result) { arg = result; return 0; }
+            return 1;
         }
-    }
+    return 1;
 }
 
 // Print the stored commands and parameters

@@ -34,7 +34,7 @@ public:
      * @param E_field   long range electric field strength
      * @param msg       message from the host: time step, file name etc
      */
-    const void run(double E_field, string msg);
+    const int run(double E_field, string msg);
 
     /** Function to import atoms from PARCAS
      * @param n_atoms       number of imported atoms
@@ -42,7 +42,7 @@ public:
      * @param box           size on simulation box in Angstroms
      * @param nborlist      neighbour list for atoms
      */
-    const void import_atoms(int n_atoms, double* coordinates, double* box, int* nborlist);
+    const int import_atoms(int n_atoms, double* coordinates, double* box, int* nborlist);
 
     /** Function to import coordinates of atoms
      * @param n_atoms   number of imported atoms
@@ -51,12 +51,12 @@ public:
      * @param z         z-coordinates of the atoms
      * @param types     types of the atoms
      */
-    const void import_atoms(int n_atoms, double* x, double* y, double* z, int* types);
+    const int import_atoms(int n_atoms, double* x, double* y, double* z, int* types);
 
     /** Function to import atoms from file
      * @param file_name path to the file
      */
-    const void import_atoms(const string& file_name);
+    const int import_atoms(const string& file_name);
     
     /** Function to export the calculated electric field
      * @param n_atoms   number of points where electric field was calculted
@@ -65,7 +65,7 @@ public:
      * @param Ez        z-component of electric field
      * @param Enorm     norm of electric field
      */
-    const void export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
+    const int export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
     
     /** Function to linearly interpolate electric field at given points
      * @param n_points  number of points where electric field is interpolated
@@ -78,7 +78,7 @@ public:
      * @param Enorm     norm of the interpolated electric field
      * @param flag      index of first point outside the mesh; index is 1-based; flag == 0 means all the points were in the mesh
      */
-    const void interpolate_elfield(int n_points, double* x, double* y, double* z,
+    const int interpolate_elfield(int n_points, double* x, double* y, double* z,
             double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 
     /** Function to linearly interpolate electric potential at given points
@@ -89,7 +89,11 @@ public:
      * @param phi       electric potential
      * @param flag      index of first point outside the mesh; index is 1-based; flag == 0 means all the points were in the mesh
      */
-    const void interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag);
+    const int interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag);
+
+    const int parse_command(const string & command, int* arg);
+
+    const int parse_command(const string & command, double* arg);
 
 private:
     string home;

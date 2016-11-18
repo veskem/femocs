@@ -48,7 +48,10 @@ struct Types {
 #endif
 
 /** Definition to handle cases where vital operation does not complete normally */
-#define check_success(success, message) if (!(success)) { __success_fails(__FILE__, __LINE__, message); return; }
+#define check_success(success, message) if (!(success)) { __success_fails(__FILE__, __LINE__, message); return !(success); }
+
+/** Definition to print message if condition is met */
+#define check_message(condition, message) if (condition) cout << "\nMESSAGE: " << message << endl;
 
 // Definitions for development in debug mode
 #if ASSERTMODE

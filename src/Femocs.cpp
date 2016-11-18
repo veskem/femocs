@@ -42,14 +42,13 @@ Femocs::~Femocs() {
 }
 
 // Workhorse function to run Femocs simulation
-const void Femocs::run(double E_field, string message) {
+const int Femocs::run(double E_field, string message) {
     double t0, tstart;  // Variables used to measure the code execution time
     bool success;
 
-    if(skip_calculations) return;
+    if(skip_calculations) return skip_calculations;
     skip_calculations = true;
 
-    reader.write("output/reader.xyz");
     conf.neumann = E_field;
     conf.message = message;
     tstart = omp_get_wtime();
@@ -219,9 +218,11 @@ const void Femocs::run(double E_field, string message) {
 
     cout << "\nTotal time of Femocs: " << omp_get_wtime() - tstart << "\n";
     skip_calculations = false;
+
+    return skip_calculations;
 }
 
-const void Femocs::import_atoms(const string& file_name) {
+const int Femocs::import_atoms(const string& file_name) {
     double t0;
     string file_type, fname;
 
@@ -238,21 +239,26 @@ const void Femocs::import_atoms(const string& file_name) {
     start_msg(t0, "=== Comparing with previous run...");
     skip_calculations = reader.equals_previous_run(conf.distance_tol);
     end_msg(t0);
-    if (skip_calculations) return;
 
-    if (file_type == "xyz") {
-        start_msg(t0, "=== Calculating coords and atom types...");
-        reader.calc_coordination(conf.coord_cutoff);
-        reader.extract_types(conf.nnn, conf.latconst);
-        end_msg(t0);
-    } else {
-        start_msg(t0, "=== Calculating coords from atom types...");
-        reader.calc_coordination(conf.nnn);
-        end_msg(t0);
+    check_message(skip_calculations, "Atoms haven't moved significantly! Field calculation will be skipped!");
+
+    if (!skip_calculations) {
+        if (file_type == "xyz") {
+            start_msg(t0, "=== Calculating coords and atom types...");
+            reader.calc_coordination(conf.coord_cutoff);
+            reader.extract_types(conf.nnn, conf.latconst);
+            end_msg(t0);
+        } else {
+            start_msg(t0, "=== Calculating coords from atom types...");
+            reader.calc_coordination(conf.nnn);
+            end_msg(t0);
+        }
     }
+
+    return skip_calculations;
 }
 
-const void Femocs::import_atoms(int n_atoms, double* coordinates, double* box, int* nborlist) {
+const int Femocs::import_atoms(int n_atoms, double* coordinates, double* box, int* nborlist) {
     double t0;
 
     start_msg(t0, "=== Importing atoms...");
@@ -262,15 +268,20 @@ const void Femocs::import_atoms(int n_atoms, double* coordinates, double* box, i
     start_msg(t0, "=== Comparing with previous run...");
     skip_calculations = reader.equals_previous_run(conf.distance_tol);
     end_msg(t0);
-    if (skip_calculations) return;
 
-    start_msg(t0, "=== Calculating coords and atom types...");
-    reader.calc_coordination(conf.nnn, conf.coord_cutoff, nborlist);
-    reader.extract_types(conf.nnn, conf.latconst);
-    end_msg(t0);
+    check_message(skip_calculations, "Atoms haven't moved significantly! Field calculation will be skipped!");
+
+    if (!skip_calculations) {
+        start_msg(t0, "=== Calculating coords and atom types...");
+        reader.calc_coordination(conf.nnn, conf.coord_cutoff, nborlist);
+        reader.extract_types(conf.nnn, conf.latconst);
+        end_msg(t0);
+    }
+
+    return skip_calculations;
 }
 
-const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int* types) {
+const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int* types) {
     double t0;
 
     start_msg(t0, "=== Importing atoms...");
@@ -280,16 +291,19 @@ const void Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, in
     start_msg(t0, "=== Comparing with previous run...");
     skip_calculations = reader.equals_previous_run(conf.distance_tol);
     end_msg(t0);
-    if (skip_calculations) return;
 
-    start_msg(t0, "=== Calculating coords from atom types...");
-    reader.calc_coordination(conf.nnn);
-    end_msg(t0);
+    check_message(skip_calculations, "Atoms haven't moved significantly! Field calculation will be skipped!");
+
+    if (!skip_calculations) {
+        start_msg(t0, "=== Calculating coords from atom types...");
+        reader.calc_coordination(conf.nnn);
+        end_msg(t0);
+    }
+
+    return skip_calculations;
 }
 
-const void Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    if (skip_calculations) return;
-
+const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     double t0;
 
     start_msg(t0, "=== Interpolating solution...");
@@ -309,26 +323,42 @@ const void Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* E
     start_msg(t0, "=== Exporting results...");
     interpolator.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);
     end_msg(t0);
+
+    return skip_calculations;
 }
 
-const void Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z,
+const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-
-    if (skip_calculations) return;
 
     start_msg(double t0, "=== Interpolating electric field...");
     interpolator.extract_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
     interpolator.write("output/elfield_on_points.xyz");
+
+    return skip_calculations;
 }
 
-const void Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
-    if (skip_calculations) return;
-
+const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
     start_msg(double t0, "=== Interpolating electric potential...");
     interpolator.extract_potential(n_points, x, y, z, phi, flag);
     end_msg(t0);
     interpolator.write("output/phi_on_points.xyz");
+
+    return skip_calculations;
+}
+
+const int Femocs::parse_command(const string & command, int* arg) {
+    int value;
+    int retval = conf.read_parameter(command, value);
+    if (retval == 0) arg[0] = value;
+    return retval;
+}
+
+const int Femocs::parse_command(const string & command, double* arg) {
+    double value;
+    int retval = conf.read_parameter(command, value);
+    if (retval == 0) arg[0] = value;
+    return retval;
 }
 
 } /* namespace femocs */

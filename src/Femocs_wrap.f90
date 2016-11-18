@@ -19,18 +19,20 @@ module libfemocs
             type(c_ptr), value :: femocs
         end subroutine
 
-        subroutine femocs_run_c(femocs, E_field, message) bind(C, name="femocs_run")
+        subroutine femocs_run_c(femocs, retval, E_field, message) bind(C, name="femocs_run")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
             real(c_double), intent(in), value :: E_field
             character(len=1, kind=C_CHAR), intent(in) :: message(*)
         end subroutine
        
-        subroutine femocs_import_atoms_c(femocs, n_atoms, x, y, z, types) bind(C, name="femocs_import_atoms")
+        subroutine femocs_import_atoms_c(femocs, retval, n_atoms, x, y, z, types) bind(C, name="femocs_import_atoms")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
             integer(c_int), value :: n_atoms
             real(c_double) :: x(*)
             real(c_double) :: y(*)
@@ -38,27 +40,30 @@ module libfemocs
             integer(c_int) :: types(*)
         end subroutine
 
-        subroutine femocs_import_parcas_c(femocs, n_atoms, coordinates, box, nborlist) bind(C, name="femocs_import_parcas")
+        subroutine femocs_import_parcas_c(femocs, retval, n_atoms, coordinates, box, nborlist) bind(C, name="femocs_import_parcas")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval            
             integer(c_int), value :: n_atoms
             real(c_double) :: coordinates(*)
             real(c_double) :: box(*)
             integer(c_int) :: nborlist(*)
         end subroutine
         
-        subroutine femocs_import_file_c(femocs, file_name) bind(C, name="femocs_import_file")
+        subroutine femocs_import_file_c(femocs, retval, file_name) bind(C, name="femocs_import_file")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval            
             character(len=1, kind=C_CHAR), intent(in) :: file_name(*)
         end subroutine
         
-        subroutine femocs_export_elfield_c(femocs, n_atoms, Ex, Ey, Ez, Enorm) bind(C, name="femocs_export_elfield")
+        subroutine femocs_export_elfield_c(femocs, retval, n_atoms, Ex, Ey, Ez, Enorm) bind(C, name="femocs_export_elfield")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval            
             integer(c_int), value :: n_atoms
             real(c_double) :: Ex(*)
             real(c_double) :: Ey(*)
@@ -66,11 +71,12 @@ module libfemocs
             real(c_double) :: Enorm(*)
         end subroutine
         
-        subroutine femocs_interpolate_elfield_c(femocs, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag) &
+        subroutine femocs_interpolate_elfield_c(femocs, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag) &
                                                  bind(C, name="femocs_interpolate_elfield")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval            
             integer(c_int), value :: n_points
             real(c_double) :: x(*)
             real(c_double) :: y(*)
@@ -82,17 +88,36 @@ module libfemocs
             integer(c_int) :: flag(*)
         end subroutine
         
-        subroutine femocs_interpolate_phi_c(femocs, n_points, x, y, z, phi, flag) &
+        subroutine femocs_interpolate_phi_c(femocs, retval, n_points, x, y, z, phi, flag) &
                                                  bind(C, name="femocs_interpolate_phi")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval            
             integer(c_int), value :: n_points
             real(c_double) :: x(*)
             real(c_double) :: y(*)
             real(c_double) :: z(*)
             real(c_double) :: phi(*)
             integer(c_int) :: flag(*)
+        end subroutine
+        
+        subroutine femocs_parse_int_c(femocs, retval, command, arg) bind(C, name="femocs_parse_int")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval            
+            character(len=1, kind=C_CHAR), intent(in) :: command(*)
+            integer(c_int) :: arg
+        end subroutine
+        
+        subroutine femocs_parse_double_c(femocs, retval, command, arg) bind(C, name="femocs_parse_double")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval            
+            character(len=1, kind=C_CHAR), intent(in) :: command(*)
+            real(c_double) :: arg
         end subroutine
         
         subroutine femocs_speaker_c(str) bind(C, name="femocs_speaker")
@@ -123,6 +148,8 @@ module libfemocs
         procedure :: export_elfield => femocs_export_elfield
         procedure :: interpolate_elfield => femocs_interpolate_elfield
         procedure :: interpolate_phi => femocs_interpolate_phi
+        procedure :: parse_int => femocs_parse_int
+        procedure :: parse_double => femocs_parse_double
     end type
 
     ! This function will act as the constructor for femocs type
@@ -163,9 +190,10 @@ module libfemocs
         call delete_femocs_c(this%ptr)
     end subroutine
 
-    subroutine femocs_run(this, E_field, message)
+    subroutine femocs_run(this, retval, E_field, message)
         implicit none
         class(femocs), intent(in) :: this
+        integer(c_int) :: retval
         real(c_double), intent(in) :: E_field
         character(len=*), intent(in) :: message
         character(len=1, kind=C_CHAR) :: c_str(len_trim(message) + 1)
@@ -178,33 +206,36 @@ module libfemocs
         end do
         c_str(N + 1) = C_NULL_CHAR
 
-        call femocs_run_c(this%ptr, E_field, c_str)
+        call femocs_run_c(this%ptr, retval, E_field, c_str)
     end subroutine
     
-    subroutine femocs_import_atoms(this, n_atoms, x, y, z, types)
+    subroutine femocs_import_atoms(this, retval, n_atoms, x, y, z, types)
         implicit none
         class(femocs), intent(in) :: this
+        integer(c_int) :: retval
         integer(c_int) :: n_atoms
         real(c_double) :: x(*)
         real(c_double) :: y(*)
         real(c_double) :: z(*)
         integer(c_int) :: types(*)
-        call femocs_import_atoms_c(this%ptr, n_atoms, x, y, z, types)
+        call femocs_import_atoms_c(this%ptr, retval, n_atoms, x, y, z, types)
     end subroutine
     
-    subroutine femocs_import_parcas(this, n_atoms, coordinates, box, nborlist)
+    subroutine femocs_import_parcas(this, retval, n_atoms, coordinates, box, nborlist)
         implicit none
         class(femocs), intent(in) :: this
+        integer(c_int) :: retval        
         integer(c_int) :: n_atoms
         real(c_double) :: coordinates(*)
         real(c_double) :: box(*)
         integer(c_int) :: nborlist(*)
-        call femocs_import_parcas_c(this%ptr, n_atoms, coordinates, box, nborlist)
+        call femocs_import_parcas_c(this%ptr, retval, n_atoms, coordinates, box, nborlist)
     end subroutine    
 
-    subroutine femocs_import_file(this, file_name)
+    subroutine femocs_import_file(this, retval, file_name)
         implicit none
         class(femocs), intent(in) :: this
+        integer(c_int) :: retval        
         character(len=*), intent(in) :: file_name
         character(len=1, kind=C_CHAR) :: c_str(len_trim(file_name) + 1)
         integer :: N, i
@@ -216,23 +247,25 @@ module libfemocs
         end do
         c_str(N + 1) = C_NULL_CHAR
 
-        call femocs_import_file_c(this%ptr, c_str)
+        call femocs_import_file_c(this%ptr, retval, c_str)
     end subroutine
     
-    subroutine femocs_export_elfield(this, n_atoms, Ex, Ey, Ez, Enorm)
+    subroutine femocs_export_elfield(this, retval, n_atoms, Ex, Ey, Ez, Enorm)
         implicit none
         class(femocs), intent(in) :: this
+        integer(c_int) :: retval        
         integer(c_int) :: n_atoms
         real(c_double) :: Ex(*)
         real(c_double) :: Ey(*)
         real(c_double) :: Ez(*)
         real(c_double) :: Enorm(*)
-        call femocs_export_elfield_c(this%ptr, n_atoms, Ex, Ey, Ez, Enorm)
+        call femocs_export_elfield_c(this%ptr, retval, n_atoms, Ex, Ey, Ez, Enorm)
     end subroutine
     
-    subroutine femocs_interpolate_elfield(this, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag)
+    subroutine femocs_interpolate_elfield(this, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag)
         implicit none
         class(femocs), intent(in) :: this
+        integer(c_int) :: retval        
         integer(c_int) :: n_points
         real(c_double) :: x(*)
         real(c_double) :: y(*)
@@ -242,21 +275,60 @@ module libfemocs
         real(c_double) :: Ez(*)
         real(c_double) :: Enorm(*)
         integer(c_int) :: flag(*)
-        call femocs_interpolate_elfield_c(this%ptr, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag)
+        call femocs_interpolate_elfield_c(this%ptr, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag)
     end subroutine
     
-    subroutine femocs_interpolate_phi(this, n_points, x, y, z, phi, flag)
+    subroutine femocs_interpolate_phi(this, retval, n_points, x, y, z, phi, flag)
         implicit none
         class(femocs), intent(in) :: this
+        integer(c_int) :: retval        
         integer(c_int) :: n_points
         real(c_double) :: x(*)
         real(c_double) :: y(*)
         real(c_double) :: z(*)
         real(c_double) :: phi(*)
         integer(c_int) :: flag(*)
-        call femocs_interpolate_phi_c(this%ptr, n_points, x, y, z, phi, flag)
+        call femocs_interpolate_phi_c(this%ptr, retval, n_points, x, y, z, phi, flag)
     end subroutine
 
+    subroutine femocs_parse_int(this, retval, command, arg)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval        
+        character(len=*), intent(in) :: command
+        integer(c_int) :: arg
+        character(len=1, kind=C_CHAR) :: c_str(len_trim(command) + 1)
+        integer :: N, i
+
+        ! Converting Fortran string to C string
+        N = len_trim(command)
+        do i = 1, N
+            c_str(i) = command(i:i)
+        end do
+        c_str(N + 1) = C_NULL_CHAR       
+        
+        call femocs_parse_int_c(this%ptr, retval, c_str, arg)
+    end subroutine
+        
+    subroutine femocs_parse_double(this, retval, command, arg)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval        
+        character(len=*), intent(in) :: command
+        real(c_double) :: arg
+        character(len=1, kind=C_CHAR) :: c_str(len_trim(command) + 1)
+        integer :: N, i
+
+        ! Converting Fortran string to C string
+        N = len_trim(command)
+        do i = 1, N
+            c_str(i) = command(i:i)
+        end do
+        c_str(N + 1) = C_NULL_CHAR       
+        
+        call femocs_parse_double_c(this%ptr, retval, c_str, arg)
+    end subroutine        
+        
     subroutine femocs_speaker(str)
         implicit none
         character(len=*), intent(in) :: str
