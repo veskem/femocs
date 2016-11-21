@@ -9,14 +9,13 @@
 #include <iostream>
 
 #include "laplace.h"
-#include "mesh_preparer.h"
 #include "physical_quantities.h"
 #include "currents_and_heating.h"
 
-#include "field_currents_heating.h"
 
 int main() {
 
+	Timer timer;
 
 	PhysicalQuantities pq;
 	if (!pq.load_emission_data("../res/physical_quantities/gtf_grid_1000x1000.dat"))
@@ -26,7 +25,79 @@ int main() {
 	if (!pq.load_resistivity_data("../res/physical_quantities/cu_res_mod.dat"))
 			return EXIT_FAILURE;
 
+	std::cout << "    Load PhysicalQuantities: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
+	/* ------------------------------------------------------------------------------------- */
+	/* Laplace solver */
+	laplace::Laplace<3> laplace_solver;
+	laplace_solver.import_mesh_from_file("../res/3d_meshes/nanotip_vacuum.msh");
+	laplace_solver.setup_system();
+	laplace_solver.assemble_system();
+	laplace_solver.solve();
+	laplace_solver.output_results("field_sol.vtk");
+
+	std::cout << "    Solved laplace_solver: " << timer.wall_time() << " s" << std::endl; timer.restart();
+
+	// Accessing data in vertexes
+	vector<int> cell_indexes, vertex_indexes;
+	for (int i = 0; i < 10; i++) {
+		cell_indexes.push_back(i);
+		vertex_indexes.push_back(0);
+	}
+	vector<double> potentials = laplace_solver.get_potential(cell_indexes, vertex_indexes);
+	vector<Tensor<1, 3>> fields = laplace_solver.get_field(cell_indexes, vertex_indexes);
+
+	/* ------------------------------------------------------------------------------------- */
+	/* Currents and heating */
+	currents_heating::CurrentsAndHeating<3> ch_solver(pq, &laplace_solver);
+	ch_solver.import_mesh_from_file("../res/3d_meshes/nanotip_copper.msh");
+
+	double final_error = ch_solver.run_specific(10.0, 3, true, "sol", true);
+
+	std::cout << "    Solved currents&heating: " << timer.wall_time() << " s" << std::endl; timer.restart();
+	std::cout << "    Final temp. error: " << final_error << std::endl;
+
+	/* ------------------------------------------------------------------------------------- */
+	/* Currents and heating resume (or next iteration) */
+	currents_heating::CurrentsAndHeating<3> ch_solver2(pq, &laplace_solver, &ch_solver);
+	ch_solver2.import_mesh_from_file("../res/3d_meshes/nanotip_copper.msh");
+
+	double final_error2 = ch_solver2.run_specific(10.0, 3, true, "sol_next", true);
+
+	std::cout << "    Solved currents&heating: " << timer.wall_time() << " s" << std::endl; timer.restart();
+	std::cout << "    Final temp. error: " << final_error2 << std::endl;
+
+	/* Access data in vertexes */
+	vector<double> temperatures = ch_solver2.get_temperature(cell_indexes, vertex_indexes);
+	vector<Tensor<1, 3>> currents = ch_solver2.get_current(cell_indexes, vertex_indexes);
+
+	for (unsigned int i = 0; i < temperatures.size(); i++) {
+		std::cout << i << " T: " << temperatures[i] << "; C: " << currents[i] << std::endl;
+	}
+
+
+/* 2d case usage */
+/*
+	laplace::Laplace<2> field;
+	field.import_mesh_from_file("../res/2d_meshes/vacuum_aligned_dense.msh", "vacuum_mesh_2d.vtk");
+	field.run();
+
+	currents_heating::CurrentsAndHeating<2> ch(pq, &field);
+	ch.import_mesh_from_file("../res/2d_meshes/copper_aligned_dense.msh", "copper_mesh_2d.vtk");
+	ch.run();
+*/
+
+/* 2d Mesh splitting */
+/*
+	MeshPreparer<2> mesh_preparer;
+	Triangulation<2> mesh;
+	mesh_preparer.import_mesh_from_file(&mesh, "../res/2d_meshes/both_dense.msh");
+	Triangulation<2> new_mesh = mesh_preparer.remove_cells_with_id(&mesh, 20);
+	mesh_preparer.mark_vacuum_boundary(&new_mesh);
+	mesh_preparer.output_mesh(&new_mesh, "vacuum_aligned_dense.msh");
+*/
+
+/* FCH usage */
 /*
 	MeshPreparer<2> mesh_preparer_fch;
 	field_currents_heating::FieldCurrentsHeating<2> fch(pq);
@@ -37,66 +108,6 @@ int main() {
 	mesh_preparer_fch.output_mesh(p_mesh, "mesh_2d.vtk");
 
 	fch.run();
-*/
-
-/*
-	MeshPreparer<2> mesh_preparer;
-
-	laplace::Laplace<2> field;
-	Triangulation<2> *p_vmesh = field.getp_triangulation();
-	mesh_preparer.import_mesh_from_file(p_vmesh, "../res/2d_meshes/vacuum_aligned_dense.msh");
-	mesh_preparer.output_mesh(p_vmesh, "vacuum_mesh.vtk");
-	field.run();
-
-	currents_heating::CurrentsAndHeating<2> ch(pq, &field);
-	Triangulation<2> *p_cmesh = ch.getp_triangulation();
-	mesh_preparer.import_mesh_from_file(p_cmesh, "../res/2d_meshes/copper_aligned_dense.msh");
-	mesh_preparer.output_mesh(p_cmesh, "copper_mesh.vtk");
-	ch.run();
-*/
-
-	MeshPreparer<3> mesh_preparer;
-
-	laplace::Laplace<3> field;
-	Triangulation<3> *p_vmesh = field.getp_triangulation();
-	mesh_preparer.import_mesh_from_file(p_vmesh, "../res/3d_meshes/mushroom_vacuum.msh");
-	mesh_preparer.mark_vacuum_boundary(p_vmesh);
-	mesh_preparer.output_mesh(p_vmesh, "vacuum_mesh1.vtk");
-	field.run();
-
-	currents_heating::CurrentsAndHeating<3> ch(pq, &field);
-	Triangulation<3> *p_cmesh = ch.getp_triangulation();
-	mesh_preparer.import_mesh_from_file(p_cmesh, "../res/3d_meshes/mushroom_copper.msh");
-	mesh_preparer.mark_copper_boundary(p_cmesh);
-	mesh_preparer.output_mesh(p_cmesh, "copper_mesh1.vtk");
-	ch.run();
-
-	Vector<double>* p_ch_solution = ch.getp_solution();
-	DoFHandler<3>* p_dof_handler = ch.getp_dof_handler();
-
-	laplace::Laplace<3> field2;
-	Triangulation<3> *p_vmesh2 = field2.getp_triangulation();
-	mesh_preparer.import_mesh_from_file(p_vmesh2, "../res/3d_meshes/mushroom_vacuum.msh");
-	mesh_preparer.mark_vacuum_boundary(p_vmesh2);
-	mesh_preparer.output_mesh(p_vmesh2, "vacuum_mesh.vtk");
-	field2.run();
-
-	currents_heating::CurrentsAndHeating<3> ch2(pq, &field2, p_cmesh, p_dof_handler, p_ch_solution);
-	Triangulation<3> *p_cmesh2 = ch2.getp_triangulation();
-	mesh_preparer.import_mesh_from_file(p_cmesh2, "../res/3d_meshes/mushroom_copper.msh");
-	mesh_preparer.mark_copper_boundary(p_cmesh2);
-	mesh_preparer.output_mesh(p_cmesh2, "copper_mesh.vtk");
-	ch2.run();
-
-
-/* 2d Mesh creation */
-/*
-	MeshPreparer<2> mesh_preparer;
-	Triangulation<2> mesh;
-	mesh_preparer.import_mesh_from_file(&mesh, "../res/2d_meshes/both_dense.msh");
-	Triangulation<2> new_mesh = mesh_preparer.remove_cells_with_id(&mesh, 20);
-	mesh_preparer.mark_vacuum_boundary(&new_mesh);
-	mesh_preparer.output_mesh(&new_mesh, "vacuum_aligned_dense.msh");
 */
 	return EXIT_SUCCESS;
 }

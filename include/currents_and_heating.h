@@ -44,6 +44,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <tuple>
 
 #include "mesh_preparer.h" // for BoundaryId-s.. probably should think of a better place for them
 #include "physical_quantities.h"
@@ -62,21 +63,30 @@ namespace currents_heating {
 		CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim> *laplace_);
 
 		CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim> *laplace_,
-				Triangulation<dim>* previous_triangulation_,
-				DoFHandler<dim>* previous_dof_handler_,
-				Vector<double>* previous_solution_);
+						   CurrentsAndHeating *ch_previous_iteration_);
 
 		void run();
+		double run_specific(double temperature_tolerance=1.0, int max_newton_iter=10,
+						  bool file_output=true, std::string out_fname="sol", bool print=true);
 
 		Triangulation<dim>* getp_triangulation();
-		Vector<double>* getp_solution();
 		DoFHandler<dim>* getp_dof_handler();
+		Vector<double>* getp_solution();
+
+		void import_mesh_from_file(const std::string file_name, const std::string out_name = "");
+		bool import_mesh_directly(std::vector<Point<dim> > vertices, std::vector<CellData<dim> > cells);
+
+		std::vector<double> get_temperature(const std::vector<int> &cell_indexes,
+										  	const std::vector<int> &vert_indexes);
+
+		std::vector<Tensor<1, dim>> get_current(const std::vector<int> &cell_indexes,
+									  	  	  	const std::vector<int> &vert_indexes);
 
 	private:
 		void setup_system();
 		void assemble_system_newton(bool first_iteration);
 		void solve();
-		void output_results(const unsigned int iteration) const;
+		void output_results(const unsigned int iteration, const std::string fname = "sol") const;
 
 		void setup_mapping();
 		void set_initial_condition();
@@ -85,10 +95,12 @@ namespace currents_heating {
 		static constexpr unsigned int currents_degree = 1;
 		static constexpr unsigned int heating_degree  = 1;
 
-		static constexpr double ambient_temperature = 300.0;
+		static constexpr double ambient_temperature_default = 300.0;
+		double ambient_temperature;
+
+		FESystem<dim> fe;
 
 		Triangulation<dim> triangulation;
-		FESystem<dim> fe;
 		DoFHandler<dim> dof_handler;
 
 		SparsityPattern sparsity_pattern;
@@ -106,10 +118,8 @@ namespace currents_heating {
 		 */
 		std::map< std::pair<unsigned, unsigned>, std::pair<unsigned, unsigned> > interface_map;
 
-		/** Previous step mesh and solution for setting the initial condition */
-		Triangulation<dim>* previous_triangulation;
-		DoFHandler<dim>* previous_dof_handler;
-		Vector<double>* previous_solution;
+		/** Previous iteration mesh and solution for setting the initial condition */
+		CurrentsAndHeating* previous_iteration;
 		bool interp_initial_conditions;
 	};
 

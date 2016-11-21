@@ -33,12 +33,56 @@ public:
 
 template<int dim>
 Laplace<dim>::Laplace() :
-		fe(shape_degree), dof_handler(triangulation) {
+		applied_field(applied_field_default), fe(shape_degree), dof_handler(triangulation) {
 }
 
 template<int dim>
 Triangulation<dim>* Laplace<dim>::getp_triangulation() {
 	return &triangulation;
+}
+
+template <int dim>
+DoFHandler<dim>* Laplace<dim>::getp_dof_handler() {
+	return &dof_handler;
+}
+
+
+template<int dim>
+void Laplace<dim>::set_applied_field(const double applied_field_) {
+	applied_field = applied_field_;
+}
+
+
+template<int dim>
+void Laplace<dim>::import_mesh_from_file(const std::string file_name, const std::string out_name) {
+	MeshPreparer<dim> mesh_preparer;
+
+	mesh_preparer.import_mesh_from_file(&triangulation, file_name);
+	mesh_preparer.mark_vacuum_boundary(&triangulation);
+
+	if (out_name.size() > 0) mesh_preparer.output_mesh(&triangulation, out_name);
+}
+
+template<int dim>
+bool Laplace<dim>::import_mesh_directly(std::vector<Point<dim> > vertices, std::vector<CellData<dim> > cells) {
+
+	try {
+		SubCellData subcelldata;
+		// Do some clean-up on vertices...
+		GridTools::delete_unused_vertices(vertices, cells, subcelldata);
+		// ... and on cells
+		GridReordering<dim, dim>::invert_all_cells_of_negative_grid(vertices, cells);
+
+		triangulation.create_triangulation_compatibility(vertices, cells, SubCellData());
+	} catch (exception &exc) {
+		return false;
+	}
+
+	MeshPreparer<dim> mesh_preparer;
+	mesh_preparer.mark_vacuum_boundary(&triangulation);
+
+	//if (out_name.size() > 0) mesh_preparer.output_mesh(&triangulation, out_name);
+	return true;
 }
 
 template<int dim>
@@ -47,10 +91,55 @@ double Laplace<dim>::probe_field(const Point<dim> &p) const {
 }
 
 template<int dim>
+std::vector<double> Laplace<dim>::get_potential(const std::vector<int> &cell_indexes,
+												const std::vector<int> &vert_indexes) {
+
+	// Initialise potentials with a value that is immediately visible if it's not changed to proper one
+	std::vector<double> potentials(cell_indexes.size(), 1e15);
+
+	for (int i = 0; i < cell_indexes.size(); i++) {
+		// Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+		// NB: only works without refinement !!!
+		typename DoFHandler<dim>::active_cell_iterator dof_cell(&triangulation,
+				0, cell_indexes[i], &dof_handler);
+
+		double potential = solution[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
+		potentials[i] = potential;
+	}
+    return potentials;
+}
+
+template<int dim>
+std::vector<Tensor<1, dim> > Laplace<dim>::get_field(const std::vector<int> &cell_indexes,
+													 const std::vector<int> &vert_indexes) {
+
+	QGauss<dim> quadrature_formula(quadrature_degree);
+	FEValues<dim> fe_values(fe, quadrature_formula, update_gradients);
+
+	std::vector< Tensor<1, dim> > solution_gradients (quadrature_formula.size());
+
+	std::vector<Tensor<1, dim> > fields(cell_indexes.size());
+
+	for (int i = 0; i < cell_indexes.size(); i++) {
+		// Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+		// NB: only works without refinement !!!
+		typename DoFHandler<dim>::active_cell_iterator dof_cell(&triangulation,
+				0, cell_indexes[i], &dof_handler);
+
+		fe_values.reinit(dof_cell);
+		fe_values.get_function_gradients(solution, solution_gradients);
+		Tensor<1, dim> field = -1.0 * solution_gradients.at(vert_indexes[i]);
+
+		fields[i] = field;
+	}
+    return fields;
+}
+
+template<int dim>
 void Laplace<dim>::setup_system() {
 	dof_handler.distribute_dofs(fe);
 
-	std::cout << "    Number of degrees of freedom: " << dof_handler.n_dofs() << std::endl;
+	//std::cout << "    Number of degrees of freedom: " << dof_handler.n_dofs() << std::endl;
 
 	DynamicSparsityPattern dsp(dof_handler.n_dofs());
 	DoFTools::make_sparsity_pattern(dof_handler, dsp);
@@ -138,7 +227,7 @@ void Laplace<dim>::solve() {
 }
 
 template<int dim>
-void Laplace<dim>::output_results() const {
+void Laplace<dim>::output_results(const std::string filename) const {
 	LaplacePostProcessor<dim> field_calculator; // needs to be before data_out
 	DataOut<dim> data_out;
 
@@ -148,7 +237,7 @@ void Laplace<dim>::output_results() const {
 
 	data_out.build_patches();
 
-	std::ofstream output("field_solution.vtk");
+	std::ofstream output(filename);
 	data_out.write_vtk(output);
 }
 

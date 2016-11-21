@@ -15,29 +15,25 @@ using namespace laplace;
 
 template <int dim>
 CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim>* laplace_) :
+		ambient_temperature(ambient_temperature_default),
 		fe (FE_Q<dim>(currents_degree), 1, 	// Finite element type (1) = linear, etc and number of components
 			FE_Q<dim>(heating_degree), 1),	// (we have 2 variables: potential and T with 1 component each)
 		dof_handler(triangulation),
 		pq(pq_),
 		laplace(laplace_),
-		previous_triangulation(0),
-		previous_dof_handler(0),
-		previous_solution(0),
+		previous_iteration(0),
 		interp_initial_conditions(false) {}
 
 template <int dim>
 CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim>* laplace_,
-			Triangulation<dim>* previous_triangulation_,
-			DoFHandler<dim>* previous_dof_handler_,
-			Vector<double>* previous_solution_) :
+			CurrentsAndHeating *ch_previous_iteration_) :
+		ambient_temperature(ambient_temperature_default),
 		fe (FE_Q<dim>(currents_degree), 1, 	// Finite element type (1) = linear, etc and number of components
 			FE_Q<dim>(heating_degree), 1),	// (we have 2 variables: potential and T with 1 component each)
 		dof_handler(triangulation),
 		pq(pq_),
 		laplace(laplace_),
-		previous_triangulation(previous_triangulation_),
-		previous_dof_handler(previous_dof_handler_),
-		previous_solution(previous_solution_),
+		previous_iteration(ch_previous_iteration_),
 		interp_initial_conditions(true) {}
 
 template <int dim>
@@ -46,21 +42,102 @@ Triangulation<dim>* CurrentsAndHeating<dim>::getp_triangulation() {
 }
 
 template <int dim>
-Vector<double>* CurrentsAndHeating<dim>::getp_solution() {
-	return &present_solution;
-}
-
-template <int dim>
 DoFHandler<dim>* CurrentsAndHeating<dim>::getp_dof_handler() {
 	return &dof_handler;
 }
 
+template <int dim>
+Vector<double>* CurrentsAndHeating<dim>::getp_solution() {
+	return &present_solution;
+}
+
+template<int dim>
+void CurrentsAndHeating<dim>::import_mesh_from_file(const std::string file_name, const std::string out_name) {
+	MeshPreparer<dim> mesh_preparer;
+
+	mesh_preparer.import_mesh_from_file(&triangulation, file_name);
+	mesh_preparer.mark_copper_boundary(&triangulation);
+
+	if (out_name.size() > 0) mesh_preparer.output_mesh(&triangulation, out_name);
+}
+
+template<int dim>
+bool CurrentsAndHeating<dim>::import_mesh_directly(std::vector<Point<dim> > vertices,
+												   std::vector<CellData<dim> > cells) {
+	try {
+		SubCellData subcelldata;
+		// Do some clean-up on vertices...
+		GridTools::delete_unused_vertices(vertices, cells, subcelldata);
+		// ... and on cells
+		GridReordering<dim, dim>::invert_all_cells_of_negative_grid(vertices, cells);
+
+		triangulation.create_triangulation_compatibility(vertices, cells, SubCellData());
+	} catch (exception &exc) {
+		return false;
+	}
+
+	MeshPreparer<dim> mesh_preparer;
+	mesh_preparer.mark_copper_boundary(&triangulation);
+
+	//if (out_name.size() > 0) mesh_preparer.output_mesh(&triangulation, out_name);
+	return true;
+}
+
+template<int dim>
+std::vector<double> CurrentsAndHeating<dim>::get_temperature(const std::vector<int> &cell_indexes,
+															 const std::vector<int> &vert_indexes) {
+
+	// Initialise potentials with a value that is immediately visible if it's not changed to proper one
+	std::vector<double> temperatures(cell_indexes.size(), 1e15);
+
+	for (int i = 0; i < cell_indexes.size(); i++) {
+		// Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+		// NB: only works without refinement !!!
+		typename DoFHandler<dim>::active_cell_iterator dof_cell(&triangulation,
+				0, cell_indexes[i], &dof_handler);
+
+		double temperature = present_solution[dof_cell->vertex_dof_index(vert_indexes[i], 1)];
+		temperatures[i] = temperature;
+	}
+    return temperatures;
+}
+
+
+template<int dim>
+std::vector<Tensor<1, dim> > CurrentsAndHeating<dim>::get_current(const std::vector<int> &cell_indexes,
+													 	 	 	  const std::vector<int> &vert_indexes) {
+	QGauss<dim> quadrature_formula(std::max(currents_degree, heating_degree)+1);
+	FEValues<dim> fe_values(fe, quadrature_formula, update_gradients);
+
+	std::vector< Tensor<1, dim> > potential_gradients (quadrature_formula.size());
+	const FEValuesExtractors::Scalar potential (0);
+
+	std::vector<Tensor<1, dim> > currents(cell_indexes.size());
+
+	for (int i = 0; i < cell_indexes.size(); i++) {
+		// Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+		// NB: only works without refinement !!!
+		typename DoFHandler<dim>::active_cell_iterator dof_cell(&triangulation,
+				0, cell_indexes[i], &dof_handler);
+
+		double temperature = present_solution[dof_cell->vertex_dof_index(vert_indexes[i], 1)];
+
+		fe_values.reinit(dof_cell);
+		fe_values[potential].get_function_gradients(present_solution, potential_gradients);
+
+		Tensor<1, dim> field = -1.0 * potential_gradients.at(vert_indexes[i]);
+		Tensor<1, dim> current = pq.sigma(temperature) * field;
+
+		currents[i] = current;
+	}
+    return currents;
+}
 
 template <int dim>
 void CurrentsAndHeating<dim>::setup_system() {
 	dof_handler.distribute_dofs(fe);
-	std::cout << "Number of degrees of freedom: " << dof_handler.n_dofs()
-			<< std::endl;
+	//std::cout << "Number of degrees of freedom: " << dof_handler.n_dofs()
+	//		<< std::endl;
 
 	DoFRenumbering::component_wise (dof_handler);
 
@@ -138,6 +215,10 @@ void CurrentsAndHeating<dim>::set_initial_condition_slow() {
 	 * in the old mesh and find the closest node and set the values from that. This could
 	 * be sped up by spactially grouping the nodes but this is not done at present moment.
 	 */
+
+	Triangulation<dim>* previous_triangulation = previous_iteration->getp_triangulation();
+	DoFHandler<dim>* previous_dof_handler = previous_iteration->getp_dof_handler();
+	Vector<double>* previous_solution = previous_iteration->getp_solution();
 
 	std::vector<Point<dim> > vertex_points;
 	std::vector<unsigned> vertex_indexes;
@@ -218,6 +299,10 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 	 * in the old mesh and find the closest node and set the values from that. This is too
 	 * slow. To speed things up the nodes at the previous mesh are grouped near support points.
 	 */
+
+	Triangulation<dim>* previous_triangulation = previous_iteration->getp_triangulation();
+	DoFHandler<dim>* previous_dof_handler = previous_iteration->getp_dof_handler();
+	Vector<double>* previous_solution = previous_iteration->getp_solution();
 
 	std::vector< Point<dim> > support_points;
 
@@ -349,7 +434,7 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 template <int dim>
 void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration) {
 
-	TimerOutput timer(std::cout, TimerOutput::summary, TimerOutput::wall_times);
+	TimerOutput timer(std::cout, TimerOutput::never, TimerOutput::wall_times);
 	timer.enter_section("Pre-assembly");
 
 	QGauss<dim> quadrature_formula(std::max(currents_degree, heating_degree)+1);
@@ -622,7 +707,7 @@ template <int dim>
 void CurrentsAndHeating<dim>::run() {
 
 	std::cout << "/---------------------------------------------------------------/" << std::endl
-		      << "CurrentsAndHeating run():" << std::endl;
+			  << "CurrentsAndHeating run():" << std::endl;
 
 	double temperature_tolerance = 1.0;
 
@@ -675,6 +760,51 @@ void CurrentsAndHeating<dim>::run() {
 		}
 	}
 	std::cout << "/---------------------------------------------------------------/" << std::endl;
+}
+
+
+template <int dim>
+double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int max_newton_iter,
+		  	  	  	  	  	  	  	  	   bool file_output, std::string out_fname, bool print) {
+
+	Timer timer;
+	setup_system();
+	setup_mapping();
+
+	// Sets the initial state
+	// Dirichlet BCs need to hold for this state
+	// and 0 dirichlet BC should be applied for all Newton iterations
+	if (interp_initial_conditions)
+		set_initial_condition();
+
+	double temperature_error = 1e15;
+
+	// Newton iterations
+	for (unsigned int iteration=0; iteration<max_newton_iter; ++iteration) {
+
+		system_matrix.reinit(sparsity_pattern);
+		system_rhs.reinit(dof_handler.n_dofs());
+
+		// Set dirichlet BC-s if they are not set in set_initial_condition
+		assemble_system_newton(iteration == 0 && !interp_initial_conditions);
+
+		solve();
+		present_solution.add(1.0, newton_update); // alpha = 1.0
+
+		if (file_output) output_results(iteration, out_fname);
+
+		temperature_error = newton_update.linfty_norm();
+		if (print) {
+			printf("        iter: %d; t_error: %.2f; time: %.2f\n",
+				   iteration, temperature_error, timer.wall_time());
+			timer.restart();
+		}
+
+		if (temperature_error < temperature_tolerance) {
+			break;
+		}
+	}
+	return temperature_error;
 }
 
 
@@ -732,9 +862,9 @@ public:
 // ----------------------------------------------------------------------------------------
 
 template <int dim>
-void CurrentsAndHeating<dim>::output_results(const unsigned int iteration) const {
+void CurrentsAndHeating<dim>::output_results(const unsigned int iteration, const std::string fname) const {
 
-	std::string filename = "solution-" + Utilities::int_to_string(iteration) + ".vtk";
+	std::string filename = fname + "-" + Utilities::int_to_string(iteration) + ".vtk";
 
 	std::vector<std::string> solution_names {"potential", "temperature"};
 

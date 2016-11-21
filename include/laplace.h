@@ -12,6 +12,8 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
+#include <deal.II/grid/grid_reordering.h>
+#include <deal.II/grid/grid_tools.h>
 
 #include <deal.II/dofs/dof_handler.h>
 #include <deal.II/dofs/dof_accessor.h>
@@ -54,18 +56,33 @@ namespace laplace {
 		void run();
 
 		Triangulation<dim>* getp_triangulation();
+		DoFHandler<dim>* getp_dof_handler();
+
+
+		void set_applied_field(const double applied_field_);
+
+		void import_mesh_from_file(const std::string file_name, const std::string out_name = "");
+		bool import_mesh_directly(std::vector<Point<dim> > vertices, std::vector<CellData<dim> > cells);
+
 		double probe_field(const Point<dim> &p) const;
 
-	private:
+		std::vector<double> get_potential(const std::vector<int> &cell_indexes,
+										  const std::vector<int> &vert_indexes);
+
+		std::vector<Tensor<1, dim>> get_field(const std::vector<int> &cell_indexes,
+									  	  	  const std::vector<int> &vert_indexes);
+
 		void setup_system();
 		void assemble_system();
 		void solve();
-		void output_results() const;
+		void output_results(const std::string filename = "field_solution.vtk") const;
 
+	private:
 		static constexpr unsigned int shape_degree = 1;
 		static constexpr unsigned int quadrature_degree = shape_degree + 1;
 
-		static constexpr double applied_field = 2.0;
+		static constexpr double applied_field_default = 2.0;
+		double applied_field;
 
 		Triangulation<dim> triangulation;
 		FE_Q<dim> fe;
