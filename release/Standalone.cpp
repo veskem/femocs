@@ -14,7 +14,7 @@ using namespace std;
 int main() {
     cout << "Standalone started!" << endl;
 
-    int n_atoms = 46053;
+    int n_atoms = 1000;
     int n_points = 100;
     double x[n_points];
     double y[n_points];

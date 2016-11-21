@@ -43,6 +43,9 @@ public:
     SimpleCell() { std::fill_n(node, dim, int()); }
     SimpleCell(const unsigned int &nn) { std::fill_n(node, dim, nn); }
 
+    /** Dimensionality of cell */
+    const int size() const { return dim; }
+
     /** Less than, bigger than, less than or equal, bigger than or equal operators */
     vector<bool> operator <(const unsigned int &t) const {
         vector<bool> v; v.reserve(dim);
@@ -244,7 +247,7 @@ public:
     Point3(double xx) : x(xx), y(xx), z(xx), r(0) {}
     Point3(double xx, double yy, double zz) : x(xx), y(yy), z(zz), r(0) {}
 
-    /** Dimensionality of SimpleCell_T */
+    /** Dimensionality of point */
     const int size() const { return 3; }
 
     /** Squared distance between two Point3-s */

@@ -40,7 +40,7 @@ public:
     Interpolator(SolutionReader* sr);
 
     /** Pre-compute data about tetrahedra to make interpolation faster */
-    const void precompute_tetrahedra();
+    const void precompute_tetrahedra(const TetgenMesh &mesh);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
@@ -56,33 +56,34 @@ public:
     const void extract_potential(int n_points, double* x, double* y, double* z, double* phi, int* flag);
 
     /** Export calculated electic field distribution to HOLMOD */
-    const void export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
+    const void export_interpolation(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
-    /** Function to clean the result from peaks */
+    /** Function to clean the result from peaks
+     * The cleaner makes the histogram for given component of electric field and applies smoothing
+     * for the atoms, where field has diverging values.
+     * For example, if histogram looks like [10 7 2 4 1 4 2 0 0 2], then the field on the two atoms that
+     * made up the entries to last bin will be replaced by the average field around those two atoms. */
     const void clean(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut);
 
 private:
-    /** Constants to specify the tolerances.
-     * Making zero a bit negative allows to interpolate outside the tetrahedron */
+    /** Constants specifying the interpolation tolerances.
+     * Making zero a bit negative allows to interpolate outside the tetrahedron. */
     const double epsilon = 1e-2;
     const double zero = -1.0 * epsilon;
 
-    /** Electric field that is assigned to atoms not found from mesh.
-     *  Its value is BIG to make it immediately visible from data set. */
-    const double error_field = 1e20;
+    SolutionReader* solution;           ///< solution data
+    vector<Solution> interpolation;     ///< interpolation data
 
-    TetgenMesh* mesh;                      //!< tetrahedral mesh
-    SolutionReader* solution;        //!< solution data
-    vector<Solution> interpolation;  //!< interpolation data
+    vector<SimpleElement> tetrahedra;   ///< tetrahedra node indices
+    vector<vector<int>> tetneighbours;  ///< tetrahedra nearest neighbours
+    vector<Point3> centroid;            ///< tetrahedra centroid coordinates
 
-    /** Vectors holding precomputed data */
-    vector<Point3> centroid;
-    vector<double> det0;
-    vector<Vec4> det1;
-    vector<Vec4> det2;
-    vector<Vec4> det3;
-    vector<Vec4> det4;
-    vector<bool> tet_not_valid;
+    vector<double> det0;                ///< major determinant for calculating bcc-s
+    vector<Vec4> det1;                  ///< minor determinants for calculating 1st bcc
+    vector<Vec4> det2;                  ///< minor determinants for calculating 2nd bcc
+    vector<Vec4> det3;                  ///< minor determinants for calculating 3rd bcc
+    vector<Vec4> det4;                  ///< minor determinants for calculating 4th bcc
+    vector<bool> tet_not_valid;         ///< co-planarities of tetrahedra
 
     const Solution get_interpolation(const Point3 &point, const int elem);
     const void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
@@ -113,6 +114,6 @@ private:
     const void reserve_precompute(const int N);
 };
 
-} /* namespace femocs */
+} // namespace femocs
 
 #endif /* INTERPOLATOR_H_ */

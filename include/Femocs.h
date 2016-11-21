@@ -10,10 +10,9 @@
 
 #include "AtomReader.h"
 #include "Config.h"
-#include "Interpolator.h"
-#include "TetgenMesh.h"
-#include "SolutionReader.h"
 #include "Media.h"
+#include "Interpolator.h"
+#include "SolutionReader.h"
 
 using namespace std;
 namespace femocs {
@@ -122,9 +121,7 @@ private:
     AtomReader reader;
     Config conf;
     Surface dense_surf;
-    TetgenMesh tetmesh_vacuum;
-    TetgenMesh tetmesh_bulk;
-    SolutionReader solution = SolutionReader(&tetmesh_vacuum);
+    SolutionReader solution;
     Interpolator interpolator = Interpolator(&solution);
 };
 

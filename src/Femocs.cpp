@@ -13,6 +13,7 @@
 #include "Macros.h"
 #include "Medium.h"
 #include "Tethex.h"
+#include "TetgenMesh.h"
 
 using namespace std;
 namespace femocs {
@@ -83,7 +84,7 @@ const int Femocs::run(double elfield, string message) {
     reader.resize_box(coarse_surf.sizes.zmin - conf.zbox_below, coarse_surf.sizes.zmax + conf.zbox_above);
     end_msg(t0);
 
-    start_msg(t0, "=== Extracting bulk...");
+    start_msg(t0, "=== Generating bulk...");
     Bulk bulk;
     bulk.generate_simple(&reader.sizes);
     bulk.write("output/bulk.xyz");
@@ -134,6 +135,8 @@ const int Femocs::run(double elfield, string message) {
     end_msg(t0);
 
     start_msg(t0, "=== Separating tetrahedral meshes...");
+    TetgenMesh tetmesh_vacuum;
+    TetgenMesh tetmesh_bulk;
     hexmesh_big.export_vertices(tetmesh_big);  // correcting the nodes in tetrahedral mesh
     tetmesh_big.separate_meshes(tetmesh_bulk, tetmesh_vacuum, "rnQ");
 
@@ -197,11 +200,11 @@ const int Femocs::run(double elfield, string message) {
     // =======================================================
 
     start_msg(t0, "=== Extracting solution...");
-    solution.extract_solution(laplace);
+    solution.extract_solution(laplace, tetmesh_vacuum.nodes);
     end_msg(t0);
 
     start_msg(t0, "=== Pre-computing interpolator...");
-    interpolator.precompute_tetrahedra();
+    interpolator.precompute_tetrahedra(tetmesh_vacuum);
     end_msg(t0);
 
     start_msg(t0, "=== Saving results...");
@@ -322,7 +325,7 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
     interpolator.write("output/interpolation" + conf.message + ".xyz");
 
     start_msg(t0, "=== Exporting results...");
-    interpolator.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);
+    interpolator.export_interpolation(n_atoms, Ex, Ey, Ez, Enorm);
     end_msg(t0);
 
     return skip_calculations;

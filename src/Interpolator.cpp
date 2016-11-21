@@ -14,12 +14,12 @@
 using namespace std;
 namespace femocs {
 
-Interpolator::Interpolator() : solution(NULL), mesh(NULL) {
+Interpolator::Interpolator() : solution(NULL) {
     reserve(0);
     reserve_precompute(0);
 };
 
-Interpolator::Interpolator(SolutionReader* sr) : solution(sr), mesh(sr->get_mesh()) {
+Interpolator::Interpolator(SolutionReader* sr) : solution(sr) {
     reserve(0);
     reserve_precompute(0);
 };
@@ -36,7 +36,7 @@ const Vec3 Interpolator::get_average_solution(const int I, const double smooth_f
     for (int i = 0; i < get_n_atoms(); ++i)
         if (i != I) {
             double dist2 = point1.distance2(get_point(i));
-            if (dist2 > r_cut2 || interpolation[i].el_norm >= error_field) continue;
+            if (dist2 > r_cut2 || interpolation[i].el_norm >= solution->error_field) continue;
 
             double w = a * exp(-1.0 * sqrt(dist2) / smooth_factor);
             w_sum += w;
@@ -64,7 +64,7 @@ const void Interpolator::get_histogram(vector<int> &bins, vector<double> &bounds
         if (coordinate == 3) value = interpolation[i].el_norm;
         else                 value = interpolation[i].elfield[coordinate];
 
-        if (abs(value) < error_field) {
+        if (abs(value) < solution->error_field) {
             value_min = min(value_min, value);
             value_max = max(value_max, value);
         }
@@ -89,7 +89,7 @@ const void Interpolator::get_histogram(vector<int> &bins, vector<double> &bounds
         }
 }
 
-// Function to clean the result from peaks
+// Clean the interpolation from peaks
 const void Interpolator::clean(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut) {
     require(coordinate >= 0 && coordinate <= 3, "Invalid coordinate: " + to_string(coordinate));
     if (n_bins <= 1) return;
@@ -112,7 +112,7 @@ const void Interpolator::clean(const int coordinate, const int n_bins, const dou
     // this will determine the minimum allowed elfield value
     double value_min = bounds[0];
     for (int i = 0; i < n_bins; ++i) {
-        if (bounds[i+1] > 0) break;
+        if (bounds[i+1] >= 0) break;
         if (bins[i] == 0) value_min = bounds[i+1];
     }
 
@@ -143,7 +143,7 @@ const void Interpolator::clean(const int coordinate, const int n_bins, const dou
 
 // Compile data string from the data vectors for file output
 const string Interpolator::get_data_string(const int i) {
-    if (i < 0) return "Interpolator data: id x y z coordination Ex Ey Ez Enorm potential";
+    if (i < 0) return "Interpolator data: id x y z out_of_mesh Ex Ey Ez Enorm potential";
 
     ostringstream strs;
     strs << atoms[i] << " " << interpolation[i];
@@ -161,6 +161,8 @@ const void Interpolator::reserve(const int N) {
 
 // Reserve memory for pre-compute data
 const void Interpolator::reserve_precompute(const int N) {
+    tetrahedra.clear();
+    tetneighbours.clear();
     centroid.clear();
     det0.clear();
     det1.clear();
@@ -169,6 +171,8 @@ const void Interpolator::reserve_precompute(const int N) {
     det4.clear();
     tet_not_valid.clear();
 
+    tetrahedra.reserve(N);
+    tetneighbours.reserve(N);
     centroid.reserve(N);
     det0.reserve(N);
     det1.reserve(N);
@@ -179,23 +183,31 @@ const void Interpolator::reserve_precompute(const int N) {
 }
 
 // Precompute the data to tetrahedra to make later bcc calculations faster
-const void Interpolator::precompute_tetrahedra() {
-    const int n_elems = mesh->elems.size();
+const void Interpolator::precompute_tetrahedra(const TetgenMesh &mesh) {
+    const int n_elems = mesh.elems.size();
     double d0, d1, d2, d3, d4;
 
     reserve_precompute(n_elems);
 
+    // Copy tetrahedra
+    for (int i = 0; i < n_elems; ++i)
+        tetrahedra.push_back(mesh.elems[i]);
+
+    // Copy tetrahedra neighbours
+    for (int i = 0; i < n_elems; ++i)
+        tetneighbours.push_back(mesh.elems.get_neighbours(i));
+
     // Calculate centroids of elements
     for (int i = 0; i < n_elems; ++i)
-        centroid.push_back(mesh->elems.get_centroid(i));
+        centroid.push_back(mesh.elems.get_centroid(i));
 
     /* Calculate main and minor determinants for 1st, 2nd, 3rd and 4th
      * barycentric coordinate of tetrahedra using the relations below */
-    for (SimpleElement se : mesh->elems) {
-        Vec3 v1 = mesh->nodes.get_vec(se[0]);
-        Vec3 v2 = mesh->nodes.get_vec(se[1]);
-        Vec3 v3 = mesh->nodes.get_vec(se[2]);
-        Vec3 v4 = mesh->nodes.get_vec(se[3]);
+    for (SimpleElement se : tetrahedra) {
+        Vec3 v1 = mesh.nodes.get_vec(se[0]);
+        Vec3 v2 = mesh.nodes.get_vec(se[1]);
+        Vec3 v3 = mesh.nodes.get_vec(se[2]);
+        Vec3 v4 = mesh.nodes.get_vec(se[3]);
 
         /* =====================================================================================
          * det0 = |x1 y1 z1 1|
@@ -297,7 +309,7 @@ const int Interpolator::locate_element(const Point3 &point, const int elem_guess
     if (point_in_tetrahedron(point, elem_guess)) return elem_guess;
 
     // Check then the neighbours of guessed element
-    for (int nbr : mesh->elems.get_neighbours(elem_guess))
+    for (int nbr : tetneighbours[elem_guess])
         if (nbr >= 0 && point_in_tetrahedron(point, nbr))
             return nbr;
 
@@ -326,21 +338,21 @@ const int Interpolator::locate_element(const Point3 &point, const int elem_guess
 
 // Calculate interpolation for point inside or near the elem-th tetrahedron
 const Solution Interpolator::get_interpolation(const Point3 &point, const int elem) {
-    require(elem >= 0 && elem < mesh->elems.size(), "Index out of bounds: " + to_string(elem));
+    require(elem >= 0 && elem < tetrahedra.size(), "Index out of bounds: " + to_string(elem));
 
     // Get barycentric coordinates of point in tetrahedron
     Vec4 bcc = get_bcc(point, elem);
 
-    SimpleElement selem = mesh->elems[elem];
+    SimpleElement selem = tetrahedra[elem];
 
     // Interpolate electric field
     Vec3 elfield_i(0.0);
-    for (int i = 0; i < mesh->elems.DIM; ++i)
+    for (int i = 0; i < selem.size(); ++i)
         elfield_i += solution->get_solution(selem[i]).elfield * bcc[i];
 
     // Interpolate potential
     double potential_i(0.0);
-    for (int i = 0; i < mesh->elems.DIM; ++i)
+    for (int i = 0; i < selem.size(); ++i)
         potential_i += solution->get_solution(selem[i]).potential * bcc[i];
 
     return Solution(elfield_i, elfield_i.norm(), potential_i);
@@ -360,7 +372,7 @@ const void Interpolator::extract_interpolation(const Medium &medium) {
         // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
         elem = locate_element(atom.point, abs(elem));
 
-        // Store the data whether the point is in- of outside the mesh
+        // Store the data whether the point is in- or outside the mesh
         if (elem < 0) set_coordination(i, 1);
         else          set_coordination(i, 0);
 
@@ -369,7 +381,7 @@ const void Interpolator::extract_interpolation(const Medium &medium) {
     }
 }
 
-// Linearly interpolate electric field on the set of points
+// Linearly interpolate electric field on a set of points
 const void Interpolator::extract_elfield(int n_points, double* x, double* y, double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
 
@@ -389,7 +401,7 @@ const void Interpolator::extract_elfield(int n_points, double* x, double* y, dou
     }
 }
 
-// Linearly interpolate electric potential on the set of points
+// Linearly interpolate electric potential on a set of points
 const void Interpolator::extract_potential(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
     Medium medium(n_points);
     for (int i = 0; i < n_points; ++i)
@@ -401,6 +413,30 @@ const void Interpolator::extract_potential(int n_points, double* x, double* y, d
     for (int i = 0; i < n_points; ++i) {
         phi[i] = interpolation[i].potential;
         flag[i] = atoms[i].coord;
+    }
+}
+
+// Export interpolated electric field
+const void Interpolator::export_interpolation(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+    expect(n_atoms <= get_n_atoms(), "Requested data length exceeds # stored atoms: " + to_string(n_atoms));
+
+    // Initially pass the zero electric field for all the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        Ex[i] = 0;
+        Ey[i] = 0;
+        Ez[i] = 0;
+        Enorm[i] = 0;
+    }
+
+    // Pass the the calculated electric field for surface atoms
+    for (int i = 0; i < get_n_atoms(); ++i) {
+        int identifier = get_id(i);
+        if (identifier < 0 || identifier >= n_atoms) continue;
+
+        Ex[identifier] = interpolation[i].elfield.x;
+        Ey[identifier] = interpolation[i].elfield.y;
+        Ez[identifier] = interpolation[i].elfield.z;
+        Enorm[identifier] = interpolation[i].el_norm;
     }
 }
 
@@ -438,30 +474,4 @@ const double Interpolator::determinant(const Vec4 &v1, const Vec4 &v2, const Vec
     return v4.w * det4 - v4.z * det3 + v4.y * det2 - v4.x * det1;
 }
 
-// Export interpolated electric field to helmod
-const void Interpolator::export_helmod(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-//    require(n_atoms <= get_n_atoms(), "Solution vector is shorter than requested: " + to_string(n_atoms));
-
-    // Initially pass the zero electric field for all the atoms
-    for (int i = 0; i < n_atoms; ++i) {
-        Ex[i] = 0;
-        Ey[i] = 0;
-        Ez[i] = 0;
-        Enorm[i] = 0;
-    }
-
-    // Pass the the real electric field for surface atoms that were in the mesh
-    for (int i = 0; i < get_n_atoms(); ++i) {
-        int identifier = get_id(i);
-        if (identifier < 0) continue;
-
-        require(identifier < n_atoms, "Mismatch between import and export data sizes detected!");
-
-        Ex[identifier] = interpolation[i].elfield.x;
-        Ey[identifier] = interpolation[i].elfield.y;
-        Ez[identifier] = interpolation[i].elfield.z;
-        Enorm[identifier] = interpolation[i].el_norm;
-    }
-}
-
-} /* namespace femocs */
+} // namespace femocs
