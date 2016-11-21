@@ -14,38 +14,56 @@
 
 using namespace std;
 
-/** If FILEWRITEMODE then file writes are operating normally, otherwise they return immediately. */
-#define FILEWRITEMODE true
-
-/** If ASSERTMODE then the asserts are operating. Disabling it makes the code to run faster. */
+/** If ASSERTMODE then the asserts are operating.
+ * It must be controlled on compile time to enable deeper code optimisation. */
 #define ASSERTMODE true
-
-/** If VERBOSEMODE then the information about the code execution progress is printed to console. */
-#define VERBOSEMODE true
               
 /** Types of regions used in the simulation */
 struct Types {
-    const int NONE = 0;      //!< type of atom with unknown position
-    const int BULK = 1;      //!< type of bulk material
-    const int SURFACE = 2;   //!< type of open material surface
-    const int VACUUM = 3;    //!< type of vacuum
-    const int VACANCY = 3;   //!< type of vacancies
-    const int PERIMETER = 4; //!< type of the rim/outer edge of surface
-    const int FIXED = -1;    //!< type of fixed atoms
-    const int XMIN = 5;      //!< type of atom on negative x-face of simulation cell
-    const int YMIN = 6;      //!< type of atom on negative y-face of simulation cell
-    const int ZMIN = 7;      //!< type of atom on negative z-face of simulation cell
-    const int XMAX = 10;     //!< type of atom on positive x-face of simulation cell
-    const int YMAX = 9;      //!< type of atom on positive y-face of simulation cell
-    const int ZMAX = 8;      //!< type of atom on positive z-face of simulation cell
+    const int NONE = 0;      ///< type of atom with unknown position
+    const int BULK = 1;      ///< type of bulk material
+    const int SURFACE = 2;   ///< type of open material surface
+    const int VACUUM = 3;    ///< type of vacuum
+    const int VACANCY = 3;   ///< type of vacancies
+    const int PERIMETER = 4; ///< type of the rim/outer edge of surface
+    const int FIXED = -1;    ///< type of fixed atoms
+    const int XMIN = 5;      ///< type of atom on negative x-face of simulation cell
+    const int YMIN = 6;      ///< type of atom on negative y-face of simulation cell
+    const int ZMIN = 7;      ///< type of atom on negative z-face of simulation cell
+    const int XMAX = 10;     ///< type of atom on positive x-face of simulation cell
+    const int YMAX = 9;      ///< type of atom on positive y-face of simulation cell
+    const int ZMAX = 8;      ///< type of atom on positive z-face of simulation cell
 };
 
-// Small hack to define Types only once
+/** Flags to control the output behaviour of the code */
+struct Modes {
+    bool VERBOSE = true;     ///< If VERBOSE then the information about the code execution progress is printed to console.
+    bool WRITEFILE = true;   ///< If WRITEFILE then file writers operate normally, otherwise they return immediately.
+};
+
+// Small hack to define Types and Modes only once
 #ifdef MAINFILE
     Types TYPES;
+    Modes MODES;
 #else
     extern Types TYPES;
+    extern Modes MODES;
 #endif
+
+// Asserts for catching errors in development mode
+#if ASSERTMODE
+    /** Definition to give informative error if the requirement is not met */
+    #define require(condition, message) if (!(condition)) __requirement_fails(__FILE__, __LINE__, message)
+
+    /** Definition to give informative warning if the expectation is not met */
+    #define expect(condition, message)  if (!(condition)) __expectation_fails(__FILE__, __LINE__, message)
+
+// In release(-like) versions nothing happens
+#else
+    #define require(condition, message) {}
+    #define expect(condition, message) {}
+#endif // ASSERTMODE
+
 
 /** Definition to handle cases where vital operation does not complete normally */
 #define check_success(success, message) if (!(success)) { __success_fails(__FILE__, __LINE__, message); return !(success); }
@@ -53,33 +71,11 @@ struct Types {
 /** Definition to print message if condition is met */
 #define check_message(condition, message) if (condition) cout << "\nMESSAGE: " << message << endl;
 
-// Definitions for development in debug mode
-#if ASSERTMODE
-    /** Definition to give informative error if the requirement is not met */
-    #define require(condition, message) if (!(condition)) __requirement_fails(__FILE__, __LINE__, message)
+/** Definition to print progress messages and to find the start time of code execution */
+#define start_msg(t0, message) if (MODES.VERBOSE) t0 = __start_msg(message)
 
-// In release(-like) versions nothing happens
-#else
-    #define require(condition, message) {}
-#endif // ASSERTMODE
-
-// Definitions for development in verbose mode
-#if VERBOSEMODE
-    /** Definition to give warning if the expectation is not met */
-    #define expect(condition, message) if (!(condition)) __expectation_fails(__FILE__, __LINE__, message)
-    
-    /** Definition to print progress messages and to find the start time of code execution */
-    #define start_msg(t0, message) t0 = __start_msg(message)
-
-    /** Definition to print the execution time of code */
-    #define end_msg(t0) __end_msg(t0);
-
-// In release(-like) versions nothing happens
-#else
-    #define expect(condition, message) {}
-    #define start_msg(t0, message) {}
-    #define end_msg(t0) {}
-#endif // VERBOSEMODE
+/** Definition to print the execution time of code */
+#define end_msg(t0) if (MODES.VERBOSE) __end_msg(t0);
 
 /** Return mask of indices that are equal to the scalar */
 const vector<bool> vector_equal(const vector<int> *v, const int s);

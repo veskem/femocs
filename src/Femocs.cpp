@@ -23,16 +23,14 @@ Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
     double t0;
     start_msg(t0, "======= Femocs started! =======\n");
 
-#if FILEWRITEMODE
-    // Create the output folder if it doesn't exist
-    system("mkdir -p output");
-#endif
-
     start_msg(t0, "=== Reading configuration parameters...");
     conf.read_all(path_to_conf);
     end_msg(t0);
 
     conf.print_data();
+
+    // Create the output folder if file writing is enabled and it doesn't exist
+    if (MODES.WRITEFILE) system("mkdir -p output");
 }
 
 // delete data and print bye-bye-message
@@ -179,12 +177,12 @@ const int Femocs::run(double elfield, string message) {
     laplace.setup_system(reader.sizes);
     end_msg(t0);
 
-#if VERBOSEMODE
-    cout << "#input atoms: " << reader.get_n_atoms() << endl;
-    cout << "Vacuum:  " << tetmesh_vacuum << endl;
-    cout << "Bulk:    " << tetmesh_bulk << endl;
-    cout << "Laplace: " << laplace << endl;
-#endif
+    if(MODES.VERBOSE) {
+        cout << "#input atoms: " << reader.get_n_atoms() << endl;
+        cout << "Vacuum:  " << tetmesh_vacuum << endl;
+        cout << "Bulk:    " << tetmesh_bulk << endl;
+        cout << "Laplace: " << laplace << endl;
+    }
 
     start_msg(t0, "=== Assembling system...");
     laplace.assemble_system();
@@ -216,7 +214,7 @@ const int Femocs::run(double elfield, string message) {
     hexmesh_vacuum.write_vtk_elems("output/vacuum_smooth" + message + ".vtk");
     end_msg(t0);
 
-    cout << "\nTotal time of Femocs: " << omp_get_wtime() - tstart << "\n";
+    cout << "\nTotal time of Femocs.run: " << omp_get_wtime() - tstart << "\n";
     skip_calculations = false;
 
     return skip_calculations;
@@ -335,7 +333,8 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
 const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
 
-    start_msg(double t0, "=== Interpolating electric field...");
+    double t0;
+    start_msg(t0, "=== Interpolating electric field...");
     interpolator.extract_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
     interpolator.write("output/elfield_on_points.xyz");
@@ -345,7 +344,8 @@ const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double
 
 // linearly interpolate electric potential at given points
 const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
-    start_msg(double t0, "=== Interpolating electric potential...");
+    double t0;
+    start_msg(t0, "=== Interpolating electric potential...");
     interpolator.extract_potential(n_points, x, y, z, phi, flag);
     end_msg(t0);
     interpolator.write("output/phi_on_points.xyz");

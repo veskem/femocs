@@ -348,9 +348,8 @@ const vector<double> DealII::get_potential(const vector<int> &cell_indxs, const 
 
 // Write the potential and electric field to the file
 const void DealII::write(const string &file_name) {
-#if not FILEWRITEMODE
-    return;
-#endif
+    if (!MODES.WRITEFILE) return;
+
     string ftype = get_file_type(file_name);
     require(ftype == "vtk" || ftype == "eps", "Unsupported file type: " + ftype);
 
@@ -370,9 +369,8 @@ const void DealII::write(const string &file_name) {
 
 // Write the mesh to the file
 const void DealII::write_mesh(const string &file_name) {
-#if not FILEWRITEMODE
-    return;
-#endif
+    if (!MODES.WRITEFILE) return;
+
     string ftype = get_file_type(file_name);
     require(ftype == "vtk" || ftype == "msh" || ftype == "eps", "Unsupported file type: " + ftype);
 

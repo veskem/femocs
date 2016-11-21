@@ -6,7 +6,7 @@ program Helmod
     integer(c_int) :: success
     integer(c_int), parameter :: n_atoms = 1
     real(c_double), dimension(n_atoms) :: x, y, z, phi
-    real(c_double), dimension(100000) :: Ex, Ey, Ez, Enorm
+    real(c_double), dimension(10000) :: Ex, Ey, Ez, Enorm
     integer(c_int), dimension(1) :: flag = -1
     type(femocs) :: fem
     integer :: counter
@@ -35,7 +35,7 @@ program Helmod
     write(*,*) "Result of run:", success
     
     ! Export electric field on atoms
-    call fem%export_elfield(success, 46053, Ex, Ey, Ez, Enorm)
+    call fem%export_elfield(success, 1000, Ex, Ey, Ez, Enorm)
     write(*,*) "Result of export_elfield:", success
     
     ! Interpolate electric potential on point with coordinates x,y,z

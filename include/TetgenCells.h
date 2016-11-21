@@ -143,9 +143,8 @@ public:
 
     /** Function to write cell data to file */
     const void write(const string &file_name) const {
-    #if not FILEWRITEMODE
-        return;
-    #endif
+        if (!MODES.WRITEFILE) return;
+
         string file_type = get_file_type(file_name);
         require(file_type == "vtk", "Unknown file type: " + file_type);
 

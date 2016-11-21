@@ -10,7 +10,8 @@ n_bins = 20;                    # number of bins in histogram smoother
 postprocess_marking = false;    # make extra effort to mark correctly the vacuum nodes in shadow area
 refine_apex = false;            # refine nanotip apex
 distance_tol = 1.0;             # minimum distance between atoms from previous and current run to recalculate solution
-
+femocs_writefile = true;        # enable or disable the file writes
+femocs_verbose = true;          # enable or disable the verbose mode
 end
 
 # Input file for PARCAS MD

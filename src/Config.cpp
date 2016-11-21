@@ -78,6 +78,8 @@ const void Config::read_all(const string& file_name) {
     read_parameter("rmin_rectancularize", rmin_rectancularize);
     read_parameter("zbox_above", zbox_above);
     read_parameter("zbox_below", zbox_below);
+    read_parameter("femocs_verbose", MODES.VERBOSE);
+    read_parameter("femocs_writefile", MODES.WRITEFILE);
 }
 
 const void Config::parse_file(const string& file_name) {
@@ -164,13 +166,13 @@ const int Config::read_parameter(const string& param, double& arg) {
 
 // Print the stored commands and parameters
 const void Config::print_data() {
-#if VERBOSEMODE
-    for (vector<string> line : data) {
-        for (string l : line)
-            cout << l << "\t";
-        cout << endl;
+    if (MODES.VERBOSE) {
+        for (vector<string> line : data) {
+            for (string l : line)
+                cout << l << "\t";
+            cout << endl;
+        }
     }
-#endif
 }
 
 } // namespace femocs

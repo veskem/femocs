@@ -209,9 +209,7 @@ void Coarseners::generate(Medium &m, const double radius, const double coarse_fa
 }
 
 void Coarseners::write(const string &file_name) {
-#if not FILEWRITEMODE
-    return;
-#endif
+    if (!MODES.WRITEFILE) return;
 
     string file_type = get_file_type(file_name);
     require(file_type == "vtk", "Unimplemented file type: " + file_type);

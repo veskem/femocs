@@ -216,9 +216,8 @@ const void Medium::set_coordination(const int i, const int coord) {
 // Pick the suitable write function based on the file type
 // Function works only in debug mode
 void Medium::write(const string file_name) {
-#if not FILEWRITEMODE
-    return;
-#endif
+    if (!MODES.WRITEFILE) return;
+
     string ftype = get_file_type(file_name);
     expect(ftype == "xyz", "Unsupported file type: " + ftype);
 
