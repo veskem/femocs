@@ -17,7 +17,7 @@
 using namespace std;
 namespace femocs {
 
-// Femocs constructor, specifies simulation parameters
+// specify simulation parameters
 Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
     double t0;
     start_msg(t0, "======= Femocs started! =======\n");
@@ -26,8 +26,6 @@ Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
     // Create the output folder if it doesn't exist
     system("mkdir -p output");
 #endif
-    // Specify the root folder location
-    home = "./";
 
     start_msg(t0, "=== Reading configuration parameters...");
     conf.read_all(path_to_conf);
@@ -36,20 +34,20 @@ Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
     conf.print_data();
 }
 
-// Destructor, deletes data and prints bye-bye-message
+// delete data and print bye-bye-message
 Femocs::~Femocs() {
     start_msg(double t0, "======= Femocs finished! =======\n");
 }
 
-// Workhorse function to run Femocs simulation
-const int Femocs::run(double E_field, string message) {
+// workhorse function to generate FEM mesh and to solve differential equation(s)
+const int Femocs::run(double elfield, string message) {
     double t0, tstart;  // Variables used to measure the code execution time
     bool success;
 
     if(skip_calculations) return skip_calculations;
     skip_calculations = true;
 
-    conf.neumann = E_field;
+    conf.neumann = elfield;
     conf.message = message;
     tstart = omp_get_wtime();
 
@@ -59,7 +57,7 @@ const int Femocs::run(double E_field, string message) {
 
     start_msg(t0, "=== Extracting surface...");
     dense_surf.extract(&reader);
-    dense_surf.write(home + "output/surface_dense.xyz");
+    dense_surf.write("output/surface_dense.xyz");
     end_msg(t0);
 
     start_msg(t0, "=== Coarsening surface...");
@@ -72,12 +70,12 @@ const int Femocs::run(double E_field, string message) {
     else
         coarse_surf = dense_surf.rectangularize(&reader.sizes, conf.rmin_rectancularize, conf.latconst);
 
-    coarse_surf.write(home + "output/surface_coarse.xyz");
+    coarse_surf.write("output/surface_coarse.xyz");
     end_msg(t0);
 
     start_msg(t0, "=== Smoothing surface...");
-    coarse_surf.smoothen(conf.radius, conf.smooth_factor, 2 * conf.coord_cutoff);
-    coarse_surf.write(home + "output/surface_smooth.xyz");
+    coarse_surf.smoothen(conf.radius, conf.smooth_factor, 2.0*conf.coord_cutoff);
+    coarse_surf.write("output/surface_smooth.xyz");
     end_msg(t0);
 
     start_msg(t0, "=== Resizing simulation box...");
@@ -88,13 +86,13 @@ const int Femocs::run(double E_field, string message) {
     start_msg(t0, "=== Extracting bulk...");
     Bulk bulk;
     bulk.generate_simple(&reader.sizes);
-    bulk.write(home + "output/bulk.xyz");
+    bulk.write("output/bulk.xyz");
     end_msg(t0);
 
     start_msg(t0, "=== Generating vacuum...");
     Vacuum vacuum;
     vacuum.generate_simple(&reader.sizes);
-    vacuum.write(home + "output/vacuum.xyz");
+    vacuum.write("output/vacuum.xyz");
     end_msg(t0);
 
     // ===========================
@@ -107,21 +105,21 @@ const int Femocs::run(double E_field, string message) {
     success = tetmesh_big.generate(bulk, coarse_surf, vacuum, "rnQq" + conf.mesh_quality);
     check_success(success, "Triangulation failed! Field calculation will be skipped!");
 
-    tetmesh_big.nodes.write(home + "output/nodes_generated.xyz");
-    tetmesh_big.faces.write(home + "output/faces_generated.vtk");
-    tetmesh_big.elems.write(home + "output/elems_generated.vtk");
+    tetmesh_big.nodes.write("output/nodes_generated.xyz");
+    tetmesh_big.faces.write("output/faces_generated.vtk");
+    tetmesh_big.elems.write("output/elems_generated.vtk");
     end_msg(t0);
 
     start_msg(t0, "=== Making surface faces...");
     tetmesh_big.generate_appendices();
-    tetmesh_big.faces.write(home + "output/faces_appended.vtk");
+    tetmesh_big.faces.write("output/faces_appended.vtk");
     end_msg(t0);
 
-    start_msg(t0, "=== Marking big mesh...");
+    start_msg(t0, "=== Marking tetrahedral mesh...");
     success = tetmesh_big.mark_mesh(conf.postprocess_marking);
-    tetmesh_big.nodes.write(home + "output/nodes_marked.xyz");
-    tetmesh_big.faces.write(home + "output/faces_marked.vtk");
-    tetmesh_big.elems.write(home + "output/elems_marked.vtk");
+    tetmesh_big.nodes.write("output/nodes_marked.xyz");
+    tetmesh_big.faces.write("output/faces_marked.vtk");
+    tetmesh_big.elems.write("output/elems_marked.vtk");
     check_success(success, "Mesh marking failed! Field calcualtion will be skipped!");
     end_msg(t0);
 
@@ -132,23 +130,23 @@ const int Femocs::run(double E_field, string message) {
     end_msg(t0);
 
     start_msg(t0, "=== Smoothing hexahedra...");
-    hexmesh_big.smoothen(conf.radius, conf.smooth_factor, conf.coord_cutoff);
+    hexmesh_big.smoothen(conf.radius, conf.smooth_factor, 1.5*conf.coord_cutoff);
     end_msg(t0);
 
-    start_msg(t0, "=== Separating tetrahedral mesh...");
+    start_msg(t0, "=== Separating tetrahedral meshes...");
     hexmesh_big.export_vertices(tetmesh_big);  // correcting the nodes in tetrahedral mesh
     tetmesh_big.separate_meshes(tetmesh_bulk, tetmesh_vacuum, "rnQ");
 
-    tetmesh_bulk.nodes.write(home + "output/nodes_bulk.xyz");
-    tetmesh_bulk.faces.write(home + "output/faces_bulk.vtk");
-    tetmesh_bulk.elems.write(home + "output/elems_bulk.vtk");
+    tetmesh_bulk.nodes.write("output/nodes_bulk.xyz");
+    tetmesh_bulk.faces.write("output/faces_bulk.vtk");
+    tetmesh_bulk.elems.write("output/elems_bulk.vtk");
 
-    tetmesh_vacuum.nodes.write(home + "output/nodes_vacuum.xyz");
-    tetmesh_vacuum.faces.write(home + "output/faces_vacuum.vtk");
-    tetmesh_vacuum.elems.write(home + "output/elems_vacuum.vtk");
+    tetmesh_vacuum.nodes.write("output/nodes_vacuum.xyz");
+    tetmesh_vacuum.faces.write("output/faces_vacuum.vtk");
+    tetmesh_vacuum.elems.write("output/elems_vacuum.vtk");
     end_msg(t0);
     
-    start_msg(t0, "=== Separating hexahedral mesh...");
+    start_msg(t0, "=== Separating hexahedral meshes...");
     tethex::Mesh hexmesh_bulk;
     tethex::Mesh hexmesh_vacuum;
     hexmesh_big.separate_meshes(hexmesh_bulk, hexmesh_vacuum);
@@ -161,16 +159,16 @@ const int Femocs::run(double E_field, string message) {
     DealII laplace;
     laplace.set_neumann(conf.neumann);
 
-    start_msg(t0, "=== Importing tethex mesh into Deal.II...");
+    start_msg(t0, "=== Importing mesh into Deal.II...");
     success = laplace.import_mesh_wo_faces(hexmesh_vacuum);
     check_success(success, "Importing mesh to Deal.II failed! Field calculation will be skipped!");
     end_msg(t0);
 
     if (conf.refine_apex) {
-        start_msg(t0, "=== Refining mesh...");
+        start_msg(t0, "=== Refining mesh in Deal.II...");
         Point3 origin(coarse_surf.sizes.xmid, coarse_surf.sizes.ymid, coarse_surf.sizes.zmax);
         laplace.refine_mesh(origin, 7*conf.latconst);
-        laplace.write_mesh(home + "output/elems_dealii.vtk");
+        laplace.write_mesh("output/elems_dealii.vtk");
         end_msg(t0);
     }
 
@@ -207,14 +205,13 @@ const int Femocs::run(double E_field, string message) {
     end_msg(t0);
 
     start_msg(t0, "=== Saving results...");
-//    laplace.write(home + "output/result.vtk");
-    solution.write(home + "output/result.xyz");
-    coarseners.write(home + "output/coarseners" + message + ".vtk");
-    hexmesh_bulk.write_vtk_elems(home + "output/bulk_smooth" + message + ".vtk");
-    hexmesh_vacuum.write_vtk_elems(home + "output/vacuum_smooth" + message + ".vtk");
-    end_msg(t0);
-
     reader.save_current_run_points(conf.distance_tol);
+//    laplace.write("output/result.vtk");
+    solution.write("output/result.xyz");
+    coarseners.write("output/coarseners" + message + ".vtk");
+    hexmesh_bulk.write_vtk_elems("output/bulk_smooth" + message + ".vtk");
+    hexmesh_vacuum.write_vtk_elems("output/vacuum_smooth" + message + ".vtk");
+    end_msg(t0);
 
     cout << "\nTotal time of Femocs: " << omp_get_wtime() - tstart << "\n";
     skip_calculations = false;
@@ -222,6 +219,7 @@ const int Femocs::run(double E_field, string message) {
     return skip_calculations;
 }
 
+// import atoms from file
 const int Femocs::import_atoms(const string& file_name) {
     double t0;
     string file_type, fname;
@@ -258,6 +256,7 @@ const int Femocs::import_atoms(const string& file_name) {
     return skip_calculations;
 }
 
+// import atoms from PARCAS
 const int Femocs::import_atoms(int n_atoms, double* coordinates, double* box, int* nborlist) {
     double t0;
 
@@ -281,6 +280,7 @@ const int Femocs::import_atoms(int n_atoms, double* coordinates, double* box, in
     return skip_calculations;
 }
 
+// import coordinates and types of atoms
 const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int* types) {
     double t0;
 
@@ -303,6 +303,7 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
     return skip_calculations;
 }
 
+// export the calculated electric field on imported atom coordinates
 const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     double t0;
 
@@ -318,7 +319,7 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
     interpolator.clean(3, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
     end_msg(t0);
 
-    interpolator.write(home + "output/interpolation" + conf.message + ".xyz");
+    interpolator.write("output/interpolation" + conf.message + ".xyz");
 
     start_msg(t0, "=== Exporting results...");
     interpolator.export_helmod(n_atoms, Ex, Ey, Ez, Enorm);
@@ -327,6 +328,7 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
     return skip_calculations;
 }
 
+// linearly interpolate electric field at given points
 const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
 
@@ -338,6 +340,7 @@ const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double
     return skip_calculations;
 }
 
+// linearly interpolate electric potential at given points
 const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
     start_msg(double t0, "=== Interpolating electric potential...");
     interpolator.extract_potential(n_points, x, y, z, phi, flag);
@@ -347,6 +350,7 @@ const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z,
     return skip_calculations;
 }
 
+// parse integer argument of the command from input script
 const int Femocs::parse_command(const string & command, int* arg) {
     int value;
     int retval = conf.read_parameter(command, value);
@@ -354,6 +358,7 @@ const int Femocs::parse_command(const string & command, int* arg) {
     return retval;
 }
 
+// parse double argument of the command from input script
 const int Femocs::parse_command(const string & command, double* arg) {
     double value;
     int retval = conf.read_parameter(command, value);
@@ -361,7 +366,4 @@ const int Femocs::parse_command(const string & command, double* arg) {
     return retval;
 }
 
-} /* namespace femocs */
-
-const void femocs_speaker(string path) {
-}
+} // namespace femocs

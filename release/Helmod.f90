@@ -10,7 +10,7 @@ program Helmod
     integer(c_int), dimension(1) :: flag = -1
     type(femocs) :: fem
     integer :: counter
-    real(c_double) :: t0, t1, coarse_factor
+    real(c_double) :: t0, t1
     integer(c_int) :: n_bins
     
     do counter = 1, n_atoms
@@ -46,12 +46,6 @@ program Helmod
     call fem%parse_int(success, trim("n_bins"), n_bins)
     write(*,*) "Result of parse_int:", success, n_bins
     
-    call fem%parse_double(success, trim("coarse_factor"), coarse_factor)
-    write(*,*) "Result of parse_double:", success, coarse_factor
-    
-    !write(*,*) "Running femocs_speaker..."
-    !call femocs_speaker("From Fortran!")
-
     ! The destructor should be called automatically, but this is not yet
     ! implemented in gfortran. So let's do it manually.
     call fem%delete

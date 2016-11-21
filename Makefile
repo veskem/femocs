@@ -1,7 +1,7 @@
 #############################################################################
-#   	  Makefile for building Finite Elements on Crystal Surfaces
-#                              Mihkel Veske 2016
-# 
+#     Makefile for building FEMOCS - Finite Elements on Crystal Surfaces
+#                             Mihkel Veske 2016
+#
 #############################################################################
 
 include release/makefile.defs

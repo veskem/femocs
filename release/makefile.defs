@@ -1,10 +1,14 @@
+#############################################################################
+#   	        Definitions used during the make of Femocs
+#############################################################################
+
 DEALII_VER = 8.4.1
 MAIN_F90 = release/Helmod.f90
 MAIN_CPP = release/Standalone.cpp
 MAIN_C = release/Kimocs.c
 NPROCS = 4
 
-F90 = gfortran-5
+F90 = gfortran
 FCFLAGS = -Llib -Ldealii/lib -Ilib -Iinclude -Idealii/include
 LDFLAGS = -lfemocs -ltet -ldeal_II -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -std=c++11
 OPT = -O3 -Wall -Wpedantic

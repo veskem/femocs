@@ -1,3 +1,6 @@
+#############################################################################
+#       Makefile for building Femocs executable for c++ main function
+#############################################################################
 
 include release/makefile.defs
 

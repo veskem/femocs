@@ -120,11 +120,6 @@ module libfemocs
             real(c_double) :: arg
         end subroutine
         
-        subroutine femocs_speaker_c(str) bind(C, name="femocs_speaker")
-            use iso_c_binding
-            implicit none
-            character(len=1, kind=C_CHAR), intent(in) :: str(*)
-        end subroutine
     end interface
 
     ! We'll use a Fortan type to represent a C++ class here in an opaque manner
@@ -328,20 +323,5 @@ module libfemocs
         
         call femocs_parse_double_c(this%ptr, retval, c_str, arg)
     end subroutine        
-        
-    subroutine femocs_speaker(str)
-        implicit none
-        character(len=*), intent(in) :: str
-        character(len=1, kind=C_CHAR) :: c_str(len_trim(str) + 1)
-        integer :: N, i
 
-        ! Converting Fortran string to C string
-        N = len_trim(str)
-        do i = 1, N
-            c_str(i) = str(i:i)
-        end do
-        c_str(N + 1) = C_NULL_CHAR
-
-        call femocs_speaker_c(c_str)
-    end subroutine
 end module
