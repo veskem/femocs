@@ -166,12 +166,20 @@ const int Config::read_parameter(const string& param, double& arg) {
 
 // Print the stored commands and parameters
 const void Config::print_data() {
-    if (MODES.VERBOSE) {
-        for (vector<string> line : data) {
-            for (string l : line)
-                cout << l << "\t";
-            cout << endl;
+    if (!MODES.VERBOSE) return;
+    const int cmd_len = 20;
+
+    for (vector<string> line : data) {
+        for (string ln : line) {
+            int str_len = ln.length();
+            int whitespace_len = 1;
+            if (cmd_len > str_len)
+                whitespace_len = cmd_len - str_len;
+
+            cout << ln << string(whitespace_len, ' ');
         }
+
+        cout << endl;
     }
 }
 
