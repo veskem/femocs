@@ -418,8 +418,6 @@ const void Interpolator::extract_potential(int n_points, double* x, double* y, d
 
 // Export interpolated electric field
 const void Interpolator::export_interpolation(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    expect(n_atoms <= get_n_atoms(), "Requested data length exceeds # stored atoms: " + to_string(n_atoms));
-
     // Initially pass the zero electric field for all the atoms
     for (int i = 0; i < n_atoms; ++i) {
         Ex[i] = 0;
@@ -428,7 +426,7 @@ const void Interpolator::export_interpolation(int n_atoms, double* Ex, double* E
         Enorm[i] = 0;
     }
 
-    // Pass the the calculated electric field for surface atoms
+    // Pass the the calculated electric field for stored atoms
     for (int i = 0; i < get_n_atoms(); ++i) {
         int identifier = get_id(i);
         if (identifier < 0 || identifier >= n_atoms) continue;
