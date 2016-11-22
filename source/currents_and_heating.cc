@@ -9,9 +9,8 @@
 
 #include "utility.h"
 
-namespace currents_heating {
+namespace fch {
 using namespace dealii;
-using namespace laplace;
 
 template <int dim>
 CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim>* laplace_) :
@@ -885,5 +884,5 @@ void CurrentsAndHeating<dim>::output_results(const unsigned int iteration, const
 template class CurrentsAndHeating<2> ;
 template class CurrentsAndHeating<3> ;
 
-} // namespace currents_heating
+} // namespace fch
 

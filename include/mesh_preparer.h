@@ -19,6 +19,7 @@
 #include <deal.II/grid/grid_tools.h>
 
 
+namespace fch {
 
 using namespace std;
 using namespace dealii;
@@ -56,5 +57,6 @@ public:
 
 };
 
+} // namespace fch
 
 #endif /* INCLUDE_MESH_PREPARER_H_ */

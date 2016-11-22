@@ -50,7 +50,7 @@
 
 #include "physical_quantities.h"
 
-namespace field_currents_heating {
+namespace fch {
 	using namespace dealii;
 
 	template <int dim>
@@ -106,6 +106,6 @@ namespace field_currents_heating {
 		PhysicalQuantities pq;
 	};
 
-} // namespace field_currents_heating
+} // namespace fch
 
 #endif /* INCLUDE_FIELD_CURRENTS_HEATING_H_ */

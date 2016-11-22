@@ -2,7 +2,7 @@
 
 #include "laplace.h"
 
-namespace laplace {
+namespace fch {
 using namespace dealii;
 
 
@@ -261,4 +261,4 @@ void Laplace<dim>::run() {
 template class Laplace<2> ;
 template class Laplace<3> ;
 
-} // namespace laplace
+} // namespace fch

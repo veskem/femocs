@@ -13,6 +13,9 @@
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
 
+
+namespace fch {
+
 using namespace dealii;
 
 template <int dim>
@@ -30,5 +33,6 @@ unsigned nearest_point_index(const Point<dim> p, const std::vector<Point<dim>> p
 	return best_i;
 }
 
+} // namespace fch
 
 #endif /* INCLUDE_UTILITY_H_ */

@@ -15,9 +15,9 @@
 
 int main() {
 
-	Timer timer;
+	dealii::Timer timer;
 
-	PhysicalQuantities pq;
+	fch::PhysicalQuantities pq;
 	if (!pq.load_emission_data("../res/physical_quantities/gtf_grid_1000x1000.dat"))
 			return EXIT_FAILURE;
 	if (!pq.load_nottingham_data("../res/physical_quantities/nottingham_grid_300x300.dat"))
@@ -29,7 +29,7 @@ int main() {
 
 	/* ------------------------------------------------------------------------------------- */
 	/* Laplace solver */
-	laplace::Laplace<3> laplace_solver;
+	fch::Laplace<3> laplace_solver;
 	laplace_solver.import_mesh_from_file("../res/3d_meshes/nanotip_vacuum.msh");
 	laplace_solver.setup_system();
 	laplace_solver.assemble_system();
@@ -39,17 +39,17 @@ int main() {
 	std::cout << "    Solved laplace_solver: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 	// Accessing data in vertexes
-	vector<int> cell_indexes, vertex_indexes;
+	std::vector<int> cell_indexes, vertex_indexes;
 	for (int i = 0; i < 10; i++) {
 		cell_indexes.push_back(i);
 		vertex_indexes.push_back(0);
 	}
-	vector<double> potentials = laplace_solver.get_potential(cell_indexes, vertex_indexes);
-	vector<Tensor<1, 3>> fields = laplace_solver.get_field(cell_indexes, vertex_indexes);
+	std::vector<double> potentials = laplace_solver.get_potential(cell_indexes, vertex_indexes);
+	std::vector<dealii::Tensor<1, 3>> fields = laplace_solver.get_field(cell_indexes, vertex_indexes);
 
 	/* ------------------------------------------------------------------------------------- */
 	/* Currents and heating */
-	currents_heating::CurrentsAndHeating<3> ch_solver(pq, &laplace_solver);
+	fch::CurrentsAndHeating<3> ch_solver(pq, &laplace_solver);
 	ch_solver.import_mesh_from_file("../res/3d_meshes/nanotip_copper.msh");
 
 	double final_error = ch_solver.run_specific(10.0, 3, true, "sol", true);
@@ -59,7 +59,7 @@ int main() {
 
 	/* ------------------------------------------------------------------------------------- */
 	/* Currents and heating resume (or next iteration) */
-	currents_heating::CurrentsAndHeating<3> ch_solver2(pq, &laplace_solver, &ch_solver);
+	fch::CurrentsAndHeating<3> ch_solver2(pq, &laplace_solver, &ch_solver);
 	ch_solver2.import_mesh_from_file("../res/3d_meshes/nanotip_copper.msh");
 
 	double final_error2 = ch_solver2.run_specific(10.0, 3, true, "sol_next", true);
@@ -68,8 +68,8 @@ int main() {
 	std::cout << "    Final temp. error: " << final_error2 << std::endl;
 
 	/* Access data in vertexes */
-	vector<double> temperatures = ch_solver2.get_temperature(cell_indexes, vertex_indexes);
-	vector<Tensor<1, 3>> currents = ch_solver2.get_current(cell_indexes, vertex_indexes);
+	std::vector<double> temperatures = ch_solver2.get_temperature(cell_indexes, vertex_indexes);
+	std::vector<dealii::Tensor<1, 3>> currents = ch_solver2.get_current(cell_indexes, vertex_indexes);
 
 	for (unsigned int i = 0; i < temperatures.size(); i++) {
 		std::cout << i << " T: " << temperatures[i] << "; C: " << currents[i] << std::endl;

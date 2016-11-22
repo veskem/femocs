@@ -14,6 +14,8 @@
 #include <iostream>
 #include <algorithm>
 
+namespace fch {
+
 double PhysicalQuantities::emission_current(double field, double temperature) {
 	return std::exp(bilinear_interp(std::log(field), temperature, emission_grid))*1.0e-18;
 }
@@ -226,4 +228,6 @@ double PhysicalQuantities::bilinear_interp(double x, double y, const Interpolati
 	return grid_data.grid[xi][yi] * (1 - xc) * (1 - yc) + grid_data.grid[xi + 1][yi] * xc * (1 - yc)
 			+ grid_data.grid[xi][yi + 1] * (1 - xc) * yc + grid_data.grid[xi + 1][yi + 1] * xc * yc;
 }
+
+} // namespace fch
 

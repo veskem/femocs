@@ -8,7 +8,7 @@
 
 #include "field_currents_heating.h"
 
-namespace field_currents_heating {
+namespace fch {
 using namespace dealii;
 
 
@@ -541,4 +541,4 @@ void FieldCurrentsHeating<dim>::run () {
 template class FieldCurrentsHeating<2> ;
 template class FieldCurrentsHeating<3> ;
 
-} // namespace field_currents_heating
+} // namespace fch

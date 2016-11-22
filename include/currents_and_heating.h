@@ -50,12 +50,13 @@
 #include "physical_quantities.h"
 #include "laplace.h"
 
-// forward declaration for Laplace to exist when declaring CurrentsAndHeating
-namespace laplace {template<int dim> class Laplace;}
 
-namespace currents_heating {
+namespace fch {
+
+	// forward declaration for Laplace to exist when declaring CurrentsAndHeating
+	template<int dim> class Laplace;
+
 	using namespace dealii;
-	using namespace laplace;
 
 	template<int dim>
 	class CurrentsAndHeating {
@@ -123,7 +124,7 @@ namespace currents_heating {
 		bool interp_initial_conditions;
 	};
 
-} // end currents_heating namespace
+} // end fch namespace
 
 
 #endif /* INCLUDE_CURRENTS_AND_HEATING_H_ */

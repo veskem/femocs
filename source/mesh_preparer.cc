@@ -15,6 +15,7 @@
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/tria_iterator.h>
 
+namespace fch {
 
 template <int dim>
 const string MeshPreparer<dim>::get_file_ext(const string file_name) {
@@ -152,3 +153,5 @@ Triangulation<dim> MeshPreparer<dim>::remove_cells_with_id(Triangulation<dim> *t
 // Give all template possibilities here (alternative is to write implementation in .h file)
 template class MeshPreparer<2>;
 template class MeshPreparer<3>;
+
+} // namespace fch

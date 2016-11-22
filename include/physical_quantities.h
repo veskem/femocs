@@ -12,6 +12,8 @@
 #include <string>
 #include <utility>
 
+namespace fch {
+
 class PhysicalQuantities {
 public:
 
@@ -36,7 +38,7 @@ public:
 	double nottingham_de(double field, double temperature);
 
 	/**
-	 * Evaluates the electrical conductivity
+	 * Evaluates the electrical resistivity
 	 * @param temperature Temperature in (K)
 	 * @return resistivity in (Ohm*m)
 	 */
@@ -107,5 +109,7 @@ private:
 	bool load_grid_data(std::string filepath, InterpolationGrid &grid);
 
 };
+
+} // namespace fch
 
 #endif /* INCLUDE_PHYSICAL_QUANTITIES_H_ */
