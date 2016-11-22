@@ -25,7 +25,7 @@ femocs.fortran: ${MAIN_F90} src/* include/*
 	make -f release/makefile.fortran
 	
 heating: femocs.heating
-femocs.heating: src/* include/* heating/source/* heating/include/*
+femocs.heating: ${MAIN_HEATING} heating/source/* heating/include/* src/* include/*
 	make -f release/makefile.heating
 	
 install:
@@ -48,11 +48,11 @@ help:
 	@echo ''
 	@echo 'make all        pick default build type for Femocs'
 	@echo 'make lib        build Femocs as static library'
-	@echo 'make heating    building Femocs together with 3D heating module'
+	@echo 'make heating    build Femocs executable together with 3D heating module'
 	@echo 'make release    build Femocs executable from c++ main with highest optimization level'
 	@echo 'make debug      build Femocs executable from c++ main with debugging features enabled'
-	@echo 'make fortran    build Femocs executable from Fortran main in release mode'
+	@echo 'make fortran    build Femocs executable from Fortran main'
 	@echo 'make install    build all the external libraries that Femocs needs'
 	@echo 'make clean      delete key files excluding installed libraries to start building from the scratch'
-	@echo 'make clean-all  delete all the files and folders produced during make process'
+	@echo 'make clean-all  delete all the files and folders produced during the make process'
 	@echo ''

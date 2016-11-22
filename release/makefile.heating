@@ -6,7 +6,7 @@ include release/makefile.defs
 
 all: release/femocs
 
-release/femocs: lib/libtet.a release/build/Makefile src/* include/* heating/source/* heating/include/*
+release/femocs: lib/libtet.a release/build/Makefile src/* include/* ${MAIN_HEATING} heating/source/* heating/include/*
 	cd release/build; make -j${NPROCS}
 
 release/build/Makefile: dealii/lib/libdeal_II.so.${DEALII_VER}
@@ -14,12 +14,12 @@ release/build/Makefile: dealii/lib/libdeal_II.so.${DEALII_VER}
 
 lib/libtet.a:
 	make -f release/makefile.install
-	
+
 dealii/lib/libdeal_II.so.${DEALII_VER}:
 	make -f release/makefile.install
 
 clean:
 	rm -f release/femocs release/build/Makefile
-	
+
 clean-all:
 	rm -rf release/femocs release/build
