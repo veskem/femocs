@@ -333,10 +333,10 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
 const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
 
-    double t0;
-    start_msg(t0, "=== Interpolating electric field...");
+//    double t0;
+//    start_msg(t0, "=== Interpolating electric field...");
     interpolator.extract_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
-    end_msg(t0);
+//    end_msg(t0);
     interpolator.write("output/elfield_on_points.xyz");
 
     return skip_calculations;
@@ -344,10 +344,10 @@ const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double
 
 // linearly interpolate electric potential at given points
 const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
-    double t0;
-    start_msg(t0, "=== Interpolating electric potential...");
+//    double t0;
+//    start_msg(t0, "=== Interpolating electric potential...");
     interpolator.extract_potential(n_points, x, y, z, phi, flag);
-    end_msg(t0);
+//    end_msg(t0);
     interpolator.write("output/phi_on_points.xyz");
 
     return skip_calculations;

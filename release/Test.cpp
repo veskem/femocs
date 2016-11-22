@@ -1,5 +1,5 @@
 /*
- * Standalone.cpp
+ * Test.cpp
  *
  *  Created on: 19.04.2016
  *      Author: veske
@@ -12,7 +12,7 @@ using namespace std;
 
 //int main(int argc, char* argv[]) {
 int main() {
-    cout << "Standalone started!" << endl;
+    cout << "Test.cpp started!" << endl;
 
     int n_atoms = 1000;
     int n_points = 100;
@@ -40,7 +40,7 @@ int main() {
     success += femocs.interpolate_phi(n_points, x, y, z, phi, flag);
     success += femocs.interpolate_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
 
-    cout << "Standalone result: " << success << endl;
+    cout << "Test.cpp result: " << success << endl;
 
     return 0;
 }

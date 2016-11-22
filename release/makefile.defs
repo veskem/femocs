@@ -3,9 +3,10 @@
 #############################################################################
 
 DEALII_VER = 8.4.1
-MAIN_F90 = release/Helmod.f90
-MAIN_CPP = release/Standalone.cpp
-MAIN_C = release/Kimocs.c
+MAIN_F90 = release/Test.f90
+MAIN_CPP = release/Test.cpp
+MAIN_C = release/Test.c
+MAIN_HEATING = heating/main.cc
 NPROCS = 4
 
 F90 = gfortran

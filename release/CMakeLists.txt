@@ -10,13 +10,13 @@ SET (CMAKE_RUNTIME_OUTPUT_DIRECTORY ..)
 SET(TARGET "femocs")
 
 # path to file with main function
-#SET(MAIN "../Standalone.cpp")
+#SET(MAIN "../Test.cpp")
 
 # path to source files
-FILE(GLOB_RECURSE SOURCE "../src/*.cpp")
+FILE(GLOB_RECURSE SOURCE "../src/*.cpp" "../heating/source/*")
 
 # directories with headers
-INCLUDE_DIRECTORIES(../include)
+INCLUDE_DIRECTORIES(../include ../heating/include)
 
 # path to libraries
 LINK_DIRECTORIES(../lib)
