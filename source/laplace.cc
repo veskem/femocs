@@ -1,5 +1,31 @@
 
 
+
+#include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/tria_accessor.h>
+#include <deal.II/grid/tria_iterator.h>
+#include <deal.II/grid/grid_tools.h>
+
+#include <deal.II/dofs/dof_accessor.h>
+#include <deal.II/dofs/dof_tools.h>
+
+#include <deal.II/fe/fe_values.h>
+
+#include <deal.II/base/quadrature_lib.h>
+#include <deal.II/base/function.h>
+#include <deal.II/base/logstream.h>
+#include <deal.II/base/timer.h>
+
+#include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/matrix_tools.h>
+#include <deal.II/numerics/data_out.h>
+
+#include <deal.II/lac/vector.h>
+#include <deal.II/lac/full_matrix.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
+#include <deal.II/lac/solver_cg.h>
+#include <deal.II/lac/precondition.h>
+
 #include "laplace.h"
 
 namespace fch {
@@ -237,8 +263,13 @@ void Laplace<dim>::output_results(const std::string filename) const {
 
 	data_out.build_patches();
 
-	std::ofstream output(filename);
-	data_out.write_vtk(output);
+	try {
+		std::ofstream output(filename);
+		data_out.write_vtk(output);
+	} catch (...) {
+		std::cerr << "ERROR: Couldn't open " + filename << ". ";
+		std::cerr << "Output is not saved." << std::endl;
+	}
 }
 
 template<int dim>

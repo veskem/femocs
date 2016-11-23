@@ -5,6 +5,36 @@
  *      Author: kristjan
  */
 
+
+#include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/tria_accessor.h>
+#include <deal.II/grid/tria_iterator.h>
+
+#include <deal.II/dofs/dof_accessor.h>
+#include <deal.II/dofs/dof_tools.h>
+#include <deal.II/dofs/dof_renumbering.h>
+
+#include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/fe_dgq.h>
+
+#include <deal.II/base/quadrature_lib.h>
+#include <deal.II/base/function.h>
+#include <deal.II/base/logstream.h>
+#include <deal.II/base/timer.h>
+
+#include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/matrix_tools.h>
+#include <deal.II/numerics/data_out.h>
+
+#include <deal.II/lac/vector.h>
+#include <deal.II/lac/full_matrix.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
+#include <deal.II/lac/solver_cg.h>
+#include <deal.II/lac/solver_gmres.h>
+#include <deal.II/lac/precondition.h>
+#include <deal.II/lac/sparse_direct.h>	// UMFpack
+
+
 #include "currents_and_heating.h"
 
 #include "utility.h"
@@ -34,6 +64,26 @@ CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim>
 		laplace(laplace_),
 		previous_iteration(ch_previous_iteration_),
 		interp_initial_conditions(true) {}
+
+template <int dim>
+void CurrentsAndHeating<dim>::reinitialize(Laplace<dim>* laplace_) {
+	dof_handler.clear();
+	triangulation.clear();
+
+	laplace = laplace_;
+	interp_initial_conditions = false;
+}
+
+template <int dim>
+void CurrentsAndHeating<dim>::reinitialize(Laplace<dim>* laplace_,
+										   CurrentsAndHeating *ch_previous_iteration_) {
+	dof_handler.clear();
+	triangulation.clear();
+
+	laplace = laplace_;
+	previous_iteration = ch_previous_iteration_;
+	interp_initial_conditions = true;
+}
 
 template <int dim>
 Triangulation<dim>* CurrentsAndHeating<dim>::getp_triangulation() {
@@ -766,6 +816,11 @@ template <int dim>
 double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int max_newton_iter,
 		  	  	  	  	  	  	  	  	   bool file_output, std::string out_fname, bool print) {
 
+	if (laplace == NULL || (interp_initial_conditions && previous_iteration == NULL)) {
+		std::cerr << "Error: pointer uninitialized" << std::endl;
+		return -1.0;
+	}
+
 	Timer timer;
 	setup_system();
 	setup_mapping();
@@ -776,16 +831,19 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 	if (interp_initial_conditions)
 		set_initial_condition();
 
+	// Output initial condition
+	if (file_output) output_results(0, out_fname);
+
 	double temperature_error = 1e15;
 
 	// Newton iterations
-	for (unsigned int iteration=0; iteration<max_newton_iter; ++iteration) {
+	for (unsigned int iteration=1; iteration<max_newton_iter+1; ++iteration) {
 
 		system_matrix.reinit(sparsity_pattern);
 		system_rhs.reinit(dof_handler.n_dofs());
 
 		// Set dirichlet BC-s if they are not set in set_initial_condition
-		assemble_system_newton(iteration == 0 && !interp_initial_conditions);
+		assemble_system_newton(iteration == 1 && !interp_initial_conditions);
 
 		solve();
 		present_solution.add(1.0, newton_update); // alpha = 1.0
@@ -861,7 +919,8 @@ public:
 // ----------------------------------------------------------------------------------------
 
 template <int dim>
-void CurrentsAndHeating<dim>::output_results(const unsigned int iteration, const std::string fname) const {
+void CurrentsAndHeating<dim>::output_results(const unsigned int iteration,
+											 const std::string fname) const {
 
 	std::string filename = fname + "-" + Utilities::int_to_string(iteration) + ".vtk";
 
@@ -877,8 +936,13 @@ void CurrentsAndHeating<dim>::output_results(const unsigned int iteration, const
 	data_out.add_data_vector(present_solution, sigma_post_processor);
 	data_out.build_patches();
 
-	std::ofstream output(filename.c_str());
-	data_out.write_vtk(output);
+	try {
+		std::ofstream output(filename.c_str());
+		data_out.write_vtk(output);
+	} catch (...) {
+		std::cerr << "ERROR: Couldn't open " + filename << ". ";
+		std::cerr << "Output is not saved." << std::endl;
+	}
 }
 
 template class CurrentsAndHeating<2> ;
