@@ -199,7 +199,7 @@ void Coarseners::generate(Medium &m, const double radius, const double coarse_fa
 
     const double A_tip = 0.5 * latconst;
     const double A_flat = coarse_factor * latconst;
-    const double r0_sphere = 0.0;
+    const double r0_sphere = 0.0 * latconst;
     const double r0_cylinder = 1.0 * latconst;
     const double diagonal = sqrt(m.sizes.xbox*m.sizes.xbox + m.sizes.ybox*m.sizes.ybox);
     r0_inf = 1.1 * (A_flat * sqrt(0.5 * diagonal - radius) + r0_cylinder);

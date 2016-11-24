@@ -12,6 +12,7 @@
 #include "DealII.h"
 #include "Macros.h"
 #include "Medium.h"
+#include "Media.h"
 #include "Tethex.h"
 #include "TetgenMesh.h"
 
@@ -55,6 +56,7 @@ const int Femocs::run(double elfield, string message) {
     // ====================================
 
     start_msg(t0, "=== Extracting surface...");
+    Surface dense_surf;
     dense_surf.extract(&reader);
     dense_surf.write("output/surface_dense.xyz");
     end_msg(t0);
@@ -102,7 +104,7 @@ const int Femocs::run(double elfield, string message) {
     TetgenMesh tetmesh_big;
     // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
     success = tetmesh_big.generate(bulk, coarse_surf, vacuum, "rnQq" + conf.mesh_quality);
-    check_success(success, "Triangulation failed! Field calculation will be skipped!");
+    check_message(!success, "Triangulation failed! Field calculation will be skipped!");
 
     tetmesh_big.nodes.write("output/nodes_generated.xyz");
     tetmesh_big.faces.write("output/faces_generated.vtk");
@@ -119,7 +121,7 @@ const int Femocs::run(double elfield, string message) {
     tetmesh_big.nodes.write("output/nodes_marked.xyz");
     tetmesh_big.faces.write("output/faces_marked.vtk");
     tetmesh_big.elems.write("output/elems_marked.vtk");
-    check_success(success, "Mesh marking failed! Field calcualtion will be skipped!");
+    check_message(!success, "Mesh marking failed! Field calcualtion will be skipped!");
     end_msg(t0);
 
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
@@ -162,7 +164,7 @@ const int Femocs::run(double elfield, string message) {
 
     start_msg(t0, "=== Importing mesh into Deal.II...");
     success = laplace.import_mesh_wo_faces(hexmesh_vacuum);
-    check_success(success, "Importing mesh to Deal.II failed! Field calculation will be skipped!");
+    check_message(!success, "Importing mesh to Deal.II failed! Field calculation will be skipped!");
     end_msg(t0);
 
     if (conf.refine_apex) {
@@ -203,12 +205,28 @@ const int Femocs::run(double elfield, string message) {
 
     start_msg(t0, "=== Pre-computing interpolator...");
     interpolator.precompute_tetrahedra(tetmesh_vacuum);
+    small_interpolator.precompute_tetrahedra(tetmesh_vacuum);
+    end_msg(t0);
+
+    start_msg(t0, "=== Interpolating solution...");
+    dense_surf.sort_atoms(0, 1, "up");
+    interpolator.extract_interpolation(dense_surf);
+    end_msg(t0);
+
+    start_msg(t0, "=== Cleaning interpolation...");
+    interpolator.clean(0, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
+    interpolator.clean(1, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
+    interpolator.clean(2, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
+    interpolator.clean(3, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
+    interpolator.clean(4, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
     end_msg(t0);
 
     start_msg(t0, "=== Saving results...");
     reader.save_current_run_points(conf.distance_tol);
 //    laplace.write("output/result.vtk");
     solution.write("output/result.xyz");
+    interpolator.write("output/interpolation" + conf.message + ".xyz");
+
     coarseners.write("output/coarseners" + message + ".vtk");
     hexmesh_bulk.write_vtk_elems("output/bulk_smooth" + message + ".vtk");
     hexmesh_vacuum.write_vtk_elems("output/vacuum_smooth" + message + ".vtk");
@@ -241,17 +259,15 @@ const int Femocs::import_atoms(const string& file_name) {
 
     check_message(skip_calculations, "Atoms haven't moved significantly! Field calculation will be skipped!");
 
-    if (!skip_calculations) {
-        if (file_type == "xyz") {
-            start_msg(t0, "=== Calculating coords and atom types...");
-            reader.calc_coordination(conf.coord_cutoff);
-            reader.extract_types(conf.nnn, conf.latconst);
-            end_msg(t0);
-        } else {
-            start_msg(t0, "=== Calculating coords from atom types...");
-            reader.calc_coordination(conf.nnn);
-            end_msg(t0);
-        }
+    if (file_type == "xyz") {
+        start_msg(t0, "=== Calculating coords and atom types...");
+        reader.calc_coordination(conf.coord_cutoff);
+        reader.extract_types(conf.nnn, conf.latconst);
+        end_msg(t0);
+    } else {
+        start_msg(t0, "=== Calculating coords from atom types...");
+        reader.calc_coordination(conf.nnn);
+        end_msg(t0);
     }
 
     return skip_calculations;
@@ -271,12 +287,10 @@ const int Femocs::import_atoms(int n_atoms, double* coordinates, double* box, in
 
     check_message(skip_calculations, "Atoms haven't moved significantly! Field calculation will be skipped!");
 
-    if (!skip_calculations) {
-        start_msg(t0, "=== Calculating coords and atom types...");
-        reader.calc_coordination(conf.nnn, conf.coord_cutoff, nborlist);
-        reader.extract_types(conf.nnn, conf.latconst);
-        end_msg(t0);
-    }
+    start_msg(t0, "=== Calculating coords and atom types...");
+    reader.calc_coordination(conf.nnn, conf.coord_cutoff, nborlist);
+    reader.extract_types(conf.nnn, conf.latconst);
+    end_msg(t0);
 
     return skip_calculations;
 }
@@ -295,11 +309,9 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
 
     check_message(skip_calculations, "Atoms haven't moved significantly! Field calculation will be skipped!");
 
-    if (!skip_calculations) {
-        start_msg(t0, "=== Calculating coords from atom types...");
-        reader.calc_coordination(conf.nnn);
-        end_msg(t0);
-    }
+    start_msg(t0, "=== Calculating coords from atom types...");
+    reader.calc_coordination(conf.nnn);
+    end_msg(t0);
 
     return skip_calculations;
 }
@@ -307,20 +319,6 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
 // export the calculated electric field on imported atom coordinates
 const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     double t0;
-
-    start_msg(t0, "=== Interpolating solution...");
-    dense_surf.sort_atoms(0, 1, "up");
-    interpolator.extract_interpolation(dense_surf);
-    end_msg(t0);
-
-    start_msg(t0, "=== Cleaning interpolation...");
-    interpolator.clean(0, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
-    interpolator.clean(1, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
-    interpolator.clean(2, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
-    interpolator.clean(3, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
-    end_msg(t0);
-
-    interpolator.write("output/interpolation" + conf.message + ".xyz");
 
     start_msg(t0, "=== Exporting results...");
     interpolator.export_interpolation(n_atoms, Ex, Ey, Ez, Enorm);
@@ -333,23 +331,15 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
 const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
 
-//    double t0;
-//    start_msg(t0, "=== Interpolating electric field...");
-    interpolator.extract_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
-//    end_msg(t0);
-    interpolator.write("output/elfield_on_points.xyz");
-
+    small_interpolator.extract_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
+    small_interpolator.write("output/elfield_on_points.xyz");
     return skip_calculations;
 }
 
 // linearly interpolate electric potential at given points
 const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
-//    double t0;
-//    start_msg(t0, "=== Interpolating electric potential...");
-    interpolator.extract_potential(n_points, x, y, z, phi, flag);
-//    end_msg(t0);
-    interpolator.write("output/phi_on_points.xyz");
-
+    small_interpolator.extract_potential(n_points, x, y, z, phi, flag);
+    small_interpolator.write("output/phi_on_points.xyz");
     return skip_calculations;
 }
 

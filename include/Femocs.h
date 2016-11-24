@@ -10,7 +10,6 @@
 
 #include "AtomReader.h"
 #include "Config.h"
-#include "Media.h"
 #include "Interpolator.h"
 #include "SolutionReader.h"
 
@@ -120,9 +119,9 @@ private:
 
     AtomReader reader;
     Config conf;
-    Surface dense_surf;
     SolutionReader solution;
     Interpolator interpolator = Interpolator(&solution);
+    Interpolator small_interpolator = Interpolator(&solution);
 };
 
 } /* namespace femocs */

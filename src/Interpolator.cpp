@@ -25,11 +25,13 @@ Interpolator::Interpolator(SolutionReader* sr) : solution(sr) {
 };
 
 // Get average electric field around I-th solution point
-const Vec3 Interpolator::get_average_solution(const int I, const double smooth_factor, const double r_cut) {
+const Solution Interpolator::get_average_solution(const int I, const double smooth_factor, const double r_cut) {
     const double r_cut2 = r_cut * r_cut;
     const double a = 1.0;
 
-    Vec3 average(0.0);
+    Vec3 elfield(0.0);
+    double potential = 0.0;
+
     Point3 point1 = get_point(I);
     double w_sum = 0.0;
 
@@ -40,16 +42,17 @@ const Vec3 Interpolator::get_average_solution(const int I, const double smooth_f
 
             double w = a * exp(-1.0 * sqrt(dist2) / smooth_factor);
             w_sum += w;
-            average += interpolation[i].elfield * w;
+            elfield += interpolation[i].elfield * w;
+            potential += interpolation[i].potential * w;
         }
 
-    average *= (1.0 / w_sum);
-    return average;
+    elfield *= (1.0 / w_sum); potential *= (1.0 / w_sum);
+    return Solution(elfield, elfield.norm(), potential);
 }
 
 // Get histogram for electric field x,y,z component or for its norm
 const void Interpolator::get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate) {
-    require(coordinate >= 0 && coordinate <= 3, "Invalid component: " + to_string(coordinate));
+    require(coordinate >= 0 && coordinate <= 4, "Invalid component: " + to_string(coordinate));
 
     const int n_atoms = get_n_atoms();
     const int n_bins = bins.size();
@@ -61,7 +64,8 @@ const void Interpolator::get_histogram(vector<int> &bins, vector<double> &bounds
     double value_max =-DBL_MAX;
     double value;
     for (int i = 0; i < n_atoms; ++i) {
-        if (coordinate == 3) value = interpolation[i].el_norm;
+        if (coordinate == 4) value = interpolation[i].potential;
+        else if (coordinate == 3) value = interpolation[i].el_norm;
         else                 value = interpolation[i].elfield[coordinate];
 
         if (abs(value) < solution->error_field) {
@@ -79,7 +83,8 @@ const void Interpolator::get_histogram(vector<int> &bins, vector<double> &bounds
 
     for (int i = 0; i < n_atoms; ++i)
         for (int j = 0; j < n_bins; ++j) {
-            if (coordinate == 3) value = interpolation[i].el_norm;
+            if (coordinate == 4) value = interpolation[i].potential;
+            else if (coordinate == 3) value = interpolation[i].el_norm;
             else                 value = interpolation[i].elfield[coordinate];
 
             if (value >= bounds[j] && value < bounds[j+1]) {
@@ -91,7 +96,7 @@ const void Interpolator::get_histogram(vector<int> &bins, vector<double> &bounds
 
 // Clean the interpolation from peaks
 const void Interpolator::clean(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut) {
-    require(coordinate >= 0 && coordinate <= 3, "Invalid coordinate: " + to_string(coordinate));
+    require(coordinate >= 0 && coordinate <= 4, "Invalid coordinate: " + to_string(coordinate));
     if (n_bins <= 1) return;
 
     const int n_atoms = get_n_atoms();
@@ -131,13 +136,12 @@ const void Interpolator::clean(const int coordinate, const int n_bins, const dou
 
     double value;
     for (int i = 0; i < n_atoms; ++i) {
-        if (coordinate == 3) value = abs(interpolation[i].el_norm);
+        if (coordinate == 4) value = abs(interpolation[i].potential);
+        else if (coordinate == 3) value = abs(interpolation[i].el_norm);
         else                 value = abs(interpolation[i].elfield[coordinate]);
 
-        if (value < value_min || value > value_max) {
-            interpolation[i].elfield = get_average_solution(i, smooth_factor, r_cut);
-            interpolation[i].el_norm = interpolation[i].elfield.norm();
-        }
+        if (value < value_min || value > value_max)
+            interpolation[i] = get_average_solution(i, smooth_factor, r_cut);
     }
 }
 
@@ -152,10 +156,11 @@ const string Interpolator::get_data_string(const int i) {
 
 // Reserve memory for interpolation data
 const void Interpolator::reserve(const int N) {
+    require(N >= 0, "Invalid number of points: " + to_string(N));
     atoms.clear();
     interpolation.clear();
 
-    Medium::reserve(N);
+    atoms.reserve(N);
     interpolation.reserve(N);
 }
 

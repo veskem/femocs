@@ -64,12 +64,8 @@ struct Modes {
     #define expect(condition, message) {}
 #endif // ASSERTMODE
 
-
-/** Definition to handle cases where vital operation does not complete normally */
-#define check_success(success, message) if (!(success)) { __success_fails(__FILE__, __LINE__, message); return !(success); }
-
-/** Definition to print message if condition is met */
-#define check_message(condition, message) if (condition) cout << "\nMESSAGE: " << message << endl;
+/** Definition to handle cases where operation does not complete normally */
+#define check_message(condition, message) if (condition) { cout << "\nFEMOCS MESSAGE: " << message << endl; return condition; }
 
 /** Definition to print progress messages and to find the start time of code execution */
 #define start_msg(t0, message) if (MODES.VERBOSE) t0 = __start_msg(message)
@@ -117,9 +113,6 @@ void __requirement_fails(const char *file, int line, string message);
 
 /** Throw an informative warning if expectation fails */
 void __expectation_fails(const char *file, int line, string message);
-
-/** Throw a informative message if some process fails */
-void __success_fails(const char *file, int line, string message);
 
 const double __start_msg(const char* message);
 

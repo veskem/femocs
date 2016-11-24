@@ -24,8 +24,6 @@ public:
 
     /** Extract the atoms near the simulation box sides */
     const void extract(const Medium* atoms, const AtomReader::Sizes* sizes, const double eps);
-
-    const void generate_uniform(const AtomReader::Sizes* sizes, const double z, const double eps);
 };
 
 
@@ -47,6 +45,8 @@ public:
     Surface();
 
     const void generate_simple(const AtomReader::Sizes* sizes, const double z);
+
+    const void generate_middle(const AtomReader::Sizes* sizes, const double z, const double r_cut);
 
     /** Extract surface by the atom types */
     const void extract(AtomReader* reader);

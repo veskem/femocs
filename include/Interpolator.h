@@ -87,7 +87,7 @@ private:
 
     const Solution get_interpolation(const Point3 &point, const int elem);
     const void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
-    const Vec3 get_average_solution(const int I, const double smooth_factor, const double r_cut);
+    const Solution get_average_solution(const int I, const double smooth_factor, const double r_cut);
     const int locate_element(const Point3 &point, const int elem_guess);
     const Vec4 get_bcc(const Point3 &point, const int elem);
     const bool point_in_tetrahedron(const Point3 &point, const int i);
