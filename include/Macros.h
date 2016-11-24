@@ -65,7 +65,7 @@ struct Modes {
 #endif // ASSERTMODE
 
 /** Definition to handle cases where operation does not complete normally */
-#define check_message(condition, message) if (condition) { cout << "\nFEMOCS MESSAGE: " << message << endl; return condition; }
+#define check_message(condition, message) if (condition) { cout << "\nFEMOCS: " << message << endl; return condition; }
 
 /** Definition to print progress messages and to find the start time of code execution */
 #define start_msg(t0, message) if (MODES.VERBOSE) t0 = __start_msg(message)

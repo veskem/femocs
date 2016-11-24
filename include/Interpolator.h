@@ -68,7 +68,7 @@ public:
 private:
     /** Constants specifying the interpolation tolerances.
      * Making zero a bit negative allows to interpolate outside the tetrahedron. */
-    const double epsilon = 1e-2;
+    const double epsilon = 1e-1;
     const double zero = -1.0 * epsilon;
 
     SolutionReader* solution;           ///< solution data

@@ -123,18 +123,18 @@ const void Surface::generate_middle(const AtomReader::Sizes* sizes, const double
     // Reserve memory for atoms
     reserve( 2 * (n_atoms_per_side_x + n_atoms_per_side_y) - 4 );
 
-    // Add atoms in x-direction
+    // Add atoms in x-edge
     for (int i = 1; i < n_atoms_per_side_x; ++i) {
-        double coordinate = sizes->xmin + i * sizes->xbox / n_atoms_per_side_x;
-        add_atom( Atom(-1, Point3(sizes->xmin, coordinate, z), 0) );
-        add_atom( Atom(-1, Point3(sizes->xmax, coordinate, z), 0) );
+        double y = sizes->xmin + i * sizes->xbox / n_atoms_per_side_x;
+        add_atom( Point3(sizes->xmin, y, z) );
+        add_atom( Point3(sizes->xmax, y, z) );
     }
 
-    // Add atoms in y-direction
+    // Add atoms in y-edge
     for (int i = 1; i < n_atoms_per_side_y; ++i) {
-        double coordinate = sizes->ymin + i * sizes->ybox / n_atoms_per_side_y;
-        add_atom( Atom(-1, Point3(coordinate, sizes->ymin, z), 0) );
-        add_atom( Atom(-1, Point3(coordinate, sizes->ymax, z), 0) );
+        double x = sizes->ymin + i * sizes->ybox / n_atoms_per_side_y;
+        add_atom( Point3(x, sizes->ymin, z) );
+        add_atom( Point3(x, sizes->ymax, z) );
     }
 }
 
