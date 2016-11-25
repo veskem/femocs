@@ -4,8 +4,13 @@ latconst = 2.0;                 # lattice constant
 coord_cutoff = 3.1;             # coordination analysis cut-off radius
 mesh_quality = 2.0;             # minimum mesh quality Tetgen is allowed to make
 radius = 12.0;                  # inner radius of coarsening cylinder
-coarse_factor = 0.3;            # coarsening factor; bigger number gives coarser surface
-smooth_factor = 0.5;            # surface smoothing factor; bigger number gives smoother surface
+
+coarse_factor = 0.1 1.0 0.5;    # coarsening factor; bigger number gives coarser surface
+                                # 1st - coarsening factor for atoms
+                                # 2nd - minimum distance between atoms in nanotip below apex
+                                # 3rd - minimum distance between atoms in nanotip apex
+
+smooth_factor = 0.4;            # surface smoothing factor; bigger number gives smoother surface
 n_bins = 20;                    # number of bins in histogram smoother
 postprocess_marking = false;    # make extra effort to mark correctly the vacuum nodes in shadow area
 refine_apex = false;            # refine nanotip apex

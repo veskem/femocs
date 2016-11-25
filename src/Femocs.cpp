@@ -62,15 +62,11 @@ const int Femocs::run(double elfield, string message) {
     end_msg(t0);
 
     start_msg(t0, "=== Coarsening surface...");
-    Surface coarse_surf;
     Coarseners coarseners;
-    coarseners.generate(dense_surf, conf.radius, conf.coarse_factor, conf.latconst);
+    coarseners.generate(dense_surf, conf.radius, conf.cfactor, conf.latconst);
 
-    if (conf.coarse_factor > 0)
-        coarse_surf = dense_surf.coarsen(coarseners, &reader.sizes);
-    else
-        coarse_surf = dense_surf.rectangularize(&reader.sizes, conf.rmin_rectancularize, conf.latconst);
-
+    Surface coarse_surf;
+    coarse_surf = dense_surf.coarsen(coarseners, &reader.sizes);
     coarse_surf.write("output/surface_coarse.xyz");
     end_msg(t0);
 
@@ -214,11 +210,11 @@ const int Femocs::run(double elfield, string message) {
     end_msg(t0);
 
     start_msg(t0, "=== Cleaning interpolation...");
-    interpolator.clean(0, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
-    interpolator.clean(1, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
-    interpolator.clean(2, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
-    interpolator.clean(3, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
-    interpolator.clean(4, conf.n_bins, conf.smooth_factor, 2*conf.coord_cutoff);
+    interpolator.clean(0, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+    interpolator.clean(1, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+    interpolator.clean(2, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+    interpolator.clean(3, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+    interpolator.clean(4, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
     end_msg(t0);
 
     start_msg(t0, "=== Saving results...");
@@ -346,7 +342,7 @@ const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z,
 // parse integer argument of the command from input script
 const int Femocs::parse_command(const string & command, int* arg) {
     int value;
-    int retval = conf.read_parameter(command, value);
+    int retval = conf.read_command(command, value);
     if (retval == 0) arg[0] = value;
     return retval;
 }
@@ -354,7 +350,7 @@ const int Femocs::parse_command(const string & command, int* arg) {
 // parse double argument of the command from input script
 const int Femocs::parse_command(const string & command, double* arg) {
     double value;
-    int retval = conf.read_parameter(command, value);
+    int retval = conf.read_command(command, value);
     if (retval == 0) arg[0] = value;
     return retval;
 }

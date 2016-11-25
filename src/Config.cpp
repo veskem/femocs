@@ -35,7 +35,6 @@ const void Config::init_values() {
     mesh_quality = "2.0";        // minimum mesh quality Tetgen is allowed to make
     nt = 4;                      // number of OpenMP threads
     radius = 14.0;               // inner radius of coarsening cylinder
-    coarse_factor = 0.4;         // coarsening factor; bigger number gives coarser surface
     smooth_factor = 0.5;         // surface smoothing factor; bigger number gives smoother surface
     n_bins = 20;                 // number of bins in histogram smoother
     postprocess_marking = false; // make extra effort to mark correctly the vacuum nodes in shadow area
@@ -48,6 +47,10 @@ const void Config::init_values() {
     // and bulk is extended 20 lattice constants below the minimum point of surface
     zbox_above = 100 * latconst;
     zbox_below = 20 * latconst;
+
+    cfactor.amplitude = 0.4;       // coarsening factor
+    cfactor.r0_cylinder = 1.0;  // minimum distance between atoms in nanotip below apex
+    cfactor.r0_sphere = 0.0;    // minimum distance between atoms in nanotip apex
 }
 
 // Remove the noise from the beginning of the string
@@ -63,23 +66,29 @@ const void Config::read_all(const string& file_name) {
     parse_file(file_name);
 
     // Modify the parameters that are correctly specified in input script
-    read_parameter("infile", infile);
-    read_parameter("latconst", latconst);
-    read_parameter("coord_cutoff", coord_cutoff);
-    read_parameter("nnn", nnn);
-    read_parameter("mesh_quality", mesh_quality);
-    read_parameter("radius", radius);
-    read_parameter("coarse_factor", coarse_factor);
-    read_parameter("smooth_factor", smooth_factor);
-    read_parameter("n_bins", n_bins);
-    read_parameter("postprocess_marking", postprocess_marking);
-    read_parameter("refine_apex", refine_apex);
-    read_parameter("distance_tol", distance_tol);
-    read_parameter("rmin_rectancularize", rmin_rectancularize);
-    read_parameter("zbox_above", zbox_above);
-    read_parameter("zbox_below", zbox_below);
-    read_parameter("femocs_verbose", MODES.VERBOSE);
-    read_parameter("femocs_writefile", MODES.WRITEFILE);
+    read_command("infile", infile);
+    read_command("latconst", latconst);
+    read_command("coord_cutoff", coord_cutoff);
+    read_command("nnn", nnn);
+    read_command("mesh_quality", mesh_quality);
+    read_command("radius", radius);
+    read_command("smooth_factor", smooth_factor);
+    read_command("n_bins", n_bins);
+    read_command("postprocess_marking", postprocess_marking);
+    read_command("refine_apex", refine_apex);
+    read_command("distance_tol", distance_tol);
+    read_command("rmin_rectancularize", rmin_rectancularize);
+    read_command("zbox_above", zbox_above);
+    read_command("zbox_below", zbox_below);
+    read_command("femocs_verbose", MODES.VERBOSE);
+    read_command("femocs_writefile", MODES.WRITEFILE);
+
+    vector<double> coarse_factors = {cfactor.amplitude, cfactor.r0_cylinder, cfactor.r0_sphere};
+    read_command("coarse_factor", coarse_factors);
+
+    cfactor.amplitude = coarse_factors[0];
+    cfactor.r0_cylinder = coarse_factors[1];
+    cfactor.r0_sphere = coarse_factors[2];
 }
 
 const void Config::parse_file(const string& file_name) {
@@ -114,7 +123,7 @@ const void Config::parse_file(const string& file_name) {
 }
 
 // Look up the parameter with string argument
-const int Config::read_parameter(const string& param, string& arg) {
+const int Config::read_command(const string& param, string& arg) {
     // loop through all the commands that were found from input script
     for (vector<string> str : data)
         if (str.size() >= 2 && str[0] == param) {
@@ -124,7 +133,7 @@ const int Config::read_parameter(const string& param, string& arg) {
 }
 
 // Look up the parameter with boolean argument
-const int Config::read_parameter(const string& param, bool& arg) {
+const int Config::read_command(const string& param, bool& arg) {
     // loop through all the commands that were found from input script
     for (vector<string> str : data)
         if (str.size() >= 2 && str[0] == param) {
@@ -141,7 +150,7 @@ const int Config::read_parameter(const string& param, bool& arg) {
 }
 
 // Look up the parameter with integer argument
-const int Config::read_parameter(const string& param, int& arg) {
+const int Config::read_command(const string& param, int& arg) {
     // loop through all the commands that were found from input script
     for (vector<string> str : data)
         if (str.size() >= 2 && str[0] == param) {
@@ -153,7 +162,7 @@ const int Config::read_parameter(const string& param, int& arg) {
 }
 
 // Look up the parameter with double argument
-const int Config::read_parameter(const string& param, double& arg) {
+const int Config::read_command(const string& param, double& arg) {
     // loop through all the commands that were found from input script
     for (vector<string> str : data)
         if (str.size() >= 2 && str[0] == param) {
@@ -164,6 +173,18 @@ const int Config::read_parameter(const string& param, double& arg) {
     return 1;
 }
 
+const int Config::read_command(const string& param, vector<double>& args) {
+    // loop through all the commands that were found from input script
+    int n_read_args = 0;
+    for (vector<string> str : data)
+        if (str.size() >= 2 && str[0] == param)
+            for (int i = 0; i < args.size() && i < (str.size()-1); ++i) {
+                istringstream is(str[i+1]);
+                double result;
+                if (is >> result) { args[i] = result; n_read_args++; }
+            }
+    return n_read_args == args.size();
+}
 // Print the stored commands and parameters
 const void Config::print_data() {
     if (!MODES.VERBOSE) return;

@@ -10,6 +10,7 @@
 
 #include "Primitives.h"
 #include "Medium.h"
+#include "Config.h"
 
 using namespace std;
 namespace femocs {
@@ -233,7 +234,7 @@ public:
     void write(const string &file_name);
 
     /** Generate coarseners for one nanotip system */
-    void generate(Medium &medium, const double radius, const double coarse_factor, const double latconst);
+    void generate(Medium &medium, const double radius, const Config::CoarseFactor &cf, const double latconst);
 
     double r0_inf;
     double zmean;

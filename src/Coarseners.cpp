@@ -172,40 +172,41 @@ vector<Point3> NanotipCoarsener::get_points() {
 }
 
 // Generate coarseners for one nanotip system
-void Coarseners::generate(Medium &m, const double radius, const double coarse_factor, const double latconst) {
-    m.calc_statistics(); // calculate the span of atoms in medium
+void Coarseners::generate(Medium &medium, const double radius, const Config::CoarseFactor &cf, const double latconst) {
+    medium.calc_statistics(); // calculate the span of atoms in medium
 
-    Point2 origin2d(m.sizes.xmid, m.sizes.ymid);
+    Point2 origin2d(medium.sizes.xmid, medium.sizes.ymid);
     const double r_cut2 = radius * radius;
-    const int n_atoms = m.get_n_atoms();
+    const int n_atoms = medium.get_n_atoms();
 
     // Create a map from atoms in- and outside the dense region
     vector<bool> is_flat(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
-        is_flat[i] = (origin2d.distance2(m.get_point2(i)) > r_cut2);
+        is_flat[i] = (origin2d.distance2(medium.get_point2(i)) > r_cut2);
 
-    const double zmax = m.sizes.zmax - 0.5*radius;
+    const double zmax = medium.sizes.zmax - 0.5*radius;
 
     // Calculate the average z coordinate of atom in flat region
     zmean = 0;
     for (int i = 0; i < n_atoms; ++i)
         if (is_flat[i])
-            zmean += m.get_atom(i).point.z;
+            zmean += medium.get_atom(i).point.z;
 
     zmean = zmean / vector_sum(is_flat);
 
-    Point3 origin3d(origin2d[0], origin2d[1], zmean);
-    Point3 apex(origin2d[0], origin2d[1], zmax);
+    Point3 origin3d(origin2d.x, origin2d.y, zmean);
+    Point3 apex(origin2d.x, origin2d.y, zmax);
 
-    const double A_tip = 0.5 * latconst;
-    const double A_flat = coarse_factor * latconst;
-    const double r0_sphere = 0.0 * latconst;
-    const double r0_cylinder = 1.0 * latconst;
-    const double diagonal = sqrt(m.sizes.xbox*m.sizes.xbox + m.sizes.ybox*m.sizes.ybox);
-    r0_inf = 1.1 * (A_flat * sqrt(0.5 * diagonal - radius) + r0_cylinder);
+    const double amplitude = cf.amplitude * latconst;
+    const double r0_cylinder = max(0.5, cf.r0_cylinder) * latconst;
+    const double r0_sphere = max(0.5, cf.r0_sphere) * latconst;
+    const double r0_flat = min(amplitude*1e10, r0_cylinder);
 
-    attach_coarsener( make_shared<NanotipCoarsener>(apex, radius, A_tip, r0_sphere, r0_cylinder) );
-    attach_coarsener( make_shared<FlatlandCoarsener>(origin3d, radius, A_flat, r0_cylinder) );
+    const double diagonal = sqrt(medium.sizes.xbox*medium.sizes.xbox + medium.sizes.ybox*medium.sizes.ybox);
+    r0_inf = 1.1 * amplitude * sqrt(0.5 * diagonal - radius) + r0_cylinder;
+
+    attach_coarsener( make_shared<NanotipCoarsener>(apex, radius, amplitude, r0_sphere, r0_cylinder) );
+    attach_coarsener( make_shared<FlatlandCoarsener>(origin3d, radius, amplitude, r0_flat) );
 }
 
 void Coarseners::write(const string &file_name) {

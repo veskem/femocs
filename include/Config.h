@@ -24,16 +24,19 @@ public:
     const void read_all(const string& file_name);
 
     /** Look up the configuration parameter with string argument */
-    const int read_parameter(const string& param, string& value);
+    const int read_command(const string& param, string& arg);
 
     /** Look up the configuration parameter with boolean argument */
-    const int read_parameter(const string& param, bool& value);
+    const int read_command(const string& param, bool& arg);
 
     /** Look up the configuration parameter with integer argument */
-    const int read_parameter(const string& param, int& value);
+    const int read_command(const string& param, int& arg);
 
     /** Look up the configuration parameter with double argument */
-    const int read_parameter(const string& param, double& value);
+    const int read_command(const string& param, double& arg);
+
+    /** Look up the configuration parameter with several double arguments */
+    const int read_command(const string& param, vector<double>& args);
 
     /** Print the stored commands and parameters */
     const void print_data();
@@ -62,14 +65,22 @@ public:
     /// Radius of cylinder where surface atoms are not coarsened; 0 enables coarsening of all atoms
     double radius;
 
-    /// Factor that is proportional to the extent of surface coarsening; 0 turns coarsening off
-    double coarse_factor;
+//    /// Factor that is proportional to the extent of surface coarsening; 0 turns coarsening off
+//    double coarse_factor;
 
     /// Factor that is proportional to the extent of surface smoothing; 0 turns smoothing off
     double smooth_factor;
 
     /// Number of bins in smoother histogram; 1 or less turns off the histogram smoother
     int n_bins;
+
+    /// Factors that are proportional to the extent of surface coarsening; 0 turns corresponding coarsening component off
+    struct CoarseFactor {
+        double amplitude;
+        double r0_cylinder;
+        double r0_sphere;
+    } cfactor;
+
 private:
     vector<vector<string>> data;  ///< Commands and their parameters found from the input script
 
