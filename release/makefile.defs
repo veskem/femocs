@@ -6,11 +6,11 @@ DEALII_VER = 8.4.1
 MAIN_F90 = release/Test.f90
 MAIN_CPP = release/Test.cpp
 MAIN_C = release/Test.c
-MAIN_HEATING = heating/release/main.cc
+MAIN_HEATING = heating/main/main.cc
 NPROCS = 4
 
-F90 = gfortran
-FCFLAGS = -Llib -Ldealii/lib -Ilib -Iinclude -Idealii/include
+F90 = gfortran-5
+FCFLAGS = -Llib -Ldealii/lib -Ilib -Iheating/include -Iinclude -Idealii/include
 LDFLAGS = -lfemocs -ltet -ldeal_II -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -std=c++11
 OPT = -O3 -Wall -Wpedantic
 #OPT = -g -O0 -Wall -Wpedantic

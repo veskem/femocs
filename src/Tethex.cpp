@@ -832,6 +832,32 @@ void Mesh::export_vertices(femocs::TetgenMesh& mesh) {
     }
 }
 
+// Transform tethex nodes into Deal.II format
+std::vector<dealii::Point<3>> Mesh::get_nodes() {
+    std::vector<dealii::Point<3>> nodes; nodes.reserve(vertices.size());
+    for (Point p : vertices)
+        nodes.push_back(dealii::Point<3>(p.coord[0], p.coord[1], p.coord[2]));
+    return nodes;
+}
+
+// Transform tethex hexahedra into Deal.II format
+std::vector<dealii::CellData<3>> Mesh::get_elems() {
+    const int n_elems = get_n_hexahedra();
+    const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
+
+    std::vector<dealii::CellData<3>> elems; elems.reserve(n_elems);
+
+    // loop through all the hexahedra
+    for (unsigned int i = 0; i < n_elems; ++i) {
+        elems.push_back(dealii::CellData<3>());
+        MeshElement& elem = get_hexahedron(i);
+        // loop through all the vertices of the hexahedron
+        for (unsigned int v = 0; v < n_verts_per_elem; ++v)
+            elems.back().vertices[v] = elem.get_vertex(v);
+    }
+    return elems;
+}
+
 void Mesh::calc_hex_qualities() {
     const int n_elems = hexahedra.size();
     const int n_edges_per_hex = hexahedra[0]->get_n_edges();

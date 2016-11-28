@@ -12,6 +12,8 @@
 #include "Config.h"
 #include "Interpolator.h"
 #include "SolutionReader.h"
+#include "physical_quantities.h"
+#include "currents_and_heating.h"
 
 using namespace std;
 namespace femocs {
@@ -116,12 +118,19 @@ public:
 
 private:
     bool skip_calculations;
+    bool even_run;
 
     AtomReader reader;
     Config conf;
     SolutionReader solution;
     Interpolator interpolator = Interpolator(&solution);
     Interpolator small_interpolator = Interpolator(&solution);
+
+    fch::PhysicalQuantities phys_quantities;
+    fch::CurrentsAndHeating<3> ch_solver1;
+    fch::CurrentsAndHeating<3> ch_solver2;
+    fch::CurrentsAndHeating<3>* fch_solver;
+    fch::CurrentsAndHeating<3>* prev_fch_solver;
 };
 
 } /* namespace femocs */

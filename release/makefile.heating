@@ -18,6 +18,9 @@ lib/libtet.a:
 dealii/lib/libdeal_II.so.${DEALII_VER}:
 	make -f release/makefile.install
 
+${MAIN_HEATING}:
+	make -f release/makefile.install
+
 clean:
 	rm -f release/femocs release/build/Makefile
 

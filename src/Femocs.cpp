@@ -16,6 +16,8 @@
 #include "Tethex.h"
 #include "TetgenMesh.h"
 
+#include "laplace.h"
+
 using namespace std;
 namespace femocs {
 
@@ -27,8 +29,22 @@ Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
     start_msg(t0, "=== Reading configuration parameters...");
     conf.read_all(path_to_conf);
     end_msg(t0);
-
     conf.print_data();
+
+    if (conf.heating) {
+        start_msg(t0, "=== Loading physical quantities...");
+        string pq_path = "heating/res/physical_quantities/";
+        phys_quantities.load_emission_data(pq_path + "gtf_grid_1000x1000.dat");
+        phys_quantities.load_nottingham_data(pq_path + "nottingham_grid_300x300.dat");
+        phys_quantities.load_resistivity_data(pq_path + "cu_res.dat");
+        ch_solver1.set_pq(phys_quantities);
+        ch_solver2.set_pq(phys_quantities);
+        end_msg(t0);
+
+        fch_solver  = &ch_solver1;
+        prev_fch_solver = NULL;
+        even_run = true;
+    }
 
     // Create the output folder if file writing is enabled and it doesn't exist
     if (MODES.WRITEFILE) system("mkdir -p output");
@@ -150,6 +166,37 @@ const int Femocs::run(double elfield, string message) {
     tethex::Mesh hexmesh_vacuum;
     hexmesh_big.separate_meshes(hexmesh_bulk, hexmesh_vacuum);
     end_msg(t0);
+
+    // ====================================
+    // ===== Running FEM multi-solver =====
+    // ====================================
+
+    if (conf.heating) {
+        start_msg(t0, "=== Running Laplace solver...");
+        fch::Laplace<3> laplace_solver;
+        laplace_solver.import_mesh_directly(hexmesh_vacuum.get_nodes(), hexmesh_vacuum.get_elems());
+        laplace_solver.setup_system();
+        laplace_solver.assemble_system();
+        laplace_solver.solve();
+        laplace_solver.output_results("output/laplace_solution.vtk");
+        end_msg(t0);
+
+        start_msg(t0, "=== Calculating current density and T...\n");
+        fch_solver->reinitialize(&laplace_solver, prev_fch_solver);
+        fch_solver->import_mesh_directly(hexmesh_bulk.get_nodes(), hexmesh_bulk.get_elems());
+        double temp_error = fch_solver->run_specific(10.0, 10, MODES.WRITEFILE, "output/fch", MODES.VERBOSE);
+        end_msg(t0);
+
+        if (even_run) {
+            fch_solver = &ch_solver2;
+            prev_fch_solver = &ch_solver1;
+            even_run = false;
+        } else {
+            fch_solver = &ch_solver1;
+            prev_fch_solver = &ch_solver2;
+            even_run = true;
+        }
+    }
 
     // ==============================
     // ===== Running FEM solver =====

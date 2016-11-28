@@ -1,7 +1,7 @@
 
 cmake_minimum_required (VERSION 2.6)
 project (femocs C CXX Fortran)
-SET(CMAKE_Fortran_COMPILER gfortran)
+SET(CMAKE_Fortran_COMPILER gfortran-5)
 
 # specify the name of the library
 SET(LIB_NAME "femocs")
@@ -15,10 +15,10 @@ SET(CMAKE_Fortran_MODULE_DIRECTORY ..)
 SET(DEAL_II_DIR ../dealii)
 
 # Find source files
-FILE(GLOB_RECURSE TARGET_SRC "../src/*.cpp" "../src/*.f90")
+FILE(GLOB_RECURSE TARGET_SRC "../src/*.cpp" "../src/*.f90" "../heating/source/*")
 
 # Add the directory with headers to search path
-INCLUDE_DIRECTORIES(../include)
+INCLUDE_DIRECTORIES(../include ../heating/include)
 
 # specify whether to build in debug or release mode
 SET(CMAKE_BUILD_TYPE Release)

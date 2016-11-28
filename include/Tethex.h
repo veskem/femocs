@@ -20,6 +20,12 @@
 
 #include "TetgenMesh.h"
 
+#include <deal.II/grid/grid_tools.h>
+#include <deal.II/grid/grid_reordering.h>
+#include <deal.II/numerics/matrix_tools.h>
+#include <deal.II/numerics/vector_tools.h>
+#include <deal.II/dofs/dof_tools.h>
+
 #include <map>
 #include <iostream>
 
@@ -727,6 +733,13 @@ public:
      */
     void read_femocs(femocs::TetgenMesh& mesh);
     void export_vertices(femocs::TetgenMesh& mesh);
+
+    /** Transform tethex nodes into Deal.II format */
+    std::vector<dealii::Point<3>> get_nodes();
+
+    /** Transform tethex hexahedra into Deal.II format */
+    std::vector<dealii::CellData<3> > get_elems();
+
     void separate_meshes(tethex::Mesh& bulk, tethex::Mesh& vacuum);
     void calc_hex_qualities();
 

@@ -4,7 +4,7 @@
 
 include release/makefile.defs
 
-all: lib/libtet.a dealii/lib/libdeal_II.a dealii/lib/libdeal_II.so.${DEALII_VER}
+all: lib/libtet.a dealii/lib/libdeal_II.a dealii/lib/libdeal_II.so.${DEALII_VER} ${MAIN_HEATING}:
 
 lib/libtet.a:
 	cd tetgen; rm -rf build; mkdir build
@@ -23,6 +23,9 @@ dealii/lib/libdeal_II.so.${DEALII_VER}: dealii/dealii-${DEALII_VER}.tar.gz
 
 dealii/dealii-${DEALII_VER}.tar.gz:
 	cd dealii; wget https://github.com/dealii/dealii/releases/download/v${DEALII_VER}/dealii-${DEALII_VER}.tar.gz
+
+${MAIN_HEATING}:
+	git clone veske@tensor.ims.ut.ee:/var/git/dealii-field-currents-heating.git heating
 
 clean:
 	rm -rf lib/libtet.a dealii/lib/*

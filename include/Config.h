@@ -13,11 +13,11 @@
 using namespace std;
 namespace femocs {
 
-/** Class to read configuration parameters from configuration file */
+/** Class to initialize and read configuration parameters from configuration file */
 class Config {
 public:
 
-    /** Config constructor */
+    /** Config constructor initializes configuration parameters */
     Config();
 
     /** Read the configuration parameters from input script */
@@ -51,6 +51,7 @@ public:
     double neumann;             ///< Value of Neumann boundary condition
     bool postprocess_marking;   ///< Make extra effort to mark correctly the vacuum nodes in shadowed area
     bool refine_apex;           ///< Add elements to the nanotip apex
+    bool heating;               ///< Turn ON 3D current density and temperature calculations
     double zbox_above;          ///< Space added above the maximum z-coordinate of surface
     double zbox_below;          ///< Space added below the minimum z-coordinate of surface
 
@@ -88,9 +89,6 @@ private:
     const string data_symbols = "/*_.0123456789abcdefghijklmnopqrstuvwxyz";
 
     const void parse_file(const string& file_name);
-
-    /** Initialize configuration parameters */
-    const void init_values();
 
     /** Remove the noise from the beginning of the string */
     const void trim(string& str);

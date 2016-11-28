@@ -13,13 +13,8 @@
 using namespace std;
 namespace femocs {
 
-// Config constructor
+// Config constructor initializes configuration parameters
 Config::Config() {
-    init_values();
-}
-
-// Initialize configuration parameters
-const void Config::init_values() {
 //    infile = "input/rough111.ckx";
 //    infile = "input/mushroom2.ckx";
 //    infile = "input/tower_hl2p5.ckx";
@@ -51,6 +46,8 @@ const void Config::init_values() {
     cfactor.amplitude = 0.4;       // coarsening factor
     cfactor.r0_cylinder = 1.0;  // minimum distance between atoms in nanotip below apex
     cfactor.r0_sphere = 0.0;    // minimum distance between atoms in nanotip apex
+    heating = false;            // turn ON 3D current density and temperature calculations
+    neumann = 0;                // neumann boundary condtition value
 }
 
 // Remove the noise from the beginning of the string
@@ -76,6 +73,7 @@ const void Config::read_all(const string& file_name) {
     read_command("n_bins", n_bins);
     read_command("postprocess_marking", postprocess_marking);
     read_command("refine_apex", refine_apex);
+    read_command("heating", heating);
     read_command("distance_tol", distance_tol);
     read_command("rmin_rectancularize", rmin_rectancularize);
     read_command("zbox_above", zbox_above);
