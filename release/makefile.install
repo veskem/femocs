@@ -4,7 +4,7 @@
 
 include release/makefile.defs
 
-all: lib/libtet.a dealii/lib/libdeal_II.a dealii/lib/libdeal_II.so.${DEALII_VER} ${MAIN_HEATING}:
+all: lib/libtet.a dealii/lib/libdeal_II.a dealii/lib/libdeal_II.so.${DEALII_VER} ${MAIN_HEATING}
 
 lib/libtet.a:
 	cd tetgen; rm -rf build; mkdir build
