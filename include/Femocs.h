@@ -12,8 +12,12 @@
 #include "Config.h"
 #include "Interpolator.h"
 #include "SolutionReader.h"
+
+#if HEATINGMODE
 #include "physical_quantities.h"
 #include "currents_and_heating.h"
+#include "laplace.h"
+#endif
 
 using namespace std;
 namespace femocs {
@@ -83,7 +87,7 @@ public:
      * @param Ey        y-component of the interpolated electric field
      * @param Ez        z-component of the interpolated electric field
      * @param Enorm     norm of the interpolated electric field
-     * @param flag      index of first point outside the mesh; index is 1-based; flag == 0 means all the points were in the mesh
+     * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
      * @return          0 - function used solution from current run; 1 - function used solution from previous run
      */
     const int interpolate_elfield(int n_points, double* x, double* y, double* z,
@@ -95,7 +99,7 @@ public:
      * @param y         y-coordinates of the points of interest
      * @param z         z-coordinates of the points of interest
      * @param phi       electric potential
-     * @param flag      index of first point outside the mesh; index is 1-based; flag == 0 means all the points were in the mesh
+     * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
      * @return          0 - function used solution from current run; 1 - function used solution from previous run
      */
     const int interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag);
@@ -106,7 +110,7 @@ public:
      * @param arg       parsed argument
      * @return          0 - command was found and arg was modified; 1 - command was not found and arg was not modified
      */
-    const int parse_command(const string & command, int* arg);
+    const int parse_command(const string& command, int* arg);
 
     /**
      * Function to parse double argument of the command from input script
@@ -114,23 +118,24 @@ public:
      * @param arg       parsed argument
      * @return          0 - command was found and arg was modified; 1 - command was not found and arg was not modified
      */
-    const int parse_command(const string & command, double* arg);
+    const int parse_command(const string& command, double* arg);
 
 private:
     bool skip_calculations;
-    bool even_run;
-
     AtomReader reader;
     Config conf;
     SolutionReader solution;
     Interpolator interpolator = Interpolator(&solution);
     Interpolator small_interpolator = Interpolator(&solution);
 
+#if HEATINGMODE
+    bool even_run;
     fch::PhysicalQuantities phys_quantities;
     fch::CurrentsAndHeating<3> ch_solver1;
     fch::CurrentsAndHeating<3> ch_solver2;
     fch::CurrentsAndHeating<3>* fch_solver;
     fch::CurrentsAndHeating<3>* prev_fch_solver;
+#endif
 };
 
 } /* namespace femocs */

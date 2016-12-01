@@ -63,6 +63,7 @@ const void Config::read_all(const string& file_name) {
     parse_file(file_name);
 
     // Modify the parameters that are correctly specified in input script
+
     read_command("infile", infile);
     read_command("latconst", latconst);
     read_command("coord_cutoff", coord_cutoff);
@@ -121,7 +122,9 @@ const void Config::parse_file(const string& file_name) {
 }
 
 // Look up the parameter with string argument
-const int Config::read_command(const string& param, string& arg) {
+const int Config::read_command(string param, string& arg) {
+    // force the parameter to lower case
+    std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
     for (vector<string> str : data)
         if (str.size() >= 2 && str[0] == param) {
@@ -131,7 +134,9 @@ const int Config::read_command(const string& param, string& arg) {
 }
 
 // Look up the parameter with boolean argument
-const int Config::read_command(const string& param, bool& arg) {
+const int Config::read_command(string param, bool& arg) {
+    // force the parameter to lower case
+    std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
     for (vector<string> str : data)
         if (str.size() >= 2 && str[0] == param) {
@@ -148,7 +153,9 @@ const int Config::read_command(const string& param, bool& arg) {
 }
 
 // Look up the parameter with integer argument
-const int Config::read_command(const string& param, int& arg) {
+const int Config::read_command(string param, int& arg) {
+    // force the parameter to lower case
+    std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
     for (vector<string> str : data)
         if (str.size() >= 2 && str[0] == param) {
@@ -160,7 +167,9 @@ const int Config::read_command(const string& param, int& arg) {
 }
 
 // Look up the parameter with double argument
-const int Config::read_command(const string& param, double& arg) {
+const int Config::read_command(string param, double& arg) {
+    // force the parameter to lower case
+    std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
     for (vector<string> str : data)
         if (str.size() >= 2 && str[0] == param) {
@@ -171,7 +180,9 @@ const int Config::read_command(const string& param, double& arg) {
     return 1;
 }
 
-const int Config::read_command(const string& param, vector<double>& args) {
+const int Config::read_command(string param, vector<double>& args) {
+    // force the parameter to lower case
+    std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
     int n_read_args = 0;
     for (vector<string> str : data)

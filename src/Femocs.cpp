@@ -16,8 +16,6 @@
 #include "Tethex.h"
 #include "TetgenMesh.h"
 
-#include "laplace.h"
-
 using namespace std;
 namespace femocs {
 
@@ -31,7 +29,7 @@ Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
     end_msg(t0);
     conf.print_data();
 
-    if (conf.heating) {
+#if HEATINGMODE
         start_msg(t0, "=== Loading physical quantities...");
         string pq_path = "heating/res/physical_quantities/";
         phys_quantities.load_emission_data(pq_path + "gtf_grid_1000x1000.dat");
@@ -44,7 +42,7 @@ Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
         fch_solver  = &ch_solver1;
         prev_fch_solver = NULL;
         even_run = true;
-    }
+#endif
 
     // Create the output folder if file writing is enabled and it doesn't exist
     if (MODES.WRITEFILE) system("mkdir -p output");
@@ -171,7 +169,7 @@ const int Femocs::run(double elfield, string message) {
     // ===== Running FEM multi-solver =====
     // ====================================
 
-    if (conf.heating) {
+#if HEATINGMODE
         start_msg(t0, "=== Running Laplace solver...");
         fch::Laplace<3> laplace_solver;
         laplace_solver.import_mesh_directly(hexmesh_vacuum.get_nodes(), hexmesh_vacuum.get_elems());
@@ -196,7 +194,7 @@ const int Femocs::run(double elfield, string message) {
             prev_fch_solver = &ch_solver2;
             even_run = true;
         }
-    }
+#endif
 
     // ==============================
     // ===== Running FEM solver =====
@@ -362,11 +360,9 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
 // export the calculated electric field on imported atom coordinates
 const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     double t0;
-
     start_msg(t0, "=== Exporting results...");
     interpolator.export_interpolation(n_atoms, Ex, Ey, Ez, Enorm);
     end_msg(t0);
-
     return skip_calculations;
 }
 
@@ -387,19 +383,13 @@ const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z,
 }
 
 // parse integer argument of the command from input script
-const int Femocs::parse_command(const string & command, int* arg) {
-    int value;
-    int retval = conf.read_command(command, value);
-    if (retval == 0) arg[0] = value;
-    return retval;
+const int Femocs::parse_command(const string& command, int* arg) {
+    return conf.read_command(command, arg[0]);
 }
 
 // parse double argument of the command from input script
-const int Femocs::parse_command(const string & command, double* arg) {
-    double value;
-    int retval = conf.read_command(command, value);
-    if (retval == 0) arg[0] = value;
-    return retval;
+const int Femocs::parse_command(const string& command, double* arg) {
+    return conf.read_command(command, arg[0]);
 }
 
 } // namespace femocs

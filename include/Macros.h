@@ -17,6 +17,8 @@ using namespace std;
 /** If ASSERTMODE then the asserts are operating.
  * It must be controlled on compile time to enable deeper code optimisation. */
 #define ASSERTMODE true
+
+#define HEATINGMODE false
               
 /** Types of regions used in the simulation */
 struct Types {
