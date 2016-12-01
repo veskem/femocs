@@ -17,8 +17,22 @@ namespace fch {
 class PhysicalQuantities {
 public:
 
+	/**
+	 * Load emission current data from file
+	 * @return true if successful, false otherwise
+	 */
 	bool load_emission_data(std::string filepath);
+
+	/**
+	 * Load nottingham delta energy data from file
+	 * @return true if successful, false otherwise
+	 */
 	bool load_nottingham_data(std::string filepath);
+
+	/**
+	 * Load copper resistivity data from file
+	 * @return true if successful, false otherwise
+	 */
 	bool load_resistivity_data(std::string filepath);
 
 	/**

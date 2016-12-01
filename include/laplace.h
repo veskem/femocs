@@ -33,36 +33,84 @@ namespace fch {
 	class Laplace {
 	public:
 		Laplace();
+
+		/** runs the calculation */
 		void run();
 
-		Triangulation<dim>* getp_triangulation();
-		DoFHandler<dim>* getp_dof_handler();
+		/** getter for the mesh */
+		Triangulation<dim>* get_triangulation();
+		/** getter for dof_handler */
+		DoFHandler<dim>* get_dof_handler();
 
+		/** Sets the applied electric field boundary condition */
+		void set_applied_efield(const double applied_field_);
 
-		void set_applied_field(const double applied_field_);
-
+		/**
+		 * Imports mesh from file and optionally outputs it to a .vtk file
+		 * Additionally sets the boundary indicators corresponding to vacuum
+		 * @param file_name file from the mesh is imported
+		 * @param out_name if empty, won't save the file, otherwise saves the mesh to .vtk file
+		 */
 		void import_mesh_from_file(const std::string file_name, const std::string out_name = "");
+
+		/**
+		 * imports mesh directly from vertex and cell data and sets the boundary indicators
+		 * @return true if success, otherwise false
+		 */
 		bool import_mesh_directly(std::vector<Point<dim> > vertices, std::vector<CellData<dim> > cells);
 
-		double probe_field(const Point<dim> &p) const;
+		/** outputs the mesh to .vtk file */
+		void output_mesh(const std::string file_name = "vacuum_mesh.vtk");
 
+		/** get the electric field at the specified point */
+		double probe_efield(const Point<dim> &p) const;
+
+		/**
+		 * method to obtain the electric potential values in selected nodes
+		 * @param cell_indexes global cell indexes, where the corresponding nodes are situated
+		 * @param vert_indexes the vertex indexes of the nodes inside the cell
+		 * @return potential values in the specified nodes
+		 */
 		std::vector<double> get_potential(const std::vector<int> &cell_indexes,
 										  const std::vector<int> &vert_indexes);
 
-		std::vector<Tensor<1, dim>> get_field(const std::vector<int> &cell_indexes,
+		/**
+		 * method to obtain the electric field values in selected nodes
+		 * @param cell_indexes global cell indexes, where the corresponding nodes are situated
+		 * @param vert_indexes the vertex indexes of the nodes inside the cell
+		 * @return electric field vectors in the specified nodes
+		 */
+		std::vector<Tensor<1, dim>> get_efield(const std::vector<int> &cell_indexes,
 									  	  	  const std::vector<int> &vert_indexes);
 
+		/** sets up the system: calculates the sparse matrix dimensions, etc */
 		void setup_system();
+		/** assembles the matrix equation */
 		void assemble_system();
+		/** solves the matrix equation */
 		void solve();
+
+		/** outputs the results to a specified file */
 		void output_results(const std::string filename = "field_solution.vtk") const;
+		/** equivalent to output_results */
+		void write(const std::string filename = "field_solution.vtk") const {output_results(filename);};
+
+	    /** string stream prints the statistics about the system */
+	    friend std::ostream& operator <<(std::ostream &os, const Laplace<dim>& d) {
+	        os << "#elems=" << d.triangulation.n_active_cells()
+	                << ",\t#faces=" << d.triangulation.n_active_faces()
+	                << ",\t#edges=" << d.triangulation.n_active_lines()
+	                << ",\t#nodes=" << d.triangulation.n_used_vertices()
+	                << ",\t#dofs=" << d.dof_handler.n_dofs();
+	        return os;
+	    }
 
 	private:
 		static constexpr unsigned int shape_degree = 1;
 		static constexpr unsigned int quadrature_degree = shape_degree + 1;
 
-		static constexpr double applied_field_default = 2.0;
-		double applied_field;
+		static constexpr double applied_efield_default = 2.0;
+		double applied_efield;
 
 		Triangulation<dim> triangulation;
 		FE_Q<dim> fe;

@@ -42,19 +42,31 @@
 namespace fch {
 using namespace dealii;
 
+
 template <int dim>
-CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim>* laplace_) :
+CurrentsAndHeating<dim>::CurrentsAndHeating() :
+		ambient_temperature(ambient_temperature_default),
+		fe (FE_Q<dim>(currents_degree), 1, 	// Finite element type (1) = linear, etc and number of components
+			FE_Q<dim>(heating_degree), 1),	// (we have 2 variables: potential and T with 1 component each)
+		dof_handler(triangulation),
+		pq(NULL),
+		laplace(NULL),
+		previous_iteration(NULL),
+		interp_initial_conditions(false) {}
+
+template <int dim>
+CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities *pq_, Laplace<dim>* laplace_) :
 		ambient_temperature(ambient_temperature_default),
 		fe (FE_Q<dim>(currents_degree), 1, 	// Finite element type (1) = linear, etc and number of components
 			FE_Q<dim>(heating_degree), 1),	// (we have 2 variables: potential and T with 1 component each)
 		dof_handler(triangulation),
 		pq(pq_),
 		laplace(laplace_),
-		previous_iteration(0),
+		previous_iteration(NULL),
 		interp_initial_conditions(false) {}
 
 template <int dim>
-CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities pq_, Laplace<dim>* laplace_,
+CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities *pq_, Laplace<dim>* laplace_,
 			CurrentsAndHeating *ch_previous_iteration_) :
 		ambient_temperature(ambient_temperature_default),
 		fe (FE_Q<dim>(currents_degree), 1, 	// Finite element type (1) = linear, etc and number of components
@@ -86,17 +98,27 @@ void CurrentsAndHeating<dim>::reinitialize(Laplace<dim>* laplace_,
 }
 
 template <int dim>
-Triangulation<dim>* CurrentsAndHeating<dim>::getp_triangulation() {
+void CurrentsAndHeating<dim>::set_physical_quantities(PhysicalQuantities *pq_) {
+	pq = pq_;
+}
+
+template <int dim>
+void CurrentsAndHeating<dim>::set_ambient_temperature(double ambient_temperature_) {
+	ambient_temperature = ambient_temperature_;
+}
+
+template <int dim>
+Triangulation<dim>* CurrentsAndHeating<dim>::get_triangulation() {
 	return &triangulation;
 }
 
 template <int dim>
-DoFHandler<dim>* CurrentsAndHeating<dim>::getp_dof_handler() {
+DoFHandler<dim>* CurrentsAndHeating<dim>::get_dof_handler() {
 	return &dof_handler;
 }
 
 template <int dim>
-Vector<double>* CurrentsAndHeating<dim>::getp_solution() {
+Vector<double>* CurrentsAndHeating<dim>::get_solution() {
 	return &present_solution;
 }
 
@@ -133,13 +155,19 @@ bool CurrentsAndHeating<dim>::import_mesh_directly(std::vector<Point<dim> > vert
 }
 
 template<int dim>
+void CurrentsAndHeating<dim>::output_mesh(const std::string file_name) {
+	MeshPreparer<dim> mesh_preparer;
+	mesh_preparer.output_mesh(&triangulation, file_name);
+}
+
+template<int dim>
 std::vector<double> CurrentsAndHeating<dim>::get_temperature(const std::vector<int> &cell_indexes,
 															 const std::vector<int> &vert_indexes) {
 
 	// Initialise potentials with a value that is immediately visible if it's not changed to proper one
 	std::vector<double> temperatures(cell_indexes.size(), 1e15);
 
-	for (int i = 0; i < cell_indexes.size(); i++) {
+	for (unsigned i = 0; i < cell_indexes.size(); i++) {
 		// Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
 		// NB: only works without refinement !!!
 		typename DoFHandler<dim>::active_cell_iterator dof_cell(&triangulation,
@@ -163,7 +191,7 @@ std::vector<Tensor<1, dim> > CurrentsAndHeating<dim>::get_current(const std::vec
 
 	std::vector<Tensor<1, dim> > currents(cell_indexes.size());
 
-	for (int i = 0; i < cell_indexes.size(); i++) {
+	for (unsigned i = 0; i < cell_indexes.size(); i++) {
 		// Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
 		// NB: only works without refinement !!!
 		typename DoFHandler<dim>::active_cell_iterator dof_cell(&triangulation,
@@ -175,7 +203,7 @@ std::vector<Tensor<1, dim> > CurrentsAndHeating<dim>::get_current(const std::vec
 		fe_values[potential].get_function_gradients(present_solution, potential_gradients);
 
 		Tensor<1, dim> field = -1.0 * potential_gradients.at(vert_indexes[i]);
-		Tensor<1, dim> current = pq.sigma(temperature) * field;
+		Tensor<1, dim> current = pq->sigma(temperature) * field;
 
 		currents[i] = current;
 	}
@@ -265,9 +293,9 @@ void CurrentsAndHeating<dim>::set_initial_condition_slow() {
 	 * be sped up by spactially grouping the nodes but this is not done at present moment.
 	 */
 
-	Triangulation<dim>* previous_triangulation = previous_iteration->getp_triangulation();
-	DoFHandler<dim>* previous_dof_handler = previous_iteration->getp_dof_handler();
-	Vector<double>* previous_solution = previous_iteration->getp_solution();
+	Triangulation<dim>* previous_triangulation = previous_iteration->get_triangulation();
+	DoFHandler<dim>* previous_dof_handler = previous_iteration->get_dof_handler();
+	Vector<double>* previous_solution = previous_iteration->get_solution();
 
 	std::vector<Point<dim> > vertex_points;
 	std::vector<unsigned> vertex_indexes;
@@ -349,9 +377,9 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 	 * slow. To speed things up the nodes at the previous mesh are grouped near support points.
 	 */
 
-	Triangulation<dim>* previous_triangulation = previous_iteration->getp_triangulation();
-	DoFHandler<dim>* previous_dof_handler = previous_iteration->getp_dof_handler();
-	Vector<double>* previous_solution = previous_iteration->getp_solution();
+	Triangulation<dim>* previous_triangulation = previous_iteration->get_triangulation();
+	DoFHandler<dim>* previous_dof_handler = previous_iteration->get_dof_handler();
+	Vector<double>* previous_solution = previous_iteration->get_solution();
 
 	std::vector< Point<dim> > support_points;
 
@@ -385,10 +413,10 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 	for (int d = 0; d<dim; d++)
 		dx[d] = (max_values[d]-min_values[d])/num_sp_1d;
 
-	for (int ix = 0; ix < num_sp_1d; ix++) {
-		for (int iy = 0; iy < num_sp_1d; iy++) {
+	for (unsigned ix = 0; ix < num_sp_1d; ix++) {
+		for (unsigned iy = 0; iy < num_sp_1d; iy++) {
 			if (dim == 3) {
-				for (int iz = 0; iz < num_sp_1d; iz++)
+				for (unsigned iz = 0; iz < num_sp_1d; iz++)
 					support_points.push_back(Point<dim>(min_values[0] + dx[0]*ix,
 														min_values[1] + dx[1]*iy,
 														min_values[2] + dx[2]*iz));
@@ -411,7 +439,7 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 	}
 
 	// Remove "empty" support points
-	for (int i = 0; i < sup_to_vertex_point.size();) {
+	for (unsigned i = 0; i < sup_to_vertex_point.size();) {
 		if (sup_to_vertex_point[i].size() == 0) {
 			sup_to_vertex_point.erase(sup_to_vertex_point.begin() + i);
 			sup_to_vertex_index.erase(sup_to_vertex_index.begin() + i);
@@ -566,10 +594,10 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 			const Tensor<1,dim> prev_pot_grad = prev_sol_potential_gradients[q];
 			const Tensor<1,dim> prev_temp_grad = prev_sol_temperature_gradients[q];
 
-			double sigma = pq.sigma(prev_temp);
-			double dsigma = pq.dsigma(prev_temp);
-			double kappa = pq.kappa(prev_temp);
-			double dkappa = pq.dkappa(prev_temp);
+			double sigma = pq->sigma(prev_temp);
+			double dsigma = pq->dsigma(prev_temp);
+			double kappa = pq->kappa(prev_temp);
+			double dkappa = pq->dkappa(prev_temp);
 
 			for (unsigned int k=0; k<dofs_per_cell; ++k) {
 				potential_phi_grad[k] = fe_values[potential].gradient (k, q);
@@ -648,13 +676,13 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 
 						//double sigma = pq.sigma(prev_temp);
 						//double kappa = pq.kappa(prev_temp);
-						double dsigma = pq.dsigma(prev_temp);
-						double dkappa = pq.dkappa(prev_temp);
+						double dsigma = pq->dsigma(prev_temp);
+						double dkappa = pq->dkappa(prev_temp);
 						double e_field = electric_field_values[q].norm();
-						double emission_current = pq.emission_current(e_field, prev_temp);
+						double emission_current = pq->emission_current(e_field, prev_temp);
 						// Nottingham heat flux in
 						// (eV*A/nm^2) -> (eV*n*q_e/(s*nm^2)) -> (J*n/(s*nm^2)) -> (W/nm^2)
-						double nottingham_flux = pq.nottingham_de(e_field, prev_temp)*emission_current;
+						double nottingham_flux = pq->nottingham_de(e_field, prev_temp)*emission_current;
 
 						for (unsigned int k=0; k<dofs_per_cell; ++k) {
 							potential_phi[k] = fe_face_values[potential].value(k, q);
@@ -816,7 +844,7 @@ template <int dim>
 double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int max_newton_iter,
 		  	  	  	  	  	  	  	  	   bool file_output, std::string out_fname, bool print) {
 
-	if (laplace == NULL || (interp_initial_conditions && previous_iteration == NULL)) {
+	if (pq == NULL || laplace == NULL || (interp_initial_conditions && previous_iteration == NULL)) {
 		std::cerr << "Error: pointer uninitialized" << std::endl;
 		return -1.0;
 	}
@@ -837,7 +865,7 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 	double temperature_error = 1e15;
 
 	// Newton iterations
-	for (unsigned int iteration=1; iteration<max_newton_iter+1; ++iteration) {
+	for (int iteration=1; iteration<max_newton_iter+1; ++iteration) {
 
 		system_matrix.reinit(sparsity_pattern);
 		system_rhs.reinit(dof_handler.n_dofs());
@@ -869,9 +897,9 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 // Class for outputting the current density distribution (calculated from potential distr.)
 template <int dim>
 class CurrentPostProcessor : public DataPostprocessorVector<dim> {
-	PhysicalQuantities pq;
+	PhysicalQuantities *pq;
 public:
-	CurrentPostProcessor(PhysicalQuantities pq_)
+	CurrentPostProcessor(PhysicalQuantities *pq_)
 		: DataPostprocessorVector<dim>("current_density", update_values | update_gradients),
 		  pq(pq_){}
 
@@ -885,7 +913,7 @@ public:
 										  ) const {
 		for (unsigned int i=0; i<computed_quantities.size(); i++) {
 			double t = uh[i][1]; // temperature
-			double sigma = pq.sigma(t);
+			double sigma = pq->sigma(t);
 			for (unsigned int d=0; d<dim; ++d) {
 				double e_field = -duh[i][0][d]; // gradient of the 0-th vector (i.e. potential)
 				computed_quantities[i](d) = sigma*e_field;
@@ -896,9 +924,9 @@ public:
 // Class for outputting the electrical conductivity distribution
 template <int dim>
 class SigmaPostProcessor : public DataPostprocessorScalar<dim> {
-	PhysicalQuantities pq;
+	PhysicalQuantities *pq;
 public:
-	SigmaPostProcessor(PhysicalQuantities pq_)
+	SigmaPostProcessor(PhysicalQuantities *pq_)
 		: DataPostprocessorScalar<dim>("sigma", update_values),
 		  pq(pq_){}
 
@@ -912,7 +940,7 @@ public:
 										  ) const {
 		for (unsigned int i=0; i<computed_quantities.size(); i++) {
 			double t = uh[i][1]; // temperature
-			computed_quantities[i](0) = pq.sigma(t);
+			computed_quantities[i](0) = pq->sigma(t);
 		}
 	}
 };

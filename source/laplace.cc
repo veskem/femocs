@@ -59,23 +59,23 @@ public:
 
 template<int dim>
 Laplace<dim>::Laplace() :
-		applied_field(applied_field_default), fe(shape_degree), dof_handler(triangulation) {
+		applied_efield(applied_efield_default), fe(shape_degree), dof_handler(triangulation) {
 }
 
 template<int dim>
-Triangulation<dim>* Laplace<dim>::getp_triangulation() {
+Triangulation<dim>* Laplace<dim>::get_triangulation() {
 	return &triangulation;
 }
 
 template <int dim>
-DoFHandler<dim>* Laplace<dim>::getp_dof_handler() {
+DoFHandler<dim>* Laplace<dim>::get_dof_handler() {
 	return &dof_handler;
 }
 
 
 template<int dim>
-void Laplace<dim>::set_applied_field(const double applied_field_) {
-	applied_field = applied_field_;
+void Laplace<dim>::set_applied_efield(const double applied_field_) {
+	applied_efield = applied_field_;
 }
 
 
@@ -112,7 +112,13 @@ bool Laplace<dim>::import_mesh_directly(std::vector<Point<dim> > vertices, std::
 }
 
 template<int dim>
-double Laplace<dim>::probe_field(const Point<dim> &p) const {
+void Laplace<dim>::output_mesh(const std::string file_name) {
+	MeshPreparer<dim> mesh_preparer;
+	mesh_preparer.output_mesh(&triangulation, file_name);
+}
+
+template<int dim>
+double Laplace<dim>::probe_efield(const Point<dim> &p) const {
 	return VectorTools::point_gradient (dof_handler, solution, p).norm();
 }
 
@@ -123,7 +129,7 @@ std::vector<double> Laplace<dim>::get_potential(const std::vector<int> &cell_ind
 	// Initialise potentials with a value that is immediately visible if it's not changed to proper one
 	std::vector<double> potentials(cell_indexes.size(), 1e15);
 
-	for (int i = 0; i < cell_indexes.size(); i++) {
+	for (unsigned i = 0; i < cell_indexes.size(); i++) {
 		// Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
 		// NB: only works without refinement !!!
 		typename DoFHandler<dim>::active_cell_iterator dof_cell(&triangulation,
@@ -136,7 +142,7 @@ std::vector<double> Laplace<dim>::get_potential(const std::vector<int> &cell_ind
 }
 
 template<int dim>
-std::vector<Tensor<1, dim> > Laplace<dim>::get_field(const std::vector<int> &cell_indexes,
+std::vector<Tensor<1, dim> > Laplace<dim>::get_efield(const std::vector<int> &cell_indexes,
 													 const std::vector<int> &vert_indexes) {
 
 	QGauss<dim> quadrature_formula(quadrature_degree);
@@ -146,7 +152,7 @@ std::vector<Tensor<1, dim> > Laplace<dim>::get_field(const std::vector<int> &cel
 
 	std::vector<Tensor<1, dim> > fields(cell_indexes.size());
 
-	for (int i = 0; i < cell_indexes.size(); i++) {
+	for (unsigned i = 0; i < cell_indexes.size(); i++) {
 		// Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
 		// NB: only works without refinement !!!
 		typename DoFHandler<dim>::active_cell_iterator dof_cell(&triangulation,
@@ -222,7 +228,7 @@ void Laplace<dim>::assemble_system() {
 				for (unsigned int q = 0; q < n_face_q_points; ++q) {
 					for (unsigned int i = 0; i < dofs_per_cell; ++i) {
 						cell_rhs(i) += (fe_face_values.shape_value(i, q)
-								* applied_field * fe_face_values.JxW(q));
+								* applied_efield * fe_face_values.JxW(q));
 					}
 				}
 			}
