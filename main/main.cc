@@ -7,6 +7,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <sys/stat.h>  // for checking if directory exists
 
 #include <deal.II/base/timer.h>
 
@@ -21,32 +22,40 @@ int main() {
 
 	fch::PhysicalQuantities pq;
 
-	std::string path1 = "../res/physical_quantities/";
-	std::string path2 = "heating/res/physical_quantities/";
+	std::string res_path1 = "../res";
+	std::string res_path2 = "heating/res";
 
-	if (pq.load_emission_data(path1+"gtf_grid_1000x1000.dat") &&
-		pq.load_nottingham_data(path1+"nottingham_grid_300x300.dat") &&
-		pq.load_resistivity_data(path1+"cu_res.dat"))
-		std::cout << "Found pq data in " + path1 << std::endl;
-	else if (pq.load_emission_data(path2+"gtf_grid_1000x1000.dat") &&
-			 pq.load_nottingham_data(path2+"nottingham_grid_300x300.dat") &&
-			 pq.load_resistivity_data(path2+"cu_res.dat"))
-		std::cout << "Found pq data in " + path2 << std::endl;
-	else
+	std::string res_path = "";
+
+	struct stat info;
+	if (stat(res_path1.c_str(), &info) == 0) {
+		res_path = res_path1;
+	} else if (stat(res_path2.c_str(), &info) == 0) {
+		res_path = res_path2;
+	} else {
+		std::cout << "res/ folder not found in " + res_path1 + " or " + res_path2 + ". Exiting..." << std::endl;
 		return EXIT_FAILURE;
+	}
+
+	if (!(pq.load_emission_data(res_path+"/physical_quantities/gtf_grid_1000x1000.dat") &&
+		  pq.load_nottingham_data(res_path+"/physical_quantities/nottingham_grid_300x300.dat") &&
+		  pq.load_resistivity_data(res_path+"/physical_quantities/cu_res.dat"))) {
+		std::cout << "Couldn't load pq data, exiting..." << std::endl;
+		return EXIT_FAILURE;
+	}
 
 	std::cout << "    Load PhysicalQuantities: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 	// ------------------------------------------------------------------------------------- //
 	// Laplace solver //
 	fch::Laplace<3> laplace_solver;
-	laplace_solver.import_mesh_from_file("../res/3d_meshes/nanotip_vacuum.msh");
+	laplace_solver.import_mesh_from_file(res_path+"/3d_meshes/nanotip_vacuum.msh");
 	laplace_solver.setup_system();
 	laplace_solver.assemble_system();
 	laplace_solver.solve();
 	laplace_solver.output_results("output/field_sol.vtk");
 
-	std::cout << laplace_solver << std::endl;
+	std::cout << "    laplace_solver info:\n        " << laplace_solver << std::endl;
 
 	std::cout << "    Solved laplace_solver: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
@@ -62,19 +71,20 @@ int main() {
 	// ------------------------------------------------------------------------------------- //
 	// Currents and heating //
 	fch::CurrentsAndHeating<3> ch_solver(&pq, &laplace_solver);
-	ch_solver.import_mesh_from_file("../res/3d_meshes/nanotip_copper.msh");
+	ch_solver.import_mesh_from_file(res_path+"/3d_meshes/nanotip_copper.msh");
 
 	double final_error = ch_solver.run_specific(10.0, 3, true, "output/sol", true);
+
+	std::cout << "    ch_solver info:\n        " << laplace_solver << std::endl;
 
 	std::cout << "    Solved currents&heating: " << timer.wall_time() << " s" << std::endl; timer.restart();
 	std::cout << "    Final temp. error: " << final_error << std::endl;
 
-	std::cout << ch_solver << std::endl;
 
 	// ------------------------------------------------------------------------------------- //
 	// Currents and heating resume (or next iteration, which resumes from previous iteration) //
 	fch::CurrentsAndHeating<3> ch_solver2(&pq, &laplace_solver, &ch_solver);
-	ch_solver2.import_mesh_from_file("../res/3d_meshes/nanotip_copper.msh");
+	ch_solver2.import_mesh_from_file(res_path+"/3d_meshes/nanotip_copper.msh");
 
 	final_error = ch_solver2.run_specific(10.0, 3, true, "output/sol_next", true);
 
@@ -92,7 +102,7 @@ int main() {
 	// ------------------------------------------------------------------------------------- //
 	// Laplace solver //
 	fch::Laplace<3> laplace_solver2;
-	laplace_solver2.import_mesh_from_file("../res/3d_meshes/mushroom_vacuum.msh");
+	laplace_solver2.import_mesh_from_file(res_path+"/3d_meshes/mushroom_vacuum.msh");
 	laplace_solver2.setup_system();
 	laplace_solver2.assemble_system();
 	laplace_solver2.solve();
@@ -104,7 +114,7 @@ int main() {
 	// Currents and heating reuse ch_solver by taking ch_solver2 as initial condition //
 
 	ch_solver.reinitialize(&laplace_solver2, &ch_solver2);
-	ch_solver.import_mesh_from_file("../res/3d_meshes/mushroom_copper.msh");
+	ch_solver.import_mesh_from_file(res_path+"/3d_meshes/mushroom_copper.msh");
 
 	final_error = ch_solver.run_specific(1.0, 5, true, "output/sol_nnext", true);
 

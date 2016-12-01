@@ -60,7 +60,7 @@ namespace fch {
 						   CurrentsAndHeating *ch_previous_iteration_);
 
 		/**
-		 * Reinitializes current object without inital condition interpolation
+		 * Reinitializes current object without initial condition interpolation
 		 * The mesh must be imported again (corresponding to the new laplace object)
 		 */
 		void reinitialize(Laplace<dim> *laplace_);
@@ -84,10 +84,10 @@ namespace fch {
 		 * Runs calculation with specific parameters
 		 * @param temperature_tolerance the tolerance of temperature when newton iterations are stopped
 		 * @param max_newton_iter maximum number of newton iterations
-		 * @param file_output should the solution be outputted to a .vtk file
+		 * @param file_output should the solution be output to a .vtk file
 		 * @param out_fname if file_output is set to true, then the newton iterations are saved to files <out_fname>-<N#>.vtk,
 		 * 					where N# is the number of the newton iteration
-		 * @param print boolean if calculation info should be outputted to cout
+		 * @param print boolean if calculation info should be output to cout
 		 */
 		double run_specific(double temperature_tolerance=1.0, int max_newton_iter=10,
 						  bool file_output=true, std::string out_fname="sol", bool print=true);
