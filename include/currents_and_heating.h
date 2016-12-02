@@ -88,9 +88,11 @@ namespace fch {
 		 * @param out_fname if file_output is set to true, then the newton iterations are saved to files <out_fname>-<N#>.vtk,
 		 * 					where N# is the number of the newton iteration
 		 * @param print boolean if calculation info should be output to cout
+		 * @param alpha successive over-relaxation coefficient
+		 * @return final temperature error
 		 */
 		double run_specific(double temperature_tolerance=1.0, int max_newton_iter=10,
-						  bool file_output=true, std::string out_fname="sol", bool print=true);
+						  bool file_output=true, std::string out_fname="sol", bool print=true, double alpha=1.0);
 
 		/** getter for the mesh */
 		Triangulation<dim>* get_triangulation();

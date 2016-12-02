@@ -488,7 +488,7 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 	std::vector<std::set<typename Triangulation<dim>::active_cell_iterator> > vc_map =
 				GridTools::vertex_to_cell_map(triangulation);
 
-	DEBUG(" Done." << std::endl << "Iterate over all vertices of the current system...");
+	DEBUG(" Done." << std::endl << "            Iterate over all vertices of the current system...");
 	/* Iterate all vertices of the current system */
 	typename Triangulation<dim>::vertex_iterator it_cs = triangulation.begin_vertex(),
 				end_cs = triangulation.end_vertex();
@@ -871,7 +871,7 @@ void CurrentsAndHeating<dim>::run() {
 
 template <int dim>
 double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int max_newton_iter,
-		  	  	  	  	  	  	  	  	   bool file_output, std::string out_fname, bool print) {
+		  	  	  	  	  	  	  	  	   bool file_output, std::string out_fname, bool print, double alpha) {
 
 	if (pq == NULL || laplace == NULL || (interp_initial_conditions && previous_iteration == NULL)) {
 		std::cerr << "Error: pointer uninitialized! Exiting temperature calculation..." << std::endl;
@@ -907,7 +907,7 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 		assemble_system_newton();
 
 		solve();
-		present_solution.add(1.0, newton_update); // alpha = 1.0
+		present_solution.add(alpha, newton_update); // alpha = 1.0
 
 		if (file_output) output_results(iteration, out_fname);
 
