@@ -36,8 +36,11 @@
 
 
 #include "currents_and_heating.h"
-
 #include "utility.h"
+
+
+#define DEBUG(x) do { std::cerr << x; } while (0)
+
 
 namespace fch {
 using namespace dealii;
@@ -394,6 +397,8 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 	 * slow. To speed things up the nodes at the previous mesh are grouped near support points.
 	 */
 
+	DEBUG("            Setup code...");
+
 	Triangulation<dim>* previous_triangulation = previous_iteration->get_triangulation();
 	DoFHandler<dim>* previous_dof_handler = previous_iteration->get_dof_handler();
 	Vector<double>* previous_solution = previous_iteration->get_solution();
@@ -410,6 +415,8 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 	typename Triangulation<dim>::vertex_iterator it_v = previous_triangulation->begin_vertex(),
 			endv = previous_triangulation->end_vertex();
 
+	DEBUG(" Done." << std::endl << "            Bounding box...");
+
 	/* Find the bounding box*/
 	Point<dim> max_values, min_values;
 	for (int d = 0; d<dim; d++) {
@@ -423,6 +430,8 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 			if (p[d] < min_values[d]) min_values[d] = p[d];
 		}
 	}
+
+	DEBUG(" Done." << std::endl << "            Support points...");
 	/* ------------------------------------------------- */
 	/* Number of support points in one direction */
 	unsigned num_sp_1d = std::pow(std::sqrt(total_vertices), 1./dim);
@@ -472,13 +481,14 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 		std::cout << sup_to_vertex_point[i].size() << std::endl;
 	}
 	*/
+	DEBUG(" Done." << std::endl << "            Maps...");
 	// Maps from vertex to cells for previous triangulation and the current one
 	std::vector<std::set<typename Triangulation<dim>::active_cell_iterator> > old_vc_map =
 			GridTools::vertex_to_cell_map(*previous_triangulation);
 	std::vector<std::set<typename Triangulation<dim>::active_cell_iterator> > vc_map =
 				GridTools::vertex_to_cell_map(triangulation);
 
-
+	DEBUG(" Done." << std::endl << "Iterate over all vertices of the current system...");
 	/* Iterate all vertices of the current system */
 	typename Triangulation<dim>::vertex_iterator it_cs = triangulation.begin_vertex(),
 				end_cs = triangulation.end_vertex();
@@ -521,6 +531,7 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 			}
 		}
 	}
+	DEBUG(" Done." << std::endl);
 }
 
 
