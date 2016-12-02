@@ -75,7 +75,7 @@ CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities *pq_, Laplace<dim
 		pq(pq_),
 		laplace(laplace_),
 		previous_iteration(ch_previous_iteration_),
-		interp_initial_conditions(true) {}
+		interp_initial_conditions(ch_previous_iteration_ != NULL) {}
 
 template <int dim>
 void CurrentsAndHeating<dim>::reinitialize(Laplace<dim>* laplace_) {
@@ -94,7 +94,8 @@ void CurrentsAndHeating<dim>::reinitialize(Laplace<dim>* laplace_,
 
 	laplace = laplace_;
 	previous_iteration = ch_previous_iteration_;
-	interp_initial_conditions = true;
+	if (previous_iteration == NULL) interp_initial_conditions = false;
+	else interp_initial_conditions = true;
 }
 
 template <int dim>
@@ -845,8 +846,13 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 		  	  	  	  	  	  	  	  	   bool file_output, std::string out_fname, bool print) {
 
 	if (pq == NULL || laplace == NULL || (interp_initial_conditions && previous_iteration == NULL)) {
-		std::cerr << "Error: pointer uninitialized" << std::endl;
+		std::cerr << "Error: pointer uninitialized! Exiting temperature calculation..." << std::endl;
 		return -1.0;
+	}
+
+	if (print) {
+		if (interp_initial_conditions) std::cout << "        Interpolating initial conditions" << std::endl;
+		else std::cout << "        Using default initial conditions" << std::endl;
 	}
 
 	Timer timer;
