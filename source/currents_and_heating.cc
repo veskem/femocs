@@ -370,6 +370,22 @@ void CurrentsAndHeating<dim>::set_initial_condition_slow() {
 template <int dim>
 void CurrentsAndHeating<dim>::set_initial_condition() {
 
+	/* If the initial condition is not interpolated from another solution,
+	 * set temperature at ambient temperature and potential at 0
+	 */
+	if (!interp_initial_conditions) {
+		typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
+					endc = dof_handler.end();
+		for (; cell != endc; ++cell) {
+			for (unsigned int j=0; j<GeometryInfo<dim>::vertices_per_cell; ++j) {
+				present_solution[cell->vertex_dof_index(j, 0)] = 0.0;
+				present_solution[cell->vertex_dof_index(j, 1)] = ambient_temperature;
+			}
+		}
+		return;
+	}
+
+
 	/* To set the initial condition based on previous solution, we need to find the values
 	 * at present mesh nodes based on the values of the previous mesh nodes. Present mesh
 	 * nodes can be outside the old mesh. The number of nodes can also be different. One
@@ -510,7 +526,7 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 
 // Assembles the linear system for one Newton iteration
 template <int dim>
-void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration) {
+void CurrentsAndHeating<dim>::assemble_system_newton() {
 
 	TimerOutput timer(std::cout, TimerOutput::never, TimerOutput::wall_times);
 	timer.enter_section("Pre-assembly");
@@ -743,9 +759,12 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 			newton_update, system_rhs);
 
 
-	// 300K at bulk bottom if initial step, 0 otherwise
+	// Set 0 temperature BC, as the initial condition already has correct dirichlet BCs
 	std::map<types::global_dof_index, double> temperature_dirichlet;
+	VectorTools::interpolate_boundary_values(dof_handler, BoundaryId::copper_bottom,
+					ZeroFunction<dim>(2), temperature_dirichlet, fe.component_mask(temperature));
 
+	/*
 	if (first_iteration) {
 		VectorTools::interpolate_boundary_values(dof_handler, BoundaryId::copper_bottom,
 				ConstantFunction<dim>(ambient_temperature, 2), temperature_dirichlet, fe.component_mask(temperature));
@@ -753,6 +772,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton(const bool first_iteration)
 		VectorTools::interpolate_boundary_values(dof_handler, BoundaryId::copper_bottom,
 				ZeroFunction<dim>(2), temperature_dirichlet, fe.component_mask(temperature));
 	}
+	*/
 
 	MatrixTools::apply_boundary_values(temperature_dirichlet, system_matrix,
 			newton_update, system_rhs);
@@ -797,8 +817,7 @@ void CurrentsAndHeating<dim>::run() {
 	// Sets the initial state
 	// Dirichlet BCs need to hold for this state
 	// and 0 dirichlet BC should be applied for all Newton iterations
-	if (interp_initial_conditions)
-		set_initial_condition();
+	set_initial_condition();
 
 	std::cout << "    Setup and IC: " << timer.wall_time() << " s" << std::endl;
 
@@ -814,9 +833,7 @@ void CurrentsAndHeating<dim>::run() {
 		std::cout << "    Reset state: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 		timer.restart();
-		assemble_system_newton(iteration == 0 && !interp_initial_conditions);
-		// No need to set dirichlet BC-s because they are set in set_initial_condition
-		//assemble_system_newton(false);
+		assemble_system_newton();
 
 		std::cout << "    Assembly: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
@@ -862,8 +879,7 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 	// Sets the initial state
 	// Dirichlet BCs need to hold for this state
 	// and 0 dirichlet BC should be applied for all Newton iterations
-	if (interp_initial_conditions)
-		set_initial_condition();
+	set_initial_condition();
 
 	// Output initial condition
 	if (file_output) output_results(0, out_fname);
@@ -876,8 +892,8 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 		system_matrix.reinit(sparsity_pattern);
 		system_rhs.reinit(dof_handler.n_dofs());
 
-		// Set dirichlet BC-s if they are not set in set_initial_condition
-		assemble_system_newton(iteration == 1 && !interp_initial_conditions);
+		// Set dirichlet BSs as 0, as they're already set in  the initial condition
+		assemble_system_newton();
 
 		solve();
 		present_solution.add(1.0, newton_update); // alpha = 1.0

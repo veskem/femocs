@@ -42,7 +42,7 @@ namespace fch {
 		/** getter for dof_handler */
 		DoFHandler<dim>* get_dof_handler();
 
-		/** Sets the applied electric field boundary condition */
+		/** Sets the applied electric field in GV/m (V/nm) boundary condition */
 		void set_applied_efield(const double applied_field_);
 
 		/**

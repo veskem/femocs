@@ -147,7 +147,7 @@ namespace fch {
 
 	private:
 		void setup_system();
-		void assemble_system_newton(bool first_iteration);
+		void assemble_system_newton();
 		void solve();
 		void output_results(const unsigned int iteration, const std::string fname = "sol") const;
 
