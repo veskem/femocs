@@ -19,7 +19,7 @@ using namespace std;
 #define ASSERTMODE true
 
 #define HEATINGMODE false
-              
+
 /** Types of regions used in the simulation */
 struct Types {
     const int NONE = 0;      ///< type of atom with unknown position

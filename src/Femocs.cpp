@@ -160,7 +160,7 @@ const int Femocs::run(double elfield, string message) {
     tetmesh_vacuum.faces.write("output/faces_vacuum.vtk");
     tetmesh_vacuum.elems.write("output/elems_vacuum.vtk");
     end_msg(t0);
-    
+
     start_msg(t0, "=== Separating hexahedral meshes...");
     tethex::Mesh hexmesh_bulk;
     tethex::Mesh hexmesh_vacuum;
@@ -175,9 +175,9 @@ const int Femocs::run(double elfield, string message) {
 
 #if HEATINGMODE
         static int cntr = 0;
-        
-        require(cntr < 3, "Too many iterations!");
-        
+
+        require(cntr < 4, "Too many iterations!");
+
         start_msg(t0, "=== Importing mesh to Laplace solver...");
         fch::Laplace<3> laplace_solver;
         laplace_solver.import_mesh_from_file("input/vacuum_" + to_string(cntr) + ".msh");
