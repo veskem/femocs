@@ -40,9 +40,6 @@
 #include "utility.h"
 
 
-#define DEBUG(x) do { std::cerr << x; } while (0)
-
-
 namespace fch {
 using namespace dealii;
 
@@ -83,11 +80,7 @@ CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities *pq_, Laplace<dim
 
 template <int dim>
 void CurrentsAndHeating<dim>::reinitialize(Laplace<dim>* laplace_) {
-	dof_handler.clear();
-	triangulation.clear();
-
-	laplace = laplace_;
-	interp_initial_conditions = false;
+	reinitialize(laplace_, NULL);
 }
 
 template <int dim>
@@ -95,9 +88,11 @@ void CurrentsAndHeating<dim>::reinitialize(Laplace<dim>* laplace_,
 										   CurrentsAndHeating *ch_previous_iteration_) {
 	dof_handler.clear();
 	triangulation.clear();
+	interface_map.clear();
 
 	laplace = laplace_;
 	previous_iteration = ch_previous_iteration_;
+
 	if (previous_iteration == NULL) interp_initial_conditions = false;
 	else interp_initial_conditions = true;
 }
@@ -154,7 +149,6 @@ bool CurrentsAndHeating<dim>::import_mesh_directly(std::vector<Point<dim> > vert
 	MeshPreparer<dim> mesh_preparer;
 	mesh_preparer.mark_copper_boundary(&triangulation);
 
-	//if (out_name.size() > 0) mesh_preparer.output_mesh(&triangulation, out_name);
 	return true;
 }
 
@@ -254,12 +248,6 @@ bool CurrentsAndHeating<dim>::setup_mapping() {
 				vacuum_interface_indexes.push_back(vac_cell->index());
 				vacuum_interface_face.push_back(f);
 				vacuum_interface_centers.push_back(vac_cell->face(f)->center());
-				/*
-				std::cerr << "Searching for the vacuum cell...";
-				typename DoFHandler<dim>::active_cell_iterator vac_cell(&(laplace->triangulation),
-											0, vac_cell->index(), &(laplace->dof_handler));
-				std::cerr << "Found it" << std::endl;
-				*/
 			}
 		}
 	}
@@ -406,8 +394,6 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 	 * slow. To speed things up the nodes at the previous mesh are grouped near support points.
 	 */
 
-	DEBUG("            Setup code...");
-
 	Triangulation<dim>* previous_triangulation = previous_iteration->get_triangulation();
 	DoFHandler<dim>* previous_dof_handler = previous_iteration->get_dof_handler();
 	Vector<double>* previous_solution = previous_iteration->get_solution();
@@ -424,8 +410,6 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 	typename Triangulation<dim>::vertex_iterator it_v = previous_triangulation->begin_vertex(),
 			endv = previous_triangulation->end_vertex();
 
-	DEBUG(" Done." << std::endl << "            Bounding box...");
-
 	/* Find the bounding box*/
 	Point<dim> max_values, min_values;
 	for (int d = 0; d<dim; d++) {
@@ -440,7 +424,6 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 		}
 	}
 
-	DEBUG(" Done." << std::endl << "            Support points...");
 	/* ------------------------------------------------- */
 	/* Number of support points in one direction */
 	unsigned num_sp_1d = std::pow(std::sqrt(total_vertices), 1./dim);
@@ -490,14 +473,12 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 		std::cout << sup_to_vertex_point[i].size() << std::endl;
 	}
 	*/
-	DEBUG(" Done." << std::endl << "            Maps...");
 	// Maps from vertex to cells for previous triangulation and the current one
 	std::vector<std::set<typename Triangulation<dim>::active_cell_iterator> > old_vc_map =
 			GridTools::vertex_to_cell_map(*previous_triangulation);
 	std::vector<std::set<typename Triangulation<dim>::active_cell_iterator> > vc_map =
 				GridTools::vertex_to_cell_map(triangulation);
 
-	DEBUG(" Done." << std::endl << "            Iterate over all vertices of the current system...");
 	/* Iterate all vertices of the current system */
 	typename Triangulation<dim>::vertex_iterator it_cs = triangulation.begin_vertex(),
 				end_cs = triangulation.end_vertex();
@@ -540,7 +521,6 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 			}
 		}
 	}
-	DEBUG(" Done." << std::endl);
 }
 
 
@@ -697,7 +677,6 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
 					// check if the corresponding vacuum face exists in our mapping
 					assert(interface_map.count(cop_cell_info) == 1);
 					std::pair<unsigned, unsigned> vac_cell_info = interface_map[cop_cell_info];
-					std::cerr << "Finding index: " << vac_cell_info.first << std::endl;
 					// Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
 					typename DoFHandler<dim>::active_cell_iterator vac_cell(&(laplace->triangulation),
 							0, vac_cell_info.first, &(laplace->dof_handler));
@@ -720,8 +699,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
 						//double kappa = pq.kappa(prev_temp);
 						double dsigma = pq->dsigma(prev_temp);
 						double dkappa = pq->dkappa(prev_temp);
-						//double e_field = electric_field_values[q].norm();
-						double e_field = 5.0;
+						double e_field = electric_field_values[q].norm();
 						double emission_current = pq->emission_current(e_field, prev_temp);
 						// Nottingham heat flux in
 						// (eV*A/nm^2) -> (eV*n*q_e/(s*nm^2)) -> (J*n/(s*nm^2)) -> (W/nm^2)

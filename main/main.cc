@@ -7,6 +7,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <string>
 #include <sys/stat.h>  // for checking if directory exists
 
 #include <deal.II/base/timer.h>
@@ -56,7 +57,6 @@ int main() {
     ch_solver1.set_physical_quantities(&pq);
     ch_solver2.set_physical_quantities(&pq);
 
-
 	for (int n = 0; n<=3; n++) {
 		fch::Laplace<3> laplace_solver;
 		laplace_solver.set_applied_efield(1.0);
@@ -71,12 +71,12 @@ int main() {
 		std::cout << "    Solved laplace_solver: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 
-		//ch_solver->reinitialize(&laplace_solver, prev_ch_solver); // with IC interpolation
-		ch_solver->reinitialize(&laplace_solver); // without IC interpolation
+		ch_solver->reinitialize(&laplace_solver, prev_ch_solver); // with IC interpolation
+		//ch_solver->reinitialize(&laplace_solver); // without IC interpolation
 		ch_solver->import_mesh_from_file(res_path+"/3d_meshes/copper_"+std::to_string(n)+".msh");
 		ch_solver->output_mesh("output/copper_"+std::to_string(n)+".vtk");
 
-		double final_error = ch_solver->run_specific(100.0, 3, true, "output/sol_"+std::to_string(n), true);
+		double final_error = ch_solver->run_specific(10.0, 3, true, "output/sol_"+std::to_string(n), true, 2.0);
 
 		std::cout << "    ch_solver info:\n        " << *ch_solver << std::endl;
 
