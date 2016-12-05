@@ -35,12 +35,12 @@ Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
         phys_quantities.load_emission_data(pq_path + "gtf_grid_1000x1000.dat");
         phys_quantities.load_nottingham_data(pq_path + "nottingham_grid_300x300.dat");
         phys_quantities.load_resistivity_data(pq_path + "cu_res.dat");
-        ch_solver1.set_pq(phys_quantities);
-        ch_solver2.set_pq(phys_quantities);
+        ch_solver1.set_physical_quantities(&phys_quantities);
+        ch_solver2.set_physical_quantities(&phys_quantities);
         end_msg(t0);
 
-        fch_solver  = &ch_solver1;
-        prev_fch_solver = NULL;
+        ch_solver  = &ch_solver1;
+        prev_ch_solver = NULL;
         even_run = true;
 #endif
 
@@ -60,11 +60,13 @@ const int Femocs::run(double elfield, string message) {
 
     if(skip_calculations) return skip_calculations;
     skip_calculations = true;
-
+    
+    reader.save_current_run_points(conf.distance_tol);
+    
     conf.neumann = elfield;
     conf.message = message;
     tstart = omp_get_wtime();
-
+//*
     // ====================================
     // ===== Converting imported data =====
     // ====================================
@@ -163,6 +165,8 @@ const int Femocs::run(double elfield, string message) {
     tethex::Mesh hexmesh_bulk;
     tethex::Mesh hexmesh_vacuum;
     hexmesh_big.separate_meshes(hexmesh_bulk, hexmesh_vacuum);
+    hexmesh_bulk.write_vtk_elems("output/bulk_smooth" + message + ".vtk");
+    hexmesh_vacuum.write_vtk_elems("output/vacuum_smooth" + message + ".vtk");
     end_msg(t0);
 
     // ====================================
@@ -170,30 +174,45 @@ const int Femocs::run(double elfield, string message) {
     // ====================================
 
 #if HEATINGMODE
-        start_msg(t0, "=== Running Laplace solver...");
+        static int cntr = 0;
+        
+        require(cntr < 3, "Too many iterations!");
+        
+        start_msg(t0, "=== Importing mesh to Laplace solver...");
         fch::Laplace<3> laplace_solver;
-        laplace_solver.import_mesh_directly(hexmesh_vacuum.get_nodes(), hexmesh_vacuum.get_elems());
+        laplace_solver.import_mesh_from_file("input/vacuum_" + to_string(cntr) + ".msh");
+//        laplace_solver.import_mesh_directly(hexmesh_vacuum.get_nodes(), hexmesh_vacuum.get_elems());
+        end_msg(t0);
+
+        start_msg(t0, "=== Running Laplace solver...");
+        laplace_solver.set_applied_efield(10.0*elfield);
         laplace_solver.setup_system();
         laplace_solver.assemble_system();
         laplace_solver.solve();
-        laplace_solver.output_results("output/laplace_solution.vtk");
+  //      laplace_solver.output_results("output/laplace_solution.vtk");
         end_msg(t0);
 
+        start_msg(t0, "=== Reinitializing rho & T solver...");
+        ch_solver->reinitialize(&laplace_solver, prev_ch_solver);
+        end_msg(t0);
+        start_msg(t0, "=== Importing mesh into rho & T solver...");
+        ch_solver->import_mesh_from_file("input/copper_" + to_string(cntr) + ".msh");
+//        ch_solver->import_mesh_directly(hexmesh_bulk.get_nodes(), hexmesh_bulk.get_elems());
+        end_msg(t0);
         start_msg(t0, "=== Calculating current density and T...\n");
-        fch_solver->reinitialize(&laplace_solver, prev_fch_solver);
-        fch_solver->import_mesh_directly(hexmesh_bulk.get_nodes(), hexmesh_bulk.get_elems());
-        double temp_error = fch_solver->run_specific(10.0, 10, MODES.WRITEFILE, "output/fch", MODES.VERBOSE);
+        double temp_error = ch_solver->run_specific(10.0, 10, MODES.WRITEFILE, "output/fch", MODES.VERBOSE);
         end_msg(t0);
 
+        cntr++;
+        
         if (even_run) {
-            fch_solver = &ch_solver2;
-            prev_fch_solver = &ch_solver1;
-            even_run = false;
+            ch_solver = &ch_solver2;
+            prev_ch_solver = &ch_solver1;
         } else {
-            fch_solver = &ch_solver1;
-            prev_fch_solver = &ch_solver2;
-            even_run = true;
+            ch_solver = &ch_solver1;
+            prev_ch_solver = &ch_solver2;
         }
+        even_run = !even_run;
 #endif
 
     // ==============================
@@ -220,13 +239,6 @@ const int Femocs::run(double elfield, string message) {
     laplace.setup_system(reader.sizes);
     end_msg(t0);
 
-    if(MODES.VERBOSE) {
-        cout << "#input atoms: " << reader.get_n_atoms() << endl;
-        cout << "Vacuum:  " << tetmesh_vacuum << endl;
-        cout << "Bulk:    " << tetmesh_bulk << endl;
-        cout << "Laplace: " << laplace << endl;
-    }
-
     start_msg(t0, "=== Assembling system...");
     laplace.assemble_system();
     end_msg(t0);
@@ -235,6 +247,13 @@ const int Femocs::run(double elfield, string message) {
     laplace.solve_cg();
 //    laplace.solve_umfpack();
     end_msg(t0);
+
+    if(MODES.VERBOSE) {
+        cout << "#input atoms: " << reader.get_n_atoms() << endl;
+        cout << "Vacuum:  " << tetmesh_vacuum << endl;
+        cout << "Bulk:    " << tetmesh_bulk << endl;
+        cout << "Laplace: " << laplace << endl;
+    }
 
     // =======================================================
     // ===== Extracting and post-processing FEM solution =====
@@ -264,15 +283,13 @@ const int Femocs::run(double elfield, string message) {
 
     start_msg(t0, "=== Saving results...");
     reader.save_current_run_points(conf.distance_tol);
-//    laplace.write("output/result.vtk");
+    laplace.write("output/result.vtk");
     solution.write("output/result.xyz");
     interpolator.write("output/interpolation" + conf.message + ".xyz");
 
     coarseners.write("output/coarseners" + message + ".vtk");
-    hexmesh_bulk.write_vtk_elems("output/bulk_smooth" + message + ".vtk");
-    hexmesh_vacuum.write_vtk_elems("output/vacuum_smooth" + message + ".vtk");
     end_msg(t0);
-
+//*/
     cout << "\nTotal time of Femocs.run: " << omp_get_wtime() - tstart << "\n";
     skip_calculations = false;
 
@@ -295,10 +312,13 @@ const int Femocs::import_atoms(const string& file_name) {
     end_msg(t0);
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.equals_previous_run(conf.distance_tol);
+    double diff = reader.diff_from_prev_run(conf.distance_tol);
+    skip_calculations = diff < conf.distance_tol;
+//    skip_calculations = reader.equals_previous_run(conf.distance_tol);
     end_msg(t0);
 
-    check_message(skip_calculations, "Atoms haven't moved significantly! Field calculation will be skipped!");
+    check_message(skip_calculations, "Atoms haven't moved significantly, " 
+    + to_string(diff) + " < " + to_string(conf.distance_tol) + "! Field calculation will be skipped!");
 
     if (file_type == "xyz") {
         start_msg(t0, "=== Calculating coords and atom types...");
@@ -323,10 +343,13 @@ const int Femocs::import_atoms(int n_atoms, double* coordinates, double* box, in
     end_msg(t0);
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.equals_previous_run(conf.distance_tol);
+    double diff = reader.diff_from_prev_run(conf.distance_tol);
+    skip_calculations = diff < conf.distance_tol;
+//    skip_calculations = reader.equals_previous_run(conf.distance_tol);
     end_msg(t0);
 
-    check_message(skip_calculations, "Atoms haven't moved significantly! Field calculation will be skipped!");
+    check_message(skip_calculations, "Atoms haven't moved significantly, " 
+    + to_string(diff) + " < " + to_string(conf.distance_tol) + "!");
 
     start_msg(t0, "=== Calculating coords and atom types...");
     reader.calc_coordination(conf.nnn, conf.coord_cutoff, nborlist);
@@ -345,10 +368,13 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
     end_msg(t0);
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.equals_previous_run(conf.distance_tol);
+    double diff = reader.diff_from_prev_run(conf.distance_tol);
+    skip_calculations = diff < conf.distance_tol;
+//    skip_calculations = reader.equals_previous_run(conf.distance_tol);
     end_msg(t0);
 
-    check_message(skip_calculations, "Atoms haven't moved significantly! Field calculation will be skipped!");
+    check_message(skip_calculations, "Atoms haven't moved significantly, " 
+    + to_string(diff) + " < " + to_string(conf.distance_tol) + "! Field calculation will be skipped!");
 
     start_msg(t0, "=== Calculating coords from atom types...");
     reader.calc_coordination(conf.nnn);
@@ -359,6 +385,8 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
 
 // export the calculated electric field on imported atom coordinates
 const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+//    return 0;
+    
     double t0;
     start_msg(t0, "=== Exporting results...");
     interpolator.export_interpolation(n_atoms, Ex, Ey, Ez, Enorm);
@@ -370,6 +398,8 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
 const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
 
+//    return 0;
+    
     small_interpolator.extract_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
     small_interpolator.write("output/elfield_on_points.xyz");
     return skip_calculations;
@@ -377,6 +407,8 @@ const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double
 
 // linearly interpolate electric potential at given points
 const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
+//    return 0;
+    
     small_interpolator.extract_potential(n_points, x, y, z, phi, flag);
     small_interpolator.write("output/phi_on_points.xyz");
     return skip_calculations;

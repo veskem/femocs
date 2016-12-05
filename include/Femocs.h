@@ -133,8 +133,8 @@ private:
     fch::PhysicalQuantities phys_quantities;
     fch::CurrentsAndHeating<3> ch_solver1;
     fch::CurrentsAndHeating<3> ch_solver2;
-    fch::CurrentsAndHeating<3>* fch_solver;
-    fch::CurrentsAndHeating<3>* prev_fch_solver;
+    fch::CurrentsAndHeating<3>* ch_solver;
+    fch::CurrentsAndHeating<3>* prev_ch_solver;
 #endif
 };
 

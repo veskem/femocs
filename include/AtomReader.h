@@ -56,6 +56,7 @@ public:
     const void resize_box(const double zmin, const double zmax);
 
     const bool equals_previous_run(const double eps);
+    const double diff_from_prev_run(const double eps);
     const void save_current_run_points(const double eps);
 
 private:

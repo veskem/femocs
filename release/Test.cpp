@@ -35,7 +35,12 @@ int main() {
 
     femocs::Femocs femocs("input/md.in");
     success += femocs.import_atoms("");
-    success += femocs.run(0.1, "");
+    success += femocs.run(0.1, "0");
+    success += femocs.run(0.1, "1");
+    success += femocs.run(0.1, "2");
+    success += femocs.run(0.1, "3");
+//    success += femocs.import_atoms("input/rough100.ckx");
+//    success += femocs.run(0.1, "2");
     success += femocs.export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
     success += femocs.interpolate_phi(n_points, x, y, z, phi, flag);
     success += femocs.interpolate_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);

@@ -45,11 +45,27 @@ const bool AtomReader::equals_previous_run(const double eps) {
     if (n_atoms != previous_point.size())
         return false;
 
-    for (int i = 0; i < n_atoms; ++i)
-        if ( get_point(i).distance2(previous_point[i]) > eps )
-            return false;
+     for (int i = 0; i < n_atoms; ++i)
+         if ( get_point(i).distance2(previous_point[i]) > eps2 )
+             return false;
+     return true;
+}
 
-    return true;
+const double AtomReader::diff_from_prev_run(const double eps) {
+    if (eps < 1e-5)
+        return DBL_MAX;
+
+    const int n_atoms = get_n_atoms();
+    if (n_atoms != previous_point.size())
+        return DBL_MAX;
+    
+    const double power = 1.0;
+    double sum = 0;
+    for (int i = 0; i < n_atoms; ++i)
+        sum += pow(get_point(i).distance2(previous_point[i]), power);
+    sum *= 1.0/n_atoms;
+    
+    return pow(sum, 1.0/(2*power));
 }
 
 const void AtomReader::save_current_run_points(const double eps) {
