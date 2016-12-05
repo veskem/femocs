@@ -80,13 +80,11 @@ void Laplace<dim>::set_applied_efield(const double applied_field_) {
 
 
 template<int dim>
-void Laplace<dim>::import_mesh_from_file(const std::string file_name, const std::string out_name) {
+void Laplace<dim>::import_mesh_from_file(const std::string file_name) {
 	MeshPreparer<dim> mesh_preparer;
 
 	mesh_preparer.import_mesh_from_file(&triangulation, file_name);
 	mesh_preparer.mark_vacuum_boundary(&triangulation);
-
-	if (out_name.size() > 0) mesh_preparer.output_mesh(&triangulation, out_name);
 }
 
 template<int dim>
@@ -107,7 +105,6 @@ bool Laplace<dim>::import_mesh_directly(std::vector<Point<dim> > vertices, std::
 	MeshPreparer<dim> mesh_preparer;
 	mesh_preparer.mark_vacuum_boundary(&triangulation);
 
-	//if (out_name.size() > 0) mesh_preparer.output_mesh(&triangulation, out_name);
 	return true;
 }
 
@@ -273,7 +270,7 @@ void Laplace<dim>::output_results(const std::string filename) const {
 		std::ofstream output(filename);
 		data_out.write_vtk(output);
 	} catch (...) {
-		std::cerr << "ERROR: Couldn't open " + filename << ". ";
+		std::cerr << "WARNING: Couldn't open " + filename << ". ";
 		std::cerr << "Output is not saved." << std::endl;
 	}
 }

@@ -128,13 +128,12 @@ Vector<double>* CurrentsAndHeating<dim>::get_solution() {
 }
 
 template<int dim>
-void CurrentsAndHeating<dim>::import_mesh_from_file(const std::string file_name, const std::string out_name) {
+void CurrentsAndHeating<dim>::import_mesh_from_file(const std::string file_name) {
 	MeshPreparer<dim> mesh_preparer;
 
 	mesh_preparer.import_mesh_from_file(&triangulation, file_name);
 	mesh_preparer.mark_copper_boundary(&triangulation);
 
-	if (out_name.size() > 0) mesh_preparer.output_mesh(&triangulation, out_name);
 }
 
 template<int dim>
@@ -255,6 +254,12 @@ bool CurrentsAndHeating<dim>::setup_mapping() {
 				vacuum_interface_indexes.push_back(vac_cell->index());
 				vacuum_interface_face.push_back(f);
 				vacuum_interface_centers.push_back(vac_cell->face(f)->center());
+				/*
+				std::cerr << "Searching for the vacuum cell...";
+				typename DoFHandler<dim>::active_cell_iterator vac_cell(&(laplace->triangulation),
+											0, vac_cell->index(), &(laplace->dof_handler));
+				std::cerr << "Found it" << std::endl;
+				*/
 			}
 		}
 	}
@@ -684,13 +689,15 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
 				fe_face_values[temperature].get_function_gradients(present_solution, prev_sol_face_temperature_gradients);
 
 				if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+
 					// ---------------------------------------------------------------------------------------------
 					// Vacuum side stuff
 					// find the corresponding vacuum side face to the copper side face
 					std::pair<unsigned, unsigned> cop_cell_info = std::pair<unsigned, unsigned>(cell->index(), f);
-					// check if the corresponding vacuum face exists in out mapping
+					// check if the corresponding vacuum face exists in our mapping
 					assert(interface_map.count(cop_cell_info) == 1);
 					std::pair<unsigned, unsigned> vac_cell_info = interface_map[cop_cell_info];
+					std::cerr << "Finding index: " << vac_cell_info.first << std::endl;
 					// Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
 					typename DoFHandler<dim>::active_cell_iterator vac_cell(&(laplace->triangulation),
 							0, vac_cell_info.first, &(laplace->dof_handler));
@@ -698,6 +705,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
 					vacuum_fe_face_values.reinit(vac_cell, vac_cell_info.second);
 					vacuum_fe_face_values.get_function_gradients(laplace->solution, electric_field_values);
 					// ---------------------------------------------------------------------------------------------
+
 
 					// loop through the quadrature points
 					for (unsigned int q = 0; q < n_face_q_points; ++q) {
@@ -712,7 +720,8 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
 						//double kappa = pq.kappa(prev_temp);
 						double dsigma = pq->dsigma(prev_temp);
 						double dkappa = pq->dkappa(prev_temp);
-						double e_field = electric_field_values[q].norm();
+						//double e_field = electric_field_values[q].norm();
+						double e_field = 5.0;
 						double emission_current = pq->emission_current(e_field, prev_temp);
 						// Nottingham heat flux in
 						// (eV*A/nm^2) -> (eV*n*q_e/(s*nm^2)) -> (J*n/(s*nm^2)) -> (W/nm^2)

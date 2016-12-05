@@ -30,12 +30,17 @@ void MeshPreparer<dim>::output_mesh(Triangulation<dim> *triangulation, std::stri
 	std::ofstream out(file_name);
 	GridOut grid_out;
 	grid_out.set_flags(GridOutFlags::Msh(true, true));
-	if (file_type == "msh") {
-		grid_out.write_msh(*triangulation, out);
-	} else {
-		grid_out.write_vtk(*triangulation, out);
+
+	try {
+		if (file_type == "msh") {
+			grid_out.write_msh(*triangulation, out);
+		} else {
+			grid_out.write_vtk(*triangulation, out);
+		}
+	} catch (...) {
+		std::cerr << "WARNING: Couldn't open " + file_name << ". ";
+		std::cerr << "Mesh is not saved." << std::endl;
 	}
-	std::cout << "Grid written to " << file_name << std::endl;
 }
 
 template <int dim>

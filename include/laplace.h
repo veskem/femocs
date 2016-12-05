@@ -49,9 +49,8 @@ namespace fch {
 		 * Imports mesh from file and optionally outputs it to a .vtk file
 		 * Additionally sets the boundary indicators corresponding to vacuum
 		 * @param file_name file from the mesh is imported
-		 * @param out_name if empty, won't save the file, otherwise saves the mesh to .vtk file
 		 */
-		void import_mesh_from_file(const std::string file_name, const std::string out_name = "");
+		void import_mesh_from_file(const std::string file_name);
 
 		/**
 		 * imports mesh directly from vertex and cell data and sets the boundary indicators

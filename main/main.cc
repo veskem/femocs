@@ -44,82 +44,55 @@ int main() {
 		return EXIT_FAILURE;
 	}
 
-	std::cout << "    Load PhysicalQuantities: " << timer.wall_time() << " s" << std::endl; timer.restart();
+	std::cout << "    Loaded PhysicalQuantities: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
-	// ------------------------------------------------------------------------------------- //
-	// Laplace solver //
-	fch::Laplace<3> laplace_solver;
-	laplace_solver.import_mesh_from_file(res_path+"/3d_meshes/nanotip_vacuum.msh");
-	laplace_solver.setup_system();
-	laplace_solver.assemble_system();
-	laplace_solver.solve();
-	laplace_solver.output_results("output/field_sol.vtk");
+    fch::CurrentsAndHeating<3> ch_solver1;
+    fch::CurrentsAndHeating<3> ch_solver2;
+    fch::CurrentsAndHeating<3>* ch_solver = &ch_solver1;
+    fch::CurrentsAndHeating<3>* prev_ch_solver = NULL;
 
-	std::cout << "    laplace_solver info:\n        " << laplace_solver << std::endl;
+    bool even = true;
 
-	std::cout << "    Solved laplace_solver: " << timer.wall_time() << " s" << std::endl; timer.restart();
+    ch_solver1.set_physical_quantities(&pq);
+    ch_solver2.set_physical_quantities(&pq);
 
-	// Accessing data in vertexes
-	std::vector<int> cell_indexes, vertex_indexes;
-	for (int i = 0; i < 10; i++) {
-		cell_indexes.push_back(i);
-		vertex_indexes.push_back(0);
+
+	for (int n = 0; n<=3; n++) {
+		fch::Laplace<3> laplace_solver;
+		laplace_solver.set_applied_efield(1.0);
+		laplace_solver.import_mesh_from_file(res_path+"/3d_meshes/vacuum_"+std::to_string(n)+".msh");
+		laplace_solver.output_mesh("output/vacuum_"+std::to_string(n)+".vtk");
+		laplace_solver.setup_system();
+		laplace_solver.assemble_system();
+		laplace_solver.solve();
+		laplace_solver.output_results("output/field_sol_"+std::to_string(n)+".vtk");
+
+		std::cout << "    laplace_solver info:\n        " << laplace_solver << std::endl;
+		std::cout << "    Solved laplace_solver: " << timer.wall_time() << " s" << std::endl; timer.restart();
+
+
+		//ch_solver->reinitialize(&laplace_solver, prev_ch_solver); // with IC interpolation
+		ch_solver->reinitialize(&laplace_solver); // without IC interpolation
+		ch_solver->import_mesh_from_file(res_path+"/3d_meshes/copper_"+std::to_string(n)+".msh");
+		ch_solver->output_mesh("output/copper_"+std::to_string(n)+".vtk");
+
+		double final_error = ch_solver->run_specific(100.0, 3, true, "output/sol_"+std::to_string(n), true);
+
+		std::cout << "    ch_solver info:\n        " << *ch_solver << std::endl;
+
+		std::cout << "    Solved currents&heating: " << timer.wall_time() << " s" << std::endl; timer.restart();
+		std::cout << "    Final temp. error: " << final_error << std::endl;
+
+		if (even) {
+			ch_solver = &ch_solver2;
+			prev_ch_solver = &ch_solver1;
+			even = false;
+		} else {
+			ch_solver = &ch_solver1;
+			prev_ch_solver = &ch_solver2;
+			even = true;
+		}
 	}
-	std::vector<double> potentials = laplace_solver.get_potential(cell_indexes, vertex_indexes);
-	std::vector<dealii::Tensor<1, 3>> fields = laplace_solver.get_efield(cell_indexes, vertex_indexes);
-
-	// ------------------------------------------------------------------------------------- //
-	// Currents and heating //
-	fch::CurrentsAndHeating<3> ch_solver(&pq, &laplace_solver);
-	ch_solver.import_mesh_from_file(res_path+"/3d_meshes/nanotip_copper.msh");
-
-	double final_error = ch_solver.run_specific(10.0, 3, true, "output/sol", true);
-
-	std::cout << "    ch_solver info:\n        " << laplace_solver << std::endl;
-
-	std::cout << "    Solved currents&heating: " << timer.wall_time() << " s" << std::endl; timer.restart();
-	std::cout << "    Final temp. error: " << final_error << std::endl;
-
-
-	// ------------------------------------------------------------------------------------- //
-	// Currents and heating resume (or next iteration, which resumes from previous iteration) //
-	fch::CurrentsAndHeating<3> ch_solver2(&pq, &laplace_solver, &ch_solver);
-	ch_solver2.import_mesh_from_file(res_path+"/3d_meshes/nanotip_copper.msh");
-
-	final_error = ch_solver2.run_specific(10.0, 3, true, "output/sol_next", true);
-
-	std::cout << "    Solved currents&heating: " << timer.wall_time() << " s" << std::endl; timer.restart();
-	std::cout << "    Final temp. error: " << final_error << std::endl;
-
-	// Access data in vertexes
-	std::vector<double> temperatures = ch_solver2.get_temperature(cell_indexes, vertex_indexes);
-	std::vector<dealii::Tensor<1, 3>> currents = ch_solver2.get_current(cell_indexes, vertex_indexes);
-
-	for (unsigned int i = 0; i < temperatures.size(); i++) {
-		std::cout << i << " T: " << temperatures[i] << "; C: " << currents[i] << std::endl;
-	}
-
-	// ------------------------------------------------------------------------------------- //
-	// Laplace solver //
-	fch::Laplace<3> laplace_solver2;
-	laplace_solver2.import_mesh_from_file(res_path+"/3d_meshes/mushroom_vacuum.msh");
-	laplace_solver2.setup_system();
-	laplace_solver2.assemble_system();
-	laplace_solver2.solve();
-	laplace_solver2.output_results("output/field_sol2.vtk");
-
-	std::cout << "    Solved laplace_solver: " << timer.wall_time() << " s" << std::endl; timer.restart();
-
-	// ------------------------------------------------------------------------------------- //
-	// Currents and heating reuse ch_solver by taking ch_solver2 as initial condition //
-
-	ch_solver.reinitialize(&laplace_solver2, &ch_solver2);
-	ch_solver.import_mesh_from_file(res_path+"/3d_meshes/mushroom_copper.msh");
-
-	final_error = ch_solver.run_specific(1.0, 5, true, "output/sol_nnext", true);
-
-	std::cout << "    Solved currents&heating: " << timer.wall_time() << " s" << std::endl; timer.restart();
-	std::cout << "    Final temp. error: " << final_error << std::endl;
 
 
 /* 2d case usage */
