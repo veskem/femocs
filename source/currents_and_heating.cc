@@ -34,6 +34,7 @@
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/sparse_direct.h>	// UMFpack
 
+#include <cassert>
 
 #include "currents_and_heating.h"
 #include "utility.h"
@@ -234,9 +235,9 @@ void CurrentsAndHeating<dim>::setup_system() {
 }
 
 template <int dim>
-void CurrentsAndHeating<dim>::setup_mapping() {
+bool CurrentsAndHeating<dim>::setup_mapping() {
 
-	double eps = 1e-12;
+	double eps = 1e-9;
 
 	// ---------------------------------------------------------------------------------------------
 	// Loop over vacuum interface cells
@@ -270,21 +271,24 @@ void CurrentsAndHeating<dim>::setup_mapping() {
 		for (unsigned int f=0; f < GeometryInfo<dim>::faces_per_cell; f++) {
 			if (cop_cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
 				Point<dim> cop_face_center = cop_cell->face(f)->center();
+				std::pair<unsigned, unsigned> cop_face_info(cop_cell->index(), f);
 				// Loop over vacuum side and find corresponding (cell, face) pair
 				for (unsigned int i=0; i < vacuum_interface_indexes.size(); i++) {
 					if (cop_face_center.distance(vacuum_interface_centers[i]) < eps) {
+						std::pair<unsigned, unsigned> vac_face_info(vacuum_interface_indexes[i],
+																	vacuum_interface_face[i]);
 						std::pair< std::pair<unsigned, unsigned>,
-								   std::pair<unsigned, unsigned> > pair;
-						pair.first = std::pair<unsigned, unsigned>(cop_cell->index(), f);
-						pair.second = std::pair<unsigned, unsigned>(vacuum_interface_indexes[i], vacuum_interface_face[i]);
+								   std::pair<unsigned, unsigned> > pair(cop_face_info, vac_face_info);
 						interface_map.insert(pair);
+						break;
 					}
 				}
+				if (interface_map.count(cop_face_info) == 0) return false;
 			}
 		}
 	}
 	// ---------------------------------------------------------------------------------------------
-
+	return true;
 }
 
 template <int dim>
@@ -683,8 +687,10 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
 					// ---------------------------------------------------------------------------------------------
 					// Vacuum side stuff
 					// find the corresponding vacuum side face to the copper side face
-					std::pair<unsigned, unsigned> vac_cell_info =
-							interface_map[std::pair<unsigned, unsigned>(cell->index(), f)];
+					std::pair<unsigned, unsigned> cop_cell_info = std::pair<unsigned, unsigned>(cell->index(), f);
+					// check if the corresponding vacuum face exists in out mapping
+					assert(interface_map.count(cop_cell_info) == 1);
+					std::pair<unsigned, unsigned> vac_cell_info = interface_map[cop_cell_info];
 					// Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
 					typename DoFHandler<dim>::active_cell_iterator vac_cell(&(laplace->triangulation),
 							0, vac_cell_info.first, &(laplace->dof_handler));
@@ -877,6 +883,10 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 		std::cerr << "Error: pointer uninitialized! Exiting temperature calculation..." << std::endl;
 		return -1.0;
 	}
+	if ((laplace->solution).size() == 0) {
+		std::cerr << "Error: Laplace solution hasn't been calculation." << std::endl;
+		return -1.0;
+	}
 
 	if (print) {
 		if (interp_initial_conditions) std::cout << "        Interpolating initial conditions" << std::endl;
@@ -885,7 +895,13 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 
 	Timer timer;
 	setup_system();
-	setup_mapping();
+
+	if (!setup_mapping()) {
+		std::cerr << "Error: Couldn't make a correct mapping between copper and vacuum faces on the interface."
+				  << "Make sure that the face elements have one-to-one correspondence there."
+				  << std::endl;
+		return -1.0;
+	}
 
 	// Sets the initial state
 	// Dirichlet BCs need to hold for this state
@@ -914,7 +930,7 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 		temperature_error = newton_update.linfty_norm();
 		if (print) {
 			printf("        iter: %d; t_error: %.2f; time: %.2f\n",
-				   iteration, temperature_error, timer.wall_time());
+					iteration, temperature_error, timer.wall_time());
 			timer.restart();
 		}
 
@@ -1001,7 +1017,7 @@ void CurrentsAndHeating<dim>::output_results(const unsigned int iteration,
 		std::ofstream output(filename.c_str());
 		data_out.write_vtk(output);
 	} catch (...) {
-		std::cerr << "ERROR: Couldn't open " + filename << ". ";
+		std::cerr << "WARNING: Couldn't open " + filename << ". ";
 		std::cerr << "Output is not saved." << std::endl;
 	}
 }

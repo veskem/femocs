@@ -153,7 +153,7 @@ namespace fch {
 		void solve();
 		void output_results(const unsigned int iteration, const std::string fname = "sol") const;
 
-		void setup_mapping();
+		bool setup_mapping();
 		void set_initial_condition();
 		void set_initial_condition_slow();
 
