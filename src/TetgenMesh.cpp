@@ -331,9 +331,8 @@ const bool TetgenMesh::post_process_marking() {
 
     bool node_changed = true;
 
-    // Make as many re-check loops as necessary, but no more than 100
-    for (int safety_cntr = 0; (safety_cntr < 100) && node_changed; ++safety_cntr) {
-        // Post-process the wrongly marked nodes in vacuum
+    // Post-process the wrongly marked nodes in vacuum
+    while (node_changed) {
         node_changed = false;
         for (int elem = 0; elem < n_elems; ++elem) {
             if (elems.get_marker(elem) != TYPES.VACUUM) continue;

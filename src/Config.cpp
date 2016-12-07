@@ -24,8 +24,7 @@ Config::Config() {
     // conf.infile = home + "input/nanotip_medium.xyz";
     // conf.latconst = 3.61;
 
-    coord_cutoff = 3.1;         // coordination analysis cut-off radius
-
+    coord_cutoff = 3.1;          // coordination analysis cut-off radius
     nnn = 12;                    // number of nearest neighbours in bulk
     mesh_quality = "2.0";        // minimum mesh quality Tetgen is allowed to make
     nt = 4;                      // number of OpenMP threads
@@ -33,21 +32,16 @@ Config::Config() {
     smooth_factor = 0.5;         // surface smoothing factor; bigger number gives smoother surface
     n_bins = 20;                 // number of bins in histogram smoother
     postprocess_marking = false; // make extra effort to mark correctly the vacuum nodes in shadow area
-    rmin_rectancularize = latconst / 1.0; // 1.5+ for <110> simubox, 1.0 for all others
-
     refine_apex = false;         // refine nanotip apex
-    distance_tol = 0.5*latconst;
+    distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
+    zbox_above = 1.5;            // space added above the maximum z-coordinate of surface in units of tip height
+    zbox_below = 20;             // space added below the minimum z-coordinate of surface [lattice constant]
 
-    // Electric field is applied 100 lattice constants above the highest point of surface
-    // and bulk is extended 20 lattice constants below the minimum point of surface
-    zbox_above = 100 * latconst;
-    zbox_below = 20 * latconst;
-
-    cfactor.amplitude = 0.4;       // coarsening factor
-    cfactor.r0_cylinder = 1.0;  // minimum distance between atoms in nanotip below apex
-    cfactor.r0_sphere = 0.0;    // minimum distance between atoms in nanotip apex
-    heating = false;            // turn ON 3D current density and temperature calculations
-    neumann = 0;                // neumann boundary condtition value
+    cfactor.amplitude = 0.4;     // coarsening factor
+    cfactor.r0_cylinder = 1.0;   // minimum distance between atoms in nanotip below apex
+    cfactor.r0_sphere = 0.0;     // minimum distance between atoms in nanotip apex
+    heating = false;             // turn ON 3D current density and temperature calculations
+    neumann = 0;                 // neumann boundary condtition value
 }
 
 // Remove the noise from the beginning of the string
@@ -76,7 +70,6 @@ const void Config::read_all(const string& file_name) {
     read_command("refine_apex", refine_apex);
     read_command("heating", heating);
     read_command("distance_tol", distance_tol);
-    read_command("rmin_rectancularize", rmin_rectancularize);
     read_command("zbox_above", zbox_above);
     read_command("zbox_below", zbox_below);
     read_command("femocs_verbose", MODES.VERBOSE);
@@ -194,6 +187,7 @@ const int Config::read_command(string param, vector<double>& args) {
             }
     return n_read_args == args.size();
 }
+
 // Print the stored commands and parameters
 const void Config::print_data() {
     if (!MODES.VERBOSE) return;

@@ -10,6 +10,7 @@
 
 #include "AtomReader.h"
 #include "Config.h"
+#include "Media.h"
 #include "Interpolator.h"
 #include "SolutionReader.h"
 
@@ -124,12 +125,12 @@ private:
     bool skip_calculations;
     AtomReader reader;
     Config conf;
+    Surface dense_surf;
     SolutionReader solution;
     Interpolator interpolator = Interpolator(&solution);
     Interpolator small_interpolator = Interpolator(&solution);
 
 #if HEATINGMODE
-    bool even_run;
     fch::PhysicalQuantities phys_quantities;
     fch::CurrentsAndHeating<3> ch_solver1;
     fch::CurrentsAndHeating<3> ch_solver2;

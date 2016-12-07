@@ -52,11 +52,8 @@ public:
     bool postprocess_marking;   ///< Make extra effort to mark correctly the vacuum nodes in shadowed area
     bool refine_apex;           ///< Add elements to the nanotip apex
     bool heating;               ///< Turn ON 3D current density and temperature calculations
-    double zbox_above;          ///< Space added above the maximum z-coordinate of surface
-    double zbox_below;          ///< Space added below the minimum z-coordinate of surface
-
-    /// Distance from surface edge where atoms are picked for rectangularization
-    double rmin_rectancularize;
+    double zbox_above;          ///< Space added above the maximum z-coordinate of surface [tip height]
+    double zbox_below;          ///< Space added below the minimum z-coordinate of surface [lattice constant]
 
     /** Minimum distance between atoms from current and previous run so that their
      * movement is considered to be sufficiently big to recalculate electric field;
