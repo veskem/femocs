@@ -889,14 +889,29 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 				  << std::endl;
 		return -1.0;
 	}
+	if (print) {
+		printf("        Mapping setup done, time: %.2f\n", timer.wall_time());
+		timer.restart();
+	}
 
 	// Sets the initial state
 	// Dirichlet BCs need to hold for this state
 	// and 0 dirichlet BC should be applied for all Newton iterations
 	set_initial_condition();
 
+	if (print) {
+		printf("        Initial condition setup, time: %.2f\n", timer.wall_time());
+		timer.restart();
+	}
+
 	// Output initial condition
-	if (file_output) output_results(0, out_fname);
+	if (file_output) {
+		output_results(0, out_fname);
+		if (print) {
+			printf("        Output initial condition, time: %.2f\n", timer.wall_time());
+			timer.restart();
+		}
+	}
 
 	double temperature_error = 1e15;
 
@@ -908,17 +923,19 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 
 		// Set dirichlet BSs as 0, as they're already set in  the initial condition
 		assemble_system_newton();
+		double assemble_time = timer.wall_time(); timer.restart();
 
 		solve();
 		present_solution.add(alpha, newton_update); // alpha = 1.0
+		double solution_time = timer.wall_time(); timer.restart();
 
 		if (file_output) output_results(iteration, out_fname);
+		double output_time = timer.wall_time(); timer.restart();
 
 		temperature_error = newton_update.linfty_norm();
 		if (print) {
-			printf("        iter: %d; t_error: %.2f; time: %.2f\n",
-					iteration, temperature_error, timer.wall_time());
-			timer.restart();
+			printf("        iter: %2d; t_error: %5.2f; assemble_time: %5.2f; sol_time: %5.2f; outp_time: %5.2f\n",
+					iteration, temperature_error, assemble_time, solution_time, output_time);
 		}
 
 		if (temperature_error < temperature_tolerance) {

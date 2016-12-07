@@ -58,28 +58,43 @@ int main() {
     ch_solver2.set_physical_quantities(&pq);
 
 	for (int n = 0; n<=3; n++) {
+
+		std::cout << "Iteration " << n << std::endl;
+
 		fch::Laplace<3> laplace_solver;
-		laplace_solver.set_applied_efield(1.0);
+		laplace_solver.set_applied_efield(1.5);
 		laplace_solver.import_mesh_from_file(res_path+"/3d_meshes/vacuum_"+std::to_string(n)+".msh");
+		double mesh_imp_time = timer.wall_time(); timer.restart();
 		laplace_solver.output_mesh("output/vacuum_"+std::to_string(n)+".vtk");
+		double mesh_exp_time = timer.wall_time(); timer.restart();
 		laplace_solver.setup_system();
+		double setup_time = timer.wall_time(); timer.restart();
 		laplace_solver.assemble_system();
+		double assemble_time = timer.wall_time(); timer.restart();
 		laplace_solver.solve();
+		double solution_time = timer.wall_time(); timer.restart();
 		laplace_solver.output_results("output/field_sol_"+std::to_string(n)+".vtk");
+		double outp_time = timer.wall_time(); timer.restart();
 
 		std::cout << "    laplace_solver info:\n        " << laplace_solver << std::endl;
-		std::cout << "    Solved laplace_solver: " << timer.wall_time() << " s" << std::endl; timer.restart();
+		printf("    Timings: mesh_imp: %5.2f; mesh_exp: %5.2f; setup: %5.2f; assemble: %5.2f; sol: %5.2f; outp: %5.2f\n",
+				mesh_imp_time, mesh_exp_time, setup_time, assemble_time, solution_time, outp_time);
+		//std::cout << "    Solved laplace_solver: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 
 		ch_solver->reinitialize(&laplace_solver, prev_ch_solver); // with IC interpolation
 		//ch_solver->reinitialize(&laplace_solver); // without IC interpolation
 		ch_solver->import_mesh_from_file(res_path+"/3d_meshes/copper_"+std::to_string(n)+".msh");
+		double c_mesh_imp_time = timer.wall_time(); timer.restart();
 		ch_solver->output_mesh("output/copper_"+std::to_string(n)+".vtk");
+		double c_mesh_exp_time = timer.wall_time(); timer.restart();
 
-		double final_error = ch_solver->run_specific(10.0, 3, true, "output/sol_"+std::to_string(n), true, 2.0);
+		std::cout << "    Currents and heating:" << std::endl;
+		printf("    Timings: mesh_imp: %5.2f; mesh_exp: %5.2f\n", c_mesh_imp_time, c_mesh_exp_time);
+
+		double final_error = ch_solver->run_specific(1.0, 100, true, "output/sol_"+std::to_string(n), true, 1.0);
 
 		std::cout << "    ch_solver info:\n        " << *ch_solver << std::endl;
-
 		std::cout << "    Solved currents&heating: " << timer.wall_time() << " s" << std::endl; timer.restart();
 		std::cout << "    Final temp. error: " << final_error << std::endl;
 
