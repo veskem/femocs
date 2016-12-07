@@ -8,160 +8,186 @@
 #include "Interpolator.h"
 #include "Macros.h"
 
+#include <deal.II/grid/tria.h>
+#include <deal.II/dofs/dof_handler.h>
+#include <deal.II/fe/fe_q.h>
+
 #include <fstream>
 #include <float.h>
 
 using namespace std;
 namespace femocs {
 
-Interpolator::Interpolator() : solution(NULL) {
+// Initialize data vectors
+Interpolator::Interpolator() {
     reserve(0);
     reserve_precompute(0);
 };
 
-Interpolator::Interpolator(SolutionReader* sr) : solution(sr) {
-    reserve(0);
-    reserve_precompute(0);
-};
+/* Return the mapping between tetrahedral & hexahedral mesh nodes,
+   nodes & hexahedral elements and nodes & element's vertices  */
+const void Interpolator::get_maps(DealII& fem, vector<int>& tet2hex, vector<int>& node2hex, vector<int>& node2vert) {
+    const int n_tet_nodes = get_n_atoms();
+    const int n_hex_nodes = fem.triangulation.n_used_vertices();
 
-// Get average electric field around I-th solution point
-const Solution Interpolator::get_average_solution(const int I, const double smooth_factor, const double r_cut) {
-    const double r_cut2 = r_cut * r_cut;
-    const double a = 1.0;
+    tet2hex.resize(n_tet_nodes, -1);
+    node2hex.resize(n_hex_nodes);
+    node2vert.resize(n_hex_nodes);
 
-    Vec3 elfield(0.0);
-    double potential = 0.0;
-
-    Point3 point1 = get_point(I);
-    double w_sum = 0.0;
-
-    for (int i = 0; i < get_n_atoms(); ++i)
-        if (i != I) {
-            double dist2 = point1.distance2(get_point(i));
-            if (dist2 > r_cut2 || interpolation[i].el_norm >= solution->error_field) continue;
-
-            double w = a * exp(-1.0 * sqrt(dist2) / smooth_factor);
-            w_sum += w;
-            elfield += interpolation[i].elfield * w;
-            potential += interpolation[i].potential * w;
-        }
-
-    elfield *= (1.0 / w_sum); potential *= (1.0 / w_sum);
-    return Solution(elfield, elfield.norm(), potential);
-}
-
-// Get histogram for electric field x,y,z component or for its norm
-const void Interpolator::get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate) {
-    require(coordinate >= 0 && coordinate <= 4, "Invalid component: " + to_string(coordinate));
-
-    const int n_atoms = get_n_atoms();
-    const int n_bins = bins.size();
-    const int n_bounds = bounds.size();
-    const double eps = 1e-5;
-
-    // Find minimum and maximum values from all non-error values
-    double value_min = DBL_MAX;
-    double value_max =-DBL_MAX;
-    double value;
-    for (int i = 0; i < n_atoms; ++i) {
-        if (coordinate == 4) value = interpolation[i].potential;
-        else if (coordinate == 3) value = interpolation[i].el_norm;
-        else                 value = interpolation[i].elfield[coordinate];
-
-        if (abs(value) < solution->error_field) {
-            value_min = min(value_min, value);
-            value_max = max(value_max, value);
-        }
-    }
-
-    // Fill the bounds with values value_min:value_step:(value_max + epsilon)
-    // Epsilon is added to value_max to include the maximum value in the up-most bin
-    double value_step = (value_max - value_min) / n_bins;
-    for (int i = 0; i < n_bounds; ++i)
-        bounds[i] = value_min + value_step * i;
-    bounds[n_bounds-1] += eps;
-
-    for (int i = 0; i < n_atoms; ++i)
-        for (int j = 0; j < n_bins; ++j) {
-            if (coordinate == 4) value = interpolation[i].potential;
-            else if (coordinate == 3) value = interpolation[i].el_norm;
-            else                 value = interpolation[i].elfield[coordinate];
-
-            if (value >= bounds[j] && value < bounds[j+1]) {
-                bins[j]++;
-                continue;
+    // Loop through the hexahedral mesh vertices
+    typename Triangulation<DIM>::active_vertex_iterator vertex = fem.triangulation.begin_active_vertex();
+    for (int j = 0; j < n_tet_nodes; ++j, ++vertex)
+        // Loop through tetrahedral mesh vertices
+        for (int i = 0; i < n_tet_nodes; ++i)
+            if ( (tet2hex[i] < 0) && (get_point(i) == vertex->vertex()) ) {
+                tet2hex[i] = vertex->vertex_index();
+                break;
             }
+
+    // Loop through the hexahedral mesh elements
+    typename DoFHandler<DIM>::active_cell_iterator cell;
+    for (cell = fem.dof_handler.begin_active(); cell != fem.dof_handler.end(); ++cell)
+        // Loop through all the vertices in the element
+        for (int i = 0; i < fem.n_verts_per_elem; ++i) {
+            node2hex[cell->vertex_index(i)] = cell->active_cell_index();
+            node2vert[cell->vertex_index(i)] = i;
         }
 }
 
-// Clean the interpolation from peaks
-const void Interpolator::clean(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut) {
-    require(coordinate >= 0 && coordinate <= 4, "Invalid coordinate: " + to_string(coordinate));
-    if (n_bins <= 1) return;
+// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
+const void Interpolator::extract_solution(DealII &fem, const TetgenMesh &mesh) {
+    const int n_nodes = mesh.nodes.size();
 
-    const int n_atoms = get_n_atoms();
+    // Precompute tetrahedra to make interpolation faster
+    precompute_tetrahedra(mesh);
 
-    vector<int> bins(n_bins, 0);
-    vector<double> bounds(n_bins+1);
-    get_histogram(bins, bounds, coordinate);
+    // Copy the mesh nodes
+    reserve(n_nodes);
+    for (int node = 0; node < n_nodes; ++node)
+        add_atom( Atom(node, mesh.nodes[node], -1) );
 
-    // Find the first bin with zero entries from positive edge of bounds;
-    // this will determine the maximum allowed elfield value
-    double value_max = bounds[n_bins];
-    for (int i = n_bins-1; i >= 0; --i) {
-        if (bounds[i] < 0) break;
-        if (bins[i] == 0) value_max = bounds[i];
-    }
+    // To make solution extraction faster, generate mapping between desired and available data sequences
+    vector<int> tet2hex, node2hex, node2vert;
+    get_maps(fem, tet2hex, node2hex, node2vert);
 
-    // Find the last bin with zero entries from negative edge of bounds;
-    // this will determine the minimum allowed elfield value
-    double value_min = bounds[0];
-    for (int i = 0; i < n_bins; ++i) {
-        if (bounds[i+1] >= 0) break;
-        if (bins[i] == 0) value_min = bounds[i+1];
-    }
+    // Generate lists of hexahedra and hexahedra nodes where the tetrahedra nodes are located
+    vector<int> cell_indxs; cell_indxs.reserve(n_nodes);
+    vector<int> vert_indxs; vert_indxs.reserve(n_nodes);
+    for (int n : tet2hex)
+        if (n >= 0) {
+            cell_indxs.push_back(node2hex[n]);
+            vert_indxs.push_back(node2vert[n]);
+        }
 
-    require(value_min <= value_max, "Error in histogram cleaner!");
+    vector<Vec3> ef = fem.get_elfield(cell_indxs, vert_indxs);      // get list of electric fields
+    vector<double> pot = fem.get_potential(cell_indxs, vert_indxs); // get list of electric potentials
 
-//    cout.precision(3);
-//    cout << endl << coordinate << " " << value_min << " " << value_max << endl;
-//    for (int i = 0; i < bins.size(); ++i) cout << bins[i] << " ";
-//    cout << endl;
-//    for (int i = 0; i < bounds.size(); ++i) cout << bounds[i] << " ";
-//    cout << endl;
+    require( ef.size() == pot.size(), "Mismatch of vector sizes: "
+            + to_string(ef.size())  + ", " + to_string(pot.size()) );
 
-    // If all the bins are filled, no blocking will be applied
-    if (value_min == bounds[0] && value_max == bounds[n_bins])
-        return;
+    int i = 0;
+    for (int node = 0; node < n_nodes; ++node) {
+        // If there is a common node between tet and hex meshes, store actual solution
+        if (tet2hex[node] >= 0) {
+            require(i < ef.size(), "Invalid index: " + to_string(i));
+            solution.push_back( Solution(ef[i], ef[i].norm(), pot[i]) );
+            i++;
+        }
 
-    double value;
-    for (int i = 0; i < n_atoms; ++i) {
-        if (coordinate == 4) value = abs(interpolation[i].potential);
-        else if (coordinate == 3) value = abs(interpolation[i].el_norm);
-        else                 value = abs(interpolation[i].elfield[coordinate]);
-
-        if (value < value_min || value > value_max)
-            interpolation[i] = get_average_solution(i, smooth_factor, r_cut);
+        // In case of non-common node, store solution with error value
+        else
+            solution.push_back( Solution(error_field) );
     }
 }
 
-// Compile data string from the data vectors for file output
-const string Interpolator::get_data_string(const int i) {
-    if (i < 0) return "Interpolator data: id x y z out_of_mesh Ex Ey Ez Enorm potential";
+/* Return the mapping between tetrahedral & hexahedral mesh nodes,
+   nodes & hexahedral elements and nodes & element's vertices  */
+const void Interpolator::get_maps(dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh,
+        vector<int>& tet2hex, vector<int>& node2hex, vector<int>& node2vert) {
 
-    ostringstream strs;
-    strs << atoms[i] << " " << interpolation[i];
-    return strs.str();
+    const int n_tet_nodes = get_n_atoms();
+    const int n_hex_nodes = tria->n_used_vertices();
+    const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
+
+    tet2hex.resize(n_tet_nodes, -1);
+    node2hex.resize(n_hex_nodes);
+    node2vert.resize(n_hex_nodes);
+
+    // Loop through the hexahedral mesh vertices
+    typename Triangulation<DIM>::active_vertex_iterator vertex = tria->begin_active_vertex();
+    for (int j = 0; j < n_tet_nodes; ++j, ++vertex)
+        // Loop through tetrahedral mesh vertices
+        for (int i = 0; i < n_tet_nodes; ++i)
+            if ( (tet2hex[i] < 0) && (get_point(i) == vertex->vertex()) ) {
+                tet2hex[i] = vertex->vertex_index();
+                break;
+            }
+
+    // Loop through the hexahedral mesh elements
+    typename DoFHandler<DIM>::active_cell_iterator cell;
+    for (cell = dofh->begin_active(); cell != dofh->end(); ++cell)
+        // Loop through all the vertices in the element
+        for (int i = 0; i < n_verts_per_elem; ++i) {
+            node2hex[cell->vertex_index(i)] = cell->active_cell_index();
+            node2vert[cell->vertex_index(i)] = i;
+        }
+}
+
+// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
+const void Interpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh) {
+    const int n_nodes = mesh.nodes.size();
+
+    // Precompute tetrahedra to make interpolation faster
+    precompute_tetrahedra(mesh);
+
+    // Copy the mesh nodes
+    reserve(n_nodes);
+    for (int node = 0; node < n_nodes; ++node)
+        add_atom( Atom(node, mesh.nodes[node], -1) );
+
+    // To make solution extraction faster, generate mapping between desired and available data sequences
+    vector<int> tet2hex, node2hex, node2vert;
+    get_maps(fem->get_triangulation(), fem->get_dof_handler(), tet2hex, node2hex, node2vert);
+
+    // Generate lists of hexahedra and hexahedra nodes where the tetrahedra nodes are located
+    vector<int> cell_indxs; cell_indxs.reserve(n_nodes);
+    vector<int> vert_indxs; vert_indxs.reserve(n_nodes);
+    for (int n : tet2hex)
+        if (n >= 0) {
+            cell_indxs.push_back(node2hex[n]);
+            vert_indxs.push_back(node2vert[n]);
+        }
+
+    vector<dealii::Tensor<1,3>> ef = fem->get_efield(cell_indxs, vert_indxs); // get list of electric fields
+    vector<double> pot = fem->get_potential(cell_indxs, vert_indxs);          // get list of electric potentials
+
+    require( ef.size() == pot.size(), "Mismatch of vector sizes: "
+            + to_string(ef.size())  + ", " + to_string(pot.size()) );
+
+    int i = 0;
+    for (int node = 0; node < n_nodes; ++node) {
+        // If there is a common node between tet and hex meshes, store actual solution
+        if (tet2hex[node] >= 0) {
+            require(i < ef.size(), "Invalid index: " + to_string(i));
+            Vec3 elfield(ef[i][0], ef[i][1], ef[i][2]);
+            solution.push_back( Solution(elfield, elfield.norm(), pot[i]) );
+            i++;
+        }
+
+        // In case of non-common node, store solution with error value
+        else
+            solution.push_back( Solution(error_field) );
+    }
 }
 
 // Reserve memory for interpolation data
 const void Interpolator::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));
     atoms.clear();
-    interpolation.clear();
+    solution.clear();
 
     atoms.reserve(N);
-    interpolation.reserve(N);
+    solution.reserve(N);
 }
 
 // Reserve memory for pre-compute data
@@ -353,94 +379,23 @@ const Solution Interpolator::get_interpolation(const Point3 &point, const int el
     // Interpolate electric field
     Vec3 elfield_i(0.0);
     for (int i = 0; i < selem.size(); ++i)
-        elfield_i += solution->get_solution(selem[i]).elfield * bcc[i];
+        elfield_i += solution[selem[i]].elfield * bcc[i];
 
     // Interpolate potential
     double potential_i(0.0);
     for (int i = 0; i < selem.size(); ++i)
-        potential_i += solution->get_solution(selem[i]).potential * bcc[i];
+        potential_i += solution[selem[i]].potential * bcc[i];
 
     return Solution(elfield_i, elfield_i.norm(), potential_i);
 }
 
-// Linearly interpolate solution on Medium atoms
-const void Interpolator::extract_interpolation(const Medium &medium) {
-    const int n_atoms = medium.get_n_atoms();
-    reserve(n_atoms);
+// Compile data string from the data vectors for file output
+const string Interpolator::get_data_string(const int i) {
+    if (i < 0) return "Interpolator data: id x y z dummy Ex Ey Ez Enorm potential";
 
-    int elem = 0;
-
-    for (int i = 0; i < n_atoms; ++i) {
-        Atom atom = medium.get_atom(i);
-        add_atom(atom);
-
-        // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
-        elem = locate_element(atom.point, abs(elem));
-
-        // Store the data whether the point is in- or outside the mesh
-        if (elem < 0) set_coordination(i, 1);
-        else          set_coordination(i, 0);
-
-        // Calculate the interpolation
-        interpolation.push_back( get_interpolation(atom.point, abs(elem)) );
-    }
-}
-
-// Linearly interpolate electric field on a set of points
-const void Interpolator::extract_elfield(int n_points, double* x, double* y, double* z,
-        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-
-    Medium medium(n_points);
-    for (int i = 0; i < n_points; ++i)
-        medium.add_atom(Point3(x[i], y[i], z[i]));
-
-    // Interpolate solution and store the index of first point outside the mesh
-    extract_interpolation(medium);
-
-    for (int i = 0; i < n_points; ++i) {
-        Ex[i] = interpolation[i].elfield.x;
-        Ey[i] = interpolation[i].elfield.y;
-        Ez[i] = interpolation[i].elfield.z;
-        Enorm[i] = interpolation[i].el_norm;
-        flag[i] = atoms[i].coord;
-    }
-}
-
-// Linearly interpolate electric potential on a set of points
-const void Interpolator::extract_potential(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
-    Medium medium(n_points);
-    for (int i = 0; i < n_points; ++i)
-        medium.add_atom(Point3(x[i], y[i], z[i]));
-
-    // Interpolate solution and store the index of first point outside the mesh
-    extract_interpolation(medium);
-
-    for (int i = 0; i < n_points; ++i) {
-        phi[i] = interpolation[i].potential;
-        flag[i] = atoms[i].coord;
-    }
-}
-
-// Export interpolated electric field
-const void Interpolator::export_interpolation(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    // Initially pass the zero electric field for all the atoms
-    for (int i = 0; i < n_atoms; ++i) {
-        Ex[i] = 0;
-        Ey[i] = 0;
-        Ez[i] = 0;
-        Enorm[i] = 0;
-    }
-
-    // Pass the the calculated electric field for stored atoms
-    for (int i = 0; i < get_n_atoms(); ++i) {
-        int identifier = get_id(i);
-        if (identifier < 0 || identifier >= n_atoms) continue;
-
-        Ex[identifier] = interpolation[i].elfield.x;
-        Ey[identifier] = interpolation[i].elfield.y;
-        Ez[identifier] = interpolation[i].elfield.z;
-        Enorm[identifier] = interpolation[i].el_norm;
-    }
+    ostringstream strs;
+    strs << atoms[i] << " " << solution[i];
+    return strs.str();
 }
 
 // Determinant of 3x3 matrix which's last column consists of ones

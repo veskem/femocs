@@ -9,9 +9,11 @@
 #define INTERPOLATOR_H_
 
 #include "Primitives.h"
-#include "SolutionReader.h"
 #include "Medium.h"
 #include "TetgenMesh.h"
+#include "DealII.h"
+#include "laplace.h"
+#include "currents_and_heating.h"
 
 using namespace std;
 namespace femocs {
@@ -37,33 +39,19 @@ class Interpolator: public Medium {
 public:
     /** Interpolator conctructor */
     Interpolator();
-    Interpolator(SolutionReader* sr);
 
-    /** Pre-compute data about tetrahedra to make interpolation faster */
-    const void precompute_tetrahedra(const TetgenMesh &mesh);
+    /** Extract the electric potential and electric field values on the tetrahedra nodes from FEM solution */
+    const void extract_solution(DealII &fem, const TetgenMesh &mesh);
 
-    /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
-     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    const void extract_interpolation(const Medium &medium);
+    const void extract_solution(fch::Laplace<3>* laplace, const TetgenMesh &mesh);
 
-    /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
-     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    const void extract_elfield(int n_points, double* x, double* y, double* z,
-            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
+    const Solution get_interpolation(const Point3 &point, const int elem);
 
-    /** Interpolate electric potential on set of points using the solution on tetrahedral mesh nodes
-     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    const void extract_potential(int n_points, double* x, double* y, double* z, double* phi, int* flag);
+    const int locate_element(const Point3 &point, const int elem_guess);
 
-    /** Export calculated electic field distribution to HOLMOD */
-    const void export_interpolation(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
-
-    /** Function to clean the result from peaks
-     * The cleaner makes the histogram for given component of electric field and applies smoothing
-     * for the atoms, where field has diverging values.
-     * For example, if histogram looks like [10 7 2 4 1 4 2 0 0 2], then the field on the two atoms that
-     * made up the entries to last bin will be replaced by the average field around those two atoms. */
-    const void clean(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut);
+    /** Electric field that is assigned to atoms not found from mesh.
+     *  Its value is BIG to make it immediately visible from data set. */
+    const double error_field = 1e20;
 
 private:
     /** Constants specifying the interpolation tolerances.
@@ -71,8 +59,7 @@ private:
     const double epsilon = 1e-1;
     const double zero = -1.0 * epsilon;
 
-    SolutionReader* solution;           ///< solution data
-    vector<Solution> interpolation;     ///< interpolation data
+    vector<Solution> solution;     ///< interpolation data
 
     vector<SimpleElement> tetrahedra;   ///< tetrahedra node indices
     vector<vector<int>> tetneighbours;  ///< tetrahedra nearest neighbours
@@ -85,11 +72,21 @@ private:
     vector<Vec4> det4;                  ///< minor determinants for calculating 4th bcc
     vector<bool> tet_not_valid;         ///< co-planarities of tetrahedra
 
-    const Solution get_interpolation(const Point3 &point, const int elem);
-    const void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
-    const Solution get_average_solution(const int I, const double smooth_factor, const double r_cut);
-    const int locate_element(const Point3 &point, const int elem_guess);
+    /** Pre-compute data about tetrahedra to make interpolation faster */
+    const void precompute_tetrahedra(const TetgenMesh &mesh);
+
+    /** Return the mapping between tetrahedral and hexahedral meshes; -1 indicates that mapping for corresponding object was not found
+     * @param fem         solution from Deal.II
+     * @param tet2hex     mapping between tet- & hexmesh elements,
+     * @param node2hex    mapping between tetmesh nodes & hexmesh elements,
+     * @param node2vert   mapping between tetmesh nodes & hexmesh element's vertices. */
+    const void get_maps(DealII& fem, vector<int>& tet2hex, vector<int>& node2hex, vector<int>& node2vert);
+
+    const void get_maps(dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh,
+            vector<int>& tet2hex, vector<int>& node2hex, vector<int>& node2vert);
+
     const Vec4 get_bcc(const Point3 &point, const int elem);
+
     const bool point_in_tetrahedron(const Point3 &point, const int i);
 
     /** Function to calculate determinant of 3x3 matrix which's last column consists of ones */

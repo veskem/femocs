@@ -34,7 +34,7 @@ Config::Config() {
     postprocess_marking = false; // make extra effort to mark correctly the vacuum nodes in shadow area
     refine_apex = false;         // refine nanotip apex
     distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
-    zbox_above = 1.5;            // space added above the maximum z-coordinate of surface in units of tip height
+    zbox_above = 2.5;            // space added above the maximum z-coordinate of surface in units of tip height
     zbox_below = 20;             // space added below the minimum z-coordinate of surface [lattice constant]
 
     cfactor.amplitude = 0.4;     // coarsening factor

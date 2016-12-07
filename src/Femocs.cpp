@@ -88,21 +88,16 @@ const int Femocs::run(double elfield, string message) {
     coarse_surf.write("output/surface_smooth.xyz");
     end_msg(t0);
 
-    start_msg(t0, "=== Resizing simulation box...");
+    start_msg(t0, "=== Generating bulk and vacuum...");
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
     reader.resize_box(coarse_surf.sizes.zmin - conf.zbox_below * conf.latconst,
             coarse_surf.sizes.zmax + conf.zbox_above * coarse_surf.sizes.zbox);
-    end_msg(t0);
 
-    start_msg(t0, "=== Generating bulk...");
     Bulk bulk;
-    bulk.generate_simple(&reader.sizes);
-    bulk.write("output/bulk.xyz");
-    end_msg(t0);
-
-    start_msg(t0, "=== Generating vacuum...");
     Vacuum vacuum;
+    bulk.generate_simple(&reader.sizes);
     vacuum.generate_simple(&reader.sizes);
+    bulk.write("output/bulk.xyz");
     vacuum.write("output/vacuum.xyz");
     end_msg(t0);
 
@@ -197,7 +192,7 @@ const int Femocs::run(double elfield, string message) {
     double temp_error = ch_solver->run_specific(10.0, 10, false, "output/fch", MODES.VERBOSE, 2.0);
     end_msg(t0);
     start_msg(t0, "=== Writing rho & T solution...");
-    ch_solver->output_results(0, "output/ch_solution" + message + ".vtk");
+    ch_solver->output_results(0, "output/ch_solution" + message);
     end_msg(t0);
 
     if (even_run) {
@@ -208,6 +203,11 @@ const int Femocs::run(double elfield, string message) {
         prev_ch_solver = &ch_solver1;
     }
     even_run = !even_run;
+
+    start_msg(t0, "=== Extracting solution...");
+    vacuum_interpolator.extract_solution(&laplace_solver, tetmesh_vacuum);
+    vacuum_interpolator.write("output/result_E_phi_2.xyz");
+    end_msg(t0);
 #endif
 
     // ==============================
@@ -255,18 +255,13 @@ const int Femocs::run(double elfield, string message) {
     // =======================================================
 
     start_msg(t0, "=== Extracting solution...");
-    solution.extract_solution(laplace, tetmesh_vacuum.nodes);
-    end_msg(t0);
-
-    start_msg(t0, "=== Pre-computing interpolator...");
-    interpolator.precompute_tetrahedra(tetmesh_vacuum);
-    small_interpolator.precompute_tetrahedra(tetmesh_vacuum);
+    interpolator.extract_solution(laplace, tetmesh_vacuum);
     end_msg(t0);
 
     start_msg(t0, "=== Saving results...");
     reader.save_current_run_points(conf.distance_tol);
     laplace.write("output/result_E_phi.vtk");
-    solution.write("output/result_E_phi.xyz");
+    interpolator.write("output/result_E_phi.xyz");
     coarseners.write("output/coarseners" + message + ".vtk");
     end_msg(t0);
 //*/
@@ -370,22 +365,22 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
     if (!skip_calculations) {
         start_msg(t0, "=== Interpolating solution...");
         dense_surf.sort_atoms(0, 1, "up");
-        interpolator.extract_interpolation(dense_surf);
+        interpolation.interpolate(dense_surf);
         end_msg(t0);
 
         start_msg(t0, "=== Cleaning interpolation...");
-        interpolator.clean(0, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-        interpolator.clean(1, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-        interpolator.clean(2, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-        interpolator.clean(3, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-        interpolator.clean(4, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+        interpolation.clean(0, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+        interpolation.clean(1, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+        interpolation.clean(2, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+        interpolation.clean(3, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+        interpolation.clean(4, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
         end_msg(t0);
 
-        interpolator.write("output/interpolation" + conf.message + ".xyz");
+        interpolation.write("output/interpolation" + conf.message + ".xyz");
     }
 
     start_msg(t0, "=== Exporting results...");
-    interpolator.export_interpolation(n_atoms, Ex, Ey, Ez, Enorm);
+    interpolation.export_solution(n_atoms, Ex, Ey, Ez, Enorm);
     end_msg(t0);
 
     return skip_calculations;
@@ -395,15 +390,17 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
 const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     
-    small_interpolator.extract_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
-    small_interpolator.write("output/elfield_on_points.xyz");
+    SolutionReader sr(&interpolator);
+    sr.export_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
+    sr.write("output/elfield_on_points.xyz");
     return skip_calculations;
 }
 
 // linearly interpolate electric potential at given points
 const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
-    small_interpolator.extract_potential(n_points, x, y, z, phi, flag);
-    small_interpolator.write("output/phi_on_points.xyz");
+    SolutionReader sr(&interpolator);
+    sr.export_potential(n_points, x, y, z, phi, flag);
+    sr.write("output/phi_on_points.xyz");
     return skip_calculations;
 }
 

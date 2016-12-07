@@ -126,9 +126,9 @@ private:
     AtomReader reader;
     Config conf;
     Surface dense_surf;
-    SolutionReader solution;
-    Interpolator interpolator = Interpolator(&solution);
-    Interpolator small_interpolator = Interpolator(&solution);
+    Interpolator interpolator;
+    Interpolator vacuum_interpolator;
+    SolutionReader interpolation = SolutionReader(&interpolator);
 
 #if HEATINGMODE
     fch::PhysicalQuantities phys_quantities;

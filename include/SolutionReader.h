@@ -9,9 +9,8 @@
 #define SOLUTIONREADER_H_
 
 #include "Primitives.h"
-#include "DealII.h"
 #include "Medium.h"
-#include "TetgenCells.h"
+#include "Interpolator.h"
 
 using namespace std;
 namespace femocs {
@@ -21,31 +20,44 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader conctructors */
     SolutionReader();
+    SolutionReader(Interpolator* interpolator);
 
-    /** Extract the electric potential and electric field values on the nodes of tetrahedra from FEM solution */
-    const void extract_solution(DealII &fem, const TetgenNodes &nodes);
+    /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
+     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
+    const void interpolate(const Medium &medium);
 
-    const Solution get_solution(const int i) const;
+    /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
+     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
+    const void export_elfield(int n_points, double* x, double* y, double* z,
+            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 
-    /** Electric field that is assigned to atoms not found from mesh.
-     *  Its value is BIG to make it immediately visible from data set. */
-    const double error_field = 1e20;
+    /** Interpolate electric potential on set of points using the solution on tetrahedral mesh nodes
+     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
+    const void export_potential(int n_points, double* x, double* y, double* z, double* phi, int* flag);
+
+    /** Export calculated electic field distribution to HOLMOD */
+    const void export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
+
+    /** Function to clean the result from peaks
+     * The cleaner makes the histogram for given component of electric field and applies smoothing
+     * for the atoms, where field has diverging values.
+     * For example, if histogram looks like [10 7 2 4 1 4 2 0 0 2], then the field on the two atoms that
+     * made up the entries to last bin will be replaced by the average field around those two atoms. */
+    const void clean(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut);
 
 private:
-    vector<Solution> solution;
+    Interpolator* interpolator;     ///< data needed for interpolation
+    vector<Solution> interpolation; ///< interpolated data
     
-    /** Reserve memory for solution vectors */
+    const void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
+
+    const Solution get_average_solution(const int I, const double smooth_factor, const double r_cut);
+
+    /** Reserve memory for interpolated data */
     const void reserve(const int n_nodes);
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     const string get_data_string(const int i);
-
-    /** Return the mapping between tetrahedral and hexahedral meshes; -1 indicates that mapping for corresponding object was not found
-     * @param fem         solution from Deal.II
-     * @param tet2hex     mapping between tet- & hexmesh elements,
-     * @param node2hex    mapping between tetmesh nodes & hexmesh elements,
-     * @param node2vert   mapping between tetmesh nodes & hexmesh element's vertices. */
-    const void get_maps(DealII& fem, vector<int>& tet2hex, vector<int>& node2hex, vector<int>& node2vert);
 };
 
 } // namespace femocs
