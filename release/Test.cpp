@@ -35,18 +35,13 @@ int main() {
 
     femocs::Femocs femocs("input/md.in");
     success += femocs.import_atoms("");
-    success += femocs.run(0.1, "0");
-    success += femocs.run(0.1, "1");
-    success += femocs.run(0.1, "2");
-    success += femocs.run(0.1, "3");
-//    success += femocs.import_atoms("input/rough100.ckx");
-//    success += femocs.run(0.1, "2");
+    success += femocs.run(0.1, "");
     success += femocs.export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
     success += femocs.interpolate_phi(n_points, x, y, z, phi, flag);
     success += femocs.interpolate_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
 
     string cmd1 = "n_BINS"; int arg1 = -1;
-    string cmd2 = "Coarse_Factor"; double arg2 = -1.0;
+    string cmd2 = "Smooth_Factor"; double arg2 = -1.0;
     success += femocs.parse_command(cmd1, &arg1);
     success += femocs.parse_command(cmd2, &arg2);
     cout << cmd1 << " = " << arg1 << endl << cmd2 << " = " << arg2 << endl ;

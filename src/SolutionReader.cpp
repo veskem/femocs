@@ -8,7 +8,6 @@
 #include "SolutionReader.h"
 #include "Macros.h"
 
-#include <fstream>
 #include <float.h>
 
 using namespace std;

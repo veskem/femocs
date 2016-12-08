@@ -18,6 +18,7 @@ using namespace std;
  * It must be controlled on compile time to enable deeper code optimisation. */
 #define ASSERTMODE true
 
+/** Turn on current density and temperature calculations */
 #define HEATINGMODE false
 
 /** Types of regions used in the simulation */

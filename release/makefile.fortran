@@ -12,7 +12,7 @@ release/femocs: release/femocs.o
 release/femocs.o: lib/libfemocs.a lib/build/Makefile ${MAIN_F90}
 	${F90} -c ${MAIN_F90} ${OPT} ${FCFLAGS} ${LDFLAGS} -o release/femocs.o
 
-lib/libfemocs.a: src/* include/*
+lib/libfemocs.a: src/* include/* heating/source/* heating/include/*
 	make -f release/makefile.lib
 	
 lib/build/Makefile:

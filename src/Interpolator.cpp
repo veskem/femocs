@@ -8,11 +8,6 @@
 #include "Interpolator.h"
 #include "Macros.h"
 
-#include <deal.II/grid/tria.h>
-#include <deal.II/dofs/dof_handler.h>
-#include <deal.II/fe/fe_q.h>
-
-#include <fstream>
 #include <float.h>
 
 using namespace std;
@@ -103,12 +98,15 @@ const void Interpolator::extract_solution(DealII &fem, const TetgenMesh &mesh) {
 /* Return the mapping between tetrahedral & hexahedral mesh nodes,
    nodes & hexahedral elements and nodes & element's vertices  */
 const void Interpolator::get_maps(dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh,
-        vector<int>& tet2hex, vector<int>& node2hex, vector<int>& node2vert) {
-
+        vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs) {
+    
+    require(tria->n_vertices() > 0, "Invalid triangulation size!");
+    
     const int n_tet_nodes = get_n_atoms();
     const int n_hex_nodes = tria->n_used_vertices();
     const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
-
+    
+    vector<int> node2hex, node2vert;
     tet2hex.resize(n_tet_nodes, -1);
     node2hex.resize(n_hex_nodes);
     node2vert.resize(n_hex_nodes);
@@ -122,7 +120,7 @@ const void Interpolator::get_maps(dealii::Triangulation<3>* tria, dealii::DoFHan
                 tet2hex[i] = vertex->vertex_index();
                 break;
             }
-
+                
     // Loop through the hexahedral mesh elements
     typename DoFHandler<DIM>::active_cell_iterator cell;
     for (cell = dofh->begin_active(); cell != dofh->end(); ++cell)
@@ -131,32 +129,33 @@ const void Interpolator::get_maps(dealii::Triangulation<3>* tria, dealii::DoFHan
             node2hex[cell->vertex_index(i)] = cell->active_cell_index();
             node2vert[cell->vertex_index(i)] = i;
         }
-}
-
-// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-const void Interpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh) {
-    const int n_nodes = mesh.nodes.size();
-
-    // Precompute tetrahedra to make interpolation faster
-    precompute_tetrahedra(mesh);
-
-    // Copy the mesh nodes
-    reserve(n_nodes);
-    for (int node = 0; node < n_nodes; ++node)
-        add_atom( Atom(node, mesh.nodes[node], -1) );
-
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> tet2hex, node2hex, node2vert;
-    get_maps(fem->get_triangulation(), fem->get_dof_handler(), tet2hex, node2hex, node2vert);
-
+       
     // Generate lists of hexahedra and hexahedra nodes where the tetrahedra nodes are located
-    vector<int> cell_indxs; cell_indxs.reserve(n_nodes);
-    vector<int> vert_indxs; vert_indxs.reserve(n_nodes);
+    cell_indxs.reserve(n_tet_nodes);
+    vert_indxs.reserve(n_tet_nodes);
     for (int n : tet2hex)
         if (n >= 0) {
             cell_indxs.push_back(node2hex[n]);
             vert_indxs.push_back(node2vert[n]);
-        }
+        }     
+}
+
+// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
+const void Interpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh) {
+    require(fem, "NULL pointer can't be handled!");
+    
+    // Copy the mesh nodes
+    int i = 0;
+    reserve(mesh.nodes.size());
+    for (Point3 node : mesh.nodes)
+        add_atom( Atom(i++, node, -1) );
+
+    // Precompute tetrahedra to make interpolation faster
+    precompute_tetrahedra(mesh);
+    
+    // To make solution extraction faster, generate mapping between desired and available data sequences
+    vector<int> tet_node2hex_node, cell_indxs, vert_indxs;
+    get_maps(fem->get_triangulation(), fem->get_dof_handler(), tet_node2hex_node, cell_indxs, vert_indxs);
 
     vector<dealii::Tensor<1,3>> ef = fem->get_efield(cell_indxs, vert_indxs); // get list of electric fields
     vector<double> pot = fem->get_potential(cell_indxs, vert_indxs);          // get list of electric potentials
@@ -164,19 +163,54 @@ const void Interpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh
     require( ef.size() == pot.size(), "Mismatch of vector sizes: "
             + to_string(ef.size())  + ", " + to_string(pot.size()) );
 
-    int i = 0;
-    for (int node = 0; node < n_nodes; ++node) {
+    i = 0;
+    for (int n : tet_node2hex_node) {
         // If there is a common node between tet and hex meshes, store actual solution
-        if (tet2hex[node] >= 0) {
+        if (n >= 0) {
             require(i < ef.size(), "Invalid index: " + to_string(i));
             Vec3 elfield(ef[i][0], ef[i][1], ef[i][2]);
-            solution.push_back( Solution(elfield, elfield.norm(), pot[i]) );
-            i++;
+            solution.push_back( Solution(elfield, elfield.norm(), pot[i++]) );
         }
 
         // In case of non-common node, store solution with error value
-        else
-            solution.push_back( Solution(error_field) );
+        else solution.push_back( Solution(error_field) );
+    }
+}
+
+// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
+const void Interpolator::extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh) {  
+    require(fem, "NULL pointer can't be handled!");
+    
+    // Copy the mesh nodes
+    int i = 0;
+    reserve(mesh.nodes.size());
+    for (Point3 node : mesh.nodes)
+        add_atom( Atom(i++, node, -1) );
+
+    // Precompute tetrahedra to make interpolation faster
+    precompute_tetrahedra(mesh);
+    
+    // To make solution extraction faster, generate mapping between desired and available data sequences
+    vector<int> tet_node2hex_node, cell_indxs, vert_indxs;
+    get_maps(fem->get_triangulation(), fem->get_dof_handler(), tet_node2hex_node, cell_indxs, vert_indxs);
+    
+    vector<dealii::Tensor<1,3>> rho = fem->get_current(cell_indxs, vert_indxs); // get list of current densities
+    vector<double> temperature = fem->get_temperature(cell_indxs, vert_indxs); // get list of temperatures
+
+    require( rho.size() == temperature.size(), "Mismatch of vector sizes: "
+            + to_string(rho.size())  + ", " + to_string(temperature.size()) );
+    
+    i = 0;
+    for (int n : tet_node2hex_node) {
+        // If there is a common node between tet and hex meshes, store actual solution
+        if (n >= 0) {
+            require(i < rho.size(), "Invalid index: " + to_string(i));
+            Vec3 current(rho[i][0], rho[i][1], rho[i][2]);
+            solution.push_back( Solution(current, current.norm(), temperature[i++]) );
+        }
+
+        // In case of non-common node, store solution with error value
+        else solution.push_back( Solution(error_field) );
     }
 }
 

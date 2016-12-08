@@ -41,7 +41,9 @@ Config::Config() {
     cfactor.r0_cylinder = 1.0;   // minimum distance between atoms in nanotip below apex
     cfactor.r0_sphere = 0.0;     // minimum distance between atoms in nanotip apex
     heating = false;             // turn ON 3D current density and temperature calculations
-    neumann = 0;                 // neumann boundary condtition value
+    neumann = 0;                 // neumann boundary condition value
+    t_error = 10.0;              // maximum allowed temperature error in Newton iterations
+    n_newton = 10;               // maximum number of Newton iterations
 }
 
 // Remove the noise from the beginning of the string

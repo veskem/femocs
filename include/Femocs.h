@@ -127,8 +127,11 @@ private:
     Config conf;
     Surface dense_surf;
     Interpolator interpolator;
+    Interpolator bulk_interpolator;
     Interpolator vacuum_interpolator;
     SolutionReader interpolation = SolutionReader(&interpolator);
+    SolutionReader bulk_interpolation = SolutionReader(&bulk_interpolator);
+    SolutionReader vacuum_interpolation = SolutionReader(&vacuum_interpolator);
 
 #if HEATINGMODE
     fch::PhysicalQuantities phys_quantities;

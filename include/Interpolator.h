@@ -44,6 +44,8 @@ public:
     const void extract_solution(DealII &fem, const TetgenMesh &mesh);
 
     const void extract_solution(fch::Laplace<3>* laplace, const TetgenMesh &mesh);
+    
+    const void extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh);
 
     const Solution get_interpolation(const Point3 &point, const int elem);
 

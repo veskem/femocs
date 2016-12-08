@@ -54,6 +54,8 @@ public:
     bool heating;               ///< Turn ON 3D current density and temperature calculations
     double zbox_above;          ///< Space added above the maximum z-coordinate of surface [tip height]
     double zbox_below;          ///< Space added below the minimum z-coordinate of surface [lattice constant]
+    double t_error;             ///< Maximum allowed temperature error in Newton iterations
+    int n_newton;               ///< Maximum number of Newton iterations
 
     /** Minimum distance between atoms from current and previous run so that their
      * movement is considered to be sufficiently big to recalculate electric field;
