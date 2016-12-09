@@ -86,8 +86,11 @@ namespace fch {
 		void setup_system();
 		/** assembles the matrix equation */
 		void assemble_system();
-		/** solves the matrix equation */
-		void solve();
+
+		/** solves the matrix equation
+		 * @param pc_ssor flag to use SSOR preconditioner
+		 */
+		void solve(bool pc_ssor = false);
 
 		/** outputs the results to a specified file */
 		void output_results(const std::string filename = "field_solution.vtk") const;

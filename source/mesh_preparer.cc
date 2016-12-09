@@ -21,6 +21,7 @@ template <int dim>
 const string MeshPreparer<dim>::get_file_ext(const string file_name) {
     const int start = file_name.find_last_of('.') + 1;
     const int end = file_name.size();
+    if (start > end) return "";
     return file_name.substr(start, end);
 }
 

@@ -247,7 +247,12 @@ void Laplace<dim>::assemble_system() {
 }
 
 template<int dim>
-void Laplace<dim>::solve() {
+void Laplace<dim>::solve(bool pc_ssor) {
+	if (pc_ssor) {
+		PreconditionSSOR<> preconditioner;
+		preconditioner.initialize(system_matrix, 1.2);
+	}
+
 	SolverControl solver_control(2000, 1e-9);
 	SolverCG<> solver(solver_control);
 	solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());

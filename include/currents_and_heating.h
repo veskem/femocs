@@ -71,6 +71,9 @@ namespace fch {
 		 */
 		void reinitialize(Laplace<dim> *laplace_, CurrentsAndHeating *ch_previous_iteration_);
 
+		/** Sets up degrees of freedom and the sparsity pattern */
+		void setup_system();
+
 		/** Sets the physical quantities object */
 		void set_physical_quantities(PhysicalQuantities *pq_);
 
@@ -89,10 +92,12 @@ namespace fch {
 		 * 					where N# is the number of the newton iteration
 		 * @param print boolean if calculation info should be output to cout
 		 * @param alpha successive over-relaxation coefficient
+		 * @param ic_interp_treshold peak temperature value of the previous iteration, which determines if interpolation is done
 		 * @return final temperature error
 		 */
 		double run_specific(double temperature_tolerance=1.0, int max_newton_iter=10,
-						  bool file_output=true, std::string out_fname="sol", bool print=true, double alpha=1.0);
+						  bool file_output=true, std::string out_fname="sol", bool print=true,
+						  double alpha=1.0, double ic_interp_treshold = 400);
 
 		/** getter for the mesh */
 		Triangulation<dim>* get_triangulation();
@@ -118,6 +123,13 @@ namespace fch {
 
 		/** outputs the mesh to .vtk file */
 		void output_mesh(const std::string file_name = "copper_mesh.vtk");
+
+		/**
+		 * Outputs the calculated solution to file
+		 * @param file_name name of the destination file
+		 * @param iteration if positive, will be appendend to the name before extension
+		 */
+		void output_results(const std::string file_name = "sol.vtk", const int iteration = -1) const;
 
 		/**
 		 * method to obtain the temperature values in selected nodes
@@ -146,11 +158,10 @@ namespace fch {
 	        return os;
 	    }
 
+
 	private:
-		void setup_system();
 		void assemble_system_newton();
 		void solve();
-		void output_results(const unsigned int iteration, const std::string fname = "sol") const;
 
 		bool setup_mapping();
 		void set_initial_condition();
@@ -161,6 +172,8 @@ namespace fch {
 
 		static constexpr double ambient_temperature_default = 300.0;
 		double ambient_temperature;
+
+		static constexpr double temperature_stopping_condition = 1800.0;
 
 		FESystem<dim> fe;
 

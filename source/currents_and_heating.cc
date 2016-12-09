@@ -846,7 +846,7 @@ void CurrentsAndHeating<dim>::run() {
 
 		std::cout << "    Solver: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
-		output_results(iteration);
+		output_results("solution.vtk", iteration);
 		std::cout << "    output_results: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 		std::cout << "    ||u_k-u_{k-1}||_L2 = " << newton_update.l2_norm() << std::endl;
@@ -863,8 +863,8 @@ void CurrentsAndHeating<dim>::run() {
 
 
 template <int dim>
-double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int max_newton_iter,
-		  	  	  	  	  	  	  	  	   bool file_output, std::string out_fname, bool print, double alpha) {
+double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int max_newton_iter, bool file_output,
+											 std::string out_fname, bool print, double alpha, double ic_interp_treshold) {
 
 	if (pq == NULL || laplace == NULL || (interp_initial_conditions && previous_iteration == NULL)) {
 		std::cerr << "Error: pointer uninitialized! Exiting temperature calculation..." << std::endl;
@@ -875,13 +875,18 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 		return -1.0;
 	}
 
-	if (print) {
-		if (interp_initial_conditions) std::cout << "        Interpolating initial conditions" << std::endl;
-		else std::cout << "        Using default initial conditions" << std::endl;
+	if (interp_initial_conditions) {
+		double prev_max_temp = (previous_iteration->present_solution).linfty_norm();
+		if (prev_max_temp > ic_interp_treshold) {
+			if (print) std::cout << "        Interpolating initial conditions" << std::endl;
+		} else {
+			interp_initial_conditions = false;
+			if (print) std::cout << "        Using default initial conditions (peak temp. lower than threshold)" << std::endl;
+		}
 	}
+	else if (print) std::cout << "        Using default initial conditions" << std::endl;
 
 	Timer timer;
-	setup_system();
 
 	if (!setup_mapping()) {
 		std::cerr << "Error: Couldn't make a correct mapping between copper and vacuum faces on the interface."
@@ -906,7 +911,7 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 
 	// Output initial condition
 	if (file_output) {
-		output_results(0, out_fname);
+		output_results(out_fname, 0);
 		if (print) {
 			printf("        Output initial condition, time: %.2f\n", timer.wall_time());
 			timer.restart();
@@ -926,10 +931,17 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 		double assemble_time = timer.wall_time(); timer.restart();
 
 		solve();
-		present_solution.add(alpha, newton_update); // alpha = 1.0
+		present_solution.add(alpha, newton_update);
 		double solution_time = timer.wall_time(); timer.restart();
 
-		if (file_output) output_results(iteration, out_fname);
+		double max_temp = present_solution.linfty_norm();
+		if (max_temp > temperature_stopping_condition) {
+			std::cerr << "WARNING: Peak temperature surpasse the stopping condition "
+					     + to_string(temperature_stopping_condition) << "... Stopping calculation." << std::endl;
+			break;
+		}
+
+		if (file_output) output_results(out_fname, iteration);
 		double output_time = timer.wall_time(); timer.restart();
 
 		temperature_error = newton_update.linfty_norm();
@@ -1000,10 +1012,20 @@ public:
 // ----------------------------------------------------------------------------------------
 
 template <int dim>
-void CurrentsAndHeating<dim>::output_results(const unsigned int iteration,
-											 const std::string fname) const {
+void CurrentsAndHeating<dim>::output_results(const std::string file_name,
+		 	 	 	 	 	 	 	 	 	 const int iteration) const {
+	std::string file_name_mod = file_name;
 
-	std::string filename = fname + "-" + Utilities::int_to_string(iteration) + ".vtk";
+	if (iteration >= 0) {
+	    const int start = file_name.find_last_of('.');
+	    const int end = file_name.size();
+	    std::string ext = "";
+	    if (start > end) {
+	    	ext = file_name.substr(start, end);
+	    	file_name_mod = file_name.substr(start, end);
+	    }
+	    file_name_mod += "-" + std::to_string(iteration) + ext;
+	}
 
 	std::vector<std::string> solution_names {"potential", "temperature"};
 
@@ -1018,10 +1040,10 @@ void CurrentsAndHeating<dim>::output_results(const unsigned int iteration,
 	data_out.build_patches();
 
 	try {
-		std::ofstream output(filename.c_str());
+		std::ofstream output(file_name_mod.c_str());
 		data_out.write_vtk(output);
 	} catch (...) {
-		std::cerr << "WARNING: Couldn't open " + filename << ". ";
+		std::cerr << "WARNING: Couldn't open " + file_name_mod << ". ";
 		std::cerr << "Output is not saved." << std::endl;
 	}
 }
