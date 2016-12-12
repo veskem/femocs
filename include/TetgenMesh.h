@@ -29,7 +29,7 @@ public:
     const bool generate_simple();
 
     /** Function to generate mesh from surface, bulk and vacuum atoms */
-    const bool generate(const Bulk &bulk, const Surface &surf, const Vacuum &vacuum, const string& cmd);
+    const bool generate(const Media& bulk, const Media& surf, const Media& vacuum, const string& cmd);
 
     const bool generate_appendices();
 

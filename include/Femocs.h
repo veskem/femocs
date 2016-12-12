@@ -125,7 +125,7 @@ private:
     bool skip_calculations;
     AtomReader reader;
     Config conf;
-    Surface dense_surf;
+    Media dense_surf;
     Interpolator interpolator;
     Interpolator bulk_interpolator;
     Interpolator vacuum_interpolator;

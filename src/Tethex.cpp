@@ -901,7 +901,7 @@ void Mesh::smoothen(double radius, double smooth_factor, double r_cut) {
         hot_node[i] = get_point(i).get_material_id() == TYPES.SURFACE;
 
     // Turn atoms on boundary into surface
-    femocs::Surface surf( vector_sum(hot_node) );
+    femocs::Media surf( vector_sum(hot_node) );
     for(int i = 0; i < n_atoms; ++i)
         if(hot_node[i]) {
             Point p = get_vertex(i);

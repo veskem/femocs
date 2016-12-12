@@ -23,42 +23,40 @@ public:
     Edge();
 
     /** Extract the atoms near the simulation box sides */
-    const void extract(const Medium* atoms, const AtomReader::Sizes* sizes, const double eps);
-};
-
-
-/** Routines and data related to making a Vacuum */
-class Vacuum: public Medium {
-public:
-    /** Vacuum constructor */
-    Vacuum();
-
-    /** Generates Vacuum by adding four points to the top of simulation cell */
-    const void generate_simple(const AtomReader::Sizes* sizes);
+    const void extract(const Medium* atoms, const AtomReader::Sizes& ar_sizes, const double eps);
 };
 
 /** Routines and data related to making a Surface */
-class Surface: public Medium {
+class Media: public Medium {
 public:
-    /** Surface constructors */
-    Surface(const int n_atoms);
-    Surface();
+    /** Empty Media constructor */
+    Media();
 
-    const void generate_simple(const AtomReader::Sizes* sizes, const double z);
+    /** Initialise empty Media and reserve memory for atoms */
+    Media(const int n_atoms);
 
-    const void generate_middle(const AtomReader::Sizes* sizes, const double z, const double r_cut);
+    /** Generate simple Media with 4 atoms on simubox edges */
+    Media(const AtomReader::Sizes& ar_sizes, const double z);
 
-    /** Extract surface by the atom types */
-    const void extract(AtomReader* reader);
+    const void generate_simple(const AtomReader::Sizes& ar_sizes, const double z);
 
-    const Surface coarsen(Coarseners &coarseners, const AtomReader::Sizes* reader);
+    const void generate_middle(const AtomReader::Sizes& ar_sizes, const double z, const double r_cut);
+
+    /** Extract atom with desired types
+     * @param reader  AtomReader holding the atoms and their types
+     * @param type    type of the atoms that will be read
+     * @param invert  if true all the atoms except the 'type'-ones will be stored
+     */
+    const void extract(const AtomReader& reader, const int type, const bool invert=false);
+
+    const Media coarsen(Coarseners &coarseners, const AtomReader::Sizes& ar_sizes);
 
     /** Function to flatten the atoms on the sides of simulation box */
-    const Surface rectangularize(const AtomReader::Sizes* sizes, const double eps, const double latconst);
+    const Media rectangularize(const AtomReader::Sizes& ar_sizes, const double eps, const double latconst);
 
-    const Surface clean(Coarseners &coarseners);
+    const Media clean(Coarseners &coarseners);
 
-    const Surface clean_lonely_atoms(const double r_cut);
+    const Media clean_lonely_atoms(const double r_cut);
 
     const void smoothen(double radius, double smooth_factor, double r_cut);
 
@@ -68,19 +66,6 @@ private:
     inline double smooth_function(double distance, double smooth_factor) const;
 
     const void smoothen(double smooth_factor, double r_cut);
-};
-
-/** Routines and data related to making a Bulk */
-class Bulk: public Medium {
-public:
-    Bulk();
-
-    const void generate_simple(const AtomReader::Sizes* sizes);
-
-    /** Function to extract bulk material from input atomistic data */
-    const void extract(AtomReader* reader);
-
-    const void rectangularize(const AtomReader::Sizes* sizes, const double eps, const double latconst);
 };
 
 } /* namespace femocs */

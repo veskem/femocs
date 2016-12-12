@@ -11,162 +11,85 @@
 using namespace std;
 namespace femocs {
 
-// =================================================
-//             Implementation of Vacuum
-// =================================================
+Media::Media() : Medium() {}
 
-// Constructor of Vacuum class
-Vacuum::Vacuum() :
-        Medium() {
+Media::Media(const int n_atoms) : Medium(n_atoms) {}
+
+Media::Media(const AtomReader::Sizes& ar_sizes, const double z) {
+    generate_simple(ar_sizes, z);
 }
-
-// Generates Vacuum by adding four points to the top of simulation cell
-const void Vacuum::generate_simple(const AtomReader::Sizes* sizes) {
-    int M = 4; // total number of nodes
-    reserve(M);
-
-    // Add points to the xy-plane corners on current layer
-    add_atom( Atom(-1, Point3(sizes->xmax, sizes->ymax, sizes->zmaxbox), 0) );
-    add_atom( Atom(-1, Point3(sizes->xmax, sizes->ymin, sizes->zmaxbox), 0) );
-    add_atom( Atom(-1, Point3(sizes->xmin, sizes->ymax, sizes->zmaxbox), 0) );
-    add_atom( Atom(-1, Point3(sizes->xmin, sizes->ymin, sizes->zmaxbox), 0) );
-
-    init_statistics();
-    calc_statistics();
-}
-
-// =================================================
-//              Implementation of Bulk
-// =================================================
-
-// Constructor for Bulk
-Bulk::Bulk() : Medium() {};
-
-// Function to make bulk material with nodes on surface and on by-hand made bottom coordinates
-const void Bulk::generate_simple(const AtomReader::Sizes* sizes) {
-    int M = 4; // total number of nodes
-    reserve(M);
-
-    // Add atoms to the bottom corner edges of simulation cell
-    add_atom( Atom(-1, Point3(sizes->xmin, sizes->ymin, sizes->zminbox), TYPES.BULK) );
-    add_atom( Atom(-1, Point3(sizes->xmin, sizes->ymax, sizes->zminbox), TYPES.BULK) );
-    add_atom( Atom(-1, Point3(sizes->xmax, sizes->ymin, sizes->zminbox), TYPES.BULK) );
-    add_atom( Atom(-1, Point3(sizes->xmax, sizes->ymax, sizes->zminbox), TYPES.BULK) );
-
-    init_statistics();
-    calc_statistics();
-}
-
-// Function to extract bulk material from input atomistic data
-const void Bulk::extract(AtomReader* reader) {
-    const int N = reader->get_n_atoms();
-    vector<bool> is_bulk(N);
-
-    for (int i = 0; i < N; ++i)
-        is_bulk[i] = reader->get_type(i) != TYPES.VACANCY;
-
-    reserve(vector_sum(is_bulk));
-
-    for (int i = 0; i < N; ++i)
-        if (is_bulk[i])
-            add_atom(reader->get_atom(i));
-
-    calc_statistics();
-}
-
-// Function to extract bulk material from input atomistic data
-const void Bulk::rectangularize(const AtomReader::Sizes* sizes, const double eps, const double latconst) {
-    const double zmin_up = this->sizes.zmin + latconst / 2.1;
-    const double zmin_down = this->sizes.zmin;
-
-    for (int i = 0; i < get_n_atoms(); ++i) {
-        Point3 point = get_point(i);
-
-        // Flatten the atoms on bottom layer
-        if ( point.z <= zmin_up ) set_z(i, zmin_down);
-
-        // Flatten the atoms on the sides of simulation box
-        if ( on_boundary(point.x, sizes->xmin, eps) ) set_x(i, sizes->xmin);
-        else if ( on_boundary(point.y, sizes->ymin, eps) ) set_y(i, sizes->ymin);
-        else if ( on_boundary(point.x, sizes->xmax, eps) ) set_x(i, sizes->xmax);
-        else if ( on_boundary(point.y, sizes->ymax, eps) ) set_y(i, sizes->ymax);
-    }
-}
-
-// =================================================
-//            Implementation of Surface
-// =================================================
-
-// Constructors for Surface class
-Surface::Surface() : Medium() {}
-
-Surface::Surface(const int n_atoms) : Medium(n_atoms) {}
 
 // Generate Surface with 4 atoms at the corners and 4 at the middle edges of simulation cell
-const void Surface::generate_simple(const AtomReader::Sizes* sizes, const double z) {
+const void Media::generate_simple(const AtomReader::Sizes& ar_sizes, const double z) {
     // Reserve memory for atoms
     reserve(4);
 
     // Add 4 atoms to the corners of simulation cell
     // The insertion order determines the orientation of big surface triangles
-    add_atom( Point3(sizes->xmin, sizes->ymin, z) );
-    add_atom( Point3(sizes->xmax, sizes->ymin, z) );
-    add_atom( Point3(sizes->xmax, sizes->ymax, z) );
-    add_atom( Point3(sizes->xmin, sizes->ymax, z) );
+    add_atom( Point3(ar_sizes.xmin, ar_sizes.ymin, z) );
+    add_atom( Point3(ar_sizes.xmax, ar_sizes.ymin, z) );
+    add_atom( Point3(ar_sizes.xmax, ar_sizes.ymax, z) );
+    add_atom( Point3(ar_sizes.xmin, ar_sizes.ymax, z) );
+
+    calc_statistics();
 }
 
 // Generate edge with regular atom distribution between surface corners
-const void Surface::generate_middle(const AtomReader::Sizes* sizes, const double z, const double r_cut) {
-    const int n_atoms_per_side_x = sizes->xbox / r_cut + 1;
-    const int n_atoms_per_side_y = sizes->ybox / r_cut + 1;
+const void Media::generate_middle(const AtomReader::Sizes& ar_sizes, const double z, const double r_cut) {
+    const int n_atoms_per_side_x = ar_sizes.xbox / r_cut + 1;
+    const int n_atoms_per_side_y = ar_sizes.ybox / r_cut + 1;
 
     // Reserve memory for atoms
     reserve( 2 * (n_atoms_per_side_x + n_atoms_per_side_y) - 4 );
 
     // Add atoms in x-edge
     for (int i = 1; i < n_atoms_per_side_x; ++i) {
-        double y = sizes->xmin + i * sizes->xbox / n_atoms_per_side_x;
-        add_atom( Point3(sizes->xmin, y, z) );
-        add_atom( Point3(sizes->xmax, y, z) );
+        double y = ar_sizes.xmin + i * ar_sizes.xbox / n_atoms_per_side_x;
+        add_atom( Point3(ar_sizes.xmin, y, z) );
+        add_atom( Point3(ar_sizes.xmax, y, z) );
     }
 
     // Add atoms in y-edge
     for (int i = 1; i < n_atoms_per_side_y; ++i) {
-        double x = sizes->ymin + i * sizes->ybox / n_atoms_per_side_y;
-        add_atom( Point3(x, sizes->ymin, z) );
-        add_atom( Point3(x, sizes->ymax, z) );
+        double x = ar_sizes.ymin + i * ar_sizes.ybox / n_atoms_per_side_y;
+        add_atom( Point3(x, ar_sizes.ymin, z) );
+        add_atom( Point3(x, ar_sizes.ymax, z) );
     }
 }
 
 // Extract surface by the atom types
-const void Surface::extract(AtomReader* reader) {
-    const int n_atoms = reader->get_n_atoms();
-    vector<bool> is_surface(n_atoms);
+const void Media::extract(const AtomReader& reader, const int type, const bool invert) {
+    const int n_atoms = reader.get_n_atoms();
+    vector<bool> is_type(n_atoms);
 
-    // Get number and locations of surface atoms
+    // Get number and locations of atoms of desired type
+    if (!invert)
+        for (int i = 0; i < n_atoms; ++i)
+            is_type[i] = reader.get_type(i) == type;
+    else
+        for (int i = 0; i < n_atoms; ++i)
+            is_type[i] = reader.get_type(i) != type;
+
+    // Preallocate memory for atoms
+    reserve(vector_sum(is_type));
+
+    // Store the atoms
     for (int i = 0; i < n_atoms; ++i)
-        is_surface[i] = reader->get_type(i) == TYPES.SURFACE;
-
-    // Preallocate memory for Surface atoms
-    reserve(vector_sum(is_surface));
-
-    // Add surface atoms to Surface
-    for (int i = 0; i < n_atoms; ++i)
-        if (is_surface[i])
-            add_atom(reader->get_atom(i));
+        if (is_type[i])
+            add_atom(reader.get_atom(i));
 }
 
 // Function to coarsen the atoms with coarsener
-const Surface Surface::coarsen(Coarseners &coarseners, const AtomReader::Sizes* reader) {
+const Media Media::coarsen(Coarseners &coarseners, const AtomReader::Sizes& ar_sizes) {
     calc_statistics();
     Point2 origin2d(sizes.xmid, sizes.ymid);
 
-    Surface corners; corners.generate_simple(reader, coarseners.zmean);
-    Surface middle; middle.generate_middle(reader, coarseners.zmean, coarseners.r0_inf);
+    Media corners; corners.generate_simple(ar_sizes, coarseners.zmean);
+    Media middle; middle.generate_middle(ar_sizes, coarseners.zmean, coarseners.r0_inf);
     middle.sort_atoms(3, "down", origin2d);
     this->sort_atoms(3, 2, "down", origin2d);
 
-    Surface union_surf;
+    Media union_surf;
     union_surf += corners;
     union_surf += middle;
     union_surf.add(this);
@@ -175,14 +98,14 @@ const Surface Surface::coarsen(Coarseners &coarseners, const AtomReader::Sizes* 
 }
 
 // Function to flatten the atoms on the sides of simulation box
-const Surface Surface::rectangularize(const AtomReader::Sizes* sizes, const double eps, const double latconst) {
+const Media Media::rectangularize(const AtomReader::Sizes& ar_sizes, const double eps, const double latconst) {
     Coarseners coarseners;
     coarseners.attach_coarsener(make_shared<ConstCoarsener>(latconst / 3.0));
 
     Edge edge;
-    edge.extract(this, sizes, eps);
+    edge.extract(this, ar_sizes, eps);
 
-    Surface surf;
+    Media surf;
     surf += edge;
     surf.add(this);
 
@@ -190,7 +113,7 @@ const Surface Surface::rectangularize(const AtomReader::Sizes* sizes, const doub
 }
 
 // Clean the surface from atoms that are too close to each other
-const Surface Surface::clean(Coarseners &coarseners) {
+const Media Media::clean(Coarseners &coarseners) {
     const int n_atoms = get_n_atoms();
     vector<bool> do_delete(n_atoms, false);
 
@@ -209,7 +132,7 @@ const Surface Surface::clean(Coarseners &coarseners) {
         }
     }
 
-    Surface surf( n_atoms - vector_sum(do_delete) );
+    Media surf( n_atoms - vector_sum(do_delete) );
     for (int i = 0; i < n_atoms; ++i)
         if(!do_delete[i])
             surf.add_atom(get_atom(i));
@@ -221,7 +144,7 @@ const Surface Surface::clean(Coarseners &coarseners) {
 
 // Function to delete atoms that are separate from others
 // Atom is considered lonely if its coordination is lower than coord_min
-const Surface Surface::clean_lonely_atoms(const double r_cut) {
+const Media Media::clean_lonely_atoms(const double r_cut) {
     const double r_cut2 = r_cut * r_cut;
     const int n_atoms = get_n_atoms();
     const int coord_min = 2;
@@ -248,7 +171,7 @@ const Surface Surface::clean_lonely_atoms(const double r_cut) {
         }
     }
 
-    Surface surf( vector_sum(atom_not_lonely) );
+    Media surf( vector_sum(atom_not_lonely) );
     for (int i = 0; i < n_atoms; ++i)
         if (atom_not_lonely[i])
             surf.add_atom(get_atom(i));
@@ -257,19 +180,19 @@ const Surface Surface::clean_lonely_atoms(const double r_cut) {
     return surf;
 }
 
-inline double Surface::smooth_function(double distance, double smooth_factor) const {
+inline double Media::smooth_function(double distance, double smooth_factor) const {
     const double a = 1.0;
     return a * exp(-1.0 * distance / smooth_factor);
 }
 
-const void Surface::smoothen(double radius, double smooth_factor, double r_cut) {
+const void Media::smoothen(double radius, double smooth_factor, double r_cut) {
     // Calculate the horizontal span of the surface
     calc_statistics();
     Point2 origin2d(sizes.xmid, sizes.ymid);
     smoothen(origin2d, radius, smooth_factor, r_cut);
 }
 
-const void Surface::smoothen(const Point2 &origin, double radius, double smooth_factor, double r_cut) {
+const void Media::smoothen(const Point2 &origin, double radius, double smooth_factor, double r_cut) {
     if (smooth_factor < 0.01) return;
 
     const int n_atoms = get_n_atoms();
@@ -283,7 +206,7 @@ const void Surface::smoothen(const Point2 &origin, double radius, double smooth_
     const int n_smooth = accumulate(hot_atom.begin(), hot_atom.end(), 0);
 
     // Transfer the points in interesting region into new surface
-    Surface temp_surf(n_smooth);
+    Media temp_surf(n_smooth);
     for(int i = 0; i < n_atoms; ++i)
         if(hot_atom[i])
             temp_surf.add_atom(get_point(i));
@@ -298,7 +221,7 @@ const void Surface::smoothen(const Point2 &origin, double radius, double smooth_
             set_point(i, temp_surf.get_point(j++));
 }
 
-const void Surface::smoothen(double smooth_factor, double r_cut) {
+const void Media::smoothen(double smooth_factor, double r_cut) {
     const double r_cut2 = r_cut * r_cut;
     const int n_atoms = get_n_atoms();
 
@@ -340,7 +263,7 @@ const void Surface::smoothen(double smooth_factor, double r_cut) {
 Edge::Edge() : Medium() {};
 
 // Exctract the atoms near the simulation box sides
-const void Edge::extract(const Medium* atoms, const AtomReader::Sizes* sizes, const double eps) {
+const void Edge::extract(const Medium* atoms, const AtomReader::Sizes& ar_sizes, const double eps) {
     const int n_atoms = atoms->get_n_atoms();
 
     // Reserve memory for atoms
@@ -349,8 +272,8 @@ const void Edge::extract(const Medium* atoms, const AtomReader::Sizes* sizes, co
     // Get the atoms from edge areas
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point = atoms->get_point(i);
-        const bool near1 = on_boundary(point.x, sizes->xmin, sizes->xmax, eps);
-        const bool near2 = on_boundary(point.y, sizes->ymin, sizes->ymax, eps);
+        const bool near1 = on_boundary(point.x, ar_sizes.xmin, ar_sizes.xmax, eps);
+        const bool near2 = on_boundary(point.y, ar_sizes.ymin, ar_sizes.ymax, eps);
 
         if (near1 || near2)
             add_atom(atoms->get_atom(i));
@@ -359,10 +282,10 @@ const void Edge::extract(const Medium* atoms, const AtomReader::Sizes* sizes, co
     // Loop through all the added atoms and flatten the atoms on the sides of simulation box
     for (int i = 0; i < get_n_atoms(); ++i) {
         Point3 point = get_point(i);
-        if ( on_boundary(point.x, sizes->xmin, eps) ) set_x(i, sizes->xmin);
-        if ( on_boundary(point.x, sizes->xmax, eps) ) set_x(i, sizes->xmax);
-        if ( on_boundary(point.y, sizes->ymin, eps) ) set_y(i, sizes->ymin);
-        if ( on_boundary(point.y, sizes->ymax, eps) ) set_y(i, sizes->ymax);
+        if ( on_boundary(point.x, ar_sizes.xmin, eps) ) set_x(i, ar_sizes.xmin);
+        if ( on_boundary(point.x, ar_sizes.xmax, eps) ) set_x(i, ar_sizes.xmax);
+        if ( on_boundary(point.y, ar_sizes.ymin, eps) ) set_y(i, ar_sizes.ymin);
+        if ( on_boundary(point.y, ar_sizes.ymax, eps) ) set_y(i, ar_sizes.ymax);
     }
 }
 

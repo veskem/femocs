@@ -41,7 +41,7 @@ Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
         prev_ch_solver = NULL;
 #endif
 
-    // Create the output folder if file writing is enabled and it doesn't exist
+    // Create the output folder if it doesn't exist and file writing is enabled
     if (MODES.WRITEFILE) system("mkdir -p output");
 }
 
@@ -58,8 +58,6 @@ const int Femocs::run(double elfield, string message) {
     if(skip_calculations) return skip_calculations;
     skip_calculations = true;
     
-    reader.save_current_run_points(conf.distance_tol);
-    
     conf.neumann = elfield;
     conf.message = message;
     tstart = omp_get_wtime();
@@ -69,34 +67,35 @@ const int Femocs::run(double elfield, string message) {
     // ====================================
 
     start_msg(t0, "=== Extracting surface...");
-    dense_surf.extract(&reader);
+    dense_surf.extract(reader, TYPES.SURFACE);
+//    dense_surf = dense_surf.clean_lonely_atoms(conf.coord_cutoff);
     end_msg(t0);
+
     dense_surf.write("output/surface_dense.xyz");
 
     start_msg(t0, "=== Coarsening surface...");
     Coarseners coarseners;
-    Surface coarse_surf;
+    Media coarse_surf;
     coarseners.generate(dense_surf, conf.radius, conf.cfactor, conf.latconst);
-    coarse_surf = dense_surf.coarsen(coarseners, &reader.sizes);
+    coarse_surf = dense_surf.coarsen(coarseners, reader.sizes);
     end_msg(t0);
+
     coarseners.write("output/coarseners" + message + ".vtk");
     coarse_surf.write("output/surface_coarse.xyz");
 
     start_msg(t0, "=== Smoothing surface...");
     coarse_surf.smoothen(conf.radius, conf.smooth_factor, 3.0*conf.coord_cutoff);
     end_msg(t0);
+
     coarse_surf.write("output/surface_smooth.xyz");
 
     start_msg(t0, "=== Generating bulk and vacuum...");
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
-    reader.resize_box(coarse_surf.sizes.zmin - conf.zbox_below * conf.latconst,
-            coarse_surf.sizes.zmax + conf.zbox_above * coarse_surf.sizes.zbox);
-
-    Bulk bulk;
-    Vacuum vacuum;
-    bulk.generate_simple(&reader.sizes);
-    vacuum.generate_simple(&reader.sizes);
+    Media bulk(reader.sizes, coarse_surf.sizes.zmin - conf.zbox_below * conf.latconst);
+    Media vacuum(reader.sizes, coarse_surf.sizes.zmax + conf.zbox_above * coarse_surf.sizes.zbox);
+    reader.resize_box(bulk.sizes.zmin, vacuum.sizes.zmax);
     end_msg(t0);
+
     bulk.write("output/bulk.xyz");
     vacuum.write("output/vacuum.xyz");
 
@@ -110,20 +109,18 @@ const int Femocs::run(double elfield, string message) {
     success = tetmesh_big.generate(bulk, coarse_surf, vacuum, "rnQq" + conf.mesh_quality);
     check_message(!success, "Triangulation failed! Field calculation will be skipped!");
     end_msg(t0);
-    tetmesh_big.nodes.write("output/nodes_generated.xyz");
-    tetmesh_big.faces.write("output/faces_generated.vtk");
-    tetmesh_big.elems.write("output/elems_generated.vtk");
 
     start_msg(t0, "=== Making surface faces...");
     tetmesh_big.generate_appendices();
     end_msg(t0);
-    tetmesh_big.faces.write("output/faces_appended.vtk");
+
+    tetmesh_big.faces.write("output/surface_faces.vtk");
 
     start_msg(t0, "=== Marking tetrahedral mesh...");
     success = tetmesh_big.mark_mesh(conf.postprocess_marking);
-    tetmesh_big.nodes.write("output/nodes_marked.xyz");
-    tetmesh_big.faces.write("output/faces_marked.vtk");
-    tetmesh_big.elems.write("output/elems_marked.vtk");
+    tetmesh_big.nodes.write("output/tetmesh_marked_nodes.xyz");
+    tetmesh_big.faces.write("output/tetmesh_marked_faces.vtk");
+    tetmesh_big.elems.write("output/tetmesh_marked_elems.vtk");
     check_message(!success, "Mesh marking failed! Field calcualtion will be skipped!");
     end_msg(t0);
 
@@ -143,22 +140,20 @@ const int Femocs::run(double elfield, string message) {
     hexmesh_big.export_vertices(tetmesh_big);  // correcting the nodes in tetrahedral mesh
     tetmesh_big.separate_meshes(tetmesh_bulk, tetmesh_vacuum, "rnQ");
     end_msg(t0);
+
     if (MODES.VERBOSE)
         cout << "Bulk:   " << tetmesh_bulk << "\nVacuum: " << tetmesh_vacuum << endl;
-    tetmesh_bulk.nodes.write  ("output/nodes_bulk.xyz");
-    tetmesh_bulk.faces.write  ("output/faces_bulk.vtk");
-    tetmesh_bulk.elems.write  ("output/elems_bulk.vtk");
-    tetmesh_vacuum.nodes.write("output/nodes_vacuum.xyz");
-    tetmesh_vacuum.faces.write("output/faces_vacuum.vtk");
-    tetmesh_vacuum.elems.write("output/elems_vacuum.vtk");
+    tetmesh_bulk.elems.write  ("output/tetmesh_bulk.vtk");
+    tetmesh_vacuum.elems.write("output/tetmesh_vacuum.vtk");
 
     start_msg(t0, "=== Separating hexahedral meshes...");
     tethex::Mesh hexmesh_bulk;
     tethex::Mesh hexmesh_vacuum;
     hexmesh_big.separate_meshes(hexmesh_bulk, hexmesh_vacuum);
     end_msg(t0);
-    hexmesh_bulk.write_vtk_elems  ("output/bulk_smooth" + message + ".vtk");
-    hexmesh_vacuum.write_vtk_elems("output/vacuum_smooth" + message + ".vtk");
+
+    hexmesh_bulk.write_vtk_elems  ("output/hexmesh_bulk" + message + ".vtk");
+    hexmesh_vacuum.write_vtk_elems("output/hexmesh_vacuum" + message + ".vtk");
 
     // ==============================
     // ===== Running FEM solver =====
@@ -176,7 +171,7 @@ const int Femocs::run(double elfield, string message) {
         start_msg(t0, "=== Refining mesh in Deal.II...");
         Point3 origin(coarse_surf.sizes.xmid, coarse_surf.sizes.ymid, coarse_surf.sizes.zmax);
         laplace.refine_mesh(origin, 7*conf.latconst);
-        laplace.write_mesh("output/elems_dealii.vtk");
+        laplace.write_mesh("output/hexmesh_refine.vtk");
         end_msg(t0);
     }
 
@@ -217,12 +212,14 @@ const int Femocs::run(double elfield, string message) {
     laplace_solver.setup_system();
     laplace_solver.assemble_system();
     end_msg(t0);
+
     if (MODES.VERBOSE) cout << laplace_solver << endl;
         
     start_msg(t0, "=== Running Laplace solver...");
     laplace_solver.solve();
     end_msg(t0);
-    if (MODES.WRITEFILE) laplace_solver.output_results("output/result_E_phi.vtk");
+
+    if (MODES.WRITEFILE) laplace_solver.output_results("output/result_E_phi" + message + ".vtk");
     
     start_msg(t0, "=== Initializing rho & T solver...");
     ch_solver->reinitialize(&laplace_solver, prev_ch_solver);
@@ -230,23 +227,28 @@ const int Femocs::run(double elfield, string message) {
     
     start_msg(t0, "=== Importing mesh to rho & T solver...");
     ch_solver->import_mesh_directly(hexmesh_bulk.get_nodes(), hexmesh_bulk.get_elems());
+    ch_solver->setup_system();
     end_msg(t0);
+
     if (MODES.VERBOSE) cout << *(ch_solver) << endl;
     
     start_msg(t0, "=== Running rho & T solver...\n");
     double temp_error = ch_solver->run_specific(conf.t_error, conf.n_newton, false, "", MODES.VERBOSE, 2.0);
     end_msg(t0);
-    if (MODES.WRITEFILE) ch_solver->output_results(0, "output/result_rho_T" + message);
+
+    if (MODES.WRITEFILE) ch_solver->output_results("output/result_rho_T" + message + ".vtk");
     expect(temp_error <= conf.t_error, "Newton iterations ended before convergence: " + to_string(temp_error));
        
     start_msg(t0, "=== Extracting vacuum solution...");
     vacuum_interpolator.extract_solution(&laplace_solver, tetmesh_vacuum);
     end_msg(t0);
+
     vacuum_interpolator.write("output/result_E_phi.xyz");
     
     start_msg(t0, "=== Extracting bulk solution...");
     bulk_interpolator.extract_solution(ch_solver, tetmesh_bulk);
     end_msg(t0);
+
     bulk_interpolator.write("output/result_rho_T.xyz");
     
     start_msg(t0, "=== Interpolating E and phi...");
@@ -422,7 +424,7 @@ const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double
     
     SolutionReader sr(&interpolator);
     sr.export_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
-    sr.write("output/elfield_on_points.xyz");
+    sr.write("output/interpolation_E.xyz");
     return skip_calculations;
 }
 
@@ -430,7 +432,7 @@ const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double
 const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
     SolutionReader sr(&interpolator);
     sr.export_potential(n_points, x, y, z, phi, flag);
-    sr.write("output/phi_on_points.xyz");
+    sr.write("output/interpolation_phi.xyz");
     return skip_calculations;
 }
 

@@ -23,16 +23,16 @@ AtomReader::AtomReader() : Medium() {}
 const void AtomReader::reserve(const int n_atoms) {
     require(n_atoms > 0, "Invalid # atoms: " + to_string(n_atoms));
     atoms.clear();
-    type.clear();
+    types.clear();
 
-    Medium::reserve(n_atoms);
-    type.reserve(n_atoms);
+    atoms.reserve(n_atoms);
+    types.reserve(n_atoms);
 }
 
 // Add atom with its coordinates and type
 const void AtomReader::add_atom(const int id, const Point3 &point, const int type) {
     Medium::add_atom( Atom(id, point, 0) );
-    this->type.push_back(type);
+    this->types.push_back(type);
 }
 
 const bool AtomReader::equals_previous_run(const double eps) {
@@ -85,7 +85,7 @@ const void AtomReader::check_coordination() {
     const int coord_min = 0;
     for (Atom a : atoms)
         if ((a.coord < coord_max) && (a.coord >= coord_min))
-            expect(false, "WARNING: evaporated atom detected!");
+            expect(false, "Evaporated atom detected!");
 }
 
 // Calculate coordination for all the atoms
@@ -120,19 +120,19 @@ const void AtomReader::calc_coordination(const int nnn, const double cutoff, con
     check_coordination();
 }
 
-// Calculate coordination for all the atoms without neighborlist
+// Calculate coordination for all the atoms using brute force technique
 const void AtomReader::calc_coordination(const double cutoff) {
     require(cutoff > 0, "Invalid cutoff: " + to_string(cutoff));
-
     expect(false, "Running slow coordination calculation!");
-
+    
     const int n_atoms = get_n_atoms();
     const double cutoff2 = cutoff * cutoff;
-
     vector<int> coordinations(n_atoms, 0);
 
+    // Loop through all the atoms
     for (int i = 0; i < n_atoms - 1; ++i) {
         Point3 point1 = get_point(i);
+        // Loop through all the possible neighbours of the atom
         for (int j = i + 1; j < n_atoms; ++j) {
             double r2 = point1.periodic_distance2(get_point(j), sizes.xbox, sizes.ybox);
             if (r2 <= cutoff2) {
@@ -144,7 +144,6 @@ const void AtomReader::calc_coordination(const double cutoff) {
 
     for (int i = 0; i < n_atoms; ++i)
         set_coordination(i, coordinations[i]);
-
     check_coordination();
 }
 
@@ -154,9 +153,9 @@ const void AtomReader::calc_coordination(const int nnn) {
     const int n_atoms = get_n_atoms();
 
     for (int i = 0; i < n_atoms; ++i) {
-        if (type[i] == TYPES.BULK)
+        if (types[i] == TYPES.BULK)
             set_coordination(i, nnn);
-        else if (type[i] == TYPES.SURFACE)
+        else if (types[i] == TYPES.SURFACE)
             set_coordination(i, (int) nnn / 2);
         else
             set_coordination(i, 0);
@@ -172,11 +171,11 @@ const void AtomReader::extract_types(const int nnn, const double latconst) {
 
     for (int i = 0; i < n_atoms; ++i) {
         if( get_coordination(i) >= (nnn - 1) )
-            type[i] = TYPES.BULK;
+            types[i] = TYPES.BULK;
         else if(get_point(i).z < (sizes.zmin + latconst))
-            type[i] = TYPES.FIXED;
+            types[i] = TYPES.FIXED;
         else
-            type[i] = TYPES.SURFACE;
+            types[i] = TYPES.SURFACE;
     }
 }
 
@@ -191,9 +190,9 @@ const void AtomReader::resize_box(const double zmin, const double zmax) {
 // =================================
 // *** GETTERS: ***************
 
-const int AtomReader::get_type(const int i) {
+const int AtomReader::get_type(const int i) const {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    return type[i];
+    return types[i];
 }
 
 // Compile data string from the data vectors
