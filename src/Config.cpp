@@ -18,11 +18,11 @@ Config::Config() {
 //    infile = "input/rough111.ckx";
 //    infile = "input/mushroom2.ckx";
 //    infile = "input/tower_hl2p5.ckx";
-    infile = "input/nanotip_hr5.ckx";
-    latconst = 2.0;
+//    infile = "input/nanotip_hr5.ckx";
+//    latconst = 2.0;
 
-    // conf.infile = home + "input/nanotip_medium.xyz";
-    // conf.latconst = 3.61;
+    infile = "input/nanotip_medium.xyz";
+    latconst = 3.61;
 
     coord_cutoff = 3.1;          // coordination analysis cut-off radius
     nnn = 12;                    // number of nearest neighbours in bulk

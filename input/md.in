@@ -1,7 +1,9 @@
 
-infile = input/nanotip_hr5.ckx  # default file used with atom coordinates
-latconst = 2.0                  # lattice constant
-coord_cutoff = 3.1              # coordination analysis cut-off radius
+#infile = input/nanotip_hr5.ckx  # default file used with atom coordinates
+#latconst = 2.0                  # lattice constant
+infile = input/nanotip_medium.xyz  # default file used with atom coordinates
+latconst = 3.61                 # lattice constant
+coord_cutoff = 3.2              # coordination analysis cut-off radius
 mesh_quality = 2.0              # minimum mesh quality Tetgen is allowed to make
 radius = 12.0                   # inner radius of coarsening cylinder
 coarse_factor = 0.3 1.0 0.5     # coarsening factor; bigger number gives coarser surface

@@ -64,7 +64,7 @@ public:
     
     /** Calculate the root mean average distance the atoms have moved 
      * between previous and current run */
-    const double diff_from_prev_run(const double eps);
+    const double get_rms_distance(const double eps);
     
     /** Store the atom coordinates from current run */
     const void save_current_run_points(const double eps);

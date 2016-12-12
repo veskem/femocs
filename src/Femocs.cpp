@@ -57,7 +57,7 @@ const int Femocs::run(double elfield, string message) {
 
     if(skip_calculations) return skip_calculations;
     skip_calculations = true;
-    
+
     conf.neumann = elfield;
     conf.message = message;
     tstart = omp_get_wtime();
@@ -198,7 +198,7 @@ const int Femocs::run(double elfield, string message) {
     end_msg(t0);
 //    interpolator.write("output/result_E_phi.xyz");
     
- #if HEATINGMODE
+#if HEATINGMODE
     // ====================================
     // ===== Running FEM multi-solver =====
     // ====================================
@@ -237,7 +237,7 @@ const int Femocs::run(double elfield, string message) {
     end_msg(t0);
 
     if (MODES.WRITEFILE) ch_solver->output_results("output/result_rho_T" + message + ".vtk");
-    expect(temp_error <= conf.t_error, "Newton iterations ended before convergence: " + to_string(temp_error));
+    check_message(temp_error > conf.t_error, "Temperature didn't converge, err=" + to_string(temp_error)) + "! Using previous solution!";
        
     start_msg(t0, "=== Extracting vacuum solution...");
     vacuum_interpolator.extract_solution(&laplace_solver, tetmesh_vacuum);
@@ -260,14 +260,14 @@ const int Femocs::run(double elfield, string message) {
     bulk_interpolation.interpolate(reader);
     end_msg(t0);
 
-//    start_msg(t0, "=== Cleaning E and phi...");
-//    vacuum_interpolation.clean(0, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-//    vacuum_interpolation.clean(1, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-//    vacuum_interpolation.clean(2, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-//    vacuum_interpolation.clean(3, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-//    vacuum_interpolation.clean(4, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-//    end_msg(t0);
-//    
+    start_msg(t0, "=== Cleaning E and phi...");
+    vacuum_interpolation.clean(0, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+    vacuum_interpolation.clean(1, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+    vacuum_interpolation.clean(2, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+    vacuum_interpolation.clean(3, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+    vacuum_interpolation.clean(4, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+    end_msg(t0);
+
 //    start_msg(t0, "=== Cleaning T and rho...");
 //    bulk_interpolation.clean(0, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
 //    bulk_interpolation.clean(1, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
@@ -317,7 +317,7 @@ const int Femocs::import_atoms(const string& file_name) {
     if (MODES.VERBOSE) cout << "#input atoms: " << reader.get_n_atoms() << endl;
 
     start_msg(t0, "=== Comparing with previous run...");
-    double diff = reader.diff_from_prev_run(conf.distance_tol);
+    double diff = reader.get_rms_distance(conf.distance_tol);
     skip_calculations = diff < conf.distance_tol;
 //    skip_calculations = reader.equals_previous_run(conf.distance_tol);
     end_msg(t0);
@@ -349,7 +349,7 @@ const int Femocs::import_atoms(int n_atoms, double* coordinates, double* box, in
     if (MODES.VERBOSE) cout << "#input atoms: " << reader.get_n_atoms() << endl;
 
     start_msg(t0, "=== Comparing with previous run...");
-    double diff = reader.diff_from_prev_run(conf.distance_tol);
+    double diff = reader.get_rms_distance(conf.distance_tol);
     skip_calculations = diff < conf.distance_tol;
 //    skip_calculations = reader.equals_previous_run(conf.distance_tol);
     end_msg(t0);
@@ -375,7 +375,7 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
     if (MODES.VERBOSE) cout << "#input atoms: " << reader.get_n_atoms() << endl;
 
     start_msg(t0, "=== Comparing with previous run...");
-    double diff = reader.diff_from_prev_run(conf.distance_tol);
+    double diff = reader.get_rms_distance(conf.distance_tol);
     skip_calculations = diff < conf.distance_tol;
 //    skip_calculations = reader.equals_previous_run(conf.distance_tol);
     end_msg(t0);

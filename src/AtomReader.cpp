@@ -51,21 +51,19 @@ const bool AtomReader::equals_previous_run(const double eps) {
      return true;
 }
 
-const double AtomReader::diff_from_prev_run(const double eps) {
-    if (eps < 1e-5)
-        return DBL_MAX;
+// Calculate root mean square of the distances atoms have moved after previous run
+const double AtomReader::get_rms_distance(const double eps) {
+    if (eps < 1e-5) return DBL_MAX;
 
     const int n_atoms = get_n_atoms();
     if (n_atoms != previous_point.size())
         return DBL_MAX;
     
-    const double power = 1.0;
     double sum = 0;
     for (int i = 0; i < n_atoms; ++i)
-        sum += pow(get_point(i).distance2(previous_point[i]), power);
-    sum *= 1.0/n_atoms;
+        sum += get_point(i).distance2(previous_point[i]);
     
-    return pow(sum, 1.0/(2*power));
+    return sqrt(sum / n_atoms);
 }
 
 const void AtomReader::save_current_run_points(const double eps) {
@@ -167,12 +165,13 @@ const void AtomReader::calc_coordination(const int nnn) {
 // Extract atom types from calculated coordinations
 const void AtomReader::extract_types(const int nnn, const double latconst) {
     const int n_atoms = get_n_atoms();
+    const int nnn_eps = 1;
     calc_statistics();
 
     for (int i = 0; i < n_atoms; ++i) {
-        if( get_coordination(i) >= (nnn - 1) )
+        if ( (nnn - get_coordination(i)) <= nnn_eps )
             types[i] = TYPES.BULK;
-        else if(get_point(i).z < (sizes.zmin + latconst))
+        else if (get_point(i).z < (sizes.zmin + latconst))
             types[i] = TYPES.FIXED;
         else
             types[i] = TYPES.SURFACE;
