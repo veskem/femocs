@@ -58,11 +58,16 @@ const bool Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Medi
     end_msg(t0);
     dense_surf.write("output/surface_dense.xyz");
 
+    Media stretch_surf;
+    stretch_surf = dense_surf.stretch(conf.radius, conf.cfactor);
+    stretch_surf.write("output/surface_stretch.xyz");
+
     Coarseners coarseners;
     coarseners.generate(dense_surf, conf.radius, conf.cfactor, conf.latconst);
     coarseners.write("output/coarseners.vtk");
-        
+    
     start_msg(t0, "=== Coarsening surface...");
+//    coarse_surf = stretch_surf.coarsen(coarseners, stretch_surf.sizes);
     coarse_surf = dense_surf.coarsen(coarseners, reader.sizes);
     end_msg(t0);
     coarse_surf.write("output/surface_nosmooth.xyz");

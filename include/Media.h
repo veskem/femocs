@@ -49,8 +49,10 @@ public:
      */
     const void extract(const AtomReader& reader, const int type, const bool invert=false);
 
-    const Media coarsen(Coarseners &coarseners, const AtomReader::Sizes& ar_sizes);
+    const Media coarsen(Coarseners &coarseners, const Medium::Sizes& ar_sizes);
 
+    const Media stretch(const double radius, const Config::CoarseFactor &cf);
+    
     /** Function to flatten the atoms on the sides of simulation box */
     const Media rectangularize(const AtomReader::Sizes& ar_sizes, const double eps, const double latconst);
 

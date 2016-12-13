@@ -81,8 +81,61 @@ const void Media::extract(const AtomReader& reader, const int type, const bool i
     calc_statistics();        
 }
 
+// Function to stretch the flat area
+const Media Media::stretch(const double radius, const Config::CoarseFactor &cf) {
+    const int n_atoms = get_n_atoms();
+    const double radius2 = radius * radius;
+
+    calc_statistics();
+    Point2 origin2d(sizes.xmid, sizes.ymid);
+
+    Media stretched(n_atoms);
+    Media flat(n_atoms);
+    for (int i = 0; i < n_atoms; ++i) {
+        if (origin2d.distance2(get_point2(i)) <= radius2)
+            stretched.add_atom(get_point(i));
+        else
+            flat.add_atom(get_point(i));
+    }
+
+    flat.calc_statistics();
+    Vec3 r0(sizes.xmid, sizes.ymid, flat.sizes.zmean);
+
+    const double box_xy = 200.0;
+    const double xmin = r0.x - box_xy;
+    const double xmax = r0.x + box_xy;
+    const double ymin = r0.y - box_xy;
+    const double ymax = r0.y + box_xy;
+
+    for (int i = 0; i < flat.get_n_atoms(); ++i) {
+        Point3 point = flat.get_point(i);
+        Vec3 r(point.x, point.y, point.z);
+        Vec3 dr = r - r0;
+        double distance = dr.norm() - radius;
+//        const double w = cf.amplitude*sqrt(distance - radius);
+        double w = cf.amplitude*pow(distance, 1.0);
+
+//        dr = dr.normalize();
+        dr *= w;
+        point += Point3(dr.x, dr.y, dr.z);
+
+//        double sign_x = 1.0;
+//        if (dr.x < 0) sign_x = -1.0;
+//        double sign_y = 1.0;
+//        if (dr.y < 0) sign_y = -1.0;
+//        point += Point3(w*sign_x, w*sign_y, 0);
+
+        if (point.x >= xmin && point.x <= xmax && point.y >= ymin && point.y <= ymax)
+            stretched.add_atom(point);
+    }
+
+    stretched.calc_statistics();
+
+    return stretched;
+}
+
 // Function to coarsen the atoms with coarsener
-const Media Media::coarsen(Coarseners &coarseners, const AtomReader::Sizes& ar_sizes) {
+const Media Media::coarsen(Coarseners &coarseners, const Medium::Sizes& ar_sizes) {
     calc_statistics();
     Point2 origin2d(sizes.xmid, sizes.ymid);
 

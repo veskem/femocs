@@ -208,7 +208,7 @@ private:
 class Coarseners {
 public:
     /** Coarseners constructor */
-    Coarseners() : r0_inf(0), zmean(0) {}
+    Coarseners() : r0_inf(0), zmean(0), radius(0) {}
 
     /** Append coarsener to the array of all the coarseners */
     void attach_coarsener(shared_ptr<Coarsener> c) {
@@ -238,7 +238,8 @@ public:
 
     double r0_inf;
     double zmean;
-
+    double radius;
+    
 private:
     vector<shared_ptr<Coarsener>> coarseners;
 };

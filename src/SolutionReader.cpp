@@ -113,6 +113,7 @@ const Solution SolutionReader::get_average_solution(const int I, const double sm
     Point3 point1 = get_point(I);
     double w_sum = 0.0;
 
+    // E_I = sum i!=I [E_i * a*exp( -b*distance(i,I) )] / sum i!=I [a*exp( -b*distance(i,I) )]
     for (int i = 0; i < get_n_atoms(); ++i)
         if (i != I) {
             double dist2 = point1.distance2(get_point(i));

@@ -173,6 +173,8 @@ vector<Point3> NanotipCoarsener::get_points() {
 
 // Generate coarseners for one nanotip system
 void Coarseners::generate(Medium &medium, const double radius, const Config::CoarseFactor &cf, const double latconst) {
+    this->radius = radius;
+    
     medium.calc_statistics(); // calculate the span of atoms in medium
 
     Point2 origin2d(medium.sizes.xmid, medium.sizes.ymid);

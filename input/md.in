@@ -11,8 +11,8 @@ coarse_factor = 0.4 1.0 0.5     # coarsening factor; bigger number gives coarser
                                 # 2nd - minimum distance between atoms in nanotip below apex [latconst]
                                 # 3rd - minimum distance between atoms in nanotip apex [latconst]
 
-smooth_factor = 0.4             # surface smoothing factor; bigger number gives smoother surface
-n_bins = 20                     # number of bins in histogram smoother
+smooth_factor = 0.5             # surface smoothing factor; bigger number gives smoother surface
+n_bins = 200                     # number of bins in histogram smoother
 postprocess_marking = false     # make extra effort to mark correctly the vacuum nodes in shadow area
 refine_apex = false             # refine nanotip apex
 distance_tol = 1.0              # minimum distance between atoms from previous and current run to recalculate solution

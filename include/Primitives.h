@@ -381,7 +381,7 @@ public:
     Vec3 normalize() {
         double n = norm();
         if (n > 0) {
-            double factor = 1 / sqrt(n);
+            double factor = 1 / n;
             x *= factor, y *= factor, z *= factor;
         }
         return *this;
