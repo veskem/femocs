@@ -77,6 +77,8 @@ const void Media::extract(const AtomReader& reader, const int type, const bool i
     for (int i = 0; i < n_atoms; ++i)
         if (is_type[i])
             add_atom(reader.get_atom(i));
+            
+    calc_statistics();        
 }
 
 // Function to coarsen the atoms with coarsener

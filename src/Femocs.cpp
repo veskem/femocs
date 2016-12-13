@@ -50,59 +50,51 @@ Femocs::~Femocs() {
     start_msg(double t0, "======= Femocs finished! =======\n");
 }
 
-// workhorse function to generate FEM mesh and to solve differential equation(s)
-const int Femocs::run(double elfield, string message) {
-    double t0, tstart;  // Variables used to measure the code execution time
-    bool success;
-
-    if(skip_calculations) return skip_calculations;
-    skip_calculations = true;
-
-    conf.neumann = elfield;
-    conf.message = message;
-    tstart = omp_get_wtime();
-
-    // ====================================
-    // ===== Processing imported data =====
-    // ====================================
-
+const bool Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum) {
+    double t0;
     start_msg(t0, "=== Extracting surface...");
     dense_surf.extract(reader, TYPES.SURFACE);
 //    dense_surf = dense_surf.clean_lonely_atoms(conf.coord_cutoff);
     end_msg(t0);
-
     dense_surf.write("output/surface_dense.xyz");
 
-    start_msg(t0, "=== Coarsening surface...");
     Coarseners coarseners;
-    Media coarse_surf;
     coarseners.generate(dense_surf, conf.radius, conf.cfactor, conf.latconst);
+    coarseners.write("output/coarseners.vtk");
+        
+    start_msg(t0, "=== Coarsening surface...");
     coarse_surf = dense_surf.coarsen(coarseners, reader.sizes);
     end_msg(t0);
-
-    coarseners.write("output/coarseners" + message + ".vtk");
-    coarse_surf.write("output/surface_coarse.xyz");
+    coarse_surf.write("output/surface_nosmooth.xyz");
 
     start_msg(t0, "=== Smoothing surface...");
     coarse_surf.smoothen(conf.radius, conf.smooth_factor, 3.0*conf.coord_cutoff);
     end_msg(t0);
-
-    coarse_surf.write("output/surface_smooth.xyz");
+    coarse_surf.write("output/surface_coarse.xyz");
 
     start_msg(t0, "=== Generating bulk and vacuum...");
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
-    Media bulk(reader.sizes, coarse_surf.sizes.zmin - conf.zbox_below * conf.latconst);
-    Media vacuum(reader.sizes, coarse_surf.sizes.zmax + conf.zbox_above * coarse_surf.sizes.zbox);
+    bulk.generate_simple(reader.sizes, coarse_surf.sizes.zmin - conf.zbox_below * conf.latconst);
+    vacuum.generate_simple(reader.sizes, coarse_surf.sizes.zmax + conf.zbox_above * coarse_surf.sizes.zbox);
     reader.resize_box(bulk.sizes.zmin, vacuum.sizes.zmax);
     end_msg(t0);
-
+    
     bulk.write("output/bulk.xyz");
     vacuum.write("output/vacuum.xyz");
+    
+    return true;
+}
 
-    // ===========================
-    // ===== Making FEM mesh =====
-    // ===========================
+const bool Femocs::generate_meshes(TetgenMesh& tetmesh_bulk, TetgenMesh& tetmesh_vacuum, 
+    tethex::Mesh& hexmesh_bulk, tethex::Mesh& hexmesh_vacuum) {
 
+    double t0;
+    bool success;
+    
+    Media bulk, coarse_surf, vacuum;
+    success = generate_boundary_nodes(bulk, coarse_surf, vacuum);
+    if(!success) return success;
+    
     start_msg(t0, "=== Making big mesh...");
     TetgenMesh tetmesh_big;
     // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
@@ -118,9 +110,8 @@ const int Femocs::run(double elfield, string message) {
 
     start_msg(t0, "=== Marking tetrahedral mesh...");
     success = tetmesh_big.mark_mesh(conf.postprocess_marking);
-    tetmesh_big.nodes.write("output/tetmesh_marked_nodes.xyz");
-    tetmesh_big.faces.write("output/tetmesh_marked_faces.vtk");
-    tetmesh_big.elems.write("output/tetmesh_marked_elems.vtk");
+    tetmesh_big.nodes.write("output/tetmesh_nodes.xyz");
+    tetmesh_big.elems.write("output/tetmesh_elems.vtk");
     check_message(!success, "Mesh marking failed! Field calcualtion will be skipped!");
     end_msg(t0);
 
@@ -132,33 +123,27 @@ const int Femocs::run(double elfield, string message) {
 
     start_msg(t0, "=== Smoothing hexahedra...");
     hexmesh_big.smoothen(conf.radius, conf.smooth_factor, 3.0*conf.coord_cutoff);
+    hexmesh_big.export_vertices(tetmesh_big);  // correcting the nodes in tetrahedral mesh
     end_msg(t0);
 
     start_msg(t0, "=== Separating tetrahedral meshes...");
-    TetgenMesh tetmesh_vacuum;
-    TetgenMesh tetmesh_bulk;
-    hexmesh_big.export_vertices(tetmesh_big);  // correcting the nodes in tetrahedral mesh
     tetmesh_big.separate_meshes(tetmesh_bulk, tetmesh_vacuum, "rnQ");
     end_msg(t0);
 
     if (MODES.VERBOSE)
         cout << "Bulk:   " << tetmesh_bulk << "\nVacuum: " << tetmesh_vacuum << endl;
-    tetmesh_bulk.elems.write  ("output/tetmesh_bulk.vtk");
-    tetmesh_vacuum.elems.write("output/tetmesh_vacuum.vtk");
 
     start_msg(t0, "=== Separating hexahedral meshes...");
-    tethex::Mesh hexmesh_bulk;
-    tethex::Mesh hexmesh_vacuum;
     hexmesh_big.separate_meshes(hexmesh_bulk, hexmesh_vacuum);
     end_msg(t0);
+    
+    return success;
+}
 
-    hexmesh_bulk.write_vtk_elems  ("output/hexmesh_bulk" + message + ".vtk");
-    hexmesh_vacuum.write_vtk_elems("output/hexmesh_vacuum" + message + ".vtk");
-
-    // ==============================
-    // ===== Running FEM solver =====
-    // ==============================
-
+const bool Femocs::solve_laplace(TetgenMesh& tetmesh_vacuum, tethex::Mesh& hexmesh_vacuum) {
+    double t0;
+    bool success;
+    
     DealII laplace;
     laplace.set_neumann(conf.neumann);
 
@@ -169,7 +154,7 @@ const int Femocs::run(double elfield, string message) {
 
     if (conf.refine_apex) {
         start_msg(t0, "=== Refining mesh in Deal.II...");
-        Point3 origin(coarse_surf.sizes.xmid, coarse_surf.sizes.ymid, coarse_surf.sizes.zmax);
+        Point3 origin(dense_surf.sizes.xmid, dense_surf.sizes.ymid, dense_surf.sizes.zmax);
         laplace.refine_mesh(origin, 7*conf.latconst);
         laplace.write_mesh("output/hexmesh_refine.vtk");
         end_msg(t0);
@@ -189,14 +174,47 @@ const int Femocs::run(double elfield, string message) {
     end_msg(t0);
 //    laplace.write("output/result_E_phi.vtk");
 
-    // =======================================================
-    // ===== Extracting and post-processing FEM solution =====
-    // =======================================================
-
     start_msg(t0, "=== Extracting solution...");
     interpolator.extract_solution(laplace, tetmesh_vacuum);
     end_msg(t0);
 //    interpolator.write("output/result_E_phi.xyz");
+
+    return success;
+}
+
+// workhorse function to generate FEM mesh and to solve differential equation(s)
+const int Femocs::run(double elfield, string message) {
+    double t0, tstart;  // Variables used to measure the code execution time
+    bool success;
+
+    if(skip_calculations) return skip_calculations;
+    skip_calculations = true;
+
+    conf.neumann = elfield;
+    conf.message = message;
+    tstart = omp_get_wtime();
+
+    // ===========================
+    // ===== Making FEM mesh =====
+    // ===========================
+
+    TetgenMesh tetmesh_bulk, tetmesh_vacuum;
+    tethex::Mesh hexmesh_bulk, hexmesh_vacuum;
+    
+    success = generate_meshes(tetmesh_bulk, tetmesh_vacuum, hexmesh_bulk, hexmesh_vacuum);
+    if(!success) return success;
+        
+    tetmesh_bulk.elems.write  ("output/tetmesh_bulk.vtk");
+    tetmesh_vacuum.elems.write("output/tetmesh_vacuum.vtk");
+    hexmesh_bulk.write_vtk_elems  ("output/hexmesh_bulk" + message + ".vtk");
+    hexmesh_vacuum.write_vtk_elems("output/hexmesh_vacuum" + message + ".vtk");
+
+    // ==============================
+    // ===== Running FEM solver =====
+    // ==============================
+
+    solve_laplace(tetmesh_vacuum, hexmesh_vacuum);
+    if(!success) return success;
     
 #if HEATINGMODE
     // ====================================
