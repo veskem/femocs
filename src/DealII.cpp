@@ -144,7 +144,7 @@ const void DealII::refine_mesh(const Point3 &origin, const double r_cut) {
 }
 
 // Mark the boundary faces of mesh
-const void DealII::mark_boundary_faces(const AtomReader::Sizes& sizes) {
+const void DealII::mark_boundary_faces(const Medium::Sizes& sizes) {
     const double eps = 0.1;
     typename Triangulation<DIM>::active_face_iterator face;
 
@@ -163,7 +163,7 @@ const void DealII::mark_boundary_faces(const AtomReader::Sizes& sizes) {
 }
 
 // Mark boundary faces, distribute degrees of freedom and initialise data
-const void DealII::setup_system(const AtomReader::Sizes& sizes) {
+const void DealII::setup_system(const Medium::Sizes& sizes) {
     mark_boundary_faces(sizes);
 
     dof_handler.distribute_dofs(fe);

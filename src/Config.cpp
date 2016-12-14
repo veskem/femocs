@@ -34,8 +34,9 @@ Config::Config() {
     postprocess_marking = false; // make extra effort to mark correctly the vacuum nodes in shadow area
     refine_apex = false;         // refine nanotip apex
     distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
-    zbox_above = 2.5;            // space added above the maximum z-coordinate of surface in units of tip height
-    zbox_below = 20;             // space added below the minimum z-coordinate of surface [lattice constant]
+    box_width = 5.0;             // minimal simulation box width in units of tip height
+    box_height = 3.5;            // simulation box height in units of tip height
+    bulk_height = 20;            // bulk substrate height [lattice constant]
 
     cfactor.amplitude = 0.4;     // coarsening factor
     cfactor.r0_cylinder = 1.0;   // minimum distance between atoms in nanotip below apex
@@ -72,8 +73,9 @@ const void Config::read_all(const string& file_name) {
     read_command("refine_apex", refine_apex);
     read_command("heating", heating);
     read_command("distance_tol", distance_tol);
-    read_command("zbox_above", zbox_above);
-    read_command("zbox_below", zbox_below);
+    read_command("box_width", box_width);
+    read_command("box_height", box_height);
+    read_command("bulk_height", bulk_height);    
     read_command("femocs_verbose", MODES.VERBOSE);
     read_command("femocs_writefile", MODES.WRITEFILE);
 

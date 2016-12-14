@@ -186,6 +186,29 @@ const void AtomReader::resize_box(const double zmin, const double zmax) {
     sizes.zbox = zmax - zmin;
 }
 
+// Redefine the min and max values for x, y and z - coordinates
+const void AtomReader::resize_box(double xmin, double xmax, double ymin, double ymax, double zmin, double zmax) {
+    require(xmin <= xmax, "Invalid x-size for simulation box: " + to_string(xmin) + ", " + to_string(xmax));
+    require(ymin <= ymax, "Invalid y-size for simulation box: " + to_string(ymin) + ", " + to_string(ymax));
+    require(zmin <= zmax, "Invalid z-size for simulation box: " + to_string(zmin) + ", " + to_string(zmax));
+    
+    sizes.xmin = xmin; sizes.xmax = xmax;
+    sizes.ymin = ymin; sizes.ymax = ymax;
+    sizes.zmin = zmin; sizes.zmax = zmax;
+    
+    // Define size of simubox
+    sizes.xbox = xmax - xmin;
+    sizes.ybox = ymax - ymin;
+    sizes.zbox = zmax - zmin;
+    sizes.zminbox = zmin;
+    sizes.zmaxbox = zmax;
+
+    // Define the centre of simubox
+    sizes.xmid = (xmax + xmin) / 2;
+    sizes.ymid = (ymax + ymin) / 2;
+    sizes.zmid = (zmax + zmin) / 2;
+}
+
 // =================================
 // *** GETTERS: ***************
 

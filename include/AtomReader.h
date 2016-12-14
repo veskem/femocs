@@ -57,6 +57,9 @@ public:
 
     /** Redefine the min and max values for z-coordinates */
     const void resize_box(const double zmin, const double zmax);
+    
+    /** Redefine the min and max values for x, y and z - coordinates */
+    const void resize_box(double xmin, double xmax, double ymin, double ymax, double zmin, double zmax);
 
     /** Compare current and previous run and detect whether 
      * any of the atoms has moved more than threshold */

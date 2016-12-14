@@ -7,6 +7,9 @@
 
 #include "Media.h"
 #include <numeric>
+#include <random>
+#include <iostream>
+#include <iomanip>  
 
 using namespace std;
 namespace femocs {
@@ -15,12 +18,13 @@ Media::Media() : Medium() {}
 
 Media::Media(const int n_atoms) : Medium(n_atoms) {}
 
-Media::Media(const AtomReader::Sizes& ar_sizes, const double z) {
+
+Media::Media(const Medium::Sizes& ar_sizes, const double z) {
     generate_simple(ar_sizes, z);
 }
 
 // Generate Surface with 4 atoms at the corners and 4 at the middle edges of simulation cell
-const void Media::generate_simple(const AtomReader::Sizes& ar_sizes, const double z) {
+const void Media::generate_simple(const Medium::Sizes& ar_sizes, const double z) {
     // Reserve memory for atoms
     reserve(4);
 
@@ -35,7 +39,7 @@ const void Media::generate_simple(const AtomReader::Sizes& ar_sizes, const doubl
 }
 
 // Generate edge with regular atom distribution between surface corners
-const void Media::generate_middle(const AtomReader::Sizes& ar_sizes, const double z, const double r_cut) {
+const void Media::generate_middle(const Medium::Sizes& ar_sizes, const double z, const double r_cut) {
     const int n_atoms_per_side_x = ar_sizes.xbox / r_cut + 1;
     const int n_atoms_per_side_y = ar_sizes.ybox / r_cut + 1;
 
@@ -81,11 +85,74 @@ const void Media::extract(const AtomReader& reader, const int type, const bool i
     calc_statistics();        
 }
 
-// Function to stretch the flat area
-const Media Media::stretch(const double radius, const Config::CoarseFactor &cf) {
+// Function extend the flat area by generating additional atoms
+const Media Media::stretch(const double radius, const double box_width) {
+    const double PI = 3.141592653589793;
     const int n_atoms = get_n_atoms();
     const double radius2 = radius * radius;
+    const double box_w = (box_width/2)*sizes.zmax;
+    const double radius_in = min(sizes.xbox/2.0, sizes.ybox/2.0);
+        
+    const int n_theta = 6;
+    const double dtheta = 2*PI / n_theta;
+    const int n_radius = (int) box_w * box_w / (1 * n_theta);
+    
+    calc_statistics();
+    Point2 origin2d(sizes.xmid, sizes.ymid);
 
+    Media stretched(n_atoms + n_radius * n_theta);
+    for (int i = 0; i < n_atoms; ++i)
+        stretched.add_atom(get_point(i));
+    
+    // if input surface already is sufficiently wide, don't modify system at all
+    if (box_w <= radius_in)
+        return stretched;
+    
+    Media flat(n_atoms);  
+    for (int i = 0; i < n_atoms; ++i)
+        if (origin2d.distance2(get_point2(i)) > radius2)
+            flat.add_atom(get_point(i));    
+    
+    flat.calc_statistics();
+    Vec3 r0(sizes.xmid, sizes.ymid, flat.sizes.zmean);
+
+    const double xmin = r0.x - box_w;
+    const double xmax = r0.x + box_w;
+    const double ymin = r0.y - box_w;
+    const double ymax = r0.y + box_w;
+   
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> radius_generator(0, 1);
+    
+    for (int j = 0; j < n_theta; ++j) {
+        std::uniform_real_distribution<> theta_generator(j*dtheta, (j+1)*dtheta);
+        for (int i = 0; i < n_radius; ++i) {      
+            double r = radius_generator(gen) * (sqrt(2) * box_w - radius_in) + radius_in;        
+            double theta = theta_generator(gen);
+            
+            double x = r * cos(theta) + origin2d.x;
+            double y = r * sin(theta) + origin2d.y;
+            
+            bool in_box = x >= xmin && x <= xmax && y >= ymin && y <= ymax;
+            bool in_flat = x >= sizes.xmin && x <= sizes.xmax && y >= sizes.ymin && y <= sizes.ymax;
+            
+            if (in_box && !in_flat)
+                stretched.add_atom( Point3(x, y, flat.sizes.zmean) );
+        }
+    }
+ 
+    stretched.calc_statistics();
+
+    return stretched;
+}
+
+// Function to stretch the flat area
+const Media Media::stretch_by_stretch(const double radius, const double coarse_factor) {
+    const int n_atoms = get_n_atoms();
+    const double radius2 = radius * radius;
+    const double box_xy = 200.0;
+    
     calc_statistics();
     Point2 origin2d(sizes.xmid, sizes.ymid);
 
@@ -101,7 +168,6 @@ const Media Media::stretch(const double radius, const Config::CoarseFactor &cf) 
     flat.calc_statistics();
     Vec3 r0(sizes.xmid, sizes.ymid, flat.sizes.zmean);
 
-    const double box_xy = 200.0;
     const double xmin = r0.x - box_xy;
     const double xmax = r0.x + box_xy;
     const double ymin = r0.y - box_xy;
@@ -112,8 +178,7 @@ const Media Media::stretch(const double radius, const Config::CoarseFactor &cf) 
         Vec3 r(point.x, point.y, point.z);
         Vec3 dr = r - r0;
         double distance = dr.norm() - radius;
-//        const double w = cf.amplitude*sqrt(distance - radius);
-        double w = cf.amplitude*pow(distance, 1.0);
+        double w = coarse_factor*pow(distance, 1.0);
 
 //        dr = dr.normalize();
         dr *= w;

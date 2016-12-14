@@ -59,7 +59,7 @@ const bool Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Medi
     dense_surf.write("output/surface_dense.xyz");
 
     Media stretch_surf;
-    stretch_surf = dense_surf.stretch(conf.radius, conf.cfactor);
+    stretch_surf = dense_surf.stretch(conf.radius, conf.box_width);
     stretch_surf.write("output/surface_stretch.xyz");
 
     Coarseners coarseners;
@@ -67,8 +67,8 @@ const bool Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Medi
     coarseners.write("output/coarseners.vtk");
     
     start_msg(t0, "=== Coarsening surface...");
-//    coarse_surf = stretch_surf.coarsen(coarseners, stretch_surf.sizes);
-    coarse_surf = dense_surf.coarsen(coarseners, reader.sizes);
+    coarse_surf = stretch_surf.coarsen(coarseners, stretch_surf.sizes);
+//    coarse_surf = dense_surf.coarsen(coarseners, reader.sizes);
     end_msg(t0);
     coarse_surf.write("output/surface_nosmooth.xyz");
 
@@ -76,12 +76,14 @@ const bool Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Medi
     coarse_surf.smoothen(conf.radius, conf.smooth_factor, 3.0*conf.coord_cutoff);
     end_msg(t0);
     coarse_surf.write("output/surface_coarse.xyz");
-
+    
     start_msg(t0, "=== Generating bulk and vacuum...");
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
-    bulk.generate_simple(reader.sizes, coarse_surf.sizes.zmin - conf.zbox_below * conf.latconst);
-    vacuum.generate_simple(reader.sizes, coarse_surf.sizes.zmax + conf.zbox_above * coarse_surf.sizes.zbox);
-    reader.resize_box(bulk.sizes.zmin, vacuum.sizes.zmax);
+    bulk.generate_simple(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.bulk_height * conf.latconst);
+    vacuum.generate_simple(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.box_height * coarse_surf.sizes.zbox);
+    reader.resize_box(coarse_surf.sizes.xmin, coarse_surf.sizes.xmax, 
+        coarse_surf.sizes.ymin, coarse_surf.sizes.ymax,
+        bulk.sizes.zmin, vacuum.sizes.zmax);
     end_msg(t0);
     
     bulk.write("output/bulk.xyz");

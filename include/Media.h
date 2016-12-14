@@ -36,11 +36,11 @@ public:
     Media(const int n_atoms);
 
     /** Generate simple Media with 4 atoms on simubox edges */
-    Media(const AtomReader::Sizes& ar_sizes, const double z);
+    Media(const Medium::Sizes& ar_sizes, const double z);
 
-    const void generate_simple(const AtomReader::Sizes& ar_sizes, const double z);
+    const void generate_simple(const Medium::Sizes& ar_sizes, const double z);
 
-    const void generate_middle(const AtomReader::Sizes& ar_sizes, const double z, const double r_cut);
+    const void generate_middle(const Medium::Sizes& ar_sizes, const double z, const double r_cut);
 
     /** Extract atom with desired types
      * @param reader  AtomReader holding the atoms and their types
@@ -51,7 +51,9 @@ public:
 
     const Media coarsen(Coarseners &coarseners, const Medium::Sizes& ar_sizes);
 
-    const Media stretch(const double radius, const Config::CoarseFactor &cf);
+    const Media stretch(const double radius, const double box_width);
+    
+    const Media stretch_by_stretch(const double radius, const double coarse_factor);
     
     /** Function to flatten the atoms on the sides of simulation box */
     const Media rectangularize(const AtomReader::Sizes& ar_sizes, const double eps, const double latconst);

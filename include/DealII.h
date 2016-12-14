@@ -12,7 +12,7 @@
 #include <deal.II/numerics/data_out.h>
 
 #include "Macros.h"
-#include "AtomReader.h"
+#include "Medium.h"
 #include "Tethex.h"
 
 using namespace std;
@@ -72,7 +72,7 @@ public:
     const void write_mesh(const string &file_name);
 
     /** Mark boundary faces, distribute degrees of freedom  and initialise data */
-    const void setup_system(const AtomReader::Sizes& sizes);
+    const void setup_system(const Medium::Sizes& sizes);
 
     /** Insert boundary conditions to the system */
     const void assemble_system();
@@ -127,7 +127,7 @@ private:
     Vector<double> system_rhs;
     
     /** Mark the boundary faces of the mesh */
-    const void mark_boundary_faces(const AtomReader::Sizes& sizes);
+    const void mark_boundary_faces(const Medium::Sizes& sizes);
 };
 
 } /* namespace femocs */

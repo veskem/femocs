@@ -63,7 +63,7 @@ const double __start_msg(const char* message) {
 }
 
 const void __end_msg(const double t0) {
-    cout << "time: " << setprecision(3) << omp_get_wtime() - t0 << endl;
+    cout << "time: " << setprecision(3) << omp_get_wtime() - t0 << setprecision(6) << endl;
 }
 
 // Return mask of indices that are not equal to the scalar

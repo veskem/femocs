@@ -52,8 +52,9 @@ public:
     bool postprocess_marking;   ///< Make extra effort to mark correctly the vacuum nodes in shadowed area
     bool refine_apex;           ///< Add elements to the nanotip apex
     bool heating;               ///< Turn ON 3D current density and temperature calculations
-    double zbox_above;          ///< Space added above the maximum z-coordinate of surface [tip height]
-    double zbox_below;          ///< Space added below the minimum z-coordinate of surface [lattice constant]
+    double box_width;           ///< Minimal simulation box width [tip height]
+    double box_height;          ///< Simulation box height [tip height]
+    double bulk_height;         ///< Bulk substrate height [lattice constant]
     double t_error;             ///< Maximum allowed temperature error in Newton iterations
     int n_newton;               ///< Maximum number of Newton iterations
 
