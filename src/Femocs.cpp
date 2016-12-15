@@ -348,7 +348,7 @@ const int Femocs::import_atoms(const string& file_name) {
     end_msg(t0);
 
     check_message(skip_calculations, "Atoms haven't moved significantly, " + to_string(diff).substr(0,5)
-    + " < " + to_string(conf.distance_tol).substr(0,4) + "! Field calculation will be skipped!");
+    + " < " + to_string(conf.distance_tol).substr(0,5) + "! Field calculation will be skipped!");
 
     if (file_type == "xyz") {
         start_msg(t0, "=== Calculating coords and atom types...");
@@ -380,7 +380,7 @@ const int Femocs::import_atoms(int n_atoms, double* coordinates, double* box, in
     end_msg(t0);
 
     check_message(skip_calculations, "Atoms haven't moved significantly, " + to_string(diff).substr(0,5)
-    + " < " + to_string(conf.distance_tol).substr(0,4) + "! Field calculation will be skipped!");
+    + " < " + to_string(conf.distance_tol).substr(0,5) + "! Field calculation will be skipped!");
 
     start_msg(t0, "=== Calculating coords and atom types...");
     reader.calc_coordination(conf.nnn, conf.coord_cutoff, nborlist);
@@ -406,7 +406,7 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
     end_msg(t0);
 
     check_message(skip_calculations, "Atoms haven't moved significantly, " + to_string(diff).substr(0,5)
-    + " < " + to_string(conf.distance_tol).substr(0,4) + "! Field calculation will be skipped!");
+    + " < " + to_string(conf.distance_tol).substr(0,5) + "! Field calculation will be skipped!");
 
     start_msg(t0, "=== Calculating coords from atom types...");
     reader.calc_coordination(conf.nnn);

@@ -90,7 +90,7 @@ const Media Media::stretch(const double radius, const double box_width) {
     const double PI = 3.141592653589793;
     const int n_atoms = get_n_atoms();
     const double radius2 = radius * radius;
-    const double box_w = (box_width/2)*sizes.zmax;
+    const double box_w = (box_width/2)*sizes.zbox;
     const double radius_in = min(sizes.xbox/2.0, sizes.ybox/2.0);
         
     const int n_theta = 6;

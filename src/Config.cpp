@@ -34,7 +34,7 @@ Config::Config() {
     postprocess_marking = false; // make extra effort to mark correctly the vacuum nodes in shadow area
     refine_apex = false;         // refine nanotip apex
     distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
-    box_width = 5.0;             // minimal simulation box width in units of tip height
+    box_width = 2.5;             // minimal simulation box width in units of tip height
     box_height = 3.5;            // simulation box height in units of tip height
     bulk_height = 20;            // bulk substrate height [lattice constant]
 
