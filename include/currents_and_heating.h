@@ -190,9 +190,10 @@ namespace fch {
 		PhysicalQuantities *pq;
 		Laplace<dim> *laplace;
 
-		/** Bijective mapping of interface faces
+		/** Mapping of copper interface face to vacuum side
 		 * (copper_cell_index, copper_cell_face) <-> (vacuum_cell_index, vacuum_cell_face)
 		 */
+		//std::map< std::pair<unsigned, unsigned>, double > interface_map;
 		std::map< std::pair<unsigned, unsigned>, std::pair<unsigned, unsigned> > interface_map;
 
 		/** Previous iteration mesh and solution for setting the initial condition */

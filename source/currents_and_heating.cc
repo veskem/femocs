@@ -35,6 +35,7 @@
 #include <deal.II/lac/sparse_direct.h>	// UMFpack
 
 #include <cassert>
+#include <algorithm>
 
 #include "currents_and_heating.h"
 #include "utility.h"
@@ -268,6 +269,7 @@ bool CurrentsAndHeating<dim>::setup_mapping() {
 				// Loop over vacuum side and find corresponding (cell, face) pair
 				for (unsigned int i=0; i < vacuum_interface_indexes.size(); i++) {
 					if (cop_face_center.distance(vacuum_interface_centers[i]) < eps) {
+
 						std::pair<unsigned, unsigned> vac_face_info(vacuum_interface_indexes[i],
 																	vacuum_interface_face[i]);
 						std::pair< std::pair<unsigned, unsigned>,
@@ -664,11 +666,11 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
 			if (cell->face(f)->at_boundary()) {
 				fe_face_values.reinit(cell, f);
 
-				fe_face_values[potential].get_function_gradients(present_solution, prev_sol_face_potential_gradients);
-				fe_face_values[temperature].get_function_values(present_solution, prev_sol_face_temperature_values);
-				fe_face_values[temperature].get_function_gradients(present_solution, prev_sol_face_temperature_gradients);
-
 				if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+
+					fe_face_values[potential].get_function_gradients(present_solution, prev_sol_face_potential_gradients);
+					fe_face_values[temperature].get_function_values(present_solution, prev_sol_face_temperature_values);
+					fe_face_values[temperature].get_function_gradients(present_solution, prev_sol_face_temperature_gradients);
 
 					// ---------------------------------------------------------------------------------------------
 					// Vacuum side stuff
@@ -685,6 +687,36 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
 					vacuum_fe_face_values.get_function_gradients(laplace->solution, electric_field_values);
 					// ---------------------------------------------------------------------------------------------
 
+					// Smoothing part
+					std::vector<double> efield_norm_vals;
+					for (unsigned int f2 = 0; f2 < GeometryInfo<dim>::faces_per_cell; ++f2) {
+						if (!cell->face(f2)->at_boundary()) {
+							typename DoFHandler<dim>::active_cell_iterator neighbor = cell->neighbor(f2);
+							for (unsigned int f3 = 0; f3 < GeometryInfo<dim>::faces_per_cell; ++f3) {
+								if (neighbor->face(f3)->at_boundary
+										&& neighbor->face(f3)->boundary_id() == BoundaryId::copper_surface) {
+									std::vector< Tensor<1, dim> > neighbor_electric_field_values (n_face_q_points);
+									// find the corresponding vacuum side face to the copper side face
+									std::pair<unsigned, unsigned> cop_cell_info = std::pair<unsigned, unsigned>(neighbor->index(), f3);
+									// check if the corresponding vacuum face exists in our mapping
+									assert(interface_map.count(cop_cell_info) == 1);
+									std::pair<unsigned, unsigned> vac_cell_info = interface_map[cop_cell_info];
+									typename DoFHandler<dim>::active_cell_iterator vac_cell(&(laplace->triangulation),
+											0, vac_cell_info.first, &(laplace->dof_handler));
+
+									vacuum_fe_face_values.reinit(vac_cell, vac_cell_info.second);
+									vacuum_fe_face_values.get_function_gradients(laplace->solution, neighbor_electric_field_values);
+									for (unsigned int q = 0; q < n_face_q_points; ++q) {
+										efield_norm_vals.push_back(neighbor_electric_field_values[q].norm());
+									}
+								}
+							}
+						}
+					}
+					std::sort(efield_norm_vals.begin(), efield_norm_vals.end());
+					double median
+
+					// ---------------------------------------------------------------------------------------------
 
 					// loop through the quadrature points
 					for (unsigned int q = 0; q < n_face_q_points; ++q) {
