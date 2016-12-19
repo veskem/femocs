@@ -195,6 +195,8 @@ namespace fch {
 		 */
 		std::map< std::pair<unsigned, unsigned>, std::pair<unsigned, unsigned> > interface_map;
 
+		std::map< std::pair<unsigned, unsigned>, double > interface_map_field;
+
 		/** Previous iteration mesh and solution for setting the initial condition */
 		CurrentsAndHeating* previous_iteration;
 		bool interp_initial_conditions;

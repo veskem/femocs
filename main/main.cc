@@ -47,6 +47,8 @@ int main() {
 
 	std::cout << "    Loaded PhysicalQuantities: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
+	// 3d Test usage
+/*
     fch::CurrentsAndHeating<3> ch_solver1;
     fch::CurrentsAndHeating<3> ch_solver2;
     fch::CurrentsAndHeating<3>* ch_solver = &ch_solver1;
@@ -107,27 +109,30 @@ int main() {
 			even = true;
 		}
 	}
-
+*/
 
 /* 2d case usage */
-/*
-	laplace::Laplace<2> field;
-	field.import_mesh_from_file("../res/2d_meshes/vacuum_aligned_dense.msh", "vacuum_mesh_2d.vtk");
-	field.run();
 
-	currents_heating::CurrentsAndHeating<2> ch(pq, &field);
-	ch.import_mesh_from_file("../res/2d_meshes/copper_aligned_dense.msh", "copper_mesh_2d.vtk");
+	fch::Laplace<2> laplace;
+	laplace.import_mesh_from_file("../res/2d_meshes/simple_vacuum.msh");
+	laplace.output_mesh("output/vacuum_mesh_2d.vtk");
+	laplace.set_applied_efield(12.0);
+	laplace.run();
+
+	fch::CurrentsAndHeating<2> ch(&pq, &laplace);
+	ch.import_mesh_from_file("../res/2d_meshes/simple_copper.msh");
+	ch.output_mesh("output/copper_mesh_2d.vtk");
 	ch.run();
-*/
+
 
 /* 2d Mesh splitting */
 /*
-	MeshPreparer<2> mesh_preparer;
-	Triangulation<2> mesh;
-	mesh_preparer.import_mesh_from_file(&mesh, "../res/2d_meshes/both_dense.msh");
-	Triangulation<2> new_mesh = mesh_preparer.remove_cells_with_id(&mesh, 20);
-	mesh_preparer.mark_vacuum_boundary(&new_mesh);
-	mesh_preparer.output_mesh(&new_mesh, "vacuum_aligned_dense.msh");
+	fch::MeshPreparer<2> mesh_preparer;
+	dealii::Triangulation<2> mesh;
+	mesh_preparer.import_mesh_from_file(&mesh, "../res/2d_meshes/simple.msh");
+	dealii::Triangulation<2> new_mesh = mesh_preparer.remove_cells_with_id(&mesh, 1);
+	mesh_preparer.mark_copper_boundary(&new_mesh);
+	mesh_preparer.output_mesh(&new_mesh, "simple_copper.msh");
 */
 
 /* FCH usage */

@@ -846,7 +846,7 @@ void CurrentsAndHeating<dim>::run() {
 
 		std::cout << "    Solver: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
-		output_results("solution.vtk", iteration);
+		output_results("output/solution.vtk", iteration);
 		std::cout << "    output_results: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 		std::cout << "    ||u_k-u_{k-1}||_L2 = " << newton_update.l2_norm() << std::endl;
@@ -1020,9 +1020,9 @@ void CurrentsAndHeating<dim>::output_results(const std::string file_name,
 	    const int start = file_name.find_last_of('.');
 	    const int end = file_name.size();
 	    std::string ext = "";
-	    if (start > end) {
+	    if (start <= end) {
 	    	ext = file_name.substr(start, end);
-	    	file_name_mod = file_name.substr(start, end);
+	    	file_name_mod = file_name.substr(0, start);
 	    }
 	    file_name_mod += "-" + std::to_string(iteration) + ext;
 	}
