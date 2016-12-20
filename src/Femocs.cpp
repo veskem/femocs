@@ -220,8 +220,10 @@ const int Femocs::run(double elfield, string message) {
     // ===== Running FEM solver =====
     // ==============================
 
+#if not HEATINGMODE
     fail = solve_laplace(tetmesh_vacuum, hexmesh_vacuum);
     if(fail) return 1;
+#endif
     
 #if HEATINGMODE
     // ====================================
@@ -301,8 +303,8 @@ const int Femocs::run(double elfield, string message) {
 //    bulk_interpolation.clean(4, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
 //    end_msg(t0);
 
-    vacuum_interpolation.write("output/interpolation_vacuum" + conf.message + ".xyz");
-    bulk_interpolation.write("output/interpolation_bulk" + conf.message + ".xyz");
+    vacuum_interpolation.write("output/interpolation_vacuum" + conf.message + ".vtk");
+    bulk_interpolation.write("output/interpolation_bulk" + conf.message + ".vtk");
         
     static bool odd_run = true;
     if (odd_run) {
@@ -419,6 +421,8 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
 const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     double t0;
 
+    check_message(interpolator.get_n_atoms() == 0, "No solution to export!");
+
     if (!skip_calculations) {
         start_msg(t0, "=== Interpolating solution...");
         dense_surf.sort_atoms(0, 1, "up");
@@ -447,7 +451,7 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
 // linearly interpolate electric field at given points
 const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-    
+    check_message(interpolator.get_n_atoms() == 0, "No solution to export!");
     SolutionReader sr(&interpolator);
     sr.export_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
     sr.write("output/interpolation_E.xyz");
@@ -456,6 +460,7 @@ const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double
 
 // linearly interpolate electric potential at given points
 const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
+    check_message(interpolator.get_n_atoms() == 0, "No solution to export!");
     SolutionReader sr(&interpolator);
     sr.export_potential(n_points, x, y, z, phi, flag);
     sr.write("output/interpolation_phi.xyz");
