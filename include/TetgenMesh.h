@@ -73,6 +73,8 @@ private:
     const void mark_edges();
     const void mark_faces();
     const void mark_elems();
+    const void mark_elems_byrsi();
+    const void mark_elems_vol2();
 
     const void remark_perimeter_nodes();
 

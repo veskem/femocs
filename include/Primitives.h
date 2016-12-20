@@ -344,6 +344,7 @@ public:
     Vec3() : x(0), y(0), z(0) {}
     Vec3(double xx) : x(xx), y(xx), z(xx) {}
     Vec3(double xx, double yy, double zz) : x(xx), y(yy), z(zz) {}
+    Vec3(const Point3 &p) : x(p.x), y(p.y), z(p.z) {}
 
     /** Dimensionality of vector */
     const int size() const { return 3; }
