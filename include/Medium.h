@@ -40,10 +40,7 @@ public:
     /** Add Atom with default id and coordination to the system */
     const void add_atom(const Point3& point);
 
-    /**
-     * Export the data of Medium to file
-     * @param file_name     path for file to save the data
-     */
+    /** Export the data of Medium to file in .xyz or .vtk format */
     void write(const string &file_name) const;
 
     /** Calculate statistics about the coordinates in Medium */
@@ -100,6 +97,21 @@ protected:
 
     /** Initialise statistics about the coordinates in Medium */
     const void init_statistics();
+
+    /** Output atom data in .xyz format */
+    const void write_xyz(ofstream &outfile) const;
+
+    /** Output atom data in .vtk format */
+    const void write_vtk(ofstream &outfile) const;
+
+    /** Get point representation in vtk format */
+    virtual const void get_cell_types(ofstream& outfile) const;
+
+    /** Get data scalar and vector data associated with vtk cells */
+    virtual const void get_cell_data(ofstream& outfile) const;
+
+    /** Get data scalar and vector data associated with vtk nodes */
+    virtual const void get_point_data(ofstream& outfile) const;
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     virtual const string get_data_string(const int i) const;

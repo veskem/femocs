@@ -218,21 +218,20 @@ const void Medium::set_coordination(const int i, const int coord) {
 void Medium::write(const string &file_name) const {
     if (!MODES.WRITEFILE) return;
 
+    expect(get_n_atoms() > 0, "Zero points detected!");
+
     string ftype = get_file_type(file_name);
-    expect(ftype == "xyz", "Unsupported file type: " + ftype);
+    require(ftype == "xyz" || ftype == "vtk", "Unsupported file type: " + ftype);
 
-    const int n_atoms = get_n_atoms();
+    ofstream outfile(file_name);
+    require(outfile.is_open(), "Can't open a file " + file_name);
 
-    ofstream out_file(file_name);
-    require(out_file.is_open(), "Can't open a file " + file_name);
+    if (ftype == "xyz")
+        write_xyz(outfile);
+    else if (ftype == "vtk")
+        write_vtk(outfile);
 
-    out_file << n_atoms << "\n";
-    out_file << get_data_string(-1) << endl;
-
-    for (int i = 0; i < n_atoms; ++i)
-        out_file << get_data_string(i) << endl;
-
-    out_file.close();
+    outfile.close();
 }
 
 // Compile data string from the data vectors
@@ -242,6 +241,75 @@ const string Medium::get_data_string(const int i) const {
     ostringstream strs;
     strs << atoms[i];
     return strs.str();
+}
+
+// Output atom data in .xyz format
+const void Medium::write_xyz(ofstream& out) const {
+    const int n_atoms = get_n_atoms();
+
+    out << n_atoms << "\n";
+    out << get_data_string(-1) << endl;
+
+    for (int i = 0; i < n_atoms; ++i)
+        out << get_data_string(i) << endl;
+}
+
+// Output atom data in .vtk format
+const void Medium::write_vtk(ofstream& out) const {
+    const int n_atoms = get_n_atoms();
+
+    out << "# vtk DataFile Version 3.0\n";
+    out << "# Medium data\n";
+    out << "ASCII\n";
+    out << "DATASET UNSTRUCTURED_GRID\n\n";
+
+    // Output the point coordinates
+    out << "POINTS " << n_atoms << " double\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << get_point(i) << "\n";
+
+    get_cell_types(out);
+
+    out << "\nPOINT_DATA " << n_atoms << "\n";
+    get_point_data(out);
+
+    out << "\nCELL_DATA " << n_atoms << "\n";
+    get_cell_data(out);
+}
+
+// Get point representation in vtk format
+const void Medium::get_cell_types(ofstream& out) const {
+    const int n_cells = get_n_atoms();
+    const int dim = 1;
+    const int celltype = 1; // cell == vertex
+
+    // Output the vertices
+    out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
+    for (size_t i = 0; i < n_cells; ++i)
+        out << "1 " << i << "\n";
+
+    // Output cell types
+    out << "\nCELL_TYPES " << n_cells << "\n";
+    for (size_t i = 0; i < n_cells; ++i)
+        out << celltype << "\n";
+}
+
+// Get data scalar and vector data associated with vtk cells
+const void Medium::get_cell_data(ofstream& out) const {}
+
+// Get data scalar and vector data associated with vtk nodes
+const void Medium::get_point_data(ofstream& out) const {
+    const int n_atoms = get_n_atoms();
+
+    // write IDs of atoms
+    out << "SCALARS id int\nLOOKUP_TABLE default\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << atoms[i].id << "\n";
+
+    // write coordinations of atoms
+    out << "SCALARS coordination int\nLOOKUP_TABLE default\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << atoms[i].coord << "\n";
 }
 
 } /* namespace femocs */

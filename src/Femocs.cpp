@@ -434,7 +434,7 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
         end_msg(t0);
 
         interpolation.write("output/interpolation" + conf.message + ".xyz");
-        interpolation.write_vtk("output/interpolation" + conf.message + ".vtk");
+        interpolation.write("output/interpolation" + conf.message + ".vtk");
     }
 
     start_msg(t0, "=== Exporting results...");
