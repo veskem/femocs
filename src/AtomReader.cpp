@@ -218,7 +218,7 @@ const int AtomReader::get_type(const int i) const {
 }
 
 // Compile data string from the data vectors
-const string AtomReader::get_data_string(const int i) {
+const string AtomReader::get_data_string(const int i) const {
     if (i < 0) return "AtomReader data: id x y z coordination type";
 
     ostringstream strs;

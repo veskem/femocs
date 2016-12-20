@@ -215,7 +215,7 @@ const void Medium::set_coordination(const int i, const int coord) {
 
 // Pick the suitable write function based on the file type
 // Function works only in debug mode
-void Medium::write(const string file_name) {
+void Medium::write(const string &file_name) const {
     if (!MODES.WRITEFILE) return;
 
     string ftype = get_file_type(file_name);
@@ -236,7 +236,7 @@ void Medium::write(const string file_name) {
 }
 
 // Compile data string from the data vectors
-const string Medium::get_data_string(const int i) {
+const string Medium::get_data_string(const int i) const {
     if(i < 0) return "Medium data: id x y z coordination";
 
     ostringstream strs;

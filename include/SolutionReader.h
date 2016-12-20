@@ -45,6 +45,9 @@ public:
      * made up the entries to last bin will be replaced by the average field around those two atoms. */
     const void clean(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut);
 
+    /** Output atom data in .vtk format */
+    const void write_vtk(const string &file_name) const;
+
 private:
     Interpolator* interpolator;     ///< data needed for interpolation
     vector<Solution> interpolation; ///< interpolated data
@@ -57,7 +60,7 @@ private:
     const void reserve(const int n_nodes);
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
-    const string get_data_string(const int i);
+    const string get_data_string(const int i) const;
 };
 
 } // namespace femocs

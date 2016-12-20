@@ -44,7 +44,7 @@ public:
      * Export the data of Medium to file
      * @param file_name     path for file to save the data
      */
-    void write(const string file_name);
+    void write(const string &file_name) const;
 
     /** Calculate statistics about the coordinates in Medium */
     const void calc_statistics();
@@ -102,7 +102,7 @@ protected:
     const void init_statistics();
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
-    virtual const string get_data_string(const int i);
+    virtual const string get_data_string(const int i) const;
 };
 
 } /* namespace femocs */

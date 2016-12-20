@@ -179,12 +179,12 @@ const bool Femocs::solve_laplace(TetgenMesh& tetmesh_vacuum, tethex::Mesh& hexme
     laplace.solve_cg();
 //    laplace.solve_umfpack();
     end_msg(t0);
-//    laplace.write("output/result_E_phi.vtk");
+    laplace.write("output/result_E_phi.vtk");
 
     start_msg(t0, "=== Extracting solution...");
     interpolator.extract_solution(laplace, tetmesh_vacuum);
     end_msg(t0);
-//    interpolator.write("output/result_E_phi.xyz");
+    interpolator.write("output/result_E_phi.xyz");
 
     return success;
 }
@@ -433,7 +433,7 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
         interpolation.clean(4, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
         end_msg(t0);
 
-        interpolation.write("output/interpolation" + conf.message + ".xyz");
+        interpolation.write_vtk("output/interpolation" + conf.message + ".vtk");
     }
 
     start_msg(t0, "=== Exporting results...");

@@ -104,7 +104,7 @@ private:
     const double determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4);
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
-    const string get_data_string(const int i);
+    const string get_data_string(const int i) const;
 
     /** Reserve memory for interpolation data */
     const void reserve(const int N);

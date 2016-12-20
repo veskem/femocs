@@ -236,12 +236,63 @@ const void SolutionReader::reserve(const int n_nodes) {
 }
 
 // Compile data string from the data vectors for file output
-const string SolutionReader::get_data_string(const int i) {
+const string SolutionReader::get_data_string(const int i) const{
     if (i < 0) return "SolutionReader data: id x y z out_of_mesh Ex Ey Ez Enorm potential";
 
     ostringstream strs;
     strs << atoms[i] << " " << interpolation[i];
     return strs.str();
+}
+
+/** Output atom data in .vtk format */
+const void SolutionReader::write_vtk(const string &file_name) const {
+    const int n_atoms = get_n_atoms();
+    const int n_cells = n_atoms;
+    const int dim = 1;
+    const int celltype = 1; // cell == vertex
+
+    expect(n_atoms > 0, "Zero points detected!");
+
+    ofstream out(file_name.c_str());
+    require(out, "Can't open a file " + file_name);
+
+    out << "# vtk DataFile Version 3.0\n";
+    out << "# Medium data\n";
+    out << "ASCII\n";
+    out << "DATASET UNSTRUCTURED_GRID\n\n";
+
+    // Output the point coordinates
+    out << "POINTS " << n_atoms << " double\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << get_point(i) << "\n";
+
+    // Output the vertices
+    out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
+    for (size_t i = 0; i < n_cells; ++i)
+        out << "1 " << i << "\n";
+
+    // Output cell types
+    out << "\nCELL_TYPES " << n_cells << "\n";
+    for (size_t i = 0; i < n_cells; ++i)
+        out << celltype << "\n";
+
+    // Output point data of form...
+    out << "\nPOINT_DATA " << n_atoms << "\n";
+
+    // ...vector (electric field, current density, etc)...
+    out << "VECTORS Electric_field double\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << interpolation[i].elfield << "\n";
+
+    // ...vector magnitude to make it possible to apply filters in ParaView...
+    out << "SCALARS Elfield.norm double\nLOOKUP_TABLE default\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << interpolation[i].el_norm << "\n";
+
+    // ...scalar (electric potential, temperature, etc)...
+    out << "SCALARS Potential double\nLOOKUP_TABLE default\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << interpolation[i].potential << "\n";
 }
 
 } // namespace femocs
