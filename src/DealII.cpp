@@ -47,7 +47,7 @@ const bool DealII::import_mesh(const string &file_name) {
         gi.read_vtk(in_file);
     else if (file_type == "msh") gi.read_msh(in_file);
 
-    return true;
+    return 0;
 }
 
 // Import vertices, quadrangles and hexahedra
@@ -91,9 +91,9 @@ const bool DealII::import_mesh(tethex::Mesh& mesh) {
 
         triangulation.create_triangulation_compatibility(vertices, cells, subcelldata);
     } catch (exception &exc) {
-        return false;
+        return 1;
     }
-    return true;
+    return 0;
 }
 
 // Import vertices and hexahedra and ignore quadrangles
@@ -127,9 +127,9 @@ const bool DealII::import_mesh_wo_faces(tethex::Mesh& mesh) {
 
         triangulation.create_triangulation_compatibility(vertices, cells, SubCellData());
     } catch (exception &exc) {
-        return false;
+        return 1;
     }
-    return true;
+    return 0;
 }
 
 // Make mesh 4x denser around origin

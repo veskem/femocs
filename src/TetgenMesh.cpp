@@ -129,7 +129,7 @@ const bool TetgenMesh::recalc() {
     edges.copy(TetgenEdges(&tetIOin));
     faces.copy(TetgenFaces(&tetIOin));
     elems.copy(TetgenElements(&tetIOin));
-    return true;
+    return 0;
 }
 
 // Function to perform tetgen calculation on input and write_tetgen data
@@ -140,8 +140,9 @@ const bool TetgenMesh::recalc(const string& cmd) {
         edges.set_counter(tetIOout.numberofedges);
         faces.set_counter(tetIOout.numberoftrifaces);
         elems.set_counter(tetIOout.numberoftetrahedra);
-    } catch (int e) { return false; }
-    return true;
+    }
+    catch (int e) { return 1; }
+    return 0;
 }
 
 // Function to perform tetgen calculation on input and write_tetgen data
@@ -154,9 +155,9 @@ const bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
         edges.set_counter(tetIOout.numberofedges);
         faces.set_counter(tetIOout.numberoftrifaces);
         elems.set_counter(tetIOout.numberoftetrahedra);
-    } catch (int e) { return false; }
-
-    return true;
+    }
+    catch (int e) { return 1; }
+    return 0;
 }
 
 // Write mesh into files with Tetgen functions
@@ -170,9 +171,9 @@ const bool TetgenMesh::write_tetgen(const string& file_name) {
             tetgenbeh.outfilename[i] = file_name[i];
 
         tetrahedralize(&tetgenbeh, &tetIOout, NULL);
-    } catch (int e) { return false; }
+    } catch (int e) { return 1; }
 
-    return true;
+    return 0;
 }
 
 // Function to generate mesh from surface, bulk and vacuum atoms
@@ -207,7 +208,7 @@ const bool TetgenMesh::generate_appendices() {
 //    generate_edges();
     // Generate surface faces from elements
     generate_surf_faces();
-    return true;
+    return 0;
 }
 
 // Function to generate edges from the elements
@@ -293,7 +294,7 @@ const bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, con
         else
             bulk.elems.append(elems[elem]);
 
-    return vacuum.recalc(cmd) &&  bulk.recalc(cmd);
+    return vacuum.recalc(cmd) ||  bulk.recalc(cmd);
 }
 
 // Mark mesh nodes, edges, faces and elements
@@ -302,7 +303,7 @@ const bool TetgenMesh::mark_mesh(const bool postprocess) {
 //    mark_nodes();
 //    return true;
 
-    bool success = true;
+    bool fail = 0;
 
     // Mark nodes with ray-triangle intersection technique
     mark_nodes();
@@ -312,10 +313,9 @@ const bool TetgenMesh::mark_mesh(const bool postprocess) {
 
     // Post process the nodes in shadow areas
     if (postprocess)
-        success = post_process_marking();
+        fail = post_process_marking();
 
-    if (!success)
-        return false;
+    if (fail) return 1;
 
 //    // Mark nodes on simulation cell perimeter
 //    remark_perimeter_nodes();
@@ -326,7 +326,7 @@ const bool TetgenMesh::mark_mesh(const bool postprocess) {
     // Mark faces on simulation cell edges
 //    mark_faces;
 
-    return success;
+    return 0;
 }
 
 // Force the bulk nodes in vacuum elements to become vacuum nodes
@@ -358,8 +358,8 @@ const bool TetgenMesh::post_process_marking() {
     expect(nodes.stat.n_bulk > 4, "Nodemarker post-processor deleted the bulk atoms.\n"
             "Consider altering the surface refinement factor or disabling the post-processing.");
 
-    // Return value indicates whether the new system is valid or not
-    return nodes.stat.n_bulk > 4;
+    // Return value indicates whether the new system is invalid or not
+    return nodes.stat.n_bulk <= 4;
 }
 
 /* Function to mark nodes with ray-triangle intersection technique

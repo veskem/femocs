@@ -141,10 +141,10 @@ private:
     fch::CurrentsAndHeating<3>* prev_ch_solver;
 #endif
 
-    const bool generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);
-    const bool generate_meshes(TetgenMesh& tetmesh_bulk, TetgenMesh& tetmesh_vacuum, 
+    const int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);
+    const int generate_meshes(TetgenMesh& tetmesh_bulk, TetgenMesh& tetmesh_vacuum,
         tethex::Mesh& hexmesh_bulk, tethex::Mesh& hexmesh_vacuum);
-    const bool solve_laplace(TetgenMesh& tetmesh_vacuum, tethex::Mesh& hexmesh_vacuum);
+    const int solve_laplace(TetgenMesh& tetmesh_vacuum, tethex::Mesh& hexmesh_vacuum);
 };
 
 } /* namespace femocs */

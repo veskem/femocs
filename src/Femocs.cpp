@@ -50,7 +50,7 @@ Femocs::~Femocs() {
     start_msg(double t0, "======= Femocs finished! =======\n");
 }
 
-const bool Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum) {
+const int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum) {
     double t0;
     start_msg(t0, "=== Extracting surface...");
     dense_surf.extract(reader, TYPES.SURFACE);
@@ -89,24 +89,24 @@ const bool Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Medi
     bulk.write("output/bulk.xyz");
     vacuum.write("output/vacuum.xyz");
     
-    return true;
+    return 0;
 }
 
-const bool Femocs::generate_meshes(TetgenMesh& tetmesh_bulk, TetgenMesh& tetmesh_vacuum, 
+const int Femocs::generate_meshes(TetgenMesh& tetmesh_bulk, TetgenMesh& tetmesh_vacuum,
     tethex::Mesh& hexmesh_bulk, tethex::Mesh& hexmesh_vacuum) {
 
     double t0;
-    bool success;
+    bool fail;
     
     Media bulk, coarse_surf, vacuum;
-    success = generate_boundary_nodes(bulk, coarse_surf, vacuum);
-    if(!success) return success;
+    fail = generate_boundary_nodes(bulk, coarse_surf, vacuum);
+    if(fail) return 1;
     
     start_msg(t0, "=== Making big mesh...");
     TetgenMesh tetmesh_big;
     // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
-    success = tetmesh_big.generate(bulk, coarse_surf, vacuum, "rnQq" + conf.mesh_quality);
-    check_message(!success, "Triangulation failed! Field calculation will be skipped!");
+    fail = tetmesh_big.generate(bulk, coarse_surf, vacuum, "rnQq" + conf.mesh_quality);
+    check_message(fail, "Triangulation failed! Field calculation will be skipped!");
     end_msg(t0);
 
     start_msg(t0, "=== Making surface faces...");
@@ -116,10 +116,10 @@ const bool Femocs::generate_meshes(TetgenMesh& tetmesh_bulk, TetgenMesh& tetmesh
     tetmesh_big.faces.write("output/surface_faces.vtk");
 
     start_msg(t0, "=== Marking tetrahedral mesh...");
-    success = tetmesh_big.mark_mesh(conf.postprocess_marking);
+    fail = tetmesh_big.mark_mesh(conf.postprocess_marking);
     tetmesh_big.nodes.write("output/tetmesh_nodes.xyz");
     tetmesh_big.elems.write("output/tetmesh_elems.vtk");
-    check_message(!success, "Mesh marking failed! Field calcualtion will be skipped!");
+    check_message(fail, "Mesh marking failed! Field calcualtion will be skipped!");
     end_msg(t0);
 
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
@@ -144,19 +144,19 @@ const bool Femocs::generate_meshes(TetgenMesh& tetmesh_bulk, TetgenMesh& tetmesh
     hexmesh_big.separate_meshes(hexmesh_bulk, hexmesh_vacuum);
     end_msg(t0);
     
-    return success;
+    return 0;
 }
 
-const bool Femocs::solve_laplace(TetgenMesh& tetmesh_vacuum, tethex::Mesh& hexmesh_vacuum) {
+const int Femocs::solve_laplace(TetgenMesh& tetmesh_vacuum, tethex::Mesh& hexmesh_vacuum) {
     double t0;
-    bool success;
+    bool fail;
     
     DealII laplace;
     laplace.set_neumann(conf.neumann);
 
     start_msg(t0, "=== Importing mesh into Deal.II...");
-    success = laplace.import_mesh_wo_faces(hexmesh_vacuum);
-    check_message(!success, "Importing mesh to Deal.II failed! Field calculation will be skipped!");
+    fail = laplace.import_mesh_wo_faces(hexmesh_vacuum);
+    check_message(fail, "Importing mesh to Deal.II failed! Field calculation will be skipped!");
     end_msg(t0);
 
     if (conf.refine_apex) {
@@ -186,15 +186,15 @@ const bool Femocs::solve_laplace(TetgenMesh& tetmesh_vacuum, tethex::Mesh& hexme
     end_msg(t0);
     interpolator.write("output/result_E_phi.xyz");
 
-    return success;
+    return 0;
 }
 
 // workhorse function to generate FEM mesh and to solve differential equation(s)
 const int Femocs::run(double elfield, string message) {
     double t0, tstart;  // Variables used to measure the code execution time
-    bool success;
+    bool fail;
 
-    if(skip_calculations) return skip_calculations;
+    if(skip_calculations) return 1;
     skip_calculations = true;
 
     conf.neumann = elfield;
@@ -208,8 +208,8 @@ const int Femocs::run(double elfield, string message) {
     TetgenMesh tetmesh_bulk, tetmesh_vacuum;
     tethex::Mesh hexmesh_bulk, hexmesh_vacuum;
     
-    success = generate_meshes(tetmesh_bulk, tetmesh_vacuum, hexmesh_bulk, hexmesh_vacuum);
-    if(!success) return success;
+    fail = generate_meshes(tetmesh_bulk, tetmesh_vacuum, hexmesh_bulk, hexmesh_vacuum);
+    if(fail) return 1;
         
     tetmesh_bulk.elems.write  ("output/tetmesh_bulk.vtk");
     tetmesh_vacuum.elems.write("output/tetmesh_vacuum.vtk");
@@ -220,8 +220,8 @@ const int Femocs::run(double elfield, string message) {
     // ===== Running FEM solver =====
     // ==============================
 
-    solve_laplace(tetmesh_vacuum, hexmesh_vacuum);
-    if(!success) return success;
+    fail = solve_laplace(tetmesh_vacuum, hexmesh_vacuum);
+    if(fail) return 1;
     
 #if HEATINGMODE
     // ====================================
@@ -322,7 +322,7 @@ const int Femocs::run(double elfield, string message) {
     cout << "\nTotal time of Femocs.run: " << omp_get_wtime() - tstart << "\n";
     skip_calculations = false;
 
-    return skip_calculations;
+    return 0;
 }
 
 // import atoms from file
@@ -433,6 +433,7 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
         interpolation.clean(4, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
         end_msg(t0);
 
+        interpolation.write("output/interpolation" + conf.message + ".xyz");
         interpolation.write_vtk("output/interpolation" + conf.message + ".vtk");
     }
 
