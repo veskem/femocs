@@ -48,7 +48,7 @@ int main() {
 	std::cout << "    Loaded PhysicalQuantities: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 	// 3d Test usage
-/*
+
     fch::CurrentsAndHeating<3> ch_solver1;
     fch::CurrentsAndHeating<3> ch_solver2;
     fch::CurrentsAndHeating<3>* ch_solver = &ch_solver1;
@@ -109,10 +109,10 @@ int main() {
 			even = true;
 		}
 	}
-*/
+
 
 /* 2d case usage */
-
+/*
 	fch::Laplace<2> laplace;
 	laplace.import_mesh_from_file("../res/2d_meshes/simple_vacuum.msh");
 	laplace.output_mesh("output/vacuum_mesh_2d.vtk");
@@ -123,7 +123,7 @@ int main() {
 	ch.import_mesh_from_file("../res/2d_meshes/simple_copper.msh");
 	ch.output_mesh("output/copper_mesh_2d.vtk");
 	ch.run();
-
+*/
 
 /* 2d Mesh splitting */
 /*

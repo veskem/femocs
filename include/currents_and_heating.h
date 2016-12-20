@@ -164,6 +164,7 @@ namespace fch {
 		void solve();
 
 		bool setup_mapping();
+		bool setup_mapping_field(bool smoothing);
 		void set_initial_condition();
 		void set_initial_condition_slow();
 

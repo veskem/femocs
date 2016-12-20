@@ -90,6 +90,7 @@ void CurrentsAndHeating<dim>::reinitialize(Laplace<dim>* laplace_,
 	dof_handler.clear();
 	triangulation.clear();
 	interface_map.clear();
+	interface_map_field.clear();
 
 	laplace = laplace_;
 	previous_iteration = ch_previous_iteration_;
@@ -279,6 +280,123 @@ bool CurrentsAndHeating<dim>::setup_mapping() {
 					}
 				}
 				if (interface_map.count(cop_face_info) == 0) return false;
+			}
+		}
+	}
+	// ---------------------------------------------------------------------------------------------
+	return true;
+}
+
+template <int dim>
+bool CurrentsAndHeating<dim>::setup_mapping_field(bool smoothing) {
+
+	double eps = 1e-9;
+
+	// ---------------------------------------------------------------------------------------------
+	// Loop over vacuum interface cells
+
+	std::vector<unsigned int> vacuum_interface_indexes;
+	std::vector<unsigned int> vacuum_interface_face;
+	std::vector< Point<dim> > vacuum_interface_centers;
+	std::vector<double> vacuum_interface_efield;
+
+	QGauss<dim-1> face_quadrature_formula(1); // Quadrature with one point
+	FEFaceValues<dim> vacuum_fe_face_values(laplace->fe, face_quadrature_formula,
+					update_gradients | update_quadrature_points);
+
+	// Electric field values from laplace solver
+	std::vector< Tensor<1, dim> > electric_field_value (1);
+
+	typename DoFHandler<dim>::active_cell_iterator
+		vac_cell = laplace->dof_handler.begin_active(),
+		vac_endc = laplace->dof_handler.end();
+	for (; vac_cell != vac_endc; ++vac_cell) {
+		for (unsigned int f=0; f < GeometryInfo<dim>::faces_per_cell; f++) {
+			if (vac_cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+				vacuum_interface_indexes.push_back(vac_cell->index());
+				vacuum_interface_face.push_back(f);
+				vacuum_interface_centers.push_back(vac_cell->face(f)->center());
+
+				// ---
+				// Electric field norm in the center (only quadrature point) of the face
+				vacuum_fe_face_values.reinit(vac_cell, f);
+				vacuum_fe_face_values.get_function_gradients(laplace->solution, electric_field_value);
+				double efield_norm = electric_field_value[0].norm();
+				// ---
+
+				// ---------------------------------------------------------------------------------------------
+				// Smoothing: Loop over neighbor faces and compare the E field
+				if (smoothing) {
+					std::vector<double> neighbor_norm_vals;
+					std::vector< Tensor<1, dim> > neighbor_electric_field_value (1);
+					for (unsigned int f2 = 0; f2 < GeometryInfo<dim>::faces_per_cell; ++f2) {
+						if (vac_cell->face(f2)->boundary_id() == BoundaryId::copper_surface) {
+							// another face of the same cell is on the copper surface, add to comparison
+							vacuum_fe_face_values.reinit(vac_cell, f2);
+							vacuum_fe_face_values.get_function_gradients(laplace->solution, neighbor_electric_field_value);
+							neighbor_norm_vals.push_back(neighbor_electric_field_value[0].norm());
+						} else if (!vac_cell->face(f2)->at_boundary()) {
+							// Neighbor exists through the face f2, check its faces (f3)
+							typename DoFHandler<dim>::active_cell_iterator neighbor = vac_cell->neighbor(f2);
+							for (unsigned int f3 = 0; f3 < GeometryInfo<dim>::faces_per_cell; ++f3) {
+								if (neighbor->face(f3)->at_boundary()
+										&& neighbor->face(f3)->boundary_id() == BoundaryId::copper_surface) {
+									vacuum_fe_face_values.reinit(neighbor, f3);
+									vacuum_fe_face_values.get_function_gradients(laplace->solution, neighbor_electric_field_value);
+									neighbor_norm_vals.push_back(neighbor_electric_field_value[0].norm());
+								}
+							}
+						}
+					}
+					double stdev = vector_stdev(neighbor_norm_vals);
+					double median = vector_median(neighbor_norm_vals);
+
+					if (efield_norm > 12.0) {
+						std::cout << efield_norm << " median: " << median << " stdev: " << stdev << std::endl;
+						std::cout << "    data: ";
+						for (auto e : neighbor_norm_vals) std::cout << e << " ";
+						std::cout << std::endl;
+					}
+
+					if (std::abs(efield_norm - median) >= 2*stdev) {
+						// We have an anomaly...
+						std::cout << "ANOMALY DETECTED: " << efield_norm << " REPLACING BY " << median << std::endl;
+						//for (auto e : neighbor_norm_vals) std::cout << e << " ";
+						//std::cout << std::endl;
+						efield_norm = median;
+					}
+					// ---------------------------------------------------------------------------------------------
+				}
+
+				vacuum_interface_efield.push_back(efield_norm);
+			}
+		}
+	}
+	// ---------------------------------------------------------------------------------------------
+
+	// ---------------------------------------------------------------------------------------------
+	// Loop over copper interface cells
+
+	typename DoFHandler<dim>::active_cell_iterator
+		cop_cell = dof_handler.begin_active(),
+		cop_endc = dof_handler.end();
+
+	for (; cop_cell != cop_endc; ++cop_cell) {
+		for (unsigned int f=0; f < GeometryInfo<dim>::faces_per_cell; f++) {
+			if (cop_cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+				Point<dim> cop_face_center = cop_cell->face(f)->center();
+				std::pair<unsigned, unsigned> cop_face_info(cop_cell->index(), f);
+				// Loop over vacuum side and find corresponding (cell, face) pair
+				for (unsigned int i=0; i < vacuum_interface_indexes.size(); i++) {
+					if (cop_face_center.distance(vacuum_interface_centers[i]) < eps) {
+
+						std::pair< std::pair<unsigned, unsigned>,
+								   double > pair(cop_face_info, vacuum_interface_efield[i]);
+						interface_map_field.insert(pair);
+						break;
+					}
+				}
+				if (interface_map_field.count(cop_face_info) == 0) return false;
 			}
 		}
 	}
@@ -677,7 +795,8 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
 					// find the corresponding vacuum side face to the copper side face
 					std::pair<unsigned, unsigned> cop_cell_info = std::pair<unsigned, unsigned>(cell->index(), f);
 					// check if the corresponding vacuum face exists in our mapping
-					assert(interface_map.count(cop_cell_info) == 1);
+					assert(interface_map_field.count(cop_cell_info) == 1);
+					/*
 					std::pair<unsigned, unsigned> vac_cell_info = interface_map[cop_cell_info];
 					// Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
 					typename DoFHandler<dim>::active_cell_iterator vac_cell(&(laplace->triangulation),
@@ -685,38 +804,10 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
 
 					vacuum_fe_face_values.reinit(vac_cell, vac_cell_info.second);
 					vacuum_fe_face_values.get_function_gradients(laplace->solution, electric_field_values);
+					*/
+					double e_field = interface_map_field[cop_cell_info];
 					// ---------------------------------------------------------------------------------------------
 
-					// Smoothing part
-					std::vector<double> efield_norm_vals;
-					for (unsigned int f2 = 0; f2 < GeometryInfo<dim>::faces_per_cell; ++f2) {
-						if (!cell->face(f2)->at_boundary()) {
-							typename DoFHandler<dim>::active_cell_iterator neighbor = cell->neighbor(f2);
-							for (unsigned int f3 = 0; f3 < GeometryInfo<dim>::faces_per_cell; ++f3) {
-								if (neighbor->face(f3)->at_boundary
-										&& neighbor->face(f3)->boundary_id() == BoundaryId::copper_surface) {
-									std::vector< Tensor<1, dim> > neighbor_electric_field_values (n_face_q_points);
-									// find the corresponding vacuum side face to the copper side face
-									std::pair<unsigned, unsigned> cop_cell_info = std::pair<unsigned, unsigned>(neighbor->index(), f3);
-									// check if the corresponding vacuum face exists in our mapping
-									assert(interface_map.count(cop_cell_info) == 1);
-									std::pair<unsigned, unsigned> vac_cell_info = interface_map[cop_cell_info];
-									typename DoFHandler<dim>::active_cell_iterator vac_cell(&(laplace->triangulation),
-											0, vac_cell_info.first, &(laplace->dof_handler));
-
-									vacuum_fe_face_values.reinit(vac_cell, vac_cell_info.second);
-									vacuum_fe_face_values.get_function_gradients(laplace->solution, neighbor_electric_field_values);
-									for (unsigned int q = 0; q < n_face_q_points; ++q) {
-										efield_norm_vals.push_back(neighbor_electric_field_values[q].norm());
-									}
-								}
-							}
-						}
-					}
-					std::sort(efield_norm_vals.begin(), efield_norm_vals.end());
-					double median
-
-					// ---------------------------------------------------------------------------------------------
 
 					// loop through the quadrature points
 					for (unsigned int q = 0; q < n_face_q_points; ++q) {
@@ -727,11 +818,9 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
 
 						const Tensor<1,dim> normal_vector = fe_face_values.normal_vector(q);
 
-						//double sigma = pq.sigma(prev_temp);
-						//double kappa = pq.kappa(prev_temp);
 						double dsigma = pq->dsigma(prev_temp);
 						double dkappa = pq->dkappa(prev_temp);
-						double e_field = electric_field_values[q].norm();
+						//double e_field = electric_field_values[q].norm();
 						double emission_current = pq->emission_current(e_field, prev_temp);
 						// Nottingham heat flux in
 						// (eV*A/nm^2) -> (eV*n*q_e/(s*nm^2)) -> (J*n/(s*nm^2)) -> (W/nm^2)
@@ -757,7 +846,6 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
 															  * prev_temp_grad * temperature_phi[j])
 													 ) * fe_face_values.JxW(q);
 							}
-
 						}
 					}
 				}
@@ -848,7 +936,7 @@ void CurrentsAndHeating<dim>::run() {
 	Timer timer;
 
 	setup_system();
-	setup_mapping();
+	setup_mapping_field(false);
 
 	// Sets the initial state
 	// Dirichlet BCs need to hold for this state
@@ -920,7 +1008,7 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 
 	Timer timer;
 
-	if (!setup_mapping()) {
+	if (!setup_mapping_field(true)) {
 		std::cerr << "Error: Couldn't make a correct mapping between copper and vacuum faces on the interface."
 				  << "Make sure that the face elements have one-to-one correspondence there."
 				  << std::endl;
@@ -1051,14 +1139,13 @@ void CurrentsAndHeating<dim>::output_results(const std::string file_name,
 	if (iteration >= 0) {
 	    const int start = file_name.find_last_of('.');
 	    const int end = file_name.size();
-	    std::string ext = "";
-	    if (start <= end) {
+	    std::string ext = ".vtk";
+	    if (start != -1) {
 	    	ext = file_name.substr(start, end);
 	    	file_name_mod = file_name.substr(0, start);
 	    }
 	    file_name_mod += "-" + std::to_string(iteration) + ext;
 	}
-
 	std::vector<std::string> solution_names {"potential", "temperature"};
 
 	CurrentPostProcessor<dim> current_post_processor(pq); // needs to be before data_out
