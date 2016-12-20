@@ -94,7 +94,7 @@ int main() {
 		std::cout << "    ch_solver info:\n        " << *ch_solver << std::endl;
 		printf("    Timings: mesh_imp: %5.2f; mesh_exp: %5.2f\n", c_mesh_imp_time, c_mesh_exp_time);
 
-		double final_error = ch_solver->run_specific(1.0, 100, true, "output/sol_"+std::to_string(n), true, 1.0);
+		double final_error = ch_solver->run_specific(1.0, 100, true, "output/sol_"+std::to_string(n), true, 2.0);
 
 		std::cout << "    Solved currents&heating: " << timer.wall_time() << " s" << std::endl; timer.restart();
 		std::cout << "    Final temp. error: " << final_error << std::endl;

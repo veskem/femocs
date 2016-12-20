@@ -164,7 +164,10 @@ namespace fch {
 		void solve();
 
 		bool setup_mapping();
-		bool setup_mapping_field(bool smoothing);
+		/**
+		 * @param smoothing replaces top given % by their average + stdev (if negative, will ignore)
+		 */
+		bool setup_mapping_field(double smoothing=0.01);
 		void set_initial_condition();
 		void set_initial_condition_slow();
 
@@ -194,9 +197,10 @@ namespace fch {
 		/** Mapping of copper interface face to vacuum side
 		 * (copper_cell_index, copper_cell_face) <-> (vacuum_cell_index, vacuum_cell_face)
 		 */
-		//std::map< std::pair<unsigned, unsigned>, double > interface_map;
 		std::map< std::pair<unsigned, unsigned>, std::pair<unsigned, unsigned> > interface_map;
-
+		/** Mapping of copper interface face to vacuum side e field norm
+		 * (copper_cell_index, copper_cell_face) <-> (electric field norm)
+		 */
 		std::map< std::pair<unsigned, unsigned>, double > interface_map_field;
 
 		/** Previous iteration mesh and solution for setting the initial condition */

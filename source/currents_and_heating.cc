@@ -288,9 +288,10 @@ bool CurrentsAndHeating<dim>::setup_mapping() {
 }
 
 template <int dim>
-bool CurrentsAndHeating<dim>::setup_mapping_field(bool smoothing) {
+bool CurrentsAndHeating<dim>::setup_mapping_field(double smoothing) {
 
 	double eps = 1e-9;
+	//double smoothing = 0.01; // percentage of the top
 
 	// ---------------------------------------------------------------------------------------------
 	// Loop over vacuum interface cells
@@ -324,55 +325,28 @@ bool CurrentsAndHeating<dim>::setup_mapping_field(bool smoothing) {
 				double efield_norm = electric_field_value[0].norm();
 				// ---
 
-				// ---------------------------------------------------------------------------------------------
-				// Smoothing: Loop over neighbor faces and compare the E field
-				if (smoothing) {
-					std::vector<double> neighbor_norm_vals;
-					std::vector< Tensor<1, dim> > neighbor_electric_field_value (1);
-					for (unsigned int f2 = 0; f2 < GeometryInfo<dim>::faces_per_cell; ++f2) {
-						if (vac_cell->face(f2)->boundary_id() == BoundaryId::copper_surface) {
-							// another face of the same cell is on the copper surface, add to comparison
-							vacuum_fe_face_values.reinit(vac_cell, f2);
-							vacuum_fe_face_values.get_function_gradients(laplace->solution, neighbor_electric_field_value);
-							neighbor_norm_vals.push_back(neighbor_electric_field_value[0].norm());
-						} else if (!vac_cell->face(f2)->at_boundary()) {
-							// Neighbor exists through the face f2, check its faces (f3)
-							typename DoFHandler<dim>::active_cell_iterator neighbor = vac_cell->neighbor(f2);
-							for (unsigned int f3 = 0; f3 < GeometryInfo<dim>::faces_per_cell; ++f3) {
-								if (neighbor->face(f3)->at_boundary()
-										&& neighbor->face(f3)->boundary_id() == BoundaryId::copper_surface) {
-									vacuum_fe_face_values.reinit(neighbor, f3);
-									vacuum_fe_face_values.get_function_gradients(laplace->solution, neighbor_electric_field_value);
-									neighbor_norm_vals.push_back(neighbor_electric_field_value[0].norm());
-								}
-							}
-						}
-					}
-					double stdev = vector_stdev(neighbor_norm_vals);
-					double median = vector_median(neighbor_norm_vals);
-
-					if (efield_norm > 12.0) {
-						std::cout << efield_norm << " median: " << median << " stdev: " << stdev << std::endl;
-						std::cout << "    data: ";
-						for (auto e : neighbor_norm_vals) std::cout << e << " ";
-						std::cout << std::endl;
-					}
-
-					if (std::abs(efield_norm - median) >= 2*stdev) {
-						// We have an anomaly...
-						std::cout << "ANOMALY DETECTED: " << efield_norm << " REPLACING BY " << median << std::endl;
-						//for (auto e : neighbor_norm_vals) std::cout << e << " ";
-						//std::cout << std::endl;
-						efield_norm = median;
-					}
-					// ---------------------------------------------------------------------------------------------
-				}
-
 				vacuum_interface_efield.push_back(efield_norm);
 			}
 		}
 	}
 	// ---------------------------------------------------------------------------------------------
+
+	// Smoothing: replace a top % with their average + stdev
+	if (smoothing > 0.0 && smoothing < 1.0) {
+		std::vector<double> efield_vector(vacuum_interface_efield);
+		std::sort(efield_vector.begin(), efield_vector.end());
+		std::reverse(efield_vector.begin(), efield_vector.end());
+		int num_top = smoothing*efield_vector.size();
+		std::vector<double> top_elems(efield_vector.begin(), efield_vector.begin()+num_top);
+		double mean = vector_mean(top_elems);
+		double stdev = vector_stdev(top_elems);
+		for (auto &e : vacuum_interface_efield) {
+			if (e > mean + stdev) {
+				//std::cout << e << " REPLACED BY " << mean + stdev << std::endl;
+				e = mean + stdev;
+			}
+		}
+	}
 
 	// ---------------------------------------------------------------------------------------------
 	// Loop over copper interface cells
@@ -936,7 +910,7 @@ void CurrentsAndHeating<dim>::run() {
 	Timer timer;
 
 	setup_system();
-	setup_mapping_field(false);
+	setup_mapping_field();
 
 	// Sets the initial state
 	// Dirichlet BCs need to hold for this state
@@ -1008,7 +982,7 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 
 	Timer timer;
 
-	if (!setup_mapping_field(true)) {
+	if (!setup_mapping_field()) {
 		std::cerr << "Error: Couldn't make a correct mapping between copper and vacuum faces on the interface."
 				  << "Make sure that the face elements have one-to-one correspondence there."
 				  << std::endl;
