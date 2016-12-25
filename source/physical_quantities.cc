@@ -6,6 +6,7 @@
  */
 
 #include "physical_quantities.h"
+#include "utility.h"
 
 #include <fstream>
 #include <sstream>
@@ -14,7 +15,13 @@
 #include <iostream>
 #include <algorithm>
 
+#include <sys/stat.h>
+
 namespace fch {
+
+PhysicalQuantities::PhysicalQuantities() {
+	initialize_with_hc_data();
+}
 
 double PhysicalQuantities::emission_current(double field, double temperature) {
 	return std::exp(bilinear_interp(std::log(field), temperature, emission_grid))*1.0e-18;
@@ -60,20 +67,24 @@ double PhysicalQuantities::dkappa(double temperature) {
 	return lorentz * (sigma(temperature) + temperature * dsigma(temperature));
 }
 
-bool PhysicalQuantities::load_grid_data(std::string filepath, InterpolationGrid &grid) {
+bool PhysicalQuantities::load_spreadsheet_grid_data(std::string filepath, InterpolationGrid &grid) {
 	std::ifstream infile(filepath);
 	if (!infile) {
 		std::cerr << "Couldn't open \"" << filepath << "\"\n";
 		return false;
 	}
 
+	grid.v.clear();
+
 	std::vector<double> row;
 	std::string line;
 	double last_x = 0, last_y = 0;
 	bool first_line = true;
 
+	unsigned line_counter = 0;
+
 	while (std::getline(infile, line)) {
-		if (line[0] == '%')
+		if (line[0] == '%' || line[0] == '\n')
 			continue;
 		std::istringstream stm(line);
 		double x, y, z;
@@ -84,27 +95,61 @@ bool PhysicalQuantities::load_grid_data(std::string filepath, InterpolationGrid 
 			grid.ymin = y;
 			first_line = false;
 		} else if (last_x != x) {
-			grid.grid.push_back(row);
-			row.clear();
+			grid.ynum = line_counter;
 		}
-		row.push_back(z);
+		grid.v.push_back(z);
+
 		last_x = x;
 		last_y = y;
+		line_counter++;
 	}
-	grid.grid.push_back(row);
 	grid.xmax = last_x;
 	grid.ymax = last_y;
+	grid.xnum = grid.v.size()/grid.ynum;
 
 	infile.close();
 	return true;
 }
 
+bool PhysicalQuantities::load_compact_grid_data(std::string filepath, InterpolationGrid &grid) {
+	std::ifstream infile(filepath);
+	if (!infile) {
+		std::cerr << "Couldn't open \"" << filepath << "\"\n";
+		return false;
+	}
+
+	grid.v.clear();
+
+	std::string line;
+	int line_counter = 0;
+
+	while (std::getline(infile, line)) {
+		if (line[0] == '%' || line.size() == 0 || !contains_digit(line))
+			continue;
+
+		std::istringstream stm(line);
+		double val;
+
+		if (line_counter == 0) {
+			stm >> grid.xmin >> grid.xmax >> grid.xnum;
+		} else if (line_counter == 1) {
+			stm >> grid.ymin >> grid.ymax >> grid.ynum;
+		} else {
+			stm >> val;
+			grid.v.push_back(val);
+		}
+		line_counter++;
+	}
+	infile.close();
+	return true;
+}
+
 bool PhysicalQuantities::load_emission_data(std::string filepath) {
-	return load_grid_data(filepath, emission_grid);
+	return load_compact_grid_data(filepath, emission_grid);
 }
 
 bool PhysicalQuantities::load_nottingham_data(std::string filepath) {
-	return load_grid_data(filepath, nottingham_grid);
+	return load_compact_grid_data(filepath, nottingham_grid);
 }
 
 bool PhysicalQuantities::load_resistivity_data(std::string filepath) {
@@ -150,12 +195,18 @@ void PhysicalQuantities::output_to_files() {
 	double temperature = 500.0;
 	std::string filepath = "./output/";
 
+	struct stat info;
+	if (stat(filepath.c_str(), &info) != 0) {
+		std::cerr << "Can't access " + filepath << std::endl;
+		return;
+	}
 	std::cout << "Outputting physical quantities to \""+filepath+"\"" << std::endl;
 
 	FILE *rho_file = fopen((filepath+"rho_file.txt").c_str(), "w");
 	FILE *sigma_file = fopen((filepath+"sigma_file.txt").c_str(), "w");
 	FILE *kappa_file = fopen((filepath+"kappa_file.txt").c_str(), "w");
 	FILE *emission_file = fopen((filepath+"emission_file.txt").c_str(), "w");
+	FILE *nottingham_file = fopen((filepath+"nottingham_file.txt").c_str(), "w");
 
 	for (double t = 100.0; t < 1500.0; t+=5.0) {
 		fprintf(rho_file, "%.5e %.5e %.5e\n", t,
@@ -166,6 +217,7 @@ void PhysicalQuantities::output_to_files() {
 
 	for (double f = 0.01; f < 10.0; f+=0.01) {
 		fprintf(emission_file, "%.5e %.5e %.16e\n", f, temperature, emission_current(f, temperature));
+		fprintf(nottingham_file, "%.5e %.5e %.16e\n", f, temperature, nottingham_de(f, temperature));
 	}
 
 	fclose(rho_file);
@@ -210,8 +262,8 @@ double PhysicalQuantities::bilinear_interp(double x, double y, const Interpolati
 		y = grid_data.ymax - eps;
 
 // Note that # of "transitions" = # of rows - 1
-	double dx = (grid_data.xmax - grid_data.xmin) / (grid_data.grid.size() - 1);
-	double dy = (grid_data.ymax - grid_data.ymin) / (grid_data.grid[0].size() - 1);
+	double dx = (grid_data.xmax - grid_data.xmin) / (grid_data.xnum - 1);
+	double dy = (grid_data.ymax - grid_data.ymin) / (grid_data.ynum - 1);
 
 // indexes of the "square", where (x,y) is located
 
@@ -225,8 +277,10 @@ double PhysicalQuantities::bilinear_interp(double x, double y, const Interpolati
 //std::printf("%.6f, %.6f, %.6f, %d\n", x, xc, dx, xi);
 //std::printf("%.6f, %.6f, %.6f, %d\n", y, yc, dy, yi);
 
-	return grid_data.grid[xi][yi] * (1 - xc) * (1 - yc) + grid_data.grid[xi + 1][yi] * xc * (1 - yc)
-			+ grid_data.grid[xi][yi + 1] * (1 - xc) * yc + grid_data.grid[xi + 1][yi + 1] * xc * yc;
+	unsigned yn = grid_data.ynum;
+
+	return grid_data.v[xi*yn + yi] * (1 - xc) * (1 - yc) + grid_data.v[(xi+1)*yn + yi] * xc * (1 - yc)
+			+ grid_data.v[xi*yn + yi+1] * (1 - xc) * yc + grid_data.v[(xi+1)*yn + yi+1] * xc * yc;
 }
 
 } // namespace fch

@@ -16,6 +16,11 @@ namespace fch {
 
 class PhysicalQuantities {
 public:
+	/**
+	 * The default constructor initializes the physical values to hardcoded ones.
+	 * Can be overwritten by loading the data from a file.
+	 */
+	PhysicalQuantities();
 
 	/**
 	 * Load emission current data from file
@@ -90,10 +95,12 @@ private:
 	/**
 	 * A data structure to hold the uniform grid information,
 	 * used in bilinear interpolation
+	 * Holds 2d information in a 1d vector: to access element v[i][j], use v[i*ynum+j]
 	 */
 	struct InterpolationGrid {
-		std::vector<std::vector<double> > grid;
+		std::vector<double> v;
 		double xmin = 0, xmax = 0, ymin = 0, ymax = 0;
+		unsigned xnum = 0, ynum = 0;
 	};
 	InterpolationGrid emission_grid;
 	InterpolationGrid nottingham_grid;
@@ -120,7 +127,18 @@ private:
 	 */
 	double bilinear_interp(double x, double y, const InterpolationGrid &grid_data);
 
-	bool load_grid_data(std::string filepath, InterpolationGrid &grid);
+	bool load_spreadsheet_grid_data(std::string filepath, InterpolationGrid &grid);
+
+	bool load_compact_grid_data(std::string filepath, InterpolationGrid &grid);
+
+
+	/**
+	 * Hardcoded data
+	 */
+	static const std::vector<std::pair<double, double>> hc_resistivity_data;
+	static const std::vector<double> hc_emission_current_data;
+	static const std::vector<double> hc_nottingham_data;
+	void initialize_with_hc_data();
 
 };
 

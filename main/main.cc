@@ -37,15 +37,16 @@ int main() {
 		std::cout << "res/ folder not found in " + res_path1 + " or " + res_path2 + ". Exiting..." << std::endl;
 		return EXIT_FAILURE;
 	}
-
-	if (!(pq.load_emission_data(res_path+"/physical_quantities/gtf_grid_1000x1000.dat") &&
-		  pq.load_nottingham_data(res_path+"/physical_quantities/nottingham_grid_300x300.dat") &&
+/*
+	// If physical quantities are not read from a file, hardcoded values will be used.
+	if (!(pq.load_emission_data(res_path+"/physical_quantities/gtf_200x200.dat") &&
+		  pq.load_nottingham_data(res_path+"/physical_quantities/nottingham_200x200.dat") &&
 		  pq.load_resistivity_data(res_path+"/physical_quantities/cu_res.dat"))) {
 		std::cout << "Couldn't load pq data, exiting..." << std::endl;
 		return EXIT_FAILURE;
 	}
-
 	std::cout << "    Loaded PhysicalQuantities: " << timer.wall_time() << " s" << std::endl; timer.restart();
+*/
 
 	// 3d Test usage
 

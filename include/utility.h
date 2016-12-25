@@ -67,6 +67,14 @@ T vector_stdev(const std::vector<T> vector) {
 	return std::sqrt(sq_sum/vector.size());
 }
 
+inline bool contains_digit(const std::string& s) {
+	std::string::const_iterator it = s.begin();
+	for (; it < s.end(); it++) {
+		if (std::isdigit(*it)) return true;
+	}
+	return false;
+}
+
 } // namespace fch
 
 #endif /* INCLUDE_UTILITY_H_ */
