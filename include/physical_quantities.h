@@ -138,6 +138,10 @@ private:
 	static const std::vector<std::pair<double, double>> hc_resistivity_data;
 	static const std::vector<double> hc_emission_current_data;
 	static const std::vector<double> hc_nottingham_data;
+	/**
+	 * Method to copy the hardcoded data to the variables that are used
+	 * This could be made more efficient with pointer management, but shouldn't affect much overall
+	 */
 	void initialize_with_hc_data();
 
 };

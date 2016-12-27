@@ -291,13 +291,10 @@ template <int dim>
 bool CurrentsAndHeating<dim>::setup_mapping_field(double smoothing) {
 
 	double eps = 1e-9;
-	//double smoothing = 0.01; // percentage of the top
 
 	// ---------------------------------------------------------------------------------------------
 	// Loop over vacuum interface cells
 
-	std::vector<unsigned int> vacuum_interface_indexes;
-	std::vector<unsigned int> vacuum_interface_face;
 	std::vector< Point<dim> > vacuum_interface_centers;
 	std::vector<double> vacuum_interface_efield;
 
@@ -314,8 +311,6 @@ bool CurrentsAndHeating<dim>::setup_mapping_field(double smoothing) {
 	for (; vac_cell != vac_endc; ++vac_cell) {
 		for (unsigned int f=0; f < GeometryInfo<dim>::faces_per_cell; f++) {
 			if (vac_cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
-				vacuum_interface_indexes.push_back(vac_cell->index());
-				vacuum_interface_face.push_back(f);
 				vacuum_interface_centers.push_back(vac_cell->face(f)->center());
 
 				// ---
@@ -361,7 +356,7 @@ bool CurrentsAndHeating<dim>::setup_mapping_field(double smoothing) {
 				Point<dim> cop_face_center = cop_cell->face(f)->center();
 				std::pair<unsigned, unsigned> cop_face_info(cop_cell->index(), f);
 				// Loop over vacuum side and find corresponding (cell, face) pair
-				for (unsigned int i=0; i < vacuum_interface_indexes.size(); i++) {
+				for (unsigned int i=0; i < vacuum_interface_centers.size(); i++) {
 					if (cop_face_center.distance(vacuum_interface_centers[i]) < eps) {
 
 						std::pair< std::pair<unsigned, unsigned>,
