@@ -20,8 +20,15 @@
 #include "laplace.h"
 #endif
 
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/hilbert_sort.h>
+#include <CGAL/spatial_sort.h>
+
 using namespace std;
 namespace femocs {
+
+typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+typedef K::Point_3                                          Point;
 
 /** Main class to hold Femocs object */
 class Femocs {
@@ -141,6 +148,8 @@ private:
     fch::CurrentsAndHeating<3>* prev_ch_solver;
 #endif
 
+    const int sort_hilbert(Medium& medium);
+    
     const int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);
     const int generate_meshes(TetgenMesh& tetmesh_bulk, TetgenMesh& tetmesh_vacuum,
         tethex::Mesh& hexmesh_bulk, tethex::Mesh& hexmesh_vacuum);

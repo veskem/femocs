@@ -41,7 +41,7 @@ public:
     const void add_atom(const Point3& point);
 
     /** Export the data of Medium to file in .xyz or .vtk format */
-    void write(const string &file_name) const;
+    void write(const string &file_name, const int n_max = 1e8) const;
 
     /** Calculate statistics about the coordinates in Medium */
     const void calc_statistics();
@@ -99,7 +99,7 @@ protected:
     const void init_statistics();
 
     /** Output atom data in .xyz format */
-    const void write_xyz(ofstream &outfile) const;
+    const void write_xyz(ofstream &outfile, const int n_max) const;
 
     /** Output atom data in .vtk format */
     const void write_vtk(ofstream &outfile) const;

@@ -1,4 +1,6 @@
 
+hilbert_sort = true;
+
 infile = input/nanotip_hr5.ckx  # default file used with atom coordinates
 latconst = 2.0                  # lattice constant
 #infile = input/nanotip_medium.xyz  # default file used with atom coordinates

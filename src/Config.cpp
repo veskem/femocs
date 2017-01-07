@@ -45,6 +45,8 @@ Config::Config() {
     neumann = 0;                 // neumann boundary condition value
     t_error = 10.0;              // maximum allowed temperature error in Newton iterations
     n_newton = 10;               // maximum number of Newton iterations
+    
+    hilbert_sort = true;
 }
 
 // Remove the noise from the beginning of the string
@@ -61,6 +63,8 @@ const void Config::read_all(const string& file_name) {
 
     // Modify the parameters that are correctly specified in input script
 
+    read_command("hilbert_sort", hilbert_sort);
+    
     read_command("infile", infile);
     read_command("latconst", latconst);
     read_command("coord_cutoff", coord_cutoff);

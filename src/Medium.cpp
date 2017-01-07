@@ -215,7 +215,7 @@ const void Medium::set_coordination(const int i, const int coord) {
 
 // Pick the suitable write function based on the file type
 // Function works only in debug mode
-void Medium::write(const string &file_name) const {
+void Medium::write(const string &file_name, const int n_max) const {
     if (!MODES.WRITEFILE) return;
 
     expect(get_n_atoms() > 0, "Zero points detected!");
@@ -227,7 +227,7 @@ void Medium::write(const string &file_name) const {
     require(outfile.is_open(), "Can't open a file " + file_name);
 
     if (ftype == "xyz")
-        write_xyz(outfile);
+        write_xyz(outfile, n_max);
     else if (ftype == "vtk")
         write_vtk(outfile);
 
@@ -244,13 +244,13 @@ const string Medium::get_data_string(const int i) const {
 }
 
 // Output atom data in .xyz format
-const void Medium::write_xyz(ofstream& out) const {
+const void Medium::write_xyz(ofstream& out, const int n_max) const {
     const int n_atoms = get_n_atoms();
 
-    out << n_atoms << "\n";
+    out << min(n_atoms, n_max) << "\n";
     out << get_data_string(-1) << endl;
 
-    for (int i = 0; i < n_atoms; ++i)
+    for (int i = 0; (i < n_atoms) && (i < n_max); ++i)
         out << get_data_string(i) << endl;
 }
 

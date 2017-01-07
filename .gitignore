@@ -18,4 +18,5 @@ release/femocs
 release/build/**/*
 heating
 hilbert
-
+cgal/*
+!cgal/CGAL*.zip

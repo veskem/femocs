@@ -5,14 +5,15 @@
  *      Author: veske
  */
 
-#include <omp.h>
 #include "Femocs.h"
-
 #include "Coarseners.h"
 #include "DealII.h"
 #include "Macros.h"
 #include "Tethex.h"
 #include "TetgenMesh.h"
+
+#include <random>
+#include <omp.h>
 
 using namespace std;
 namespace femocs {
@@ -189,6 +190,50 @@ const int Femocs::solve_laplace(TetgenMesh& tetmesh_vacuum, tethex::Mesh& hexmes
     return 0;
 }
 
+const int Femocs::sort_hilbert(Medium& medium) {       
+    int n_atoms = medium.get_n_atoms();
+    double t0;
+    
+    random_device rd;     // only used once to initialise (seed) engine
+    mt19937 rng(rd());    // random-number engine used (Mersenne-Twister in this case)
+    uniform_int_distribution<int> uni(0,(n_atoms-1)); // guaranteed unbiased
+
+    vector<bool> passed(n_atoms, false);
+    vector<Point> v; v.reserve(n_atoms);
+    for (int i = 0; i < n_atoms*10; ++i) {
+        int j = uni(rng);
+        if (passed[j]) continue;
+        
+        Point3 pt = medium.get_point(j);
+        v.push_back( Point(pt.x, pt.y, pt.z) );
+        passed[j] = true;
+    }
+    
+    for (int i = 0; i < n_atoms; ++i) {
+        if (passed[i]) continue;
+        Point3 pt = medium.get_point(i);
+        v.push_back( Point(pt.x, pt.y, pt.z) );
+    }
+    
+    start_msg(t0, "=== Hilbert sorting...");
+    //CGAL::hilbert_sort (v.begin(), v.end(), K(), CGAL::Hilbert_sort_median_policy());
+    CGAL::hilbert_sort (v.begin(), v.end(), K(), CGAL::Hilbert_sort_middle_policy());
+    //CGAL::spatial_sort(v.begin(),v.end());
+    //CGAL::spatial_sort(v.begin(),v.end(), K(), CGAL::Hilbert_sort_middle_policy());
+    end_msg(t0);
+    
+    for (int i = 0; i < n_atoms; ++i)
+        medium.set_point( i, Point3(v[i][0], v[i][1], v[i][2]) );
+    
+//    int result;
+//    result = system("mkdir -p output/hilbert");
+//    //result = system("rm -f output/hilbert/*");
+//    for (int i = 0; i < 500; ++i)
+//        medium.write("output/hilbert/run_" + to_string(i) + ".xyz", i);
+        
+    return 1;
+}
+
 // workhorse function to generate FEM mesh and to solve differential equation(s)
 const int Femocs::run(double elfield, string message) {
     double t0, tstart;  // Variables used to measure the code execution time
@@ -210,12 +255,18 @@ const int Femocs::run(double elfield, string message) {
     
     fail = generate_meshes(tetmesh_bulk, tetmesh_vacuum, hexmesh_bulk, hexmesh_vacuum);
     if(fail) return 1;
-        
+    
     tetmesh_bulk.elems.write  ("output/tetmesh_bulk.vtk");
     tetmesh_vacuum.elems.write("output/tetmesh_vacuum.vtk");
     hexmesh_bulk.write_vtk_elems  ("output/hexmesh_bulk" + message + ".vtk");
     hexmesh_vacuum.write_vtk_elems("output/hexmesh_vacuum" + message + ".vtk");
 
+    if (conf.hilbert_sort) {
+        int result = sort_hilbert(dense_surf);
+        //result = sort_hilbert(reader);
+    }
+    else dense_surf.sort_atoms(0, 1, "up");
+    
     // ==============================
     // ===== Running FEM solver =====
     // ==============================
@@ -279,7 +330,6 @@ const int Femocs::run(double elfield, string message) {
     bulk_interpolator.write("output/result_rho_T.xyz");
     
     start_msg(t0, "=== Interpolating E and phi...");
-    dense_surf.sort_atoms(0, 1, "up");
     vacuum_interpolation.interpolate(dense_surf);
     end_msg(t0);
     
@@ -425,7 +475,6 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
 
     if (!skip_calculations) {
         start_msg(t0, "=== Interpolating solution...");
-        dense_surf.sort_atoms(0, 1, "up");
         interpolation.interpolate(dense_surf);
         end_msg(t0);
 

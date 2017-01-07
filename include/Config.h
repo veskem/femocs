@@ -57,6 +57,8 @@ public:
     double bulk_height;         ///< Bulk substrate height [lattice constant]
     double t_error;             ///< Maximum allowed temperature error in Newton iterations
     int n_newton;               ///< Maximum number of Newton iterations
+    
+    bool hilbert_sort;          ///< Sort interpolated points along Hilbert curve
 
     /** Minimum distance between atoms from current and previous run so that their
      * movement is considered to be sufficiently big to recalculate electric field;
