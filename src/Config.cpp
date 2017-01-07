@@ -7,7 +7,6 @@
 
 #include "Config.h"
 #include <fstream>
-#include <sstream>
 #include <algorithm>
 
 using namespace std;
@@ -15,12 +14,6 @@ namespace femocs {
 
 // Config constructor initializes configuration parameters
 Config::Config() {
-//    infile = "input/rough111.ckx";
-//    infile = "input/mushroom2.ckx";
-//    infile = "input/tower_hl2p5.ckx";
-//    infile = "input/nanotip_hr5.ckx";
-//    latconst = 2.0;
-
     infile = "input/nanotip_medium.xyz";
     latconst = 3.61;
 

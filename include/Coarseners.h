@@ -11,6 +11,7 @@
 #include "Primitives.h"
 #include "Medium.h"
 #include "Config.h"
+#include <memory>
 
 using namespace std;
 namespace femocs {

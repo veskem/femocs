@@ -9,9 +9,7 @@
 
 #include <omp.h>
 #include <string.h>
-#include <math.h>
 #include <stdexcept>
-#include <sstream>
 #include <algorithm>
 #include <numeric>
 #include <iomanip>

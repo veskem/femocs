@@ -9,8 +9,8 @@
 
 #include <float.h>
 #include <fstream>
-#include <sstream>
 #include <numeric>
+#include <algorithm>
 
 using namespace std;
 namespace femocs {

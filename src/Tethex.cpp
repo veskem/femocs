@@ -18,12 +18,10 @@
 #include "Tethex.h"
 #include "Macros.h"
 
-#include <sstream>
 #include <stdexcept>
 #include <memory>
 #include <algorithm>
 #include <fstream>
-#include <cmath>
 
 namespace tethex {
 

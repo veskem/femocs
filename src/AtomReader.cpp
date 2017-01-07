@@ -9,8 +9,6 @@
 
 #include <cfloat>
 #include <fstream>
-#include <sstream>
-
 #include <omp.h>
 
 using namespace std;
