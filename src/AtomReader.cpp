@@ -127,8 +127,15 @@ const void AtomReader::calc_coordination(const double cutoff) {
     const double cutoff2 = cutoff * cutoff;
     vector<int> coordinations(n_atoms, 0);
 
+    int percentage = 0;
     // Loop through all the atoms
     for (int i = 0; i < n_atoms - 1; ++i) {
+        // show progress (for big systems the calculation may take a lot of time)
+        if (MODES.VERBOSE && i % (n_atoms / 44) == 0) {
+            cout << "\r" << string(percentage, '*') << string(44-percentage, ' ') << " " << flush;
+            percentage++;
+        }
+        
         Point3 point1 = get_point(i);
         // Loop through all the possible neighbours of the atom
         for (int j = i + 1; j < n_atoms; ++j) {
