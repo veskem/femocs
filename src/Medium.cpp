@@ -12,8 +12,7 @@
 #include <float.h>
 #include <fstream>
 #include <sstream>
-#include <numeric>
-#include <random>
+#include <algorithm>
 
 using namespace std;
 namespace femocs {
@@ -65,28 +64,13 @@ const void Medium::sort_spatial() {
     typedef K::Point_3                                          Point;
     
     // Shuffle points uniformly
-    
-    random_device rd;     // initialise (seed) random generator
-    mt19937 rng(rd());    // use Mersenne-Twister as random-number engine
-    uniform_int_distribution<int> uni(0, (n_atoms-1)); // set limits
-
-    vector<bool> passed(n_atoms, false);
     vector<Point> v; v.reserve(n_atoms);
-    for (int i = 0; i < 10 * n_atoms; ++i) {
-        int j = uni(rng);
-        if (passed[j]) continue;
-        
-        Point3 pt = get_point(j);
-        v.push_back( Point(pt.x, pt.y, pt.z) );
-        passed[j] = true;
-    }
-    
     for (int i = 0; i < n_atoms; ++i) {
-        if (passed[i]) continue;
         Point3 pt = get_point(i);
         v.push_back( Point(pt.x, pt.y, pt.z) );
     }
-    
+    random_shuffle( v.begin(), v.end() );
+  
     // Sort atoms along Hilbert curve using middle policy
     CGAL::hilbert_sort( v.begin(), v.end(), K(), CGAL::Hilbert_sort_middle_policy() );
     
