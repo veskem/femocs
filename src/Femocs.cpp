@@ -12,7 +12,6 @@
 #include "Tethex.h"
 #include "TetgenMesh.h"
 
-#include <random>
 #include <omp.h>
 
 using namespace std;
@@ -190,50 +189,6 @@ const int Femocs::solve_laplace(TetgenMesh& tetmesh_vacuum, tethex::Mesh& hexmes
     return 0;
 }
 
-const int Femocs::sort_hilbert(Medium& medium) {       
-    int n_atoms = medium.get_n_atoms();
-    double t0;
-    
-    random_device rd;     // only used once to initialise (seed) engine
-    mt19937 rng(rd());    // random-number engine used (Mersenne-Twister in this case)
-    uniform_int_distribution<int> uni(0,(n_atoms-1)); // guaranteed unbiased
-
-    vector<bool> passed(n_atoms, false);
-    vector<Point> v; v.reserve(n_atoms);
-    for (int i = 0; i < n_atoms*10; ++i) {
-        int j = uni(rng);
-        if (passed[j]) continue;
-        
-        Point3 pt = medium.get_point(j);
-        v.push_back( Point(pt.x, pt.y, pt.z) );
-        passed[j] = true;
-    }
-    
-    for (int i = 0; i < n_atoms; ++i) {
-        if (passed[i]) continue;
-        Point3 pt = medium.get_point(i);
-        v.push_back( Point(pt.x, pt.y, pt.z) );
-    }
-    
-    start_msg(t0, "=== Hilbert sorting...");
-    //CGAL::hilbert_sort (v.begin(), v.end(), K(), CGAL::Hilbert_sort_median_policy());
-    CGAL::hilbert_sort (v.begin(), v.end(), K(), CGAL::Hilbert_sort_middle_policy());
-    //CGAL::spatial_sort(v.begin(),v.end());
-    //CGAL::spatial_sort(v.begin(),v.end(), K(), CGAL::Hilbert_sort_middle_policy());
-    end_msg(t0);
-    
-    for (int i = 0; i < n_atoms; ++i)
-        medium.set_point( i, Point3(v[i][0], v[i][1], v[i][2]) );
-    
-//    int result;
-//    result = system("mkdir -p output/hilbert");
-//    //result = system("rm -f output/hilbert/*");
-//    for (int i = 0; i < 500; ++i)
-//        medium.write("output/hilbert/run_" + to_string(i) + ".xyz", i);
-        
-    return 1;
-}
-
 // workhorse function to generate FEM mesh and to solve differential equation(s)
 const int Femocs::run(double elfield, string message) {
     double t0, tstart;  // Variables used to measure the code execution time
@@ -261,11 +216,14 @@ const int Femocs::run(double elfield, string message) {
     hexmesh_bulk.write_vtk_elems  ("output/hexmesh_bulk" + message + ".vtk");
     hexmesh_vacuum.write_vtk_elems("output/hexmesh_vacuum" + message + ".vtk");
 
+    start_msg(t0, "=== Sorting atoms...");
     if (conf.hilbert_sort) {
-        int result = sort_hilbert(dense_surf);
-        //result = sort_hilbert(reader);
+        dense_surf.sort_spatial();
+        // reader.sort_spatial();
     }
     else dense_surf.sort_atoms(0, 1, "up");
+    end_msg(t0);
+    dense_surf.write("output/surface_sort.movie", 400);
     
     // ==============================
     // ===== Running FEM solver =====

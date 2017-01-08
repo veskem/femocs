@@ -6,11 +6,14 @@
  */
 
 #include "Medium.h"
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/hilbert_sort.h>
 
 #include <float.h>
 #include <fstream>
 #include <sstream>
 #include <numeric>
+#include <random>
 
 using namespace std;
 namespace femocs {
@@ -51,6 +54,45 @@ const void Medium::sort_atoms(const int x1, const int x2, const string& directio
         sort( atoms.begin(), atoms.end(), Atom::sort_up2(x1, x2) );
     else if (direction == "down" || direction == "desc")
         sort( atoms.begin(), atoms.end(), Atom::sort_down2(x1, x2) );
+}
+
+// Perform spatial sorting by ordering atoms along Hilbert curve
+const void Medium::sort_spatial() {
+    const int n_atoms = get_n_atoms();
+    
+    // Definitions for CGAL
+    typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+    typedef K::Point_3                                          Point;
+    
+    // Shuffle points uniformly
+    
+    random_device rd;     // initialise (seed) random generator
+    mt19937 rng(rd());    // use Mersenne-Twister as random-number engine
+    uniform_int_distribution<int> uni(0, (n_atoms-1)); // set limits
+
+    vector<bool> passed(n_atoms, false);
+    vector<Point> v; v.reserve(n_atoms);
+    for (int i = 0; i < 10 * n_atoms; ++i) {
+        int j = uni(rng);
+        if (passed[j]) continue;
+        
+        Point3 pt = get_point(j);
+        v.push_back( Point(pt.x, pt.y, pt.z) );
+        passed[j] = true;
+    }
+    
+    for (int i = 0; i < n_atoms; ++i) {
+        if (passed[i]) continue;
+        Point3 pt = get_point(i);
+        v.push_back( Point(pt.x, pt.y, pt.z) );
+    }
+    
+    // Sort atoms along Hilbert curve using middle policy
+    CGAL::hilbert_sort( v.begin(), v.end(), K(), CGAL::Hilbert_sort_middle_policy() );
+    
+    // Store sorted atoms
+    for (int i = 0; i < n_atoms; ++i)
+        set_point( i, Point3(v[i][0], v[i][1], v[i][2]) );
 }
 
 // Reserve memory for data vectors
@@ -217,19 +259,24 @@ const void Medium::set_coordination(const int i, const int coord) {
 // Function works only in debug mode
 void Medium::write(const string &file_name, const int n_max) const {
     if (!MODES.WRITEFILE) return;
-
-    expect(get_n_atoms() > 0, "Zero points detected!");
-
-    string ftype = get_file_type(file_name);
-    require(ftype == "xyz" || ftype == "vtk", "Unsupported file type: " + ftype);
-
+    
+    int n_atoms = get_n_atoms();
+    if (n_max > 0 && n_max < n_atoms) n_atoms = n_max;
+    
+    expect(n_atoms > 0, "Zero atoms detected!");
+    
     ofstream outfile(file_name);
     require(outfile.is_open(), "Can't open a file " + file_name);
-
+    
+    string ftype = get_file_type(file_name);
     if (ftype == "xyz")
-        write_xyz(outfile, n_max);
+        write_xyz(outfile, n_atoms);
     else if (ftype == "vtk")
-        write_vtk(outfile);
+        write_vtk(outfile, n_atoms);
+    else if (ftype == "movie")
+        write_movie(outfile, n_atoms);
+    else    
+        require(false, "Unsupported file type: " + ftype);
 
     outfile.close();
 }
@@ -244,20 +291,22 @@ const string Medium::get_data_string(const int i) const {
 }
 
 // Output atom data in .xyz format
-const void Medium::write_xyz(ofstream& out, const int n_max) const {
-    const int n_atoms = get_n_atoms();
-
-    out << min(n_atoms, n_max) << "\n";
+const void Medium::write_xyz(ofstream& out, const int n_atoms) const {
+    out << n_atoms << "\n";
     out << get_data_string(-1) << endl;
 
-    for (int i = 0; (i < n_atoms) && (i < n_max); ++i)
+    for (int i = 0; i < n_atoms; ++i)
         out << get_data_string(i) << endl;
 }
 
-// Output atom data in .vtk format
-const void Medium::write_vtk(ofstream& out) const {
-    const int n_atoms = get_n_atoms();
+// Output atom data in .movie format
+const void Medium::write_movie(ofstream &outfile, const int n_atoms) const {
+    for (int i = 0; i < n_atoms; ++i)
+        write_xyz(outfile, i+1);
+}
 
+// Output atom data in .vtk format
+const void Medium::write_vtk(ofstream& out, const int n_atoms) const {
     out << "# vtk DataFile Version 3.0\n";
     out << "# Medium data\n";
     out << "ASCII\n";
@@ -268,18 +317,17 @@ const void Medium::write_vtk(ofstream& out) const {
     for (size_t i = 0; i < n_atoms; ++i)
         out << get_point(i) << "\n";
 
-    get_cell_types(out);
+    get_cell_types(out, n_atoms);
 
     out << "\nPOINT_DATA " << n_atoms << "\n";
-    get_point_data(out);
+    get_point_data(out, n_atoms);
 
     out << "\nCELL_DATA " << n_atoms << "\n";
-    get_cell_data(out);
+    get_cell_data(out, n_atoms);
 }
 
 // Get point representation in vtk format
-const void Medium::get_cell_types(ofstream& out) const {
-    const int n_cells = get_n_atoms();
+const void Medium::get_cell_types(ofstream& out, const int n_cells) const {
     const int dim = 1;
     const int celltype = 1; // cell == vertex
 
@@ -295,12 +343,10 @@ const void Medium::get_cell_types(ofstream& out) const {
 }
 
 // Get data scalar and vector data associated with vtk cells
-const void Medium::get_cell_data(ofstream& out) const {}
+const void Medium::get_cell_data(ofstream& out, const int n_cells) const {}
 
 // Get data scalar and vector data associated with vtk nodes
-const void Medium::get_point_data(ofstream& out) const {
-    const int n_atoms = get_n_atoms();
-
+const void Medium::get_point_data(ofstream& out, const int n_atoms) const {
     // write IDs of atoms
     out << "SCALARS id int\nLOOKUP_TABLE default\n";
     for (size_t i = 0; i < n_atoms; ++i)

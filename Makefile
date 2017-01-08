@@ -6,7 +6,7 @@
 
 include release/makefile.defs
 
-all: fortran
+all: release
 
 lib: lib/libfemocs.a 
 lib/libfemocs.a: src/* include/* 
