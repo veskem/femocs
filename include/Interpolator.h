@@ -52,7 +52,7 @@ public:
     const int locate_element(const Point3 &point, const int elem_guess);
 
     /** Electric field that is assigned to atoms not found from mesh.
-     *  Its value is BIG to make it immediately visible from data set. */
+     *  Its value is BIG to make it immediately visible from the dataset. */
     const double error_field = 1e20;
 
 private:

@@ -216,15 +216,6 @@ const int Femocs::run(double elfield, string message) {
     hexmesh_bulk.write_vtk_elems  ("output/hexmesh_bulk" + message + ".vtk");
     hexmesh_vacuum.write_vtk_elems("output/hexmesh_vacuum" + message + ".vtk");
 
-    start_msg(t0, "=== Sorting atoms...");
-    if (conf.hilbert_sort) {
-        dense_surf.sort_spatial();
-        // reader.sort_spatial();
-    }
-    else dense_surf.sort_atoms(0, 1, "up");
-    end_msg(t0);
-    dense_surf.write("output/surface_sort.movie", 400);
-    
     // ==============================
     // ===== Running FEM solver =====
     // ==============================
@@ -428,7 +419,6 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
 // export the calculated electric field on imported atom coordinates
 const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     double t0;
-
     check_message(interpolator.get_n_atoms() == 0, "No solution to export!");
 
     if (!skip_calculations) {
@@ -446,6 +436,7 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
 
         interpolation.write("output/interpolation" + conf.message + ".xyz");
         interpolation.write("output/interpolation" + conf.message + ".vtk");
+        interpolation.write("output/interpolation.movie", 400);
     }
 
     start_msg(t0, "=== Exporting results...");

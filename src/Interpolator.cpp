@@ -370,24 +370,53 @@ const Vec4 Interpolator::get_bcc(const Point3 &point, const int elem) {
 
 // Find the element which contains the point or is the closest to it
 const int Interpolator::locate_element(const Point3 &point, const int elem_guess) {
-    // Check first the guessed element
+    const int n_elems = det0.size();
+            
+    // Check the guessed element
     if (point_in_tetrahedron(point, elem_guess)) return elem_guess;
 
-    // Check then the neighbours of guessed element
-    for (int nbr : tetneighbours[elem_guess])
-        if (nbr >= 0 && point_in_tetrahedron(point, nbr))
-            return nbr;
-
-    const int n_elems = det0.size();
+    // Check the 1st nearest neighbours of guessed element
+    for (int nbor : tetneighbours[elem_guess])
+        if (nbor >= 0 && point_in_tetrahedron(point, nbor))
+            return nbor;
+   
+    // Check the 2nd, 3rd & 4th nearest neighbours of guessed element
+    // going further than 4th neighbour starts slowing things down
+    
+    // Mark the neighbour ranks of elements wrt to guessed element
+    vector<int> nbor_rank(n_elems);
+    for (int nbor1 : tetneighbours[elem_guess]) {
+        if (nbor1 < 0) continue;
+        for (int nbor2 : tetneighbours[nbor1]) {
+            if (nbor2 < 0) continue;
+            for (int nbor3 : tetneighbours[nbor2]) {
+                if (nbor3 < 0) continue;
+                for (int nbor4 : tetneighbours[nbor3]) {
+                    if (nbor4 < 0) continue;
+                    nbor_rank[nbor4] = 4;
+                }
+                nbor_rank[nbor3] = 3;
+            }
+            nbor_rank[nbor2] = 2;            
+        }
+        nbor_rank[nbor1] = 1;        
+    }
+    
+    // Perform the check on the neighbours
+    // checking ranks separately doesn't give any benefit in speed
+    for (int elem = 0; elem < n_elems; ++elem)
+        if ( nbor_rank[elem] > 1 && point_in_tetrahedron(point, elem) )
+            return elem;
+        
+    // If no success, loop through all the elements
     double min_distance2 = DBL_MAX;
     int min_index = 0;
-
-    // If no success, loop through all the elements
+    
     for (int elem = 0; elem < n_elems; ++elem) {
         // If correct element is found, we're done
         if (point_in_tetrahedron(point, elem)) return elem;
 
-        // Otherwise look for the element whose centroid distance to the point is the smallest
+        // Otherwise look for the element whose centroid is closest to the point
         else {
             double distance2 = point.distance2(centroid[elem]);
             if (distance2 < min_distance2) {
@@ -397,7 +426,8 @@ const int Interpolator::locate_element(const Point3 &point, const int elem_guess
         }
     }
 
-    // If no perfect element found, return the best; indicate the imperfectness with the minus sign
+    // If no perfect element found, return the best
+    // indicate the imperfectness with the minus sign
     return -min_index;
 }
 
