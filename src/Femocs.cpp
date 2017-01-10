@@ -57,7 +57,7 @@ const int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media
 //    dense_surf = dense_surf.clean_lonely_atoms(conf.coord_cutoff);
     end_msg(t0);
     dense_surf.write("output/surface_dense.xyz");
-
+        
     Media stretch_surf;
     stretch_surf = dense_surf.stretch(conf.radius, conf.box_width);
     stretch_surf.write("output/surface_stretch.xyz");

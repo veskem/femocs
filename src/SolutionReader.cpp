@@ -241,7 +241,7 @@ const void SolutionReader::reserve(const int n_nodes) {
 
 // Compile data string from the data vectors for file output
 const string SolutionReader::get_data_string(const int i) const{
-    if (i < 0) return "SolutionReader data: id x y z out_of_mesh Ex Ey Ez Enorm potential";
+    if (i < 0) return "SolutionReader properties=id:R:1:pos:R:3:out_of_mesh:R:1:force:R:3:enorm:R:1:potential:R:1";
 
     ostringstream strs;
     strs << atoms[i] << " " << interpolation[i];

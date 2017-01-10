@@ -1,4 +1,3 @@
-
 hilbert_sort = true;
 
 infile = input/nanotip_hr5.ckx  # default file used with atom coordinates
@@ -16,7 +15,7 @@ coarse_factor = 0.6 1.0 0.5     # coarsening factor; bigger number gives coarser
                                 # 2nd - minimum distance between atoms in nanotip below apex [latconst]
                                 # 3rd - minimum distance between atoms in nanotip apex [latconst]
 
-smooth_factor = 0.5             # surface smoothing factor; bigger number gives smoother surface
+smooth_factor = 0.4             # surface smoothing factor; bigger number gives smoother surface
 n_bins = 20                     # number of bins in histogram smoother
 postprocess_marking = false     # make extra effort to mark correctly the vacuum nodes in shadow area
 refine_apex = false             # refine nanotip apex
@@ -132,12 +131,3 @@ ncell(2) = 64
 ncell(3) = 21
 fixzmin  = -38.0
 fixzmax  = -35.0
-
-# Femocs configuration
---------------------------------------------------
-Smooth_Factor = 0.5 
-PARA_4   5   THIS is also #= comment  
-# comment = in the middle of # the file  
-pa&$am5=6 this = comment   # this is second comment with = and # and so one
-n_bins 70r.5t9345, asdf, and something more :_# closed by comment
-postprocess_marking true  # this is also comment # this is second also comment with = and # and so one

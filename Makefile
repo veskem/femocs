@@ -11,26 +11,26 @@ all: release
 lib: lib/libfemocs.a 
 lib/libfemocs.a: src/* include/* 
 	make -f release/makefile.lib
-		
+
 release: femocs.release
 femocs.release: ${MAIN_CPP} src/* include/* 
 	make -f release/makefile.release mode=Release
-	
+
 debug: femocs.debug
 femocs.debug: ${MAIN_CPP} src/* include/* 
 	make -f release/makefile.release mode=Debug
-	
+
 fortran: femocs.fortran
 femocs.fortran: ${MAIN_F90} src/* include/*
 	make -f release/makefile.fortran
-	
+
 heating: femocs.heating
 femocs.heating: ${MAIN_HEATING} heating/source/* heating/include/* src/* include/*
 	make -f release/makefile.heating
-	
+
 install:
 	make -f release/makefile.install
-	
+
 clean:
 	make -s -f release/makefile.lib clean
 	make -s -f release/makefile.release clean

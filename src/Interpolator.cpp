@@ -455,7 +455,7 @@ const Solution Interpolator::get_interpolation(const Point3 &point, const int el
 
 // Compile data string from the data vectors for file output
 const string Interpolator::get_data_string(const int i) const {
-    if (i < 0) return "Interpolator data: id x y z dummy Ex Ey Ez Enorm potential";
+    if (i < 0) return "Interpolator properties=id:R:1:pos:R:3:dummy:R:1:force:R:3:enorm:R:1:potential:R:1";
 
     ostringstream strs;
     strs << atoms[i] << " " << solution[i];

@@ -73,7 +73,7 @@ const void Medium::sort_spatial() {
   
     // Sort atoms along Hilbert curve using middle policy
     CGAL::hilbert_sort( v.begin(), v.end(), K(), CGAL::Hilbert_sort_middle_policy() );
-    
+
     // Store sorted atoms
     for (int i = 0; i < n_atoms; ++i)
         set_point( i, Point3(v[i][0], v[i][1], v[i][2]) );
@@ -235,7 +235,6 @@ const void Medium::set_z(const int i, const double z) {
 // Set coordination of atom
 const void Medium::set_coordination(const int i, const int coord) {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
-    require(coord >= 0, "Invalid coordination: " + to_string(coord));
     atoms[i].coord = coord;
 }
 
@@ -267,7 +266,7 @@ void Medium::write(const string &file_name, const int n_max) const {
 
 // Compile data string from the data vectors
 const string Medium::get_data_string(const int i) const {
-    if(i < 0) return "Medium data: id x y z coordination";
+    if(i < 0) return "Medium properties=id:R:1:pos:R:3:coordination:R:1";
 
     ostringstream strs;
     strs << atoms[i];
