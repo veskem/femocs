@@ -41,8 +41,8 @@ Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
         prev_ch_solver = NULL;
 #endif
 
-    // Create the output folder if it doesn't exist and file writing is enabled
-    if (MODES.WRITEFILE) system("mkdir -p output");
+    // Clear the results from previous run
+    if (MODES.WRITEFILE) system("rm -rf output; mkdir output");
 }
 
 // delete data and print bye-bye-message
@@ -68,7 +68,6 @@ const int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media
     
     start_msg(t0, "=== Coarsening surface...");
     coarse_surf = stretch_surf.coarsen(coarseners, stretch_surf.sizes);
-//    coarse_surf = dense_surf.coarsen(coarseners, reader.sizes);
     end_msg(t0);
     coarse_surf.write("output/surface_nosmooth.xyz");
 
@@ -434,9 +433,13 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
         interpolation.clean(4, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
         end_msg(t0);
 
-        interpolation.write("output/interpolation" + conf.message + ".xyz");
+        interpolation.write("output/interpolation.movie");
         interpolation.write("output/interpolation" + conf.message + ".vtk");
-        interpolation.write("output/interpolation.movie", 400);
+
+        /* Output atom data in .movie format so that the first frame has 1st atom,
+           second frame has 1st & 2nd atom etc. */
+        for (int i = 0; i < 400; ++i)
+            interpolation.write("output/surface_sort.movie", i+1);
     }
 
     start_msg(t0, "=== Exporting results...");

@@ -107,10 +107,6 @@ protected:
 
     /** Output atom data in .vtk format */
     const void write_vtk(ofstream &outfile, const int n_atoms) const;
-
-    /** Output atom data in .movie format so that the first frame has 1st atom,
-     * second frame has 1st & 2nd atom etc. */
-    const void write_movie(ofstream &outfile, const int n_atoms) const;
     
     /** Get point representation in vtk format */
     virtual const void get_cell_types(ofstream& outfile, const int n_cells) const;

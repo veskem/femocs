@@ -247,17 +247,17 @@ void Medium::write(const string &file_name, const int n_max) const {
     if (n_max > 0 && n_max < n_atoms) n_atoms = n_max;
     
     expect(n_atoms > 0, "Zero atoms detected!");
+    string ftype = get_file_type(file_name);
     
-    ofstream outfile(file_name);
+    ofstream outfile;
+    if (ftype == "movie") outfile.open(file_name, ios_base::app);
+    else outfile.open(file_name);
     require(outfile.is_open(), "Can't open a file " + file_name);
     
-    string ftype = get_file_type(file_name);
-    if (ftype == "xyz")
+    if (ftype == "xyz" || ftype == "movie")
         write_xyz(outfile, n_atoms);
     else if (ftype == "vtk")
         write_vtk(outfile, n_atoms);
-    else if (ftype == "movie")
-        write_movie(outfile, n_atoms);
     else    
         require(false, "Unsupported file type: " + ftype);
 
@@ -280,12 +280,6 @@ const void Medium::write_xyz(ofstream& out, const int n_atoms) const {
 
     for (int i = 0; i < n_atoms; ++i)
         out << get_data_string(i) << endl;
-}
-
-// Output atom data in .movie format
-const void Medium::write_movie(ofstream &outfile, const int n_atoms) const {
-    for (int i = 0; i < n_atoms; ++i)
-        write_xyz(outfile, i+1);
 }
 
 // Output atom data in .vtk format
