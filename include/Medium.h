@@ -25,6 +25,10 @@ public:
     const void sort_atoms(const int coord, const string& direction="up", const Point2 &origin = Point2(0,0));
     const void sort_atoms(const int x1, const int x2, const string& direction = "up", const Point2 &origin = Point2(0,0));
     
+    /** Perform spatial sorting by ordering atoms along Hilbert curve
+     *  http://doc.cgal.org/latest/Spatial_sorting/index.html */
+    const void sort_spatial();
+    
     /** Define the addition of two Mediums */
     Medium& operator +=(Medium &m);
 
@@ -34,15 +38,15 @@ public:
     /** Reserve memory for data vectors */
     virtual const void reserve(const int n_atoms);
 
-    /** Add Atom to the system */
+    /** Add atom to the system */
     const void add_atom(const Atom& atom);
 
-    /** Add Atom with default id and coordination to the system */
+    /** Add atom with default id and coordination to the system */
     const void add_atom(const Point3& point);
 
-    /** Export the data of Medium to file in .xyz or .vtk format */
-    void write(const string &file_name) const;
-
+    /** Write first n_max atoms to file; n_max < 0 writes all the atoms */
+    void write(const string &file_name, const int n_max = -1) const;
+    
     /** Calculate statistics about the coordinates in Medium */
     const void calc_statistics();
     /** Set the id of i-th atom */
@@ -58,7 +62,7 @@ public:
     /** Set the coordination of i-th atom */
     const void set_coordination(const int i, const int coord);
 
-    /** Return i-th Atom */
+    /** Return i-th atom */
     const Atom get_atom(const int i) const;
     /** Return x-, y- and z-coordinate and associated operators for i-th atom */
     const Point3 get_point(const int i) const;
@@ -92,26 +96,26 @@ public:
         double zmid;     ///< middle value of z-coordinate
     } sizes;
 
-protected:
+protected:   
     vector<Atom> atoms;  ///< vector holding atom coordinates and meta data
 
     /** Initialise statistics about the coordinates in Medium */
     const void init_statistics();
 
     /** Output atom data in .xyz format */
-    const void write_xyz(ofstream &outfile) const;
+    const void write_xyz(ofstream &outfile, const int n_atoms) const;
 
     /** Output atom data in .vtk format */
-    const void write_vtk(ofstream &outfile) const;
-
+    const void write_vtk(ofstream &outfile, const int n_atoms) const;
+    
     /** Get point representation in vtk format */
-    virtual const void get_cell_types(ofstream& outfile) const;
+    virtual const void get_cell_types(ofstream& outfile, const int n_cells) const;
 
     /** Get data scalar and vector data associated with vtk cells */
-    virtual const void get_cell_data(ofstream& outfile) const;
+    virtual const void get_cell_data(ofstream& outfile, const int n_cells) const;
 
     /** Get data scalar and vector data associated with vtk nodes */
-    virtual const void get_point_data(ofstream& outfile) const;
+    virtual const void get_point_data(ofstream& outfile, const int n_atoms) const;
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     virtual const string get_data_string(const int i) const;

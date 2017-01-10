@@ -25,23 +25,27 @@ SolutionReader::SolutionReader(Interpolator* ip) : interpolator(ip) {
 // Linearly interpolate solution on Medium atoms
 const void SolutionReader::interpolate(const Medium &medium) {
     const int n_atoms = medium.get_n_atoms();
-    reserve(n_atoms);
-
+    reserve(n_atoms);   
+    
+    // Copy the atoms
+    for (int i = 0; i < n_atoms; ++i)
+        add_atom(medium.get_atom(i));
+    
+    // Sort atoms into sequential order to speed up interpolation
+    sort_spatial();
+    
     int elem = 0;
-
     for (int i = 0; i < n_atoms; ++i) {
-        Atom atom = medium.get_atom(i);
-        add_atom(atom);
-
+        Point3 point = get_point(i);
         // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
-        elem = interpolator->locate_element(atom.point, abs(elem));
+        elem = interpolator->locate_element(point, abs(elem));
 
-        // Store the data whether the point is in- or outside the mesh
+        // Store whether the point is in- or outside the mesh
         if (elem < 0) set_coordination(i, 1);
         else          set_coordination(i, 0);
 
         // Calculate the interpolation
-        interpolation.push_back( interpolator->get_interpolation(atom.point, abs(elem)) );
+        interpolation.push_back( interpolator->get_interpolation(point, abs(elem)) );
     }
 }
 
@@ -237,7 +241,7 @@ const void SolutionReader::reserve(const int n_nodes) {
 
 // Compile data string from the data vectors for file output
 const string SolutionReader::get_data_string(const int i) const{
-    if (i < 0) return "SolutionReader data: id x y z out_of_mesh Ex Ey Ez Enorm potential";
+    if (i < 0) return "SolutionReader properties=id:R:1:pos:R:3:out_of_mesh:R:1:force:R:3:enorm:R:1:potential:R:1";
 
     ostringstream strs;
     strs << atoms[i] << " " << interpolation[i];

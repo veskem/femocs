@@ -80,7 +80,7 @@ const void AtomReader::check_coordination() {
     const int coord_max = 1;
     const int coord_min = 0;
     for (Atom a : atoms)
-        if ((a.coord < coord_max) && (a.coord >= coord_min))
+        if (a.coord >= coord_min && a.coord <= coord_max)
             expect(false, "Evaporated atom detected!");
 }
 
@@ -160,6 +160,8 @@ const void AtomReader::calc_coordination(const int nnn) {
             set_coordination(i, nnn);
         else if (types[i] == TYPES.SURFACE)
             set_coordination(i, (int) nnn / 2);
+        else if (types[i] == TYPES.VACANCY)
+            set_coordination(i, -1);
         else
             set_coordination(i, 0);
     }
@@ -224,7 +226,7 @@ const int AtomReader::get_type(const int i) const {
 
 // Compile data string from the data vectors
 const string AtomReader::get_data_string(const int i) const {
-    if (i < 0) return "AtomReader data: id x y z coordination type";
+    if (i < 0) return "AtomReader properties=id:R:1:pos:R:3:coordination:R:1:type:R:1";
 
     ostringstream strs;
     strs << atoms[i] << " " << get_type(i);

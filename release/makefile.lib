@@ -9,13 +9,16 @@ all: lib/libfemocs.a
 lib/libfemocs.a: lib/build/Makefile lib/libtet.a src/* include/* heating/source/* heating/include/*
 	cd lib/build; make -j${NPROCS}
 
-lib/build/Makefile: dealii/lib/libdeal_II.a
+lib/build/Makefile: dealii/lib/libdeal_II.a cgal/lib/libCGAL.a
 	cd lib; mkdir -p build; cd build; rm * -r; cmake -DCMAKE_Fortran_COMPILER=${F90} ..
 
 lib/libtet.a:
 	make -f release/makefile.install
 	
 dealii/lib/libdeal_II.a:
+	make -f release/makefile.install
+
+cgal/lib/libCGAL.a:
 	make -f release/makefile.install
 
 clean:

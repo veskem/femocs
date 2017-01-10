@@ -5,14 +5,14 @@
  *      Author: veske
  */
 
-#include <omp.h>
 #include "Femocs.h"
-
 #include "Coarseners.h"
 #include "DealII.h"
 #include "Macros.h"
 #include "Tethex.h"
 #include "TetgenMesh.h"
+
+#include <omp.h>
 
 using namespace std;
 namespace femocs {
@@ -41,8 +41,8 @@ Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
         prev_ch_solver = NULL;
 #endif
 
-    // Create the output folder if it doesn't exist and file writing is enabled
-    if (MODES.WRITEFILE) system("mkdir -p output");
+    // Clear the results from previous run
+    if (MODES.WRITEFILE) system("rm -rf output; mkdir output");
 }
 
 // delete data and print bye-bye-message
@@ -57,7 +57,7 @@ const int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media
 //    dense_surf = dense_surf.clean_lonely_atoms(conf.coord_cutoff);
     end_msg(t0);
     dense_surf.write("output/surface_dense.xyz");
-
+        
     Media stretch_surf;
     stretch_surf = dense_surf.stretch(conf.radius, conf.box_width);
     stretch_surf.write("output/surface_stretch.xyz");
@@ -68,7 +68,6 @@ const int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media
     
     start_msg(t0, "=== Coarsening surface...");
     coarse_surf = stretch_surf.coarsen(coarseners, stretch_surf.sizes);
-//    coarse_surf = dense_surf.coarsen(coarseners, reader.sizes);
     end_msg(t0);
     coarse_surf.write("output/surface_nosmooth.xyz");
 
@@ -210,7 +209,7 @@ const int Femocs::run(double elfield, string message) {
     
     fail = generate_meshes(tetmesh_bulk, tetmesh_vacuum, hexmesh_bulk, hexmesh_vacuum);
     if(fail) return 1;
-        
+    
     tetmesh_bulk.elems.write  ("output/tetmesh_bulk.vtk");
     tetmesh_vacuum.elems.write("output/tetmesh_vacuum.vtk");
     hexmesh_bulk.write_vtk_elems  ("output/hexmesh_bulk" + message + ".vtk");
@@ -279,7 +278,6 @@ const int Femocs::run(double elfield, string message) {
     bulk_interpolator.write("output/result_rho_T.xyz");
     
     start_msg(t0, "=== Interpolating E and phi...");
-    dense_surf.sort_atoms(0, 1, "up");
     vacuum_interpolation.interpolate(dense_surf);
     end_msg(t0);
     
@@ -420,12 +418,10 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
 // export the calculated electric field on imported atom coordinates
 const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     double t0;
-
     check_message(interpolator.get_n_atoms() == 0, "No solution to export!");
 
     if (!skip_calculations) {
         start_msg(t0, "=== Interpolating solution...");
-        dense_surf.sort_atoms(0, 1, "up");
         interpolation.interpolate(dense_surf);
         end_msg(t0);
 
@@ -437,8 +433,13 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
         interpolation.clean(4, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
         end_msg(t0);
 
-        interpolation.write("output/interpolation" + conf.message + ".xyz");
+        interpolation.write("output/interpolation.movie");
         interpolation.write("output/interpolation" + conf.message + ".vtk");
+
+        /* Output atom data in .movie format so that the first frame has 1st atom,
+           second frame has 1st & 2nd atom etc. */
+        for (int i = 0; i < 400; ++i)
+            interpolation.write("output/surface_sort.movie", i+1);
     }
 
     start_msg(t0, "=== Exporting results...");

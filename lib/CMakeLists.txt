@@ -24,19 +24,37 @@ INCLUDE_DIRECTORIES(../include ../heating/include)
 SET(CMAKE_BUILD_TYPE Release)
 #SET(CMAKE_BUILD_TYPE Debug)
 
-# Specify warnings and optimization level
-SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
-SET(CMAKE_CXX_FLAGS_DEBUG "-g2 -O0 -w") #-Wall -Wpedantic")
+### Specify warnings and optimization level
+##SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
+##SET(CMAKE_CXX_FLAGS_DEBUG "-g2 -O0 -w") #-Wall -Wpedantic")
+# ==============================================
 
 FIND_PACKAGE(deal.II 8.4 REQUIRED HINTS ${DEAL_II_DIR})
-IF(NOT ${deal.II_FOUND})
-  MESSAGE(FATAL_ERROR "\nCould not find deal.II from" ${DEAL_II_DIR} "\n")
+IF ( NOT ${deal.II_FOUND} )
+  MESSAGE(FATAL_ERROR "Deal.II not found from " ${DEAL_II_DIR})
+ENDIF()
+
+FIND_PACKAGE( CGAL QUIET COMPONENTS  )
+IF ( NOT CGAL_FOUND )
+  MESSAGE(FATAL_ERROR "CGAL not found") 
+ENDIF()
+
+FIND_PACKAGE( Boost REQUIRED )
+IF ( NOT Boost_FOUND )
+  MESSAGE(FATAL_ERROR "Boost not found") 
 ENDIF()
 
 FIND_PACKAGE(OpenMP)
-IF(OPENMP_FOUND)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+IF( NOT OPENMP_FOUND )
+    MESSAGE(FATAL_ERROR "OpenMP not found") 
 ENDIF()
+
+INCLUDE( ${CGAL_USE_FILE} )
+
+# Specify warnings and optimization level
+SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
+SET(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -w") # "-Wall -Wpedantic")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
 ADD_LIBRARY (${LIB_NAME} STATIC ${TARGET_SRC})

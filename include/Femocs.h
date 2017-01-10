@@ -140,10 +140,12 @@ private:
     fch::CurrentsAndHeating<3>* ch_solver;
     fch::CurrentsAndHeating<3>* prev_ch_solver;
 #endif
-
+    
     const int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);
+   
     const int generate_meshes(TetgenMesh& tetmesh_bulk, TetgenMesh& tetmesh_vacuum,
         tethex::Mesh& hexmesh_bulk, tethex::Mesh& hexmesh_vacuum);
+
     const int solve_laplace(TetgenMesh& tetmesh_vacuum, tethex::Mesh& hexmesh_vacuum);
 };
 
