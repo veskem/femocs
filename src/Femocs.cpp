@@ -42,7 +42,8 @@ Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
 #endif
 
     // Clear the results from previous run
-    if (MODES.WRITEFILE) system("rm -rf output; mkdir output");
+    if (conf.clear_output) system("rm -rf output");
+    if (MODES.WRITEFILE) system("mkdir -p output");
 }
 
 // delete data and print bye-bye-message
