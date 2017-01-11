@@ -1,12 +1,10 @@
-hilbert_sort = true;
-
 infile = input/nanotip_hr5.ckx  # default file used with atom coordinates
 latconst = 2.0                  # lattice constant
 #infile = input/nanotip_medium.xyz  # default file used with atom coordinates
 #latconst = 3.61                 # lattice constant
 coord_cutoff = 3.2              # coordination analysis cut-off radius
 mesh_quality = 1.6              # minimum mesh quality Tetgen is allowed to make
-box_width = 10                 # minimal simulation box width [tip height]
+box_width = 3                   # minimal simulation box width [tip height]
 box_height = 3.5                # simulation box height [tip height]
 bulk_height = 20                # bulk substrate height [latconst]
 radius = 10.0                   # inner radius of coarsening cylinder
