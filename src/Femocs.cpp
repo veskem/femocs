@@ -29,10 +29,10 @@ Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
 
 #if HEATINGMODE
         start_msg(t0, "=== Loading physical quantities...");
-        string pq_path = "heating/res/physical_quantities/";
-        phys_quantities.load_emission_data(pq_path + "gtf_grid_1000x1000.dat");
-        phys_quantities.load_nottingham_data(pq_path + "nottingham_grid_300x300.dat");
-        phys_quantities.load_resistivity_data(pq_path + "cu_res.dat");
+//        string pq_path = "heating/res/physical_quantities/";
+        phys_quantities.load_emission_data("");
+        phys_quantities.load_nottingham_data("");
+        phys_quantities.load_resistivity_data("");
         ch_solver1.set_physical_quantities(&phys_quantities);
         ch_solver2.set_physical_quantities(&phys_quantities);
         end_msg(t0);
@@ -59,7 +59,7 @@ const int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media
     dense_surf.write("output/surface_dense.xyz");
         
     Media stretch_surf;
-    stretch_surf = dense_surf.stretch(conf.radius, conf.box_width);
+    stretch_surf = dense_surf.stretch(conf.latconst, conf.box_width);
     stretch_surf.write("output/surface_stretch.xyz");
 
     Coarseners coarseners;
@@ -215,15 +215,6 @@ const int Femocs::run(double elfield, string message) {
     hexmesh_bulk.write_vtk_elems  ("output/hexmesh_bulk" + message + ".vtk");
     hexmesh_vacuum.write_vtk_elems("output/hexmesh_vacuum" + message + ".vtk");
 
-    // ==============================
-    // ===== Running FEM solver =====
-    // ==============================
-
-#if not HEATINGMODE
-    fail = solve_laplace(tetmesh_vacuum, hexmesh_vacuum);
-    if(fail) return 1;
-#endif
-    
 #if HEATINGMODE
     // ====================================
     // ===== Running FEM multi-solver =====
@@ -314,6 +305,9 @@ const int Femocs::run(double elfield, string message) {
     }
     odd_run = !odd_run;
 #endif
+
+    fail = solve_laplace(tetmesh_vacuum, hexmesh_vacuum);
+    if(fail) return 1;
 
     start_msg(t0, "=== Saving atom positions...");
     reader.save_current_run_points(conf.distance_tol);
@@ -455,7 +449,7 @@ const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double
     check_message(interpolator.get_n_atoms() == 0, "No solution to export!");
     SolutionReader sr(&interpolator);
     sr.export_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
-    sr.write("output/interpolation_E.xyz");
+    sr.write("output/interpolation_E.movie");
     return skip_calculations;
 }
 
@@ -464,7 +458,7 @@ const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z,
     check_message(interpolator.get_n_atoms() == 0, "No solution to export!");
     SolutionReader sr(&interpolator);
     sr.export_potential(n_points, x, y, z, phi, flag);
-    sr.write("output/interpolation_phi.xyz");
+    sr.write("output/interpolation_phi.movie");
     return skip_calculations;
 }
 

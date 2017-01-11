@@ -7,7 +7,6 @@
 
 #include "Media.h"
 #include <numeric>
-#include <random>
 #include <iostream>
 #include <iomanip>  
 
@@ -86,61 +85,33 @@ const void Media::extract(const AtomReader& reader, const int type, const bool i
 }
 
 // Function extend the flat area by generating additional atoms
-const Media Media::stretch(const double radius, const double box_width) {
-    const double PI = 3.141592653589793;
+const Media Media::stretch(const double latconst, const double box_width) {
     const int n_atoms = get_n_atoms();
-    const double radius2 = radius * radius;
-    const double box_w = (box_width/2)*sizes.zbox;
-    const double radius_in = min(sizes.xbox/2.0, sizes.ybox/2.0);
-        
-    const int n_theta = 6;
-    const double dtheta = 2*PI / n_theta;
-    const int n_radius = (int) box_w * box_w / (1 * n_theta);
-    
-    calc_statistics();
-    Point2 origin2d(sizes.xmid, sizes.ymid);
 
-    Media stretched(n_atoms + n_radius * n_theta);
+    calc_statistics();
+
+    const double current_box_width = min(sizes.xbox, sizes.ybox);
+    const double desired_box_width = box_width * sizes.zbox;
+    
+    // over estimation of number of generated points
+    const int n_gen = pow(desired_box_width / latconst, 2) - pow(current_box_width / latconst, 2);
+
+    // copy input points without modification
+    Media stretched( n_atoms + max(0, n_gen) );
     for (int i = 0; i < n_atoms; ++i)
         stretched.add_atom(get_point(i));
     
-    // if input surface already is sufficiently wide, don't modify system at all
-    if (box_w <= radius_in)
+    // if the input surface already is sufficiently wide, don't modify it at all
+    if (desired_box_width <= current_box_width)
         return stretched;
-    
-    Media flat(n_atoms);  
-    for (int i = 0; i < n_atoms; ++i)
-        if (origin2d.distance2(get_point2(i)) > radius2)
-            flat.add_atom(get_point(i));    
-    
-    flat.calc_statistics();
-    Vec3 r0(sizes.xmid, sizes.ymid, flat.sizes.zmean);
 
-    const double xmin = r0.x - box_w;
-    const double xmax = r0.x + box_w;
-    const double ymin = r0.y - box_w;
-    const double ymax = r0.y + box_w;
-   
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_real_distribution<> radius_generator(0, 1);
-    
-    for (int j = 0; j < n_theta; ++j) {
-        std::uniform_real_distribution<> theta_generator(j*dtheta, (j+1)*dtheta);
-        for (int i = 0; i < n_radius; ++i) {      
-            double r = radius_generator(gen) * (sqrt(2) * box_w - radius_in) + radius_in;        
-            double theta = theta_generator(gen);
-            
-            double x = r * cos(theta) + origin2d.x;
-            double y = r * sin(theta) + origin2d.y;
-            
-            bool in_box = x >= xmin && x <= xmax && y >= ymin && y <= ymax;
-            bool in_flat = x >= sizes.xmin && x <= sizes.xmax && y >= sizes.ymin && y <= sizes.ymax;
-            
-            if (in_box && !in_flat)
-                stretched.add_atom( Point3(x, y, flat.sizes.zmean) );
-        }
-    }
+    const double W = (desired_box_width - current_box_width) / 2.0;  // generation area width
+
+    // add points outside already existing area
+    for (double y = sizes.ymin - W; y <= sizes.ymax + W; y += latconst)
+        for (double x = sizes.xmin - W; x <= sizes.xmax + W; x += latconst)
+            if ( x < sizes.xmin || x > sizes.xmax || y < sizes.ymin || y > sizes.ymax)
+                stretched.add_atom( Point3(x, y, sizes.zmin) );
  
     stretched.calc_statistics();
 
