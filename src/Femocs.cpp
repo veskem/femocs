@@ -416,7 +416,6 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
         end_msg(t0);
 
         interpolation.write("output/interpolation.movie");
-        interpolation.write("output/interpolation" + conf.message + ".vtk");
     }
 
     start_msg(t0, "=== Exporting solution...");
@@ -436,7 +435,7 @@ const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double
     start_msg(t0, "=== Interpolating electric field...");
     sr.interpolate(n_points, x, y, z, conf.smoothen_solution*conf.coord_cutoff, 1);
     end_msg(t0);
-    sr.write("output/interpolation_E.movie");
+    if (!skip_calculations) sr.write("output/interpolation_E.movie");
 
     start_msg(t0, "=== Exporting electric field...");
     sr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);

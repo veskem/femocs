@@ -28,6 +28,7 @@ public:
     /** Perform spatial sorting by ordering atoms along Hilbert curve
      *  http://doc.cgal.org/latest/Spatial_sorting/index.html */
     const void sort_spatial();
+//    const void sort_spatial_old();
     
     /** Define the addition of two Mediums */
     Medium& operator +=(Medium &m);

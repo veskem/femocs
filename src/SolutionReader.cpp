@@ -32,11 +32,11 @@ const void SolutionReader::interpolate(const Medium &medium, double r_cut, int c
     
     // Copy the atoms
     for (int i = 0; i < n_atoms; ++i)
-        add_atom(medium.get_atom(i));
-    
+        add_atom(Atom(i, medium.get_point(i), 0));
+
     // Sort atoms into sequential order to speed up interpolation
     sort_spatial();
-    
+
     int elem = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point = get_point(i);
@@ -58,6 +58,12 @@ const void SolutionReader::interpolate(const Medium &medium, double r_cut, int c
     clean(2, r_cut);  // clean by vector z-component
     clean(3, r_cut);  // clean by vector norm
     clean(4, r_cut);  // clean by scalar
+
+    // sort atoms back to their initial order
+    for (int i = 0; i < n_atoms; ++i)
+        interpolation[i].sort_indx = atoms[i].id;
+    sort(interpolation.begin(), interpolation.end(), Solution::sort_up());
+    sort(atoms.begin(), atoms.end(), Atom::sort_id());
 }
 
 // Linearly interpolate electric field on a set of points

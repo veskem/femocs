@@ -483,8 +483,8 @@ public:
 class Atom {
 public:
     /** Constructors of Atom class */
-    Atom() : id(0), point(0), coord(0), sort_indx(0) {}
-    Atom(const int i, const Point3 &p, const int c) : id(i), point(p.x, p.y, p.z), coord(c), sort_indx(0) {}
+    Atom() : id(0), point(0), coord(0) {}
+    Atom(const int i, const Point3 &p, const int c) : id(i), point(p.x, p.y, p.z), coord(c) {}
 
     /** Comparison operator between two Atom-s */
     const bool operator ==(const Atom &a) const {
@@ -495,6 +495,38 @@ public:
     friend std::ostream& operator <<(std::ostream &s, const Atom &a) {
         return s << a.id << ' ' << a.point << ' ' << a.coord;
     }
+
+    /** Functor for sorting atoms spatially in ascending order; used in CGAL Hilbert sorting */
+    struct sort_spatial {
+        typedef Atom Point_3;
+
+        struct LessX {
+            bool operator() (const Atom& a1, const Atom& a2) { return a1.point.x < a2.point.x; }
+        };
+        struct LessY {
+            bool operator() (const Atom& a1, const Atom& a2) { return a1.point.y < a2.point.y; }
+        };
+        struct LessZ {
+            bool operator() (const Atom& a1, const Atom& a2) { return a1.point.z < a2.point.z; }
+        };
+        struct ComputeX {
+            double operator() (const Atom& a) { return a.point.x; }
+        };
+        struct ComputeY {
+            double operator() (const Atom& a) { return a.point.y; }
+        };
+        struct ComputeZ {
+            double operator() (const Atom& a) { return a.point.z; }
+        };
+
+        LessX less_x_3_object() const { return LessX(); }
+        LessY less_y_3_object() const { return LessY(); }
+        LessZ less_z_3_object() const { return LessZ(); }
+
+        ComputeX compute_x_3_object() const { return ComputeX(); }
+        ComputeY compute_y_3_object() const { return ComputeY(); }
+        ComputeZ compute_z_3_object() const { return ComputeZ(); }
+    };
 
     /** Functor for sorting atoms in ascending order by their ID */
     struct sort_id {
@@ -558,7 +590,6 @@ public:
     Point3 point;
     int id;
     int coord;
-    int sort_indx;
 };
 
 /** Class to hold solution data and its operations */

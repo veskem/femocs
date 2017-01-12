@@ -6,13 +6,10 @@
  */
 
 #include "Medium.h"
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/hilbert_sort.h>
-
 #include <float.h>
 #include <fstream>
 #include <numeric>
-//#include <algorithm>
 
 using namespace std;
 namespace femocs {
@@ -57,25 +54,7 @@ const void Medium::sort_atoms(const int x1, const int x2, const string& directio
 
 // Perform spatial sorting by ordering atoms along Hilbert curve
 const void Medium::sort_spatial() {
-    const int n_atoms = get_n_atoms();
-    
-    // Definitions for CGAL
-    typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
-    typedef K::Point_3                                          Point;
-    
-    // Make a copy from points
-    vector<Point> v; v.reserve(n_atoms);
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 pt = get_point(i);
-        v.push_back( Point(pt.x, pt.y, pt.z) );
-    }
-  
-    // Sort atoms along Hilbert curve using middle policy
-    CGAL::hilbert_sort( v.begin(), v.end(), K(), CGAL::Hilbert_sort_middle_policy() );
-
-    // Store sorted atoms
-    for (int i = 0; i < n_atoms; ++i)
-        set_point( i, Point3(v[i][0], v[i][1], v[i][2]) );
+    CGAL::hilbert_sort( atoms.begin(), atoms.end(), Atom::sort_spatial(), CGAL::Hilbert_sort_middle_policy() );
 }
 
 // Reserve memory for data vectors

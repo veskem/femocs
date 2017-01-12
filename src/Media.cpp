@@ -99,7 +99,7 @@ const Media Media::stretch(const double latconst, const double box_width) {
     // copy input points without modification
     Media stretched( n_atoms + max(0, n_gen) );
     for (int i = 0; i < n_atoms; ++i)
-        stretched.add_atom(get_point(i));
+        stretched.add_atom( get_point(i) );
     
     // if the input surface already is sufficiently wide, don't modify it at all
     if (desired_box_width <= current_box_width)
