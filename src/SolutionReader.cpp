@@ -23,7 +23,10 @@ SolutionReader::SolutionReader(Interpolator* ip) : interpolator(ip) {
 }
 
 // Linearly interpolate solution on Medium atoms
-const void SolutionReader::interpolate(const Medium &medium) {
+const void SolutionReader::interpolate(const Medium &medium, double r_cut, int component) {
+    require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
+    require(interpolator, "NULL interpolator cannot be used!");
+
     const int n_atoms = medium.get_n_atoms();
     reserve(n_atoms);   
     
@@ -45,20 +48,31 @@ const void SolutionReader::interpolate(const Medium &medium) {
         else          set_coordination(i, 0);
 
         // Calculate the interpolation
-        interpolation.push_back( interpolator->get_interpolation(point, abs(elem)) );
+        if (component == 0) interpolation.push_back( interpolator->get_solution(point, abs(elem)) );
+        if (component == 1) interpolation.push_back( interpolator->get_vector(point, abs(elem)) );
+        if (component == 2) interpolation.push_back( interpolator->get_scalar(point, abs(elem)) );
     }
+
+    clean(0, r_cut);  // clean by vector x-component
+    clean(1, r_cut);  // clean by vector y-component
+    clean(2, r_cut);  // clean by vector z-component
+    clean(3, r_cut);  // clean by vector norm
+    clean(4, r_cut);  // clean by scalar
 }
 
 // Linearly interpolate electric field on a set of points
-const void SolutionReader::export_elfield(int n_points, double* x, double* y, double* z,
-        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-
+const void SolutionReader::interpolate(int n_points, double* x, double* y, double* z, double r_cut, int component) {
     Medium medium(n_points);
     for (int i = 0; i < n_points; ++i)
         medium.add_atom(Point3(x[i], y[i], z[i]));
 
-    // Interpolate solution and store the index of first point outside the mesh
-    interpolate(medium);
+    // Interpolate solution
+    interpolate(medium, r_cut, component);
+}
+
+// Linearly interpolate electric field on a set of points
+const void SolutionReader::export_elfield(int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
+    require(n_points == get_n_atoms(), "Invalid array size: " + to_string(n_points));
 
     for (int i = 0; i < n_points; ++i) {
         Ex[i] = interpolation[i].elfield.x;
@@ -70,13 +84,8 @@ const void SolutionReader::export_elfield(int n_points, double* x, double* y, do
 }
 
 // Linearly interpolate electric potential on a set of points
-const void SolutionReader::export_potential(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
-    Medium medium(n_points);
-    for (int i = 0; i < n_points; ++i)
-        medium.add_atom(Point3(x[i], y[i], z[i]));
-
-    // Interpolate solution and store the index of first point outside the mesh
-    interpolate(medium);
+const void SolutionReader::export_potential(int n_points, double* phi, int* flag) {
+    require(n_points == get_n_atoms(), "Invalid array size: " + to_string(n_points));
 
     for (int i = 0; i < n_points; ++i) {
         phi[i] = interpolation[i].potential;
@@ -107,9 +116,10 @@ const void SolutionReader::export_solution(int n_atoms, double* Ex, double* Ey, 
 }
 
 // Get average electric field around I-th solution point
-const Solution SolutionReader::get_average_solution(const int I, const double smooth_factor, const double r_cut) {
-    const double r_cut2 = r_cut * r_cut;
-    const double a = 1.0;
+const Solution SolutionReader::get_average_solution(const int I, const double r_cut) {
+    // Cut off weights after 5 sigma
+    const double r_cut2 = pow(5 * r_cut, 2);
+    const double smooth_factor = r_cut / 5.0;
 
     Vec3 elfield(0.0);
     double potential = 0.0;
@@ -123,14 +133,14 @@ const Solution SolutionReader::get_average_solution(const int I, const double sm
             double dist2 = point1.distance2(get_point(i));
             if (dist2 > r_cut2 || interpolation[i].el_norm >= interpolator->error_field) continue;
 
-            double w = a * exp(-1.0 * sqrt(dist2) / smooth_factor);
+            double w = exp(-1.0 * sqrt(dist2) / smooth_factor);
             w_sum += w;
             elfield += interpolation[i].elfield * w;
             potential += interpolation[i].potential * w;
         }
 
     elfield *= (1.0 / w_sum); potential *= (1.0 / w_sum);
-    return Solution(elfield, elfield.norm(), potential);
+    return Solution(elfield, potential);
 }
 
 // Get histogram for electric field x,y,z component or for its norm
@@ -177,10 +187,12 @@ const void SolutionReader::get_histogram(vector<int> &bins, vector<double> &boun
         }
 }
 
-// Clean the interpolation from peaks
-const void SolutionReader::clean(const int coordinate, const int n_bins, const double smooth_factor, const double r_cut) {
+// Clean the interpolation from peaks using histogram cleaner
+const void SolutionReader::clean(const int coordinate, const double r_cut) {
     require(coordinate >= 0 && coordinate <= 4, "Invalid coordinate: " + to_string(coordinate));
-    if (n_bins <= 1) return;
+    const int n_bins = (int) get_n_atoms() / 250;
+
+    if (n_bins <= 1 || r_cut < 0.1) return;
 
     const int n_atoms = get_n_atoms();
 
@@ -224,7 +236,7 @@ const void SolutionReader::clean(const int coordinate, const int n_bins, const d
         else                 value = abs(interpolation[i].elfield[coordinate]);
 
         if (value < value_min || value > value_max)
-            interpolation[i] = get_average_solution(i, smooth_factor, r_cut);
+            interpolation[i] = get_average_solution(i, r_cut);
     }
 }
 
@@ -251,15 +263,15 @@ const string SolutionReader::get_data_string(const int i) const{
 const void SolutionReader::get_point_data(ofstream& out) const {
     const int n_atoms = get_n_atoms();
 
-    // output vector magnitude explicitly to make it possible to apply filters in ParaView
-    out << "SCALARS Elfield.norm double\nLOOKUP_TABLE default\n";
-    for (size_t i = 0; i < n_atoms; ++i)
-        out << interpolation[i].el_norm << "\n";
-
     // output scalar (electric potential, temperature etc)
     out << "SCALARS Potential double\nLOOKUP_TABLE default\n";
     for (size_t i = 0; i < n_atoms; ++i)
         out << interpolation[i].potential << "\n";
+
+    // output vector magnitude explicitly to make it possible to apply filters in ParaView
+    out << "SCALARS Elfield_norm double\nLOOKUP_TABLE default\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << interpolation[i].el_norm << "\n";
 
     // output vector data (electric field, current density etc)
     out << "VECTORS Electric_field double\n";

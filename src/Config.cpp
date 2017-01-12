@@ -23,7 +23,7 @@ Config::Config() {
     nt = 4;                      // number of OpenMP threads
     radius = 14.0;               // inner radius of coarsening cylinder
     smooth_factor = 0.5;         // surface smoothing factor; bigger number gives smoother surface
-    n_bins = 20;                 // number of bins in histogram smoother
+    smoothen_solution = true;    // clean the solution from peaks with histogram cleaner
     postprocess_marking = false; // make extra effort to mark correctly the vacuum nodes in shadow area
     refine_apex = false;         // refine nanotip apex
     distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
@@ -63,7 +63,7 @@ const void Config::read_all(const string& file_name) {
     read_command("mesh_quality", mesh_quality);
     read_command("radius", radius);
     read_command("smooth_factor", smooth_factor);
-    read_command("n_bins", n_bins);
+    read_command("smoothen_solution", smoothen_solution);
     read_command("postprocess_marking", postprocess_marking);
     read_command("refine_apex", refine_apex);
     read_command("heating", heating);

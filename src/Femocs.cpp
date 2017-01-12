@@ -277,21 +277,16 @@ const int Femocs::run(double elfield, string message) {
     bulk_interpolation.interpolate(reader);
     end_msg(t0);
 
-    start_msg(t0, "=== Cleaning E and phi...");
-    vacuum_interpolation.clean(0, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-    vacuum_interpolation.clean(1, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-    vacuum_interpolation.clean(2, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-    vacuum_interpolation.clean(3, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-    vacuum_interpolation.clean(4, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-    end_msg(t0);
+    if (conf.smoothen_solution) {
+        start_msg(t0, "=== Cleaning E and phi...");
+        vacuum_interpolation.clean(conf.coord_cutoff);
+        end_msg(t0);
 
-//    start_msg(t0, "=== Cleaning T and rho...");
-//    bulk_interpolation.clean(0, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-//    bulk_interpolation.clean(1, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-//    bulk_interpolation.clean(2, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-//    bulk_interpolation.clean(3, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-//    bulk_interpolation.clean(4, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-//    end_msg(t0);
+//        start_msg(t0, "=== Cleaning T and rho...");
+//        bulk_interpolation.clean(conf.coord_cutoff);
+//        end_msg(t0);
+    }
+
 
     vacuum_interpolation.write("output/interpolation_vacuum" + conf.message + ".vtk");
     bulk_interpolation.write("output/interpolation_bulk" + conf.message + ".vtk");
@@ -412,32 +407,19 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
 
 // export the calculated electric field on imported atom coordinates
 const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    double t0;
     check_message(interpolator.get_n_atoms() == 0, "No solution to export!");
+    double t0;
 
     if (!skip_calculations) {
         start_msg(t0, "=== Interpolating solution...");
-        interpolation.interpolate(dense_surf);
-        end_msg(t0);
-
-        start_msg(t0, "=== Cleaning interpolation...");
-        interpolation.clean(0, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-        interpolation.clean(1, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-        interpolation.clean(2, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-        interpolation.clean(3, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
-        interpolation.clean(4, conf.n_bins, conf.smooth_factor, 3*conf.coord_cutoff);
+        interpolation.interpolate(dense_surf, conf.smoothen_solution*conf.coord_cutoff);
         end_msg(t0);
 
         interpolation.write("output/interpolation.movie");
         interpolation.write("output/interpolation" + conf.message + ".vtk");
-
-        /* Output atom data in .movie format so that the first frame has 1st atom,
-           second frame has 1st & 2nd atom etc. */
-        for (int i = 0; i < 400; ++i)
-            interpolation.write("output/surface_sort.movie", i+1);
     }
 
-    start_msg(t0, "=== Exporting results...");
+    start_msg(t0, "=== Exporting solution...");
     interpolation.export_solution(n_atoms, Ex, Ey, Ez, Enorm);
     end_msg(t0);
 
@@ -448,18 +430,30 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
 const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     check_message(interpolator.get_n_atoms() == 0, "No solution to export!");
+    double t0;
+
     SolutionReader sr(&interpolator);
-    sr.export_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
+    start_msg(t0, "=== Interpolating electric field...");
+    sr.interpolate(n_points, x, y, z, conf.smoothen_solution*conf.coord_cutoff, 1);
+    end_msg(t0);
     sr.write("output/interpolation_E.movie");
+
+    start_msg(t0, "=== Exporting electric field...");
+    sr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
+    end_msg(t0);
+
     return skip_calculations;
 }
 
 // linearly interpolate electric potential at given points
 const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
     check_message(interpolator.get_n_atoms() == 0, "No solution to export!");
+
     SolutionReader sr(&interpolator);
-    sr.export_potential(n_points, x, y, z, phi, flag);
+    sr.interpolate(n_points, x, y, z, conf.smoothen_solution*conf.coord_cutoff, 2);
+    sr.export_potential(n_points, phi, flag);
     sr.write("output/interpolation_phi.movie");
+
     return skip_calculations;
 }
 

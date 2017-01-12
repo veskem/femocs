@@ -94,7 +94,7 @@ const Media Media::stretch(const double latconst, const double box_width) {
     const double desired_box_width = box_width * sizes.zbox;
     
     // over estimation of number of generated points
-    const int n_gen = pow(desired_box_width / latconst, 2) - pow(current_box_width / latconst, 2);
+    const int n_gen = pow(desired_box_width / latconst + 1, 2) - pow(current_box_width / latconst - 1, 2);
 
     // copy input points without modification
     Media stretched( n_atoms + max(0, n_gen) );

@@ -58,6 +58,7 @@ public:
     double t_error;             ///< Maximum allowed temperature error in Newton iterations
     int n_newton;               ///< Maximum number of Newton iterations
     bool clear_output;          ///< Clear output folder before the run
+    bool smoothen_solution;     ///< Clean the solution from peaks with histogram cleaner
 
     /** Minimum distance between atoms from current and previous run so that their
      * movement is considered to be sufficiently big to recalculate electric field;
@@ -69,9 +70,6 @@ public:
 
     /// Factor that is proportional to the extent of surface smoothing; 0 turns smoothing off
     double smooth_factor;
-
-    /// Number of bins in smoother histogram; 1 or less turns off the histogram smoother
-    int n_bins;
 
     /// Factors that are proportional to the extent of surface coarsening; 0 turns corresponding coarsening component off
     struct CoarseFactor {

@@ -12,7 +12,7 @@
 #include <float.h>
 #include <fstream>
 #include <numeric>
-#include <algorithm>
+//#include <algorithm>
 
 using namespace std;
 namespace femocs {
@@ -63,13 +63,12 @@ const void Medium::sort_spatial() {
     typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
     typedef K::Point_3                                          Point;
     
-    // Shuffle points uniformly
+    // Make a copy from points
     vector<Point> v; v.reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i) {
         Point3 pt = get_point(i);
         v.push_back( Point(pt.x, pt.y, pt.z) );
     }
-    random_shuffle( v.begin(), v.end() );
   
     // Sort atoms along Hilbert curve using middle policy
     CGAL::hilbert_sort( v.begin(), v.end(), K(), CGAL::Hilbert_sort_middle_policy() );

@@ -40,11 +40,9 @@ int main() {
     success += femocs.interpolate_phi(n_points, x, y, z, phi, flag);
     success += femocs.interpolate_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
 
-    string cmd1 = "n_BINS"; int arg1 = -1;
-    string cmd2 = "Smooth_Factor"; double arg2 = -1.0;
+    string cmd1 = "Smooth_Factor"; double arg1 = -1.0;
     success += femocs.parse_command(cmd1, &arg1);
-    success += femocs.parse_command(cmd2, &arg2);
-    cout << cmd1 << " = " << arg1 << endl << cmd2 << " = " << arg2 << endl ;
+    cout << cmd1 << " = " << arg1 << endl ;
 
     cout << "Test.cpp result: " << success << endl;
 

@@ -47,7 +47,11 @@ public:
     
     const void extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh);
 
-    const Solution get_interpolation(const Point3 &point, const int elem);
+    const Solution get_solution(const Point3 &point, const int elem);
+
+    const double get_scalar(const Point3 &point, const int elem);
+
+    const Vec3 get_vector(const Point3 &point, const int elem);
 
     const int locate_element(const Point3 &point, const int elem_guess);
 
@@ -111,6 +115,7 @@ private:
 
     /** Reserve memory for pre-compute data */
     const void reserve_precompute(const int N);
+
 };
 
 } // namespace femocs

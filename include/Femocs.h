@@ -8,10 +8,10 @@
 #ifndef FEMOCS_H_
 #define FEMOCS_H_
 
+#include <Interpolator.h>
 #include "AtomReader.h"
 #include "Config.h"
 #include "Media.h"
-#include "Interpolator.h"
 #include "SolutionReader.h"
 
 #if HEATINGMODE
