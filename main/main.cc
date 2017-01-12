@@ -39,14 +39,13 @@ int main() {
 	}
 
 	// If physical quantities are not read from a file, hardcoded values will be used.
-	if (!(pq.load_emission_data(res_path+"/physical_quantitiess/gtf_200x200.dat") &&
-		  pq.load_nottingham_data(res_path+"/physical_quantitiess/nottingham_200x200.dat") &&
-		  pq.load_resistivity_data(res_path+"/physical_quantitiess/cu_res.dat"))) {
+	if (!(pq.load_emission_data(res_path+"/physical_quantities/gtf_200x200.dat") &&
+		  pq.load_nottingham_data(res_path+"/physical_quantities/nottingham_200x200.dat") &&
+		  pq.load_resistivity_data(res_path+"/physical_quantities/cu_res.dat"))) {
 		std::cout << "Couldn't load pq data, using default values..." << std::endl;
 	} else {
 		std::cout << "    Loaded PhysicalQuantities: " << timer.wall_time() << " s" << std::endl; timer.restart();
 	}
-
 
 	// 3d Test usage
 
