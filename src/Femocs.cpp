@@ -28,17 +28,10 @@ Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
     conf.print_data();
 
 #if HEATINGMODE
-        start_msg(t0, "=== Loading physical quantities...");
-//        string pq_path = "heating/res/physical_quantities/";
-        phys_quantities.load_emission_data("");
-        phys_quantities.load_nottingham_data("");
-        phys_quantities.load_resistivity_data("");
-        ch_solver1.set_physical_quantities(&phys_quantities);
-        ch_solver2.set_physical_quantities(&phys_quantities);
-        end_msg(t0);
-
-        ch_solver  = &ch_solver1;
-        prev_ch_solver = NULL;
+    ch_solver1.set_physical_quantities(&phys_quantities);
+    ch_solver2.set_physical_quantities(&phys_quantities);
+    ch_solver  = &ch_solver1;
+    prev_ch_solver = NULL;
 #endif
 
     // Clear the results from previous run
@@ -273,23 +266,12 @@ const int Femocs::run(double elfield, string message) {
     bulk_interpolator.write("output/result_rho_T.xyz");
     
     start_msg(t0, "=== Interpolating E and phi...");
-    vacuum_interpolation.interpolate(dense_surf);
+    vacuum_interpolation.interpolate(dense_surf, conf.coord_cutoff*conf.smoothen_solution);
     end_msg(t0);
     
     start_msg(t0, "=== Interpolating T and rho...");
-    bulk_interpolation.interpolate(reader);
+    bulk_interpolation.interpolate(reader, 0);
     end_msg(t0);
-
-    if (conf.smoothen_solution) {
-        start_msg(t0, "=== Cleaning E and phi...");
-        vacuum_interpolation.clean(conf.coord_cutoff);
-        end_msg(t0);
-
-//        start_msg(t0, "=== Cleaning T and rho...");
-//        bulk_interpolation.clean(conf.coord_cutoff);
-//        end_msg(t0);
-    }
-
 
     vacuum_interpolation.write("output/interpolation_vacuum" + conf.message + ".vtk");
     bulk_interpolation.write("output/interpolation_bulk" + conf.message + ".vtk");
