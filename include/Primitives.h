@@ -243,9 +243,9 @@ public:
 class Point3 {
 public:
     /** Constructors of Point3 class */
-    Point3() : x(0), y(0), z(0), r(0) {}
-    Point3(double xx) : x(xx), y(xx), z(xx), r(0) {}
-    Point3(double xx, double yy, double zz) : x(xx), y(yy), z(zz), r(0) {}
+    Point3() : x(0), y(0), z(0) {}
+    Point3(double xx) : x(xx), y(xx), z(xx) {}
+    Point3(double xx, double yy, double zz) : x(xx), y(yy), z(zz) {}
 
     /** Dimensionality of point */
     const int size() const { return 3; }
@@ -312,11 +312,6 @@ public:
         return x == p[0] && y == p[1] && z == p[2];
     }
 
-    const bool operator  >(const Point3 &p) const { return r > p.r; }
-    const bool operator  <(const Point3 &p) const { return r < p.r; }
-    const bool operator >=(const Point3 &p) const { return r >= p.r; }
-    const bool operator <=(const Point3 &p) const { return r <= p.r; }
-
     /** Accessor for accessing the i-th coordinate */
     const double& operator [](size_t i) const { return (&x)[i]; }
 
@@ -334,7 +329,6 @@ public:
     string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
     double x, y, z; ///< Cartesian coordinates
-    double r;       ///< Radial coordinate
 };
 
 /** Class to define basic operations with 3-dimensional vector */
@@ -533,24 +527,29 @@ public:
         inline bool operator() (const Atom& a1, const Atom& a2) { return a1.id < a2.id; }
     };
 
+    /** Functor for sorting atoms in ascending order by their coordination */
+    struct sort_coord {
+        inline bool operator() (const Atom& a1, const Atom& a2) { return a1.coord < a2.coord; }
+    };
+
     /** Functor for sorting atoms in ascending order by their x, y, z or radial coordinate */
     struct sort_up {
-        int I;           //!< coordinate along which the atoms are sorted; 0=x, 1=y, 2=z, 3=radial
-        sort_up(int d = 3) : I(d) {}
+        int I;           //!< coordinate along which the atoms are sorted; 0=x, 1=y, 2=z
+        sort_up(int d) : I(d) {}
         inline bool operator() (const Atom& a1, const Atom& a2) { return a1.point[I] < a2.point[I]; }
     };
 
     /** Functor for sorting atoms in descending order by their x, y, z or radial coordinate */
     struct sort_down {
-        int I;           //!< coordinate along which the atoms are sorted; 0=x, 1=y, 2=z, 3=radial
-        sort_down(int d = 3) : I(d) {}
+        int I;           //!< coordinate along which the atoms are sorted; 0=x, 1=y, 2=z
+        sort_down(int d) : I(d) {}
         inline bool operator() (const Atom& a1, const Atom& a2) { return a1.point[I] > a2.point[I]; }
     };
 
     /** Functor for sorting atoms in ascending order first by their x, y, z or radial coordinate
      * and then in ascending order by another x, y, z or radial coordinate */
     struct sort_up2 {
-        int I1, I2;      //!< coordinates along which the atoms are sorted; 0=x, 1=y, 2=z, 3=radial
+        int I1, I2;      //!< coordinates along which the atoms are sorted; 0=x, 1=y, 2=z
         sort_up2(int coord1, int coord2) : I1(coord1), I2(coord2) {}
         inline bool operator() (const Atom& a1, const Atom& a2) {
             return (a1.point[I1] < a2.point[I1]) || ((a1.point[I1] == a2.point[I1]) && (a1.point[I2] < a2.point[I2]));
@@ -560,7 +559,7 @@ public:
     /** Functor for sorting atoms in descending order first by their x, y, z or radial coordinate
      * and then in descending order by another x, y, z or radial coordinate */
     struct sort_down2 {
-        int I1, I2;      //!< coordinates along which the atoms are sorted; 0=x, 1=y, 2=z, 3=radial
+        int I1, I2;      //!< coordinates along which the atoms are sorted; 0=x, 1=y, 2=z
         sort_down2(int coord1, int coord2) : I1(coord1), I2(coord2) {}
         inline bool operator() (const Atom& a1, const Atom& a2) {
             return (a1.point[I1] > a2.point[I1]) || ((a1.point[I1] == a2.point[I1]) && (a1.point[I2] > a2.point[I2]));
@@ -570,7 +569,7 @@ public:
     /** Functor for sorting atoms in ascending order first by their x, y, z or radial coordinate
      * and then in descending order by another x, y, z or radial coordinate */
     struct sort_up_down {
-        int I1, I2;      //!< coordinates along which the atoms are sorted; 0=x, 1=y, 2=z, 3=radial
+        int I1, I2;      //!< coordinates along which the atoms are sorted; 0=x, 1=y, 2=z
         sort_up_down(int coord1, int coord2) : I1(coord1), I2(coord2) {}
         inline bool operator() (const Atom& a1, const Atom& a2) {
             return (a1.point[I1] < a2.point[I1]) || ((a1.point[I1] == a2.point[I1]) && (a1.point[I2] > a2.point[I2]));
@@ -580,15 +579,15 @@ public:
     /** Functor for sorting atoms in descending order first by their x, y, z or radial coordinate
      * and then in ascending order by another x, y, z or radial coordinate */
     struct sort_down_up {
-        int I1, I2;      //!< coordinates along which the atoms are sorted; 0=x, 1=y, 2=z, 3=radial
+        int I1, I2;      //!< coordinates along which the atoms are sorted; 0=x, 1=y, 2=z
         sort_down_up(int coord1, int coord2) : I1(coord1), I2(coord2) {}
         inline bool operator() (const Atom& a1, const Atom& a2) {
             return (a1.point[I1] > a2.point[I1]) || ((a1.point[I1] == a2.point[I1]) && (a1.point[I2] < a2.point[I2]));
         }
     };
 
-    Point3 point;
     int id;
+    Point3 point;
     int coord;
 };
 
@@ -597,10 +596,10 @@ class Solution {
 public:
 
     /** Constructors of Solution */
-    Solution() : elfield(Vec3(0)), el_norm(0), potential(0), sort_indx(0) {}
-    Solution(const double d) : elfield(Vec3(d)), el_norm(d), potential(d), sort_indx(0) {}
-    Solution(const Vec3& v) : elfield(v), el_norm(v.norm()), potential(0), sort_indx(0) {}
-    Solution(const Vec3& v, const double pot) : elfield(v), el_norm(v.norm()), potential(pot), sort_indx(0) {}
+    Solution() : elfield(Vec3(0)), el_norm(0), potential(0), id(0) {}
+    Solution(const double d) : elfield(Vec3(d)), el_norm(d), potential(d), id(0) {}
+    Solution(const Vec3& v) : elfield(v), el_norm(v.norm()), potential(0), id(0) {}
+    Solution(const Vec3& v, const double pot) : elfield(v), el_norm(v.norm()), potential(pot), id(0) {}
 
     /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &ss, const Solution &sol) {
@@ -609,16 +608,16 @@ public:
 
     /** Functors used to sort vector of Solution into same order as vector of Atom */
     struct sort_up {
-        inline bool operator() (const Solution& lh, const Solution& rh) { return lh.sort_indx < rh.sort_indx; }
+        inline bool operator() (const Solution& lh, const Solution& rh) { return lh.id < rh.id; }
     };
     struct sort_down {
-        inline bool operator() (const Solution& lh, const Solution& rh) { return lh.sort_indx > rh.sort_indx; }
+        inline bool operator() (const Solution& lh, const Solution& rh) { return lh.id > rh.id; }
     };
 
+    int id;
     Vec3 elfield;
     double el_norm;
     double potential;
-    int sort_indx;
 };
 
 } // namaspace femocs

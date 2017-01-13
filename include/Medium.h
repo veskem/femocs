@@ -21,14 +21,13 @@ public:
     Medium(const int n_atoms);
     virtual ~Medium() {}; // = 0;
 
-    /** Sort the atoms by their x, y or z coordinate or radial coordinate from origin */
-    const void sort_atoms(const int coord, const string& direction="up", const Point2 &origin = Point2(0,0));
-    const void sort_atoms(const int x1, const int x2, const string& direction = "up", const Point2 &origin = Point2(0,0));
+    /** Sort the atoms by their x, y or z coordinate */
+    const void sort_atoms(const int coord, const string& direction="up");
+    const void sort_atoms(const int x1, const int x2, const string& direction = "up");
     
     /** Perform spatial sorting by ordering atoms along Hilbert curve
      *  http://doc.cgal.org/latest/Spatial_sorting/index.html */
     const void sort_spatial();
-//    const void sort_spatial_old();
     
     /** Define the addition of two Mediums */
     Medium& operator +=(Medium &m);

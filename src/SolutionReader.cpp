@@ -23,7 +23,7 @@ SolutionReader::SolutionReader(Interpolator* ip) : interpolator(ip) {
 }
 
 // Linearly interpolate solution on Medium atoms
-const void SolutionReader::interpolate(const Medium &medium, double r_cut, int component) {
+const void SolutionReader::interpolate(const Medium &medium, double r_cut, int component, bool srt) {
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
     require(interpolator, "NULL interpolator cannot be used!");
 
@@ -35,7 +35,7 @@ const void SolutionReader::interpolate(const Medium &medium, double r_cut, int c
         add_atom(Atom(i, medium.get_point(i), 0));
 
     // Sort atoms into sequential order to speed up interpolation
-    sort_spatial();
+    if (srt) sort_spatial();
 
     int elem = 0;
     for (int i = 0; i < n_atoms; ++i) {
@@ -59,21 +59,23 @@ const void SolutionReader::interpolate(const Medium &medium, double r_cut, int c
     clean(3, r_cut);  // clean by vector norm
     clean(4, r_cut);  // clean by scalar
 
-    // sort atoms back to their initial order
-    for (int i = 0; i < n_atoms; ++i)
-        interpolation[i].sort_indx = atoms[i].id;
-    sort(interpolation.begin(), interpolation.end(), Solution::sort_up());
-    sort(atoms.begin(), atoms.end(), Atom::sort_id());
+    if (srt) {
+        // sort atoms back to their initial order
+        for (int i = 0; i < n_atoms; ++i)
+            interpolation[i].id = atoms[i].id;
+        sort(interpolation.begin(), interpolation.end(), Solution::sort_up());
+        sort(atoms.begin(), atoms.end(), Atom::sort_id());
+    }
 }
 
 // Linearly interpolate electric field on a set of points
-const void SolutionReader::interpolate(int n_points, double* x, double* y, double* z, double r_cut, int component) {
+const void SolutionReader::interpolate(int n_points, double* x, double* y, double* z, double r_cut, int component, bool sort) {
     Medium medium(n_points);
     for (int i = 0; i < n_points; ++i)
         medium.add_atom(Point3(x[i], y[i], z[i]));
 
     // Interpolate solution
-    interpolate(medium, r_cut, component);
+    interpolate(medium, r_cut, component, sort);
 }
 
 // Linearly interpolate electric field on a set of points

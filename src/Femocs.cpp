@@ -424,7 +424,7 @@ const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z,
     check_message(interpolator.get_n_atoms() == 0, "No solution to export!");
 
     SolutionReader sr(&interpolator);
-    sr.interpolate(n_points, x, y, z, conf.smoothen_solution*conf.coord_cutoff, 2);
+    sr.interpolate(n_points, x, y, z, conf.smoothen_solution*conf.coord_cutoff, 2, false);
     sr.export_potential(n_points, phi, flag);
     if (!skip_calculations) sr.write("output/interpolation_phi.movie");
 

@@ -177,8 +177,6 @@ const Media Media::coarsen(Coarseners &coarseners, const Medium::Sizes& ar_sizes
 
     Media corners; corners.generate_simple(ar_sizes, coarseners.zmean);
     Media middle; middle.generate_middle(ar_sizes, coarseners.zmean, coarseners.r0_inf);
-    middle.sort_atoms(3, "down", origin2d);
-    this->sort_atoms(3, 2, "down", origin2d);
 
     Media union_surf;
     union_surf += corners;
