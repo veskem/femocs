@@ -72,9 +72,10 @@ public:
     /** Store the atom coordinates from current run */
     const void save_current_run_points(const double eps);
 
+    double rms_distance;           ///< rms distance between atoms from previous and current run
 private:
-    vector<int> types;               ///< types of atoms
-    vector<Point3> previous_point;   ///< atom coordinates from previous run
+    vector<int> types;             ///< types of atoms
+    vector<Point3> previous_point; ///< atom coordinates from previous run
 
     /**
      * Functions to import atoms from different types of file.

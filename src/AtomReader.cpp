@@ -15,7 +15,7 @@ using namespace std;
 namespace femocs {
 
 // AtomReader constructor
-AtomReader::AtomReader() : Medium() {}
+AtomReader::AtomReader() : Medium(), rms_distance(0) {}
 
 // Reserve memory for data vectors
 const void AtomReader::reserve(const int n_atoms) {
@@ -61,7 +61,8 @@ const double AtomReader::get_rms_distance(const double eps) {
     for (int i = 0; i < n_atoms; ++i)
         sum += get_point(i).distance2(previous_point[i]);
     
-    return sqrt(sum / n_atoms);
+    rms_distance = sqrt(sum / n_atoms);
+    return rms_distance;
 }
 
 const void AtomReader::save_current_run_points(const double eps) {

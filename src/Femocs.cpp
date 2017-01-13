@@ -194,7 +194,10 @@ const int Femocs::run(double elfield, string message) {
     double t0, tstart;  // Variables used to measure the code execution time
     bool fail;
 
-    if(skip_calculations) return 1;
+    check_message(skip_calculations, "Atoms haven't moved significantly, " +
+            to_string(reader.rms_distance).substr(0,5) + " < " + to_string(conf.distance_tol).substr(0,5)
+            + "! Field calculation will be skipped!");
+
     skip_calculations = true;
 
     conf.neumann = elfield;
@@ -332,26 +335,22 @@ const int Femocs::import_atoms(const string& file_name) {
     if (MODES.VERBOSE) cout << "#input atoms: " << reader.get_n_atoms() << endl;
 
     start_msg(t0, "=== Comparing with previous run...");
-    double diff = reader.get_rms_distance(conf.distance_tol);
-    skip_calculations = diff < conf.distance_tol;
-//    skip_calculations = reader.equals_previous_run(conf.distance_tol);
+    skip_calculations = reader.get_rms_distance(conf.distance_tol) < conf.distance_tol;
     end_msg(t0);
 
-    check_message(skip_calculations, "Atoms haven't moved significantly, " + to_string(diff).substr(0,5)
-    + " < " + to_string(conf.distance_tol).substr(0,5) + "! Field calculation will be skipped!");
+    if (!skip_calculations)
+        if (file_type == "xyz") {
+            start_msg(t0, "=== Calculating coords and atom types...");
+            reader.calc_coordination(conf.coord_cutoff);
+            reader.extract_types(conf.nnn, conf.latconst);
+            end_msg(t0);
+        } else {
+            start_msg(t0, "=== Calculating coords from atom types...");
+            reader.calc_coordination(conf.nnn);
+            end_msg(t0);
+        }
 
-    if (file_type == "xyz") {
-        start_msg(t0, "=== Calculating coords and atom types...");
-        reader.calc_coordination(conf.coord_cutoff);
-        reader.extract_types(conf.nnn, conf.latconst);
-        end_msg(t0);
-    } else {
-        start_msg(t0, "=== Calculating coords from atom types...");
-        reader.calc_coordination(conf.nnn);
-        end_msg(t0);
-    }
-
-    return skip_calculations;
+    return 0;
 }
 
 // import atoms from PARCAS
@@ -364,20 +363,17 @@ const int Femocs::import_atoms(int n_atoms, double* coordinates, double* box, in
     if (MODES.VERBOSE) cout << "#input atoms: " << reader.get_n_atoms() << endl;
 
     start_msg(t0, "=== Comparing with previous run...");
-    double diff = reader.get_rms_distance(conf.distance_tol);
-    skip_calculations = diff < conf.distance_tol;
-//    skip_calculations = reader.equals_previous_run(conf.distance_tol);
+    skip_calculations = reader.get_rms_distance(conf.distance_tol) < conf.distance_tol;
     end_msg(t0);
 
-    check_message(skip_calculations, "Atoms haven't moved significantly, " + to_string(diff).substr(0,5)
-    + " < " + to_string(conf.distance_tol).substr(0,5) + "! Field calculation will be skipped!");
+    if (!skip_calculations) {
+        start_msg(t0, "=== Calculating coords and atom types...");
+        reader.calc_coordination(conf.nnn, conf.coord_cutoff, nborlist);
+        reader.extract_types(conf.nnn, conf.latconst);
+        end_msg(t0);
+    }
 
-    start_msg(t0, "=== Calculating coords and atom types...");
-    reader.calc_coordination(conf.nnn, conf.coord_cutoff, nborlist);
-    reader.extract_types(conf.nnn, conf.latconst);
-    end_msg(t0);
-
-    return skip_calculations;
+    return 0;
 }
 
 // import coordinates and types of atoms
@@ -390,19 +386,16 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
     if (MODES.VERBOSE) cout << "#input atoms: " << reader.get_n_atoms() << endl;
 
     start_msg(t0, "=== Comparing with previous run...");
-    double diff = reader.get_rms_distance(conf.distance_tol);
-    skip_calculations = diff < conf.distance_tol;
-//    skip_calculations = reader.equals_previous_run(conf.distance_tol);
+    skip_calculations = reader.get_rms_distance(conf.distance_tol) < conf.distance_tol;
     end_msg(t0);
 
-    check_message(skip_calculations, "Atoms haven't moved significantly, " + to_string(diff).substr(0,5)
-    + " < " + to_string(conf.distance_tol).substr(0,5) + "! Field calculation will be skipped!");
+    if (!skip_calculations) {
+        start_msg(t0, "=== Calculating coords from atom types...");
+        reader.calc_coordination(conf.nnn);
+        end_msg(t0);
+    }
 
-    start_msg(t0, "=== Calculating coords from atom types...");
-    reader.calc_coordination(conf.nnn);
-    end_msg(t0);
-
-    return skip_calculations;
+    return 0;
 }
 
 // export the calculated electric field on imported atom coordinates
@@ -422,7 +415,7 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
     interpolation.export_solution(n_atoms, Ex, Ey, Ez, Enorm);
     end_msg(t0);
 
-    return skip_calculations;
+    return 0;
 }
 
 // linearly interpolate electric field at given points
@@ -441,7 +434,7 @@ const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double
     sr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
 
-    return skip_calculations;
+    return 0;
 }
 
 // linearly interpolate electric potential at given points
@@ -451,9 +444,9 @@ const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z,
     SolutionReader sr(&interpolator);
     sr.interpolate(n_points, x, y, z, conf.smoothen_solution*conf.coord_cutoff, 2);
     sr.export_potential(n_points, phi, flag);
-    sr.write("output/interpolation_phi.movie");
+    if (!skip_calculations) sr.write("output/interpolation_phi.movie");
 
-    return skip_calculations;
+    return 0;
 }
 
 // parse integer argument of the command from input script
