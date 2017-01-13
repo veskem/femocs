@@ -48,7 +48,7 @@ const int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media
     double t0;
     start_msg(t0, "=== Extracting surface...");
     dense_surf.extract(reader, TYPES.SURFACE);
-//    dense_surf = dense_surf.clean_lonely_atoms(conf.coord_cutoff);
+    dense_surf = dense_surf.clean_lonely_atoms(conf.coord_cutoff);
     end_msg(t0);
     dense_surf.write("output/surface_dense.xyz");
         
