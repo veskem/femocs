@@ -32,5 +32,5 @@ $ ./main
 Results in `\output` can be visualized with paraview.
 Example electric field and temperature distribution:
 
-![field_temperature](misc/img/field_temperature.png =400x)
+<img src="misc/img/field_temperature.png" width="400">
 
