@@ -136,7 +136,60 @@ const int Femocs::generate_meshes(TetgenMesh& tetmesh_bulk, TetgenMesh& tetmesh_
     start_msg(t0, "=== Separating hexahedral meshes...");
     hexmesh_big.separate_meshes(hexmesh_bulk, hexmesh_vacuum);
     end_msg(t0);
+
+    return 0;
+}
+
+const int Femocs::generate_meshes_vol2(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
+    double t0;
+    bool fail;
+
+    Media bulk, coarse_surf, vacuum;
+    fail = generate_boundary_nodes(bulk, coarse_surf, vacuum);
+    if(fail) return 1;
     
+    start_msg(t0, "=== Making big mesh...");
+    TetgenMesh big_mesh;
+    // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
+    fail = big_mesh.generate(bulk, coarse_surf, vacuum, "rnQq" + conf.mesh_quality);
+    check_message(fail, "Triangulation failed! Field calculation will be skipped!");
+    end_msg(t0);
+
+    start_msg(t0, "=== Making surface faces...");
+    big_mesh.generate_appendices();
+    end_msg(t0);
+
+    big_mesh.faces.write("output/surface_faces.vtk");
+
+    start_msg(t0, "=== Marking tetrahedral mesh...");
+    fail = big_mesh.mark_mesh(conf.postprocess_marking);
+    big_mesh.nodes.write("output/tetmesh_nodes.xyz");
+    big_mesh.nodes.write("output/tetmesh_nodes.vtk");
+    big_mesh.elems.write("output/tetmesh_elems.vtk");
+    check_message(fail, "Mesh marking failed! Field calcualtion will be skipped!");
+    end_msg(t0);
+
+    start_msg(t0, "=== Converting tetrahedra to hexahedra...");
+    big_mesh.generate_hexs();
+    end_msg(t0);
+    big_mesh.nodes.write("output/hexmesh_nodes.vtk");
+    big_mesh.hexahedra.write("output/hexmesh_elems.vtk");
+
+    start_msg(t0, "=== Smoothing hexahedra...");
+    big_mesh.smoothen(conf.radius, conf.smooth_factor, 3.0*conf.coord_cutoff);
+    end_msg(t0);
+
+    start_msg(t0, "=== Separating hexahedral meshes...");
+    big_mesh.separate_hexs(bulk_mesh, vacuum_mesh);
+    end_msg(t0);
+
+    start_msg(t0, "=== Separating tetrahedral meshes...");
+    big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQ");
+    end_msg(t0);
+
+    if (MODES.VERBOSE)
+        cout << "Bulk:   " << bulk_mesh << "\nVacuum: " << vacuum_mesh << endl;
+
     return 0;
 }
 
@@ -167,6 +220,8 @@ const int Femocs::solve_laplace(TetgenMesh& tetmesh_vacuum, tethex::Mesh& hexmes
     start_msg(t0, "=== Assembling system...");
     laplace.assemble_system();
     end_msg(t0);
+
+    if (MODES.VERBOSE) cout << laplace << endl;
 
     start_msg(t0, "=== Solving...");
     laplace.solve_cg();
@@ -200,6 +255,15 @@ const int Femocs::run(double elfield, string message) {
     // ===========================
     // ===== Making FEM mesh =====
     // ===========================
+
+    TetgenMesh bulk_mesh, vacuum_mesh;
+    fail = generate_meshes_vol2(bulk_mesh, vacuum_mesh);
+    bulk_mesh.elems.write  ("output/tetmesh_bulk.vtk");
+    vacuum_mesh.elems.write("output/tetmesh_vacuum.vtk");
+    bulk_mesh.hexahedra.write  ("output/hexmesh_bulk.vtk");
+    vacuum_mesh.hexahedra.write("output/hexmesh_vacuum.vtk");
+
+    exit(1);
 
     TetgenMesh tetmesh_bulk, tetmesh_vacuum;
     tethex::Mesh hexmesh_bulk, hexmesh_vacuum;

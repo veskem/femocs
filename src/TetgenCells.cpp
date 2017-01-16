@@ -5,7 +5,8 @@
  *      Author: veske
  */
 
-#include <TetgenCells.h>
+#include "TetgenCells.h"
+#include "Media.h"
 #include <float.h>
 
 using namespace std;
@@ -86,6 +87,30 @@ const vector<int> TetgenElements::get_neighbours(const int i) const {
     const int I = DIM * i;
     const int* nborlist = reads->neighborlist;
     return vector<int> {nborlist[I+0], nborlist[I+1], nborlist[I+2], nborlist[I+3]};
+}
+
+// Initialize hexahedron appending
+const void Hexahedra::init(const int N) {
+    TetgenCells::init(N);
+    hexs.reserve(N);
+}
+
+// Append hexahedron to mesh
+const void Hexahedra::append(const SimpleHex &cell) {
+    expect(hexs.size() < hexs.capacity(), "Allocated size of cells exceeded!");
+    hexs.push_back(cell);
+    i_cells++;
+}
+
+// Get number of hexahedra in mesh
+const int Hexahedra::size() const {
+    return hexs.size();
+}
+
+// Get i-th element from the mesh
+const SimpleCell<8> Hexahedra::get_cell(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    return hexs[i];
 }
 
 // Initialize node appending
@@ -170,6 +195,34 @@ const void TetgenNodes::calc_statistics() {
 }
 
 // Copy the nodes from another mesh
+const void TetgenNodes::copy(const vector<bool>& mask) {
+    const int n_nodes = *n_cells_w;
+
+    // In case of empty or non-aligned mask, give an error
+    if (n_nodes != mask.size()) {
+        *n_cells_r = n_nodes;
+        reads->pointlist = new double[n_coordinates * n_nodes];
+
+        for (int i = 0; i < n_coordinates*n_nodes; ++i)
+            reads->pointlist[i] = writes->pointlist[i];
+        i_cells = n_nodes;
+
+    } else {
+        const int n_mask = vector_sum(mask);
+        *n_cells_r = n_mask;
+        reads->pointlist = new double[n_coordinates * n_mask];
+
+        int I = 0;
+        for (int i = 0; i < n_nodes; ++i)
+            if (mask[i])
+                for (int j = 0; j < n_coordinates; ++j)
+                    reads->pointlist[I] = writes->pointlist[I++];
+
+        i_cells = n_mask;
+    }
+}
+
+// Copy the nodes from another mesh
 const void TetgenNodes::copy(const TetgenNodes& nodes, const vector<bool>& mask) {
     const int n_nodes = nodes.size();
 
@@ -217,7 +270,7 @@ const void TetgenNodes::write_xyz(const string &file_name) const {
     require(out_file.is_open(), "Can't open a file " + file_name);
 
     out_file << n_nodes << "\n";
-    out_file << "Mesh nodes: id x y z marker\n";
+    out_file << "Mesh nodes properties=id:R:1:pos:R:3:marker:R:1\n";
 
     if (n_nodes == n_markers)
         for (int i = 0; i < n_nodes; ++i)

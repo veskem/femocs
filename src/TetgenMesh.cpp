@@ -6,6 +6,7 @@
  */
 
 #include "TetgenMesh.h"
+#include "Tethex.h"
 #include <fstream>
 
 using namespace std;
@@ -125,7 +126,7 @@ const bool TetgenMesh::generate_simple() {
 
 // Copy mesh from input to output without modification
 const bool TetgenMesh::recalc() {
-    nodes.copy(TetgenNodes(&tetIOin));
+    nodes.copy();
     edges.copy(TetgenEdges(&tetIOin));
     faces.copy(TetgenFaces(&tetIOin));
     elems.copy(TetgenElements(&tetIOin));
@@ -200,6 +201,15 @@ const bool TetgenMesh::generate(const Media& bulk, const Media& surf, const Medi
     nodes.save_indices(n_surf, n_bulk, n_vacuum);
 
     return recalc("Q", cmd);
+}
+
+const bool TetgenMesh::generate_hexs() {
+    tethex::Mesh hexmesh;
+    hexmesh.read_femocs(this);
+    hexmesh.convert();
+    hexmesh.export_femocs(this);
+
+    return 1;
 }
 
 // Generate manually edges and surface faces
@@ -295,6 +305,63 @@ const bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, con
             bulk.elems.append(elems[elem]);
 
     return vacuum.recalc(cmd) ||  bulk.recalc(cmd);
+}
+
+const bool TetgenMesh::separate_hexs(TetgenMesh& bulk, TetgenMesh& vacuum) {
+    const int n_elems = hexahedra.size();
+
+    // Make the element map
+    vector<bool> elem_in_vacuum = vector_equal(hexahedra.get_markers() , TYPES.VACUUM);
+
+    // Copy the nodes without modification
+    vacuum.nodes.copy(nodes);
+    bulk.nodes.copy(nodes);
+
+    // Reserve memory for elements
+    const int n_elems_vacuum = vector_sum(elem_in_vacuum);
+    const int n_elems_bulk = n_elems - n_elems_vacuum;
+    vacuum.hexahedra.init(n_elems_vacuum);
+    vacuum.hexahedra.init_markers(n_elems_vacuum);
+    bulk.hexahedra.init(n_elems_bulk);
+    bulk.hexahedra.init_markers(n_elems_bulk);
+
+    // Separate vacuum and bulk elements
+    for (int elem = 0; elem < n_elems; ++elem)
+        if (elem_in_vacuum[elem]) {
+            vacuum.hexahedra.append(hexahedra[elem]);
+            vacuum.hexahedra.append_marker(hexahedra.get_marker(elem));
+        } else {
+            bulk.hexahedra.append(hexahedra[elem]);
+            bulk.hexahedra.append_marker(hexahedra.get_marker(elem));
+        }
+
+    return 0;
+}
+
+const bool TetgenMesh::smoothen(double radius, double smooth_factor, double r_cut) {
+    const int n_atoms = nodes.size();
+
+    // Find atoms in vacuum-bulk boundary
+    vector<bool> hot_node = vector_equal(nodes.get_markers(), TYPES.SURFACE);
+
+    // Turn atoms on boundary into surface
+    Media surf(vector_sum(hot_node));
+
+    int cntr = 0;
+    for (int i = 0; i < n_atoms; ++i)
+        if (hot_node[i])
+            surf.add_atom( nodes[i] );
+
+    // Smoothen the surface
+    surf.smoothen(radius, smooth_factor, r_cut);
+
+    // Write smoothed vertices back to mesh
+    int j = 0;
+    for(int i = 0; i < n_atoms; ++i)
+        if(hot_node[i])
+            nodes.set_node(i, surf.get_point(j++));
+
+    return 0;
 }
 
 // Mark mesh nodes, edges, faces and elements

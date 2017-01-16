@@ -95,9 +95,9 @@ public:
         double ymid;     ///< middle value of y-coordinate
         double zmid;     ///< middle value of z-coordinate
     } sizes;
-
-protected:   
     vector<Atom> atoms;  ///< vector holding atom coordinates and meta data
+protected:
+
 
     /** Initialise statistics about the coordinates in Medium */
     const void init_statistics();

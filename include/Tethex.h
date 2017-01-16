@@ -732,7 +732,10 @@ public:
      * @param mesh - reference to mesh generated with Tetgen and Femocs
      */
     void read_femocs(femocs::TetgenMesh& mesh);
+    void read_femocs(femocs::TetgenMesh* mesh);
     void export_vertices(femocs::TetgenMesh& mesh);
+
+    void export_femocs(femocs::TetgenMesh* mesh);
 
     /** Transform tethex nodes into Deal.II format */
     std::vector<dealii::Point<3>> get_nodes();

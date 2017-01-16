@@ -31,11 +31,18 @@ public:
     /** Function to generate mesh from surface, bulk and vacuum atoms */
     const bool generate(const Media& bulk, const Media& surf, const Media& vacuum, const string& cmd);
 
+    const bool generate_hexs();
+
     const bool generate_appendices();
 
     const bool mark_mesh(const bool postprocess);
 
     const bool separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd);
+
+    const bool separate_hexs(TetgenMesh& bulk, TetgenMesh& vacuum);
+
+    /** Smoothen hexahedra on the surface */
+    const bool smoothen(double radius, double smooth_factor, double r_cut);
 
     const bool write_tetgen(const string& file_name);
 
@@ -51,6 +58,8 @@ public:
     TetgenFaces faces = TetgenFaces(&tetIOout);
     TetgenElements elems = TetgenElements(&tetIOout, &tetIOin);
 
+    Hexahedra hexahedra = Hexahedra(&tetIOout);
+
     const int n_coordinates = 3;
     const int n_edges_per_face = 3;
     const int n_edges_per_elem = 6;
@@ -58,7 +67,8 @@ public:
 
     /** String stream prints the statistics about the mesh */
     friend std::ostream& operator <<(std::ostream &s, const TetgenMesh &t) {
-        s << "#elems=" << t.elems.size()
+        s << "#hexs=" << t.hexahedra.size()
+                << ",\t#tets=" << t.elems.size()
                 << ",\t#faces=" << t.faces.size()
                 << ",\t#edges=" << t.edges.size()
                 << ",\t#nodes=" << t.nodes.size();

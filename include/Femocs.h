@@ -146,6 +146,8 @@ private:
     const int generate_meshes(TetgenMesh& tetmesh_bulk, TetgenMesh& tetmesh_vacuum,
         tethex::Mesh& hexmesh_bulk, tethex::Mesh& hexmesh_vacuum);
 
+    const int generate_meshes_vol2(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh);
+
     const int solve_laplace(TetgenMesh& tetmesh_vacuum, tethex::Mesh& hexmesh_vacuum);
 };
 

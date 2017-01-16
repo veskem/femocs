@@ -37,7 +37,7 @@ public:
 
     /** Initialize cell appending */
     virtual const void init(const int N) {
-        require(N > 0, "Invalid number of cells: " + to_string(N));
+        require(N >= 0, "Invalid number of cells: " + to_string(N));
         i_cells = 0;
         *n_cells_w = N;
     }
@@ -153,6 +153,7 @@ public:
         else if (dim == 2) celltype = 3;  // cell == line
         else if (dim == 3) celltype = 5;  // cell == triangle
         else if (dim == 4) celltype = 10; // cell == tetrahedron
+        else if (dim == 8) celltype = 12; // cell == hexahedron
 
         write_vtk(file_name, celltype);
     }
@@ -170,7 +171,7 @@ public:
 protected:
     const int n_coordinates = 3;  //!< number of spatial coordinates
 
-    const int* n_cells_r;    //!< number of readable cells in mesh data
+    int* n_cells_r;    //!< number of readable cells in mesh data
     int* n_cells_w;          //!< number of writable cells in mesh data
     tetgenio* reads;         //!< mesh data that has been processed by Tetgen
     tetgenio* writes;        //!< mesh data that will be fed to Tetgen
@@ -187,7 +188,7 @@ protected:
         return reads->numberofpoints;
     }
 
-    /** Return i-th node from mesh */
+    /** Return i-th readable node from the mesh */
     const Point3 get_node(const int i) const {
         require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
         const int n = n_coordinates * i;
@@ -230,7 +231,8 @@ protected:
 
         // Output cell markers
         if ((n_markers > 0) && (n_markers == n_cells)) {
-            out << "\nCELL_DATA " << n_cells << "\n";
+            if (celltype == 1) out << "\nPOINT_DATA " << n_cells << "\n";
+            else out << "\nCELL_DATA " << n_cells << "\n";
             out << "SCALARS Cell_markers int\nLOOKUP_TABLE default\n";
             for (size_t cl = 0; cl < n_cells; ++cl)
                 out << get_marker(cl) << "\n";
@@ -263,8 +265,10 @@ public:
     iterator begin() const { return iterator(this, 0); }
     iterator end() const { return iterator(this, size()); }
 
-    /** Copy the nodes from another mesh; mask can be used to copy only specified cells -
+    /** Copy the nodes from write buffer to read buffer; mask can be used to copy only specified cells -
      * i-th true|false in mask means i-th node is copied|skipped. */
+    const void copy(const vector<bool>& mask={});
+
     const void copy(const TetgenNodes& nodes, const vector<bool>& mask={});
 
     /** Return the coordinates of i-th node as a 3D vector */
@@ -372,6 +376,30 @@ public:
 private:
     /** Return i-th element */
     const SimpleCell<4> get_cell(const int i) const;
+};
+
+class Hexahedra: public TetgenCells<8> {
+public:
+    /** SimpleCells constructors */
+    Hexahedra() : TetgenCells<8>() {}
+    Hexahedra(tetgenio *data) : TetgenCells<8> (data, &data->numberofvcells) {}
+    Hexahedra(tetgenio *read, tetgenio *write) :
+        TetgenCells<8>(read, write, &read->numberofvcells, &write->numberofvcells) {}
+
+    /** Initialize cell appending */
+    const void init(const int N);
+
+    /** Append cell to the mesh */
+    const void append(const SimpleHex &cell);
+
+    /** Get number of cells in mesh */
+    const int size() const;
+
+protected:
+    vector<SimpleHex> hexs;
+
+    /** Return i-th hexahedron */
+    const SimpleCell<8> get_cell(const int i) const;
 };
 
 } /* namespace femocs */

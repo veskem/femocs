@@ -760,32 +760,37 @@ void Mesh::read(const std::string &file) {
 
 // Import tetrahedral mesh from Femocs
 void Mesh::read_femocs(femocs::TetgenMesh& mesh) {
+    read_femocs(&mesh);
+}
+
+// Import tetrahedral mesh from Femocs
+void Mesh::read_femocs(femocs::TetgenMesh* mesh) {
     clean(); // free the memory for mesh elements
 
     // read the mesh vertices
-    int n_vertices = mesh.nodes.size(); // the number of all mesh vertices
+    int n_vertices = mesh->nodes.size(); // the number of all mesh vertices
     vertices.resize(n_vertices); // allocate the memory for mesh vertices
     points.resize(n_vertices);
 
     // Read vertex coordinates
     for (int vert = 0; vert < n_vertices; ++vert) {
-        femocs::Point3 point = mesh.nodes[vert];
+        femocs::Point3 point = mesh->nodes[vert];
         vertices[vert] = Point(point.x, point.y, point.z); // save the vertex
     }
 
     // Read vertex id-s
-    require(n_vertices == mesh.nodes.get_n_markers(), "Node ids are required to smooth the bulk-vacuum boundary!");
+    require(n_vertices == mesh->nodes.get_n_markers(), "Node ids are required to smooth the bulk-vacuum boundary!");
     for (int vert = 0; vert < n_vertices; ++vert)
-        points[vert] = new PhysPoint(vert, mesh.nodes.get_marker(vert));
+        points[vert] = new PhysPoint(vert, mesh->nodes.get_marker(vert));
 
     // read the mesh elements
-    int n_elements = mesh.elems.size(); // the number of mesh elements
-    if (n_elements == mesh.elems.get_n_markers())
+    int n_elements = mesh->elems.size(); // the number of mesh elements
+    if (n_elements == mesh->elems.get_n_markers())
         for (int el = 0; el < n_elements; ++el)
-            tetrahedra.push_back( new Tetrahedron(mesh.elems[el].to_vector(), mesh.elems.get_marker(el)) );
+            tetrahedra.push_back( new Tetrahedron(mesh->elems[el].to_vector(), mesh->elems.get_marker(el)) );
     else
         for (int el = 0; el < n_elements; ++el)
-            tetrahedra.push_back( new Tetrahedron(mesh.elems[el].to_vector()) );
+            tetrahedra.push_back( new Tetrahedron(mesh->elems[el].to_vector()) );
 
     // requirements after reading elements
     require(!triangles.empty() || !tetrahedra.empty() || !quadrangles.empty() || !hexahedra.empty(),
@@ -827,6 +832,35 @@ void Mesh::export_vertices(femocs::TetgenMesh& mesh) {
     for (int vert = 0; vert < n_verts; ++vert) {
         Point p = vertices[vert];
         mesh.nodes.set_node(vert, femocs::Point3(p.coord[0], p.coord[1], p.coord[2]));
+    }
+}
+
+void Mesh::export_femocs(femocs::TetgenMesh* mesh) {
+    // Export vertex coordinates
+    const int n_verts = points.size();
+    mesh->nodes.init(n_verts);
+    mesh->nodes.init_markers(n_verts);
+
+    for (int vert = 0; vert < n_verts; ++vert) {
+        Point p = vertices[vert];
+        mesh->nodes.append(femocs::Point3(p.get_coord(0), p.get_coord(1), p.get_coord(2)));
+        mesh->nodes.append_marker(points[vert]->get_material_id());
+    }
+
+    mesh->nodes.copy(); // copy nodes from write buffer to read one
+
+    // Export hexahedra
+    const int n_hexs = hexahedra.size();
+    mesh->hexahedra.init(n_hexs);
+    mesh->hexahedra.init_markers(n_hexs);
+
+    for (int i = 0; i < n_hexs; ++i) {
+        mesh->hexahedra.append(femocs::SimpleHex(
+                hexahedra[i]->get_vertex(0), hexahedra[i]->get_vertex(1),
+                hexahedra[i]->get_vertex(2), hexahedra[i]->get_vertex(3),
+                hexahedra[i]->get_vertex(4), hexahedra[i]->get_vertex(5),
+                hexahedra[i]->get_vertex(6), hexahedra[i]->get_vertex(7) ));
+        mesh->hexahedra.append_marker(hexahedra[i]->get_material_id());
     }
 }
 
@@ -961,14 +995,17 @@ void Mesh::set_new_vertices(const std::vector<MeshElement*> &elements, int shift
         }
 
         // If all the nodes of element are on the surface, bulk or vacuum, the new one will be also
-        if (n_surface == n_vertices_per_elem)
-            points[shift_indx] = new PhysPoint(shift_indx, TYPES.SURFACE);
-        else if (n_bulk == n_vertices_per_elem)
-            points[shift_indx] = new PhysPoint(shift_indx, TYPES.BULK);
-        else if (n_vacuum == n_vertices_per_elem)
-            points[shift_indx] = new PhysPoint(shift_indx, TYPES.VACUUM);
-        else
-            points[shift_indx] = new PhysPoint(shift_indx, TYPES.NONE);
+//        if (n_surface == n_vertices_per_elem)
+//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.SURFACE);
+//        else if (n_bulk == n_vertices_per_elem)
+//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.BULK);
+//        else if (n_vacuum == n_vertices_per_elem)
+//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.VACUUM);
+//        else
+//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.NONE);
+
+        points[shift_indx] = new PhysPoint(shift_indx, n_vertices_per_elem);
+
     }
 }
 
