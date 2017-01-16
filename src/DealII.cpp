@@ -28,6 +28,14 @@ namespace femocs {
 DealII::DealII() :
         fe(POLY_DEGREE), dof_handler(triangulation), neumann(0) {}
 
+Triangulation<3>* DealII::get_triangulation() {
+    return &triangulation;
+}
+
+DoFHandler<3>* DealII::get_dof_handler() {
+    return &dof_handler;
+}
+
 // Specify the Neumann boundary condition value
 const void DealII::set_neumann(const double neumann) {
     this->neumann = neumann;

@@ -8,7 +8,7 @@
 #ifndef SOLUTIONREADER_H_
 #define SOLUTIONREADER_H_
 
-#include <Interpolator.h>
+#include "LinearInterpolator.h"
 #include "Primitives.h"
 #include "Medium.h"
 
@@ -20,7 +20,7 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader conctructors */
     SolutionReader();
-    SolutionReader(Interpolator* interpolator);
+    SolutionReader(LinearInterpolator* interpolator);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
      * @param medium    atoms to be interpolated
@@ -46,7 +46,7 @@ public:
     const void export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
 private:
-    Interpolator* interpolator;     ///< data needed for interpolation
+    LinearInterpolator* interpolator;     ///< data needed for interpolation
     vector<Solution> interpolation; ///< interpolated data
 
     /** Function to clean the result from peaks

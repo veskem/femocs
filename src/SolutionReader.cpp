@@ -18,7 +18,7 @@ SolutionReader::SolutionReader() : interpolator(NULL) {
     reserve(0);
 }
 
-SolutionReader::SolutionReader(Interpolator* ip) : interpolator(ip) {
+SolutionReader::SolutionReader(LinearInterpolator* ip) : interpolator(ip) {
     reserve(0);
 }
 

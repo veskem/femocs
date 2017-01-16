@@ -8,7 +8,7 @@
 #ifndef FEMOCS_H_
 #define FEMOCS_H_
 
-#include <Interpolator.h>
+#include "LinearInterpolator.h"
 #include "AtomReader.h"
 #include "Config.h"
 #include "Media.h"
@@ -126,9 +126,9 @@ private:
     AtomReader reader;
     Config conf;
     Media dense_surf;
-    Interpolator interpolator;
-    Interpolator bulk_interpolator;
-    Interpolator vacuum_interpolator;
+    LinearInterpolator interpolator;
+    LinearInterpolator bulk_interpolator;
+    LinearInterpolator vacuum_interpolator;
     SolutionReader interpolation = SolutionReader(&interpolator);
     SolutionReader bulk_interpolation = SolutionReader(&bulk_interpolator);
     SolutionReader vacuum_interpolation = SolutionReader(&vacuum_interpolator);

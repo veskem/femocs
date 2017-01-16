@@ -50,6 +50,12 @@ class DealII {
 public:
     DealII();
 
+    /** Getter for the Deal.II mesh */
+    Triangulation<3>* get_triangulation();
+
+    /** Getter for the Deal.II dof_handler */
+    DoFHandler<3>* get_dof_handler();
+
     /** Specify the Neumann boundary condition value */
     const void set_neumann(const double neumann);
 
@@ -114,12 +120,12 @@ public:
     const unsigned int n_verts_per_elem = GeometryInfo<3>::vertices_per_cell; ///< # vertices in element
     const unsigned int n_verts_per_face = GeometryInfo<2>::vertices_per_cell; ///< # vertices in face
 
-    Triangulation<DIM> triangulation;
-    DoFHandler<DIM> dof_handler;
 
 private:
     double neumann;         ///< Neumann boundary condition value applied to upper region faces
 
+    Triangulation<DIM> triangulation;
+    DoFHandler<DIM> dof_handler;
     FE_Q<DIM> fe;
     SparsityPattern sparsity_pattern;
     SparseMatrix<double> system_matrix;

@@ -5,8 +5,8 @@
  *      Author: veske
  */
 
-#ifndef INTERPOLATOR_H_
-#define INTERPOLATOR_H_
+#ifndef LINEARINTERPOLATOR_H_
+#define LINEARINTERPOLATOR_H_
 
 #include "Primitives.h"
 #include "Medium.h"
@@ -35,10 +35,10 @@ namespace femocs {
  * http://www.cwscholz.net/projects/diss/html/node37.html
  *
  * */
-class Interpolator: public Medium {
+class LinearInterpolator: public Medium {
 public:
-    /** Interpolator conctructor */
-    Interpolator();
+    /** LinearInterpolator conctructor */
+    LinearInterpolator();
 
     /** Extract the electric potential and electric field values on the tetrahedra nodes from FEM solution */
     const void extract_solution(DealII &fem, const TetgenMesh &mesh);
@@ -81,15 +81,10 @@ private:
     /** Pre-compute data about tetrahedra to make interpolation faster */
     const void precompute_tetrahedra(const TetgenMesh &mesh);
 
-    /** Return the mapping between tetrahedral and hexahedral meshes; -1 indicates that mapping for corresponding object was not found
-     * @param fem         solution from Deal.II
-     * @param tet2hex     mapping between tet- & hexmesh elements,
-     * @param node2hex    mapping between tetmesh nodes & hexmesh elements,
-     * @param node2vert   mapping between tetmesh nodes & hexmesh element's vertices. */
-    const void get_maps(DealII& fem, vector<int>& tet2hex, vector<int>& node2hex, vector<int>& node2vert);
-
+    /** Return the mapping between tetrahedral and hexahedral meshes;
+     * -1 indicates that mapping for corresponding object was not found */
     const void get_maps(dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh,
-            vector<int>& tet2hex, vector<int>& node2hex, vector<int>& node2vert);
+            vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs);
 
     const Vec4 get_bcc(const Point3 &point, const int elem);
 
@@ -120,4 +115,4 @@ private:
 
 } // namespace femocs
 
-#endif /* INTERPOLATOR_H_ */
+#endif /* LINEARINTERPOLATOR_H_ */
