@@ -11,7 +11,6 @@
 #include "Macros.h"
 #include "Primitives.h"
 #include "Tetgen.h"
-//#include <deal.II/numerics/vector_tools.h>
 
 #include <fstream>
 
@@ -346,14 +345,10 @@ public:
     void init(const int N);
 
     /** Append edge to mesh */
-    void append(const SimpleEdge &cell);
+    void append(const SimpleCell<2> &cell);
 
     /** Copy the nodes from write buffer to read buffer */
     void recalc();
-
-    /** Copy the cells from another mesh; mask can be used to copy only specified cells -
-     * i-th true|false in mask means i-th cell is copied|skipped. */
-    void copy(const TetgenEdges &cells, const vector<bool>& mask={});
 
 private:
     /** Return i-th edge */
@@ -372,14 +367,10 @@ public:
     void init(const int N);
 
     /** Append face to mesh */
-    void append(const SimpleFace &cell);
+    void append(const SimpleCell<3> &cell);
 
     /** Copy the nodes from write buffer to read buffer */
     void recalc();
-
-    /** Copy the cells from another mesh; mask can be used to copy only specified cells -
-     * i-th true|false in mask means i-th cell is copied|skipped. */
-    void copy(const TetgenFaces &cells, const vector<bool>& mask={});
 
 private:
     /** Return i-th face */
@@ -401,14 +392,10 @@ public:
     void init(const int N);
 
     /** Append element to mesh */
-    void append(const SimpleElement &cell);
+    void append(const SimpleCell<4> &cell);
 
     /** Copy the nodes from write buffer to read buffer */
     void recalc();
-
-    /** Copy the cells from another mesh; mask can be used to copy only specified cells -
-     * i-th true|false in mask means i-th cell is copied|skipped. */
-    void copy(const TetgenElements &cells, const vector<bool>& mask={});
 
 private:
     /** Return i-th element */
@@ -427,14 +414,10 @@ public:
     void init(const int N);
 
     /** Append cell to the mesh */
-    void append(const SimpleHex &cell);
+    void append(const SimpleCell<8> &cell);
 
     /** Get number of cells in mesh */
     int size() const;
-
-    /** Copy the cells from another mesh; mask can be used to copy only specified cells -
-     * i-th true|false in mask means i-th cell is copied|skipped. */
-    void copy(const Hexahedra &cells, const vector<bool>& mask={});
 
     vector<dealii::CellData<3>> export_dealii();
 

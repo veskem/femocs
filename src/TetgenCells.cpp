@@ -220,7 +220,7 @@ void TetgenEdges::init(const int N) {
 }
 
 // Append edge to mesh
-void TetgenEdges::append(const SimpleEdge &cell) {
+void TetgenEdges::append(const SimpleCell<2> &cell) {
     require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
     int i = DIM * i_cells;
     for (unsigned int node : cell)
@@ -233,26 +233,6 @@ SimpleCell<2> TetgenEdges::get_cell(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     const int I = DIM * i;
     return SimpleEdge(reads->edgelist[I], reads->edgelist[I+1]);
-}
-
-// Copy the cells from another mesh
-void TetgenEdges::copy(const TetgenEdges &cells, const vector<bool>& mask) {
-    const int n_cells = cells.size();
-
-    // In case of empty or non-aligned mask, copy all the cells
-    if (n_cells != mask.size()) {
-        init(n_cells);
-        for (int i = 0; i < n_cells; ++i)
-            append(cells[i]);
-
-    // In case of aligned mask, copy only the cells specified by the mask
-    } else {
-        const int n_mask = vector_sum(mask);
-        init(n_mask);
-        for (int i = 0; i < n_cells; ++i)
-            if (mask[i])
-                append(cells[i]);
-    }
 }
 
 /* =====================================================================
@@ -274,7 +254,7 @@ void TetgenFaces::init(const int N) {
 }
 
 // Append face to mesh
-void TetgenFaces::append(const SimpleFace &cell) {
+void TetgenFaces::append(const SimpleCell<3> &cell) {
     require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
     int i = DIM * i_cells;
     for (unsigned int node : cell)
@@ -289,49 +269,9 @@ SimpleCell<3> TetgenFaces::get_cell(const int i) const {
     return SimpleFace(reads->trifacelist[I], reads->trifacelist[I+1], reads->trifacelist[I+2]);
 }
 
-// Copy the cells from another mesh
-void TetgenFaces::copy(const TetgenFaces &cells, const vector<bool>& mask) {
-    const int n_cells = cells.size();
-
-    // In case of empty or non-aligned mask, copy all the cells
-    if (n_cells != mask.size()) {
-        init(n_cells);
-        for (int i = 0; i < n_cells; ++i)
-            append(cells[i]);
-
-    // In case of aligned mask, copy only the cells specified by the mask
-    } else {
-        const int n_mask = vector_sum(mask);
-        init(n_mask);
-        for (int i = 0; i < n_cells; ++i)
-            if (mask[i])
-                append(cells[i]);
-    }
-}
-
 /* =====================================================================
  *  ========================== TetgenElements =========================
  * ===================================================================== */
-
-// Copy the cells from another mesh
-void TetgenElements::copy(const TetgenElements &cells, const vector<bool>& mask) {
-    const int n_cells = cells.size();
-
-    // In case of empty or non-aligned mask, copy all the cells
-    if (n_cells != mask.size()) {
-        init(n_cells);
-        for (int i = 0; i < n_cells; ++i)
-            append(cells[i]);
-
-    // In case of aligned mask, copy only the cells specified by the mask
-    } else {
-        const int n_mask = vector_sum(mask);
-        init(n_mask);
-        for (int i = 0; i < n_cells; ++i)
-            if (mask[i])
-                append(cells[i]);
-    }
-}
 
 // Copy the nodes from write to read buffer
 void TetgenElements::recalc() {
@@ -349,7 +289,7 @@ void TetgenElements::init(const int N) {
 }
 
 // Append element to mesh
-void TetgenElements::append(const SimpleElement &cell) {
+void TetgenElements::append(const SimpleCell<4> &cell) {
     require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
     int i = DIM * i_cells;
     for (unsigned int node : cell)
@@ -379,24 +319,9 @@ vector<int> TetgenElements::get_neighbours(const int i) const {
  *  ============================ Hexahedra ============================
  * ===================================================================== */
 
-// Copy the cells from another mesh
-void Hexahedra::copy(const Hexahedra &cells, const vector<bool>& mask) {
-    const int n_cells = cells.size();
-
-    // In case of empty or non-aligned mask, copy all the cells
-    if (n_cells != mask.size()) {
-        init(n_cells);
-        for (int i = 0; i < n_cells; ++i)
-            append(cells[i]);
-
-    // In case of aligned mask, copy only the cells specified by the mask
-    } else {
-        const int n_mask = vector_sum(mask);
-        init(n_mask);
-        for (int i = 0; i < n_cells; ++i)
-            if (mask[i])
-                append(cells[i]);
-    }
+// Get number of hexahedra in mesh
+int Hexahedra::size() const {
+    return hexs.size();
 }
 
 // Initialize hexahedron appending
@@ -406,15 +331,10 @@ void Hexahedra::init(const int N) {
 }
 
 // Append hexahedron to mesh
-void Hexahedra::append(const SimpleHex &cell) {
+void Hexahedra::append(const SimpleCell<8> &cell) {
     expect(hexs.size() < hexs.capacity(), "Allocated size of cells exceeded!");
     hexs.push_back(cell);
     i_cells++;
-}
-
-// Get number of hexahedra in mesh
-int Hexahedra::size() const {
-    return hexs.size();
 }
 
 // Get i-th element from the mesh

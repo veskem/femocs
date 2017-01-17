@@ -209,7 +209,7 @@ const bool TetgenMesh::generate_hexs() {
     hexmesh.convert();
     hexmesh.export_femocs(this);
 
-    return 1;
+    return 0;
 }
 
 // Generate manually edges and surface faces
