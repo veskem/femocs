@@ -6,7 +6,7 @@
 
 include release/makefile.defs
 
-all: debug
+all: lib
 
 lib: lib/libfemocs.a 
 lib/libfemocs.a: src/* include/* 
