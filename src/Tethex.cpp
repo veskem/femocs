@@ -797,44 +797,6 @@ void Mesh::read_femocs(femocs::TetgenMesh* mesh) {
             "There are no 2D or 3D elements in the mesh!");
 }
 
-void Mesh::separate_meshes(tethex::Mesh& bulk, tethex::Mesh& vacuum) {
-    const int n_elems = get_n_hexahedra();
-
-    // Make the element map
-    vector<bool> elem_in_vacuum(n_elems);
-    for (int elem = 0; elem < n_elems; ++elem)
-        elem_in_vacuum[elem] = hexahedra[elem]->get_material_id() == TYPES.VACUUM;
-
-    // Copy the nodes without modification
-    vacuum.vertices = vertices;
-    bulk.vertices = vertices;
-
-    // Reserve memory for elements
-    const int n_elems_vacuum = vector_sum(elem_in_vacuum);
-    const int n_elems_bulk = n_elems - n_elems_vacuum;
-
-    vacuum.hexahedra.reserve(n_elems_vacuum);
-    bulk.hexahedra.reserve(n_elems_bulk);
-
-    // Separate vacuum and bulk elements
-    for (int elem = 0; elem < n_elems; ++elem)
-        if (elem_in_vacuum[elem])
-            vacuum.hexahedra.push_back( new MeshElement(get_hexahedron(elem)) );
-        else
-            bulk.hexahedra.push_back( new MeshElement(get_hexahedron(elem)) );
-}
-
-void Mesh::export_vertices(femocs::TetgenMesh& mesh) {
-    // the number of all femocs mesh vertices
-    const int n_verts = mesh.nodes.size();
-
-    // Export vertex coordinates
-    for (int vert = 0; vert < n_verts; ++vert) {
-        Point p = vertices[vert];
-        mesh.nodes.set_node(vert, femocs::Point3(p.coord[0], p.coord[1], p.coord[2]));
-    }
-}
-
 void Mesh::export_femocs(femocs::TetgenMesh* mesh) {
     // Export vertex coordinates
     const int n_verts = points.size();
@@ -847,7 +809,8 @@ void Mesh::export_femocs(femocs::TetgenMesh* mesh) {
         mesh->nodes.append_marker(points[vert]->get_material_id());
     }
 
-    mesh->nodes.copy(); // copy nodes from write buffer to read one
+    mesh->nodes.recalc(); // copy nodes from write buffer to read one
+    mesh->nodes.save_hex_indices(n_cell_nodes); // save the locations of added nodes
 
     // Export hexahedra
     const int n_hexs = hexahedra.size();
@@ -862,32 +825,6 @@ void Mesh::export_femocs(femocs::TetgenMesh* mesh) {
                 hexahedra[i]->get_vertex(6), hexahedra[i]->get_vertex(7) ));
         mesh->hexahedra.append_marker(hexahedra[i]->get_material_id());
     }
-}
-
-// Transform tethex nodes into Deal.II format
-std::vector<dealii::Point<3>> Mesh::get_nodes() {
-    std::vector<dealii::Point<3>> nodes; nodes.reserve(vertices.size());
-    for (Point p : vertices)
-        nodes.push_back(dealii::Point<3>(p.coord[0], p.coord[1], p.coord[2]));
-    return nodes;
-}
-
-// Transform tethex hexahedra into Deal.II format
-std::vector<dealii::CellData<3>> Mesh::get_elems() {
-    const int n_elems = get_n_hexahedra();
-    const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
-
-    std::vector<dealii::CellData<3>> elems; elems.reserve(n_elems);
-
-    // loop through all the hexahedra
-    for (unsigned int i = 0; i < n_elems; ++i) {
-        elems.push_back(dealii::CellData<3>());
-        MeshElement& elem = get_hexahedron(i);
-        // loop through all the vertices of the hexahedron
-        for (unsigned int v = 0; v < n_verts_per_elem; ++v)
-            elems.back().vertices[v] = elem.get_vertex(v);
-    }
-    return elems;
 }
 
 void Mesh::calc_hex_qualities() {
@@ -923,35 +860,6 @@ void Mesh::calc_hex_qualities() {
     }
 }
 
-// Smoothen the surface vertices
-void Mesh::smoothen(double radius, double smooth_factor, double r_cut) {
-    const int n_atoms = get_n_points();
-
-    // Find atoms in vacuum-bulk boundary
-    vector<bool> hot_node(n_atoms);
-    for(int i = 0; i < n_atoms; ++i)
-        hot_node[i] = get_point(i).get_material_id() == TYPES.SURFACE;
-
-    // Turn atoms on boundary into surface
-    femocs::Media surf( vector_sum(hot_node) );
-    for(int i = 0; i < n_atoms; ++i)
-        if(hot_node[i]) {
-            Point p = get_vertex(i);
-            surf.add_atom( femocs::Point3(p.get_coord(0), p.get_coord(1), p.get_coord(2)) );
-        }
-
-    // Smoothen the surface
-    surf.smoothen(radius, smooth_factor, r_cut);
-
-    // Write smoothed vertices back to mesh
-    int j = 0;
-    for(int i = 0; i < n_atoms; ++i)
-        if(hot_node[i]) {
-            femocs::Point3 point = surf.get_point(j++);
-            vertices[i] = Point(point.x, point.y, point.z);
-        }
-}
-
 void Mesh::convert() {
     if (!tetrahedra.empty())
         convert_3D();
@@ -964,6 +872,9 @@ void Mesh::convert() {
 
 void Mesh::set_new_vertices(const std::vector<MeshElement*> &elements, int shift) {
     const int n_vertices_per_elem = elements[0]->get_n_vertices();
+
+    // store the amount of different kinds of nodes to distinguish them later
+    n_cell_nodes.push_back(elements.size());
 
     // Append vertices to the middle of elements
     for (size_t elem = 0; elem < elements.size(); ++elem)
@@ -1086,6 +997,9 @@ void Mesh::convert_3D() {
     const int n_old_vertices = vertices.size();
     vertices.resize(n_old_vertices + edges.size() + faces.size() + tetrahedra.size());
     points.resize(n_old_vertices + edges.size() + faces.size() + tetrahedra.size());
+
+    n_cell_nodes.clear();
+    n_cell_nodes.push_back(n_old_vertices); // store the amount of different kinds of nodes to distinguish them later
 
     // add 'edge'-nodes - at the middle of edge
     set_new_vertices(edges, n_old_vertices);
@@ -1468,69 +1382,6 @@ void Mesh::write(const std::string &file) {
     out << "$EndElements\n";
 
     out.close();
-}
-
-void Mesh::write_vtk(const std::string &file, const std::vector<MeshElement*> &elems, const int nnodes_in_cell, const int celltype) {
-    if (!MODES.WRITEFILE) return;
-
-    std::ofstream out(file.c_str());
-    require(out, "File " + file + " cannot be opened for writing!");
-
-    out.setf(std::ios::scientific);
-    out.precision(8);
-
-    out << "# vtk DataFile Version 3.0\n";
-    out << "# Tethex mesh\n";
-    out << "ASCII\n";
-    out << "DATASET UNSTRUCTURED_GRID\n\n";
-
-    size_t nnodes = vertices.size();
-    size_t ncells = elems.size();
-
-    out << "POINTS " << nnodes << " double\n";
-    for (size_t ver = 0; ver < nnodes; ++ver) {
-        for (int coord = 0; coord < Point::n_coord; ++coord)
-            out << vertices[ver].get_coord(coord) << " ";
-        out << "\n";
-    }
-
-    out << "CELLS " << ncells << " " << ncells * (nnodes_in_cell + 1) << "\n";
-    for (size_t el = 0; el < ncells; ++el) {
-        out << nnodes_in_cell << " ";/* the number of tags */
-        for (int ver = 0; ver < elems[el]->get_n_vertices(); ++ver)
-            out << elems[el]->get_vertex(ver) << " ";
-        out << "\n";
-    }
-
-    out << "CELL_TYPES " << ncells << "\n";
-    for (size_t el = 0; el < ncells; ++el)
-        out << celltype << "\n";
-    out << "\n";
-
-
-    out << "CELL_DATA " << ncells << "\n";
-    out << "SCALARS Cell_markers int\nLOOKUP_TABLE default\n";
-    for (size_t el = 0; el < ncells; ++el)
-        out << elems[el]->get_material_id() << "\n";
-    out << "\n";
-}
-
-void Mesh::write_vtk_nodes(const std::string &file) {
-    int nnodes_in_cell = 1;
-    int celltype = 1;
-    write_vtk(file, points, nnodes_in_cell, celltype);
-}
-
-void Mesh::write_vtk_faces(const std::string &file) {
-    int nnodes_in_cell = 4; // 3-triangle,  4-tetrahedron, 4-quadrangle,  8-hexahedron
-    int celltype = 9;       // 5-triangle, 10-tetrahedron, 9-quadrangle, 12-hexahedron
-    write_vtk(file, quadrangles, nnodes_in_cell, celltype);
-}
-
-void Mesh::write_vtk_elems(const std::string &file) {
-    int nnodes_in_cell = 8; // 3-triangle,  4-tetrahedron, 4-quadrangle,  8-hexahedron
-    int celltype = 12;      // 5-triangle, 10-tetrahedron, 9-quadrangle, 12-hexahedron
-    write_vtk(file, hexahedra, nnodes_in_cell, celltype);
 }
 
 int Mesh::get_n_vertices() const {

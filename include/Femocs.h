@@ -122,33 +122,41 @@ public:
     const int parse_command(const string& command, double* arg);
 
 private:
+    double t0;
+
     bool skip_calculations;
     AtomReader reader;
     Config conf;
     Media dense_surf;
-    LinearInterpolator interpolator;
+
     LinearInterpolator bulk_interpolator;
     LinearInterpolator vacuum_interpolator;
-    SolutionReader interpolation = SolutionReader(&interpolator);
     SolutionReader bulk_interpolation = SolutionReader(&bulk_interpolator);
     SolutionReader vacuum_interpolation = SolutionReader(&vacuum_interpolator);
 
-#if HEATINGMODE
     fch::PhysicalQuantities phys_quantities;
     fch::CurrentsAndHeating<3> ch_solver1;
     fch::CurrentsAndHeating<3> ch_solver2;
     fch::CurrentsAndHeating<3>* ch_solver;
     fch::CurrentsAndHeating<3>* prev_ch_solver;
-#endif
     
+    /** Generate boundary nodes for mesh */
     const int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);
-   
-    const int generate_meshes(TetgenMesh& tetmesh_bulk, TetgenMesh& tetmesh_vacuum,
-        tethex::Mesh& hexmesh_bulk, tethex::Mesh& hexmesh_vacuum);
 
-    const int generate_meshes_vol2(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh);
+    /** Generate bulk and vacuum meshes */
+    const int generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh);
 
-    const int solve_laplace(TetgenMesh& tetmesh_vacuum, tethex::Mesh& hexmesh_vacuum);
+    /** Solve Laplace equation */
+    const int solve_laplace(TetgenMesh& mesh, fch::Laplace<3>& solver);
+
+    /** Solve heat and continuity equations */
+    const int solve_heat(TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
+
+    /** Extract electric potential and electric field from solution */
+    const int extract_laplace(TetgenMesh& mesh, fch::Laplace<3>* solver);
+
+    /** Extract current density and temperature from solution */
+    const int extract_heat(TetgenMesh& mesh, fch::CurrentsAndHeating<3>* solver);
 };
 
 } /* namespace femocs */

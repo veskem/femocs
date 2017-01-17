@@ -39,8 +39,6 @@ public:
 
     const bool separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd);
 
-    const bool separate_hexs(TetgenMesh& bulk, TetgenMesh& vacuum);
-
     /** Smoothen hexahedra on the surface */
     const bool smoothen(double radius, double smooth_factor, double r_cut);
 
@@ -57,7 +55,6 @@ public:
     TetgenEdges edges = TetgenEdges(&tetIOout);
     TetgenFaces faces = TetgenFaces(&tetIOout);
     TetgenElements elems = TetgenElements(&tetIOout, &tetIOin);
-
     Hexahedra hexahedra = Hexahedra(&tetIOout);
 
     const int n_coordinates = 3;

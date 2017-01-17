@@ -12,115 +12,26 @@
 using namespace std;
 namespace femocs {
 
-// Initialize edge appending
-const void TetgenEdges::init(const int N) {
-    TetgenCells::init(N);
-    writes->edgelist = new int[DIM * N];
-}
+/* =====================================================================
+ *  =========================== TetgenNodes ===========================
+ * ===================================================================== */
 
-// Append edge to mesh
-const void TetgenEdges::append(const SimpleEdge &cell) {
-    require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
-    int i = DIM * i_cells;
-    for (unsigned int node : cell)
-        writes->edgelist[i++] = node;
-    i_cells++;
-}
-
-// Get i-th edge from the mesh
-const SimpleCell<2> TetgenEdges::get_cell(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    const int I = DIM * i;
-    return SimpleEdge(reads->edgelist[I], reads->edgelist[I+1]);
-}
-
-// Initialize face appending
-const void TetgenFaces::init(const int N) {
-    TetgenCells::init(N);
-    writes->trifacelist = new int[DIM * N];
-}
-
-// Append face to mesh
-const void TetgenFaces::append(const SimpleFace &cell) {
-    require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
-    int i = DIM * i_cells;
-    for (unsigned int node : cell)
-        writes->trifacelist[i++] = node;
-    i_cells++;
-}
-
-// Get i-th face from the mesh
-const SimpleCell<3> TetgenFaces::get_cell(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    const int I = DIM * i;
-    return SimpleFace(reads->trifacelist[I], reads->trifacelist[I+1], reads->trifacelist[I+2]);
-}
-
-// Initialize element appending
-const void TetgenElements::init(const int N) {
-    TetgenCells::init(N);
-    writes->tetrahedronlist = new int[DIM * N];
-}
-
-// Append element to mesh
-const void TetgenElements::append(const SimpleElement &cell) {
-    require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
-    int i = DIM * i_cells;
-    for (unsigned int node : cell)
-        writes->tetrahedronlist[i++] = node;
-    i_cells++;
-}
-
-// Get i-th element from the mesh
-const SimpleCell<4> TetgenElements::get_cell(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    const int I = DIM * i;
-    return SimpleElement(reads->tetrahedronlist[I], reads->tetrahedronlist[I+1],
-            reads->tetrahedronlist[I+2], reads->tetrahedronlist[I+3]);
-}
-
-// Get indices of neighbouring elements of i-th element
-const vector<int> TetgenElements::get_neighbours(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    require(reads->neighborlist, "Query from empty neighbour list!");
-
-    const int I = DIM * i;
-    const int* nborlist = reads->neighborlist;
-    return vector<int> {nborlist[I+0], nborlist[I+1], nborlist[I+2], nborlist[I+3]};
-}
-
-// Initialize hexahedron appending
-const void Hexahedra::init(const int N) {
-    TetgenCells::init(N);
-    hexs.reserve(N);
-}
-
-// Append hexahedron to mesh
-const void Hexahedra::append(const SimpleHex &cell) {
-    expect(hexs.size() < hexs.capacity(), "Allocated size of cells exceeded!");
-    hexs.push_back(cell);
-    i_cells++;
-}
-
-// Get number of hexahedra in mesh
-const int Hexahedra::size() const {
-    return hexs.size();
-}
-
-// Get i-th element from the mesh
-const SimpleCell<8> Hexahedra::get_cell(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return hexs[i];
+// Copy the nodes from write to read buffer
+void TetgenNodes::recalc() {
+    TetgenCells::recalc();
+    reads->pointlist = new double[n_coordinates * i_cells];
+    for (int i = 0; i < n_coordinates * i_cells; ++i)
+        reads->pointlist[i] = writes->pointlist[i];
 }
 
 // Initialize node appending
-const void TetgenNodes::init(const int N) {
+void TetgenNodes::init(const int N) {
     TetgenCells::init(N);
     writes->pointlist = new double[n_coordinates * N];
 }
 
 // Append node to mesh
-const void TetgenNodes::append(const Point3 &point) {
+void TetgenNodes::append(const Point3 &point) {
     require(i_cells < *n_cells_w, "Allocated size of nodes exceeded!");
     int i = n_coordinates * i_cells;
     for (double node : point)
@@ -129,27 +40,27 @@ const void TetgenNodes::append(const Point3 &point) {
 }
 
 // Get i-th node from the mesh
-const SimpleCell<1> TetgenNodes::get_cell(const int i) const {
+SimpleCell<1> TetgenNodes::get_cell(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return SimpleNode(i);
 }
 
 // Return the coordinates of i-th node as a 3D vector
-const Vec3 TetgenNodes::get_vec(const int i) const {
+Vec3 TetgenNodes::get_vec(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     const int n = n_coordinates * i;
     return Vec3(reads->pointlist[n+0], reads->pointlist[n+1], reads->pointlist[n+2]);
 }
 
 // Modify the coordinates of i-th node
-const void TetgenNodes::set_node(const int i, const Point3 &point) {
+void TetgenNodes::set_node(const int i, const Point3 &point) {
     require(i >= 0 && i < get_n_nodes(), "Index out of bounds: " + to_string(i));
     int I = n_coordinates * i;
     for (double node : point)
         reads->pointlist[I++] = node;
 }
 
-const void TetgenNodes::save_indices(const int n_surf, const int n_bulk, const int n_vacuum) {
+void TetgenNodes::save_indices(const int n_surf, const int n_bulk, const int n_vacuum) {
     indxs.surf_start = 0;
     indxs.surf_end = indxs.surf_start + n_surf - 1;
     indxs.bulk_start = indxs.surf_end + 1;
@@ -157,15 +68,30 @@ const void TetgenNodes::save_indices(const int n_surf, const int n_bulk, const i
     indxs.vacuum_start = indxs.bulk_end + 1;
     indxs.vacuum_end = indxs.vacuum_start + n_vacuum - 1;
     indxs.tetgen_start = indxs.vacuum_end + 1;
+    indxs.tetgen_end = -1;
 }
 
-const void TetgenNodes::init_statistics() {
+// Store the locations of different kinds of nodes that were produced while splitting tetrahedra into hexahedra
+void TetgenNodes::save_hex_indices(const vector<int>& n_nodes) {
+    require(n_nodes.size() == 4, "Invalid indices!");
+
+    indxs.tetnode_start = 0;
+    indxs.tetnode_end   = indxs.tetnode_start + n_nodes[0] - 1;
+    indxs.midedge_start = indxs.tetnode_end + 1;
+    indxs.midedge_end   = indxs.midedge_start + n_nodes[1] - 1;
+    indxs.midface_start = indxs.midedge_end + 1;
+    indxs.midface_end   = indxs.midface_start + n_nodes[2] - 1;
+    indxs.midtet_start  = indxs.midface_end + 1;
+    indxs.midtet_end    = indxs.midtet_start  + n_nodes[3] - 1;
+}
+
+void TetgenNodes::init_statistics() {
     stat.n_bulk = stat.n_surface = stat.n_vacuum = 0;
     stat.xmin = stat.ymin = stat.zmin = DBL_MAX;
     stat.xmax = stat.ymax = stat.zmax =-DBL_MAX;
 }
 
-const void TetgenNodes::calc_statistics() {
+void TetgenNodes::calc_statistics() {
     init_statistics();
     size_t n_nodes = size();
     size_t n_markers = get_n_markers();
@@ -195,57 +121,50 @@ const void TetgenNodes::calc_statistics() {
 }
 
 // Copy the nodes from another mesh
-const void TetgenNodes::copy(const vector<bool>& mask) {
-    const int n_nodes = *n_cells_w;
-
-    // In case of empty or non-aligned mask, give an error
-    if (n_nodes != mask.size()) {
-        *n_cells_r = n_nodes;
-        reads->pointlist = new double[n_coordinates * n_nodes];
-
-        for (int i = 0; i < n_coordinates*n_nodes; ++i)
-            reads->pointlist[i] = writes->pointlist[i];
-        i_cells = n_nodes;
-
-    } else {
-        const int n_mask = vector_sum(mask);
-        *n_cells_r = n_mask;
-        reads->pointlist = new double[n_coordinates * n_mask];
-
-        int I = 0;
-        for (int i = 0; i < n_nodes; ++i)
-            if (mask[i])
-                for (int j = 0; j < n_coordinates; ++j)
-                    reads->pointlist[I] = writes->pointlist[I++];
-
-        i_cells = n_mask;
-    }
-}
-
-// Copy the nodes from another mesh
-const void TetgenNodes::copy(const TetgenNodes& nodes, const vector<bool>& mask) {
+void TetgenNodes::copy(const TetgenNodes& nodes, const vector<bool>& mask) {
     const int n_nodes = nodes.size();
+    copy_indices(nodes);
 
     // In case of empty or non-aligned mask, copy all the nodes
     if (n_nodes != mask.size()) {
         init(n_nodes);
         for (int i = 0; i < n_nodes; ++i)
             append(nodes[i]);
-        i_cells = n_nodes;
 
     // In case of aligned mask, copy only the nodes specified by the mask
     } else {
         const int n_mask = vector_sum(mask);
         init(n_mask);
         for (int i = 0; i < n_nodes; ++i)
-            if (mask[i])
-                append(nodes[i]);
-        i_cells = n_mask;
+            if (mask[i]) append(nodes[i]);
     }
 }
 
+void TetgenNodes::copy_indices(const TetgenNodes& n) {
+    indxs.bulk_start = n.indxs.bulk_start; indxs.bulk_end = n.indxs.bulk_end;
+    indxs.surf_start = n.indxs.surf_start; indxs.surf_end = n.indxs.surf_end;
+    indxs.vacuum_start = n.indxs.vacuum_start; indxs.vacuum_end = n.indxs.vacuum_end;
+    indxs.tetgen_start = n.indxs.tetgen_start; indxs.tetgen_end = n.indxs.tetgen_end;
+
+    indxs.midedge_start = n.indxs.midedge_start; indxs.midedge_end = n.indxs.midedge_end;
+    indxs.midface_start = n.indxs.midface_start; indxs.midface_end = n.indxs.midface_end;
+    indxs.midtet_start = n.indxs.midtet_start; indxs.midtet_end = n.indxs.midtet_end;
+    indxs.tetnode_start = n.indxs.tetnode_start; indxs.tetnode_end = n.indxs.tetnode_end;
+}
+
+// Transform nodes into Deal.II format
+vector<dealii::Point<3>> TetgenNodes::export_dealii() {
+    vector<dealii::Point<3>> nodes; nodes.reserve(get_n_nodes());
+//    for (Point3 p : *this)
+    for (int i = 0; i < get_n_nodes(); ++i) {
+        Point3 p = get_node(i);
+        nodes.push_back( dealii::Point<3>(p.x, p.y, p.z) );
+    }
+    return nodes;
+}
+
 // Write node data to file
-const void TetgenNodes::write(const string &file_name) const {
+void TetgenNodes::write(const string &file_name) const {
     if (!MODES.WRITEFILE) return;
 
     string file_type = get_file_type(file_name);
@@ -260,7 +179,7 @@ const void TetgenNodes::write(const string &file_name) const {
 }
 
 // Write node data to .xyz file
-const void TetgenNodes::write_xyz(const string &file_name) const {
+void TetgenNodes::write_xyz(const string &file_name) const {
     const int n_nodes = size();
     const int n_markers = get_n_markers();
 
@@ -280,6 +199,244 @@ const void TetgenNodes::write_xyz(const string &file_name) const {
             out_file << i << " " << get_node(i) << " " << "-1" << endl;
 
     out_file.close();
+}
+
+/* =====================================================================
+ *  =========================== TetgenEdges ===========================
+ * ===================================================================== */
+
+// Copy the nodes from write to read buffer
+void TetgenEdges::recalc() {
+    TetgenCells::recalc();
+    reads->edgelist = new int[DIM * i_cells];
+    for (int i = 0; i < DIM * i_cells; ++i)
+        reads->edgelist[i] = writes->edgelist[i];
+}
+
+// Initialize edge appending
+void TetgenEdges::init(const int N) {
+    TetgenCells::init(N);
+    writes->edgelist = new int[DIM * N];
+}
+
+// Append edge to mesh
+void TetgenEdges::append(const SimpleEdge &cell) {
+    require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
+    int i = DIM * i_cells;
+    for (unsigned int node : cell)
+        writes->edgelist[i++] = node;
+    i_cells++;
+}
+
+// Get i-th edge from the mesh
+SimpleCell<2> TetgenEdges::get_cell(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    const int I = DIM * i;
+    return SimpleEdge(reads->edgelist[I], reads->edgelist[I+1]);
+}
+
+// Copy the cells from another mesh
+void TetgenEdges::copy(const TetgenEdges &cells, const vector<bool>& mask) {
+    const int n_cells = cells.size();
+
+    // In case of empty or non-aligned mask, copy all the cells
+    if (n_cells != mask.size()) {
+        init(n_cells);
+        for (int i = 0; i < n_cells; ++i)
+            append(cells[i]);
+
+    // In case of aligned mask, copy only the cells specified by the mask
+    } else {
+        const int n_mask = vector_sum(mask);
+        init(n_mask);
+        for (int i = 0; i < n_cells; ++i)
+            if (mask[i])
+                append(cells[i]);
+    }
+}
+
+/* =====================================================================
+ *  =========================== TetgenFaces ===========================
+ * ===================================================================== */
+
+// Copy the nodes from write to read buffer
+void TetgenFaces::recalc() {
+    TetgenCells::recalc();
+    reads->trifacelist = new int[DIM * i_cells];
+    for (int i = 0; i < DIM * i_cells; ++i)
+        reads->trifacelist[i] = writes->trifacelist[i];
+}
+
+// Initialize face appending
+void TetgenFaces::init(const int N) {
+    TetgenCells::init(N);
+    writes->trifacelist = new int[DIM * N];
+}
+
+// Append face to mesh
+void TetgenFaces::append(const SimpleFace &cell) {
+    require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
+    int i = DIM * i_cells;
+    for (unsigned int node : cell)
+        writes->trifacelist[i++] = node;
+    i_cells++;
+}
+
+// Get i-th face from the mesh
+SimpleCell<3> TetgenFaces::get_cell(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    const int I = DIM * i;
+    return SimpleFace(reads->trifacelist[I], reads->trifacelist[I+1], reads->trifacelist[I+2]);
+}
+
+// Copy the cells from another mesh
+void TetgenFaces::copy(const TetgenFaces &cells, const vector<bool>& mask) {
+    const int n_cells = cells.size();
+
+    // In case of empty or non-aligned mask, copy all the cells
+    if (n_cells != mask.size()) {
+        init(n_cells);
+        for (int i = 0; i < n_cells; ++i)
+            append(cells[i]);
+
+    // In case of aligned mask, copy only the cells specified by the mask
+    } else {
+        const int n_mask = vector_sum(mask);
+        init(n_mask);
+        for (int i = 0; i < n_cells; ++i)
+            if (mask[i])
+                append(cells[i]);
+    }
+}
+
+/* =====================================================================
+ *  ========================== TetgenElements =========================
+ * ===================================================================== */
+
+// Copy the cells from another mesh
+void TetgenElements::copy(const TetgenElements &cells, const vector<bool>& mask) {
+    const int n_cells = cells.size();
+
+    // In case of empty or non-aligned mask, copy all the cells
+    if (n_cells != mask.size()) {
+        init(n_cells);
+        for (int i = 0; i < n_cells; ++i)
+            append(cells[i]);
+
+    // In case of aligned mask, copy only the cells specified by the mask
+    } else {
+        const int n_mask = vector_sum(mask);
+        init(n_mask);
+        for (int i = 0; i < n_cells; ++i)
+            if (mask[i])
+                append(cells[i]);
+    }
+}
+
+// Copy the nodes from write to read buffer
+void TetgenElements::recalc() {
+    *n_cells_r = *n_cells_w;
+    i_cells = *n_cells_w;
+    reads->tetrahedronlist = new int[DIM * i_cells];
+    for (int i = 0; i < DIM * i_cells; ++i)
+        reads->tetrahedronlist[i] = writes->tetrahedronlist[i];
+}
+
+// Initialize element appending
+void TetgenElements::init(const int N) {
+    TetgenCells::init(N);
+    writes->tetrahedronlist = new int[DIM * N];
+}
+
+// Append element to mesh
+void TetgenElements::append(const SimpleElement &cell) {
+    require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
+    int i = DIM * i_cells;
+    for (unsigned int node : cell)
+        writes->tetrahedronlist[i++] = node;
+    i_cells++;
+}
+
+// Get i-th element from the mesh
+SimpleCell<4> TetgenElements::get_cell(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    const int I = DIM * i;
+    return SimpleElement(reads->tetrahedronlist[I], reads->tetrahedronlist[I+1],
+            reads->tetrahedronlist[I+2], reads->tetrahedronlist[I+3]);
+}
+
+// Get indices of neighbouring elements of i-th element
+vector<int> TetgenElements::get_neighbours(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    require(reads->neighborlist, "Query from empty neighbour list!");
+
+    const int I = DIM * i;
+    const int* nborlist = reads->neighborlist;
+    return vector<int> {nborlist[I+0], nborlist[I+1], nborlist[I+2], nborlist[I+3]};
+}
+
+/* =====================================================================
+ *  ============================ Hexahedra ============================
+ * ===================================================================== */
+
+// Copy the cells from another mesh
+void Hexahedra::copy(const Hexahedra &cells, const vector<bool>& mask) {
+    const int n_cells = cells.size();
+
+    // In case of empty or non-aligned mask, copy all the cells
+    if (n_cells != mask.size()) {
+        init(n_cells);
+        for (int i = 0; i < n_cells; ++i)
+            append(cells[i]);
+
+    // In case of aligned mask, copy only the cells specified by the mask
+    } else {
+        const int n_mask = vector_sum(mask);
+        init(n_mask);
+        for (int i = 0; i < n_cells; ++i)
+            if (mask[i])
+                append(cells[i]);
+    }
+}
+
+// Initialize hexahedron appending
+void Hexahedra::init(const int N) {
+    TetgenCells::init(N);
+    hexs.reserve(N);
+}
+
+// Append hexahedron to mesh
+void Hexahedra::append(const SimpleHex &cell) {
+    expect(hexs.size() < hexs.capacity(), "Allocated size of cells exceeded!");
+    hexs.push_back(cell);
+    i_cells++;
+}
+
+// Get number of hexahedra in mesh
+int Hexahedra::size() const {
+    return hexs.size();
+}
+
+// Get i-th element from the mesh
+SimpleCell<8> Hexahedra::get_cell(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    return hexs[i];
+}
+
+// Transform hexahedra into Deal.II format
+vector<dealii::CellData<3>> Hexahedra::export_dealii() {
+    const int n_elems = size();
+    std::vector<dealii::CellData<3>> elems; elems.reserve(n_elems);
+
+    // loop through all the hexahedra
+    for (unsigned int i = 0; i < n_elems; ++i) {
+        elems.push_back(dealii::CellData<3>());
+        SimpleHex hex = get_cell(i);
+        // loop through all the vertices of the hexahedron
+        for (unsigned int v = 0; v < DIM; ++v)
+            elems.back().vertices[v] = hex[v];
+    }
+    return elems;
 }
 
 } /* namespace femocs */

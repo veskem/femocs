@@ -126,10 +126,10 @@ const bool TetgenMesh::generate_simple() {
 
 // Copy mesh from input to output without modification
 const bool TetgenMesh::recalc() {
-    nodes.copy();
-    edges.copy(TetgenEdges(&tetIOin));
-    faces.copy(TetgenFaces(&tetIOin));
-    elems.copy(TetgenElements(&tetIOin));
+    nodes.recalc();
+    edges.recalc();
+    faces.recalc();
+    elems.recalc();
     return 0;
 }
 
@@ -283,59 +283,29 @@ const void TetgenMesh::generate_surf_faces() {
 
 // Separate vacuum and bulk mesh from the union mesh by the element markers
 const bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd) {
-    const int n_elems = elems.size();
-    const int n_nodes = nodes.size();
-    vector<bool> elem_in_vacuum = vector_equal(elems.get_markers(), TYPES.VACUUM);
+    vector<bool> tet_mask = vector_equal(elems.get_markers(), TYPES.VACUUM);
+    vector<bool> hex_mask = vector_equal(hexahedra.get_markers(), TYPES.VACUUM);
 
-    // Copy the non-bulk nodes from input mesh without modification
+    // Transfer vacuum nodes, tetrahedra, hexahedra and their markers
     vacuum.nodes.copy(this->nodes);
+    vacuum.nodes.copy_markers(this->nodes);
+    vacuum.elems.copy(this->elems, tet_mask);
+    vacuum.elems.copy_markers(this->elems, tet_mask);
+    vacuum.hexahedra.copy(this->hexahedra, hex_mask);
+    vacuum.hexahedra.copy_markers(this->hexahedra, hex_mask);
+
+    tet_mask.flip();
+    hex_mask.flip();
+
+    // Transfer bulk nodes, tetrahedra, hexahedra and their markers
     bulk.nodes.copy(this->nodes);
-
-    // Reserve memory for elements
-    const int n_elems_vacuum = vector_sum(elem_in_vacuum);
-    const int n_elems_bulk = n_elems - n_elems_vacuum;
-    vacuum.elems.init(n_elems_vacuum);
-    bulk.elems.init(n_elems_bulk);
-
-    // Separate vacuum and bulk elements
-    for (int elem = 0; elem < n_elems; ++elem)
-        if (elem_in_vacuum[elem])
-            vacuum.elems.append(elems[elem]);
-        else
-            bulk.elems.append(elems[elem]);
+    bulk.nodes.copy_markers(this->nodes);
+    bulk.elems.copy(this->elems, tet_mask);
+    bulk.elems.copy_markers(this->elems, tet_mask);
+    bulk.hexahedra.copy(this->hexahedra, hex_mask);
+    bulk.hexahedra.copy_markers(this->hexahedra, hex_mask);
 
     return vacuum.recalc(cmd) ||  bulk.recalc(cmd);
-}
-
-const bool TetgenMesh::separate_hexs(TetgenMesh& bulk, TetgenMesh& vacuum) {
-    const int n_elems = hexahedra.size();
-
-    // Make the element map
-    vector<bool> elem_in_vacuum = vector_equal(hexahedra.get_markers() , TYPES.VACUUM);
-
-    // Copy the nodes without modification
-    vacuum.nodes.copy(nodes);
-    bulk.nodes.copy(nodes);
-
-    // Reserve memory for elements
-    const int n_elems_vacuum = vector_sum(elem_in_vacuum);
-    const int n_elems_bulk = n_elems - n_elems_vacuum;
-    vacuum.hexahedra.init(n_elems_vacuum);
-    vacuum.hexahedra.init_markers(n_elems_vacuum);
-    bulk.hexahedra.init(n_elems_bulk);
-    bulk.hexahedra.init_markers(n_elems_bulk);
-
-    // Separate vacuum and bulk elements
-    for (int elem = 0; elem < n_elems; ++elem)
-        if (elem_in_vacuum[elem]) {
-            vacuum.hexahedra.append(hexahedra[elem]);
-            vacuum.hexahedra.append_marker(hexahedra.get_marker(elem));
-        } else {
-            bulk.hexahedra.append(hexahedra[elem]);
-            bulk.hexahedra.append_marker(hexahedra.get_marker(elem));
-        }
-
-    return 0;
 }
 
 const bool TetgenMesh::smoothen(double radius, double smooth_factor, double r_cut) {

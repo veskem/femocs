@@ -7,6 +7,9 @@
 
 #include "Macros.h"
 #include "LinearInterpolator.h"
+
+
+
 #include <float.h>
 
 using namespace std;
@@ -36,7 +39,7 @@ const void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::
     node2vert.resize(n_hex_nodes);
 
     // Loop through the hexahedral mesh vertices
-    typename Triangulation<DIM>::active_vertex_iterator vertex = tria->begin_active_vertex();
+    typename dealii::Triangulation<3>::active_vertex_iterator vertex = tria->begin_active_vertex();
     for (int j = 0; j < n_tet_nodes; ++j, ++vertex)
         // Loop through tetrahedral mesh vertices
         for (int i = 0; i < n_tet_nodes; ++i)
@@ -46,7 +49,7 @@ const void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::
             }
 
     // Loop through the hexahedral mesh elements
-    typename DoFHandler<DIM>::active_cell_iterator cell;
+    typename dealii::DoFHandler<3>::active_cell_iterator cell;
     for (cell = dofh->begin_active(); cell != dofh->end(); ++cell)
         // Loop through all the vertices in the element
         for (int i = 0; i < n_verts_per_elem; ++i) {
@@ -65,50 +68,14 @@ const void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-const void LinearInterpolator::extract_solution(DealII &fem, const TetgenMesh &mesh) {
-    const int n_nodes = mesh.nodes.size();
-
-    // Precompute tetrahedra to make interpolation faster
-    precompute_tetrahedra(mesh);
-
-    // Copy the mesh nodes
-    reserve(n_nodes);
-    for (int node = 0; node < n_nodes; ++node)
-        add_atom(Atom(node, mesh.nodes[node], -1));
-
-    vector<int> tetNode2hexNode, cell_indxs, vert_indxs;
-    get_maps(fem.get_triangulation(), fem.get_dof_handler(), tetNode2hexNode, cell_indxs, vert_indxs);
-
-    vector<Vec3> ef = fem.get_elfield(cell_indxs, vert_indxs);      // get list of electric fields
-    vector<double> pot = fem.get_potential(cell_indxs, vert_indxs); // get list of electric potentials
-
-    require(ef.size() == pot.size(),
-            "Mismatch of vector sizes: " + to_string(ef.size()) + ", " + to_string(pot.size()));
-
-    int i = 0;
-    for (int node = 0; node < n_nodes; ++node) {
-        // If there is a common node between tet and hex meshes, store actual solution
-        if (tetNode2hexNode[node] >= 0) {
-            require(i < ef.size(), "Invalid index: " + to_string(i));
-            solution.push_back(Solution(ef[i], pot[i]));
-            i++;
-        }
-
-        // In case of non-common node, store solution with error value
-        else
-            solution.push_back(Solution(error_field));
-    }
-}
-
-// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
 const void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh) {
     require(fem, "NULL pointer can't be handled!");
 
+    const int n_nodes = mesh.nodes.indxs.tetnode_end + 1;
     // Copy the mesh nodes
-    int i = 0;
-    reserve(mesh.nodes.size());
-    for (Point3 node : mesh.nodes)
-        add_atom(Atom(i++, node, -1));
+    reserve(n_nodes);
+    for (int i = 0; i < n_nodes; ++i)
+        add_atom(Atom(i++, mesh.nodes[i], -1));
 
     // Precompute tetrahedra to make interpolation faster
     precompute_tetrahedra(mesh);
@@ -123,7 +90,7 @@ const void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const Tetg
     require(ef.size() == pot.size(),
             "Mismatch of vector sizes: " + to_string(ef.size()) + ", " + to_string(pot.size()));
 
-    i = 0;
+    int i = 0;
     for (int n : tetNode2hexNode) {
         // If there is a common node between tet and hex meshes, store actual solution
         if (n >= 0) {
