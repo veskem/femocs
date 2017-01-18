@@ -107,6 +107,40 @@ const void TetgenMesh::group_hexs() {
     }
 }
 
+// Group hexahedra around tetrahedra nodes
+const void TetgenMesh::get_voronoi_cells() {
+    vector<vector<unsigned int>> voronoi_cells(nodes.stat.n_tetnode);
+    const int node_min = nodes.indxs.tetnode_start;
+    const int node_max = nodes.indxs.tetnode_end;
+
+    // enumerate tetrahedral nodes
+    for (int i = 0; i < nodes.size(); ++i)
+        if (nodes.get_marker(i) == 1)
+            nodes.set_marker(i, -i);
+
+    // find the voronoi cell nodes for the tetrahedral nodes
+    for (int i = 0; i < hexahedra.size(); ++i) {
+        for (unsigned int node : hexahedra[i])
+            if (nodes.get_marker(node) == 4) {
+                const int tetnode = hexahedra.get_marker(i);
+                expect(tetnode >= node_min &&  tetnode <= node_max, "Illegal node detected: " + to_string(tetnode));
+                voronoi_cells[tetnode].push_back(node);
+//                nodes.set_marker(node, tetnode);
+                continue;
+            }
+    }
+
+    // mark the voronoi cell nodes
+    for (int i = 0; i < voronoi_cells.size(); ++i) {
+        cout << i << " \t" << voronoi_cells[i].size() << ": ";
+        for (int v : voronoi_cells[i]) {
+            nodes.set_marker(v, i);
+            cout << v << " ";
+        }
+        cout << endl;
+    }
+}
+
 // Function to generate simple mesh that consists of one tetrahedron
 const bool TetgenMesh::generate_simple() {
     const int n_nodes = elems.DIM;

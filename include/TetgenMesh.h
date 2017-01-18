@@ -41,6 +41,8 @@ public:
 
     const void group_hexs();
 
+    const void get_voronoi_cells();
+
     /** Smoothen hexahedra on the surface */
     const bool smoothen(double radius, double smooth_factor, double r_cut);
 
