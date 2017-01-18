@@ -346,10 +346,8 @@ vector<dealii::CellData<3>> Hexahedra::export_dealii() {
     std::vector<dealii::CellData<3>> elems; elems.reserve(n_elems);
 
     // loop through all the hexahedra
-    for (unsigned int i = 0; i < n_elems; ++i) {
+    for (SimpleHex hex : *this) {
         elems.push_back(dealii::CellData<3>());
-        SimpleHex hex = get_cell(i);
-        // loop through all the vertices of the hexahedron
         for (unsigned int v = 0; v < DIM; ++v)
             elems.back().vertices[v] = hex[v];
     }
