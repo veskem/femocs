@@ -46,6 +46,12 @@ public:
     /** Dimensionality of cell */
     const int size() const { return dim; }
 
+    /** Check if one of the nodes equals to the one of interest */
+    bool operator ==(const unsigned int &t) const {
+        for (unsigned int n : node) if (n == t) return true;
+        return false;
+    }
+
     /** Less than, bigger than, less than or equal, bigger than or equal operators */
     vector<bool> operator <(const unsigned int &t) const {
         vector<bool> v; v.reserve(dim);

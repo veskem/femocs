@@ -71,8 +71,8 @@ const void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::
 const void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh) {
     require(fem, "NULL pointer can't be handled!");
 
-    const int n_nodes = mesh.nodes.indxs.tetnode_end + 1;
-    // Copy the mesh nodes
+    // Copy the tetrahedral mesh nodes
+    const int n_nodes = mesh.nodes.stat.n_tetnode;
     reserve(n_nodes);
     for (int i = 0; i < n_nodes; ++i)
         add_atom(Atom(i, mesh.nodes[i], -1));

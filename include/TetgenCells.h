@@ -308,6 +308,11 @@ public:
 
     /** Struct holding statistics about nodes */
     struct Stat {
+        int n_tetnode;
+        int n_midface;
+        int n_midedge;
+        int n_midtet;
+
         int n_bulk;     //!< Number of nodes in bulk material
         int n_surface;  //!< Number of nodes on the surface of material
         int n_vacuum;   //!< Number of nodes in vacuum

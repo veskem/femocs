@@ -91,6 +91,22 @@ const bool RaySurfaceIntersect::ray_intersects_surface(const Vec3 &origin, const
     return false;
 }
 
+// Group hexahedra around tetrahedra nodes
+const void TetgenMesh::group_hexs() {
+    const int node_min = nodes.indxs.tetnode_start;
+    const int node_max = nodes.indxs.tetnode_end;
+
+    // find which hexahedra correspond to which tetrahedral node
+    // hexahedra with the same tetrahedral node form the voronoi cell of that node
+    for (int i = 0; i < hexahedra.size(); ++i) {
+        for (int node : hexahedra[i])
+            if (node >= node_min && node <= node_max) {
+                hexahedra.set_marker(i, node);
+                continue;
+            }
+    }
+}
+
 // Function to generate simple mesh that consists of one tetrahedron
 const bool TetgenMesh::generate_simple() {
     const int n_nodes = elems.DIM;

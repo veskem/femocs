@@ -75,6 +75,11 @@ void TetgenNodes::save_indices(const int n_surf, const int n_bulk, const int n_v
 void TetgenNodes::save_hex_indices(const vector<int>& n_nodes) {
     require(n_nodes.size() == 4, "Invalid indices!");
 
+    stat.n_tetnode = n_nodes[0];
+    stat.n_midedge = n_nodes[1];
+    stat.n_midface = n_nodes[2];
+    stat.n_midtet  = n_nodes[3];
+
     indxs.tetnode_start = 0;
     indxs.tetnode_end   = indxs.tetnode_start + n_nodes[0] - 1;
     indxs.midedge_start = indxs.tetnode_end + 1;
@@ -150,6 +155,11 @@ void TetgenNodes::copy_indices(const TetgenNodes& n) {
     indxs.midface_start = n.indxs.midface_start; indxs.midface_end = n.indxs.midface_end;
     indxs.midtet_start = n.indxs.midtet_start; indxs.midtet_end = n.indxs.midtet_end;
     indxs.tetnode_start = n.indxs.tetnode_start; indxs.tetnode_end = n.indxs.tetnode_end;
+
+    stat.n_tetnode = n.stat.n_tetnode;
+    stat.n_midedge = n.stat.n_midedge;
+    stat.n_midface = n.stat.n_midface;
+    stat.n_midtet  = n.stat.n_midtet;
 }
 
 // Transform nodes into Deal.II format

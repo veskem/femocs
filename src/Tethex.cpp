@@ -905,17 +905,17 @@ void Mesh::set_new_vertices(const std::vector<MeshElement*> &elements, int shift
                 n_vacuum++;
         }
 
-        // If all the nodes of element are on the surface, bulk or vacuum, the new one will be also
-        if (n_surface == n_vertices_per_elem)
-            points[shift_indx] = new PhysPoint(shift_indx, TYPES.SURFACE);
-        else if (n_bulk == n_vertices_per_elem)
-            points[shift_indx] = new PhysPoint(shift_indx, TYPES.BULK);
-        else if (n_vacuum == n_vertices_per_elem)
-            points[shift_indx] = new PhysPoint(shift_indx, TYPES.VACUUM);
-        else
-            points[shift_indx] = new PhysPoint(shift_indx, TYPES.NONE);
+//        // If all the nodes of element are on the surface, bulk or vacuum, the new one will be also
+//        if (n_surface == n_vertices_per_elem)
+//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.SURFACE);
+//        else if (n_bulk == n_vertices_per_elem)
+//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.BULK);
+//        else if (n_vacuum == n_vertices_per_elem)
+//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.VACUUM);
+//        else
+//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.NONE);
 
-//        points[shift_indx] = new PhysPoint(shift_indx, n_vertices_per_elem);
+        points[shift_indx] = new PhysPoint(shift_indx, n_vertices_per_elem);
     }
 }
 
@@ -999,6 +999,10 @@ void Mesh::convert_3D() {
 
     n_cell_nodes.clear();
     n_cell_nodes.push_back(n_old_vertices); // store the amount of different kinds of nodes to distinguish them later
+
+    // Mark initial nodes
+    for (int i = 0; i < n_old_vertices; ++i)
+        points[i]->set_material_id(1);
 
     // add 'edge'-nodes - at the middle of edge
     set_new_vertices(edges, n_old_vertices);
