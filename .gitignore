@@ -20,3 +20,4 @@ heating
 hilbert
 cgal/*
 !cgal/CGAL*.zip
+Makefile

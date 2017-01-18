@@ -155,11 +155,8 @@ void TetgenNodes::copy_indices(const TetgenNodes& n) {
 // Transform nodes into Deal.II format
 vector<dealii::Point<3>> TetgenNodes::export_dealii() {
     vector<dealii::Point<3>> nodes; nodes.reserve(get_n_nodes());
-//    for (Point3 p : *this)
-    for (int i = 0; i < get_n_nodes(); ++i) {
-        Point3 p = get_node(i);
+    for (Point3 p : *this)
         nodes.push_back( dealii::Point<3>(p.x, p.y, p.z) );
-    }
     return nodes;
 }
 

@@ -75,7 +75,7 @@ const void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const Tetg
     // Copy the mesh nodes
     reserve(n_nodes);
     for (int i = 0; i < n_nodes; ++i)
-        add_atom(Atom(i++, mesh.nodes[i], -1));
+        add_atom(Atom(i, mesh.nodes[i], -1));
 
     // Precompute tetrahedra to make interpolation faster
     precompute_tetrahedra(mesh);
