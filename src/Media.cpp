@@ -120,13 +120,12 @@ const Media Media::stretch(const double latconst, const double box_width) {
 
 // Function to coarsen the atoms with coarsener
 const Media Media::coarsen(Coarseners &coarseners, const Medium::Sizes& ar_sizes) {
-    calc_statistics();
-    Point2 origin2d(sizes.xmid, sizes.ymid);
+    Media corners, middle, union_surf;
 
-    Media corners; corners.generate_simple(ar_sizes, coarseners.zmean);
-    Media middle; middle.generate_middle(ar_sizes, coarseners.zmean, coarseners.r0_inf);
+    this->sort_atoms(3, "down");
+    corners.generate_simple(ar_sizes, coarseners.zmean);
+    middle.generate_middle(ar_sizes, coarseners.zmean, coarseners.r0_inf);
 
-    Media union_surf;
     union_surf += corners;
     union_surf += middle;
     union_surf.add(this);

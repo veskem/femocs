@@ -59,6 +59,7 @@ const int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media
     stretch_surf = dense_surf.stretch(conf.latconst, conf.box_width);
     coarse_surf = stretch_surf.coarsen(coarseners, stretch_surf.sizes);
     end_msg(t0);
+
     coarse_surf.write("output/surface_nosmooth.xyz");
     stretch_surf.write("output/surface_stretch.xyz");
 

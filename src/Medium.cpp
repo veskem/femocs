@@ -24,11 +24,22 @@ Medium::Medium(const int n_atoms) {
     reserve(n_atoms);
 }
 
-// Sort the atoms by their cartesian coordinate
+// Sort the atoms by their cartesian or radial coordinate
 const void Medium::sort_atoms(const int coord, const string& direction) {
-    require(coord >= 0 && coord <= 2, "Invalid coordinate: " + to_string(coord));
+    require(coord >= 0 && coord <= 3, "Invalid coordinate: " + to_string(coord));
 
-    if (direction == "up" || direction == "asc")
+    if (coord == 3) {
+        calc_statistics();
+        Point2 origin(sizes.xmid, sizes.ymid);
+        for (int i = 0; i < get_n_atoms(); ++i)
+            set_coordination(i, 10000 * origin.distance2(get_point2(i)));
+        if (direction == "up" || direction == "asc")
+            sort(atoms.begin(), atoms.end(), Atom::sort_coord_up());
+        else
+            sort(atoms.begin(), atoms.end(), Atom::sort_coord_down());
+    }
+
+    else if (direction == "up" || direction == "asc")
         sort(atoms.begin(), atoms.end(), Atom::sort_up(coord));
     else if (direction == "down" || direction == "desc")
         sort(atoms.begin(), atoms.end(), Atom::sort_down(coord));

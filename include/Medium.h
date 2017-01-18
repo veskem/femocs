@@ -21,8 +21,10 @@ public:
     Medium(const int n_atoms);
     virtual ~Medium() {}; // = 0;
 
-    /** Sort the atoms by their x, y or z coordinate */
+    /** Sort the atoms by their x, y or z coordinate (coord=0|1|2) or radial coordinate(coord=3) */
     const void sort_atoms(const int coord, const string& direction="up");
+
+    /** Sort the atoms twice by their x, y or z coordinate */
     const void sort_atoms(const int x1, const int x2, const string& direction = "up");
     
     /** Perform spatial sorting by ordering atoms along Hilbert curve

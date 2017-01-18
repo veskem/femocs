@@ -545,8 +545,13 @@ public:
     };
 
     /** Functor for sorting atoms in ascending order by their coordination */
-    struct sort_coord {
+    struct sort_coord_up {
         inline bool operator() (const Atom& a1, const Atom& a2) { return a1.coord < a2.coord; }
+    };
+
+    /** Functor for sorting atoms in descending order by their coordination */
+    struct sort_coord_down {
+        inline bool operator() (const Atom& a1, const Atom& a2) { return a1.coord > a2.coord; }
     };
 
     /** Functor for sorting atoms in ascending order by their x, y, z or radial coordinate */
