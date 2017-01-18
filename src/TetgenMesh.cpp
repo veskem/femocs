@@ -284,7 +284,7 @@ const void TetgenMesh::generate_surf_faces() {
 // Separate vacuum and bulk mesh from the union mesh by the element markers
 const bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd) {
     vector<bool> tet_mask = vector_equal(elems.get_markers(), TYPES.VACUUM);
-    vector<bool> hex_mask = vector_equal(hexahedra.get_markers(), TYPES.VACUUM);
+    vector<bool> hex_mask = vector_greater_equal(hexahedra.get_markers(), 0);
 
     // Transfer vacuum nodes, tetrahedra, hexahedra and their markers
     vacuum.nodes.copy(this->nodes);

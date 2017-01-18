@@ -906,17 +906,16 @@ void Mesh::set_new_vertices(const std::vector<MeshElement*> &elements, int shift
         }
 
         // If all the nodes of element are on the surface, bulk or vacuum, the new one will be also
-//        if (n_surface == n_vertices_per_elem)
-//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.SURFACE);
-//        else if (n_bulk == n_vertices_per_elem)
-//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.BULK);
-//        else if (n_vacuum == n_vertices_per_elem)
-//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.VACUUM);
-//        else
-//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.NONE);
+        if (n_surface == n_vertices_per_elem)
+            points[shift_indx] = new PhysPoint(shift_indx, TYPES.SURFACE);
+        else if (n_bulk == n_vertices_per_elem)
+            points[shift_indx] = new PhysPoint(shift_indx, TYPES.BULK);
+        else if (n_vacuum == n_vertices_per_elem)
+            points[shift_indx] = new PhysPoint(shift_indx, TYPES.VACUUM);
+        else
+            points[shift_indx] = new PhysPoint(shift_indx, TYPES.NONE);
 
-        points[shift_indx] = new PhysPoint(shift_indx, n_vertices_per_elem);
-
+//        points[shift_indx] = new PhysPoint(shift_indx, n_vertices_per_elem);
     }
 }
 
@@ -1039,7 +1038,7 @@ void Mesh::convert_3D() {
 
 void Mesh::convert_tetrahedra(int n_old_vertices, const IncidenceMatrix &incidence_matrix,
         const VectorMap edge_vertex_incidence) {
-    std::vector<int> hexahedron_vertices(Hexahedron::n_vertices);
+    std::vector<int> hex_verts(Hexahedron::n_vertices);
 
     for (size_t tet = 0; tet < tetrahedra.size(); ++tet) {
         for (int ver = 0; ver < Tetrahedron::n_vertices; ++ver) {
@@ -1055,18 +1054,18 @@ void Mesh::convert_tetrahedra(int n_old_vertices, const IncidenceMatrix &inciden
             expect(seek_edges.size() == 3, "");
 
             // numeration of hexahedron vertices
-            hexahedron_vertices[0] = cur_vertex;
-            hexahedron_vertices[1] = n_old_vertices + seek_edges[0];
-            hexahedron_vertices[2] = n_old_vertices + edges.size()
+            hex_verts[0] = cur_vertex;
+            hex_verts[1] = n_old_vertices + seek_edges[0];
+            hex_verts[2] = n_old_vertices + edges.size()
                     + find_face_from_two_edges(seek_edges[0], seek_edges[1], incidence_matrix,
                             edge_vertex_incidence);
-            hexahedron_vertices[3] = n_old_vertices + seek_edges[1];
-            hexahedron_vertices[4] = n_old_vertices + seek_edges[2];
-            hexahedron_vertices[5] = n_old_vertices + edges.size()
+            hex_verts[3] = n_old_vertices + seek_edges[1];
+            hex_verts[4] = n_old_vertices + seek_edges[2];
+            hex_verts[5] = n_old_vertices + edges.size()
                     + find_face_from_two_edges(seek_edges[0], seek_edges[2], incidence_matrix,
                             edge_vertex_incidence);
-            hexahedron_vertices[6] = n_old_vertices + edges.size() + faces.size() + tet;
-            hexahedron_vertices[7] = n_old_vertices + edges.size()
+            hex_verts[6] = n_old_vertices + edges.size() + faces.size() + tet;
+            hex_verts[7] = n_old_vertices + edges.size()
                     + find_face_from_two_edges(seek_edges[1], seek_edges[2], incidence_matrix,
                             edge_vertex_incidence);
 
@@ -1074,7 +1073,7 @@ void Mesh::convert_tetrahedra(int n_old_vertices, const IncidenceMatrix &inciden
 
             // check cell measure to be sure that we numerate all hexahedra in one way.
             // this measure taken from deal.II.
-            change_vertices_order(3, vertices, hexahedron_vertices);
+            change_vertices_order(3, vertices, hex_verts);
 
 //      // convert the order of vertices to suitable for deal.II to check the cell measure
 //      std::vector<int> vertices_dealII_order(Hexahedron::n_vertices);
@@ -1089,8 +1088,11 @@ void Mesh::convert_tetrahedra(int n_old_vertices, const IncidenceMatrix &inciden
 //          std::swap(hexahedron_vertices[i], hexahedron_vertices[i + 4]);
 
             // now generate hexahedron
-            hexahedra.push_back(
-                    new Hexahedron(hexahedron_vertices, tetrahedra[tet]->get_material_id()));
+//            hexahedra.push_back( new Hexahedron(hex_verts, tetrahedra[tet]->get_material_id()) );
+            if (tetrahedra[tet]->get_material_id() == TYPES.VACUUM)
+                hexahedra.push_back( new Hexahedron(hex_verts, tet) );
+            else
+                hexahedra.push_back( new Hexahedron(hex_verts, -1*tet) );
 
         } // vertices
     } // tetrahedra

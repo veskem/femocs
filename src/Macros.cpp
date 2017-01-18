@@ -78,9 +78,14 @@ const vector<bool> vector_equal(const vector<int> *v, const int s) {
 const vector<bool> vector_greater(const vector<double> *v, const double s) {
     return __vector_compare<double, std::greater<double>>(v, s);
 }
+
 // Return mask of indices that are greater or equal than the entry
 const vector<bool> vector_greater_equal(const vector<double> *v, const double s) {
     return __vector_compare<double, std::greater_equal<double>>(v, s);
+}
+
+const vector<bool> vector_greater_equal(const vector<int> *v, const int s) {
+    return __vector_compare<int, std::greater_equal<int>>(v, s);
 }
 
 // Return mask of indices that are less than the scalar

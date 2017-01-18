@@ -86,6 +86,7 @@ const vector<bool> vector_greater(const vector<double> *v, const double s);
 
 /** Return mask of indices that are greater or equal than the scalar */
 const vector<bool> vector_greater_equal(const vector<double> *v, const double s);
+const vector<bool> vector_greater_equal(const vector<int> *v, const int s);
 
 /** Return mask of indices that are less than the scalar */
 const vector<bool> vector_less(const vector<double> *v, const double s);
