@@ -126,21 +126,13 @@ const int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh
     big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQ");
     end_msg(t0);
 
+    expect(bulk_mesh.nodes.size() > 0, "Zero nodes in bulk mesh!");
+    expect(vacuum_mesh.nodes.size() > 0, "Zero nodes in vacuum mesh!");
+    expect(bulk_mesh.hexahedra.size() > 0, "Zero elements in bulk mesh!");
+    expect(vacuum_mesh.hexahedra.size() > 0, "Zero elements in vacuum mesh!");
 
-    big_mesh.group_hexs();
-    big_mesh.get_voronoi_cells();
-    big_mesh.nodes.write("output/grouped_nodes.vtk");
-    big_mesh.nodes.write("output/grouped_nodes.xyz");
-    big_mesh.hexahedra.write("output/grouped_hexs.vtk");
-
-    exit(1);
-
-
-
-    expect(bulk_mesh.nodes.size()>0, "Zero nodes in bulk mesh!");
-    expect(vacuum_mesh.nodes.size()>0, "Zero nodes in vacuum mesh!");
-    expect(bulk_mesh.hexahedra.size()>0, "Zero elements in bulk mesh!");
-    expect(vacuum_mesh.hexahedra.size()>0, "Zero elements in vacuum mesh!");
+    bulk_mesh.group_hexahedra();
+    vacuum_mesh.group_hexahedra();
 
     if (MODES.VERBOSE)
         cout << "Bulk:   " << bulk_mesh << "\nVacuum: " << vacuum_mesh << endl;

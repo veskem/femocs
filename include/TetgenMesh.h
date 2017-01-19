@@ -39,7 +39,8 @@ public:
 
     const bool separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd);
 
-    const void group_hexs();
+    /** Group hexahedra around central tetrahedral node */
+    const void group_hexahedra();
 
     /** Generate list of nodes that surround the tetrahedral nodes */
     const vector<vector<unsigned int>> get_voronoi_cells();

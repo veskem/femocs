@@ -91,8 +91,8 @@ const bool RaySurfaceIntersect::ray_intersects_surface(const Vec3 &origin, const
     return false;
 }
 
-// Group hexahedra around tetrahedra nodes
-const void TetgenMesh::group_hexs() {
+// Group hexahedra around central tetrahedral node
+const void TetgenMesh::group_hexahedra() {
     const int node_min = nodes.indxs.tetnode_start;
     const int node_max = nodes.indxs.tetnode_end;
 
