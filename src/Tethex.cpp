@@ -890,21 +890,22 @@ void Mesh::set_new_vertices(const std::vector<MeshElement*> &elements, int shift
     // Append ID to the appended vertices
     for (size_t elem = 0; elem < elements.size(); ++elem) {
         int shift_indx = shift + elem;
+        points[shift_indx] = new PhysPoint(shift_indx, n_vertices_per_elem);
 
-        int n_surface = 0; // Number of element nodes on surface
-        int n_bulk = 0;    // Number of element nodes in bulk
-        int n_vacuum = 0;  // Number of element nodes in vacuum
-
-        for (int ver = 0; ver < n_vertices_per_elem; ++ver) {
-            const int cur_vertex = elements[elem]->get_vertex(ver);
-            if ( points[cur_vertex]->get_material_id() == TYPES.SURFACE )
-                n_surface++;
-            if ( points[cur_vertex]->get_material_id() == TYPES.BULK )
-                n_bulk++;
-            if ( points[cur_vertex]->get_material_id() == TYPES.VACUUM )
-                n_vacuum++;
-        }
-
+//        int n_surface = 0; // Number of element nodes on surface
+//        int n_bulk = 0;    // Number of element nodes in bulk
+//        int n_vacuum = 0;  // Number of element nodes in vacuum
+//
+//        for (int ver = 0; ver < n_vertices_per_elem; ++ver) {
+//            const int cur_vertex = elements[elem]->get_vertex(ver);
+//            if ( points[cur_vertex]->get_material_id() == TYPES.SURFACE )
+//                n_surface++;
+//            if ( points[cur_vertex]->get_material_id() == TYPES.BULK )
+//                n_bulk++;
+//            if ( points[cur_vertex]->get_material_id() == TYPES.VACUUM )
+//                n_vacuum++;
+//        }
+//
 //        // If all the nodes of element are on the surface, bulk or vacuum, the new one will be also
 //        if (n_surface == n_vertices_per_elem)
 //            points[shift_indx] = new PhysPoint(shift_indx, TYPES.SURFACE);
@@ -914,8 +915,6 @@ void Mesh::set_new_vertices(const std::vector<MeshElement*> &elements, int shift
 //            points[shift_indx] = new PhysPoint(shift_indx, TYPES.VACUUM);
 //        else
 //            points[shift_indx] = new PhysPoint(shift_indx, TYPES.NONE);
-
-        points[shift_indx] = new PhysPoint(shift_indx, n_vertices_per_elem);
     }
 }
 
@@ -1176,7 +1175,7 @@ void Mesh::convert_triangles(const IncidenceMatrix &incidence_matrix, int n_old_
     require(triangles.size() * 3 == quadrangles.size(),
             "The number of quadrangles (" + d2s(quadrangles.size())
                     + ") is not equal to number of triangles (" + d2s(triangles.size())
-                    + ") multiplying by 3 (" + d2s(3 * triangles.size()) + ")");
+                    + ") multiplying by 4 (" + d2s(4 * triangles.size()) + ")");
 }
 
 void Mesh::convert_quadrangles() {

@@ -8,8 +8,6 @@
 #include "Macros.h"
 #include "LinearInterpolator.h"
 
-
-
 #include <float.h>
 
 using namespace std;
