@@ -129,8 +129,9 @@ const int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh
 
     big_mesh.group_hexs();
     big_mesh.get_voronoi_cells();
-    big_mesh.nodes.write("output/hexmesh_grouped_nodes.vtk");
-    big_mesh.hexahedra.write("output/hexmesh_grouped_hexs.vtk");
+    big_mesh.nodes.write("output/grouped_nodes.vtk");
+    big_mesh.nodes.write("output/grouped_nodes.xyz");
+    big_mesh.hexahedra.write("output/grouped_hexs.vtk");
 
     exit(1);
 
