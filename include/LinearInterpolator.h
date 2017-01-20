@@ -83,8 +83,14 @@ private:
     const void get_maps(dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh,
             vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs);
 
-    const Vec4 get_bcc(const Point3 &point, const int elem);
+    /** Force the solution on tetrahedral nodes to be the weighed average
+     * of the solutions on its Voronoi cell nodes */
+    const void average_tetnodes(const TetgenMesh &mesh);
 
+    /** Get barycentric coordinates for a point inside i-th tetrahedron */
+    const Vec4 get_bcc(const Point3 &point, const int i);
+
+    /** Get whether the point is located inside the i-th tetrahedron */
     const bool point_in_tetrahedron(const Point3 &point, const int i);
 
     /** Function to calculate determinant of 3x3 matrix which's last column consists of ones */

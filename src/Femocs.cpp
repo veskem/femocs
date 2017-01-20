@@ -118,9 +118,9 @@ const int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh
     big_mesh.nodes.write("output/hexmesh_nodes.vtk");
     big_mesh.hexahedra.write("output/hexmesh_elems.vtk");
 
-    start_msg(t0, "=== Smoothing hexahedra...");
-    big_mesh.smoothen(conf.radius, conf.smooth_factor, 3.0*conf.coord_cutoff);
-    end_msg(t0);
+//    start_msg(t0, "=== Smoothing hexahedra...");
+//    big_mesh.smoothen(conf.radius, conf.smooth_factor, 3.0*conf.coord_cutoff);
+//    end_msg(t0);
 
     start_msg(t0, "=== Separating vacuum & bulk meshes...");
     big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQ");

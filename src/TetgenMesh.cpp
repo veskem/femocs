@@ -108,7 +108,7 @@ const void TetgenMesh::group_hexahedra() {
 }
 
 // Generate list of nodes that surround the tetrahedral nodes
-const vector<vector<unsigned int>> TetgenMesh::get_voronoi_cells() {
+const vector<vector<unsigned int>> TetgenMesh::get_voronoi_cells() const {
     vector<vector<unsigned int>> voronoi_cells(nodes.stat.n_tetnode);
     const int node_min = nodes.indxs.tetnode_start;
     const int node_max = nodes.indxs.tetnode_end;
@@ -116,7 +116,7 @@ const vector<vector<unsigned int>> TetgenMesh::get_voronoi_cells() {
     // find the voronoi cell nodes for the tetrahedral nodes
     for (int i = 0; i < hexahedra.size(); ++i) {
         for (unsigned int node : hexahedra[i])
-            if (nodes.get_marker(node) == 4) {
+            if (nodes.get_marker(node) >= 2) {
                 const int tetnode = hexahedra.get_marker(i);
                 expect(tetnode >= node_min && tetnode <= node_max, "Illegal node detected while making Voronoi cells: " + to_string(tetnode));
                 voronoi_cells[tetnode].push_back(node);
