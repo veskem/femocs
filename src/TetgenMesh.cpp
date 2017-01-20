@@ -116,7 +116,7 @@ const vector<vector<unsigned int>> TetgenMesh::get_voronoi_cells() const {
     // find the voronoi cell nodes for the tetrahedral nodes
     for (int i = 0; i < hexahedra.size(); ++i) {
         for (unsigned int node : hexahedra[i])
-            if (nodes.get_marker(node) >= 2) {
+            if ( nodes.get_marker(node) >= TYPES.EDGECENTROID ) {
                 const int tetnode = hexahedra.get_marker(i);
                 expect(tetnode >= node_min && tetnode <= node_max, "Illegal node detected while making Voronoi cells: " + to_string(tetnode));
                 voronoi_cells[tetnode].push_back(node);
@@ -246,7 +246,8 @@ const bool TetgenMesh::generate(const Media& bulk, const Media& surf, const Medi
     return recalc("Q", cmd);
 }
 
-const bool TetgenMesh::generate_hexs() {
+// Separate tetrahedra into hexahedra
+const bool TetgenMesh::generate_hexahedra() {
     tethex::Mesh hexmesh;
     hexmesh.read_femocs(this);
     hexmesh.convert();
@@ -389,7 +390,7 @@ const bool TetgenMesh::mark_mesh(const bool postprocess) {
     mark_nodes();
 
     // Mark the elements by the node markers
-    mark_elems_vol2();
+    mark_elems();
 
     // Post process the nodes in shadow areas
     if (postprocess)
@@ -443,7 +444,6 @@ const bool TetgenMesh::post_process_marking() {
 }
 
 /* Function to mark nodes with ray-triangle intersection technique
- *
  * When the ray from the node in z-direction crosses the surface, the node is located in material,
  * otherwise it's in vacuum.
  * The technique works perfectly with completely convex surface. The concaves give some false

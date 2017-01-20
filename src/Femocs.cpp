@@ -113,7 +113,7 @@ const int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh
     end_msg(t0);
 
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
-    big_mesh.generate_hexs();
+    big_mesh.generate_hexahedra();
     end_msg(t0);
     big_mesh.nodes.write("output/hexmesh_nodes.vtk");
     big_mesh.hexahedra.write("output/hexmesh_elems.vtk");

@@ -35,6 +35,11 @@ struct Types {
     const int XMAX = 10;     ///< type of atom on positive x-face of simulation cell
     const int YMAX = 9;      ///< type of atom on positive y-face of simulation cell
     const int ZMAX = 8;      ///< type of atom on positive z-face of simulation cell
+
+    const int TETNODE = 1;      ///< node on the vertex of tetrahedron
+    const int EDGECENTROID = 2; ///< node on the centroid of line
+    const int FACECENTROID = 3; ///< node on the centroid of triangular face
+    const int TETCENTROID = 4;  ///< node on the centroid of tetrahedron
 };
 
 /** Flags to control the output behaviour of the code */

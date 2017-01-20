@@ -33,6 +33,9 @@ public:
 
     /** Separate tetrahedra into hexahedra by adding node to the centroid of the
      * tetrahedron edges, nodes and tetrahedron itself */
+    const bool generate_hexahedra();
+
+    /** Generate additional data that is needed to mark mesh */
     const bool generate_appendices();
 
     /** Mark mesh nodes and elements by their location relative to the surface mesh */
