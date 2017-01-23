@@ -93,6 +93,18 @@ const Media Media::stretch(const double latconst, const double box_width) {
     const double current_box_width = min(sizes.xbox, sizes.ybox);
     const double desired_box_width = box_width * sizes.zbox;
     
+    // Surface height will be the average height of 100 lowest atoms
+    vector<double> zcoords(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        zcoords.push_back(get_point(i).z);
+
+    sort(zcoords.begin(), zcoords.end());
+
+    double zmean = 0;
+    for (int i = 0; i < 100; ++i)
+        zmean += zcoords[i];
+    zmean /= 100.0;
+
     // over estimation of number of generated points
     const int n_gen = pow(desired_box_width / latconst + 1, 2) - pow(current_box_width / latconst - 1, 2);
 
@@ -111,7 +123,7 @@ const Media Media::stretch(const double latconst, const double box_width) {
     for (double y = sizes.ymin - W; y <= sizes.ymax + W; y += latconst)
         for (double x = sizes.xmin - W; x <= sizes.xmax + W; x += latconst)
             if ( x < sizes.xmin || x > sizes.xmax || y < sizes.ymin || y > sizes.ymax)
-                stretched.add_atom( Point3(x, y, sizes.zmin) );
+                stretched.add_atom( Point3(x, y, zmean) );
  
     stretched.calc_statistics();
 
