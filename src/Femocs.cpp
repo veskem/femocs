@@ -148,15 +148,14 @@ const int Femocs::solve_laplace(TetgenMesh& mesh, fch::Laplace<3>& solver) {
     fail = !solver.import_mesh_directly(mesh.nodes.export_dealii(), mesh.hexahedra.export_dealii());
     check_message(fail, "Importing mesh to Deal.II failed! Field calculation will be skipped!");
     end_msg(t0);
-
-//    if (conf.refine_apex) {
-//        start_msg(t0, "=== Refining mesh in Laplace solver...");
-//        Point3 origin(dense_surf.sizes.xmid, dense_surf.sizes.ymid, dense_surf.sizes.zmax);
-//        laplace.refine_mesh(origin, 7*conf.latconst);
-//        laplace.write_mesh("output/hexmesh_refine.vtk");
-//        end_msg(t0);
-//    }
-
+/*
+    if (conf.refine_apex) {
+        start_msg(t0, "=== Refining mesh in Laplace solver...");
+        dealii::Point<3> origin(dense_surf.sizes.xmid, dense_surf.sizes.ymid, dense_surf.sizes.zmax);
+        solver.refine_mesh(origin, 7*conf.latconst);
+        end_msg(t0);
+    }
+*/
     start_msg(t0, "=== Initializing Laplace solver...");
     solver.set_applied_efield(10.0*conf.neumann);
     solver.setup_system();
@@ -169,7 +168,7 @@ const int Femocs::solve_laplace(TetgenMesh& mesh, fch::Laplace<3>& solver) {
     solver.solve();
     end_msg(t0);
 
-    if (MODES.WRITEFILE) solver.output_results("output/result_E_phi" + conf.message + ".vtk");
+    if (MODES.WRITEFILE) solver.write("output/result_E_phi" + conf.message + ".vtk");
 
     return 0;
 }
