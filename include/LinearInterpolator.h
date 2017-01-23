@@ -11,6 +11,7 @@
 #include "Primitives.h"
 #include "Medium.h"
 #include "TetgenMesh.h"
+#include "DealII.h"
 #include "laplace.h"
 #include "currents_and_heating.h"
 
@@ -42,6 +43,8 @@ public:
     /** Extract the electric potential and electric field values on the tetrahedra nodes from FEM solution */
     const void extract_solution(fch::Laplace<3>* laplace, const TetgenMesh &mesh);
     
+    const void extract_solution(DealII* fem, const TetgenMesh &mesh);
+
     const void extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh);
 
     const Solution get_solution(const Point3 &point, const int elem);

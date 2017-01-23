@@ -131,6 +131,46 @@ const void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const Tetg
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
+const void LinearInterpolator::extract_solution(DealII* fem, const TetgenMesh &mesh) {
+    require(fem, "NULL pointer can't be handled!");
+
+    // Copy the mesh nodes
+    reserve(mesh.nodes.size());
+    for (Point3 node : mesh.nodes)
+        add_atom(node);
+
+    // Precompute tetrahedra to make interpolation faster
+    precompute_tetrahedra(mesh);
+
+    // To make solution extraction faster, generate mapping between desired and available data sequences
+    vector<int> tetNode2hexNode, cell_indxs, vert_indxs;
+    get_maps(fem->get_triangulation(), fem->get_dof_handler(), tetNode2hexNode, cell_indxs, vert_indxs);
+
+    vector<dealii::Tensor<1, 3>> ef = fem->get_efield(cell_indxs, vert_indxs); // get list of electric fields
+    vector<double> pot = fem->get_potential(cell_indxs, vert_indxs); // get list of electric potentials
+
+    require(ef.size() == pot.size(),
+            "Mismatch of vector sizes: " + to_string(ef.size()) + ", " + to_string(pot.size()));
+
+    int i = 0;
+    for (int n : tetNode2hexNode) {
+        // If there is a common node between tet and hex meshes, store actual solution
+        if (n >= 0) {
+            require(i < ef.size(), "Invalid index: " + to_string(i));
+            Vec3 elfield(ef[i][0], ef[i][1], ef[i][2]);
+            solution.push_back(Solution(elfield, pot[i++]));
+        }
+
+        // In case of non-common node, store solution with error value
+        else
+            solution.push_back(Solution(error_field));
+    }
+
+    // force solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
+    average_tetnodes(mesh);
+}
+
+// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
 const void LinearInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh) {
     require(fem, "NULL pointer can't be handled!");
 

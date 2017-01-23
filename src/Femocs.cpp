@@ -141,6 +141,39 @@ const int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh
 }
 
 // Solve Laplace equation
+const int Femocs::solve_laplace(TetgenMesh& mesh, DealII& solver) {
+    bool fail;
+
+    start_msg(t0, "=== Importing mesh to Laplace solver...");
+    fail = solver.import_mesh(mesh.nodes.export_dealii(), mesh.hexahedra.export_dealii());
+    check_message(fail, "Importing mesh to Deal.II failed! Field calculation will be skipped!");
+    end_msg(t0);
+
+    if (conf.refine_apex) {
+        start_msg(t0, "=== Refining mesh in Laplace solver...");
+        dealii::Point<3> origin(dense_surf.sizes.xmid, dense_surf.sizes.ymid, dense_surf.sizes.zmax);
+        solver.refine_mesh(origin, 7*conf.latconst);
+        end_msg(t0);
+    }
+
+    start_msg(t0, "=== Initializing Laplace solver...");
+    solver.set_applied_efield(10.0*conf.neumann);
+    solver.setup_system(reader.sizes);
+    solver.assemble_system();
+    end_msg(t0);
+
+    if (MODES.VERBOSE) cout << solver << endl;
+
+    start_msg(t0, "=== Running Laplace solver...");
+    solver.solve_cg();
+    end_msg(t0);
+
+    if (MODES.WRITEFILE) solver.write("output/result_E_phi" + conf.message + ".vtk");
+
+    return fail;
+}
+
+// Solve Laplace equation
 const int Femocs::solve_laplace(TetgenMesh& mesh, fch::Laplace<3>& solver) {
     bool fail;
 
@@ -170,7 +203,7 @@ const int Femocs::solve_laplace(TetgenMesh& mesh, fch::Laplace<3>& solver) {
 
     if (MODES.WRITEFILE) solver.write("output/result_E_phi" + conf.message + ".vtk");
 
-    return 0;
+    return fail;
 }
 
 // Solve heat and continuity equations
@@ -200,7 +233,24 @@ const int Femocs::solve_heat(TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
 }
 
 // Extract electric potential and electric field from solution
-const int Femocs::extract_laplace(TetgenMesh& mesh, fch::Laplace<3>* solver) {
+const int Femocs::extract_laplace(const TetgenMesh& mesh, DealII* solver) {
+    start_msg(t0, "=== Extracting E and phi...");
+    vacuum_interpolator.extract_solution(solver, mesh);
+    end_msg(t0);
+
+    vacuum_interpolator.write("output/result_E_phi.xyz");
+
+    start_msg(t0, "=== Interpolating E and phi...");
+    vacuum_interpolation.interpolate(dense_surf, conf.coord_cutoff*conf.smoothen_solution);
+    end_msg(t0);
+
+    vacuum_interpolation.write("output/interpolation_vacuum" + conf.message + ".vtk");
+
+    return 0;
+}
+
+// Extract electric potential and electric field from solution
+const int Femocs::extract_laplace(const TetgenMesh& mesh, fch::Laplace<3>* solver) {
     start_msg(t0, "=== Extracting E and phi...");
     vacuum_interpolator.extract_solution(solver, mesh);
     end_msg(t0);
@@ -217,7 +267,7 @@ const int Femocs::extract_laplace(TetgenMesh& mesh, fch::Laplace<3>* solver) {
 }
 
 // Extract current density and temperature from solution
-const int Femocs::extract_heat(TetgenMesh& mesh, fch::CurrentsAndHeating<3>* solver) {
+const int Femocs::extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3>* solver) {
     start_msg(t0, "=== Extracting T and rho...");
     bulk_interpolator.extract_solution(solver, mesh);
     end_msg(t0);
@@ -259,23 +309,30 @@ const int Femocs::run(double elfield, string message) {
 
     if (fail) return 1;
     
-    // Solve Laplace equation on vacuum mesh
-    fch::Laplace<3> laplace_solver;
-    fail = solve_laplace(vacuum_mesh, laplace_solver);
 
-    if (fail) return 1;
-
-    extract_laplace(vacuum_mesh, &laplace_solver);
-
-    // Solve heat & continuum equation on bulk mesh
     static bool odd_run = true;
     if (conf.heating) {
+        // Solve Laplace equation on vacuum mesh
+        fch::Laplace<3> laplace_solver;
+        fail = solve_laplace(vacuum_mesh, laplace_solver);
+        if (fail) return 1;
+
+        extract_laplace(vacuum_mesh, &laplace_solver);
+
+        // Solve heat & continuum equation on bulk mesh
         fail = solve_heat(bulk_mesh, laplace_solver);
         if (!fail) extract_heat(bulk_mesh, ch_solver);
 
         if (odd_run) { ch_solver = &ch_solver2; prev_ch_solver = &ch_solver1; }
         else { ch_solver = &ch_solver1; prev_ch_solver = &ch_solver2; }
         odd_run = !odd_run;
+    }
+    else {
+        DealII laplace_solver;
+        fail = solve_laplace(vacuum_mesh, laplace_solver);
+        if (fail) return 1;
+
+        extract_laplace(vacuum_mesh, &laplace_solver);
     }
 
     start_msg(t0, "=== Saving atom positions...");

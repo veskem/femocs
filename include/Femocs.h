@@ -13,12 +13,10 @@
 #include "Config.h"
 #include "Media.h"
 #include "SolutionReader.h"
-
-#if HEATINGMODE
+#include "DealII.h"
 #include "physical_quantities.h"
 #include "currents_and_heating.h"
 #include "laplace.h"
-#endif
 
 using namespace std;
 namespace femocs {
@@ -148,15 +146,17 @@ private:
 
     /** Solve Laplace equation */
     const int solve_laplace(TetgenMesh& mesh, fch::Laplace<3>& solver);
+    const int solve_laplace(TetgenMesh& mesh, DealII& solver);
 
     /** Solve heat and continuity equations */
     const int solve_heat(TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
 
     /** Extract electric potential and electric field from solution */
-    const int extract_laplace(TetgenMesh& mesh, fch::Laplace<3>* solver);
+    const int extract_laplace(const TetgenMesh& mesh, fch::Laplace<3>* solver);
+    const int extract_laplace(const TetgenMesh& mesh, DealII* solver);
 
     /** Extract current density and temperature from solution */
-    const int extract_heat(TetgenMesh& mesh, fch::CurrentsAndHeating<3>* solver);
+    const int extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3>* solver);
 };
 
 } /* namespace femocs */
