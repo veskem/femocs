@@ -235,13 +235,13 @@ const int Femocs::solve_heat(TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
 // Extract electric potential and electric field from solution
 const int Femocs::extract_laplace(const TetgenMesh& mesh, DealII* solver) {
     start_msg(t0, "=== Extracting E and phi...");
-    vacuum_interpolator.extract_solution(solver, mesh);
+    vacuum_interpolator.extract_solution(solver, mesh, conf.tetnode_weight.elfield, conf.tetnode_weight.potential);
     end_msg(t0);
 
     vacuum_interpolator.write("output/result_E_phi.xyz");
 
     start_msg(t0, "=== Interpolating E and phi...");
-    vacuum_interpolation.interpolate(dense_surf, conf.coord_cutoff*conf.smoothen_solution);
+    vacuum_interpolation.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff);
     end_msg(t0);
 
     vacuum_interpolation.write("output/interpolation_vacuum" + conf.message + ".vtk");
@@ -252,13 +252,13 @@ const int Femocs::extract_laplace(const TetgenMesh& mesh, DealII* solver) {
 // Extract electric potential and electric field from solution
 const int Femocs::extract_laplace(const TetgenMesh& mesh, fch::Laplace<3>* solver) {
     start_msg(t0, "=== Extracting E and phi...");
-    vacuum_interpolator.extract_solution(solver, mesh);
+    vacuum_interpolator.extract_solution(solver, mesh, conf.tetnode_weight.elfield, conf.tetnode_weight.potential);
     end_msg(t0);
 
     vacuum_interpolator.write("output/result_E_phi.xyz");
 
     start_msg(t0, "=== Interpolating E and phi...");
-    vacuum_interpolation.interpolate(dense_surf, conf.coord_cutoff*conf.smoothen_solution);
+    vacuum_interpolation.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff);
     end_msg(t0);
 
     vacuum_interpolation.write("output/interpolation_vacuum" + conf.message + ".vtk");
@@ -426,7 +426,7 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
 
     if (!skip_calculations) {
         start_msg(t0, "=== Interpolating solution...");
-        vacuum_interpolation.interpolate(dense_surf, conf.smoothen_solution*conf.coord_cutoff);
+        vacuum_interpolation.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff);
         end_msg(t0);
 
         vacuum_interpolation.write("output/interpolation.movie");
@@ -446,7 +446,7 @@ const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double
 
     SolutionReader sr(&vacuum_interpolator);
     start_msg(t0, "=== Interpolating electric field...");
-    sr.interpolate(n_points, x, y, z, conf.smoothen_solution*conf.coord_cutoff, 1);
+    sr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coord_cutoff, 1);
     end_msg(t0);
     if (!skip_calculations) sr.write("output/interpolation_E.movie");
 
@@ -462,7 +462,7 @@ const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z,
     check_message(vacuum_interpolator.get_n_atoms() == 0, "No solution to export!");
 
     SolutionReader sr(&vacuum_interpolator);
-    sr.interpolate(n_points, x, y, z, conf.smoothen_solution*conf.coord_cutoff, 2, false);
+    sr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coord_cutoff, 2, false);
     sr.export_potential(n_points, phi, flag);
     if (!skip_calculations) sr.write("output/interpolation_phi.movie");
 

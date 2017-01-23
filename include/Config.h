@@ -58,7 +58,13 @@ public:
     double t_error;             ///< Maximum allowed temperature error in Newton iterations
     int n_newton;               ///< Maximum number of Newton iterations
     bool clear_output;          ///< Clear output folder before the run
-    bool smoothen_solution;     ///< Clean the solution from peaks with histogram cleaner
+    bool use_histclean;         ///< Clean the solution with histogram cleaner
+
+    /** Weight of the solution on tetrahedral node */
+    struct TetnodeWeight {
+        double elfield;   ///< electric field weight
+        double potential; ///< electric potential weight
+    } tetnode_weight;
 
     /** Minimum distance between atoms from current and previous run so that their
      * movement is considered to be sufficiently big to recalculate electric field;

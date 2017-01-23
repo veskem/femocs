@@ -64,7 +64,7 @@ const void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::
 }
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
-const void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
+const void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh, const double w0_elfield, const double w0_pot) {
     vector<vector<unsigned int>> voro_cells = mesh.get_voronoi_cells();
 
     // loop through the tetrahedral nodes
@@ -84,14 +84,14 @@ const void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
             elfield += solution[v].elfield * w;
         }
 
-        solution[i].potential = potential / w_sum;
-        solution[i].elfield = elfield * (1.0 / w_sum);
+        solution[i].potential = solution[i].potential * w0_pot +  potential * ( (1.0-w0_pot)/w_sum );
+        solution[i].elfield = solution[i].elfield * w0_elfield + elfield * ( (1.0-w0_elfield)/w_sum );
         solution[i].el_norm = solution[i].elfield.norm();
     }
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-const void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh) {
+const void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh, const double w0_elfield, const double w0_pot) {
     require(fem, "NULL pointer can't be handled!");
 
     // Copy the mesh nodes
@@ -127,11 +127,11 @@ const void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const Tetg
     }
 
     // force solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
-    average_tetnodes(mesh);
+    average_tetnodes(mesh, w0_elfield, w0_pot);
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-const void LinearInterpolator::extract_solution(DealII* fem, const TetgenMesh &mesh) {
+const void LinearInterpolator::extract_solution(DealII* fem, const TetgenMesh &mesh, const double w0_elfield, const double w0_pot) {
     require(fem, "NULL pointer can't be handled!");
 
     // Copy the mesh nodes
@@ -167,7 +167,7 @@ const void LinearInterpolator::extract_solution(DealII* fem, const TetgenMesh &m
     }
 
     // force solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
-    average_tetnodes(mesh);
+    average_tetnodes(mesh, w0_elfield, w0_pot);
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution

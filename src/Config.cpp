@@ -23,13 +23,14 @@ Config::Config() {
     nt = 4;                      // number of OpenMP threads
     radius = 14.0;               // inner radius of coarsening cylinder
     smooth_factor = 0.5;         // surface smoothing factor; bigger number gives smoother surface
-    smoothen_solution = true;    // clean the solution from peaks with histogram cleaner
     postprocess_marking = false; // make extra effort to mark correctly the vacuum nodes in shadow area
     refine_apex = false;         // refine nanotip apex
     distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
     box_width = 2.5;             // minimal simulation box width in units of tip height
     box_height = 3.5;            // simulation box height in units of tip height
     bulk_height = 20;            // bulk substrate height [lattice constant]
+
+    use_histclean = false;       // use histogram cleaner to get rid of sharp peaks in the solution
 
     cfactor.amplitude = 0.4;     // coarsening factor
     cfactor.r0_cylinder = 1.0;   // minimum distance between atoms in nanotip below apex
@@ -39,7 +40,10 @@ Config::Config() {
     t_error = 10.0;              // maximum allowed temperature error in Newton iterations
     n_newton = 10;               // maximum number of Newton iterations
 
-    clear_output = true;         // clear output folder
+    clear_output = false;         // clear output folder
+
+    tetnode_weight.potential = 0.5; // solution on tetrahedral node weight
+    tetnode_weight.elfield = 0.5;
 }
 
 // Remove the noise from the beginning of the string
@@ -63,7 +67,6 @@ const void Config::read_all(const string& file_name) {
     read_command("mesh_quality", mesh_quality);
     read_command("radius", radius);
     read_command("smooth_factor", smooth_factor);
-    read_command("smoothen_solution", smoothen_solution);
     read_command("postprocess_marking", postprocess_marking);
     read_command("refine_apex", refine_apex);
     read_command("heating", heating);
@@ -73,6 +76,7 @@ const void Config::read_all(const string& file_name) {
     read_command("bulk_height", bulk_height);    
     read_command("femocs_verbose", MODES.VERBOSE);
     read_command("femocs_writefile", MODES.WRITEFILE);
+    read_command("use_histclean", use_histclean);
 
     vector<double> coarse_factors = {cfactor.amplitude, cfactor.r0_cylinder, cfactor.r0_sphere};
     read_command("coarse_factor", coarse_factors);
@@ -80,6 +84,12 @@ const void Config::read_all(const string& file_name) {
     cfactor.amplitude = coarse_factors[0];
     cfactor.r0_cylinder = coarse_factors[1];
     cfactor.r0_sphere = coarse_factors[2];
+
+    vector<double> w0 = { tetnode_weight.elfield, tetnode_weight.potential };
+    read_command("tetnode_weight", w0);
+    tetnode_weight.elfield = w0[0];
+    tetnode_weight.potential = w0[1];
+
 }
 
 const void Config::parse_file(const string& file_name) {

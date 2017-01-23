@@ -41,9 +41,9 @@ public:
     LinearInterpolator();
 
     /** Extract the electric potential and electric field values on the tetrahedra nodes from FEM solution */
-    const void extract_solution(fch::Laplace<3>* laplace, const TetgenMesh &mesh);
+    const void extract_solution(fch::Laplace<3>* laplace, const TetgenMesh &mesh, const double w0_elfield, const double w0_pot);
     
-    const void extract_solution(DealII* fem, const TetgenMesh &mesh);
+    const void extract_solution(DealII* fem, const TetgenMesh &mesh, const double w0_elfield, const double w0_pot);
 
     const void extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh);
 
@@ -88,7 +88,7 @@ private:
 
     /** Force the solution on tetrahedral nodes to be the weighed average
      * of the solutions on its Voronoi cell nodes */
-    const void average_tetnodes(const TetgenMesh &mesh);
+    const void average_tetnodes(const TetgenMesh &mesh, const double w0_elfield, const double w0_pot);
 
     /** Get barycentric coordinates for a point inside i-th tetrahedron */
     const Vec4 get_bcc(const Point3 &point, const int i);

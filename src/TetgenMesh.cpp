@@ -390,7 +390,7 @@ const bool TetgenMesh::mark_mesh(const bool postprocess) {
     mark_nodes();
 
     // Mark the elements by the node markers
-    mark_elems();
+    mark_elems_vol2();
 
     // Post process the nodes in shadow areas
     if (postprocess)
