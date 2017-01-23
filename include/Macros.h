@@ -20,9 +20,6 @@ using namespace std;
  * It must be controlled on compile time to enable deeper code optimisation. */
 #define ASSERTMODE true
 
-/** Turn on current density and temperature calculations */
-#define HEATINGMODE false
-
 /** Types of regions used in the simulation */
 struct Types {
     const int NONE = 0;      ///< type of atom with unknown position
@@ -38,6 +35,11 @@ struct Types {
     const int XMAX = 10;     ///< type of atom on positive x-face of simulation cell
     const int YMAX = 9;      ///< type of atom on positive y-face of simulation cell
     const int ZMAX = 8;      ///< type of atom on positive z-face of simulation cell
+
+    const int TETNODE = 1;      ///< node on the vertex of tetrahedron
+    const int EDGECENTROID = 2; ///< node on the centroid of line
+    const int FACECENTROID = 3; ///< node on the centroid of triangular face
+    const int TETCENTROID = 4;  ///< node on the centroid of tetrahedron
 };
 
 /** Flags to control the output behaviour of the code */
@@ -89,6 +91,7 @@ const vector<bool> vector_greater(const vector<double> *v, const double s);
 
 /** Return mask of indices that are greater or equal than the scalar */
 const vector<bool> vector_greater_equal(const vector<double> *v, const double s);
+const vector<bool> vector_greater_equal(const vector<int> *v, const int s);
 
 /** Return mask of indices that are less than the scalar */
 const vector<bool> vector_less(const vector<double> *v, const double s);

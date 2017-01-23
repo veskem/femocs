@@ -19,5 +19,5 @@ release/build/**/*
 heating
 cgal/*
 !cgal/CGAL*.zip
-Makefile*
+Makefile
 input/md.in

@@ -7,6 +7,7 @@
 
 #include "Macros.h"
 #include "LinearInterpolator.h"
+
 #include <float.h>
 
 using namespace std;
@@ -26,27 +27,25 @@ const void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::
 
     require(tria->n_vertices() > 0, "Invalid triangulation size!");
 
-    const int n_tet_nodes = get_n_atoms();
-    const int n_hex_nodes = tria->n_used_vertices();
+    const int n_femocs_nodes = get_n_atoms();
+    const int n_dealii_nodes = tria->n_used_vertices();
     const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
 
     vector<int> node2hex, node2vert;
-    tet2hex.resize(n_tet_nodes, -1);
-    node2hex.resize(n_hex_nodes);
-    node2vert.resize(n_hex_nodes);
+    tet2hex.resize(n_femocs_nodes, -1);
+    node2hex.resize(n_dealii_nodes);
+    node2vert.resize(n_dealii_nodes);
 
-    // Loop through the hexahedral mesh vertices
-    typename Triangulation<DIM>::active_vertex_iterator vertex = tria->begin_active_vertex();
-    for (int j = 0; j < n_tet_nodes; ++j, ++vertex)
-        // Loop through tetrahedral mesh vertices
-        for (int i = 0; i < n_tet_nodes; ++i)
-            if ((tet2hex[i] < 0) && (get_point(i) == vertex->vertex())) {
-                tet2hex[i] = vertex->vertex_index();
-                break;
-            }
+    typename dealii::Triangulation<3>::active_vertex_iterator vertex = tria->begin_active_vertex();
+    // Loop through tetrahedral mesh vertices
+    for (int i = 0; i < n_femocs_nodes && vertex != tria->end_vertex(); ++i)
+        if ( get_point(i) == vertex->vertex() ) {
+            tet2hex[i] = vertex->vertex_index();
+            vertex++;
+        }
 
     // Loop through the hexahedral mesh elements
-    typename DoFHandler<DIM>::active_cell_iterator cell;
+    typename dealii::DoFHandler<3>::active_cell_iterator cell;
     for (cell = dofh->begin_active(); cell != dofh->end(); ++cell)
         // Loop through all the vertices in the element
         for (int i = 0; i < n_verts_per_elem; ++i) {
@@ -55,8 +54,8 @@ const void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::
         }
 
     // Generate lists of hexahedra and hexahedra nodes where the tetrahedra nodes are located
-    cell_indxs.reserve(n_tet_nodes);
-    vert_indxs.reserve(n_tet_nodes);
+    cell_indxs.reserve(n_femocs_nodes);
+    vert_indxs.reserve(n_femocs_nodes);
     for (int n : tet2hex)
         if (n >= 0) {
             cell_indxs.push_back(node2hex[n]);
@@ -64,39 +63,30 @@ const void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::
         }
 }
 
-// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-const void LinearInterpolator::extract_solution(DealII &fem, const TetgenMesh &mesh) {
-    const int n_nodes = mesh.nodes.size();
+// Force the solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
+const void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
+    vector<vector<unsigned int>> voro_cells = mesh.get_voronoi_cells();
 
-    // Precompute tetrahedra to make interpolation faster
-    precompute_tetrahedra(mesh);
+    // loop through the tetrahedral nodes
+    for (int i = 0; i < mesh.nodes.stat.n_tetnode; ++i) {
+        if (solution[i].el_norm >= error_field) continue;
 
-    // Copy the mesh nodes
-    reserve(n_nodes);
-    for (int node = 0; node < n_nodes; ++node)
-        add_atom(Atom(node, mesh.nodes[node], -1));
+        Point3 tetnode = mesh.nodes[i];
+        Vec3 elfield(0);
+        double potential = 0;
+        double w_sum = 0;
 
-    vector<int> tetNode2hexNode, cell_indxs, vert_indxs;
-    get_maps(fem.get_triangulation(), fem.get_dof_handler(), tetNode2hexNode, cell_indxs, vert_indxs);
-
-    vector<Vec3> ef = fem.get_elfield(cell_indxs, vert_indxs);      // get list of electric fields
-    vector<double> pot = fem.get_potential(cell_indxs, vert_indxs); // get list of electric potentials
-
-    require(ef.size() == pot.size(),
-            "Mismatch of vector sizes: " + to_string(ef.size()) + ", " + to_string(pot.size()));
-
-    int i = 0;
-    for (int node = 0; node < n_nodes; ++node) {
-        // If there is a common node between tet and hex meshes, store actual solution
-        if (tetNode2hexNode[node] >= 0) {
-            require(i < ef.size(), "Invalid index: " + to_string(i));
-            solution.push_back(Solution(ef[i], pot[i]));
-            i++;
+        // tetnode new solution will be the weighed average of the solutions on its voronoi cell nodes
+        for (unsigned int v : voro_cells[i]) {
+            double w = exp ( -1.0 * tetnode.distance(mesh.nodes[v]) );
+            w_sum += w;
+            potential += solution[v].potential * w;
+            elfield += solution[v].elfield * w;
         }
 
-        // In case of non-common node, store solution with error value
-        else
-            solution.push_back(Solution(error_field));
+        solution[i].potential = potential / w_sum;
+        solution[i].elfield = elfield * (1.0 / w_sum);
+        solution[i].el_norm = solution[i].elfield.norm();
     }
 }
 
@@ -105,10 +95,9 @@ const void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const Tetg
     require(fem, "NULL pointer can't be handled!");
 
     // Copy the mesh nodes
-    int i = 0;
     reserve(mesh.nodes.size());
     for (Point3 node : mesh.nodes)
-        add_atom(Atom(i++, node, -1));
+        add_atom(node);
 
     // Precompute tetrahedra to make interpolation faster
     precompute_tetrahedra(mesh);
@@ -123,7 +112,7 @@ const void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const Tetg
     require(ef.size() == pot.size(),
             "Mismatch of vector sizes: " + to_string(ef.size()) + ", " + to_string(pot.size()));
 
-    i = 0;
+    int i = 0;
     for (int n : tetNode2hexNode) {
         // If there is a common node between tet and hex meshes, store actual solution
         if (n >= 0) {
@@ -136,6 +125,9 @@ const void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const Tetg
         else
             solution.push_back(Solution(error_field));
     }
+
+    // force solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
+    average_tetnodes(mesh);
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution

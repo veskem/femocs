@@ -6,6 +6,7 @@
  */
 
 #include "TetgenMesh.h"
+#include "Tethex.h"
 #include <fstream>
 
 using namespace std;
@@ -90,6 +91,49 @@ const bool RaySurfaceIntersect::ray_intersects_surface(const Vec3 &origin, const
     return false;
 }
 
+// Group hexahedra around central tetrahedral node
+const void TetgenMesh::group_hexahedra() {
+    const int node_min = nodes.indxs.tetnode_start;
+    const int node_max = nodes.indxs.tetnode_end;
+
+    // find which hexahedra correspond to which tetrahedral node
+    // hexahedra with the same tetrahedral node form the voronoi cell of that node
+    for (int i = 0; i < hexahedra.size(); ++i) {
+        for (int node : hexahedra[i])
+            if (node >= node_min && node <= node_max) {
+                hexahedra.set_marker(i, node);
+                continue;
+            }
+    }
+}
+
+// Generate list of nodes that surround the tetrahedral nodes
+const vector<vector<unsigned int>> TetgenMesh::get_voronoi_cells() const {
+    vector<vector<unsigned int>> voronoi_cells(nodes.stat.n_tetnode);
+    const int node_min = nodes.indxs.tetnode_start;
+    const int node_max = nodes.indxs.tetnode_end;
+
+    // find the voronoi cell nodes for the tetrahedral nodes
+    for (int i = 0; i < hexahedra.size(); ++i) {
+        for (unsigned int node : hexahedra[i])
+            if ( nodes.get_marker(node) >= TYPES.EDGECENTROID ) {
+                const int tetnode = hexahedra.get_marker(i);
+                expect(tetnode >= node_min && tetnode <= node_max, "Illegal node detected while making Voronoi cells: " + to_string(tetnode));
+                voronoi_cells[tetnode].push_back(node);
+                continue;
+            }
+    }
+
+//    // print the voronoi cell nodes
+//    for (int i = 0; i < voronoi_cells.size(); ++i) {
+//        cout << i << ": \t";
+//        for (int v : voronoi_cells[i])
+//            cout << "||ParticleIdentifier==" << v;
+//        cout << endl;
+//    }
+    return voronoi_cells;
+}
+
 // Function to generate simple mesh that consists of one tetrahedron
 const bool TetgenMesh::generate_simple() {
     const int n_nodes = elems.DIM;
@@ -125,10 +169,10 @@ const bool TetgenMesh::generate_simple() {
 
 // Copy mesh from input to output without modification
 const bool TetgenMesh::recalc() {
-    nodes.copy(TetgenNodes(&tetIOin));
-    edges.copy(TetgenEdges(&tetIOin));
-    faces.copy(TetgenFaces(&tetIOin));
-    elems.copy(TetgenElements(&tetIOin));
+    nodes.recalc();
+    edges.recalc();
+    faces.recalc();
+    elems.recalc();
     return 0;
 }
 
@@ -202,6 +246,16 @@ const bool TetgenMesh::generate(const Media& bulk, const Media& surf, const Medi
     return recalc("Q", cmd);
 }
 
+// Separate tetrahedra into hexahedra
+const bool TetgenMesh::generate_hexahedra() {
+    tethex::Mesh hexmesh;
+    hexmesh.read_femocs(this);
+    hexmesh.convert();
+    hexmesh.export_femocs(this);
+
+    return 0;
+}
+
 // Generate manually edges and surface faces
 const bool TetgenMesh::generate_appendices() {
     // Generate edges from elements
@@ -273,28 +327,55 @@ const void TetgenMesh::generate_surf_faces() {
 
 // Separate vacuum and bulk mesh from the union mesh by the element markers
 const bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd) {
-    const int n_elems = elems.size();
-    const int n_nodes = nodes.size();
-    vector<bool> elem_in_vacuum = vector_equal(elems.get_markers(), TYPES.VACUUM);
+    vector<bool> tet_mask = vector_equal(elems.get_markers(), TYPES.VACUUM);
+    vector<bool> hex_mask = vector_greater_equal(hexahedra.get_markers(), 0);
 
-    // Copy the non-bulk nodes from input mesh without modification
+    // Transfer vacuum nodes, tetrahedra, hexahedra and their markers
     vacuum.nodes.copy(this->nodes);
+    vacuum.nodes.copy_markers(this->nodes);
+    vacuum.elems.copy(this->elems, tet_mask);
+    vacuum.elems.copy_markers(this->elems, tet_mask);
+    vacuum.hexahedra.copy(this->hexahedra, hex_mask);
+    vacuum.hexahedra.copy_markers(this->hexahedra, hex_mask);
+
+    tet_mask.flip();
+    hex_mask.flip();
+
+    // Transfer bulk nodes, tetrahedra, hexahedra and their markers
     bulk.nodes.copy(this->nodes);
-
-    // Reserve memory for elements
-    const int n_elems_vacuum = vector_sum(elem_in_vacuum);
-    const int n_elems_bulk = n_elems - n_elems_vacuum;
-    vacuum.elems.init(n_elems_vacuum);
-    bulk.elems.init(n_elems_bulk);
-
-    // Separate vacuum and bulk elements
-    for (int elem = 0; elem < n_elems; ++elem)
-        if (elem_in_vacuum[elem])
-            vacuum.elems.append(elems[elem]);
-        else
-            bulk.elems.append(elems[elem]);
+    bulk.nodes.copy_markers(this->nodes);
+    bulk.elems.copy(this->elems, tet_mask);
+    bulk.elems.copy_markers(this->elems, tet_mask);
+    bulk.hexahedra.copy(this->hexahedra, hex_mask);
+    bulk.hexahedra.copy_markers(this->hexahedra, hex_mask);
 
     return vacuum.recalc(cmd) ||  bulk.recalc(cmd);
+}
+
+const bool TetgenMesh::smoothen(double radius, double smooth_factor, double r_cut) {
+    const int n_atoms = nodes.size();
+
+    // Find atoms in vacuum-bulk boundary
+    vector<bool> hot_node = vector_equal(nodes.get_markers(), TYPES.SURFACE);
+
+    // Turn atoms on boundary into surface
+    Media surf(vector_sum(hot_node));
+
+    int cntr = 0;
+    for (int i = 0; i < n_atoms; ++i)
+        if (hot_node[i])
+            surf.add_atom( nodes[i] );
+
+    // Smoothen the surface
+    surf.smoothen(radius, smooth_factor, r_cut);
+
+    // Write smoothed vertices back to mesh
+    int j = 0;
+    for(int i = 0; i < n_atoms; ++i)
+        if(hot_node[i])
+            nodes.set_node(i, surf.get_point(j++));
+
+    return 0;
 }
 
 // Mark mesh nodes, edges, faces and elements
@@ -309,7 +390,7 @@ const bool TetgenMesh::mark_mesh(const bool postprocess) {
     mark_nodes();
 
     // Mark the elements by the node markers
-    mark_elems_vol2();
+    mark_elems();
 
     // Post process the nodes in shadow areas
     if (postprocess)
@@ -363,7 +444,6 @@ const bool TetgenMesh::post_process_marking() {
 }
 
 /* Function to mark nodes with ray-triangle intersection technique
- *
  * When the ray from the node in z-direction crosses the surface, the node is located in material,
  * otherwise it's in vacuum.
  * The technique works perfectly with completely convex surface. The concaves give some false

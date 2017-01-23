@@ -53,11 +53,11 @@ const void SolutionReader::interpolate(const Medium &medium, double r_cut, int c
         if (component == 2) interpolation.push_back( interpolator->get_scalar(point, abs(elem)) );
     }
 
-    clean(0, r_cut);  // clean by vector x-component
-    clean(1, r_cut);  // clean by vector y-component
-    clean(2, r_cut);  // clean by vector z-component
-    clean(3, r_cut);  // clean by vector norm
-    clean(4, r_cut);  // clean by scalar
+//    clean(0, r_cut);  // clean by vector x-component
+//    clean(1, r_cut);  // clean by vector y-component
+//    clean(2, r_cut);  // clean by vector z-component
+//    clean(3, r_cut);  // clean by vector norm
+//    clean(4, r_cut);  // clean by scalar
 
     if (srt) {
         // sort atoms back to their initial order

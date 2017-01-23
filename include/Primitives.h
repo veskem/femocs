@@ -46,6 +46,12 @@ public:
     /** Dimensionality of cell */
     const int size() const { return dim; }
 
+    /** Check if one of the nodes equals to the one of interest */
+    bool operator ==(const unsigned int &t) const {
+        for (unsigned int n : node) if (n == t) return true;
+        return false;
+    }
+
     /** Less than, bigger than, less than or equal, bigger than or equal operators */
     vector<bool> operator <(const unsigned int &t) const {
         vector<bool> v; v.reserve(dim);
@@ -185,6 +191,22 @@ public:
     }
 };
 
+/** Hexahedron class without Point data */
+class SimpleHex: public SimpleCell<8> {
+public:
+    /** SimpleEdge constructors */
+    SimpleHex() : SimpleCell<8>() {}
+    SimpleHex(const unsigned int &n1) : SimpleCell<8>(n1) {}
+    SimpleHex(const unsigned int &n1, const unsigned int &n2, const unsigned int &n3, const unsigned int &n4,
+            const unsigned int &n5, const unsigned int &n6, const unsigned int &n7, const unsigned int &n8) {
+        node[0] = n1; node[1] = n2; node[2] = n3; node[3] = n4;
+        node[4] = n5; node[5] = n6; node[6] = n7; node[7] = n8;
+    }
+    SimpleHex(const SimpleCell<8> &s) {
+        std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
+    }
+};
+
 /** Class to define basic operations with 2-dimensional points */
 class Point2{
 public:
@@ -246,6 +268,7 @@ public:
     Point3() : x(0), y(0), z(0) {}
     Point3(double xx) : x(xx), y(xx), z(xx) {}
     Point3(double xx, double yy, double zz) : x(xx), y(yy), z(zz) {}
+    Point3(const Point3& p) : x(p.x), y(p.y), z(p.z) {}
 
     /** Dimensionality of point */
     const int size() const { return 3; }
@@ -528,8 +551,13 @@ public:
     };
 
     /** Functor for sorting atoms in ascending order by their coordination */
-    struct sort_coord {
+    struct sort_coord_up {
         inline bool operator() (const Atom& a1, const Atom& a2) { return a1.coord < a2.coord; }
+    };
+
+    /** Functor for sorting atoms in descending order by their coordination */
+    struct sort_coord_down {
+        inline bool operator() (const Atom& a1, const Atom& a2) { return a1.coord > a2.coord; }
     };
 
     /** Functor for sorting atoms in ascending order by their x, y, z or radial coordinate */

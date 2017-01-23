@@ -52,8 +52,6 @@ public:
     const Media coarsen(Coarseners &coarseners, const Medium::Sizes& ar_sizes);
 
     const Media stretch(const double latconst, const double box_width);
-
-    const Media stretch_by_stretch(const double radius, const double coarse_factor);
     
     /** Function to flatten the atoms on the sides of simulation box */
     const Media rectangularize(const AtomReader::Sizes& ar_sizes, const double eps, const double latconst);
