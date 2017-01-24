@@ -6,9 +6,9 @@
  */
 
 #include "Media.h"
-#include <numeric>
-#include <iostream>
-#include <iomanip>  
+//#include <numeric>
+//#include <iostream>
+//#include <iomanip>
 
 using namespace std;
 namespace femocs {
@@ -38,25 +38,26 @@ const void Media::generate_simple(const Medium::Sizes& ar_sizes, const double z)
 }
 
 // Generate edge with regular atom distribution between surface corners
-const void Media::generate_middle(const Medium::Sizes& ar_sizes, const double z, const double r_cut) {
-    const int n_atoms_per_side_x = ar_sizes.xbox / r_cut + 1;
-    const int n_atoms_per_side_y = ar_sizes.ybox / r_cut + 1;
+const void Media::generate_middle(const Medium::Sizes& s, const double z, const double dist) {
+    require(dist > 0, "Invalid dist between atoms: " + to_string(dist));
+    const int n_atoms_per_side_x = s.xbox / dist + 1;
+    const int n_atoms_per_side_y = s.ybox / dist + 1;
 
     // Reserve memory for atoms
     reserve( 2 * (n_atoms_per_side_x + n_atoms_per_side_y) - 4 );
 
-    // Add atoms in x-edge
+    // Add atoms on x-edge
     for (int i = 1; i < n_atoms_per_side_x; ++i) {
-        double y = ar_sizes.xmin + i * ar_sizes.xbox / n_atoms_per_side_x;
-        add_atom( Point3(ar_sizes.xmin, y, z) );
-        add_atom( Point3(ar_sizes.xmax, y, z) );
+        double y = s.xmin + i * s.xbox / n_atoms_per_side_x;
+        add_atom( Point3(s.xmin, y, z) );
+        add_atom( Point3(s.xmax, y, z) );
     }
 
-    // Add atoms in y-edge
+    // Add atoms on y-edge
     for (int i = 1; i < n_atoms_per_side_y; ++i) {
-        double x = ar_sizes.ymin + i * ar_sizes.ybox / n_atoms_per_side_y;
-        add_atom( Point3(x, ar_sizes.ymin, z) );
-        add_atom( Point3(x, ar_sizes.ymax, z) );
+        double x = s.ymin + i * s.ybox / n_atoms_per_side_y;
+        add_atom( Point3(x, s.ymin, z) );
+        add_atom( Point3(x, s.ymax, z) );
     }
 }
 
@@ -85,25 +86,12 @@ const void Media::extract(const AtomReader& reader, const int type, const bool i
 }
 
 // Function extend the flat area by generating additional atoms
-const Media Media::stretch(const double latconst, const double box_width) {
+const Media Media::stretch(const double latconst, const double box_width, const double zmean) {
     const int n_atoms = get_n_atoms();
 
     calc_statistics();
-
     const double current_box_width = min(sizes.xbox, sizes.ybox);
     const double desired_box_width = box_width * sizes.zbox;
-    
-    // Surface height will be the average height of 100 lowest atoms
-    vector<double> zcoords(n_atoms);
-    for (int i = 0; i < n_atoms; ++i)
-        zcoords.push_back(get_point(i).z);
-
-    sort(zcoords.begin(), zcoords.end());
-
-    double zmean = 0;
-    for (int i = 0; i < 100; ++i)
-        zmean += zcoords[i];
-    zmean /= 100.0;
 
     // over estimation of number of generated points
     const int n_gen = pow(desired_box_width / latconst + 1, 2) - pow(current_box_width / latconst - 1, 2);
@@ -124,19 +112,18 @@ const Media Media::stretch(const double latconst, const double box_width) {
         for (double x = sizes.xmin - W; x <= sizes.xmax + W; x += latconst)
             if ( x < sizes.xmin || x > sizes.xmax || y < sizes.ymin || y > sizes.ymax)
                 stretched.add_atom( Point3(x, y, zmean) );
- 
-    stretched.calc_statistics();
 
     return stretched;
 }
 
 // Function to coarsen the atoms with coarsener
-const Media Media::coarsen(Coarseners &coarseners, const Medium::Sizes& ar_sizes) {
+const Media Media::coarsen(Coarseners &coarseners) {
     Media corners, middle, union_surf;
 
+    calc_statistics();
     this->sort_atoms(3, "down");
-    corners.generate_simple(ar_sizes, coarseners.zmean);
-    middle.generate_middle(ar_sizes, coarseners.zmean, coarseners.r0_inf);
+    corners.generate_simple(this->sizes, coarseners.zmean);
+    middle.generate_middle(this->sizes, coarseners.zmean, coarseners.r0_inf);
 
     union_surf += corners;
     union_surf += middle;

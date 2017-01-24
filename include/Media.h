@@ -40,7 +40,7 @@ public:
 
     const void generate_simple(const Medium::Sizes& ar_sizes, const double z);
 
-    const void generate_middle(const Medium::Sizes& ar_sizes, const double z, const double r_cut);
+    const void generate_middle(const Medium::Sizes& ar_sizes, const double z, const double dist);
 
     /** Extract atom with desired types
      * @param reader  AtomReader holding the atoms and their types
@@ -49,9 +49,9 @@ public:
      */
     const void extract(const AtomReader& reader, const int type, const bool invert=false);
 
-    const Media coarsen(Coarseners &coarseners, const Medium::Sizes& ar_sizes);
+    const Media coarsen(Coarseners &coarseners);
 
-    const Media stretch(const double latconst, const double box_width);
+    const Media stretch(const double latconst, const double box_width, const double zmean);
     
     /** Function to flatten the atoms on the sides of simulation box */
     const Media rectangularize(const AtomReader::Sizes& ar_sizes, const double eps, const double latconst);

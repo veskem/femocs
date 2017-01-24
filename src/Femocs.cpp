@@ -59,18 +59,17 @@ const int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media
     
     start_msg(t0, "=== Coarsening & stretching surface...");
     Media stretch_surf;
-    stretch_surf = dense_surf.stretch(conf.latconst, conf.box_width);
-    coarse_surf = stretch_surf.coarsen(coarseners, stretch_surf.sizes);
+    stretch_surf = dense_surf.stretch(conf.latconst, conf.box_width, coarseners.zmean);
+    coarse_surf = stretch_surf.coarsen(coarseners);
     end_msg(t0);
 
-    coarse_surf.write("output/surface_nosmooth.xyz");
     stretch_surf.write("output/surface_stretch.xyz");
 
     start_msg(t0, "=== Smoothing surface...");
     coarse_surf.smoothen(conf.radius, conf.smooth_factor, 3.0*conf.coord_cutoff);
     end_msg(t0);
     coarse_surf.write("output/surface_coarse.xyz");
-    
+
     start_msg(t0, "=== Generating bulk & vacuum...");
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
     bulk.generate_simple(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.bulk_height * conf.latconst);
@@ -335,8 +334,6 @@ const int Femocs::run(double elfield, string message) {
 
     cout << "\nTotal time of Femocs.run: " << omp_get_wtime() - tstart << "\n";
     skip_calculations = false;
-    if ((conf.n_writefile > 0) && (timestep % conf.n_writefile == 0))
-        MODES.WRITEFILE = false;
 
     return 0;
 }
