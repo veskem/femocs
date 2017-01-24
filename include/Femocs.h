@@ -121,8 +121,8 @@ public:
 
 private:
     double t0;
-
     bool skip_calculations;
+
     AtomReader reader;
     Config conf;
     Media dense_surf;

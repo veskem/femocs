@@ -12,6 +12,7 @@
 #include "TetgenMesh.h"
 
 #include <omp.h>
+#include <algorithm>
 
 using namespace std;
 namespace femocs {
@@ -31,6 +32,8 @@ Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
     ch_solver  = &ch_solver1;
     prev_ch_solver = NULL;
     end_msg(t0);
+
+    MODES.WRITEFILE = conf.n_writefile > 0;
 
     // Clear the results from previous run
     if (conf.clear_output) system("rm -rf output");
@@ -118,21 +121,16 @@ const int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh
     big_mesh.nodes.write("output/hexmesh_nodes.vtk");
     big_mesh.hexahedra.write("output/hexmesh_elems.vtk");
 
-//    start_msg(t0, "=== Smoothing hexahedra...");
-//    big_mesh.smoothen(conf.radius, conf.smooth_factor, 3.0*conf.coord_cutoff);
-//    end_msg(t0);
-
     start_msg(t0, "=== Separating vacuum & bulk meshes...");
     big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQ");
+    bulk_mesh.group_hexahedra();
+    vacuum_mesh.group_hexahedra();
     end_msg(t0);
 
     expect(bulk_mesh.nodes.size() > 0, "Zero nodes in bulk mesh!");
     expect(vacuum_mesh.nodes.size() > 0, "Zero nodes in vacuum mesh!");
     expect(bulk_mesh.hexahedra.size() > 0, "Zero elements in bulk mesh!");
     expect(vacuum_mesh.hexahedra.size() > 0, "Zero elements in vacuum mesh!");
-
-    bulk_mesh.group_hexahedra();
-    vacuum_mesh.group_hexahedra();
 
     if (MODES.VERBOSE)
         cout << "Bulk:   " << bulk_mesh << "\nVacuum: " << vacuum_mesh << endl;
@@ -237,14 +235,7 @@ const int Femocs::extract_laplace(const TetgenMesh& mesh, DealII* solver) {
     start_msg(t0, "=== Extracting E and phi...");
     vacuum_interpolator.extract_solution(solver, mesh, conf.tetnode_weight.elfield, conf.tetnode_weight.potential);
     end_msg(t0);
-
     vacuum_interpolator.write("output/result_E_phi.xyz");
-
-    start_msg(t0, "=== Interpolating E and phi...");
-    vacuum_interpolation.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff);
-    end_msg(t0);
-
-    vacuum_interpolation.write("output/interpolation_vacuum" + conf.message + ".vtk");
 
     return 0;
 }
@@ -254,14 +245,7 @@ const int Femocs::extract_laplace(const TetgenMesh& mesh, fch::Laplace<3>* solve
     start_msg(t0, "=== Extracting E and phi...");
     vacuum_interpolator.extract_solution(solver, mesh, conf.tetnode_weight.elfield, conf.tetnode_weight.potential);
     end_msg(t0);
-
     vacuum_interpolator.write("output/result_E_phi.xyz");
-
-    start_msg(t0, "=== Interpolating E and phi...");
-    vacuum_interpolation.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff);
-    end_msg(t0);
-
-    vacuum_interpolation.write("output/interpolation_vacuum" + conf.message + ".vtk");
 
     return 0;
 }
@@ -278,34 +262,44 @@ const int Femocs::extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3
     bulk_interpolation.interpolate(reader, 0);
     end_msg(t0);
 
-    bulk_interpolation.write("output/interpolation_bulk" + conf.message + ".vtk");
+    bulk_interpolation.write("output/interpolation_bulk.movie");
 
     return 0;
 }
 
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
 const int Femocs::run(double elfield, string message) {
-    double tstart;  // Variables used to measure the code execution time
+    static unsigned int timestep = 0;
+    static bool prev_skip_calculations = true;
+
+    double tstart;  // Variable used to measure the code execution time
     bool fail;
+
+    if (!prev_skip_calculations && MODES.WRITEFILE)
+        MODES.WRITEFILE = false;
+
+    if ((conf.n_writefile > 0) && (timestep % conf.n_writefile == 0))
+        MODES.WRITEFILE = true;
+
+    conf.message = to_string(timestep++);
+    conf.message = "_" + string( max(0.0, 5.0 - conf.message.length()), '0' ) + conf.message;
+
+    prev_skip_calculations = skip_calculations;
 
     check_message(skip_calculations, "Atoms haven't moved significantly, " +
             to_string(reader.rms_distance).substr(0,5) + " < " + to_string(conf.distance_tol).substr(0,5)
             + "! Field calculation will be skipped!");
 
     skip_calculations = true;
-
     conf.neumann = elfield;
-    conf.message = message;
     tstart = omp_get_wtime();
 
     // Generate FEM mesh
     TetgenMesh bulk_mesh, vacuum_mesh;
     fail = generate_meshes(bulk_mesh, vacuum_mesh);
 
-    bulk_mesh.elems.write  ("output/tetmesh_bulk.vtk");
-    vacuum_mesh.elems.write("output/tetmesh_vacuum.vtk");
-    bulk_mesh.hexahedra.write  ("output/hexmesh_bulk.vtk");
-    vacuum_mesh.hexahedra.write("output/hexmesh_vacuum.vtk");
+    bulk_mesh.elems.write  ("output/tetmesh_bulk" + conf.message + ".vtk");
+    bulk_mesh.hexahedra.write  ("output/hexmesh_bulk" + conf.message + ".vtk");
 
     if (fail) return 1;
     
@@ -341,6 +335,8 @@ const int Femocs::run(double elfield, string message) {
 
     cout << "\nTotal time of Femocs.run: " << omp_get_wtime() - tstart << "\n";
     skip_calculations = false;
+    if ((conf.n_writefile > 0) && (timestep % conf.n_writefile == 0))
+        MODES.WRITEFILE = false;
 
     return 0;
 }
@@ -425,14 +421,14 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
     check_message(vacuum_interpolator.get_n_atoms() == 0, "No solution to export!");
 
     if (!skip_calculations) {
-        start_msg(t0, "=== Interpolating solution...");
+        start_msg(t0, "=== Interpolating E and phi...");
         vacuum_interpolation.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff);
         end_msg(t0);
 
         vacuum_interpolation.write("output/interpolation.movie");
     }
 
-    start_msg(t0, "=== Exporting solution...");
+    start_msg(t0, "=== Exporting electric field...");
     vacuum_interpolation.export_solution(n_atoms, Ex, Ey, Ez, Enorm);
     end_msg(t0);
 

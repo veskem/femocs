@@ -59,6 +59,7 @@ public:
     int n_newton;               ///< Maximum number of Newton iterations
     bool clear_output;          ///< Clear output folder before the run
     bool use_histclean;         ///< Clean the solution with histogram cleaner
+    int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
 
     /** Weight of the solution on tetrahedral node */
     struct TetnodeWeight {

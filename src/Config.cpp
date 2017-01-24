@@ -29,7 +29,7 @@ Config::Config() {
     box_width = 2.5;             // minimal simulation box width in units of tip height
     box_height = 3.5;            // simulation box height in units of tip height
     bulk_height = 20;            // bulk substrate height [lattice constant]
-
+    n_writefile = 1;             // number of time steps between writing the output files
     use_histclean = false;       // use histogram cleaner to get rid of sharp peaks in the solution
 
     cfactor.amplitude = 0.4;     // coarsening factor
@@ -75,8 +75,8 @@ const void Config::read_all(const string& file_name) {
     read_command("box_height", box_height);
     read_command("bulk_height", bulk_height);    
     read_command("femocs_verbose", MODES.VERBOSE);
-    read_command("femocs_writefile", MODES.WRITEFILE);
     read_command("use_histclean", use_histclean);
+    read_command("n_writefile", n_writefile);
 
     vector<double> coarse_factors = {cfactor.amplitude, cfactor.r0_cylinder, cfactor.r0_sphere};
     read_command("coarse_factor", coarse_factors);
