@@ -1,0 +1,135 @@
+use_histclean = true            # use histogram cleaner to get rid of sharp peaks in the solution
+tetnode_weight = 0.5 0.5        # weight of the solution on tetrahedral node
+                                # 1st weight for electric field
+                                # 2nd weight for electric potential
+heating = false                 # calculate current density and temperature in nanotip
+clear_output = false;           # clear output folder before the run
+infile = input/nanotip_hr5.ckx  # default file used with atom coordinates
+latconst = 2.0                  # lattice constant
+#infile = input/nanotip_melt.xyz  # default file used with atom coordinates
+#latconst = 3.61                 # lattice constant
+coord_cutoff = 3.2              # coordination analysis cut-off radius
+mesh_quality = 2.0              # minimum mesh quality Tetgen is allowed to make
+box_width = 2.5                   # minimal simulation box width [tip height]
+box_height = 3.5                # simulation box height [tip height]
+bulk_height = 20                # bulk substrate height [latconst]
+radius = 10.0                   # inner radius of coarsening cylinder
+coarse_factor = 0.3 1.0 0.5     # coarsening factor; bigger number gives coarser surface
+                                # 1st - coarsening factor for atoms
+                                # 2nd - minimum distance between atoms in nanotip below apex [latconst]
+                                # 3rd - minimum distance between atoms in nanotip apex [latconst]
+smooth_factor = 1.0             # surface smoothing factor; bigger number gives smoother surface
+postprocess_marking = true     # make extra effort to mark correctly the vacuum nodes in shadow area
+refine_apex = false             # refine nanotip apex
+distance_tol = 0.16             # minimum distance between atoms from previous and current run to recalculate solution
+n_filewrite = 10                # minimum number of time steps between writing file; 0 turns writing off
+femocs_verbose = true           # enable or disable the verbose mode
+end                             # terminate the search of Femocs parameters 
+
+# Input file for PARCAS MD
+
+# Free format input file - parameters can be in any order, and comments
+# can be placed freely among them, as long as the parameters hold the
+# 9-characters + "="-sign format. Each number must also be followed
+# by at least one space (not a tab !).
+
+debug    = 0             # Debug bitwise: 1 general
+nsteps   = 65000         # Max number of time steps
+tmax     = 20000000.0    # Maximum time in fs
+restartt = 0.0           # Restart time in fs for latflag=3-4
+
+# Atom type-dependent parameters.
+# Time unit is 10.1805*sqrt(mass) = 81.15 fs for Cu, 52.88 for Al
+-------------------------------------------------------------------
+
+delta    = 0.05         # Max time step, 0.05 => 4.0 fs, changes linearly (in MD units of SQRT(M*L^2/E))
+ntype    = 2            # Number of atom types
+
+mass(0)  = 63.54600 
+name(0)  = X     
+ionpot(0)= 0.0    
+wrkfn(0) = 0.0     
+
+iac(0,0) = 0             # Interaction types: -1 kill 0 none 1 potmode 2 pair
+iac(0,1) = 0             #  3 create EAM cross potential
+iac(1,1) = 1             #- automatic symmetry used: iac(1,0) = iac(0,1)
+
+potmode  = 2             # 0 LJ; 1 EAM; 2 EAM, direct Epair; 3-4 SW
+
+reppotcut= 10.0          # Reppotcut for SW and Tersoff: use 0 for no reppot
+
+# Simulation cell
+-------------------------------------------------------------------
+latflag  = 1             # Lattice: 0 FCC 1 mdlat.in 2 DIA 3-4 Restart 5 Read bas
+mdlatxyz = 1
+nprtbl   = 100000        # Number of steps between pair table calculations
+
+pb(1)    = 1.0           # Periodicity in X-direction (1=per, 0=non)
+pb(2)    = 1.0           # Periodicity in Y-direction (1=per, 0=non)
+pb(3)    = 0.0           # Periodicity in Z-direction (1=per, 0=non)
+
+# Simulation
+-------------------------------------------------------------------
+bpcmode  = 0
+toll     = 0.0
+ndump    = 10            # Print data every ndump steps
+nmovie   = 10            # Number of steps btwn writing to md.movie (0=no movie)
+moviemode= 7             # Movie printing mode: 0 compressed, 1 normal, 2 vels, 3 potE, 7 potE+kinE
+#dtmov(1) = 250.0        # Time interval for movie output before tmov(1) (fs)
+#tmov(1)  = 1000.0       # Time at which to change output interval (fs)
+#dtmov(2) = 1000.0       # Time interval for movie output before tmov(1) (fs)
+
+amp      = 0.0
+damp     = 0.0
+
+nrestart = 1000          # Number of steps between restart output
+
+Ekdef    = 0.234         # Ekin threshold for labeling an atom defect/liquid
+                         # 1.5 kB Tmelt in units of eV
+
+# CLIC simulation special parameters
+----------------------------------
+clneicut = 3.090         # Don't change this
+ncellp(1)= 2
+ncellp(2)= 2
+ncellp(3)= 2
+evpatype = 0             # Type to assign to evaporated atoms (make sure this type is defined!)
+
+evpintval= 0             # How often to force evaporation (timesteps)
+fullsolve= 1 # Solve full electric field every N steps. Otherwise just system half the size centered around mid top.
+
+aroundapx= 64
+
+Generated parameters
+--------------------
+mctemp   = 55.0
+iabove   = 256
+mass(1)  = 63.5460
+name(1)  = Cu
+ionpot(1)= 7.7300
+wrkfn(1) = 4.6000
+
+mtemp    = 6             # Temp. control (0 none,1=linear,4=set,5/7=borders)
+toll     = 0.0           # Tolerance for the temperature control
+btctau   = 500.0         # Berendsen temp. control tau (fs), if 0 not used
+timeini  = 99999999.0    # Time at temp0 before quench
+ntimeini = 2500          # Time steps at temp0 before quench
+
+timerelE = 0.0           # Time in fs before field is applied
+trate    = 0.001         # Quench rate for mtemp=6/8 (K/fs), positive trate means warming
+
+elfield  = -0.1
+Erate    = -0.001
+temp     = 700.0
+temp0    = 200
+initemp  = 200
+seed     = 12345
+natoms   = 75512
+box(1)   = 231.295
+box(2)   = 231.295
+box(3)   = 74.087
+ncell(1) = 64
+ncell(2) = 64
+ncell(3) = 21
+fixzmin  = -38.0
+fixzmax  = -35.0
