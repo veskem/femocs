@@ -82,7 +82,7 @@ const void AtomReader::check_coordination() {
     const int coord_min = 0;
     for (Atom a : atoms)
         if (a.coord >= coord_min && a.coord <= coord_max)
-            expect(false, "Evaporated atom detected!");
+            cout << "FEMOCS: Evaporated atom detected!" << endl;
 }
 
 // Calculate coordination for all the atoms
@@ -114,7 +114,6 @@ const void AtomReader::calc_coordination(const int nnn, const double cutoff, con
         }
         nbor_indx += n_nbors;
     }
-    check_coordination();
 }
 
 // Calculate coordination for all the atoms using brute force technique
@@ -148,7 +147,6 @@ const void AtomReader::calc_coordination(const double cutoff) {
 
     for (int i = 0; i < n_atoms; ++i)
         set_coordination(i, coordinations[i]);
-    check_coordination();
 }
 
 // Calculate coordination for all the atoms using the atom types
@@ -166,8 +164,6 @@ const void AtomReader::calc_coordination(const int nnn) {
         else
             set_coordination(i, 0);
     }
-
-    check_coordination();
 }
 
 // Extract atom types from calculated coordinations

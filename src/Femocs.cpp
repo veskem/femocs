@@ -360,7 +360,7 @@ const int Femocs::import_atoms(const string& file_name) {
     skip_calculations = reader.get_rms_distance(conf.distance_tol) < conf.distance_tol;
     end_msg(t0);
 
-    if (!skip_calculations)
+    if (!skip_calculations) {
         if (file_type == "xyz") {
             start_msg(t0, "=== Calculating coords and atom types...");
             reader.calc_coordination(conf.coord_cutoff);
@@ -371,6 +371,8 @@ const int Femocs::import_atoms(const string& file_name) {
             reader.calc_coordination(conf.nnn);
             end_msg(t0);
         }
+        reader.check_coordination();
+    }
 
     return 0;
 }
@@ -391,6 +393,7 @@ const int Femocs::import_atoms(int n_atoms, double* coordinates, double* box, in
         reader.calc_coordination(conf.nnn, conf.coord_cutoff, nborlist);
         reader.extract_types(conf.nnn, conf.latconst);
         end_msg(t0);
+        reader.check_coordination();
     }
 
     return 0;
@@ -411,6 +414,7 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
         start_msg(t0, "=== Calculating coords from atom types...");
         reader.calc_coordination(conf.nnn);
         end_msg(t0);
+        reader.check_coordination();
     }
 
     return 0;

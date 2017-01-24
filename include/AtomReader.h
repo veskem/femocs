@@ -52,6 +52,10 @@ public:
     /** Calculate pseudo-coordination for all the atoms using the atom types */
     const void calc_coordination(const int nnn);
 
+    /** Function to detect evaporated atoms by their coordinations;
+     * an atom is considered evaporated if it's coordiantion is between the defined limits. */
+    const void check_coordination();
+
     /** Extract atom types from calculated atom coordinations */
     const void extract_types(const int nnn, const double latconst);
 
@@ -84,10 +88,6 @@ private:
     const void import_xyz(const string file_name);
     const void import_ckx(const string file_name);
     const void import_dump(const string file_name);
-
-    /** Function to detect evaporated atoms by their coordinations;
-     * an atom is considered evaporated if it's coordiantion is between the defined limits. */
-    const void check_coordination();
 
     /** Reserve memory for data vectors */
     const void reserve(const int n_atoms);
