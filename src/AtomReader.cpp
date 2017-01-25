@@ -81,7 +81,7 @@ const void AtomReader::check_coordination() {
     const int coord_max = 1;
     const int coord_min = 0;
     for (Atom a : atoms)
-        if (a.coord >= coord_min && a.coord <= coord_max)
+        if (a.marker >= coord_min && a.marker <= coord_max)
             cout << "FEMOCS: Evaporated atom detected!" << endl;
 }
 
@@ -106,8 +106,8 @@ const void AtomReader::calc_coordination(const int nnn, const double cutoff, con
 
             double r2 = point1.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox);
             if (r2 <= cutoff2) {
-                atoms[i].coord++;
-                atoms[nbor].coord++;
+                atoms[i].marker++;
+                atoms[nbor].marker++;
 //                if(atoms[i].coord < nnn) atoms[i].coord++;
 //                if(atoms[nbor].coord < nnn) atoms[nbor].coord++;
             }
@@ -146,7 +146,7 @@ const void AtomReader::calc_coordination(const double cutoff) {
     }
 
     for (int i = 0; i < n_atoms; ++i)
-        set_coordination(i, coordinations[i]);
+        set_marker(i, coordinations[i]);
 }
 
 // Calculate coordination for all the atoms using the atom types
@@ -156,13 +156,13 @@ const void AtomReader::calc_coordination(const int nnn) {
 
     for (int i = 0; i < n_atoms; ++i) {
         if (types[i] == TYPES.BULK)
-            set_coordination(i, nnn);
+            set_marker(i, nnn);
         else if (types[i] == TYPES.SURFACE)
-            set_coordination(i, (int) nnn / 2);
+            set_marker(i, (int) nnn / 2);
         else if (types[i] == TYPES.VACANCY)
-            set_coordination(i, -1);
+            set_marker(i, -1);
         else
-            set_coordination(i, 0);
+            set_marker(i, 0);
     }
 }
 
@@ -173,7 +173,7 @@ const void AtomReader::extract_types(const int nnn, const double latconst) {
     calc_statistics();
 
     for (int i = 0; i < n_atoms; ++i) {
-        if ( (nnn - get_coordination(i)) <= nnn_eps )
+        if ( (nnn - get_marker(i)) <= nnn_eps )
             types[i] = TYPES.BULK;
         else if (get_point(i).z < (sizes.zmin + latconst))
             types[i] = TYPES.FIXED;

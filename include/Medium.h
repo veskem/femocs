@@ -61,8 +61,8 @@ public:
     const void set_y(const int i, const double y);
     /** Set the z-coordinate of i-th atom */
     const void set_z(const int i, const double z);
-    /** Set the coordination of i-th atom */
-    const void set_coordination(const int i, const int coord);
+    /** Set the marker of i-th atom */
+    const void set_marker(const int i, const int m);
 
     /** Return i-th atom */
     const Atom get_atom(const int i) const;
@@ -72,8 +72,8 @@ public:
     const Point2 get_point2(const int i) const;
     /** Return ID of i-th atom */
     const int get_id(const int i) const;
-    /** Return coordination of i-th atom */
-    const int get_coordination(const int i) const;
+    /** Return marker of i-th atom */
+    const int get_marker(const int i) const;
     /** Return number of atoms in a Medium */
     const int get_n_atoms() const;
 

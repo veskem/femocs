@@ -500,17 +500,17 @@ public:
 class Atom {
 public:
     /** Constructors of Atom class */
-    Atom() : id(0), point(0), coord(0) {}
-    Atom(const int i, const Point3 &p, const int c) : id(i), point(p.x, p.y, p.z), coord(c) {}
+    Atom() : id(0), point(0), marker(0) {}
+    Atom(const int i, const Point3 &p, const int c) : id(i), point(p.x, p.y, p.z), marker(c) {}
 
     /** Comparison operator between two Atom-s */
     const bool operator ==(const Atom &a) const {
-        return id == a.id && point == a.point && coord == a.coord;
+        return id == a.id && point == a.point && marker == a.marker;
     }
 
     /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &s, const Atom &a) {
-        return s << a.id << ' ' << a.point << ' ' << a.coord;
+        return s << a.id << ' ' << a.point << ' ' << a.marker;
     }
 
     /** Functor for sorting atoms spatially in ascending order; used in CGAL Hilbert sorting */
@@ -550,14 +550,14 @@ public:
         inline bool operator() (const Atom& a1, const Atom& a2) { return a1.id < a2.id; }
     };
 
-    /** Functor for sorting atoms in ascending order by their coordination */
-    struct sort_coord_up {
-        inline bool operator() (const Atom& a1, const Atom& a2) { return a1.coord < a2.coord; }
+    /** Functor for sorting atoms in ascending order by their marker */
+    struct sort_marker_up {
+        inline bool operator() (const Atom& a1, const Atom& a2) { return a1.marker < a2.marker; }
     };
 
-    /** Functor for sorting atoms in descending order by their coordination */
-    struct sort_coord_down {
-        inline bool operator() (const Atom& a1, const Atom& a2) { return a1.coord > a2.coord; }
+    /** Functor for sorting atoms in descending order by their marker */
+    struct sort_marker_down {
+        inline bool operator() (const Atom& a1, const Atom& a2) { return a1.marker > a2.marker; }
     };
 
     /** Functor for sorting atoms in ascending order by their x, y, z or radial coordinate */
@@ -616,7 +616,7 @@ public:
 
     int id;
     Point3 point;
-    int coord;
+    int marker;
 };
 
 /** Class to hold solution data and its operations */

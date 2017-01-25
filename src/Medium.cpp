@@ -32,11 +32,11 @@ const void Medium::sort_atoms(const int coord, const string& direction) {
         calc_statistics();
         Point2 origin(sizes.xmid, sizes.ymid);
         for (int i = 0; i < get_n_atoms(); ++i)
-            set_coordination(i, 10000 * origin.distance2(get_point2(i)));
+            set_marker(i, 10000 * origin.distance2(get_point2(i)));
         if (direction == "up" || direction == "asc")
-            sort(atoms.begin(), atoms.end(), Atom::sort_coord_up());
+            sort(atoms.begin(), atoms.end(), Atom::sort_marker_up());
         else
-            sort(atoms.begin(), atoms.end(), Atom::sort_coord_down());
+            sort(atoms.begin(), atoms.end(), Atom::sort_marker_down());
     }
 
     else if (direction == "up" || direction == "asc")
@@ -91,7 +91,7 @@ const void Medium::add_atom(const Atom& atom) {
     atoms.push_back(atom);
 }
 
-// Add atom with defalt id and coordination to atoms vector
+// Add atom with defalt id and marker to atoms vector
 const void Medium::add_atom(const Point3& point) {
     expect(get_n_atoms() < atoms.capacity(), "Allocated vector sizes exceeded!");
     atoms.push_back(Atom(-1, point, 0));
@@ -171,10 +171,10 @@ const int Medium::get_id(const int i) const {
     return atoms[i].id;
 }
 
-// Get atom coordination
-const int Medium::get_coordination(const int i) const {
+// Get atom marker
+const int Medium::get_marker(const int i) const {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
-    return atoms[i].coord;
+    return atoms[i].marker;
 }
 
 // Get i-th Atom
@@ -213,10 +213,10 @@ const void Medium::set_z(const int i, const double z) {
     atoms[i].point.z = z;
 }
 
-// Set coordination of atom
-const void Medium::set_coordination(const int i, const int coord) {
+// Set atom marker
+const void Medium::set_marker(const int i, const int m) {
     require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
-    atoms[i].coord = coord;
+    atoms[i].marker = m;
 }
 
 // Pick the suitable write function based on the file type
@@ -247,7 +247,7 @@ void Medium::write(const string &file_name, const int n_max) const {
 
 // Compile data string from the data vectors
 const string Medium::get_data_string(const int i) const {
-    if(i < 0) return "Medium properties=id:R:1:pos:R:3:coordination:R:1";
+    if(i < 0) return "Medium properties=id:R:1:pos:R:3:marker:R:1";
 
     ostringstream strs;
     strs << atoms[i];
@@ -310,10 +310,10 @@ const void Medium::get_point_data(ofstream& out, const int n_atoms) const {
     for (size_t i = 0; i < n_atoms; ++i)
         out << atoms[i].id << "\n";
 
-    // write coordinations of atoms
-    out << "SCALARS coordination int\nLOOKUP_TABLE default\n";
+    // write atom markers
+    out << "SCALARS marker int\nLOOKUP_TABLE default\n";
     for (size_t i = 0; i < n_atoms; ++i)
-        out << atoms[i].coord << "\n";
+        out << atoms[i].marker << "\n";
 }
 
 } /* namespace femocs */

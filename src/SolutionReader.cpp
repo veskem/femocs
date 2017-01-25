@@ -44,8 +44,8 @@ const void SolutionReader::interpolate(const Medium &medium, double r_cut, int c
         elem = interpolator->locate_element(point, abs(elem));
 
         // Store whether the point is in- or outside the mesh
-        if (elem < 0) set_coordination(i, 1);
-        else          set_coordination(i, 0);
+        if (elem < 0) set_marker(i, 1);
+        else          set_marker(i, 0);
 
         // Calculate the interpolation
         if (component == 0) interpolation.push_back( interpolator->get_solution(point, abs(elem)) );
@@ -87,7 +87,7 @@ const void SolutionReader::export_elfield(int n_points, double* Ex, double* Ey, 
         Ey[i] = interpolation[i].elfield.y;
         Ez[i] = interpolation[i].elfield.z;
         Enorm[i] = interpolation[i].el_norm;
-        flag[i] = atoms[i].coord;
+        flag[i] = atoms[i].marker;
     }
 }
 
@@ -97,7 +97,7 @@ const void SolutionReader::export_potential(int n_points, double* phi, int* flag
 
     for (int i = 0; i < n_points; ++i) {
         phi[i] = interpolation[i].potential;
-        flag[i] = atoms[i].coord;
+        flag[i] = atoms[i].marker;
     }
 }
 
