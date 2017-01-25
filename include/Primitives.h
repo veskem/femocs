@@ -211,9 +211,9 @@ public:
 class Point2{
 public:
     /** Constructors of Point2 class */
-    Point2() : x(0), y(0), r(0) {}
-    Point2(double xx) : x(xx), y(xx), r(0) {}
-    Point2(double xx, double yy) : x(xx), y(yy), r(0) {}
+    Point2() : x(0), y(0) {}
+    Point2(const double xx) : x(xx), y(xx) {}
+    Point2(const double xx, const double yy) : x(xx), y(yy) {}
 
     /** Dimensionality of point */
     const int size() const { return 2; }
@@ -236,11 +236,6 @@ public:
     /** Comparison operators between two points */
     const bool operator ==(const Point2 &p) const { return x == p.x && y == p.y; }
 
-    const bool operator  >(const Point2 &p) const { return r > p.r; }
-    const bool operator  <(const Point2 &p) const { return r < p.r; }
-    const bool operator >=(const Point2 &p) const { return r >= p.r; }
-    const bool operator <=(const Point2 &p) const { return r <= p.r; }
-
     /** Accessor for accessing the i-th coordinate */
     const double& operator [](size_t i) const { return (&x)[i]; }
 
@@ -258,7 +253,6 @@ public:
     string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
     double x, y;    ///< Cartesian coordinates
-    double r;       ///< Radial coordinate
 };
 
 /** Class to define basic operations with 3-dimensional points */
@@ -266,8 +260,8 @@ class Point3 {
 public:
     /** Constructors of Point3 class */
     Point3() : x(0), y(0), z(0) {}
-    Point3(double xx) : x(xx), y(xx), z(xx) {}
-    Point3(double xx, double yy, double zz) : x(xx), y(yy), z(zz) {}
+    Point3(const double xx) : x(xx), y(xx), z(xx) {}
+    Point3(const double xx, const double yy, const double zz) : x(xx), y(yy), z(zz) {}
     Point3(const Point3& p) : x(p.x), y(p.y), z(p.z) {}
 
     /** Dimensionality of point */
@@ -297,7 +291,9 @@ public:
 
     /** Squared distance between two Point3-s taking into account the simulation cell periodicity.
      * Period == 0 in some direction gives the result without periodicity in that direction. */
-    const double periodic_distance2(const Point3 &p, double period_x = 0, double period_y = 0, double period_z = 0) const {
+    const double periodic_distance2(const Point3 &p, const double period_x = 0,
+            const double period_y = 0, const double period_z = 0) const {
+
         double dx = fabs(x - p.x);
         double dy = fabs(y - p.y);
         double dz = fabs(z - p.z);
@@ -306,9 +302,9 @@ public:
 //        dy = min(dy, fabs(dy - period_y)); // apply periodic boundary condition in y-direction
 //        dz = min(dz, fabs(dz - period_z)); // apply periodic boundary condition in z-direction
 
-        if (dx > period_x * 0.5) dx = period_x - dx;
-        if (dy > period_y * 0.5) dy = period_y - dy;
-        if (dz > period_z * 0.5) dz = period_z - dz;
+        if (dx > period_x * 0.5) dx = period_x - dx; // apply periodic boundary condition in x-direction
+        if (dy > period_y * 0.5) dy = period_y - dy; // apply periodic boundary condition in y-direction
+        if (dz > period_z * 0.5) dz = period_z - dz; // apply periodic boundary condition in z-direction
 
         return dx * dx + dy * dy + dz * dz;
     }
@@ -336,7 +332,7 @@ public:
     }
 
     /** Accessor for accessing the i-th coordinate */
-    const double& operator [](size_t i) const { return (&x)[i]; }
+    const double& operator [](const size_t i) const { return (&x)[i]; }
 
     /** Iterator for accessing the coordinates */
     typedef Iterator<Point3, double> iterator;
@@ -359,8 +355,8 @@ class Vec3 {
 public:
     /** Vec3 constructors */
     Vec3() : x(0), y(0), z(0) {}
-    Vec3(double xx) : x(xx), y(xx), z(xx) {}
-    Vec3(double xx, double yy, double zz) : x(xx), y(yy), z(zz) {}
+    Vec3(const double xx) : x(xx), y(xx), z(xx) {}
+    Vec3(const double xx, const double yy, const double zz) : x(xx), y(yy), z(zz) {}
     Vec3(const Point3 &p) : x(p.x), y(p.y), z(p.z) {}
 
     /** Dimensionality of vector */
@@ -393,7 +389,7 @@ public:
 
     /** Vector norm */
     double norm2() const { return x * x + y * y + z * z; }
-    double norm() const { return sqrt(x * x + y * y + z * z); }
+    double norm() const { return sqrt(norm2()); }
 
     /** Normalize the vector */
     Vec3 normalize() {
@@ -410,7 +406,7 @@ public:
      The Vec3 coordinates can be accessed that way v[0], v[1], v[2], rather than v.x, v.y, v.z.
      This is useful in loops: the coordinates can be accessed with the loop index (e.g. v[i]).
      */
-    const double& operator [](size_t i) const { return (&x)[i]; }
+    const double& operator [](const size_t i) const { return (&x)[i]; }
 
     /** Attach iterator for accessing the vector components */
     typedef Iterator<Vec3, double> iterator;
@@ -433,10 +429,10 @@ class Vec4 {
 public:
     /** Vec4 constructors */
     Vec4() : x(0), y(0), z(0), w(0) {}
-    Vec4(double xx) : x(xx), y(xx), z(xx), w(xx) {}
-    Vec4(double xx, double yy, double zz, double ww) : x(xx), y(yy), z(zz), w(ww) {}
-    Vec4(const Vec3 &v, double ww) : x(v.x), y(v.y), z(v.z), w(ww) {}
-    Vec4(const Point3 &p, double ww) : x(p.x), y(p.y), z(p.z), w(ww) {}
+    Vec4(const double xx) : x(xx), y(xx), z(xx), w(xx) {}
+    Vec4(const double xx, double yy, double zz, double ww) : x(xx), y(yy), z(zz), w(ww) {}
+    Vec4(const Vec3 &v, const double ww) : x(v.x), y(v.y), z(v.z), w(ww) {}
+    Vec4(const Point3 &p, const double ww) : x(p.x), y(p.y), z(p.z), w(ww) {}
 
     /** Dimensionality of vector */
     const int size() const { return 4; }
@@ -465,20 +461,20 @@ public:
 
     /** Vector norm */
     double norm2() const { return x * x + y * y + z * z + w * w; }
-    double norm() const { return sqrt(x * x + y * y + z * z + w * w); }
+    double norm() const { return sqrt(norm2()); }
 
     /** Function to normalize the vector */
     Vec4& normalize() {
         double n = norm();
         if (n > 0) {
             double factor = 1 / sqrt(n);
-            x *= factor, y *= factor, z *= factor;
+            x *= factor, y *= factor, z *= factor, w *= factor;
         }
         return *this;
     }
 
     /** Define access operator */
-    const double& operator [](size_t i) const { return (&x)[i]; }
+    const double& operator [](const size_t i) const { return (&x)[i]; }
 
     /** Attach iterator for accessing the vector components */
     typedef Iterator<Vec4, double> iterator;
