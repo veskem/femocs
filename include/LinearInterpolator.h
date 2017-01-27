@@ -41,19 +41,19 @@ public:
     LinearInterpolator();
 
     /** Extract the electric potential and electric field values on the tetrahedra nodes from FEM solution */
-    const void extract_solution(fch::Laplace<3>* laplace, const TetgenMesh &mesh, const double w0_elfield, const double w0_pot);
+    void extract_solution(fch::Laplace<3>* laplace, const TetgenMesh &mesh, const double w0_elfield, const double w0_pot);
     
-    const void extract_solution(DealII* fem, const TetgenMesh &mesh, const double w0_elfield, const double w0_pot);
+    void extract_solution(DealII* fem, const TetgenMesh &mesh, const double w0_elfield, const double w0_pot);
 
-    const void extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh);
+    void extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh);
 
-    const Solution get_solution(const Point3 &point, const int elem);
+    Solution get_solution(const Point3 &point, const int elem);
 
-    const double get_scalar(const Point3 &point, const int elem);
+    double get_scalar(const Point3 &point, const int elem);
 
-    const Vec3 get_vector(const Point3 &point, const int elem);
+    Vec3 get_vector(const Point3 &point, const int elem);
 
-    const int locate_element(const Point3 &point, const int elem_guess);
+    int locate_element(const Point3 &point, const int elem_guess);
 
     /** Electric field that is assigned to atoms not found from mesh.
      *  Its value is BIG to make it immediately visible from the dataset. */
@@ -79,43 +79,43 @@ private:
     vector<bool> tet_not_valid;         ///< co-planarities of tetrahedra
 
     /** Pre-compute data about tetrahedra to make interpolation faster */
-    const void precompute_tetrahedra(const TetgenMesh &mesh);
+    void precompute_tetrahedra(const TetgenMesh &mesh);
 
     /** Return the mapping between tetrahedral and hexahedral meshes;
      * -1 indicates that mapping for corresponding object was not found */
-    const void get_maps(dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh,
+    void get_maps(dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh,
             vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs);
 
     /** Force the solution on tetrahedral nodes to be the weighed average
      * of the solutions on its Voronoi cell nodes */
-    const void average_tetnodes(const TetgenMesh &mesh, const double w0_elfield, const double w0_pot);
+    void average_tetnodes(const TetgenMesh &mesh, const double w0_elfield, const double w0_pot);
 
     /** Get barycentric coordinates for a point inside i-th tetrahedron */
-    const Vec4 get_bcc(const Point3 &point, const int i);
+    Vec4 get_bcc(const Point3 &point, const int i);
 
     /** Get whether the point is located inside the i-th tetrahedron */
-    const bool point_in_tetrahedron(const Point3 &point, const int i);
+    bool point_in_tetrahedron(const Point3 &point, const int i);
 
     /** Function to calculate determinant of 3x3 matrix which's last column consists of ones */
-    const double determinant(const Vec3 &v1, const Vec3 &v2);
+    double determinant(const Vec3 &v1, const Vec3 &v2);
 
     /** Function to calculate determinant of 3x3 matrix */
-    const double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3);
+    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3);
 
     /** Function to calculate determinant of 4x4 matrix which's last column consists of ones */
-    const double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4);
+    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4);
 
     /** Function to calculate determinant of 4x4 matrix */
-    const double determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4);
+    double determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4);
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
-    const string get_data_string(const int i) const;
+    string get_data_string(const int i) const;
 
     /** Reserve memory for interpolation data */
-    const void reserve(const int N);
+    void reserve(const int N);
 
     /** Reserve memory for pre-compute data */
-    const void reserve_precompute(const int N);
+    void reserve_precompute(const int N);
 
 };
 

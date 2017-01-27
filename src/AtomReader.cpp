@@ -18,7 +18,7 @@ namespace femocs {
 AtomReader::AtomReader() : Medium(), rms_distance(0) {}
 
 // Reserve memory for data vectors
-const void AtomReader::reserve(const int n_atoms) {
+void AtomReader::reserve(const int n_atoms) {
     require(n_atoms > 0, "Invalid # atoms: " + to_string(n_atoms));
     atoms.clear();
     types.clear();
@@ -28,12 +28,12 @@ const void AtomReader::reserve(const int n_atoms) {
 }
 
 // Add atom with its coordinates and type
-const void AtomReader::add_atom(const int id, const Point3 &point, const int type) {
+void AtomReader::add_atom(const int id, const Point3 &point, const int type) {
     Medium::add_atom( Atom(id, point, 0) );
     this->types.push_back(type);
 }
 
-const bool AtomReader::equals_previous_run(const double eps) {
+bool AtomReader::equals_previous_run(const double eps) {
     if (eps < 1e-5)
         return false;
 
@@ -50,7 +50,7 @@ const bool AtomReader::equals_previous_run(const double eps) {
 }
 
 // Calculate root mean square of the distances atoms have moved after previous run
-const double AtomReader::get_rms_distance(const double eps) {
+double AtomReader::get_rms_distance(const double eps) {
     if (eps < 1e-5) return DBL_MAX;
 
     const int n_atoms = get_n_atoms();
@@ -65,7 +65,7 @@ const double AtomReader::get_rms_distance(const double eps) {
     return rms_distance;
 }
 
-const void AtomReader::save_current_run_points(const double eps) {
+void AtomReader::save_current_run_points(const double eps) {
     if (eps < 1e-5) return;
     const int n_atoms = get_n_atoms();
 
@@ -77,7 +77,7 @@ const void AtomReader::save_current_run_points(const double eps) {
 }
 
 // Check for evaporated atoms
-const void AtomReader::check_coordination() {
+void AtomReader::check_coordination() {
     const int coord_max = 1;
     const int coord_min = 0;
     for (Atom a : atoms)
@@ -86,7 +86,7 @@ const void AtomReader::check_coordination() {
 }
 
 // Calculate coordination for all the atoms
-const void AtomReader::calc_coordination(const int nnn, const double cutoff, const int* nborlist) {
+void AtomReader::calc_coordination(const int nnn, const double cutoff, const int* nborlist) {
     require(cutoff > 0, "Invalid cutoff: " + to_string(cutoff));
     require(nnn >= 0, "Invalid # nearest neighbors: " + to_string(nnn));
 
@@ -117,7 +117,7 @@ const void AtomReader::calc_coordination(const int nnn, const double cutoff, con
 }
 
 // Calculate coordination for all the atoms using brute force technique
-const void AtomReader::calc_coordination(const double cutoff) {
+void AtomReader::calc_coordination(const double cutoff) {
     require(cutoff > 0, "Invalid cutoff: " + to_string(cutoff));
     expect(false, "Running slow coordination calculation!");
     
@@ -150,7 +150,7 @@ const void AtomReader::calc_coordination(const double cutoff) {
 }
 
 // Calculate coordination for all the atoms using the atom types
-const void AtomReader::calc_coordination(const int nnn) {
+void AtomReader::calc_coordination(const int nnn) {
     require(nnn > 0, "Invalid number of nearest neighbors!");
     const int n_atoms = get_n_atoms();
 
@@ -167,7 +167,7 @@ const void AtomReader::calc_coordination(const int nnn) {
 }
 
 // Extract atom types from calculated coordinations
-const void AtomReader::extract_types(const int nnn, const double latconst) {
+void AtomReader::extract_types(const int nnn, const double latconst) {
     const int n_atoms = get_n_atoms();
     const int nnn_eps = 1;
     calc_statistics();
@@ -183,7 +183,7 @@ const void AtomReader::extract_types(const int nnn, const double latconst) {
 }
 
 // Redefine simubox size for example to insert electric field height
-const void AtomReader::resize_box(const double zmin, const double zmax) {
+void AtomReader::resize_box(const double zmin, const double zmax) {
     require(zmin <= zmax, "Invalid size for simulation box: " + to_string(zmin) + ", " + to_string(zmax));
     sizes.zminbox = zmin;
     sizes.zmaxbox = zmax;
@@ -191,7 +191,7 @@ const void AtomReader::resize_box(const double zmin, const double zmax) {
 }
 
 // Redefine the min and max values for x, y and z - coordinates
-const void AtomReader::resize_box(double xmin, double xmax, double ymin, double ymax, double zmin, double zmax) {
+void AtomReader::resize_box(double xmin, double xmax, double ymin, double ymax, double zmin, double zmax) {
     require(xmin <= xmax, "Invalid x-size for simulation box: " + to_string(xmin) + ", " + to_string(xmax));
     require(ymin <= ymax, "Invalid y-size for simulation box: " + to_string(ymin) + ", " + to_string(ymax));
     require(zmin <= zmax, "Invalid z-size for simulation box: " + to_string(zmin) + ", " + to_string(zmax));
@@ -216,13 +216,13 @@ const void AtomReader::resize_box(double xmin, double xmax, double ymin, double 
 // =================================
 // *** GETTERS: ***************
 
-const int AtomReader::get_type(const int i) const {
+int AtomReader::get_type(const int i) const {
     require(i >= 0 && i < get_n_atoms(), "Invalid index!");
     return types[i];
 }
 
 // Compile data string from the data vectors
-const string AtomReader::get_data_string(const int i) const {
+string AtomReader::get_data_string(const int i) const {
     if (i < 0) return "AtomReader properties=id:R:1:pos:R:3:coordination:R:1:type:R:1";
 
     ostringstream strs;
@@ -233,11 +233,11 @@ const string AtomReader::get_data_string(const int i) const {
 // =================================
 // *** IMPORTERS: ***************
 
-const void AtomReader::import_kimocs() {
+void AtomReader::import_kimocs() {
     require(false, "AtomReader::import_kimocs() not implemented!");
 }
 
-const void AtomReader::import_helmod(int n_atoms, double* x, double* y, double* z, int* types) {
+void AtomReader::import_helmod(const int n_atoms, const double* x, const double* y, const double* z, const int* types) {
     require(n_atoms > 0, "Zero input atoms detected!");
     reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
@@ -246,7 +246,7 @@ const void AtomReader::import_helmod(int n_atoms, double* x, double* y, double* 
     calc_statistics();
 }
 
-const void AtomReader::import_parcas(int n_atoms, const double* xyz, const double* box) {
+void AtomReader::import_parcas(const int n_atoms, const double* xyz, const double* box) {
     require(n_atoms > 0, "Zero input atoms detected!");
     reserve(n_atoms);
     for (int i = 0; i < 3*n_atoms; i+=3)
@@ -255,7 +255,7 @@ const void AtomReader::import_parcas(int n_atoms, const double* xyz, const doubl
     calc_statistics();
 }
 
-const void AtomReader::import_file(const string file_name) {
+void AtomReader::import_file(const string &file_name) {
     string file_type = get_file_type(file_name);
 
     if (file_type == "xyz")
@@ -270,7 +270,7 @@ const void AtomReader::import_file(const string file_name) {
     calc_statistics();
 }
 
-const void AtomReader::import_xyz(const string file_name) {
+void AtomReader::import_xyz(const string &file_name) {
     ifstream in_file(file_name, ios::in);
     require(in_file.is_open(), "Did not find a file " + file_name);
 
@@ -298,7 +298,7 @@ const void AtomReader::import_xyz(const string file_name) {
     }
 }
 
-const void AtomReader::import_ckx(const string file_name) {
+void AtomReader::import_ckx(const string &file_name) {
     ifstream in_file(file_name, ios::in);
     require(in_file.is_open(), "Did not find a file " + file_name);
 
@@ -327,7 +327,7 @@ const void AtomReader::import_ckx(const string file_name) {
     }
 }
 
-const void AtomReader::import_dump(const string file_name) {
+void AtomReader::import_dump(const string &file_name) {
     require(false, "AtomReader::import_dump not implemented!");
 }
 

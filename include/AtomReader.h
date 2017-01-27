@@ -21,22 +21,22 @@ public:
     AtomReader();
 
     /** Get type of i-th atom in AtomReader */
-    const int get_type(const int i) const;
+    int get_type(const int i) const;
 
     /**
      * Function to import file with atom coordinates and types
      * @param file_name  path to input file with atomic data in .xyz (PARCAS), .dump (LAMMPS) or .ckx (KIMOCS) format
      */
-    const void import_file(const string file_name);
+    void import_file(const string &file_name);
 
     /** Function to transform atomic data from Parcas format into AtomReader one */
-    const void import_parcas(int n_atoms, const double* coordinates, const double* box);
+    void import_parcas(const int n_atoms, const double* coordinates, const double* box);
 
     /** Function to transform atomic data from Helmod format into AtomReader one */
-    const void import_helmod(int n_atoms, double* x, double* y, double* z, int* types);
+    void import_helmod(const int n_atoms, const double* x, const double* y, const double* z, const int* types);
 
     /** Function to transform atomic data from Kimocs format into AtomReader one */
-    const void import_kimocs();
+    void import_kimocs();
 
     /**
      * Calculate coordination for all the atoms in AtomReader
@@ -44,37 +44,38 @@ public:
      * @param nnn      number of nearest neighbours in a crystal
      * @param nborlist neighbour list of atoms
      */
-    const void calc_coordination(const int nnn, const double cutoff, const int* nborlist);
+    void calc_coordination(const int nnn, const double cutoff, const int* nborlist);
 
     /** Calculate coordination for all the atoms using brute force technique */
-    const void calc_coordination(const double cutoff);
+    void calc_coordination(const double cutoff);
 
     /** Calculate pseudo-coordination for all the atoms using the atom types */
-    const void calc_coordination(const int nnn);
+    void calc_coordination(const int nnn);
 
     /** Function to detect evaporated atoms by their coordinations;
      * an atom is considered evaporated if it's coordiantion is between the defined limits. */
-    const void check_coordination();
+    void check_coordination();
 
     /** Extract atom types from calculated atom coordinations */
-    const void extract_types(const int nnn, const double latconst);
+    void extract_types(const int nnn, const double latconst);
 
     /** Redefine the min and max values for z-coordinates */
-    const void resize_box(const double zmin, const double zmax);
+    void resize_box(const double zmin, const double zmax);
     
     /** Redefine the min and max values for x, y and z - coordinates */
-    const void resize_box(double xmin, double xmax, double ymin, double ymax, double zmin, double zmax);
+    void resize_box(const double xmin, const double xmax, const double ymin, const double ymax,
+            const double zmin, const double zmax);
 
     /** Compare current and previous run and detect whether 
      * any of the atoms has moved more than threshold */
-    const bool equals_previous_run(const double eps);
+    bool equals_previous_run(const double eps);
     
     /** Calculate the root mean average distance the atoms have moved 
      * between previous and current run */
-    const double get_rms_distance(const double eps);
+    double get_rms_distance(const double eps);
     
     /** Store the atom coordinates from current run */
-    const void save_current_run_points(const double eps);
+    void save_current_run_points(const double eps);
 
     double rms_distance;           ///< rms distance between atoms from previous and current run
 private:
@@ -85,18 +86,18 @@ private:
      * Functions to import atoms from different types of file.
      * @param file_name - path to file with atomic data
      */
-    const void import_xyz(const string file_name);
-    const void import_ckx(const string file_name);
-    const void import_dump(const string file_name);
+    void import_xyz(const string &file_name);
+    void import_ckx(const string &file_name);
+    void import_dump(const string &file_name);
 
     /** Reserve memory for data vectors */
-    const void reserve(const int n_atoms);
+    void reserve(const int n_atoms);
     
     /** Add atom with its id and type */
-    const void add_atom(const int id, const Point3 &point, const int type);
+    void add_atom(const int id, const Point3 &point, const int type);
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
-    const string get_data_string(const int i) const;
+    string get_data_string(const int i) const;
 };
 
 } /* namespace femocs */

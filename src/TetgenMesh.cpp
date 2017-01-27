@@ -17,7 +17,7 @@ RaySurfaceIntersect::RaySurfaceIntersect(TetgenMesh* mesh) : mesh(mesh) {
 }
 
 // Reserve memory for precompute data
-const void RaySurfaceIntersect::reserve(const int n) {
+void RaySurfaceIntersect::reserve(const int n) {
     edge1.clear(); edge1.reserve(n);
     edge2.clear(); edge2.reserve(n);
     vert0.clear(); vert0.reserve(n);
@@ -26,7 +26,7 @@ const void RaySurfaceIntersect::reserve(const int n) {
 }
 
 // Precompute the data needed to execute the Moller-Trumbore algorithm
-const void RaySurfaceIntersect::precompute_triangles(const Vec3 &direction) {
+void RaySurfaceIntersect::precompute_triangles(const Vec3 &direction) {
     const int n_faces = mesh->faces.size();
 
     // Reserve memory for precomputation data
@@ -53,7 +53,7 @@ const void RaySurfaceIntersect::precompute_triangles(const Vec3 &direction) {
 }
 
 // Moller-Trumbore algorithm to find whether the ray and the triangle intersect or not
-const bool RaySurfaceIntersect::ray_intersects_triangle(const Vec3 &origin, const Vec3 &direction,
+bool RaySurfaceIntersect::ray_intersects_triangle(const Vec3 &origin, const Vec3 &direction,
         const int face) {
     Vec3 s, q;
     double u, v;
@@ -81,7 +81,7 @@ const bool RaySurfaceIntersect::ray_intersects_triangle(const Vec3 &origin, cons
 }
 
 // Determine whether the ray intersects with any of the triangles on the surface mesh
-const bool RaySurfaceIntersect::ray_intersects_surface(const Vec3 &origin, const Vec3 &direction) {
+bool RaySurfaceIntersect::ray_intersects_surface(const Vec3 &origin, const Vec3 &direction) {
     const int n_faces = mesh->faces.size();
 
     // Loop through all the faces
@@ -92,7 +92,7 @@ const bool RaySurfaceIntersect::ray_intersects_surface(const Vec3 &origin, const
 }
 
 // Group hexahedra around central tetrahedral node
-const void TetgenMesh::group_hexahedra() {
+void TetgenMesh::group_hexahedra() {
     const int node_min = nodes.indxs.tetnode_start;
     const int node_max = nodes.indxs.tetnode_end;
 
@@ -108,7 +108,7 @@ const void TetgenMesh::group_hexahedra() {
 }
 
 // Generate list of nodes that surround the tetrahedral nodes
-const vector<vector<unsigned int>> TetgenMesh::get_voronoi_cells() const {
+vector<vector<unsigned int>> TetgenMesh::get_voronoi_cells() const {
     vector<vector<unsigned int>> voronoi_cells(nodes.stat.n_tetnode);
     const int node_min = nodes.indxs.tetnode_start;
     const int node_max = nodes.indxs.tetnode_end;
@@ -135,7 +135,7 @@ const vector<vector<unsigned int>> TetgenMesh::get_voronoi_cells() const {
 }
 
 // Function to generate simple mesh that consists of one tetrahedron
-const bool TetgenMesh::generate_simple() {
+bool TetgenMesh::generate_simple() {
     const int n_nodes = elems.DIM;
     const int n_edges = n_edges_per_elem;
     const int n_faces = n_faces_per_elem;
@@ -168,7 +168,7 @@ const bool TetgenMesh::generate_simple() {
 }
 
 // Copy mesh from input to output without modification
-const bool TetgenMesh::recalc() {
+bool TetgenMesh::recalc() {
     nodes.recalc();
     edges.recalc();
     faces.recalc();
@@ -177,7 +177,7 @@ const bool TetgenMesh::recalc() {
 }
 
 // Function to perform tetgen calculation on input and write_tetgen data
-const bool TetgenMesh::recalc(const string& cmd) {
+bool TetgenMesh::recalc(const string& cmd) {
     try {
         tetrahedralize(const_cast<char*>(cmd.c_str()), &tetIOin, &tetIOout);
         nodes.set_counter(tetIOout.numberofpoints);
@@ -190,7 +190,7 @@ const bool TetgenMesh::recalc(const string& cmd) {
 }
 
 // Function to perform tetgen calculation on input and write_tetgen data
-const bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
+bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
     try {
         tetgenio tetIOtemp;
         tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOtemp);
@@ -205,7 +205,7 @@ const bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
 }
 
 // Write mesh into files with Tetgen functions
-const bool TetgenMesh::write_tetgen(const string& file_name) {
+bool TetgenMesh::write_tetgen(const string& file_name) {
     const string cmd = "Q";
     tetgenbehavior tetgenbeh;
 
@@ -221,7 +221,7 @@ const bool TetgenMesh::write_tetgen(const string& file_name) {
 }
 
 // Function to generate mesh from surface, bulk and vacuum atoms
-const bool TetgenMesh::generate(const Media& bulk, const Media& surf, const Media& vacuum, const string& cmd) {
+bool TetgenMesh::generate(const Media& bulk, const Media& surf, const Media& vacuum, const string& cmd) {
     const int n_bulk = bulk.get_n_atoms();
     const int n_surf = surf.get_n_atoms();
     const int n_vacuum = vacuum.get_n_atoms();
@@ -247,7 +247,7 @@ const bool TetgenMesh::generate(const Media& bulk, const Media& surf, const Medi
 }
 
 // Separate tetrahedra into hexahedra
-const bool TetgenMesh::generate_hexahedra() {
+bool TetgenMesh::generate_hexahedra() {
     tethex::Mesh hexmesh;
     hexmesh.read_femocs(this);
     hexmesh.convert();
@@ -257,7 +257,7 @@ const bool TetgenMesh::generate_hexahedra() {
 }
 
 // Generate manually edges and surface faces
-const bool TetgenMesh::generate_appendices() {
+bool TetgenMesh::generate_appendices() {
     // Generate edges from elements
 //    generate_edges();
     // Generate surface faces from elements
@@ -267,7 +267,7 @@ const bool TetgenMesh::generate_appendices() {
 
 // Function to generate edges from the elements
 // Overlapping edges are not cleaned to make it easier to match them with element
-const void TetgenMesh::generate_edges() {
+void TetgenMesh::generate_edges() {
     const int n_elems = elems.size();
     const int n_edges = n_edges_per_elem * n_elems;
 
@@ -282,7 +282,7 @@ const void TetgenMesh::generate_edges() {
 
 // Function to manually generate surface faces from elements and surface nodes
 // Overlapping faces are not cleaned for computational efficiency purposes
-const void TetgenMesh::generate_surf_faces() {
+void TetgenMesh::generate_surf_faces() {
     const int n_elems = elems.size();
     const int max_surf_indx = nodes.indxs.surf_end;
 
@@ -326,7 +326,7 @@ const void TetgenMesh::generate_surf_faces() {
 }
 
 // Separate vacuum and bulk mesh from the union mesh by the element markers
-const bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd) {
+bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd) {
     vector<bool> tet_mask = vector_equal(elems.get_markers(), TYPES.VACUUM);
     vector<bool> hex_mask = vector_greater_equal(hexahedra.get_markers(), 0);
 
@@ -352,7 +352,7 @@ const bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, con
     return vacuum.recalc(cmd) ||  bulk.recalc(cmd);
 }
 
-const bool TetgenMesh::smoothen(double radius, double smooth_factor, double r_cut) {
+bool TetgenMesh::smoothen(double radius, double smooth_factor, double r_cut) {
     const int n_atoms = nodes.size();
 
     // Find atoms in vacuum-bulk boundary
@@ -379,7 +379,7 @@ const bool TetgenMesh::smoothen(double radius, double smooth_factor, double r_cu
 }
 
 // Mark mesh nodes, edges, faces and elements
-const bool TetgenMesh::mark_mesh(const bool postprocess) {
+bool TetgenMesh::mark_mesh(const bool postprocess) {
 //    mark_elems_byrsi();
 //    mark_nodes();
 //    return true;
@@ -412,7 +412,7 @@ const bool TetgenMesh::mark_mesh(const bool postprocess) {
 }
 
 // Force the bulk nodes in vacuum elements to become vacuum nodes
-const bool TetgenMesh::post_process_marking() {
+bool TetgenMesh::post_process_marking() {
     const int n_elems = elems.size();
 
     bool node_changed = true;
@@ -450,7 +450,7 @@ const bool TetgenMesh::post_process_marking() {
  * The technique works perfectly with completely convex surface. The concaves give some false
  * nodes but because of their low spatial density they can be eliminated in post-processor.
  */
-const void TetgenMesh::mark_nodes() {
+void TetgenMesh::mark_nodes() {
     int node, elem, coord;
     const Vec3 ray_direction(0, 0, 1);
     RaySurfaceIntersect rsi(this);
@@ -492,7 +492,7 @@ const void TetgenMesh::mark_nodes() {
 }
 
 // Remark vacuum nodes on simulation cell perimeter
-const void TetgenMesh::remark_perimeter_nodes() {
+void TetgenMesh::remark_perimeter_nodes() {
     const int eps = 0.1;
     const int n_nodes = nodes.size();
 
@@ -515,7 +515,7 @@ const void TetgenMesh::remark_perimeter_nodes() {
 }
 
 // Mark elements by the node markers
-const void TetgenMesh::mark_elems() {
+void TetgenMesh::mark_elems() {
     const int n_elems = elems.size();
 
     elems.init_markers(n_elems);
@@ -551,7 +551,7 @@ const void TetgenMesh::mark_elems() {
     }
 }
 
-const void TetgenMesh::mark_elems_vol2() {
+void TetgenMesh::mark_elems_vol2() {
     const int n_elems = elems.size();
 
     elems.init_markers(n_elems);
@@ -586,7 +586,7 @@ const void TetgenMesh::mark_elems_vol2() {
     }
 }
 
-const void TetgenMesh::mark_elems_byrsi() {
+void TetgenMesh::mark_elems_byrsi() {
     int node, elem, coord;
     const Vec3 ray_direction(0, 0, 1);
     RaySurfaceIntersect rsi(this);
@@ -619,7 +619,7 @@ const void TetgenMesh::mark_elems_byrsi() {
 }
 
 // Remark elements skipping the ones marked as skip_type
-const void TetgenMesh::remark_elems(const int skip_type) {
+void TetgenMesh::remark_elems(const int skip_type) {
     // Loop through all the non-vacuum elements
     for (int elem = 0; elem < elems.size(); ++elem) {
         if (elems.get_marker(elem) == skip_type) continue;
@@ -645,7 +645,7 @@ const void TetgenMesh::remark_elems(const int skip_type) {
 }
 
 // Mark the edges on the simulation cell perimeter by the node markers
-const void TetgenMesh::mark_edges() {
+void TetgenMesh::mark_edges() {
     const int n_edges = edges.size();
     edges.init_markers(n_edges);
 
@@ -662,7 +662,7 @@ const void TetgenMesh::mark_edges() {
 }
 
 // Mark the boundary faces of mesh
-const void TetgenMesh::mark_faces() {
+void TetgenMesh::mark_faces() {
     const int eps = 0.1;
     const int n_faces = faces.size();
 

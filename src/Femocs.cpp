@@ -46,7 +46,7 @@ Femocs::~Femocs() {
 }
 
 // Generate boundary nodes for mesh
-const int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum) {
+int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum) {
     start_msg(t0, "=== Extracting surface...");
     dense_surf.extract(reader, TYPES.SURFACE);
     dense_surf = dense_surf.clean_lonely_atoms(conf.coord_cutoff);
@@ -86,7 +86,7 @@ const int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media
 }
 
 // Generate bulk and vacuum meshes
-const int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
+int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     bool fail;
 
     Media bulk, coarse_surf, vacuum;
@@ -138,7 +138,7 @@ const int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh
 }
 
 // Solve Laplace equation
-const int Femocs::solve_laplace(TetgenMesh& mesh, DealII& solver) {
+int Femocs::solve_laplace(TetgenMesh& mesh, DealII& solver) {
     bool fail;
 
     start_msg(t0, "=== Importing mesh to Laplace solver...");
@@ -171,7 +171,7 @@ const int Femocs::solve_laplace(TetgenMesh& mesh, DealII& solver) {
 }
 
 // Solve Laplace equation
-const int Femocs::solve_laplace(TetgenMesh& mesh, fch::Laplace<3>& solver) {
+int Femocs::solve_laplace(TetgenMesh& mesh, fch::Laplace<3>& solver) {
     bool fail;
 
     start_msg(t0, "=== Importing mesh to Laplace solver...");
@@ -204,7 +204,7 @@ const int Femocs::solve_laplace(TetgenMesh& mesh, fch::Laplace<3>& solver) {
 }
 
 // Solve heat and continuity equations
-const int Femocs::solve_heat(TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) {
+int Femocs::solve_heat(TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) {
     bool fail;
 
     start_msg(t0, "=== Initializing rho & T solver...");
@@ -230,7 +230,7 @@ const int Femocs::solve_heat(TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
 }
 
 // Extract electric potential and electric field from solution
-const int Femocs::extract_laplace(const TetgenMesh& mesh, DealII* solver) {
+int Femocs::extract_laplace(const TetgenMesh& mesh, DealII* solver) {
     start_msg(t0, "=== Extracting E and phi...");
     vacuum_interpolator.extract_solution(solver, mesh, conf.tetnode_weight.elfield, conf.tetnode_weight.potential);
     end_msg(t0);
@@ -240,7 +240,7 @@ const int Femocs::extract_laplace(const TetgenMesh& mesh, DealII* solver) {
 }
 
 // Extract electric potential and electric field from solution
-const int Femocs::extract_laplace(const TetgenMesh& mesh, fch::Laplace<3>* solver) {
+int Femocs::extract_laplace(const TetgenMesh& mesh, fch::Laplace<3>* solver) {
     start_msg(t0, "=== Extracting E and phi...");
     vacuum_interpolator.extract_solution(solver, mesh, conf.tetnode_weight.elfield, conf.tetnode_weight.potential);
     end_msg(t0);
@@ -250,7 +250,7 @@ const int Femocs::extract_laplace(const TetgenMesh& mesh, fch::Laplace<3>* solve
 }
 
 // Extract current density and temperature from solution
-const int Femocs::extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3>* solver) {
+int Femocs::extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3>* solver) {
     start_msg(t0, "=== Extracting T and rho...");
     bulk_interpolator.extract_solution(solver, mesh);
     end_msg(t0);
@@ -267,7 +267,7 @@ const int Femocs::extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3
 }
 
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
-const int Femocs::run(double elfield, string message) {
+int Femocs::run(double elfield, string message) {
     static unsigned int timestep = 0;
     static bool prev_skip_calculations = true;
 
@@ -339,7 +339,7 @@ const int Femocs::run(double elfield, string message) {
 }
 
 // import atoms from file
-const int Femocs::import_atoms(const string& file_name) {
+int Femocs::import_atoms(const string& file_name) {
     string file_type, fname;
 
     if (file_name == "") fname = conf.infile;
@@ -375,7 +375,7 @@ const int Femocs::import_atoms(const string& file_name) {
 }
 
 // import atoms from PARCAS
-const int Femocs::import_atoms(int n_atoms, double* coordinates, double* box, int* nborlist) {
+int Femocs::import_atoms(int n_atoms, double* coordinates, double* box, int* nborlist) {
     start_msg(t0, "=== Importing atoms...");
     reader.import_parcas(n_atoms, coordinates, box);
     end_msg(t0);
@@ -397,7 +397,7 @@ const int Femocs::import_atoms(int n_atoms, double* coordinates, double* box, in
 }
 
 // import coordinates and types of atoms
-const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int* types) {
+int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int* types) {
     start_msg(t0, "=== Importing atoms...");
     reader.import_helmod(n_atoms, x, y, z, types);
     end_msg(t0);
@@ -418,7 +418,7 @@ const int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int
 }
 
 // export the calculated electric field on imported atom coordinates
-const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     check_message(vacuum_interpolator.get_n_atoms() == 0, "No solution to export!");
 
     if (!skip_calculations) {
@@ -437,7 +437,7 @@ const int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez
 }
 
 // linearly interpolate electric field at given points
-const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z,
+int Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     check_message(vacuum_interpolator.get_n_atoms() == 0, "No solution to export!");
 
@@ -455,7 +455,7 @@ const int Femocs::interpolate_elfield(int n_points, double* x, double* y, double
 }
 
 // linearly interpolate electric potential at given points
-const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
+int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
     check_message(vacuum_interpolator.get_n_atoms() == 0, "No solution to export!");
 
     SolutionReader sr(&vacuum_interpolator);
@@ -467,12 +467,12 @@ const int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z,
 }
 
 // parse integer argument of the command from input script
-const int Femocs::parse_command(const string& command, int* arg) {
+int Femocs::parse_command(const string& command, int* arg) {
     return conf.read_command(command, arg[0]);
 }
 
 // parse double argument of the command from input script
-const int Femocs::parse_command(const string& command, double* arg) {
+int Femocs::parse_command(const string& command, double* arg) {
     return conf.read_command(command, arg[0]);
 }
 

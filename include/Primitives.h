@@ -44,7 +44,7 @@ public:
     SimpleCell(const unsigned int &nn) { std::fill_n(node, dim, nn); }
 
     /** Dimensionality of cell */
-    const int size() const { return dim; }
+    int size() const { return dim; }
 
     /** Check if one of the nodes equals to the one of interest */
     bool operator ==(const unsigned int &t) const {
@@ -148,7 +148,7 @@ public:
     }
 
     /** Get i-th edge of the face */
-    const SimpleEdge edge(const unsigned int i) const {
+    SimpleEdge edge(const unsigned int i) const {
         if (i <= 0) return SimpleEdge(node[0], node[1]);
         if (i == 1) return SimpleEdge(node[0], node[2]);
         else        return SimpleEdge(node[1], node[2]);
@@ -173,7 +173,7 @@ public:
     }
 
     /** Get i-th edge of the element */
-    const SimpleEdge edge(const unsigned int i) const {
+    SimpleEdge edge(const unsigned int i) const {
         if (i <= 0) return SimpleEdge(node[0], node[1]);
         if (i == 1) return SimpleEdge(node[0], node[2]);
         if (i == 2) return SimpleEdge(node[0], node[3]);
@@ -183,7 +183,7 @@ public:
     }
 
     /** Get i-th face of the element */
-    const SimpleFace face(const unsigned int i) const {
+    SimpleFace face(const unsigned int i) const {
         if (i <= 0) return SimpleFace(node[0], node[1], node[2]);
         if (i == 1) return SimpleFace(node[0], node[1], node[3]);
         if (i == 2) return SimpleFace(node[1], node[2], node[3]);
@@ -216,17 +216,17 @@ public:
     Point2(const double xx, const double yy) : x(xx), y(yy) {}
 
     /** Dimensionality of point */
-    const int size() const { return 2; }
+    int size() const { return 2; }
 
     /** Squared distance between two points; it's a bit faster than distance */
-    const double distance2(const Point2 &p) const {
+    double distance2(const Point2 &p) const {
         const double xx = x - p.x;
         const double yy = y - p.y;
         return xx * xx + yy * yy;
     }
 
     /** Distance between two points */
-    const double distance(const Point2 &p) const { return sqrt(distance2(p)); }
+    double distance(const Point2 &p) const { return sqrt(distance2(p)); }
 
     /** Subtraction of two points */
     Point2 operator -(const Point2 &p) const {
@@ -234,7 +234,7 @@ public:
     }
 
     /** Comparison operators between two points */
-    const bool operator ==(const Point2 &p) const { return x == p.x && y == p.y; }
+    bool operator ==(const Point2 &p) const { return x == p.x && y == p.y; }
 
     /** Accessor for accessing the i-th coordinate */
     const double& operator [](size_t i) const { return (&x)[i]; }
@@ -265,10 +265,10 @@ public:
     Point3(const Point3& p) : x(p.x), y(p.y), z(p.z) {}
 
     /** Dimensionality of point */
-    const int size() const { return 3; }
+    int size() const { return 3; }
 
     /** Squared distance between two Point3-s */
-    const double distance2(const Point3 &p) const {
+    double distance2(const Point3 &p) const {
         double xx = x - p.x;
         double yy = y - p.y;
         double zz = z - p.z;
@@ -276,10 +276,10 @@ public:
     }
 
     /** Distance between two Point3-s */
-    const double distance(const Point3 &p) const { return sqrt(distance2(p)); }
+    double distance(const Point3 &p) const { return sqrt(distance2(p)); }
 
     /** Squared distance between a Point3 and dealii::Point<3> */
-    const double distance2(const dealii::Point<3> &p) const {
+    double distance2(const dealii::Point<3> &p) const {
         double xx = x - p[0];
         double yy = y - p[1];
         double zz = z - p[2];
@@ -287,11 +287,11 @@ public:
     }
 
     /** Distance between a Point3 and dealii::SimpleCell_T<3> */
-    const double distance(const dealii::Point<3> &p) const { return sqrt(distance2(p)); }
+    double distance(const dealii::Point<3> &p) const { return sqrt(distance2(p)); }
 
     /** Squared distance between two Point3-s taking into account the simulation cell periodicity.
      * Period == 0 in some direction gives the result without periodicity in that direction. */
-    const double periodic_distance2(const Point3 &p, const double period_x = 0,
+    double periodic_distance2(const Point3 &p, const double period_x = 0,
             const double period_y = 0, const double period_z = 0) const {
 
         double dx = fabs(x - p.x);
@@ -326,8 +326,8 @@ public:
     Point3& operator /=(const double &r) { x /= r, y /= r, z /= r; return *this; }
 
     /** Comparison operators between two 3D points */
-    const bool operator ==(const Point3 &p) const { return x == p.x && y == p.y && z == p.z; }
-    const bool operator ==(const dealii::Point<3> &p) const {
+    bool operator ==(const Point3 &p) const { return x == p.x && y == p.y && z == p.z; }
+    bool operator ==(const dealii::Point<3> &p) const {
         return x == p[0] && y == p[1] && z == p[2];
     }
 
@@ -360,10 +360,10 @@ public:
     Vec3(const Point3 &p) : x(p.x), y(p.y), z(p.z) {}
 
     /** Dimensionality of vector */
-    const int size() const { return 3; }
+    int size() const { return 3; }
 
     /** Compare one vector with another */
-    const bool operator ==(const Vec3 &v) const { return x == v.x && y == v.y && z == v.z; }
+    bool operator ==(const Vec3 &v) const { return x == v.x && y == v.y && z == v.z; }
 
     /** Addition of two vectors */
     Vec3 operator +(const Vec3 &v) const { return Vec3(x + v.x, y + v.y, z + v.z); }
@@ -435,7 +435,7 @@ public:
     Vec4(const Point3 &p, const double ww) : x(p.x), y(p.y), z(p.z), w(ww) {}
 
     /** Dimensionality of vector */
-    const int size() const { return 4; }
+    int size() const { return 4; }
 
     /** Define equality of two vectors */
     bool operator ==(const Vec4 &v) const { return x == v.x && y == v.y && z == v.z && w == v.w; }
@@ -500,7 +500,7 @@ public:
     Atom(const int i, const Point3 &p, const int c) : id(i), point(p.x, p.y, p.z), marker(c) {}
 
     /** Comparison operator between two Atom-s */
-    const bool operator ==(const Atom &a) const {
+    bool operator ==(const Atom &a) const {
         return id == a.id && point == a.point && marker == a.marker;
     }
 

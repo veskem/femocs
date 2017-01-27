@@ -23,7 +23,7 @@ SolutionReader::SolutionReader(LinearInterpolator* ip) : interpolator(ip) {
 }
 
 // Linearly interpolate solution on Medium atoms
-const void SolutionReader::interpolate(const Medium &medium, double r_cut, int component, bool srt) {
+void SolutionReader::interpolate(const Medium &medium, double r_cut, int component, bool srt) {
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
     require(interpolator, "NULL interpolator cannot be used!");
 
@@ -69,7 +69,7 @@ const void SolutionReader::interpolate(const Medium &medium, double r_cut, int c
 }
 
 // Linearly interpolate electric field on a set of points
-const void SolutionReader::interpolate(int n_points, double* x, double* y, double* z, double r_cut, int component, bool sort) {
+void SolutionReader::interpolate(int n_points, double* x, double* y, double* z, double r_cut, int component, bool sort) {
     Medium medium(n_points);
     for (int i = 0; i < n_points; ++i)
         medium.add_atom(Point3(x[i], y[i], z[i]));
@@ -79,7 +79,7 @@ const void SolutionReader::interpolate(int n_points, double* x, double* y, doubl
 }
 
 // Linearly interpolate electric field on a set of points
-const void SolutionReader::export_elfield(int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
+void SolutionReader::export_elfield(int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     require(n_points == get_n_atoms(), "Invalid array size: " + to_string(n_points));
 
     for (int i = 0; i < n_points; ++i) {
@@ -92,7 +92,7 @@ const void SolutionReader::export_elfield(int n_points, double* Ex, double* Ey, 
 }
 
 // Linearly interpolate electric potential on a set of points
-const void SolutionReader::export_potential(int n_points, double* phi, int* flag) {
+void SolutionReader::export_potential(int n_points, double* phi, int* flag) {
     require(n_points == get_n_atoms(), "Invalid array size: " + to_string(n_points));
 
     for (int i = 0; i < n_points; ++i) {
@@ -102,7 +102,7 @@ const void SolutionReader::export_potential(int n_points, double* phi, int* flag
 }
 
 // Export interpolated electric field
-const void SolutionReader::export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+void SolutionReader::export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     // Initially pass the zero electric field for all the atoms
     for (int i = 0; i < n_atoms; ++i) {
         Ex[i] = 0;
@@ -124,7 +124,7 @@ const void SolutionReader::export_solution(int n_atoms, double* Ex, double* Ey, 
 }
 
 // Get average electric field around I-th solution point
-const Solution SolutionReader::get_average_solution(const int I, const double r_cut) {
+Solution SolutionReader::get_average_solution(const int I, const double r_cut) {
     // Cut off weights after 5 sigma
     const double r_cut2 = pow(5 * r_cut, 2);
     const double smooth_factor = r_cut / 5.0;
@@ -152,7 +152,7 @@ const Solution SolutionReader::get_average_solution(const int I, const double r_
 }
 
 // Get histogram for electric field x,y,z component or for its norm
-const void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate) {
+void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate) {
     require(coordinate >= 0 && coordinate <= 4, "Invalid component: " + to_string(coordinate));
 
     const int n_atoms = get_n_atoms();
@@ -196,7 +196,7 @@ const void SolutionReader::get_histogram(vector<int> &bins, vector<double> &boun
 }
 
 // Clean the interpolation from peaks using histogram cleaner
-const void SolutionReader::clean(const int coordinate, const double r_cut) {
+void SolutionReader::clean(const int coordinate, const double r_cut) {
     require(coordinate >= 0 && coordinate <= 4, "Invalid coordinate: " + to_string(coordinate));
     const int n_bins = (int) get_n_atoms() / 250;
 
@@ -249,7 +249,7 @@ const void SolutionReader::clean(const int coordinate, const double r_cut) {
 }
 
 // Reserve memory for solution vectors
-const void SolutionReader::reserve(const int n_nodes) {
+void SolutionReader::reserve(const int n_nodes) {
     require(n_nodes >= 0, "Invalid number of nodes: " + to_string(n_nodes));
 
     atoms.clear();
@@ -260,7 +260,7 @@ const void SolutionReader::reserve(const int n_nodes) {
 }
 
 // Compile data string from the data vectors for file output
-const string SolutionReader::get_data_string(const int i) const{
+string SolutionReader::get_data_string(const int i) const{
     if (i < 0) return "SolutionReader properties=id:R:1:pos:R:3:out_of_mesh:R:1:force:R:3:enorm:R:1:potential:R:1";
 
     ostringstream strs;
@@ -268,7 +268,7 @@ const string SolutionReader::get_data_string(const int i) const{
     return strs.str();
 }
 
-const void SolutionReader::get_point_data(ofstream& out) const {
+void SolutionReader::get_point_data(ofstream& out) const {
     const int n_atoms = get_n_atoms();
 
     // output scalar (electric potential, temperature etc)

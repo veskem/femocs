@@ -38,7 +38,7 @@ public:
      * @param message   message from the host: time step, file name etc
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
-    const int run(double elfield, string message);
+    int run(double elfield, string message);
 
     /** Function to import atoms from PARCAS
      * @param n_atoms       number of imported atoms
@@ -48,7 +48,7 @@ public:
      * @return              0 - import succeeded and current run differs from previous one, whole field calculation will be performed;
      *                      1 - import failed or current run is similar to the previous one, field calculation will be skipped
      */
-    const int import_atoms(int n_atoms, double* coordinates, double* box, int* nborlist);
+    int import_atoms(int n_atoms, double* coordinates, double* box, int* nborlist);
 
     /** Function to import coordinates and types of atoms
      * @param n_atoms   number of imported atoms
@@ -59,13 +59,13 @@ public:
      * @return          0 - import succeeded and current run differs from previous one, whole field calculation will be performed;
      *                  1 - import failed or current run is similar to the previous one, field calculation will be skipped
      */
-    const int import_atoms(int n_atoms, double* x, double* y, double* z, int* types);
+    int import_atoms(int n_atoms, double* x, double* y, double* z, int* types);
 
     /** Function to import atoms from file
      * @param file_name path to the file
      * @return          0 - import succeeded, 1 - import failed
      */
-    const int import_atoms(const string& file_name);
+    int import_atoms(const string& file_name);
     
     /** Function to export the calculated electric field on imported atom coordinates
      * @param n_atoms   number of points where electric field was calculted
@@ -75,7 +75,7 @@ public:
      * @param Enorm     norm of electric field
      * @return          0 - function used solution from current run; 1 - function used solution from previous run
      */
-    const int export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
+    int export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
     
     /** Function to linearly interpolate electric field at given points
      * @param n_points  number of points where electric field is interpolated
@@ -89,7 +89,7 @@ public:
      * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
      * @return          0 - function used solution from current run; 1 - function used solution from previous run
      */
-    const int interpolate_elfield(int n_points, double* x, double* y, double* z,
+    int interpolate_elfield(int n_points, double* x, double* y, double* z,
             double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 
     /** Function to linearly interpolate electric potential at given points
@@ -101,7 +101,7 @@ public:
      * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
      * @return          0 - function used solution from current run; 1 - function used solution from previous run
      */
-    const int interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag);
+    int interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag);
 
     /**
      * Function to parse integer argument of the command from input script
@@ -109,7 +109,7 @@ public:
      * @param arg       parsed argument
      * @return          0 - command was found and arg was modified; 1 - command was not found and arg was not modified
      */
-    const int parse_command(const string& command, int* arg);
+    int parse_command(const string& command, int* arg);
 
     /**
      * Function to parse double argument of the command from input script
@@ -117,7 +117,7 @@ public:
      * @param arg       parsed argument
      * @return          0 - command was found and arg was modified; 1 - command was not found and arg was not modified
      */
-    const int parse_command(const string& command, double* arg);
+    int parse_command(const string& command, double* arg);
 
 private:
     double t0;
@@ -139,24 +139,24 @@ private:
     fch::CurrentsAndHeating<3>* prev_ch_solver;
     
     /** Generate boundary nodes for mesh */
-    const int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);
+    int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);
 
     /** Generate bulk and vacuum meshes */
-    const int generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh);
+    int generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh);
 
     /** Solve Laplace equation */
-    const int solve_laplace(TetgenMesh& mesh, fch::Laplace<3>& solver);
-    const int solve_laplace(TetgenMesh& mesh, DealII& solver);
+    int solve_laplace(TetgenMesh& mesh, fch::Laplace<3>& solver);
+    int solve_laplace(TetgenMesh& mesh, DealII& solver);
 
     /** Solve heat and continuity equations */
-    const int solve_heat(TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
+    int solve_heat(TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
 
     /** Extract electric potential and electric field from solution */
-    const int extract_laplace(const TetgenMesh& mesh, fch::Laplace<3>* solver);
-    const int extract_laplace(const TetgenMesh& mesh, DealII* solver);
+    int extract_laplace(const TetgenMesh& mesh, fch::Laplace<3>* solver);
+    int extract_laplace(const TetgenMesh& mesh, DealII* solver);
 
     /** Extract current density and temperature from solution */
-    const int extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3>* solver);
+    int extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3>* solver);
 };
 
 } /* namespace femocs */

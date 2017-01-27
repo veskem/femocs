@@ -29,12 +29,12 @@ DealII::DealII() :
         fe(POLY_DEGREE), dof_handler(triangulation), neumann(0) {}
 
 // Specify the Neumann boundary condition value
-const void DealII::set_applied_efield(const double elfield) {
+void DealII::set_applied_efield(const double elfield) {
     this->neumann = elfield;
 }
 
 // Import mesh from file
-const bool DealII::import_mesh(const string &file_name) {
+bool DealII::import_mesh(const string &file_name) {
     const string file_type = get_file_type(file_name);
     require(file_type == "vtk" || file_type == "msh", "Unknown file type: " + file_type);
 
@@ -52,7 +52,7 @@ const bool DealII::import_mesh(const string &file_name) {
 
 // Import vertices and hexahedra and ignore quadrangles
 // It's preferred function because Deal.II makes the faces together with all the other stuff it needs itself anyways
-const bool DealII::import_mesh(vector<Point<DIM>> vertices, vector<CellData<DIM>> cells) {
+bool DealII::import_mesh(vector<Point<DIM>> vertices, vector<CellData<DIM>> cells) {
     try {
         SubCellData subcelldata;               // empty array for faces
         // Do some clean-up on vertices...
@@ -69,7 +69,7 @@ const bool DealII::import_mesh(vector<Point<DIM>> vertices, vector<CellData<DIM>
 }
 
 // Make mesh 4x denser around origin
-const void DealII::refine_mesh(const Point<DIM> &origin, const double radius) {
+void DealII::refine_mesh(const Point<DIM> &origin, const double radius) {
 
     typename Triangulation<DIM>::active_cell_iterator cell;
     for (cell = triangulation.begin_active(); cell != triangulation.end(); ++cell)
@@ -79,7 +79,7 @@ const void DealII::refine_mesh(const Point<DIM> &origin, const double radius) {
 }
 
 // Mark the boundary faces of mesh
-const void DealII::mark_boundary_faces(const Medium::Sizes& sizes) {
+void DealII::mark_boundary_faces(const Medium::Sizes& sizes) {
     const double eps = 0.1;
     typename Triangulation<DIM>::active_face_iterator face;
 
@@ -106,7 +106,7 @@ DoFHandler<DIM>* DealII::get_dof_handler() {
 }
 
 // Mark boundary faces, distribute degrees of freedom and initialise data
-const void DealII::setup_system(const Medium::Sizes& sizes) {
+void DealII::setup_system(const Medium::Sizes& sizes) {
     mark_boundary_faces(sizes);
 
     dof_handler.distribute_dofs(fe);
@@ -121,7 +121,7 @@ const void DealII::setup_system(const Medium::Sizes& sizes) {
 }
 
 // Insert boundary conditions to the system
-const void DealII::assemble_system() {
+void DealII::assemble_system() {
     // Set up quadrature system for quads and faces
     const QGauss<DIM> quadrature_formula(2);
     const QGauss<DIM - 1> face_quadrature_formula(2);
@@ -203,7 +203,7 @@ const void DealII::assemble_system() {
 }
 
 // Run the calculation with Conjugate Gradient solver
-const void DealII::solve_cg() {
+void DealII::solve_cg() {
     const int n_steps = 10000;      // max number of iterations
     const double tolerance = 1e-9;  // solver tolerance
     SolverControl solver_control(n_steps, tolerance);
@@ -212,20 +212,20 @@ const void DealII::solve_cg() {
 }
 
 // Run the calculation with UMFPACK solver
-const void DealII::solve_umfpack() {
+void DealII::solve_umfpack() {
     SparseDirectUMFPACK A_direct;
     A_direct.initialize(system_matrix);
     A_direct.vmult(laplace_solution, system_rhs);
 }
 
 // Calculate electric field at arbitrary point inside the mesh
-const Vec3 DealII::get_efield(const double x, const double y, const double z) {
+Vec3 DealII::get_efield(const double x, const double y, const double z) {
     Tensor<1, DIM> ef = -1.0 * VectorTools::point_gradient(dof_handler, laplace_solution, Point<DIM>(x, y, z));
     return Vec3(ef[0], ef[1], ef[2]);
 }
 
 // Calculate electric field at a set of mesh nodes
-const vector<Tensor<1, DIM>> DealII::get_efield(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
+vector<Tensor<1, DIM>> DealII::get_efield(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
     const int n_cells = cell_indxs.size();
     // Initialise potentials with a value that is immediately visible if it's not changed to proper one
     vector<Tensor<1, DIM>> elfields(n_cells);
@@ -257,12 +257,12 @@ const vector<Tensor<1, DIM>> DealII::get_efield(const vector<int> &cell_indxs, c
 }
 
 // Calculate potential at arbitrary point inside the mesh
-const double DealII::get_potential(const double x, const double y, const double z) {
+double DealII::get_potential(const double x, const double y, const double z) {
     return VectorTools::point_value(dof_handler, laplace_solution, Point<DIM>(x, y, z));
 }
 
 // Get potential at a set of mesh nodes
-const vector<double> DealII::get_potential(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
+vector<double> DealII::get_potential(const vector<int> &cell_indxs, const vector<int> &vert_indxs) {
     const int n_cells = cell_indxs.size();
 
     // Initialise potentials with a value that is immediately visible if it's not changed to proper one
@@ -288,7 +288,7 @@ const vector<double> DealII::get_potential(const vector<int> &cell_indxs, const 
 }
 
 // Write the potential and electric field to the file
-const void DealII::write(const string &file_name) {
+void DealII::write(const string &file_name) {
     if (!MODES.WRITEFILE) return;
 
     string ftype = get_file_type(file_name);
@@ -309,7 +309,7 @@ const void DealII::write(const string &file_name) {
 }
 
 // Write the mesh to the file
-const void DealII::write_mesh(const string &file_name) {
+void DealII::write_mesh(const string &file_name) {
     if (!MODES.WRITEFILE) return;
 
     string ftype = get_file_type(file_name);

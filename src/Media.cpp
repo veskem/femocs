@@ -21,7 +21,7 @@ Media::Media(const Medium::Sizes& ar_sizes, const double z) {
 }
 
 // Generate Surface with 4 atoms at the corners and 4 at the middle edges of simulation cell
-const void Media::generate_simple(const Medium::Sizes& ar_sizes, const double z) {
+void Media::generate_simple(const Medium::Sizes& ar_sizes, const double z) {
     // Reserve memory for atoms
     reserve(4);
 
@@ -36,7 +36,7 @@ const void Media::generate_simple(const Medium::Sizes& ar_sizes, const double z)
 }
 
 // Generate edge with regular atom distribution between surface corners
-const void Media::generate_middle(const Medium::Sizes& s, const double z, const double dist) {
+void Media::generate_middle(const Medium::Sizes& s, const double z, const double dist) {
     require(dist > 0, "Invalid dist between atoms: " + to_string(dist));
     const int n_atoms_per_side_x = s.xbox / dist + 1;
     const int n_atoms_per_side_y = s.ybox / dist + 1;
@@ -60,7 +60,7 @@ const void Media::generate_middle(const Medium::Sizes& s, const double z, const 
 }
 
 // Extract surface by the atom types
-const void Media::extract(const AtomReader& reader, const int type, const bool invert) {
+void Media::extract(const AtomReader& reader, const int type, const bool invert) {
     const int n_atoms = reader.get_n_atoms();
     vector<bool> is_type(n_atoms);
 
@@ -84,7 +84,7 @@ const void Media::extract(const AtomReader& reader, const int type, const bool i
 }
 
 // Function extend the flat area by generating additional atoms
-const Media Media::stretch(const double latconst, const double box_width, const double zmean) {
+Media Media::stretch(const double latconst, const double box_width, const double zmean) {
     const int n_atoms = get_n_atoms();
 
     calc_statistics();
@@ -115,7 +115,7 @@ const Media Media::stretch(const double latconst, const double box_width, const 
 }
 
 // Function to coarsen the atoms with coarsener
-const Media Media::coarsen(Coarseners &coarseners) {
+Media Media::coarsen(Coarseners &coarseners) {
     Media corners, middle, union_surf;
 
     calc_statistics();
@@ -131,7 +131,7 @@ const Media Media::coarsen(Coarseners &coarseners) {
 }
 
 // Function to flatten the atoms on the sides of simulation box
-const Media Media::rectangularize(const AtomReader::Sizes& ar_sizes, const double eps, const double latconst) {
+Media Media::rectangularize(const AtomReader::Sizes& ar_sizes, const double eps, const double latconst) {
     Coarseners coarseners;
     coarseners.attach_coarsener(make_shared<ConstCoarsener>(latconst / 3.0));
 
@@ -146,7 +146,7 @@ const Media Media::rectangularize(const AtomReader::Sizes& ar_sizes, const doubl
 }
 
 // Clean the surface from atoms that are too close to each other
-const Media Media::clean(Coarseners &coarseners) {
+Media Media::clean(Coarseners &coarseners) {
     const int n_atoms = get_n_atoms();
     vector<bool> do_delete(n_atoms, false);
 
@@ -177,7 +177,7 @@ const Media Media::clean(Coarseners &coarseners) {
 
 // Function to delete atoms that are separate from others
 // Atom is considered lonely if its coordination is lower than coord_min
-const Media Media::clean_lonely_atoms(const double r_cut) {
+Media Media::clean_lonely_atoms(const double r_cut) {
     const double r_cut2 = r_cut * r_cut;
     const int n_atoms = get_n_atoms();
     const int coord_min = 2;
@@ -218,14 +218,14 @@ inline double Media::smooth_function(double distance, double smooth_factor) cons
     return a * exp(-1.0 * distance / smooth_factor);
 }
 
-const void Media::smoothen(double radius, double smooth_factor, double r_cut) {
+void Media::smoothen(double radius, double smooth_factor, double r_cut) {
     // Calculate the horizontal span of the surface
     calc_statistics();
     Point2 origin2d(sizes.xmid, sizes.ymid);
     smoothen(origin2d, radius, smooth_factor, r_cut);
 }
 
-const void Media::smoothen(const Point2 &origin, double radius, double smooth_factor, double r_cut) {
+void Media::smoothen(const Point2 &origin, double radius, double smooth_factor, double r_cut) {
     if (smooth_factor < 0.01) return;
 
     const int n_atoms = get_n_atoms();
@@ -254,7 +254,7 @@ const void Media::smoothen(const Point2 &origin, double radius, double smooth_fa
             set_point(i, temp_surf.get_point(j++));
 }
 
-const void Media::smoothen(double smooth_factor, double r_cut) {
+void Media::smoothen(double smooth_factor, double r_cut) {
     const double r_cut2 = r_cut * r_cut;
     const int n_atoms = get_n_atoms();
 
@@ -296,7 +296,7 @@ const void Media::smoothen(double smooth_factor, double r_cut) {
 Edge::Edge() : Medium() {};
 
 // Exctract the atoms near the simulation box sides
-const void Edge::extract(const Medium* atoms, const AtomReader::Sizes& ar_sizes, const double eps) {
+void Edge::extract(const Medium* atoms, const AtomReader::Sizes& ar_sizes, const double eps) {
     const int n_atoms = atoms->get_n_atoms();
 
     // Reserve memory for atoms

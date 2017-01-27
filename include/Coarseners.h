@@ -20,7 +20,7 @@ namespace femocs {
 class Coarsener {
 public:
     Coarsener();
-    Coarsener(const Point3 &origin, double radius, double A, double r0_min=0, double r0_max=1e20);
+    Coarsener(const Point3 &origin, const double radius, const double A, const double r0_min=0, const double r0_max=1e20);
 
     virtual ~Coarsener() {};
 
@@ -84,7 +84,7 @@ protected:
 class ConstCoarsener: public Coarsener {
 public:
     ConstCoarsener();
-    ConstCoarsener(double r0_min);
+    ConstCoarsener(const double r0_min);
 
 private:
     /** Point in anywhere? */
@@ -95,7 +95,7 @@ private:
 class FlatlandCoarsener: public Coarsener {
 public:
     FlatlandCoarsener();
-    FlatlandCoarsener(const Point3 &origin, double radius, double A, double r0_min=0, double r0_max=1e20);
+    FlatlandCoarsener(const Point3 &origin, const double radius, const double A, const double r0_min=0, const double r0_max=1e20);
 
     /** Points OUTSIDE the region will be coarsened */
     void pick_cutoff(const Point3 &point) {
@@ -118,7 +118,7 @@ private:
 class CylinderCoarsener: public Coarsener {
 public:
     CylinderCoarsener();
-    CylinderCoarsener(const Point2 &base, double radius, double r0_cylinder=0);
+    CylinderCoarsener(const Point2 &base, const double radius, const double r0_cylinder=0);
 
     /** Points INSIDE the nanotip will be coarsened */
     void pick_cutoff(const Point3 &point) {
@@ -149,7 +149,7 @@ private:
 class NanotipCoarsener: public Coarsener {
 public:
     NanotipCoarsener();
-    NanotipCoarsener(const Point3 &apex, double radius, double A, double r0_apex, double r0_cylinder);
+    NanotipCoarsener(const Point3 &apex, const double radius, const double A, const double r0_apex, const double r0_cylinder);
 
     /** Points INSIDE the nanotip will be coarsened */
     void pick_cutoff(const Point3 &point) {
@@ -180,7 +180,8 @@ private:
 class TiltedNanotipCoarsener: public NanotipCoarsener {
 public:
     TiltedNanotipCoarsener();
-    TiltedNanotipCoarsener(const Point3 &apex, const Point3 &base, double radius, double A, double r0_apex, double r0_cylinder);
+    TiltedNanotipCoarsener(const Point3 &apex, const Point3 &base, const double radius, const double A,
+            const double r0_apex, const double r0_cylinder);
 
 private:
     const int n_circles = 4;

@@ -23,7 +23,7 @@ public:
     Edge();
 
     /** Extract the atoms near the simulation box sides */
-    const void extract(const Medium* atoms, const AtomReader::Sizes& ar_sizes, const double eps);
+    void extract(const Medium* atoms, const AtomReader::Sizes& ar_sizes, const double eps);
 };
 
 /** Routines and data related to making a Surface */
@@ -38,36 +38,36 @@ public:
     /** Generate simple Media with 4 atoms on simubox edges */
     Media(const Medium::Sizes& ar_sizes, const double z);
 
-    const void generate_simple(const Medium::Sizes& ar_sizes, const double z);
+    void generate_simple(const Medium::Sizes& ar_sizes, const double z);
 
-    const void generate_middle(const Medium::Sizes& ar_sizes, const double z, const double dist);
+    void generate_middle(const Medium::Sizes& ar_sizes, const double z, const double dist);
 
     /** Extract atom with desired types
      * @param reader  AtomReader holding the atoms and their types
      * @param type    type of the atoms that will be read
      * @param invert  if true all the atoms except the 'type'-ones will be stored
      */
-    const void extract(const AtomReader& reader, const int type, const bool invert=false);
+    void extract(const AtomReader& reader, const int type, const bool invert=false);
 
-    const Media coarsen(Coarseners &coarseners);
+    Media coarsen(Coarseners &coarseners);
 
-    const Media stretch(const double latconst, const double box_width, const double zmean);
+    Media stretch(const double latconst, const double box_width, const double zmean);
     
     /** Function to flatten the atoms on the sides of simulation box */
-    const Media rectangularize(const AtomReader::Sizes& ar_sizes, const double eps, const double latconst);
+    Media rectangularize(const AtomReader::Sizes& ar_sizes, const double eps, const double latconst);
 
-    const Media clean(Coarseners &coarseners);
+    Media clean(Coarseners &coarseners);
 
-    const Media clean_lonely_atoms(const double r_cut);
+    Media clean_lonely_atoms(const double r_cut);
 
-    const void smoothen(double radius, double smooth_factor, double r_cut);
+    void smoothen(double radius, double smooth_factor, double r_cut);
 
-    const void smoothen(const Point2 &origin, double radius, double smooth_factor, double r_cut);
+    void smoothen(const Point2 &origin, double radius, double smooth_factor, double r_cut);
 
 private:
     inline double smooth_function(double distance, double smooth_factor) const;
 
-    const void smoothen(double smooth_factor, double r_cut);
+    void smoothen(double smooth_factor, double r_cut);
 };
 
 } /* namespace femocs */

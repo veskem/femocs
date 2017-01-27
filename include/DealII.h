@@ -50,25 +50,25 @@ public:
     DealII();
 
     /** Specify the Neumann boundary condition value */
-    const void set_applied_efield(const double neumann);
+    void set_applied_efield(const double neumann);
 
     /** Import mesh from file */
-    const bool import_mesh(const string &file_name);
+    bool import_mesh(const string &file_name);
 
     /** Import vertices and hexahedra into Deal.II */
-    const bool import_mesh(vector<Point<DIM>> vertices, vector<CellData<DIM>> cells);
+    bool import_mesh(vector<Point<DIM>> vertices, vector<CellData<DIM>> cells);
 
     /** Make mesh 4x denser in the sphere */
-    const void refine_mesh(const Point<DIM> &origin, const double radius);
+    void refine_mesh(const Point<DIM> &origin, const double radius);
 
     /** Write the calculated electric potential and electric field to file */
-    const void write(const string &file_name);
+    void write(const string &file_name);
 
     /** Write the mesh to file */
-    const void write_mesh(const string &file_name);
+    void write_mesh(const string &file_name);
 
     /** Mark boundary faces, distribute degrees of freedom  and initialise data */
-    const void setup_system(const Medium::Sizes& sizes);
+    void setup_system(const Medium::Sizes& sizes);
 
 
     Triangulation<DIM>* get_triangulation();
@@ -77,31 +77,31 @@ public:
 
 
     /** Insert boundary conditions to the system */
-    const void assemble_system();
+    void assemble_system();
 
     /** Run the calculation with UMFPACK solver */
-    const void solve_umfpack();
+    void solve_umfpack();
 
     /** Run the calculation with Conjugate Gradient solver */
-    const void solve_cg();
+    void solve_cg();
 
     /** Calculate electric potential at an arbitrary point inside the mesh.
      * Point outside the mesh gives an error. */
-    const double get_potential(const double x, const double y, const double z);
+    double get_potential(const double x, const double y, const double z);
 
     /** Calculate electric potential at a set of mesh nodes
      * * @param cell_indxs - indices of elements where the node is located
      * @param vert_indxs - indices of vertices of the element where the node is located */
-    const vector<double> get_potential(const vector<int> &cell_indxs, const vector<int> &vert_indxs);
+    vector<double> get_potential(const vector<int> &cell_indxs, const vector<int> &vert_indxs);
 
     /** Calculate electric field at an arbitrary point inside the mesh.
      * Point outside the mesh gives an error. */
-    const Vec3 get_efield(const double x, const double y, const double z);
+    Vec3 get_efield(const double x, const double y, const double z);
 
     /** Calculate electric field at a set of mesh nodes
      * @param cell_indxs - indices of elements where the node is located
      * @param vert_indxs - indices of vertices of the element where the node is located */
-    const vector<Tensor<1, DIM>> get_efield(const vector<int> &cell_indxs, const vector<int> &vert_indxs);
+    vector<Tensor<1, DIM>> get_efield(const vector<int> &cell_indxs, const vector<int> &vert_indxs);
 
     /** string stream prints the statistics about the system */
     friend std::ostream& operator <<(std::ostream &os, const DealII& d) {
@@ -129,7 +129,7 @@ private:
     Vector<double> system_rhs;
     
     /** Mark the boundary faces of the mesh */
-    const void mark_boundary_faces(const Medium::Sizes& sizes);
+    void mark_boundary_faces(const Medium::Sizes& sizes);
 };
 
 } /* namespace femocs */

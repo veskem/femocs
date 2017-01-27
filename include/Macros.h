@@ -81,40 +81,40 @@ struct Modes {
 #define end_msg(t0) if (MODES.VERBOSE) __end_msg(t0);
 
 /** Return mask of indices that are equal to the scalar */
-const vector<bool> vector_equal(const vector<int> *v, const int s);
+vector<bool> vector_equal(const vector<int> *v, const int s);
 
 /** Return mask of indices that are not equal to the scalar */
-const vector<bool> vector_not(const vector<int> *v, const int s);
+vector<bool> vector_not(const vector<int> *v, const int s);
 
 /** Return mask of indices that are greater than the scalar */
-const vector<bool> vector_greater(const vector<double> *v, const double s);
+vector<bool> vector_greater(const vector<double> *v, const double s);
 
 /** Return mask of indices that are greater or equal than the scalar */
-const vector<bool> vector_greater_equal(const vector<double> *v, const double s);
-const vector<bool> vector_greater_equal(const vector<int> *v, const int s);
+vector<bool> vector_greater_equal(const vector<double> *v, const double s);
+vector<bool> vector_greater_equal(const vector<int> *v, const int s);
 
 /** Return mask of indices that are less than the scalar */
-const vector<bool> vector_less(const vector<double> *v, const double s);
+vector<bool> vector_less(const vector<double> *v, const double s);
 
 /** Return mask of indices that are less or equal than the scalar */
-const vector<bool> vector_less_equal(const vector<double> *v, const double s);
+vector<bool> vector_less_equal(const vector<double> *v, const double s);
 
 /** Return sorting indexes for one vector */
 vector<int> get_sort_indices(const vector<int> &v, const string& direction = "up");
 
 /** Sum of the elements in vector */
-const int vector_sum(const vector<bool> &v);
-const int vector_sum(const vector<int> &v);
-const double vector_sum(const vector<double> &v);
+int vector_sum(const vector<bool> &v);
+int vector_sum(const vector<int> &v);
+double vector_sum(const vector<double> &v);
 
 /** Determine whether the value is close to one of the boundary values or not */
-const bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps);
+bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps);
 
 /** Determine whether the value is close to the boundary value or not */
-const bool on_boundary(const double val, const double boundary, const double eps);
+bool on_boundary(const double val, const double boundary, const double eps);
 
 /** Extract file type from file name */
-const string get_file_type(const string& file_name);
+string get_file_type(const string& file_name);
 
 /** Throw an informative error if requirement fails */
 void __requirement_fails(const char *file, int line, string message);
@@ -122,8 +122,8 @@ void __requirement_fails(const char *file, int line, string message);
 /** Throw an informative warning if expectation fails */
 void __expectation_fails(const char *file, int line, string message);
 
-const double __start_msg(const char* message);
+double __start_msg(const char* message);
 
-const void __end_msg(const double t0);
+void __end_msg(const double t0);
 
 #endif /* MACROS_H_ */

@@ -26,44 +26,44 @@ public:
     ~TetgenMesh() {}
 
     /** Function to generate simple mesh that consists of one element */
-    const bool generate_simple();
+    bool generate_simple();
 
     /** Function to generate mesh from surface, bulk and vacuum atoms */
-    const bool generate(const Media& bulk, const Media& surf, const Media& vacuum, const string& cmd);
+    bool generate(const Media& bulk, const Media& surf, const Media& vacuum, const string& cmd);
 
     /** Separate tetrahedra into hexahedra by adding node to the centroid of the
      * tetrahedron edges, nodes and tetrahedron itself */
-    const bool generate_hexahedra();
+    bool generate_hexahedra();
 
     /** Generate additional data that is needed to mark mesh */
-    const bool generate_appendices();
+    bool generate_appendices();
 
     /** Mark mesh nodes and elements by their location relative to the surface mesh */
-    const bool mark_mesh(const bool postprocess);
+    bool mark_mesh(const bool postprocess);
 
     /** Separate generated mesh into bulk and vacuum meshes */
-    const bool separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd);
+    bool separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd);
 
     /** Group hexahedra around central tetrahedral node */
-    const void group_hexahedra();
+    void group_hexahedra();
 
     /** Generate list of nodes that surround the tetrahedral nodes */
-    const vector<vector<unsigned int>> get_voronoi_cells() const;
+    vector<vector<unsigned int>> get_voronoi_cells() const;
 
     /** Smoothen hexahedra on the surface */
-    const bool smoothen(double radius, double smooth_factor, double r_cut);
+    bool smoothen(double radius, double smooth_factor, double r_cut);
 
     /** Use tetgen built-in function to write elements, faces, edges and nodes into file */
-    const bool write_tetgen(const string& file_name);
+    bool write_tetgen(const string& file_name);
 
     /** Copy node and element data from Tetgen input buffer into output one */
-    const bool recalc();
+    bool recalc();
 
     /** Perform Tetgen calculation on input buffer and store it in output one */
-    const bool recalc(const string& cmd);
+    bool recalc(const string& cmd);
 
     /** Perform double Tetgen calculation on input buffer and store it in output one */
-    const bool recalc(const string& cmd1, const string& cmd2);
+    bool recalc(const string& cmd1, const string& cmd2);
 
     /** Objects holding operations for accessing cell data */
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
@@ -91,23 +91,23 @@ private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
 
-    const void mark_nodes();
-    const void mark_edges();
-    const void mark_faces();
-    const void mark_elems();
-    const void mark_elems_byrsi();
-    const void mark_elems_vol2();
+    void mark_nodes();
+    void mark_edges();
+    void mark_faces();
+    void mark_elems();
+    void mark_elems_byrsi();
+    void mark_elems_vol2();
 
-    const void remark_perimeter_nodes();
+    void remark_perimeter_nodes();
 
-    const void remark_elems(const int skip_type);
+    void remark_elems(const int skip_type);
 
-    const bool post_process_marking();
+    bool post_process_marking();
 
-    const void generate_edges();
+    void generate_edges();
 
     /** Generate surface faces from already existing elements and surface nodes */
-    const void generate_surf_faces();
+    void generate_surf_faces();
 };
 
 /** Class to mark mesh nodes with ray-triangle intersection technique,
@@ -118,10 +118,10 @@ public:
     RaySurfaceIntersect(TetgenMesh* mesh);
 
     /** Function to find with Moller-Trumbore algorithm whether the ray and the surface intersect or not */
-    const bool ray_intersects_surface(const Vec3 &origin, const Vec3 &direction);
+    bool ray_intersects_surface(const Vec3 &origin, const Vec3 &direction);
 
     /** Function to precompute the data needed to execute the Moller-Trumbore algorithm */
-    const void precompute_triangles(const Vec3 &direction);
+    void precompute_triangles(const Vec3 &direction);
 
 private:
     /** Constants to specify the tolerances */
@@ -140,10 +140,10 @@ private:
     vector<bool> is_parallel;
 
     /** Function to find with Moller-Trumbore algorithm whether the ray and the triangle intersect or not */
-    const bool ray_intersects_triangle(const Vec3 &origin, const Vec3 &direction, const int face);
+    bool ray_intersects_triangle(const Vec3 &origin, const Vec3 &direction, const int face);
 
     /** Function to reserve memory for precompute data */
-    const void reserve(const int n);
+    void reserve(const int n);
 };
 
 } /* namespace femocs */

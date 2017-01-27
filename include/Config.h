@@ -21,25 +21,25 @@ public:
     Config();
 
     /** Read the configuration parameters from input script */
-    const void read_all(const string& file_name);
+    void read_all(const string& file_name);
 
     /** Look up the configuration parameter with string argument */
-    const int read_command(string param, string& arg);
+    int read_command(string param, string& arg);
 
     /** Look up the configuration parameter with boolean argument */
-    const int read_command(string param, bool& arg);
+    int read_command(string param, bool& arg);
 
     /** Look up the configuration parameter with integer argument */
-    const int read_command(string param, int& arg);
+    int read_command(string param, int& arg);
 
     /** Look up the configuration parameter with double argument */
-    const int read_command(string param, double& arg);
+    int read_command(string param, double& arg);
 
     /** Look up the configuration parameter with several double arguments */
-    const int read_command(string param, vector<double>& args);
+    int read_command(string param, vector<double>& args);
 
     /** Print the stored commands and parameters */
-    const void print_data();
+    void print_data();
 
     string infile;              ///< Path to the file with atom coordinates and types
     string mesh_quality;        ///< Minimum quality (maximum radius-edge ratio) of tetrahedra
@@ -91,10 +91,10 @@ private:
     const string comment_symbols = "!#%";
     const string data_symbols = "/*_.0123456789abcdefghijklmnopqrstuvwxyz";
 
-    const void parse_file(const string& file_name);
+    void parse_file(const string& file_name);
 
     /** Remove the noise from the beginning of the string */
-    const void trim(string& str);
+    void trim(string& str);
 };
 
 } // namespace femocs

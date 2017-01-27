@@ -22,7 +22,7 @@ LinearInterpolator::LinearInterpolator() {
 
 /* Return the mapping between tetrahedral & hexahedral mesh nodes,
  nodes & hexahedral elements and nodes & element's vertices  */
-const void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh,
+void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh,
         vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs) {
 
     require(tria->n_vertices() > 0, "Invalid triangulation size!");
@@ -64,7 +64,7 @@ const void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::
 }
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
-const void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh, const double w0_elfield, const double w0_pot) {
+void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh, const double w0_elfield, const double w0_pot) {
     vector<vector<unsigned int>> voro_cells = mesh.get_voronoi_cells();
 
     // loop through the tetrahedral nodes
@@ -91,7 +91,7 @@ const void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh, const do
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-const void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh, const double w0_elfield, const double w0_pot) {
+void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh, const double w0_elfield, const double w0_pot) {
     require(fem, "NULL pointer can't be handled!");
 
     // Copy the mesh nodes
@@ -131,7 +131,7 @@ const void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const Tetg
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-const void LinearInterpolator::extract_solution(DealII* fem, const TetgenMesh &mesh, const double w0_elfield, const double w0_pot) {
+void LinearInterpolator::extract_solution(DealII* fem, const TetgenMesh &mesh, const double w0_elfield, const double w0_pot) {
     require(fem, "NULL pointer can't be handled!");
 
     // Copy the mesh nodes
@@ -171,7 +171,7 @@ const void LinearInterpolator::extract_solution(DealII* fem, const TetgenMesh &m
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-const void LinearInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh) {
+void LinearInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh) {
     require(fem, "NULL pointer can't be handled!");
 
     // Copy the mesh nodes
@@ -210,7 +210,7 @@ const void LinearInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem,
 }
 
 // Reserve memory for interpolation data
-const void LinearInterpolator::reserve(const int N) {
+void LinearInterpolator::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));
     atoms.clear();
     solution.clear();
@@ -220,7 +220,7 @@ const void LinearInterpolator::reserve(const int N) {
 }
 
 // Reserve memory for pre-compute data
-const void LinearInterpolator::reserve_precompute(const int N) {
+void LinearInterpolator::reserve_precompute(const int N) {
     tetrahedra.clear();
     tetneighbours.clear();
     centroid.clear();
@@ -243,7 +243,7 @@ const void LinearInterpolator::reserve_precompute(const int N) {
 }
 
 // Precompute the data to tetrahedra to make later bcc calculations faster
-const void LinearInterpolator::precompute_tetrahedra(const TetgenMesh &mesh) {
+void LinearInterpolator::precompute_tetrahedra(const TetgenMesh &mesh) {
     const int n_elems = mesh.elems.size();
     double d0, d1, d2, d3, d4;
 
@@ -330,7 +330,7 @@ const void LinearInterpolator::precompute_tetrahedra(const TetgenMesh &mesh) {
 }
 
 // Check with barycentric coordinates whether the point is inside the i-th tetrahedron
-const bool LinearInterpolator::point_in_tetrahedron(const Point3 &point, const int i) {
+bool LinearInterpolator::point_in_tetrahedron(const Point3 &point, const int i) {
     require(i >= 0 && i < det0.size(), "Index out of bounds: " + to_string(i));
 
     // Ignore co-planar tetrahedra
@@ -351,7 +351,7 @@ const bool LinearInterpolator::point_in_tetrahedron(const Point3 &point, const i
 }
 
 // Calculate barycentric coordinates for point
-const Vec4 LinearInterpolator::get_bcc(const Point3 &point, const int elem) {
+Vec4 LinearInterpolator::get_bcc(const Point3 &point, const int elem) {
     require(elem >= 0 && elem < det0.size(), "Index out of bounds: " + to_string(elem));
 
     Vec4 pt(point, 1);
@@ -364,7 +364,7 @@ const Vec4 LinearInterpolator::get_bcc(const Point3 &point, const int elem) {
 }
 
 // Find the element which contains the point or is the closest to it
-const int LinearInterpolator::locate_element(const Point3 &point, const int elem_guess) {
+int LinearInterpolator::locate_element(const Point3 &point, const int elem_guess) {
     const int n_elems = det0.size();
 
     // Check the guessed element
@@ -426,7 +426,7 @@ const int LinearInterpolator::locate_element(const Point3 &point, const int elem
 }
 
 // Calculate interpolation or all the data for point inside or near the elem-th tetrahedron
-const Solution LinearInterpolator::get_solution(const Point3 &point, const int elem) {
+Solution LinearInterpolator::get_solution(const Point3 &point, const int elem) {
     require(elem >= 0 && elem < tetrahedra.size(), "Index out of bounds: " + to_string(elem));
 
     // Get barycentric coordinates of point in tetrahedron
@@ -448,7 +448,7 @@ const Solution LinearInterpolator::get_solution(const Point3 &point, const int e
 }
 
 // Calculate interpolation for vector data for point inside or near the elem-th tetrahedron
-const Vec3 LinearInterpolator::get_vector(const Point3 &point, const int elem) {
+Vec3 LinearInterpolator::get_vector(const Point3 &point, const int elem) {
     require(elem >= 0 && elem < tetrahedra.size(), "Index out of bounds: " + to_string(elem));
 
     // Get barycentric coordinates of point in tetrahedron
@@ -464,7 +464,7 @@ const Vec3 LinearInterpolator::get_vector(const Point3 &point, const int elem) {
 }
 
 // Calculate interpolation for scalar data for point inside or near the elem-th tetrahedron
-const double LinearInterpolator::get_scalar(const Point3 &point, const int elem) {
+double LinearInterpolator::get_scalar(const Point3 &point, const int elem) {
     require(elem >= 0 && elem < tetrahedra.size(), "Index out of bounds: " + to_string(elem));
 
     // Get barycentric coordinates of point in tetrahedron
@@ -480,7 +480,7 @@ const double LinearInterpolator::get_scalar(const Point3 &point, const int elem)
 }
 
 // Compile data string from the data vectors for file output
-const string LinearInterpolator::get_data_string(const int i) const {
+string LinearInterpolator::get_data_string(const int i) const {
     if (i < 0)
         return "LinearInterpolator properties=id:R:1:pos:R:3:dummy:R:1:force:R:3:enorm:R:1:potential:R:1";
 
@@ -490,18 +490,18 @@ const string LinearInterpolator::get_data_string(const int i) const {
 }
 
 // Determinant of 3x3 matrix which's last column consists of ones
-const double LinearInterpolator::determinant(const Vec3 &v1, const Vec3 &v2) {
+double LinearInterpolator::determinant(const Vec3 &v1, const Vec3 &v2) {
     return v1.x * (v2.y - v2.z) - v1.y * (v2.x - v2.z) + v1.z * (v2.x - v2.y);
 }
 
 // Determinant of 3x3 matrix which's columns consist of Vec3-s
-const double LinearInterpolator::determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3) {
+double LinearInterpolator::determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3) {
     return v1.x * (v2.y * v3.z - v3.y * v2.z) - v2.x * (v1.y * v3.z - v3.y * v1.z)
             + v3.x * (v1.y * v2.z - v2.y * v1.z);
 }
 
 // Determinant of 4x4 matrix which's last column consists of ones
-const double LinearInterpolator::determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3,
+double LinearInterpolator::determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3,
         const Vec3 &v4) {
     const double det1 = determinant(v2, v3, v4);
     const double det2 = determinant(v1, v3, v4);
@@ -512,7 +512,7 @@ const double LinearInterpolator::determinant(const Vec3 &v1, const Vec3 &v2, con
 }
 
 // Determinant of 4x4 matrix which's columns consist of Vec4-s
-const double LinearInterpolator::determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3,
+double LinearInterpolator::determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3,
         const Vec4 &v4) {
     double det1 = determinant(Vec3(v1.y, v1.z, v1.w), Vec3(v2.y, v2.z, v2.w),
             Vec3(v3.y, v3.z, v3.w));

@@ -47,12 +47,12 @@ Config::Config() {
 }
 
 // Remove the noise from the beginning of the string
-const void Config::trim(string& str) {
+void Config::trim(string& str) {
     str.erase(0, str.find_first_of(comment_symbols + data_symbols));
 }
 
 // Read the configuration parameters from input script
-const void Config::read_all(const string& file_name) {
+void Config::read_all(const string& file_name) {
     if(file_name == "") return;
 
     // Store the commands and their arguments
@@ -92,7 +92,7 @@ const void Config::read_all(const string& file_name) {
 
 }
 
-const void Config::parse_file(const string& file_name) {
+void Config::parse_file(const string& file_name) {
     ifstream file(file_name);
     require(file, "File not found: " + file_name);
 
@@ -124,7 +124,7 @@ const void Config::parse_file(const string& file_name) {
 }
 
 // Look up the parameter with string argument
-const int Config::read_command(string param, string& arg) {
+int Config::read_command(string param, string& arg) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
@@ -136,7 +136,7 @@ const int Config::read_command(string param, string& arg) {
 }
 
 // Look up the parameter with boolean argument
-const int Config::read_command(string param, bool& arg) {
+int Config::read_command(string param, bool& arg) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
@@ -155,7 +155,7 @@ const int Config::read_command(string param, bool& arg) {
 }
 
 // Look up the parameter with integer argument
-const int Config::read_command(string param, int& arg) {
+int Config::read_command(string param, int& arg) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
@@ -169,7 +169,7 @@ const int Config::read_command(string param, int& arg) {
 }
 
 // Look up the parameter with double argument
-const int Config::read_command(string param, double& arg) {
+int Config::read_command(string param, double& arg) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
@@ -182,7 +182,7 @@ const int Config::read_command(string param, double& arg) {
     return 1;
 }
 
-const int Config::read_command(string param, vector<double>& args) {
+int Config::read_command(string param, vector<double>& args) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
@@ -198,7 +198,7 @@ const int Config::read_command(string param, vector<double>& args) {
 }
 
 // Print the stored commands and parameters
-const void Config::print_data() {
+void Config::print_data() {
     if (!MODES.VERBOSE) return;
     const int cmd_len = 20;
 

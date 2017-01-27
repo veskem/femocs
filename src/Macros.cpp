@@ -18,7 +18,7 @@ using namespace std;
 
 /* Template to return mask of indices that satisfy the comparison condition with an entry */
 template<typename T, typename Op>
-const vector<bool> __vector_compare(const vector<T> *v, const T entry) {
+vector<bool> __vector_compare(const vector<T> *v, const T entry) {
     vector<bool> mask(v->size());
     Op op;
     for (int i = 0; i < v->size(); ++i)
@@ -47,7 +47,7 @@ void __expectation_fails(const char *file, int line, string message) {
     cout << exc << endl;
 }
 
-const double __start_msg(const char* message) {
+double __start_msg(const char* message) {
     const int row_len = 45;
     const size_t msglen = strlen(message);
 
@@ -60,41 +60,41 @@ const double __start_msg(const char* message) {
     return omp_get_wtime();
 }
 
-const void __end_msg(const double t0) {
+void __end_msg(const double t0) {
     cout << "time: " << setprecision(3) << omp_get_wtime() - t0 << setprecision(6) << endl;
 }
 
 // Return mask of indices that are not equal to the scalar
-const vector<bool> vector_not(const vector<int> *v, const int s) {
+vector<bool> vector_not(const vector<int> *v, const int s) {
     return __vector_compare<int, std::not_equal_to<int>>(v, s);
 }
 
 // Return mask of indices that are equal to the scalar
-const vector<bool> vector_equal(const vector<int> *v, const int s) {
+vector<bool> vector_equal(const vector<int> *v, const int s) {
     return __vector_compare<int, std::equal_to<int>>(v, s);
 }
 
 // Return mask of indices that are greater than the scalar
-const vector<bool> vector_greater(const vector<double> *v, const double s) {
+vector<bool> vector_greater(const vector<double> *v, const double s) {
     return __vector_compare<double, std::greater<double>>(v, s);
 }
 
 // Return mask of indices that are greater or equal than the entry
-const vector<bool> vector_greater_equal(const vector<double> *v, const double s) {
+vector<bool> vector_greater_equal(const vector<double> *v, const double s) {
     return __vector_compare<double, std::greater_equal<double>>(v, s);
 }
 
-const vector<bool> vector_greater_equal(const vector<int> *v, const int s) {
+vector<bool> vector_greater_equal(const vector<int> *v, const int s) {
     return __vector_compare<int, std::greater_equal<int>>(v, s);
 }
 
 // Return mask of indices that are less than the scalar
-const vector<bool> vector_less(const vector<double> *v, const double s) {
+vector<bool> vector_less(const vector<double> *v, const double s) {
     return __vector_compare<double, std::less<double>>(v, s);
 }
 
 // Return mask of indices that are less or equal than the scalar
-const vector<bool> vector_less_equal(const vector<double> *v, const double s) {
+vector<bool> vector_less_equal(const vector<double> *v, const double s) {
     return __vector_compare<double, std::less_equal<double>>(v, s);
 }
 
@@ -114,22 +114,22 @@ vector<int> get_sort_indices(const vector<int> &v, const string& direction) {
 }
 
 // Sum of the elements in vector
-const int vector_sum(const vector<bool> &v) { return accumulate(v.begin(), v.end(), 0); }
-const int vector_sum(const vector<int> &v) { return accumulate(v.begin(), v.end(), 0); }
-const double vector_sum(const vector<double> &v) { return accumulate(v.begin(), v.end(), 0); }
+int vector_sum(const vector<bool> &v) { return accumulate(v.begin(), v.end(), 0); }
+int vector_sum(const vector<int> &v) { return accumulate(v.begin(), v.end(), 0); }
+double vector_sum(const vector<double> &v) { return accumulate(v.begin(), v.end(), 0); }
 
 // Determine whether the value is close to one of the boundary values or not
-const bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps) {
+bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps) {
     return (fabs(val - boundary1) <= eps) || (fabs(val - boundary2) <= eps);
 }
 
 // Determine whether the value is close to the boundary value or not
-const bool on_boundary(const double val, const double boundary, const double eps) {
+bool on_boundary(const double val, const double boundary, const double eps) {
     return fabs(val - boundary) <= eps;
 }
 
 // Extract file type from file name
-const string get_file_type(const string& file_name) {
+string get_file_type(const string& file_name) {
     const int start = file_name.find_last_of('.') + 1;
     const int end = file_name.size();
     return file_name.substr(start, end);
