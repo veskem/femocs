@@ -18,7 +18,7 @@ using namespace std;
 namespace femocs {
 
 // specify simulation parameters
-Femocs::Femocs(string path_to_conf) : skip_calculations(false) {
+Femocs::Femocs(const string &path_to_conf) : skip_calculations(false) {
     start_msg(t0, "======= Femocs started! =======\n");
 
     start_msg(t0, "=== Reading configuration parameters...");
@@ -138,7 +138,7 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
 }
 
 // Solve Laplace equation
-int Femocs::solve_laplace(TetgenMesh& mesh, DealII& solver) {
+int Femocs::solve_laplace(const TetgenMesh& mesh, DealII& solver) {
     bool fail;
 
     start_msg(t0, "=== Importing mesh to Laplace solver...");
@@ -171,7 +171,7 @@ int Femocs::solve_laplace(TetgenMesh& mesh, DealII& solver) {
 }
 
 // Solve Laplace equation
-int Femocs::solve_laplace(TetgenMesh& mesh, fch::Laplace<3>& solver) {
+int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     bool fail;
 
     start_msg(t0, "=== Importing mesh to Laplace solver...");
@@ -204,7 +204,7 @@ int Femocs::solve_laplace(TetgenMesh& mesh, fch::Laplace<3>& solver) {
 }
 
 // Solve heat and continuity equations
-int Femocs::solve_heat(TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) {
+int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) {
     bool fail;
 
     start_msg(t0, "=== Initializing rho & T solver...");
@@ -267,7 +267,7 @@ int Femocs::extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3>* sol
 }
 
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
-int Femocs::run(double elfield, string message) {
+int Femocs::run(const double elfield, const string &message) {
     static unsigned int timestep = 0;
     static bool prev_skip_calculations = true;
 
@@ -375,7 +375,7 @@ int Femocs::import_atoms(const string& file_name) {
 }
 
 // import atoms from PARCAS
-int Femocs::import_atoms(int n_atoms, double* coordinates, double* box, int* nborlist) {
+int Femocs::import_atoms(const int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
     start_msg(t0, "=== Importing atoms...");
     reader.import_parcas(n_atoms, coordinates, box);
     end_msg(t0);
@@ -397,7 +397,7 @@ int Femocs::import_atoms(int n_atoms, double* coordinates, double* box, int* nbo
 }
 
 // import coordinates and types of atoms
-int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int* types) {
+int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, const double* z, const int* types) {
     start_msg(t0, "=== Importing atoms...");
     reader.import_helmod(n_atoms, x, y, z, types);
     end_msg(t0);
@@ -418,7 +418,7 @@ int Femocs::import_atoms(int n_atoms, double* x, double* y, double* z, int* type
 }
 
 // export the calculated electric field on imported atom coordinates
-int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     check_message(vacuum_interpolator.get_n_atoms() == 0, "No solution to export!");
 
     if (!skip_calculations) {
@@ -437,7 +437,7 @@ int Femocs::export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, doub
 }
 
 // linearly interpolate electric field at given points
-int Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z,
+int Femocs::interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     check_message(vacuum_interpolator.get_n_atoms() == 0, "No solution to export!");
 
@@ -455,7 +455,7 @@ int Femocs::interpolate_elfield(int n_points, double* x, double* y, double* z,
 }
 
 // linearly interpolate electric potential at given points
-int Femocs::interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag) {
+int Femocs::interpolate_phi(const int n_points, const double* x, const double* y, const double* z, double* phi, int* flag) {
     check_message(vacuum_interpolator.get_n_atoms() == 0, "No solution to export!");
 
     SolutionReader sr(&vacuum_interpolator);

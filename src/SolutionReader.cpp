@@ -23,7 +23,7 @@ SolutionReader::SolutionReader(LinearInterpolator* ip) : interpolator(ip) {
 }
 
 // Linearly interpolate solution on Medium atoms
-void SolutionReader::interpolate(const Medium &medium, double r_cut, int component, bool srt) {
+void SolutionReader::interpolate(const Medium &medium, const double r_cut, const int component, const bool srt) {
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
     require(interpolator, "NULL interpolator cannot be used!");
 
@@ -69,7 +69,8 @@ void SolutionReader::interpolate(const Medium &medium, double r_cut, int compone
 }
 
 // Linearly interpolate electric field on a set of points
-void SolutionReader::interpolate(int n_points, double* x, double* y, double* z, double r_cut, int component, bool sort) {
+void SolutionReader::interpolate(const int n_points, const double* x, const double* y, const double* z,
+        const double r_cut, const int component, const bool sort) {
     Medium medium(n_points);
     for (int i = 0; i < n_points; ++i)
         medium.add_atom(Point3(x[i], y[i], z[i]));
@@ -79,7 +80,7 @@ void SolutionReader::interpolate(int n_points, double* x, double* y, double* z, 
 }
 
 // Linearly interpolate electric field on a set of points
-void SolutionReader::export_elfield(int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
+void SolutionReader::export_elfield(const int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     require(n_points == get_n_atoms(), "Invalid array size: " + to_string(n_points));
 
     for (int i = 0; i < n_points; ++i) {
@@ -92,7 +93,7 @@ void SolutionReader::export_elfield(int n_points, double* Ex, double* Ey, double
 }
 
 // Linearly interpolate electric potential on a set of points
-void SolutionReader::export_potential(int n_points, double* phi, int* flag) {
+void SolutionReader::export_potential(const int n_points, double* phi, int* flag) {
     require(n_points == get_n_atoms(), "Invalid array size: " + to_string(n_points));
 
     for (int i = 0; i < n_points; ++i) {
@@ -102,7 +103,7 @@ void SolutionReader::export_potential(int n_points, double* phi, int* flag) {
 }
 
 // Export interpolated electric field
-void SolutionReader::export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+void SolutionReader::export_solution(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     // Initially pass the zero electric field for all the atoms
     for (int i = 0; i < n_atoms; ++i) {
         Ex[i] = 0;

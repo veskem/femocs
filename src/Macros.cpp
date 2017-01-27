@@ -36,13 +36,13 @@ inline string d2s(T data) {
 }
 
 // Function to handle failed requirement
-void __requirement_fails(const char *file, int line, string message) {
+void requirement_fails(const char *file, int line, string message) {
     string exc = "\nFEMOCS ERROR:\nfile = " + string(file) + "\nline = " + d2s(line) + "\n" + message;
     throw runtime_error(exc + "\n");
 }
 
 // Function to handle failed expectation
-void __expectation_fails(const char *file, int line, string message) {
+void expectation_fails(const char *file, int line, string message) {
     string exc = "\nFEMOCS WARNING:\nfile = " + string(file) + "\nline = " + d2s(line) + "\n" + message;
     cout << exc << endl;
 }

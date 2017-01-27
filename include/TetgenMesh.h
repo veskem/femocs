@@ -51,7 +51,7 @@ public:
     vector<vector<unsigned int>> get_voronoi_cells() const;
 
     /** Smoothen hexahedra on the surface */
-    bool smoothen(double radius, double smooth_factor, double r_cut);
+    bool smoothen(const double radius, const double smooth_factor, const double r_cut);
 
     /** Use tetgen built-in function to write elements, faces, edges and nodes into file */
     bool write_tetgen(const string& file_name);

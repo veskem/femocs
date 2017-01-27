@@ -24,7 +24,7 @@ const int POLY_DEGREE = 1; ///< polynomial degree of the finite elements (1-line
 /** Class to calculate electric field from electric potential */
 class LaplacePostProcessor : public DataPostprocessorVector<DIM> {
 public:
-    LaplacePostProcessor(const string data_name) :
+    LaplacePostProcessor(const string &data_name) :
         DataPostprocessorVector<DIM>(data_name, update_values | update_gradients) {
     }
 

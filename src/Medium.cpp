@@ -68,13 +68,13 @@ void Medium::reserve(const int n_atoms) {
 }
 
 // Define the addition of two Mediums
-Medium& Medium::operator +=(Medium &m) {
+Medium& Medium::operator +=(const Medium &m) {
     add(&m);
     return *this;
 }
 
 // Add data from other Medium to current one
-void Medium::add(Medium *m) {
+void Medium::add(const Medium *m) {
     const int n_atoms1 = get_n_atoms();
     const int n_atoms2 = m->get_n_atoms();
 

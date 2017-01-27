@@ -28,22 +28,23 @@ public:
      * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
      * @param srt      sort input atoms spatially
      */
-    void interpolate(const Medium &medium, double r_cut, int component=0, bool srt=true);
+    void interpolate(const Medium &medium, const double r_cut, const int component=0, const bool srt=true);
 
     /** Interpolate solution on points using the solution on tetrahedral mesh nodes
      * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data */
-    void interpolate(int n_points, double* x, double* y, double* z, double r_cut, int component=0, bool srt=true);
+    void interpolate(const int n_points, const double* x, const double* y, const double* z,
+            const double r_cut, const int component=0, const bool srt=true);
 
     /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    void export_elfield(int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
+    void export_elfield(const int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 
     /** Interpolate electric potential on set of points using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    void export_potential(int n_points, double* phi, int* flag);
+    void export_potential(const int n_points, double* phi, int* flag);
 
     /** Export calculated electic field distribution to HOLMOD */
-    void export_solution(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
+    void export_solution(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
 private:
     LinearInterpolator* interpolator;     ///< data needed for interpolation

@@ -60,14 +60,14 @@ public:
 
     Media clean_lonely_atoms(const double r_cut);
 
-    void smoothen(double radius, double smooth_factor, double r_cut);
+    void smoothen(const double radius, const double smooth_factor, const double r_cut);
 
-    void smoothen(const Point2 &origin, double radius, double smooth_factor, double r_cut);
+    void smoothen(const Point2 &origin, const double radius, const double smooth_factor, const double r_cut);
 
 private:
-    inline double smooth_function(double distance, double smooth_factor) const;
+    inline double smooth_function(const double distance, const double smooth_factor) const;
 
-    void smoothen(double smooth_factor, double r_cut);
+    void smoothen(const double smooth_factor, const double r_cut);
 };
 
 } /* namespace femocs */

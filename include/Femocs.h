@@ -28,7 +28,7 @@ public:
      * Femocs constructor reads and stores configuration parameters
      * @param path_to_conf      path to input script holding the configuration parameters
      */
-    Femocs(string path_to_conf);
+    Femocs(const string &path_to_conf);
 
     /** Femocs destructor */
     ~Femocs();
@@ -38,7 +38,7 @@ public:
      * @param message   message from the host: time step, file name etc
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
-    int run(double elfield, string message);
+    int run(const double elfield, const string &message);
 
     /** Function to import atoms from PARCAS
      * @param n_atoms       number of imported atoms
@@ -48,7 +48,7 @@ public:
      * @return              0 - import succeeded and current run differs from previous one, whole field calculation will be performed;
      *                      1 - import failed or current run is similar to the previous one, field calculation will be skipped
      */
-    int import_atoms(int n_atoms, double* coordinates, double* box, int* nborlist);
+    int import_atoms(const int n_atoms, const double* coordinates, const double* box, const int* nborlist);
 
     /** Function to import coordinates and types of atoms
      * @param n_atoms   number of imported atoms
@@ -59,7 +59,7 @@ public:
      * @return          0 - import succeeded and current run differs from previous one, whole field calculation will be performed;
      *                  1 - import failed or current run is similar to the previous one, field calculation will be skipped
      */
-    int import_atoms(int n_atoms, double* x, double* y, double* z, int* types);
+    int import_atoms(const int n_atoms, const double* x, const double* y, const double* z, const int* types);
 
     /** Function to import atoms from file
      * @param file_name path to the file
@@ -75,7 +75,7 @@ public:
      * @param Enorm     norm of electric field
      * @return          0 - function used solution from current run; 1 - function used solution from previous run
      */
-    int export_elfield(int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
+    int export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
     
     /** Function to linearly interpolate electric field at given points
      * @param n_points  number of points where electric field is interpolated
@@ -89,7 +89,7 @@ public:
      * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
      * @return          0 - function used solution from current run; 1 - function used solution from previous run
      */
-    int interpolate_elfield(int n_points, double* x, double* y, double* z,
+    int interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
             double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 
     /** Function to linearly interpolate electric potential at given points
@@ -101,7 +101,7 @@ public:
      * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
      * @return          0 - function used solution from current run; 1 - function used solution from previous run
      */
-    int interpolate_phi(int n_points, double* x, double* y, double* z, double* phi, int* flag);
+    int interpolate_phi(const int n_points, const double* x, const double* y, const double* z, double* phi, int* flag);
 
     /**
      * Function to parse integer argument of the command from input script
@@ -145,11 +145,11 @@ private:
     int generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh);
 
     /** Solve Laplace equation */
-    int solve_laplace(TetgenMesh& mesh, fch::Laplace<3>& solver);
-    int solve_laplace(TetgenMesh& mesh, DealII& solver);
+    int solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver);
+    int solve_laplace(const TetgenMesh& mesh, DealII& solver);
 
     /** Solve heat and continuity equations */
-    int solve_heat(TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
+    int solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
 
     /** Extract electric potential and electric field from solution */
     int extract_laplace(const TetgenMesh& mesh, fch::Laplace<3>* solver);

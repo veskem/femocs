@@ -163,7 +163,7 @@ void TetgenNodes::copy_indices(const TetgenNodes& n) {
 }
 
 // Transform nodes into Deal.II format
-vector<dealii::Point<3>> TetgenNodes::export_dealii() {
+vector<dealii::Point<3>> TetgenNodes::export_dealii() const {
     vector<dealii::Point<3>> nodes; nodes.reserve(get_n_nodes());
     for (Point3 p : *this)
         nodes.push_back( dealii::Point<3>(p.x, p.y, p.z) );
@@ -351,7 +351,7 @@ SimpleCell<8> Hexahedra::get_cell(const int i) const {
 }
 
 // Transform hexahedra into Deal.II format
-vector<dealii::CellData<3>> Hexahedra::export_dealii() {
+vector<dealii::CellData<3>> Hexahedra::export_dealii() const {
     const int n_elems = size();
     std::vector<dealii::CellData<3>> elems; elems.reserve(n_elems);
 

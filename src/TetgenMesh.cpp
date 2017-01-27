@@ -352,7 +352,7 @@ bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const str
     return vacuum.recalc(cmd) ||  bulk.recalc(cmd);
 }
 
-bool TetgenMesh::smoothen(double radius, double smooth_factor, double r_cut) {
+bool TetgenMesh::smoothen(const double radius, const double smooth_factor, const double r_cut) {
     const int n_atoms = nodes.size();
 
     // Find atoms in vacuum-bulk boundary

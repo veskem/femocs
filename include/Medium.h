@@ -32,10 +32,10 @@ public:
     void sort_spatial();
     
     /** Define the addition of two Mediums */
-    Medium& operator +=(Medium &m);
+    Medium& operator +=(const Medium &m);
 
     /** Add data from other Medium to current one */
-    void add(Medium *m);
+    void add(const Medium *m);
 
     /** Reserve memory for data vectors */
     virtual void reserve(const int n_atoms);
@@ -47,7 +47,7 @@ public:
     void add_atom(const Point3& point);
 
     /** Write first n_max atoms to file; n_max < 0 writes all the atoms */
-    void write(const string &file_name, const int n_max = -1) const;
+    void write(const string &file_name, const int n_max=-1) const;
     
     /** Calculate statistics about the coordinates in Medium */
     void calc_statistics();

@@ -60,10 +60,10 @@ struct Modes {
 // Asserts for catching errors in development mode
 #if ASSERTMODE
     /** Definition to give informative error if the requirement is not met */
-    #define require(condition, message) if (!(condition)) __requirement_fails(__FILE__, __LINE__, message)
+    #define require(condition, message) if (!(condition)) requirement_fails(__FILE__, __LINE__, message)
 
     /** Definition to give informative warning if the expectation is not met */
-    #define expect(condition, message)  if (!(condition)) __expectation_fails(__FILE__, __LINE__, message)
+    #define expect(condition, message)  if (!(condition)) expectation_fails(__FILE__, __LINE__, message)
 
 // In release(-like) versions nothing happens
 #else
@@ -100,7 +100,7 @@ vector<bool> vector_less(const vector<double> *v, const double s);
 vector<bool> vector_less_equal(const vector<double> *v, const double s);
 
 /** Return sorting indexes for one vector */
-vector<int> get_sort_indices(const vector<int> &v, const string& direction = "up");
+vector<int> get_sort_indices(const vector<int> &v, const string& direction="up");
 
 /** Sum of the elements in vector */
 int vector_sum(const vector<bool> &v);
@@ -117,10 +117,10 @@ bool on_boundary(const double val, const double boundary, const double eps);
 string get_file_type(const string& file_name);
 
 /** Throw an informative error if requirement fails */
-void __requirement_fails(const char *file, int line, string message);
+void requirement_fails(const char *file, int line, string message);
 
 /** Throw an informative warning if expectation fails */
-void __expectation_fails(const char *file, int line, string message);
+void expectation_fails(const char *file, int line, string message);
 
 double __start_msg(const char* message);
 

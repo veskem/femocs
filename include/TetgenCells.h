@@ -164,7 +164,7 @@ public:
     }
 
     /** Accessor for accessing i-th cell */
-    SimpleCell<dim> operator [](size_t i) const { return get_cell(i); }
+    SimpleCell<dim> operator [](const size_t i) const { return get_cell(i); }
 
     /** Iterator to access the cells */
     typedef Iterator<TetgenCells, SimpleCell<dim>> iterator;
@@ -262,7 +262,7 @@ public:
     void append(const Point3 &point);
 
     /** Define accessor for accessing i-th node */
-    Point3 operator [](size_t i) const { return get_node(i); }
+    Point3 operator [](const size_t i) const { return get_node(i); }
 
     /** Attach iterator */
     typedef Iterator<TetgenNodes, Point3> iterator;
@@ -289,7 +289,7 @@ public:
     /** Calculate statistics about nodes */
     void calc_statistics();
 
-    vector<dealii::Point<3>> export_dealii();
+    vector<dealii::Point<3>> export_dealii() const;
 
     /** Struct holding the indexes about nodes with known locations.
      * It's useful for finding the initially inserted nodes,
@@ -424,7 +424,7 @@ public:
     /** Get number of cells in mesh */
     int size() const;
 
-    vector<dealii::CellData<3>> export_dealii();
+    vector<dealii::CellData<3>> export_dealii() const;
 
 protected:
     vector<SimpleHex> hexs;

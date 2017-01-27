@@ -213,19 +213,19 @@ Media Media::clean_lonely_atoms(const double r_cut) {
     return surf;
 }
 
-inline double Media::smooth_function(double distance, double smooth_factor) const {
+inline double Media::smooth_function(const double distance, const double smooth_factor) const {
     const double a = 1.0;
     return a * exp(-1.0 * distance / smooth_factor);
 }
 
-void Media::smoothen(double radius, double smooth_factor, double r_cut) {
+void Media::smoothen(const double radius, const double smooth_factor, const double r_cut) {
     // Calculate the horizontal span of the surface
     calc_statistics();
     Point2 origin2d(sizes.xmid, sizes.ymid);
     smoothen(origin2d, radius, smooth_factor, r_cut);
 }
 
-void Media::smoothen(const Point2 &origin, double radius, double smooth_factor, double r_cut) {
+void Media::smoothen(const Point2 &origin, const double radius, const double smooth_factor, const double r_cut) {
     if (smooth_factor < 0.01) return;
 
     const int n_atoms = get_n_atoms();
@@ -254,7 +254,7 @@ void Media::smoothen(const Point2 &origin, double radius, double smooth_factor, 
             set_point(i, temp_surf.get_point(j++));
 }
 
-void Media::smoothen(double smooth_factor, double r_cut) {
+void Media::smoothen(const double smooth_factor, const double r_cut) {
     const double r_cut2 = r_cut * r_cut;
     const int n_atoms = get_n_atoms();
 
