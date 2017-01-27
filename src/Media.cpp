@@ -6,9 +6,7 @@
  */
 
 #include "Media.h"
-//#include <numeric>
-//#include <iostream>
-//#include <iomanip>
+#include <numeric>
 
 using namespace std;
 namespace femocs {
