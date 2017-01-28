@@ -12,12 +12,12 @@ In this regard, the library deal.II (https://www.dealii.org/) is used.
 
 ## Instructions
 
-Deal.II library must be installed beforehand.
+Deal.II (version 8.4.x) library must be installed beforehand.
 To generate makefiles with cmake:
 ```
 $ mkdir build
 $ cd build
-$ cmake -DDEAL_II_DIR=\path_to_dealii\ ..
+$ cmake -DDEAL_II_DIR=/path_to_dealii/ ..
 ```
 
 To build and run:
