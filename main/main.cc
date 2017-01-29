@@ -110,8 +110,25 @@ int main() {
 		}
 	}
 
+// 3d mushroom //
+/*
+	fch::Laplace<3> laplace_solver;
+	laplace_solver.set_applied_efield(2.3);
+	laplace_solver.import_mesh_from_file(res_path+"/3d_meshes/mushroom_vacuum.msh");
+	laplace_solver.output_mesh("output/mushroom_vacuum.msh");
+	laplace_solver.setup_system();
+	laplace_solver.assemble_system();
+	laplace_solver.solve();
+	laplace_solver.output_results("output/field_sol.vtk");
 
-/* 2d case usage */
+	fch::CurrentsAndHeating<3> ch_solver(&pq, &laplace_solver);
+	ch_solver.import_mesh_from_file(res_path+"/3d_meshes/mushroom_copper.msh");
+	ch_solver.setup_system();
+
+	ch_solver.run_specific(1.0, 100, true, "output/sol", true, 2.0);
+*/
+
+// 2d case usage //
 /*
 	fch::Laplace<2> laplace;
 	laplace.import_mesh_from_file("../res/2d_meshes/simple_vacuum.msh");
@@ -125,7 +142,7 @@ int main() {
 	ch.run();
 */
 
-/* 2d Mesh splitting */
+// 2d Mesh splitting //
 /*
 	fch::MeshPreparer<2> mesh_preparer;
 	dealii::Triangulation<2> mesh;
@@ -135,7 +152,7 @@ int main() {
 	mesh_preparer.output_mesh(&new_mesh, "simple_copper.msh");
 */
 
-/* Merged mesh fch usage */
+// Merged mesh fch usage //
 /*
 	MeshPreparer<2> mesh_preparer_fch;
 	field_currents_heating::FieldCurrentsHeating<2> fch(pq);
