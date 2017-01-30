@@ -207,6 +207,51 @@ public:
     }
 };
 
+template <typename T, size_t dim>
+class VectorData {
+public:
+
+    /** SimpleCell constructors */
+    VectorData() { std::fill_n(node, dim, T()); }
+    VectorData(const T &nn) { std::fill_n(node, dim, nn); }
+
+    /** Dimensionality of vector */
+    int size() const { return dim; }
+
+    /** Check if one of the nodes equals to the one of interest */
+    bool operator ==(const T &t) const {
+        for (T n : node) if (n == t) return true;
+        return false;
+    }
+
+    bool operator ==(const VectorData<T, dim> &t) const {
+        for (size_t i = 0; i < dim; ++i) if ((*this)[i] != t[i]) return false;
+        return true;
+    }
+
+    /** Define the behaviour of string stream */
+    friend std::ostream& operator <<(std::ostream &s, const VectorData<T, dim> &t) {
+        for (T nn : t.node) s << nn << ' ';
+        return s;
+    }
+
+    /** Return data as string */
+    string to_str() const { stringstream ss; ss << this; return ss.str(); }
+
+    /** Accessor for accessing the i-th node */
+    const T& operator [](const size_t i) const {
+        require(i >= 0 && i < dim, "Invalid index: " + to_string(i));
+        return node[i];
+    }
+
+    /** Iterator to access the cell nodes */
+    typedef Iterator<VectorData<T, dim>, T> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, dim); }
+
+    T node[dim]; ///< VectorData data
+};
+
 /** Class to define basic operations with 2-dimensional points */
 class Point2{
 public:
