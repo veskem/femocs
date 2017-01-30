@@ -210,8 +210,7 @@ protected:
         std::ofstream out(file_name.c_str());
         require(out, "Can't open a file " + file_name);
 
-        out.setf(std::ios::scientific);
-        out.precision(8);
+        out << fixed;
 
         out << "# vtk DataFile Version 3.0\n";
         out << "# TetgenCells data\n";

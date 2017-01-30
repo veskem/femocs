@@ -264,7 +264,7 @@ void SolutionReader::reserve(const int n_nodes) {
 string SolutionReader::get_data_string(const int i) const{
     if (i < 0) return "SolutionReader properties=id:R:1:pos:R:3:out_of_mesh:R:1:force:R:3:enorm:R:1:potential:R:1";
 
-    ostringstream strs;
+    ostringstream strs; strs << fixed;
     strs << atoms[i] << " " << interpolation[i];
     return strs.str();
 }

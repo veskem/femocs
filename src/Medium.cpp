@@ -231,6 +231,7 @@ void Medium::write(const string &file_name, const int n_max) const {
     string ftype = get_file_type(file_name);
     
     ofstream outfile;
+    outfile << fixed;
     if (ftype == "movie") outfile.open(file_name, ios_base::app);
     else outfile.open(file_name);
     require(outfile.is_open(), "Can't open a file " + file_name);
@@ -249,7 +250,7 @@ void Medium::write(const string &file_name, const int n_max) const {
 string Medium::get_data_string(const int i) const {
     if(i < 0) return "Medium properties=id:R:1:pos:R:3:marker:R:1";
 
-    ostringstream strs;
+    ostringstream strs; strs << fixed;
     strs << atoms[i];
     return strs.str();
 }

@@ -26,7 +26,7 @@ class Femocs {
 public:
     /**
      * Femocs constructor reads and stores configuration parameters
-     * @param path_to_conf      path to input script holding the configuration parameters
+     * @param path_to_conf      path to the file holding the configuration parameters
      */
     Femocs(const string &path_to_conf);
 
@@ -126,6 +126,7 @@ private:
     AtomReader reader;
     Config conf;
     Media dense_surf;
+    Media extended_surf;
 
     LinearInterpolator bulk_interpolator;
     LinearInterpolator vacuum_interpolator;

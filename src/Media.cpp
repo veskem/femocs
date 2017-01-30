@@ -84,7 +84,21 @@ void Media::extract(const AtomReader& reader, const int type, const bool invert)
 }
 
 // Function extend the flat area by generating additional atoms
-Media Media::stretch(const double latconst, const double box_width, const double zmean) {
+Media Media::extend(const string &file_name, Coarseners &coarseners) {
+    AtomReader reader;
+    reader.import_file(file_name);
+
+    reader.calc_statistics();
+    coarseners.zmean = reader.sizes.zmin;
+
+    Media stretched(reader.get_n_atoms());
+    stretched += reader;
+
+    return stretched.coarsen(coarseners);
+}
+
+// Function extend the flat area by generating additional atoms
+Media Media::extend(const double latconst, const double box_width, const double zmean) {
     const int n_atoms = get_n_atoms();
 
     calc_statistics();
@@ -171,7 +185,6 @@ Media Media::clean(Coarseners &coarseners) {
             surf.add_atom(get_atom(i));
 
     surf.calc_statistics();
-
     return surf;
 }
 

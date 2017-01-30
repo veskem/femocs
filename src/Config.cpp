@@ -14,7 +14,8 @@ namespace femocs {
 
 // Config constructor initializes configuration parameters
 Config::Config() {
-    infile = "input/nanotip_medium.xyz";
+    extended_atoms = "";         // file with the atoms forming the extended surface
+    atom_file = "input/nanotip_medium.xyz";
     latconst = 3.61;
 
     coord_cutoff = 3.1;          // coordination analysis cut-off radius
@@ -59,8 +60,9 @@ void Config::read_all(const string& file_name) {
     parse_file(file_name);
 
     // Modify the parameters that are correctly specified in input script
+    read_command("extended_atoms", extended_atoms);
     read_command("clear_output", clear_output);
-    read_command("infile", infile);
+    read_command("infile", atom_file);
     read_command("latconst", latconst);
     read_command("coord_cutoff", coord_cutoff);
     read_command("nnn", nnn);

@@ -51,7 +51,9 @@ public:
 
     Media coarsen(Coarseners &coarseners);
 
-    Media stretch(const double latconst, const double box_width, const double zmean);
+    Media extend(const double latconst, const double box_width, const double zmean);
+
+    Media extend(const string &file_name, Coarseners &coarseners);
     
     /** Function to flatten the atoms on the sides of simulation box */
     Media rectangularize(const AtomReader::Sizes& ar_sizes, const double eps, const double latconst);

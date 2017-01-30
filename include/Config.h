@@ -41,7 +41,8 @@ public:
     /** Print the stored commands and parameters */
     void print_data();
 
-    string infile;              ///< Path to the file with atom coordinates and types
+    string extended_atoms;      ///< Path to the file with atoms forming the extended surface
+    string atom_file;           ///< Path to the file with atom coordinates and types
     string mesh_quality;        ///< Minimum quality (maximum radius-edge ratio) of tetrahedra
     string message;             ///< data string from the host code
     double latconst;            ///< Lattice constant

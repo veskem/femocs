@@ -225,7 +225,7 @@ int AtomReader::get_type(const int i) const {
 string AtomReader::get_data_string(const int i) const {
     if (i < 0) return "AtomReader properties=id:R:1:pos:R:3:coordination:R:1:type:R:1";
 
-    ostringstream strs;
+    ostringstream strs; strs << fixed;
     strs << atoms[i] << " " << get_type(i);
     return strs.str();
 }

@@ -195,6 +195,7 @@ void TetgenNodes::write_xyz(const string &file_name) const {
     ofstream out_file(file_name);
     require(out_file.is_open(), "Can't open a file " + file_name);
 
+    out_file << fixed;
     out_file << n_nodes << "\n";
     out_file << "Mesh nodes properties=id:R:1:pos:R:3:marker:R:1\n";
 
