@@ -47,8 +47,6 @@ Femocs::~Femocs() {
 
 // Generate boundary nodes for mesh
 int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum) {
-    reader.write("output/reader.xyz");
-
 
     start_msg(t0, "=== Extracting surface...");
     dense_surf.extract(reader, TYPES.SURFACE);
@@ -60,32 +58,27 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     coarseners.generate(dense_surf, conf.radius, conf.cfactor, conf.latconst);
     coarseners.write("output/coarseners.vtk");
 
-
     static bool first_run = true;
     if (first_run) {
         start_msg(t0, "=== Extending surface...");
         if (conf.extended_atoms == "")
-            extended_surf = dense_surf.extend(conf.latconst, conf.box_width, coarseners.zmean);
+            extended_surf = dense_surf.extend(conf.latconst, conf.box_width, coarseners);
         else
             extended_surf = dense_surf.extend(conf.extended_atoms, coarseners);
         first_run = false;
         end_msg(t0);
+
         extended_surf.write("output/surface_extended.xyz");
     }
     
-
-    start_msg(t0, "=== Coarsening surface...");
+    start_msg(t0, "=== Coarsening & smoothing surface...");
     coarse_surf = dense_surf.clean(coarseners);
     coarse_surf += extended_surf;
     coarse_surf = coarse_surf.clean(coarseners);
-    end_msg(t0);
-
-    start_msg(t0, "=== Smoothing surface...");
     coarse_surf.smoothen(conf.radius, conf.smooth_factor, 3.0*conf.coord_cutoff);
     end_msg(t0);
-    coarse_surf.write("output/surface_coarse.xyz");
 
-    exit(1);
+    coarse_surf.write("output/surface_coarse.xyz");
 
     start_msg(t0, "=== Generating bulk & vacuum...");
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface

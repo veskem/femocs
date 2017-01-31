@@ -49,18 +49,18 @@ public:
     virtual vector<vector<int>> get_polygons() { return vector<vector<int>>{vector<int>{}}; }
 
 protected:
-    Point3 origin3d;  //!< centre of the coarsener
-    double cutoff2;   //!< squared cut off radius
-    double radius;    //!< radius of the system
-    double radius2;   //!< squared radius of the system
-    double r0_min;    //!< cut off radius for the points on the edge of the system
-    double r0_max;    //!< cut off radius for the points far away from of the system
-    double A;         //!< coarsening factor
+    Point3 origin3d;  ///< centre of the coarsener
+    double cutoff2;   ///< squared cut off radius
+    double radius;    ///< radius of the system
+    double radius2;   ///< squared radius of the system
+    double r0_min;    ///< cut off radius for the points on the edge of the system
+    double r0_max;    ///< cut off radius for the points far away from of the system
+    double A;         ///< coarsening factor
 
-    const int n_nodes_per_circle = 50; //!< number of nodes in vtk circle-polygon
-    const int n_nodes_per_line = 2;    //!< number of nodes in vtk line-polygon
-    const int n_circles = 0;           //!< number of circles written to vtk file
-    const int n_lines = 0;             //!< number of lines written to vtk file
+    const int n_nodes_per_circle = 50; ///< number of nodes in vtk circle-polygon
+    const int n_nodes_per_line = 2;    ///< number of nodes in vtk line-polygon
+    const int n_circles = 0;           ///< number of circles written to vtk file
+    const int n_lines = 0;             ///< number of lines written to vtk file
 
     /** Get constant squared cut off radius */
     double get_const_cutoff() const { return r0_min * r0_min; }
@@ -210,7 +210,7 @@ private:
 class Coarseners {
 public:
     /** Coarseners constructor */
-    Coarseners() : r0_inf(0), zmean(0), radius(0) {}
+    Coarseners() : amplitude(0), r0_cylinder(0), radius(0) {}
 
     /** Append coarsener to the array of all the coarseners */
     void attach_coarsener(shared_ptr<Coarsener> c) {
@@ -238,11 +238,13 @@ public:
     /** Generate coarseners for one nanotip system */
     void generate(Medium &medium, const double radius, const Config::CoarseFactor &cf, const double latconst);
 
-    double r0_inf;
-    double zmean;
-    double radius;
-    
+    double get_r0_inf(const Medium::Sizes &s);
+
+    Point3 centre;
 private:
+    double radius;
+    double amplitude;
+    double r0_cylinder;
     vector<shared_ptr<Coarsener>> coarseners;
 };
 

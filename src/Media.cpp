@@ -88,9 +88,6 @@ Media Media::extend(const string &file_name, Coarseners &coarseners) {
     AtomReader reader;
     reader.import_file(file_name);
 
-    reader.calc_statistics();
-    coarseners.zmean = reader.sizes.zmin;
-
     Media stretched(reader.get_n_atoms());
     stretched += reader;
 
@@ -98,7 +95,7 @@ Media Media::extend(const string &file_name, Coarseners &coarseners) {
 }
 
 // Function extend the flat area by generating additional atoms
-Media Media::extend(const double latconst, const double box_width, const double zmean) {
+Media Media::extend(const double latconst, const double box_width, Coarseners &coarseners) {
     const int n_atoms = get_n_atoms();
 
     calc_statistics();
@@ -109,10 +106,8 @@ Media Media::extend(const double latconst, const double box_width, const double 
     const int n_gen = pow(desired_box_width / latconst + 1, 2) - pow(current_box_width / latconst - 1, 2);
 
     // copy input points without modification
-    Media stretched( n_atoms + max(0, n_gen) );
-    for (int i = 0; i < n_atoms; ++i)
-        stretched.add_atom( get_point(i) );
-    
+    Media stretched( max(0, n_gen) );
+
     // if the input surface already is sufficiently wide, don't modify it at all
     if (desired_box_width <= current_box_width)
         return stretched;
@@ -123,9 +118,9 @@ Media Media::extend(const double latconst, const double box_width, const double 
     for (double y = sizes.ymin - W; y <= sizes.ymax + W; y += latconst)
         for (double x = sizes.xmin - W; x <= sizes.xmax + W; x += latconst)
             if ( x < sizes.xmin || x > sizes.xmax || y < sizes.ymin || y > sizes.ymax)
-                stretched.add_atom( Point3(x, y, zmean) );
+                stretched.add_atom( Point3(x, y, coarseners.centre.z) );
 
-    return stretched;
+    return stretched.coarsen(coarseners);
 }
 
 // Function to coarsen the atoms with coarsener
@@ -134,29 +129,14 @@ Media Media::coarsen(Coarseners &coarseners) {
 
     calc_statistics();
     this->sort_atoms(3, "down");
-    corners.generate_simple(this->sizes, coarseners.zmean);
-    middle.generate_middle(this->sizes, coarseners.zmean, coarseners.r0_inf);
+    corners.generate_simple(this->sizes, this->sizes.zmin);
+    middle.generate_middle(this->sizes, this->sizes.zmin, coarseners.get_r0_inf(this->sizes));
 
     union_surf += corners;
     union_surf += middle;
     union_surf.add(this);
 
     return union_surf.clean(coarseners);
-}
-
-// Function to flatten the atoms on the sides of simulation box
-Media Media::rectangularize(const AtomReader::Sizes& ar_sizes, const double eps, const double latconst) {
-    Coarseners coarseners;
-    coarseners.attach_coarsener(make_shared<ConstCoarsener>(latconst / 3.0));
-
-    Edge edge;
-    edge.extract(this, ar_sizes, eps);
-
-    Media surf;
-    surf += edge;
-    surf.add(this);
-
-    return surf.clean(coarseners);
 }
 
 // Clean the surface from atoms that are too close to each other

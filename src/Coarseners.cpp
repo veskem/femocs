@@ -181,8 +181,6 @@ void Coarseners::generate(Medium &medium, const double radius, const Config::Coa
     
     medium.calc_statistics(); // calculate the span of atoms in medium
 
-    this->radius = radius; // store the coarsener radius
-
     // Calculate the average z coordinate of atoms in flat region
     vector<double> zcoords; zcoords.reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
@@ -190,26 +188,30 @@ void Coarseners::generate(Medium &medium, const double radius, const Config::Coa
 
     sort(zcoords.begin(), zcoords.end());
 
+    double zmean = 0;
     for (int i = 0; i < 100; ++i)
         zmean += zcoords[i];
     zmean /= 100.0;
 
-    Point3 origin3d(medium.sizes.xmid, medium.sizes.ymid, zmean);
+    centre = Point3(medium.sizes.xmid, medium.sizes.ymid, zmean);
     Point3 apex(medium.sizes.xmid, medium.sizes.ymid, medium.sizes.zmax - 0.5*radius);
 
-    const double amplitude = cf.amplitude * latconst;
-    const double r0_cylinder = max(0.5, cf.r0_cylinder) * latconst;
+    this->radius = radius;                 // store the coarsener radius
+    amplitude = cf.amplitude * latconst;
+    r0_cylinder = max(0.5, cf.r0_cylinder) * latconst;
     const double r0_sphere = max(0.5, cf.r0_sphere) * latconst;
     const double r0_flat = min(amplitude*1e20, r0_cylinder);
 
-    const double diagonal = sqrt(medium.sizes.xbox*medium.sizes.xbox + medium.sizes.ybox*medium.sizes.ybox);
-    if ((0.5 * diagonal - radius) > 0)
-        r0_inf = 1.1 * amplitude * sqrt(0.5 * diagonal - radius) + r0_cylinder;
-    else
-        r0_inf = r0_cylinder;
-
     attach_coarsener( make_shared<NanotipCoarsener>(apex, radius, amplitude, r0_sphere, r0_cylinder) );
-    attach_coarsener( make_shared<FlatlandCoarsener>(origin3d, radius, amplitude, r0_flat) );
+    attach_coarsener( make_shared<FlatlandCoarsener>(centre, radius, amplitude, r0_flat) );
+}
+
+double Coarseners::get_r0_inf(const Medium::Sizes &s) {
+    const double max_distance = centre.distance(Point3(s.xmin, s.ymin, s.zmin));
+    if ((max_distance - radius) > 0)
+        return 1.1 * amplitude * sqrt(max_distance - radius) + r0_cylinder;
+    else
+        return r0_cylinder;
 }
 
 void Coarseners::write(const string &file_name) {
