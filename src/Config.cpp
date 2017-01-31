@@ -77,6 +77,7 @@ void Config::read_all(const string& file_name) {
     read_command("box_height", box_height);
     read_command("bulk_height", bulk_height);    
     read_command("femocs_verbose", MODES.VERBOSE);
+    read_command("femocs_periodic", MODES.PERIODIC);
     read_command("use_histclean", use_histclean);
     read_command("n_writefile", n_writefile);
 

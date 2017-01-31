@@ -46,6 +46,7 @@ struct Types {
 struct Modes {
     bool VERBOSE = true;     ///< If VERBOSE then the information about the code execution progress is printed to console.
     bool WRITEFILE = true;   ///< If WRITEFILE then file writers operate normally, otherwise they return immediately.
+    bool PERIODIC = true;    ///< Imported atoms have periodic boundaries in x- & y-direction
 };
 
 // Small hack to define Types and Modes only once

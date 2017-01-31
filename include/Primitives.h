@@ -347,9 +347,11 @@ public:
 //        dy = min(dy, fabs(dy - period_y)); // apply periodic boundary condition in y-direction
 //        dz = min(dz, fabs(dz - period_z)); // apply periodic boundary condition in z-direction
 
-        if (dx > period_x * 0.5) dx = period_x - dx; // apply periodic boundary condition in x-direction
-        if (dy > period_y * 0.5) dy = period_y - dy; // apply periodic boundary condition in y-direction
-        if (dz > period_z * 0.5) dz = period_z - dz; // apply periodic boundary condition in z-direction
+        if (MODES.PERIODIC) {
+            if (dx > period_x * 0.5) dx = period_x - dx; // apply periodic boundary condition in x-direction
+            if (dy > period_y * 0.5) dy = period_y - dy; // apply periodic boundary condition in y-direction
+            if (dz > period_z * 0.5) dz = period_z - dz; // apply periodic boundary condition in z-direction
+        }
 
         return dx * dx + dy * dy + dz * dz;
     }
