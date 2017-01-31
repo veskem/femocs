@@ -7,13 +7,13 @@ include release/makefile.defs
 all: lib/libfemocs.a
 
 lib/libfemocs.a: lib/build/Makefile src/* include/* heating/source/* heating/include/*
-    cd lib/build; make -j${NPROCS}
+	cd lib/build; make -j${NPROCS}
 
 lib/build/Makefile:
-    cd lib; mkdir -p build; cd build; rm * -r; cmake -DCMAKE_Fortran_COMPILER=${F90} ..
+	cd lib; mkdir -p build; cd build; rm * -r; cmake -DCMAKE_Fortran_COMPILER=${F90} ..
 
 clean:
-    rm -f lib/libfemocs.a lib/libfemocs.mod lib/build/Makefile
+	rm -f lib/libfemocs.a lib/libfemocs.mod lib/build/Makefile
     
 clean-all:
-    rm -rf lib/libfemocs.a lib/libfemocs.mod lib/build
+	rm -rf lib/libfemocs.a lib/libfemocs.mod lib/build

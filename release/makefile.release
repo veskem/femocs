@@ -7,13 +7,13 @@ include release/makefile.defs
 all: release/femocs
 
 release/femocs: release/build/Makefile ${MAIN_CPP} src/* include/* heating/source/* heating/include/*
-    cd release/build; make -j${NPROCS}
+	cd release/build; make -j${NPROCS}
 
 release/build/Makefile:
-    cd release; mkdir -p build; cd build; rm -r *; cmake -DCMAKE_BUILD_TYPE=${mode} -DMAIN=../${MAIN_CPP} ..;
+	cd release; mkdir -p build; cd build; rm -r *; cmake -DCMAKE_BUILD_TYPE=${mode} -DMAIN=../${MAIN_CPP} ..;
 
 clean:
-    rm -f release/femocs release/build/Makefile
+	rm -f release/femocs release/build/Makefile
     
 clean-all:
-    rm -rf release/femocs release/build
+	rm -rf release/femocs release/build
