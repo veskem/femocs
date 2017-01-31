@@ -3,6 +3,9 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
 # path to deal.II files
 SET(DEAL_II_DIR ../dealii)
 
+# path to CGAL files
+SET(CGAL_DIR ../cgal)
+
 # path for the location of executable
 SET (CMAKE_RUNTIME_OUTPUT_DIRECTORY ..)
 
@@ -16,7 +19,7 @@ SET(TARGET "femocs")
 FILE(GLOB_RECURSE SOURCE "../src/*.cpp" "../heating/source/*")
 
 # directories with headers
-INCLUDE_DIRECTORIES(../include ../heating/include)
+INCLUDE_DIRECTORIES(../include ../heating/include ../dealii/include ../cgal/include)
 
 # path to libraries
 LINK_DIRECTORIES(../lib)
@@ -24,13 +27,9 @@ LINK_DIRECTORIES(../lib)
 # names of the libraries
 SET(LIBRARIES tet)
 
-# Specify whether to build in debug or release mode
-## SET(CMAKE_BUILD_TYPE Release)
-## #SET(CMAKE_BUILD_TYPE Debug)
-## 
-## # Specify warnings and optimization level
-## SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
-## SET(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -w") # "-Wall -Wpedantic")
+## Specify whether to build in debug or release mode
+# SET(CMAKE_BUILD_TYPE Release)
+# SET(CMAKE_BUILD_TYPE Debug)
 # ==============================================
 
 FIND_PACKAGE(deal.II 8.4 REQUIRED HINTS ${DEAL_II_DIR})
@@ -38,7 +37,7 @@ IF ( NOT ${deal.II_FOUND} )
   MESSAGE(FATAL_ERROR "Deal.II not found from " ${DEAL_II_DIR})
 ENDIF()
 
-FIND_PACKAGE( CGAL QUIET COMPONENTS  )
+FIND_PACKAGE( CGAL HINTS ${CGAL_DIR} )
 IF ( NOT CGAL_FOUND )
   MESSAGE(FATAL_ERROR "CGAL not found") 
 ENDIF()

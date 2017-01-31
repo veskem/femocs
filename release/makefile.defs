@@ -1,5 +1,5 @@
 #############################################################################
-#   	        Definitions used during the make of Femocs
+#               Definitions used during the make of Femocs
 #############################################################################
 
 DEALII_VER = 8.4.1
@@ -10,8 +10,22 @@ MAIN_C = release/Test.c
 MAIN_HEATING = heating/main/main.cc
 NPROCS = 4
 
-F90 = gfortran-5
-FCFLAGS = -Llib -Ldealii/lib -Lcgal/lib -Ilib -Iheating/include -Iinclude -Idealii/include -Icgal/include
+# F90 = gfortran-5
+F90 = gfortran
+
+CGAL_FLAGS_TAITO =\
+-DBoost_NO_BOOST_CMAKE=TRUE\
+-DBOOST_ROOT=/appl/opt/boost/gcc-5.3.0/intelmpi-5.1.3/boost-1.63\
+-DGMP_LIBRARIES_DIR=/appl/opt/gmp/6.0.0a/lib\
+-DGMP_INCLUDE_DIR=/appl/opt/gmp/6.0.0a/include\
+-DMPFR_LIBRARIES_DIR=/appl/opt/mpfr/3.1.4/lib\
+-DMPFR_INCLUDE_DIR=/appl/opt/mpfr/3.1.4/include\
+-DGMP_LIBRARIES=/appl/opt/gmp/6.0.0a/lib/libgmp.so.10.2.0\
+-DMPFR_LIBRARIES=/appl/opt/mpfr/3.1.4/lib/libmpfr.so.4.1.4
+
+CGAL_FLAGS = -DCMAKE_INSTALL_PREFIX=../..-DBUILD_SHARED_LIBS=FALSE
+
+FCFLAGS = -Llib -Ldealii/lib -Lcgal/lib64 -Ilib -Iheating/include -Iinclude -Idealii/include -Icgal/include
 LDFLAGS = -lfemocs -ltet -ldeal_II -lCGAL -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -std=c++11
 OPT = -O3 -Wall -Wpedantic
 #OPT = -g -O0 -Wall -Wpedantic

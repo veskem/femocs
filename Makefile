@@ -3,6 +3,8 @@
 #                             Mihkel Veske 2016
 #
 #############################################################################
+# Before running make taito, run
+#   module load gcc/5.3.0 intelmpi/5.1.3
 
 include release/makefile.defs
 
@@ -28,8 +30,11 @@ heating: femocs.heating
 femocs.heating: ${MAIN_HEATING} heating/source/* heating/include/* src/* include/*
 	make -f release/makefile.heating
 
-install:
-	make -f release/makefile.install
+ubuntu:
+	make -f release/makefile.ubuntu
+
+taito:
+	make -f release/makefile.taito
 
 clean:
 	make -s -f release/makefile.lib clean
@@ -42,17 +47,19 @@ clean-all:
 	make -s -f release/makefile.release clean-all
 	make -s -f release/makefile.fortran clean-all
 	make -s -f release/makefile.heating clean-all
-	make -s -f release/makefile.install clean-all
+	make -s -f release/makefile.ubuntu clean-all
+	make -s -f release/makefile.taito clean-all
 
 help:
 	@echo ''
 	@echo 'make all        pick default build type for Femocs'
+	@echo 'make ubuntu     build in Ubuntu desktop all the external libraries that Femocs needs'
+	@echo 'make install    build in Taito cluster in CSC all the external libraries that Femocs needs'
 	@echo 'make lib        build Femocs as static library'
-	@echo 'make heating    build Femocs executable together with 3D heating module'
+	@echo 'make heating    build Femocs executable from main file in heating module'
 	@echo 'make release    build Femocs executable from c++ main with highest optimization level'
 	@echo 'make debug      build Femocs executable from c++ main with debugging features enabled'
 	@echo 'make fortran    build Femocs executable from Fortran main'
-	@echo 'make install    build all the external libraries that Femocs needs'
 	@echo 'make clean      delete key files excluding installed libraries to start building from the scratch'
 	@echo 'make clean-all  delete all the files and folders produced during the make process'
 	@echo ''

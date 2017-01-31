@@ -7,19 +7,19 @@ include release/makefile.defs
 all: release/femocs
 
 release/femocs: release/femocs.o
-	${F90} release/femocs.o ${OPT} ${FCFLAGS} ${LDFLAGS} -o release/femocs
+    ${F90} release/femocs.o ${OPT} ${FCFLAGS} ${LDFLAGS} -o release/femocs
 
 release/femocs.o: lib/libfemocs.a lib/build/Makefile ${MAIN_F90}
-	${F90} -c ${MAIN_F90} ${OPT} ${FCFLAGS} ${LDFLAGS} -o release/femocs.o
+    ${F90} -c ${MAIN_F90} ${OPT} ${FCFLAGS} ${LDFLAGS} -o release/femocs.o
 
 lib/libfemocs.a: src/* include/* heating/source/* heating/include/*
-	make -f release/makefile.lib
-	
+    make -f release/makefile.lib
+    
 lib/build/Makefile:
-	cd lib; mkdir -p build; cd build; rm * -r; cmake -DCMAKE_Fortran_COMPILER=${F90} ..
+    cd lib; mkdir -p build; cd build; rm * -r; cmake -DCMAKE_Fortran_COMPILER=${F90} ..
 
 clean:
-	rm -f release/femocs release/femocs.o include/*.o src/*.o lib/build/Makefile
-	
+    rm -f release/femocs release/femocs.o include/*.o src/*.o lib/build/Makefile
+    
 clean-all:
-	rm -rf release/femocs release/femocs.o include/*.o src/*.o lib/build
+    rm -rf release/femocs release/femocs.o include/*.o src/*.o lib/build

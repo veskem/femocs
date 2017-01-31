@@ -1,28 +1,19 @@
 #############################################################################
-#               Makefile for building Femocs as library
+#               Makefile for building Femocs as a library
 #############################################################################
 
 include release/makefile.defs
 
 all: lib/libfemocs.a
 
-lib/libfemocs.a: lib/build/Makefile lib/libtet.a src/* include/* heating/source/* heating/include/*
-	cd lib/build; make -j${NPROCS}
+lib/libfemocs.a: lib/build/Makefile src/* include/* heating/source/* heating/include/*
+    cd lib/build; make -j${NPROCS}
 
-lib/build/Makefile: dealii/lib/libdeal_II.a cgal/lib/libCGAL.a
-	cd lib; mkdir -p build; cd build; rm * -r; cmake -DCMAKE_Fortran_COMPILER=${F90} ..
-
-lib/libtet.a:
-	make -f release/makefile.install
-	
-dealii/lib/libdeal_II.a:
-	make -f release/makefile.install
-
-cgal/lib/libCGAL.a:
-	make -f release/makefile.install
+lib/build/Makefile:
+    cd lib; mkdir -p build; cd build; rm * -r; cmake -DCMAKE_Fortran_COMPILER=${F90} ..
 
 clean:
-	rm -f lib/libfemocs.a lib/libfemocs.mod lib/build/Makefile
-	
+    rm -f lib/libfemocs.a lib/libfemocs.mod lib/build/Makefile
+    
 clean-all:
-	rm -rf lib/libfemocs.a lib/libfemocs.mod lib/build
+    rm -rf lib/libfemocs.a lib/libfemocs.mod lib/build

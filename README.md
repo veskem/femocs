@@ -19,6 +19,15 @@ FEMOCS directory is cleaned from previous builds by
     $ make clean     # doesn't clean the installations of Deal.II and other libraries
     $ make clean-all # performs the full clean-up in FEMOCS directory
 
+Before building FEMOCS as a library or executable, FEMOCS dependencies must be installed. In Ubuntu desktop this can be done with
+
+    $ make ubuntu
+    
+In CSC Taito cluster first the appropriate modules must be loaded and after that the build can be performed:
+
+    $ module load gcc/5.3.0 intelmpi/5.1.3
+    $ make taito
+
 FEMOCS is built as static library by
 
     $ make lib

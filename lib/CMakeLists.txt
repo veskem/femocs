@@ -14,19 +14,19 @@ SET(CMAKE_Fortran_MODULE_DIRECTORY ..)
 # Specify the path to deal.II files
 SET(DEAL_II_DIR ../dealii)
 
+# Specify the path to CGAL files
+SET(CGAL_DIR ../cgal)
+
 # Find source files
 FILE(GLOB_RECURSE TARGET_SRC "../src/*.cpp" "../src/*.f90" "../heating/source/*")
 
 # Add the directory with headers to search path
-INCLUDE_DIRECTORIES(../include ../heating/include)
+INCLUDE_DIRECTORIES(../include ../heating/include ../cgal/include)
 
 # specify whether to build in debug or release mode
 SET(CMAKE_BUILD_TYPE Release)
 #SET(CMAKE_BUILD_TYPE Debug)
 
-### Specify warnings and optimization level
-##SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
-##SET(CMAKE_CXX_FLAGS_DEBUG "-g2 -O0 -w") #-Wall -Wpedantic")
 # ==============================================
 
 FIND_PACKAGE(deal.II 8.4 REQUIRED HINTS ${DEAL_II_DIR})
@@ -34,7 +34,7 @@ IF ( NOT ${deal.II_FOUND} )
   MESSAGE(FATAL_ERROR "Deal.II not found from " ${DEAL_II_DIR})
 ENDIF()
 
-FIND_PACKAGE( CGAL QUIET COMPONENTS  )
+FIND_PACKAGE( CGAL HINTS ${CGAL_DIR} )
 IF ( NOT CGAL_FOUND )
   MESSAGE(FATAL_ERROR "CGAL not found") 
 ENDIF()
@@ -55,6 +55,8 @@ INCLUDE( ${CGAL_USE_FILE} )
 SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -w") # "-Wall -Wpedantic")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+
+# ==============================================
 
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
 ADD_LIBRARY (${LIB_NAME} STATIC ${TARGET_SRC})
