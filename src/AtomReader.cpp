@@ -21,17 +21,17 @@ AtomReader::AtomReader() : Medium(), rms_distance(0) {}
 void AtomReader::reserve(const int n_atoms) {
     require(n_atoms > 0, "Invalid # atoms: " + to_string(n_atoms));
     atoms.clear();
-    types.clear();
+    cluster.clear();
 
     atoms.reserve(n_atoms);
-    types.reserve(n_atoms);
+    cluster.reserve(n_atoms);
+    coordination = vector<int>(n_atoms, 0);
 }
 
-// Add atom with its coordinates and type
-void AtomReader::add_atom(const int id, const Point3 &point, const int type) {
-    Medium::add_atom( Atom(id, point, 0) );
-    this->types.push_back(type);
-}
+//// Add atom with its coordinates and type
+//void AtomReader::add_atom(const int id, const Point3 &point, const int type) {
+//    Medium::add_atom( Atom(id, point, type) );
+//}
 
 bool AtomReader::equals_previous_run(const double eps) {
     if (eps < 1e-5)
@@ -80,8 +80,8 @@ void AtomReader::save_current_run_points(const double eps) {
 void AtomReader::check_coordination() {
     const int coord_max = 1;
     const int coord_min = 0;
-    for (Atom a : atoms)
-        if (a.marker >= coord_min && a.marker <= coord_max)
+    for (unsigned int a : coordination)
+        if (a >= coord_min && a <= coord_max)
             cout << "FEMOCS: Evaporated atom detected!" << endl;
 }
 
@@ -106,10 +106,8 @@ void AtomReader::calc_coordination(const int nnn, const double cutoff, const int
 
             double r2 = point1.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox);
             if (r2 <= cutoff2) {
-                atoms[i].marker++;
-                atoms[nbor].marker++;
-//                if(atoms[i].coord < nnn) atoms[i].coord++;
-//                if(atoms[nbor].coord < nnn) atoms[nbor].coord++;
+                coordination[i]++;
+                coordination[nbor]++;
             }
         }
         nbor_indx += n_nbors;
@@ -123,7 +121,6 @@ void AtomReader::calc_coordination(const double cutoff) {
     
     const int n_atoms = get_n_atoms();
     const double cutoff2 = cutoff * cutoff;
-    vector<int> coordinations(n_atoms, 0);
 
     int percentage = 0;
     // Loop through all the atoms
@@ -139,14 +136,11 @@ void AtomReader::calc_coordination(const double cutoff) {
         for (int j = i + 1; j < n_atoms; ++j) {
             double r2 = point1.periodic_distance2(get_point(j), sizes.xbox, sizes.ybox);
             if (r2 <= cutoff2) {
-                coordinations[i]++;
-                coordinations[j]++;
+                coordination[i]++;
+                coordination[j]++;
             }
         }
     }
-
-    for (int i = 0; i < n_atoms; ++i)
-        set_marker(i, coordinations[i]);
 }
 
 // Calculate coordination for all the atoms using the atom types
@@ -155,14 +149,14 @@ void AtomReader::calc_coordination(const int nnn) {
     const int n_atoms = get_n_atoms();
 
     for (int i = 0; i < n_atoms; ++i) {
-        if (types[i] == TYPES.BULK)
-            set_marker(i, nnn);
-        else if (types[i] == TYPES.SURFACE)
-            set_marker(i, (int) nnn / 2);
-        else if (types[i] == TYPES.VACANCY)
-            set_marker(i, -1);
+        if (atoms[i].marker == TYPES.BULK)
+            coordination[i] = nnn;
+        else if (atoms[i].marker == TYPES.SURFACE)
+            coordination[i] = nnn/2;
+        else if (atoms[i].marker == TYPES.VACANCY)
+            coordination[i] = -1;
         else
-            set_marker(i, 0);
+            coordination[i] = 0;
     }
 }
 
@@ -173,12 +167,12 @@ void AtomReader::extract_types(const int nnn, const double latconst) {
     calc_statistics();
 
     for (int i = 0; i < n_atoms; ++i) {
-        if ( (nnn - get_marker(i)) <= nnn_eps )
-            types[i] = TYPES.BULK;
-        else if (get_point(i).z < (sizes.zmin + latconst))
-            types[i] = TYPES.FIXED;
+        if ( (nnn - coordination[i]) <= nnn_eps )
+            atoms[i].marker = TYPES.BULK;
+        else if (get_point(i).z < (sizes.zmin + 0.9*latconst))
+            atoms[i].marker = TYPES.FIXED;
         else
-            types[i] = TYPES.SURFACE;
+            atoms[i].marker = TYPES.SURFACE;
     }
 }
 
@@ -216,17 +210,17 @@ void AtomReader::resize_box(double xmin, double xmax, double ymin, double ymax, 
 // =================================
 // *** GETTERS: ***************
 
-int AtomReader::get_type(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-    return types[i];
-}
+//int AtomReader::get_coordination(const int i) const {
+//    require(i >= 0 && i < get_n_atoms(), "Invalid index!");
+//    return coordination[i];
+//}
 
 // Compile data string from the data vectors
 string AtomReader::get_data_string(const int i) const {
-    if (i < 0) return "AtomReader properties=id:R:1:pos:R:3:coordination:R:1:type:R:1";
+    if (i < 0) return "AtomReader properties=id:I:1:pos:R:3:type:I:1:coordination:I:1";
 
     ostringstream strs; strs << fixed;
-    strs << atoms[i] << " " << get_type(i);
+    strs << atoms[i] << " " << coordination[i];
     return strs.str();
 }
 
@@ -241,7 +235,7 @@ void AtomReader::import_helmod(const int n_atoms, const double* x, const double*
     require(n_atoms > 0, "Zero input atoms detected!");
     reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
-        add_atom(i, Point3(x[i], y[i], z[i]), types[i]);
+        add_atom( Atom(i, Point3(x[i], y[i], z[i]), types[i]) );
 
     calc_statistics();
 }
@@ -250,7 +244,7 @@ void AtomReader::import_parcas(const int n_atoms, const double* xyz, const doubl
     require(n_atoms > 0, "Zero input atoms detected!");
     reserve(n_atoms);
     for (int i = 0; i < 3*n_atoms; i+=3)
-        add_atom(i/3, Point3(xyz[i+0]*box[0], xyz[i+1]*box[1], xyz[i+2]*box[2]), TYPES.BULK);
+        add_atom( Atom(i/3, Point3(xyz[i+0]*box[0], xyz[i+1]*box[1], xyz[i+2]*box[2]), TYPES.BULK) );
 
     calc_statistics();
 }
@@ -294,7 +288,7 @@ void AtomReader::import_xyz(const string &file_name) {
         iss.clear();
         iss.str(line);
         iss >> elem >> x >> y >> z >> type;
-        add_atom(id++, Point3(x, y, z), type);
+        add_atom( Atom(id++, Point3(x, y, z), type) );
     }
 }
 
@@ -323,7 +317,7 @@ void AtomReader::import_ckx(const string &file_name) {
         iss.clear();
         iss.str(line);
         iss >> type >> x >> y >> z;
-        add_atom(id++, Point3(x, y, z), type);
+        add_atom( Atom(id++, Point3(x, y, z), type) );
     }
 }
 

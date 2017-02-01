@@ -20,8 +20,8 @@ public:
     /** Constructor for AtomReader */
     AtomReader();
 
-    /** Get type of i-th atom in AtomReader */
-    int get_type(const int i) const;
+    /** Get the coordination of i-th atom */
+//    int get_coordination(const int i) const;
 
     /**
      * Function to import file with atom coordinates and types
@@ -77,10 +77,12 @@ public:
     /** Store the atom coordinates from current run */
     void save_current_run_points(const double eps);
 
-    double rms_distance;           ///< rms distance between atoms from previous and current run
+    double rms_distance;               ///< rms distance between atoms from previous and current run
 private:
-    vector<int> types;             ///< types of atoms
-    vector<Point3> previous_point; ///< atom coordinates from previous run
+    vector<int> cluster;      ///< id of cluster the atom is located
+    vector<int> coordination; ///< coordinations of atoms
+//    vector<int> types;                 ///< types of atoms
+    vector<Point3> previous_point;     ///< atom coordinates from previous run
 
     /**
      * Functions to import atoms from different types of file.
@@ -93,8 +95,8 @@ private:
     /** Reserve memory for data vectors */
     void reserve(const int n_atoms);
     
-    /** Add atom with its id and type */
-    void add_atom(const int id, const Point3 &point, const int type);
+//    /** Add atom with its id and type */
+//    void add_atom(const int id, const Point3 &point, const int type);
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     string get_data_string(const int i) const;

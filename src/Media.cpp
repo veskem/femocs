@@ -67,10 +67,10 @@ void Media::extract(const AtomReader& reader, const int type, const bool invert)
     // Get number and locations of atoms of desired type
     if (!invert)
         for (int i = 0; i < n_atoms; ++i)
-            is_type[i] = reader.get_type(i) == type;
+            is_type[i] = reader.get_marker(i) == type;
     else
         for (int i = 0; i < n_atoms; ++i)
-            is_type[i] = reader.get_type(i) != type;
+            is_type[i] = reader.get_marker(i) != type;
 
     // Preallocate memory for atoms
     reserve(vector_sum(is_type));

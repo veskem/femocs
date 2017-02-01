@@ -47,6 +47,8 @@ Femocs::~Femocs() {
 
 // Generate boundary nodes for mesh
 int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum) {
+    reader.write("output/reader.xyz");
+
     start_msg(t0, "=== Extracting surface...");
     dense_surf.extract(reader, TYPES.SURFACE);
     dense_surf = dense_surf.clean_lonely_atoms(conf.coord_cutoff);
@@ -56,19 +58,20 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 
     Coarseners coarseners;
     coarseners.generate(dense_surf, conf.radius, conf.cfactor, conf.latconst);
-    coarseners.write("output/coarseners.vtk");
 
     static bool first_run = true;
     if (first_run) {
+        coarseners.write("output/coarseners.vtk");
+
         start_msg(t0, "=== Extending surface...");
         if (conf.extended_atoms == "")
             extended_surf = dense_surf.extend(conf.latconst, conf.box_width, coarseners);
         else
             extended_surf = dense_surf.extend(conf.extended_atoms, coarseners);
-        first_run = false;
         end_msg(t0);
 
         extended_surf.write("output/surface_extended.xyz");
+        first_run = false;
     }
     
     start_msg(t0, "=== Coarsening & smoothing surface...");
