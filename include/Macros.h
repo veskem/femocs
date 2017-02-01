@@ -29,6 +29,7 @@ struct Types {
     const int VACANCY = 3;   ///< type of vacancies
     const int PERIMETER = 4; ///< type of the rim/outer edge of surface
     const int FIXED = -1;    ///< type of fixed atoms
+    const int CLUSTER = -2;  ///< type of a cluster
     const int XMIN = 5;      ///< type of atom on negative x-face of simulation cell
     const int YMIN = 6;      ///< type of atom on negative y-face of simulation cell
     const int ZMIN = 7;      ///< type of atom on negative z-face of simulation cell

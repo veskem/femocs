@@ -484,7 +484,7 @@ string LinearInterpolator::get_data_string(const int i) const {
     if (i < 0)
         return "LinearInterpolator properties=id:R:1:pos:R:3:dummy:R:1:force:R:3:enorm:R:1:potential:R:1";
 
-    ostringstream strs; strs << fixed;
+    ostringstream strs;
     strs << atoms[i] << " " << solution[i];
     return strs.str();
 }

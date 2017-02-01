@@ -20,9 +20,6 @@ public:
     /** Constructor for AtomReader */
     AtomReader();
 
-    /** Get the coordination of i-th atom */
-//    int get_coordination(const int i) const;
-
     /**
      * Function to import file with atom coordinates and types
      * @param file_name  path to input file with atomic data in .xyz (PARCAS), .dump (LAMMPS) or .ckx (KIMOCS) format
@@ -44,17 +41,17 @@ public:
      * @param nnn      number of nearest neighbours in a crystal
      * @param nborlist neighbour list of atoms
      */
-    void calc_coordination(const int nnn, const double cutoff, const int* nborlist);
+    void calc_coordinations(const int nnn, const double cutoff, const int* nborlist);
 
     /** Calculate coordination for all the atoms using brute force technique */
-    void calc_coordination(const double cutoff);
+    void calc_coordinations(const double cutoff);
 
     /** Calculate pseudo-coordination for all the atoms using the atom types */
-    void calc_coordination(const int nnn);
+    void calc_coordinations(const int nnn);
 
     /** Function to detect evaporated atoms by their coordinations;
      * an atom is considered evaporated if it's coordiantion is between the defined limits. */
-    void check_coordination();
+    void check_coordinations();
 
     /** Extract atom types from calculated atom coordinations */
     void extract_types(const int nnn, const double latconst);
@@ -77,11 +74,16 @@ public:
     /** Store the atom coordinates from current run */
     void save_current_run_points(const double eps);
 
+    /** Group atoms into clusters using brute force technique
+     * DBSCAN - density-based spatial clustering of applications with noise
+     * http://codereview.stackexchange.com/questions/23966/density-based-clustering-of-image-keypoints
+     * https://en.wikipedia.org/wiki/DBSCAN */
+    void calc_clusters(const double r_cut, const int minPts);
+
     double rms_distance;               ///< rms distance between atoms from previous and current run
 private:
     vector<int> cluster;      ///< id of cluster the atom is located
     vector<int> coordination; ///< coordinations of atoms
-//    vector<int> types;                 ///< types of atoms
     vector<Point3> previous_point;     ///< atom coordinates from previous run
 
     /**
@@ -94,9 +96,8 @@ private:
 
     /** Reserve memory for data vectors */
     void reserve(const int n_atoms);
-    
-//    /** Add atom with its id and type */
-//    void add_atom(const int id, const Point3 &point, const int type);
+
+    vector<int> region_query(const Point3 &point, const double r_cut);
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     string get_data_string(const int i) const;

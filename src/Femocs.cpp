@@ -47,8 +47,6 @@ Femocs::~Femocs() {
 
 // Generate boundary nodes for mesh
 int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum) {
-    reader.write("output/reader.xyz");
-
     start_msg(t0, "=== Extracting surface...");
     dense_surf.extract(reader, TYPES.SURFACE);
     dense_surf = dense_surf.clean_lonely_atoms(conf.coord_cutoff);
@@ -372,16 +370,24 @@ int Femocs::import_atoms(const string& file_name) {
 
     if (!skip_calculations) {
         if (file_type == "xyz") {
-            start_msg(t0, "=== Calculating coords and atom types...");
-            reader.calc_coordination(conf.coord_cutoff);
+            start_msg(t0, "=== Performing coordination analysis...");
+            reader.calc_coordinations(conf.coord_cutoff);
+            end_msg(t0);
+
+            start_msg(t0, "=== Performing cluster analysis...");
+            reader.calc_clusters(conf.coord_cutoff, 3);
+            end_msg(t0);
+
+            start_msg(t0, "=== Extracting atom types...");
             reader.extract_types(conf.nnn, conf.latconst);
             end_msg(t0);
+
         } else {
             start_msg(t0, "=== Calculating coords from atom types...");
-            reader.calc_coordination(conf.nnn);
+            reader.calc_coordinations(conf.nnn);
             end_msg(t0);
         }
-        reader.check_coordination();
+        reader.check_coordinations();
     }
 
     return 0;
@@ -400,10 +406,10 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
 
     if (!skip_calculations) {
         start_msg(t0, "=== Calculating coords and atom types...");
-        reader.calc_coordination(conf.nnn, conf.coord_cutoff, nborlist);
+        reader.calc_coordinations(conf.nnn, conf.coord_cutoff, nborlist);
         reader.extract_types(conf.nnn, conf.latconst);
         end_msg(t0);
-        reader.check_coordination();
+        reader.check_coordinations();
     }
 
     return 0;
@@ -422,9 +428,9 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
 
     if (!skip_calculations) {
         start_msg(t0, "=== Calculating coords from atom types...");
-        reader.calc_coordination(conf.nnn);
+        reader.calc_coordinations(conf.nnn);
         end_msg(t0);
-        reader.check_coordination();
+        reader.check_coordinations();
     }
 
     return 0;

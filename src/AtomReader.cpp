@@ -21,17 +21,11 @@ AtomReader::AtomReader() : Medium(), rms_distance(0) {}
 void AtomReader::reserve(const int n_atoms) {
     require(n_atoms > 0, "Invalid # atoms: " + to_string(n_atoms));
     atoms.clear();
-    cluster.clear();
 
     atoms.reserve(n_atoms);
-    cluster.reserve(n_atoms);
+    cluster = vector<int>(n_atoms, 0);
     coordination = vector<int>(n_atoms, 0);
 }
-
-//// Add atom with its coordinates and type
-//void AtomReader::add_atom(const int id, const Point3 &point, const int type) {
-//    Medium::add_atom( Atom(id, point, type) );
-//}
 
 bool AtomReader::equals_previous_run(const double eps) {
     if (eps < 1e-5)
@@ -76,17 +70,78 @@ void AtomReader::save_current_run_points(const double eps) {
         previous_point[i] = get_point(i);
 }
 
+// Group atoms into clusters using brute force technique
+void  AtomReader::calc_clusters(const double r_cut, const int minPts) {
+    require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
+    expect(false, "Running slow cluster calculation!");
+
+    vector<int> neighborPts;
+    vector<int> neighborPts_;
+
+    const int n_atoms = get_n_atoms();
+
+    vector<bool> clustered(n_atoms, false);
+    vector<bool> visited(n_atoms, false);
+
+    int c = -1;
+
+    // for each unvisted point P in all the points
+    for (int i = 0; i < n_atoms; i++) {
+        if (visited[i]) continue;
+
+        // Mark P as visited
+        visited[i] = true;
+        neighborPts = region_query(get_point(i), r_cut);
+        if(neighborPts.size() >= minPts) {
+            c++;
+            // expand cluster
+            clustered[i] = true;
+            cluster[i] = c;
+
+            for (int j = 0; j < neighborPts.size(); j++) {
+                int nbr = neighborPts[j];
+
+                // if P' is not visited
+                if (!visited[nbr]) {
+                    // Mark P' as visited
+                    visited[nbr] = true;
+                    neighborPts_ = region_query(get_point(nbr), r_cut);
+                    if (neighborPts_.size() >= minPts)
+                        neighborPts.insert(neighborPts.end(),neighborPts_.begin(),neighborPts_.end());
+                }
+                // if P' is not yet a member of any cluster add P' to cluster c
+                if (!clustered[nbr]) {
+                    clustered[nbr] = true;
+                    cluster[nbr] = c;
+                }
+            }
+        }
+    }
+}
+
+vector<int> AtomReader::region_query(const Point3 &point, const double r_cut) {
+    double r_cut2 = r_cut * r_cut;
+    vector<int> retKeys;
+
+    for (int i = 0; i < get_n_atoms(); i++) {
+        double dist2 = point.distance2(atoms[i].point);
+        if (dist2 <= r_cut2 && dist2 > 0.0)
+            retKeys.push_back(i);
+    }
+    return retKeys;
+}
+
 // Check for evaporated atoms
-void AtomReader::check_coordination() {
+void AtomReader::check_coordinations() {
     const int coord_max = 1;
     const int coord_min = 0;
-    for (unsigned int a : coordination)
+    for (int a : coordination)
         if (a >= coord_min && a <= coord_max)
             cout << "FEMOCS: Evaporated atom detected!" << endl;
 }
 
 // Calculate coordination for all the atoms
-void AtomReader::calc_coordination(const int nnn, const double cutoff, const int* nborlist) {
+void AtomReader::calc_coordinations(const int nnn, const double cutoff, const int* nborlist) {
     require(cutoff > 0, "Invalid cutoff: " + to_string(cutoff));
     require(nnn >= 0, "Invalid # nearest neighbors: " + to_string(nnn));
 
@@ -115,7 +170,7 @@ void AtomReader::calc_coordination(const int nnn, const double cutoff, const int
 }
 
 // Calculate coordination for all the atoms using brute force technique
-void AtomReader::calc_coordination(const double cutoff) {
+void AtomReader::calc_coordinations(const double cutoff) {
     require(cutoff > 0, "Invalid cutoff: " + to_string(cutoff));
     expect(false, "Running slow coordination calculation!");
     
@@ -144,7 +199,7 @@ void AtomReader::calc_coordination(const double cutoff) {
 }
 
 // Calculate coordination for all the atoms using the atom types
-void AtomReader::calc_coordination(const int nnn) {
+void AtomReader::calc_coordinations(const int nnn) {
     require(nnn > 0, "Invalid number of nearest neighbors!");
     const int n_atoms = get_n_atoms();
 
@@ -167,7 +222,9 @@ void AtomReader::extract_types(const int nnn, const double latconst) {
     calc_statistics();
 
     for (int i = 0; i < n_atoms; ++i) {
-        if ( (nnn - coordination[i]) <= nnn_eps )
+        if (cluster[i] != 0)
+            atoms[i].marker = TYPES.CLUSTER;
+        else if ( (nnn - coordination[i]) <= nnn_eps )
             atoms[i].marker = TYPES.BULK;
         else if (get_point(i).z < (sizes.zmin + 0.9*latconst))
             atoms[i].marker = TYPES.FIXED;
@@ -217,10 +274,10 @@ void AtomReader::resize_box(double xmin, double xmax, double ymin, double ymax, 
 
 // Compile data string from the data vectors
 string AtomReader::get_data_string(const int i) const {
-    if (i < 0) return "AtomReader properties=id:I:1:pos:R:3:type:I:1:coordination:I:1";
+    if (i < 0) return "AtomReader properties=id:I:1:pos:R:3:type:I:1:coordination:I:1:cluster:I:1";
 
     ostringstream strs; strs << fixed;
-    strs << atoms[i] << " " << coordination[i];
+    strs << atoms[i] << " " << coordination[i] << " " << cluster[i];
     return strs.str();
 }
 
