@@ -23,7 +23,7 @@ CGAL_FLAGS_TAITO =\
 -DGMP_LIBRARIES=/appl/opt/gmp/6.0.0a/lib/libgmp.so.10.2.0\
 -DMPFR_LIBRARIES=/appl/opt/mpfr/3.1.4/lib/libmpfr.so.4.1.4
 
-CGAL_FLAGS = -DCMAKE_INSTALL_PREFIX=../..-DBUILD_SHARED_LIBS=FALSE
+CGAL_FLAGS = -DCMAKE_INSTALL_PREFIX=../.. -DBUILD_SHARED_LIBS=FALSE
 
 FCFLAGS = -Llib -Ldealii/lib -Lcgal/lib64 -Ilib -Iheating/include -Iinclude -Idealii/include -Icgal/include
 LDFLAGS = -lfemocs -ltet -ldeal_II -lCGAL -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -std=c++11
