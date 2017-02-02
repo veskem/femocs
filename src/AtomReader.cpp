@@ -70,90 +70,110 @@ void AtomReader::save_current_run_points(const double eps) {
         previous_point[i] = get_point(i);
 }
 
-// Group atoms into clusters using brute force technique
-void  AtomReader::calc_clusters(const double r_cut, const int* parcas_nborlist) {
+// Calculate list of close neighbours using Parcas diagonal neighbour list
+vector<vector<int>> AtomReader::get_close_nborlist(const int nnn, const double r_cut, const int* parcas_nborlist) {
     require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
 
-    const int minPts = 0;  // minimum nr of points in a cluster
     const int n_atoms = get_n_atoms();
-    vector<int> neighborPts;
-    vector<int> neighborPts_;
-    vector<bool> visited(n_atoms, false);
-    int c = -1;
+    const double r_cut2 = r_cut * r_cut;
 
-    if (parcas_nborlist != NULL)
-        get_nborlist(parcas_nborlist);
-
-    // for each unvisted point P in all the points
-    for (int i = 0; i < n_atoms; i++) {
-        if (visited[i]) continue;
-
-        // Mark P as visited
-        visited[i] = true;
-        neighborPts = region_query(i, r_cut);
-        if(neighborPts.size() >= minPts) {
-            // expand cluster
-            cluster[i] = ++c;
-
-            for (int j = 0; j < neighborPts.size(); j++) {
-                int nbr = neighborPts[j];
-
-                // if P' is not visited
-                if (!visited[nbr]) {
-                    // Mark P' as visited
-                    visited[nbr] = true;
-                    neighborPts_ = region_query(nbr, r_cut);
-                    if (neighborPts_.size() >= minPts)
-                        neighborPts.insert(neighborPts.end(),neighborPts_.begin(),neighborPts_.end());
-                }
-                cluster[nbr] = c;
-            }
-        }
-    }
-}
-
-// Transform parcas diagonal neighbour list into non-diagonal one
-void AtomReader::get_nborlist(const int* parcas_nborlist) {
-    const int n_atoms = get_n_atoms();
-    nborlist.clear();
-    nborlist.resize(n_atoms);
+    // Initialise list of closest neighbours
+    vector<vector<int>> nborlist(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        nborlist[i].reserve(nnn);
 
     // Loop through all the atoms
     int nbor_indx = 0;
-    for (int i = 0; i < get_n_atoms(); ++i) {
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point1 = get_point(i);
+
         int n_nbors = parcas_nborlist[nbor_indx++];
 
         // Loop through atom neighbours
         for (int j = 0; j < n_nbors; ++j) {
-            int nbr = parcas_nborlist[nbor_indx++] - 1;
-            nborlist[i].push_back(nbr);
-            nborlist[nbr].push_back(i);
+            int nbr = parcas_nborlist[nbor_indx + j] - 1;
+            if ( r_cut2 >= point1.periodic_distance2(get_point(nbr), sizes.xbox, sizes.ybox) ) {
+                nborlist[i].push_back(nbr);
+                nborlist[nbr].push_back(i);
+            }
         }
+        nbor_indx += n_nbors;
     }
+
+    return nborlist;
 }
 
-// Find the indices of neighbours within cut-off radius for a point
-vector<int> AtomReader::region_query(const int i, const double r_cut) {
-    const double r_cut2 = r_cut * r_cut;
+// Calculate list of close neighbours using brute force technique
+vector<vector<int>> AtomReader::get_close_nborlist(const int nnn, const double r_cut) {
+    require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
+
     const int n_atoms = get_n_atoms();
-    vector<int> retKeys;
+    const double r_cut2 = r_cut * r_cut;
 
-    Point3 point = get_point(i);
+    // Initialise list of closest neighbours
+    vector<vector<int>> nborlist(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        nborlist[i].reserve(nnn);
 
-    if (nborlist.size() == n_atoms)
-        for (int nbor : nborlist[i]) {
-            double dist2 = point.distance2(atoms[nbor].point);
-            if (dist2 <= r_cut2)
-                retKeys.push_back(nbor);
+    int percentage = 0;
+    if (MODES.VERBOSE) cout << endl;
+
+    // Loop through all the atoms
+    for (int i = 0; i < n_atoms - 1; ++i) {
+        // show the progress (for big systems the calculation may take a lot of time)
+        if (MODES.VERBOSE && i % (n_atoms / 44) == 0) {
+            cout << "\r" << string(percentage, '*') << string(44-percentage, ' ') << " " << flush;
+            percentage++;
         }
-    else
-        for (int i = 0; i < n_atoms; ++i) {
-            double dist2 = point.distance2(atoms[i].point);
-            if (dist2 <= r_cut2 && dist2 > 0.0)
-                retKeys.push_back(i);
-        }
 
-    return retKeys;
+        Point3 point1 = get_point(i);
+        // Loop through all the possible neighbours of the atom
+        for (int j = i + 1; j < n_atoms; ++j) {
+            if ( r_cut2 >= point1.periodic_distance2(get_point(j), sizes.xbox, sizes.ybox) ) {
+                nborlist[i].push_back(j);
+                nborlist[j].push_back(i);
+            }
+        }
+    }
+
+    return nborlist;
+}
+
+// Check for clustered atoms
+void AtomReader::check_clusters() {
+    const int n_clusters = vector_sum(vector_not(&cluster, 0));
+    if (n_clusters > 0)
+        cout << "FEMOCS: # evaporated or clustered atoms: " + to_string(n_clusters) << endl;
+}
+
+// Group atoms into clusters using brute force technique
+void AtomReader::calc_clusters(vector<vector<int>> &nborlist) {
+    const int n_atoms = get_n_atoms();
+    vector<int> neighbours;
+    vector<bool> not_marked(n_atoms, true);
+    int c = -1;
+
+    // for each unvisited point P in all the points
+    for (int i = 0; i < n_atoms; ++i) {
+        if (not_marked[i]) {
+            // Mark P as visited & expand cluster
+            not_marked[i] = false;
+            cluster[i] = ++c;
+
+            neighbours = nborlist[i];
+
+            for (int j = 0; j < neighbours.size(); ++j) {
+                int nbor = neighbours[j];
+                // if P' is not visited
+                if (not_marked[nbor]) {
+                    // Mark P' as visited & expand cluster
+                    not_marked[nbor] = false;
+                    cluster[nbor] = c;
+                    neighbours.insert(neighbours.end(),nborlist[nbor].begin(),nborlist[nbor].end());
+                }
+            }
+        }
+    }
 }
 
 // Check for evaporated atoms
@@ -165,71 +185,13 @@ void AtomReader::check_coordinations() {
             cout << "FEMOCS: Evaporated atom detected!" << endl;
 }
 
-// Check for clustered atoms
-void AtomReader::check_clusters() {
-    const int n_clusters = vector_sum(vector_not(&cluster, 0));
-    if (n_clusters > 0)
-        cout << "FEMOCS: # evaporated or clustered atoms: " + to_string(n_clusters) << endl;
-}
-
 // Calculate coordination for all the atoms
-void AtomReader::calc_coordinations(const double r_cut, const int* nborlist) {
-    require(r_cut > 0, "Invalid r_cut: " + to_string(r_cut));
-
-    const int n_atoms = get_n_atoms();
-    const double cutoff2 = r_cut * r_cut;
-
-    int nbor_indx = 0;
-    // Loop through all the atoms
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 point1 = get_point(i);
-
-        // Loop through atom neighbours
-        int n_nbors = nborlist[nbor_indx++];
-        for (int j = 0; j < n_nbors; ++j) {
-            int nbor = nborlist[nbor_indx + j] - 1;
-            require (nbor >= 0 && nbor < n_atoms, "Invalid neighbour: " + to_string(nbor));
-
-            double r2 = point1.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox);
-            if (r2 <= cutoff2) {
-                coordination[i]++;
-                coordination[nbor]++;
-            }
-        }
-        nbor_indx += n_nbors;
-    }
+void AtomReader::calc_coordinations(const vector<vector<int>>& nborlist) {
+    for (int i = 0; i < get_n_atoms(); ++i)
+        coordination[i] = nborlist[i].size();
 }
 
-// Calculate coordination for all the atoms using brute force technique
-void AtomReader::calc_coordinations(const double cutoff) {
-    require(cutoff > 0, "Invalid cutoff: " + to_string(cutoff));
-    expect(false, "Running slow coordination calculation!");
-    
-    const int n_atoms = get_n_atoms();
-    const double cutoff2 = cutoff * cutoff;
-
-    int percentage = 0;
-    // Loop through all the atoms
-    for (int i = 0; i < n_atoms - 1; ++i) {
-        // show progress (for big systems the calculation may take a lot of time)
-        if (MODES.VERBOSE && i % (n_atoms / 44) == 0) {
-            cout << "\r" << string(percentage, '*') << string(44-percentage, ' ') << " " << flush;
-            percentage++;
-        }
-        
-        Point3 point1 = get_point(i);
-        // Loop through all the possible neighbours of the atom
-        for (int j = i + 1; j < n_atoms; ++j) {
-            double r2 = point1.periodic_distance2(get_point(j), sizes.xbox, sizes.ybox);
-            if (r2 <= cutoff2) {
-                coordination[i]++;
-                coordination[j]++;
-            }
-        }
-    }
-}
-
-// Calculate coordination for all the atoms using the atom types
+// Calculate pseudo-coordination for all the atoms using the atom types
 void AtomReader::calc_coordinations(const int nnn) {
     require(nnn > 0, "Invalid number of nearest neighbors!");
     const int n_atoms = get_n_atoms();
@@ -255,7 +217,7 @@ void AtomReader::extract_types(const int nnn, const double latconst) {
     for (int i = 0; i < n_atoms; ++i) {
         if (cluster[i] != 0)
             atoms[i].marker = TYPES.CLUSTER;
-        else if (get_point(i).z < (sizes.zmin + latconst))
+        else if (get_point(i).z < (sizes.zmin + 0.49*latconst))
             atoms[i].marker = TYPES.FIXED;
         else if ( (nnn - coordination[i]) >= nnn_eps )
             atoms[i].marker = TYPES.SURFACE;
@@ -294,14 +256,6 @@ void AtomReader::resize_box(double xmin, double xmax, double ymin, double ymax, 
     sizes.ymid = (ymax + ymin) / 2;
     sizes.zmid = (zmax + zmin) / 2;
 }
-
-// =================================
-// *** GETTERS: ***************
-
-//int AtomReader::get_coordination(const int i) const {
-//    require(i >= 0 && i < get_n_atoms(), "Invalid index!");
-//    return coordination[i];
-//}
 
 // Compile data string from the data vectors
 string AtomReader::get_data_string(const int i) const {

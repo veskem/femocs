@@ -35,21 +35,29 @@ public:
     /** Function to transform atomic data from Kimocs format into AtomReader one */
     void import_kimocs();
 
+    /** Calculate list of close neighbours using Parcas diagonal neighbour list */
+    vector<vector<int>> get_close_nborlist(const int nnn, const double r_cut, const int* parcas_nborlist);
+
+    /** Calculate list of close neighbours using brute force technique */
+    vector<vector<int>> get_close_nborlist(const int nnn, const double r_cut);
+
+    /** Group atoms into clusters using brute force technique
+     * DBSCAN - density-based spatial clustering of applications with noise
+     * http://codereview.stackexchange.com/questions/23966/density-based-clustering-of-image-keypoints
+     * https://en.wikipedia.org/wiki/DBSCAN */
+    void calc_clusters(vector<vector<int>>& nborlist);
+
     /**
      * Calculate coordination for all the atoms in AtomReader
-     * @param r_cut   cut-off radius for coordination analysis
-     * @param nborlist neighbour list of atoms
+     * @param nborlist  list of closest neighbours
      */
-    void calc_coordinations(const double r_cut, const int* nborlist);
-
-    /** Calculate coordination for all the atoms using brute force technique */
-    void calc_coordinations(const double r_cut);
+    void calc_coordinations(const vector<vector<int>>& nborlist);
 
     /** Calculate pseudo-coordination for all the atoms using the atom types */
     void calc_coordinations(const int nnn);
 
     /** Function to detect evaporated atoms by their coordinations;
-     * an atom is considered evaporated if it's coordiantion is between the defined limits. */
+     * an atom is considered evaporated if it's coordination is between the defined limits. */
     void check_coordinations();
 
     /** Give a message about the number of atoms in clusters */
@@ -76,18 +84,13 @@ public:
     /** Store the atom coordinates from current run */
     void save_current_run_points(const double eps);
 
-    /** Group atoms into clusters using brute force technique
-     * DBSCAN - density-based spatial clustering of applications with noise
-     * http://codereview.stackexchange.com/questions/23966/density-based-clustering-of-image-keypoints
-     * https://en.wikipedia.org/wiki/DBSCAN */
-    void calc_clusters(const double r_cut, const int* nborlist=NULL);
-
     double rms_distance;            ///< rms distance between atoms from previous and current run
+
 private:
     vector<int> cluster;            ///< id of cluster the atom is located
     vector<int> coordination;       ///< coordinations of atoms
     vector<Point3> previous_point;  ///< atom coordinates from previous run
-    vector<vector<int>> nborlist;   ///< neighbour list in non-diagonal format
+
     /**
      * Functions to import atoms from different types of file.
      * @param file_name - path to file with atomic data
@@ -98,12 +101,6 @@ private:
 
     /** Reserve memory for data vectors */
     void reserve(const int n_atoms);
-
-    /** Find the indices of neighbours within cut-off radius for a point */
-    vector<int> region_query(const int i, const double r_cut);
-
-    /** Transform parcas diagonal neighbour list into non-diagonal one */
-    void get_nborlist(const int* parcas_nborlist);
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     string get_data_string(const int i) const;

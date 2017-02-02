@@ -49,6 +49,9 @@ Femocs::~Femocs() {
 int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum) {
     start_msg(t0, "=== Extracting surface...");
     dense_surf.extract(reader, TYPES.SURFACE);
+    end_msg(t0);
+
+    start_msg(t0, "=== Cleaning surface...");
     dense_surf = dense_surf.clean_lonely_atoms(conf.coord_cutoff);
     end_msg(t0);
 
@@ -362,12 +365,13 @@ int Femocs::import_atoms(const string& file_name) {
 
     if (!skip_calculations) {
         if (file_type == "xyz") {
-            start_msg(t0, "=== Performing coordination analysis...");
-            reader.calc_coordinations(conf.coord_cutoff);
+            start_msg(t0, "=== Generating list of close neighbours...");
+            nborlist = reader.get_close_nborlist(conf.nnn, conf.coord_cutoff);
             end_msg(t0);
 
-            start_msg(t0, "=== Performing cluster analysis...");
-            reader.calc_clusters(conf.coord_cutoff);
+            start_msg(t0, "=== Coordination & cluster analysis...");
+            reader.calc_coordinations(nborlist);
+            reader.calc_clusters(nborlist);
             end_msg(t0);
             reader.check_clusters();
 
@@ -387,7 +391,7 @@ int Femocs::import_atoms(const string& file_name) {
 }
 
 // import atoms from PARCAS
-int Femocs::import_atoms(const int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
+int Femocs::import_atoms(const int n_atoms, const double* coordinates, const double* box, const int* parcas_nborlist) {
     start_msg(t0, "=== Importing atoms...");
     reader.import_parcas(n_atoms, coordinates, box);
     end_msg(t0);
@@ -398,12 +402,13 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
     end_msg(t0);
 
     if (!skip_calculations) {
-        start_msg(t0, "=== Performing coordination analysis...");
-        reader.calc_coordinations(conf.coord_cutoff, nborlist);
+        start_msg(t0, "=== Generating list of close neighbours...");
+        nborlist = reader.get_close_nborlist(conf.nnn, conf.coord_cutoff, parcas_nborlist);
         end_msg(t0);
 
-        start_msg(t0, "=== Performing cluster analysis...");
-        reader.calc_clusters(conf.coord_cutoff, nborlist);
+        start_msg(t0, "=== Coordination & cluster analysis...");
+        reader.calc_coordinations(nborlist);
+        reader.calc_clusters(nborlist);
         end_msg(t0);
         reader.check_clusters();
 
