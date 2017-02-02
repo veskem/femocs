@@ -91,7 +91,7 @@ Media Media::extend(const string &file_name, Coarseners &coarseners) {
     Media stretched(reader.get_n_atoms());
     stretched += reader;
 
-    return stretched.coarsen(coarseners);
+    return stretched.coarsen(coarseners, this->sizes);
 }
 
 // Function extend the flat area by generating additional atoms
@@ -108,29 +108,35 @@ Media Media::extend(const double latconst, const double box_width, Coarseners &c
     // copy input points without modification
     Media stretched( max(0, n_gen) );
 
-    // if the input surface already is sufficiently wide, don't modify it at all
-    if (desired_box_width <= current_box_width)
-        return stretched;
-
     const double W = (desired_box_width - current_box_width) / 2.0;  // generation area width
 
-    // add points outside already existing area
-    for (double y = sizes.ymin - W; y <= sizes.ymax + W; y += latconst)
-        for (double x = sizes.xmin - W; x <= sizes.xmax + W; x += latconst)
-            if ( x < sizes.xmin || x > sizes.xmax || y < sizes.ymin || y > sizes.ymax)
-                stretched.add_atom( Point3(x, y, coarseners.centre.z) );
+    // if the input surface already is sufficiently wide, just add the boundary nodes
+    if (W > 0) {
+        // add points outside already existing area
+        for (double y = sizes.ymin - W; y <= sizes.ymax + W; y += latconst)
+            for (double x = sizes.xmin - W; x <= sizes.xmax + W; x += latconst)
+                if ( x < sizes.xmin || x > sizes.xmax || y < sizes.ymin || y > sizes.ymax)
+                    stretched.add_atom( Point3(x, y, coarseners.centre.z) );
+    }
 
-    return stretched.coarsen(coarseners);
+    return stretched.coarsen(coarseners, this->sizes);
 }
 
 // Function to coarsen the atoms with coarsener
-Media Media::coarsen(Coarseners &coarseners) {
+Media Media::coarsen(Coarseners &coarseners, Media::Sizes &other) {
     Media corners, middle, union_surf;
 
     calc_statistics();
-    this->sort_atoms(3, "down");
-    corners.generate_simple(this->sizes, this->sizes.zmin);
-    middle.generate_middle(this->sizes, this->sizes.zmin, coarseners.get_r0_inf(this->sizes));
+
+    if ((sizes.xmin < sizes.xmax) && (sizes.ymin < sizes.ymax)) {
+        this->sort_atoms(3, "down");
+        corners.generate_simple(this->sizes, this->sizes.zmin);
+        middle.generate_middle(this->sizes, this->sizes.zmin, coarseners.get_r0_inf(this->sizes));
+    }
+    else {
+        corners.generate_simple(other, other.zmin);
+        middle.generate_middle(other, other.zmin, coarseners.get_r0_inf(other));
+    }
 
     union_surf += corners;
     union_surf += middle;

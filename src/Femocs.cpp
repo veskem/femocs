@@ -56,11 +56,10 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 
     Coarseners coarseners;
     coarseners.generate(dense_surf, conf.radius, conf.cfactor, conf.latconst);
+    coarseners.write("output/coarseners.vtk");
 
     static bool first_run = true;
     if (first_run) {
-        coarseners.write("output/coarseners.vtk");
-
         start_msg(t0, "=== Extending surface...");
         if (conf.extended_atoms == "")
             extended_surf = dense_surf.extend(conf.latconst, conf.box_width, coarseners);
@@ -73,8 +72,9 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     }
     
     start_msg(t0, "=== Coarsening & smoothing surface...");
-    coarse_surf = dense_surf.clean(coarseners);
-    coarse_surf += extended_surf;
+    dense_surf.sort_atoms(3, "down");
+    coarse_surf = extended_surf;
+    coarse_surf += dense_surf;
     coarse_surf = coarse_surf.clean(coarseners);
     coarse_surf.smoothen(conf.radius, conf.smooth_factor, 3.0*conf.coord_cutoff);
     end_msg(t0);
@@ -92,7 +92,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     
     bulk.write("output/bulk.xyz");
     vacuum.write("output/vacuum.xyz");
-    
+
     return 0;
 }
 
@@ -313,30 +313,22 @@ int Femocs::run(const double elfield, const string &message) {
 
     if (fail) return 1;
     
+    // Solve Laplace equation on vacuum mesh
+    fch::Laplace<3> laplace_solver;
+    fail = solve_laplace(vacuum_mesh, laplace_solver);
+    if (fail) return 1;
+
+    extract_laplace(vacuum_mesh, &laplace_solver);
 
     static bool odd_run = true;
     if (conf.heating) {
-        // Solve Laplace equation on vacuum mesh
-        fch::Laplace<3> laplace_solver;
-        fail = solve_laplace(vacuum_mesh, laplace_solver);
-        if (fail) return 1;
-
-        extract_laplace(vacuum_mesh, &laplace_solver);
-
-        // Solve heat & continuum equation on bulk mesh
+        // Solve heat & continuity equation on bulk mesh
         fail = solve_heat(bulk_mesh, laplace_solver);
         if (!fail) extract_heat(bulk_mesh, ch_solver);
 
         if (odd_run) { ch_solver = &ch_solver2; prev_ch_solver = &ch_solver1; }
         else { ch_solver = &ch_solver1; prev_ch_solver = &ch_solver2; }
         odd_run = !odd_run;
-    }
-    else {
-        DealII laplace_solver;
-        fail = solve_laplace(vacuum_mesh, laplace_solver);
-        if (fail) return 1;
-
-        extract_laplace(vacuum_mesh, &laplace_solver);
     }
 
     start_msg(t0, "=== Saving atom positions...");
@@ -375,7 +367,7 @@ int Femocs::import_atoms(const string& file_name) {
             end_msg(t0);
 
             start_msg(t0, "=== Performing cluster analysis...");
-            reader.calc_clusters(conf.coord_cutoff, 3);
+            reader.calc_clusters(conf.coord_cutoff);
             end_msg(t0);
 
             start_msg(t0, "=== Extracting atom types...");
@@ -387,7 +379,9 @@ int Femocs::import_atoms(const string& file_name) {
             reader.calc_coordinations(conf.nnn);
             end_msg(t0);
         }
+
         reader.check_coordinations();
+        reader.write("output/atomreader.xyz");
     }
 
     return 0;
@@ -405,11 +399,20 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
     end_msg(t0);
 
     if (!skip_calculations) {
-        start_msg(t0, "=== Calculating coords and atom types...");
-        reader.calc_coordinations(conf.nnn, conf.coord_cutoff, nborlist);
+        start_msg(t0, "=== Performing coordination analysis...");
+        reader.calc_coordinations(conf.coord_cutoff, nborlist);
+        end_msg(t0);
+
+        start_msg(t0, "=== Performing cluster analysis...");
+        reader.calc_clusters(conf.coord_cutoff, nborlist);
+        end_msg(t0);
+
+        start_msg(t0, "=== Extracting atom types...");
         reader.extract_types(conf.nnn, conf.latconst);
         end_msg(t0);
+
         reader.check_coordinations();
+        reader.write("output/atomreader.xyz");
     }
 
     return 0;
@@ -430,7 +433,9 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
         start_msg(t0, "=== Calculating coords from atom types...");
         reader.calc_coordinations(conf.nnn);
         end_msg(t0);
+
         reader.check_coordinations();
+        reader.write("output/atomreader.xyz");
     }
 
     return 0;

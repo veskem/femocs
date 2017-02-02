@@ -37,14 +37,13 @@ public:
 
     /**
      * Calculate coordination for all the atoms in AtomReader
-     * @param cutoff   cut off radius for coordination analysis
-     * @param nnn      number of nearest neighbours in a crystal
+     * @param r_cut   cut-off radius for coordination analysis
      * @param nborlist neighbour list of atoms
      */
-    void calc_coordinations(const int nnn, const double cutoff, const int* nborlist);
+    void calc_coordinations(const double r_cut, const int* nborlist);
 
     /** Calculate coordination for all the atoms using brute force technique */
-    void calc_coordinations(const double cutoff);
+    void calc_coordinations(const double r_cut);
 
     /** Calculate pseudo-coordination for all the atoms using the atom types */
     void calc_coordinations(const int nnn);
@@ -78,14 +77,14 @@ public:
      * DBSCAN - density-based spatial clustering of applications with noise
      * http://codereview.stackexchange.com/questions/23966/density-based-clustering-of-image-keypoints
      * https://en.wikipedia.org/wiki/DBSCAN */
-    void calc_clusters(const double r_cut, const int minPts);
+    void calc_clusters(const double r_cut, const int* nborlist=NULL);
 
-    double rms_distance;               ///< rms distance between atoms from previous and current run
+    double rms_distance;            ///< rms distance between atoms from previous and current run
 private:
-    vector<int> cluster;      ///< id of cluster the atom is located
-    vector<int> coordination; ///< coordinations of atoms
-    vector<Point3> previous_point;     ///< atom coordinates from previous run
-
+    vector<int> cluster;            ///< id of cluster the atom is located
+    vector<int> coordination;       ///< coordinations of atoms
+    vector<Point3> previous_point;  ///< atom coordinates from previous run
+    vector<vector<int>> nborlist;   ///< neighbour list in non-diagonal format
     /**
      * Functions to import atoms from different types of file.
      * @param file_name - path to file with atomic data
@@ -97,7 +96,11 @@ private:
     /** Reserve memory for data vectors */
     void reserve(const int n_atoms);
 
-    vector<int> region_query(const Point3 &point, const double r_cut);
+    /** Find the indices of neighbours within cut-off radius for a point */
+    vector<int> region_query(const int i, const double r_cut);
+
+    /** Transform parcas diagonal neighbour list into non-diagonal one */
+    void get_nborlist(const int* parcas_nborlist);
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     string get_data_string(const int i) const;

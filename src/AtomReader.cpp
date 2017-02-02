@@ -19,7 +19,7 @@ AtomReader::AtomReader() : Medium(), rms_distance(0) {}
 
 // Reserve memory for data vectors
 void AtomReader::reserve(const int n_atoms) {
-    require(n_atoms > 0, "Invalid # atoms: " + to_string(n_atoms));
+    require(n_atoms >= 0, "Invalid # atoms: " + to_string(n_atoms));
     atoms.clear();
 
     atoms.reserve(n_atoms);
@@ -71,19 +71,18 @@ void AtomReader::save_current_run_points(const double eps) {
 }
 
 // Group atoms into clusters using brute force technique
-void  AtomReader::calc_clusters(const double r_cut, const int minPts) {
+void  AtomReader::calc_clusters(const double r_cut, const int* parcas_nborlist) {
     require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
-    expect(false, "Running slow cluster calculation!");
 
+    const int minPts = 0;  // minimum nr of points in a cluster
+    const int n_atoms = get_n_atoms();
     vector<int> neighborPts;
     vector<int> neighborPts_;
-
-    const int n_atoms = get_n_atoms();
-
-    vector<bool> clustered(n_atoms, false);
     vector<bool> visited(n_atoms, false);
-
     int c = -1;
+
+    if (parcas_nborlist != NULL)
+        get_nborlist(parcas_nborlist);
 
     // for each unvisted point P in all the points
     for (int i = 0; i < n_atoms; i++) {
@@ -91,12 +90,10 @@ void  AtomReader::calc_clusters(const double r_cut, const int minPts) {
 
         // Mark P as visited
         visited[i] = true;
-        neighborPts = region_query(get_point(i), r_cut);
+        neighborPts = region_query(i, r_cut);
         if(neighborPts.size() >= minPts) {
-            c++;
             // expand cluster
-            clustered[i] = true;
-            cluster[i] = c;
+            cluster[i] = ++c;
 
             for (int j = 0; j < neighborPts.size(); j++) {
                 int nbr = neighborPts[j];
@@ -105,29 +102,57 @@ void  AtomReader::calc_clusters(const double r_cut, const int minPts) {
                 if (!visited[nbr]) {
                     // Mark P' as visited
                     visited[nbr] = true;
-                    neighborPts_ = region_query(get_point(nbr), r_cut);
+                    neighborPts_ = region_query(nbr, r_cut);
                     if (neighborPts_.size() >= minPts)
                         neighborPts.insert(neighborPts.end(),neighborPts_.begin(),neighborPts_.end());
                 }
-                // if P' is not yet a member of any cluster add P' to cluster c
-                if (!clustered[nbr]) {
-                    clustered[nbr] = true;
-                    cluster[nbr] = c;
-                }
+                cluster[nbr] = c;
             }
         }
     }
 }
 
-vector<int> AtomReader::region_query(const Point3 &point, const double r_cut) {
-    double r_cut2 = r_cut * r_cut;
+// Transform parcas diagonal neighbour list into non-diagonal one
+void AtomReader::get_nborlist(const int* parcas_nborlist) {
+    const int n_atoms = get_n_atoms();
+    nborlist.clear();
+    nborlist.resize(n_atoms);
+
+    // Loop through all the atoms
+    int nbor_indx = 0;
+    for (int i = 0; i < get_n_atoms(); ++i) {
+        int n_nbors = parcas_nborlist[nbor_indx++];
+
+        // Loop through atom neighbours
+        for (int j = 0; j < n_nbors; ++j) {
+            int nbr = parcas_nborlist[nbor_indx++] - 1;
+            nborlist[i].push_back(nbr);
+            nborlist[nbr].push_back(i);
+        }
+    }
+}
+
+// Find the indices of neighbours within cut-off radius for a point
+vector<int> AtomReader::region_query(const int i, const double r_cut) {
+    const double r_cut2 = r_cut * r_cut;
+    const int n_atoms = get_n_atoms();
     vector<int> retKeys;
 
-    for (int i = 0; i < get_n_atoms(); i++) {
-        double dist2 = point.distance2(atoms[i].point);
-        if (dist2 <= r_cut2 && dist2 > 0.0)
-            retKeys.push_back(i);
-    }
+    Point3 point = get_point(i);
+
+    if (nborlist.size() == n_atoms)
+        for (int nbor : nborlist[i]) {
+            double dist2 = point.distance2(atoms[nbor].point);
+            if (dist2 <= r_cut2)
+                retKeys.push_back(nbor);
+        }
+    else
+        for (int i = 0; i < n_atoms; ++i) {
+            double dist2 = point.distance2(atoms[i].point);
+            if (dist2 <= r_cut2 && dist2 > 0.0)
+                retKeys.push_back(i);
+        }
+
     return retKeys;
 }
 
@@ -141,12 +166,11 @@ void AtomReader::check_coordinations() {
 }
 
 // Calculate coordination for all the atoms
-void AtomReader::calc_coordinations(const int nnn, const double cutoff, const int* nborlist) {
-    require(cutoff > 0, "Invalid cutoff: " + to_string(cutoff));
-    require(nnn >= 0, "Invalid # nearest neighbors: " + to_string(nnn));
+void AtomReader::calc_coordinations(const double r_cut, const int* nborlist) {
+    require(r_cut > 0, "Invalid r_cut: " + to_string(r_cut));
 
     const int n_atoms = get_n_atoms();
-    const double cutoff2 = cutoff * cutoff;
+    const double cutoff2 = r_cut * r_cut;
 
     int nbor_indx = 0;
     // Loop through all the atoms
