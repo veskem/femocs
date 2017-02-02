@@ -369,6 +369,7 @@ int Femocs::import_atoms(const string& file_name) {
             start_msg(t0, "=== Performing cluster analysis...");
             reader.calc_clusters(conf.coord_cutoff);
             end_msg(t0);
+            reader.check_clusters();
 
             start_msg(t0, "=== Extracting atom types...");
             reader.extract_types(conf.nnn, conf.latconst);
@@ -379,8 +380,6 @@ int Femocs::import_atoms(const string& file_name) {
             reader.calc_coordinations(conf.nnn);
             end_msg(t0);
         }
-
-        reader.check_coordinations();
         reader.write("output/atomreader.xyz");
     }
 
@@ -406,12 +405,12 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
         start_msg(t0, "=== Performing cluster analysis...");
         reader.calc_clusters(conf.coord_cutoff, nborlist);
         end_msg(t0);
+        reader.check_clusters();
 
         start_msg(t0, "=== Extracting atom types...");
         reader.extract_types(conf.nnn, conf.latconst);
         end_msg(t0);
 
-        reader.check_coordinations();
         reader.write("output/atomreader.xyz");
     }
 
@@ -434,7 +433,7 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
         reader.calc_coordinations(conf.nnn);
         end_msg(t0);
 
-        reader.check_coordinations();
+        reader.check_clusters();
         reader.write("output/atomreader.xyz");
     }
 

@@ -52,6 +52,9 @@ public:
      * an atom is considered evaporated if it's coordiantion is between the defined limits. */
     void check_coordinations();
 
+    /** Give a message about the number of atoms in clusters */
+    void check_clusters();
+
     /** Extract atom types from calculated atom coordinations */
     void extract_types(const int nnn, const double latconst);
 

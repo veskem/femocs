@@ -165,6 +165,13 @@ void AtomReader::check_coordinations() {
             cout << "FEMOCS: Evaporated atom detected!" << endl;
 }
 
+// Check for clustered atoms
+void AtomReader::check_clusters() {
+    const int n_clusters = vector_sum(vector_not(&cluster, 0));
+    if (n_clusters > 0)
+        cout << "FEMOCS: # evaporated or clustered atoms: " + to_string(n_clusters) << endl;
+}
+
 // Calculate coordination for all the atoms
 void AtomReader::calc_coordinations(const double r_cut, const int* nborlist) {
     require(r_cut > 0, "Invalid r_cut: " + to_string(r_cut));
@@ -242,18 +249,18 @@ void AtomReader::calc_coordinations(const int nnn) {
 // Extract atom types from calculated coordinations
 void AtomReader::extract_types(const int nnn, const double latconst) {
     const int n_atoms = get_n_atoms();
-    const int nnn_eps = 1;
+    const int nnn_eps = 3;
     calc_statistics();
 
     for (int i = 0; i < n_atoms; ++i) {
         if (cluster[i] != 0)
             atoms[i].marker = TYPES.CLUSTER;
-        else if ( (nnn - coordination[i]) <= nnn_eps )
-            atoms[i].marker = TYPES.BULK;
-        else if (get_point(i).z < (sizes.zmin + 0.9*latconst))
+        else if ( (nnn - coordination[i]) >= nnn_eps )
+            atoms[i].marker = TYPES.SURFACE;
+        else if (get_point(i).z < (sizes.zmin + latconst))
             atoms[i].marker = TYPES.FIXED;
         else
-            atoms[i].marker = TYPES.SURFACE;
+            atoms[i].marker = TYPES.BULK;
     }
 }
 
