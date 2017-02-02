@@ -831,7 +831,7 @@ void Mesh::calc_hex_qualities() {
     const int n_elems = hexahedra.size();
     const int n_edges_per_hex = hexahedra[0]->get_n_edges();
     const int n_verts_per_hex = hexahedra[0]->get_n_vertices();
-    const double Q = 10000.0; //1.0 / n_edges_per_hex;
+    const double Q = 10000.0;
 
     double len, len_sum, len_min;
 

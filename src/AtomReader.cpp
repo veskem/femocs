@@ -255,10 +255,10 @@ void AtomReader::extract_types(const int nnn, const double latconst) {
     for (int i = 0; i < n_atoms; ++i) {
         if (cluster[i] != 0)
             atoms[i].marker = TYPES.CLUSTER;
-        else if ( (nnn - coordination[i]) >= nnn_eps )
-            atoms[i].marker = TYPES.SURFACE;
         else if (get_point(i).z < (sizes.zmin + latconst))
             atoms[i].marker = TYPES.FIXED;
+        else if ( (nnn - coordination[i]) >= nnn_eps )
+            atoms[i].marker = TYPES.SURFACE;
         else
             atoms[i].marker = TYPES.BULK;
     }
