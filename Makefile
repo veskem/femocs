@@ -8,7 +8,7 @@
 
 include release/makefile.defs
 
-all: lib
+all: release
 
 lib: lib/libfemocs.a 
 lib/libfemocs.a: src/* include/* 

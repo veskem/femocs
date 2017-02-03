@@ -9,7 +9,6 @@
 
 #include <cfloat>
 #include <fstream>
-#include <omp.h>
 
 using namespace std;
 namespace femocs {
