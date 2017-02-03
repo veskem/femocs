@@ -366,12 +366,12 @@ int Femocs::import_atoms(const string& file_name) {
     if (!skip_calculations) {
         if (file_type == "xyz") {
             start_msg(t0, "=== Generating list of close neighbours...");
-            nborlist = reader.get_close_nborlist(conf.nnn, conf.coord_cutoff);
+            reader.calc_nborlist(conf.nnn, conf.coord_cutoff);
             end_msg(t0);
 
             start_msg(t0, "=== Coordination & cluster analysis...");
-            reader.calc_coordinations(nborlist);
-            reader.calc_clusters(nborlist);
+            reader.calc_coordinations();
+            reader.calc_clusters();
             end_msg(t0);
             reader.check_clusters();
 
@@ -403,12 +403,12 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
 
     if (!skip_calculations) {
         start_msg(t0, "=== Generating list of close neighbours...");
-        nborlist = reader.get_close_nborlist(conf.nnn, conf.coord_cutoff, parcas_nborlist);
+        reader.calc_nborlist(conf.nnn, conf.coord_cutoff, parcas_nborlist);
         end_msg(t0);
 
         start_msg(t0, "=== Coordination & cluster analysis...");
-        reader.calc_coordinations(nborlist);
-        reader.calc_clusters(nborlist);
+        reader.calc_coordinations();
+        reader.calc_clusters();
         end_msg(t0);
         reader.check_clusters();
 

@@ -119,8 +119,6 @@ public:
      */
     int parse_command(const string& command, double* arg);
 
-    vector<vector<int>> nborlist;
-
 private:
     double t0;
     bool skip_calculations;

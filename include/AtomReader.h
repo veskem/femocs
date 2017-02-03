@@ -36,22 +36,18 @@ public:
     void import_kimocs();
 
     /** Calculate list of close neighbours using Parcas diagonal neighbour list */
-    vector<vector<int>> get_close_nborlist(const int nnn, const double r_cut, const int* parcas_nborlist);
+    void calc_nborlist(const int nnn, const double r_cut, const int* parcas_nborlist);
 
     /** Calculate list of close neighbours using brute force technique */
-    vector<vector<int>> get_close_nborlist(const int nnn, const double r_cut);
+    void calc_nborlist(const int nnn, const double r_cut);
 
-    /** Group atoms into clusters using brute force technique
-     * DBSCAN - density-based spatial clustering of applications with noise
+    /** Group atoms into clusters using density-based spatial clustering technique
      * http://codereview.stackexchange.com/questions/23966/density-based-clustering-of-image-keypoints
      * https://en.wikipedia.org/wiki/DBSCAN */
-    void calc_clusters(vector<vector<int>>& nborlist);
+    void calc_clusters();
 
-    /**
-     * Calculate coordination for all the atoms in AtomReader
-     * @param nborlist  list of closest neighbours
-     */
-    void calc_coordinations(const vector<vector<int>>& nborlist);
+    /** Calculate coordination for all the atoms using neighbour list */
+    void calc_coordinations();
 
     /** Calculate pseudo-coordination for all the atoms using the atom types */
     void calc_coordinations(const int nnn);
@@ -90,6 +86,7 @@ private:
     vector<int> cluster;            ///< id of cluster the atom is located
     vector<int> coordination;       ///< coordinations of atoms
     vector<Point3> previous_point;  ///< atom coordinates from previous run
+    vector<vector<int>> nborlist;   ///< list of closest neighbours
 
     /**
      * Functions to import atoms from different types of file.

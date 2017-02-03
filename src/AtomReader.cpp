@@ -71,14 +71,14 @@ void AtomReader::save_current_run_points(const double eps) {
 }
 
 // Calculate list of close neighbours using Parcas diagonal neighbour list
-vector<vector<int>> AtomReader::get_close_nborlist(const int nnn, const double r_cut, const int* parcas_nborlist) {
+void AtomReader::calc_nborlist(const int nnn, const double r_cut, const int* parcas_nborlist) {
     require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
 
     const int n_atoms = get_n_atoms();
     const double r_cut2 = r_cut * r_cut;
 
     // Initialise list of closest neighbours
-    vector<vector<int>> nborlist(n_atoms);
+    nborlist.resize(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
         nborlist[i].reserve(nnn);
 
@@ -91,27 +91,24 @@ vector<vector<int>> AtomReader::get_close_nborlist(const int nnn, const double r
 
         // Loop through atom neighbours
         for (int j = 0; j < n_nbors; ++j) {
-            int nbr = parcas_nborlist[nbor_indx + j] - 1;
+            int nbr = parcas_nborlist[nbor_indx++] - 1;
             if ( r_cut2 >= point1.periodic_distance2(get_point(nbr), sizes.xbox, sizes.ybox) ) {
                 nborlist[i].push_back(nbr);
                 nborlist[nbr].push_back(i);
             }
         }
-        nbor_indx += n_nbors;
     }
-
-    return nborlist;
 }
 
 // Calculate list of close neighbours using brute force technique
-vector<vector<int>> AtomReader::get_close_nborlist(const int nnn, const double r_cut) {
+void AtomReader::calc_nborlist(const int nnn, const double r_cut) {
     require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
 
     const int n_atoms = get_n_atoms();
     const double r_cut2 = r_cut * r_cut;
 
     // Initialise list of closest neighbours
-    vector<vector<int>> nborlist(n_atoms);
+    nborlist.resize(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
         nborlist[i].reserve(nnn);
 
@@ -135,8 +132,6 @@ vector<vector<int>> AtomReader::get_close_nborlist(const int nnn, const double r
             }
         }
     }
-
-    return nborlist;
 }
 
 // Check for clustered atoms
@@ -146,8 +141,8 @@ void AtomReader::check_clusters() {
         cout << "FEMOCS: # evaporated or clustered atoms: " + to_string(n_clusters) << endl;
 }
 
-// Group atoms into clusters using brute force technique
-void AtomReader::calc_clusters(vector<vector<int>> &nborlist) {
+// Group atoms into clusters
+void AtomReader::calc_clusters() {
     const int n_atoms = get_n_atoms();
     vector<int> neighbours;
     vector<bool> not_marked(n_atoms, true);
@@ -186,7 +181,7 @@ void AtomReader::check_coordinations() {
 }
 
 // Calculate coordination for all the atoms
-void AtomReader::calc_coordinations(const vector<vector<int>>& nborlist) {
+void AtomReader::calc_coordinations() {
     for (int i = 0; i < get_n_atoms(); ++i)
         coordination[i] = nborlist[i].size();
 }
