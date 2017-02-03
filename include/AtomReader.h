@@ -73,12 +73,15 @@ public:
      * any of the atoms has moved more than threshold */
     bool equals_previous_run(const double eps);
     
-    /** Calculate the root mean average distance the atoms have moved 
+    /** Calculate the root mean square average distance the atoms have moved
      * between previous and current run */
-    double get_rms_distance(const double eps);
+    double calc_rms_distance(const double eps);
     
     /** Store the atom coordinates from current run */
     void save_current_run_points(const double eps);
+
+    /** Get the closest neighbours of i-th atom */
+    vector<int> get_neighbours(const int i) const;
 
     double rms_distance;            ///< rms distance between atoms from previous and current run
 

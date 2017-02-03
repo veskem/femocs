@@ -51,10 +51,6 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     dense_surf.extract(reader, TYPES.SURFACE);
     end_msg(t0);
 
-    start_msg(t0, "=== Cleaning surface...");
-    dense_surf = dense_surf.clean_lonely_atoms(conf.coord_cutoff);
-    end_msg(t0);
-
     dense_surf.write("output/surface_dense.xyz");
 
     Coarseners coarseners;
@@ -73,7 +69,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
         extended_surf.write("output/surface_extended.xyz");
         first_run = false;
     }
-    
+
     start_msg(t0, "=== Coarsening & smoothing surface...");
     dense_surf.sort_atoms(3, "down");
     coarse_surf = extended_surf;
@@ -360,7 +356,7 @@ int Femocs::import_atoms(const string& file_name) {
     if (MODES.VERBOSE) cout << "#input atoms: " << reader.get_n_atoms() << endl;
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.get_rms_distance(conf.distance_tol) < conf.distance_tol;
+    skip_calculations = reader.calc_rms_distance(conf.distance_tol) < conf.distance_tol;
     end_msg(t0);
 
     if (!skip_calculations) {
@@ -398,7 +394,7 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
     if (MODES.VERBOSE) cout << "#input atoms: " << reader.get_n_atoms() << endl;
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.get_rms_distance(conf.distance_tol) < conf.distance_tol;
+    skip_calculations = reader.calc_rms_distance(conf.distance_tol) < conf.distance_tol;
     end_msg(t0);
 
     if (!skip_calculations) {
@@ -430,7 +426,7 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
     if (MODES.VERBOSE) cout << "#input atoms: " << reader.get_n_atoms() << endl;
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.get_rms_distance(conf.distance_tol) < conf.distance_tol;
+    skip_calculations = reader.calc_rms_distance(conf.distance_tol) < conf.distance_tol;
     end_msg(t0);
 
     if (!skip_calculations) {

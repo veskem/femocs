@@ -100,7 +100,6 @@ public:
     vector<Atom> atoms;  ///< vector holding atom coordinates and meta data
 protected:
 
-
     /** Initialise statistics about the coordinates in Medium */
     void init_statistics();
 

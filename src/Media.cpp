@@ -15,7 +15,6 @@ Media::Media() : Medium() {}
 
 Media::Media(const int n_atoms) : Medium(n_atoms) {}
 
-
 Media::Media(const Medium::Sizes& ar_sizes, const double z) {
     generate_simple(ar_sizes, z);
 }
@@ -61,16 +60,30 @@ void Media::generate_middle(const Medium::Sizes& s, const double z, const double
 
 // Extract surface by the atom types
 void Media::extract(const AtomReader& reader, const int type, const bool invert) {
+    const int coord_min = 2;
     const int n_atoms = reader.get_n_atoms();
     vector<bool> is_type(n_atoms);
 
     // Get number and locations of atoms of desired type
-    if (!invert)
+    if (!invert) {
         for (int i = 0; i < n_atoms; ++i)
             is_type[i] = reader.get_marker(i) == type;
-    else
+    } else {
         for (int i = 0; i < n_atoms; ++i)
             is_type[i] = reader.get_marker(i) != type;
+    }
+
+    // Clean lonely atoms; atom is considered lonely if its coordination is lower than coord_min
+    for (int i = 0; i < n_atoms; ++i)
+        if (is_type[i]) {
+            int n_nbors = 0;
+            for (int nbor : reader.get_neighbours(i)) {
+                require(nbor >= 0 && nbor < n_atoms, "Invalid index: " + to_string(nbor));
+                if (is_type[nbor]) n_nbors++;
+            }
+
+            is_type[i] = n_nbors >= coord_min;
+        }
 
     // Preallocate memory for atoms
     reserve(vector_sum(is_type));
@@ -168,44 +181,6 @@ Media Media::clean(Coarseners &coarseners) {
     Media surf( n_atoms - vector_sum(do_delete) );
     for (int i = 0; i < n_atoms; ++i)
         if(!do_delete[i])
-            surf.add_atom(get_atom(i));
-
-    surf.calc_statistics();
-    return surf;
-}
-
-// Function to delete atoms that are separate from others
-// Atom is considered lonely if its coordination is lower than coord_min
-Media Media::clean_lonely_atoms(const double r_cut) {
-    const double r_cut2 = r_cut * r_cut;
-    const int n_atoms = get_n_atoms();
-    const int coord_min = 2;
-
-    vector<bool> atom_not_lonely(n_atoms, false);
-    vector<int> coords(n_atoms, 0);
-
-    // Loop through all the atoms
-    for(int i = 0; i < n_atoms-1; ++i) {
-        // Skip already processed atoms
-        if (atom_not_lonely[i]) continue;
-
-        Point3 point1 = get_point(i);
-
-        // Loop through the possible neighbours of the atom
-        for (int j = i+1; j < n_atoms; ++j) {
-            // Skip already processed atoms
-            if (atom_not_lonely[j]) continue;
-
-            if (point1.distance2(get_point(j)) <= r_cut2) {
-                atom_not_lonely[i] = ++coords[i] >= coord_min;
-                atom_not_lonely[j] = ++coords[j] >= coord_min;
-            }
-        }
-    }
-
-    Media surf( vector_sum(atom_not_lonely) );
-    for (int i = 0; i < n_atoms; ++i)
-        if (atom_not_lonely[i])
             surf.add_atom(get_atom(i));
 
     surf.calc_statistics();

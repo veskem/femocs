@@ -178,23 +178,15 @@ vector<Point3> NanotipCoarsener::get_points() {
 void Coarseners::generate(Medium &medium, const double radius, const Config::CoarseFactor &cf, const double latconst) {
     const double r_cut2 = radius * radius;
     const int n_atoms = medium.get_n_atoms();
+    require(n_atoms > 0, "Not enough points to generate coarseners: " + to_string(n_atoms));
     
     medium.calc_statistics(); // calculate the span of atoms in medium
 
-    // Calculate the average z coordinate of atoms in flat region
-    vector<double> zcoords; zcoords.reserve(n_atoms);
-    for (int i = 0; i < n_atoms; ++i)
-        zcoords.push_back(medium.get_point(i).z);
+    const double z_bot = medium.sizes.zmin;
+    const double z_top = max(z_bot, medium.sizes.zmax - 0.5*radius);
 
-    sort(zcoords.begin(), zcoords.end());
-
-    double zmean = 0;
-    for (int i = 0; i < 100; ++i)
-        zmean += zcoords[i];
-    zmean /= 100.0;
-
-    centre = Point3(medium.sizes.xmid, medium.sizes.ymid, zmean);
-    Point3 apex(medium.sizes.xmid, medium.sizes.ymid, medium.sizes.zmax - 0.5*radius);
+    centre = Point3(medium.sizes.xmid, medium.sizes.ymid, z_bot);
+    Point3 apex(medium.sizes.xmid, medium.sizes.ymid, z_top);
 
     this->radius = radius;                 // store the coarsener radius
     amplitude = cf.amplitude * latconst;

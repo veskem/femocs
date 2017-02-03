@@ -44,7 +44,7 @@ bool AtomReader::equals_previous_run(const double eps) {
 }
 
 // Calculate root mean square of the distances atoms have moved after previous run
-double AtomReader::get_rms_distance(const double eps) {
+double AtomReader::calc_rms_distance(const double eps) {
     if (eps < 1e-5) return DBL_MAX;
 
     const int n_atoms = get_n_atoms();
@@ -78,7 +78,7 @@ void AtomReader::calc_nborlist(const int nnn, const double r_cut, const int* par
     const double r_cut2 = r_cut * r_cut;
 
     // Initialise list of closest neighbours
-    nborlist.resize(n_atoms);
+    nborlist = vector<vector<int>>(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
         nborlist[i].reserve(nnn);
 
@@ -108,7 +108,7 @@ void AtomReader::calc_nborlist(const int nnn, const double r_cut) {
     const double r_cut2 = r_cut * r_cut;
 
     // Initialise list of closest neighbours
-    nborlist.resize(n_atoms);
+    nborlist = vector<vector<int>>(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
         nborlist[i].reserve(nnn);
 
@@ -259,6 +259,13 @@ string AtomReader::get_data_string(const int i) const {
     ostringstream strs; strs << fixed;
     strs << atoms[i] << " " << coordination[i] << " " << cluster[i];
     return strs.str();
+}
+
+// Get the closest neighbours of i-th atom
+vector<int> AtomReader::get_neighbours(const int i) const {
+    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    require(nborlist.size() == get_n_atoms(), "Query from invalid neighbour list!");
+    return nborlist[i];
 }
 
 // =================================

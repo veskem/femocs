@@ -42,7 +42,8 @@ public:
 
     void generate_middle(const Medium::Sizes& ar_sizes, const double z, const double dist);
 
-    /** Extract atom with desired types
+    /** Extract atom with desired types and clean it from lonely atoms;
+     * atom is considered lonely if its coordination is lower than threshold.
      * @param reader  AtomReader holding the atoms and their types
      * @param type    type of the atoms that will be read
      * @param invert  if true all the atoms except the 'type'-ones will be stored
@@ -56,8 +57,6 @@ public:
     Media extend(const string &file_name, Coarseners &coarseners);
 
     Media clean(Coarseners &coarseners);
-
-    Media clean_lonely_atoms(const double r_cut);
 
     void smoothen(const double radius, const double smooth_factor, const double r_cut);
 
