@@ -262,7 +262,7 @@ string AtomReader::get_data_string(const int i) const {
 }
 
 // Get the closest neighbours of i-th atom
-vector<int> AtomReader::get_neighbours(const int i) const {
+const vector<int>& AtomReader::get_neighbours(const int i) const {
     require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
     require(nborlist.size() == get_n_atoms(), "Query from invalid neighbour list!");
     return nborlist[i];

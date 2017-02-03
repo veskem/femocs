@@ -81,7 +81,7 @@ public:
     void save_current_run_points(const double eps);
 
     /** Get the closest neighbours of i-th atom */
-    vector<int> get_neighbours(const int i) const;
+    const vector<int>& get_neighbours(const int i) const;
 
     double rms_distance;            ///< rms distance between atoms from previous and current run
 
