@@ -32,6 +32,7 @@ Config::Config() {
     bulk_height = 20;            // bulk substrate height [lattice constant]
     n_writefile = 1;             // number of time steps between writing the output files
     use_histclean = false;       // use histogram cleaner to get rid of sharp peaks in the solution
+    cluster_anal = true;         // enable cluster analysis
 
     cfactor.amplitude = 0.4;     // coarsening factor
     cfactor.r0_cylinder = 1.0;   // minimum distance between atoms in nanotip below apex
@@ -60,6 +61,7 @@ void Config::read_all(const string& file_name) {
     parse_file(file_name);
 
     // Modify the parameters that are correctly specified in input script
+    read_command("cluster_anal", cluster_anal);
     read_command("extended_atoms", extended_atoms);
     read_command("clear_output", clear_output);
     read_command("infile", atom_file);

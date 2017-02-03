@@ -50,6 +50,7 @@ public:
     int nnn;                    ///< Number of nearest neighbours for given crystal structure
     int nt;                     ///< Number of OpenMP threads
     double neumann;             ///< Value of Neumann boundary condition
+    bool cluster_anal;          ///< Enable cluster analysis
     bool postprocess_marking;   ///< Make extra effort to mark correctly the vacuum nodes in shadowed area
     bool refine_apex;           ///< Add elements to the nanotip apex
     bool heating;               ///< Turn ON 3D current density and temperature calculations

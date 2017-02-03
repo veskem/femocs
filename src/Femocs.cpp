@@ -367,7 +367,7 @@ int Femocs::import_atoms(const string& file_name) {
 
             start_msg(t0, "=== Coordination & cluster analysis...");
             reader.calc_coordinations();
-            reader.calc_clusters();
+            if (conf.cluster_anal) reader.calc_clusters();
             end_msg(t0);
             reader.check_clusters();
 
@@ -387,7 +387,7 @@ int Femocs::import_atoms(const string& file_name) {
 }
 
 // import atoms from PARCAS
-int Femocs::import_atoms(const int n_atoms, const double* coordinates, const double* box, const int* parcas_nborlist) {
+int Femocs::import_atoms(const int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
     start_msg(t0, "=== Importing atoms...");
     reader.import_parcas(n_atoms, coordinates, box);
     end_msg(t0);
@@ -399,12 +399,12 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
 
     if (!skip_calculations) {
         start_msg(t0, "=== Generating list of close neighbours...");
-        reader.calc_nborlist(conf.nnn, conf.coord_cutoff, parcas_nborlist);
+        reader.calc_nborlist(conf.nnn, conf.coord_cutoff, nborlist);
         end_msg(t0);
 
         start_msg(t0, "=== Coordination & cluster analysis...");
         reader.calc_coordinations();
-        reader.calc_clusters();
+        if (conf.cluster_anal) reader.calc_clusters();
         end_msg(t0);
         reader.check_clusters();
 
