@@ -83,6 +83,9 @@ public:
     /** Get the closest neighbours of i-th atom */
     const vector<int>& get_neighbours(const int i) const;
 
+    /** Return the size of neighbour list */
+    int get_nborlist_size() const;
+
     double rms_distance;            ///< rms distance between atoms from previous and current run
 
 private:

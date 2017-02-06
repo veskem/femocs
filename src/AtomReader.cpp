@@ -267,6 +267,11 @@ const vector<int>& AtomReader::get_neighbours(const int i) const {
     return nborlist[i];
 }
 
+// Return the size of neighbour list
+int AtomReader::get_nborlist_size() const {
+    return nborlist.size();
+}
+
 // =================================
 // *** IMPORTERS: ***************
 

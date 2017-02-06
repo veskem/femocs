@@ -74,16 +74,17 @@ void Media::extract(const AtomReader& reader, const int type, const bool invert)
     }
 
     // Clean lonely atoms; atom is considered lonely if its coordination is lower than coord_min
-    for (int i = 0; i < n_atoms; ++i)
-        if (is_type[i]) {
-            int n_nbors = 0;
-            for (int nbor : reader.get_neighbours(i)) {
-                require(nbor >= 0 && nbor < n_atoms, "Invalid index: " + to_string(nbor));
-                if (is_type[nbor]) n_nbors++;
-            }
+    if (reader.get_nborlist_size() == n_atoms)
+        for (int i = 0; i < n_atoms; ++i)
+            if (is_type[i]) {
+                int n_nbors = 0;
+                for (int nbor : reader.get_neighbours(i)) {
+                    require(nbor >= 0 && nbor < n_atoms, "Invalid index: " + to_string(nbor));
+                    if (is_type[nbor]) n_nbors++;
+                }
 
-            is_type[i] = n_nbors >= coord_min;
-        }
+                is_type[i] = n_nbors >= coord_min;
+            }
 
     // Preallocate memory for atoms
     reserve(vector_sum(is_type));
