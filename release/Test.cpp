@@ -20,15 +20,22 @@ void print_progress(const string& message, const bool contition) {
 }
 
 void write_defaults(ofstream &file) {
+    file << "tetnode_weight = 0.0 1.0"   << endl;
     file << "heating = false"            << endl;
     file << "clear_output = true"        << endl;
     file << "smooth_factor = 1.0"        << endl;
     file << "postprocess_marking = true" << endl;
     file << "distance_tol = 0.16"        << endl;
     file << "n_filewrite = 1"            << endl;
-    file << "femocs_verbose = true"      << endl;
-    file << "coord_cutoff = 3.2"         << endl;
+    file << "femocs_verbose = false"      << endl;
+    file << "coord_cutoff = 3.1"         << endl;
     file << "latconst = 3.61"            << endl;
+}
+
+void write_hr5(ofstream &file) {
+    file << "infile = input/nanotip_hr5.xyz" << endl;
+    file << "coarse_factor = 0.3 0.5 0.5"      << endl;
+    file << "radius = 16.0"           << endl;
 }
 
 void write_mdsmall(ofstream &file) {
@@ -101,6 +108,7 @@ int main(int argc, char **argv) {
 
         if      (mode == "kmcsmall") write_kmcsmall(file);
         else if (mode == "kmcbig")   write_kmcbig(file);
+        else if (mode == "hr5")      write_hr5(file);
         else if (mode == "mdsmall")  write_mdsmall(file);
         else if (mode == "mdbig")    write_mdbig(file);
         else if (mode == "stretch")  write_stretch(file);
@@ -115,6 +123,7 @@ int main(int argc, char **argv) {
             printf("  kmcbig      big kMC nanotip\n");
             printf("  mdsmall     small MD nanotip\n");
             printf("  mdbig       big MD nanotip\n");
+            printf("  hr5         symmetric MD nanotip with aspect ratio 5\n");
             printf("  stretch     stretch the substrate of small MD nanotip\n");
             printf("  extend      extend the system below the MD apex\n");
             printf("  cluster     MD nanotip with clusters\n");

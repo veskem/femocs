@@ -447,6 +447,45 @@ Solution LinearInterpolator::get_solution(const Point3 &point, const int elem) {
     return Solution(elfield_i, potential_i);
 }
 
+Solution LinearInterpolator::get_solution(const int i) {
+    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    return solution[i];
+}
+
+// Print statistics about solution on node points
+void LinearInterpolator::print_statistics() {
+    if (!MODES.VERBOSE) return;
+
+    const int n_atoms = get_n_atoms();
+    Vec3 elfield(0);
+    Vec3 rms_elfield(0);
+    double potential = 0;
+    double rms_potential = 0;
+    int n_points = 0;
+
+    for (int i = 0; i < n_atoms; ++i) {
+        double pot = solution[i].potential;
+        if (pot >= error_field) continue;
+        Vec3 ef = solution[i].elfield;
+
+        elfield += ef;
+        rms_elfield += ef * ef;
+        potential += pot;
+        rms_potential += pot * pot;
+        n_points++;
+    }
+
+    elfield *= (1.0 / n_points);
+    rms_elfield = Vec3(sqrt(rms_elfield.x), sqrt(rms_elfield.y), sqrt(rms_elfield.z)) * (1.0 / n_points);
+    potential = potential / n_points;
+    rms_potential = sqrt(rms_potential) / n_points;
+
+    cout << "  mean elfield: \t" << elfield << endl;
+    cout << "   rms elfield: \t" << rms_elfield << endl;
+    cout << "  mean potential: \t" << potential << endl;
+    cout << "   rms potential: \t" << rms_potential << endl;
+}
+
 // Calculate interpolation for vector data for point inside or near the elem-th tetrahedron
 Vec3 LinearInterpolator::get_vector(const Point3 &point, const int elem) {
     require(elem >= 0 && elem < tetrahedra.size(), "Index out of bounds: " + to_string(elem));

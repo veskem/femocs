@@ -46,6 +46,9 @@ public:
     /** Export calculated electic field distribution to HOLMOD */
     void export_solution(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
+    /** Print statistics about interpolated solution */
+    void print_statistics();
+
 private:
     LinearInterpolator* interpolator;     ///< data needed for interpolation
     vector<Solution> interpolation; ///< interpolated data

@@ -22,6 +22,40 @@ SolutionReader::SolutionReader(LinearInterpolator* ip) : interpolator(ip) {
     reserve(0);
 }
 
+// Print statistics about interpolated solution
+void SolutionReader::print_statistics() {
+    if (!MODES.VERBOSE) return;
+
+    const int n_atoms = get_n_atoms();
+    Vec3 elfield(0);
+    Vec3 rms_elfield(0);
+    double potential = 0;
+    double rms_potential = 0;
+    int n_points = 0;
+
+    for (int i = 0; i < n_atoms; ++i) {
+        double pot = interpolation[i].potential;
+        if (pot >= interpolator->error_field) continue;
+        Vec3 ef = interpolation[i].elfield;
+
+        elfield += ef;
+        rms_elfield += ef * ef;
+        potential += pot;
+        rms_potential += pot * pot;
+        n_points++;
+    }
+
+    elfield *= (1.0 / n_points);
+    rms_elfield = Vec3(sqrt(rms_elfield.x), sqrt(rms_elfield.y), sqrt(rms_elfield.z)) * (1.0 / n_points);
+    potential = potential / n_points;
+    rms_potential = sqrt(rms_potential) / n_points;
+
+    cout << "  mean elfield: \t" << elfield << endl;
+    cout << "   rms elfield: \t" << rms_elfield << endl;
+    cout << "  mean potential: \t" << potential << endl;
+    cout << "   rms potential: \t" << rms_potential << endl;
+}
+
 // Linearly interpolate solution on Medium atoms
 void SolutionReader::interpolate(const Medium &medium, const double r_cut, const int component, const bool srt) {
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));

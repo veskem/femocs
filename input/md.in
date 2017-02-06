@@ -2,15 +2,15 @@
 #femocs_periodic = false         # imported atoms have periodic boundaries in x- & y-direction
 
 cluster_anal = true             # enable cluster analysis
-use_histclean = true            # use histogram cleaner to get rid of sharp peaks in the solution
-tetnode_weight = 0.0 1.0        # weight of the solution on tetrahedral node
+use_histclean = false            # use histogram cleaner to get rid of sharp peaks in the solution
+tetnode_weight = 1.0 1.0        # weight of the solution on tetrahedral node
                                 # 1st weight for electric field
                                 # 2nd weight for electric potential
 heating = false                 # calculate current density and temperature in nanotip
 clear_output = true;            # clear output folder before the run
 #infile = input/nanotip_hr5.ckx  # default file used with atom coordinates
 #latconst = 2.0                  # lattice constant
-infile = input/nanotip_small.xyz  # default file used with atom coordinates
+infile = input/nanotip_hr5.xyz  # default file used with atom coordinates
 latconst = 3.61                 # lattice constant
 coord_cutoff = 3.2              # coordination analysis cut-off radius
 mesh_quality = 2.0              # minimum mesh quality Tetgen is allowed to make
@@ -18,16 +18,16 @@ box_width = 2.5                   # minimal simulation box width [tip height]
 box_height = 3.5                # simulation box height [tip height]
 bulk_height = 20                # bulk substrate height [latconst]
 radius = 15.0                   # inner radius of coarsening cylinder
-coarse_factor = 0.5 1.5 1.0     # coarsening factor; bigger number gives coarser surface
+coarse_factor = 0.3 1.0 0.5     # coarsening factor; bigger number gives coarser surface
                                 # 1st - coarsening factor for atoms
                                 # 2nd - minimum distance between atoms in nanotip below apex [latconst]
                                 # 3rd - minimum distance between atoms in nanotip apex [latconst]
 smooth_factor = 1.0             # surface smoothing factor; bigger number gives smoother surface
-postprocess_marking = true     # make extra effort to mark correctly the vacuum nodes in shadow area
+postprocess_marking = true      # make extra effort to mark correctly the vacuum nodes in shadow area
 refine_apex = false             # refine nanotip apex
 distance_tol = 0.16             # minimum distance between atoms from previous and current run to recalculate solution
 n_filewrite = 10                # minimum number of time steps between writing file; 0 turns writing off
-femocs_verbose = true           # enable or disable the verbose mode
+femocs_verbose = false           # enable or disable the verbose mode
 end                             # terminate the search of Femocs parameters 
 
 # Input file for PARCAS MD

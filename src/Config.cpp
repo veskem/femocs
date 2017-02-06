@@ -44,8 +44,8 @@ Config::Config() {
 
     clear_output = false;         // clear output folder
 
-    tetnode_weight.potential = 1.0; // solution on tetrahedral node weight
-    tetnode_weight.elfield = 0.0;
+    tetnode_weight.potential = 1.0; // weight of potential on tetrahedral node
+    tetnode_weight.elfield = 0.0;   // weight of electric field on tetrahedral node
 }
 
 // Remove the noise from the beginning of the string

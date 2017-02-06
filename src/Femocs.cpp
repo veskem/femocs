@@ -21,11 +21,10 @@ namespace femocs {
 Femocs::Femocs(const string &conf_file) : skip_calculations(false) {
     start_msg(t0, "======= Femocs started! =======\n");
 
-    start_msg(t0, "=== Reading configuration parameters...");
+    // Read configuration parameters from configuration file
     conf.read_all(conf_file);
-    end_msg(t0);
-    conf.print_data();
 
+    // Initialise heating module
     start_msg(t0, "=== Reading physical quantities...");
     ch_solver1.set_physical_quantities(&phys_quantities);
     ch_solver2.set_physical_quantities(&phys_quantities);
@@ -33,6 +32,7 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false) {
     prev_ch_solver = NULL;
     end_msg(t0);
 
+    // Initialise file writing
     MODES.WRITEFILE = conf.n_writefile > 0;
 
     // Clear the results from previous run
@@ -255,6 +255,7 @@ int Femocs::extract_laplace(const TetgenMesh& mesh, fch::Laplace<3>* solver) {
     vacuum_interpolator.extract_solution(solver, mesh, conf.tetnode_weight.elfield, conf.tetnode_weight.potential);
     end_msg(t0);
     vacuum_interpolator.write("output/result_E_phi.xyz");
+    vacuum_interpolator.print_statistics();
 
     return 0;
 }
@@ -451,6 +452,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         end_msg(t0);
 
         vacuum_interpolation.write("output/interpolation.movie");
+        vacuum_interpolation.print_statistics();
     }
 
     start_msg(t0, "=== Exporting electric field...");

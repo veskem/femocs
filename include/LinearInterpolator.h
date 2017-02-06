@@ -49,11 +49,16 @@ public:
 
     Solution get_solution(const Point3 &point, const int elem);
 
+    Solution get_solution(const int i);
+
     double get_scalar(const Point3 &point, const int elem);
 
     Vec3 get_vector(const Point3 &point, const int elem);
 
     int locate_element(const Point3 &point, const int elem_guess);
+
+    /** Print statistics about solution on node points */
+    void print_statistics();
 
     /** Electric field that is assigned to atoms not found from mesh.
      *  Its value is BIG to make it immediately visible from the dataset. */
