@@ -143,6 +143,8 @@ void AtomReader::check_clusters() {
 // Group atoms into clusters
 void AtomReader::calc_clusters() {
     const int n_atoms = get_n_atoms();
+    require(get_nborlist_size() == n_atoms, "Clusters cannot be calculated if neighborlist is missing!");
+
     vector<int> neighbours;
     vector<bool> not_marked(n_atoms, true);
     int c = -1;

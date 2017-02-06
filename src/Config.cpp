@@ -32,7 +32,7 @@ Config::Config() {
     bulk_height = 20;            // bulk substrate height [lattice constant]
     n_writefile = 1;             // number of time steps between writing the output files
     use_histclean = false;       // use histogram cleaner to get rid of sharp peaks in the solution
-    cluster_anal = true;         // enable cluster analysis
+    cluster_anal = false;         // enable cluster analysis
 
     cfactor.amplitude = 0.4;     // coarsening factor
     cfactor.r0_cylinder = 1.0;   // minimum distance between atoms in nanotip below apex

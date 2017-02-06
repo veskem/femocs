@@ -435,7 +435,7 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
         reader.calc_coordinations(conf.nnn);
         end_msg(t0);
 
-        reader.check_clusters();
+        if (conf.cluster_anal) reader.calc_clusters();
         reader.write("output/atomreader.xyz");
     }
 
