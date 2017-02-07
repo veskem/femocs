@@ -188,6 +188,27 @@ Media Media::clean(Coarseners &coarseners) {
     return surf;
 }
 
+// Remove the atoms that are too far from surface faces
+void Media::clean(const TetgenMesh& mesh, const double r_cut) {
+    const int n_atoms = get_n_atoms();
+    RaySurfaceIntersect rsi(&mesh);
+    rsi.precompute_triangles();
+    
+    vector<Atom> store_atoms;
+    store_atoms.reserve(n_atoms);
+
+    // Loop through all the nodes made by tetgen
+    // and mark them by vertical-ray-intersects-surface-faces-technique
+    for (Atom atom : atoms) {
+        //if ( rsi.distance_from_surface(Vec3(atom.point)) <= r_cut )
+        //    store_atoms.push_back( atom );
+        double dist = rsi.distance_from_surface(Vec3(atom.point));
+        store_atoms.push_back( Atom(atom.id, atom.point, dist) );
+    }
+    
+    this->atoms = store_atoms;
+}
+
 inline double Media::smooth_function(const double distance, const double smooth_factor) const {
     const double a = 1.0;
     return a * exp(-1.0 * distance / smooth_factor);

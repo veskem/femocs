@@ -12,7 +12,7 @@
 #include "Primitives.h"
 #include "Tetgen.h"
 #include "TetgenCells.h"
-#include "Media.h"
+#include "Medium.h"
 
 using namespace std;
 namespace femocs {
@@ -29,7 +29,7 @@ public:
     bool generate_simple();
 
     /** Function to generate mesh from surface, bulk and vacuum atoms */
-    bool generate(const Media& bulk, const Media& surf, const Media& vacuum, const string& cmd);
+    bool generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd);
 
     /** Separate tetrahedra into hexahedra by adding node to the centroid of the
      * tetrahedron edges, nodes and tetrahedron itself */
@@ -49,9 +49,6 @@ public:
 
     /** Generate list of nodes that surround the tetrahedral nodes */
     vector<vector<unsigned int>> get_voronoi_cells() const;
-
-    /** Smoothen hexahedra on the surface */
-    bool smoothen(const double radius, const double smooth_factor, const double r_cut);
 
     /** Use tetgen built-in function to write elements, faces, edges and nodes into file */
     bool write_tetgen(const string& file_name);
@@ -115,13 +112,17 @@ private:
 class RaySurfaceIntersect {
 public:
     /** Constructor of RaySurfaceIntersect  */
-    RaySurfaceIntersect(TetgenMesh* mesh);
+    RaySurfaceIntersect(const TetgenMesh* mesh);
 
     /** Function to find with Moller-Trumbore algorithm whether the ray and the surface intersect or not */
     bool ray_intersects_surface(const Vec3 &origin, const Vec3 &direction);
 
+    double distance_from_surface(const Vec3 &origin);
+    
     /** Function to precompute the data needed to execute the Moller-Trumbore algorithm */
     void precompute_triangles(const Vec3 &direction);
+    
+    void precompute_triangles();
 
 private:
     /** Constants to specify the tolerances */
@@ -130,7 +131,7 @@ private:
     const double one  = 1.0 + epsilon;
 
     /** Pointer to Mesh with nodes and surface faces */
-    TetgenMesh* mesh;
+    const TetgenMesh* mesh;
 
     /** Data computed before starting looping through the triangles */
     vector<Vec3> vert0;
@@ -142,6 +143,8 @@ private:
     /** Function to find with Moller-Trumbore algorithm whether the ray and the triangle intersect or not */
     bool ray_intersects_triangle(const Vec3 &origin, const Vec3 &direction, const int face);
 
+    double distance_from_triangle(const Vec3 &origin, const int face);
+    
     /** Function to reserve memory for precompute data */
     void reserve(const int n);
 };

@@ -12,7 +12,7 @@
 using namespace std;
 namespace femocs {
 
-RaySurfaceIntersect::RaySurfaceIntersect(TetgenMesh* mesh) : mesh(mesh) {
+RaySurfaceIntersect::RaySurfaceIntersect(const TetgenMesh* m) : mesh(m) {
     reserve(0);
 }
 
@@ -52,6 +52,33 @@ void RaySurfaceIntersect::precompute_triangles(const Vec3 &direction) {
     }
 }
 
+// Precompute the data needed to execute the Moller-Trumbore algorithm
+void RaySurfaceIntersect::precompute_triangles() {
+    const int n_faces = mesh->faces.size();
+
+    // Reserve memory for precomputation data
+    reserve(n_faces);
+
+    // Loop through all the faces
+    for (int i = 0; i < n_faces; ++i) {
+        SimpleFace sface = mesh->faces[i];
+        Vec3 v0 = mesh->nodes.get_vec(sface[0]);
+        Vec3 v1 = mesh->nodes.get_vec(sface[1]);
+        Vec3 v2 = mesh->nodes.get_vec(sface[2]);
+
+        Vec3 e1 = v1 - v0;   // edge1 of triangle
+        Vec3 e2 = v2 - v0;   // edge2 of triangle
+        Vec3 pv = e2.crossProduct(mesh->faces.get_norm(i));
+        double det = e1.dotProduct(pv);
+        double i_det = 1.0 / det;
+
+        edge1.push_back(e1 * i_det);
+        edge2.push_back(e2);
+        vert0.push_back(v0);
+        pvec.push_back(pv * i_det);
+        is_parallel.push_back(fabs(det) < epsilon);
+    }
+}
 // Moller-Trumbore algorithm to find whether the ray and the triangle intersect or not
 bool RaySurfaceIntersect::ray_intersects_triangle(const Vec3 &origin, const Vec3 &direction,
         const int face) {
@@ -80,6 +107,32 @@ bool RaySurfaceIntersect::ray_intersects_triangle(const Vec3 &origin, const Vec3
     return true;
 }
 
+// Calculate the distance of origin from face in the direction of its norm
+double RaySurfaceIntersect::distance_from_triangle(const Vec3 &origin, const int face) {
+    Vec3 s, q;
+    double u, v;
+
+    // Check if ray and triangle are effectively parallel
+    // Must be in the beginning because the following calculations may become in-reliable (division by zero etc)
+   // if (is_parallel[face]) return -1; // Comment out when using ray_intersects_surface(...)
+    
+    s = origin - vert0[face];
+    u = s.dotProduct(pvec[face]);
+
+    // Check if ray intersects triangle
+    // Ray little bit outside the triangle is also OK
+    if (u < zero || u > one) return -1;
+
+    q = s.crossProduct(edge1[face]);
+    v = q.dotProduct(mesh->faces.get_norm(face)); // if ray == [0,0,1] then v = q.z
+
+    if (v < zero || u + v > one) return -1;
+
+    // calculate the distance from point to triangle
+    
+    return 1.0*face ;//fabs( q.dotProduct(edge2[face]) );
+}
+
 // Determine whether the ray intersects with any of the triangles on the surface mesh
 bool RaySurfaceIntersect::ray_intersects_surface(const Vec3 &origin, const Vec3 &direction) {
     const int n_faces = mesh->faces.size();
@@ -89,6 +142,18 @@ bool RaySurfaceIntersect::ray_intersects_surface(const Vec3 &origin, const Vec3 
         if (ray_intersects_triangle(origin, direction, face)) return true;
 
     return false;
+}
+
+double RaySurfaceIntersect::distance_from_surface(const Vec3 &origin) {
+    const int n_faces = mesh->faces.size();
+
+    // Loop through all the faces
+    for (int face = 0; face < n_faces; ++face) {
+        double dist = distance_from_triangle(origin, face);
+        if (dist >= 0) return dist;
+    }
+
+    return -1;
 }
 
 // Group hexahedra around central tetrahedral node
@@ -221,7 +286,7 @@ bool TetgenMesh::write_tetgen(const string& file_name) {
 }
 
 // Function to generate mesh from surface, bulk and vacuum atoms
-bool TetgenMesh::generate(const Media& bulk, const Media& surf, const Media& vacuum, const string& cmd) {
+bool TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd) {
     const int n_bulk = bulk.get_n_atoms();
     const int n_surf = surf.get_n_atoms();
     const int n_vacuum = vacuum.get_n_atoms();
@@ -350,32 +415,6 @@ bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const str
     bulk.hexahedra.copy_markers(this->hexahedra, hex_mask);
 
     return vacuum.recalc(cmd) ||  bulk.recalc(cmd);
-}
-
-bool TetgenMesh::smoothen(const double radius, const double smooth_factor, const double r_cut) {
-    const int n_atoms = nodes.size();
-
-    // Find atoms in vacuum-bulk boundary
-    vector<bool> hot_node = vector_equal(nodes.get_markers(), TYPES.SURFACE);
-
-    // Turn atoms on boundary into surface
-    Media surf(vector_sum(hot_node));
-
-    int cntr = 0;
-    for (int i = 0; i < n_atoms; ++i)
-        if (hot_node[i])
-            surf.add_atom( nodes[i] );
-
-    // Smoothen the surface
-    surf.smoothen(radius, smooth_factor, r_cut);
-
-    // Write smoothed vertices back to mesh
-    int j = 0;
-    for(int i = 0; i < n_atoms; ++i)
-        if(hot_node[i])
-            nodes.set_node(i, surf.get_point(j++));
-
-    return 0;
 }
 
 // Mark mesh nodes, edges, faces and elements
@@ -688,4 +727,5 @@ void TetgenMesh::mark_faces() {
             faces.append_marker(TYPES.SURFACE);
     }
 }
+
 } /* namespace femocs */

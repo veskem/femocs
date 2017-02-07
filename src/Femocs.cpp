@@ -136,11 +136,14 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     vacuum_mesh.group_hexahedra();
     end_msg(t0);
 
-    start_msg(t0, "=== Cleaning surface faces...");
+    start_msg(t0, "=== Cleaning surface faces & atoms...");
     bulk_mesh.faces.clean_sides(big_mesh.nodes.stat);
+    bulk_mesh.faces.calc_norms();
+    dense_surf.clean(bulk_mesh, 5.0*conf.coord_cutoff);
     end_msg(t0);
 
     bulk_mesh.faces.write("output/surface_faces2.vtk");
+    dense_surf.write("output/surface_dense2.xyz");
 
     expect(bulk_mesh.nodes.size() > 0, "Zero nodes in bulk mesh!");
     expect(vacuum_mesh.nodes.size() > 0, "Zero nodes in vacuum mesh!");

@@ -6,7 +6,6 @@
  */
 
 #include "TetgenCells.h"
-#include "Media.h"
 #include <float.h>
 
 using namespace std;
@@ -270,6 +269,13 @@ void TetgenFaces::append(const SimpleCell<3> &cell) {
     i_cells++;
 }
 
+// Get i-th face from the mesh
+SimpleCell<3> TetgenFaces::get_cell(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    const int I = DIM * i;
+    return SimpleFace(reads->trifacelist[I], reads->trifacelist[I+1], reads->trifacelist[I+2]);
+}
+
 // Delete the faces on the sides of simulation cell
 void TetgenFaces::clean_sides(const TetgenNodes::Stat& stat) {
     const double eps = 0.1;
@@ -292,13 +298,41 @@ void TetgenFaces::clean_sides(const TetgenNodes::Stat& stat) {
         append(face);
 }
 
-// Get i-th face from the mesh
-SimpleCell<3> TetgenFaces::get_cell(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    const int I = DIM * i;
-    return SimpleFace(reads->trifacelist[I], reads->trifacelist[I+1], reads->trifacelist[I+2]);
+// Calculate the norms and areas for all the triangles
+void TetgenFaces::calc_norms() {
+    const int n_faces = size();
+    areas.clear(); areas.reserve(n_faces);
+    norms.clear(); norms.reserve(n_faces);
+    init_markers(n_faces);
+    
+    int i = 0;
+    for (SimpleFace sface : *this) {
+        Vec3 v0 = get_vec(sface[0]);
+        Vec3 v1 = get_vec(sface[1]);
+        Vec3 v2 = get_vec(sface[2]);
+
+        Vec3 e1 = v1 - v0;   // edge1 of triangle
+        Vec3 e2 = v2 - v0;   // edge2 of triangle
+        Vec3 n = e1.crossProduct(e2);
+        
+        areas.push_back(n.norm() * 0.5);
+        norms.push_back(n.normalize());
+        append_marker(i++);
+    }
 }
 
+// Return the normal of i-th triangle
+Vec3 TetgenFaces::get_norm(const int i) const {
+    require(i >= 0 && i < norms.size(), "Invalid index: " + to_string(i));
+    return norms[i];
+}
+
+// Return the area of i-th triangle
+double TetgenFaces::get_area(const int i) const {
+    require(i >= 0 && i < areas.size(), "Invalid index: " + to_string(i));
+    return areas[i];
+}
+    
 /* =====================================================================
  *  ========================== TetgenElements =========================
  * ===================================================================== */

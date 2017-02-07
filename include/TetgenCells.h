@@ -192,11 +192,18 @@ protected:
         return reads->numberofpoints;
     }
 
-    /** Return i-th readable node from the mesh */
+    /** Return i-th readable node from the mesh in point form */
     Point3 get_node(const int i) const {
         require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
         const int n = n_coordinates * i;
         return Point3(reads->pointlist[n+0], reads->pointlist[n+1], reads->pointlist[n+2]);
+    }
+    
+    /** Return i-th readable node from the mesh in vector form */
+    Vec3 get_vec(const int i) const {
+        require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
+        const int n = n_coordinates * i;
+        return Vec3(reads->pointlist[n+0], reads->pointlist[n+1], reads->pointlist[n+2]);
     }
 
     /** Output mesh in .vtk format */
@@ -375,11 +382,23 @@ public:
 
     /** Copy the nodes from write buffer to read buffer */
     void recalc();
-
+    
     /** Delete the faces on the sides of simulation cell */
     void clean_sides(const TetgenNodes::Stat& stat);
+    
+    /** Calculate the norms and areas for all the triangles */
+    void calc_norms();
+    
+    /** Return the normal of i-th triangle */
+    Vec3 get_norm(const int i) const;
+    
+    /** Return the area of i-th triangle */
+    double get_area(const int i) const;
 
 private:
+    vector<double> areas;   ///< areas of triangles
+    vector<Vec3> norms;     ///< norms of triangles
+
     /** Return i-th face */
     SimpleCell<3> get_cell(const int i) const;
 };

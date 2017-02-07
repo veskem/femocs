@@ -12,6 +12,7 @@
 #include "Macros.h"
 #include "AtomReader.h"
 #include "Medium.h"
+#include "TetgenMesh.h"
 
 using namespace std;
 namespace femocs {
@@ -57,6 +58,9 @@ public:
     Media extend(const string &file_name, Coarseners &coarseners);
 
     Media clean(Coarseners &coarseners);
+
+    /** Remove the atoms that are too far from surface faces */
+    void clean(const TetgenMesh& mesh, const double r_cut);
 
     void smoothen(const double radius, const double smooth_factor, const double r_cut);
 

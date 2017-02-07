@@ -443,7 +443,7 @@ public:
     double norm() const { return sqrt(norm2()); }
 
     /** Normalize the vector */
-    Vec3 normalize() {
+    Vec3& normalize() {
         double n = norm();
         if (n > 0) {
             double factor = 1 / n;
