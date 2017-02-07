@@ -27,15 +27,15 @@ void write_defaults(ofstream &file) {
     file << "postprocess_marking = true" << endl;
     file << "distance_tol = 0.16"        << endl;
     file << "n_filewrite = 1"            << endl;
-    file << "femocs_verbose = false"      << endl;
+    file << "femocs_verbose = true"      << endl;
     file << "coord_cutoff = 3.1"         << endl;
     file << "latconst = 3.61"            << endl;
 }
 
 void write_hr5(ofstream &file) {
     file << "infile = input/nanotip_hr5.xyz" << endl;
-    file << "coarse_factor = 0.3 0.5 0.5"      << endl;
-    file << "radius = 16.0"           << endl;
+    file << "coarse_factor = 0.3 1.0 0.5"      << endl;
+    file << "radius = 14.0"           << endl;
 }
 
 void write_mdsmall(ofstream &file) {

@@ -376,6 +376,9 @@ public:
     /** Copy the nodes from write buffer to read buffer */
     void recalc();
 
+    /** Delete the faces on the sides of simulation cell */
+    void clean_sides(const TetgenNodes::Stat& stat);
+
 private:
     /** Return i-th face */
     SimpleCell<3> get_cell(const int i) const;

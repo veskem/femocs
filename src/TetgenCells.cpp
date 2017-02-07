@@ -270,6 +270,28 @@ void TetgenFaces::append(const SimpleCell<3> &cell) {
     i_cells++;
 }
 
+// Delete the faces on the sides of simulation cell
+void TetgenFaces::clean_sides(const TetgenNodes::Stat& stat) {
+    const double eps = 0.1;
+    const int n_faces = size();
+    vector<SimpleFace> faces; faces.reserve(n_faces);
+
+    // Make a copy of faces not on the sides of simulation cell
+    for (int i = 0; i < n_faces; ++i) {
+        const Point3 centroid = get_centroid(i);
+        const bool side_x = on_boundary(centroid.x, stat.xmin, stat.xmax, eps);
+        const bool side_y = on_boundary(centroid.y, stat.ymin, stat.ymax, eps);
+        const bool side_z = on_boundary(centroid.z, stat.zmin, stat.zmax, eps);
+        if (!(side_x || side_y || side_z))
+            faces.push_back(get_cell(i));
+    }
+
+    // Store the surface faces
+    init(faces.size());
+    for (SimpleFace face : faces)
+        append(face);
+}
+
 // Get i-th face from the mesh
 SimpleCell<3> TetgenFaces::get_cell(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));

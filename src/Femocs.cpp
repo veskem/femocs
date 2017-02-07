@@ -114,7 +114,7 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     big_mesh.generate_appendices();
     end_msg(t0);
 
-    big_mesh.faces.write("output/surface_faces.vtk");
+    big_mesh.faces.write("output/surface_faces1.vtk");
 
     start_msg(t0, "=== Marking tetrahedral mesh...");
     fail = big_mesh.mark_mesh(conf.postprocess_marking);
@@ -135,6 +135,12 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     bulk_mesh.group_hexahedra();
     vacuum_mesh.group_hexahedra();
     end_msg(t0);
+
+    start_msg(t0, "=== Cleaning surface faces...");
+    bulk_mesh.faces.clean_sides(big_mesh.nodes.stat);
+    end_msg(t0);
+
+    bulk_mesh.faces.write("output/surface_faces2.vtk");
 
     expect(bulk_mesh.nodes.size() > 0, "Zero nodes in bulk mesh!");
     expect(vacuum_mesh.nodes.size() > 0, "Zero nodes in vacuum mesh!");
@@ -308,8 +314,9 @@ int Femocs::run(const double elfield, const string &message) {
     TetgenMesh bulk_mesh, vacuum_mesh;
     fail = generate_meshes(bulk_mesh, vacuum_mesh);
 
-    bulk_mesh.elems.write  ("output/tetmesh_bulk" + conf.message + ".vtk");
-    bulk_mesh.hexahedra.write  ("output/hexmesh_bulk" + conf.message + ".vtk");
+    bulk_mesh.elems.write("output/tetmesh_bulk" + conf.message + ".vtk");
+    bulk_mesh.hexahedra.write("output/hexmesh_bulk" + conf.message + ".vtk");
+
 
     if (fail) return 1;
     
