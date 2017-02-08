@@ -296,6 +296,8 @@ void TetgenFaces::clean_sides(const TetgenNodes::Stat& stat) {
     init(faces.size());
     for (SimpleFace face : faces)
         append(face);
+
+    calc_norms();
 }
 
 // Calculate the norms and areas for all the triangles
@@ -303,9 +305,7 @@ void TetgenFaces::calc_norms() {
     const int n_faces = size();
     areas.clear(); areas.reserve(n_faces);
     norms.clear(); norms.reserve(n_faces);
-    init_markers(n_faces);
     
-    int i = 0;
     for (SimpleFace sface : *this) {
         Vec3 v0 = get_vec(sface[0]);
         Vec3 v1 = get_vec(sface[1]);
@@ -317,7 +317,6 @@ void TetgenFaces::calc_norms() {
         
         areas.push_back(n.norm() * 0.5);
         norms.push_back(n.normalize());
-        append_marker(i++);
     }
 }
 

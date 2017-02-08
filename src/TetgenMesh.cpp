@@ -25,7 +25,7 @@ void RaySurfaceIntersect::reserve(const int n) {
     is_parallel.clear(); is_parallel.reserve(n);
 }
 
-// Precompute the data needed to execute the Moller-Trumbore algorithm
+// Precompute the data needed to calculate the distance of points from surface in given direction
 void RaySurfaceIntersect::precompute_triangles(const Vec3 &direction) {
     const int n_faces = mesh->faces.size();
 
@@ -52,7 +52,7 @@ void RaySurfaceIntersect::precompute_triangles(const Vec3 &direction) {
     }
 }
 
-// Precompute the data needed to execute the Moller-Trumbore algorithm
+// Precompute the data needed to calculate the distance of points from surface in the direction of triangle norms
 void RaySurfaceIntersect::precompute_triangles() {
     const int n_faces = mesh->faces.size();
 
@@ -68,17 +68,16 @@ void RaySurfaceIntersect::precompute_triangles() {
 
         Vec3 e1 = v1 - v0;   // edge1 of triangle
         Vec3 e2 = v2 - v0;   // edge2 of triangle
-        Vec3 pv = e2.crossProduct(mesh->faces.get_norm(i));
-        double det = e1.dotProduct(pv);
-        double i_det = 1.0 / det;
+        Vec3 pv = mesh->faces.get_norm(i).crossProduct(e2);
+        double i_det = 1.0 / e1.dotProduct(pv);
 
+        vert0.push_back(v0);
         edge1.push_back(e1 * i_det);
         edge2.push_back(e2);
-        vert0.push_back(v0);
         pvec.push_back(pv * i_det);
-        is_parallel.push_back(fabs(det) < epsilon);
     }
 }
+
 // Moller-Trumbore algorithm to find whether the ray and the triangle intersect or not
 bool RaySurfaceIntersect::ray_intersects_triangle(const Vec3 &origin, const Vec3 &direction,
         const int face) {
@@ -107,53 +106,81 @@ bool RaySurfaceIntersect::ray_intersects_triangle(const Vec3 &origin, const Vec3
     return true;
 }
 
-// Calculate the distance of origin from face in the direction of its norm
-double RaySurfaceIntersect::distance_from_triangle(const Vec3 &origin, const int face) {
-    Vec3 s, q;
+// Moller-Trumbore algorithm to get the distance of point from the triangle in the direction of triangle norm
+double RaySurfaceIntersect::distance_from_triangle(const Vec3 &point, const int face) {
     double u, v;
 
-    // Check if ray and triangle are effectively parallel
-    // Must be in the beginning because the following calculations may become in-reliable (division by zero etc)
-   // if (is_parallel[face]) return -1; // Comment out when using ray_intersects_surface(...)
-    
-    s = origin - vert0[face];
-    u = s.dotProduct(pvec[face]);
+    Vec3 tvec = point - vert0[face];
+    u = tvec.dotProduct(pvec[face]);
+    if (u < zero || u > one) return -1;     // Check first barycentric coordinate
 
-    // Check if ray intersects triangle
-    // Ray little bit outside the triangle is also OK
-    if (u < zero || u > one) return -1;
+    Vec3 qvec = tvec.crossProduct(edge1[face]);
+    v = mesh->faces.get_norm(face).dotProduct(qvec);
+    if (v < zero || u + v > one) return -1; // Check second & third barycentric coordinate
 
-    q = s.crossProduct(edge1[face]);
-    v = q.dotProduct(mesh->faces.get_norm(face)); // if ray == [0,0,1] then v = q.z
+    // return the distance from point to triangle
+    return fabs(edge2[face].dotProduct(qvec));
+}
 
-    if (v < zero || u + v > one) return -1;
+// Moller-Trumbore algorithm to get the distance of point from the triangle in given direction
+double RaySurfaceIntersect::distance_from_triangle(const Vec3 &point, const Vec3 &direction, const int face) {
+    const SimpleFace sface = mesh->faces[face];
+    const Vec3 v0 = mesh->nodes.get_vec(sface[0]);
+    const Vec3 v1 = mesh->nodes.get_vec(sface[1]);
+    const Vec3 v2 = mesh->nodes.get_vec(sface[2]);
 
-    // calculate the distance from point to triangle
-    
-    return 1.0*face ;//fabs( q.dotProduct(edge2[face]) );
+    double u, v, det, invDet;
+
+    Vec3 e1 = v1 - v0;
+    Vec3 e2 = v2 - v0;
+    Vec3 pvec = direction.crossProduct(e2);
+
+    // ray and triangle are parallel if det is close to 0
+    det = e1.dotProduct(pvec);
+    if (fabs(det) < epsilon) return -1;
+
+    invDet = 1 / det;
+    Vec3 tvec = point - v0;
+    u = tvec.dotProduct(pvec) * invDet;
+    if (u < zero || u > one) return -1;     // Check first barycentric coordinate
+
+    Vec3 qvec = tvec.crossProduct(e1);
+    v = direction.dotProduct(qvec) * invDet;
+    if (v < zero || u + v > one) return -1; // Check second & third barycentric coordinate
+
+    // return the distance from point to triangle
+    return fabs(e2.dotProduct(qvec) * invDet);
 }
 
 // Determine whether the ray intersects with any of the triangles on the surface mesh
 bool RaySurfaceIntersect::ray_intersects_surface(const Vec3 &origin, const Vec3 &direction) {
-    const int n_faces = mesh->faces.size();
-
     // Loop through all the faces
-    for (int face = 0; face < n_faces; ++face)
+    for (int face = 0; face < mesh->faces.size(); ++face)
         if (ray_intersects_triangle(origin, direction, face)) return true;
 
     return false;
 }
 
-double RaySurfaceIntersect::distance_from_surface(const Vec3 &origin) {
-    const int n_faces = mesh->faces.size();
-
+// Determine whether the point is whithin cut-off distance from the surface mesh
+bool RaySurfaceIntersect::near_surface(const Vec3 &point, const double r_cut) {
     // Loop through all the faces
-    for (int face = 0; face < n_faces; ++face) {
-        double dist = distance_from_triangle(origin, face);
-        if (dist >= 0) return dist;
+    for (int face = 0; face < mesh->faces.size(); ++face) {
+        double dist = distance_from_triangle(point, face);
+        if (dist >= 0 && dist <= r_cut) return true;
     }
 
-    return -1;
+    return false;
+}
+
+// Determine whether the point is whithin cut-off distance from the surface mesh
+bool RaySurfaceIntersect::near_surface(const Vec3 &point, const Vec3 &direction, const double r_cut) {
+    // Loop through all the faces
+    for (int face = 0; face < mesh->faces.size(); ++face) {
+        double dist = distance_from_triangle(point, direction, face);
+        if (dist >= 0 && dist <= r_cut) return true;
+    }
+
+    return false;
 }
 
 // Group hexahedra around central tetrahedral node

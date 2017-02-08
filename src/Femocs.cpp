@@ -114,7 +114,7 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     big_mesh.generate_appendices();
     end_msg(t0);
 
-    big_mesh.faces.write("output/surface_faces1.vtk");
+    big_mesh.faces.write("output/surface_faces.vtk");
 
     start_msg(t0, "=== Marking tetrahedral mesh...");
     fail = big_mesh.mark_mesh(conf.postprocess_marking);
@@ -138,12 +138,11 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
 
     start_msg(t0, "=== Cleaning surface faces & atoms...");
     bulk_mesh.faces.clean_sides(big_mesh.nodes.stat);
-    bulk_mesh.faces.calc_norms();
-    dense_surf.clean(bulk_mesh, 5.0*conf.coord_cutoff);
+    dense_surf.clean(bulk_mesh, conf.coord_cutoff);
     end_msg(t0);
 
-    bulk_mesh.faces.write("output/surface_faces2.vtk");
-    dense_surf.write("output/surface_dense2.xyz");
+    bulk_mesh.faces.write("output/surface_faces_clean.vtk");
+    dense_surf.write("output/surface_dense_clean.xyz");
 
     expect(bulk_mesh.nodes.size() > 0, "Zero nodes in bulk mesh!");
     expect(vacuum_mesh.nodes.size() > 0, "Zero nodes in vacuum mesh!");
@@ -314,15 +313,13 @@ int Femocs::run(const double elfield, const string &message) {
     tstart = omp_get_wtime();
 
     // Generate FEM mesh
-    TetgenMesh bulk_mesh, vacuum_mesh;
     fail = generate_meshes(bulk_mesh, vacuum_mesh);
 
     bulk_mesh.elems.write("output/tetmesh_bulk" + conf.message + ".vtk");
     bulk_mesh.hexahedra.write("output/hexmesh_bulk" + conf.message + ".vtk");
 
-
     if (fail) return 1;
-    
+
     // Solve Laplace equation on vacuum mesh
     fch::Laplace<3> laplace_solver;
     fail = solve_laplace(vacuum_mesh, laplace_solver);

@@ -385,10 +385,7 @@ public:
     
     /** Delete the faces on the sides of simulation cell */
     void clean_sides(const TetgenNodes::Stat& stat);
-    
-    /** Calculate the norms and areas for all the triangles */
-    void calc_norms();
-    
+
     /** Return the normal of i-th triangle */
     Vec3 get_norm(const int i) const;
     
@@ -401,6 +398,9 @@ private:
 
     /** Return i-th face */
     SimpleCell<3> get_cell(const int i) const;
+
+    /** Calculate the norms and areas for all the triangles */
+    void calc_norms();
 };
 
 /** Class for holding Tetgen tetrahedral elements */

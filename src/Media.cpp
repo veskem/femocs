@@ -193,20 +193,16 @@ void Media::clean(const TetgenMesh& mesh, const double r_cut) {
     const int n_atoms = get_n_atoms();
     RaySurfaceIntersect rsi(&mesh);
     rsi.precompute_triangles();
-    
-    vector<Atom> store_atoms;
-    store_atoms.reserve(n_atoms);
 
-    // Loop through all the nodes made by tetgen
-    // and mark them by vertical-ray-intersects-surface-faces-technique
-    for (Atom atom : atoms) {
-        //if ( rsi.distance_from_surface(Vec3(atom.point)) <= r_cut )
-        //    store_atoms.push_back( atom );
-        double dist = rsi.distance_from_surface(Vec3(atom.point));
-        store_atoms.push_back( Atom(atom.id, atom.point, dist) );
+    vector<Atom> _atoms;
+    _atoms.reserve(n_atoms);
+
+    for (int i = 0; i < n_atoms; ++i) {
+        if ( rsi.near_surface(Vec3(get_point(i)), r_cut) )
+            _atoms.push_back(atoms[i]);
     }
-    
-    this->atoms = store_atoms;
+
+    atoms = _atoms;
 }
 
 inline double Media::smooth_function(const double distance, const double smooth_factor) const {
