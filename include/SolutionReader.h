@@ -11,6 +11,7 @@
 #include "LinearInterpolator.h"
 #include "Primitives.h"
 #include "Medium.h"
+#include "TetgenCells.h"
 
 using namespace std;
 namespace femocs {
@@ -20,7 +21,9 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader conctructors */
     SolutionReader();
-    SolutionReader(LinearInterpolator* interpolator);
+    SolutionReader(LinearInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
+
+    void calc_charges(const TetgenFaces& faces);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
      * @param medium    atoms to be interpolated
@@ -50,6 +53,11 @@ public:
     void print_statistics();
 
 private:
+    const double eps0 = 8.854187817620e-12; ///< vacuum permittivity [F/m]
+    const string vec_label;       ///< label for vector data
+    const string vec_norm_label;  ///< label for data associated with vector length
+    const string scalar_label;    ///< label for scalar data
+
     LinearInterpolator* interpolator;     ///< data needed for interpolation
     vector<Solution> interpolation; ///< interpolated data
 
@@ -64,12 +72,14 @@ private:
 
     Solution get_average_solution(const int I, const double r_cut);
 
-    /** Reserve memory for interpolated data */
+    /** Reserve memory for data */
     void reserve(const int n_nodes);
 
-    /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
+    /** Get i-th entry from all data vectors for .xyz file;
+     * i < 0 gives the header of data vectors */
     string get_data_string(const int i) const;
 
+    /** Get information about data vectors for .vtk file. */
     void get_point_data(ofstream& out) const;
 };
 

@@ -279,7 +279,7 @@ void Medium::write_vtk(ofstream& out, const int n_atoms) const {
     get_cell_types(out, n_atoms);
 
     out << "\nPOINT_DATA " << n_atoms << "\n";
-    get_point_data(out, n_atoms);
+    get_point_data(out);
 
     out << "\nCELL_DATA " << n_atoms << "\n";
     get_cell_data(out, n_atoms);
@@ -305,7 +305,9 @@ void Medium::get_cell_types(ofstream& out, const int n_cells) const {
 void Medium::get_cell_data(ofstream& out, const int n_cells) const {}
 
 // Get data scalar and vector data associated with vtk nodes
-void Medium::get_point_data(ofstream& out, const int n_atoms) const {
+void Medium::get_point_data(ofstream& out) const {
+    const int n_atoms = get_n_atoms();
+
     // write IDs of atoms
     out << "SCALARS id int\nLOOKUP_TABLE default\n";
     for (size_t i = 0; i < n_atoms; ++i)

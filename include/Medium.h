@@ -116,7 +116,7 @@ protected:
     virtual void get_cell_data(ofstream& outfile, const int n_cells) const;
 
     /** Get data scalar and vector data associated with vtk nodes */
-    virtual void get_point_data(ofstream& outfile, const int n_atoms) const;
+    virtual void get_point_data(ofstream& outfile) const;
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     virtual string get_data_string(const int i) const;

@@ -13,12 +13,13 @@
 using namespace std;
 namespace femocs {
 
-// Initialize data vectors
-SolutionReader::SolutionReader() : interpolator(NULL) {
+// Initialize SolutionReader
+SolutionReader::SolutionReader() : interpolator(NULL), vec_label("vec"), vec_norm_label("vec_norm"), scalar_label("scalar") {
     reserve(0);
 }
 
-SolutionReader::SolutionReader(LinearInterpolator* ip) : interpolator(ip) {
+SolutionReader::SolutionReader(LinearInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
+        interpolator(ip), vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab) {
     reserve(0);
 }
 
@@ -54,6 +55,44 @@ void SolutionReader::print_statistics() {
     cout << "   rms elfield: \t" << rms_elfield << endl;
     cout << "  mean potential: \t" << potential << endl;
     cout << "   rms potential: \t" << rms_potential << endl;
+}
+
+// Calculate charges on surface faces
+void SolutionReader::calc_charges(const TetgenFaces& faces) {
+    require(interpolator, "NULL interpolator cannot be used!");
+
+    const int n_faces = faces.size();
+    reserve(n_faces);
+
+    // Store the centroids of the triangles
+    for (int i = 0; i < n_faces; ++i)
+        add_atom( Atom(i, faces.get_centroid(i), 0) );
+
+    // Sort centroids into sequential order to speed up interpolation
+    sort_spatial();
+
+    int elem = 0;
+    for (int i = 0; i < n_faces; ++i) {
+        Point3 point = get_point(i);
+        int face = get_id(i);
+
+        // Interpolate electric field in the centroid
+        elem = interpolator->locate_element(point, abs(elem));
+        Vec3 elfield = interpolator->get_vector(point, abs(elem));
+
+        double area = faces.get_area(face);
+        double charge = area * elfield.norm();  // * eps0;
+
+        interpolation.push_back(Solution(elfield, area, charge));
+    }
+
+
+    // sort atoms back to their initial order
+    for (int i = 0; i < n_faces; ++i)
+        interpolation[i].id = atoms[i].id;
+
+    sort(interpolation.begin(), interpolation.end(), Solution::sort_up());
+    sort(atoms.begin(), atoms.end(), Atom::sort_id());
 }
 
 // Linearly interpolate solution on Medium atoms
@@ -296,7 +335,7 @@ void SolutionReader::reserve(const int n_nodes) {
 
 // Compile data string from the data vectors for file output
 string SolutionReader::get_data_string(const int i) const{
-    if (i < 0) return "SolutionReader properties=id:R:1:pos:R:3:out_of_mesh:R:1:force:R:3:enorm:R:1:potential:R:1";
+    if (i < 0) return "SolutionReader properties=id:R:1:pos:R:3:outOfMesh:R:1:force:R:3:" + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
 
     ostringstream strs; strs << fixed;
     strs << atoms[i] << " " << interpolation[i];
@@ -306,18 +345,28 @@ string SolutionReader::get_data_string(const int i) const{
 void SolutionReader::get_point_data(ofstream& out) const {
     const int n_atoms = get_n_atoms();
 
+    // write IDs of atoms
+    out << "SCALARS id int\nLOOKUP_TABLE default\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << atoms[i].id << "\n";
+
+    // write atom markers
+    out << "SCALARS marker int\nLOOKUP_TABLE default\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << atoms[i].marker << "\n";
+
     // output scalar (electric potential, temperature etc)
-    out << "SCALARS Potential double\nLOOKUP_TABLE default\n";
+    out << "SCALARS " << scalar_label << " double\nLOOKUP_TABLE default\n";
     for (size_t i = 0; i < n_atoms; ++i)
         out << interpolation[i].potential << "\n";
 
     // output vector magnitude explicitly to make it possible to apply filters in ParaView
-    out << "SCALARS Elfield_norm double\nLOOKUP_TABLE default\n";
+    out << "SCALARS " << vec_norm_label << " double\nLOOKUP_TABLE default\n";
     for (size_t i = 0; i < n_atoms; ++i)
         out << interpolation[i].el_norm << "\n";
 
     // output vector data (electric field, current density etc)
-    out << "VECTORS Electric_field double\n";
+    out << "VECTORS " << vec_label << " double\n";
     for (size_t i = 0; i < n_atoms; ++i)
         out << interpolation[i].elfield << "\n";
 }

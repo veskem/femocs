@@ -675,6 +675,7 @@ public:
     Solution(const double d) : elfield(Vec3(d)), el_norm(d), potential(d), id(0) {}
     Solution(const Vec3& v) : elfield(v), el_norm(v.norm()), potential(0), id(0) {}
     Solution(const Vec3& v, const double pot) : elfield(v), el_norm(v.norm()), potential(pot), id(0) {}
+    Solution(const Vec3& v, const double norm, const double pot) : elfield(v), el_norm(norm), potential(pot), id(0) {}
 
     /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &ss, const Solution &sol) {
