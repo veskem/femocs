@@ -128,8 +128,6 @@ private:
     Media dense_surf;
     Media extended_surf;
 
-    TetgenMesh bulk_mesh, vacuum_mesh;
-
     LinearInterpolator bulk_interpolator;
     LinearInterpolator vacuum_interpolator;
     SolutionReader bulk_interpolation = SolutionReader(&bulk_interpolator);

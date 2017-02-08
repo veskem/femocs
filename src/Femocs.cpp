@@ -138,7 +138,7 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
 
     start_msg(t0, "=== Cleaning surface faces & atoms...");
     bulk_mesh.faces.clean_sides(big_mesh.nodes.stat);
-    dense_surf.clean(bulk_mesh, conf.coord_cutoff);
+    dense_surf.clean(bulk_mesh, 1.0*conf.coord_cutoff);
     end_msg(t0);
 
     bulk_mesh.faces.write("output/surface_faces_clean.vtk");
@@ -313,6 +313,7 @@ int Femocs::run(const double elfield, const string &message) {
     tstart = omp_get_wtime();
 
     // Generate FEM mesh
+    TetgenMesh bulk_mesh, vacuum_mesh;
     fail = generate_meshes(bulk_mesh, vacuum_mesh);
 
     bulk_mesh.elems.write("output/tetmesh_bulk" + conf.message + ".vtk");
