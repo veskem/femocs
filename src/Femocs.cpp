@@ -285,6 +285,34 @@ int Femocs::extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3>* sol
     return 0;
 }
 
+int Femocs::extract_forces(const TetgenMesh& mesh) {
+    start_msg(t0, "=== Interpolating E and phi...");
+    fields.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff);
+    end_msg(t0);
+
+    fields.write("output/fields.xyz");
+    fields.print_statistics();
+
+    ChargeReader charges = ChargeReader(&vacuum_interpolator);
+    start_msg(t0, "=== Calculating charges...");
+//    charges.calc_interpolated_charges(bulk_mesh);
+    charges.calc_charges(mesh);
+    end_msg(t0);
+
+    charges.print_statistics(reader.sizes, conf.neumann);
+    charges.write("output/charges.xyz");
+
+    ForceReader forces(&vacuum_interpolator);
+    start_msg(t0, "=== Calculating forces...");
+    forces.calc_forces(fields, charges, reader.sizes, conf.coord_cutoff);
+    end_msg(t0);
+
+    forces.print_statistics(reader.sizes, conf.neumann);
+    forces.write("output/forces.xyz");
+
+    return 0;
+}
+
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
 int Femocs::run(const double elfield, const string &message) {
     static unsigned int timestep = 0;
@@ -339,13 +367,7 @@ int Femocs::run(const double elfield, const string &message) {
         odd_run = !odd_run;
     }
 
-    start_msg(t0, "=== Calculating charges...");
-//    charges.calc_interpolated_charges(bulk_mesh);
-    charges.calc_charges(bulk_mesh);
-    end_msg(t0);
-
-    charges.print_statistics(reader.sizes, conf.neumann);
-    charges.write("output/charges_on_face.xyz");
+    extract_forces(bulk_mesh);
 
     start_msg(t0, "=== Saving atom positions...");
     reader.save_current_run_points(conf.distance_tol);

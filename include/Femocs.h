@@ -132,7 +132,6 @@ private:
     LinearInterpolator vacuum_interpolator;
     HeatReader temperatures = HeatReader(&bulk_interpolator);
     FieldReader fields = FieldReader(&vacuum_interpolator);
-    ChargeReader charges = ChargeReader(&vacuum_interpolator);
 
     fch::PhysicalQuantities phys_quantities;
     fch::CurrentsAndHeating<3> ch_solver1;
@@ -159,6 +158,8 @@ private:
 
     /** Extract current density and temperature from solution */
     int extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3>* solver);
+
+    int extract_forces(const TetgenMesh& mesh);
 };
 
 } /* namespace femocs */

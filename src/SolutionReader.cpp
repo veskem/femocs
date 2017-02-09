@@ -344,6 +344,16 @@ void FieldReader::clean(const int coordinate, const double r_cut) {
     }
 }
 
+Vec3 FieldReader::get_elfield(const int i) const {
+    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    return interpolation[i].elfield;
+}
+
+double FieldReader::get_potential(const int i) const {
+    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    return interpolation[i].potential;
+}
+
 /* ==========================================
  * =============== HEAT READER ==============
  * ========================================== */
@@ -450,7 +460,7 @@ void ChargeReader::calc_charges(const TetgenMesh& mesh) {
     }
 }
 
-Vec3 ChargeReader::get_force(const int i) const {
+Vec3 ChargeReader::get_elfield(const int i) const {
     require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
     return interpolation[i].elfield;
 }
@@ -469,15 +479,11 @@ void ChargeReader::print_statistics(const Medium::Sizes& sizes, const double E0)
     if (!MODES.VERBOSE) return;
 
     double Q = E0 * sizes.xbox * sizes.ybox;
-    double q = get_total_charge();
-    cout << "  Q / sum(q) = " << Q << " / " << q << " = " << Q/q << endl;
-}
-
-double ChargeReader::get_total_charge() const {
-    double tot_charge = 0;
+    double q = 0;
     for (int i = 0; i < get_n_atoms(); ++i)
-        tot_charge += get_charge(i);
-    return tot_charge;
+        q += get_charge(i);
+
+    cout << "  Q / sum(q) = " << Q << " / " << q << " = " << Q/q << endl;
 }
 
 void ChargeReader::get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields) {
@@ -522,6 +528,82 @@ void ChargeReader::get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields) 
 
         elfields.push_back(interpolator->get_vector(centroid_indx));
     }
+}
+
+/* ==========================================
+ * ============== FORCE READER ==============
+ * ========================================== */
+
+ForceReader::ForceReader() : SolutionReader() {}
+ForceReader::ForceReader(LinearInterpolator* ip) : SolutionReader(ip, "force", "force_norm", "charge") {}
+
+void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& faces, const Medium::Sizes& sizes, const double r_cut) {
+    const int n_atoms = fields.get_n_atoms();
+    const int n_faces = faces.get_n_atoms();
+
+    // Copy the atom data
+    reserve(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        add_atom(fields.get_atom(i));
+
+    /* Distribute the charges on surface faces between surface atoms.
+     * If q_i and Q_j is the charge on i-th atom and j-th face, respectively, then
+     *     q_i = sum_j(w_ij * Q_j),  sum_i(w_ij) = 1 for every j
+     * where w_ij is the weight of charge on j-th face for the i-th atom. */
+
+    vector<double> charges(n_atoms);
+    vector<double> weights;
+    for (int face = 0; face < n_faces; ++face) {
+        Point3 point1 = faces.get_point(face);
+        double q_face = faces.get_charge(face);
+
+        double r_cut2 = faces.get_area(face) * 50.0;
+        double smooth_factor = sqrt(r_cut2) / 10.0;
+
+        // Find weights and normalization factor for all the atoms for given face
+        weights = vector<double>(n_atoms);
+        double w_sum = 0.0;
+        for (int atom = 0; atom < n_atoms; ++atom) {
+            double dist2 = point1.periodic_distance2(get_point(atom), sizes.xbox, sizes.ybox);
+            if (dist2 > r_cut2) continue;
+
+            double w = exp(-1.0 * sqrt(dist2) / smooth_factor);
+            weights[atom] = w;
+            w_sum += w;
+        }
+
+        // Store the partial charges on atoms
+        w_sum = 1.0 / w_sum;
+        for (int atom = 0; atom < n_atoms; ++atom)
+            if (weights[atom] > 0)
+                charges[atom] += weights[atom] * w_sum * q_face;
+    }
+
+    for (int atom = 0; atom < n_atoms; ++atom) {
+        Vec3 force = fields.get_elfield(atom) * charges[atom];
+        interpolation.push_back(Solution(force, charges[atom]));
+    }
+}
+
+Vec3 ForceReader::get_force(const int i) const {
+    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    return interpolation[i].elfield;
+}
+
+double ForceReader::get_charge(const int i) const {
+    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    return interpolation[i].potential;
+}
+
+void ForceReader::print_statistics(const Medium::Sizes& sizes, const double E0) {
+    if (!MODES.VERBOSE) return;
+
+    double Q = E0 * sizes.xbox * sizes.ybox;
+    double q = 0;
+    for (int i = 0; i < get_n_atoms(); ++i)
+        q += get_charge(i);
+
+    cout << "  Q / sum(q) = " << Q << " / " << q << " = " << Q/q << endl;
 }
 
 } // namespace femocs

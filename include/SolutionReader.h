@@ -77,6 +77,10 @@ public:
     /** Print statistics about interpolated solution */
     void print_statistics();
 
+    Vec3 get_elfield(const int i) const;
+
+    double get_potential(const int i) const;
+
 private:
     /** Function to clean the result from peaks
      * The cleaner makes the histogram for given component of electric field and applies smoothing
@@ -114,7 +118,7 @@ public:
 
     void calc_charges(const TetgenMesh& mesh);
 
-    Vec3 get_force(const int i) const;
+    Vec3 get_elfield(const int i) const;
 
     double get_area(const int i) const;
 
@@ -126,8 +130,24 @@ private:
     const double eps0 = 8.854187817620e-12; ///< vacuum permittivity [F/m]
 
     void get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields);
+};
 
-    double get_total_charge() const;
+/** Class to calculate forces from charges and electric fields */
+class ForceReader: public SolutionReader {
+public:
+    /** ChargeReader constructors */
+    ForceReader();
+    ForceReader(LinearInterpolator* ip);
+
+    void calc_forces(const FieldReader &fields, const ChargeReader& faces, const Medium::Sizes& sizes, const double r_cut);
+
+    Vec3 get_force(const int i) const;
+
+    double get_charge(const int i) const;
+
+    void print_statistics(const Medium::Sizes& sizes, const double E0);
+
+private:
 };
 
 } // namespace femocs
