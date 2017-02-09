@@ -130,9 +130,9 @@ private:
 
     LinearInterpolator bulk_interpolator;
     LinearInterpolator vacuum_interpolator;
-    SolutionReader bulk_interpolation = SolutionReader(&bulk_interpolator, "rho", "rho_norm", "temperature");
-    SolutionReader vacuum_interpolation = SolutionReader(&vacuum_interpolator, "elfield", "elfield_norm", "potential");
-    SolutionReader charges = SolutionReader(&vacuum_interpolator, "elfield", "area", "charge");
+    HeatReader temperatures = HeatReader(&bulk_interpolator);
+    FieldReader fields = FieldReader(&vacuum_interpolator);
+    ChargeReader charges = ChargeReader(&vacuum_interpolator);
 
     fch::PhysicalQuantities phys_quantities;
     fch::CurrentsAndHeating<3> ch_solver1;

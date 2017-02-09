@@ -277,10 +277,10 @@ int Femocs::extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3>* sol
     bulk_interpolator.write("output/result_rho_T.xyz");
 
     start_msg(t0, "=== Interpolating T and rho...");
-    bulk_interpolation.interpolate(reader, 0);
+    temperatures.interpolate(reader, 0);
     end_msg(t0);
 
-    bulk_interpolation.write("output/interpolation_bulk.movie");
+    temperatures.write("output/interpolation_bulk.movie");
 
     return 0;
 }
@@ -342,6 +342,7 @@ int Femocs::run(const double elfield, const string &message) {
     start_msg(t0, "=== Calculating charges...");
     charges.calc_charges(bulk_mesh.faces);
     end_msg(t0);
+    charges.write("output/charges_on_face.xyz");
     charges.write("output/charges_on_face.vtk");
 
     start_msg(t0, "=== Saving atom positions...");
@@ -461,15 +462,15 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
 
     if (!skip_calculations) {
         start_msg(t0, "=== Interpolating E and phi...");
-        vacuum_interpolation.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff);
+        fields.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff);
         end_msg(t0);
 
-        vacuum_interpolation.write("output/interpolation.movie");
-        vacuum_interpolation.print_statistics();
+        fields.write("output/interpolation.movie");
+        fields.print_statistics();
     }
 
     start_msg(t0, "=== Exporting electric field...");
-    vacuum_interpolation.export_solution(n_atoms, Ex, Ey, Ez, Enorm);
+    fields.export_solution(n_atoms, Ex, Ey, Ez, Enorm);
     end_msg(t0);
 
     return 0;
@@ -480,14 +481,14 @@ int Femocs::interpolate_elfield(const int n_points, const double* x, const doubl
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     check_message(vacuum_interpolator.get_n_atoms() == 0, "No solution to export!");
 
-    SolutionReader sr(&vacuum_interpolator, "elfield", "elfield_norm", "empty");
+    FieldReader fr(&vacuum_interpolator);
     start_msg(t0, "=== Interpolating electric field...");
-    sr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coord_cutoff, 1);
+    fr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coord_cutoff, 1);
     end_msg(t0);
-    if (!skip_calculations) sr.write("output/interpolation_E.movie");
+    if (!skip_calculations) fr.write("output/interpolation_E.movie");
 
     start_msg(t0, "=== Exporting electric field...");
-    sr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
+    fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
 
     return 0;
@@ -497,10 +498,10 @@ int Femocs::interpolate_elfield(const int n_points, const double* x, const doubl
 int Femocs::interpolate_phi(const int n_points, const double* x, const double* y, const double* z, double* phi, int* flag) {
     check_message(vacuum_interpolator.get_n_atoms() == 0, "No solution to export!");
 
-    SolutionReader sr(&vacuum_interpolator, "empty", "empty", "potential");
-    sr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coord_cutoff, 2, false);
-    sr.export_potential(n_points, phi, flag);
-    if (!skip_calculations) sr.write("output/interpolation_phi.movie");
+    FieldReader fr(&vacuum_interpolator);
+    fr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coord_cutoff, 2, false);
+    fr.export_potential(n_points, phi, flag);
+    if (!skip_calculations) fr.write("output/interpolation_phi.movie");
 
     return 0;
 }

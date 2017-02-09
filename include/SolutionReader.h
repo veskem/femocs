@@ -16,14 +16,38 @@
 using namespace std;
 namespace femocs {
 
-/** Class to extract solution from DealII calculations */
+/** Class to interpolate solution from DealII calculations */
 class SolutionReader: public Medium {
 public:
-    /** SolutionReader conctructors */
+    /** SolutionReader constructors */
     SolutionReader();
     SolutionReader(LinearInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
-    void calc_charges(const TetgenFaces& faces);
+protected:
+    const string vec_label;       ///< label for vector data
+    const string vec_norm_label;  ///< label for data associated with vector length
+    const string scalar_label;    ///< label for scalar data
+
+    LinearInterpolator* interpolator;     ///< data needed for interpolation
+    vector<Solution> interpolation; ///< interpolated data
+
+    /** Reserve memory for data */
+    void reserve(const int n_nodes);
+
+    /** Get i-th entry from all data vectors for .xyz file;
+     * i < 0 gives the header of data vectors */
+    string get_data_string(const int i) const;
+
+    /** Get information about data vectors for .vtk file. */
+    void get_point_data(ofstream& out) const;
+};
+
+/** Class to extract solution from DealII calculations */
+class FieldReader: public SolutionReader {
+public:
+    /** SolutionReader constructors */
+    FieldReader();
+    FieldReader(LinearInterpolator* ip);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
      * @param medium    atoms to be interpolated
@@ -53,14 +77,6 @@ public:
     void print_statistics();
 
 private:
-    const double eps0 = 8.854187817620e-12; ///< vacuum permittivity [F/m]
-    const string vec_label;       ///< label for vector data
-    const string vec_norm_label;  ///< label for data associated with vector length
-    const string scalar_label;    ///< label for scalar data
-
-    LinearInterpolator* interpolator;     ///< data needed for interpolation
-    vector<Solution> interpolation; ///< interpolated data
-
     /** Function to clean the result from peaks
      * The cleaner makes the histogram for given component of electric field and applies smoothing
      * for the atoms, where field has diverging values.
@@ -71,16 +87,32 @@ private:
     void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
 
     Solution get_average_solution(const int I, const double r_cut);
+};
 
-    /** Reserve memory for data */
-    void reserve(const int n_nodes);
+/** Class to interpolate current densities and temperatures */
+class HeatReader: public SolutionReader {
+public:
+    /** HeatReader constructors */
+    HeatReader();
+    HeatReader(LinearInterpolator* ip);
 
-    /** Get i-th entry from all data vectors for .xyz file;
-     * i < 0 gives the header of data vectors */
-    string get_data_string(const int i) const;
+    /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
+    void interpolate(const Medium &medium, const double r_cut);
 
-    /** Get information about data vectors for .vtk file. */
-    void get_point_data(ofstream& out) const;
+private:
+};
+
+/** Class to calculate charges from electric field */
+class ChargeReader: public SolutionReader {
+public:
+    /** ChargeReader constructors */
+    ChargeReader();
+    ChargeReader(LinearInterpolator* ip);
+
+    void calc_charges(const TetgenFaces& faces);
+
+private:
+    const double eps0 = 8.854187817620e-12; ///< vacuum permittivity [F/m]
 };
 
 } // namespace femocs

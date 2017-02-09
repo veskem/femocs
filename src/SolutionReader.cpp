@@ -13,6 +13,10 @@
 using namespace std;
 namespace femocs {
 
+/* ==========================================
+ * ============= SOLUTION READER ============
+ * ========================================== */
+
 // Initialize SolutionReader
 SolutionReader::SolutionReader() : interpolator(NULL), vec_label("vec"), vec_norm_label("vec_norm"), scalar_label("scalar") {
     reserve(0);
@@ -23,8 +27,64 @@ SolutionReader::SolutionReader(LinearInterpolator* ip, const string& vec_lab, co
     reserve(0);
 }
 
+// Reserve memory for solution vectors
+void SolutionReader::reserve(const int n_nodes) {
+    require(n_nodes >= 0, "Invalid number of nodes: " + to_string(n_nodes));
+
+    atoms.clear();
+    interpolation.clear();
+
+    atoms.reserve(n_nodes);
+    interpolation.reserve(n_nodes);
+}
+
+// Compile data string from the data vectors for file output
+string SolutionReader::get_data_string(const int i) const{
+    if (i < 0) return "SolutionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
+
+    ostringstream strs; strs << fixed;
+    strs << atoms[i] << " " << interpolation[i];
+    return strs.str();
+}
+
+void SolutionReader::get_point_data(ofstream& out) const {
+    const int n_atoms = get_n_atoms();
+
+    // write IDs of atoms
+    out << "SCALARS id int\nLOOKUP_TABLE default\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << atoms[i].id << "\n";
+
+    // write atom markers
+    out << "SCALARS marker int\nLOOKUP_TABLE default\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << atoms[i].marker << "\n";
+
+    // output scalar (electric potential, temperature etc)
+    out << "SCALARS " << scalar_label << " double\nLOOKUP_TABLE default\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << interpolation[i].potential << "\n";
+
+    // output vector magnitude explicitly to make it possible to apply filters in ParaView
+    out << "SCALARS " << vec_norm_label << " double\nLOOKUP_TABLE default\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << interpolation[i].el_norm << "\n";
+
+    // output vector data (electric field, current density etc)
+    out << "VECTORS " << vec_label << " double\n";
+    for (size_t i = 0; i < n_atoms; ++i)
+        out << interpolation[i].elfield << "\n";
+}
+
+/* ==========================================
+ * ============== FIELD READER ==============
+ * ========================================== */
+
+FieldReader::FieldReader() : SolutionReader() {}
+FieldReader::FieldReader(LinearInterpolator* ip) : SolutionReader(ip, "elfield", "elfield_norm", "potential") {}
+
 // Print statistics about interpolated solution
-void SolutionReader::print_statistics() {
+void FieldReader::print_statistics() {
     if (!MODES.VERBOSE) return;
 
     const int n_atoms = get_n_atoms();
@@ -57,46 +117,8 @@ void SolutionReader::print_statistics() {
     cout << "   rms potential: \t" << rms_potential << endl;
 }
 
-// Calculate charges on surface faces
-void SolutionReader::calc_charges(const TetgenFaces& faces) {
-    require(interpolator, "NULL interpolator cannot be used!");
-
-    const int n_faces = faces.size();
-    reserve(n_faces);
-
-    // Store the centroids of the triangles
-    for (int i = 0; i < n_faces; ++i)
-        add_atom( Atom(i, faces.get_centroid(i), 0) );
-
-    // Sort centroids into sequential order to speed up interpolation
-    sort_spatial();
-
-    int elem = 0;
-    for (int i = 0; i < n_faces; ++i) {
-        Point3 point = get_point(i);
-        int face = get_id(i);
-
-        // Interpolate electric field in the centroid
-        elem = interpolator->locate_element(point, abs(elem));
-        Vec3 elfield = interpolator->get_vector(point, abs(elem));
-
-        double area = faces.get_area(face);
-        double charge = area * elfield.norm();  // * eps0;
-
-        interpolation.push_back(Solution(elfield, area, charge));
-    }
-
-
-    // sort atoms back to their initial order
-    for (int i = 0; i < n_faces; ++i)
-        interpolation[i].id = atoms[i].id;
-
-    sort(interpolation.begin(), interpolation.end(), Solution::sort_up());
-    sort(atoms.begin(), atoms.end(), Atom::sort_id());
-}
-
 // Linearly interpolate solution on Medium atoms
-void SolutionReader::interpolate(const Medium &medium, const double r_cut, const int component, const bool srt) {
+void FieldReader::interpolate(const Medium &medium, const double r_cut, const int component, const bool srt) {
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
     require(interpolator, "NULL interpolator cannot be used!");
 
@@ -142,7 +164,7 @@ void SolutionReader::interpolate(const Medium &medium, const double r_cut, const
 }
 
 // Linearly interpolate electric field on a set of points
-void SolutionReader::interpolate(const int n_points, const double* x, const double* y, const double* z,
+void FieldReader::interpolate(const int n_points, const double* x, const double* y, const double* z,
         const double r_cut, const int component, const bool sort) {
     Medium medium(n_points);
     for (int i = 0; i < n_points; ++i)
@@ -153,7 +175,7 @@ void SolutionReader::interpolate(const int n_points, const double* x, const doub
 }
 
 // Linearly interpolate electric field on a set of points
-void SolutionReader::export_elfield(const int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
+void FieldReader::export_elfield(const int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     require(n_points == get_n_atoms(), "Invalid array size: " + to_string(n_points));
 
     for (int i = 0; i < n_points; ++i) {
@@ -166,7 +188,7 @@ void SolutionReader::export_elfield(const int n_points, double* Ex, double* Ey, 
 }
 
 // Linearly interpolate electric potential on a set of points
-void SolutionReader::export_potential(const int n_points, double* phi, int* flag) {
+void FieldReader::export_potential(const int n_points, double* phi, int* flag) {
     require(n_points == get_n_atoms(), "Invalid array size: " + to_string(n_points));
 
     for (int i = 0; i < n_points; ++i) {
@@ -176,7 +198,7 @@ void SolutionReader::export_potential(const int n_points, double* phi, int* flag
 }
 
 // Export interpolated electric field
-void SolutionReader::export_solution(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+void FieldReader::export_solution(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     // Initially pass the zero electric field for all the atoms
     for (int i = 0; i < n_atoms; ++i) {
         Ex[i] = 0;
@@ -198,7 +220,7 @@ void SolutionReader::export_solution(const int n_atoms, double* Ex, double* Ey, 
 }
 
 // Get average electric field around I-th solution point
-Solution SolutionReader::get_average_solution(const int I, const double r_cut) {
+Solution FieldReader::get_average_solution(const int I, const double r_cut) {
     // Cut off weights after 5 sigma
     const double r_cut2 = pow(5 * r_cut, 2);
     const double smooth_factor = r_cut / 5.0;
@@ -226,7 +248,7 @@ Solution SolutionReader::get_average_solution(const int I, const double r_cut) {
 }
 
 // Get histogram for electric field x,y,z component or for its norm
-void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate) {
+void FieldReader::get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate) {
     require(coordinate >= 0 && coordinate <= 4, "Invalid component: " + to_string(coordinate));
 
     const int n_atoms = get_n_atoms();
@@ -270,7 +292,7 @@ void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, co
 }
 
 // Clean the interpolation from peaks using histogram cleaner
-void SolutionReader::clean(const int coordinate, const double r_cut) {
+void FieldReader::clean(const int coordinate, const double r_cut) {
     require(coordinate >= 0 && coordinate <= 4, "Invalid coordinate: " + to_string(coordinate));
     const int n_bins = (int) get_n_atoms() / 250;
 
@@ -322,53 +344,91 @@ void SolutionReader::clean(const int coordinate, const double r_cut) {
     }
 }
 
-// Reserve memory for solution vectors
-void SolutionReader::reserve(const int n_nodes) {
-    require(n_nodes >= 0, "Invalid number of nodes: " + to_string(n_nodes));
+/* ==========================================
+ * =============== HEAT READER ==============
+ * ========================================== */
 
-    atoms.clear();
-    interpolation.clear();
+HeatReader::HeatReader() : SolutionReader() {}
+HeatReader::HeatReader(LinearInterpolator* ip) : SolutionReader(ip, "rho", "rho_norm", "temperature") {}
 
-    atoms.reserve(n_nodes);
-    interpolation.reserve(n_nodes);
+// Linearly interpolate solution on Medium atoms
+void HeatReader::interpolate(const Medium &medium, const double r_cut) {
+    require(interpolator, "NULL interpolator cannot be used!");
+
+    const int n_atoms = medium.get_n_atoms();
+    reserve(n_atoms);
+
+    // Copy the atoms
+    for (int i = 0; i < n_atoms; ++i)
+        add_atom(Atom(i, medium.get_point(i), 0));
+
+    // Sort atoms into sequential order to speed up interpolation
+    sort_spatial();
+
+    int elem = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point = get_point(i);
+        // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
+        elem = interpolator->locate_element(point, abs(elem));
+
+        // Store whether the point is in- or outside the mesh
+        if (elem < 0) set_marker(i, 1);
+        else          set_marker(i, 0);
+
+        // Calculate the interpolation
+        interpolation.push_back( interpolator->get_solution(point, abs(elem)) );
+    }
+
+    // sort atoms back to their initial order
+    for (int i = 0; i < n_atoms; ++i)
+        interpolation[i].id = atoms[i].id;
+    sort(interpolation.begin(), interpolation.end(), Solution::sort_up());
+    sort(atoms.begin(), atoms.end(), Atom::sort_id());
 }
 
-// Compile data string from the data vectors for file output
-string SolutionReader::get_data_string(const int i) const{
-    if (i < 0) return "SolutionReader properties=id:R:1:pos:R:3:outOfMesh:R:1:force:R:3:" + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
+/* ==========================================
+ * ============== CHARGE READER =============
+ * ========================================== */
 
-    ostringstream strs; strs << fixed;
-    strs << atoms[i] << " " << interpolation[i];
-    return strs.str();
-}
+ChargeReader::ChargeReader() : SolutionReader() {}
+ChargeReader::ChargeReader(LinearInterpolator* ip) : SolutionReader(ip, "elfield", "area", "charge") {}
 
-void SolutionReader::get_point_data(ofstream& out) const {
-    const int n_atoms = get_n_atoms();
+// Calculate charges on surface faces
+void ChargeReader::calc_charges(const TetgenFaces& faces) {
+    require(interpolator, "NULL interpolator cannot be used!");
 
-    // write IDs of atoms
-    out << "SCALARS id int\nLOOKUP_TABLE default\n";
-    for (size_t i = 0; i < n_atoms; ++i)
-        out << atoms[i].id << "\n";
+    const int n_faces = faces.size();
+    reserve(n_faces);
 
-    // write atom markers
-    out << "SCALARS marker int\nLOOKUP_TABLE default\n";
-    for (size_t i = 0; i < n_atoms; ++i)
-        out << atoms[i].marker << "\n";
+    // Store the centroids of the triangles
+    for (int i = 0; i < n_faces; ++i)
+        add_atom( Atom(i, faces.get_centroid(i), 0) );
 
-    // output scalar (electric potential, temperature etc)
-    out << "SCALARS " << scalar_label << " double\nLOOKUP_TABLE default\n";
-    for (size_t i = 0; i < n_atoms; ++i)
-        out << interpolation[i].potential << "\n";
+    // Sort centroids into sequential order to speed up interpolation
+    sort_spatial();
 
-    // output vector magnitude explicitly to make it possible to apply filters in ParaView
-    out << "SCALARS " << vec_norm_label << " double\nLOOKUP_TABLE default\n";
-    for (size_t i = 0; i < n_atoms; ++i)
-        out << interpolation[i].el_norm << "\n";
+    int elem = 0;
+    for (int i = 0; i < n_faces; ++i) {
+        Point3 point = get_point(i);
+        int face = get_id(i);
 
-    // output vector data (electric field, current density etc)
-    out << "VECTORS " << vec_label << " double\n";
-    for (size_t i = 0; i < n_atoms; ++i)
-        out << interpolation[i].elfield << "\n";
+        // Interpolate electric field in the centroid
+        elem = interpolator->locate_element(point, abs(elem));
+        Vec3 elfield = interpolator->get_vector(point, abs(elem));
+
+        double area = faces.get_area(face);
+        double charge = area * elfield.norm();  // * eps0;
+
+        interpolation.push_back(Solution(elfield, area, charge));
+    }
+
+
+    // sort atoms back to their initial order
+    for (int i = 0; i < n_faces; ++i)
+        interpolation[i].id = atoms[i].id;
+
+    sort(interpolation.begin(), interpolation.end(), Solution::sort_up());
+    sort(atoms.begin(), atoms.end(), Atom::sort_id());
 }
 
 } // namespace femocs
