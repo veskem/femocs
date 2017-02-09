@@ -394,15 +394,15 @@ ChargeReader::ChargeReader() : SolutionReader() {}
 ChargeReader::ChargeReader(LinearInterpolator* ip) : SolutionReader(ip, "elfield", "area", "charge") {}
 
 // Calculate charges on surface faces
-void ChargeReader::calc_charges(const TetgenFaces& faces) {
+void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh) {
     require(interpolator, "NULL interpolator cannot be used!");
 
-    const int n_faces = faces.size();
+    const int n_faces = mesh.faces.size();
     reserve(n_faces);
 
     // Store the centroids of the triangles
     for (int i = 0; i < n_faces; ++i)
-        add_atom( Atom(i, faces.get_centroid(i), 0) );
+        add_atom( Atom(i, mesh.faces.get_centroid(i), 0) );
 
     // Sort centroids into sequential order to speed up interpolation
     sort_spatial();
@@ -416,12 +416,10 @@ void ChargeReader::calc_charges(const TetgenFaces& faces) {
         elem = interpolator->locate_element(point, abs(elem));
         Vec3 elfield = interpolator->get_vector(point, abs(elem));
 
-        double area = faces.get_area(face);
+        double area = mesh.faces.get_area(face);
         double charge = area * elfield.norm();  // * eps0;
-
         interpolation.push_back(Solution(elfield, area, charge));
     }
-
 
     // sort atoms back to their initial order
     for (int i = 0; i < n_faces; ++i)
@@ -429,6 +427,101 @@ void ChargeReader::calc_charges(const TetgenFaces& faces) {
 
     sort(interpolation.begin(), interpolation.end(), Solution::sort_up());
     sort(atoms.begin(), atoms.end(), Atom::sort_id());
+}
+
+void ChargeReader::calc_charges(const TetgenMesh& mesh) {
+    const int n_faces = mesh.faces.size();
+    reserve(n_faces);
+
+    // Store the centroids of the triangles
+    for (int i = 0; i < n_faces; ++i)
+        add_atom( Atom(i, mesh.faces.get_centroid(i), 0) );
+
+    // Find the electric fields in the centroids of the triangles
+    vector<Vec3> elfields;
+    get_elfields(mesh, elfields);
+    require(elfields.size() == n_faces, "Electric fields were not extracted for every face!");
+
+    // Calculate the charges for the triangles
+    for (int face = 0; face < n_faces; ++face) {
+        double area = mesh.faces.get_area(face);
+        double charge = area * elfields[face].norm();  // * eps0;
+        interpolation.push_back(Solution(elfields[face], area, charge));
+    }
+}
+
+Vec3 ChargeReader::get_force(const int i) const {
+    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    return interpolation[i].elfield;
+}
+
+double ChargeReader::get_area(const int i) const {
+    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    return interpolation[i].el_norm;
+}
+
+double ChargeReader::get_charge(const int i) const {
+    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    return interpolation[i].potential;
+}
+
+void ChargeReader::print_statistics(const Medium::Sizes& sizes, const double E0) {
+    if (!MODES.VERBOSE) return;
+
+    double Q = E0 * sizes.xbox * sizes.ybox;
+    double q = get_total_charge();
+    cout << "  Q / sum(q) = " << Q << " / " << q << " = " << Q/q << endl;
+}
+
+double ChargeReader::get_total_charge() const {
+    double tot_charge = 0;
+    for (int i = 0; i < get_n_atoms(); ++i)
+        tot_charge += get_charge(i);
+    return tot_charge;
+}
+
+void ChargeReader::get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields) {
+    const int n_hexs = mesh.hexahedra.size();
+    const int n_faces = mesh.faces.size();
+    const int n_nodes = mesh.nodes.size();
+
+    // Mark the nodes that are connected to the surface triangles
+    vector<bool> on_face(n_nodes);
+    for (int face = 0; face < n_faces; ++face)
+        for (int node : mesh.faces[face])
+            on_face[node] = true;
+
+    // Store the indices of hexahedra connected to surface nodes
+    vector<vector<int>> node2hex(n_nodes);
+    for (int hex = 0; hex < n_hexs; ++hex)
+        for (int node : mesh.hexahedra[hex]) {
+            if (on_face[node])
+                node2hex[node].push_back(hex);
+        }
+
+    // Extract the electric fields in the centroids of the triangles
+    elfields.clear(); elfields.reserve(n_faces);
+    for (int face = 0; face < n_faces; ++face) {
+        Point3 centroid = get_point(face);
+        int vert = mesh.faces[face][0];
+
+        int centroid_indx = -1;
+        double min_dist = 1e100;
+
+        // Loop through all the hexahedra connected to the first vertex of triangle
+        for (int hex : node2hex[vert])
+            // Loop through all the vertices of hexahedron
+            for (int node : mesh.hexahedra[hex]) {
+                // Determine the node that is closest to the centroid of a face
+                double dist = centroid.distance2(mesh.nodes[node]);
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    centroid_indx = node;
+                }
+            }
+
+        elfields.push_back(interpolator->get_vector(centroid_indx));
+    }
 }
 
 } // namespace femocs

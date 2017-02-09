@@ -30,12 +30,14 @@ void write_defaults(ofstream &file) {
     file << "femocs_verbose = true"      << endl;
     file << "coord_cutoff = 3.1"         << endl;
     file << "latconst = 3.61"            << endl;
+    file << "box_width = 2.5"              << endl;
+    file << "box_height = 3.5"             << endl;
 }
 
 void write_hr5(ofstream &file) {
     file << "infile = input/nanotip_hr5.xyz" << endl;
-    file << "coarse_factor = 0.3 1.0 0.5"      << endl;
-    file << "radius = 14.0"           << endl;
+    file << "coarse_factor = 0.3 1.0 0.5"    << endl;
+    file << "radius = 14.0"                  << endl;
 }
 
 void write_mdsmall(ofstream &file) {

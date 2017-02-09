@@ -53,7 +53,11 @@ public:
 
     double get_scalar(const Point3 &point, const int elem);
 
+    double get_scalar(const int i);
+
     Vec3 get_vector(const Point3 &point, const int elem);
+
+    Vec3 get_vector(const int i);
 
     int locate_element(const Point3 &point, const int elem_guess);
 

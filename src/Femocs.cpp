@@ -172,7 +172,7 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, DealII& solver) {
     }
 
     start_msg(t0, "=== Initializing Laplace solver...");
-    solver.set_applied_efield(10.0*conf.neumann);
+    solver.set_applied_efield(conf.neumann);
     solver.setup_system(reader.sizes);
     solver.assemble_system();
     end_msg(t0);
@@ -205,7 +205,7 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     }
 */
     start_msg(t0, "=== Initializing Laplace solver...");
-    solver.set_applied_efield(10.0*conf.neumann);
+    solver.set_applied_efield(conf.neumann);
     solver.setup_system();
     solver.assemble_system();
     end_msg(t0);
@@ -309,7 +309,7 @@ int Femocs::run(const double elfield, const string &message) {
             + "! Field calculation will be skipped!");
 
     skip_calculations = true;
-    conf.neumann = elfield;
+    conf.neumann = 10.0 * elfield;
     tstart = omp_get_wtime();
 
     // Generate FEM mesh
@@ -340,10 +340,12 @@ int Femocs::run(const double elfield, const string &message) {
     }
 
     start_msg(t0, "=== Calculating charges...");
-    charges.calc_charges(bulk_mesh.faces);
+//    charges.calc_interpolated_charges(bulk_mesh);
+    charges.calc_charges(bulk_mesh);
     end_msg(t0);
+
+    charges.print_statistics(reader.sizes, conf.neumann);
     charges.write("output/charges_on_face.xyz");
-    charges.write("output/charges_on_face.vtk");
 
     start_msg(t0, "=== Saving atom positions...");
     reader.save_current_run_points(conf.distance_tol);

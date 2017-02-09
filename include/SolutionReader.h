@@ -12,6 +12,7 @@
 #include "Primitives.h"
 #include "Medium.h"
 #include "TetgenCells.h"
+#include "TetgenMesh.h"
 
 using namespace std;
 namespace femocs {
@@ -109,10 +110,24 @@ public:
     ChargeReader();
     ChargeReader(LinearInterpolator* ip);
 
-    void calc_charges(const TetgenFaces& faces);
+    void calc_interpolated_charges(const TetgenMesh& mesh);
+
+    void calc_charges(const TetgenMesh& mesh);
+
+    Vec3 get_force(const int i) const;
+
+    double get_area(const int i) const;
+
+    double get_charge(const int i) const;
+
+    void print_statistics(const Medium::Sizes& sizes, const double E0);
 
 private:
     const double eps0 = 8.854187817620e-12; ///< vacuum permittivity [F/m]
+
+    void get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields);
+
+    double get_total_charge() const;
 };
 
 } // namespace femocs
