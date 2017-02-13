@@ -41,10 +41,10 @@ public:
     virtual void reserve(const int n_atoms);
 
     /** Add atom to the system */
-    void add_atom(const Atom& atom);
+    void append(const Atom& atom);
 
     /** Add atom with default id and coordination to the system */
-    void add_atom(const Point3& point);
+    void append(const Point3& point);
 
     /** Write first n_max atoms to file; n_max < 0 writes all the atoms */
     void write(const string &file_name, const int n_max=-1) const;
@@ -75,7 +75,7 @@ public:
     /** Return marker of i-th atom */
     int get_marker(const int i) const;
     /** Return number of atoms in a Medium */
-    int get_n_atoms() const;
+    int size() const;
 
     /** Statistics about system size */
     struct Sizes {

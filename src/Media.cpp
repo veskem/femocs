@@ -26,10 +26,10 @@ void Media::generate_simple(const Medium::Sizes& ar_sizes, const double z) {
 
     // Add 4 atoms to the corners of simulation cell
     // The insertion order determines the orientation of big surface triangles
-    add_atom( Point3(ar_sizes.xmin, ar_sizes.ymin, z) );
-    add_atom( Point3(ar_sizes.xmax, ar_sizes.ymin, z) );
-    add_atom( Point3(ar_sizes.xmax, ar_sizes.ymax, z) );
-    add_atom( Point3(ar_sizes.xmin, ar_sizes.ymax, z) );
+    append( Point3(ar_sizes.xmin, ar_sizes.ymin, z) );
+    append( Point3(ar_sizes.xmax, ar_sizes.ymin, z) );
+    append( Point3(ar_sizes.xmax, ar_sizes.ymax, z) );
+    append( Point3(ar_sizes.xmin, ar_sizes.ymax, z) );
 
     calc_statistics();
 }
@@ -46,22 +46,22 @@ void Media::generate_middle(const Medium::Sizes& s, const double z, const double
     // Add atoms on x-edge
     for (int i = 1; i < n_atoms_per_side_x; ++i) {
         double y = s.xmin + i * s.xbox / n_atoms_per_side_x;
-        add_atom( Point3(s.xmin, y, z) );
-        add_atom( Point3(s.xmax, y, z) );
+        append( Point3(s.xmin, y, z) );
+        append( Point3(s.xmax, y, z) );
     }
 
     // Add atoms on y-edge
     for (int i = 1; i < n_atoms_per_side_y; ++i) {
         double x = s.ymin + i * s.ybox / n_atoms_per_side_y;
-        add_atom( Point3(x, s.ymin, z) );
-        add_atom( Point3(x, s.ymax, z) );
+        append( Point3(x, s.ymin, z) );
+        append( Point3(x, s.ymax, z) );
     }
 }
 
 // Extract surface by the atom types
 void Media::extract(const AtomReader& reader, const int type, const bool invert) {
     const int coord_min = 2;
-    const int n_atoms = reader.get_n_atoms();
+    const int n_atoms = reader.size();
     vector<bool> is_type(n_atoms);
 
     // Get number and locations of atoms of desired type
@@ -92,7 +92,7 @@ void Media::extract(const AtomReader& reader, const int type, const bool invert)
     // Store the atoms
     for (int i = 0; i < n_atoms; ++i)
         if (is_type[i])
-            add_atom(reader.get_atom(i));
+            append(reader.get_atom(i));
             
     calc_statistics();        
 }
@@ -102,7 +102,7 @@ Media Media::extend(const string &file_name, Coarseners &coarseners) {
     AtomReader reader;
     reader.import_file(file_name);
 
-    Media stretched(reader.get_n_atoms());
+    Media stretched(reader.size());
     stretched += reader;
 
     return stretched.coarsen(coarseners, this->sizes);
@@ -110,7 +110,7 @@ Media Media::extend(const string &file_name, Coarseners &coarseners) {
 
 // Function extend the flat area by generating additional atoms
 Media Media::extend(const double latconst, const double box_width, Coarseners &coarseners) {
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
 
     calc_statistics();
     const double current_box_width = min(sizes.xbox, sizes.ybox);
@@ -130,7 +130,7 @@ Media Media::extend(const double latconst, const double box_width, Coarseners &c
         for (double y = sizes.ymin - W; y <= sizes.ymax + W; y += latconst)
             for (double x = sizes.xmin - W; x <= sizes.xmax + W; x += latconst)
                 if ( x < sizes.xmin || x > sizes.xmax || y < sizes.ymin || y > sizes.ymax)
-                    stretched.add_atom( Point3(x, y, coarseners.centre.z) );
+                    stretched.append( Point3(x, y, coarseners.centre.z) );
     }
 
     return stretched.coarsen(coarseners, this->sizes);
@@ -161,7 +161,7 @@ Media Media::coarsen(Coarseners &coarseners, Media::Sizes &other) {
 
 // Clean the surface from atoms that are too close to each other
 Media Media::clean(Coarseners &coarseners) {
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
     vector<bool> do_delete(n_atoms, false);
 
     // Loop through all the atoms
@@ -182,7 +182,7 @@ Media Media::clean(Coarseners &coarseners) {
     Media surf( n_atoms - vector_sum(do_delete) );
     for (int i = 0; i < n_atoms; ++i)
         if(!do_delete[i])
-            surf.add_atom(get_atom(i));
+            surf.append(get_atom(i));
 
     surf.calc_statistics();
     return surf;
@@ -190,7 +190,7 @@ Media Media::clean(Coarseners &coarseners) {
 
 // Remove the atoms that are too far from surface faces
 void Media::clean(const TetgenMesh& mesh, const double r_cut) {
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
     RaySurfaceIntersect rsi(&mesh);
     rsi.precompute_triangles();
 
@@ -220,7 +220,7 @@ void Media::smoothen(const double radius, const double smooth_factor, const doub
 void Media::smoothen(const Point2 &origin, const double radius, const double smooth_factor, const double r_cut) {
     if (smooth_factor < 0.01) return;
 
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
     const double radius2 = radius * radius;
 
     // Find atoms in interesting region
@@ -234,7 +234,7 @@ void Media::smoothen(const Point2 &origin, const double radius, const double smo
     Media temp_surf(n_smooth);
     for(int i = 0; i < n_atoms; ++i)
         if(hot_atom[i])
-            temp_surf.add_atom(get_point(i));
+            temp_surf.append(get_point(i));
 
     // Smoothen the surface
     temp_surf.smoothen(smooth_factor, r_cut);
@@ -248,7 +248,7 @@ void Media::smoothen(const Point2 &origin, const double radius, const double smo
 
 void Media::smoothen(const double smooth_factor, const double r_cut) {
     const double r_cut2 = r_cut * r_cut;
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
 
     // Make copy of points so that the old positions won't interfere with already smoothed ones
     vector<Point3> points; points.reserve(n_atoms);
@@ -289,7 +289,7 @@ Edge::Edge() : Medium() {};
 
 // Exctract the atoms near the simulation box sides
 void Edge::extract(const Medium* atoms, const AtomReader::Sizes& ar_sizes, const double eps) {
-    const int n_atoms = atoms->get_n_atoms();
+    const int n_atoms = atoms->size();
 
     // Reserve memory for atoms
     reserve(n_atoms);
@@ -301,11 +301,11 @@ void Edge::extract(const Medium* atoms, const AtomReader::Sizes& ar_sizes, const
         const bool near2 = on_boundary(point.y, ar_sizes.ymin, ar_sizes.ymax, eps);
 
         if (near1 || near2)
-            add_atom(atoms->get_atom(i));
+            append(atoms->get_atom(i));
     }
 
     // Loop through all the added atoms and flatten the atoms on the sides of simulation box
-    for (int i = 0; i < get_n_atoms(); ++i) {
+    for (int i = 0; i < size(); ++i) {
         Point3 point = get_point(i);
         if ( on_boundary(point.x, ar_sizes.xmin, eps) ) set_x(i, ar_sizes.xmin);
         if ( on_boundary(point.x, ar_sizes.xmax, eps) ) set_x(i, ar_sizes.xmax);

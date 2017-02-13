@@ -48,7 +48,7 @@ string SolutionReader::get_data_string(const int i) const{
 }
 
 void SolutionReader::get_point_data(ofstream& out) const {
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
 
     // write IDs of atoms
     out << "SCALARS id int\nLOOKUP_TABLE default\n";
@@ -89,7 +89,7 @@ Solution SolutionReader::get_average_solution(const int I, const double r_cut) {
     double w_sum = 0.0;
 
     // E_I = sum i!=I [E_i * a*exp( -b*distance(i,I) )] / sum i!=I [a*exp( -b*distance(i,I) )]
-    for (int i = 0; i < get_n_atoms(); ++i)
+    for (int i = 0; i < size(); ++i)
         if (i != I) {
             double dist2 = point1.distance2(get_point(i));
             if (dist2 > r_cut2 || interpolation[i].norm >= interpolator->error_field) continue;
@@ -108,7 +108,7 @@ Solution SolutionReader::get_average_solution(const int I, const double r_cut) {
 void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate) {
     require(coordinate >= 0 && coordinate <= 4, "Invalid component: " + to_string(coordinate));
 
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
     const int n_bins = bins.size();
     const int n_bounds = bounds.size();
     const double eps = 1e-5;
@@ -151,11 +151,11 @@ void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, co
 // Clean the interpolation from peaks using histogram cleaner
 void SolutionReader::clean(const int coordinate, const double r_cut) {
     require(coordinate >= 0 && coordinate <= 4, "Invalid coordinate: " + to_string(coordinate));
-    const int n_bins = (int) get_n_atoms() / 250;
+    const int n_bins = (int) size() / 250;
 
     if (n_bins <= 1 || r_cut < 0.1) return;
 
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
 
     vector<int> bins(n_bins, 0);
     vector<double> bounds(n_bins+1);
@@ -212,7 +212,7 @@ FieldReader::FieldReader(LinearInterpolator* ip) : SolutionReader(ip, "elfield",
 void FieldReader::print_statistics() {
     if (!MODES.VERBOSE) return;
 
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
     Vec3 elfield(0);
     Vec3 rms_elfield(0);
     double potential = 0;
@@ -247,12 +247,12 @@ void FieldReader::interpolate(const Medium &medium, const double r_cut, const in
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
     require(interpolator, "NULL interpolator cannot be used!");
 
-    const int n_atoms = medium.get_n_atoms();
+    const int n_atoms = medium.size();
     reserve(n_atoms);   
     
     // Copy the atoms
     for (int i = 0; i < n_atoms; ++i)
-        add_atom(Atom(i, medium.get_point(i), 0));
+        append(Atom(i, medium.get_point(i), 0));
 
     // Sort atoms into sequential order to speed up interpolation
     if (srt) sort_spatial();
@@ -293,7 +293,7 @@ void FieldReader::interpolate(const int n_points, const double* x, const double*
         const double r_cut, const int component, const bool sort) {
     Medium medium(n_points);
     for (int i = 0; i < n_points; ++i)
-        medium.add_atom(Point3(x[i], y[i], z[i]));
+        medium.append(Point3(x[i], y[i], z[i]));
 
     // Interpolate solution
     interpolate(medium, r_cut, component, sort);
@@ -301,7 +301,7 @@ void FieldReader::interpolate(const int n_points, const double* x, const double*
 
 // Linearly interpolate electric field on a set of points
 void FieldReader::export_elfield(const int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-    require(n_points == get_n_atoms(), "Invalid array size: " + to_string(n_points));
+    require(n_points == size(), "Invalid array size: " + to_string(n_points));
 
     for (int i = 0; i < n_points; ++i) {
         Ex[i] = interpolation[i].vector.x;
@@ -314,7 +314,7 @@ void FieldReader::export_elfield(const int n_points, double* Ex, double* Ey, dou
 
 // Linearly interpolate electric potential on a set of points
 void FieldReader::export_potential(const int n_points, double* phi, int* flag) {
-    require(n_points == get_n_atoms(), "Invalid array size: " + to_string(n_points));
+    require(n_points == size(), "Invalid array size: " + to_string(n_points));
 
     for (int i = 0; i < n_points; ++i) {
         phi[i] = interpolation[i].scalar;
@@ -333,7 +333,7 @@ void FieldReader::export_solution(const int n_atoms, double* Ex, double* Ey, dou
     }
 
     // Pass the the calculated electric field for stored atoms
-    for (int i = 0; i < get_n_atoms(); ++i) {
+    for (int i = 0; i < size(); ++i) {
         int identifier = get_id(i);
         if (identifier < 0 || identifier >= n_atoms) continue;
 
@@ -345,12 +345,12 @@ void FieldReader::export_solution(const int n_atoms, double* Ex, double* Ey, dou
 }
 
 Vec3 FieldReader::get_elfield(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].vector;
 }
 
 double FieldReader::get_potential(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].scalar;
 }
 
@@ -365,12 +365,12 @@ HeatReader::HeatReader(LinearInterpolator* ip) : SolutionReader(ip, "rho", "rho_
 void HeatReader::interpolate(const Medium &medium, const double r_cut) {
     require(interpolator, "NULL interpolator cannot be used!");
 
-    const int n_atoms = medium.get_n_atoms();
+    const int n_atoms = medium.size();
     reserve(n_atoms);
 
     // Copy the atoms
     for (int i = 0; i < n_atoms; ++i)
-        add_atom(Atom(i, medium.get_point(i), 0));
+        append(Atom(i, medium.get_point(i), 0));
 
     // Sort atoms into sequential order to speed up interpolation
     sort_spatial();
@@ -397,12 +397,12 @@ void HeatReader::interpolate(const Medium &medium, const double r_cut) {
 }
 
 Vec3 HeatReader::get_rho(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].vector;
 }
 
 double HeatReader::get_temperature(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].scalar;
 }
 
@@ -422,7 +422,7 @@ void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh) {
 
     // Store the centroids of the triangles
     for (int i = 0; i < n_faces; ++i)
-        add_atom( Atom(i, mesh.faces.get_centroid(i), 0) );
+        append( Atom(i, mesh.faces.get_centroid(i), 0) );
 
     // Sort centroids into sequential order to speed up interpolation
     sort_spatial();
@@ -455,7 +455,7 @@ void ChargeReader::calc_charges(const TetgenMesh& mesh) {
 
     // Store the centroids of the triangles
     for (int i = 0; i < n_faces; ++i)
-        add_atom( Atom(i, mesh.faces.get_centroid(i), 0) );
+        append( Atom(i, mesh.faces.get_centroid(i), 0) );
 
     // Find the electric fields in the centroids of the triangles
     vector<Vec3> elfields;
@@ -471,17 +471,17 @@ void ChargeReader::calc_charges(const TetgenMesh& mesh) {
 }
 
 Vec3 ChargeReader::get_elfield(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].vector;
 }
 
 double ChargeReader::get_area(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].norm;
 }
 
 double ChargeReader::get_charge(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].scalar;
 }
 
@@ -490,7 +490,7 @@ void ChargeReader::print_statistics(const Medium::Sizes& sizes, const double E0)
 
     double Q = E0 * sizes.xbox * sizes.ybox;
     double q = 0;
-    for (int i = 0; i < get_n_atoms(); ++i)
+    for (int i = 0; i < size(); ++i)
         q += get_charge(i);
 
     cout << "  Q / sum(q) = " << Q << " / " << q << " = " << Q/q << endl;
@@ -548,13 +548,13 @@ ForceReader::ForceReader() : SolutionReader() {}
 ForceReader::ForceReader(LinearInterpolator* ip) : SolutionReader(ip, "force", "force_norm", "charge") {}
 
 void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& faces, const Medium::Sizes& sizes, const double r_cut) {
-    const int n_atoms = fields.get_n_atoms();
-    const int n_faces = faces.get_n_atoms();
+    const int n_atoms = fields.size();
+    const int n_faces = faces.size();
 
     // Copy the atom data
     reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
-        add_atom(fields.get_atom(i));
+        append(fields.get_atom(i));
 
     /* Distribute the charges on surface faces between surface atoms.
      * If q_i and Q_j is the charge on i-th atom and j-th face, respectively, then
@@ -596,12 +596,12 @@ void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& fac
 }
 
 Vec3 ForceReader::get_force(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].vector;
 }
 
 double ForceReader::get_charge(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].scalar;
 }
 
@@ -610,7 +610,7 @@ void ForceReader::print_statistics(const Medium::Sizes& sizes, const double E0) 
 
     double Q = E0 * sizes.xbox * sizes.ybox;
     double q = 0;
-    for (int i = 0; i < get_n_atoms(); ++i)
+    for (int i = 0; i < size(); ++i)
         q += get_charge(i);
 
     cout << "  Q / sum(q) = " << Q << " / " << q << " = " << Q/q << endl;

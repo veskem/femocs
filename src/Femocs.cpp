@@ -392,7 +392,7 @@ int Femocs::import_atoms(const string& file_name) {
     start_msg(t0, "=== Importing atoms...");
     reader.import_file(fname);
     end_msg(t0);
-    if (MODES.VERBOSE) cout << "#input atoms: " << reader.get_n_atoms() << endl;
+    if (MODES.VERBOSE) cout << "#input atoms: " << reader.size() << endl;
 
     start_msg(t0, "=== Comparing with previous run...");
     skip_calculations = reader.calc_rms_distance(conf.distance_tol) < conf.distance_tol;
@@ -430,7 +430,7 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
     start_msg(t0, "=== Importing atoms...");
     reader.import_parcas(n_atoms, coordinates, box);
     end_msg(t0);
-    if (MODES.VERBOSE) cout << "#input atoms: " << reader.get_n_atoms() << endl;
+    if (MODES.VERBOSE) cout << "#input atoms: " << reader.size() << endl;
 
     start_msg(t0, "=== Comparing with previous run...");
     skip_calculations = reader.calc_rms_distance(conf.distance_tol) < conf.distance_tol;
@@ -462,7 +462,7 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
     start_msg(t0, "=== Importing atoms...");
     reader.import_helmod(n_atoms, x, y, z, types);
     end_msg(t0);
-    if (MODES.VERBOSE) cout << "#input atoms: " << reader.get_n_atoms() << endl;
+    if (MODES.VERBOSE) cout << "#input atoms: " << reader.size() << endl;
 
     start_msg(t0, "=== Comparing with previous run...");
     skip_calculations = reader.calc_rms_distance(conf.distance_tol) < conf.distance_tol;
@@ -482,7 +482,7 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
 
 // export the calculated electric field on imported atom coordinates
 int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    check_message(vacuum_interpolator.get_n_atoms() == 0, "No solution to export!");
+    check_message(vacuum_interpolator.size() == 0, "No solution to export!");
 
     if (!skip_calculations) {
         start_msg(t0, "=== Interpolating E and phi...");
@@ -503,7 +503,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
 // linearly interpolate electric field at given points
 int Femocs::interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-    check_message(vacuum_interpolator.get_n_atoms() == 0, "No solution to export!");
+    check_message(vacuum_interpolator.size() == 0, "No solution to export!");
 
     FieldReader fr(&vacuum_interpolator);
     start_msg(t0, "=== Interpolating electric field...");
@@ -520,7 +520,7 @@ int Femocs::interpolate_elfield(const int n_points, const double* x, const doubl
 
 // linearly interpolate electric potential at given points
 int Femocs::interpolate_phi(const int n_points, const double* x, const double* y, const double* z, double* phi, int* flag) {
-    check_message(vacuum_interpolator.get_n_atoms() == 0, "No solution to export!");
+    check_message(vacuum_interpolator.size() == 0, "No solution to export!");
 
     FieldReader fr(&vacuum_interpolator);
     fr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coord_cutoff, 2, false);

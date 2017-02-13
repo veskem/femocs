@@ -24,7 +24,7 @@ LinearInterpolator::LinearInterpolator() {
 void LinearInterpolator::print_statistics() {
     if (!MODES.VERBOSE) return;
 
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
     Vec3 elfield(0);
     Vec3 rms_elfield(0);
     double potential = 0;
@@ -61,7 +61,7 @@ void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::DoFHan
 
     require(tria->n_vertices() > 0, "Invalid triangulation size!");
 
-    const int n_femocs_nodes = get_n_atoms();
+    const int n_femocs_nodes = size();
     const int n_dealii_nodes = tria->n_used_vertices();
     const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
 
@@ -131,7 +131,7 @@ void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh
     // Copy the mesh nodes
     reserve(mesh.nodes.size());
     for (Point3 node : mesh.nodes)
-        add_atom(node);
+        append(node);
 
     // Precompute tetrahedra to make interpolation faster
     precompute_tetrahedra(mesh);
@@ -171,7 +171,7 @@ void LinearInterpolator::extract_solution(DealII* fem, const TetgenMesh &mesh, c
     // Copy the mesh nodes
     reserve(mesh.nodes.size());
     for (Point3 node : mesh.nodes)
-        add_atom(node);
+        append(node);
 
     // Precompute tetrahedra to make interpolation faster
     precompute_tetrahedra(mesh);
@@ -212,7 +212,7 @@ void LinearInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem, const
     int i = 0;
     reserve(mesh.nodes.size());
     for (Point3 node : mesh.nodes)
-        add_atom(Atom(i++, node, -1));
+        append(Atom(i++, node, -1));
 
     // Precompute tetrahedra to make interpolation faster
     precompute_tetrahedra(mesh);
@@ -483,7 +483,7 @@ Solution LinearInterpolator::get_solution(const Point3 &point, const int elem) {
 
 // Return full solution on i-th node
 Solution LinearInterpolator::get_solution(const int i) {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return solution[i];
 }
 
@@ -505,7 +505,7 @@ Vec3 LinearInterpolator::get_vector(const Point3 &point, const int elem) {
 
 // Return vector component of solution on i-th node
 Vec3 LinearInterpolator::get_vector(const int i) {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return solution[i].vector;
 }
 
@@ -527,7 +527,7 @@ double LinearInterpolator::get_scalar(const Point3 &point, const int elem) {
 
 // Return scalar component of solution on i-th node
 double LinearInterpolator::get_scalar(const int i) {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return solution[i].scalar;
 }
 

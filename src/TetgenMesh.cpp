@@ -314,9 +314,9 @@ bool TetgenMesh::write_tetgen(const string& file_name) {
 
 // Function to generate mesh from surface, bulk and vacuum atoms
 bool TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd) {
-    const int n_bulk = bulk.get_n_atoms();
-    const int n_surf = surf.get_n_atoms();
-    const int n_vacuum = vacuum.get_n_atoms();
+    const int n_bulk = bulk.size();
+    const int n_surf = surf.size();
+    const int n_vacuum = vacuum.size();
 
     nodes.init(n_bulk + n_surf + n_vacuum);
 

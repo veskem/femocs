@@ -31,7 +31,7 @@ void Medium::sort_atoms(const int coord, const string& direction) {
     if (coord == 3) {
         calc_statistics();
         Point2 origin(sizes.xmid, sizes.ymid);
-        for (int i = 0; i < get_n_atoms(); ++i)
+        for (int i = 0; i < size(); ++i)
             set_marker(i, 10000 * origin.distance2(get_point2(i)));
         if (direction == "up" || direction == "asc")
             sort(atoms.begin(), atoms.end(), Atom::sort_marker_up());
@@ -75,25 +75,25 @@ Medium& Medium::operator +=(const Medium &m) {
 
 // Add data from other Medium to current one
 void Medium::add(const Medium *m) {
-    const int n_atoms1 = get_n_atoms();
-    const int n_atoms2 = m->get_n_atoms();
+    const int n_atoms1 = size();
+    const int n_atoms2 = m->size();
 
     atoms.reserve(n_atoms1 + n_atoms2);
     for(int i = 0; i < n_atoms2; ++i)
-        add_atom(m->get_atom(i));
+        append(m->get_atom(i));
 
     this->calc_statistics();
 }
 
 // Add atom to atoms vector
-void Medium::add_atom(const Atom& atom) {
-    expect(get_n_atoms() < atoms.capacity(), "Allocated vector sizes exceeded!");
+void Medium::append(const Atom& atom) {
+    expect(size() < atoms.capacity(), "Allocated vector sizes exceeded!");
     atoms.push_back(atom);
 }
 
 // Add atom with defalt id and marker to atoms vector
-void Medium::add_atom(const Point3& point) {
-    expect(get_n_atoms() < atoms.capacity(), "Allocated vector sizes exceeded!");
+void Medium::append(const Point3& point) {
+    expect(size() < atoms.capacity(), "Allocated vector sizes exceeded!");
     atoms.push_back(Atom(-1, point, 0));
 }
 
@@ -112,7 +112,7 @@ void Medium::init_statistics() {
 // Calculate the statistics about Medium
 void Medium::calc_statistics() {
     double xx, yy, zz;
-    int n_atoms = get_n_atoms();
+    int n_atoms = size();
     init_statistics();
 
     Point3 average(0,0,0);
@@ -149,73 +149,73 @@ void Medium::calc_statistics() {
 }
 
 // Get number of atoms in Medium
-int Medium::get_n_atoms() const {
+int Medium::size() const {
     return atoms.size();
 }
 
 // Get 2-dimensional coordinates of i-th atom
 Point2 Medium::get_point2(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
     return Point2(atoms[i].point.x, atoms[i].point.y);
 }
 
 // Get 3-dimensional coordinates of i-th atom
 Point3 Medium::get_point(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i) + "/" + to_string(get_n_atoms()));
+    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i) + "/" + to_string(size()));
     return atoms[i].point;
 }
 
 // Get atom ID
 int Medium::get_id(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
     return atoms[i].id;
 }
 
 // Get atom marker
 int Medium::get_marker(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
     return atoms[i].marker;
 }
 
 // Get i-th Atom
 Atom Medium::get_atom(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
     return atoms[i];
 }
 
 // Set entry to id-s vector
 void Medium::set_id(const int i, const int id) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
     atoms[i].id = id;
 }
 
 // Set entry to point-s vector
 void Medium::set_point(const int i, const Point3& p) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
     atoms[i].point = p;
 }
 
 // Set entry to x coordinate vector
 void Medium::set_x(const int i, const double x) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
     atoms[i].point.x = x;
 }
 
 // Set entry to y coordinate vector
 void Medium::set_y(const int i, const double y) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
     atoms[i].point.y = y;
 }
 
 // Set entry to z coordinate vector
 void Medium::set_z(const int i, const double z) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
     atoms[i].point.z = z;
 }
 
 // Set atom marker
 void Medium::set_marker(const int i, const int m) {
-    require(i >= 0 && i < get_n_atoms(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
     atoms[i].marker = m;
 }
 
@@ -224,7 +224,7 @@ void Medium::set_marker(const int i, const int m) {
 void Medium::write(const string &file_name, const int n_max) const {
     if (!MODES.WRITEFILE) return;
     
-    int n_atoms = get_n_atoms();
+    int n_atoms = size();
     if (n_max > 0 && n_max < n_atoms) n_atoms = n_max;
     
     expect(n_atoms > 0, "Zero atoms detected!");
@@ -306,7 +306,7 @@ void Medium::get_cell_data(ofstream& out, const int n_cells) const {}
 
 // Get data scalar and vector data associated with vtk nodes
 void Medium::get_point_data(ofstream& out) const {
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
 
     // write IDs of atoms
     out << "SCALARS id int\nLOOKUP_TABLE default\n";

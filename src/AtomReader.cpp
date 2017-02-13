@@ -30,7 +30,7 @@ bool AtomReader::equals_previous_run(const double eps) {
     if (eps < 1e-5)
         return false;
 
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
     const double eps2 = eps * eps;
 
     if (n_atoms != previous_point.size())
@@ -46,7 +46,7 @@ bool AtomReader::equals_previous_run(const double eps) {
 double AtomReader::calc_rms_distance(const double eps) {
     if (eps < 1e-5) return DBL_MAX;
 
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
     if (n_atoms != previous_point.size())
         return DBL_MAX;
     
@@ -60,7 +60,7 @@ double AtomReader::calc_rms_distance(const double eps) {
 
 void AtomReader::save_current_run_points(const double eps) {
     if (eps < 1e-5) return;
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
 
     if (n_atoms != previous_point.size())
         previous_point.resize(n_atoms);
@@ -73,7 +73,7 @@ void AtomReader::save_current_run_points(const double eps) {
 void AtomReader::calc_nborlist(const int nnn, const double r_cut, const int* parcas_nborlist) {
     require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
 
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
     const double r_cut2 = r_cut * r_cut;
 
     // Initialise list of closest neighbours
@@ -103,7 +103,7 @@ void AtomReader::calc_nborlist(const int nnn, const double r_cut, const int* par
 void AtomReader::calc_nborlist(const int nnn, const double r_cut) {
     require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
 
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
     const double r_cut2 = r_cut * r_cut;
 
     // Initialise list of closest neighbours
@@ -142,7 +142,7 @@ void AtomReader::check_clusters() {
 
 // Group atoms into clusters
 void AtomReader::calc_clusters() {
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
     require(get_nborlist_size() == n_atoms, "Clusters cannot be calculated if neighborlist is missing!");
 
     vector<int> neighbours;
@@ -183,14 +183,14 @@ void AtomReader::check_coordinations() {
 
 // Calculate coordination for all the atoms
 void AtomReader::calc_coordinations() {
-    for (int i = 0; i < get_n_atoms(); ++i)
+    for (int i = 0; i < size(); ++i)
         coordination[i] = nborlist[i].size();
 }
 
 // Calculate pseudo-coordination for all the atoms using the atom types
 void AtomReader::calc_coordinations(const int nnn) {
     require(nnn > 0, "Invalid number of nearest neighbors!");
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
 
     for (int i = 0; i < n_atoms; ++i) {
         if (atoms[i].marker == TYPES.BULK)
@@ -206,7 +206,7 @@ void AtomReader::calc_coordinations(const int nnn) {
 
 // Extract atom types from calculated coordinations
 void AtomReader::extract_types(const int nnn, const double latconst) {
-    const int n_atoms = get_n_atoms();
+    const int n_atoms = size();
     const int nnn_eps = 3;
     calc_statistics();
 
@@ -264,8 +264,8 @@ string AtomReader::get_data_string(const int i) const {
 
 // Get the closest neighbours of i-th atom
 const vector<int>& AtomReader::get_neighbours(const int i) const {
-    require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
-    require(nborlist.size() == get_n_atoms(), "Query from invalid neighbour list!");
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    require(nborlist.size() == size(), "Query from invalid neighbour list!");
     return nborlist[i];
 }
 
@@ -285,7 +285,7 @@ void AtomReader::import_helmod(const int n_atoms, const double* x, const double*
     require(n_atoms > 0, "Zero input atoms detected!");
     reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
-        add_atom( Atom(i, Point3(x[i], y[i], z[i]), types[i]) );
+        append( Atom(i, Point3(x[i], y[i], z[i]), types[i]) );
 
     calc_statistics();
 }
@@ -294,7 +294,7 @@ void AtomReader::import_parcas(const int n_atoms, const double* xyz, const doubl
     require(n_atoms > 0, "Zero input atoms detected!");
     reserve(n_atoms);
     for (int i = 0; i < 3*n_atoms; i+=3)
-        add_atom( Atom(i/3, Point3(xyz[i+0]*box[0], xyz[i+1]*box[1], xyz[i+2]*box[2]), TYPES.BULK) );
+        append( Atom(i/3, Point3(xyz[i+0]*box[0], xyz[i+1]*box[1], xyz[i+2]*box[2]), TYPES.BULK) );
 
     calc_statistics();
 }
@@ -338,7 +338,7 @@ void AtomReader::import_xyz(const string &file_name) {
         iss.clear();
         iss.str(line);
         iss >> elem >> x >> y >> z >> type;
-        add_atom( Atom(id++, Point3(x, y, z), type) );
+        append( Atom(id++, Point3(x, y, z), type) );
     }
 }
 
@@ -367,7 +367,7 @@ void AtomReader::import_ckx(const string &file_name) {
         iss.clear();
         iss.str(line);
         iss >> type >> x >> y >> z;
-        add_atom( Atom(id++, Point3(x, y, z), type) );
+        append( Atom(id++, Point3(x, y, z), type) );
     }
 }
 
