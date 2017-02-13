@@ -671,15 +671,15 @@ class Solution {
 public:
 
     /** Constructors of Solution */
-    Solution() : elfield(Vec3(0)), el_norm(0), potential(0), id(0) {}
-    Solution(const double d) : elfield(Vec3(d)), el_norm(d), potential(d), id(0) {}
-    Solution(const Vec3& v) : elfield(v), el_norm(v.norm()), potential(0), id(0) {}
-    Solution(const Vec3& v, const double pot) : elfield(v), el_norm(v.norm()), potential(pot), id(0) {}
-    Solution(const Vec3& v, const double norm, const double pot) : elfield(v), el_norm(norm), potential(pot), id(0) {}
+    Solution() : vector(Vec3(0)), norm(0), scalar(0), id(0) {}
+    Solution(const double d) : vector(Vec3(d)), norm(d), scalar(d), id(0) {}
+    Solution(const Vec3& v) : vector(v), norm(v.norm()), scalar(0), id(0) {}
+    Solution(const Vec3& v, const double s) : vector(v), norm(v.norm()), scalar(s), id(0) {}
+    Solution(const Vec3& v, const double n, const double s) : vector(v), norm(n), scalar(s), id(0) {}
 
     /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &ss, const Solution &sol) {
-        return ss << sol.elfield << ' ' << sol.el_norm << ' ' << sol.potential;
+        return ss << sol.vector << ' ' << sol.norm << ' ' << sol.scalar;
     }
 
     /** Functors used to sort vector of Solution into same order as vector of Atom */
@@ -691,9 +691,9 @@ public:
     };
 
     int id;
-    Vec3 elfield;
-    double el_norm;
-    double potential;
+    Vec3 vector;
+    double norm;
+    double scalar;
 };
 
 } // namaspace femocs
