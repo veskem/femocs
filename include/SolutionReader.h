@@ -41,6 +41,17 @@ protected:
 
     /** Get information about data vectors for .vtk file. */
     void get_point_data(ofstream& out) const;
+
+    /** Function to clean the result from peaks
+     * The cleaner makes the histogram for given component of electric field and applies smoothing
+     * for the atoms, where field has diverging values.
+     * For example, if histogram looks like [10 7 2 4 1 4 2 0 0 2], then the field on the two atoms that
+     * made up the entries to last bin will be replaced by the average field around those two atoms. */
+    void clean(const int coordinate, const double r_cut);
+
+    void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
+
+    Solution get_average_solution(const int I, const double r_cut);
 };
 
 /** Class to extract solution from DealII calculations */
@@ -82,16 +93,7 @@ public:
     double get_potential(const int i) const;
 
 private:
-    /** Function to clean the result from peaks
-     * The cleaner makes the histogram for given component of electric field and applies smoothing
-     * for the atoms, where field has diverging values.
-     * For example, if histogram looks like [10 7 2 4 1 4 2 0 0 2], then the field on the two atoms that
-     * made up the entries to last bin will be replaced by the average field around those two atoms. */
-    void clean(const int coordinate, const double r_cut);
 
-    void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
-
-    Solution get_average_solution(const int I, const double r_cut);
 };
 
 /** Class to interpolate current densities and temperatures */
@@ -103,6 +105,10 @@ public:
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
     void interpolate(const Medium &medium, const double r_cut);
+
+    Vec3 get_rho(const int i) const;
+
+    double get_temperature(const int i) const;
 
 private:
 };

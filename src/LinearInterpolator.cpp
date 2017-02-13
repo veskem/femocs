@@ -32,9 +32,9 @@ void LinearInterpolator::print_statistics() {
     int n_points = 0;
 
     for (int i = 0; i < n_atoms; ++i) {
-        double pot = solution[i].potential;
+        double pot = solution[i].scalar;
         if (pot >= error_field) continue;
-        Vec3 ef = solution[i].elfield;
+        Vec3 ef = solution[i].vector;
 
         elfield += ef;
         rms_elfield += ef * ef;
@@ -103,7 +103,7 @@ void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh, const double w
 
     // loop through the tetrahedral nodes
     for (int i = 0; i < mesh.nodes.stat.n_tetnode; ++i) {
-        if (solution[i].el_norm >= error_field) continue;
+        if (solution[i].norm >= error_field) continue;
 
         Point3 tetnode = mesh.nodes[i];
         Vec3 elfield(0);
@@ -114,13 +114,13 @@ void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh, const double w
         for (unsigned int v : voro_cells[i]) {
             double w = exp ( -1.0 * tetnode.distance(mesh.nodes[v]) );
             w_sum += w;
-            potential += solution[v].potential * w;
-            elfield += solution[v].elfield * w;
+            potential += solution[v].scalar * w;
+            elfield += solution[v].vector * w;
         }
 
-        solution[i].potential = solution[i].potential * w0_pot +  potential * ( (1.0-w0_pot)/w_sum );
-        solution[i].elfield = solution[i].elfield * w0_elfield + elfield * ( (1.0-w0_elfield)/w_sum );
-        solution[i].el_norm = solution[i].elfield.norm();
+        solution[i].scalar = solution[i].scalar * w0_pot +  potential * ( (1.0-w0_pot)/w_sum );
+        solution[i].vector = solution[i].vector * w0_elfield + elfield * ( (1.0-w0_elfield)/w_sum );
+        solution[i].norm = solution[i].vector.norm();
     }
 }
 
@@ -471,12 +471,12 @@ Solution LinearInterpolator::get_solution(const Point3 &point, const int elem) {
     // Interpolate electric field
     Vec3 elfield_i(0.0);
     for (int i = 0; i < selem.size(); ++i)
-        elfield_i += solution[selem[i]].elfield * bcc[i];
+        elfield_i += solution[selem[i]].vector * bcc[i];
 
     // Interpolate potential
     double potential_i(0.0);
     for (int i = 0; i < selem.size(); ++i)
-        potential_i += solution[selem[i]].potential * bcc[i];
+        potential_i += solution[selem[i]].scalar * bcc[i];
 
     return Solution(elfield_i, potential_i);
 }
@@ -496,17 +496,17 @@ Vec3 LinearInterpolator::get_vector(const Point3 &point, const int elem) {
     SimpleElement selem = tetrahedra[elem];
 
     // Interpolate electric field
-    Vec3 elfield_i(0.0);
+    Vec3 vec(0.0);
     for (int i = 0; i < selem.size(); ++i)
-        elfield_i += solution[selem[i]].elfield * bcc[i];
+        vec += solution[selem[i]].vector * bcc[i];
 
-    return elfield_i;
+    return vec;
 }
 
 // Return vector component of solution on i-th node
 Vec3 LinearInterpolator::get_vector(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
-    return solution[i].elfield;
+    return solution[i].vector;
 }
 
 // Calculate interpolation for scalar data for point inside or near the elem-th tetrahedron
@@ -520,7 +520,7 @@ double LinearInterpolator::get_scalar(const Point3 &point, const int elem) {
     // Interpolate potential
     double potential_i(0.0);
     for (int i = 0; i < selem.size(); ++i)
-        potential_i += solution[selem[i]].potential * bcc[i];
+        potential_i += solution[selem[i]].scalar * bcc[i];
 
     return potential_i;
 }
@@ -528,7 +528,7 @@ double LinearInterpolator::get_scalar(const Point3 &point, const int elem) {
 // Return scalar component of solution on i-th node
 double LinearInterpolator::get_scalar(const int i) {
     require(i >= 0 && i < get_n_atoms(), "Invalid index: " + to_string(i));
-    return solution[i].potential;
+    return solution[i].scalar;
 }
 
 // Compile data string from the data vectors for file output
