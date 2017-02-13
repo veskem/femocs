@@ -13,7 +13,6 @@
 #include "Config.h"
 #include "Media.h"
 #include "SolutionReader.h"
-#include "DealII.h"
 #include "physical_quantities.h"
 #include "currents_and_heating.h"
 #include "laplace.h"
@@ -147,14 +146,12 @@ private:
 
     /** Solve Laplace equation */
     int solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver);
-    int solve_laplace(const TetgenMesh& mesh, DealII& solver);
 
     /** Solve heat and continuity equations */
     int solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
 
     /** Extract electric potential and electric field from solution */
     int extract_laplace(const TetgenMesh& mesh, fch::Laplace<3>* solver);
-    int extract_laplace(const TetgenMesh& mesh, DealII* solver);
 
     /** Extract current density and temperature from solution */
     int extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3>* solver);

@@ -149,43 +149,12 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     expect(bulk_mesh.hexahedra.size() > 0, "Zero elements in bulk mesh!");
     expect(vacuum_mesh.hexahedra.size() > 0, "Zero elements in vacuum mesh!");
 
+    bulk_mesh.elems.write("output/tetmesh_bulk" + conf.message + ".vtk");
+    bulk_mesh.hexahedra.write("output/hexmesh_bulk" + conf.message + ".vtk");
     if (MODES.VERBOSE)
         cout << "Bulk:   " << bulk_mesh << "\nVacuum: " << vacuum_mesh << endl;
 
     return 0;
-}
-
-// Solve Laplace equation
-int Femocs::solve_laplace(const TetgenMesh& mesh, DealII& solver) {
-    bool fail;
-
-    start_msg(t0, "=== Importing mesh to Laplace solver...");
-    fail = solver.import_mesh(mesh.nodes.export_dealii(), mesh.hexahedra.export_dealii());
-    check_message(fail, "Importing mesh to Deal.II failed! Field calculation will be skipped!");
-    end_msg(t0);
-
-    if (conf.refine_apex) {
-        start_msg(t0, "=== Refining mesh in Laplace solver...");
-        dealii::Point<3> origin(dense_surf.sizes.xmid, dense_surf.sizes.ymid, dense_surf.sizes.zmax);
-        solver.refine_mesh(origin, 7*conf.latconst);
-        end_msg(t0);
-    }
-
-    start_msg(t0, "=== Initializing Laplace solver...");
-    solver.set_applied_efield(conf.neumann);
-    solver.setup_system(reader.sizes);
-    solver.assemble_system();
-    end_msg(t0);
-
-    if (MODES.VERBOSE) cout << solver << endl;
-
-    start_msg(t0, "=== Running Laplace solver...");
-    solver.solve_cg();
-    end_msg(t0);
-
-    if (MODES.WRITEFILE) solver.write("output/result_E_phi" + conf.message + ".vtk");
-
-    return fail;
 }
 
 // Solve Laplace equation
@@ -243,16 +212,6 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
 
     if (MODES.WRITEFILE) ch_solver->output_results("output/result_rho_T" + conf.message + ".vtk");
     check_message(temp_error > conf.t_error, "Temperature didn't converge, err=" + to_string(temp_error)) + "! Using previous solution!";
-
-    return 0;
-}
-
-// Extract electric potential and electric field from solution
-int Femocs::extract_laplace(const TetgenMesh& mesh, DealII* solver) {
-    start_msg(t0, "=== Extracting E and phi...");
-    vacuum_interpolator.extract_solution(solver, mesh, conf.tetnode_weight.elfield, conf.tetnode_weight.potential);
-    end_msg(t0);
-    vacuum_interpolator.write("output/result_E_phi.xyz");
 
     return 0;
 }
@@ -343,10 +302,6 @@ int Femocs::run(const double elfield, const string &message) {
     // Generate FEM mesh
     TetgenMesh bulk_mesh, vacuum_mesh;
     fail = generate_meshes(bulk_mesh, vacuum_mesh);
-
-    bulk_mesh.elems.write("output/tetmesh_bulk" + conf.message + ".vtk");
-    bulk_mesh.hexahedra.write("output/hexmesh_bulk" + conf.message + ".vtk");
-
     if (fail) return 1;
 
     // Solve Laplace equation on vacuum mesh
