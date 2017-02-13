@@ -277,7 +277,8 @@ SimpleCell<3> TetgenFaces::get_cell(const int i) const {
 }
 
 // Delete the faces on the sides of simulation cell
-void TetgenFaces::clean_sides(const TetgenNodes::Stat& stat) {
+//void TetgenFaces::clean_sides(const TetgenNodes::Stat& stat) {
+void TetgenFaces::clean_sides(const Medium::Sizes& stat) {
     const double eps = 0.1;
     const int n_faces = size();
     vector<SimpleFace> faces; faces.reserve(n_faces);

@@ -143,8 +143,8 @@ int main(int argc, char **argv) {
     int n_atoms = 1000;
     int n_points = 100;
     int flag[n_points];
-    double x[n_points], y[n_points], z[n_points];
-    double Ex[n_atoms], Ey[n_atoms], Ez[n_atoms], Enorm[n_atoms], phi[n_points];
+    double x[n_points], y[n_points], z[n_points], phi[n_points];
+    double Ex[n_atoms], Ey[n_atoms], Ez[n_atoms], Enorm[n_atoms], T[n_atoms], xq[4*n_atoms];
 
     for (int i = 0; i < n_points; ++i) {
         x[i] = 0; y[i] = 0; z[i] = 1.0 * i;
@@ -160,6 +160,8 @@ int main(int argc, char **argv) {
     success += femocs.import_atoms("");
     success += femocs.run(0.1, "");
     success += femocs.export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
+    success += femocs.export_temperature(n_atoms, T);
+    success += femocs.export_charge_and_force(n_atoms, xq);
     success += femocs.interpolate_phi(n_points, x, y, z, phi, flag);
     success += femocs.interpolate_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
 

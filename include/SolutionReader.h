@@ -24,6 +24,12 @@ public:
     SolutionReader();
     SolutionReader(LinearInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
+    /** Print statistics about interpolated solution */
+    void print_statistics();
+
+    /** Compare interpolated scalar statistics with a constant */
+    void print_statistics(const double Q);
+
 protected:
     const string vec_label;       ///< label for vector data
     const string vec_norm_label;  ///< label for data associated with vector length
@@ -85,9 +91,6 @@ public:
     /** Export calculated electic field distribution to HOLMOD */
     void export_solution(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
-    /** Print statistics about interpolated solution */
-    void print_statistics();
-
     Vec3 get_elfield(const int i) const;
 
     double get_potential(const int i) const;
@@ -105,6 +108,9 @@ public:
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
     void interpolate(const Medium &medium, const double r_cut);
+
+    /** Export interpolated temperature */
+    void export_temperature(const int n_atoms, double* T);
 
     Vec3 get_rho(const int i) const;
 
@@ -130,8 +136,6 @@ public:
 
     double get_charge(const int i) const;
 
-    void print_statistics(const Medium::Sizes& sizes, const double E0);
-
 private:
     const double eps0 = 8.854187817620e-12; ///< vacuum permittivity [F/m]
 
@@ -145,13 +149,17 @@ public:
     ForceReader();
     ForceReader(LinearInterpolator* ip);
 
-    void calc_forces(const FieldReader &fields, const ChargeReader& faces, const Medium::Sizes& sizes, const double r_cut);
+    void calc_forces(const FieldReader& fields, const ChargeReader& faces, const Medium::Sizes& sizes, const double r_cut);
+
+    /** Export the induced charge and force on imported atoms
+     * @param n_atoms  number of first atoms field is calculated
+     * @param xq       charge and force in PARCAS format (xq[0] = q1, xq[1] = Fx1, xq[2] = Fy1, xq[3] = Fz1, xq[4] = q2, xq[5] = Fx2 etc)
+     */
+    void export_force(const int n_atoms, double* xq);
 
     Vec3 get_force(const int i) const;
 
     double get_charge(const int i) const;
-
-    void print_statistics(const Medium::Sizes& sizes, const double E0);
 
 private:
 };

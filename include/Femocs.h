@@ -67,15 +67,26 @@ public:
     int import_atoms(const string& file_name);
     
     /** Function to export the calculated electric field on imported atom coordinates
-     * @param n_atoms   number of points where electric field was calculted
+     * @param n_atoms   number of points of interest
      * @param Ex        x-component of electric field
      * @param Ey        y-component of electric field
      * @param Ez        z-component of electric field
      * @param Enorm     norm of electric field
-     * @return          0 - function used solution from current run; 1 - function used solution from previous run
      */
     int export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
     
+    /** Function to export the calculated temperatures on imported atom coordinates
+     * @param n_atoms   number of points of interest
+     * @param T         temperature in the atom location
+     */
+    int export_temperature(const int n_atoms, double* T);
+
+    /** Calculate and export charges & forces on imported atom coordinates
+     * @param n_atoms   number of points of interest
+     * @param xq        charges and forces in PARCAS format (xq[0] = q1, xq[1] = Fx1, xq[2] = Fy1, xq[3] = Fz1, xq[4] = q2, xq[5] = Fx2 etc)
+     */
+    int export_charge_and_force(const int n_atoms, double* xq);
+
     /** Function to linearly interpolate electric field at given points
      * @param n_points  number of points where electric field is interpolated
      * @param x         x-coordinates of the points of interest
@@ -127,10 +138,13 @@ private:
     Media dense_surf;
     Media extended_surf;
 
-    LinearInterpolator bulk_interpolator;
-    LinearInterpolator vacuum_interpolator;
+    TetgenMesh bulk_mesh, vacuum_mesh;
+    LinearInterpolator bulk_interpolator, vacuum_interpolator;
+
     HeatReader temperatures = HeatReader(&bulk_interpolator);
     FieldReader fields = FieldReader(&vacuum_interpolator);
+    ChargeReader charges = ChargeReader(&vacuum_interpolator);
+    ForceReader forces = ForceReader(&vacuum_interpolator);
 
     fch::PhysicalQuantities phys_quantities;
     fch::CurrentsAndHeating<3> ch_solver1;
@@ -149,14 +163,6 @@ private:
 
     /** Solve heat and continuity equations */
     int solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
-
-    /** Extract electric potential and electric field from solution */
-    int extract_laplace(const TetgenMesh& mesh, fch::Laplace<3>* solver);
-
-    /** Extract current density and temperature from solution */
-    int extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3>* solver);
-
-    int extract_forces(const TetgenMesh& mesh);
 };
 
 } /* namespace femocs */

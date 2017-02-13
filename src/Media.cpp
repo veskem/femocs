@@ -190,6 +190,8 @@ Media Media::clean(Coarseners &coarseners) {
 
 // Remove the atoms that are too far from surface faces
 void Media::clean(const TetgenMesh& mesh, const double r_cut) {
+    if (r_cut <= 0) return;
+
     const int n_atoms = size();
     RaySurfaceIntersect rsi(&mesh);
     rsi.precompute_triangles();

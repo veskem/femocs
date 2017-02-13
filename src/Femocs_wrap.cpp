@@ -33,6 +33,10 @@ void femocs_import_atoms(FEMOCS* femocs, int* retval, int n_atoms, double* x, do
 
 void femocs_export_elfield(FEMOCS* femocs, int* retval, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
+void femocs_export_temperature(FEMOCS* femocs, int* retval, int n_atoms, double* T);
+
+void femocs_export_charge_and_force(FEMOCS* femocs, int* retval, int n_atoms, double* xq);
+
 void femocs_interpolate_elfield(FEMOCS* femocs, int* retval, int n_points, double* x, double* y, double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 
@@ -75,6 +79,14 @@ void femocs_import_atoms(FEMOCS* femocs, int* retval, int n_atoms, double* x, do
 
 void femocs_export_elfield(FEMOCS* femocs, int* retval, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm){
     retval[0] = femocs->export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
+}
+
+void femocs_export_temperature(FEMOCS* femocs, int* retval, int n_atoms, double* T) {
+    retval[0] = femocs->export_temperature(n_atoms, T);
+}
+
+void femocs_export_charge_and_force(FEMOCS* femocs, int* retval, int n_atoms, double* xq) {
+    retval[0] = femocs->export_charge_and_force(n_atoms, xq);
 }
 
 void femocs_interpolate_elfield(FEMOCS* femocs, int* retval, int n_points, double* x, double* y, double* z,

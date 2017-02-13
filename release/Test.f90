@@ -9,7 +9,7 @@ program Tester
     integer(c_int) :: success, tot_success
     integer(c_int), parameter :: n_atoms = 1
     real(c_double), dimension(n_atoms) :: x, y, z, phi
-    real(c_double), dimension(10000) :: Ex, Ey, Ez, Enorm
+    real(c_double), dimension(10000) :: Ex, Ey, Ez, Enorm, xq, T
     integer(c_int), dimension(1) :: flag = -1
     type(femocs) :: fem
     integer :: counter
@@ -39,6 +39,14 @@ program Tester
     
     ! Export electric field on atoms
     call fem%export_elfield(success, 1000, Ex, Ey, Ez, Enorm)
+    tot_success = tot_success + success
+
+    ! Export temperature
+    call fem%export_temperature(success, 1000, T)
+    tot_success = tot_success + success
+    
+    ! Export charges and forces on atoms
+    call fem%export_charge_and_force(success, 1000, xq)
     tot_success = tot_success + success
     
     ! Interpolate electric potential on point with coordinates x,y,z

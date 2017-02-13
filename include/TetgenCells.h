@@ -11,6 +11,7 @@
 #include "Macros.h"
 #include "Primitives.h"
 #include "Tetgen.h"
+#include "Medium.h"
 
 #include <fstream>
 
@@ -384,7 +385,7 @@ public:
     void recalc();
     
     /** Delete the faces on the sides of simulation cell */
-    void clean_sides(const TetgenNodes::Stat& stat);
+    void clean_sides(const Medium::Sizes& stat);
 
     /** Return the normal of i-th triangle */
     Vec3 get_norm(const int i) const;

@@ -137,7 +137,7 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     end_msg(t0);
 
     start_msg(t0, "=== Cleaning surface faces & atoms...");
-    bulk_mesh.faces.clean_sides(big_mesh.nodes.stat);
+    bulk_mesh.faces.clean_sides(reader.sizes);
     dense_surf.clean(bulk_mesh, 1.0*conf.coord_cutoff);
     end_msg(t0);
 
@@ -187,11 +187,20 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
 
     if (MODES.WRITEFILE) solver.write("output/result_E_phi" + conf.message + ".vtk");
 
+    start_msg(t0, "=== Extracting E and phi...");
+    vacuum_interpolator.extract_solution(&solver, mesh, conf.tetnode_weight.elfield, conf.tetnode_weight.potential);
+    end_msg(t0);
+
+    vacuum_interpolator.write("output/result_E_phi.xyz");
+    vacuum_interpolator.print_statistics();
+
     return fail;
 }
 
 // Solve heat and continuity equations
 int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) {
+    if (!conf.heating) return 0;
+
     bool fail;
 
     start_msg(t0, "=== Initializing rho & T solver...");
@@ -207,67 +216,27 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     if (MODES.VERBOSE) cout << *(ch_solver) << endl;
 
     start_msg(t0, "=== Running rho & T solver...\n");
-    double temp_error = ch_solver->run_specific(conf.t_error, conf.n_newton, false, "", MODES.VERBOSE, 2.0);
+    double t_error = ch_solver->run_specific(conf.t_error, conf.n_newton, false, "", MODES.VERBOSE, 2.0);
     end_msg(t0);
 
     if (MODES.WRITEFILE) ch_solver->output_results("output/result_rho_T" + conf.message + ".vtk");
-    check_message(temp_error > conf.t_error, "Temperature didn't converge, err=" + to_string(temp_error)) + "! Using previous solution!";
+    check_message(t_error > conf.t_error, "Temperature didn't converge, err=" + to_string(t_error)) + "! Using previous solution!";
 
-    return 0;
-}
-
-// Extract electric potential and electric field from solution
-int Femocs::extract_laplace(const TetgenMesh& mesh, fch::Laplace<3>* solver) {
-    start_msg(t0, "=== Extracting E and phi...");
-    vacuum_interpolator.extract_solution(solver, mesh, conf.tetnode_weight.elfield, conf.tetnode_weight.potential);
-    end_msg(t0);
-    vacuum_interpolator.write("output/result_E_phi.xyz");
-    vacuum_interpolator.print_statistics();
-
-    return 0;
-}
-
-// Extract current density and temperature from solution
-int Femocs::extract_heat(const TetgenMesh& mesh, fch::CurrentsAndHeating<3>* solver) {
     start_msg(t0, "=== Extracting T and rho...");
-    bulk_interpolator.extract_solution(solver, mesh);
+    bulk_interpolator.extract_solution(ch_solver, mesh);
     end_msg(t0);
 
     bulk_interpolator.write("output/result_rho_T.xyz");
 
-    start_msg(t0, "=== Interpolating T and rho...");
-    temperatures.interpolate(reader, 0);
-    end_msg(t0);
-
-    temperatures.write("output/interpolation_bulk.movie");
-
-    return 0;
-}
-
-int Femocs::extract_forces(const TetgenMesh& mesh) {
-    start_msg(t0, "=== Interpolating E and phi...");
-    fields.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff);
-    end_msg(t0);
-
-    fields.write("output/fields.xyz");
-    fields.print_statistics();
-
-    ChargeReader charges = ChargeReader(&vacuum_interpolator);
-    start_msg(t0, "=== Calculating charges...");
-//    charges.calc_interpolated_charges(bulk_mesh);
-    charges.calc_charges(mesh);
-    end_msg(t0);
-
-    charges.print_statistics(reader.sizes, conf.neumann);
-    charges.write("output/charges.xyz");
-
-    ForceReader forces(&vacuum_interpolator);
-    start_msg(t0, "=== Calculating forces...");
-    forces.calc_forces(fields, charges, reader.sizes, conf.coord_cutoff);
-    end_msg(t0);
-
-    forces.print_statistics(reader.sizes, conf.neumann);
-    forces.write("output/forces.xyz");
+    // Swap current-and-heat-solvers to use solution from current run as a guess in the next one
+    static bool odd_run = true;
+    if (odd_run) {
+        ch_solver = &ch_solver2; prev_ch_solver = &ch_solver1;
+    }
+    else {
+        ch_solver = &ch_solver1; prev_ch_solver = &ch_solver2;
+    }
+    odd_run = !odd_run;
 
     return 0;
 }
@@ -300,7 +269,6 @@ int Femocs::run(const double elfield, const string &message) {
     tstart = omp_get_wtime();
 
     // Generate FEM mesh
-    TetgenMesh bulk_mesh, vacuum_mesh;
     fail = generate_meshes(bulk_mesh, vacuum_mesh);
     if (fail) return 1;
 
@@ -309,20 +277,9 @@ int Femocs::run(const double elfield, const string &message) {
     fail = solve_laplace(vacuum_mesh, laplace_solver);
     if (fail) return 1;
 
-    extract_laplace(vacuum_mesh, &laplace_solver);
-
-    static bool odd_run = true;
-    if (conf.heating) {
-        // Solve heat & continuity equation on bulk mesh
-        fail = solve_heat(bulk_mesh, laplace_solver);
-        if (!fail) extract_heat(bulk_mesh, ch_solver);
-
-        if (odd_run) { ch_solver = &ch_solver2; prev_ch_solver = &ch_solver1; }
-        else { ch_solver = &ch_solver1; prev_ch_solver = &ch_solver2; }
-        odd_run = !odd_run;
-    }
-
-    extract_forces(bulk_mesh);
+    // Solve heat & continuity equation on bulk mesh
+    fail = solve_heat(bulk_mesh, laplace_solver);
+    if (fail) return 1;
 
     start_msg(t0, "=== Saving atom positions...");
     reader.save_current_run_points(conf.distance_tol);
@@ -435,21 +392,69 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
     return 0;
 }
 
-// export the calculated electric field on imported atom coordinates
+// calculate and export electric field on imported atom coordinates
 int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    check_message(vacuum_interpolator.size() == 0, "No solution to export!");
+    check_message(vacuum_interpolator.size() == 0, "No field to export!");
 
     if (!skip_calculations) {
         start_msg(t0, "=== Interpolating E and phi...");
         fields.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff);
         end_msg(t0);
 
-        fields.write("output/interpolation.movie");
+        fields.write("output/elfields.movie");
         fields.print_statistics();
     }
 
     start_msg(t0, "=== Exporting electric field...");
     fields.export_solution(n_atoms, Ex, Ey, Ez, Enorm);
+    end_msg(t0);
+
+    return 0;
+}
+
+// calculate and export temperatures on imported atom coordinates
+int Femocs::export_temperature(const int n_atoms, double* T) {
+    if (!conf.heating) return 0;
+    check_message(bulk_interpolator.size() == 0, "No temperature to export!");
+
+    if (!skip_calculations) {
+        start_msg(t0, "=== Interpolating T and rho...");
+        temperatures.interpolate(reader, 0);
+        end_msg(t0);
+
+        temperatures.write("output/interpolation_bulk.movie");
+        temperatures.print_statistics();
+    }
+
+    start_msg(t0, "=== Exporting temperatures...");
+    temperatures.export_temperature(n_atoms, T);
+    end_msg(t0);
+
+    return 0;
+}
+
+// calculate and export charges & forces on imported atom coordinates
+int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
+    check_message(fields.size() == 0, "No force to export!");
+    if (!skip_calculations) {
+        start_msg(t0, "=== Calculating face charges...");
+//        charges.calc_interpolated_charges(bulk_mesh);
+        charges.calc_charges(bulk_mesh);
+        end_msg(t0);
+
+        charges.print_statistics(conf.neumann * reader.sizes.xbox * reader.sizes.ybox);
+        charges.write("output/charges.xyz");
+
+        start_msg(t0, "=== Calculating atomic forces...");
+        forces.calc_forces(fields, charges, reader.sizes, conf.coord_cutoff);
+        end_msg(t0);
+
+        forces.write("output/forces.movie");
+        forces.print_statistics(conf.neumann * reader.sizes.xbox * reader.sizes.ybox);
+    }
+
+    start_msg(t0, "=== Exporting atomic forces...");
+    forces.export_force(n_atoms, xq);
     end_msg(t0);
 
     return 0;

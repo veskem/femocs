@@ -9,6 +9,7 @@
 #include "Macros.h"
 
 #include <float.h>
+#include <stdio.h>
 
 using namespace std;
 namespace femocs {
@@ -201,46 +202,54 @@ void SolutionReader::clean(const int coordinate, const double r_cut) {
     }
 }
 
+// Compare interpolated scalar statistics with a constant
+void SolutionReader::print_statistics(const double Q) {
+    if (!MODES.VERBOSE) return;
+    double q = 0;
+    for (int i = 0; i < size(); ++i)
+        q += interpolation[i].scalar;
+
+    cout << "  Q / sum(" << scalar_label << ") = ";
+    printf("%.1f / %.1f = %.4f\n", Q, q, Q/q);
+}
+
+// Print statistics about interpolated solution
+void SolutionReader::print_statistics() {
+    if (!MODES.VERBOSE) return;
+
+    const int n_atoms = size();
+    Vec3 vec(0), rms_vec(0);
+    double scalar = 0, rms_scalar = 0;
+    int n_points = 0;
+
+    for (int i = 0; i < n_atoms; ++i) {
+        Vec3 v = interpolation[i].vector;
+        double s = interpolation[i].scalar;
+
+        if (s >= interpolator->error_field) continue;
+
+        vec += v; rms_vec += v * v;
+        scalar += s; rms_scalar += s * s;
+        n_points++;
+    }
+
+    vec *= (1.0 / n_points);
+    rms_vec = Vec3(sqrt(rms_vec.x), sqrt(rms_vec.y), sqrt(rms_vec.z)) * (1.0 / n_points);
+    scalar = scalar / n_points;
+    rms_scalar = sqrt(rms_scalar) / n_points;
+
+    cout << "  mean " << vec_label << ": \t" << vec << endl;
+    cout << "   rms " << vec_label << ": \t" << rms_vec << endl;
+    cout << "  mean " << scalar_label << ": \t" << scalar << endl;
+    cout << "   rms " << scalar_label << ": \t" << rms_scalar << endl;
+}
+
 /* ==========================================
  * ============== FIELD READER ==============
  * ========================================== */
 
 FieldReader::FieldReader() : SolutionReader() {}
 FieldReader::FieldReader(LinearInterpolator* ip) : SolutionReader(ip, "elfield", "elfield_norm", "potential") {}
-
-// Print statistics about interpolated solution
-void FieldReader::print_statistics() {
-    if (!MODES.VERBOSE) return;
-
-    const int n_atoms = size();
-    Vec3 elfield(0);
-    Vec3 rms_elfield(0);
-    double potential = 0;
-    double rms_potential = 0;
-    int n_points = 0;
-
-    for (int i = 0; i < n_atoms; ++i) {
-        double pot = interpolation[i].scalar;
-        if (pot >= interpolator->error_field) continue;
-        Vec3 ef = interpolation[i].vector;
-
-        elfield += ef;
-        rms_elfield += ef * ef;
-        potential += pot;
-        rms_potential += pot * pot;
-        n_points++;
-    }
-
-    elfield *= (1.0 / n_points);
-    rms_elfield = Vec3(sqrt(rms_elfield.x), sqrt(rms_elfield.y), sqrt(rms_elfield.z)) * (1.0 / n_points);
-    potential = potential / n_points;
-    rms_potential = sqrt(rms_potential) / n_points;
-
-    cout << "  mean elfield: \t" << elfield << endl;
-    cout << "   rms elfield: \t" << rms_elfield << endl;
-    cout << "  mean potential: \t" << potential << endl;
-    cout << "   rms potential: \t" << rms_potential << endl;
-}
 
 // Linearly interpolate solution on Medium atoms
 void FieldReader::interpolate(const Medium &medium, const double r_cut, const int component, const bool srt) {
@@ -324,6 +333,8 @@ void FieldReader::export_potential(const int n_points, double* phi, int* flag) {
 
 // Export interpolated electric field
 void FieldReader::export_solution(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+    if (n_atoms <= 0) return;
+
     // Initially pass the zero electric field for all the atoms
     for (int i = 0; i < n_atoms; ++i) {
         Ex[i] = 0;
@@ -381,10 +392,6 @@ void HeatReader::interpolate(const Medium &medium, const double r_cut) {
         // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
         elem = interpolator->locate_element(point, abs(elem));
 
-        // Store whether the point is in- or outside the mesh
-        if (elem < 0) set_marker(i, 1);
-        else          set_marker(i, 0);
-
         // Calculate the interpolation
         interpolation.push_back( interpolator->get_solution(point, abs(elem)) );
     }
@@ -394,6 +401,16 @@ void HeatReader::interpolate(const Medium &medium, const double r_cut) {
         interpolation[i].id = atoms[i].id;
     sort(interpolation.begin(), interpolation.end(), Solution::sort_up());
     sort(atoms.begin(), atoms.end(), Atom::sort_id());
+}
+
+// Export interpolated temperature
+void HeatReader::export_temperature(const int n_atoms, double* T) {
+    // Pass the the calculated temperature for stored atoms
+    for (int i = 0; i < size(); ++i) {
+        int identifier = get_id(i);
+        if (identifier < 0 || identifier >= n_atoms) continue;
+        T[identifier] = get_temperature(i);
+    }
 }
 
 Vec3 HeatReader::get_rho(const int i) const {
@@ -485,17 +502,6 @@ double ChargeReader::get_charge(const int i) const {
     return interpolation[i].scalar;
 }
 
-void ChargeReader::print_statistics(const Medium::Sizes& sizes, const double E0) {
-    if (!MODES.VERBOSE) return;
-
-    double Q = E0 * sizes.xbox * sizes.ybox;
-    double q = 0;
-    for (int i = 0; i < size(); ++i)
-        q += get_charge(i);
-
-    cout << "  Q / sum(q) = " << Q << " / " << q << " = " << Q/q << endl;
-}
-
 void ChargeReader::get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields) {
     const int n_hexs = mesh.hexahedra.size();
     const int n_faces = mesh.faces.size();
@@ -567,7 +573,7 @@ void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& fac
         Point3 point1 = faces.get_point(face);
         double q_face = faces.get_charge(face);
 
-        double r_cut2 = faces.get_area(face) * 50.0;
+        double r_cut2 = faces.get_area(face) * 100.0;
         double smooth_factor = sqrt(r_cut2) / 10.0;
 
         // Find weights and normalization factor for all the atoms for given face
@@ -595,6 +601,26 @@ void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& fac
     }
 }
 
+// Export the induced charge and force on imported atoms
+void ForceReader::export_force(const int n_atoms, double* xq) {
+    if (n_atoms <= 0) return;
+
+    // Initially pass the zero force and charge for all the atoms
+    for (int i = 0; i < 4*n_atoms; ++i)
+        xq[i] = 0;
+
+    // Pass the the calculated electric field for stored atoms
+    for (int i = 0; i < size(); ++i) {
+        int identifier = get_id(i);
+        if (identifier < 0 || identifier >= n_atoms) continue;
+
+        identifier *= 4;
+        xq[identifier++] = interpolation[i].scalar;
+        for (double x : interpolation[i].vector)
+            xq[identifier++] = x;
+    }
+}
+
 Vec3 ForceReader::get_force(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].vector;
@@ -603,17 +629,6 @@ Vec3 ForceReader::get_force(const int i) const {
 double ForceReader::get_charge(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].scalar;
-}
-
-void ForceReader::print_statistics(const Medium::Sizes& sizes, const double E0) {
-    if (!MODES.VERBOSE) return;
-
-    double Q = E0 * sizes.xbox * sizes.ybox;
-    double q = 0;
-    for (int i = 0; i < size(); ++i)
-        q += get_charge(i);
-
-    cout << "  Q / sum(q) = " << Q << " / " << q << " = " << Q/q << endl;
 }
 
 } // namespace femocs
