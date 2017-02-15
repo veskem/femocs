@@ -127,7 +127,7 @@ void TetgenNodes::calc_statistics() {
 // Copy the nodes from another mesh
 void TetgenNodes::copy(const TetgenNodes& nodes, const vector<bool>& mask) {
     const int n_nodes = nodes.size();
-    copy_indices(nodes);
+    copy_statistics(nodes);
 
     // In case of empty or non-aligned mask, copy all the nodes
     if (n_nodes != mask.size()) {
@@ -144,16 +144,10 @@ void TetgenNodes::copy(const TetgenNodes& nodes, const vector<bool>& mask) {
     }
 }
 
-void TetgenNodes::copy_indices(const TetgenNodes& n) {
-    indxs.bulk_start = n.indxs.bulk_start; indxs.bulk_end = n.indxs.bulk_end;
-    indxs.surf_start = n.indxs.surf_start; indxs.surf_end = n.indxs.surf_end;
-    indxs.vacuum_start = n.indxs.vacuum_start; indxs.vacuum_end = n.indxs.vacuum_end;
-    indxs.tetgen_start = n.indxs.tetgen_start; indxs.tetgen_end = n.indxs.tetgen_end;
-
-    indxs.midedge_start = n.indxs.midedge_start; indxs.midedge_end = n.indxs.midedge_end;
-    indxs.midface_start = n.indxs.midface_start; indxs.midface_end = n.indxs.midface_end;
-    indxs.midtet_start = n.indxs.midtet_start; indxs.midtet_end = n.indxs.midtet_end;
-    indxs.tetnode_start = n.indxs.tetnode_start; indxs.tetnode_end = n.indxs.tetnode_end;
+void TetgenNodes::copy_statistics(const TetgenNodes& n) {
+    require(this->indxs.size() == n.indxs.size() , "Incompatible indices!");
+    for (int i = 0; i < indxs.size(); ++i)
+        (&this->indxs.surf_start)[i] = (&n.indxs.surf_start)[i];
 
     stat.n_tetnode = n.stat.n_tetnode;
     stat.n_midedge = n.stat.n_midedge;

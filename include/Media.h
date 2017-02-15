@@ -51,7 +51,7 @@ public:
      */
     void extract(const AtomReader& reader, const int type, const bool invert=false);
 
-    Media coarsen(Coarseners &coarseners, Media::Sizes &other);
+    Media coarsen(Coarseners &coarseners);
 
     Media extend(const double latconst, const double box_width, Coarseners &coarseners);
 

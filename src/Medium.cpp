@@ -28,8 +28,9 @@ Medium::Medium(const int n_atoms) {
 void Medium::sort_atoms(const int coord, const string& direction) {
     require(coord >= 0 && coord <= 3, "Invalid coordinate: " + to_string(coord));
 
+    if (size() < 2) return;
+
     if (coord == 3) {
-        calc_statistics();
         Point2 origin(sizes.xmid, sizes.ymid);
         for (int i = 0; i < size(); ++i)
             set_marker(i, 10000 * origin.distance2(get_point2(i)));
@@ -87,7 +88,7 @@ void Medium::add(const Medium *m) {
 
 // Add atom to atoms vector
 void Medium::append(const Atom& atom) {
-    expect(size() < atoms.capacity(), "Allocated vector sizes exceeded!");
+    expect(size() < atoms.capacity(), "Allocated vector size exceeded!");
     atoms.push_back(atom);
 }
 
@@ -303,6 +304,13 @@ void Medium::get_cell_types(ofstream& out, const int n_cells) const {
 
 // Get data scalar and vector data associated with vtk cells
 void Medium::get_cell_data(ofstream& out, const int n_cells) const {}
+
+// Copy statistics from another Medium
+void Medium::copy_statistics(const Medium& m) {
+    require(this->sizes.size() == m.sizes.size() , "Incompatible statistics!");
+    for (int i = 0; i < m.sizes.size(); ++i)
+        (&this->sizes.xmin)[i] = (&m.sizes.xmin)[i];
+}
 
 // Get data scalar and vector data associated with vtk nodes
 void Medium::get_point_data(ofstream& out) const {

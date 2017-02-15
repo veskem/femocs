@@ -311,6 +311,8 @@ public:
         int midface_start, midface_end;
         int midedge_start, midedge_end;
         int midtet_start, midtet_end;
+
+        int size() const { return (&midtet_end)-(&surf_start) + 1; };  ///< number of values
     } indxs;
 
     /** Struct holding statistics about nodes */
@@ -336,7 +338,7 @@ private:
     /** Return index of i-th node */
     SimpleCell<1> get_cell(const int i) const;
 
-    void copy_indices(const TetgenNodes& nodes);
+    void copy_statistics(const TetgenNodes& nodes);
 
     /** Write node data to .xyz file */
     void write_xyz(const string &file_name) const;

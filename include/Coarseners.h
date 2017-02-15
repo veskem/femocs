@@ -236,8 +236,9 @@ public:
     void write(const string &file_name);
 
     /** Generate coarseners for one nanotip system */
-    void generate(Medium &medium, const double radius, const Config::CoarseFactor &cf, const double latconst);
+    void generate(const Medium &medium, const double radius, const Config::CoarseFactor &cf, const double latconst);
 
+    /** Get the distance between atoms on the edge of simulation cell */
     double get_r0_inf(const Medium::Sizes &s);
 
     Point3 centre;
@@ -246,6 +247,12 @@ private:
     double amplitude;
     double r0_cylinder;
     vector<shared_ptr<Coarsener>> coarseners;
+
+    /** Get histogram for atom z-coordinates */
+    void get_histogram(vector<int> &bins, vector<double> &bounds, const Medium& medium);
+
+    /** Get the average z-coordinate of substrate atoms */
+    double get_z_mean(const Medium& medium);
 };
 
 } // namespace femocs

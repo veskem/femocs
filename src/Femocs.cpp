@@ -434,13 +434,15 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         start_msg(t0, "=== Calculating face charges...");
 //        charges.calc_interpolated_charges(bulk_mesh);
         face_charges.calc_charges(bulk_mesh);
+//        face_charges.clean(dense_surf.sizes);
         end_msg(t0);
 
         face_charges.print_statistics(conf.neumann * reader.sizes.xbox * reader.sizes.ybox);
         face_charges.write("output/charges.xyz");
 
         start_msg(t0, "=== Calculating atomic forces...");
-        forces.calc_forces(fields, face_charges, reader.sizes, conf.coord_cutoff);
+//        forces.calc_forces(fields, face_charges, reader.sizes, conf.coord_cutoff);
+        forces.calc_forces(fields, face_charges, extended_surf, conf.coord_cutoff);
         end_msg(t0);
 
         forces.write("output/forces.movie");

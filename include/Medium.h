@@ -51,6 +51,10 @@ public:
     
     /** Calculate statistics about the coordinates in Medium */
     void calc_statistics();
+
+    /** Copy statistics from another Medium */
+    void copy_statistics(const Medium& m);
+
     /** Set the id of i-th atom */
     void set_id(const int i, const int id);
     /** Set the coordinates of i-th atom */
@@ -96,7 +100,10 @@ public:
         double xmid;     ///< middle value of x-coordinate
         double ymid;     ///< middle value of y-coordinate
         double zmid;     ///< middle value of z-coordinate
+
+        int size() const { return (&zmid)-(&xmin) + 1; };  ///< number of values in Sizes
     } sizes;
+
     vector<Atom> atoms;  ///< vector holding atom coordinates and meta data
 protected:
 

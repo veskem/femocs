@@ -104,8 +104,10 @@ Media Media::extend(const string &file_name, Coarseners &coarseners) {
 
     Media stretched(reader.size());
     stretched += reader;
+    stretched.calc_statistics();
+    stretched.sizes.zmean = stretched.sizes.zmin;
 
-    return stretched.coarsen(coarseners, this->sizes);
+    return stretched.coarsen(coarseners);
 }
 
 // Function extend the flat area by generating additional atoms
@@ -116,41 +118,38 @@ Media Media::extend(const double latconst, const double box_width, Coarseners &c
     const double current_box_width = min(sizes.xbox, sizes.ybox);
     const double desired_box_width = box_width * sizes.zbox;
 
-    // over estimation of number of generated points
-    const int n_gen = pow(desired_box_width / latconst + 1, 2) - pow(current_box_width / latconst - 1, 2);
+    // get over estimation for number of generated points
+    const int n_generated = pow(desired_box_width / latconst + 1, 2) - pow(current_box_width / latconst - 1, 2);
 
     // copy input points without modification
-    Media stretched( max(0, n_gen) );
+    Media stretched( max(0, n_generated) );
 
     const double W = (desired_box_width - current_box_width) / 2.0;  // generation area width
 
-    // if the input surface already is sufficiently wide, just add the boundary nodes
+    // if the input surface isn't sufficiently wide, add atoms to it, otherwise just add the boundary nodes
     if (W > 0) {
         // add points outside already existing area
         for (double y = sizes.ymin - W; y <= sizes.ymax + W; y += latconst)
             for (double x = sizes.xmin - W; x <= sizes.xmax + W; x += latconst)
                 if ( x < sizes.xmin || x > sizes.xmax || y < sizes.ymin || y > sizes.ymax)
                     stretched.append( Point3(x, y, coarseners.centre.z) );
+        stretched.calc_statistics();
+    }
+    else {
+        stretched.copy_statistics(*this);
+        stretched.sizes.zmean = coarseners.centre.z;
     }
 
-    return stretched.coarsen(coarseners, this->sizes);
+    return stretched.coarsen(coarseners);
 }
 
 // Function to coarsen the atoms with coarsener
-Media Media::coarsen(Coarseners &coarseners, Media::Sizes &other) {
+Media Media::coarsen(Coarseners &coarseners) {
     Media corners, middle, union_surf;
 
-    calc_statistics();
-
-    if ((sizes.xmin < sizes.xmax) && (sizes.ymin < sizes.ymax)) {
-        this->sort_atoms(3, "down");
-        corners.generate_simple(this->sizes, this->sizes.zmin);
-        middle.generate_middle(this->sizes, this->sizes.zmin, coarseners.get_r0_inf(this->sizes));
-    }
-    else {
-        corners.generate_simple(other, other.zmin);
-        middle.generate_middle(other, other.zmin, coarseners.get_r0_inf(other));
-    }
+    corners.generate_simple(sizes, sizes.zmean);
+    middle.generate_middle( sizes, sizes.zmean, coarseners.get_r0_inf(sizes) );
+    sort_atoms(3, "down");
 
     union_surf += corners;
     union_surf += middle;
@@ -205,6 +204,7 @@ void Media::clean(const TetgenMesh& mesh, const double r_cut) {
     }
 
     atoms = _atoms;
+    calc_statistics();
 }
 
 inline double Media::smooth_function(const double distance, const double smooth_factor) const {

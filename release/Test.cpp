@@ -30,8 +30,8 @@ void write_defaults(ofstream &file) {
     file << "femocs_verbose = true"      << endl;
     file << "coord_cutoff = 3.1"         << endl;
     file << "latconst = 3.61"            << endl;
-    file << "box_width = 2.5"              << endl;
-    file << "box_height = 3.5"             << endl;
+    file << "box_width = 3.5"            << endl;
+    file << "box_height = 3.5"           << endl;
 }
 
 void write_hr5(ofstream &file) {
@@ -78,7 +78,7 @@ void write_stretch(ofstream &file) {
 void write_extend(ofstream &file) {
     file << "extended_atoms = input/extension.xyz" << endl;
     file << "infile = input/apex.xyz"              << endl;
-    file << "coarse_factor = 0.3 1.5 1.0" << endl;
+    file << "coarse_factor = 0.3 0.5 0.5" << endl;
     file << "femocs_periodic = false" << endl;
     file << "radius = 70.0"           << endl;
 }

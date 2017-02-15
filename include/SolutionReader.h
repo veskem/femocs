@@ -48,6 +48,12 @@ protected:
     /** Get information about data vectors for .vtk file. */
     void get_point_data(ofstream& out) const;
 
+    /** Append solution */
+    void append_interpolation(const Solution& s);
+
+    /** Get i-th Solution */
+    Solution get_interpolation(const int i) const;
+
     /** Function to clean the result from peaks
      * The cleaner makes the histogram for given component of electric field and applies smoothing
      * for the atoms, where field has diverging values.
@@ -130,6 +136,8 @@ public:
 
     void calc_charges(const TetgenMesh& mesh);
 
+    void clean(const Medium::Sizes& sizes);
+
     Vec3 get_elfield(const int i) const;
 
     double get_area(const int i) const;
@@ -148,6 +156,8 @@ public:
     /** ChargeReader constructors */
     ForceReader();
     ForceReader(LinearInterpolator* ip);
+
+    void calc_forces(const FieldReader &fields, const ChargeReader& faces, const Medium& extension, const double r_cut);
 
     void calc_forces(const FieldReader& fields, const ChargeReader& faces, const Medium::Sizes& sizes, const double r_cut);
 

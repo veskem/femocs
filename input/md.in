@@ -8,19 +8,19 @@ tetnode_weight = 0.0 1.0        # weight of the solution on tetrahedral node
                                 # 2nd weight for electric potential
 heating = false                 # calculate current density and temperature in nanotip
 clear_output = true;            # clear output folder before the run
-infile = input/nanotip_hr5.xyz  # default file used with atom coordinates
+infile = input/nanotip_big.xyz  # default file used with atom coordinates
 latconst = 3.61                 # lattice constant
 coord_cutoff = 3.1              # coordination analysis cut-off radius
 mesh_quality = 2.0              # minimum mesh quality Tetgen is allowed to make
 box_width = 2.5                   # minimal simulation box width [tip height]
 box_height = 3.5                # simulation box height [tip height]
 bulk_height = 20                # bulk substrate height [latconst]
-radius = 14.0                   # inner radius of coarsening cylinder
+radius = 16.0                   # inner radius of coarsening cylinder
 coarse_factor = 0.3 1.0 0.5     # coarsening factor; bigger number gives coarser surface
                                 # 1st - coarsening factor for atoms
                                 # 2nd - minimum distance between atoms in nanotip below apex [latconst]
                                 # 3rd - minimum distance between atoms in nanotip apex [latconst]
-smooth_factor = 1.0             # surface smoothing factor; bigger number gives smoother surface
+smooth_factor = 2.0             # surface smoothing factor; bigger number gives smoother surface
 postprocess_marking = true      # make extra effort to mark correctly the vacuum nodes in shadow area
 refine_apex = false             # refine nanotip apex
 distance_tol = 0.16             # minimum distance between atoms from previous and current run to recalculate solution

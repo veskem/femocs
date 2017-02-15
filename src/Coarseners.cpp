@@ -8,6 +8,8 @@
 #include "Coarseners.h"
 #include <fstream>
 #include <numeric>
+#include <algorithm>
+#include <float.h>
 
 using namespace std;
 namespace femocs {
@@ -175,14 +177,11 @@ vector<Point3> NanotipCoarsener::get_points() {
 }
 
 // Generate coarseners for one nanotip system
-void Coarseners::generate(Medium &medium, const double radius, const Config::CoarseFactor &cf, const double latconst) {
-    const double r_cut2 = radius * radius;
+void Coarseners::generate(const Medium &medium, const double radius, const Config::CoarseFactor &cf, const double latconst) {
     const int n_atoms = medium.size();
     require(n_atoms > 0, "Not enough points to generate coarseners: " + to_string(n_atoms));
-    
-    medium.calc_statistics(); // calculate the span of atoms in medium
 
-    const double z_bot = medium.sizes.zmin;
+    const double z_bot = get_z_mean(medium);  // medium.sizes.zmin;
     const double z_top = max(z_bot, medium.sizes.zmax - 0.5*radius);
 
     centre = Point3(medium.sizes.xmid, medium.sizes.ymid, z_bot);
@@ -198,6 +197,74 @@ void Coarseners::generate(Medium &medium, const double radius, const Config::Coa
     attach_coarsener( make_shared<FlatlandCoarsener>(centre, radius, amplitude, r0_flat) );
 }
 
+// Return the average z-coordinate of substrate atoms
+double Coarseners::get_z_mean(const Medium& medium) {
+    const int n_atoms = medium.size();
+    const int n_bins = 100;
+
+    // make the histogram for all the surface atoms
+    vector<int> bins(n_bins, 0);
+    vector<double> bounds(n_bins+1);
+    get_histogram(bins, bounds, medium);
+
+    // locate the bin with maximum amount of entries
+    int max_bin = distance( bins.begin(), max_element(bins.begin(), bins.end()) );
+    double zmin = bounds[max_bin];
+    double zmax = bounds[max_bin+1];
+
+    // For systems with small amount of atoms in the substrate, use the minimum coordinate
+    if ( (zmin + zmax) / 2 > medium.sizes.zmean )
+        return medium.sizes.zmin;
+
+    // average z-coordinate == average for the entries of most popular bin
+    double zmean = 0;
+    int n_average = 0;
+    for (int i = 0; i< n_atoms; ++i) {
+        double z = medium.get_point(i).z;
+        if (z >= zmin && z < zmax) {
+            zmean += z;
+            n_average++;
+        }
+    }
+
+    return zmean / n_average;
+}
+
+// Get histogram for atom z-coordinates
+void Coarseners::get_histogram(vector<int> &bins, vector<double> &bounds, const Medium& medium) {
+    const int n_atoms = medium.size();
+    const int n_bins = bins.size();
+    const int n_bounds = bounds.size();
+    const double eps = 1e-5;
+
+    // Find minimum and maximum values from all z-coordinates
+    double value_min = DBL_MAX;
+    double value_max =-DBL_MAX;
+    double value;
+    for (int i = 0; i < n_atoms; ++i) {
+        value = medium.get_point(i).z;
+        value_min = min(value_min, value);
+        value_max = max(value_max, value);
+    }
+
+    // Fill the bounds with values value_min:value_step:(value_max + epsilon)
+    // Epsilon is added to value_max to include the maximum value in the up-most bin
+    double value_step = (value_max - value_min) / n_bins;
+    for (int i = 0; i < n_bounds; ++i)
+        bounds[i] = value_min + value_step * i;
+    bounds[n_bounds-1] += eps;
+
+    for (int i = 0; i < n_atoms; ++i) {
+        value = medium.get_point(i).z;
+        for (int j = 0; j < n_bins; ++j)
+            if (value >= bounds[j] && value < bounds[j+1]) {
+                bins[j]++;
+                break;
+            }
+    }
+}
+
+// Get the distance between atoms on the edge of simulation cell
 double Coarseners::get_r0_inf(const Medium::Sizes &s) {
     const double max_distance = centre.distance(Point3(s.xmin, s.ymin, s.zmin));
     if ((max_distance - radius) > 0)
@@ -206,6 +273,7 @@ double Coarseners::get_r0_inf(const Medium::Sizes &s) {
         return r0_cylinder;
 }
 
+// Write the contours of coarseners to file in .vtk format
 void Coarseners::write(const string &file_name) {
     if (!MODES.WRITEFILE) return;
 

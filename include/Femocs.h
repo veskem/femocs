@@ -133,24 +133,26 @@ private:
     bool skip_calculations, fail;
     double t0;
 
-    AtomReader reader;
-    Config conf;
-    Media dense_surf;
-    Media extended_surf;
+    AtomReader reader;      ///< all the imported atoms
+    Config conf;            ///< configuration parameters
+    Media dense_surf;       ///< non-coarsened surface atoms
+    Media extended_surf;    ///< atoms added for the surface atoms
 
-    TetgenMesh bulk_mesh, vacuum_mesh;
-    LinearInterpolator bulk_interpolator, vacuum_interpolator;
+    TetgenMesh bulk_mesh;   ///< FEM mesh in bulk material
+    TetgenMesh vacuum_mesh; ///< FEM mesh in vacuum
+    LinearInterpolator bulk_interpolator;   ///< data for interpolating results in bulk
+    LinearInterpolator vacuum_interpolator; ///< data for interpolating results in vacuum
 
-    HeatReader temperatures = HeatReader(&bulk_interpolator);
-    FieldReader fields = FieldReader(&vacuum_interpolator);
-    ChargeReader face_charges = ChargeReader(&vacuum_interpolator);
-    ForceReader forces = ForceReader(&vacuum_interpolator);
+    HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
+    FieldReader fields = FieldReader(&vacuum_interpolator);     ///< interpolated fields and potentials
+    ChargeReader face_charges = ChargeReader(&vacuum_interpolator); ///< charges on surface faces
+    ForceReader forces = ForceReader(&vacuum_interpolator);     ///< forces on surface atoms
 
-    fch::PhysicalQuantities phys_quantities;
-    fch::CurrentsAndHeating<3> ch_solver1;
-    fch::CurrentsAndHeating<3> ch_solver2;
-    fch::CurrentsAndHeating<3>* ch_solver;
-    fch::CurrentsAndHeating<3>* prev_ch_solver;
+    fch::PhysicalQuantities phys_quantities;    ///< physical quantities used in heat calculations
+    fch::CurrentsAndHeating<3> ch_solver1;      ///< first currents and heating solver
+    fch::CurrentsAndHeating<3> ch_solver2;      ///< second currents and heating solver
+    fch::CurrentsAndHeating<3>* ch_solver;      ///< active currents and heating solver
+    fch::CurrentsAndHeating<3>* prev_ch_solver; ///< previous currents and heating solver
     
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);

@@ -39,6 +39,18 @@ void SolutionReader::reserve(const int n_nodes) {
     interpolation.reserve(n_nodes);
 }
 
+// Append solution
+void SolutionReader::append_interpolation(const Solution& s) {
+    expect(interpolation.size() < interpolation.capacity(), "Allocated vector size exceeded!");
+    interpolation.push_back(s);
+}
+
+// Get i-th Solution
+Solution SolutionReader::get_interpolation(const int i) const {
+    require(i >= 0 && i < interpolation.size(), "Index out of bounds: " + to_string(i));
+    return interpolation[i];
+}
+
 // Compile data string from the data vectors for file output
 string SolutionReader::get_data_string(const int i) const{
     if (i < 0) return "SolutionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
@@ -461,6 +473,34 @@ void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh) {
     sort(atoms.begin(), atoms.end(), Atom::sort_id());
 }
 
+// Remove the atoms and their solutions outside the box
+void ChargeReader::clean(const Medium::Sizes& sizes) {
+    const int n_atoms = size();
+    vector<bool> in_box; in_box.reserve(n_atoms);
+
+    // Check the locations of points
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point = get_point(i);
+        const bool box_x = point.x >= sizes.xmin && point.x <= sizes.xmax;
+        const bool box_y = point.y >= sizes.ymin && point.y <= sizes.ymax;
+//        const bool box_z = point.z >= sizes.zmin && point.z <= sizes.zmax;
+        in_box.push_back(box_x && box_y);
+    }
+
+    const int n_box = vector_sum(in_box);
+    vector<Atom> _atoms; _atoms.reserve(n_box);
+    vector<Solution> _interpolation; _interpolation.reserve(n_box);
+
+    // Copy the solutions and atoms that remain into box
+    for (int i = 0; i < n_atoms; ++i)
+        if (in_box[i]) {
+            _atoms.push_back(atoms[i]);
+            _interpolation.push_back(interpolation[i]);
+        }
+    atoms = _atoms;
+    interpolation = _interpolation;
+}
+
 void ChargeReader::calc_charges(const TetgenMesh& mesh) {
     const int n_faces = mesh.faces.size();
     reserve(n_faces);
@@ -547,6 +587,74 @@ void ChargeReader::get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields) 
 
 ForceReader::ForceReader() : SolutionReader() {}
 ForceReader::ForceReader(LinearInterpolator* ip) : SolutionReader(ip, "force", "force_norm", "charge") {}
+
+void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& faces, const Medium& ext, const double r_cut) {
+    const double eps = 0.01;
+    const int n_atoms = fields.size();
+    const int n_faces = faces.size();
+    int n_extended;
+
+    // Copy the atom data
+    reserve(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        append(fields.get_atom(i));
+
+    calc_statistics();
+
+    // If the surface atoms are not extended,
+    // disable the charge distribution to the artificial atoms on the edge of a simubox
+    if (fabs(ext.sizes.xbox - sizes.xbox) < eps && fabs(ext.sizes.ybox - sizes.ybox) < eps)
+        n_extended = 0;
+    else
+        n_extended = ext.size();
+
+    /* Distribute the charges on surface faces between surface atoms.
+     * If q_i and Q_j is the charge on i-th atom and j-th face, respectively, then
+     *     q_i = sum_j(w_ij * Q_j),  sum_i(w_ij) = 1 for every j
+     * where w_ij is the weight of charge on j-th face for the i-th atom. */
+
+    vector<double> charges(n_atoms);
+    vector<double> weights;
+    for (int face = 0; face < n_faces; ++face) {
+        Point3 point1 = faces.get_point(face);
+        double q_face = faces.get_charge(face);
+
+        double r_cut2 = faces.get_area(face) * 100.0;
+        double smooth_factor = sqrt(r_cut2) / 10.0;
+
+        // Find weights and normalization factor for all the atoms for given face
+        // Get the charge for real surface atoms
+        weights = vector<double>(n_atoms);
+        double w_sum = 0.0;
+        for (int atom = 0; atom < n_atoms; ++atom) {
+            double dist2 = point1.periodic_distance2(get_point(atom), ext.sizes.xbox, ext.sizes.ybox);
+            if (dist2 > r_cut2) continue;
+
+            double w = exp(-1.0 * sqrt(dist2) / smooth_factor);
+            weights[atom] = w;
+            w_sum += w;
+        }
+
+        // Get the charge for extended surface atoms to obtain correct normalization factor
+        for (int i = 0; i < n_extended; ++i) {
+            double dist2 = point1.periodic_distance2(ext.get_point(i), ext.sizes.xbox, ext.sizes.ybox);
+            if (dist2 > r_cut2) continue;
+            w_sum += exp(-1.0 * sqrt(dist2) / smooth_factor);
+        }
+
+        // Store the partial charges on atoms
+        w_sum = 1.0 / w_sum;
+        for (int atom = 0; atom < n_atoms; ++atom)
+            if (weights[atom] > 0)
+                charges[atom] += weights[atom] * w_sum * q_face;
+
+    }
+
+    for (int atom = 0; atom < n_atoms; ++atom) {
+        Vec3 force = fields.get_elfield(atom) * charges[atom];
+        interpolation.push_back(Solution(force, charges[atom]));
+    }
+}
 
 void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& faces, const Medium::Sizes& sizes, const double r_cut) {
     const int n_atoms = fields.size();
