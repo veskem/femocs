@@ -130,8 +130,8 @@ public:
     int parse_command(const string& command, double* arg);
 
 private:
+    bool skip_calculations, fail;
     double t0;
-    bool skip_calculations;
 
     AtomReader reader;
     Config conf;
@@ -143,7 +143,7 @@ private:
 
     HeatReader temperatures = HeatReader(&bulk_interpolator);
     FieldReader fields = FieldReader(&vacuum_interpolator);
-    ChargeReader charges = ChargeReader(&vacuum_interpolator);
+    ChargeReader face_charges = ChargeReader(&vacuum_interpolator);
     ForceReader forces = ForceReader(&vacuum_interpolator);
 
     fch::PhysicalQuantities phys_quantities;

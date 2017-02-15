@@ -25,33 +25,28 @@ void LinearInterpolator::print_statistics() {
     if (!MODES.VERBOSE) return;
 
     const int n_atoms = size();
-    Vec3 elfield(0);
-    Vec3 rms_elfield(0);
-    double potential = 0;
-    double rms_potential = 0;
+    Vec3 vec(0), rms_vec(0);
+    double scalar = 0, rms_scalar = 0;
     int n_points = 0;
 
     for (int i = 0; i < n_atoms; ++i) {
-        double pot = solution[i].scalar;
-        if (pot >= error_field) continue;
-        Vec3 ef = solution[i].vector;
+        double s = solution[i].scalar;
+        Vec3 v = solution[i].vector;
+        if (s >= error_field) continue;
 
-        elfield += ef;
-        rms_elfield += ef * ef;
-        potential += pot;
-        rms_potential += pot * pot;
+        vec += v; rms_vec += v * v;
+        scalar += s; rms_scalar += s * s;
         n_points++;
     }
 
-    elfield *= (1.0 / n_points);
-    rms_elfield = Vec3(sqrt(rms_elfield.x), sqrt(rms_elfield.y), sqrt(rms_elfield.z)) * (1.0 / n_points);
-    potential = potential / n_points;
-    rms_potential = sqrt(rms_potential) / n_points;
+    vec *= (1.0 / n_points);
+    rms_vec = Vec3(sqrt(rms_vec.x), sqrt(rms_vec.y), sqrt(rms_vec.z)) * (1.0 / n_points);
+    scalar = scalar / n_points;
+    rms_scalar = sqrt(rms_scalar) / n_points;
 
-    cout << "  mean elfield: \t" << elfield << endl;
-    cout << "   rms elfield: \t" << rms_elfield << endl;
-    cout << "  mean potential: \t" << potential << endl;
-    cout << "   rms potential: \t" << rms_potential << endl;
+    cout << "  mean vector: \t" << vec << endl;
+    cout << "   rms vector: \t" << rms_vec << endl;
+    cout << "  mean & rms scalar: " << scalar << "\t" << rms_scalar << endl;
 }
 
 /* Return the mapping between tetrahedral & hexahedral mesh nodes,

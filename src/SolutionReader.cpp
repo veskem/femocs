@@ -220,28 +220,23 @@ void SolutionReader::print_statistics() {
     const int n_atoms = size();
     Vec3 vec(0), rms_vec(0);
     double scalar = 0, rms_scalar = 0;
-    int n_points = 0;
 
     for (int i = 0; i < n_atoms; ++i) {
         Vec3 v = interpolation[i].vector;
         double s = interpolation[i].scalar;
 
-        if (s >= interpolator->error_field) continue;
-
         vec += v; rms_vec += v * v;
         scalar += s; rms_scalar += s * s;
-        n_points++;
     }
 
-    vec *= (1.0 / n_points);
-    rms_vec = Vec3(sqrt(rms_vec.x), sqrt(rms_vec.y), sqrt(rms_vec.z)) * (1.0 / n_points);
-    scalar = scalar / n_points;
-    rms_scalar = sqrt(rms_scalar) / n_points;
+    vec *= (1.0 / n_atoms);
+    rms_vec = Vec3(sqrt(rms_vec.x), sqrt(rms_vec.y), sqrt(rms_vec.z)) * (1.0 / n_atoms);
+    scalar = scalar / n_atoms;
+    rms_scalar = sqrt(rms_scalar) / n_atoms;
 
     cout << "  mean " << vec_label << ": \t" << vec << endl;
     cout << "   rms " << vec_label << ": \t" << rms_vec << endl;
-    cout << "  mean " << scalar_label << ": \t" << scalar << endl;
-    cout << "   rms " << scalar_label << ": \t" << rms_scalar << endl;
+    cout << "  mean & rms " << scalar_label << ": " << scalar << "\t" << rms_scalar << endl;
 }
 
 /* ==========================================

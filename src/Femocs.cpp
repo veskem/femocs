@@ -18,7 +18,7 @@ using namespace std;
 namespace femocs {
 
 // specify simulation parameters
-Femocs::Femocs(const string &conf_file) : skip_calculations(false) {
+Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) {
     start_msg(t0, "======= Femocs started! =======\n");
 
     // Read configuration parameters from configuration file
@@ -97,8 +97,6 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 
 // Generate bulk and vacuum meshes
 int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
-    bool fail;
-
     Media bulk, coarse_surf, vacuum;
     fail = generate_boundary_nodes(bulk, coarse_surf, vacuum);
     if (fail) return 1;
@@ -159,8 +157,6 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
 
 // Solve Laplace equation
 int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
-    bool fail;
-
     start_msg(t0, "=== Importing mesh to Laplace solver...");
     fail = !solver.import_mesh_directly(mesh.nodes.export_dealii(), mesh.hexahedra.export_dealii());
     check_message(fail, "Importing mesh to Deal.II failed! Field calculation will be skipped!");
@@ -200,8 +196,6 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
 // Solve heat and continuity equations
 int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) {
     if (!conf.heating) return 0;
-
-    bool fail;
 
     start_msg(t0, "=== Initializing rho & T solver...");
     ch_solver->reinitialize(&laplace_solver, prev_ch_solver);
@@ -247,7 +241,6 @@ int Femocs::run(const double elfield, const string &message) {
     static bool prev_skip_calculations = true;
 
     double tstart;  // Variable used to measure the code execution time
-    bool fail;
 
     if (!prev_skip_calculations && MODES.WRITEFILE)
         MODES.WRITEFILE = false;
@@ -436,17 +429,18 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
 // calculate and export charges & forces on imported atom coordinates
 int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
     check_message(fields.size() == 0, "No force to export!");
+
     if (!skip_calculations) {
         start_msg(t0, "=== Calculating face charges...");
 //        charges.calc_interpolated_charges(bulk_mesh);
-        charges.calc_charges(bulk_mesh);
+        face_charges.calc_charges(bulk_mesh);
         end_msg(t0);
 
-        charges.print_statistics(conf.neumann * reader.sizes.xbox * reader.sizes.ybox);
-        charges.write("output/charges.xyz");
+        face_charges.print_statistics(conf.neumann * reader.sizes.xbox * reader.sizes.ybox);
+        face_charges.write("output/charges.xyz");
 
         start_msg(t0, "=== Calculating atomic forces...");
-        forces.calc_forces(fields, charges, reader.sizes, conf.coord_cutoff);
+        forces.calc_forces(fields, face_charges, reader.sizes, conf.coord_cutoff);
         end_msg(t0);
 
         forces.write("output/forces.movie");
