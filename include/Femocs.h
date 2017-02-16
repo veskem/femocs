@@ -145,7 +145,6 @@ private:
 
     HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
     FieldReader fields = FieldReader(&vacuum_interpolator);     ///< interpolated fields and potentials
-    ChargeReader face_charges = ChargeReader(&vacuum_interpolator); ///< charges on surface faces
     ForceReader forces = ForceReader(&vacuum_interpolator);     ///< forces on surface atoms
 
     fch::PhysicalQuantities phys_quantities;    ///< physical quantities used in heat calculations

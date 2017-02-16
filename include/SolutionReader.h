@@ -136,7 +136,7 @@ public:
 
     void calc_charges(const TetgenMesh& mesh);
 
-    void clean(const Medium::Sizes& sizes);
+    void clean(const Medium::Sizes& sizes, const double latconst);
 
     Vec3 get_elfield(const int i) const;
 
@@ -145,7 +145,7 @@ public:
     double get_charge(const int i) const;
 
 private:
-    const double eps0 = 8.854187817620e-12; ///< vacuum permittivity [F/m]
+    const double eps0 = 1.0; //8.854187817620e-12; ///< vacuum permittivity [F/m]
 
     void get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields);
 };
@@ -157,9 +157,8 @@ public:
     ForceReader();
     ForceReader(LinearInterpolator* ip);
 
-    void calc_forces(const FieldReader &fields, const ChargeReader& faces, const Medium& extension, const double r_cut);
-
-    void calc_forces(const FieldReader& fields, const ChargeReader& faces, const Medium::Sizes& sizes, const double r_cut);
+    /** Calculate forces from atomic electric fields and face charges */
+    void calc_forces(const FieldReader &fields, const ChargeReader& faces, const double r_cut);
 
     /** Export the induced charge and force on imported atoms
      * @param n_atoms  number of first atoms field is calculated

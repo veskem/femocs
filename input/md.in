@@ -8,7 +8,7 @@ tetnode_weight = 0.0 1.0        # weight of the solution on tetrahedral node
                                 # 2nd weight for electric potential
 heating = false                 # calculate current density and temperature in nanotip
 clear_output = true;            # clear output folder before the run
-infile = input/nanotip_big.xyz  # default file used with atom coordinates
+infile = input/nanotip_small.xyz  # default file used with atom coordinates
 latconst = 3.61                 # lattice constant
 coord_cutoff = 3.1              # coordination analysis cut-off radius
 mesh_quality = 2.0              # minimum mesh quality Tetgen is allowed to make
