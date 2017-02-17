@@ -23,7 +23,8 @@ Config::Config() {
     mesh_quality = "2.0";        // minimum mesh quality Tetgen is allowed to make
     nt = 4;                      // number of OpenMP threads
     radius = 14.0;               // inner radius of coarsening cylinder
-    smooth_factor = 0.5;         // surface smoothing factor; bigger number gives smoother surface
+    surface_smooth_factor = 0.5; // surface smoothing factor; bigger number gives smoother surface
+    charge_smooth_factor = 1.0;  // charge smoothing factor; bigger number gives smoother charges
     postprocess_marking = false; // make extra effort to mark correctly the vacuum nodes in shadow area
     refine_apex = false;         // refine nanotip apex
     distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
@@ -43,9 +44,6 @@ Config::Config() {
     n_newton = 10;               // maximum number of Newton iterations
 
     clear_output = false;         // clear output folder
-
-    tetnode_weight.potential = 1.0; // weight of potential on tetrahedral node
-    tetnode_weight.elfield = 0.0;   // weight of electric field on tetrahedral node
 }
 
 // Remove the noise from the beginning of the string
@@ -70,7 +68,8 @@ void Config::read_all(const string& file_name) {
     read_command("nnn", nnn);
     read_command("mesh_quality", mesh_quality);
     read_command("radius", radius);
-    read_command("smooth_factor", smooth_factor);
+    read_command("smooth_factor", surface_smooth_factor);
+    read_command("charge_smooth_factor", charge_smooth_factor);
     read_command("postprocess_marking", postprocess_marking);
     read_command("refine_apex", refine_apex);
     read_command("heating", heating);
@@ -89,12 +88,6 @@ void Config::read_all(const string& file_name) {
     cfactor.amplitude = coarse_factors[0];
     cfactor.r0_cylinder = coarse_factors[1];
     cfactor.r0_sphere = coarse_factors[2];
-
-    vector<double> w0 = { tetnode_weight.elfield, tetnode_weight.potential };
-    read_command("tetnode_weight", w0);
-    tetnode_weight.elfield = w0[0];
-    tetnode_weight.potential = w0[1];
-
 }
 
 void Config::parse_file(const string& file_name) {

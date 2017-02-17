@@ -593,7 +593,9 @@ ForceReader::ForceReader() : SolutionReader() {}
 ForceReader::ForceReader(LinearInterpolator* ip) : SolutionReader(ip, "force", "force_norm", "charge") {}
 
 // Calculate forces from atomic electric fields and face charges
-void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& faces, const double r_cut) {
+void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& faces,
+        const double r_cut, const double smooth_factor) {
+
     const double eps = 0.01;
     const int n_atoms = fields.size();
     const int n_faces = faces.size();
@@ -618,7 +620,7 @@ void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& fac
         double q_face = faces.get_charge(face);
 
         double r_cut2 = faces.get_area(face) * 100.0;
-        double smooth_factor = sqrt(r_cut2) / 10.0;
+        double sf = smooth_factor * sqrt(r_cut2) / 10.0;
 
         // Find weights and normalization factor for all the atoms for given face
         // Get the charge for real surface atoms
@@ -628,7 +630,7 @@ void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& fac
             double dist2 = point1.periodic_distance2(get_point(atom), sizes.xbox, sizes.ybox);
             if (dist2 > r_cut2) continue;
 
-            double w = exp(-1.0 * sqrt(dist2) / smooth_factor);
+            double w = exp(-1.0 * sqrt(dist2) / sf);
             weights[atom] = w;
             w_sum += w;
         }

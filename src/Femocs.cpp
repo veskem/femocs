@@ -76,7 +76,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     coarse_surf = extended_surf;
     coarse_surf += dense_surf;
     coarse_surf = coarse_surf.clean(coarseners);
-    coarse_surf.smoothen(conf.radius, conf.smooth_factor, 3.0*conf.coord_cutoff);
+    coarse_surf.smoothen(conf.radius, conf.surface_smooth_factor, 3.0*conf.coord_cutoff);
     end_msg(t0);
 
     coarse_surf.write("output/surface_coarse.xyz");
@@ -137,7 +137,7 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
 
     start_msg(t0, "=== Cleaning surface faces & atoms...");
     bulk_mesh.faces.clean_sides(reader.sizes);
-    dense_surf.clean(bulk_mesh, 1.0*conf.coord_cutoff);
+    dense_surf.clean(bulk_mesh, 1.4*conf.coord_cutoff);
     end_msg(t0);
 
     bulk_mesh.faces.write("output/surface_faces_clean.vtk");
@@ -185,7 +185,7 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     if (MODES.WRITEFILE) solver.write("output/result_E_phi" + conf.message + ".vtk");
 
     start_msg(t0, "=== Extracting E and phi...");
-    vacuum_interpolator.extract_solution(&solver, mesh, conf.tetnode_weight.elfield, conf.tetnode_weight.potential);
+    vacuum_interpolator.extract_solution(&solver, mesh);
     end_msg(t0);
 
     vacuum_interpolator.write("output/result_E_phi.xyz");
@@ -445,9 +445,10 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         face_charges.clean(dense_surf.sizes, conf.latconst);
         end_msg(t0);
         face_charges.write("output/charges.xyz");
+        face_charges.write("output/charges.vtk");
 
         start_msg(t0, "=== Calculating atomic forces...");
-        forces.calc_forces(fields, face_charges, conf.coord_cutoff);
+        forces.calc_forces(fields, face_charges, conf.coord_cutoff, conf.charge_smooth_factor);
         end_msg(t0);
 
         forces.write("output/forces.movie");

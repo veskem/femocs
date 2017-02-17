@@ -93,7 +93,7 @@ void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::DoFHan
 }
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
-void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh, const double w0_elfield, const double w0_pot) {
+void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
     vector<vector<unsigned int>> voro_cells = mesh.get_voronoi_cells();
 
     // loop through the tetrahedral nodes
@@ -101,26 +101,23 @@ void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh, const double w
         if (solution[i].norm >= error_field) continue;
 
         Point3 tetnode = mesh.nodes[i];
-        Vec3 elfield(0);
-        double potential = 0;
+        Vec3 vec(0);
         double w_sum = 0;
 
         // tetnode new solution will be the weighed average of the solutions on its voronoi cell nodes
         for (unsigned int v : voro_cells[i]) {
             double w = exp ( -1.0 * tetnode.distance(mesh.nodes[v]) );
             w_sum += w;
-            potential += solution[v].scalar * w;
-            elfield += solution[v].vector * w;
+            vec += solution[v].vector * w;
         }
 
-        solution[i].scalar = solution[i].scalar * w0_pot +  potential * ( (1.0-w0_pot)/w_sum );
-        solution[i].vector = solution[i].vector * w0_elfield + elfield * ( (1.0-w0_elfield)/w_sum );
+        solution[i].vector = vec * (1.0 / w_sum);
         solution[i].norm = solution[i].vector.norm();
     }
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh, const double w0_elfield, const double w0_pot) {
+void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh) {
     require(fem, "NULL pointer can't be handled!");
 
     // Copy the mesh nodes
@@ -156,7 +153,7 @@ void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh
     }
 
     // force solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
-    average_tetnodes(mesh, w0_elfield, w0_pot);
+    average_tetnodes(mesh);
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution

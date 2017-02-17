@@ -63,12 +63,6 @@ public:
     bool use_histclean;         ///< Clean the solution with histogram cleaner
     int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
 
-    /** Weight of the solution on tetrahedral node */
-    struct TetnodeWeight {
-        double elfield;   ///< electric field weight
-        double potential; ///< electric potential weight
-    } tetnode_weight;
-
     /** Minimum distance between atoms from current and previous run so that their
      * movement is considered to be sufficiently big to recalculate electric field;
      * 0 turns the check off */
@@ -78,7 +72,10 @@ public:
     double radius;
 
     /// Factor that is proportional to the extent of surface smoothing; 0 turns smoothing off
-    double smooth_factor;
+    double surface_smooth_factor;
+
+    /// Factor that is proportional to the extent of charge smoothing; 0 turns smoothing off
+    double charge_smooth_factor;
 
     /// Factors that are proportional to the extent of surface coarsening; 0 turns corresponding coarsening component off
     struct CoarseFactor {
