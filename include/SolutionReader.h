@@ -132,9 +132,9 @@ public:
     ChargeReader();
     ChargeReader(LinearInterpolator* ip);
 
-    void calc_interpolated_charges(const TetgenMesh& mesh);
+    void calc_interpolated_charges(const TetgenMesh& mesh, const double E0);
 
-    void calc_charges(const TetgenMesh& mesh);
+    void calc_charges(const TetgenMesh& mesh, const double E0);
 
     void clean(const Medium::Sizes& sizes, const double latconst);
 
@@ -144,9 +144,9 @@ public:
 
     double get_charge(const int i) const;
 
-private:
-    const double eps0 = 1.0; //8.854187817620e-12; ///< vacuum permittivity [F/m]
+    const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
 
+private:
     void get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields);
 };
 

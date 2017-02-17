@@ -259,7 +259,8 @@ int Femocs::run(const double elfield, const string &message) {
             + "! Field calculation will be skipped!");
 
     skip_calculations = true;
-    conf.neumann = 10.0 * elfield;
+    conf.E0 = elfield;
+    conf.neumann = -10.0 * elfield;  // set minus gradient of solution to equal to E0; also convert V/Angstrom  to  V/nm
     tstart = omp_get_wtime();
 
     // Generate FEM mesh
@@ -435,24 +436,23 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         ChargeReader face_charges(&vacuum_interpolator); // charges on surface faces
 
         start_msg(t0, "=== Calculating face charges...");
-//        face_charges.calc_interpolated_charges(bulk_mesh);  // electric field in the middle of face is interpolated
-        face_charges.calc_charges(bulk_mesh);             // electric field in the middle of face in directly from solution
+//        face_charges.calc_interpolated_charges(bulk_mesh, conf.E0);  // electric field in the middle of face is interpolated
+        face_charges.calc_charges(bulk_mesh, conf.E0);             // electric field in the middle of face in directly from solution
         end_msg(t0);
 
-        face_charges.print_statistics(conf.neumann * reader.sizes.xbox * reader.sizes.ybox);
+        face_charges.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
 
         start_msg(t0, "=== Cleaning face charges...");
         face_charges.clean(dense_surf.sizes, conf.latconst);
         end_msg(t0);
         face_charges.write("output/charges.xyz");
-        face_charges.write("output/charges.vtk");
 
         start_msg(t0, "=== Calculating atomic forces...");
         forces.calc_forces(fields, face_charges, conf.coord_cutoff, conf.charge_smooth_factor);
         end_msg(t0);
 
         forces.write("output/forces.movie");
-        forces.print_statistics(conf.neumann * reader.sizes.xbox * reader.sizes.ybox);
+        forces.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
     }
 
     start_msg(t0, "=== Exporting atomic forces...");

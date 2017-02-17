@@ -144,6 +144,7 @@ void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh
         if (n >= 0) {
             require(i < ef.size(), "Invalid index: " + to_string(i));
             Vec3 elfield(ef[i][0], ef[i][1], ef[i][2]);
+            elfield *= 0.1;   // convert V/nm  to  V/Angstom
             solution.push_back(Solution(elfield, pot[i++]));
         }
 

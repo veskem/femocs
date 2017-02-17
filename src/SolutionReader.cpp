@@ -222,7 +222,7 @@ void SolutionReader::print_statistics(const double Q) {
         q += interpolation[i].scalar;
 
     cout << "  Q / sum(" << scalar_label << ") = ";
-    printf("%.1f / %.1f = %.4f\n", Q, q, Q/q);
+    printf("%.3f / %.3f = %.4f\n", Q, q, Q/q);
 }
 
 // Print statistics about interpolated solution
@@ -268,7 +268,7 @@ void FieldReader::interpolate(const Medium &medium, const double r_cut, const in
     
     // Copy the atoms
     for (int i = 0; i < n_atoms; ++i)
-        append(Atom(i, medium.get_point(i), 0));
+        append(medium.get_atom(i));
 
     // Sort atoms into sequential order to speed up interpolation
     if (srt) sort_spatial();
@@ -309,7 +309,7 @@ void FieldReader::interpolate(const int n_points, const double* x, const double*
         const double r_cut, const int component, const bool sort) {
     Medium medium(n_points);
     for (int i = 0; i < n_points; ++i)
-        medium.append(Point3(x[i], y[i], z[i]));
+        medium.append(Atom(i, Point3(x[i], y[i], z[i]), 0));
 
     // Interpolate solution
     interpolate(medium, r_cut, component, sort);
@@ -318,13 +318,13 @@ void FieldReader::interpolate(const int n_points, const double* x, const double*
 // Linearly interpolate electric field on a set of points
 void FieldReader::export_elfield(const int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     require(n_points == size(), "Invalid array size: " + to_string(n_points));
-
     for (int i = 0; i < n_points; ++i) {
-        Ex[i] = interpolation[i].vector.x;
-        Ey[i] = interpolation[i].vector.y;
-        Ez[i] = interpolation[i].vector.z;
-        Enorm[i] = interpolation[i].norm;
-        flag[i] = atoms[i].marker;
+        int id = get_id(i);
+        Ex[id] = interpolation[i].vector.x;
+        Ey[id] = interpolation[i].vector.y;
+        Ez[id] = interpolation[i].vector.z;
+        Enorm[id] = interpolation[i].norm;
+        flag[id] = atoms[i].marker;
     }
 }
 
@@ -352,13 +352,13 @@ void FieldReader::export_solution(const int n_atoms, double* Ex, double* Ey, dou
 
     // Pass the the calculated electric field for stored atoms
     for (int i = 0; i < size(); ++i) {
-        int identifier = get_id(i);
-        if (identifier < 0 || identifier >= n_atoms) continue;
+        int id = get_id(i);
+        if (id < 0 || id >= n_atoms) continue;
 
-        Ex[identifier] = interpolation[i].vector.x;
-        Ey[identifier] = interpolation[i].vector.y;
-        Ez[identifier] = interpolation[i].vector.z;
-        Enorm[identifier] = interpolation[i].norm;
+        Ex[id] = interpolation[i].vector.x;
+        Ey[id] = interpolation[i].vector.y;
+        Ez[id] = interpolation[i].vector.z;
+        Enorm[id] = interpolation[i].norm;
     }
 }
 
@@ -439,10 +439,11 @@ ChargeReader::ChargeReader(LinearInterpolator* ip) : SolutionReader(ip, "elfield
 
 // Calculate charges on surface faces using interpolated electric fields
 // Conserves charge worse but gives smoother forces
-void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh) {
+void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh, const double E0) {
     require(interpolator, "NULL interpolator cannot be used!");
 
     const int n_faces = mesh.faces.size();
+    const double sign = fabs(E0) / E0;
     reserve(n_faces);
 
     // Store the centroids of the triangles
@@ -462,7 +463,7 @@ void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh) {
         Vec3 elfield = interpolator->get_vector(point, abs(elem));
 
         double area = mesh.faces.get_area(face);
-        double charge = area * elfield.norm();  // * eps0;
+        double charge = eps0 * area * elfield.norm() * sign;
         interpolation.push_back(Solution(elfield, area, charge));
     }
 
@@ -476,8 +477,9 @@ void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh) {
 
 // Calculate charges on surface faces using direct solution in the face centroids
 // Conserves charge better but gives more hairy forces
-void ChargeReader::calc_charges(const TetgenMesh& mesh) {
+void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
     const int n_faces = mesh.faces.size();
+    const double sign = fabs(E0) / E0;
     reserve(n_faces);
 
     // Store the centroids of the triangles
@@ -492,7 +494,7 @@ void ChargeReader::calc_charges(const TetgenMesh& mesh) {
     // Calculate the charges for the triangles
     for (int face = 0; face < n_faces; ++face) {
         double area = mesh.faces.get_area(face);
-        double charge = area * elfields[face].norm() * eps0;
+        double charge = eps0 * area * elfields[face].norm() * sign;
         interpolation.push_back(Solution(elfields[face], area, charge));
     }
 }
@@ -644,7 +646,7 @@ void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& fac
     }
 
     for (int atom = 0; atom < n_atoms; ++atom) {
-        Vec3 force = fields.get_elfield(atom) * charges[atom];
+        Vec3 force = fields.get_elfield(atom) * charges[atom];   // [e*V/A]
         interpolation.push_back(Solution(force, charges[atom]));
     }
 }
