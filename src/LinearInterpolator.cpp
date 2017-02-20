@@ -55,6 +55,7 @@ void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::DoFHan
         vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs) {
 
     require(tria->n_vertices() > 0, "Invalid triangulation size!");
+    const double eps = 1e-10;
 
     const int n_femocs_nodes = size();
     const int n_dealii_nodes = tria->n_used_vertices();
@@ -68,7 +69,7 @@ void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::DoFHan
     typename dealii::Triangulation<3>::active_vertex_iterator vertex = tria->begin_active_vertex();
     // Loop through tetrahedral mesh vertices
     for (int i = 0; i < n_femocs_nodes && vertex != tria->end_vertex(); ++i)
-        if ( get_point(i) == vertex->vertex() ) {
+        if ( get_point(i).distance2(vertex->vertex()) < eps ) {
             tet2hex[i] = vertex->vertex_index();
             vertex++;
         }

@@ -190,7 +190,7 @@ void Coarseners::generate(const Medium &medium, const double radius, const Confi
     this->radius = radius;                 // store the coarsener radius
     amplitude = cf.amplitude * latconst;
     r0_cylinder = max(0.5, cf.r0_cylinder) * latconst;
-    const double r0_sphere = max(0.5, cf.r0_sphere) * latconst;
+    const double r0_sphere = max(0.0, cf.r0_sphere) * latconst;
     const double r0_flat = min(amplitude*1e20, r0_cylinder);
 
     attach_coarsener( make_shared<NanotipCoarsener>(apex, radius, amplitude, r0_sphere, r0_cylinder) );

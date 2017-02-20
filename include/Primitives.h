@@ -324,7 +324,7 @@ public:
     double distance(const Point3 &p) const { return sqrt(distance2(p)); }
 
     /** Squared distance between a Point3 and dealii::Point<3> */
-    double distance2(const dealii::Point<3> &p) const {
+    double distance2(dealii::Point<3> &p) const {
         double xx = x - p[0];
         double yy = y - p[1];
         double zz = z - p[2];
@@ -332,7 +332,7 @@ public:
     }
 
     /** Distance between a Point3 and dealii::SimpleCell_T<3> */
-    double distance(const dealii::Point<3> &p) const { return sqrt(distance2(p)); }
+    double distance(dealii::Point<3> &p) const { return sqrt(distance2(p)); }
 
     /** Squared distance between two Point3-s taking into account the simulation cell periodicity.
      * Period == 0 in some direction gives the result without periodicity in that direction. */

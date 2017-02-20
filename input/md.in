@@ -12,7 +12,7 @@ mesh_quality = 2.0              # minimum mesh quality Tetgen is allowed to make
 box_width = 4.0                 # minimal simulation box width [tip height]
 box_height = 3.5                # simulation box height [tip height]
 bulk_height = 20                # bulk substrate height [latconst]
-radius = 16.0                   # inner radius of coarsening cylinder
+radius =  16.0                   # inner radius of coarsening cylinder
 coarse_factor = 0.3 1.0 0.5     # coarsening factor; bigger number gives coarser surface
                                 # 1st - coarsening factor for atoms
                                 # 2nd - minimum distance between atoms in nanotip below apex [latconst]

@@ -127,9 +127,6 @@ void expectation_fails(const char *file, int line, string message);
 void write_message(const string& message);
 
 /** Append line to log-file */
-void write_log(const char* message);
-
-/** Append line to log-file */
 void write_log(const string& message);
 
 double __start_msg(const char* message);

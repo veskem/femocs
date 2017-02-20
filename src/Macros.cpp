@@ -74,16 +74,9 @@ void write_message(const string& message) {
     if (MODES.WRITEFILE) cout << message << endl;
 }
 
-void write_log(const char* message) {
-    ofstream logfile(FEMOCSLOGPATH, ios_base::app);
-    if (logfile) logfile << endl << string(message) << endl;
-//    logfile.close();
-}
-
 void write_log(const string& message) {
     ofstream logfile(FEMOCSLOGPATH, ios_base::app);
     if (logfile) logfile << endl << string(message) << endl;
-//    logfile.close();
 }
 
 // Return mask of indices that are not equal to the scalar
