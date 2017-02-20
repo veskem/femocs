@@ -138,14 +138,13 @@ private:
     Media dense_surf;       ///< non-coarsened surface atoms
     Media extended_surf;    ///< atoms added for the surface atoms
 
-    TetgenMesh bulk_mesh;   ///< FEM mesh in bulk material
-    TetgenMesh vacuum_mesh; ///< FEM mesh in vacuum
     LinearInterpolator bulk_interpolator;   ///< data for interpolating results in bulk
     LinearInterpolator vacuum_interpolator; ///< data for interpolating results in vacuum
 
     HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
     FieldReader fields = FieldReader(&vacuum_interpolator);     ///< interpolated fields and potentials
     ForceReader forces = ForceReader(&vacuum_interpolator);     ///< forces on surface atoms
+    ChargeReader face_charges = ChargeReader(&vacuum_interpolator); ///< charges on surface faces
 
     fch::PhysicalQuantities phys_quantities;    ///< physical quantities used in heat calculations
     fch::CurrentsAndHeating<3> ch_solver1;      ///< first currents and heating solver
@@ -164,6 +163,8 @@ private:
 
     /** Solve heat and continuity equations */
     int solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
+
+    int extract_charge(const TetgenMesh& mesh);
 };
 
 } /* namespace femocs */

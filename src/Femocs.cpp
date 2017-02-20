@@ -237,6 +237,22 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     return 0;
 }
 
+int Femocs::extract_charge(const TetgenMesh& mesh) {
+    start_msg(t0, "=== Calculating face charges...");
+//        face_charges.calc_interpolated_charges(bulk_mesh, conf.E0);  // electric field in the middle of face is interpolated
+    face_charges.calc_charges(mesh, conf.E0);             // electric field in the middle of face in directly from solution
+    end_msg(t0);
+
+    face_charges.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
+
+    start_msg(t0, "=== Cleaning face charges...");
+    face_charges.clean(dense_surf.sizes, conf.latconst);
+    end_msg(t0);
+    face_charges.write("output/charges.xyz");
+
+    return 0;
+}
+
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
 int Femocs::run(const double elfield, const string &message) {
     static unsigned int timestep = 0;
@@ -264,6 +280,9 @@ int Femocs::run(const double elfield, const string &message) {
     conf.neumann = -10.0 * elfield;  // set minus gradient of solution to equal to E0; also convert V/Angstrom  to  V/nm
     tstart = omp_get_wtime();
 
+    TetgenMesh bulk_mesh;   ///< FEM mesh in bulk material
+    TetgenMesh vacuum_mesh; ///< FEM mesh in vacuum
+
     // Generate FEM mesh
     fail = generate_meshes(bulk_mesh, vacuum_mesh);
     if (fail) return 1;
@@ -275,6 +294,10 @@ int Femocs::run(const double elfield, const string &message) {
 
     // Solve heat & continuity equation on bulk mesh
     fail = solve_heat(bulk_mesh, laplace_solver);
+    if (fail) return 1;
+
+    // Extract face charges
+    fail = extract_charge(bulk_mesh);
     if (fail) return 1;
 
     start_msg(t0, "=== Saving atom positions...");
@@ -431,23 +454,9 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
 
 // calculate and export charges & forces on imported atom coordinates
 int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
-    check_message(fields.size() == 0, "No force to export!");
+    check_message(fields.size() == 0 || face_charges.size() == 0, "No force to export!");
 
     if (!skip_calculations) {
-        ChargeReader face_charges(&vacuum_interpolator); // charges on surface faces
-
-        start_msg(t0, "=== Calculating face charges...");
-//        face_charges.calc_interpolated_charges(bulk_mesh, conf.E0);  // electric field in the middle of face is interpolated
-        face_charges.calc_charges(bulk_mesh, conf.E0);             // electric field in the middle of face in directly from solution
-        end_msg(t0);
-
-        face_charges.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
-
-        start_msg(t0, "=== Cleaning face charges...");
-        face_charges.clean(dense_surf.sizes, conf.latconst);
-        end_msg(t0);
-        face_charges.write("output/charges.xyz");
-
         start_msg(t0, "=== Calculating atomic forces...");
         forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coord_cutoff, conf.charge_smooth_factor);
         end_msg(t0);
