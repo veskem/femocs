@@ -449,7 +449,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         face_charges.write("output/charges.xyz");
 
         start_msg(t0, "=== Calculating atomic forces...");
-        forces.calc_forces(fields, face_charges, conf.coord_cutoff, conf.charge_smooth_factor);
+        forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coord_cutoff, conf.charge_smooth_factor);
         end_msg(t0);
 
         forces.write("output/forces.movie");

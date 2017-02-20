@@ -23,14 +23,15 @@ void write_defaults(ofstream &file) {
     file << "tetnode_weight = 0.0 1.0"   << endl;
     file << "heating = false"            << endl;
     file << "clear_output = true"        << endl;
-    file << "smooth_factor = 1.0"        << endl;
+    file << "smooth_factor = 0.0"        << endl;
+    file << "charge_smooth_factor = 1.0" << endl;
     file << "postprocess_marking = true" << endl;
     file << "distance_tol = 0.16"        << endl;
     file << "n_writefile = 1"            << endl;
     file << "femocs_verbose = true"      << endl;
     file << "coord_cutoff = 3.1"         << endl;
-    file << "surface_thichness = 3.1"    << endl;
     file << "latconst = 3.61"            << endl;
+    file << "use_histclean = false"      << endl;
 }
 
 void write_hr5(ofstream &file) {
@@ -93,7 +94,8 @@ void write_cluster(ofstream &file) {
 void write_molten(ofstream &file) {
     file << "infile = input/nanotip_melt.xyz" << endl;
     file << "coarse_factor = 0.3 1.5 1.0" << endl;
-    file << "radius = 45.0"           << endl;
+    file << "radius = 45.0"            << endl;
+    file << "surface_thichness = 4.65" << endl;
 }
 
 int main(int argc, char **argv) {

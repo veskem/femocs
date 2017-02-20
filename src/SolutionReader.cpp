@@ -164,11 +164,10 @@ void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, co
 // Clean the interpolation from peaks using histogram cleaner
 void SolutionReader::clean(const int coordinate, const double r_cut) {
     require(coordinate >= 0 && coordinate <= 4, "Invalid coordinate: " + to_string(coordinate));
-    const int n_bins = (int) size() / 250;
+    const int n_atoms = size();
+    const int n_bins = (int) n_atoms / 250;
 
     if (n_bins <= 1 || r_cut < 0.1) return;
-
-    const int n_atoms = size();
 
     vector<int> bins(n_bins, 0);
     vector<double> bounds(n_bins+1);
@@ -649,6 +648,12 @@ void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& fac
         Vec3 force = fields.get_elfield(atom) * charges[atom];   // [e*V/A]
         interpolation.push_back(Solution(force, charges[atom]));
     }
+
+    clean(0, r_cut);  // clean by vector x-component
+    clean(1, r_cut);  // clean by vector y-component
+    clean(2, r_cut);  // clean by vector z-component
+    clean(3, r_cut);  // clean by vector norm
+    clean(4, r_cut);  // clean by scalar
 }
 
 // Export the induced charge and force on imported atoms
