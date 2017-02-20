@@ -29,6 +29,7 @@ void write_defaults(ofstream &file) {
     file << "n_writefile = 1"            << endl;
     file << "femocs_verbose = true"      << endl;
     file << "coord_cutoff = 3.1"         << endl;
+    file << "surface_thichness = 3.1"    << endl;
     file << "latconst = 3.61"            << endl;
 }
 

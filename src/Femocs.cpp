@@ -138,7 +138,7 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
 
     start_msg(t0, "=== Cleaning surface faces & atoms...");
     bulk_mesh.faces.clean_sides(reader.sizes);
-    dense_surf.clean(bulk_mesh, 1.4*conf.coord_cutoff);
+    dense_surf.clean(bulk_mesh, conf.surface_thichness);
     end_msg(t0);
 
     bulk_mesh.faces.write("output/surface_faces_clean.vtk");

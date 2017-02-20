@@ -18,6 +18,7 @@ Config::Config() {
     atom_file = "input/nanotip_medium.xyz";
     latconst = 3.61;
 
+    surface_thichness = 3.1;     // maximum distance the surface atom is allowed to be from surface mesh
     coord_cutoff = 3.1;          // coordination analysis cut-off radius
     nnn = 12;                    // number of nearest neighbours in bulk
     mesh_quality = "2.0";        // minimum mesh quality Tetgen is allowed to make
@@ -33,7 +34,7 @@ Config::Config() {
     bulk_height = 20;            // bulk substrate height [lattice constant]
     n_writefile = 1;             // number of time steps between writing the output files
     use_histclean = false;       // use histogram cleaner to get rid of sharp peaks in the solution
-    cluster_anal = false;         // enable cluster analysis
+    cluster_anal = false;        // enable cluster analysis
 
     cfactor.amplitude = 0.4;     // coarsening factor
     cfactor.r0_cylinder = 1.0;   // minimum distance between atoms in nanotip below apex
@@ -66,6 +67,7 @@ void Config::read_all(const string& file_name) {
     read_command("infile", atom_file);
     read_command("latconst", latconst);
     read_command("coord_cutoff", coord_cutoff);
+    read_command("surface_thichness", surface_thichness);
     read_command("nnn", nnn);
     read_command("mesh_quality", mesh_quality);
     read_command("radius", radius);
