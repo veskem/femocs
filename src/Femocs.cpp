@@ -19,10 +19,18 @@ namespace femocs {
 
 // specify simulation parameters
 Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) {
-    start_msg(t0, "======= Femocs started! =======\n");
-
     // Read configuration parameters from configuration file
     conf.read_all(conf_file);
+
+    // Initialise file writing
+    MODES.WRITEFILE = conf.n_writefile > 0;
+
+    // Clear the results from previous run
+    if (conf.clear_output) system("rm -rf output");
+//    if (MODES.WRITEFILE) system("mkdir -p output");
+    system("mkdir -p output");
+
+    start_msg(t0, "======= Femocs started! =======\n");
 
     // Initialise heating module
     start_msg(t0, "=== Reading physical quantities...");
@@ -31,13 +39,6 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) 
     ch_solver  = &ch_solver1;
     prev_ch_solver = NULL;
     end_msg(t0);
-
-    // Initialise file writing
-    MODES.WRITEFILE = conf.n_writefile > 0;
-
-    // Clear the results from previous run
-    if (conf.clear_output) system("rm -rf output");
-    if (MODES.WRITEFILE) system("mkdir -p output");
 }
 
 // delete data and print bye-bye-message

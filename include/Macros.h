@@ -74,13 +74,13 @@ struct Modes {
 #endif // ASSERTMODE
 
 /** Definition to handle cases where operation does not complete normally */
-#define check_message(condition, message) if (condition) { cout << "\nFEMOCS: " << message << endl; return 1; }
+#define check_message(condition, message) if (condition) { write_log(message); cout << "\nFEMOCS: " << message << endl; return 1; }
 
 /** Definition to print progress messages and to find the start time of code execution */
-#define start_msg(t0, message) if (MODES.VERBOSE) t0 = __start_msg(message)
+#define start_msg(t0, message) { write_log(message); if (MODES.VERBOSE) t0 = __start_msg(message); }
 
 /** Definition to print the execution time of code */
-#define end_msg(t0) if (MODES.VERBOSE) __end_msg(t0);
+#define end_msg(t0) if (MODES.VERBOSE) __end_msg(t0)
 
 /** Return mask of indices that are equal to the scalar */
 vector<bool> vector_equal(const vector<int> *v, const int s);
@@ -123,6 +123,14 @@ void requirement_fails(const char *file, int line, string message);
 
 /** Throw an informative warning if expectation fails */
 void expectation_fails(const char *file, int line, string message);
+
+void write_message(const string& message);
+
+/** Append line to log-file */
+void write_log(const char* message);
+
+/** Append line to log-file */
+void write_log(const string& message);
 
 double __start_msg(const char* message);
 

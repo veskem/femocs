@@ -13,8 +13,12 @@
 #include <algorithm>
 #include <numeric>
 #include <iomanip>
+#include <fstream>
+#include <stdio.h>
 
 using namespace std;
+
+const string FEMOCSLOGPATH = "output/femocs.log";
 
 /* Template to return mask of indices that satisfy the comparison condition with an entry */
 template<typename T, typename Op>
@@ -57,11 +61,29 @@ double __start_msg(const char* message) {
 
     cout << endl << string(message) << string(whitespace_len, ' ');
     cout.flush();
+
     return omp_get_wtime();
 }
 
 void __end_msg(const double t0) {
-    cout << "time: " << setprecision(3) << omp_get_wtime() - t0 << setprecision(6) << endl;
+    printf("time: %.3f\n", omp_get_wtime() - t0);
+}
+
+void write_message(const string& message) {
+    write_log(message);
+    if (MODES.WRITEFILE) cout << message << endl;
+}
+
+void write_log(const char* message) {
+    ofstream logfile(FEMOCSLOGPATH, ios_base::app);
+    if (logfile) logfile << endl << string(message) << endl;
+//    logfile.close();
+}
+
+void write_log(const string& message) {
+    ofstream logfile(FEMOCSLOGPATH, ios_base::app);
+    if (logfile) logfile << endl << string(message) << endl;
+//    logfile.close();
 }
 
 // Return mask of indices that are not equal to the scalar
