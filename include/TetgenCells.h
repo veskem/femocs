@@ -49,7 +49,7 @@ public:
 
     /** Initialize marker appending */
     void init_markers(const int N) {
-        require(N > 0, "Invalid number of markers: " + to_string(N));
+        require(N >= 0, "Invalid number of markers: " + to_string(N));
         markers.clear();
         markers.reserve(N);
     }

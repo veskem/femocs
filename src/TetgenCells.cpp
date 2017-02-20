@@ -385,6 +385,7 @@ int Hexahedra::size() const {
 // Initialize hexahedron appending
 void Hexahedra::init(const int N) {
     TetgenCells::init(N);
+    hexs.clear();
     hexs.reserve(N);
 }
 
