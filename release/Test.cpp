@@ -20,7 +20,7 @@ void print_progress(const string& message, const bool contition) {
 }
 
 void write_defaults(ofstream &file) {
-    file << "tetnode_weight = 0.0 1.0"   << endl;
+
     file << "heating = false"            << endl;
     file << "clear_output = true"        << endl;
     file << "smooth_factor = 0.0"        << endl;
@@ -79,7 +79,7 @@ void write_stretch(ofstream &file) {
 
 void write_extend(ofstream &file) {
     file << "extended_atoms = input/extension.xyz" << endl;
-    file << "infile = input/apex.xyz"              << endl;
+    file << "infile = input/apex2.xyz"              << endl;
     file << "coarse_factor = 0.3 1.5 1.0" << endl;
     file << "femocs_periodic = false" << endl;
     file << "radius = 70.0"           << endl;
