@@ -119,7 +119,6 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     start_msg(t0, "=== Marking tetrahedral mesh...");
     fail = big_mesh.mark_mesh(conf.postprocess_marking);
     big_mesh.nodes.write("output/tetmesh_nodes.xyz");
-    big_mesh.nodes.write("output/tetmesh_nodes.vtk");
     big_mesh.elems.write("output/tetmesh_elems.vtk");
     check_message(fail, "Mesh marking failed! Field calcualtion will be skipped!");
     end_msg(t0);
@@ -127,7 +126,8 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
     big_mesh.generate_hexahedra();
     end_msg(t0);
-    big_mesh.nodes.write("output/hexmesh_nodes.vtk");
+
+    big_mesh.nodes.write("output/hexmesh_nodes.xyz");
     big_mesh.hexahedra.write("output/hexmesh_elems.vtk");
 
     start_msg(t0, "=== Separating vacuum & bulk meshes...");
@@ -149,7 +149,6 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     expect(bulk_mesh.hexahedra.size() > 0, "Zero elements in bulk mesh!");
     expect(vacuum_mesh.hexahedra.size() > 0, "Zero elements in vacuum mesh!");
 
-    bulk_mesh.elems.write("output/tetmesh_bulk" + conf.message + ".vtk");
     bulk_mesh.hexahedra.write("output/hexmesh_bulk" + conf.message + ".vtk");
     if (MODES.VERBOSE)
         cout << "Bulk:   " << bulk_mesh << "\nVacuum: " << vacuum_mesh << endl;
@@ -183,8 +182,6 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     solver.solve();
     end_msg(t0);
 
-    if (MODES.WRITEFILE) solver.write("output/result_E_phi" + conf.message + ".vtk");
-
     start_msg(t0, "=== Extracting E and phi...");
     vacuum_interpolator.extract_solution(&solver, mesh);
     end_msg(t0);
@@ -215,7 +212,6 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     double t_error = ch_solver->run_specific(conf.t_error, conf.n_newton, false, "", MODES.VERBOSE, 2.0);
     end_msg(t0);
 
-    if (MODES.WRITEFILE) ch_solver->output_results("output/result_rho_T" + conf.message + ".vtk");
     check_message(t_error > conf.t_error, "Temperature didn't converge, err=" + to_string(t_error)) + "! Using previous solution!";
 
     start_msg(t0, "=== Extracting T and rho...");
@@ -239,16 +235,13 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
 
 int Femocs::extract_charge(const TetgenMesh& mesh) {
     start_msg(t0, "=== Calculating face charges...");
-//        face_charges.calc_interpolated_charges(bulk_mesh, conf.E0);  // electric field in the middle of face is interpolated
+//    face_charges.calc_interpolated_charges(mesh, conf.E0);  // electric field in the middle of face is interpolated
     face_charges.calc_charges(mesh, conf.E0);             // electric field in the middle of face in directly from solution
     end_msg(t0);
 
     face_charges.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
-
-    start_msg(t0, "=== Cleaning face charges...");
     face_charges.clean(dense_surf.sizes, conf.latconst);
-    end_msg(t0);
-    face_charges.write("output/charges.xyz");
+    face_charges.write("output/face_charges.xyz");
 
     return 0;
 }
