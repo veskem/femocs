@@ -33,6 +33,7 @@ Config::Config() {
     box_height = 3.5;            // simulation box height in units of tip height
     bulk_height = 20;            // bulk substrate height [lattice constant]
     n_writefile = 1;             // number of time steps between writing the output files
+    verbose_mode = "verbose";    // mute, silent, verbose
     use_histclean = false;       // use histogram cleaner to get rid of sharp peaks in the solution
     cluster_anal = false;        // enable cluster analysis
 
@@ -80,7 +81,7 @@ void Config::read_all(const string& file_name) {
     read_command("box_width", box_width);
     read_command("box_height", box_height);
     read_command("bulk_height", bulk_height);    
-    read_command("femocs_verbose", MODES.VERBOSE);
+    read_command("femocs_verbose_mode", verbose_mode);
     read_command("femocs_periodic", MODES.PERIODIC);
     read_command("use_histclean", use_histclean);
     read_command("n_writefile", n_writefile);

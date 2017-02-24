@@ -24,7 +24,7 @@ postprocess_marking = true      # make extra effort to mark correctly the vacuum
 refine_apex = false             # refine nanotip apex
 distance_tol = 0.16             # minimum distance between atoms from previous and current run to recalculate solution
 n_writefile = 1                 # minimum number of time steps between writing file; 0 turns writing off
-femocs_verbose = true           # enable or disable the verbose mode
+femocs_verbose_mode = verbose   # mute, silent or verbose
 end                             # terminate the search of Femocs parameters 
 
 # Input file for PARCAS MD

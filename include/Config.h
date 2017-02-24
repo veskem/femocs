@@ -64,6 +64,7 @@ public:
     bool clear_output;          ///< Clear output folder before the run
     bool use_histclean;         ///< Clean the solution with histogram cleaner
     int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
+    string verbose_mode;        ///< Verbose mode: mute, silent, verbose
 
     /** Minimum distance between atoms from current and previous run so that their
      * movement is considered to be sufficiently big to recalculate electric field;

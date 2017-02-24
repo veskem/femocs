@@ -25,6 +25,11 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) 
     // Initialise file writing
     MODES.WRITEFILE = conf.n_writefile > 0;
 
+    // Pick the correct verbosity mode flags
+    if      (conf.verbose_mode == "mute")    { MODES.QUIET = true;  MODES.VERBOSE = false; }
+    else if (conf.verbose_mode == "silent")  { MODES.QUIET = false; MODES.VERBOSE = false; }
+    else if (conf.verbose_mode == "verbose") { MODES.QUIET = false; MODES.VERBOSE = true;  }
+
     // Clear the results from previous run
     if (conf.clear_output) system("rm -rf output");
 //    if (MODES.WRITEFILE) system("mkdir -p output");
@@ -248,10 +253,9 @@ int Femocs::extract_charge(const TetgenMesh& mesh) {
 
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
 int Femocs::run(const double elfield, const string &message) {
-    static unsigned int timestep = 0;
-    static bool prev_skip_calculations = true;
-
-    double tstart;  // Variable used to measure the code execution time
+    static unsigned int timestep = 0;  // Counter to measure how many times Femocs has been called
+    static bool prev_skip_calculations = true;  // Value of skip_calculations in last call
+    double tstart;                     // Variable used to measure the code execution time
 
     if (!prev_skip_calculations && MODES.WRITEFILE)
         MODES.WRITEFILE = false;
@@ -260,6 +264,7 @@ int Femocs::run(const double elfield, const string &message) {
         MODES.WRITEFILE = true;
 
     conf.message = to_string(timestep++);
+    write_message("\nFEMOCS: running at timestep " + conf.message);
     conf.message = "_" + string( max(0.0, 5.0 - conf.message.length()), '0' ) + conf.message;
 
     prev_skip_calculations = skip_calculations;
@@ -269,12 +274,12 @@ int Femocs::run(const double elfield, const string &message) {
             + "! Field calculation will be skipped!");
 
     skip_calculations = true;
-    conf.E0 = elfield;
+    conf.E0 = elfield; // long-range electric field
     conf.neumann = -10.0 * elfield;  // set minus gradient of solution to equal to E0; also convert V/Angstrom  to  V/nm
     tstart = omp_get_wtime();
 
-    TetgenMesh bulk_mesh;   ///< FEM mesh in bulk material
-    TetgenMesh vacuum_mesh; ///< FEM mesh in vacuum
+    TetgenMesh bulk_mesh;   // FEM mesh in bulk material
+    TetgenMesh vacuum_mesh; // FEM mesh in vacuum
 
     // Generate FEM mesh
     fail = generate_meshes(bulk_mesh, vacuum_mesh);
@@ -297,7 +302,7 @@ int Femocs::run(const double elfield, const string &message) {
     reader.save_current_run_points(conf.distance_tol);
     end_msg(t0);
 
-    cout << "\nTotal time of Femocs.run: " << omp_get_wtime() - tstart << "\n";
+    write_message("\nFEMOCS: total execution time " + to_string(omp_get_wtime() - tstart));
     skip_calculations = false;
 
     return 0;

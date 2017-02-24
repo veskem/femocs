@@ -71,7 +71,7 @@ void __end_msg(const double t0) {
 
 void write_message(const string& message) {
     write_log(message);
-    if (MODES.WRITEFILE) cout << message << endl;
+    if (!MODES.QUIET) cout << message << endl;
 }
 
 void write_log(const string& message) {

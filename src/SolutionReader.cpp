@@ -565,10 +565,18 @@ void ChargeReader::get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields) 
     elfields.clear(); elfields.reserve(n_faces);
     for (int face = 0; face < n_faces; ++face) {
         Point3 centroid = get_point(face);
-        int vert = mesh.faces[face][0];
+        SimpleFace sface = mesh.faces[face];
+
+        int vert = sface[0];
+        if (node2hex[vert].size() == 0)
+            vert = sface[1];
+        if (node2hex[vert].size() == 0)
+            vert = sface[2];
+        if (node2hex[vert].size() == 0)
+            require(false, "Face " + to_string(face) + " has no associated hexahedra!");
 
         int centroid_indx = -1;
-        double min_dist = 1e100;
+        double min_dist = DBL_MAX;
 
         // Loop through all the hexahedra connected to the first vertex of triangle
         for (int hex : node2hex[vert])
@@ -582,6 +590,7 @@ void ChargeReader::get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields) 
                 }
             }
 
+        require(centroid_indx >= 0 && centroid_indx < n_nodes, "Invalid index: " + to_string(centroid_indx));
         elfields.push_back(interpolator->get_vector(centroid_indx));
     }
 }

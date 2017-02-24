@@ -45,7 +45,8 @@ struct Types {
 
 /** Flags to control the output behaviour of the code */
 struct Modes {
-    bool VERBOSE = true;     ///< If VERBOSE then the information about the code execution progress is printed to console.
+    bool QUIET = false;      ///< If QUIET no information about the code execution progress is printed to console.
+    bool VERBOSE = true;       ///< If DEBUG all the information about the code execution progress is printed to console.
     bool WRITEFILE = true;   ///< If WRITEFILE then file writers operate normally, otherwise they return immediately.
     bool PERIODIC = true;    ///< Imported atoms have periodic boundaries in x- & y-direction
 };
@@ -74,7 +75,7 @@ struct Modes {
 #endif // ASSERTMODE
 
 /** Definition to handle cases where operation does not complete normally */
-#define check_message(condition, message) if (condition) { write_log(message); cout << "\nFEMOCS: " << message << endl; return 1; }
+#define check_message(condition, message) if (condition) { write_log(message); if (!MODES.QUIET) cout << "\nFEMOCS: " << message << endl; return 1; }
 
 /** Definition to print progress messages and to find the start time of code execution */
 #define start_msg(t0, message) { write_log(message); if (MODES.VERBOSE) t0 = __start_msg(message); }
