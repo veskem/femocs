@@ -79,6 +79,11 @@ void write_log(const string& message) {
     if (logfile) logfile << endl << string(message) << endl;
 }
 
+void clear_log() {
+    const string cmd = "rm -f " + FEMOCSLOGPATH;
+    system(cmd.c_str());
+}
+
 // Return mask of indices that are not equal to the scalar
 vector<bool> vector_not(const vector<int> *v, const int s) {
     return __vector_compare<int, std::not_equal_to<int>>(v, s);

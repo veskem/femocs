@@ -130,6 +130,9 @@ void write_message(const string& message);
 /** Append line to log-file */
 void write_log(const string& message);
 
+/** Clear the contents of log-file */
+void clear_log();
+
 double __start_msg(const char* message);
 
 void __end_msg(const double t0);

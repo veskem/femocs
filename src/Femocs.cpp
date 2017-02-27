@@ -310,6 +310,7 @@ int Femocs::run(const double elfield, const string &message) {
 
 // import atoms from file
 int Femocs::import_atoms(const string& file_name) {
+    clear_log();
     string file_type, fname;
 
     if (file_name == "") fname = conf.atom_file;
@@ -356,6 +357,8 @@ int Femocs::import_atoms(const string& file_name) {
 
 // import atoms from PARCAS
 int Femocs::import_atoms(const int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
+    clear_log();
+
     start_msg(t0, "=== Importing atoms...");
     reader.import_parcas(n_atoms, coordinates, box);
     end_msg(t0);
@@ -388,6 +391,8 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
 
 // import coordinates and types of atoms
 int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, const double* z, const int* types) {
+    clear_log();
+
     start_msg(t0, "=== Importing atoms...");
     reader.import_helmod(n_atoms, x, y, z, types);
     end_msg(t0);
