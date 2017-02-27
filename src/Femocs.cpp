@@ -246,7 +246,7 @@ int Femocs::extract_charge(const TetgenMesh& mesh) {
 
     face_charges.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
     face_charges.clean(dense_surf.sizes, conf.latconst);
-    face_charges.write("output/face_charges.xyz");
+    face_charges.write("output/face_charges.vtk");
 
     return 0;
 }

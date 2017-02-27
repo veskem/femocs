@@ -112,14 +112,15 @@ double RaySurfaceIntersect::distance_from_triangle(const Vec3 &point, const int 
 
     Vec3 tvec = point - vert0[face];
     u = tvec.dotProduct(pvec[face]);
-    if (u < zero || u > one) return -1;     // Check first barycentric coordinate
+    if (u < zero || u > one) return 1e100;     // Check first barycentric coordinate
 
     Vec3 qvec = tvec.crossProduct(edge1[face]);
     v = mesh->faces.get_norm(face).dotProduct(qvec);
-    if (v < zero || u + v > one) return -1; // Check second & third barycentric coordinate
+    if (v < zero || u + v > one) return 1e100; // Check second & third barycentric coordinate
 
     // return the distance from point to triangle
-    return fabs(edge2[face].dotProduct(qvec));
+//    return fabs(edge2[face].dotProduct(qvec));
+    return edge2[face].dotProduct(qvec);
 }
 
 // Moller-Trumbore algorithm to get the distance of point from the triangle in given direction
@@ -167,6 +168,7 @@ bool RaySurfaceIntersect::near_surface(const Vec3 &point, const double r_cut) {
     for (int face = 0; face < mesh->faces.size(); ++face) {
         double dist = distance_from_triangle(point, face);
         if (dist >= 0 && dist <= r_cut) return true;
+        if (dist < 0 && dist >= -0.3*r_cut) return true;
     }
 
     return false;

@@ -8,7 +8,7 @@ clear_output = true;            # clear output folder before the run
 infile = input/nanotip_small.xyz  # default file used with atom coordinates
 latconst = 3.61                 # lattice constant
 coord_cutoff = 3.1              # coordination analysis cut-off radius
-surface_thickness = 3.1         # maximum distance surface atom can have from surface faces [angstrom]
+surface_thickness = 5.0         # maximum distance surface atom can have from surface faces [angstrom]
 mesh_quality = 2.0              # minimum mesh quality Tetgen is allowed to make
 box_width = 4.0                 # minimal simulation box width [tip height]
 box_height = 3.5                # simulation box height [tip height]
@@ -18,7 +18,7 @@ coarse_factor = 0.3 1.0 0.5     # coarsening factor; bigger number gives coarser
                                 # 1st - coarsening factor for atoms
                                 # 2nd - minimum distance between atoms in nanotip below apex [latconst]
                                 # 3rd - minimum distance between atoms in nanotip apex [latconst]
-smooth_factor = 2.0             # surface smoothing factor; bigger number gives smoother surface
+smooth_factor = 1.0             # surface smoothing factor; bigger number gives smoother surface
 charge_smooth_factor = 100.0      # charge smoothing factor; bigger number gives smoother charges
 postprocess_marking = true      # make extra effort to mark correctly the vacuum nodes in shadow area
 refine_apex = false             # refine nanotip apex

@@ -494,7 +494,8 @@ void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
     for (int face = 0; face < n_faces; ++face) {
         double area = mesh.faces.get_area(face);
         double charge = eps0 * area * elfields[face].norm() * sign;
-        interpolation.push_back(Solution(elfields[face], area, charge));
+//        interpolation.push_back(Solution(elfields[face], area, charge));
+        interpolation.push_back(Solution(mesh.faces.get_norm(face), area, charge));
     }
 }
 
