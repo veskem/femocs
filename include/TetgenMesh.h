@@ -22,14 +22,14 @@ namespace femocs {
  * http://wias-berlin.de/software/tetgen/1.5/ */
 class TetgenMesh {
 public:
-    TetgenMesh() {}
+    TetgenMesh();
     ~TetgenMesh() {}
 
     /** Function to generate simple mesh that consists of one element */
     bool generate_simple();
 
     /** Function to generate mesh from surface, bulk and vacuum atoms */
-    bool generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd);
+    bool generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd1, const string& cmd2="");
 
     /** Separate tetrahedra into hexahedra by adding node to the centroid of the
      * tetrahedron edges, nodes and tetrahedron itself */
@@ -62,12 +62,18 @@ public:
     /** Perform double Tetgen calculation on input buffer and store it in output one */
     bool recalc(const string& cmd1, const string& cmd2);
 
+    /** Perform triple Tetgen calculation on input buffer and store it in output one */
+    bool recalc(const string& cmd1, const string& cmd2, const string& cmd3);
+
+    void print_voros();
+
     /** Objects holding operations for accessing cell data */
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
     TetgenEdges edges = TetgenEdges(&tetIOout);
     TetgenFaces faces = TetgenFaces(&tetIOout);
     TetgenElements elems = TetgenElements(&tetIOout, &tetIOin);
     Hexahedra hexahedra = Hexahedra(&tetIOout);
+    VoronoiCells voros = VoronoiCells(&tetIOout);
 
     const int n_coordinates = 3;     ///< Number of coordinates
     const int n_edges_per_face = 3;  ///< Number of edges on a triangle

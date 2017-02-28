@@ -185,6 +185,12 @@ bool RaySurfaceIntersect::near_surface(const Vec3 &point, const Vec3 &direction,
     return false;
 }
 
+// Initialize Tetgen data
+TetgenMesh::TetgenMesh() {
+    tetIOin.initialize();
+    tetIOout.initialize();
+}
+
 // Group hexahedra around central tetrahedral node
 void TetgenMesh::group_hexahedra() {
     const int node_min = nodes.indxs.tetnode_start;
@@ -298,9 +304,25 @@ bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
     return 0;
 }
 
+// Function to perform tetgen calculation on input and write_tetgen data
+bool TetgenMesh::recalc(const string& cmd1, const string& cmd2, const string& cmd3) {
+    try {
+        tetgenio tetIOtemp1, tetIOtemp2;
+        tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOtemp1);
+        tetrahedralize(const_cast<char*>(cmd2.c_str()), &tetIOtemp1, &tetIOtemp2);
+        tetrahedralize(const_cast<char*>(cmd3.c_str()), &tetIOtemp2, &tetIOout);
+        nodes.set_counter(tetIOout.numberofpoints);
+        edges.set_counter(tetIOout.numberofedges);
+        faces.set_counter(tetIOout.numberoftrifaces);
+        elems.set_counter(tetIOout.numberoftetrahedra);
+    }
+    catch (int e) { return 1; }
+    return 0;
+}
+
 // Write mesh into files with Tetgen functions
 bool TetgenMesh::write_tetgen(const string& file_name) {
-    const string cmd = "Q";
+    const string cmd = "kNEQ";
     tetgenbehavior tetgenbeh;
 
     try {
@@ -314,8 +336,71 @@ bool TetgenMesh::write_tetgen(const string& file_name) {
     return 0;
 }
 
+void TetgenMesh::print_voros() {
+
+    // 'vpointlist':  An array of Voronoi vertex coordinates (like pointlist).
+    // 'vedgelist':  An array of Voronoi edges.  Each entry is a 'voroedge'.
+    // 'vfacetlist':  An array of Voronoi facets. Each entry is a 'vorofacet'.
+    // 'vcelllist':  An array of Voronoi cells.  Each entry is an array of
+    //   indices pointing into 'vfacetlist'. The 0th entry is used to store the length of this array.
+//    REAL *vpointlist;
+//    tetgenio::voroedge *vedgelist;
+//    tetgenio::vorofacet *vfacetlist;
+//    int **vcelllist;
+//    int numberofvpoints;
+//    int numberofvedges;
+//    int numberofvfacets;
+//    int numberofvcells;
+
+    // A 'vorofacet' is an facet of the Voronoi diagram. It corresponds to a
+    //   Delaunay edge.  Each Voronoi facet is a convex polygon formed by a
+    //   list of Voronoi edges, it may not be closed.  'c1' and 'c2' are two
+    //   indices pointing into the list of Voronoi cells, i.e., the two cells
+    //   share this facet.  'elist' is an array of indices pointing into the
+    //   list of Voronoi edges, 'elist[0]' saves the number of Voronoi edges
+    //   (including rays) of this facet.
+//    typedef struct {
+//    int c1, c2;
+//    int *elist;
+//    } vorofacet;
+
+    // A "voroedge" is an edge of the Voronoi diagram. It corresponds to a
+    //   Delaunay face.  Each voroedge is either a line segment connecting
+    //   two Voronoi vertices or a ray starting from a Voronoi vertex to an
+    //   "infinite vertex".  'v1' and 'v2' are two indices pointing to the
+    //   list of Voronoi vertices. 'v1' must be non-negative, while 'v2' may
+    //   be -1 if it is a ray, in this case, the unit normal of this ray is
+    //   given in 'vnormal'.
+//    typedef struct {
+//      int v1, v2;
+//      REAL vnormal[3];
+//    } voroedge;
+
+    cout << "numberofvpoints=" << tetIOout.numberofvpoints << endl;
+    cout << "numberofvedges=" << tetIOout.numberofvedges << endl;
+    cout << "numberofvfacets=" << tetIOout.numberofvfacets << endl;
+    cout << "numberofvcells=" << tetIOout.numberofvcells << endl;
+
+    tetgenio::vorofacet facet;
+//    tetgenio::voroedge edge;
+
+    int n_facets = tetIOout.vcelllist[0][0];
+
+    for (int i = 1; i <= n_facets; ++i) {
+        facet = tetIOout.vfacetlist[tetIOout.vcelllist[0][i]];
+        int n_edges = facet.elist[0];
+        cout << endl << i << ":\t";
+        for (int j = 1; j <= n_edges; ++j) {
+            int edge = facet.elist[j];
+            cout << tetIOout.vedgelist[edge].v1 << " ";
+        }
+    }
+
+    cout << endl;
+}
+
 // Function to generate mesh from surface, bulk and vacuum atoms
-bool TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd) {
+bool TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd1, const string& cmd2) {
     const int n_bulk = bulk.size();
     const int n_surf = surf.size();
     const int n_vacuum = vacuum.size();
@@ -337,7 +422,10 @@ bool TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& 
     // Memorize the positions of different types of nodes to speed up later calculations
     nodes.save_indices(n_surf, n_bulk, n_vacuum);
 
-    return recalc("Q", cmd);
+    if (cmd2 == "")
+        return recalc("Q", cmd1);
+    else
+        return recalc("Q", cmd1, cmd2);
 }
 
 // Separate tetrahedra into hexahedra

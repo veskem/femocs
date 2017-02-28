@@ -89,8 +89,31 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 
     start_msg(t0, "=== Generating bulk & vacuum...");
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
-    bulk.generate_simple(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.bulk_height * conf.latconst);
+
     vacuum.generate_simple(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.box_height * coarse_surf.sizes.zbox);
+    bulk.generate_simple(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.bulk_height * conf.latconst);
+
+
+
+    start_msg(t0, "=== Making voronoi cells...");
+    TetgenMesh voro_mesh;
+    // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
+    fail = voro_mesh.generate(bulk, reader, vacuum, "rQq" + conf.mesh_quality, "vQ");
+    check_message(fail, "Triangulation failed! Field calculation will be skipped!");
+    end_msg(t0);
+
+    voro_mesh.print_voros();
+    voro_mesh.voros.write("output/voros.vtk");
+
+//    voro_mesh.write_tetgen("output/eraseme");
+//
+    voro_mesh.elems.write("output/voromesh.vtk");
+    voro_mesh.nodes.write("output/voronodes.xyz");
+
+//    exit(1);
+
+
+
     reader.resize_box(coarse_surf.sizes.xmin, coarse_surf.sizes.xmax, 
         coarse_surf.sizes.ymin, coarse_surf.sizes.ymax,
         bulk.sizes.zmin, vacuum.sizes.zmax);

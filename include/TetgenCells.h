@@ -457,6 +457,174 @@ protected:
     SimpleCell<8> get_cell(const int i) const;
 };
 
+class VoronoiCells {
+public:
+    /** SimpleCells constructors */
+    VoronoiCells() : i_cells(0), reads(NULL), n_cells_r(NULL) {}
+
+    /** Constructor for the case when read and write data go into same place */
+    VoronoiCells(tetgenio* data) : i_cells(0), reads(data), n_cells_r(&data->numberofvcells) {}
+
+    /** SimpleCells destructor */
+    ~VoronoiCells() {};
+
+    /** Initialize marker appending */
+    void init_markers(const int N) {
+        require(N >= 0, "Invalid number of markers: " + to_string(N));
+        markers.clear();
+        markers.reserve(N);
+    }
+
+    /** Append cell marker */
+    void append_marker(const int &m) {
+        expect(get_n_markers() < markers.capacity(), "Allocated size of markers exceeded!");
+        markers.push_back(m);
+    }
+
+    /** Get number of cells in mesh */
+    int size() const { return *n_cells_r; }
+
+    /** Get number of cell markers */
+    int get_n_markers() const { return markers.size(); };
+
+    /** Return i-th marker */
+    int get_marker(const int i) const {
+        require(i >= 0 && i < get_n_markers(), "Invalid index: " + to_string(i));
+        return markers[i];
+    }
+
+    /** Return pointer to markers */
+    vector<int>* get_markers() { return &markers; }
+
+    /** Assign m-th marker */
+    void set_marker(const int node, const int m) {
+        require(node >= 0 && node < get_n_markers(), "Invalid index: " + to_string(node));
+        markers[node] = m;
+    }
+
+    /** Function to write cell data to file */
+    void write(const string &file_name) const {
+        if (!MODES.WRITEFILE) return;
+        int celltype = 7;   // cell == polygon
+        string file_type = get_file_type(file_name);
+
+        if (file_type == "vtk")
+            write_vtk(file_name, celltype);
+        else if (file_type == "xyz")
+            write_xyz(file_name);
+        else
+            require(false, "Unknown file type: " + file_type);
+    }
+
+protected:
+    const int n_coordinates = 3;  //!< number of spatial coordinates
+
+    int* n_cells_r;      ///< number of readable cells in mesh data
+    tetgenio* reads;     ///< mesh data that has been processed by Tetgen
+
+    int i_cells;         ///< cell counter
+    vector<int> markers; ///< cell markers
+
+    /** Return number of readable nodes in the mesh */
+    int get_n_nodes() const { return reads->numberofvpoints; }
+
+    /** Return i-th readable node from the mesh in point form */
+    Point3 get_node(const int i) const {
+        require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
+        const int n = n_coordinates * i;
+        return Point3(reads->vpointlist[n+0], reads->vpointlist[n+1], reads->vpointlist[n+2]);
+    }
+
+    int get_n_facets() const {
+        const int n_cells = 10000;//reads->numberofvcells;
+
+        int n_facets = 0;
+        for (int cell = 0; cell < n_cells; ++cell)
+            n_facets += reads->vcelllist[cell][0];
+        return n_facets;
+    }
+
+    int get_n_vertices() const {
+        const int n_cells = 10000;//reads->numberofvcells;
+
+        tetgenio::vorofacet facet;
+        int n_verts = 0;
+        for (int cell = 0; cell < n_cells; ++cell) {
+            int n_facets = reads->vcelllist[cell][0];
+            for (int i = 1; i <= n_facets; ++i) {
+                facet = reads->vfacetlist[reads->vcelllist[cell][i]];
+                n_verts += facet.elist[0];
+            }
+        }
+        return n_verts;
+    }
+
+    /** Output mesh in .vtk format */
+    void write_xyz(const string &file_name) const {
+        const int n_nodes = get_n_nodes();
+        expect(n_nodes > 0, "Zero nodes detected!");
+
+        std::ofstream out(file_name.c_str());
+        require(out, "Can't open a file " + file_name);
+
+        out << fixed;
+
+        // Output the nodes
+        out << n_nodes << "\nvoronoi cells\n";
+        for (size_t node = 0; node < n_nodes; ++node)
+            out << "1 " << get_node(node) << "\n";
+    }
+
+    void write_vtk(const string &file_name, const int celltype) const {
+        const int n_markers = get_n_markers();
+        const int n_nodes = get_n_nodes();
+
+        expect(n_nodes > 0, "Zero nodes detected!");
+
+        std::ofstream out(file_name.c_str());
+        require(out, "Can't open a file " + file_name);
+
+        out << fixed;
+
+        out << "# vtk DataFile Version 3.0\n";
+        out << "# VoroCells data\n";
+        out << "ASCII\n";
+        out << "DATASET POLYDATA\n\n";
+
+        // Output the nodes
+        out << "POINTS " << n_nodes << " double\n";
+        for (size_t node = 0; node < n_nodes; ++node)
+            out << get_node(node) << "\n";
+
+        // Calculate total number of polygons and their nodes
+        size_t n_facets = get_n_facets();
+        size_t n_verts = get_n_vertices();
+        out << "\nPOLYGONS " << n_facets << " " << n_facets+n_verts << "\n";
+
+        // Write polygons to file
+        tetgenio::vorofacet facet;
+
+        int n_cells = 10000;//size();
+        for (int cell = 0; cell < n_cells; ++cell) {
+            int n_facets = reads->vcelllist[cell][0];
+
+            for (int i = 1; i <= n_facets; ++i) {
+                int f = reads->vcelllist[cell][i];
+//                if (f < 0) continue;
+                facet = reads->vfacetlist[f];
+                int n_edges = facet.elist[0];
+
+                out << n_edges << " ";  // number of nodes
+                for (int j = 1; j <= n_edges; ++j) {
+                    int edge = facet.elist[j];
+                    out << reads->vedgelist[edge].v1 << " ";
+                }
+                out << "\n";
+            }
+        }
+    }
+};
+
 } /* namespace femocs */
 
 #endif /* TETGENCELLS_H_ */
