@@ -528,14 +528,20 @@ protected:
     /** Return number of readable nodes in the mesh */
     int get_n_nodes() const { return reads->numberofvpoints; }
 
-    /** Return i-th readable node from the mesh in point form */
+    /** Return i-th node from the voronoi mesh */
     Point3 get_node(const int i) const {
         require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
         const int n = n_coordinates * i;
         return Point3(reads->vpointlist[n+0], reads->vpointlist[n+1], reads->vpointlist[n+2]);
     }
 
-    int get_n_facets() const {
+    Vec3 get_vec(const int i) const {
+        require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
+        const int n = n_coordinates * i;
+        return Vec3(reads->vpointlist[n+0], reads->vpointlist[n+1], reads->vpointlist[n+2]);
+    }
+
+    int get_n_cell_facets() const {
         const int n_cells = 10000;//reads->numberofvcells;
 
         int n_facets = 0;
@@ -544,7 +550,7 @@ protected:
         return n_facets;
     }
 
-    int get_n_vertices() const {
+    int get_n_cell_vertices() const {
         const int n_cells = 10000;//reads->numberofvcells;
 
         tetgenio::vorofacet facet;
@@ -558,6 +564,10 @@ protected:
         }
         return n_verts;
     }
+
+    void get_facet(const int i, vector<int>& v) const;
+
+    void get_facet(const int i, vector<Vec3>& v) const;
 
     /** Output mesh in .vtk format */
     void write_xyz(const string &file_name) const {
@@ -575,54 +585,7 @@ protected:
             out << "1 " << get_node(node) << "\n";
     }
 
-    void write_vtk(const string &file_name, const int celltype) const {
-        const int n_markers = get_n_markers();
-        const int n_nodes = get_n_nodes();
-
-        expect(n_nodes > 0, "Zero nodes detected!");
-
-        std::ofstream out(file_name.c_str());
-        require(out, "Can't open a file " + file_name);
-
-        out << fixed;
-
-        out << "# vtk DataFile Version 3.0\n";
-        out << "# VoroCells data\n";
-        out << "ASCII\n";
-        out << "DATASET POLYDATA\n\n";
-
-        // Output the nodes
-        out << "POINTS " << n_nodes << " double\n";
-        for (size_t node = 0; node < n_nodes; ++node)
-            out << get_node(node) << "\n";
-
-        // Calculate total number of polygons and their nodes
-        size_t n_facets = get_n_facets();
-        size_t n_verts = get_n_vertices();
-        out << "\nPOLYGONS " << n_facets << " " << n_facets+n_verts << "\n";
-
-        // Write polygons to file
-        tetgenio::vorofacet facet;
-
-        int n_cells = 10000;//size();
-        for (int cell = 0; cell < n_cells; ++cell) {
-            int n_facets = reads->vcelllist[cell][0];
-
-            for (int i = 1; i <= n_facets; ++i) {
-                int f = reads->vcelllist[cell][i];
-//                if (f < 0) continue;
-                facet = reads->vfacetlist[f];
-                int n_edges = facet.elist[0];
-
-                out << n_edges << " ";  // number of nodes
-                for (int j = 1; j <= n_edges; ++j) {
-                    int edge = facet.elist[j];
-                    out << reads->vedgelist[edge].v1 << " ";
-                }
-                out << "\n";
-            }
-        }
-    }
+    void write_vtk(const string &file_name, const int celltype) const;
 };
 
 } /* namespace femocs */

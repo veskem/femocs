@@ -392,7 +392,7 @@ void TetgenMesh::print_voros() {
         cout << endl << i << ":\t";
         for (int j = 1; j <= n_edges; ++j) {
             int edge = facet.elist[j];
-            cout << tetIOout.vedgelist[edge].v1 << " ";
+            cout << tetIOout.vedgelist[edge].v1 << "-" << tetIOout.vedgelist[edge].v2 << "  ";
         }
     }
 

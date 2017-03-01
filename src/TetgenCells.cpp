@@ -416,4 +416,90 @@ vector<dealii::CellData<3>> Hexahedra::export_dealii() const {
     return elems;
 }
 
+
+void VoronoiCells::write_vtk(const string &file_name, const int celltype) const {
+    const int n_markers = get_n_markers();
+    const int n_nodes = get_n_nodes();
+
+    expect(n_nodes > 0, "Zero nodes detected!");
+
+    std::ofstream out(file_name.c_str());
+    require(out, "Can't open a file " + file_name);
+
+    out << fixed;
+
+    out << "# vtk DataFile Version 3.0\n";
+    out << "VoroCells data\n";
+    out << "ASCII\n";
+    out << "DATASET POLYDATA\n\n";
+
+    // Output the nodes
+    out << "POINTS " << n_nodes << " double\n";
+    for (size_t node = 0; node < n_nodes; ++node)
+        out << get_node(node) << "\n";
+
+    vector<vector<int>> facets;
+    vector<int> facet;
+    size_t n_facets = 0, n_verts = 0;
+
+    for (int i = 0; i < reads->numberofvfacets; ++i) {
+        get_facet(i, facet);
+        facets.push_back(facet);
+        n_verts += facet.size();
+        n_facets += facet.size() > 0;
+    }
+
+    out << "\nPOLYGONS " << n_facets << " " << n_facets+n_verts << "\n";
+    for (vector<int>& f : facets) {
+        if (f.size() == 0) continue;
+        out << f.size() << " ";
+        for (int n : f)
+            out << n << " ";
+        out << endl;
+    }
+}
+
+void VoronoiCells::get_facet(const int i, vector<int>& v) const {
+    v.clear();
+    tetgenio::vorofacet facet = reads->vfacetlist[i];
+    int n_edges = facet.elist[0];
+    if (n_edges < 0) return;
+
+    int node = -1;
+    for (int j = 1; j <= n_edges; ++j) {
+        int edge = facet.elist[j];
+        if (edge < 0) { v.clear(); return; }
+
+        int v1 = reads->vedgelist[edge].v1;
+        int v2 = reads->vedgelist[edge].v2;
+
+        if (node != v1 && v1 >= 0) node = v1;
+        else if (node != v2 && v2 >= 0) node = v2;
+        else { v.clear(); return; }
+
+        v.push_back(node);
+    }
+}
+
+void VoronoiCells::get_facet(const int i, vector<Vec3>& v) const {
+    v.clear();
+    tetgenio::vorofacet facet = reads->vfacetlist[i];
+    int n_edges = facet.elist[0];
+    if (n_edges < 0) return;
+
+    for (int j = 1; j <= n_edges; ++j) {
+        int edge = facet.elist[j];
+        if (edge < 0) { v.clear(); return; }
+
+        int v1 = reads->vedgelist[edge].v1;
+        int v2 = reads->vedgelist[edge].v2;
+
+        if (v1 >= 0 && v2 >= 0) {
+            v.push_back(get_vec(v2) - get_vec(v1));
+        }
+
+        else { v.clear(); return; }
+    }
+}
+
 } /* namespace femocs */

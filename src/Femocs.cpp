@@ -102,13 +102,15 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     check_message(fail, "Triangulation failed! Field calculation will be skipped!");
     end_msg(t0);
 
-    voro_mesh.print_voros();
+//    voro_mesh.print_voros();
+
+    voro_mesh.voros.write("output/voros.xyz");
     voro_mesh.voros.write("output/voros.vtk");
 
 //    voro_mesh.write_tetgen("output/eraseme");
 //
-    voro_mesh.elems.write("output/voromesh.vtk");
-    voro_mesh.nodes.write("output/voronodes.xyz");
+//    voro_mesh.elems.write("output/voromesh.vtk");
+//    voro_mesh.nodes.write("output/voronodes.xyz");
 
 //    exit(1);
 
