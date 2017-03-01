@@ -457,16 +457,100 @@ protected:
     SimpleCell<8> get_cell(const int i) const;
 };
 
-class VoronoiCells {
+/** Virtual class for holding data that is common to Voronoi cell and Voronoi face */
+class Voronoi {
 public:
-    /** SimpleCells constructors */
-    VoronoiCells() : i_cells(0), reads(NULL), n_cells_r(NULL) {}
+    Voronoi() : data(NULL), id(-1) {}
+    Voronoi(tetgenio* data, const int i) : data(data), id(i) {}
+    virtual ~Voronoi() {}
 
-    /** Constructor for the case when read and write data go into same place */
-    VoronoiCells(tetgenio* data) : i_cells(0), reads(data), n_cells_r(&data->numberofvcells) {}
+    /** Get number of faces that make the cell */
+    virtual int size() const { return 0; }
 
-    /** SimpleCells destructor */
-    ~VoronoiCells() {};
+protected:
+    int id;
+    tetgenio* data;     ///< mesh data that has been processed by Tetgen
+};
+
+/** Class for accessing the Voronoi face data */
+class VoronoiFace : public Voronoi {
+public:
+    VoronoiFace() : Voronoi() {}
+    VoronoiFace(tetgenio* data, const int i, const int calc=0) : Voronoi(data, i) {
+        if (calc) calc_nodes();
+    }
+    ~VoronoiFace() {}
+
+    /** Get number of nodes that make the face */
+    int size() const { return data->vfacetlist[id].elist[0]; }
+
+    /** Get the norm vector of the face */
+    Vec3 norm();
+
+    /** Get the area of the face.
+     * See the theory in http://geomalgorithms.com/a01-_area.html#3D%20Polygons */
+    double area();
+
+    /** Accessor for accessing the i-th node */
+    const int& operator [](size_t i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return nodes[i];
+    }
+
+    /** Iterator to access the nodes of faces */
+    typedef Iterator<VoronoiFace, int> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, size()); }
+
+    /** Stream for printing the nodes to file or console */
+    friend std::ostream& operator <<(std::ostream &os, const VoronoiFace &vf) {
+        for (int n : vf.nodes) os << n << ' ';
+        return os;
+    }
+
+    /** Transform the node data from tetgenio into easily accessible form */
+    void calc_nodes();
+
+private:
+    vector<Vec3> verts;  ///< coordinates of the face vertices
+    vector<int> nodes;   ///< indices of the face nodes
+};
+
+/** Class for accessing the Voronoi cell data */
+class VoronoiCell : public Voronoi {
+public:
+    VoronoiCell() : Voronoi() {}
+    VoronoiCell(tetgenio* data, const int i, const int calc=0) : Voronoi(data, i) {}
+    ~VoronoiCell() {}
+
+    /** Get number of faces that make the cell */
+    int size() const { return data->vcelllist[id][0]; }
+
+    /** Accessor for accessing the i-th face */
+    const VoronoiFace& operator [](size_t i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return VoronoiFace(data, i);
+    }
+
+    /** Iterator to access the cell faces */
+    typedef Iterator<VoronoiCell, VoronoiFace> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, size()); }
+
+private:
+};
+
+/** Virtual class for holding data that is common to Voronoi cells and Voronoi faces */
+template<typename T>
+class Voronois {
+public:
+    /** Voronoi constructors */
+    Voronois() : tetio(NULL), _n_cells(NULL) {}
+
+    Voronois(tetgenio* data, int* n_cells) : tetio(data), _n_cells(n_cells) {}
+
+    /** Voronoi destructor */
+    virtual ~Voronois() {};
 
     /** Initialize marker appending */
     void init_markers(const int N) {
@@ -482,7 +566,7 @@ public:
     }
 
     /** Get number of cells in mesh */
-    int size() const { return *n_cells_r; }
+    int size() const { return *_n_cells; }
 
     /** Get number of cell markers */
     int get_n_markers() const { return markers.size(); };
@@ -505,73 +589,53 @@ public:
     /** Function to write cell data to file */
     void write(const string &file_name) const {
         if (!MODES.WRITEFILE) return;
-        int celltype = 7;   // cell == polygon
-        string file_type = get_file_type(file_name);
 
+        string file_type = get_file_type(file_name);
         if (file_type == "vtk")
-            write_vtk(file_name, celltype);
-        else if (file_type == "xyz")
-            write_xyz(file_name);
+            write_vtk(file_name);
         else
             require(false, "Unknown file type: " + file_type);
     }
 
+    /** Accessor for accessing the i-th cell */
+    const T& operator [](size_t i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return Voronoi(tetio, i);
+    }
+
+    /** Iterator to access the cells */
+    typedef Iterator<Voronois, T> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, size()); }
+
 protected:
-    const int n_coordinates = 3;  //!< number of spatial coordinates
+    const int n_coordinates = 3;  ///< number of spatial coordinates
+    const int celltype = 7;       ///< vtk cell = polygon
 
-    int* n_cells_r;      ///< number of readable cells in mesh data
-    tetgenio* reads;     ///< mesh data that has been processed by Tetgen
-
-    int i_cells;         ///< cell counter
+    int* _n_cells;        ///< number of cells in mesh data
+    tetgenio* tetio;     ///< mesh data that has been processed by Tetgen
     vector<int> markers; ///< cell markers
 
     /** Return number of readable nodes in the mesh */
-    int get_n_nodes() const { return reads->numberofvpoints; }
+    int get_n_nodes() const { return tetio->numberofvpoints; }
 
     /** Return i-th node from the voronoi mesh */
     Point3 get_node(const int i) const {
         require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
         const int n = n_coordinates * i;
-        return Point3(reads->vpointlist[n+0], reads->vpointlist[n+1], reads->vpointlist[n+2]);
+        return Point3(tetio->vpointlist[n+0], tetio->vpointlist[n+1], tetio->vpointlist[n+2]);
     }
 
     Vec3 get_vec(const int i) const {
         require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
         const int n = n_coordinates * i;
-        return Vec3(reads->vpointlist[n+0], reads->vpointlist[n+1], reads->vpointlist[n+2]);
+        return Vec3(tetio->vpointlist[n+0], tetio->vpointlist[n+1], tetio->vpointlist[n+2]);
     }
 
-    int get_n_cell_facets() const {
-        const int n_cells = 10000;//reads->numberofvcells;
-
-        int n_facets = 0;
-        for (int cell = 0; cell < n_cells; ++cell)
-            n_facets += reads->vcelllist[cell][0];
-        return n_facets;
-    }
-
-    int get_n_cell_vertices() const {
-        const int n_cells = 10000;//reads->numberofvcells;
-
-        tetgenio::vorofacet facet;
-        int n_verts = 0;
-        for (int cell = 0; cell < n_cells; ++cell) {
-            int n_facets = reads->vcelllist[cell][0];
-            for (int i = 1; i <= n_facets; ++i) {
-                facet = reads->vfacetlist[reads->vcelllist[cell][i]];
-                n_verts += facet.elist[0];
-            }
-        }
-        return n_verts;
-    }
-
-    void get_facet(const int i, vector<int>& v) const;
-
-    void get_facet(const int i, vector<Vec3>& v) const;
-
-    /** Output mesh in .vtk format */
-    void write_xyz(const string &file_name) const {
+    void write_vtk(const string &file_name) const {
+        const int n_markers = get_n_markers();
         const int n_nodes = get_n_nodes();
+
         expect(n_nodes > 0, "Zero nodes detected!");
 
         std::ofstream out(file_name.c_str());
@@ -579,13 +643,46 @@ protected:
 
         out << fixed;
 
+        out << "# vtk DataFile Version 3.0\n";
+        out << "Voronoi cells\n";
+        out << "ASCII\n";
+        out << "DATASET UNSTRUCTURED_GRID\n\n";
+
         // Output the nodes
-        out << n_nodes << "\nvoronoi cells\n";
+        out << "POINTS " << n_nodes << " double\n";
         for (size_t node = 0; node < n_nodes; ++node)
-            out << "1 " << get_node(node) << "\n";
+            out << get_node(node) << "\n";
+
+        // Output the cells and associated data
+        write_cells(out);
     }
 
-    void write_vtk(const string &file_name, const int celltype) const;
+    virtual void write_cells(ofstream& out) const {}
+};
+
+/** Class for accessing the faces of Voronoi cells */
+class VoronoiFaces : public Voronois<VoronoiFace> {
+public:
+    /** VoronoiCells constructors */
+    VoronoiFaces() : Voronois<VoronoiFace>() {}
+    VoronoiFaces(tetgenio* data) : Voronois<VoronoiFace>(data, &data->numberofvfacets) {}
+
+    void write_cells(ofstream& out) const;
+};
+
+/** Class for accessing the Voronoi cells */
+class VoronoiCells : public Voronois<VoronoiCell> {
+public:
+    /** VoronoiCells constructors */
+    VoronoiCells() : Voronois<VoronoiCell>() {}
+    VoronoiCells(tetgenio* data) : Voronois<VoronoiCell>(data, &data->numberofvcells) {}
+
+    int get_n_faces(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return tetio->vcelllist[i][0];
+    }
+
+    void write_cells(ofstream& out) const;
 };
 
 } /* namespace femocs */

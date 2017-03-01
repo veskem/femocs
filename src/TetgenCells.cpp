@@ -416,90 +416,111 @@ vector<dealii::CellData<3>> Hexahedra::export_dealii() const {
     return elems;
 }
 
+/* =====================================================================
+ *  ============================ Voronoi ============================
+ * ===================================================================== */
 
-void VoronoiCells::write_vtk(const string &file_name, const int celltype) const {
-    const int n_markers = get_n_markers();
-    const int n_nodes = get_n_nodes();
-
-    expect(n_nodes > 0, "Zero nodes detected!");
-
-    std::ofstream out(file_name.c_str());
-    require(out, "Can't open a file " + file_name);
-
-    out << fixed;
-
-    out << "# vtk DataFile Version 3.0\n";
-    out << "VoroCells data\n";
-    out << "ASCII\n";
-    out << "DATASET POLYDATA\n\n";
-
-    // Output the nodes
-    out << "POINTS " << n_nodes << " double\n";
-    for (size_t node = 0; node < n_nodes; ++node)
-        out << get_node(node) << "\n";
-
-    vector<vector<int>> facets;
-    vector<int> facet;
-    size_t n_facets = 0, n_verts = 0;
-
-    for (int i = 0; i < reads->numberofvfacets; ++i) {
-        get_facet(i, facet);
-        facets.push_back(facet);
-        n_verts += facet.size();
-        n_facets += facet.size() > 0;
-    }
-
-    out << "\nPOLYGONS " << n_facets << " " << n_facets+n_verts << "\n";
-    for (vector<int>& f : facets) {
-        if (f.size() == 0) continue;
-        out << f.size() << " ";
-        for (int n : f)
-            out << n << " ";
-        out << endl;
-    }
+Vec3 VoronoiFace::norm() {
+    Vec3 edge1 = verts[1] - verts[0];
+    Vec3 edge2 = verts[2] - verts[0];
+    return edge1.crossProduct(edge2).normalize();
 }
 
-void VoronoiCells::get_facet(const int i, vector<int>& v) const {
-    v.clear();
-    tetgenio::vorofacet facet = reads->vfacetlist[i];
+double VoronoiFace::area() {
+    const int n_nodes = verts.size();
+    if (n_nodes < 3) return 0;
+
+    Vec3 total(0.0);
+    for (int i = 0; i < n_nodes; ++i) {
+        int j = i+1;
+        if (j == n_nodes) j = 0;
+        total += verts[i].crossProduct(verts[j]);
+    }
+
+    return fabs(0.5 * total.dotProduct(norm()));
+}
+
+void VoronoiFace::calc_nodes() {
+    if (nodes.size() > 0 && verts.size() > 0) return;
+
+    tetgenio::vorofacet facet = data->vfacetlist[id];
     int n_edges = facet.elist[0];
-    if (n_edges < 0) return;
+    nodes.reserve(n_edges);
+    verts.reserve(n_edges);
 
     int node = -1;
     for (int j = 1; j <= n_edges; ++j) {
         int edge = facet.elist[j];
-        if (edge < 0) { v.clear(); return; }
+        int v1 = data->vedgelist[edge].v1;
+        int v2 = data->vedgelist[edge].v2;
 
-        int v1 = reads->vedgelist[edge].v1;
-        int v2 = reads->vedgelist[edge].v2;
+        if (node != v1) node = v1;
+        else node = v2;
+        int n = 3 * node;
 
-        if (node != v1 && v1 >= 0) node = v1;
-        else if (node != v2 && v2 >= 0) node = v2;
-        else { v.clear(); return; }
-
-        v.push_back(node);
+        nodes.push_back(node);
+        verts.push_back( Vec3(data->vpointlist[n+0], data->vpointlist[n+1], data->vpointlist[n+2]) );
     }
 }
 
-void VoronoiCells::get_facet(const int i, vector<Vec3>& v) const {
-    v.clear();
-    tetgenio::vorofacet facet = reads->vfacetlist[i];
-    int n_edges = facet.elist[0];
-    if (n_edges < 0) return;
+void VoronoiCells::write_cells(ofstream& out) const {
+    // Get total number of faces and their vertices
+    size_t n_faces = 0, n_verts = 0;
 
-    for (int j = 1; j <= n_edges; ++j) {
-        int edge = facet.elist[j];
-        if (edge < 0) { v.clear(); return; }
-
-        int v1 = reads->vedgelist[edge].v1;
-        int v2 = reads->vedgelist[edge].v2;
-
-        if (v1 >= 0 && v2 >= 0) {
-            v.push_back(get_vec(v2) - get_vec(v1));
+    for (int cell = 0; cell < size(); ++cell)
+        for (int f = 1; f <= get_n_faces(cell); ++f) {
+            VoronoiFace vface(tetio, tetio->vcelllist[cell][f]);
+            n_verts += vface.size();
+            n_faces += vface.size() > 0;
         }
 
-        else { v.clear(); return; }
+    // Write the Voronoi cells as polygons
+    out << "\nCELLS " << n_faces << " " << n_faces + n_verts << "\n";
+    for (int cell = 0; cell < size(); ++cell)
+        for (int f = 1; f <= get_n_faces(cell); ++f) {
+            VoronoiFace vface(tetio, tetio->vcelllist[cell][f], 1);
+            out << vface.size() << " " << vface << endl;
+        }
+
+    // Output cell types
+    out << "\nCELL_TYPES " << n_faces << "\n";
+    for (size_t cl = 0; cl < n_faces; ++cl)
+        out << celltype << "\n";
+
+    // Output scalar data associated with Voronoi cells
+    out << "\nCELL_DATA " << n_faces << "\n";
+    out << "SCALARS marker int\nLOOKUP_TABLE default\n";
+    for (int cell = 0; cell < size(); ++cell)
+        for (int f = 0; f < get_n_faces(cell); ++f)
+            out << cell << "\n";
+}
+
+void VoronoiFaces::write_cells(ofstream& out) const {
+    // Get total number of faces and their vertices
+    size_t n_faces = 0, n_verts = 0;
+    for (int f = 0; f < size(); ++f) {
+        VoronoiFace vface(tetio, f);
+        n_verts += vface.size();
+        n_faces += vface.size() > 0;
     }
+
+    // Write the Voronoi faces as polygons
+    out << "\nCELLS " << n_faces << " " << n_faces + n_verts << "\n";
+    for (int f = 0; f < size(); ++f) {
+        VoronoiFace vface(tetio, f, 1);
+        if (vface.size() > 0) out << vface.size() << " " << vface << endl;
+    }
+
+    // Output cell types
+    out << "\nCELL_TYPES " << n_faces << "\n";
+    for (size_t cl = 0; cl < n_faces; ++cl)
+        out << celltype << "\n";
+
+    // Output scalar data associated with Voronoi faces
+    out << "\nCELL_DATA " << n_faces << "\n";
+    out << "SCALARS marker int\nLOOKUP_TABLE default\n";
+    for (size_t i = 0; i < n_faces; ++i)
+        out << i << "\n";
 }
 
 } /* namespace femocs */

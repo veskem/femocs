@@ -96,18 +96,15 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 
 
     start_msg(t0, "=== Making voronoi cells...");
-    TetgenMesh voro_mesh;
+    VoronoiMesh voromesh;
     // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
-    fail = voro_mesh.generate(bulk, reader, vacuum, "rQq" + conf.mesh_quality, "vQ");
-    check_message(fail, "Triangulation failed! Field calculation will be skipped!");
+    fail = voromesh.generate(bulk, reader, vacuum, "rQq" + conf.mesh_quality, "vQ");
+    check_message(fail, "Making voronoi cells failed! Field calculation will be skipped!");
+    voromesh.clean();
     end_msg(t0);
 
-//    voro_mesh.print_voros();
-
-    voro_mesh.voros.write("output/voros.xyz");
-    voro_mesh.voros.write("output/voros.vtk");
-
-//    voro_mesh.write_tetgen("output/eraseme");
+    voromesh.voros.write("output/voro_cells.vtk");
+    voromesh.vfaces.write("output/voro_faces.vtk");
 //
 //    voro_mesh.elems.write("output/voromesh.vtk");
 //    voro_mesh.nodes.write("output/voronodes.xyz");
