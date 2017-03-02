@@ -126,7 +126,7 @@ public:
 
     /** Objects holding operations for accessing cell data */
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
-    TetgenElements elems = TetgenElements(&tetIOout, &tetIOin);
+    TetgenElements elems = TetgenElements(&tetIOout);
     VoronoiCells voros = VoronoiCells(&tetIOout);
     VoronoiFaces vfaces = VoronoiFaces(&tetIOout);
 

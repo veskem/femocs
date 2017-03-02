@@ -466,54 +466,52 @@ void VoronoiFace::calc_nodes() {
 void VoronoiCells::write_cells(ofstream& out) const {
     // Get total number of faces and their vertices
     size_t n_faces = 0, n_verts = 0;
-
-    for (int cell = 0; cell < size(); ++cell)
-        for (int f = 1; f <= get_n_faces(cell); ++f) {
-            VoronoiFace vface(tetio, tetio->vcelllist[cell][f]);
-            n_verts += vface.size();
-            n_faces += vface.size() > 0;
+    for (VoronoiCell cell : *this)
+        for (VoronoiFace face : cell) {
+            n_verts += face.size();
+            n_faces++;
         }
 
     // Write the Voronoi cells as polygons
     out << "\nCELLS " << n_faces << " " << n_faces + n_verts << "\n";
-    for (int cell = 0; cell < size(); ++cell)
-        for (int f = 1; f <= get_n_faces(cell); ++f) {
-            VoronoiFace vface(tetio, tetio->vcelllist[cell][f], 1);
-            out << vface.size() << " " << vface << endl;
+    for (VoronoiCell cell : *this)
+        for (VoronoiFace face : cell) {
+            face.calc_nodes();
+            out << face.size() << " " << face << endl;
         }
 
     // Output cell types
     out << "\nCELL_TYPES " << n_faces << "\n";
-    for (size_t cl = 0; cl < n_faces; ++cl)
+    for (size_t i = 0; i < n_faces; ++i)
         out << celltype << "\n";
 
     // Output scalar data associated with Voronoi cells
     out << "\nCELL_DATA " << n_faces << "\n";
     out << "SCALARS marker int\nLOOKUP_TABLE default\n";
-    for (int cell = 0; cell < size(); ++cell)
-        for (int f = 0; f < get_n_faces(cell); ++f)
-            out << cell << "\n";
+    for (VoronoiCell cell : *this)
+        for (VoronoiFace face : cell)
+            out << cell.id << "\n";
 }
 
 void VoronoiFaces::write_cells(ofstream& out) const {
     // Get total number of faces and their vertices
     size_t n_faces = 0, n_verts = 0;
-    for (int f = 0; f < size(); ++f) {
-        VoronoiFace vface(tetio, f);
-        n_verts += vface.size();
-        n_faces += vface.size() > 0;
+    for (VoronoiFace face : *this) {
+        n_verts += face.size();
+        n_faces += face.size() > 0;
     }
 
     // Write the Voronoi faces as polygons
     out << "\nCELLS " << n_faces << " " << n_faces + n_verts << "\n";
-    for (int f = 0; f < size(); ++f) {
-        VoronoiFace vface(tetio, f, 1);
-        if (vface.size() > 0) out << vface.size() << " " << vface << endl;
-    }
+    for (VoronoiFace face : *this)
+        if (face.size() > 0) {
+            face.calc_nodes();
+            out << face.size() << " " << face << endl;
+        }
 
     // Output cell types
     out << "\nCELL_TYPES " << n_faces << "\n";
-    for (size_t cl = 0; cl < n_faces; ++cl)
+    for (size_t i = 0; i < n_faces; ++i)
         out << celltype << "\n";
 
     // Output scalar data associated with Voronoi faces

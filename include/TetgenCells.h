@@ -467,8 +467,9 @@ public:
     /** Get number of faces that make the cell */
     virtual int size() const { return 0; }
 
-protected:
     int id;
+
+protected:
     tetgenio* data;     ///< mesh data that has been processed by Tetgen
 };
 
@@ -492,7 +493,7 @@ public:
     double area();
 
     /** Accessor for accessing the i-th node */
-    const int& operator [](size_t i) const {
+    int operator [](size_t i) const {
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         return nodes[i];
     }
@@ -527,9 +528,9 @@ public:
     int size() const { return data->vcelllist[id][0]; }
 
     /** Accessor for accessing the i-th face */
-    const VoronoiFace& operator [](size_t i) const {
+    VoronoiFace operator [](size_t i) const {
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-        return VoronoiFace(data, i);
+        return VoronoiFace(data, data->vcelllist[id][i+1]);
     }
 
     /** Iterator to access the cell faces */
@@ -598,9 +599,9 @@ public:
     }
 
     /** Accessor for accessing the i-th cell */
-    const T& operator [](size_t i) const {
+    T operator [](size_t i) const {
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-        return Voronoi(tetio, i);
+        return T(tetio, i);
     }
 
     /** Iterator to access the cells */
@@ -676,11 +677,6 @@ public:
     /** VoronoiCells constructors */
     VoronoiCells() : Voronois<VoronoiCell>() {}
     VoronoiCells(tetgenio* data) : Voronois<VoronoiCell>(data, &data->numberofvcells) {}
-
-    int get_n_faces(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-        return tetio->vcelllist[i][0];
-    }
 
     void write_cells(ofstream& out) const;
 };

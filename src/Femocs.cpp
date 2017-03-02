@@ -105,11 +105,6 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 
     voromesh.voros.write("output/voro_cells.vtk");
     voromesh.vfaces.write("output/voro_faces.vtk");
-//
-//    voro_mesh.elems.write("output/voromesh.vtk");
-//    voro_mesh.nodes.write("output/voronodes.xyz");
-
-//    exit(1);
 
 
 
