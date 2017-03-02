@@ -490,7 +490,7 @@ public:
 
     /** Get the area of the face.
      * See the theory in http://geomalgorithms.com/a01-_area.html#3D%20Polygons */
-    double area();
+    Vec3 area();
 
     /** Accessor for accessing the i-th node */
     int operator [](size_t i) const {
@@ -553,39 +553,28 @@ public:
     /** Voronoi destructor */
     virtual ~Voronois() {};
 
-    /** Initialize marker appending */
-    void init_markers(const int N) {
-        require(N >= 0, "Invalid number of markers: " + to_string(N));
-        markers.clear();
-        markers.reserve(N);
-    }
-
-    /** Append cell marker */
-    void append_marker(const int &m) {
-        expect(get_n_markers() < markers.capacity(), "Allocated size of markers exceeded!");
-        markers.push_back(m);
-    }
-
     /** Get number of cells in mesh */
     int size() const { return *_n_cells; }
 
-    /** Get number of cell markers */
-    int get_n_markers() const { return markers.size(); };
+    /** Initialize markers with default value */
+    void init_markers() {
+        markers = vector<int>(size(), -1);
+    }
+
+    /** Assign i-th marker */
+    void set_marker(const int i, const int value) {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        markers[i] = value;
+    }
 
     /** Return i-th marker */
     int get_marker(const int i) const {
-        require(i >= 0 && i < get_n_markers(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         return markers[i];
     }
 
     /** Return pointer to markers */
     vector<int>* get_markers() { return &markers; }
-
-    /** Assign m-th marker */
-    void set_marker(const int node, const int m) {
-        require(node >= 0 && node < get_n_markers(), "Invalid index: " + to_string(node));
-        markers[node] = m;
-    }
 
     /** Function to write cell data to file */
     void write(const string &file_name) const {
@@ -634,7 +623,6 @@ protected:
     }
 
     void write_vtk(const string &file_name) const {
-        const int n_markers = get_n_markers();
         const int n_nodes = get_n_nodes();
 
         expect(n_nodes > 0, "Zero nodes detected!");

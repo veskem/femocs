@@ -838,6 +838,9 @@ void VoronoiMesh::clean() {
             if (n_edges <= 0) { n_faces = 0; break; }
         }
     }
+
+    voros.init_markers();
+    vfaces.init_markers();
 }
 
 } /* namespace femocs */

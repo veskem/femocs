@@ -96,15 +96,20 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 
 
     start_msg(t0, "=== Making voronoi cells...");
+    Media top, bottom;
+    top.generate_simple(dense_surf.sizes, dense_surf.sizes.zmin + conf.box_height * dense_surf.sizes.zbox);
+    bottom.generate_simple(dense_surf.sizes, dense_surf.sizes.zmin - conf.bulk_height * conf.latconst);
+
     VoronoiMesh voromesh;
     // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
-    fail = voromesh.generate(bulk, reader, vacuum, "rQq" + conf.mesh_quality, "vQ");
+    fail = voromesh.generate(bottom, dense_surf, top, "rQq" + conf.mesh_quality, "vQ");
     check_message(fail, "Making voronoi cells failed! Field calculation will be skipped!");
     voromesh.clean();
     end_msg(t0);
 
     voromesh.voros.write("output/voro_cells.vtk");
     voromesh.vfaces.write("output/voro_faces.vtk");
+    voromesh.nodes.write("output/voro_nodes.vtk");
 
 
 

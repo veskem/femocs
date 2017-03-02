@@ -426,7 +426,7 @@ Vec3 VoronoiFace::norm() {
     return edge1.crossProduct(edge2).normalize();
 }
 
-double VoronoiFace::area() {
+Vec3 VoronoiFace::area() {
     const int n_nodes = verts.size();
     if (n_nodes < 3) return 0;
 
@@ -437,7 +437,10 @@ double VoronoiFace::area() {
         total += verts[i].crossProduct(verts[j]);
     }
 
-    return fabs(0.5 * total.dotProduct(norm()));
+    Vec3 nrm = norm();
+    double area = fabs(0.5 * total.dotProduct(nrm));
+
+    return nrm * area;
 }
 
 void VoronoiFace::calc_nodes() {
@@ -487,10 +490,18 @@ void VoronoiCells::write_cells(ofstream& out) const {
 
     // Output scalar data associated with Voronoi cells
     out << "\nCELL_DATA " << n_faces << "\n";
-    out << "SCALARS marker int\nLOOKUP_TABLE default\n";
+
+    // Write the IDs of cells
+    out << "SCALARS ID int\nLOOKUP_TABLE default\n";
     for (VoronoiCell cell : *this)
         for (VoronoiFace face : cell)
             out << cell.id << "\n";
+
+    // Write the markers of cells
+    out << "SCALARS marker int\nLOOKUP_TABLE default\n";
+    for (VoronoiCell cell : *this)
+        for (VoronoiFace face : cell)
+            out << get_marker(cell.id) << "\n";
 }
 
 void VoronoiFaces::write_cells(ofstream& out) const {
@@ -516,9 +527,18 @@ void VoronoiFaces::write_cells(ofstream& out) const {
 
     // Output scalar data associated with Voronoi faces
     out << "\nCELL_DATA " << n_faces << "\n";
+
+    // write IDs of faces
+    out << "SCALARS ID int\nLOOKUP_TABLE default\n";
+    for (VoronoiFace face : *this)
+        if (face.size() > 0)
+            out << face.id << "\n";
+
+    // write markers of faces
     out << "SCALARS marker int\nLOOKUP_TABLE default\n";
-    for (size_t i = 0; i < n_faces; ++i)
-        out << i << "\n";
+    for (VoronoiFace face : *this)
+        if (face.size() > 0)
+            out << get_marker(face.id) << "\n";
 }
 
 } /* namespace femocs */
