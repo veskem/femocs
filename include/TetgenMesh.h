@@ -124,6 +124,8 @@ public:
     /** Mark the cells and faces with nodes in the infinity */
     void clean();
 
+    void mark_mesh();
+
     /** Objects holding operations for accessing cell data */
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
     TetgenElements elems = TetgenElements(&tetIOout);
@@ -135,6 +137,10 @@ public:
 private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
+
+    void get_statistics(int& zmax_indx, double& zmin);
+
+    bool iterate_marking(const int seed, const double zmin);
 };
 
 /** Class to mark mesh nodes with ray-triangle intersection technique,

@@ -427,8 +427,8 @@ Vec3 VoronoiFace::norm() {
 }
 
 Vec3 VoronoiFace::area() {
-    const int n_nodes = verts.size();
-    if (n_nodes < 3) return 0;
+    const int n_nodes = size();
+    calc_nodes();
 
     Vec3 total(0.0);
     for (int i = 0; i < n_nodes; ++i) {
@@ -443,27 +443,45 @@ Vec3 VoronoiFace::area() {
     return nrm * area;
 }
 
+Vec3 VoronoiFace::centroid() {
+    calc_nodes();
+    Vec3 centroid(0.0);
+
+    for (Vec3& v : verts)
+        centroid += v;
+    centroid *= (1.0 / size());
+
+    return centroid;
+}
+
+// Calculate the unique node that is associated with the edge
+int VoronoiFace::get_node(const int edge) {
+    static int node = -1;
+
+    const int v1 = data->vedgelist[edge].v1;
+    if (node != v1) node = v1;
+    else node = data->vedgelist[edge].v2;
+
+    return node;
+}
+
+// Transform the node data from tetgenio into easily accessible form
 void VoronoiFace::calc_nodes() {
-    if (nodes.size() > 0 && verts.size() > 0) return;
+    if (verts.size() > 0) return;
+    verts.reserve(size());
 
-    tetgenio::vorofacet facet = data->vfacetlist[id];
-    int n_edges = facet.elist[0];
-    nodes.reserve(n_edges);
-    verts.reserve(n_edges);
-
-    int node = -1;
-    for (int j = 1; j <= n_edges; ++j) {
-        int edge = facet.elist[j];
-        int v1 = data->vedgelist[edge].v1;
-        int v2 = data->vedgelist[edge].v2;
-
-        if (node != v1) node = v1;
-        else node = v2;
-        int n = 3 * node;
-
-        nodes.push_back(node);
+    for (int edge : *this) {
+        int n = 3 * get_node(edge);
         verts.push_back( Vec3(data->vpointlist[n+0], data->vpointlist[n+1], data->vpointlist[n+2]) );
     }
+}
+
+// Return the neighbouring cell for the caller cell
+int VoronoiFace::nborcell(const int caller_id) {
+    const int c1 = data->vfacetlist[id].c1;
+    if (c1 == caller_id)
+        return data->vfacetlist[id].c2;
+    return c1;
 }
 
 void VoronoiCells::write_cells(ofstream& out) const {
@@ -478,10 +496,8 @@ void VoronoiCells::write_cells(ofstream& out) const {
     // Write the Voronoi cells as polygons
     out << "\nCELLS " << n_faces << " " << n_faces + n_verts << "\n";
     for (VoronoiCell cell : *this)
-        for (VoronoiFace face : cell) {
-            face.calc_nodes();
+        for (VoronoiFace face : cell)
             out << face.size() << " " << face << endl;
-        }
 
     // Output cell types
     out << "\nCELL_TYPES " << n_faces << "\n";
@@ -504,6 +520,48 @@ void VoronoiCells::write_cells(ofstream& out) const {
             out << get_marker(cell.id) << "\n";
 }
 
+// Calculate the face neighbours - faces, that share the same edge
+void VoronoiFaces::calc_neighbours() {
+    const int n_faces = size();
+    const int n_edges = tetio->numberofvedges;
+
+    // Produce edge to face mapping
+    vector<vector<int>> edge2face(n_edges);
+    for (int i = 0; i < n_edges; ++i)
+        edge2face[i].reserve(10);
+
+    for (VoronoiFace face : *this)
+        for (int i : face)
+            edge2face[i].push_back(face.id);
+
+    // Initialize face neighbour list
+    neighbours.clear();
+    neighbours.resize(n_faces);
+    for (int i = 0; i < n_faces; ++i)
+        neighbours[i].reserve(10);
+
+    // Convert edge to face list to face neighbour list
+    for (vector<int> faces : edge2face)
+        for (int i : faces)
+            for (int j : faces) {
+                if (i == j) continue;
+                neighbours[i].push_back(j);
+            }
+}
+
+void VoronoiFaces::calc_centroids() {
+    const int n_faces = size();
+    centroids.clear();
+    centroids.reserve(n_faces);
+
+    for (VoronoiFace face : *this) {
+        if (face.size() > 0)
+            centroids.push_back(face.centroid());
+        else
+            centroids.push_back(Vec3());
+    }
+}
+
 void VoronoiFaces::write_cells(ofstream& out) const {
     // Get total number of faces and their vertices
     size_t n_faces = 0, n_verts = 0;
@@ -515,10 +573,8 @@ void VoronoiFaces::write_cells(ofstream& out) const {
     // Write the Voronoi faces as polygons
     out << "\nCELLS " << n_faces << " " << n_faces + n_verts << "\n";
     for (VoronoiFace face : *this)
-        if (face.size() > 0) {
-            face.calc_nodes();
+        if (face.size() > 0)
             out << face.size() << " " << face << endl;
-        }
 
     // Output cell types
     out << "\nCELL_TYPES " << n_faces << "\n";

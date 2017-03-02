@@ -107,6 +107,10 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     voromesh.clean();
     end_msg(t0);
 
+    start_msg(t0, "=== Marking voronoi mesh...");
+    voromesh.mark_mesh();
+    end_msg(t0);
+
     voromesh.voros.write("output/voro_cells.vtk");
     voromesh.vfaces.write("output/voro_faces.vtk");
     voromesh.nodes.write("output/voro_nodes.vtk");

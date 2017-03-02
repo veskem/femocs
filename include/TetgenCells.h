@@ -477,44 +477,51 @@ protected:
 class VoronoiFace : public Voronoi {
 public:
     VoronoiFace() : Voronoi() {}
-    VoronoiFace(tetgenio* data, const int i, const int calc=0) : Voronoi(data, i) {
-        if (calc) calc_nodes();
-    }
+    VoronoiFace(tetgenio* data, const int i) : Voronoi(data, i) {}
     ~VoronoiFace() {}
 
-    /** Get number of nodes that make the face */
+    /** Get number of nodes that are associated with the face */
     int size() const { return data->vfacetlist[id].elist[0]; }
 
-    /** Get the norm vector of the face */
-    Vec3 norm();
-
-    /** Get the area of the face.
+    /** Get the area of the face in the form of its scaled norm.
      * See the theory in http://geomalgorithms.com/a01-_area.html#3D%20Polygons */
     Vec3 area();
 
-    /** Accessor for accessing the i-th node */
+    /** Get the centroid coordinates of the face */
+    Vec3 centroid();
+
+    /** Return the neighbouring cell for the caller cell */
+    int nborcell(const int caller_id);
+
+    /** Accessor for accessing the index of i-th edge */
     int operator [](size_t i) const {
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-        return nodes[i];
+        return data->vfacetlist[id].elist[i+1];
     }
 
-    /** Iterator to access the nodes of faces */
+    /** Iterator to access the indexes of edges */
     typedef Iterator<VoronoiFace, int> iterator;
     iterator begin() const { return iterator(this, 0); }
     iterator end() const { return iterator(this, size()); }
 
     /** Stream for printing the nodes to file or console */
-    friend std::ostream& operator <<(std::ostream &os, const VoronoiFace &vf) {
-        for (int n : vf.nodes) os << n << ' ';
+    friend std::ostream& operator <<(std::ostream &os, VoronoiFace &vf) {
+        for (int edge : vf)
+            os << vf.get_node(edge) << ' ';
         return os;
     }
 
-    /** Transform the node data from tetgenio into easily accessible form */
-    void calc_nodes();
-
 private:
     vector<Vec3> verts;  ///< coordinates of the face vertices
-    vector<int> nodes;   ///< indices of the face nodes
+
+    /** Get the norm vector of the face */
+    Vec3 norm();
+
+    /** Calculate the unique node that is associated with the edge */
+    int get_node(const int edge);
+
+    /** Transform the node data from tetgenio into easily accessible form */
+    void calc_nodes();
 };
 
 /** Class for accessing the Voronoi cell data */
@@ -531,6 +538,20 @@ public:
     VoronoiFace operator [](size_t i) const {
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         return VoronoiFace(data, data->vcelllist[id][i+1]);
+    }
+
+    /** Get the indices of neighbouring Voronoi cells */
+    vector<int> neighbours() const {
+        vector<int> nbors; nbors.reserve(size());
+        for (VoronoiFace face : *this)
+            nbors.push_back(face.nborcell(id));
+        return nbors;
+    }
+
+    void neighbours(vector<int>& nbors) const {
+        nbors.reserve(nbors.size() + size());
+        for (VoronoiFace face : *this)
+            nbors.push_back(face.nborcell(id));
     }
 
     /** Iterator to access the cell faces */
@@ -557,9 +578,7 @@ public:
     int size() const { return *_n_cells; }
 
     /** Initialize markers with default value */
-    void init_markers() {
-        markers = vector<int>(size(), -1);
-    }
+    void init_markers() { markers = vector<int>(size(), TYPES.NONE); }
 
     /** Assign i-th marker */
     void set_marker(const int i, const int value) {
@@ -657,6 +676,24 @@ public:
     VoronoiFaces(tetgenio* data) : Voronois<VoronoiFace>(data, &data->numberofvfacets) {}
 
     void write_cells(ofstream& out) const;
+
+    void calc_neighbours();
+
+    void calc_centroids();
+
+    vector<int> get_neighbours(const int i) const {
+        require(i >= 0 && i < neighbours.size(), "Invalid index: " + to_string(i));
+        return neighbours[i];
+    }
+
+    Vec3 get_centroid(const int i) const {
+        require(i >= 0 && i < centroids.size(), "Invalid index: " + to_string(i));
+        return centroids[i];
+    }
+
+private:
+    vector<vector<int>> neighbours;
+    vector<Vec3> centroids;
 };
 
 /** Class for accessing the Voronoi cells */

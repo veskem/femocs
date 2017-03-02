@@ -777,6 +777,100 @@ VoronoiMesh::VoronoiMesh() {
     tetIOout.initialize();
 }
 
+// Find the min and max z-coordinate of the surface atoms
+void VoronoiMesh::get_statistics(int& zmax_indx, double& zmin) {
+    double zmax = -1e100;
+    zmin = 1e100;
+
+    for (int i = nodes.indxs.surf_start; i <= nodes.indxs.surf_end; ++i) {
+        double z = nodes[i].z;
+        zmin = min(z, zmin);
+        if (z > zmax) {
+            zmax = z;
+            zmax_indx = i;
+        }
+    }
+}
+
+void VoronoiMesh::mark_mesh() {
+    vfaces.calc_neighbours();
+    vfaces.calc_centroids();
+
+    int seedcell; double zmin;
+    get_statistics(seedcell, zmin);
+
+    vector<int> cell_nbors = voros[seedcell].neighbours();
+    vector<bool> exposedfaces = vector_greater(&cell_nbors, nodes.indxs.surf_end);
+
+    voros.set_marker(seedcell, TYPES.ZMAX);
+    for (int i = 0; i < exposedfaces.size(); ++i)
+        if (exposedfaces[i]) {
+            int face = tetIOout.vcelllist[seedcell][i+1];
+            vfaces.set_marker(face, TYPES.SURFACE);
+        }
+
+    while( iterate_marking(seedcell, zmin) );
+
+    const int n_nodes = nodes.size();
+    nodes.init_markers(n_nodes);
+    for (int i = 0; i < n_nodes; ++i)
+        nodes.append_marker(voros.get_marker(i));
+}
+
+bool VoronoiMesh::iterate_marking(const int seed, const double zmin) {
+    const int n_faces = vfaces.size();
+    const int n_cells = voros.size();
+    const int cell_max = nodes.indxs.surf_end;
+
+    vector<int> cell_nbors = voros[seed].neighbours();
+    bool system_changed = false;
+
+    // Mark the cell that potentially can be on the surface
+    vector<bool> not_marked; not_marked.reserve(n_cells);
+    for (VoronoiCell cell : voros) {
+//        Point3 p = nodes[cell.id];
+//        bool b1 = !on_boundary(p.x, nodes.stat.xmin, nodes.stat.xmax, 1.5*3.61);
+//        bool b2 = !on_boundary(p.y, nodes.stat.ymin, nodes.stat.ymax, 1.5*3.61);
+//        not_marked.push_back(b1 && b2 && cell.id <= cell_max && cell.size() > 0);
+        not_marked.push_back(cell.id <= cell_max && cell.size() > 0);
+    }
+
+
+    for (int i = 0; i < cell_nbors.size(); ++i) {
+        int cell = cell_nbors[i];
+        if (not_marked[cell]) {
+            // Mark cell as handled
+            not_marked[cell] = false;
+
+            // Mark the faces that are on the surface
+            bool on_surface = false;
+            for (VoronoiFace face : voros[cell])
+                if ( face.nborcell(cell) > cell_max &&
+                        vfaces.get_marker(face.id) != TYPES.SURFACE &&
+                        vfaces.get_centroid(face.id).z > zmin )
+                {
+                    for (int nbor : vfaces.get_neighbours(face.id))
+                            if (vfaces.get_marker(nbor) == TYPES.SURFACE) {
+                                vfaces.set_marker(face.id, TYPES.SURFACE);
+                                on_surface = true;
+                                break;
+                            }
+                }
+
+            // If at least one face is on surface, so is the corresponding cell
+            if (on_surface) {
+                voros.set_marker(cell, TYPES.SURFACE);
+                system_changed = true;
+            }
+
+            // Expand the list of possible surface cells
+            voros[cell].neighbours(cell_nbors);
+        }
+    }
+
+    return system_changed;
+}
+
 // Function to perform tetgen calculation on input and write_tetgen data
 bool VoronoiMesh::recalc(const string& cmd1, const string& cmd2, const string& cmd3) {
     try {
@@ -819,7 +913,7 @@ bool VoronoiMesh::generate(const Medium& bulk, const Medium& surf, const Medium&
 
 // Mark the cells and faces with nodes in the infinity
 void VoronoiMesh::clean() {
-    // Check for infinite nodes in the voro faces
+    // Check for the infinite nodes on voro faces
     for (int f = 0; f < tetIOout.numberofvfacets; ++f) {
         tetgenio::vorofacet facet = tetIOout.vfacetlist[f];
         int& n_edges = tetIOout.vfacetlist[f].elist[0];
@@ -829,7 +923,7 @@ void VoronoiMesh::clean() {
         }
     }
 
-    // Check for the empty faces on voro cells
+    // Check for the incomplete faces on voro cells
     for (int cell = 0; cell < tetIOout.numberofvcells; ++cell ) {
         int& n_faces = tetIOout.vcelllist[cell][0];
         for (int f = 1; f <= n_faces; ++f) {
@@ -839,6 +933,7 @@ void VoronoiMesh::clean() {
         }
     }
 
+    nodes.calc_statistics();
     voros.init_markers();
     vfaces.init_markers();
 }
