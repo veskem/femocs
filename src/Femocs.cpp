@@ -57,11 +57,28 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     dense_surf.extract(reader, TYPES.SURFACE);
     end_msg(t0);
 
-    dense_surf.write("output/surface_dense.xyz");
+    dense_surf.write("output/surface_dense_1.xyz");
 
     Coarseners coarseners;
     coarseners.generate(dense_surf, conf.radius, conf.cfactor, conf.latconst);
     coarseners.write("output/coarseners.vtk");
+
+    start_msg(t0, "=== Making voronoi cells...");
+    VoronoiMesh voromesh;
+    // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
+    fail = voromesh.generate(dense_surf, conf.latconst, "rQq" + conf.mesh_quality, "vQ");
+    check_message(fail, "Making voronoi cells failed! Field calculation will be skipped!");
+    voromesh.clean();
+    end_msg(t0);
+
+    start_msg(t0, "=== Extracting voronoi surface...");
+    voromesh.extract_surface(dense_surf, coarseners.centre.z);
+    end_msg(t0);
+
+    dense_surf.write("output/surface_dense_2.xyz");
+    voromesh.nodes.write("output/voro_nodes.vtk");
+    voromesh.vfaces.write("output/voro_faces.vtk");
+    voromesh.voros.write("output/voro_cells.vtk");
 
     static bool first_run = true;
     if (first_run) {
@@ -89,31 +106,8 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 
     start_msg(t0, "=== Generating bulk & vacuum...");
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
-
     vacuum.generate_simple(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.box_height * coarse_surf.sizes.zbox);
     bulk.generate_simple(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.bulk_height * conf.latconst);
-
-
-
-    start_msg(t0, "=== Making voronoi cells...");
-    VoronoiMesh voromesh;
-    // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
-//    fail = voromesh.generate(dense_surf, conf.latconst, "rQq" + conf.mesh_quality, "vQ");
-    fail = voromesh.generate(dense_surf, conf.latconst, "rQq2.0", "vQ");
-    check_message(fail, "Making voronoi cells failed! Field calculation will be skipped!");
-    voromesh.clean();
-    end_msg(t0);
-
-    start_msg(t0, "=== Marking voronoi mesh...");
-    voromesh.mark_mesh(dense_surf.sizes, coarseners.centre.z);
-    end_msg(t0);
-
-    voromesh.voros.write("output/voro_cells.vtk");
-    voromesh.vfaces.write("output/voro_faces.vtk");
-    voromesh.nodes.write("output/voro_nodes.vtk");
-
-
-
     reader.resize_box(coarse_surf.sizes.xmin, coarse_surf.sizes.xmax, 
         coarse_surf.sizes.ymin, coarse_surf.sizes.ymax,
         bulk.sizes.zmin, vacuum.sizes.zmax);
@@ -170,7 +164,7 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     end_msg(t0);
 
     bulk_mesh.faces.write("output/surface_faces_clean.vtk");
-    dense_surf.write("output/surface_dense_clean.xyz");
+    dense_surf.write("output/surface_dense_3.xyz");
 
     expect(bulk_mesh.nodes.size() > 0, "Zero nodes in bulk mesh!");
     expect(vacuum_mesh.nodes.size() > 0, "Zero nodes in vacuum mesh!");

@@ -793,21 +793,34 @@ int VoronoiMesh::get_seedcell() {
     return seed;
 }
 
-void VoronoiMesh::init_marking(const Medium::Sizes& sizes, const double zmin) {
-    const int cell_min = nodes.indxs.surf_start;
+// Mark the cell and faces that are certainly on the surface
+int VoronoiMesh::mark_seed() {
+    const int cell_max = nodes.indxs.surf_end;
+    int seedface, seedcell = get_seedcell();
+
+    voros.set_marker(seedcell, TYPES.ZMAX);
+
+    vector<int> cell_nbors = voros[seedcell].neighbours();
+    for (int i = 0; i < cell_nbors.size(); ++i)
+        if (cell_nbors[i] > cell_max) {
+            seedface = tetIOout.vcelllist[seedcell][i+1];
+            vfaces.set_marker(seedface, TYPES.SURFACE);
+        }
+
+    return seedface;
+}
+
+// Mark voronoi faces that are on the vacuum-material boundary
+void VoronoiMesh::mark_faces(const Medium::Sizes& sizes, const double zmin, const int seed) {
     const int cell_max = nodes.indxs.surf_end;
     vfaces.calc_neighbours();
 
-    // Mark the cells that for sure are not on the surface
-    for (VoronoiCell cell : voros)
-        if (cell.id > cell_max || cell.size() == 0)
-            voros.set_marker(cell.id, TYPES.PERIMETER);
-
     // Mark the faces that are associated only with potential surface cells
     // and therefore cannot be on the surface
-    for (int v = cell_min; v <= cell_max; ++v)
-        for (VoronoiFace face : voros[v]) {
-            if (face.nborcell(v) <= cell_max)
+    for (VoronoiCell cell : voros)
+        for (VoronoiFace face : cell) {
+            if ( (cell.id <= cell_max && face.nborcell(cell.id) <= cell_max)
+                    || (cell.id > cell_max && face.nborcell(cell.id) > cell_max) )
                 vfaces.set_marker(face.id, TYPES.PERIMETER);
         }
 
@@ -824,71 +837,63 @@ void VoronoiMesh::init_marking(const Medium::Sizes& sizes, const double zmin) {
             }
         }
     }
+
+    // Mark the faces around the seed face
+    vector<int> neighbours = vfaces.get_neighbours(seed);
+    for (int i = 0; i < neighbours.size(); ++i) {
+        int face = neighbours[i];
+        if (vfaces.get_marker(face) == TYPES.NONE) {
+            // Mark the face as surface
+            vfaces.set_marker(face, TYPES.SURFACE);
+
+            // Expand the list of possible surface faces
+            vector<int> nbors = vfaces.get_neighbours(face);
+            neighbours.insert(neighbours.end(), nbors.begin(), nbors.end());
+        }
+    }
 }
 
-void VoronoiMesh::mark_mesh(const Medium::Sizes& sizes, const double zmin) {
-    init_marking(sizes, zmin);
-    int seedcell = get_seedcell();
-
-    vector<int> cell_nbors = voros[seedcell].neighbours();
-    vector<bool> exposedfaces = vector_greater(&cell_nbors, nodes.indxs.surf_end);
-
-    voros.set_marker(seedcell, TYPES.ZMAX);
-    for (int i = 0; i < exposedfaces.size(); ++i)
-        if (exposedfaces[i]) {
-            int face = tetIOout.vcelllist[seedcell][i+1];
-            vfaces.set_marker(face, TYPES.SURFACE);
-        }
-
-    while( iterate_marking(seedcell, zmin) );
-
+// Mark voronoi cells and nodes that are on the surface of material
+void VoronoiMesh::mark_cells_and_nodes() {
+    const int cell_max = nodes.indxs.surf_end;
     const int n_nodes = nodes.size();
+
+    // Mark the cells
+    for (VoronoiCell cell : voros) {
+        if (cell.id <= cell_max)
+            // Mark the cells that have at least one face on the surface
+            for (VoronoiFace face : cell)
+                if (vfaces.get_marker(face.id) == TYPES.SURFACE) {
+                    voros.set_marker(cell.id, TYPES.SURFACE);
+                    break;
+                }
+        // Mark the cells that for sure are not on the surface
+        else voros.set_marker(cell.id, TYPES.PERIMETER);
+    }
+
+    // Mark the surface nodes
     nodes.init_markers(n_nodes);
     for (int i = 0; i < n_nodes; ++i)
         nodes.append_marker(voros.get_marker(i));
 }
 
-bool VoronoiMesh::iterate_marking(const int seed, const double zmin) {
-    const int n_faces = vfaces.size();
-    const int n_cells = voros.size();
-    const int cell_max = nodes.indxs.surf_end;
+// Extract the nodes that are on the surface of material
+void VoronoiMesh::extract_surface(Medium& surf, const double zmin) {
+    // Mark the cell and faces that are certainly on the surface
+    int seedface = mark_seed();
 
-    vector<int> cell_nbors = voros[seed].neighbours();
-    bool system_changed = false;
+    // Mark the rest of surface faces
+    mark_faces(surf.sizes, zmin, seedface);
 
-    // Mark the cells that potentially can be on the surface
-    vector<bool> not_marked = vector_not(voros.get_markers(), TYPES.PERIMETER);
+    // Using the marked faces, marks also the cells and nodes
+    mark_cells_and_nodes();
 
-    for (int i = 0; i < cell_nbors.size(); ++i) {
-        int cell = cell_nbors[i];
-        if (not_marked[cell]) {
-            // Mark cell as handled
-            not_marked[cell] = false;
-
-            // Mark the faces that are on the surface
-            bool on_surface = false;
-            for (VoronoiFace face : voros[cell])
-                if ( vfaces.get_marker(face.id) == TYPES.NONE ) {
-                    for (int nbor : vfaces.get_neighbours(face.id))
-                            if (vfaces.get_marker(nbor) == TYPES.SURFACE) {
-                                vfaces.set_marker(face.id, TYPES.SURFACE);
-                                on_surface = true;
-                                break;
-                            }
-                }
-
-            // If at least one face is on surface, so is the corresponding cell
-            if (on_surface) {
-                voros.set_marker(cell, TYPES.SURFACE);
-                system_changed = true;
-            }
-
-            // Expand the list of possible surface cells
-            voros[cell].neighbours(cell_nbors);
-        }
-    }
-
-    return system_changed;
+    // Transfer surface nodes to the surface atoms
+    vector<bool> on_surf = vector_equal(nodes.get_markers(), TYPES.SURFACE);
+    surf.reserve(vector_sum(on_surf));
+    for (int i = 0; i <= nodes.indxs.surf_end; ++i)
+        if (on_surf[i])
+            surf.append(nodes[i]);
 }
 
 // Function to perform tetgen calculation on input and write_tetgen data
@@ -962,6 +967,14 @@ void VoronoiMesh::clean() {
             int n_edges = facet.elist[0];
             if (n_edges <= 0) { n_faces = 0; break; }
         }
+    }
+
+    // Check for the unconnected faces
+    for (int f = 0; f < tetIOout.numberofvfacets; ++f) {
+        tetgenio::vorofacet facet = tetIOout.vfacetlist[f];
+        int c1 = tetIOout.vcelllist[facet.c1][0];
+        int c2 = tetIOout.vcelllist[facet.c2][0];
+        if (c1 <= 0 && c2 <= 0) { tetIOout.vfacetlist[f].elist[0] = 0; }
     }
 
     voros.init_markers();

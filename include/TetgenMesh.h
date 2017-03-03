@@ -126,7 +126,7 @@ public:
     /** Mark the cells and faces with nodes in the infinity */
     void clean();
 
-    void mark_mesh(const Medium::Sizes& sizes, const double zmin);
+    void extract_surface(Medium& surf, const double zmin);
 
     /** Objects holding operations for accessing cell data */
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
@@ -140,11 +140,14 @@ private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
 
-    void init_marking(const Medium::Sizes& sizes, const double zmin);
-
     int get_seedcell();
 
-    bool iterate_marking(const int seed, const double zmin);
+    int mark_seed();
+
+    void mark_faces(const Medium::Sizes& sizes, const double zmin, const int seed);
+
+    /** Mark voronoi cells and nodes that are on the surface of material */
+    void mark_cells_and_nodes();
 };
 
 /** Class to mark mesh nodes with ray-triangle intersection technique,

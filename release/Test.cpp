@@ -79,7 +79,7 @@ void write_stretch(ofstream &file) {
 
 void write_extend(ofstream &file) {
     file << "extended_atoms = input/extension.xyz" << endl;
-    file << "infile = input/apex2.xyz"              << endl;
+    file << "infile = input/apex.xyz"              << endl;
     file << "coarse_factor = 0.3 1.5 1.0" << endl;
     file << "femocs_periodic = false" << endl;
     file << "radius = 70.0"           << endl;
