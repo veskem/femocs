@@ -118,13 +118,15 @@ public:
     /** Function to generate mesh from surface, bulk and vacuum atoms */
     bool generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd1, const string& cmd2);
 
+    bool generate(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2);
+
     /** Perform triple Tetgen calculation on input buffer and store it in output one */
     bool recalc(const string& cmd1, const string& cmd2, const string& cmd3);
 
     /** Mark the cells and faces with nodes in the infinity */
     void clean();
 
-    void mark_mesh();
+    void mark_mesh(const Medium::Sizes& sizes, const double zmin);
 
     /** Objects holding operations for accessing cell data */
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
@@ -138,7 +140,9 @@ private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
 
-    void get_statistics(int& zmax_indx, double& zmin);
+    void init_marking(const Medium::Sizes& sizes, const double zmin);
+
+    int get_seedcell();
 
     bool iterate_marking(const int seed, const double zmin);
 };

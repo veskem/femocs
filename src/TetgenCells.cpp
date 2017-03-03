@@ -428,7 +428,7 @@ Vec3 VoronoiFace::norm() {
 
 Vec3 VoronoiFace::area() {
     const int n_nodes = size();
-    calc_nodes();
+    calc_verts();
 
     Vec3 total(0.0);
     for (int i = 0; i < n_nodes; ++i) {
@@ -444,7 +444,7 @@ Vec3 VoronoiFace::area() {
 }
 
 Vec3 VoronoiFace::centroid() {
-    calc_nodes();
+    calc_verts();
     Vec3 centroid(0.0);
 
     for (Vec3& v : verts)
@@ -466,7 +466,7 @@ int VoronoiFace::get_node(const int edge) {
 }
 
 // Transform the node data from tetgenio into easily accessible form
-void VoronoiFace::calc_nodes() {
+void VoronoiFace::calc_verts() {
     if (verts.size() > 0) return;
     verts.reserve(size());
 
@@ -507,17 +507,17 @@ void VoronoiCells::write_cells(ofstream& out) const {
     // Output scalar data associated with Voronoi cells
     out << "\nCELL_DATA " << n_faces << "\n";
 
-    // Write the IDs of cells
-    out << "SCALARS ID int\nLOOKUP_TABLE default\n";
-    for (VoronoiCell cell : *this)
-        for (VoronoiFace face : cell)
-            out << cell.id << "\n";
-
     // Write the markers of cells
     out << "SCALARS marker int\nLOOKUP_TABLE default\n";
     for (VoronoiCell cell : *this)
         for (VoronoiFace face : cell)
             out << get_marker(cell.id) << "\n";
+
+    // Write the IDs of cells
+    out << "SCALARS ID int\nLOOKUP_TABLE default\n";
+    for (VoronoiCell cell : *this)
+        for (VoronoiFace face : cell)
+            out << cell.id << "\n";
 }
 
 // Calculate the face neighbours - faces, that share the same edge
@@ -584,17 +584,17 @@ void VoronoiFaces::write_cells(ofstream& out) const {
     // Output scalar data associated with Voronoi faces
     out << "\nCELL_DATA " << n_faces << "\n";
 
-    // write IDs of faces
-    out << "SCALARS ID int\nLOOKUP_TABLE default\n";
-    for (VoronoiFace face : *this)
-        if (face.size() > 0)
-            out << face.id << "\n";
-
     // write markers of faces
     out << "SCALARS marker int\nLOOKUP_TABLE default\n";
     for (VoronoiFace face : *this)
         if (face.size() > 0)
             out << get_marker(face.id) << "\n";
+
+    // write IDs of faces
+    out << "SCALARS ID int\nLOOKUP_TABLE default\n";
+    for (VoronoiFace face : *this)
+        if (face.size() > 0)
+            out << face.id << "\n";
 }
 
 } /* namespace femocs */

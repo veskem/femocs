@@ -511,17 +511,19 @@ public:
         return os;
     }
 
-private:
-    vector<Vec3> verts;  ///< coordinates of the face vertices
-
-    /** Get the norm vector of the face */
-    Vec3 norm();
-
     /** Calculate the unique node that is associated with the edge */
     int get_node(const int edge);
 
     /** Transform the node data from tetgenio into easily accessible form */
-    void calc_nodes();
+    void calc_verts();
+
+    vector<Vec3> verts;  ///< coordinates of the face vertices
+
+private:
+
+
+    /** Get the norm vector of the face */
+    Vec3 norm();
 };
 
 /** Class for accessing the Voronoi cell data */

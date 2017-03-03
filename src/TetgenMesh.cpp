@@ -777,27 +777,58 @@ VoronoiMesh::VoronoiMesh() {
     tetIOout.initialize();
 }
 
-// Find the min and max z-coordinate of the surface atoms
-void VoronoiMesh::get_statistics(int& zmax_indx, double& zmin) {
+// Find the Voronoi cell that for sure belongs to the surface
+int VoronoiMesh::get_seedcell() {
     double zmax = -1e100;
-    zmin = 1e100;
+    int seed = -1;
 
     for (int i = nodes.indxs.surf_start; i <= nodes.indxs.surf_end; ++i) {
         double z = nodes[i].z;
-        zmin = min(z, zmin);
         if (z > zmax) {
             zmax = z;
-            zmax_indx = i;
+            seed = i;
+        }
+    }
+
+    return seed;
+}
+
+void VoronoiMesh::init_marking(const Medium::Sizes& sizes, const double zmin) {
+    const int cell_min = nodes.indxs.surf_start;
+    const int cell_max = nodes.indxs.surf_end;
+    vfaces.calc_neighbours();
+
+    // Mark the cells that for sure are not on the surface
+    for (VoronoiCell cell : voros)
+        if (cell.id > cell_max || cell.size() == 0)
+            voros.set_marker(cell.id, TYPES.PERIMETER);
+
+    // Mark the faces that are associated only with potential surface cells
+    // and therefore cannot be on the surface
+    for (int v = cell_min; v <= cell_max; ++v)
+        for (VoronoiFace face : voros[v]) {
+            if (face.nborcell(v) <= cell_max)
+                vfaces.set_marker(face.id, TYPES.PERIMETER);
+        }
+
+    // Mark the faces that have the node outside the boundaries of surface atoms
+    for (VoronoiFace face : vfaces) {
+        face.calc_verts();
+        for (Vec3 vert : face.verts) {
+            bool b1 = false; //vert.x < sizes.xmin || vert.x > sizes.xmax;
+            bool b2 = false; //vert.y < sizes.ymin || vert.y > sizes.ymax;
+            bool b3 = vert.z < zmin;
+            if (b1 || b2 || b3) {
+                vfaces.set_marker(face.id, TYPES.ZMIN);
+                break;
+            }
         }
     }
 }
 
-void VoronoiMesh::mark_mesh() {
-    vfaces.calc_neighbours();
-    vfaces.calc_centroids();
-
-    int seedcell; double zmin;
-    get_statistics(seedcell, zmin);
+void VoronoiMesh::mark_mesh(const Medium::Sizes& sizes, const double zmin) {
+    init_marking(sizes, zmin);
+    int seedcell = get_seedcell();
 
     vector<int> cell_nbors = voros[seedcell].neighbours();
     vector<bool> exposedfaces = vector_greater(&cell_nbors, nodes.indxs.surf_end);
@@ -825,16 +856,8 @@ bool VoronoiMesh::iterate_marking(const int seed, const double zmin) {
     vector<int> cell_nbors = voros[seed].neighbours();
     bool system_changed = false;
 
-    // Mark the cell that potentially can be on the surface
-    vector<bool> not_marked; not_marked.reserve(n_cells);
-    for (VoronoiCell cell : voros) {
-//        Point3 p = nodes[cell.id];
-//        bool b1 = !on_boundary(p.x, nodes.stat.xmin, nodes.stat.xmax, 1.5*3.61);
-//        bool b2 = !on_boundary(p.y, nodes.stat.ymin, nodes.stat.ymax, 1.5*3.61);
-//        not_marked.push_back(b1 && b2 && cell.id <= cell_max && cell.size() > 0);
-        not_marked.push_back(cell.id <= cell_max && cell.size() > 0);
-    }
-
+    // Mark the cells that potentially can be on the surface
+    vector<bool> not_marked = vector_not(voros.get_markers(), TYPES.PERIMETER);
 
     for (int i = 0; i < cell_nbors.size(); ++i) {
         int cell = cell_nbors[i];
@@ -845,10 +868,7 @@ bool VoronoiMesh::iterate_marking(const int seed, const double zmin) {
             // Mark the faces that are on the surface
             bool on_surface = false;
             for (VoronoiFace face : voros[cell])
-                if ( face.nborcell(cell) > cell_max &&
-                        vfaces.get_marker(face.id) != TYPES.SURFACE &&
-                        vfaces.get_centroid(face.id).z > zmin )
-                {
+                if ( vfaces.get_marker(face.id) == TYPES.NONE ) {
                     for (int nbor : vfaces.get_neighbours(face.id))
                             if (vfaces.get_marker(nbor) == TYPES.SURFACE) {
                                 vfaces.set_marker(face.id, TYPES.SURFACE);
@@ -886,11 +906,22 @@ bool VoronoiMesh::recalc(const string& cmd1, const string& cmd2, const string& c
 }
 
 // Function to generate mesh from surface, bulk and vacuum atoms
-bool VoronoiMesh::generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd1, const string& cmd2) {
+bool VoronoiMesh::generate(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2) {
+    const double l = 1.0*latconst;
+    Medium bulk(4), vacuum(4);
+    bulk.append( Point3(surf.sizes.xmin-l, surf.sizes.ymin-l, surf.sizes.zmin-l) );
+    bulk.append( Point3(surf.sizes.xmax+l, surf.sizes.ymin-l, surf.sizes.zmin-l) );
+    bulk.append( Point3(surf.sizes.xmin-l, surf.sizes.ymax+l, surf.sizes.zmin-l) );
+    bulk.append( Point3(surf.sizes.xmax+l, surf.sizes.ymax+l, surf.sizes.zmin-l) );
+
+    vacuum.append( Point3(surf.sizes.xmin-l, surf.sizes.ymin-l, surf.sizes.zmax+l) );
+    vacuum.append( Point3(surf.sizes.xmax+l, surf.sizes.ymin-l, surf.sizes.zmax+l) );
+    vacuum.append( Point3(surf.sizes.xmin-l, surf.sizes.ymax+l, surf.sizes.zmax+l) );
+    vacuum.append( Point3(surf.sizes.xmax+l, surf.sizes.ymax+l, surf.sizes.zmax+l) );
+
     const int n_bulk = bulk.size();
     const int n_surf = surf.size();
     const int n_vacuum = vacuum.size();
-
     nodes.init(n_bulk + n_surf + n_vacuum);
 
     // Add surface atoms first,...
@@ -933,7 +964,6 @@ void VoronoiMesh::clean() {
         }
     }
 
-    nodes.calc_statistics();
     voros.init_markers();
     vfaces.init_markers();
 }
