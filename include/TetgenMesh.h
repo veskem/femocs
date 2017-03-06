@@ -107,49 +107,6 @@ private:
     void generate_surf_faces();
 };
 
-/** Class to calculate and handle Voronoi cells around (surface) atoms.
- * Voronoi cells are made with Tetgen, http://wias-berlin.de/software/tetgen/1.5/
- */
-class VoronoiMesh {
-public:
-    VoronoiMesh();
-    ~VoronoiMesh() {}
-
-    /** Function to generate mesh from surface, bulk and vacuum atoms */
-    bool generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd1, const string& cmd2);
-
-    bool generate(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2);
-
-    /** Perform triple Tetgen calculation on input buffer and store it in output one */
-    bool recalc(const string& cmd1, const string& cmd2, const string& cmd3);
-
-    /** Mark the cells and faces with nodes in the infinity */
-    void clean();
-
-    void extract_surface(Medium& surf, const double zmin);
-
-    /** Objects holding operations for accessing cell data */
-    TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
-    TetgenElements elems = TetgenElements(&tetIOout);
-    VoronoiCells voros = VoronoiCells(&tetIOout);
-    VoronoiFaces vfaces = VoronoiFaces(&tetIOout);
-
-    const int n_coordinates = 3;     ///< Number of coordinates
-
-private:
-    tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
-    tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
-
-    int get_seedcell();
-
-    int mark_seed();
-
-    void mark_faces(const Medium::Sizes& sizes, const double zmin, const int seed);
-
-    /** Mark voronoi cells and nodes that are on the surface of material */
-    void mark_cells_and_nodes();
-};
-
 /** Class to mark mesh nodes with ray-triangle intersection technique,
  * http://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle */
 class RaySurfaceIntersect {
