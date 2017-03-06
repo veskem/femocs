@@ -13,6 +13,7 @@
 #include "Tetgen.h"
 #include "Medium.h"
 #include "TetgenCells.h"
+#include "SolutionReader.h"
 #include <fstream>
 
 using namespace std;
@@ -106,6 +107,8 @@ public:
     vector<int> neighbours() const;
 
     void neighbours(vector<int>& nbors) const;
+
+    Vec3 area() const;
 
     /** Iterator to access the cell faces */
     typedef Iterator<VoronoiCell, VoronoiFace> iterator;
@@ -280,6 +283,10 @@ public:
     void clean();
 
     void extract_surface(Medium& surf, const double zmin);
+
+    void extract_forces(ForceReader& forces, const FieldReader& fields, const Medium& medium);
+
+    void mark_mesh(const Medium::Sizes& sizes, const double zmin);
 
     /** Objects holding operations for accessing cell data */
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);

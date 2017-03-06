@@ -27,10 +27,7 @@ Vec3 VoronoiFace::area() {
         total += verts[i].crossProduct(verts[j]);
     }
 
-    Vec3 nrm = norm();
-    double area = fabs(0.5 * total.dotProduct(nrm));
-
-    return nrm * area;
+    return total * 0.5;
 }
 
 // Get the centroid coordinates of the face
@@ -79,7 +76,7 @@ void VoronoiFace::calc_verts() {
 Vec3 VoronoiFace::norm() {
     Vec3 edge1 = verts[1] - verts[0];
     Vec3 edge2 = verts[2] - verts[0];
-    return edge1.crossProduct(edge2).normalize();
+    return edge2.crossProduct(edge1).normalize();
 }
 
 vector<int> VoronoiCell::neighbours() const {
@@ -210,6 +207,12 @@ void VoronoiFaces::write_cells(ofstream& out) const {
     for (VoronoiFace face : *this)
         if (face.size() > 0)
             out << face.id << "\n";
+
+    // write areas of faces in vector format
+    out << "VECTORS area double\n";
+    for (VoronoiFace face : *this)
+        if (face.size() > 0)
+            out << face.area() << "\n";
 }
 
 /* ==================================================================
@@ -322,6 +325,17 @@ void VoronoiMesh::mark_cells_and_nodes() {
         nodes.append_marker(voros.get_marker(i));
 }
 
+void VoronoiMesh::mark_mesh(const Medium::Sizes& sizes, const double zmin) {
+    // Mark the cell and faces that are certainly on the surface
+    int seedface = mark_seed();
+
+    // Mark the rest of surface faces
+    mark_faces(sizes, zmin, seedface);
+
+    // Using the marked faces, marks also the cells and nodes
+    mark_cells_and_nodes();
+}
+
 // Extract the nodes that are on the surface of material
 void VoronoiMesh::extract_surface(Medium& surf, const double zmin) {
     // Mark the cell and faces that are certainly on the surface
@@ -341,24 +355,41 @@ void VoronoiMesh::extract_surface(Medium& surf, const double zmin) {
             surf.append(nodes[i]);
 }
 
-//// Extract the nodes that are on the surface of material
-//void VoronoiMesh::extract_charges(FieldReader& fields, ForceReader& forces, const Medium& surf, const double zmin) {
-//    // Mark the cell and faces that are certainly on the surface
-//    int seedface = mark_seed();
-//
-//    // Mark the rest of surface faces
-//    mark_faces(surf.sizes, zmin, seedface);
-//
-//    // Using the marked faces, marks also the cells and nodes
-//    mark_cells_and_nodes();
-//
-//    // Transfer surface nodes to the surface atoms
-//    vector<bool> on_surf = vector_equal(nodes.get_markers(), TYPES.SURFACE);
-//    surf.reserve(vector_sum(on_surf));
-//    for (int i = 0; i <= nodes.indxs.surf_end; ++i)
-//        if (on_surf[i])
-//            surf.append(nodes[i]);
-//}
+// Extract the nodes that are on the surface of material
+void VoronoiMesh::extract_forces(ForceReader& forces, const FieldReader& fields, const Medium& medium) {
+
+    // Transfer surface nodes to the surface atoms
+    vector<bool> on_surf = vector_equal(voros.get_markers(), TYPES.SURFACE);
+
+    const int n_nodes = vector_sum(on_surf);
+    forces.reserve(n_nodes);
+
+    for (int i = 0; i < fields.size(); ++i)
+        if (on_surf[i]) {
+            // store atom data
+            forces.append(medium.get_atom(i));
+
+            Vec3 cell_centre = nodes[i];
+            Vec3 cell_area(0);
+
+            // calculate the total area of the exposed part of cell
+            for (VoronoiFace face : voros[i])
+                if (vfaces.get_marker(face.id) == TYPES.SURFACE) {
+                    Vec3 cell2face = cell_centre - face.centroid();
+                    Vec3 face_area = face.area();
+
+                    // ensure that the direction of face norm is inside-out of the cell
+                    if (cell2face.dotProduct(face_area) >= 0)
+                        cell_area += face_area;
+                    else
+                        cell_area -= face_area;
+                }
+
+            double charge = cell_area.dotProduct(fields.get_elfield(i)) * forces.eps0;  // [e]
+            Vec3 force = fields.get_elfield(i) * charge;   // [e*V/A]
+            forces.append_interpolation(Solution(force, charge));
+        }
+}
 
 // Function to perform tetgen calculation on input and write_tetgen data
 bool VoronoiMesh::recalc(const string& cmd1, const string& cmd2, const string& cmd3) {

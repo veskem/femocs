@@ -60,26 +60,8 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 
     dense_surf.write("output/surface_dense_1.xyz");
 
-    Coarseners coarseners;
     coarseners.generate(dense_surf, conf.radius, conf.cfactor, conf.latconst);
     coarseners.write("output/coarseners.vtk");
-
-    start_msg(t0, "=== Making voronoi cells...");
-    VoronoiMesh voromesh;
-    // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
-    fail = voromesh.generate(dense_surf, conf.latconst, "rQq" + conf.mesh_quality, "vQ");
-    check_message(fail, "Making voronoi cells failed! Field calculation will be skipped!");
-    voromesh.clean();
-    end_msg(t0);
-
-    start_msg(t0, "=== Extracting voronoi surface...");
-    voromesh.extract_surface(dense_surf, coarseners.centre.z);
-    end_msg(t0);
-
-    dense_surf.write("output/surface_dense_2.xyz");
-    voromesh.nodes.write("output/voro_nodes.vtk");
-    voromesh.vfaces.write("output/voro_faces.vtk");
-    voromesh.voros.write("output/voro_cells.vtk");
 
     static bool first_run = true;
     if (first_run) {
@@ -159,13 +141,13 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     vacuum_mesh.group_hexahedra();
     end_msg(t0);
 
-    start_msg(t0, "=== Cleaning surface faces & atoms...");
-    bulk_mesh.faces.clean_sides(reader.sizes);
-    dense_surf.clean(bulk_mesh, conf.surface_thichness);
-    end_msg(t0);
+//    start_msg(t0, "=== Cleaning surface faces & atoms...");
+//    bulk_mesh.faces.clean_sides(reader.sizes);
+//    dense_surf.clean(bulk_mesh, conf.surface_thichness);
+//    end_msg(t0);
 
-    bulk_mesh.faces.write("output/surface_faces_clean.vtk");
-    dense_surf.write("output/surface_dense_3.xyz");
+//    bulk_mesh.faces.write("output/surface_faces_clean.vtk");
+//    dense_surf.write("output/surface_dense_3.xyz");
 
     expect(bulk_mesh.nodes.size() > 0, "Zero nodes in bulk mesh!");
     expect(vacuum_mesh.nodes.size() > 0, "Zero nodes in vacuum mesh!");
@@ -312,9 +294,9 @@ int Femocs::run(const double elfield, const string &message) {
     fail = solve_heat(bulk_mesh, laplace_solver);
     if (fail) return 1;
 
-    // Extract face charges
-    fail = extract_charge(bulk_mesh);
-    if (fail) return 1;
+//    // Extract face charges
+//    fail = extract_charge(bulk_mesh);
+//    if (fail) return 1;
 
     start_msg(t0, "=== Saving atom positions...");
     reader.save_current_run_points(conf.distance_tol);
@@ -438,7 +420,8 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
 
     if (!skip_calculations) {
         start_msg(t0, "=== Interpolating E and phi...");
-        fields.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff);
+//        fields.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff);
+        fields.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff, 0, false);
         end_msg(t0);
 
         fields.write("output/elfields.movie");
@@ -475,14 +458,39 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
 
 // calculate and export charges & forces on imported atom coordinates
 int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
-    check_message(fields.size() == 0 || face_charges.size() == 0, "No force to export!");
+//    check_message(fields.size() == 0 || face_charges.size() == 0, "No force to export!");
+    check_message(fields.size() == 0, "No force to export!");
 
     if (!skip_calculations) {
-        start_msg(t0, "=== Calculating atomic forces...");
-        forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coord_cutoff, conf.charge_smooth_factor);
+        start_msg(t0, "=== Making voronoi cells...");
+        VoronoiMesh voromesh;
+        // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
+//        fail = voromesh.generate(dense_surf, conf.latconst, "rQq" + conf.mesh_quality, "vQ");
+        fail = voromesh.generate(dense_surf, conf.latconst, "rQq1.8", "vQ");
+        check_message(fail, "Making voronoi cells failed! Field calculation will be skipped!");
+        voromesh.clean();
         end_msg(t0);
 
+        start_msg(t0, "=== Extracting voronoi surface...");
+//        voromesh.extract_surface(dense_surf, coarseners.centre.z);
+        voromesh.mark_mesh(dense_surf.sizes, coarseners.centre.z);
+        end_msg(t0);
+
+        voromesh.nodes.write("output/voro_nodes.vtk");
+        voromesh.nodes.write("output/voro_nodes.xyz");
+        voromesh.vfaces.write("output/voro_faces.vtk");
+        voromesh.voros.write("output/voro_cells.vtk");
+
+        start_msg(t0, "=== Calculating atomic forces...");
+        voromesh.extract_forces(forces, fields, dense_surf);
+        end_msg(t0);
+
+//        start_msg(t0, "=== Calculating atomic forces...");
+//        forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coord_cutoff, conf.charge_smooth_factor);
+//        end_msg(t0);
+
         forces.write("output/forces.movie");
+        forces.write("output/forces.vtk");
         forces.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
     }
 
