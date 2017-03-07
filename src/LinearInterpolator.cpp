@@ -155,15 +155,15 @@ bool LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh
             solution.push_back(Solution(error_field));
     }
 
+    // force solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
+    average_tetnodes(mesh);
+
     // Check for the error values in the mesh nodes
     // Normally there should be no nodes in the mesh elements that have the error value
     for (SimpleElement elem : mesh.elems)
         for (int node : elem)
             if (solution[node].scalar == error_field)
                 return true;
-
-    // force solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
-    average_tetnodes(mesh);
 
     return false;
 }
