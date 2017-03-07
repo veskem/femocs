@@ -34,7 +34,7 @@ cgal/CGAL-${CGAL_VER}.zip:
 	cd cgal; wget https://github.com/CGAL/cgal/releases/download/releases%2FCGAL-${CGAL_VER}/CGAL-${CGAL_VER}.zip
 
 ${MAIN_HEATING}:
-	git clone https://gitlab.com/eimrek/dealii-field-currents-heating.git heating
+	git clone git@gitlab.com:eimrek/dealii-field-currents-heating.git heating
 
 clean:
 	rm -rf lib/libtet.a dealii/lib/* cgal/lib64/*
