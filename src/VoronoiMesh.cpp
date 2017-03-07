@@ -380,9 +380,9 @@ void VoronoiMesh::extract_forces(ForceReader& forces, const FieldReader& fields,
 
                     // ensure that the direction of face norm is inside-out of the cell
                     if (cell2face.dotProduct(face_area) >= 0)
-                        cell_area += face_area;
-                    else
                         cell_area -= face_area;
+                    else
+                        cell_area += face_area;
                 }
 
             double charge = cell_area.dotProduct(fields.get_elfield(i)) * forces.eps0;  // [e]

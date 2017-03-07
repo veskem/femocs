@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
     system("rm -rf tmpfile");
 
     success += femocs.import_atoms("");
-    success += femocs.run(0.1, "");
+    success += femocs.run(-0.1, "");
     success += femocs.export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
     success += femocs.export_temperature(n_atoms, T);
     success += femocs.export_charge_and_force(n_atoms, xq);
