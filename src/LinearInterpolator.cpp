@@ -118,13 +118,14 @@ void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh) {
+bool LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh) {
     require(fem, "NULL pointer can't be handled!");
+    const int n_nodes = mesh.nodes.size();
 
     // Copy the mesh nodes
-    reserve(mesh.nodes.size());
-    for (Point3 node : mesh.nodes)
-        append(node);
+    reserve(n_nodes);
+    for (int i = 0; i < n_nodes; ++i)
+        append( Atom(i, mesh.nodes[i], mesh.nodes.get_marker(i)) );
 
     // Precompute tetrahedra to make interpolation faster
     precompute_tetrahedra(mesh);
@@ -154,19 +155,28 @@ void LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh
             solution.push_back(Solution(error_field));
     }
 
+    // Check for the error values in the mesh nodes
+    // Normally there should be no nodes in the mesh elements that have the error value
+    for (SimpleElement elem : mesh.elems)
+        for (int node : elem)
+            if (solution[node].scalar == error_field)
+                return true;
+
     // force solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
     average_tetnodes(mesh);
+
+    return false;
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-void LinearInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh) {
+bool LinearInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh) {
     require(fem, "NULL pointer can't be handled!");
+    const int n_nodes = mesh.nodes.size();
 
     // Copy the mesh nodes
-    int i = 0;
-    reserve(mesh.nodes.size());
-    for (Point3 node : mesh.nodes)
-        append(Atom(i++, node, -1));
+    reserve(n_nodes);
+    for (int n = 0; n < n_nodes; ++n)
+        append( Atom(n, mesh.nodes[n], mesh.nodes.get_marker(n)) );
 
     // Precompute tetrahedra to make interpolation faster
     precompute_tetrahedra(mesh);
@@ -182,7 +192,7 @@ void LinearInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem, const
             "Mismatch of vector sizes: " + to_string(rho.size()) + ", "
                     + to_string(temperature.size()));
 
-    i = 0;
+    int i = 0;
     for (int n : tetNode2hexNode) {
         // If there is a common node between tet and hex meshes, store actual solution
         if (n >= 0) {
@@ -195,6 +205,15 @@ void LinearInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem, const
         else
             solution.push_back(Solution(error_field));
     }
+
+    // Check for the error values in the mesh nodes
+    // Normally there should be no nodes in the mesh elements that have the error value
+    for (SimpleElement elem : mesh.elems)
+        for (int node : elem)
+            if (solution[node].scalar == error_field)
+                return true;
+
+    return false;
 }
 
 // Reserve memory for interpolation data
@@ -488,7 +507,7 @@ double LinearInterpolator::get_scalar(const int i) {
 // Compile data string from the data vectors for file output
 string LinearInterpolator::get_data_string(const int i) const {
     if (i < 0)
-        return "LinearInterpolator properties=id:R:1:pos:R:3:dummy:R:1:force:R:3:enorm:R:1:potential:R:1";
+        return "LinearInterpolator properties=id:R:1:pos:R:3:marker:R:1:force:R:3:enorm:R:1:potential:R:1";
 
     ostringstream strs;
     strs << atoms[i] << " " << solution[i];

@@ -188,7 +188,7 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting E and phi...");
-    vacuum_interpolator.extract_solution(&solver, mesh);
+    fail = vacuum_interpolator.extract_solution(&solver, mesh);
     end_msg(t0);
 
     vacuum_interpolator.write("output/result_E_phi.xyz");
@@ -288,7 +288,12 @@ int Femocs::run(const double elfield, const string &message) {
     // Solve Laplace equation on vacuum mesh
     fch::Laplace<3> laplace_solver;
     fail = solve_laplace(vacuum_mesh, laplace_solver);
-    if (fail) return 1;
+    if (fail) {
+        MODES.WRITEFILE = true;
+        vacuum_interpolator.write("output/result_E_phi_error.movie");
+        bulk_mesh.hexahedra.write("output/hexmesh_bulk_error" + conf.message + ".vtk");
+        return 1;
+    }
 
     // Solve heat & continuity equation on bulk mesh
     fail = solve_heat(bulk_mesh, laplace_solver);

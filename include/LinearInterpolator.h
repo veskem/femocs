@@ -40,9 +40,9 @@ public:
     LinearInterpolator();
 
     /** Extract the electric potential and electric field values on the tetrahedra nodes from FEM solution */
-    void extract_solution(fch::Laplace<3>* laplace, const TetgenMesh &mesh);
+    bool extract_solution(fch::Laplace<3>* laplace, const TetgenMesh &mesh);
 
-    void extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh);
+    bool extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh);
 
     Solution get_solution(const Point3 &point, const int elem);
 
