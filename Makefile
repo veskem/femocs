@@ -18,10 +18,6 @@ release: femocs.release
 femocs.release: ${MAIN_CPP} src/* include/* 
 	make -f release/makefile.release mode=Release
 
-debug: femocs.debug
-femocs.debug: ${MAIN_CPP} src/* include/* 
-	make -f release/makefile.release mode=Debug
-
 fortran: femocs.fortran
 femocs.fortran: ${MAIN_F90} src/* include/*
 	make -f release/makefile.fortran
@@ -29,6 +25,9 @@ femocs.fortran: ${MAIN_F90} src/* include/*
 heating: femocs.heating
 femocs.heating: ${MAIN_HEATING} heating/source/* heating/include/* src/* include/*
 	make -f release/makefile.heating
+
+debug: 
+	make -f release/makefile.debug
 
 ubuntu:
 	make -f release/makefile.ubuntu
@@ -47,6 +46,7 @@ clean-all:
 	make -s -f release/makefile.release clean-all
 	make -s -f release/makefile.fortran clean-all
 	make -s -f release/makefile.heating clean-all
+	make -s -f release/makefile.debug clean-all
 	make -s -f release/makefile.ubuntu clean-all
 	make -s -f release/makefile.taito clean-all
 

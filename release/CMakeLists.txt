@@ -5,6 +5,7 @@ SET(DEAL_II_DIR ../dealii)
 
 # path to CGAL files
 SET(CGAL_DIR ../cgal)
+#SET(CGAL_DIR ../cgal/lib/x86_64-linux-gnu/CGAL/)
 
 # path for the location of executable
 SET (CMAKE_RUNTIME_OUTPUT_DIRECTORY ..)
@@ -33,7 +34,7 @@ SET(LIBRARIES tet)
 # ==============================================
 
 FIND_PACKAGE(deal.II 8.4 REQUIRED HINTS ${DEAL_II_DIR})
-IF ( NOT ${deal.II_FOUND} )
+IF ( NOT deal.II_FOUND )
   MESSAGE(FATAL_ERROR "Deal.II not found from " ${DEAL_II_DIR})
 ENDIF()
 
@@ -54,9 +55,11 @@ ENDIF()
 
 INCLUDE( ${CGAL_USE_FILE} )
 
+SET(warnings "") #"-Wno-overloaded-virtual -Wno-vla -Wno-reorder -Wno-pedantic -Wno-unused-value -Wno-unused-result -Wno-unused-variable -Wno-unused-parameter -Wno-sign-compare")
+
 # Specify warnings and optimization level
 SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
-SET(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -w") # "-Wall -Wpedantic")
+SET(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wpedantic")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
