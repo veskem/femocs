@@ -111,7 +111,9 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     start_msg(t0, "=== Making big mesh...");
     TetgenMesh big_mesh;
     // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
-    fail = big_mesh.generate(bulk, coarse_surf, vacuum, "rnQq" + conf.mesh_quality);
+    // F - suppress output of faces and edges, B - suppress output of boundary info
+    fail = big_mesh.generate(bulk, coarse_surf, vacuum, "rnQFBq" + conf.mesh_quality);
+
     check_message(fail, "Triangulation failed! Field calculation will be skipped!");
     end_msg(t0);
 
@@ -154,7 +156,11 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     expect(bulk_mesh.hexahedra.size() > 0, "Zero elements in bulk mesh!");
     expect(vacuum_mesh.hexahedra.size() > 0, "Zero elements in vacuum mesh!");
 
+    bulk_mesh.elems.write("output/tetmesh_bulk" + conf.message + ".vtk");
+    vacuum_mesh.elems.write("output/tetmesh_vacuum" + conf.message + ".vtk");
     bulk_mesh.hexahedra.write("output/hexmesh_bulk" + conf.message + ".vtk");
+    vacuum_mesh.hexahedra.write("output/hexmesh_vacuum" + conf.message + ".vtk");
+
     if (MODES.VERBOSE)
         cout << "Bulk:   " << bulk_mesh << "\nVacuum: " << vacuum_mesh << endl;
 

@@ -51,7 +51,7 @@ public:
     vector<vector<unsigned int>> get_voronoi_cells() const;
 
     /** Use tetgen built-in function to write elements, faces, edges and nodes into file */
-    bool write_tetgen(const string& file_name);
+    bool write(const string& file_name);
 
     /** Copy node and element data from Tetgen input buffer into output one */
     bool recalc();
