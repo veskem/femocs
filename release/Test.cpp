@@ -98,6 +98,13 @@ void write_molten(ofstream &file) {
     file << "surface_thichness = 4.65" << endl;
 }
 
+void write_moltenbig(ofstream &file) {
+    file << "infile = input/nanotip_melt_big.xyz" << endl;
+    file << "coarse_factor = 0.3 1.5 1.0" << endl;
+    file << "radius = 65.0"            << endl;
+    file << "surface_thichness = 4.65" << endl;
+}
+
 int main(int argc, char **argv) {
     string filename = "input/md.in";
     string mode = "default";
@@ -120,6 +127,7 @@ int main(int argc, char **argv) {
         else if (mode == "extend")   write_extend(file);
         else if (mode == "cluster")  write_cluster(file);
         else if (mode == "molten")   write_molten(file);
+        else if (mode == "moltenbig") write_moltenbig(file);
 
         else {
             printf("Usage:\n");
