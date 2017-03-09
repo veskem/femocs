@@ -25,6 +25,10 @@ femocs.debug: ${MAIN_CPP} src/* include/*
 fortran: femocs.fortran
 femocs.fortran: ${MAIN_F90} src/* include/*
 	make -f release/makefile.fortran
+	
+C: femocs.C
+femocs.C: ${MAIN_C} src/* include/*
+	make -f release/makefile.C
 
 heating: femocs.heating
 femocs.heating: ${MAIN_HEATING} heating/source/* heating/include/* src/* include/*
@@ -60,6 +64,7 @@ help:
 	@echo 'make release    build Femocs executable from c++ main with highest optimization level'
 	@echo 'make debug      build Femocs executable from c++ main with debugging features enabled'
 	@echo 'make fortran    build Femocs executable from Fortran main'
+	@echo 'make C    	   build Femocs executable from C main'
 	@echo 'make clean      delete key files excluding installed libraries to start building from the scratch'
 	@echo 'make clean-all  delete all the files and folders produced during the make process'
 	@echo ''

@@ -13,12 +13,13 @@ NPROCS = 4
 FCFLAGS = -Llib -Ldealii/lib -Lcgal/lib64 -Ilib
 CGAL_FLAGS = -DCMAKE_INSTALL_PREFIX=../.. -DBUILD_SHARED_LIBS=FALSE
 OPT = -O3 -Wall -Wpedantic
+CCFLAGS = -Iinclude  -Llib -Ldealii/lib -Lcgal/lib64
 #OPT = -g -O0 -Wall -Wpedantic
 
 # Ubuntu desktop
 F90 = gfortran-5
 LDFLAGS = -lfemocs -ltet -ldeal_II -lCGAL -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ 
-
+CC = gcc
 # CSC Taito cluser
 #F90 = gfortran
 #LDFLAGS = -lfemocs -ltet -ldeal_II -lCGAL -fopenmp -lz -lstdc++
