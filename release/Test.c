@@ -39,7 +39,7 @@ int femocs_interface(int N_atoms, double *x, double *y, double *z, double E_appl
 int main() {
 
     const int n_atoms = 1;
-    double *x, *y, *z, Ex[2000], Ey[2000], Ez[2000];
+    double *x = NULL, *y = NULL, *z = NULL, Ex[2000], Ey[2000], Ez[2000];
     int success;
     
     const double Eappl = 0.2;
