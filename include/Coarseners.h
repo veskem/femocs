@@ -210,7 +210,7 @@ private:
 class Coarseners {
 public:
     /** Coarseners constructor */
-    Coarseners() : amplitude(0), r0_cylinder(0), radius(0) {}
+    Coarseners() : radius(0), amplitude(0), r0_cylinder(0) {}
 
     /** Append coarsener to the array of all the coarseners */
     void attach_coarsener(shared_ptr<Coarsener> c) {

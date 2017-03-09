@@ -113,7 +113,7 @@ public:
     HeatReader(LinearInterpolator* ip);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium, const double r_cut);
+    void interpolate(const Medium &medium);
 
     /** Export interpolated temperature */
     void export_temperature(const int n_atoms, double* T);

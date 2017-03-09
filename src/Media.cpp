@@ -112,8 +112,6 @@ Media Media::extend(const string &file_name, Coarseners &coarseners) {
 
 // Function extend the flat area by generating additional atoms
 Media Media::extend(const double latconst, const double box_width, Coarseners &coarseners) {
-    const int n_atoms = size();
-
     calc_statistics();
     const double current_box_width = min(sizes.xbox, sizes.ybox);
     const double desired_box_width = box_width * sizes.zbox;
@@ -287,7 +285,7 @@ void Media::smoothen(const double smooth_factor, const double r_cut) {
 // =================================================
 
 // Constructors for Edge class
-Edge::Edge() : Medium() {};
+Edge::Edge() : Medium() {}
 
 // Exctract the atoms near the simulation box sides
 void Edge::extract(const Medium* atoms, const AtomReader::Sizes& ar_sizes, const double eps) {

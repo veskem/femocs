@@ -100,19 +100,19 @@ MeshElement::~MeshElement() {
 }
 
 inline int MeshElement::get_n_vertices() const {
-    expect(n_vertices == vertices.size(),
+    expect(n_vertices == (int)vertices.size(),
             "Memory for vertices is not allocated properly (size is " + d2s(vertices.size()) + "), or n_vertices (" + d2s(n_vertices) + ") is set to wrong number");
     return n_vertices;
 }
 
 inline int MeshElement::get_n_edges() const {
-    expect(n_edges == edges.size(),
+    expect(n_edges == (int)edges.size(),
             "Memory for edges is not allocated properly (size is " + d2s(edges.size()) + "), or n_edges (" + d2s(n_edges) + ") is set to wrong number");
     return n_edges;
 }
 
 inline int MeshElement::get_n_faces() const {
-    expect(n_faces == faces.size(),
+    expect(n_faces == (int)faces.size(),
             "Memory for faces is not allocated properly (size is " + d2s(faces.size()) + "), or n_faces (" + d2s(n_faces) + ") is set to wrong number");
     return n_faces;
 }
@@ -184,7 +184,7 @@ void MeshElement::set_face(int local_number, int global_number) {
 }
 
 void MeshElement::set_faces(const std::vector<int> &face_numbers) {
-    expect(face_numbers.size() == get_n_faces(),
+    expect((int)face_numbers.size() == get_n_faces(),
             "Array of face numbers has another size (" + d2s(face_numbers.size()) + ") than it must be (" + d2s(get_n_faces()) + ")");
     faces = face_numbers;
 }
@@ -449,8 +449,8 @@ inline int IncidenceMatrix::get_n_nonzero() const {
 // Mesh
 //
 //-------------------------------------------------------
-Mesh::Mesh() : vertices(), points(), lines(), edges(), faces(), triangles(), tetrahedra(), quadrangles(),
-        hexahedra(), n_converted_quadrangles(0), n_converted_hexahedra(0), physical_names() {}
+Mesh::Mesh() : vertices(), points(), hexahedra(), lines(), edges(), faces(), triangles(), tetrahedra(), quadrangles(),
+         n_converted_quadrangles(0), n_converted_hexahedra(0), physical_names() {}
 
 Mesh::~Mesh() {
     clean();
@@ -555,7 +555,7 @@ void Mesh::read(const std::string &file) {
                 vertices_map[number] = ver; // add the number of vertex to the map
             }
 
-            expect(n_vertices == vertices_map.size(),
+            expect(n_vertices == (int)vertices_map.size(),
                     "Vertices numbers are not unique: n_vertices = " + d2s(n_vertices) + " vertices_map.size() = " + d2s(vertices_map.size()));
 
         } // read the vertices
@@ -829,7 +829,6 @@ void Mesh::export_femocs(femocs::TetgenMesh* mesh) {
 
 void Mesh::calc_hex_qualities() {
     const int n_elems = hexahedra.size();
-    const int n_edges_per_hex = hexahedra[0]->get_n_edges();
     const int n_verts_per_hex = hexahedra[0]->get_n_vertices();
     const double Q = 10000.0;
 
@@ -1337,7 +1336,7 @@ void Mesh::face_numeration(std::vector<MeshElement*> &cells,
             } // vertices
         } // edges
 
-        expect(face_numbers.size() == cells[cell]->get_n_faces(),
+        expect((int)face_numbers.size() == cells[cell]->get_n_faces(),
                 "There is no enough faces for " + d2s(cell) + "-th cell. It's " + d2s(face_numbers.size()) + ". But is must be " + d2s(cells[cell]->get_n_faces()));
 
         // set these face numbers as cell's faces
@@ -1426,55 +1425,55 @@ int Mesh::get_n_hexahedra() const {
 }
 
 Point Mesh::get_vertex(int number) const {
-    expect(number >= 0 && number < vertices.size(),
+    expect(number >= 0 && number < (int)vertices.size(),
             "The required number (" + d2s(number) + " is bigger than the number of vertices (" + d2s(vertices.size()) + "))");
     return vertices[number];
 }
 
 MeshElement& Mesh::get_point(int number) const {
-    expect(number >= 0 && number < points.size(),
+    expect(number >= 0 && number < (int)points.size(),
             "The required number (" + d2s(number) + " is bigger than the number of physical points (" + d2s(points.size()) + "))");
     return *(points[number]);
 }
 
 MeshElement& Mesh::get_edge(int number) const {
-    expect(number >= 0 && number < edges.size(),
+    expect(number >= 0 && number < (int)edges.size(),
             "The required number (" + d2s(number) + " is bigger than the number of edges (" + d2s(edges.size()) + "))");
     return *(edges[number]);
 }
 
 MeshElement& Mesh::get_line(int number) const {
-    expect(number >= 0 && number < lines.size(),
+    expect(number >= 0 && number < (int)lines.size(),
             "The required number (" + d2s(number) + " is bigger than the number of lines (" + d2s(lines.size()) + "))");
     return *(lines[number]);
 }
 
 MeshElement& Mesh::get_face(int number) const {
-    expect(number >= 0 && number < faces.size(),
+    expect(number >= 0 && number < (int)faces.size(),
             "The required number (" + d2s(number) + " is bigger than the number of faces (" + d2s(faces.size()) + "))");
     return *(faces[number]);
 }
 
 MeshElement& Mesh::get_triangle(int number) const {
-    expect(number >= 0 && number < triangles.size(),
+    expect(number >= 0 && number < (int)triangles.size(),
             "The required number (" + d2s(number) + " is bigger than the number of triangles (" + d2s(triangles.size()) + "))");
     return *(triangles[number]);
 }
 
 MeshElement& Mesh::get_tetrahedron(int number) const {
-    expect(number >= 0 && number < tetrahedra.size(),
+    expect(number >= 0 && number < (int)tetrahedra.size(),
             "The required number (" + d2s(number) + " is bigger than the number of tetrahedra (" + d2s(tetrahedra.size()) + "))");
     return *(tetrahedra[number]);
 }
 
 MeshElement& Mesh::get_quadrangle(int number) const {
-    expect(number >= 0 && number < quadrangles.size(),
+    expect(number >= 0 && number < (int)quadrangles.size(),
             "The required number (" + d2s(number) + " is bigger than the number of quadrangles (" + d2s(quadrangles.size()) + "))");
     return *(quadrangles[number]);
 }
 
 MeshElement& Mesh::get_hexahedron(int number) const {
-    expect(number >= 0 && number < hexahedra.size(),
+    expect(number >= 0 && number < (int)hexahedra.size(),
             "The required number (" + d2s(number) + " is bigger than the number of hexahedra (" + d2s(hexahedra.size()) + "))");
     return *(hexahedra[number]);
 }

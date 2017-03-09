@@ -88,13 +88,13 @@ void Medium::add(const Medium *m) {
 
 // Add atom to atoms vector
 void Medium::append(const Atom& atom) {
-    expect(size() < atoms.capacity(), "Allocated vector size exceeded!");
+    expect((unsigned)size() < atoms.capacity(), "Allocated vector size exceeded!");
     atoms.push_back(atom);
 }
 
 // Add atom with defalt id and marker to atoms vector
 void Medium::append(const Point3& point) {
-    expect(size() < atoms.capacity(), "Allocated vector sizes exceeded!");
+    expect((unsigned)size() < atoms.capacity(), "Allocated vector sizes exceeded!");
     atoms.push_back(Atom(-1, point, 0));
 }
 
@@ -112,7 +112,6 @@ void Medium::init_statistics() {
 
 // Calculate the statistics about Medium
 void Medium::calc_statistics() {
-    double xx, yy, zz;
     int n_atoms = size();
     init_statistics();
 
@@ -274,7 +273,7 @@ void Medium::write_vtk(ofstream& out, const int n_atoms) const {
 
     // Output the point coordinates
     out << "POINTS " << n_atoms << " double\n";
-    for (size_t i = 0; i < n_atoms; ++i)
+    for (int i = 0; i < n_atoms; ++i)
         out << get_point(i) << "\n";
 
     get_cell_types(out, n_atoms);
@@ -293,12 +292,12 @@ void Medium::get_cell_types(ofstream& out, const int n_cells) const {
 
     // Output the vertices
     out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
-    for (size_t i = 0; i < n_cells; ++i)
+    for (int i = 0; i < n_cells; ++i)
         out << "1 " << i << "\n";
 
     // Output cell types
     out << "\nCELL_TYPES " << n_cells << "\n";
-    for (size_t i = 0; i < n_cells; ++i)
+    for (int i = 0; i < n_cells; ++i)
         out << celltype << "\n";
 }
 
@@ -318,12 +317,12 @@ void Medium::get_point_data(ofstream& out) const {
 
     // write IDs of atoms
     out << "SCALARS id int\nLOOKUP_TABLE default\n";
-    for (size_t i = 0; i < n_atoms; ++i)
+    for (int i = 0; i < n_atoms; ++i)
         out << atoms[i].id << "\n";
 
     // write atom markers
     out << "SCALARS marker int\nLOOKUP_TABLE default\n";
-    for (size_t i = 0; i < n_atoms; ++i)
+    for (int i = 0; i < n_atoms; ++i)
         out << atoms[i].marker << "\n";
 }
 

@@ -113,8 +113,8 @@ public:
         return os;
     }
 
-    const unsigned int n_verts_per_elem = GeometryInfo<3>::vertices_per_cell; ///< # vertices in element
-    const unsigned int n_verts_per_face = GeometryInfo<2>::vertices_per_cell; ///< # vertices in face
+    const int n_verts_per_elem = GeometryInfo<3>::vertices_per_cell; ///< # vertices in element
+    const int n_verts_per_face = GeometryInfo<2>::vertices_per_cell; ///< # vertices in face
 
     Triangulation<DIM> triangulation;
     DoFHandler<DIM> dof_handler;

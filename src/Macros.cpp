@@ -81,7 +81,7 @@ void write_log(const string& message) {
 
 void clear_log() {
     const string cmd = "rm -f " + FEMOCSLOGPATH;
-    system(cmd.c_str());
+    if ( system(cmd.c_str()) ) return;
 }
 
 // Return mask of indices that are not equal to the scalar

@@ -188,10 +188,10 @@ int Config::read_command(string param, vector<double>& args) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
-    int n_read_args = 0;
+    unsigned n_read_args = 0;
     for (vector<string> str : data)
         if (str.size() >= 2 && str[0] == param)
-            for (int i = 0; i < args.size() && i < (str.size()-1); ++i) {
+            for (unsigned i = 0; i < args.size() && i < (str.size()-1); ++i) {
                 istringstream is(str[i+1]);
                 double result;
                 if (is >> result) { args[i] = result; n_read_args++; }

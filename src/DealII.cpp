@@ -1,6 +1,5 @@
 /*
  * DealII.cpp
- /*
  *  Created on: 11.2.2016
  *      Author: Mihkel Veske, Kristjan Eimre
  */
@@ -26,7 +25,7 @@ namespace femocs {
 // Laplace solver constructor
 // Number in fe() determines the interpolation type; 1 is linear etc.
 DealII::DealII() :
-        fe(POLY_DEGREE), dof_handler(triangulation), neumann(0) {}
+        dof_handler(triangulation), neumann(0), fe(POLY_DEGREE) {}
 
 // Specify the Neumann boundary condition value
 void DealII::set_applied_efield(const double elfield) {
@@ -243,7 +242,7 @@ vector<Tensor<1, DIM>> DealII::get_efield(const vector<int> &cell_indxs, const v
     // Iterate through all the cells and get the electric field from ones listed in cell_indxs
     for (int i = 0; (i < n_cells) && (cell != dof_handler.end()); ) {
         int si = sort_indxs[i];
-        if (cell->active_cell_index() == cell_indxs[si]) {
+        if ((int)cell->active_cell_index() == cell_indxs[si]) {
             require(vert_indxs[si] >= 0 && vert_indxs[si] < n_verts_per_elem, "Invalid index: " + to_string(vert_indxs[si]));
             fe_values.reinit(cell);
             fe_values.get_function_gradients(laplace_solution, solution_gradients);
@@ -276,7 +275,7 @@ vector<double> DealII::get_potential(const vector<int> &cell_indxs, const vector
     // Iterate through all the cells and get the potential from the ones listed in cell_indxs
     for (int i = 0; (i < n_cells) && (cell != dof_handler.end()); ) {
         int si = sort_indxs[i];
-        if (cell->active_cell_index() == cell_indxs[si]) {
+        if ((int)cell->active_cell_index() == cell_indxs[si]) {
             require(vert_indxs[si] >= 0 && vert_indxs[si] < n_verts_per_elem, "Invalid index: " + to_string(vert_indxs[si]));
             potentials[si] = laplace_solution( cell->vertex_dof_index(vert_indxs[si], 0) );
              ++i;

@@ -18,7 +18,7 @@ namespace femocs {
 template<typename T, typename R>
 class Iterator {
 public:
-    Iterator (const T* dat, unsigned int i) : data(dat), iter_indx(i) {}
+    Iterator (const T* dat, unsigned int i) : iter_indx(i), data(dat) {}
     /** Function to compare two iterators */
     bool operator!= (const Iterator& rhs) const { return iter_indx != rhs.iter_indx; }
     /** Function to access member of iterator */
@@ -671,11 +671,11 @@ class Solution {
 public:
 
     /** Constructors of Solution */
-    Solution() : vector(Vec3(0)), norm(0), scalar(0), id(0) {}
-    Solution(const double d) : vector(Vec3(d)), norm(d), scalar(d), id(0) {}
-    Solution(const Vec3& v) : vector(v), norm(v.norm()), scalar(0), id(0) {}
-    Solution(const Vec3& v, const double s) : vector(v), norm(v.norm()), scalar(s), id(0) {}
-    Solution(const Vec3& v, const double n, const double s) : vector(v), norm(n), scalar(s), id(0) {}
+    Solution() : id(0), vector(Vec3(0)), norm(0), scalar(0) {}
+    Solution(const double d) : id(0), vector(Vec3(d)), norm(d), scalar(d) {}
+    Solution(const Vec3& v) : id(0), vector(v), norm(v.norm()), scalar(0) {}
+    Solution(const Vec3& v, const double s) : id(0), vector(v), norm(v.norm()), scalar(s) {}
+    Solution(const Vec3& v, const double n, const double s) : id(0), vector(v), norm(n), scalar(s) {}
 
     /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &ss, const Solution &sol) {

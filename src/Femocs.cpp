@@ -31,9 +31,9 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) 
     else if (conf.verbose_mode == "verbose") { MODES.QUIET = false; MODES.VERBOSE = true;  }
 
     // Clear the results from previous run
-    if (conf.clear_output) system("rm -rf output");
+    if (conf.clear_output) fail = system("rm -rf output");
 //    if (MODES.WRITEFILE) system("mkdir -p output");
-    system("mkdir -p output");
+    fail = system("mkdir -p output");
 
     start_msg(t0, "======= Femocs started! =======\n");
 
@@ -451,7 +451,7 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
 
     if (!skip_calculations) {
         start_msg(t0, "=== Interpolating T and rho...");
-        temperatures.interpolate(reader, 0);
+        temperatures.interpolate(reader);
         end_msg(t0);
 
         temperatures.write("output/interpolation_bulk.movie");

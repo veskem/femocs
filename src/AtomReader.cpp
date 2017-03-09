@@ -33,7 +33,7 @@ bool AtomReader::equals_previous_run(const double eps) {
     const int n_atoms = size();
     const double eps2 = eps * eps;
 
-    if (n_atoms != previous_point.size())
+    if (n_atoms != (int)previous_point.size())
         return false;
 
      for (int i = 0; i < n_atoms; ++i)
@@ -47,7 +47,7 @@ double AtomReader::calc_rms_distance(const double eps) {
     if (eps < 1e-5) return DBL_MAX;
 
     const int n_atoms = size();
-    if (n_atoms != previous_point.size())
+    if (n_atoms != (int)previous_point.size())
         return DBL_MAX;
     
     double sum = 0;
@@ -62,7 +62,7 @@ void AtomReader::save_current_run_points(const double eps) {
     if (eps < 1e-5) return;
     const int n_atoms = size();
 
-    if (n_atoms != previous_point.size())
+    if (n_atoms != (int)previous_point.size())
         previous_point.resize(n_atoms);
 
     for (int i = 0; i < n_atoms; ++i)
@@ -158,7 +158,7 @@ void AtomReader::calc_clusters() {
 
             neighbours = nborlist[i];
 
-            for (int j = 0; j < neighbours.size(); ++j) {
+            for (unsigned j = 0; j < neighbours.size(); ++j) {
                 int nbor = neighbours[j];
                 // if P' is not visited
                 if (not_marked[nbor]) {
@@ -265,7 +265,7 @@ string AtomReader::get_data_string(const int i) const {
 // Get the closest neighbours of i-th atom
 const vector<int>& AtomReader::get_neighbours(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    require(nborlist.size() == size(), "Query from invalid neighbour list!");
+    require(size() == (int)nborlist.size(), "Query from invalid neighbour list!");
     return nborlist[i];
 }
 

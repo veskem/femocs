@@ -16,10 +16,10 @@ namespace femocs {
 
 // Coarsener constructors
 Coarsener::Coarsener() :
-        origin3d(Point3(0)), cutoff2(0), radius(0), radius2(0), A(0), r0_min(0), r0_max(0) {}
+        origin3d(Point3(0)), cutoff2(0), radius(0), radius2(0), r0_min(0), r0_max(0), A(0) {}
 
 Coarsener::Coarsener(const Point3 &origin, const double radius, const double A, const double r0_min, const double r0_max) :
-        origin3d(origin), cutoff2(0), radius(radius), radius2(radius*radius), A(A), r0_min(r0_min), r0_max(r0_max) {}
+        origin3d(origin), cutoff2(0), radius(radius), radius2(radius*radius), r0_min(r0_min), r0_max(r0_max), A(A) {}
 
 // ConstCoarsener for coarsening area uniformly
 ConstCoarsener::ConstCoarsener() : Coarsener() {}
@@ -96,7 +96,7 @@ vector<Point3> CylinderCoarsener::get_points() {
     }
 
     // Shift points to the origin in x-y plane
-    for (int i = 0; i < points.size(); ++i)
+    for (unsigned i = 0; i < points.size(); ++i)
         points[i] += origin2d;
 
     return points;
@@ -170,7 +170,7 @@ vector<Point3> NanotipCoarsener::get_points() {
     points.push_back( Point3(0,-radius, 0) );
 
     // Shift points according to the origin
-    for (int i = 0; i < points.size(); ++i)
+    for (unsigned i = 0; i < points.size(); ++i)
         points[i] += origin3d;
 
     return points;

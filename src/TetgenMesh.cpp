@@ -310,7 +310,7 @@ bool TetgenMesh::write(const string& file_name) {
 
     try {
         tetgenbeh.parse_commandline(const_cast<char*>(cmd.c_str()));
-        for (int i = 0; i < file_name.size(); ++i)
+        for (unsigned i = 0; i < file_name.size(); ++i)
             tetgenbeh.outfilename[i] = file_name[i];
 
         tetrahedralize(&tetgenbeh, &tetIOout, NULL);

@@ -19,12 +19,12 @@ namespace femocs {
  * ========================================== */
 
 // Initialize SolutionReader
-SolutionReader::SolutionReader() : interpolator(NULL), vec_label("vec"), vec_norm_label("vec_norm"), scalar_label("scalar") {
+SolutionReader::SolutionReader() : vec_label("vec"), vec_norm_label("vec_norm"), scalar_label("scalar"), interpolator(NULL) {
     reserve(0);
 }
 
 SolutionReader::SolutionReader(LinearInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
-        interpolator(ip), vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab) {
+        vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab), interpolator(ip) {
     reserve(0);
 }
 
@@ -47,7 +47,7 @@ void SolutionReader::append_interpolation(const Solution& s) {
 
 // Get i-th Solution
 Solution SolutionReader::get_interpolation(const int i) const {
-    require(i >= 0 && i < interpolation.size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < (int)interpolation.size(), "Index out of bounds: " + to_string(i));
     return interpolation[i];
 }
 
@@ -65,27 +65,27 @@ void SolutionReader::get_point_data(ofstream& out) const {
 
     // write IDs of atoms
     out << "SCALARS id int\nLOOKUP_TABLE default\n";
-    for (size_t i = 0; i < n_atoms; ++i)
+    for (int i = 0; i < n_atoms; ++i)
         out << atoms[i].id << "\n";
 
     // write atom markers
     out << "SCALARS marker int\nLOOKUP_TABLE default\n";
-    for (size_t i = 0; i < n_atoms; ++i)
+    for (int i = 0; i < n_atoms; ++i)
         out << atoms[i].marker << "\n";
 
     // output scalar (electric potential, temperature etc)
     out << "SCALARS " << scalar_label << " double\nLOOKUP_TABLE default\n";
-    for (size_t i = 0; i < n_atoms; ++i)
+    for (int i = 0; i < n_atoms; ++i)
         out << interpolation[i].scalar << "\n";
 
     // output vector magnitude explicitly to make it possible to apply filters in ParaView
     out << "SCALARS " << vec_norm_label << " double\nLOOKUP_TABLE default\n";
-    for (size_t i = 0; i < n_atoms; ++i)
+    for (int i = 0; i < n_atoms; ++i)
         out << interpolation[i].norm << "\n";
 
     // output vector data (electric field, current density etc)
     out << "VECTORS " << vec_label << " double\n";
-    for (size_t i = 0; i < n_atoms; ++i)
+    for (int i = 0; i < n_atoms; ++i)
         out << interpolation[i].vector << "\n";
 }
 
@@ -379,7 +379,7 @@ HeatReader::HeatReader() : SolutionReader() {}
 HeatReader::HeatReader(LinearInterpolator* ip) : SolutionReader(ip, "rho", "rho_norm", "temperature") {}
 
 // Linearly interpolate solution on Medium atoms
-void HeatReader::interpolate(const Medium &medium, const double r_cut) {
+void HeatReader::interpolate(const Medium &medium) {
     require(interpolator, "NULL interpolator cannot be used!");
 
     const int n_atoms = medium.size();
@@ -488,7 +488,7 @@ void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
     // Find the electric fields in the centroids of the triangles
     vector<Vec3> elfields;
     get_elfields(mesh, elfields);
-    require(elfields.size() == n_faces, "Electric fields were not extracted for every face!");
+    require(elfields.size() == (unsigned)n_faces, "Electric fields were not extracted for every face!");
 
     // Calculate the charges for the triangles
     for (int face = 0; face < n_faces; ++face) {
@@ -607,10 +607,8 @@ ForceReader::ForceReader(LinearInterpolator* ip) : SolutionReader(ip, "force", "
 void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor) {
 
-    const double eps = 0.01;
     const int n_atoms = fields.size();
     const int n_faces = faces.size();
-    int n_extended;
 
     // Copy the atom data
     reserve(n_atoms);

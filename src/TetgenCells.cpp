@@ -97,8 +97,8 @@ void TetgenNodes::init_statistics() {
 
 void TetgenNodes::calc_statistics() {
     init_statistics();
-    size_t n_nodes = size();
-    size_t n_markers = get_n_markers();
+    int n_nodes = size();
+    int n_markers = get_n_markers();
 
     // Find the min and max coordinates of all nodes
     for (int i = 0; i < n_nodes; ++i) {
@@ -130,7 +130,7 @@ void TetgenNodes::copy(const TetgenNodes& nodes, const vector<bool>& mask) {
     copy_statistics(nodes);
 
     // In case of empty or non-aligned mask, copy all the nodes
-    if (n_nodes != mask.size()) {
+    if (n_nodes != (int)mask.size()) {
         init(n_nodes);
         for (int i = 0; i < n_nodes; ++i)
             append(nodes[i]);
@@ -317,13 +317,13 @@ void TetgenFaces::calc_norms() {
 
 // Return the normal of i-th triangle
 Vec3 TetgenFaces::get_norm(const int i) const {
-    require(i >= 0 && i < norms.size(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < (int)norms.size(), "Invalid index: " + to_string(i));
     return norms[i];
 }
 
 // Return the area of i-th triangle
 double TetgenFaces::get_area(const int i) const {
-    require(i >= 0 && i < areas.size(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < (int)areas.size(), "Invalid index: " + to_string(i));
     return areas[i];
 }
     
@@ -410,7 +410,7 @@ vector<dealii::CellData<3>> Hexahedra::export_dealii() const {
     // loop through all the hexahedra
     for (SimpleHex hex : *this) {
         elems.push_back(dealii::CellData<3>());
-        for (unsigned int v = 0; v < DIM; ++v)
+        for (int v = 0; v < DIM; ++v)
             elems.back().vertices[v] = hex[v];
     }
     return elems;

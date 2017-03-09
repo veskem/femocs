@@ -20,19 +20,20 @@ namespace femocs {
 
 /** Template class for holding finite element cells;
  * dim specifies the dimensionality of the cell - 1-node, 2-line, 3-triangle etc. */
-template<size_t dim>
+template<int dim>
 class TetgenCells {
 public:
+
     /** SimpleCells constructors */
-    TetgenCells() : i_cells(0), reads(NULL), writes(NULL), n_cells_r(NULL), n_cells_w(NULL) {}
+    TetgenCells() : n_cells_r(NULL), n_cells_w(NULL), reads(NULL), writes(NULL), i_cells(0) {}
 
     /** Constructor for the case when read and write data go into same place */
     TetgenCells(tetgenio* data, int* n_cells) :
-        i_cells(0), reads(data), writes(data), n_cells_r(n_cells), n_cells_w(n_cells) {}
+        n_cells_r(n_cells), n_cells_w(n_cells), reads(data), writes(data), i_cells(0) {}
 
     /** Constructor for the case when read and write data go into different places */
     TetgenCells(tetgenio* reads, tetgenio* writes, int* n_cells_r, int* n_cells_w) :
-        i_cells(0), reads(reads), writes(writes), n_cells_r(n_cells_r), n_cells_w(n_cells_w) {}
+        n_cells_r(n_cells_r), n_cells_w(n_cells_w), reads(reads), writes(writes), i_cells(0) {}
 
     /** SimpleCells destructor */
     virtual ~TetgenCells() {};
@@ -172,7 +173,7 @@ public:
     iterator begin() const { return iterator(this, 0); }
     iterator end() const { return iterator(this, size()); }
 
-    const size_t DIM = dim;  //!< dimensionality of the cell; 1-node, 2-edge, 3-triangle etc
+    const int DIM = dim;  //!< dimensionality of the cell; 1-node, 2-edge, 3-triangle etc
 
 protected:
     const int n_coordinates = 3;  //!< number of spatial coordinates
