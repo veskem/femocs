@@ -240,11 +240,17 @@ protected:
         for (size_t cl = 0; cl < n_cells; ++cl)
             out << celltype << "\n";
 
+        // Output cell id-s
+        if (celltype == 1) out << "\nPOINT_DATA " << n_cells << "\n";
+        else out << "\nCELL_DATA " << n_cells << "\n";
+
+        out << "SCALARS ID int\nLOOKUP_TABLE default\n";
+        for (size_t cl = 0; cl < n_cells; ++cl)
+            out << cl << "\n";
+
         // Output cell markers
         if ((n_markers > 0) && (n_markers == n_cells)) {
-            if (celltype == 1) out << "\nPOINT_DATA " << n_cells << "\n";
-            else out << "\nCELL_DATA " << n_cells << "\n";
-            out << "SCALARS Cell_markers int\nLOOKUP_TABLE default\n";
+            out << "SCALARS marker int\nLOOKUP_TABLE default\n";
             for (size_t cl = 0; cl < n_cells; ++cl)
                 out << get_marker(cl) << "\n";
         }

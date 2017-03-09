@@ -299,8 +299,13 @@ bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
 }
 
 // Write mesh into files with Tetgen functions
-bool TetgenMesh::write_tetgen(const string& file_name) {
-    const string cmd = "Q";
+bool TetgenMesh::write(const string& file_name) {
+    string file_type = get_file_type(file_name);
+    require(file_type == file_name, "Only file names without extension are supported: " + file_type);
+
+    // k - write vtk, Q - quiet, I - suppresses iteration numbers,
+    // F - suppress output of .face and .edge, E - suppress output of .ele
+    const string cmd = "kIFEQ";
     tetgenbehavior tetgenbeh;
 
     try {

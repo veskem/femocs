@@ -12,6 +12,7 @@ NPROCS = 4
 
 FCFLAGS = -Llib -Ldealii/lib -Lcgal/lib64 -Ilib
 CGAL_FLAGS = -DCMAKE_INSTALL_PREFIX=../.. -DBUILD_SHARED_LIBS=FALSE
+CGAL_FLAGS_DEBUG = -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=../.. -DBUILD_SHARED_LIBS=FALSE
 OPT = -O3 -Wall -Wpedantic
 CCFLAGS = -Iinclude  -Llib -Ldealii/lib -Lcgal/lib64
 #OPT = -g -O0 -Wall -Wpedantic
