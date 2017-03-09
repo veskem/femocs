@@ -144,8 +144,8 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     end_msg(t0);
 
     start_msg(t0, "=== Cleaning surface faces & atoms...");
-    bulk_mesh.faces.clean_sides(reader.sizes);
-    dense_surf.clean(bulk_mesh, conf.surface_thichness);
+    vacuum_mesh.faces.clean_sides(reader.sizes);
+    dense_surf.clean(vacuum_mesh, conf.surface_thichness);
     end_msg(t0);
 
     bulk_mesh.faces.write("output/surface_faces_clean.vtk");
@@ -306,7 +306,7 @@ int Femocs::run(const double elfield, const string &message) {
     if (fail) return 1;
 
     // Extract face charges
-    fail = extract_charge(bulk_mesh);
+    fail = extract_charge(vacuum_mesh);
     if (fail) return 1;
 
     start_msg(t0, "=== Saving atom positions...");
@@ -418,7 +418,6 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
         reader.calc_coordinations(conf.nnn);
         end_msg(t0);
 
-        if (conf.cluster_anal) reader.calc_clusters();
         reader.write("output/atomreader.xyz");
     }
 
