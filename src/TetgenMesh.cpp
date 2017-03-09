@@ -427,7 +427,8 @@ void TetgenMesh::generate_surf_faces() {
 // Separate vacuum and bulk mesh from the union mesh by the element markers
 bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd) {
     vector<bool> tet_mask = vector_equal(elems.get_markers(), TYPES.VACUUM);
-    vector<bool> hex_mask = vector_greater_equal(hexahedra.get_markers(), 0);
+    vector<bool> hex_mask = vector_equal(hexahedra.get_markers(), TYPES.VACUUM);
+//    vector<bool> hex_mask = vector_greater_equal(hexahedra.get_markers(), 0);
 
     // Transfer vacuum nodes, tetrahedra, hexahedra and their markers
     vacuum.nodes.copy(this->nodes);
@@ -453,10 +454,6 @@ bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const str
 
 // Mark mesh nodes, edges, faces and elements
 bool TetgenMesh::mark_mesh(const bool postprocess) {
-//    mark_elems_byrsi();
-//    mark_nodes();
-//    return true;
-
     bool fail = 0;
 
     // Mark nodes with ray-triangle intersection technique
@@ -464,22 +461,12 @@ bool TetgenMesh::mark_mesh(const bool postprocess) {
 
     // Mark the elements by the node markers
     mark_elems();
-//    mark_elems_byrsi();
 
     // Post process the nodes in shadow areas
     if (postprocess)
         fail = post_process_marking();
 
     if (fail) return 1;
-
-//    // Mark nodes on simulation cell perimeter
-//    remark_perimeter_nodes();
-//
-//    // Mark edges by the node markers
-//    mark_edges();
-
-    // Mark faces on simulation cell edges
-//    mark_faces;
 
     return 0;
 }
@@ -524,7 +511,7 @@ bool TetgenMesh::post_process_marking() {
  * nodes but because of their low spatial density they can be eliminated in post-processor.
  */
 void TetgenMesh::mark_nodes() {
-    int node, elem, coord;
+    int node;
     const Vec3 ray_direction(0, 0, 1);
     RaySurfaceIntersect rsi(this);
     rsi.precompute_triangles(ray_direction);
@@ -660,7 +647,7 @@ void TetgenMesh::mark_elems_vol2() {
 }
 
 void TetgenMesh::mark_elems_byrsi() {
-    int node, elem, coord;
+    int elem;
     const Vec3 ray_direction(0, 0, 1);
     RaySurfaceIntersect rsi(this);
     rsi.precompute_triangles(ray_direction);

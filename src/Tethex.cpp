@@ -1081,21 +1081,21 @@ void Mesh::convert_tetrahedra(int n_old_vertices, const IncidenceMatrix &inciden
 //      // convert the order of vertices to suitable for deal.II to check the cell measure
 //      std::vector<int> vertices_dealII_order(Hexahedron::n_vertices);
 //      int order_to_deal[] = { 0, 1, 5, 4, 2, 3, 7, 6 };
-
+//
 //      for (int i = 0; i < Hexahedron::n_vertices; ++i)
 //        vertices_dealII_order[order_to_deal[i]] = hexahedron_vertices[i];
-
+//
 //      if (cell_measure_3D(vertices, vertices_dealII_order) < 0)
 //        // reorder vertices - swap front and back faces
 //        for (int i = 0; i < Quadrangle::n_vertices; ++i)
 //          std::swap(hexahedron_vertices[i], hexahedron_vertices[i + 4]);
 
             // now generate hexahedron
-//            hexahedra.push_back( new Hexahedron(hex_verts, tetrahedra[tet]->get_material_id()) );
-            if (tetrahedra[tet]->get_material_id() == TYPES.VACUUM)
-                hexahedra.push_back( new Hexahedron(hex_verts, tet) );
-            else
-                hexahedra.push_back( new Hexahedron(hex_verts, -1*tet) );
+            hexahedra.push_back( new Hexahedron(hex_verts, tetrahedra[tet]->get_material_id()) );
+//            if (tetrahedra[tet]->get_material_id() == TYPES.VACUUM)
+//                hexahedra.push_back( new Hexahedron(hex_verts, tet) );
+//            else
+//                hexahedra.push_back( new Hexahedron(hex_verts, -1*tet) );
 
         } // vertices
     } // tetrahedra
