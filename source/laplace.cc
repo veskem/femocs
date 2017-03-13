@@ -247,15 +247,18 @@ void Laplace<dim>::assemble_system() {
 }
 
 template<int dim>
-void Laplace<dim>::solve(bool pc_ssor) {
+void Laplace<dim>::solve(int max_iter, double tol, bool pc_ssor, double ssor_param) {
+
+	SolverControl solver_control(max_iter, tol);
+	SolverCG<> solver(solver_control);
+
 	if (pc_ssor) {
 		PreconditionSSOR<> preconditioner;
-		preconditioner.initialize(system_matrix, 1.2);
+		preconditioner.initialize(system_matrix, ssor_param);
+		solver.solve(system_matrix, solution, system_rhs, preconditioner);
+	} else {
+		solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
 	}
-
-	SolverControl solver_control(2000, 1e-9);
-	SolverCG<> solver(solver_control);
-	solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
 
 	//std::cout << "   " << solver_control.last_step() << " CG iterations needed to obtain convergence." << std::endl;
 }

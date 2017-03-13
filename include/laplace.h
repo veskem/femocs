@@ -87,10 +87,13 @@ namespace fch {
 		/** assembles the matrix equation */
 		void assemble_system();
 
-		/** solves the matrix equation
+		/** solves the matrix equation using conjugate gradients
+		 * @param max_iter maximum number of iterations allowed
+		 * @param tol tolerance
 		 * @param pc_ssor flag to use SSOR preconditioner
+		 * @param ssor_param parameter to SSOR preconditioner, 1.2 is known to work well with laplace
 		 */
-		void solve(bool pc_ssor = false);
+		void solve(int max_iter = 2000, double tol = 1e-9, bool pc_ssor = true, double ssor_param = 1.2);
 
 		/** outputs the results to a specified file */
 		void output_results(const std::string filename = "field_solution.vtk") const;

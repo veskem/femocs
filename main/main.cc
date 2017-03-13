@@ -73,7 +73,7 @@ int main() {
 		double setup_time = timer.wall_time(); timer.restart();
 		laplace_solver.assemble_system();
 		double assemble_time = timer.wall_time(); timer.restart();
-		laplace_solver.solve();
+		laplace_solver.solve(2000, 1e-9, true, 1.2);
 		double solution_time = timer.wall_time(); timer.restart();
 		laplace_solver.output_results("output/field_sol_"+std::to_string(n)+".vtk");
 		double outp_time = timer.wall_time(); timer.restart();
