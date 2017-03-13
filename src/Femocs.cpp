@@ -32,7 +32,6 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) 
 
     // Clear the results from previous run
     if (conf.clear_output) fail = system("rm -rf output");
-//    if (MODES.WRITEFILE) system("mkdir -p output");
     fail = system("mkdir -p output");
 
     start_msg(t0, "======= Femocs started! =======\n");
@@ -190,7 +189,7 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     if (MODES.VERBOSE) cout << solver << endl;
 
     start_msg(t0, "=== Running Laplace solver...");
-    solver.solve();
+    solver.solve(conf.n_phi, conf.phi_error, true, conf.ssor_param);
     end_msg(t0);
 
     start_msg(t0, "=== Extracting E and phi...");
