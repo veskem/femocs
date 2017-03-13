@@ -159,6 +159,29 @@ Media Media::coarsen(Coarseners &coarseners) {
 }
 
 // Clean the surface from atoms that are too close to each other
+Media Media::get_nanotip(const double radius) {
+    const int n_atoms = size();
+    const double radius2 = radius*radius;
+
+    vector<bool> do_delete;
+    do_delete.reserve(n_atoms);
+
+    Point2 centre(sizes.xmid, sizes.ymid);
+
+    // Loop through all the atoms
+    for (int i = 0; i < n_atoms; ++i)
+       do_delete.push_back( centre.distance2(get_point2(i)) > radius2 );
+
+    Media nanotip( n_atoms - vector_sum(do_delete) );
+    for (int i = 0; i < n_atoms; ++i)
+        if(!do_delete[i])
+            nanotip.append(get_atom(i));
+
+    nanotip.calc_statistics();
+    return nanotip;
+}
+
+// Clean the surface from atoms that are too close to each other
 Media Media::clean(Coarseners &coarseners) {
     const int n_atoms = size();
     vector<bool> do_delete(n_atoms, false);

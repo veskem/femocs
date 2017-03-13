@@ -33,7 +33,6 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) 
 
     // Clear the results from previous run
     if (conf.clear_output) system("rm -rf output");
-//    if (MODES.WRITEFILE) system("mkdir -p output");
     system("mkdir -p output");
 
     start_msg(t0, "======= Femocs started! =======\n");
@@ -463,17 +462,21 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
 
     if (!skip_calculations) {
         start_msg(t0, "=== Making voronoi cells...");
+
+        Media nanotip = dense_surf.get_nanotip(conf.radius);
+        nanotip.write("output/nanotip.xyz");
+
         VoronoiMesh voromesh;
         // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
 //        fail = voromesh.generate(dense_surf, conf.latconst, "rQq" + conf.mesh_quality, "vQ");
-        fail = voromesh.generate(dense_surf, conf.latconst, "rQq1.8", "vQ");
+        fail = voromesh.generate(nanotip, conf.latconst, "rQq2.0", "vQ");
         check_message(fail, "Making voronoi cells failed! Field calculation will be skipped!");
         voromesh.clean();
         end_msg(t0);
 
         start_msg(t0, "=== Extracting voronoi surface...");
 //        voromesh.extract_surface(dense_surf, coarseners.centre.z);
-        voromesh.mark_mesh(dense_surf.sizes, coarseners.centre.z);
+        voromesh.mark_mesh(nanotip.sizes, coarseners.centre.z);
         end_msg(t0);
 
         voromesh.nodes.write("output/voro_nodes.vtk");
@@ -482,7 +485,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         voromesh.voros.write("output/voro_cells.vtk");
 
         start_msg(t0, "=== Calculating atomic forces...");
-        voromesh.extract_forces(forces, fields, dense_surf);
+        voromesh.extract_forces(forces, fields, nanotip);
         end_msg(t0);
 
 //        start_msg(t0, "=== Calculating atomic forces...");
