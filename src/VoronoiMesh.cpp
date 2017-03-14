@@ -328,7 +328,8 @@ void VoronoiMesh::mark_cells_and_nodes() {
 void VoronoiMesh::mark_mesh(const Medium& medium) {
     // Get the sorted array of the atom z-coordinates
     const int n_atoms = medium.size();
-    const int n_average = min(100.0, sqrt(n_atoms));
+//    const int n_average = min(100.0, sqrt(n_atoms));
+    const int n_average = sqrt(n_atoms);
 
     vector<double> zcoord; zcoord.reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
@@ -341,6 +342,8 @@ void VoronoiMesh::mark_mesh(const Medium& medium) {
     for (int i = 0; i < n_average; ++i)
         zmin += zcoord[i];
     zmin /= n_average;
+
+    zmin = zcoord[n_average];
 
     mark_mesh(medium.sizes, zmin);
 }

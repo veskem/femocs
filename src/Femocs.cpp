@@ -466,10 +466,13 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         Media nanotip = dense_surf.get_nanotip(conf.radius);
         nanotip.write("output/nanotip.xyz");
 
+        double ztop = dense_surf.sizes.zmax - 0.5*conf.radius;
+        Media apex = dense_surf.get_apex(Point3(dense_surf.sizes.xmid, dense_surf.sizes.ymid, ztop), conf.radius);
+
         VoronoiMesh voromesh;
         // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
 //        fail = voromesh.generate(dense_surf, conf.latconst, "rQq" + conf.mesh_quality, "vQ");
-        fail = voromesh.generate(nanotip, conf.latconst, "rQq1.8", "vQ");
+        fail = voromesh.generate(apex, conf.latconst, "rQq1.8", "vQ");
         check_message(fail, "Making voronoi cells failed! Field calculation will be skipped!");
         voromesh.clean();
         end_msg(t0);
@@ -477,13 +480,17 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         start_msg(t0, "=== Extracting voronoi surface...");
 //        voromesh.extract_surface(dense_surf, coarseners.centre.z);
 //        voromesh.mark_mesh(nanotip.sizes, coarseners.centre.z);
-        voromesh.mark_mesh(nanotip);
+//        voromesh.mark_mesh(nanotip);
+        voromesh.mark_mesh(apex.sizes, apex.sizes.zmax - 0.75*conf.radius);
+//        voromesh.mark_mesh(apex);
         end_msg(t0);
 
         voromesh.nodes.write("output/voro_nodes.vtk");
         voromesh.nodes.write("output/voro_nodes.xyz");
         voromesh.vfaces.write("output/voro_faces.vtk");
         voromesh.voros.write("output/voro_cells.vtk");
+
+        exit(1);
 
         start_msg(t0, "=== Calculating fields and forces...");
         voromesh.extract_field_and_force(forces, fields, nanotip);

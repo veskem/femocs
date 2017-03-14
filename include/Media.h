@@ -53,6 +53,8 @@ public:
 
     Media get_nanotip(const double radius);
 
+    Media get_apex(const Point3& origin, const double radius);
+
     Media coarsen(Coarseners &coarseners);
 
     Media extend(const double latconst, const double box_width, Coarseners &coarseners);

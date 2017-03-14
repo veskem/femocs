@@ -158,7 +158,6 @@ Media Media::coarsen(Coarseners &coarseners) {
     return union_surf.clean(coarseners);
 }
 
-// Clean the surface from atoms that are too close to each other
 Media Media::get_nanotip(const double radius) {
     const int n_atoms = size();
     const double radius2 = radius*radius;
@@ -179,6 +178,26 @@ Media Media::get_nanotip(const double radius) {
 
     nanotip.calc_statistics();
     return nanotip;
+}
+
+Media Media::get_apex(const Point3& origin, const double radius) {
+    const int n_atoms = size();
+    const double radius2 = radius*radius;
+
+    vector<bool> in_region;
+    in_region.reserve(n_atoms);
+
+    // Loop through all the atoms
+    for (int i = 0; i < n_atoms; ++i)
+       in_region.push_back( origin.distance2(get_point(i)) <= radius2 );
+
+    Media apex( n_atoms - vector_sum(in_region) );
+    for (int i = 0; i < n_atoms; ++i)
+        if (in_region[i])
+            apex.append(get_atom(i));
+
+    apex.calc_statistics();
+    return apex;
 }
 
 // Clean the surface from atoms that are too close to each other
