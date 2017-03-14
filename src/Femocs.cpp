@@ -469,14 +469,15 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         VoronoiMesh voromesh;
         // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
 //        fail = voromesh.generate(dense_surf, conf.latconst, "rQq" + conf.mesh_quality, "vQ");
-        fail = voromesh.generate(nanotip, conf.latconst, "rQq2.0", "vQ");
+        fail = voromesh.generate(nanotip, conf.latconst, "rQq1.8", "vQ");
         check_message(fail, "Making voronoi cells failed! Field calculation will be skipped!");
         voromesh.clean();
         end_msg(t0);
 
         start_msg(t0, "=== Extracting voronoi surface...");
 //        voromesh.extract_surface(dense_surf, coarseners.centre.z);
-        voromesh.mark_mesh(nanotip.sizes, coarseners.centre.z);
+//        voromesh.mark_mesh(nanotip.sizes, coarseners.centre.z);
+        voromesh.mark_mesh(nanotip);
         end_msg(t0);
 
         voromesh.nodes.write("output/voro_nodes.vtk");
@@ -484,16 +485,13 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         voromesh.vfaces.write("output/voro_faces.vtk");
         voromesh.voros.write("output/voro_cells.vtk");
 
-        start_msg(t0, "=== Calculating atomic forces...");
-        voromesh.extract_forces(forces, fields, nanotip);
+        start_msg(t0, "=== Calculating fields and forces...");
+        voromesh.extract_field_and_force(forces, fields, nanotip);
         end_msg(t0);
 
-//        start_msg(t0, "=== Calculating atomic forces...");
-//        forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coord_cutoff, conf.charge_smooth_factor);
-//        end_msg(t0);
-
-        forces.write("output/forces.movie");
-        forces.write("output/forces.vtk");
+        fields.write("output/vorofields.movie");
+        forces.write("output/voroforces.movie");
+        forces.write("output/voroforces.vtk");
         forces.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
     }
 

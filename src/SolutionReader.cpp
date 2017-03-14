@@ -263,14 +263,26 @@ void FieldReader::interpolate(const Medium &medium, const double r_cut, const in
     require(interpolator, "NULL interpolator cannot be used!");
 
     const int n_atoms = medium.size();
-    reserve(n_atoms);   
-    
-    // Copy the atoms
-    for (int i = 0; i < n_atoms; ++i)
-        append(medium.get_atom(i));
+    reserve(n_atoms);
 
-    // Sort atoms into sequential order to speed up interpolation
-    if (srt) sort_spatial();
+    vector<int> id_save;
+    
+    if (srt) {
+        // store the atom and their id-s
+        id_save.reserve(n_atoms);
+        for (int i = 0; i < n_atoms; ++i) {
+            id_save.push_back(medium.get_id(i));
+            append( Atom(i, medium.get_point(i), 0) );
+        }
+
+        // Sort atoms into sequential order to speed up interpolation
+        sort_spatial();
+
+    } else {
+        // copy the atoms
+        for (int i = 0; i < n_atoms; ++i)
+            append(medium.get_atom(i));
+    }
 
     int elem = 0;
     for (int i = 0; i < n_atoms; ++i) {
@@ -298,8 +310,13 @@ void FieldReader::interpolate(const Medium &medium, const double r_cut, const in
         // sort atoms back to their initial order
         for (int i = 0; i < n_atoms; ++i)
             interpolation[i].id = atoms[i].id;
-        sort(interpolation.begin(), interpolation.end(), Solution::sort_up());
-        sort(atoms.begin(), atoms.end(), Atom::sort_id());
+
+        sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
+        sort( atoms.begin(), atoms.end(), Atom::sort_id() );
+
+        // restore the original atom id-s
+        for (int i = 0; i < n_atoms; ++i)
+            atoms[i].id = id_save[i];
     }
 }
 

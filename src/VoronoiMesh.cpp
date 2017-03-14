@@ -325,6 +325,26 @@ void VoronoiMesh::mark_cells_and_nodes() {
         nodes.append_marker(voros.get_marker(i));
 }
 
+void VoronoiMesh::mark_mesh(const Medium& medium) {
+    // Get the sorted array of the atom z-coordinates
+    const int n_atoms = medium.size();
+    const int n_average = min(100.0, sqrt(n_atoms));
+
+    vector<double> zcoord; zcoord.reserve(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        zcoord.push_back(medium.get_point(i).z);
+
+    sort(zcoord.begin(), zcoord.end());
+
+    // Calculate the average z-coordinate of the lowest n_average atoms
+    double zmin(0);
+    for (int i = 0; i < n_average; ++i)
+        zmin += zcoord[i];
+    zmin /= n_average;
+
+    mark_mesh(medium.sizes, zmin);
+}
+
 void VoronoiMesh::mark_mesh(const Medium::Sizes& sizes, const double zmin) {
     // Mark the cell and faces that are certainly on the surface
     int seedface = mark_seed();
@@ -338,14 +358,7 @@ void VoronoiMesh::mark_mesh(const Medium::Sizes& sizes, const double zmin) {
 
 // Extract the nodes that are on the surface of material
 void VoronoiMesh::extract_surface(Medium& surf, const double zmin) {
-    // Mark the cell and faces that are certainly on the surface
-    int seedface = mark_seed();
-
-    // Mark the rest of surface faces
-    mark_faces(surf.sizes, zmin, seedface);
-
-    // Using the marked faces, marks also the cells and nodes
-    mark_cells_and_nodes();
+    mark_mesh(surf.sizes, zmin);
 
     // Transfer surface nodes to the surface atoms
     vector<bool> on_surf = vector_equal(nodes.get_markers(), TYPES.SURFACE);
@@ -356,7 +369,57 @@ void VoronoiMesh::extract_surface(Medium& surf, const double zmin) {
 }
 
 // Extract the nodes that are on the surface of material
-void VoronoiMesh::extract_forces(ForceReader& forces, const FieldReader& fields, const Medium& medium) {
+void VoronoiMesh::extract_surface(Medium& surf) {
+    mark_mesh(surf);
+
+    // Transfer surface nodes to the surface atoms
+    vector<bool> on_surf = vector_equal(nodes.get_markers(), TYPES.SURFACE);
+    surf.reserve(vector_sum(on_surf));
+    for (int i = 0; i <= nodes.indxs.surf_end; ++i)
+        if (on_surf[i])
+            surf.append(nodes[i]);
+}
+
+// Extract the nodes that are on the surface of material
+void VoronoiMesh::extract_field_and_force(ForceReader& forces, FieldReader& fields, const Medium& surface) {
+    // Transfer surface nodes to the surface atoms
+    vector<bool> on_surf = vector_equal(voros.get_markers(), TYPES.SURFACE);
+    forces.reserve(vector_sum(on_surf));
+
+    for (int i = 0; i < surface.size(); ++i)
+        if (on_surf[i])
+            forces.append(surface.get_atom(i));
+
+    fields.interpolate(forces, 0, 0, true);
+
+    int atom = 0;
+    for (int i = 0; i < surface.size(); ++i)
+        if (on_surf[i]) {
+            Vec3 cell_centre = nodes[i];
+            Vec3 cell_area(0);
+
+            // calculate the total area of the exposed part of cell
+            for (VoronoiFace face : voros[i])
+                if (vfaces.get_marker(face.id) == TYPES.SURFACE) {
+                    Vec3 cell2face = cell_centre - face.centroid();
+                    Vec3 face_area = face.area();
+
+                    // ensure that the direction of face norm is inside-out of the cell
+                    if (cell2face.dotProduct(face_area) >= 0)
+                        cell_area -= face_area;
+                    else
+                        cell_area += face_area;
+                }
+
+            Vec3 field = fields.get_elfield(atom++);
+            double charge = cell_area.dotProduct(field) * forces.eps0;  // [e]
+            Vec3 force = field * charge;   // [e*V/A]
+            forces.append_interpolation(Solution(force, charge));
+        }
+}
+
+void VoronoiMesh::extract_force(ForceReader& forces, const FieldReader& fields, const Medium& medium) {
+    require(medium.size() == fields.size(), "Incompatible sizes of medium and fields!");
 
     // Transfer surface nodes to the surface atoms
     vector<bool> on_surf = vector_equal(voros.get_markers(), TYPES.SURFACE);

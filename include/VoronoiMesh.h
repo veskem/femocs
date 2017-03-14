@@ -284,9 +284,15 @@ public:
 
     void extract_surface(Medium& surf, const double zmin);
 
-    void extract_forces(ForceReader& forces, const FieldReader& fields, const Medium& medium);
+    void extract_surface(Medium& surf);
+
+    void extract_field_and_force(ForceReader& forces, FieldReader& fields, const Medium& surface);
+
+    void extract_force(ForceReader& forces, const FieldReader& fields, const Medium& medium);
 
     void mark_mesh(const Medium::Sizes& sizes, const double zmin);
+
+    void mark_mesh(const Medium& medium);
 
     /** Objects holding operations for accessing cell data */
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
