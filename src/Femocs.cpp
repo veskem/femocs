@@ -152,11 +152,11 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     vacuum_mesh.faces.clean_sides(reader.sizes);
     end_msg(t0);
 
-    bulk_mesh.faces.write("output/surface_faces_clean.vtk");
+    vacuum_mesh.faces.write("output/surface_faces_clean.vtk");
 
     if (conf.surface_cleaner == "faces") {
         start_msg(t0, "=== Cleaning surface with triangles...");
-        dense_surf.faces_clean(bulk_mesh, conf.surface_thichness);
+        dense_surf.faces_clean(vacuum_mesh, conf.surface_thichness);
         end_msg(t0);
 
         dense_surf.write("output/surface_dense_clean.xyz");
@@ -167,8 +167,6 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     expect(bulk_mesh.hexahedra.size() > 0, "Zero elements in bulk mesh!");
     expect(vacuum_mesh.hexahedra.size() > 0, "Zero elements in vacuum mesh!");
 
-    bulk_mesh.elems.write("output/tetmesh_bulk" + conf.message + ".vtk");
-    vacuum_mesh.elems.write("output/tetmesh_vacuum" + conf.message + ".vtk");
     bulk_mesh.hexahedra.write("output/hexmesh_bulk" + conf.message + ".vtk");
     vacuum_mesh.hexahedra.write("output/hexmesh_vacuum" + conf.message + ".vtk");
 
@@ -297,12 +295,7 @@ int Femocs::run(const double elfield, const string &message) {
     // Solve Laplace equation on vacuum mesh
     fch::Laplace<3> laplace_solver;
     fail = solve_laplace(vacuum_mesh, laplace_solver);
-    if (fail) {
-        MODES.WRITEFILE = true;
-        vacuum_interpolator.write("output/result_E_phi_error.movie");
-        bulk_mesh.hexahedra.write("output/hexmesh_bulk_error" + conf.message + ".vtk");
-        return 1;
-    }
+    if (fail) return 1;
 
     // Solve heat & continuity equation on bulk mesh
     fail = solve_heat(bulk_mesh, laplace_solver);
