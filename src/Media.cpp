@@ -6,6 +6,7 @@
  */
 
 #include "Media.h"
+#include "VoronoiMesh.h"
 #include <numeric>
 
 using namespace std;
@@ -15,21 +16,21 @@ Media::Media() : Medium() {}
 
 Media::Media(const int n_atoms) : Medium(n_atoms) {}
 
-Media::Media(const Medium::Sizes& ar_sizes, const double z) {
-    generate_simple(ar_sizes, z);
+Media::Media(const Medium::Sizes& s, const double z) {
+    generate_simple(s, z);
 }
 
-// Generate Surface with 4 atoms at the corners and 4 at the middle edges of simulation cell
-void Media::generate_simple(const Medium::Sizes& ar_sizes, const double z) {
+// Generate system with 4 atoms at the corners
+void Media::generate_simple(const Medium::Sizes& s, const double z) {
     // Reserve memory for atoms
     reserve(4);
 
     // Add 4 atoms to the corners of simulation cell
     // The insertion order determines the orientation of big surface triangles
-    append( Point3(ar_sizes.xmin, ar_sizes.ymin, z) );
-    append( Point3(ar_sizes.xmax, ar_sizes.ymin, z) );
-    append( Point3(ar_sizes.xmax, ar_sizes.ymax, z) );
-    append( Point3(ar_sizes.xmin, ar_sizes.ymax, z) );
+    append( Point3(s.xmin, s.ymin, z) );
+    append( Point3(s.xmax, s.ymin, z) );
+    append( Point3(s.xmax, s.ymax, z) );
+    append( Point3(s.xmin, s.ymax, z) );
 
     calc_statistics();
 }
@@ -97,7 +98,7 @@ void Media::extract(const AtomReader& reader, const int type, const bool invert)
     calc_statistics();        
 }
 
-// Function extend the flat area by generating additional atoms
+// Extend the flat area by reading additional atoms
 Media Media::extend(const string &file_name, Coarseners &coarseners) {
     AtomReader reader;
     reader.import_file(file_name);
@@ -110,7 +111,7 @@ Media Media::extend(const string &file_name, Coarseners &coarseners) {
     return stretched.coarsen(coarseners);
 }
 
-// Function extend the flat area by generating additional atoms
+// Extend the flat area by generating additional atoms
 Media Media::extend(const double latconst, const double box_width, Coarseners &coarseners) {
     const int n_atoms = size();
 
@@ -143,7 +144,7 @@ Media Media::extend(const double latconst, const double box_width, Coarseners &c
     return stretched.coarsen(coarseners);
 }
 
-// Function to coarsen the atoms with coarsener
+// Coarsen the atoms by generating additional boundary nodes and then running cleaner
 Media Media::coarsen(Coarseners &coarseners) {
     Media corners, middle, union_surf;
 
@@ -153,51 +154,9 @@ Media Media::coarsen(Coarseners &coarseners) {
 
     union_surf += corners;
     union_surf += middle;
-    union_surf.add(this);
+    union_surf += *this;
 
     return union_surf.clean(coarseners);
-}
-
-Media Media::get_nanotip(const double radius) {
-    const int n_atoms = size();
-    const double radius2 = radius*radius;
-
-    vector<bool> do_delete;
-    do_delete.reserve(n_atoms);
-
-    Point2 centre(sizes.xmid, sizes.ymid);
-
-    // Loop through all the atoms
-    for (int i = 0; i < n_atoms; ++i)
-       do_delete.push_back( centre.distance2(get_point2(i)) > radius2 );
-
-    Media nanotip( n_atoms - vector_sum(do_delete) );
-    for (int i = 0; i < n_atoms; ++i)
-        if(!do_delete[i])
-            nanotip.append(get_atom(i));
-
-    nanotip.calc_statistics();
-    return nanotip;
-}
-
-Media Media::get_apex(const Point3& origin, const double radius) {
-    const int n_atoms = size();
-    const double radius2 = radius*radius;
-
-    vector<bool> in_region;
-    in_region.reserve(n_atoms);
-
-    // Loop through all the atoms
-    for (int i = 0; i < n_atoms; ++i)
-       in_region.push_back( origin.distance2(get_point(i)) <= radius2 );
-
-    Media apex( n_atoms - vector_sum(in_region) );
-    for (int i = 0; i < n_atoms; ++i)
-        if (in_region[i])
-            apex.append(get_atom(i));
-
-    apex.calc_statistics();
-    return apex;
 }
 
 // Clean the surface from atoms that are too close to each other
@@ -230,7 +189,7 @@ Media Media::clean(Coarseners &coarseners) {
 }
 
 // Remove the atoms that are too far from surface faces
-void Media::clean(const TetgenMesh& mesh, const double r_cut) {
+void Media::faces_clean(const TetgenMesh& mesh, const double r_cut) {
     if (r_cut <= 0) return;
 
     const int n_atoms = size();
@@ -249,47 +208,85 @@ void Media::clean(const TetgenMesh& mesh, const double r_cut) {
     calc_statistics();
 }
 
+// Extract the surface atoms whose Voronoi cells are exposed to vacuum
+bool Media::voronoi_clean(vector<Vec3>& areas, const double radius, const double latconst, const string& mesh_quality) {
+    const int n_atoms = size();
+
+    // Separate nanotip from the whole surface
+    Media nanotip;
+    get_nanotip(nanotip, radius);
+
+    // Generate Voronoi cells around the nanotip
+    VoronoiMesh voromesh;
+    // r - reconstruct, v - output Voronoi cells, Q - quiet, q - mesh quality
+    if( voromesh.generate(nanotip, latconst, "rQq" + mesh_quality, "vQ") )
+        return 1;
+    
+    // Clean the mesh from faces and cell that have node in the infinity
+    voromesh.clean();
+    
+    // Extract the surface faces and cells
+    voromesh.mark_mesh(nanotip);
+    
+    voromesh.nodes.write("output/voro_nodes.vtk");
+    voromesh.vfaces.write("output/voro_faces.vtk");
+    voromesh.voros.write("output/voro_cells.vtk");
+    
+    // Get the atoms and their surface areas whose Voronoi cells are exposed to vacuum
+    voromesh.extract_surface(*this, areas, nanotip);
+    calc_statistics();
+    
+    return 0;
+}
+
+// Separate cylindrical region from substrate region
+void Media::get_nanotip(Media& nanotip, const double radius) {
+    const int n_atoms = size();
+    const double radius2 = radius * radius;
+
+    // Make map for atoms in nanotip
+    vector<bool> is_nanotip; is_nanotip.reserve(n_atoms);
+    Point2 centre(sizes.xmid, sizes.ymid);
+
+    for (int i = 0; i < n_atoms; ++i)
+       is_nanotip.push_back( centre.distance2(get_point2(i)) <= radius2 );
+
+    // Reserve memory for nanotip and substrate
+    const int n_nanotip = vector_sum(is_nanotip);
+    nanotip.reserve(n_nanotip);
+    vector<Atom> atoms_save; atoms_save.reserve(n_atoms - n_nanotip);
+
+    // Separate nanotip and substrate
+    for (int i = 0; i < n_atoms; ++i) {
+        if (is_nanotip[i])
+            nanotip.append(get_atom(i));
+        else
+            atoms_save.push_back(get_atom(i));
+    }
+
+    nanotip.calc_statistics();
+    atoms = atoms_save;
+}
+
+// Function used to smoothen the atoms
 inline double Media::smooth_function(const double distance, const double smooth_factor) const {
     const double a = 1.0;
     return a * exp(-1.0 * distance / smooth_factor);
 }
 
+// Smoothen the atoms inside the cylinder
 void Media::smoothen(const double radius, const double smooth_factor, const double r_cut) {
     // Calculate the horizontal span of the surface
     calc_statistics();
-    Point2 origin2d(sizes.xmid, sizes.ymid);
-    smoothen(origin2d, radius, smooth_factor, r_cut);
+
+    Media nanotip;
+    get_nanotip(nanotip, radius);
+    nanotip.smoothen(smooth_factor, r_cut);
+
+    *this += nanotip;
 }
 
-void Media::smoothen(const Point2 &origin, const double radius, const double smooth_factor, const double r_cut) {
-    if (smooth_factor < 0.01) return;
-
-    const int n_atoms = size();
-    const double radius2 = radius * radius;
-
-    // Find atoms in interesting region
-    vector<bool> hot_atom(n_atoms);
-    for(int i = 0; i < n_atoms; ++i)
-        hot_atom[i] = origin.distance2(get_point2(i)) <= radius2;
-
-    const int n_smooth = accumulate(hot_atom.begin(), hot_atom.end(), 0);
-
-    // Transfer the points in interesting region into new surface
-    Media temp_surf(n_smooth);
-    for(int i = 0; i < n_atoms; ++i)
-        if(hot_atom[i])
-            temp_surf.append(get_point(i));
-
-    // Smoothen the surface
-    temp_surf.smoothen(smooth_factor, r_cut);
-
-    // Write smoothened points back to surface
-    int j = 0;
-    for (int i = 0; i < n_atoms; ++i)
-        if (hot_atom[i])
-            set_point(i, temp_surf.get_point(j++));
-}
-
+// Smoothen all the atoms in the system
 void Media::smoothen(const double smooth_factor, const double r_cut) {
     const double r_cut2 = r_cut * r_cut;
     const int n_atoms = size();
@@ -322,40 +319,6 @@ void Media::smoothen(const double smooth_factor, const double r_cut) {
     // Normalise smoothed vertices
     for (int i = 0; i < n_atoms; ++i)
         atoms[i].point *= 1.0 / weights_sum[i];
-}
-
-// =================================================
-//              Implementation of Edge
-// =================================================
-
-// Constructors for Edge class
-Edge::Edge() : Medium() {};
-
-// Exctract the atoms near the simulation box sides
-void Edge::extract(const Medium* atoms, const AtomReader::Sizes& ar_sizes, const double eps) {
-    const int n_atoms = atoms->size();
-
-    // Reserve memory for atoms
-    reserve(n_atoms);
-
-    // Get the atoms from edge areas
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 point = atoms->get_point(i);
-        const bool near1 = on_boundary(point.x, ar_sizes.xmin, ar_sizes.xmax, eps);
-        const bool near2 = on_boundary(point.y, ar_sizes.ymin, ar_sizes.ymax, eps);
-
-        if (near1 || near2)
-            append(atoms->get_atom(i));
-    }
-
-    // Loop through all the added atoms and flatten the atoms on the sides of simulation box
-    for (int i = 0; i < size(); ++i) {
-        Point3 point = get_point(i);
-        if ( on_boundary(point.x, ar_sizes.xmin, eps) ) set_x(i, ar_sizes.xmin);
-        if ( on_boundary(point.x, ar_sizes.xmax, eps) ) set_x(i, ar_sizes.xmax);
-        if ( on_boundary(point.y, ar_sizes.ymin, eps) ) set_y(i, ar_sizes.ymin);
-        if ( on_boundary(point.y, ar_sizes.ymax, eps) ) set_y(i, ar_sizes.ymax);
-    }
 }
 
 } /* namespace femocs */

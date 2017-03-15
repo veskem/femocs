@@ -620,6 +620,21 @@ void ChargeReader::get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields) 
 ForceReader::ForceReader() : SolutionReader() {}
 ForceReader::ForceReader(LinearInterpolator* ip) : SolutionReader(ip, "force", "force_norm", "charge") {}
 
+// Replace the charge and force on the nanotip nodes with the one found with Voronoi cells
+void ForceReader::recalc_forces(const FieldReader &fields, const vector<Vec3>& areas) {
+    require(areas.size() == fields.size(), "Mismatch of data sizes: " 
+        + to_string(areas.size()) + " vs " + to_string(fields.size()) );
+
+    for (int i = 0; i < areas.size(); ++i) {
+        if (areas[i] == 0) continue;
+        
+        Vec3 field = fields.get_elfield(i);
+        double charge = areas[i].dotProduct(field) * eps0;  // [e]
+        Vec3 force = field * charge;   // [e*V/A]
+        interpolation[i] = Solution(force, charge);
+    }
+}
+        
 // Calculate forces from atomic electric fields and face charges
 void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor) {

@@ -32,6 +32,7 @@ void write_defaults(ofstream &file) {
     file << "coord_cutoff = 3.1"         << endl;
     file << "latconst = 3.61"            << endl;
     file << "use_histclean = false"      << endl;
+    file << "surface_cleaner = voronois" << endl;
 }
 
 void write_hr5(ofstream &file) {

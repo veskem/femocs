@@ -258,7 +258,7 @@ int VoronoiMesh::mark_seed() {
     return seedface;
 }
 
-// Mark voronoi faces that are on the vacuum-material boundary
+// Mark Voronoi faces that are on the vacuum-material boundary
 void VoronoiMesh::mark_faces(const Medium::Sizes& sizes, const double zmin, const int seed) {
     const int cell_max = nodes.indxs.surf_end;
     vfaces.calc_neighbours();
@@ -301,7 +301,7 @@ void VoronoiMesh::mark_faces(const Medium::Sizes& sizes, const double zmin, cons
     }
 }
 
-// Mark voronoi cells and nodes that are on the surface of material
+// Mark Voronoi cells and nodes that are on the surface of material
 void VoronoiMesh::mark_cells_and_nodes() {
     const int cell_max = nodes.indxs.surf_end;
     const int n_nodes = nodes.size();
@@ -325,6 +325,7 @@ void VoronoiMesh::mark_cells_and_nodes() {
         nodes.append_marker(voros.get_marker(i));
 }
 
+// Calculate minimum z-coordinate of medium and mark mesh
 void VoronoiMesh::mark_mesh(const Medium& medium) {
     // Get the sorted array of the atom z-coordinates
     const int n_atoms = medium.size();
@@ -343,11 +344,10 @@ void VoronoiMesh::mark_mesh(const Medium& medium) {
         zmin += zcoord[i];
     zmin /= n_average;
 
-    zmin = zcoord[n_average];
-
     mark_mesh(medium.sizes, zmin);
 }
 
+// Mark the Voronoi cells, faces and nodes by their relative location against top and bottom surfaces
 void VoronoiMesh::mark_mesh(const Medium::Sizes& sizes, const double zmin) {
     // Mark the cell and faces that are certainly on the surface
     int seedface = mark_seed();
@@ -359,45 +359,21 @@ void VoronoiMesh::mark_mesh(const Medium::Sizes& sizes, const double zmin) {
     mark_cells_and_nodes();
 }
 
-// Extract the nodes that are on the surface of material
-void VoronoiMesh::extract_surface(Medium& surf, const double zmin) {
-    mark_mesh(surf.sizes, zmin);
+// Extract the atoms and their areas whose Voronoi cells are exposed to vacuum
+void VoronoiMesh::extract_surface(Medium& surface, vector<Vec3>& areas, const Medium& nanotip) {
+    vector<bool> on_surface = vector_equal(voros.get_markers(), TYPES.SURFACE);
+    const int n_substrate = surface.size();
+    const int n_atoms = n_substrate + vector_sum(on_surface);
+    
+    areas.clear();
+    areas.reserve(n_atoms);
+    surface.resize(n_atoms);
+    
+    for (int i = 0; i < n_substrate; ++i)
+        areas.push_back(Vec3(0));
 
-    // Transfer surface nodes to the surface atoms
-    vector<bool> on_surf = vector_equal(nodes.get_markers(), TYPES.SURFACE);
-    surf.reserve(vector_sum(on_surf));
     for (int i = 0; i <= nodes.indxs.surf_end; ++i)
-        if (on_surf[i])
-            surf.append(nodes[i]);
-}
-
-// Extract the nodes that are on the surface of material
-void VoronoiMesh::extract_surface(Medium& surf) {
-    mark_mesh(surf);
-
-    // Transfer surface nodes to the surface atoms
-    vector<bool> on_surf = vector_equal(nodes.get_markers(), TYPES.SURFACE);
-    surf.reserve(vector_sum(on_surf));
-    for (int i = 0; i <= nodes.indxs.surf_end; ++i)
-        if (on_surf[i])
-            surf.append(nodes[i]);
-}
-
-// Extract the nodes that are on the surface of material
-void VoronoiMesh::extract_field_and_force(ForceReader& forces, FieldReader& fields, const Medium& surface) {
-    // Transfer surface nodes to the surface atoms
-    vector<bool> on_surf = vector_equal(voros.get_markers(), TYPES.SURFACE);
-    forces.reserve(vector_sum(on_surf));
-
-    for (int i = 0; i < surface.size(); ++i)
-        if (on_surf[i])
-            forces.append(surface.get_atom(i));
-
-    fields.interpolate(forces, 0, 0, true);
-
-    int atom = 0;
-    for (int i = 0; i < surface.size(); ++i)
-        if (on_surf[i]) {
+        if (on_surface[i]) {           
             Vec3 cell_centre = nodes[i];
             Vec3 cell_area(0);
 
@@ -414,46 +390,8 @@ void VoronoiMesh::extract_field_and_force(ForceReader& forces, FieldReader& fiel
                         cell_area += face_area;
                 }
 
-            Vec3 field = fields.get_elfield(atom++);
-            double charge = cell_area.dotProduct(field) * forces.eps0;  // [e]
-            Vec3 force = field * charge;   // [e*V/A]
-            forces.append_interpolation(Solution(force, charge));
-        }
-}
-
-void VoronoiMesh::extract_force(ForceReader& forces, const FieldReader& fields, const Medium& medium) {
-    require(medium.size() == fields.size(), "Incompatible sizes of medium and fields!");
-
-    // Transfer surface nodes to the surface atoms
-    vector<bool> on_surf = vector_equal(voros.get_markers(), TYPES.SURFACE);
-
-    const int n_nodes = vector_sum(on_surf);
-    forces.reserve(n_nodes);
-
-    for (int i = 0; i < fields.size(); ++i)
-        if (on_surf[i]) {
-            // store atom data
-            forces.append(medium.get_atom(i));
-
-            Vec3 cell_centre = nodes[i];
-            Vec3 cell_area(0);
-
-            // calculate the total area of the exposed part of cell
-            for (VoronoiFace face : voros[i])
-                if (vfaces.get_marker(face.id) == TYPES.SURFACE) {
-                    Vec3 cell2face = cell_centre - face.centroid();
-                    Vec3 face_area = face.area();
-
-                    // ensure that the direction of face norm is inside-out of the cell
-                    if (cell2face.dotProduct(face_area) >= 0)
-                        cell_area -= face_area;
-                    else
-                        cell_area += face_area;
-                }
-
-            double charge = cell_area.dotProduct(fields.get_elfield(i)) * forces.eps0;  // [e]
-            Vec3 force = fields.get_elfield(i) * charge;   // [e*V/A]
-            forces.append_interpolation(Solution(force, charge));
+            areas.push_back(cell_area);
+            surface.append(nanotip.get_atom(i));
         }
 }
 
@@ -471,9 +409,10 @@ bool VoronoiMesh::recalc(const string& cmd1, const string& cmd2, const string& c
     return 0;
 }
 
-// Function to generate mesh from surface, bulk and vacuum atoms
+// Generate Voronoi cells around surface atoms
 bool VoronoiMesh::generate(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2) {
     const double l = 1.0*latconst;
+
     Medium bulk(4), vacuum(4);
     bulk.append( Point3(surf.sizes.xmin-l, surf.sizes.ymin-l, surf.sizes.zmin-l) );
     bulk.append( Point3(surf.sizes.xmax+l, surf.sizes.ymin-l, surf.sizes.zmin-l) );

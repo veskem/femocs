@@ -45,6 +45,7 @@ Config::Config() {
     neumann = 0;                 // neumann boundary contition value
     t_error = 10.0;              // maximum allowed temperature error in Newton iterations
     n_newton = 10;               // maximum number of Newton iterations
+    surface_cleaner = "faces";   // method to clean surface; voronois, faces or none
 
     clear_output = false;         // clear output folder
 }
@@ -62,6 +63,7 @@ void Config::read_all(const string& file_name) {
     parse_file(file_name);
 
     // Modify the parameters that are correctly specified in input script
+    read_command("surface_cleaner", surface_cleaner);
     read_command("cluster_anal", cluster_anal);
     read_command("extended_atoms", extended_atoms);
     read_command("clear_output", clear_output);

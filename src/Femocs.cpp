@@ -55,9 +55,19 @@ Femocs::~Femocs() {
 int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum) {
     start_msg(t0, "=== Extracting surface...");
     dense_surf.extract(reader, TYPES.SURFACE);
+    dense_surf.sort_atoms(3, "down");
     end_msg(t0);
 
-    dense_surf.write("output/surface_dense_1.xyz");
+    dense_surf.write("output/surface_dense.xyz");
+    
+    if (conf.surface_cleaner == "voronois") {
+        start_msg(t0, "=== Cleaning surface with Voronoi cells...");
+        fail = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality);
+        check_message(fail, "Making voronoi cells failed! Field calculation will be skipped!");
+        end_msg(t0);
+
+        dense_surf.write("output/surface_dense_clean.xyz");
+    }
 
     coarseners.generate(dense_surf, conf.radius, conf.cfactor, conf.latconst);
     coarseners.write("output/coarseners.vtk");
@@ -77,7 +87,6 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     }
 
     start_msg(t0, "=== Coarsening & smoothing surface...");
-    dense_surf.sort_atoms(3, "down");
     coarse_surf = extended_surf;
     coarse_surf += dense_surf;
     coarse_surf = coarse_surf.clean(coarseners);
@@ -138,15 +147,18 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQ");
     bulk_mesh.group_hexahedra();
     vacuum_mesh.group_hexahedra();
+    bulk_mesh.faces.clean_sides(reader.sizes);
     end_msg(t0);
 
-//    start_msg(t0, "=== Cleaning surface faces & atoms...");
-//    bulk_mesh.faces.clean_sides(reader.sizes);
-//    dense_surf.clean(bulk_mesh, conf.surface_thichness);
-//    end_msg(t0);
+    bulk_mesh.faces.write("output/surface_faces_clean.vtk");
 
-//    bulk_mesh.faces.write("output/surface_faces_clean.vtk");
-//    dense_surf.write("output/surface_dense_3.xyz");
+    if (conf.surface_cleaner == "faces") {
+        start_msg(t0, "=== Cleaning surface with triangles...");
+        dense_surf.faces_clean(bulk_mesh, conf.surface_thichness);
+        end_msg(t0);
+
+        dense_surf.write("output/surface_dense_clean.xyz");
+    }
 
     expect(bulk_mesh.nodes.size() > 0, "Zero nodes in bulk mesh!");
     expect(vacuum_mesh.nodes.size() > 0, "Zero nodes in vacuum mesh!");
@@ -166,14 +178,7 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     fail = !solver.import_mesh_directly(mesh.nodes.export_dealii(), mesh.hexahedra.export_dealii());
     check_message(fail, "Importing mesh to Deal.II failed! Field calculation will be skipped!");
     end_msg(t0);
-/*
-    if (conf.refine_apex) {
-        start_msg(t0, "=== Refining mesh in Laplace solver...");
-        dealii::Point<3> origin(dense_surf.sizes.xmid, dense_surf.sizes.ymid, dense_surf.sizes.zmax);
-        solver.refine_mesh(origin, 7*conf.latconst);
-        end_msg(t0);
-    }
-*/
+
     start_msg(t0, "=== Initializing Laplace solver...");
     solver.set_applied_efield(conf.neumann);
     solver.setup_system();
@@ -239,7 +244,6 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
 
 int Femocs::extract_charge(const TetgenMesh& mesh) {
     start_msg(t0, "=== Calculating face charges...");
-//    face_charges.calc_interpolated_charges(mesh, conf.E0);  // electric field in the middle of face is interpolated
     face_charges.calc_charges(mesh, conf.E0);             // electric field in the middle of face in directly from solution
     end_msg(t0);
 
@@ -293,9 +297,9 @@ int Femocs::run(const double elfield, const string &message) {
     fail = solve_heat(bulk_mesh, laplace_solver);
     if (fail) return 1;
 
-//    // Extract face charges
-//    fail = extract_charge(bulk_mesh);
-//    if (fail) return 1;
+   // Extract face charges
+   fail = extract_charge(bulk_mesh);
+   if (fail) return 1;
 
     start_msg(t0, "=== Saving atom positions...");
     reader.save_current_run_points(conf.distance_tol);
@@ -317,6 +321,8 @@ int Femocs::import_atoms(const string& file_name) {
 
     file_type = get_file_type(fname);
     expect(file_type == "ckx" || file_type == "xyz", "Unknown file type: " + file_type);
+
+    if (file_type == "ckx") conf.surface_cleaner = "none";
 
     start_msg(t0, "=== Importing atoms...");
     reader.import_file(fname);
@@ -391,6 +397,7 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
 // import coordinates and types of atoms
 int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, const double* z, const int* types) {
     clear_log();
+    conf.surface_cleaner = "none"; // disable the surface cleaner for atoms with known types
 
     start_msg(t0, "=== Importing atoms...");
     reader.import_helmod(n_atoms, x, y, z, types);
@@ -419,11 +426,10 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
 
     if (!skip_calculations) {
         start_msg(t0, "=== Interpolating E and phi...");
-//        fields.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff);
         fields.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff, 0, false);
         end_msg(t0);
 
-        fields.write("output/elfields.movie");
+        fields.write("output/fields.movie");
         fields.print_statistics();
     }
 
@@ -457,48 +463,16 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
 
 // calculate and export charges & forces on imported atom coordinates
 int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
-//    check_message(fields.size() == 0 || face_charges.size() == 0, "No force to export!");
-    check_message(fields.size() == 0, "No force to export!");
+    check_message(fields.size() == 0 || face_charges.size() == 0, "No force to export!");
 
     if (!skip_calculations) {
-        start_msg(t0, "=== Making voronoi cells...");
-
-        Media nanotip = dense_surf.get_nanotip(conf.radius);
-        nanotip.write("output/nanotip.xyz");
-
-        double ztop = dense_surf.sizes.zmax - 0.5*conf.radius;
-        Media apex = dense_surf.get_apex(Point3(dense_surf.sizes.xmid, dense_surf.sizes.ymid, ztop), conf.radius);
-
-        VoronoiMesh voromesh;
-        // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
-//        fail = voromesh.generate(dense_surf, conf.latconst, "rQq" + conf.mesh_quality, "vQ");
-        fail = voromesh.generate(apex, conf.latconst, "rQq1.8", "vQ");
-        check_message(fail, "Making voronoi cells failed! Field calculation will be skipped!");
-        voromesh.clean();
+        start_msg(t0, "=== Calculating atomic forces...");
+        forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coord_cutoff, conf.charge_smooth_factor);
+        if (conf.surface_cleaner == "voronois")
+            forces.recalc_forces(fields, areas);
         end_msg(t0);
 
-        start_msg(t0, "=== Extracting voronoi surface...");
-//        voromesh.extract_surface(dense_surf, coarseners.centre.z);
-//        voromesh.mark_mesh(nanotip.sizes, coarseners.centre.z);
-//        voromesh.mark_mesh(nanotip);
-        voromesh.mark_mesh(apex.sizes, apex.sizes.zmax - 0.75*conf.radius);
-//        voromesh.mark_mesh(apex);
-        end_msg(t0);
-
-        voromesh.nodes.write("output/voro_nodes.vtk");
-        voromesh.nodes.write("output/voro_nodes.xyz");
-        voromesh.vfaces.write("output/voro_faces.vtk");
-        voromesh.voros.write("output/voro_cells.vtk");
-
-        exit(1);
-
-        start_msg(t0, "=== Calculating fields and forces...");
-        voromesh.extract_field_and_force(forces, fields, nanotip);
-        end_msg(t0);
-
-        fields.write("output/vorofields.movie");
-        forces.write("output/voroforces.movie");
-        forces.write("output/voroforces.vtk");
+        forces.write("output/forces.movie");
         forces.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
     }
 

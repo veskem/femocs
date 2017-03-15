@@ -271,28 +271,20 @@ public:
     VoronoiMesh();
     ~VoronoiMesh() {}
 
-    /** Function to generate mesh from surface, bulk and vacuum atoms */
-    bool generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd1, const string& cmd2);
-
-    bool generate(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2);
-
-    /** Perform triple Tetgen calculation on input buffer and store it in output one */
-    bool recalc(const string& cmd1, const string& cmd2, const string& cmd3);
+    /** Generate Voronoi cells around surface atoms */
+    bool generate(const Medium& surface, const double latconst, const string& cmd1, const string& cmd2);
 
     /** Mark the cells and faces with nodes in the infinity */
     void clean();
+    
+    /** Extract the atoms and their areas whose Voronoi cells are exposed to vacuum */
+    void extract_surface(Medium& surface, vector<Vec3>& areas, const Medium& nanotip);
 
-    void extract_surface(Medium& surf, const double zmin);
-
-    void extract_surface(Medium& surf);
-
-    void extract_field_and_force(ForceReader& forces, FieldReader& fields, const Medium& surface);
-
-    void extract_force(ForceReader& forces, const FieldReader& fields, const Medium& medium);
-
-    void mark_mesh(const Medium::Sizes& sizes, const double zmin);
-
+    /** Calculate minimum z-coordinate of medium and mark mesh */
     void mark_mesh(const Medium& medium);
+
+    /** Mark the Voronoi cells, faces and nodes by their relative location against top and bottom surfaces */
+    void mark_mesh(const Medium::Sizes& sizes, const double zmin);
 
     /** Objects holding operations for accessing cell data */
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
@@ -300,20 +292,24 @@ public:
     VoronoiCells voros = VoronoiCells(&tetIOout);
     VoronoiFaces vfaces = VoronoiFaces(&tetIOout);
 
-    const int n_coordinates = 3;     ///< Number of coordinates
-
 private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
 
+    /** Find the Voronoi cell that for sure belongs to the surface */
     int get_seedcell();
 
+    /** Mark the cell and faces that are certainly on the surface */
     int mark_seed();
 
+    /** Mark Voronoi faces that are on the vacuum-material boundary */
     void mark_faces(const Medium::Sizes& sizes, const double zmin, const int seed);
 
-    /** Mark voronoi cells and nodes that are on the surface of material */
+    /** Mark Voronoi cells and nodes that are on the surface of material */
     void mark_cells_and_nodes();
+
+    /** Perform triple Tetgen calculation on input buffer and store it in output one */
+    bool recalc(const string& cmd1, const string& cmd2, const string& cmd3);
 };
 
 } /* namespace femocs */

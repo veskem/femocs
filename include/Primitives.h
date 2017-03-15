@@ -236,6 +236,9 @@ public:
     /** Dimensionality of vector */
     int size() const { return 3; }
 
+    /** Compare vector with a scalar */
+    bool operator ==(const double d) const { return x == d && y == d && z == d; }
+    
     /** Compare one vector with another */
     bool operator ==(const Vec3 &v) const { return x == v.x && y == v.y && z == v.z; }
 

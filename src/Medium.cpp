@@ -68,22 +68,16 @@ void Medium::reserve(const int n_atoms) {
     atoms.reserve(n_atoms);
 }
 
-// Define the addition of two Mediums
-Medium& Medium::operator +=(const Medium &m) {
-    add(&m);
-    return *this;
+// Reserve memory for data vectors
+void Medium::resize(const int n_atoms) {
+    require(n_atoms >= 0, "Invalid number of atoms: " + to_string(n_atoms));
+    atoms.reserve(n_atoms);
 }
 
-// Add data from other Medium to current one
-void Medium::add(const Medium *m) {
-    const int n_atoms1 = size();
-    const int n_atoms2 = m->size();
-
-    atoms.reserve(n_atoms1 + n_atoms2);
-    for(int i = 0; i < n_atoms2; ++i)
-        append(m->get_atom(i));
-
-    this->calc_statistics();
+// Define the addition of two Mediums
+Medium& Medium::operator +=(const Medium &m) {
+    atoms.insert(atoms.end(), m.atoms.begin(), m.atoms.end());
+    return *this;
 }
 
 // Add atom to atoms vector

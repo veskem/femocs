@@ -31,14 +31,14 @@ public:
      *  http://doc.cgal.org/latest/Spatial_sorting/index.html */
     void sort_spatial();
     
-    /** Define the addition of two Mediums */
+    /** Append data from other Medium to current one */
     Medium& operator +=(const Medium &m);
 
-    /** Add data from other Medium to current one */
-    void add(const Medium *m);
-
-    /** Reserve memory for data vectors */
+    /** Initialize memory for data vectors */
     virtual void reserve(const int n_atoms);
+    
+    /** Reserve memory for data vectors without erasing already excisting data */
+    virtual void resize(const int n_atoms);
 
     /** Add atom to the system */
     void append(const Atom& atom);
