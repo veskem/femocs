@@ -1,6 +1,7 @@
 #extended_atoms = input/extension.xyz   # file with atoms in extended surface
 #femocs_periodic = false         # imported atoms have periodic boundaries in x- & y-direction
 
+surface_cleaner = voronois      # method to clean surface: voronois, faces, none
 cluster_anal = true             # enable cluster analysis
 use_histclean = false           # use histogram cleaner to get rid of sharp peaks in the solution
 heating = false                 # calculate current density and temperature in nanotip
