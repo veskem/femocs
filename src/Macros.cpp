@@ -99,6 +99,10 @@ vector<bool> vector_greater(const vector<double> *v, const double s) {
     return __vector_compare<double, std::greater<double>>(v, s);
 }
 
+vector<bool> vector_greater(const vector<int> *v, const int s) {
+    return __vector_compare<int, std::greater<int>>(v, s);
+}
+
 // Return mask of indices that are greater or equal than the entry
 vector<bool> vector_greater_equal(const vector<double> *v, const double s) {
     return __vector_compare<double, std::greater_equal<double>>(v, s);
@@ -113,9 +117,17 @@ vector<bool> vector_less(const vector<double> *v, const double s) {
     return __vector_compare<double, std::less<double>>(v, s);
 }
 
+vector<bool> vector_less(const vector<int> *v, const int s) {
+    return __vector_compare<int, std::less<int>>(v, s);
+}
+
 // Return mask of indices that are less or equal than the scalar
 vector<bool> vector_less_equal(const vector<double> *v, const double s) {
     return __vector_compare<double, std::less_equal<double>>(v, s);
+}
+
+vector<bool> vector_less_equal(const vector<int> *v, const int s) {
+    return __vector_compare<int, std::less_equal<int>>(v, s);
 }
 
 // Return sorting indexes for vector

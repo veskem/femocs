@@ -22,7 +22,7 @@ namespace femocs {
  * http://wias-berlin.de/software/tetgen/1.5/ */
 class TetgenMesh {
 public:
-    TetgenMesh() {}
+    TetgenMesh();
     ~TetgenMesh() {}
 
     /** Function to generate simple mesh that consists of one element */

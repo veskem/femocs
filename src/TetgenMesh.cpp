@@ -185,6 +185,16 @@ bool RaySurfaceIntersect::near_surface(const Vec3 &point, const Vec3 &direction,
     return false;
 }
 
+/* ==================================================================
+ *  ======================== TetgenMesh ============================
+ * ================================================================== */
+
+// Initialize Tetgen data
+TetgenMesh::TetgenMesh() {
+    tetIOin.initialize();
+    tetIOout.initialize();
+}
+
 // Group hexahedra around central tetrahedral node
 void TetgenMesh::group_hexahedra() {
     const int node_min = nodes.indxs.tetnode_start;
@@ -299,6 +309,7 @@ bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
 }
 
 // Write mesh into files with Tetgen functions
+
 bool TetgenMesh::write(const string& file_name) {
     string file_type = get_file_type(file_name);
     require(file_type == file_name, "Only file names without extension are supported: " + file_type);

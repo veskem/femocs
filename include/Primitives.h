@@ -34,179 +34,6 @@ private:
     const T* data;
 };
 
-/** Template class for finite element cell */
-template <size_t dim>
-class SimpleCell {
-public:
-
-    /** SimpleCell constructors */
-    SimpleCell() { std::fill_n(node, dim, int()); }
-    SimpleCell(const unsigned int &nn) { std::fill_n(node, dim, nn); }
-
-    /** Dimensionality of cell */
-    int size() const { return dim; }
-
-    /** Check if one of the nodes equals to the one of interest */
-    bool operator ==(const unsigned int &t) const {
-        for (unsigned int n : node) if (n == t) return true;
-        return false;
-    }
-
-    /** Less than, bigger than, less than or equal, bigger than or equal operators */
-    vector<bool> operator <(const unsigned int &t) const {
-        vector<bool> v; v.reserve(dim);
-        for (unsigned int n : node) v.push_back(n < t);
-        return v;
-    }
-    vector<bool> operator >(const unsigned int &t) const {
-        vector<bool> v; v.reserve(dim);
-        for (unsigned int n : node) v.push_back(n > t);
-        return v;
-    }
-    vector<bool> operator <=(const unsigned int &t) const {
-        vector<bool> v; v.reserve(dim);
-        for (unsigned int n : node) v.push_back(n <= t);
-        return v;
-    }
-    vector<bool> operator >=(const unsigned int &t) const {
-        vector<bool> v; v.reserve(dim);
-        for (unsigned int n : node) v.push_back(n >= t);
-        return v;
-    }
-
-    /** Define the behaviour of string stream */
-    friend std::ostream& operator <<(std::ostream &s, const SimpleCell<dim> &t) {
-        for (unsigned int nn : t.node) s << nn << ' ';
-        return s;
-    }
-
-    /** Return data as string */
-    string to_str() const { stringstream ss; ss << this; return ss.str(); }
-
-    /** Transform SimpleCell to vector */
-    vector<int> to_vector() const { return vector<int>(std::begin(node), std::end(node)); }
-
-    /** Accessor for accessing the i-th node */
-    const unsigned int& operator [](size_t i) const {
-        require(i >= 0 && i < dim, "Invalid index: " + to_string(i));
-        return node[i];
-    }
-
-    /** Iterator to access the cell nodes */
-    typedef Iterator<SimpleCell, unsigned int> iterator;
-    iterator begin() const { return iterator(this, 0); }
-    iterator end() const { return iterator(this, dim); }
-
-    unsigned int node[dim]; //!< vertices of SimpleCell
-};
-
-/** Node class without Point data */
-class SimpleNode: public SimpleCell<1> {
-public:
-    /** SimpleNode constructors */
-    SimpleNode() : SimpleCell<1>() {}
-    SimpleNode(const unsigned int &n1) : SimpleCell<1>(n1) {}
-    SimpleNode(const SimpleCell<1> &s) { node[0] = s.node[0]; }
-
-    /** Compare node with scalar */
-    bool operator ==(const unsigned int n) const {
-        return node[0] == n;
-    }
-};
-
-/** Edge class without Point data */
-class SimpleEdge: public SimpleCell<2> {
-public:
-    /** SimpleEdge constructors */
-    SimpleEdge() : SimpleCell<2>() {}
-    SimpleEdge(const unsigned int &n1) : SimpleCell<2>(n1) {}
-    SimpleEdge(const unsigned int &n1, const unsigned int &n2) { node[0] = n1; node[1] = n2; }
-    SimpleEdge(const SimpleCell<2> &s) { node[0] = s.node[0]; node[1] = s.node[1]; }
-
-    /** Check whether edge contains node */
-    bool operator ==(const unsigned int n) const {
-        return node[0] == n || node[1] == n;
-    }
-};
-
-/** Face class without Point data */
-class SimpleFace : public SimpleCell<3> {
-public:
-    /** SimpleFace constructors */
-    SimpleFace() : SimpleCell<3>() {}
-    SimpleFace(const unsigned int &n1) : SimpleCell<3>(n1) {}
-    SimpleFace(const unsigned int &n1, const unsigned int &n2, const unsigned int &n3) {
-        node[0] = n1; node[1] = n2; node[2] = n3;
-    }
-    SimpleFace(const SimpleCell<3> &s) {
-        std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
-    }
-
-    /** Check whether face contains node */
-    bool operator ==(const unsigned int n) const {
-        return node[0] == n || node[1] == n || node[2] == n;
-    }
-
-    /** Get i-th edge of the face */
-    SimpleEdge edge(const unsigned int i) const {
-        if (i <= 0) return SimpleEdge(node[0], node[1]);
-        if (i == 1) return SimpleEdge(node[0], node[2]);
-        else        return SimpleEdge(node[1], node[2]);
-    }
-};
-
-/** Element class without Point data */
-class SimpleElement : public SimpleCell<4> {
-public:
-    /** SimpleEdge constructors */
-    SimpleElement() : SimpleCell<4>() {}
-    SimpleElement(const unsigned int &n1) : SimpleCell<4>(n1) {}
-    SimpleElement(const unsigned int &n1, const unsigned int &n2, const unsigned int &n3, const unsigned int &n4) {
-        node[0] = n1; node[1] = n2; node[2] = n3; node[3] = n4;
-    }
-    SimpleElement(const SimpleCell<4> &s) {
-        std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
-    }
-    /** Check whether element contains node */
-    bool operator ==(const unsigned int n) const {
-        return node[0] == n || node[1] == n || node[2] == n || node[3] == n;
-    }
-
-    /** Get i-th edge of the element */
-    SimpleEdge edge(const unsigned int i) const {
-        if (i <= 0) return SimpleEdge(node[0], node[1]);
-        if (i == 1) return SimpleEdge(node[0], node[2]);
-        if (i == 2) return SimpleEdge(node[0], node[3]);
-        if (i == 3) return SimpleEdge(node[1], node[2]);
-        if (i == 4) return SimpleEdge(node[1], node[3]);
-        else        return SimpleEdge(node[2], node[3]);
-    }
-
-    /** Get i-th face of the element */
-    SimpleFace face(const unsigned int i) const {
-        if (i <= 0) return SimpleFace(node[0], node[1], node[2]);
-        if (i == 1) return SimpleFace(node[0], node[1], node[3]);
-        if (i == 2) return SimpleFace(node[1], node[2], node[3]);
-        else        return SimpleFace(node[2], node[0], node[1]);
-    }
-};
-
-/** Hexahedron class without Point data */
-class SimpleHex: public SimpleCell<8> {
-public:
-    /** SimpleEdge constructors */
-    SimpleHex() : SimpleCell<8>() {}
-    SimpleHex(const unsigned int &n1) : SimpleCell<8>(n1) {}
-    SimpleHex(const unsigned int &n1, const unsigned int &n2, const unsigned int &n3, const unsigned int &n4,
-            const unsigned int &n5, const unsigned int &n6, const unsigned int &n7, const unsigned int &n8) {
-        node[0] = n1; node[1] = n2; node[2] = n3; node[3] = n4;
-        node[4] = n5; node[5] = n6; node[6] = n7; node[7] = n8;
-    }
-    SimpleHex(const SimpleCell<8> &s) {
-        std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
-    }
-};
-
 template <typename T, size_t dim>
 class VectorData {
 public:
@@ -253,7 +80,7 @@ public:
 };
 
 /** Class to define basic operations with 2-dimensional points */
-class Point2{
+class Point2 {
 public:
     /** Constructors of Point2 class */
     Point2() : x(0), y(0) {}
@@ -409,6 +236,9 @@ public:
     /** Dimensionality of vector */
     int size() const { return 3; }
 
+    /** Compare vector with a scalar */
+    bool operator ==(const double d) const { return x == d && y == d && z == d; }
+    
     /** Compare one vector with another */
     bool operator ==(const Vec3 &v) const { return x == v.x && y == v.y && z == v.z; }
 
@@ -694,6 +524,179 @@ public:
     Vec3 vector;
     double norm;
     double scalar;
+};
+
+/** Template class for finite element cell */
+template <size_t dim>
+class SimpleCell {
+public:
+
+    /** SimpleCell constructors */
+    SimpleCell() { std::fill_n(node, dim, int()); }
+    SimpleCell(const unsigned int &nn) { std::fill_n(node, dim, nn); }
+
+    /** Dimensionality of cell */
+    int size() const { return dim; }
+
+    /** Check if one of the nodes equals to the one of interest */
+    bool operator ==(const unsigned int &t) const {
+        for (unsigned int n : node) if (n == t) return true;
+        return false;
+    }
+
+    /** Less than, bigger than, less than or equal, bigger than or equal operators */
+    vector<bool> operator <(const unsigned int &t) const {
+        vector<bool> v; v.reserve(dim);
+        for (unsigned int n : node) v.push_back(n < t);
+        return v;
+    }
+    vector<bool> operator >(const unsigned int &t) const {
+        vector<bool> v; v.reserve(dim);
+        for (unsigned int n : node) v.push_back(n > t);
+        return v;
+    }
+    vector<bool> operator <=(const unsigned int &t) const {
+        vector<bool> v; v.reserve(dim);
+        for (unsigned int n : node) v.push_back(n <= t);
+        return v;
+    }
+    vector<bool> operator >=(const unsigned int &t) const {
+        vector<bool> v; v.reserve(dim);
+        for (unsigned int n : node) v.push_back(n >= t);
+        return v;
+    }
+
+    /** Define the behaviour of string stream */
+    friend std::ostream& operator <<(std::ostream &s, const SimpleCell<dim> &t) {
+        for (unsigned int nn : t.node) s << nn << ' ';
+        return s;
+    }
+
+    /** Return data as string */
+    string to_str() const { stringstream ss; ss << this; return ss.str(); }
+
+    /** Transform SimpleCell to vector */
+    vector<int> to_vector() const { return vector<int>(std::begin(node), std::end(node)); }
+
+    /** Accessor for accessing the i-th node */
+    const unsigned int& operator [](size_t i) const {
+        require(i >= 0 && i < dim, "Invalid index: " + to_string(i));
+        return node[i];
+    }
+
+    /** Iterator to access the cell nodes */
+    typedef Iterator<SimpleCell, unsigned int> iterator;
+    iterator begin() const { return iterator(this, 0); }
+    iterator end() const { return iterator(this, dim); }
+
+    unsigned int node[dim]; //!< vertices of SimpleCell
+};
+
+/** Node class without Point data */
+class SimpleNode: public SimpleCell<1> {
+public:
+    /** SimpleNode constructors */
+    SimpleNode() : SimpleCell<1>() {}
+    SimpleNode(const unsigned int &n1) : SimpleCell<1>(n1) {}
+    SimpleNode(const SimpleCell<1> &s) { node[0] = s.node[0]; }
+
+    /** Compare node with scalar */
+    bool operator ==(const unsigned int n) const {
+        return node[0] == n;
+    }
+};
+
+/** Edge class without Point data */
+class SimpleEdge: public SimpleCell<2> {
+public:
+    /** SimpleEdge constructors */
+    SimpleEdge() : SimpleCell<2>() {}
+    SimpleEdge(const unsigned int &n1) : SimpleCell<2>(n1) {}
+    SimpleEdge(const unsigned int &n1, const unsigned int &n2) { node[0] = n1; node[1] = n2; }
+    SimpleEdge(const SimpleCell<2> &s) { node[0] = s.node[0]; node[1] = s.node[1]; }
+
+    /** Check whether edge contains node */
+    bool operator ==(const unsigned int n) const {
+        return node[0] == n || node[1] == n;
+    }
+};
+
+/** Face class without Point data */
+class SimpleFace : public SimpleCell<3> {
+public:
+    /** SimpleFace constructors */
+    SimpleFace() : SimpleCell<3>() {}
+    SimpleFace(const unsigned int &n1) : SimpleCell<3>(n1) {}
+    SimpleFace(const unsigned int &n1, const unsigned int &n2, const unsigned int &n3) {
+        node[0] = n1; node[1] = n2; node[2] = n3;
+    }
+    SimpleFace(const SimpleCell<3> &s) {
+        std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
+    }
+
+    /** Check whether face contains node */
+    bool operator ==(const unsigned int n) const {
+        return node[0] == n || node[1] == n || node[2] == n;
+    }
+
+    /** Get i-th edge of the face */
+    SimpleEdge edge(const unsigned int i) const {
+        if (i <= 0) return SimpleEdge(node[0], node[1]);
+        if (i == 1) return SimpleEdge(node[0], node[2]);
+        else        return SimpleEdge(node[1], node[2]);
+    }
+};
+
+/** Element class without Point data */
+class SimpleElement : public SimpleCell<4> {
+public:
+    /** SimpleEdge constructors */
+    SimpleElement() : SimpleCell<4>() {}
+    SimpleElement(const unsigned int &n1) : SimpleCell<4>(n1) {}
+    SimpleElement(const unsigned int &n1, const unsigned int &n2, const unsigned int &n3, const unsigned int &n4) {
+        node[0] = n1; node[1] = n2; node[2] = n3; node[3] = n4;
+    }
+    SimpleElement(const SimpleCell<4> &s) {
+        std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
+    }
+    /** Check whether element contains node */
+    bool operator ==(const unsigned int n) const {
+        return node[0] == n || node[1] == n || node[2] == n || node[3] == n;
+    }
+
+    /** Get i-th edge of the element */
+    SimpleEdge edge(const unsigned int i) const {
+        if (i <= 0) return SimpleEdge(node[0], node[1]);
+        if (i == 1) return SimpleEdge(node[0], node[2]);
+        if (i == 2) return SimpleEdge(node[0], node[3]);
+        if (i == 3) return SimpleEdge(node[1], node[2]);
+        if (i == 4) return SimpleEdge(node[1], node[3]);
+        else        return SimpleEdge(node[2], node[3]);
+    }
+
+    /** Get i-th face of the element */
+    SimpleFace face(const unsigned int i) const {
+        if (i <= 0) return SimpleFace(node[0], node[1], node[2]);
+        if (i == 1) return SimpleFace(node[0], node[1], node[3]);
+        if (i == 2) return SimpleFace(node[1], node[2], node[3]);
+        else        return SimpleFace(node[2], node[0], node[1]);
+    }
+};
+
+/** Hexahedron class without Point data */
+class SimpleHex: public SimpleCell<8> {
+public:
+    /** SimpleEdge constructors */
+    SimpleHex() : SimpleCell<8>() {}
+    SimpleHex(const unsigned int &n1) : SimpleCell<8>(n1) {}
+    SimpleHex(const unsigned int &n1, const unsigned int &n2, const unsigned int &n3, const unsigned int &n4,
+            const unsigned int &n5, const unsigned int &n6, const unsigned int &n7, const unsigned int &n8) {
+        node[0] = n1; node[1] = n2; node[2] = n3; node[3] = n4;
+        node[4] = n5; node[5] = n6; node[6] = n7; node[7] = n8;
+    }
+    SimpleHex(const SimpleCell<8> &s) {
+        std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
+    }
 };
 
 } // namaspace femocs

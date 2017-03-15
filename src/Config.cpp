@@ -48,6 +48,7 @@ Config::Config() {
     phi_error = 1e-9;            // maximum allowed electric potential error
     n_phi = 10000;               // maximum number of Conjugate Gradient iterations in phi calculation
     ssor_param = 1.2;            // parameter for SSOR preconditioner
+    surface_cleaner = "faces";   // method to clean surface; voronois, faces or none
 
     clear_output = false;         // clear output folder
 }
@@ -67,6 +68,7 @@ void Config::read_all(const string& file_name) {
     // Modify the parameters that are correctly specified in input script
     read_command("phi_error", phi_error);
     read_command("n_phi", n_phi);
+    read_command("surface_cleaner", surface_cleaner);
     read_command("cluster_anal", cluster_anal);
     read_command("extended_atoms", extended_atoms);
     read_command("clear_output", clear_output);

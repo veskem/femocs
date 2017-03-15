@@ -32,6 +32,7 @@ void write_defaults(ofstream &file) {
     file << "coord_cutoff = 3.1"         << endl;
     file << "latconst = 3.61"            << endl;
     file << "use_histclean = false"      << endl;
+    file << "surface_cleaner = voronois" << endl;
 }
 
 void write_hr5(ofstream &file) {
@@ -79,7 +80,7 @@ void write_stretch(ofstream &file) {
 
 void write_extend(ofstream &file) {
     file << "extended_atoms = input/extension.xyz" << endl;
-    file << "infile = input/apex2.xyz"              << endl;
+    file << "infile = input/apex.xyz"              << endl;
     file << "coarse_factor = 0.3 1.5 1.0" << endl;
     file << "femocs_periodic = false" << endl;
     file << "radius = 70.0"           << endl;
@@ -169,7 +170,7 @@ int main(int argc, char **argv) {
     system("rm -rf tmpfile");
 
     success += femocs.import_atoms("");
-    success += femocs.run(0.1, "");
+    success += femocs.run(-0.1, "");
     success += femocs.export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
     success += femocs.export_temperature(n_atoms, T);
     success += femocs.export_charge_and_force(n_atoms, xq);

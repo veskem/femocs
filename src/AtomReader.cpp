@@ -150,7 +150,7 @@ void AtomReader::calc_clusters() {
     int c = -1;
 
     // for each unvisited point P in all the points
-    for (int i = 0; i < n_atoms; ++i) {
+    for (int i = 0; i < n_atoms; ++i)
         if (not_marked[i]) {
             // Mark P as visited & expand cluster
             not_marked[i] = false;
@@ -169,7 +169,6 @@ void AtomReader::calc_clusters() {
                 }
             }
         }
-    }
 }
 
 // Check for evaporated atoms

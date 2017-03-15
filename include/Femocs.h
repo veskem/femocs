@@ -133,6 +133,10 @@ private:
     bool skip_calculations, fail;
     double t0;
 
+    vector<Vec3> areas;
+    
+    Coarseners coarseners;
+
     AtomReader reader;      ///< all the imported atoms
     Config conf;            ///< configuration parameters
     Media dense_surf;       ///< non-coarsened surface atoms

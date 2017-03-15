@@ -24,22 +24,28 @@ public:
     SolutionReader();
     SolutionReader(LinearInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
+    /** Reserve memory for data */
+    void reserve(const int n_nodes);
+
     /** Print statistics about interpolated solution */
     void print_statistics();
 
     /** Compare interpolated scalar statistics with a constant */
     void print_statistics(const double Q);
 
+    /** Append solution */
+    void append_interpolation(const Solution& s);
+
+    /** Get i-th Solution */
+    Solution get_interpolation(const int i) const;
+
 protected:
     const string vec_label;       ///< label for vector data
     const string vec_norm_label;  ///< label for data associated with vector length
     const string scalar_label;    ///< label for scalar data
 
-    LinearInterpolator* interpolator;     ///< data needed for interpolation
-    vector<Solution> interpolation; ///< interpolated data
-
-    /** Reserve memory for data */
-    void reserve(const int n_nodes);
+    LinearInterpolator* interpolator;  ///< data needed for interpolation
+    vector<Solution> interpolation;    ///< interpolated data
 
     /** Get i-th entry from all data vectors for .xyz file;
      * i < 0 gives the header of data vectors */
@@ -47,12 +53,6 @@ protected:
 
     /** Get information about data vectors for .vtk file. */
     void get_point_data(ofstream& out) const;
-
-    /** Append solution */
-    void append_interpolation(const Solution& s);
-
-    /** Get i-th Solution */
-    Solution get_interpolation(const int i) const;
 
     /** Function to clean the result from peaks
      * The cleaner makes the histogram for given component of electric field and applies smoothing
@@ -157,8 +157,12 @@ public:
     ForceReader();
     ForceReader(LinearInterpolator* ip);
 
+    /** Replace the charge and force on the nanotip nodes with the one found with Voronoi cells */
+    void recalc_forces(const FieldReader &fields, const vector<Vec3>& areas);
+        
     /** Calculate forces from atomic electric fields and face charges */
-    void calc_forces(const FieldReader &fields, const ChargeReader& faces, const double r_cut, const double smooth_factor);
+    void calc_forces(const FieldReader &fields, const ChargeReader& faces,
+        const double r_cut, const double smooth_factor);
 
     /** Export the induced charge and force on imported atoms
      * @param n_atoms  number of first atoms field is calculated
@@ -169,6 +173,8 @@ public:
     Vec3 get_force(const int i) const;
 
     double get_charge(const int i) const;
+
+    const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
 
 private:
 };

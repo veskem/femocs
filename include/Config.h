@@ -69,6 +69,13 @@ public:
     int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
     string verbose_mode;        ///< Verbose mode: mute, silent, verbose
 
+    /** Method to clean the surface atoms
+     * voronois - use Voronoi cells
+     * faces - measure distance from surface faces
+     * none - do not use the cleaner (because it is guaranteed to be clean)
+     */
+    string surface_cleaner;
+
     /** Minimum distance between atoms from current and previous run so that their
      * movement is considered to be sufficiently big to recalculate electric field;
      * 0 turns the check off */

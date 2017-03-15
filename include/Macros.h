@@ -91,6 +91,7 @@ vector<bool> vector_not(const vector<int> *v, const int s);
 
 /** Return mask of indices that are greater than the scalar */
 vector<bool> vector_greater(const vector<double> *v, const double s);
+vector<bool> vector_greater(const vector<int> *v, const int s);
 
 /** Return mask of indices that are greater or equal than the scalar */
 vector<bool> vector_greater_equal(const vector<double> *v, const double s);
@@ -98,9 +99,11 @@ vector<bool> vector_greater_equal(const vector<int> *v, const int s);
 
 /** Return mask of indices that are less than the scalar */
 vector<bool> vector_less(const vector<double> *v, const double s);
+vector<bool> vector_less(const vector<int> *v, const int s);
 
 /** Return mask of indices that are less or equal than the scalar */
 vector<bool> vector_less_equal(const vector<double> *v, const double s);
+vector<bool> vector_less_equal(const vector<int> *v, const int s);
 
 /** Return sorting indexes for one vector */
 vector<int> get_sort_indices(const vector<int> &v, const string& direction="up");
