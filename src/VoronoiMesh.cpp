@@ -79,17 +79,11 @@ Vec3 VoronoiFace::norm() {
     return edge2.crossProduct(edge1).normalize();
 }
 
-vector<int> VoronoiCell::neighbours() const {
+vector<int> VoronoiCell::get_neighbours() const {
     vector<int> nbors; nbors.reserve(size());
     for (VoronoiFace face : *this)
         nbors.push_back(face.nborcell(id));
     return nbors;
-}
-
-void VoronoiCell::neighbours(vector<int>& nbors) const {
-    nbors.reserve(nbors.size() + size());
-    for (VoronoiFace face : *this)
-        nbors.push_back(face.nborcell(id));
 }
 
 /* =====================================================================
@@ -246,13 +240,25 @@ int VoronoiMesh::mark_seed() {
     const int cell_max = nodes.indxs.surf_end;
     int seedface, seedcell = get_seedcell();
 
+    // mark the cell that surrounds the up-most atom
     voros.set_marker(seedcell, TYPES.ZMAX);
 
-    vector<int> cell_nbors = voros[seedcell].neighbours();
+    Vec3 znorm(0, 0, 1);
+    VoronoiCell cell = voros[seedcell];
+    Vec3 centre = nodes[seedcell];
+
+    // mark the faces that are on the upper half of the cell
+
+    vector<int> cell_nbors = cell.get_neighbours();
     for (int i = 0; i < cell_nbors.size(); ++i)
         if (cell_nbors[i] > cell_max) {
-            seedface = tetIOout.vcelllist[seedcell][i+1];
-            vfaces.set_marker(seedface, TYPES.SURFACE);
+            VoronoiFace face = cell[i];
+            // face is on the upper half of the cell
+            // if the ray from cell centre to the face centroid is upwards
+            if ( znorm.dotProduct( face.centroid() - centre ) > 0 ) {
+                seedface = face.id;
+                vfaces.set_marker(face.id, TYPES.SURFACE);
+            }
         }
 
     return seedface;

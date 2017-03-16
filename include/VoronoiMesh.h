@@ -56,7 +56,7 @@ public:
     int nborcell(const int caller_id);
 
     /** Accessor for accessing the index of i-th edge */
-    int operator [](size_t i) const {
+    int operator [](int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         return data->vfacetlist[id].elist[i+1];
     }
@@ -98,15 +98,13 @@ public:
     int size() const { return data->vcelllist[id][0]; }
 
     /** Accessor for accessing the i-th face */
-    VoronoiFace operator [](size_t i) const {
+    VoronoiFace operator [](int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         return VoronoiFace(data, data->vcelllist[id][i+1]);
     }
 
     /** Get the indices of neighbouring Voronoi cells */
-    vector<int> neighbours() const;
-
-    void neighbours(vector<int>& nbors) const;
+    vector<int> get_neighbours() const;
 
     Vec3 area() const;
 
