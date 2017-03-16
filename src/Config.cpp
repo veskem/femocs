@@ -35,10 +35,10 @@ Config::Config() {
     n_writefile = 1;             // number of time steps between writing the output files
     verbose_mode = "verbose";    // mute, silent, verbose
     use_histclean = false;       // use histogram cleaner to get rid of sharp peaks in the solution
-    cluster_anal = false;        // enable cluster analysis
+    cluster_anal = true;        // enable cluster analysis
 
     cfactor.amplitude = 0.4;     // coarsening factor
-    cfactor.r0_cylinder = 1.0;   // minimum distance between atoms in nanotip below apex
+    cfactor.r0_cylinder = 0.0;   // minimum distance between atoms in nanotip below apex
     cfactor.r0_sphere = 0.0;     // minimum distance between atoms in nanotip apex
     heating = false;             // turn ON 3D current density and temperature calculations
     E0 = 0;                      // long range electric field
@@ -49,8 +49,9 @@ Config::Config() {
     n_phi = 10000;               // maximum number of Conjugate Gradient iterations in phi calculation
     ssor_param = 1.2;            // parameter for SSOR preconditioner
     surface_cleaner = "faces";   // method to clean surface; voronois, faces or none
+    force_factor = 0.5;          // factor determining the relationship between force and charge*elfield
 
-    clear_output = false;         // clear output folder
+    clear_output = false;        // clear output folder
 }
 
 // Remove the noise from the beginning of the string
@@ -65,7 +66,8 @@ void Config::read_all(const string& file_name) {
     // Store the commands and their arguments
     parse_file(file_name);
 
-    // Modify the parameters that are correctly specified in input script
+    // Modify the parameters that are specified in input script
+    read_command("force_factor", force_factor);
     read_command("phi_error", phi_error);
     read_command("n_phi", n_phi);
     read_command("surface_cleaner", surface_cleaner);

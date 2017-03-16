@@ -158,11 +158,11 @@ public:
     ForceReader(LinearInterpolator* ip);
 
     /** Replace the charge and force on the nanotip nodes with the one found with Voronoi cells */
-    void recalc_forces(const FieldReader &fields, const vector<Vec3>& areas);
+    void recalc_forces(const FieldReader &fields, const vector<Vec3>& areas, const double force_factor);
         
     /** Calculate forces from atomic electric fields and face charges */
     void calc_forces(const FieldReader &fields, const ChargeReader& faces,
-        const double r_cut, const double smooth_factor);
+        const double r_cut, const double smooth_factor, const double force_factor);
 
     /** Export the induced charge and force on imported atoms
      * @param n_atoms  number of first atoms field is calculated

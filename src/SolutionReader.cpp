@@ -621,7 +621,7 @@ ForceReader::ForceReader() : SolutionReader() {}
 ForceReader::ForceReader(LinearInterpolator* ip) : SolutionReader(ip, "force", "force_norm", "charge") {}
 
 // Replace the charge and force on the nanotip nodes with the one found with Voronoi cells
-void ForceReader::recalc_forces(const FieldReader &fields, const vector<Vec3>& areas) {
+void ForceReader::recalc_forces(const FieldReader &fields, const vector<Vec3>& areas, const double force_factor) {
     require(areas.size() == fields.size(), "Mismatch of data sizes: " 
         + to_string(areas.size()) + " vs " + to_string(fields.size()) );
 
@@ -629,15 +629,15 @@ void ForceReader::recalc_forces(const FieldReader &fields, const vector<Vec3>& a
         if (areas[i] == 0) continue;
         
         Vec3 field = fields.get_elfield(i);
-        double charge = areas[i].dotProduct(field) * eps0;  // [e]
-        Vec3 force = field * charge;   // [e*V/A]
+        double charge = areas[i].dotProduct(field) * eps0; // [e]
+        Vec3 force = field * (charge * force_factor);      // [e*V/A]
         interpolation[i] = Solution(force, charge);
     }
 }
         
 // Calculate forces from atomic electric fields and face charges
 void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& faces,
-        const double r_cut, const double smooth_factor) {
+        const double r_cut, const double smooth_factor, const double force_factor) {
 
     const int n_atoms = fields.size();
     const int n_faces = faces.size();
@@ -685,7 +685,7 @@ void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& fac
     }
 
     for (int atom = 0; atom < n_atoms; ++atom) {
-        Vec3 force = fields.get_elfield(atom) * charges[atom];   // [e*V/A]
+        Vec3 force = fields.get_elfield(atom) * (charges[atom] * force_factor);   // [e*V/A]
         interpolation.push_back(Solution(force, charges[atom]));
     }
 

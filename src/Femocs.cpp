@@ -469,10 +469,12 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
     check_message(fields.size() == 0 || face_charges.size() == 0, "No force to export!");
 
     if (!skip_calculations) {
-        start_msg(t0, "=== Calculating atomic forces...");
-        forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coord_cutoff, conf.charge_smooth_factor);
+        start_msg(t0, "=== Calculating charges and forces...");
+        forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coord_cutoff,
+                conf.charge_smooth_factor, conf.force_factor);
+
         if (conf.surface_cleaner == "voronois")
-            forces.recalc_forces(fields, areas);
+            forces.recalc_forces(fields, areas, conf.force_factor);
         end_msg(t0);
 
         forces.write("output/forces.movie");
