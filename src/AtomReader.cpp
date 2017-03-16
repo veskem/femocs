@@ -206,7 +206,7 @@ void AtomReader::calc_coordinations(const int nnn) {
 // Extract atom types from calculated coordinations
 void AtomReader::extract_types(const int nnn, const double latconst) {
     const int n_atoms = size();
-    const int nnn_eps = 1;
+    const int nnn_eps = 2;
     calc_statistics();
 
     for (int i = 0; i < n_atoms; ++i) {
