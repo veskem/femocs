@@ -7,7 +7,7 @@ The program calculates
 2. the electric current distribution inside metal due to emission currents on the surface;
 3. the temperature distribution inside metal due to electric currents and the Nottingham effect.
 
-Finite element analysis is done to solve the corresponding differential equations.
+Finite element analysis is performed to solve the corresponding differential equations.
 In this regard, the library deal.II (https://www.dealii.org/) is used.
 
 ## Instructions
