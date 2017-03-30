@@ -1,0 +1,19 @@
+#############################################################################
+#     Makefile for building Femocs executable for Fortran main function
+#############################################################################
+
+include release/makefile.defs
+
+all: release/femocs
+
+release/femocs: release/femocs.o
+	${F90} $< ${OPT} ${FCFLAGS} ${LFLAGS}   -o $@
+
+release/femocs.o: lib/libfemocs.a ${MAIN_F90}
+	${F90} -c ${MAIN_F90} ${OPT} ${FCFLAGS} -o $@
+
+clean:
+	rm -f release/femocs release/femocs.o include/*.o src/*.o
+    
+clean-all:
+	rm -rf release/femocs release/femocs.o include/*.o src/*.o

@@ -12,21 +12,25 @@ NPROCS = 4
 
 USE_CGAL = false
 
-FCFLAGS = -Llib -Ldealii/lib -Lcgal/lib64 -Ilib
-CGAL_FLAGS = -DCMAKE_INSTALL_PREFIX=../.. -DBUILD_SHARED_LIBS=FALSE
-CGAL_FLAGS_DEBUG = -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=../.. -DBUILD_SHARED_LIBS=FALSE
+CCFLAGS = -Iinclude -Llib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu
+FCFLAGS = -Iinclude -Ilib -Llib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu
 OPT = -O3 -Wall -Wpedantic
-CCFLAGS = -Iinclude  -Llib -Ldealii/lib -Lcgal/lib64
 #OPT = -g -O0 -Wall -Wpedantic
 
+# Compilers
 F90 = gfortran
 CC = gcc
 
 # Ubuntu desktop
-LDFLAGS = -lfemocs -ltet -ldeal_II -lCGAL -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ 
+#LFLAGS = -lfemocs -ltet -ldeal_II -lCGAL -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ 
 # CSC Taito cluser
-#LDFLAGS = -lfemocs -ltet -ldeal_II -lCGAL -fopenmp -lz -lstdc++
+#LFLAGS = -lfemocs -ltet -ldeal_II -lCGAL -fopenmp -lz -lstdc++
+# Alcyone
+LFLAGS = -lfemocs -ltet -ldeal_II -fopenmp -llapack -lnetcdf_c++
 
+# Flags for CGAL
+CGAL_FLAGS = -DCMAKE_INSTALL_PREFIX=../.. -DBUILD_SHARED_LIBS=FALSE
+CGAL_FLAGS_DEBUG = -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=../.. -DBUILD_SHARED_LIBS=FALSE
 CGAL_FLAGS_TAITO =\
 -DBoost_NO_BOOST_CMAKE=TRUE\
 -DBOOST_ROOT=/appl/opt/boost/gcc-5.3.0/intelmpi-5.1.3/boost-1.63\

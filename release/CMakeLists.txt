@@ -1,5 +1,6 @@
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
+#SET(CMAKE_C_COMPILER gcc)
 #SET(CMAKE_CXX_COMPILER gcc)
 
 # path to deal.II files
@@ -74,7 +75,7 @@ ENDIF()
 # Specify warnings and optimization level
 SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wpedantic")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -Dvariable=true")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -DUSE_CGAL=${USE_CGAL}")
 
 # ==============================================
 

@@ -59,12 +59,12 @@ program Tester
     ! Print quick overview about the success of the run
     write(*,*)
     
-    if (tot_success == 0) then; write(*,*) "full run of Femocs      passed"
-    else; write(*,*) "full run of Femocs      failed"
+    if (tot_success == 0) then; write(*,*) "Full run of Femocs      passed"
+    else; write(*,*) "Full run of Femocs      failed"
     endif
     
-    if (cmdarg /= -1.0) then; write(*,*) "reading Smooth_Factor   passed"
-    else; write(*,*) "reading Smooth_Factor   failed"
+    if (cmdarg /= -1.0) then; write(*,*) "Reading Smooth_Factor   passed"
+    else; write(*,*) "Reading Smooth_Factor   failed"
     endif
     
     ! The destructor should be called automatically, but this is not yet

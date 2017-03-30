@@ -10,21 +10,21 @@ include release/makefile.defs
 
 all: lib
 
+test_f90: lib/libfemocs.a femocs.test_f90
+femocs.test_f90: ${MAIN_F90} src/* include/*
+	make -f release/makefile.test_f90
+	
+test_c: lib/libfemocs.a femocs.test_c
+femocs.test_c: ${MAIN_C} src/* include/*
+	make -f release/makefile.test_c
+
 lib: lib/libfemocs.a 
 lib/libfemocs.a: src/* include/* 
-	make -f release/makefile.lib
+	make -f release/makefile.lib mode=Release
 
 release: femocs.release
 femocs.release: ${MAIN_CPP} src/* include/* 
 	make -f release/makefile.release mode=Release
-
-fortran: femocs.fortran
-femocs.fortran: ${MAIN_F90} src/* include/*
-	make -f release/makefile.fortran
-	
-C: femocs.C
-femocs.C: ${MAIN_C} src/* include/*
-	make -f release/makefile.C
 
 heating: femocs.heating
 femocs.heating: ${MAIN_HEATING} heating/source/* heating/include/* src/* include/*
@@ -63,8 +63,8 @@ help:
 	@echo 'make heating    build Femocs executable from main file in heating module'
 	@echo 'make release    build Femocs executable from c++ main with highest optimization level'
 	@echo 'make debug      build Femocs executable from c++ main with debugging features enabled'
-	@echo 'make fortran    build Femocs executable from Fortran main'
-	@echo 'make C    	   build Femocs executable from C main'
+	@echo 'make test_f90   build Femocs executable from Fortran main'
+	@echo 'make test_c     build Femocs executable from C main'
 	@echo 'make clean      delete key files excluding installed libraries to start building from the scratch'
 	@echo 'make clean-all  delete all the files and folders produced during the make process'
 	@echo ''

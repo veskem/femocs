@@ -2,7 +2,8 @@
 cmake_minimum_required (VERSION 2.8.8)
 project (femocs C CXX Fortran)
 #SET(CMAKE_Fortran_COMPILER gfortran)
-SET(CMAKE_CXX_COMPILER gcc)
+#SET(CMAKE_C_COMPILER gcc)
+#SET(CMAKE_CXX_COMPILER gcc)
 
 # specify the name of the library
 SET(LIB_NAME "femocs")
@@ -67,7 +68,7 @@ ENDIF()
 # Specify warnings and optimization level
 SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -w") # "-Wall -Wpedantic")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -Dvariable=true")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -DUSE_CGAL=${USE_CGAL}")
 
 # ==============================================
 

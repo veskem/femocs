@@ -23,9 +23,10 @@ Before building FEMOCS as a library or executable, FEMOCS dependencies must be i
 
     $ make ubuntu
     
-In CSC Taito cluster first the appropriate modules must be loaded and after that the build can be performed:
+In clusters first the appropriate modules must be loaded and after that the build can be performed:
 
-    $ module load gcc/5.3.0 intelmpi/5.1.3
+    $ module load gcc/5.3.0 intelmpi/5.1.3  # CSC Taito
+    $ module load PrgEnv-gnu gcc/5.1.0      # Alcyone
     $ make taito
 
 FEMOCS is built as static library by
