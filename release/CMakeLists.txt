@@ -1,4 +1,6 @@
+
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
+#SET(CMAKE_CXX_COMPILER gcc)
 
 # path to deal.II files
 SET(DEAL_II_DIR ../dealii)
@@ -7,7 +9,7 @@ SET(DEAL_II_DIR ../dealii)
 SET(CGAL_DIR ../cgal)
 
 # path for the location of executable
-SET (CMAKE_RUNTIME_OUTPUT_DIRECTORY ..)
+SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ..)
 
 # name of the final executable
 SET(TARGET "femocs")
@@ -34,6 +36,7 @@ SET(LIBRARIES tet)
 ## Specify whether to build in debug or release mode
 # SET(CMAKE_BUILD_TYPE Release)
 # SET(CMAKE_BUILD_TYPE Debug)
+
 # ==============================================
 
 FIND_PACKAGE(deal.II 8.4 REQUIRED HINTS ${DEAL_II_DIR})
@@ -66,12 +69,14 @@ IF (USE_CGAL)
     INCLUDE( ${CGAL_USE_FILE} )
 ENDIF()
 
-SET(warnings "") #"-Wno-overloaded-virtual -Wno-vla -Wno-reorder -Wno-pedantic -Wno-unused-value -Wno-unused-result -Wno-unused-variable -Wno-unused-parameter -Wno-sign-compare")
+#SET(warnings "") #"-Wno-overloaded-virtual -Wno-vla -Wno-reorder -Wno-pedantic -Wno-unused-value -Wno-unused-result -Wno-unused-variable -Wno-unused-parameter -Wno-sign-compare")
 
 # Specify warnings and optimization level
 SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wpedantic")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -Dvariable=true")
+
+# ==============================================
 
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
 ADD_EXECUTABLE(${TARGET} ${MAIN} ${SOURCE})

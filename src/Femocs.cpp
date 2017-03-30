@@ -26,6 +26,10 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) 
     // Initialise file writing
     MODES.WRITEFILE = conf.n_writefile > 0;
 
+#if variable
+	cout << "using variable" << endl;
+#endif
+
     // Pick the correct verbosity mode flags
     if      (conf.verbose_mode == "mute")    { MODES.QUIET = true;  MODES.VERBOSE = false; }
     else if (conf.verbose_mode == "silent")  { MODES.QUIET = false; MODES.VERBOSE = false; }

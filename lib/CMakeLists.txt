@@ -1,7 +1,8 @@
 
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 2.8.8)
 project (femocs C CXX Fortran)
 #SET(CMAKE_Fortran_COMPILER gfortran)
+SET(CMAKE_CXX_COMPILER gcc)
 
 # specify the name of the library
 SET(LIB_NAME "femocs")
@@ -28,7 +29,7 @@ ELSE()
 ENDIF()
 
 # specify whether to build in debug or release mode
-SET(CMAKE_BUILD_TYPE Release)
+#SET(CMAKE_BUILD_TYPE Release)
 #SET(CMAKE_BUILD_TYPE Debug)
 
 # ==============================================
@@ -66,7 +67,7 @@ ENDIF()
 # Specify warnings and optimization level
 SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -w") # "-Wall -Wpedantic")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -Dvariable=true")
 
 # ==============================================
 
