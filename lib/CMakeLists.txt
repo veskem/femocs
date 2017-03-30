@@ -21,7 +21,11 @@ SET(CGAL_DIR ../cgal)
 FILE(GLOB_RECURSE TARGET_SRC "../src/*.cpp" "../src/*.f90" "../heating/source/*")
 
 # Add the directory with headers to search path
-INCLUDE_DIRECTORIES(../include ../heating/include ../cgal/include)
+IF (USE_CGAL)
+    INCLUDE_DIRECTORIES(../include ../heating/include ../cgal/include)
+ELSE()
+    INCLUDE_DIRECTORIES(../include ../heating/include)
+ENDIF()
 
 # specify whether to build in debug or release mode
 SET(CMAKE_BUILD_TYPE Release)
@@ -34,22 +38,30 @@ IF ( NOT ${deal.II_FOUND} )
   MESSAGE(FATAL_ERROR "Deal.II not found from " ${DEAL_II_DIR})
 ENDIF()
 
-FIND_PACKAGE( CGAL HINTS ${CGAL_DIR} )
-IF ( NOT CGAL_FOUND )
-  MESSAGE(FATAL_ERROR "CGAL not found") 
+IF (USE_CGAL)
+    FIND_PACKAGE( CGAL HINTS ${CGAL_DIR} )
+    IF (CGAL_FOUND)
+        MESSAGE("Using CGAL from " ${CGAL_DIR}) 
+    ELSE()
+        MESSAGE(FATAL_ERROR "CGAL not found") 
+    ENDIF()
+ELSE()
+    MESSAGE("Ignoring CGAL!")
 ENDIF()
 
 FIND_PACKAGE( Boost REQUIRED )
 IF ( NOT Boost_FOUND )
-  MESSAGE(FATAL_ERROR "Boost not found") 
+    MESSAGE(FATAL_ERROR "Boost not found") 
 ENDIF()
 
 FIND_PACKAGE(OpenMP)
-IF( NOT OPENMP_FOUND )
+IF ( NOT OPENMP_FOUND )
     MESSAGE(FATAL_ERROR "OpenMP not found") 
 ENDIF()
 
-INCLUDE( ${CGAL_USE_FILE} )
+IF (USE_CGAL)
+    INCLUDE( ${CGAL_USE_FILE} )
+ENDIF()
 
 # Specify warnings and optimization level
 SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")

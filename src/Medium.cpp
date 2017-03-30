@@ -6,10 +6,13 @@
  */
 
 #include "Medium.h"
-#include <CGAL/hilbert_sort.h>
 #include <float.h>
 #include <fstream>
 #include <numeric>
+
+#if USE_CGAL
+#include <CGAL/hilbert_sort.h>
+#endif
 
 using namespace std;
 namespace femocs {
@@ -58,7 +61,9 @@ void Medium::sort_atoms(const int x1, const int x2, const string& direction) {
 
 // Perform spatial sorting by ordering atoms along Hilbert curve
 void Medium::sort_spatial() {
+#if USE_CGAL
     CGAL::hilbert_sort( atoms.begin(), atoms.end(), Atom::sort_spatial(), CGAL::Hilbert_sort_middle_policy() );
+#endif
 }
 
 // Reserve memory for data vectors

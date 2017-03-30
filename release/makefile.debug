@@ -13,7 +13,7 @@ cgal/lib64/libCGAL.a: cgal/CGAL-${CGAL_VER}.zip
 	cd cgal; rm -rf CGAL-${CGAL_VER}
 
 cgal/CGAL-${CGAL_VER}.zip:
-	cd cgal; wget https://github.com/CGAL/cgal/releases/download/releases%2FCGAL-${CGAL_VER}/CGAL-${CGAL_VER}.zip
+	mkdir -p cgal; cd cgal; wget https://github.com/CGAL/cgal/releases/download/releases%2FCGAL-${CGAL_VER}/CGAL-${CGAL_VER}.zip
 
 clean:
 	rm -rf cgal/lib64/*

@@ -5,7 +5,6 @@ SET(DEAL_II_DIR ../dealii)
 
 # path to CGAL files
 SET(CGAL_DIR ../cgal)
-#SET(CGAL_DIR ../cgal/lib/x86_64-linux-gnu/CGAL/)
 
 # path for the location of executable
 SET (CMAKE_RUNTIME_OUTPUT_DIRECTORY ..)
@@ -20,7 +19,11 @@ SET(TARGET "femocs")
 FILE(GLOB_RECURSE SOURCE "../src/*.cpp" "../heating/source/*")
 
 # directories with headers
-INCLUDE_DIRECTORIES(../include ../heating/include ../dealii/include ../cgal/include)
+IF (USE_CGAL)
+    INCLUDE_DIRECTORIES(../include ../heating/include ../dealii/include ../cgal/include)
+ELSE()
+    INCLUDE_DIRECTORIES(../include ../heating/include ../dealii/include)
+ENDIF()
 
 # path to libraries
 LINK_DIRECTORIES(../lib)
@@ -35,25 +38,33 @@ SET(LIBRARIES tet)
 
 FIND_PACKAGE(deal.II 8.4 REQUIRED HINTS ${DEAL_II_DIR})
 IF ( NOT deal.II_FOUND )
-  MESSAGE(FATAL_ERROR "Deal.II not found from " ${DEAL_II_DIR})
+    MESSAGE(FATAL_ERROR "Deal.II not found from " ${DEAL_II_DIR})
 ENDIF()
 
-FIND_PACKAGE( CGAL HINTS ${CGAL_DIR} )
-IF ( NOT CGAL_FOUND )
-  MESSAGE(FATAL_ERROR "CGAL not found") 
+IF (USE_CGAL)
+    FIND_PACKAGE( CGAL HINTS ${CGAL_DIR} )
+    IF (CGAL_FOUND)
+        MESSAGE("Using CGAL from " ${CGAL_DIR}) 
+    ELSE()
+        MESSAGE(FATAL_ERROR "CGAL not found") 
+    ENDIF()
+ELSE()
+    MESSAGE("Ignoring CGAL!")
 ENDIF()
 
 FIND_PACKAGE( Boost REQUIRED )
 IF ( NOT Boost_FOUND )
-  MESSAGE(FATAL_ERROR "Boost not found") 
+    MESSAGE(FATAL_ERROR "Boost not found") 
 ENDIF()
-
+    
 FIND_PACKAGE(OpenMP)
-IF( NOT OPENMP_FOUND )
+IF ( NOT OPENMP_FOUND )
     MESSAGE(FATAL_ERROR "OpenMP not found") 
 ENDIF()
 
-INCLUDE( ${CGAL_USE_FILE} )
+IF (USE_CGAL)
+    INCLUDE( ${CGAL_USE_FILE} )
+ENDIF()
 
 SET(warnings "") #"-Wno-overloaded-virtual -Wno-vla -Wno-reorder -Wno-pedantic -Wno-unused-value -Wno-unused-result -Wno-unused-variable -Wno-unused-parameter -Wno-sign-compare")
 

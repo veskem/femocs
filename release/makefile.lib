@@ -10,7 +10,8 @@ lib/libfemocs.a: lib/build/Makefile src/* include/* heating/source/* heating/inc
 	cd lib/build; make -j${NPROCS}
 
 lib/build/Makefile:
-	cd lib; mkdir -p build; cd build; rm * -r; cmake -DCMAKE_Fortran_COMPILER=${F90} ..
+	cd lib; mkdir -p build;
+	cd lib/build; rm * -r; cmake -DUSE_CGAL=${USE_CGAL} -DCMAKE_Fortran_COMPILER=${F90} ..
 
 clean:
 	rm -f lib/libfemocs.a lib/libfemocs.mod lib/build/Makefile

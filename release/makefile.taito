@@ -4,7 +4,8 @@
 
 include release/makefile.defs
 
-all: lib/libtet.a cgal/lib64/libCGAL.a dealii/lib/libdeal_II.a dealii/lib/libdeal_II.so.${DEALII_VER} ${MAIN_HEATING}
+#all: lib/libtet.a cgal/lib64/libCGAL.a dealii/lib/libdeal_II.a dealii/lib/libdeal_II.so.${DEALII_VER} ${MAIN_HEATING}
+all: lib/libtet.a dealii/lib/libdeal_II.a dealii/lib/libdeal_II.so.${DEALII_VER} ${MAIN_HEATING}
 
 lib/libtet.a:
 	cd tetgen; rm -rf build; mkdir -p build
@@ -24,14 +25,14 @@ dealii/lib/libdeal_II.so.${DEALII_VER}: dealii/dealii-${DEALII_VER}.tar.gz
 dealii/dealii-${DEALII_VER}.tar.gz:
 	cd dealii; wget https://github.com/dealii/dealii/releases/download/v${DEALII_VER}/dealii-${DEALII_VER}.tar.gz
 
-cgal/lib64/libCGAL.a: cgal/CGAL-${CGAL_VER}.zip
-	cd cgal; unzip CGAL*.zip; mkdir -p CGAL-${CGAL_VER}/build
-	cd cgal/CGAL-*/build; cmake ${CGAL_FLAGS_TAITO} ${CGAL_FLAGS} ..
-	cd cgal/CGAL-*/build; make j${NPROCS}; make install
-	cd cgal; rm -rf CGAL-${CGAL_VER}
+#cgal/lib64/libCGAL.a: cgal/CGAL-${CGAL_VER}.zip
+#	cd cgal; unzip CGAL*.zip; mkdir -p CGAL-${CGAL_VER}/build
+#	cd cgal/CGAL-*/build; cmake ${CGAL_FLAGS_TAITO} ${CGAL_FLAGS} ..
+#	cd cgal/CGAL-*/build; make j${NPROCS}; make install
+#	cd cgal; rm -rf CGAL-${CGAL_VER}
 
-cgal/CGAL-${CGAL_VER}.zip:
-	cd cgal; wget https://github.com/CGAL/cgal/releases/download/releases%2FCGAL-${CGAL_VER}/CGAL-${CGAL_VER}.zip
+#cgal/CGAL-${CGAL_VER}.zip:
+#	mkdir -p cgal; cd cgal; wget https://github.com/CGAL/cgal/releases/download/releases%2FCGAL-${CGAL_VER}/CGAL-${CGAL_VER}.zip
 
 ${MAIN_HEATING}:
 	git clone https://github.com/eimrek/dealii-field-currents-heating.git heating
