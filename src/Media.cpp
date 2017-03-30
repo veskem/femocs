@@ -274,6 +274,8 @@ inline double Media::smooth_function(const double distance, const double smooth_
 
 // Smoothen the atoms inside the cylinder
 void Media::smoothen(const double radius, const double smooth_factor, const double r_cut) {
+    if (smooth_factor <= 0) return;
+
     // Calculate the horizontal span of the surface
     calc_statistics();
 
@@ -286,6 +288,8 @@ void Media::smoothen(const double radius, const double smooth_factor, const doub
 
 // Smoothen all the atoms in the system
 void Media::smoothen(const double smooth_factor, const double r_cut) {
+    if (smooth_factor <= 0) return;
+
     const double r_cut2 = r_cut * r_cut;
     const int n_atoms = size();
 
