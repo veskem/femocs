@@ -4,9 +4,9 @@
 
 include release/makefile.defs
 
-all: cgal/lib64/libCGAL.a
+all: cgal/lib/x86_64-linux-gnu/libCGAL.a
 
-cgal/lib64/libCGAL.a: cgal/CGAL-${CGAL_VER}.zip
+cgal/lib/x86_64-linux-gnu/libCGAL.a: cgal/CGAL-${CGAL_VER}.zip
 	cd cgal; unzip CGAL*.zip; mkdir -p CGAL-${CGAL_VER}/build
 	cd cgal/CGAL-*/build; cmake ${CGAL_FLAGS_DEBUG} ..
 	cd cgal/CGAL-*/build; make -j${NPROCS}; make install
