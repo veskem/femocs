@@ -1,16 +1,17 @@
-#ifdef __cplusplus // Are we compiling this with a C++ compiler ?
+/* Are we compiling this with a C++ compiler? */
+#ifdef __cplusplus 
 extern "C" {
     class femocs::Femocs;
     typedef femocs::Femocs FEMOCS;
+/* From the C side, we use an opaque pointer. */
 #else
-    // From the C side, we use an opaque pointer.
     typedef struct FEMOCS FEMOCS;
 #endif
 
-// Constructor
+/* Constructor */
 FEMOCS* create_femocs(const char* s);
 
-// Destructor
+/* Destructor */
 void delete_femocs(FEMOCS* femocs);
 
 void femocs_run(FEMOCS* femocs, int* retval, double E_field, const char* message);
