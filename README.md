@@ -26,8 +26,9 @@ Before building FEMOCS as a library or executable, FEMOCS dependencies must be i
 In clusters first the appropriate modules must be loaded and after that the build can be performed:
 
     $ module load gcc/5.3.0 intelmpi/5.1.3  # CSC Taito
-    $ module load PrgEnv-gnu gcc/5.1.0      # Alcyone
     $ make taito
+    $ module load PrgEnv-gnu gcc/5.1.0      # Alcyone
+    $ make alcyone
 
 FEMOCS is built as static library by
 
@@ -35,9 +36,10 @@ FEMOCS is built as static library by
 
 For test purposes FEMOCS could also be built as an executable. The options for this are as follows:
 
-    $ make fortran   # main file in release/Test.f90, full optimization, no debugger
     $ make release   # main file in release/Test.cpp, full optimization, no debugger
     $ make debug     # main file in release/Test.cpp, no optimization, debugger enabled
+    $ make test_f90  # main file in release/Test.f90, full optimization, no debugger
+    $ make test_c    # main file in release/Test.c, full optimization, no debugger
 
 In **release** mode FEMOCS is fully optimized and emulates a static simulation. Running the code in **debug** mode turns optimization off and allows to follow the simulation line-by-line by using [GDB](https://en.wikipedia.org/wiki/GNU_Debugger), [Eclipse debugger](http://www.eclipse.org/cdt/) or their analogues.
     
