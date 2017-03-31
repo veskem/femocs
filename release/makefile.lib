@@ -11,8 +11,8 @@ lib/libfemocs.a: lib/build/Makefile src/* include/* heating/source/* heating/inc
 
 lib/build/Makefile:
 	cd lib; mkdir -p build;
-	cd lib/build; rm -rf *; cmake -DCMAKE_BUILD_TYPE=${mode} -DUSE_CGAL=${USE_CGAL} \
--DCMAKE_Fortran_COMPILER=${F90} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CC} ..
+	cd lib/build; rm -rf *; cmake -DCMAKE_BUILD_TYPE=${mode} -DLIBCGAL=${LIBCGAL} \
+-DCMAKE_Fortran_COMPILER=${F90} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} ..;
 
 clean:
 	rm -f lib/libfemocs.a lib/libfemocs.mod lib/build/Makefile

@@ -12,7 +12,7 @@ release/femocs: release/build/Makefile ${MAIN_CPP} src/* include/* heating/sourc
 release/build/Makefile:
 	cd release; mkdir -p build;
 	cd release/build; rm -rf *; cmake -DCMAKE_BUILD_TYPE=${mode} -DMAIN=../${MAIN_CPP} \
--DUSE_CGAL=${USE_CGAL} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CC} ..;
+-DLIBCGAL=${LIBCGAL} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} ..;
 
 clean:
 	rm -f release/femocs release/build/Makefile

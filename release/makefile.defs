@@ -2,41 +2,61 @@
 #               Definitions used during the make of Femocs
 #############################################################################
 
+## Deal.II and CGAL versions
 DEALII_VER = 8.4.1
 CGAL_VER = 4.9
+
+## Paths to the Fortran, C++, C and heating main files
 MAIN_F90 = release/Test.f90
 MAIN_CPP = release/Test.cpp
 MAIN_C = release/Test.c
 MAIN_HEATING = heating/main/main.cc
+
+## Number of corers used during compilation
 NPROCS = 4
 
-USE_CGAL = false
+## Specify whether to use CGAL or not
+#LIBCGAL=
+LIBCGAL=-lCGAL
 
+## Fortran and C/C++ path flags
 CCFLAGS = -Iinclude -Llib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu
 FCFLAGS = -Iinclude -Ilib -Llib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu
+
+## Optimization and warnings
 OPT = -O3 -Wall -Wpedantic
 #OPT = -g -O0 -Wall -Wpedantic
 
-# Compilers
+## Fortran, C++ and C Compilers
 F90 = gfortran
+CXX = c++
 CC = gcc
 
-# Ubuntu desktop
-#LFLAGS = -lfemocs -ltet -ldeal_II -lCGAL -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ 
-# CSC Taito cluser
-#LFLAGS = -lfemocs -ltet -ldeal_II -lCGAL -fopenmp -lz -lstdc++
-# Alcyone
-LFLAGS = -lfemocs -ltet -ldeal_II -fopenmp -llapack -lnetcdf_c++
+## Linger flags for
+##  Ubuntu desktop
+LFLAGS = -lfemocs -ltet -ldeal_II ${LIBCGAL}\
+ -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++
+##  CSC Taito cluser
+#LFLAGS = -lfemocs -ltet -ldeal_II ${LIBCGAL} -fopenmp -lz -lstdc++
+##  Alcyone
+#LFLAGS = -lfemocs -ltet -ldeal_II ${LIBCGAL} -fopenmp -llapack -lnetcdf_c++
 
-# Flags for CGAL
-CGAL_FLAGS = -DCMAKE_INSTALL_PREFIX=../.. -DBUILD_SHARED_LIBS=FALSE
-CGAL_FLAGS_DEBUG = -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=../.. -DBUILD_SHARED_LIBS=FALSE
+## Flags for Tetgen
+TETGEN_FLAGS = -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}
+
+## Flags for Deal.II
+DEALII_FLAGS = -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}\
+ -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../..
+
+## Flags for CGAL
+CGAL_FLAGS = -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}\
+ -DCMAKE_INSTALL_PREFIX=../.. -DBUILD_SHARED_LIBS=FALSE
 CGAL_FLAGS_TAITO =\
--DBoost_NO_BOOST_CMAKE=TRUE\
--DBOOST_ROOT=/appl/opt/boost/gcc-5.3.0/intelmpi-5.1.3/boost-1.63\
--DGMP_LIBRARIES_DIR=/appl/opt/gmp/6.0.0a/lib\
--DGMP_INCLUDE_DIR=/appl/opt/gmp/6.0.0a/include\
--DMPFR_LIBRARIES_DIR=/appl/opt/mpfr/3.1.4/lib\
--DMPFR_INCLUDE_DIR=/appl/opt/mpfr/3.1.4/include\
--DGMP_LIBRARIES=/appl/opt/gmp/6.0.0a/lib/libgmp.so.10.2.0\
--DMPFR_LIBRARIES=/appl/opt/mpfr/3.1.4/lib/libmpfr.so.4.1.4
+ -DBoost_NO_BOOST_CMAKE=TRUE\
+ -DBOOST_ROOT=/appl/opt/boost/gcc-5.3.0/intelmpi-5.1.3/boost-1.63\
+ -DGMP_LIBRARIES_DIR=/appl/opt/gmp/6.0.0a/lib\
+ -DGMP_INCLUDE_DIR=/appl/opt/gmp/6.0.0a/include\
+ -DMPFR_LIBRARIES_DIR=/appl/opt/mpfr/3.1.4/lib\
+ -DMPFR_INCLUDE_DIR=/appl/opt/mpfr/3.1.4/include\
+ -DGMP_LIBRARIES=/appl/opt/gmp/6.0.0a/lib/libgmp.so.10.2.0\
+ -DMPFR_LIBRARIES=/appl/opt/mpfr/3.1.4/lib/libmpfr.so.4.1.4

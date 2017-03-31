@@ -42,13 +42,15 @@ taito:
 clean:
 	make -s -f release/makefile.lib clean
 	make -s -f release/makefile.release clean
-	make -s -f release/makefile.fortran clean
+	make -s -f release/makefile.test_f90 clean
+	make -s -f release/makefile.test_c clean
 	make -s -f release/makefile.heating clean
 
 clean-all:
 	make -s -f release/makefile.lib clean-all
 	make -s -f release/makefile.release clean-all
-	make -s -f release/makefile.fortran clean-all
+	make -s -f release/makefile.test_f90 clean-all
+	make -s -f release/makefile.test_c clean-all
 	make -s -f release/makefile.heating clean-all
 	make -s -f release/makefile.debug clean-all
 	make -s -f release/makefile.ubuntu clean-all

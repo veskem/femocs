@@ -22,7 +22,7 @@ SET(TARGET "femocs")
 FILE(GLOB_RECURSE SOURCE "../src/*.cpp" "../heating/source/*")
 
 # directories with headers
-IF (USE_CGAL)
+IF (LIBCGAL)
     INCLUDE_DIRECTORIES(../include ../heating/include ../dealii/include ../cgal/include)
 ELSE()
     INCLUDE_DIRECTORIES(../include ../heating/include ../dealii/include)
@@ -45,15 +45,15 @@ IF ( NOT deal.II_FOUND )
     MESSAGE(FATAL_ERROR "Deal.II not found from " ${DEAL_II_DIR})
 ENDIF()
 
-IF (USE_CGAL)
+IF (LIBCGAL)
     FIND_PACKAGE( CGAL HINTS ${CGAL_DIR} )
     IF (CGAL_FOUND)
         MESSAGE("Using CGAL from " ${CGAL_DIR}) 
     ELSE()
-        MESSAGE(FATAL_ERROR "CGAL not found") 
+        MESSAGE(FATAL_ERROR "CGAL not found from " ${CGAL_DIR}) 
     ENDIF()
 ELSE()
-    MESSAGE("Ignoring CGAL!")
+    MESSAGE("Not using CGAL!")
 ENDIF()
 
 FIND_PACKAGE( Boost REQUIRED )
@@ -66,7 +66,7 @@ IF ( NOT OPENMP_FOUND )
     MESSAGE(FATAL_ERROR "OpenMP not found") 
 ENDIF()
 
-IF (USE_CGAL)
+IF (LIBCGAL)
     INCLUDE( ${CGAL_USE_FILE} )
 ENDIF()
 
@@ -75,7 +75,11 @@ ENDIF()
 # Specify warnings and optimization level
 SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
 SET(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wpedantic")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -DUSE_CGAL=${USE_CGAL}")
+
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+IF (LIBCGAL)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_CGAL=true")
+ENDIF()
 
 # ==============================================
 
