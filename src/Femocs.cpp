@@ -201,6 +201,7 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
 
     vacuum_interpolator.write("output/result_E_phi.xyz");
     vacuum_interpolator.print_statistics();
+    vacuum_interpolator.print_error(conf.radius, conf.E0);
 
     return fail;
 }

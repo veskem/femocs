@@ -19,6 +19,62 @@ LinearInterpolator::LinearInterpolator() {
     reserve_precompute(0);
 }
 
+// Analytical potential for i-th point near the hemisphere
+double LinearInterpolator::get_analyt_potential(const int i, const double radius, const double E0) {
+    Point3 point = get_atom(i).point;
+    double r = point.distance(Point3(0));
+    return -E0 * point.z * (1 - pow(radius / r, 3.0));
+}
+
+// Analytical electric field for i-th point near the hemisphere
+Vec3 LinearInterpolator::get_analyt_field(const int i, const double radius, const double E0) {
+    Point3 point = get_atom(i).point;
+    double r5 = pow(point.x * point.x + point.y * point.y + point.z * point.z, 2.5);
+    double radius3 = pow(radius, 3.0);
+    double f = point.x * point.x + point.y * point.y - 2.0 * point.z * point.z;
+
+    double Ex = -3 * E0 * radius3 * point.x * point.y / r5;
+    double Ey = -3 * E0 * radius3 * point.y * point.z / r5;
+    double Ez = E0 * (radius3 * f / r5 - 1.0);
+
+    return Vec3(Ex, Ey, Ez);
+}
+
+// Print the deviation from the analytical solution of hemisphere on the infinite surface
+void LinearInterpolator::print_error(const double radius, const double E0) {
+    if (!MODES.VERBOSE) return;
+
+    const int n_atoms = size();
+    int n_points = 0;
+    Vec3 abs_rms_error(0), rel_rms_error(0);
+    double phi_error(0);
+
+    for (int i = 0; i < n_atoms; ++i) {
+        double phi = solution[i].scalar;
+        if (phi >= error_field) continue;
+
+        phi_error += pow( phi - get_analyt_potential(i, radius, E0), 2.0 );
+
+        Vec3 abs_error = (solution[i].vector - get_analyt_field(i, radius, E0));
+        Vec3 rel_error = abs_error / solution[i].vector;
+        
+        abs_rms_error += abs_error * abs_error;
+        rel_rms_error += rel_error * rel_error;
+
+        n_points++;
+    }
+
+    expect(n_points > 0, "Invalid solution detected!");
+
+    abs_rms_error = Vec3(sqrt(abs_rms_error.x), sqrt(abs_rms_error.y), sqrt(abs_rms_error.z)) * (1.0 / n_points);
+    rel_rms_error = Vec3(sqrt(rel_rms_error.x), sqrt(rel_rms_error.y), sqrt(rel_rms_error.z)) * (1.0 / n_points);
+    phi_error = sqrt(phi_error) / n_points;
+
+    cout << "  elfield rel rms error: " << rel_rms_error << endl;
+    cout << "  elfield abs rms error: " << abs_rms_error << endl;
+    cout << "      phi abs rms error: " << phi_error << endl;
+}
+
 // Print statistics about solution on node points
 void LinearInterpolator::print_statistics() {
     if (!MODES.VERBOSE) return;

@@ -61,6 +61,9 @@ public:
     /** Print statistics about solution on node points */
     void print_statistics();
 
+    /** Print the deviation from the analytical solution of hemisphere on the infinite surface */
+    void print_error(const double radius, const double E0);
+
     /** Electric field that is assigned to atoms not found from mesh.
      *  Its value is BIG to make it immediately visible from the dataset. */
     const double error_field = 1e20;
@@ -122,6 +125,16 @@ private:
 
     /** Reserve memory for pre-compute data */
     void reserve_precompute(const int N);
+
+    /** Return analytical potential value for i-th point near the hemisphere
+     * @param radius  radius of the hemisphere
+     * @param E0      long range electric field around the hemisphere */
+    double get_analyt_potential(const int i, const double radius, const double E0);
+
+    /** Return analytical electric field value for i-th point near the hemisphere
+     * @param radius  radius of the hemisphere
+     * @param E0      long range electric field around the hemisphere */
+    Vec3 get_analyt_field(const int i, const double radius, const double E0);
 
 };
 
