@@ -59,10 +59,13 @@ public:
     int locate_element(const Point3 &point, const int elem_guess);
 
     /** Print statistics about solution on node points */
-    void print_statistics();
+    void print_statistics() const;
 
     /** Print the deviation from the analytical solution of hemisphere on the infinite surface */
-    void print_error(const double radius, const double E0);
+    void print_error() const;
+
+    /** Set parameters to calculate analytical solution */
+    void set_analyt(const double radius, const double E0);
 
     /** Electric field that is assigned to atoms not found from mesh.
      *  Its value is BIG to make it immediately visible from the dataset. */
@@ -73,9 +76,10 @@ private:
      * Making zero a bit negative allows to interpolate outside the tetrahedron. */
     const double epsilon = 1e-1;
     const double zero = -1.0 * epsilon;
+    double radius;
+    double E0;
 
-    vector<Solution> solution;     ///< interpolation data
-
+    vector<Solution> solution;          ///< interpolation data
     vector<SimpleElement> tetrahedra;   ///< tetrahedra node indices
     vector<vector<int>> tetneighbours;  ///< tetrahedra nearest neighbours
     vector<Point3> centroid;            ///< tetrahedra centroid coordinates
@@ -120,6 +124,9 @@ private:
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     string get_data_string(const int i) const;
 
+    /** Get scalar and vector data associated with atoms */
+    void get_cell_data(ofstream& outfile) const;
+
     /** Reserve memory for interpolation data */
     void reserve(const int N);
 
@@ -129,12 +136,12 @@ private:
     /** Return analytical potential value for i-th point near the hemisphere
      * @param radius  radius of the hemisphere
      * @param E0      long range electric field around the hemisphere */
-    double get_analyt_potential(const int i, const double radius, const double E0);
+    double get_analyt_potential(const int i) const;
 
     /** Return analytical electric field value for i-th point near the hemisphere
      * @param radius  radius of the hemisphere
      * @param E0      long range electric field around the hemisphere */
-    Vec3 get_analyt_field(const int i, const double radius, const double E0);
+    Vec3 get_analyt_field(const int i) const;
 
 };
 

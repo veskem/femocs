@@ -219,18 +219,20 @@ void Medium::set_marker(const int i, const int m) {
 }
 
 // Pick the suitable write function based on the file type
-// Function works only in debug mode
-void Medium::write(const string &file_name, const int n_max) const {
+// Function is active only when file write is enabled
+void Medium::write(const string &file_name) const {
     if (!MODES.WRITEFILE) return;
     
     int n_atoms = size();
-    if (n_max > 0 && n_max < n_atoms) n_atoms = n_max;
-    
     expect(n_atoms > 0, "Zero atoms detected!");
     string ftype = get_file_type(file_name);
     
     ofstream outfile;
-    outfile << fixed;
+//    outfile << fixed;
+
+    outfile.setf(std::ios::scientific);
+    outfile.precision(6);
+
     if (ftype == "movie") outfile.open(file_name, ios_base::app);
     else outfile.open(file_name);
     require(outfile.is_open(), "Can't open a file " + file_name);
@@ -275,47 +277,30 @@ void Medium::write_vtk(ofstream& out, const int n_atoms) const {
     for (int i = 0; i < n_atoms; ++i)
         out << get_point(i) << "\n";
 
-    get_cell_types(out, n_atoms);
-
-    out << "\nPOINT_DATA " << n_atoms << "\n";
-    get_point_data(out);
-
-    out << "\nCELL_DATA " << n_atoms << "\n";
-    get_cell_data(out, n_atoms);
+    get_cell_data(out);
 }
 
-// Get point representation in vtk format
-void Medium::get_cell_types(ofstream& out, const int n_cells) const {
-    const int dim = 1;
-    const int celltype = 1; // cell == vertex
+// Get scalar and vector data associated with vtk cells
+void Medium::get_cell_data(ofstream& out) const {
+    const int celltype = 1;     // type of the cell in vtk format; 1-vertex, 10-tetrahedron
+    const int dim = 1;          // number of vertices in the cell
+    const int n_cells = size();
+    const int n_atoms = size();
 
     // Output the vertices
     out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
-        out << "1 " << i << "\n";
+        out << dim << " " << i << "\n";
 
     // Output cell types
     out << "\nCELL_TYPES " << n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
         out << celltype << "\n";
-}
 
-// Get data scalar and vector data associated with vtk cells
-void Medium::get_cell_data(ofstream& out, const int n_cells) const {}
-
-// Copy statistics from another Medium
-void Medium::copy_statistics(const Medium& m) {
-    require(this->sizes.size() == m.sizes.size() , "Incompatible statistics!");
-    for (int i = 0; i < m.sizes.size(); ++i)
-        (&this->sizes.xmin)[i] = (&m.sizes.xmin)[i];
-}
-
-// Get data scalar and vector data associated with vtk nodes
-void Medium::get_point_data(ofstream& out) const {
-    const int n_atoms = size();
+    out << "\nPOINT_DATA " << n_atoms << "\n";
 
     // write IDs of atoms
-    out << "SCALARS id int\nLOOKUP_TABLE default\n";
+    out << "SCALARS ID int\nLOOKUP_TABLE default\n";
     for (int i = 0; i < n_atoms; ++i)
         out << atoms[i].id << "\n";
 
@@ -323,6 +308,13 @@ void Medium::get_point_data(ofstream& out) const {
     out << "SCALARS marker int\nLOOKUP_TABLE default\n";
     for (int i = 0; i < n_atoms; ++i)
         out << atoms[i].marker << "\n";
+}
+
+// Copy statistics from another Medium
+void Medium::copy_statistics(const Medium& m) {
+    require(this->sizes.size() == m.sizes.size() , "Incompatible statistics!");
+    for (int i = 0; i < m.sizes.size(); ++i)
+        (&this->sizes.xmin)[i] = (&m.sizes.xmin)[i];
 }
 
 } /* namespace femocs */

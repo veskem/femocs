@@ -258,6 +258,10 @@ public:
     Vec3 operator *(const double &r) const { return Vec3(x * r, y * r, z * r); }
     Vec3& operator *=(const double &r) { x *= r, y *= r, z *= r; return *this; }
 
+    /** Division of two vectors */
+    Vec3 operator /(const Vec3 &v) const { return Vec3(x / v.x, y / v.y, z / v.z); }
+    Vec3& operator /=(const Vec3 &v) { x /= v.x, y /= v.y, z /= v.z; return *this; }
+
     /** Scalar division of vector with a scalar */
     Vec3 operator /(const double &r) const { return Vec3(x / r, y / r, z / r); }
     Vec3& operator /=(const double &r) { x /= r, y /= r, z /= r; return *this; }

@@ -14,20 +14,26 @@ using namespace std;
 namespace femocs {
 
 // Initialize data vectors
-LinearInterpolator::LinearInterpolator() {
+LinearInterpolator::LinearInterpolator() : radius(0), E0(0) {
     reserve(0);
     reserve_precompute(0);
 }
 
+// Set parameters for calculating analytical solution
+void LinearInterpolator::set_analyt(const double radius, const double E0) {
+    this->radius = radius;
+    this->E0 = E0;
+}
+
 // Analytical potential for i-th point near the hemisphere
-double LinearInterpolator::get_analyt_potential(const int i, const double radius, const double E0) {
+double LinearInterpolator::get_analyt_potential(const int i) const {
     Point3 point = get_atom(i).point;
     double r = point.distance(Point3(0));
     return -E0 * point.z * (1 - pow(radius / r, 3.0));
 }
 
 // Analytical electric field for i-th point near the hemisphere
-Vec3 LinearInterpolator::get_analyt_field(const int i, const double radius, const double E0) {
+Vec3 LinearInterpolator::get_analyt_field(const int i) const {
     Point3 point = get_atom(i).point;
     double r5 = pow(point.x * point.x + point.y * point.y + point.z * point.z, 2.5);
     double radius3 = pow(radius, 3.0);
@@ -41,7 +47,7 @@ Vec3 LinearInterpolator::get_analyt_field(const int i, const double radius, cons
 }
 
 // Print the deviation from the analytical solution of hemisphere on the infinite surface
-void LinearInterpolator::print_error(const double radius, const double E0) {
+void LinearInterpolator::print_error() const {
     if (!MODES.VERBOSE) return;
 
     const int n_atoms = size();
@@ -53,9 +59,9 @@ void LinearInterpolator::print_error(const double radius, const double E0) {
         double phi = solution[i].scalar;
         if (phi >= error_field) continue;
 
-        phi_error += pow( phi - get_analyt_potential(i, radius, E0), 2.0 );
+        phi_error += pow( phi - get_analyt_potential(i), 2.0 );
 
-        Vec3 abs_error = (solution[i].vector - get_analyt_field(i, radius, E0));
+        Vec3 abs_error = (solution[i].vector - get_analyt_field(i));
         Vec3 rel_error = abs_error / solution[i].vector;
         
         abs_rms_error += abs_error * abs_error;
@@ -76,7 +82,7 @@ void LinearInterpolator::print_error(const double radius, const double E0) {
 }
 
 // Print statistics about solution on node points
-void LinearInterpolator::print_statistics() {
+void LinearInterpolator::print_statistics() const {
     if (!MODES.VERBOSE) return;
 
     const int n_atoms = size();
@@ -567,6 +573,53 @@ string LinearInterpolator::get_data_string(const int i) const {
     ostringstream strs;
     strs << atoms[i] << " " << solution[i];
     return strs.str();
+}
+
+void LinearInterpolator::get_cell_data(ofstream& out) const {
+    const int celltype = 10;     // type of the cell in vtk format; 1-vertex, 10-tetrahedron
+    const int dim = tetrahedra[0].size();          // number of vertices in the cell
+    const int n_cells = tetrahedra.size();
+    const int n_atoms = size();
+
+    // Output the vertices
+    out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
+    for (int i = 0; i < n_cells; ++i)
+        out << dim << " " << tetrahedra[i] << "\n";
+
+    // Output cell types
+    out << "\nCELL_TYPES " << n_cells << "\n";
+    for (int i = 0; i < n_cells; ++i)
+        out << celltype << "\n";
+
+    out << "\nPOINT_DATA " << n_atoms << "\n";
+
+    // write atom IDs
+    out << "SCALARS ID int\nLOOKUP_TABLE default\n";
+    for (int i = 0; i < n_atoms; ++i)
+        out << atoms[i].id << "\n";
+
+    // write atom markers
+    out << "SCALARS marker int\nLOOKUP_TABLE default\n";
+    for (int i = 0; i < n_atoms; ++i)
+        out << atoms[i].marker << "\n";
+
+    out << "SCALARS E_norm double\nLOOKUP_TABLE default\n";
+    for (int i = 0; i < n_atoms; ++i)
+        out << solution[i].norm << "\n";
+
+    out << "SCALARS potential double\nLOOKUP_TABLE default\n";
+    for (int i = 0; i < n_atoms; ++i)
+        out << solution[i].scalar << "\n";
+
+    if (radius > 0) {
+        out << "SCALARS analyt_E_norm double\nLOOKUP_TABLE default\n";
+        for (int i = 0; i < n_atoms; ++i)
+            out << get_analyt_field(i).norm() << "\n";
+
+        out << "SCALARS analyt_phi double\nLOOKUP_TABLE default\n";
+        for (int i = 0; i < n_atoms; ++i)
+            out << get_analyt_potential(i) << "\n";
+    }
 }
 
 // Determinant of 3x3 matrix which's last column consists of ones

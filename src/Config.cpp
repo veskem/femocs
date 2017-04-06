@@ -21,7 +21,8 @@ Config::Config() {
     surface_thichness = 3.1;     // maximum distance the surface atom is allowed to be from surface mesh
     coord_cutoff = 3.1;          // coordination analysis cut-off radius
     nnn = 12;                    // number of nearest neighbours in bulk
-    mesh_quality = "2.0";        // minimum mesh quality Tetgen is allowed to make
+    mesh_quality = "2.0";     // minimum tetrahedron quality Tetgen is allowed to make
+    element_volume = "";         // maximum tetrahedron volume Tetgen is allowed to make
     nt = 4;                      // number of OpenMP threads
     radius = 14.0;               // inner radius of coarsening cylinder
     surface_smooth_factor = 0.5; // surface smoothing factor; bigger number gives smoother surface
@@ -80,6 +81,7 @@ void Config::read_all(const string& file_name) {
     read_command("surface_thichness", surface_thichness);
     read_command("nnn", nnn);
     read_command("mesh_quality", mesh_quality);
+    read_command("element_volume", element_volume);
     read_command("radius", radius);
     read_command("smooth_factor", surface_smooth_factor);
     read_command("charge_smooth_factor", charge_smooth_factor);

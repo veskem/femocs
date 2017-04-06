@@ -39,6 +39,9 @@ public:
     /** Get i-th Solution */
     Solution get_interpolation(const int i) const;
 
+    /** Set i-th Solution */
+    void set_interpolation(const int i, const Solution& s);
+
 protected:
     const string vec_label;       ///< label for vector data
     const string vec_norm_label;  ///< label for data associated with vector length

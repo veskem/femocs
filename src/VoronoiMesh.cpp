@@ -415,7 +415,104 @@ bool VoronoiMesh::recalc(const string& cmd1, const string& cmd2, const string& c
     return 0;
 }
 
+// Function to perform tetgen calculation on input and write_tetgen data
+bool VoronoiMesh::recalc(const string& cmd1, const string& cmd2) {
+    try {
+        tetgenio tetIOtemp1, tetIOtemp2;
+        tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOtemp1);
+        tetrahedralize(const_cast<char*>(cmd2.c_str()), &tetIOtemp1, &tetIOout);
+        nodes.set_counter(tetIOout.numberofpoints);
+        elems.set_counter(tetIOout.numberoftetrahedra);
+    }
+    catch (int e) { return 1; }
+    return 0;
+}
+
+bool VoronoiMesh::recalc(const string& cmd1) {
+    try {
+        tetgenio tetIOtemp1, tetIOtemp2;
+        tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOout);
+        nodes.set_counter(tetIOout.numberofpoints);
+        elems.set_counter(tetIOout.numberoftetrahedra);
+    }
+    catch (int e) { return 1; }
+    return 0;
+}
+
 // Generate Voronoi cells around surface atoms
+bool VoronoiMesh::generate_modi(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2) {
+    const double l = 1.0*latconst;
+
+    Medium bulk(4), vacuum(4);
+    bulk.append( Point3(surf.sizes.xmin-l, surf.sizes.ymin-l, surf.sizes.zmin-l) );
+    bulk.append( Point3(surf.sizes.xmax+l, surf.sizes.ymin-l, surf.sizes.zmin-l) );
+    bulk.append( Point3(surf.sizes.xmin-l, surf.sizes.ymax+l, surf.sizes.zmin-l) );
+    bulk.append( Point3(surf.sizes.xmax+l, surf.sizes.ymax+l, surf.sizes.zmin-l) );
+
+    vacuum.append( Point3(surf.sizes.xmin-l, surf.sizes.ymin-l, surf.sizes.zmax+l) );
+    vacuum.append( Point3(surf.sizes.xmax+l, surf.sizes.ymin-l, surf.sizes.zmax+l) );
+    vacuum.append( Point3(surf.sizes.xmin-l, surf.sizes.ymax+l, surf.sizes.zmax+l) );
+    vacuum.append( Point3(surf.sizes.xmax+l, surf.sizes.ymax+l, surf.sizes.zmax+l) );
+
+    const int n_bulk = bulk.size();
+    const int n_surf = surf.size();
+    const int n_vacuum = vacuum.size();
+    nodes.init(n_bulk + n_surf + n_vacuum);
+
+    // Add surface atoms first,...
+    for (int i = 0; i < n_surf; ++i)
+        nodes.append(surf.get_point(i));
+
+    // ... bulk atoms second,...
+    for (int i = 0; i < n_bulk; ++i)
+        nodes.append(bulk.get_point(i));
+
+    // ... and vacuum atoms last
+    for (int i = 0; i < n_vacuum; ++i)
+        nodes.append(vacuum.get_point(i));
+
+    // Memorize the positions of different types of nodes to speed up later calculations
+    nodes.save_indices(n_surf, n_bulk, n_vacuum);
+
+    if (recalc("Q", cmd1)) return true;
+
+    elems.write("output/voro_tets1.vtk");
+
+    vector<bool> is_surf; is_surf.reserve(elems.size());
+
+    const int node_max = nodes.indxs.surf_end;
+    for (SimpleElement elem : elems) {
+        int ns = 0;
+        int nv = 0;
+
+        for (int e : elem) {
+            if (e > node_max)
+                nv++;
+            else
+                ns++;
+        }
+
+        is_surf.push_back(nv<=2 && ns>=2);
+    }
+
+
+    nodes.init(nodes.size() + vector_sum(is_surf));
+    elems.init(elems.size());
+
+    for (SimpleElement elem : elems)
+        elems.append(elem);
+
+    for (Point3 node : nodes)
+        nodes.append(node);
+
+    for (int i = 0; i < elems.size(); ++i)
+        if (is_surf[i])
+            nodes.append(elems.get_centroid(i));
+
+    return recalc("rQ", cmd2);
+//    return recalc("Q", cmd1, cmd2);
+}
+
 bool VoronoiMesh::generate(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2) {
     const double l = 1.0*latconst;
 

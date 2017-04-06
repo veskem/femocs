@@ -3,6 +3,7 @@
 extern "C" {
     class femocs::Femocs;
     typedef femocs::Femocs FEMOCS;
+
 /* From the C side, we use an opaque pointer. */
 #else
     typedef struct FEMOCS FEMOCS;
@@ -28,8 +29,8 @@ void femocs_export_temperature(FEMOCS* femocs, int* retval, int n_atoms, double*
 
 void femocs_export_charge_and_force(FEMOCS* femocs, int* retval, int n_atoms, double* xq);
 
-void femocs_interpolate_elfield(FEMOCS* femocs, int* retval, int n_points, double* x, double* y, double* z,
-        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
+void femocs_interpolate_elfield(FEMOCS* femocs, int* retval, int n_points, double* x, double* y,
+        double* z, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 
 void femocs_interpolate_phi(FEMOCS* femocs, int* retval, int n_points, double* x, double* y, double* z, double* phi, int* flag);
 

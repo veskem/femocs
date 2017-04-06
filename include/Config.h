@@ -44,7 +44,8 @@ public:
     string extended_atoms;      ///< Path to the file with atoms forming the extended surface
     string atom_file;           ///< Path to the file with atom coordinates and types
     string mesh_quality;        ///< Minimum quality (maximum radius-edge ratio) of tetrahedra
-    string message;             ///< data string from the host code
+    string element_volume;      ///< Maximum volume of tetrahedra
+    string message;             ///< Data string from the host code
     double latconst;            ///< Lattice constant
     double coord_cutoff;        ///< Cut-off distance in Angstroms for Coordination analysis
     double surface_thichness;   ///< Maximum distance the surface atom is allowed to be from surface mesh [angstrom]; 0 turns check off

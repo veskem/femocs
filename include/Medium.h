@@ -46,8 +46,8 @@ public:
     /** Add atom with default id and coordination to the system */
     void append(const Point3& point);
 
-    /** Write first n_max atoms to file; n_max < 0 writes all the atoms */
-    void write(const string &file_name, const int n_max=-1) const;
+    /** Write atoms to file */
+    void write(const string &file_name) const;
     
     /** Calculate statistics about the coordinates in Medium */
     void calc_statistics();
@@ -101,7 +101,7 @@ public:
         double ymid;     ///< middle value of y-coordinate
         double zmid;     ///< middle value of z-coordinate
 
-        int size() const { return (&zmid)-(&xmin) + 1; };  ///< number of values in Sizes
+        int size() const { return (&zmid)-(&xmin) + 1; }  ///< number of values in Sizes
     } sizes;
 
     vector<Atom> atoms;  ///< vector holding atom coordinates and meta data
@@ -116,14 +116,8 @@ protected:
     /** Output atom data in .vtk format */
     void write_vtk(ofstream &outfile, const int n_atoms) const;
     
-    /** Get point representation in vtk format */
-    virtual void get_cell_types(ofstream& outfile, const int n_cells) const;
-
-    /** Get data scalar and vector data associated with vtk cells */
-    virtual void get_cell_data(ofstream& outfile, const int n_cells) const;
-
-    /** Get data scalar and vector data associated with vtk nodes */
-    virtual void get_point_data(ofstream& outfile) const;
+    /** Get scalar and vector data associated with atoms */
+    virtual void get_cell_data(ofstream& outfile) const;
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     virtual string get_data_string(const int i) const;

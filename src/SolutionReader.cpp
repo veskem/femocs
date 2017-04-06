@@ -51,6 +51,12 @@ Solution SolutionReader::get_interpolation(const int i) const {
     return interpolation[i];
 }
 
+// Set i-th Solution
+void SolutionReader::set_interpolation(const int i, const Solution& s) {
+    require(i >= 0 && i < (int)interpolation.size(), "Index out of bounds: " + to_string(i));
+    interpolation[i] = s;
+}
+
 // Compile data string from the data vectors for file output
 string SolutionReader::get_data_string(const int i) const{
     if (i < 0) return "SolutionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" + vec_norm_label + ":R:1:" + scalar_label + ":R:1";

@@ -118,9 +118,11 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     
     start_msg(t0, "=== Making big mesh...");
     TetgenMesh big_mesh;
-    // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality
+    // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality, a - element volume,
     // F - suppress output of faces and edges, B - suppress output of boundary info
-    fail = big_mesh.generate(bulk, coarse_surf, vacuum, "rnQFBq" + conf.mesh_quality);
+    string command = "rnQFBq" + conf.mesh_quality;
+    if (conf.element_volume != "") command += "a" + conf.element_volume;
+    fail = big_mesh.generate(bulk, coarse_surf, vacuum, command);
 
     check_message(fail, "Triangulation failed! Field calculation will be skipped!");
     end_msg(t0);
@@ -200,8 +202,9 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     end_msg(t0);
 
     vacuum_interpolator.write("output/result_E_phi.xyz");
+    vacuum_interpolator.write("output/result_E_phi.vtk");
     vacuum_interpolator.print_statistics();
-    vacuum_interpolator.print_error(conf.radius, conf.E0);
+    vacuum_interpolator.print_error();
 
     return fail;
 }
@@ -247,6 +250,7 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     return 0;
 }
 
+// Calculate the charges on surface faces
 int Femocs::extract_charge(const TetgenMesh& mesh) {
     start_msg(t0, "=== Calculating face charges...");
     face_charges.calc_charges(mesh, conf.E0);             // electric field in the middle of face in directly from solution
@@ -284,6 +288,7 @@ int Femocs::run(const double elfield, const string &message) {
     skip_calculations = true;
     conf.E0 = elfield; // long-range electric field
     conf.neumann = -10.0 * elfield;  // set minus gradient of solution to equal to E0; also convert V/Angstrom  to  V/nm
+    vacuum_interpolator.set_analyt(conf.radius, conf.E0);
     tstart = omp_get_wtime();
 
     TetgenMesh bulk_mesh;   // FEM mesh in bulk material
@@ -297,6 +302,8 @@ int Femocs::run(const double elfield, const string &message) {
     fch::Laplace<3> laplace_solver;
     fail = solve_laplace(vacuum_mesh, laplace_solver);
     if (fail) return 1;
+
+    write_slice("output/slice.xyz");
 
     // Solve heat & continuity equation on bulk mesh
     fail = solve_heat(bulk_mesh, laplace_solver);
@@ -314,6 +321,36 @@ int Femocs::run(const double elfield, const string &message) {
     skip_calculations = false;
 
     return 0;
+}
+
+// Interpolate the solution on the x-z plane in the middle of simulation box
+void Femocs::write_slice(const string& file_name) {
+    const int nx = 300;  // number of points in x-direction
+    const int nz = 300;  // number of points in z-direction
+
+    const double dx = (reader.sizes.xmid - reader.sizes.xmin) / (nx-1);
+    const double dz = (reader.sizes.zmax - dense_surf.sizes.zmin) / (nz-1);
+
+    Medium medium(nx * nz);
+    double x = reader.sizes.xmin;
+
+    for (int i = 0; i < nx; ++i) {
+        double z = dense_surf.sizes.zmin;
+        for (int j = 0; j < nz; ++j) {
+            medium.append(Point3(x, reader.sizes.ymid, z));
+            z += dz;
+        }
+        x += dx;
+    }
+
+    FieldReader fr(&vacuum_interpolator);
+    fr.interpolate(medium, conf.use_histclean * conf.coord_cutoff);
+
+    for (int i = 0; i < fr.size(); ++i)
+        if (fr.get_point(i).distance(coarseners.centre) <= conf.radius)
+            fr.set_interpolation(i, Solution(0));
+
+    fr.write(file_name);
 }
 
 // import atoms from file

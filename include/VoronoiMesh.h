@@ -272,6 +272,8 @@ public:
     /** Generate Voronoi cells around surface atoms */
     bool generate(const Medium& surface, const double latconst, const string& cmd1, const string& cmd2);
 
+    bool generate_modi(const Medium& surface, const double latconst, const string& cmd1, const string& cmd2);
+
     /** Mark the cells and faces with nodes in the infinity */
     void clean();
     
@@ -286,7 +288,7 @@ public:
 
     /** Objects holding operations for accessing cell data */
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
-    TetgenElements elems = TetgenElements(&tetIOout);
+    TetgenElements elems = TetgenElements(&tetIOout, &tetIOin);
     VoronoiCells voros = VoronoiCells(&tetIOout);
     VoronoiFaces vfaces = VoronoiFaces(&tetIOout);
 
@@ -308,6 +310,10 @@ private:
 
     /** Perform triple Tetgen calculation on input buffer and store it in output one */
     bool recalc(const string& cmd1, const string& cmd2, const string& cmd3);
+
+    bool recalc(const string& cmd1, const string& cmd2);
+
+    bool recalc(const string& cmd1);
 };
 
 } /* namespace femocs */

@@ -169,6 +169,8 @@ private:
     int solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
 
     int extract_charge(const TetgenMesh& mesh);
+
+    void write_slice(const string& file_name);
 };
 
 } /* namespace femocs */

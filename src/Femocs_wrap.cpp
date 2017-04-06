@@ -5,14 +5,9 @@
 #include "Femocs_wrap.h"
 #include <iostream>
 
-//using namespace std;
-
-// =================== Implementation =======================
-
 FEMOCS* create_femocs(const char* s){
     return new femocs::Femocs(string(s));
 }
-
 
 void delete_femocs(FEMOCS* femocs){
     delete femocs;
