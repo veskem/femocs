@@ -39,7 +39,7 @@ Vec3 LinearInterpolator::get_analyt_field(const int i) const {
     double radius3 = pow(radius, 3.0);
     double f = point.x * point.x + point.y * point.y - 2.0 * point.z * point.z;
 
-    double Ex = -3 * E0 * radius3 * point.x * point.y / r5;
+    double Ex = -3 * E0 * radius3 * point.x * point.z / r5;
     double Ey = -3 * E0 * radius3 * point.y * point.z / r5;
     double Ez = E0 * (radius3 * f / r5 - 1.0);
 
