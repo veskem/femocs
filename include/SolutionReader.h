@@ -104,8 +104,22 @@ public:
 
     double get_potential(const int i) const;
 
-private:
+    /** Compare the analytical and calculated field enhancement */
+    void print_enhancement() const;
 
+    /** Set parameters to calculate analytical solution */
+    void set_analyt(const double E0, const double radius1, const double radius2=-1);
+
+private:
+    double radius1;  ///< Minor semi-axis of ellipse
+    double radius2;  ///< Major semi-axis of ellipse
+    double E0;       ///< Long-range electric field strength
+
+    /** Get calculated field enhancement */
+    double get_enhancement() const;
+
+    /** Get analytical field enhancement for hemi-ellipsoid on infinite surface */
+    double get_analyt_enhancement() const;
 };
 
 /** Class to interpolate current densities and temperatures */

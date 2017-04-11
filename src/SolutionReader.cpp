@@ -394,6 +394,47 @@ double FieldReader::get_potential(const int i) const {
     return interpolation[i].scalar;
 }
 
+// Set parameters for calculating analytical solution
+void FieldReader::set_analyt(const double E0, const double radius1, const double radius2) {
+    this->E0 = E0;
+    this->radius1 = radius1;
+    if (radius2 > radius1)
+        this->radius2 = radius2;
+    else
+        this->radius2 = radius1;
+}
+
+double FieldReader::get_enhancement() const {
+    double Emax = -interpolator->error_field;
+    for (Solution s : interpolation)
+        if (s.norm > Emax) Emax = s.norm;
+
+    return fabs(Emax / E0);
+}
+
+
+double FieldReader::get_analyt_enhancement() const {
+    expect(radius1 > 0, "Invalid minor semi-axis: " + to_string(radius1));
+
+    if ( radius2 <= radius1 )
+        return 3.0;
+    else {
+        double nu = radius2 / radius1;
+        double zeta = sqrt(nu*nu - 1);
+        return pow(zeta, 3.0) / (nu * log(zeta + nu) - zeta);
+    }
+}
+
+void FieldReader::print_enhancement() const {
+    if (!MODES.VERBOSE) return;
+
+    double gamma1 = get_enhancement();
+    double gamma2 = get_analyt_enhancement();
+    printf("  radius1=%.1f   radius2=%.1f\n", radius1, radius2);
+    printf("  field enhancements,  Femocs:%.3f  analyt:%.3f  f-a:%.3f  f/a:%.3f\n",
+            gamma1, gamma2, gamma1-gamma2, gamma1/gamma2);
+}
+
 /* ==========================================
  * =============== HEAT READER ==============
  * ========================================== */

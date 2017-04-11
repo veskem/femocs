@@ -64,8 +64,11 @@ public:
     /** Print the deviation from the analytical solution of hemisphere on the infinite surface */
     void print_error() const;
 
+    /** Compare the analytical and calculated field enhancement */
+    void print_enhancement() const;
+
     /** Set parameters to calculate analytical solution */
-    void set_analyt(const double radius, const double E0);
+    void set_analyt(const double E0, const double radius1, const double radius2=-1);
 
     /** Electric field that is assigned to atoms not found from mesh.
      *  Its value is BIG to make it immediately visible from the dataset. */
@@ -76,8 +79,9 @@ private:
      * Making zero a bit negative allows to interpolate outside the tetrahedron. */
     const double epsilon = 1e-1;
     const double zero = -1.0 * epsilon;
-    double radius;
-    double E0;
+    double radius1;  ///< Minor semi-axis of ellipse
+    double radius2;  ///< Major semi-axis of ellipse
+    double E0;       ///< Long-range electric field strength
 
     vector<Solution> solution;          ///< interpolation data
     vector<SimpleElement> tetrahedra;   ///< tetrahedra node indices
@@ -143,6 +147,11 @@ private:
      * @param E0      long range electric field around the hemisphere */
     Vec3 get_analyt_field(const int i) const;
 
+    /** Get calculated field enhancement */
+    double get_enhancement() const;
+
+    /** Get analytical field enhancement for hemi-ellipsoid on infinite surface */
+    double get_analyt_enhancement() const;
 };
 
 } // namespace femocs

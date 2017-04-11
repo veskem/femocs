@@ -14,29 +14,33 @@ using namespace std;
 namespace femocs {
 
 // Initialize data vectors
-LinearInterpolator::LinearInterpolator() : radius(0), E0(0) {
+LinearInterpolator::LinearInterpolator() : radius1(0), radius2(0), E0(0) {
     reserve(0);
     reserve_precompute(0);
 }
 
 // Set parameters for calculating analytical solution
-void LinearInterpolator::set_analyt(const double radius, const double E0) {
-    this->radius = radius;
+void LinearInterpolator::set_analyt(const double E0, const double radius1, const double radius2) {
     this->E0 = E0;
+    this->radius1 = radius1;
+    if (radius2 > radius1)
+        this->radius2 = radius2;
+    else
+        this->radius2 = radius1;
 }
 
 // Analytical potential for i-th point near the hemisphere
 double LinearInterpolator::get_analyt_potential(const int i) const {
     Point3 point = get_atom(i).point;
     double r = point.distance(Point3(0));
-    return -E0 * point.z * (1 - pow(radius / r, 3.0));
+    return -E0 * point.z * (1 - pow(radius1 / r, 3.0));
 }
 
 // Analytical electric field for i-th point near the hemisphere
 Vec3 LinearInterpolator::get_analyt_field(const int i) const {
     Point3 point = get_atom(i).point;
     double r5 = pow(point.x * point.x + point.y * point.y + point.z * point.z, 2.5);
-    double radius3 = pow(radius, 3.0);
+    double radius3 = pow(radius1, 3.0);
     double f = point.x * point.x + point.y * point.y - 2.0 * point.z * point.z;
 
     double Ex = -3 * E0 * radius3 * point.x * point.z / r5;
@@ -53,15 +57,18 @@ void LinearInterpolator::print_error() const {
     const int n_atoms = size();
     int n_points = 0;
     Vec3 abs_rms_error(0), rel_rms_error(0);
-    double phi_error(0);
+    double phi_error(0), enorm_error(0);
 
     for (int i = 0; i < n_atoms; ++i) {
         double phi = solution[i].scalar;
         if (phi >= error_field) continue;
 
-        phi_error += pow( phi - get_analyt_potential(i), 2.0 );
+        Vec3 analyt_field = get_analyt_field(i);
 
-        Vec3 abs_error = (solution[i].vector - get_analyt_field(i));
+        phi_error += pow( phi - get_analyt_potential(i), 2.0 );
+        enorm_error += pow( (solution[i].norm - analyt_field.norm()) / solution[i].norm, 2.0 );
+
+        Vec3 abs_error = (solution[i].vector - analyt_field);
         Vec3 rel_error = abs_error / solution[i].vector;
         
         abs_rms_error += abs_error * abs_error;
@@ -75,10 +82,42 @@ void LinearInterpolator::print_error() const {
     abs_rms_error = Vec3(sqrt(abs_rms_error.x), sqrt(abs_rms_error.y), sqrt(abs_rms_error.z)) * (1.0 / n_points);
     rel_rms_error = Vec3(sqrt(rel_rms_error.x), sqrt(rel_rms_error.y), sqrt(rel_rms_error.z)) * (1.0 / n_points);
     phi_error = sqrt(phi_error) / n_points;
+    enorm_error = sqrt(enorm_error) / n_points;
 
-    cout << "  elfield rel rms error: " << rel_rms_error << endl;
+    cout << "  elfield rel rms error: " << rel_rms_error << "\t" << enorm_error << endl;
     cout << "  elfield abs rms error: " << abs_rms_error << endl;
     cout << "      phi abs rms error: " << phi_error << endl;
+}
+
+double LinearInterpolator::get_enhancement() const {
+    double Emax = -error_field;
+    for (Solution s : solution)
+        if (s.norm != error_field && s.norm > Emax) Emax = s.norm;
+
+    return fabs(Emax / E0);
+}
+
+
+double LinearInterpolator::get_analyt_enhancement() const {
+    expect(radius1 > 0, "Invalid minor semi-axis: " + to_string(radius1));
+
+    if ( radius2 <= radius1 )
+        return 3.0;
+    else {
+        double nu = radius2 / radius1;
+        double zeta = sqrt(nu*nu - 1);
+        return pow(zeta, 3.0) / (nu * log(zeta + nu) - zeta);
+    }
+}
+
+void LinearInterpolator::print_enhancement() const {
+    if (!MODES.VERBOSE) return;
+
+    double gamma1 = get_enhancement();
+    double gamma2 = get_analyt_enhancement();
+    printf("  radius1=%.1f   radius2=%.1f\n", radius1, radius2);
+    printf("  field enhancements,  Femocs:%.3f  analyt:%.3f  f-a:%.3f  f/a:%.3f\n",
+            gamma1, gamma2, gamma1-gamma2, gamma1/gamma2);
 }
 
 // Print statistics about solution on node points
@@ -611,7 +650,7 @@ void LinearInterpolator::get_cell_data(ofstream& out) const {
     for (int i = 0; i < n_atoms; ++i)
         out << solution[i].scalar << "\n";
 
-    if (radius > 0) {
+    if (radius1 > 0) {
         out << "SCALARS analyt_E_norm double\nLOOKUP_TABLE default\n";
         for (int i = 0; i < n_atoms; ++i)
             out << get_analyt_field(i).norm() << "\n";

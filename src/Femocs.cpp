@@ -62,6 +62,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     
     if (conf.surface_cleaner == "voronois") {
         start_msg(t0, "=== Cleaning surface with Voronoi cells...");
+//        fail = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality + "a10");
         fail = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality);
         check_message(fail, "Making voronoi cells failed! Field calculation will be skipped!");
         end_msg(t0);
@@ -204,7 +205,7 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     vacuum_interpolator.write("output/result_E_phi.xyz");
     vacuum_interpolator.write("output/result_E_phi.vtk");
     vacuum_interpolator.print_statistics();
-    vacuum_interpolator.print_error();
+    vacuum_interpolator.print_enhancement();
 
     return fail;
 }
@@ -288,7 +289,6 @@ int Femocs::run(const double elfield, const string &message) {
     skip_calculations = true;
     conf.E0 = elfield; // long-range electric field
     conf.neumann = -10.0 * elfield;  // set minus gradient of solution to equal to E0; also convert V/Angstrom  to  V/nm
-    vacuum_interpolator.set_analyt(conf.radius, conf.E0);
     tstart = omp_get_wtime();
 
     TetgenMesh bulk_mesh;   // FEM mesh in bulk material
@@ -297,6 +297,10 @@ int Femocs::run(const double elfield, const string &message) {
     // Generate FEM mesh
     fail = generate_meshes(bulk_mesh, vacuum_mesh);
     if (fail) return 1;
+
+    // Store parameters for comparing the results with analytical hemi-ellipsoid results
+    vacuum_interpolator.set_analyt(conf.E0, conf.radius, dense_surf.sizes.zbox);
+    fields.set_analyt(conf.E0, conf.radius, dense_surf.sizes.zbox);
 
     // Solve Laplace equation on vacuum mesh
     fch::Laplace<3> laplace_solver;
@@ -325,6 +329,8 @@ int Femocs::run(const double elfield, const string &message) {
 
 // Interpolate the solution on the x-z plane in the middle of simulation box
 void Femocs::write_slice(const string& file_name) {
+    if (!MODES.WRITEFILE) return;
+
     const int nx = 300;  // number of points in x-direction
     const int nz = 300;  // number of points in z-direction
 
@@ -363,8 +369,6 @@ int Femocs::import_atoms(const string& file_name) {
 
     file_type = get_file_type(fname);
     expect(file_type == "ckx" || file_type == "xyz", "Unknown file type: " + file_type);
-
-    if (file_type == "ckx") conf.surface_cleaner = "none";
 
     start_msg(t0, "=== Importing atoms...");
     reader.import_file(fname);
@@ -472,6 +476,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
 
         fields.write("output/fields.movie");
         fields.print_statistics();
+        fields.print_enhancement();
     }
 
     start_msg(t0, "=== Exporting electric field...");
