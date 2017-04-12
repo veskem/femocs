@@ -10,6 +10,8 @@
 
 #include <float.h>
 #include <stdio.h>
+#include <iomanip> // setprecision
+#include <sstream> // stringstream
 
 using namespace std;
 namespace femocs {
@@ -260,8 +262,9 @@ void SolutionReader::print_statistics() {
  * ============== FIELD READER ==============
  * ========================================== */
 
-FieldReader::FieldReader() : SolutionReader() {}
-FieldReader::FieldReader(LinearInterpolator* ip) : SolutionReader(ip, "elfield", "elfield_norm", "potential") {}
+FieldReader::FieldReader() : radius1(0), radius2(0), E0(0), SolutionReader() {}
+FieldReader::FieldReader(LinearInterpolator* ip) : radius1(0), radius2(0), E0(0),
+        SolutionReader(ip, "elfield", "elfield_norm", "potential") {}
 
 // Linearly interpolate solution on Medium atoms
 void FieldReader::interpolate(const Medium &medium, const double r_cut, const int component, const bool srt) {
@@ -426,13 +429,21 @@ double FieldReader::get_analyt_enhancement() const {
 }
 
 void FieldReader::print_enhancement() const {
-    if (!MODES.VERBOSE) return;
-
     double gamma1 = get_enhancement();
     double gamma2 = get_analyt_enhancement();
+
+    stringstream stream;
+    stream << fixed << setprecision(3);
+    stream << "  field enhancements,  Femocs:" << gamma1
+            << "  analyt:" << gamma2
+            << "  f-a:"  << gamma1-gamma2
+            << "  f/a:"  << gamma1/gamma2 << endl;;
+
+    write_log(stream.str());
+
+    if (!MODES.VERBOSE) return;
     printf("  radius1=%.1f   radius2=%.1f\n", radius1, radius2);
-    printf("  field enhancements,  Femocs:%.3f  analyt:%.3f  f-a:%.3f  f/a:%.3f\n",
-            gamma1, gamma2, gamma1-gamma2, gamma1/gamma2);
+    cout << stream;
 }
 
 /* ==========================================

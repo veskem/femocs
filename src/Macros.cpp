@@ -76,7 +76,7 @@ void write_message(const string& message) {
 
 void write_log(const string& message) {
     ofstream logfile(FEMOCSLOGPATH, ios_base::app);
-    if (logfile) logfile << endl << string(message) << endl;
+    if (logfile) logfile << string(message) << endl;
 }
 
 void clear_log() {

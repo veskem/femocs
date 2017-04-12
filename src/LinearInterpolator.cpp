@@ -9,6 +9,8 @@
 #include "Macros.h"
 
 #include <float.h>
+#include <iomanip> // setprecision
+#include <sstream> // stringstream
 
 using namespace std;
 namespace femocs {
@@ -97,7 +99,6 @@ double LinearInterpolator::get_enhancement() const {
     return fabs(Emax / E0);
 }
 
-
 double LinearInterpolator::get_analyt_enhancement() const {
     expect(radius1 > 0, "Invalid minor semi-axis: " + to_string(radius1));
 
@@ -111,13 +112,21 @@ double LinearInterpolator::get_analyt_enhancement() const {
 }
 
 void LinearInterpolator::print_enhancement() const {
-    if (!MODES.VERBOSE) return;
-
     double gamma1 = get_enhancement();
     double gamma2 = get_analyt_enhancement();
+
+    stringstream stream;
+    stream << fixed << setprecision(3);
+    stream << "  field enhancements,  Femocs:" << gamma1
+            << "  analyt:" << gamma2
+            << "  f-a:"  << gamma1-gamma2
+            << "  f/a:"  << gamma1/gamma2 << endl;;
+
+    write_log(stream.str());
+
+    if (!MODES.VERBOSE) return;
     printf("  radius1=%.1f   radius2=%.1f\n", radius1, radius2);
-    printf("  field enhancements,  Femocs:%.3f  analyt:%.3f  f-a:%.3f  f/a:%.3f\n",
-            gamma1, gamma2, gamma1-gamma2, gamma1/gamma2);
+    cout << stream;
 }
 
 // Print statistics about solution on node points
@@ -607,7 +616,7 @@ double LinearInterpolator::get_scalar(const int i) {
 // Compile data string from the data vectors for file output
 string LinearInterpolator::get_data_string(const int i) const {
     if (i < 0)
-        return "LinearInterpolator properties=id:R:1:pos:R:3:marker:R:1:force:R:3:enorm:R:1:potential:R:1";
+        return "LinearInterpolator properties=id:I:1:pos:R:3:marker:I:1:force:R:3:elfield_norm:R:1:potential:R:1";
 
     ostringstream strs;
     strs << atoms[i] << " " << solution[i];
