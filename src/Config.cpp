@@ -15,44 +15,44 @@ namespace femocs {
 // Config constructor initializes configuration parameters
 Config::Config() {
     extended_atoms = "";         // file with the atoms forming the extended surface
-    atom_file = "input/nanotip_medium.xyz";
-    latconst = 3.61;
-
+    atom_file = "";              // file with the nanostructure atoms
+    latconst = 3.61;             // lattice constant
     surface_thichness = 3.1;     // maximum distance the surface atom is allowed to be from surface mesh
     coord_cutoff = 3.1;          // coordination analysis cut-off radius
     nnn = 12;                    // number of nearest neighbours in bulk
-    mesh_quality = "2.0";     // minimum tetrahedron quality Tetgen is allowed to make
+    mesh_quality = "2.0";        // minimum tetrahedron quality Tetgen is allowed to make
     element_volume = "";         // maximum tetrahedron volume Tetgen is allowed to make
-    nt = 4;                      // number of OpenMP threads
-    radius = 14.0;               // inner radius of coarsening cylinder
-    surface_smooth_factor = 0.5; // surface smoothing factor; bigger number gives smoother surface
-    charge_smooth_factor = 1.0;  // charge smoothing factor; bigger number gives smoother charges
-    postprocess_marking = false; // make extra effort to mark correctly the vacuum nodes in shadow area
-    refine_apex = false;         // refine nanotip apex
-    distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
+    radius = 0.0;                // inner radius of coarsening cylinder
     box_width = 2.5;             // minimal simulation box width in units of tip height
     box_height = 3.5;            // simulation box height in units of tip height
     bulk_height = 20;            // bulk substrate height [lattice constant]
-    n_writefile = 1;             // number of time steps between writing the output files
-    verbose_mode = "verbose";    // mute, silent, verbose
-    use_histclean = false;       // use histogram cleaner to get rid of sharp peaks in the solution
-    cluster_anal = true;        // enable cluster analysis
 
-    cfactor.amplitude = 0.4;     // coarsening factor
-    cfactor.r0_cylinder = 0.0;   // minimum distance between atoms in nanotip below apex
-    cfactor.r0_sphere = 0.0;     // minimum distance between atoms in nanotip apex
-    heating = false;             // turn ON 3D current density and temperature calculations
-    E0 = 0;                      // long range electric field
-    neumann = 0;                 // neumann boundary contition value
+    surface_smooth_factor = 0.0; // surface smoothing factor; bigger number gives smoother surface
+    charge_smooth_factor = 1.0;  // charge smoothing factor; bigger number gives smoother charges
+    cfactor.amplitude = 0.4;     // coarsening factor outside the warm region
+    cfactor.r0_cylinder = 0;     // minimum distance between atoms in nanotip outside the apex
+    cfactor.r0_sphere = 0;       // minimum distance between atoms in nanotip apex
     t_error = 10.0;              // maximum allowed temperature error in Newton iterations
     n_newton = 10;               // maximum number of Newton iterations
     phi_error = 1e-9;            // maximum allowed electric potential error
     n_phi = 10000;               // maximum number of Conjugate Gradient iterations in phi calculation
     ssor_param = 1.2;            // parameter for SSOR preconditioner
-    surface_cleaner = "faces";   // method to clean surface; voronois, faces or none
     force_factor = 0.5;          // factor determining the relationship between force and charge*elfield
 
-    clear_output = false;        // clear output folder
+    postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
+    refine_apex = false;         // refine nanotip apex
+    distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
+    n_writefile = 1;             // number of time steps between writing the output files
+    verbose_mode = "verbose";    // mute, silent, verbose
+    surface_cleaner = "faces";   // method to clean surface; voronois, faces or none
+    use_histclean = false;       // use histogram cleaner to get rid of sharp peaks in the solution
+    cluster_anal = true;         // enable cluster analysis
+    clear_output = true;         // clear output folder
+    heating = false;             // turn ON 3D current density and temperature calculations
+
+    E0 = 0;                      // long range electric field
+    neumann = 0;                 // neumann boundary contition value
+    message = "";                // message from the host code
 }
 
 // Remove the noise from the beginning of the string
@@ -94,6 +94,7 @@ void Config::read_all(const string& file_name) {
     read_command("bulk_height", bulk_height);    
     read_command("femocs_verbose_mode", verbose_mode);
     read_command("femocs_periodic", MODES.PERIODIC);
+    read_command("write_log", MODES.WRITELOG);
     read_command("use_histclean", use_histclean);
     read_command("n_writefile", n_writefile);
 
@@ -101,8 +102,8 @@ void Config::read_all(const string& file_name) {
     read_command("coarse_factor", coarse_factors);
 
     cfactor.amplitude = coarse_factors[0];
-    cfactor.r0_cylinder = coarse_factors[1];
-    cfactor.r0_sphere = coarse_factors[2];
+    cfactor.r0_cylinder = (int)coarse_factors[1];
+    cfactor.r0_sphere = (int)coarse_factors[2];
 }
 
 void Config::parse_file(const string& file_name) {
@@ -126,7 +127,7 @@ void Config::parse_file(const string& file_name) {
             int i = line.find_first_not_of(data_symbols);
             if (i <= 0) break;
 
-            if (line_started && line.substr(0, i) == "end") return;
+            if (line_started && line.substr(0, i) == "femocs_end") return;
             if (line_started) data.push_back({});
 
             data.back().push_back( line.substr(0, i) );

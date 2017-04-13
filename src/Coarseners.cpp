@@ -180,6 +180,8 @@ vector<Point3> NanotipCoarsener::get_points() {
 void Coarseners::generate(const Medium &medium, const double radius, const Config::CoarseFactor &cf, const double latconst) {
     const int n_atoms = medium.size();
     require(n_atoms > 0, "Not enough points to generate coarseners: " + to_string(n_atoms));
+    require(cf.r0_cylinder >= 0 && cf.r0_sphere >= 0, "Coarsening factors must be non-negative!");
+    require(cf.r0_cylinder >= cf.r0_sphere, "Coarsening factor in cylinder wall must be >= coarsening factor in apex!");
 
     const double z_bot = get_z_mean(medium);  // medium.sizes.zmin;
     const double z_top = max(z_bot, medium.sizes.zmax - 0.5*radius);
@@ -189,8 +191,8 @@ void Coarseners::generate(const Medium &medium, const double radius, const Confi
 
     this->radius = radius;                 // store the coarsener radius
     amplitude = cf.amplitude * latconst;
-    r0_cylinder = max(0.0, cf.r0_cylinder) * latconst;
-    const double r0_sphere = max(0.0, cf.r0_sphere) * latconst;
+    r0_cylinder = cf.r0_cylinder * 0.25 * latconst;
+    const double r0_sphere = cf.r0_sphere * 0.25 * latconst;
     const double r0_flat = min(amplitude*1e20, r0_cylinder);
 
     coarseners.clear();

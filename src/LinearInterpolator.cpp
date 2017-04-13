@@ -9,8 +9,6 @@
 #include "Macros.h"
 
 #include <float.h>
-#include <iomanip> // setprecision
-#include <sstream> // stringstream
 
 using namespace std;
 namespace femocs {
@@ -117,16 +115,12 @@ void LinearInterpolator::print_enhancement() const {
 
     stringstream stream;
     stream << fixed << setprecision(3);
-    stream << "  field enhancements,  Femocs:" << gamma1
+    stream << "field enhancements,  Femocs:" << gamma1
             << "  analyt:" << gamma2
-            << "  f-a:"  << gamma1-gamma2
-            << "  f/a:"  << gamma1/gamma2 << endl;;
+            << "  f-a:" << gamma1-gamma2
+            << "  f/a:" << gamma1/gamma2;
 
-    write_log(stream.str());
-
-    if (!MODES.VERBOSE) return;
-    printf("  radius1=%.1f   radius2=%.1f\n", radius1, radius2);
-    cout << stream;
+    write_verbose_msg(stream.str());
 }
 
 // Print statistics about solution on node points
@@ -153,9 +147,11 @@ void LinearInterpolator::print_statistics() const {
     scalar = scalar / n_points;
     rms_scalar = sqrt(rms_scalar) / n_points;
 
-    cout << "  mean vector: \t" << vec << endl;
-    cout << "   rms vector: \t" << rms_vec << endl;
-    cout << "  mean & rms scalar: " << scalar << "\t" << rms_scalar << endl;
+    stringstream stream;
+    stream << "mean vector: \t" << vec;
+    stream << "\n   rms vector: \t" << rms_vec;
+    stream << "\n  mean & rms scalar: " << scalar << "\t" << rms_scalar;
+    write_verbose_msg(stream.str());
 }
 
 /* Return the mapping between tetrahedral & hexahedral mesh nodes,

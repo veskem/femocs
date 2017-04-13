@@ -37,13 +37,13 @@ void write_defaults(ofstream &file) {
 
 void write_hr5(ofstream &file) {
     file << "infile = input/nanotip_hr5.xyz" << endl;
-    file << "coarse_factor = 0.3 1.0 0.5"    << endl;
+    file << "coarse_factor = 0.3 4 2"        << endl;
     file << "radius = 14.0"                  << endl;
 }
 
 void write_mdsmall(ofstream &file) {
     file << "infile = input/nanotip_small.xyz" << endl;
-    file << "coarse_factor = 0.3 1.0 0.5"      << endl;
+    file << "coarse_factor = 0.3 4 2"    << endl;
     file << "radius = 16.0"              << endl;
     file << "box_width = 4.0"            << endl;
     file << "box_height = 3.5"           << endl;
@@ -51,27 +51,27 @@ void write_mdsmall(ofstream &file) {
 
 void write_mdbig(ofstream &file) {
     file << "infile = input/nanotip_big.xyz" << endl;
-    file << "coarse_factor = 0.3 1.0 0.5"    << endl;
+    file << "coarse_factor = 0.3 4 2" << endl;
     file << "radius = 16.0"           << endl;
 }
 
 void write_kmcsmall(ofstream &file) {
     file << "infile = input/mushroom1.ckx" << endl;
-    file << "coarse_factor = 0.3 1.5 1.0"  << endl;
-    file << "latconst = 2.0"         << endl;
-    file << "radius = 11.0"          << endl;
+    file << "coarse_factor = 0.3 6 4" << endl;
+    file << "latconst = 2.0"          << endl;
+    file << "radius = 11.0"           << endl;
 }
 
 void write_kmcbig(ofstream &file) {
     file << "infile = input/mushroom2.ckx" << endl;
-    file << "coarse_factor = 0.3 1.5 1.0"  << endl;
-    file << "latconst = 2.0"         << endl;
-    file << "radius = 20.0"          << endl;
+    file << "coarse_factor = 0.3 6 4" << endl;
+    file << "latconst = 2.0"          << endl;
+    file << "radius = 20.0"           << endl;
 }
 
 void write_stretch(ofstream &file) {
     file << "infile = input/nanotip_big.xyz" << endl;
-    file << "coarse_factor = 0.3 1.0 0.5"    << endl;
+    file << "coarse_factor = 0.3 4 2" << endl;
     file << "radius = 16.0"           << endl;
     file << "box_width = 4.0"         << endl;
     file << "box_height = 3.5"        << endl;
@@ -81,27 +81,27 @@ void write_stretch(ofstream &file) {
 void write_extend(ofstream &file) {
     file << "extended_atoms = input/extension.xyz" << endl;
     file << "infile = input/apex.xyz"              << endl;
-    file << "coarse_factor = 0.3 1.5 1.0" << endl;
+    file << "coarse_factor = 0.3 6 4" << endl;
     file << "femocs_periodic = false" << endl;
     file << "radius = 70.0"           << endl;
 }
 
 void write_cluster(ofstream &file) {
     file << "infile = input/clusters.xyz" << endl;
-    file << "coarse_factor = 0.3 1.5 1.0" << endl;
+    file << "coarse_factor = 0.3 6 4" << endl;
     file << "radius = 12.0"           << endl;
 }
 
 void write_molten(ofstream &file) {
     file << "infile = input/nanotip_melt.xyz" << endl;
-    file << "coarse_factor = 0.3 1.5 1.0" << endl;
+    file << "coarse_factor = 0.3 6 4"  << endl;
     file << "radius = 45.0"            << endl;
     file << "surface_thichness = 4.65" << endl;
 }
 
 void write_moltenbig(ofstream &file) {
     file << "infile = input/nanotip_melt_big.xyz" << endl;
-    file << "coarse_factor = 0.3 1.5 1.0" << endl;
+    file << "coarse_factor = 0.3 6 4"  << endl;
     file << "radius = 65.0"            << endl;
     file << "surface_thichness = 4.65" << endl;
 }

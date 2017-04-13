@@ -1,32 +1,34 @@
-#extended_atoms = input/extension.xyz   # file with atoms in extended surface
+#extended_atoms = input/ellipse.xyz   # file with atoms in extended surface
 #femocs_periodic = false        # imported atoms have periodic boundaries in x- & y-direction
 
 force_factor = 0.5              # force = force_factor * charge * elfield
-surface_cleaner = voronois      # method to clean surface: voronois, faces, none
-cluster_anal = true             # enable cluster analysis
+surface_cleaner = faces         # method to clean surface: voronois, faces, none
+cluster_anal = false            # enable cluster analysis
 use_histclean = false           # use histogram cleaner to get rid of sharp peaks in the solution
 heating = false                 # calculate current density and temperature in nanotip
 clear_output = true;            # clear output folder before the run
-infile = input/nanotip_small.xyz # default file used with atom coordinates
+infile = input/nanotip_hr5.xyz  # default file used with atom coordinates
 latconst = 3.61                 # lattice constant
 coord_cutoff = 3.1              # coordination analysis cut-off radius
 surface_thickness = 4.0         # maximum distance surface atom can have from surface faces [angstrom]
 mesh_quality = 1.8              # minimum mesh quality Tetgen is allowed to make
-box_width = 0.0                 # minimal simulation box width [tip height]
-box_height = 1.5                # simulation box height [tip height]
+#element_volume = 5000          # maximum tetrahedron volume Tetgen is allowed to make
+box_width = 6                   # minimal simulation box width [tip height]
+box_height = 6                  # simulation box height [tip height]
 bulk_height = 20                # bulk substrate height [latconst]
-radius =  16.0                  # inner radius of coarsening cylinder
-coarse_factor = 0.3 1.0 0.6     # coarsening factor; bigger number gives coarser surface
+radius =  31.0                  # inner radius of coarsening cylinder
+coarse_factor = 0.5 1 0         # coarsening factor; bigger number gives coarser surface
                                 # 1st - coarsening factor for atoms
-                                # 2nd - minimum distance between atoms in nanotip below apex [latconst]
-                                # 3rd - minimum distance between atoms in nanotip apex [latconst]
+                                # 2nd - minimum distance between atoms in nanotip below apex [0.25*latconst]
+                                # 3rd - minimum distance between atoms in nanotip apex [0.25*latconst]
 smooth_factor = 1.0             # surface smoothing factor; bigger number gives smoother surface
 charge_smooth_factor = 100.0    # charge smoothing factor; bigger number gives smoother charges
 postprocess_marking = true      # make extra effort to mark correctly the vacuum nodes in shadow area
 distance_tol = 0.16             # minimum distance between atoms from previous and current run to recalculate solution
 n_writefile = 1                 # minimum number of time steps between writing file; 0 turns writing off
 femocs_verbose_mode = verbose   # mute, silent or verbose
-end                             # terminate the search of Femocs parameters 
+write_log = true                # enable writing log file
+femocs_end                      # terminate the search of Femocs parameters 
 
 # Input file for PARCAS MD
 

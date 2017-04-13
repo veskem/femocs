@@ -10,8 +10,6 @@
 
 #include <float.h>
 #include <stdio.h>
-#include <iomanip> // setprecision
-#include <sstream> // stringstream
 
 using namespace std;
 namespace femocs {
@@ -228,8 +226,9 @@ void SolutionReader::print_statistics(const double Q) {
     for (int i = 0; i < size(); ++i)
         q += interpolation[i].scalar;
 
-    cout << "  Q / sum(" << scalar_label << ") = ";
-    printf("%.3f / %.3f = %.4f\n", Q, q, Q/q);
+    stringstream stream; stream << fixed << setprecision(3);
+    stream << "Q / sum(" << scalar_label << ") = " << Q << " / " << q << " = " << Q/q;
+    write_verbose_msg(stream.str());
 }
 
 // Print statistics about interpolated solution
@@ -253,9 +252,11 @@ void SolutionReader::print_statistics() {
     scalar = scalar / n_atoms;
     rms_scalar = sqrt(rms_scalar) / n_atoms;
 
-    cout << "  mean " << vec_label << ": \t" << vec << endl;
-    cout << "   rms " << vec_label << ": \t" << rms_vec << endl;
-    cout << "  mean & rms " << scalar_label << ": " << scalar << "\t" << rms_scalar << endl;
+    stringstream stream;
+    stream << "mean " << vec_label << ": \t" << vec;
+    stream << "\n   rms " << vec_label << ": \t" << rms_vec;
+    stream << "\n  mean & rms " << scalar_label << ": " << scalar << "\t" << rms_scalar;
+    write_verbose_msg(stream.str());
 }
 
 /* ==========================================
@@ -415,7 +416,6 @@ double FieldReader::get_enhancement() const {
     return fabs(Emax / E0);
 }
 
-
 double FieldReader::get_analyt_enhancement() const {
     expect(radius1 > 0, "Invalid minor semi-axis: " + to_string(radius1));
 
@@ -434,16 +434,12 @@ void FieldReader::print_enhancement() const {
 
     stringstream stream;
     stream << fixed << setprecision(3);
-    stream << "  field enhancements,  Femocs:" << gamma1
+    stream << "field enhancements,  Femocs:" << gamma1
             << "  analyt:" << gamma2
-            << "  f-a:"  << gamma1-gamma2
-            << "  f/a:"  << gamma1/gamma2 << endl;;
+            << "  f-a:" << gamma1-gamma2
+            << "  f/a:" << gamma1/gamma2;
 
-    write_log(stream.str());
-
-    if (!MODES.VERBOSE) return;
-    printf("  radius1=%.1f   radius2=%.1f\n", radius1, radius2);
-    cout << stream;
+    write_verbose_msg(stream.str());
 }
 
 /* ==========================================

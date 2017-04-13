@@ -45,9 +45,10 @@ struct Types {
 
 /** Flags to control the output behaviour of the code */
 struct Modes {
-    bool QUIET = false;      ///< If QUIET no information about the code execution progress is printed to console.
-    bool VERBOSE = true;       ///< If DEBUG all the information about the code execution progress is printed to console.
+    bool MUTE = false;      ///< If QUIET no information about the code execution progress is printed to console.
+    bool VERBOSE = true;     ///< If VERBOSE all the information about the code execution progress is printed to console.
     bool WRITEFILE = true;   ///< If WRITEFILE then file writers operate normally, otherwise they return immediately.
+    bool WRITELOG = true;    ///< If WRITELOG then writing log file is enabled
     bool PERIODIC = true;    ///< Imported atoms have periodic boundaries in x- & y-direction
 };
 
@@ -75,13 +76,7 @@ struct Modes {
 #endif // ASSERTMODE
 
 /** Definition to handle cases where operation does not complete normally */
-#define check_message(condition, message) if (condition) { write_log(message); if (!MODES.QUIET) cout << "\nFEMOCS: " << message << endl; return 1; }
-
-/** Definition to print progress messages and to find the start time of code execution */
-#define start_msg(t0, message) { write_log(message); if (MODES.VERBOSE) t0 = __start_msg(message); }
-
-/** Definition to print the execution time of code */
-#define end_msg(t0) if (MODES.VERBOSE) __end_msg(t0)
+#define check_return(condition, message) if (condition) { write_silent_msg(message); return 1; }
 
 /** Return mask of indices that are equal to the scalar */
 vector<bool> vector_equal(const vector<int> *v, const int s);
@@ -128,7 +123,11 @@ void requirement_fails(const char *file, int line, string message);
 /** Throw an informative warning if expectation fails */
 void expectation_fails(const char *file, int line, string message);
 
-void write_message(const string& message);
+/** Write message to log file and if in silent or verbose mode, also to console */
+void write_silent_msg(const string& message);
+
+/** Write message to log file and if in verbose mode, also to console */
+void write_verbose_msg(const string& message);
 
 /** Append line to log-file */
 void write_log(const string& message);
@@ -136,8 +135,10 @@ void write_log(const string& message);
 /** Clear the contents of log-file */
 void clear_log();
 
-double __start_msg(const char* message);
+/** Print progress messages and find the start time of code execution */
+void start_msg(double& t0, const string& message);
 
-void __end_msg(const double t0);
+/** Print the execution time of the code */
+void end_msg(const double t0);
 
 #endif /* MACROS_H_ */

@@ -50,7 +50,6 @@ public:
     double coord_cutoff;        ///< Cut-off distance in Angstroms for Coordination analysis
     double surface_thichness;   ///< Maximum distance the surface atom is allowed to be from surface mesh [angstrom]; 0 turns check off
     int nnn;                    ///< Number of nearest neighbours for given crystal structure
-    int nt;                     ///< Number of OpenMP threads
     double neumann;             ///< Value of Neumann boundary condition
     double E0;                  ///< Value of long range electric field
     bool cluster_anal;          ///< Enable cluster analysis
@@ -95,8 +94,8 @@ public:
     /// Factors that are proportional to the extent of surface coarsening; 0 turns corresponding coarsening component off
     struct CoarseFactor {
         double amplitude;
-        double r0_cylinder;
-        double r0_sphere;
+        int r0_cylinder;
+        int r0_sphere;
     } cfactor;
 
 private:

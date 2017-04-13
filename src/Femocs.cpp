@@ -14,6 +14,7 @@
 
 #include <omp.h>
 #include <algorithm>
+#include <sstream>
 
 using namespace std;
 namespace femocs {
@@ -27,9 +28,9 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) 
     MODES.WRITEFILE = conf.n_writefile > 0;
 
     // Pick the correct verbosity mode flags
-    if      (conf.verbose_mode == "mute")    { MODES.QUIET = true;  MODES.VERBOSE = false; }
-    else if (conf.verbose_mode == "silent")  { MODES.QUIET = false; MODES.VERBOSE = false; }
-    else if (conf.verbose_mode == "verbose") { MODES.QUIET = false; MODES.VERBOSE = true;  }
+    if      (conf.verbose_mode == "mute")    { MODES.MUTE = true;  MODES.VERBOSE = false; }
+    else if (conf.verbose_mode == "silent")  { MODES.MUTE = false; MODES.VERBOSE = false; }
+    else if (conf.verbose_mode == "verbose") { MODES.MUTE = false; MODES.VERBOSE = true;  }
 
     // Clear the results from previous run
     if (conf.clear_output) fail = system("rm -rf output");
@@ -64,7 +65,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
         start_msg(t0, "=== Cleaning surface with Voronoi cells...");
 //        fail = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality + "a10");
         fail = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality);
-        check_message(fail, "Making voronoi cells failed! Field calculation will be skipped!");
+        check_return(fail, "Making voronoi cells failed!");
         end_msg(t0);
 
         dense_surf.write("output/surface_dense_clean.xyz");
@@ -125,7 +126,7 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     if (conf.element_volume != "") command += "a" + conf.element_volume;
     fail = big_mesh.generate(bulk, coarse_surf, vacuum, command);
 
-    check_message(fail, "Triangulation failed! Field calculation will be skipped!");
+    check_return(fail, "Triangulation failed!");
     end_msg(t0);
 
     start_msg(t0, "=== Making surface faces...");
@@ -138,7 +139,7 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     fail = big_mesh.mark_mesh(conf.postprocess_marking);
     big_mesh.nodes.write("output/tetmesh_nodes.xyz");
     big_mesh.elems.write("output/tetmesh_elems.vtk");
-    check_message(fail, "Mesh marking failed! Field calcualtion will be skipped!");
+    check_return(fail, "Mesh marking failed!");
     end_msg(t0);
 
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
@@ -173,8 +174,8 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     bulk_mesh.hexahedra.write("output/hexmesh_bulk" + conf.message + ".vtk");
     vacuum_mesh.hexahedra.write("output/hexmesh_vacuum" + conf.message + ".vtk");
 
-    if (MODES.VERBOSE)
-        cout << "Bulk:   " << bulk_mesh << "\nVacuum: " << vacuum_mesh << endl;
+    stringstream ss; ss << "Bulk:   " << bulk_mesh << "\n  Vacuum: " << vacuum_mesh;
+    write_verbose_msg(ss.str());
 
     return 0;
 }
@@ -183,7 +184,7 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
 int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     start_msg(t0, "=== Importing mesh to Laplace solver...");
     fail = !solver.import_mesh_directly(mesh.nodes.export_dealii(), mesh.hexahedra.export_dealii());
-    check_message(fail, "Importing mesh to Deal.II failed! Field calculation will be skipped!");
+    check_return(fail, "Importing mesh to Deal.II failed!");
     end_msg(t0);
 
     start_msg(t0, "=== Initializing Laplace solver...");
@@ -192,7 +193,8 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     solver.assemble_system();
     end_msg(t0);
 
-    if (MODES.VERBOSE) cout << solver << endl;
+    stringstream ss; ss << solver;
+    write_verbose_msg(ss.str());
 
     start_msg(t0, "=== Running Laplace solver...");
     solver.solve(conf.n_phi, conf.phi_error, true, conf.ssor_param);
@@ -220,17 +222,18 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
 
     start_msg(t0, "=== Importing mesh to rho & T solver...");
     fail = !ch_solver->import_mesh_directly(mesh.nodes.export_dealii(), mesh.hexahedra.export_dealii());
-    check_message(fail, "Importing mesh to Deal.II failed! rho & T calculation will be skipped!");
+    check_return(fail, "Importing mesh to Deal.II failed!");
     ch_solver->setup_system();
     end_msg(t0);
 
-    if (MODES.VERBOSE) cout << *(ch_solver) << endl;
+    stringstream ss; ss << *(ch_solver);
+    write_verbose_msg(ss.str());
 
     start_msg(t0, "=== Running rho & T solver...\n");
     double t_error = ch_solver->run_specific(conf.t_error, conf.n_newton, false, "", MODES.VERBOSE, 2.0);
     end_msg(t0);
 
-    check_message(t_error > conf.t_error, "Temperature didn't converge, err=" + to_string(t_error)) + "! Using previous solution!";
+    check_return(t_error > conf.t_error, "Temperature didn't converge, err=" + to_string(t_error));
 
     start_msg(t0, "=== Extracting T and rho...");
     bulk_interpolator.extract_solution(ch_solver, mesh);
@@ -269,6 +272,7 @@ int Femocs::run(const double elfield, const string &message) {
     static unsigned int timestep = 0;  // Counter to measure how many times Femocs has been called
     static bool prev_skip_calculations = true;  // Value of skip_calculations in last call
     double tstart;                     // Variable used to measure the code execution time
+    stringstream stream; stream << fixed << setprecision(3);
 
     if (!prev_skip_calculations && MODES.WRITEFILE)
         MODES.WRITEFILE = false;
@@ -277,14 +281,14 @@ int Femocs::run(const double elfield, const string &message) {
         MODES.WRITEFILE = true;
 
     conf.message = to_string(timestep++);
-    write_message("\nFEMOCS: running at timestep " + conf.message);
+    write_silent_msg("Running at timestep " + conf.message);
     conf.message = "_" + string( max(0.0, 5.0 - conf.message.length()), '0' ) + conf.message;
 
     prev_skip_calculations = skip_calculations;
 
-    check_message(skip_calculations, "Atoms haven't moved significantly, " +
-            to_string(reader.rms_distance).substr(0,5) + " < " + to_string(conf.distance_tol).substr(0,5)
-            + "! Field calculation will be skipped!");
+    stream.str(""); stream << "Atoms haven't moved significantly, " << reader.rms_distance
+        << " < " << conf.distance_tol << "! Field calculation will be skipped!";
+    check_return(skip_calculations, stream.str());
 
     skip_calculations = true;
     conf.E0 = elfield; // long-range electric field
@@ -295,8 +299,7 @@ int Femocs::run(const double elfield, const string &message) {
     TetgenMesh vacuum_mesh; // FEM mesh in vacuum
 
     // Generate FEM mesh
-    fail = generate_meshes(bulk_mesh, vacuum_mesh);
-    if (fail) return 1;
+    check_return( generate_meshes(bulk_mesh, vacuum_mesh), "Mesh generation failed!" );
 
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
     vacuum_interpolator.set_analyt(conf.E0, conf.radius, dense_surf.sizes.zbox);
@@ -304,24 +307,22 @@ int Femocs::run(const double elfield, const string &message) {
 
     // Solve Laplace equation on vacuum mesh
     fch::Laplace<3> laplace_solver;
-    fail = solve_laplace(vacuum_mesh, laplace_solver);
-    if (fail) return 1;
+    check_return( solve_laplace(vacuum_mesh, laplace_solver), "Solving Laplace equation failed!");
 
-    write_slice("output/slice.xyz");
+    //write_slice("output/slice.xyz");
 
     // Solve heat & continuity equation on bulk mesh
-    fail = solve_heat(bulk_mesh, laplace_solver);
-    if (fail) return 1;
+    check_return( solve_heat(bulk_mesh, laplace_solver), "Solving heat & continuity equation failed!");
 
     // Extract face charges
-    fail = extract_charge(vacuum_mesh);
-    if (fail) return 1;
+    check_return( extract_charge(vacuum_mesh), "Extraction of face charges failed!" );
 
     start_msg(t0, "=== Saving atom positions...");
     reader.save_current_run_points(conf.distance_tol);
     end_msg(t0);
 
-    write_message("\nFEMOCS: total execution time " + to_string(omp_get_wtime() - tstart));
+    stream.str(""); stream << "Total execution time " << omp_get_wtime() - tstart;
+    write_silent_msg(stream.str());
     skip_calculations = false;
 
     return 0;
@@ -368,12 +369,12 @@ int Femocs::import_atoms(const string& file_name) {
     else fname = file_name;
 
     file_type = get_file_type(fname);
-    expect(file_type == "ckx" || file_type == "xyz", "Unknown file type: " + file_type);
+    require(file_type == "ckx" || file_type == "xyz", "Unknown file type: " + file_type);
 
     start_msg(t0, "=== Importing atoms...");
     reader.import_file(fname);
     end_msg(t0);
-    if (MODES.VERBOSE) cout << "#input atoms: " << reader.size() << endl;
+    write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
     start_msg(t0, "=== Comparing with previous run...");
     skip_calculations = reader.calc_rms_distance(conf.distance_tol) < conf.distance_tol;
@@ -413,7 +414,7 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
     start_msg(t0, "=== Importing atoms...");
     reader.import_parcas(n_atoms, coordinates, box);
     end_msg(t0);
-    if (MODES.VERBOSE) cout << "#input atoms: " << reader.size() << endl;
+    write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
     start_msg(t0, "=== Comparing with previous run...");
     skip_calculations = reader.calc_rms_distance(conf.distance_tol) < conf.distance_tol;
@@ -448,14 +449,14 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
     start_msg(t0, "=== Importing atoms...");
     reader.import_helmod(n_atoms, x, y, z, types);
     end_msg(t0);
-    if (MODES.VERBOSE) cout << "#input atoms: " << reader.size() << endl;
+    write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
     start_msg(t0, "=== Comparing with previous run...");
     skip_calculations = reader.calc_rms_distance(conf.distance_tol) < conf.distance_tol;
     end_msg(t0);
 
     if (!skip_calculations) {
-        start_msg(t0, "=== Calculating coords from atom types...");
+        start_msg(t0, "=== Calculating coordinations from atom types...");
         reader.calc_coordinations(conf.nnn);
         end_msg(t0);
 
@@ -467,9 +468,12 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
 
 // calculate and export electric field on imported atom coordinates
 int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    check_message(vacuum_interpolator.size() == 0, "No field to export!");
+    if (n_atoms <= 0) return 0;
+    check_return(vacuum_interpolator.size() == 0, "No field to export!");
 
-    if (!skip_calculations) {
+    if (skip_calculations)
+        write_silent_msg("Using previous solution!");
+    else {
         start_msg(t0, "=== Interpolating E and phi...");
         fields.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff, 0, false);
         end_msg(t0);
@@ -488,10 +492,12 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
 
 // calculate and export temperatures on imported atom coordinates
 int Femocs::export_temperature(const int n_atoms, double* T) {
-    if (!conf.heating) return 0;
-    check_message(bulk_interpolator.size() == 0, "No temperature to export!");
+    if (n_atoms <= 0 || !conf.heating) return 0;
+    check_return(bulk_interpolator.size() == 0, "No temperature to export!");
 
-    if (!skip_calculations) {
+    if (skip_calculations)
+        write_silent_msg("Using previous solution!");
+    else {
         start_msg(t0, "=== Interpolating T and rho...");
         temperatures.interpolate(reader);
         end_msg(t0);
@@ -509,9 +515,12 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
 
 // calculate and export charges & forces on imported atom coordinates
 int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
-    check_message(fields.size() == 0 || face_charges.size() == 0, "No force to export!");
+    if (n_atoms <= 0) return 0;
+    check_return(fields.size() == 0 || face_charges.size() == 0, "No force to export!");
 
-    if (!skip_calculations) {
+    if (skip_calculations)
+        write_silent_msg("Using previous solution!");
+    else {
         start_msg(t0, "=== Calculating charges and forces...");
         forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coord_cutoff,
                 conf.charge_smooth_factor, conf.force_factor);
@@ -534,7 +543,8 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
 // linearly interpolate electric field at given points
 int Femocs::interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-    check_message(vacuum_interpolator.size() == 0, "No solution to export!");
+    if (n_points <= 0) return 0;
+    check_return(vacuum_interpolator.size() == 0, "No solution to export!");
 
     FieldReader fr(&vacuum_interpolator);
     start_msg(t0, "=== Interpolating electric field...");
@@ -550,8 +560,10 @@ int Femocs::interpolate_elfield(const int n_points, const double* x, const doubl
 }
 
 // linearly interpolate electric potential at given points
-int Femocs::interpolate_phi(const int n_points, const double* x, const double* y, const double* z, double* phi, int* flag) {
-    check_message(vacuum_interpolator.size() == 0, "No solution to export!");
+int Femocs::interpolate_phi(const int n_points, const double* x, const double* y, const double* z,
+        double* phi, int* flag) {
+    if (n_points <= 0) return 0;
+    check_return(vacuum_interpolator.size() == 0, "No solution to export!");
 
     FieldReader fr(&vacuum_interpolator);
     fr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coord_cutoff, 2, false);

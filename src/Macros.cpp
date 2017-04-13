@@ -8,13 +8,8 @@
 #include "Macros.h"
 
 #include <omp.h>
-#include <string.h>
-#include <stdexcept>
 #include <algorithm>
-#include <numeric>
-#include <iomanip>
 #include <fstream>
-#include <stdio.h>
 
 using namespace std;
 
@@ -51,37 +46,53 @@ void expectation_fails(const char *file, int line, string message) {
     cout << exc << endl;
 }
 
-double __start_msg(const char* message) {
-    const int row_len = 45;
-    const size_t msglen = strlen(message);
+// Write debug message to console and log file and start timer
+void start_msg(double& t0, const string& message) {
+    if (MODES.WRITELOG) write_log(message);
+    if (MODES.VERBOSE) {
+        const int row_len = 45;
+        const size_t msg_len = message.size();
 
-    int whitespace_len = 0;
-    if (row_len > msglen && message[msglen-1] != '\n')
-        whitespace_len = row_len - msglen;
+        int whitespace_len = 0;
+        if (row_len > msg_len && message[msg_len-1] != '\n')
+            whitespace_len = row_len - msg_len;
 
-    cout << endl << string(message) << string(whitespace_len, ' ');
-    cout.flush();
+        cout << endl << message << string(whitespace_len, ' ');
+        cout.flush();
 
-    return omp_get_wtime();
+        t0 = omp_get_wtime();
+    }
 }
 
-void __end_msg(const double t0) {
-    printf("time: %.3f\n", omp_get_wtime() - t0);
+// Print code execution time to console
+void end_msg(const double t0) {
+    if (MODES.VERBOSE) printf("time: %.3f\n", omp_get_wtime() - t0);
 }
 
-void write_message(const string& message) {
-    write_log(message);
-    if (!MODES.QUIET) cout << message << endl;
+// Write message to log file and console
+void write_silent_msg(const string& message) {
+    if (MODES.WRITELOG) write_log(message);
+    if (!MODES.MUTE) cout << "\nFEMOCS: " << message << endl;
 }
 
+// Write message to log file and console
+void write_verbose_msg(const string& message) {
+    if (MODES.WRITELOG) write_log("  " + message);
+    if (MODES.VERBOSE) cout << "  " << message << endl;
+}
+
+// Append line to log file
 void write_log(const string& message) {
     ofstream logfile(FEMOCSLOGPATH, ios_base::app);
-    if (logfile) logfile << string(message) << endl;
+    if (logfile) logfile << message << endl;
 }
 
+// Delete contents of log file
 void clear_log() {
-    const string cmd = "rm -f " + FEMOCSLOGPATH;
-    if ( system(cmd.c_str()) ) return;
+    if (MODES.WRITELOG) {
+        const string cmd = "rm -f " + FEMOCSLOGPATH;
+        if ( system(cmd.c_str()) ) return;
+    }
 }
 
 // Return mask of indices that are not equal to the scalar
