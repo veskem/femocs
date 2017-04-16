@@ -477,8 +477,15 @@ bool TetgenMesh::mark_mesh(const bool postprocess) {
     if (postprocess)
         fail = post_process_marking();
 
-    if (fail) return 1;
+    return fail;
+}
 
+// Mark mesh nodes and elements
+bool TetgenMesh::mark_mesh() {
+    if (mark_nodes_vol3())
+        return 1;
+
+    mark_elems_vol3();
     return 0;
 }
 
@@ -620,6 +627,95 @@ void TetgenMesh::mark_elems() {
         else
             elems.append_marker(TYPES.SURFACE);
     }
+}
+
+void TetgenMesh::calc_nborlist(vector<vector<int>>& nborlist) {
+    nborlist = vector<vector<int>>(nodes.size());
+    for (SimpleElement elem : elems)
+        for (int n1 : elem)
+            for (int n2 : elem) {
+                if (n1 == n2) continue;
+                nborlist[n1].push_back(n2);
+            }
+}
+
+bool TetgenMesh::mark_nodes_vol3() {
+    int node;
+    vector<int> neighbours;
+    
+    // Calculate neighbourlist for nodes
+    vector<vector<int>> nborlist;
+    calc_nborlist(nborlist);
+            
+    // Mark all the nodes with initial values
+    nodes.init_markers(nodes.size(), TYPES.NONE);
+        
+    // Mark the surface, bulk and vacuum nodes by their known position in array
+    for (node = nodes.indxs.surf_start; node <= nodes.indxs.surf_end; ++node)
+        nodes.set_marker(node, TYPES.SURFACE);
+    for (node = nodes.indxs.bulk_start; node <= nodes.indxs.bulk_end; ++node)
+        nodes.set_marker(node, TYPES.BULK);
+    for (node = nodes.indxs.vacuum_start; node <= nodes.indxs.vacuum_end; ++node)
+        nodes.set_marker(node, TYPES.VACUUM);
+
+    // Mark the bulk nodes
+    neighbours = nborlist[nodes.indxs.bulk_start];
+    for (int i = 0; i < neighbours.size(); ++i) {
+        node = neighbours[i];
+        if (nodes.get_marker(node) == TYPES.NONE) {
+            nodes.set_marker(node, TYPES.BULK);
+            neighbours.insert(neighbours.end(), nborlist[node].begin(), nborlist[node].end());
+        }
+    }
+    
+    // Mark the vacuum nodes
+    neighbours = nborlist[nodes.indxs.vacuum_start];
+    for (int i = 0; i < neighbours.size(); ++i) {
+        node = neighbours[i];
+        if (nodes.get_marker(node) == TYPES.NONE) {
+            nodes.set_marker(node, TYPES.VACUUM);
+            neighbours.insert(neighbours.end(), nborlist[node].begin(), nborlist[node].end());
+        }
+    }
+    
+    // Nodes inside the thin nanotip may not have nearest neighbour connection
+    // with the rest of the bulk. Therefore mark them separately
+    for (node = 0; node < nodes.size(); ++node)
+        if (nodes.get_marker(node) == TYPES.NONE)
+            nodes.set_marker(node, TYPES.BULK);
+            
+    // Check the result with the number of vacuum atoms: if the surface is too coarse,
+    // all the atoms (except the ones added manually to the vacuum)
+    // will be marked as either surface or bulk atom
+    nodes.calc_statistics();
+    expect(nodes.stat.n_vacuum > 4, "Surface is too coarse, "
+        "consider decreasing the coarsening factor!");
+    return nodes.stat.n_vacuum <= 4;
+}
+
+// Locate the element by the location of its nodes
+int TetgenMesh::locate_element(SimpleElement& elem) {
+    // Element in vacuum is supposed not to have nodes in bulk,
+    //  in bulk is supposed not to have nodes in vacuum,
+    //  in surface is supposed to consist only of nodes in surface
+    for (int node : elem) {
+        const int nodemarker = nodes.get_marker(node);
+        if (nodemarker == TYPES.VACUUM)
+            return TYPES.VACUUM;
+        else if (nodemarker == TYPES.BULK)
+            return TYPES.BULK;
+    }
+    
+    return TYPES.SURFACE;
+}
+
+void TetgenMesh::mark_elems_vol3() {
+    // Reserve memory for markers
+    elems.init_markers(elems.size());
+
+    // Locate all the elements
+    for (SimpleElement elem : elems)
+        elems.append_marker(locate_element(elem));
 }
 
 void TetgenMesh::mark_elems_vol2() {

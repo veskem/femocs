@@ -7,17 +7,17 @@ cluster_anal = false            # enable cluster analysis
 use_histclean = false           # use histogram cleaner to get rid of sharp peaks in the solution
 heating = false                 # calculate current density and temperature in nanotip
 clear_output = true;            # clear output folder before the run
-infile = input/nanotip_hr5.xyz  # default file used with atom coordinates
+infile = input/nanotip_small.xyz  # default file used with atom coordinates
 latconst = 3.61                 # lattice constant
 coord_cutoff = 3.1              # coordination analysis cut-off radius
 surface_thickness = 4.0         # maximum distance surface atom can have from surface faces [angstrom]
 mesh_quality = 1.8              # minimum mesh quality Tetgen is allowed to make
-#element_volume = 5000          # maximum tetrahedron volume Tetgen is allowed to make
+element_volume = 100          # maximum tetrahedron volume Tetgen is allowed to make
 box_width = 6                   # minimal simulation box width [tip height]
 box_height = 6                  # simulation box height [tip height]
 bulk_height = 20                # bulk substrate height [latconst]
 radius =  31.0                  # inner radius of coarsening cylinder
-coarse_factor = 0.5 1 0         # coarsening factor; bigger number gives coarser surface
+coarse_factor = 0.1 3 2         # coarsening factor; bigger number gives coarser surface
                                 # 1st - coarsening factor for atoms
                                 # 2nd - minimum distance between atoms in nanotip below apex [0.25*latconst]
                                 # 3rd - minimum distance between atoms in nanotip apex [0.25*latconst]

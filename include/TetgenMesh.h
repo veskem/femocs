@@ -40,6 +40,9 @@ public:
 
     /** Mark mesh nodes and elements by their location relative to the surface mesh */
     bool mark_mesh(const bool postprocess);
+    
+    /** Mark mesh nodes and elements by their location relative to the surface atoms */
+    bool mark_mesh();
 
     /** Separate generated mesh into bulk and vacuum meshes */
     bool separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd);
@@ -88,12 +91,19 @@ private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
 
+    void calc_nborlist(vector<vector<int>>& nborlist);
+    int locate_element(SimpleElement& elem);
+    void mark_elems_vol3();
+    bool mark_nodes_vol3();
+    
     void mark_nodes();
     void mark_edges();
     void mark_faces();
     void mark_elems();
     void mark_elems_byrsi();
     void mark_elems_vol2();
+    
+
 
     void remark_perimeter_nodes();
 

@@ -64,7 +64,7 @@ void write_kmcsmall(ofstream &file) {
 
 void write_kmcbig(ofstream &file) {
     file << "infile = input/mushroom2.ckx" << endl;
-    file << "coarse_factor = 0.3 6 4" << endl;
+    file << "coarse_factor = 0.4 6 4" << endl;
     file << "latconst = 2.0"          << endl;
     file << "radius = 20.0"           << endl;
 }

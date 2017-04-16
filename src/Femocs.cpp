@@ -136,7 +136,8 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     big_mesh.faces.write("output/surface_faces.vtk");
 
     start_msg(t0, "=== Marking tetrahedral mesh...");
-    fail = big_mesh.mark_mesh(conf.postprocess_marking);
+    // fail = big_mesh.mark_mesh(conf.postprocess_marking);
+    fail = big_mesh.mark_mesh();
     big_mesh.nodes.write("output/tetmesh_nodes.xyz");
     big_mesh.elems.write("output/tetmesh_elems.vtk");
     check_return(fail, "Mesh marking failed!");

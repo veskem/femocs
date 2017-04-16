@@ -48,6 +48,12 @@ public:
     /** Append cell to the mesh */
     virtual void append(const SimpleCell<dim> &cell) {}
 
+    /** Initialize markers with value */
+    void init_markers(const int N, const int value) {
+        require(N >= 0, "Invalid number of markers: " + to_string(N));
+        markers = vector<int>(N, value);
+    }
+    
     /** Initialize marker appending */
     void init_markers(const int N) {
         require(N >= 0, "Invalid number of markers: " + to_string(N));
