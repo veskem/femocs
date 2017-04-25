@@ -10,6 +10,7 @@
 #include <omp.h>
 #include <algorithm>
 #include <fstream>
+#include <numeric>
 
 using namespace std;
 

@@ -60,7 +60,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     end_msg(t0);
 
     dense_surf.write("output/surface_dense.xyz");
-    
+
     if (conf.surface_cleaner == "voronois") {
         start_msg(t0, "=== Cleaning surface with Voronoi cells...");
 //        fail = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality + "a10");
@@ -136,7 +136,7 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     big_mesh.faces.write("output/surface_faces.vtk");
 
     start_msg(t0, "=== Marking tetrahedral mesh...");
-    // fail = big_mesh.mark_mesh(conf.postprocess_marking);
+    //fail = big_mesh.mark_mesh(conf.postprocess_marking);
     fail = big_mesh.mark_mesh();
     big_mesh.nodes.write("output/tetmesh_nodes.xyz");
     big_mesh.elems.write("output/tetmesh_elems.vtk");
@@ -200,6 +200,7 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     start_msg(t0, "=== Running Laplace solver...");
     solver.solve(conf.n_phi, conf.phi_error, true, conf.ssor_param);
     end_msg(t0);
+
 
     start_msg(t0, "=== Extracting E and phi...");
     fail = vacuum_interpolator.extract_solution(&solver, mesh);
@@ -310,8 +311,6 @@ int Femocs::run(const double elfield, const string &message) {
     fch::Laplace<3> laplace_solver;
     check_return( solve_laplace(vacuum_mesh, laplace_solver), "Solving Laplace equation failed!");
 
-    //write_slice("output/slice.xyz");
-
     // Solve heat & continuity equation on bulk mesh
     check_return( solve_heat(bulk_mesh, laplace_solver), "Solving heat & continuity equation failed!");
 
@@ -326,21 +325,26 @@ int Femocs::run(const double elfield, const string &message) {
     write_silent_msg(stream.str());
     skip_calculations = false;
 
+//    write_slice("output/slice.xyz");
+
     return 0;
 }
 
 // Interpolate the solution on the x-z plane in the middle of simulation box
 void Femocs::write_slice(const string& file_name) {
-    if (!MODES.WRITEFILE) return;
+	int writefile_save = MODES.WRITEFILE;
+	MODES.WRITEFILE = true;
 
     const int nx = 300;  // number of points in x-direction
     const int nz = 300;  // number of points in z-direction
 
-    const double dx = (reader.sizes.xmid - reader.sizes.xmin) / (nx-1);
-    const double dz = (reader.sizes.zmax - dense_surf.sizes.zmin) / (nz-1);
+	const double xmin = reader.sizes.xmid - 3*conf.radius;
+	const double zmax = reader.sizes.zmin + 3*conf.radius; 
+    const double dx = (reader.sizes.xmid - xmin) / (nx-1);
+    const double dz = (zmax - dense_surf.sizes.zmin) / (nz-1);
 
     Medium medium(nx * nz);
-    double x = reader.sizes.xmin;
+    double x = xmin;
 
     for (int i = 0; i < nx; ++i) {
         double z = dense_surf.sizes.zmin;
@@ -353,12 +357,9 @@ void Femocs::write_slice(const string& file_name) {
 
     FieldReader fr(&vacuum_interpolator);
     fr.interpolate(medium, conf.use_histclean * conf.coord_cutoff);
-
-    for (int i = 0; i < fr.size(); ++i)
-        if (fr.get_point(i).distance(coarseners.centre) <= conf.radius)
-            fr.set_interpolation(i, Solution(0));
-
     fr.write(file_name);
+
+   	MODES.WRITEFILE = writefile_save;
 }
 
 // import atoms from file
