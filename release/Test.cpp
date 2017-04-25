@@ -93,14 +93,14 @@ void write_cluster(ofstream &file) {
 }
 
 void write_molten(ofstream &file) {
-    file << "infile = input/nanotip_melt.xyz" << endl;
+    file << "infile = input/nanotip_molten.xyz" << endl;
     file << "coarse_factor = 0.3 6 4"  << endl;
     file << "radius = 45.0"            << endl;
     file << "surface_thichness = 4.65" << endl;
 }
 
 void write_moltenbig(ofstream &file) {
-    file << "infile = input/nanotip_melt_big.xyz" << endl;
+    file << "infile = input/nanotip_molten.ckx" << endl;
     file << "coarse_factor = 0.3 6 4"  << endl;
     file << "radius = 65.0"            << endl;
     file << "surface_thichness = 4.65" << endl;
