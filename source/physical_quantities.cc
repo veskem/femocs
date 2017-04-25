@@ -28,7 +28,7 @@ double PhysicalQuantities::emission_current(double field, double temperature) {
 }
 
 double PhysicalQuantities::nottingham_de(double field, double temperature) {
-	return std::exp(bilinear_interp(std::log(field), temperature, nottingham_grid));
+	return bilinear_interp(std::log(field), temperature, nottingham_grid);
 }
 
 double PhysicalQuantities::evaluate_resistivity(double temperature) const {
@@ -224,6 +224,7 @@ void PhysicalQuantities::output_to_files() {
 	fclose(sigma_file);
 	fclose(kappa_file);
 	fclose(emission_file);
+	fclose(nottingham_file);
 }
 
 /**

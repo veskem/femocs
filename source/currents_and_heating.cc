@@ -793,7 +793,7 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
 						double emission_current = pq->emission_current(e_field, prev_temp);
 						// Nottingham heat flux in
 						// (eV*A/nm^2) -> (eV*n*q_e/(s*nm^2)) -> (J*n/(s*nm^2)) -> (W/nm^2)
-						double nottingham_flux = pq->nottingham_de(e_field, prev_temp)*emission_current;
+						double nottingham_flux = -1.0*pq->nottingham_de(e_field, prev_temp)*emission_current;
 
 						for (unsigned int k=0; k<dofs_per_cell; ++k) {
 							potential_phi[k] = fe_face_values[potential].value(k, q);
