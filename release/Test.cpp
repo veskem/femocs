@@ -20,7 +20,6 @@ void print_progress(const string& message, const bool contition) {
 }
 
 void write_defaults(ofstream &file) {
-
     file << "heating = false"            << endl;
     file << "clear_output = true"        << endl;
     file << "smooth_factor = 0.0"        << endl;
@@ -37,6 +36,12 @@ void write_defaults(ofstream &file) {
 
 void write_hr5(ofstream &file) {
     file << "infile = input/nanotip_hr5.xyz" << endl;
+    file << "coarse_factor = 0.3 4 2"        << endl;
+    file << "radius = 14.0"                  << endl;
+}
+
+void write_rectangle(ofstream &file) {
+    file << "infile = input/nanotip_rectangle.xyz" << endl;
     file << "coarse_factor = 0.3 4 2"        << endl;
     file << "radius = 14.0"                  << endl;
 }
@@ -119,15 +124,16 @@ int main(int argc, char **argv) {
 
         ofstream file(filename);
 
-        if      (mode == "kmcsmall") write_kmcsmall(file);
-        else if (mode == "kmcbig")   write_kmcbig(file);
-        else if (mode == "hr5")      write_hr5(file);
-        else if (mode == "mdsmall")  write_mdsmall(file);
-        else if (mode == "mdbig")    write_mdbig(file);
-        else if (mode == "stretch")  write_stretch(file);
-        else if (mode == "extend")   write_extend(file);
-        else if (mode == "cluster")  write_cluster(file);
-        else if (mode == "molten")   write_molten(file);
+        if      (mode == "kmcsmall")  write_kmcsmall(file);
+        else if (mode == "kmcbig")    write_kmcbig(file);
+        else if (mode == "hr5")       write_hr5(file);
+        else if (mode == "rectangle") write_rectangle(file);
+        else if (mode == "mdsmall")   write_mdsmall(file);
+        else if (mode == "mdbig")     write_mdbig(file);
+        else if (mode == "stretch")   write_stretch(file);
+        else if (mode == "extend")    write_extend(file);
+        else if (mode == "cluster")   write_cluster(file);
+        else if (mode == "molten")    write_molten(file);
         else if (mode == "moltenbig") write_moltenbig(file);
 
         else {
@@ -137,11 +143,13 @@ int main(int argc, char **argv) {
             printf("  kmcbig      big kMC nanotip\n");
             printf("  mdsmall     small MD nanotip\n");
             printf("  mdbig       big MD nanotip\n");
-            printf("  hr5         symmetric MD nanotip with aspect ratio 5\n");
+            printf("  hr5         symmetric nanotip with aspect ratio 5\n");
+            printf("  rectangle   symmetric nanotip with rectangular substrate\n");
             printf("  stretch     stretch the substrate of small MD nanotip\n");
             printf("  extend      extend the system below the MD apex\n");
             printf("  cluster     MD nanotip with clusters\n");
-            printf("  molten      MD nanotip with molten apex\n");
+            printf("  molten      nanotip with molten apex on top of thin rod\n");
+            printf("  moltenbig   symmetric MD nanotip with molten apex\n");
 
             file.close();
             system("rm -rf tmpfile");

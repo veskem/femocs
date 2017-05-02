@@ -201,7 +201,6 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     solver.solve(conf.n_phi, conf.phi_error, true, conf.ssor_param);
     end_msg(t0);
 
-
     start_msg(t0, "=== Extracting E and phi...");
     fail = vacuum_interpolator.extract_solution(&solver, mesh);
     end_msg(t0);
@@ -337,23 +336,20 @@ void Femocs::write_slice(const string& file_name) {
 
     const int nx = 300;  // number of points in x-direction
     const int nz = 300;  // number of points in z-direction
+	const double eps = 1e-5;
 
-	const double xmin = reader.sizes.xmid - 3*conf.radius;
-	const double zmax = reader.sizes.zmin + 3*conf.radius; 
-    const double dx = (reader.sizes.xmid - xmin) / (nx-1);
-    const double dz = (zmax - dense_surf.sizes.zmin) / (nz-1);
+	const double xmax = reader.sizes.xmid;
+	const double xmin = xmax - 3*conf.radius;
+	const double zmin = reader.sizes.zmin; 
+	const double zmax = zmin + 3*conf.radius; 
+    const double dx = (xmax - xmin) / (nx-1);
+    const double dz = (zmax - zmin) / (nz-1);
 
     Medium medium(nx * nz);
-    double x = xmin;
 
-    for (int i = 0; i < nx; ++i) {
-        double z = dense_surf.sizes.zmin;
-        for (int j = 0; j < nz; ++j) {
-            medium.append(Point3(x, reader.sizes.ymid, z));
-            z += dz;
-        }
-        x += dx;
-    }
+    for (double x = xmin; x < xmax + eps; x += dx)
+        for (double z = zmin; z < zmax + eps; z += dz)
+            medium.append( Point3(x, reader.sizes.ymid, z) );
 
     FieldReader fr(&vacuum_interpolator);
     fr.interpolate(medium, conf.use_histclean * conf.coord_cutoff);
