@@ -37,25 +37,27 @@ void Media::generate_simple(const Medium::Sizes& s, const double z) {
 
 // Generate edge with regular atom distribution between surface corners
 void Media::generate_middle(const Medium::Sizes& s, const double z, const double dist) {
-    require(dist > 0, "Invalid dist between atoms: " + to_string(dist));
+    require(dist > 0, "Invalid distance between atoms: " + to_string(dist));
     const int n_atoms_per_side_x = s.xbox / dist + 1;
     const int n_atoms_per_side_y = s.ybox / dist + 1;
+    const double dx = s.xbox / n_atoms_per_side_x;
+    const double dy = s.ybox / n_atoms_per_side_y;
 
     // Reserve memory for atoms
     reserve( 2 * (n_atoms_per_side_x + n_atoms_per_side_y) - 4 );
 
-    // Add atoms on x-edge
+    // Add atoms along x-edge
     for (int i = 1; i < n_atoms_per_side_x; ++i) {
-        double y = s.xmin + i * s.xbox / n_atoms_per_side_x;
-        append( Point3(s.xmin, y, z) );
-        append( Point3(s.xmax, y, z) );
-    }
-
-    // Add atoms on y-edge
-    for (int i = 1; i < n_atoms_per_side_y; ++i) {
-        double x = s.ymin + i * s.ybox / n_atoms_per_side_y;
+        double x = s.xmin + i * dx;
         append( Point3(x, s.ymin, z) );
         append( Point3(x, s.ymax, z) );
+    }
+
+    // Add atoms along y-edge
+    for (int i = 1; i < n_atoms_per_side_y; ++i) {
+        double y = s.ymin + i * dy;
+        append( Point3(s.xmin, y, z) );
+        append( Point3(s.xmax, y, z) );
     }
 }
 
@@ -114,22 +116,21 @@ Media Media::extend(const string &file_name, Coarseners &coarseners) {
 // Extend the flat area by generating additional atoms
 Media Media::extend(const double latconst, const double box_width, Coarseners &coarseners) {
     calc_statistics();
-    const double current_box_width = min(sizes.xbox, sizes.ybox);
     const double desired_box_width = box_width * sizes.zbox;
 
-    // get over estimation for number of generated points
-    const int n_generated = pow(desired_box_width / latconst + 1, 2) - pow(current_box_width / latconst - 1, 2);
-
-    // copy input points without modification
+    // Over estimate the number of generated points and reserve memory for them
+    int n_generated = pow(desired_box_width / latconst + 1, 2);
+    n_generated -= (sizes.xbox / latconst - 1) * (sizes.ybox / latconst - 1);
     Media stretched( max(0, n_generated) );
 
-    const double W = (desired_box_width - current_box_width) / 2.0;  // generation area width
+    const double Wx = (desired_box_width - sizes.xbox) / 2.0;  // generation area width
+    const double Wy = (desired_box_width - sizes.ybox) / 2.0;
 
     // if the input surface isn't sufficiently wide, add atoms to it, otherwise just add the boundary nodes
-    if (W > 0) {
-        // add points outside already existing area
-        for (double y = sizes.ymin - W; y <= sizes.ymax + W; y += latconst)
-            for (double x = sizes.xmin - W; x <= sizes.xmax + W; x += latconst)
+    if (Wx > 0 && Wy > 0) {
+        // add points outside the already existing area
+        for (double y = sizes.ymin - Wy; y <= sizes.ymax + Wy; y += latconst)
+            for (double x = sizes.xmin - Wx; x <= sizes.xmax + Wx; x += latconst)
                 if ( x < sizes.xmin || x > sizes.xmax || y < sizes.ymin || y > sizes.ymax)
                     stretched.append( Point3(x, y, coarseners.centre.z) );
         stretched.calc_statistics();
