@@ -103,8 +103,6 @@ private:
     void mark_elems_byrsi();
     void mark_elems_vol2();
     
-
-
     void remark_perimeter_nodes();
 
     void remark_elems(const int skip_type);

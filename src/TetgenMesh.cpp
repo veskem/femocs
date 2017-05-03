@@ -688,8 +688,8 @@ bool TetgenMesh::mark_nodes_vol3() {
     // all the atoms (except the ones added manually to the vacuum)
     // will be marked as either surface or bulk atom
     nodes.calc_statistics();
-    expect(nodes.stat.n_vacuum > 4, "Surface is too coarse, "
-        "consider decreasing the coarsening factor!");
+    expect(nodes.stat.n_vacuum > 4, "Surface is too coarse or rough! Check the output/surface_coarse.xyz,\n"
+            "make sure the radius is big enough and consider altering the coarsening factor!");
     return nodes.stat.n_vacuum <= 4;
 }
 
