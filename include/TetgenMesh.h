@@ -37,9 +37,6 @@ public:
 
     /** Generate additional data that is needed to mark mesh */
     bool generate_appendices();
-
-    /** Mark mesh nodes and elements by their location relative to the surface mesh */
-    bool mark_mesh(const bool postprocess);
     
     /** Mark mesh nodes and elements by their location relative to the surface atoms */
     bool mark_mesh();
@@ -53,7 +50,7 @@ public:
     /** Generate list of nodes that surround the tetrahedral nodes */
     vector<vector<unsigned int>> get_voronoi_cells() const;
 
-    /** Use tetgen built-in function to write elements, faces, edges and nodes into file */
+    /** Use Tetgen built-in functions to write mesh elements data into vtk file */
     bool write(const string& file_name);
 
     /** Copy node and element data from Tetgen input buffer into output one */
@@ -91,27 +88,32 @@ private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
 
-    void calc_nborlist(vector<vector<int>>& nborlist);
+    /** Locate the tetrahedron by the location of its nodes */
     int locate_element(SimpleElement& elem);
-    void mark_elems_vol3();
-    bool mark_nodes_vol3();
-    
-    void mark_nodes();
-    void mark_edges();
-    void mark_faces();
+
+    /** Calculate the neighbourlist for the nodes.
+     * Two nodes are considered neighbours if they share a tetrahedron. */
+    void calc_nborlist(vector<vector<int>>& nborlist);
+
+    /** Mark the tetrahedra by the location of nodes */
     void mark_elems();
-    void mark_elems_byrsi();
-    void mark_elems_vol2();
-    
-    void remark_perimeter_nodes();
 
-    void remark_elems(const int skip_type);
+    /** Mark the nodes by using DBSCAN (Density-Based Spatial Clustering of Applications with Noise)
+     * algorithm. The same algorithm is also used in cluster analysis. */
+    bool mark_nodes();
 
-    bool post_process_marking();
+    /** Mark the edges on the simulation cell perimeter by the node markers */
+    void mark_edges();
 
+    /** Mark the boundary faces of mesh */
+    void mark_faces();
+
+    /** Generate the edges from the elements.
+     * Overlapping edges are not cleaned to make it easier to match them with element. */
     void generate_edges();
 
-    /** Generate surface faces from already existing elements and surface nodes */
+    /** Generate surface faces from elements and known location of surface nodes.
+     * Overlapping faces are not cleaned for computational efficiency purposes. */
     void generate_surf_faces();
 };
 

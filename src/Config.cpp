@@ -39,7 +39,6 @@ Config::Config() {
     ssor_param = 1.2;            // parameter for SSOR preconditioner
     force_factor = 0.5;          // factor determining the relationship between force and charge*elfield
 
-    postprocess_marking = true; // make extra effort to mark correctly the vacuum nodes in shadow area
     refine_apex = false;         // refine nanotip apex
     distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
     n_writefile = 1;             // number of time steps between writing the output files
@@ -85,7 +84,6 @@ void Config::read_all(const string& file_name) {
     read_command("radius", radius);
     read_command("smooth_factor", surface_smooth_factor);
     read_command("charge_smooth_factor", charge_smooth_factor);
-    read_command("postprocess_marking", postprocess_marking);
     read_command("refine_apex", refine_apex);
     read_command("heating", heating);
     read_command("distance_tol", distance_tol);

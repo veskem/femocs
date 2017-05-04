@@ -308,8 +308,7 @@ bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
     return 0;
 }
 
-// Write mesh into files with Tetgen functions
-
+// Write mesh into files using Tetgen built-in functions
 bool TetgenMesh::write(const string& file_name) {
     string file_type = get_file_type(file_name);
     require(file_type == file_name, "Only file names without extension are supported: " + file_type);
@@ -375,23 +374,20 @@ bool TetgenMesh::generate_appendices() {
     return 0;
 }
 
-// Function to generate edges from the elements
-// Overlapping edges are not cleaned to make it easier to match them with element
+// Generate edges from the elements
 void TetgenMesh::generate_edges() {
     const int n_elems = elems.size();
     const int n_edges = n_edges_per_elem * n_elems;
 
     edges.init(n_edges);
 
-    // Generate edges from all the elements and leave
     for (SimpleElement selem : elems) {
         for (int e = 0; e < n_edges_per_elem; ++e)
             edges.append(selem.edge(e));
     }
 }
 
-// Function to manually generate surface faces from elements and surface nodes
-// Overlapping faces are not cleaned for computational efficiency purposes
+// Generate manually surface faces from elements and surface nodes
 void TetgenMesh::generate_surf_faces() {
     const int n_elems = elems.size();
     const int max_surf_indx = nodes.indxs.surf_end;
@@ -463,172 +459,17 @@ bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const str
     return vacuum.recalc(cmd) ||  bulk.recalc(cmd);
 }
 
-// Mark mesh nodes, edges, faces and elements
-bool TetgenMesh::mark_mesh(const bool postprocess) {
-    bool fail = 0;
-
-    // Mark nodes with ray-triangle intersection technique
-    mark_nodes();
-
-    // Mark the elements by the node markers
-    mark_elems();
-
-    // Post process the nodes in shadow areas
-    if (postprocess)
-        fail = post_process_marking();
-
-    return fail;
-}
-
 // Mark mesh nodes and elements
 bool TetgenMesh::mark_mesh() {
-    if (mark_nodes_vol3())
+    if (mark_nodes())
         return 1;
 
-    mark_elems_vol3();
+    mark_elems();
     return 0;
 }
 
-// Force the bulk nodes in vacuum elements to become vacuum nodes
-bool TetgenMesh::post_process_marking() {
-    const int n_elems = elems.size();
-
-    bool node_changed = true;
-
-    // Post-process the wrongly marked nodes in vacuum
-    while (node_changed) {
-        node_changed = false;
-        for (int elem = 0; elem < n_elems; ++elem) {
-            if (elems.get_marker(elem) != TYPES.VACUUM) continue;
-
-            // Force all the nodes in vacuum elements to be non-bulk ones
-            for (int node : elems[elem])
-                if (nodes.get_marker(node) == TYPES.BULK) {
-                    nodes.set_marker(node, TYPES.VACUUM);
-                    node_changed = true;
-                }
-        }
-
-        // If some of the nodes were changed, mark all the surface and bulk elements again
-        if (node_changed) remark_elems(TYPES.VACUUM);
-    }
-
-    // Among the other things calculate the number of atoms with given types
-    nodes.calc_statistics();
-    expect(nodes.stat.n_bulk > 4, "Nodemarker post-processor deleted the bulk atoms.\n"
-            "Consider altering the surface refinement factor or disabling the post-processing.");
-
-    // Return value indicates whether the new system is invalid or not
-    return nodes.stat.n_bulk <= 4;
-}
-
-/* Function to mark nodes with ray-triangle intersection technique
- * When the ray from the node in z-direction crosses the surface, the node is located in material,
- * otherwise it's in vacuum.
- * The technique works perfectly with completely convex surface. The concaves give some false
- * nodes but because of their low spatial density they can be eliminated in post-processor.
- */
-void TetgenMesh::mark_nodes() {
-    int node;
-    const Vec3 ray_direction(0, 0, 1);
-    RaySurfaceIntersect rsi(this);
-    rsi.precompute_triangles(ray_direction);
-
-    // Calculate the min and max-s of nodes
-    nodes.calc_statistics();
-    // Mark faces by their location in relation to simulation cell edges
-    mark_faces();
-
-    // Reserve memory for the node markers
-    nodes.init_markers(nodes.size());
-
-    // Mark surface nodes by their known position in array
-    for (node = nodes.indxs.surf_start; node <= nodes.indxs.surf_end; ++node)
-        nodes.append_marker(TYPES.SURFACE);
-
-    // Mark bulk nodes by their known position in array
-    for (node = nodes.indxs.bulk_start; node <= nodes.indxs.bulk_end; ++node)
-        nodes.append_marker(TYPES.BULK);
-
-    // Mark vacuum nodes by their known position in array
-    for (node = nodes.indxs.vacuum_start; node <= nodes.indxs.vacuum_end; ++node)
-        nodes.append_marker(TYPES.VACUUM);
-
-    // Loop through all the nodes made by tetgen
-    // and mark them by vertical-ray-intersects-surface-faces-technique
-    for (node = nodes.indxs.tetgen_start; node < nodes.size(); ++node) {
-        // Compose the ray_origin vector
-        Vec3 ray_origin = nodes.get_vec(node);
-
-        // If ray intersects at least one surface triangle, the node
-        // is considered to be located in bulk, otherwise it's located in vacuum
-        if (rsi.ray_intersects_surface(ray_origin, ray_direction))
-            nodes.append_marker(TYPES.BULK);
-        else
-            nodes.append_marker(TYPES.VACUUM);
-    }
-}
-
-// Remark vacuum nodes on simulation cell perimeter
-void TetgenMesh::remark_perimeter_nodes() {
-    const int eps = 0.1;
-    const int n_nodes = nodes.size();
-
-    for (int node = 0; node < n_nodes; ++node) {
-        Point3 point = nodes[node];
-        // Point on xmin or xmax of simubox?
-        const bool bound_x = on_boundary(point.x, nodes.stat.xmin, nodes.stat.xmax, eps);
-        // Point on ymin or ymax of simubox?
-        const bool bound_y = on_boundary(point.y, nodes.stat.ymin, nodes.stat.ymax, eps);
-        // Point on zmax of simubox?
-        const bool bound_z = on_boundary(point.z, nodes.stat.zmax, eps);
-        // Point on the perimeter of surface?
-        const bool bound_surf = (nodes.get_marker(node) == TYPES.SURFACE) && (bound_x || bound_y);
-        // Point not in the bulk area?
-        const bool not_bulk = nodes.get_marker(node) != TYPES.BULK;
-
-        if ( not_bulk && ((bound_x && bound_y) || (bound_x && bound_z) || (bound_y && bound_z) || bound_surf) )
-            nodes.set_marker(node, TYPES.PERIMETER);
-    }
-}
-
-// Mark elements by the node markers
-void TetgenMesh::mark_elems() {
-    const int n_elems = elems.size();
-
-    elems.init_markers(n_elems);
-
-    // Loop through all the elements
-    for (SimpleElement elem : elems) {
-        int location = 0;
-        int n_bulk = 0;
-        int n_vacuum = 0;
-
-        // Loop through all the nodes in element
-        for (int node : elem) {
-            const int nodemarker = nodes.get_marker(node);
-
-            // Encode element location into integer
-            if (nodemarker == TYPES.VACUUM) {
-                location++; n_vacuum++;
-            }
-            else if (nodemarker == TYPES.BULK) {
-                location--; n_bulk++;
-            }
-        }
-
-        // Element in vacuum is supposed not to have nodes in bulk
-        if (location > 0)
-            elems.append_marker(TYPES.VACUUM);
-        // Element in bulk is supposed not to have nodes in vacuum
-        else if (location < 0)
-            elems.append_marker(TYPES.BULK);
-        // Element in surface is supposed consist only of nodes in surface
-        else
-            elems.append_marker(TYPES.SURFACE);
-    }
-}
-
+// Calculate the neighbourlist for the nodes.
+// Two nodes are considered neighbours if they share a tetrahedron.
 void TetgenMesh::calc_nborlist(vector<vector<int>>& nborlist) {
     nborlist = vector<vector<int>>(nodes.size());
     for (SimpleElement elem : elems)
@@ -639,7 +480,8 @@ void TetgenMesh::calc_nborlist(vector<vector<int>>& nborlist) {
             }
 }
 
-bool TetgenMesh::mark_nodes_vol3() {
+// Mark the nodes by using DBSCAN algorithm (the same as in cluster analysis)
+bool TetgenMesh::mark_nodes() {
     int node;
     vector<int> neighbours;
     
@@ -693,7 +535,7 @@ bool TetgenMesh::mark_nodes_vol3() {
     return nodes.stat.n_vacuum <= 4;
 }
 
-// Locate the element by the location of its nodes
+// Locate the tetrahedron by the location of its nodes
 int TetgenMesh::locate_element(SimpleElement& elem) {
     // Element in vacuum is supposed not to have nodes in bulk,
     //  in bulk is supposed not to have nodes in vacuum,
@@ -709,106 +551,14 @@ int TetgenMesh::locate_element(SimpleElement& elem) {
     return TYPES.SURFACE;
 }
 
-void TetgenMesh::mark_elems_vol3() {
+// Mark the tetrahedra by the location of its nodes
+void TetgenMesh::mark_elems() {
     // Reserve memory for markers
     elems.init_markers(elems.size());
 
     // Locate all the elements
     for (SimpleElement elem : elems)
         elems.append_marker(locate_element(elem));
-}
-
-void TetgenMesh::mark_elems_vol2() {
-    const int n_elems = elems.size();
-
-    elems.init_markers(n_elems);
-
-    // Loop through all the elements
-    for (SimpleElement elem : elems) {
-        int n_vacuum = 0;
-        int n_bulk = 0;
-
-        // Loop through all the nodes in element
-        for (int node : elem) {
-            const int nodemarker = nodes.get_marker(node);
-
-            // Encode element location into integer
-            if (nodemarker == TYPES.VACUUM)
-                n_vacuum++;
-            else if (nodemarker == TYPES.BULK)
-                n_bulk++;
-        }
-
-        // Element in vacuum is supposed not to have nodes in bulk
-        if (n_vacuum > 0 && n_bulk == 0)
-            elems.append_marker(TYPES.VACUUM);
-        // Element in bulk is supposed not to have nodes in vacuum
-        else if (n_bulk > 0 && n_vacuum == 0)
-            elems.append_marker(TYPES.BULK);
-        // Element in surface is supposed consist only of nodes in surface
-        else if (n_bulk == 0 && n_vacuum == 0)
-            elems.append_marker(TYPES.SURFACE);
-        else
-            elems.append_marker(TYPES.NONE);
-    }
-}
-
-void TetgenMesh::mark_elems_byrsi() {
-    int elem;
-    const Vec3 ray_direction(0, 0, 1);
-    RaySurfaceIntersect rsi(this);
-    rsi.precompute_triangles(ray_direction);
-
-    // Reserve memory for the element markers
-    elems.init_markers(elems.size());
-
-    // Loop through all the nodes made by tetgen
-    // and mark them by vertical-ray-intersects-surface-faces-technique
-    for (elem = 0; elem < elems.size(); ++elem) {
-        // if all the nodes of element are located on surface,
-        // the element is considered to be located on surface
-        SimpleElement selem = elems[elem];
-        if ( vector_sum(selem < nodes.indxs.surf_end) == selem.size() ) {
-            elems.append_marker(TYPES.SURFACE);
-            continue;
-        }
-
-        // Compose the ray_origin vector
-        Vec3 ray_origin(elems.get_centroid(elem));
-
-        // If ray intersects at least one surface triangle, the element
-        // is considered to be located in bulk, otherwise it's located in vacuum
-        if (rsi.ray_intersects_surface(ray_origin, ray_direction))
-            elems.append_marker(TYPES.BULK);
-        else
-            elems.append_marker(TYPES.VACUUM);
-    }
-}
-
-// Remark elements skipping the ones marked as skip_type
-void TetgenMesh::remark_elems(const int skip_type) {
-    // Loop through all the non-vacuum elements
-    for (int elem = 0; elem < elems.size(); ++elem) {
-        if (elems.get_marker(elem) == skip_type) continue;
-
-        int location = 0;
-        // Loop through all the nodes in element
-        for (int node : elems[elem]) {
-            int nodemarker = nodes.get_marker(node);
-            // Encode element location into integer
-            if (nodemarker == TYPES.VACUUM)
-                location++;
-            else if (nodemarker == TYPES.BULK)
-                location--;
-        }
-
-        if (location > 0)
-            elems.set_marker(elem, TYPES.VACUUM);
-        else if (location < 0)
-            elems.set_marker(elem, TYPES.BULK);
-        else
-            elems.set_marker(elem, TYPES.SURFACE);
-     }
 }
 
 // Mark the edges on the simulation cell perimeter by the node markers

@@ -24,7 +24,6 @@ void write_defaults(ofstream &file) {
     file << "clear_output = true"        << endl;
     file << "smooth_factor = 0.0"        << endl;
     file << "charge_smooth_factor = 1.0" << endl;
-    file << "postprocess_marking = true" << endl;
     file << "distance_tol = 0.16"        << endl;
     file << "n_writefile = 1"            << endl;
     file << "femocs_verbose = true"      << endl;
