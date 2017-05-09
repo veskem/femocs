@@ -330,6 +330,28 @@ void FieldReader::interpolate(const Medium &medium, const double r_cut, const in
     }
 }
 
+// Linearly interpolate electric field for the currents and temperature solver
+void FieldReader::interpolate(fch::CurrentsAndHeating<3>* ch_solver) {
+    // import the surface nodes the solver needs
+    vector<dealii::Point<3>> nodes;
+    ch_solver->get_surface_nodes(nodes);
+
+    const int n_nodes = nodes.size();
+
+    Medium medium(n_nodes);
+    for (dealii::Point<3>& node : nodes)
+        medium.append(Point3(node[0], node[1], node[2]));
+
+    // interpolate solution on the nodes
+    interpolate(medium, 0, 1, true);
+
+    // export electric field norms to the solver
+    vector<double> elfields; elfields.reserve(n_nodes);
+    for (int i = 0; i < n_nodes; ++i)
+        elfields.push_back(10.0 * interpolation[i].norm);
+    ch_solver->read_field(elfields);
+}
+
 // Linearly interpolate electric field on a set of points
 void FieldReader::interpolate(const int n_points, const double* x, const double* y, const double* z,
         const double r_cut, const int component, const bool sort) {

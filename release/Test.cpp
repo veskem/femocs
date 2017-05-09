@@ -20,7 +20,8 @@ void print_progress(const string& message, const bool contition) {
 }
 
 void write_defaults(ofstream &file) {
-    file << "heating = false"            << endl;
+    file << "heating = true"             << endl;
+    file << "write_log = true"           << endl;
     file << "clear_output = true"        << endl;
     file << "smooth_factor = 0.0"        << endl;
     file << "charge_smooth_factor = 1.0" << endl;
@@ -99,15 +100,16 @@ void write_cluster(ofstream &file) {
 void write_molten(ofstream &file) {
     file << "infile = input/nanotip_molten.xyz" << endl;
     file << "coarse_factor = 0.3 6 4"  << endl;
-    file << "radius = 45.0"            << endl;
+    file << "radius = 65.0"            << endl;
     file << "surface_thichness = 4.65" << endl;
 }
 
 void write_moltenbig(ofstream &file) {
     file << "infile = input/nanotip_molten.ckx" << endl;
-    file << "coarse_factor = 0.3 6 4"  << endl;
-    file << "radius = 65.0"            << endl;
-    file << "surface_thichness = 4.65" << endl;
+    file << "coarse_factor = 0.6 8 3"  << endl;
+    file << "radius = 45.0"            << endl;
+    file << "box_width = 2.0"         << endl;
+    file << "box_height = 3.5"        << endl;
 }
 
 int main(int argc, char **argv) {
@@ -177,7 +179,7 @@ int main(int argc, char **argv) {
     system("rm -rf tmpfile");
 
     success += femocs.import_atoms("");
-    success += femocs.run(-0.1, "");
+    success += femocs.run(-0.2, "");
     success += femocs.export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
     success += femocs.export_temperature(n_atoms, T);
     success += femocs.export_charge_and_force(n_atoms, xq);

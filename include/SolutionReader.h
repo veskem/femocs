@@ -13,6 +13,7 @@
 #include "Medium.h"
 #include "TetgenCells.h"
 #include "TetgenMesh.h"
+#include "currents_and_heating.h"
 
 using namespace std;
 namespace femocs {
@@ -80,7 +81,7 @@ public:
      * @param medium    atoms to be interpolated
      * @param r_cut     smoothing region cut off radius; 0 or less turns smoothing off
      * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
-     * @param srt      sort input atoms spatially
+     * @param srt       sort input atoms spatially
      */
     void interpolate(const Medium &medium, const double r_cut, const int component=0, const bool srt=true);
 
@@ -88,6 +89,9 @@ public:
      * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data */
     void interpolate(const int n_points, const double* x, const double* y, const double* z,
             const double r_cut, const int component=0, const bool srt=true);
+
+    /** Calculate the electric field for the current and temperature solver */
+    void interpolate(fch::CurrentsAndHeating<3>* ch_solver);
 
     /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */

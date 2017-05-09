@@ -229,9 +229,18 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     stringstream ss; ss << *(ch_solver);
     write_verbose_msg(ss.str());
 
-    start_msg(t0, "=== Running rho & T solver...\n");
-    double t_error = ch_solver->run_specific(conf.t_error, conf.n_newton, false, "", MODES.VERBOSE, 2.0);
+    start_msg(t0, "=== Transfering elfield to J & T solver...\n");
+    FieldReader fr(&vacuum_interpolator);
+    fr.interpolate(ch_solver);
     end_msg(t0);
+
+    fr.write("output/surface_field.xyz");
+
+    start_msg(t0, "=== Running J & T solver...\n");
+    double t_error = ch_solver->run_specific(conf.t_error, conf.n_newton, false, "", MODES.VERBOSE, 2, 400, false);
+    end_msg(t0);
+
+    ch_solver->output_results("output/result_J_T.vtk");
 
     check_return(t_error > conf.t_error, "Temperature didn't converge, err=" + to_string(t_error));
 
@@ -239,7 +248,7 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     bulk_interpolator.extract_solution(ch_solver, mesh);
     end_msg(t0);
 
-    bulk_interpolator.write("output/result_rho_T.xyz");
+    bulk_interpolator.write("output/result_J_T.xyz");
 
     // Swap current-and-heat-solvers to use solution from current run as a guess in the next one
     static bool odd_run = true;
