@@ -43,7 +43,7 @@ public:
     virtual int get_n_polygons() const { return 0; }
 
     /** Get the points for writing to vtk file */
-    virtual vector<Point3> get_points() { return vector<Point3>{}; }
+    virtual vector<Point3> get_points(const double zmin) { return vector<Point3>{}; }
 
     /** Get nodes of polygons for writing to vtk file */
     virtual vector<vector<int>> get_polygons() { return vector<vector<int>>{vector<int>{}}; }
@@ -128,7 +128,7 @@ public:
             cutoff2 = get_inf_cutoff();
     }
 
-    vector<Point3> get_points();
+    vector<Point3> get_points(const double zmin);
     vector<vector<int>> get_polygons();
     int get_n_points() const { return n_lines * n_nodes_per_line + n_circles * n_nodes_per_circle; }
     int get_n_polygons() const { return n_lines + n_circles; };
@@ -159,7 +159,7 @@ public:
             cutoff2 = get_inf_cutoff();
     }
 
-    vector<Point3> get_points();
+    vector<Point3> get_points(const double zmin);
     vector<vector<int>> get_polygons();
     int get_n_points() const { return n_lines * n_nodes_per_line + n_circles * n_nodes_per_circle; }
     int get_n_polygons() const { return n_lines + n_circles; };

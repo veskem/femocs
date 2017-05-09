@@ -77,7 +77,7 @@ vector<vector<int>> CylinderCoarsener::get_polygons() {
     return polys;
 }
 
-vector<Point3> CylinderCoarsener::get_points() {
+vector<Point3> CylinderCoarsener::get_points(const double zmin) {
     const double point_res = 2 * M_PI / n_nodes_per_circle;
     const double line_res = 2 * M_PI / n_lines;
 
@@ -87,12 +87,12 @@ vector<Point3> CylinderCoarsener::get_points() {
 
     // Make points for circle
     for (double a = 0; a < 2*M_PI; a += point_res)
-        points.push_back( Point3(radius*cos(a), radius*sin(a), 0) );
+        points.push_back( Point3(radius*cos(a), radius*sin(a), zmin) );
 
     // Make points for lines
     for (double a = 0; a < 2*M_PI; a += line_res) {
-        points.push_back( Point3(radius*cos(a), radius*sin(a), 1) );
-        points.push_back( Point3(radius*cos(a), radius*sin(a),-1) );
+        points.push_back( Point3(radius*cos(a), radius*sin(a), 1.1*zmin) );
+        points.push_back( Point3(radius*cos(a), radius*sin(a), 0.9*zmin) );
     }
 
     // Shift points to the origin in x-y plane
@@ -132,10 +132,10 @@ vector<vector<int>> NanotipCoarsener::get_polygons() {
     return polys;
 }
 
-vector<Point3> NanotipCoarsener::get_points() {
+vector<Point3> NanotipCoarsener::get_points(const double zmin) {
     const double circle_res = 2 * M_PI / n_nodes_per_circle;
     const double line_res = 2 * M_PI / 4;
-    const double zbottom = -2.0 * radius;
+    const double zbottom = zmin - origin3d.z;
 
     // Reserve memory for points
     vector<Point3> points;
@@ -160,7 +160,7 @@ vector<Point3> NanotipCoarsener::get_points() {
     // Make points for vertical lines
     for (double a = 0; a < 2*M_PI; a += line_res) {
         points.push_back( Point3(radius*cos(a), radius*sin(a), 0) );
-        points.push_back( Point3(radius*cos(a), radius*sin(a), zbottom-1) );
+        points.push_back( Point3(radius*cos(a), radius*sin(a), zbottom) );
     }
 
     // Make points for horizontal lines
@@ -302,7 +302,7 @@ void Coarseners::write(const string &file_name) {
 
     // Write points to file
     for (auto &c : coarseners)
-        for (Point3 p : c->get_points())
+        for (Point3 p : c->get_points(centre.z))
             out << p << "\n";
 
     // Calculate total number of polygons and nodes
