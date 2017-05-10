@@ -21,6 +21,8 @@ namespace femocs {
 
 // specify simulation parameters
 Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) {
+    static bool first_call = true;
+
     // Read configuration parameters from configuration file
     conf.read_all(conf_file);
 
@@ -33,7 +35,7 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) 
     else if (conf.verbose_mode == "verbose") { MODES.MUTE = false; MODES.VERBOSE = true;  }
 
     // Clear the results from previous run
-    if (conf.clear_output) fail = system("rm -rf output");
+    if (first_call && conf.clear_output) fail = system("rm -rf output");
     fail = system("mkdir -p output");
 
     start_msg(t0, "======= Femocs started! =======\n");
@@ -45,11 +47,74 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) 
     ch_solver  = &ch_solver1;
     prev_ch_solver = NULL;
     end_msg(t0);
+
+    first_call = false;
 }
 
 // delete data and print bye-bye-message
 Femocs::~Femocs() {
     start_msg(t0, "======= Femocs finished! =======\n");
+}
+
+// Workhorse function to generate FEM mesh and to solve differential equation(s)
+int Femocs::run(const double elfield, const string &message) {
+    static unsigned int timestep = 0;  // Counter to measure how many times Femocs has been called
+    static bool prev_skip_calculations = true;  // Value of skip_calculations in last call
+    double tstart;                     // Variable used to measure the code execution time
+    stringstream stream; stream << fixed << setprecision(3);
+
+    if (!prev_skip_calculations && MODES.WRITEFILE)
+        MODES.WRITEFILE = false;
+
+    if ((conf.n_writefile > 0) && (timestep % conf.n_writefile == 0))
+        MODES.WRITEFILE = true;
+
+    conf.message = to_string(timestep++);
+    write_silent_msg("Running at timestep " + conf.message);
+    conf.message = "_" + string( max(0.0, 5.0 - conf.message.length()), '0' ) + conf.message;
+
+    prev_skip_calculations = skip_calculations;
+
+    stream.str(""); stream << "Atoms haven't moved significantly, " << reader.rms_distance
+        << " < " << conf.distance_tol << "! Field calculation will be skipped!";
+    check_return(skip_calculations, stream.str());
+
+    skip_calculations = true;
+    conf.E0 = elfield; // long-range electric field
+    conf.neumann = -10.0 * elfield;  // set minus gradient of solution to equal to E0; also convert V/Angstrom  to  V/nm
+    tstart = omp_get_wtime();
+
+    TetgenMesh bulk_mesh;   // FEM mesh in bulk material
+    TetgenMesh vacuum_mesh; // FEM mesh in vacuum
+
+    // Generate FEM mesh
+    check_return( generate_meshes(bulk_mesh, vacuum_mesh), "Mesh generation failed!" );
+
+    // Store parameters for comparing the results with analytical hemi-ellipsoid results
+    vacuum_interpolator.set_analyt(conf.E0, conf.radius, dense_surf.sizes.zbox);
+    fields.set_analyt(conf.E0, conf.radius, dense_surf.sizes.zbox);
+
+    // Solve Laplace equation on vacuum mesh
+    fch::Laplace<3> laplace_solver;
+    check_return( solve_laplace(vacuum_mesh, laplace_solver), "Solving Laplace equation failed!");
+
+    // Solve heat & continuity equation on bulk mesh
+    check_return( solve_heat(bulk_mesh, laplace_solver), "Solving heat & continuity equation failed!");
+
+    // Extract face charges
+    check_return( extract_charge(vacuum_mesh), "Extraction of face charges failed!" );
+
+    start_msg(t0, "=== Saving atom positions...");
+    reader.save_current_run_points(conf.distance_tol);
+    end_msg(t0);
+
+    stream.str(""); stream << "Total execution time " << omp_get_wtime() - tstart;
+    write_silent_msg(stream.str());
+    skip_calculations = false;
+
+//    write_slice("output/slice.xyz");
+
+    return 0;
 }
 
 // Generate boundary nodes for mesh
@@ -272,67 +337,6 @@ int Femocs::extract_charge(const TetgenMesh& mesh) {
     face_charges.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
     face_charges.clean(dense_surf.sizes, conf.latconst);
     face_charges.write("output/face_charges.vtk");
-
-    return 0;
-}
-
-// Workhorse function to generate FEM mesh and to solve differential equation(s)
-int Femocs::run(const double elfield, const string &message) {
-    static unsigned int timestep = 0;  // Counter to measure how many times Femocs has been called
-    static bool prev_skip_calculations = true;  // Value of skip_calculations in last call
-    double tstart;                     // Variable used to measure the code execution time
-    stringstream stream; stream << fixed << setprecision(3);
-
-    if (!prev_skip_calculations && MODES.WRITEFILE)
-        MODES.WRITEFILE = false;
-
-    if ((conf.n_writefile > 0) && (timestep % conf.n_writefile == 0))
-        MODES.WRITEFILE = true;
-
-    conf.message = to_string(timestep++);
-    write_silent_msg("Running at timestep " + conf.message);
-    conf.message = "_" + string( max(0.0, 5.0 - conf.message.length()), '0' ) + conf.message;
-
-    prev_skip_calculations = skip_calculations;
-
-    stream.str(""); stream << "Atoms haven't moved significantly, " << reader.rms_distance
-        << " < " << conf.distance_tol << "! Field calculation will be skipped!";
-    check_return(skip_calculations, stream.str());
-
-    skip_calculations = true;
-    conf.E0 = elfield; // long-range electric field
-    conf.neumann = -10.0 * elfield;  // set minus gradient of solution to equal to E0; also convert V/Angstrom  to  V/nm
-    tstart = omp_get_wtime();
-
-    TetgenMesh bulk_mesh;   // FEM mesh in bulk material
-    TetgenMesh vacuum_mesh; // FEM mesh in vacuum
-
-    // Generate FEM mesh
-    check_return( generate_meshes(bulk_mesh, vacuum_mesh), "Mesh generation failed!" );
-
-    // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    vacuum_interpolator.set_analyt(conf.E0, conf.radius, dense_surf.sizes.zbox);
-    fields.set_analyt(conf.E0, conf.radius, dense_surf.sizes.zbox);
-
-    // Solve Laplace equation on vacuum mesh
-    fch::Laplace<3> laplace_solver;
-    check_return( solve_laplace(vacuum_mesh, laplace_solver), "Solving Laplace equation failed!");
-
-    // Solve heat & continuity equation on bulk mesh
-    check_return( solve_heat(bulk_mesh, laplace_solver), "Solving heat & continuity equation failed!");
-
-    // Extract face charges
-    check_return( extract_charge(vacuum_mesh), "Extraction of face charges failed!" );
-
-    start_msg(t0, "=== Saving atom positions...");
-    reader.save_current_run_points(conf.distance_tol);
-    end_msg(t0);
-
-    stream.str(""); stream << "Total execution time " << omp_get_wtime() - tstart;
-    write_silent_msg(stream.str());
-    skip_calculations = false;
-
-//    write_slice("output/slice.xyz");
 
     return 0;
 }
