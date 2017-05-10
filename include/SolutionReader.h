@@ -77,6 +77,8 @@ public:
     FieldReader();
     FieldReader(LinearInterpolator* ip);
 
+    void interpolate(const double r_cut, const int component, const bool srt);
+
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
      * @param medium    atoms to be interpolated
      * @param r_cut     smoothing region cut off radius; 0 or less turns smoothing off
@@ -91,7 +93,7 @@ public:
             const double r_cut, const int component=0, const bool srt=true);
 
     /** Calculate the electric field for the current and temperature solver */
-    void interpolate(fch::CurrentsAndHeating<3>* ch_solver);
+    void interpolate(fch::CurrentsAndHeating<3>* ch_solver, const double r_cut, const bool srt=true);
 
     /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */

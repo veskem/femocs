@@ -268,31 +268,14 @@ FieldReader::FieldReader(LinearInterpolator* ip) : radius1(0), radius2(0), E0(0)
         SolutionReader(ip, "elfield", "elfield_norm", "potential") {}
 
 // Linearly interpolate solution on Medium atoms
-void FieldReader::interpolate(const Medium &medium, const double r_cut, const int component, const bool srt) {
+void FieldReader::interpolate(const double r_cut, const int component, const bool srt) {
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
     require(interpolator, "NULL interpolator cannot be used!");
 
-    const int n_atoms = medium.size();
-    reserve(n_atoms);
+    const int n_atoms = size();
 
-    vector<int> id_save;
-    
-    if (srt) {
-        // store the atom and their id-s
-        id_save.reserve(n_atoms);
-        for (int i = 0; i < n_atoms; ++i) {
-            id_save.push_back(medium.get_id(i));
-            append( Atom(i, medium.get_point(i), 0) );
-        }
-
-        // Sort atoms into sequential order to speed up interpolation
-        sort_spatial();
-
-    } else {
-        // copy the atoms
-        for (int i = 0; i < n_atoms; ++i)
-            append(medium.get_atom(i));
-    }
+    // Sort atoms into sequential order to speed up interpolation
+    if (srt) sort_spatial();
 
     int elem = 0;
     for (int i = 0; i < n_atoms; ++i) {
@@ -316,34 +299,49 @@ void FieldReader::interpolate(const Medium &medium, const double r_cut, const in
     clean(3, r_cut);  // clean by vector norm
     clean(4, r_cut);  // clean by scalar
 
+    // Sort atoms back to their initial order
     if (srt) {
-        // sort atoms back to their initial order
         for (int i = 0; i < n_atoms; ++i)
             interpolation[i].id = atoms[i].id;
 
         sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
         sort( atoms.begin(), atoms.end(), Atom::sort_id() );
-
-        // restore the original atom id-s
-        for (int i = 0; i < n_atoms; ++i)
-            atoms[i].id = id_save[i];
     }
 }
 
+// Linearly interpolate solution on Medium atoms
+void FieldReader::interpolate(const Medium &medium, const double r_cut, const int component, const bool srt) {
+    const int n_atoms = medium.size();
+    
+    // store the atom coordinates
+    reserve(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        append( Atom(i, medium.get_point(i), 0) );
+
+    // interpolate solution
+    interpolate(r_cut, component, srt);
+
+    // store the original atom id-s
+    for (int i = 0; i < n_atoms; ++i)
+        atoms[i].id = medium.get_id(i);
+}
+
 // Linearly interpolate electric field for the currents and temperature solver
-void FieldReader::interpolate(fch::CurrentsAndHeating<3>* ch_solver) {
+void FieldReader::interpolate(fch::CurrentsAndHeating<3>* ch_solver, const double r_cut, const bool srt) {
     // import the surface nodes the solver needs
     vector<dealii::Point<3>> nodes;
     ch_solver->get_surface_nodes(nodes);
 
     const int n_nodes = nodes.size();
 
-    Medium medium(n_nodes);
+    // store the node coordinates
+    reserve(n_nodes);
+    int i = 0;
     for (dealii::Point<3>& node : nodes)
-        medium.append(Point3(node[0], node[1], node[2]));
+        append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
 
     // interpolate solution on the nodes
-    interpolate(medium, 0, 1, true);
+    interpolate(r_cut, 1, srt);
 
     // export electric field norms to the solver
     vector<double> elfields; elfields.reserve(n_nodes);
@@ -354,13 +352,15 @@ void FieldReader::interpolate(fch::CurrentsAndHeating<3>* ch_solver) {
 
 // Linearly interpolate electric field on a set of points
 void FieldReader::interpolate(const int n_points, const double* x, const double* y, const double* z,
-        const double r_cut, const int component, const bool sort) {
-    Medium medium(n_points);
-    for (int i = 0; i < n_points; ++i)
-        medium.append(Atom(i, Point3(x[i], y[i], z[i]), 0));
+        const double r_cut, const int component, const bool srt) {
 
-    // Interpolate solution
-    interpolate(medium, r_cut, component, sort);
+    // store the point coordinates
+    reserve(n_points);
+    for (int i = 0; i < n_points; ++i)
+        append(Atom(i, Point3(x[i], y[i], z[i]), 0));
+
+    // interpolate solution
+    interpolate(r_cut, component, srt);
 }
 
 // Linearly interpolate electric field on a set of points
@@ -504,6 +504,8 @@ void HeatReader::interpolate(const Medium &medium) {
 
 // Export interpolated temperature
 void HeatReader::export_temperature(const int n_atoms, double* T) {
+    if (n_atoms <= 0) return;
+
     // Pass the the calculated temperature for stored atoms
     for (int i = 0; i < size(); ++i) {
         int identifier = get_id(i);

@@ -231,7 +231,7 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
 
     start_msg(t0, "=== Transfering elfield to J & T solver...\n");
     FieldReader fr(&vacuum_interpolator);
-    fr.interpolate(ch_solver);
+    fr.interpolate(ch_solver, conf.use_histclean * conf.coord_cutoff, true);
     end_msg(t0);
 
     fr.write("output/surface_field.xyz");
@@ -474,7 +474,7 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
 
 // calculate and export electric field on imported atom coordinates
 int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    if (n_atoms <= 0) return 0;
+    if (n_atoms < 0) return 0;
     check_return(vacuum_interpolator.size() == 0, "No field to export!");
 
     if (skip_calculations)
@@ -498,7 +498,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
 
 // calculate and export temperatures on imported atom coordinates
 int Femocs::export_temperature(const int n_atoms, double* T) {
-    if (n_atoms <= 0 || !conf.heating) return 0;
+    if (n_atoms < 0 || !conf.heating) return 0;
     check_return(bulk_interpolator.size() == 0, "No temperature to export!");
 
     if (skip_calculations)
@@ -521,7 +521,7 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
 
 // calculate and export charges & forces on imported atom coordinates
 int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
-    if (n_atoms <= 0) return 0;
+    if (n_atoms < 0) return 0;
     check_return(fields.size() == 0 || face_charges.size() == 0, "No force to export!");
 
     if (skip_calculations)
