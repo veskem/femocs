@@ -93,12 +93,12 @@ namespace fch {
 		 * @param print boolean if calculation info should be output to cout
 		 * @param alpha successive over-relaxation coefficient
 		 * @param ic_interp_treshold peak temperature value of the previous iteration, which determines if interpolation is done
-		 * @param do_mapping read the electric field from the Laplace solver
+		 * @param skip_field_mapping skip the (cell face) <-> (field) mapping on the surface; the field BC must be set by other means
 		 * @return final temperature error
 		 */
 		double run_specific(double temperature_tolerance=1.0, int max_newton_iter=10,
 						  bool file_output=true, std::string out_fname="sol", bool print=true,
-						  double alpha=1.0, double ic_interp_treshold = 400, bool do_mapping=true);
+						  double alpha=1.0, double ic_interp_treshold = 400, bool skip_field_mapping=false);
 
 		/** getter for the mesh */
 		Triangulation<dim>* get_triangulation();
