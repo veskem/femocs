@@ -288,6 +288,35 @@ bool CurrentsAndHeating<dim>::setup_mapping() {
 }
 
 template <int dim>
+void CurrentsAndHeating<dim>::get_surface_nodes(std::vector<Point<dim>>& nodes) {
+    const int n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
+    nodes.clear();
+
+    // Loop over copper interface cells
+    typename DoFHandler<dim>::active_cell_iterator cell;
+    for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell)
+        for (int f = 0; f < n_faces_per_cell; f++)
+            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface)
+                nodes.push_back(cell->face(f)->center());
+}
+
+template <int dim>
+void CurrentsAndHeating<dim>::read_field(const std::vector<double>& elfields) {
+    const unsigned n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
+
+    // Loop over copper interface cells
+    typename DoFHandler<dim>::active_cell_iterator cell;
+    unsigned i = 0;
+    for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell)
+        for (unsigned f = 0; f < n_faces_per_cell; ++f)
+            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+                std::pair<unsigned, unsigned> face_info(cell->index(), f);
+                interface_map_field.insert( std::pair<std::pair<unsigned, unsigned>, double>
+                    (face_info, elfields[i++]) );
+            }
+}
+
+template <int dim>
 bool CurrentsAndHeating<dim>::setup_mapping_field(double smoothing) {
 
 	double eps = 1e-9;
@@ -311,8 +340,6 @@ bool CurrentsAndHeating<dim>::setup_mapping_field(double smoothing) {
 	for (; vac_cell != vac_endc; ++vac_cell) {
 		for (unsigned int f=0; f < GeometryInfo<dim>::faces_per_cell; f++) {
 			if (vac_cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
-				vacuum_interface_centers.push_back(vac_cell->face(f)->center());
-
 				// ---
 				// Electric field norm in the center (only quadrature point) of the face
 				vacuum_fe_face_values.reinit(vac_cell, f);
@@ -321,6 +348,7 @@ bool CurrentsAndHeating<dim>::setup_mapping_field(double smoothing) {
 				// ---
 
 				vacuum_interface_efield.push_back(efield_norm);
+                vacuum_interface_centers.push_back(vac_cell->face(f)->center());
 			}
 		}
 	}
@@ -358,9 +386,8 @@ bool CurrentsAndHeating<dim>::setup_mapping_field(double smoothing) {
 				// Loop over vacuum side and find corresponding (cell, face) pair
 				for (unsigned int i=0; i < vacuum_interface_centers.size(); i++) {
 					if (cop_face_center.distance(vacuum_interface_centers[i]) < eps) {
-
-						std::pair< std::pair<unsigned, unsigned>,
-								   double > pair(cop_face_info, vacuum_interface_efield[i]);
+						std::pair<std::pair<unsigned, unsigned>, double>
+						    pair(cop_face_info, vacuum_interface_efield[i]);
 						interface_map_field.insert(pair);
 						break;
 					}
@@ -611,7 +638,6 @@ void CurrentsAndHeating<dim>::set_initial_condition() {
 		}
 	}
 }
-
 
 // Assembles the linear system for one Newton iteration
 template <int dim>
@@ -873,7 +899,6 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
 	timer.exit_section();
 }
 
-
 template <int dim>
 void CurrentsAndHeating<dim>::solve() {
 	// CG doesn't work as the matrix is not symmetric
@@ -950,10 +975,9 @@ void CurrentsAndHeating<dim>::run() {
 	std::cout << "/---------------------------------------------------------------/" << std::endl;
 }
 
-
 template <int dim>
 double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int max_newton_iter, bool file_output,
-											 std::string out_fname, bool print, double alpha, double ic_interp_treshold) {
+        std::string out_fname, bool print, double alpha, double ic_interp_treshold, bool do_mapping) {
 
 	if (pq == NULL || laplace == NULL || (interp_initial_conditions && previous_iteration == NULL)) {
 		std::cerr << "Error: pointer uninitialized! Exiting temperature calculation..." << std::endl;
@@ -977,12 +1001,13 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 
 	Timer timer;
 
-	if (!setup_mapping_field()) {
-		std::cerr << "Error: Couldn't make a correct mapping between copper and vacuum faces on the interface."
-				  << "Make sure that the face elements have one-to-one correspondence there."
-				  << std::endl;
-		return -1.0;
-	}
+    if (do_mapping && !setup_mapping_field()) {
+        std::cerr << "Error: Couldn't make a correct mapping between copper and vacuum faces on the interface."
+                  << "Make sure that the face elements have one-to-one correspondence there."
+                  << std::endl;
+        return -1.0;
+    }
+
 	if (print) {
 		printf("        Mapping setup done, time: %.2f\n", timer.wall_time());
 		timer.restart();

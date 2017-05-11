@@ -93,11 +93,12 @@ namespace fch {
 		 * @param print boolean if calculation info should be output to cout
 		 * @param alpha successive over-relaxation coefficient
 		 * @param ic_interp_treshold peak temperature value of the previous iteration, which determines if interpolation is done
+		 * @param do_mapping read the electric field from the Laplace solver
 		 * @return final temperature error
 		 */
 		double run_specific(double temperature_tolerance=1.0, int max_newton_iter=10,
 						  bool file_output=true, std::string out_fname="sol", bool print=true,
-						  double alpha=1.0, double ic_interp_treshold = 400);
+						  double alpha=1.0, double ic_interp_treshold = 400, bool do_mapping=true);
 
 		/** getter for the mesh */
 		Triangulation<dim>* get_triangulation();
@@ -158,6 +159,11 @@ namespace fch {
 	        return os;
 	    }
 
+	    /** export the centroids of surface faces */
+	    void get_surface_nodes(std::vector<Point<dim>>& nodes);
+
+	    /** read the electric field norm on the centroids of surface faces */
+	    void read_field(const std::vector<double>& elfields);
 
 	private:
 		void assemble_system_newton();
@@ -168,6 +174,7 @@ namespace fch {
 		 * @param smoothing replaces top given % by their average + stdev (if negative, will ignore)
 		 */
 		bool setup_mapping_field(double smoothing=0.01);
+
 		void set_initial_condition();
 		void set_initial_condition_slow();
 
