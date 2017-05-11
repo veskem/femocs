@@ -302,7 +302,7 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     fr.write("output/surface_field.xyz");
 
     start_msg(t0, "=== Running J & T solver...\n");
-    double t_error = ch_solver->run_specific(conf.t_error, conf.n_newton, false, "", MODES.VERBOSE, 2, 400, false);
+    double t_error = ch_solver->run_specific(conf.t_error, conf.n_newton, false, "", MODES.VERBOSE, 2, 400, true);
     end_msg(t0);
 
     ch_solver->output_results("output/result_J_T.vtk");
