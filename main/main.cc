@@ -114,7 +114,7 @@ int main() {
 // 3d mushroom //
 /*
 	fch::Laplace<3> laplace_solver;
-	laplace_solver.set_applied_efield(2.3);
+	laplace_solver.set_applied_efield(1.0);
 	laplace_solver.import_mesh_from_file(res_path+"/3d_meshes/mushroom_vacuum.msh");
 	laplace_solver.output_mesh("output/mushroom_vacuum.msh");
 	laplace_solver.setup_system();
@@ -132,13 +132,13 @@ int main() {
 // 2d case usage //
 /*
 	fch::Laplace<2> laplace;
-	laplace.import_mesh_from_file("../res/2d_meshes/vacuum_aligned_dense.msh");
+	laplace.import_mesh_from_file("../res/2d_meshes/vacuum_aligned.msh");
 	laplace.output_mesh("output/vacuum_mesh_2d.vtk");
 	laplace.set_applied_efield(12.0);
 	laplace.run();
 
 	fch::CurrentsAndHeating<2> ch(&pq, &laplace);
-	ch.import_mesh_from_file("../res/2d_meshes/copper_aligned_dense.msh");
+	ch.import_mesh_from_file("../res/2d_meshes/copper_aligned.msh");
 	ch.output_mesh("output/copper_mesh_2d.vtk");
 	ch.run();
 */

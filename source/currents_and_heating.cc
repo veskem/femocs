@@ -955,7 +955,7 @@ void CurrentsAndHeating<dim>::run() {
 		std::cout << "    Assembly: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
 		solve();
-		present_solution.add(1.0, newton_update); // alpha = 1.0
+		present_solution.add(2.0, newton_update); // alpha = 1.0
 
 		std::cout << "    Solver: " << timer.wall_time() << " s" << std::endl; timer.restart();
 
@@ -976,7 +976,7 @@ void CurrentsAndHeating<dim>::run() {
 
 template <int dim>
 double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int max_newton_iter, bool file_output,
-        std::string out_fname, bool print, double alpha, double ic_interp_treshold, bool skip_field_mapping) {
+        std::string out_fname, bool print, double sor_alpha, double ic_interp_treshold, bool skip_field_mapping) {
 
 	if (pq == NULL || laplace == NULL || (interp_initial_conditions && previous_iteration == NULL)) {
 		std::cerr << "Error: pointer uninitialized! Exiting temperature calculation..." << std::endl;
@@ -1046,12 +1046,12 @@ double CurrentsAndHeating<dim>::run_specific(double temperature_tolerance, int m
 		double assemble_time = timer.wall_time(); timer.restart();
 
 		solve();
-		present_solution.add(alpha, newton_update);
+		present_solution.add(sor_alpha, newton_update);
 		double solution_time = timer.wall_time(); timer.restart();
 
 		double max_temp = present_solution.linfty_norm();
 		if (max_temp > temperature_stopping_condition) {
-			std::cerr << "WARNING: Peak temperature surpasse the stopping condition "
+			std::cerr << "WARNING: Peak temperature surpassed the stopping condition "
 					     + to_string(temperature_stopping_condition) << "... Stopping calculation." << std::endl;
 			break;
 		}
