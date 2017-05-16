@@ -134,10 +134,12 @@ void AtomReader::calc_nborlist(const int nnn, const double r_cut) {
 }
 
 // Check for clustered atoms
-void AtomReader::check_clusters() {
+int AtomReader::check_clusters(const bool print) {
     const int n_clusters = vector_sum(vector_not(&cluster, 0));
-    if (n_clusters > 0)
+    if (print && n_clusters > 0)
         write_silent_msg("# evaporated or clustered atoms: " + to_string(n_clusters));
+
+    return n_clusters;
 }
 
 // Group atoms into clusters

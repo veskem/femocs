@@ -400,7 +400,7 @@ int Femocs::import_atoms(const string& file_name) {
             reader.calc_coordinations();
             if (conf.cluster_anal) reader.calc_clusters();
             end_msg(t0);
-            reader.check_clusters();
+            reader.check_clusters(1);
 
             start_msg(t0, "=== Extracting atom types...");
             reader.extract_types(conf.nnn, conf.latconst);
@@ -439,7 +439,7 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
         reader.calc_coordinations();
         if (conf.cluster_anal) reader.calc_clusters();
         end_msg(t0);
-        reader.check_clusters();
+        reader.check_clusters(1);
 
         start_msg(t0, "=== Extracting atom types...");
         reader.extract_types(conf.nnn, conf.latconst);
@@ -482,7 +482,7 @@ int Femocs::export_atom_types(const int n_atoms, int* types) {
     for (int i = 0; i < export_size; ++i)
         types[i] = reader.get_marker(i);
 
-    return 0;
+    return reader.check_clusters(0);
 }
 
 // calculate and export electric field on imported atom coordinates
