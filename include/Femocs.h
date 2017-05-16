@@ -66,24 +66,34 @@ public:
      */
     int import_atoms(const string& file_name);
     
+    /** Export the types of all the atoms as seen by FEMOCS
+     * @param n_atoms   number of atoms to export; n_atoms <= 0 turns the export off
+     * @param types     array where the atom types are written
+     * @return          success of the operation (always 0)
+     */
+    int export_atom_types(const int n_atoms, int* types);
+
     /** Function to export the calculated electric field on imported atom coordinates
      * @param n_atoms   number of points of interest
      * @param Ex        x-component of electric field
      * @param Ey        y-component of electric field
      * @param Ez        z-component of electric field
      * @param Enorm     norm of electric field
+     * @return          success of the operation (always 0)
      */
     int export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
     
     /** Function to export the calculated temperatures on imported atom coordinates
      * @param n_atoms   number of points of interest
      * @param T         temperature in the atom location
+     * @return          success of the operation (always 0)
      */
     int export_temperature(const int n_atoms, double* T);
 
     /** Calculate and export charges & forces on imported atom coordinates
      * @param n_atoms   number of points of interest
      * @param xq        charges and forces in PARCAS format (xq[0] = q1, xq[1] = Fx1, xq[2] = Fy1, xq[3] = Fz1, xq[4] = q2, xq[5] = Fx2 etc)
+     * @return          success of the operation (always 0)
      */
     int export_charge_and_force(const int n_atoms, double* xq);
 

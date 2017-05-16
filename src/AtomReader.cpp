@@ -137,7 +137,7 @@ void AtomReader::calc_nborlist(const int nnn, const double r_cut) {
 void AtomReader::check_clusters() {
     const int n_clusters = vector_sum(vector_not(&cluster, 0));
     if (n_clusters > 0)
-        cout << "FEMOCS: # evaporated or clustered atoms: " + to_string(n_clusters) << endl;
+        write_silent_msg("# evaporated or clustered atoms: " + to_string(n_clusters));
 }
 
 // Group atoms into clusters
@@ -254,10 +254,10 @@ void AtomReader::resize_box(double xmin, double xmax, double ymin, double ymax, 
 
 // Compile data string from the data vectors
 string AtomReader::get_data_string(const int i) const {
-    if (i < 0) return "AtomReader properties=id:I:1:pos:R:3:type:I:1:coordination:I:1:cluster:I:1";
+    if (i < 0) return "AtomReader properties=id:I:1:pos:R:3:type:I:1:coordination:I:1";
 
     ostringstream strs; strs << fixed;
-    strs << atoms[i] << " " << coordination[i] << " " << cluster[i];
+    strs << atoms[i] << " " << coordination[i];
     return strs.str();
 }
 

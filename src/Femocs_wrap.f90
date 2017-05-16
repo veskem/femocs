@@ -59,6 +59,15 @@ module libfemocs
             character(len=1, kind=C_CHAR), intent(in) :: file_name(*)
         end subroutine
         
+        subroutine femocs_export_atom_types_c(femocs, retval, n_atoms, types) bind(C, name="femocs_export_atom_types")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval            
+            integer(c_int), value :: n_atoms
+            integer(c_int) :: types(*)
+        end subroutine
+        
         subroutine femocs_export_elfield_c(femocs, retval, n_atoms, Ex, Ey, Ez, Enorm) bind(C, name="femocs_export_elfield")
             use iso_c_binding
             implicit none
@@ -158,6 +167,7 @@ module libfemocs
         procedure :: import_atoms => femocs_import_atoms
         procedure :: import_parcas => femocs_import_parcas
         procedure :: import_file => femocs_import_file
+        procedure :: export_atom_types => femocs_export_atom_types
         procedure :: export_elfield => femocs_export_elfield
         procedure :: export_temperature => femocs_export_temperature
         procedure :: export_charge_and_force => femocs_export_charge_and_force
@@ -165,8 +175,8 @@ module libfemocs
         procedure :: interpolate_phi => femocs_interpolate_phi
         procedure :: parse_int => femocs_parse_int
         procedure :: parse_double => femocs_parse_double
-    end type
-
+    end type       
+        
     ! This function will act as the constructor for femocs type
     interface femocs
         procedure create_femocs
@@ -263,6 +273,15 @@ module libfemocs
         c_str(N + 1) = C_NULL_CHAR
 
         call femocs_import_file_c(this%ptr, retval, c_str)
+    end subroutine
+    
+    subroutine femocs_export_atom_types(this, retval, n_atoms, types)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval        
+        integer(c_int) :: n_atoms
+        integer(c_int) :: types(*)
+        call femocs_export_atom_types_c(this%ptr, retval, n_atoms, types)
     end subroutine
     
     subroutine femocs_export_elfield(this, retval, n_atoms, Ex, Ey, Ez, Enorm)

@@ -29,6 +29,10 @@ void femocs_import_atoms(FEMOCS* femocs, int* retval, int n_atoms, double* x, do
     retval[0] = femocs->import_atoms(n_atoms, x, y, z, types);
 }
 
+void femocs_export_atom_types(FEMOCS* femocs, int* retval, int n_atoms, int* types) {
+    retval[0] = femocs->export_atom_types(n_atoms, types);
+}
+
 void femocs_export_elfield(FEMOCS* femocs, int* retval, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm){
     retval[0] = femocs->export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
 }

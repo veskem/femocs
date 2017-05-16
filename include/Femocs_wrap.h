@@ -23,6 +23,8 @@ void femocs_import_parcas(FEMOCS* femocs, int* retval, int n_atoms, double* coor
 
 void femocs_import_atoms(FEMOCS* femocs, int* retval, int n_atoms, double* x, double* y, double* z, int* types);
 
+void femocs_export_atom_types(FEMOCS* femocs, int* retval, int n_atoms, int* types);
+
 void femocs_export_elfield(FEMOCS* femocs, int* retval, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
 void femocs_export_temperature(FEMOCS* femocs, int* retval, int n_atoms, double* T);

@@ -476,6 +476,15 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
     return 0;
 }
 
+// export the atom types as seen by FEMOCS
+int Femocs::export_atom_types(const int n_atoms, int* types) {
+    const int export_size = min(n_atoms, reader.size());
+    for (int i = 0; i < export_size; ++i)
+        types[i] = reader.get_marker(i);
+
+    return 0;
+}
+
 // calculate and export electric field on imported atom coordinates
 int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     if (n_atoms < 0) return 0;
