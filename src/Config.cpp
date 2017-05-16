@@ -23,8 +23,8 @@ Config::Config() {
     mesh_quality = "2.0";        // minimum tetrahedron quality Tetgen is allowed to make
     element_volume = "";         // maximum tetrahedron volume Tetgen is allowed to make
     radius = 0.0;                // inner radius of coarsening cylinder
-    box_width = 2.5;             // minimal simulation box width in units of tip height
-    box_height = 3.5;            // simulation box height in units of tip height
+    box_width = 10;              // minimal simulation box width in units of tip height
+    box_height = 6;              // simulation box height in units of tip height
     bulk_height = 20;            // bulk substrate height [lattice constant]
 
     surface_smooth_factor = 0.0; // surface smoothing factor; bigger number gives smoother surface

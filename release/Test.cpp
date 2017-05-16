@@ -20,7 +20,7 @@ void print_progress(const string& message, const bool contition) {
 }
 
 void write_defaults(ofstream &file) {
-    file << "heating = true"             << endl;
+    file << "heating = false"             << endl;
     file << "write_log = true"           << endl;
     file << "clear_output = true"        << endl;
     file << "smooth_factor = 0.0"        << endl;
@@ -106,10 +106,8 @@ void write_molten(ofstream &file) {
 
 void write_moltenbig(ofstream &file) {
     file << "infile = input/nanotip_molten.ckx" << endl;
-    file << "coarse_factor = 0.6 8 3"  << endl;
+    file << "coarse_factor = 0.4 8 3"  << endl;
     file << "radius = 45.0"            << endl;
-    file << "box_width = 2.0"         << endl;
-    file << "box_height = 3.5"        << endl;
 }
 
 int main(int argc, char **argv) {
