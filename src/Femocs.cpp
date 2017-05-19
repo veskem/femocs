@@ -102,7 +102,15 @@ int Femocs::run(const double elfield, const string &message) {
     check_return( solve_heat(bulk_mesh, laplace_solver), "Solving heat & continuity equation failed!");
 
     // Extract face charges
-    check_return( extract_charge(vacuum_mesh), "Extraction of face charges failed!" );
+    if( extract_charge(vacuum_mesh) ) {
+        MODES.WRITEFILE = true;
+        bulk_mesh.hexahedra.write("output/hexmesh_bulk" + conf.message + ".vtk");
+        vacuum_mesh.faces.write("output/surface_faces_clean.vtk");
+        vacuum_interpolator.write("output/result_E_phi.vtk");
+        vacuum_interpolator.write("output/result_E_phi.xyz");
+        face_charges.write("output/face_charges.vtk");
+        check_return(true, "Error calculating face charges!");
+    }
 
     start_msg(t0, "=== Saving atom positions...");
     reader.save_current_run_points(conf.distance_tol);
@@ -334,7 +342,12 @@ int Femocs::extract_charge(const TetgenMesh& mesh) {
     face_charges.calc_charges(mesh, conf.E0);             // electric field in the middle of face in directly from solution
     end_msg(t0);
 
-    face_charges.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
+    const double tot_charge = conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0;
+    face_charges.print_statistics(tot_charge);
+
+    check_return(!face_charges.charge_conserved(tot_charge, conf.charge_tolerance),
+            "Face charges are not conserved!");
+
     face_charges.clean(dense_surf.sizes, conf.latconst);
     face_charges.write("output/face_charges.vtk");
 

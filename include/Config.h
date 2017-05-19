@@ -68,6 +68,7 @@ public:
     int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
     string verbose_mode;        ///< Verbose mode: mute, silent, verbose
     double force_factor;        ///< Factor determining the relationship between force and charge*elfield
+    double charge_tolerance;    ///< Tolerance how much face charges are allowed to deviate from the long range one
 
     /** Method to clean the surface atoms
      * voronois - use Voronoi cells

@@ -691,6 +691,15 @@ void ChargeReader::get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields) 
     }
 }
 
+// Check whether charge is conserved within specified limits
+bool ChargeReader::charge_conserved(const double Q, const double eps) const {
+    double q = 0;
+    for (int i = 0; i < size(); ++i)
+        q += interpolation[i].scalar;
+    q = Q / q;
+
+    return q >= (1 - eps) && q <= (1 + eps);
+}
 /* ==========================================
  * ============== FORCE READER ==============
  * ========================================== */

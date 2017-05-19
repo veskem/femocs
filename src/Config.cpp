@@ -38,7 +38,7 @@ Config::Config() {
     n_phi = 10000;               // maximum number of Conjugate Gradient iterations in phi calculation
     ssor_param = 1.2;            // parameter for SSOR preconditioner
     force_factor = 0.5;          // factor determining the relationship between force and charge*elfield
-
+    charge_tolerance = 0.2;      // tolerance how much face charges are allowed to deviate from the long range one
     refine_apex = false;         // refine nanotip apex
     distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
     n_writefile = 1;             // number of time steps between writing the output files
@@ -67,6 +67,7 @@ void Config::read_all(const string& file_name) {
     parse_file(file_name);
 
     // Modify the parameters that are specified in input script
+    read_command("charge_tolerance", charge_tolerance);
     read_command("force_factor", force_factor);
     read_command("phi_error", phi_error);
     read_command("n_phi", n_phi);

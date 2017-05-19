@@ -167,6 +167,9 @@ public:
 
     double get_charge(const int i) const;
 
+    /** Check whether charge is conserved within specified limits */
+    bool charge_conserved(const double Q, const double eps) const;
+
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
 
 private:
