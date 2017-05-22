@@ -114,6 +114,11 @@ void Medium::calc_statistics() {
     int n_atoms = size();
     init_statistics();
 
+    if (n_atoms <= 0) {
+        expect(false, "Can't calculate statistics for empty set of atoms!");
+        return;
+    }
+
     Point3 average(0,0,0);
 
     // Find min and max coordinates

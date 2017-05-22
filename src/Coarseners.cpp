@@ -230,6 +230,7 @@ double Coarseners::get_z_mean(const Medium& medium) {
         }
     }
 
+    require(n_average > 0, "Error calculating the average z of a surface atoms!");
     return zmean / n_average;
 }
 

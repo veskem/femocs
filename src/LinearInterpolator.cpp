@@ -198,9 +198,11 @@ void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::DoFHan
         }
 }
 
-// Force the solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
+// Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
+// surrounding hexahedral nodes
 void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
-    vector<vector<unsigned int>> voro_cells = mesh.get_voronoi_cells();
+    vector<vector<unsigned int>> cells;
+    mesh.get_pseudo_vorocells(cells);
 
     // loop through the tetrahedral nodes
     for (int i = 0; i < mesh.nodes.stat.n_tetnode; ++i) {
@@ -211,14 +213,18 @@ void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
         double w_sum = 0;
 
         // tetnode new solution will be the weighed average of the solutions on its voronoi cell nodes
-        for (unsigned int v : voro_cells[i]) {
+        for (unsigned v : cells[i]) {
             double w = exp ( -1.0 * tetnode.distance(mesh.nodes[v]) );
             w_sum += w;
             vec += solution[v].vector * w;
         }
 
-        solution[i].vector = vec * (1.0 / w_sum);
-        solution[i].norm = solution[i].vector.norm();
+        if (w_sum > 0) {
+            solution[i].vector = vec * (1.0 / w_sum);
+            solution[i].norm = solution[i].vector.norm();
+        }
+        else
+            expect(false, "Tetrahedral node " + to_string(i) + " can not be averaged!");
     }
 }
 

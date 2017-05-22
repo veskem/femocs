@@ -47,8 +47,9 @@ public:
     /** Group hexahedra around central tetrahedral node */
     void group_hexahedra();
 
-    /** Generate list of nodes that surround the tetrahedral nodes */
-    vector<vector<unsigned int>> get_voronoi_cells() const;
+    /** Generate list of nodes that surround the tetrahedral nodes. The resulting cells
+     * resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells. */
+    void get_pseudo_vorocells(vector<vector<unsigned int>>& cells) const;
 
     /** Use Tetgen built-in functions to write mesh elements data into vtk file */
     bool write(const string& file_name);

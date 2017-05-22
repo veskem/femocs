@@ -201,41 +201,33 @@ void TetgenMesh::group_hexahedra() {
     const int node_max = nodes.indxs.tetnode_end;
 
     // find which hexahedra correspond to which tetrahedral node
-    // hexahedra with the same tetrahedral node form the voronoi cell of that node
+    // hexahedra with the same tetrahedral node form the pseudo Voronoi cell of that node
     for (int i = 0; i < hexahedra.size(); ++i) {
         for (int node : hexahedra[i])
             if (node >= node_min && node <= node_max) {
                 hexahedra.set_marker(i, node);
-                continue;
+                break;
             }
     }
 }
 
 // Generate list of nodes that surround the tetrahedral nodes
-vector<vector<unsigned int>> TetgenMesh::get_voronoi_cells() const {
-    vector<vector<unsigned int>> voronoi_cells(nodes.stat.n_tetnode);
+// The resulting cells resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells
+void TetgenMesh::get_pseudo_vorocells(vector<vector<unsigned int>>& cells) const {
+    cells = vector<vector<unsigned int>>(nodes.stat.n_tetnode);
     const int node_min = nodes.indxs.tetnode_start;
     const int node_max = nodes.indxs.tetnode_end;
 
-    // find the voronoi cell nodes for the tetrahedral nodes
+    // find the pseudo Voronoi cell nodes for the tetrahedral nodes
     for (int i = 0; i < hexahedra.size(); ++i) {
-        for (unsigned int node : hexahedra[i])
-            if ( nodes.get_marker(node) >= TYPES.EDGECENTROID ) {
-                const int tetnode = hexahedra.get_marker(i);
-                expect(tetnode >= node_min && tetnode <= node_max, "Illegal node detected while making Voronoi cells: " + to_string(tetnode));
-                voronoi_cells[tetnode].push_back(node);
-                continue;
-            }
-    }
+        const int tetnode = hexahedra.get_marker(i);
+        expect(tetnode >= node_min && tetnode <= node_max, "Hexahedron " + to_string(i) +
+                " is not marked by the tetrahedral node: " + to_string(tetnode));
 
-//    // print the voronoi cell nodes
-//    for (int i = 0; i < voronoi_cells.size(); ++i) {
-//        cout << i << ": \t";
-//        for (int v : voronoi_cells[i])
-//            cout << "||ParticleIdentifier==" << v;
-//        cout << endl;
-//    }
-    return voronoi_cells;
+        for (unsigned int node : hexahedra[i])
+            if ( node != tetnode && nodes.get_marker(node) >= TYPES.EDGECENTROID )
+                cells[tetnode].push_back(node);
+    }
 }
 
 // Function to generate simple mesh that consists of one tetrahedron

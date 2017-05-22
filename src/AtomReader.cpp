@@ -44,7 +44,7 @@ bool AtomReader::equals_previous_run(const double eps) {
 
 // Calculate root mean square of the distances atoms have moved after previous run
 double AtomReader::calc_rms_distance(const double eps) {
-    if (eps < 1e-5) return DBL_MAX;
+    if (eps <= 0) return DBL_MAX;
 
     const int n_atoms = size();
     if (n_atoms != (int)previous_point.size())

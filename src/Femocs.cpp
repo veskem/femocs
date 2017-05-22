@@ -223,7 +223,7 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     big_mesh.hexahedra.write("output/hexmesh_elems.vtk");
 
     start_msg(t0, "=== Separating vacuum & bulk meshes...");
-    big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQ");
+    big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQB");
     bulk_mesh.group_hexahedra();
     vacuum_mesh.group_hexahedra();
     vacuum_mesh.faces.clean_sides(reader.sizes);

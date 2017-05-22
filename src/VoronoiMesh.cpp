@@ -333,11 +333,11 @@ void VoronoiMesh::mark_cells_and_nodes() {
 
 // Calculate minimum z-coordinate of medium and mark mesh
 void VoronoiMesh::mark_mesh(const Medium& medium) {
-    // Get the sorted array of the atom z-coordinates
     const int n_atoms = medium.size();
-//    const int n_average = min(100.0, sqrt(n_atoms));
+    require(n_atoms > 0, "Can't mark Voronoi mesh if no surface atoms are present!");
     const int n_average = sqrt(n_atoms);
 
+    // Get the sorted array of the atom z-coordinates
     vector<double> zcoord; zcoord.reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
         zcoord.push_back(medium.get_point(i).z);

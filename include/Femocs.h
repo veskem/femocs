@@ -69,12 +69,12 @@ public:
     /** Export the types of all the atoms as seen by FEMOCS
      * @param n_atoms   number of atoms to export; n_atoms <= 0 turns the export off
      * @param types     array where the atom types are written
-     * @return          success of the operation (always 0)
+     * @return          boolean whether there are any clustered or evaporated atom
      */
     int export_atom_types(const int n_atoms, int* types);
 
     /** Function to export the calculated electric field on imported atom coordinates
-     * @param n_atoms   number of points of interest
+     * @param n_atoms   number of points of interest; n_atoms <= 0 turns the export off
      * @param Ex        x-component of electric field
      * @param Ey        y-component of electric field
      * @param Ez        z-component of electric field
@@ -84,21 +84,21 @@ public:
     int export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
     
     /** Function to export the calculated temperatures on imported atom coordinates
-     * @param n_atoms   number of points of interest
+     * @param n_atoms   number of points of interest; n_atoms <= 0 turns the export off
      * @param T         temperature in the atom location
      * @return          success of the operation (always 0)
      */
     int export_temperature(const int n_atoms, double* T);
 
     /** Calculate and export charges & forces on imported atom coordinates
-     * @param n_atoms   number of points of interest
+     * @param n_atoms   number of points of interest; n_atoms <= 0 turns the export off
      * @param xq        charges and forces in PARCAS format (xq[0] = q1, xq[1] = Fx1, xq[2] = Fy1, xq[3] = Fz1, xq[4] = q2, xq[5] = Fx2 etc)
      * @return          success of the operation (always 0)
      */
     int export_charge_and_force(const int n_atoms, double* xq);
 
     /** Function to linearly interpolate electric field at given points
-     * @param n_points  number of points where electric field is interpolated
+     * @param n_points  number of points where electric field is interpolated; n_points <= 0 turns the interpolation off
      * @param x         x-coordinates of the points of interest
      * @param y         y-coordinates of the points of interest
      * @param z         z-coordinates of the points of interest
@@ -113,7 +113,7 @@ public:
             double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 
     /** Function to linearly interpolate electric potential at given points
-     * @param n_points  number of points where electric potential is interpolated
+     * @param n_points  number of points where electric potential is interpolated; n_points <= 0 turns the interpolation off
      * @param x         x-coordinates of the points of interest
      * @param y         y-coordinates of the points of interest
      * @param z         z-coordinates of the points of interest
@@ -178,8 +178,10 @@ private:
     /** Solve heat and continuity equations */
     int solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
 
+    /** Calculate the charges on surface faces */
     int extract_charge(const TetgenMesh& mesh);
 
+    /** Interpolate the solution on the x-z plane in the middle of simulation box */
     void write_slice(const string& file_name);
 };
 

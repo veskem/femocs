@@ -119,8 +119,13 @@ Solution SolutionReader::get_average_solution(const int I, const double r_cut) {
             potential += interpolation[i].scalar * w;
         }
 
-    elfield *= (1.0 / w_sum); potential *= (1.0 / w_sum);
-    return Solution(elfield, potential);
+    if (w_sum > 0) {
+        elfield *= (1.0 / w_sum); potential *= (1.0 / w_sum);
+        return Solution(elfield, potential);
+    }
+
+    expect(false, "Node " + to_string(I) + " can't be averaged!");
+    return(interpolation[I]);
 }
 
 // Get histogram for electric field x,y,z component or for its norm
