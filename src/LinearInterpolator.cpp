@@ -14,7 +14,7 @@ using namespace std;
 namespace femocs {
 
 // Initialize data vectors
-LinearInterpolator::LinearInterpolator() : radius1(0), radius2(0), E0(0) {
+LinearInterpolator::LinearInterpolator() : radius1(0), radius2(0), E0(0), zero(0) {
     reserve(0);
     reserve_precompute(0);
 }
@@ -156,11 +156,10 @@ void LinearInterpolator::print_statistics() const {
 
 /* Return the mapping between tetrahedral & hexahedral mesh nodes,
  nodes & hexahedral elements and nodes & element's vertices  */
-void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh,
-        vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs) {
+void LinearInterpolator::get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
+        dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps) {
 
     require(tria->n_vertices() > 0, "Invalid triangulation size!");
-    const double eps = 1e-10;
 
     const int n_femocs_nodes = size();
     const int n_dealii_nodes = tria->n_used_vertices();
@@ -201,9 +200,12 @@ void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::DoFHan
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
 bool LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
+    const double decay_factor = -1.0 / mesh.elems.stat.edgemax;
+
     vector<vector<unsigned int>> cells;
-    bool fail = false;
     mesh.get_pseudo_vorocells(cells);
+
+    bool fail = false;
 
     // loop through the tetrahedral nodes
     for (int i = 0; i < mesh.nodes.stat.n_tetnode; ++i) {
@@ -215,7 +217,7 @@ bool LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
 
         // tetnode new solution will be the weighed average of the solutions on its voronoi cell nodes
         for (unsigned v : cells[i]) {
-            double w = exp ( -1.0 * tetnode.distance(mesh.nodes[v]) );
+            double w = exp (decay_factor * tetnode.distance(mesh.nodes[v]));
             w_sum += w;
             vec += solution[v].vector * w;
         }
@@ -223,12 +225,12 @@ bool LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
         if (w_sum > 0) {
             solution[i].vector = vec * (1.0 / w_sum);
             solution[i].norm = solution[i].vector.norm();
-        }
-        else {
-            fail = true;
+        } else {
             expect(false, "Tetrahedral node " + to_string(i) + " can't be averaged!");
+            fail = true;
         }
     }
+
     return fail;
 }
 
@@ -236,6 +238,7 @@ bool LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
 bool LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh) {
     require(fem, "NULL pointer can't be handled!");
     const int n_nodes = mesh.nodes.size();
+    const double eps = 1e-10 * mesh.elems.stat.edgemin;
 
     // Copy the mesh nodes
     reserve(n_nodes);
@@ -247,7 +250,8 @@ bool LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> tetNode2hexNode, cell_indxs, vert_indxs;
-    get_maps(fem->get_triangulation(), fem->get_dof_handler(), tetNode2hexNode, cell_indxs, vert_indxs);
+    get_maps(tetNode2hexNode, cell_indxs, vert_indxs,
+            fem->get_triangulation(), fem->get_dof_handler(), eps);
 
     vector<dealii::Tensor<1, 3>> ef = fem->get_efield(cell_indxs, vert_indxs); // get list of electric fields
     vector<double> pot = fem->get_potential(cell_indxs, vert_indxs); // get list of electric potentials
@@ -270,7 +274,7 @@ bool LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh
             solution.push_back(Solution(error_field));
     }
 
-    // force solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
+    // remove the spikes in the solution
     if (average_tetnodes(mesh))
         return true;
 
@@ -288,6 +292,7 @@ bool LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh
 bool LinearInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh) {
     require(fem, "NULL pointer can't be handled!");
     const int n_nodes = mesh.nodes.size();
+    const double eps = 1e-10 * mesh.elems.stat.edgemin;
 
     // Copy the mesh nodes
     reserve(n_nodes);
@@ -299,7 +304,8 @@ bool LinearInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem, const
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> tetNode2hexNode, cell_indxs, vert_indxs;
-    get_maps(fem->get_triangulation(), fem->get_dof_handler(), tetNode2hexNode, cell_indxs, vert_indxs);
+    get_maps(tetNode2hexNode, cell_indxs, vert_indxs,
+            fem->get_triangulation(), fem->get_dof_handler(), eps);
 
     vector<dealii::Tensor<1, 3>> rho = fem->get_current(cell_indxs, vert_indxs); // get list of current densities
     vector<double> temperature = fem->get_temperature(cell_indxs, vert_indxs); // get list of temperatures
@@ -368,8 +374,10 @@ void LinearInterpolator::reserve_precompute(const int N) {
 // Precompute the data to tetrahedra to make later bcc calculations faster
 void LinearInterpolator::precompute_tetrahedra(const TetgenMesh &mesh) {
     const int n_elems = mesh.elems.size();
-    double d0, d1, d2, d3, d4;
+    const double epsilon = 1e-1 * mesh.elems.stat.edgemin;
+    zero = -1.0 * epsilon;
 
+    double d0, d1, d2, d3, d4;
     reserve_precompute(n_elems);
 
     // Copy tetrahedra

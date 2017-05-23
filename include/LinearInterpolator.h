@@ -77,8 +77,7 @@ public:
 private:
     /** Constants specifying the interpolation tolerances.
      * Making zero a bit negative allows to interpolate outside the tetrahedron. */
-    const double epsilon = 1e-1;
-    const double zero = -1.0 * epsilon;
+    double zero;
     double radius1;  ///< Minor semi-axis of ellipse
     double radius2;  ///< Major semi-axis of ellipse
     double E0;       ///< Long-range electric field strength
@@ -100,8 +99,8 @@ private:
 
     /** Return the mapping between tetrahedral and hexahedral meshes;
      * -1 indicates that mapping for corresponding object was not found */
-    void get_maps(dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh,
-            vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs);
+    void get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
+            dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps);
 
     /** Force the solution on tetrahedral nodes to be the weighed average
      * of the solutions on its Voronoi cell nodes */
