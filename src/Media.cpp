@@ -315,8 +315,12 @@ void Media::smoothen(const double smooth_factor, const double r_cut) {
     }
 
     // Normalise smoothed vertices
-    for (int i = 0; i < n_atoms; ++i)
-        atoms[i].point *= 1.0 / weights_sum[i];
+    for (int i = 0; i < n_atoms; ++i) {
+        if (weights_sum[i] > 0)
+            atoms[i].point *= 1.0 / weights_sum[i];
+        else
+            atoms[i].point = points[i];
+    }
 }
 
 } /* namespace femocs */
