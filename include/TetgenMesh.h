@@ -70,10 +70,10 @@ public:
     TetgenElements elems = TetgenElements(&tetIOout, &tetIOin);
     Hexahedra hexahedra = Hexahedra(&tetIOout);
 
-    const int n_coordinates = 3;     ///< Number of coordinates
-    const int n_edges_per_face = 3;  ///< Number of edges on a triangle
-    const int n_edges_per_elem = 6;  ///< Number of edges on a tetrahedron
-    const int n_faces_per_elem = 4;  ///< Number of triangles on a tetrahedron
+    static constexpr int n_coordinates = 3;     ///< Number of coordinates
+    static constexpr int n_edges_per_face = 3;  ///< Number of edges on a triangle
+    static constexpr int n_edges_per_elem = 6;  ///< Number of edges on a tetrahedron
+    static constexpr int n_faces_per_elem = 4;  ///< Number of triangles on a tetrahedron
 
     /** String stream prints the statistics about the mesh */
     friend std::ostream& operator <<(std::ostream &s, const TetgenMesh &t) {

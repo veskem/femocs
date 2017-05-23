@@ -179,10 +179,10 @@ public:
     iterator begin() const { return iterator(this, 0); }
     iterator end() const { return iterator(this, size()); }
 
-    const int DIM = dim;  //!< dimensionality of the cell; 1-node, 2-edge, 3-triangle etc
+    static constexpr int DIM = dim; //!< dimensionality of the cell; 1-node, 2-edge, 3-triangle etc
 
 protected:
-    const int n_coordinates = 3;  //!< number of spatial coordinates
+    static constexpr int n_coordinates = 3;  //!< number of spatial coordinates
 
     int* n_cells_r;      ///< number of readable cells in mesh data
     int* n_cells_w;      ///< number of writable cells in mesh data
