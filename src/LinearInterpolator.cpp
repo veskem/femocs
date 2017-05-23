@@ -238,7 +238,7 @@ bool LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
 bool LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh &mesh) {
     require(fem, "NULL pointer can't be handled!");
     const int n_nodes = mesh.nodes.size();
-    const double eps = 1e-10 * mesh.elems.stat.edgemin;
+    const double eps = 1e-5 * mesh.elems.stat.edgemin;
 
     // Copy the mesh nodes
     reserve(n_nodes);
@@ -292,7 +292,7 @@ bool LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh
 bool LinearInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh) {
     require(fem, "NULL pointer can't be handled!");
     const int n_nodes = mesh.nodes.size();
-    const double eps = 1e-10 * mesh.elems.stat.edgemin;
+    const double eps = 1e-5 * mesh.elems.stat.edgemin;
 
     // Copy the mesh nodes
     reserve(n_nodes);

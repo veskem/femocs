@@ -120,7 +120,7 @@ Solution SolutionReader::get_average_solution(const int I, const double r_cut) {
         }
 
     if (w_sum > 0) {
-        elfield *= (1.0 / w_sum); potential *= (1.0 / w_sum);
+        elfield *= (1.0 / w_sum); potential /= w_sum;
         return Solution(elfield, potential);
     }
 
@@ -135,7 +135,6 @@ void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, co
     const int n_atoms = size();
     const int n_bins = bins.size();
     const int n_bounds = bounds.size();
-    const double eps = 1e-5;
 
     // Find minimum and maximum values from all non-error values
     double value_min = DBL_MAX;
@@ -157,7 +156,7 @@ void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, co
     double value_step = (value_max - value_min) / n_bins;
     for (int i = 0; i < n_bounds; ++i)
         bounds[i] = value_min + value_step * i;
-    bounds[n_bounds-1] += eps;
+    bounds[n_bounds-1] += 1e-5 * value_step;
 
     for (int i = 0; i < n_atoms; ++i)
         for (int j = 0; j < n_bins; ++j) {

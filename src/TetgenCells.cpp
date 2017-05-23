@@ -26,6 +26,7 @@ void TetgenNodes::recalc() {
 // Initialize node appending
 void TetgenNodes::init(const int N) {
     TetgenCells::init(N);
+    init_statistics();
     writes->pointlist = new double[n_coordinates * N];
 }
 
@@ -271,9 +272,8 @@ SimpleCell<3> TetgenFaces::get_cell(const int i) const {
 }
 
 // Delete the faces on the sides of simulation cell
-//void TetgenFaces::clean_sides(const TetgenNodes::Stat& stat) {
-void TetgenFaces::clean_sides(const Medium::Sizes& stat) {
-    const double eps = 0.1;
+void TetgenFaces::clean_sides(const Medium::Sizes& stat, const double latconst) {
+    const double eps = 0.01 * latconst;
     const int n_faces = size();
     vector<SimpleFace> faces; faces.reserve(n_faces);
 
@@ -292,11 +292,11 @@ void TetgenFaces::clean_sides(const Medium::Sizes& stat) {
     for (SimpleFace face : faces)
         append(face);
 
-    calc_norms();
+    calc_norms_and_areas();
 }
 
 // Calculate the norms and areas for all the triangles
-void TetgenFaces::calc_norms() {
+void TetgenFaces::calc_norms_and_areas() {
     const int n_faces = size();
     areas.clear(); areas.reserve(n_faces);
     norms.clear(); norms.reserve(n_faces);
@@ -331,6 +331,40 @@ double TetgenFaces::get_area(const int i) const {
  *  ========================== TetgenElements =========================
  * ===================================================================== */
 
+void TetgenElements::init_statistics() {
+    stat.edgemin =  DBL_MAX;
+    stat.edgemax = -DBL_MAX;
+}
+
+void TetgenElements::calc_statistics() {
+    init_statistics();
+
+    // loop through all the tetrahedra
+    for (SimpleElement elem : *this) {
+        // read the coordinates of tetrahedron nodes
+        Point3 n1 = get_node(elem[0]);
+        Point3 n2 = get_node(elem[1]);
+        Point3 n3 = get_node(elem[2]);
+        Point3 n4 = get_node(elem[3]);
+
+        // calculate squared lengths of the tetrahedron edges
+        const double e1 = n1.distance2(n2);
+        const double e2 = n1.distance2(n3);
+        const double e3 = n1.distance2(n4);
+        const double e4 = n2.distance2(n3);
+        const double e5 = n2.distance2(n4);
+        const double e6 = n3.distance2(n4);
+
+        // store min and max length
+        stat.edgemin = min(stat.edgemin, min(e1, min(e2, min(e3, min(e4, min(e5, e6))))));
+        stat.edgemax = max(stat.edgemax, max(e1, max(e2, max(e3, max(e4, max(e5, e6))))));
+    }
+
+    // squared length -> length
+    stat.edgemin = sqrt(stat.edgemin);
+    stat.edgemax = sqrt(stat.edgemax);
+}
+
 // Copy the nodes from write to read buffer
 void TetgenElements::recalc() {
     *n_cells_r = *n_cells_w;
@@ -343,6 +377,7 @@ void TetgenElements::recalc() {
 // Initialize element appending
 void TetgenElements::init(const int N) {
     TetgenCells::init(N);
+    init_statistics();
     writes->tetrahedronlist = new int[DIM * N];
 }
 

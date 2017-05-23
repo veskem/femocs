@@ -71,10 +71,6 @@ public:
     void resize_box(const double xmin, const double xmax, const double ymin, const double ymax,
             const double zmin, const double zmax);
 
-    /** Compare current and previous run and detect whether 
-     * any of the atoms has moved more than threshold */
-    bool equals_previous_run(const double eps);
-    
     /** Calculate the root mean square average distance the atoms have moved
      * between previous and current run */
     double calc_rms_distance(const double eps);

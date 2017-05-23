@@ -239,7 +239,6 @@ void Coarseners::get_histogram(vector<int> &bins, vector<double> &bounds, const 
     const int n_atoms = medium.size();
     const int n_bins = bins.size();
     const int n_bounds = bounds.size();
-    const double eps = 1e-5;
 
     // Find minimum and maximum values from all z-coordinates
     double value_min = DBL_MAX;
@@ -256,7 +255,7 @@ void Coarseners::get_histogram(vector<int> &bins, vector<double> &bounds, const 
     double value_step = (value_max - value_min) / n_bins;
     for (int i = 0; i < n_bounds; ++i)
         bounds[i] = value_min + value_step * i;
-    bounds[n_bounds-1] += eps;
+    bounds[n_bounds-1] += 1e-5 * value_step;
 
     for (int i = 0; i < n_atoms; ++i) {
         value = medium.get_point(i).z;

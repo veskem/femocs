@@ -400,7 +400,7 @@ public:
     void recalc();
     
     /** Delete the faces on the sides of simulation cell */
-    void clean_sides(const Medium::Sizes& stat);
+    void clean_sides(const Medium::Sizes& stat, const double latconst);
 
     /** Return the normal of i-th triangle */
     Vec3 get_norm(const int i) const;
@@ -416,7 +416,7 @@ private:
     SimpleCell<3> get_cell(const int i) const;
 
     /** Calculate the norms and areas for all the triangles */
-    void calc_norms();
+    void calc_norms_and_areas();
 };
 
 /** Class for holding Tetgen tetrahedral elements */
@@ -439,9 +439,21 @@ public:
     /** Copy the nodes from write buffer to read buffer */
     void recalc();
 
+    /** Calculate statistics about tetrahedra */
+    void calc_statistics();
+
+    /** Struct holding statistics about tetrahedra */
+    struct Stat {
+        double edgemin;    //!< Minimum edge length
+        double edgemax;    //!< Maximum edge length
+    } stat;
+
 private:
     /** Return i-th element */
     SimpleCell<4> get_cell(const int i) const;
+
+    /** Initialize statistics about tetrahedra */
+    void init_statistics();
 };
 
 class Hexahedra: public TetgenCells<8> {

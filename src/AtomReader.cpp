@@ -26,22 +26,6 @@ void AtomReader::reserve(const int n_atoms) {
     coordination = vector<int>(n_atoms, 0);
 }
 
-bool AtomReader::equals_previous_run(const double eps) {
-    if (eps < 1e-5)
-        return false;
-
-    const int n_atoms = size();
-    const double eps2 = eps * eps;
-
-    if (n_atoms != (int)previous_point.size())
-        return false;
-
-     for (int i = 0; i < n_atoms; ++i)
-         if ( get_point(i).distance2(previous_point[i]) > eps2 )
-             return false;
-     return true;
-}
-
 // Calculate root mean square of the distances atoms have moved after previous run
 double AtomReader::calc_rms_distance(const double eps) {
     if (eps <= 0) return DBL_MAX;
@@ -59,7 +43,7 @@ double AtomReader::calc_rms_distance(const double eps) {
 }
 
 void AtomReader::save_current_run_points(const double eps) {
-    if (eps < 1e-5) return;
+    if (eps <= 0) return;
     const int n_atoms = size();
 
     if (n_atoms != (int)previous_point.size())

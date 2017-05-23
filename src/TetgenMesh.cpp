@@ -12,7 +12,8 @@
 using namespace std;
 namespace femocs {
 
-RaySurfaceIntersect::RaySurfaceIntersect(const TetgenMesh* m) : mesh(m) {
+RaySurfaceIntersect::RaySurfaceIntersect(const TetgenMesh* m) : mesh(m),
+        epsilon(0.1*m->elems.stat.edgemin), zero(0.0 - epsilon), one(1.0 + epsilon) {
     reserve(0);
 }
 
@@ -427,7 +428,6 @@ void TetgenMesh::generate_surf_faces() {
 bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd) {
     vector<bool> tet_mask = vector_equal(elems.get_markers(), TYPES.VACUUM);
     vector<bool> hex_mask = vector_equal(hexahedra.get_markers(), TYPES.VACUUM);
-//    vector<bool> hex_mask = vector_greater_equal(hexahedra.get_markers(), 0);
 
     // Transfer vacuum nodes, tetrahedra, hexahedra and their markers
     vacuum.nodes.copy(this->nodes);
@@ -572,7 +572,7 @@ void TetgenMesh::mark_edges() {
 
 // Mark the boundary faces of mesh
 void TetgenMesh::mark_faces() {
-    const int eps = 0.1;
+    const double eps = 0.1 * elems.stat.edgemin;
     const int n_faces = faces.size();
 
     faces.init_markers(n_faces);

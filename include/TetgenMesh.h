@@ -142,9 +142,9 @@ public:
 
 private:
     /** Constants to specify the tolerances */
-    const double epsilon = 1e-1;
-    const double zero = 0.0 - epsilon;
-    const double one  = 1.0 + epsilon;
+    const double epsilon;
+    const double zero;
+    const double one;
 
     /** Pointer to Mesh with nodes and surface faces */
     const TetgenMesh* mesh;

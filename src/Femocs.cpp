@@ -227,7 +227,9 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQB");
     bulk_mesh.group_hexahedra();
     vacuum_mesh.group_hexahedra();
-    vacuum_mesh.faces.clean_sides(reader.sizes);
+    bulk_mesh.elems.calc_statistics();
+    vacuum_mesh.elems.calc_statistics();
+    vacuum_mesh.faces.clean_sides(reader.sizes, conf.latconst);
     end_msg(t0);
 
     vacuum_mesh.faces.write("output/surface_faces_clean.vtk");
@@ -384,7 +386,7 @@ void Femocs::write_slice(const string& file_name) {
 
     const int nx = 300;  // number of points in x-direction
     const int nz = 300;  // number of points in z-direction
-	const double eps = 1e-5;
+	const double eps = 1e-5 * conf.latconst;
 
 	const double xmax = reader.sizes.xmid;
 	const double xmin = xmax - 3*conf.radius;

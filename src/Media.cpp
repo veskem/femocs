@@ -267,12 +267,6 @@ void Media::get_nanotip(Media& nanotip, const double radius) {
     atoms = atoms_save;
 }
 
-// Function used to smoothen the atoms
-inline double Media::smooth_function(const double distance, const double smooth_factor) const {
-    const double a = 1.0;
-    return a * exp(-1.0 * distance / smooth_factor);
-}
-
 // Smoothen the atoms inside the cylinder
 void Media::smoothen(const double radius, const double smooth_factor, const double r_cut) {
     if (smooth_factor <= 0) return;
@@ -292,6 +286,7 @@ void Media::smoothen(const double smooth_factor, const double r_cut) {
     if (smooth_factor <= 0) return;
 
     const double r_cut2 = r_cut * r_cut;
+    const double decay_factor = -1.0 / smooth_factor;
     const int n_atoms = size();
 
     // Make copy of points so that the old positions won't interfere with already smoothed ones
@@ -311,7 +306,7 @@ void Media::smoothen(const double smooth_factor, const double r_cut) {
             double distance2 = point1.distance2(point2);
             if (distance2 > r_cut2) continue;
 
-            double weight = smooth_function(sqrt(distance2), smooth_factor);
+            double weight = exp(decay_factor * sqrt(distance2));
             atoms[i].point += point2 * weight;
             atoms[j].point += point1 * weight;
             weights_sum[i] += weight;
