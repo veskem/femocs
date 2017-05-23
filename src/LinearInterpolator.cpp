@@ -200,8 +200,9 @@ void LinearInterpolator::get_maps(dealii::Triangulation<3>* tria, dealii::DoFHan
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
-void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
+bool LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
     vector<vector<unsigned int>> cells;
+    bool fail = false;
     mesh.get_pseudo_vorocells(cells);
 
     // loop through the tetrahedral nodes
@@ -223,9 +224,12 @@ void LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
             solution[i].vector = vec * (1.0 / w_sum);
             solution[i].norm = solution[i].vector.norm();
         }
-        else
-            expect(false, "Tetrahedral node " + to_string(i) + " can not be averaged!");
+        else {
+            fail = true;
+            expect(false, "Tetrahedral node " + to_string(i) + " can't be averaged!");
+        }
     }
+    return fail;
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
@@ -267,7 +271,8 @@ bool LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh
     }
 
     // force solution on tetrahedral nodes to be the weighed average of the solutions on its voronoi cell nodes
-    average_tetnodes(mesh);
+    if (average_tetnodes(mesh))
+        return true;
 
     // Check for the error values in the mesh nodes
     // Normally there should be no nodes in the mesh elements that have the error value

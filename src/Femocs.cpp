@@ -96,19 +96,20 @@ int Femocs::run(const double elfield, const string &message) {
 
     // Solve Laplace equation on vacuum mesh
     fch::Laplace<3> laplace_solver;
-    check_return( solve_laplace(vacuum_mesh, laplace_solver), "Solving Laplace equation failed!");
+    if (solve_laplace(vacuum_mesh, laplace_solver)) {
+        force_output(bulk_mesh, vacuum_mesh);
+        check_return(true, "Solving Laplace equation failed!");
+    }
 
     // Solve heat & continuity equation on bulk mesh
-    check_return( solve_heat(bulk_mesh, laplace_solver), "Solving heat & continuity equation failed!");
+    if (solve_heat(bulk_mesh, laplace_solver)) {
+        force_output(bulk_mesh, vacuum_mesh);
+        check_return(true, "Solving heat & continuity equation failed!");
+    }
 
     // Extract face charges
-    if( extract_charge(vacuum_mesh) ) {
-        MODES.WRITEFILE = true;
-        bulk_mesh.hexahedra.write("output/hexmesh_bulk" + conf.message + ".vtk");
-        vacuum_mesh.faces.write("output/surface_faces_clean.vtk");
-        vacuum_interpolator.write("output/result_E_phi.vtk");
-        vacuum_interpolator.write("output/result_E_phi.xyz");
-        face_charges.write("output/face_charges.vtk");
+    if(extract_charge(vacuum_mesh)) {
+        force_output(bulk_mesh, vacuum_mesh);
         check_return(true, "Error calculating face charges!");
     }
 
@@ -352,6 +353,28 @@ int Femocs::extract_charge(const TetgenMesh& mesh) {
     face_charges.write("output/face_charges.vtk");
 
     return 0;
+}
+
+// Write all the available data to file for debugging purposes
+void Femocs::force_output(const TetgenMesh& bulk_mesh, const TetgenMesh& vacuum_mesh) {
+    if (conf.n_writefile <= 0) return;
+
+    MODES.WRITEFILE = true;
+    reader.write("output/reader.xyz");
+    bulk_mesh.hexahedra.write("output/hexmesh_bulk.vtk");
+    vacuum_mesh.hexahedra.write("output/hexmesh_vacuum.vtk");
+    vacuum_mesh.faces.write("output/surface_faces_clean.vtk");
+
+    vacuum_interpolator.write("output/result_E_phi.vtk");
+    vacuum_interpolator.write("output/result_E_phi.xyz");
+
+    if (face_charges.size() > 0)
+        face_charges.write("output/face_charges.vtk");
+
+    if (conf.heating && bulk_interpolator.size() > 0) {
+        ch_solver->output_results("output/result_J_T.vtk");
+        bulk_interpolator.write("output/result_J_T.xyz");
+    }
 }
 
 // Interpolate the solution on the x-z plane in the middle of simulation box

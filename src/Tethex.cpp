@@ -759,11 +759,6 @@ void Mesh::read(const std::string &file) {
 }
 
 // Import tetrahedral mesh from Femocs
-void Mesh::read_femocs(femocs::TetgenMesh& mesh) {
-    read_femocs(&mesh);
-}
-
-// Import tetrahedral mesh from Femocs
 void Mesh::read_femocs(femocs::TetgenMesh* mesh) {
     clean(); // free the memory for mesh elements
 
@@ -809,7 +804,7 @@ void Mesh::export_femocs(femocs::TetgenMesh* mesh) {
         mesh->nodes.append_marker(points[vert]->get_material_id());
     }
 
-    mesh->nodes.recalc(); // copy nodes from write buffer to read one
+    mesh->nodes.recalc(); // copy nodes from write buffer to the read one
     mesh->nodes.save_hex_indices(n_cell_nodes); // save the locations of added nodes
 
     // Export hexahedra
@@ -824,38 +819,6 @@ void Mesh::export_femocs(femocs::TetgenMesh* mesh) {
                 hexahedra[i]->get_vertex(4), hexahedra[i]->get_vertex(5),
                 hexahedra[i]->get_vertex(6), hexahedra[i]->get_vertex(7) ));
         mesh->hexahedra.append_marker(hexahedra[i]->get_material_id());
-    }
-}
-
-void Mesh::calc_hex_qualities() {
-    const int n_elems = hexahedra.size();
-    const int n_verts_per_hex = hexahedra[0]->get_n_vertices();
-    const double Q = 10000.0;
-
-    double len, len_sum, len_min;
-
-    // loop through hexahedra
-    for (int i = 0; i < n_elems; ++i) {
-        // loop through the nodes of hexahedron
-        len_sum = 0.0;
-        len_min = 1e20;
-
-        // calculate all pairs of
-        for (int j = 0; j < n_verts_per_hex-1; ++j) {
-            Point P1 = vertices[hexahedra[i]->get_vertex(j)];
-            femocs::Point3 p1 = femocs::Point3(P1.coord[0], P1.coord[1], P1.coord[2]);
-
-            for (int k = j+1; k < n_verts_per_hex; ++k) {
-                Point P2 = vertices[hexahedra[i]->get_vertex(k)];
-                femocs::Point3 p2 = femocs::Point3(P2.coord[0], P2.coord[1], P2.coord[2]);
-                len = p1.distance(p2);
-                len_sum += len;
-                len_min = min(len_min, len);
-            }
-        }
-
-        // Set the hexahedron id to be proportional to its quality
-        hexahedra[i]->set_material_id(min(100.0, Q*len_min/len_sum));
     }
 }
 

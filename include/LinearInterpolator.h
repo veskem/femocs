@@ -105,7 +105,7 @@ private:
 
     /** Force the solution on tetrahedral nodes to be the weighed average
      * of the solutions on its Voronoi cell nodes */
-    void average_tetnodes(const TetgenMesh &mesh);
+    bool average_tetnodes(const TetgenMesh &mesh);
 
     /** Get barycentric coordinates for a point inside i-th tetrahedron */
     Vec4 get_bcc(const Point3 &point, const int i);

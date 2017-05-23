@@ -183,6 +183,9 @@ private:
 
     /** Interpolate the solution on the x-z plane in the middle of simulation box */
     void write_slice(const string& file_name);
+
+    /** Force the data to the files for debugging purposes */
+    void force_output(const TetgenMesh& bulk_mesh, const TetgenMesh& vacuum_mesh);
 };
 
 } /* namespace femocs */
