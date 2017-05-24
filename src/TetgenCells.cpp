@@ -18,6 +18,7 @@ namespace femocs {
 // Copy the nodes from write to read buffer
 void TetgenNodes::recalc() {
     TetgenCells::recalc();
+    delete[] reads->pointlist;
     reads->pointlist = new double[n_coordinates * i_cells];
     for (int i = 0; i < n_coordinates * i_cells; ++i)
         reads->pointlist[i] = writes->pointlist[i];
@@ -27,6 +28,7 @@ void TetgenNodes::recalc() {
 void TetgenNodes::init(const int N) {
     TetgenCells::init(N);
     init_statistics();
+    delete[] writes->pointlist;
     writes->pointlist = new double[n_coordinates * N];
 }
 
@@ -210,6 +212,7 @@ void TetgenNodes::write_xyz(const string &file_name) const {
 // Copy the nodes from write to read buffer
 void TetgenEdges::recalc() {
     TetgenCells::recalc();
+    delete[] reads->edgelist;
     reads->edgelist = new int[DIM * i_cells];
     for (int i = 0; i < DIM * i_cells; ++i)
         reads->edgelist[i] = writes->edgelist[i];
@@ -218,6 +221,7 @@ void TetgenEdges::recalc() {
 // Initialize edge appending
 void TetgenEdges::init(const int N) {
     TetgenCells::init(N);
+    delete[] writes->edgelist;
     writes->edgelist = new int[DIM * N];
 }
 
@@ -244,6 +248,7 @@ SimpleCell<2> TetgenEdges::get_cell(const int i) const {
 // Copy the nodes from write to read buffer
 void TetgenFaces::recalc() {
     TetgenCells::recalc();
+    delete[] reads->trifacelist;
     reads->trifacelist = new int[DIM * i_cells];
     for (int i = 0; i < DIM * i_cells; ++i)
         reads->trifacelist[i] = writes->trifacelist[i];
@@ -252,6 +257,7 @@ void TetgenFaces::recalc() {
 // Initialize face appending
 void TetgenFaces::init(const int N) {
     TetgenCells::init(N);
+    delete[] writes->trifacelist;
     writes->trifacelist = new int[DIM * N];
 }
 
@@ -367,8 +373,8 @@ void TetgenElements::calc_statistics() {
 
 // Copy the nodes from write to read buffer
 void TetgenElements::recalc() {
-    *n_cells_r = *n_cells_w;
-    i_cells = *n_cells_w;
+    TetgenCells::recalc();
+    delete[] reads->tetrahedronlist;
     reads->tetrahedronlist = new int[DIM * i_cells];
     for (int i = 0; i < DIM * i_cells; ++i)
         reads->tetrahedronlist[i] = writes->tetrahedronlist[i];
@@ -378,6 +384,7 @@ void TetgenElements::recalc() {
 void TetgenElements::init(const int N) {
     TetgenCells::init(N);
     init_statistics();
+    delete[] writes->tetrahedronlist;
     writes->tetrahedronlist = new int[DIM * N];
 }
 
