@@ -317,13 +317,13 @@ void AtomReader::import_xyz(const string &file_name) {
 
     getline(in_file, line);     // Skip comments line
 
-    id = 0;
+    id = -1;
     // keep storing values from the text file as long as data exists:
-    while ((--n_atoms > 0) && getline(in_file, line)) {
+    while (++id < n_atoms && getline(in_file, line)) {
         iss.clear();
         iss.str(line);
         iss >> elem >> x >> y >> z >> type;
-        append( Atom(id++, Point3(x, y, z), type) );
+        append( Atom(id, Point3(x, y, z), type) );
     }
 }
 
@@ -346,13 +346,13 @@ void AtomReader::import_ckx(const string &file_name) {
 
     getline(in_file, line);    // Skip comments line
 
-    id = 0;
+    id = -1;
     // keep storing values from the text file as long as data exists:
-    while ((--n_atoms > 0) && getline(in_file, line)) {
+    while (++id < n_atoms && getline(in_file, line)) {
         iss.clear();
         iss.str(line);
         iss >> type >> x >> y >> z;
-        append( Atom(id++, Point3(x, y, z), type) );
+        append( Atom(id, Point3(x, y, z), type) );
     }
 }
 
