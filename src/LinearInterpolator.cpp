@@ -14,7 +14,7 @@ using namespace std;
 namespace femocs {
 
 // Initialize data vectors
-LinearInterpolator::LinearInterpolator() : radius1(0), radius2(0), E0(0), zero(0) {
+LinearInterpolator::LinearInterpolator() : radius1(0), radius2(0), E0(0) {
     reserve(0);
     reserve_precompute(0);
 }
@@ -374,11 +374,8 @@ void LinearInterpolator::reserve_precompute(const int N) {
 // Precompute the data to tetrahedra to make later bcc calculations faster
 void LinearInterpolator::precompute_tetrahedra(const TetgenMesh &mesh) {
     const int n_elems = mesh.elems.size();
-    const double epsilon = 1e-1 * mesh.elems.stat.edgemin;
-    zero = -1.0 * epsilon;
-
-    double d0, d1, d2, d3, d4;
     reserve_precompute(n_elems);
+    double d0, d1, d2, d3, d4;
 
     // Copy tetrahedra
     for (int i = 0; i < n_elems; ++i)

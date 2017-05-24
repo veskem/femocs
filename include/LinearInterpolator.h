@@ -77,7 +77,8 @@ public:
 private:
     /** Constants specifying the interpolation tolerances.
      * Making zero a bit negative allows to interpolate outside the tetrahedron. */
-    double zero;
+    const double epsilon = 0.1;
+    const double zero = 0.0 - epsilon;
     double radius1;  ///< Minor semi-axis of ellipse
     double radius2;  ///< Major semi-axis of ellipse
     double E0;       ///< Long-range electric field strength

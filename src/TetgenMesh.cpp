@@ -12,8 +12,7 @@
 using namespace std;
 namespace femocs {
 
-RaySurfaceIntersect::RaySurfaceIntersect(const TetgenMesh* m) : mesh(m),
-        epsilon(0.1*m->elems.stat.edgemin), zero(0.0 - epsilon), one(1.0 + epsilon) {
+RaySurfaceIntersect::RaySurfaceIntersect(const TetgenMesh* m) : mesh(m) {
     reserve(0);
 }
 
