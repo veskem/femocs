@@ -191,7 +191,7 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     Media bulk, coarse_surf, vacuum;
     fail = generate_boundary_nodes(bulk, coarse_surf, vacuum);
     if (fail) return 1;
-    
+
     start_msg(t0, "=== Making big mesh...");
     TetgenMesh big_mesh;
     // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality, a - element volume,
@@ -352,7 +352,7 @@ int Femocs::extract_charge(const TetgenMesh& mesh) {
             "Face charges are not conserved!");
 
     face_charges.clean(dense_surf.sizes, conf.latconst);
-    face_charges.write("output/face_charges.vtk");
+    face_charges.write("output/face_charges.xyz");
 
     return 0;
 }
@@ -371,7 +371,7 @@ void Femocs::force_output(const TetgenMesh& bulk_mesh, const TetgenMesh& vacuum_
     vacuum_interpolator.write("output/result_E_phi.xyz");
 
     if (face_charges.size() > 0)
-        face_charges.write("output/face_charges.vtk");
+        face_charges.write("output/face_charges.xyz");
 
     if (conf.heating && bulk_interpolator.size() > 0) {
         ch_solver->output_results("output/result_J_T.vtk");

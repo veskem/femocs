@@ -16,7 +16,7 @@
 using namespace std;
 
 void print_progress(const string& message, const bool contition) {
-    cout << message << ":\t";
+    cout << message << ":  ";
     if (contition) cout << "passed" << endl;
     else cout << "failed" << endl;
 }
@@ -233,7 +233,7 @@ int main(int argc, char **argv) {
         file.close();
     }
 
-    cout << "\nRunning FEMOCS test program in a mode   " << mode << endl;
+    cout << "\n> running FEMOCS test program in a mode   " << mode << endl;
 
     int success = 0;
     femocs::Femocs femocs(filename);
@@ -241,7 +241,7 @@ int main(int argc, char **argv) {
 
     string cmd1 = "infile"; string infile = "";
     success = femocs.parse_command(cmd1, infile);
-    print_progress("reading " + cmd1, infile != "");
+    print_progress("\n> reading " + cmd1, infile != "");
 
     int n_atoms, n_points = 100;
     read_n_atoms(infile, n_atoms);
@@ -260,15 +260,17 @@ int main(int argc, char **argv) {
 
     read_atoms(infile, x, y, z);
 
-    success += femocs.import_atoms(infile);
-    success += femocs.run(-0.2, "");
-    success += femocs.export_elfield(0, Ex, Ey, Ez, En);
-    success += femocs.export_temperature(n_atoms, T);
-    success += femocs.export_charge_and_force(n_atoms, xq);
-    success += femocs.interpolate_elfield(n_atoms, x, y, z, Ex, Ey, Ez, En, flag);
-    success += femocs.interpolate_phi(n_points, x, y, z, phi, flag);
-
-    print_progress("\nfull run of Femocs", success == 0);
+    for (int i = 1; i <= 2; ++i) {
+        cout << "\n> iteration " << i << endl;
+        success += femocs.import_atoms(infile);
+        success += femocs.run(-0.2, "");
+        success += femocs.export_elfield(0, Ex, Ey, Ez, En);
+        success += femocs.export_temperature(n_atoms, T);
+        success += femocs.export_charge_and_force(n_atoms, xq);
+        success += femocs.interpolate_elfield(n_atoms, x, y, z, Ex, Ey, Ez, En, flag);
+        success += femocs.interpolate_phi(n_points, x, y, z, phi, flag);
+    }
+    print_progress("\n> full run of Femocs", success == 0);
 
     free(flag);
     free(x); free(y); free(z);
