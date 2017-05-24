@@ -369,21 +369,19 @@ void FieldReader::interpolate(const int n_points, const double* x, const double*
 
 // Linearly interpolate electric field on a set of points
 void FieldReader::export_elfield(const int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-    require(n_points == size(), "Invalid array size: " + to_string(n_points));
+    require(n_points == size(), "Invalid query size: " + to_string(n_points));
     for (int i = 0; i < n_points; ++i) {
-        int id = get_id(i);
-        Ex[id] = interpolation[i].vector.x;
-        Ey[id] = interpolation[i].vector.y;
-        Ez[id] = interpolation[i].vector.z;
-        Enorm[id] = interpolation[i].norm;
-        flag[id] = atoms[i].marker;
+        Ex[i] = interpolation[i].vector.x;
+        Ey[i] = interpolation[i].vector.y;
+        Ez[i] = interpolation[i].vector.z;
+        Enorm[i] = interpolation[i].norm;
+        flag[i] = atoms[i].marker;
     }
 }
 
 // Linearly interpolate electric potential on a set of points
 void FieldReader::export_potential(const int n_points, double* phi, int* flag) {
-    require(n_points == size(), "Invalid array size: " + to_string(n_points));
-
+    require(n_points == size(), "Invalid query size: " + to_string(n_points));
     for (int i = 0; i < n_points; ++i) {
         phi[i] = interpolation[i].scalar;
         flag[i] = atoms[i].marker;
