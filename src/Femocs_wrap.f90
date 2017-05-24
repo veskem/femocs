@@ -147,6 +147,24 @@ module libfemocs
             real(c_double) :: arg
         end subroutine
         
+        subroutine femocs_parse_boolean_c(femocs, retval, command, arg) bind(C, name="femocs_parse_boolean")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval            
+            character(len=1, kind=C_CHAR), intent(in) :: command(*)
+            logical(c_bool) :: arg
+        end subroutine
+        
+        subroutine femocs_parse_string_c(femocs, retval, command, arg) bind(C, name="femocs_parse_string")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval            
+            character(len=1, kind=C_CHAR), intent(in) :: command(*)
+            character(len=1, kind=C_CHAR) :: arg(*)
+        end subroutine
+        
     end interface
 
     ! We'll use a Fortan type to represent a C++ class here in an opaque manner
@@ -175,6 +193,8 @@ module libfemocs
         procedure :: interpolate_phi => femocs_interpolate_phi
         procedure :: parse_int => femocs_parse_int
         procedure :: parse_double => femocs_parse_double
+        procedure :: parse_boolean => femocs_parse_boolean
+        procedure :: parse_string => femocs_parse_string
     end type       
         
     ! This function will act as the constructor for femocs type
@@ -381,6 +401,51 @@ module libfemocs
         c_str(N + 1) = C_NULL_CHAR       
         
         call femocs_parse_double_c(this%ptr, retval, c_str, arg)
-    end subroutine        
+    end subroutine
+    
+    subroutine femocs_parse_boolean(this, retval, command, arg)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval        
+        character(len=*), intent(in) :: command
+        logical(c_bool) :: arg
+        character(len=1, kind=C_CHAR) :: c_str(len_trim(command) + 1)
+        integer :: N, i
+
+        ! Converting Fortran string to C string
+        N = len_trim(command)
+        do i = 1, N
+            c_str(i) = command(i:i)
+        end do
+        c_str(N + 1) = C_NULL_CHAR       
+        
+        call femocs_parse_boolean_c(this%ptr, retval, c_str, arg)
+    end subroutine
+    
+    subroutine femocs_parse_string(this, retval, command, arg)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval        
+        character(len=*), intent(in) :: command
+        character(len=*) :: arg
+        character(len=1, kind=C_CHAR) :: c_str(len_trim(command) + 1)
+        character(len=1, kind=C_CHAR) :: c_arg(len_trim(arg) + 1)
+        integer :: N, i
+
+        ! Converting Fortran string to C string
+        N = len_trim(command)
+        do i = 1, N
+            c_str(i) = command(i:i)
+        end do
+        c_str(N + 1) = C_NULL_CHAR       
+        
+        call femocs_parse_string_c(this%ptr, retval, c_str, c_arg)
+        
+        ! Converting C argument to Fortran argument
+        N = len_trim(arg)
+        do i = 1, N
+            arg(i:i) = c_arg(i)
+        end do   
+    end subroutine    
 
 end module

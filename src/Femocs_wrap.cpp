@@ -61,3 +61,11 @@ void femocs_parse_int(FEMOCS* femocs, int* retval, const char* command, int* arg
 void femocs_parse_double(FEMOCS* femocs, int* retval, const char* command, double* arg) {
     retval[0] = femocs->parse_command(string(command), arg);
 }
+
+void femocs_parse_boolean(FEMOCS* femocs, int* retval, const char* command, bool* arg) {
+    retval[0] = femocs->parse_command(string(command), arg);
+}
+
+void femocs_parse_string(FEMOCS* femocs, int* retval, const char* command, char* arg) {
+    retval[0] = femocs->parse_command(string(command), arg);
+}

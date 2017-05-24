@@ -108,7 +108,7 @@ int Femocs::run(const double elfield, const string &message) {
     }
 
     // Extract face charges
-    if(extract_charge(vacuum_mesh)) {
+    if (extract_charge(vacuum_mesh)) {
         force_output(bulk_mesh, vacuum_mesh);
         check_return(true, "Error calculating face charges!");
     }
@@ -619,6 +619,7 @@ int Femocs::interpolate_elfield(const int n_points, const double* x, const doubl
 // linearly interpolate electric potential at given points
 int Femocs::interpolate_phi(const int n_points, const double* x, const double* y, const double* z,
         double* phi, int* flag) {
+
     if (n_points <= 0) return 0;
     check_return(vacuum_interpolator.size() == 0, "No solution to export!");
 
@@ -638,6 +639,24 @@ int Femocs::parse_command(const string& command, int* arg) {
 // parse double argument of the command from input script
 int Femocs::parse_command(const string& command, double* arg) {
     return conf.read_command(command, arg[0]);
+}
+
+// parse boolean argument of the command from input script
+int Femocs::parse_command(const string& command, bool* arg) {
+    return conf.read_command(command, arg[0]);
+}
+
+// parse string argument of the command from input script
+int Femocs::parse_command(const string& command, string& arg) {
+    return conf.read_command(command, arg);
+}
+
+// parse char array argument of the command from input script
+int Femocs::parse_command(const string& command, char* arg) {
+    string string_arg;
+    bool fail = conf.read_command(command, string_arg);
+    if (!fail) string_arg.copy(arg, string_arg.length());
+    return fail;
 }
 
 } // namespace femocs
