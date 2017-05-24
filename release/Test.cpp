@@ -11,6 +11,8 @@
 #include "Femocs.h"
 #include "Macros.h"
 
+#include <stdlib.h>
+
 using namespace std;
 
 void print_progress(const string& message, const bool contition) {
@@ -110,6 +112,78 @@ void write_moltenbig(ofstream &file) {
     file << "radius = 45.0"            << endl;
 }
 
+void read_xyz(const string &file_name, double* x, double* y, double* z) {
+    ifstream in_file(file_name, ios::in);
+    require(in_file.is_open(), "Did not find a file " + file_name);
+
+    int n_atoms, type, id;
+    string elem, line;
+    istringstream iss;
+
+    getline(in_file, line);     // Read number of atoms
+    iss.clear();
+    iss.str(line);
+    iss >> n_atoms;
+
+    getline(in_file, line);     // Skip comments line
+
+    id = -1;
+    // keep storing values from the text file as long as data exists:
+    while (++id < n_atoms && getline(in_file, line)) {
+        iss.clear();
+        iss.str(line);
+        iss >> elem >> x[id] >> y[id] >> z[id] >> type;
+    }
+}
+
+void read_ckx(const string &file_name, double* x, double* y, double* z) {
+    ifstream in_file(file_name, ios::in);
+    require(in_file.is_open(), "Did not find a file " + file_name);
+
+    int n_atoms, type, id;
+    string line;
+    istringstream iss;
+
+    getline(in_file, line);     // Read number of atoms
+    iss.clear();
+    iss.str(line);
+    iss >> n_atoms;
+
+    getline(in_file, line);    // Skip comments line
+
+    id = -1;
+    // keep storing values from the text file as long as data exists:
+    while (++id < n_atoms && getline(in_file, line)) {
+        iss.clear();
+        iss.str(line);
+        iss >> type >> x[id] >> y[id] >> z[id];
+    }
+}
+
+void read_atoms(const string& file_name, double* x, double* y, double* z) {
+    string file_type = get_file_type(file_name);
+
+    if (file_type == "xyz")
+        read_xyz(file_name, x, y, z);
+    else if (file_type == "ckx")
+        read_ckx(file_name, x, y, z);
+    else
+        require(false, "Unsupported file type: " + file_type);
+}
+
+void read_n_atoms(const string& file_name, int& n_atoms) {
+    ifstream in_file(file_name, ios::in);
+    require(in_file.is_open(), "Did not find a file " + file_name);
+
+    string line;
+    istringstream iss;
+
+    getline(in_file, line);     // Read number of atoms
+    iss.clear();
+    iss.str(line);
+    iss >> n_atoms;
+}
+
 int main(int argc, char **argv) {
     string filename = "input/md.in";
     string mode = "default";
@@ -159,37 +233,47 @@ int main(int argc, char **argv) {
         file.close();
     }
 
-    int n_atoms = 1000;
-    int n_points = 100;
-    int flag[n_points];
-    double x[n_points], y[n_points], z[n_points], phi[n_points];
-    double Ex[n_atoms], Ey[n_atoms], Ez[n_atoms], Enorm[n_atoms], T[n_atoms], xq[4*n_atoms];
-
-    for (int i = 0; i < n_points; ++i) {
-        x[i] = 0; y[i] = 0; z[i] = 1.0 * i;
-    }
-
     cout << "\nRunning FEMOCS test program in a mode   " << mode << endl;
 
     int success = 0;
     femocs::Femocs femocs(filename);
-
     system("rm -rf tmpfile");
 
-    success += femocs.import_atoms("");
+    string cmd1 = "infile"; string infile = "";
+    success = femocs.parse_command(cmd1, infile);
+    print_progress("reading " + cmd1, infile != "");
+
+    int n_atoms, n_points = 100;
+    read_n_atoms(infile, n_atoms);
+
+    int* flag  = (int*)    malloc(n_atoms * sizeof(int));
+    double* x  = (double*) malloc(n_atoms * sizeof(double));
+    double* y  = (double*) malloc(n_atoms * sizeof(double));
+    double* z  = (double*) malloc(n_atoms * sizeof(double));
+    double* phi= (double*) malloc(n_atoms * sizeof(double));
+    double* Ex = (double*) malloc(n_atoms * sizeof(double));
+    double* Ey = (double*) malloc(n_atoms * sizeof(double));
+    double* Ez = (double*) malloc(n_atoms * sizeof(double));
+    double* En = (double*) malloc(n_atoms * sizeof(double));
+    double* T  = (double*) malloc(n_atoms * sizeof(double));
+    double* xq = (double*) malloc(4 * n_atoms * sizeof(double));
+
+    read_atoms(infile, x, y, z);
+
+    success += femocs.import_atoms(infile);
     success += femocs.run(-0.2, "");
-    success += femocs.export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
+    success += femocs.export_elfield(0, Ex, Ey, Ez, En);
     success += femocs.export_temperature(n_atoms, T);
     success += femocs.export_charge_and_force(n_atoms, xq);
+    success += femocs.interpolate_elfield(n_atoms, x, y, z, Ex, Ey, Ez, En, flag);
     success += femocs.interpolate_phi(n_points, x, y, z, phi, flag);
-    success += femocs.interpolate_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
 
-    cout << endl;
-    print_progress("full run of Femocs", success==0);
+    print_progress("\nfull run of Femocs", success == 0);
 
-    string cmd1 = "Smooth_Factor"; double arg1 = -1.0;
-    success = femocs.parse_command(cmd1, &arg1);
-    print_progress("reading "+cmd1, arg1 != -1.0);
+    free(flag);
+    free(x); free(y); free(z);
+    free(Ex); free(Ey); free(Ez); free(En);
+    free(phi); free(T); free(xq);
 
     return 0;
 }
