@@ -188,7 +188,14 @@ int main(int argc, char **argv) {
     string filename = "input/md.in";
     string mode = "default";
     char arg[128];
+    int n_iterations = 1;
 
+    // read number of iterations
+    if (argc >= 3) {
+        n_iterations = atoi(argv[2]);
+    }
+
+    // read the running mode
     if (argc >= 2) {
         filename = "tmpfile";
 
@@ -233,7 +240,7 @@ int main(int argc, char **argv) {
         file.close();
     }
 
-    cout << "\n> running FEMOCS test program in a mode   " << mode << endl;
+    cout << "\n> running FEMOCS test program in a mode:  " << mode << endl;
 
     int success = 0;
     femocs::Femocs femocs(filename);
@@ -260,8 +267,8 @@ int main(int argc, char **argv) {
 
     read_atoms(infile, x, y, z);
 
-    for (int i = 1; i <= 2; ++i) {
-        cout << "\n> iteration " << i << endl;
+    for (int i = 1; i <= n_iterations; ++i) {
+        if (n_iterations > 1) cout << "\n> iteration " << i << endl;
         success += femocs.import_atoms(infile);
         success += femocs.run(-0.2, "");
         success += femocs.export_elfield(0, Ex, Ey, Ez, En);
