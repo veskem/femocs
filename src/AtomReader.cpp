@@ -117,13 +117,16 @@ void AtomReader::calc_nborlist(const int nnn, const double r_cut) {
     }
 }
 
-// Check for clustered atoms
+// Check for clustered and evaporated atoms
 int AtomReader::check_clusters(const bool print) {
-    const int n_clusters = vector_sum(vector_not(&cluster, 0));
-    if (print && n_clusters > 0)
-        write_silent_msg("# evaporated or clustered atoms: " + to_string(n_clusters));
+    const int n_detached = vector_sum(vector_not(&cluster, 0));
+    if (print && n_detached > 0) {
+        const int n_evaporated = vector_sum(vector_less(&cluster, 0));
+        write_silent_msg("# evaporated|clustered atoms: " + to_string(n_evaporated) +
+                "|" + to_string(n_detached - n_evaporated));
+    }
 
-    return n_clusters;
+    return n_detached;
 }
 
 // Group atoms into clusters
@@ -131,30 +134,37 @@ void AtomReader::calc_clusters() {
     const int n_atoms = size();
     require(get_nborlist_size() == n_atoms, "Clusters cannot be calculated if neighborlist is missing!");
 
-    vector<int> neighbours;
-    vector<bool> not_marked(n_atoms, true);
+    cluster = vector<int>(n_atoms, -1);
+    vector<int> n_cluster_types;
     int c = -1;
 
     // for each unvisited point P in all the points
     for (int i = 0; i < n_atoms; ++i)
-        if (not_marked[i]) {
-            // Mark P as visited & expand cluster
-            not_marked[i] = false;
+        if (cluster[i] < 0) {
+            // mark P as visited & expand cluster
             cluster[i] = ++c;
 
-            neighbours = nborlist[i];
+            vector<int> neighbours = nborlist[i];
 
+            int c_counter = 1;
             for (unsigned j = 0; j < neighbours.size(); ++j) {
                 int nbor = neighbours[j];
-                // if P' is not visited
-                if (not_marked[nbor]) {
-                    // Mark P' as visited & expand cluster
-                    not_marked[nbor] = false;
+                // if P' is not visited, connect it into the cluster
+                if (cluster[nbor] < 0) {
+                    c_counter++;
                     cluster[nbor] = c;
                     neighbours.insert(neighbours.end(),nborlist[nbor].begin(),nborlist[nbor].end());
                 }
             }
+            n_cluster_types.push_back(c_counter);
         }
+
+    // mark clusters with one element (i.e. evaporated atoms) with minus sign
+    for (int& cl : cluster) {
+        if (n_cluster_types[cl] <= 1)
+            cl *= -1;
+    }
+
 }
 
 // Recalculate list of closest neighbours using brute force technique and group atoms into clusters
@@ -216,8 +226,10 @@ void AtomReader::extract_types(const int nnn, const double latconst) {
     calc_statistics();
 
     for (int i = 0; i < n_atoms; ++i) {
-        if (cluster[i] != 0)
+        if (cluster[i] > 0)
             atoms[i].marker = TYPES.CLUSTER;
+        else if (cluster[i] < 0)
+            atoms[i].marker = TYPES.EVAPORATED;
         else if (get_point(i).z < (sizes.zmin + 0.49*latconst))
             atoms[i].marker = TYPES.FIXED;
         else if ( (nnn - coordination[i]) >= nnn_eps )
