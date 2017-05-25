@@ -10,6 +10,7 @@ clear_output = true             # clear output folder before the run
 infile = input/nanotip_small.xyz  # default file used with atom coordinates
 latconst = 3.61                 # lattice constant
 coord_cutoff = 3.1              # coordination analysis cut-off radius
+cluster_cutoff = 0              # cluster anal. cut-off radius; if 0, cluster anal. uses coord_cutoff instead
 surface_thickness = 4.0         # maximum distance surface atom can have from surface faces [angstrom]
 mesh_quality = 1.8              # minimum mesh quality Tetgen is allowed to make
 #element_volume = 100            # maximum tetrahedron volume Tetgen is allowed to make

@@ -47,7 +47,8 @@ public:
     string element_volume;      ///< Maximum volume of tetrahedra
     string message;             ///< Data string from the host code
     double latconst;            ///< Lattice constant
-    double coord_cutoff;        ///< Cut-off distance in Angstroms for Coordination analysis
+    double coordination_cutoff; ///< Cut-off distance for coordination analysis
+    double cluster_cutoff;      ///< Cut-off distance for cluster analysis; if 0, cluster analysis uses coordination_cutoff instead
     double surface_thichness;   ///< Maximum distance the surface atom is allowed to be from surface mesh [angstrom]; 0 turns check off
     int nnn;                    ///< Number of nearest neighbours for given crystal structure
     double neumann;             ///< Value of Neumann boundary condition

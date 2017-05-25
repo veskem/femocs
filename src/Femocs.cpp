@@ -166,7 +166,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     coarse_surf = extended_surf;
     coarse_surf += dense_surf;
     coarse_surf = coarse_surf.clean(coarseners);
-    coarse_surf.smoothen(conf.radius, conf.surface_smooth_factor, 3.0*conf.coord_cutoff);
+    coarse_surf.smoothen(conf.radius, conf.surface_smooth_factor, 3.0*conf.coordination_cutoff);
     end_msg(t0);
 
     coarse_surf.write("output/surface_coarse.xyz");
@@ -307,7 +307,7 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
 
     start_msg(t0, "=== Transfering elfield to J & T solver...\n");
     FieldReader fr(&vacuum_interpolator);
-    fr.interpolate(ch_solver, conf.use_histclean * conf.coord_cutoff, true);
+    fr.interpolate(ch_solver, conf.use_histclean * conf.coordination_cutoff, true);
     end_msg(t0);
 
     fr.write("output/surface_field.xyz");
@@ -402,7 +402,7 @@ void Femocs::write_slice(const string& file_name) {
             medium.append( Point3(x, reader.sizes.ymid, z) );
 
     FieldReader fr(&vacuum_interpolator);
-    fr.interpolate(medium, conf.use_histclean * conf.coord_cutoff);
+    fr.interpolate(medium, conf.use_histclean * conf.coordination_cutoff);
     fr.write(file_name);
 
    	MODES.WRITEFILE = writefile_save;
@@ -430,15 +430,17 @@ int Femocs::import_atoms(const string& file_name) {
 
     if (!skip_calculations) {
         if (file_type == "xyz") {
-            start_msg(t0, "=== Generating list of close neighbours...");
-            reader.calc_nborlist(conf.nnn, conf.coord_cutoff);
+            start_msg(t0, "=== Performing coordination analysis...");
+            reader.calc_coordinations(conf.nnn, conf.coordination_cutoff);
             end_msg(t0);
 
-            start_msg(t0, "=== Coordination & cluster analysis...");
-            reader.calc_coordinations();
-            if (conf.cluster_anal) reader.calc_clusters();
-            end_msg(t0);
-            reader.check_clusters(1);
+            if (conf.cluster_anal) {
+                start_msg(t0, "=== Performing cluster analysis...");
+                if (conf.cluster_cutoff <= 0) reader.calc_clusters();
+                else reader.calc_clusters(conf.nnn, conf.cluster_cutoff);
+                end_msg(t0);
+                reader.check_clusters(1);
+            }
 
             start_msg(t0, "=== Extracting atom types...");
             reader.extract_types(conf.nnn, conf.latconst);
@@ -449,9 +451,9 @@ int Femocs::import_atoms(const string& file_name) {
             reader.calc_coordinations(conf.nnn);
             end_msg(t0);
         }
-        reader.write("output/atomreader.xyz");
     }
 
+    reader.write("output/atomreader.xyz");
     return 0;
 }
 
@@ -469,23 +471,24 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
     end_msg(t0);
 
     if (!skip_calculations) {
-        start_msg(t0, "=== Generating list of close neighbours...");
-        reader.calc_nborlist(conf.nnn, conf.coord_cutoff, nborlist);
+        start_msg(t0, "=== Performing coordination analysis...");
+        reader.calc_coordinations(conf.nnn, conf.coordination_cutoff, nborlist);
         end_msg(t0);
 
-        start_msg(t0, "=== Coordination & cluster analysis...");
-        reader.calc_coordinations();
-        if (conf.cluster_anal) reader.calc_clusters();
-        end_msg(t0);
-        reader.check_clusters(1);
+        if (conf.cluster_anal) {
+            start_msg(t0, "=== Performing cluster analysis...");
+            if (conf.cluster_cutoff <= 0) reader.calc_clusters();
+            else reader.calc_clusters(conf.nnn, conf.cluster_cutoff, nborlist);
+            end_msg(t0);
+            reader.check_clusters(1);
+        }
 
         start_msg(t0, "=== Extracting atom types...");
         reader.extract_types(conf.nnn, conf.latconst);
         end_msg(t0);
-
-        reader.write("output/atomreader.xyz");
     }
 
+    reader.write("output/atomreader.xyz");
     return 0;
 }
 
@@ -507,10 +510,9 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
         start_msg(t0, "=== Calculating coordinations from atom types...");
         reader.calc_coordinations(conf.nnn);
         end_msg(t0);
-
-        reader.write("output/atomreader.xyz");
     }
 
+    reader.write("output/atomreader.xyz");
     return 0;
 }
 
@@ -532,7 +534,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         write_silent_msg("Using previous solution!");
     else {
         start_msg(t0, "=== Interpolating E and phi...");
-        fields.interpolate(dense_surf, conf.use_histclean * conf.coord_cutoff, 0, false);
+        fields.interpolate(dense_surf, conf.use_histclean * conf.coordination_cutoff, 0, false);
         end_msg(t0);
 
         fields.write("output/fields.movie");
@@ -579,7 +581,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         write_silent_msg("Using previous solution!");
     else {
         start_msg(t0, "=== Calculating charges and forces...");
-        forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coord_cutoff,
+        forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coordination_cutoff,
                 conf.charge_smooth_factor, conf.force_factor);
 
         if (conf.surface_cleaner == "voronois")
@@ -605,9 +607,10 @@ int Femocs::interpolate_elfield(const int n_points, const double* x, const doubl
 
     FieldReader fr(&vacuum_interpolator);
     start_msg(t0, "=== Interpolating electric field...");
-    fr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coord_cutoff, 1);
+    fr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coordination_cutoff, 1, true);
     end_msg(t0);
-    if (!skip_calculations) fr.write("output/interpolation_E.movie");
+
+    fr.write("output/interpolation_E.movie");
 
     start_msg(t0, "=== Exporting electric field...");
     fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
@@ -624,9 +627,9 @@ int Femocs::interpolate_phi(const int n_points, const double* x, const double* y
     check_return(vacuum_interpolator.size() == 0, "No solution to export!");
 
     FieldReader fr(&vacuum_interpolator);
-    fr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coord_cutoff, 2, false);
+    fr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coordination_cutoff, 2, false);
+    fr.write("output/interpolation_phi.movie");
     fr.export_potential(n_points, phi, flag);
-    if (!skip_calculations) fr.write("output/interpolation_phi.movie");
 
     return 0;
 }

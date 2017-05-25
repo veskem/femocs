@@ -157,6 +157,18 @@ void AtomReader::calc_clusters() {
         }
 }
 
+// Recalculate list of closest neighbours using brute force technique and group atoms into clusters
+void AtomReader::calc_clusters(const int nnn, const double r_cut) {
+    calc_nborlist(nnn, r_cut);
+    calc_clusters();
+}
+
+// Recalculate list of closest neighbours using Parcas neighbourlist and group atoms into clusters
+void AtomReader::calc_clusters(const int nnn, const double r_cut, const int* parcas_nborlist) {
+    calc_nborlist(nnn, r_cut, parcas_nborlist);
+    calc_clusters();
+}
+
 // Check for evaporated atoms
 void AtomReader::check_coordinations() {
     const int coord_max = 1;
@@ -166,8 +178,16 @@ void AtomReader::check_coordinations() {
             cout << "FEMOCS: Evaporated atom detected!" << endl;
 }
 
-// Calculate coordination for all the atoms
-void AtomReader::calc_coordinations() {
+// Calculate coordination for all the atoms using neighbour list
+void AtomReader::calc_coordinations(const int nnn, const double r_cut, const int* parcas_nborlist) {
+    calc_nborlist(nnn, r_cut, parcas_nborlist);
+    for (int i = 0; i < size(); ++i)
+        coordination[i] = nborlist[i].size();
+}
+
+// Calculate coordination for all the atoms using neighbour list
+void AtomReader::calc_coordinations(const int nnn, const double r_cut) {
+    calc_nborlist(nnn, r_cut);
     for (int i = 0; i < size(); ++i)
         coordination[i] = nborlist[i].size();
 }

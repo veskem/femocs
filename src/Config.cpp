@@ -18,7 +18,8 @@ Config::Config() {
     atom_file = "";              // file with the nanostructure atoms
     latconst = 3.61;             // lattice constant
     surface_thichness = 3.1;     // maximum distance the surface atom is allowed to be from surface mesh
-    coord_cutoff = 3.1;          // coordination analysis cut-off radius
+    coordination_cutoff = 3.1;     // coordination analysis cut-off radius
+    cluster_cutoff = 0;        // cluster analysis cut-off radius
     nnn = 12;                    // number of nearest neighbours in bulk
     mesh_quality = "2.0";        // minimum tetrahedron quality Tetgen is allowed to make
     element_volume = "";         // maximum tetrahedron volume Tetgen is allowed to make
@@ -77,7 +78,8 @@ void Config::read_all(const string& file_name) {
     read_command("clear_output", clear_output);
     read_command("infile", atom_file);
     read_command("latconst", latconst);
-    read_command("coord_cutoff", coord_cutoff);
+    read_command("coord_cutoff", coordination_cutoff);
+    read_command("cluster_cutoff", cluster_cutoff);
     read_command("surface_thichness", surface_thichness);
     read_command("nnn", nnn);
     read_command("mesh_quality", mesh_quality);

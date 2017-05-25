@@ -35,22 +35,25 @@ public:
     /** Function to transform atomic data from Kimocs format into AtomReader one */
     void import_kimocs();
 
-    /** Calculate list of close neighbours using Parcas diagonal neighbour list */
-    void calc_nborlist(const int nnn, const double r_cut, const int* parcas_nborlist);
+    /** Calculate coordination for all the atoms using Parcas neighbour list */
+    void calc_coordinations(const int nnn, const double r_cut, const int* parcas_nborlist);
 
-    /** Calculate list of close neighbours using brute force technique */
-    void calc_nborlist(const int nnn, const double r_cut);
+    /** Calculate coordination for all the atoms using brute force */
+    void calc_coordinations(const int nnn, const double r_cut);
+
+    /** Calculate pseudo-coordination for all the atoms using the atom types */
+    void calc_coordinations(const int nnn);
 
     /** Group atoms into clusters using density-based spatial clustering technique
      * http://codereview.stackexchange.com/questions/23966/density-based-clustering-of-image-keypoints
      * https://en.wikipedia.org/wiki/DBSCAN */
     void calc_clusters();
 
-    /** Calculate coordination for all the atoms using neighbour list */
-    void calc_coordinations();
+    /** Rebuild list of close neighbours using brute force technique and run cluster analysis */
+    void calc_clusters(const int nnn, const double r_cut);
 
-    /** Calculate pseudo-coordination for all the atoms using the atom types */
-    void calc_coordinations(const int nnn);
+    /** Rebuild list of close neighbours using Parcas neighbourlist and run cluster analysis */
+    void calc_clusters(const int nnn, const double r_cut, const int* parcas_nborlist);
 
     /** Function to detect evaporated atoms by their coordinations;
      * an atom is considered evaporated if it's coordination is between the defined limits. */
@@ -105,6 +108,12 @@ private:
 
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     string get_data_string(const int i) const;
+
+    /** Calculate list of close neighbours using Parcas diagonal neighbour list */
+    void calc_nborlist(const int nnn, const double r_cut, const int* parcas_nborlist);
+
+    /** Calculate list of close neighbours using brute force technique */
+    void calc_nborlist(const int nnn, const double r_cut);
 };
 
 } /* namespace femocs */
