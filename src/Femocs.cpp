@@ -644,11 +644,6 @@ int Femocs::parse_command(const string& command, double* arg) {
     return conf.read_command(command, arg[0]);
 }
 
-// parse boolean argument of the command from input script
-int Femocs::parse_command(const string& command, bool* arg) {
-    return conf.read_command(command, arg[0]);
-}
-
 // parse string argument of the command from input script
 int Femocs::parse_command(const string& command, string& arg) {
     return conf.read_command(command, arg);

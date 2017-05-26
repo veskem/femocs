@@ -40,8 +40,6 @@ void femocs_parse_int(FEMOCS* femocs, int* retval, const char* command, int* arg
 
 void femocs_parse_double(FEMOCS* femocs, int* retval, const char* command, double* arg);
 
-void femocs_parse_boolean(FEMOCS* femocs, int* retval, const char* command, bool* arg);
-
 void femocs_parse_string(FEMOCS* femocs, int* retval, const char* command, char* arg);
 
 #ifdef __cplusplus

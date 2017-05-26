@@ -140,14 +140,6 @@ public:
     int parse_command(const string& command, double* arg);
 
     /**
-     * Function to parse boolean argument of the command from input script
-     * @param command   name of the command which's argument should be parsed
-     * @param arg       parsed argument
-     * @return          0 - command was found and arg was modified; 1 - command was not found and arg was not modified
-     */
-    int parse_command(const string& command, bool* arg);
-
-    /**
      * Function to parse char array argument of the command from input script
      * @param command   name of the command which's argument should be parsed
      * @param arg       parsed argument
