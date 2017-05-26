@@ -101,7 +101,7 @@ module libfemocs
         subroutine femocs_interpolate_elfield_c(femocs, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag) &
                                                  bind(C, name="femocs_interpolate_elfield")
             use iso_c_binding
-            implicit noneelectric field
+            implicit none
             type(c_ptr), intent(in), value :: femocs
             integer(c_int) :: retval            
             integer(c_int), value :: n_points
