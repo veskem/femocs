@@ -87,7 +87,15 @@ void write_stretch(ofstream &file) {
 
 void write_extend(ofstream &file) {
     file << "extended_atoms = input/extension.xyz" << endl;
-    file << "infile = input/apex.xyz"              << endl;
+    file << "infile = input/apex.ckx"              << endl;
+    file << "coarse_factor = 0.3 6 4" << endl;
+    file << "femocs_periodic = false" << endl;
+    file << "radius = 70.0"           << endl;
+}
+
+void write_tablet(ofstream &file) {
+    file << "extended_atoms = input/extension.xyz" << endl;
+    file << "infile = input/tablet.ckx"              << endl;
     file << "coarse_factor = 0.3 6 4" << endl;
     file << "femocs_periodic = false" << endl;
     file << "radius = 70.0"           << endl;
@@ -212,6 +220,7 @@ int main(int argc, char **argv) {
         else if (mode == "mdbig")     write_mdbig(file);
         else if (mode == "stretch")   write_stretch(file);
         else if (mode == "extend")    write_extend(file);
+        else if (mode == "tablet")    write_tablet(file);
         else if (mode == "cluster")   write_cluster(file);
         else if (mode == "molten")    write_molten(file);
         else if (mode == "moltenbig") write_moltenbig(file);
@@ -226,7 +235,8 @@ int main(int argc, char **argv) {
             printf("  hr5         symmetric nanotip with aspect ratio 5\n");
             printf("  rectangle   symmetric nanotip with rectangular substrate\n");
             printf("  stretch     stretch the substrate of small MD nanotip\n");
-            printf("  extend      extend the system below the MD apex\n");
+            printf("  extend      extend the system below the round MD apex\n");
+            printf("  tablet      extend the system below the tablet shaped MD apex\n");
             printf("  cluster     MD nanotip with clusters\n");
             printf("  molten      nanotip with molten apex on top of thin rod\n");
             printf("  moltenbig   symmetric MD nanotip with molten apex\n");

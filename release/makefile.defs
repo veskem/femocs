@@ -32,7 +32,7 @@ F90 = gfortran
 CXX = c++
 CC = gcc
 
-## Linger flags for
+## Linker flags for
 ##  Ubuntu desktop
 LFLAGS = -lfemocs -ltet -ldeal_II ${LIBCGAL}\
  -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++
