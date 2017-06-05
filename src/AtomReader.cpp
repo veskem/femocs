@@ -9,6 +9,7 @@
 
 #include <cfloat>
 #include <fstream>
+#include <math.h>
 
 using namespace std;
 namespace femocs {
@@ -293,6 +294,69 @@ int AtomReader::get_nborlist_size() const {
 
 // =================================
 // *** IMPORTERS: ***************
+
+void AtomReader::generate_nanotip(const double h, const double radius, const double latconst) {
+    const double radius2 = radius * radius;
+    const double latconst2 = latconst * latconst;
+    const double tau = 2 * M_PI;
+    const double box_width = 1.2*radius;
+    const double height = fabs(h) * radius;
+
+    // Over estimate the number of generated points and reserve memory for them
+    const int n_nanotip = tau * (radius + latconst) * (height + radius) / latconst2;
+    const int n_substrate = (4 * box_width * box_width - M_PI * pow(radius-latconst, 2)) / latconst2;
+    reserve(n_nanotip + n_substrate);
+
+    double x, y, z, r, phi, theta, dPhi, dTheta, dZ;
+    unsigned int id = 0;
+
+    dTheta = 0.5 * M_PI / round(0.5 * M_PI * radius / latconst);
+
+    // Add the topmost atom
+    append( Atom(id++, Point3(0, 0, height + radius), TYPES.SURFACE) );
+
+    // Add the apex
+    for (theta = dTheta; theta < 0.5 * M_PI; theta += dTheta) {
+        z = height + radius * cos(theta);
+        dPhi = tau / round(tau * radius * sin(theta) / latconst);
+
+        for (phi = 0; phi < tau; phi += dPhi) {
+            x = radius * sin(theta) * cos(phi);
+            y = radius * sin(theta) * sin(phi);
+            append( Atom(id++, Point3(x, y, z), TYPES.SURFACE) );
+        }
+    }
+
+    dPhi = tau / round(tau * radius / latconst);
+    dZ = height / round(height / latconst);
+    // Add the sides of the cylinder
+    for (z = height; z >= 0; z -= dZ) {
+        for (phi = 0; phi < tau; phi += dPhi) {
+            x = radius * cos(phi);
+            y = radius * sin(phi);
+            append( Atom(id++, Point3(x, y, z), TYPES.SURFACE) );
+        }
+    }
+
+    // Add cylindrical substrate
+    for (r = radius + latconst; r < box_width*sqrt(2); r += latconst) {
+        dPhi = tau / round(tau * r / latconst);
+        for (phi = 0; phi < tau; phi += dPhi) {
+            x = r * cos(phi);
+            y = r * sin(phi);
+            if ( fabs(x) <= box_width && fabs(y) <= box_width)
+                append( Atom(id++, Point3(x, y, 0), TYPES.SURFACE) );
+        }
+    }
+
+    // in case of negative height, turn nanotip into opened nanovoid
+    if (h < 0) {
+        for (int i = 0; i < size(); ++i)
+            set_z(i, -1.0*get_point(i).z);
+    }
+
+    calc_statistics();
+}
 
 void AtomReader::import_kimocs() {
     require(false, "AtomReader::import_kimocs() not implemented!");

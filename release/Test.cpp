@@ -120,6 +120,15 @@ void write_moltenbig(ofstream &file) {
     file << "radius = 45.0"            << endl;
 }
 
+void write_generate(ofstream &file) {
+    file << "infile = 0"               << endl;
+    file << "coarse_factor = 0.2 1 1"  << endl;
+    file << "radius = 31.0"            << endl;
+    file << "box_width = 20.0"         << endl;
+    file << "box_height = 10.0"        << endl;
+    file << "surface_cleaner = none"   << endl;
+}
+
 void read_xyz(const string &file_name, double* x, double* y, double* z) {
     ifstream in_file(file_name, ios::in);
     require(in_file.is_open(), "Did not find a file " + file_name);
@@ -196,12 +205,6 @@ int main(int argc, char **argv) {
     string filename = "input/md.in";
     string mode = "default";
     char arg[128];
-    int n_iterations = 1;
-
-    // read number of iterations
-    if (argc >= 3) {
-        n_iterations = atoi(argv[2]);
-    }
 
     // read the running mode
     if (argc >= 2) {
@@ -224,6 +227,7 @@ int main(int argc, char **argv) {
         else if (mode == "cluster")   write_cluster(file);
         else if (mode == "molten")    write_molten(file);
         else if (mode == "moltenbig") write_moltenbig(file);
+        else if (mode == "generate")  write_generate(file);
 
         else {
             printf("Usage:\n");
@@ -260,7 +264,23 @@ int main(int argc, char **argv) {
     success = femocs.parse_command(cmd1, infile);
     print_progress("\n> reading " + cmd1, infile != "");
 
-    int n_atoms, n_points = 100;
+    if (mode == "generate") {
+        if (argc >= 3)
+            success += femocs.generate_nanotip(0, 30, atof(argv[2]));
+        else
+            success += femocs.generate_nanotip(0, 30);
+        success += femocs.run(-1, "");
+        print_progress("\n> full run of Femocs", success == 0);
+        return 0;
+    }
+
+    // determine number of iterations
+    int n_iterations = 1;
+    if (argc >= 3) {
+        n_iterations = atoi(argv[2]);
+    }
+
+    int n_atoms = 0, n_points = 100;
     read_n_atoms(infile, n_atoms);
 
     int* flag  = (int*)    malloc(n_atoms * sizeof(int));
@@ -279,6 +299,7 @@ int main(int argc, char **argv) {
 
     for (int i = 1; i <= n_iterations; ++i) {
         if (n_iterations > 1) cout << "\n> iteration " << i << endl;
+
         success += femocs.import_atoms(infile);
         success += femocs.run(-0.2, "");
         success += femocs.export_elfield(0, Ex, Ey, Ez, En);
@@ -287,6 +308,7 @@ int main(int argc, char **argv) {
         success += femocs.interpolate_elfield(n_atoms, x, y, z, Ex, Ey, Ez, En, flag);
         success += femocs.interpolate_phi(n_points, x, y, z, phi, flag);
     }
+
     print_progress("\n> full run of Femocs", success == 0);
 
     free(flag);

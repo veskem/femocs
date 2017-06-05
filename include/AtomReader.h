@@ -20,6 +20,8 @@ public:
     /** Constructor for AtomReader */
     AtomReader();
 
+    void generate_nanotip(const double height, const double radius, const double latconst);
+
     /**
      * Function to import file with atom coordinates and types
      * @param file_name  path to input file with atomic data in .xyz (PARCAS), .dump (LAMMPS) or .ckx (KIMOCS) format

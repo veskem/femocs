@@ -408,6 +408,27 @@ void Femocs::write_slice(const string& file_name) {
    	MODES.WRITEFILE = writefile_save;
 }
 
+// Generate artificial nanotip
+int Femocs::generate_nanotip(const double height, const double radius, const double resolution) {
+    clear_log();
+
+    double res = conf.latconst;
+    if (resolution > 0) res = resolution;
+
+    double r = conf.radius - res;
+    if (radius > 0) r = radius;
+
+    start_msg(t0, "=== Generating nanotip...");
+    reader.generate_nanotip(height, r, res);
+    reader.calc_coordinations(conf.nnn);
+    end_msg(t0);
+
+    write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
+    reader.write("output/atomreader.xyz");
+
+    return 0;
+}
+
 // import atoms from file
 int Femocs::import_atoms(const string& file_name) {
     clear_log();
