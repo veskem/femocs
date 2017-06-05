@@ -628,7 +628,6 @@ int Femocs::interpolate_phi(const int n_points, const double* x, const double* y
 
     FieldReader fr(&vacuum_interpolator);
     fr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coordination_cutoff, 2, false);
-    fr.write("output/interpolation_phi.movie");
     fr.export_potential(n_points, phi, flag);
 
     return 0;
