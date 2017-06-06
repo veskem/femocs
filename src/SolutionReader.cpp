@@ -458,7 +458,7 @@ void FieldReader::print_enhancement() const {
 
     stringstream stream;
     stream << fixed << setprecision(3);
-    stream << "field enhancements,  Femocs:" << gamma1
+    stream << "field enhancements:  Femocs:" << gamma1
             << "  analyt:" << gamma2
             << "  f-a:" << gamma1-gamma2
             << "  f/a:" << gamma1/gamma2;

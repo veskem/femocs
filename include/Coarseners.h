@@ -241,6 +241,8 @@ public:
     /** Get the distance between atoms on the edge of simulation cell */
     double get_r0_inf(const Medium::Sizes &s);
 
+    bool inside_interesting_region(const Point3& p) const;
+
     Point3 centre;
 private:
     double radius;

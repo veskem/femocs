@@ -7,6 +7,7 @@
 
 #include "LinearInterpolator.h"
 #include "Macros.h"
+#include "Media.h"
 
 #include <float.h>
 
@@ -30,8 +31,8 @@ void LinearInterpolator::set_analyt(const double E0, const double radius1, const
 }
 
 // Analytical potential for i-th point near the hemisphere
-double LinearInterpolator::get_analyt_potential(const int i) const {
-    Point3 point = get_atom(i).point;
+double LinearInterpolator::get_analyt_potential(const int i, const Point3& origin) const {
+    Point3 point = get_atom(i).point - origin;
     double r = point.distance(Point3(0));
     return -E0 * point.z * (1 - pow(radius1 / r, 3.0));
 }
@@ -40,53 +41,14 @@ double LinearInterpolator::get_analyt_potential(const int i) const {
 Vec3 LinearInterpolator::get_analyt_field(const int i) const {
     Point3 point = get_atom(i).point;
     double r5 = pow(point.x * point.x + point.y * point.y + point.z * point.z, 2.5);
-    double radius3 = pow(radius1, 3.0);
+    double r3 = pow(radius1, 3.0);
     double f = point.x * point.x + point.y * point.y - 2.0 * point.z * point.z;
 
-    double Ex = -3 * E0 * radius3 * point.x * point.z / r5;
-    double Ey = -3 * E0 * radius3 * point.y * point.z / r5;
-    double Ez = E0 * (radius3 * f / r5 - 1.0);
+    double Ex = 3 * E0 * r3 * point.x * point.z / r5;
+    double Ey = 3 * E0 * r3 * point.y * point.z / r5;
+    double Ez = E0 * (1.0 - r3 * f / r5);
 
     return Vec3(Ex, Ey, Ez);
-}
-
-// Print the deviation from the analytical solution of hemisphere on the infinite surface
-void LinearInterpolator::print_error() const {
-    if (!MODES.VERBOSE) return;
-
-    const int n_atoms = size();
-    int n_points = 0;
-    Vec3 abs_rms_error(0), rel_rms_error(0);
-    double phi_error(0), enorm_error(0);
-
-    for (int i = 0; i < n_atoms; ++i) {
-        double phi = solution[i].scalar;
-        if (phi >= error_field) continue;
-
-        Vec3 analyt_field = get_analyt_field(i);
-
-        phi_error += pow( phi - get_analyt_potential(i), 2.0 );
-        enorm_error += pow( (solution[i].norm - analyt_field.norm()) / solution[i].norm, 2.0 );
-
-        Vec3 abs_error = (solution[i].vector - analyt_field);
-        Vec3 rel_error = abs_error / solution[i].vector;
-        
-        abs_rms_error += abs_error * abs_error;
-        rel_rms_error += rel_error * rel_error;
-
-        n_points++;
-    }
-
-    expect(n_points > 0, "Invalid solution detected!");
-
-    abs_rms_error = Vec3(sqrt(abs_rms_error.x), sqrt(abs_rms_error.y), sqrt(abs_rms_error.z)) * (1.0 / n_points);
-    rel_rms_error = Vec3(sqrt(rel_rms_error.x), sqrt(rel_rms_error.y), sqrt(rel_rms_error.z)) * (1.0 / n_points);
-    phi_error = sqrt(phi_error) / n_points;
-    enorm_error = sqrt(enorm_error) / n_points;
-
-    cout << "  elfield rel rms error: " << rel_rms_error << "\t" << enorm_error << endl;
-    cout << "  elfield abs rms error: " << abs_rms_error << endl;
-    cout << "      phi abs rms error: " << phi_error << endl;
 }
 
 double LinearInterpolator::get_enhancement() const {
@@ -115,10 +77,41 @@ void LinearInterpolator::print_enhancement() const {
 
     stringstream stream;
     stream << fixed << setprecision(3);
-    stream << "field enhancements,  Femocs:" << gamma1
+    stream << "field enhancements:  Femocs:" << gamma1
             << "  analyt:" << gamma2
-            << "  f-a:" << gamma1-gamma2
-            << "  f/a:" << gamma1/gamma2;
+            << "  f-a:" << gamma1 - gamma2
+            << "  f/a:" << gamma1 / gamma2;
+
+    write_verbose_msg(stream.str());
+}
+
+// Print the deviation from the analytical solution of hemi-ellipsoid on the infinite surface
+void LinearInterpolator::print_error(const Coarseners& c) const {
+//    if (!MODES.VERBOSE) return;
+
+    double rms_error = 0;
+    int n_points = 0;
+    for (int i = 0; i < size(); ++i)
+        // look for the tetrahedral nodes whose potential == 0, i.e that are on the surface
+        if ( get_marker(i) == TYPES.TETNODE && get_scalar(i) == 0.0 &&
+                c.inside_interesting_region(get_point(i)) )
+        {
+            double analyt = get_analyt_field(i).norm();
+            double numerical = solution[i].norm;
+
+//            cout << get_point(i) << " " << analyt << " " << numerical << endl;
+
+            double error = (numerical - analyt) / numerical;
+            rms_error += error * error;
+            n_points++;
+        }
+
+    require(n_points > 0, "No tetrahedral points on the surface of nanotip!");
+    rms_error = sqrt(rms_error / n_points);
+
+    stringstream stream;
+    stream << fixed << setprecision(3);
+    stream << "rms surface error: " << rms_error;
 
     write_verbose_msg(stream.str());
 }
@@ -151,6 +144,7 @@ void LinearInterpolator::print_statistics() const {
     stream << "mean vector: \t" << vec;
     stream << "\n   rms vector: \t" << rms_vec;
     stream << "\n  mean & rms scalar: " << scalar << "\t" << rms_scalar;
+
     write_verbose_msg(stream.str());
 }
 
@@ -200,6 +194,8 @@ void LinearInterpolator::get_maps(vector<int>& tet2hex, vector<int>& cell_indxs,
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
 bool LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
+//    return 0;
+
     const double decay_factor = -1.0 / mesh.elems.stat.edgemax;
 
     vector<vector<unsigned int>> cells;
@@ -479,7 +475,7 @@ bool LinearInterpolator::point_in_tetrahedron(const Point3 &point, const int i) 
 }
 
 // Calculate barycentric coordinates for point
-Vec4 LinearInterpolator::get_bcc(const Point3 &point, const int elem) {
+Vec4 LinearInterpolator::get_bcc(const Point3 &point, const int elem) const {
     require(elem >= 0 && elem < (int)det0.size(), "Index out of bounds: " + to_string(elem));
 
     Vec4 pt(point, 1);
@@ -554,12 +550,11 @@ int LinearInterpolator::locate_element(const Point3 &point, const int elem_guess
 }
 
 // Calculate interpolation or all the data for point inside or near the elem-th tetrahedron
-Solution LinearInterpolator::get_solution(const Point3 &point, const int elem) {
+Solution LinearInterpolator::get_solution(const Point3 &point, const int elem) const {
     require(elem >= 0 && elem < (int)tetrahedra.size(), "Index out of bounds: " + to_string(elem));
 
     // Get barycentric coordinates of point in tetrahedron
     Vec4 bcc = get_bcc(point, elem);
-
     SimpleElement selem = tetrahedra[elem];
 
     // Interpolate electric field
@@ -576,13 +571,13 @@ Solution LinearInterpolator::get_solution(const Point3 &point, const int elem) {
 }
 
 // Return full solution on i-th node
-Solution LinearInterpolator::get_solution(const int i) {
+Solution LinearInterpolator::get_solution(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return solution[i];
 }
 
 // Calculate interpolation for vector data for point inside or near the elem-th tetrahedron
-Vec3 LinearInterpolator::get_vector(const Point3 &point, const int elem) {
+Vec3 LinearInterpolator::get_vector(const Point3 &point, const int elem) const {
     require(elem >= 0 && elem < (int)tetrahedra.size(), "Index out of bounds: " + to_string(elem));
 
     // Get barycentric coordinates of point in tetrahedron
@@ -598,13 +593,13 @@ Vec3 LinearInterpolator::get_vector(const Point3 &point, const int elem) {
 }
 
 // Return vector component of solution on i-th node
-Vec3 LinearInterpolator::get_vector(const int i) {
+Vec3 LinearInterpolator::get_vector(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return solution[i].vector;
 }
 
 // Calculate interpolation for scalar data for point inside or near the elem-th tetrahedron
-double LinearInterpolator::get_scalar(const Point3 &point, const int elem) {
+double LinearInterpolator::get_scalar(const Point3 &point, const int elem) const {
     require(elem >= 0 && elem < (int)tetrahedra.size(), "Index out of bounds: " + to_string(elem));
 
     // Get barycentric coordinates of point in tetrahedron
@@ -620,7 +615,7 @@ double LinearInterpolator::get_scalar(const Point3 &point, const int elem) {
 }
 
 // Return scalar component of solution on i-th node
-double LinearInterpolator::get_scalar(const int i) {
+double LinearInterpolator::get_scalar(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return solution[i].scalar;
 }
@@ -663,23 +658,13 @@ void LinearInterpolator::get_cell_data(ofstream& out) const {
     for (int i = 0; i < n_atoms; ++i)
         out << atoms[i].marker << "\n";
 
-    out << "SCALARS E_norm double\nLOOKUP_TABLE default\n";
+    out << "SCALARS elfield_norm double\nLOOKUP_TABLE default\n";
     for (int i = 0; i < n_atoms; ++i)
         out << solution[i].norm << "\n";
 
     out << "SCALARS potential double\nLOOKUP_TABLE default\n";
     for (int i = 0; i < n_atoms; ++i)
         out << solution[i].scalar << "\n";
-
-    if (radius1 > 0) {
-        out << "SCALARS analyt_E_norm double\nLOOKUP_TABLE default\n";
-        for (int i = 0; i < n_atoms; ++i)
-            out << get_analyt_field(i).norm() << "\n";
-
-        out << "SCALARS analyt_phi double\nLOOKUP_TABLE default\n";
-        for (int i = 0; i < n_atoms; ++i)
-            out << get_analyt_potential(i) << "\n";
-    }
 }
 
 // Determinant of 3x3 matrix which's last column consists of ones

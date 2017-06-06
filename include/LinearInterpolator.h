@@ -11,6 +11,7 @@
 #include "Primitives.h"
 #include "Medium.h"
 #include "TetgenMesh.h"
+#include "Coarseners.h"
 #include "laplace.h"
 #include "currents_and_heating.h"
 
@@ -44,25 +45,25 @@ public:
 
     bool extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh);
 
-    Solution get_solution(const Point3 &point, const int elem);
+    Solution get_solution(const Point3 &point, const int elem) const;
 
-    Solution get_solution(const int i);
+    Solution get_solution(const int i) const;
 
-    double get_scalar(const Point3 &point, const int elem);
+    double get_scalar(const Point3 &point, const int elem) const;
 
-    double get_scalar(const int i);
+    double get_scalar(const int i) const;
 
-    Vec3 get_vector(const Point3 &point, const int elem);
+    Vec3 get_vector(const Point3 &point, const int elem) const;
 
-    Vec3 get_vector(const int i);
+    Vec3 get_vector(const int i) const;
 
     int locate_element(const Point3 &point, const int elem_guess);
 
     /** Print statistics about solution on node points */
     void print_statistics() const;
 
-    /** Print the deviation from the analytical solution of hemisphere on the infinite surface */
-    void print_error() const;
+    /** Print the deviation from the analytical solution of hemiellipsoid on the infinite surface */
+    void print_error(const Coarseners& c) const;
 
     /** Compare the analytical and calculated field enhancement */
     void print_enhancement() const;
@@ -108,7 +109,7 @@ private:
     bool average_tetnodes(const TetgenMesh &mesh);
 
     /** Get barycentric coordinates for a point inside i-th tetrahedron */
-    Vec4 get_bcc(const Point3 &point, const int i);
+    Vec4 get_bcc(const Point3 &point, const int i) const;
 
     /** Get whether the point is located inside the i-th tetrahedron */
     bool point_in_tetrahedron(const Point3 &point, const int i);
@@ -140,7 +141,7 @@ private:
     /** Return analytical potential value for i-th point near the hemisphere
      * @param radius  radius of the hemisphere
      * @param E0      long range electric field around the hemisphere */
-    double get_analyt_potential(const int i) const;
+    double get_analyt_potential(const int i, const Point3& origin) const;
 
     /** Return analytical electric field value for i-th point near the hemisphere
      * @param radius  radius of the hemisphere

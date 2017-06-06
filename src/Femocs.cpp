@@ -282,8 +282,9 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
 
     vacuum_interpolator.write("output/result_E_phi.xyz");
     vacuum_interpolator.write("output/result_E_phi.vtk");
-    vacuum_interpolator.print_statistics();
+//    vacuum_interpolator.print_statistics();
     vacuum_interpolator.print_enhancement();
+    vacuum_interpolator.print_error(coarseners);
 
     return fail;
 }
@@ -559,7 +560,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         end_msg(t0);
 
         fields.write("output/fields.movie");
-        fields.print_statistics();
+//        fields.print_statistics();
         fields.print_enhancement();
     }
 

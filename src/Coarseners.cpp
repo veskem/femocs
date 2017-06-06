@@ -10,6 +10,7 @@
 #include <numeric>
 #include <algorithm>
 #include <float.h>
+#include <math.h>
 
 using namespace std;
 namespace femocs {
@@ -193,6 +194,8 @@ void Coarseners::generate(const Medium &medium, const double radius, const Confi
     amplitude = cf.amplitude * latconst;
     r0_cylinder = cf.r0_cylinder * 0.25 * latconst;
     const double r0_sphere = cf.r0_sphere * 0.25 * latconst;
+//    r0_cylinder = cf.r0_cylinder * 0.0025 * latconst;
+//    const double r0_sphere = cf.r0_sphere * 0.0025 * latconst;
     const double r0_flat = min(amplitude*1e20, r0_cylinder);
 
     coarseners.clear();
@@ -274,6 +277,15 @@ double Coarseners::get_r0_inf(const Medium::Sizes &s) {
         return 1.1 * amplitude * sqrt(max_distance - radius) + r0_cylinder;
     else
         return r0_cylinder;
+}
+
+// Determine whether the point of interest is inside the interesting region
+bool Coarseners::inside_interesting_region(const Point3& p) const {
+    const double min_angle = M_PI / 6.0;
+    Vec3 diff(p - centre);
+    bool inside_tip = diff.x * diff.x + diff.y * diff.y <= radius * radius;
+    bool inside_cone = asin(diff.z / diff.norm()) >= min_angle;
+    return inside_tip && inside_cone;
 }
 
 // Write the contours of coarseners to file in .vtk format

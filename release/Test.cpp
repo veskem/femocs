@@ -22,18 +22,18 @@ void print_progress(const string& message, const bool contition) {
 }
 
 void write_defaults(ofstream &file) {
-    file << "heating = false"             << endl;
+    file << "heating = false"            << endl;
     file << "write_log = true"           << endl;
     file << "clear_output = true"        << endl;
     file << "smooth_factor = 0.0"        << endl;
     file << "charge_smooth_factor = 1.0" << endl;
     file << "distance_tol = 0.16"        << endl;
     file << "n_writefile = 1"            << endl;
-    file << "femocs_verbose = true"      << endl;
     file << "coord_cutoff = 3.1"         << endl;
     file << "latconst = 3.61"            << endl;
     file << "use_histclean = false"      << endl;
     file << "surface_cleaner = voronois" << endl;
+    file << "femocs_verbose_mode = silent" << endl;
 }
 
 void write_hr5(ofstream &file) {
@@ -244,6 +244,7 @@ int main(int argc, char **argv) {
             printf("  cluster     MD nanotip with clusters\n");
             printf("  molten      nanotip with molten apex on top of thin rod\n");
             printf("  moltenbig   symmetric MD nanotip with molten apex\n");
+            printf("  generate    generate and use perfectly symmetric nanotip without crystallographic properties\n");
 
             file.close();
             system("rm -rf tmpfile");
