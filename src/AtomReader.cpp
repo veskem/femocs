@@ -299,7 +299,7 @@ void AtomReader::generate_nanotip(const double h, const double radius, const dou
     const double radius2 = radius * radius;
     const double latconst2 = latconst * latconst;
     const double tau = 2 * M_PI;
-    const double box_width = 1.2*radius;
+    const double box_width = 1.5*radius;
     const double height = fabs(h) * radius;
 
     // Over estimate the number of generated points and reserve memory for them

@@ -91,7 +91,7 @@ int Femocs::run(const double elfield, const string &message) {
     check_return( generate_meshes(bulk_mesh, vacuum_mesh), "Mesh generation failed!" );
 
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    vacuum_interpolator.set_analyt(conf.E0, conf.radius, dense_surf.sizes.zbox);
+    vacuum_interpolator.set_analyt(coarseners.centre, conf.E0, conf.radius, dense_surf.sizes.zbox);
     fields.set_analyt(conf.E0, conf.radius, dense_surf.sizes.zbox);
 
     // Solve Laplace equation on vacuum mesh

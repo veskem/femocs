@@ -21,13 +21,14 @@ LinearInterpolator::LinearInterpolator() : radius1(0), radius2(0), E0(0) {
 }
 
 // Set parameters for calculating analytical solution
-void LinearInterpolator::set_analyt(const double E0, const double radius1, const double radius2) {
+void LinearInterpolator::set_analyt(const Point3& origin, const double E0, const double radius1, const double radius2) {
     this->E0 = E0;
     this->radius1 = radius1;
     if (radius2 > radius1)
         this->radius2 = radius2;
     else
         this->radius2 = radius1;
+    this->origin = origin;
 }
 
 // Analytical potential for i-th point near the hemisphere
@@ -39,7 +40,7 @@ double LinearInterpolator::get_analyt_potential(const int i, const Point3& origi
 
 // Analytical electric field for i-th point near the hemisphere
 Vec3 LinearInterpolator::get_analyt_field(const int i) const {
-    Point3 point = get_atom(i).point;
+    Point3 point = get_atom(i).point - origin;
     double r5 = pow(point.x * point.x + point.y * point.y + point.z * point.z, 2.5);
     double r3 = pow(radius1, 3.0);
     double f = point.x * point.x + point.y * point.y - 2.0 * point.z * point.z;
@@ -87,7 +88,7 @@ void LinearInterpolator::print_enhancement() const {
 
 // Print the deviation from the analytical solution of hemi-ellipsoid on the infinite surface
 void LinearInterpolator::print_error(const Coarseners& c) const {
-//    if (!MODES.VERBOSE) return;
+    if (!MODES.VERBOSE) return;
 
     double rms_error = 0;
     int n_points = 0;
@@ -98,14 +99,12 @@ void LinearInterpolator::print_error(const Coarseners& c) const {
         {
             double analyt = get_analyt_field(i).norm();
             double numerical = solution[i].norm;
-
 //            cout << get_point(i) << " " << analyt << " " << numerical << endl;
 
             double error = (numerical - analyt) / numerical;
             rms_error += error * error;
             n_points++;
         }
-
     require(n_points > 0, "No tetrahedral points on the surface of nanotip!");
     rms_error = sqrt(rms_error / n_points);
 

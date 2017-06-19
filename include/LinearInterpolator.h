@@ -69,7 +69,7 @@ public:
     void print_enhancement() const;
 
     /** Set parameters to calculate analytical solution */
-    void set_analyt(const double E0, const double radius1, const double radius2=-1);
+    void set_analyt(const Point3& origin, const double E0, const double radius1, const double radius2=-1);
 
     /** Electric field that is assigned to atoms not found from mesh.
      *  Its value is BIG to make it immediately visible from the dataset. */
@@ -83,6 +83,7 @@ private:
     double radius1;  ///< Minor semi-axis of ellipse
     double radius2;  ///< Major semi-axis of ellipse
     double E0;       ///< Long-range electric field strength
+    Point3 origin;
 
     vector<Solution> solution;          ///< interpolation data
     vector<SimpleElement> tetrahedra;   ///< tetrahedra node indices
