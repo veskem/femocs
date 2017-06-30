@@ -306,6 +306,11 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     stringstream ss; ss << *(ch_solver);
     write_verbose_msg(ss.str());
 
+    start_msg(t0, "=== Testing...\n");
+    FieldReader fr1(&vacuum_interpolator);
+    fr1.calc_emission(ch_solver);
+    end_msg(t0);
+
     start_msg(t0, "=== Transfering elfield to J & T solver...\n");
     FieldReader fr(&vacuum_interpolator);
     fr.interpolate(ch_solver, conf.use_histclean * conf.coordination_cutoff, true);

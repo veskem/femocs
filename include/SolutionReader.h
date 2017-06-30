@@ -116,6 +116,7 @@ public:
     /** Set parameters to calculate analytical solution */
     void set_analyt(const double E0, const double radius1, const double radius2=-1);
 
+    void calc_emission(fch::CurrentsAndHeating<3>* ch_solver);
 private:
     double radius1;  ///< Minor semi-axis of ellipse
     double radius2;  ///< Major semi-axis of ellipse

@@ -11,7 +11,7 @@ release/femocs: release/build/Makefile src/* include/* ${MAIN_SOLVER} \
 	cd release/build; make -j${NPROCS}
 
 release/build/Makefile:
-	cd release; mkdir -p build; cd build; rm -r *; cmake -DCMAKE_BUILD_TYPE=Release -DMAIN=../${MAIN_HEATING} ..;
+	cd release; mkdir -p build; cd build; rm -r *; cmake -DCMAKE_BUILD_TYPE=Release -DMAIN=../${MAIN_SOLVER} ..;
 
 clean:
 	rm -f release/femocs release/build/Makefile

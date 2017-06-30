@@ -6,7 +6,7 @@ include release/makefile.defs
 
 all: release/femocs
 
-release/femocs: release/build/Makefile ${MAIN_CPP} src/* include/* heating/source/* heating/include/*
+release/femocs: release/build/Makefile ${MAIN_CPP} src/* include/* deal-solver/source/* deal-solver/include/*
 	cd release/build; make -j${NPROCS}
 
 release/build/Makefile:

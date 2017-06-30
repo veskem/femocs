@@ -30,7 +30,7 @@ femocs.release: ${MAIN_CPP} src/* include/*
 	
 
 solver: femocs.solver
-femocs.solver: ${MAIN_HEATING} deal-solver/source/* deal-solver/include/* src/* include/*
+femocs.solver: ${MAIN_SOLVER} deal-solver/source/* deal-solver/include/* src/* include/*
 	make -f release/makefile.solver
 
 debug:
