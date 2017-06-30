@@ -24,9 +24,9 @@ FILE(GLOB_RECURSE TARGET_SRC "../src/*.cpp" "../src/*.f90" "../deal-solver/sourc
 
 # Add the directory with headers to search path
 IF (LIBCGAL)
-    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../cgal/include)
+    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../cgal/include ../deal-solver/GETELEC/modules)
 ELSE()
-    INCLUDE_DIRECTORIES(../include ../deal-solver/include)
+    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../deal-solver/GETELEC/modules)
 ENDIF()
 
 # specify whether to build in debug or release mode

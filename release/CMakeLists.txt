@@ -23,16 +23,16 @@ FILE(GLOB_RECURSE SOURCE "../src/*.cpp" "../deal-solver/source/*")
 
 # directories with headers
 IF (LIBCGAL)
-    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../dealii/include ../cgal/include)
+    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../dealii/include ../cgal/include ../deal-solver/GETELEC/modules)
 ELSE()
-    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../dealii/include)
+    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../dealii/include ../deal-solver/GETELEC/modules)
 ENDIF()
 
 # path to libraries
-LINK_DIRECTORIES(../lib)
+LINK_DIRECTORIES(../lib ../deal-solver/GETELEC/lib)
 
 # names of the libraries
-SET(LIBRARIES tet)
+SET(LIBRARIES tet getelec slatec)
 
 ## Specify whether to build in debug or release mode
 # SET(CMAKE_BUILD_TYPE Release)
