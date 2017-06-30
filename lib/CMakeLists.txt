@@ -20,13 +20,13 @@ SET(DEAL_II_DIR ../dealii)
 SET(CGAL_DIR ../cgal)
 
 # Find source files
-FILE(GLOB_RECURSE TARGET_SRC "../src/*.cpp" "../src/*.f90" "../heating/source/*")
+FILE(GLOB_RECURSE TARGET_SRC "../src/*.cpp" "../src/*.f90" "../deal-solver/source/*")
 
 # Add the directory with headers to search path
 IF (LIBCGAL)
-    INCLUDE_DIRECTORIES(../include ../heating/include ../cgal/include)
+    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../cgal/include)
 ELSE()
-    INCLUDE_DIRECTORIES(../include ../heating/include)
+    INCLUDE_DIRECTORIES(../include ../deal-solver/include)
 ENDIF()
 
 # specify whether to build in debug or release mode

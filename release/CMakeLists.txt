@@ -19,13 +19,13 @@ SET(TARGET "femocs")
 #SET(MAIN "../Test.cpp")
 
 # path to source files
-FILE(GLOB_RECURSE SOURCE "../src/*.cpp" "../heating/source/*")
+FILE(GLOB_RECURSE SOURCE "../src/*.cpp" "../deal-solver/source/*")
 
 # directories with headers
 IF (LIBCGAL)
-    INCLUDE_DIRECTORIES(../include ../heating/include ../dealii/include ../cgal/include)
+    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../dealii/include ../cgal/include)
 ELSE()
-    INCLUDE_DIRECTORIES(../include ../heating/include ../dealii/include)
+    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../dealii/include)
 ENDIF()
 
 # path to libraries
