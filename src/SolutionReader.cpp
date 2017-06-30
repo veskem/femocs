@@ -7,6 +7,7 @@
 
 #include "SolutionReader.h"
 #include "Macros.h"
+#include "getelec.h"
 
 #include <float.h>
 #include <stdio.h>
@@ -328,6 +329,50 @@ void FieldReader::interpolate(const Medium &medium, const double r_cut, const in
     // store the original atom id-s
     for (int i = 0; i < n_atoms; ++i)
         atoms[i].id = medium.get_id(i);
+}
+
+void FieldReader::calc_emission(fch::CurrentsAndHeating<3>* ch_solver) {
+    // import the surface nodes the solver needs
+    vector<dealii::Point<3>> nodes;
+    ch_solver->get_surface_nodes(nodes);
+
+    const int n_nodes = nodes.size();
+
+    // store the node coordinates
+    reserve(n_nodes);
+    int i = 0;
+    for (dealii::Point<3>& node : nodes)
+        append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
+
+    // interpolate solution on the nodes
+    interpolate(0, 1, false);
+
+    // export electric field norms to the solver
+    vector<double> elfields, currents, nottingham;
+    elfields.reserve(n_nodes);
+    currents.reserve(n_nodes);
+    nottingham.reserve(n_nodes);
+
+    struct emission gt;
+    gt.W = 4.5;
+    gt.R = 1000.0;
+    gt.gamma = 10.;
+    gt.Temp = 300.;
+    gt.Nr = 0;
+    gt.approx = 1;
+    gt.mode = 0;
+
+    for (int i = 0; i < n_nodes; ++i) {
+        gt.F = 10.0 * interpolation[i].norm;
+        int retval = cur_dens_c(&gt);
+        currents.push_back(gt.Jem);
+        nottingham.push_back(gt.heat);
+
+        interpolation[i].scalar = gt.Jem;
+        interpolation[i].norm = gt.heat;
+    }
+
+//    ch_solver->read_field(elfields);
 }
 
 // Linearly interpolate electric field for the currents and temperature solver
