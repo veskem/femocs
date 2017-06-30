@@ -5,7 +5,7 @@ force_factor = 0.5              # force = force_factor * charge * elfield
 surface_cleaner = faces         # method to clean surface: voronois, faces, none
 cluster_anal = false            # enable cluster analysis
 use_histclean = false           # use histogram cleaner to get rid of sharp peaks in the solution
-heating = false                  # calculate current density and temperature in nanotip
+heating = true                  # calculate current density and temperature in nanotip
 clear_output = true             # clear output folder before the run
 infile = input/nanotip_small.xyz  # default file used with atom coordinates
 latconst = 3.61                 # lattice constant

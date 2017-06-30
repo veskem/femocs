@@ -345,9 +345,8 @@ void FieldReader::calc_emission(fch::CurrentsAndHeating<3>* ch_solver) {
         append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
 
     // interpolate solution on the nodes
-    interpolate(0, 1, false);
+    interpolate(0, 1, true);
 
-    // export electric field norms to the solver
     vector<double> elfields, currents, nottingham;
     elfields.reserve(n_nodes);
     currents.reserve(n_nodes);
@@ -365,14 +364,13 @@ void FieldReader::calc_emission(fch::CurrentsAndHeating<3>* ch_solver) {
     for (int i = 0; i < n_nodes; ++i) {
         gt.F = 10.0 * interpolation[i].norm;
         int retval = cur_dens_c(&gt);
+
         currents.push_back(gt.Jem);
         nottingham.push_back(gt.heat);
 
-        interpolation[i].scalar = gt.Jem;
-        interpolation[i].norm = gt.heat;
+        interpolation[i].scalar = log(gt.Jem);
+        interpolation[i].norm = log(gt.heat);
     }
-
-//    ch_solver->read_field(elfields);
 }
 
 // Linearly interpolate electric field for the currents and temperature solver

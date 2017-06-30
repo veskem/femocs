@@ -293,25 +293,30 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
 int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) {
     if (!conf.heating) return 0;
 
-    start_msg(t0, "=== Initializing rho & T solver...");
+    start_msg(t0, "=== Initializing J & T solver...");
     ch_solver->reinitialize(&laplace_solver, prev_ch_solver);
-    end_msg(t0);
-
-    start_msg(t0, "=== Importing mesh to rho & T solver...");
-    fail = !ch_solver->import_mesh_directly(mesh.nodes.export_dealii(), mesh.hexahedra.export_dealii());
-    check_return(fail, "Importing mesh to Deal.II failed!");
-    ch_solver->setup_system();
     end_msg(t0);
 
     stringstream ss; ss << *(ch_solver);
     write_verbose_msg(ss.str());
 
-    start_msg(t0, "=== Testing...\n");
+    start_msg(t0, "=== Importing mesh to J & T solver...");
+    fail = !ch_solver->import_mesh_directly(mesh.nodes.export_dealii(), mesh.hexahedra.export_dealii());
+    check_return(fail, "Importing mesh to Deal.II failed!");
+    ch_solver->setup_system();
+    end_msg(t0);
+
+
+    start_msg(t0, "=== Testing...");
     FieldReader fr1(&vacuum_interpolator);
     fr1.calc_emission(ch_solver);
     end_msg(t0);
+    fr1.write("output/magic.xyz");
 
-    start_msg(t0, "=== Transfering elfield to J & T solver...\n");
+    return 0;
+
+
+    start_msg(t0, "=== Transfering elfield to J & T solver...");
     FieldReader fr(&vacuum_interpolator);
     fr.interpolate(ch_solver, conf.use_histclean * conf.coordination_cutoff, true);
     end_msg(t0);
