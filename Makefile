@@ -27,10 +27,11 @@ lib/libfemocs.a: src/* include/*
 release: femocs.release
 femocs.release: ${MAIN_CPP} src/* include/* 
 	make -f release/makefile.release mode=Release
+	
 
-heating: femocs.heating
-femocs.heating: ${MAIN_HEATING} heating/source/* heating/include/* src/* include/*
-	make -f release/makefile.heating
+solver: femocs.solver
+femocs.solver: ${MAIN_HEATING} deal-solver/source/* deal-solver/include/* src/* include/*
+	make -f release/makefile.solver
 
 debug:
 	make -s -f release/makefile.cgal debug
@@ -51,14 +52,14 @@ clean:
 	make -s -f release/makefile.release clean
 	make -s -f release/makefile.test_f90 clean
 	make -s -f release/makefile.test_c clean
-	make -s -f release/makefile.heating clean
+	make -s -f release/makefile.solver clean
 
 clean-all:
 	make -s -f release/makefile.lib clean-all
 	make -s -f release/makefile.release clean-all
 	make -s -f release/makefile.test_f90 clean-all
 	make -s -f release/makefile.test_c clean-all
-	make -s -f release/makefile.heating clean-all
+	make -s -f release/makefile.solver clean-all
 	make -s -f release/makefile.install clean-all
 	make -s -f release/makefile.cgal clean-all
 
@@ -69,7 +70,7 @@ help:
 	@echo 'make taito      build in CSC Taito cluster all the external libraries that Femocs needs'
 	@echo 'make alcyone    build in Alcyone cluster all the external libraries that Femocs needs'
 	@echo 'make lib        build Femocs as static library'
-	@echo 'make heating    build Femocs executable from main file in heating module'
+	@echo 'make solver     build Femocs executable from main file in the FEM solver module'
 	@echo 'make release    build Femocs executable from c++ main with highest optimization level'
 	@echo 'make debug      build Femocs executable from c++ main with debugging features enabled'
 	@echo 'make test_f90   build Femocs executable from Fortran main'

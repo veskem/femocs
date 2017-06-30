@@ -1,12 +1,13 @@
 #############################################################################
-#       Makefile for building Femocs together with 3D heating module
+#       Makefile for building Femocs together with 3D FEM solver module
 #############################################################################
 
 include release/makefile.defs
 
 all: release/femocs
 
-release/femocs: release/build/Makefile src/* include/* ${MAIN_HEATING} heating/source/* heating/include/*
+release/femocs: release/build/Makefile src/* include/* ${MAIN_SOLVER} \
+	deal-solver/source/* deal-solver/include/*
 	cd release/build; make -j${NPROCS}
 
 release/build/Makefile:
