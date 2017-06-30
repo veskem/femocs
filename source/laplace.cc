@@ -296,7 +296,7 @@ void Laplace<dim>::run() {
 	std::cout << "    solve(): " << timer.wall_time() << " s" << std::endl; timer.restart();
 	output_results("output/field_solution.vtk");
 	std::cout << "    output_results(): " << timer.wall_time() << " s" << std::endl; timer.restart();
-	std::cout << "/---------------------------------------------------------------/" << std::endl;
+    std::cout << "/---------------------------------------------------------------/" << std::endl;
 
 }
 
