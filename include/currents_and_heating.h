@@ -111,8 +111,7 @@ public:
     Vector<double>* get_solution();
 
     /**
-     * Imports mesh from file and optionally outputs it to a .vtk file
-     * Additionally sets the boundary indicators corresponding to copper
+     * Imports mesh from file and sets the boundary indicators corresponding to copper
      * @param file_name file from the mesh is imported
      */
     void import_mesh_from_file(const std::string file_name);

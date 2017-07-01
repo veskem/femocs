@@ -770,9 +770,9 @@ void CurrentsAndHeating<dim>::assemble_system_newton() {
         // integration over the boundary (cell faces)
         for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
             if (cell->face(f)->at_boundary()) {
-                fe_face_values.reinit(cell, f);
 
                 if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+                    fe_face_values.reinit(cell, f);
 
                     fe_face_values[potential].get_function_gradients(present_solution,
                             prev_sol_face_potential_gradients);
