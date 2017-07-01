@@ -14,6 +14,7 @@
 #include "TetgenCells.h"
 #include "TetgenMesh.h"
 #include "currents_and_heating.h"
+#include "getelec.h"
 
 using namespace std;
 namespace femocs {
@@ -117,6 +118,10 @@ public:
     void set_analyt(const double E0, const double radius1, const double radius2=-1);
 
     void calc_emission(fch::CurrentsAndHeating<3>* ch_solver);
+    
+    void emission_line(const Point3& point, const Vec3& field,
+                        vector<double> &rline, vector<double> &Vline, double rmax);
+
 private:
     double radius1;  ///< Minor semi-axis of ellipse
     double radius2;  ///< Major semi-axis of ellipse
