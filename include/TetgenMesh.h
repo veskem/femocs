@@ -96,12 +96,16 @@ private:
      * Two nodes are considered neighbours if they share a tetrahedron. */
     void calc_nborlist(vector<vector<int>>& nborlist);
 
+    bool calc_ranks(vector<int>& ranks, const vector<vector<int>>& nborlist);
+
     /** Mark the tetrahedra by the location of nodes */
     void mark_elems();
 
     /** Mark the nodes by using DBSCAN (Density-Based Spatial Clustering of Applications with Noise)
      * algorithm. The same algorithm is also used in cluster analysis. */
     bool mark_nodes();
+
+    bool mark_nodes_vol2();
 
     /** Mark the edges on the simulation cell perimeter by the node markers */
     void mark_edges();

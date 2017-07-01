@@ -529,6 +529,115 @@ bool TetgenMesh::mark_nodes() {
     return nodes.stat.n_vacuum <= 4;
 }
 
+bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<int>>& nborlist) {
+    const int n_nbor_levels = 5;  // number of nearest tetrahedra whose nodes will act as a seed
+
+    // initialise all the ranks to 0
+    ranks = vector<int>(nodes.size());
+
+    // distinguish the ranks of surface nodes
+    for (int i = nodes.indxs.surf_start; i <= nodes.indxs.surf_end; ++i)
+        ranks[i] = -1;
+
+    // calculate the ranks from vacuum side
+    vector<int> neighbours = nborlist[nodes.indxs.vacuum_start];
+    for (int i = 0; i < neighbours.size(); ++i) {
+        int node = neighbours[i];
+        if (ranks[node] != -1 && ranks[node]++ == 0)
+            neighbours.insert(neighbours.end(), nborlist[node].begin(), nborlist[node].end());
+    }
+
+    // normalise all the ranks with respect to the maximum rank
+    double norm_factor = 100.0 / *max_element(ranks.begin(), ranks.end());
+    for (int& r : ranks)
+        if (r > 0)
+            r *= norm_factor;
+
+    // force the ranks around the vacuum seed region to the maximum value
+    vector<vector<int>> seeds(n_nbor_levels);
+    seeds[0] = nborlist[nodes.indxs.vacuum_start];
+    ranks[nodes.indxs.vacuum_start] = 100;
+
+    for (int i = 1; i <= n_nbor_levels; ++i)
+        for (int nbor : seeds[i-1])
+            if (ranks[nbor] > 0) {
+                ranks[nbor] = 100;
+                if (i < n_nbor_levels)
+                    seeds[i].insert(seeds[i].end(), nborlist[nbor].begin(), nborlist[nbor].end());
+            }
+
+    // check whether only the vacuum nodes were ranked or did the ranks penetrate trough the surface
+    for (int r : ranks)
+        if (r == 0)
+            return true;
+
+    return false;
+}
+
+// Mark the nodes by using the DBSCAN clustering algorithm
+// To increase the tolerance against the holes in the surface, calculate the ranking of the nodes,
+// i.e the measure how close the node is to the hole or to the simubox boundary.
+// Nodes with small ranking act as a boundary for the clustering algorithm.
+bool TetgenMesh::mark_nodes_vol2() {
+    const int n_nodes = nodes.size();
+    const int min_rank = 33;
+    int node;
+
+    // Calculate neighbour list for nodes
+    vector<vector<int>> nborlist;
+    calc_nborlist(nborlist);
+
+    // Calculate the ranks for the nodes to increase the robustness of the bulk-vacuum separator
+    vector<int> ranks;
+    bool success = calc_ranks(ranks, nborlist);
+    expect(success, "Surface has holes, therefore the mesh might or might not be valid!\n"
+            "Check the output/hexmesh_bulk.vtk and in case of problems,\n"
+            "make sure the radius is big enough and consider altering the coarsening factors!");
+
+    // Mark all the nodes with initial values
+    nodes.init_markers(n_nodes, TYPES.NONE);
+
+    // Mark the surface, bulk and vacuum nodes by their known position in array
+    for (node = nodes.indxs.surf_start; node <= nodes.indxs.surf_end; ++node)
+        nodes.set_marker(node, TYPES.SURFACE);
+
+    for (node = nodes.indxs.bulk_start; node <= nodes.indxs.bulk_end; ++node)
+        nodes.set_marker(node, TYPES.BULK);
+
+    for (node = nodes.indxs.vacuum_start; node <= nodes.indxs.vacuum_end; ++node)
+        nodes.set_marker(node, TYPES.VACUUM);
+
+    // Mark the vacuum nodes
+    vector<int> neighbours = nborlist[nodes.indxs.vacuum_start];
+    for (int i = 0; i < neighbours.size(); ++i) {
+        node = neighbours[i];
+        if (nodes.get_marker(node) == TYPES.NONE) {
+            nodes.set_marker(node, TYPES.VACUUM);
+            if (ranks[node] >= min_rank)
+                neighbours.insert(neighbours.end(), nborlist[node].begin(), nborlist[node].end());
+        }
+    }
+
+    // Mark the bulk nodes
+    // no need to check the node ranks as vacuum nodes are all already marked
+    neighbours = nborlist[nodes.indxs.bulk_start];
+    for (int i = 0; i < neighbours.size(); ++i) {
+        node = neighbours[i];
+        if (nodes.get_marker(node) == TYPES.NONE) {
+            nodes.set_marker(node, TYPES.BULK);
+            neighbours.insert(neighbours.end(), nborlist[node].begin(), nborlist[node].end());
+        }
+    }
+
+    // Nodes inside the thin nanotip may not have nearest neighbour connection
+    // with the rest of the bulk. Therefore mark them separately
+    for (int &marker : *nodes.get_markers())
+        if (marker == TYPES.NONE)
+            marker = TYPES.BULK;
+
+    return 0;
+}
+
 // Locate the tetrahedron by the location of its nodes
 int TetgenMesh::locate_element(SimpleElement& elem) {
     // Element in vacuum is supposed not to have nodes in bulk,
