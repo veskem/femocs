@@ -99,8 +99,8 @@ void CurrentsAndHeating<dim>::setup_heating_system() {
 
 template<int dim>
 void CurrentsAndHeating<dim>::assemble_current_system() {
-    QGauss<dim> quadrature_formula(quadrature_degree);
-    QGauss<dim-1> face_quadrature_formula(quadrature_degree);
+    QGauss<dim> quadrature_formula(currents_degree+1);
+    QGauss<dim-1> face_quadrature_formula(currents_degree+1);
 
     // Current finite element values
     FEValues<dim> fe_values(fe_current, quadrature_formula,
@@ -110,9 +110,9 @@ void CurrentsAndHeating<dim>::assemble_current_system() {
 
     // Temperature finite element values (only for accessing previous iteration solution)
     FEValues<dim> fe_values_heat(fe_heat, quadrature_formula,
-            update_values | update_quadrature_points);
+            update_values);
     FEFaceValues<dim> fe_face_values_heat(fe_heat, face_quadrature_formula,
-                update_values | update_quadrature_points);
+                update_values);
 
     const unsigned int dofs_per_cell = fe_current.dofs_per_cell;
     const unsigned int n_q_points = quadrature_formula.size();
@@ -132,13 +132,14 @@ void CurrentsAndHeating<dim>::assemble_current_system() {
 
     typename DoFHandler<dim>::active_cell_iterator cell = dof_handler_current.begin_active(),
             endc = dof_handler_current.end();
+    typename DoFHandler<dim>::active_cell_iterator heat_cell = dof_handler_heat.begin_active();
 
-    for (; cell != endc; ++cell) {
+    for (; cell != endc; ++cell, ++heat_cell) {
         fe_values.reinit(cell);
         cell_matrix = 0;
         cell_rhs = 0;
 
-        fe_values_heat.reinit(cell);
+        fe_values_heat.reinit(heat_cell);
         fe_values_heat.get_function_values(solution_heat, prev_sol_temperature_values);
 
         // ----------------------------------------------------------------------------------------
@@ -163,10 +164,21 @@ void CurrentsAndHeating<dim>::assemble_current_system() {
             if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
                 fe_face_values.reinit(cell, f);
 
-                fe_face_values_heat.reinit(cell, f);
+                fe_face_values_heat.reinit(heat_cell, f);
                 fe_face_values_heat.get_function_values(solution_heat, prev_sol_face_temperature_values);
 
-                double e_field = 5.0;
+                // ----------------------------------------------------------------------------------
+                // Electric field determination at the boundary
+                double e_field = 1.0;
+                if (interface_map_field.empty()) {
+                    std::cout << "Warning: no field BC set, using default value of 1.0." << std::endl;
+                } else {
+                    std::pair<unsigned, unsigned> cop_cell_info = std::pair<unsigned, unsigned>(
+                                            cell->index(), f);
+                    assert(interface_map_field.count(cop_cell_info) == 1);
+                    e_field = interface_map_field[cop_cell_info];
+                }
+                // ----------------------------------------------------------------------------------
 
                 for (unsigned int q = 0; q < n_face_q_points; ++q) {
 
@@ -212,6 +224,88 @@ void CurrentsAndHeating<dim>::solve_current(int max_iter, double tol, bool pc_ss
     //std::cout << "   " << solver_control.last_step() << " CG iterations needed to obtain convergence." << std::endl;
 }
 
+template<int dim>
+void CurrentsAndHeating<dim>::set_electric_field_bc(const Laplace<dim> &laplace) {
+
+    double eps = 1e-9;
+
+    interface_map_field.clear();
+
+    // ---------------------------------------------------------------------------------------------
+    // Loop over vacuum interface cells
+
+    std::vector<Point<dim> > vacuum_interface_centers;
+    std::vector<double> vacuum_interface_efield;
+
+    QGauss<dim-1> face_quadrature_formula(1); // Quadrature with one point
+    FEFaceValues<dim> vacuum_fe_face_values(laplace.fe, face_quadrature_formula,
+            update_gradients | update_quadrature_points);
+
+    // Electric field values from laplace solver
+    std::vector<Tensor<1, dim> > electric_field_value(1);
+
+    typename DoFHandler<dim>::active_cell_iterator vac_cell = laplace.dof_handler.begin_active(),
+            vac_endc = laplace.dof_handler.end();
+    for (; vac_cell != vac_endc; ++vac_cell) {
+        for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; f++) {
+            if (vac_cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+                // ---
+                // Electric field norm in the center (only quadrature point) of the face
+                vacuum_fe_face_values.reinit(vac_cell, f);
+                vacuum_fe_face_values.get_function_gradients(laplace.solution,
+                        electric_field_value);
+                double efield_norm = electric_field_value[0].norm();
+                // ---
+
+                vacuum_interface_efield.push_back(efield_norm);
+                vacuum_interface_centers.push_back(vac_cell->face(f)->center());
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Loop over copper interface cells
+
+    typename DoFHandler<dim>::active_cell_iterator cop_cell = dof_handler_current.begin_active(),
+            cop_endc = dof_handler_current.end();
+
+    for (; cop_cell != cop_endc; ++cop_cell) {
+        for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; f++) {
+            if (cop_cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+                Point<dim> cop_face_center = cop_cell->face(f)->center();
+                std::pair<unsigned, unsigned> cop_face_info(cop_cell->index(), f);
+                // Loop over vacuum side and find corresponding (cell, face) pair
+                for (unsigned int i = 0; i < vacuum_interface_centers.size(); i++) {
+                    if (cop_face_center.distance(vacuum_interface_centers[i]) < eps) {
+                        std::pair<std::pair<unsigned, unsigned>, double> pair(cop_face_info,
+                                vacuum_interface_efield[i]);
+                        interface_map_field.insert(pair);
+                        break;
+                    }
+                }
+                if (interface_map_field.count(cop_face_info) == 0)
+                    std::cerr << "Error: probably a mismatch between copper and vacuum meshes." << std::endl;
+            }
+        }
+    }
+}
+
+template<int dim>
+void CurrentsAndHeating<dim>::set_electric_field_bc(const std::vector<double>& elfields) {
+    const unsigned n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
+    interface_map_field.clear();
+
+    // Loop over copper interface cells
+    typename DoFHandler<dim>::active_cell_iterator cell;
+    unsigned i = 0;
+    for (cell = dof_handler_current.begin_active(); cell != dof_handler_current.end(); ++cell)
+        for (unsigned f = 0; f < n_faces_per_cell; ++f)
+            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+                std::pair<unsigned, unsigned> face_info(cell->index(), f);
+                interface_map_field.insert(
+                        std::pair<std::pair<unsigned, unsigned>, double>(face_info, elfields[i++]));
+            }
+}
 
 template<int dim>
 void CurrentsAndHeating<dim>::output_results_current(const std::string filename) const {

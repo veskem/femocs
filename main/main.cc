@@ -54,10 +54,16 @@ int main() {
         timer.restart();
     }
 
+    fch::Laplace<2> laplace;
+    laplace.import_mesh_from_file("../res/2d_meshes/vacuum_aligned.msh");
+    laplace.set_applied_efield(10.0);
+    laplace.run();
+
     fch::CurrentsAndHeating<2> ch(&pq);
     ch.import_mesh_from_file("../res/2d_meshes/copper_aligned.msh");
     ch.setup_current_system();
     ch.setup_heating_system();
+    ch.set_electric_field_bc(laplace);
     ch.assemble_current_system();
     ch.solve_current();
     ch.output_results_current("./output/current_solution.vtk");

@@ -60,11 +60,15 @@ public:
     /** outputs the results to a specified file */
     void output_results_current(const std::string filename = "current_solution.vtk") const;
 
+    /** Set the electric field boundary condition on copper-vacuum boundary */
+    void set_electric_field_bc(const Laplace<dim> &laplace);
+    void set_electric_field_bc(const std::vector<double> &e_fields);
+
+
 private:
 
     static constexpr unsigned int currents_degree = 1;
     static constexpr unsigned int heating_degree = 1;
-    static constexpr unsigned int quadrature_degree = 2; // Good to have max(cur_deg, heat_deg)+1
 
     static constexpr double ambient_temperature = 300.0;
 
@@ -87,6 +91,11 @@ private:
     Vector<double> system_rhs_heat;
 
     PhysicalQuantities *pq;
+
+    /** Mapping of copper interface face to vacuum side e field norm
+     * (copper_cell_index, copper_cell_face) <-> (electric field norm)
+     */
+    std::map<std::pair<unsigned, unsigned>, double> interface_map_field;
 };
 
 } // end fch namespace
