@@ -414,7 +414,7 @@ void FieldReader::interpolate(fch::CurrentsAndHeating<3>* ch_solver, const doubl
     vector<double> elfields; elfields.reserve(n_nodes);
     for (int i = 0; i < n_nodes; ++i)
         elfields.push_back(10.0 * interpolation[i].norm);
-    ch_solver->read_field(elfields);
+    ch_solver->set_field_bc(elfields);
 }
 
 // Linearly interpolate electric field on a set of points
