@@ -43,25 +43,46 @@ public:
     /** Extract the electric potential and electric field values on the tetrahedra nodes from FEM solution */
     bool extract_solution(fch::Laplace<3>* laplace, const TetgenMesh &mesh);
 
+    /** Extract the current density and temperature values on the tetrahedra nodes from FEM solution */
     bool extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh);
 
+    /** Interpolate both vector and scalar data.
+     * Function assumes, that tetrahedron, that surrounds the point, is previously already found with locate_element.
+     * @param point  point where the interpolation is performed
+     * @param elem   tetrahedron around which the interpolation is performed */
     Solution get_solution(const Point3 &point, const int elem) const;
 
+    /** Return the i-th entry from solution vector */
     Solution get_solution(const int i) const;
 
+    /** Interpolate vector data.
+     * Function assumes, that tetrahedron, that surrounds the point, is previously already found with locate_element.
+     * @param point  point where the interpolation is performed
+     * @param elem   tetrahedron around which the interpolation is performed */
     double get_scalar(const Point3 &point, const int elem) const;
 
+    /** Return the i-th scalar entry from solution vector */
     double get_scalar(const int i) const;
 
+    /** Interpolate scalar data.
+     * Function assumes, that tetrahedron, that surrounds the point, is previously already found with locate_element.
+     * @param point  point where the interpolation is performed
+     * @param elem   tetrahedron around which the interpolation is performed */
     Vec3 get_vector(const Point3 &point, const int elem) const;
 
+    /** Return the i-th Vec3 entry from solution vector */
     Vec3 get_vector(const int i) const;
 
-    int locate_element_new(const Point3 &point, const int elem_guess);
-
+    /** Locate the tetrahedron that surrounds or is closest to the point of interest.
+     * The search starts from the elem_guess-th tetrahedron, proceedes with its neighbours
+     * (number of neighbouring layers is specified inside the function),
+     * then, if no match found, checks sequentially all the tetrahedra and if still no match found,
+     * returns the index of tetrahedron whose centroid is closest to the point.
+     * @param point       point of interest
+     * @param elem_guess  index of tetrahedron around which the search starts
+     * @return index of the tetrahedron that surrounds or is closest to the point
+     */
     int locate_element(const Point3 &point, const int elem_guess);
-
-    int locate_element(const Point3 &point);
 
     /** Print statistics about solution on node points */
     void print_statistics() const;

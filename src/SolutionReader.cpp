@@ -264,6 +264,26 @@ void SolutionReader::print_statistics() {
     write_verbose_msg(stream.str());
 }
 
+// Initialise statistics about the solution
+void SolutionReader::init_statistics() {
+    stat.vec_norm_min = stat.scal_min = DBL_MAX;
+    stat.vec_norm_max = stat.scal_max = -DBL_MAX;
+}
+
+// Calculate statistics about the solution
+void SolutionReader::calc_statistics() {
+    init_statistics();
+
+    for (int i = 0; i < size(); ++i) {
+        double norm = interpolation[i].norm;
+        double scalar = interpolation[i].scalar;
+        stat.vec_norm_max = max(stat.vec_norm_max, norm);
+        stat.vec_norm_min = min(stat.vec_norm_min, norm);
+        stat.scal_max = max(stat.scal_max, scalar);
+        stat.scal_min = min(stat.scal_min, scalar);
+    }
+}
+
 /* ==========================================
  * ============== FIELD READER ==============
  * ========================================== */
@@ -283,17 +303,10 @@ void FieldReader::interpolate(const double r_cut, const int component, const boo
     if (srt) sort_spatial();
 
     int elem = 0;
-//    int elem = interpolator->locate_element(get_point(0));
-//    int missed_cntr = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point = get_point(i);
         // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
         elem = interpolator->locate_element(point, abs(elem));
-
-//        if (elem < 0 && ++missed_cntr >= 3) {
-//            missed_cntr = 0;
-//            elem = interpolator->locate_element(point);
-//        }
 
         // Store whether the point is in- or outside the mesh
         if (elem < 0) set_marker(i, 1);

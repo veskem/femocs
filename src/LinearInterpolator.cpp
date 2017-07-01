@@ -488,41 +488,37 @@ Vec4 LinearInterpolator::get_bcc(const Point3 &point, const int elem) const {
 
 // Find the element which contains the point or is the closest to it
 int LinearInterpolator::locate_element(const Point3 &point, const int elem_guess) {
-    const int n_elems = det0.size();
-
     // Check the guessed element
     if (point_in_tetrahedron(point, elem_guess)) return elem_guess;
 
-    // Check the 1st nearest neighbours of guessed element
-    for (int nbor : tetneighbours[elem_guess])
-        if (nbor >= 0 && point_in_tetrahedron(point, nbor)) return nbor;
+    const int n_elems = det0.size();
+    const int n_nbor_layers = 6;  // choose the amount of nearest neighboring layers that are checked before the full search
 
-    // Check the 2nd, 3rd & 4th nearest neighbours of guessed element
-    // going further than 4th neighbour starts slowing things down
+    vector<vector<int>> nbors(n_nbor_layers);
+    vector<bool> elem_checked(n_elems);
 
-    // Mark the neighbour ranks of elements wrt to guessed element
-    vector<int> nbor_rank(n_elems);
-    for (int nbor1 : tetneighbours[elem_guess]) {
-        if (nbor1 < 0) continue;
-        for (int nbor2 : tetneighbours[nbor1]) {
-            if (nbor2 < 0) continue;
-            for (int nbor3 : tetneighbours[nbor2]) {
-                if (nbor3 < 0) continue;
-                for (int nbor4 : tetneighbours[nbor3]) {
-                    if (nbor4 < 0) continue;
-                    nbor_rank[nbor4] = 4;
-                }
-                nbor_rank[nbor3] = 3;
-            }
-            nbor_rank[nbor2] = 2;
+    elem_checked[elem_guess] = true;
+
+    // Check all tetrahedra on the given neighbouring layer
+    for (int layer = 0; layer < n_nbor_layers; ++layer) {
+        // build next layer of neighbour list
+        if (layer == 0)
+            nbors[0] = tetneighbours[elem_guess];
+        else {
+            for (int nbor : nbors[layer-1])
+                if (nbor >= 0)
+                    nbors[layer].insert(nbors[layer].end(), tetneighbours[nbor].begin(), tetneighbours[nbor].end());
         }
-        nbor_rank[nbor1] = 1;
-    }
 
-    // Perform the check on the neighbours
-    // checking ranks separately doesn't give any benefit in speed
-    for (int elem = 0; elem < n_elems; ++elem)
-        if (nbor_rank[elem] > 1 && point_in_tetrahedron(point, elem)) return elem;
+        // check whether some of the unchecked neighbouring tetrahedra surround the point
+        for (int elem : nbors[layer])
+            if (elem >= 0 && !elem_checked[elem]) {
+                if (point_in_tetrahedron(point, elem))
+                    return elem;
+                else
+                    elem_checked[elem] = true;
+            }
+    }
 
     // If no success, loop through all the elements
     double min_distance2 = DBL_MAX;
@@ -530,7 +526,7 @@ int LinearInterpolator::locate_element(const Point3 &point, const int elem_guess
 
     for (int elem = 0; elem < n_elems; ++elem) {
         // If correct element is found, we're done
-        if (point_in_tetrahedron(point, elem))
+        if (!elem_checked[elem] && point_in_tetrahedron(point, elem))
             return elem;
 
         // Otherwise look for the element whose centroid is closest to the point
@@ -539,90 +535,12 @@ int LinearInterpolator::locate_element(const Point3 &point, const int elem_guess
             if (distance2 < min_distance2) {
                 min_distance2 = distance2;
                 min_index = elem;
-            }
-        }
-    }
-
-    // If no perfect element found, return the best
-    // indicate the imperfectness with the minus sign
-    return -min_index;
-}
-
-// Find the element which contains the point or is the closest to it
-int LinearInterpolator::locate_element_new(const Point3 &point, const int elem_guess) {
-    const int n_elems = det0.size();
-    const int n_nbor_layers = 5;  // pick the amount of nearest neighboring layers that are checked
-    vector<vector<int>> nbors(n_nbor_layers);
-
-    // Check the guessed element
-    if (point_in_tetrahedron(point, elem_guess)) return elem_guess;
-
-    vector<bool> elem_checked(n_elems);
-    elem_checked[elem_guess] = true;
-
-    double distance2, min_distance2 = point.distance2(centroid[elem_guess]);
-    int min_index = elem_guess;
-
-    // Check the all the tetrahedra around the given neighbouring layer of first tetrahedron
-    for (int layer = 0; layer < n_nbor_layers; ++layer) {
-        // build next level of neighbour list for tetrahedra
-        if (layer == 0)
-            nbors[0] = tetneighbours[elem_guess];
-        else {
-            for (int nbor : nbors[layer-1]) {
-                 if (nbor >= 0)
-                     nbors[layer].insert(nbors[layer].end(), tetneighbours[nbor].begin(), tetneighbours[nbor].end());
-             }
-        }
-
-        // check whether some of the unchecked neighbouring tetrahedra surround the point
-        for (int elem : nbors[layer]) {
-            if (elem < 0 || elem_checked[elem]) continue;
-
-            // If correct element is found, we're done
-            if (point_in_tetrahedron(point, elem))
-                return elem;
-            // otherwise look for the element whose centroid is closest to the point
-            else {
-                elem_checked[elem] = true;
-                distance2 = point.distance2(centroid[elem]);
-                if (distance2 < min_distance2) {
-                    min_distance2 = distance2;
-                    min_index = elem;
-                }
             }
         }
     }
 
     // If no perfect element found, return the best.
     // Indicate the imperfectness with the minus sign
-    return -min_index;
-}
-
-// Find the element which contains the point or is the closest to it
-int LinearInterpolator::locate_element(const Point3 &point) {
-    double min_distance2 = DBL_MAX;
-    int min_index = 0;
-
-    // Loop through all the tetrahedra and search for the element
-    // that surrounds the point or is closest to it
-    for (int elem = 0; elem < det0.size(); ++elem) {
-        // If correct element is found, we're done
-        if (point_in_tetrahedron(point, elem))
-            return elem;
-
-        // Otherwise look for the element whose centroid is closest to the point
-        else {
-            double distance2 = point.distance2(centroid[elem]);
-            if (distance2 < min_distance2) {
-                min_distance2 = distance2;
-                min_index = elem;
-            }
-        }
-    }
-
-    // If no perfect element found, return the best
-    // indicate the imperfectness with the minus sign
     return -min_index;
 }
 

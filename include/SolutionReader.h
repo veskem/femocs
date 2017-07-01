@@ -43,6 +43,17 @@ public:
     /** Set i-th Solution */
     void set_interpolation(const int i, const Solution& s);
 
+    /** Calculate statistics about coordinates and solution */
+    void calc_statistics();
+
+    /** Statistics about solution */
+    struct Statistics {
+        double vec_norm_min;  ///< minimum value of vector norm
+        double vec_norm_max;  ///< maximum value of vector norm
+        double scal_min;      ///< minimum value of scalar
+        double scal_max;      ///< maximum value of scalar
+    } stat;
+
 protected:
     const string vec_label;       ///< label for vector data
     const string vec_norm_label;  ///< label for data associated with vector length
@@ -50,6 +61,9 @@ protected:
 
     LinearInterpolator* interpolator;  ///< data needed for interpolation
     vector<Solution> interpolation;    ///< interpolated data
+
+    /** Initialise statistics about coordinates and solution */
+    void init_statistics();
 
     /** Get i-th entry from all data vectors for .xyz file;
      * i < 0 gives the header of data vectors */
@@ -117,6 +131,7 @@ public:
     void set_analyt(const double E0, const double radius1, const double radius2=-1);
 
     void calc_emission(fch::CurrentsAndHeating<3>* ch_solver);
+
 private:
     double radius1;  ///< Minor semi-axis of ellipse
     double radius2;  ///< Major semi-axis of ellipse
