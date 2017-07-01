@@ -548,6 +548,84 @@ int LinearInterpolator::locate_element(const Point3 &point, const int elem_guess
     return -min_index;
 }
 
+// Find the element which contains the point or is the closest to it
+int LinearInterpolator::locate_element_new(const Point3 &point, const int elem_guess) {
+    const int n_elems = det0.size();
+    const int n_nbor_layers = 5;  // pick the amount of nearest neighboring layers that are checked
+    vector<vector<int>> nbors(n_nbor_layers);
+
+    // Check the guessed element
+    if (point_in_tetrahedron(point, elem_guess)) return elem_guess;
+
+    vector<bool> elem_checked(n_elems);
+    elem_checked[elem_guess] = true;
+
+    double distance2, min_distance2 = point.distance2(centroid[elem_guess]);
+    int min_index = elem_guess;
+
+    // Check the all the tetrahedra around the given neighbouring layer of first tetrahedron
+    for (int layer = 0; layer < n_nbor_layers; ++layer) {
+        // build next level of neighbour list for tetrahedra
+        if (layer == 0)
+            nbors[0] = tetneighbours[elem_guess];
+        else {
+            for (int nbor : nbors[layer-1]) {
+                 if (nbor >= 0)
+                     nbors[layer].insert(nbors[layer].end(), tetneighbours[nbor].begin(), tetneighbours[nbor].end());
+             }
+        }
+
+        // check whether some of the unchecked neighbouring tetrahedra surround the point
+        for (int elem : nbors[layer]) {
+            if (elem < 0 || elem_checked[elem]) continue;
+
+            // If correct element is found, we're done
+            if (point_in_tetrahedron(point, elem))
+                return elem;
+            // otherwise look for the element whose centroid is closest to the point
+            else {
+                elem_checked[elem] = true;
+                distance2 = point.distance2(centroid[elem]);
+                if (distance2 < min_distance2) {
+                    min_distance2 = distance2;
+                    min_index = elem;
+                }
+            }
+        }
+    }
+
+    // If no perfect element found, return the best.
+    // Indicate the imperfectness with the minus sign
+    return -min_index;
+}
+
+// Find the element which contains the point or is the closest to it
+int LinearInterpolator::locate_element(const Point3 &point) {
+    double min_distance2 = DBL_MAX;
+    int min_index = 0;
+
+    // Loop through all the tetrahedra and search for the element
+    // that surrounds the point or is closest to it
+    for (int elem = 0; elem < det0.size(); ++elem) {
+        // If correct element is found, we're done
+        if (point_in_tetrahedron(point, elem))
+            return elem;
+
+        // Otherwise look for the element whose centroid is closest to the point
+        else {
+            double distance2 = point.distance2(centroid[elem]);
+            if (distance2 < min_distance2) {
+                min_distance2 = distance2;
+                min_index = elem;
+            }
+        }
+    }
+
+    // If no perfect element found, return the best
+    // indicate the imperfectness with the minus sign
+    return -min_index;
+}
+
 // Calculate interpolation or all the data for point inside or near the elem-th tetrahedron
 Solution LinearInterpolator::get_solution(const Point3 &point, const int elem) const {
     require(elem >= 0 && elem < (int)tetrahedra.size(), "Index out of bounds: " + to_string(elem));

@@ -283,19 +283,26 @@ void FieldReader::interpolate(const double r_cut, const int component, const boo
     if (srt) sort_spatial();
 
     int elem = 0;
+//    int elem = interpolator->locate_element(get_point(0));
+//    int missed_cntr = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point = get_point(i);
         // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
         elem = interpolator->locate_element(point, abs(elem));
+
+//        if (elem < 0 && ++missed_cntr >= 3) {
+//            missed_cntr = 0;
+//            elem = interpolator->locate_element(point);
+//        }
 
         // Store whether the point is in- or outside the mesh
         if (elem < 0) set_marker(i, 1);
         else          set_marker(i, 0);
 
         // Calculate the interpolation
-        if (component == 0) interpolation.push_back( interpolator->get_solution(point, abs(elem)) );
-        if (component == 1) interpolation.push_back( interpolator->get_vector(point, abs(elem)) );
-        if (component == 2) interpolation.push_back( interpolator->get_scalar(point, abs(elem)) );
+        if      (component == 0) interpolation.push_back( interpolator->get_solution(point, abs(elem)) );
+        else if (component == 1) interpolation.push_back( interpolator->get_vector(point, abs(elem)) );
+        else if (component == 2) interpolation.push_back( interpolator->get_scalar(point, abs(elem)) );
     }
 
     clean(0, r_cut);  // clean by vector x-component

@@ -57,7 +57,11 @@ public:
 
     Vec3 get_vector(const int i) const;
 
+    int locate_element_new(const Point3 &point, const int elem_guess);
+
     int locate_element(const Point3 &point, const int elem_guess);
+
+    int locate_element(const Point3 &point);
 
     /** Print statistics about solution on node points */
     void print_statistics() const;
