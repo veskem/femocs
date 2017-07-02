@@ -1,6 +1,5 @@
 #extended_atoms = input/ellipse.xyz   # file with atoms in extended surface
 #femocs_periodic = false        # imported atoms have periodic boundaries in x- & y-direction
-
 force_factor = 0.5              # force = force_factor * charge * elfield
 surface_cleaner = faces         # method to clean surface: voronois, faces, none
 cluster_anal = false            # enable cluster analysis
@@ -24,7 +23,6 @@ coarse_factor = 0.3 3 2         # coarsening factor; bigger number gives coarser
                                 # 3rd - minimum distance between atoms in nanotip apex [0.25*latconst]
 smooth_factor = 1.0             # surface smoothing factor; bigger number gives smoother surface
 charge_smooth_factor = 100.0    # charge smoothing factor; bigger number gives smoother charges
-postprocess_marking = true      # make extra effort to mark correctly the vacuum nodes in shadow area
 distance_tol = 0.16             # minimum distance between atoms from previous and current run to recalculate solution
 n_writefile = 1                 # minimum number of time steps between writing file; 0 turns writing off
 femocs_verbose_mode = verbose   # mute, silent or verbose

@@ -455,7 +455,8 @@ bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const str
 
 // Mark mesh nodes and elements
 bool TetgenMesh::mark_mesh() {
-    if (mark_nodes())
+//    if (mark_nodes())
+    if (mark_nodes_vol2())
         return 1;
 
     mark_elems();
@@ -529,11 +530,17 @@ bool TetgenMesh::mark_nodes() {
     return nodes.stat.n_vacuum <= 4;
 }
 
+// Calculate factors that show many connections the non-surface nodes have with its non-surface neighbors.
+// Nodes with small amount of neighbours are either on the boundary of simubox or on the edge of a hole,
+// while nodes with large amount of neighbours are inside the bulk or vacuum domain.
 bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<int>>& nborlist) {
-    const int n_nbor_levels = 5;  // number of nearest tetrahedra whose nodes will act as a seed
+    const int n_nbor_layers = 4;  // number of nearest tetrahedra whose nodes will act as a seed
+    const int n_nodes = nodes.size();
+    const double max_rank = 100.0;
+    double t0;
 
     // initialise all the ranks to 0
-    ranks = vector<int>(nodes.size());
+    ranks = vector<int>(n_nodes);
 
     // distinguish the ranks of surface nodes
     for (int i = nodes.indxs.surf_start; i <= nodes.indxs.surf_end; ++i)
@@ -548,25 +555,32 @@ bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<int>>& nborl
     }
 
     // normalise all the ranks with respect to the maximum rank
-    double norm_factor = 100.0 / *max_element(ranks.begin(), ranks.end());
+    double norm_factor = max_rank / *max_element(ranks.begin(), ranks.end());
     for (int& r : ranks)
         if (r > 0)
             r *= norm_factor;
-
+    
+    
     // force the ranks around the vacuum seed region to the maximum value
-    vector<vector<int>> seeds(n_nbor_levels);
-    seeds[0] = nborlist[nodes.indxs.vacuum_start];
-    ranks[nodes.indxs.vacuum_start] = 100;
 
-    for (int i = 1; i <= n_nbor_levels; ++i)
-        for (int nbor : seeds[i-1])
-            if (ranks[nbor] > 0) {
-                ranks[nbor] = 100;
-                if (i < n_nbor_levels)
-                    seeds[i].insert(seeds[i].end(), nborlist[nbor].begin(), nborlist[nbor].end());
-            }
+    vector<vector<int>> nbors(n_nbor_layers);
+    ranks[nodes.indxs.vacuum_start] = max_rank;
+    for (int layer = 0; layer < n_nbor_layers; ++layer) {
+        // build next layer of node neighbour list
+        if (layer == 0)
+            nbors[0] = nborlist[nodes.indxs.vacuum_start];
+        else {
+            for (int nbor : nbors[layer-1])
+                if (ranks[nbor] > 0)
+                    nbors[layer].insert(nbors[layer].end(), nborlist[nbor].begin(), nborlist[nbor].end());
+        }
+        for (int nbor : nbors[layer])
+            if (ranks[nbor] > 0)
+                ranks[nbor] = max_rank;
+    }
 
     // check whether only the vacuum nodes were ranked or did the ranks penetrate trough the surface
+    // the latter suggests, that the tetrahedral surface has holes inside that may or may not cause problems
     for (int r : ranks)
         if (r == 0)
             return true;
@@ -578,6 +592,7 @@ bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<int>>& nborl
 // To increase the tolerance against the holes in the surface, calculate the ranking of the nodes,
 // i.e the measure how close the node is to the hole or to the simubox boundary.
 // Nodes with small ranking act as a boundary for the clustering algorithm.
+// The ranking helps to get rid of the effect of small holes.
 bool TetgenMesh::mark_nodes_vol2() {
     const int n_nodes = nodes.size();
     const int min_rank = 33;
@@ -589,10 +604,10 @@ bool TetgenMesh::mark_nodes_vol2() {
 
     // Calculate the ranks for the nodes to increase the robustness of the bulk-vacuum separator
     vector<int> ranks;
-    bool success = calc_ranks(ranks, nborlist);
-    expect(success, "Surface has holes, therefore the mesh might or might not be valid!\n"
-            "Check the output/hexmesh_bulk.vtk and in case of problems,\n"
-            "make sure the radius is big enough and consider altering the coarsening factors!");
+    if ( !calc_ranks(ranks, nborlist) )
+        write_silent_msg("Surface has holes, therefore the mesh may or might not be valid!\n"
+                "Check the output/hexmesh_bulk.vtk and in case of problems, make sure \n"
+                "the radius is big enough and consider altering the coarsening factors!");
 
     // Mark all the nodes with initial values
     nodes.init_markers(n_nodes, TYPES.NONE);
