@@ -273,7 +273,7 @@ FieldReader::FieldReader(LinearInterpolator* ip) : radius1(0), radius2(0), E0(0)
         SolutionReader(ip, "elfield", "elfield_norm", "potential") {}
 
 // Linearly interpolate solution on Medium atoms
-void FieldReader::interpolate(const double r_cut, const int component, const bool srt) {
+void FieldReader::interpolate(const double r_cut, const int component, const bool srt, double eps) {
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
     require(interpolator, "NULL interpolator cannot be used!");
 
@@ -288,7 +288,7 @@ void FieldReader::interpolate(const double r_cut, const int component, const boo
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point = get_point(i);
         // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
-        elem = interpolator->locate_element(point, abs(elem));
+        elem = interpolator->locate_element(point, abs(elem), eps);
 
 //        if (elem < 0 && ++missed_cntr >= 3) {
 //            missed_cntr = 0;
@@ -343,8 +343,7 @@ void FieldReader::emission_line(const Point3& point, const Vec3& field,
 
     double rmin = 0.;
     int Nline = rline.size();
-    
-    //cout << "Nline = " << Nline << endl; 
+    int static counter = 0;
     
     Vec3 direction = field;
     direction.normalize();
@@ -357,30 +356,39 @@ void FieldReader::emission_line(const Point3& point, const Vec3& field,
         rline[i] = rmin + ((rmax - rmin) * i) / (Nline - 1);
         fr.append(point - pfield * rline[i]);
     }
-    fr.interpolate(0, 0, false);
+    fr.interpolate(0, 0, false, 0.);
     for (int i = 0; i < Nline; i++){
         Vline[i] = fr.interpolation[i].scalar;
         rline[i] *= .1;
-        cout << i << ", " << rline[i] << ", " << Vline[i] << endl; 
     }
     
-    for (int i = 1; i < Nline; i++){ // go through points
+    for (int i = 0; i < Nline; i++){
+        Vline[i] -= Vline[0];
+        rline[i] -= rline[0];
+    }
+    
+    for (int i = 1; i < Nline; ++i){ // go through points
         if (Vline[i] < Vline[i-1]){ // if decreasing at a point
             
-            int j;          
-            for(j = i + 1; j < Nline; j++) //  
-                if (Vline[j] > Vline[i-1]) break;
+            double dVdx = 0.;
+            int j;         
+            for(j = i + 1; j < Nline; ++j){
+                if (Vline[j] > Vline[i-1]) {
+                    dVdx = (Vline[j] - Vline[i-1]) / (rline[j] - rline[i-1]);
+                    break;
+                }
+            }
                 
-                
-            if (j == Nline) break;
-            for (int k = i; k <= j; k++)
-                Vline[k] =  Vline[i-1] + (rline[k] - rline[i-1]) * 
-                            (Vline[j] - Vline[i-1]) / (rline[j] - rline[i-1]);
+            if (dVdx == 0.){
+                if (i > 1) 
+                    dVdx = (Vline[i-1] - Vline[i-2]) / (rline[i-1] - rline[i-2]);
+                else
+                    cout << "\nNon monotonous Vline at i = " << i << " could not be recovered. line: \n";
+            }
+            for (int k = 0; k <= j; ++k)
+                Vline[k] =  Vline[i-1] + (rline[k] - rline[i-1]) * dVdx;
         }
     }
-
-    //fr.write("output/magic.movie");
-    //cout << '\n\n';
 }
 
 
@@ -410,44 +418,56 @@ void FieldReader::calc_emission(fch::CurrentsAndHeating<3>* ch_solver) {
     vector<double> Vline(Nline);
     
     double Fmax = 0.;
-    
-    
+    double Jmax = 0.;
 
     struct emission gt;
     
     gt.W = 4.5; gt.R = 200.; gt.gamma = 1.2; gt.Temp = 300.;
-    gt.approx = 1;
     
     for (int i = 0; i < n_nodes; ++i)
         if (Fmax < interpolation[i].norm) Fmax = interpolation[i].norm;
     Fmax *= 10.;
     
-    cout << "Fmax = " << Fmax;
-        
-    
     double t0;
-    start_msg(t0,"--Calculating current densities------ Time: ");
+    start_msg(t0,"=== Calculating current densities... ");
 
     for (int i = 0; i < n_nodes; ++i) {
         gt.mode = 0;
         gt.F = 10. * interpolation[i].norm;
-        if (gt.F > Fmax * 0.8){
-            emission_line(get_point(i), interpolation[i].vector, rline, Vline, 12. * gt.W/gt.F);
+        if (gt.F > 0.6 * Fmax){
+            emission_line(get_point(i), interpolation[i].vector, rline, 
+                            Vline, 16. * gt.W/gt.F);
             gt.Nr = Nline;
             gt.xr = &rline[0];
             gt.Vr = &Vline[0];
-            
-            gt.mode = -21;
+            gt.mode = -20;
         }
+        gt.approx = 0;
         cur_dens_c(&gt);
-        if (gt.ierr !=0 ) {print_data_c(&gt, 1); plot_data_c(&gt);}
+        if (gt.ierr != 0 ) {
+            cout << "calling print_data_c\n";            
+            print_data_c(&gt, 1);
+            cout << "calling plot_data_c\n";           
+            plot_data_c(&gt);
+        }        
+        if (gt.Jem > 0.1 * Jmax){
+            gt.approx = 1;
+            cur_dens_c(&gt);
+            if (gt.ierr != 0 ) {
+                cout << "calling print_data_c\n";            
+                print_data_c(&gt, 1);
+                cout << "calling plot_data_c\n";           
+                plot_data_c(&gt);
+            }
+        }
+        
+        if (gt.Jem > Jmax) Jmax = gt.Jem;
         currents.push_back(gt.Jem);
         nottingham.push_back(gt.heat);
         interpolation[i].scalar = log(gt.Jem);
         interpolation[i].norm = log(fabs(gt.heat));
     }
-    
-    
+     
     end_msg(t0);
 }
 

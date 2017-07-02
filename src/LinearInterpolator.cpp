@@ -453,7 +453,7 @@ void LinearInterpolator::precompute_tetrahedra(const TetgenMesh &mesh) {
 }
 
 // Check with barycentric coordinates whether the point is inside the i-th tetrahedron
-bool LinearInterpolator::point_in_tetrahedron(const Point3 &point, const int i) {
+bool LinearInterpolator::point_in_tetrahedron(const Point3 &point, const int i, double eps) {
     require(i >= 0 && i < (int)det0.size(), "Index out of bounds: " + to_string(i));
 
     // Ignore co-planar tetrahedra
@@ -464,10 +464,17 @@ bool LinearInterpolator::point_in_tetrahedron(const Point3 &point, const int i) 
 
     // If one of the barycentric coordinates is < zero, the point is outside the tetrahedron
     // Source: http://steve.hollasch.net/cgindex/geometry/ptintet.html
-    if (det0[i] * pt.dotProduct(det1[i]) < zero) return false;
-    if (det0[i] * pt.dotProduct(det2[i]) < zero) return false;
-    if (det0[i] * pt.dotProduct(det3[i]) < zero) return false;
-    if (det0[i] * pt.dotProduct(det4[i]) < zero) return false;
+    //if (eps == -1.) {
+        //if (det0[i] * pt.dotProduct(det1[i]) < zero) return false;
+        //if (det0[i] * pt.dotProduct(det2[i]) < zero) return false;
+        //if (det0[i] * pt.dotProduct(det3[i]) < zero) return false;
+        //if (det0[i] * pt.dotProduct(det4[i]) < zero) return false;
+    //}else{
+        if (det0[i] * pt.dotProduct(det1[i]) < 0) return false;
+        if (det0[i] * pt.dotProduct(det2[i]) < 0) return false;
+        if (det0[i] * pt.dotProduct(det3[i]) < 0) return false;
+        if (det0[i] * pt.dotProduct(det4[i]) < 0) return false;
+    //}
 
     // All bcc-s are >= 0, so point is inside the tetrahedron
     return true;
@@ -487,7 +494,7 @@ Vec4 LinearInterpolator::get_bcc(const Point3 &point, const int elem) const {
 }
 
 // Find the element which contains the point or is the closest to it
-int LinearInterpolator::locate_element(const Point3 &point, const int elem_guess) {
+int LinearInterpolator::locate_element(const Point3 &point, const int elem_guess, double eps) {
     const int n_elems = det0.size();
 
     // Check the guessed element
@@ -522,7 +529,7 @@ int LinearInterpolator::locate_element(const Point3 &point, const int elem_guess
     // Perform the check on the neighbours
     // checking ranks separately doesn't give any benefit in speed
     for (int elem = 0; elem < n_elems; ++elem)
-        if (nbor_rank[elem] > 1 && point_in_tetrahedron(point, elem)) return elem;
+        if (nbor_rank[elem] > 1 && point_in_tetrahedron(point, elem, eps)) return elem;
 
     // If no success, loop through all the elements
     double min_distance2 = DBL_MAX;
@@ -530,7 +537,7 @@ int LinearInterpolator::locate_element(const Point3 &point, const int elem_guess
 
     for (int elem = 0; elem < n_elems; ++elem) {
         // If correct element is found, we're done
-        if (point_in_tetrahedron(point, elem))
+        if (point_in_tetrahedron(point, elem, eps))
             return elem;
 
         // Otherwise look for the element whose centroid is closest to the point

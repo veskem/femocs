@@ -59,7 +59,7 @@ public:
 
     int locate_element_new(const Point3 &point, const int elem_guess);
 
-    int locate_element(const Point3 &point, const int elem_guess);
+    int locate_element(const Point3 &point, const int elem_guess, double eps = -1.);
 
     int locate_element(const Point3 &point);
 
@@ -117,7 +117,7 @@ private:
     Vec4 get_bcc(const Point3 &point, const int i) const;
 
     /** Get whether the point is located inside the i-th tetrahedron */
-    bool point_in_tetrahedron(const Point3 &point, const int i);
+    bool point_in_tetrahedron(const Point3 &point, const int i, double eps = -1.);
 
     /** Function to calculate determinant of 3x3 matrix which's last column consists of ones */
     double determinant(const Vec3 &v1, const Vec3 &v2);

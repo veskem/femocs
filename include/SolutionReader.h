@@ -78,7 +78,7 @@ public:
     FieldReader();
     FieldReader(LinearInterpolator* ip);
 
-    void interpolate(const double r_cut, const int component, const bool srt);
+    void interpolate(const double r_cut, const int component, const bool srt, double eps = -1.);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
      * @param medium    atoms to be interpolated
