@@ -32,6 +32,7 @@ double PhysicalQuantities::nottingham_de(double field, double temperature) {
 }
 
 double PhysicalQuantities::evaluate_resistivity(double temperature) const {
+    temperature = 1000.0;
     return linear_interp(temperature, resistivity_data) * 1.0e9;
 }
 

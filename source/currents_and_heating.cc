@@ -43,7 +43,8 @@ namespace fch {
 using namespace dealii;
 
 template<int dim>
-CurrentsAndHeating<dim>::CurrentsAndHeating(PhysicalQuantities *pq_) :
+CurrentsAndHeating<dim>::CurrentsAndHeating(double time_step_, PhysicalQuantities *pq_) :
+        time_step(time_step_),
         fe_current(currents_degree), dof_handler_current(triangulation),
         fe_heat(heating_degree), dof_handler_heat(triangulation), pq(pq_) {
 }
@@ -70,7 +71,13 @@ void CurrentsAndHeating<dim>::setup_current_system() {
     system_matrix_current.reinit(sparsity_pattern_current);
 
     solution_current.reinit(dof_handler_current.n_dofs());
+    old_solution_current.reinit(dof_handler_current.n_dofs());
     system_rhs_current.reinit(dof_handler_current.n_dofs());
+
+    for (std::size_t i = 0; i < solution_current.size(); i++) {
+        solution_current[i] = 0;
+        old_solution_current[i] = 0;
+    }
 }
 
 template<int dim>
@@ -87,12 +94,16 @@ void CurrentsAndHeating<dim>::setup_heating_system() {
     system_matrix_heat.reinit(sparsity_pattern_heat);
 
     solution_heat.reinit(dof_handler_heat.n_dofs());
+    old_solution_heat.reinit(dof_handler_heat.n_dofs());
     system_rhs_heat.reinit(dof_handler_heat.n_dofs());
 
+    const_temperature_solution.reinit(dof_handler_heat.n_dofs());
+
     // Initialize the solution to ambient temperature
-    // This loop is hopefully optimized by the compiler
     for (std::size_t i = 0; i < solution_heat.size(); i++) {
         solution_heat[i] = ambient_temperature;
+        old_solution_heat[i] = ambient_temperature;
+        const_temperature_solution[i] = 1000;
     }
 }
 
@@ -140,7 +151,7 @@ void CurrentsAndHeating<dim>::assemble_current_system() {
         cell_rhs = 0;
 
         fe_values_heat.reinit(heat_cell);
-        fe_values_heat.get_function_values(solution_heat, prev_sol_temperature_values);
+        fe_values_heat.get_function_values(const_temperature_solution, prev_sol_temperature_values);
 
         // ----------------------------------------------------------------------------------------
         // Local matrix assembly
@@ -165,7 +176,7 @@ void CurrentsAndHeating<dim>::assemble_current_system() {
                 fe_face_values.reinit(cell, f);
 
                 fe_face_values_heat.reinit(heat_cell, f);
-                fe_face_values_heat.get_function_values(solution_heat, prev_sol_face_temperature_values);
+                fe_face_values_heat.get_function_values(const_temperature_solution, prev_sol_face_temperature_values);
 
                 // ----------------------------------------------------------------------------------
                 // Electric field determination at the boundary
@@ -210,7 +221,157 @@ void CurrentsAndHeating<dim>::assemble_current_system() {
 
 
 template<int dim>
-void CurrentsAndHeating<dim>::solve_current(int max_iter, double tol, bool pc_ssor, double ssor_param) {
+void CurrentsAndHeating<dim>::assemble_heating_system() {
+
+    const double const_k = time_step/(2.0*cu_rho_cp);
+
+    double max_heating_power = 0.0;
+
+    QGauss<dim> quadrature_formula(heating_degree+1);
+    QGauss<dim-1> face_quadrature_formula(heating_degree+1);
+
+    // Heating finite element values
+    FEValues<dim> fe_values(fe_heat, quadrature_formula,
+            update_values | update_gradients | update_hessians
+            | update_quadrature_points | update_JxW_values);
+    FEFaceValues<dim> fe_face_values(fe_heat, face_quadrature_formula,
+                update_values | update_quadrature_points | update_JxW_values);
+
+    // Finite element values for accessing current calculation
+    FEValues<dim> fe_values_current(fe_current, quadrature_formula,
+            update_gradients);
+
+    const unsigned int dofs_per_cell = fe_heat.dofs_per_cell;
+    const unsigned int n_q_points = quadrature_formula.size();
+    const unsigned int n_face_q_points = face_quadrature_formula.size();
+
+    FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
+    Vector<double> cell_rhs(dofs_per_cell);
+
+    std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+    // ---------------------------------------------------------------------------------------------
+    // The other solution values in the cell quadrature points
+    std::vector<Tensor<1, dim>> potential_gradients(n_q_points);
+    std::vector<Tensor<1, dim>> prev_sol_potential_gradients(n_q_points);
+    std::vector<double> prev_sol_temperature_values(n_q_points);
+    std::vector<Tensor<1, dim>> prev_sol_temperature_gradients(n_q_points);
+    std::vector<double> prev_sol_temperature_laplacians(n_q_points);
+
+    std::vector<double> prev_sol_face_temperature_values(n_face_q_points);
+    // ---------------------------------------------------------------------------------------------
+
+    typename DoFHandler<dim>::active_cell_iterator cell = dof_handler_heat.begin_active(),
+            endc = dof_handler_heat.end();
+    typename DoFHandler<dim>::active_cell_iterator current_cell = dof_handler_current.begin_active();
+
+    for (; cell != endc; ++cell, ++current_cell) {
+        fe_values.reinit(cell);
+        cell_matrix = 0;
+        cell_rhs = 0;
+
+        fe_values.get_function_values(old_solution_heat, prev_sol_temperature_values);
+        fe_values.get_function_gradients(old_solution_heat, prev_sol_temperature_gradients);
+        fe_values.get_function_laplacians(old_solution_heat, prev_sol_temperature_laplacians);
+
+        fe_values_current.reinit(current_cell);
+        fe_values_current.get_function_gradients(solution_current, potential_gradients);
+        fe_values_current.get_function_gradients(old_solution_current, prev_sol_potential_gradients);
+
+        // ----------------------------------------------------------------------------------------
+        // Local matrix assembly
+        // ----------------------------------------------------------------------------------------
+        for (unsigned int q = 0; q < n_q_points; ++q) {
+
+            double prev_temperature = prev_sol_temperature_values[q];
+            double kappa = pq->kappa(prev_temperature);
+            double dkappa = pq->dkappa(prev_temperature);
+            dkappa = 0.0;
+            double sigma = pq->sigma(prev_temperature);
+
+            double prev_temperature_grad_squared = prev_sol_temperature_gradients[q].norm_square();
+            double prev_temperature_laplacian = prev_sol_temperature_laplacians[q];
+
+            double pot_grad_squared = potential_gradients[q].norm_square();
+            double prev_pot_grad_squared = prev_sol_potential_gradients[q].norm_square();
+
+            for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+                for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+                    cell_matrix(i, j) += (
+                            fe_values.shape_value(i, q) * fe_values.shape_value(j, q) // Mass matrix
+                            + const_k*kappa*fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
+                    ) * fe_values.JxW(q);
+                }
+                cell_rhs(i) += fe_values.shape_value(i, q) * (
+                        prev_temperature
+                        + const_k*sigma*(pot_grad_squared+prev_pot_grad_squared)
+                        + const_k*(dkappa*prev_temperature_grad_squared + kappa*prev_temperature_laplacian)
+                ) * fe_values.JxW(q);
+                if (1/2.0*sigma*(pot_grad_squared+prev_pot_grad_squared) > max_heating_power) {
+                    max_heating_power = 1/2.0*sigma*(pot_grad_squared+prev_pot_grad_squared);
+                }
+            }
+        }
+        // ----------------------------------------------------------------------------------------
+        // Local right-hand side assembly
+        // ----------------------------------------------------------------------------------------
+        // Nottingham BC at the copper surface
+        for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
+            if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+                fe_face_values.reinit(cell, f);
+
+                fe_face_values.get_function_values(old_solution_heat, prev_sol_face_temperature_values);
+
+                // ----------------------------------------------------------------------------------
+                // Electric field determination at the boundary
+                double e_field = 1.0;
+                if (interface_map_field.empty()) {
+                    std::cout << "Warning: no field BC set, using default value of 1.0." << std::endl;
+                } else {
+                    std::pair<unsigned, unsigned> cop_cell_info = std::pair<unsigned, unsigned>(
+                                            cell->index(), f);
+                    assert(interface_map_field.count(cop_cell_info) == 1);
+                    e_field = interface_map_field[cop_cell_info];
+                }
+                // ----------------------------------------------------------------------------------
+
+                for (unsigned int q = 0; q < n_face_q_points; ++q) {
+
+                    double prev_temperature = prev_sol_face_temperature_values[q];
+                    double emission_current = pq->emission_current(e_field, prev_temperature);
+                    double nottingham_flux = -1.0 * pq->nottingham_de(e_field, prev_temperature)
+                                        * emission_current;
+                    nottingham_flux = 0.0;
+                    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+                        cell_rhs(i) += (const_k * fe_face_values.shape_value(i, q)
+                                * nottingham_flux * fe_face_values.JxW(q));
+                    }
+                }
+            }
+        }
+
+        cell->get_dof_indices(local_dof_indices);
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+            for (unsigned int j = 0; j < dofs_per_cell; ++j)
+                system_matrix_heat.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
+
+            system_rhs_heat(local_dof_indices[i]) += cell_rhs(i);
+        }
+    }
+
+    std::cout << "Maximum heating power in system: " << max_heating_power << std::endl;
+
+    std::map<types::global_dof_index, double> boundary_values;
+    VectorTools::interpolate_boundary_values(dof_handler_heat, BoundaryId::copper_bottom,
+            ConstantFunction<dim>(ambient_temperature), boundary_values);
+    MatrixTools::apply_boundary_values(boundary_values, system_matrix_heat, solution_heat, system_rhs_heat);
+}
+
+template<int dim>
+unsigned int CurrentsAndHeating<dim>::solve_current(int max_iter, double tol, bool pc_ssor, double ssor_param) {
+
+    old_solution_current = solution_current;
+
     SolverControl solver_control(max_iter, tol);
     SolverCG<> solver(solver_control);
 
@@ -221,7 +382,31 @@ void CurrentsAndHeating<dim>::solve_current(int max_iter, double tol, bool pc_ss
     } else {
         solver.solve(system_matrix_current, solution_current, system_rhs_current, PreconditionIdentity());
     }
-    //std::cout << "   " << solver_control.last_step() << " CG iterations needed to obtain convergence." << std::endl;
+    //std::cout << "   J: " << solver_control.last_step()
+    //        << " CG iterations needed to obtain convergence." << std::endl;
+
+    return solver_control.last_step();
+}
+
+template<int dim>
+unsigned int CurrentsAndHeating<dim>::solve_heat(int max_iter, double tol, bool pc_ssor, double ssor_param) {
+
+    old_solution_heat = solution_heat;
+
+    SolverControl solver_control(max_iter, tol);
+    SolverCG<> solver(solver_control);
+
+    if (pc_ssor) {
+        PreconditionSSOR<> preconditioner;
+        preconditioner.initialize(system_matrix_heat, ssor_param);
+        solver.solve(system_matrix_heat, solution_heat, system_rhs_heat, preconditioner);
+    } else {
+        solver.solve(system_matrix_heat, solution_heat, system_rhs_heat, PreconditionIdentity());
+    }
+    //std::cout << "   T: " << solver_control.last_step()
+    //        << " CG iterations needed to obtain convergence." << std::endl;
+
+    return solver_control.last_step();
 }
 
 template<int dim>
@@ -308,12 +493,63 @@ void CurrentsAndHeating<dim>::set_electric_field_bc(const std::vector<double>& e
 }
 
 template<int dim>
+double CurrentsAndHeating<dim>::get_max_temperature() {
+    return solution_heat.linfty_norm();
+}
+
+// ----------------------------------------------------------------------------------------
+// Class for outputting the resulting field distribution (calculated from potential distr.)
+template <int dim>
+class FieldPostProcessor : public DataPostprocessorVector<dim> {
+public:
+    FieldPostProcessor() : DataPostprocessorVector<dim>("field", update_gradients) {}
+
+    void
+    compute_derived_quantities_scalar ( const std::vector<double>               &/*uh*/,
+                                        const std::vector<Tensor<1,dim> >       &duh,
+                                        const std::vector<Tensor<2,dim> >       &/*dduh*/,
+                                        const std::vector<Point<dim> >          &/*normals*/,
+                                        const std::vector<Point<dim> >          &/*evaluation_points*/,
+                                        std::vector<Vector<double> >            &computed_quantities) const {
+        for (unsigned int i=0; i<computed_quantities.size(); i++) {
+            for (unsigned int d=0; d<dim; ++d)
+                computed_quantities[i](d) = duh[i][d];
+        }
+    }
+};
+// ----------------------------------------------------------------------------------------
+// Class for outputting the resulting field distribution (calculated from potential distr.)
+template <int dim>
+class SigmaPostProcessor : public DataPostprocessorScalar<dim> {
+    PhysicalQuantities *pq;
+public:
+    SigmaPostProcessor(PhysicalQuantities *pq_) :
+            DataPostprocessorScalar<dim>("sigma", update_values), pq(pq_) {
+    }
+    void
+    compute_derived_quantities_scalar ( const std::vector<double>               &uh,
+                                        const std::vector<Tensor<1,dim> >       &/*duh*/,
+                                        const std::vector<Tensor<2,dim> >       &/*dduh*/,
+                                        const std::vector<Point<dim> >          &/*normals*/,
+                                        const std::vector<Point<dim> >          &/*evaluation_points*/,
+                                        std::vector<Vector<double> >            &computed_quantities) const {
+        for (unsigned int i=0; i<computed_quantities.size(); i++) {
+            double temperature = uh[i];
+            computed_quantities[i](0) = pq->sigma(temperature);
+        }
+    }
+};
+// ----------------------------------------------------------------------------
+
+template<int dim>
 void CurrentsAndHeating<dim>::output_results_current(const std::string filename) const {
 
+    FieldPostProcessor<dim> field_post_processor; // needs to be before data_out
     DataOut<dim> data_out;
 
     data_out.attach_dof_handler(dof_handler_current);
     data_out.add_data_vector(solution_current, "potential");
+    data_out.add_data_vector(solution_current, field_post_processor);
 
     data_out.build_patches();
 
@@ -326,6 +562,26 @@ void CurrentsAndHeating<dim>::output_results_current(const std::string filename)
     }
 }
 
+template<int dim>
+void CurrentsAndHeating<dim>::output_results_heating(const std::string filename) const {
+
+    SigmaPostProcessor<dim> sigma_post_processor(pq);
+    DataOut<dim> data_out;
+
+    data_out.attach_dof_handler(dof_handler_heat);
+    data_out.add_data_vector(solution_heat, "temperature");
+    data_out.add_data_vector(solution_heat, sigma_post_processor);
+
+    data_out.build_patches();
+
+    try {
+        std::ofstream output(filename);
+        data_out.write_vtk(output);
+    } catch (...) {
+        std::cerr << "WARNING: Couldn't open " + filename << ". ";
+        std::cerr << "Output is not saved." << std::endl;
+    }
+}
 
 template class CurrentsAndHeating<2> ;
 template class CurrentsAndHeating<3> ;

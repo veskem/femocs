@@ -56,18 +56,31 @@ int main() {
 
     fch::Laplace<2> laplace;
     laplace.import_mesh_from_file("../res/2d_meshes/vacuum_aligned.msh");
-    laplace.set_applied_efield(10.0);
+    laplace.set_applied_efield(8.0);
     laplace.run();
 
-    fch::CurrentsAndHeating<2> ch(&pq);
+    double time_step = 0.01e-12; // seconds
+    fch::CurrentsAndHeating<2> ch(time_step, &pq);
     ch.import_mesh_from_file("../res/2d_meshes/copper_aligned.msh");
+
     ch.setup_current_system();
     ch.setup_heating_system();
     ch.set_electric_field_bc(laplace);
-    ch.assemble_current_system();
-    ch.solve_current();
-    ch.output_results_current("./output/current_solution.vtk");
 
+    for (int i = 0; i < 1; i++) {
+        ch.assemble_current_system();
+        unsigned int ccg = ch.solve_current();
+
+        ch.assemble_heating_system();
+        unsigned int hcg = ch.solve_heat();
+        double max_T = ch.get_max_temperature();
+        std::printf("    t=%4.2fps; ccg=%2d; hcg=%2d; max_T=%6.2f\n", i*time_step*1e12, ccg, hcg, max_T);
+
+        if (i%1 == 0) {
+            ch.output_results_current("./output/current_solution-"+std::to_string(i)+".vtk");
+            ch.output_results_heating("./output/heat_solution-"+std::to_string(i)+".vtk");
+        }
+    }
 
     return EXIT_SUCCESS;
 }
