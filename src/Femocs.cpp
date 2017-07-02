@@ -307,14 +307,11 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     end_msg(t0);
 
 
-    start_msg(t0, "=== Testing...");
+    start_msg(t0, "=== Testing GETELEC...");
     FieldReader fr1(&vacuum_interpolator);
     fr1.calc_emission(ch_solver);
     end_msg(t0);
     fr1.write("output/magic.xyz");
-
-    return 0;
-
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
     FieldReader fr(&vacuum_interpolator);
@@ -331,7 +328,7 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
 
     check_return(t_error > conf.t_error, "Temperature didn't converge, err=" + to_string(t_error));
 
-    start_msg(t0, "=== Extracting T and rho...");
+    start_msg(t0, "=== Extracting J & T...");
     bulk_interpolator.extract_solution(ch_solver, mesh);
     end_msg(t0);
 
@@ -589,7 +586,7 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
     if (skip_calculations)
         write_silent_msg("Using previous solution!");
     else {
-        start_msg(t0, "=== Interpolating T and rho...");
+        start_msg(t0, "=== Interpolating J & T...");
         temperatures.interpolate(reader);
         end_msg(t0);
 
@@ -597,7 +594,7 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
         temperatures.print_statistics();
     }
 
-    start_msg(t0, "=== Exporting temperatures...");
+    start_msg(t0, "=== Exporting J & T...");
     temperatures.export_temperature(n_atoms, T);
     end_msg(t0);
 
@@ -638,16 +635,12 @@ int Femocs::interpolate_elfield(const int n_points, const double* x, const doubl
     check_return(vacuum_interpolator.size() == 0, "No solution to export!");
 
     FieldReader fr(&vacuum_interpolator);
-    start_msg(t0, "=== Interpolating electric field...");
-    fr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coordination_cutoff, 1, true);
-    end_msg(t0);
-
-    fr.write("output/interpolation_E.movie");
-
-    start_msg(t0, "=== Exporting electric field...");
+    start_msg(t0, "=== Interpolating & exporting elfield...");
+    fr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coordination_cutoff, 1, false);
     fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
 
+    fr.write("output/interpolation_E.movie");
     return 0;
 }
 
