@@ -302,6 +302,9 @@ void FieldReader::interpolate(const double r_cut, const int component, const boo
     // Sort atoms into sequential order to speed up interpolation
     if (srt) sort_spatial();
 
+    // Enable or disable the search of points slightly outside the tetrahedra
+    interpolator->search_outside(srt);
+
     int elem = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point = get_point(i);
@@ -318,6 +321,7 @@ void FieldReader::interpolate(const double r_cut, const int component, const boo
         else if (component == 2) interpolation.push_back( interpolator->get_scalar(point, abs(elem)) );
     }
 
+    // Apply histogram cleaner for the solution
     clean(0, r_cut);  // clean by vector x-component
     clean(1, r_cut);  // clean by vector y-component
     clean(2, r_cut);  // clean by vector z-component
@@ -544,8 +548,10 @@ void HeatReader::interpolate(const Medium &medium) {
     reserve(n_atoms);
 
     // Copy the atoms
-    for (int i = 0; i < n_atoms; ++i)
-        append(Atom(i, medium.get_point(i), 0));
+    atoms = medium.atoms;
+
+    // Enable the search of points slightly outside the tetrahedra
+    interpolator->search_outside(true);
 
     // Sort atoms into sequential order to speed up interpolation
     sort_spatial();
@@ -556,7 +562,7 @@ void HeatReader::interpolate(const Medium &medium) {
         // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
         elem = interpolator->locate_element(point, abs(elem));
 
-        // Calculate the interpolation
+        // Calculate the temperature and current density interpolation
         interpolation.push_back( interpolator->get_solution(point, abs(elem)) );
     }
 

@@ -20,6 +20,12 @@ LinearInterpolator::LinearInterpolator() : radius1(0), radius2(0), E0(0) {
     reserve_precompute(0);
 }
 
+// Enable or disable the search of points slightly outside the tetrahedron
+void LinearInterpolator::search_outside(const bool enable) {
+    if (enable) zero = -1.0 * epsilon;
+    else zero = 0;
+}
+
 // Set parameters for calculating analytical solution
 void LinearInterpolator::set_analyt(const Point3& origin, const double E0, const double radius1, const double radius2) {
     this->E0 = E0;
