@@ -46,6 +46,10 @@ taito:
 	
 alcyone:
 	make -f release/makefile.install
+	
+doc: doc/femocs.pdf
+doc/femocs.pdf:
+	cd doc; doxygen femocs.doxyfile; cd latex; make; cp refman.pdf ../femocs.pdf
 
 clean:
 	make -s -f release/makefile.lib clean
@@ -53,6 +57,7 @@ clean:
 	make -s -f release/makefile.test_f90 clean
 	make -s -f release/makefile.test_c clean
 	make -s -f release/makefile.solver clean
+	rm -rf doc/html doc/latex *.pdf
 
 clean-all:
 	make -s -f release/makefile.lib clean-all
@@ -62,6 +67,7 @@ clean-all:
 	make -s -f release/makefile.solver clean-all
 	make -s -f release/makefile.install clean-all
 	make -s -f release/makefile.cgal clean-all
+	rm -rf doc/html doc/latex *.pdf
 
 help:
 	@echo ''
@@ -75,6 +81,7 @@ help:
 	@echo 'make debug      build Femocs executable from c++ main with debugging features enabled'
 	@echo 'make test_f90   build Femocs executable from Fortran main'
 	@echo 'make test_c     build Femocs executable from C main'
+	@echo 'make doc        generate Femocs documentation in html and pdf format
 	@echo 'make clean      delete key files excluding installed libraries to start building from the scratch'
 	@echo 'make clean-all  delete all the files and folders produced during the make process'
 	@echo ''

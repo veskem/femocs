@@ -5,8 +5,8 @@
 .cproject
 .project
 tetgen-tmpfile*
-doc/html
-doc/latex
+doc/*
+!doc/*.doxyfile
 dealii/*
 !dealii/dealii-*.tar.gz
 lib/libtet.a
@@ -16,7 +16,6 @@ lib/build/**/*
 output/*
 release/femocs
 release/build/**/*
-heating
 cgal/*
 !cgal/CGAL*.zip
 Makefile
