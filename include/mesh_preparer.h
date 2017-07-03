@@ -30,6 +30,9 @@ enum BoundaryId {
     copper_sides = 5
 };
 
+/**
+ * Sets boundary identifications for the mesh boundaries
+ */
 template<int dim>
 class MeshPreparer {
 
@@ -37,22 +40,56 @@ class MeshPreparer {
 
 public:
 
+    /**
+     * Import hexahedral (3D) or quadrangular (2D) mesh from file
+     * @param triangulation  pointer to mesh where the data is imported to
+     * @param file_name name of the input mesh file (.vtk or .msh format)
+     */
     void import_mesh_from_file(Triangulation<dim> *triangulation,
             const std::string file_name);
 
+    /**
+     * Writes mesh to vtk file
+     * @param triangulation  pointer to any mesh data
+     * @param name           name of the file
+     */
     void output_mesh(Triangulation<dim> *triangulation, std::string name);
 
+    /**
+     * Sets boundary identification to vacuum mesh top and lateral sides and to the copper-vacuum boundary
+     * @param triangulation  pointer to vacuum mesh data
+     */
     void mark_vacuum_boundary(Triangulation<dim> *triangulation);
 
+    /**
+      * Sets boundary identification to bulk mesh bottom and lateral sides and to the copper-vacuum boundary
+      * @param triangulation  pointer to bulk mesh data
+      */
     void mark_copper_boundary(Triangulation<dim> *triangulation);
 
+    /**
+     * @TODO figure out description
+     */
     void mark_top_and_bottom_boundary(Triangulation<dim> *triangulation);
 
-    Triangulation<dim> remove_cells_with_id(Triangulation<dim> *triangulation,
-            int id);
+    /**
+     * Delete cells with given id from the mesh
+     * @param triangulation  pointer to the mesh data
+     * @param id  id of the cells to be deleted
+     * @return  pointer to the cleaned mesh data
+     */
+    Triangulation<dim> remove_cells_with_id(Triangulation<dim> *triangulation, int id);
 
-    void mark_boundary(Triangulation<dim> *triangulation, char top, char bottom,
-            char sides, char other);
+    /**
+     * Marks boundary (top, bottom, sides, vacuum-copper surface) faces (3D) or edges (2D) in the mesh
+     * @param triangulation  pointer to the mesh data
+     * @param top     id for top faces|edges
+     * @param bottom  id for bottom faces|edges
+     * @param sides   id for lateral faces|edges
+     * @param other   id for vacuum-copper surface faces|edges
+     */
+    void mark_boundary(Triangulation<dim> *triangulation, char top, char bottom, char sides,
+            char other);
 
 };
 

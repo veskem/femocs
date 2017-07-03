@@ -14,6 +14,12 @@
 
 namespace fch {
 
+/** @brief Evaluation tools for emission and conductivities based on tabulated data.
+ * Resisitivity data is from literature, emission and nottingham data is pre-calculated
+ * and tabulated based on WKB approximation, Schottky-Nordheim barrier,
+ * and free electron model.
+ * See Kristjan Eimre MSc thesis for details.
+ */
 class PhysicalQuantities {
 public:
     /**
@@ -41,7 +47,7 @@ public:
     bool load_resistivity_data(std::string filepath);
 
     /**
-     * Evaluates the emission current
+     * Evaluates the emission current density J
      * @param field electric field in (GV/m)
      * @param temperature Temperature in (K)
      * @return Emission current density in (A/nm^2)
@@ -49,7 +55,7 @@ public:
     double emission_current(double field, double temperature);
 
     /**
-     * Evaluates the nottingham delta energy
+     * Evaluates the nottingham delta energy <DE> (eV)
      * @param field electric field in (GV/m)
      * @param temperature Temperature in (K)
      * @return nottingham delta energy in (eV)
@@ -57,8 +63,8 @@ public:
     double nottingham_de(double field, double temperature);
 
     /**
-     * Evaluates the electrical resistivity
-     * @param temperature Temperature in (K)
+     * Evaluates the electrical resistivity rho
+     * @param temperature T in (K)
      * @return resistivity in (Ohm*m)
      */
     double evaluate_resistivity(double temperature) const;
@@ -66,7 +72,7 @@ public:
     double evaluate_resistivity_derivative(double temperature);
 
     /**
-     * electrical conductivity in (1/(Ohm*nm))
+     * electrical conductivity sigma in (1/(Ohm*nm))
      */
     double sigma(double temperature) const;
 
