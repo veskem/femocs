@@ -42,12 +42,20 @@ public:
      */
     void import_mesh_from_file(const std::string file_name);
 
+    /**
+     * imports mesh directly from vertex and cell data and sets the boundary indicators
+     * @return true if success, otherwise false
+     */
+    bool import_mesh_directly(std::vector<Point<dim> > vertices,
+            std::vector<CellData<dim> > cells);
+
     /** Sets up degrees of freedom and the sparsity pattern */
     void setup_current_system();
     void setup_heating_system();
 
     void assemble_current_system();
-    void assemble_heating_system();
+    void assemble_heating_system_crank_nicolson();
+    void assemble_heating_system_euler_implicit();
 
     /** solves the current/heat matrix equation using conjugate gradients
      * @param max_iter maximum number of iterations allowed
@@ -67,10 +75,39 @@ public:
     /** Set the electric field boundary condition on copper-vacuum boundary */
     void set_electric_field_bc(const Laplace<dim> &laplace);
     void set_electric_field_bc(const std::vector<double> &e_fields);
+    void set_electric_field_bc(const double uniform_efield);
+
+    /** Set emission current and Nottingham boundary conditions externally */
+    void set_emission_bc(const std::vector<double> &emission_currents,
+            const std::vector<double> &nottingham_heats);
 
     double get_max_temperature();
 
+    /**
+     * method to obtain the temperature values in selected nodes
+     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
+     * @param vert_indexes the vertex indexes of the nodes inside the cell
+     * @return temperature values in the specified nodes
+     */
+    std::vector<double> get_temperature(const std::vector<int> &cell_indexes,
+            const std::vector<int> &vert_indexes);
+
+    /**
+     * method to obtain the current density values in selected nodes
+     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
+     * @param vert_indexes the vertex indexes of the nodes inside the cell
+     * @return current density vectors in the specified nodes
+     */
+    std::vector<Tensor<1, dim>> get_current(
+            const std::vector<int> &cell_indexes,
+            const std::vector<int> &vert_indexes);
+
+    /** export the centroids of surface faces */
+    void get_surface_nodes(std::vector<Point<dim>>& nodes);
+
 private:
+
+    double get_efield_bc(std::pair<unsigned, unsigned> cop_cell_info);
 
     static constexpr unsigned int currents_degree = 1;
     static constexpr unsigned int heating_degree = 1;
@@ -81,6 +118,8 @@ private:
 
     double time_step;
 
+    double uniform_efield_bc;
+
     Triangulation<dim> triangulation;
 
     // Current specific variables
@@ -88,27 +127,35 @@ private:
     DoFHandler<dim> dof_handler_current;
     SparsityPattern sparsity_pattern_current;
     SparseMatrix<double> system_matrix_current;
+    Vector<double> system_rhs_current;
+
     Vector<double> solution_current;
     Vector<double> old_solution_current;
-    Vector<double> system_rhs_current;
 
     // Heating specific variables
     FE_Q<dim> fe_heat;
     DoFHandler<dim> dof_handler_heat;
     SparsityPattern sparsity_pattern_heat;
     SparseMatrix<double> system_matrix_heat;
+    Vector<double> system_rhs_heat;
+
     Vector<double> solution_heat;
     Vector<double> old_solution_heat;
-    Vector<double> system_rhs_heat;
 
     Vector<double> const_temperature_solution;
 
     PhysicalQuantities *pq;
 
-    /** Mapping of copper interface face to vacuum side e field norm
+    /** Mapping of copper interface faces to vacuum side e field norm
      * (copper_cell_index, copper_cell_face) <-> (electric field norm)
      */
     std::map<std::pair<unsigned, unsigned>, double> interface_map_field;
+
+    /** Mapping of copper interface faces to emission BCs
+     * (copper_cell_index, copper_cell_face) <-> (emission_current/nottingham_heat)
+     */
+     std::map<std::pair<unsigned, unsigned>, double> interface_map_emission_current;
+     std::map<std::pair<unsigned, unsigned>, double> interface_map_nottingham;
 };
 
 } // end fch namespace
