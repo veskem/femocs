@@ -34,6 +34,13 @@ using namespace dealii;
 template<int dim>
 class CurrentsAndHeating {
 public:
+
+    /**
+     * Initializes the object
+     * NB: pq will be set as NULL, so it must be set separately
+     */
+    CurrentsAndHeating();
+
     CurrentsAndHeating(double time_step_, PhysicalQuantities *pq_);
 
     /**
@@ -77,11 +84,14 @@ public:
     void set_electric_field_bc(const std::vector<double> &e_fields);
     void set_electric_field_bc(const double uniform_efield);
 
+    void set_timestep(const double time_step_);
+
     /** Set emission current and Nottingham boundary conditions externally */
     void set_emission_bc(const std::vector<double> &emission_currents,
             const std::vector<double> &nottingham_heats);
 
-    double get_max_temperature();
+    /** Sets the physical quantities object */
+    void set_physical_quantities(PhysicalQuantities *pq_);
 
     /**
      * method to obtain the temperature values in selected nodes
@@ -104,6 +114,14 @@ public:
 
     /** export the centroids of surface faces */
     void get_surface_nodes(std::vector<Point<dim>>& nodes);
+
+    double get_max_temperature();
+
+    /** Provide triangulation object to get access to the mesh data */
+    Triangulation<dim>* get_triangulation();
+
+    /** Provide dof_handler object to get access to the mesh data */
+    DoFHandler<dim>* get_dof_handler_current();
 
 private:
 
