@@ -101,13 +101,13 @@ public:
             double sor_alpha = 1.0, double ic_interp_treshold = 400,
             bool skip_field_mapping = false);
 
-    /** getter for the mesh */
+    /** Provide triangulation object to get access to the mesh data */
     Triangulation<dim>* get_triangulation();
 
-    /** getter for dof_handler */
+    /** Provide dof_handler object to get access to the mesh data */
     DoFHandler<dim>* get_dof_handler();
 
-    /** getter for the solution */
+    /** Return the solution vector with potential and temperature values */
     Vector<double>* get_solution();
 
     /**
@@ -167,7 +167,7 @@ public:
     void get_surface_nodes(std::vector<Point<dim>>& nodes);
 
     /** read the electric field norm on the centroids of surface faces */
-    void read_field(const std::vector<double>& elfields);
+    void set_electric_field_bc(const std::vector<double>& elfields);
 
 private:
     void assemble_system_newton();

@@ -374,7 +374,7 @@ void CurrentsAndHeatingStationary<dim>::get_surface_nodes(std::vector<Point<dim>
 }
 
 template<int dim>
-void CurrentsAndHeatingStationary<dim>::read_field(const std::vector<double>& elfields) {
+void CurrentsAndHeatingStationary<dim>::set_electric_field_bc(const std::vector<double>& elfields) {
     const unsigned n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
 
     // Loop over copper interface cells
