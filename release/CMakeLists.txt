@@ -23,13 +23,13 @@ FILE(GLOB_RECURSE SOURCE "../src/*.cpp" "../deal-solver/source/*")
 
 # directories with headers
 IF (LIBCGAL)
-    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../dealii/include ../cgal/include ../deal-solver/GETELEC/modules)
+    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../dealii/include ../cgal/include ../GETELEC/modules)
 ELSE()
-    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../dealii/include ../deal-solver/GETELEC/modules)
+    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../dealii/include ../GETELEC/modules)
 ENDIF()
 
 # path to libraries
-LINK_DIRECTORIES(../lib ../deal-solver/GETELEC/lib)
+LINK_DIRECTORIES(../lib ../GETELEC/lib)
 
 # names of the libraries
 SET(LIBRARIES tet getelec slatec)

@@ -27,7 +27,7 @@ dealii/dealii-${DEALII_VER}.tar.gz:
 ${MAIN_SOLVER}: 
 	git submodule init
 	git submodule update --recursive
-	cd deal-solver;	git submodule init;	git submodule update --recursive
+	cd GETELEC; make;
 
 clean:
 	rm -rf lib/libtet.a dealii/lib/*

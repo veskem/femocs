@@ -20,8 +20,8 @@ NPROCS = 4
 LIBCGAL=-lCGAL
 
 ## Fortran and C/C++ path flags
-CCFLAGS = -Iinclude -Llib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu
-FCFLAGS = -Iinclude -Ilib -Llib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu
+CCFLAGS = -Iinclude -Llib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu -LGETELEC/lib
+FCFLAGS = -Iinclude -Ilib -Llib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu -LGETELEC/lib
 
 ## Optimization and warnings
 OPT = -O3 -Wall -Wpedantic
@@ -34,8 +34,7 @@ CC = gcc
 
 ## Linker flags for
 ##  Ubuntu desktop
-LFLAGS = -lfemocs -ltet -ldeal_II ${LIBCGAL}\
- -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++
+LFLAGS = -lfemocs -ltet -ldeal_II ${LIBCGAL} -lgetelec -lslatec -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++
 ##  CSC Taito cluser
 #LFLAGS = -lfemocs -ltet -ldeal_II ${LIBCGAL} -fopenmp -lz -lstdc++
 ##  Alcyone
