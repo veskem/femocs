@@ -43,6 +43,13 @@ namespace fch {
 using namespace dealii;
 
 template<int dim>
+CurrentsAndHeating<dim>::CurrentsAndHeating() :
+        time_step(1e-13), uniform_efield_bc(1.0),
+        fe_current(currents_degree), dof_handler_current(triangulation),
+        fe_heat(heating_degree), dof_handler_heat(triangulation), pq(NULL) {
+}
+
+template<int dim>
 CurrentsAndHeating<dim>::CurrentsAndHeating(double time_step_, PhysicalQuantities *pq_) :
         time_step(time_step_), uniform_efield_bc(1.0),
         fe_current(currents_degree), dof_handler_current(triangulation),
@@ -125,7 +132,6 @@ void CurrentsAndHeating<dim>::setup_heating_system() {
         const_temperature_solution[i] = 1000;
     }
 }
-
 
 template<int dim>
 void CurrentsAndHeating<dim>::assemble_current_system() {
@@ -540,6 +546,17 @@ unsigned int CurrentsAndHeating<dim>::solve_heat(int max_iter, double tol, bool 
     return solver_control.last_step();
 }
 
+
+template<int dim>
+void CurrentsAndHeating<dim>::set_physical_quantities(PhysicalQuantities *pq_) {
+    pq = pq_;
+}
+
+template<int dim>
+void CurrentsAndHeating<dim>::set_timestep(const double time_step_) {
+    time_step = time_step_;
+}
+
 template<int dim>
 void CurrentsAndHeating<dim>::set_electric_field_bc(const Laplace<dim> &laplace) {
 
@@ -726,6 +743,16 @@ double CurrentsAndHeating<dim>::get_efield_bc(const std::pair<unsigned, unsigned
 template<int dim>
 double CurrentsAndHeating<dim>::get_max_temperature() {
     return solution_heat.linfty_norm();
+}
+
+template<int dim>
+Triangulation<dim>* CurrentsAndHeating<dim>::get_triangulation() {
+    return &triangulation;
+}
+
+template<int dim>
+DoFHandler<dim>* CurrentsAndHeating<dim>::get_dof_handler_current() {
+    return &dof_handler_current;
 }
 
 // ----------------------------------------------------------------------------------------
