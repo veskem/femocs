@@ -15,6 +15,7 @@
 #include "SolutionReader.h"
 #include "physical_quantities.h"
 #include "currents_and_heating.h"
+#include "currents_and_heating_stationary.h"
 #include "laplace.h"
 
 using namespace std;
@@ -186,10 +187,10 @@ private:
     ChargeReader face_charges = ChargeReader(&vacuum_interpolator); ///< charges on surface faces
 
     fch::PhysicalQuantities phys_quantities;    ///< physical quantities used in heat calculations
-    fch::CurrentsAndHeating<3> ch_solver1;      ///< first currents and heating solver
-    fch::CurrentsAndHeating<3> ch_solver2;      ///< second currents and heating solver
-    fch::CurrentsAndHeating<3>* ch_solver;      ///< active currents and heating solver
-    fch::CurrentsAndHeating<3>* prev_ch_solver; ///< previous currents and heating solver
+    fch::CurrentsAndHeatingStationary<3> ch_solver1;      ///< first currents and heating solver
+    fch::CurrentsAndHeatingStationary<3> ch_solver2;      ///< second currents and heating solver
+    fch::CurrentsAndHeatingStationary<3>* ch_solver;      ///< active currents and heating solver
+    fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous currents and heating solver
     
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);

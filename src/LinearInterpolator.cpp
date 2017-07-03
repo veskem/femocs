@@ -290,7 +290,7 @@ bool LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-bool LinearInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh) {
+bool LinearInterpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem, const TetgenMesh &mesh) {
     require(fem, "NULL pointer can't be handled!");
     const int n_nodes = mesh.nodes.size();
     const double eps = 1e-5 * mesh.elems.stat.edgemin;
