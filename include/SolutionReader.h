@@ -86,6 +86,30 @@ protected:
     Solution get_average_solution(const int I, const double r_cut);
 };
 
+/** Class to interpolate current densities and temperatures */
+class HeatReader: public SolutionReader {
+public:
+    /** HeatReader constructors */
+    HeatReader();
+    HeatReader(LinearInterpolator* ip);
+
+    /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
+    void interpolate(const Medium &medium);
+
+    void interpolate(const double r_cut, const int component, const bool srt);
+
+    void read_heat(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const bool srt);
+
+    /** Export interpolated temperature */
+    void export_temperature(const int n_atoms, double* T);
+
+    Vec3 get_rho(const int i) const;
+
+    double get_temperature(const int i) const;
+
+private:
+};
+
 /** Class to extract solution from DealII calculations */
 class FieldReader: public SolutionReader {
 public:
@@ -111,7 +135,7 @@ public:
     /** Calculate the electric field for the current and temperature solver */
     void interpolate(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const bool srt=true);
 
-    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const bool srt=true);
+    void transfer_field(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const bool srt=true);
 
     /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
@@ -133,9 +157,11 @@ public:
 
     /** Set parameters to calculate analytical solution */
     void set_analyt(const double E0, const double radius1, const double radius2=-1);
-
-    void calc_emission(fch::CurrentsAndHeating<3>& ch_solver);
     
+    void calc_emission(fch::CurrentsAndHeating<3>& ch_solver, FieldReader& fields, HeatReader& temperatures);
+
+    void calc_emission(fch::CurrentsAndHeating<3>& ch_solver, FieldReader& fields, double temperature);
+
     void emission_line(const Point3& point, const Vec3& field,
                         vector<double> &rline, vector<double> &Vline, double rmax);
 
@@ -149,26 +175,6 @@ private:
 
     /** Get analytical field enhancement for hemi-ellipsoid on infinite surface */
     double get_analyt_enhancement() const;
-};
-
-/** Class to interpolate current densities and temperatures */
-class HeatReader: public SolutionReader {
-public:
-    /** HeatReader constructors */
-    HeatReader();
-    HeatReader(LinearInterpolator* ip);
-
-    /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium);
-
-    /** Export interpolated temperature */
-    void export_temperature(const int n_atoms, double* T);
-
-    Vec3 get_rho(const int i) const;
-
-    double get_temperature(const int i) const;
-
-private:
 };
 
 /** Class to calculate charges from electric field */

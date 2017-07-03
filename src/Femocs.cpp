@@ -106,10 +106,16 @@ int Femocs::run(const double elfield, const string &message) {
 
     // Solve heat & continuity equation on bulk mesh
 //    if (solve_heat(bulk_mesh, laplace_solver)) {
-    if (solve_transient_heat(bulk_mesh, laplace_solver)) {
-        force_output(bulk_mesh, vacuum_mesh);
-        check_return(true, "Solving heat & continuity equation failed!");
+
+    double delta_time = 0.05e-12;
+
+    for (int i = 0; i < 10; ++i) {
+        if (solve_transient_heat(bulk_mesh, laplace_solver, delta_time)) {
+            force_output(bulk_mesh, vacuum_mesh);
+            check_return(true, "Solving heat & continuity equation failed!");
+        }
     }
+
 
     // Extract face charges
     if (extract_charge(vacuum_mesh)) {
@@ -344,37 +350,67 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     return 0;
 }
 
-int Femocs::solve_transient_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) {
+int Femocs::solve_transient_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver, double delta_time) {
     if (!conf.heating) return 0;
+    static int integer_timestep = 0;
+    double temperature = 300.0;
 
     start_msg(t0, "=== Importing mesh to J & T solver...");
     fail = !ch_transient_solver.import_mesh_directly(mesh.nodes.export_dealii(), mesh.hexahedra.export_dealii());
     check_return(fail, "Importing mesh to Deal.II failed!");
     end_msg(t0);
 
-    start_msg(t0, "=== Setup transient J & T solver...");
-    ch_transient_solver.setup_current_system();
-    ch_transient_solver.setup_heating_system();
-    end_msg(t0);
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
-    FieldReader fr(&vacuum_interpolator);
-    fr.interpolate(ch_transient_solver, conf.use_histclean * conf.coordination_cutoff, true);
+    FieldReader field_reader(&vacuum_interpolator);
+    field_reader.transfer_field(ch_transient_solver, conf.use_histclean * conf.coordination_cutoff, true);
     end_msg(t0);
-    fr.write("out/surface_field.xyz");
+    field_reader.write("out/surface_field.xyz");
 
-    const int n_time_steps = 10;
+
+    start_msg(t0, "=== Interpolating J & T on face centroids...");
+    HeatReader temp_reader(&bulk_interpolator);
+    if (integer_timestep > 0)
+        temp_reader.read_heat(ch_transient_solver, conf.use_histclean * conf.coordination_cutoff, true);
+    end_msg(t0);
+    if (integer_timestep > 0)
+        temp_reader.write("out/surface_temperature.xyz");
+
+
+    start_msg(t0, "=== Calculating field emission...");
+    FieldReader emission(&vacuum_interpolator);
+    if (integer_timestep == 0)
+        emission.calc_emission(ch_transient_solver, field_reader, temperature);
+    else
+        emission.calc_emission(ch_transient_solver, field_reader, temp_reader);
+
+    end_msg(t0);
+    emission.write("out/magic.xyz");
+
+    if (integer_timestep == 0) {
+        start_msg(t0, "=== Setup transient J & T solver...");
+        ch_transient_solver.setup_current_system();
+        ch_transient_solver.setup_heating_system();
+        end_msg(t0);
+    }
+
+    start_msg(t0, "=== Calculating current density...");
+    ch_transient_solver.assemble_current_system();           // assemble matrix for current density equation; current == electric current
+    unsigned int ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
+    end_msg(t0);
+
+    start_msg(t0, "=== Calculating temperature distribution...\n");
     const double time_unit = 1e-12; // == picosec
-    const double time_step = 0.01 * time_unit;
+    double time_step = 0.01 * time_unit;
 
+    require(delta_time > time_step, "Too small delta_time: " + to_string(delta_time));
+
+    const int n_time_steps = delta_time / time_step;
+    time_step = delta_time / n_time_steps;
     ch_transient_solver.set_timestep(time_step);
 
-    start_msg(t0, "=== Running transient J & T solver...");
     for (int i = 0; i < n_time_steps; ++i) {
-        ch_transient_solver.assemble_current_system();
-        unsigned int ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
-
-        // Two options to caluclate things, currently both give wrong result
+        // Two options to calculate things, currently both give wrong result
         ch_transient_solver.assemble_heating_system_euler_implicit();
         //ch_transient_solver.assemble_heating_system_crank_nicolson();
 
@@ -387,23 +423,15 @@ int Femocs::solve_transient_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplac
     }
     end_msg(t0);
 
-    ch_transient_solver.output_results_current("./out/current_solution.vtk");
-    ch_transient_solver.output_results_heating("./out/heat_solution.vtk");
+    ch_transient_solver.output_results_current("./out/current_solution" + to_string(integer_timestep) + ".vtk");
+    ch_transient_solver.output_results_heating("./out/heat_solution" + to_string(integer_timestep) + ".vtk");
 
     start_msg(t0, "=== Extracting J & T...");
     bulk_interpolator.extract_solution(&ch_transient_solver, mesh);
     end_msg(t0);
-    bulk_interpolator.write("out/result_J_T.xyz");
+    bulk_interpolator.write("out/result_J_T.movie");
 
-
-
-    start_msg(t0, "=== Testing GETELEC...");
-    FieldReader fr1(&vacuum_interpolator);
-    fr1.calc_emission(ch_transient_solver);
-    end_msg(t0);
-    fr1.write("out/magic.xyz");
-
-
+    integer_timestep++;
 
     return 0;
 }
