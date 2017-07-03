@@ -111,6 +111,8 @@ public:
     /** Calculate the electric field for the current and temperature solver */
     void interpolate(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const bool srt=true);
 
+    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const bool srt=true);
+
     /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
     void export_elfield(const int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
@@ -132,7 +134,7 @@ public:
     /** Set parameters to calculate analytical solution */
     void set_analyt(const double E0, const double radius1, const double radius2=-1);
 
-    void calc_emission(fch::CurrentsAndHeatingStationary<3>* ch_solver);
+    void calc_emission(fch::CurrentsAndHeating<3>& ch_solver);
     
     void emission_line(const Point3& point, const Vec3& field,
                         vector<double> &rline, vector<double> &Vline, double rmax);

@@ -339,6 +339,56 @@ bool LinearInterpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* 
     return false;
 }
 
+// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
+bool LinearInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh) {
+    require(fem, "NULL pointer can't be handled!");
+    const int n_nodes = mesh.nodes.size();
+    const double eps = 1e-5 * mesh.elems.stat.edgemin;
+
+    // Copy the mesh nodes
+    reserve(n_nodes);
+    for (int n = 0; n < n_nodes; ++n)
+        append( Atom(n, mesh.nodes[n], mesh.nodes.get_marker(n)) );
+
+    // Precompute tetrahedra to make interpolation faster
+    precompute_tetrahedra(mesh);
+
+    // To make solution extraction faster, generate mapping between desired and available data sequences
+    vector<int> tetNode2hexNode, cell_indxs, vert_indxs;
+    get_maps(tetNode2hexNode, cell_indxs, vert_indxs,
+            fem->get_triangulation(), fem->get_dof_handler_current(), eps);
+
+    vector<dealii::Tensor<1, 3>> rho = fem->get_current(cell_indxs, vert_indxs); // get list of current densities
+    vector<double> temperature = fem->get_temperature(cell_indxs, vert_indxs); // get list of temperatures
+
+    require(rho.size() == temperature.size(),
+            "Mismatch of vector sizes: " + to_string(rho.size()) + ", "
+                    + to_string(temperature.size()));
+
+    unsigned i = 0;
+    for (int n : tetNode2hexNode) {
+        // If there is a common node between tet and hex meshes, store actual solution
+        if (n >= 0) {
+            require(i < rho.size(), "Invalid index: " + to_string(i));
+            Vec3 current(rho[i][0], rho[i][1], rho[i][2]);
+            solution.push_back(Solution(current, temperature[i++]));
+        }
+
+        // In case of non-common node, store solution with error value
+        else
+            solution.push_back(Solution(error_field));
+    }
+
+    // Check for the error values in the mesh nodes
+    // Normally there should be no nodes in the mesh elements that have the error value
+    for (SimpleElement elem : mesh.elems)
+        for (int node : elem)
+            if (solution[node].scalar == error_field)
+                return true;
+
+    return false;
+}
+
 // Reserve memory for interpolation data
 void LinearInterpolator::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));

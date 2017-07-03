@@ -408,11 +408,10 @@ void FieldReader::emission_line(const Point3& point, const Vec3& field,
     }
 }
 
-
-void FieldReader::calc_emission(fch::CurrentsAndHeatingStationary<3>* ch_solver) {
+void FieldReader::calc_emission(fch::CurrentsAndHeating<3>& ch_solver) {
     // import the surface nodes the solver needs
     vector<dealii::Point<3>> nodes;
-    ch_solver->get_surface_nodes(nodes);
+    ch_solver.get_surface_nodes(nodes);
 
     const int n_nodes = nodes.size();
 
@@ -509,7 +508,31 @@ void FieldReader::interpolate(fch::CurrentsAndHeatingStationary<3>* ch_solver, c
     vector<double> elfields; elfields.reserve(n_nodes);
     for (int i = 0; i < n_nodes; ++i)
         elfields.push_back(10.0 * interpolation[i].norm);
-    ch_solver->read_field(elfields);
+    ch_solver->set_electric_field_bc(elfields);
+}
+
+// Linearly interpolate electric field for the currents and temperature solver
+void FieldReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const bool srt) {
+    // import the surface nodes the solver needs
+    vector<dealii::Point<3>> nodes;
+    ch_solver.get_surface_nodes(nodes);
+
+    const int n_nodes = nodes.size();
+
+    // store the node coordinates
+    reserve(n_nodes);
+    int i = 0;
+    for (dealii::Point<3>& node : nodes)
+        append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
+
+    // interpolate solution on the nodes
+    interpolate(r_cut, 1, srt);
+
+    // export electric field norms to the solver
+    vector<double> elfields; elfields.reserve(n_nodes);
+    for (int i = 0; i < n_nodes; ++i)
+        elfields.push_back(10.0 * interpolation[i].norm);
+    ch_solver.set_electric_field_bc(elfields);
 }
 
 // Linearly interpolate electric field on a set of points

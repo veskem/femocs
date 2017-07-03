@@ -45,6 +45,9 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) 
     ch_solver1.set_physical_quantities(&phys_quantities);
     ch_solver2.set_physical_quantities(&phys_quantities);
     ch_solver  = &ch_solver1;
+
+    ch_transient_solver.set_physical_quantities(&phys_quantities);
+
     prev_ch_solver = NULL;
     end_msg(t0);
 
@@ -102,7 +105,8 @@ int Femocs::run(const double elfield, const string &message) {
     }
 
     // Solve heat & continuity equation on bulk mesh
-    if (solve_heat(bulk_mesh, laplace_solver)) {
+//    if (solve_heat(bulk_mesh, laplace_solver)) {
+    if (solve_transient_heat(bulk_mesh, laplace_solver)) {
         force_output(bulk_mesh, vacuum_mesh);
         check_return(true, "Solving heat & continuity equation failed!");
     }
@@ -306,13 +310,6 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     ch_solver->setup_system();
     end_msg(t0);
 
-
-    start_msg(t0, "=== Testing GETELEC...");
-    FieldReader fr1(&vacuum_interpolator);
-    fr1.calc_emission(ch_solver);
-    end_msg(t0);
-    fr1.write("out/magic.xyz");
-
     start_msg(t0, "=== Transfering elfield to J & T solver...");
     FieldReader fr(&vacuum_interpolator);
     fr.interpolate(ch_solver, conf.use_histclean * conf.coordination_cutoff, true);
@@ -343,6 +340,70 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
         ch_solver = &ch_solver1; prev_ch_solver = &ch_solver2;
     }
     odd_run = !odd_run;
+
+    return 0;
+}
+
+int Femocs::solve_transient_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) {
+    if (!conf.heating) return 0;
+
+    start_msg(t0, "=== Importing mesh to J & T solver...");
+    fail = !ch_transient_solver.import_mesh_directly(mesh.nodes.export_dealii(), mesh.hexahedra.export_dealii());
+    check_return(fail, "Importing mesh to Deal.II failed!");
+    end_msg(t0);
+
+    start_msg(t0, "=== Setup transient J & T solver...");
+    ch_transient_solver.setup_current_system();
+    ch_transient_solver.setup_heating_system();
+    end_msg(t0);
+
+    start_msg(t0, "=== Transfering elfield to J & T solver...");
+    FieldReader fr(&vacuum_interpolator);
+    fr.interpolate(ch_transient_solver, conf.use_histclean * conf.coordination_cutoff, true);
+    end_msg(t0);
+    fr.write("out/surface_field.xyz");
+
+    const int n_time_steps = 10;
+    const double time_unit = 1e-12; // == picosec
+    const double time_step = 0.01 * time_unit;
+
+    ch_transient_solver.set_timestep(time_step);
+
+    start_msg(t0, "=== Running transient J & T solver...");
+    for (int i = 0; i < n_time_steps; ++i) {
+        ch_transient_solver.assemble_current_system();
+        unsigned int ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
+
+        // Two options to caluclate things, currently both give wrong result
+        ch_transient_solver.assemble_heating_system_euler_implicit();
+        //ch_transient_solver.assemble_heating_system_crank_nicolson();
+
+        unsigned int hcg = ch_transient_solver.solve_heat(); // hcg == number of temperature calculation (CG) iterations
+
+        if (MODES.VERBOSE) {
+            double max_T = ch_transient_solver.get_max_temperature();
+            std::printf("    t=%5.3fps; ccg=%2d; hcg=%2d; max_T=%6.2f\n", i * time_step / time_unit, ccg, hcg, max_T);
+        }
+    }
+    end_msg(t0);
+
+    ch_transient_solver.output_results_current("./out/current_solution.vtk");
+    ch_transient_solver.output_results_heating("./out/heat_solution.vtk");
+
+    start_msg(t0, "=== Extracting J & T...");
+    bulk_interpolator.extract_solution(&ch_transient_solver, mesh);
+    end_msg(t0);
+    bulk_interpolator.write("out/result_J_T.xyz");
+
+
+
+    start_msg(t0, "=== Testing GETELEC...");
+    FieldReader fr1(&vacuum_interpolator);
+    fr1.calc_emission(ch_transient_solver);
+    end_msg(t0);
+    fr1.write("out/magic.xyz");
+
+
 
     return 0;
 }

@@ -191,6 +191,8 @@ private:
     fch::CurrentsAndHeatingStationary<3> ch_solver2;      ///< second currents and heating solver
     fch::CurrentsAndHeatingStationary<3>* ch_solver;      ///< active currents and heating solver
     fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous currents and heating solver
+
+    fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
     
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);
@@ -203,6 +205,8 @@ private:
 
     /** Solve heat and continuity equations */
     int solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
+
+    int solve_transient_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
 
     /** Calculate the charges on surface faces */
     int extract_charge(const TetgenMesh& mesh);

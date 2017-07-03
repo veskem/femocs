@@ -46,6 +46,9 @@ public:
     /** Extract the current density and temperature values on the tetrahedra nodes from FEM solution */
     bool extract_solution(fch::CurrentsAndHeatingStationary<3>* fem, const TetgenMesh &mesh);
 
+    /** Extract the current density and temperature values on the tetrahedra nodes from FEM solution */
+    bool extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh);
+
     /** Interpolate both vector and scalar data.
      * Function assumes, that tetrahedron, that surrounds the point, is previously already found with locate_element.
      * @param point  point where the interpolation is performed
