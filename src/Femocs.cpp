@@ -35,8 +35,8 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) 
     else if (conf.verbose_mode == "verbose") { MODES.MUTE = false; MODES.VERBOSE = true;  }
 
     // Clear the results from previous run
-    if (first_call && conf.clear_output) fail = system("rm -rf output");
-    fail = system("mkdir -p output");
+    if (first_call && conf.clear_output) fail = system("rm -rf out");
+    fail = system("mkdir -p out");
 
     start_msg(t0, "======= Femocs started! =======\n");
 
@@ -121,7 +121,7 @@ int Femocs::run(const double elfield, const string &message) {
     write_silent_msg(stream.str());
     skip_calculations = false;
 
-//    write_slice("output/slice.xyz");
+//    write_slice("out/slice.xyz");
 
     return 0;
 }
@@ -133,7 +133,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     dense_surf.sort_atoms(3, "down");
     end_msg(t0);
 
-    dense_surf.write("output/surface_dense.xyz");
+    dense_surf.write("out/surface_dense.xyz");
 
     if (conf.surface_cleaner == "voronois") {
         start_msg(t0, "=== Cleaning surface with Voronoi cells...");
@@ -142,11 +142,11 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
         check_return(fail, "Making voronoi cells failed!");
         end_msg(t0);
 
-        dense_surf.write("output/surface_dense_clean.xyz");
+        dense_surf.write("out/surface_dense_clean.xyz");
     }
 
     coarseners.generate(dense_surf, conf.radius, conf.cfactor, conf.latconst);
-    coarseners.write("output/coarseners.vtk");
+    coarseners.write("out/coarseners.vtk");
 
     static bool first_run = true;
     if (first_run) {
@@ -158,7 +158,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 
         end_msg(t0);
 
-        extended_surf.write("output/surface_extended.xyz");
+        extended_surf.write("out/surface_extended.xyz");
         first_run = false;
     }
 
@@ -169,7 +169,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     coarse_surf.smoothen(conf.radius, conf.surface_smooth_factor, 3.0*conf.coordination_cutoff);
     end_msg(t0);
 
-    coarse_surf.write("output/surface_coarse.xyz");
+    coarse_surf.write("out/surface_coarse.xyz");
 
     start_msg(t0, "=== Generating bulk & vacuum...");
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
@@ -180,8 +180,8 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
         bulk.sizes.zmin, vacuum.sizes.zmax);
     end_msg(t0);
     
-    bulk.write("output/bulk.xyz");
-    vacuum.write("output/vacuum.xyz");
+    bulk.write("out/bulk.xyz");
+    vacuum.write("out/vacuum.xyz");
 
     return 0;
 }
@@ -207,12 +207,12 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     big_mesh.generate_appendices();
     end_msg(t0);
 
-    big_mesh.faces.write("output/surface_faces.vtk");
+    big_mesh.faces.write("out/surface_faces.vtk");
 
     start_msg(t0, "=== Marking tetrahedral mesh...");
     fail = big_mesh.mark_mesh();
-    big_mesh.nodes.write("output/tetmesh_nodes.xyz");
-    big_mesh.elems.write("output/tetmesh_elems.vtk");
+    big_mesh.nodes.write("out/tetmesh_nodes.xyz");
+    big_mesh.elems.write("out/tetmesh_elems.vtk");
     check_return(fail, "Mesh marking failed!");
     end_msg(t0);
 
@@ -220,8 +220,8 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     big_mesh.generate_hexahedra();
     end_msg(t0);
 
-    big_mesh.nodes.write("output/hexmesh_nodes.xyz");
-    big_mesh.hexahedra.write("output/hexmesh_elems.vtk");
+    big_mesh.nodes.write("out/hexmesh_nodes.xyz");
+    big_mesh.hexahedra.write("out/hexmesh_elems.vtk");
 
     start_msg(t0, "=== Separating vacuum & bulk meshes...");
     big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQB");
@@ -232,14 +232,14 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     vacuum_mesh.faces.clean_sides(reader.sizes, conf.latconst);
     end_msg(t0);
 
-    vacuum_mesh.faces.write("output/surface_faces_clean.vtk");
+    vacuum_mesh.faces.write("out/surface_faces_clean.vtk");
 
     if (conf.surface_cleaner == "faces") {
         start_msg(t0, "=== Cleaning surface with triangles...");
         dense_surf.faces_clean(vacuum_mesh, conf.surface_thichness);
         end_msg(t0);
 
-        dense_surf.write("output/surface_dense_clean.xyz");
+        dense_surf.write("out/surface_dense_clean.xyz");
     }
 
     expect(bulk_mesh.nodes.size() > 0, "Zero nodes in bulk mesh!");
@@ -247,8 +247,8 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     expect(bulk_mesh.hexahedra.size() > 0, "Zero elements in bulk mesh!");
     expect(vacuum_mesh.hexahedra.size() > 0, "Zero elements in vacuum mesh!");
 
-    bulk_mesh.hexahedra.write("output/hexmesh_bulk" + conf.message + ".vtk");
-    vacuum_mesh.hexahedra.write("output/hexmesh_vacuum" + conf.message + ".vtk");
+    bulk_mesh.hexahedra.write("out/hexmesh_bulk" + conf.message + ".vtk");
+    vacuum_mesh.hexahedra.write("out/hexmesh_vacuum" + conf.message + ".vtk");
 
     stringstream ss; ss << "Bulk:   " << bulk_mesh << "\n  Vacuum: " << vacuum_mesh;
     write_verbose_msg(ss.str());
@@ -280,8 +280,8 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     fail = vacuum_interpolator.extract_solution(&solver, mesh);
     end_msg(t0);
 
-    vacuum_interpolator.write("output/result_E_phi.xyz");
-    vacuum_interpolator.write("output/result_E_phi.vtk");
+    vacuum_interpolator.write("out/result_E_phi.xyz");
+    vacuum_interpolator.write("out/result_E_phi.vtk");
 //    vacuum_interpolator.print_statistics();
     vacuum_interpolator.print_enhancement();
     vacuum_interpolator.print_error(coarseners);
@@ -311,20 +311,20 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     FieldReader fr1(&vacuum_interpolator);
     fr1.calc_emission(ch_solver);
     end_msg(t0);
-    fr1.write("output/magic.xyz");
+    fr1.write("out/magic.xyz");
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
     FieldReader fr(&vacuum_interpolator);
     fr.interpolate(ch_solver, conf.use_histclean * conf.coordination_cutoff, true);
     end_msg(t0);
 
-    fr.write("output/surface_field.xyz");
+    fr.write("out/surface_field.xyz");
 
     start_msg(t0, "=== Running J & T solver...\n");
     double t_error = ch_solver->run_specific(conf.t_error, conf.n_newton, false, "", MODES.VERBOSE, 2, 400, true);
     end_msg(t0);
 
-    ch_solver->output_results("output/result_J_T.vtk");
+    ch_solver->output_results("out/result_J_T.vtk");
 
     check_return(t_error > conf.t_error, "Temperature didn't converge, err=" + to_string(t_error));
 
@@ -332,7 +332,7 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     bulk_interpolator.extract_solution(ch_solver, mesh);
     end_msg(t0);
 
-    bulk_interpolator.write("output/result_J_T.xyz");
+    bulk_interpolator.write("out/result_J_T.xyz");
 
     // Swap current-and-heat-solvers to use solution from current run as a guess in the next one
     static bool odd_run = true;
@@ -360,7 +360,7 @@ int Femocs::extract_charge(const TetgenMesh& mesh) {
             "Face charges are not conserved!");
 
     face_charges.clean(dense_surf.sizes, conf.latconst);
-    face_charges.write("output/face_charges.xyz");
+    face_charges.write("out/face_charges.xyz");
 
     return 0;
 }
@@ -370,20 +370,20 @@ void Femocs::force_output(const TetgenMesh& bulk_mesh, const TetgenMesh& vacuum_
     if (conf.n_writefile <= 0) return;
 
     MODES.WRITEFILE = true;
-    reader.write("output/reader.xyz");
-    bulk_mesh.hexahedra.write("output/hexmesh_bulk.vtk");
-    vacuum_mesh.hexahedra.write("output/hexmesh_vacuum.vtk");
-    vacuum_mesh.faces.write("output/surface_faces_clean.vtk");
+    reader.write("out/reader.xyz");
+    bulk_mesh.hexahedra.write("out/hexmesh_bulk.vtk");
+    vacuum_mesh.hexahedra.write("out/hexmesh_vacuum.vtk");
+    vacuum_mesh.faces.write("out/surface_faces_clean.vtk");
 
-    vacuum_interpolator.write("output/result_E_phi.vtk");
-    vacuum_interpolator.write("output/result_E_phi.xyz");
+    vacuum_interpolator.write("out/result_E_phi.vtk");
+    vacuum_interpolator.write("out/result_E_phi.xyz");
 
     if (face_charges.size() > 0)
-        face_charges.write("output/face_charges.xyz");
+        face_charges.write("out/face_charges.xyz");
 
     if (conf.heating && bulk_interpolator.size() > 0) {
-        ch_solver->output_results("output/result_J_T.vtk");
-        bulk_interpolator.write("output/result_J_T.xyz");
+        ch_solver->output_results("out/result_J_T.vtk");
+        bulk_interpolator.write("out/result_J_T.xyz");
     }
 }
 
@@ -432,7 +432,7 @@ int Femocs::generate_nanotip(const double height, const double radius, const dou
     end_msg(t0);
 
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
-    reader.write("output/atomreader.xyz");
+    reader.write("out/atomreader.xyz");
 
     return 0;
 }
@@ -482,7 +482,7 @@ int Femocs::import_atoms(const string& file_name) {
         }
     }
 
-    reader.write("output/atomreader.xyz");
+    reader.write("out/atomreader.xyz");
     return 0;
 }
 
@@ -517,7 +517,7 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
         end_msg(t0);
     }
 
-    reader.write("output/atomreader.xyz");
+    reader.write("out/atomreader.xyz");
     return 0;
 }
 
@@ -541,7 +541,7 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
         end_msg(t0);
     }
 
-    reader.write("output/atomreader.xyz");
+    reader.write("out/atomreader.xyz");
     return 0;
 }
 
@@ -566,7 +566,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         fields.interpolate(dense_surf, conf.use_histclean * conf.coordination_cutoff, 0, false);
         end_msg(t0);
 
-        fields.write("output/fields.movie");
+        fields.write("out/fields.movie");
 //        fields.print_statistics();
         fields.print_enhancement();
     }
@@ -590,7 +590,7 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
         temperatures.interpolate(reader);
         end_msg(t0);
 
-        temperatures.write("output/interpolation_bulk.movie");
+        temperatures.write("out/interpolation_bulk.movie");
         temperatures.print_statistics();
     }
 
@@ -617,7 +617,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
             forces.recalc_forces(fields, areas, conf.force_factor);
         end_msg(t0);
 
-        forces.write("output/forces.movie");
+        forces.write("out/forces.movie");
         forces.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
     }
 
@@ -640,7 +640,7 @@ int Femocs::interpolate_elfield(const int n_points, const double* x, const doubl
     fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
 
-    fr.write("output/interpolation_E.movie");
+    fr.write("out/interpolation_E.movie");
     return 0;
 }
 

@@ -202,7 +202,7 @@ void read_n_atoms(const string& file_name, int& n_atoms) {
 }
 
 int main(int argc, char **argv) {
-    string filename = "input/md.in";
+    string filename = "in/md.in";
     string mode = "default";
     char arg[128];
 

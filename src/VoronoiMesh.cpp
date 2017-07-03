@@ -476,7 +476,7 @@ bool VoronoiMesh::generate_modi(const Medium& surf, const double latconst, const
 
     if (recalc("Q", cmd1)) return true;
 
-    elems.write("output/voro_tets1.vtk");
+    elems.write("out/voro_tets1.vtk");
 
     vector<bool> is_surf; is_surf.reserve(elems.size());
 

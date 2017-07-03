@@ -19,6 +19,6 @@ release/build/**/*
 cgal/*
 !cgal/CGAL*.zip
 Makefile
-input/md.in
+in/md.in
 tmpfile
 

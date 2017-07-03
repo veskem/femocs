@@ -14,7 +14,7 @@
 
 using namespace std;
 
-const string FEMOCSLOGPATH = "output/femocs.log";
+const string FEMOCSLOGPATH = "out/femocs.log";
 
 /* Template to return mask of indices that satisfy the comparison condition with an entry */
 template<typename T, typename Op>

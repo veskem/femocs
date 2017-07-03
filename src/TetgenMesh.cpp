@@ -525,7 +525,7 @@ bool TetgenMesh::mark_nodes() {
     // all the atoms (except the ones added manually to the vacuum)
     // will be marked as either surface or bulk atom
     nodes.calc_statistics();
-    expect(nodes.stat.n_vacuum > 4, "Surface is too coarse or rough! Check the output/surface_coarse.xyz,\n"
+    expect(nodes.stat.n_vacuum > 4, "Surface is too coarse or rough! Check the out/surface_coarse.xyz,\n"
             "make sure the radius is big enough and consider altering the coarsening factor!");
     return nodes.stat.n_vacuum <= 4;
 }
@@ -606,7 +606,7 @@ bool TetgenMesh::mark_nodes_vol2() {
     vector<int> ranks;
     if ( !calc_ranks(ranks, nborlist) )
         write_silent_msg("Surface has holes, therefore the mesh may or might not be valid!\n"
-                "Check the output/hexmesh_bulk.vtk and in case of problems, make sure \n"
+                "Check the out/hexmesh_bulk.vtk and in case of problems, make sure \n"
                 "the radius is big enough and consider altering the coarsening factors!");
 
     // Mark all the nodes with initial values

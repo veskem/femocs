@@ -26,7 +26,7 @@ program Tester
     call cpu_time(t1)
     
     ! Create the femocs object
-    fem = femocs("input/md.in")
+    fem = femocs("in/md.in")
     tot_success = 0
     
     ! Import the atoms to femocs

@@ -12,7 +12,7 @@ int femocs_interface(int N_atoms, double *x, double *y, double *z, double E_appl
     double *Enorm; 
     
     /* Create the femocs object */
-    fem = create_femocs("input/md.in");
+    fem = create_femocs("in/md.in");
     tot_success = 0;
     
     /* Import the atoms to femocs */

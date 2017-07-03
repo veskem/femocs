@@ -44,14 +44,14 @@ For test purposes FEMOCS could also be built as an executable. The options for t
 In **release** mode FEMOCS is fully optimized and emulates a static simulation. Running the code in **debug** mode turns optimization off and allows to follow the simulation line-by-line by using [GDB](https://en.wikipedia.org/wiki/GNU_Debugger), [Eclipse debugger](http://www.eclipse.org/cdt/) or their analogues.
     
 ## Testing and running FEMOCS
-The behavior of FEMOCS can be changed by changing the main files in **release** directory or modifing the configuration script. The sample script that also has PARCAS and HELMOD commands inside is located in **input/md.in**. 
+The behavior of FEMOCS can be changed by changing the main files in **release** directory or modifing the configuration script. The sample script that also has PARCAS and HELMOD commands inside is located in **in/md.in**. 
 
 FEMOCS executable that was built in **release**, **debug**, **test_f90** or **test_c**  mode should be run in FEMOCS main directory by
 
     $ ./release/femocs
     
 ## Visualization
-During the run FEMOCS writes couple of files to the **output** folder if *n_filewrite > 0* in configuration file. Those files can be used to estimate the validity of the results. Files with extension *xyz* and *movie* contain atomistic data and can be visualized in [OVITO](https://ovito.org/index.php/download). *movie* files contain the data from many timesteps, *xyz* files are the snapshots of a last full run. The files ending with *vtk* contain the geometric data (mesh elements, faces etc) that can be visualized in [ParaView](http://www.paraview.org/download/).
+During the run FEMOCS writes couple of files to the **out** folder if *n_filewrite > 0* in configuration file. Those files can be used to estimate the validity of the results. Files with extension *xyz* and *movie* contain atomistic data and can be visualized in [OVITO](https://ovito.org/index.php/download). *movie* files contain the data from many timesteps, *xyz* files are the snapshots of a last full run. The files ending with *vtk* contain the geometric data (mesh elements, faces etc) that can be visualized in [ParaView](http://www.paraview.org/download/).
 
 ## Documentation
 To build FEMOCS documentation, first make sure [Doxygen](http://www.stack.nl/~dimitri/doxygen/download.html) is installed in the system. The documentation in pdf and html format will be generated with command
