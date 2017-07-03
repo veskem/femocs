@@ -198,16 +198,15 @@ void CurrentsAndHeating<dim>::assemble_current_system() {
                 fe_face_values_heat.get_function_values(solution_heat, prev_sol_face_temperature_values);
 
                 // ----------------------------------------------------------------------------------
-                // Electric field determination at the boundary
+                // Cell and face info
                 std::pair<unsigned, unsigned> cop_cell_info = std::pair<unsigned, unsigned>(
                                                               cell->index(), f);
-                double e_field = get_efield_bc(cop_cell_info);
                 // ----------------------------------------------------------------------------------
 
                 for (unsigned int q = 0; q < n_face_q_points; ++q) {
 
                     double temperature = prev_sol_face_temperature_values[q];
-                    double emission_current = pq->emission_current(e_field, temperature);
+                    double emission_current = get_emission_current_bc(cop_cell_info, temperature);
 
                     for (unsigned int i = 0; i < dofs_per_cell; ++i) {
                         cell_rhs(i) += (fe_face_values.shape_value(i, q)
@@ -331,22 +330,20 @@ void CurrentsAndHeating<dim>::assemble_heating_system_crank_nicolson() {
                 fe_face_values.get_function_values(old_solution_heat, prev_sol_face_temperature_values);
 
                 // ----------------------------------------------------------------------------------
-                // Electric field determination at the boundary
+                // Cell & face info
                 std::pair<unsigned, unsigned> cop_cell_info = std::pair<unsigned, unsigned>(
                                                               cell->index(), f);
-                double e_field = get_efield_bc(cop_cell_info);
                 // ----------------------------------------------------------------------------------
 
                 for (unsigned int q = 0; q < n_face_q_points; ++q) {
 
                     double prev_temperature = prev_sol_face_temperature_values[q];
-                    double emission_current = pq->emission_current(e_field, prev_temperature);
-                    double nottingham_flux = -1.0 * pq->nottingham_de(e_field, prev_temperature)
-                                        * emission_current;
-                    //nottingham_flux = 0.0;
+                    double nottingham_heat = get_nottingham_heat_bc(cop_cell_info, prev_temperature);
+
+                    //nottingham_heat = 0.0;
                     for (unsigned int i = 0; i < dofs_per_cell; ++i) {
                         cell_rhs(i) += (const_k * fe_face_values.shape_value(i, q)
-                                * 2.0 * nottingham_flux * fe_face_values.JxW(q));
+                                * 2.0 * nottingham_heat * fe_face_values.JxW(q));
                     }
                 }
             }
@@ -460,22 +457,20 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
                 fe_face_values.get_function_values(old_solution_heat, prev_sol_face_temperature_values);
 
                 // ----------------------------------------------------------------------------------
-                // Electric field determination at the boundary
+                // cell & face info
                 std::pair<unsigned, unsigned> cop_cell_info = std::pair<unsigned, unsigned>(
                                                               cell->index(), f);
-                double e_field = get_efield_bc(cop_cell_info);
                 // ----------------------------------------------------------------------------------
 
                 for (unsigned int q = 0; q < n_face_q_points; ++q) {
 
                     double prev_temperature = prev_sol_face_temperature_values[q];
-                    double emission_current = pq->emission_current(e_field, prev_temperature);
-                    double nottingham_flux = -1.0 * pq->nottingham_de(e_field, prev_temperature)
-                                        * emission_current;
-                    //nottingham_flux = 0.0;
+                    double nottingham_heat = get_nottingham_heat_bc(cop_cell_info, prev_temperature);
+
+                    //nottingham_heat = 0.0;
                     for (unsigned int i = 0; i < dofs_per_cell; ++i) {
                         cell_rhs(i) += (gamma * fe_face_values.shape_value(i, q)
-                                * nottingham_flux * fe_face_values.JxW(q));
+                                * nottingham_heat * fe_face_values.JxW(q));
                     }
                 }
             }
@@ -721,6 +716,35 @@ double CurrentsAndHeating<dim>::get_efield_bc(const std::pair<unsigned, unsigned
         e_field = interface_map_field[cop_cell_info];
     }
     return e_field;
+}
+
+template<int dim>
+double CurrentsAndHeating<dim>::get_emission_current_bc(const std::pair<unsigned, unsigned> cop_cell_info,
+        const double temperature) {
+    double emission_current = 0.0;
+    if (interface_map_emission_current.empty()) {
+        double e_field = get_efield_bc(cop_cell_info);
+        emission_current = pq->emission_current(e_field, temperature);
+    } else {
+        assert(interface_map_emission_current.count(cop_cell_info) == 1);
+        emission_current = interface_map_emission_current[cop_cell_info];
+    }
+    return emission_current;
+}
+
+template<int dim>
+double CurrentsAndHeating<dim>::get_nottingham_heat_bc(const std::pair<unsigned, unsigned> cop_cell_info,
+        const double temperature) {
+    double nottingham_heat = 0.0;
+    if (interface_map_nottingham.empty()) {
+        double e_field = get_efield_bc(cop_cell_info);
+        double emission_current = pq->emission_current(e_field, temperature);
+        nottingham_heat = -1.0 * pq->nottingham_de(e_field, temperature) * emission_current;
+    } else {
+        assert(interface_map_nottingham.count(cop_cell_info) == 1);
+        nottingham_heat = interface_map_nottingham[cop_cell_info];
+    }
+    return nottingham_heat;
 }
 
 template<int dim>

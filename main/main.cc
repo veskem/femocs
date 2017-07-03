@@ -62,7 +62,7 @@ int main() {
     //laplace.set_applied_efield(8.0);
     //laplace.run();
 
-    double time_step = 0.005e-12; // seconds
+    double time_step = 0.001e-12; // seconds
     fch::CurrentsAndHeating<2> ch(time_step, &pq);
     ch.import_mesh_from_file("../res/2d_meshes/copper_aligned.msh");
 
@@ -71,7 +71,7 @@ int main() {
     ch.set_electric_field_bc(13.0);
 
     int i = 0;
-    for (double time = 0.0; time < 1e-12; time+=time_step) {
+    for (double time = 0.0; time <= 1e-12; time+=time_step) {
         ch.assemble_current_system();
         unsigned int ccg = ch.solve_current();
 

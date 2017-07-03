@@ -108,6 +108,8 @@ public:
 private:
 
     double get_efield_bc(std::pair<unsigned, unsigned> cop_cell_info);
+    double get_emission_current_bc(std::pair<unsigned, unsigned> cop_cell_info, const double temperature);
+    double get_nottingham_heat_bc(std::pair<unsigned, unsigned> cop_cell_info, const double temperature);
 
     static constexpr unsigned int currents_degree = 1;
     static constexpr unsigned int heating_degree = 1;
