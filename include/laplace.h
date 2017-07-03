@@ -18,12 +18,14 @@
 #include <iostream>
 
 #include "currents_and_heating.h" // for friend class declaration
-#include "mesh_preparer.h" // for BoundaryId-s.. probably should think of a better place for them
+#include "currents_and_heating_stationary.h" // for friend class declaration
+#include "mesh_preparer.h"
 
 namespace fch {
 
 // forward declaration for friend class
 template<int dim> class CurrentsAndHeating;
+template<int dim> class CurrentsAndHeatingStationary;
 
 using namespace dealii;
 
@@ -131,6 +133,7 @@ private:
     Vector<double> system_rhs;
 
     friend class CurrentsAndHeating<dim> ;
+    friend class CurrentsAndHeatingStationary<dim> ;
 };
 
 } // namespace fch

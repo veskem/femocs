@@ -15,6 +15,7 @@
 #include "laplace.h"
 #include "physical_quantities.h"
 #include "currents_and_heating.h"
+#include "currents_and_heating_stationary.h"
 
 int main() {
 
@@ -88,10 +89,10 @@ int main() {
 
 // 3d Test usage //
     /*
-    fch::CurrentsAndHeating<3> ch_solver1;
-    fch::CurrentsAndHeating<3> ch_solver2;
-    fch::CurrentsAndHeating<3>* ch_solver = &ch_solver1;
-    fch::CurrentsAndHeating<3>* prev_ch_solver = NULL;
+    fch::CurrentsAndHeatingStationary<3> ch_solver1;
+    fch::CurrentsAndHeatingStationary<3> ch_solver2;
+    fch::CurrentsAndHeatingStationary<3>* ch_solver = &ch_solver1;
+    fch::CurrentsAndHeatingStationary<3>* prev_ch_solver = NULL;
 
     bool even = true;
 
@@ -180,7 +181,7 @@ int main() {
      laplace_solver.solve();
      laplace_solver.output_results("output/field_sol.vtk");
 
-     fch::CurrentsAndHeating<3> ch_solver(&pq, &laplace_solver);
+     fch::CurrentsAndHeatingStationary<3> ch_solver(&pq, &laplace_solver);
      ch_solver.import_mesh_from_file(res_path+"/3d_meshes/mushroom_copper.msh");
      ch_solver.setup_system();
 
@@ -195,7 +196,7 @@ int main() {
      laplace.set_applied_efield(12.0);
      laplace.run();
 
-     fch::CurrentsAndHeating<2> ch(&pq, &laplace);
+     fch::CurrentsAndHeatingStationary<2> ch(&pq, &laplace);
      ch.import_mesh_from_file("../res/2d_meshes/copper_aligned.msh");
      ch.output_mesh("output/copper_mesh_2d.vtk");
      ch.run();
