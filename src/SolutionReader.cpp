@@ -7,7 +7,7 @@
 
 #include "SolutionReader.h"
 #include "Macros.h"
-#include "getelec.h"
+//#include "getelec.h"
 
 #include <float.h>
 #include <stdio.h>
@@ -355,6 +355,60 @@ void FieldReader::interpolate(const Medium &medium, const double r_cut, const in
         atoms[i].id = medium.get_id(i);
 }
 
+void FieldReader::emission_line(const Point3& point, const Vec3& field,
+                        vector<double> &rline, vector<double> &Vline, double rmax) {
+
+    double rmin = 0.;
+    int Nline = rline.size();
+    int static counter = 0;
+    
+    Vec3 direction = field;
+    direction.normalize();
+    Point3 pfield(direction.x, direction.y, direction.z);
+    
+    FieldReader fr(interpolator);
+    fr.reserve(Nline);
+    
+    for (int i = 0; i < Nline; i++){
+        rline[i] = rmin + ((rmax - rmin) * i) / (Nline - 1);
+        fr.append(point - pfield * rline[i]);
+    }
+    fr.interpolate(0, 0, false);
+    for (int i = 0; i < Nline; i++){
+        Vline[i] = fr.interpolation[i].scalar;
+        rline[i] *= .1;
+    }
+    
+    for (int i = 0; i < Nline; i++){
+        Vline[i] -= Vline[0];
+        rline[i] -= rline[0];
+    }
+    
+    for (int i = 1; i < Nline; ++i){ // go through points
+        if (Vline[i] < Vline[i-1]){ // if decreasing at a point
+            
+            double dVdx = 0.;
+            int j;         
+            for(j = i + 1; j < Nline; ++j){
+                if (Vline[j] > Vline[i-1]) {
+                    dVdx = (Vline[j] - Vline[i-1]) / (rline[j] - rline[i-1]);
+                    break;
+                }
+            }
+                
+            if (dVdx == 0.){
+                if (i > 1) 
+                    dVdx = (Vline[i-1] - Vline[i-2]) / (rline[i-1] - rline[i-2]);
+                else
+                    cout << "\nNon monotonous Vline at i = " << i << " could not be recovered. line: \n";
+            }
+            for (int k = 0; k <= j; ++k)
+                Vline[k] =  Vline[i-1] + (rline[k] - rline[i-1]) * dVdx;
+        }
+    }
+}
+
+
 void FieldReader::calc_emission(fch::CurrentsAndHeating<3>* ch_solver) {
     // import the surface nodes the solver needs
     vector<dealii::Point<3>> nodes;
@@ -375,26 +429,63 @@ void FieldReader::calc_emission(fch::CurrentsAndHeating<3>* ch_solver) {
     elfields.reserve(n_nodes);
     currents.reserve(n_nodes);
     nottingham.reserve(n_nodes);
+    
+    const int Nline = 32;
+    vector<double> rline(Nline);
+    vector<double> Vline(Nline);
+    
+    double Fmax = 0.;
+    double Jmax = 0.;
 
     struct emission gt;
-    gt.W = 4.5;
-    gt.R = 1000.0;
-    gt.gamma = 10.;
-    gt.Temp = 300.;
-    gt.Nr = 0;
-    gt.approx = 1;
-    gt.mode = 0;
+    
+    gt.W = 4.5; gt.R = 200.; gt.gamma = 1.2; gt.Temp = 300.;
+    
+    for (int i = 0; i < n_nodes; ++i)
+        if (Fmax < interpolation[i].norm) Fmax = interpolation[i].norm;
+    Fmax *= 10.;
+    
+    double t0;
+    start_msg(t0,"=== Calculating current densities... ");
 
     for (int i = 0; i < n_nodes; ++i) {
-        gt.F = 10.0 * interpolation[i].norm;
-        int retval = cur_dens_c(&gt);
-
+        gt.mode = 0;
+        gt.F = 10. * interpolation[i].norm;
+        if (gt.F > 0.6 * Fmax){
+            emission_line(get_point(i), interpolation[i].vector, rline, 
+                            Vline, 16. * gt.W/gt.F);
+            gt.Nr = Nline;
+            gt.xr = &rline[0];
+            gt.Vr = &Vline[0];
+            gt.mode = -21;
+        }
+        gt.approx = 0;
+        cur_dens_c(&gt);
+        if (gt.ierr != 0 ) {
+            cout << "calling print_data_c\n";            
+            print_data_c(&gt, 1);
+            cout << "calling plot_data_c\n";           
+            plot_data_c(&gt);
+        }        
+        if (gt.Jem > 0.1 * Jmax){
+            gt.approx = 1;
+            cur_dens_c(&gt);
+            if (gt.ierr != 0 ) {
+                cout << "calling print_data_c\n";            
+                print_data_c(&gt, 1);
+                cout << "calling plot_data_c\n";           
+                plot_data_c(&gt);
+            }
+        }
+        
+        if (gt.Jem > Jmax) Jmax = gt.Jem;
         currents.push_back(gt.Jem);
         nottingham.push_back(gt.heat);
-
         interpolation[i].scalar = log(gt.Jem);
-        interpolation[i].norm = log(gt.heat);
+        interpolation[i].norm = log(fabs(gt.heat));
     }
+     
+    end_msg(t0);
 }
 
 // Linearly interpolate electric field for the currents and temperature solver
