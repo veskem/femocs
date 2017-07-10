@@ -6,13 +6,13 @@
 DEALII_VER = 8.4.1
 CGAL_VER = 4.9
 
-## Paths to the Fortran, C++, C and heating main files
+## Paths to the Fortran, C, C++ and deal-solver main files
 MAIN_F90 = release/Test.f90
 MAIN_CPP = release/Test.cpp
 MAIN_C = release/Test.c
 MAIN_SOLVER = deal-solver/main/main.cc
 
-## Number of corers used during compilation
+## Number of cores used during compilation
 NPROCS = 4
 
 ## Specify whether to use CGAL or not

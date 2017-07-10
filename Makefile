@@ -15,26 +15,29 @@ all: lib
 test_f90: lib/libfemocs.a femocs.test_f90
 femocs.test_f90: ${MAIN_F90} src/* include/*
 	make -f release/makefile.test_f90
-	
+
 test_c: lib/libfemocs.a femocs.test_c
 femocs.test_c: ${MAIN_C} src/* include/*
 	make -f release/makefile.test_c
 
 lib: lib/libfemocs.a 
-lib/libfemocs.a: src/* include/* 
+lib/libfemocs.a: src/* include/*
 	make -f release/makefile.lib mode=Release
-
-release: femocs.release
-femocs.release: ${MAIN_CPP} src/* include/* 
-	make -f release/makefile.release mode=Release
-	
 
 solver: femocs.solver
 femocs.solver: ${MAIN_SOLVER} deal-solver/source/* deal-solver/include/* src/* include/*
 	make -f release/makefile.solver
 
-debug:
-	make -s -f release/makefile.cgal debug
+release: femocs.release
+femocs.release: ${MAIN_CPP} src/* include/* 
+	make -f release/makefile.release mode=Release
+
+debug: femocs.debug
+femocs.debug: ${MAIN_CPP} src/* include/* 
+	make -f release/makefile.release mode=Debug
+	
+#debug:
+#	make -s -f release/makefile.cgal debug
 
 ubuntu:
 	make -s -f release/makefile.cgal release
@@ -43,10 +46,10 @@ ubuntu:
 taito:
 	make -s -f release/makefile.cgal taito
 	make -f release/makefile.install
-	
+
 alcyone:
 	make -f release/makefile.install
-	
+
 doc: doc/femocs.pdf
 doc/femocs.pdf:
 	cd doc; doxygen femocs.doxyfile; cd latex; make; cp refman.pdf ../femocs.pdf

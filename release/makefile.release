@@ -16,6 +16,6 @@ release/build/Makefile:
 
 clean:
 	rm -f release/femocs release/build/Makefile
-    
+
 clean-all:
 	rm -rf release/femocs release/build
