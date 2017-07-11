@@ -1,6 +1,9 @@
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
 
+# enable or disable verbose build
+SET(CMAKE_VERBOSE_MAKEFILE on)
+
 # ==============================================
 # ======= Variables to be set on cmd-line ======
 # ==============================================
@@ -12,6 +15,9 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
 ## Specify whether to build in debug or release mode
 # SET(CMAKE_BUILD_TYPE Release)
 # SET(CMAKE_BUILD_TYPE Debug)
+
+## path to file with main function
+# SET(MAIN "../Test.cpp")
 
 # ==============================================
 # ======= Name & path for input & output =======
@@ -29,15 +35,12 @@ SET(DEAL_II_DIR ../dealii)
 # path to CGAL files
 SET(CGAL_DIR ../cgal)
 
-# path to file with main function
-#SET(MAIN "../Test.cpp")
-
 # path to source files
 FILE(GLOB_RECURSE SOURCE "../src/*.cpp" "../deal-solver/source/*")
 
 # path to the directories with headers
 IF (LIBCGAL AND CMAKE_BUILD_TYPE MATCHES Release)
-    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../dealii/include ../cgal/include ../GETELEC/modules)
+    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../dealii/include ../GETELEC/modules ../cgal/include)
 ELSE()
     INCLUDE_DIRECTORIES(../include ../deal-solver/include ../dealii/include ../GETELEC/modules)
 ENDIF()
@@ -84,15 +87,23 @@ ENDIF()
 # ============= Compilation flags ==============
 # ==============================================
 
-# Specify warnings and optimization level
-# Suppressing individual warnings does not work because they are also controlled by deal.II and CGAL cmake-s
-
-#SET(warnings "-Wno-overloaded-virtual -Wno-type-limits -Wno-reorder -Wno-pedantic -Wno-unused-value -Wno-unused-result -Wno-unused-variable -Wno-unused-parameter -Wno-sign-compare")
-SET(warnings "-Wall -Wpedantic")
-
-SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
-SET(CMAKE_CXX_FLAGS_DEBUG "-g -O0 ${warnings}")
+# add OpenMP flag
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+
+# Specify warnings and optimization level
+
+SET(WARNINGS "-Wno-narrowing -Wno-maybe-uninitialized -Wno-overloaded-virtual -Wno-type-limits -Wno-reorder -Wno-pedantic -Wno-unused-value -Wno-unused-result -Wno-unused-variable -Wno-unused-parameter -Wno-sign-compare")
+#SET(WARNINGS "-Wall -Wpedantic")
+
+IF (CMAKE_BUILD_TYPE MATCHES Release)
+    SET(DEAL_II_CXX_FLAGS_RELEASE "${DEAL_II_CXX_FLAGS_RELEASE} -O3 -w")
+ELSE()    
+    # remove all flags that control warnings
+    STRING(REGEX REPLACE " -W[A-Za-z0-9-]+" "" DEAL_II_CXX_FLAGS ${DEAL_II_CXX_FLAGS})
+    STRING(REPLACE "-pedantic" "" DEAL_II_CXX_FLAGS ${DEAL_II_CXX_FLAGS})
+    # add previously defined warning messages
+    SET(DEAL_II_CXX_FLAGS "${DEAL_II_CXX_FLAGS} ${WARNINGS}")
+ENDIF()
 
 # ==============================================
 # =============== Start building ===============
