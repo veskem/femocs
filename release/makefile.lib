@@ -15,7 +15,7 @@ lib/build/Makefile:
 -DCMAKE_Fortran_COMPILER=${F90} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} ..;
 
 clean:
-	rm -f lib/libfemocs.a lib/libfemocs.mod lib/build/Makefile
+	rm -rf lib/libfemocs.a lib/libfemocs.mod lib/build
     
 clean-all:
 	rm -rf lib/libfemocs.a lib/libfemocs.mod lib/build

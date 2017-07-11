@@ -7,13 +7,13 @@ include release/makefile.defs
 all: release/femocs
 
 release/femocs: release/femocs.o
-	${CC} $< ${OPT} ${CCFLAGS} ${LFLAGS} -o $@
+	${CC} $< ${options} ${CCFLAGS} ${LFLAGS} -o $@
 
-release/femocs.o: lib/libfemocs.a ${MAIN_C}
-	${CC} -c ${MAIN_C} ${OPT} ${CCFLAGS} -o $@
+release/femocs.o: lib/libfemocs.a ${main_file}
+	${CC} -c ${main_file} ${options} ${CCFLAGS} -o $@	
 
 clean:
 	rm -f release/femocs release/femocs.o include/*.o src/*.o
-    
+
 clean-all:
 	rm -rf release/femocs release/femocs.o include/*.o src/*.o

@@ -12,32 +12,26 @@ include release/makefile.defs
 
 all: lib
 
-test_f90: lib/libfemocs.a femocs.test_f90
-femocs.test_f90: ${MAIN_F90} src/* include/*
-	make -f release/makefile.test_f90
+lib: lib/libfemocs.a
 
-test_c: lib/libfemocs.a femocs.test_c
-femocs.test_c: ${MAIN_C} src/* include/*
-	make -f release/makefile.test_c
-
-lib: lib/libfemocs.a 
-lib/libfemocs.a: src/* include/*
+lib/libfemocs.a: src/* include/* deal-solver/source/* deal-solver/include/*
 	make -f release/makefile.lib mode=Release
 
-solver: femocs.solver
-femocs.solver: ${MAIN_SOLVER} deal-solver/source/* deal-solver/include/* src/* include/*
-	make -f release/makefile.solver
+test_f90: ${MAIN_F90} lib/libfemocs.a
+	make -f release/makefile.test_f90
 
-release: femocs.release
-femocs.release: ${MAIN_CPP} src/* include/* 
-	make -f release/makefile.release mode=Release
+test_c: ${MAIN_C} lib/libfemocs.a
+	make -f release/makefile.test_c main_file=${MAIN_C} options=${OPT}
 
-debug: femocs.debug
-femocs.debug: ${MAIN_CPP} src/* include/* 
-	make -f release/makefile.release mode=Debug
-	
-#debug:
-#	make -s -f release/makefile.cgal debug
+solver: ${MAIN_SOLVER} lib/libfemocs.a
+	make -f release/makefile.test_c main_file=${MAIN_SOLVER} options=${OPT}
+
+release: ${MAIN_CPP} lib/libfemocs.a
+	make -f release/makefile.test_c main_file=${MAIN_CPP} options=${OPT}
+
+debug: ${MAIN_CPP} src/* include/* deal-solver/source/* deal-solver/include/*
+	make -f release/makefile.lib mode=Debug
+	make -f release/makefile.test_c main_file=${MAIN_CPP} options=${OPT_DEBUG}
 
 ubuntu:
 	make -s -f release/makefile.cgal release
@@ -56,18 +50,14 @@ doc/femocs.pdf:
 
 clean:
 	make -s -f release/makefile.lib clean
-	make -s -f release/makefile.release clean
 	make -s -f release/makefile.test_f90 clean
 	make -s -f release/makefile.test_c clean
-	make -s -f release/makefile.solver clean
 	rm -rf doc/html doc/latex *.pdf
 
 clean-all:
 	make -s -f release/makefile.lib clean-all
-	make -s -f release/makefile.release clean-all
 	make -s -f release/makefile.test_f90 clean-all
 	make -s -f release/makefile.test_c clean-all
-	make -s -f release/makefile.solver clean-all
 	make -s -f release/makefile.install clean-all
 	make -s -f release/makefile.cgal clean-all
 	rm -rf doc/html doc/latex *.pdf

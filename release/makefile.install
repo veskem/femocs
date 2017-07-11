@@ -4,7 +4,7 @@
 
 include release/makefile.defs
 
-all: ${MAIN_SOLVER} lib/libtet.a dealii/lib/libdeal_II.a dealii/lib/libdeal_II.so.${DEALII_VER}
+all: ${MAIN_SOLVER} lib/libtet.a dealii/lib/libdeal_II.a
 
 lib/libtet.a:
 	cd tetgen; rm -rf build; mkdir -p build

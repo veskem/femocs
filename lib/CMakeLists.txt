@@ -3,7 +3,10 @@ cmake_minimum_required (VERSION 2.8.8)
 
 # specify the name of the library
 SET(LIB_NAME "femocs")
-project (${LIB_NAME} C CXX Fortran)
+PROJECT(${LIB_NAME} C CXX Fortran)
+
+# enable or disable verbose build
+SET(CMAKE_VERBOSE_MAKEFILE off)
 
 # ==============================================
 # ======= Variables to be set on cmd-line ======
@@ -79,15 +82,27 @@ ENDIF()
 # ============= Compilation flags ==============
 # ==============================================
 
-# Specify warnings and optimization level
-# Suppressing individual warnings does not work because they are also controlled by deal.II and CGAL cmake-s
-
-#SET(warnings "-Wno-overloaded-virtual -Wno-type-limits -Wno-reorder -Wno-pedantic -Wno-unused-value -Wno-unused-result -Wno-unused-variable -Wno-unused-parameter -Wno-sign-compare")
-SET(warnings "-Wall -Wpedantic")
-
-SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -w")
-SET(CMAKE_CXX_FLAGS_DEBUG "-g -O0 ${warnings}")
+# add OpenMP flag
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+
+# Specify warnings and optimization level
+
+SET(WARNINGS "-Wno-narrowing -Wno-maybe-uninitialized -Wno-overloaded-virtual -Wno-type-limits -Wno-reorder -Wno-pedantic -Wno-unused-value -Wno-unused-result -Wno-unused-variable -Wno-unused-parameter -Wno-sign-compare")
+#SET(WARNINGS "-Wall -Wpedantic")
+
+# flags should be set in deal.II section other than in CMAKE_CXX_FLAGS,
+# because the first overrides many flags.
+# The flags that deal.II tries to apply can be seen from dealii/share/deal.II/Make.global_options
+
+IF (CMAKE_BUILD_TYPE MATCHES Release)
+    SET(DEAL_II_CXX_FLAGS_RELEASE "${DEAL_II_CXX_FLAGS_RELEASE} -O3 -w")
+ELSE()    
+    # remove all flags that control warnings
+    STRING(REGEX REPLACE " -W[A-Za-z0-9-]+" "" DEAL_II_CXX_FLAGS ${DEAL_II_CXX_FLAGS})
+    STRING(REPLACE "-pedantic" "" DEAL_II_CXX_FLAGS ${DEAL_II_CXX_FLAGS})
+    # add previously defined warning messages
+    SET(DEAL_II_CXX_FLAGS "${DEAL_II_CXX_FLAGS} -g -O1 ${WARNINGS}")
+ENDIF()
 
 # ==============================================
 # =========== Start building library ===========
