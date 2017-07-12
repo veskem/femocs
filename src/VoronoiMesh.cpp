@@ -265,7 +265,7 @@ int VoronoiMesh::mark_seed() {
 }
 
 // Mark Voronoi faces that are on the vacuum-material boundary
-void VoronoiMesh::mark_faces(const Medium::Sizes& sizes, const double zmin, const int seed) {
+void VoronoiMesh::mark_faces(const double zmin, const int seed) {
     const int cell_max = nodes.indxs.surf_end;
     vfaces.calc_neighbours();
 
@@ -350,16 +350,16 @@ void VoronoiMesh::mark_mesh(const Medium& medium) {
         zmin += zcoord[i];
     zmin /= n_average;
 
-    mark_mesh(medium.sizes, zmin);
+    mark_mesh(zmin);
 }
 
 // Mark the Voronoi cells, faces and nodes by their relative location against top and bottom surfaces
-void VoronoiMesh::mark_mesh(const Medium::Sizes& sizes, const double zmin) {
+void VoronoiMesh::mark_mesh(const double zmin) {
     // Mark the cell and faces that are certainly on the surface
     int seedface = mark_seed();
 
     // Mark the rest of surface faces
-    mark_faces(sizes, zmin, seedface);
+    mark_faces(zmin, seedface);
 
     // Using the marked faces, marks also the cells and nodes
     mark_cells_and_nodes();

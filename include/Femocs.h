@@ -206,7 +206,7 @@ private:
     /** Solve heat and continuity equations */
     int solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
 
-    int solve_transient_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver, double delta_time);
+    int solve_transient_heat(const TetgenMesh& mesh, double delta_time);
 
     /** Calculate the charges on surface faces */
     int extract_charge(const TetgenMesh& mesh);

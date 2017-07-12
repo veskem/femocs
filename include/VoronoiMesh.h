@@ -91,7 +91,7 @@ private:
 class VoronoiCell : public Voronoi {
 public:
     VoronoiCell() : Voronoi() {}
-    VoronoiCell(tetgenio* data, const int i, const int calc=0) : Voronoi(data, i) {}
+    VoronoiCell(tetgenio* data, const int i) : Voronoi(data, i) {}
     ~VoronoiCell() {}
 
     /** Get number of faces that make the cell */
@@ -220,7 +220,8 @@ protected:
         write_cells(out);
     }
 
-    virtual void write_cells(ofstream& out) const {}
+    /** Write the cell data (number and indices of vertices) to the file */
+    virtual void write_cells(ofstream&) const {}
 };
 
 /** Class for accessing the faces of Voronoi cells */
@@ -284,7 +285,7 @@ public:
     void mark_mesh(const Medium& medium);
 
     /** Mark the Voronoi cells, faces and nodes by their relative location against top and bottom surfaces */
-    void mark_mesh(const Medium::Sizes& sizes, const double zmin);
+    void mark_mesh(const double zmin);
 
     /** Objects holding operations for accessing cell data */
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
@@ -303,7 +304,7 @@ private:
     int mark_seed();
 
     /** Mark Voronoi faces that are on the vacuum-material boundary */
-    void mark_faces(const Medium::Sizes& sizes, const double zmin, const int seed);
+    void mark_faces(const double zmin, const int seed);
 
     /** Mark Voronoi cells and nodes that are on the surface of material */
     void mark_cells_and_nodes();

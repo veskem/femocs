@@ -645,7 +645,7 @@ public:
     }
 
     /** Get i-th edge of the face */
-    SimpleEdge edge(const unsigned int i) const {
+    SimpleEdge edge(const int i) const {
         require(i >= 0 && i <= 2, "Invalid index: " + to_string(i));
         if (i == 0) return SimpleEdge(node[0], node[1]);
         if (i == 1) return SimpleEdge(node[0], node[2]);
@@ -671,7 +671,7 @@ public:
     }
 
     /** Get i-th edge of the element */
-    SimpleEdge edge(const unsigned int i) const {
+    SimpleEdge edge(const int i) const {
         require(i >= 0 && i <= 5, "Invalid index: " + to_string(i));
         if (i == 0) return SimpleEdge(node[0], node[1]);
         if (i == 1) return SimpleEdge(node[0], node[2]);
@@ -682,7 +682,7 @@ public:
     }
 
     /** Get i-th face of the element */
-    SimpleFace face(const unsigned int i) const {
+    SimpleFace face(const int i) const {
         require(i >= 0 && i <= 3, "Invalid index: " + to_string(i));
         if (i == 0) return SimpleFace(node[0], node[1], node[2]);
         if (i == 1) return SimpleFace(node[0], node[1], node[3]);

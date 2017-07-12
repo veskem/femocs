@@ -88,11 +88,11 @@ ENDIF()
 # ============= Compilation flags ==============
 # ==============================================
 
-# add OpenMP flag
+#add OpenMP flag
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
 # Specify warnings that are checked and that are omitted
-SET(WARNINGS "-Wall -Wpedantic -Wno-unused-local-typedefs -Wno-missing-include-dirs")
+SET(WARNINGS "-pedantic -Wall -Wextra -Wno-unused-local-typedefs -Wno-unused-parameter")
 
 # flags should not be set in CMAKE_CXX_FLAGS, because deal.II overrides many of them.
 # The deal.II flags can be seen from dealii/share/deal.II/Make.global_options

@@ -66,6 +66,9 @@ int Femocs::run(const double elfield, const string &message) {
     double tstart;                     // Variable used to measure the code execution time
     stringstream stream; stream << fixed << setprecision(3);
 
+    // TODO That message is not used!
+    conf.message = message;
+
     if (!prev_skip_calculations && MODES.WRITEFILE)
         MODES.WRITEFILE = false;
 
@@ -109,8 +112,8 @@ int Femocs::run(const double elfield, const string &message) {
 
     double delta_time = 0.05e-12;
 
-    for (int i = 0; i < 10; ++i) {
-        if (solve_transient_heat(bulk_mesh, laplace_solver, delta_time)) {
+    for (int i = 0; i < 3; ++i) {
+        if (solve_transient_heat(bulk_mesh, delta_time)) {
             force_output(bulk_mesh, vacuum_mesh);
             check_return(true, "Solving heat & continuity equation failed!");
         }
@@ -350,7 +353,7 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     return 0;
 }
 
-int Femocs::solve_transient_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver, double delta_time) {
+int Femocs::solve_transient_heat(const TetgenMesh& mesh, double delta_time) {
     if (!conf.heating) return 0;
     static int integer_timestep = 0;
     double temperature = 300.0;

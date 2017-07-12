@@ -449,7 +449,7 @@ void AtomReader::import_ckx(const string &file_name) {
     }
 }
 
-void AtomReader::import_dump(const string &file_name) {
+void AtomReader::import_dump(const string &) {
     require(false, "AtomReader::import_dump not implemented!");
 }
 

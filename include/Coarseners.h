@@ -42,8 +42,9 @@ public:
     /** Number of polygons written to the vtk file */
     virtual int get_n_polygons() const { return 0; }
 
-    /** Get the points for writing to vtk file */
-    virtual vector<Point3> get_points(const double zmin) { return vector<Point3>{}; }
+    /** Get the points for writing to vtk file
+     * @param zmin minimum z coordinate*/
+    virtual vector<Point3> get_points(const double) { return vector<Point3>{}; }
 
     /** Get nodes of polygons for writing to vtk file */
     virtual vector<vector<int>> get_polygons() { return vector<vector<int>>{vector<int>{}}; }
@@ -76,7 +77,7 @@ protected:
     double get_inf_cutoff() const { return -1e20; }
 
     /** Point in region? */
-    virtual inline bool in_region(const Point3 &point) const { return false; }
+    virtual inline bool in_region(const Point3 &) const { return false; }
 };
 
 
@@ -88,7 +89,7 @@ public:
 
 private:
     /** Point in anywhere? */
-    inline bool in_region(const Point3 &point) const { return true; }
+    inline bool in_region(const Point3 &) const { return true; }
 };
 
 /** Class to coarsen surface outside one infinite vertical cylinder */

@@ -101,9 +101,9 @@ private:
      * Functions to import atoms from different types of file.
      * @param file_name - path to file with atomic data
      */
-    void import_xyz(const string &file_name);
-    void import_ckx(const string &file_name);
-    void import_dump(const string &file_name);
+    void import_xyz(const string& file_name);
+    void import_ckx(const string& file_name);
+    void import_dump(const string& file_name);
 
     /** Reserve memory for data vectors */
     void reserve(const int n_atoms);

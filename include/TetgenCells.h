@@ -46,7 +46,7 @@ public:
     }
 
     /** Append cell to the mesh */
-    virtual void append(const SimpleCell<dim> &cell) {}
+    virtual void append(const SimpleCell<dim> &) {}
 
     /** Initialize markers with value */
     void init_markers(const int N, const int value) {
@@ -193,7 +193,7 @@ protected:
     vector<int> markers; ///< cell markers
 
     /** Return i-th cell */
-    virtual SimpleCell<dim> get_cell(const int i) const { return SimpleCell<dim>(); }
+    virtual SimpleCell<dim> get_cell(const int) const { return SimpleCell<dim>(); }
 
     /** Return number of readable nodes in the mesh */
     int get_n_nodes() const {
