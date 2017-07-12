@@ -11,9 +11,9 @@ DEALII_VER = 8.4.1
 CGAL_VER = 4.9
 
 ## Paths to the Fortran, C, C++ and deal-solver main files
-FMAIN = release/Test.f90
-CXXMAIN = release/Test.cpp
-CMAIN = release/Test.c
+FMAIN = build/Test.f90
+CXXMAIN = build/Test.cpp
+CMAIN = build/Test.c
 SOLVERMAIN = deal-solver/main/main.cc
 
 ## Number of cores used during compilation

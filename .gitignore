@@ -9,16 +9,14 @@ doc/*
 !doc/*.doxyfile
 dealii/*
 !dealii/dealii-*.tar.gz
+cgal/*
+!cgal/CGAL*.zip
 lib/libtet.a
 lib/libfemocs.a
 lib/libfemocs.mod
-lib/build/**/*
-out/*
-release/femocs*
-release/build/**/*
-cgal/*
-!cgal/CGAL*.zip
-Makefile
+build/femocs*
+build/build/**/*
 in/md.in
+out/*
 tmpfile
 

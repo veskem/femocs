@@ -1,3 +1,7 @@
+#############################################################################
+#           CMake file for building Femocs as a static library
+#            The file is supposed to be called by makefile.lib
+#############################################################################
 
 cmake_minimum_required (VERSION 2.8.8)
 

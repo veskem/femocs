@@ -8,61 +8,61 @@
 # Before running make alcyone, run
 #   module load PrgEnv-gnu gcc/5.1.0
 
-include release/makefile.defs
+include build/makefile.defs
 
 all: lib
 
 lib: femocs_lib
 femocs_lib:
-	make -f release/makefile.lib mode=Release
+	make -f build/makefile.lib mode=Release
 
 test_f90: femocs_lib femocs_f90
 femocs_f90:
-	make -f release/makefile.exec main=${FMAIN} cf=${FCFLAGS} compiler=${F90}
+	make -f build/makefile.exec main=${FMAIN} cf=${FCFLAGS} compiler=${F90}
 
 test_c: femocs_lib femocs_c
 femocs_c:
-	make -f release/makefile.exec main=${CMAIN} cf=${CCFLAGS} compiler=${CC}
+	make -f build/makefile.exec main=${CMAIN} cf=${CCFLAGS} compiler=${CC}
 
 solver: femocs_lib femocs_solver
 femocs_solver:
-	make -f release/makefile.exec main=${SOLVERMAIN} cf=${CXXCFLAGS} compiler=${CXX}
+	make -f build/makefile.exec main=${SOLVERMAIN} cf=${CXXCFLAGS} compiler=${CXX}
 
 release: femocs_lib femocs_release
 femocs_release:
-	make  -f release/makefile.exec main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
+	make  -f build/makefile.exec main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
 
 debug: femocs_debug
 femocs_debug:
-	make -f release/makefile.lib mode=Debug
-	make -s -f release/makefile.exec release/femocs.debug main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
+	make -f build/makefile.lib mode=Debug
+	make -s -f build/makefile.exec build/femocs.debug main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
 
 doc: femocs_doc
 femocs_doc:
-	make -f release/makefile.doc
+	make -f build/makefile.doc
 	
 ubuntu:
-	make -s -f release/makefile.cgal release
-	make -f release/makefile.install
+	make -s -f build/makefile.cgal release
+	make -f build/makefile.install
 
 taito:
-	make -s -f release/makefile.cgal taito
-	make -f release/makefile.install
+	make -s -f build/makefile.cgal taito
+	make -f build/makefile.install
 
 alcyone:
-	make -f release/makefile.install
+	make -f build/makefile.install
 
 clean:
-	make -s -f release/makefile.lib clean
-	make -s -f release/makefile.exec clean
-	make -s -f release/makefile.doc clean
+	make -s -f build/makefile.lib clean
+	make -s -f build/makefile.exec clean
+	make -s -f build/makefile.doc clean
 
 clean-all:
-	make -s -f release/makefile.lib clean-all
-	make -s -f release/makefile.exec clean-all
-	make -s -f release/makefile.install clean-all
-	make -s -f release/makefile.cgal clean-all
-	make -s -f release/makefile.doc clean-all
+	make -s -f build/makefile.lib clean-all
+	make -s -f build/makefile.exec clean-all
+	make -s -f build/makefile.install clean-all
+	make -s -f build/makefile.cgal clean-all
+	make -s -f build/makefile.doc clean-all
 
 help:
 	@echo ''

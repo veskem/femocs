@@ -1,8 +1,8 @@
 #############################################################################
-#      Makefile for installing in Ubuntu the Femocs external libraries 
+#    Makefile for obtaining and installing external libraries Femocs needs
 #############################################################################
 
-include release/makefile.defs
+include build/makefile.defs
 
 all: ${SOLVERMAIN} GETELEC/lib/libgetelec.a lib/libtet.a dealii/lib/libdeal_II.a
 

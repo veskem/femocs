@@ -2,7 +2,7 @@
 #                       Makefile for installing CGAL 
 #############################################################################
 
-include release/makefile.defs
+include build/makefile.defs
 
 all: release
 
