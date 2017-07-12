@@ -48,13 +48,13 @@ void SolutionReader::append_interpolation(const Solution& s) {
 
 // Get i-th Solution
 Solution SolutionReader::get_interpolation(const int i) const {
-    require(i >= 0 && i < (int)interpolation.size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + to_string(i));
     return interpolation[i];
 }
 
 // Set i-th Solution
 void SolutionReader::set_interpolation(const int i, const Solution& s) {
-    require(i >= 0 && i < (int)interpolation.size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + to_string(i));
     interpolation[i] = s;
 }
 
@@ -176,7 +176,7 @@ void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, co
 void SolutionReader::clean(const int coordinate, const double r_cut) {
     require(coordinate >= 0 && coordinate <= 4, "Invalid coordinate: " + to_string(coordinate));
     const int n_atoms = size();
-    const int n_bins = (int) n_atoms / 250;
+    const int n_bins = static_cast<int>(n_atoms / 250);
 
     if (n_bins <= 1 || r_cut < 0.1) return;
 
@@ -288,9 +288,9 @@ void SolutionReader::calc_statistics() {
  * ============== FIELD READER ==============
  * ========================================== */
 
-FieldReader::FieldReader() : radius1(0), radius2(0), E0(0), SolutionReader() {}
-FieldReader::FieldReader(LinearInterpolator* ip) : radius1(0), radius2(0), E0(0),
-        SolutionReader(ip, "elfield", "elfield_norm", "potential") {}
+FieldReader::FieldReader() : SolutionReader(), radius1(0), radius2(0), E0(0) {}
+FieldReader::FieldReader(LinearInterpolator* ip) : SolutionReader(ip, "elfield", "elfield_norm", "potential"),
+        radius1(0), radius2(0), E0(0) {}
 
 // Linearly interpolate solution atoms
 void FieldReader::interpolate(const double r_cut, const int component, const bool srt) {
@@ -360,7 +360,6 @@ void FieldReader::emission_line(const Point3& point, const Vec3& field,
 
     double rmin = 0.;
     int Nline = rline.size();
-    int static counter = 0;
     
     Vec3 direction = field;
     direction.normalize();
@@ -1096,10 +1095,10 @@ ForceReader::ForceReader(LinearInterpolator* ip) : SolutionReader(ip, "force", "
 
 // Replace the charge and force on the nanotip nodes with the one found with Voronoi cells
 void ForceReader::recalc_forces(const FieldReader &fields, const vector<Vec3>& areas, const double force_factor) {
-    require(areas.size() == fields.size(), "Mismatch of data sizes: " 
+    require(static_cast<int>(areas.size()) == fields.size(), "Mismatch of data sizes: "
         + to_string(areas.size()) + " vs " + to_string(fields.size()) );
 
-    for (int i = 0; i < areas.size(); ++i) {
+    for (size_t i = 0; i < areas.size(); ++i) {
         if (areas[i] == 0) continue;
         
         Vec3 field = fields.get_elfield(i);

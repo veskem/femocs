@@ -1,7 +1,6 @@
 /* Are we compiling this with a C++ compiler? */
 #ifdef __cplusplus 
 extern "C" {
-    class femocs::Femocs;
     typedef femocs::Femocs FEMOCS;
 
 /* From the C side, we use an opaque pointer. */

@@ -63,7 +63,7 @@ public:
 
     /** Append cell marker */
     void append_marker(const int &m) {
-        expect(get_n_markers() < markers.capacity(), "Allocated size of markers exceeded!");
+        expect(get_n_markers() < static_cast<int>(markers.capacity()), "Allocated size of markers exceeded!");
         markers.push_back(m);
     }
 
@@ -85,7 +85,7 @@ public:
         const int n_cells = cells.size();
 
         // In case of empty or non-aligned mask, copy all the cells
-        if (n_cells != mask.size()) {
+        if (n_cells != static_cast<int>(mask.size())) {
             init(n_cells);
             for (int i = 0; i < n_cells; ++i)
                 append(cells[i]);
@@ -106,7 +106,7 @@ public:
         const int n_markers = cells.get_n_markers();
 
         // In case of empty or non-aligned mask, copy all the cell markers
-        if (n_markers != mask.size()) {
+        if (n_markers != static_cast<int>(mask.size())) {
             init_markers(n_markers);
             for (int i = 0; i < n_markers; ++i)
                 append_marker(cells.get_marker(i));
@@ -129,7 +129,7 @@ public:
 
     /** Return i-th marker */
     int get_marker(const int i) const {
-        require(i >= 0 && i < get_n_markers(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < static_cast<int>(get_n_markers()), "Invalid index: " + to_string(i));
         return markers[i];
     }
 
@@ -150,7 +150,7 @@ public:
 
     /** Assign m-th marker */
     void set_marker(const int node, const int m) {
-        require(node >= 0 && node < get_n_markers(), "Invalid index: " + to_string(node));
+        require(node >= 0 && node < static_cast<int>(get_n_markers()), "Invalid index: " + to_string(node));
         markers[node] = m;
     }
 
@@ -216,9 +216,9 @@ protected:
 
     /** Output mesh in .vtk format */
     void write_vtk(const string &file_name, const int celltype) const {
-        const int n_markers = get_n_markers();
-        const int n_nodes = get_n_nodes();
-        const int n_cells = size();
+        const size_t n_markers = get_n_markers();
+        const size_t n_nodes = get_n_nodes();
+        const size_t n_cells = size();
 
         expect(n_nodes > 0, "Zero nodes detected!");
 

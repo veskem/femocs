@@ -94,7 +94,7 @@ public:
 private:
     vector<int> cluster;            ///< id of cluster the atom is located
     vector<int> coordination;       ///< coordinations of atoms
-    vector<Point3> previous_point;  ///< atom coordinates from previous run
+    vector<Point3> previous_points;  ///< atom coordinates from previous run
     vector<vector<int>> nborlist;   ///< list of closest neighbours
 
     /**

@@ -510,7 +510,7 @@ void LinearInterpolator::precompute_tetrahedra(const TetgenMesh &mesh) {
 
 // Check with barycentric coordinates whether the point is inside the i-th tetrahedron
 bool LinearInterpolator::point_in_tetrahedron(const Point3 &point, const int i) {
-    require(i >= 0 && i < (int)det0.size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < static_cast<int>(det0.size()), "Index out of bounds: " + to_string(i));
 
     // Ignore co-planar tetrahedra
     // no need to check because Tetgen guarantees non-co-planar tetrahedra
@@ -531,7 +531,8 @@ bool LinearInterpolator::point_in_tetrahedron(const Point3 &point, const int i) 
 
 // Calculate barycentric coordinates for point
 Vec4 LinearInterpolator::get_bcc(const Point3 &point, const int elem) const {
-    require(elem >= 0 && elem < (int)det0.size(), "Index out of bounds: " + to_string(elem));
+    require(elem >= 0 && elem < static_cast<int>(det0.size()),
+            "Index out of bounds: " + to_string(elem));
 
     Vec4 pt(point, 1);
     double bcc1 = det0[elem] * pt.dotProduct(det1[elem]);
@@ -602,7 +603,8 @@ int LinearInterpolator::locate_element(const Point3 &point, const int elem_guess
 
 // Calculate interpolation or all the data for point inside or near the elem-th tetrahedron
 Solution LinearInterpolator::get_solution(const Point3 &point, const int elem) const {
-    require(elem >= 0 && elem < (int)tetrahedra.size(), "Index out of bounds: " + to_string(elem));
+    require(elem >= 0 && elem < static_cast<int>(tetrahedra.size()),
+            "Index out of bounds: " + to_string(elem));
 
     // Get barycentric coordinates of point in tetrahedron
     Vec4 bcc = get_bcc(point, elem);
@@ -629,7 +631,8 @@ Solution LinearInterpolator::get_solution(const int i) const {
 
 // Calculate interpolation for vector data for point inside or near the elem-th tetrahedron
 Vec3 LinearInterpolator::get_vector(const Point3 &point, const int elem) const {
-    require(elem >= 0 && elem < (int)tetrahedra.size(), "Index out of bounds: " + to_string(elem));
+    require(elem >= 0 && elem < static_cast<int>(tetrahedra.size()),
+            "Index out of bounds: " + to_string(elem));
 
     // Get barycentric coordinates of point in tetrahedron
     Vec4 bcc = get_bcc(point, elem);
@@ -651,7 +654,8 @@ Vec3 LinearInterpolator::get_vector(const int i) const {
 
 // Calculate interpolation for scalar data for point inside or near the elem-th tetrahedron
 double LinearInterpolator::get_scalar(const Point3 &point, const int elem) const {
-    require(elem >= 0 && elem < (int)tetrahedra.size(), "Index out of bounds: " + to_string(elem));
+    require(elem >= 0 && elem < static_cast<int>(tetrahedra.size()),
+            "Index out of bounds: " + to_string(elem));
 
     // Get barycentric coordinates of point in tetrahedron
     Vec4 bcc = get_bcc(point, elem);

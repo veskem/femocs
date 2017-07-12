@@ -99,12 +99,12 @@ void Config::read_all(const string& file_name) {
     read_command("use_histclean", use_histclean);
     read_command("n_writefile", n_writefile);
 
-    vector<double> coarse_factors = {cfactor.amplitude, cfactor.r0_cylinder, cfactor.r0_sphere};
+    vector<double> coarse_factors = {cfactor.amplitude, (double)cfactor.r0_cylinder, (double)cfactor.r0_sphere};
     read_command("coarse_factor", coarse_factors);
 
     cfactor.amplitude = coarse_factors[0];
-    cfactor.r0_cylinder = (int)coarse_factors[1];
-    cfactor.r0_sphere = (int)coarse_factors[2];
+    cfactor.r0_cylinder = static_cast<int>(coarse_factors[1]);
+    cfactor.r0_sphere = static_cast<int>(coarse_factors[2]);
 }
 
 void Config::parse_file(const string& file_name) {

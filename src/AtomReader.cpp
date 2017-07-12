@@ -31,13 +31,13 @@ void AtomReader::reserve(const int n_atoms) {
 double AtomReader::calc_rms_distance(const double eps) {
     if (eps <= 0) return DBL_MAX;
 
-    const int n_atoms = size();
-    if (n_atoms != (int)previous_point.size())
+    const size_t n_atoms = size();
+    if (n_atoms != previous_points.size())
         return DBL_MAX;
     
     double sum = 0;
-    for (int i = 0; i < n_atoms; ++i)
-        sum += get_point(i).distance2(previous_point[i]);
+    for (size_t i = 0; i < n_atoms; ++i)
+        sum += get_point(i).distance2(previous_points[i]);
     
     rms_distance = sqrt(sum / n_atoms);
     return rms_distance;
@@ -47,11 +47,11 @@ void AtomReader::save_current_run_points(const double eps) {
     if (eps <= 0) return;
     const int n_atoms = size();
 
-    if (n_atoms != (int)previous_point.size())
-        previous_point.resize(n_atoms);
+    if (n_atoms != (int)previous_points.size())
+        previous_points.resize(n_atoms);
 
     for (int i = 0; i < n_atoms; ++i)
-        previous_point[i] = get_point(i);
+        previous_points[i] = get_point(i);
 }
 
 // Calculate list of close neighbours using Parcas diagonal neighbour list
@@ -296,7 +296,6 @@ int AtomReader::get_nborlist_size() const {
 // *** IMPORTERS: ***************
 
 void AtomReader::generate_nanotip(const double h, const double radius, const double latconst) {
-    const double radius2 = radius * radius;
     const double latconst2 = latconst * latconst;
     const double tau = 2 * M_PI;
     const double box_width = 1.5*radius;
@@ -400,9 +399,8 @@ void AtomReader::import_xyz(const string &file_name) {
     require(in_file.is_open(), "Did not find a file " + file_name);
 
     double x, y, z;
-    int type, id;
+    int type, n_atoms;
     string elem, line, dummy;
-    size_t n_atoms;
     istringstream iss;
 
     getline(in_file, line);     // Read number of atoms
@@ -413,13 +411,13 @@ void AtomReader::import_xyz(const string &file_name) {
 
     getline(in_file, line);     // Skip comments line
 
-    id = -1;
+    int id = 0;
     // keep storing values from the text file as long as data exists:
-    while (++id < n_atoms && getline(in_file, line)) {
+    while (id < n_atoms && getline(in_file, line)) {
         iss.clear();
         iss.str(line);
         iss >> elem >> x >> y >> z >> type;
-        append( Atom(id, Point3(x, y, z), type) );
+        append( Atom(id++, Point3(x, y, z), type) );
     }
 }
 
@@ -428,9 +426,8 @@ void AtomReader::import_ckx(const string &file_name) {
     require(in_file.is_open(), "Did not find a file " + file_name);
 
     double x, y, z;
-    int type, id;
+    int type, n_atoms;
     string line, dummy;
-    size_t n_atoms;
     istringstream iss;
 
     getline(in_file, line); 	// Read number of atoms
@@ -442,13 +439,13 @@ void AtomReader::import_ckx(const string &file_name) {
 
     getline(in_file, line);    // Skip comments line
 
-    id = -1;
+    int id = 0;
     // keep storing values from the text file as long as data exists:
-    while (++id < n_atoms && getline(in_file, line)) {
+    while (id < n_atoms && getline(in_file, line)) {
         iss.clear();
         iss.str(line);
         iss >> type >> x >> y >> z;
-        append( Atom(id, Point3(x, y, z), type) );
+        append( Atom(id++, Point3(x, y, z), type) );
     }
 }
 

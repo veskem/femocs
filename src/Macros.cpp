@@ -21,7 +21,7 @@ template<typename T, typename Op>
 vector<bool> __vector_compare(const vector<T> *v, const T entry) {
     vector<bool> mask(v->size());
     Op op;
-    for (int i = 0; i < v->size(); ++i)
+    for (size_t i = 0; i < v->size(); ++i)
         mask[i] = op((*v)[i], entry);
 
     return mask;

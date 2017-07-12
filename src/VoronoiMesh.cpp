@@ -238,7 +238,7 @@ int VoronoiMesh::get_seedcell() {
 // Mark the cell and faces that are certainly on the surface
 int VoronoiMesh::mark_seed() {
     const int cell_max = nodes.indxs.surf_end;
-    int seedface, seedcell = get_seedcell();
+    int seedface = -1, seedcell = get_seedcell();
 
     // mark the cell that surrounds the up-most atom
     voros.set_marker(seedcell, TYPES.ZMAX);
@@ -250,7 +250,7 @@ int VoronoiMesh::mark_seed() {
     // mark the faces that are on the upper half of the cell
 
     vector<int> cell_nbors = cell.get_neighbours();
-    for (int i = 0; i < cell_nbors.size(); ++i)
+    for (size_t i = 0; i < cell_nbors.size(); ++i)
         if (cell_nbors[i] > cell_max) {
             VoronoiFace face = cell[i];
             // face is on the upper half of the cell
@@ -260,7 +260,7 @@ int VoronoiMesh::mark_seed() {
                 vfaces.set_marker(face.id, TYPES.SURFACE);
             }
         }
-
+    require(seedface >= 0, "Finding seed Voronoi facet failed!");
     return seedface;
 }
 
@@ -294,7 +294,7 @@ void VoronoiMesh::mark_faces(const Medium::Sizes& sizes, const double zmin, cons
 
     // Mark the faces around the seed face
     vector<int> neighbours = vfaces.get_neighbours(seed);
-    for (int i = 0; i < neighbours.size(); ++i) {
+    for (size_t i = 0; i < neighbours.size(); ++i) {
         int face = neighbours[i];
         if (vfaces.get_marker(face) == TYPES.NONE) {
             // Mark the face as surface

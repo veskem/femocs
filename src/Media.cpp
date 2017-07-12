@@ -209,8 +209,6 @@ void Media::faces_clean(const TetgenMesh& mesh, const double r_cut) {
 
 // Extract the surface atoms whose Voronoi cells are exposed to vacuum
 bool Media::voronoi_clean(vector<Vec3>& areas, const double radius, const double latconst, const string& mesh_quality) {
-    const int n_atoms = size();
-
     // Separate nanotip from the whole surface
     Media nanotip;
     get_nanotip(nanotip, radius);

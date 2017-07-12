@@ -129,20 +129,20 @@ void TetgenNodes::calc_statistics() {
 
 // Copy the nodes from another mesh
 void TetgenNodes::copy(const TetgenNodes& nodes, const vector<bool>& mask) {
-    const int n_nodes = nodes.size();
+    const size_t n_nodes = nodes.size();
     copy_statistics(nodes);
 
     // In case of empty or non-aligned mask, copy all the nodes
-    if (n_nodes != (int)mask.size()) {
+    if (n_nodes != mask.size()) {
         init(n_nodes);
-        for (int i = 0; i < n_nodes; ++i)
+        for (size_t i = 0; i < n_nodes; ++i)
             append(nodes[i]);
 
     // In case of aligned mask, copy only the nodes specified by the mask
     } else {
         const int n_mask = vector_sum(mask);
         init(n_mask);
-        for (int i = 0; i < n_nodes; ++i)
+        for (size_t i = 0; i < n_nodes; ++i)
             if (mask[i]) append(nodes[i]);
     }
 }
@@ -323,13 +323,13 @@ void TetgenFaces::calc_norms_and_areas() {
 
 // Return the normal of i-th triangle
 Vec3 TetgenFaces::get_norm(const int i) const {
-    require(i >= 0 && i < (int)norms.size(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < static_cast<int>(norms.size()), "Invalid index: " + to_string(i));
     return norms[i];
 }
 
 // Return the area of i-th triangle
 double TetgenFaces::get_area(const int i) const {
-    require(i >= 0 && i < (int)areas.size(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < static_cast<int>(areas.size()), "Invalid index: " + to_string(i));
     return areas[i];
 }
     

@@ -22,8 +22,8 @@ namespace femocs {
 /** Virtual class for holding data that is common to Voronoi cell and Voronoi face */
 class Voronoi {
 public:
-    Voronoi() : data(NULL), id(-1) {}
-    Voronoi(tetgenio* data, const int i) : data(data), id(i) {}
+    Voronoi() : id(-1), data(NULL) {}
+    Voronoi(tetgenio* data, const int i) : id(i), data(data) {}
     virtual ~Voronoi() {}
 
     /** Get number of faces that make the cell */
@@ -161,7 +161,7 @@ public:
     }
 
     /** Accessor for accessing the i-th cell */
-    T operator [](size_t i) const {
+    T operator [](const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         return T(tetio, i);
     }
@@ -175,8 +175,8 @@ protected:
     static constexpr int n_coordinates = 3;  ///< number of spatial coordinates
     static constexpr int celltype = 7;       ///< vtk cell = polygon
 
-    int* _n_cells;        ///< number of cells in mesh data
     tetgenio* tetio;     ///< mesh data that has been processed by Tetgen
+    int* _n_cells;       ///< number of cells in mesh data
     vector<int> markers; ///< cell markers
 
     /** Return number of readable nodes in the mesh */
@@ -197,7 +197,7 @@ protected:
 
     /** Write the header and point data of Voronois in .vtk format */
     void write_vtk(const string &file_name) const {
-        const int n_nodes = get_n_nodes();
+        const size_t n_nodes = get_n_nodes();
 
         expect(n_nodes > 0, "Zero nodes detected!");
 
@@ -237,12 +237,12 @@ public:
     void calc_centroids();
 
     vector<int> get_neighbours(const int i) const {
-        require(i >= 0 && i < neighbours.size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < static_cast<int>(neighbours.size()), "Invalid index: " + to_string(i));
         return neighbours[i];
     }
 
     Vec3 get_centroid(const int i) const {
-        require(i >= 0 && i < centroids.size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < static_cast<int>(centroids.size()), "Invalid index: " + to_string(i));
         return centroids[i];
     }
 

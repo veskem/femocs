@@ -205,6 +205,7 @@ int main(int argc, char **argv) {
     string filename = "in/md.in";
     string mode = "default";
     char arg[128];
+    int success = 0;
 
     // read the running mode
     if (argc >= 2) {
@@ -247,7 +248,7 @@ int main(int argc, char **argv) {
             printf("  generate    generate and use perfectly symmetric nanotip without crystallographic properties\n");
 
             file.close();
-            system("rm -rf tmpfile");
+            success = system("rm -rf tmpfile");
             exit(0);
         }
 
@@ -257,9 +258,8 @@ int main(int argc, char **argv) {
 
     cout << "\n> running FEMOCS test program in a mode:  " << mode << endl;
 
-    int success = 0;
     femocs::Femocs femocs(filename);
-    system("rm -rf tmpfile");
+    success = system("rm -rf tmpfile");
 
     string cmd1 = "infile"; string infile = "";
     success = femocs.parse_command(cmd1, infile);

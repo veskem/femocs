@@ -224,7 +224,7 @@ void TetgenMesh::get_pseudo_vorocells(vector<vector<unsigned int>>& cells) const
         expect(tetnode >= node_min && tetnode <= node_max, "Hexahedron " + to_string(i) +
                 " is not marked by the tetrahedral node: " + to_string(tetnode));
 
-        for (unsigned int node : hexahedra[i])
+        for (int node : hexahedra[i])
             if ( node != tetnode && nodes.get_marker(node) >= TYPES.EDGECENTROID )
                 cells[tetnode].push_back(node);
     }
@@ -497,7 +497,7 @@ bool TetgenMesh::mark_nodes() {
 
     // Mark the bulk nodes
     neighbours = nborlist[nodes.indxs.bulk_start];
-    for (int i = 0; i < neighbours.size(); ++i) {
+    for (size_t i = 0; i < neighbours.size(); ++i) {
         node = neighbours[i];
         if (nodes.get_marker(node) == TYPES.NONE) {
             nodes.set_marker(node, TYPES.BULK);
@@ -507,7 +507,7 @@ bool TetgenMesh::mark_nodes() {
     
     // Mark the vacuum nodes
     neighbours = nborlist[nodes.indxs.vacuum_start];
-    for (int i = 0; i < neighbours.size(); ++i) {
+    for (size_t i = 0; i < neighbours.size(); ++i) {
         node = neighbours[i];
         if (nodes.get_marker(node) == TYPES.NONE) {
             nodes.set_marker(node, TYPES.VACUUM);
@@ -537,7 +537,6 @@ bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<int>>& nborl
     const int n_nbor_layers = 4;  // number of nearest tetrahedra whose nodes will act as a seed
     const int n_nodes = nodes.size();
     const double max_rank = 100.0;
-    double t0;
 
     // initialise all the ranks to 0
     ranks = vector<int>(n_nodes);
@@ -548,7 +547,7 @@ bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<int>>& nborl
 
     // calculate the ranks from vacuum side
     vector<int> neighbours = nborlist[nodes.indxs.vacuum_start];
-    for (int i = 0; i < neighbours.size(); ++i) {
+    for (size_t i = 0; i < neighbours.size(); ++i) {
         int node = neighbours[i];
         if (ranks[node] != -1 && ranks[node]++ == 0)
             neighbours.insert(neighbours.end(), nborlist[node].begin(), nborlist[node].end());
@@ -624,7 +623,7 @@ bool TetgenMesh::mark_nodes_vol2() {
 
     // Mark the vacuum nodes
     vector<int> neighbours = nborlist[nodes.indxs.vacuum_start];
-    for (int i = 0; i < neighbours.size(); ++i) {
+    for (size_t i = 0; i < neighbours.size(); ++i) {
         node = neighbours[i];
         if (nodes.get_marker(node) == TYPES.NONE) {
             nodes.set_marker(node, TYPES.VACUUM);
@@ -636,7 +635,7 @@ bool TetgenMesh::mark_nodes_vol2() {
     // Mark the bulk nodes
     // no need to check the node ranks as vacuum nodes are all already marked
     neighbours = nborlist[nodes.indxs.bulk_start];
-    for (int i = 0; i < neighbours.size(); ++i) {
+    for (size_t i = 0; i < neighbours.size(); ++i) {
         node = neighbours[i];
         if (nodes.get_marker(node) == TYPES.NONE) {
             nodes.set_marker(node, TYPES.BULK);
