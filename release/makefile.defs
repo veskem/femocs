@@ -2,47 +2,50 @@
 #               Definitions used during the make of Femocs
 #############################################################################
 
+## Specify whether to use CGAL or not
+LIBCGAL =
+#LIBCGAL = -lCGAL
+
 ## Deal.II and CGAL versions
 DEALII_VER = 8.4.1
 CGAL_VER = 4.9
 
 ## Paths to the Fortran, C, C++ and deal-solver main files
-MAIN_F90 = release/Test.f90
-MAIN_CPP = release/Test.cpp
-MAIN_C = release/Test.c
-MAIN_SOLVER = deal-solver/main/main.cc
+FMAIN = release/Test.f90
+CXXMAIN = release/Test.cpp
+CMAIN = release/Test.c
+SOLVERMAIN = deal-solver/main/main.cc
 
 ## Number of cores used during compilation
 NPROCS = 4
 
-## Specify whether to use CGAL or not
-#LIBCGAL=
-LIBCGAL=-lCGAL
-
-## Fortran and C/C++ path flags
-CCFLAGS = -Iinclude -Ideal-solver/include -IGETELEC/modules -Idealii/include \
--Llib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu -LGETELEC/lib -std=c++11
-FCFLAGS = -Iinclude -Ilib -Llib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu -LGETELEC/lib
+## Fortran, C, C++ and their common path flags
+FCFLAGS = "-Ilib"
+CCFLAGS =
+CXXCFLAGS = "-Ideal-solver/include -IGETELEC/modules -Idealii/include -std=c++11"
+CFLAGS = -Iinclude -Llib -LGETELEC/lib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu -Lcgal/lib64
 
 ## Optimization and warnings
-OPT = "-O3 -w"
-OPT_DEBUG = "-g -O0 -Wall -Wpedantic -Wno-unused-local-typedefs"
+OPT = -O3 -w
+OPT_DEBUG = -g -O1 -Wall -Wpedantic -Wno-unused-local-typedefs
 
 ## Fortran, C++ and C Compilers
 F90 = gfortran
 CXX = c++
 CC = gcc
 
-## Linker flags for
+## Library flags for
+##  All systems
+LFLAGS = -lfemocs -ltet -ldeal_II ${LIBCGAL} -lgetelec -lslatec -fopenmp
 ##  Ubuntu desktop
-LFLAGS = -lfemocs -ltet -ldeal_II ${LIBCGAL} -lgetelec -lslatec -fopenmp -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -lgfortran
+EXTLFLAGS = -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -lgfortran
 ##  CSC Taito cluser
-#LFLAGS = -lfemocs -ltet -ldeal_II ${LIBCGAL} -fopenmp -lz -lstdc++
+#EXTLFLAGS = -lz -lstdc++
 ##  Alcyone
-#LFLAGS = -lfemocs -ltet -ldeal_II ${LIBCGAL} -fopenmp -llapack -lnetcdf_c++
+#EXTLFLAGS = -llapack -lnetcdf_c++
 
 ## Flags for Tetgen
-TETGEN_FLAGS = -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}
+TETGEN_FLAGS = -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=../../lib -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}
 
 ## Flags for Deal.II
 DEALII_FLAGS = -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}\

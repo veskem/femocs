@@ -1,0 +1,25 @@
+#############################################################################
+#     Makefile for building Femocs executable from given main funciton
+#############################################################################
+
+include release/makefile.defs
+
+all: release/femocs
+
+release/femocs: release/femocs.o
+	${compiler} $< ${OPT} ${CFLAGS} ${cf} ${LFLAGS} ${EXTLFLAGS} -o $@
+
+release/femocs.o: lib/libfemocs.a ${main}
+	${compiler} -c ${main} ${OPT} ${CFLAGS} ${cf} -o $@
+	
+release/femocs.debug: release/femocs.debug.o
+	${compiler} $< ${OPT_DEBUG} ${CFLAGS} ${cf} ${LFLAGS} ${EXTLFLAGS} -o $@
+
+release/femocs.debug.o: lib/libfemocs.a ${main}
+	${compiler} -c ${main} ${OPT_DEBUG} ${CFLAGS} ${cf} -o $@
+
+clean:
+	rm -f release/femocs* include/*.o src/*.o
+
+clean-all:
+	rm -f release/femocs* include/*.o src/*.o

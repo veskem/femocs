@@ -4,33 +4,30 @@
 
 include release/makefile.defs
 
-all: ${MAIN_SOLVER} lib/libtet.a dealii/lib/libdeal_II.a
+all: ${SOLVERMAIN} GETELEC/lib/libgetelec.a lib/libtet.a dealii/lib/libdeal_II.a
 
 lib/libtet.a:
 	cd tetgen; rm -rf build; mkdir -p build
 	cd tetgen/build; cmake ${TETGEN_FLAGS} ..; make -j${NPROCS}
-	cd tetgen; mv build/libtet.a ../lib; rm -rf build
+	rm -rf tetgen/build
 
 dealii/lib/libdeal_II.a: dealii/dealii-${DEALII_VER}.tar.gz
 	cd dealii; tar -xvf dealii-${DEALII_VER}.tar.gz; mkdir -p dealii-${DEALII_VER}/build
 	cd dealii/dealii-*/build; cmake ${DEALII_FLAGS} -DDEAL_II_STATIC_EXECUTABLE=ON ..; make -j${NPROCS} install
 	cd dealii; rm -rf examples dealii-${DEALII_VER};
 
-dealii/lib/libdeal_II.so.${DEALII_VER}: dealii/dealii-${DEALII_VER}.tar.gz
-	cd dealii; tar -xvf dealii-${DEALII_VER}.tar.gz; mkdir -p dealii-${DEALII_VER}/build
-	cd dealii/dealii-*/build; cmake ${DEALII_FLAGS} ..; make -j${NPROCS} install
-	cd dealii; rm -rf examples lib/libdeal_II.so dealii-${DEALII_VER};
-
 dealii/dealii-${DEALII_VER}.tar.gz:
 	mkdir -p dealii; cd dealii; wget https://github.com/dealii/dealii/releases/download/v${DEALII_VER}/dealii-${DEALII_VER}.tar.gz
 
-${MAIN_SOLVER}: 
+GETELEC/lib/libgetelec.a:
+	cd GETELEC; make
+
+${SOLVERMAIN}: 
 	git submodule init
 	git submodule update --recursive
-	cd GETELEC; make;
 
 clean:
 	rm -rf lib/libtet.a dealii/lib/*
 
 clean-all:
-	rm -rf lib/libtet.a tetgen/build dealii/* heating
+	rm -rf lib/libtet.a tetgen/build dealii/* deal-solver GETELEC

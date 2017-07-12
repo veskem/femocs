@@ -1,21 +1,21 @@
 #############################################################################
-#               Makefile for building Femocs as a library
+#            Makefile for building Femocs as a static library
 #############################################################################
 
 include release/makefile.defs
 
 all: lib/libfemocs.a
 
-lib/libfemocs.a: lib/build/Makefile src/* include/* deal-solver/source/* deal-solver/include/*
-	cd lib/build; make -j${NPROCS}
+lib/libfemocs.a: release/build/Makefile src/* include/* deal-solver/source/* deal-solver/include/*
+	cd release/build; make -j${NPROCS}
 
-lib/build/Makefile:
-	cd lib; mkdir -p build;
-	cd lib/build; rm -rf *; cmake -DCMAKE_BUILD_TYPE=${mode} -DLIBCGAL=${LIBCGAL} \
+release/build/Makefile:
+	cd release; mkdir -p build;
+	cd release/build; rm -rf *; cmake -DCMAKE_BUILD_TYPE=${mode} -DLIBCGAL=${LIBCGAL} \
 -DCMAKE_Fortran_COMPILER=${F90} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} ..;
 
 clean:
-	rm -rf lib/libfemocs.a lib/libfemocs.mod lib/build
-    
+	rm -rf lib/libfemocs.a lib/libfemocs.mod release/build
+
 clean-all:
-	rm -rf lib/libfemocs.a lib/libfemocs.mod lib/build
+	rm -rf lib/libfemocs.a lib/libfemocs.mod release/build

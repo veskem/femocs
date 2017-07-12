@@ -14,7 +14,7 @@ lib/libfemocs.a
 lib/libfemocs.mod
 lib/build/**/*
 out/*
-release/femocs
+release/femocs*
 release/build/**/*
 cgal/*
 !cgal/CGAL*.zip
