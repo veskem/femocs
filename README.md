@@ -13,7 +13,8 @@ FEMOCS can be used both in static and dynamic simulations. For the latter ones F
 FEMOCS is an open-source and freely available code. The details about its algorithms are described in a preprint in [arXiv](https://arxiv.org/abs/1706.09661).
 
 When publishing results obtained with the help of FEMOCS, please cite
-Veske, M., Kyritsakis, A., Eimre, K., Zadin, V., Aabloo, A. and Djurabekova, F., 2017. Dynamic coupling of a finite element solver to large-scale atomistic simulations. arXiv preprint arXiv:1706.09661.
+
+    Veske, M., Kyritsakis, A., Eimre, K., Zadin, V., Aabloo, A. and Djurabekova, F., 2017. Dynamic coupling of a finite element solver to large-scale atomistic simulations. arXiv preprint arXiv:1706.09661.
 
 ## Instructions to build FEMOCS
 All the build options are displayed with
@@ -51,9 +52,9 @@ For test purposes FEMOCS could also be built as an executable. The options for t
 In **release** mode FEMOCS is fully optimized and emulates a static simulation. Running the code in **debug** mode minimizes optimization and allows to follow the simulation line-by-line by using [GDB](https://en.wikipedia.org/wiki/GNU_Debugger), [Eclipse debugger](http://www.eclipse.org/cdt/) or their analogues.
     
 ## Testing and running FEMOCS
-The behavior of FEMOCS can be changed by changing the main files in **build** directory or modifing the configuration script. The sample script that also has PARCAS and HELMOD commands inside is located in **in/md.in**. 
+The behavior of FEMOCS can be changed by changing the main files in **build** directory or by modifing the configuration script. The sample script that also has PARCAS and HELMOD commands inside is located in **in/md.in**. 
 
-FEMOCS executable that was built in   mode should be run in FEMOCS main directory by
+FEMOCS executable that was built in **debug**, **release**, **solver**, **test_f90** or **test_c** mode should be run in FEMOCS main directory by
 
     $ ./build/femocs        # release, solver, test_f90 or test_c mode
     $ ./build/femocs.debug  # debug mode
@@ -62,7 +63,6 @@ FEMOCS executable that was built in   mode should be run in FEMOCS main director
 During the run FEMOCS writes couple of files to the **out** folder if *n_filewrite > 0* in configuration file. Those files can be used to estimate the validity of the results. Files with extension *xyz* and *movie* contain atomistic data and can be visualized in [OVITO](https://ovito.org/index.php/download). *movie* files contain the data from many timesteps, *xyz* files are the snapshots of a last full run. The files ending with *vtk* contain the geometric data (mesh elements, faces etc) that can be visualized in [ParaView](http://www.paraview.org/download/).
 
 ## Documentation
-To build FEMOCS documentation, first make sure [Doxygen](http://www.stack.nl/~dimitri/doxygen/download.html) is installed in the system. The documentation in pdf and html format will be generated with command
+To build FEMOCS documentation, first make sure [Doxygen](http://www.stack.nl/~dimitri/doxygen/download.html) is installed in the system. The documentation in *pdf* and *html* format will be generated with command
 
     $ make doc
-
