@@ -202,22 +202,25 @@ void Laplace<dim>::assemble_system() {
 
 	typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(), endc = dof_handler.end();
 
+	// Iterate over all cells (quadrangles in 2D, hexahedra in 3D) of the mesh
 	for (; cell != endc; ++cell) {
 		fe_values.reinit(cell);
 		cell_matrix = 0;
 		cell_rhs = 0;
 
+		// Assemble system matrix elements corresponding the current cell
 		for (unsigned int q = 0; q < n_q_points; ++q) {
 			for (unsigned int i = 0; i < dofs_per_cell; ++i) {
 				for (unsigned int j = 0; j < dofs_per_cell; ++j)
 					cell_matrix(i, j) += (fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
 							* fe_values.JxW(q));
 
-				//cell_rhs(i) += (fe_values.shape_value(i, q_index) * right_hand_side * fe_values.JxW(q_index));
+				// Uncomment the next line to obtain Poisson equation
+				//cell_rhs(i) += (fe_values.shape_value(i, q_index) * charge_density * fe_values.JxW(q_index));
 			}
 		}
 
-		// Neumann boundary condition at faces with BoundaryId::vacuum_top
+		// Apply Neumann boundary condition at faces on top of vacuum domain
 		for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
 			if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == BoundaryId::vacuum_top) {
 				fe_face_values.reinit(cell, f);
@@ -231,6 +234,7 @@ void Laplace<dim>::assemble_system() {
 			}
 		}
 
+		// Add the current cell matrix and rhs entries to the system sparse matrix
 		cell->get_dof_indices(local_dof_indices);
 		for (unsigned int i = 0; i < dofs_per_cell; ++i) {
 			for (unsigned int j = 0; j < dofs_per_cell; ++j)
@@ -240,6 +244,8 @@ void Laplace<dim>::assemble_system() {
 		}
 	}
 
+	// Apply Dirichlet boundary (zero potential) condition on the copper surface
+	// ZeroFunction<dim>() == zero
 	std::map<types::global_dof_index, double> boundary_values;
 	VectorTools::interpolate_boundary_values(dof_handler, BoundaryId::copper_surface,
 			ZeroFunction<dim>(), boundary_values);

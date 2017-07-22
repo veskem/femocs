@@ -29,12 +29,16 @@ template<int dim> class CurrentsAndHeatingStationary;
 
 using namespace dealii;
 
+/** @brief Class to solve Laplace equation in 2D or 3D
+ * It is inspired by the step-3 of Deal.II tutorial
+ * https://www.dealii.org/8.5.0/doxygen/deal.II/step_3.html
+ */
 template<int dim>
 class Laplace {
 public:
     Laplace();
 
-    /** runs the calculation */
+    /** Runs the calculation: setup and assemble system, solve Laplace equation, output the results*/
     void run();
 
     /** getter for the mesh */
@@ -46,9 +50,8 @@ public:
     void set_applied_efield(const double applied_field_);
 
     /**
-     * Imports mesh from file and optionally outputs it to a .vtk file
-     * Additionally sets the boundary indicators corresponding to vacuum
-     * @param file_name file from the mesh is imported
+     * Imports mesh from file and sets the vacuum boundary indicators
+     * @param file_name name of the mesh file
      */
     void import_mesh_from_file(const std::string file_name);
 
@@ -56,10 +59,9 @@ public:
      * imports mesh directly from vertex and cell data and sets the boundary indicators
      * @return true if success, otherwise false
      */
-    bool import_mesh_directly(std::vector<Point<dim> > vertices,
-            std::vector<CellData<dim> > cells);
+    bool import_mesh_directly(std::vector<Point<dim> > vertices, std::vector<CellData<dim> > cells);
 
-    /** outputs the mesh to .vtk file */
+    /** outputs the mesh to file in .vtk format */
     void output_mesh(const std::string file_name = "vacuum_mesh.vtk");
 
     /** get the electric field at the specified point */
@@ -83,29 +85,38 @@ public:
     std::vector<Tensor<1, dim>> get_efield(const std::vector<int> &cell_indexes,
             const std::vector<int> &vert_indexes);
 
-    /** sets up the system: calculates the sparse matrix dimensions, etc */
+    /** @brief set up dynamic sparsity pattern
+     *  a) define optimal structure for sparse matrix representation,
+     *  b) allocate memory for sparse matrix and solution and right-hand-side (rhs) vector
+     */
     void setup_system();
-    /** assembles the matrix equation */
+
+    /** @brief assemble the matrix equation
+     * Calculate sparse matrix elements and right-hand-side vector
+     * according to the Laplace equation weak formulation and to the boundary conditions.
+     */
     void assemble_system();
 
-    /** solves the matrix equation using conjugate gradients
+    /** solves the matrix equation using conjugate gradient method
      * @param max_iter maximum number of iterations allowed
-     * @param tol tolerance
+     * @param tol tolerance of the solution
      * @param pc_ssor flag to use SSOR preconditioner
-     * @param ssor_param parameter to SSOR preconditioner, 1.2 is known to work well with laplace
+     * @param ssor_param   parameter to SSOR preconditioner. 1.2 is known to work well with laplace.
+     *                     its fine tuning optimises calculation time
      */
     void solve(int max_iter = 2000, double tol = 1e-9, bool pc_ssor = true,
             double ssor_param = 1.2);
 
-    /** outputs the results to a specified file */
-    void output_results(
-            const std::string filename = "field_solution.vtk") const;
-    /** equivalent to output_results */
+    /** Outputs the results (electric potential and field) to a specified file in vtk format */
+    void output_results(const std::string filename = "field_solution.vtk") const;
+
+    /** Outputs the results (electric potential and field) to a specified file in vtk format.
+     * Identical to output_results */
     void write(const std::string filename = "field_solution.vtk") const {
         output_results(filename);
     };
 
-    /** string stream prints the statistics about the system */
+    /** Print the statistics about the mesh and # degrees of freedom */
     friend std::ostream& operator <<(std::ostream &os, const Laplace<dim>& d) {
         os << "#elems=" << d.triangulation.n_active_cells() << ",\t#faces="
                 << d.triangulation.n_active_faces() << ",\t#edges="
@@ -116,8 +127,8 @@ public:
     }
 
 private:
-    static constexpr unsigned int shape_degree = 1;
-    static constexpr unsigned int quadrature_degree = shape_degree + 1;
+    static constexpr unsigned int shape_degree = 1;   ///< degree of the shape functions (linear, quadratic etc elements)
+    static constexpr unsigned int quadrature_degree = shape_degree + 1;  ///< degree of the Gaussian numerical integration
 
     static constexpr double applied_efield_default = 2.0;
     double applied_efield;
@@ -126,11 +137,11 @@ private:
     FE_Q<dim> fe;
     DoFHandler<dim> dof_handler;
 
-    SparsityPattern sparsity_pattern;
-    SparseMatrix<double> system_matrix;
+    SparsityPattern sparsity_pattern;     ///< structure for sparse matrix representation
+    SparseMatrix<double> system_matrix;   ///< system matrix of matrix equation
 
-    Vector<double> solution;
-    Vector<double> system_rhs;
+    Vector<double> solution;              ///< resulting electric potential in the mesh nodes
+    Vector<double> system_rhs;            ///< right-hand-side of the matrix equation
 
     friend class CurrentsAndHeating<dim> ;
     friend class CurrentsAndHeatingStationary<dim> ;

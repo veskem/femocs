@@ -30,17 +30,28 @@ template<int dim> class Laplace;
 
 using namespace dealii;
 
-
+/** @brief Class to solve time dependent heat and continuity equations in 2D or 3D to obtain temperature and current density distribution in material.
+ * It is inspired by the step-26 of Deal.II tutorial that includes only heat equation.
+ * https://www.dealii.org/8.5.0/doxygen/deal.II/step_26.html
+ * Current density calculation is inspired by the Laplace equation, which is demonstrated in the step-3 of Deal.II tutorial
+ * https://www.dealii.org/8.5.0/doxygen/deal.II/step_3.html
+ */
 template<int dim>
 class CurrentsAndHeating {
 public:
 
     /**
-     * Initializes the object
-     * NB: pq will be set as NULL, so it must be set separately
+     * Constructor for CurrentsAndHeating
+     * Physical quantities will be set as NULL and default timestep will be used,
+     * so they must be set separately
      */
     CurrentsAndHeating();
 
+    /**
+     * Constructor for CurrentsAndHeating
+     * @param time_step_  timestep of time domain integration [sec]
+     * @param pq_         object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
+     */
     CurrentsAndHeating(double time_step_, PhysicalQuantities *pq_);
 
     /**
@@ -56,37 +67,80 @@ public:
     bool import_mesh_directly(std::vector<Point<dim> > vertices,
             std::vector<CellData<dim> > cells);
 
-    /** Sets up degrees of freedom and the sparsity pattern */
+    /** @brief set up dynamic sparsity pattern for current density calculation
+     */
     void setup_current_system();
+
+    /** @brief set up dynamic sparsity pattern for temperature calculation
+     */
     void setup_heating_system();
 
+    /** @brief assemble the matrix equation for current density calculation ()
+     * Calculate sparse matrix elements and right-hand-side vector
+     * according to the continuity equation weak formulation and to the boundary conditions.
+     */
     void assemble_current_system();
+
+    /** @brief assemble the matrix equation for temperature calculation using Crank-Nicolson time integration method
+     * Calculate sparse matrix elements and right-hand-side vector
+     * according to the time dependent heat equation weak formulation and to the boundary conditions.
+     */
     void assemble_heating_system_crank_nicolson();
+
+    /** @brief assemble the matrix equation for temperature calculation using implicit Euler time integration method
+     * Calculate sparse matrix elements and right-hand-side vector
+     * according to the time dependent heat equation weak formulation and to the boundary conditions.
+     */
     void assemble_heating_system_euler_implicit();
 
-    /** solves the current/heat matrix equation using conjugate gradients
+    /** solves the matrix equation for current density calculations using conjugate gradient method
      * @param max_iter maximum number of iterations allowed
-     * @param tol tolerance
+     * @param tol tolerance of the solution
      * @param pc_ssor flag to use SSOR preconditioner
-     * @param ssor_param parameter to SSOR preconditioner, 1.2 is known to work well with laplace
+     * @param ssor_param   parameter to SSOR preconditioner. 1.2 is known to work well with laplace.
+     *                     its fine tuning optimises calculation time
      */
     unsigned int solve_current(int max_iter = 2000, double tol = 1e-9, bool pc_ssor = true,
             double ssor_param = 1.2);
+
+    /** solves the matrix equation for temperature calculations using conjugate gradient method
+     * @param max_iter maximum number of iterations allowed
+     * @param tol tolerance of the solution
+     * @param pc_ssor flag to use SSOR preconditioner
+     * @param ssor_param   parameter to SSOR preconditioner. 1.2 is known to work well with laplace.
+     *                     its fine tuning optimises calculation time
+     */
     unsigned int solve_heat(int max_iter = 2000, double tol = 1e-9, bool pc_ssor = true,
             double ssor_param = 1.2);
 
-    /** outputs the results to a specified file */
+    /** Output the electric potential [V] and field [V/nm] to a specified file in vtk format */
     void output_results_current(const std::string filename = "current_solution.vtk") const;
+
+    /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] to a specified file in vtk format */
     void output_results_heating(const std::string filename = "heating_solution.vtk") const;
 
-    /** Set the electric field boundary condition on copper-vacuum boundary */
+    /** Set the electric field boundary condition on copper-vacuum boundary.
+     * The electric field is extracted directly from the Laplace solver.
+     */
     void set_electric_field_bc(const Laplace<dim> &laplace);
+
+    /** Set the electric field boundary condition on copper-vacuum boundary.
+     * The electric fields must be on the centroids of the vacuum-material boundary faces
+     * in the order specified in the get_surface_nodes() method.
+     */
     void set_electric_field_bc(const std::vector<double> &e_fields);
+
+    /** Set the electric field boundary condition on copper-vacuum boundary.
+     * The electric field on every face will be the same. */
     void set_electric_field_bc(const double uniform_efield);
 
+    /** Set timestep of time domain integration [sec] */
     void set_timestep(const double time_step_);
 
-    /** Set emission current and Nottingham boundary conditions externally */
+    /** Set the emission current and Nottingham boundary condition on copper-vacuum boundary.
+     * The values must be on the centroids of the vacuum-material boundary faces
+     * in the order specified in the get_surface_nodes() method.
+     */
     void set_emission_bc(const std::vector<double> &emission_currents,
             const std::vector<double> &nottingham_heats);
 
@@ -94,22 +148,21 @@ public:
     void set_physical_quantities(PhysicalQuantities *pq_);
 
     /**
-     * method to obtain the temperature values in selected nodes
+     * Method to obtain the temperature values in selected nodes.
      * @param cell_indexes global cell indexes, where the corresponding nodes are situated
      * @param vert_indexes the vertex indexes of the nodes inside the cell
-     * @return temperature values in the specified nodes
+     * @return temperatur  ///< default temperature applied on bottom of the materiale values in the specified nodes
      */
     std::vector<double> get_temperature(const std::vector<int> &cell_indexes,
             const std::vector<int> &vert_indexes);
 
     /**
-     * method to obtain the current density values in selected nodes
+     * Method to obtain the current density values in selected nodes.
      * @param cell_indexes global cell indexes, where the corresponding nodes are situated
      * @param vert_indexes the vertex indexes of the nodes inside the cell
      * @return current density vectors in the specified nodes
      */
-    std::vector<Tensor<1, dim>> get_current(
-            const std::vector<int> &cell_indexes,
+    std::vector<Tensor<1, dim>> get_current(const std::vector<int> &cell_indexes,
             const std::vector<int> &vert_indexes);
 
     /** export the centroids of surface faces */
@@ -129,12 +182,12 @@ private:
     double get_emission_current_bc(std::pair<unsigned, unsigned> cop_cell_info, const double temperature);
     double get_nottingham_heat_bc(std::pair<unsigned, unsigned> cop_cell_info, const double temperature);
 
-    static constexpr unsigned int currents_degree = 1;
-    static constexpr unsigned int heating_degree = 1;
+    static constexpr unsigned int currents_degree = 1; ///< degree of the shape functions in current density solver
+    static constexpr unsigned int heating_degree = 1;  ///< degree of the shape functions in temperature solver
 
-    static constexpr double ambient_temperature = 300.0;
+    static constexpr double ambient_temperature = 300.0; ///< temperature boundary condition, i.e temperature applied on bottom of the material
 
-    static constexpr double cu_rho_cp = 3.4496e-21; // J/(K*nm^3)
+    static constexpr double cu_rho_cp = 3.4496e-21;    ///< volumetric heat capacity of copper J/(K*nm^3)
 
     double time_step;
 

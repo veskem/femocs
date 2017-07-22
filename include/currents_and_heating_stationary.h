@@ -30,6 +30,13 @@ template<int dim> class Laplace;
 
 using namespace dealii;
 
+/** @brief Class to solve stationary heat and continuity equations in 2D or 3D to obtain temperature and current density distribution in material.
+ * The information about solving non-linear equations can be found in section 31 of lecture series on
+ * http://www.math.colostate.edu/~bangerth/videos.html
+ *
+ * The Newton's method is covered in several Deal.II tutorials, however they cover other equations than needed here.
+ * https://www.dealii.org/8.5.0/doxygen/deal.II/Tutorial.html
+ */
 template<int dim>
 class CurrentsAndHeatingStationary {
 public:
@@ -182,13 +189,13 @@ private:
     void set_initial_condition();
     void set_initial_condition_slow();
 
-    static constexpr unsigned int currents_degree = 1;
-    static constexpr unsigned int heating_degree = 1;
+    static constexpr unsigned int currents_degree = 1; ///< degree of the shape functions in current density solver
+    static constexpr unsigned int heating_degree = 1;  ///< degree of the shape functions in temperature solver
 
-    static constexpr double ambient_temperature_default = 300.0;
+    static constexpr double ambient_temperature_default = 300.0;  ///< default temperature applied on bottom of the material
     double ambient_temperature;
 
-    static constexpr double temperature_stopping_condition = 1800.0;
+    static constexpr double temperature_stopping_condition = 1800.0;  ///< temperature after which the calculation is forced to stop
 
     FESystem<dim> fe;
 
