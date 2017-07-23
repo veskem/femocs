@@ -1074,13 +1074,20 @@ double CurrentsAndHeatingStationary<dim>::run_specific(double temperature_tolera
         timer.restart();
 
         temperature_error = newton_update.linfty_norm();
-        if (print) {
-            printf(
-                    "        iter: %2d; t_error: %5.2f; assemble_time: %5.2f; sol_time: %5.2f; outp_time: %5.2f\n",
-                    iteration, temperature_error, assemble_time, solution_time, output_time);
+
+        double potential_rel_error = 0.0;
+        for (unsigned int i = 0; i<newton_update.size()/2; i++) {
+            double local_rel_error = std::abs(sor_alpha*newton_update[i]/present_solution[i]);
+            if (local_rel_error > potential_rel_error) potential_rel_error = local_rel_error;
         }
 
-        if (temperature_error < temperature_tolerance) {
+        if (print) {
+            printf("        iter: %2d; t_error: %7.3f; p_rel_err: %2.0e; assemble_time: %5.2f;"
+                   " sol_time: %5.2f; outp_time: %5.2f\n",
+                   iteration, temperature_error, potential_rel_error, assemble_time, solution_time, output_time);
+        }
+
+        if (temperature_error < temperature_tolerance && potential_rel_error < 0.5) {
             break;
         }
     }
@@ -1090,10 +1097,10 @@ double CurrentsAndHeatingStationary<dim>::run_specific(double temperature_tolera
 // ----------------------------------------------------------------------------------------
 // Class for outputting the current density distribution (calculated from potential distr.)
 template<int dim>
-class CurrentPostProcessor: public DataPostprocessorVector<dim> {
+class CurrentPostProcessorStat: public DataPostprocessorVector<dim> {
     PhysicalQuantities *pq;
 public:
-    CurrentPostProcessor(PhysicalQuantities *pq_) :
+    CurrentPostProcessorStat(PhysicalQuantities *pq_) :
             DataPostprocessorVector<dim>("current_density", update_values | update_gradients), pq(
                     pq_) {
     }
@@ -1114,12 +1121,13 @@ public:
         }
     }
 };
+
 // Class for outputting the electrical conductivity distribution
 template<int dim>
-class SigmaPostProcessor: public DataPostprocessorScalar<dim> {
+class SigmaPostProcessorStat: public DataPostprocessorScalar<dim> {
     PhysicalQuantities *pq;
 public:
-    SigmaPostProcessor(PhysicalQuantities *pq_) :
+    SigmaPostProcessorStat(PhysicalQuantities *pq_) :
             DataPostprocessorScalar<dim>("sigma", update_values), pq(pq_) {
     }
 
@@ -1154,8 +1162,8 @@ void CurrentsAndHeatingStationary<dim>::output_results(const std::string file_na
     }
     std::vector<std::string> solution_names { "potential", "temperature" };
 
-    CurrentPostProcessor<dim> current_post_processor(pq); // needs to be before data_out
-    SigmaPostProcessor<dim> sigma_post_processor(pq); // needs to be before data_out
+    CurrentPostProcessorStat<dim> current_post_processor(pq); // needs to be before data_out
+    SigmaPostProcessorStat<dim> sigma_post_processor(pq); // needs to be before data_out
 
     DataOut<dim> data_out;
     data_out.attach_dof_handler(dof_handler);

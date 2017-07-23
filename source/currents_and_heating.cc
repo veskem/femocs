@@ -800,7 +800,7 @@ public:
     }
 };
 // ----------------------------------------------------------------------------------------
-// Class for outputting the resulting field distribution (calculated from potential distr.)
+// Class for outputting the electrical conductivity distribution
 template <int dim>
 class SigmaPostProcessor : public DataPostprocessorScalar<dim> {
     PhysicalQuantities *pq;
