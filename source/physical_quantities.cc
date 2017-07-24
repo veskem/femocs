@@ -24,7 +24,7 @@ PhysicalQuantities::PhysicalQuantities() {
 }
 
 double PhysicalQuantities::emission_current(double field, double temperature) {
-    return std::exp(bilinear_interp(std::log(field), temperature, emission_grid)) * 1.0e-18;
+    return std::exp(bilinear_interp(std::log(field), temperature, emission_grid)) * 1.0e-20;
 }
 
 double PhysicalQuantities::nottingham_de(double field, double temperature) {
@@ -32,11 +32,11 @@ double PhysicalQuantities::nottingham_de(double field, double temperature) {
 }
 
 double PhysicalQuantities::evaluate_resistivity(double temperature) const {
-    return linear_interp(temperature, resistivity_data) * 1.0e9;
+    return linear_interp(temperature, resistivity_data) * 1.0e10;
 }
 
 double PhysicalQuantities::evaluate_resistivity_derivative(double temperature) {
-    return deriv_linear_interp(temperature, resistivity_data) * 1.0e9;
+    return deriv_linear_interp(temperature, resistivity_data) * 1.0e10;
 }
 
 double PhysicalQuantities::sigma(double temperature) const {
