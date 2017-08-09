@@ -18,8 +18,8 @@ Config::Config() {
     atom_file = "";              // file with the nanostructure atoms
     latconst = 3.61;             // lattice constant
     surface_thichness = 3.1;     // maximum distance the surface atom is allowed to be from surface mesh
-    coordination_cutoff = 3.1;     // coordination analysis cut-off radius
-    cluster_cutoff = 0;        // cluster analysis cut-off radius
+    coordination_cutoff = 3.1;   // coordination analysis cut-off radius
+    cluster_cutoff = 0;          // cluster analysis cut-off radius
     nnn = 12;                    // number of nearest neighbours in bulk
     mesh_quality = "2.0";        // minimum tetrahedron quality Tetgen is allowed to make
     element_volume = "";         // maximum tetrahedron volume Tetgen is allowed to make
@@ -53,6 +53,11 @@ Config::Config() {
     E0 = 0;                      // long range electric field
     neumann = 0;                 // neumann boundary contition value
     message = "";                // message from the host code
+
+    smooth_steps = 0;            // number of surface mesh smoothing iterations
+    smooth_lambda = 0.5;         // lambda parameter in surface mesh smoother
+    smooth_mu = -0.53;           // mu parameter in surface mesh smoother
+    smooth_algorithm = "laplace"; // surface mesh smoother algorithm; laplace, fujiwara or cnormal
 }
 
 // Remove the noise from the beginning of the string
@@ -68,6 +73,10 @@ void Config::read_all(const string& file_name) {
     parse_file(file_name);
 
     // Modify the parameters that are specified in input script
+    read_command("smooth_steps", smooth_steps);
+    read_command("smooth_lambda", smooth_lambda);
+    read_command("smooth_mu", smooth_mu);
+    read_command("smooth_algorithm", smooth_algorithm);
     read_command("charge_tolerance", charge_tolerance);
     read_command("force_factor", force_factor);
     read_command("phi_error", phi_error);

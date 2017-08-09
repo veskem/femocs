@@ -160,7 +160,7 @@ vector<int> get_sort_indices(const vector<int> &v, const string& direction) {
 // Sum of the elements in vector
 int vector_sum(const vector<bool> &v) { return accumulate(v.begin(), v.end(), 0); }
 int vector_sum(const vector<int> &v) { return accumulate(v.begin(), v.end(), 0); }
-double vector_sum(const vector<double> &v) { return accumulate(v.begin(), v.end(), 0); }
+double vector_sum(const vector<double> &v) { return accumulate(v.begin(), v.end(), 0.0); }
 
 // Determine whether the value is close to one of the boundary values or not
 bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps) {

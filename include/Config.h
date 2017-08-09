@@ -71,6 +71,11 @@ public:
     double force_factor;        ///< Factor determining the relationship between force and charge*elfield
     double charge_tolerance;    ///< Tolerance how much face charges are allowed to deviate from the long range one
 
+    int smooth_steps;           ///< number of surface mesh smoothing iterations
+    double smooth_lambda;       ///< lambda parameter in surface mesh smoother
+    double smooth_mu;           ///< mu parameter in surface mesh smoother
+    string smooth_algorithm;    ///< surface mesh smoother algorithm; laplace, fujiwara or cnormal
+
     /** Method to clean the surface atoms
      * voronois - use Voronoi cells
      * faces - measure distance from surface faces

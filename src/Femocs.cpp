@@ -238,14 +238,25 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
 
     start_msg(t0, "=== Separating vacuum & bulk meshes...");
     big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQB");
+
     bulk_mesh.group_hexahedra();
     vacuum_mesh.group_hexahedra();
     bulk_mesh.elems.calc_statistics();
     vacuum_mesh.elems.calc_statistics();
+    bulk_mesh.faces.clean_sides(reader.sizes, conf.latconst);
     vacuum_mesh.faces.clean_sides(reader.sizes, conf.latconst);
     end_msg(t0);
 
     vacuum_mesh.faces.write("out/surface_faces_clean.vtk");
+
+    if (conf.smooth_steps > 0) {
+        start_msg(t0, "=== Smoothing meshes using " + conf.smooth_algorithm + " algorithm...");
+        bulk_mesh.smoothen(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
+        vacuum_mesh.smoothen(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
+        end_msg(t0);
+    }
+
+    vacuum_mesh.faces.write("out/surface_faces_smooth.vtk");
 
     if (conf.surface_cleaner == "faces") {
         start_msg(t0, "=== Cleaning surface with triangles...");

@@ -195,6 +195,216 @@ TetgenMesh::TetgenMesh() {
     tetIOout.initialize();
 }
 
+// Smoothen the mesh using different versions of Taubin smoothing algorithm
+// Code is inspired from the one written by Shawn Halayka
+// TODO if found, add the link to Shawn's version
+void TetgenMesh::smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm) {
+    vector<vector<int>> nborlist;
+    calc_surface_nborlist(nborlist);
+
+    if (algorithm == "laplace") {
+        for (size_t s = 0; s < n_steps; ++s) {
+            laplace_smooth(lambda, nborlist);
+            laplace_smooth(mu, nborlist);
+        }
+    }
+
+    else if (algorithm == "fujiwara") {
+        for (size_t s = 0; s < n_steps; ++s) {
+            laplace_smooth_fujiwara(lambda, nborlist);
+            laplace_smooth_fujiwara(mu, nborlist);
+        }
+    }
+
+    else if (algorithm == "cnormal") {
+        for (size_t s = 0; s < n_steps; ++s) {
+            laplace_smooth_cn(lambda, nborlist);
+            laplace_smooth_cn(mu, nborlist);
+        }
+    }
+
+    else
+        require(false, "Unknown smoothing algorithm: " + algorithm);
+
+}
+
+// Smoothen the surface mesh using Taubin lambda|mu algorithm with inverse neighbour count weighting
+void TetgenMesh::laplace_smooth(const double scale, const vector<vector<int>>& nborlist) {
+    size_t n_nodes = nodes.size();
+    vector<Point3> displacements(n_nodes);
+
+    // Get per-vertex displacement
+    for(size_t i = 0; i < n_nodes; ++i) {
+        // Skip vertices that are not on the surface
+        if (nborlist[i].size() == 0)
+            continue;
+
+        const double weight = 1.0 / nborlist[i].size();
+
+        // Sum the displacements
+        for(size_t nbor : nborlist[i])
+            displacements[i] += (nodes[nbor] - nodes[i]) * weight;
+    }
+
+    // Apply per-vertex displacement
+    for (size_t i = 0; i < n_nodes; ++i)
+        nodes.set_node(i, nodes[i] + displacements[i]*scale);
+}
+
+// Smoothen the surface mesh using Taubin lambda|mu algorithm with Fujiwara weighting
+void TetgenMesh::laplace_smooth_fujiwara(const double scale, const vector<vector<int>>& nborlist) {
+    vector<Point3> displacements(nodes.size());
+
+    // Get per-vertex displacement.
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        // Skip vertices that are not on the surface.
+        if (nborlist[i].size() == 0)
+            continue;
+
+        vector<double> weights(nborlist[i].size());
+        Point3 node = nodes[i];
+
+        // Calculate Fujiwara weights based on edge lengths.
+        for (size_t j = 0; j < nborlist[i].size(); j++) {
+            size_t nbor = nborlist[i][j];
+
+            double edge_length = node.distance(nodes[nbor]);
+            expect(edge_length > 0, "Zero edge not allowed!");
+
+            weights[j] = 1.0 / edge_length;
+        }
+
+        // Normalize the weights so that they sum up to 1.
+        double s = vector_sum(weights);
+        if (s == 0) s = numeric_limits<float>::epsilon();
+
+        s = 1.0 / s;
+        for (size_t j = 0; j < weights.size(); j++)
+            weights[j] *= s;
+
+        // Sum the displacements.
+        for(size_t j = 0; j < nborlist[i].size(); j++) {
+            size_t nbor = nborlist[i][j];
+            displacements[i] += (nodes[nbor] - node) * weights[j];
+        }
+    }
+
+    // Apply per-vertex displacement.
+    for (size_t i = 0; i < nodes.size(); i++)
+        nodes.set_node(i, nodes[i] + displacements[i]*scale);
+}
+
+// Smoothen the surface mesh using Taubin lambda|mu algorithm with curvature normal weighting
+void TetgenMesh::laplace_smooth_cn(const double scale, const vector<vector<int>>& nborlist) {
+    size_t n_nodes = nodes.size(); 
+    vector<Point3> displacements(n_nodes);
+
+    // Generate vertex to triangle mapping
+    vector<vector<int>> vertex_to_triangle_indices = vector<vector<int>>(n_nodes);
+    int f = 0;
+    for (SimpleFace face : faces)
+        for (int node : face)
+            vertex_to_triangle_indices[node].push_back(f++);
+
+    // Get per-vertex displacement
+    for(size_t i = 0; i < n_nodes; ++i) {
+        if (nborlist[i].size() == 0)
+            continue;
+
+        vector<double> weights(nborlist[i].size());
+        size_t angle_error = 0;
+
+        // For each vertex pair (ie. each edge),
+        // calculate weight based on the two opposing angles (ie. curvature normal scheme).
+        for (size_t j = 0; j < nborlist[i].size(); ++j) {
+            size_t nbor = nborlist[i][j];
+            size_t angle_count = 0;
+
+            // Find out which two triangles are shared by the edge.
+            for (size_t tri0_index : vertex_to_triangle_indices[i]) {
+                for (size_t tri1_index : vertex_to_triangle_indices[nbor]) {
+
+                    // tri0_index == tri1_index will occur twice per edge.
+                    if (tri0_index != tri1_index) continue;
+
+                    // Find the third vertex in this triangle (the vertex that doesn't belong to the edge).
+                    for (size_t opp_vert_index : faces[tri0_index]) {
+                        // This will occur once per triangle.
+                        if (opp_vert_index != i && opp_vert_index != nbor) {
+                            // Get the angle opposite of the edge.
+                            Vec3 c = nodes.get_vec(opp_vert_index);
+                            Vec3 a = nodes.get_vec(i)    - c;
+                            Vec3 b = nodes.get_vec(nbor) - c;
+                            a.normalize();
+                            b.normalize();
+
+                            double dot = a.dotProduct(b);
+                            dot = min(1.0, max(-1.0, dot));
+                            double angle = acos(dot);
+
+                            // Curvature normal weighting.
+                            double slope = tan(angle);
+
+                            if(slope == 0)
+                                slope = numeric_limits<double>::epsilon();
+
+                            // Note: Some weights will be negative, due to obtuse triangles.
+                            // You may wish to do weights[j] += fabsf(1.0f / slope); here.
+                            weights[j] += 1.0 / slope;
+
+                            angle_count++;
+
+                            break;
+                        }
+                    }
+
+                    // Since we found a triangle match, we can skip to the first vertex's next triangle.
+                    break;
+                }
+            } // End of: Find out which two triangles are shared by the vertex pair.
+
+            if (angle_count != 2)
+                angle_error++;
+
+        } // End of: For each vertex pair (ie. each edge).
+
+//        if (angle_error != 0) {
+//            ostringstream os;
+//            os<< "Warning: Vertex " << i << " belongs to " << angle_error
+//                    << " edges that do not belong to two triangles ("
+//                    << nborlist[i].size() - angle_error << " edges were OK).\n"
+//                    << "Your mesh probably has cracks or holes in it." << endl;
+//            write_silent_msg(os.str());
+//        }
+
+        // Normalize the weights so that they sum up to 1.
+
+        // Note: Some weights will be negative, due to obtuse triangles.
+        // You may wish to add together absolute values of weights.
+        double s = 0;
+        for (double w : weights)
+            s += fabs(w);
+
+        if (s == 0) s = numeric_limits<float>::epsilon();
+
+        s = 1.0 / s;
+        for (size_t j = 0; j < weights.size(); j++)
+            weights[j] *= s;
+
+        // Sum the displacements.
+        for (size_t j = 0; j < nborlist[i].size(); j++) {
+            size_t nbor = nborlist[i][j];
+            displacements[i] += (nodes[nbor] - nodes[i]) * weights[j];
+        }
+    }
+
+    // TODO: Find out why there are cases where displacement is much, much, much larger than all edge lengths put together.
+
+    // Apply per-vertex displacement.
+    for (size_t i = 0; i < n_nodes; i++)
+        nodes.set_node(i, nodes[i] + displacements[i] * scale);
+}
+
 // Group hexahedra around central tetrahedral node
 void TetgenMesh::group_hexahedra() {
     const int node_min = nodes.indxs.tetnode_start;
@@ -473,6 +683,27 @@ void TetgenMesh::calc_nborlist(vector<vector<int>>& nborlist) {
                 if (n1 == n2) continue;
                 nborlist[n1].push_back(n2);
             }
+}
+
+// Calculate the neighbourlist for the nodes.
+// Two nodes are considered neighbours if they share a tetrahedron.
+void TetgenMesh::calc_surface_nborlist(vector<vector<int>>& nborlist) {
+    nborlist = vector<vector<int>>(nodes.size());
+    const double eps = 0.1 * elems.stat.edgemin;
+    nodes.calc_statistics();
+
+    for (SimpleFace face : faces)
+        for (int n1 : face) {
+            // do not calculate neighbours for nodes on the simubox perimeter
+            Point3 node = nodes[n1];
+            if (on_boundary(node.x, nodes.stat.xmin, nodes.stat.xmax, eps) ||
+                    on_boundary(node.y, nodes.stat.ymin, nodes.stat.ymax, eps))
+                continue;
+            for (int n2 : face) {
+                if (n1 != n2)
+                    nborlist[n1].push_back(n2);
+            }
+        }
 }
 
 // Mark the nodes by using DBSCAN algorithm (the same as in cluster analysis)

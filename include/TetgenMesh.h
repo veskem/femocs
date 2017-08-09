@@ -25,6 +25,8 @@ public:
     TetgenMesh();
     ~TetgenMesh() {}
 
+    void smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm);
+
     /** Function to generate simple mesh that consists of one element */
     bool generate_simple();
 
@@ -89,12 +91,20 @@ private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
 
+    void laplace_smooth(const double scale, const vector<vector<int>>& nborlist);
+
+    void laplace_smooth_fujiwara(const double scale, const vector<vector<int>>& nborlist);
+
+    void laplace_smooth_cn(const double scale, const vector<vector<int>>& nborlist);
+
     /** Locate the tetrahedron by the location of its nodes */
     int locate_element(SimpleElement& elem);
 
     /** Calculate the neighbourlist for the nodes.
      * Two nodes are considered neighbours if they share a tetrahedron. */
     void calc_nborlist(vector<vector<int>>& nborlist);
+
+    void calc_surface_nborlist(vector<vector<int>>& nborlist);
 
     bool calc_ranks(vector<int>& ranks, const vector<vector<int>>& nborlist);
 
