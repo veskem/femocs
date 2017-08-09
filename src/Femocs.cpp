@@ -86,12 +86,12 @@ int Femocs::run(const double elfield, const string &message) {
     check_return(skip_calculations, stream.str());
 
     skip_calculations = true;
-    conf.E0 = elfield; // long-range electric field
-    conf.neumann = -10.0 * elfield;  // set minus gradient of solution to equal to E0; also convert V/Angstrom  to  V/nm
+    conf.E0 = elfield;       // long-range electric field
+    conf.neumann = -elfield; // set minus gradient of solution to equal to E0
     tstart = omp_get_wtime();
 
-    TetgenMesh bulk_mesh;   // FEM mesh in bulk material
-    TetgenMesh vacuum_mesh; // FEM mesh in vacuum
+    TetgenMesh bulk_mesh;    // FEM mesh in bulk material
+    TetgenMesh vacuum_mesh;  // FEM mesh in vacuum
 
     // Generate FEM mesh
     check_return( generate_meshes(bulk_mesh, vacuum_mesh), "Mesh generation failed!" );

@@ -265,9 +265,7 @@ bool LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh
         // If there is a common node between tet and hex meshes, store actual solution
         if (n >= 0) {
             require(i < ef.size(), "Invalid index: " + to_string(i));
-            Vec3 elfield(ef[i][0], ef[i][1], ef[i][2]);
-            elfield *= 0.1;   // convert V/nm  to  V/Angstom
-            solution.push_back(Solution(elfield, 0.1*pot[i++]));
+            solution.push_back( Solution(Vec3(ef[i][0], ef[i][1], ef[i][2]), pot[i++]) );
         }
 
         // In case of non-common node, store solution with error value
