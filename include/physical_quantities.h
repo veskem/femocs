@@ -50,7 +50,7 @@ public:
      * Evaluates the emission current density J
      * @param field electric field in (GV/m)
      * @param temperature Temperature in (K)
-     * @return Emission current density in (A/nm^2)
+     * @return Emission current density in (A/ang^2)
      */
     double emission_current(double field, double temperature);
 
@@ -65,14 +65,14 @@ public:
     /**
      * Evaluates the electrical resistivity rho
      * @param temperature T in (K)
-     * @return resistivity in (Ohm*m)
+     * @return resistivity in (Ohm*ang)
      */
     double evaluate_resistivity(double temperature) const;
 
     double evaluate_resistivity_derivative(double temperature);
 
     /**
-     * electrical conductivity sigma in (1/(Ohm*nm))
+     * electrical conductivity sigma in (1/(Ohm*ang))
      */
     double sigma(double temperature) const;
 
@@ -82,7 +82,7 @@ public:
     double dsigma(double temperature);
 
     /**
-     * thermal conductivity in (W/(nm*K))
+     * thermal conductivity in (W/(ang*K))
      */
     double kappa(double temperature);
 

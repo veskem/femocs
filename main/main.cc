@@ -56,11 +56,11 @@ int main() {
     }
 
 // Transient example
-
-    //fch::Laplace<2> laplace;
-    //laplace.import_mesh_from_file("../res/2d_meshes/vacuum_aligned.msh");
-    //laplace.set_applied_efield(8.0);
-    //laplace.run();
+/*
+    fch::Laplace<2> laplace;
+    laplace.import_mesh_from_file("../res/2d_meshes/vacuum_aligned.msh");
+    laplace.set_applied_efield(8.0);
+    laplace.run();
 
     double time_step = 0.001e-12; // seconds
     fch::CurrentsAndHeating<2> ch(time_step, &pq);
@@ -68,7 +68,8 @@ int main() {
 
     ch.setup_current_system();
     ch.setup_heating_system();
-    ch.set_electric_field_bc(13.0);
+    //ch.set_electric_field_bc(13.0);
+    ch.set_electric_field_bc(laplace);
 
     int i = 0;
     for (double time = 0.0; time <= 1e-12; time+=time_step) {
@@ -86,9 +87,26 @@ int main() {
         }
         i++;
     }
+*/
 
-// 3d Test usage //
-    /*
+// Simple Stationary 3d usage //
+
+    fch::Laplace<3> laplace_solver;
+    laplace_solver.import_mesh_from_file(res_path + "/3d_meshes/vacuum_0.msh");
+    laplace_solver.set_applied_efield(1.5);
+    laplace_solver.run();
+
+    fch::CurrentsAndHeatingStationary<3> ch_solver;
+    ch_solver.reinitialize(&laplace_solver);
+    ch_solver.set_physical_quantities(&pq);
+    ch_solver.import_mesh_from_file(res_path + "/3d_meshes/copper_0.msh");
+
+    ch_solver.setup_system();
+    ch_solver.run_specific(1.0, 100, true, "output/sol", true, 2.0);
+
+
+// Stationary 3d Test usage with interpolation //
+/*
     fch::CurrentsAndHeatingStationary<3> ch_solver1;
     fch::CurrentsAndHeatingStationary<3> ch_solver2;
     fch::CurrentsAndHeatingStationary<3>* ch_solver = &ch_solver1;
@@ -168,7 +186,7 @@ int main() {
             even = true;
         }
     }
-    */
+*/
 
 // 3d mushroom //
     /*
