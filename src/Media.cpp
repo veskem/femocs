@@ -321,4 +321,82 @@ void Media::smoothen(const double smooth_factor, const double r_cut) {
     }
 }
 
+// Smoothen the atoms inside the cylinder
+void Media::smoothen(const Config& conf, const double r_cut) {
+    if (r_cut <= 0) return;
+
+    // Calculate the horizontal span of the surface
+    calc_statistics();
+
+    Media nanotip;
+    get_nanotip(nanotip, conf.radius);
+
+    vector<vector<unsigned>> nborlist;
+    nanotip.calc_nborlist(nborlist, conf.nnn, r_cut);
+
+    for (int i = 0; i < 3; ++i) {
+        nanotip.laplace_smooth(conf.smooth_lambda, nborlist);
+        nanotip.laplace_smooth(conf.smooth_mu, nborlist);
+    }
+
+    *this += nanotip;
+}
+
+// Apply one cycle of Taubin lambda|mu algorithm
+void Media::laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist) {
+    size_t n_nodes = size();
+    vector<Point3> displacements(n_nodes);
+
+    // Get per-vertex displacement
+    for (size_t i = 0; i < n_nodes; ++i) {
+        // Skip lonely vertices
+        if (nborlist[i].size() == 0)
+            continue;
+
+        const double weight = 1.0 / nborlist[i].size();
+
+        // Sum the displacements
+        Point3 point = get_point(i);
+        for(size_t nbor : nborlist[i])
+            displacements[i] += (get_point(nbor) - point) * weight;
+    }
+
+    // Apply per-point displacement
+    for (size_t i = 0; i < n_nodes; ++i)
+        atoms[i].point += displacements[i] * scale;
+}
+
+
+// Calculate list of close neighbours using brute force technique
+void Media::calc_nborlist(vector<vector<unsigned>>& nborlist, const int nnn, const double r_cut) {
+    require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
+
+    const size_t n_atoms = size();
+    const double r_cut2 = r_cut * r_cut;
+    const double eps = 0.001 * r_cut;
+
+    // Initialise list of closest neighbours
+    nborlist = vector<vector<unsigned>>(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        nborlist[i].reserve(nnn);
+
+    // Loop through all the atoms
+    for (size_t i = 0; i < n_atoms - 1; ++i) {
+
+        Point3 point1 = get_point(i);
+
+        // Skip the points that are on the boundary of simubox
+        if (on_boundary(point1.x, sizes.xmin, sizes.xmax, eps) ||
+                on_boundary(point1.y, sizes.ymin, sizes.ymax, eps))
+            continue;
+
+        // Loop through all the possible neighbours of the atom
+        for (size_t j = i + 1; j < n_atoms; ++j) {
+            if ( r_cut2 >= point1.distance2(get_point(j)) ) {
+                nborlist[i].push_back(j);
+                nborlist[j].push_back(i);
+            }
+        }
+    }
+}
 } /* namespace femocs */

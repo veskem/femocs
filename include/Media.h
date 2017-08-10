@@ -13,6 +13,7 @@
 #include "AtomReader.h"
 #include "Medium.h"
 #include "TetgenMesh.h"
+#include "Config.h"
 
 using namespace std;
 namespace femocs {
@@ -64,9 +65,19 @@ public:
     /** Smoothen all the atoms in the system */
     void smoothen(const double smooth_factor, const double r_cut);
 
+    /** Smoothen the atoms using Taubin lambda|mu smoothing algorithm */
+    void smoothen(const Config& conf, const double r_cut);
+
 private:
     /** Function used to smoothen the atoms */
     inline double smooth_function(const double distance, const double smooth_factor) const;
+
+    /** Calculate neighbour list for atoms.
+     * Atoms are considered neighbours if the distance between them is no more than r_cut. */
+    void calc_nborlist(vector<vector<unsigned>>& nborlist, const int nnn, const double r_cut) ;
+
+    /** Smoothen the atoms using Taubin lambda|mu algorithm with inverse neighbour count weighting */
+    void laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist);
 
     /** Generate edge with regular atom distribution between surface corners */
     void generate_middle(const Medium::Sizes& ar_sizes, const double z, const double dist);

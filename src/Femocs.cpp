@@ -179,7 +179,9 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     coarse_surf = extended_surf;
     coarse_surf += dense_surf;
     coarse_surf = coarse_surf.clean(coarseners);
+
     coarse_surf.smoothen(conf.radius, conf.surface_smooth_factor, 3.0*conf.coordination_cutoff);
+//    coarse_surf.smoothen(conf, 3.0 * conf.surface_smooth_factor * conf.coordination_cutoff);
     end_msg(t0);
 
     coarse_surf.write("out/surface_coarse.xyz");
