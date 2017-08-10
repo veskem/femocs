@@ -691,10 +691,24 @@ public:
     }
 };
 
+/** Quadrangle class without Point data */
+class SimpleQuad: public SimpleCell<4> {
+public:
+    /** SimpleQuad constructors */
+    SimpleQuad() : SimpleCell<4>() {}
+    SimpleQuad(const unsigned int &n1) : SimpleCell<4>(n1) {}
+    SimpleQuad(const unsigned int &n1, const unsigned int &n2, const unsigned int &n3, const unsigned int &n4) {
+        node[0] = n1; node[1] = n2; node[2] = n3; node[3] = n4;
+    }
+    SimpleQuad(const SimpleCell<4> &s) {
+        std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
+    }
+};
+
 /** Hexahedron class without Point data */
 class SimpleHex: public SimpleCell<8> {
 public:
-    /** SimpleEdge constructors */
+    /** SimpleHex constructors */
     SimpleHex() : SimpleCell<8>() {}
     SimpleHex(const unsigned int &n1) : SimpleCell<8>(n1) {}
     SimpleHex(const unsigned int &n1, const unsigned int &n2, const unsigned int &n3, const unsigned int &n4,

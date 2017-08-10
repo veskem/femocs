@@ -171,14 +171,12 @@ void TetgenNodes::write(const string &file_name) const {
     if (!MODES.WRITEFILE) return;
 
     string file_type = get_file_type(file_name);
-    require(file_type == "xyz" || file_type == "vtk", "Unknown file type: " + file_type);
-
-    const int celltype = 1;     // 1-vertex, 3-line, 5-triangle, 10-tetrahedron
-
     if (file_type == "xyz")
         write_xyz(file_name);
+    else if (file_type == "vtk")
+        write_vtk(file_name);
     else
-        write_vtk(file_name, celltype);
+        require(false, "Unknown file type: " + file_type);
 }
 
 // Write node data to .xyz file
@@ -413,6 +411,35 @@ vector<int> TetgenElements::get_neighbours(const int i) const {
     const int I = DIM * i;
     const int* nborlist = reads->neighborlist;
     return vector<int> {nborlist[I+0], nborlist[I+1], nborlist[I+2], nborlist[I+3]};
+}
+
+/* =====================================================================
+ *  ========================== Quadrangles ===========================
+ * ===================================================================== */
+
+// Get number of hexahedra in mesh
+int Quadrangles::size() const {
+    return quads.size();
+}
+
+// Initialize hexahedron appending
+void Quadrangles::init(const int N) {
+    TetgenCells::init(N);
+    quads.clear();
+    quads.reserve(N);
+}
+
+// Append hexahedron to mesh
+void Quadrangles::append(const SimpleCell<4> &cell) {
+    expect(quads.size() < quads.capacity(), "Allocated size of cells exceeded!");
+    quads.push_back(cell);
+    i_cells++;
+}
+
+// Get i-th element from the mesh
+SimpleCell<4> Quadrangles::get_cell(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    return quads[i];
 }
 
 /* =====================================================================

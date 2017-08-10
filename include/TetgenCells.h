@@ -24,7 +24,7 @@ template<int dim>
 class TetgenCells {
 public:
 
-    /** SimpleCells constructors */
+    /** Default constructor that creates empty instance */
     TetgenCells() : n_cells_r(NULL), n_cells_w(NULL), reads(NULL), writes(NULL), i_cells(0) {}
 
     /** Constructor for the case when read and write data go into same place */
@@ -161,14 +161,7 @@ public:
         string file_type = get_file_type(file_name);
         require(file_type == "vtk", "Unknown file type: " + file_type);
 
-        int celltype = 0;
-        if (dim == 1) celltype = 1;       // cell == vertex
-        else if (dim == 2) celltype = 3;  // cell == line
-        else if (dim == 3) celltype = 5;  // cell == triangle
-        else if (dim == 4) celltype = 10; // cell == tetrahedron
-        else if (dim == 8) celltype = 12; // cell == hexahedron
-
-        write_vtk(file_name, celltype);
+        write_vtk(file_name);
     }
 
     /** Accessor for accessing i-th cell */
@@ -191,6 +184,10 @@ protected:
 
     int i_cells;         ///< cell counter
     vector<int> markers; ///< cell markers
+
+    /** Return the cell type in vtk format;
+     * 1-vertex, 3-line, 5-triangle, 9-quadrangle, 10-tetrahedron, 12-hexahedron */
+    virtual int get_cell_type() const { return 0; }
 
     /** Return i-th cell */
     virtual SimpleCell<dim> get_cell(const int) const { return SimpleCell<dim>(); }
@@ -215,10 +212,11 @@ protected:
     }
 
     /** Output mesh in .vtk format */
-    void write_vtk(const string &file_name, const int celltype) const {
+    void write_vtk(const string &file_name) const {
         const size_t n_markers = get_n_markers();
         const size_t n_nodes = get_n_nodes();
         const size_t n_cells = size();
+        const size_t celltype = get_cell_type();
 
         expect(n_nodes > 0, "Zero nodes detected!");
 
@@ -348,6 +346,9 @@ public:
     } stat;
 
 private:
+    /** Return the vertex type in vtk format */
+    int get_cell_type() const { return 1; }
+
     /** Return index of i-th node */
     SimpleCell<1> get_cell(const int i) const;
 
@@ -378,6 +379,9 @@ public:
     void recalc();
 
 private:
+    /** Return the line type in vtk format */
+    int get_cell_type() const { return 3; }
+
     /** Return i-th edge */
     SimpleCell<2> get_cell(const int i) const;
 };
@@ -411,6 +415,9 @@ public:
 private:
     vector<double> areas;   ///< areas of triangles
     vector<Vec3> norms;     ///< norms of triangles
+
+    /** Return the triangle type in vtk format */
+    int get_cell_type() const { return 5; }
 
     /** Return i-th face */
     SimpleCell<3> get_cell(const int i) const;
@@ -449,6 +456,9 @@ public:
     } stat;
 
 private:
+    /** Return the tetrahedron type in vtk format */
+    int get_cell_type() const { return 10; }
+
     /** Return i-th element */
     SimpleCell<4> get_cell(const int i) const;
 
@@ -456,27 +466,57 @@ private:
     void init_statistics();
 };
 
+/** Class for holding quadrangles that were generated from triangles */
+class Quadrangles: public TetgenCells<4> {
+public:
+    Quadrangles() : TetgenCells<4>() {}
+    Quadrangles(tetgenio *data) : TetgenCells<4> (data, &data->numberofvcells) {}
+    Quadrangles(tetgenio *read, tetgenio *write) :
+        TetgenCells<4>(read, write, &read->numberofvcells, &write->numberofvcells) {}
+
+    /** Initialize quadrangles appending */
+    void init(const int N);
+
+    /** Append quadrangle to the mesh */
+    void append(const SimpleCell<4> &cell);
+
+    /** Get number of quadrangles in mesh */
+    int size() const;
+
+protected:
+    vector<SimpleQuad> quads;
+
+    /** Return the quadrangle type in vtk format */
+    int get_cell_type() const { return 9; }
+
+    /** Return i-th quadrangle */
+    SimpleCell<4> get_cell(const int i) const;
+};
+
+/** Class for holding hexahedra that were generated from tetrahedra */
 class Hexahedra: public TetgenCells<8> {
 public:
-    /** SimpleCells constructors */
     Hexahedra() : TetgenCells<8>() {}
     Hexahedra(tetgenio *data) : TetgenCells<8> (data, &data->numberofvcells) {}
     Hexahedra(tetgenio *read, tetgenio *write) :
         TetgenCells<8>(read, write, &read->numberofvcells, &write->numberofvcells) {}
 
-    /** Initialize cell appending */
+    /** Initialize hexahedra appending */
     void init(const int N);
 
-    /** Append cell to the mesh */
+    /** Append hexahedron to the mesh */
     void append(const SimpleCell<8> &cell);
 
-    /** Get number of cells in mesh */
+    /** Get number of hexahedra in mesh */
     int size() const;
 
     vector<dealii::CellData<3>> export_dealii() const;
 
 protected:
     vector<SimpleHex> hexs;
+
+    /** Return the hexahedron type in vtk format */
+    int get_cell_type() const { return 12; }
 
     /** Return i-th hexahedron */
     SimpleCell<8> get_cell(const int i) const;
