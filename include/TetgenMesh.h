@@ -25,7 +25,11 @@ public:
     TetgenMesh();
     ~TetgenMesh() {}
 
-    void smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm);
+    /** Smoothen the quadrangles using different versions of Taubin smoothing algorithm */
+    void smoothen_quads(const int n_steps, const double lambda, const double mu, const string& algorithm);
+
+    /** Smoothen the triangles using different versions of Taubin smoothing algorithm */
+    void smoothen_tris(const int n_steps, const double lambda, const double mu, const string& algorithm);
 
     /** Function to generate simple mesh that consists of one element */
     bool generate_simple();
@@ -51,7 +55,7 @@ public:
 
     /** Generate list of nodes that surround the tetrahedral nodes. The resulting cells
      * resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells. */
-    void get_pseudo_vorocells(vector<vector<unsigned int>>& cells) const;
+    void calc_pseudo_vorocells(vector<vector<unsigned>>& cells) const;
 
     /** Use Tetgen built-in functions to write mesh elements data into vtk file */
     bool write(const string& file_name);
@@ -70,6 +74,7 @@ public:
     TetgenEdges edges = TetgenEdges(&tetIOout);
     TetgenFaces faces = TetgenFaces(&tetIOout);
     TetgenElements elems = TetgenElements(&tetIOout, &tetIOin);
+    Quadrangles quads = Quadrangles(&tetIOout);
     Hexahedra hexahedra = Hexahedra(&tetIOout);
 
     static constexpr int n_coordinates = 3;     ///< Number of coordinates
@@ -91,22 +96,27 @@ private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
 
-    void laplace_smooth(const double scale, const vector<vector<int>>& nborlist);
+    /** Smoothen the surface mesh using Taubin lambda|mu algorithm with inverse neighbour count weighting */
+    void laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist);
 
-    void laplace_smooth_fujiwara(const double scale, const vector<vector<int>>& nborlist);
+    /** Smoothen the surface mesh using Taubin lambda|mu algorithm with Fujiwara weighting */
+    void laplace_smooth_fujiwara(const double scale, const vector<vector<unsigned>>& nborlist);
 
-    void laplace_smooth_cn(const double scale, const vector<vector<int>>& nborlist);
+    /** Smoothen the surface mesh using Taubin lambda|mu algorithm with curvature normal weighting */
+    void laplace_smooth_cn(const double scale, const vector<vector<unsigned>>& nborlist);
 
     /** Locate the tetrahedron by the location of its nodes */
     int locate_element(SimpleElement& elem);
 
     /** Calculate the neighbourlist for the nodes.
      * Two nodes are considered neighbours if they share a tetrahedron. */
-    void calc_nborlist(vector<vector<int>>& nborlist);
+    void calc_tet_nborlist(vector<vector<unsigned>>& nborlist);
 
-    void calc_surface_nborlist(vector<vector<int>>& nborlist);
+    void calc_tri_nborlist(vector<vector<unsigned>>& nborlist);
 
-    bool calc_ranks(vector<int>& ranks, const vector<vector<int>>& nborlist);
+    void calc_quad_nborlist(vector<vector<unsigned>>& nborlist);
+
+    bool calc_ranks(vector<int>& ranks, const vector<vector<unsigned>>& nborlist);
 
     /** Mark the tetrahedra by the location of nodes */
     void mark_elems();

@@ -229,34 +229,46 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     check_return(fail, "Mesh marking failed!");
     end_msg(t0);
 
-    start_msg(t0, "=== Converting tetrahedra to hexahedra...");
-    big_mesh.generate_hexahedra();
-    end_msg(t0);
-
-    big_mesh.nodes.write("out/hexmesh_nodes.xyz");
-    big_mesh.hexahedra.write("out/hexmesh_elems.vtk");
-
     start_msg(t0, "=== Separating vacuum & bulk meshes...");
     big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQB");
-
-    bulk_mesh.group_hexahedra();
-    vacuum_mesh.group_hexahedra();
-    bulk_mesh.elems.calc_statistics();
-    vacuum_mesh.elems.calc_statistics();
     bulk_mesh.faces.clean_sides(reader.sizes, conf.latconst);
     vacuum_mesh.faces.clean_sides(reader.sizes, conf.latconst);
     end_msg(t0);
 
-    vacuum_mesh.faces.write("out/surface_faces_clean.vtk");
+    bulk_mesh.faces.write("out/tetmesh_faces.vtk");
 
-    if (conf.smooth_steps > 0) {
-        start_msg(t0, "=== Smoothing meshes using " + conf.smooth_algorithm + " algorithm...");
-        bulk_mesh.smoothen(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
-        vacuum_mesh.smoothen(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
+    if (conf.smooth_algorithm != "none" && conf.smooth_steps > 0) {
+        start_msg(t0, "=== Smoothing triangles...");
+        bulk_mesh.smoothen_tris(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
+        vacuum_mesh.smoothen_tris(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
         end_msg(t0);
     }
 
-    vacuum_mesh.faces.write("out/surface_faces_smooth.vtk");
+    start_msg(t0, "=== Converting tetrahedra to hexahedra...");
+    bulk_mesh.generate_hexahedra();
+    vacuum_mesh.generate_hexahedra();
+    end_msg(t0);
+
+    if (conf.smooth_algorithm != "none" && conf.smooth_steps > 0) {
+        start_msg(t0, "=== Smoothing quadrangles...");
+        bulk_mesh.smoothen_quads(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
+        vacuum_mesh.smoothen_quads(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
+        end_msg(t0);
+    }
+
+    bulk_mesh.nodes.write("out/bulk_nodes.xyz");
+    bulk_mesh.faces.write("out/bulk_tris.vtk");
+    bulk_mesh.quads.write("out/bulk_quads.vtk");
+    bulk_mesh.elems.write("out/bulk_tets.vtk");
+    bulk_mesh.hexahedra.write("out/bulk_hexs" + conf.message + ".vtk");
+
+    expect(bulk_mesh.nodes.size() > 0, "Zero nodes in bulk mesh!");
+    expect(vacuum_mesh.nodes.size() > 0, "Zero nodes in vacuum mesh!");
+    expect(bulk_mesh.hexahedra.size() > 0, "Zero elements in bulk mesh!");
+    expect(vacuum_mesh.hexahedra.size() > 0, "Zero elements in vacuum mesh!");
+
+    stringstream ss; ss << "Bulk:   " << bulk_mesh << "\n  Vacuum: " << vacuum_mesh;
+    write_verbose_msg(ss.str());
 
     if (conf.surface_cleaner == "faces") {
         start_msg(t0, "=== Cleaning surface with triangles...");
@@ -265,17 +277,6 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
 
         dense_surf.write("out/surface_dense_clean.xyz");
     }
-
-    expect(bulk_mesh.nodes.size() > 0, "Zero nodes in bulk mesh!");
-    expect(vacuum_mesh.nodes.size() > 0, "Zero nodes in vacuum mesh!");
-    expect(bulk_mesh.hexahedra.size() > 0, "Zero elements in bulk mesh!");
-    expect(vacuum_mesh.hexahedra.size() > 0, "Zero elements in vacuum mesh!");
-
-    bulk_mesh.hexahedra.write("out/hexmesh_bulk" + conf.message + ".vtk");
-    vacuum_mesh.hexahedra.write("out/hexmesh_vacuum" + conf.message + ".vtk");
-
-    stringstream ss; ss << "Bulk:   " << bulk_mesh << "\n  Vacuum: " << vacuum_mesh;
-    write_verbose_msg(ss.str());
 
     return 0;
 }

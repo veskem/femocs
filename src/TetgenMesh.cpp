@@ -195,12 +195,14 @@ TetgenMesh::TetgenMesh() {
     tetIOout.initialize();
 }
 
-// Smoothen the mesh using different versions of Taubin smoothing algorithm
-// Code is inspired from the one written by Shawn Halayka
+// Smoothen the triangles using different versions of Taubin smoothing algorithm
+// Code is inspired from the work of Shawn Halayka
 // TODO if found, add the link to Shawn's version
-void TetgenMesh::smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm) {
-    vector<vector<int>> nborlist;
-    calc_surface_nborlist(nborlist);
+void TetgenMesh::smoothen_tris(const int n_steps, const double lambda, const double mu, const string& algorithm) {
+    if (algorithm == "none") return;
+
+    vector<vector<unsigned>> nborlist;
+    calc_tri_nborlist(nborlist);
 
     if (algorithm == "laplace") {
         for (size_t s = 0; s < n_steps; ++s) {
@@ -215,21 +217,32 @@ void TetgenMesh::smoothen(const int n_steps, const double lambda, const double m
             laplace_smooth_fujiwara(mu, nborlist);
         }
     }
+}
 
-    else if (algorithm == "cnormal") {
+// Smoothen the quadrangles using different versions of Taubin smoothing algorithm
+void TetgenMesh::smoothen_quads(const int n_steps, const double lambda, const double mu, const string& algorithm) {
+    if (algorithm == "none") return;
+
+    vector<vector<unsigned>> nborlist;
+    calc_quad_nborlist(nborlist);
+
+    if (algorithm == "laplace") {
         for (size_t s = 0; s < n_steps; ++s) {
-            laplace_smooth_cn(lambda, nborlist);
-            laplace_smooth_cn(mu, nborlist);
+            laplace_smooth(lambda, nborlist);
+            laplace_smooth(mu, nborlist);
         }
     }
 
-    else
-        require(false, "Unknown smoothing algorithm: " + algorithm);
-
+    else if (algorithm == "fujiwara") {
+        for (size_t s = 0; s < n_steps; ++s) {
+            laplace_smooth_fujiwara(lambda, nborlist);
+            laplace_smooth_fujiwara(mu, nborlist);
+        }
+    }
 }
 
 // Smoothen the surface mesh using Taubin lambda|mu algorithm with inverse neighbour count weighting
-void TetgenMesh::laplace_smooth(const double scale, const vector<vector<int>>& nborlist) {
+void TetgenMesh::laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist) {
     size_t n_nodes = nodes.size();
     vector<Point3> displacements(n_nodes);
 
@@ -252,7 +265,7 @@ void TetgenMesh::laplace_smooth(const double scale, const vector<vector<int>>& n
 }
 
 // Smoothen the surface mesh using Taubin lambda|mu algorithm with Fujiwara weighting
-void TetgenMesh::laplace_smooth_fujiwara(const double scale, const vector<vector<int>>& nborlist) {
+void TetgenMesh::laplace_smooth_fujiwara(const double scale, const vector<vector<unsigned>>& nborlist) {
     vector<Point3> displacements(nodes.size());
 
     // Get per-vertex displacement.
@@ -295,7 +308,7 @@ void TetgenMesh::laplace_smooth_fujiwara(const double scale, const vector<vector
 }
 
 // Smoothen the surface mesh using Taubin lambda|mu algorithm with curvature normal weighting
-void TetgenMesh::laplace_smooth_cn(const double scale, const vector<vector<int>>& nborlist) {
+void TetgenMesh::laplace_smooth_cn(const double scale, const vector<vector<unsigned>>& nborlist) {
     size_t n_nodes = nodes.size(); 
     vector<Point3> displacements(n_nodes);
 
@@ -403,41 +416,6 @@ void TetgenMesh::laplace_smooth_cn(const double scale, const vector<vector<int>>
     // Apply per-vertex displacement.
     for (size_t i = 0; i < n_nodes; i++)
         nodes.set_node(i, nodes[i] + displacements[i] * scale);
-}
-
-// Group hexahedra around central tetrahedral node
-void TetgenMesh::group_hexahedra() {
-    const int node_min = nodes.indxs.tetnode_start;
-    const int node_max = nodes.indxs.tetnode_end;
-
-    // find which hexahedra correspond to which tetrahedral node
-    // hexahedra with the same tetrahedral node form the pseudo Voronoi cell of that node
-    for (int i = 0; i < hexahedra.size(); ++i) {
-        for (int node : hexahedra[i])
-            if (node >= node_min && node <= node_max) {
-                hexahedra.set_marker(i, node);
-                break;
-            }
-    }
-}
-
-// Generate list of nodes that surround the tetrahedral nodes
-// The resulting cells resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells
-void TetgenMesh::get_pseudo_vorocells(vector<vector<unsigned int>>& cells) const {
-    cells = vector<vector<unsigned int>>(nodes.stat.n_tetnode);
-    const int node_min = nodes.indxs.tetnode_start;
-    const int node_max = nodes.indxs.tetnode_end;
-
-    // find the pseudo Voronoi cell nodes for the tetrahedral nodes
-    for (int i = 0; i < hexahedra.size(); ++i) {
-        const int tetnode = hexahedra.get_marker(i);
-        expect(tetnode >= node_min && tetnode <= node_max, "Hexahedron " + to_string(i) +
-                " is not marked by the tetrahedral node: " + to_string(tetnode));
-
-        for (int node : hexahedra[i])
-            if ( node != tetnode && nodes.get_marker(node) >= TYPES.EDGECENTROID )
-                cells[tetnode].push_back(node);
-    }
 }
 
 // Function to generate simple mesh that consists of one tetrahedron
@@ -557,12 +535,30 @@ bool TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& 
     return recalc("Q", cmd);
 }
 
+// Group hexahedra around central tetrahedral node
+void TetgenMesh::group_hexahedra() {
+    const int node_min = nodes.indxs.tetnode_start;
+    const int node_max = nodes.indxs.tetnode_end;
+
+    // find which hexahedra correspond to which tetrahedral node
+    // hexahedra with the same tetrahedral node form the pseudo Voronoi cell of that node
+    for (int i = 0; i < hexahedra.size(); ++i) {
+        for (int node : hexahedra[i])
+            if (node >= node_min && node <= node_max) {
+                hexahedra.set_marker(i, node);
+                break;
+            }
+    }
+}
+
 // Separate tetrahedra into hexahedra
 bool TetgenMesh::generate_hexahedra() {
     tethex::Mesh hexmesh;
     hexmesh.read_femocs(this);
     hexmesh.convert();
     hexmesh.export_femocs(this);
+
+    group_hexahedra();
 
     return 0;
 }
@@ -639,28 +635,34 @@ void TetgenMesh::generate_surf_faces() {
 // Separate vacuum and bulk mesh from the union mesh by the element markers
 bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd) {
     vector<bool> tet_mask = vector_equal(elems.get_markers(), TYPES.VACUUM);
-    vector<bool> hex_mask = vector_equal(hexahedra.get_markers(), TYPES.VACUUM);
+//    vector<bool> hex_mask = vector_equal(hexahedra.get_markers(), TYPES.VACUUM);
 
     // Transfer vacuum nodes, tetrahedra, hexahedra and their markers
     vacuum.nodes.copy(this->nodes);
     vacuum.nodes.copy_markers(this->nodes);
     vacuum.elems.copy(this->elems, tet_mask);
     vacuum.elems.copy_markers(this->elems, tet_mask);
-    vacuum.hexahedra.copy(this->hexahedra, hex_mask);
-    vacuum.hexahedra.copy_markers(this->hexahedra, hex_mask);
+//    vacuum.hexahedra.copy(this->hexahedra, hex_mask);
+//    vacuum.hexahedra.copy_markers(this->hexahedra, hex_mask);
 
     tet_mask.flip();
-    hex_mask.flip();
+//    hex_mask.flip();
 
     // Transfer bulk nodes, tetrahedra, hexahedra and their markers
     bulk.nodes.copy(this->nodes);
     bulk.nodes.copy_markers(this->nodes);
     bulk.elems.copy(this->elems, tet_mask);
     bulk.elems.copy_markers(this->elems, tet_mask);
-    bulk.hexahedra.copy(this->hexahedra, hex_mask);
-    bulk.hexahedra.copy_markers(this->hexahedra, hex_mask);
+//    bulk.hexahedra.copy(this->hexahedra, hex_mask);
+//    bulk.hexahedra.copy_markers(this->hexahedra, hex_mask);
 
-    return vacuum.recalc(cmd) ||  bulk.recalc(cmd);
+    if (vacuum.recalc(cmd) ||  bulk.recalc(cmd))
+        return true;
+
+    vacuum.elems.calc_statistics();
+    bulk.elems.calc_statistics();
+
+    return false;
 }
 
 // Mark mesh nodes and elements
@@ -675,8 +677,8 @@ bool TetgenMesh::mark_mesh() {
 
 // Calculate the neighbourlist for the nodes.
 // Two nodes are considered neighbours if they share a tetrahedron.
-void TetgenMesh::calc_nborlist(vector<vector<int>>& nborlist) {
-    nborlist = vector<vector<int>>(nodes.size());
+void TetgenMesh::calc_tet_nborlist(vector<vector<unsigned>>& nborlist) {
+    nborlist = vector<vector<unsigned>>(nodes.size());
     for (SimpleElement elem : elems)
         for (int n1 : elem)
             for (int n2 : elem) {
@@ -686,9 +688,31 @@ void TetgenMesh::calc_nborlist(vector<vector<int>>& nborlist) {
 }
 
 // Calculate the neighbourlist for the nodes.
-// Two nodes are considered neighbours if they share a tetrahedron.
-void TetgenMesh::calc_surface_nborlist(vector<vector<int>>& nborlist) {
-    nborlist = vector<vector<int>>(nodes.size());
+// Two nodes are considered neighbours if they share a quadrangle.
+void TetgenMesh::calc_quad_nborlist(vector<vector<unsigned>>& nborlist) {
+    nborlist = vector<vector<unsigned>>(nodes.size());
+    const double eps = 0.1 * elems.stat.edgemin;
+    nodes.calc_statistics();
+
+    for (SimpleQuad quad : quads)
+        for (int n1 : quad) {
+            // do not calculate neighbours for nodes on the simubox perimeter
+            Point3 node = nodes[n1];
+            if (on_boundary(node.x, nodes.stat.xmin, nodes.stat.xmax, eps) ||
+                    on_boundary(node.y, nodes.stat.ymin, nodes.stat.ymax, eps))
+                continue;
+            for (int n2 : quad) {
+                if (n1 == n2) continue;
+                nborlist[n1].push_back(n2);
+            }
+        }
+
+}
+
+// Calculate the neighbourlist for the nodes.
+// Two nodes are considered neighbours if they share a triangle.
+void TetgenMesh::calc_tri_nborlist(vector<vector<unsigned>>& nborlist) {
+    nborlist = vector<vector<unsigned>>(nodes.size());
     const double eps = 0.1 * elems.stat.edgemin;
     nodes.calc_statistics();
 
@@ -706,14 +730,33 @@ void TetgenMesh::calc_surface_nborlist(vector<vector<int>>& nborlist) {
         }
 }
 
+// Generate list of nodes that surround the tetrahedral nodes
+// The resulting cells resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells
+void TetgenMesh::calc_pseudo_vorocells(vector<vector<unsigned>>& cells) const {
+    cells = vector<vector<unsigned>>(nodes.stat.n_tetnode);
+    const int node_min = nodes.indxs.tetnode_start;
+    const int node_max = nodes.indxs.tetnode_end;
+
+    // find the pseudo Voronoi cell nodes for the tetrahedral nodes
+    for (int i = 0; i < hexahedra.size(); ++i) {
+        const int tetnode = hexahedra.get_marker(i);
+        expect(tetnode >= node_min && tetnode <= node_max, "Hexahedron " + to_string(i) +
+                " is not marked by the tetrahedral node: " + to_string(tetnode));
+
+        for (int node : hexahedra[i])
+            if ( node != tetnode && nodes.get_marker(node) >= TYPES.EDGECENTROID )
+                cells[tetnode].push_back(node);
+    }
+}
+
 // Mark the nodes by using DBSCAN algorithm (the same as in cluster analysis)
 bool TetgenMesh::mark_nodes() {
     int node;
-    vector<int> neighbours;
+    vector<unsigned> neighbours;
     
     // Calculate neighbourlist for nodes
-    vector<vector<int>> nborlist;
-    calc_nborlist(nborlist);
+    vector<vector<unsigned>> nborlist;
+    calc_tet_nborlist(nborlist);
             
     // Mark all the nodes with initial values
     nodes.init_markers(nodes.size(), TYPES.NONE);
@@ -764,7 +807,7 @@ bool TetgenMesh::mark_nodes() {
 // Calculate factors that show many connections the non-surface nodes have with its non-surface neighbors.
 // Nodes with small amount of neighbours are either on the boundary of simubox or on the edge of a hole,
 // while nodes with large amount of neighbours are inside the bulk or vacuum domain.
-bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<int>>& nborlist) {
+bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<unsigned>>& nborlist) {
     const int n_nbor_layers = 4;  // number of nearest tetrahedra whose nodes will act as a seed
     const int n_nodes = nodes.size();
     const double max_rank = 100.0;
@@ -777,7 +820,7 @@ bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<int>>& nborl
         ranks[i] = -1;
 
     // calculate the ranks from vacuum side
-    vector<int> neighbours = nborlist[nodes.indxs.vacuum_start];
+    vector<unsigned> neighbours = nborlist[nodes.indxs.vacuum_start];
     for (size_t i = 0; i < neighbours.size(); ++i) {
         int node = neighbours[i];
         if (ranks[node] != -1 && ranks[node]++ == 0)
@@ -793,7 +836,7 @@ bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<int>>& nborl
     
     // force the ranks around the vacuum seed region to the maximum value
 
-    vector<vector<int>> nbors(n_nbor_layers);
+    vector<vector<unsigned>> nbors(n_nbor_layers);
     ranks[nodes.indxs.vacuum_start] = max_rank;
     for (int layer = 0; layer < n_nbor_layers; ++layer) {
         // build next layer of node neighbour list
@@ -829,8 +872,8 @@ bool TetgenMesh::mark_nodes_vol2() {
     int node;
 
     // Calculate neighbour list for nodes
-    vector<vector<int>> nborlist;
-    calc_nborlist(nborlist);
+    vector<vector<unsigned>> nborlist;
+    calc_tet_nborlist(nborlist);
 
     // Calculate the ranks for the nodes to increase the robustness of the bulk-vacuum separator
     vector<int> ranks;
@@ -853,7 +896,7 @@ bool TetgenMesh::mark_nodes_vol2() {
         nodes.set_marker(node, TYPES.VACUUM);
 
     // Mark the vacuum nodes
-    vector<int> neighbours = nborlist[nodes.indxs.vacuum_start];
+    vector<unsigned> neighbours = nborlist[nodes.indxs.vacuum_start];
     for (size_t i = 0; i < neighbours.size(); ++i) {
         node = neighbours[i];
         if (nodes.get_marker(node) == TYPES.NONE) {

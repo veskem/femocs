@@ -57,7 +57,7 @@ Config::Config() {
     smooth_steps = 0;            // number of surface mesh smoothing iterations
     smooth_lambda = 0.5;         // lambda parameter in surface mesh smoother
     smooth_mu = -0.53;           // mu parameter in surface mesh smoother
-    smooth_algorithm = "laplace"; // surface mesh smoother algorithm; laplace, fujiwara or cnormal
+    smooth_algorithm = "fujiwara"; // surface mesh smoother algorithm; none, laplace or fujiwara
 }
 
 // Remove the noise from the beginning of the string

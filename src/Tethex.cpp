@@ -773,13 +773,27 @@ void Mesh::read_femocs(femocs::TetgenMesh* mesh) {
         vertices[vert] = Point(point.x, point.y, point.z); // save the vertex
     }
 
-    // Read vertex id-s
+    // Read vertex id-s and markers
     require(n_vertices == mesh->nodes.get_n_markers(), "Node ids are required to smooth the bulk-vacuum boundary!");
     for (int vert = 0; vert < n_vertices; ++vert)
         points[vert] = new PhysPoint(vert, mesh->nodes.get_marker(vert));
 
+    //* read the mesh faces
+    int n_faces = mesh->faces.size(); // the number of mesh elements
+    triangles.reserve(n_faces);
+
+    if (n_faces == mesh->faces.get_n_markers())
+        for (int f = 0; f < n_faces; ++f)
+            triangles.push_back( new Triangle(mesh->faces[f].to_vector(), mesh->faces.get_marker(f)) );
+    else
+        for (int f = 0; f < n_faces; ++f)
+            triangles.push_back( new Triangle(mesh->faces[f].to_vector()) );
+    //*/
+
     // read the mesh elements
     int n_elements = mesh->elems.size(); // the number of mesh elements
+    tetrahedra.reserve(n_elements);
+
     if (n_elements == mesh->elems.get_n_markers())
         for (int el = 0; el < n_elements; ++el)
             tetrahedra.push_back( new Tetrahedron(mesh->elems[el].to_vector(), mesh->elems.get_marker(el)) );
@@ -806,6 +820,18 @@ void Mesh::export_femocs(femocs::TetgenMesh* mesh) {
 
     mesh->nodes.recalc(); // copy nodes from write buffer to the read one
     mesh->nodes.save_hex_indices(n_cell_nodes); // save the locations of added nodes
+
+    //* Export quadrangles
+    const int n_quads = quadrangles.size();
+    mesh->quads.init(n_quads);
+    mesh->quads.init_markers(n_quads);
+
+    for (int i = 0; i < n_quads; ++i) {
+        mesh->quads.append(femocs::SimpleQuad(
+                quadrangles[i]->get_vertex(0), quadrangles[i]->get_vertex(1),
+                quadrangles[i]->get_vertex(2), quadrangles[i]->get_vertex(3) ));
+        mesh->quads.append_marker(quadrangles[i]->get_material_id());
+    } //*/
 
     // Export hexahedra
     const int n_hexs = hexahedra.size();
@@ -853,30 +879,6 @@ void Mesh::set_new_vertices(const std::vector<MeshElement*> &elements, int shift
     for (size_t elem = 0; elem < elements.size(); ++elem) {
         int shift_indx = shift + elem;
         points[shift_indx] = new PhysPoint(shift_indx, n_vertices_per_elem);
-
-//        int n_surface = 0; // Number of element nodes on surface
-//        int n_bulk = 0;    // Number of element nodes in bulk
-//        int n_vacuum = 0;  // Number of element nodes in vacuum
-//
-//        for (int ver = 0; ver < n_vertices_per_elem; ++ver) {
-//            const int cur_vertex = elements[elem]->get_vertex(ver);
-//            if ( points[cur_vertex]->get_material_id() == TYPES.SURFACE )
-//                n_surface++;
-//            if ( points[cur_vertex]->get_material_id() == TYPES.BULK )
-//                n_bulk++;
-//            if ( points[cur_vertex]->get_material_id() == TYPES.VACUUM )
-//                n_vacuum++;
-//        }
-//
-//        // If all the nodes of element are on the surface, bulk or vacuum, the new one will be also
-//        if (n_surface == n_vertices_per_elem)
-//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.SURFACE);
-//        else if (n_bulk == n_vertices_per_elem)
-//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.BULK);
-//        else if (n_vacuum == n_vertices_per_elem)
-//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.VACUUM);
-//        else
-//            points[shift_indx] = new PhysPoint(shift_indx, TYPES.NONE);
     }
 }
 
@@ -925,7 +927,6 @@ void Mesh::convert_2D() {
 }
 
 void Mesh::convert_3D() {
-
     // firstly - edge numeration
     const IncidenceMatrix incidence_matrix(vertices.size(), tetrahedra);
 
@@ -944,10 +945,6 @@ void Mesh::convert_3D() {
 
     // after that - face numeration
     face_numeration(tetrahedra, incidence_matrix, edge_vertex_incidence);
-
-    // some checks
-    expect(vertices.size() + faces.size() - 1 == tetrahedra.size() + edges.size(),
-            "Some sophisticated assumption is not held!");
 
     // after edge and face numbering
     // we should add new nodes -
@@ -984,7 +981,7 @@ void Mesh::convert_3D() {
 
     // third parameter - whether we need to numerate edges of triangles,
     // yes, because for boundary triangles we haven't done it before
-//    convert_triangles(incidence_matrix, n_old_vertices, true, edge_vertex_incidence);
+    convert_triangles(incidence_matrix, n_old_vertices, true, edge_vertex_incidence);
 
     // now we don't need triangles anymore
 #if defined(DELETE_SIMPLICES)

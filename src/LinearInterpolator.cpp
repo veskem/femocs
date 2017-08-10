@@ -204,7 +204,7 @@ bool LinearInterpolator::average_tetnodes(const TetgenMesh &mesh) {
     const double decay_factor = -1.0 / mesh.elems.stat.edgemax;
 
     vector<vector<unsigned int>> cells;
-    mesh.get_pseudo_vorocells(cells);
+    mesh.calc_pseudo_vorocells(cells);
 
     bool fail = false;
 

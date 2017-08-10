@@ -23,8 +23,8 @@ coarse_factor = 0.3 3 2         # coarsening factor; bigger number gives coarser
                                 # 3rd - minimum distance between atoms in nanotip apex [0.25*latconst]
 smooth_factor = 1.0             # surface smoothing factor; bigger number gives smoother surface
 charge_smooth_factor = 100.0    # charge smoothing factor; bigger number gives smoother charges
-smooth_steps = 0               # number of surface mesh smoothing iterations
-smooth_algorithm = laplace      # surface mesh smoother algorithm; laplace, fujiwara or cnormal
+smooth_steps = 3               # number of surface mesh smoothing iterations
+smooth_algorithm = cnormal     # surface mesh smoother algorithm; laplace, fujiwara or cnormal
 distance_tol = 0.16             # minimum distance between atoms from previous and current run to recalculate solution
 n_writefile = 1                 # minimum number of time steps between writing file; 0 turns writing off
 femocs_verbose_mode = verbose   # mute, silent or verbose
