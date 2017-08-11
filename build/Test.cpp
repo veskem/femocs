@@ -25,7 +25,7 @@ void write_defaults(ofstream &file) {
     file << "heating = false"            << endl;
     file << "write_log = true"           << endl;
     file << "clear_output = true"        << endl;
-    file << "smooth_factor = 0.0"        << endl;
+    file << "smooth_factor = 0.1"        << endl;
     file << "charge_smooth_factor = 1.0" << endl;
     file << "distance_tol = 0.16"        << endl;
     file << "n_writefile = 1"            << endl;
@@ -34,6 +34,8 @@ void write_defaults(ofstream &file) {
     file << "use_histclean = false"      << endl;
     file << "surface_cleaner = voronois" << endl;
     file << "femocs_verbose_mode = silent" << endl;
+    file << "smooth_steps = 3"           << endl;
+    file << "smooth_algorithm = fujiwara"<< endl;
 }
 
 void write_hr5(ofstream &file) {
@@ -112,6 +114,7 @@ void write_molten(ofstream &file) {
     file << "coarse_factor = 0.3 6 4"  << endl;
     file << "radius = 65.0"            << endl;
     file << "surface_thichness = 4.65" << endl;
+    file << "box_width = 5.0"         << endl;
 }
 
 void write_moltenbig(ofstream &file) {

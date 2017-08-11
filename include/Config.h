@@ -74,7 +74,7 @@ public:
     int smooth_steps;           ///< number of surface mesh smoothing iterations
     double smooth_lambda;       ///< lambda parameter in surface mesh smoother
     double smooth_mu;           ///< mu parameter in surface mesh smoother
-    string smooth_algorithm;    ///< surface mesh smoother algorithm; laplace, fujiwara or cnormal
+    string smooth_algorithm;    ///< surface mesh smoother algorithm; none, laplace or fujiwara
 
     /** Method to clean the surface atoms
      * voronois - use Voronoi cells

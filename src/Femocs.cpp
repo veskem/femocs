@@ -119,11 +119,9 @@ int Femocs::run(const double elfield, const string &message) {
         }
     }
 
-
     // Extract face charges
     if (extract_charge(vacuum_mesh)) {
         force_output(bulk_mesh, vacuum_mesh);
-        check_return(true, "Error calculating face charges!");
     }
 
     start_msg(t0, "=== Saving atom positions...");
@@ -251,12 +249,12 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     vacuum_mesh.generate_hexahedra();
     end_msg(t0);
 
-    if (conf.smooth_algorithm != "none" && conf.smooth_steps > 0) {
-        start_msg(t0, "=== Smoothing quadrangles...");
-        bulk_mesh.smoothen_quads(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
-        vacuum_mesh.smoothen_quads(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
-        end_msg(t0);
-    }
+//    if (conf.smooth_algorithm != "none" && conf.smooth_steps > 0) {
+//        start_msg(t0, "=== Smoothing quadrangles...");
+//        bulk_mesh.smoothen_quads(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
+//        vacuum_mesh.smoothen_quads(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
+//        end_msg(t0);
+//    }
 
     bulk_mesh.nodes.write("out/bulk_nodes.xyz");
     bulk_mesh.faces.write("out/bulk_tris.vtk");
