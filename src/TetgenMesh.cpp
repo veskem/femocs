@@ -468,6 +468,7 @@ bool TetgenMesh::recalc(const string& cmd) {
         edges.set_counter(tetIOout.numberofedges);
         faces.set_counter(tetIOout.numberoftrifaces);
         elems.set_counter(tetIOout.numberoftetrahedra);
+        elems.calc_statistics();
     }
     catch (int e) { return 1; }
     return 0;
@@ -483,6 +484,7 @@ bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
         edges.set_counter(tetIOout.numberofedges);
         faces.set_counter(tetIOout.numberoftrifaces);
         elems.set_counter(tetIOout.numberoftetrahedra);
+        elems.calc_statistics();
     }
     catch (int e) { return 1; }
     return 0;
@@ -656,13 +658,7 @@ bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const str
 //    bulk.hexahedra.copy(this->hexahedra, hex_mask);
 //    bulk.hexahedra.copy_markers(this->hexahedra, hex_mask);
 
-    if (vacuum.recalc(cmd) ||  bulk.recalc(cmd))
-        return true;
-
-    vacuum.elems.calc_statistics();
-    bulk.elems.calc_statistics();
-
-    return false;
+    return vacuum.recalc(cmd) ||  bulk.recalc(cmd);
 }
 
 // Mark mesh nodes and elements
@@ -706,7 +702,6 @@ void TetgenMesh::calc_quad_nborlist(vector<vector<unsigned>>& nborlist) {
                 nborlist[n1].push_back(n2);
             }
         }
-
 }
 
 // Calculate the neighbourlist for the nodes.
@@ -811,6 +806,7 @@ bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<unsigned>>& 
     const int n_nbor_layers = 4;  // number of nearest tetrahedra whose nodes will act as a seed
     const int n_nodes = nodes.size();
     const double max_rank = 100.0;
+    const double eps = 0.01 * elems.stat.edgemin;
 
     // initialise all the ranks to 0
     ranks = vector<int>(n_nodes);
@@ -852,6 +848,15 @@ bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<unsigned>>& 
                 ranks[nbor] = max_rank;
     }
 
+    // force the ranks on the simubox vacuum perimeter to maximum value
+
+    nodes.calc_statistics();
+    for (int i = 0; i < n_nodes; ++i) {
+        if ( ranks[i] > 0 && (on_boundary(nodes[i].x, nodes.stat.xmin, nodes.stat.xmax, eps) ||
+                on_boundary(nodes[i].y, nodes.stat.ymin, nodes.stat.ymax, eps)) )
+            ranks[i] = max_rank;
+    }
+
     // check whether only the vacuum nodes were ranked or did the ranks penetrate trough the surface
     // the latter suggests, that the tetrahedral surface has holes inside that may or may not cause problems
     for (int r : ranks)
@@ -868,7 +873,7 @@ bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<unsigned>>& 
 // The ranking helps to get rid of the effect of small holes.
 bool TetgenMesh::mark_nodes_vol2() {
     const int n_nodes = nodes.size();
-    const int min_rank = 33;
+    const int min_rank = 30;
     int node;
 
     // Calculate neighbour list for nodes
