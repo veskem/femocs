@@ -9,6 +9,7 @@
 #define CONFIG_H_
 
 #include "Macros.h"
+#include <set>
 
 using namespace std;
 namespace femocs {
@@ -105,11 +106,16 @@ public:
     } cfactor;
 
 private:
-    vector<vector<string>> data;  ///< Commands and their parameters found from the input script
+    vector<vector<string>> data;          ///< commands and their arguments found from the input script
+    const set<string> obsolete_commands;  ///< list of obsolete commands
 
     const string comment_symbols = "!#%";
     const string data_symbols = "/*_.0123456789abcdefghijklmnopqrstuvwxyz";
 
+    /** Check for the obsolete commands from the buffered commands */
+    void check_obsolete(const string& file_name);
+
+    /** Read the commands and their arguments from the file and store them into the buffer */
     void parse_file(const string& file_name);
 
     /** Remove the noise from the beginning of the string */

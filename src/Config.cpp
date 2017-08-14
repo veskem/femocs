@@ -13,7 +13,10 @@ using namespace std;
 namespace femocs {
 
 // Config constructor initializes configuration parameters
-Config::Config() {
+Config::Config() : obsolete_commands{
+    "postprocess_marking"
+} {
+
     extended_atoms = "";         // file with the atoms forming the extended surface
     atom_file = "";              // file with the nanostructure atoms
     latconst = 3.61;             // lattice constant
@@ -114,8 +117,11 @@ void Config::read_all(const string& file_name) {
     cfactor.amplitude = coarse_factors[0];
     cfactor.r0_cylinder = static_cast<int>(coarse_factors[1]);
     cfactor.r0_sphere = static_cast<int>(coarse_factors[2]);
+
+    check_obsolete(file_name);
 }
 
+// Read the commands and their arguments from the file and store them into the buffer
 void Config::parse_file(const string& file_name) {
     ifstream file(file_name);
     require(file, "File not found: " + file_name);
@@ -144,6 +150,15 @@ void Config::parse_file(const string& file_name) {
             line = line.substr(i);
             line_started = false;
         }
+    }
+}
+
+// Check for the obsolete commands from the buffered commands
+void Config::check_obsolete(const string& file_name) {
+    for (vector<string> cmd : data) {
+        if (obsolete_commands.find(cmd[0]) != obsolete_commands.end())
+            write_verbose_msg("Command '" + cmd[0] + "' is obsolete!"
+                    " You can safely remove it from " + file_name + " !");
     }
 }
 
