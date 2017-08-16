@@ -27,7 +27,7 @@ void write_defaults(ofstream &file) {
     file << "clear_output = true"        << endl;
     file << "smooth_factor = 0.1"        << endl;
     file << "charge_smooth_factor = 1.0" << endl;
-    file << "distance_tol = 0.16"        << endl;
+    file << "distance_tol = 0.0"        << endl;
     file << "n_writefile = 1"            << endl;
     file << "coord_cutoff = 3.1"         << endl;
     file << "latconst = 3.61"            << endl;
