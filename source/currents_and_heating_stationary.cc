@@ -133,7 +133,9 @@ bool CurrentsAndHeatingStationary<dim>::import_mesh_directly(std::vector<Point<d
         GridTools::delete_unused_vertices(vertices, cells, subcelldata);
         // ... and on cells
         GridReordering<dim, dim>::invert_all_cells_of_negative_grid(vertices, cells);
-
+        // Clean previous mesh
+        triangulation.clear();
+        // Create new mesh
         triangulation.create_triangulation_compatibility(vertices, cells, SubCellData());
     } catch (exception &exc) {
         return false;
