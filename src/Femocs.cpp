@@ -90,10 +90,9 @@ int Femocs::run(const double elfield, const string &message) {
     conf.neumann = -elfield; // set minus gradient of solution to equal to E0
     tstart = omp_get_wtime();
 
-    TetgenMesh bulk_mesh;    // FEM mesh in bulk material
-    TetgenMesh vacuum_mesh;  // FEM mesh in vacuum
-
     // Generate FEM mesh
+    TetgenMesh bulk_mesh;    ///< FEM mesh in bulk material
+    TetgenMesh vacuum_mesh;  ///< FEM mesh in vacuum
     check_return( generate_meshes(bulk_mesh, vacuum_mesh), "Mesh generation failed!" );
 
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
@@ -108,15 +107,9 @@ int Femocs::run(const double elfield, const string &message) {
     }
 
     // Solve heat & continuity equation on bulk mesh
-//    if (solve_heat(bulk_mesh, laplace_solver)) {
-
-    double delta_time = 0.05e-12;
-
-    for (int i = 0; i < 3; ++i) {
-        if (solve_transient_heat(bulk_mesh, delta_time)) {
-            force_output(bulk_mesh, vacuum_mesh);
-            check_return(true, "Solving heat & continuity equation failed!");
-        }
+    if (solve_heat(bulk_mesh, laplace_solver)) {
+        force_output(bulk_mesh, vacuum_mesh);
+        check_return(true, "Solving heat & continuity equation failed!");
     }
 
     // Extract face charges
@@ -131,8 +124,6 @@ int Femocs::run(const double elfield, const string &message) {
     stream.str(""); stream << "Total execution time " << omp_get_wtime() - tstart;
     write_silent_msg(stream.str());
     skip_calculations = false;
-
-//    write_slice("out/slice.xyz");
 
     return 0;
 }
@@ -249,13 +240,6 @@ int Femocs::generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh) {
     vacuum_mesh.generate_hexahedra();
     end_msg(t0);
 
-//    if (conf.smooth_algorithm != "none" && conf.smooth_steps > 0) {
-//        start_msg(t0, "=== Smoothing quadrangles...");
-//        bulk_mesh.smoothen_quads(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
-//        vacuum_mesh.smoothen_quads(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
-//        end_msg(t0);
-//    }
-
     bulk_mesh.nodes.write("out/bulk_nodes.xyz");
     bulk_mesh.faces.write("out/bulk_tris.vtk");
     bulk_mesh.quads.write("out/bulk_quads.vtk");
@@ -314,11 +298,23 @@ int Femocs::solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver) {
     return fail;
 }
 
-// Solve heat and continuity equations
+// Pick a method to solve heat & continuity equations
 int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) {
-    if (!conf.heating) return 0;
+    if (conf.heating_mode == "sstate")
+        return solve_sstate_heat(mesh, laplace_solver);
 
-    start_msg(t0, "=== Initializing J & T solver...");
+    else if (conf.heating_mode == "transient")
+        for (int i = 0; i < conf.transient_steps; ++i) {
+            if ( solve_transient_heat(mesh, conf.transient_time) )
+                return 1;
+        }
+
+    return 0;
+}
+
+// Solve steady-state heat and continuity equations
+int Femocs::solve_sstate_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) {
+    start_msg(t0, "=== Initializing steady-state J & T solver...");
     ch_solver->reinitialize(&laplace_solver, prev_ch_solver);
     end_msg(t0);
 
@@ -365,23 +361,21 @@ int Femocs::solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver) 
     return 0;
 }
 
+// Solve transient heat and continuity equations
 int Femocs::solve_transient_heat(const TetgenMesh& mesh, double delta_time) {
-    if (!conf.heating) return 0;
     static int integer_timestep = 0;
     double temperature = 300.0;
 
-    start_msg(t0, "=== Importing mesh to J & T solver...");
+    start_msg(t0, "=== Importing mesh to transient J & T solver...");
     fail = !ch_transient_solver.import_mesh_directly(mesh.nodes.export_dealii(), mesh.hexahedra.export_dealii());
     check_return(fail, "Importing mesh to Deal.II failed!");
     end_msg(t0);
-
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
     FieldReader field_reader(&vacuum_interpolator);
     field_reader.transfer_field(ch_transient_solver, conf.use_histclean * conf.coordination_cutoff, true);
     end_msg(t0);
     field_reader.write("out/surface_field.xyz");
-
 
     start_msg(t0, "=== Interpolating J & T on face centroids...");
     HeatReader temp_reader(&bulk_interpolator);
@@ -391,14 +385,12 @@ int Femocs::solve_transient_heat(const TetgenMesh& mesh, double delta_time) {
     if (integer_timestep > 0)
         temp_reader.write("out/surface_temperature.xyz");
 
-
     start_msg(t0, "=== Calculating field emission...");
     FieldReader emission(&vacuum_interpolator);
     if (integer_timestep == 0)
         emission.calc_emission(ch_transient_solver, field_reader, temperature);
     else
         emission.calc_emission(ch_transient_solver, field_reader, temp_reader);
-
     end_msg(t0);
     emission.write("out/magic.xyz");
 
@@ -485,7 +477,8 @@ void Femocs::force_output(const TetgenMesh& bulk_mesh, const TetgenMesh& vacuum_
     if (face_charges.size() > 0)
         face_charges.write("out/face_charges.xyz");
 
-    if (conf.heating && bulk_interpolator.size() > 0) {
+    if ((conf.heating_mode == "transient" || conf.heating_mode == "sstate")
+        && bulk_interpolator.size() > 0) {
         ch_solver->output_results("out/result_J_T.vtk");
         bulk_interpolator.write("out/result_J_T.xyz");
     }
@@ -684,7 +677,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
 
 // calculate and export temperatures on imported atom coordinates
 int Femocs::export_temperature(const int n_atoms, double* T) {
-    if (n_atoms < 0 || !conf.heating) return 0;
+    if (n_atoms < 0 || conf.heating_mode == "none") return 0;
     check_return(bulk_interpolator.size() == 0, "No temperature to export!");
 
     if (skip_calculations)

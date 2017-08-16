@@ -14,7 +14,8 @@ namespace femocs {
 
 // Config constructor initializes configuration parameters
 Config::Config() : obsolete_commands{
-    "postprocess_marking"
+    "postprocess_marking",
+    "heating"
 } {
 
     extended_atoms = "";         // file with the atoms forming the extended surface
@@ -51,7 +52,10 @@ Config::Config() : obsolete_commands{
     use_histclean = false;       // use histogram cleaner to get rid of sharp peaks in the solution
     cluster_anal = true;         // enable cluster analysis
     clear_output = true;         // clear output folder
-    heating = false;             // turn ON 3D current density and temperature calculations
+
+    heating_mode = "none";       // method to calculate current density and temperature; none, sstate or transient
+    transient_time = 0.05e-12;   // time resolution in transient temperature solver [sec]
+    transient_steps = 3;         // number of iterations in transient heat equation solver
 
     E0 = 0;                      // long range electric field
     neumann = 0;                 // neumann boundary contition value
@@ -76,6 +80,9 @@ void Config::read_all(const string& file_name) {
     parse_file(file_name);
 
     // Modify the parameters that are specified in input script
+    read_command("transient_steps", transient_steps);
+    read_command("transient_time", transient_time);
+    read_command("heating_mode", heating_mode);
     read_command("smooth_steps", smooth_steps);
     read_command("smooth_lambda", smooth_lambda);
     read_command("smooth_mu", smooth_mu);
@@ -100,7 +107,6 @@ void Config::read_all(const string& file_name) {
     read_command("smooth_factor", surface_smooth_factor);
     read_command("charge_smooth_factor", charge_smooth_factor);
     read_command("refine_apex", refine_apex);
-    read_command("heating", heating);
     read_command("distance_tol", distance_tol);
     read_command("box_width", box_width);
     read_command("box_height", box_height);

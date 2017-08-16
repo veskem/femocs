@@ -56,21 +56,27 @@ public:
     double E0;                  ///< Value of long range electric field
     bool cluster_anal;          ///< Enable cluster analysis
     bool refine_apex;           ///< Add elements to the nanotip apex
-    bool heating;               ///< Turn ON 3D current density and temperature calculations
+
     double box_width;           ///< Minimal simulation box width [tip height]
     double box_height;          ///< Simulation box height [tip height]
     double bulk_height;         ///< Bulk substrate height [lattice constant]
+
     double t_error;             ///< Maximum allowed temperature error in Newton iterations
     int n_newton;               ///< Maximum number of Newton iterations
     double ssor_param;          ///< Parameter for SSOR preconditioner in DealII
     double phi_error;           ///< Maximum allowed electric potential error
     int n_phi;                  ///< Maximum number of Conjugate Gradient iterations in phi calculation
+
     bool clear_output;          ///< Clear output folder before the run
     bool use_histclean;         ///< Clean the solution with histogram cleaner
     int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
     string verbose_mode;        ///< Verbose mode: mute, silent, verbose
     double force_factor;        ///< Factor determining the relationship between force and charge*elfield
     double charge_tolerance;    ///< Tolerance how much face charges are allowed to deviate from the long range one
+
+    string heating_mode;        ///< Method to calculate current density and temperature; none, sstate or transient
+    double transient_time;      ///< Time resolution in transient heat equation solver [sec]
+    int transient_steps;        ///< Number of iterations in transient heat equation solver
 
     int smooth_steps;           ///< number of surface mesh smoothing iterations
     double smooth_lambda;       ///< lambda parameter in surface mesh smoother
