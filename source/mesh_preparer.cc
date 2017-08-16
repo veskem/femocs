@@ -68,7 +68,7 @@ template<int dim>
 void MeshPreparer<dim>::mark_boundary(Triangulation<dim> *triangulation, char top, char bottom,
         char sides, char other) {
     typename Triangulation<dim>::active_face_iterator face;
-    double eps = 0.1;
+    double eps = 1e-6;
     double xmax = -1e16, ymax = -1e16, zmax = -1e16;
     double xmin = 1e16, ymin = 1e16, zmin = 1e16;
 
@@ -95,6 +95,7 @@ void MeshPreparer<dim>::mark_boundary(Triangulation<dim> *triangulation, char to
             }
         }
     }
+
     for (face = triangulation->begin_face(); face != triangulation->end_face(); ++face) {
         if (face->at_boundary()) {
             if (dim == 2) {

@@ -123,13 +123,11 @@ void CurrentsAndHeating<dim>::setup_heating_system() {
     old_solution_heat.reinit(dof_handler_heat.n_dofs());
     system_rhs_heat.reinit(dof_handler_heat.n_dofs());
 
-    const_temperature_solution.reinit(dof_handler_heat.n_dofs());
 
     // Initialize the solution to ambient temperature
     for (std::size_t i = 0; i < solution_heat.size(); i++) {
         solution_heat[i] = ambient_temperature;
         old_solution_heat[i] = ambient_temperature;
-        const_temperature_solution[i] = 1000;
     }
 }
 
@@ -378,8 +376,6 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
 
     const double gamma = time_step/(cu_rho_cp);
 
-    double max_heating_power = 0.0;
-
     QGauss<dim> quadrature_formula(heating_degree+1);
     QGauss<dim-1> face_quadrature_formula(heating_degree+1);
 
@@ -431,7 +427,7 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
         for (unsigned int q = 0; q < n_q_points; ++q) {
 
             double prev_temperature = prev_sol_temperature_values[q];
-            double kappa = pq->kappa(prev_temperature);
+            double kappa = pq->kappa(300.0);
             double sigma = pq->sigma(prev_temperature);
 
             double pot_grad_squared = potential_gradients[q].norm_square();
@@ -443,19 +439,19 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
                             + gamma*kappa*fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
                     ) * fe_values.JxW(q);
                 }
+
                 cell_rhs(i) += (
                         fe_values.shape_value(i, q)*prev_temperature
-                        + gamma*fe_values.shape_value(i, q)*sigma*pot_grad_squared
+                        //+ gamma*fe_values.shape_value(i, q)*sigma*pot_grad_squared
                 ) * fe_values.JxW(q);
-                if (sigma*pot_grad_squared > max_heating_power) {
-                    max_heating_power = sigma*pot_grad_squared;
-                }
+
             }
         }
         // ----------------------------------------------------------------------------------------
         // Local right-hand side assembly
         // ----------------------------------------------------------------------------------------
         // Nottingham BC at the copper surface
+        /*
         for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
             if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
                 fe_face_values.reinit(cell, f);
@@ -481,22 +477,24 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
                 }
             }
         }
-
+        */
         cell->get_dof_indices(local_dof_indices);
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
             for (unsigned int j = 0; j < dofs_per_cell; ++j)
                 system_matrix_heat.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
-
             system_rhs_heat(local_dof_indices[i]) += cell_rhs(i);
         }
     }
-
-    //std::cout << "Maximum heating power in system: " << max_heating_power << std::endl;
 
     std::map<types::global_dof_index, double> boundary_values;
     VectorTools::interpolate_boundary_values(dof_handler_heat, BoundaryId::copper_bottom,
             ConstantFunction<dim>(ambient_temperature), boundary_values);
     MatrixTools::apply_boundary_values(boundary_values, system_matrix_heat, solution_heat, system_rhs_heat);
+
+    std::map<types::global_dof_index, double> boundary_values2;
+    VectorTools::interpolate_boundary_values(dof_handler_heat, BoundaryId::copper_surface,
+            ConstantFunction<dim>(1000.0), boundary_values2);
+    MatrixTools::apply_boundary_values(boundary_values2, system_matrix_heat, solution_heat, system_rhs_heat);
 }
 
 template<int dim>
@@ -777,6 +775,11 @@ Triangulation<dim>* CurrentsAndHeating<dim>::get_triangulation() {
 template<int dim>
 DoFHandler<dim>* CurrentsAndHeating<dim>::get_dof_handler_current() {
     return &dof_handler_current;
+}
+
+template<int dim>
+double CurrentsAndHeating<dim>::probe_temperature(const Point<dim> &p) const {
+    return VectorTools::point_value(dof_handler_heat, solution_heat, p);
 }
 
 // ----------------------------------------------------------------------------------------
