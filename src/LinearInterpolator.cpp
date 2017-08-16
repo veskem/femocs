@@ -254,18 +254,19 @@ bool LinearInterpolator::extract_solution(fch::Laplace<3>* fem, const TetgenMesh
     get_maps(tetNode2hexNode, cell_indxs, vert_indxs,
             fem->get_triangulation(), fem->get_dof_handler(), eps);
 
-    vector<dealii::Tensor<1, 3>> ef = fem->get_efield(cell_indxs, vert_indxs); // get list of electric fields
+    vector<dealii::Tensor<1, 3>> fields = fem->get_efield(cell_indxs, vert_indxs); // get list of electric fields
     vector<double> pot = fem->get_potential(cell_indxs, vert_indxs); // get list of electric potentials
 
-    require(ef.size() == pot.size(),
-            "Mismatch of vector sizes: " + to_string(ef.size()) + ", " + to_string(pot.size()));
+    require(fields.size() == pot.size(),
+            "Mismatch of vector sizes: " + to_string(fields.size()) + ", " + to_string(pot.size()));
 
     unsigned i = 0;
     for (int n : tetNode2hexNode) {
         // If there is a common node between tet and hex meshes, store actual solution
         if (n >= 0) {
-            require(i < ef.size(), "Invalid index: " + to_string(i));
-            solution.push_back( Solution(Vec3(ef[i][0], ef[i][1], ef[i][2]), pot[i++]) );
+            require(i < fields.size(), "Invalid index: " + to_string(i));
+            dealii::Tensor<1, 3> field = fields[i]; // that step needed to avoid complaints from Valgrind
+            solution.push_back( Solution(Vec3(field[0], field[1], field[2]), pot[i++]) );
         }
 
         // In case of non-common node, store solution with error value
