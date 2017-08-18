@@ -181,44 +181,48 @@ private:
     LinearInterpolator bulk_interpolator;   ///< data for interpolating results in bulk
     LinearInterpolator vacuum_interpolator; ///< data for interpolating results in vacuum
 
+    TetgenMesh bulk_mesh;    ///< FEM mesh in bulk material
+    TetgenMesh vacuum_mesh;  ///< FEM mesh in vacuum
+
     HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
     FieldReader fields = FieldReader(&vacuum_interpolator);     ///< interpolated fields and potentials
     ForceReader forces = ForceReader(&vacuum_interpolator);     ///< forces on surface atoms
     ChargeReader face_charges = ChargeReader(&vacuum_interpolator); ///< charges on surface faces
 
-    fch::PhysicalQuantities phys_quantities;    ///< physical quantities used in heat calculations
-    fch::CurrentsAndHeatingStationary<3> ch_solver1;      ///< first currents and heating solver
-    fch::CurrentsAndHeatingStationary<3> ch_solver2;      ///< second currents and heating solver
-    fch::CurrentsAndHeatingStationary<3>* ch_solver;      ///< active currents and heating solver
-    fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous currents and heating solver
+    fch::PhysicalQuantities phys_quantities;              ///< physical quantities used in heat calculations
+    fch::CurrentsAndHeatingStationary<3> ch_solver1;      ///< first steady-state currents and heating solver
+    fch::CurrentsAndHeatingStationary<3> ch_solver2;      ///< second steady-state currents and heating solver
+    fch::CurrentsAndHeatingStationary<3>* ch_solver;      ///< active steady-state currents and heating solver
+    fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous steady-state currents and heating solver
     fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
-    
+    fch::Laplace<3> laplace_solver;                       ///< Laplace equation solver
+
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);
 
     /** Generate bulk and vacuum meshes */
-    int generate_meshes(TetgenMesh& bulk_mesh, TetgenMesh& vacuum_mesh);
+    int generate_meshes();
 
     /** Solve Laplace equation */
-    int solve_laplace(const TetgenMesh& mesh, fch::Laplace<3>& solver);
+    int solve_laplace();
 
     /** Pick a method to solve heat and continuity equations */
-    int solve_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
+    int solve_heat();
 
     /** Solve steady-steate heat and continuity equations */
-    int solve_sstate_heat(const TetgenMesh& mesh, fch::Laplace<3>& laplace_solver);
+    int solve_sstate_heat();
 
     /** Solve transient heat and continuity equations */
-    int solve_transient_heat(const TetgenMesh& mesh, double delta_time);
+    int solve_transient_heat(double delta_time);
 
     /** Calculate the charges on surface faces */
-    int extract_charge(const TetgenMesh& mesh);
+    int extract_charge();
 
     /** Interpolate the solution on the x-z plane in the middle of simulation box */
     void write_slice(const string& file_name);
 
     /** Force the data to the files for debugging purposes */
-    void force_output(const TetgenMesh& bulk_mesh, const TetgenMesh& vacuum_mesh);
+    void force_output();
 };
 
 } /* namespace femocs */
