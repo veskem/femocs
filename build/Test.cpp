@@ -22,7 +22,7 @@ void print_progress(const string& message, const bool contition) {
 }
 
 void write_defaults(ofstream &file) {
-    file << "heating = false"            << endl;
+    file << "heating_mode = none"      << endl;
     file << "write_log = true"           << endl;
     file << "clear_output = true"        << endl;
     file << "smooth_factor = 0.1"        << endl;

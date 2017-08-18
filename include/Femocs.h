@@ -164,6 +164,14 @@ public:
      */
     int generate_nanotip(const double height, const double radius=-1, const double resolution=-1);
 
+    /** Generate bulk and vacuum meshes */
+    int generate_meshes();
+
+    /** Solve Laplace equation */
+    int solve_laplace();
+
+    /** Pick a method to solve heat and continuity equations */
+    int solve_heat();
 
 private:
     bool skip_calculations, fail;
@@ -187,7 +195,6 @@ private:
     HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
     FieldReader fields = FieldReader(&vacuum_interpolator);     ///< interpolated fields and potentials
     ForceReader forces = ForceReader(&vacuum_interpolator);     ///< forces on surface atoms
-    ChargeReader face_charges = ChargeReader(&vacuum_interpolator); ///< charges on surface faces
 
     fch::PhysicalQuantities phys_quantities;              ///< physical quantities used in heat calculations
     fch::CurrentsAndHeatingStationary<3> ch_solver1;      ///< first steady-state currents and heating solver
@@ -200,23 +207,11 @@ private:
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);
 
-    /** Generate bulk and vacuum meshes */
-    int generate_meshes();
-
-    /** Solve Laplace equation */
-    int solve_laplace();
-
-    /** Pick a method to solve heat and continuity equations */
-    int solve_heat();
-
     /** Solve steady-steate heat and continuity equations */
     int solve_sstate_heat();
 
     /** Solve transient heat and continuity equations */
     int solve_transient_heat(double delta_time);
-
-    /** Calculate the charges on surface faces */
-    int extract_charge();
 
     /** Interpolate the solution on the x-z plane in the middle of simulation box */
     void write_slice(const string& file_name);

@@ -109,11 +109,6 @@ int Femocs::run(const double elfield, const string &message) {
         check_return(true, "Solving heat & continuity equation failed!");
     }
 
-    // Extract face charges
-    if (extract_charge()) {
-        force_output();
-    }
-
     start_msg(t0, "=== Saving atom positions...");
     reader.save_current_run_points(conf.distance_tol);
     end_msg(t0);
@@ -446,24 +441,6 @@ int Femocs::solve_transient_heat(double delta_time) {
     return 0;
 }
 
-// Calculate the charges on surface faces
-int Femocs::extract_charge() {
-    start_msg(t0, "=== Calculating face charges...");
-    face_charges.calc_charges(vacuum_mesh, conf.E0);
-    end_msg(t0);
-
-    const double tot_charge = conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0;
-    face_charges.print_statistics(tot_charge);
-
-    check_return(!face_charges.charge_conserved(tot_charge, conf.charge_tolerance),
-            "Face charges are not conserved!");
-
-    face_charges.clean(dense_surf.sizes, conf.latconst);
-    face_charges.write("out/face_charges.xyz");
-
-    return 0;
-}
-
 // Write all the available data to file for debugging purposes
 void Femocs::force_output() {
     if (conf.n_writefile <= 0) return;
@@ -477,9 +454,6 @@ void Femocs::force_output() {
 
     vacuum_interpolator.write("out/result_E_phi.vtk");
     vacuum_interpolator.write("out/result_E_phi.xyz");
-
-    if (face_charges.size() > 0)
-        face_charges.write("out/face_charges.xyz");
 
     if ((conf.heating_mode == "transient" || conf.heating_mode == "sstate")
         && bulk_interpolator.size() > 0) {
@@ -705,11 +679,26 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
 // calculate and export charges & forces on imported atom coordinates
 int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
     if (n_atoms < 0) return 0;
-    check_return(fields.size() == 0 || face_charges.size() == 0, "No force to export!");
+    check_return(fields.size() == 0, "No force to export!");
 
     if (skip_calculations)
         write_silent_msg("Using previous solution!");
     else {
+        ChargeReader face_charges(&vacuum_interpolator); // charges on surface faces
+
+        start_msg(t0, "=== Calculating face charges...");
+        face_charges.calc_charges(vacuum_mesh, conf.E0);
+        end_msg(t0);
+
+        const double tot_charge = conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0;
+        face_charges.print_statistics(tot_charge);
+
+        check_return(!face_charges.charge_conserved(tot_charge, conf.charge_tolerance),
+                "Face charges are not conserved!");
+
+        face_charges.clean(dense_surf.sizes, conf.latconst);
+        face_charges.write("out/face_charges.xyz");
+
         start_msg(t0, "=== Calculating charges and forces...");
         forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coordination_cutoff,
                 conf.charge_smooth_factor, conf.force_factor);
