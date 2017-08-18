@@ -18,7 +18,8 @@ namespace femocs {
 // Copy the nodes from write to read buffer
 void TetgenNodes::recalc() {
     TetgenCells::recalc();
-    delete[] reads->pointlist;
+    if (reads->pointlist != (REAL *) NULL)
+        delete[] reads->pointlist;
     reads->pointlist = new double[n_coordinates * i_cells];
     for (int i = 0; i < n_coordinates * i_cells; ++i)
         reads->pointlist[i] = writes->pointlist[i];
@@ -28,7 +29,8 @@ void TetgenNodes::recalc() {
 void TetgenNodes::init(const int N) {
     TetgenCells::init(N);
     init_statistics();
-    delete[] writes->pointlist;
+    if (writes->pointlist != (REAL *) NULL)
+        delete[] writes->pointlist;
     writes->pointlist = new double[n_coordinates * N];
 }
 
@@ -210,7 +212,8 @@ void TetgenNodes::write_xyz(const string &file_name) const {
 // Copy the nodes from write to read buffer
 void TetgenEdges::recalc() {
     TetgenCells::recalc();
-    delete[] reads->edgelist;
+    if (reads->edgelist != (int *) NULL)
+        delete[] reads->edgelist;
     reads->edgelist = new int[DIM * i_cells];
     for (int i = 0; i < DIM * i_cells; ++i)
         reads->edgelist[i] = writes->edgelist[i];
@@ -219,7 +222,8 @@ void TetgenEdges::recalc() {
 // Initialize edge appending
 void TetgenEdges::init(const int N) {
     TetgenCells::init(N);
-    delete[] writes->edgelist;
+    if (writes->edgelist != (int *) NULL)
+        delete[] writes->edgelist;
     writes->edgelist = new int[DIM * N];
 }
 
@@ -246,7 +250,8 @@ SimpleCell<2> TetgenEdges::get_cell(const int i) const {
 // Copy the nodes from write to read buffer
 void TetgenFaces::recalc() {
     TetgenCells::recalc();
-    delete[] reads->trifacelist;
+    if (reads->trifacelist != (int *) NULL)
+        delete[] reads->trifacelist;
     reads->trifacelist = new int[DIM * i_cells];
     for (int i = 0; i < DIM * i_cells; ++i)
         reads->trifacelist[i] = writes->trifacelist[i];
@@ -255,7 +260,8 @@ void TetgenFaces::recalc() {
 // Initialize face appending
 void TetgenFaces::init(const int N) {
     TetgenCells::init(N);
-    delete[] writes->trifacelist;
+    if (writes->trifacelist != (int *) NULL)
+        delete[] writes->trifacelist;
     writes->trifacelist = new int[DIM * N];
 }
 
@@ -372,7 +378,8 @@ void TetgenElements::calc_statistics() {
 // Copy the nodes from write to read buffer
 void TetgenElements::recalc() {
     TetgenCells::recalc();
-    delete[] reads->tetrahedronlist;
+    if (reads->tetrahedronlist != (int *) NULL)
+        delete[] reads->tetrahedronlist;
     reads->tetrahedronlist = new int[DIM * i_cells];
     for (int i = 0; i < DIM * i_cells; ++i)
         reads->tetrahedronlist[i] = writes->tetrahedronlist[i];
@@ -382,7 +389,8 @@ void TetgenElements::recalc() {
 void TetgenElements::init(const int N) {
     TetgenCells::init(N);
     init_statistics();
-    delete[] writes->tetrahedronlist;
+    if (writes->tetrahedronlist != (int *) NULL)
+        delete[] writes->tetrahedronlist;
     writes->tetrahedronlist = new int[DIM * N];
 }
 

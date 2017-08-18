@@ -195,6 +195,14 @@ TetgenMesh::TetgenMesh() {
     tetIOout.initialize();
 }
 
+// Delete the data of previously stored mesh and initialise a new one
+void TetgenMesh::clear() {
+    tetIOin.deinitialize();
+    tetIOout.deinitialize();
+    tetIOin.initialize();
+    tetIOout.initialize();
+}
+
 // Smoothen the triangles using different versions of Taubin smoothing algorithm
 // Code is inspired from the work of Shawn Halayka
 // TODO if found, add the link to Shawn's version

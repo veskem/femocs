@@ -69,6 +69,9 @@ public:
     /** Perform double Tetgen calculation on input buffer and store it in output one */
     bool recalc(const string& cmd1, const string& cmd2);
 
+    /** Delete the data of previously stored mesh and initialise a new one */
+    void clear();
+
     /** Objects holding operations for accessing cell data */
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
     TetgenEdges edges = TetgenEdges(&tetIOout);
