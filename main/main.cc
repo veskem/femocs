@@ -58,7 +58,7 @@ int main() {
 
 
 
-    double time_step = 0.00005e-12; // seconds
+    double time_step = 0.00001*1e-15; // seconds
     fch::CurrentsAndHeating<2> ch(time_step, &pq);
     ch.import_mesh_from_file("../res/2d_meshes/straight.msh");
 
@@ -66,13 +66,15 @@ int main() {
     ch.setup_heating_system();
 
     int i = 0;
-    for (double time = 0.0; time <= 0.1e-12; time+=time_step) {
+    for (double time = 0.0; time <= 0.01*1e-15; ) {
+        time+=time_step;
+
         //ch.assemble_current_system();
         //unsigned int ccg = ch.solve_current();
 
         ch.assemble_heating_system_euler_implicit();
-        unsigned int hcg = ch.solve_heat(2000, 1e-9, false, 1.0);
-        std::printf("    t=%5.3fps; ccg=%2d; hcg=%2d; T=%6.2f\n", time*1e12, 0, hcg, ch.probe_temperature(dealii::Point<2>(0.0, 0.3)));
+        unsigned int hcg = ch.solve_heat(2000, 1e-9, true, 1.0);
+        std::printf("    t=%5.5ffs; ccg=%2d; hcg=%2d; T=%6.2f\n", time*1e15, 0, hcg, ch.probe_temperature(dealii::Point<2>(0.0, 0.3)));
 
         if (i%1 == 0) {
             //ch.output_results_current("./output/current_solution-"+std::to_string(i)+".vtk");

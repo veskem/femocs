@@ -241,8 +241,6 @@ void CurrentsAndHeating<dim>::assemble_heating_system_crank_nicolson() {
 
     const double const_k = time_step/(2.0*cu_rho_cp);
 
-    double max_heating_power = 0.0;
-
     QGauss<dim> quadrature_formula(heating_degree+1);
     QGauss<dim-1> face_quadrature_formula(heating_degree+1);
 
@@ -318,9 +316,6 @@ void CurrentsAndHeating<dim>::assemble_heating_system_crank_nicolson() {
                         + const_k*fe_values.shape_value(i, q)*sigma*(pot_grad_squared+prev_pot_grad_squared)
                         - const_k*kappa*fe_values.shape_grad(i, q)*prev_temperature_grad
                 ) * fe_values.JxW(q);
-                if (1/2.0*sigma*(pot_grad_squared+prev_pot_grad_squared) > max_heating_power) {
-                    max_heating_power = 1/2.0*sigma*(pot_grad_squared+prev_pot_grad_squared);
-                }
             }
         }
         // ----------------------------------------------------------------------------------------
@@ -362,8 +357,6 @@ void CurrentsAndHeating<dim>::assemble_heating_system_crank_nicolson() {
         }
     }
 
-    //std::cout << "Maximum heating power in system: " << max_heating_power << std::endl;
-
     std::map<types::global_dof_index, double> boundary_values;
     VectorTools::interpolate_boundary_values(dof_handler_heat, BoundaryId::copper_bottom,
             ConstantFunction<dim>(ambient_temperature), boundary_values);
@@ -375,6 +368,9 @@ template<int dim>
 void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
 
     const double gamma = time_step/(cu_rho_cp);
+
+    system_matrix_heat = 0;
+    system_rhs_heat = 0;
 
     QGauss<dim> quadrature_formula(heating_degree+1);
     QGauss<dim-1> face_quadrature_formula(heating_degree+1);
@@ -427,7 +423,7 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
         for (unsigned int q = 0; q < n_q_points; ++q) {
 
             double prev_temperature = prev_sol_temperature_values[q];
-            double kappa = pq->kappa(300.0);
+            double kappa = 4.0e-8;
             double sigma = pq->sigma(prev_temperature);
 
             double pot_grad_squared = potential_gradients[q].norm_square();
@@ -521,8 +517,6 @@ unsigned int CurrentsAndHeating<dim>::solve_current(int max_iter, double tol, bo
 template<int dim>
 unsigned int CurrentsAndHeating<dim>::solve_heat(int max_iter, double tol, bool pc_ssor, double ssor_param) {
 
-    old_solution_heat = solution_heat;
-
     SolverControl solver_control(max_iter, tol);
     SolverCG<> solver(solver_control);
 
@@ -536,6 +530,7 @@ unsigned int CurrentsAndHeating<dim>::solve_heat(int max_iter, double tol, bool 
     //std::cout << "   T: " << solver_control.last_step()
     //        << " CG iterations needed to obtain convergence." << std::endl;
 
+    old_solution_heat = solution_heat;
     return solver_control.last_step();
 }
 

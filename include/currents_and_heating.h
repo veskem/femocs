@@ -190,7 +190,7 @@ private:
 
     static constexpr double ambient_temperature = 300.0; ///< temperature boundary condition, i.e temperature applied on bottom of the material
 
-    static constexpr double cu_rho_cp = 3.4496e-21;    ///< volumetric heat capacity of copper J/(K*nm^3)
+    static constexpr double cu_rho_cp = 3.4496e-24;    ///< volumetric heat capacity of copper J/(K*ang^3)
 
     double time_step;
 
