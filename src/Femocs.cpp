@@ -20,7 +20,7 @@ using namespace std;
 namespace femocs {
 
 // specify simulation parameters
-Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false), timestep(0) {
+Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false), timestep(-1) {
     static bool first_call = true;
 
     // Read configuration parameters from configuration file
@@ -144,6 +144,7 @@ int Femocs::run(const double elfield, const string &message) {
 // Determine whether atoms have moved significantly and whether to enable file writing
 int Femocs::reinit() {
     static bool prev_skip_calculations = true;  // Value of skip_calculations in last call
+    ++timestep;
 
     if (!prev_skip_calculations && MODES.WRITEFILE)
         MODES.WRITEFILE = false;
@@ -151,7 +152,7 @@ int Femocs::reinit() {
     if ((conf.n_writefile > 0) && (timestep % conf.n_writefile == 0))
         MODES.WRITEFILE = true;
 
-    conf.message = to_string(timestep++);
+    conf.message = to_string(timestep);
     write_silent_msg("Running at timestep " + conf.message);
     conf.message = "_" + string( max(0.0, 5.0 - conf.message.length()), '0' ) + conf.message;
 
