@@ -60,10 +60,10 @@ int main() {
 
     fch::Laplace<2> laplace;
     laplace.import_mesh_from_file("../res/2d_meshes/vacuum_aligned.msh");
-    laplace.set_applied_efield(8.0);
+    laplace.set_applied_efield(10.0);
     laplace.run();
 
-    double time_step = 0.0001e-12; // seconds
+    double time_step = 0.1e-15; // seconds
     fch::CurrentsAndHeating<2> ch(time_step, &pq);
     ch.import_mesh_from_file("../res/2d_meshes/copper_aligned.msh");
 
@@ -73,16 +73,22 @@ int main() {
     ch.set_electric_field_bc(laplace);
 
     int i = 0;
-    for (double time = 0.0; time <= 0.003e-12; ) {
+    for (double time = 0.0; time <= 3.0e-15; ) {
         time+=time_step;
 
         ch.assemble_current_system();
         unsigned int ccg = ch.solve_current();
 
-        ch.assemble_heating_system_euler_implicit();
+        if (i == 0) {
+            ch.assemble_heating_system_euler_implicit();
+        } else {
+            //ch.assemble_heating_system_euler_implicit();
+            ch.assemble_heating_system_crank_nicolson();
+        }
+
         unsigned int hcg = ch.solve_heat();
         double max_T = ch.get_max_temperature();
-        std::printf("    t=%5.3fps; ccg=%2d; hcg=%2d; max_T=%6.2f\n", time*1e12, ccg, hcg, max_T);
+        std::printf("    t=%5.3ffs; ccg=%2d; hcg=%2d; max_T=%6.2f\n", time*1e15, ccg, hcg, max_T);
 
         if (i%10 == 0) {
             ch.output_results_current("./output/current_solution-"+std::to_string(i)+".vtk");
