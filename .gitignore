@@ -36,10 +36,7 @@ CMakeFiles/
 Makefile
 cmake_install.cmake
 *.eps
-*vtk
+*.vtk
 *.gz
-*.pdf
-currents_and_heating
-emitter
 build/
 .ipynb_checkpoints

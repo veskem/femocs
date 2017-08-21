@@ -151,7 +151,7 @@ public:
      * Method to obtain the temperature values in selected nodes.
      * @param cell_indexes global cell indexes, where the corresponding nodes are situated
      * @param vert_indexes the vertex indexes of the nodes inside the cell
-     * @return temperatur  ///< default temperature applied on bottom of the materiale values in the specified nodes
+     * @return temperature  ///< default temperature applied on bottom of the materiale values in the specified nodes
      */
     std::vector<double> get_temperature(const std::vector<int> &cell_indexes,
             const std::vector<int> &vert_indexes);
@@ -176,6 +176,9 @@ public:
     /** Provide dof_handler object to get access to the mesh data */
     DoFHandler<dim>* get_dof_handler_current();
 
+    /** Get the temperature at the specified point. NB: Slow! */
+    double probe_temperature(const Point<dim> &p) const;
+
 private:
 
     double get_efield_bc(std::pair<unsigned, unsigned> cop_cell_info);
@@ -187,7 +190,7 @@ private:
 
     static constexpr double ambient_temperature = 300.0; ///< temperature boundary condition, i.e temperature applied on bottom of the material
 
-    static constexpr double cu_rho_cp = 3.4496e-21;    ///< volumetric heat capacity of copper J/(K*nm^3)
+    static constexpr double cu_rho_cp = 3.4496e-24;    ///< volumetric heat capacity of copper J/(K*ang^3)
 
     double time_step;
 
@@ -215,7 +218,6 @@ private:
     Vector<double> solution_heat;
     Vector<double> old_solution_heat;
 
-    Vector<double> const_temperature_solution;
 
     PhysicalQuantities *pq;
 

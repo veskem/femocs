@@ -1,0 +1,109 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc} % utf-8 encoding
+%\usepackage{newtxtext,newtxmath} % Times New Roman
+\usepackage{lmodern} % Latin modern font
+\usepackage{siunitx} % for scientific notation AND units!
+\usepackage{microtype} % better justification; always use with pdflatex!
+\usepackage{booktabs} % midrule etc
+\usepackage[margin=1.0in]{geometry} % nice margins
+\usepackage{graphicx} % Images
+\usepackage[T1]{fontenc} % font encoding
+\usepackage{color}
+\usepackage{hyperref} % clickable links
+\usepackage{float} % for fixed floats (H)
+\usepackage{subcaption} % figures side-by-side
+\usepackage{amsmath} % better math structure
+\usepackage{bm} % bold math
+\usepackage{physics} % bra, ket and other symbols
+\usepackage{setspace} % 1.5 line spacing
+\onehalfspacing
+
+% For documents in estonian (changes date; figure captions etc...)
+%\usepackage[estonian]{babel} 
+
+%\usepackage[backend=biber,sorting=none]{biblatex}
+%\addbibresource{./ref.bib}
+
+\numberwithin{figure}{section}
+\numberwithin{table}{section}
+\numberwithin{equation}{section}
+
+\allowdisplaybreaks[1] % page breaks allowed in e.g. long align environ.
+
+\usepackage{tikz} % flowcharts, other tikz figures
+\usetikzlibrary{shapes,arrows,fit,calc}
+\usepackage{pgfplots}
+%\usepgfplotslibrary{clickable}
+\pgfplotsset{
+	compat=1.9,
+	width=0.55\textwidth,
+	tick style={line width=0.8pt},
+	every axis plot/.append style={line width=0.8pt},
+	every axis/.append style={line width=0.8pt}
+	}
+
+\newcommand{\note}[1]{\textcolor{red}{#1}} % notes, comments in red
+\newcommand{\longnote}[1]{{\leavevmode\color{blue!40!black}#1}} % colored environm.
+
+\begin{document}
+
+\begin{center}
+	{\LARGE Heat equation weak formulation} \\
+\end{center}
+
+% Use \section*{} for no number
+\section{Time dependent heat equation}
+
+\begin{align}
+&\rho c_p \frac{\partial T}{\partial t} = \nabla \cdot \left( \kappa(T) \nabla T \right) + \sigma(T) (\nabla \varphi)^2 \\
+&\vec{n} \cdot \left( \kappa(T) \nabla T \right) = Q(T) \text{ on $\Omega$}
+\end{align}
+
+
+
+\section{Euler implicit}
+
+Assuming that conductivities have only previous time step values (otherwise the problem would be non-linear) and $\gamma = \rho c_p / \Delta t$:
+\begin{equation}
+\gamma (T_{n+1} - T_n) = \nabla \cdot \left( \kappa(T_n) \nabla T_{n+1} \right) + \sigma(T_n) (\nabla \varphi_{n+1})^2 
+\end{equation}
+
+Weak formulation (multiply by test function $\phi_i$ and integrate over the domain)
+$$\gamma \int \phi_i (T_{n+1} - T_n) = \int \phi_i \nabla \cdot \left( \kappa(T_n) \nabla T_{n+1} \right) + \int \phi_i \sigma(T_n) (\nabla \varphi_{n+1})^2 $$
+$$\gamma \int \phi_i (T_{n+1} - T_n) = \oint \phi_i \vec{n} \cdot \left( \kappa(T_n) \nabla T_{n+1} \right) - \int \nabla \phi_i \cdot \left( \kappa(T_n) \nabla T_{n+1} \right) + \int \phi_i \sigma(T_n) (\nabla \varphi_{n+1})^2 $$
+$$\gamma \int \phi_i T_{n+1} + \int \nabla \phi_i \cdot \left( \kappa(T_n) \nabla T_{n+1} \right) = \gamma \int \phi_i T_n + \oint \phi_i Q(T_{n+1})  + \int \phi_i \sigma(T_n) (\nabla \varphi_{n+1})^2 $$
+
+The heat boundary condition $Q(T_{n+1})$ should be set to $Q(T_{n})$, otherwise the problem still remains non-linear.
+
+\section{Crank Nicolson}
+
+
+Assuming that conductivities have only previous time step values (otherwise the problem would be non-linear) and $\gamma = \rho c_p / \Delta t$:
+\begin{multline}
+\gamma (T_{n+1} - T_n) = \frac{1}{2} ( \nabla \cdot \left( \kappa(T_n) \nabla T_{n+1} \right) + \sigma(T_n) (\nabla \varphi_{n+1})^2 + \nabla \cdot \left( \kappa(T_n) \nabla T_{n} \right) + \ldots \\ \ldots + \sigma(T_n) (\nabla \varphi_{n})^2 )
+\end{multline}
+\begin{equation}
+2 \gamma (T_{n+1} - T_n) = \nabla \cdot \left( \kappa(T_n) \nabla T_{n+1} + \kappa(T_n) \nabla T_{n} \right) + \sigma(T_n) ( (\nabla \varphi_{n+1})^2 + (\nabla \varphi_{n})^2 ) 
+\end{equation}
+
+Weak formulation (multiply by test function $\phi_i$ and integrate over the domain)
+\begin{multline}
+2 \gamma \int \phi_i (T_{n+1} - T_n) = \int \phi_i \nabla \cdot \left( \kappa(T_n) \nabla T_{n+1} + \kappa(T_n) \nabla T_{n} \right) + \ldots \\ \ldots + \int \phi_i \sigma(T_n) ( (\nabla \varphi_{n+1})^2 (\nabla \varphi_{n})^2 )
+\end{multline}
+\begin{multline}
+2 \gamma \int \phi_i (T_{n+1} - T_n) = \oint \phi_i \vec{n} \cdot \left( \kappa(T_n) \nabla T_{n+1} + \kappa(T_n) \nabla T_{n} \right) - \ldots \\ \ldots - \int \nabla \phi_i \cdot \left( \kappa(T_n) \nabla T_{n+1} + \kappa(T_n) \nabla T_{n} \right) + \int \phi_i \sigma(T_n) ( (\nabla \varphi_{n+1})^2 + (\nabla \varphi_{n})^2 )
+\end{multline}
+\begin{multline}
+2 \gamma \int \phi_i T_{n+1} + \int \nabla \phi_i \cdot \left( \kappa(T_n) \nabla T_{n+1} \right) = 2 \gamma \int \phi_i T_n + \oint \phi_i (Q(T_n)+Q(T_{n+1})) - \ldots \\ \ldots - \int \nabla \phi_i \cdot \left( \kappa(T_n) \nabla T_{n} \right) + \int \phi_i \sigma(T_n) ( (\nabla \varphi_{n+1})^2 + (\nabla \varphi_{n})^2 )
+\end{multline}
+
+The heat boundary condition $Q(T_{n+1})$ should be set to $Q(T_{n})$, otherwise the problem still remains non-linear.
+
+
+
+%\addcontentsline{toc}{section}{References}
+%\pagebreak
+%\printbibliography
+
+\end{document}
