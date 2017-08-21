@@ -72,10 +72,9 @@ public:
     bool use_histclean;         ///< Clean the solution with histogram cleaner
     int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
     string verbose_mode;        ///< Verbose mode: mute, silent, verbose
-    double force_factor;        ///< Factor determining the relationship between force and charge*elfield
     double charge_tolerance;    ///< Tolerance how much face charges are allowed to deviate from the long range one
 
-    string heating_mode;        ///< Method to calculate current density and temperature; none, sstate or transient
+    string heating_mode;        ///< Method to calculate current density and temperature; none, stationary or transient
     double transient_time;      ///< Time resolution in transient heat equation solver [sec]
     int transient_steps;        ///< Number of iterations in transient heat equation solver
 

@@ -73,7 +73,7 @@ void Femocs::force_output() {
     vacuum_interpolator.write("out/result_E_phi.vtk");
     vacuum_interpolator.write("out/result_E_phi.xyz");
 
-    if ((conf.heating_mode == "transient" || conf.heating_mode == "sstate")
+    if ((conf.heating_mode == "transient" || conf.heating_mode == "stationary")
         && bulk_interpolator.size() > 0) {
         ch_solver->output_results("out/result_J_T.vtk");
         bulk_interpolator.write("out/result_J_T.xyz");
@@ -347,8 +347,8 @@ int Femocs::solve_laplace(const double E0) {
 
 // Pick a method to solve heat & continuity equations
 int Femocs::solve_heat(const double T_ambient) {
-    if (conf.heating_mode == "sstate")
-        return solve_sstate_heat(T_ambient);
+    if (conf.heating_mode == "stationary")
+        return solve_stationary_heat(T_ambient);
 
     else if (conf.heating_mode == "transient")
         for (int i = 0; i < conf.transient_steps; ++i) {
@@ -360,8 +360,8 @@ int Femocs::solve_heat(const double T_ambient) {
 }
 
 // Solve steady-state heat and continuity equations
-int Femocs::solve_sstate_heat(const double T_ambient) {
-    start_msg(t0, "=== Initializing steady-state J & T solver...");
+int Femocs::solve_stationary_heat(const double T_ambient) {
+    start_msg(t0, "=== Initializing stationary J & T solver...");
     ch_solver->reinitialize(&laplace_solver, prev_ch_solver);
     end_msg(t0);
 
@@ -690,10 +690,10 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
 
         start_msg(t0, "=== Calculating charges and forces...");
         forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coordination_cutoff,
-                conf.charge_smooth_factor, conf.force_factor);
+                conf.charge_smooth_factor);
 
         if (conf.surface_cleaner == "voronois")
-            forces.recalc_forces(fields, areas, conf.force_factor);
+            forces.recalc_forces(fields, areas);
         end_msg(t0);
 
         forces.write("out/forces.movie");

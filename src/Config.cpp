@@ -15,7 +15,8 @@ namespace femocs {
 // Config constructor initializes configuration parameters
 Config::Config() : obsolete_commands{
     "postprocess_marking",
-    "heating"
+    "heating",
+    "force_factor"
 } {
 
     extended_atoms = "";         // file with the atoms forming the extended surface
@@ -43,7 +44,6 @@ Config::Config() : obsolete_commands{
     phi_error = 1e-9;            // maximum allowed electric potential error
     n_phi = 10000;               // maximum number of Conjugate Gradient iterations in phi calculation
     ssor_param = 1.2;            // parameter for SSOR preconditioner
-    force_factor = 0.5;          // factor determining the relationship between force and charge*elfield
     charge_tolerance = 0.2;      // tolerance how much face charges are allowed to deviate from the long range one
     refine_apex = false;         // refine nanotip apex
     distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
@@ -54,7 +54,7 @@ Config::Config() : obsolete_commands{
     cluster_anal = true;         // enable cluster analysis
     clear_output = true;         // clear output folder
 
-    heating_mode = "none";       // method to calculate current density and temperature; none, sstate or transient
+    heating_mode = "none";       // method to calculate current density and temperature; none, stationary or transient
     transient_time = 0.05e-12;   // time resolution in transient temperature solver [sec]
     transient_steps = 3;         // number of iterations in transient heat equation solver
 
@@ -90,7 +90,6 @@ void Config::read_all(const string& file_name) {
     read_command("smooth_mu", smooth_mu);
     read_command("smooth_algorithm", smooth_algorithm);
     read_command("charge_tolerance", charge_tolerance);
-    read_command("force_factor", force_factor);
     read_command("phi_error", phi_error);
     read_command("n_phi", n_phi);
     read_command("surface_cleaner", surface_cleaner);

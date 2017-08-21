@@ -211,7 +211,7 @@ private:
     int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);
 
     /** Solve steady-steate heat and continuity equations */
-    int solve_sstate_heat(const double T_ambient);
+    int solve_stationary_heat(const double T_ambient);
 
     /** Solve transient heat and continuity equations */
     int solve_transient_heat(const double T_ambient);
