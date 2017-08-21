@@ -20,7 +20,7 @@ using namespace std;
 namespace femocs {
 
 // specify simulation parameters
-Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false) {
+Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false), timestep(0) {
     static bool first_call = true;
 
     // Read configuration parameters from configuration file
@@ -59,15 +59,91 @@ Femocs::~Femocs() {
     start_msg(t0, "======= Femocs finished! =======\n");
 }
 
+// Write all the available data to file for debugging purposes
+void Femocs::force_output() {
+    if (conf.n_writefile <= 0) return;
+
+    MODES.WRITEFILE = true;
+
+    reader.write("out/reader.xyz");
+    bulk_mesh.hexahedra.write("out/hexmesh_bulk.vtk");
+    vacuum_mesh.hexahedra.write("out/hexmesh_vacuum.vtk");
+    vacuum_mesh.faces.write("out/surface_faces_clean.vtk");
+
+    vacuum_interpolator.write("out/result_E_phi.vtk");
+    vacuum_interpolator.write("out/result_E_phi.xyz");
+
+    if ((conf.heating_mode == "transient" || conf.heating_mode == "sstate")
+        && bulk_interpolator.size() > 0) {
+        ch_solver->output_results("out/result_J_T.vtk");
+        bulk_interpolator.write("out/result_J_T.xyz");
+    }
+}
+
+// Interpolate the solution on the x-z plane in the middle of simulation box
+void Femocs::write_slice(const string& file_name) {
+    int writefile_save = MODES.WRITEFILE;
+    MODES.WRITEFILE = true;
+
+    const int nx = 300;  // number of points in x-direction
+    const int nz = 300;  // number of points in z-direction
+    const double eps = 1e-5 * conf.latconst;
+
+    const double xmax = reader.sizes.xmid;
+    const double xmin = xmax - 3*conf.radius;
+    const double zmin = reader.sizes.zmin;
+    const double zmax = zmin + 3*conf.radius;
+    const double dx = (xmax - xmin) / (nx-1);
+    const double dz = (zmax - zmin) / (nz-1);
+
+    Medium medium(nx * nz);
+
+    for (double x = xmin; x < xmax + eps; x += dx)
+        for (double z = zmin; z < zmax + eps; z += dz)
+            medium.append( Point3(x, reader.sizes.ymid, z) );
+
+    FieldReader fr(&vacuum_interpolator);
+    fr.interpolate(medium, conf.use_histclean * conf.coordination_cutoff);
+    fr.write(file_name);
+
+    MODES.WRITEFILE = writefile_save;
+}
+
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
 int Femocs::run(const double elfield, const string &message) {
-    static unsigned int timestep = 0;  // Counter to measure how many times Femocs has been called
-    static bool prev_skip_calculations = true;  // Value of skip_calculations in last call
-    double tstart;                     // Variable used to measure the code execution time
-    stringstream stream; stream << fixed << setprecision(3);
+    reinit();
+    skip_calculations = true;
+    double tstart = omp_get_wtime();
 
-    // TODO That message is not used!
-    conf.message = message;
+    check_return(generate_meshes(), "Mesh generation failed!");
+
+    // Solve Laplace equation on vacuum mesh
+    if (solve_laplace(elfield)) {
+        force_output();
+        check_return(true, "Solving Laplace equation failed!");
+    }
+
+    // Solve heat & continuity equation on bulk mesh
+    if (solve_heat(conf.t_ambient)) {
+        force_output();
+        check_return(true, "Solving heat & continuity equation failed!");
+    }
+
+    start_msg(t0, "=== Saving atom positions...");
+    reader.save_current_run_points(conf.distance_tol);
+    end_msg(t0);
+
+    stringstream stream; stream << fixed << setprecision(3);
+    stream << "Total execution time " << omp_get_wtime() - tstart;
+    write_silent_msg(stream.str());
+    skip_calculations = false;
+
+    return 0;
+}
+
+// Determine whether atoms have moved significantly and whether to enable file writing
+int Femocs::reinit() {
+    static bool prev_skip_calculations = true;  // Value of skip_calculations in last call
 
     if (!prev_skip_calculations && MODES.WRITEFILE)
         MODES.WRITEFILE = false;
@@ -81,41 +157,10 @@ int Femocs::run(const double elfield, const string &message) {
 
     prev_skip_calculations = skip_calculations;
 
-    stream.str(""); stream << "Atoms haven't moved significantly, " << reader.rms_distance
+    stringstream stream; stream << fixed << setprecision(3);
+    stream << "Atoms haven't moved significantly, " << reader.rms_distance
         << " < " << conf.distance_tol << "! Field calculation will be skipped!";
     check_return(skip_calculations, stream.str());
-
-    skip_calculations = true;
-    conf.E0 = elfield;       // long-range electric field
-    conf.neumann = -elfield; // set minus gradient of solution to equal to E0
-    tstart = omp_get_wtime();
-
-    check_return(generate_meshes(), "Mesh generation failed!");
-
-    // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    vacuum_interpolator.set_analyt(coarseners.centre, conf.E0, conf.radius, dense_surf.sizes.zbox);
-    fields.set_analyt(conf.E0, conf.radius, dense_surf.sizes.zbox);
-
-    // Solve Laplace equation on vacuum mesh
-
-    if (solve_laplace()) {
-        force_output();
-        check_return(true, "Solving Laplace equation failed!");
-    }
-
-    // Solve heat & continuity equation on bulk mesh
-    if (solve_heat()) {
-        force_output();
-        check_return(true, "Solving heat & continuity equation failed!");
-    }
-
-    start_msg(t0, "=== Saving atom positions...");
-    reader.save_current_run_points(conf.distance_tol);
-    end_msg(t0);
-
-    stream.str(""); stream << "Total execution time " << omp_get_wtime() - tstart;
-    write_silent_msg(stream.str());
-    skip_calculations = false;
 
     return 0;
 }
@@ -261,7 +306,13 @@ int Femocs::generate_meshes() {
 }
 
 // Solve Laplace equation
-int Femocs::solve_laplace() {
+int Femocs::solve_laplace(const double E0) {
+    conf.E0 = E0;       // long-range electric field
+    conf.neumann = -E0; // set minus gradient of solution to equal to E0
+    // Store parameters for comparing the results with analytical hemi-ellipsoid results
+    vacuum_interpolator.set_analyt(coarseners.centre, E0, conf.radius, dense_surf.sizes.zbox);
+    fields.set_analyt(E0, conf.radius, dense_surf.sizes.zbox);
+
     start_msg(t0, "=== Importing mesh to Laplace solver...");
     fail = !laplace_solver.import_mesh_directly(vacuum_mesh.nodes.export_dealii(),
             vacuum_mesh.hexahedra.export_dealii());
@@ -295,13 +346,13 @@ int Femocs::solve_laplace() {
 }
 
 // Pick a method to solve heat & continuity equations
-int Femocs::solve_heat() {
+int Femocs::solve_heat(const double T_ambient) {
     if (conf.heating_mode == "sstate")
-        return solve_sstate_heat();
+        return solve_sstate_heat(T_ambient);
 
     else if (conf.heating_mode == "transient")
         for (int i = 0; i < conf.transient_steps; ++i) {
-            if ( solve_transient_heat(conf.transient_time) )
+            if (solve_transient_heat(T_ambient))
                 return 1;
         }
 
@@ -309,7 +360,7 @@ int Femocs::solve_heat() {
 }
 
 // Solve steady-state heat and continuity equations
-int Femocs::solve_sstate_heat() {
+int Femocs::solve_sstate_heat(const double T_ambient) {
     start_msg(t0, "=== Initializing steady-state J & T solver...");
     ch_solver->reinitialize(&laplace_solver, prev_ch_solver);
     end_msg(t0);
@@ -332,6 +383,7 @@ int Femocs::solve_sstate_heat() {
     fr.write("out/surface_field.xyz");
 
     start_msg(t0, "=== Running J & T solver...\n");
+    ch_solver->set_ambient_temperature(T_ambient);
     double t_error = ch_solver->run_specific(conf.t_error, conf.n_newton, false, "", MODES.VERBOSE, 2, 400, true);
     end_msg(t0);
 
@@ -359,9 +411,13 @@ int Femocs::solve_sstate_heat() {
 }
 
 // Solve transient heat and continuity equations
-int Femocs::solve_transient_heat(double delta_time) {
-    static int integer_timestep = 0;
-    double temperature = 300.0;
+int Femocs::solve_transient_heat(const double T_ambient) {
+    const double time_unit = 1e-12; // == picosec
+    double delta_time = 0.01 * time_unit;
+    const int n_time_steps = conf.transient_time / delta_time;
+
+    require(n_time_steps > 0, "Too small transient_time: " + to_string(conf.transient_time));
+    delta_time = conf.transient_time / n_time_steps;
 
     start_msg(t0, "=== Importing mesh to transient J & T solver...");
     fail = !ch_transient_solver.import_mesh_directly(bulk_mesh.nodes.export_dealii(),
@@ -375,24 +431,24 @@ int Femocs::solve_transient_heat(double delta_time) {
     end_msg(t0);
     field_reader.write("out/surface_field.xyz");
 
-    start_msg(t0, "=== Interpolating J & T on face centroids...");
     HeatReader temp_reader(&bulk_interpolator);
-    if (integer_timestep > 0)
+    if (timestep > 0) {
+        start_msg(t0, "=== Interpolating J & T on face centroids...");
         temp_reader.read_heat(ch_transient_solver, conf.use_histclean * conf.coordination_cutoff, true);
-    end_msg(t0);
-    if (integer_timestep > 0)
+        end_msg(t0);
         temp_reader.write("out/surface_temperature.xyz");
+    }
 
     start_msg(t0, "=== Calculating field emission...");
     FieldReader emission(&vacuum_interpolator);
-    if (integer_timestep == 0)
-        emission.calc_emission(ch_transient_solver, field_reader, temperature);
+    if (timestep == 0)
+        emission.calc_emission(ch_transient_solver, field_reader, T_ambient);
     else
         emission.calc_emission(ch_transient_solver, field_reader, temp_reader);
     end_msg(t0);
     emission.write("out/magic.xyz");
 
-    if (integer_timestep == 0) {
+    if (timestep == 0) {
         start_msg(t0, "=== Setup transient J & T solver...");
         ch_transient_solver.setup_current_system();
         ch_transient_solver.setup_heating_system();
@@ -405,14 +461,7 @@ int Femocs::solve_transient_heat(double delta_time) {
     end_msg(t0);
 
     start_msg(t0, "=== Calculating temperature distribution...\n");
-    const double time_unit = 1e-12; // == picosec
-    double time_step = 0.01 * time_unit;
-
-    require(delta_time > time_step, "Too small delta_time: " + to_string(delta_time));
-
-    const int n_time_steps = delta_time / time_step;
-    time_step = delta_time / n_time_steps;
-    ch_transient_solver.set_timestep(time_step);
+    ch_transient_solver.set_timestep(delta_time);
 
     for (int i = 0; i < n_time_steps; ++i) {
         // Two options to calculate things, currently both give wrong result
@@ -420,75 +469,22 @@ int Femocs::solve_transient_heat(double delta_time) {
         //ch_transient_solver.assemble_heating_system_crank_nicolson();
 
         unsigned int hcg = ch_transient_solver.solve_heat(); // hcg == number of temperature calculation (CG) iterations
-
         if (MODES.VERBOSE) {
             double max_T = ch_transient_solver.get_max_temperature();
-            std::printf("    t=%5.3fps; ccg=%2d; hcg=%2d; max_T=%6.2f\n", i * time_step / time_unit, ccg, hcg, max_T);
+            printf("    t=%5.3fps; ccg=%2d; hcg=%2d; max_T=%6.2f\n", i * delta_time / time_unit, ccg, hcg, max_T);
         }
     }
     end_msg(t0);
 
-    ch_transient_solver.output_results_current("./out/current_solution" + to_string(integer_timestep) + ".vtk");
-    ch_transient_solver.output_results_heating("./out/heat_solution" + to_string(integer_timestep) + ".vtk");
+    ch_transient_solver.output_results_current("./out/current_solution" + to_string(timestep) + ".vtk");
+    ch_transient_solver.output_results_heating("./out/heat_solution" + to_string(timestep) + ".vtk");
 
     start_msg(t0, "=== Extracting J & T...");
     bulk_interpolator.extract_solution(&ch_transient_solver, bulk_mesh);
     end_msg(t0);
     bulk_interpolator.write("out/result_J_T.movie");
 
-    integer_timestep++;
-
     return 0;
-}
-
-// Write all the available data to file for debugging purposes
-void Femocs::force_output() {
-    if (conf.n_writefile <= 0) return;
-
-    MODES.WRITEFILE = true;
-
-    reader.write("out/reader.xyz");
-    bulk_mesh.hexahedra.write("out/hexmesh_bulk.vtk");
-    vacuum_mesh.hexahedra.write("out/hexmesh_vacuum.vtk");
-    vacuum_mesh.faces.write("out/surface_faces_clean.vtk");
-
-    vacuum_interpolator.write("out/result_E_phi.vtk");
-    vacuum_interpolator.write("out/result_E_phi.xyz");
-
-    if ((conf.heating_mode == "transient" || conf.heating_mode == "sstate")
-        && bulk_interpolator.size() > 0) {
-        ch_solver->output_results("out/result_J_T.vtk");
-        bulk_interpolator.write("out/result_J_T.xyz");
-    }
-}
-
-// Interpolate the solution on the x-z plane in the middle of simulation box
-void Femocs::write_slice(const string& file_name) {
-	int writefile_save = MODES.WRITEFILE;
-	MODES.WRITEFILE = true;
-
-    const int nx = 300;  // number of points in x-direction
-    const int nz = 300;  // number of points in z-direction
-	const double eps = 1e-5 * conf.latconst;
-
-	const double xmax = reader.sizes.xmid;
-	const double xmin = xmax - 3*conf.radius;
-	const double zmin = reader.sizes.zmin; 
-	const double zmax = zmin + 3*conf.radius; 
-    const double dx = (xmax - xmin) / (nx-1);
-    const double dz = (zmax - zmin) / (nz-1);
-
-    Medium medium(nx * nz);
-
-    for (double x = xmin; x < xmax + eps; x += dx)
-        for (double z = zmin; z < zmax + eps; z += dz)
-            medium.append( Point3(x, reader.sizes.ymid, z) );
-
-    FieldReader fr(&vacuum_interpolator);
-    fr.interpolate(medium, conf.use_histclean * conf.coordination_cutoff);
-    fr.write(file_name);
-
-   	MODES.WRITEFILE = writefile_save;
 }
 
 // Generate artificial nanotip
@@ -505,14 +501,13 @@ int Femocs::generate_nanotip(const double height, const double radius, const dou
     reader.generate_nanotip(height, r, res);
     reader.calc_coordinations(conf.nnn);
     end_msg(t0);
-
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
-    reader.write("out/atomreader.xyz");
 
+    reader.write("out/atomreader.xyz");
     return 0;
 }
 
-// import atoms from file
+// import atoms from a file
 int Femocs::import_atoms(const string& file_name) {
     clear_log();
     string file_type, fname;
@@ -528,33 +523,27 @@ int Femocs::import_atoms(const string& file_name) {
     end_msg(t0);
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
-    start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.calc_rms_distance(conf.distance_tol) < conf.distance_tol;
-    end_msg(t0);
+    if (file_type == "xyz") {
+        start_msg(t0, "=== Performing coordination analysis...");
+        reader.calc_coordinations(conf.nnn, conf.coordination_cutoff);
+        end_msg(t0);
 
-    if (!skip_calculations) {
-        if (file_type == "xyz") {
-            start_msg(t0, "=== Performing coordination analysis...");
-            reader.calc_coordinations(conf.nnn, conf.coordination_cutoff);
+        if (conf.cluster_anal) {
+            start_msg(t0, "=== Performing cluster analysis...");
+            if (conf.cluster_cutoff <= 0) reader.calc_clusters();
+            else reader.calc_clusters(conf.nnn, conf.cluster_cutoff);
             end_msg(t0);
-
-            if (conf.cluster_anal) {
-                start_msg(t0, "=== Performing cluster analysis...");
-                if (conf.cluster_cutoff <= 0) reader.calc_clusters();
-                else reader.calc_clusters(conf.nnn, conf.cluster_cutoff);
-                end_msg(t0);
-                reader.check_clusters(1);
-            }
-
-            start_msg(t0, "=== Extracting atom types...");
-            reader.extract_types(conf.nnn, conf.latconst);
-            end_msg(t0);
-
-        } else {
-            start_msg(t0, "=== Calculating coords from atom types...");
-            reader.calc_coordinations(conf.nnn);
-            end_msg(t0);
+            reader.check_clusters(1);
         }
+
+        start_msg(t0, "=== Extracting atom types...");
+        reader.extract_types(conf.nnn, conf.latconst);
+        end_msg(t0);
+
+    } else {
+        start_msg(t0, "=== Calculating coords from atom types...");
+        reader.calc_coordinations(conf.nnn);
+        end_msg(t0);
     }
 
     reader.write("out/atomreader.xyz");

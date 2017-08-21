@@ -38,7 +38,7 @@ public:
      * @param message   message from the host: time step, file name etc
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
-    int run(const double elfield, const string &message);
+    int run(const double elfield, const string&);
 
     /** Function to import atoms from PARCAS
      * @param n_atoms       number of imported atoms
@@ -168,16 +168,16 @@ public:
     int generate_meshes();
 
     /** Solve Laplace equation */
-    int solve_laplace();
+    int solve_laplace(const double E0);
 
     /** Pick a method to solve heat and continuity equations */
-    int solve_heat();
+    int solve_heat(const double T_ambient);
 
 private:
     bool skip_calculations, fail;
     double t0;
-
-    vector<Vec3> areas;
+    int timestep;           ///< Counter to measure how many times Femocs has been called
+    vector<Vec3> areas;     ///< Surface areas of Voronoi cells that is exposed to vacuum
     
     Coarseners coarseners;
 
@@ -204,14 +204,17 @@ private:
     fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
     fch::Laplace<3> laplace_solver;                       ///< Laplace equation solver
 
+    /** Determine whether atoms have moved significantly and whether to enable file writing */
+    int reinit();
+
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);
 
     /** Solve steady-steate heat and continuity equations */
-    int solve_sstate_heat();
+    int solve_sstate_heat(const double T_ambient);
 
     /** Solve transient heat and continuity equations */
-    int solve_transient_heat(double delta_time);
+    int solve_transient_heat(const double T_ambient);
 
     /** Interpolate the solution on the x-z plane in the middle of simulation box */
     void write_slice(const string& file_name);

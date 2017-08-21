@@ -61,6 +61,7 @@ public:
     double box_height;          ///< Simulation box height [tip height]
     double bulk_height;         ///< Bulk substrate height [lattice constant]
 
+    double t_ambient;           ///< Ambient temperature in heat calculations
     double t_error;             ///< Maximum allowed temperature error in Newton iterations
     int n_newton;               ///< Maximum number of Newton iterations
     double ssor_param;          ///< Parameter for SSOR preconditioner in DealII

@@ -37,6 +37,7 @@ Config::Config() : obsolete_commands{
     cfactor.amplitude = 0.4;     // coarsening factor outside the warm region
     cfactor.r0_cylinder = 0;     // minimum distance between atoms in nanotip outside the apex
     cfactor.r0_sphere = 0;       // minimum distance between atoms in nanotip apex
+    t_ambient = 300.0;           // ambient temperature
     t_error = 10.0;              // maximum allowed temperature error in Newton iterations
     n_newton = 10;               // maximum number of Newton iterations
     phi_error = 1e-9;            // maximum allowed electric potential error
@@ -82,6 +83,7 @@ void Config::read_all(const string& file_name) {
     // Modify the parameters that are specified in input script
     read_command("transient_steps", transient_steps);
     read_command("transient_time", transient_time);
+    read_command("t_ambient", t_ambient);
     read_command("heating_mode", heating_mode);
     read_command("smooth_steps", smooth_steps);
     read_command("smooth_lambda", smooth_lambda);
