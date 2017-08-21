@@ -86,38 +86,12 @@ protected:
     Solution get_average_solution(const int I, const double r_cut);
 };
 
-/** Class to interpolate current densities and temperatures */
-class HeatReader: public SolutionReader {
-public:
-    /** HeatReader constructors */
-    HeatReader();
-    HeatReader(LinearInterpolator* ip);
-
-    /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium);
-
-    void interpolate(const double r_cut, const int component, const bool srt);
-
-    void read_heat(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const bool srt);
-
-    /** Export interpolated temperature */
-    void export_temperature(const int n_atoms, double* T);
-
-    Vec3 get_rho(const int i) const;
-
-    double get_temperature(const int i) const;
-
-private:
-};
-
 /** Class to extract solution from DealII calculations */
 class FieldReader: public SolutionReader {
 public:
     /** SolutionReader constructors */
     FieldReader();
     FieldReader(LinearInterpolator* ip);
-
-    void interpolate(const double r_cut, const int component, const bool srt);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
      * @param medium    atoms to be interpolated
@@ -132,10 +106,13 @@ public:
     void interpolate(const int n_points, const double* x, const double* y, const double* z,
             const double r_cut, const int component=0, const bool srt=true);
 
-    /** Calculate the electric field for the current and temperature solver */
-    void interpolate(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const bool srt=true);
+    /** Workhorse function for interpolating field on the system atoms */
+    void interpolate(const double r_cut, const int component, const bool srt);
 
-    void transfer_field(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const bool srt=true);
+    /** Calculate the electric field for the current and temperature solver */
+    void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const bool srt=true);
+
+    void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const bool srt=true);
 
     /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
@@ -150,6 +127,8 @@ public:
 
     Vec3 get_elfield(const int i) const;
 
+    double get_elfield_norm(const int i) const;
+
     double get_potential(const int i) const;
 
     /** Compare the analytical and calculated field enhancement */
@@ -157,13 +136,6 @@ public:
 
     /** Set parameters to calculate analytical solution */
     void set_analyt(const double E0, const double radius1, const double radius2=-1);
-    
-    void calc_emission(fch::CurrentsAndHeating<3>& ch_solver, FieldReader& fields, HeatReader& temperatures);
-
-    void calc_emission(fch::CurrentsAndHeating<3>& ch_solver, FieldReader& fields, double temperature);
-
-    void emission_line(const Point3& point, const Vec3& field,
-                        vector<double> &rline, vector<double> &Vline, double rmax);
 
 private:
     double radius1;  ///< Minor semi-axis of ellipse
@@ -175,6 +147,54 @@ private:
 
     /** Get analytical field enhancement for hemi-ellipsoid on infinite surface */
     double get_analyt_enhancement() const;
+};
+
+/** Class to interpolate current densities and temperatures */
+class HeatReader: public SolutionReader {
+public:
+    /** HeatReader constructors */
+    HeatReader();
+    HeatReader(LinearInterpolator* ip);
+
+    /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
+    void interpolate(const Medium &medium);
+
+    /** Linearly interpolate electric field for the currents and temperature solver.
+     *  In case of empty interpolator, constant values are stored. */
+    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val);
+
+    /** Export interpolated temperature */
+    void export_temperature(const int n_atoms, double* T);
+
+    Vec3 get_rho(const int i) const;
+
+    double get_rho_norm(const int i) const;
+
+    double get_temperature(const int i) const;
+
+private:
+    double empty_val;  ///< constant values returned when interpolator is empty
+
+    /** Workhorse function for interpolating field on the system atoms */
+    void interpolate(const double r_cut, const int component, const bool srt);
+};
+
+/** Class to calculate field emission effects with GETELEC */
+class EmissionReader: public SolutionReader {
+public:
+    /** EmissionReader constructors */
+    EmissionReader();
+    EmissionReader(LinearInterpolator* ip);
+
+    void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const FieldReader& fields,
+            const double workfunction, const HeatReader& heat_reader);
+
+    double get_rho_norm(const int i) const;
+
+    double get_temperature(const int i) const;
+private:
+    void emission_line(const Point3& point, const Vec3& direction, const double rmax,
+                        vector<double> &rline, vector<double> &Vline);
 };
 
 /** Class to calculate charges from electric field */
@@ -190,17 +210,16 @@ public:
 
     void clean(const Medium::Sizes& sizes, const double latconst);
 
+    /** Check whether charge is conserved within specified limits */
+    bool charge_conserved(const double Q, const double eps) const;
+
     Vec3 get_elfield(const int i) const;
 
     double get_area(const int i) const;
 
     double get_charge(const int i) const;
 
-    /** Check whether charge is conserved within specified limits */
-    bool charge_conserved(const double Q, const double eps) const;
-
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
-
 private:
     void get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields);
 };
@@ -226,6 +245,8 @@ public:
     void export_force(const int n_atoms, double* xq);
 
     Vec3 get_force(const int i) const;
+
+    double get_force_norm(const int i) const;
 
     double get_charge(const int i) const;
 

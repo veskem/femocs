@@ -378,7 +378,7 @@ int Femocs::solve_stationary_heat(const double T_ambient) {
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
     FieldReader fr(&vacuum_interpolator);
-    fr.interpolate(ch_solver, conf.use_histclean * conf.coordination_cutoff, true);
+    fr.transfer_elfield(ch_solver, conf.use_histclean * conf.coordination_cutoff, true);
     end_msg(t0);
 
     fr.write("out/surface_field.xyz");
@@ -413,6 +413,7 @@ int Femocs::solve_stationary_heat(const double T_ambient) {
 
 // Solve transient heat and continuity equations
 int Femocs::solve_transient_heat(const double T_ambient) {
+    static bool first_call = true;
     const double time_unit = 1e-12; // == picosec
     double delta_time = 0.01 * time_unit;
     const int n_time_steps = conf.transient_time / delta_time;
@@ -428,28 +429,23 @@ int Femocs::solve_transient_heat(const double T_ambient) {
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
     FieldReader field_reader(&vacuum_interpolator);
-    field_reader.transfer_field(ch_transient_solver, conf.use_histclean * conf.coordination_cutoff, true);
+    field_reader.transfer_elfield(ch_transient_solver, conf.use_histclean * conf.coordination_cutoff, true);
     end_msg(t0);
     field_reader.write("out/surface_field.xyz");
 
-    HeatReader temp_reader(&bulk_interpolator);
-    if (timestep > 0) {
-        start_msg(t0, "=== Interpolating J & T on face centroids...");
-        temp_reader.read_heat(ch_transient_solver, conf.use_histclean * conf.coordination_cutoff, true);
-        end_msg(t0);
-        temp_reader.write("out/surface_temperature.xyz");
-    }
+    start_msg(t0, "=== Interpolating J & T on face centroids...");
+    HeatReader heat_reader(&bulk_interpolator);
+    heat_reader.interpolate(ch_transient_solver, T_ambient);
+    end_msg(t0);
+    heat_reader.write("out/surface_temperature.xyz");
 
     start_msg(t0, "=== Calculating field emission...");
-    FieldReader emission(&vacuum_interpolator);
-    if (timestep == 0)
-        emission.calc_emission(ch_transient_solver, field_reader, T_ambient);
-    else
-        emission.calc_emission(ch_transient_solver, field_reader, temp_reader);
+    EmissionReader emission(&vacuum_interpolator);
+    emission.transfer_emission(ch_transient_solver, field_reader, conf.work_function, heat_reader);
     end_msg(t0);
-    emission.write("out/magic.xyz");
+    emission.write("out/surface_emission.xyz");
 
-    if (timestep == 0) {
+    if (first_call) {
         start_msg(t0, "=== Setup transient J & T solver...");
         ch_transient_solver.setup_current_system();
         ch_transient_solver.setup_heating_system();
@@ -465,26 +461,26 @@ int Femocs::solve_transient_heat(const double T_ambient) {
     ch_transient_solver.set_timestep(delta_time);
 
     for (int i = 0; i < n_time_steps; ++i) {
-        // Two options to calculate things, currently both give wrong result
         ch_transient_solver.assemble_heating_system_euler_implicit();
         //ch_transient_solver.assemble_heating_system_crank_nicolson();
 
         unsigned int hcg = ch_transient_solver.solve_heat(); // hcg == number of temperature calculation (CG) iterations
         if (MODES.VERBOSE) {
             double max_T = ch_transient_solver.get_max_temperature();
-            printf("    t=%5.3fps; ccg=%2d; hcg=%2d; max_T=%6.2f\n", i * delta_time / time_unit, ccg, hcg, max_T);
+            printf("  t=%5.3fps; ccg=%2d; hcg=%2d; Tmax=%6.2f\n", i * delta_time / time_unit, ccg, hcg, max_T);
         }
     }
     end_msg(t0);
 
-    ch_transient_solver.output_results_current("./out/current_solution" + to_string(timestep) + ".vtk");
-    ch_transient_solver.output_results_heating("./out/heat_solution" + to_string(timestep) + ".vtk");
+    ch_transient_solver.output_results_current("./out/current_solution" + conf.message + ".vtk");
+    ch_transient_solver.output_results_heating("./out/heat_solution" + conf.message + ".vtk");
 
     start_msg(t0, "=== Extracting J & T...");
     bulk_interpolator.extract_solution(&ch_transient_solver, bulk_mesh);
     end_msg(t0);
     bulk_interpolator.write("out/result_J_T.movie");
 
+    first_call = false;
     return 0;
 }
 

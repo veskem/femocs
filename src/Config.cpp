@@ -57,7 +57,7 @@ Config::Config() : obsolete_commands{
     heating_mode = "none";       // method to calculate current density and temperature; none, stationary or transient
     transient_time = 0.05e-12;   // time resolution in transient temperature solver [sec]
     transient_steps = 3;         // number of iterations in transient heat equation solver
-
+    work_function = 4.5;         // work function [eV]
     E0 = 0;                      // long range electric field
     neumann = 0;                 // neumann boundary contition value
     message = "";                // message from the host code
@@ -81,6 +81,7 @@ void Config::read_all(const string& file_name) {
     parse_file(file_name);
 
     // Modify the parameters that are specified in input script
+    read_command("work_function", work_function);
     read_command("transient_steps", transient_steps);
     read_command("transient_time", transient_time);
     read_command("t_ambient", t_ambient);

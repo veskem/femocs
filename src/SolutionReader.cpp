@@ -67,6 +67,7 @@ string SolutionReader::get_data_string(const int i) const{
     return strs.str();
 }
 
+// Get information about data vectors for .vtk file
 void SolutionReader::get_point_data(ofstream& out) const {
     const int n_atoms = size();
 
@@ -355,277 +356,21 @@ void FieldReader::interpolate(const Medium &medium, const double r_cut, const in
         atoms[i].id = medium.get_id(i);
 }
 
-void FieldReader::emission_line(const Point3& point, const Vec3& field,
-                        vector<double> &rline, vector<double> &Vline, double rmax) {
+// Linearly interpolate electric field on a set of points
+void FieldReader::interpolate(const int n_points, const double* x, const double* y, const double* z,
+        const double r_cut, const int component, const bool srt) {
 
-    double rmin = 0.;
-    int Nline = rline.size();
-    
-    Vec3 direction = field;
-    direction.normalize();
-    Point3 pfield(direction.x, direction.y, direction.z);
-    
-    FieldReader fr(interpolator);
-    fr.reserve(Nline);
-    
-    for (int i = 0; i < Nline; i++){
-        rline[i] = rmin + ((rmax - rmin) * i) / (Nline - 1);
-        fr.append(point - pfield * rline[i]);
-    }
-    fr.interpolate(0, 0, false);
-    for (int i = 0; i < Nline; i++){
-        Vline[i] = fr.interpolation[i].scalar;
-        rline[i] *= .1;
-    }
-    
-    for (int i = 0; i < Nline; i++){
-        Vline[i] -= Vline[0];
-        rline[i] -= rline[0];
-    }
-    
-    for (int i = 1; i < Nline; ++i){ // go through points
-        if (Vline[i] < Vline[i-1]){ // if decreasing at a point
-            
-            double dVdx = 0.;
-            int j;         
-            for(j = i + 1; j < Nline; ++j){
-                if (Vline[j] > Vline[i-1]) {
-                    dVdx = (Vline[j] - Vline[i-1]) / (rline[j] - rline[i-1]);
-                    break;
-                }
-            }
-                
-            if (dVdx == 0.){
-                if (i > 1) 
-                    dVdx = (Vline[i-1] - Vline[i-2]) / (rline[i-1] - rline[i-2]);
-                else
-                    cout << "\nNon monotonous Vline at i = " << i << " could not be recovered. line: \n";
-            }
-            for (int k = 0; k <= j; ++k)
-                Vline[k] =  Vline[i-1] + (rline[k] - rline[i-1]) * dVdx;
-        }
-    }
-}
+    // store the point coordinates
+    reserve(n_points);
+    for (int i = 0; i < n_points; ++i)
+        append(Atom(i, Point3(x[i], y[i], z[i]), 0));
 
-//void FieldReader::calc_emission_old(fch::CurrentsAndHeating<3>& ch_solver) {
-//    // import the surface nodes the solver needs
-//    vector<dealii::Point<3>> nodes;
-//    ch_solver.get_surface_nodes(nodes);
-//
-//    const int n_nodes = nodes.size();
-//
-//    // store the node coordinates
-//    reserve(n_nodes);
-//    int i = 0;
-//    for (dealii::Point<3>& node : nodes)
-//        append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
-//
-//    // interpolate solution on the nodes
-//    interpolate(0, 1, true);
-//
-//    vector<double> elfields, currents, nottingham;
-//    elfields.reserve(n_nodes);
-//    currents.reserve(n_nodes);
-//    nottingham.reserve(n_nodes);
-//
-//    const int Nline = 32;
-//    vector<double> rline(Nline);
-//    vector<double> Vline(Nline);
-//
-//    double Fmax = 0.;
-//    double Jmax = 0.;
-//
-//    struct emission gt;
-//
-//    gt.W = 4.5; gt.R = 200.; gt.gamma = 1.2; gt.Temp = 300.;
-//
-//    for (int i = 0; i < n_nodes; ++i)
-//        if (Fmax < interpolation[i].norm) Fmax = interpolation[i].norm;
-//    Fmax *= 10.;
-//
-//    double t0;
-//    start_msg(t0,"=== Calculating current densities... ");
-//
-//    for (int i = 0; i < n_nodes; ++i) {
-//        gt.mode = 0;
-//        gt.F = 10. * interpolation[i].norm;
-//        if (gt.F > 0.6 * Fmax){
-//            emission_line(get_point(i), interpolation[i].vector, rline,
-//                            Vline, 16. * gt.W/gt.F);
-//            gt.Nr = Nline;
-//            gt.xr = &rline[0];
-//            gt.Vr = &Vline[0];
-//            gt.mode = -21;
-//        }
-//        gt.approx = 0;
-//        cur_dens_c(&gt);
-//        if (gt.ierr != 0 ) {
-//            cout << "calling print_data_c\n";
-//            print_data_c(&gt, 1);
-//            cout << "calling plot_data_c\n";
-//            plot_data_c(&gt);
-//        }
-//        if (gt.Jem > 0.1 * Jmax){
-//            gt.approx = 1;
-//            cur_dens_c(&gt);
-//            if (gt.ierr != 0 ) {
-//                cout << "calling print_data_c\n";
-//                print_data_c(&gt, 1);
-//                cout << "calling plot_data_c\n";
-//                plot_data_c(&gt);
-//            }
-//        }
-//
-//        if (gt.Jem > Jmax) Jmax = gt.Jem;
-//        currents.push_back(gt.Jem);
-//        nottingham.push_back(gt.heat);
-//        interpolation[i].scalar = log(gt.Jem);
-//        interpolation[i].norm = log(fabs(gt.heat));
-//    }
-//
-//    end_msg(t0);
-//}
-
-void FieldReader::calc_emission(fch::CurrentsAndHeating<3>& ch_solver, FieldReader& fields, HeatReader& temperatures) {
-    const int n_nodes = fields.size();
-
-    atoms = fields.atoms;
-    interpolation = fields.interpolation;
-
-    vector<double> elfields, currents, nottingham;
-    elfields.reserve(n_nodes);
-    currents.reserve(n_nodes);
-    nottingham.reserve(n_nodes);
-
-    const int Nline = 32;
-    vector<double> rline(Nline);
-    vector<double> Vline(Nline);
-
-    double Fmax = 0.;
-    double Jmax = 0.;
-
-    struct emission gt;
-
-    gt.W = 4.5;    // set workfuntion, must be set in conf. script
-    gt.R = 200.;   // radius of curvature (overrided by femocs potential distribution)
-    gt.gamma = 10; // enhancement factor (overrided by femocs potential distribution)
-
-    for (int i = 0; i < n_nodes; ++i)
-        Fmax = max( Fmax, get_elfield(i).norm() );
-    Fmax *= 10.;
-
-    double t0;
-    start_msg(t0,"=== Calculating current densities... ");
-
-    for (int i = 0; i < n_nodes; ++i) {
-        gt.mode = 0;
-        gt.F = 10. * get_elfield(i).norm();
-
-        gt.Temp = temperatures.get_temperature(i);
-
-        if (gt.F > 0.6 * Fmax){
-            emission_line(get_point(i), get_elfield(i), rline, Vline, 16. * gt.W/gt.F);
-            gt.Nr = Nline;
-            gt.xr = &rline[0];
-            gt.Vr = &Vline[0];
-            gt.mode = -21;
-        }
-        gt.approx = 0;
-        cur_dens_c(&gt);
-        if (gt.ierr != 0 )
-            write_verbose_msg("GETELEC 1st call returned with error, ierr = " + to_string(gt.ierr));
-
-        if (gt.Jem > 0.1 * Jmax){
-            gt.approx = 1;
-            cur_dens_c(&gt);
-            if (gt.ierr != 0 )
-                write_verbose_msg("GETELEC 2nd call returned with error, ierr = " + to_string(gt.ierr));
-        }
-
-        if (gt.Jem > Jmax)
-            Jmax = gt.Jem;
-
-        currents.push_back(gt.Jem);
-        nottingham.push_back(gt.heat);
-        interpolation[i].norm = log(gt.Jem);
-        interpolation[i].scalar = log(fabs(gt.heat));
-    }
-    end_msg(t0);
-
-    ch_solver.set_emission_bc(currents, nottingham);
-}
-
-void FieldReader::calc_emission(fch::CurrentsAndHeating<3>& ch_solver, FieldReader& fields, double temperature) {
-    const int n_nodes = fields.size();
-
-    atoms = fields.atoms;
-    interpolation = fields.interpolation;
-
-    vector<double> elfields, currents, nottingham;
-    elfields.reserve(n_nodes);
-    currents.reserve(n_nodes);
-    nottingham.reserve(n_nodes);
-
-    const int Nline = 32;
-    vector<double> rline(Nline);
-    vector<double> Vline(Nline);
-
-    double Fmax = 0.;
-    double Jmax = 0.;
-
-    struct emission gt;
-
-    gt.W = 4.5;    // set workfuntion, must be set in conf. script
-    gt.R = 200.;   // radius of curvature (overrided by femocs potential distribution)
-    gt.gamma = 10; // enhancement factor (overrided by femocs potential distribution)
-
-    for (int i = 0; i < n_nodes; ++i)
-        Fmax = max( Fmax, get_elfield(i).norm() );
-    Fmax *= 10.;
-
-    double t0;
-    start_msg(t0,"=== Calculating current densities... ");
-
-    for (int i = 0; i < n_nodes; ++i) {
-        gt.mode = 0;
-        gt.F = 10. * get_elfield(i).norm();
-
-        gt.Temp = temperature;
-
-        if (gt.F > 0.6 * Fmax){
-            emission_line(get_point(i), get_elfield(i), rline, Vline, 16. * gt.W/gt.F);
-            gt.Nr = Nline;
-            gt.xr = &rline[0];
-            gt.Vr = &Vline[0];
-            gt.mode = -21;
-        }
-        gt.approx = 0;
-        cur_dens_c(&gt);
-        if (gt.ierr != 0 )
-            write_verbose_msg("GETELEC 1st call returned with error, ierr = " + to_string(gt.ierr));
-
-        if (gt.Jem > 0.1 * Jmax){
-            gt.approx = 1;
-            cur_dens_c(&gt);
-            if (gt.ierr != 0 )
-                write_verbose_msg("GETELEC 2nd call returned with error, ierr = " + to_string(gt.ierr));
-        }
-
-        if (gt.Jem > Jmax)
-            Jmax = gt.Jem;
-
-        currents.push_back(gt.Jem);
-        nottingham.push_back(gt.heat);
-        interpolation[i].norm = log(gt.Jem);
-        interpolation[i].scalar = log(fabs(gt.heat));
-    }
-    end_msg(t0);
-
-    ch_solver.set_emission_bc(currents, nottingham);
+    // interpolate solution
+    interpolate(r_cut, component, srt);
 }
 
 // Linearly interpolate electric field for the currents and temperature solver
-void FieldReader::interpolate(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const bool srt) {
+void FieldReader::transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const bool srt) {
     // import the surface nodes the solver needs
     vector<dealii::Point<3>> nodes;
     ch_solver->get_surface_nodes(nodes);
@@ -642,14 +387,14 @@ void FieldReader::interpolate(fch::CurrentsAndHeatingStationary<3>* ch_solver, c
     interpolate(r_cut, 1, srt);
 
     // export electric field norms to the solver
-    vector<double> elfields; elfields.reserve(n_nodes);
+    vector<double> elfields(n_nodes);
     for (int i = 0; i < n_nodes; ++i)
-        elfields.push_back(10.0 * interpolation[i].norm);
+        elfields[i] = 10.0 * get_elfield_norm(i);
     ch_solver->set_electric_field_bc(elfields);
 }
 
 // Linearly interpolate electric field for the currents and temperature solver
-void FieldReader::transfer_field(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const bool srt) {
+void FieldReader::transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const bool srt) {
     // import the surface nodes the solver needs
     vector<dealii::Point<3>> nodes;
     ch_solver.get_surface_nodes(nodes);
@@ -666,23 +411,10 @@ void FieldReader::transfer_field(fch::CurrentsAndHeating<3>& ch_solver, const do
     interpolate(r_cut, 1, srt);
 
     // export electric field norms to the solver
-    vector<double> elfields; elfields.reserve(n_nodes);
+    vector<double> elfields(n_nodes);
     for (int i = 0; i < n_nodes; ++i)
-        elfields.push_back(10.0 * interpolation[i].norm);
+        elfields[i] = 10.0 * get_elfield_norm(i);
     ch_solver.set_electric_field_bc(elfields);
-}
-
-// Linearly interpolate electric field on a set of points
-void FieldReader::interpolate(const int n_points, const double* x, const double* y, const double* z,
-        const double r_cut, const int component, const bool srt) {
-
-    // store the point coordinates
-    reserve(n_points);
-    for (int i = 0; i < n_points; ++i)
-        append(Atom(i, Point3(x[i], y[i], z[i]), 0));
-
-    // interpolate solution
-    interpolate(r_cut, component, srt);
 }
 
 // Linearly interpolate electric field on a set of points
@@ -733,6 +465,11 @@ void FieldReader::export_solution(const int n_atoms, double* Ex, double* Ey, dou
 Vec3 FieldReader::get_elfield(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].vector;
+}
+
+double FieldReader::get_elfield_norm(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    return interpolation[i].norm;
 }
 
 double FieldReader::get_potential(const int i) const {
@@ -788,48 +525,20 @@ void FieldReader::print_enhancement() const {
  * =============== HEAT READER ==============
  * ========================================== */
 
-HeatReader::HeatReader() : SolutionReader() {}
-HeatReader::HeatReader(LinearInterpolator* ip) : SolutionReader(ip, "rho", "rho_norm", "temperature") {}
-
-// Linearly interpolate solution on Medium atoms
-void HeatReader::interpolate(const Medium &medium) {
-    require(interpolator, "NULL interpolator cannot be used!");
-
-    const int n_atoms = medium.size();
-    reserve(n_atoms);
-
-    // Copy the atoms
-    atoms = medium.atoms;
-
-    // Enable the search of points slightly outside the tetrahedra
-    interpolator->search_outside(true);
-
-    // Sort atoms into sequential order to speed up interpolation
-    sort_spatial();
-
-    int elem = 0;
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 point = get_point(i);
-        // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
-        elem = interpolator->locate_element(point, abs(elem));
-
-        // Calculate the temperature and current density interpolation
-        interpolation.push_back( interpolator->get_solution(point, abs(elem)) );
-    }
-
-    // sort atoms back to their initial order
-    for (int i = 0; i < n_atoms; ++i)
-        interpolation[i].id = atoms[i].id;
-    sort(interpolation.begin(), interpolation.end(), Solution::sort_up());
-    sort(atoms.begin(), atoms.end(), Atom::sort_id());
-}
+HeatReader::HeatReader() : SolutionReader(), empty_val(0) {}
+HeatReader::HeatReader(LinearInterpolator* ip) :
+        SolutionReader(ip, "rho", "rho_norm", "temperature"), empty_val(0) {}
 
 // Linearly interpolate solution atoms
 void HeatReader::interpolate(const double r_cut, const int component, const bool srt) {
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
     require(interpolator, "NULL interpolator cannot be used!");
-
     const int n_atoms = size();
+
+    if (interpolator->size() == 0) {
+        interpolation = vector<Solution>(n_atoms, Solution(empty_val));
+        return;
+    }
 
     // Sort atoms into sequential order to speed up interpolation
     if (srt) sort_spatial();
@@ -870,8 +579,28 @@ void HeatReader::interpolate(const double r_cut, const int component, const bool
     }
 }
 
+// Linearly interpolate solution on Medium atoms
+void HeatReader::interpolate(const Medium &medium) {
+    const int n_atoms = medium.size();
+
+    // store the atom coordinates
+    reserve(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        append( Atom(i, medium.get_point(i), 0) );
+
+    // interpolate solution
+    interpolate(0, 0, true);
+
+    // store the original atom id-s
+    for (int i = 0; i < n_atoms; ++i)
+        atoms[i].id = medium.get_id(i);
+}
+
 // Linearly interpolate electric field for the currents and temperature solver
-void HeatReader::read_heat(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const bool srt) {
+// In case of empty interpolator, constant values are stored
+void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val) {
+    this->empty_val = empty_val;
+
     // import the surface nodes the solver needs
     vector<dealii::Point<3>> nodes;
     ch_solver.get_surface_nodes(nodes);
@@ -885,7 +614,7 @@ void HeatReader::read_heat(fch::CurrentsAndHeating<3>& ch_solver, const double r
         append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
 
     // interpolate solution on the nodes
-    interpolate(r_cut, 0, srt);
+    interpolate(0, 0, true);
 }
 
 // Export interpolated temperature
@@ -905,9 +634,138 @@ Vec3 HeatReader::get_rho(const int i) const {
     return interpolation[i].vector;
 }
 
+double HeatReader::get_rho_norm(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    return interpolation[i].norm;
+}
+
 double HeatReader::get_temperature(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].scalar;
+}
+
+/* ==========================================
+ * ============= EMISSION READER ============
+ * ========================================== */
+
+EmissionReader::EmissionReader() : SolutionReader() {}
+EmissionReader::EmissionReader(LinearInterpolator* ip) : SolutionReader(ip, "none", "rho_norm", "temperature") {}
+
+double EmissionReader::get_rho_norm(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    return interpolation[i].norm;
+}
+
+double EmissionReader::get_temperature(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    return interpolation[i].scalar;
+}
+
+void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax,
+                        vector<double> &rline, vector<double> &Vline) {
+
+    double rmin = 0.;
+    int n_lines = rline.size();
+    Point3 pfield(direction.x, direction.y, direction.z);
+
+    FieldReader fr(interpolator);
+    fr.reserve(n_lines);
+
+    for (int i = 0; i < n_lines; i++){
+        rline[i] = rmin + ((rmax - rmin) * i) / (n_lines - 1);
+        fr.append(point - pfield * rline[i]);
+    }
+    fr.interpolate(0, 0, false);
+    for (int i = 0; i < n_lines; i++){
+        Vline[i] = fr.get_potential(i);
+        rline[i] *= 0.1;
+    }
+
+    for (int i = 0; i < n_lines; i++){
+        Vline[i] -= Vline[0];
+        rline[i] -= rline[0];
+    }
+
+    for (int i = 1; i < n_lines; ++i) { // go through points
+        if (Vline[i] < Vline[i-1]) { // if decreasing at a point
+            double dVdx = 0.0;
+            int j;
+            for (j = i + 1; j < n_lines; ++j) {
+                if (Vline[j] > Vline[i-1]) {
+                    dVdx = (Vline[j] - Vline[i-1]) / (rline[j] - rline[i-1]);
+                    break;
+                }
+            }
+
+            if (dVdx == 0.0) {
+                if (i > 1)
+                    dVdx = (Vline[i-1] - Vline[i-2]) / (rline[i-1] - rline[i-2]);
+                else
+                    write_verbose_msg("Non-monotonous Vline could not be recovered at i = " + to_string(i));
+            }
+            for (int k = 0; k <= j; ++k)
+                Vline[k] =  Vline[i-1] + (rline[k] - rline[i-1]) * dVdx;
+        }
+    }
+}
+
+void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const FieldReader& fields,
+        const double workfunction, const HeatReader& heat_reader) {
+
+    const int n_nodes = fields.size();
+    const int n_lines = 32;
+    vector<double> currents(n_nodes), nottingham(n_nodes);
+    vector<double> rline(n_lines), Vline(n_lines);
+
+    reserve(n_nodes);
+    atoms = fields.atoms;
+
+    double Fmax = 0.0;
+    double Jmax = 0.0;
+
+    struct emission gt;
+    gt.W = workfunction;    // set workfuntion, must be set in conf. script
+    gt.R = 200.0;   // radius of curvature (overrided by femocs potential distribution)
+    gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
+
+    // TODO Check whether 10-factors before fields are really needed
+    for (int i = 0; i < n_nodes; ++i)
+        Fmax = max(Fmax, fields.get_elfield_norm(i));
+    Fmax *= 10.0;
+
+    for (int i = 0; i < n_nodes; ++i) {
+        Vec3 field = fields.get_elfield(i);
+        gt.mode = 0;
+        gt.F = 10.0 * field.norm();
+        gt.Temp = heat_reader.get_temperature(i);
+
+        if (gt.F > 0.6 * Fmax){
+            field.normalize();
+            emission_line(get_point(i), field, 16.0 * gt.W / gt.F, rline, Vline);
+            gt.Nr = n_lines;
+            gt.xr = &rline[0];
+            gt.Vr = &Vline[0];
+            gt.mode = -21;
+        }
+        gt.approx = 0;
+        cur_dens_c(&gt);
+        if (gt.ierr != 0 )
+            write_verbose_msg("GETELEC 1st call returned with error, ierr = " + to_string(gt.ierr));
+
+        if (gt.Jem > 0.1 * Jmax){
+            gt.approx = 1;
+            cur_dens_c(&gt);
+            if (gt.ierr != 0 )
+                write_verbose_msg("GETELEC 2nd call returned with error, ierr = " + to_string(gt.ierr));
+        }
+
+        Jmax = max(Jmax, gt.Jem);
+        currents[i] = gt.Jem;
+        nottingham[i] = gt.heat;
+        append_interpolation( Solution(Vec3(0), log(gt.Jem), log(fabs(gt.heat))) );
+    }
+
+    ch_solver.set_emission_bc(currents, nottingham);
 }
 
 /* ==========================================
@@ -1192,6 +1050,11 @@ void ForceReader::export_force(const int n_atoms, double* xq) {
 Vec3 ForceReader::get_force(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].vector;
+}
+
+double ForceReader::get_force_norm(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    return interpolation[i].norm;
 }
 
 double ForceReader::get_charge(const int i) const {

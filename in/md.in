@@ -7,6 +7,7 @@ clear_output = true             # clear output folder before the run
 heating_mode = none             # method to calculate current density and temperature in material; none, stationary or transient
 transient_time = 0.05e-12       # time resolution in transient temperature solver [sec]
 transient_steps = 3             # number of iterations in transient heat equation solver
+work_function = 4.5             # work function in eV
 infile = in/mushroom1.ckx       # default file used with atom coordinates
 latconst = 3.61                 # lattice constant
 coord_cutoff = 3.1              # coordination analysis cut-off radius
