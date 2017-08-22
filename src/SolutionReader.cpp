@@ -31,7 +31,7 @@ SolutionReader::SolutionReader(LinearInterpolator* ip, const string& vec_lab, co
 }
 
 // Linearly interpolate solution on system atoms
-void SolutionReader::interpolate(const double r_cut, const int component, const bool srt) {
+void SolutionReader::calc_interpolation(const double r_cut, const int component, const bool srt) {
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
     require(interpolator, "NULL interpolator cannot be used!");
 
@@ -354,7 +354,7 @@ void FieldReader::interpolate(const Medium &medium, const double r_cut, const in
         append( Atom(i, medium.get_point(i), 0) );
 
     // interpolate solution
-    interpolate(r_cut, component, srt);
+    calc_interpolation(r_cut, component, srt);
 
     // store the original atom id-s
     for (int i = 0; i < n_atoms; ++i)
@@ -371,7 +371,7 @@ void FieldReader::interpolate(const int n_points, const double* x, const double*
         append(Atom(i, Point3(x[i], y[i], z[i]), 0));
 
     // interpolate solution
-    interpolate(r_cut, component, srt);
+    calc_interpolation(r_cut, component, srt);
 }
 
 // Linearly interpolate electric field for the currents and temperature solver
@@ -389,7 +389,7 @@ void FieldReader::transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solv
         append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
 
     // interpolate solution on the nodes
-    interpolate(r_cut, 1, srt);
+    calc_interpolation(r_cut, 1, srt);
 
     // export electric field norms to the solver
     vector<double> elfields(n_nodes);
@@ -413,7 +413,7 @@ void FieldReader::transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver, const 
         append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
 
     // interpolate solution on the nodes
-    interpolate(r_cut, 1, srt);
+    calc_interpolation(r_cut, 1, srt);
 
     // export electric field norms to the solver
     vector<double> elfields(n_nodes);
@@ -543,7 +543,7 @@ void HeatReader::interpolate(const Medium &medium, const double r_cut, const int
         append( Atom(i, medium.get_point(i), 0) );
 
     // interpolate solution
-    interpolate(r_cut, component, srt);
+    calc_interpolation(r_cut, component, srt);
 
     // restore the original atom id-s
     for (int i = 0; i < n_atoms; ++i)
@@ -567,7 +567,7 @@ void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double
         append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
 
     // interpolate solution on the nodes
-    interpolate(r_cut, component, srt);
+    calc_interpolation(r_cut, component, srt);
 }
 
 // Export interpolated temperature
@@ -629,7 +629,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
         rline[i] = rmin + ((rmax - rmin) * i) / (n_lines - 1);
         fr.append(point - pfield * rline[i]);
     }
-    fr.interpolate(0, 0, false);
+    fr.calc_interpolation(0, 0, false);
     for (int i = 0; i < n_lines; i++){
         Vline[i] = fr.get_potential(i);
         rline[i] *= nm_per_angstrom;
@@ -743,7 +743,7 @@ void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh, const doubl
         append( Atom(i, mesh.faces.get_centroid(i), 0) );
 
     // Interpolate electric field on the centroids of triangles
-    interpolate(0, 1, true);
+    calc_interpolation(0, 1, true);
 
     // Calculate the charge from the found electric field and store it
     for (int i = 0; i < n_faces; ++i) {
@@ -757,11 +757,11 @@ void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh, const doubl
 // Calculate charges on surface faces using direct solution in the face centroids
 // Conserves charge better but gives more hairy forces
 void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
-    const int n_faces = mesh.faces.size();
     const double sign = fabs(E0) / E0;
-    reserve(n_faces);
+    const int n_faces = mesh.faces.size();
 
     // Store the centroids of the triangles
+    reserve(n_faces);
     for (int i = 0; i < n_faces; ++i)
         append( Atom(i, mesh.faces.get_centroid(i), 0) );
 
@@ -774,8 +774,8 @@ void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
     for (int face = 0; face < n_faces; ++face) {
         double area = mesh.faces.get_area(face);
         double charge = eps0 * area * elfields[face].norm() * sign;
-//        interpolation.push_back(Solution(elfields[face], area, charge));
-        interpolation.push_back(Solution(mesh.faces.get_norm(face), area, charge));
+//        append_interpolation(Solution(elfields[face], area, charge));
+        append_interpolation(Solution(mesh.faces.get_norm(face), area, charge));
     }
 }
 
@@ -908,7 +908,7 @@ void ForceReader::recalc_forces(const FieldReader &fields, const vector<Vec3>& a
         interpolation[i] = Solution(force, charge);
     }
 }
-        
+
 // Calculate forces from atomic electric fields and face charges
 void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor) {

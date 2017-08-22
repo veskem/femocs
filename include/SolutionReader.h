@@ -31,7 +31,7 @@ public:
      * @param r_cut     smoothing region cut-off radius; 0 or less turns smoothing off
      * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
      * @param srt       sort atoms spatially */
-    void interpolate(const double r_cut, const int component, const bool srt);
+    void calc_interpolation(const double r_cut, const int component, const bool srt);
 
     /** Reserve memory for data */
     void reserve(const int n_nodes);
