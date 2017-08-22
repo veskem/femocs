@@ -543,10 +543,28 @@ public:
     /** Dimensionality of cell */
     int size() const { return dim; }
 
-    /** Check if one of the nodes equals to the one of interest */
+    /** Check if SimpleCell contains the node of interest */
     bool operator ==(const unsigned int &t) const {
         for (unsigned int n : node) if (n == t) return true;
         return false;
+    }
+
+    /** Check if SimpleCell does not contain the node of interest */
+    bool operator !=(const unsigned int &t) const {
+        for (unsigned int n : node) if (n == t) return false;
+        return true;
+    }
+
+    /** Check if two SimpleCells are equal to one-another */
+    bool operator ==(const SimpleCell<dim> &sc) const {
+        for (unsigned int n : node) if (sc != n) return false;
+        return true;
+    }
+
+    /** Check if two SimpleCells are not equal to one-another */
+    bool operator !=(const SimpleCell<dim> &sc) const {
+        for (unsigned int n : node) if (sc == n) return false;
+        return true;
     }
 
     /** Less than, bigger than, less than or equal, bigger than or equal operators */
@@ -619,11 +637,6 @@ public:
     SimpleEdge(const unsigned int &n1) : SimpleCell<2>(n1) {}
     SimpleEdge(const unsigned int &n1, const unsigned int &n2) { node[0] = n1; node[1] = n2; }
     SimpleEdge(const SimpleCell<2> &s) { node[0] = s.node[0]; node[1] = s.node[1]; }
-
-    /** Check whether edge contains node */
-    bool operator ==(const unsigned int n) const {
-        return node[0] == n || node[1] == n;
-    }
 };
 
 /** Face class without Point data */
@@ -639,17 +652,19 @@ public:
         std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
     }
 
-    /** Check whether face contains node */
-    bool operator ==(const unsigned int n) const {
-        return node[0] == n || node[1] == n || node[2] == n;
-    }
-
     /** Get i-th edge of the face */
     SimpleEdge edge(const int i) const {
         require(i >= 0 && i <= 2, "Invalid index: " + to_string(i));
         if (i == 0) return SimpleEdge(node[0], node[1]);
         if (i == 1) return SimpleEdge(node[0], node[2]);
         else        return SimpleEdge(node[1], node[2]);
+    }
+
+    /** Check whether two triangles share an edge */
+    bool neighbor(const SimpleFace& s) const {
+        return (s == node[0] && s == node[1]) ||
+               (s == node[0] && s == node[2]) ||
+               (s == node[1] && s == node[2]);
     }
 };
 
@@ -664,10 +679,6 @@ public:
     }
     SimpleElement(const SimpleCell<4> &s) {
         std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
-    }
-    /** Check whether element contains node */
-    bool operator ==(const unsigned int n) const {
-        return node[0] == n || node[1] == n || node[2] == n || node[3] == n;
     }
 
     /** Get i-th edge of the element */
@@ -686,8 +697,16 @@ public:
         require(i >= 0 && i <= 3, "Invalid index: " + to_string(i));
         if (i == 0) return SimpleFace(node[0], node[1], node[2]);
         if (i == 1) return SimpleFace(node[0], node[1], node[3]);
-        if (i == 2) return SimpleFace(node[1], node[2], node[3]);
-        else        return SimpleFace(node[2], node[0], node[1]);
+        if (i == 2) return SimpleFace(node[0], node[2], node[3]);
+        else        return SimpleFace(node[1], node[2], node[3]);
+    }
+
+    /** Check whether two tetrahedra share a triangle */
+    bool neighbor(const SimpleElement& s) const {
+        return (s == node[0] && s == node[1] && s == node[2]) ||
+               (s == node[0] && s == node[1] && s == node[3]) ||
+               (s == node[0] && s == node[2] && s == node[3]) ||
+               (s == node[1] && s == node[2] && s == node[3]);
     }
 };
 
