@@ -187,6 +187,50 @@ private:
     double get_analyt_enhancement() const;
 };
 
+/** Class to interpolate solution on surface triangles */
+class TriangleInterpolator {
+public:
+    /** Constructor of RaySurfaceIntersect  */
+    TriangleInterpolator(const TetgenMesh* mesh);
+
+    /** Precompute the data needed to calculate the distance of points from surface
+     * in the direction of triangle surface norms */
+    void precompute_triangles();
+
+    /** Find the triangle which contains the point or is the closest to it */
+    int locate_face(const Vec3 &point, const int face_guess);
+
+    /** Calculate barycentric coordinates for a projection of a point inside the triangle */
+    Vec3 get_bcc(const Vec3& point, const int face) const;
+
+    /** Check whether the projection of a point is inside the triangle */
+    bool projection_in_triangle(const Vec3& point, const int face);
+
+    /** Enable or disable the search of points slightly outside the triangles */
+    void search_outside(const bool enable);
+
+private:
+    /** Constants to specify the tolerances */
+    const double epsilon = 0.1;
+    double zero = 0.0 - epsilon;
+    double one = 1.0 + epsilon;
+
+    /** Pointer to Mesh with nodes and surface faces */
+    const TetgenMesh* mesh;
+
+    /** Data computed before starting looping through the triangles */
+    vector<Vec3> vert0;
+    vector<Vec3> edge1;
+    vector<Vec3> edge2;
+    vector<Vec3> pvec;
+    vector<bool> is_parallel;
+    vector<Point3> centroids;
+    vector<vector<unsigned>> trineighbors;  ///< nearest neighbours of triangles
+
+    /** Function to reserve memory for precompute data */
+    void reserve(const int n);
+};
+
 } // namespace femocs
 
 #endif /* LINEARINTERPOLATOR_H_ */

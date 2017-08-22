@@ -758,4 +758,152 @@ double LinearInterpolator::determinant(const Vec4 &v1, const Vec4 &v2, const Vec
     return v4.w * det4 - v4.z * det3 + v4.y * det2 - v4.x * det1;
 }
 
+/* ==================================================================
+ *  ===================== TriangleInterpolator ======================
+ * ================================================================== */
+
+TriangleInterpolator::TriangleInterpolator(const TetgenMesh* m) : mesh(m) {
+    reserve(0);
+}
+
+// Reserve memory for precompute data
+void TriangleInterpolator::reserve(const int n) {
+    edge1.clear(); edge1.reserve(n);
+    edge2.clear(); edge2.reserve(n);
+    vert0.clear(); vert0.reserve(n);
+    pvec.clear();  pvec.reserve(n);
+    is_parallel.clear(); is_parallel.reserve(n);
+    trineighbors = vector<vector<unsigned>>(n);
+    centroids.clear(); centroids.reserve(n);
+}
+
+// Precompute the data needed to calculate the distance of points from surface in the direction of triangle norms
+void TriangleInterpolator::precompute_triangles() {
+    const int n_faces = mesh->faces.size();
+
+    // Reserve memory for precomputation data
+    reserve(n_faces);
+
+    // Loop through all the faces
+    for (int i = 0; i < n_faces; ++i) {
+        SimpleFace sface = mesh->faces[i];
+        Vec3 v0 = mesh->nodes.get_vec(sface[0]);
+        Vec3 v1 = mesh->nodes.get_vec(sface[1]);
+        Vec3 v2 = mesh->nodes.get_vec(sface[2]);
+
+        Vec3 e1 = v1 - v0;   // edge1 of triangle
+        Vec3 e2 = v2 - v0;   // edge2 of triangle
+        Vec3 pv = mesh->faces.get_norm(i).crossProduct(e2);
+        double i_det = 1.0 / e1.dotProduct(pv);
+
+        vert0.push_back(v0);
+        edge1.push_back(e1 * i_det);
+        edge2.push_back(e2);
+        pvec.push_back(pv * i_det);
+        centroids.push_back(mesh->faces.get_centroid(i));
+
+        // calculate the neighbour list for triangles
+        for (int j = i+1; j < n_faces; ++j)
+            if (sface.neighbor(mesh->faces[j])) {
+                trineighbors[i].push_back(j);
+                trineighbors[j].push_back(i);
+            }
+    }
+}
+
+// Find the element which contains the point or is the closest to it
+int TriangleInterpolator::locate_face(const Vec3 &point, const int face_guess) {
+    // Check the guessed element
+    if (projection_in_triangle(point, face_guess)) return face_guess;
+
+    const int n_faces = vert0.size();
+    const int n_nbor_layers = 6;  // choose the amount of nearest neighbouring layers that are checked before the full search
+
+    vector<vector<unsigned>> nbors(n_nbor_layers);
+    vector<bool> face_checked(n_faces);
+
+    face_checked[face_guess] = true;
+
+    // Check all triangles on the given neighbouring layer
+    for (int layer = 0; layer < n_nbor_layers; ++layer) {
+        // build next layer of neighbour list
+        if (layer == 0)
+            nbors[0] = trineighbors[face_guess];
+        else {
+            for (unsigned nbor : nbors[layer-1])
+                if (nbor >= 0)
+                    nbors[layer].insert(nbors[layer].end(), trineighbors[nbor].begin(), trineighbors[nbor].end());
+        }
+
+        // check whether some of the unchecked neighbouring triangles surround the point
+        for (unsigned face : nbors[layer])
+            if (face >= 0 && !face_checked[face]) {
+                if (projection_in_triangle(point, face))
+                    return face;
+                else
+                    face_checked[face] = true;
+            }
+    }
+
+    // If no success, loop through all the elements
+    double min_distance2 = DBL_MAX;
+    int min_index = 0;
+    Point3 p(point.x, point.y, point.z);
+
+    for (int face = 0; face < n_faces; ++face) {
+        // If correct face is found, we're done
+        if (!face_checked[face] && projection_in_triangle(point, face))
+            return face;
+
+        // Otherwise look for the face whose centroid is closest to the point
+        else {
+            double distance2 = p.distance2(centroids[face]);
+            if (distance2 < min_distance2) {
+                min_distance2 = distance2;
+                min_index = face;
+            }
+        }
+    }
+
+    // If no perfect element found, return the best.
+    // Indicate the imperfectness with the minus sign
+    return -min_index;
+}
+
+// Calculate barycentric coordinates for a projection of a point inside the triangle
+Vec3 TriangleInterpolator::get_bcc(const Vec3& point, const int face) const {
+    Vec3 tvec = point - vert0[face];
+    Vec3 qvec = tvec.crossProduct(edge1[face]);
+    double u = tvec.dotProduct(pvec[face]);
+    double v = qvec.dotProduct(mesh->faces.get_norm(face));
+
+    return Vec3(u, v, 1.0 - u - v);
+}
+
+// Check whether the projection of a point is inside the triangle
+bool TriangleInterpolator::projection_in_triangle(const Vec3& point, const int face) {
+    require(face >= 0 && face < static_cast<int>(vert0.size()), "Index out of bounds: " + to_string(face));
+
+    Vec3 tvec = point - vert0[face];
+    double u = tvec.dotProduct(pvec[face]);
+    if (u < zero || u > one) return false;     // Check first barycentric coordinate
+
+    Vec3 qvec = tvec.crossProduct(edge1[face]);
+    double v = qvec.dotProduct(mesh->faces.get_norm(face));
+    if (v < zero || u + v > one) return false; // Check second & third barycentric coordinate
+
+    return true;
+}
+
+// Enable or disable the search of points slightly outside the triangles
+void TriangleInterpolator::search_outside(const bool enable) {
+    if (enable) {
+        zero = 0.0 - epsilon;
+        one = 1.0 + epsilon;
+    } else {
+        zero = 0;
+        one = 1.0;
+    }
+}
+
 } // namespace femocs
