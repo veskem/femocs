@@ -20,13 +20,64 @@ namespace femocs {
  * ========================================== */
 
 // Initialize SolutionReader
-SolutionReader::SolutionReader() : vec_label("vec"), vec_norm_label("vec_norm"), scalar_label("scalar"), interpolator(NULL) {
+SolutionReader::SolutionReader() : vec_label("vec"), vec_norm_label("vec_norm"), scalar_label("scalar"),
+        empty_val(0), interpolator(NULL) {
     reserve(0);
 }
 
 SolutionReader::SolutionReader(LinearInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
-        vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab), interpolator(ip) {
+        vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab), empty_val(0), interpolator(ip) {
     reserve(0);
+}
+
+// Linearly interpolate solution on system atoms
+void SolutionReader::interpolate(const double r_cut, const int component, const bool srt) {
+    require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
+    require(interpolator, "NULL interpolator cannot be used!");
+
+    const int n_atoms = size();
+    if (interpolator->size() == 0) {
+        interpolation = vector<Solution>(n_atoms, Solution(empty_val));
+        return;
+    }
+
+    // Sort atoms into sequential order to speed up interpolation
+    if (srt) sort_spatial();
+
+    // Enable or disable the search of points slightly outside the tetrahedra
+    interpolator->search_outside(srt);
+
+    int elem = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point = get_point(i);
+        // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
+        elem = interpolator->locate_element(point, abs(elem));
+
+        // Store whether the point is in- or outside the mesh
+        if (elem < 0) set_marker(i, 1);
+        else          set_marker(i, 0);
+
+        // Calculate the interpolation
+        if      (component == 0) interpolation.push_back( interpolator->get_solution(point, abs(elem)) );
+        else if (component == 1) interpolation.push_back( interpolator->get_vector(point, abs(elem)) );
+        else if (component == 2) interpolation.push_back( interpolator->get_scalar(point, abs(elem)) );
+    }
+
+    // Apply histogram cleaner for the solution
+    clean(0, r_cut);  // clean by vector x-component
+    clean(1, r_cut);  // clean by vector y-component
+    clean(2, r_cut);  // clean by vector z-component
+    clean(3, r_cut);  // clean by vector norm
+    clean(4, r_cut);  // clean by scalar
+
+    // Sort atoms back to their initial order
+    if (srt) {
+        for (int i = 0; i < n_atoms; ++i)
+            interpolation[i].id = atoms[i].id;
+
+        sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
+        sort( atoms.begin(), atoms.end(), Atom::sort_id() );
+    }
 }
 
 // Reserve memory for solution vectors
@@ -293,52 +344,6 @@ FieldReader::FieldReader() : SolutionReader(), radius1(0), radius2(0), E0(0) {}
 FieldReader::FieldReader(LinearInterpolator* ip) : SolutionReader(ip, "elfield", "elfield_norm", "potential"),
         radius1(0), radius2(0), E0(0) {}
 
-// Linearly interpolate solution atoms
-void FieldReader::interpolate(const double r_cut, const int component, const bool srt) {
-    require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
-    require(interpolator, "NULL interpolator cannot be used!");
-
-    const int n_atoms = size();
-
-    // Sort atoms into sequential order to speed up interpolation
-    if (srt) sort_spatial();
-
-    // Enable or disable the search of points slightly outside the tetrahedra
-    interpolator->search_outside(srt);
-
-    int elem = 0;
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 point = get_point(i);
-        // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
-        elem = interpolator->locate_element(point, abs(elem));
-
-        // Store whether the point is in- or outside the mesh
-        if (elem < 0) set_marker(i, 1);
-        else          set_marker(i, 0);
-
-        // Calculate the interpolation
-        if      (component == 0) interpolation.push_back( interpolator->get_solution(point, abs(elem)) );
-        else if (component == 1) interpolation.push_back( interpolator->get_vector(point, abs(elem)) );
-        else if (component == 2) interpolation.push_back( interpolator->get_scalar(point, abs(elem)) );
-    }
-
-    // Apply histogram cleaner for the solution
-    clean(0, r_cut);  // clean by vector x-component
-    clean(1, r_cut);  // clean by vector y-component
-    clean(2, r_cut);  // clean by vector z-component
-    clean(3, r_cut);  // clean by vector norm
-    clean(4, r_cut);  // clean by scalar
-
-    // Sort atoms back to their initial order
-    if (srt) {
-        for (int i = 0; i < n_atoms; ++i)
-            interpolation[i].id = atoms[i].id;
-
-        sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
-        sort( atoms.begin(), atoms.end(), Atom::sort_id() );
-    }
-}
-
 // Linearly interpolate solution on Medium atoms
 void FieldReader::interpolate(const Medium &medium, const double r_cut, const int component, const bool srt) {
     const int n_atoms = medium.size();
@@ -389,7 +394,7 @@ void FieldReader::transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solv
     // export electric field norms to the solver
     vector<double> elfields(n_nodes);
     for (int i = 0; i < n_nodes; ++i)
-        elfields[i] = 10.0 * get_elfield_norm(i);
+        elfields[i] = get_elfield_norm(i);
     ch_solver->set_electric_field_bc(elfields);
 }
 
@@ -413,7 +418,7 @@ void FieldReader::transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver, const 
     // export electric field norms to the solver
     vector<double> elfields(n_nodes);
     for (int i = 0; i < n_nodes; ++i)
-        elfields[i] = 10.0 * get_elfield_norm(i);
+        elfields[i] = get_elfield_norm(i);
     ch_solver.set_electric_field_bc(elfields);
 }
 
@@ -525,62 +530,11 @@ void FieldReader::print_enhancement() const {
  * =============== HEAT READER ==============
  * ========================================== */
 
-HeatReader::HeatReader() : SolutionReader(), empty_val(0) {}
-HeatReader::HeatReader(LinearInterpolator* ip) :
-        SolutionReader(ip, "rho", "rho_norm", "temperature"), empty_val(0) {}
-
-// Linearly interpolate solution atoms
-void HeatReader::interpolate(const double r_cut, const int component, const bool srt) {
-    require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
-    require(interpolator, "NULL interpolator cannot be used!");
-    const int n_atoms = size();
-
-    if (interpolator->size() == 0) {
-        interpolation = vector<Solution>(n_atoms, Solution(empty_val));
-        return;
-    }
-
-    // Sort atoms into sequential order to speed up interpolation
-    if (srt) sort_spatial();
-
-    // Enable or disable the search of points slightly outside the tetrahedra
-    interpolator->search_outside(srt);
-
-    int elem = 0;
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 point = get_point(i);
-        // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
-        elem = interpolator->locate_element(point, abs(elem));
-
-        // Store whether the point is in- or outside the mesh
-        if (elem < 0) set_marker(i, 1);
-        else          set_marker(i, 0);
-
-        // Calculate the interpolation
-        if      (component == 0) interpolation.push_back( interpolator->get_solution(point, abs(elem)) );
-        else if (component == 1) interpolation.push_back( interpolator->get_vector(point, abs(elem)) );
-        else if (component == 2) interpolation.push_back( interpolator->get_scalar(point, abs(elem)) );
-    }
-
-    // Apply histogram cleaner for the solution
-    clean(0, r_cut);  // clean by vector x-component
-    clean(1, r_cut);  // clean by vector y-component
-    clean(2, r_cut);  // clean by vector z-component
-    clean(3, r_cut);  // clean by vector norm
-    clean(4, r_cut);  // clean by scalar
-
-    // Sort atoms back to their initial order
-    if (srt) {
-        for (int i = 0; i < n_atoms; ++i)
-            interpolation[i].id = atoms[i].id;
-
-        sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
-        sort( atoms.begin(), atoms.end(), Atom::sort_id() );
-    }
-}
+HeatReader::HeatReader() : SolutionReader() {}
+HeatReader::HeatReader(LinearInterpolator* ip) : SolutionReader(ip, "rho", "rho_norm", "temperature") {}
 
 // Linearly interpolate solution on Medium atoms
-void HeatReader::interpolate(const Medium &medium) {
+void HeatReader::interpolate(const Medium &medium, const double r_cut, const int component, const bool srt) {
     const int n_atoms = medium.size();
 
     // store the atom coordinates
@@ -589,32 +543,31 @@ void HeatReader::interpolate(const Medium &medium) {
         append( Atom(i, medium.get_point(i), 0) );
 
     // interpolate solution
-    interpolate(0, 0, true);
+    interpolate(r_cut, component, srt);
 
-    // store the original atom id-s
+    // restore the original atom id-s
     for (int i = 0; i < n_atoms; ++i)
         atoms[i].id = medium.get_id(i);
 }
 
 // Linearly interpolate electric field for the currents and temperature solver
 // In case of empty interpolator, constant values are stored
-void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val) {
+void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val,
+        const double r_cut, const int component, const bool srt) {
     this->empty_val = empty_val;
 
     // import the surface nodes the solver needs
     vector<dealii::Point<3>> nodes;
     ch_solver.get_surface_nodes(nodes);
 
-    const int n_nodes = nodes.size();
-
     // store the node coordinates
-    reserve(n_nodes);
+    reserve(nodes.size());
     int i = 0;
     for (dealii::Point<3>& node : nodes)
         append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
 
     // interpolate solution on the nodes
-    interpolate(0, 0, true);
+    interpolate(r_cut, component, srt);
 }
 
 // Export interpolated temperature
@@ -664,8 +617,9 @@ double EmissionReader::get_temperature(const int i) const {
 void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax,
                         vector<double> &rline, vector<double> &Vline) {
 
-    double rmin = 0.;
-    int n_lines = rline.size();
+    const double nm_per_angstrom = 0.1;
+    const double rmin = 0.0;
+    const int n_lines = rline.size();
     Point3 pfield(direction.x, direction.y, direction.z);
 
     FieldReader fr(interpolator);
@@ -678,7 +632,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
     fr.interpolate(0, 0, false);
     for (int i = 0; i < n_lines; i++){
         Vline[i] = fr.get_potential(i);
-        rline[i] *= 0.1;
+        rline[i] *= nm_per_angstrom;
     }
 
     for (int i = 0; i < n_lines; i++){
@@ -712,6 +666,9 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const FieldReader& fields,
         const double workfunction, const HeatReader& heat_reader) {
 
+    const double angstrom_per_nm = 10.0;
+    const double nm2_per_angstrom2 = 0.01;
+
     const int n_nodes = fields.size();
     const int n_lines = 32;
     vector<double> currents(n_nodes), nottingham(n_nodes);
@@ -728,15 +685,14 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, co
     gt.R = 200.0;   // radius of curvature (overrided by femocs potential distribution)
     gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
 
-    // TODO Check whether 10-factors before fields are really needed
     for (int i = 0; i < n_nodes; ++i)
         Fmax = max(Fmax, fields.get_elfield_norm(i));
-    Fmax *= 10.0;
+    Fmax *= angstrom_per_nm;
 
     for (int i = 0; i < n_nodes; ++i) {
         Vec3 field = fields.get_elfield(i);
         gt.mode = 0;
-        gt.F = 10.0 * field.norm();
+        gt.F = angstrom_per_nm * field.norm();
         gt.Temp = heat_reader.get_temperature(i);
 
         if (gt.F > 0.6 * Fmax){
@@ -760,9 +716,9 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, co
         }
 
         Jmax = max(Jmax, gt.Jem);
-        currents[i] = gt.Jem;
-        nottingham[i] = gt.heat;
-        append_interpolation( Solution(Vec3(0), log(gt.Jem), log(fabs(gt.heat))) );
+        currents[i] = nm2_per_angstrom2 * gt.Jem;
+        nottingham[i] = nm2_per_angstrom2 * gt.heat;
+        append_interpolation( Solution(Vec3(0), log(currents[i]), log(fabs(nottingham[i]))) );
     }
 
     ch_solver.set_emission_bc(currents, nottingham);
@@ -778,39 +734,24 @@ ChargeReader::ChargeReader(LinearInterpolator* ip) : SolutionReader(ip, "elfield
 // Calculate charges on surface faces using interpolated electric fields
 // Conserves charge worse but gives smoother forces
 void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh, const double E0) {
-    require(interpolator, "NULL interpolator cannot be used!");
-
-    const int n_faces = mesh.faces.size();
     const double sign = fabs(E0) / E0;
-    reserve(n_faces);
+    const int n_faces = mesh.faces.size();
 
     // Store the centroids of the triangles
+    reserve(n_faces);
     for (int i = 0; i < n_faces; ++i)
         append( Atom(i, mesh.faces.get_centroid(i), 0) );
 
-    // Sort centroids into sequential order to speed up interpolation
-    sort_spatial();
+    // Interpolate electric field on the centroids of triangles
+    interpolate(0, 1, true);
 
-    int elem = 0;
+    // Calculate the charge from the found electric field and store it
     for (int i = 0; i < n_faces; ++i) {
-        Point3 point = get_point(i);
-        int face = get_id(i);
-
-        // Interpolate electric field in the centroid
-        elem = interpolator->locate_element(point, abs(elem));
-        Vec3 elfield = interpolator->get_vector(point, abs(elem));
-
-        double area = mesh.faces.get_area(face);
-        double charge = eps0 * area * elfield.norm() * sign;
-        interpolation.push_back(Solution(elfield, area, charge));
+        double area = mesh.faces.get_area(i);
+        double charge = eps0 * area * interpolation[i].norm * sign;
+        interpolation[i].norm = area;
+        interpolation[i].scalar = charge;
     }
-
-    // sort atoms back to their initial order
-    for (int i = 0; i < n_faces; ++i)
-        interpolation[i].id = atoms[i].id;
-
-    sort(interpolation.begin(), interpolation.end(), Solution::sort_up());
-    sort(atoms.begin(), atoms.end(), Atom::sort_id());
 }
 
 // Calculate charges on surface faces using direct solution in the face centroids
@@ -838,50 +779,7 @@ void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
     }
 }
 
-// Remove the atoms and their solutions outside the box
-void ChargeReader::clean(const Medium::Sizes& sizes, const double latconst) {
-    const int n_atoms = size();
-    const int eps = latconst / 2.0;;
-    vector<bool> in_box; in_box.reserve(n_atoms);
-
-    // Check the locations of points
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 point = get_point(i);
-        const bool box_x = point.x >= (sizes.xmin - eps) && point.x <= (sizes.xmax + eps);
-        const bool box_y = point.y >= (sizes.ymin - eps) && point.y <= (sizes.ymax + eps);
-        const bool box_z = point.z >= (sizes.zmin - eps) && point.z <= (sizes.zmax + eps);
-        in_box.push_back(box_x && box_y && box_z);
-    }
-
-    const int n_box = vector_sum(in_box);
-    vector<Atom> _atoms; _atoms.reserve(n_box);
-    vector<Solution> _interpolation; _interpolation.reserve(n_box);
-
-    // Copy the solutions and atoms that remain into box
-    for (int i = 0; i < n_atoms; ++i)
-        if (in_box[i]) {
-            _atoms.push_back(atoms[i]);
-            _interpolation.push_back(interpolation[i]);
-        }
-    atoms = _atoms;
-    interpolation = _interpolation;
-}
-
-Vec3 ChargeReader::get_elfield(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].vector;
-}
-
-double ChargeReader::get_area(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].norm;
-}
-
-double ChargeReader::get_charge(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].scalar;
-}
-
+// Find the electric fields on the centroids of surface triangles
 void ChargeReader::get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields) {
     const int n_hexs = mesh.hexahedra.size();
     const int n_faces = mesh.faces.size();
@@ -935,6 +833,35 @@ void ChargeReader::get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields) 
     }
 }
 
+// Remove the atoms and their solutions outside the box
+void ChargeReader::clean(const Medium::Sizes& sizes, const double latconst) {
+    const int n_atoms = size();
+    const int eps = latconst / 2.0;;
+    vector<bool> in_box; in_box.reserve(n_atoms);
+
+    // Check the locations of points
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point = get_point(i);
+        const bool box_x = point.x >= (sizes.xmin - eps) && point.x <= (sizes.xmax + eps);
+        const bool box_y = point.y >= (sizes.ymin - eps) && point.y <= (sizes.ymax + eps);
+        const bool box_z = point.z >= (sizes.zmin - eps) && point.z <= (sizes.zmax + eps);
+        in_box.push_back(box_x && box_y && box_z);
+    }
+
+    const int n_box = vector_sum(in_box);
+    vector<Atom> _atoms; _atoms.reserve(n_box);
+    vector<Solution> _interpolation; _interpolation.reserve(n_box);
+
+    // Copy the solutions and atoms that remain into box
+    for (int i = 0; i < n_atoms; ++i)
+        if (in_box[i]) {
+            _atoms.push_back(atoms[i]);
+            _interpolation.push_back(interpolation[i]);
+        }
+    atoms = _atoms;
+    interpolation = _interpolation;
+}
+
 // Check whether charge is conserved within specified limits
 bool ChargeReader::charge_conserved(const double Q, const double eps) const {
     double q = 0;
@@ -944,6 +871,22 @@ bool ChargeReader::charge_conserved(const double Q, const double eps) const {
 
     return q >= (1 - eps) && q <= (1 + eps);
 }
+
+Vec3 ChargeReader::get_elfield(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    return interpolation[i].vector;
+}
+
+double ChargeReader::get_area(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    return interpolation[i].norm;
+}
+
+double ChargeReader::get_charge(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    return interpolation[i].scalar;
+}
+
 /* ==========================================
  * ============== FORCE READER ==============
  * ========================================== */

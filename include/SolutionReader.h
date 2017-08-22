@@ -27,6 +27,12 @@ public:
     SolutionReader();
     SolutionReader(LinearInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
+    /** Interpolate solution on the system atoms
+     * @param r_cut     smoothing region cut-off radius; 0 or less turns smoothing off
+     * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
+     * @param srt       sort atoms spatially */
+    void interpolate(const double r_cut, const int component, const bool srt);
+
     /** Reserve memory for data */
     void reserve(const int n_nodes);
 
@@ -60,6 +66,7 @@ protected:
     const string vec_label;       ///< label for vector data
     const string vec_norm_label;  ///< label for data associated with vector length
     const string scalar_label;    ///< label for scalar data
+    double empty_val;             ///< constant values returned when interpolator is empty
 
     LinearInterpolator* interpolator;  ///< data needed for interpolation
     vector<Solution> interpolation;    ///< interpolated data
@@ -101,17 +108,14 @@ public:
      */
     void interpolate(const Medium &medium, const double r_cut, const int component=0, const bool srt=true);
 
-    /** Interpolate solution on points using the solution on tetrahedral mesh nodes
-     * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data */
+    /** Interpolate solution on points using the solution on tetrahedral mesh nodes */
     void interpolate(const int n_points, const double* x, const double* y, const double* z,
             const double r_cut, const int component=0, const bool srt=true);
 
-    /** Workhorse function for interpolating field on the system atoms */
-    void interpolate(const double r_cut, const int component, const bool srt);
-
-    /** Calculate the electric field for the current and temperature solver */
+    /** Calculate the electric field for the stationary current and temperature solver */
     void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const bool srt=true);
 
+    /** Calculate the electric field for the transient current and temperature solver */
     void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const bool srt=true);
 
     /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
@@ -157,11 +161,12 @@ public:
     HeatReader(LinearInterpolator* ip);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium);
+    void interpolate(const Medium &medium, const double r_cut=0.0, const int component=0, const bool srt=true);
 
     /** Linearly interpolate electric field for the currents and temperature solver.
      *  In case of empty interpolator, constant values are stored. */
-    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val);
+    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val,
+            const double r_cut=0.0, const int component=0, const bool srt=true);
 
     /** Export interpolated temperature */
     void export_temperature(const int n_atoms, double* T);
@@ -173,10 +178,6 @@ public:
     double get_temperature(const int i) const;
 
 private:
-    double empty_val;  ///< constant values returned when interpolator is empty
-
-    /** Workhorse function for interpolating field on the system atoms */
-    void interpolate(const double r_cut, const int component, const bool srt);
 };
 
 /** Class to calculate field emission effects with GETELEC */
