@@ -8,7 +8,6 @@
 #ifndef SOLUTIONREADER_H_
 #define SOLUTIONREADER_H_
 
-#include "LinearInterpolator.h"
 #include "Primitives.h"
 #include "Medium.h"
 #include "TetgenCells.h"
@@ -16,6 +15,7 @@
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
 #include "getelec.h"
+#include "LinearInterpolator.h"
 
 using namespace std;
 namespace femocs {
@@ -25,7 +25,7 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader constructors */
     SolutionReader();
-    SolutionReader(LinearInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
+    SolutionReader(TetrahedronInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
     /** Interpolate solution on the system atoms
      * @param r_cut     smoothing region cut-off radius; 0 or less turns smoothing off
@@ -68,7 +68,7 @@ protected:
     const string scalar_label;    ///< label for scalar data
     double empty_val;             ///< constant values returned when interpolator is empty
 
-    LinearInterpolator* interpolator;  ///< data needed for interpolation
+    TetrahedronInterpolator* interpolator;  ///< data needed for interpolation
     vector<Solution> interpolation;    ///< interpolated data
 
     /** Initialise statistics about coordinates and solution */
@@ -98,7 +98,7 @@ class FieldReader: public SolutionReader {
 public:
     /** SolutionReader constructors */
     FieldReader();
-    FieldReader(LinearInterpolator* ip);
+    FieldReader(TetrahedronInterpolator* ip);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
      * @param medium    atoms to be interpolated
@@ -158,7 +158,7 @@ class HeatReader: public SolutionReader {
 public:
     /** HeatReader constructors */
     HeatReader();
-    HeatReader(LinearInterpolator* ip);
+    HeatReader(TetrahedronInterpolator* ip);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
     void interpolate(const Medium &medium, const double r_cut=0.0, const int component=0, const bool srt=true);
@@ -185,7 +185,7 @@ class EmissionReader: public SolutionReader {
 public:
     /** EmissionReader constructors */
     EmissionReader();
-    EmissionReader(LinearInterpolator* ip);
+    EmissionReader(TetrahedronInterpolator* ip);
 
     void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const FieldReader& fields,
             const double workfunction, const HeatReader& heat_reader);
@@ -203,7 +203,7 @@ class ChargeReader: public SolutionReader {
 public:
     /** ChargeReader constructors */
     ChargeReader();
-    ChargeReader(LinearInterpolator* ip);
+    ChargeReader(TetrahedronInterpolator* ip);
 
     void calc_interpolated_charges(const TetgenMesh& mesh, const double E0);
 
@@ -230,7 +230,7 @@ class ForceReader: public SolutionReader {
 public:
     /** ChargeReader constructors */
     ForceReader();
-    ForceReader(LinearInterpolator* ip);
+    ForceReader(TetrahedronInterpolator* ip);
 
     /** Replace the charge and force on the nanotip nodes with the one found with Voronoi cells */
     void recalc_forces(const FieldReader &fields, const vector<Vec3>& areas);

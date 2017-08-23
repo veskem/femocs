@@ -8,7 +8,6 @@
 #ifndef FEMOCS_H_
 #define FEMOCS_H_
 
-#include "LinearInterpolator.h"
 #include "AtomReader.h"
 #include "Config.h"
 #include "Media.h"
@@ -17,6 +16,7 @@
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
 #include "laplace.h"
+#include "LinearInterpolator.h"
 
 using namespace std;
 namespace femocs {
@@ -186,11 +186,13 @@ private:
     Media dense_surf;       ///< non-coarsened surface atoms
     Media extended_surf;    ///< atoms added for the surface atoms
 
-    LinearInterpolator bulk_interpolator;   ///< data for interpolating results in bulk
-    LinearInterpolator vacuum_interpolator; ///< data for interpolating results in vacuum
-
     TetgenMesh bulk_mesh;    ///< FEM mesh in bulk material
     TetgenMesh vacuum_mesh;  ///< FEM mesh in vacuum
+
+    /// data for interpolating results in bulk
+    TetrahedronInterpolator bulk_interpolator = TetrahedronInterpolator(&bulk_mesh);
+    /// data for interpolating results in vacuum
+    TetrahedronInterpolator vacuum_interpolator = TetrahedronInterpolator(&vacuum_mesh);
 
     HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
     FieldReader fields = FieldReader(&vacuum_interpolator);     ///< interpolated fields and potentials

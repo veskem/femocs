@@ -25,7 +25,7 @@ SolutionReader::SolutionReader() : vec_label("vec"), vec_norm_label("vec_norm"),
     reserve(0);
 }
 
-SolutionReader::SolutionReader(LinearInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
+SolutionReader::SolutionReader(TetrahedronInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
         vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab), empty_val(0), interpolator(ip) {
     reserve(0);
 }
@@ -58,9 +58,9 @@ void SolutionReader::calc_interpolation(const double r_cut, const int component,
         else          set_marker(i, 0);
 
         // Calculate the interpolation
-        if      (component == 0) interpolation.push_back( interpolator->get_solution(point, abs(elem)) );
-        else if (component == 1) interpolation.push_back( interpolator->get_vector(point, abs(elem)) );
-        else if (component == 2) interpolation.push_back( interpolator->get_scalar(point, abs(elem)) );
+        if      (component == 0) interpolation.push_back( interpolator->interp_solution(point, abs(elem)) );
+        else if (component == 1) interpolation.push_back( interpolator->interp_vector(point, abs(elem)) );
+        else if (component == 2) interpolation.push_back( interpolator->interp_scalar(point, abs(elem)) );
     }
 
     // Apply histogram cleaner for the solution
@@ -341,7 +341,7 @@ void SolutionReader::calc_statistics() {
  * ========================================== */
 
 FieldReader::FieldReader() : SolutionReader(), radius1(0), radius2(0), E0(0) {}
-FieldReader::FieldReader(LinearInterpolator* ip) : SolutionReader(ip, "elfield", "elfield_norm", "potential"),
+FieldReader::FieldReader(TetrahedronInterpolator* ip) : SolutionReader(ip, "elfield", "elfield_norm", "potential"),
         radius1(0), radius2(0), E0(0) {}
 
 // Linearly interpolate solution on Medium atoms
@@ -531,7 +531,7 @@ void FieldReader::print_enhancement() const {
  * ========================================== */
 
 HeatReader::HeatReader() : SolutionReader() {}
-HeatReader::HeatReader(LinearInterpolator* ip) : SolutionReader(ip, "rho", "rho_norm", "temperature") {}
+HeatReader::HeatReader(TetrahedronInterpolator* ip) : SolutionReader(ip, "rho", "rho_norm", "temperature") {}
 
 // Linearly interpolate solution on Medium atoms
 void HeatReader::interpolate(const Medium &medium, const double r_cut, const int component, const bool srt) {
@@ -602,7 +602,7 @@ double HeatReader::get_temperature(const int i) const {
  * ========================================== */
 
 EmissionReader::EmissionReader() : SolutionReader() {}
-EmissionReader::EmissionReader(LinearInterpolator* ip) : SolutionReader(ip, "none", "rho_norm", "temperature") {}
+EmissionReader::EmissionReader(TetrahedronInterpolator* ip) : SolutionReader(ip, "none", "rho_norm", "temperature") {}
 
 double EmissionReader::get_rho_norm(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
@@ -729,7 +729,7 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, co
  * ========================================== */
 
 ChargeReader::ChargeReader() : SolutionReader() {}
-ChargeReader::ChargeReader(LinearInterpolator* ip) : SolutionReader(ip, "elfield", "area", "charge") {}
+ChargeReader::ChargeReader(TetrahedronInterpolator* ip) : SolutionReader(ip, "elfield", "area", "charge") {}
 
 // Calculate charges on surface faces using interpolated electric fields
 // Conserves charge worse but gives smoother forces
@@ -892,7 +892,7 @@ double ChargeReader::get_charge(const int i) const {
  * ========================================== */
 
 ForceReader::ForceReader() : SolutionReader() {}
-ForceReader::ForceReader(LinearInterpolator* ip) : SolutionReader(ip, "force", "force_norm", "charge") {}
+ForceReader::ForceReader(TetrahedronInterpolator* ip) : SolutionReader(ip, "force", "force_norm", "charge") {}
 
 // Replace the charge and force on the nanotip nodes with the one found with Voronoi cells
 void ForceReader::recalc_forces(const FieldReader &fields, const vector<Vec3>& areas) {

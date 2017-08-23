@@ -334,7 +334,7 @@ int Femocs::solve_laplace(const double E0) {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting E and phi...");
-    fail = vacuum_interpolator.extract_solution(&laplace_solver, vacuum_mesh);
+    fail = vacuum_interpolator.extract_solution(&laplace_solver);
     end_msg(t0);
 
     vacuum_interpolator.write("out/result_E_phi.xyz");
@@ -393,7 +393,7 @@ int Femocs::solve_stationary_heat(const double T_ambient) {
     check_return(t_error > conf.t_error, "Temperature didn't converge, err=" + to_string(t_error));
 
     start_msg(t0, "=== Extracting J & T...");
-    bulk_interpolator.extract_solution(ch_solver, bulk_mesh);
+    bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
     bulk_interpolator.write("out/result_J_T.xyz");
@@ -476,7 +476,7 @@ int Femocs::solve_transient_heat(const double T_ambient) {
     ch_transient_solver.output_results_heating("./out/heat_solution" + conf.message + ".vtk");
 
     start_msg(t0, "=== Extracting J & T...");
-    bulk_interpolator.extract_solution(&ch_transient_solver, bulk_mesh);
+    bulk_interpolator.extract_solution(&ch_transient_solver);
     end_msg(t0);
     bulk_interpolator.write("out/result_J_T.movie");
 
