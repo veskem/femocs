@@ -9,10 +9,128 @@
 #include "Media.h"
 #include "LinearInterpolator.h"
 
-#include <float.h>
-
 using namespace std;
 namespace femocs {
+
+/* ==================================================================
+ *  ===================== LinearInterpolator =======================
+ * ================================================================== */
+
+// Interpolate both scalar and vector data inside or near the cell
+template<int dim>
+Solution LinearInterpolator<dim>::interp_solution(const Point3 &point, const int cell) const {
+    require(cell >= 0 && cell < cells()->size(), "Index out of bounds: " + to_string(cell));
+
+    // Get barycentric coordinates of point in tetrahedron
+    array<double,dim> bcc = get_bcc(Vec3(point), cell);
+    SimpleCell<dim> scell = (*cells())[cell];
+
+    // Interpolate electric field
+    Vec3 vector_i(0.0);
+    for (int i = 0; i < dim; ++i)
+        vector_i += solutions[scell[i]].vector * bcc[i];
+
+    // Interpolate potential
+    double scalar_i(0.0);
+    for (int i = 0; i < dim; ++i)
+        scalar_i += solutions[scell[i]].scalar * bcc[i];
+
+    return Solution(vector_i, scalar_i);
+}
+
+// Interpolate vector data inside or near the cell
+template<int dim>
+Vec3 LinearInterpolator<dim>::interp_vector(const Point3 &point, const int cell) const {
+    require(cell >= 0 && cell < cells()->size(), "Index out of bounds: " + to_string(cell));
+
+    // Get barycentric coordinates of point in tetrahedron
+    array<double,dim> bcc = get_bcc(Vec3(point), cell);
+    SimpleCell<dim> scell = (*cells())[cell];
+
+    // Interpolate electric field
+    Vec3 vector_i(0.0);
+    for (int i = 0; i < dim; ++i)
+        vector_i += solutions[scell[i]].vector * bcc[i];
+
+    return vector_i;
+}
+
+// Interpolate scalar data inside or near the cell
+template<int dim>
+double LinearInterpolator<dim>::interp_scalar(const Point3 &point, const int cell) const {
+    require(cell >= 0 && cell < cells()->size(), "Index out of bounds: " + to_string(cell));
+
+    // calculate barycentric coordinates
+    array<double,dim> bcc = get_bcc(Vec3(point), cell);
+    SimpleCell<dim> scell = (*cells())[cell];
+
+    // Interpolate potential
+    double scalar_i(0.0);
+    for (int i = 0; i < dim; ++i)
+        scalar_i += solutions[scell[i]].scalar * bcc[i];
+
+    return scalar_i;
+}
+
+// Find the cell which contains the point or is the closest to it
+template<int dim>
+int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_guess) {
+    // Check the guessed element
+    Vec3 vec_point(point);
+    if (point_in_cell(vec_point, cell_guess)) return cell_guess;
+
+    const int n_cells = cells()->size();
+    const int n_nbor_layers = 6;  // choose the amount of nearest neighbouring layers that are checked before the full search
+
+    vector<vector<int>> nbors(n_nbor_layers);
+    vector<bool> cell_checked(n_cells);
+
+    cell_checked[cell_guess] = true;
+
+    // Check all triangles on the given neighbouring layer
+    for (int layer = 0; layer < n_nbor_layers; ++layer) {
+        // build next layer of neighbour list
+        if (layer == 0)
+            nbors[0] = neighbours[cell_guess];
+        else {
+            for (unsigned nbor : nbors[layer-1])
+                if (nbor >= 0)
+                    nbors[layer].insert(nbors[layer].end(), neighbours[nbor].begin(), neighbours[nbor].end());
+        }
+
+        // check whether some of the unchecked neighbouring triangles surround the point
+        for (unsigned face : nbors[layer])
+            if (face >= 0 && !cell_checked[face]) {
+                if (point_in_cell(vec_point, face))
+                    return face;
+                else
+                    cell_checked[face] = true;
+            }
+    }
+
+    // If no success, loop through all the elements
+    double min_distance2 = 1e100;
+    int min_index = 0;
+
+    for (int cell = 0; cell < n_cells; ++cell) {
+        // If correct face is found, we're done
+        if (!cell_checked[cell] && point_in_cell(vec_point, cell))
+            return cell;
+
+        // Otherwise look for the face whose centroid is closest to the point
+        else {
+            double distance2 = point.distance2(centroids[cell]);
+            if (distance2 < min_distance2) {
+                min_distance2 = distance2;
+                min_index = cell;
+            }
+        }
+    }
+
+    // If no perfect element found, return the best.
+    // Indicate the imperfectness with the minus sign
+    return -min_index;
+}
 
 /* ==================================================================
  *  =================== TetrahedronInterpolator ====================
@@ -386,7 +504,6 @@ bool TetrahedronInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem) 
 void TetrahedronInterpolator::reserve_precompute(const int N) {
     LinearInterpolator<4>::reserve_precompute(N);
 
-    tetrahedra.clear();
     det0.clear();
     det1.clear();
     det2.clear();
@@ -394,7 +511,6 @@ void TetrahedronInterpolator::reserve_precompute(const int N) {
     det4.clear();
     tet_not_valid.clear();
 
-    tetrahedra.reserve(N);
     det0.reserve(N);
     det1.reserve(N);
     det2.reserve(N);
@@ -409,11 +525,7 @@ void TetrahedronInterpolator::precompute() {
     reserve_precompute(n_elems);
     double d0, d1, d2, d3, d4;
 
-    // Copy tetrahedra
-    for (int i = 0; i < n_elems; ++i)
-        tetrahedra.push_back((*elems)[i]);
-
-    // Copy tetrahedra neighbours
+    // Calculate tetrahedra neighbours
     for (int i = 0; i < n_elems; ++i)
         neighbours.push_back(elems->get_neighbours(i));
 
@@ -423,7 +535,7 @@ void TetrahedronInterpolator::precompute() {
 
     /* Calculate main and minor determinants for 1st, 2nd, 3rd and 4th
      * barycentric coordinate of tetrahedra using the relations below */
-    for (SimpleElement se : tetrahedra) {
+    for (SimpleElement se : *elems) {
         Vec3 v1 = nodes->get_vec(se[0]);
         Vec3 v2 = nodes->get_vec(se[1]);
         Vec3 v3 = nodes->get_vec(se[2]);
@@ -490,7 +602,7 @@ void TetrahedronInterpolator::precompute() {
 }
 
 // Check with barycentric coordinates whether the point is inside the i-th tetrahedron
-bool TetrahedronInterpolator::point_in_tetrahedron(const Point3 &point, const int i) {
+bool TetrahedronInterpolator::point_in_cell(const Vec3 &point, const int i) {
     require(i >= 0 && i < static_cast<int>(det0.size()), "Index out of bounds: " + to_string(i));
 
     // Ignore co-planar tetrahedra
@@ -511,9 +623,8 @@ bool TetrahedronInterpolator::point_in_tetrahedron(const Point3 &point, const in
 }
 
 // Calculate barycentric coordinates for point
-Vec4 TetrahedronInterpolator::get_bcc(const Point3 &point, const int elem) const {
-    require(elem >= 0 && elem < static_cast<int>(det0.size()),
-            "Index out of bounds: " + to_string(elem));
+array<double,4> TetrahedronInterpolator::get_bcc(const Vec3& point, const int elem) const {
+    require(elem >= 0 && elem < elems->size(), "Index out of bounds: " + to_string(elem));
 
     Vec4 pt(point, 1);
     double bcc1 = det0[elem] * pt.dotProduct(det1[elem]);
@@ -521,121 +632,7 @@ Vec4 TetrahedronInterpolator::get_bcc(const Point3 &point, const int elem) const
     double bcc3 = det0[elem] * pt.dotProduct(det3[elem]);
     double bcc4 = det0[elem] * pt.dotProduct(det4[elem]);
 
-    return Vec4(bcc1, bcc2, bcc3, bcc4);
-}
-
-// Find the element which contains the point or is the closest to it
-int TetrahedronInterpolator::locate_element(const Point3 &point, const int elem_guess) {
-    // Check the guessed element
-    if (point_in_tetrahedron(point, elem_guess)) return elem_guess;
-
-    const int n_elems = det0.size();
-    const int n_nbor_layers = 6;  // choose the amount of nearest neighboring layers that are checked before the full search
-
-    vector<vector<int>> nbors(n_nbor_layers);
-    vector<bool> elem_checked(n_elems);
-
-    elem_checked[elem_guess] = true;
-
-    // Check all tetrahedra on the given neighbouring layer
-    for (int layer = 0; layer < n_nbor_layers; ++layer) {
-        // build next layer of neighbour list
-        if (layer == 0)
-            nbors[0] = neighbours[elem_guess];
-        else {
-            for (int nbor : nbors[layer-1])
-                if (nbor >= 0)
-                    nbors[layer].insert(nbors[layer].end(), neighbours[nbor].begin(), neighbours[nbor].end());
-        }
-
-        // check whether some of the unchecked neighbouring tetrahedra surround the point
-        for (int elem : nbors[layer])
-            if (elem >= 0 && !elem_checked[elem]) {
-                if (point_in_tetrahedron(point, elem))
-                    return elem;
-                else
-                    elem_checked[elem] = true;
-            }
-    }
-
-    // If no success, loop through all the elements
-    double min_distance2 = DBL_MAX;
-    int min_index = 0;
-
-    for (int elem = 0; elem < n_elems; ++elem) {
-        // If correct element is found, we're done
-        if (!elem_checked[elem] && point_in_tetrahedron(point, elem))
-            return elem;
-
-        // Otherwise look for the element whose centroid is closest to the point
-        else {
-            double distance2 = point.distance2(centroids[elem]);
-            if (distance2 < min_distance2) {
-                min_distance2 = distance2;
-                min_index = elem;
-            }
-        }
-    }
-
-    // If no perfect element found, return the best.
-    // Indicate the imperfectness with the minus sign
-    return -min_index;
-}
-
-// Calculate interpolation or all the data for point inside or near the elem-th tetrahedron
-Solution TetrahedronInterpolator::interp_solution(const Point3 &point, const int elem) const {
-    require(elem >= 0 && elem < static_cast<int>(tetrahedra.size()),
-            "Index out of bounds: " + to_string(elem));
-
-    // Get barycentric coordinates of point in tetrahedron
-    Vec4 bcc = get_bcc(point, elem);
-    SimpleElement selem = tetrahedra[elem];
-
-    // Interpolate electric field
-    Vec3 elfield_i(0.0);
-    for (int i = 0; i < selem.size(); ++i)
-        elfield_i += solutions[selem[i]].vector * bcc[i];
-
-    // Interpolate potential
-    double potential_i(0.0);
-    for (int i = 0; i < selem.size(); ++i)
-        potential_i += solutions[selem[i]].scalar * bcc[i];
-
-    return Solution(elfield_i, potential_i);
-}
-
-// Calculate interpolation for vector data for point inside or near the elem-th tetrahedron
-Vec3 TetrahedronInterpolator::interp_vector(const Point3 &point, const int elem) const {
-    require(elem >= 0 && elem < static_cast<int>(tetrahedra.size()),
-            "Index out of bounds: " + to_string(elem));
-
-    // Get barycentric coordinates of point in tetrahedron
-    Vec4 bcc = get_bcc(point, elem);
-    SimpleElement selem = tetrahedra[elem];
-
-    // Interpolate electric field
-    Vec3 vec(0.0);
-    for (int i = 0; i < selem.size(); ++i)
-        vec += solutions[selem[i]].vector * bcc[i];
-
-    return vec;
-}
-
-// Calculate interpolation for scalar data for point inside or near the elem-th tetrahedron
-double TetrahedronInterpolator::interp_scalar(const Point3 &point, const int elem) const {
-    require(elem >= 0 && elem < static_cast<int>(tetrahedra.size()),
-            "Index out of bounds: " + to_string(elem));
-
-    // Get barycentric coordinates of point in tetrahedron
-    Vec4 bcc = get_bcc(point, elem);
-    SimpleElement selem = tetrahedra[elem];
-
-    // Interpolate potential
-    double potential_i(0.0);
-    for (int i = 0; i < selem.size(); ++i)
-        potential_i += solutions[selem[i]].scalar * bcc[i];
-
-    return potential_i;
+    return array<double, 4> {bcc1, bcc2, bcc3, bcc4};
 }
 
 /* ==================================================================
@@ -654,8 +651,6 @@ void TriangleInterpolator::reserve_precompute(const int n) {
     vert0.clear(); vert0.reserve(n);
     pvec.clear();  pvec.reserve(n);
     is_parallel.clear(); is_parallel.reserve(n);
-
-    triangles.clear(); triangles.reserve(n);
 }
 
 // Precompute the data needed to calculate the distance of points from surface in the direction of triangle norms
@@ -683,7 +678,6 @@ void TriangleInterpolator::precompute() {
         edge2.push_back(e2);
         pvec.push_back(pv * i_det);
         centroids.push_back(faces->get_centroid(i));
-        triangles.push_back(sface);
 
         // calculate the neighbour list for triangles
         for (int j = i+1; j < n_faces; ++j)
@@ -694,78 +688,22 @@ void TriangleInterpolator::precompute() {
     }
 }
 
-// Find the element which contains the point or is the closest to it
-int TriangleInterpolator::locate_face(const Vec3 &point, const int face_guess) {
-    // Check the guessed element
-    if (projection_in_triangle(point, face_guess)) return face_guess;
-
-    const int n_faces = vert0.size();
-    const int n_nbor_layers = 6;  // choose the amount of nearest neighbouring layers that are checked before the full search
-
-    vector<vector<int>> nbors(n_nbor_layers);
-    vector<bool> face_checked(n_faces);
-
-    face_checked[face_guess] = true;
-
-    // Check all triangles on the given neighbouring layer
-    for (int layer = 0; layer < n_nbor_layers; ++layer) {
-        // build next layer of neighbour list
-        if (layer == 0)
-            nbors[0] = neighbours[face_guess];
-        else {
-            for (unsigned nbor : nbors[layer-1])
-                if (nbor >= 0)
-                    nbors[layer].insert(nbors[layer].end(), neighbours[nbor].begin(), neighbours[nbor].end());
-        }
-
-        // check whether some of the unchecked neighbouring triangles surround the point
-        for (unsigned face : nbors[layer])
-            if (face >= 0 && !face_checked[face]) {
-                if (projection_in_triangle(point, face))
-                    return face;
-                else
-                    face_checked[face] = true;
-            }
-    }
-
-    // If no success, loop through all the elements
-    double min_distance2 = DBL_MAX;
-    int min_index = 0;
-    Point3 p(point.x, point.y, point.z);
-
-    for (int face = 0; face < n_faces; ++face) {
-        // If correct face is found, we're done
-        if (!face_checked[face] && projection_in_triangle(point, face))
-            return face;
-
-        // Otherwise look for the face whose centroid is closest to the point
-        else {
-            double distance2 = p.distance2(centroids[face]);
-            if (distance2 < min_distance2) {
-                min_distance2 = distance2;
-                min_index = face;
-            }
-        }
-    }
-
-    // If no perfect element found, return the best.
-    // Indicate the imperfectness with the minus sign
-    return -min_index;
-}
-
 // Calculate barycentric coordinates for a projection of a point inside the triangle
-Vec3 TriangleInterpolator::get_bcc(const Vec3& point, const int face) const {
+array<double,3> TriangleInterpolator::get_bcc(const Vec3& point, const int face) const {
+    require(face >= 0 && face < faces->size(), "Index out of bounds: " + to_string(face));
+
     Vec3 tvec = point - vert0[face];
     Vec3 qvec = tvec.crossProduct(edge1[face]);
     double u = tvec.dotProduct(pvec[face]);
     double v = qvec.dotProduct(faces->get_norm(face));
 
-    return Vec3(u, v, 1.0 - u - v);
+    return array<double, 3> {u, v, 1.0 - u - v};
 }
 
 // Check whether the projection of a point is inside the triangle
-bool TriangleInterpolator::projection_in_triangle(const Vec3& point, const int face) {
-    require(face >= 0 && face < static_cast<int>(vert0.size()), "Index out of bounds: " + to_string(face));
+// It is separate routine from get_bcc to achieve better performance
+bool TriangleInterpolator::point_in_cell(const Vec3& point, const int face) {
+    require(face >= 0 && face < faces->size(), "Index out of bounds: " + to_string(face));
 
     Vec3 tvec = point - vert0[face];
     double u = tvec.dotProduct(pvec[face]);
@@ -778,60 +716,7 @@ bool TriangleInterpolator::projection_in_triangle(const Vec3& point, const int f
     return true;
 }
 
-// Calculate interpolation or all the data for point inside or near the elem-th tetrahedron
-Solution TriangleInterpolator::interp_solution(const Point3 &point, const int face) const {
-    require(face >= 0 && face < static_cast<int>(triangles.size()),
-            "Index out of bounds: " + to_string(face));
-
-    // Get barycentric coordinates of point in tetrahedron
-    Vec3 bcc = get_bcc(Vec3(point), face);
-    SimpleFace cell = triangles[face];
-
-    // Interpolate electric field
-    Vec3 elfield_i(0.0);
-    for (int i = 0; i < cell.size(); ++i)
-        elfield_i += solutions[cell[i]].vector * bcc[i];
-
-    // Interpolate potential
-    double potential_i(0.0);
-    for (int i = 0; i < cell.size(); ++i)
-        potential_i += solutions[cell[i]].scalar * bcc[i];
-
-    return Solution(elfield_i, potential_i);
-}
-
-// Calculate interpolation for vector data for point inside or near the elem-th tetrahedron
-Vec3 TriangleInterpolator::interp_vector(const Point3 &point, const int face) const {
-    require(face >= 0 && face < static_cast<int>(triangles.size()),
-            "Index out of bounds: " + to_string(face));
-
-    // Get barycentric coordinates of point in tetrahedron
-    Vec3 bcc = get_bcc(Vec3(point), face);
-    SimpleFace cell = triangles[face];
-
-    // Interpolate electric field
-    Vec3 vec(0.0);
-    for (int i = 0; i < cell.size(); ++i)
-        vec += solutions[cell[i]].vector * bcc[i];
-
-    return vec;
-}
-
-// Calculate interpolation for scalar data for point inside or near the elem-th tetrahedron
-double TriangleInterpolator::interp_scalar(const Point3 &point, const int elem) const {
-    require(elem >= 0 && elem < static_cast<int>(triangles.size()),
-            "Index out of bounds: " + to_string(elem));
-
-    // Get barycentric coordinates of point in tetrahedron
-    Vec3 bcc = get_bcc(Vec3(point), elem);
-    SimpleFace cell = triangles[elem];
-
-    // Interpolate potential
-    double potential_i(0.0);
-    for (int i = 0; i < cell.size(); ++i)
-        potential_i += solutions[cell[i]].scalar * bcc[i];
-
-    return potential_i;
-}
+template class LinearInterpolator<3> ;
+template class LinearInterpolator<4> ;
 
 } // namespace femocs

@@ -51,7 +51,7 @@ void SolutionReader::calc_interpolation(const double r_cut, const int component,
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point = get_point(i);
         // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
-        elem = interpolator->locate_element(point, abs(elem));
+        elem = interpolator->locate_cell(point, abs(elem));
 
         // Store whether the point is in- or outside the mesh
         if (elem < 0) set_marker(i, 1);
