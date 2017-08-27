@@ -337,6 +337,36 @@ double TetgenFaces::get_area(const int i) const {
     return areas[i];
 }
     
+void TetgenFaces::init_statistics() {
+    stat.edgemin =  DBL_MAX;
+    stat.edgemax = -DBL_MAX;
+}
+
+void TetgenFaces::calc_statistics() {
+    init_statistics();
+
+    // loop through all the triangles
+    for (SimpleFace face : *this) {
+        // read the coordinates of triangle nodes
+        Point3 n1 = get_node(face[0]);
+        Point3 n2 = get_node(face[1]);
+        Point3 n3 = get_node(face[2]);
+
+        // calculate squared lengths of the triangle edges
+        const double e1 = n1.distance2(n2);
+        const double e2 = n1.distance2(n3);
+        const double e3 = n2.distance2(n3);
+
+        // store min and max length
+        stat.edgemin = min(stat.edgemin, min(e1, min(e2, e3)));
+        stat.edgemax = max(stat.edgemax, max(e1, max(e2, e3)));
+    }
+
+    // squared length -> length
+    stat.edgemin = sqrt(stat.edgemin);
+    stat.edgemax = sqrt(stat.edgemax);
+}
+
 /* =====================================================================
  *  ========================== TetgenElements =========================
  * ===================================================================== */

@@ -94,7 +94,7 @@ public:
     /** Find the cell which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess);
 
-    /** Electric field that is assigned to atoms not found from mesh.
+    /** Solution value that is assigned to atoms not found from mesh.
      *  Its value is BIG to make it immediately visible from the dataset. */
     const double error_field = 1e20;
 
@@ -134,6 +134,10 @@ protected:
         neighbours = vector<vector<int>>(N);
         centroids.reserve(N);
     }
+
+    /** Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
+     *  surrounding hexahedral nodes */
+    bool average_sharp_nodes(const vector<vector<unsigned>>& vorocells, const double edgemax);
 
     /** Reserve memory for interpolation data */
     void reserve(const int N) {
@@ -293,7 +297,7 @@ private:
 
     /** Force the solution on tetrahedral nodes to be the weighed average
      * of the solutions on its Voronoi cell nodes */
-    bool average_tetnodes();
+    bool average_sharp_nodes();
 
     /** Return analytical potential value for i-th point near the hemisphere
      * @param radius  radius of the hemisphere
@@ -345,6 +349,10 @@ private:
     vector<Vec3> edge2;
     vector<Vec3> pvec;
     vector<bool> is_parallel;
+
+    /** Force the solution on triangular nodes to be the weighed average
+     * of the solutions on its surrounding quadrangular nodes */
+    bool average_sharp_nodes();
 
     /** Precompute the data needed to calculate the distance of points from surface
      * in the direction of triangle surface norms */

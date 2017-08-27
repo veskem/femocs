@@ -412,6 +412,15 @@ public:
     /** Return the area of i-th triangle */
     double get_area(const int i) const;
 
+    /** Calculate statistics about triangles */
+    void calc_statistics();
+
+    /** Struct holding statistics about triangles */
+    struct Stat {
+        double edgemin;    //!< Minimum edge length
+        double edgemax;    //!< Maximum edge length
+    } stat;
+
 private:
     vector<double> areas;   ///< areas of triangles
     vector<Vec3> norms;     ///< norms of triangles
@@ -424,6 +433,9 @@ private:
 
     /** Calculate the norms and areas for all the triangles */
     void calc_norms_and_areas();
+
+    /** Initialize statistics about triangles */
+    void init_statistics();
 };
 
 /** Class for holding Tetgen tetrahedral elements */

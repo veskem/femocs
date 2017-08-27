@@ -132,6 +132,41 @@ int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_gue
     return -min_index;
 }
 
+// Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
+// surrounding hexahedral nodes
+template<int dim>
+bool LinearInterpolator<dim>::average_sharp_nodes(const vector<vector<unsigned>>& vorocells,
+        const double edgemax) {
+    const double decay_factor = -1.0 / edgemax;
+    bool fail = false;
+
+    // loop through the tetrahedral nodes
+    for (int i = 0; i < nodes->stat.n_tetnode; ++i) {
+        if (solutions[i].norm >= error_field) continue;
+
+        Point3 tetnode = (*nodes)[i];
+        Vec3 vec(0);
+        double w_sum = 0;
+
+        // tetnode new solution will be the weighed average of the solutions on its voronoi cell nodes
+        for (unsigned v : vorocells[i]) {
+            double w = exp(decay_factor * tetnode.distance((*nodes)[v]));
+            w_sum += w;
+            vec += solutions[v].vector * w;
+        }
+
+        if (w_sum > 0) {
+            solutions[i].vector = vec * (1.0 / w_sum);
+            solutions[i].norm = solutions[i].vector.norm();
+        } else {
+            expect(false, "Tetrahedral node " + to_string(i) + " can't be averaged!");
+            fail = true;
+        }
+    }
+
+    return fail;
+}
+
 /* ==================================================================
  *  =================== TetrahedronInterpolator ====================
  * ================================================================== */
@@ -310,41 +345,13 @@ void TetrahedronInterpolator::get_maps(vector<int>& tet2hex, vector<int>& cell_i
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
-bool TetrahedronInterpolator::average_tetnodes() {
+bool TetrahedronInterpolator::average_sharp_nodes() {
 //    return 0;
 
-    const double decay_factor = -1.0 / elems->stat.edgemax;
-
     vector<vector<unsigned int>> vorocells;
-    mesh->calc_pseudo_vorocells(vorocells);
+    mesh->calc_pseudo_3D_vorocells(vorocells);
 
-    bool fail = false;
-
-    // loop through the tetrahedral nodes
-    for (int i = 0; i < nodes->stat.n_tetnode; ++i) {
-        if (solutions[i].norm >= error_field) continue;
-
-        Point3 tetnode = (*nodes)[i];
-        Vec3 vec(0);
-        double w_sum = 0;
-
-        // tetnode new solution will be the weighed average of the solutions on its voronoi cell nodes
-        for (unsigned v : vorocells[i]) {
-            double w = exp(decay_factor * tetnode.distance((*nodes)[v]));
-            w_sum += w;
-            vec += solutions[v].vector * w;
-        }
-
-        if (w_sum > 0) {
-            solutions[i].vector = vec * (1.0 / w_sum);
-            solutions[i].norm = solutions[i].vector.norm();
-        } else {
-            expect(false, "Tetrahedral node " + to_string(i) + " can't be averaged!");
-            fail = true;
-        }
-    }
-
-    return fail;
+    return LinearInterpolator<4>::average_sharp_nodes(vorocells, elems->stat.edgemax);
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
@@ -387,7 +394,7 @@ bool TetrahedronInterpolator::extract_solution(fch::Laplace<3>* fem) {
     }
 
     // remove the spikes in the solution
-    if (average_tetnodes())
+    if (average_sharp_nodes())
         return true;
 
     // Check for the error values in the mesh nodes
@@ -641,6 +648,15 @@ array<double,4> TetrahedronInterpolator::get_bcc(const Vec3& point, const int el
 
 TriangleInterpolator::TriangleInterpolator(const TetgenMesh* m) :
         LinearInterpolator<3>(m), faces(&m->faces) {}
+
+// Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
+// surrounding hexahedral nodes
+bool TriangleInterpolator::average_sharp_nodes() {
+    vector<vector<unsigned int>> vorocells;
+    mesh->calc_pseudo_2D_vorocells(vorocells);
+
+    return LinearInterpolator<3>::average_sharp_nodes(vorocells, faces->stat.edgemax);
+}
 
 // Reserve memory for precompute data
 void TriangleInterpolator::reserve_precompute(const int n) {
