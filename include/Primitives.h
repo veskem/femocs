@@ -622,11 +622,6 @@ public:
     SimpleNode() : SimpleCell<1>() {}
     SimpleNode(const unsigned int &n1) : SimpleCell<1>(n1) {}
     SimpleNode(const SimpleCell<1> &s) { node[0] = s.node[0]; }
-
-    /** Compare node with scalar */
-    bool operator ==(const unsigned int n) const {
-        return node[0] == n;
-    }
 };
 
 /** Edge class without Point data */
@@ -637,6 +632,26 @@ public:
     SimpleEdge(const unsigned int &n1) : SimpleCell<2>(n1) {}
     SimpleEdge(const unsigned int &n1, const unsigned int &n2) { node[0] = n1; node[1] = n2; }
     SimpleEdge(const SimpleCell<2> &s) { node[0] = s.node[0]; node[1] = s.node[1]; }
+
+    /** Get i-th vertex of the edge */
+    SimpleNode vert(const int i) const {
+        require(i >= 0 && i <= 1, "Invalid index: " + to_string(i));
+        return SimpleNode(node[i]);
+    }
+
+    /** Check whether two edges share a node */
+    bool neighbor(const SimpleEdge& s) const {
+        const bool b1 = s == node[0];
+        const bool b2 = s == node[1];
+        return b1 + b2 == 1;
+    }
+
+    /** Check whether edge contains a node */
+    bool contains(const SimpleNode& s) const {
+        const bool b1 = s == node[0];
+        const bool b2 = s == node[1];
+        return s == node[0] || s == node[1];
+    }
 };
 
 /** Face class without Point data */
@@ -662,9 +677,18 @@ public:
 
     /** Check whether two triangles share an edge */
     bool neighbor(const SimpleFace& s) const {
-        return (s == node[0] && s == node[1]) ||
-               (s == node[0] && s == node[2]) ||
-               (s == node[1] && s == node[2]);
+        const bool b1 = s == node[0];
+        const bool b2 = s == node[1];
+        const bool b3 = s == node[2];
+        return b1 + b2 + b3 == 2;
+    }
+
+    /** Check whether triangle contains an edge */
+    bool contains(const SimpleEdge& s) const {
+        const bool b1 = s == node[0];
+        const bool b2 = s == node[1];
+        const bool b3 = s == node[2];
+        return b1 + b2 + b3 == 2;
     }
 };
 
@@ -703,10 +727,20 @@ public:
 
     /** Check whether two tetrahedra share a triangle */
     bool neighbor(const SimpleElement& s) const {
-        return (s == node[0] && s == node[1] && s == node[2]) ||
-               (s == node[0] && s == node[1] && s == node[3]) ||
-               (s == node[0] && s == node[2] && s == node[3]) ||
-               (s == node[1] && s == node[2] && s == node[3]);
+        const bool b1 = s == node[0];
+        const bool b2 = s == node[1];
+        const bool b3 = s == node[2];
+        const bool b4 = s == node[3];
+        return b1 + b2 + b3 + b4 == 3;
+    }
+
+    /** Check whether tetrahedron contains a triangle */
+    bool contains(const SimpleFace& s) const {
+        const bool b1 = s == node[0];
+        const bool b2 = s == node[1];
+        const bool b3 = s == node[2];
+        const bool b4 = s == node[3];
+        return b1 + b2 + b3 + b4 == 3;
     }
 };
 
