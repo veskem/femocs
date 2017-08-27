@@ -26,12 +26,20 @@ class LinearInterpolator : public Medium {
 
 public:
     /** LinearInterpolator conctructor */
-    LinearInterpolator() : mesh(NULL), nodes(NULL) {
+    LinearInterpolator() :
+        norm_label("elfield_norm"), scalar_label("potential"), mesh(NULL), nodes(NULL) {
         reserve(0);
         reserve_precompute(0);
     }
 
-    LinearInterpolator(const TetgenMesh* m) : mesh(m), nodes(&m->nodes) {
+    LinearInterpolator(const TetgenMesh* m) :
+        norm_label("elfield_norm"), scalar_label("potential"), mesh(m), nodes(&m->nodes) {
+        reserve(0);
+        reserve_precompute(0);
+    }
+
+    LinearInterpolator(const TetgenMesh* m, const string& nl, const string& sl) :
+        norm_label(nl), scalar_label(sl), mesh(m), nodes(&m->nodes) {
         reserve(0);
         reserve_precompute(0);
     }
@@ -105,6 +113,9 @@ protected:
     double zero = -1.0 * epsilon;
     double one = 1.0 + epsilon;
 
+    const string norm_label;        ///< description label attached to solution.norm -values
+    const string scalar_label;      ///< description label attached to solution.scalar -values
+
     vector<Solution> solutions;     ///< interpolation data
     vector<vector<int>> neighbours; ///< nearest neighbours of the cells
     vector<Point3> centroids;       ///< cell centroid coordinates
@@ -152,7 +163,8 @@ protected:
     /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
     string get_data_string(const int i) const {
         if (i < 0)
-            return "LinearInterpolator properties=id:I:1:pos:R:3:marker:I:1:force:R:3:elfield_norm:R:1:potential:R:1";
+            return "LinearInterpolator properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" +
+                    norm_label + ":R:1:" + scalar_label + ":R:1";
 
         ostringstream strs;
         strs << atoms[i] << " " << solutions[i];
@@ -187,11 +199,11 @@ protected:
         for (int i = 0; i < n_atoms; ++i)
             out << atoms[i].marker << "\n";
 
-        out << "SCALARS elfield_norm double\nLOOKUP_TABLE default\n";
+        out << "SCALARS " + norm_label + " double\nLOOKUP_TABLE default\n";
         for (int i = 0; i < n_atoms; ++i)
             out << solutions[i].norm << "\n";
 
-        out << "SCALARS potential double\nLOOKUP_TABLE default\n";
+        out << "SCALARS " + scalar_label + " double\nLOOKUP_TABLE default\n";
         for (int i = 0; i < n_atoms; ++i)
             out << solutions[i].scalar << "\n";
     }
@@ -337,7 +349,17 @@ public:
     /** Constructor of TriangleInterpolator  */
     TriangleInterpolator(const TetgenMesh* mesh);
 
+    /** Extract the electric potential and electric field values on triangular mesh nodes from FEM solution */
+    bool extract_solution(fch::Laplace<3>* fem);
+
+    /** Calculate charges on surface faces using direct solution in the face centroids */
+    void calc_charges(const double E0);
+
+    void write(const string &file_name) const { Medium::write(file_name); }
+
 private:
+    const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
+
     /** Pointer to common routines of triangles.
      * It is function instead of an object to take advantage of polymorphism. */
     const TetgenCells<3>* cells() const { return &mesh->faces; }
@@ -349,6 +371,16 @@ private:
     vector<Vec3> edge2;
     vector<Vec3> pvec;
     vector<bool> is_parallel;
+
+    /** Return the mapping between tetrahedral & hexahedral mesh nodes,
+     nodes & hexahedral elements and nodes & element's vertices */
+    void get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
+            dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps);
+
+    bool clean_nodes();
+
+    /** Find the electric fields on the centroids of surface triangles */
+    void get_elfields(vector<Vec3>& elfields);
 
     /** Force the solution on triangular nodes to be the weighed average
      * of the solutions on its surrounding quadrangular nodes */

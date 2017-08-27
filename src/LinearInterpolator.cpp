@@ -9,6 +9,8 @@
 #include "Media.h"
 #include "LinearInterpolator.h"
 
+#include "float.h"
+
 using namespace std;
 namespace femocs {
 
@@ -347,7 +349,6 @@ void TetrahedronInterpolator::get_maps(vector<int>& tet2hex, vector<int>& cell_i
 // surrounding hexahedral nodes
 bool TetrahedronInterpolator::average_sharp_nodes() {
 //    return 0;
-
     vector<vector<unsigned int>> vorocells;
     mesh->calc_pseudo_3D_vorocells(vorocells);
 
@@ -647,13 +648,224 @@ array<double,4> TetrahedronInterpolator::get_bcc(const Vec3& point, const int el
  * ================================================================== */
 
 TriangleInterpolator::TriangleInterpolator(const TetgenMesh* m) :
-        LinearInterpolator<3>(m), faces(&m->faces) {}
+        LinearInterpolator<3>(m, "area", "charge"), faces(&m->faces) {}
+
+/* Return the mapping between tetrahedral & hexahedral mesh nodes,
+ nodes & hexahedral elements and nodes & element's vertices  */
+void TriangleInterpolator::get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
+        dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps) {
+
+    require(tria->n_vertices() > 0, "Invalid triangulation size!");
+    const int n_femocs_nodes = size();
+    const int n_dealii_nodes = tria->n_used_vertices();
+    const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
+
+    vector<int> node2hex(n_dealii_nodes), node2vert(n_dealii_nodes);
+    tet2hex = vector<int>(n_femocs_nodes, -1);
+
+    typename dealii::Triangulation<3>::active_vertex_iterator vertex = tria->begin_active_vertex();
+    // Loop through tetrahedral mesh vertices
+    for (int i = 0; i < n_femocs_nodes && vertex != tria->end_vertex(); ++i)
+        if ( get_point(i).distance2(vertex->vertex()) < eps ) {
+            tet2hex[i] = vertex->vertex_index();
+            vertex++;
+        }
+
+    // Loop through the hexahedral mesh elements
+    typename dealii::DoFHandler<3>::active_cell_iterator cell;
+    for (cell = dofh->begin_active(); cell != dofh->end(); ++cell)
+        // Loop through all the vertices in the element
+        for (int i = 0; i < n_verts_per_elem; ++i) {
+            node2hex[cell->vertex_index(i)] = cell->active_cell_index();
+            node2vert[cell->vertex_index(i)] = i;
+        }
+
+    // Generate lists of hexahedra and hexahedra nodes where the tetrahedra nodes are located
+    cell_indxs.reserve(n_femocs_nodes);
+    vert_indxs.reserve(n_femocs_nodes);
+    for (int n : tet2hex)
+        if (n >= 0) {
+            cell_indxs.push_back(node2hex[n]);
+            vert_indxs.push_back(node2vert[n]);
+        }
+}
+
+// leave only the solution in the nodes and centroids of triangles
+bool TriangleInterpolator::clean_nodes() {
+    const int n_nodes = nodes->size();
+
+    vector<bool> node_not_in_quads(n_nodes, true);
+    for (SimpleQuad quad : mesh->quads)
+        for (int node : quad)
+            if (atoms[node].marker != 2)
+                node_not_in_quads[node] = false;
+
+    for (int node = 0; node < n_nodes; ++node)
+        if (node_not_in_quads[node])
+            solutions[node] = Solution(error_field);
+
+    // Check for the error values in the mesh nodes
+    // Normally there should be no nodes in the mesh elements that have the error value
+    for (SimpleFace face : *faces)
+        for (int node : face)
+            if (solutions[node].scalar == error_field)
+                return true;
+
+    return false;
+}
+
+// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
+bool TriangleInterpolator::extract_solution(fch::Laplace<3>* fem) {
+    require(fem, "NULL pointer can't be handled!");
+    const int n_nodes = nodes->size();
+    const double eps = 1e-5 * faces->stat.edgemin;
+
+    // Copy the mesh nodes
+    reserve(n_nodes);
+    for (int i = 0; i < n_nodes; ++i)
+        append( Atom(i, (*nodes)[i], nodes->get_marker(i)) );
+
+    // Precompute triangles to make interpolation faster
+    precompute();
+
+    // To make solution extraction faster, generate mapping between desired and available data sequences
+    vector<int> triNode2hexNode, cell_indxs, vert_indxs;
+    get_maps(triNode2hexNode, cell_indxs, vert_indxs, fem->get_triangulation(), fem->get_dof_handler(), eps);
+
+    vector<dealii::Tensor<1, 3>> fields = fem->get_efield(cell_indxs, vert_indxs); // get list of electric fields
+    vector<double> pot = fem->get_potential(cell_indxs, vert_indxs); // get list of electric potentials
+
+    require(fields.size() == pot.size(),
+            "Mismatch of vector sizes: " + to_string(fields.size()) + ", " + to_string(pot.size()));
+
+    unsigned i = 0;
+    for (int n : triNode2hexNode) {
+        // If there is a common node between tet and hex meshes, store actual solution
+        if (n >= 0) {
+            require(i < fields.size(), "Invalid index: " + to_string(i));
+            dealii::Tensor<1, 3> field = fields[i]; // that step needed to avoid complaints from Valgrind
+            append_solution( Solution(Vec3(field[0], field[1], field[2]), pot[i++]) );
+        }
+
+        // In case of non-common node, store solution with error value
+        else
+            append_solution(Solution(error_field));
+    }
+
+    // remove the spikes in the solution
+    if (average_sharp_nodes())
+        return true;
+
+    // leave only the solution in the vertices and centroids of triangles
+    return clean_nodes();
+}
+
+// Calculate charges on surface faces using direct solution in the face centroids
+void TriangleInterpolator::calc_charges(const double E0) {
+    const int n_quads_per_triangle = 3;
+    const int n_quads = mesh->quads.size();
+    const int n_faces = faces->size();
+    const int n_nodes = nodes->size();
+    const double sign = fabs(E0) / E0;
+
+    vector<double> charges(n_nodes), areas(n_nodes);
+
+    // create triangle index to its centroid index mapping
+    vector<int> tri2centroid(n_faces);
+    for (int face = 0; face < n_faces; ++face) {
+        for (int node : mesh->quads[n_quads_per_triangle * face])
+            if (nodes->get_marker(node) == TYPES.FACECENTROID) {
+                tri2centroid[face] = node;
+                break;
+            }
+    }
+
+    // Calculate the charges and areas in the centroids and vertices of triangles
+    for (int face = 0; face < n_faces; ++face) {
+        int centroid_indx = tri2centroid[face];
+        double area = faces->get_area(face);
+        double charge = eps0 * sign * area * solutions[centroid_indx].norm;
+        charges[centroid_indx] = charge;
+        areas[centroid_indx] = area;
+
+        for (int i = 0; i < n_quads_per_triangle; ++i)
+            for (int node : mesh->quads[i * face])
+                if (nodes->get_marker(node) == TYPES.TETNODE) {
+                  charges[node] += charge / n_quads_per_triangle;
+                  areas[node] += area / n_quads_per_triangle;
+                }
+    }
+
+    // transfer charges and areas to solutions vector
+    for (SimpleQuad quad : mesh->quads)
+        for (int node : quad) {
+            if (areas[node] != 0) {
+                solutions[node].norm = areas[node];
+                solutions[node].scalar = charges[node];
+            }
+        }
+}
+
+// Find the electric fields on the centroids of surface triangles
+void TriangleInterpolator::get_elfields(vector<Vec3>& elfields) {
+    const int n_hexs = mesh->hexahedra.size();
+    const int n_faces = faces->size();
+    const int n_nodes = nodes->size();
+
+    // Mark the nodes that are connected to the surface triangles
+    vector<bool> on_face(n_nodes);
+    for (int face = 0; face < n_faces; ++face)
+        for (int node : (*faces)[face])
+            on_face[node] = true;
+
+    // Store the indices of hexahedra connected to surface nodes
+    vector<vector<int>> node2hex(n_nodes);
+    for (int hex = 0; hex < n_hexs; ++hex)
+        for (int node : mesh->hexahedra[hex]) {
+            if (on_face[node])
+                node2hex[node].push_back(hex);
+        }
+
+    // Extract the electric fields in the centroids of the triangles
+    elfields.clear(); elfields.reserve(n_faces);
+
+    for (int face = 0; face < n_faces; ++face) {
+        Point3 centroid = centroids[face];
+        SimpleFace sface = (*faces)[face];
+
+        int vert = sface[0];
+        if (node2hex[vert].size() == 0)
+            vert = sface[1];
+        if (node2hex[vert].size() == 0)
+            vert = sface[2];
+        if (node2hex[vert].size() == 0)
+            require(false, "Face " + to_string(face) + " has no associated hexahedra!");
+
+        int centroid_indx = -1;
+        double min_dist = DBL_MAX;
+
+        // Loop through all the hexahedra connected to the first vertex of triangle
+        for (int hex : node2hex[vert])
+            // Loop through all the vertices of hexahedron
+            for (int node : mesh->hexahedra[hex]) {
+                // Determine the node that is closest to the centroid of a face
+                double dist = centroid.distance2((*nodes)[node]);
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    centroid_indx = node;
+                }
+            }
+
+        require(centroid_indx >= 0 && centroid_indx < n_nodes, "Invalid index: " + to_string(centroid_indx));
+        elfields.push_back(get_vector(centroid_indx));
+    }
+}
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
 bool TriangleInterpolator::average_sharp_nodes() {
     vector<vector<unsigned int>> vorocells;
-    mesh->calc_pseudo_2D_vorocells(vorocells);
+    mesh->calc_pseudo_3D_vorocells(vorocells);
 
     return LinearInterpolator<3>::average_sharp_nodes(vorocells, faces->stat.edgemax);
 }
@@ -674,7 +886,7 @@ void TriangleInterpolator::precompute() {
     const int n_faces = faces->size();
 
     // Reserve memory for precomputation data
-    reserve(n_faces);
+    reserve_precompute(n_faces);
 
     // Loop through all the faces
     for (int i = 0; i < n_faces; ++i) {
