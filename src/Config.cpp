@@ -13,12 +13,7 @@ using namespace std;
 namespace femocs {
 
 // Config constructor initializes configuration parameters
-Config::Config() : obsolete_commands{
-    "postprocess_marking",
-    "heating",
-    "force_factor"
-} {
-
+Config::Config() {
     extended_atoms = "";         // file with the atoms forming the extended surface
     atom_file = "";              // file with the nanostructure atoms
     latconst = 3.61;             // lattice constant
@@ -80,6 +75,11 @@ void Config::read_all(const string& file_name) {
     // Store the commands and their arguments
     parse_file(file_name);
 
+    // Check for the obsolete commands
+    check_obsolete("postprocess_marking");
+    check_obsolete("force_factor");
+    check_obsolete("heating", "heating_mode");
+
     // Modify the parameters that are specified in input script
     read_command("work_function", work_function);
     read_command("transient_steps", transient_steps);
@@ -125,8 +125,6 @@ void Config::read_all(const string& file_name) {
     cfactor.amplitude = coarse_factors[0];
     cfactor.r0_cylinder = static_cast<int>(coarse_factors[1]);
     cfactor.r0_sphere = static_cast<int>(coarse_factors[2]);
-
-    check_obsolete(file_name);
 }
 
 // Read the commands and their arguments from the file and store them into the buffer
@@ -162,11 +160,19 @@ void Config::parse_file(const string& file_name) {
 }
 
 // Check for the obsolete commands from the buffered commands
-void Config::check_obsolete(const string& file_name) {
+void Config::check_obsolete(const string& command) {
     for (vector<string> cmd : data) {
-        if (obsolete_commands.find(cmd[0]) != obsolete_commands.end())
-            write_verbose_msg("Command '" + cmd[0] + "' is obsolete!"
-                    " You can safely remove it from " + file_name + " !");
+        if (cmd[0] == command)
+            write_verbose_msg("Command '" + command + "' is obsolete! You can safely remove it!");
+    }
+}
+
+// Check for the obsolete commands that are similar to valid ones
+void Config::check_obsolete(const string& command, const string& substitute) {
+    for (vector<string> cmd : data) {
+        if (cmd[0] == command)
+            write_verbose_msg("Command '" + command + "' is obsolete!"
+                    " It is similar but yet different to the command '" + substitute + "'!");
     }
 }
 
