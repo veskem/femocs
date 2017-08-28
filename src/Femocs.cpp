@@ -343,7 +343,7 @@ int Femocs::solve_laplace(const double E0) {
     vacuum_interpolator.print_enhancement();
     vacuum_interpolator.print_error(coarseners);
 
-    start_msg(t0, "=== Extracting E and phi on triangles...");
+    start_msg(t0, "=== Calculating charge on triangles...");
     TriangleInterpolator trint(&vacuum_mesh);
     trint.extract_solution(&laplace_solver);
     trint.calc_charges(conf.E0);

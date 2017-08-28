@@ -140,10 +140,9 @@ template<int dim>
 bool LinearInterpolator<dim>::average_sharp_nodes(const vector<vector<unsigned>>& vorocells,
         const double edgemax) {
     const double decay_factor = -1.0 / edgemax;
-    bool fail = false;
 
     // loop through the tetrahedral nodes
-    for (int i = 0; i < nodes->stat.n_tetnode; ++i) {
+    for (int i = 0; i < vorocells.size(); ++i) {
         if (solutions[i].norm >= error_field) continue;
 
         Point3 tetnode = (*nodes)[i];
@@ -160,13 +159,10 @@ bool LinearInterpolator<dim>::average_sharp_nodes(const vector<vector<unsigned>>
         if (w_sum > 0) {
             solutions[i].vector = vec * (1.0 / w_sum);
             solutions[i].norm = solutions[i].vector.norm();
-        } else {
-            expect(false, "Tetrahedral node " + to_string(i) + " can't be averaged!");
-            fail = true;
         }
     }
 
-    return fail;
+    return false;
 }
 
 /* ==================================================================
@@ -763,7 +759,6 @@ bool TriangleInterpolator::extract_solution(fch::Laplace<3>* fem) {
 // Calculate charges on surface faces using direct solution in the face centroids
 void TriangleInterpolator::calc_charges(const double E0) {
     const int n_quads_per_triangle = 3;
-    const int n_quads = mesh->quads.size();
     const int n_faces = faces->size();
     const int n_nodes = nodes->size();
     const double sign = fabs(E0) / E0;
@@ -785,88 +780,31 @@ void TriangleInterpolator::calc_charges(const double E0) {
         int centroid_indx = tri2centroid[face];
         double area = faces->get_area(face);
         double charge = eps0 * sign * area * solutions[centroid_indx].norm;
-        charges[centroid_indx] = charge;
-        areas[centroid_indx] = area;
+        solutions[centroid_indx].norm = area;
+        solutions[centroid_indx].scalar = charge;
 
-        for (int i = 0; i < n_quads_per_triangle; ++i)
-            for (int node : mesh->quads[i * face])
-                if (nodes->get_marker(node) == TYPES.TETNODE) {
-                  charges[node] += charge / n_quads_per_triangle;
-                  areas[node] += area / n_quads_per_triangle;
-                }
+        // the charge on triangular node is the sum of the charges of quadrangules that surround the node
+        for (int node : (*faces)[face]) {
+          charges[node] += charge / n_quads_per_triangle;
+          areas[node] += area / n_quads_per_triangle;
+        }
     }
 
     // transfer charges and areas to solutions vector
-    for (SimpleQuad quad : mesh->quads)
-        for (int node : quad) {
-            if (areas[node] != 0) {
-                solutions[node].norm = areas[node];
-                solutions[node].scalar = charges[node];
-            }
+    for (SimpleFace face : *faces) {
+        for (int node : face) {
+            solutions[node].norm = areas[node];
+            solutions[node].scalar = charges[node];
         }
-}
-
-// Find the electric fields on the centroids of surface triangles
-void TriangleInterpolator::get_elfields(vector<Vec3>& elfields) {
-    const int n_hexs = mesh->hexahedra.size();
-    const int n_faces = faces->size();
-    const int n_nodes = nodes->size();
-
-    // Mark the nodes that are connected to the surface triangles
-    vector<bool> on_face(n_nodes);
-    for (int face = 0; face < n_faces; ++face)
-        for (int node : (*faces)[face])
-            on_face[node] = true;
-
-    // Store the indices of hexahedra connected to surface nodes
-    vector<vector<int>> node2hex(n_nodes);
-    for (int hex = 0; hex < n_hexs; ++hex)
-        for (int node : mesh->hexahedra[hex]) {
-            if (on_face[node])
-                node2hex[node].push_back(hex);
-        }
-
-    // Extract the electric fields in the centroids of the triangles
-    elfields.clear(); elfields.reserve(n_faces);
-
-    for (int face = 0; face < n_faces; ++face) {
-        Point3 centroid = centroids[face];
-        SimpleFace sface = (*faces)[face];
-
-        int vert = sface[0];
-        if (node2hex[vert].size() == 0)
-            vert = sface[1];
-        if (node2hex[vert].size() == 0)
-            vert = sface[2];
-        if (node2hex[vert].size() == 0)
-            require(false, "Face " + to_string(face) + " has no associated hexahedra!");
-
-        int centroid_indx = -1;
-        double min_dist = DBL_MAX;
-
-        // Loop through all the hexahedra connected to the first vertex of triangle
-        for (int hex : node2hex[vert])
-            // Loop through all the vertices of hexahedron
-            for (int node : mesh->hexahedra[hex]) {
-                // Determine the node that is closest to the centroid of a face
-                double dist = centroid.distance2((*nodes)[node]);
-                if (dist < min_dist) {
-                    min_dist = dist;
-                    centroid_indx = node;
-                }
-            }
-
-        require(centroid_indx >= 0 && centroid_indx < n_nodes, "Invalid index: " + to_string(centroid_indx));
-        elfields.push_back(get_vector(centroid_indx));
     }
+
 }
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
 bool TriangleInterpolator::average_sharp_nodes() {
     vector<vector<unsigned int>> vorocells;
-    mesh->calc_pseudo_3D_vorocells(vorocells);
-
+    mesh->calc_pseudo_2D_vorocells(vorocells);
     return LinearInterpolator<3>::average_sharp_nodes(vorocells, faces->stat.edgemax);
 }
 

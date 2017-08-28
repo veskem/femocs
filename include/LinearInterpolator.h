@@ -379,9 +379,6 @@ private:
 
     bool clean_nodes();
 
-    /** Find the electric fields on the centroids of surface triangles */
-    void get_elfields(vector<Vec3>& elfields);
-
     /** Force the solution on triangular nodes to be the weighed average
      * of the solutions on its surrounding quadrangular nodes */
     bool average_sharp_nodes();

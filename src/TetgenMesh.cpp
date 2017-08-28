@@ -753,12 +753,12 @@ void TetgenMesh::calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells) const
     const int node_max = nodes.indxs.tetnode_end;
 
     // find the pseudo Voronoi cell nodes for the tetrahedral nodes
-    for (int i = 0; i < hexahedra.size(); ++i) {
-        const int tetnode = hexahedra.get_marker(i);
-        expect(tetnode >= node_min && tetnode <= node_max, "Hexahedron " + to_string(i) +
+    for (int hex = 0; hex < hexahedra.size(); ++hex) {
+        const int tetnode = hexahedra.to_node(hex);
+        expect(tetnode >= node_min && tetnode <= node_max, "Hexahedron " + to_string(hex) +
                 " is not marked by the tetrahedral node: " + to_string(tetnode));
 
-        for (int node : hexahedra[i])
+        for (int node : hexahedra[hex])
             if ( node != tetnode && nodes.get_marker(node) >= TYPES.EDGECENTROID )
                 cells[tetnode].push_back(node);
     }
@@ -771,13 +771,13 @@ void TetgenMesh::calc_pseudo_2D_vorocells(vector<vector<unsigned>>& cells) const
     const int node_min = nodes.indxs.tetnode_start;
     const int node_max = nodes.indxs.tetnode_end;
 
-    for (int i = 0; i < quads.size(); ++i) {
-        const int trinode = quads.get_marker(i);
-        expect(trinode >= node_min && trinode <= node_max, "Quadrangle " + to_string(i) +
+    for (int quad = 0; quad < quads.size(); ++quad) {
+        const int trinode = quads.to_node(quad);
+        expect(trinode >= node_min && trinode <= node_max, "Quadrangle " + to_string(quad) +
                 " is not marked by the triangle node: " + to_string(trinode));
 
-        for (int node : quads[i])
-            if ( node != trinode && nodes.get_marker(node) >= TYPES.EDGECENTROID )
+        for (int node : quads[quad])
+            if (node != trinode)
                 cells[trinode].push_back(node);
     }
 }
