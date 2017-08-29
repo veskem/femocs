@@ -105,6 +105,14 @@ public:
      * @param cell   cell around which the interpolation is performed */
     double interp_scalar(const Point3 &point, const int cell) const;
 
+    /** Interpolate conserved scalar data inside or near the cell.
+     * Function assumes that the order of cells is previously found with precompute_conserved
+     * @param point  point where the interpolation is performed
+     * @param point_indx   index of point in precompute_conserved */
+    double interp_conserved(const Point3 &point, const int point_indx) const;
+
+    void precompute_conserved(const vector<Atom>& atoms);
+
     /** Find the cell which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess);
 
@@ -125,6 +133,9 @@ protected:
     vector<Solution> solutions;     ///< interpolation data
     vector<vector<int>> neighbours; ///< nearest neighbours of the cells
     vector<Point3> centroids;       ///< cell centroid coordinates
+
+    vector<int> atom2cell;       ///< map storing the face indices that correspond to atom sequence
+    vector<double> bcc_sum;      ///< sum of barycentric coordinates from given node
     
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
     const TetgenNodes* nodes;       ///< Mesh nodes
@@ -316,8 +327,6 @@ public:
     /** Calculate charges on surface faces using direct solution in the face centroids */
     void calc_charges(const double E0);
 
-    void calc_conserved_data(const vector<Atom>& atoms);
-
 private:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
 
@@ -332,9 +341,6 @@ private:
     vector<Vec3> edge2;
     vector<Vec3> pvec;
     vector<bool> is_parallel;
-
-    vector<int> atom2face;   ///< map storing the face indices that correspond to atom sequence
-    vector<double> bcc_sum;  ///< sum of barycentric coordinates from given node
 
     bool clean_nodes();
 

@@ -640,6 +640,14 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         fields.print_enhancement();
     }
 
+    start_msg(t0, "=== Interpolating E and phi vol2...");
+    FieldReader fr(&surface_interpolator);
+    fr.interpolate2D(dense_surf, 0, false);
+    end_msg(t0);
+
+    fr.write("out/fields_vol2.xyz");
+    vacuum_mesh.faces.write("out/vacuum_tris.vtk");
+
     start_msg(t0, "=== Exporting electric field...");
     fields.export_solution(n_atoms, Ex, Ey, Ez, Enorm);
     end_msg(t0);
@@ -704,6 +712,13 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         forces.write("out/forces.movie");
         forces.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
     }
+
+    start_msg(t0, "=== Calculating charges and forces vol2...");
+    ForceReader fr(&surface_interpolator);
+    fr.calc_forces(fields);
+    end_msg(t0);
+    fr.write("out/forces_vol2.xyz");
+
 
     start_msg(t0, "=== Exporting atomic forces...");
     forces.export_force(n_atoms, xq);

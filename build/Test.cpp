@@ -25,7 +25,7 @@ void write_defaults(ofstream &file) {
     file << "heating_mode = none"      << endl;
     file << "write_log = true"           << endl;
     file << "clear_output = true"        << endl;
-    file << "smooth_factor = 0.1"        << endl;
+    file << "smooth_factor = 0.0"        << endl;
     file << "charge_smooth_factor = 1.0" << endl;
     file << "distance_tol = 0.0"        << endl;
     file << "n_writefile = 1"            << endl;
@@ -35,7 +35,7 @@ void write_defaults(ofstream &file) {
     file << "surface_cleaner = voronois" << endl;
     file << "femocs_verbose_mode = silent" << endl;
     file << "smooth_steps = 3"           << endl;
-    file << "smooth_algorithm = fujiwara"<< endl;
+    file << "smooth_algorithm = none"<< endl;
 }
 
 void write_hr5(ofstream &file) {

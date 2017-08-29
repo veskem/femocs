@@ -352,6 +352,67 @@ FieldReader::FieldReader(TriangleInterpolator* ip) : SolutionReader(ip, "elfield
 FieldReader::FieldReader(TetrahedronInterpolator* ip) : SolutionReader(ip, "elfield", "elfield_norm", "potential"),
         radius1(0), radius2(0), E0(0) {}
 
+void FieldReader::calc_interpolation2D(const int component, const bool srt) {
+    require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
+    require(interpolator3, "NULL interpolator cannot be used!");
+
+    const int n_atoms = size();
+    if (interpolator3->size() == 0) {
+        interpolation = vector<Solution>(n_atoms, Solution(empty_val));
+        return;
+    }
+
+    // Sort atoms into sequential order to speed up interpolation
+    if (srt) sort_spatial();
+
+    // Enable or disable the search of points slightly outside the tetrahedra
+    interpolator3->search_outside(false);
+
+    int elem = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point = get_point(i);
+        // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
+        elem = interpolator3->locate_cell(point, abs(elem));
+
+        // Store whether the point is in- or outside the mesh
+        set_marker(i, abs(elem));
+//        if (elem < 0) set_marker(i, 1);
+//        else          set_marker(i, 0);
+
+        // Calculate the interpolation
+        if      (component == 0) interpolation.push_back( interpolator3->interp_solution(point, abs(elem)) );
+        else if (component == 1) interpolation.push_back( interpolator3->interp_vector(point, abs(elem)) );
+        else if (component == 2) interpolation.push_back( interpolator3->interp_scalar(point, abs(elem)) );
+    }
+
+    // Sort atoms back to their initial order
+    if (srt) {
+        for (int i = 0; i < n_atoms; ++i)
+            interpolation[i].id = atoms[i].id;
+
+        sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
+        sort( atoms.begin(), atoms.end(), Atom::sort_id() );
+    }
+}
+
+// Linearly interpolate solution on Medium atoms
+void FieldReader::interpolate2D(const Medium &medium, const int component, const bool srt) {
+    const int n_atoms = medium.size();
+
+    // store the atom coordinates
+    reserve(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        append( Atom(i, medium.get_point(i), 0) );
+
+    // interpolate solution
+    calc_interpolation2D(component, srt);
+
+    // store the original atom id-s
+    for (int i = 0; i < n_atoms; ++i)
+        atoms[i].id = medium.get_id(i);
+}
+
+
 // Linearly interpolate solution on Medium atoms
 void FieldReader::interpolate(const Medium &medium, const double r_cut, const int component, const bool srt) {
     const int n_atoms = medium.size();
@@ -921,29 +982,19 @@ void ForceReader::recalc_forces(const FieldReader &fields, const vector<Vec3>& a
 // Calculate forces from atomic electric fields and face charges
 void ForceReader::calc_forces(const FieldReader &fields) {
     require(interpolator3, "NULL interpolator cannot be used!");
-
     const int n_atoms = fields.size();
-    const bool srt = true;
 
     // Copy the atom data
     reserve(n_atoms);
     atoms = fields.atoms;
-    Medium::calc_statistics();
 
-    interpolator3->calc_conserved_data(atoms);
+    // Calculate the data to normalise charges, so that total charge will be conserved
+    interpolator3->precompute_conserved(atoms);
 
-    int elem = 0;
     for (int i = 0; i < n_atoms; ++i) {
-        Point3 point = get_point(i);
-        // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
-        elem = interpolator3->locate_cell(point, abs(elem));
-
-        // Store whether the point is in- or outside the mesh
-        if (elem < 0) set_marker(i, 1);
-        else          set_marker(i, 0);
-
-        // Calculate the interpolation
-        interpolation.push_back( interpolator3->interp_solution(point, abs(elem)) );
+        double charge = interpolator3->interp_conserved(get_point(i), i);
+        Vec3 force = fields.get_elfield(i) * (charge * force_factor);   // [e*V/A]
+        interpolation.push_back(Solution(force, charge));
     }
 }
 

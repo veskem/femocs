@@ -144,6 +144,8 @@ public:
     /** Set parameters to calculate analytical solution */
     void set_analyt(const double E0, const double radius1, const double radius2=-1);
 
+    void interpolate2D(const Medium &medium, const int component, const bool srt);
+
 private:
     double radius1;  ///< Minor semi-axis of ellipse
     double radius2;  ///< Major semi-axis of ellipse
@@ -154,6 +156,8 @@ private:
 
     /** Get analytical field enhancement for hemi-ellipsoid on infinite surface */
     double get_analyt_enhancement() const;
+
+    void calc_interpolation2D(const int component, const bool srt);
 };
 
 /** Class to interpolate current densities and temperatures */

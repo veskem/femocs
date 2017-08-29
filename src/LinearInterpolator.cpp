@@ -17,6 +17,7 @@ namespace femocs {
  *  ===================== LinearInterpolator =======================
  * ================================================================== */
 
+
 // Interpolate both scalar and vector data inside or near the cell
 template<int dim>
 Solution LinearInterpolator<dim>::interp_solution(const Point3 &point, const int cell) const {
@@ -71,6 +72,51 @@ double LinearInterpolator<dim>::interp_scalar(const Point3 &point, const int cel
         scalar_i += solutions[scell[i]].scalar * bcc[i];
 
     return scalar_i;
+}
+
+// Interpolate scalar value inside or near cell
+//  whose total sum must remain conserved after interpolations
+template<int dim>
+double LinearInterpolator<dim>::interp_conserved(const Point3 &point, const int point_indx) const {
+    require(point_indx >= 0 && point_indx < atom2cell.size(),
+            "Index out of bounds: " + to_string(point_indx));
+
+    const int cell = atom2cell[point_indx];
+
+    // calculate barycentric coordinates
+    array<double,dim> bcc = get_bcc(Vec3(point), cell);
+    SimpleCell<dim> scell = (*cells())[cell];
+
+    // perform interpolation
+    double scalar_i(0.0);
+    int i = 0;
+    for (int node : scell)
+        scalar_i += solutions[node].scalar * bcc[i++] / bcc_sum[node];
+
+    return scalar_i;
+}
+
+template<int dim>
+void LinearInterpolator<dim>::precompute_conserved(const vector<Atom>& atoms) {
+    const int n_atoms = atoms.size();
+    const int n_nodes = nodes->size();
+
+    atom2cell = vector<int>(n_atoms);
+    bcc_sum = vector<double>(n_nodes);
+
+    int cell = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point = atoms[i].point;
+        // Find the cell that matches best to the point
+        cell = abs(locate_cell(point, cell));
+
+        SimpleCell<dim> scell = (*cells())[cell];
+        array<double,dim> bcc = get_bcc(Vec3(point), cell);
+
+        atom2cell[i] = cell;
+        for (int j = 0; j < dim; ++j)
+            bcc_sum[scell[j]] += bcc[j];
+    }
 }
 
 // Find the cell which contains the point or is the closest to it
@@ -909,28 +955,6 @@ bool TriangleInterpolator::point_in_cell(const Vec3& point, const int face) {
     if (v < zero || u + v > one) return false; // Check second & third barycentric coordinate
 
     return true;
-}
-
-void TriangleInterpolator::calc_conserved_data(const vector<Atom>& atoms) {
-    const int n_atoms = atoms.size();
-    const int n_nodes_per_face = 3;
-
-    atom2face = vector<int>(n_atoms);
-    bcc_sum = vector<double>(n_atoms);
-
-    int face = 0;
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 point = atoms[i].point;
-        // Find the face that contains (face >= 0) or is closest (face < 0) to the point
-        face = abs(locate_cell(point, face));
-
-        SimpleFace sface = (*faces)[face];
-        array<double,n_nodes_per_face> bcc = get_bcc(Vec3(point), face);
-
-        atom2face[i] = face;
-        for (int j = 0; j < n_nodes_per_face; ++j)
-            bcc_sum[sface[j]] += bcc[j];
-    }
 }
 
 template class LinearInterpolator<3> ;
