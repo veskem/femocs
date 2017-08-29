@@ -316,6 +316,8 @@ public:
     /** Calculate charges on surface faces using direct solution in the face centroids */
     void calc_charges(const double E0);
 
+    void calc_conserved_data(const vector<Atom>& atoms);
+
 private:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
 
@@ -330,6 +332,9 @@ private:
     vector<Vec3> edge2;
     vector<Vec3> pvec;
     vector<bool> is_parallel;
+
+    vector<int> atom2face;   ///< map storing the face indices that correspond to atom sequence
+    vector<double> bcc_sum;  ///< sum of barycentric coordinates from given node
 
     bool clean_nodes();
 

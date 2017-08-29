@@ -21,22 +21,25 @@ namespace femocs {
 
 // Initialize SolutionReader
 SolutionReader::SolutionReader() : vec_label("vec"), vec_norm_label("vec_norm"), scalar_label("scalar"),
-        empty_val(0), interpolator(NULL) {
+        empty_val(0), interpolator3(NULL), interpolator4(NULL) {
     reserve(0);
 }
 
+SolutionReader::SolutionReader(TriangleInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
+        vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab), empty_val(0),
+        interpolator3(ip), interpolator4(NULL) { reserve(0); }
+
 SolutionReader::SolutionReader(TetrahedronInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
-        vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab), empty_val(0), interpolator(ip) {
-    reserve(0);
-}
+        vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab), empty_val(0),
+        interpolator3(NULL), interpolator4(ip) { reserve(0); }
 
 // Linearly interpolate solution on system atoms
 void SolutionReader::calc_interpolation(const double r_cut, const int component, const bool srt) {
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
-    require(interpolator, "NULL interpolator cannot be used!");
+    require(interpolator4, "NULL interpolator cannot be used!");
 
     const int n_atoms = size();
-    if (interpolator->size() == 0) {
+    if (interpolator4->size() == 0) {
         interpolation = vector<Solution>(n_atoms, Solution(empty_val));
         return;
     }
@@ -45,22 +48,22 @@ void SolutionReader::calc_interpolation(const double r_cut, const int component,
     if (srt) sort_spatial();
 
     // Enable or disable the search of points slightly outside the tetrahedra
-    interpolator->search_outside(srt);
+    interpolator4->search_outside(srt);
 
     int elem = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point = get_point(i);
         // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
-        elem = interpolator->locate_cell(point, abs(elem));
+        elem = interpolator4->locate_cell(point, abs(elem));
 
         // Store whether the point is in- or outside the mesh
         if (elem < 0) set_marker(i, 1);
         else          set_marker(i, 0);
 
         // Calculate the interpolation
-        if      (component == 0) interpolation.push_back( interpolator->interp_solution(point, abs(elem)) );
-        else if (component == 1) interpolation.push_back( interpolator->interp_vector(point, abs(elem)) );
-        else if (component == 2) interpolation.push_back( interpolator->interp_scalar(point, abs(elem)) );
+        if      (component == 0) interpolation.push_back( interpolator4->interp_solution(point, abs(elem)) );
+        else if (component == 1) interpolation.push_back( interpolator4->interp_vector(point, abs(elem)) );
+        else if (component == 2) interpolation.push_back( interpolator4->interp_scalar(point, abs(elem)) );
     }
 
     // Apply histogram cleaner for the solution
@@ -164,7 +167,7 @@ Solution SolutionReader::get_average_solution(const int I, const double r_cut) {
     for (int i = 0; i < size(); ++i)
         if (i != I) {
             double dist2 = point1.distance2(get_point(i));
-            if (dist2 > r_cut2 || interpolation[i].norm >= interpolator->error_field) continue;
+            if (dist2 > r_cut2 || interpolation[i].norm >= interpolator4->error_field) continue;
 
             double w = exp(-1.0 * sqrt(dist2) / smooth_factor);
             w_sum += w;
@@ -198,7 +201,7 @@ void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, co
         else if (coordinate == 3) value = interpolation[i].norm;
         else                 value = interpolation[i].vector[coordinate];
 
-        if (abs(value) < interpolator->error_field) {
+        if (abs(value) < interpolator4->error_field) {
             value_min = min(value_min, value);
             value_max = max(value_max, value);
         }
@@ -341,6 +344,11 @@ void SolutionReader::calc_statistics() {
  * ========================================== */
 
 FieldReader::FieldReader() : SolutionReader(), radius1(0), radius2(0), E0(0) {}
+
+
+FieldReader::FieldReader(TriangleInterpolator* ip) : SolutionReader(ip, "elfield", "elfield_norm", "potential"),
+        radius1(0), radius2(0), E0(0) {}
+
 FieldReader::FieldReader(TetrahedronInterpolator* ip) : SolutionReader(ip, "elfield", "elfield_norm", "potential"),
         radius1(0), radius2(0), E0(0) {}
 
@@ -493,7 +501,7 @@ void FieldReader::set_analyt(const double E0, const double radius1, const double
 }
 
 double FieldReader::get_enhancement() const {
-    double Emax = -interpolator->error_field;
+    double Emax = -interpolator4->error_field;
     for (Solution s : interpolation)
         if (s.norm > Emax) Emax = s.norm;
 
@@ -622,7 +630,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
     const int n_lines = rline.size();
     Point3 pfield(direction.x, direction.y, direction.z);
 
-    FieldReader fr(interpolator);
+    FieldReader fr(interpolator4);
     fr.reserve(n_lines);
 
     for (int i = 0; i < n_lines; i++){
@@ -829,7 +837,7 @@ void ChargeReader::get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields) 
             }
 
         require(centroid_indx >= 0 && centroid_indx < n_nodes, "Invalid index: " + to_string(centroid_indx));
-        elfields.push_back(interpolator->get_vector(centroid_indx));
+        elfields.push_back(interpolator4->get_vector(centroid_indx));
     }
 }
 
@@ -893,6 +901,7 @@ double ChargeReader::get_charge(const int i) const {
 
 ForceReader::ForceReader() : SolutionReader() {}
 ForceReader::ForceReader(TetrahedronInterpolator* ip) : SolutionReader(ip, "force", "force_norm", "charge") {}
+ForceReader::ForceReader(TriangleInterpolator* ip) : SolutionReader(ip, "force", "force_norm", "charge") {}
 
 // Replace the charge and force on the nanotip nodes with the one found with Voronoi cells
 void ForceReader::recalc_forces(const FieldReader &fields, const vector<Vec3>& areas) {
@@ -910,8 +919,32 @@ void ForceReader::recalc_forces(const FieldReader &fields, const vector<Vec3>& a
 }
 
 // Calculate forces from atomic electric fields and face charges
-void ForceReader::calc_forces(const TriangleInterpolator &interpolator) {
+void ForceReader::calc_forces(const FieldReader &fields) {
+    require(interpolator3, "NULL interpolator cannot be used!");
 
+    const int n_atoms = fields.size();
+    const bool srt = true;
+
+    // Copy the atom data
+    reserve(n_atoms);
+    atoms = fields.atoms;
+    Medium::calc_statistics();
+
+    interpolator3->calc_conserved_data(atoms);
+
+    int elem = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point = get_point(i);
+        // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
+        elem = interpolator3->locate_cell(point, abs(elem));
+
+        // Store whether the point is in- or outside the mesh
+        if (elem < 0) set_marker(i, 1);
+        else          set_marker(i, 0);
+
+        // Calculate the interpolation
+        interpolation.push_back( interpolator3->interp_solution(point, abs(elem)) );
+    }
 }
 
 // Calculate forces from atomic electric fields and face charges

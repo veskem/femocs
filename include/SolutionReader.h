@@ -25,6 +25,7 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader constructors */
     SolutionReader();
+    SolutionReader(TriangleInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
     SolutionReader(TetrahedronInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
     /** Interpolate solution on the system atoms
@@ -68,8 +69,9 @@ protected:
     const string scalar_label;    ///< label for scalar data
     double empty_val;             ///< constant values returned when interpolator is empty
 
-    TetrahedronInterpolator* interpolator;  ///< data needed for interpolation
-    vector<Solution> interpolation;    ///< interpolated data
+    TriangleInterpolator* interpolator3;     ///< data needed for interpolating on surface
+    TetrahedronInterpolator* interpolator4;  ///< data needed for interpolating on space
+    vector<Solution> interpolation;          ///< interpolated data
 
     /** Initialise statistics about coordinates and solution */
     void init_statistics();
@@ -99,6 +101,7 @@ public:
     /** SolutionReader constructors */
     FieldReader();
     FieldReader(TetrahedronInterpolator* ip);
+    FieldReader(TriangleInterpolator* ip);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
      * @param medium    atoms to be interpolated
@@ -230,6 +233,7 @@ class ForceReader: public SolutionReader {
 public:
     /** ChargeReader constructors */
     ForceReader();
+    ForceReader(TriangleInterpolator* ip);
     ForceReader(TetrahedronInterpolator* ip);
 
     /** Replace the charge and force on the nanotip nodes with the one found with Voronoi cells */
@@ -239,7 +243,7 @@ public:
     void calc_forces(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);
 
-    void calc_forces(const TriangleInterpolator& interpolator);
+    void calc_forces(const FieldReader &fields);
 
     /** Export the induced charge and force on imported atoms
      * @param n_atoms  number of first atoms field is calculated

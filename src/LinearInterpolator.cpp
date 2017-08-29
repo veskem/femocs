@@ -911,6 +911,28 @@ bool TriangleInterpolator::point_in_cell(const Vec3& point, const int face) {
     return true;
 }
 
+void TriangleInterpolator::calc_conserved_data(const vector<Atom>& atoms) {
+    const int n_atoms = atoms.size();
+    const int n_nodes_per_face = 3;
+
+    atom2face = vector<int>(n_atoms);
+    bcc_sum = vector<double>(n_atoms);
+
+    int face = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point = atoms[i].point;
+        // Find the face that contains (face >= 0) or is closest (face < 0) to the point
+        face = abs(locate_cell(point, face));
+
+        SimpleFace sface = (*faces)[face];
+        array<double,n_nodes_per_face> bcc = get_bcc(Vec3(point), face);
+
+        atom2face[i] = face;
+        for (int j = 0; j < n_nodes_per_face; ++j)
+            bcc_sum[sface[j]] += bcc[j];
+    }
+}
+
 template class LinearInterpolator<3> ;
 template class LinearInterpolator<4> ;
 
