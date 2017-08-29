@@ -9,7 +9,6 @@
 #define LINEARINTERPOLATOR_H_
 
 #include "Primitives.h"
-#include "Medium.h"
 #include "TetgenMesh.h"
 #include "TetgenCells.h"
 #include "Coarseners.h"
@@ -22,7 +21,7 @@ namespace femocs {
 
 /** General class to linearly interpolate solution inside the mesh */
 template<int dim>
-class LinearInterpolator : public Medium {
+class LinearInterpolator {
 
 public:
     /** LinearInterpolator conctructor */
@@ -45,6 +44,37 @@ public:
     }
 
     virtual ~LinearInterpolator() {};
+
+    /** Return number of available interpolation nodes */
+    int size() const { return solutions.size(); }
+
+    /** Pick the suitable write function based on the file type.
+     * Function is active only when file write is enabled */
+    void write(const string &file_name) const {
+        if (!MODES.WRITEFILE) return;
+
+        expect(size() > 0, "Zero nodes detected!");
+        string ftype = get_file_type(file_name);
+
+        ofstream outfile;
+    //    outfile << fixed;
+
+        outfile.setf(std::ios::scientific);
+        outfile.precision(6);
+
+        if (ftype == "movie") outfile.open(file_name, ios_base::app);
+        else outfile.open(file_name);
+        require(outfile.is_open(), "Can't open a file " + file_name);
+
+        if (ftype == "xyz" || ftype == "movie")
+            write_xyz(outfile);
+        else if (ftype == "vtk")
+            write_vtk(outfile);
+        else
+            require(false, "Unsupported file type: " + ftype);
+
+        outfile.close();
+    }
 
     /** Enable or disable the search of points slightly outside the cell */
     void search_outside(const bool enable) {
@@ -150,32 +180,44 @@ protected:
      *  surrounding hexahedral nodes */
     bool average_sharp_nodes(const vector<vector<unsigned>>& vorocells, const double edgemax);
 
+    /** Return the mapping between tetrahedral and hexahedral meshes;
+     * -1 indicates that mapping for corresponding object was not found */
+    void get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
+            dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps);
+
     /** Reserve memory for interpolation data */
     void reserve(const int N) {
         require(N >= 0, "Invalid number of points: " + to_string(N));
-        atoms.clear();
         solutions.clear();
-
-        atoms.reserve(N);
         solutions.reserve(N);
     }
-    
-    /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
-    string get_data_string(const int i) const {
-        if (i < 0)
-            return "LinearInterpolator properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" +
-                    norm_label + ":R:1:" + scalar_label + ":R:1";
 
-        ostringstream strs;
-        strs << atoms[i] << " " << solutions[i];
-        return strs.str();
+    /** Output node data in .xyz format */
+    void write_xyz(ofstream& out) const {
+        const int n_nodes = size();
+        out << n_nodes << "\n";
+        out << "LinearInterpolator properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" <<
+                norm_label << ":R:1:" << scalar_label << ":R:1" << endl;
+
+        for (int i = 0; i < n_nodes; ++i)
+            out << i << " " << (*nodes)[i] << " " << nodes->get_marker(i) << " " << solutions[i] << endl;
     }
 
-    /** Get scalar and vector data associated with atoms */
-    void get_cell_data(ofstream& out) const {
+    /** Output interpolation cell data in .vtk format */
+    void write_vtk(ofstream& out) const {
         const int celltype = get_cell_type();
+        const int n_nodes = size();
         const int n_cells = cells()->size();
-        const int n_atoms = size();
+
+        out << "# vtk DataFile Version 3.0\n";
+        out << "# Medium data\n";
+        out << "ASCII\n";
+        out << "DATASET UNSTRUCTURED_GRID\n\n";
+
+        // Output the point coordinates
+        out << "POINTS " << n_nodes << " double\n";
+        for (int i = 0; i < n_nodes; ++i)
+            out << (*nodes)[i] << "\n";
 
         // Output the vertex indices 
         out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
@@ -187,24 +229,26 @@ protected:
         for (int i = 0; i < n_cells; ++i)
             out << celltype << "\n";
 
-        out << "\nPOINT_DATA " << n_atoms << "\n";
+        out << "\nPOINT_DATA " << n_nodes << "\n";
 
-        // write atom IDs
+        // write node IDs
         out << "SCALARS ID int\nLOOKUP_TABLE default\n";
-        for (int i = 0; i < n_atoms; ++i)
-            out << atoms[i].id << "\n";
+        for (int i = 0; i < n_nodes; ++i)
+            out << i << "\n";
 
-        // write atom markers
+        // write node markers
         out << "SCALARS marker int\nLOOKUP_TABLE default\n";
-        for (int i = 0; i < n_atoms; ++i)
-            out << atoms[i].marker << "\n";
+        for (int i = 0; i < n_nodes; ++i)
+            out << nodes->get_marker(i) << "\n";
 
+        // write vector norm data
         out << "SCALARS " + norm_label + " double\nLOOKUP_TABLE default\n";
-        for (int i = 0; i < n_atoms; ++i)
+        for (int i = 0; i < n_nodes; ++i)
             out << solutions[i].norm << "\n";
 
+        // write scalar data
         out << "SCALARS " + scalar_label + " double\nLOOKUP_TABLE default\n";
-        for (int i = 0; i < n_atoms; ++i)
+        for (int i = 0; i < n_nodes; ++i)
             out << solutions[i].scalar << "\n";
     }
 
@@ -302,11 +346,6 @@ private:
     vector<Vec4> det4;              ///< minor determinants for calculating 4th bcc
     vector<bool> tet_not_valid;     ///< co-planarities of tetrahedra
 
-    /** Return the mapping between tetrahedral and hexahedral meshes;
-     * -1 indicates that mapping for corresponding object was not found */
-    void get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
-            dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps);
-
     /** Force the solution on tetrahedral nodes to be the weighed average
      * of the solutions on its Voronoi cell nodes */
     bool average_sharp_nodes();
@@ -344,7 +383,7 @@ private:
 };
 
 /** Class to interpolate solution on surface triangles */
-class TriangleInterpolator : LinearInterpolator<3> {
+class TriangleInterpolator : public LinearInterpolator<3> {
 public:
     /** Constructor of TriangleInterpolator  */
     TriangleInterpolator(const TetgenMesh* mesh);
@@ -354,8 +393,6 @@ public:
 
     /** Calculate charges on surface faces using direct solution in the face centroids */
     void calc_charges(const double E0);
-
-    void write(const string &file_name) const { Medium::write(file_name); }
 
 private:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
@@ -371,11 +408,6 @@ private:
     vector<Vec3> edge2;
     vector<Vec3> pvec;
     vector<bool> is_parallel;
-
-    /** Return the mapping between tetrahedral & hexahedral mesh nodes,
-     nodes & hexahedral elements and nodes & element's vertices */
-    void get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
-            dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps);
 
     bool clean_nodes();
 

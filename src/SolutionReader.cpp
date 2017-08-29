@@ -910,6 +910,11 @@ void ForceReader::recalc_forces(const FieldReader &fields, const vector<Vec3>& a
 }
 
 // Calculate forces from atomic electric fields and face charges
+void ForceReader::calc_forces(const TriangleInterpolator &interpolator) {
+
+}
+
+// Calculate forces from atomic electric fields and face charges
 void ForceReader::calc_forces(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor) {
 

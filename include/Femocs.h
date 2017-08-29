@@ -193,6 +193,8 @@ private:
     TetrahedronInterpolator bulk_interpolator = TetrahedronInterpolator(&bulk_mesh);
     /// data for interpolating results in vacuum
     TetrahedronInterpolator vacuum_interpolator = TetrahedronInterpolator(&vacuum_mesh);
+    /// data for interpolating results on vacuum-material boundary
+//    TriangleInterpolator surface_interpolator = TriangleInterpolator(&vacuum_mesh);
 
     HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
     FieldReader fields = FieldReader(&vacuum_interpolator);     ///< interpolated fields and potentials

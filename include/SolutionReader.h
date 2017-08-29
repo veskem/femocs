@@ -239,6 +239,8 @@ public:
     void calc_forces(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);
 
+    void calc_forces(const TriangleInterpolator& interpolator);
+
     /** Export the induced charge and force on imported atoms
      * @param n_atoms  number of first atoms field is calculated
      * @param xq       charge and force in PARCAS format (xq[0] = q1, xq[1] = Fx1, xq[2] = Fy1, xq[3] = Fz1, xq[4] = q2, xq[5] = Fx2 etc)

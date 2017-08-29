@@ -165,6 +165,47 @@ bool LinearInterpolator<dim>::average_sharp_nodes(const vector<vector<unsigned>>
     return false;
 }
 
+/* Return the mapping between tetrahedral & hexahedral mesh nodes,
+ nodes & hexahedral elements and nodes & element's vertices  */
+template<int dim>
+void LinearInterpolator<dim>::get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
+        dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps) {
+
+    require(tria->n_vertices() > 0, "Invalid triangulation size!");
+    const int n_femocs_nodes = size();
+    const int n_dealii_nodes = tria->n_used_vertices();
+    const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
+
+    vector<int> node2hex(n_dealii_nodes), node2vert(n_dealii_nodes);
+    tet2hex = vector<int>(n_femocs_nodes, -1);
+
+    typename dealii::Triangulation<3>::active_vertex_iterator vertex = tria->begin_active_vertex();
+    // Loop through tetrahedral mesh vertices
+    for (int i = 0; i < n_femocs_nodes && vertex != tria->end_vertex(); ++i)
+        if ( (*nodes)[i].distance2(vertex->vertex()) < eps ) {
+            tet2hex[i] = vertex->vertex_index();
+            vertex++;
+        }
+
+    // Loop through the hexahedral mesh elements
+    typename dealii::DoFHandler<3>::active_cell_iterator cell;
+    for (cell = dofh->begin_active(); cell != dofh->end(); ++cell)
+        // Loop through all the vertices in the element
+        for (int i = 0; i < n_verts_per_elem; ++i) {
+            node2hex[cell->vertex_index(i)] = cell->active_cell_index();
+            node2vert[cell->vertex_index(i)] = i;
+        }
+
+    // Generate lists of hexahedra and hexahedra nodes where the tetrahedra nodes are located
+    cell_indxs.reserve(n_femocs_nodes);
+    vert_indxs.reserve(n_femocs_nodes);
+    for (int n : tet2hex)
+        if (n >= 0) {
+            cell_indxs.push_back(node2hex[n]);
+            vert_indxs.push_back(node2vert[n]);
+        }
+}
+
 /* ==================================================================
  *  =================== TetrahedronInterpolator ====================
  * ================================================================== */
@@ -186,14 +227,14 @@ void TetrahedronInterpolator::set_analyt(const Point3& origin, const double E0, 
 
 // Analytical potential for i-th point near the hemisphere
 double TetrahedronInterpolator::get_analyt_potential(const int i, const Point3& origin) const {
-    Point3 point = get_atom(i).point - origin;
+    Point3 point = (*nodes)[i] - origin;
     double r = point.distance(Point3(0));
     return -E0 * point.z * (1 - pow(radius1 / r, 3.0));
 }
 
 // Analytical electric field for i-th point near the hemisphere
 Vec3 TetrahedronInterpolator::get_analyt_field(const int i) const {
-    Point3 point = get_atom(i).point - origin;
+    Point3 point = (*nodes)[i] - origin;
     double r5 = pow(point.x * point.x + point.y * point.y + point.z * point.z, 2.5);
     double r3 = pow(radius1, 3.0);
     double f = point.x * point.x + point.y * point.y - 2.0 * point.z * point.z;
@@ -247,12 +288,11 @@ void TetrahedronInterpolator::print_error(const Coarseners& c) const {
     int n_points = 0;
     for (int i = 0; i < size(); ++i)
         // look for the tetrahedral nodes whose potential == 0, i.e that are on the surface
-        if ( get_marker(i) == TYPES.TETNODE && solutions[i].scalar == 0.0 &&
-                c.inside_interesting_region(get_point(i)) )
+        if ( nodes->get_marker(i) == TYPES.TETNODE && solutions[i].scalar == 0.0 &&
+                c.inside_interesting_region((*nodes)[i]) )
         {
             double analyt = get_analyt_field(i).norm();
             double numerical = solutions[i].norm;
-//            cout << get_point(i) << " " << analyt << " " << numerical << endl;
 
             double error = (numerical - analyt) / numerical;
             rms_error += error * error;
@@ -300,47 +340,6 @@ void TetrahedronInterpolator::print_statistics() const {
     write_verbose_msg(stream.str());
 }
 
-/* Return the mapping between tetrahedral & hexahedral mesh nodes,
- nodes & hexahedral elements and nodes & element's vertices  */
-void TetrahedronInterpolator::get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
-        dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps) {
-
-    require(tria->n_vertices() > 0, "Invalid triangulation size!");
-
-    const int n_femocs_nodes = size();
-    const int n_dealii_nodes = tria->n_used_vertices();
-    const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
-
-    vector<int> node2hex(n_dealii_nodes), node2vert(n_dealii_nodes);
-    tet2hex = vector<int>(n_femocs_nodes, -1);
-
-    typename dealii::Triangulation<3>::active_vertex_iterator vertex = tria->begin_active_vertex();
-    // Loop through tetrahedral mesh vertices
-    for (int i = 0; i < n_femocs_nodes && vertex != tria->end_vertex(); ++i)
-        if ( get_point(i).distance2(vertex->vertex()) < eps ) {
-            tet2hex[i] = vertex->vertex_index();
-            vertex++;
-        }
-
-    // Loop through the hexahedral mesh elements
-    typename dealii::DoFHandler<3>::active_cell_iterator cell;
-    for (cell = dofh->begin_active(); cell != dofh->end(); ++cell)
-        // Loop through all the vertices in the element
-        for (int i = 0; i < n_verts_per_elem; ++i) {
-            node2hex[cell->vertex_index(i)] = cell->active_cell_index();
-            node2vert[cell->vertex_index(i)] = i;
-        }
-
-    // Generate lists of hexahedra and hexahedra nodes where the tetrahedra nodes are located
-    cell_indxs.reserve(n_femocs_nodes);
-    vert_indxs.reserve(n_femocs_nodes);
-    for (int n : tet2hex)
-        if (n >= 0) {
-            cell_indxs.push_back(node2hex[n]);
-            vert_indxs.push_back(node2vert[n]);
-        }
-}
-
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
 bool TetrahedronInterpolator::average_sharp_nodes() {
@@ -357,12 +356,8 @@ bool TetrahedronInterpolator::extract_solution(fch::Laplace<3>* fem) {
     const int n_nodes = nodes->size();
     const double eps = 1e-5 * elems->stat.edgemin;
 
-    // Copy the mesh nodes
-    reserve(n_nodes);
-    for (int i = 0; i < n_nodes; ++i)
-        append( Atom(i, (*nodes)[i], nodes->get_marker(i)) );
-
     // Precompute tetrahedra to make interpolation faster
+    reserve(n_nodes);
     precompute();
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
@@ -410,12 +405,8 @@ bool TetrahedronInterpolator::extract_solution(fch::CurrentsAndHeatingStationary
     const int n_nodes = nodes->size();
     const double eps = 1e-5 * elems->stat.edgemin;
 
-    // Copy the mesh nodes
-    reserve(n_nodes);
-    for (int n = 0; n < n_nodes; ++n)
-        append( Atom(n, (*nodes)[n], nodes->get_marker(n)) );
-
     // Precompute tetrahedra to make interpolation faster
+    reserve(n_nodes);
     precompute();
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
@@ -460,12 +451,8 @@ bool TetrahedronInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem) 
     const int n_nodes = nodes->size();
     const double eps = 1e-5 * elems->stat.edgemin;
 
-    // Copy the mesh nodes
-    reserve(n_nodes);
-    for (int n = 0; n < n_nodes; ++n)
-        append( Atom(n, (*nodes)[n], nodes->get_marker(n)) );
-
     // Precompute tetrahedra to make interpolation faster
+    reserve(n_nodes);
     precompute();
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
@@ -646,46 +633,6 @@ array<double,4> TetrahedronInterpolator::get_bcc(const Vec3& point, const int el
 TriangleInterpolator::TriangleInterpolator(const TetgenMesh* m) :
         LinearInterpolator<3>(m, "area", "charge"), faces(&m->faces) {}
 
-/* Return the mapping between tetrahedral & hexahedral mesh nodes,
- nodes & hexahedral elements and nodes & element's vertices  */
-void TriangleInterpolator::get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
-        dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps) {
-
-    require(tria->n_vertices() > 0, "Invalid triangulation size!");
-    const int n_femocs_nodes = size();
-    const int n_dealii_nodes = tria->n_used_vertices();
-    const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
-
-    vector<int> node2hex(n_dealii_nodes), node2vert(n_dealii_nodes);
-    tet2hex = vector<int>(n_femocs_nodes, -1);
-
-    typename dealii::Triangulation<3>::active_vertex_iterator vertex = tria->begin_active_vertex();
-    // Loop through tetrahedral mesh vertices
-    for (int i = 0; i < n_femocs_nodes && vertex != tria->end_vertex(); ++i)
-        if ( get_point(i).distance2(vertex->vertex()) < eps ) {
-            tet2hex[i] = vertex->vertex_index();
-            vertex++;
-        }
-
-    // Loop through the hexahedral mesh elements
-    typename dealii::DoFHandler<3>::active_cell_iterator cell;
-    for (cell = dofh->begin_active(); cell != dofh->end(); ++cell)
-        // Loop through all the vertices in the element
-        for (int i = 0; i < n_verts_per_elem; ++i) {
-            node2hex[cell->vertex_index(i)] = cell->active_cell_index();
-            node2vert[cell->vertex_index(i)] = i;
-        }
-
-    // Generate lists of hexahedra and hexahedra nodes where the tetrahedra nodes are located
-    cell_indxs.reserve(n_femocs_nodes);
-    vert_indxs.reserve(n_femocs_nodes);
-    for (int n : tet2hex)
-        if (n >= 0) {
-            cell_indxs.push_back(node2hex[n]);
-            vert_indxs.push_back(node2vert[n]);
-        }
-}
-
 // leave only the solution in the nodes and centroids of triangles
 bool TriangleInterpolator::clean_nodes() {
     const int n_nodes = nodes->size();
@@ -693,7 +640,7 @@ bool TriangleInterpolator::clean_nodes() {
     vector<bool> node_not_in_quads(n_nodes, true);
     for (SimpleQuad quad : mesh->quads)
         for (int node : quad)
-            if (atoms[node].marker != 2)
+            if (nodes->get_marker(node) != 2)
                 node_not_in_quads[node] = false;
 
     for (int node = 0; node < n_nodes; ++node)
@@ -716,12 +663,8 @@ bool TriangleInterpolator::extract_solution(fch::Laplace<3>* fem) {
     const int n_nodes = nodes->size();
     const double eps = 1e-5 * faces->stat.edgemin;
 
-    // Copy the mesh nodes
-    reserve(n_nodes);
-    for (int i = 0; i < n_nodes; ++i)
-        append( Atom(i, (*nodes)[i], nodes->get_marker(i)) );
-
     // Precompute triangles to make interpolation faster
+    reserve(n_nodes);
     precompute();
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
@@ -762,6 +705,8 @@ void TriangleInterpolator::calc_charges(const double E0) {
     const int n_faces = faces->size();
     const int n_nodes = nodes->size();
     const double sign = fabs(E0) / E0;
+    require(n_nodes == size(), "Mismatch between # nodes and # interpolation points: " +
+            to_string(n_nodes) + ", " + to_string(size()));
 
     vector<double> charges(n_nodes), areas(n_nodes);
 
