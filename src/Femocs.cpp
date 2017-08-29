@@ -111,9 +111,13 @@ void Femocs::write_slice(const string& file_name) {
 
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
 int Femocs::run(const double elfield, const string &message) {
-    reinit();
-    skip_calculations = true;
+    stringstream stream; stream << fixed << setprecision(3);
+    stream << "Atoms haven't moved significantly, " << reader.rms_distance
+        << " < " << conf.distance_tol << "! Field calculation will be skipped!";
+    check_return(reinit(), stream.str());
+
     double tstart = omp_get_wtime();
+    skip_calculations = true;
 
     check_return(generate_meshes(), "Mesh generation failed!");
 
@@ -133,7 +137,7 @@ int Femocs::run(const double elfield, const string &message) {
     reader.save_current_run_points(conf.distance_tol);
     end_msg(t0);
 
-    stringstream stream; stream << fixed << setprecision(3);
+    stream.str("");
     stream << "Total execution time " << omp_get_wtime() - tstart;
     write_silent_msg(stream.str());
     skip_calculations = false;
@@ -157,13 +161,7 @@ int Femocs::reinit() {
     conf.message = "_" + string( max(0.0, 5.0 - conf.message.length()), '0' ) + conf.message;
 
     prev_skip_calculations = skip_calculations;
-
-    stringstream stream; stream << fixed << setprecision(3);
-    stream << "Atoms haven't moved significantly, " << reader.rms_distance
-        << " < " << conf.distance_tol << "! Field calculation will be skipped!";
-    check_return(skip_calculations, stream.str());
-
-    return 0;
+    return skip_calculations;
 }
 
 // Generate boundary nodes for mesh
@@ -520,27 +518,33 @@ int Femocs::import_atoms(const string& file_name) {
     end_msg(t0);
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
-    if (file_type == "xyz") {
-        start_msg(t0, "=== Performing coordination analysis...");
-        reader.calc_coordinations(conf.nnn, conf.coordination_cutoff);
-        end_msg(t0);
+    start_msg(t0, "=== Comparing with previous run...");
+    skip_calculations = reader.calc_rms_distance(conf.distance_tol) < conf.distance_tol;
+    end_msg(t0);
 
-        if (conf.cluster_anal) {
-            start_msg(t0, "=== Performing cluster analysis...");
-            if (conf.cluster_cutoff <= 0) reader.calc_clusters();
-            else reader.calc_clusters(conf.nnn, conf.cluster_cutoff);
+    if (!skip_calculations) {
+        if (file_type == "xyz") {
+            start_msg(t0, "=== Performing coordination analysis...");
+            reader.calc_coordinations(conf.nnn, conf.coordination_cutoff);
             end_msg(t0);
-            reader.check_clusters(1);
+
+            if (conf.cluster_anal) {
+                start_msg(t0, "=== Performing cluster analysis...");
+                if (conf.cluster_cutoff <= 0) reader.calc_clusters();
+                else reader.calc_clusters(conf.nnn, conf.cluster_cutoff);
+                end_msg(t0);
+                reader.check_clusters(1);
+            }
+
+            start_msg(t0, "=== Extracting atom types...");
+            reader.extract_types(conf.nnn, conf.latconst);
+            end_msg(t0);
+
+        } else {
+            start_msg(t0, "=== Calculating coords from atom types...");
+            reader.calc_coordinations(conf.nnn);
+            end_msg(t0);
         }
-
-        start_msg(t0, "=== Extracting atom types...");
-        reader.extract_types(conf.nnn, conf.latconst);
-        end_msg(t0);
-
-    } else {
-        start_msg(t0, "=== Calculating coords from atom types...");
-        reader.calc_coordinations(conf.nnn);
-        end_msg(t0);
     }
 
     reader.write("out/atomreader.xyz");
@@ -621,7 +625,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
     check_return(vacuum_interpolator.size() == 0, "No field to export!");
 
     if (skip_calculations)
-        write_silent_msg("Using previous solution!");
+        write_silent_msg("Using previous electric field!");
     else {
         start_msg(t0, "=== Interpolating E and phi...");
         fields.interpolate(dense_surf, conf.use_histclean * conf.coordination_cutoff, 0, false);
@@ -645,7 +649,7 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
     check_return(bulk_interpolator.size() == 0, "No temperature to export!");
 
     if (skip_calculations)
-        write_silent_msg("Using previous solution!");
+        write_silent_msg("Using previous temperature!");
     else {
         start_msg(t0, "=== Interpolating J & T...");
         temperatures.interpolate(reader);
@@ -655,7 +659,7 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
         temperatures.print_statistics();
     }
 
-    start_msg(t0, "=== Exporting J & T...");
+    start_msg(t0, "=== Exporting temperature...");
     temperatures.export_temperature(n_atoms, T);
     end_msg(t0);
 
@@ -665,10 +669,10 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
 // calculate and export charges & forces on imported atom coordinates
 int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
     if (n_atoms < 0) return 0;
-    check_return(fields.size() == 0, "No force to export!");
+    check_return(fields.size() == 0, "No charge & force to export!");
 
     if (skip_calculations)
-        write_silent_msg("Using previous solution!");
+        write_silent_msg("Using previous charge & force!");
     else {
         ChargeReader face_charges(&vacuum_interpolator); // charges on surface faces
 
@@ -685,7 +689,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         face_charges.clean(dense_surf.sizes, conf.latconst);
         face_charges.write("out/face_charges.xyz");
 
-        start_msg(t0, "=== Calculating charges and forces...");
+        start_msg(t0, "=== Calculating charges & forces...");
         forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coordination_cutoff,
                 conf.charge_smooth_factor);
 
@@ -697,7 +701,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         forces.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
     }
 
-    start_msg(t0, "=== Exporting atomic forces...");
+    start_msg(t0, "=== Exporting atomic charges & forces...");
     forces.export_force(n_atoms, xq);
     end_msg(t0);
 
@@ -708,7 +712,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
 int Femocs::interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     if (n_points <= 0) return 0;
-    check_return(vacuum_interpolator.size() == 0, "No solution to export!");
+    check_return(vacuum_interpolator.size() == 0, "No electric field to export!");
 
     FieldReader fr(&vacuum_interpolator);
     start_msg(t0, "=== Interpolating & exporting elfield...");
@@ -725,7 +729,7 @@ int Femocs::interpolate_phi(const int n_points, const double* x, const double* y
         double* phi, int* flag) {
 
     if (n_points <= 0) return 0;
-    check_return(vacuum_interpolator.size() == 0, "No solution to export!");
+    check_return(vacuum_interpolator.size() == 0, "No electric potential to export!");
 
     FieldReader fr(&vacuum_interpolator);
     fr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coordination_cutoff, 2, false);
