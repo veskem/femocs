@@ -50,31 +50,7 @@ public:
 
     /** Pick the suitable write function based on the file type.
      * Function is active only when file write is enabled */
-    void write(const string &file_name) const {
-        if (!MODES.WRITEFILE) return;
-
-        expect(size() > 0, "Zero nodes detected!");
-        string ftype = get_file_type(file_name);
-
-        ofstream outfile;
-    //    outfile << fixed;
-
-        outfile.setf(std::ios::scientific);
-        outfile.precision(6);
-
-        if (ftype == "movie") outfile.open(file_name, ios_base::app);
-        else outfile.open(file_name);
-        require(outfile.is_open(), "Can't open a file " + file_name);
-
-        if (ftype == "xyz" || ftype == "movie")
-            write_xyz(outfile);
-        else if (ftype == "vtk")
-            write_vtk(outfile);
-        else
-            require(false, "Unsupported file type: " + ftype);
-
-        outfile.close();
-    }
+    void write(const string &file_name) const;
 
     /** Enable or disable the search of points slightly outside the cell */
     void search_outside(const bool enable) {
@@ -89,7 +65,7 @@ public:
 
     /** Add solution to solutions vector */
     void append_solution(const Solution& solution) {
-//        expect((unsigned)size() < solutions.capacity(), "Allocated vector size exceeded!");
+        expect((unsigned)size() < solutions.capacity(), "Allocated vector size exceeded!");
         solutions.push_back(solution);
     }
 
@@ -156,6 +132,19 @@ protected:
      * It is implemented as a function to take advantage of polymorphism. */
     virtual const TetgenCells<dim>* cells() const { return NULL; }
 
+    /** Reserve memory for interpolation data */
+    void reserve(const int N) {
+        require(N >= 0, "Invalid number of points: " + to_string(N));
+        solutions.clear();
+        solutions.reserve(N);
+    }
+
+    /** Reserve memory for pre-computation data */
+    virtual void reserve_precompute(const int N) {
+        neighbours = vector<vector<int>>(N);
+        centroids.reserve(N);
+    }
+
     /** Pre-compute data about cells to make interpolation faster */
     virtual void precompute() {}
 
@@ -170,12 +159,6 @@ protected:
      * It does not use get_bcc routine to achieve faster performance. */
     virtual bool point_in_cell(const Vec3& point, const int cell) { return false; }
 
-    /** Reserve memory for pre-computation data */
-    virtual void reserve_precompute(const int N) {
-        neighbours = vector<vector<int>>(N);
-        centroids.reserve(N);
-    }
-
     /** Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
      *  surrounding hexahedral nodes */
     bool average_sharp_nodes(const vector<vector<unsigned>>& vorocells, const double edgemax);
@@ -185,85 +168,24 @@ protected:
     void get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
             dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps);
 
-    /** Reserve memory for interpolation data */
-    void reserve(const int N) {
-        require(N >= 0, "Invalid number of points: " + to_string(N));
-        solutions.clear();
-        solutions.reserve(N);
-    }
-
     /** Output node data in .xyz format */
-    void write_xyz(ofstream& out) const {
-        const int n_nodes = size();
-        out << n_nodes << "\n";
-        out << "LinearInterpolator properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" <<
-                norm_label << ":R:1:" << scalar_label << ":R:1" << endl;
-
-        for (int i = 0; i < n_nodes; ++i)
-            out << i << " " << (*nodes)[i] << " " << nodes->get_marker(i) << " " << solutions[i] << endl;
-    }
+    void write_xyz(ofstream& out, const int n_nodes) const;
 
     /** Output interpolation cell data in .vtk format */
-    void write_vtk(ofstream& out) const {
-        const int celltype = get_cell_type();
-        const int n_nodes = size();
-        const int n_cells = cells()->size();
+    void write_vtk(ofstream& out, const int n_nodes) const;
 
-        out << "# vtk DataFile Version 3.0\n";
-        out << "# Medium data\n";
-        out << "ASCII\n";
-        out << "DATASET UNSTRUCTURED_GRID\n\n";
-
-        // Output the point coordinates
-        out << "POINTS " << n_nodes << " double\n";
-        for (int i = 0; i < n_nodes; ++i)
-            out << (*nodes)[i] << "\n";
-
-        // Output the vertex indices 
-        out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
-        for (int i = 0; i < n_cells; ++i)
-            out << dim << " " << (*cells())[i] << "\n";
-
-        // Output cell types
-        out << "\nCELL_TYPES " << n_cells << "\n";
-        for (int i = 0; i < n_cells; ++i)
-            out << celltype << "\n";
-
-        out << "\nPOINT_DATA " << n_nodes << "\n";
-
-        // write node IDs
-        out << "SCALARS ID int\nLOOKUP_TABLE default\n";
-        for (int i = 0; i < n_nodes; ++i)
-            out << i << "\n";
-
-        // write node markers
-        out << "SCALARS marker int\nLOOKUP_TABLE default\n";
-        for (int i = 0; i < n_nodes; ++i)
-            out << nodes->get_marker(i) << "\n";
-
-        // write vector norm data
-        out << "SCALARS " + norm_label + " double\nLOOKUP_TABLE default\n";
-        for (int i = 0; i < n_nodes; ++i)
-            out << solutions[i].norm << "\n";
-
-        // write scalar data
-        out << "SCALARS " + scalar_label + " double\nLOOKUP_TABLE default\n";
-        for (int i = 0; i < n_nodes; ++i)
-            out << solutions[i].scalar << "\n";
-    }
-
-    // Determinant of 3x3 matrix which's last column consists of ones
+    /** Determinant of 3x3 matrix which's last column consists of ones */
     double determinant(const Vec3 &v1, const Vec3 &v2) {
         return v1.x * (v2.y - v2.z) - v1.y * (v2.x - v2.z) + v1.z * (v2.x - v2.y);
     }
 
-    // Determinant of 3x3 matrix which's columns consist of Vec3-s
+    /** Determinant of 3x3 matrix which's columns consist of Vec3-s */
     double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3) {
         return v1.x * (v2.y * v3.z - v3.y * v2.z) - v2.x * (v1.y * v3.z - v3.y * v1.z)
                 + v3.x * (v1.y * v2.z - v2.y * v1.z);
     }
 
-    // Determinant of 4x4 matrix which's last column consists of ones
+    /** Determinant of 4x4 matrix which's last column consists of ones */
     double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4) {
         const double det1 = determinant(v2, v3, v4);
         const double det2 = determinant(v1, v3, v4);
@@ -273,7 +195,7 @@ protected:
         return det4 - det3 + det2 - det1;
     }
 
-    // Determinant of 4x4 matrix which's columns consist of Vec4-s
+    /** Determinant of 4x4 matrix which's columns consist of Vec4-s */
     double determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4) {
         double det1 = determinant(Vec3(v1.y,v1.z,v1.w), Vec3(v2.y,v2.z,v2.w), Vec3(v3.y,v3.z,v3.w));
         double det2 = determinant(Vec3(v1.x,v1.z,v1.w), Vec3(v2.x,v2.z,v2.w), Vec3(v3.x,v3.z,v3.w));

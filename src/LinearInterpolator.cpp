@@ -6,7 +6,6 @@
  */
 
 #include "Macros.h"
-#include "Media.h"
 #include "LinearInterpolator.h"
 
 #include "float.h"
@@ -172,7 +171,7 @@ void LinearInterpolator<dim>::get_maps(vector<int>& tet2hex, vector<int>& cell_i
         dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps) {
 
     require(tria->n_vertices() > 0, "Invalid triangulation size!");
-    const int n_femocs_nodes = size();
+    const int n_femocs_nodes = nodes->size();
     const int n_dealii_nodes = tria->n_used_vertices();
     const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
 
@@ -204,6 +203,93 @@ void LinearInterpolator<dim>::get_maps(vector<int>& tet2hex, vector<int>& cell_i
             cell_indxs.push_back(node2hex[n]);
             vert_indxs.push_back(node2vert[n]);
         }
+}
+
+// Pick the suitable write function based on the file type
+template<int dim>
+void LinearInterpolator<dim>::write(const string &file_name) const {
+    if (!MODES.WRITEFILE) return;
+
+    const int n_nodes = nodes->size();
+    expect(n_nodes, "Zero nodes detected!");
+    string ftype = get_file_type(file_name);
+
+    ofstream outfile;
+    outfile.setf(std::ios::scientific);
+    outfile.precision(6);
+
+    if (ftype == "movie") outfile.open(file_name, ios_base::app);
+    else outfile.open(file_name);
+    require(outfile.is_open(), "Can't open a file " + file_name);
+
+    if (ftype == "xyz" || ftype == "movie")
+        write_xyz(outfile, n_nodes);
+    else if (ftype == "vtk")
+        write_vtk(outfile, n_nodes);
+    else
+        require(false, "Unsupported file type: " + ftype);
+
+    outfile.close();
+}
+
+// Output node data in .xyz format
+template<int dim>
+void LinearInterpolator<dim>::write_xyz(ofstream& out, const int n_nodes) const {
+    out << n_nodes << endl;
+    out << "LinearInterpolator properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" <<
+            norm_label << ":R:1:" << scalar_label << ":R:1" << endl;
+
+    for (int i = 0; i < n_nodes; ++i)
+        out << i << " " << (*nodes)[i] << " " << nodes->get_marker(i) << " " << solutions[i] << endl;
+}
+
+// Output interpolation cell data in .vtk format
+template<int dim>
+void LinearInterpolator<dim>::write_vtk(ofstream& out, const int n_nodes) const {
+    const int celltype = get_cell_type();
+    const int n_cells = cells()->size();
+
+    out << "# vtk DataFile Version 3.0\n";
+    out << "# Medium data\n";
+    out << "ASCII\n";
+    out << "DATASET UNSTRUCTURED_GRID\n\n";
+
+    // Output the point coordinates
+    out << "POINTS " << n_nodes << " double\n";
+    for (int i = 0; i < n_nodes; ++i)
+        out << (*nodes)[i] << "\n";
+
+    // Output the vertex indices
+    out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
+    for (int i = 0; i < n_cells; ++i)
+        out << dim << " " << (*cells())[i] << "\n";
+
+    // Output cell types
+    out << "\nCELL_TYPES " << n_cells << "\n";
+    for (int i = 0; i < n_cells; ++i)
+        out << celltype << "\n";
+
+    out << "\nPOINT_DATA " << n_nodes << "\n";
+
+    // write node IDs
+    out << "SCALARS ID int\nLOOKUP_TABLE default\n";
+    for (int i = 0; i < n_nodes; ++i)
+        out << i << "\n";
+
+    // write node markers
+    out << "SCALARS marker int\nLOOKUP_TABLE default\n";
+    for (int i = 0; i < n_nodes; ++i)
+        out << nodes->get_marker(i) << "\n";
+
+    // write vector norm data
+    out << "SCALARS " + norm_label + " double\nLOOKUP_TABLE default\n";
+    for (int i = 0; i < n_nodes; ++i)
+        out << solutions[i].norm << "\n";
+
+    // write scalar data
+    out << "SCALARS " + scalar_label + " double\nLOOKUP_TABLE default\n";
+    for (int i = 0; i < n_nodes; ++i)
+        out << solutions[i].scalar << "\n";
 }
 
 /* ==================================================================
@@ -286,7 +372,7 @@ void TetrahedronInterpolator::print_error(const Coarseners& c) const {
 
     double rms_error = 0;
     int n_points = 0;
-    for (int i = 0; i < size(); ++i)
+    for (int i = 0; i < nodes->size(); ++i)
         // look for the tetrahedral nodes whose potential == 0, i.e that are on the surface
         if ( nodes->get_marker(i) == TYPES.TETNODE && solutions[i].scalar == 0.0 &&
                 c.inside_interesting_region((*nodes)[i]) )
@@ -312,7 +398,7 @@ void TetrahedronInterpolator::print_error(const Coarseners& c) const {
 void TetrahedronInterpolator::print_statistics() const {
     if (!MODES.VERBOSE) return;
 
-    const int n_atoms = size();
+    const int n_atoms = nodes->size();
     Vec3 vec(0), rms_vec(0);
     double scalar = 0, rms_scalar = 0;
     int n_points = 0;
@@ -594,7 +680,7 @@ void TetrahedronInterpolator::precompute() {
 
 // Check with barycentric coordinates whether the point is inside the i-th tetrahedron
 bool TetrahedronInterpolator::point_in_cell(const Vec3 &point, const int i) {
-    require(i >= 0 && i < static_cast<int>(det0.size()), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < elems->size(), "Index out of bounds: " + to_string(i));
 
     // Ignore co-planar tetrahedra
     // no need to check because Tetgen guarantees non-co-planar tetrahedra
@@ -705,8 +791,6 @@ void TriangleInterpolator::calc_charges(const double E0) {
     const int n_faces = faces->size();
     const int n_nodes = nodes->size();
     const double sign = fabs(E0) / E0;
-    require(n_nodes == size(), "Mismatch between # nodes and # interpolation points: " +
-            to_string(n_nodes) + ", " + to_string(size()));
 
     vector<double> charges(n_nodes), areas(n_nodes);
 
