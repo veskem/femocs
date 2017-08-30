@@ -117,6 +117,13 @@ void LinearInterpolator<dim>::precompute_conserved(const vector<Atom>& atoms) {
         for (int j = 0; j < dim; ++j)
             bcc_sum[scell[j]] += bcc[j];
     }
+
+    // force bcc_sum in the location of unused nodes to some non-zero value
+    // to avoid nan-s in bcc[i]/bcc_sum[i]
+    for (int i = 0; i < n_nodes; ++i)
+        if (bcc_sum[i] == 0)
+            bcc_sum[i] = 1;
+
 }
 
 // Find the cell which contains the point or is the closest to it
@@ -145,13 +152,13 @@ int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_gue
                     nbors[layer].insert(nbors[layer].end(), neighbours[nbor].begin(), neighbours[nbor].end());
         }
 
-        // check whether some of the unchecked neighbouring triangles surround the point
-        for (unsigned face : nbors[layer])
-            if (face >= 0 && !cell_checked[face]) {
-                if (point_in_cell(vec_point, face))
-                    return face;
+        // check whether some of the unchecked neighbouring cells surround the point
+        for (unsigned cell : nbors[layer])
+            if (cell >= 0 && !cell_checked[cell]) {
+                if (point_in_cell(vec_point, cell))
+                    return cell;
                 else
-                    cell_checked[face] = true;
+                    cell_checked[cell] = true;
             }
     }
 
@@ -879,7 +886,7 @@ void TriangleInterpolator::calc_charges(const double E0) {
 // surrounding hexahedral nodes
 bool TriangleInterpolator::average_sharp_nodes() {
     vector<vector<unsigned int>> vorocells;
-    mesh->calc_pseudo_2D_vorocells(vorocells);
+    mesh->calc_pseudo_3D_vorocells(vorocells);
     return LinearInterpolator<3>::average_sharp_nodes(vorocells, faces->stat.edgemax);
 }
 
@@ -891,7 +898,7 @@ void TriangleInterpolator::reserve_precompute(const int n) {
     edge2.clear(); edge2.reserve(n);
     vert0.clear(); vert0.reserve(n);
     pvec.clear();  pvec.reserve(n);
-    is_parallel.clear(); is_parallel.reserve(n);
+    max_distance.clear(); max_distance.reserve(n);
 }
 
 // Precompute the data needed to calculate the distance of points from surface in the direction of triangle norms
@@ -919,6 +926,7 @@ void TriangleInterpolator::precompute() {
         edge2.push_back(e2);
         pvec.push_back(pv * i_det);
         centroids.push_back(faces->get_centroid(i));
+        max_distance.push_back(e2.norm());
 
         // calculate the neighbour list for triangles
         for (int j = i+1; j < n_faces; ++j)
@@ -938,7 +946,7 @@ array<double,3> TriangleInterpolator::get_bcc(const Vec3& point, const int face)
     double u = tvec.dotProduct(pvec[face]);
     double v = qvec.dotProduct(faces->get_norm(face));
 
-    return array<double, 3> {u, v, 1.0 - u - v};
+    return array<double, 3> {1.0 - u - v, u, v};
 }
 
 // Check whether the projection of a point is inside the triangle
@@ -954,7 +962,21 @@ bool TriangleInterpolator::point_in_cell(const Vec3& point, const int face) {
     double v = qvec.dotProduct(faces->get_norm(face));
     if (v < zero || u + v > one) return false; // Check second & third barycentric coordinate
 
-    return true;
+    return fabs(qvec.dotProduct(edge2[face])) < max_distance[face];
+}
+
+void TriangleInterpolator::print_statistics(const double Q) {
+    if (!MODES.VERBOSE) return;
+    double q_sum = 0;
+    for (int i = 0; i < size(); ++i) {
+        const double scalar = get_scalar(i);
+        if (scalar < error_field && nodes->get_marker(i) == TYPES.TETNODE)
+            q_sum += scalar;
+    }
+
+    stringstream stream; stream << fixed << setprecision(3);
+    stream << "Q / sum(" << scalar_label << ") = " << Q << " / " << q_sum << " = " << Q/q_sum;
+    write_verbose_msg(stream.str());
 }
 
 template class LinearInterpolator<3> ;

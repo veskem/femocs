@@ -348,6 +348,9 @@ int Femocs::solve_laplace(const double E0) {
     surface_interpolator.calc_charges(conf.E0);
     end_msg(t0);
 
+    const double tot_charge = conf.E0 * reader.sizes.xbox * reader.sizes.ybox * surface_interpolator.eps0;
+    surface_interpolator.print_statistics(tot_charge);
+
     surface_interpolator.write("out/result_surf_E_phi.xyz");
     surface_interpolator.write("out/result_surf_E_phi.vtk");
 
@@ -632,10 +635,10 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         write_silent_msg("Using previous solution!");
     else {
         start_msg(t0, "=== Interpolating E and phi...");
-        fields.interpolate(dense_surf, conf.use_histclean * conf.coordination_cutoff, 0, false);
+        fields.interpolate(dense_surf, conf.use_histclean * conf.coordination_cutoff, 0, true);
         end_msg(t0);
 
-        fields.write("out/fields.movie");
+        fields.write("out/fields1.movie");
 //        fields.print_statistics();
         fields.print_enhancement();
     }
@@ -645,7 +648,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
     fr.interpolate2D(dense_surf, 0, false);
     end_msg(t0);
 
-    fr.write("out/fields_vol2.xyz");
+    fr.write("out/fields2.movie");
     vacuum_mesh.faces.write("out/vacuum_tris.vtk");
 
     start_msg(t0, "=== Exporting electric field...");
@@ -709,7 +712,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
             forces.recalc_forces(fields, areas);
         end_msg(t0);
 
-        forces.write("out/forces.movie");
+        forces.write("out/forces1.movie");
         forces.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
     }
 
@@ -717,8 +720,10 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
     ForceReader fr(&surface_interpolator);
     fr.calc_forces(fields);
     end_msg(t0);
-    fr.write("out/forces_vol2.xyz");
 
+    const double total_charge = conf.E0 * reader.sizes.xbox * reader.sizes.ybox * surface_interpolator.eps0;
+    fr.print_statistics(total_charge);
+    fr.write("out/forces2.movie");
 
     start_msg(t0, "=== Exporting atomic forces...");
     forces.export_force(n_atoms, xq);

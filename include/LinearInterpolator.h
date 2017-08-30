@@ -133,10 +133,9 @@ protected:
     vector<Solution> solutions;     ///< interpolation data
     vector<vector<int>> neighbours; ///< nearest neighbours of the cells
     vector<Point3> centroids;       ///< cell centroid coordinates
+    vector<double> bcc_sum;         ///< sum of barycentric coordinates from given node
+    vector<int> atom2cell;          ///< map storing the face indices that correspond to atom sequence
 
-    vector<int> atom2cell;       ///< map storing the face indices that correspond to atom sequence
-    vector<double> bcc_sum;      ///< sum of barycentric coordinates from given node
-    
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
     const TetgenNodes* nodes;       ///< Mesh nodes
     /** Getter for cell data without nodes.
@@ -327,8 +326,11 @@ public:
     /** Calculate charges on surface faces using direct solution in the face centroids */
     void calc_charges(const double E0);
 
-private:
+    void print_statistics(const double Q);
+
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
+
+private:
 
     /** Pointer to common routines of triangles.
      * It is function instead of an object to take advantage of polymorphism. */
@@ -340,7 +342,7 @@ private:
     vector<Vec3> edge1;
     vector<Vec3> edge2;
     vector<Vec3> pvec;
-    vector<bool> is_parallel;
+    vector<double> max_distance;
 
     bool clean_nodes();
 
