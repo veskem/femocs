@@ -8,24 +8,27 @@ heating_mode = none             # method to calculate current density and temper
 transient_time = 0.05e-12       # time resolution in transient temperature solver [sec]
 transient_steps = 3             # number of iterations in transient heat equation solver
 work_function = 4.5             # work function in eV
-infile = in/mushroom1.ckx       # default file used with atom coordinates
+#infile = in/mushroom1.ckx       # default file used with atom coordinates
+infile = in/nanotip_small.xyz       # default file used with atom coordinates
 latconst = 3.61                 # lattice constant
 coord_cutoff = 3.1              # coordination analysis cut-off radius
 cluster_cutoff = 0              # cluster anal. cut-off radius; if 0, cluster anal. uses coord_cutoff instead
 surface_thickness = 4.0         # maximum distance surface atom can have from surface faces [angstrom]
 mesh_quality = 1.8              # minimum mesh quality Tetgen is allowed to make
-box_width = 6                   # minimal simulation box width [tip height]
+box_width = 0 #6                   # minimal simulation box width [tip height]
 box_height = 6                  # simulation box height [tip height]
 bulk_height = 20                # bulk substrate height [latconst]
-radius = 11.0                  # inner radius of coarsening cylinder
-coarse_factor = 0.3 6 4         # coarsening factor; bigger number gives coarser surface
+#radius = 11.0                  # inner radius of coarsening cylinder
+radius = 31.0                  # inner radius of coarsening cylinder
+#coarse_factor = 0.3 6 4         # coarsening factor; bigger number gives coarser surface
+coarse_factor = 0.3 4 2         # coarsening factor; bigger number gives coarser surface
                                 # 1st - coarsening factor for atoms
                                 # 2nd - minimum distance between atoms in nanotip below apex [0.25*latconst]
                                 # 3rd - minimum distance between atoms in nanotip apex [0.25*latconst]
 smooth_factor = 1.0             # surface smoothing factor; bigger number gives smoother surface
 charge_smooth_factor = 100.0    # charge smoothing factor; bigger number gives smoother charges
 smooth_steps = 3                # number of surface mesh smoothing iterations
-smooth_algorithm = fujiwara     # surface mesh smoother algorithm; laplace, fujiwara or cnormal
+smooth_algorithm = none         # surface mesh smoother algorithm; laplace, fujiwara or cnormal
 distance_tol = 0.16             # minimum distance between atoms from previous and current run to recalculate solution
 n_writefile = 1                 # minimum number of time steps between writing file; 0 turns writing off
 femocs_verbose_mode = verbose   # mute, silent or verbose

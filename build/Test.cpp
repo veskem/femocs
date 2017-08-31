@@ -124,7 +124,7 @@ void write_moltenbig(ofstream &file) {
 }
 
 void write_generate(ofstream &file) {
-    file << "infile = 0"               << endl;
+    file << "infile = in/nanotip_small.xyz" << endl;
     file << "coarse_factor = 0.2 1 1"  << endl;
     file << "radius = 31.0"            << endl;
     file << "box_width = 20.0"         << endl;
@@ -268,16 +268,6 @@ int main(int argc, char **argv) {
     success = femocs.parse_command(cmd1, infile);
     print_progress("\n> reading " + cmd1, infile != "");
 
-    if (mode == "generate") {
-        if (argc >= 3)
-            success += femocs.generate_nanotip(0, 30, atof(argv[2]));
-        else
-            success += femocs.generate_nanotip(0, 30);
-        success += femocs.run(-1, "");
-        print_progress("\n> full run of Femocs", success == 0);
-        return 0;
-    }
-
     // determine number of iterations
     int n_iterations = 1;
     if (argc >= 3) {
@@ -304,7 +294,15 @@ int main(int argc, char **argv) {
     for (int i = 1; i <= n_iterations; ++i) {
         if (n_iterations > 1) cout << "\n> iteration " << i << endl;
 
-        success += femocs.import_atoms(infile);
+        if (mode == "generate") {
+            if (argc >= 3)
+                success += femocs.generate_nanotip(0, 30, atof(argv[2]));
+            else
+                success += femocs.generate_nanotip(0, 30);
+        } else {
+            success += femocs.import_atoms(infile);
+        }
+
         success += femocs.run(-0.2, "");
         success += femocs.export_elfield(0, Ex, Ey, Ez, En);
         success += femocs.export_temperature(n_atoms, T);
