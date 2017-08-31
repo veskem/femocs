@@ -394,7 +394,7 @@ void FieldReader::transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solv
     // export electric field norms to the solver
     vector<double> elfields(n_nodes);
     for (int i = 0; i < n_nodes; ++i)
-        elfields[i] = get_elfield_norm(i);
+        elfields[i] = 10.0 * get_elfield_norm(i);
     ch_solver->set_electric_field_bc(elfields);
 }
 
@@ -418,7 +418,7 @@ void FieldReader::transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver, const 
     // export electric field norms to the solver
     vector<double> elfields(n_nodes);
     for (int i = 0; i < n_nodes; ++i)
-        elfields[i] = get_elfield_norm(i);
+        elfields[i] = 10.0 * get_elfield_norm(i);
     ch_solver.set_electric_field_bc(elfields);
 }
 
