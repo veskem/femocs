@@ -36,9 +36,11 @@ double AtomReader::calc_rms_distance(const double eps) {
         return DBL_MAX;
     
     double sum = 0;
-    for (size_t i = 0; i < n_atoms; ++i)
-        sum += get_point(i).distance2(previous_points[i]);
-    
+    for (size_t i = 0; i < n_atoms; ++i) {
+        if (previous_types[i] != TYPES.CLUSTER && previous_types[i] != TYPES.EVAPORATED)
+            sum += get_point(i).distance2(previous_points[i]);
+    }
+
     rms_distance = sqrt(sum / n_atoms);
     return rms_distance;
 }
@@ -47,11 +49,15 @@ void AtomReader::save_current_run_points(const double eps) {
     if (eps <= 0) return;
     const int n_atoms = size();
 
-    if (n_atoms != (int)previous_points.size())
+    if (n_atoms != (int)previous_points.size()) {
         previous_points.resize(n_atoms);
+        previous_types.resize(n_atoms);
+    }
 
-    for (int i = 0; i < n_atoms; ++i)
+    for (int i = 0; i < n_atoms; ++i) {
         previous_points[i] = get_point(i);
+        previous_types[i] = atoms[i].marker;
+    }
 }
 
 // Calculate list of close neighbours using Parcas diagonal neighbour list
