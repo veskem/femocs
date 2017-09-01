@@ -17,7 +17,6 @@ namespace femocs {
  *  ===================== LinearInterpolator =======================
  * ================================================================== */
 
-
 // Interpolate both scalar and vector data inside or near the cell
 template<int dim>
 Solution LinearInterpolator<dim>::interp_solution(const Point3 &point, const int cell) const {
@@ -72,58 +71,6 @@ double LinearInterpolator<dim>::interp_scalar(const Point3 &point, const int cel
         scalar_i += solutions[scell[i]].scalar * bcc[i];
 
     return scalar_i;
-}
-
-// Interpolate scalar value inside or near cell
-//  whose total sum must remain conserved after interpolations
-template<int dim>
-double LinearInterpolator<dim>::interp_conserved(const Point3 &point, const int point_indx) const {
-    require(point_indx >= 0 && point_indx < atom2cell.size(),
-            "Index out of bounds: " + to_string(point_indx));
-
-    const int cell = atom2cell[point_indx];
-
-    // calculate barycentric coordinates
-    array<double,dim> bcc = get_bcc(Vec3(point), cell);
-    SimpleCell<dim> scell = (*cells())[cell];
-
-    // perform interpolation
-    double scalar_i(0.0);
-    int i = 0;
-    for (int node : scell)
-        scalar_i += solutions[node].scalar * bcc[i++] / bcc_sum[node];
-
-    return scalar_i;
-}
-
-template<int dim>
-void LinearInterpolator<dim>::precompute_conserved(const vector<Atom>& atoms) {
-    const int n_atoms = atoms.size();
-    const int n_nodes = nodes->size();
-
-    atom2cell = vector<int>(n_atoms);
-    bcc_sum = vector<double>(n_nodes);
-
-    int cell = 0;
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 point = atoms[i].point;
-        // Find the cell that matches best to the point
-        cell = abs(locate_cell(point, cell));
-
-        SimpleCell<dim> scell = (*cells())[cell];
-        array<double,dim> bcc = get_bcc(Vec3(point), cell);
-
-        atom2cell[i] = cell;
-        for (int j = 0; j < dim; ++j)
-            bcc_sum[scell[j]] += bcc[j];
-    }
-
-    // force bcc_sum in the location of unused nodes to some non-zero value
-    // to avoid nan-s in bcc[i]/bcc_sum[i]
-    for (int i = 0; i < n_nodes; ++i)
-        if (bcc_sum[i] == 0)
-            bcc_sum[i] = 1;
-
 }
 
 // Find the cell which contains the point or is the closest to it
@@ -191,6 +138,7 @@ int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_gue
 template<int dim>
 bool LinearInterpolator<dim>::average_sharp_nodes(const vector<vector<unsigned>>& vorocells,
         const double edgemax) {
+
     const double decay_factor = -1.0 / edgemax;
 
     // loop through the tetrahedral nodes
@@ -482,10 +430,8 @@ void TetrahedronInterpolator::print_statistics() const {
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
 bool TetrahedronInterpolator::average_sharp_nodes() {
-//    return 0;
     vector<vector<unsigned int>> vorocells;
     mesh->calc_pseudo_3D_vorocells(vorocells);
-
     return LinearInterpolator<4>::average_sharp_nodes(vorocells, elems->stat.edgemax);
 }
 
@@ -838,6 +784,52 @@ bool TriangleInterpolator::extract_solution(fch::Laplace<3>* fem) {
     return clean_nodes();
 }
 
+// Interpolate scalar value inside or near cell
+//  whose total sum must remain conserved after interpolations
+void TriangleInterpolator::interp_conserved(vector<double>& scalars, const vector<Atom>& atoms) {
+    const int n_atoms = atoms.size();
+    const int n_nodes = nodes->size();
+
+    vector<double> bcc_sum(n_nodes); // sum of barycentric coordinates from given node
+    vector<int> atom2cell(n_atoms);  // map storing the face indices that correspond to atom sequence
+    scalars = vector<double>(n_atoms);
+    array<double,3> bcc;
+
+    // calculate the sum of all the weights in all the nodes
+    // it is neccesary to ensure that the total sum of a interpolated scalar does not change
+    int cell = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point = atoms[i].point;
+        // Find the cell that matches best to the point
+        cell = abs(locate_cell(point, cell));
+        // calculate barycentric coordinates
+        bcc = get_bcc(Vec3(point), cell);
+        // store the cell to make next step faster
+        atom2cell[i] = cell;
+        // append barycentric weight to the sum of all weights from given node
+        int j = 0;
+        for (int node : (*faces)[cell])
+            bcc_sum[node] += bcc[j++];
+    }
+
+    // force bcc_sum in the location of unused nodes to some non-zero value
+    // to avoid nan-s in bcc[i]/bcc_sum[i]
+    for (int i = 0; i < n_nodes; ++i)
+        if (bcc_sum[i] == 0)
+            bcc_sum[i] = 1;
+
+    // perform actual interpolation for all the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        int cell = atom2cell[i];
+        // calculate barycentric coordinates
+        bcc = get_bcc(Vec3(atoms[i].point), cell);
+        // perform interpolation
+        int j = 0;
+        for (int node : (*faces)[cell])
+            scalars[i] += solutions[node].scalar * bcc[j++] / bcc_sum[node];
+    }
+}
+
 // Calculate charges on surface faces using direct solution in the face centroids
 void TriangleInterpolator::calc_charges(const double E0) {
     const int n_quads_per_triangle = 3;
@@ -857,6 +849,18 @@ void TriangleInterpolator::calc_charges(const double E0) {
             }
     }
 
+    // find the nodes on the surface perimeter that are each-other's periodic images
+    vector<int> periodic_nodes(n_nodes, -1);
+    vector<bool> node_on_edge(n_nodes);
+    for (SimpleEdge edge : mesh->edges)
+        for (int node : edge)
+            node_on_edge[node] = true;
+
+    for (int i = 0; i < vector_sum(node_on_edge); i += 2) {
+        periodic_nodes[i] = i+1;
+        periodic_nodes[i+1] = i;
+    }
+
     // Calculate the charges and areas in the centroids and vertices of triangles
     for (int face = 0; face < n_faces; ++face) {
         int centroid_indx = tri2centroid[face];
@@ -865,10 +869,18 @@ void TriangleInterpolator::calc_charges(const double E0) {
         solutions[centroid_indx].norm = area;
         solutions[centroid_indx].scalar = charge;
 
+        charge *= 1.0 / n_quads_per_triangle;
+        area *= 1.0 / n_quads_per_triangle;
+
         // the charge on triangular node is the sum of the charges of quadrangules that surround the node
         for (int node : (*faces)[face]) {
-          charges[node] += charge / n_quads_per_triangle;
-          areas[node] += area / n_quads_per_triangle;
+            const int periodic_node = periodic_nodes[node];
+            charges[node] += charge;
+            areas[node] += area;
+            if (periodic_node >= 0) {
+                charges[periodic_node] += charge;
+                areas[periodic_node] += area;
+            }
         }
     }
 
@@ -879,7 +891,6 @@ void TriangleInterpolator::calc_charges(const double E0) {
             solutions[node].scalar = charges[node];
         }
     }
-
 }
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
@@ -887,7 +898,7 @@ void TriangleInterpolator::calc_charges(const double E0) {
 bool TriangleInterpolator::average_sharp_nodes() {
     vector<vector<unsigned int>> vorocells;
     mesh->calc_pseudo_3D_vorocells(vorocells);
-    return LinearInterpolator<3>::average_sharp_nodes(vorocells, faces->stat.edgemax);
+    return LinearInterpolator<3>::average_sharp_nodes(vorocells, mesh->faces.stat.edgemax);
 }
 
 // Reserve memory for precompute data

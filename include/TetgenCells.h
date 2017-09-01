@@ -378,12 +378,27 @@ public:
     /** Copy the nodes from write buffer to read buffer */
     void recalc();
 
+    /** Delete the edges that are not on the perimeter of surface */
+    void clean_sides(const Medium::Sizes& stat);
+
+    /** Calculate statistics about edges */
+    void calc_statistics();
+
+    /** Struct holding statistics about edges */
+    struct Stat {
+        double edgemin;    //!< Minimum edge length
+        double edgemax;    //!< Maximum edge length
+    } stat;
+
 private:
     /** Return the line type in vtk format */
     int get_cell_type() const { return 3; }
 
     /** Return i-th edge */
     SimpleCell<2> get_cell(const int i) const;
+
+    /** Initialize statistics about edges */
+    void init_statistics();
 };
 
 /** Class for holding Tetgen triangular faces */
@@ -404,7 +419,7 @@ public:
     void recalc();
     
     /** Delete the faces on the sides of simulation cell */
-    void clean_sides(const Medium::Sizes& stat, const double latconst);
+    void clean_sides(const Medium::Sizes& stat);
 
     /** Return the normal of i-th triangle */
     Vec3 get_norm(const int i) const;

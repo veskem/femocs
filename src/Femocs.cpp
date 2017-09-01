@@ -263,11 +263,9 @@ int Femocs::generate_meshes() {
 
     start_msg(t0, "=== Separating vacuum & bulk meshes...");
     big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQB");
-    bulk_mesh.faces.clean_sides(reader.sizes, conf.latconst);
-    vacuum_mesh.faces.clean_sides(reader.sizes, conf.latconst);
+    bulk_mesh.clean_sides(reader.sizes);
+    vacuum_mesh.clean_sides(reader.sizes);
     end_msg(t0);
-
-    bulk_mesh.faces.write("out/tetmesh_faces.vtk");
 
     if (conf.smooth_algorithm != "none" && conf.smooth_steps > 0) {
         start_msg(t0, "=== Smoothing triangles...");
@@ -282,6 +280,7 @@ int Femocs::generate_meshes() {
     end_msg(t0);
 
     bulk_mesh.nodes.write("out/bulk_nodes.xyz");
+    bulk_mesh.edges.write("out/bulk_edges.vtk");
     bulk_mesh.faces.write("out/bulk_tris.vtk");
     bulk_mesh.quads.write("out/bulk_quads.vtk");
     bulk_mesh.elems.write("out/bulk_tets.vtk");
@@ -335,24 +334,14 @@ int Femocs::solve_laplace(const double E0) {
 
     start_msg(t0, "=== Extracting E and phi...");
     fail = vacuum_interpolator.extract_solution(&laplace_solver);
-    end_msg(t0);
-
-    vacuum_interpolator.write("out/result_E_phi.xyz");
-    vacuum_interpolator.write("out/result_E_phi.vtk");
-//    vacuum_interpolator.print_statistics();
-    vacuum_interpolator.print_enhancement();
-    vacuum_interpolator.print_error(coarseners);
-
-    start_msg(t0, "=== Calculating charge on triangles...");
     surface_interpolator.extract_solution(&laplace_solver);
-    surface_interpolator.calc_charges(conf.E0);
     end_msg(t0);
 
-    const double tot_charge = conf.E0 * reader.sizes.xbox * reader.sizes.ybox * surface_interpolator.eps0;
-    surface_interpolator.print_statistics(tot_charge);
-
-    surface_interpolator.write("out/result_surf_E_phi.xyz");
-    surface_interpolator.write("out/result_surf_E_phi.vtk");
+    vacuum_interpolator.write("out/result_E_phi_vacuum.xyz");
+    vacuum_interpolator.write("out/result_E_phi_vacuum.vtk");
+    surface_interpolator.write("out/result_E_phi_surface.xyz");
+    surface_interpolator.write("out/result_E_phi_surface.vtk");
+    vacuum_interpolator.print_enhancement();
 
     return fail;
 }
@@ -635,21 +624,12 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         write_silent_msg("Using previous solution!");
     else {
         start_msg(t0, "=== Interpolating E and phi...");
-        fields.interpolate(dense_surf, conf.use_histclean * conf.coordination_cutoff, 0, true);
+        fields.interpolate2D(dense_surf, 0, false);
         end_msg(t0);
 
-        fields.write("out/fields1.movie");
-//        fields.print_statistics();
+        fields.write("out/fields.movie");
         fields.print_enhancement();
     }
-
-    start_msg(t0, "=== Interpolating E and phi vol2...");
-    FieldReader fr(&surface_interpolator);
-    fr.interpolate2D(dense_surf, 0, false);
-    end_msg(t0);
-
-    fr.write("out/fields2.movie");
-    vacuum_mesh.faces.write("out/vacuum_tris.vtk");
 
     start_msg(t0, "=== Exporting electric field...");
     fields.export_solution(n_atoms, Ex, Ey, Ez, Enorm);
@@ -712,23 +692,30 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
             forces.recalc_forces(fields, areas);
         end_msg(t0);
 
-        forces.write("out/forces1.movie");
+        forces.write("out/forces.movie");
         forces.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
     }
-
-    start_msg(t0, "=== Calculating charges and forces vol2...");
-    ForceReader fr(&surface_interpolator);
-    fr.calc_forces(fields);
-    end_msg(t0);
-
-    const double total_charge = conf.E0 * reader.sizes.xbox * reader.sizes.ybox * surface_interpolator.eps0;
-    fr.print_statistics(total_charge);
-    fr.write("out/forces2.movie");
 
     start_msg(t0, "=== Exporting atomic forces...");
     forces.export_force(n_atoms, xq);
     end_msg(t0);
 
+    return 0;
+}
+
+// linearly interpolate electric field at given points
+int Femocs::interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
+    if (n_points <= 0) return 0;
+    check_return(vacuum_interpolator.size() == 0, "No solution to export!");
+
+    FieldReader fr(&surface_interpolator);
+    start_msg(t0, "=== Interpolating & exporting elfield...");
+    fr.interpolate2D(n_points, x, y, z, 1, false);
+    fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
+    end_msg(t0);
+
+    fr.write("out/interpolation_E.movie");
     return 0;
 }
 

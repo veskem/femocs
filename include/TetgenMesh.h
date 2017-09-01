@@ -73,13 +73,15 @@ public:
     /** Delete the data of previously stored mesh and initialise a new one */
     void clear();
 
-    /** Objects holding operations for accessing cell data */
-    TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
-    TetgenEdges edges = TetgenEdges(&tetIOout);
-    TetgenFaces faces = TetgenFaces(&tetIOout);
-    TetgenElements elems = TetgenElements(&tetIOout, &tetIOin);
-    Quadrangles quads = Quadrangles(&tetIOout);
-    Hexahedra hexahedra = Hexahedra(&tetIOout);
+    /** Delete disturbing edges and faces on and near the surface perimeter */
+    void clean_sides(const Medium::Sizes& sizes);
+
+    TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);   ///< data & operations for mesh nodes
+    TetgenEdges edges = TetgenEdges(&tetIOout);             ///< data & operations for mesh edges
+    TetgenFaces faces = TetgenFaces(&tetIOout);             ///< data & operations for mesh triangles
+    TetgenElements elems = TetgenElements(&tetIOout, &tetIOin); ///< data & operations for mesh tetrahedra
+    Quadrangles quads = Quadrangles(&tetIOout);             ///< data & operations for mesh quadrangles
+    Hexahedra hexahedra = Hexahedra(&tetIOout);             ///< data & operations for mesh hexahedra
 
     static constexpr int n_coordinates = 3;     ///< Number of coordinates
     static constexpr int n_edges_per_face = 3;  ///< Number of edges on a triangle

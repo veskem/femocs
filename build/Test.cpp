@@ -51,7 +51,7 @@ void write_rectangle(ofstream &file) {
 }
 
 void write_mdsmall(ofstream &file) {
-    file << "infile = in//nanotip_small.xyz" << endl;
+    file << "infile = in/nanotip_small.xyz" << endl;
     file << "coarse_factor = 0.3 4 2"    << endl;
     file << "radius = 16.0"              << endl;
     file << "box_width = 4.0"            << endl;
@@ -127,7 +127,7 @@ void write_generate(ofstream &file) {
     file << "infile = in/nanotip_small.xyz" << endl;
     file << "coarse_factor = 0.2 1 1"  << endl;
     file << "radius = 31.0"            << endl;
-    file << "box_width = 20.0"         << endl;
+    file << "box_width = 10.0"         << endl;
     file << "box_height = 10.0"        << endl;
     file << "surface_cleaner = none"   << endl;
 }

@@ -195,6 +195,12 @@ TetgenMesh::TetgenMesh() {
     tetIOout.initialize();
 }
 
+// Delete disturbing edges and faces on and near the surface perimeter
+void TetgenMesh::clean_sides(const Medium::Sizes& sizes) {
+    edges.clean_sides(sizes);
+    faces.clean_sides(sizes);
+}
+
 // Delete the data of previously stored mesh and initialise a new one
 void TetgenMesh::clear() {
     tetIOin.deinitialize();

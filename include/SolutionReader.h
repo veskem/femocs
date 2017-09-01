@@ -25,10 +25,9 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader constructors */
     SolutionReader();
-    SolutionReader(TriangleInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
     SolutionReader(TetrahedronInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
-    /** Interpolate solution on the system atoms
+    /** Interpolate solution on the system atoms using tetrahedral interpolator
      * @param r_cut     smoothing region cut-off radius; 0 or less turns smoothing off
      * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
      * @param srt       sort atoms spatially */
@@ -69,7 +68,6 @@ protected:
     const string scalar_label;    ///< label for scalar data
     double empty_val;             ///< constant values returned when interpolator is empty
 
-    TriangleInterpolator* interpolator3;     ///< data needed for interpolating on surface
     TetrahedronInterpolator* interpolator4;  ///< data needed for interpolating on space
     vector<Solution> interpolation;          ///< interpolated data
 
@@ -103,6 +101,11 @@ public:
     FieldReader(TetrahedronInterpolator* ip);
     FieldReader(TriangleInterpolator* ip);
 
+    /** Interpolate solution on the system atoms using triangular interpolator
+     * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
+     * @param srt       sort atoms spatially */
+    void calc_interpolation2D(const int component, const bool srt);
+
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
      * @param medium    atoms to be interpolated
      * @param r_cut     smoothing region cut off radius; 0 or less turns smoothing off
@@ -114,6 +117,17 @@ public:
     /** Interpolate solution on points using the solution on tetrahedral mesh nodes */
     void interpolate(const int n_points, const double* x, const double* y, const double* z,
             const double r_cut, const int component=0, const bool srt=true);
+
+    /** Interpolate solution on medium atoms using the solution on triangular mesh nodes
+     * @param medium    atoms to be interpolated
+     * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
+     * @param srt       sort input atoms spatially
+     */
+    void interpolate2D(const Medium &medium, const int component, const bool srt);
+
+    /** Interpolate solution on points using the solution on triangular mesh nodes */
+    void interpolate2D(const int n_points, const double* x, const double* y, const double* z,
+            const int component=0, const bool srt=true);
 
     /** Calculate the electric field for the stationary current and temperature solver */
     void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const bool srt=true);
@@ -144,20 +158,17 @@ public:
     /** Set parameters to calculate analytical solution */
     void set_analyt(const double E0, const double radius1, const double radius2=-1);
 
-    void interpolate2D(const Medium &medium, const int component, const bool srt);
-
 private:
     double radius1;  ///< Minor semi-axis of ellipse
     double radius2;  ///< Major semi-axis of ellipse
     double E0;       ///< Long-range electric field strength
+    TriangleInterpolator* interpolator3;     ///< data needed for interpolating on surface
 
     /** Get calculated field enhancement */
     double get_enhancement() const;
 
     /** Get analytical field enhancement for hemi-ellipsoid on infinite surface */
     double get_analyt_enhancement() const;
-
-    void calc_interpolation2D(const int component, const bool srt);
 };
 
 /** Class to interpolate current densities and temperatures */
@@ -237,7 +248,6 @@ class ForceReader: public SolutionReader {
 public:
     /** ChargeReader constructors */
     ForceReader();
-    ForceReader(TriangleInterpolator* ip);
     ForceReader(TetrahedronInterpolator* ip);
 
     /** Replace the charge and force on the nanotip nodes with the one found with Voronoi cells */
@@ -247,7 +257,7 @@ public:
     void calc_forces(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);
 
-    void calc_forces(const FieldReader &fields);
+    void calc_forces(const FieldReader &fields, TriangleInterpolator& ti);
 
     /** Export the induced charge and force on imported atoms
      * @param n_atoms  number of first atoms field is calculated
