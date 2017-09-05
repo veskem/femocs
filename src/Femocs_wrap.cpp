@@ -17,6 +17,26 @@ void femocs_run(FEMOCS* femocs, int* retval, double E_field, const char* message
     retval[0] = femocs->run(E_field, string(message));
 }
 
+void femocs_reinit(FEMOCS* femocs, int* retval) {
+    retval[0] = femocs->reinit();
+}
+
+void femocs_finalize(FEMOCS* femocs, int* retval) {
+    retval[0] = femocs->finalize();
+}
+
+void femocs_generate_meshes(FEMOCS* femocs, int* retval) {
+    retval[0] = femocs->generate_meshes();
+}
+
+void femocs_solve_laplace(FEMOCS* femocs, int* retval, double E_field) {
+    retval[0] = femocs->solve_laplace(E_field);
+}
+
+void femocs_solve_heat(FEMOCS* femocs, int* retval, double T_ambient) {
+    retval[0] = femocs->solve_heat(T_ambient);
+}
+
 void femocs_import_file(FEMOCS* femocs, int* retval, const char* s) {
     retval[0] = femocs->import_atoms(string(s));
 }
@@ -48,6 +68,11 @@ void femocs_export_charge_and_force(FEMOCS* femocs, int* retval, int n_atoms, do
 void femocs_interpolate_elfield(FEMOCS* femocs, int* retval, int n_points, double* x, double* y, double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     retval[0] = femocs->interpolate_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
+}
+
+void femocs_interpolate_surface_elfield(FEMOCS* femocs, int* retval, int n_points, double* x, double* y,
+        double* z, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
+    retval[0] = femocs->interpolate_surface_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
 }
 
 void femocs_interpolate_phi(FEMOCS* femocs, int* retval, int n_points, double* x, double* y, double* z, double* phi, int* flag) {

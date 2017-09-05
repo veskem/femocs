@@ -27,6 +27,43 @@ module libfemocs
             real(c_double), intent(in), value :: E_field
             character(len=1, kind=C_CHAR), intent(in) :: message(*)
         end subroutine
+
+        subroutine femocs_reinit_c(femocs, retval) bind(C, name="femocs_reinit")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
+        end subroutine
+
+        subroutine femocs_finalize_c(femocs, retval) bind(C, name="femocs_finalize")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
+        end subroutine
+
+        subroutine femocs_generate_meshes_c(femocs, retval) bind(C, name="femocs_generate_meshes")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
+        end subroutine
+
+        subroutine femocs_solve_laplace_c(femocs, retval, E_field) bind(C, name="femocs_solve_laplace")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
+            real(c_double), intent(in), value :: E_field
+        end subroutine
+
+        subroutine femocs_solve_heat_c(femocs, retval, T_ambient) bind(C, name="femocs_solve_heat")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
+            real(c_double), intent(in), value :: T_ambient
+        end subroutine
        
         subroutine femocs_import_atoms_c(femocs, retval, n_atoms, x, y, z, types) bind(C, name="femocs_import_atoms")
             use iso_c_binding
@@ -115,6 +152,23 @@ module libfemocs
             integer(c_int) :: flag(*)
         end subroutine
         
+        subroutine femocs_interpolate_surface_elfield_c(femocs,retval,n_points,x,y,z,Ex,Ey,Ez,Enorm,flag) &
+                                                 bind(C, name="femocs_interpolate_surface_elfield")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
+            integer(c_int), value :: n_points
+            real(c_double) :: x(*)
+            real(c_double) :: y(*)
+            real(c_double) :: z(*)
+            real(c_double) :: Ex(*)
+            real(c_double) :: Ey(*)
+            real(c_double) :: Ez(*)
+            real(c_double) :: Enorm(*)
+            integer(c_int) :: flag(*)
+        end subroutine
+
         subroutine femocs_interpolate_phi_c(femocs, retval, n_points, x, y, z, phi, flag) &
                                                  bind(C, name="femocs_interpolate_phi")
             use iso_c_binding
@@ -173,6 +227,11 @@ module libfemocs
         procedure :: delete => delete_femocs_polymorph
         ! Function members
         procedure :: run => femocs_run
+        procedure :: reinit => femocs_reinit
+        procedure :: finalize => femocs_finalize
+        procedure :: generate_meshes => femocs_generate_meshes
+        procedure :: solve_laplace => femocs_solve_laplace
+        procedure :: solve_heat => femocs_solve_heat
         procedure :: import_atoms => femocs_import_atoms
         procedure :: import_parcas => femocs_import_parcas
         procedure :: import_file => femocs_import_file
@@ -181,6 +240,7 @@ module libfemocs
         procedure :: export_temperature => femocs_export_temperature
         procedure :: export_charge_and_force => femocs_export_charge_and_force
         procedure :: interpolate_elfield => femocs_interpolate_elfield
+        procedure :: interpolate_surface_elfield => femocs_interpolate_surface_elfield
         procedure :: interpolate_phi => femocs_interpolate_phi
         procedure :: parse_int => femocs_parse_int
         procedure :: parse_double => femocs_parse_double
@@ -244,6 +304,38 @@ module libfemocs
         call femocs_run_c(this%ptr, retval, E_field, c_str)
     end subroutine
     
+    subroutine femocs_reinit(this, retval)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval
+    end subroutine
+
+    subroutine femocs_finalize(this, retval)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval
+    end subroutine
+
+    subroutine femocs_generate_meshes(this, retval)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval
+    end subroutine
+
+    subroutine femocs_solve_laplace(this, retval, E_field)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval
+        real(c_double), intent(in) :: E_field
+    end subroutine
+
+    subroutine femocs_solve_heat(this, retval, T_ambient)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval
+        real(c_double), intent(in) :: T_ambient
+    end subroutine
+
     subroutine femocs_import_atoms(this, retval, n_atoms, x, y, z, types)
         implicit none
         class(femocs), intent(in) :: this
@@ -342,6 +434,22 @@ module libfemocs
         call femocs_interpolate_elfield_c(this%ptr, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag)
     end subroutine
     
+    subroutine femocs_interpolate_surface_elfield(this,retval,n_points,x,y,z,Ex,Ey,Ez,Enorm,flag)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval
+        integer(c_int) :: n_points
+        real(c_double) :: x(*)
+        real(c_double) :: y(*)
+        real(c_double) :: z(*)
+        real(c_double) :: Ex(*)
+        real(c_double) :: Ey(*)
+        real(c_double) :: Ez(*)
+        real(c_double) :: Enorm(*)
+        integer(c_int) :: flag(*)
+        call femocs_interpolate_surface_elfield_c(this%ptr,retval,n_points,x,y,z,Ex,Ey,Ez,Enorm,flag)
+    end subroutine
+
     subroutine femocs_interpolate_phi(this, retval, n_points, x, y, z, phi, flag)
         implicit none
         class(femocs), intent(in) :: this

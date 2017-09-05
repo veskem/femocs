@@ -133,14 +133,11 @@ int Femocs::run(const double elfield, const string &message) {
         check_return(true, "Solving heat & continuity equation failed!");
     }
 
-    start_msg(t0, "=== Saving atom positions...");
-    reader.save_current_run_points(conf.distance_tol);
-    end_msg(t0);
+    finalize();
 
     stream.str("");
     stream << "Total execution time " << omp_get_wtime() - tstart;
     write_silent_msg(stream.str());
-    skip_calculations = false;
 
     return 0;
 }
@@ -162,6 +159,15 @@ int Femocs::reinit() {
 
     prev_skip_calculations = skip_calculations;
     return skip_calculations;
+}
+
+// Store the imported atom coordinates and set flag that enables exporters
+int Femocs::finalize() {
+    start_msg(t0, "=== Saving atom positions...");
+    reader.save_current_run_points(conf.distance_tol);
+    end_msg(t0);
+    skip_calculations = false;
+    return 0;
 }
 
 // Generate boundary nodes for mesh

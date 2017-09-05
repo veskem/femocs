@@ -180,37 +180,42 @@ public:
      */
     int generate_nanotip(const double height, const double radius=-1, const double resolution=-1);
 
-    /** Generate bulk and vacuum meshes */
+    /** Generate bulk and vacuum meshes using the imported atomistic data */
     int generate_meshes();
 
-    /** Solve Laplace equation */
+    /** Solve Laplace equation on vacuum mesh */
     int solve_laplace(const double E0);
 
-    /** Pick a method to solve heat and continuity equations */
+    /** Pick a method to solve heat and continuity equations on bulk mesh */
     int solve_heat(const double T_ambient);
+
+    /** Determine whether atoms have moved significantly and whether to enable file writing */
+    int reinit();
+
+    /** Store the imported atom coordinates and set the flag that enables exporters */
+    int finalize();
 
 private:
     bool skip_calculations, fail;
     double t0;
-    int timestep;           ///< Counter to measure how many times Femocs has been called
-    vector<Vec3> areas;     ///< Surface areas of Voronoi cells that is exposed to vacuum
+    int timestep;           ///< counter to measure how many times Femocs has been called
+    vector<Vec3> areas;     ///< surface areas of Voronoi cells that is exposed to vacuum
     
-    Coarseners coarseners;
-
-    AtomReader reader;      ///< all the imported atoms
     Config conf;            ///< configuration parameters
+    Coarseners coarseners;  ///< surface coarsening data & routines
+    AtomReader reader;      ///< all the imported atoms
     Media dense_surf;       ///< non-coarsened surface atoms
     Media extended_surf;    ///< atoms added for the surface atoms
 
     TetgenMesh bulk_mesh;    ///< FEM mesh in bulk material
     TetgenMesh vacuum_mesh;  ///< FEM mesh in vacuum
 
-    /// data for interpolating results in bulk
-    TetrahedronInterpolator bulk_interpolator = TetrahedronInterpolator(&bulk_mesh);
-    /// data for interpolating results in vacuum
-    TetrahedronInterpolator vacuum_interpolator = TetrahedronInterpolator(&vacuum_mesh);
     /// data for interpolating results on vacuum-material boundary
     TriangleInterpolator surface_interpolator = TriangleInterpolator(&vacuum_mesh);
+    /// data for interpolating results in vacuum
+    TetrahedronInterpolator vacuum_interpolator = TetrahedronInterpolator(&vacuum_mesh);
+    /// data for interpolating results in bulk
+    TetrahedronInterpolator bulk_interpolator = TetrahedronInterpolator(&bulk_mesh);
 
     HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
     FieldReader fields = FieldReader(&surface_interpolator);    ///< interpolated fields and potentials
@@ -223,9 +228,6 @@ private:
     fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous steady-state currents and heating solver
     fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
     fch::Laplace<3> laplace_solver;                       ///< Laplace equation solver
-
-    /** Determine whether atoms have moved significantly and whether to enable file writing */
-    int reinit();
 
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);
