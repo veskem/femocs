@@ -223,24 +223,31 @@ public:
     ChargeReader();
     ChargeReader(TetrahedronInterpolator* ip);
 
+    /** Calculate charge on the triangular faces using interpolated solution on the face centroid */
     void calc_interpolated_charges(const TetgenMesh& mesh, const double E0);
 
+    /** Calculate charge on the triangular faces using direct solution on the face centroid */
     void calc_charges(const TetgenMesh& mesh, const double E0);
 
+    /** Remove the atoms and their solutions outside the MD box */
     void clean(const Medium::Sizes& sizes, const double latconst);
 
     /** Check whether charge is conserved within specified limits */
     bool charge_conserved(const double Q, const double eps) const;
 
+    /** Get electric field on the centroid of i-th triangle */
     Vec3 get_elfield(const int i) const;
 
+    /** Get area of i-th triangle */
     double get_area(const int i) const;
 
+    /** Get charge of i-th triangle */
     double get_charge(const int i) const;
 
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
+
 private:
-    void get_elfields(const TetgenMesh& mesh, vector<Vec3> &elfields);
+
 };
 
 /** Class to calculate forces from charges and electric fields */
