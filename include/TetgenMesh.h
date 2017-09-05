@@ -37,8 +37,8 @@ public:
     /** Function to generate mesh from surface, bulk and vacuum atoms */
     bool generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd);
 
-    /** Separate tetrahedra into hexahedra by adding node to the centroid of the
-     * tetrahedron edges, nodes and tetrahedron itself */
+    /** Separate tetrahedra & triangles into hexahedra & quadrangles
+     * by adding node to the centroid of the tetrahedron edges, faces and tetrahedron itself */
     bool generate_hexahedra();
 
     /** Generate additional data that is needed to mark mesh */
@@ -50,12 +50,13 @@ public:
     /** Separate generated mesh into bulk and vacuum meshes */
     bool separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd);
 
-    /** Group hexahedra around central tetrahedral node */
-    void group_hexahedra();
-
-    /** Generate list of nodes that surround the tetrahedral nodes. The resulting cells
+    /** Generate list of hexahedral nodes that surround the tetrahedral nodes. The resulting cells
      * resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells. */
-    void calc_pseudo_vorocells(vector<vector<unsigned>>& cells) const;
+    void calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells) const;
+
+    /** Generate list of quadrangle nodes that surround the triangle nodes. The resulting cells
+     * resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells. */
+    void calc_pseudo_2D_vorocells(vector<vector<unsigned>>& cells) const;
 
     /** Use Tetgen built-in functions to write mesh elements data into vtk file */
     bool write(const string& file_name);
@@ -72,13 +73,15 @@ public:
     /** Delete the data of previously stored mesh and initialise a new one */
     void clear();
 
-    /** Objects holding operations for accessing cell data */
-    TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);
-    TetgenEdges edges = TetgenEdges(&tetIOout);
-    TetgenFaces faces = TetgenFaces(&tetIOout);
-    TetgenElements elems = TetgenElements(&tetIOout, &tetIOin);
-    Quadrangles quads = Quadrangles(&tetIOout);
-    Hexahedra hexahedra = Hexahedra(&tetIOout);
+    /** Delete disturbing edges and faces on and near the surface perimeter */
+    void clean_sides(const Medium::Sizes& sizes);
+
+    TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);   ///< data & operations for mesh nodes
+    TetgenEdges edges = TetgenEdges(&tetIOout);             ///< data & operations for mesh edges
+    TetgenFaces faces = TetgenFaces(&tetIOout);             ///< data & operations for mesh triangles
+    TetgenElements elems = TetgenElements(&tetIOout, &tetIOin); ///< data & operations for mesh tetrahedra
+    Quadrangles quads = Quadrangles(&tetIOout);             ///< data & operations for mesh quadrangles
+    Hexahedra hexahedra = Hexahedra(&tetIOout);             ///< data & operations for mesh hexahedra
 
     static constexpr int n_coordinates = 3;     ///< Number of coordinates
     static constexpr int n_edges_per_face = 3;  ///< Number of edges on a triangle
@@ -110,6 +113,9 @@ private:
 
     /** Locate the tetrahedron by the location of its nodes */
     int locate_element(SimpleElement& elem);
+
+    /** Group hexahedra & quadrangles around central tetrahedral & triangular node */
+    void group_hexahedra();
 
     /** Calculate the neighbourlist for the nodes.
      * Two nodes are considered neighbours if they share a tetrahedron. */

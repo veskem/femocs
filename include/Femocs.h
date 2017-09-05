@@ -8,7 +8,6 @@
 #ifndef FEMOCS_H_
 #define FEMOCS_H_
 
-#include "LinearInterpolator.h"
 #include "AtomReader.h"
 #include "Config.h"
 #include "Media.h"
@@ -17,6 +16,7 @@
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
 #include "laplace.h"
+#include "LinearInterpolator.h"
 
 using namespace std;
 namespace femocs {
@@ -98,7 +98,7 @@ public:
      */
     int export_charge_and_force(const int n_atoms, double* xq);
 
-    /** Function to linearly interpolate electric field at given points
+    /** Function to linearly interpolate electric field at points anywhere in space
      * @param n_points  number of points where electric field is interpolated; n_points <= 0 turns the interpolation off
      * @param x         x-coordinates of the points of interest
      * @param y         y-coordinates of the points of interest
@@ -111,6 +111,22 @@ public:
      * @return          0 - function used solution from current run; 1 - function used solution from previous run
      */
     int interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
+            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
+
+    /** Function to linearly interpolate electric field at points on or near the surface.
+     * It is faster than interpolate_elfield but is inadequate for points far away from surface
+     * @param n_points  number of points where electric field is interpolated; n_points <= 0 turns the interpolation off
+     * @param x         x-coordinates of the points of interest
+     * @param y         y-coordinates of the points of interest
+     * @param z         z-coordinates of the points of interest
+     * @param Ex        x-component of the interpolated electric field
+     * @param Ey        y-component of the interpolated electric field
+     * @param Ez        z-component of the interpolated electric field
+     * @param Enorm     norm of the interpolated electric field
+     * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
+     * @return          0 - function used solution from current run; 1 - function used solution from previous run
+     */
+    int interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
             double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 
     /** Function to linearly interpolate electric potential at given points
@@ -186,14 +202,18 @@ private:
     Media dense_surf;       ///< non-coarsened surface atoms
     Media extended_surf;    ///< atoms added for the surface atoms
 
-    LinearInterpolator bulk_interpolator;   ///< data for interpolating results in bulk
-    LinearInterpolator vacuum_interpolator; ///< data for interpolating results in vacuum
-
     TetgenMesh bulk_mesh;    ///< FEM mesh in bulk material
     TetgenMesh vacuum_mesh;  ///< FEM mesh in vacuum
 
+    /// data for interpolating results in bulk
+    TetrahedronInterpolator bulk_interpolator = TetrahedronInterpolator(&bulk_mesh);
+    /// data for interpolating results in vacuum
+    TetrahedronInterpolator vacuum_interpolator = TetrahedronInterpolator(&vacuum_mesh);
+    /// data for interpolating results on vacuum-material boundary
+    TriangleInterpolator surface_interpolator = TriangleInterpolator(&vacuum_mesh);
+
     HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
-    FieldReader fields = FieldReader(&vacuum_interpolator);     ///< interpolated fields and potentials
+    FieldReader fields = FieldReader(&surface_interpolator);    ///< interpolated fields and potentials
     ForceReader forces = ForceReader(&vacuum_interpolator);     ///< forces on surface atoms
 
     fch::PhysicalQuantities phys_quantities;              ///< physical quantities used in heat calculations

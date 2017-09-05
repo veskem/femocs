@@ -13,12 +13,7 @@ using namespace std;
 namespace femocs {
 
 // Config constructor initializes configuration parameters
-Config::Config() : obsolete_commands{
-    "postprocess_marking",
-    "heating",
-    "force_factor"
-} {
-
+Config::Config() {
     extended_atoms = "";         // file with the atoms forming the extended surface
     atom_file = "";              // file with the nanostructure atoms
     latconst = 3.61;             // lattice constant
@@ -80,6 +75,11 @@ void Config::read_all(const string& file_name) {
     // Store the commands and their arguments
     parse_file(file_name);
 
+    // Check for the obsolete commands
+    check_obsolete("postprocess_marking");
+    check_obsolete("force_factor");
+    check_obsolete("heating", "heating_mode");
+
     // Modify the parameters that are specified in input script
     read_command("work_function", work_function);
     read_command("transient_steps", transient_steps);
@@ -125,8 +125,6 @@ void Config::read_all(const string& file_name) {
     cfactor.amplitude = coarse_factors[0];
     cfactor.r0_cylinder = static_cast<int>(coarse_factors[1]);
     cfactor.r0_sphere = static_cast<int>(coarse_factors[2]);
-
-    check_obsolete(file_name);
 }
 
 // Read the commands and their arguments from the file and store them into the buffer
@@ -162,12 +160,22 @@ void Config::parse_file(const string& file_name) {
 }
 
 // Check for the obsolete commands from the buffered commands
-void Config::check_obsolete(const string& file_name) {
-    for (vector<string> cmd : data) {
-        if (obsolete_commands.find(cmd[0]) != obsolete_commands.end())
-            write_verbose_msg("Command '" + cmd[0] + "' is obsolete!"
-                    " You can safely remove it from " + file_name + " !");
-    }
+void Config::check_obsolete(const string& command) {
+    for (const vector<string>& cmd : data)
+        if (cmd[0] == command) {
+            write_verbose_msg("Command '" + command + "' is obsolete! You can safely remove it!");
+            return;
+        }
+}
+
+// Check for the obsolete commands that are similar to valid ones
+void Config::check_obsolete(const string& command, const string& substitute) {
+    for (const vector<string>& cmd : data)
+        if (cmd[0] == command) {
+            write_verbose_msg("Command '" + command + "' is obsolete!"
+                    " It is similar but yet different to the command '" + substitute + "'!");
+            return;
+        }
 }
 
 // Look up the parameter with string argument
@@ -175,7 +183,7 @@ int Config::read_command(string param, string& arg) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
-    for (vector<string> str : data)
+    for (const vector<string>& str : data)
         if (str.size() >= 2 && str[0] == param) {
             arg = str[1]; return 0;
         }
@@ -187,7 +195,7 @@ int Config::read_command(string param, bool& arg) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
-    for (vector<string> str : data)
+    for (const vector<string>& str : data)
         if (str.size() >= 2 && str[0] == param) {
             istringstream is1(str[1]);
             istringstream is2(str[1]);
@@ -206,7 +214,7 @@ int Config::read_command(string param, int& arg) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
-    for (vector<string> str : data)
+    for (const vector<string>& str : data)
         if (str.size() >= 2 && str[0] == param) {
             istringstream is(str[1]); int result;
             if (is >> result) { arg = result; return 0; }
@@ -220,7 +228,7 @@ int Config::read_command(string param, double& arg) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
-    for (vector<string> str : data)
+    for (const vector<string>& str : data)
         if (str.size() >= 2 && str[0] == param) {
             istringstream is(str[1]); double result;
             if (is >> result) { arg = result; return 0; }
@@ -234,7 +242,7 @@ int Config::read_command(string param, vector<double>& args) {
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
     unsigned n_read_args = 0;
-    for (vector<string> str : data)
+    for (const vector<string>& str : data)
         if (str.size() >= 2 && str[0] == param)
             for (unsigned i = 0; i < args.size() && i < (str.size()-1); ++i) {
                 istringstream is(str[i+1]);
@@ -249,13 +257,10 @@ void Config::print_data() {
     if (!MODES.VERBOSE) return;
     const int cmd_len = 20;
 
-    for (vector<string> line : data) {
-        for (string ln : line) {
+    for (const vector<string>& line : data) {
+        for (const string& ln : line) {
             int str_len = ln.length();
-            int whitespace_len = 1;
-            if (cmd_len > str_len)
-                whitespace_len = cmd_len - str_len;
-
+            int whitespace_len = max(1, cmd_len - str_len);
             cout << ln << string(whitespace_len, ' ');
         }
 

@@ -243,6 +243,53 @@ SimpleCell<2> TetgenEdges::get_cell(const int i) const {
     return SimpleEdge(reads->edgelist[I], reads->edgelist[I+1]);
 }
 
+void TetgenEdges::init_statistics() {
+    stat.edgemin =  DBL_MAX;
+    stat.edgemax = -DBL_MAX;
+}
+
+void TetgenEdges::calc_statistics() {
+    init_statistics();
+
+    // loop through all the triangles
+    for (SimpleEdge edge : *this) {
+        // read the coordinates of triangle nodes
+        Point3 n1 = get_node(edge[0]);
+        Point3 n2 = get_node(edge[1]);
+
+        // calculate squared lengts of the edge
+        const double e = n1.distance2(n2);
+
+        // store min and max length
+        stat.edgemin = min(stat.edgemin, e);
+        stat.edgemax = max(stat.edgemax, e);
+    }
+
+    // squared length -> length
+    stat.edgemin = sqrt(stat.edgemin);
+    stat.edgemax = sqrt(stat.edgemax);
+}
+
+void TetgenEdges::clean_sides(const Medium::Sizes& stat) {
+    const double eps = 0.01 * this->stat.edgemin;
+    const int n_faces = size();
+    vector<SimpleEdge> edges; edges.reserve(n_faces);
+
+    // Make a copy of edges on the sides of simulation cell
+    for (int i = 0; i < n_faces; ++i) {
+        const Point3 centroid = get_centroid(i);
+        const bool side_x = on_boundary(centroid.x, stat.xmin, stat.xmax, eps);
+        const bool side_y = on_boundary(centroid.y, stat.ymin, stat.ymax, eps);
+        const bool side_z = on_boundary(centroid.z, stat.zmin, stat.zmax, eps);
+        if (!side_z && (side_x || side_y) && !(side_x && side_y))
+            edges.push_back(get_cell(i));
+    }
+
+    // Store the edges that are on the simulation cell boundary
+    init(edges.size());
+    for (SimpleEdge edge : edges)
+        append(edge);
+}
 /* =====================================================================
  *  =========================== TetgenFaces ===========================
  * ===================================================================== */
@@ -282,8 +329,8 @@ SimpleCell<3> TetgenFaces::get_cell(const int i) const {
 }
 
 // Delete the faces on the sides of simulation cell
-void TetgenFaces::clean_sides(const Medium::Sizes& stat, const double latconst) {
-    const double eps = 0.01 * latconst;
+void TetgenFaces::clean_sides(const Medium::Sizes& stat) {
+    const double eps = 0.01 * this->stat.edgemin;
     const int n_faces = size();
     vector<SimpleFace> faces; faces.reserve(n_faces);
 
@@ -337,6 +384,36 @@ double TetgenFaces::get_area(const int i) const {
     return areas[i];
 }
     
+void TetgenFaces::init_statistics() {
+    stat.edgemin =  DBL_MAX;
+    stat.edgemax = -DBL_MAX;
+}
+
+void TetgenFaces::calc_statistics() {
+    init_statistics();
+
+    // loop through all the triangles
+    for (SimpleFace face : *this) {
+        // read the coordinates of triangle nodes
+        Point3 n1 = get_node(face[0]);
+        Point3 n2 = get_node(face[1]);
+        Point3 n3 = get_node(face[2]);
+
+        // calculate squared lengths of the triangle edges
+        const double e1 = n1.distance2(n2);
+        const double e2 = n1.distance2(n3);
+        const double e3 = n2.distance2(n3);
+
+        // store min and max length
+        stat.edgemin = min(stat.edgemin, min(e1, min(e2, e3)));
+        stat.edgemax = max(stat.edgemax, max(e1, max(e2, e3)));
+    }
+
+    // squared length -> length
+    stat.edgemin = sqrt(stat.edgemin);
+    stat.edgemax = sqrt(stat.edgemax);
+}
+
 /* =====================================================================
  *  ========================== TetgenElements =========================
  * ===================================================================== */

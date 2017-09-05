@@ -195,6 +195,12 @@ TetgenMesh::TetgenMesh() {
     tetIOout.initialize();
 }
 
+// Delete disturbing edges and faces on and near the surface perimeter
+void TetgenMesh::clean_sides(const Medium::Sizes& sizes) {
+    edges.clean_sides(sizes);
+    faces.clean_sides(sizes);
+}
+
 // Delete the data of previously stored mesh and initialise a new one
 void TetgenMesh::clear() {
     tetIOin.deinitialize();
@@ -476,6 +482,7 @@ bool TetgenMesh::recalc(const string& cmd) {
         edges.set_counter(tetIOout.numberofedges);
         faces.set_counter(tetIOout.numberoftrifaces);
         elems.set_counter(tetIOout.numberoftetrahedra);
+        faces.calc_statistics();
         elems.calc_statistics();
     }
     catch (int e) { return 1; }
@@ -492,6 +499,7 @@ bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
         edges.set_counter(tetIOout.numberofedges);
         faces.set_counter(tetIOout.numberoftrifaces);
         elems.set_counter(tetIOout.numberoftetrahedra);
+        faces.calc_statistics();
         elems.calc_statistics();
     }
     catch (int e) { return 1; }
@@ -545,7 +553,7 @@ bool TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& 
     return recalc("Q", cmd);
 }
 
-// Group hexahedra around central tetrahedral node
+// Group hexahedra & quadrangles around central tetrahedral & triangular node
 void TetgenMesh::group_hexahedra() {
     const int node_min = nodes.indxs.tetnode_start;
     const int node_max = nodes.indxs.tetnode_end;
@@ -559,9 +567,19 @@ void TetgenMesh::group_hexahedra() {
                 break;
             }
     }
+
+    // find which quadrangle correspond to which triangular node
+    // quadrangles with the same triangular node form the pseudo 2D Voronoi cell of that node
+    for (int i = 0; i < quads.size(); ++i) {
+        for (int node : quads[i])
+            if (node >= node_min && node <= node_max) {
+                quads.set_marker(i, node);
+                break;
+            }
+    }
 }
 
-// Separate tetrahedra into hexahedra
+// Separate tetrahedra & trinagles into hexahedra & quadrangles
 bool TetgenMesh::generate_hexahedra() {
     tethex::Mesh hexmesh;
     hexmesh.read_femocs(this);
@@ -735,20 +753,38 @@ void TetgenMesh::calc_tri_nborlist(vector<vector<unsigned>>& nborlist) {
 
 // Generate list of nodes that surround the tetrahedral nodes
 // The resulting cells resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells
-void TetgenMesh::calc_pseudo_vorocells(vector<vector<unsigned>>& cells) const {
+void TetgenMesh::calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells) const {
     cells = vector<vector<unsigned>>(nodes.stat.n_tetnode);
     const int node_min = nodes.indxs.tetnode_start;
     const int node_max = nodes.indxs.tetnode_end;
 
     // find the pseudo Voronoi cell nodes for the tetrahedral nodes
-    for (int i = 0; i < hexahedra.size(); ++i) {
-        const int tetnode = hexahedra.get_marker(i);
-        expect(tetnode >= node_min && tetnode <= node_max, "Hexahedron " + to_string(i) +
+    for (int hex = 0; hex < hexahedra.size(); ++hex) {
+        const int tetnode = hexahedra.to_node(hex);
+        expect(tetnode >= node_min && tetnode <= node_max, "Hexahedron " + to_string(hex) +
                 " is not marked by the tetrahedral node: " + to_string(tetnode));
 
-        for (int node : hexahedra[i])
+        for (int node : hexahedra[hex])
             if ( node != tetnode && nodes.get_marker(node) >= TYPES.EDGECENTROID )
                 cells[tetnode].push_back(node);
+    }
+}
+
+// Generate list of quadrangle nodes that surround the triangle nodes
+// The resulting cells resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells
+void TetgenMesh::calc_pseudo_2D_vorocells(vector<vector<unsigned>>& cells) const {
+    cells = vector<vector<unsigned>>(nodes.stat.n_tetnode);
+    const int node_min = nodes.indxs.tetnode_start;
+    const int node_max = nodes.indxs.tetnode_end;
+
+    for (int quad = 0; quad < quads.size(); ++quad) {
+        const int trinode = quads.to_node(quad);
+        expect(trinode >= node_min && trinode <= node_max, "Quadrangle " + to_string(quad) +
+                " is not marked by the triangle node: " + to_string(trinode));
+
+        for (int node : quads[quad])
+            if (node != trinode)
+                cells[trinode].push_back(node);
     }
 }
 

@@ -9,14 +9,203 @@
 #define LINEARINTERPOLATOR_H_
 
 #include "Primitives.h"
-#include "Medium.h"
 #include "TetgenMesh.h"
+#include "TetgenCells.h"
 #include "Coarseners.h"
 #include "laplace.h"
 #include "currents_and_heating.h"
+#include "currents_and_heating_stationary.h"
 
 using namespace std;
 namespace femocs {
+
+/** General class to linearly interpolate solution inside the mesh */
+template<int dim>
+class LinearInterpolator {
+
+public:
+    /** LinearInterpolator conctructor */
+    LinearInterpolator() :
+        norm_label("elfield_norm"), scalar_label("potential"), mesh(NULL), nodes(NULL) {
+        reserve(0);
+        reserve_precompute(0);
+    }
+
+    LinearInterpolator(const TetgenMesh* m) :
+        norm_label("elfield_norm"), scalar_label("potential"), mesh(m), nodes(&m->nodes) {
+        reserve(0);
+        reserve_precompute(0);
+    }
+
+    LinearInterpolator(const TetgenMesh* m, const string& nl, const string& sl) :
+        norm_label(nl), scalar_label(sl), mesh(m), nodes(&m->nodes) {
+        reserve(0);
+        reserve_precompute(0);
+    }
+
+    virtual ~LinearInterpolator() {};
+
+    /** Return number of available interpolation nodes */
+    int size() const { return solutions.size(); }
+
+    /** Pick the suitable write function based on the file type.
+     * Function is active only when file write is enabled */
+    void write(const string &file_name) const;
+
+    /** Enable or disable the search of points slightly outside the cell */
+    void search_outside(const bool enable) {
+        if (enable) {
+            zero = -1.0 * epsilon;
+            one = 1.0 + epsilon;
+        } else {
+            zero = 0;
+            one = 1.0;
+        }
+    }
+
+    /** Add solution to solutions vector */
+    void append_solution(const Solution& solution) {
+        expect((unsigned)size() < solutions.capacity(), "Allocated vector size exceeded!");
+        solutions.push_back(solution);
+    }
+
+    /** Return full solution on i-th node */
+    Solution get_solution(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return solutions[i];
+    }
+
+    /** Return vector component of solution on i-th node */
+    Vec3 get_vector(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return solutions[i].vector;
+    }
+
+    /** Return scalar component of solution on i-th node */
+    double get_scalar(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return solutions[i].scalar;
+    }
+
+    /** Interpolate both vector and scalar data inside or near the cell.
+     * Function assumes, that cell, that surrounds the point, is previously already found with locate_cell.
+     * @param point  point where the interpolation is performed
+     * @param cell   cell around which the interpolation is performed */
+    Solution interp_solution(const Point3 &point, const int cell) const;
+
+    /** Interpolate vector data inside or near the cell.
+     * Function assumes, that cell, that surrounds the point, is previously already found with locate_cell.
+     * @param point  point where the interpolation is performed
+     * @param cell   cell around which the interpolation is performed */
+    Vec3 interp_vector(const Point3 &point, const int cell) const;
+
+    /** Interpolate scalar data inside or near the cell.
+     * Function assumes, that cell, that surrounds the point, is previously already found with locate_cell.
+     * @param point  point where the interpolation is performed
+     * @param cell   cell around which the interpolation is performed */
+    double interp_scalar(const Point3 &point, const int cell) const;
+
+    /** Find the cell which contains the point or is the closest to it */
+    int locate_cell(const Point3 &point, const int cell_guess);
+
+    /** Solution value that is assigned to atoms not found from mesh.
+     *  Its value is BIG to make it immediately visible from the dataset. */
+    const double error_field = 1e20;
+
+protected:
+    /** Constants specifying the interpolation tolerances.
+     * Making zero a bit negative allows searching points outside the tetrahedra. */
+    const double epsilon = 0.1;
+    double zero = -1.0 * epsilon;
+    double one = 1.0 + epsilon;
+
+    const string norm_label;        ///< description label attached to solution.norm -values
+    const string scalar_label;      ///< description label attached to solution.scalar -values
+
+    vector<Solution> solutions;     ///< interpolation data
+    vector<vector<int>> neighbours; ///< nearest neighbours of the cells
+    vector<Point3> centroids;       ///< cell centroid coordinates
+
+    const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
+    const TetgenNodes* nodes;       ///< Mesh nodes
+    /** Getter for cell data without nodes.
+     * It is implemented as a function to take advantage of polymorphism. */
+    virtual const TetgenCells<dim>* cells() const { return NULL; }
+
+    /** Reserve memory for interpolation data */
+    void reserve(const int N) {
+        require(N >= 0, "Invalid number of points: " + to_string(N));
+        solutions.clear();
+        solutions.reserve(N);
+    }
+
+    /** Reserve memory for pre-computation data */
+    virtual void reserve_precompute(const int N) {
+        neighbours = vector<vector<int>>(N);
+        centroids.reserve(N);
+    }
+
+    /** Pre-compute data about cells to make interpolation faster */
+    virtual void precompute() {}
+
+    /** Return the cell type in vtk format;
+     * 5-triangle, 9-quadrangle, 10-tetrahedron, 12-hexahedron */
+    virtual int get_cell_type() const { return 0; }
+
+    /** Calculate barycentric coordinates for a point with respect to the cell */
+    virtual array<double,dim> get_bcc(const Vec3& point, const int cell) const { return array<double,dim>(); }
+
+    /** Check whether the point is inside the cell.
+     * It does not use get_bcc routine to achieve faster performance. */
+    virtual bool point_in_cell(const Vec3& point, const int cell) { return false; }
+
+    /** Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
+     *  surrounding hexahedral nodes */
+    bool average_sharp_nodes(const vector<vector<unsigned>>& vorocells, const double edgemax);
+
+    /** Return the mapping between tetrahedral and hexahedral meshes;
+     * -1 indicates that mapping for corresponding object was not found */
+    void get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
+            dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps);
+
+    /** Output node data in .xyz format */
+    void write_xyz(ofstream& out, const int n_nodes) const;
+
+    /** Output interpolation cell data in .vtk format */
+    void write_vtk(ofstream& out, const int n_nodes) const;
+
+    /** Determinant of 3x3 matrix which's last column consists of ones */
+    double determinant(const Vec3 &v1, const Vec3 &v2) {
+        return v1.x * (v2.y - v2.z) - v1.y * (v2.x - v2.z) + v1.z * (v2.x - v2.y);
+    }
+
+    /** Determinant of 3x3 matrix which's columns consist of Vec3-s */
+    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3) {
+        return v1.x * (v2.y * v3.z - v3.y * v2.z) - v2.x * (v1.y * v3.z - v3.y * v1.z)
+                + v3.x * (v1.y * v2.z - v2.y * v1.z);
+    }
+
+    /** Determinant of 4x4 matrix which's last column consists of ones */
+    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4) {
+        const double det1 = determinant(v2, v3, v4);
+        const double det2 = determinant(v1, v3, v4);
+        const double det3 = determinant(v1, v2, v4);
+        const double det4 = determinant(v1, v2, v3);
+
+        return det4 - det3 + det2 - det1;
+    }
+
+    /** Determinant of 4x4 matrix which's columns consist of Vec4-s */
+    double determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4) {
+        double det1 = determinant(Vec3(v1.y,v1.z,v1.w), Vec3(v2.y,v2.z,v2.w), Vec3(v3.y,v3.z,v3.w));
+        double det2 = determinant(Vec3(v1.x,v1.z,v1.w), Vec3(v2.x,v2.z,v2.w), Vec3(v3.x,v3.z,v3.w));
+        double det3 = determinant(Vec3(v1.x,v1.y,v1.w), Vec3(v2.x,v2.y,v2.w), Vec3(v3.x,v3.y,v3.w));
+        double det4 = determinant(Vec3(v1.x,v1.y,v1.z), Vec3(v2.x,v2.y,v2.z), Vec3(v3.x,v3.y,v3.z));
+
+        return v4.w * det4 - v4.z * det3 + v4.y * det2 - v4.x * det1;
+    }
+
+};
 
 /** Class to linearly interpolate solution inside tetrahedral mesh */
 /* Useful links
@@ -34,58 +223,20 @@ namespace femocs {
  * Interpolating inside the element using bcc:
  * http://www.cwscholz.net/projects/diss/html/node37.html
  *
- * */
-class LinearInterpolator: public Medium {
+ */
+class TetrahedronInterpolator : public LinearInterpolator<4> {
 public:
-    /** LinearInterpolator conctructor */
-    LinearInterpolator();
+    /** TetrahedronInterpolator conctructor */
+    TetrahedronInterpolator(const TetgenMesh* mesh);
 
     /** Extract the electric potential and electric field values on the tetrahedra nodes from FEM solution */
-    bool extract_solution(fch::Laplace<3>* laplace, const TetgenMesh &mesh);
+    bool extract_solution(fch::Laplace<3>* laplace);
 
     /** Extract the current density and temperature values on the tetrahedra nodes from FEM solution */
-    bool extract_solution(fch::CurrentsAndHeatingStationary<3>* fem, const TetgenMesh &mesh);
+    bool extract_solution(fch::CurrentsAndHeatingStationary<3>* fem);
 
     /** Extract the current density and temperature values on the tetrahedra nodes from FEM solution */
-    bool extract_solution(fch::CurrentsAndHeating<3>* fem, const TetgenMesh &mesh);
-
-    /** Interpolate both vector and scalar data.
-     * Function assumes, that tetrahedron, that surrounds the point, is previously already found with locate_element.
-     * @param point  point where the interpolation is performed
-     * @param elem   tetrahedron around which the interpolation is performed */
-    Solution get_solution(const Point3 &point, const int elem) const;
-
-    /** Return the i-th entry from solution vector */
-    Solution get_solution(const int i) const;
-
-    /** Interpolate vector data.
-     * Function assumes, that tetrahedron, that surrounds the point, is previously already found with locate_element.
-     * @param point  point where the interpolation is performed
-     * @param elem   tetrahedron around which the interpolation is performed */
-    double get_scalar(const Point3 &point, const int elem) const;
-
-    /** Return the i-th scalar entry from solution vector */
-    double get_scalar(const int i) const;
-
-    /** Interpolate scalar data.
-     * Function assumes, that tetrahedron, that surrounds the point, is previously already found with locate_element.
-     * @param point  point where the interpolation is performed
-     * @param elem   tetrahedron around which the interpolation is performed */
-    Vec3 get_vector(const Point3 &point, const int elem) const;
-
-    /** Return the i-th Vec3 entry from solution vector */
-    Vec3 get_vector(const int i) const;
-
-    /** Locate the tetrahedron that surrounds or is closest to the point of interest.
-     * The search starts from the elem_guess-th tetrahedron, proceedes with its neighbours
-     * (number of neighbouring layers is specified inside the function),
-     * then, if no match found, checks sequentially all the tetrahedra and if still no match found,
-     * returns the index of tetrahedron whose centroid is closest to the point.
-     * @param point       point of interest
-     * @param elem_guess  index of tetrahedron around which the search starts
-     * @return index of the tetrahedron that surrounds or is closest to the point
-     */
-    int locate_element(const Point3 &point, const int elem_guess);
+    bool extract_solution(fch::CurrentsAndHeating<3>* fem);
 
     /** Print statistics about solution on node points */
     void print_statistics() const;
@@ -99,76 +250,27 @@ public:
     /** Set parameters to calculate analytical solution */
     void set_analyt(const Point3& origin, const double E0, const double radius1, const double radius2=-1);
 
-    /** Enable or disable the search of points slightly outside the tetrahedron */
-    void search_outside(const bool enable);
-
-    /** Electric field that is assigned to atoms not found from mesh.
-     *  Its value is BIG to make it immediately visible from the dataset. */
-    const double error_field = 1e20;
-
 private:
-    /** Constants specifying the interpolation tolerances.
-     * Making zero a bit negative allows searching points outside the tetrahedra. */
-    const double epsilon = 0.1;
-    double zero = -1.0 * epsilon;
     double radius1;  ///< Minor semi-axis of ellipse
     double radius2;  ///< Major semi-axis of ellipse
     double E0;       ///< Long-range electric field strength
     Point3 origin;
+    
+    /** Pointer to common routines of tetrahedra.
+     * It is function instead of an object to take advantage of polymorphism. */
+    const TetgenCells<4>* cells() const { return &mesh->elems; }
+    const TetgenElements* elems;    ///< Direct pointer to tetrahedra to access their specific routines
 
-    vector<Solution> solution;          ///< interpolation data
-    vector<SimpleElement> tetrahedra;   ///< tetrahedra node indices
-    vector<vector<int>> tetneighbours;  ///< tetrahedra nearest neighbours
-    vector<Point3> centroid;            ///< tetrahedra centroid coordinates
-
-    vector<double> det0;                ///< major determinant for calculating bcc-s
-    vector<Vec4> det1;                  ///< minor determinants for calculating 1st bcc
-    vector<Vec4> det2;                  ///< minor determinants for calculating 2nd bcc
-    vector<Vec4> det3;                  ///< minor determinants for calculating 3rd bcc
-    vector<Vec4> det4;                  ///< minor determinants for calculating 4th bcc
-    vector<bool> tet_not_valid;         ///< co-planarities of tetrahedra
-
-    /** Pre-compute data about tetrahedra to make interpolation faster */
-    void precompute_tetrahedra(const TetgenMesh &mesh);
-
-    /** Return the mapping between tetrahedral and hexahedral meshes;
-     * -1 indicates that mapping for corresponding object was not found */
-    void get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
-            dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps);
+    vector<double> det0;            ///< major determinant for calculating bcc-s
+    vector<Vec4> det1;              ///< minor determinants for calculating 1st bcc
+    vector<Vec4> det2;              ///< minor determinants for calculating 2nd bcc
+    vector<Vec4> det3;              ///< minor determinants for calculating 3rd bcc
+    vector<Vec4> det4;              ///< minor determinants for calculating 4th bcc
+    vector<bool> tet_not_valid;     ///< co-planarities of tetrahedra
 
     /** Force the solution on tetrahedral nodes to be the weighed average
      * of the solutions on its Voronoi cell nodes */
-    bool average_tetnodes(const TetgenMesh &mesh);
-
-    /** Get barycentric coordinates for a point inside i-th tetrahedron */
-    Vec4 get_bcc(const Point3 &point, const int i) const;
-
-    /** Get whether the point is located inside the i-th tetrahedron */
-    bool point_in_tetrahedron(const Point3 &point, const int i);
-
-    /** Function to calculate determinant of 3x3 matrix which's last column consists of ones */
-    double determinant(const Vec3 &v1, const Vec3 &v2);
-
-    /** Function to calculate determinant of 3x3 matrix */
-    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3);
-
-    /** Function to calculate determinant of 4x4 matrix which's last column consists of ones */
-    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4);
-
-    /** Function to calculate determinant of 4x4 matrix */
-    double determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4);
-
-    /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
-    string get_data_string(const int i) const;
-
-    /** Get scalar and vector data associated with atoms */
-    void get_cell_data(ofstream& outfile) const;
-
-    /** Reserve memory for interpolation data */
-    void reserve(const int N);
-
-    /** Reserve memory for pre-compute data */
-    void reserve_precompute(const int N);
+    bool average_sharp_nodes();
 
     /** Return analytical potential value for i-th point near the hemisphere
      * @param radius  radius of the hemisphere
@@ -185,50 +287,78 @@ private:
 
     /** Get analytical field enhancement for hemi-ellipsoid on infinite surface */
     double get_analyt_enhancement() const;
+
+    /** Pre-compute data about tetrahedra to make interpolation faster */
+    void precompute();
+
+    /** Reserve memory for pre-compute data */
+    void reserve_precompute(const int N);
+
+    /** Get whether the point is located inside the i-th tetrahedron */
+    bool point_in_cell(const Vec3& point, const int i);
+
+    /** Get barycentric coordinates for a point inside i-th tetrahedron */
+    array<double,4> get_bcc(const Vec3& point, const int i) const;
+
+    /** Return the tetrahedron type in vtk format */
+    int get_cell_type() const { return 10; }
 };
 
 /** Class to interpolate solution on surface triangles */
-class TriangleInterpolator {
+class TriangleInterpolator : public LinearInterpolator<3> {
 public:
-    /** Constructor of RaySurfaceIntersect  */
+    /** Constructor of TriangleInterpolator  */
     TriangleInterpolator(const TetgenMesh* mesh);
 
-    /** Precompute the data needed to calculate the distance of points from surface
-     * in the direction of triangle surface norms */
-    void precompute_triangles();
+    /** Extract the electric potential and electric field values on triangular mesh nodes from FEM solution */
+    bool extract_solution(fch::Laplace<3>* fem);
 
-    /** Find the triangle which contains the point or is the closest to it */
-    int locate_face(const Vec3 &point, const int face_guess);
+    /** Calculate charges on surface faces using direct solution in the face centroids */
+    void calc_charges(const double E0);
 
-    /** Calculate barycentric coordinates for a projection of a point inside the triangle */
-    Vec3 get_bcc(const Vec3& point, const int face) const;
+    /** Interpolate conserved scalar data for the vector of atoms */
+    void interp_conserved(vector<double>& scalars, const vector<Atom>& atoms);
 
-    /** Check whether the projection of a point is inside the triangle */
-    bool projection_in_triangle(const Vec3& point, const int face);
+    /** Print statistics about solution on node points */
+    void print_statistics(const double Q);
 
-    /** Enable or disable the search of points slightly outside the triangles */
-    void search_outside(const bool enable);
+    const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
 
 private:
-    /** Constants to specify the tolerances */
-    const double epsilon = 0.1;
-    double zero = 0.0 - epsilon;
-    double one = 1.0 + epsilon;
 
-    /** Pointer to Mesh with nodes and surface faces */
-    const TetgenMesh* mesh;
+    /** Pointer to common routines of triangles.
+     * It is function instead of an object to take advantage of polymorphism. */
+    const TetgenCells<3>* cells() const { return &mesh->faces; }
+    const TetgenFaces* faces;    ///< Direct pointer to triangles to access their specific routines
 
     /** Data computed before starting looping through the triangles */
     vector<Vec3> vert0;
     vector<Vec3> edge1;
     vector<Vec3> edge2;
     vector<Vec3> pvec;
-    vector<bool> is_parallel;
-    vector<Point3> centroids;
-    vector<vector<unsigned>> trineighbors;  ///< nearest neighbours of triangles
+    vector<double> max_distance;
 
-    /** Function to reserve memory for precompute data */
-    void reserve(const int n);
+    bool clean_nodes();
+
+    /** Force the solution on triangular nodes to be the weighed average
+     * of the solutions on its surrounding quadrangular nodes */
+    bool average_sharp_nodes();
+
+    /** Precompute the data needed to calculate the distance of points from surface
+     * in the direction of triangle surface norms */
+    void precompute();
+
+    /** Reserve memory for precompute data */
+    void reserve_precompute(const int n);
+
+    /** Check whether the projection of a point is inside the i-th triangle */
+    bool point_in_cell(const Vec3& point, const int i);
+
+    /** Calculate barycentric coordinates for a point with respect to the i-th triangle */
+    array<double,3> get_bcc(const Vec3& point, const int i) const;
+
+    /** Return the triangle type in vtk format */
+    int get_cell_type() const { return 5; }
 };
 
 } // namespace femocs

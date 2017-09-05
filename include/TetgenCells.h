@@ -378,12 +378,27 @@ public:
     /** Copy the nodes from write buffer to read buffer */
     void recalc();
 
+    /** Delete the edges that are not on the perimeter of surface */
+    void clean_sides(const Medium::Sizes& stat);
+
+    /** Calculate statistics about edges */
+    void calc_statistics();
+
+    /** Struct holding statistics about edges */
+    struct Stat {
+        double edgemin;    //!< Minimum edge length
+        double edgemax;    //!< Maximum edge length
+    } stat;
+
 private:
     /** Return the line type in vtk format */
     int get_cell_type() const { return 3; }
 
     /** Return i-th edge */
     SimpleCell<2> get_cell(const int i) const;
+
+    /** Initialize statistics about edges */
+    void init_statistics();
 };
 
 /** Class for holding Tetgen triangular faces */
@@ -404,13 +419,37 @@ public:
     void recalc();
     
     /** Delete the faces on the sides of simulation cell */
-    void clean_sides(const Medium::Sizes& stat, const double latconst);
+    void clean_sides(const Medium::Sizes& stat);
 
     /** Return the normal of i-th triangle */
     Vec3 get_norm(const int i) const;
     
     /** Return the area of i-th triangle */
     double get_area(const int i) const;
+
+    /** Return indices of all edges that are connected to i-th tetrahedron*/
+    array<int,3> to_edges(const int i) const {
+        const int I = 3 * i;
+        return array<int,3>{reads->tet2edgelist[I], reads->tet2edgelist[I+1], reads->tet2edgelist[I+2]};
+    }
+
+    /** Return index of quadrangle that is connected to i-th triangle*/
+    int to_quad(const int i) const { return 3 * i; }
+
+    /** Return indices of all quadrangles that are connected to i-th triangle*/
+    array<int,3> to_quads(const int i) const {
+        const int I = 3 * i;
+        return array<int,3>{I, I+1, I+2};
+    }
+
+    /** Calculate statistics about triangles */
+    void calc_statistics();
+
+    /** Struct holding statistics about triangles */
+    struct Stat {
+        double edgemin;    //!< Minimum edge length
+        double edgemax;    //!< Maximum edge length
+    } stat;
 
 private:
     vector<double> areas;   ///< areas of triangles
@@ -424,6 +463,9 @@ private:
 
     /** Calculate the norms and areas for all the triangles */
     void calc_norms_and_areas();
+
+    /** Initialize statistics about triangles */
+    void init_statistics();
 };
 
 /** Class for holding Tetgen tetrahedral elements */
@@ -445,6 +487,31 @@ public:
 
     /** Copy the nodes from write buffer to read buffer */
     void recalc();
+
+    /** Return indices of all edges that are connected to i-th tetrahedron*/
+    array<int,6> to_edges(const int i) const {
+        const int I = i * 6;
+        return array<int,6> {
+            reads->tet2edgelist[I+0], reads->tet2edgelist[I+1],
+            reads->tet2edgelist[I+2], reads->tet2edgelist[I+3],
+            reads->tet2edgelist[I+4], reads->tet2edgelist[I+5] };
+    }
+
+    /** Return indices of all triangles that are connected to i-th tetrahedron*/
+    array<int,4> to_tris(const int i) const {
+        const int I = i * 4;
+        return array<int,4>{reads->tet2facelist[I+0], reads->tet2facelist[I+1],
+            reads->tet2facelist[I+2], reads->tet2facelist[I+3]};
+    }
+
+    /** Return index of hexahedron that is connected to i-th tetrahedron*/
+    int to_hex(const int i) const { return 4 * i; }
+
+    /** Return indices of all hexahedra that are connected to i-th tetrahedron*/
+    array<int,4> to_hexs(const int i) const {
+        const int I = 4 * i;
+        return array<int,4>{I, I+1, I+2, I+3};
+    }
 
     /** Calculate statistics about tetrahedra */
     void calc_statistics();
@@ -483,6 +550,12 @@ public:
     /** Get number of quadrangles in mesh */
     int size() const;
 
+    /** Return index of tetrahedral node that is connected to i-th quadrangle */
+    int to_node(const int i) const { return markers[i]; }
+
+    /** Return index of triangle that is connected to i-th quadrangle*/
+    int to_tri(const int i) const { return int(i / 3); }
+
 protected:
     vector<SimpleQuad> quads;
 
@@ -511,6 +584,12 @@ public:
     int size() const;
 
     vector<dealii::CellData<3>> export_dealii() const;
+
+    /** Return index of tetrahedral node that is connected to i-th hexahedron */
+    int to_node(const int i) const { return markers[i]; }
+
+    /** Return index of tetrahedron that is connected to i-th hexahedron*/
+    int to_tet(const int i) const { return int(i / 4); }
 
 protected:
     vector<SimpleHex> hexs;

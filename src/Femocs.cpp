@@ -261,11 +261,9 @@ int Femocs::generate_meshes() {
 
     start_msg(t0, "=== Separating vacuum & bulk meshes...");
     big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQB");
-    bulk_mesh.faces.clean_sides(reader.sizes, conf.latconst);
-    vacuum_mesh.faces.clean_sides(reader.sizes, conf.latconst);
+    bulk_mesh.clean_sides(reader.sizes);
+    vacuum_mesh.clean_sides(reader.sizes);
     end_msg(t0);
-
-    bulk_mesh.faces.write("out/tetmesh_faces.vtk");
 
     if (conf.smooth_algorithm != "none" && conf.smooth_steps > 0) {
         start_msg(t0, "=== Smoothing triangles...");
@@ -280,6 +278,7 @@ int Femocs::generate_meshes() {
     end_msg(t0);
 
     bulk_mesh.nodes.write("out/bulk_nodes.xyz");
+    bulk_mesh.edges.write("out/bulk_edges.vtk");
     bulk_mesh.faces.write("out/bulk_tris.vtk");
     bulk_mesh.quads.write("out/bulk_quads.vtk");
     bulk_mesh.elems.write("out/bulk_tets.vtk");
@@ -332,14 +331,15 @@ int Femocs::solve_laplace(const double E0) {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting E and phi...");
-    fail = vacuum_interpolator.extract_solution(&laplace_solver, vacuum_mesh);
+    fail = vacuum_interpolator.extract_solution(&laplace_solver);
+    surface_interpolator.extract_solution(&laplace_solver);
     end_msg(t0);
 
-    vacuum_interpolator.write("out/result_E_phi.xyz");
-    vacuum_interpolator.write("out/result_E_phi.vtk");
-//    vacuum_interpolator.print_statistics();
+    vacuum_interpolator.write("out/result_E_phi_vacuum.xyz");
+    vacuum_interpolator.write("out/result_E_phi_vacuum.vtk");
+    surface_interpolator.write("out/result_E_phi_surface.xyz");
+    surface_interpolator.write("out/result_E_phi_surface.vtk");
     vacuum_interpolator.print_enhancement();
-    vacuum_interpolator.print_error(coarseners);
 
     return fail;
 }
@@ -391,7 +391,7 @@ int Femocs::solve_stationary_heat(const double T_ambient) {
     check_return(t_error > conf.t_error, "Temperature didn't converge, err=" + to_string(t_error));
 
     start_msg(t0, "=== Extracting J & T...");
-    bulk_interpolator.extract_solution(ch_solver, bulk_mesh);
+    bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
     bulk_interpolator.write("out/result_J_T.xyz");
@@ -474,7 +474,7 @@ int Femocs::solve_transient_heat(const double T_ambient) {
     ch_transient_solver.output_results_heating("./out/heat_solution" + conf.message + ".vtk");
 
     start_msg(t0, "=== Extracting J & T...");
-    bulk_interpolator.extract_solution(&ch_transient_solver, bulk_mesh);
+    bulk_interpolator.extract_solution(&ch_transient_solver);
     end_msg(t0);
     bulk_interpolator.write("out/result_J_T.movie");
 
@@ -628,11 +628,10 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         write_silent_msg("Using previous electric field!");
     else {
         start_msg(t0, "=== Interpolating E and phi...");
-        fields.interpolate(dense_surf, conf.use_histclean * conf.coordination_cutoff, 0, false);
+        fields.interpolate2D(dense_surf, 0, false);
         end_msg(t0);
 
         fields.write("out/fields.movie");
-//        fields.print_statistics();
         fields.print_enhancement();
     }
 
@@ -705,6 +704,22 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
     forces.export_force(n_atoms, xq);
     end_msg(t0);
 
+    return 0;
+}
+
+// linearly interpolate electric field at given points
+int Femocs::interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
+    if (n_points <= 0) return 0;
+    check_return(vacuum_interpolator.size() == 0, "No solution to export!");
+
+    FieldReader fr(&surface_interpolator);
+    start_msg(t0, "=== Interpolating & exporting elfield...");
+    fr.interpolate2D(n_points, x, y, z, 1, false);
+    fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
+    end_msg(t0);
+
+    fr.write("out/interpolation_E.movie");
     return 0;
 }
 
