@@ -200,6 +200,14 @@ public:
     Point3 operator /(const double &r) const { return Point3(x / r, y / r, z / r); }
     Point3& operator /=(const double &r) { x /= r, y /= r, z /= r; return *this; }
 
+    /** Adding a scalar to the point */
+    Point3 operator +(const double &r) const { return Point3(x + r, y + r, z + r); }
+    Point3& operator +=(const double &r) { x += r, y += r, z += r; return *this; }
+
+    /** Subtracting a scalar from the point */
+    Point3 operator -(const double &r) const { return Point3(x - r, y - r, z - r); }
+    Point3& operator -=(const double &r) { x -= r, y -= r, z -= r; return *this; }
+
     /** Comparison operators between two 3D points */
     bool operator ==(const Point3 &p) const { return x == p.x && y == p.y && z == p.z; }
     bool operator ==(const dealii::Point<3> &p) const {

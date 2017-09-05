@@ -10,6 +10,8 @@
 #include <cfloat>
 #include <fstream>
 #include <math.h>
+#include <stdlib.h>     /* srand, rand */
+#include <time.h>       /* time */
 
 using namespace std;
 namespace femocs {
@@ -385,7 +387,7 @@ void AtomReader::import_parcas(const int n_atoms, const double* xyz, const doubl
     calc_statistics();
 }
 
-void AtomReader::import_file(const string &file_name) {
+void AtomReader::import_file(const string &file_name, const int add_noise) {
     string file_type = get_file_type(file_name);
 
     if (file_type == "xyz")
@@ -396,6 +398,15 @@ void AtomReader::import_file(const string &file_name) {
         import_dump(file_name);
     else
         require(false, "Unsupported file type: " + file_type);
+
+    if (add_noise) {
+        // initialize random seed
+        srand (time(NULL));
+        // add random number that is close to the distance between nn atoms to all the coordinates
+        const double eps = 0.1 * get_point(0).distance(get_point(1));
+        for (int i = 0; i < size(); ++i)
+            atoms[i].point += eps * static_cast <double> (rand()) / static_cast <double> (RAND_MAX);
+    }
 
     calc_statistics();
 }

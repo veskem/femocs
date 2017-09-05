@@ -26,7 +26,7 @@ public:
      * Function to import file with atom coordinates and types
      * @param file_name  path to input file with atomic data in .xyz (PARCAS), .dump (LAMMPS) or .ckx (KIMOCS) format
      */
-    void import_file(const string &file_name);
+    void import_file(const string &file_name, const int add_noise=0);
 
     /** Function to transform atomic data from Parcas format into AtomReader one */
     void import_parcas(const int n_atoms, const double* coordinates, const double* box);

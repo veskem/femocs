@@ -68,7 +68,7 @@ protected:
     const string scalar_label;    ///< label for scalar data
     double empty_val;             ///< constant values returned when interpolator is empty
 
-    TetrahedronInterpolator* interpolator4;  ///< data needed for interpolating on space
+    TetrahedronInterpolator* interpolator;   ///< data needed for interpolating on space
     vector<Solution> interpolation;          ///< interpolated data
 
     /** Initialise statistics about coordinates and solution */
@@ -265,6 +265,8 @@ public:
         const double r_cut, const double smooth_factor);
 
     void calc_forces(const FieldReader &fields, TriangleInterpolator& ti);
+
+    void calc_forces_vol2(const FieldReader &fields, TriangleInterpolator& ti);
 
     /** Export the induced charge and force on imported atoms
      * @param n_atoms  number of first atoms field is calculated
