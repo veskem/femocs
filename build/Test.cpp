@@ -35,7 +35,7 @@ void write_defaults(ofstream &file) {
     file << "surface_cleaner = voronois" << endl;
     file << "femocs_verbose_mode = silent" << endl;
     file << "smooth_steps = 3"           << endl;
-    file << "smooth_algorithm = none"<< endl;
+    file << "smooth_algorithm = laplace"<< endl;
 }
 
 void write_hr5(ofstream &file) {
@@ -303,7 +303,7 @@ int main(int argc, char **argv) {
             success += femocs.import_atoms(infile);
         }
 
-        success += femocs.run(-0.2, "");
+        success += femocs.run(-0.15, "");
         success += femocs.export_elfield(0, Ex, Ey, Ez, En);
         success += femocs.export_temperature(n_atoms, T);
         success += femocs.export_charge_and_force(n_atoms, xq);
