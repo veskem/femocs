@@ -142,6 +142,7 @@ protected:
     /** Reserve memory for pre-computation data */
     virtual void reserve_precompute(const int N) {
         neighbours = vector<vector<int>>(N);
+        centroids.clear();
         centroids.reserve(N);
     }
 
