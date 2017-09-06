@@ -99,6 +99,9 @@ public:
         return neighbours[i];
     }
 
+    /** Return number of interpolation cells */
+    int get_n_cells() const { return cells()->size(); }
+
     /** Interpolate both vector and scalar data inside or near the cell.
      * Function assumes, that cell, that surrounds the point, is previously already found with locate_cell.
      * @param point  point where the interpolation is performed

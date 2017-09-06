@@ -182,7 +182,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     if (conf.surface_cleaner == "voronois") {
         start_msg(t0, "=== Cleaning surface with Voronoi cells...");
 //        fail = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality + "a10");
-        fail = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality);
+        fail = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, "1.2");
         check_return(fail, "Making voronoi cells failed!");
         end_msg(t0);
 
@@ -283,10 +283,10 @@ int Femocs::generate_meshes() {
     vacuum_mesh.generate_hexahedra();
     end_msg(t0);
 
+    vacuum_mesh.faces.write("out/vacuum_tris.vtk");
+    vacuum_mesh.quads.write("out/vacuum_quads.vtk");
     bulk_mesh.nodes.write("out/bulk_nodes.xyz");
     bulk_mesh.edges.write("out/bulk_edges.vtk");
-    bulk_mesh.faces.write("out/bulk_tris.vtk");
-    bulk_mesh.quads.write("out/bulk_quads.vtk");
     bulk_mesh.elems.write("out/bulk_tets.vtk");
     bulk_mesh.hexahedra.write("out/bulk_hexs" + conf.message + ".vtk");
 
@@ -697,6 +697,8 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         start_msg(t0, "=== Calculating charges & forces...");
         forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coordination_cutoff,
                 conf.charge_smooth_factor);
+//        forces.calc_forces_vol2(vacuum_mesh, fields, face_charges, surface_interpolator,
+//                conf.use_histclean*conf.coordination_cutoff, conf.charge_smooth_factor);
 
         if (conf.surface_cleaner == "voronois")
             forces.recalc_forces(fields, areas);

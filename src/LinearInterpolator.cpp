@@ -941,7 +941,7 @@ void TriangleInterpolator::precompute() {
 
         // calculate the neighbour list for triangles
         for (int j = i+1; j < n_faces; ++j)
-            if (sface.neighbor((*faces)[j])) {
+            if (sface.edge_neighbor((*faces)[j])) {
                 neighbours[i].push_back(j);
                 neighbours[j].push_back(i);
             }

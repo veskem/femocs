@@ -22,6 +22,7 @@ void print_progress(const string& message, const bool contition) {
 }
 
 void write_defaults(ofstream &file) {
+    file << "mesh_quality = 1.8"        << endl;
     file << "heating_mode = none"        << endl;
     file << "write_log = true"           << endl;
     file << "clear_output = true"        << endl;
@@ -31,9 +32,9 @@ void write_defaults(ofstream &file) {
     file << "n_writefile = 1"            << endl;
     file << "coord_cutoff = 3.1"         << endl;
     file << "latconst = 3.61"            << endl;
-    file << "use_histclean = true"       << endl;
+    file << "use_histclean = false"       << endl;
     file << "surface_cleaner = voronois" << endl;
-    file << "femocs_verbose_mode = silent" << endl;
+    file << "femocs_verbose_mode = verbose" << endl;
     file << "smooth_steps = 3"           << endl;
     file << "smooth_algorithm = laplace" << endl;
 }
@@ -314,8 +315,8 @@ int main(int argc, char **argv) {
         success += femocs.export_elfield(0, Ex, Ey, Ez, En);
         success += femocs.export_temperature(n_atoms, T);
         success += femocs.export_charge_and_force(n_atoms, xq);
-        success += femocs.interpolate_elfield(n_atoms, x, y, z, Ex, Ey, Ez, En, flag);
-        success += femocs.interpolate_phi(n_points, x, y, z, phi, flag);
+//        success += femocs.interpolate_elfield(n_atoms, x, y, z, Ex, Ey, Ez, En, flag);
+//        success += femocs.interpolate_phi(n_points, x, y, z, phi, flag);
     }
 
     print_progress("\n> full run of Femocs", success == 0);

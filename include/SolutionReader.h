@@ -14,7 +14,6 @@
 #include "TetgenMesh.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
-#include "getelec.h"
 #include "LinearInterpolator.h"
 
 using namespace std;
@@ -258,7 +257,7 @@ public:
 
     void calc_forces(const FieldReader &fields, TriangleInterpolator& ti);
 
-    void calc_forces_vol2(const FieldReader &fields, const ChargeReader &face_charges,
+    void calc_forces_vol2(const TetgenMesh& mesh, const FieldReader &fields, const ChargeReader &face_charges,
             TriangleInterpolator& tri_interpolator, const double r_cut, const double smooth_factor);
 
     /** Export the induced charge and force on imported atoms

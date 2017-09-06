@@ -7,7 +7,7 @@
 
 #include "SolutionReader.h"
 #include "Macros.h"
-//#include "getelec.h"
+#include "getelec.h"
 
 #include <float.h>
 #include <stdio.h>
@@ -964,10 +964,10 @@ void ForceReader::calc_forces(const FieldReader &fields, TriangleInterpolator& t
     }
 }
 
-void ForceReader::calc_forces_vol2(const FieldReader &fields, const ChargeReader &face_charges,
+void ForceReader::calc_forces_vol2(const TetgenMesh& mesh, const FieldReader &fields, const ChargeReader &face_charges,
         TriangleInterpolator& tri_interpolator, const double r_cut, const double smooth_factor) {
     const int n_atoms = fields.size();
-    const int n_faces = face_charges.size();
+    const int n_faces = tri_interpolator.get_n_cells();
 
     tri_interpolator.search_outside(false);
 
@@ -978,22 +978,39 @@ void ForceReader::calc_forces_vol2(const FieldReader &fields, const ChargeReader
     vector<double> charges(n_atoms);
     vector<double> weights;
 
+    // calculate the neighbour list for triangles
+    vector<vector<int>> neighbours(n_faces);
+    for (int i = 0; i < n_faces; ++i) {
+        SimpleFace sface = mesh.faces[i];
+        for (int j = i+1; j < n_faces; ++j)
+            if ( sface.edge_neighbor(mesh.faces[j]) ) {
+                neighbours[i].push_back(j);
+                neighbours[j].push_back(i);
+            }
+    }
+
     // make the connection between the faces and the points that are close to them
     vector<vector<int>> face2atoms(n_faces);
     int face = 0;
     for (int atom = 0; atom < n_atoms; ++atom) {
         face = abs( tri_interpolator.locate_cell(get_point(atom), face) );
+        set_marker(atom, face);
+
         // face that is below the point
+        require(face >= 0 && face < n_faces, "Invalid face: " + to_string(face));
         face2atoms[face].push_back(atom);
         // faces that are nearest neighbours of the face below the point
-        for (int f : tri_interpolator.get_neighbours(face))
+        for (int f : neighbours[face])
             face2atoms[f].push_back(atom);
     }
 
     // loop through all the faces
-    for (int face = 0; face < n_faces; ++face) {
+    for (int face = 0; face < face_charges.size(); ++face) {
+        if (face2atoms[face].size() == 0) continue;
+
         Point3 centroid = face_charges.get_point(face);
         double q_face = face_charges.get_charge(face);
+        double sf = smooth_factor * sqrt(mesh.faces.get_area(face));
 
         // Find weights and normalization factor for all the atoms for given face
         weights = vector<double>(n_atoms);
@@ -1001,7 +1018,7 @@ void ForceReader::calc_forces_vol2(const FieldReader &fields, const ChargeReader
         // loop through all the atoms that are close to the face
         for (int atom : face2atoms[face]) {
             double dist2 = centroid.periodic_distance2(get_point(atom), sizes.xbox, sizes.ybox);
-            double w = exp(-1.0 * sqrt(dist2) / smooth_factor);
+            double w = exp(-1.0 * sqrt(dist2) / sf);
             weights[atom] = w;
             w_sum += w;
         }
