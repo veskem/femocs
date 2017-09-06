@@ -87,6 +87,18 @@ public:
         return solutions[i].scalar;
     }
 
+    /** Return the centroid coordinates of i-th cell */
+    Point3 get_centroid(const int i) const {
+        require(i >= 0 && i < centroids.size(), "Invalid index: " + to_string(i));
+        return centroids[i];
+    }
+
+    /** Return nearest neighbouring cells of i-th cell */
+    vector<int> get_neighbours(const int i) const {
+        require(i >= 0 && i < neighbours.size(), "Invalid index: " + to_string(i));
+        return neighbours[i];
+    }
+
     /** Interpolate both vector and scalar data inside or near the cell.
      * Function assumes, that cell, that surrounds the point, is previously already found with locate_cell.
      * @param point  point where the interpolation is performed

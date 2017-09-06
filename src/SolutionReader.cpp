@@ -964,22 +964,67 @@ void ForceReader::calc_forces(const FieldReader &fields, TriangleInterpolator& t
     }
 }
 
-void ForceReader::calc_forces_vol2(const FieldReader &fields, TriangleInterpolator& ti) {
+void ForceReader::calc_forces_vol2(const FieldReader &fields, const ChargeReader &face_charges,
+        TriangleInterpolator& tri_interpolator, const double r_cut, const double smooth_factor) {
     const int n_atoms = fields.size();
+    const int n_faces = face_charges.size();
+
+    tri_interpolator.search_outside(false);
 
     // Copy the atom data
     reserve(n_atoms);
     atoms = fields.atoms;
 
-    // Calculate the charges by ensuring the that the total sum of it remains conserved
-    vector<double> charges;
-    ti.interp_conserved(charges, atoms);
+    vector<double> charges(n_atoms);
+    vector<double> weights;
 
-    // calculate forces and store them
-    for (int i = 0; i < n_atoms; ++i) {
-        Vec3 force = fields.get_elfield(i) * (charges[i] * force_factor);   // [e*V/A]
-        interpolation.push_back(Solution(force, charges[i]));
+    // make the connection between the faces and the points that are close to them
+    vector<vector<int>> face2atoms(n_faces);
+    int face = 0;
+    for (int atom = 0; atom < n_atoms; ++atom) {
+        face = abs( tri_interpolator.locate_cell(get_point(atom), face) );
+        // face that is below the point
+        face2atoms[face].push_back(atom);
+        // faces that are nearest neighbours of the face below the point
+        for (int f : tri_interpolator.get_neighbours(face))
+            face2atoms[f].push_back(atom);
     }
+
+    // loop through all the faces
+    for (int face = 0; face < n_faces; ++face) {
+        Point3 centroid = face_charges.get_point(face);
+        double q_face = face_charges.get_charge(face);
+
+        // Find weights and normalization factor for all the atoms for given face
+        weights = vector<double>(n_atoms);
+        double w_sum = 0.0;
+        // loop through all the atoms that are close to the face
+        for (int atom : face2atoms[face]) {
+            double dist2 = centroid.periodic_distance2(get_point(atom), sizes.xbox, sizes.ybox);
+            double w = exp(-1.0 * sqrt(dist2) / smooth_factor);
+            weights[atom] = w;
+            w_sum += w;
+        }
+
+        // If there were any atoms connected to the face, store the partial charges on atoms
+        if (w_sum > 0) {
+            w_sum = 1.0 / w_sum;
+            for (int atom = 0; atom < n_atoms; ++atom)
+                if (weights[atom] > 0)
+                    charges[atom] += weights[atom] * w_sum * q_face;
+        }
+    }
+
+    for (int atom = 0; atom < n_atoms; ++atom) {
+        Vec3 force = fields.get_elfield(atom) * (charges[atom] * force_factor);   // [e*V/A]
+        interpolation.push_back(Solution(force, charges[atom]));
+    }
+
+    clean(0, r_cut);  // clean by vector x-component
+    clean(1, r_cut);  // clean by vector y-component
+    clean(2, r_cut);  // clean by vector z-component
+    clean(3, r_cut);  // clean by vector norm
+    clean(4, r_cut);  // clean by scalar
 }
 
 // Calculate forces from atomic electric fields and face charges

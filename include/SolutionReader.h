@@ -258,7 +258,8 @@ public:
 
     void calc_forces(const FieldReader &fields, TriangleInterpolator& ti);
 
-    void calc_forces_vol2(const FieldReader &fields, TriangleInterpolator& ti);
+    void calc_forces_vol2(const FieldReader &fields, const ChargeReader &face_charges,
+            TriangleInterpolator& tri_interpolator, const double r_cut, const double smooth_factor);
 
     /** Export the induced charge and force on imported atoms
      * @param n_atoms  number of first atoms field is calculated
