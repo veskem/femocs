@@ -125,12 +125,10 @@ protected:
     vector<Solution> solutions;     ///< interpolation data
     vector<vector<int>> neighbours; ///< nearest neighbours of the cells
     vector<Point3> centroids;       ///< cell centroid coordinates
+    vector<SimpleCell<dim>> cells;  ///< interpolation cells - triangles or tetrahedra
 
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
     const TetgenNodes* nodes;       ///< Mesh nodes
-    /** Getter for cell data without nodes.
-     * It is implemented as a function to take advantage of polymorphism. */
-    virtual const TetgenCells<dim>* cells() const { return NULL; }
 
     /** Reserve memory for interpolation data */
     void reserve(const int N) {
@@ -144,6 +142,8 @@ protected:
         neighbours = vector<vector<int>>(N);
         centroids.clear();
         centroids.reserve(N);
+        cells.clear();
+        cells.reserve(N);
     }
 
     /** Pre-compute data about cells to make interpolation faster */
@@ -257,9 +257,6 @@ private:
     double E0;       ///< Long-range electric field strength
     Point3 origin;
     
-    /** Pointer to common routines of tetrahedra.
-     * It is function instead of an object to take advantage of polymorphism. */
-    const TetgenCells<4>* cells() const { return &mesh->elems; }
     const TetgenElements* elems;    ///< Direct pointer to tetrahedra to access their specific routines
 
     vector<double> det0;            ///< major determinant for calculating bcc-s
@@ -326,10 +323,6 @@ public:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
 
 private:
-
-    /** Pointer to common routines of triangles.
-     * It is function instead of an object to take advantage of polymorphism. */
-    const TetgenCells<3>* cells() const { return &mesh->faces; }
     const TetgenFaces* faces;    ///< Direct pointer to triangles to access their specific routines
 
     /** Data computed before starting looping through the triangles */
@@ -337,6 +330,7 @@ private:
     vector<Vec3> edge1;
     vector<Vec3> edge2;
     vector<Vec3> pvec;
+    vector<Vec3> norms;
     vector<double> max_distance;
 
     bool clean_nodes();
