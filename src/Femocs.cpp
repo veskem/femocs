@@ -509,7 +509,7 @@ int Femocs::generate_nanotip(const double height, const double radius, const dou
 }
 
 // import atoms from a file
-int Femocs::import_atoms(const string& file_name) {
+int Femocs::import_atoms(const string& file_name, const int add_noise) {
     clear_log();
     string file_type, fname;
 
@@ -520,7 +520,7 @@ int Femocs::import_atoms(const string& file_name) {
     require(file_type == "ckx" || file_type == "xyz", "Unknown file type: " + file_type);
 
     start_msg(t0, "=== Importing atoms...");
-    reader.import_file(fname);
+    reader.import_file(fname, add_noise);
     end_msg(t0);
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
@@ -634,7 +634,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         write_silent_msg("Using previous electric field!");
     else {
         start_msg(t0, "=== Interpolating E and phi...");
-        fields.interpolate2D(dense_surf, 0, false);
+        fields.interpolate2D(dense_surf, conf.use_histclean * conf.coordination_cutoff, 0, true);
         end_msg(t0);
 
         fields.write("out/fields.movie");
@@ -720,12 +720,12 @@ int Femocs::interpolate_surface_elfield(const int n_points, const double* x, con
     check_return(vacuum_interpolator.size() == 0, "No solution to export!");
 
     FieldReader fr(&surface_interpolator);
-    start_msg(t0, "=== Interpolating & exporting elfield...");
+    start_msg(t0, "=== Interpolating & exporting surface elfield...");
     fr.interpolate2D(n_points, x, y, z, 1, false);
     fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
 
-    fr.write("out/interpolation_E.movie");
+    fr.write("out/interpolation_E_surf.movie");
     return 0;
 }
 

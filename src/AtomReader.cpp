@@ -387,7 +387,7 @@ void AtomReader::import_parcas(const int n_atoms, const double* xyz, const doubl
     calc_statistics();
 }
 
-void AtomReader::import_file(const string &file_name, const int add_noise) {
+void AtomReader::import_file(const string &file_name, const bool add_noise) {
     string file_type = get_file_type(file_name);
 
     if (file_type == "xyz")

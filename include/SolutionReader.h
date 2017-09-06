@@ -102,32 +102,24 @@ public:
     FieldReader(TriangleInterpolator* ip);
 
     /** Interpolate solution on the system atoms using triangular interpolator
+     * @param r_cut     smoothing region cut-off radius; 0 or less turns smoothing off
      * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
      * @param srt       sort atoms spatially */
-    void calc_interpolation2D(const int component, const bool srt);
+    void calc_interpolation2D(const double r_cut, const int component, const bool srt);
 
-    /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes
-     * @param medium    atoms to be interpolated
-     * @param r_cut     smoothing region cut off radius; 0 or less turns smoothing off
-     * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
-     * @param srt       sort input atoms spatially
-     */
-    void interpolate(const Medium &medium, const double r_cut, const int component=0, const bool srt=true);
+    /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
+    void interpolate(const Medium &medium, const double r_cut=0, const int component=0, const bool srt=true);
 
     /** Interpolate solution on points using the solution on tetrahedral mesh nodes */
     void interpolate(const int n_points, const double* x, const double* y, const double* z,
-            const double r_cut, const int component=0, const bool srt=true);
+            const double r_cut=0, const int component=0, const bool srt=true);
 
-    /** Interpolate solution on medium atoms using the solution on triangular mesh nodes
-     * @param medium    atoms to be interpolated
-     * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
-     * @param srt       sort input atoms spatially
-     */
-    void interpolate2D(const Medium &medium, const int component, const bool srt);
+    /** Interpolate solution on medium atoms using the solution on triangular mesh nodes */
+    void interpolate2D(const Medium &medium, const double r_cut=0, const int component=0, const bool srt=true);
 
     /** Interpolate solution on points using the solution on triangular mesh nodes */
     void interpolate2D(const int n_points, const double* x, const double* y, const double* z,
-            const int component=0, const bool srt=true);
+            const double r_cut=0, const int component=0, const bool srt=true);
 
     /** Calculate the electric field for the stationary current and temperature solver */
     void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const bool srt=true);

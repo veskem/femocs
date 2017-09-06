@@ -197,7 +197,7 @@ void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, co
         else if (coordinate == 3) value = interpolation[i].norm;
         else                 value = interpolation[i].vector[coordinate];
 
-        if (abs(value) < interpolator->error_field) {
+        if (fabs(value) < interpolator->error_field) {
             value_min = min(value_min, value);
             value_max = max(value_max, value);
         }
@@ -218,7 +218,7 @@ void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, co
 
             if (value >= bounds[j] && value < bounds[j+1]) {
                 bins[j]++;
-                continue;
+                break;
             }
         }
 }
@@ -226,6 +226,7 @@ void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, co
 // Clean the interpolation from peaks using histogram cleaner
 void SolutionReader::clean(const int coordinate, const double r_cut) {
     require(coordinate >= 0 && coordinate <= 4, "Invalid coordinate: " + to_string(coordinate));
+    require(interpolator, "NULL interpolator cannot be used!");
     const int n_atoms = size();
     const int n_bins = static_cast<int>(n_atoms / 250);
 
@@ -266,9 +267,9 @@ void SolutionReader::clean(const int coordinate, const double r_cut) {
 
     double value;
     for (int i = 0; i < n_atoms; ++i) {
-        if (coordinate == 4) value = abs(interpolation[i].scalar);
-        else if (coordinate == 3) value = abs(interpolation[i].norm);
-        else                 value = abs(interpolation[i].vector[coordinate]);
+        if (coordinate < 3)  value = fabs(interpolation[i].vector[coordinate]);
+        else if (coordinate == 3) value = fabs(interpolation[i].norm);
+        else if (coordinate == 4) value = fabs(interpolation[i].scalar);
 
         if (value < value_min || value > value_max)
             interpolation[i] = get_average_solution(i, r_cut);
@@ -348,7 +349,7 @@ FieldReader::FieldReader(TetrahedronInterpolator* ip) : SolutionReader(ip, "elfi
         radius1(0), radius2(0), E0(0), interpolator3(NULL) {}
 
 // Linearly interpolate solution on system atoms using triangular interpolator
-void FieldReader::calc_interpolation2D(const int component, const bool srt) {
+void FieldReader::calc_interpolation2D(const double r_cut, const int component, const bool srt) {
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
     require(interpolator3, "NULL interpolator cannot be used!");
 
@@ -379,6 +380,14 @@ void FieldReader::calc_interpolation2D(const int component, const bool srt) {
         else if (component == 2) interpolation.push_back( interpolator3->interp_scalar(point, abs(elem)) );
     }
 
+    // Apply histogram cleaner for the solution
+    // TODO cleaners require the presence of interpolator
+//    clean(0, r_cut);  // clean by vector x-component
+//    clean(1, r_cut);  // clean by vector y-component
+//    clean(2, r_cut);  // clean by vector z-component
+//    clean(3, r_cut);  // clean by vector norm
+//    clean(4, r_cut);  // clean by scalar
+
     // Sort atoms back to their initial order
     if (srt) {
         for (int i = 0; i < n_atoms; ++i)
@@ -390,7 +399,7 @@ void FieldReader::calc_interpolation2D(const int component, const bool srt) {
 }
 
 // Linearly interpolate solution on Medium atoms using triangular interpolator
-void FieldReader::interpolate2D(const Medium &medium, const int component, const bool srt) {
+void FieldReader::interpolate2D(const Medium &medium, const double r_cut, const int component, const bool srt) {
     const int n_atoms = medium.size();
 
     // store the atom coordinates
@@ -399,7 +408,7 @@ void FieldReader::interpolate2D(const Medium &medium, const int component, const
         append( Atom(i, medium.get_point(i), 0) );
 
     // interpolate solution
-    calc_interpolation2D(component, srt);
+    calc_interpolation2D(r_cut, component, srt);
 
     // store the original atom id-s
     for (int i = 0; i < n_atoms; ++i)
@@ -408,7 +417,7 @@ void FieldReader::interpolate2D(const Medium &medium, const int component, const
 
 // Linearly interpolate electric field on a set of points using triangular interpolator
 void FieldReader::interpolate2D(const int n_points, const double* x, const double* y, const double* z,
-        const int component, const bool srt) {
+        const double r_cut, const int component, const bool srt) {
 
     // store the point coordinates
     reserve(n_points);
@@ -416,7 +425,7 @@ void FieldReader::interpolate2D(const int n_points, const double* x, const doubl
         append(Atom(i, Point3(x[i], y[i], z[i]), 0));
 
     // interpolate solution
-    calc_interpolation2D(component, srt);
+    calc_interpolation2D(r_cut, component, srt);
 }
 
 // Linearly interpolate solution on Medium atoms

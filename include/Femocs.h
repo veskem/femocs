@@ -63,9 +63,10 @@ public:
 
     /** Function to import atoms from file
      * @param file_name path to the file
+     * @param add_noise add random noise to the imported atom coordinates to emulate real simulation
      * @return          0 - import succeeded, 1 - import failed
      */
-    int import_atoms(const string& file_name);
+    int import_atoms(const string& file_name, const int add_noise=0);
     
     /** Export the types of all the atoms as seen by FEMOCS
      * @param n_atoms   number of atoms to export; n_atoms <= 0 turns the export off

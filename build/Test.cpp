@@ -22,20 +22,20 @@ void print_progress(const string& message, const bool contition) {
 }
 
 void write_defaults(ofstream &file) {
-    file << "heating_mode = none"      << endl;
+    file << "heating_mode = none"        << endl;
     file << "write_log = true"           << endl;
     file << "clear_output = true"        << endl;
-    file << "smooth_factor = 0.0"        << endl;
+    file << "smooth_factor = 0.1"        << endl;
     file << "charge_smooth_factor = 1.0" << endl;
-    file << "distance_tol = 0.0"        << endl;
+    file << "distance_tol = 0.0"         << endl;
     file << "n_writefile = 1"            << endl;
     file << "coord_cutoff = 3.1"         << endl;
     file << "latconst = 3.61"            << endl;
-    file << "use_histclean = false"      << endl;
+    file << "use_histclean = true"       << endl;
     file << "surface_cleaner = voronois" << endl;
     file << "femocs_verbose_mode = silent" << endl;
     file << "smooth_steps = 3"           << endl;
-    file << "smooth_algorithm = laplace"<< endl;
+    file << "smooth_algorithm = laplace" << endl;
 }
 
 void write_hr5(ofstream &file) {
@@ -56,6 +56,10 @@ void write_mdsmall(ofstream &file) {
     file << "radius = 16.0"              << endl;
     file << "box_width = 4.0"            << endl;
     file << "box_height = 3.5"           << endl;
+}
+
+void write_wobble(ofstream &file) {
+    write_mdsmall(file);
 }
 
 void write_mdbig(ofstream &file) {
@@ -232,6 +236,7 @@ int main(int argc, char **argv) {
         else if (mode == "molten")    write_molten(file);
         else if (mode == "moltenbig") write_moltenbig(file);
         else if (mode == "generate")  write_generate(file);
+        else if (mode == "wobble")    write_wobble(file);
 
         else {
             printf("Usage:\n");
@@ -249,6 +254,7 @@ int main(int argc, char **argv) {
             printf("  molten      nanotip with molten apex on top of thin rod\n");
             printf("  moltenbig   symmetric MD nanotip with molten apex\n");
             printf("  generate    generate and use perfectly symmetric nanotip without crystallographic properties\n");
+            printf("  wobble      read small MD nanotip and add random noise to emulate real MD simulation\n");
 
             file.close();
             success = system("rm -rf tmpfile");
@@ -299,9 +305,10 @@ int main(int argc, char **argv) {
                 success += femocs.generate_nanotip(0, 30, atof(argv[2]));
             else
                 success += femocs.generate_nanotip(0, 30);
-        } else {
+        } else if (mode == "wobble")
+            success += femocs.import_atoms(infile, true);
+        else
             success += femocs.import_atoms(infile);
-        }
 
         success += femocs.run(-0.15, "");
         success += femocs.export_elfield(0, Ex, Ey, Ez, En);
