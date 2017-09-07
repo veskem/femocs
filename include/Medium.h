@@ -116,6 +116,10 @@ protected:
     /** Output atom data in .vtk format */
     void write_vtk(ofstream &outfile, const int n_atoms) const;
     
+    /** Output atom data in .ckx format that shows atom coordinates and their types (fixed, surface, bulk etc.)
+     * Atom types are the same as in Types struct in Macros.h */
+    void write_ckx(ofstream &outfile, const int n_atoms) const;
+
     /** Get scalar and vector data associated with atoms */
     virtual void get_cell_data(ofstream& outfile) const;
 

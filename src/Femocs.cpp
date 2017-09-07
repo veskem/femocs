@@ -504,7 +504,7 @@ int Femocs::generate_nanotip(const double height, const double radius, const dou
     end_msg(t0);
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
-    reader.write("out/atomreader.xyz");
+    reader.write("out/atomreader.ckx");
     return 0;
 }
 
@@ -553,7 +553,7 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
         }
     }
 
-    reader.write("out/atomreader.xyz");
+    reader.write("out/atomreader.ckx");
     return 0;
 }
 
@@ -588,7 +588,7 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
         end_msg(t0);
     }
 
-    reader.write("out/atomreader.xyz");
+    reader.write("out/atomreader.ckx");
     return 0;
 }
 
@@ -612,7 +612,7 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
         end_msg(t0);
     }
 
-    reader.write("out/atomreader.xyz");
+    reader.write("out/atomreader.ckx");
     return 0;
 }
 

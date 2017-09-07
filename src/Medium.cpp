@@ -246,6 +246,8 @@ void Medium::write(const string &file_name) const {
         write_xyz(outfile, n_atoms);
     else if (ftype == "vtk")
         write_vtk(outfile, n_atoms);
+    else if (ftype == "ckx")
+        write_ckx(outfile, n_atoms);
     else    
         require(false, "Unsupported file type: " + ftype);
 
@@ -283,6 +285,14 @@ void Medium::write_vtk(ofstream& out, const int n_atoms) const {
         out << get_point(i) << "\n";
 
     get_cell_data(out);
+}
+
+// Output atom data in .ckx format
+void Medium::write_ckx(ofstream &out, const int n_atoms) const {
+    out << n_atoms << "\n";
+    out << "Medium properties=type:I:1:pos:R:3" << endl;
+    for (int i = 0; i < n_atoms; ++i)
+        out << atoms[i].marker << " " << atoms[i].point << endl;
 }
 
 // Get scalar and vector data associated with vtk cells
