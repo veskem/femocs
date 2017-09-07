@@ -292,6 +292,8 @@ void VoronoiMesh::mark_faces(const double zmin, const int seed) {
         }
     }
 
+    vfaces.set_marker(seed, TYPES.ZMAX);
+
     // Mark the faces around the seed face
     vector<int> neighbours = vfaces.get_neighbours(seed);
     for (size_t i = 0; i < neighbours.size(); ++i) {
@@ -317,7 +319,7 @@ void VoronoiMesh::mark_cells_and_nodes() {
         if (cell.id <= cell_max)
             // Mark the cells that have at least one face on the surface
             for (VoronoiFace face : cell)
-                if (vfaces.get_marker(face.id) == TYPES.SURFACE) {
+                if (vfaces.get_marker(face.id) == TYPES.SURFACE || vfaces.get_marker(face.id) == TYPES.ZMAX) {
                     voros.set_marker(cell.id, TYPES.SURFACE);
                     break;
                 }
@@ -514,7 +516,7 @@ bool VoronoiMesh::generate_modi(const Medium& surf, const double latconst, const
 }
 
 bool VoronoiMesh::generate(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2) {
-    const double l = 1.0*latconst;
+    const double l = 10.0*latconst;
 
     Medium bulk(4), vacuum(4);
     bulk.append( Point3(surf.sizes.xmin-l, surf.sizes.ymin-l, surf.sizes.zmin-l) );

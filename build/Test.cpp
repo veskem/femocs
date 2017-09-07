@@ -311,7 +311,7 @@ int main(int argc, char **argv) {
         else
             success += femocs.import_atoms(infile);
 
-        success += femocs.run(-0.15, "");
+        success += femocs.run(-0.07, "");
         success += femocs.export_elfield(0, Ex, Ey, Ez, En);
         success += femocs.export_temperature(n_atoms, T);
         success += femocs.export_charge_and_force(n_atoms, xq);
