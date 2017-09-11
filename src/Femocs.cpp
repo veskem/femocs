@@ -112,9 +112,17 @@ void Femocs::write_slice(const string& file_name) {
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
 int Femocs::run(const double elfield, const string &message) {
     stringstream stream; stream << fixed << setprecision(3);
+
+    // convert message to integer time step
+    int tstep;
+    stream << message;
+    if (!stream >> tstep)
+        tstep = -1;
+
+    stream.str("");
     stream << "Atoms haven't moved significantly, " << reader.rms_distance
         << " < " << conf.distance_tol << "! Field calculation will be skipped!";
-    check_return(reinit(), stream.str());
+    check_return(reinit(tstep), stream.str());
 
     double tstart = omp_get_wtime();
     skip_calculations = true;
@@ -143,9 +151,12 @@ int Femocs::run(const double elfield, const string &message) {
 }
 
 // Determine whether atoms have moved significantly and whether to enable file writing
-int Femocs::reinit() {
+int Femocs::reinit(const int tstep) {
     static bool prev_skip_calculations = true;  // Value of skip_calculations in last call
-    ++timestep;
+    if (tstep >= 0)
+        timestep = tstep;
+    else
+        ++timestep;
 
     if (!prev_skip_calculations && MODES.WRITEFILE)
         MODES.WRITEFILE = false;
@@ -155,7 +166,7 @@ int Femocs::reinit() {
 
     conf.message = to_string(timestep);
     write_silent_msg("Running at timestep " + conf.message);
-    conf.message = "_" + string( max(0.0, 5.0 - conf.message.length()), '0' ) + conf.message;
+    conf.message = "_" + string( max(0.0, 6.0 - conf.message.length()), '0' ) + conf.message;
 
     prev_skip_calculations = skip_calculations;
     return skip_calculations;

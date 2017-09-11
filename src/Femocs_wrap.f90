@@ -2,7 +2,7 @@ module libfemocs
     use iso_c_binding
 
     private
-    public :: femocs, femocs_speaker
+    public :: femocs
     
     ! C functions declarations
     interface
@@ -28,11 +28,12 @@ module libfemocs
             character(len=1, kind=C_CHAR), intent(in) :: message(*)
         end subroutine
 
-        subroutine femocs_reinit_c(femocs, retval) bind(C, name="femocs_reinit")
+        subroutine femocs_reinit_c(femocs, retval, timestep) bind(C, name="femocs_reinit")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
             integer(c_int) :: retval
+            integer(c_int), intent(in), value :: timestep
         end subroutine
 
         subroutine femocs_finalize_c(femocs, retval) bind(C, name="femocs_finalize")
@@ -304,22 +305,26 @@ module libfemocs
         call femocs_run_c(this%ptr, retval, E_field, c_str)
     end subroutine
     
-    subroutine femocs_reinit(this, retval)
+    subroutine femocs_reinit(this, retval, timestep)
         implicit none
         class(femocs), intent(in) :: this
         integer(c_int) :: retval
+        integer(c_int), intent(in) :: timestep
+        call femocs_reinit_c(this%ptr, retval, timestep)
     end subroutine
 
     subroutine femocs_finalize(this, retval)
         implicit none
         class(femocs), intent(in) :: this
         integer(c_int) :: retval
+        call femocs_finalize_c(this%ptr, retval)
     end subroutine
 
     subroutine femocs_generate_meshes(this, retval)
         implicit none
         class(femocs), intent(in) :: this
         integer(c_int) :: retval
+        call femocs_generate_meshes_c(this%ptr, retval)
     end subroutine
 
     subroutine femocs_solve_laplace(this, retval, E_field)
@@ -327,6 +332,7 @@ module libfemocs
         class(femocs), intent(in) :: this
         integer(c_int) :: retval
         real(c_double), intent(in) :: E_field
+        call femocs_solve_laplace_c(this%ptr, retval, E_field)
     end subroutine
 
     subroutine femocs_solve_heat(this, retval, T_ambient)
@@ -334,6 +340,7 @@ module libfemocs
         class(femocs), intent(in) :: this
         integer(c_int) :: retval
         real(c_double), intent(in) :: T_ambient
+        call femocs_solve_heat_c(this%ptr, retval, T_ambient)
     end subroutine
 
     subroutine femocs_import_atoms(this, retval, n_atoms, x, y, z, types)

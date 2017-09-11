@@ -16,7 +16,7 @@ void delete_femocs(FEMOCS* femocs);
 
 void femocs_run(FEMOCS* femocs, int* retval, double E_field, const char* message);
 
-void femocs_reinit(FEMOCS* femocs, int* retval);
+void femocs_reinit(FEMOCS* femocs, int* retval, int timestep);
 
 void femocs_finalize(FEMOCS* femocs, int* retval);
 

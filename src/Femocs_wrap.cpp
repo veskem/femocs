@@ -17,8 +17,8 @@ void femocs_run(FEMOCS* femocs, int* retval, double E_field, const char* message
     retval[0] = femocs->run(E_field, string(message));
 }
 
-void femocs_reinit(FEMOCS* femocs, int* retval) {
-    retval[0] = femocs->reinit();
+void femocs_reinit(FEMOCS* femocs, int* retval, int timestep) {
+    retval[0] = femocs->reinit(timestep);
 }
 
 void femocs_finalize(FEMOCS* femocs, int* retval) {

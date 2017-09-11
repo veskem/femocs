@@ -191,7 +191,7 @@ public:
     int solve_heat(const double T_ambient);
 
     /** Determine whether atoms have moved significantly and whether to enable file writing */
-    int reinit();
+    int reinit(const int timestep=-1);
 
     /** Store the imported atom coordinates and set the flag that enables exporters */
     int finalize();
