@@ -602,10 +602,10 @@ void FieldReader::print_enhancement() const {
 
     stringstream stream;
     stream << fixed << setprecision(3);
-    stream << "field enhancements:  Femocs:" << gamma1
-            << "  analyt:" << gamma2
-            << "  f-a:" << gamma1-gamma2
-            << "  f/a:" << gamma1/gamma2;
+    stream << "field enhancements:  (F)emocs:" << gamma1
+            << "  (A)nalyt:" << gamma2
+            << "  F-A:" << gamma1-gamma2
+            << "  F/A:" << gamma1/gamma2;
 
     write_verbose_msg(stream.str());
 }
@@ -899,13 +899,13 @@ void ChargeReader::clean(const Medium::Sizes& sizes, const double latconst) {
 }
 
 // Check whether charge is conserved within specified limits
-bool ChargeReader::charge_conserved(const double Q, const double eps) const {
+bool ChargeReader::charge_conserved(const double Q, const double tol_min, const double tol_max) const {
     double q = 0;
     for (int i = 0; i < size(); ++i)
         q += interpolation[i].scalar;
     q = Q / q;
 
-    return q >= (1 - eps) && q <= (1 + eps);
+    return q >= tol_min && q <= tol_max;
 }
 
 Vec3 ChargeReader::get_elfield(const int i) const {

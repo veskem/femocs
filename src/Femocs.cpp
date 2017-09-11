@@ -66,17 +66,25 @@ void Femocs::force_output() {
     MODES.WRITEFILE = true;
 
     reader.write("out/reader.xyz");
-    bulk_mesh.hexahedra.write("out/hexmesh_bulk.vtk");
-    vacuum_mesh.hexahedra.write("out/hexmesh_vacuum.vtk");
-    vacuum_mesh.faces.write("out/surface_faces_clean.vtk");
+    bulk_mesh.hexahedra.write("out/bulk_hexs_err.vtk");
+    vacuum_mesh.hexahedra.write("out/vacuum_hexs_err.vtk");
+    vacuum_mesh.faces.write("out/vacuum_tris_err.vtk");
 
-    vacuum_interpolator.write("out/result_E_phi.vtk");
-    vacuum_interpolator.write("out/result_E_phi.xyz");
+    vacuum_interpolator.write("out/result_E_phi_vacuum_err.xyz");
+    vacuum_interpolator.write("out/result_E_phi_vacuum_err.vtk");
+    surface_interpolator.write("out/result_E_phi_surface_err.xyz");
+    surface_interpolator.write("out/result_E_phi_surface_err.vtk");
 
-    if ((conf.heating_mode == "transient" || conf.heating_mode == "stationary")
-        && bulk_interpolator.size() > 0) {
-        ch_solver->output_results("out/result_J_T.vtk");
-        bulk_interpolator.write("out/result_J_T.xyz");
+    if (bulk_interpolator.size() > 0) {
+        if (conf.heating_mode == "transient" || conf.heating_mode == "stationary")
+            bulk_interpolator.write("out/result_J_T_err.xyz");
+        if (conf.heating_mode == "transient") {
+            ch_transient_solver.output_results_current("out/result_J_err.vtk");
+            ch_transient_solver.output_results_heating("out/result_T_err.vtk");
+        }
+        if (conf.heating_mode == "stationary") {
+            ch_solver->output_results("out/result_J_T_err.vtk");
+        }
     }
 }
 
@@ -324,8 +332,12 @@ int Femocs::generate_meshes() {
 int Femocs::solve_laplace(const double E0) {
     conf.E0 = E0;       // long-range electric field
     conf.neumann = -E0; // set minus gradient of solution to equal to E0
+
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    vacuum_interpolator.set_analyt(coarseners.centre, E0, conf.radius, dense_surf.sizes.zbox);
+    vacuum_interpolator.set_analyt(coarseners.centre, conf.field_tolerance_min, conf.field_tolerance_max,
+            E0, conf.radius, dense_surf.sizes.zbox);
+    surface_interpolator.set_analyt(coarseners.centre, conf.field_tolerance_min, conf.field_tolerance_max,
+            E0, conf.radius, dense_surf.sizes.zbox);
     fields.set_analyt(E0, conf.radius, dense_surf.sizes.zbox);
 
     start_msg(t0, "=== Importing mesh to Laplace solver...");
@@ -349,14 +361,15 @@ int Femocs::solve_laplace(const double E0) {
 
     start_msg(t0, "=== Extracting E and phi...");
     fail = vacuum_interpolator.extract_solution(&laplace_solver);
-    surface_interpolator.extract_solution(&laplace_solver);
+    fail |= surface_interpolator.extract_solution(&laplace_solver);
     end_msg(t0);
+
+    check_return(surface_interpolator.compare_enhancement(), "Field is over-enhanced!");
 
     vacuum_interpolator.write("out/result_E_phi_vacuum.xyz");
     vacuum_interpolator.write("out/result_E_phi_vacuum.vtk");
     surface_interpolator.write("out/result_E_phi_surface.xyz");
     surface_interpolator.write("out/result_E_phi_surface.vtk");
-    vacuum_interpolator.print_enhancement();
 
     return fail;
 }
@@ -487,8 +500,8 @@ int Femocs::solve_transient_heat(const double T_ambient) {
     }
     end_msg(t0);
 
-    ch_transient_solver.output_results_current("./out/current_solution" + conf.message + ".vtk");
-    ch_transient_solver.output_results_heating("./out/heat_solution" + conf.message + ".vtk");
+    ch_transient_solver.output_results_current("out/result_J.vtk");
+    ch_transient_solver.output_results_heating("out/result_T.vtk");
 
     start_msg(t0, "=== Extracting J & T...");
     bulk_interpolator.extract_solution(&ch_transient_solver);
@@ -699,7 +712,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         const double tot_charge = conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0;
         face_charges.print_statistics(tot_charge);
 
-        check_return(!face_charges.charge_conserved(tot_charge, conf.charge_tolerance),
+        check_return(!face_charges.charge_conserved(tot_charge, conf.charge_tolerance_min, conf.charge_tolerance_max),
                 "Face charges are not conserved!");
 
         face_charges.clean(dense_surf.sizes, conf.latconst);

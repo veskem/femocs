@@ -72,7 +72,11 @@ public:
     bool use_histclean;         ///< Clean the solution with histogram cleaner
     int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
     string verbose_mode;        ///< Verbose mode: mute, silent, verbose
-    double charge_tolerance;    ///< Tolerance how much face charges are allowed to deviate from the long range one
+
+    double charge_tolerance_min; ///< Min ratio face charges are allowed to deviate from the total charge
+    double charge_tolerance_max; ///< Max ratio face charges are allowed to deviate from the total charge
+    double field_tolerance_min; ///< Min ratio numerical field can deviate from analytical one
+    double field_tolerance_max; ///< Max ratio numerical field can deviate from analytical one
 
     string heating_mode;        ///< Method to calculate current density and temperature; none, stationary or transient
     double transient_time;      ///< Time resolution in transient heat equation solver [sec]

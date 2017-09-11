@@ -39,7 +39,10 @@ Config::Config() {
     phi_error = 1e-9;            // maximum allowed electric potential error
     n_phi = 10000;               // maximum number of Conjugate Gradient iterations in phi calculation
     ssor_param = 1.2;            // parameter for SSOR preconditioner
-    charge_tolerance = 0.2;      // tolerance how much face charges are allowed to deviate from the long range one
+    charge_tolerance_min = 0.8;  // Min ratio face charges are allowed to deviate from the total charge
+    charge_tolerance_max = 1.2;  // Max ratio face charges are allowed to deviate from the total charge
+    field_tolerance_min = 0.1;   // Min ratio numerical field can deviate from analytical one
+    field_tolerance_max = 5.0;     // Max ratio numerical field can deviate from analytical one
     refine_apex = false;         // refine nanotip apex
     distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
     n_writefile = 1;             // number of time steps between writing the output files
@@ -90,7 +93,6 @@ void Config::read_all(const string& file_name) {
     read_command("smooth_lambda", smooth_lambda);
     read_command("smooth_mu", smooth_mu);
     read_command("smooth_algorithm", smooth_algorithm);
-    read_command("charge_tolerance", charge_tolerance);
     read_command("phi_error", phi_error);
     read_command("n_phi", n_phi);
     read_command("surface_cleaner", surface_cleaner);
@@ -119,12 +121,36 @@ void Config::read_all(const string& file_name) {
     read_command("use_histclean", use_histclean);
     read_command("n_writefile", n_writefile);
 
-    vector<double> coarse_factors = {cfactor.amplitude, (double)cfactor.r0_cylinder, (double)cfactor.r0_sphere};
-    read_command("coarse_factor", coarse_factors);
+    // Read commands with potentially multiple arguments like...
+    vector<double> args;
+    int n_read_args;
 
-    cfactor.amplitude = coarse_factors[0];
-    cfactor.r0_cylinder = static_cast<int>(coarse_factors[1]);
-    cfactor.r0_sphere = static_cast<int>(coarse_factors[2]);
+    // ...coarsening factors
+    args = {cfactor.amplitude, (double)cfactor.r0_cylinder, (double)cfactor.r0_sphere};
+    n_read_args = read_command("coarse_factor", args);
+    cfactor.amplitude = args[0];
+    cfactor.r0_cylinder = static_cast<int>(args[1]);
+    cfactor.r0_sphere = static_cast<int>(args[2]);
+
+    // ...charge and field tolerances
+    args = {0, 0};
+    n_read_args = read_command("charge_tolerance", args);
+    if (n_read_args == 1) {
+        charge_tolerance_min = 1.0 - args[0];
+        charge_tolerance_max = 1.0 + args[0];
+    } else if (n_read_args == 2) {
+        charge_tolerance_min = args[0];
+        charge_tolerance_max = args[1];
+    }
+
+    n_read_args = read_command("field_tolerance", args);
+    if (n_read_args == 1) {
+        field_tolerance_min = 1.0 - args[0];
+        field_tolerance_max = 1.0 + args[0];
+    } else if (n_read_args == 2) {
+        field_tolerance_min = args[0];
+        field_tolerance_max = args[1];
+    }
 }
 
 // Read the commands and their arguments from the file and store them into the buffer
@@ -241,7 +267,7 @@ int Config::read_command(string param, vector<double>& args) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
     // loop through all the commands that were found from input script
-    unsigned n_read_args = 0;
+    int n_read_args = 0;
     for (const vector<string>& str : data)
         if (str.size() >= 2 && str[0] == param)
             for (unsigned i = 0; i < args.size() && i < (str.size()-1); ++i) {
@@ -249,7 +275,7 @@ int Config::read_command(string param, vector<double>& args) {
                 double result;
                 if (is >> result) { args[i] = result; n_read_args++; }
             }
-    return n_read_args == args.size();
+    return n_read_args;
 }
 
 // Print the stored commands and parameters

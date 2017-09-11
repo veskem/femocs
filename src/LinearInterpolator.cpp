@@ -17,6 +17,69 @@ namespace femocs {
  *  ===================== LinearInterpolator =======================
  * ================================================================== */
 
+// Analytical potential for i-th point near the hemisphere
+template<int dim>
+double LinearInterpolator<dim>::get_analyt_potential(const int i, const Point3& origin) const {
+    require(i >= 0 && i < nodes->size(), "Invalid index: " + to_string(i));
+
+    Point3 point = (*nodes)[i] - origin;
+    double r = point.distance(Point3(0));
+    return -E0 * point.z * (1 - pow(radius1 / r, 3.0));
+}
+
+// Analytical electric field for i-th point near the hemisphere
+template<int dim>
+Vec3 LinearInterpolator<dim>::get_analyt_field(const int i) const {
+    require(i >= 0 && i < nodes->size(), "Invalid index: " + to_string(i));
+
+    Point3 point = (*nodes)[i] - origin;
+    double r5 = pow(point.x * point.x + point.y * point.y + point.z * point.z, 2.5);
+    double r3 = pow(radius1, 3.0);
+    double f = point.x * point.x + point.y * point.y - 2.0 * point.z * point.z;
+
+    double Ex = 3 * E0 * r3 * point.x * point.z / r5;
+    double Ey = 3 * E0 * r3 * point.y * point.z / r5;
+    double Ez = E0 * (1.0 - r3 * f / r5);
+
+    return Vec3(Ex, Ey, Ez);
+}
+
+// Analytical field enhancement for ellipsoidal nanotip
+template<int dim>
+double LinearInterpolator<dim>::get_analyt_enhancement() const {
+    expect(radius1 > 0, "Invalid nanotip minor semi-axis: " + to_string(radius1));
+
+    if ( radius2 <= radius1 )
+        return 3.0;
+    else {
+        double nu = radius2 / radius1;
+        double zeta = sqrt(nu*nu - 1);
+        return pow(zeta, 3.0) / (nu * log(zeta + nu) - zeta);
+    }
+}
+
+// Compare the analytical and calculated field enhancement
+template<int dim>
+bool LinearInterpolator<dim>::compare_enhancement() const {
+    double Emax = -error_field;
+    for (Solution s : solutions)
+        if (s.norm != error_field && s.norm > Emax) Emax = s.norm;
+
+    const double gamma1 = fabs(Emax / E0);
+    const double gamma2 = get_analyt_enhancement();
+    const double beta = fabs(gamma1 / gamma2);
+
+    stringstream stream;
+    stream << fixed << setprecision(3);
+    stream << "field enhancements:  (F)emocs:" << gamma1
+            << "  (A)nalyt:" << gamma2
+            << "  F-A:" << gamma1 - gamma2
+            << "  F/A:" << gamma1 / gamma2;
+
+    write_verbose_msg(stream.str());
+    return beta < beta_min || beta > beta_max;
+}
+
 // Interpolate both scalar and vector data inside or near the cell
 template<int dim>
 Solution LinearInterpolator<dim>::interp_solution(const Point3 &point, const int cell) const {
@@ -298,73 +361,7 @@ void LinearInterpolator<dim>::write_vtk(ofstream& out, const int n_nodes) const 
 
 // Initialize data vectors
 TetrahedronInterpolator::TetrahedronInterpolator(const TetgenMesh* m) :
-        LinearInterpolator<4>(m), radius1(0), radius2(0), E0(0), elems(&m->elems) {}
-
-// Set parameters for calculating analytical solution
-void TetrahedronInterpolator::set_analyt(const Point3& origin, const double E0, const double radius1, const double radius2) {
-    this->E0 = E0;
-    this->radius1 = radius1;
-    if (radius2 > radius1)
-        this->radius2 = radius2;
-    else
-        this->radius2 = radius1;
-    this->origin = origin;
-}
-
-// Analytical potential for i-th point near the hemisphere
-double TetrahedronInterpolator::get_analyt_potential(const int i, const Point3& origin) const {
-    Point3 point = (*nodes)[i] - origin;
-    double r = point.distance(Point3(0));
-    return -E0 * point.z * (1 - pow(radius1 / r, 3.0));
-}
-
-// Analytical electric field for i-th point near the hemisphere
-Vec3 TetrahedronInterpolator::get_analyt_field(const int i) const {
-    Point3 point = (*nodes)[i] - origin;
-    double r5 = pow(point.x * point.x + point.y * point.y + point.z * point.z, 2.5);
-    double r3 = pow(radius1, 3.0);
-    double f = point.x * point.x + point.y * point.y - 2.0 * point.z * point.z;
-
-    double Ex = 3 * E0 * r3 * point.x * point.z / r5;
-    double Ey = 3 * E0 * r3 * point.y * point.z / r5;
-    double Ez = E0 * (1.0 - r3 * f / r5);
-
-    return Vec3(Ex, Ey, Ez);
-}
-
-double TetrahedronInterpolator::get_enhancement() const {
-    double Emax = -error_field;
-    for (Solution s : solutions)
-        if (s.norm != error_field && s.norm > Emax) Emax = s.norm;
-
-    return fabs(Emax / E0);
-}
-
-double TetrahedronInterpolator::get_analyt_enhancement() const {
-    expect(radius1 > 0, "Invalid minor semi-axis: " + to_string(radius1));
-
-    if ( radius2 <= radius1 )
-        return 3.0;
-    else {
-        double nu = radius2 / radius1;
-        double zeta = sqrt(nu*nu - 1);
-        return pow(zeta, 3.0) / (nu * log(zeta + nu) - zeta);
-    }
-}
-
-void TetrahedronInterpolator::print_enhancement() const {
-    double gamma1 = get_enhancement();
-    double gamma2 = get_analyt_enhancement();
-
-    stringstream stream;
-    stream << fixed << setprecision(3);
-    stream << "field enhancements:  Femocs:" << gamma1
-            << "  analyt:" << gamma2
-            << "  f-a:" << gamma1 - gamma2
-            << "  f/a:" << gamma1 / gamma2;
-
-    write_verbose_msg(stream.str());
-}
+        LinearInterpolator<4>(m), elems(&m->elems) {}
 
 // Print the deviation from the analytical solution of hemi-ellipsoid on the infinite surface
 void TetrahedronInterpolator::print_error(const Coarseners& c) const {
@@ -727,8 +724,9 @@ array<double,4> TetrahedronInterpolator::get_bcc(const Vec3& point, const int i)
  *  ===================== TriangleInterpolator ======================
  * ================================================================== */
 
+// Initialize data vectors
 TriangleInterpolator::TriangleInterpolator(const TetgenMesh* m) :
-        LinearInterpolator<3>(m, "area", "charge"), faces(&m->faces) {}
+        LinearInterpolator<3>(m), faces(&m->faces) {}
 
 // leave only the solution in the nodes and centroids of triangles
 bool TriangleInterpolator::clean_nodes() {

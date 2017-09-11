@@ -225,7 +225,7 @@ public:
     void clean(const Medium::Sizes& sizes, const double latconst);
 
     /** Check whether charge is conserved within specified limits */
-    bool charge_conserved(const double Q, const double eps) const;
+    bool charge_conserved(const double Q, const double tol_min, const double tol_max) const;
 
     /** Get electric field on the centroid of i-th triangle */
     Vec3 get_elfield(const int i) const;
