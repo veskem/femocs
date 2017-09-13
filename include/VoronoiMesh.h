@@ -282,7 +282,7 @@ public:
     void extract_surface(Medium& surface, vector<Vec3>& areas, const Medium& nanotip);
 
     /** Calculate minimum z-coordinate of medium and mark mesh */
-    void mark_mesh(const Medium& medium);
+    void mark_mesh(const Medium& medium, const double latconst);
 
     /** Mark the Voronoi cells, faces and nodes by their relative location against top and bottom surfaces */
     void mark_mesh(const double zmin);
@@ -305,6 +305,10 @@ private:
 
     /** Mark Voronoi faces that are on the vacuum-material boundary */
     void mark_faces(const double zmin, const int seed);
+
+    void mark_faces_vol2(const double zmin, const int seed);
+
+    void calc_ranks(vector<int>& ranks, const int seedface);
 
     /** Mark Voronoi cells and nodes that are on the surface of material */
     void mark_cells_and_nodes();

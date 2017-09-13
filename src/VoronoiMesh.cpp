@@ -255,7 +255,7 @@ int VoronoiMesh::mark_seed() {
             VoronoiFace face = cell[i];
             // face is on the upper half of the cell
             // if the ray from cell centre to the face centroid is upwards
-            if ( znorm.dotProduct( face.centroid() - centre ) > 0 ) {
+            if ( znorm.dotProduct(face.centroid() - centre) >= 0 ) {
                 seedface = face.id;
                 vfaces.set_marker(face.id, TYPES.SURFACE);
             }
@@ -299,10 +299,107 @@ void VoronoiMesh::mark_faces(const double zmin, const int seed) {
     for (size_t i = 0; i < neighbours.size(); ++i) {
         int face = neighbours[i];
         if (vfaces.get_marker(face) == TYPES.NONE) {
+
             // Mark the face as surface
             vfaces.set_marker(face, TYPES.SURFACE);
 
             // Expand the list of possible surface faces
+            vector<int> nbors = vfaces.get_neighbours(face);
+            neighbours.insert(neighbours.end(), nbors.begin(), nbors.end());
+        }
+    }
+}
+
+void VoronoiMesh::calc_ranks(vector<int>& ranks, const int seedface) {
+    const int n_nbor_layers = 4;  // number of nearest faces that act as a seed
+    const int n_faces = vfaces.size();
+    const double max_rank = 100.0;
+
+    // initialise all the ranks to 0
+    ranks = vector<int>(n_faces);
+
+    // calculate the ranks from vacuum side
+    vector<int> neighbours = vfaces.get_neighbours(seedface);
+    for (size_t i = 0; i < neighbours.size(); ++i) {
+        int vface = neighbours[i];
+        if (vfaces.get_marker(vface) == TYPES.NONE && ranks[vface]++ == 0) {
+            vector<int> nbors = vfaces.get_neighbours(vface);
+            neighbours.insert(neighbours.end(), nbors.begin(),nbors.end());
+        }
+    }
+
+    // normalise all the ranks with respect to the maximum rank
+    double norm_factor = max_rank / *max_element(ranks.begin(), ranks.end());
+    for (int& r : ranks)
+        if (r > 0)
+            r *= norm_factor;
+
+    // force the ranks around the seed region to the maximum value
+    vector<vector<int>> nbors(n_nbor_layers);
+    ranks[seedface] = max_rank;
+    for (int layer = 0; layer < n_nbor_layers; ++layer) {
+        // build next layer of neighbour list
+        if (layer == 0)
+            nbors[0] = vfaces.get_neighbours(seedface);
+        else {
+            for (int nbor : nbors[layer-1])
+                if (ranks[nbor] > 0) {
+                    vector<int> tmp_nbors = vfaces.get_neighbours(nbor);
+                    nbors[layer].insert(nbors[layer].end(), tmp_nbors.begin(), tmp_nbors.end());
+                }
+        }
+        for (int nbor : nbors[layer])
+            if (ranks[nbor] > 0)
+                ranks[nbor] = max_rank;
+    }
+}
+
+// Mark Voronoi faces that are on the vacuum-material boundary
+void VoronoiMesh::mark_faces_vol2(const double zmin, const int seed) {
+    const int cell_max = nodes.indxs.surf_end;
+    const int min_rank = 40;
+
+    vfaces.calc_neighbours();
+    vfaces.set_marker(seed, TYPES.ZMAX);
+
+    // Mark the faces that are associated only with potential surface cells
+    // and therefore cannot be on the surface
+    for (VoronoiCell cell : voros)
+        for (VoronoiFace face : cell) {
+            const bool b1 = cell.id <= cell_max;
+            const bool b2 = face.nborcell(cell.id) <= cell_max;
+            if ((b1 && b2) || (!b1 && !b2))
+                vfaces.set_marker(face.id, TYPES.PERIMETER);
+        }
+
+    // Mark the faces that are in the bottom region
+    for (int cell = 0; cell < voros.size(); ++cell)
+        if (cell <= cell_max && nodes[cell].z < zmin) {
+            for (VoronoiFace face : voros[cell])
+                vfaces.set_marker(face.id, TYPES.ZMIN);
+        }
+
+//    vector<int> ranks;
+//    calc_ranks(ranks, seed);
+
+//    for (int face = 0; face < vfaces.size(); ++face)
+//        if (vfaces.get_marker(face) == TYPES.NONE)
+//            vfaces.set_marker(face, ranks[face]);
+//
+//    return;
+
+    // Mark the faces around the seed face
+    vector<int> neighbours = vfaces.get_neighbours(seed);
+    for (size_t i = 0; i < neighbours.size(); ++i) {
+        int face = neighbours[i];
+        if (vfaces.get_marker(face) == TYPES.NONE) {
+            vfaces.set_marker(face, TYPES.SURFACE);
+
+            // Expand the list of possible surface faces
+//            if (ranks[face] >= min_rank) {
+//                vector<int> nbors = vfaces.get_neighbours(face);
+//                neighbours.insert(neighbours.end(), nbors.begin(), nbors.end());
+//            }
             vector<int> nbors = vfaces.get_neighbours(face);
             neighbours.insert(neighbours.end(), nbors.begin(), nbors.end());
         }
@@ -334,7 +431,7 @@ void VoronoiMesh::mark_cells_and_nodes() {
 }
 
 // Calculate minimum z-coordinate of medium and mark mesh
-void VoronoiMesh::mark_mesh(const Medium& medium) {
+void VoronoiMesh::mark_mesh(const Medium& medium, const double latconst) {
     const int n_atoms = medium.size();
     require(n_atoms > 0, "Can't mark Voronoi mesh if no surface atoms are present!");
     const int n_average = sqrt(n_atoms);
@@ -351,6 +448,7 @@ void VoronoiMesh::mark_mesh(const Medium& medium) {
     for (int i = 0; i < n_average; ++i)
         zmin += zcoord[i];
     zmin /= n_average;
+    zmin += 0.5 * latconst;
 
     mark_mesh(zmin);
 }
@@ -361,7 +459,8 @@ void VoronoiMesh::mark_mesh(const double zmin) {
     int seedface = mark_seed();
 
     // Mark the rest of surface faces
-    mark_faces(zmin, seedface);
+//    mark_faces(zmin, seedface);
+    mark_faces_vol2(zmin, seedface);
 
     // Using the marked faces, marks also the cells and nodes
     mark_cells_and_nodes();

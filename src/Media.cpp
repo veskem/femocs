@@ -223,7 +223,7 @@ bool Media::voronoi_clean(vector<Vec3>& areas, const double radius, const double
     voromesh.clean();
     
     // Extract the surface faces and cells
-    voromesh.mark_mesh(nanotip);
+    voromesh.mark_mesh(nanotip, latconst);
     
     voromesh.nodes.write("out/voro_nodes.vtk");
     voromesh.vfaces.write("out/voro_faces.vtk");

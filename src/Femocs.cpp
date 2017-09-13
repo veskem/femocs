@@ -182,7 +182,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     if (conf.surface_cleaner == "voronois") {
         start_msg(t0, "=== Cleaning surface with Voronoi cells...");
 //        fail = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality + "a10");
-        fail = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, "1.2");
+        fail = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, "1.4");
         check_return(fail, "Making voronoi cells failed!");
         end_msg(t0);
 
