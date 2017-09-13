@@ -208,6 +208,7 @@ private:
     Media dense_surf;       ///< non-coarsened surface atoms
     Media extended_surf;    ///< atoms added for the surface atoms
 
+    TetgenMesh big_mesh;     ///< FEM mesh in vacuum and bulk material
     TetgenMesh bulk_mesh;    ///< FEM mesh in bulk material
     TetgenMesh vacuum_mesh;  ///< FEM mesh in vacuum
 

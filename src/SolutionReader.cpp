@@ -840,33 +840,33 @@ void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh, const doubl
 
 
 void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
-    const double sign = fabs(E0) / E0;
-    const int n_faces = mesh.faces.size();
-    const int n_quads_per_triangle = 3;
-
-    // Store the centroids of the triangles
-    reserve(n_faces);
-    for (int i = 0; i < n_faces; ++i)
-        append( Atom(i, mesh.faces.get_centroid(i), 0) );
-
-    // create triangle index to its centroid index mapping
-    vector<int> tri2centroid(n_faces);
-    for (int face = 0; face < n_faces; ++face) {
-        for (int node : mesh.quads[n_quads_per_triangle * face])
-            if (mesh.nodes.get_marker(node) == TYPES.FACECENTROID) {
-                tri2centroid[face] = node;
-                break;
-            }
-    }
-
-    // Calculate the charges for the triangles
-    for (int face = 0; face < n_faces; ++face) {
-        double area = mesh.faces.get_area(face);
-        Vec3 elfield = interpolator->get_vector(tri2centroid[face]);
-        double charge = eps0 * area * elfield.norm() * sign;
-        append_interpolation(Solution(elfield, area, charge));
-//        append_interpolation(Solution(mesh.faces.get_norm(face), area, charge));
-    }
+//    const double sign = fabs(E0) / E0;
+//    const int n_faces = mesh.faces.size();
+//    const int n_quads_per_triangle = 3;
+//
+//    // Store the centroids of the triangles
+//    reserve(n_faces);
+//    for (int i = 0; i < n_faces; ++i)
+//        append( Atom(i, mesh.faces.get_centroid(i), 0) );
+//
+//    // create triangle index to its centroid index mapping
+//    vector<int> tri2centroid(n_faces);
+//    for (int face = 0; face < n_faces; ++face) {
+//        for (int node : mesh.quads[n_quads_per_triangle * face])
+//            if (mesh.nodes.get_marker(node) == TYPES.FACECENTROID) {
+//                tri2centroid[face] = node;
+//                break;
+//            }
+//    }
+//
+//    // Calculate the charges for the triangles
+//    for (int face = 0; face < n_faces; ++face) {
+//        double area = mesh.faces.get_area(face);
+//        Vec3 elfield = interpolator->get_vector(tri2centroid[face]);
+//        double charge = eps0 * area * elfield.norm() * sign;
+//        append_interpolation(Solution(elfield, area, charge));
+////        append_interpolation(Solution(mesh.faces.get_norm(face), area, charge));
+//    }
 }
 
 // Remove the atoms and their solutions outside the box

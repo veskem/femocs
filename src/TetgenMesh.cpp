@@ -570,13 +570,13 @@ void TetgenMesh::group_hexahedra() {
 
     // find which quadrangle correspond to which triangular node
     // quadrangles with the same triangular node form the pseudo 2D Voronoi cell of that node
-    for (int i = 0; i < quads.size(); ++i) {
-        for (int node : quads[i])
-            if (node >= node_min && node <= node_max) {
-                quads.set_marker(i, node);
-                break;
-            }
-    }
+//    for (int i = 0; i < quads.size(); ++i) {
+//        for (int node : quads[i])
+//            if (node >= node_min && node <= node_max) {
+//                quads.set_marker(i, node);
+//                break;
+//            }
+//    }
 }
 
 // Separate tetrahedra & trinagles into hexahedra & quadrangles
@@ -712,22 +712,22 @@ void TetgenMesh::calc_tet_nborlist(vector<vector<unsigned>>& nborlist) {
 // Calculate the neighbourlist for the nodes.
 // Two nodes are considered neighbours if they share a quadrangle.
 void TetgenMesh::calc_quad_nborlist(vector<vector<unsigned>>& nborlist) {
-    nborlist = vector<vector<unsigned>>(nodes.size());
-    const double eps = 0.1 * elems.stat.edgemin;
-    nodes.calc_statistics();
-
-    for (SimpleQuad quad : quads)
-        for (int n1 : quad) {
-            // do not calculate neighbours for nodes on the simubox perimeter
-            Point3 node = nodes[n1];
-            if (on_boundary(node.x, nodes.stat.xmin, nodes.stat.xmax, eps) ||
-                    on_boundary(node.y, nodes.stat.ymin, nodes.stat.ymax, eps))
-                continue;
-            for (int n2 : quad) {
-                if (n1 == n2) continue;
-                nborlist[n1].push_back(n2);
-            }
-        }
+//    nborlist = vector<vector<unsigned>>(nodes.size());
+//    const double eps = 0.1 * elems.stat.edgemin;
+//    nodes.calc_statistics();
+//
+//    for (SimpleQuad quad : quads)
+//        for (int n1 : quad) {
+//            // do not calculate neighbours for nodes on the simubox perimeter
+//            Point3 node = nodes[n1];
+//            if (on_boundary(node.x, nodes.stat.xmin, nodes.stat.xmax, eps) ||
+//                    on_boundary(node.y, nodes.stat.ymin, nodes.stat.ymax, eps))
+//                continue;
+//            for (int n2 : quad) {
+//                if (n1 == n2) continue;
+//                nborlist[n1].push_back(n2);
+//            }
+//        }
 }
 
 // Calculate the neighbourlist for the nodes.
@@ -773,19 +773,19 @@ void TetgenMesh::calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells) const
 // Generate list of quadrangle nodes that surround the triangle nodes
 // The resulting cells resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells
 void TetgenMesh::calc_pseudo_2D_vorocells(vector<vector<unsigned>>& cells) const {
-    cells = vector<vector<unsigned>>(nodes.stat.n_tetnode);
-    const int node_min = nodes.indxs.tetnode_start;
-    const int node_max = nodes.indxs.tetnode_end;
-
-    for (int quad = 0; quad < quads.size(); ++quad) {
-        const int trinode = quads.to_node(quad);
-        expect(trinode >= node_min && trinode <= node_max, "Quadrangle " + to_string(quad) +
-                " is not marked by the triangle node: " + to_string(trinode));
-
-        for (int node : quads[quad])
-            if (node != trinode)
-                cells[trinode].push_back(node);
-    }
+//    cells = vector<vector<unsigned>>(nodes.stat.n_tetnode);
+//    const int node_min = nodes.indxs.tetnode_start;
+//    const int node_max = nodes.indxs.tetnode_end;
+//
+//    for (int quad = 0; quad < quads.size(); ++quad) {
+//        const int trinode = quads.to_node(quad);
+//        expect(trinode >= node_min && trinode <= node_max, "Quadrangle " + to_string(quad) +
+//                " is not marked by the triangle node: " + to_string(trinode));
+//
+//        for (int node : quads[quad])
+//            if (node != trinode)
+//                cells[trinode].push_back(node);
+//    }
 }
 
 // Mark the nodes by using DBSCAN algorithm (the same as in cluster analysis)

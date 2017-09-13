@@ -730,24 +730,24 @@ TriangleInterpolator::TriangleInterpolator(const TetgenMesh* m) :
 
 // leave only the solution in the nodes and centroids of triangles
 bool TriangleInterpolator::clean_nodes() {
-    const int n_nodes = nodes->size();
-
-    vector<bool> node_not_in_quads(n_nodes, true);
-    for (SimpleQuad quad : mesh->quads)
-        for (int node : quad)
-            if (nodes->get_marker(node) != 2)
-                node_not_in_quads[node] = false;
-
-    for (int node = 0; node < n_nodes; ++node)
-        if (node_not_in_quads[node])
-            solutions[node] = Solution(error_field);
-
-    // Check for the error values in the mesh nodes
-    // Normally there should be no nodes in the mesh elements that have the error value
-    for (SimpleFace face : *faces)
-        for (int node : face)
-            if (solutions[node].scalar == error_field)
-                return true;
+//    const int n_nodes = nodes->size();
+//
+//    vector<bool> node_not_in_quads(n_nodes, true);
+//    for (SimpleQuad quad : mesh->quads)
+//        for (int node : quad)
+//            if (nodes->get_marker(node) != 2)
+//                node_not_in_quads[node] = false;
+//
+//    for (int node = 0; node < n_nodes; ++node)
+//        if (node_not_in_quads[node])
+//            solutions[node] = Solution(error_field);
+//
+//    // Check for the error values in the mesh nodes
+//    // Normally there should be no nodes in the mesh elements that have the error value
+//    for (SimpleFace face : *faces)
+//        for (int node : face)
+//            if (solutions[node].scalar == error_field)
+//                return true;
 
     return false;
 }
@@ -843,65 +843,65 @@ void TriangleInterpolator::interp_conserved(vector<double>& scalars, const vecto
 
 // Calculate charges on surface faces using direct solution in the face centroids
 void TriangleInterpolator::calc_charges(const double E0) {
-    const int n_quads_per_triangle = 3;
-    const int n_faces = faces->size();
-    const int n_nodes = nodes->size();
-    const double sign = fabs(E0) / E0;
-
-    vector<double> charges(n_nodes), areas(n_nodes);
-
-    // create triangle index to its centroid index mapping
-    vector<int> tri2centroid(n_faces);
-    for (int face = 0; face < n_faces; ++face) {
-        for (int node : mesh->quads[n_quads_per_triangle * face])
-            if (nodes->get_marker(node) == TYPES.FACECENTROID) {
-                tri2centroid[face] = node;
-                break;
-            }
-    }
-
-    // find the nodes on the surface perimeter that are each-other's periodic images
-    vector<int> periodic_nodes(n_nodes, -1);
-    vector<bool> node_on_edge(n_nodes);
-    for (SimpleEdge edge : mesh->edges)
-        for (int node : edge)
-            node_on_edge[node] = true;
-
-    for (int i = 0; i < vector_sum(node_on_edge); i += 2) {
-        periodic_nodes[i] = i+1;
-        periodic_nodes[i+1] = i;
-    }
-
-    // Calculate the charges and areas in the centroids and vertices of triangles
-    for (int face = 0; face < n_faces; ++face) {
-        int centroid_indx = tri2centroid[face];
-        double area = faces->get_area(face);
-        double charge = eps0 * sign * area * solutions[centroid_indx].norm;
-        solutions[centroid_indx].norm = area;
-        solutions[centroid_indx].scalar = charge;
-
-        charge *= 1.0 / n_quads_per_triangle;
-        area *= 1.0 / n_quads_per_triangle;
-
-        // the charge on triangular node is the sum of the charges of quadrangules that surround the node
-        for (int node : (*faces)[face]) {
-            const int periodic_node = periodic_nodes[node];
-            charges[node] += charge;
-            areas[node] += area;
-            if (periodic_node >= 0) {
-                charges[periodic_node] += charge;
-                areas[periodic_node] += area;
-            }
-        }
-    }
-
-    // transfer charges and areas to solutions vector
-    for (SimpleFace face : *faces) {
-        for (int node : face) {
-            solutions[node].norm = areas[node];
-            solutions[node].scalar = charges[node];
-        }
-    }
+//    const int n_quads_per_triangle = 3;
+//    const int n_faces = faces->size();
+//    const int n_nodes = nodes->size();
+//    const double sign = fabs(E0) / E0;
+//
+//    vector<double> charges(n_nodes), areas(n_nodes);
+//
+//    // create triangle index to its centroid index mapping
+//    vector<int> tri2centroid(n_faces);
+//    for (int face = 0; face < n_faces; ++face) {
+//        for (int node : mesh->quads[n_quads_per_triangle * face])
+//            if (nodes->get_marker(node) == TYPES.FACECENTROID) {
+//                tri2centroid[face] = node;
+//                break;
+//            }
+//    }
+//
+//    // find the nodes on the surface perimeter that are each-other's periodic images
+//    vector<int> periodic_nodes(n_nodes, -1);
+//    vector<bool> node_on_edge(n_nodes);
+//    for (SimpleEdge edge : mesh->edges)
+//        for (int node : edge)
+//            node_on_edge[node] = true;
+//
+//    for (int i = 0; i < vector_sum(node_on_edge); i += 2) {
+//        periodic_nodes[i] = i+1;
+//        periodic_nodes[i+1] = i;
+//    }
+//
+//    // Calculate the charges and areas in the centroids and vertices of triangles
+//    for (int face = 0; face < n_faces; ++face) {
+//        int centroid_indx = tri2centroid[face];
+//        double area = faces->get_area(face);
+//        double charge = eps0 * sign * area * solutions[centroid_indx].norm;
+//        solutions[centroid_indx].norm = area;
+//        solutions[centroid_indx].scalar = charge;
+//
+//        charge *= 1.0 / n_quads_per_triangle;
+//        area *= 1.0 / n_quads_per_triangle;
+//
+//        // the charge on triangular node is the sum of the charges of quadrangules that surround the node
+//        for (int node : (*faces)[face]) {
+//            const int periodic_node = periodic_nodes[node];
+//            charges[node] += charge;
+//            areas[node] += area;
+//            if (periodic_node >= 0) {
+//                charges[periodic_node] += charge;
+//                areas[periodic_node] += area;
+//            }
+//        }
+//    }
+//
+//    // transfer charges and areas to solutions vector
+//    for (SimpleFace face : *faces) {
+//        for (int node : face) {
+//            solutions[node].norm = areas[node];
+//            solutions[node].scalar = charges[node];
+//        }
+//    }
 }
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its

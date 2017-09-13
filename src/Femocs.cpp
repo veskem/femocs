@@ -253,6 +253,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 
 // Generate bulk and vacuum meshes
 int Femocs::generate_meshes() {
+    big_mesh.clear();
     bulk_mesh.clear();
     vacuum_mesh.clear();
 
@@ -261,7 +262,6 @@ int Femocs::generate_meshes() {
     if (fail) return 1;
 
     start_msg(t0, "=== Making big mesh...");
-    TetgenMesh big_mesh;
     // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality, a - element volume,
     // F - suppress output of faces and edges, B - suppress output of boundary info
     string command = "rnQFBq" + conf.mesh_quality;
@@ -284,6 +284,10 @@ int Femocs::generate_meshes() {
     check_return(fail, "Mesh marking failed!");
     end_msg(t0);
 
+//    start_msg(t0, "=== Converting tetrahedra to hexahedra...");
+//    big_mesh.generate_hexahedra();
+//    end_msg(t0);
+
     start_msg(t0, "=== Separating vacuum & bulk meshes...");
     big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQB");
     bulk_mesh.clean_sides(reader.sizes);
@@ -305,7 +309,7 @@ int Femocs::generate_meshes() {
     bulk_mesh.nodes.write("out/bulk_nodes.xyz");
     bulk_mesh.edges.write("out/bulk_edges.vtk");
     bulk_mesh.faces.write("out/bulk_tris.vtk");
-    bulk_mesh.quads.write("out/bulk_quads.vtk");
+//    bulk_mesh.quads.write("out/bulk_quads.vtk");
     bulk_mesh.elems.write("out/bulk_tets.vtk");
     bulk_mesh.hexahedra.write("out/bulk_hexs" + conf.message + ".vtk");
 
@@ -364,7 +368,8 @@ int Femocs::solve_laplace(const double E0) {
     fail |= surface_interpolator.extract_solution(&laplace_solver);
     end_msg(t0);
 
-    check_return(surface_interpolator.compare_enhancement(), "Field is over-enhanced!");
+    check_return(vacuum_interpolator.compare_enhancement(), "Vacuum field is over-enhanced!");
+    check_return(surface_interpolator.compare_enhancement(), "Surface field is over-enhanced!");
 
     vacuum_interpolator.write("out/result_E_phi_vacuum.xyz");
     vacuum_interpolator.write("out/result_E_phi_vacuum.vtk");
@@ -706,7 +711,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         ChargeReader face_charges(&vacuum_interpolator); // charges on surface faces
 
         start_msg(t0, "=== Calculating face charges...");
-        face_charges.calc_charges(vacuum_mesh, conf.E0);
+        face_charges.calc_interpolated_charges(vacuum_mesh, conf.E0);
         end_msg(t0);
 
         const double tot_charge = conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0;
