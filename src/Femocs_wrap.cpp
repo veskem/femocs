@@ -25,6 +25,10 @@ void femocs_finalize(FEMOCS* femocs, int* retval) {
     retval[0] = femocs->finalize();
 }
 
+void femocs_force_output(FEMOCS* femocs, int* retval) {
+    retval[0] = femocs->force_output();
+}
+
 void femocs_generate_meshes(FEMOCS* femocs, int* retval) {
     retval[0] = femocs->generate_meshes();
 }

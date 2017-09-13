@@ -43,6 +43,13 @@ module libfemocs
             integer(c_int) :: retval
         end subroutine
 
+        subroutine femocs_force_output_c(femocs, retval) bind(C, name="femocs_force_output")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
+        end subroutine
+
         subroutine femocs_generate_meshes_c(femocs, retval) bind(C, name="femocs_generate_meshes")
             use iso_c_binding
             implicit none
@@ -230,6 +237,7 @@ module libfemocs
         procedure :: run => femocs_run
         procedure :: reinit => femocs_reinit
         procedure :: finalize => femocs_finalize
+        procedure :: force_output => femocs_force_output
         procedure :: generate_meshes => femocs_generate_meshes
         procedure :: solve_laplace => femocs_solve_laplace
         procedure :: solve_heat => femocs_solve_heat
@@ -318,6 +326,13 @@ module libfemocs
         class(femocs), intent(in) :: this
         integer(c_int) :: retval
         call femocs_finalize_c(this%ptr, retval)
+    end subroutine
+
+    subroutine femocs_force_output(this, retval)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval
+        call femocs_force_output_c(this%ptr, retval)
     end subroutine
 
     subroutine femocs_generate_meshes(this, retval)

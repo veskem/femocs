@@ -196,6 +196,9 @@ public:
     /** Store the imported atom coordinates and set the flag that enables exporters */
     int finalize();
 
+    /** Force the data to the files for debugging purposes */
+    int force_output();
+
 private:
     bool skip_calculations, fail;
     double t0;
@@ -241,9 +244,6 @@ private:
 
     /** Interpolate the solution on the x-z plane in the middle of simulation box */
     void write_slice(const string& file_name);
-
-    /** Force the data to the files for debugging purposes */
-    void force_output();
 };
 
 } /* namespace femocs */

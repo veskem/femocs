@@ -60,8 +60,8 @@ Femocs::~Femocs() {
 }
 
 // Write all the available data to file for debugging purposes
-void Femocs::force_output() {
-    if (conf.n_writefile <= 0) return;
+int Femocs::force_output() {
+    if (conf.n_writefile <= 0) return 1;
 
     MODES.WRITEFILE = true;
 
@@ -86,6 +86,8 @@ void Femocs::force_output() {
             ch_solver->output_results("out/result_J_T_err.vtk");
         }
     }
+
+    return 0;
 }
 
 // Interpolate the solution on the x-z plane in the middle of simulation box

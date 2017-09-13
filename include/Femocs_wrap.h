@@ -20,6 +20,8 @@ void femocs_reinit(FEMOCS* femocs, int* retval, int timestep);
 
 void femocs_finalize(FEMOCS* femocs, int* retval);
 
+void femocs_force_output(FEMOCS* femocs, int* retval);
+
 void femocs_generate_meshes(FEMOCS* femocs, int* retval);
 
 void femocs_solve_laplace(FEMOCS* femocs, int* retval, double E_field);
