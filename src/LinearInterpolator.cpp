@@ -730,24 +730,24 @@ TriangleInterpolator::TriangleInterpolator(const TetgenMesh* m) :
 
 // leave only the solution in the nodes and centroids of triangles
 bool TriangleInterpolator::clean_nodes() {
-//    const int n_nodes = nodes->size();
-//
-//    vector<bool> node_not_in_quads(n_nodes, true);
-//    for (SimpleQuad quad : mesh->quads)
-//        for (int node : quad)
-//            if (nodes->get_marker(node) != 2)
-//                node_not_in_quads[node] = false;
-//
-//    for (int node = 0; node < n_nodes; ++node)
-//        if (node_not_in_quads[node])
-//            solutions[node] = Solution(error_field);
-//
-//    // Check for the error values in the mesh nodes
-//    // Normally there should be no nodes in the mesh elements that have the error value
-//    for (SimpleFace face : *faces)
-//        for (int node : face)
-//            if (solutions[node].scalar == error_field)
-//                return true;
+    const int n_nodes = nodes->size();
+
+    vector<bool> node_not_in_quads(n_nodes, true);
+    for (SimpleQuad quad : mesh->quads)
+        for (int node : quad)
+            if (nodes->get_marker(node) != 2)
+                node_not_in_quads[node] = false;
+
+    for (int node = 0; node < n_nodes; ++node)
+        if (node_not_in_quads[node])
+            solutions[node] = Solution(error_field);
+
+    // Check for the error values in the mesh nodes
+    // Normally there should be no nodes in the mesh elements that have the error value
+    for (SimpleFace face : *faces)
+        for (int node : face)
+            if (solutions[node].scalar == error_field)
+                return true;
 
     return false;
 }

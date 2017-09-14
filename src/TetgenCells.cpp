@@ -17,7 +17,9 @@ namespace femocs {
 
 // Copy the nodes from write to read buffer
 void TetgenNodes::recalc() {
+    if (reads == writes) return;
     TetgenCells::recalc();
+    init_statistics();
     if (reads->pointlist != (REAL *) NULL)
         delete[] reads->pointlist;
     reads->pointlist = new double[n_coordinates * i_cells];
@@ -211,6 +213,7 @@ void TetgenNodes::write_xyz(const string &file_name) const {
 
 // Copy the nodes from write to read buffer
 void TetgenEdges::recalc() {
+    if (reads == writes) return;
     TetgenCells::recalc();
     if (reads->edgelist != (int *) NULL)
         delete[] reads->edgelist;
@@ -296,6 +299,7 @@ void TetgenEdges::clean_sides(const Medium::Sizes& stat) {
 
 // Copy the nodes from write to read buffer
 void TetgenFaces::recalc() {
+    if (reads == writes) return;
     TetgenCells::recalc();
     if (reads->trifacelist != (int *) NULL)
         delete[] reads->trifacelist;
@@ -330,6 +334,7 @@ SimpleCell<3> TetgenFaces::get_cell(const int i) const {
 
 // Delete the faces on the sides of simulation cell
 void TetgenFaces::clean_sides(const Medium::Sizes& stat) {
+    calc_statistics();
     const double eps = 0.01 * this->stat.edgemin;
     const int n_faces = size();
     vector<SimpleFace> faces; faces.reserve(n_faces);
@@ -454,7 +459,9 @@ void TetgenElements::calc_statistics() {
 
 // Copy the nodes from write to read buffer
 void TetgenElements::recalc() {
+    if (reads == writes) return;
     TetgenCells::recalc();
+    init_statistics();
     if (reads->tetrahedronlist != (int *) NULL)
         delete[] reads->tetrahedronlist;
     reads->tetrahedronlist = new int[DIM * i_cells];

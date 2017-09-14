@@ -121,6 +121,25 @@ public:
         }
     }
 
+    void replace_markers(const vector<int>* markers_, const vector<bool>& mask, const bool flip=false) {
+        const int n_cells = size();
+        const int n_mask = vector_sum(mask);
+
+        require( n_cells == mask.size(), "Mask length does not equal to # cells: "
+                + to_string(n_cells) + ", " + to_string(mask.size()) );
+        require( n_mask == markers_->size(), "Mismatch of data sizes: "
+                + to_string(n_mask)  + ", " + to_string(markers_->size()) );
+
+        // use the sign to differentiate potentially similar cells
+        double multiplier = 1.0;
+        if (flip) multiplier = -1.0;
+
+        int indx = 0;
+        for (int i = 0; i < n_cells; ++i)
+         if (mask[i])
+             set_marker(i, multiplier * (*markers_)[indx++]);
+    }
+
     /** Get number of cells in mesh */
     virtual int size() const { return *n_cells_r; }
 
@@ -445,6 +464,9 @@ public:
     /** Calculate statistics about triangles */
     void calc_statistics();
 
+    /** Calculate the norms and areas for all the triangles */
+    void calc_norms_and_areas();
+
     /** Struct holding statistics about triangles */
     struct Stat {
         double edgemin;    //!< Minimum edge length
@@ -460,9 +482,6 @@ private:
 
     /** Return i-th face */
     SimpleCell<3> get_cell(const int i) const;
-
-    /** Calculate the norms and areas for all the triangles */
-    void calc_norms_and_areas();
 
     /** Initialize statistics about triangles */
     void init_statistics();

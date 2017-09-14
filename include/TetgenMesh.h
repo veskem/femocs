@@ -50,6 +50,8 @@ public:
     /** Separate generated mesh into bulk and vacuum meshes */
     bool separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd);
 
+    bool separate_meshes_vol2(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd);
+
     /** Generate list of hexahedral nodes that surround the tetrahedral nodes. The resulting cells
      * resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells. */
     void calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells) const;
@@ -76,9 +78,11 @@ public:
     /** Delete disturbing edges and faces on and near the surface perimeter */
     void clean_sides(const Medium::Sizes& sizes);
 
+    bool generate_surface(const Medium::Sizes& sizes, const string& cmd);
+
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);   ///< data & operations for mesh nodes
-    TetgenEdges edges = TetgenEdges(&tetIOout);             ///< data & operations for mesh edges
-    TetgenFaces faces = TetgenFaces(&tetIOout);             ///< data & operations for mesh triangles
+    TetgenEdges edges = TetgenEdges(&tetIOout);   ///< data & operations for mesh edges
+    TetgenFaces faces = TetgenFaces(&tetIOout);   ///< data & operations for mesh triangles
     TetgenElements elems = TetgenElements(&tetIOout, &tetIOin); ///< data & operations for mesh tetrahedra
     Quadrangles quads = Quadrangles(&tetIOout);             ///< data & operations for mesh quadrangles
     Hexahedra hexahedra = Hexahedra(&tetIOout);             ///< data & operations for mesh hexahedra
