@@ -274,7 +274,7 @@ template<int dim>
 void LinearInterpolator<dim>::write(const string &file_name) const {
     if (!MODES.WRITEFILE) return;
 
-    const int n_nodes = nodes->size();
+    const int n_nodes = nodes->stat.n_tetnode;
     expect(n_nodes, "Zero nodes detected!");
     string ftype = get_file_type(file_name);
 
