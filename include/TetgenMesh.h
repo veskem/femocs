@@ -54,7 +54,7 @@ public:
 
     /** Generate list of hexahedral nodes that surround the tetrahedral nodes. The resulting cells
      * resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells. */
-    void calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells) const;
+    void calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells, const bool vacuum) const;
 
     /** Generate list of quadrangle nodes that surround the triangle nodes. The resulting cells
      * resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells. */

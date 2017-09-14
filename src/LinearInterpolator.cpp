@@ -430,9 +430,9 @@ void TetrahedronInterpolator::print_statistics() const {
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
-bool TetrahedronInterpolator::average_sharp_nodes() {
+bool TetrahedronInterpolator::average_sharp_nodes(const bool vacuum) {
     vector<vector<unsigned int>> vorocells;
-    mesh->calc_pseudo_3D_vorocells(vorocells);
+    mesh->calc_pseudo_3D_vorocells(vorocells, vacuum);
     return LinearInterpolator<4>::average_sharp_nodes(vorocells, elems->stat.edgemax);
 }
 
@@ -473,7 +473,7 @@ bool TetrahedronInterpolator::extract_solution(fch::Laplace<3>* fem) {
     }
 
     // remove the spikes in the solution
-    if (average_sharp_nodes())
+    if (average_sharp_nodes(true))
         return true;
 
     // Check for the error values in the mesh nodes
@@ -788,7 +788,7 @@ bool TriangleInterpolator::extract_solution(fch::Laplace<3>* fem) {
     }
 
     // remove the spikes in the solution
-    if (average_sharp_nodes())
+    if (average_sharp_nodes(true))
         return true;
 
     // leave only the solution in the vertices and centroids of triangles
@@ -906,9 +906,9 @@ void TriangleInterpolator::calc_charges(const double E0) {
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
-bool TriangleInterpolator::average_sharp_nodes() {
+bool TriangleInterpolator::average_sharp_nodes(const bool vacuum) {
     vector<vector<unsigned int>> vorocells;
-    mesh->calc_pseudo_3D_vorocells(vorocells);
+    mesh->calc_pseudo_3D_vorocells(vorocells, vacuum);
     return LinearInterpolator<3>::average_sharp_nodes(vorocells, mesh->faces.stat.edgemax);
 }
 

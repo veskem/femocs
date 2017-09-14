@@ -267,15 +267,8 @@ int Femocs::generate_meshes() {
     string command = "rnQFBq" + conf.mesh_quality;
     if (conf.element_volume != "") command += "a" + conf.element_volume;
     fail = big_mesh.generate(bulk, coarse_surf, vacuum, command);
-
     check_return(fail, "Triangulation failed!");
     end_msg(t0);
-
-//    start_msg(t0, "=== Making surface faces...");
-//    big_mesh.generate_appendices();
-//    end_msg(t0);
-
-    big_mesh.faces.write("out/surface_faces.vtk");
 
     start_msg(t0, "=== Marking tetrahedral mesh...");
     fail = big_mesh.mark_mesh();
@@ -294,6 +287,7 @@ int Femocs::generate_meshes() {
         big_mesh.smoothen_tris(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
         end_msg(t0);
     }
+
     big_mesh.faces.write("out/tetmesh_tris.vtk");
 
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");

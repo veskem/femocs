@@ -291,7 +291,7 @@ private:
 
     /** Force the solution on tetrahedral nodes to be the weighed average
      * of the solutions on its Voronoi cell nodes */
-    bool average_sharp_nodes();
+    bool average_sharp_nodes(const bool vacuum);
 
     /** Pre-compute data about tetrahedra to make interpolation faster */
     void precompute();
@@ -344,7 +344,7 @@ private:
 
     /** Force the solution on triangular nodes to be the weighed average
      * of the solutions on its surrounding quadrangular nodes */
-    bool average_sharp_nodes();
+    bool average_sharp_nodes(const bool vacuum);
 
     /** Precompute the data needed to calculate the distance of points from surface
      * in the direction of triangle surface norms */

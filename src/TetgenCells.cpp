@@ -509,11 +509,6 @@ vector<int> TetgenElements::get_neighbours(const int i) const {
  *  ========================== Quadrangles ===========================
  * ===================================================================== */
 
-// Get number of hexahedra in mesh
-int Quadrangles::size() const {
-    return quads.size();
-}
-
 // Initialize hexahedron appending
 void Quadrangles::init(const int N) {
     TetgenCells::init(N);
@@ -537,11 +532,6 @@ SimpleCell<4> Quadrangles::get_cell(const int i) const {
 /* =====================================================================
  *  ============================ Hexahedra ============================
  * ===================================================================== */
-
-// Get number of hexahedra in mesh
-int Hexahedra::size() const {
-    return hexs.size();
-}
 
 // Initialize hexahedron appending
 void Hexahedra::init(const int N) {
