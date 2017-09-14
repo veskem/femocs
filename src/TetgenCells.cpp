@@ -553,17 +553,35 @@ SimpleCell<8> Hexahedra::get_cell(const int i) const {
     return hexs[i];
 }
 
-// Transform hexahedra into Deal.II format
-vector<dealii::CellData<3>> Hexahedra::export_dealii() const {
-    const int n_elems = size();
+// Export vacuum hexahedra in Deal.II format
+vector<dealii::CellData<3>> Hexahedra::export_vacuum() const {
+    const int n_elems = vector_sum(vector_greater(&markers, 0));
     std::vector<dealii::CellData<3>> elems; elems.reserve(n_elems);
 
-    // loop through all the hexahedra
-    for (SimpleHex hex : *this) {
-        elems.push_back(dealii::CellData<3>());
-        for (int v = 0; v < DIM; ++v)
-            elems.back().vertices[v] = hex[v];
-    }
+    // loop through all the hexahedra and export the ones that are in the vacuum
+    for (int i = 0; i < size(); ++i)
+        if (get_marker(i) > 0) {
+            elems.push_back(dealii::CellData<3>());
+            SimpleHex hex = (*this)[i];
+            for (int v = 0; v < DIM; ++v)
+                elems.back().vertices[v] = hex[v];
+        }
+    return elems;
+}
+
+// Export bulk hexahedra in Deal.II format
+vector<dealii::CellData<3>> Hexahedra::export_bulk() const {
+    const int n_elems = vector_sum(vector_less(&markers, 0));
+    std::vector<dealii::CellData<3>> elems; elems.reserve(n_elems);
+
+    // loop through all the hexahedra and export the ones that are in the bulk
+    for (int i = 0; i < size(); ++i)
+        if (get_marker(i) < 0) {
+            elems.push_back(dealii::CellData<3>());
+            SimpleHex hex = (*this)[i];
+            for (int v = 0; v < DIM; ++v)
+                elems.back().vertices[v] = hex[v];
+        }
     return elems;
 }
 

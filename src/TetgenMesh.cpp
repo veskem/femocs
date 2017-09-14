@@ -583,12 +583,55 @@ void TetgenMesh::group_hexahedra() {
     }
 }
 
-// Separate tetrahedra & trinagles into hexahedra & quadrangles
+void TetgenMesh::group_hexahedra_vol2() {
+    const int node_min = nodes.indxs.tetnode_start;
+    const int node_max = nodes.indxs.tetnode_end;
+    const int n_hexs = hexahedra.size();
+    const int n_quads = quads.size();
+
+    // find which hexahedra correspond to which tetrahedral node
+    // hexahedra with the same tetrahedral node form the pseudo Voronoi cell of that node
+    // each hexahedron has one and only one unique tetrahedral node
+    // the sign of hexahedron marker will indicate whether the hex is in vacuum (>0) or bulk (<0)
+    // the (magnitude - 1) shows the index of its tetrahedral node
+    for (int i = 0; i < hexahedra.size(); ++i)
+        // group hexs in vacuum
+        if (hexahedra.get_marker(i) == TYPES.VACUUM) {
+            for (int node : hexahedra[i])
+                if (node >= node_min && node <= node_max) {
+                    hexahedra.set_marker(i, 1 + node);
+                    break;
+                }
+        // group hexs in bulk
+        } else {
+            for (int node : hexahedra[i])
+                if (node >= node_min && node <= node_max) {
+                    hexahedra.set_marker(i, -1 - node);
+                    break;
+                }
+        }
+
+    // find which quadrangle correspond to which triangular node
+    // quadrangles with the same triangular node form the pseudo 2D Voronoi cell of that node
+    // the quadrangle marker shows the index of its triangular node
+    for (int i = 0; i < quads.size(); ++i) {
+        for (int node : quads[i])
+            if (node >= node_min && node <= node_max) {
+                quads.set_marker(i, node);
+                break;
+            }
+    }
+}
+
+// Separate tetrahedra & triangles into hexahedra & quadrangles
 bool TetgenMesh::generate_hexahedra() {
     tethex::Mesh hexmesh;
     hexmesh.read_femocs(this);
     hexmesh.convert();
     hexmesh.export_femocs(this);
+
+    group_hexahedra_vol2();
+
     return 0;
 }
 
@@ -708,6 +751,22 @@ bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const str
     bulk.hexahedra.copy_markers(this->hexahedra, hex_mask);
 
     return vacuum.recalc(cmd) ||  bulk.recalc(cmd);
+}
+
+// Write bulk or vacuum mesh
+void TetgenMesh::write_separate(const string& file_name, const bool vacuum) {
+    int search_type = TYPES.BULK;
+    if (vacuum) search_type = TYPES.VACUUM;
+    vector<bool> hex_mask = vector_equal(hexahedra.get_markers(), search_type);
+
+    TetgenMesh tempmesh;
+    tempmesh.nodes.copy(this->nodes);
+    tempmesh.nodes.copy_markers(this->nodes);
+    tempmesh.nodes.recalc();
+    tempmesh.hexahedra.copy(this->hexahedra, hex_mask);
+    tempmesh.hexahedra.copy_markers(this->hexahedra, hex_mask);
+
+    tempmesh.hexahedra.write(file_name);
 }
 
 bool TetgenMesh::separate_meshes_vol2(TetgenMesh &bulk, TetgenMesh &vacuum, const string& cmd) {

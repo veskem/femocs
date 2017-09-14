@@ -400,7 +400,7 @@ public:
     /** Delete the edges that are not on the perimeter of surface */
     void clean_sides(const Medium::Sizes& stat);
 
-    /** Calculate statistics about edges */
+    /** Calculate statistics about ewrite_vtkdges */
     void calc_statistics();
 
     /** Struct holding statistics about edges */
@@ -602,7 +602,11 @@ public:
     /** Return index of tetrahedron that is connected to i-th hexahedron*/
     int to_tet(const int i) const { return int(i / 4); }
 
-    vector<dealii::CellData<3>> export_dealii() const;
+    /** Export vacuum hexahedra in Deal.II format */
+    vector<dealii::CellData<3>> export_vacuum() const;
+
+    /** Export bulk hexahedra in Deal.II format */
+    vector<dealii::CellData<3>> export_bulk() const;
 
 protected:
     vector<SimpleHex> hexs;

@@ -63,6 +63,9 @@ public:
     /** Use Tetgen built-in functions to write mesh elements data into vtk file */
     bool write(const string& file_name);
 
+    /** Write bulk or vacuum mesh */
+    void write_separate(const string& file_name, const bool vacuum);
+
     /** Copy node and element data from Tetgen input buffer into output one */
     bool recalc();
 
@@ -80,12 +83,12 @@ public:
 
     bool generate_surface(const Medium::Sizes& sizes, const string& cmd);
 
-    TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);   ///< data & operations for mesh nodes
-    TetgenEdges edges = TetgenEdges(&tetIOout);   ///< data & operations for mesh edges
-    TetgenFaces faces = TetgenFaces(&tetIOout);   ///< data & operations for mesh triangles
+    TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin); ///< data & operations for mesh nodes
+    TetgenEdges edges = TetgenEdges(&tetIOout);           ///< data & operations for mesh edges
+    TetgenFaces faces = TetgenFaces(&tetIOout);           ///< data & operations for mesh triangles
     TetgenElements elems = TetgenElements(&tetIOout, &tetIOin); ///< data & operations for mesh tetrahedra
-    Quadrangles quads = Quadrangles(&tetIOout);             ///< data & operations for mesh quadrangles
-    Hexahedra hexahedra = Hexahedra(&tetIOout);             ///< data & operations for mesh hexahedra
+    Quadrangles quads = Quadrangles(&tetIOout);           ///< data & operations for mesh quadrangles
+    Hexahedra hexahedra = Hexahedra(&tetIOout);           ///< data & operations for mesh hexahedra
 
     static constexpr int n_coordinates = 3;     ///< Number of coordinates
     static constexpr int n_edges_per_face = 3;  ///< Number of edges on a triangle
@@ -95,10 +98,11 @@ public:
     /** String stream prints the statistics about the mesh */
     friend std::ostream& operator <<(std::ostream &s, const TetgenMesh &t) {
         s << "#hexs=" << t.hexahedra.size()
-                << ",\t#tets=" << t.elems.size()
-                << ",\t#faces=" << t.faces.size()
-                << ",\t#edges=" << t.edges.size()
-                << ",\t#nodes=" << t.nodes.size();
+                << ", #tets=" << t.elems.size()
+                << ", #quads=" << t.quads.size()
+                << ", #tris=" << t.faces.size()
+                << ", #edges=" << t.edges.size()
+                << ", #nodes=" << t.nodes.size();
         return s;
     }
 
@@ -120,6 +124,7 @@ private:
 
     /** Group hexahedra & quadrangles around central tetrahedral & triangular node */
     void group_hexahedra();
+    void group_hexahedra_vol2();
 
     /** Calculate the neighbourlist for the nodes.
      * Two nodes are considered neighbours if they share a tetrahedron. */
