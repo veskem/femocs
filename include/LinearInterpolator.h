@@ -125,10 +125,6 @@ public:
     /** Find the cell which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess);
 
-    /** Solution value that is assigned to atoms not found from mesh.
-     *  Its value is BIG to make it immediately visible from the dataset. */
-    const double error_field = 1e20;
-
 protected:
     /** Constants specifying the interpolation tolerances.
      * Making zero a bit negative allows searching points outside the tetrahedra. */

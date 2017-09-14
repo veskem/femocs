@@ -61,9 +61,9 @@ double LinearInterpolator<dim>::get_analyt_enhancement() const {
 // Compare the analytical and calculated field enhancement
 template<int dim>
 bool LinearInterpolator<dim>::compare_enhancement() const {
-    double Emax = -error_field;
+    double Emax = -1e100;
     for (Solution s : solutions)
-        if (s.norm != error_field && s.norm > Emax) Emax = s.norm;
+        Emax = max(Emax, s.norm);
 
     const double gamma1 = fabs(Emax / E0);
     const double gamma2 = get_analyt_enhancement();
@@ -205,7 +205,7 @@ bool LinearInterpolator<dim>::average_sharp_nodes(const vector<vector<unsigned>>
 
     // loop through the tetrahedral nodes
     for (int i = 0; i < vorocells.size(); ++i) {
-        if (solutions[i].norm >= error_field) continue;
+        if (vorocells[i].size() == 0) continue;
 
         Point3 tetnode = (*nodes)[i];
         Vec3 vec(0);
@@ -219,8 +219,9 @@ bool LinearInterpolator<dim>::average_sharp_nodes(const vector<vector<unsigned>>
         }
 
         if (w_sum > 0) {
-            solutions[i].vector = vec * (1.0 / w_sum);
-            solutions[i].norm = solutions[i].vector.norm();
+            vec *= (1.0 / w_sum);
+            solutions[i].vector = vec;
+            solutions[i].norm = vec.norm();
         }
     }
 
@@ -406,9 +407,9 @@ void TetrahedronInterpolator::print_statistics() const {
     int n_points = 0;
 
     for (int i = 0; i < n_atoms; ++i) {
+        if (solutions[i].norm == 0) continue;
         double s = solutions[i].scalar;
         Vec3 v = solutions[i].vector;
-        if (s >= error_field) continue;
 
         vec += v; rms_vec += v * v;
         scalar += s; rms_scalar += s * s;
@@ -469,19 +470,12 @@ bool TetrahedronInterpolator::extract_solution(fch::Laplace<3>* fem) {
 
         // In case of non-common node, store solution with error value
         else
-            append_solution(Solution(error_field));
+            append_solution(Solution(0));
     }
 
     // remove the spikes in the solution
     if (average_sharp_nodes(true))
         return true;
-
-    // Check for the error values in the mesh nodes
-    // Normally there should be no nodes in the mesh elements that have the error value
-    for (SimpleElement elem : *elems)
-        for (int node : elem)
-            if (solutions[node].scalar == error_field)
-                return true;
 
     return false;
 }
@@ -520,15 +514,8 @@ bool TetrahedronInterpolator::extract_solution(fch::CurrentsAndHeatingStationary
 
         // In case of non-common node, store solution with error value
         else
-            append_solution(Solution(error_field));
+            append_solution(Solution(0));
     }
-
-    // Check for the error values in the mesh nodes
-    // Normally there should be no nodes in the mesh elements that have the error value
-    for (SimpleElement elem : *elems)
-        for (int node : elem)
-            if (solutions[node].scalar == error_field)
-                return true;
 
     return false;
 }
@@ -567,15 +554,8 @@ bool TetrahedronInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem) 
 
         // In case of non-common node, store solution with error value
         else
-            append_solution(Solution(error_field));
+            append_solution(Solution(0));
     }
-
-    // Check for the error values in the mesh nodes
-    // Normally there should be no nodes in the mesh elements that have the error value
-    for (SimpleElement elem : *elems)
-        for (int node : elem)
-            if (solutions[node].scalar == error_field)
-                return true;
 
     return false;
 }
@@ -740,14 +720,7 @@ bool TriangleInterpolator::clean_nodes() {
 
     for (int node = 0; node < n_nodes; ++node)
         if (node_not_in_quads[node])
-            solutions[node] = Solution(error_field);
-
-    // Check for the error values in the mesh nodes
-    // Normally there should be no nodes in the mesh elements that have the error value
-    for (SimpleFace face : *faces)
-        for (int node : face)
-            if (solutions[node].scalar == error_field)
-                return true;
+            solutions[node] = Solution(0);
 
     return false;
 }
@@ -784,7 +757,7 @@ bool TriangleInterpolator::extract_solution(fch::Laplace<3>* fem) {
 
         // In case of non-common node, store solution with error value
         else
-            append_solution(Solution(error_field));
+            append_solution(Solution(0));
     }
 
     // remove the spikes in the solution
@@ -1002,7 +975,7 @@ void TriangleInterpolator::print_statistics(const double Q) {
     double q_sum = 0;
     for (int i = 0; i < size(); ++i) {
         const double scalar = get_scalar(i);
-        if (scalar < error_field && nodes->get_marker(i) == TYPES.TETNODE)
+        if (nodes->get_marker(i) == TYPES.TETNODE)
             q_sum += scalar;
     }
 

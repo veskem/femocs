@@ -213,11 +213,11 @@ private:
     TetgenMesh vacuum_mesh;  ///< FEM mesh in vacuum
 
     /// data for interpolating results on vacuum-material boundary
-    TriangleInterpolator surface_interpolator = TriangleInterpolator(&vacuum_mesh);
+    TriangleInterpolator surface_interpolator = TriangleInterpolator(&big_mesh);
     /// data for interpolating results in vacuum
-    TetrahedronInterpolator vacuum_interpolator = TetrahedronInterpolator(&vacuum_mesh);
+    TetrahedronInterpolator vacuum_interpolator = TetrahedronInterpolator(&big_mesh);
     /// data for interpolating results in bulk
-    TetrahedronInterpolator bulk_interpolator = TetrahedronInterpolator(&bulk_mesh);
+    TetrahedronInterpolator bulk_interpolator = TetrahedronInterpolator(&big_mesh);
 
     HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
     FieldReader fields = FieldReader(&surface_interpolator);    ///< interpolated fields and potentials

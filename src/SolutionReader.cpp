@@ -163,7 +163,7 @@ Solution SolutionReader::get_average_solution(const int I, const double r_cut) {
     for (int i = 0; i < size(); ++i)
         if (i != I) {
             double dist2 = point1.distance2(get_point(i));
-            if (dist2 > r_cut2 || interpolation[i].norm >= interpolator->error_field) continue;
+            if (dist2 > r_cut2) continue;
 
             double w = exp(-1.0 * sqrt(dist2) / smooth_factor);
             w_sum += w;
@@ -197,10 +197,8 @@ void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, co
         else if (coordinate == 3) value = interpolation[i].norm;
         else                 value = interpolation[i].vector[coordinate];
 
-        if (fabs(value) < interpolator->error_field) {
-            value_min = min(value_min, value);
-            value_max = max(value_max, value);
-        }
+        value_min = min(value_min, value);
+        value_max = max(value_max, value);
     }
 
     // Fill the bounds with values value_min:value_step:(value_max + epsilon)
