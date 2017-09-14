@@ -18,8 +18,13 @@ using namespace std;
 namespace femocs {
 
 /**
- * Class to create and handle finite element mesh in Tetgen format,
- * http://wias-berlin.de/software/tetgen/1.5/ */
+ * @brief Class to create and handle finite element mesh in Tetgen format,
+ * http://wias-berlin.de/software/tetgen/1.5/
+ *
+ * The following routines use extensively Tetgen feature to append the new points to the
+ * end of input point list while not modifying the ordering of input points.
+ * This helps to distinguish surface nodes from the generated nodes in bulk and vacuum.
+ */
 class TetgenMesh {
 public:
     TetgenMesh();
@@ -37,13 +42,17 @@ public:
     /** Function to generate mesh from surface, bulk and vacuum atoms */
     bool generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd);
 
-    /** Separate tetrahedra & triangles into hexahedra & quadrangles
-     * by adding node to the centroid of the tetrahedron edges, faces and tetrahedron itself */
+    /** @brief Separate tetrahedra & triangles into hexahedra & quadrangles
+     * Separation is done by adding node to the centroid of the tetrahedron edges,
+     * faces and tetrahedron itself. These nodes are added to the end of input point list.
+     * This helps to distinguish input "tetrahedral" and "triangular" nodes
+     * from the appended "hexahedral" and "quadrangular" ones.
+     */
     bool generate_hexahedra();
-
-    /** Generate additional data that is needed to mark mesh */
-    bool generate_appendices();
     
+    /** Using the separated tetrahedra generate the triangular surface on the vacuum-material boundary */
+    bool generate_surface(const Medium::Sizes& sizes, const string& cmd);
+
     /** Mark mesh nodes and elements by their location relative to the surface atoms */
     bool mark_mesh();
 
@@ -52,7 +61,7 @@ public:
 
     /** Generate list of hexahedral nodes that surround the tetrahedral nodes. The resulting cells
      * resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells. */
-    void calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells) const;
+    void calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells, const bool vacuum) const;
 
     /** Generate list of quadrangle nodes that surround the triangle nodes. The resulting cells
      * resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells. */
@@ -60,6 +69,9 @@ public:
 
     /** Use Tetgen built-in functions to write mesh elements data into vtk file */
     bool write(const string& file_name);
+
+    /** Write bulk or vacuum mesh */
+    void write_separate(const string& file_name, const bool vacuum);
 
     /** Copy node and element data from Tetgen input buffer into output one */
     bool recalc();
@@ -76,12 +88,12 @@ public:
     /** Delete disturbing edges and faces on and near the surface perimeter */
     void clean_sides(const Medium::Sizes& sizes);
 
-    TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin);   ///< data & operations for mesh nodes
-    TetgenEdges edges = TetgenEdges(&tetIOout);             ///< data & operations for mesh edges
-    TetgenFaces faces = TetgenFaces(&tetIOout);             ///< data & operations for mesh triangles
+    TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin); ///< data & operations for mesh nodes
+    TetgenEdges edges = TetgenEdges(&tetIOout);           ///< data & operations for mesh edges
+    TetgenFaces faces = TetgenFaces(&tetIOout);           ///< data & operations for mesh triangles
     TetgenElements elems = TetgenElements(&tetIOout, &tetIOin); ///< data & operations for mesh tetrahedra
-    Quadrangles quads = Quadrangles(&tetIOout);             ///< data & operations for mesh quadrangles
-    Hexahedra hexahedra = Hexahedra(&tetIOout);             ///< data & operations for mesh hexahedra
+    Quadrangles quads = Quadrangles(&tetIOout);           ///< data & operations for mesh quadrangles
+    Hexahedra hexahedra = Hexahedra(&tetIOout);           ///< data & operations for mesh hexahedra
 
     static constexpr int n_coordinates = 3;     ///< Number of coordinates
     static constexpr int n_edges_per_face = 3;  ///< Number of edges on a triangle
@@ -91,10 +103,11 @@ public:
     /** String stream prints the statistics about the mesh */
     friend std::ostream& operator <<(std::ostream &s, const TetgenMesh &t) {
         s << "#hexs=" << t.hexahedra.size()
-                << ",\t#tets=" << t.elems.size()
-                << ",\t#faces=" << t.faces.size()
-                << ",\t#edges=" << t.edges.size()
-                << ",\t#nodes=" << t.nodes.size();
+                << ", #tets=" << t.elems.size()
+                << ", #quads=" << t.quads.size()
+                << ", #tris=" << t.faces.size()
+                << ", #edges=" << t.edges.size()
+                << ", #nodes=" << t.nodes.size();
         return s;
     }
 
@@ -114,7 +127,15 @@ private:
     /** Locate the tetrahedron by the location of its nodes */
     int locate_element(SimpleElement& elem);
 
-    /** Group hexahedra & quadrangles around central tetrahedral & triangular node */
+    /** @brief Group hexahedra & quadrangles around central tetrahedral & triangular node
+     *
+     * Each hexahedron has one and only one unique tetrahedral node, therefore
+     * Hexahedra with the same tetrahedral node form the pseudo Voronoi cell of that node.
+     * Similar thing is valid for quadrangles, just they are mapped to triangular nodes.
+     * After the routine the sign of hexahedron marker will indicate whether the hex is in
+     * vacuum (>0) or bulk (<0) and the (magnitude - 1) shows the index of its tetrahedral node.
+     * The quadrangle marker shows the index of its triangular node.
+     */
     void group_hexahedra();
 
     /** Calculate the neighbourlist for the nodes.
@@ -148,7 +169,7 @@ private:
 
     /** Generate surface faces from elements and known location of surface nodes.
      * Overlapping faces are not cleaned for computational efficiency purposes. */
-    void generate_surf_faces();
+    void generate_manual_surface();
 };
 
 /** Class to mark mesh nodes with ray-triangle intersection technique,

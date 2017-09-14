@@ -381,7 +381,7 @@ public:
     /** Delete the edges that are not on the perimeter of surface */
     void clean_sides(const Medium::Sizes& stat);
 
-    /** Calculate statistics about edges */
+    /** Calculate statistics about ewrite_vtkdges */
     void calc_statistics();
 
     /** Struct holding statistics about edges */
@@ -445,6 +445,9 @@ public:
     /** Calculate statistics about triangles */
     void calc_statistics();
 
+    /** Calculate the norms and areas for all the triangles */
+    void calc_norms_and_areas();
+
     /** Struct holding statistics about triangles */
     struct Stat {
         double edgemin;    //!< Minimum edge length
@@ -460,9 +463,6 @@ private:
 
     /** Return i-th face */
     SimpleCell<3> get_cell(const int i) const;
-
-    /** Calculate the norms and areas for all the triangles */
-    void calc_norms_and_areas();
 
     /** Initialize statistics about triangles */
     void init_statistics();
@@ -548,10 +548,7 @@ public:
     void append(const SimpleCell<4> &cell);
 
     /** Get number of quadrangles in mesh */
-    int size() const;
-
-    /** Return index of tetrahedral node that is connected to i-th quadrangle */
-    int to_node(const int i) const { return markers[i]; }
+    int size() const { return quads.size(); }
 
     /** Return index of triangle that is connected to i-th quadrangle*/
     int to_tri(const int i) const { return int(i / 3); }
@@ -581,15 +578,16 @@ public:
     void append(const SimpleCell<8> &cell);
 
     /** Get number of hexahedra in mesh */
-    int size() const;
-
-    vector<dealii::CellData<3>> export_dealii() const;
-
-    /** Return index of tetrahedral node that is connected to i-th hexahedron */
-    int to_node(const int i) const { return markers[i]; }
+    int size() const { return hexs.size(); }
 
     /** Return index of tetrahedron that is connected to i-th hexahedron*/
     int to_tet(const int i) const { return int(i / 4); }
+
+    /** Export vacuum hexahedra in Deal.II format */
+    vector<dealii::CellData<3>> export_vacuum() const;
+
+    /** Export bulk hexahedra in Deal.II format */
+    vector<dealii::CellData<3>> export_bulk() const;
 
 protected:
     vector<SimpleHex> hexs;

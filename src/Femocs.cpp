@@ -66,9 +66,9 @@ int Femocs::force_output() {
     MODES.WRITEFILE = true;
 
     reader.write("out/reader.xyz");
-    bulk_mesh.hexahedra.write("out/bulk_hexs_err.vtk");
-    vacuum_mesh.hexahedra.write("out/vacuum_hexs_err.vtk");
-    vacuum_mesh.faces.write("out/vacuum_tris_err.vtk");
+    fem_mesh.hexahedra.write("out/hexmesh_err.vtk");
+    fem_mesh.elems.write("out/tetmesh_err.vtk");
+    fem_mesh.faces.write("out/trimesh_err.vtk");
 
     vacuum_interpolator.write("out/result_E_phi_vacuum_err.xyz");
     vacuum_interpolator.write("out/result_E_phi_vacuum_err.vtk");
@@ -255,73 +255,56 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 
 // Generate bulk and vacuum meshes
 int Femocs::generate_meshes() {
-    bulk_mesh.clear();
-    vacuum_mesh.clear();
+    fem_mesh.clear();
 
     Media bulk, coarse_surf, vacuum;
     fail = generate_boundary_nodes(bulk, coarse_surf, vacuum);
     if (fail) return 1;
 
     start_msg(t0, "=== Making big mesh...");
-    TetgenMesh big_mesh;
     // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality, a - element volume,
     // F - suppress output of faces and edges, B - suppress output of boundary info
     string command = "rnQFBq" + conf.mesh_quality;
     if (conf.element_volume != "") command += "a" + conf.element_volume;
-    fail = big_mesh.generate(bulk, coarse_surf, vacuum, command);
-
+    fail = fem_mesh.generate(bulk, coarse_surf, vacuum, command);
     check_return(fail, "Triangulation failed!");
     end_msg(t0);
 
-    start_msg(t0, "=== Making surface faces...");
-    big_mesh.generate_appendices();
-    end_msg(t0);
-
-    big_mesh.faces.write("out/surface_faces.vtk");
-
     start_msg(t0, "=== Marking tetrahedral mesh...");
-    fail = big_mesh.mark_mesh();
-    big_mesh.nodes.write("out/tetmesh_nodes.xyz");
-    big_mesh.elems.write("out/tetmesh_elems.vtk");
+    fail = fem_mesh.mark_mesh();
+    fem_mesh.nodes.write("out/tetmesh_nodes.xyz");
+    fem_mesh.elems.write("out/tetmesh.vtk");
     check_return(fail, "Mesh marking failed!");
     end_msg(t0);
 
-    start_msg(t0, "=== Separating vacuum & bulk meshes...");
-    big_mesh.separate_meshes(bulk_mesh, vacuum_mesh, "rnQB");
-    bulk_mesh.clean_sides(reader.sizes);
-    vacuum_mesh.clean_sides(reader.sizes);
+    start_msg(t0, "=== Generating surface faces...");
+    fail = fem_mesh.generate_surface(reader.sizes, "rnQB");
     end_msg(t0);
+    fem_mesh.faces.write("out/trimesh.vtk");
+    check_return(fail, "Generation of surface faces failed!");
 
     if (conf.smooth_algorithm != "none" && conf.smooth_steps > 0) {
         start_msg(t0, "=== Smoothing triangles...");
-        bulk_mesh.smoothen_tris(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
-        vacuum_mesh.smoothen_tris(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
+        fem_mesh.smoothen_tris(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
         end_msg(t0);
+        fem_mesh.faces.write("out/trimesh_smooth.vtk");
     }
 
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
-    bulk_mesh.generate_hexahedra();
-    vacuum_mesh.generate_hexahedra();
+    fem_mesh.generate_hexahedra();
     end_msg(t0);
 
-    bulk_mesh.nodes.write("out/bulk_nodes.xyz");
-    bulk_mesh.edges.write("out/bulk_edges.vtk");
-    bulk_mesh.faces.write("out/bulk_tris.vtk");
-    bulk_mesh.quads.write("out/bulk_quads.vtk");
-    bulk_mesh.elems.write("out/bulk_tets.vtk");
-    bulk_mesh.hexahedra.write("out/bulk_hexs" + conf.message + ".vtk");
+    fem_mesh.nodes.write("out/hexmesh_nodes.xyz");
+    fem_mesh.quads.write("out/quadmesh.vtk");
+    fem_mesh.hexahedra.write("out/hexmesh.vtk");
+    fem_mesh.write_separate("out/hexmesh_bulk" + conf.message + ".vtk", false);
 
-    expect(bulk_mesh.nodes.size() > 0, "Zero nodes in bulk mesh!");
-    expect(vacuum_mesh.nodes.size() > 0, "Zero nodes in vacuum mesh!");
-    expect(bulk_mesh.hexahedra.size() > 0, "Zero elements in bulk mesh!");
-    expect(vacuum_mesh.hexahedra.size() > 0, "Zero elements in vacuum mesh!");
-
-    stringstream ss; ss << "Bulk:   " << bulk_mesh << "\n  Vacuum: " << vacuum_mesh;
+    stringstream ss; ss << fem_mesh;
     write_verbose_msg(ss.str());
 
     if (conf.surface_cleaner == "faces") {
         start_msg(t0, "=== Cleaning surface with triangles...");
-        dense_surf.faces_clean(vacuum_mesh, conf.surface_thichness);
+        dense_surf.faces_clean(fem_mesh, conf.surface_thichness);
         end_msg(t0);
 
         dense_surf.write("out/surface_dense_clean.xyz");
@@ -343,8 +326,8 @@ int Femocs::solve_laplace(const double E0) {
     fields.set_analyt(E0, conf.radius, dense_surf.sizes.zbox);
 
     start_msg(t0, "=== Importing mesh to Laplace solver...");
-    fail = !laplace_solver.import_mesh_directly(vacuum_mesh.nodes.export_dealii(),
-            vacuum_mesh.hexahedra.export_dealii());
+    fail = !laplace_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
+            fem_mesh.hexahedra.export_vacuum());
     check_return(fail, "Importing mesh to Deal.II failed!");
     end_msg(t0);
 
@@ -366,7 +349,8 @@ int Femocs::solve_laplace(const double E0) {
     fail |= surface_interpolator.extract_solution(&laplace_solver);
     end_msg(t0);
 
-    check_return(surface_interpolator.compare_enhancement(), "Field is over-enhanced!");
+    check_return(vacuum_interpolator.compare_enhancement(), "Vacuum field is over-enhanced!");
+    check_return(surface_interpolator.compare_enhancement(), "Surface field is over-enhanced!");
 
     vacuum_interpolator.write("out/result_E_phi_vacuum.xyz");
     vacuum_interpolator.write("out/result_E_phi_vacuum.vtk");
@@ -400,8 +384,8 @@ int Femocs::solve_stationary_heat(const double T_ambient) {
     write_verbose_msg(ss.str());
 
     start_msg(t0, "=== Importing mesh to J & T solver...");
-    fail = !ch_solver->import_mesh_directly(bulk_mesh.nodes.export_dealii(),
-            bulk_mesh.hexahedra.export_dealii());
+    fail = !ch_solver->import_mesh_directly(fem_mesh.nodes.export_dealii(),
+            fem_mesh.hexahedra.export_bulk());
     check_return(fail, "Importing mesh to Deal.II failed!");
     ch_solver->setup_system();
     end_msg(t0);
@@ -452,8 +436,8 @@ int Femocs::solve_transient_heat(const double T_ambient) {
     delta_time = conf.transient_time / n_time_steps;
 
     start_msg(t0, "=== Importing mesh to transient J & T solver...");
-    fail = !ch_transient_solver.import_mesh_directly(bulk_mesh.nodes.export_dealii(),
-            bulk_mesh.hexahedra.export_dealii());
+    fail = !ch_transient_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
+            fem_mesh.hexahedra.export_bulk());
     check_return(fail, "Importing mesh to Deal.II failed!");
     end_msg(t0);
 
@@ -708,7 +692,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         ChargeReader face_charges(&vacuum_interpolator); // charges on surface faces
 
         start_msg(t0, "=== Calculating face charges...");
-        face_charges.calc_charges(vacuum_mesh, conf.E0);
+        face_charges.calc_interpolated_charges(fem_mesh, conf.E0);
         end_msg(t0);
 
         const double tot_charge = conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0;
