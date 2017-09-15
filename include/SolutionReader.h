@@ -96,10 +96,11 @@ protected:
 /** Class to extract solution from DealII calculations */
 class FieldReader: public SolutionReader {
 public:
-    /** SolutionReader constructors */
+    /** FieldReader constructors */
     FieldReader();
-    FieldReader(TetrahedronInterpolator* ip);
     FieldReader(TriangleInterpolator* ip);
+    FieldReader(TetrahedronInterpolator* ip);
+    FieldReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
 
     /** Interpolate solution on the system atoms using triangular interpolator
      * @param r_cut     smoothing region cut-off radius; 0 or less turns smoothing off
@@ -154,7 +155,7 @@ private:
     double radius1;  ///< Minor semi-axis of ellipse
     double radius2;  ///< Major semi-axis of ellipse
     double E0;       ///< Long-range electric field strength
-    TriangleInterpolator* interpolator3;     ///< data needed for interpolating on surface
+    TriangleInterpolator* surf_interpolator; ///< data needed for interpolating on surface
 
     /** Get calculated field enhancement */
     double get_enhancement() const;

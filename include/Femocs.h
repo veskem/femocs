@@ -221,7 +221,7 @@ private:
     TetrahedronInterpolator bulk_interpolator = TetrahedronInterpolator(&fem_mesh);
 
     HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
-    FieldReader fields = FieldReader(&surface_interpolator);    ///< interpolated fields and potentials
+    FieldReader fields = FieldReader(&surface_interpolator, &vacuum_interpolator); ///< interpolated fields and potentials
     ForceReader forces = ForceReader(&vacuum_interpolator);     ///< forces on surface atoms
 
     fch::PhysicalQuantities phys_quantities;              ///< physical quantities used in heat calculations

@@ -33,7 +33,7 @@ SolutionReader::SolutionReader(TetrahedronInterpolator* ip, const string& vec_la
 // Linearly interpolate solution on system atoms using tetrahedral interpolator
 void SolutionReader::calc_interpolation(const double r_cut, const int component, const bool srt) {
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
-    require(interpolator, "NULL interpolator cannot be used!");
+    require(interpolator, "NULL space interpolator cannot be used!");
 
     const int n_atoms = size();
     if (interpolator->size() == 0) {
@@ -337,21 +337,27 @@ void SolutionReader::calc_statistics() {
  * ============== FIELD READER ==============
  * ========================================== */
 
-FieldReader::FieldReader() : SolutionReader(), radius1(0), radius2(0), E0(0), interpolator3(NULL) {}
+FieldReader::FieldReader() : SolutionReader(), radius1(0), radius2(0), E0(0), surf_interpolator(NULL) {}
 
-FieldReader::FieldReader(TriangleInterpolator* ip) : SolutionReader(NULL, "elfield", "elfield_norm", "potential"),
-        radius1(0), radius2(0), E0(0), interpolator3(ip) {}
+FieldReader::FieldReader(TriangleInterpolator* ip) :
+        SolutionReader(NULL, "elfield", "elfield_norm", "potential"),
+        radius1(0), radius2(0), E0(0), surf_interpolator(ip) {}
 
-FieldReader::FieldReader(TetrahedronInterpolator* ip) : SolutionReader(ip, "elfield", "elfield_norm", "potential"),
-        radius1(0), radius2(0), E0(0), interpolator3(NULL) {}
+FieldReader::FieldReader(TetrahedronInterpolator* ip) :
+        SolutionReader(ip, "elfield", "elfield_norm", "potential"),
+        radius1(0), radius2(0), E0(0), surf_interpolator(NULL) {}
+
+FieldReader::FieldReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet) :
+        SolutionReader(tet, "elfield", "elfield_norm", "potential"),
+        radius1(0), radius2(0), E0(0), surf_interpolator(tri) {}
 
 // Linearly interpolate solution on system atoms using triangular interpolator
 void FieldReader::calc_interpolation2D(const double r_cut, const int component, const bool srt) {
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
-    require(interpolator3, "NULL interpolator cannot be used!");
+    require(surf_interpolator, "NULL surface interpolator cannot be used!");
 
     const int n_atoms = size();
-    if (interpolator3->size() == 0) {
+    if (surf_interpolator->size() == 0) {
         interpolation = vector<Solution>(n_atoms, Solution(empty_val));
         return;
     }
@@ -360,21 +366,21 @@ void FieldReader::calc_interpolation2D(const double r_cut, const int component, 
     if (srt) sort_spatial();
 
     // Disable the search of points outside the triangles
-    interpolator3->search_outside(false);
+    surf_interpolator->search_outside(false);
 
     int elem = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point = get_point(i);
         // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
-        elem = interpolator3->locate_cell(point, abs(elem));
+        elem = surf_interpolator->locate_cell(point, abs(elem));
 
         // Store whether the point is in- or outside the mesh
         set_marker(i, elem);
 
         // Calculate the interpolation
-        if      (component == 0) interpolation.push_back(interpolator3->interp_solution(point, elem));
-        else if (component == 1) interpolation.push_back(interpolator3->interp_vector(point, elem));
-        else if (component == 2) interpolation.push_back(interpolator3->interp_scalar(point, elem));
+        if      (component == 0) interpolation.push_back(surf_interpolator->interp_solution(point, elem));
+        else if (component == 1) interpolation.push_back(surf_interpolator->interp_vector(point, elem));
+        else if (component == 2) interpolation.push_back(surf_interpolator->interp_scalar(point, elem));
     }
 
     // Apply histogram cleaner for the solution
