@@ -23,7 +23,7 @@ array<double,dim> LinearInterpolator<dim>::get_weights(const Point3 &point, cons
     array<double,dim> weights;
     double w_sum = 0;
     for (int i = 0; i < dim; ++i) {
-        const double w = 1.0 / point.distance2( (*nodes)[scell[i]] );
+        const double w = 1.0 / point.distance2(vertices[scell[i]]);
         weights[i] = w;
         w_sum += w;
     }
@@ -517,6 +517,10 @@ void TetrahedronInterpolator::precompute() {
     reserve_precompute(n_elems);
     double d0, d1, d2, d3, d4;
 
+    // Store the coordinates of tetrahedra vertices
+    for (int i = 0; i < nodes->stat.n_tetnode; ++i)
+        vertices.push_back((*nodes)[i]);
+
     // Calculate tetrahedra neighbours
     for (int i = 0; i < n_elems; ++i)
         neighbours.push_back(elems->get_neighbours(i));
@@ -539,18 +543,18 @@ void TetrahedronInterpolator::precompute() {
 
         /* =====================================================================================
          * det0 = |x1 y1 z1 1|
-         |x2 y2 z2 1|
-         |x3 y3 z3 1|
-         |x4 y4 z4 1|  */
+                  |x2 y2 z2 1|
+                  |x3 y3 z3 1|
+                  |x4 y4 z4 1|  */
         d0 = determinant(v1, v2, v3, v4);
         tet_not_valid.push_back(fabs(d0) < epsilon);
         det0.push_back(1.0 / d0);
 
         /* =====================================================================================
          * det1 = |x  y  z  1| = + x * |y2 z2 1| - y * |x2 z2 1| + z * |x2 y2 1| - |x2 y2 z2|
-         |x2 y2 z2 1|         |y3 z3 1|       |x3 z3 1|       |x3 y3 1|   |x3 y3 z3|
-         |x3 y3 z3 1|         |y4 z4 1|       |x4 z4 1|       |x4 y4 1|   |x4 y4 z4|
-         |x4 y4 z4 1|  */
+                  |x2 y2 z2 1|         |y3 z3 1|       |x3 z3 1|       |x3 y3 1|   |x3 y3 z3|
+                  |x3 y3 z3 1|         |y4 z4 1|       |x4 z4 1|       |x4 y4 1|   |x4 y4 z4|
+                  |x4 y4 z4 1|  */
         d1 = determinant(Vec3(v2.y, v3.y, v4.y), Vec3(v2.z, v3.z, v4.z));
         d2 = determinant(Vec3(v2.x, v3.x, v4.x), Vec3(v2.z, v3.z, v4.z));
         d3 = determinant(Vec3(v2.x, v3.x, v4.x), Vec3(v2.y, v3.y, v4.y));
@@ -560,9 +564,9 @@ void TetrahedronInterpolator::precompute() {
 
         /* =====================================================================================
          * det2 = |x1 y1 z1 1| = - x * |y1 z1 1| + y * |x1 z1 1| - z * |x1 y1 1| + |x1 y1 z1|
-         |x  y  z  1|         |y3 z3 1|       |x3 z3 1|       |x3 y3 1|   |x3 y3 z3|
-         |x3 y3 z3 1|         |y4 z4 1|       |x4 z4 1|       |x4 y4 1|   |x4 y4 z4|
-         |x4 y4 z4 1|  */
+                  |x  y  z  1|         |y3 z3 1|       |x3 z3 1|       |x3 y3 1|   |x3 y3 z3|
+                  |x3 y3 z3 1|         |y4 z4 1|       |x4 z4 1|       |x4 y4 1|   |x4 y4 z4|
+                  |x4 y4 z4 1|  */
         d1 = determinant(Vec3(v1.y, v3.y, v4.y), Vec3(v1.z, v3.z, v4.z));
         d2 = determinant(Vec3(v1.x, v3.x, v4.x), Vec3(v1.z, v3.z, v4.z));
         d3 = determinant(Vec3(v1.x, v3.x, v4.x), Vec3(v1.y, v3.y, v4.y));
@@ -572,9 +576,9 @@ void TetrahedronInterpolator::precompute() {
 
         /* =====================================================================================
          * det3 = |x1 y1 z1 1| = + x * |y1 z1 1| - y * |x1 z1 1| + z * |x1 y1 1| - |x1 y1 z1|
-         |x2 y2 z2 1|         |y2 z2 1|       |x2 z2 1|       |x2 y2 1|   |x2 y2 z2|
-         |x  y  z  1|         |y4 z4 1|       |x4 z4 1|       |x4 y4 1|   |x4 y4 z4|
-         |x4 y4 z4 1|  */
+                  |x2 y2 z2 1|         |y2 z2 1|       |x2 z2 1|       |x2 y2 1|   |x2 y2 z2|
+                  |x  y  z  1|         |y4 z4 1|       |x4 z4 1|       |x4 y4 1|   |x4 y4 z4|
+                  |x4 y4 z4 1|  */
         d1 = determinant(Vec3(v1.y, v2.y, v4.y), Vec3(v1.z, v2.z, v4.z));
         d2 = determinant(Vec3(v1.x, v2.x, v4.x), Vec3(v1.z, v2.z, v4.z));
         d3 = determinant(Vec3(v1.x, v2.x, v4.x), Vec3(v1.y, v2.y, v4.y));
@@ -584,10 +588,9 @@ void TetrahedronInterpolator::precompute() {
 
         /* =====================================================================================
          * det4 = |x1 y1 z1 1| = - x * |y1 z1 1| + y * |x1 z1 1| - z * |x1 y1 1| + |x1 y1 z1|
-         |x2 y2 z2 1|         |y2 z2 1|       |x2 z2 1|       |x2 y2 1|   |x2 y2 z2|
-         |x3 y3 z3 1|         |y3 z3 1|       |x3 z3 1|       |x3 y3 1|   |x3 y3 z3|
-         |x  y  z  1|  */
-
+                  |x2 y2 z2 1|         |y2 z2 1|       |x2 z2 1|       |x2 y2 1|   |x2 y2 z2|
+                  |x3 y3 z3 1|         |y3 z3 1|       |x3 z3 1|       |x3 y3 1|   |x3 y3 z3|
+                  |x  y  z  1|  */
         d1 = determinant(Vec3(v1.y, v2.y, v3.y), Vec3(v1.z, v2.z, v3.z));
         d2 = determinant(Vec3(v1.x, v2.x, v3.x), Vec3(v1.z, v2.z, v3.z));
         d3 = determinant(Vec3(v1.x, v2.x, v3.x), Vec3(v1.y, v2.y, v3.y));
@@ -834,6 +837,12 @@ void TriangleInterpolator::precompute() {
 
     // Reserve memory for precomputation data
     reserve_precompute(n_faces);
+
+    // Store the coordinates of tetrahedral vertices
+    // Tetrahedral not triangular, because the only solid knowledge about the triangle nodes
+    // is that they are among tetrahedral nodes
+    for (int i = 0; i < nodes->stat.n_tetnode; ++i)
+        vertices.push_back((*nodes)[i]);
 
     // Loop through all the faces
     for (int i = 0; i < n_faces; ++i) {

@@ -127,6 +127,7 @@ protected:
     vector<Solution> solutions;     ///< interpolation data
     vector<vector<int>> neighbours; ///< nearest neighbours of the cells
     vector<Point3> centroids;       ///< cell centroid coordinates
+    vector<Point3> vertices;        ///< coordinates of cell vertices
     vector<SimpleCell<dim>> cells;  ///< interpolation cells - triangles or tetrahedra
 
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
@@ -146,6 +147,8 @@ protected:
         centroids.reserve(N);
         cells.clear();
         cells.reserve(N);
+        vertices.clear();
+        vertices.reserve(nodes->stat.n_tetnode);
     }
 
     /** Pre-compute data about cells to make interpolation faster */
