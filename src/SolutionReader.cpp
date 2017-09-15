@@ -54,7 +54,7 @@ void SolutionReader::calc_interpolation(const double r_cut, const int component,
         elem = interpolator->locate_cell(point, abs(elem));
 
         // Store whether the point is in- or outside the mesh
-        set_marker(i, elem < 0);
+        set_marker(i, elem);
 
         // Calculate the interpolation
         if      (component == 0) interpolation.push_back(interpolator->interp_solution(point, elem));
@@ -224,7 +224,6 @@ void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, co
 // Clean the interpolation from peaks using histogram cleaner
 void SolutionReader::clean(const int coordinate, const double r_cut) {
     require(coordinate >= 0 && coordinate <= 4, "Invalid coordinate: " + to_string(coordinate));
-    require(interpolator, "NULL interpolator cannot be used!");
     const int n_atoms = size();
     const int n_bins = static_cast<int>(n_atoms / 250);
 
@@ -370,7 +369,7 @@ void FieldReader::calc_interpolation2D(const double r_cut, const int component, 
         elem = interpolator3->locate_cell(point, abs(elem));
 
         // Store whether the point is in- or outside the mesh
-        set_marker(i, elem < 0);
+        set_marker(i, elem);
 
         // Calculate the interpolation
         if      (component == 0) interpolation.push_back(interpolator3->interp_solution(point, elem));
@@ -379,12 +378,11 @@ void FieldReader::calc_interpolation2D(const double r_cut, const int component, 
     }
 
     // Apply histogram cleaner for the solution
-    // TODO cleaners require the presence of interpolator
-//    clean(0, r_cut);  // clean by vector x-component
-//    clean(1, r_cut);  // clean by vector y-component
-//    clean(2, r_cut);  // clean by vector z-component
-//    clean(3, r_cut);  // clean by vector norm
-//    clean(4, r_cut);  // clean by scalar
+    clean(0, r_cut);  // clean by vector x-component
+    clean(1, r_cut);  // clean by vector y-component
+    clean(2, r_cut);  // clean by vector z-component
+    clean(3, r_cut);  // clean by vector norm
+    clean(4, r_cut);  // clean by scalar
 
     // Sort atoms back to their initial order
     if (srt) {
@@ -512,7 +510,7 @@ void FieldReader::export_elfield(const int n_points, double* Ex, double* Ey, dou
         Ey[i] = interpolation[i].vector.y;
         Ez[i] = interpolation[i].vector.z;
         Enorm[i] = interpolation[i].norm;
-        flag[i] = atoms[i].marker;
+        flag[i] = atoms[i].marker < 0;
     }
 }
 
@@ -521,7 +519,7 @@ void FieldReader::export_potential(const int n_points, double* phi, int* flag) {
     require(n_points == size(), "Invalid query size: " + to_string(n_points));
     for (int i = 0; i < n_points; ++i) {
         phi[i] = interpolation[i].scalar;
-        flag[i] = atoms[i].marker;
+        flag[i] = atoms[i].marker < 0;
     }
 }
 
@@ -838,33 +836,33 @@ void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh, const doubl
 
 
 void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
-//    const double sign = fabs(E0) / E0;
-//    const int n_faces = mesh.faces.size();
-//    const int n_quads_per_triangle = 3;
-//
-//    // Store the centroids of the triangles
-//    reserve(n_faces);
-//    for (int i = 0; i < n_faces; ++i)
-//        append( Atom(i, mesh.faces.get_centroid(i), 0) );
-//
-//    // create triangle index to its centroid index mapping
-//    vector<int> tri2centroid(n_faces);
-//    for (int face = 0; face < n_faces; ++face) {
-//        for (int node : mesh.quads[n_quads_per_triangle * face])
-//            if (mesh.nodes.get_marker(node) == TYPES.FACECENTROID) {
-//                tri2centroid[face] = node;
-//                break;
-//            }
-//    }
-//
-//    // Calculate the charges for the triangles
-//    for (int face = 0; face < n_faces; ++face) {
-//        double area = mesh.faces.get_area(face);
-//        Vec3 elfield = interpolator->get_vector(tri2centroid[face]);
-//        double charge = eps0 * area * elfield.norm() * sign;
-//        append_interpolation(Solution(elfield, area, charge));
-////        append_interpolation(Solution(mesh.faces.get_norm(face), area, charge));
-//    }
+    const double sign = fabs(E0) / E0;
+    const int n_faces = mesh.faces.size();
+    const int n_quads_per_triangle = 3;
+
+    // Store the centroids of the triangles
+    reserve(n_faces);
+    for (int i = 0; i < n_faces; ++i)
+        append( Atom(i, mesh.faces.get_centroid(i), 0) );
+
+    // create triangle index to its centroid index mapping
+    vector<int> tri2centroid(n_faces);
+    for (int face = 0; face < n_faces; ++face) {
+        for (int node : mesh.quads[n_quads_per_triangle * face])
+            if (mesh.nodes.get_marker(node) == TYPES.FACECENTROID) {
+                tri2centroid[face] = node;
+                break;
+            }
+    }
+
+    // Calculate the charges for the triangles
+    for (int face = 0; face < n_faces; ++face) {
+        double area = mesh.faces.get_area(face);
+        Vec3 elfield = interpolator->get_vector(tri2centroid[face]);
+        double charge = eps0 * area * elfield.norm() * sign;
+        append_interpolation(Solution(elfield, area, charge));
+//        append_interpolation(Solution(mesh.faces.get_norm(face), area, charge));
+    }
 }
 
 // Remove the atoms and their solutions outside the box
