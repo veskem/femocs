@@ -319,11 +319,7 @@ int Femocs::solve_laplace(const double E0) {
     conf.neumann = -E0; // set minus gradient of solution to equal to E0
 
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    vacuum_interpolator.set_analyt(coarseners.centre, conf.field_tolerance_min, conf.field_tolerance_max,
-            E0, conf.radius, dense_surf.sizes.zbox);
-    surface_interpolator.set_analyt(coarseners.centre, conf.field_tolerance_min, conf.field_tolerance_max,
-            E0, conf.radius, dense_surf.sizes.zbox);
-    fields.set_analyt(E0, conf.radius, dense_surf.sizes.zbox);
+    fields.set_check(E0, conf.field_tolerance_min, conf.field_tolerance_max, conf.radius, dense_surf.sizes.zbox);
 
     start_msg(t0, "=== Importing mesh to Laplace solver...");
     fail = !laplace_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
@@ -349,8 +345,8 @@ int Femocs::solve_laplace(const double E0) {
     fail |= surface_interpolator.extract_solution(&laplace_solver);
     end_msg(t0);
 
-    check_return(vacuum_interpolator.compare_enhancement(), "Vacuum field is over-enhanced!");
-    check_return(surface_interpolator.compare_enhancement(), "Surface field is over-enhanced!");
+    check_return(fields.check_limits(vacuum_interpolator.get_solutions()), "Vacuum field is over-enhanced!");
+    check_return(fields.check_limits(surface_interpolator.get_solutions()), "Surface field is over-enhanced!");
 
     vacuum_interpolator.write("out/result_E_phi_vacuum.xyz");
     vacuum_interpolator.write("out/result_E_phi_vacuum.vtk");
@@ -640,6 +636,8 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
     if (n_atoms < 0) return 0;
     check_return(vacuum_interpolator.size() == 0, "No field to export!");
 
+    fail = false;
+
     if (skip_calculations)
         write_silent_msg("Using previous electric field!");
     else {
@@ -648,14 +646,14 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         end_msg(t0);
 
         fields.write("out/fields.movie");
-        fields.print_enhancement();
+        fail = fields.check_limits();
     }
 
     start_msg(t0, "=== Exporting electric field...");
     fields.export_solution(n_atoms, Ex, Ey, Ez, Enorm);
     end_msg(t0);
 
-    return 0;
+    return fail;
 }
 
 // calculate and export temperatures on imported atom coordinates
@@ -736,7 +734,7 @@ int Femocs::interpolate_surface_elfield(const int n_points, const double* x, con
     end_msg(t0);
 
     fr.write("out/interpolation_E_surf.movie");
-    return 0;
+    return fields.check_limits(fr.get_interpolations());
 }
 
 // linearly interpolate electric field at given points
@@ -752,7 +750,7 @@ int Femocs::interpolate_elfield(const int n_points, const double* x, const doubl
     end_msg(t0);
 
     fr.write("out/interpolation_E.movie");
-    return 0;
+    return fields.check_limits(fr.get_interpolations());
 }
 
 // linearly interpolate electric potential at given points

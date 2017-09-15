@@ -96,6 +96,11 @@ void SolutionReader::append_interpolation(const Solution& s) {
     interpolation.push_back(s);
 }
 
+// Get pointer to interpolation vector
+vector<Solution>* SolutionReader::get_interpolations() {
+    return &interpolation;
+}
+
 // Get i-th Solution
 Solution SolutionReader::get_interpolation(const int i) const {
     require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + to_string(i));
@@ -337,19 +342,19 @@ void SolutionReader::calc_statistics() {
  * ============== FIELD READER ==============
  * ========================================== */
 
-FieldReader::FieldReader() : SolutionReader(), radius1(0), radius2(0), E0(0), surf_interpolator(NULL) {}
+FieldReader::FieldReader() : SolutionReader(), E0(0), beta_min(0), beta_max(0), radius1(0), radius2(0), surf_interpolator(NULL) {}
 
 FieldReader::FieldReader(TriangleInterpolator* ip) :
         SolutionReader(NULL, "elfield", "elfield_norm", "potential"),
-        radius1(0), radius2(0), E0(0), surf_interpolator(ip) {}
+        E0(0), beta_min(0), beta_max(0), radius1(0), radius2(0), surf_interpolator(ip) {}
 
 FieldReader::FieldReader(TetrahedronInterpolator* ip) :
         SolutionReader(ip, "elfield", "elfield_norm", "potential"),
-        radius1(0), radius2(0), E0(0), surf_interpolator(NULL) {}
+        E0(0), beta_min(0), beta_max(0), radius1(0), radius2(0), surf_interpolator(NULL) {}
 
 FieldReader::FieldReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet) :
         SolutionReader(tet, "elfield", "elfield_norm", "potential"),
-        radius1(0), radius2(0), E0(0), surf_interpolator(tri) {}
+        E0(0), beta_min(0), beta_max(0), radius1(0), radius2(0), surf_interpolator(tri) {}
 
 // Linearly interpolate solution on system atoms using triangular interpolator
 void FieldReader::calc_interpolation2D(const double r_cut, const int component, const bool srt) {
@@ -553,24 +558,30 @@ void FieldReader::export_solution(const int n_atoms, double* Ex, double* Ey, dou
     }
 }
 
+// Return electric field in i-th interpolation point
 Vec3 FieldReader::get_elfield(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].vector;
 }
 
+// Return electric field norm in i-th interpolation point
 double FieldReader::get_elfield_norm(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].norm;
 }
 
+// Return electric potential in i-th interpolation point
 double FieldReader::get_potential(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].scalar;
 }
 
 // Set parameters for calculating analytical solution
-void FieldReader::set_analyt(const double E0, const double radius1, const double radius2) {
+void FieldReader::set_check(const double E0, const double beta_min, const double beta_max,
+        const double radius1, const double radius2) {
     this->E0 = E0;
+    this->beta_min = beta_min;
+    this->beta_max = beta_max;
     this->radius1 = radius1;
     if (radius2 > radius1)
         this->radius2 = radius2;
@@ -578,16 +589,36 @@ void FieldReader::set_analyt(const double E0, const double radius1, const double
         this->radius2 = radius1;
 }
 
-double FieldReader::get_enhancement() const {
-    double Emax = -1e100;
-    for (Solution s : interpolation)
-        Emax = max(Emax, s.norm);
+// Analytical potential for i-th point near the hemisphere
+double FieldReader::get_analyt_potential(const int i, const Point3& origin) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
 
-    return fabs(Emax / E0);
+    Point3 point = get_point(i);
+    point -= origin;
+    double r = point.distance(Point3(0));
+    return -E0 * point.z * (1 - pow(radius1 / r, 3.0));
 }
 
+// Analytical electric field for i-th point near the hemisphere
+Vec3 FieldReader::get_analyt_field(const int i, const Point3& origin) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+
+    Point3 point = get_point(i);
+    point -= origin;
+    double r5 = pow(point.x * point.x + point.y * point.y + point.z * point.z, 2.5);
+    double r3 = pow(radius1, 3.0);
+    double f = point.x * point.x + point.y * point.y - 2.0 * point.z * point.z;
+
+    double Ex = 3 * E0 * r3 * point.x * point.z / r5;
+    double Ey = 3 * E0 * r3 * point.y * point.z / r5;
+    double Ez = E0 * (1.0 - r3 * f / r5);
+
+    return Vec3(Ex, Ey, Ez);
+}
+
+// Analytical field enhancement for ellipsoidal nanotip
 double FieldReader::get_analyt_enhancement() const {
-    expect(radius1 > 0, "Invalid minor semi-axis: " + to_string(radius1));
+    expect(radius1 > 0, "Invalid nanotip minor semi-axis: " + to_string(radius1));
 
     if ( radius2 <= radius1 )
         return 3.0;
@@ -598,18 +629,30 @@ double FieldReader::get_analyt_enhancement() const {
     }
 }
 
-void FieldReader::print_enhancement() const {
-    double gamma1 = get_enhancement();
-    double gamma2 = get_analyt_enhancement();
+// Compare the analytical and calculated field enhancement
+bool FieldReader::check_limits(const vector<Solution>* solutions) const {
+    double Emax = -1e100;
+    if (solutions) {
+        for (Solution s : *solutions)
+            Emax = max(Emax, s.norm);
+    } else {
+        for (Solution s : interpolation)
+            Emax = max(Emax, s.norm);
+    }
+
+    const double gamma1 = fabs(Emax / E0);
+    const double gamma2 = get_analyt_enhancement();
+    const double beta = fabs(gamma1 / gamma2);
 
     stringstream stream;
     stream << fixed << setprecision(3);
     stream << "field enhancements:  (F)emocs:" << gamma1
             << "  (A)nalyt:" << gamma2
-            << "  F-A:" << gamma1-gamma2
-            << "  F/A:" << gamma1/gamma2;
+            << "  F-A:" << gamma1 - gamma2
+            << "  F/A:" << gamma1 / gamma2;
 
     write_verbose_msg(stream.str());
+    return beta < beta_min || beta > beta_max;
 }
 
 /* ==========================================

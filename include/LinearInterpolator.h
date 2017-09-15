@@ -25,20 +25,19 @@ class LinearInterpolator {
 
 public:
     /** LinearInterpolator conctructor */
-    LinearInterpolator() : norm_label("elfield_norm"), scalar_label("potential"),
-            beta_min(0), beta_max(0), radius1(0), radius2(0), E0(0), mesh(NULL), nodes(NULL) {
+    LinearInterpolator() : vector_label("vector"), norm_label("vector_norm"), scalar_label("scalar"), mesh(NULL), nodes(NULL) {
         reserve(0);
         reserve_precompute(0);
     }
 
-    LinearInterpolator(const TetgenMesh* m) : norm_label("elfield_norm"), scalar_label("potential"),
-            beta_min(0), beta_max(0), radius1(0), radius2(0), E0(0), mesh(m), nodes(&m->nodes) {
+    LinearInterpolator(const TetgenMesh* m) : vector_label("vector"), norm_label("vector_norm"),
+            scalar_label("scalar"), mesh(m), nodes(&m->nodes) {
         reserve(0);
         reserve_precompute(0);
     }
 
-    LinearInterpolator(const TetgenMesh* m, const string& nl, const string& sl) : norm_label(nl), scalar_label(sl),
-            beta_min(0), beta_max(0), radius1(0), radius2(0), E0(0), mesh(m), nodes(&m->nodes) {
+    LinearInterpolator(const TetgenMesh* m, const string& vl, const string& nl, const string& sl) :
+        vector_label(vl), norm_label(nl), scalar_label(sl), mesh(m), nodes(&m->nodes) {
         reserve(0);
         reserve_precompute(0);
     }
@@ -63,28 +62,14 @@ public:
         }
     }
 
-    /** Set parameters to calculate analytical solution */
-    void set_analyt(const Point3& origin, const double beta_min, const double beta_max,
-            const double E0, const double radius1, const double radius2=-1) {
-        this->beta_min = beta_min;
-        this->beta_max = beta_max;
-        this->origin = origin;
-        this->E0 = E0;
-        this->radius1 = radius1;
-        if (radius2 > radius1)
-            this->radius2 = radius2;
-        else
-            this->radius2 = radius1;
-    }
-
-    /** Compare the analytical and calculated field enhancement */
-    bool compare_enhancement() const;
-
     /** Add solution to solutions vector */
     void append_solution(const Solution& solution) {
         expect((unsigned)size() < solutions.capacity(), "Allocated vector size exceeded!");
         solutions.push_back(solution);
     }
+
+    /** Return the pointer to the solution vector */
+    vector<Solution>* get_solutions() { return &solutions; }
 
     /** Return full solution on i-th node */
     Solution get_solution(const int i) const {
@@ -135,6 +120,7 @@ protected:
     double zero = -1.0 * epsilon;
     double one = 1.0 + epsilon;
 
+    const string vector_label;      ///< description label attached to solution.vector -values
     const string norm_label;        ///< description label attached to solution.norm -values
     const string scalar_label;      ///< description label attached to solution.scalar -values
 
@@ -145,14 +131,6 @@ protected:
 
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
     const TetgenNodes* nodes;       ///< Mesh nodes
-
-    /** Data needed for comparing numerical solution with analytical one */
-    double beta_min;                ///< Minimum value of accepted numerical field /analytical field
-    double beta_max;                ///< Maximum value of accepted numerical field /analytical field
-    double radius1;                 ///< Minor semi-axis of ellipse
-    double radius2;                 ///< Major semi-axis of ellipse
-    double E0;                      ///< Long-range electric field strength
-    Point3 origin;                  ///< Centre of nanotip-substrate junction
 
     /** Reserve memory for interpolation data */
     void reserve(const int N) {
@@ -196,15 +174,6 @@ protected:
     void get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
             dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps);
 
-    /** Return analytical electric field value for i-th point near the hemisphere */
-    Vec3 get_analyt_field(const int i) const;
-
-    /** Return analytical potential value for i-th point near the hemisphere */
-    double get_analyt_potential(const int i, const Point3& origin) const;
-
-    /** Get analytical field enhancement for hemi-ellipsoid on infinite surface */
-    double get_analyt_enhancement() const;
-
     /** Output node data in .xyz format */
     void write_xyz(ofstream& out, const int n_nodes) const;
 
@@ -241,7 +210,6 @@ protected:
 
         return v4.w * det4 - v4.z * det3 + v4.y * det2 - v4.x * det1;
     }
-
 };
 
 /** Class to linearly interpolate solution inside tetrahedral mesh */
@@ -277,9 +245,6 @@ public:
 
     /** Print statistics about solution on node points */
     void print_statistics() const;
-
-    /** Print the deviation from the analytical solution of hemiellipsoid on the infinite surface */
-    void print_error(const Coarseners& c) const;
 
 private:
     const TetgenElements* elems;    ///< Direct pointer to tetrahedra to access their specific routines

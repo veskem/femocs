@@ -17,69 +17,6 @@ namespace femocs {
  *  ===================== LinearInterpolator =======================
  * ================================================================== */
 
-// Analytical potential for i-th point near the hemisphere
-template<int dim>
-double LinearInterpolator<dim>::get_analyt_potential(const int i, const Point3& origin) const {
-    require(i >= 0 && i < nodes->size(), "Invalid index: " + to_string(i));
-
-    Point3 point = (*nodes)[i] - origin;
-    double r = point.distance(Point3(0));
-    return -E0 * point.z * (1 - pow(radius1 / r, 3.0));
-}
-
-// Analytical electric field for i-th point near the hemisphere
-template<int dim>
-Vec3 LinearInterpolator<dim>::get_analyt_field(const int i) const {
-    require(i >= 0 && i < nodes->size(), "Invalid index: " + to_string(i));
-
-    Point3 point = (*nodes)[i] - origin;
-    double r5 = pow(point.x * point.x + point.y * point.y + point.z * point.z, 2.5);
-    double r3 = pow(radius1, 3.0);
-    double f = point.x * point.x + point.y * point.y - 2.0 * point.z * point.z;
-
-    double Ex = 3 * E0 * r3 * point.x * point.z / r5;
-    double Ey = 3 * E0 * r3 * point.y * point.z / r5;
-    double Ez = E0 * (1.0 - r3 * f / r5);
-
-    return Vec3(Ex, Ey, Ez);
-}
-
-// Analytical field enhancement for ellipsoidal nanotip
-template<int dim>
-double LinearInterpolator<dim>::get_analyt_enhancement() const {
-    expect(radius1 > 0, "Invalid nanotip minor semi-axis: " + to_string(radius1));
-
-    if ( radius2 <= radius1 )
-        return 3.0;
-    else {
-        double nu = radius2 / radius1;
-        double zeta = sqrt(nu*nu - 1);
-        return pow(zeta, 3.0) / (nu * log(zeta + nu) - zeta);
-    }
-}
-
-// Compare the analytical and calculated field enhancement
-template<int dim>
-bool LinearInterpolator<dim>::compare_enhancement() const {
-    double Emax = -1e100;
-    for (Solution s : solutions)
-        Emax = max(Emax, s.norm);
-
-    const double gamma1 = fabs(Emax / E0);
-    const double gamma2 = get_analyt_enhancement();
-    const double beta = fabs(gamma1 / gamma2);
-
-    stringstream stream;
-    stream << fixed << setprecision(3);
-    stream << "field enhancements:  (F)emocs:" << gamma1
-            << "  (A)nalyt:" << gamma2
-            << "  F-A:" << gamma1 - gamma2
-            << "  F/A:" << gamma1 / gamma2;
-
-    write_verbose_msg(stream.str());
-    return beta < beta_min || beta > beta_max;
-}
-
 // Calculate distance-dependent weights for a point with respect to the cell
 template<int dim>
 array<double,dim> LinearInterpolator<dim>::get_weights(const Point3 &point, const SimpleCell<dim>& scell) const {
@@ -390,39 +327,6 @@ void LinearInterpolator<dim>::write_vtk(ofstream& out, const int n_nodes) const 
 // Initialize data vectors
 TetrahedronInterpolator::TetrahedronInterpolator(const TetgenMesh* m) :
         LinearInterpolator<4>(m), elems(&m->elems) {}
-
-// Print the deviation from the analytical solution of hemi-ellipsoid on the infinite surface
-void TetrahedronInterpolator::print_error(const Coarseners& c) const {
-    if (!MODES.VERBOSE) return;
-    if (size() != nodes->size()) {
-        expect(false, "Mismatch between interpolator and mesh sizes: " + to_string(size()) + ", "
-                + to_string(nodes->size()));
-        return;
-    }
-
-    double rms_error = 0;
-    int n_points = 0;
-    for (int i = 0; i < nodes->size(); ++i)
-        // look for the tetrahedral nodes whose potential == 0, i.e that are on the surface
-        if ( nodes->get_marker(i) == TYPES.TETNODE && solutions[i].scalar == 0.0 &&
-                c.inside_interesting_region((*nodes)[i]) )
-        {
-            double analyt = get_analyt_field(i).norm();
-            double numerical = solutions[i].norm;
-
-            double error = (numerical - analyt) / numerical;
-            rms_error += error * error;
-            n_points++;
-        }
-    require(n_points > 0, "No tetrahedral points on the surface of nanotip!");
-    rms_error = sqrt(rms_error / n_points);
-
-    stringstream stream;
-    stream << fixed << setprecision(3);
-    stream << "rms surface error: " << rms_error;
-
-    write_verbose_msg(stream.str());
-}
 
 // Print statistics about solution on node points
 void TetrahedronInterpolator::print_statistics() const {
@@ -843,65 +747,65 @@ void TriangleInterpolator::interp_conserved(vector<double>& scalars, const vecto
 
 // Calculate charges on surface faces using direct solution in the face centroids
 void TriangleInterpolator::calc_charges(const double E0) {
-//    const int n_quads_per_triangle = 3;
-//    const int n_faces = faces->size();
-//    const int n_nodes = nodes->size();
-//    const double sign = fabs(E0) / E0;
-//
-//    vector<double> charges(n_nodes), areas(n_nodes);
-//
-//    // create triangle index to its centroid index mapping
-//    vector<int> tri2centroid(n_faces);
-//    for (int face = 0; face < n_faces; ++face) {
-//        for (int node : mesh->quads[n_quads_per_triangle * face])
-//            if (nodes->get_marker(node) == TYPES.FACECENTROID) {
-//                tri2centroid[face] = node;
-//                break;
-//            }
-//    }
-//
-//    // find the nodes on the surface perimeter that are each-other's periodic images
-//    vector<int> periodic_nodes(n_nodes, -1);
-//    vector<bool> node_on_edge(n_nodes);
-//    for (SimpleEdge edge : mesh->edges)
-//        for (int node : edge)
-//            node_on_edge[node] = true;
-//
-//    for (int i = 0; i < vector_sum(node_on_edge); i += 2) {
-//        periodic_nodes[i] = i+1;
-//        periodic_nodes[i+1] = i;
-//    }
-//
-//    // Calculate the charges and areas in the centroids and vertices of triangles
-//    for (int face = 0; face < n_faces; ++face) {
-//        int centroid_indx = tri2centroid[face];
-//        double area = faces->get_area(face);
-//        double charge = eps0 * sign * area * solutions[centroid_indx].norm;
-//        solutions[centroid_indx].norm = area;
-//        solutions[centroid_indx].scalar = charge;
-//
-//        charge *= 1.0 / n_quads_per_triangle;
-//        area *= 1.0 / n_quads_per_triangle;
-//
-//        // the charge on triangular node is the sum of the charges of quadrangules that surround the node
-//        for (int node : (*faces)[face]) {
-//            const int periodic_node = periodic_nodes[node];
-//            charges[node] += charge;
-//            areas[node] += area;
-//            if (periodic_node >= 0) {
-//                charges[periodic_node] += charge;
-//                areas[periodic_node] += area;
-//            }
-//        }
-//    }
-//
-//    // transfer charges and areas to solutions vector
-//    for (SimpleFace face : *faces) {
-//        for (int node : face) {
-//            solutions[node].norm = areas[node];
-//            solutions[node].scalar = charges[node];
-//        }
-//    }
+    const int n_quads_per_triangle = 3;
+    const int n_faces = faces->size();
+    const int n_nodes = nodes->size();
+    const double sign = fabs(E0) / E0;
+
+    vector<double> charges(n_nodes), areas(n_nodes);
+
+    // create triangle index to its centroid index mapping
+    vector<int> tri2centroid(n_faces);
+    for (int face = 0; face < n_faces; ++face) {
+        for (int node : mesh->quads[n_quads_per_triangle * face])
+            if (nodes->get_marker(node) == TYPES.FACECENTROID) {
+                tri2centroid[face] = node;
+                break;
+            }
+    }
+
+    // find the nodes on the surface perimeter that are each-other's periodic images
+    vector<int> periodic_nodes(n_nodes, -1);
+    vector<bool> node_on_edge(n_nodes);
+    for (SimpleEdge edge : mesh->edges)
+        for (int node : edge)
+            node_on_edge[node] = true;
+
+    for (int i = 0; i < vector_sum(node_on_edge); i += 2) {
+        periodic_nodes[i] = i+1;
+        periodic_nodes[i+1] = i;
+    }
+
+    // Calculate the charges and areas in the centroids and vertices of triangles
+    for (int face = 0; face < n_faces; ++face) {
+        int centroid_indx = tri2centroid[face];
+        double area = faces->get_area(face);
+        double charge = eps0 * sign * area * solutions[centroid_indx].norm;
+        solutions[centroid_indx].norm = area;
+        solutions[centroid_indx].scalar = charge;
+
+        charge *= 1.0 / n_quads_per_triangle;
+        area *= 1.0 / n_quads_per_triangle;
+
+        // the charge on triangular node is the sum of the charges of quadrangules that surround the node
+        for (int node : (*faces)[face]) {
+            const int periodic_node = periodic_nodes[node];
+            charges[node] += charge;
+            areas[node] += area;
+            if (periodic_node >= 0) {
+                charges[periodic_node] += charge;
+                areas[periodic_node] += area;
+            }
+        }
+    }
+
+    // transfer charges and areas to solutions vector
+    for (SimpleFace face : *faces) {
+        for (int node : face) {
+            solutions[node].norm = areas[node];
+            solutions[node].scalar = charges[node];
+        }
+    }
 }
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its

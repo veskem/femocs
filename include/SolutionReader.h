@@ -45,6 +45,9 @@ public:
     /** Append solution */
     void append_interpolation(const Solution& s);
 
+    /** Get pointer to interpolation vector */
+    vector<Solution>* get_interpolations();
+
     /** Get i-th Solution */
     Solution get_interpolation(const int i) const;
 
@@ -139,26 +142,36 @@ public:
     /** Export calculated electic field distribution to HOLMOD */
     void export_solution(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
+    /** Return electric field in i-th interpolation point */
     Vec3 get_elfield(const int i) const;
 
+    /** Return electric field norm in i-th interpolation point */
     double get_elfield_norm(const int i) const;
 
+    /** Return electric potential in i-th interpolation point */
     double get_potential(const int i) const;
 
     /** Compare the analytical and calculated field enhancement */
-    void print_enhancement() const;
+    bool check_limits(const vector<Solution>* solutions=NULL) const;
 
     /** Set parameters to calculate analytical solution */
-    void set_analyt(const double E0, const double radius1, const double radius2=-1);
+    void set_check(const double E0, const double beta_min, const double beta_max,
+            const double radius1, const double radius2=-1);
 
 private:
-    double radius1;  ///< Minor semi-axis of ellipse
-    double radius2;  ///< Major semi-axis of ellipse
-    double E0;       ///< Long-range electric field strength
+    /** Data needed for comparing numerical solution with analytical one */
+    double E0;                      ///< Long-range electric field strength
+    double beta_min;                ///< Minimum value of accepted numerical field /analytical field
+    double beta_max;                ///< Maximum value of accepted numerical field /analytical field
+    double radius1;                 ///< Minor semi-axis of ellipse
+    double radius2;                 ///< Major semi-axis of ellipse
     TriangleInterpolator* surf_interpolator; ///< data needed for interpolating on surface
 
-    /** Get calculated field enhancement */
-    double get_enhancement() const;
+    /** Return analytical electric field value for i-th point near the hemisphere */
+    Vec3 get_analyt_field(const int i, const Point3& origin) const;
+
+    /** Return analytical potential value for i-th point near the hemisphere */
+    double get_analyt_potential(const int i, const Point3& origin) const;
 
     /** Get analytical field enhancement for hemi-ellipsoid on infinite surface */
     double get_analyt_enhancement() const;
