@@ -319,7 +319,7 @@ int Femocs::solve_laplace(const double E0) {
     conf.neumann = -E0; // set minus gradient of solution to equal to E0
 
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    fields.set_check(E0, conf.field_tolerance_min, conf.field_tolerance_max, conf.radius, dense_surf.sizes.zbox);
+    fields.set_check_params(E0, conf.field_tolerance_min, conf.field_tolerance_max, conf.radius, dense_surf.sizes.zbox);
 
     start_msg(t0, "=== Importing mesh to Laplace solver...");
     fail = !laplace_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
@@ -687,17 +687,16 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
     if (skip_calculations)
         write_silent_msg("Using previous charge & force!");
     else {
-        ChargeReader face_charges(&vacuum_interpolator); // charges on surface faces
+        // analytical total charge without epsilon0 (will be added in ChargeReader)
+        const double tot_charge = conf.E0 * reader.sizes.xbox * reader.sizes.ybox;
+
+        ChargeReader face_charges(&vacuum_interpolator); // charges on surface triangles
+        face_charges.set_check_params(tot_charge, conf.charge_tolerance_min, conf.charge_tolerance_max);
 
         start_msg(t0, "=== Calculating face charges...");
         face_charges.calc_interpolated_charges(fem_mesh, conf.E0);
         end_msg(t0);
-
-        const double tot_charge = conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0;
-        face_charges.print_statistics(tot_charge);
-
-        check_return(!face_charges.charge_conserved(tot_charge, conf.charge_tolerance_min, conf.charge_tolerance_max),
-                "Face charges are not conserved!");
+        check_return(face_charges.check_limits(), "Face charges are not conserved!");
 
         face_charges.clean(dense_surf.sizes, conf.latconst);
         face_charges.write("out/face_charges.xyz");
@@ -711,7 +710,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         end_msg(t0);
 
         forces.write("out/forces.movie");
-        forces.print_statistics(conf.E0 * reader.sizes.xbox * reader.sizes.ybox * face_charges.eps0);
+        face_charges.check_limits(forces.get_interpolations());
     }
 
     start_msg(t0, "=== Exporting atomic charges & forces...");
@@ -729,7 +728,7 @@ int Femocs::interpolate_surface_elfield(const int n_points, const double* x, con
 
     FieldReader fr(&surface_interpolator);
     start_msg(t0, "=== Interpolating & exporting surface elfield...");
-    fr.interpolate2D(n_points, x, y, z, 1, false);
+    fr.interpolate2D(n_points, x, y, z, conf.use_histclean*conf.coordination_cutoff, 1, false);
     fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
 

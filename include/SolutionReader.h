@@ -39,9 +39,6 @@ public:
     /** Print statistics about interpolated solution */
     void print_statistics();
 
-    /** Compare interpolated scalar statistics with a constant */
-    void print_statistics(const double Q);
-
     /** Append solution */
     void append_interpolation(const Solution& s);
 
@@ -69,7 +66,8 @@ protected:
     const string vec_label;       ///< label for vector data
     const string vec_norm_label;  ///< label for data associated with vector length
     const string scalar_label;    ///< label for scalar data
-    double empty_val;             ///< constant values returned when interpolator is empty
+    double limit_min;             ///< minimum value of accepted comparison value
+    double limit_max;             ///< maximum value of accepted comparison value
 
     TetrahedronInterpolator* interpolator;   ///< data needed for interpolating on space
     vector<Solution> interpolation;          ///< interpolated data
@@ -155,14 +153,12 @@ public:
     bool check_limits(const vector<Solution>* solutions=NULL) const;
 
     /** Set parameters to calculate analytical solution */
-    void set_check(const double E0, const double beta_min, const double beta_max,
+    void set_check_params(const double E0, const double limit_min, const double limit_max,
             const double radius1, const double radius2=-1);
 
 private:
     /** Data needed for comparing numerical solution with analytical one */
     double E0;                      ///< Long-range electric field strength
-    double beta_min;                ///< Minimum value of accepted numerical field /analytical field
-    double beta_max;                ///< Maximum value of accepted numerical field /analytical field
     double radius1;                 ///< Minor semi-axis of ellipse
     double radius2;                 ///< Major semi-axis of ellipse
     TriangleInterpolator* surf_interpolator; ///< data needed for interpolating on surface
@@ -189,8 +185,8 @@ public:
 
     /** Linearly interpolate electric field for the currents and temperature solver.
      *  In case of empty interpolator, constant values are stored. */
-    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val,
-            const double r_cut=0.0, const int component=0, const bool srt=true);
+    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut=0.0,
+            const int component=0, const bool srt=true);
 
     /** Export interpolated temperature */
     void export_temperature(const int n_atoms, double* T);
@@ -217,6 +213,7 @@ public:
     double get_rho_norm(const int i) const;
 
     double get_temperature(const int i) const;
+
 private:
     void emission_line(const Point3& point, const Vec3& direction, const double rmax,
                         vector<double> &rline, vector<double> &Vline);
@@ -238,8 +235,11 @@ public:
     /** Remove the atoms and their solutions outside the MD box */
     void clean(const Medium::Sizes& sizes, const double latconst);
 
+    /** Set parameters to calculate analytical solution */
+    void set_check_params(const double Q_tot, const double limit_min, const double limit_max);
+
     /** Check whether charge is conserved within specified limits */
-    bool charge_conserved(const double Q, const double tol_min, const double tol_max) const;
+    bool check_limits(const vector<Solution>* solutions=NULL) const;
 
     /** Get electric field on the centroid of i-th triangle */
     Vec3 get_elfield(const int i) const;
@@ -250,10 +250,9 @@ public:
     /** Get charge of i-th triangle */
     double get_charge(const int i) const;
 
-    const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
-
 private:
-
+    const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
+    double Q_tot;  ///< Analytical total charge
 };
 
 /** Class to calculate forces from charges and electric fields */
@@ -286,9 +285,9 @@ public:
 
     double get_charge(const int i) const;
 
+private:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
     const double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
-private:
 };
 
 } // namespace femocs

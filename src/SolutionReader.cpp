@@ -21,12 +21,13 @@ namespace femocs {
 
 // Initialize SolutionReader
 SolutionReader::SolutionReader() : vec_label("vec"), vec_norm_label("vec_norm"), scalar_label("scalar"),
-        empty_val(0), interpolator(NULL) {
+        limit_min(0), limit_max(0), interpolator(NULL) {
     reserve(0);
 }
 
 SolutionReader::SolutionReader(TetrahedronInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
-        vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab), empty_val(0), interpolator(ip) {
+        vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab),
+        limit_min(0), limit_max(0), interpolator(ip) {
     reserve(0);
 }
 
@@ -37,7 +38,7 @@ void SolutionReader::calc_interpolation(const double r_cut, const int component,
 
     const int n_atoms = size();
     if (interpolator->size() == 0) {
-        interpolation = vector<Solution>(n_atoms, Solution(empty_val));
+        interpolation = vector<Solution>(n_atoms, Solution(0));
         return;
     }
 
@@ -278,16 +279,24 @@ void SolutionReader::clean(const int coordinate, const double r_cut) {
     }
 }
 
-// Compare interpolated scalar statistics with a constant
-void SolutionReader::print_statistics(const double Q) {
-    if (!MODES.VERBOSE) return;
-    double q = 0;
-    for (int i = 0; i < size(); ++i)
-        q += interpolation[i].scalar;
+// Initialise statistics about the solution
+void SolutionReader::init_statistics() {
+    stat.vec_norm_min = stat.scal_min = DBL_MAX;
+    stat.vec_norm_max = stat.scal_max = -DBL_MAX;
+}
 
-    stringstream stream; stream << fixed << setprecision(3);
-    stream << "Q / sum(" << scalar_label << ") = " << Q << " / " << q << " = " << Q/q;
-    write_verbose_msg(stream.str());
+// Calculate statistics about the solution
+void SolutionReader::calc_statistics() {
+    init_statistics();
+
+    for (int i = 0; i < size(); ++i) {
+        double norm = interpolation[i].norm;
+        double scalar = interpolation[i].scalar;
+        stat.vec_norm_max = max(stat.vec_norm_max, norm);
+        stat.vec_norm_min = min(stat.vec_norm_min, norm);
+        stat.scal_max = max(stat.scal_max, scalar);
+        stat.scal_min = min(stat.scal_min, scalar);
+    }
 }
 
 // Print statistics about interpolated solution
@@ -318,43 +327,23 @@ void SolutionReader::print_statistics() {
     write_verbose_msg(stream.str());
 }
 
-// Initialise statistics about the solution
-void SolutionReader::init_statistics() {
-    stat.vec_norm_min = stat.scal_min = DBL_MAX;
-    stat.vec_norm_max = stat.scal_max = -DBL_MAX;
-}
-
-// Calculate statistics about the solution
-void SolutionReader::calc_statistics() {
-    init_statistics();
-
-    for (int i = 0; i < size(); ++i) {
-        double norm = interpolation[i].norm;
-        double scalar = interpolation[i].scalar;
-        stat.vec_norm_max = max(stat.vec_norm_max, norm);
-        stat.vec_norm_min = min(stat.vec_norm_min, norm);
-        stat.scal_max = max(stat.scal_max, scalar);
-        stat.scal_min = min(stat.scal_min, scalar);
-    }
-}
-
 /* ==========================================
  * ============== FIELD READER ==============
  * ========================================== */
 
-FieldReader::FieldReader() : SolutionReader(), E0(0), beta_min(0), beta_max(0), radius1(0), radius2(0), surf_interpolator(NULL) {}
+FieldReader::FieldReader() : SolutionReader(), E0(0), radius1(0), radius2(0), surf_interpolator(NULL) {}
 
 FieldReader::FieldReader(TriangleInterpolator* ip) :
         SolutionReader(NULL, "elfield", "elfield_norm", "potential"),
-        E0(0), beta_min(0), beta_max(0), radius1(0), radius2(0), surf_interpolator(ip) {}
+        E0(0), radius1(0), radius2(0), surf_interpolator(ip) {}
 
 FieldReader::FieldReader(TetrahedronInterpolator* ip) :
         SolutionReader(ip, "elfield", "elfield_norm", "potential"),
-        E0(0), beta_min(0), beta_max(0), radius1(0), radius2(0), surf_interpolator(NULL) {}
+        E0(0), radius1(0), radius2(0), surf_interpolator(NULL) {}
 
 FieldReader::FieldReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet) :
         SolutionReader(tet, "elfield", "elfield_norm", "potential"),
-        E0(0), beta_min(0), beta_max(0), radius1(0), radius2(0), surf_interpolator(tri) {}
+        E0(0), radius1(0), radius2(0), surf_interpolator(tri) {}
 
 // Linearly interpolate solution on system atoms using triangular interpolator
 void FieldReader::calc_interpolation2D(const double r_cut, const int component, const bool srt) {
@@ -363,7 +352,7 @@ void FieldReader::calc_interpolation2D(const double r_cut, const int component, 
 
     const int n_atoms = size();
     if (surf_interpolator->size() == 0) {
-        interpolation = vector<Solution>(n_atoms, Solution(empty_val));
+        interpolation = vector<Solution>(n_atoms, Solution(0));
         return;
     }
 
@@ -576,19 +565,6 @@ double FieldReader::get_potential(const int i) const {
     return interpolation[i].scalar;
 }
 
-// Set parameters for calculating analytical solution
-void FieldReader::set_check(const double E0, const double beta_min, const double beta_max,
-        const double radius1, const double radius2) {
-    this->E0 = E0;
-    this->beta_min = beta_min;
-    this->beta_max = beta_max;
-    this->radius1 = radius1;
-    if (radius2 > radius1)
-        this->radius2 = radius2;
-    else
-        this->radius2 = radius1;
-}
-
 // Analytical potential for i-th point near the hemisphere
 double FieldReader::get_analyt_potential(const int i, const Point3& origin) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
@@ -652,7 +628,20 @@ bool FieldReader::check_limits(const vector<Solution>* solutions) const {
             << "  F/A:" << gamma1 / gamma2;
 
     write_verbose_msg(stream.str());
-    return beta < beta_min || beta > beta_max;
+    return beta < limit_min || beta > limit_max;
+}
+
+// Set parameters for calculating analytical solution
+void FieldReader::set_check_params(const double E0, const double limit_min, const double limit_max,
+        const double radius1, const double radius2) {
+    this->E0 = E0;
+    this->limit_min = limit_min;
+    this->limit_max = limit_max;
+    this->radius1 = radius1;
+    if (radius2 > radius1)
+        this->radius2 = radius2;
+    else
+        this->radius2 = radius1;
 }
 
 /* ==========================================
@@ -681,9 +670,8 @@ void HeatReader::interpolate(const Medium &medium, const double r_cut, const int
 
 // Linearly interpolate electric field for the currents and temperature solver
 // In case of empty interpolator, constant values are stored
-void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val,
-        const double r_cut, const int component, const bool srt) {
-    this->empty_val = empty_val;
+void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut,
+        const int component, const bool srt) {
 
     // import the surface nodes the solver needs
     vector<dealii::Point<3>> nodes;
@@ -857,8 +845,9 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, co
  * ============== CHARGE READER =============
  * ========================================== */
 
-ChargeReader::ChargeReader() : SolutionReader() {}
-ChargeReader::ChargeReader(TetrahedronInterpolator* ip) : SolutionReader(ip, "elfield", "area", "charge") {}
+ChargeReader::ChargeReader() : SolutionReader(), Q_tot(0) {}
+ChargeReader::ChargeReader(TetrahedronInterpolator* ip) :
+        SolutionReader(ip, "elfield", "area", "charge"), Q_tot(0) {}
 
 // Calculate charges on surface faces using interpolated electric fields
 // Conserves charge worse but gives smoother forces
@@ -882,7 +871,6 @@ void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh, const doubl
         interpolation[i].scalar = charge;
     }
 }
-
 
 void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
     const double sign = fabs(E0) / E0;
@@ -943,16 +931,6 @@ void ChargeReader::clean(const Medium::Sizes& sizes, const double latconst) {
     interpolation = _interpolation;
 }
 
-// Check whether charge is conserved within specified limits
-bool ChargeReader::charge_conserved(const double Q, const double tol_min, const double tol_max) const {
-    double q = 0;
-    for (int i = 0; i < size(); ++i)
-        q += interpolation[i].scalar;
-    q = Q / q;
-
-    return q >= tol_min && q <= tol_max;
-}
-
 Vec3 ChargeReader::get_elfield(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].vector;
@@ -966,6 +944,33 @@ double ChargeReader::get_area(const int i) const {
 double ChargeReader::get_charge(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].scalar;
+}
+
+// Check whether charge is conserved within specified limits
+bool ChargeReader::check_limits(const vector<Solution>* solutions) const {
+    double q = 0;
+    if (solutions) {
+        for (Solution s : *solutions)
+            q += s.scalar;
+    } else {
+        for (Solution s : interpolation)
+            q += s.scalar;
+    }
+
+    stringstream stream;
+    stream << fixed << setprecision(3);
+    stream << "Q_tot / sum(charge) = " << Q_tot << " / " << q << " = " << Q_tot / q;
+    write_verbose_msg(stream.str());
+
+    q = Q_tot / q;
+    return q < limit_min || q > limit_max;
+}
+
+// Set parameters for calculating analytical solution
+void ChargeReader::set_check_params(const double Q_tot, const double limit_min, const double limit_max) {
+    this->Q_tot = Q_tot * eps0;
+    this->limit_min = limit_min;
+    this->limit_max = limit_max;
 }
 
 /* ==========================================

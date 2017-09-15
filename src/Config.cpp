@@ -42,7 +42,7 @@ Config::Config() {
     charge_tolerance_min = 0.8;  // Min ratio face charges are allowed to deviate from the total charge
     charge_tolerance_max = 1.2;  // Max ratio face charges are allowed to deviate from the total charge
     field_tolerance_min = 0.1;   // Min ratio numerical field can deviate from analytical one
-    field_tolerance_max = 5.0;     // Max ratio numerical field can deviate from analytical one
+    field_tolerance_max = 5.0;   // Max ratio numerical field can deviate from analytical one
     refine_apex = false;         // refine nanotip apex
     distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
     n_writefile = 1;             // number of time steps between writing the output files
