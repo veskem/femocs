@@ -148,7 +148,7 @@ protected:
         cells.clear();
         cells.reserve(N);
         vertices.clear();
-        vertices.reserve(nodes->stat.n_tetnode);
+        vertices.reserve(nodes->size());
     }
 
     /** Pre-compute data about cells to make interpolation faster */
