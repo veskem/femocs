@@ -80,14 +80,35 @@ bool LinearInterpolator<dim>::compare_enhancement() const {
     return beta < beta_min || beta > beta_max;
 }
 
+// Calculate distance-dependent weights for a point with respect to the cell
+template<int dim>
+array<double,dim> LinearInterpolator<dim>::get_weights(const Point3 &point, const SimpleCell<dim>& scell) const {
+    array<double,dim> weights;
+    double w_sum = 0;
+    for (int i = 0; i < dim; ++i) {
+        const double w = 1.0 / point.distance2( (*nodes)[scell[i]] );
+        weights[i] = w;
+        w_sum += w;
+    }
+    w_sum = 1.0 / w_sum;
+
+    for (int i = 0; i < dim; ++i)
+        weights[i] *= w_sum;
+
+    return weights;
+}
+
 // Interpolate both scalar and vector data inside or near the cell
 template<int dim>
-Solution LinearInterpolator<dim>::interp_solution(const Point3 &point, const int cell) const {
-    require(cell >= 0 && cell < cells.size(), "Index out of bounds: " + to_string(cell));
+Solution LinearInterpolator<dim>::interp_solution(const Point3 &point, const int c) const {
+    const int cell = abs(c);
+    require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
 
-    // Get barycentric coordinates of point in tetrahedron
-    array<double,dim> bcc = get_bcc(Vec3(point), cell);
     SimpleCell<dim> scell = cells[cell];
+    // calculate weights or barycentric coordinates
+    array<double,dim> bcc;
+    if (c >= 0) bcc = get_bcc(Vec3(point), cell);
+    else bcc = get_weights(point, cell);
 
     // Interpolate electric field
     Vec3 vector_i(0.0);
@@ -104,12 +125,15 @@ Solution LinearInterpolator<dim>::interp_solution(const Point3 &point, const int
 
 // Interpolate vector data inside or near the cell
 template<int dim>
-Vec3 LinearInterpolator<dim>::interp_vector(const Point3 &point, const int cell) const {
-    require(cell >= 0 && cell < cells.size(), "Index out of bounds: " + to_string(cell));
+Vec3 LinearInterpolator<dim>::interp_vector(const Point3 &point, const int c) const {
+    const int cell = abs(c);
+    require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
 
-    // Get barycentric coordinates of point in tetrahedron
-    array<double,dim> bcc = get_bcc(Vec3(point), cell);
     SimpleCell<dim> scell = cells[cell];
+    // calculate weights or barycentric coordinates
+    array<double,dim> bcc;
+    if (c >= 0) bcc = get_bcc(Vec3(point), cell);
+    else bcc = get_weights(point, cell);
 
     // Interpolate electric field
     Vec3 vector_i(0.0);
@@ -121,12 +145,15 @@ Vec3 LinearInterpolator<dim>::interp_vector(const Point3 &point, const int cell)
 
 // Interpolate scalar data inside or near the cell
 template<int dim>
-double LinearInterpolator<dim>::interp_scalar(const Point3 &point, const int cell) const {
-    require(cell >= 0 && cell < cells.size(), "Index out of bounds: " + to_string(cell));
+double LinearInterpolator<dim>::interp_scalar(const Point3 &point, const int c) const {
+    const int cell = abs(c);
+    require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
 
-    // calculate barycentric coordinates
-    array<double,dim> bcc = get_bcc(Vec3(point), cell);
     SimpleCell<dim> scell = cells[cell];
+    // calculate weights or barycentric coordinates
+    array<double,dim> bcc;
+    if (c >= 0) bcc = get_bcc(Vec3(point), cell);
+    else bcc = get_weights(point, cell);
 
     // Interpolate potential
     double scalar_i(0.0);
@@ -139,19 +166,19 @@ double LinearInterpolator<dim>::interp_scalar(const Point3 &point, const int cel
 // Find the cell which contains the point or is the closest to it
 template<int dim>
 int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_guess) {
-    // Check the guessed element
+    // Check the guessed cell
     Vec3 vec_point(point);
     if (point_in_cell(vec_point, cell_guess)) return cell_guess;
 
     const int n_cells = cells.size();
-    const int n_nbor_layers = 6;  // choose the amount of nearest neighbouring layers that are checked before the full search
+    const int n_nbor_layers = 6;  // amount of nearest neighbouring layers that are checked before the full search
 
     vector<vector<int>> nbors(n_nbor_layers);
     vector<bool> cell_checked(n_cells);
 
     cell_checked[cell_guess] = true;
 
-    // Check all triangles on the given neighbouring layer
+    // Check all cells on the given neighbouring layer
     for (int layer = 0; layer < n_nbor_layers; ++layer) {
         // build next layer of neighbour list
         if (layer == 0)
@@ -172,16 +199,16 @@ int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_gue
             }
     }
 
-    // If no success, loop through all the elements
+    // If no success, loop through all the cells
     double min_distance2 = 1e100;
     int min_index = 0;
 
     for (int cell = 0; cell < n_cells; ++cell) {
-        // If correct face is found, we're done
+        // If correct cell is found, we're done
         if (!cell_checked[cell] && point_in_cell(vec_point, cell))
             return cell;
 
-        // Otherwise look for the face whose centroid is closest to the point
+        // Otherwise look for the cell whose centroid is closest to the point
         else {
             double distance2 = point.distance2(centroids[cell]);
             if (distance2 < min_distance2) {
@@ -191,7 +218,7 @@ int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_gue
         }
     }
 
-    // If no perfect element found, return the best.
+    // If no perfect cell found, return the best.
     // Indicate the imperfectness with the minus sign
     return -min_index;
 }

@@ -57,9 +57,9 @@ void SolutionReader::calc_interpolation(const double r_cut, const int component,
         set_marker(i, elem < 0);
 
         // Calculate the interpolation
-        if      (component == 0) interpolation.push_back( interpolator->interp_solution(point, abs(elem)) );
-        else if (component == 1) interpolation.push_back( interpolator->interp_vector(point, abs(elem)) );
-        else if (component == 2) interpolation.push_back( interpolator->interp_scalar(point, abs(elem)) );
+        if      (component == 0) interpolation.push_back(interpolator->interp_solution(point, elem));
+        else if (component == 1) interpolation.push_back(interpolator->interp_vector(point, elem));
+        else if (component == 2) interpolation.push_back(interpolator->interp_scalar(point, elem));
     }
 
     // Apply histogram cleaner for the solution
@@ -373,9 +373,9 @@ void FieldReader::calc_interpolation2D(const double r_cut, const int component, 
         set_marker(i, elem < 0);
 
         // Calculate the interpolation
-        if      (component == 0) interpolation.push_back( interpolator3->interp_solution(point, abs(elem)) );
-        else if (component == 1) interpolation.push_back( interpolator3->interp_vector(point, abs(elem)) );
-        else if (component == 2) interpolation.push_back( interpolator3->interp_scalar(point, abs(elem)) );
+        if      (component == 0) interpolation.push_back(interpolator3->interp_solution(point, elem));
+        else if (component == 1) interpolation.push_back(interpolator3->interp_vector(point, elem));
+        else if (component == 2) interpolation.push_back(interpolator3->interp_scalar(point, elem));
     }
 
     // Apply histogram cleaner for the solution

@@ -104,22 +104,25 @@ public:
         return solutions[i].scalar;
     }
 
-    /** Interpolate both vector and scalar data inside or near the cell.
-     * Function assumes, that cell, that surrounds the point, is previously already found with locate_cell.
+    /** @brief Interpolate both vector and scalar data inside or near the cell.
+     * Function assumes, that cell, that fits the best to the point, is previously already found with locate_cell.
+     * cell>=0 initiates the usage of barycentric coordinates and cell<0 the usage of mere distance-dependent weighting.
      * @param point  point where the interpolation is performed
-     * @param cell   cell around which the interpolation is performed */
+     * @param cell   index of cell around which the interpolation is performed; >= 0 for cells around the point and < 0 for others */
     Solution interp_solution(const Point3 &point, const int cell) const;
 
-    /** Interpolate vector data inside or near the cell.
-     * Function assumes, that cell, that surrounds the point, is previously already found with locate_cell.
+    /** @brief Interpolate vector data inside or near the cell.
+     * Function assumes, that cell, that fits the best to the point, is previously already found with locate_cell.
+     * cell>=0 initiates the usage of barycentric coordinates and cell<0 the usage of mere distance-dependent weighting.
      * @param point  point where the interpolation is performed
-     * @param cell   cell around which the interpolation is performed */
+     * @param cell   index of cell around which the interpolation is performed; >= 0 for cells around the point and < 0 for others */
     Vec3 interp_vector(const Point3 &point, const int cell) const;
 
-    /** Interpolate scalar data inside or near the cell.
-     * Function assumes, that cell, that surrounds the point, is previously already found with locate_cell.
+    /** @brief Interpolate scalar data inside or near the cell.
+     * Function assumes, that cell, that fits the best to the point, is previously already found with locate_cell.
+     * cell>=0 initiates the usage of barycentric coordinates and cell<0 the usage of mere distance-dependent weighting.
      * @param point  point where the interpolation is performed
-     * @param cell   cell around which the interpolation is performed */
+     * @param cell   index of cell around which the interpolation is performed; >= 0 for cells around the point and < 0 for others */
     double interp_scalar(const Point3 &point, const int cell) const;
 
     /** Find the cell which contains the point or is the closest to it */
@@ -176,6 +179,9 @@ protected:
 
     /** Calculate barycentric coordinates for a point with respect to the cell */
     virtual array<double,dim> get_bcc(const Vec3& point, const int cell) const { return array<double,dim>(); }
+
+    /** Calculate distance-dependent weights for a point with respect to the cell */
+    array<double,dim> get_weights(const Point3 &point, const SimpleCell<dim>& scell) const;
 
     /** Check whether the point is inside the cell.
      * It does not use get_bcc routine to achieve faster performance. */
