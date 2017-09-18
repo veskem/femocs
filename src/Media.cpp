@@ -208,7 +208,7 @@ void Media::faces_clean(const TetgenMesh& mesh, const double r_cut) {
 }
 
 // Extract the surface atoms whose Voronoi cells are exposed to vacuum
-bool Media::voronoi_clean(vector<Vec3>& areas, const double radius, const double latconst, const string& mesh_quality) {
+int Media::voronoi_clean(vector<Vec3>& areas, const double radius, const double latconst, const string& mesh_quality) {
     // Separate nanotip from the whole surface
     Media nanotip;
     get_nanotip(nanotip, radius);
@@ -216,8 +216,8 @@ bool Media::voronoi_clean(vector<Vec3>& areas, const double radius, const double
     // Generate Voronoi cells around the nanotip
     VoronoiMesh voromesh;
     // r - reconstruct, v - output Voronoi cells, Q - quiet, q - mesh quality
-    if( voromesh.generate(nanotip, latconst, "rQq" + mesh_quality, "vQ") )
-        return 1;
+    const int err_code = voromesh.generate(nanotip, latconst, "rQq" + mesh_quality, "vQ");
+    if(err_code) return err_code;
     
     // Clean the mesh from faces and cell that have node in the infinity
     voromesh.clean();

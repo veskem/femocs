@@ -437,7 +437,7 @@ void TetgenMesh::laplace_smooth_cn(const double scale, const vector<vector<unsig
 }
 
 // Function to generate simple mesh that consists of one tetrahedron
-bool TetgenMesh::generate_simple() {
+int TetgenMesh::generate_simple() {
     const int n_nodes = elems.DIM;
     const int n_edges = n_edges_per_elem;
     const int n_faces = n_faces_per_elem;
@@ -470,7 +470,7 @@ bool TetgenMesh::generate_simple() {
 }
 
 // Copy mesh from input to output without modification
-bool TetgenMesh::recalc() {
+int TetgenMesh::recalc() {
     nodes.recalc();
     edges.recalc();
     faces.recalc();
@@ -479,7 +479,7 @@ bool TetgenMesh::recalc() {
 }
 
 // Function to perform tetgen calculation on input and write_tetgen data
-bool TetgenMesh::recalc(const string& cmd) {
+int TetgenMesh::recalc(const string& cmd) {
     try {
         tetrahedralize(const_cast<char*>(cmd.c_str()), &tetIOin, &tetIOout);
         nodes.set_counter(tetIOout.numberofpoints);
@@ -489,12 +489,12 @@ bool TetgenMesh::recalc(const string& cmd) {
         faces.calc_statistics();
         elems.calc_statistics();
     }
-    catch (int e) { return 1; }
+    catch (int e) { return e; }
     return 0;
 }
 
 // Function to perform tetgen calculation on input and write_tetgen data
-bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
+int TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
     try {
         tetgenio tetIOtemp;
         tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOtemp);
@@ -506,7 +506,7 @@ bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
         faces.calc_statistics();
         elems.calc_statistics();
     }
-    catch (int e) { return 1; }
+    catch (int e) { return e; }
     return 0;
 }
 
@@ -532,7 +532,7 @@ bool TetgenMesh::write(const string& file_name) {
 }
 
 // Function to generate mesh from surface, bulk and vacuum atoms
-bool TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd) {
+int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd) {
     const int n_bulk = bulk.size();
     const int n_surf = surf.size();
     const int n_vacuum = vacuum.size();
@@ -690,7 +690,7 @@ void TetgenMesh::generate_edges() {
 }
 
 // Separate vacuum and bulk mesh from the union mesh by the element markers
-bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd) {
+int TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd) {
     vector<bool> tet_mask = vector_equal(elems.get_markers(), TYPES.VACUUM);
     vector<bool> hex_mask = vector_equal(hexahedra.get_markers(), TYPES.VACUUM);
 
@@ -721,7 +721,7 @@ bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const str
     bulk.hexahedra.copy(this->hexahedra, hex_mask);
     bulk.hexahedra.copy_markers(this->hexahedra, hex_mask);
 
-    return vacuum.recalc(cmd) ||  bulk.recalc(cmd);
+    return vacuum.recalc(cmd) + bulk.recalc(cmd);
 }
 
 // Write bulk or vacuum mesh

@@ -37,10 +37,10 @@ public:
     void smoothen_tris(const int n_steps, const double lambda, const double mu, const string& algorithm);
 
     /** Function to generate simple mesh that consists of one element */
-    bool generate_simple();
+    int generate_simple();
 
     /** Function to generate mesh from surface, bulk and vacuum atoms */
-    bool generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd);
+    int generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd);
 
     /** @brief Separate tetrahedra & triangles into hexahedra & quadrangles
      * Separation is done by adding node to the centroid of the tetrahedron edges,
@@ -57,7 +57,7 @@ public:
     bool mark_mesh();
 
     /** Separate generated mesh into bulk and vacuum meshes */
-    bool separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd);
+    int separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd);
 
     /** Generate list of hexahedral nodes that surround the tetrahedral nodes. The resulting cells
      * resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells. */
@@ -72,15 +72,6 @@ public:
 
     /** Write bulk or vacuum mesh */
     void write_separate(const string& file_name, const bool vacuum);
-
-    /** Copy node and element data from Tetgen input buffer into output one */
-    bool recalc();
-
-    /** Perform Tetgen calculation on input buffer and store it in output one */
-    bool recalc(const string& cmd);
-
-    /** Perform double Tetgen calculation on input buffer and store it in output one */
-    bool recalc(const string& cmd1, const string& cmd2);
 
     /** Delete the data of previously stored mesh and initialise a new one */
     void clear();
@@ -114,6 +105,15 @@ public:
 private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
+
+    /** Copy node and element data from Tetgen input buffer into output one */
+    int recalc();
+
+    /** Perform Tetgen calculation on input buffer and store it in output one */
+    int recalc(const string& cmd);
+
+    /** Perform double Tetgen calculation on input buffer and store it in output one */
+    int recalc(const string& cmd1, const string& cmd2);
 
     /** Smoothen the surface mesh using Taubin lambda|mu algorithm with inverse neighbour count weighting */
     void laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist);

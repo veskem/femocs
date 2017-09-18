@@ -402,7 +402,7 @@ void VoronoiMesh::extract_surface(Medium& surface, vector<Vec3>& areas, const Me
 }
 
 // Function to perform tetgen calculation on input and write_tetgen data
-bool VoronoiMesh::recalc(const string& cmd1, const string& cmd2, const string& cmd3) {
+int VoronoiMesh::recalc(const string& cmd1, const string& cmd2, const string& cmd3) {
     try {
         tetgenio tetIOtemp1, tetIOtemp2;
         tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOtemp1);
@@ -411,12 +411,12 @@ bool VoronoiMesh::recalc(const string& cmd1, const string& cmd2, const string& c
         nodes.set_counter(tetIOout.numberofpoints);
         elems.set_counter(tetIOout.numberoftetrahedra);
     }
-    catch (int e) { return 1; }
+    catch (int e) { return e; }
     return 0;
 }
 
 // Function to perform tetgen calculation on input and write_tetgen data
-bool VoronoiMesh::recalc(const string& cmd1, const string& cmd2) {
+int VoronoiMesh::recalc(const string& cmd1, const string& cmd2) {
     try {
         tetgenio tetIOtemp1, tetIOtemp2;
         tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOtemp1);
@@ -424,23 +424,23 @@ bool VoronoiMesh::recalc(const string& cmd1, const string& cmd2) {
         nodes.set_counter(tetIOout.numberofpoints);
         elems.set_counter(tetIOout.numberoftetrahedra);
     }
-    catch (int e) { return 1; }
+    catch (int e) { return e; }
     return 0;
 }
 
-bool VoronoiMesh::recalc(const string& cmd1) {
+int VoronoiMesh::recalc(const string& cmd1) {
     try {
         tetgenio tetIOtemp1, tetIOtemp2;
         tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOout);
         nodes.set_counter(tetIOout.numberofpoints);
         elems.set_counter(tetIOout.numberoftetrahedra);
     }
-    catch (int e) { return 1; }
+    catch (int e) { return e; }
     return 0;
 }
 
 // Generate Voronoi cells around surface atoms
-bool VoronoiMesh::generate_modi(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2) {
+int VoronoiMesh::generate_modi(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2) {
     const double l = 1.0*latconst;
 
     Medium bulk(4), vacuum(4);
@@ -474,7 +474,8 @@ bool VoronoiMesh::generate_modi(const Medium& surf, const double latconst, const
     // Memorize the positions of different types of nodes to speed up later calculations
     nodes.save_indices(n_surf, n_bulk, n_vacuum);
 
-    if (recalc("Q", cmd1)) return true;
+    const int err_code = recalc("Q", cmd1);
+    if (err_code) return err_code;
 
     elems.write("out/voro_tets1.vtk");
 
@@ -513,7 +514,7 @@ bool VoronoiMesh::generate_modi(const Medium& surf, const double latconst, const
 //    return recalc("Q", cmd1, cmd2);
 }
 
-bool VoronoiMesh::generate(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2) {
+int VoronoiMesh::generate(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2) {
     const double l = 1.0*latconst;
 
     Medium bulk(4), vacuum(4);

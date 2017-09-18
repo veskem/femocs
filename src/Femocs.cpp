@@ -202,9 +202,9 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 
     if (conf.surface_cleaner == "voronois") {
         start_msg(t0, "=== Cleaning surface with Voronoi cells...");
-//        fail = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality + "a10");
-        fail = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality);
-        check_return(fail, "Making voronoi cells failed!");
+//        const int err_code = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality + "a10");
+        const int err_code = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality);
+        check_return(err_code, "Making voronoi cells failed with error code " + to_string(err_code));
         end_msg(t0);
 
         dense_surf.write("out/surface_dense_clean.xyz");
@@ -266,8 +266,8 @@ int Femocs::generate_meshes() {
     // F - suppress output of faces and edges, B - suppress output of boundary info
     string command = "rnQFBq" + conf.mesh_quality;
     if (conf.element_volume != "") command += "a" + conf.element_volume;
-    fail = fem_mesh.generate(bulk, coarse_surf, vacuum, command);
-    check_return(fail, "Triangulation failed!");
+    int err_code = fem_mesh.generate(bulk, coarse_surf, vacuum, command);
+    check_return(err_code, "Triangulation failed with error code " + to_string(err_code));
     end_msg(t0);
 
     start_msg(t0, "=== Marking tetrahedral mesh...");
