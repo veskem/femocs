@@ -119,6 +119,7 @@ protected:
     const double epsilon = 0.1;
     double zero = -1.0 * epsilon;
     double one = 1.0 + epsilon;
+    double decay_factor = -1.0;     ///< exp(decay_factor * node1.distance(node2)) gives the weight that can be used in smoothing process
 
     const string vector_label;      ///< description label attached to solution.vector -values
     const string norm_label;        ///< description label attached to solution.norm -values
@@ -170,7 +171,7 @@ protected:
 
     /** Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
      *  surrounding hexahedral nodes */
-    bool average_sharp_nodes(const vector<vector<unsigned>>& vorocells, const double edgemax);
+    bool average_sharp_nodes(const vector<vector<unsigned>>& vorocells);
 
     /** Return the mapping between tetrahedral and hexahedral meshes;
      * -1 indicates that mapping for corresponding object was not found */

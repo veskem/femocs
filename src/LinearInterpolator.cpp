@@ -23,11 +23,12 @@ array<double,dim> LinearInterpolator<dim>::get_weights(const Point3 &point, cons
     array<double,dim> weights;
     double w_sum = 0;
     for (int i = 0; i < dim; ++i) {
-        const double w = 1.0 / point.distance2(vertices[scell[i]]);
+        double w = exp(decay_factor * point.distance(vertices[scell[i]]));
         weights[i] = w;
         w_sum += w;
     }
     w_sum = 1.0 / w_sum;
+
 
     for (int i = 0; i < dim; ++i)
         weights[i] *= w_sum;
@@ -163,10 +164,7 @@ int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_gue
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
 template<int dim>
-bool LinearInterpolator<dim>::average_sharp_nodes(const vector<vector<unsigned>>& vorocells,
-        const double edgemax) {
-    const double decay_factor = -1.0 / edgemax;
-
+bool LinearInterpolator<dim>::average_sharp_nodes(const vector<vector<unsigned>>& vorocells) {
     // loop through the tetrahedral nodes
     for (int i = 0; i < vorocells.size(); ++i) {
         if (vorocells[i].size() == 0) continue;
@@ -365,7 +363,7 @@ void TetrahedronInterpolator::print_statistics() const {
 bool TetrahedronInterpolator::average_sharp_nodes(const bool vacuum) {
     vector<vector<unsigned int>> vorocells;
     mesh->calc_pseudo_3D_vorocells(vorocells, vacuum);
-    return LinearInterpolator<4>::average_sharp_nodes(vorocells, elems->stat.edgemax);
+    return LinearInterpolator<4>::average_sharp_nodes(vorocells);
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
@@ -516,6 +514,9 @@ void TetrahedronInterpolator::precompute() {
     expect(n_elems > 0, "Interpolator expects non-empty mesh!");
     reserve_precompute(n_elems);
     double d0, d1, d2, d3, d4;
+
+    // Store the constant for smoothing
+    decay_factor = -1.0 / elems->stat.edgemax;
 
     // Store the coordinates of tetrahedra vertices
     for (int i = 0; i < nodes->stat.n_tetnode; ++i)
@@ -816,7 +817,7 @@ void TriangleInterpolator::calc_charges(const double E0) {
 bool TriangleInterpolator::average_sharp_nodes(const bool vacuum) {
     vector<vector<unsigned int>> vorocells;
     mesh->calc_pseudo_3D_vorocells(vorocells, vacuum);
-    return LinearInterpolator<3>::average_sharp_nodes(vorocells, mesh->faces.stat.edgemax);
+    return LinearInterpolator<3>::average_sharp_nodes(vorocells);
 }
 
 // Reserve memory for precompute data
@@ -837,6 +838,9 @@ void TriangleInterpolator::precompute() {
 
     // Reserve memory for precomputation data
     reserve_precompute(n_faces);
+
+    // Store the constant for smoothing
+    decay_factor = -1.0 / faces->stat.edgemax;
 
     // Store the coordinates of tetrahedral vertices
     // Tetrahedral not triangular, because the only solid knowledge about the triangle nodes
