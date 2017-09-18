@@ -24,20 +24,23 @@ template<int dim>
 class LinearInterpolator {
 
 public:
-    /** LinearInterpolator conctructor */
-    LinearInterpolator() : vector_label("vector"), norm_label("vector_norm"), scalar_label("scalar"), mesh(NULL), nodes(NULL) {
+    LinearInterpolator() :
+        norm_label("vector_norm"), scalar_label("scalar"), mesh(NULL), nodes(NULL)
+    {
         reserve(0);
         reserve_precompute(0);
     }
 
-    LinearInterpolator(const TetgenMesh* m) : vector_label("vector"), norm_label("vector_norm"),
-            scalar_label("scalar"), mesh(m), nodes(&m->nodes) {
+    LinearInterpolator(const TetgenMesh* m) :
+        norm_label("vector_norm"), scalar_label("scalar"), mesh(m), nodes(&m->nodes)
+    {
         reserve(0);
         reserve_precompute(0);
     }
 
-    LinearInterpolator(const TetgenMesh* m, const string& vl, const string& nl, const string& sl) :
-        vector_label(vl), norm_label(nl), scalar_label(sl), mesh(m), nodes(&m->nodes) {
+    LinearInterpolator(const TetgenMesh* m, const string& nl, const string& sl) :
+        norm_label(nl), scalar_label(sl), mesh(m), nodes(&m->nodes)
+    {
         reserve(0);
         reserve_precompute(0);
     }
@@ -121,7 +124,6 @@ protected:
     double one = 1.0 + epsilon;
     double decay_factor = -1.0;     ///< exp(decay_factor * node1.distance(node2)) gives the weight that can be used in smoothing process
 
-    const string vector_label;      ///< description label attached to solution.vector -values
     const string norm_label;        ///< description label attached to solution.norm -values
     const string scalar_label;      ///< description label attached to solution.scalar -values
 
@@ -263,6 +265,9 @@ private:
     /** Force the solution on tetrahedral nodes to be the weighed average
      * of the solutions on its Voronoi cell nodes */
     bool average_sharp_nodes(const bool vacuum);
+
+    /** Leave only the solution in the nodes and tetrahedra */
+    bool clean_nodes();
 
     /** Pre-compute data about tetrahedra to make interpolation faster */
     void precompute();

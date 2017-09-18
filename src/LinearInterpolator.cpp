@@ -366,6 +366,15 @@ bool TetrahedronInterpolator::average_sharp_nodes(const bool vacuum) {
     return LinearInterpolator<4>::average_sharp_nodes(vorocells);
 }
 
+// leave only the solution in the nodes and tetrahedra
+bool TetrahedronInterpolator::clean_nodes() {
+    const int n_nodes = nodes->size();
+    for (int node = nodes->stat.n_tetnode; node < nodes->size(); ++node)
+        solutions[node] = Solution(0);
+
+    return false;
+}
+
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
 bool TetrahedronInterpolator::extract_solution(fch::Laplace<3>* fem) {
     require(fem, "NULL pointer can't be handled!");
@@ -406,7 +415,7 @@ bool TetrahedronInterpolator::extract_solution(fch::Laplace<3>* fem) {
     if (average_sharp_nodes(true))
         return true;
 
-    return false;
+    return clean_nodes();
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
@@ -446,7 +455,7 @@ bool TetrahedronInterpolator::extract_solution(fch::CurrentsAndHeatingStationary
             append_solution(Solution(0));
     }
 
-    return false;
+    return clean_nodes();
 }
 
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
@@ -486,7 +495,7 @@ bool TetrahedronInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem) 
             append_solution(Solution(0));
     }
 
-    return false;
+    return clean_nodes();
 }
 
 // Reserve memory for pre-compute data
