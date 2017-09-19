@@ -28,10 +28,9 @@ public:
     SolutionReader(TetrahedronInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
     /** Interpolate solution on the system atoms using tetrahedral interpolator
-     * @param r_cut     smoothing region cut-off radius; 0 or less turns smoothing off
      * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
      * @param srt       sort atoms spatially */
-    void calc_interpolation(const double r_cut, const int component, const bool srt);
+    void calc_interpolation(const int component, const bool srt);
 
     /** Reserve memory for data */
     void reserve(const int n_nodes);
@@ -53,6 +52,9 @@ public:
 
     /** Calculate statistics about coordinates and solution */
     void calc_statistics();
+
+    /** Check and replace the NaNs and peaks in the solution */
+    bool clean(const double r_cut, const bool use_hist_clean);
 
     /** Statistics about solution */
     struct Statistics {
@@ -87,7 +89,7 @@ protected:
      * for the atoms, where field has diverging values.
      * For example, if histogram looks like [10 7 2 4 1 4 2 0 0 2], then the field on the two atoms that
      * made up the entries to last bin will be replaced by the average field around those two atoms. */
-    void clean(const int coordinate, const double r_cut);
+    void histogram_clean(const int coordinate, const double r_cut);
 
     void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
 
@@ -104,30 +106,29 @@ public:
     FieldReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
 
     /** Interpolate solution on the system atoms using triangular interpolator
-     * @param r_cut     smoothing region cut-off radius; 0 or less turns smoothing off
      * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
      * @param srt       sort atoms spatially */
-    void calc_interpolation2D(const double r_cut, const int component, const bool srt);
+    void calc_interpolation2D(const int component, const bool srt);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium, const double r_cut=0, const int component=0, const bool srt=true);
+    void interpolate(const Medium &medium, const int component=0, const bool srt=true);
 
     /** Interpolate solution on points using the solution on tetrahedral mesh nodes */
     void interpolate(const int n_points, const double* x, const double* y, const double* z,
-            const double r_cut=0, const int component=0, const bool srt=true);
+            const int component=0, const bool srt=true);
 
     /** Interpolate solution on medium atoms using the solution on triangular mesh nodes */
-    void interpolate2D(const Medium &medium, const double r_cut=0, const int component=0, const bool srt=true);
+    void interpolate2D(const Medium &medium, const int component=0, const bool srt=true);
 
     /** Interpolate solution on points using the solution on triangular mesh nodes */
     void interpolate2D(const int n_points, const double* x, const double* y, const double* z,
-            const double r_cut=0, const int component=0, const bool srt=true);
+            const int component=0, const bool srt=true);
 
     /** Calculate the electric field for the stationary current and temperature solver */
-    void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const bool srt=true);
+    void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const double use_hist_clean);
 
     /** Calculate the electric field for the transient current and temperature solver */
-    void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const bool srt=true);
+    void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const double use_hist_clean);
 
     /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
@@ -181,12 +182,11 @@ public:
     HeatReader(TetrahedronInterpolator* ip);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium, const double r_cut=0.0, const int component=0, const bool srt=true);
+    void interpolate(const Medium &medium, const int component=0, const bool srt=true);
 
     /** Linearly interpolate electric field for the currents and temperature solver.
      *  In case of empty interpolator, constant values are stored. */
-    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut=0.0,
-            const int component=0, const bool srt=true);
+    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const int component=0, const bool srt=true);
 
     /** Export interpolated temperature */
     void export_temperature(const int n_atoms, double* T);

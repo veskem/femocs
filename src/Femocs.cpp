@@ -388,7 +388,7 @@ int Femocs::solve_stationary_heat(const double T_ambient) {
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
     FieldReader fr(&vacuum_interpolator);
-    fr.transfer_elfield(ch_solver, conf.use_histclean * conf.coordination_cutoff, true);
+    fr.transfer_elfield(ch_solver, conf.coordination_cutoff, conf.use_histclean);
     end_msg(t0);
 
     fr.write("out/surface_field.xyz");
@@ -439,7 +439,7 @@ int Femocs::solve_transient_heat(const double T_ambient) {
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
     FieldReader field_reader(&vacuum_interpolator);
-    field_reader.transfer_elfield(ch_transient_solver, conf.use_histclean * conf.coordination_cutoff, true);
+    field_reader.transfer_elfield(ch_transient_solver, conf.coordination_cutoff, conf.use_histclean);
     end_msg(t0);
     field_reader.write("out/surface_field.xyz");
 
@@ -642,11 +642,12 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         write_silent_msg("Using previous electric field!");
     else {
         start_msg(t0, "=== Interpolating E and phi...");
-        fields.interpolate2D(dense_surf, conf.use_histclean * conf.coordination_cutoff, 0, true);
+        fields.interpolate2D(dense_surf, 0, true);
+        fail = fields.clean(conf.coordination_cutoff, conf.use_histclean);
         end_msg(t0);
 
         fields.write("out/fields.movie");
-        fail = fields.check_limits();
+        fail |= fields.check_limits();
     }
 
     start_msg(t0, "=== Exporting electric field...");
@@ -728,12 +729,13 @@ int Femocs::interpolate_surface_elfield(const int n_points, const double* x, con
 
     FieldReader fr(&surface_interpolator);
     start_msg(t0, "=== Interpolating & exporting surface elfield...");
-    fr.interpolate2D(n_points, x, y, z, conf.use_histclean*conf.coordination_cutoff, 1, false);
+    fr.interpolate2D(n_points, x, y, z, 1, false);
+    fail = fr.clean(conf.coordination_cutoff, conf.use_histclean);
     fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
 
     fr.write("out/interpolation_E_surf.movie");
-    return fields.check_limits(fr.get_interpolations());
+    return fields.check_limits(fr.get_interpolations()) || fail;
 }
 
 // linearly interpolate electric field at given points
@@ -744,12 +746,13 @@ int Femocs::interpolate_elfield(const int n_points, const double* x, const doubl
 
     FieldReader fr(&vacuum_interpolator);
     start_msg(t0, "=== Interpolating & exporting elfield...");
-    fr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coordination_cutoff, 1, false);
+    fr.interpolate(n_points, x, y, z, 1, false);
+    fail = fr.clean(conf.coordination_cutoff, conf.use_histclean);
     fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
 
     fr.write("out/interpolation_E.movie");
-    return fields.check_limits(fr.get_interpolations());
+    return fields.check_limits(fr.get_interpolations()) || fail;
 }
 
 // linearly interpolate electric potential at given points
@@ -760,10 +763,11 @@ int Femocs::interpolate_phi(const int n_points, const double* x, const double* y
     check_return(vacuum_interpolator.size() == 0, "No electric potential to export!");
 
     FieldReader fr(&vacuum_interpolator);
-    fr.interpolate(n_points, x, y, z, conf.use_histclean * conf.coordination_cutoff, 2, false);
+    fr.interpolate(n_points, x, y, z, 2, false);
+    fail = fr.clean(conf.coordination_cutoff, conf.use_histclean);
     fr.export_potential(n_points, phi, flag);
 
-    return 0;
+    return fail;
 }
 
 // parse integer argument of the command from input script
