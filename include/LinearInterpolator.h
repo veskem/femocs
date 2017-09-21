@@ -54,17 +54,6 @@ public:
      * Function is active only when file write is enabled */
     void write(const string &file_name) const;
 
-    /** Enable or disable the search of points slightly outside the cell */
-    void search_outside(const bool enable) {
-        if (enable) {
-            zero = -1.0 * epsilon;
-            one = 1.0 + epsilon;
-        } else {
-            zero = 0;
-            one = 1.0;
-        }
-    }
-
     /** Add solution to solutions vector */
     void append_solution(const Solution& solution) {
         expect((unsigned)size() < solutions.capacity(), "Allocated vector size exceeded!");
@@ -117,11 +106,7 @@ public:
     int locate_cell(const Point3 &point, const int cell_guess);
 
 protected:
-    /** Constants specifying the interpolation tolerances.
-     * Making zero a bit negative allows searching points outside the tetrahedra. */
-    const double epsilon = 0.1;
-    double zero = -1.0 * epsilon;
-    double one = 1.0 + epsilon;
+    const double epsilon = 0.1;     ///< coplanarity tolerance
     double decay_factor = -1.0;     ///< exp(decay_factor * node1.distance(node2)) gives the weight that can be used in smoothing process
 
     const string norm_label;        ///< description label attached to solution.norm -values

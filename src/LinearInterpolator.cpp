@@ -629,10 +629,10 @@ bool TetrahedronInterpolator::point_in_cell(const Vec3 &point, const int i) {
 
     // If one of the barycentric coordinates is < zero, the point is outside the tetrahedron
     // Source: http://steve.hollasch.net/cgindex/geometry/ptintet.html
-    if (det0[i] * pt.dotProduct(det1[i]) < zero) return false;
-    if (det0[i] * pt.dotProduct(det2[i]) < zero) return false;
-    if (det0[i] * pt.dotProduct(det3[i]) < zero) return false;
-    if (det0[i] * pt.dotProduct(det4[i]) < zero) return false;
+    if (det0[i] * pt.dotProduct(det1[i]) < 0) return false;
+    if (det0[i] * pt.dotProduct(det2[i]) < 0) return false;
+    if (det0[i] * pt.dotProduct(det3[i]) < 0) return false;
+    if (det0[i] * pt.dotProduct(det4[i]) < 0) return false;
 
     // All bcc-s are >= 0, so point is inside the tetrahedron
     return true;
@@ -914,11 +914,11 @@ bool TriangleInterpolator::point_in_cell(const Vec3& point, const int face) {
 
     Vec3 tvec = point - vert0[face];
     double u = tvec.dotProduct(pvec[face]);
-    if (u < zero || u > one) return false;     // Check first barycentric coordinate
+    if (u < 0 || u > 1) return false;     // Check first barycentric coordinate
 
     Vec3 qvec = tvec.crossProduct(edge1[face]);
     double v = qvec.dotProduct(norms[face]);
-    if (v < zero || u + v > one) return false; // Check second & third barycentric coordinate
+    if (v < 0 || u + v > 1) return false; // Check second & third barycentric coordinate
 
     // finally check the distance of the point from the triangle
     return fabs(qvec.dotProduct(edge2[face])) < max_distance[face];

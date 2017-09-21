@@ -731,7 +731,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
 int Femocs::interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     if (n_points <= 0) return 0;
-    check_return(vacuum_interpolator.size() == 0, "No solution to export!");
+    check_return(surface_interpolator.size() == 0, "No solution to export!");
 
     FieldReader fr(&surface_interpolator);
     start_msg(t0, "=== Interpolating & exporting surface elfield...");

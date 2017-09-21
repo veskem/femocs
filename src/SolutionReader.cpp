@@ -45,16 +45,13 @@ void SolutionReader::calc_interpolation(const int component, const bool srt) {
     // Sort atoms into sequential order to speed up interpolation
     if (srt) sort_spatial();
 
-    // Enable or disable the search of points slightly outside the tetrahedra
-    interpolator->search_outside(srt);
-
     int elem = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point = get_point(i);
         // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
         elem = interpolator->locate_cell(point, abs(elem));
 
-        // Store whether the point is in- or outside the mesh
+        // Store tetrahedron index that gave the value
         set_marker(i, elem);
 
         // Calculate the interpolation
@@ -376,9 +373,6 @@ void FieldReader::calc_interpolation2D(const int component, const bool srt) {
 
     // Sort atoms into sequential order to speed up interpolation
     if (srt) sort_spatial();
-
-    // Disable the search of points outside the triangles
-    surf_interpolator->search_outside(false);
 
     int elem = 0;
     for (int i = 0; i < n_atoms; ++i) {
@@ -1083,7 +1077,7 @@ bool ForceReader::calc_voronoi_charges(const double radius, const double latcons
                 if (phi > 0)
                     charge -= phi * face.area().norm() / centre.distance(voromesh.nodes[nbor_cell]);
             }
-            interpolation[i].scalar = charge;
+            interpolation[i].scalar = charge * eps0;
         }
 
     return 0;
