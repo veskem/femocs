@@ -1069,15 +1069,21 @@ bool ForceReader::calc_voronoi_charges(const double radius, const double latcons
     int cell_index = -1;
     for (int i = 0; i < n_this_nodes; ++i)
         if (node_in_nanotip[i]) {
-            double charge = 0;
             Point3 centre = get_point(i);
+            double charge = 0;
+            Vec3 field(0);
             for (VoronoiFace face : voromesh.voros[++cell_index]) {
                 int nbor_cell = face.nborcell(cell_index);
                 double phi = potentials[nbor_cell];
-                if (phi > 0)
-                    charge -= phi * face.area().norm() / centre.distance(voromesh.nodes[nbor_cell]);
+                if (phi > 0) {
+                    Vec3 ray(voromesh.nodes[nbor_cell] - centre);
+                    double distance2 = ray.norm2();
+                    ray *= (phi / distance2);
+                    charge -= phi * face.area().norm() / sqrt(distance2);
+                    field -= ray;
+                }
             }
-            interpolation[i].scalar = charge * eps0;
+            interpolation[i] = Solution(field, charge * eps0);
         }
 
     return 0;
