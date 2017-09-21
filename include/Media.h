@@ -57,7 +57,7 @@ public:
     void faces_clean(const TetgenMesh& mesh, const double r_cut);
     
     /** Extract the surface atoms whose Voronoi cells are exposed to vacuum */
-    bool voronoi_clean(vector<Vec3>& areas, const double radius, const double latconst, const string& mesh_quality);
+    int voronoi_clean(vector<Vec3>& areas, const double radius, const double latconst, const string& mesh_quality);
 
     /** Smoothen the atoms inside the cylinder */
     void smoothen(const double radius, const double smooth_factor, const double r_cut);

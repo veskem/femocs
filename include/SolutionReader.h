@@ -28,10 +28,9 @@ public:
     SolutionReader(TetrahedronInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
     /** Interpolate solution on the system atoms using tetrahedral interpolator
-     * @param r_cut     smoothing region cut-off radius; 0 or less turns smoothing off
      * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
      * @param srt       sort atoms spatially */
-    void calc_interpolation(const double r_cut, const int component, const bool srt);
+    void calc_interpolation(const int component, const bool srt);
 
     /** Reserve memory for data */
     void reserve(const int n_nodes);
@@ -39,11 +38,11 @@ public:
     /** Print statistics about interpolated solution */
     void print_statistics();
 
-    /** Compare interpolated scalar statistics with a constant */
-    void print_statistics(const double Q);
-
     /** Append solution */
     void append_interpolation(const Solution& s);
+
+    /** Get pointer to interpolation vector */
+    vector<Solution>* get_interpolations();
 
     /** Get i-th Solution */
     Solution get_interpolation(const int i) const;
@@ -53,6 +52,9 @@ public:
 
     /** Calculate statistics about coordinates and solution */
     void calc_statistics();
+
+    /** Check and replace the NaNs and peaks in the solution */
+    bool clean(const double r_cut, const bool use_hist_clean);
 
     /** Statistics about solution */
     struct Statistics {
@@ -66,7 +68,8 @@ protected:
     const string vec_label;       ///< label for vector data
     const string vec_norm_label;  ///< label for data associated with vector length
     const string scalar_label;    ///< label for scalar data
-    double empty_val;             ///< constant values returned when interpolator is empty
+    double limit_min;             ///< minimum value of accepted comparison value
+    double limit_max;             ///< maximum value of accepted comparison value
 
     TetrahedronInterpolator* interpolator;   ///< data needed for interpolating on space
     vector<Solution> interpolation;          ///< interpolated data
@@ -86,7 +89,7 @@ protected:
      * for the atoms, where field has diverging values.
      * For example, if histogram looks like [10 7 2 4 1 4 2 0 0 2], then the field on the two atoms that
      * made up the entries to last bin will be replaced by the average field around those two atoms. */
-    void clean(const int coordinate, const double r_cut);
+    void histogram_clean(const int coordinate, const double r_cut);
 
     void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
 
@@ -96,36 +99,36 @@ protected:
 /** Class to extract solution from DealII calculations */
 class FieldReader: public SolutionReader {
 public:
-    /** SolutionReader constructors */
+    /** FieldReader constructors */
     FieldReader();
-    FieldReader(TetrahedronInterpolator* ip);
     FieldReader(TriangleInterpolator* ip);
+    FieldReader(TetrahedronInterpolator* ip);
+    FieldReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
 
     /** Interpolate solution on the system atoms using triangular interpolator
-     * @param r_cut     smoothing region cut-off radius; 0 or less turns smoothing off
      * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
      * @param srt       sort atoms spatially */
-    void calc_interpolation2D(const double r_cut, const int component, const bool srt);
+    void calc_interpolation2D(const int component, const bool srt);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium, const double r_cut=0, const int component=0, const bool srt=true);
+    void interpolate(const Medium &medium, const int component=0, const bool srt=true);
 
     /** Interpolate solution on points using the solution on tetrahedral mesh nodes */
     void interpolate(const int n_points, const double* x, const double* y, const double* z,
-            const double r_cut=0, const int component=0, const bool srt=true);
+            const int component=0, const bool srt=true);
 
     /** Interpolate solution on medium atoms using the solution on triangular mesh nodes */
-    void interpolate2D(const Medium &medium, const double r_cut=0, const int component=0, const bool srt=true);
+    void interpolate2D(const Medium &medium, const int component=0, const bool srt=true);
 
     /** Interpolate solution on points using the solution on triangular mesh nodes */
     void interpolate2D(const int n_points, const double* x, const double* y, const double* z,
-            const double r_cut=0, const int component=0, const bool srt=true);
+            const int component=0, const bool srt=true);
 
     /** Calculate the electric field for the stationary current and temperature solver */
-    void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const bool srt=true);
+    void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const double use_hist_clean);
 
     /** Calculate the electric field for the transient current and temperature solver */
-    void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const bool srt=true);
+    void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const double use_hist_clean);
 
     /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
@@ -138,26 +141,34 @@ public:
     /** Export calculated electic field distribution to HOLMOD */
     void export_solution(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
+    /** Return electric field in i-th interpolation point */
     Vec3 get_elfield(const int i) const;
 
+    /** Return electric field norm in i-th interpolation point */
     double get_elfield_norm(const int i) const;
 
+    /** Return electric potential in i-th interpolation point */
     double get_potential(const int i) const;
 
     /** Compare the analytical and calculated field enhancement */
-    void print_enhancement() const;
+    bool check_limits(const vector<Solution>* solutions=NULL) const;
 
     /** Set parameters to calculate analytical solution */
-    void set_analyt(const double E0, const double radius1, const double radius2=-1);
+    void set_check_params(const double E0, const double limit_min, const double limit_max,
+            const double radius1, const double radius2=-1);
 
 private:
-    double radius1;  ///< Minor semi-axis of ellipse
-    double radius2;  ///< Major semi-axis of ellipse
-    double E0;       ///< Long-range electric field strength
-    TriangleInterpolator* interpolator3;     ///< data needed for interpolating on surface
+    /** Data needed for comparing numerical solution with analytical one */
+    double E0;                      ///< Long-range electric field strength
+    double radius1;                 ///< Minor semi-axis of ellipse
+    double radius2;                 ///< Major semi-axis of ellipse
+    TriangleInterpolator* surf_interpolator; ///< data needed for interpolating on surface
 
-    /** Get calculated field enhancement */
-    double get_enhancement() const;
+    /** Return analytical electric field value for i-th point near the hemisphere */
+    Vec3 get_analyt_field(const int i, const Point3& origin) const;
+
+    /** Return analytical potential value for i-th point near the hemisphere */
+    double get_analyt_potential(const int i, const Point3& origin) const;
 
     /** Get analytical field enhancement for hemi-ellipsoid on infinite surface */
     double get_analyt_enhancement() const;
@@ -171,12 +182,11 @@ public:
     HeatReader(TetrahedronInterpolator* ip);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium, const double r_cut=0.0, const int component=0, const bool srt=true);
+    void interpolate(const Medium &medium, const int component=0, const bool srt=true);
 
     /** Linearly interpolate electric field for the currents and temperature solver.
      *  In case of empty interpolator, constant values are stored. */
-    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val,
-            const double r_cut=0.0, const int component=0, const bool srt=true);
+    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const int component=0, const bool srt=true);
 
     /** Export interpolated temperature */
     void export_temperature(const int n_atoms, double* T);
@@ -203,6 +213,7 @@ public:
     double get_rho_norm(const int i) const;
 
     double get_temperature(const int i) const;
+
 private:
     void emission_line(const Point3& point, const Vec3& direction, const double rmax,
                         vector<double> &rline, vector<double> &Vline);
@@ -224,8 +235,11 @@ public:
     /** Remove the atoms and their solutions outside the MD box */
     void clean(const Medium::Sizes& sizes, const double latconst);
 
+    /** Set parameters to calculate analytical solution */
+    void set_check_params(const double Q_tot, const double limit_min, const double limit_max);
+
     /** Check whether charge is conserved within specified limits */
-    bool charge_conserved(const double Q, const double eps) const;
+    bool check_limits(const vector<Solution>* solutions=NULL) const;
 
     /** Get electric field on the centroid of i-th triangle */
     Vec3 get_elfield(const int i) const;
@@ -236,10 +250,9 @@ public:
     /** Get charge of i-th triangle */
     double get_charge(const int i) const;
 
-    const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
-
 private:
-
+    const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
+    double Q_tot;  ///< Analytical total charge
 };
 
 /** Class to calculate forces from charges and electric fields */
@@ -260,9 +273,6 @@ public:
 
     void calc_forces(const FieldReader &fields, TriangleInterpolator& ti);
 
-    void calc_forces_vol2(const TetgenMesh& mesh, const FieldReader &fields, const ChargeReader &face_charges,
-            TriangleInterpolator& tri_interpolator, const double r_cut, const double smooth_factor);
-
     /** Export the induced charge and force on imported atoms
      * @param n_atoms  number of first atoms field is calculated
      * @param xq       charge and force in PARCAS format (xq[0] = q1, xq[1] = Fx1, xq[2] = Fy1, xq[3] = Fz1, xq[4] = q2, xq[5] = Fx2 etc)
@@ -275,9 +285,10 @@ public:
 
     double get_charge(const int i) const;
 
+private:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
     const double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
-private:
+
     int calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
             const double radius, const double latconst, const string& mesh_quality);
 };

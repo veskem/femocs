@@ -24,21 +24,23 @@ template<int dim>
 class LinearInterpolator {
 
 public:
-    /** LinearInterpolator conctructor */
     LinearInterpolator() :
-        norm_label("elfield_norm"), scalar_label("potential"), mesh(NULL), nodes(NULL) {
+        norm_label("vector_norm"), scalar_label("scalar"), mesh(NULL), nodes(NULL)
+    {
         reserve(0);
         reserve_precompute(0);
     }
 
     LinearInterpolator(const TetgenMesh* m) :
-        norm_label("elfield_norm"), scalar_label("potential"), mesh(m), nodes(&m->nodes) {
+        norm_label("vector_norm"), scalar_label("scalar"), mesh(m), nodes(&m->nodes)
+    {
         reserve(0);
         reserve_precompute(0);
     }
 
     LinearInterpolator(const TetgenMesh* m, const string& nl, const string& sl) :
-        norm_label(nl), scalar_label(sl), mesh(m), nodes(&m->nodes) {
+        norm_label(nl), scalar_label(sl), mesh(m), nodes(&m->nodes)
+    {
         reserve(0);
         reserve_precompute(0);
     }
@@ -69,6 +71,9 @@ public:
         solutions.push_back(solution);
     }
 
+    /** Return the pointer to the solution vector */
+    vector<Solution>* get_solutions() { return &solutions; }
+
     /** Return full solution on i-th node */
     Solution get_solution(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
@@ -87,45 +92,29 @@ public:
         return solutions[i].scalar;
     }
 
-    /** Return the centroid coordinates of i-th cell */
-    Point3 get_centroid(const int i) const {
-        require(i >= 0 && i < centroids.size(), "Invalid index: " + to_string(i));
-        return centroids[i];
-    }
-
-    /** Return nearest neighbouring cells of i-th cell */
-    vector<int> get_neighbours(const int i) const {
-        require(i >= 0 && i < neighbours.size(), "Invalid index: " + to_string(i));
-        return neighbours[i];
-    }
-
-    /** Return number of interpolation cells */
-    int get_n_cells() const { return cells()->size(); }
-
-    /** Interpolate both vector and scalar data inside or near the cell.
-     * Function assumes, that cell, that surrounds the point, is previously already found with locate_cell.
+    /** @brief Interpolate both vector and scalar data inside or near the cell.
+     * Function assumes, that cell, that fits the best to the point, is previously already found with locate_cell.
+     * cell>=0 initiates the usage of barycentric coordinates and cell<0 the usage of mere distance-dependent weighting.
      * @param point  point where the interpolation is performed
-     * @param cell   cell around which the interpolation is performed */
+     * @param cell   index of cell around which the interpolation is performed; >= 0 for cells around the point and < 0 for others */
     Solution interp_solution(const Point3 &point, const int cell) const;
 
-    /** Interpolate vector data inside or near the cell.
-     * Function assumes, that cell, that surrounds the point, is previously already found with locate_cell.
+    /** @brief Interpolate vector data inside or near the cell.
+     * Function assumes, that cell, that fits the best to the point, is previously already found with locate_cell.
+     * cell>=0 initiates the usage of barycentric coordinates and cell<0 the usage of mere distance-dependent weighting.
      * @param point  point where the interpolation is performed
-     * @param cell   cell around which the interpolation is performed */
+     * @param cell   index of cell around which the interpolation is performed; >= 0 for cells around the point and < 0 for others */
     Vec3 interp_vector(const Point3 &point, const int cell) const;
 
-    /** Interpolate scalar data inside or near the cell.
-     * Function assumes, that cell, that surrounds the point, is previously already found with locate_cell.
+    /** @brief Interpolate scalar data inside or near the cell.
+     * Function assumes, that cell, that fits the best to the point, is previously already found with locate_cell.
+     * cell>=0 initiates the usage of barycentric coordinates and cell<0 the usage of mere distance-dependent weighting.
      * @param point  point where the interpolation is performed
-     * @param cell   cell around which the interpolation is performed */
+     * @param cell   index of cell around which the interpolation is performed; >= 0 for cells around the point and < 0 for others */
     double interp_scalar(const Point3 &point, const int cell) const;
 
     /** Find the cell which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess);
-
-    /** Solution value that is assigned to atoms not found from mesh.
-     *  Its value is BIG to make it immediately visible from the dataset. */
-    const double error_field = 1e20;
 
 protected:
     /** Constants specifying the interpolation tolerances.
@@ -133,6 +122,7 @@ protected:
     const double epsilon = 0.1;
     double zero = -1.0 * epsilon;
     double one = 1.0 + epsilon;
+    double decay_factor = -1.0;     ///< exp(decay_factor * node1.distance(node2)) gives the weight that can be used in smoothing process
 
     const string norm_label;        ///< description label attached to solution.norm -values
     const string scalar_label;      ///< description label attached to solution.scalar -values
@@ -140,12 +130,11 @@ protected:
     vector<Solution> solutions;     ///< interpolation data
     vector<vector<int>> neighbours; ///< nearest neighbours of the cells
     vector<Point3> centroids;       ///< cell centroid coordinates
+    vector<Point3> vertices;        ///< coordinates of cell vertices
+    vector<SimpleCell<dim>> cells;  ///< interpolation cells - triangles or tetrahedra
 
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
     const TetgenNodes* nodes;       ///< Mesh nodes
-    /** Getter for cell data without nodes.
-     * It is implemented as a function to take advantage of polymorphism. */
-    virtual const TetgenCells<dim>* cells() const { return NULL; }
 
     /** Reserve memory for interpolation data */
     void reserve(const int N) {
@@ -159,6 +148,10 @@ protected:
         neighbours = vector<vector<int>>(N);
         centroids.clear();
         centroids.reserve(N);
+        cells.clear();
+        cells.reserve(N);
+        vertices.clear();
+        vertices.reserve(nodes->size());
     }
 
     /** Pre-compute data about cells to make interpolation faster */
@@ -171,13 +164,16 @@ protected:
     /** Calculate barycentric coordinates for a point with respect to the cell */
     virtual array<double,dim> get_bcc(const Vec3& point, const int cell) const { return array<double,dim>(); }
 
+    /** Calculate distance-dependent weights for a point with respect to the cell */
+    array<double,dim> get_weights(const Point3 &point, const SimpleCell<dim>& scell) const;
+
     /** Check whether the point is inside the cell.
      * It does not use get_bcc routine to achieve faster performance. */
     virtual bool point_in_cell(const Vec3& point, const int cell) { return false; }
 
     /** Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
      *  surrounding hexahedral nodes */
-    bool average_sharp_nodes(const vector<vector<unsigned>>& vorocells, const double edgemax);
+    bool average_sharp_nodes(const vector<vector<unsigned>>& vorocells);
 
     /** Return the mapping between tetrahedral and hexahedral meshes;
      * -1 indicates that mapping for corresponding object was not found */
@@ -220,7 +216,6 @@ protected:
 
         return v4.w * det4 - v4.z * det3 + v4.y * det2 - v4.x * det1;
     }
-
 };
 
 /** Class to linearly interpolate solution inside tetrahedral mesh */
@@ -257,24 +252,7 @@ public:
     /** Print statistics about solution on node points */
     void print_statistics() const;
 
-    /** Print the deviation from the analytical solution of hemiellipsoid on the infinite surface */
-    void print_error(const Coarseners& c) const;
-
-    /** Compare the analytical and calculated field enhancement */
-    void print_enhancement() const;
-
-    /** Set parameters to calculate analytical solution */
-    void set_analyt(const Point3& origin, const double E0, const double radius1, const double radius2=-1);
-
 private:
-    double radius1;  ///< Minor semi-axis of ellipse
-    double radius2;  ///< Major semi-axis of ellipse
-    double E0;       ///< Long-range electric field strength
-    Point3 origin;
-    
-    /** Pointer to common routines of tetrahedra.
-     * It is function instead of an object to take advantage of polymorphism. */
-    const TetgenCells<4>* cells() const { return &mesh->elems; }
     const TetgenElements* elems;    ///< Direct pointer to tetrahedra to access their specific routines
 
     vector<double> det0;            ///< major determinant for calculating bcc-s
@@ -286,23 +264,10 @@ private:
 
     /** Force the solution on tetrahedral nodes to be the weighed average
      * of the solutions on its Voronoi cell nodes */
-    bool average_sharp_nodes();
+    bool average_sharp_nodes(const bool vacuum);
 
-    /** Return analytical potential value for i-th point near the hemisphere
-     * @param radius  radius of the hemisphere
-     * @param E0      long range electric field around the hemisphere */
-    double get_analyt_potential(const int i, const Point3& origin) const;
-
-    /** Return analytical electric field value for i-th point near the hemisphere
-     * @param radius  radius of the hemisphere
-     * @param E0      long range electric field around the hemisphere */
-    Vec3 get_analyt_field(const int i) const;
-
-    /** Get calculated field enhancement */
-    double get_enhancement() const;
-
-    /** Get analytical field enhancement for hemi-ellipsoid on infinite surface */
-    double get_analyt_enhancement() const;
+    /** Leave only the solution in the nodes and tetrahedra */
+    bool clean_nodes();
 
     /** Pre-compute data about tetrahedra to make interpolation faster */
     void precompute();
@@ -341,10 +306,6 @@ public:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
 
 private:
-
-    /** Pointer to common routines of triangles.
-     * It is function instead of an object to take advantage of polymorphism. */
-    const TetgenCells<3>* cells() const { return &mesh->faces; }
     const TetgenFaces* faces;    ///< Direct pointer to triangles to access their specific routines
 
     /** Data computed before starting looping through the triangles */
@@ -352,13 +313,14 @@ private:
     vector<Vec3> edge1;
     vector<Vec3> edge2;
     vector<Vec3> pvec;
+    vector<Vec3> norms;
     vector<double> max_distance;
 
     bool clean_nodes();
 
     /** Force the solution on triangular nodes to be the weighed average
      * of the solutions on its surrounding quadrangular nodes */
-    bool average_sharp_nodes();
+    bool average_sharp_nodes(const bool vacuum);
 
     /** Precompute the data needed to calculate the distance of points from surface
      * in the direction of triangle surface norms */

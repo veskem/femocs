@@ -270,9 +270,9 @@ public:
     ~VoronoiMesh() {}
 
     /** Generate Voronoi cells around surface atoms */
-    bool generate(const Medium& surface, const double latconst, const string& cmd1, const string& cmd2);
+    int generate(const Medium& surface, const double latconst, const string& cmd1, const string& cmd2);
 
-    bool generate_modi(const Medium& surface, const double latconst, const string& cmd1, const string& cmd2);
+    int generate_modi(const Medium& surface, const double latconst, const string& cmd1, const string& cmd2);
 
     /** Mark the cells and faces with nodes in the infinity */
     void clean();
@@ -313,11 +313,11 @@ private:
     void mark_cells_and_nodes();
 
     /** Perform triple Tetgen calculation on input buffer and store it in output one */
-    bool recalc(const string& cmd1, const string& cmd2, const string& cmd3);
+    int recalc(const string& cmd1, const string& cmd2, const string& cmd3);
 
-    bool recalc(const string& cmd1, const string& cmd2);
+    int recalc(const string& cmd1, const string& cmd2);
 
-    bool recalc(const string& cmd1);
+    int recalc(const string& cmd1);
 };
 
 } /* namespace femocs */

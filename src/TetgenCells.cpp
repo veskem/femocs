@@ -17,7 +17,9 @@ namespace femocs {
 
 // Copy the nodes from write to read buffer
 void TetgenNodes::recalc() {
+    if (reads == writes) return;
     TetgenCells::recalc();
+    init_statistics();
     if (reads->pointlist != (REAL *) NULL)
         delete[] reads->pointlist;
     reads->pointlist = new double[n_coordinates * i_cells];
@@ -211,6 +213,7 @@ void TetgenNodes::write_xyz(const string &file_name) const {
 
 // Copy the nodes from write to read buffer
 void TetgenEdges::recalc() {
+    if (reads == writes) return;
     TetgenCells::recalc();
     if (reads->edgelist != (int *) NULL)
         delete[] reads->edgelist;
@@ -296,6 +299,7 @@ void TetgenEdges::clean_sides(const Medium::Sizes& stat) {
 
 // Copy the nodes from write to read buffer
 void TetgenFaces::recalc() {
+    if (reads == writes) return;
     TetgenCells::recalc();
     if (reads->trifacelist != (int *) NULL)
         delete[] reads->trifacelist;
@@ -330,6 +334,7 @@ SimpleCell<3> TetgenFaces::get_cell(const int i) const {
 
 // Delete the faces on the sides of simulation cell
 void TetgenFaces::clean_sides(const Medium::Sizes& stat) {
+    calc_statistics();
     const double eps = 0.01 * this->stat.edgemin;
     const int n_faces = size();
     vector<SimpleFace> faces; faces.reserve(n_faces);
@@ -454,7 +459,9 @@ void TetgenElements::calc_statistics() {
 
 // Copy the nodes from write to read buffer
 void TetgenElements::recalc() {
+    if (reads == writes) return;
     TetgenCells::recalc();
+    init_statistics();
     if (reads->tetrahedronlist != (int *) NULL)
         delete[] reads->tetrahedronlist;
     reads->tetrahedronlist = new int[DIM * i_cells];
@@ -502,11 +509,6 @@ vector<int> TetgenElements::get_neighbours(const int i) const {
  *  ========================== Quadrangles ===========================
  * ===================================================================== */
 
-// Get number of hexahedra in mesh
-int Quadrangles::size() const {
-    return quads.size();
-}
-
 // Initialize hexahedron appending
 void Quadrangles::init(const int N) {
     TetgenCells::init(N);
@@ -531,11 +533,6 @@ SimpleCell<4> Quadrangles::get_cell(const int i) const {
  *  ============================ Hexahedra ============================
  * ===================================================================== */
 
-// Get number of hexahedra in mesh
-int Hexahedra::size() const {
-    return hexs.size();
-}
-
 // Initialize hexahedron appending
 void Hexahedra::init(const int N) {
     TetgenCells::init(N);
@@ -556,17 +553,35 @@ SimpleCell<8> Hexahedra::get_cell(const int i) const {
     return hexs[i];
 }
 
-// Transform hexahedra into Deal.II format
-vector<dealii::CellData<3>> Hexahedra::export_dealii() const {
-    const int n_elems = size();
+// Export vacuum hexahedra in Deal.II format
+vector<dealii::CellData<3>> Hexahedra::export_vacuum() const {
+    const int n_elems = vector_sum(vector_greater(&markers, 0));
     std::vector<dealii::CellData<3>> elems; elems.reserve(n_elems);
 
-    // loop through all the hexahedra
-    for (SimpleHex hex : *this) {
-        elems.push_back(dealii::CellData<3>());
-        for (int v = 0; v < DIM; ++v)
-            elems.back().vertices[v] = hex[v];
-    }
+    // loop through all the hexahedra and export the ones that are in the vacuum
+    for (int i = 0; i < size(); ++i)
+        if (get_marker(i) > 0) {
+            elems.push_back(dealii::CellData<3>());
+            SimpleHex hex = (*this)[i];
+            for (int v = 0; v < DIM; ++v)
+                elems.back().vertices[v] = hex[v];
+        }
+    return elems;
+}
+
+// Export bulk hexahedra in Deal.II format
+vector<dealii::CellData<3>> Hexahedra::export_bulk() const {
+    const int n_elems = vector_sum(vector_less(&markers, 0));
+    std::vector<dealii::CellData<3>> elems; elems.reserve(n_elems);
+
+    // loop through all the hexahedra and export the ones that are in the bulk
+    for (int i = 0; i < size(); ++i)
+        if (get_marker(i) < 0) {
+            elems.push_back(dealii::CellData<3>());
+            SimpleHex hex = (*this)[i];
+            for (int v = 0; v < DIM; ++v)
+                elems.back().vertices[v] = hex[v];
+        }
     return elems;
 }
 

@@ -231,6 +231,8 @@ void TetgenMesh::smoothen_tris(const int n_steps, const double lambda, const dou
             laplace_smooth_fujiwara(mu, nborlist);
         }
     }
+
+    faces.calc_norms_and_areas();
 }
 
 // Smoothen the quadrangles using different versions of Taubin smoothing algorithm
@@ -253,6 +255,8 @@ void TetgenMesh::smoothen_quads(const int n_steps, const double lambda, const do
             laplace_smooth_fujiwara(mu, nborlist);
         }
     }
+
+    faces.calc_norms_and_areas();
 }
 
 // Smoothen the surface mesh using Taubin lambda|mu algorithm with inverse neighbour count weighting
@@ -433,7 +437,7 @@ void TetgenMesh::laplace_smooth_cn(const double scale, const vector<vector<unsig
 }
 
 // Function to generate simple mesh that consists of one tetrahedron
-bool TetgenMesh::generate_simple() {
+int TetgenMesh::generate_simple() {
     const int n_nodes = elems.DIM;
     const int n_edges = n_edges_per_elem;
     const int n_faces = n_faces_per_elem;
@@ -466,7 +470,7 @@ bool TetgenMesh::generate_simple() {
 }
 
 // Copy mesh from input to output without modification
-bool TetgenMesh::recalc() {
+int TetgenMesh::recalc() {
     nodes.recalc();
     edges.recalc();
     faces.recalc();
@@ -475,7 +479,7 @@ bool TetgenMesh::recalc() {
 }
 
 // Function to perform tetgen calculation on input and write_tetgen data
-bool TetgenMesh::recalc(const string& cmd) {
+int TetgenMesh::recalc(const string& cmd) {
     try {
         tetrahedralize(const_cast<char*>(cmd.c_str()), &tetIOin, &tetIOout);
         nodes.set_counter(tetIOout.numberofpoints);
@@ -485,12 +489,12 @@ bool TetgenMesh::recalc(const string& cmd) {
         faces.calc_statistics();
         elems.calc_statistics();
     }
-    catch (int e) { return 1; }
+    catch (int e) { return e; }
     return 0;
 }
 
 // Function to perform tetgen calculation on input and write_tetgen data
-bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
+int TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
     try {
         tetgenio tetIOtemp;
         tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOtemp);
@@ -502,7 +506,7 @@ bool TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
         faces.calc_statistics();
         elems.calc_statistics();
     }
-    catch (int e) { return 1; }
+    catch (int e) { return e; }
     return 0;
 }
 
@@ -528,7 +532,7 @@ bool TetgenMesh::write(const string& file_name) {
 }
 
 // Function to generate mesh from surface, bulk and vacuum atoms
-bool TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd) {
+int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd) {
     const int n_bulk = bulk.size();
     const int n_surf = surf.size();
     const int n_vacuum = vacuum.size();
@@ -553,20 +557,31 @@ bool TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& 
     return recalc("Q", cmd);
 }
 
-// Group hexahedra & quadrangles around central tetrahedral & triangular node
+// Group hexahedra & quadrangles around central tetrahedral & triangular nodes
 void TetgenMesh::group_hexahedra() {
     const int node_min = nodes.indxs.tetnode_start;
     const int node_max = nodes.indxs.tetnode_end;
+    const int n_hexs = hexahedra.size();
+    const int n_quads = quads.size();
 
     // find which hexahedra correspond to which tetrahedral node
-    // hexahedra with the same tetrahedral node form the pseudo Voronoi cell of that node
-    for (int i = 0; i < hexahedra.size(); ++i) {
-        for (int node : hexahedra[i])
-            if (node >= node_min && node <= node_max) {
-                hexahedra.set_marker(i, node);
-                break;
-            }
-    }
+    // hexahedra with the same tetrahedral node form the pseudo 3D Voronoi cell of that node
+    for (int i = 0; i < hexahedra.size(); ++i)
+        // group hexs in vacuum
+        if (hexahedra.get_marker(i) == TYPES.VACUUM) {
+            for (int node : hexahedra[i])
+                if (node >= node_min && node <= node_max) {
+                    hexahedra.set_marker(i, 1 + node);
+                    break;
+                }
+        // group hexs in bulk
+        } else {
+            for (int node : hexahedra[i])
+                if (node >= node_min && node <= node_max) {
+                    hexahedra.set_marker(i, -1 - node);
+                    break;
+                }
+        }
 
     // find which quadrangle correspond to which triangular node
     // quadrangles with the same triangular node form the pseudo 2D Voronoi cell of that node
@@ -579,7 +594,7 @@ void TetgenMesh::group_hexahedra() {
     }
 }
 
-// Separate tetrahedra & trinagles into hexahedra & quadrangles
+// Separate tetrahedra & triangles into hexahedra & quadrangles
 bool TetgenMesh::generate_hexahedra() {
     tethex::Mesh hexmesh;
     hexmesh.read_femocs(this);
@@ -591,30 +606,31 @@ bool TetgenMesh::generate_hexahedra() {
     return 0;
 }
 
-// Generate manually edges and surface faces
-bool TetgenMesh::generate_appendices() {
-    // Generate edges from elements
-//    generate_edges();
-    // Generate surface faces from elements
-    generate_surf_faces();
+// Using the separated tetrahedra generate the triangular surface on the vacuum-material boundary
+bool TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd) {
+    TetgenMesh vacuum;
+    vector<bool> tet_mask = vector_equal(elems.get_markers(), TYPES.VACUUM);
+
+    // Transfer vacuum nodes and tetrahedra
+    vacuum.nodes.copy(this->nodes);
+    vacuum.elems.copy(this->elems, tet_mask);
+
+    // calculate surface triangles
+    if (vacuum.recalc(cmd))
+        return 1;
+
+    // transfer the calculated triangles
+    faces.copy(vacuum.faces);
+    faces.recalc();
+
+    // clean the triangles that are on the simubox perimeter
+    faces.clean_sides(sizes);
+    faces.recalc();
     return 0;
 }
 
-// Generate edges from the elements
-void TetgenMesh::generate_edges() {
-    const int n_elems = elems.size();
-    const int n_edges = n_edges_per_elem * n_elems;
-
-    edges.init(n_edges);
-
-    for (SimpleElement selem : elems) {
-        for (int e = 0; e < n_edges_per_elem; ++e)
-            edges.append(selem.edge(e));
-    }
-}
-
 // Generate manually surface faces from elements and surface nodes
-void TetgenMesh::generate_surf_faces() {
+void TetgenMesh::generate_manual_surface() {
     const int n_elems = elems.size();
     const int max_surf_indx = nodes.indxs.surf_end;
 
@@ -660,31 +676,68 @@ void TetgenMesh::generate_surf_faces() {
         }
 }
 
+// Generate edges from the elements
+void TetgenMesh::generate_edges() {
+    const int n_elems = elems.size();
+    const int n_edges = n_edges_per_elem * n_elems;
+
+    edges.init(n_edges);
+
+    for (SimpleElement selem : elems) {
+        for (int e = 0; e < n_edges_per_elem; ++e)
+            edges.append(selem.edge(e));
+    }
+}
+
 // Separate vacuum and bulk mesh from the union mesh by the element markers
-bool TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd) {
+int TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd) {
     vector<bool> tet_mask = vector_equal(elems.get_markers(), TYPES.VACUUM);
-//    vector<bool> hex_mask = vector_equal(hexahedra.get_markers(), TYPES.VACUUM);
+    vector<bool> hex_mask = vector_equal(hexahedra.get_markers(), TYPES.VACUUM);
 
     // Transfer vacuum nodes, tetrahedra, hexahedra and their markers
     vacuum.nodes.copy(this->nodes);
     vacuum.nodes.copy_markers(this->nodes);
+    vacuum.faces.copy(this->faces);
+    vacuum.faces.copy_markers(this->faces);
+    vacuum.quads.copy(this->quads);
+    vacuum.quads.copy_markers(this->quads);
     vacuum.elems.copy(this->elems, tet_mask);
     vacuum.elems.copy_markers(this->elems, tet_mask);
-//    vacuum.hexahedra.copy(this->hexahedra, hex_mask);
-//    vacuum.hexahedra.copy_markers(this->hexahedra, hex_mask);
+    vacuum.hexahedra.copy(this->hexahedra, hex_mask);
+    vacuum.hexahedra.copy_markers(this->hexahedra, hex_mask);
 
     tet_mask.flip();
-//    hex_mask.flip();
+    hex_mask.flip();
 
     // Transfer bulk nodes, tetrahedra, hexahedra and their markers
     bulk.nodes.copy(this->nodes);
     bulk.nodes.copy_markers(this->nodes);
+    bulk.faces.copy(this->faces);
+    bulk.faces.copy_markers(this->faces);
+    bulk.quads.copy(this->quads);
+    bulk.quads.copy_markers(this->quads);
     bulk.elems.copy(this->elems, tet_mask);
     bulk.elems.copy_markers(this->elems, tet_mask);
-//    bulk.hexahedra.copy(this->hexahedra, hex_mask);
-//    bulk.hexahedra.copy_markers(this->hexahedra, hex_mask);
+    bulk.hexahedra.copy(this->hexahedra, hex_mask);
+    bulk.hexahedra.copy_markers(this->hexahedra, hex_mask);
 
-    return vacuum.recalc(cmd) ||  bulk.recalc(cmd);
+    return vacuum.recalc(cmd) + bulk.recalc(cmd);
+}
+
+// Write bulk or vacuum mesh
+void TetgenMesh::write_separate(const string& file_name, const bool vacuum) {
+    int search_type = TYPES.BULK;
+    if (vacuum) search_type = TYPES.VACUUM;
+    vector<bool> hex_mask = vector_equal(hexahedra.get_markers(), search_type);
+
+    TetgenMesh tempmesh;
+    tempmesh.nodes.copy(this->nodes);
+    tempmesh.nodes.copy_markers(this->nodes);
+    tempmesh.nodes.recalc();
+    tempmesh.hexahedra.copy(this->hexahedra, hex_mask);
+    tempmesh.hexahedra.copy_markers(this->hexahedra, hex_mask);
+
+    tempmesh.hexahedra.write(file_name);
 }
 
 // Mark mesh nodes and elements
@@ -753,16 +806,21 @@ void TetgenMesh::calc_tri_nborlist(vector<vector<unsigned>>& nborlist) {
 
 // Generate list of nodes that surround the tetrahedral nodes
 // The resulting cells resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells
-void TetgenMesh::calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells) const {
+void TetgenMesh::calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells, const bool vacuum) const {
     cells = vector<vector<unsigned>>(nodes.stat.n_tetnode);
     const int node_min = nodes.indxs.tetnode_start;
     const int node_max = nodes.indxs.tetnode_end;
 
+    // the sign of hexahedron marker shows its location (>0 == vacuum, <0 == bulk)
+    // and the (magnitude - 1) the index of tetrahedral node it is connected to
+    int multiplier = 1;
+    if (!vacuum) multiplier = -1;
+
     // find the pseudo Voronoi cell nodes for the tetrahedral nodes
     for (int hex = 0; hex < hexahedra.size(); ++hex) {
-        const int tetnode = hexahedra.to_node(hex);
-        expect(tetnode >= node_min && tetnode <= node_max, "Hexahedron " + to_string(hex) +
-                " is not marked by the tetrahedral node: " + to_string(tetnode));
+        int tetnode = multiplier * hexahedra.get_marker(hex);
+        if (tetnode <= 0) continue;
+        tetnode -= 1;
 
         for (int node : hexahedra[hex])
             if ( node != tetnode && nodes.get_marker(node) >= TYPES.EDGECENTROID )
@@ -778,7 +836,7 @@ void TetgenMesh::calc_pseudo_2D_vorocells(vector<vector<unsigned>>& cells) const
     const int node_max = nodes.indxs.tetnode_end;
 
     for (int quad = 0; quad < quads.size(); ++quad) {
-        const int trinode = quads.to_node(quad);
+        const int trinode = quads.get_marker(quad);
         expect(trinode >= node_min && trinode <= node_max, "Quadrangle " + to_string(quad) +
                 " is not marked by the triangle node: " + to_string(trinode));
 
