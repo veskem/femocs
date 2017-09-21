@@ -295,10 +295,17 @@ void LinearInterpolator<dim>::write_vtk(ofstream& out, const int n_nodes) const 
     for (int i = 0; i < n_cells; ++i)
         out << celltype << "\n";
 
+    out << "\nCELL_DATA " << n_cells << "\n";
+
+    // write cell IDs
+    out << "SCALARS Cell-ID int\nLOOKUP_TABLE default\n";
+    for (int i = 0; i < n_cells; ++i)
+        out << i << "\n";
+
     out << "\nPOINT_DATA " << n_nodes << "\n";
 
     // write node IDs
-    out << "SCALARS ID int\nLOOKUP_TABLE default\n";
+    out << "SCALARS Node-ID int\nLOOKUP_TABLE default\n";
     for (int i = 0; i < n_nodes; ++i)
         out << i << "\n";
 
