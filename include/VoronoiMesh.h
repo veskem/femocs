@@ -13,7 +13,6 @@
 #include "Tetgen.h"
 #include "Medium.h"
 #include "TetgenCells.h"
-#include "SolutionReader.h"
 #include <fstream>
 
 using namespace std;

@@ -700,8 +700,14 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
 //        forces.calc_forces_vol2(vacuum_mesh, fields, face_charges, surface_interpolator,
 //                conf.use_histclean*conf.coordination_cutoff, conf.charge_smooth_factor);
 
+        forces.write("out/forces_before.xyz");
+
         if (conf.surface_cleaner == "voronois")
             forces.recalc_forces(fields, areas);
+        end_msg(t0);
+
+        start_msg(t0, "=== Calculating Voronoi charges & forces...");
+        forces.calc_voronoi_charges(conf.radius, conf.latconst, "1.2");
         end_msg(t0);
 
         forces.write("out/forces.movie");

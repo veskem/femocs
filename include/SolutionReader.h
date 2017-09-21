@@ -12,6 +12,7 @@
 #include "Medium.h"
 #include "TetgenCells.h"
 #include "TetgenMesh.h"
+#include "VoronoiMesh.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
 #include "LinearInterpolator.h"
@@ -250,6 +251,8 @@ public:
 
     /** Replace the charge and force on the nanotip nodes with the one found with Voronoi cells */
     void recalc_forces(const FieldReader &fields, const vector<Vec3>& areas);
+
+    bool calc_voronoi_charges(const double radius, const double latconst, const string& mesh_quality);
         
     /** Calculate forces from atomic electric fields and face charges */
     void calc_forces(const FieldReader &fields, const ChargeReader& faces,
@@ -275,6 +278,8 @@ public:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
     const double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
 private:
+    int calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+            const double radius, const double latconst, const string& mesh_quality);
 };
 
 } // namespace femocs

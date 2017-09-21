@@ -838,7 +838,6 @@ void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh, const doubl
     }
 }
 
-
 void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
     const double sign = fabs(E0) / E0;
     const int n_faces = mesh.faces.size();
@@ -929,6 +928,101 @@ double ChargeReader::get_charge(const int i) const {
 
 ForceReader::ForceReader() : SolutionReader() {}
 ForceReader::ForceReader(TetrahedronInterpolator* ip) : SolutionReader(ip, "force", "force_norm", "charge") {}
+
+// Extract the surface atoms whose Voronoi cells are exposed to vacuum
+int ForceReader::calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+        const double radius, const double latconst, const string& mesh_quality)
+{
+    const int n_this_nodes = size();
+    const double radius2 = radius * radius;
+    Medium::calc_statistics();
+
+    // Make map for atoms in nanotip
+    Point2 centre(sizes.xmid, sizes.ymid);
+    node_in_nanotip = vector<bool>(n_this_nodes);
+    for (int i = 0; i < n_this_nodes; ++i)
+        node_in_nanotip[i] = centre.distance2(get_point2(i)) <= radius2;
+
+    const int n_nanotip_nodes = vector_sum(node_in_nanotip);
+
+    // Separate nanotip from substrate
+    Medium nanotip(n_nanotip_nodes);
+    for (int i = 0; i < n_this_nodes; ++i)
+        if (node_in_nanotip[i])
+            nanotip.append(get_atom(i));
+    nanotip.calc_statistics();
+
+    // Generate Voronoi cells around the nanotip
+    // r - reconstruct, v - output Voronoi cells, Q - quiet, q - mesh quality
+    if (voromesh.generate(nanotip, latconst, "rQq" + mesh_quality, "vQ"))
+        return 1;
+
+    // Clean the mesh from faces and cells that have node in the infinity
+    voromesh.clean();
+
+    voromesh.nodes.write("out/voro_nodes.vtk");
+    voromesh.vfaces.write("out/voro_faces.vtk");
+    voromesh.voros.write("out/voro_cells.vtk");
+
+    return n_nanotip_nodes;
+}
+
+// Extract the surface atoms whose Voronoi cells are exposed to vacuum
+bool ForceReader::calc_voronoi_charges(const double radius, const double latconst, const string& mesh_quality) {
+    const int n_this_nodes = size();
+
+    // Extract nanotip and generate Voronoi cells around it
+    VoronoiMesh voromesh;
+    vector<bool> node_in_nanotip;
+    const int n_nanotip_nodes = calc_voronois(voromesh, node_in_nanotip, radius, latconst, mesh_quality);
+    const int n_voronoi_nodes = voromesh.nodes.size();
+
+    require(voromesh.nodes.size() > 0, "Empty Voronoi mesh cannot be handled!");
+    require(voromesh.voros.size() > 0, "Empty Voronoi mesh cannot be handled!");
+
+    // Extract the nodes that are near the surface
+    vector<bool> node_near_surface(n_voronoi_nodes);
+    for (int i = 0; i < n_nanotip_nodes; ++i)
+        for (VoronoiFace face : voromesh.voros[i])
+            node_near_surface[face.nborcell(i)] = true;
+
+    // the potential exactly on surface is zero, therefore no need to interpolate there
+    for (int i = 0; i < n_nanotip_nodes; ++i)
+        node_near_surface[i] = false;
+
+    Medium interpolation_points(vector_sum(node_near_surface));
+    for (int i = 0; i < n_voronoi_nodes; ++i)
+        if (node_near_surface[i])
+            interpolation_points.append(voromesh.nodes[i]);
+
+    // interpolate electric potential on those points
+    FieldReader fr(interpolator);
+    fr.interpolate(interpolation_points, 0, 2, true);
+
+    // find potentials in the middle of all Voronoi cells
+    vector<double> potentials(n_voronoi_nodes);
+    int index = 0;
+    for (int i = n_nanotip_nodes; i < n_voronoi_nodes; ++i)
+        if (node_near_surface[i])
+            potentials[i] = fr.get_potential(index++);
+
+    // calculate Voronoi cell charges
+    int cell_index = -1;
+    for (int i = 0; i < n_this_nodes; ++i)
+        if (node_in_nanotip[i]) {
+            double charge = 0;
+            Point3 centre = get_point(i);
+            for (VoronoiFace face : voromesh.voros[++cell_index]) {
+                int nbor_cell = face.nborcell(cell_index);
+                double phi = potentials[nbor_cell];
+                if (phi > 0)
+                    charge -= phi * face.area().norm() / centre.distance(voromesh.nodes[nbor_cell]);
+            }
+            interpolation[i].scalar = charge;
+        }
+
+    return 0;
+}
 
 // Replace the charge and force on the nanotip nodes with the one found with Voronoi cells
 void ForceReader::recalc_forces(const FieldReader &fields, const vector<Vec3>& areas) {
