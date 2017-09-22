@@ -266,7 +266,8 @@ public:
     void recalc_forces(const FieldReader &fields, const vector<Vec3>& areas);
 
     bool calc_voronoi_charges(const double radius, const double latconst, const string& mesh_quality);
-        
+    bool calc_interp_voronoi_charges(const TetgenMesh& mesh, const double radius, const double latconst, const string& mesh_quality);
+    bool calc_surface_voronoi_charges(const TetgenMesh& mesh, const double radius, const double latconst, const string& mesh_quality);
     /** Calculate forces from atomic electric fields and face charges */
     void calc_forces(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);

@@ -203,7 +203,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     if (conf.surface_cleaner == "voronois") {
         start_msg(t0, "=== Cleaning surface with Voronoi cells...");
 //        const int err_code = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality + "a10");
-        const int err_code = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality);
+        const int err_code = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, "1.4");
         check_return(err_code, "Making voronoi cells failed with error code " + to_string(err_code));
         end_msg(t0);
         dense_surf.write("out/surface_dense_clean.xyz");
@@ -705,15 +705,14 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
                 conf.charge_smooth_factor);
 //        forces.calc_forces_vol2(vacuum_mesh, fields, face_charges, surface_interpolator,
 //                conf.use_histclean*conf.coordination_cutoff, conf.charge_smooth_factor);
-
+        end_msg(t0);
+        face_charges.check_limits(forces.get_interpolations());
         forces.write("out/forces_before.xyz");
 
-        if (conf.surface_cleaner == "voronois")
-            forces.recalc_forces(fields, areas);
-        end_msg(t0);
-
         start_msg(t0, "=== Calculating Voronoi charges & forces...");
-        forces.calc_voronoi_charges(conf.radius, conf.latconst, "1.2");
+//        forces.recalc_forces(fields, areas);
+//        forces.calc_voronoi_charges(conf.radius, conf.latconst, "1.1");
+        forces.calc_surface_voronoi_charges(fem_mesh, conf.radius, conf.latconst, "1.6");
         end_msg(t0);
 
         forces.write("out/forces.movie");
