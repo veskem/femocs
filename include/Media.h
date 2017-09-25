@@ -53,6 +53,9 @@ public:
     /** Clean the surface from atoms that are too close to each other */
     Media clean(Coarseners &coarseners);
 
+    /** Increase or decrease the total volume of system without altering the centre of mass */
+    void transform(const double latconst);
+
     /** Remove the atoms that are too far from surface faces */
     void faces_clean(const TetgenMesh& mesh, const double r_cut);
     

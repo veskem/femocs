@@ -100,6 +100,26 @@ void Media::extract(const AtomReader& reader, const int type, const bool invert)
     calc_statistics();        
 }
 
+void Media::transform(const double latconst) {
+    const int n_atoms = size();
+    calc_statistics();
+    Point3 origin(sizes.xmid, sizes.ymid, sizes.zmid);
+
+    double fx = 1.0 + 2.0 * latconst / sizes.xbox;
+    double fy = 1.0 + 2.0 * latconst / sizes.ybox;
+    double fz = 1.0 + 2.0 * latconst / sizes.zbox;
+    Point3 df(fx, fy, fz);
+
+    for (int i = 0; i < n_atoms; ++i)
+        atoms[i].point *= df;
+
+    calc_statistics();
+    origin -= Point3(sizes.xmid, sizes.ymid, sizes.zmid);
+
+    for (int i = 0; i < n_atoms; ++i)
+        atoms[i].point += origin;
+}
+
 // Extend the flat area by reading additional atoms
 Media Media::extend(const string &file_name, Coarseners &coarseners) {
     AtomReader reader;

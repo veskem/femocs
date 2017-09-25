@@ -1010,10 +1010,17 @@ int ForceReader::calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nano
 
     // Separate nanotip from substrate
     Medium nanotip(n_nanotip_nodes);
+    Media support(n_nanotip_nodes);
     for (int i = 0; i < n_this_nodes; ++i)
-        if (node_in_nanotip[i])
+        if (node_in_nanotip[i]) {
             nanotip.append(get_atom(i));
+            support.append(get_atom(i));
+        }
+
+    support.transform(latconst);
+    nanotip += support;
     nanotip.calc_statistics();
+    nanotip.write("out/nanotip.xyz");
 
     // Generate Voronoi cells around the nanotip
     // r - reconstruct, v - output Voronoi cells, Q - quiet, q - mesh quality
@@ -1092,6 +1099,56 @@ bool ForceReader::calc_voronoi_charges(const double radius, const double latcons
     return 0;
 }
 
+bool ForceReader::calc_surface_voronoi_charges_old(const TetgenElements& elems, const FieldReader& fields,
+        const double radius, const double latconst, const string& mesh_quality) {
+    const int n_this_nodes = size();
+
+    // Extract nanotip and generate Voronoi cells around it
+    VoronoiMesh mesh;
+    vector<bool> node_in_nanotip;
+    const int n_nanotip_nodes = calc_voronois(mesh, node_in_nanotip, radius, latconst, mesh_quality);
+    const int support_start = n_nanotip_nodes;
+    const int support_end = 2 * n_nanotip_nodes - 1;
+
+    require(mesh.nodes.size() > 0, "Empty Voronoi mesh cannot be handled!");
+    require(mesh.voros.size() > 0, "Empty Voronoi mesh cannot be handled!");
+
+    // specify the faces that are
+    for (int cell = 0; cell < n_nanotip_nodes; ++cell)
+        for (VoronoiFace face : mesh.voros[cell]) {
+            const int nborcell = face.nborcell(cell);
+            if (nborcell < support_start)
+                mesh.vfaces.set_marker(face.id, TYPES.PERIMETER);
+            else if (nborcell >= support_start && nborcell <= support_end)
+                mesh.vfaces.set_marker(face.id, TYPES.SURFACE);
+            else
+                mesh.vfaces.set_marker(face.id, TYPES.NONE);
+        }
+
+    mesh.vfaces.write("out/voro_faces_marked.vtk");
+
+    // calculate Voronoi cell charges
+    int cell = -1;
+    for (int i = 0; i < n_this_nodes; ++i)
+        if (node_in_nanotip[i]) {
+            double charge = 0;
+            Vec3 centre = mesh.nodes.get_vec(++cell);
+            Vec3 field = fields.get_elfield(cell);
+
+            for (VoronoiFace face : mesh.voros[cell]) {
+                if (mesh.vfaces.get_marker(face.id) == TYPES.SURFACE) {
+                    Vec3 normal = mesh.nodes.get_vec(face.nborcell(cell)) - centre;
+                    normal.normalize();
+                    charge += field.dotProduct(normal) * face.area().norm();
+                }
+            }
+            charge *= eps0;
+            interpolation[i] = Solution(field * charge, charge);
+        }
+
+    return 0;
+}
+
 bool ForceReader::calc_surface_voronoi_charges(const TetgenElements& elems, const FieldReader& fields,
         const double radius, const double latconst, const string& mesh_quality) {
     const int n_this_nodes = size();
@@ -1105,13 +1162,11 @@ bool ForceReader::calc_surface_voronoi_charges(const TetgenElements& elems, cons
     require(mesh.nodes.size() > 0, "Empty Voronoi mesh cannot be handled!");
     require(mesh.voros.size() > 0, "Empty Voronoi mesh cannot be handled!");
 
-    const int cell_max = mesh.nodes.indxs.surf_end;
-
     // specify the faces that are
     Medium interpolation_points(n_voronoi_faces);
-    for (int cell = 0; cell <= cell_max; ++cell)
+    for (int cell = 0; cell < n_nanotip_nodes; ++cell)
         for (VoronoiFace face : mesh.voros[cell]) {
-            if (face.nborcell(cell) <= cell_max)
+            if (face.nborcell(cell) < n_nanotip_nodes)
                 mesh.vfaces.set_marker(face.id, TYPES.PERIMETER);
             else {
                 mesh.vfaces.set_marker(face.id, TYPES.SURFACE);
@@ -1127,9 +1182,9 @@ bool ForceReader::calc_surface_voronoi_charges(const TetgenElements& elems, cons
 
     // mark the faces that are exposed to bulk
     int index = -1;
-    for (int cell = 0; cell <= cell_max; ++cell)
+    for (int cell = 0; cell < n_nanotip_nodes; ++cell)
         for (VoronoiFace face : mesh.voros[cell])
-            if (face.nborcell(cell) > cell_max) {
+            if (face.nborcell(cell) >= n_nanotip_nodes) {
                 const int elem = fr.get_marker(++index);
                 if (elem < 0 || elems.get_marker(elem) != TYPES.VACUUM)
                     mesh.vfaces.set_marker(face.id, TYPES.NONE);
@@ -1148,7 +1203,7 @@ bool ForceReader::calc_surface_voronoi_charges(const TetgenElements& elems, cons
 
             for (VoronoiFace face : mesh.voros[cell]) {
                 int nborcell = face.nborcell(cell);
-                if (nborcell > cell_max) ++field_index;
+                if (nborcell >= n_nanotip_nodes) ++field_index;
                 if (mesh.vfaces.get_marker(face.id) == TYPES.SURFACE) {
                     Vec3 normal = mesh.nodes.get_vec(face.nborcell(cell)) - centre;
                     normal.normalize();

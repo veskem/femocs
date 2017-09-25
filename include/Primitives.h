@@ -184,13 +184,17 @@ public:
     }
 
     /** Addition of two points */
-    Point3 operator +(const Point3 &p) const { return Point3(x+p.x, y+p.y, z+p.z); }
     Point3& operator +=(const Point2 &p) { x += p.x, y += p.y; return *this; }
+
+    Point3 operator +(const Point3 &p) const { return Point3(x+p.x, y+p.y, z+p.z); }
     Point3& operator +=(const Point3 &p) { x += p.x, y += p.y, z += p.z; return *this; }
 
     /** Subtraction of two points */
     Point3 operator -(const Point3 &p) const { return Point3(x-p.x, y-p.y, z-p.z); }
     Point3& operator -=(const Point3 &p) { x -= p.x, y -= p.y, z -= p.z; return *this; }
+
+    Point3& operator *=(const Point3 &p) { x *= p.x, y *= p.y, z *= p.z; return *this; }
+    Point3& operator /=(const Point3 &p) { x /= p.x, y /= p.y, z /= p.z; return *this; }
 
     /** Multiplying point with a scalar */
     Point3 operator *(const double &r) const { return Point3(x * r, y * r, z * r); }

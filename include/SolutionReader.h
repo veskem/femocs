@@ -10,6 +10,7 @@
 
 #include "Primitives.h"
 #include "Medium.h"
+#include "Media.h"
 #include "TetgenCells.h"
 #include "TetgenMesh.h"
 #include "VoronoiMesh.h"
@@ -267,6 +268,8 @@ public:
 
     bool calc_voronoi_charges(const double radius, const double latconst, const string& mesh_quality);
     bool calc_surface_voronoi_charges(const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
+    bool calc_surface_voronoi_charges_old(const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
+
     /** Calculate forces from atomic electric fields and face charges */
     void calc_forces(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);
