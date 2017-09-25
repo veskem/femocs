@@ -313,10 +313,10 @@ int main(int argc, char **argv) {
 
         success += femocs.run(-0.07, "");
         success += femocs.export_elfield(0, Ex, Ey, Ez, En);
-        success += femocs.export_temperature(n_atoms, T);
+//        success += femocs.export_temperature(n_atoms, T);
         success += femocs.export_charge_and_force(n_atoms, xq);
 //        success += femocs.interpolate_elfield(n_atoms, x, y, z, Ex, Ey, Ez, En, flag);
-//        success += femocs.interpolate_phi(n_points, x, y, z, phi, flag);
+//        success += femocs.interpolate_phi(n_atoms, x, y, z, phi, flag);
     }
 
     print_progress("\n> full run of Femocs", success == 0);

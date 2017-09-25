@@ -694,8 +694,9 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
 
         start_msg(t0, "=== Calculating face charges...");
         face_charges.calc_interpolated_charges(fem_mesh, conf.E0);
+//        face_charges.calc_charges(fem_mesh, conf.E0);
         end_msg(t0);
-        check_return(face_charges.check_limits(), "Face charges are not conserved!");
+//        check_return(face_charges.check_limits(), "Face charges are not conserved!");
 
         face_charges.clean(dense_surf.sizes, conf.latconst);
         face_charges.write("out/face_charges.xyz");
@@ -712,7 +713,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         start_msg(t0, "=== Calculating Voronoi charges & forces...");
 //        forces.recalc_forces(fields, areas);
 //        forces.calc_voronoi_charges(conf.radius, conf.latconst, "1.1");
-        forces.calc_surface_voronoi_charges(fem_mesh, conf.radius, conf.latconst, "1.6");
+        forces.calc_surface_voronoi_charges(fem_mesh.elems, fields, conf.radius, conf.latconst, "1.1");
         end_msg(t0);
 
         forces.write("out/forces.movie");

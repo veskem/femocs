@@ -33,7 +33,7 @@ SolutionReader::SolutionReader(TetrahedronInterpolator* ip, const string& vec_la
 
 // Linearly interpolate solution on system atoms using tetrahedral interpolator
 void SolutionReader::calc_interpolation(const int component, const bool srt) {
-    require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
+    require(component >= -1 && component <= 2, "Invalid interpolation component: " + to_string(component));
     require(interpolator, "NULL space interpolator cannot be used!");
 
     const int n_atoms = size();
@@ -41,6 +41,9 @@ void SolutionReader::calc_interpolation(const int component, const bool srt) {
         interpolation = vector<Solution>(n_atoms, Solution(0));
         return;
     }
+
+    if (component == -1)
+        interpolation = vector<Solution>(n_atoms, Solution(0));
 
     // Sort atoms into sequential order to speed up interpolation
     if (srt) sort_spatial();
@@ -62,10 +65,11 @@ void SolutionReader::calc_interpolation(const int component, const bool srt) {
 
     // Sort atoms back to their initial order
     if (srt) {
-        for (int i = 0; i < n_atoms; ++i)
-            interpolation[i].id = atoms[i].id;
-
-        sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
+        if (component != -1) {
+            for (int i = 0; i < n_atoms; ++i)
+                interpolation[i].id = atoms[i].id;
+            sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
+        }
         sort( atoms.begin(), atoms.end(), Atom::sort_id() );
     }
 }
@@ -1019,8 +1023,6 @@ int ForceReader::calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nano
     // Clean the mesh from faces and cells that have node in the infinity
     voromesh.clean();
 
-    voromesh.mark_mesh(nanotip, latconst);
-
     voromesh.nodes.write("out/voro_nodes.vtk");
     voromesh.vfaces.write("out/voro_faces.vtk");
     voromesh.voros.write("out/voro_cells.vtk");
@@ -1028,7 +1030,6 @@ int ForceReader::calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nano
     return n_nanotip_nodes;
 }
 
-// Extract the surface atoms whose Voronoi cells are exposed to vacuum
 bool ForceReader::calc_voronoi_charges(const double radius, const double latconst, const string& mesh_quality) {
     const int n_this_nodes = size();
 
@@ -1091,139 +1092,73 @@ bool ForceReader::calc_voronoi_charges(const double radius, const double latcons
     return 0;
 }
 
-// Extract the surface atoms whose Voronoi cells are exposed to vacuum
-bool ForceReader::calc_interp_voronoi_charges(const TetgenMesh& mesh, const double radius, const double latconst, const string& mesh_quality) {
+bool ForceReader::calc_surface_voronoi_charges(const TetgenElements& elems, const FieldReader& fields,
+        const double radius, const double latconst, const string& mesh_quality) {
     const int n_this_nodes = size();
 
     // Extract nanotip and generate Voronoi cells around it
-    VoronoiMesh voromesh;
+    VoronoiMesh mesh;
     vector<bool> node_in_nanotip;
-    const int n_nanotip_nodes = calc_voronois(voromesh, node_in_nanotip, radius, latconst, mesh_quality);
-    const int n_voronoi_nodes = voromesh.nodes.size();
-    const int n_voronoi_faces = voromesh.vfaces.size();
+    const int n_nanotip_nodes = calc_voronois(mesh, node_in_nanotip, radius, latconst, mesh_quality);
+    const int n_voronoi_faces = mesh.vfaces.size();
 
-    require(voromesh.nodes.size() > 0, "Empty Voronoi mesh cannot be handled!");
-    require(voromesh.voros.size() > 0, "Empty Voronoi mesh cannot be handled!");
+    require(mesh.nodes.size() > 0, "Empty Voronoi mesh cannot be handled!");
+    require(mesh.voros.size() > 0, "Empty Voronoi mesh cannot be handled!");
 
-    // Extract the nodes that are near the surface
-    vector<Vec3> facet_norms(n_voronoi_faces);
-    vector<bool> facet_near_surface(n_voronoi_faces);
+    const int cell_max = mesh.nodes.indxs.surf_end;
+
+    // specify the faces that are
     Medium interpolation_points(n_voronoi_faces);
-    for (int i = 0; i < n_nanotip_nodes; ++i) {
-        Vec3 centre = voromesh.nodes.get_vec(i);
-        for (VoronoiFace face : voromesh.voros[i]) {
-            int nborcell = face.nborcell(i);
-            if (nborcell >= n_nanotip_nodes && !facet_near_surface[face.id]) {
-//            if (!facet_near_surface[face.id]) {
-                facet_near_surface[face.id] = true;
-                Vec3 normal = voromesh.nodes.get_vec(nborcell) - centre;
-                normal.normalize();
-                facet_norms[face.id] = normal;
-                Vec3 centroid = face.centroid();
+    for (int cell = 0; cell <= cell_max; ++cell)
+        for (VoronoiFace face : mesh.voros[cell]) {
+            if (face.nborcell(cell) <= cell_max)
+                mesh.vfaces.set_marker(face.id, TYPES.PERIMETER);
+            else {
+                mesh.vfaces.set_marker(face.id, TYPES.SURFACE);
+                const Vec3 centroid = face.centroid();
                 interpolation_points.append(Point3(centroid.x, centroid.y, centroid.z));
             }
         }
-    }
 
-    // interpolate electric potential on those points
+    // specify the location (vacuum or bulk) of those points
     FieldReader fr(interpolator);
     fr.interpolate(interpolation_points, 0, true);
     fr.write("out/near_surface.xyz");
 
-    // find potentials in the middle of all Voronoi cells
-    vector<Vec3> fields(n_voronoi_faces);
-    vector<double> potentials(n_voronoi_faces);
+    // mark the faces that are exposed to bulk
     int index = -1;
-    for (int i = 0; i < n_voronoi_faces; ++i)
-        if (facet_near_surface[i]) {
-            int elem = fr.get_marker(++index);
-//            if (elem >= 0 && mesh.elems.get_marker(elem) != TYPES.VACUUM) {
-                fields[i] = fr.get_elfield(index);
-                potentials[i] = fr.get_potential(index);
-//            }
-        }
+    for (int cell = 0; cell <= cell_max; ++cell)
+        for (VoronoiFace face : mesh.voros[cell])
+            if (face.nborcell(cell) > cell_max) {
+                const int elem = fr.get_marker(++index);
+                if (elem < 0 || elems.get_marker(elem) != TYPES.VACUUM)
+                    mesh.vfaces.set_marker(face.id, TYPES.NONE);
+            }
+
+    mesh.vfaces.write("out/voro_faces_marked.vtk");
 
     // calculate Voronoi cell charges
-    int cell_index = -1;
+    int cell = -1;
+    int field_index = -1;
     for (int i = 0; i < n_this_nodes; ++i)
         if (node_in_nanotip[i]) {
             double charge = 0;
-            for (VoronoiFace face : voromesh.voros[++cell_index]) {
-                if (facet_near_surface[face.id] && potentials[face.id] > 0) {
-                    Vec3 area = facet_norms[face.id];
-                    area *= face.area().norm();
-                    charge += fields[face.id].dotProduct(area);
+            Vec3 centre = mesh.nodes.get_vec(++cell);
+            Vec3 field = fields.get_elfield(cell);
+
+            for (VoronoiFace face : mesh.voros[cell]) {
+                int nborcell = face.nborcell(cell);
+                if (nborcell > cell_max) ++field_index;
+                if (mesh.vfaces.get_marker(face.id) == TYPES.SURFACE) {
+                    Vec3 normal = mesh.nodes.get_vec(face.nborcell(cell)) - centre;
+                    normal.normalize();
+                    charge += fr.get_elfield(field_index).dotProduct(normal) * face.area().norm();
+//                    charge += field.dotProduct(normal) * face.area().norm();
                 }
-
             }
-            interpolation[i].scalar = charge * eps0;
+            charge *= eps0;
+            interpolation[i] = Solution(field * charge, charge);
         }
-
-    return 0;
-}
-
-// Extract the surface atoms whose Voronoi cells are exposed to vacuum
-bool ForceReader::calc_surface_voronoi_charges(const TetgenMesh& mesh, const double radius, const double latconst, const string& mesh_quality) {
-    const int n_this_nodes = size();
-
-    // Extract nanotip and generate Voronoi cells around it
-    VoronoiMesh voromesh;
-    vector<bool> node_in_nanotip;
-    const int n_nanotip_nodes = calc_voronois(voromesh, node_in_nanotip, radius, latconst, mesh_quality);
-    const int n_voronoi_faces = voromesh.vfaces.size();
-
-    require(voromesh.nodes.size() > 0, "Empty Voronoi mesh cannot be handled!");
-    require(voromesh.voros.size() > 0, "Empty Voronoi mesh cannot be handled!");
-
-    const int cell_max = voromesh.nodes.indxs.surf_end;
-
-    // Mark the faces that are associated only with potential surface cells
-    // and therefore cannot be on the surface
-    vector<bool> facet_near_surface(n_voronoi_faces);
-    for (int cell = 0; cell <= cell_max; ++cell)
-        for (VoronoiFace face : voromesh.voros[cell]) {
-            const bool b1 = cell <= cell_max;
-            const bool b2 = face.nborcell(cell) <= cell_max;
-            if ((b1 && b2) || (!b1 && !b2)) {
-                voromesh.vfaces.set_marker(face.id, TYPES.PERIMETER);
-                facet_near_surface[face.id] = false;
-            } else {
-                voromesh.vfaces.set_marker(face.id, TYPES.SURFACE);
-                facet_near_surface[face.id] = true;
-            }
-        }
-
-    // Extract the nodes that are near the surface
-    Medium interpolation_points(vector_sum(facet_near_surface));
-
-    for (int i = 0; i < n_nanotip_nodes; ++i) {
-        Vec3 centre = voromesh.nodes.get_vec(i);
-        for (VoronoiFace face : voromesh.voros[i]) {
-            int nborcell = face.nborcell(i);
-            if (nborcell >= n_nanotip_nodes && !facet_near_surface[face.id]) {
-                facet_near_surface[face.id] = true;
-                Vec3 centroid = face.centroid();
-                interpolation_points.append(Point3(centroid.x, centroid.y, centroid.z));
-            }
-        }
-    }
-
-    // interpolate electric potential on those points
-    FieldReader fr(interpolator);
-    fr.interpolate(interpolation_points, 0, true);
-    fr.write("out/near_surface.xyz");
-
-    // find potentials in the middle of all Voronoi cells
-    int index = -1;
-    for (int i = 0; i < n_voronoi_faces; ++i)
-        if (facet_near_surface[i]) {
-            int elem = fr.get_marker(++index);
-            if (elem >= 0 && mesh.elems.get_marker(elem) == TYPES.VACUUM) {
-                voromesh.vfaces.set_marker(i, 666);
-            }
-        }
-
-    voromesh.vfaces.write("out/vorofaces_marked.vtk");
 
     return 0;
 }

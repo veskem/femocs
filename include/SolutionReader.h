@@ -28,7 +28,7 @@ public:
     SolutionReader(TetrahedronInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
     /** Interpolate solution on the system atoms using tetrahedral interpolator
-     * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
+     * @param component component of result to interpolate: -1-locate atoms, 0-vector and scalar data, 1-vector data, 2-scalar data
      * @param srt       sort atoms spatially */
     void calc_interpolation(const int component, const bool srt);
 
@@ -266,8 +266,7 @@ public:
     void recalc_forces(const FieldReader &fields, const vector<Vec3>& areas);
 
     bool calc_voronoi_charges(const double radius, const double latconst, const string& mesh_quality);
-    bool calc_interp_voronoi_charges(const TetgenMesh& mesh, const double radius, const double latconst, const string& mesh_quality);
-    bool calc_surface_voronoi_charges(const TetgenMesh& mesh, const double radius, const double latconst, const string& mesh_quality);
+    bool calc_surface_voronoi_charges(const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
     /** Calculate forces from atomic electric fields and face charges */
     void calc_forces(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);
