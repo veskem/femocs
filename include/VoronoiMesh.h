@@ -44,12 +44,12 @@ public:
     /** Get number of nodes that are associated with the face */
     int size() const { return data->vfacetlist[id].elist[0]; }
 
-    /** Get the area of the face in the form of its scaled norm.
+    /** Get the area of the face.
      * See the theory in http://geomalgorithms.com/a01-_area.html#3D%20Polygons */
-    Vec3 area();
+    double area();
 
     /** Get the centroid coordinates of the face */
-    Vec3 centroid();
+    Point3 centroid();
 
     /** Return the neighbouring cell for the caller cell */
     int nborcell(const int caller_id);
@@ -104,8 +104,6 @@ public:
 
     /** Get the indices of neighbouring Voronoi cells */
     vector<int> get_neighbours() const;
-
-    Vec3 area() const;
 
     /** Iterator to access the cell faces */
     typedef Iterator<VoronoiCell, VoronoiFace> iterator;

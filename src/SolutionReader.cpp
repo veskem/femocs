@@ -1017,8 +1017,8 @@ int ForceReader::calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nano
             support.append(get_atom(i));
         }
 
-    support.transform(latconst);
-    nanotip += support;
+//    support.transform(latconst);
+//    nanotip += support;
     nanotip.calc_statistics();
     nanotip.write("out/nanotip.xyz");
 
@@ -1089,7 +1089,7 @@ bool ForceReader::calc_voronoi_charges(const double radius, const double latcons
                     Vec3 ray(voromesh.nodes[nbor_cell] - centre);
                     double distance2 = ray.norm2();
                     ray *= (phi / distance2);
-                    charge -= phi * face.area().norm() / sqrt(distance2);
+                    charge -= phi * face.area() / sqrt(distance2);
                     field -= ray;
                 }
             }
@@ -1139,7 +1139,7 @@ bool ForceReader::calc_surface_voronoi_charges_old(const TetgenElements& elems, 
                 if (mesh.vfaces.get_marker(face.id) == TYPES.SURFACE) {
                     Vec3 normal = mesh.nodes.get_vec(face.nborcell(cell)) - centre;
                     normal.normalize();
-                    charge += field.dotProduct(normal) * face.area().norm();
+                    charge += field.dotProduct(normal) * face.area();
                 }
             }
             charge *= eps0;
@@ -1162,26 +1162,26 @@ bool ForceReader::calc_surface_voronoi_charges(const TetgenElements& elems, cons
     require(mesh.nodes.size() > 0, "Empty Voronoi mesh cannot be handled!");
     require(mesh.voros.size() > 0, "Empty Voronoi mesh cannot be handled!");
 
-    // specify the faces that are
-    Medium interpolation_points(n_voronoi_faces);
+    // specify the faces that are on the nanotip surface
+    FieldReader fr(interpolator);
+    fr.reserve(n_voronoi_faces);
+    int index = -1;
     for (int cell = 0; cell < n_nanotip_nodes; ++cell)
         for (VoronoiFace face : mesh.voros[cell]) {
             if (face.nborcell(cell) < n_nanotip_nodes)
                 mesh.vfaces.set_marker(face.id, TYPES.PERIMETER);
             else {
                 mesh.vfaces.set_marker(face.id, TYPES.SURFACE);
-                const Vec3 centroid = face.centroid();
-                interpolation_points.append(Point3(centroid.x, centroid.y, centroid.z));
+                fr.append( Atom(++index, face.centroid(), 0) );
             }
         }
 
-    // specify the location (vacuum or bulk) of those points
-    FieldReader fr(interpolator);
-    fr.interpolate(interpolation_points, 0, true);
+    // specify whether those points are in vacuum or in bulk
+    fr.calc_interpolation(0, true);
     fr.write("out/near_surface.xyz");
 
     // mark the faces that are exposed to bulk
-    int index = -1;
+    index = -1;
     for (int cell = 0; cell < n_nanotip_nodes; ++cell)
         for (VoronoiFace face : mesh.voros[cell])
             if (face.nborcell(cell) >= n_nanotip_nodes) {
@@ -1194,7 +1194,7 @@ bool ForceReader::calc_surface_voronoi_charges(const TetgenElements& elems, cons
 
     // calculate Voronoi cell charges
     int cell = -1;
-    int field_index = -1;
+    index = -1;
     for (int i = 0; i < n_this_nodes; ++i)
         if (node_in_nanotip[i]) {
             double charge = 0;
@@ -1203,12 +1203,12 @@ bool ForceReader::calc_surface_voronoi_charges(const TetgenElements& elems, cons
 
             for (VoronoiFace face : mesh.voros[cell]) {
                 int nborcell = face.nborcell(cell);
-                if (nborcell >= n_nanotip_nodes) ++field_index;
+                if (nborcell >= n_nanotip_nodes) ++index;
                 if (mesh.vfaces.get_marker(face.id) == TYPES.SURFACE) {
                     Vec3 normal = mesh.nodes.get_vec(face.nborcell(cell)) - centre;
                     normal.normalize();
-                    charge += fr.get_elfield(field_index).dotProduct(normal) * face.area().norm();
-//                    charge += field.dotProduct(normal) * face.area().norm();
+                    charge += fr.get_elfield(index).dotProduct(normal) * face.area();
+//                    charge += field.dotProduct(normal) * face.area();
                 }
             }
             charge *= eps0;

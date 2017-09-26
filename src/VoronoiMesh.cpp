@@ -15,8 +15,8 @@ namespace femocs {
  *  ============================= Voronoi =============================
  * ===================================================================== */
 
-// Get the area of the face in the form of its scaled norm
-Vec3 VoronoiFace::area() {
+// Get the area of the face
+double VoronoiFace::area() {
     const int n_nodes = size();
     calc_verts();
 
@@ -27,11 +27,11 @@ Vec3 VoronoiFace::area() {
         total += verts[i].crossProduct(verts[j]);
     }
 
-    return total * 0.5;
+    return total.norm() * 0.5;
 }
 
 // Get the centroid coordinates of the face
-Vec3 VoronoiFace::centroid() {
+Point3 VoronoiFace::centroid() {
     calc_verts();
     Vec3 centroid(0.0);
 
@@ -39,7 +39,7 @@ Vec3 VoronoiFace::centroid() {
         centroid += v;
     centroid *= (1.0 / size());
 
-    return centroid;
+    return Point3(centroid.x, centroid.y, centroid.z);
 }
 
 // Return the neighbouring cell for the caller cell
@@ -245,7 +245,7 @@ int VoronoiMesh::mark_seed() {
 
     Vec3 znorm(0, 0, 1);
     VoronoiCell cell = voros[seedcell];
-    Vec3 centre = nodes[seedcell];
+    Vec3 centre = nodes.get_vec(seedcell);
 
     // mark the faces that are on the upper half of the cell
 
@@ -253,9 +253,9 @@ int VoronoiMesh::mark_seed() {
     for (size_t i = 0; i < cell_nbors.size(); ++i)
         if (cell_nbors[i] > cell_max) {
             VoronoiFace face = cell[i];
-            // face is on the upper half of the cell
-            // if the ray from cell centre to the face centroid is upwards
-            if ( znorm.dotProduct(face.centroid() - centre) >= 0 ) {
+            // face is on the upper half of the cell if its norm is upwards
+            Vec3 normal = nodes.get_vec(face.nborcell(cell.id)) - centre;
+            if (znorm.dotProduct(normal) >= 0) {
                 seedface = face.id;
                 vfaces.set_marker(face.id, TYPES.SURFACE);
             }
@@ -481,20 +481,16 @@ void VoronoiMesh::extract_surface(Medium& surface, vector<Vec3>& areas, const Me
 
     for (int i = 0; i <= nodes.indxs.surf_end; ++i)
         if (on_surface[i]) {           
-            Vec3 cell_centre = nodes[i];
+            Vec3 centre = nodes.get_vec(i);
             Vec3 cell_area(0);
 
             // calculate the total area of the exposed part of cell
             for (VoronoiFace face : voros[i])
                 if (vfaces.get_marker(face.id) == TYPES.SURFACE) {
-                    Vec3 cell2face = cell_centre - face.centroid();
-                    Vec3 face_area = face.area();
-
-                    // ensure that the direction of face norm is inside-out of the cell
-                    if (cell2face.dotProduct(face_area) >= 0)
-                        cell_area -= face_area;
-                    else
-                        cell_area += face_area;
+                    Vec3 face_area = nodes.get_vec(face.nborcell(i)) - centre;
+                    face_area.normalize();
+                    face_area *= face.area();
+                    cell_area += face_area;
                 }
 
             areas.push_back(cell_area);
