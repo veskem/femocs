@@ -712,8 +712,9 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
 
         start_msg(t0, "=== Calculating Voronoi charges & forces...");
 //        forces.recalc_forces(fields, areas);
-//        forces.calc_voronoi_charges(conf.radius, conf.latconst, "1.1");
+//        forces.calc_phi_voronoi_charges(conf.radius, conf.latconst, "1.1");
         forces.calc_surface_voronoi_charges(fem_mesh.elems, fields, conf.radius, conf.latconst, "1.2");
+//        forces.calc_transformed_voronoi_charges(fields, conf.radius, conf.latconst, "10.0");
 //        forces.calc_kmc_voronoi_charges(reader, fem_mesh.elems, fields, conf.radius, conf.latconst, "10.0");
         end_msg(t0);
 

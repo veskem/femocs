@@ -266,9 +266,10 @@ public:
     /** Replace the charge and force on the nanotip nodes with the one found with Voronoi cells */
     void recalc_forces(const FieldReader &fields, const vector<Vec3>& areas);
 
-    bool calc_voronoi_charges(const double radius, const double latconst, const string& mesh_quality);
+    bool calc_phi_voronoi_charges(const double radius, const double latconst, const string& mesh_quality);
     bool calc_surface_voronoi_charges(const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
-    bool calc_surface_voronoi_charges_old(const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
+    bool calc_transformed_voronoi_charges(const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
+    bool calc_kmc_voronoi_charges(const AtomReader& reader, const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
 
     /** Calculate forces from atomic electric fields and face charges */
     void calc_forces(const FieldReader &fields, const ChargeReader& faces,
@@ -293,7 +294,10 @@ private:
     const double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
 
     int calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
-            const double radius, const double latconst, const string& mesh_quality);
+            const double radius, const double latconst, const string& mesh_quality, const bool transform=false);
+
+    int calc_kmc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+            const AtomReader& reader, const double radius, const double latconst, const string& mesh_quality);
 };
 
 } // namespace femocs
