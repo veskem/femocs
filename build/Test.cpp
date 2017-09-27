@@ -33,7 +33,7 @@ void write_defaults(ofstream &file) {
     file << "coord_cutoff = 3.1"         << endl;
     file << "latconst = 3.61"            << endl;
     file << "use_histclean = false"       << endl;
-    file << "surface_cleaner = faces" << endl;
+    file << "surface_cleaner = none" << endl;
     file << "femocs_verbose_mode = verbose" << endl;
     file << "smooth_steps = 3"           << endl;
     file << "smooth_algorithm = laplace" << endl;
@@ -81,6 +81,15 @@ void write_kmcbig(ofstream &file) {
     file << "coarse_factor = 0.4 6 4" << endl;
     file << "latconst = 2.0"          << endl;
     file << "radius = 20.0"           << endl;
+}
+
+void write_kmcregular(ofstream &file) {
+    file << "infile = in/kmc_regular.ckx" << endl;
+    file << "coarse_factor = 0.4 6 4" << endl;
+    file << "latconst = 3.6935"       << endl;
+    file << "radius = 42.0"           << endl;
+    file << "box_width = 5.0"         << endl;
+    file << "box_height = 5.0"        << endl;
 }
 
 void write_stretch(ofstream &file) {
@@ -226,6 +235,7 @@ int main(int argc, char **argv) {
 
         if      (mode == "kmcsmall")  write_kmcsmall(file);
         else if (mode == "kmcbig")    write_kmcbig(file);
+        else if (mode == "kmcregular") write_kmcregular(file);
         else if (mode == "hr5")       write_hr5(file);
         else if (mode == "rectangle") write_rectangle(file);
         else if (mode == "mdsmall")   write_mdsmall(file);
@@ -244,6 +254,7 @@ int main(int argc, char **argv) {
             printf("  no-arg      configuration is obtained from in/md.in\n");
             printf("  kmcsmall    small kMC nanotip\n");
             printf("  kmcbig      big kMC nanotip\n");
+            printf("  kmcregular  symmetric kMC nanotip\n");
             printf("  mdsmall     small MD nanotip\n");
             printf("  mdbig       big MD nanotip\n");
             printf("  hr5         symmetric nanotip with aspect ratio 5\n");
