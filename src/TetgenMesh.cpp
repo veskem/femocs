@@ -725,10 +725,12 @@ int TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const stri
 }
 
 // Write bulk or vacuum mesh
-void TetgenMesh::write_separate(const string& file_name, const bool vacuum) {
-    int search_type = TYPES.BULK;
-    if (vacuum) search_type = TYPES.VACUUM;
-    vector<bool> hex_mask = vector_equal(hexahedra.get_markers(), search_type);
+void TetgenMesh::write_separate(const string& file_name, const int type) {
+    vector<bool> hex_mask;
+    if (type == TYPES.VACUUM)
+        hex_mask = vector_greater(hexahedra.get_markers(), 0);
+    else
+        hex_mask = vector_less(hexahedra.get_markers(), 0);
 
     TetgenMesh tempmesh;
     tempmesh.nodes.copy(this->nodes);

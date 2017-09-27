@@ -71,7 +71,7 @@ public:
     bool write(const string& file_name);
 
     /** Write bulk or vacuum mesh */
-    void write_separate(const string& file_name, const bool vacuum);
+    void write_separate(const string& file_name, const int type);
 
     /** Delete the data of previously stored mesh and initialise a new one */
     void clear();

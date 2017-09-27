@@ -296,7 +296,7 @@ int Femocs::generate_meshes() {
     fem_mesh.nodes.write("out/hexmesh_nodes.xyz");
     fem_mesh.quads.write("out/quadmesh.vtk");
     fem_mesh.hexahedra.write("out/hexmesh.vtk");
-    fem_mesh.write_separate("out/hexmesh_bulk" + conf.message + ".vtk", false);
+    fem_mesh.write_separate("out/hexmesh_bulk" + conf.message + ".vtk", TYPES.BULK);
     stringstream ss; ss << fem_mesh;
     write_verbose_msg(ss.str());
 
@@ -714,6 +714,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
 //        forces.recalc_forces(fields, areas);
 //        forces.calc_voronoi_charges(conf.radius, conf.latconst, "1.1");
         forces.calc_surface_voronoi_charges(fem_mesh.elems, fields, conf.radius, conf.latconst, "1.2");
+//        forces.calc_kmc_voronoi_charges(reader, fem_mesh.elems, fields, conf.radius, conf.latconst, "10.0");
         end_msg(t0);
 
         forces.write("out/forces.movie");
