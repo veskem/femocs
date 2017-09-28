@@ -51,7 +51,7 @@ public:
     bool generate_hexahedra();
     
     /** Using the separated tetrahedra generate the triangular surface on the vacuum-material boundary */
-    bool generate_surface(const Medium::Sizes& sizes, const string& cmd);
+    int generate_surface(const Medium::Sizes& sizes, const string& cmd);
 
     /** Mark mesh nodes and elements by their location relative to the surface atoms */
     bool mark_mesh();
@@ -79,6 +79,15 @@ public:
     /** Delete disturbing edges and faces on and near the surface perimeter */
     void clean_sides(const Medium::Sizes& sizes);
 
+    /** Copy mesh from input to output or vice versa without modification */
+    int recalc(const bool write2read=true);
+
+    /** Perform Tetgen calculation on input buffer and store it in output one */
+    int recalc(const string& cmd);
+
+    /** Perform double Tetgen calculation on input buffer and store it in output one */
+    int recalc(const string& cmd1, const string& cmd2);
+
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin); ///< data & operations for mesh nodes
     TetgenEdges edges = TetgenEdges(&tetIOout);           ///< data & operations for mesh edges
     TetgenFaces faces = TetgenFaces(&tetIOout);           ///< data & operations for mesh triangles
@@ -105,15 +114,6 @@ public:
 private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
-
-    /** Copy node and element data from Tetgen input buffer into output one */
-    int recalc();
-
-    /** Perform Tetgen calculation on input buffer and store it in output one */
-    int recalc(const string& cmd);
-
-    /** Perform double Tetgen calculation on input buffer and store it in output one */
-    int recalc(const string& cmd1, const string& cmd2);
 
     /** Smoothen the surface mesh using Taubin lambda|mu algorithm with inverse neighbour count weighting */
     void laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist);

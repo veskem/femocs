@@ -119,7 +119,6 @@ double RaySurfaceIntersect::distance_from_triangle(const Vec3 &point, const int 
     if (v < zero || u + v > one) return 1e100; // Check second & third barycentric coordinate
 
     // return the distance from point to triangle
-//    return fabs(edge2[face].dotProduct(qvec));
     return edge2[face].dotProduct(qvec);
 }
 
@@ -469,12 +468,11 @@ int TetgenMesh::generate_simple() {
     return recalc("rQ");
 }
 
-// Copy mesh from input to output without modification
-int TetgenMesh::recalc() {
-    nodes.recalc();
-    edges.recalc();
-    faces.recalc();
-    elems.recalc();
+int TetgenMesh::recalc(const bool write2read) {
+    nodes.recalc(write2read);
+    edges.recalc(write2read);
+    faces.recalc(write2read);
+    elems.recalc(write2read);
     return 0;
 }
 
@@ -607,7 +605,7 @@ bool TetgenMesh::generate_hexahedra() {
 }
 
 // Using the separated tetrahedra generate the triangular surface on the vacuum-material boundary
-bool TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd) {
+int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd) {
     TetgenMesh vacuum;
     vector<bool> tet_mask = vector_equal(elems.get_markers(), TYPES.VACUUM);
 
@@ -616,8 +614,8 @@ bool TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd)
     vacuum.elems.copy(this->elems, tet_mask);
 
     // calculate surface triangles
-    if (vacuum.recalc(cmd))
-        return 1;
+    const int error_code = vacuum.recalc(cmd);
+    if (error_code) return error_code;
 
     // transfer the calculated triangles
     faces.copy(vacuum.faces);

@@ -74,8 +74,11 @@ public:
     }
 
     /** Copy the nodes from write buffer to read buffer */
-    virtual void recalc() {
-        *n_cells_r = *n_cells_w;
+    virtual void recalc(const bool write2read=false) {
+        if(write2read)
+            *n_cells_r = *n_cells_w;
+        else
+            *n_cells_w = *n_cells_r;
         i_cells = *n_cells_w;
     }
 
@@ -273,6 +276,9 @@ public:
     /** Modify the coordinates of i-th node */
     void set_node(const int i, const Point3 &point);
 
+    /** Modify the boundary value of i-th node */
+    void set_boundary(const int i, const int value);
+
     /** Initialize node appending */
     void init(const int N);
 
@@ -288,7 +294,7 @@ public:
     iterator end() const { return iterator(this, size()); }
 
     /** Copy the nodes from write buffer to read buffer */
-    void recalc();
+    void recalc(const bool write2read=true);
 
     void copy(const TetgenNodes& nodes, const vector<bool>& mask={});
 
@@ -375,8 +381,8 @@ public:
     /** Append edge to mesh */
     void append(const SimpleCell<2> &cell);
 
-    /** Copy the nodes from write buffer to read buffer */
-    void recalc();
+    /** Copy the nodes from one buffer to another */
+    void recalc(const bool write2read=true);
 
     /** Delete the edges that are not on the perimeter of surface */
     void clean_sides(const Medium::Sizes& stat);
@@ -415,8 +421,8 @@ public:
     /** Append face to mesh */
     void append(const SimpleCell<3> &cell);
 
-    /** Copy the nodes from write buffer to read buffer */
-    void recalc();
+    /** Copy the nodes from one buffer to another */
+    void recalc(const bool write2read=true);
     
     /** Delete the faces on the sides of simulation cell */
     void clean_sides(const Medium::Sizes& stat);
@@ -485,8 +491,8 @@ public:
     /** Append element to mesh */
     void append(const SimpleCell<4> &cell);
 
-    /** Copy the nodes from write buffer to read buffer */
-    void recalc();
+    /** Copy the nodes from one buffer to another */
+    void recalc(const bool write2read=true);
 
     /** Return indices of all edges that are connected to i-th tetrahedron*/
     array<int,6> to_edges(const int i) const {
