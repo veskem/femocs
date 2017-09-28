@@ -277,16 +277,27 @@ int Femocs::generate_meshes() {
     end_msg(t0);
 
     start_msg(t0, "=== Generating surface faces...");
-    fail = fem_mesh.generate_surface(reader.sizes, "rnQB");
+    err_code = fem_mesh.generate_surface(reader.sizes, "rnQB");
     end_msg(t0);
     fem_mesh.faces.write("out/trimesh.vtk");
-    check_return(fail, "Generation of surface faces failed!");
+    check_return(err_code, "Generation of surface faces failed with error code " + to_string(err_code));
+
 
     if (conf.smooth_algorithm != "none" && conf.smooth_steps > 0) {
         start_msg(t0, "=== Smoothing triangles...");
         fem_mesh.smoothen_tris(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
         end_msg(t0);
         fem_mesh.faces.write("out/trimesh_smooth.vtk");
+    }
+
+    if (conf.surface_cleaner == "faces") {
+        surface_interpolator.precompute();
+        start_msg(t0, "=== Cleaning surface with triangles...");
+        err_code = dense_surf.clean_surface(fem_mesh, surface_interpolator, conf.surface_thichness, command);
+        end_msg(t0);
+        check_return(err_code, "Cleaning surface failed with error code " + to_string(err_code));
+
+        dense_surf.write("out/surface_dense_clean.xyz");
     }
 
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
@@ -299,14 +310,6 @@ int Femocs::generate_meshes() {
     fem_mesh.write_separate("out/hexmesh_bulk" + conf.message + ".vtk", TYPES.BULK);
     stringstream ss; ss << fem_mesh;
     write_verbose_msg(ss.str());
-
-    if (conf.surface_cleaner == "faces") {
-        start_msg(t0, "=== Cleaning surface with triangles...");
-        dense_surf.faces_clean(fem_mesh, conf.surface_thichness);
-        end_msg(t0);
-
-        dense_surf.write("out/surface_dense_clean.xyz");
-    }
 
     return 0;
 }
@@ -713,8 +716,8 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         start_msg(t0, "=== Calculating Voronoi charges & forces...");
 //        forces.recalc_forces(fields, areas);
 //        forces.calc_phi_voronoi_charges(conf.radius, conf.latconst, "1.1");
-        forces.calc_surface_voronoi_charges(fem_mesh.elems, fields, conf.radius, conf.latconst, "1.2");
-//        forces.calc_transformed_voronoi_charges(fields, conf.radius, conf.latconst, "10.0");
+//        forces.calc_surface_voronoi_charges(fem_mesh.elems, fields, conf.radius, conf.latconst, "1.8");
+        forces.calc_transformed_voronoi_charges(fields, conf.radius, conf.latconst, "10.0");
 //        forces.calc_kmc_voronoi_charges(reader, fem_mesh.elems, fields, conf.radius, conf.latconst, "10.0");
         end_msg(t0);
 

@@ -1064,15 +1064,15 @@ int ForceReader::calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nano
             nanotip.append(get_atom(i));
 
     // generate support points for the Voronoi cells
-    Media support(n_nanotip_nodes);
     if (transform) {
+        Media support(n_nanotip_nodes);
         for (int i = 0; i < n_this_nodes; ++i)
             if (node_in_nanotip[i])
                 support.append(get_atom(i));
         support.transform(latconst);
+        nanotip += support;
     }
 
-    nanotip += support;
     nanotip.calc_statistics();
     nanotip.write("out/nanotip.xyz");
 

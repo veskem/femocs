@@ -288,6 +288,13 @@ public:
     /** Print statistics about solution on node points */
     void print_statistics(const double Q);
 
+    /** Precompute the data needed to calculate the distance of points from surface
+     * in the direction of triangle surface norms */
+    void precompute();
+
+    /** Determine whether the point is within r_cut distance from the triangular surface */
+    bool near_surface(const Vec3& point, const double r_cut) const;
+
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
 
 private:
@@ -307,12 +314,11 @@ private:
      * of the solutions on its surrounding quadrangular nodes */
     bool average_sharp_nodes(const bool vacuum);
 
-    /** Precompute the data needed to calculate the distance of points from surface
-     * in the direction of triangle surface norms */
-    void precompute();
-
     /** Reserve memory for precompute data */
     void reserve_precompute(const int n);
+
+    /** Return the distance between a point and i-th triangle in the direction of its norm */
+    double distance(const Vec3& point, const int i) const;
 
     /** Check whether the projection of a point is inside the i-th triangle */
     bool point_in_cell(const Vec3& point, const int i);

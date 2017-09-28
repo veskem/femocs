@@ -22,7 +22,7 @@ void print_progress(const string& message, const bool contition) {
 }
 
 void write_defaults(ofstream &file) {
-    file << "mesh_quality = 1.8"        << endl;
+    file << "mesh_quality = 1.8"         << endl;
     file << "heating_mode = none"        << endl;
     file << "write_log = true"           << endl;
     file << "clear_output = true"        << endl;
@@ -30,10 +30,11 @@ void write_defaults(ofstream &file) {
     file << "charge_smooth_factor = 1.0" << endl;
     file << "distance_tol = 0.0"         << endl;
     file << "n_writefile = 1"            << endl;
+    file << "use_histclean = false"      << endl;
+    file << "surface_cleaner = faces"    << endl;
+    file << "surface_thichness = 3.1"    << endl;
     file << "coord_cutoff = 3.1"         << endl;
     file << "latconst = 3.61"            << endl;
-    file << "use_histclean = false"       << endl;
-    file << "surface_cleaner = none" << endl;
     file << "femocs_verbose_mode = verbose" << endl;
     file << "smooth_steps = 3"           << endl;
     file << "smooth_algorithm = laplace" << endl;

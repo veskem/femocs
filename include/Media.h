@@ -13,6 +13,7 @@
 #include "AtomReader.h"
 #include "Medium.h"
 #include "TetgenMesh.h"
+#include "LinearInterpolator.h"
 #include "Config.h"
 
 using namespace std;
@@ -57,8 +58,8 @@ public:
     void transform(const double latconst);
 
     /** Remove the atoms that are too far from surface faces */
-    void faces_clean(const TetgenMesh& mesh, const double r_cut);
-    
+    int clean_surface(TetgenMesh& mesh, TriangleInterpolator& interpolator, const double r_cut, const string& cmd);
+
     /** Extract the surface atoms whose Voronoi cells are exposed to vacuum */
     int voronoi_clean(vector<Vec3>& areas, const double radius, const double latconst, const string& mesh_quality);
 

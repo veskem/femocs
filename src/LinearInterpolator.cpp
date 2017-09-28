@@ -895,10 +895,36 @@ void TriangleInterpolator::precompute() {
     }
 }
 
+bool TriangleInterpolator::near_surface(const Vec3& point, const double r_cut) const {
+    require(r_cut > 0, "Invalid distance from surface: " + to_string(r_cut));
+
+    for (int face = 0; face < cells.size(); ++face) {
+        const double dist = distance(point, face);
+        if (dist >= -0.3*r_cut && dist <= r_cut) return true;
+    }
+
+    return false;
+}
+
+double TriangleInterpolator::distance(const Vec3& point, const int face) const {
+    // Constants to specify the tolerances in searching outside the triangle
+    const static double zero = -0.1;
+    const static double one = 1.1;
+
+    Vec3 tvec = point - vert0[face];
+    double u = tvec.dotProduct(pvec[face]);
+    if (u < zero || u > one) return 1e100;     // Check first barycentric coordinate
+
+    Vec3 qvec = tvec.crossProduct(edge1[face]);
+    double v = norms[face].dotProduct(qvec);
+    if (v < zero || u + v > one) return 1e100; // Check second & third barycentric coordinate
+
+    // return the distance from point to triangle
+    return edge2[face].dotProduct(qvec);
+}
+
 // Calculate barycentric coordinates for a projection of a point inside the triangle
 array<double,3> TriangleInterpolator::get_bcc(const Vec3& point, const int face) const {
-    require(face >= 0 && face < vert0.size(), "Index out of bounds: " + to_string(face));
-
     Vec3 tvec = point - vert0[face];
     Vec3 qvec = tvec.crossProduct(edge1[face]);
     double u = tvec.dotProduct(pvec[face]);
@@ -910,8 +936,6 @@ array<double,3> TriangleInterpolator::get_bcc(const Vec3& point, const int face)
 // Check whether the projection of a point is inside the triangle
 // It is separate routine from get_bcc to achieve better performance
 bool TriangleInterpolator::point_in_cell(const Vec3& point, const int face) {
-    require(face >= 0 && face < vert0.size(), "Index out of bounds: " + to_string(face));
-
     Vec3 tvec = point - vert0[face];
     double u = tvec.dotProduct(pvec[face]);
     if (u < 0 || u > 1) return false;     // Check first barycentric coordinate
