@@ -202,8 +202,8 @@ void VoronoiFaces::write_cells(ofstream& out) const {
         if (face.size() > 0)
             out << face.id << "\n";
 
-    // write areas of faces in vector format
-    out << "VECTORS area double\n";
+    // write face areas
+    out << "SCALARS area double\nLOOKUP_TABLE default\n";
     for (VoronoiFace face : *this)
         if (face.size() > 0)
             out << face.area() << "\n";
