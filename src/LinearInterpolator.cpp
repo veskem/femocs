@@ -22,13 +22,15 @@ template<int dim>
 array<double,dim> LinearInterpolator<dim>::get_weights(const Point3 &point, const SimpleCell<dim>& scell) const {
     array<double,dim> weights;
     double w_sum = 0;
+
     for (int i = 0; i < dim; ++i) {
         double w = exp(decay_factor * point.distance(vertices[scell[i]]));
         weights[i] = w;
         w_sum += w;
     }
+    // check for zero and nan
+    require(w_sum > 0 && w_sum == w_sum, "Invalid interpolation weight: " + to_string(w_sum));
     w_sum = 1.0 / w_sum;
-
 
     for (int i = 0; i < dim; ++i)
         weights[i] *= w_sum;
@@ -527,6 +529,7 @@ void TetrahedronInterpolator::reserve_precompute(const int N) {
 // Precompute the data to tetrahedra to make later bcc calculations faster
 void TetrahedronInterpolator::precompute() {
     const int n_elems = elems->size();
+    const int n_nodes = nodes->size();
     expect(n_elems > 0, "Interpolator expects non-empty mesh!");
     reserve_precompute(n_elems);
     double d0, d1, d2, d3, d4;
@@ -535,7 +538,7 @@ void TetrahedronInterpolator::precompute() {
     decay_factor = -1.0 / elems->stat.edgemax;
 
     // Store the coordinates of tetrahedra vertices
-    for (int i = 0; i < nodes->stat.n_tetnode; ++i)
+    for (int i = 0; i < n_nodes; ++i)
         vertices.push_back((*nodes)[i]);
 
     // Calculate tetrahedra neighbours
@@ -851,6 +854,7 @@ void TriangleInterpolator::reserve_precompute(const int n) {
 // Precompute the data needed to calculate the distance of points from surface in the direction of triangle norms
 void TriangleInterpolator::precompute() {
     const int n_faces = faces->size();
+    const int n_nodes = nodes->size();
 
     // Reserve memory for precomputation data
     reserve_precompute(n_faces);
@@ -861,7 +865,7 @@ void TriangleInterpolator::precompute() {
     // Store the coordinates of tetrahedral vertices
     // Tetrahedral not triangular, because the only solid knowledge about the triangle nodes
     // is that they are among tetrahedral nodes
-    for (int i = 0; i < nodes->stat.n_tetnode; ++i)
+    for (int i = 0; i < n_nodes; ++i)
         vertices.push_back((*nodes)[i]);
 
     // Loop through all the faces
