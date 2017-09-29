@@ -208,28 +208,21 @@ Media Media::clean(Coarseners &coarseners) {
 }
 
 // Remove the atoms that are too far from surface faces
-int Media::clean_surface(TetgenMesh& mesh, TriangleInterpolator& interpolator, const double r_cut, const string& cmd) {
-    if (r_cut <= 0) return 0;
+void Media::clean_surface(const TriangleInterpolator& interpolator, const double r_cut) {
+    if (r_cut <= 0) return;
 
     const int n_atoms = size();
     vector<Atom> _atoms;
     _atoms.reserve(n_atoms);
-//    mesh.recalc(false);  // copy mesh from output to input
 
     for (int i = 0; i < n_atoms; ++i) {
         Atom atom = get_atom(i);
         if (interpolator.near_surface(atom.point, r_cut))
             _atoms.push_back(atom);
-//        else
-//            mesh.nodes.set_boundary(i, -1);
     }
-
-//    const int error_code = mesh.recalc(cmd);
-//    if (error_code) return error_code;
 
     atoms = _atoms;
     calc_statistics();
-    return 0;
 }
 
 // Extract the surface atoms whose Voronoi cells are exposed to vacuum

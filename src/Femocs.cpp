@@ -293,10 +293,8 @@ int Femocs::generate_meshes() {
     if (conf.surface_cleaner == "faces") {
         surface_interpolator.precompute();
         start_msg(t0, "=== Cleaning surface with triangles...");
-        err_code = dense_surf.clean_surface(fem_mesh, surface_interpolator, conf.surface_thichness, command);
+        dense_surf.clean_surface(surface_interpolator, conf.surface_thichness);
         end_msg(t0);
-        check_return(err_code, "Cleaning surface failed with error code " + to_string(err_code));
-
         dense_surf.write("out/surface_dense_clean.xyz");
     }
 

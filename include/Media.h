@@ -8,13 +8,12 @@
 #ifndef MEDIA_H_
 #define MEDIA_H_
 
-#include "Coarseners.h"
-#include "Macros.h"
-#include "AtomReader.h"
-#include "Medium.h"
-#include "TetgenMesh.h"
-#include "LinearInterpolator.h"
 #include "Config.h"
+#include "Macros.h"
+#include "Coarseners.h"
+#include "Medium.h"
+#include "AtomReader.h"
+#include "LinearInterpolator.h"
 
 using namespace std;
 namespace femocs {
@@ -58,7 +57,7 @@ public:
     void transform(const double latconst);
 
     /** Remove the atoms that are too far from surface faces */
-    int clean_surface(TetgenMesh& mesh, TriangleInterpolator& interpolator, const double r_cut, const string& cmd);
+    void clean_surface(const TriangleInterpolator& interpolator, const double r_cut);
 
     /** Extract the surface atoms whose Voronoi cells are exposed to vacuum */
     int voronoi_clean(vector<Vec3>& areas, const double radius, const double latconst, const string& mesh_quality);
