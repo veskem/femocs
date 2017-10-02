@@ -14,6 +14,7 @@
 #include "Medium.h"
 #include "AtomReader.h"
 #include "LinearInterpolator.h"
+#include "VoronoiMesh.h"
 
 using namespace std;
 namespace femocs {
@@ -57,7 +58,9 @@ public:
     void transform(const double latconst);
 
     /** Remove the atoms that are too far from surface faces */
-    void clean_surface(const TriangleInterpolator& interpolator, const double r_cut);
+    void clean_by_triangles(const TriangleInterpolator& interpolator, const double r_cut);
+
+    int clean_by_voronois(const double radius, const double latconst, const string& mesh_quality);
 
     /** Extract the surface atoms whose Voronoi cells are exposed to vacuum */
     int voronoi_clean(vector<Vec3>& areas, const double radius, const double latconst, const string& mesh_quality);
@@ -87,6 +90,11 @@ private:
 
     /** Separate cylindrical region from substrate region */
     void get_nanotip(Media& nanotip, const double radius);
+
+    int get_nanotip(Media& nanotip, vector<bool>& node_in_nanotip, const double radius);
+
+    int calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+            const double radius, const double latconst, const string& mesh_quality);
 };
 
 } /* namespace femocs */

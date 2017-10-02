@@ -6,7 +6,6 @@
  */
 
 #include "Media.h"
-#include "VoronoiMesh.h"
 #include <numeric>
 
 using namespace std;
@@ -208,7 +207,7 @@ Media Media::clean(Coarseners &coarseners) {
 }
 
 // Remove the atoms that are too far from surface faces
-void Media::clean_surface(const TriangleInterpolator& interpolator, const double r_cut) {
+void Media::clean_by_triangles(const TriangleInterpolator& interpolator, const double r_cut) {
     if (r_cut <= 0) return;
 
     const int n_atoms = size();
@@ -225,6 +224,117 @@ void Media::clean_surface(const TriangleInterpolator& interpolator, const double
     calc_statistics();
 }
 
+int Media::calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+        const double radius, const double latconst, const string& mesh_quality)
+{
+    const int n_this_nodes = size();
+    const double radius2 = radius * radius;
+    Medium::calc_statistics();
+
+    // Make map for atoms in nanotip
+    Point2 centre(sizes.xmid, sizes.ymid);
+    node_in_nanotip = vector<bool>(n_this_nodes);
+    for (int i = 0; i < n_this_nodes; ++i)
+        node_in_nanotip[i] = centre.distance2(get_point2(i)) <= radius2;
+
+    const int n_nanotip_nodes = vector_sum(node_in_nanotip);
+
+    // Separate nanotip from substrate
+    Medium nanotip(n_nanotip_nodes);
+    for (int i = 0; i < n_this_nodes; ++i)
+        if (node_in_nanotip[i])
+            nanotip.append(get_atom(i));
+
+    nanotip.calc_statistics();
+
+    double t0;
+    start_msg(t0, "  Generating Voronoi mesh...");
+
+    // Generate Voronoi cells around the nanotip
+    // r - reconstruct, v - output Voronoi cells, Q - quiet, q - mesh quality
+    int errcode = voromesh.generate(nanotip, latconst, "rQq" + mesh_quality, "vQ");
+    if (errcode) return errcode;
+
+    // Clean the mesh from faces and cells that have node in the infinity
+    voromesh.clean();
+    end_msg(t0);
+
+    voromesh.nodes.write("out/voro_nodes.vtk");
+    voromesh.vfaces.write("out/voro_faces.vtk");
+    voromesh.voros.write("out/voro_cells.vtk");
+
+    return 0;
+}
+
+int Media::clean_by_voronois(const double radius, const double latconst, const string& mesh_quality) {
+    // Extract nanotip
+    Media nanotip;
+    vector<bool> node_in_nanotip;
+    const int n_nanotip_nodes = get_nanotip(nanotip, node_in_nanotip, radius);
+
+    // Generate Voronoi cells around the nanotip
+    VoronoiMesh mesh;
+
+    // r - reconstruct, v - output Voronoi cells, Q - quiet, q - mesh quality
+    // F - suppress output of faces and edges, B - suppress output of boundary info
+    const int err_code = mesh.generate(nanotip, latconst, "rQFBq" + mesh_quality, "vQFB");
+    if (err_code) return err_code;
+
+    // Clean the mesh from faces and cells that have node in the infinity
+    mesh.clean();
+
+    // Extract the surface faces and cells
+    mesh.mark_mesh(nanotip, latconst);
+
+//    mesh.nodes.write("out/voro_nodes.vtk");
+//    mesh.vfaces.write("out/voro_faces.vtk");
+//    mesh.voros.write("out/voro_cells.vtk");
+
+    require(mesh.nodes.size() > 0, "Empty Voronoi mesh cannot be handled!");
+    require(mesh.voros.size() > 0, "Empty Voronoi mesh cannot be handled!");
+
+    // delete atoms whose Voronoi cell is not exposed to vacuum
+    vector<Atom> _atoms;
+    _atoms.reserve(size());
+
+    int cell = 0;
+    for (int i = 0; i < size(); ++i)
+        if (node_in_nanotip[i]) {
+            if (mesh.voros.get_marker(cell++) == TYPES.SURFACE)
+                _atoms.push_back(get_atom(i));
+        } else
+            _atoms.push_back(get_atom(i));
+
+    atoms = _atoms;
+    calc_statistics();
+
+    return 0;
+}
+
+// Separate cylindrical region from substrate region
+int Media::get_nanotip(Media& nanotip, vector<bool>& node_in_nanotip, const double radius) {
+    const int n_this_nodes = size();
+    const double radius2 = radius * radius;
+    Medium::calc_statistics();
+
+    // Make map for atoms in nanotip
+    Point2 centre(sizes.xmid, sizes.ymid);
+    node_in_nanotip = vector<bool>(n_this_nodes);
+    for (int i = 0; i < n_this_nodes; ++i)
+        node_in_nanotip[i] = centre.distance2(get_point2(i)) <= radius2;
+
+    const int n_nanotip_nodes = vector_sum(node_in_nanotip);
+
+    // Separate nanotip from substrate
+    nanotip.reserve(n_nanotip_nodes);
+    for (int i = 0; i < n_this_nodes; ++i)
+        if (node_in_nanotip[i])
+            nanotip.append(get_atom(i));
+
+    nanotip.calc_statistics();
+    return n_nanotip_nodes;
+}
+
 // Extract the surface atoms whose Voronoi cells are exposed to vacuum
 int Media::voronoi_clean(vector<Vec3>& areas, const double radius, const double latconst, const string& mesh_quality) {
     // Separate nanotip from the whole surface
@@ -234,23 +344,24 @@ int Media::voronoi_clean(vector<Vec3>& areas, const double radius, const double 
     // Generate Voronoi cells around the nanotip
     VoronoiMesh voromesh;
     // r - reconstruct, v - output Voronoi cells, Q - quiet, q - mesh quality
-    const int err_code = voromesh.generate(nanotip, latconst, "rQq" + mesh_quality, "vQ");
+    // F - suppress output of faces and edges, B - suppress output of boundary info
+    const int err_code = voromesh.generate(nanotip, latconst, "rQFBq" + mesh_quality, "vQFB");
     if(err_code) return err_code;
-    
+
     // Clean the mesh from faces and cell that have node in the infinity
     voromesh.clean();
-    
+
     // Extract the surface faces and cells
     voromesh.mark_mesh(nanotip, latconst);
-    
+
     voromesh.nodes.write("out/voro_nodes.vtk");
     voromesh.vfaces.write("out/voro_faces.vtk");
     voromesh.voros.write("out/voro_cells.vtk");
-    
+
     // Get the atoms and their surface areas whose Voronoi cells are exposed to vacuum
     voromesh.extract_surface(*this, areas, nanotip);
     calc_statistics();
-    
+
     return 0;
 }
 

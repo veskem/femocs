@@ -1041,7 +1041,6 @@ int ForceReader::calc_kmc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_
     return nanotip.size();
 }
 
-// Extract the surface atoms whose Voronoi cells are exposed to vacuum
 int ForceReader::calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
         const double radius, const double latconst, const string& mesh_quality, const bool transform)
 {

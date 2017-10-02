@@ -200,15 +200,6 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 
     dense_surf.write("out/surface_dense.xyz");
 
-    if (conf.surface_cleaner == "voronois") {
-        start_msg(t0, "=== Cleaning surface with Voronoi cells...");
-//        const int err_code = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality + "a10");
-        const int err_code = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, "1.4");
-        check_return(err_code, "Making voronoi cells failed with error code " + to_string(err_code));
-        end_msg(t0);
-        dense_surf.write("out/surface_dense_clean.xyz");
-    }
-
     coarseners.generate(dense_surf, conf.radius, conf.cfactor, conf.latconst);
     coarseners.write("out/coarseners.vtk");
 
@@ -293,10 +284,21 @@ int Femocs::generate_meshes() {
     if (conf.surface_cleaner == "faces") {
         surface_interpolator.precompute();
         start_msg(t0, "=== Cleaning surface with triangles...");
-        dense_surf.clean_surface(surface_interpolator, conf.surface_thichness);
+        dense_surf.clean_by_triangles(surface_interpolator, conf.surface_thichness);
         end_msg(t0);
-        dense_surf.write("out/surface_dense_clean.xyz");
+        dense_surf.write("out/surface_dense_clean1.xyz");
     }
+
+//    if (conf.surface_cleaner == "voronois") {
+        start_msg(t0, "=== Cleaning surface with Voronoi cells...");
+//        const int err_code = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality + "a10");
+//        const int err_code = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, "1.4");
+
+//        err_code = dense_surf.clean_by_voronois(conf.radius, conf.latconst, "1.8");
+//        check_return(err_code, "Making voronoi cells failed with error code " + to_string(err_code));
+//        end_msg(t0);
+//        dense_surf.write("out/surface_dense_clean2.xyz");
+//    }
 
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
     fem_mesh.generate_hexahedra();

@@ -415,11 +415,14 @@ void VoronoiMesh::mark_cells_and_nodes() {
     for (VoronoiCell cell : voros) {
         if (cell.id <= cell_max)
             // Mark the cells that have at least one face on the surface
-            for (VoronoiFace face : cell)
-                if (vfaces.get_marker(face.id) == TYPES.SURFACE || vfaces.get_marker(face.id) == TYPES.ZMAX) {
-                    voros.set_marker(cell.id, TYPES.SURFACE);
-                    break;
-                }
+            for (VoronoiFace face : cell) {
+                const int marker = vfaces.get_marker(face.id);
+                if (marker == TYPES.SURFACE || marker == TYPES.ZMAX || marker == TYPES.ZMIN) {
+                       voros.set_marker(cell.id, TYPES.SURFACE);
+                       break;
+                   }
+            }
+
         // Mark the cells that for sure are not on the surface
         else voros.set_marker(cell.id, TYPES.PERIMETER);
     }
