@@ -528,7 +528,7 @@ void TetrahedronInterpolator::precompute() {
     decay_factor = -1.0 / elems->stat.edgemax;
 
     // Store the coordinates of tetrahedra vertices
-    for (int i = 0; i < nodes->stat.n_tetnode; ++i)
+    for (int i = 0; i < nodes->size(); ++i)
         vertices.push_back((*nodes)[i]);
 
     // Calculate tetrahedra neighbours
@@ -854,7 +854,7 @@ void TriangleInterpolator::precompute() {
     // Store the coordinates of tetrahedral vertices
     // Tetrahedral not triangular, because the only solid knowledge about the triangle nodes
     // is that they are among tetrahedral nodes
-    for (int i = 0; i < nodes->stat.n_tetnode; ++i)
+    for (int i = 0; i < nodes->size(); ++i)
         vertices.push_back((*nodes)[i]);
 
     // Loop through all the faces

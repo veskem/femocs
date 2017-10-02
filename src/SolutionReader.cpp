@@ -46,7 +46,7 @@ void SolutionReader::calc_interpolation(const int component, const bool srt) {
     if (srt) sort_spatial();
 
     // Enable or disable the search of points slightly outside the tetrahedra
-    interpolator->search_outside(srt);
+    interpolator->search_outside(false);
 
     int elem = 0;
     for (int i = 0; i < n_atoms; ++i) {
