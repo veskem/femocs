@@ -15,7 +15,7 @@ lib/libtet.a
 lib/libfemocs.a
 lib/libfemocs.mod
 build/femocs*
-build/build/**/*
+.build
 in/md.in
 out/*
 tmpfile
