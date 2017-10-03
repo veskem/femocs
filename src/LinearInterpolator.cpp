@@ -105,7 +105,7 @@ double LinearInterpolator<dim>::interp_scalar(const Point3 &point, const int c) 
 
 // Find the cell which contains the point or is the closest to it
 template<int dim>
-int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_guess) {
+int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_guess) const {
     // Check the guessed cell
     Vec3 vec_point(point);
     if (point_in_cell(vec_point, cell_guess)) return cell_guess;
@@ -621,7 +621,7 @@ void TetrahedronInterpolator::precompute() {
 }
 
 // Check with barycentric coordinates whether the point is inside the i-th tetrahedron
-bool TetrahedronInterpolator::point_in_cell(const Vec3 &point, const int i) {
+bool TetrahedronInterpolator::point_in_cell(const Vec3 &point, const int i) const {
     require(i >= 0 && i < det0.size(), "Index out of bounds: " + to_string(i));
 
     // Ignore co-planar tetrahedra
@@ -910,6 +910,12 @@ bool TriangleInterpolator::near_surface(const Vec3& point, const double r_cut) c
     return false;
 }
 
+
+Vec3 TriangleInterpolator::get_norm(const int i) const {
+    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    return norms[i];
+}
+
 double TriangleInterpolator::distance(const Vec3& point, const int face) const {
     // Constants to specify the tolerances in searching outside the triangle
     const static double zero = -0.1;
@@ -939,7 +945,7 @@ array<double,3> TriangleInterpolator::get_bcc(const Vec3& point, const int face)
 
 // Check whether the projection of a point is inside the triangle
 // It is separate routine from get_bcc to achieve better performance
-bool TriangleInterpolator::point_in_cell(const Vec3& point, const int face) {
+bool TriangleInterpolator::point_in_cell(const Vec3& point, const int face) const {
     Vec3 tvec = point - vert0[face];
     double u = tvec.dotProduct(pvec[face]);
     if (u < 0 || u > 1) return false;     // Check first barycentric coordinate

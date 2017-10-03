@@ -270,6 +270,9 @@ public:
     bool calc_surface_voronoi_charges(const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
     bool calc_transformed_voronoi_charges(const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
     bool calc_kmc_voronoi_charges(const AtomReader& reader, const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
+    bool calc_mirrored_voronoi_charges(const FieldReader& fields,
+            const TriangleInterpolator& interp, const double r_cut,
+             const double radius, const double latconst, const string& mesh_quality);
 
     /** Calculate forces from atomic electric fields and face charges */
     void calc_forces(const FieldReader &fields, const ChargeReader& faces,
@@ -293,11 +296,23 @@ private:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
     const double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
 
-    int calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
-            const double radius, const double latconst, const string& mesh_quality, const bool transform=false);
+    int get_nanotip(Media& nanotip, vector<bool>& node_in_nanotip, const double radius);
+
+    int calc_voronois(VoronoiMesh& voromesh, const Media& nanotip,
+            const double latconst, const string& mesh_quality);
+
+    int calc_tetgen_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+            const double radius, const double latconst, const string& mesh_quality);
+
+    int calc_transformed_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+            const double radius, const double latconst, const string& mesh_quality);
 
     int calc_kmc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
             const AtomReader& reader, const double radius, const double latconst, const string& mesh_quality);
+
+    int calc_mirrored_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+            const FieldReader& fields, const TriangleInterpolator& interp, const double r_cut,
+            const double radius, const double latconst, const string& mesh_quality);
 };
 
 } // namespace femocs

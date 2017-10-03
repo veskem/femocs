@@ -103,7 +103,7 @@ public:
     double interp_scalar(const Point3 &point, const int cell) const;
 
     /** Find the cell which contains the point or is the closest to it */
-    int locate_cell(const Point3 &point, const int cell_guess);
+    int locate_cell(const Point3 &point, const int cell_guess) const;
 
 protected:
     const double epsilon = 0.1;     ///< coplanarity tolerance
@@ -154,7 +154,7 @@ protected:
 
     /** Check whether the point is inside the cell.
      * It does not use get_bcc routine to achieve faster performance. */
-    virtual bool point_in_cell(const Vec3& point, const int cell) { return false; }
+    virtual bool point_in_cell(const Vec3& point, const int cell) const { return false; }
 
     /** Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
      *  surrounding hexahedral nodes */
@@ -261,7 +261,7 @@ private:
     void reserve_precompute(const int N);
 
     /** Get whether the point is located inside the i-th tetrahedron */
-    bool point_in_cell(const Vec3& point, const int i);
+    bool point_in_cell(const Vec3& point, const int i) const;
 
     /** Get barycentric coordinates for a point inside i-th tetrahedron */
     array<double,4> get_bcc(const Vec3& point, const int i) const;
@@ -295,6 +295,8 @@ public:
     /** Determine whether the point is within r_cut distance from the triangular surface */
     bool near_surface(const Vec3& point, const double r_cut) const;
 
+    Vec3 get_norm(const int i) const;
+
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
 
 private:
@@ -321,7 +323,7 @@ private:
     double distance(const Vec3& point, const int i) const;
 
     /** Check whether the projection of a point is inside the i-th triangle */
-    bool point_in_cell(const Vec3& point, const int i);
+    bool point_in_cell(const Vec3& point, const int i) const;
 
     /** Calculate barycentric coordinates for a point with respect to the i-th triangle */
     array<double,3> get_bcc(const Vec3& point, const int i) const;

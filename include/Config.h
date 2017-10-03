@@ -50,7 +50,7 @@ public:
     double latconst;            ///< Lattice constant
     double coordination_cutoff; ///< Cut-off distance for coordination analysis
     double cluster_cutoff;      ///< Cut-off distance for cluster analysis; if 0, cluster analysis uses coordination_cutoff instead
-    double surface_thichness;   ///< Maximum distance the surface atom is allowed to be from surface mesh [angstrom]; 0 turns check off
+    double surface_thickness;   ///< Maximum distance the surface atom is allowed to be from surface mesh [angstrom]; 0 turns check off
     int nnn;                    ///< Number of nearest neighbours for given crystal structure
     double neumann;             ///< Value of Neumann boundary condition
     double E0;                  ///< Value of long range electric field

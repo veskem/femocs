@@ -32,7 +32,7 @@ void write_defaults(ofstream &file) {
     file << "n_writefile = 1"            << endl;
     file << "use_histclean = false"      << endl;
     file << "surface_cleaner = faces"    << endl;
-    file << "surface_thichness = 3.1"    << endl;
+    file << "surface_thickness = 3.1"    << endl;
     file << "coord_cutoff = 3.1"         << endl;
     file << "latconst = 3.61"            << endl;
     file << "femocs_verbose_mode = verbose" << endl;

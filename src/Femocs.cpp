@@ -284,17 +284,17 @@ int Femocs::generate_meshes() {
     if (conf.surface_cleaner == "faces") {
         surface_interpolator.precompute();
         start_msg(t0, "=== Cleaning surface with triangles...");
-        dense_surf.clean_by_triangles(surface_interpolator, conf.surface_thichness);
+        dense_surf.clean_by_triangles(surface_interpolator, conf.surface_thickness);
         end_msg(t0);
         dense_surf.write("out/surface_dense_clean1.xyz");
     }
 
 //    if (conf.surface_cleaner == "voronois") {
-        start_msg(t0, "=== Cleaning surface with Voronoi cells...");
-//        const int err_code = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality + "a10");
-//        const int err_code = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, "1.4");
-
-//        err_code = dense_surf.clean_by_voronois(conf.radius, conf.latconst, "1.8");
+//        start_msg(t0, "=== Cleaning surface with Voronoi cells...");
+////        const int err_code = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, conf.mesh_quality + "a10");
+////        const int err_code = dense_surf.voronoi_clean(areas, conf.radius, conf.latconst, "1.4");
+//
+//        err_code = dense_surf.clean_by_voronois(conf.radius, conf.latconst, "10.0");
 //        check_return(err_code, "Making voronoi cells failed with error code " + to_string(err_code));
 //        end_msg(t0);
 //        dense_surf.write("out/surface_dense_clean2.xyz");
@@ -699,7 +699,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         face_charges.calc_interpolated_charges(fem_mesh, conf.E0);
 //        face_charges.calc_charges(fem_mesh, conf.E0);
         end_msg(t0);
-//        check_return(face_charges.check_limits(), "Face charges are not conserved!");
+        check_return(face_charges.check_limits(), "Face charges are not conserved!");
 
         face_charges.clean(dense_surf.sizes, conf.latconst);
         face_charges.write("out/face_charges.xyz");
@@ -717,7 +717,8 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
 //        forces.recalc_forces(fields, areas);
 //        forces.calc_phi_voronoi_charges(conf.radius, conf.latconst, "1.1");
 //        forces.calc_surface_voronoi_charges(fem_mesh.elems, fields, conf.radius, conf.latconst, "1.8");
-        forces.calc_transformed_voronoi_charges(fields, conf.radius, conf.latconst, "10.0");
+//        forces.calc_transformed_voronoi_charges(fields, conf.radius, conf.latconst, "10.0");
+        forces.calc_mirrored_voronoi_charges(fields, surface_interpolator, conf.latconst, conf.radius, conf.latconst, "10.0");
 //        forces.calc_kmc_voronoi_charges(reader, fem_mesh.elems, fields, conf.radius, conf.latconst, "10.0");
         end_msg(t0);
 

@@ -17,7 +17,7 @@ Config::Config() {
     extended_atoms = "";         // file with the atoms forming the extended surface
     atom_file = "";              // file with the nanostructure atoms
     latconst = 3.61;             // lattice constant
-    surface_thichness = 3.1;     // maximum distance the surface atom is allowed to be from surface mesh
+    surface_thickness = 3.1;     // maximum distance the surface atom is allowed to be from surface mesh
     coordination_cutoff = 3.1;   // coordination analysis cut-off radius
     cluster_cutoff = 0;          // cluster analysis cut-off radius
     nnn = 12;                    // number of nearest neighbours in bulk
@@ -82,6 +82,7 @@ void Config::read_all(const string& file_name) {
     check_obsolete("postprocess_marking");
     check_obsolete("force_factor");
     check_obsolete("heating", "heating_mode");
+    check_obsolete("surface_thichness", "surface_thickness");
 
     // Modify the parameters that are specified in input script
     read_command("work_function", work_function);
@@ -103,7 +104,7 @@ void Config::read_all(const string& file_name) {
     read_command("latconst", latconst);
     read_command("coord_cutoff", coordination_cutoff);
     read_command("cluster_cutoff", cluster_cutoff);
-    read_command("surface_thichness", surface_thichness);
+    read_command("surface_thickness", surface_thickness);
     read_command("nnn", nnn);
     read_command("mesh_quality", mesh_quality);
     read_command("element_volume", element_volume);
