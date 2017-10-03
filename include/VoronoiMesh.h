@@ -67,13 +67,14 @@ public:
 
     /** Stream for printing the nodes to file or console */
     friend std::ostream& operator <<(std::ostream &os, VoronoiFace &vf) {
-        for (int edge : vf)
-            os << vf.get_node(edge) << ' ';
+        int node = -1;
+        for (int edge : vf) {
+            node = vf.get_node(edge, node);
+            os << node << ' ';
+        }
+
         return os;
     }
-
-    /** Calculate the unique node that is associated with the edge */
-    int get_node(const int edge);
 
     /** Transform the node data from tetgenio into easily accessible form */
     void calc_verts();
@@ -81,6 +82,8 @@ public:
     vector<Vec3> verts;  ///< coordinates of the face vertices
 
 private:
+    /** Calculate the unique node that is associated with the edge */
+    int get_node(const int edge, const int previous_node);
 
     /** Get the norm vector of the face */
     Vec3 norm();

@@ -51,14 +51,10 @@ int VoronoiFace::nborcell(const int caller_id) {
 }
 
 // Calculate the unique node that is associated with the edge
-int VoronoiFace::get_node(const int edge) {
-    static int node = -1;
-
+int VoronoiFace::get_node(const int edge, const int previous_node) {
     const int v1 = data->vedgelist[edge].v1;
-    if (node != v1) node = v1;
-    else node = data->vedgelist[edge].v2;
-
-    return node;
+    if (previous_node != v1) return v1;
+    return data->vedgelist[edge].v2;
 }
 
 // Transform the node data from tetgenio into easily accessible form
@@ -66,8 +62,10 @@ void VoronoiFace::calc_verts() {
     if (verts.size() > 0) return;
     verts.reserve(size());
 
+    int node = -1;
     for (int edge : *this) {
-        int n = 3 * get_node(edge);
+        node = get_node(edge, node);
+        const int n = 3 * node;
         verts.push_back( Vec3(data->vpointlist[n+0], data->vpointlist[n+1], data->vpointlist[n+2]) );
     }
 }
