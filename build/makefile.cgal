@@ -8,30 +8,30 @@ all: release
 
 release: cgal/lib/x86_64-linux-gnu/libCGAL.a cgal/CGAL-${CGAL_VER}.zip
 cgal/lib/x86_64-linux-gnu/libCGAL.a:
-	cd cgal; unzip CGAL*.zip; mkdir -p CGAL-${CGAL_VER}/build
-	cd cgal/CGAL-*/build; cmake ${CGAL_FLAGS} ..
-	cd cgal/CGAL-*/build; make -j${NPROCS}; make install
+	cd cgal; unzip CGAL*.zip; mkdir -p CGAL-${CGAL_VER}/.build
+	cd cgal/CGAL-*/.build; cmake ${CGAL_FLAGS} ..
+	cd cgal/CGAL-*/.build; make -j${NPROCS}; make install
 	cd cgal; rm -rf CGAL-${CGAL_VER}
 
 debug: cgal_debug cgal/CGAL-${CGAL_VER}.zip
 cgal_debug:
-	cd cgal; unzip CGAL*.zip; mkdir -p CGAL-${CGAL_VER}/build
-	cd cgal/CGAL-*/build; cmake ${CGAL_FLAGS} -DCMAKE_BUILD_TYPE=Debug ..
-	cd cgal/CGAL-*/build; make -j${NPROCS}; make install
+	cd cgal; unzip CGAL*.zip; mkdir -p CGAL-${CGAL_VER}/.build
+	cd cgal/CGAL-*/.build; cmake ${CGAL_FLAGS} -DCMAKE_BUILD_TYPE=Debug ..
+	cd cgal/CGAL-*/.build; make -j${NPROCS}; make install
 	cd cgal; rm -rf CGAL-${CGAL_VER}
 
 taito: cgal/lib64/libCGAL.a cgal/CGAL-${CGAL_VER}.zip
 cgal/lib64/libCGAL.a:
-	cd cgal; unzip CGAL*.zip; mkdir -p CGAL-${CGAL_VER}/build
-	cd cgal/CGAL-*/build; cmake ${CGAL_FLAGS_TAITO} ${CGAL_FLAGS} ..
-	cd cgal/CGAL-*/build; make j${NPROCS}; make install
+	cd cgal; unzip CGAL*.zip; mkdir -p CGAL-${CGAL_VER}/.build
+	cd cgal/CGAL-*/.build; cmake ${CGAL_FLAGS_TAITO} ${CGAL_FLAGS} ..
+	cd cgal/CGAL-*/.build; make j${NPROCS}; make install
 	cd cgal; rm -rf CGAL-${CGAL_VER}
 
 cgal/CGAL-${CGAL_VER}.zip:
 	mkdir -p cgal; cd cgal; wget https://github.com/CGAL/cgal/releases/download/releases%2FCGAL-${CGAL_VER}/CGAL-${CGAL_VER}.zip
 
 clean:
-	shopt -s extglob; rm -rf !(CGAL-${CGAL_VER}.zip)
+	shopt -s extglob; cd cgal; rm -rf !(CGAL-${CGAL_VER}.zip)
 
 clean-all:
 	rm -rf cgal/*

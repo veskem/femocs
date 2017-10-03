@@ -6,16 +6,16 @@ include build/makefile.defs
 
 all: lib/libfemocs.a
 
-lib/libfemocs.a: build/build/Makefile src/* include/* deal-solver/source/* deal-solver/include/*
-	cd build/build; make -j${NPROCS}
+lib/libfemocs.a: build/.build/Makefile src/* include/* deal-solver/source/* deal-solver/include/*
+	cd build/.build; make -j${NPROCS}
 
-build/build/Makefile:
-	cd build; mkdir -p build;
-	cd build/build; rm -rf *; cmake -DCMAKE_BUILD_TYPE=${mode} -DLIBCGAL=${LIBCGAL} \
+build/.build/Makefile:
+	cd build; mkdir -p .build;
+	cd build/.build; rm -rf *; cmake -DCMAKE_BUILD_TYPE=${mode} -DLIBCGAL=${LIBCGAL} \
 -DCMAKE_Fortran_COMPILER=${F90} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} ..;
 
 clean:
-	rm -rf lib/libfemocs.a lib/libfemocs.mod build/build
+	rm -rf lib/libfemocs.a lib/libfemocs.mod build/.build
 
 clean-all:
-	rm -rf lib/libfemocs.a lib/libfemocs.mod build/build
+	rm -rf lib/libfemocs.a lib/libfemocs.mod build/.build

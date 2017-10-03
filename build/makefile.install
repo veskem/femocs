@@ -7,13 +7,13 @@ include build/makefile.defs
 all: ${SOLVERMAIN} GETELEC/lib/libgetelec.a lib/libtet.a dealii/lib/libdeal_II.a
 
 lib/libtet.a:
-	cd tetgen; rm -rf build; mkdir -p build
-	cd tetgen/build; cmake ${TETGEN_FLAGS} ..; make -j${NPROCS}
-	rm -rf tetgen/build
+	cd tetgen; rm -rf .build; mkdir -p .build
+	cd tetgen/.build; cmake ${TETGEN_FLAGS} ..; make -j${NPROCS}
+	rm -rf tetgen/.build
 
 dealii/lib/libdeal_II.a: dealii/dealii-${DEALII_VER}.tar.gz
-	cd dealii; tar -xvf dealii-${DEALII_VER}.tar.gz; mkdir -p dealii-${DEALII_VER}/build
-	cd dealii/dealii-*/build; cmake ${DEALII_FLAGS} -DDEAL_II_STATIC_EXECUTABLE=ON ..; make -j${NPROCS} install
+	cd dealii; tar -xvf dealii-${DEALII_VER}.tar.gz; mkdir -p dealii-${DEALII_VER}/.build
+	cd dealii/dealii-*/.build; cmake ${DEALII_FLAGS} -DDEAL_II_STATIC_EXECUTABLE=ON ..; make -j${NPROCS} install
 	cd dealii; rm -rf examples dealii-${DEALII_VER};
 
 dealii/dealii-${DEALII_VER}.tar.gz:
@@ -30,4 +30,4 @@ clean:
 	rm -rf lib/libtet.a dealii/lib/*
 
 clean-all:
-	rm -rf lib/libtet.a tetgen/build dealii/* deal-solver GETELEC
+	rm -rf lib/libtet.a tetgen/.build dealii/* deal-solver GETELEC
