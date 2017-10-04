@@ -251,9 +251,6 @@ private:
      * of the solutions on its Voronoi cell nodes */
     bool average_sharp_nodes(const bool vacuum);
 
-    /** Leave only the solution in the nodes and tetrahedra */
-    bool clean_nodes();
-
     /** Pre-compute data about tetrahedra to make interpolation faster */
     void precompute();
 
