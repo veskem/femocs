@@ -296,6 +296,10 @@ private:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
     const double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
 
+    void clean_support(Media& support, const Media& nanotip, const double r_cut);
+
+    void clean_voro_faces(VoronoiMesh& mesh, const int n_nanotip_nodes);
+
     int get_nanotip(Media& nanotip, vector<bool>& node_in_nanotip, const double radius);
 
     int calc_voronois(VoronoiMesh& voromesh, const Media& nanotip,
@@ -311,6 +315,7 @@ private:
             const AtomReader& reader, const double radius, const double latconst, const string& mesh_quality);
 
     int calc_mirrored_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+            int& n_nanotip_nodes, int& n_support_nodes,
             const FieldReader& fields, const TriangleInterpolator& interp, const double r_cut,
             const double radius, const double latconst, const string& mesh_quality);
 };

@@ -1105,12 +1105,36 @@ int ForceReader::calc_transformed_voronois(VoronoiMesh& voromesh, vector<bool>& 
     return n_nanotip_nodes;
 }
 
+void ForceReader::clean_support(Media& support, const Media& nanotip, const double r_cut) {
+    const double r_cut2 = r_cut * r_cut;
+    const int n_nodes = nanotip.size();
+
+    vector<bool> atom_valid(n_nodes, true);
+    for (int i = 0; i < n_nodes; ++i) {
+        Point3 point1 = support.get_point(i);
+        for (int j = 0; j < n_nodes; ++j)
+            if (point1.distance2(nanotip.get_point(j)) < r_cut2) {
+                atom_valid[i] = false;
+                break;
+            }
+    }
+
+    Media new_support(vector_sum(atom_valid));
+    for (int i = 0; i < n_nodes; ++i)
+        if (atom_valid[i])
+            new_support.append(support.get_atom(i));
+
+    support.reserve(0);
+    support += new_support;
+}
+
 int ForceReader::calc_mirrored_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+        int& n_nanotip_nodes, int& n_support_nodes,
         const FieldReader& fields, const TriangleInterpolator& interp, const double r_cut,
         const double radius, const double latconst, const string& mesh_quality)
 {
     Media nanotip;
-    const int n_nanotip_nodes = get_nanotip(nanotip, node_in_nanotip, radius);
+    n_nanotip_nodes = get_nanotip(nanotip, node_in_nanotip, radius);
 
     // calculate support points for the nanotip
     // by moving the nanotip points in direction of its corresponding triangle norm by r_cut
@@ -1133,6 +1157,9 @@ int ForceReader::calc_mirrored_voronois(VoronoiMesh& voromesh, vector<bool>& nod
             point += Point3(shift.x, shift.y, shift.z);
             support.append(Atom(i, point, TYPES.VACANCY));
         }
+
+    clean_support(support, nanotip, 0.707*r_cut);
+    n_support_nodes = support.size();
 
     nanotip += support;
 
@@ -1216,9 +1243,11 @@ bool ForceReader::calc_mirrored_voronoi_charges(const FieldReader& fields,
     // Extract nanotip and generate Voronoi cells around it
     VoronoiMesh mesh;
     vector<bool> node_in_nanotip;
-    const int n_nanotip_nodes = calc_mirrored_voronois(mesh, node_in_nanotip, fields, interp, r_cut, radius, latconst, mesh_quality);
+    int n_nanotip_nodes, n_support_nodes;
+    calc_mirrored_voronois(mesh, node_in_nanotip, n_nanotip_nodes, n_support_nodes,
+            fields, interp, r_cut, radius, latconst, mesh_quality);
     const int support_start = n_nanotip_nodes;
-    const int support_end = 2 * n_nanotip_nodes - 1;
+    const int support_end = n_nanotip_nodes + n_support_nodes - 1;
 
     require(mesh.nodes.size() > 0, "Empty Voronoi mesh cannot be handled!");
     require(mesh.voros.size() > 0, "Empty Voronoi mesh cannot be handled!");
@@ -1235,6 +1264,9 @@ bool ForceReader::calc_mirrored_voronoi_charges(const FieldReader& fields,
                 mesh.vfaces.set_marker(face.id, TYPES.NONE);
         }
 
+    // remove too big surface faces
+//    clean_voro_faces(mesh, n_nanotip_nodes);
+
     mesh.vfaces.write("out/voro_faces_marked.vtk");
 
     // calculate charge on Voronoi cell
@@ -1249,7 +1281,8 @@ bool ForceReader::calc_mirrored_voronoi_charges(const FieldReader& fields,
                 if (mesh.vfaces.get_marker(face.id) == TYPES.SURFACE) {
                     Vec3 normal = mesh.nodes.get_vec(face.nborcell(cell)) - centre;
                     normal.normalize();
-                    area += normal * face.area();
+                    if (field.dotProduct(normal) < 0)
+                        area += normal * face.area();
                 }
             }
 
@@ -1258,6 +1291,43 @@ bool ForceReader::calc_mirrored_voronoi_charges(const FieldReader& fields,
         }
 
     return 0;
+}
+
+void ForceReader::clean_voro_faces(VoronoiMesh& mesh, const int n_nanotip_nodes) {
+    // calculate mean area of surface faces
+    vector<double> areas(mesh.vfaces.size());
+    int n_surface_faces = 0;
+    double mean_area = 0;
+    for (int cell = 0; cell < n_nanotip_nodes; ++cell)
+        for (VoronoiFace face : mesh.voros[cell])
+            if (mesh.vfaces.get_marker(face.id) == TYPES.SURFACE) {
+                double area = face.area();
+                areas[face.id] = area;
+                mean_area += area;
+                n_surface_faces++;
+            }
+
+    mean_area /= n_surface_faces;
+
+    // calculate standard deviation of the areas
+    double std = 0;
+    for (double area : areas)
+        if (area > 0) {
+            area -= mean_area;
+            std += area * area;
+        }
+    std = sqrt(std / (n_surface_faces - 1));
+
+    // remove cells whose face area is bigger than threshold
+    const double max_area = 5.0 * std + mean_area;
+    for (int cell = 0; cell < n_nanotip_nodes; ++cell)
+        for (VoronoiFace face1 : mesh.voros[cell])
+            if (areas[face1.id] > max_area) {
+                for (VoronoiFace face2 : mesh.voros[cell])
+                    mesh.vfaces.set_marker(face2.id, TYPES.NONE);
+                break;
+            }
+
 }
 
 bool ForceReader::calc_transformed_voronoi_charges(const FieldReader& fields,
@@ -1284,6 +1354,9 @@ bool ForceReader::calc_transformed_voronoi_charges(const FieldReader& fields,
             else
                 mesh.vfaces.set_marker(face.id, TYPES.NONE);
         }
+
+    // remove too big surface faces
+    clean_voro_faces(mesh, n_nanotip_nodes);
 
     mesh.vfaces.write("out/voro_faces_marked.vtk");
 

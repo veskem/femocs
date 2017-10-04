@@ -75,6 +75,7 @@ void write_kmcsmall(ofstream &file) {
     file << "coarse_factor = 0.3 6 4" << endl;
     file << "latconst = 2.0"          << endl;
     file << "radius = 11.0"           << endl;
+    file << "surface_cleaner = none"  << endl;
 }
 
 void write_kmcbig(ofstream &file) {
@@ -82,6 +83,8 @@ void write_kmcbig(ofstream &file) {
     file << "coarse_factor = 0.4 6 4" << endl;
     file << "latconst = 2.0"          << endl;
     file << "radius = 20.0"           << endl;
+    file << "surface_cleaner = none"  << endl;
+    file << "mesh_quality = 1.6"      << endl;
 }
 
 void write_kmcregular(ofstream &file) {
@@ -91,6 +94,7 @@ void write_kmcregular(ofstream &file) {
     file << "radius = 42.0"           << endl;
     file << "box_width = 5.0"         << endl;
     file << "box_height = 5.0"        << endl;
+    file << "surface_cleaner = none"  << endl;
 }
 
 void write_stretch(ofstream &file) {

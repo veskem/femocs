@@ -696,13 +696,13 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         face_charges.set_check_params(tot_charge, conf.charge_tolerance_min, conf.charge_tolerance_max);
 
         start_msg(t0, "=== Calculating face charges...");
-        face_charges.calc_interpolated_charges(fem_mesh, conf.E0);
-//        face_charges.calc_charges(fem_mesh, conf.E0);
+//        face_charges.calc_interpolated_charges(fem_mesh, conf.E0);
+        face_charges.calc_charges(fem_mesh, conf.E0);
         end_msg(t0);
+        face_charges.write("out/face_charges.xyz");
         check_return(face_charges.check_limits(), "Face charges are not conserved!");
 
         face_charges.clean(dense_surf.sizes, conf.latconst);
-        face_charges.write("out/face_charges.xyz");
 
         start_msg(t0, "=== Calculating charges & forces...");
         forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coordination_cutoff,
