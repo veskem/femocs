@@ -290,7 +290,7 @@ public:
     void precompute();
 
     /** Determine whether the point is within r_cut distance from the triangular surface */
-    bool near_surface(const Vec3& point, const double r_cut) const;
+    int near_surface(const Vec3& point, const double r_cut) const;
 
     Vec3 get_norm(const int i) const;
 

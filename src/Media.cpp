@@ -216,7 +216,8 @@ void Media::clean_by_triangles(const TriangleInterpolator& interpolator, const d
 
     for (int i = 0; i < n_atoms; ++i) {
         Atom atom = get_atom(i);
-        if (interpolator.near_surface(atom.point, r_cut))
+        atom.marker = interpolator.near_surface(atom.point, r_cut);
+        if (atom.marker >= 0)
             _atoms.push_back(atom);
     }
 

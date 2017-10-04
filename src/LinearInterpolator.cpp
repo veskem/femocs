@@ -889,15 +889,15 @@ void TriangleInterpolator::precompute() {
     }
 }
 
-bool TriangleInterpolator::near_surface(const Vec3& point, const double r_cut) const {
+int TriangleInterpolator::near_surface(const Vec3& point, const double r_cut) const {
     require(r_cut > 0, "Invalid distance from surface: " + to_string(r_cut));
 
     for (int face = 0; face < cells.size(); ++face) {
         const double dist = distance(point, face);
-        if (dist >= -0.3*r_cut && dist <= r_cut) return true;
+        if (dist >= -0.3*r_cut && dist <= r_cut) return face;
     }
 
-    return false;
+    return -1;
 }
 
 
