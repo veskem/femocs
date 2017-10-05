@@ -270,12 +270,11 @@ public:
     /** Replace the charge and force on the nanotip nodes with the one found with Voronoi cells */
     void recalc_forces(const FieldReader &fields, const vector<Vec3>& areas);
 
-    bool calc_phi_voronoi_charges(const double radius, const double latconst, const string& mesh_quality);
-    bool calc_surface_voronoi_charges(const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
-    bool calc_transformed_voronoi_charges(const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
-    bool calc_kmc_voronoi_charges(const AtomReader& reader, const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
-    bool calc_mirrored_voronoi_charges(const FieldReader& fields,
-            const TriangleInterpolator& interp, const double r_cut,
+    int calc_phi_voronoi_charges(const double radius, const double latconst, const string& mesh_quality);
+    int calc_surface_voronoi_charges(const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
+    int calc_transformed_voronoi_charges(const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
+    int calc_kmc_voronoi_charges(const AtomReader& reader, const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
+    int calc_mirrored_voronoi_charges(const FieldReader& fields,
              const double radius, const double latconst, const string& mesh_quality);
 
     /** Calculate forces from atomic electric fields and face charges */
@@ -319,8 +318,6 @@ private:
             const AtomReader& reader, const double radius, const double latconst, const string& mesh_quality);
 
     int calc_mirrored_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
-            int& n_nanotip_nodes, int& n_support_nodes,
-            const FieldReader& fields, const TriangleInterpolator& interp, const double r_cut,
             const double radius, const double latconst, const string& mesh_quality);
 };
 

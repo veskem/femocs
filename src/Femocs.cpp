@@ -286,7 +286,7 @@ int Femocs::generate_meshes() {
         start_msg(t0, "=== Cleaning surface with triangles...");
         dense_surf.clean_by_triangles(surface_interpolator, conf.surface_thickness);
         end_msg(t0);
-        dense_surf.write("out/surface_dense_clean1.xyz");
+        dense_surf.write("out/surface_dense_clean.xyz");
     }
 
 //    if (conf.surface_cleaner == "voronois") {
@@ -712,12 +712,14 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         face_charges.check_limits(forces.get_interpolations());
 
         start_msg(t0, "=== Calculating Voronoi charges & forces...");
-//        forces.recalc_forces(fields, areas);
-//        forces.calc_phi_voronoi_charges(conf.radius, conf.latconst, "1.1");
-//        forces.calc_surface_voronoi_charges(fem_mesh.elems, fields, conf.radius, conf.latconst, "1.8");
-//        forces.calc_transformed_voronoi_charges(fields, conf.radius, conf.latconst, "10.0");
-        forces.calc_mirrored_voronoi_charges(fields, surface_interpolator, conf.latconst, conf.radius, conf.latconst, "10.0");
-//        forces.calc_kmc_voronoi_charges(reader, fem_mesh.elems, fields, conf.radius, conf.latconst, "10.0");
+        int err_code;
+//        err_code = forces.recalc_forces(fields, areas);
+//        err_code = forces.calc_phi_voronoi_charges(conf.radius, conf.latconst, "1.1");
+//        err_code = forces.calc_surface_voronoi_charges(fem_mesh.elems, fields, conf.radius, conf.latconst, "1.8");
+//        err_code = forces.calc_transformed_voronoi_charges(fields, conf.radius, conf.latconst, "10.0");
+        err_code = forces.calc_mirrored_voronoi_charges(fields, conf.radius, conf.latconst, "10.0");
+//        err_code = forces.calc_kmc_voronoi_charges(reader, fem_mesh.elems, fields, conf.radius, conf.latconst, "10.0");
+        check_return(err_code, "Generation of Voronoi cells failed with error code " + to_string(err_code));
         end_msg(t0);
 
         forces.write("out/forces.movie");
