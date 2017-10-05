@@ -223,7 +223,6 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
     coarse_surf = coarse_surf.clean(coarseners);
 
     coarse_surf.smoothen(conf.radius, conf.surface_smooth_factor, 3.0*conf.coordination_cutoff);
-//    coarse_surf.smoothen(conf, 3.0 * conf.surface_smooth_factor * conf.coordination_cutoff);
     end_msg(t0);
 
     coarse_surf.write("out/surface_coarse.xyz");
@@ -284,7 +283,7 @@ int Femocs::generate_meshes() {
     if (conf.surface_cleaner == "faces") {
         surface_interpolator.precompute();
         start_msg(t0, "=== Cleaning surface with triangles...");
-        dense_surf.clean_by_triangles(surface_interpolator, conf.surface_thickness);
+        dense_surf.clean_by_triangles(atom2face, surface_interpolator, conf.surface_thickness);
         end_msg(t0);
         dense_surf.write("out/surface_dense_clean.xyz");
     }
@@ -643,7 +642,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         write_silent_msg("Using previous electric field!");
     else {
         start_msg(t0, "=== Interpolating E and phi...");
-        fields.interpolate_2d(dense_surf, 0, true);
+        fields.interpolate_2d(atom2face, dense_surf, 0, true);
 //        fields.interpolate(dense_surf, 0, true);
         fail = fields.clean(conf.coordination_cutoff, conf.use_histclean);
         end_msg(t0);
@@ -697,7 +696,6 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         face_charges.set_check_params(tot_charge, conf.charge_tolerance_min, conf.charge_tolerance_max);
 
         start_msg(t0, "=== Calculating face charges...");
-//        face_charges.calc_interpolated_charges(fem_mesh, conf.E0);
         face_charges.calc_charges(fem_mesh, conf.E0);
         end_msg(t0);
         face_charges.write("out/face_charges.xyz");
@@ -717,7 +715,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
 //        err_code = forces.calc_phi_voronoi_charges(conf.radius, conf.latconst, "1.1");
 //        err_code = forces.calc_surface_voronoi_charges(fem_mesh.elems, fields, conf.radius, conf.latconst, "1.8");
 //        err_code = forces.calc_transformed_voronoi_charges(fields, conf.radius, conf.latconst, "10.0");
-        err_code = forces.calc_mirrored_voronoi_charges(fields, conf.radius, conf.latconst, "10.0");
+        err_code = forces.calc_mirrored_voronoi_charges(atom2face, fields, conf.radius, conf.latconst, "10.0");
 //        err_code = forces.calc_kmc_voronoi_charges(reader, fem_mesh.elems, fields, conf.radius, conf.latconst, "10.0");
         check_return(err_code, "Generation of Voronoi cells failed with error code " + to_string(err_code));
         end_msg(t0);

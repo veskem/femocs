@@ -204,6 +204,7 @@ private:
     double t0;
     int timestep;           ///< counter to measure how many times Femocs has been called
     vector<Vec3> areas;     ///< surface areas of Voronoi cells that is exposed to vacuum
+    vector<int> atom2face;  ///< surface atom to triangle index map
     
     Config conf;            ///< configuration parameters
     Coarseners coarseners;  ///< surface coarsening data & routines

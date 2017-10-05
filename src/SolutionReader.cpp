@@ -78,6 +78,36 @@ void SolutionReader::calc_3d_interpolation(const int component, const bool srt) 
 }
 
 // Linearly interpolate solution on system atoms using triangular interpolator
+void SolutionReader::calc_2d_interpolation(vector<int>& atom2face, const int component, const bool srt) {
+    require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
+    require(interpolator_2d, "NULL surface interpolator cannot be used!");
+
+    const int n_atoms = size();
+    const bool faces_known = atom2face.size() == n_atoms;
+
+    // are the atoms already mapped against the triangles?
+    if (faces_known)
+        // ...yes, no need to calculate them again, just interpolate
+        for (int i = 0; i < n_atoms; ++i) {
+            // locate the face
+            int face = atom2face[i];
+            set_marker(i, face);
+
+            // calculate the interpolation
+            Point3 point = get_point(i);
+            if      (component == 0) interpolation.push_back(interpolator_2d->interp_solution(point, face));
+            else if (component == 1) interpolation.push_back(interpolator_2d->interp_vector(point, face));
+            else if (component == 2) interpolation.push_back(interpolator_2d->interp_scalar(point, face));
+        }
+    // ...nop, do it and interpolate
+    else {
+        calc_2d_interpolation(component, srt);
+        atom2face = vector<int>(n_atoms);
+        for (int i = 0; i < n_atoms; ++i)
+            atom2face[i] = abs(get_marker(i));
+    }
+}
+
 void SolutionReader::calc_2d_interpolation(const int component, const bool srt) {
     require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
     require(interpolator_2d, "NULL surface interpolator cannot be used!");
@@ -91,19 +121,20 @@ void SolutionReader::calc_2d_interpolation(const int component, const bool srt) 
     // Sort atoms into sequential order to speed up interpolation
     if (srt) sort_spatial();
 
-    int elem = 0;
+    int face = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point = get_point(i);
-        // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point
-        elem = interpolator_2d->locate_cell(point, abs(elem));
+
+        // Find the face that is closest to the point
+        face = interpolator_2d->locate_cell(point, abs(face));
 
         // Store whether the point is in- or outside the mesh
-        set_marker(i, elem);
+        set_marker(i, face);
 
         // Calculate the interpolation
-        if      (component == 0) interpolation.push_back(interpolator_2d->interp_solution(point, elem));
-        else if (component == 1) interpolation.push_back(interpolator_2d->interp_vector(point, elem));
-        else if (component == 2) interpolation.push_back(interpolator_2d->interp_scalar(point, elem));
+        if      (component == 0) interpolation.push_back(interpolator_2d->interp_solution(point, face));
+        else if (component == 1) interpolation.push_back(interpolator_2d->interp_vector(point, face));
+        else if (component == 2) interpolation.push_back(interpolator_2d->interp_scalar(point, face));
     }
 
     // Sort atoms back to their initial order
@@ -405,16 +436,16 @@ FieldReader::FieldReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet
         E0(0), radius1(0), radius2(0) {}
 
 // Linearly interpolate solution on Medium atoms using triangular interpolator
-void FieldReader::interpolate_2d(const Medium &medium, const int component, const bool srt) {
-    const int n_atoms = medium.size();
+void FieldReader::interpolate_2d(vector<int>& atom2face, const Medium &medium,
+        const int component, const bool srt) {
 
-    // store the atom coordinates
+    const int n_atoms = medium.size();
     reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
         append( Atom(i, medium.get_point(i), 0) );
 
     // interpolate solution
-    calc_2d_interpolation(component, srt);
+    calc_2d_interpolation(atom2face, component, srt);
 
     // store the original atom id-s
     for (int i = 0; i < n_atoms; ++i)
@@ -1016,28 +1047,90 @@ ForceReader::ForceReader(TetrahedronInterpolator* tet) :
 ForceReader::ForceReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet) :
         SolutionReader(tri, tet, "force", "force_norm", "charge") {}
 
+void ForceReader::clean_support(Media& support, const Media& nanotip, const double r_cut) {
+    const double r_cut2 = r_cut * r_cut;
+    const int n_nodes = nanotip.size();
+
+    vector<bool> atom_valid(n_nodes, true);
+    for (int i = 0; i < n_nodes; ++i) {
+        Point3 point1 = support.get_point(i);
+        for (int j = 0; j < n_nodes; ++j)
+            if (point1.distance2(nanotip.get_point(j)) < r_cut2) {
+                atom_valid[i] = false;
+                break;
+            }
+    }
+
+    Media new_support(vector_sum(atom_valid));
+    for (int i = 0; i < n_nodes; ++i)
+        if (atom_valid[i])
+            new_support.append(support.get_atom(i));
+
+    support.reserve(0);
+    support += new_support;
+}
+
+void ForceReader::clean_voro_faces(VoronoiMesh& mesh) {
+    const int nanotip_end = mesh.nodes.indxs.surf_end;
+
+    // calculate mean area of surface faces
+    vector<double> areas(mesh.vfaces.size());
+    int n_surface_faces = 0;
+    double mean_area = 0;
+    for (int cell = 0; cell <= nanotip_end; ++cell)
+        for (VoronoiFace face : mesh.voros[cell])
+            if (mesh.vfaces.get_marker(face.id) == TYPES.SURFACE) {
+                double area = face.area();
+                areas[face.id] = area;
+                mean_area += area;
+                n_surface_faces++;
+            }
+
+    mean_area /= n_surface_faces;
+
+    // calculate standard deviation of the areas
+    double std = 0;
+    for (double area : areas)
+        if (area > 0) {
+            area -= mean_area;
+            std += area * area;
+        }
+    std = sqrt(std / (n_surface_faces - 1));
+
+    // remove cells whose face area is bigger than threshold
+    const double max_area = 5.0 * std + mean_area;
+    for (int cell = 0; cell <= nanotip_end; ++cell)
+        for (VoronoiFace face1 : mesh.voros[cell])
+            if (areas[face1.id] > max_area) {
+                for (VoronoiFace face2 : mesh.voros[cell])
+                    mesh.vfaces.set_marker(face2.id, TYPES.NONE);
+                break;
+            }
+
+}
+
 // Separate cylindrical region from substrate region
-int ForceReader::get_nanotip(Media& nanotip, vector<bool>& node_in_nanotip, const double radius) {
-    const int n_this_nodes = size();
+int ForceReader::get_nanotip(Media& nanotip, vector<bool>& atom_in_nanotip, const double radius) {
+    const int n_atoms = size();
     const double radius2 = radius * radius;
     Medium::calc_statistics();
 
     // Make map for atoms in nanotip
     Point2 centre(sizes.xmid, sizes.ymid);
-    node_in_nanotip = vector<bool>(n_this_nodes);
-    for (int i = 0; i < n_this_nodes; ++i)
-        node_in_nanotip[i] = centre.distance2(get_point2(i)) <= radius2;
+    atom_in_nanotip = vector<bool>(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        atom_in_nanotip[i] = centre.distance2(get_point2(i)) <= radius2;
 
-    const int n_nanotip_nodes = vector_sum(node_in_nanotip);
+    const int n_nanotip_atoms = vector_sum(atom_in_nanotip);
 
     // Separate nanotip from substrate
-    nanotip.reserve(n_nanotip_nodes);
-    for (int i = 0; i < n_this_nodes; ++i)
-        if (node_in_nanotip[i])
+    nanotip.reserve(n_nanotip_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        if (atom_in_nanotip[i])
             nanotip.append(Atom(i, get_point(i), TYPES.SURFACE));
 
     nanotip.calc_statistics();
-    return n_nanotip_nodes;
+    return n_nanotip_atoms;
 }
 
 int ForceReader::calc_voronois(VoronoiMesh& voromesh, const Media& nanotip,
@@ -1103,7 +1196,7 @@ int ForceReader::calc_kmc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_
     return nanotip.size();
 }
 
-int ForceReader::calc_transformed_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+int ForceReader::calc_transformed_voronois(VoronoiMesh& mesh, vector<bool>& node_in_nanotip,
         const double radius, const double latconst, const string& mesh_quality)
 {
     // Separate nanotip from substrate
@@ -1117,94 +1210,36 @@ int ForceReader::calc_transformed_voronois(VoronoiMesh& voromesh, vector<bool>& 
             support.append(Atom(i, get_point(i), TYPES.VACANCY));
 
     support.transform(latconst);
+    clean_support(support, nanotip, latconst);
     nanotip += support;
 
     nanotip.calc_statistics();
     nanotip.write("out/nanotip.xyz");
 
-    int err_code = calc_voronois(voromesh, nanotip, latconst, mesh_quality);
-    if (err_code) return err_code;
-
-    return n_nanotip_nodes;
+    int err_code = calc_voronois(mesh, nanotip, latconst, mesh_quality);
+    mesh.nodes.save_indices(n_nanotip_nodes, 0, support.size());
+    return err_code;
 }
 
-void ForceReader::clean_support(Media& support, const Media& nanotip, const double r_cut) {
-    const double r_cut2 = r_cut * r_cut;
-    const int n_nodes = nanotip.size();
-
-    vector<bool> atom_valid(n_nodes, true);
-    for (int i = 0; i < n_nodes; ++i) {
-        Point3 point1 = support.get_point(i);
-        for (int j = 0; j < n_nodes; ++j)
-            if (point1.distance2(nanotip.get_point(j)) < r_cut2) {
-                atom_valid[i] = false;
-                break;
-            }
-    }
-
-    Media new_support(vector_sum(atom_valid));
-    for (int i = 0; i < n_nodes; ++i)
-        if (atom_valid[i])
-            new_support.append(support.get_atom(i));
-
-    support.reserve(0);
-    support += new_support;
-}
-
-void ForceReader::clean_voro_faces(VoronoiMesh& mesh, const int n_nanotip_nodes) {
-    // calculate mean area of surface faces
-    vector<double> areas(mesh.vfaces.size());
-    int n_surface_faces = 0;
-    double mean_area = 0;
-    for (int cell = 0; cell < n_nanotip_nodes; ++cell)
-        for (VoronoiFace face : mesh.voros[cell])
-            if (mesh.vfaces.get_marker(face.id) == TYPES.SURFACE) {
-                double area = face.area();
-                areas[face.id] = area;
-                mean_area += area;
-                n_surface_faces++;
-            }
-
-    mean_area /= n_surface_faces;
-
-    // calculate standard deviation of the areas
-    double std = 0;
-    for (double area : areas)
-        if (area > 0) {
-            area -= mean_area;
-            std += area * area;
-        }
-    std = sqrt(std / (n_surface_faces - 1));
-
-    // remove cells whose face area is bigger than threshold
-    const double max_area = 5.0 * std + mean_area;
-    for (int cell = 0; cell < n_nanotip_nodes; ++cell)
-        for (VoronoiFace face1 : mesh.voros[cell])
-            if (areas[face1.id] > max_area) {
-                for (VoronoiFace face2 : mesh.voros[cell])
-                    mesh.vfaces.set_marker(face2.id, TYPES.NONE);
-                break;
-            }
-
-}
-
-int ForceReader::calc_mirrored_voronois(VoronoiMesh& mesh, vector<bool>& node_in_nanotip,
-        const double radius, const double latconst, const string& mesh_quality)
+int ForceReader::calc_mirrored_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip,
+        const vector<int>& atom2face, const double radius, const double latconst, const string& mesh_quality)
 {
     require(interpolator_2d, "NULL surface interpolator cannot be used!");
+    const int n_atoms = size();
+    const bool faces_known = n_atoms == atom2face.size();
+
     Media nanotip;
-    const int n_nanotip_nodes = get_nanotip(nanotip, node_in_nanotip, radius);
+    const int n_nanotip_nodes = get_nanotip(nanotip, atom_in_nanotip, radius);
 
     // calculate support points for the nanotip
     // by moving the nanotip points in direction of its corresponding triangle norm by r_cut
-    const int n_atoms = size();
     Media support(n_nanotip_nodes);
-
     int face = 0;
     for (int i = 0; i < n_atoms; ++i)
-        if (node_in_nanotip[i]) {
+        if (atom_in_nanotip[i]) {
             Point3 point = get_point(i);
-            face = abs( interpolator_2d->locate_cell(point, face) );
+            if (faces_known) face = atom2face[i];
+            else face = abs( interpolator_2d->locate_cell(point, face) );
 
             Vec3 shift = interpolator_2d->get_norm(face);
             shift *= latconst;
@@ -1288,13 +1323,13 @@ int ForceReader::calc_phi_voronoi_charges(
     return 0;
 }
 
-int ForceReader::calc_mirrored_voronoi_charges(const FieldReader& fields,
+int ForceReader::calc_mirrored_voronoi_charges(const vector<int>& atom2face, const FieldReader& fields,
          const double radius, const double latconst, const string& mesh_quality)
 {
     // Extract nanotip and generate Voronoi cells around it
     VoronoiMesh mesh;
-    vector<bool> node_in_nanotip;
-    int err_code = calc_mirrored_voronois(mesh, node_in_nanotip, radius, latconst, mesh_quality);
+    vector<bool> atom_in_nanotip;
+    int err_code = calc_mirrored_voronois(mesh, atom_in_nanotip, atom2face, radius, latconst, mesh_quality);
     if (err_code) return err_code;
 
     const int nanotip_end = mesh.nodes.indxs.surf_end;
@@ -1317,13 +1352,13 @@ int ForceReader::calc_mirrored_voronoi_charges(const FieldReader& fields,
         }
 
     // remove too big surface faces
-//    clean_voro_faces(mesh, n_nanotip_nodes);
+//    clean_voro_faces(mesh);
     mesh.vfaces.write("out/voro_faces.vtk");
 
     // calculate charge on Voronoi cell
     int cell = -1;
     for (int i = 0; i < size(); ++i)
-        if (node_in_nanotip[i]) {
+        if (atom_in_nanotip[i]) {
             Vec3 centre = mesh.nodes.get_vec(++cell);
             Vec3 field = fields.get_elfield(i);
             Vec3 area(0);
@@ -1350,15 +1385,17 @@ int ForceReader::calc_transformed_voronoi_charges(const FieldReader& fields,
     // Extract nanotip and generate Voronoi cells around it
     VoronoiMesh mesh;
     vector<bool> node_in_nanotip;
-    const int n_nanotip_nodes = calc_transformed_voronois(mesh, node_in_nanotip, radius, latconst, mesh_quality);
-    const int support_start = n_nanotip_nodes;
-    const int support_end = 2 * n_nanotip_nodes - 1;
+    int err_code = calc_transformed_voronois(mesh, node_in_nanotip, radius, latconst, mesh_quality);
+    if (err_code) return err_code;
 
+    const int nanotip_end = mesh.nodes.indxs.surf_end;
+    const int support_start = mesh.nodes.indxs.vacuum_start;
+    const int support_end = mesh.nodes.indxs.vacuum_end;
     require(mesh.nodes.size() > 0, "Empty Voronoi mesh cannot be handled!");
     require(mesh.voros.size() > 0, "Empty Voronoi mesh cannot be handled!");
 
     // specify the location of Voronoi faces
-    for (int cell = 0; cell < n_nanotip_nodes; ++cell)
+    for (int cell = 0; cell <= nanotip_end; ++cell)
         for (VoronoiFace face : mesh.voros[cell]) {
             const int nborcell = face.nborcell(cell);
             if (nborcell < support_start)
@@ -1370,8 +1407,7 @@ int ForceReader::calc_transformed_voronoi_charges(const FieldReader& fields,
         }
 
     // remove too big surface faces
-    clean_voro_faces(mesh, n_nanotip_nodes);
-
+//    clean_voro_faces(mesh);
     mesh.vfaces.write("out/voro_faces.vtk");
 
     // calculate charge on Voronoi cell

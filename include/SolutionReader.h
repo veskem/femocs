@@ -34,10 +34,9 @@ public:
      * @param srt       sort atoms spatially */
     void calc_3d_interpolation(const int component, const bool srt);
 
-    /** Interpolate solution on the system atoms using triangular interpolator
-      * @param component component of result to interpolate: 0-vector and scalar data, 1-vector data, 2-scalar data
-      * @param srt       sort atoms spatially */
+    /** Interpolate solution on the system atoms using triangular interpolator */
     void calc_2d_interpolation(const int component, const bool srt);
+    void calc_2d_interpolation(vector<int>& atom2face, const int component, const bool srt);
 
     /** Reserve memory for data */
     void reserve(const int n_nodes);
@@ -120,11 +119,11 @@ public:
             const int component=0, const bool srt=true);
 
     /** Interpolate solution on medium atoms using the solution on triangular mesh nodes */
-    void interpolate_2d(const Medium &medium, const int component=0, const bool srt=true);
+    void interpolate_2d(vector<int>& surf2face, const Medium &medium, const int component, const bool srt);
 
     /** Interpolate solution on points using the solution on triangular mesh nodes */
     void interpolate_2d(const int n_points, const double* x, const double* y, const double* z,
-            const int component=0, const bool srt=true);
+            const int component, const bool srt);
 
     /** Calculate the electric field for the stationary current and temperature solver */
     void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const double use_hist_clean);
@@ -274,7 +273,7 @@ public:
     int calc_surface_voronoi_charges(const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
     int calc_transformed_voronoi_charges(const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
     int calc_kmc_voronoi_charges(const AtomReader& reader, const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
-    int calc_mirrored_voronoi_charges(const FieldReader& fields,
+    int calc_mirrored_voronoi_charges(const vector<int>& atom2surf, const FieldReader& fields,
              const double radius, const double latconst, const string& mesh_quality);
 
     /** Calculate forces from atomic electric fields and face charges */
@@ -301,24 +300,24 @@ private:
 
     void clean_support(Media& support, const Media& nanotip, const double r_cut);
 
-    void clean_voro_faces(VoronoiMesh& mesh, const int n_nanotip_nodes);
+    void clean_voro_faces(VoronoiMesh& mesh);
 
-    int get_nanotip(Media& nanotip, vector<bool>& node_in_nanotip, const double radius);
+    int get_nanotip(Media& nanotip, vector<bool>& atom_in_nanotip, const double radius);
 
-    int calc_voronois(VoronoiMesh& voromesh, const Media& nanotip,
+    int calc_voronois(VoronoiMesh& mesh, const Media& nanotip,
             const double latconst, const string& mesh_quality);
 
-    int calc_tetgen_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+    int calc_tetgen_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip,
             const double radius, const double latconst, const string& mesh_quality);
 
-    int calc_transformed_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+    int calc_transformed_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip,
             const double radius, const double latconst, const string& mesh_quality);
 
-    int calc_kmc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+    int calc_kmc_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip,
             const AtomReader& reader, const double radius, const double latconst, const string& mesh_quality);
 
-    int calc_mirrored_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
-            const double radius, const double latconst, const string& mesh_quality);
+    int calc_mirrored_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip,
+            const vector<int>& atom2face, const double radius, const double latconst, const string& mesh_quality);
 };
 
 } // namespace femocs

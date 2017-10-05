@@ -104,9 +104,9 @@ void Media::transform(const double latconst) {
     calc_statistics();
     Point3 origin(sizes.xmid, sizes.ymid, sizes.zmid);
 
-    double fx = 1.0 + 2.0 * latconst / sizes.xbox;
-    double fy = 1.0 + 2.0 * latconst / sizes.ybox;
-    double fz = 1.0 + 2.0 * latconst / sizes.zbox;
+    double fx = 1.0 + 3.0 * latconst / sizes.xbox;
+    double fy = 1.0 + 3.0 * latconst / sizes.ybox;
+    double fz = 1.0 + 3.0 * latconst / sizes.zbox;
     Point3 df(fx, fy, fz);
 
     for (int i = 0; i < n_atoms; ++i)
@@ -207,18 +207,22 @@ Media Media::clean(Coarseners &coarseners) {
 }
 
 // Remove the atoms that are too far from surface faces
-void Media::clean_by_triangles(const TriangleInterpolator& interpolator, const double r_cut) {
+void Media::clean_by_triangles(vector<int>& surf2face, const TriangleInterpolator& interpolator, const double r_cut) {
     if (r_cut <= 0) return;
 
     const int n_atoms = size();
     vector<Atom> _atoms;
     _atoms.reserve(n_atoms);
+    surf2face.clear();
+    surf2face.reserve(n_atoms);
 
     for (int i = 0; i < n_atoms; ++i) {
         Atom atom = get_atom(i);
         atom.marker = interpolator.near_surface(atom.point, r_cut);
-        if (atom.marker >= 0)
+        if (atom.marker >= 0) {
             _atoms.push_back(atom);
+            surf2face.push_back(atom.marker);
+        }
     }
 
     atoms = _atoms;
