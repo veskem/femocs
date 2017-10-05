@@ -26,12 +26,18 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader constructors */
     SolutionReader();
-    SolutionReader(TetrahedronInterpolator* ip, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
+    SolutionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet,
+            const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
     /** Interpolate solution on the system atoms using tetrahedral interpolator
      * @param component component of result to interpolate: -1-locate atoms, 0-vector and scalar data, 1-vector data, 2-scalar data
      * @param srt       sort atoms spatially */
-    void calc_interpolation(const int component, const bool srt);
+    void calc_3d_interpolation(const int component, const bool srt);
+
+    /** Interpolate solution on the system atoms using triangular interpolator
+      * @param component component of result to interpolate: 0-vector and scalar data, 1-vector data, 2-scalar data
+      * @param srt       sort atoms spatially */
+    void calc_2d_interpolation(const int component, const bool srt);
 
     /** Reserve memory for data */
     void reserve(const int n_nodes);
@@ -72,8 +78,9 @@ protected:
     double limit_min;             ///< minimum value of accepted comparison value
     double limit_max;             ///< maximum value of accepted comparison value
 
-    TetrahedronInterpolator* interpolator;   ///< data needed for interpolating on space
-    vector<Solution> interpolation;          ///< interpolated data
+    TriangleInterpolator* interpolator_2d;    ///< data needed for interpolating on surface
+    TetrahedronInterpolator* interpolator_3d; ///< data needed for interpolating in space
+    vector<Solution> interpolation;           ///< interpolated data
 
     /** Initialise statistics about coordinates and solution */
     void init_statistics();
@@ -101,15 +108,9 @@ protected:
 class FieldReader: public SolutionReader {
 public:
     /** FieldReader constructors */
-    FieldReader();
     FieldReader(TriangleInterpolator* ip);
     FieldReader(TetrahedronInterpolator* ip);
     FieldReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
-
-    /** Interpolate solution on the system atoms using triangular interpolator
-     * @param component component of result to interpolate: 0-all, 1-vector data, 2-scalar data
-     * @param srt       sort atoms spatially */
-    void calc_interpolation2D(const int component, const bool srt);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
     void interpolate(const Medium &medium, const int component=0, const bool srt=true);
@@ -119,10 +120,10 @@ public:
             const int component=0, const bool srt=true);
 
     /** Interpolate solution on medium atoms using the solution on triangular mesh nodes */
-    void interpolate2D(const Medium &medium, const int component=0, const bool srt=true);
+    void interpolate_2d(const Medium &medium, const int component=0, const bool srt=true);
 
     /** Interpolate solution on points using the solution on triangular mesh nodes */
-    void interpolate2D(const int n_points, const double* x, const double* y, const double* z,
+    void interpolate_2d(const int n_points, const double* x, const double* y, const double* z,
             const int component=0, const bool srt=true);
 
     /** Calculate the electric field for the stationary current and temperature solver */
@@ -163,7 +164,6 @@ private:
     double E0;                      ///< Long-range electric field strength
     double radius1;                 ///< Minor semi-axis of ellipse
     double radius2;                 ///< Major semi-axis of ellipse
-    TriangleInterpolator* surf_interpolator; ///< data needed for interpolating on surface
 
     /** Return analytical electric field value for i-th point near the hemisphere */
     Vec3 get_analyt_field(const int i, const Point3& origin) const;
@@ -179,8 +179,9 @@ private:
 class HeatReader: public SolutionReader {
 public:
     /** HeatReader constructors */
-    HeatReader();
-    HeatReader(TetrahedronInterpolator* ip);
+    HeatReader(TriangleInterpolator* tri);
+    HeatReader(TetrahedronInterpolator* tet);
+    HeatReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
     void interpolate(const Medium &medium, const int component=0, const bool srt=true);
@@ -205,8 +206,9 @@ private:
 class EmissionReader: public SolutionReader {
 public:
     /** EmissionReader constructors */
-    EmissionReader();
-    EmissionReader(TetrahedronInterpolator* ip);
+    EmissionReader(TriangleInterpolator* tri);
+    EmissionReader(TetrahedronInterpolator* tet);
+    EmissionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
 
     void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const FieldReader& fields,
             const double workfunction, const HeatReader& heat_reader);
@@ -224,8 +226,9 @@ private:
 class ChargeReader: public SolutionReader {
 public:
     /** ChargeReader constructors */
-    ChargeReader();
+    ChargeReader(TriangleInterpolator* ip);
     ChargeReader(TetrahedronInterpolator* ip);
+    ChargeReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
 
     /** Calculate charge on the triangular faces using interpolated solution on the face centroid */
     void calc_interpolated_charges(const TetgenMesh& mesh, const double E0);
@@ -260,8 +263,9 @@ private:
 class ForceReader: public SolutionReader {
 public:
     /** ChargeReader constructors */
-    ForceReader();
+    ForceReader(TriangleInterpolator* ip);
     ForceReader(TetrahedronInterpolator* ip);
+    ForceReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
 
     /** Replace the charge and force on the nanotip nodes with the one found with Voronoi cells */
     void recalc_forces(const FieldReader &fields, const vector<Vec3>& areas);

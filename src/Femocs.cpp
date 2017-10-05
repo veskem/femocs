@@ -643,7 +643,8 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         write_silent_msg("Using previous electric field!");
     else {
         start_msg(t0, "=== Interpolating E and phi...");
-        fields.interpolate2D(dense_surf, 0, true);
+        fields.interpolate_2d(dense_surf, 0, true);
+//        fields.interpolate(dense_surf, 0, true);
         fail = fields.clean(conf.coordination_cutoff, conf.use_histclean);
         end_msg(t0);
 
@@ -707,11 +708,8 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         start_msg(t0, "=== Calculating charges & forces...");
         forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coordination_cutoff,
                 conf.charge_smooth_factor);
-//        forces.calc_forces_vol2(vacuum_mesh, fields, face_charges, surface_interpolator,
-//                conf.use_histclean*conf.coordination_cutoff, conf.charge_smooth_factor);
         end_msg(t0);
         face_charges.check_limits(forces.get_interpolations());
-        forces.write("out/forces_before.xyz");
 
         start_msg(t0, "=== Calculating Voronoi charges & forces...");
 //        forces.recalc_forces(fields, areas);
@@ -741,7 +739,7 @@ int Femocs::interpolate_surface_elfield(const int n_points, const double* x, con
 
     FieldReader fr(&surface_interpolator);
     start_msg(t0, "=== Interpolating & exporting surface elfield...");
-    fr.interpolate2D(n_points, x, y, z, 1, false);
+    fr.interpolate_2d(n_points, x, y, z, 1, false);
     fail = fr.clean(conf.coordination_cutoff, conf.use_histclean);
     fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
