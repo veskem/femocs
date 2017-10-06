@@ -124,13 +124,13 @@ int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_gue
         if (layer == 0)
             nbors[0] = neighbours[cell_guess];
         else {
-            for (unsigned nbor : nbors[layer-1])
+            for (int nbor : nbors[layer-1])
                 if (nbor >= 0)
                     nbors[layer].insert(nbors[layer].end(), neighbours[nbor].begin(), neighbours[nbor].end());
         }
 
         // check whether some of the unchecked neighbouring cells surround the point
-        for (unsigned cell : nbors[layer])
+        for (int cell : nbors[layer])
             if (cell >= 0 && !cell_checked[cell]) {
                 if (point_in_cell(vec_point, cell))
                     return cell;
@@ -150,7 +150,7 @@ int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_gue
 
         // Otherwise look for the cell whose centroid is closest to the point
         else {
-            double distance2 = point.distance2(centroids[cell]);
+            const double distance2 = point.distance2(centroids[cell]);
             if (distance2 < min_distance2) {
                 min_distance2 = distance2;
                 min_index = cell;
@@ -297,17 +297,10 @@ void LinearInterpolator<dim>::write_vtk(ofstream& out, const int n_nodes) const 
     for (int i = 0; i < n_cells; ++i)
         out << celltype << "\n";
 
-    out << "\nCELL_DATA " << n_cells << "\n";
-
-    // write cell IDs
-    out << "SCALARS Cell-ID int\nLOOKUP_TABLE default\n";
-    for (int i = 0; i < n_cells; ++i)
-        out << i << "\n";
-
     out << "\nPOINT_DATA " << n_nodes << "\n";
 
     // write node IDs
-    out << "SCALARS Node-ID int\nLOOKUP_TABLE default\n";
+    out << "SCALARS node-ID int\nLOOKUP_TABLE default\n";
     for (int i = 0; i < n_nodes; ++i)
         out << i << "\n";
 
@@ -325,6 +318,13 @@ void LinearInterpolator<dim>::write_vtk(ofstream& out, const int n_nodes) const 
     out << "SCALARS " + scalar_label + " double\nLOOKUP_TABLE default\n";
     for (int i = 0; i < n_nodes; ++i)
         out << solutions[i].scalar << "\n";
+
+    out << "\nCELL_DATA " << n_cells << "\n";
+
+    // write cell IDs
+    out << "SCALARS cell-ID int\nLOOKUP_TABLE default\n";
+    for (int i = 0; i < n_cells; ++i)
+        out << i << "\n";
 }
 
 /* ==================================================================
@@ -906,6 +906,12 @@ Vec3 TriangleInterpolator::get_norm(const int i) const {
     return norms[i];
 }
 
+double TriangleInterpolator::fast_distance(const Vec3& point, const int face) const {
+    Vec3 tvec = point - vert0[face];
+    Vec3 qvec = tvec.crossProduct(edge1[face]);
+    return edge2[face].dotProduct(qvec);
+}
+
 double TriangleInterpolator::distance(const Vec3& point, const int face) const {
     // Constants to specify the tolerances in searching outside the triangle
     const static double zero = -0.1;
@@ -921,6 +927,15 @@ double TriangleInterpolator::distance(const Vec3& point, const int face) const {
 
     // return the distance from point to triangle
     return edge2[face].dotProduct(qvec);
+}
+
+void TriangleInterpolator::write_vtk(ofstream& out, const int n_nodes) const {
+    LinearInterpolator<3>::write_vtk(out, n_nodes);
+
+    // write face norms
+    out << "VECTORS norm double\n";
+    for (int i = 0; i < cells.size(); ++i)
+        out << norms[i] << "\n";
 }
 
 // Calculate barycentric coordinates for a projection of a point inside the triangle

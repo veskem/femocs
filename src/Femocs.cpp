@@ -174,6 +174,8 @@ int Femocs::reinit(const int tstep) {
     if ((conf.n_writefile > 0) && (timestep % conf.n_writefile == 0))
         MODES.WRITEFILE = true;
 
+    atom2face.clear();
+
     conf.message = to_string(timestep);
     write_silent_msg("Running at timestep " + conf.message);
     conf.message = "_" + string( max(0.0, 6.0 - conf.message.length()), '0' ) + conf.message;
@@ -269,16 +271,15 @@ int Femocs::generate_meshes() {
     start_msg(t0, "=== Generating surface faces...");
     err_code = fem_mesh.generate_surface(reader.sizes, "rnQB");
     end_msg(t0);
-    fem_mesh.faces.write("out/trimesh.vtk");
     check_return(err_code, "Generation of surface faces failed with error code " + to_string(err_code));
-
 
     if (conf.smooth_algorithm != "none" && conf.smooth_steps > 0) {
         start_msg(t0, "=== Smoothing triangles...");
         fem_mesh.smoothen_tris(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
         end_msg(t0);
-        fem_mesh.faces.write("out/trimesh_smooth.vtk");
     }
+
+    fem_mesh.faces.write("out/trimesh.vtk");
 
     if (conf.surface_cleaner == "faces") {
         surface_interpolator.precompute();

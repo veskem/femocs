@@ -169,7 +169,7 @@ protected:
     void write_xyz(ofstream& out, const int n_nodes) const;
 
     /** Output interpolation cell data in .vtk format */
-    void write_vtk(ofstream& out, const int n_nodes) const;
+    virtual void write_vtk(ofstream& out, const int n_nodes) const;
 
     /** Determinant of 3x3 matrix which's last column consists of ones */
     double determinant(const Vec3 &v1, const Vec3 &v2) {
@@ -294,6 +294,9 @@ public:
 
     Vec3 get_norm(const int i) const;
 
+    /** Return the distance between a point and i-th triangle in the direction of its norm */
+    double fast_distance(const Vec3& point, const int i) const;
+
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
 
 private:
@@ -308,6 +311,9 @@ private:
     vector<double> max_distance;
 
     bool clean_nodes();
+
+    /** Add triangle specific data to vtk file */
+    void write_vtk(ofstream& out, const int n_nodes) const;
 
     /** Force the solution on triangular nodes to be the weighed average
      * of the solutions on its surrounding quadrangular nodes */

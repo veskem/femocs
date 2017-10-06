@@ -69,7 +69,7 @@ public:
     friend std::ostream& operator <<(std::ostream &os, VoronoiFace &vf) {
         int node = -1;
         for (int edge : vf) {
-            node = vf.get_node(edge, node);
+            vf.get_node(edge, node);
             os << node << ' ';
         }
 
@@ -83,7 +83,7 @@ public:
 
 private:
     /** Calculate the unique node that is associated with the edge */
-    int get_node(const int edge, const int previous_node);
+    void get_node(const int edge, int& node);
 
     /** Get the norm vector of the face */
     Vec3 norm();
