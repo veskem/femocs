@@ -40,12 +40,6 @@ void write_defaults(ofstream &file) {
     file << "smooth_algorithm = laplace" << endl;
 }
 
-void write_hr5(ofstream &file) {
-    file << "infile = in/nanotip_hr5.xyz" << endl;
-    file << "coarse_factor = 0.3 4 2"        << endl;
-    file << "radius = 14.0"                  << endl;
-}
-
 void write_rectangle(ofstream &file) {
     file << "infile = in/nanotip_rectangle.xyz" << endl;
     file << "coarse_factor = 0.3 4 2"        << endl;
@@ -138,6 +132,24 @@ void write_molten(ofstream &file) {
 
 void write_moltenbig(ofstream &file) {
     file << "infile = in/nanotip_molten.ckx" << endl;
+    file << "coarse_factor = 0.4 8 3"  << endl;
+    file << "radius = 45.0"            << endl;
+}
+
+void write_tip100(ofstream &file) {
+    file << "infile = in/tip100.ckx"   << endl;
+    file << "coarse_factor = 0.4 8 3"  << endl;
+    file << "radius = 45.0"            << endl;
+}
+
+void write_tip110(ofstream &file) {
+    file << "infile = in/tip110.ckx"   << endl;
+    file << "coarse_factor = 0.4 8 3"  << endl;
+    file << "radius = 45.0"            << endl;
+}
+
+void write_tip111(ofstream &file) {
+    file << "infile = in/tip111.ckx"   << endl;
     file << "coarse_factor = 0.4 8 3"  << endl;
     file << "radius = 45.0"            << endl;
 }
@@ -241,7 +253,9 @@ int main(int argc, char **argv) {
         if      (mode == "kmcsmall")  write_kmcsmall(file);
         else if (mode == "kmcbig")    write_kmcbig(file);
         else if (mode == "kmcregular") write_kmcregular(file);
-        else if (mode == "hr5")       write_hr5(file);
+        else if (mode == "tip100")    write_tip100(file);
+        else if (mode == "tip110")    write_tip110(file);
+        else if (mode == "tip111")    write_tip111(file);
         else if (mode == "rectangle") write_rectangle(file);
         else if (mode == "mdsmall")   write_mdsmall(file);
         else if (mode == "mdbig")     write_mdbig(file);
@@ -262,7 +276,9 @@ int main(int argc, char **argv) {
             printf("  kmcregular  symmetric kMC nanotip\n");
             printf("  mdsmall     small MD nanotip\n");
             printf("  mdbig       big MD nanotip\n");
-            printf("  hr5         symmetric nanotip with aspect ratio 5\n");
+            printf("  tip100      symmetric nanotip with h/r = 5 and <100> orientation\n");
+            printf("  tip110      symmetric nanotip with h/r = 5 and <110> orientation\n");
+            printf("  tip111      symmetric nanotip with h/r = 5 and <111> orientation\n");
             printf("  rectangle   symmetric nanotip with rectangular substrate\n");
             printf("  stretch     stretch the substrate of small MD nanotip\n");
             printf("  extend      extend the system below the round MD apex\n");
