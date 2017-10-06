@@ -284,7 +284,7 @@ int Femocs::generate_meshes() {
     if (conf.surface_cleaner == "faces") {
         surface_interpolator.precompute();
         start_msg(t0, "=== Cleaning surface with triangles...");
-        dense_surf.clean_by_triangles(atom2face, surface_interpolator, conf.surface_thickness);
+        dense_surf.clean_by_triangles(atom2face, surface_interpolator, conf.latconst);
         end_msg(t0);
         dense_surf.write("out/surface_dense_clean.xyz");
     }

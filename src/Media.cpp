@@ -216,12 +216,14 @@ void Media::clean_by_triangles(vector<int>& surf2face, const TriangleInterpolato
     surf2face.clear();
     surf2face.reserve(n_atoms);
 
+    int face = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Atom atom = get_atom(i);
-        atom.marker = interpolator.near_surface(atom.point, r_cut);
-        if (atom.marker >= 0) {
+        face = abs(interpolator.locate_cell(atom.point, face));
+        if (interpolator.fast_distance(atom.point, face) < r_cut) {
+            atom.marker = face;
             _atoms.push_back(atom);
-            surf2face.push_back(atom.marker);
+            surf2face.push_back(face);
         }
     }
 

@@ -131,8 +131,8 @@ temp_cap = 2.e4
 ------------------
 latconst = 4.;
 coarse_factor = 0.1 10 4;    # coarsening factor; bigger number gives coarser surface; first is plate, second is shank, third is apex
-smooth_steps = 3             # number of surface mesh smoothing iterations
-smooth_algorithm = fujiwara  # surface mesh smoother algorithm; none, laplace, fujiwara
+smooth_steps = 5             # number of surface mesh smoothing iterations
+smooth_algorithm = laplace  # surface mesh smoother algorithm; none, laplace, fujiwara
 
 distance_tol = 0;
 femocs_verbose_mode = verbose;     # enable or disable the verbose mode

@@ -1223,8 +1223,9 @@ int ForceReader::calc_mirrored_voronois(VoronoiMesh& mesh, vector<bool>& atom_in
     require(interpolator_2d, "NULL surface interpolator cannot be used!");
     const int n_atoms = size();
     const bool faces_known = n_atoms == atom2face.size();
-    const double max_distance_from_surface = 0.25 * latconst;
-    const double shift_distance = 0.5 * latconst;
+    // TODO put those values to Config, because they affect heavily how the voronoi charges will look like
+    const double max_distance_from_surface = 0.5 * latconst;
+    const double shift_distance = 1.0 * latconst;
 
     Media nanotip;
     const int n_nanotip_atoms = get_nanotip(nanotip, atom_in_nanotip, radius);
@@ -1357,18 +1358,18 @@ int ForceReader::calc_mirrored_voronoi_charges(const vector<int>& atom2face, con
         if (atom_in_nanotip[i]) {
             Vec3 centre = mesh.nodes.get_vec(++cell);
             Vec3 field = fields.get_elfield(i);
-            Vec3 area(0);
 
+            double charge = 0;
             for (VoronoiFace face : mesh.voros[cell]) {
                 if (mesh.vfaces.get_marker(face.id) == TYPES.SURFACE) {
                     Vec3 normal = mesh.nodes.get_vec(face.nborcell(cell)) - centre;
                     normal.normalize();
-                    if (field.dotProduct(normal) < 0)
-                        area += normal * face.area();
+                    const double dp = field.dotProduct(normal);
+                    if (dp < 0)
+                        charge += dp * face.area();
                 }
             }
-
-            double charge = field.dotProduct(area) * eps0;
+            charge *= eps0;
             interpolation[i] = Solution(field * charge, charge);
         }
 
