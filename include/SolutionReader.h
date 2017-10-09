@@ -266,21 +266,14 @@ public:
     ForceReader(TetrahedronInterpolator* ip);
     ForceReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
 
-    /** Replace the charge and force on the nanotip nodes with the one found with Voronoi cells */
-    void recalc_forces(const FieldReader &fields, const vector<Vec3>& areas);
-
-    int calc_phi_voronoi_charges(const double radius, const double latconst, const string& mesh_quality);
-    int calc_surface_voronoi_charges(const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
-    int calc_transformed_voronoi_charges(const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
-    int calc_kmc_voronoi_charges(const AtomReader& reader, const TetgenElements& elems, const FieldReader& fields, const double radius, const double latconst, const string& mesh_quality);
-    int calc_mirrored_voronoi_charges(const vector<int>& atom2surf, const FieldReader& fields,
-             const double radius, const double latconst, const string& mesh_quality);
-
     /** Calculate forces from atomic electric fields and face charges */
     void calc_forces(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);
 
     void calc_forces(const FieldReader &fields, TriangleInterpolator& ti);
+
+    int calc_voronoi_charges(const vector<int>& atom2surf, const FieldReader& fields,
+             const double radius, const double latconst, const string& mesh_quality);
 
     /** Export the induced charge and force on imported atoms
      * @param n_atoms  number of first atoms field is calculated
@@ -298,26 +291,12 @@ private:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
     const double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
 
-    void clean_support(Media& support, const Media& nanotip, const double r_cut);
-
     void clean_voro_faces(VoronoiMesh& mesh);
 
     int get_nanotip(Media& nanotip, vector<bool>& atom_in_nanotip, const double radius);
 
-    int calc_voronois(VoronoiMesh& mesh, const Media& nanotip,
-            const double latconst, const string& mesh_quality);
-
-    int calc_tetgen_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip,
+    int calc_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip, const vector<int>& atom2face,
             const double radius, const double latconst, const string& mesh_quality);
-
-    int calc_transformed_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip,
-            const double radius, const double latconst, const string& mesh_quality);
-
-    int calc_kmc_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip,
-            const AtomReader& reader, const double radius, const double latconst, const string& mesh_quality);
-
-    int calc_mirrored_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip,
-            const vector<int>& atom2face, const double radius, const double latconst, const string& mesh_quality);
 };
 
 } // namespace femocs
