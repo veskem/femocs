@@ -157,6 +157,18 @@ public:
         markers[node] = m;
     }
 
+    /** Calculate the neighbourlist for the nodes.
+     * Two nodes are considered neighbours if they share a cell. */
+    void calc_nborlist(vector<vector<unsigned>>& nborlist) const {
+        nborlist = vector<vector<unsigned>>(get_n_nodes());
+        for (SimpleCell<dim> cell : *this)
+            for (int n1 : cell)
+                for (int n2 : cell) {
+                    if (n1 == n2) continue;
+                    nborlist[n1].push_back(n2);
+                }
+    }
+
     /** Function to write cell data to file */
     void write(const string &file_name) const {
         if (!MODES.WRITEFILE) return;

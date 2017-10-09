@@ -52,7 +52,7 @@ public:
     Point3 centroid();
 
     /** Return the neighbouring cell for the caller cell */
-    int nborcell(const int caller_id);
+    int nborcell(const int caller_id) const;
 
     /** Accessor for accessing the index of i-th edge */
     int operator [](int i) const {
@@ -76,6 +76,9 @@ public:
         return os;
     }
 
+    /** Get the norm vector of the face */
+    Vec3 norm(const int cell) const;
+
     /** Transform the node data from tetgenio into easily accessible form */
     void calc_verts();
 
@@ -83,10 +86,7 @@ public:
 
 private:
     /** Calculate the unique node that is associated with the edge */
-    void get_node(const int edge, int& node);
-
-    /** Get the norm vector of the face */
-    Vec3 norm();
+    void get_node(const int edge, int& node) const;
 };
 
 /** Class for accessing the Voronoi cell data */

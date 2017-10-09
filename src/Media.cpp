@@ -319,27 +319,27 @@ int Media::clean_by_voronois(const double radius, const double latconst, const s
 }
 
 // Separate cylindrical region from substrate region
-int Media::get_nanotip(Media& nanotip, vector<bool>& node_in_nanotip, const double radius) {
-    const int n_this_nodes = size();
+int Media::get_nanotip(Media& nanotip, vector<bool>& atom_in_nanotip, const double radius) {
+    const int n_atoms = size();
     const double radius2 = radius * radius;
     Medium::calc_statistics();
 
     // Make map for atoms in nanotip
     Point2 centre(sizes.xmid, sizes.ymid);
-    node_in_nanotip = vector<bool>(n_this_nodes);
-    for (int i = 0; i < n_this_nodes; ++i)
-        node_in_nanotip[i] = centre.distance2(get_point2(i)) <= radius2;
+    atom_in_nanotip = vector<bool>(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        atom_in_nanotip[i] = centre.distance2(get_point2(i)) <= radius2;
 
-    const int n_nanotip_nodes = vector_sum(node_in_nanotip);
+    const int n_nanotip_atoms = vector_sum(atom_in_nanotip);
 
     // Separate nanotip from substrate
-    nanotip.reserve(n_nanotip_nodes);
-    for (int i = 0; i < n_this_nodes; ++i)
-        if (node_in_nanotip[i])
-            nanotip.append(get_atom(i));
+    nanotip.reserve(n_nanotip_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        if (atom_in_nanotip[i])
+            nanotip.append(Atom(i, get_point(i), TYPES.SURFACE));
 
     nanotip.calc_statistics();
-    return n_nanotip_nodes;
+    return n_nanotip_atoms;
 }
 
 // Separate cylindrical region from substrate region

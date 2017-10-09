@@ -30,11 +30,8 @@ public:
     TetgenMesh();
     ~TetgenMesh() {}
 
-    /** Smoothen the quadrangles using different versions of Taubin smoothing algorithm */
-    void smoothen_quads(const int n_steps, const double lambda, const double mu, const string& algorithm);
-
     /** Smoothen the triangles using different versions of Taubin smoothing algorithm */
-    void smoothen_tris(const int n_steps, const double lambda, const double mu, const string& algorithm);
+    void smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm);
 
     /** Function to generate simple mesh that consists of one element */
     int generate_simple();
@@ -119,10 +116,10 @@ private:
     void laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist);
 
     /** Smoothen the surface mesh using Taubin lambda|mu algorithm with Fujiwara weighting */
-    void laplace_smooth_fujiwara(const double scale, const vector<vector<unsigned>>& nborlist);
+    void fujiwara_smooth(const double scale, const vector<vector<unsigned>>& nborlist);
 
     /** Smoothen the surface mesh using Taubin lambda|mu algorithm with curvature normal weighting */
-    void laplace_smooth_cn(const double scale, const vector<vector<unsigned>>& nborlist);
+    void curvature_norm_smooth(const double scale, const vector<vector<unsigned>>& nborlist);
 
     /** Locate the tetrahedron by the location of its nodes */
     int locate_element(SimpleElement& elem);
@@ -138,14 +135,6 @@ private:
      */
     void group_hexahedra();
 
-    /** Calculate the neighbourlist for the nodes.
-     * Two nodes are considered neighbours if they share a tetrahedron. */
-    void calc_tet_nborlist(vector<vector<unsigned>>& nborlist);
-
-    void calc_tri_nborlist(vector<vector<unsigned>>& nborlist);
-
-    void calc_quad_nborlist(vector<vector<unsigned>>& nborlist);
-
     bool calc_ranks(vector<int>& ranks, const vector<vector<unsigned>>& nborlist);
 
     /** Mark the tetrahedra by the location of nodes */
@@ -155,7 +144,7 @@ private:
      * algorithm. The same algorithm is also used in cluster analysis. */
     bool mark_nodes();
 
-    bool mark_nodes_vol2();
+    bool rank_and_mark_nodes();
 
     /** Mark the edges on the simulation cell perimeter by the node markers */
     void mark_edges();

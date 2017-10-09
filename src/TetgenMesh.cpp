@@ -211,11 +211,20 @@ void TetgenMesh::clear() {
 // Smoothen the triangles using different versions of Taubin smoothing algorithm
 // Code is inspired from the work of Shawn Halayka
 // TODO if found, add the link to Shawn's version
-void TetgenMesh::smoothen_tris(const int n_steps, const double lambda, const double mu, const string& algorithm) {
+void TetgenMesh::smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm) {
     if (algorithm == "none") return;
 
     vector<vector<unsigned>> nborlist;
-    calc_tri_nborlist(nborlist);
+    faces.calc_nborlist(nborlist);
+
+    const double eps = 0.01 * elems.stat.edgemin;
+    nodes.calc_statistics();
+    for (int i = 0; i < nodes.size(); ++i) {
+        Point3 p = nodes[i];
+        if (on_boundary(p.x, nodes.stat.xmin, nodes.stat.xmax, eps) ||
+                on_boundary(p.y, nodes.stat.ymin, nodes.stat.ymax, eps))
+            nborlist[i] = vector<unsigned>();
+    }
 
     if (algorithm == "laplace") {
         for (size_t s = 0; s < n_steps; ++s) {
@@ -226,32 +235,8 @@ void TetgenMesh::smoothen_tris(const int n_steps, const double lambda, const dou
 
     else if (algorithm == "fujiwara") {
         for (size_t s = 0; s < n_steps; ++s) {
-            laplace_smooth_fujiwara(lambda, nborlist);
-            laplace_smooth_fujiwara(mu, nborlist);
-        }
-    }
-
-    faces.calc_norms_and_areas();
-}
-
-// Smoothen the quadrangles using different versions of Taubin smoothing algorithm
-void TetgenMesh::smoothen_quads(const int n_steps, const double lambda, const double mu, const string& algorithm) {
-    if (algorithm == "none") return;
-
-    vector<vector<unsigned>> nborlist;
-    calc_quad_nborlist(nborlist);
-
-    if (algorithm == "laplace") {
-        for (size_t s = 0; s < n_steps; ++s) {
-            laplace_smooth(lambda, nborlist);
-            laplace_smooth(mu, nborlist);
-        }
-    }
-
-    else if (algorithm == "fujiwara") {
-        for (size_t s = 0; s < n_steps; ++s) {
-            laplace_smooth_fujiwara(lambda, nborlist);
-            laplace_smooth_fujiwara(mu, nborlist);
+            fujiwara_smooth(lambda, nborlist);
+            fujiwara_smooth(mu, nborlist);
         }
     }
 
@@ -282,7 +267,7 @@ void TetgenMesh::laplace_smooth(const double scale, const vector<vector<unsigned
 }
 
 // Smoothen the surface mesh using Taubin lambda|mu algorithm with Fujiwara weighting
-void TetgenMesh::laplace_smooth_fujiwara(const double scale, const vector<vector<unsigned>>& nborlist) {
+void TetgenMesh::fujiwara_smooth(const double scale, const vector<vector<unsigned>>& nborlist) {
     vector<Point3> displacements(nodes.size());
 
     // Get per-vertex displacement.
@@ -325,7 +310,7 @@ void TetgenMesh::laplace_smooth_fujiwara(const double scale, const vector<vector
 }
 
 // Smoothen the surface mesh using Taubin lambda|mu algorithm with curvature normal weighting
-void TetgenMesh::laplace_smooth_cn(const double scale, const vector<vector<unsigned>>& nborlist) {
+void TetgenMesh::curvature_norm_smooth(const double scale, const vector<vector<unsigned>>& nborlist) {
     size_t n_nodes = nodes.size(); 
     vector<Point3> displacements(n_nodes);
 
@@ -468,6 +453,7 @@ int TetgenMesh::generate_simple() {
     return recalc("rQ");
 }
 
+// Copy mesh from input to output or vice versa without modification
 int TetgenMesh::recalc(const bool write2read) {
     nodes.recalc(write2read);
     edges.recalc(write2read);
@@ -743,65 +729,11 @@ void TetgenMesh::write_separate(const string& file_name, const int type) {
 // Mark mesh nodes and elements
 bool TetgenMesh::mark_mesh() {
 //    if (mark_nodes())
-    if (mark_nodes_vol2())
+    if (rank_and_mark_nodes())
         return 1;
 
     mark_elems();
     return 0;
-}
-
-// Calculate the neighbourlist for the nodes.
-// Two nodes are considered neighbours if they share a tetrahedron.
-void TetgenMesh::calc_tet_nborlist(vector<vector<unsigned>>& nborlist) {
-    nborlist = vector<vector<unsigned>>(nodes.size());
-    for (SimpleElement elem : elems)
-        for (int n1 : elem)
-            for (int n2 : elem) {
-                if (n1 == n2) continue;
-                nborlist[n1].push_back(n2);
-            }
-}
-
-// Calculate the neighbourlist for the nodes.
-// Two nodes are considered neighbours if they share a quadrangle.
-void TetgenMesh::calc_quad_nborlist(vector<vector<unsigned>>& nborlist) {
-    nborlist = vector<vector<unsigned>>(nodes.size());
-    const double eps = 0.1 * elems.stat.edgemin;
-    nodes.calc_statistics();
-
-    for (SimpleQuad quad : quads)
-        for (int n1 : quad) {
-            // do not calculate neighbours for nodes on the simubox perimeter
-            Point3 node = nodes[n1];
-            if (on_boundary(node.x, nodes.stat.xmin, nodes.stat.xmax, eps) ||
-                    on_boundary(node.y, nodes.stat.ymin, nodes.stat.ymax, eps))
-                continue;
-            for (int n2 : quad) {
-                if (n1 == n2) continue;
-                nborlist[n1].push_back(n2);
-            }
-        }
-}
-
-// Calculate the neighbourlist for the nodes.
-// Two nodes are considered neighbours if they share a triangle.
-void TetgenMesh::calc_tri_nborlist(vector<vector<unsigned>>& nborlist) {
-    nborlist = vector<vector<unsigned>>(nodes.size());
-    const double eps = 0.1 * elems.stat.edgemin;
-    nodes.calc_statistics();
-
-    for (SimpleFace face : faces)
-        for (int n1 : face) {
-            // do not calculate neighbours for nodes on the simubox perimeter
-            Point3 node = nodes[n1];
-            if (on_boundary(node.x, nodes.stat.xmin, nodes.stat.xmax, eps) ||
-                    on_boundary(node.y, nodes.stat.ymin, nodes.stat.ymax, eps))
-                continue;
-            for (int n2 : face) {
-                if (n1 != n2)
-                    nborlist[n1].push_back(n2);
-            }
-        }
 }
 
 // Generate list of nodes that surround the tetrahedral nodes
@@ -853,7 +785,7 @@ bool TetgenMesh::mark_nodes() {
     
     // Calculate neighbourlist for nodes
     vector<vector<unsigned>> nborlist;
-    calc_tet_nborlist(nborlist);
+    elems.calc_nborlist(nborlist);
             
     // Mark all the nodes with initial values
     nodes.init_markers(nodes.size(), TYPES.NONE);
@@ -973,14 +905,14 @@ bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<unsigned>>& 
 // i.e the measure how close the node is to the hole or to the simubox boundary.
 // Nodes with small ranking act as a boundary for the clustering algorithm.
 // The ranking helps to get rid of the effect of small holes.
-bool TetgenMesh::mark_nodes_vol2() {
+bool TetgenMesh::rank_and_mark_nodes() {
     const int n_nodes = nodes.size();
     const int min_rank = 30;
     int node;
 
     // Calculate neighbour list for nodes
     vector<vector<unsigned>> nborlist;
-    calc_tet_nborlist(nborlist);
+    elems.calc_nborlist(nborlist);
 
     // Calculate the ranks for the nodes to increase the robustness of the bulk-vacuum separator
     vector<int> ranks;

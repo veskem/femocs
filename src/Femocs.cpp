@@ -274,8 +274,8 @@ int Femocs::generate_meshes() {
     check_return(err_code, "Generation of surface faces failed with error code " + to_string(err_code));
 
     if (conf.smooth_algorithm != "none" && conf.smooth_steps > 0) {
-        start_msg(t0, "=== Smoothing triangles...");
-        fem_mesh.smoothen_tris(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
+        start_msg(t0, "=== Smoothing surface faces...");
+        fem_mesh.smoothen(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
         end_msg(t0);
     }
 
@@ -283,7 +283,7 @@ int Femocs::generate_meshes() {
 
     if (conf.surface_cleaner == "faces") {
         surface_interpolator.precompute();
-        start_msg(t0, "=== Cleaning surface with triangles...");
+        start_msg(t0, "=== Cleaning surface around triangles...");
         dense_surf.clean_by_triangles(atom2face, surface_interpolator, conf.latconst);
         end_msg(t0);
         dense_surf.write("out/surface_dense_clean.xyz");
@@ -335,8 +335,7 @@ int Femocs::solve_laplace(const double E0) {
     fail |= surface_interpolator.extract_solution(&laplace_solver);
     end_msg(t0);
 
-    check_return(fields.check_limits(vacuum_interpolator.get_solutions()), "Vacuum field is over-enhanced!");
-    check_return(fields.check_limits(surface_interpolator.get_solutions()), "Surface field is over-enhanced!");
+    check_return(fields.check_limits(vacuum_interpolator.get_solutions()), "Field is over-enhanced!");
 
     vacuum_interpolator.write("out/result_E_phi_vacuum.xyz");
     vacuum_interpolator.write("out/result_E_phi_vacuum.vtk");
@@ -693,20 +692,23 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
 
         face_charges.clean(dense_surf.sizes, conf.latconst);
 
-        start_msg(t0, "=== Calculating charges & forces...");
-        forces.calc_forces(fields, face_charges, conf.use_histclean*conf.coordination_cutoff,
+        start_msg(t0, "=== Distributing face charges...");
+        forces.distribute_charges(fields, face_charges, conf.use_histclean*conf.coordination_cutoff,
                 conf.charge_smooth_factor);
         end_msg(t0);
-        face_charges.check_limits(forces.get_interpolations());
 
         start_msg(t0, "=== Calculating Voronoi charges & forces...");
+        VoronoiMesh voro_mesh;
         int err_code;
-        err_code = forces.calc_voronoi_charges(atom2face, fields, conf.radius, conf.latconst, "10.0");
+        err_code = forces.calc_voronoi_charges(voro_mesh, atom2face, fields, conf.radius, conf.latconst, "10.0");
         check_return(err_code, "Generation of Voronoi cells failed with error code " + to_string(err_code));
         end_msg(t0);
 
+        voro_mesh.nodes.write("out/voro_nodes.vtk");
+        voro_mesh.voros.write("out/voro_cells.vtk");
+        voro_mesh.vfaces.write("out/voro_faces.vtk");
         forces.write("out/forces.movie");
-        face_charges.check_limits(forces.get_interpolations());
+        check_return(face_charges.check_limits(forces.get_interpolations()), "Voronoi charges are not conserved!");
     }
 
     start_msg(t0, "=== Exporting atomic charges & forces...");

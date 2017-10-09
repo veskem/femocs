@@ -43,7 +43,7 @@ Point3 VoronoiFace::centroid() {
 }
 
 // Return the neighbouring cell for the caller cell
-int VoronoiFace::nborcell(const int caller_id) {
+int VoronoiFace::nborcell(const int caller_id) const {
     const int c1 = data->vfacetlist[id].c1;
     if (c1 == caller_id)
         return data->vfacetlist[id].c2;
@@ -51,7 +51,7 @@ int VoronoiFace::nborcell(const int caller_id) {
 }
 
 // Calculate the unique node that is associated with the edge
-void VoronoiFace::get_node(const int edge, int& node) {
+void VoronoiFace::get_node(const int edge, int& node) const {
     const int v1 = data->vedgelist[edge].v1;
     if (node != v1) node = v1;
     else node = data->vedgelist[edge].v2;
@@ -71,10 +71,12 @@ void VoronoiFace::calc_verts() {
 }
 
 // Get the norm vector of the face
-Vec3 VoronoiFace::norm() {
-    Vec3 edge1 = verts[1] - verts[0];
-    Vec3 edge2 = verts[2] - verts[0];
-    return edge2.crossProduct(edge1).normalize();
+Vec3 VoronoiFace::norm(const int cell) const {
+    const int C1 = 3 * cell;
+    const int C2 = 3 * nborcell(cell);
+    Vec3 p1(data->pointlist[C1], data->pointlist[C1+1], data->pointlist[C1+2]);
+    Vec3 p2(data->pointlist[C2], data->pointlist[C2+1], data->pointlist[C2+2]);
+    return (p2 - p1).normalize();
 }
 
 vector<int> VoronoiCell::get_neighbours() const {

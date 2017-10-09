@@ -88,7 +88,7 @@ private:
     /** Separate cylindrical region from substrate region */
     void get_nanotip(Media& nanotip, const double radius);
 
-    int get_nanotip(Media& nanotip, vector<bool>& node_in_nanotip, const double radius);
+    int get_nanotip(Media& nanotip, vector<bool>& atom_in_nanotip, const double radius);
 
     int calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
             const double radius, const double latconst, const string& mesh_quality);

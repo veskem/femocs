@@ -10,7 +10,6 @@
 
 #include "Primitives.h"
 #include "Medium.h"
-#include "Media.h"
 #include "TetgenCells.h"
 #include "TetgenMesh.h"
 #include "VoronoiMesh.h"
@@ -101,6 +100,8 @@ protected:
     void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
 
     Solution get_average_solution(const int I, const double r_cut);
+
+    int get_nanotip(Medium& nanotip, vector<bool>& atom_in_nanotip, const double radius);
 };
 
 /** Class to extract solution from DealII calculations */
@@ -267,12 +268,12 @@ public:
     ForceReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
 
     /** Calculate forces from atomic electric fields and face charges */
-    void calc_forces(const FieldReader &fields, const ChargeReader& faces,
+    void distribute_charges(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);
 
     void calc_forces(const FieldReader &fields, TriangleInterpolator& ti);
 
-    int calc_voronoi_charges(const vector<int>& atom2surf, const FieldReader& fields,
+    int calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom2surf, const FieldReader& fields,
              const double radius, const double latconst, const string& mesh_quality);
 
     /** Export the induced charge and force on imported atoms
@@ -291,9 +292,8 @@ private:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
     const double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
 
+    /** Remove cells with too big faces*/
     void clean_voro_faces(VoronoiMesh& mesh);
-
-    int get_nanotip(Media& nanotip, vector<bool>& atom_in_nanotip, const double radius);
 
     int calc_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip, const vector<int>& atom2face,
             const double radius, const double latconst, const string& mesh_quality);
