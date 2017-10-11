@@ -126,8 +126,7 @@ int Femocs::run(const double elfield, const string &message) {
     // convert message to integer time step
     int tstep;
     stream << message;
-    if (!stream >> tstep)
-        tstep = -1;
+    stream >> tstep;
 
     stream.str("");
     stream << "Atoms haven't moved significantly, " << reader.rms_distance
@@ -283,7 +282,7 @@ int Femocs::generate_meshes() {
 
     if (conf.surface_cleaner == "faces") {
         surface_interpolator.precompute();
-        start_msg(t0, "=== Cleaning surface around triangles...");
+        start_msg(t0, "=== Cleaning surface atoms...");
         dense_surf.clean_by_triangles(atom2face, surface_interpolator, conf.latconst);
         end_msg(t0);
         dense_surf.write("out/surface_dense_clean.xyz");
