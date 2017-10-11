@@ -10,13 +10,13 @@
 
 #include "AtomReader.h"
 #include "Config.h"
-#include "Media.h"
 #include "SolutionReader.h"
 #include "physical_quantities.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
 #include "laplace.h"
 #include "LinearInterpolator.h"
+#include "Surface.h"
 
 using namespace std;
 namespace femocs {
@@ -209,8 +209,8 @@ private:
     Config conf;            ///< configuration parameters
     Coarseners coarseners;  ///< surface coarsening data & routines
     AtomReader reader;      ///< all the imported atoms
-    Media dense_surf;       ///< non-coarsened surface atoms
-    Media extended_surf;    ///< atoms added for the surface atoms
+    Surface dense_surf;       ///< non-coarsened surface atoms
+    Surface extended_surf;    ///< atoms added for the surface atoms
 
     TetgenMesh fem_mesh;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
 
@@ -234,7 +234,7 @@ private:
     fch::Laplace<3> laplace_solver;                       ///< Laplace equation solver
 
     /** Generate boundary nodes for mesh */
-    int generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum);
+    int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
 
     /** Solve steady-steate heat and continuity equations */
     int solve_stationary_heat(const double T_ambient);

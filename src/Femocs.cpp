@@ -194,7 +194,7 @@ int Femocs::finalize() {
 }
 
 // Generate boundary nodes for mesh
-int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacuum) {
+int Femocs::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
     start_msg(t0, "=== Extracting surface...");
     dense_surf.extract(reader, TYPES.SURFACE);
     dense_surf.sort_atoms(3, "down");
@@ -248,7 +248,7 @@ int Femocs::generate_boundary_nodes(Media& bulk, Media& coarse_surf, Media& vacu
 int Femocs::generate_meshes() {
     fem_mesh.clear();
 
-    Media bulk, coarse_surf, vacuum;
+    Surface bulk, coarse_surf, vacuum;
     fail = generate_boundary_nodes(bulk, coarse_surf, vacuum);
     if (fail) return 1;
 

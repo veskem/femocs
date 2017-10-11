@@ -5,22 +5,23 @@
  *      Author: veske
  */
 
-#include "Media.h"
+#include "../include/Surface.h"
+
 #include <numeric>
 
 using namespace std;
 namespace femocs {
 
-Media::Media() : Medium() {}
+Surface::Surface() : Medium() {}
 
-Media::Media(const int n_atoms) : Medium(n_atoms) {}
+Surface::Surface(const int n_atoms) : Medium(n_atoms) {}
 
-Media::Media(const Medium::Sizes& s, const double z) {
+Surface::Surface(const Medium::Sizes& s, const double z) {
     generate_simple(s, z);
 }
 
 // Generate system with 4 atoms at the corners
-void Media::generate_simple(const Medium::Sizes& s, const double z) {
+void Surface::generate_simple(const Medium::Sizes& s, const double z) {
     // Reserve memory for atoms
     reserve(4);
 
@@ -35,7 +36,7 @@ void Media::generate_simple(const Medium::Sizes& s, const double z) {
 }
 
 // Generate edge with regular atom distribution between surface corners
-void Media::generate_middle(const Medium::Sizes& s, const double z, const double dist) {
+void Surface::generate_middle(const Medium::Sizes& s, const double z, const double dist) {
     require(dist > 0, "Invalid distance between atoms: " + to_string(dist));
     const int n_atoms_per_side_x = s.xbox / dist + 1;
     const int n_atoms_per_side_y = s.ybox / dist + 1;
@@ -61,7 +62,7 @@ void Media::generate_middle(const Medium::Sizes& s, const double z, const double
 }
 
 // Extract surface by the atom types
-void Media::extract(const AtomReader& reader, const int type, const bool invert) {
+void Surface::extract(const AtomReader& reader, const int type, const bool invert) {
     const int coord_min = 2;
     const int n_atoms = reader.size();
     vector<bool> is_type(n_atoms);
@@ -99,7 +100,7 @@ void Media::extract(const AtomReader& reader, const int type, const bool invert)
     calc_statistics();        
 }
 
-void Media::transform(const double latconst) {
+void Surface::transform(const double latconst) {
     const int n_atoms = size();
     calc_statistics();
     Point3 origin(sizes.xmid, sizes.ymid, sizes.zmid);
@@ -120,11 +121,11 @@ void Media::transform(const double latconst) {
 }
 
 // Extend the flat area by reading additional atoms
-Media Media::extend(const string &file_name, Coarseners &coarseners) {
+Surface Surface::extend(const string &file_name, Coarseners &coarseners) {
     AtomReader reader;
     reader.import_file(file_name);
 
-    Media stretched(reader.size());
+    Surface stretched(reader.size());
     stretched += reader;
     stretched.calc_statistics();
     stretched.sizes.zmean = stretched.sizes.zmin;
@@ -133,14 +134,14 @@ Media Media::extend(const string &file_name, Coarseners &coarseners) {
 }
 
 // Extend the flat area by generating additional atoms
-Media Media::extend(const double latconst, const double box_width, Coarseners &coarseners) {
+Surface Surface::extend(const double latconst, const double box_width, Coarseners &coarseners) {
     calc_statistics();
     const double desired_box_width = box_width * sizes.zbox;
 
     // Over estimate the number of generated points and reserve memory for them
     int n_generated = pow(desired_box_width / latconst + 1, 2);
     n_generated -= (sizes.xbox / latconst - 1) * (sizes.ybox / latconst - 1);
-    Media stretched( max(0, n_generated) );
+    Surface stretched( max(0, n_generated) );
 
     const double Wx = (desired_box_width - sizes.xbox) / 2.0;  // generation area width
     const double Wy = (desired_box_width - sizes.ybox) / 2.0;
@@ -163,8 +164,8 @@ Media Media::extend(const double latconst, const double box_width, Coarseners &c
 }
 
 // Coarsen the atoms by generating additional boundary nodes and then running cleaner
-Media Media::coarsen(Coarseners &coarseners) {
-    Media corners, middle, union_surf;
+Surface Surface::coarsen(Coarseners &coarseners) {
+    Surface corners, middle, union_surf;
 
     corners.generate_simple(sizes, sizes.zmean);
     middle.generate_middle( sizes, sizes.zmean, coarseners.get_r0_inf(sizes) );
@@ -178,7 +179,7 @@ Media Media::coarsen(Coarseners &coarseners) {
 }
 
 // Clean the surface from atoms that are too close to each other
-Media Media::clean(Coarseners &coarseners) {
+Surface Surface::clean(Coarseners &coarseners) {
     const int n_atoms = size();
     vector<bool> do_delete(n_atoms, false);
 
@@ -197,7 +198,7 @@ Media Media::clean(Coarseners &coarseners) {
         }
     }
 
-    Media surf( n_atoms - vector_sum(do_delete) );
+    Surface surf( n_atoms - vector_sum(do_delete) );
     for (int i = 0; i < n_atoms; ++i)
         if(!do_delete[i])
             surf.append(get_atom(i));
@@ -207,7 +208,7 @@ Media Media::clean(Coarseners &coarseners) {
 }
 
 // Remove the atoms that are too far from surface faces
-void Media::clean_by_triangles(vector<int>& surf2face, const TriangleInterpolator& interpolator, const double r_cut) {
+void Surface::clean_by_triangles(vector<int>& surf2face, const TriangleInterpolator& interpolator, const double r_cut) {
     if (r_cut <= 0) return;
 
     const int n_atoms = size();
@@ -231,7 +232,7 @@ void Media::clean_by_triangles(vector<int>& surf2face, const TriangleInterpolato
     calc_statistics();
 }
 
-int Media::calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
+int Surface::calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
         const double radius, const double latconst, const string& mesh_quality)
 {
     const int n_this_nodes = size();
@@ -273,9 +274,9 @@ int Media::calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
     return 0;
 }
 
-int Media::clean_by_voronois(const double radius, const double latconst, const string& mesh_quality) {
+int Surface::clean_by_voronois(const double radius, const double latconst, const string& mesh_quality) {
     // Extract nanotip
-    Media nanotip;
+    Surface nanotip;
     vector<bool> node_in_nanotip;
     const int n_nanotip_nodes = get_nanotip(nanotip, node_in_nanotip, radius);
 
@@ -319,7 +320,7 @@ int Media::clean_by_voronois(const double radius, const double latconst, const s
 }
 
 // Separate cylindrical region from substrate region
-int Media::get_nanotip(Media& nanotip, vector<bool>& atom_in_nanotip, const double radius) {
+int Surface::get_nanotip(Surface& nanotip, vector<bool>& atom_in_nanotip, const double radius) {
     const int n_atoms = size();
     const double radius2 = radius * radius;
     Medium::calc_statistics();
@@ -343,7 +344,7 @@ int Media::get_nanotip(Media& nanotip, vector<bool>& atom_in_nanotip, const doub
 }
 
 // Separate cylindrical region from substrate region
-void Media::get_nanotip(Media& nanotip, const double radius) {
+void Surface::get_nanotip(Surface& nanotip, const double radius) {
     const int n_atoms = size();
     const double radius2 = radius * radius;
 
@@ -372,13 +373,13 @@ void Media::get_nanotip(Media& nanotip, const double radius) {
 }
 
 // Smoothen the atoms inside the cylinder
-void Media::smoothen(const double radius, const double smooth_factor, const double r_cut) {
+void Surface::smoothen(const double radius, const double smooth_factor, const double r_cut) {
     if (smooth_factor <= 0) return;
 
     // Calculate the horizontal span of the surface
     calc_statistics();
 
-    Media nanotip;
+    Surface nanotip;
     get_nanotip(nanotip, radius);
     nanotip.smoothen(smooth_factor, r_cut);
 
@@ -386,7 +387,7 @@ void Media::smoothen(const double radius, const double smooth_factor, const doub
 }
 
 // Smoothen all the atoms in the system
-void Media::smoothen(const double smooth_factor, const double r_cut) {
+void Surface::smoothen(const double smooth_factor, const double r_cut) {
     if (smooth_factor <= 0) return;
 
     const double r_cut2 = r_cut * r_cut;
@@ -428,13 +429,13 @@ void Media::smoothen(const double smooth_factor, const double r_cut) {
 }
 
 // Smoothen the atoms inside the cylinder
-void Media::smoothen(const Config& conf, const double r_cut) {
+void Surface::smoothen(const Config& conf, const double r_cut) {
     if (r_cut <= 0) return;
 
     // Calculate the horizontal span of the surface
     calc_statistics();
 
-    Media nanotip;
+    Surface nanotip;
     get_nanotip(nanotip, conf.radius);
 
     vector<vector<unsigned>> nborlist;
@@ -449,7 +450,7 @@ void Media::smoothen(const Config& conf, const double r_cut) {
 }
 
 // Apply one cycle of Taubin lambda|mu algorithm
-void Media::laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist) {
+void Surface::laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist) {
     size_t n_nodes = size();
     vector<Point3> displacements(n_nodes);
 
@@ -474,7 +475,7 @@ void Media::laplace_smooth(const double scale, const vector<vector<unsigned>>& n
 
 
 // Calculate list of close neighbours using brute force technique
-void Media::calc_nborlist(vector<vector<unsigned>>& nborlist, const int nnn, const double r_cut) {
+void Surface::calc_nborlist(vector<vector<unsigned>>& nborlist, const int nnn, const double r_cut) {
     require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
 
     const size_t n_atoms = size();

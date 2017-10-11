@@ -20,16 +20,16 @@ using namespace std;
 namespace femocs {
 
 /** Routines and data related to making a Surface */
-class Media: public Medium {
+class Surface: public Medium {
 public:
-    /** Empty Media constructor */
-    Media();
+    /** Empty surface */
+    Surface();
 
-    /** Initialise empty Media and reserve memory for atoms */
-    Media(const int n_atoms);
+    /** Initialise empty surface and reserve memory for atoms */
+    Surface(const int n_atoms);
 
-    /** Generate Media with 4 atoms on simubox edges */
-    Media(const Medium::Sizes& sizes, const double z);
+    /** Generate surface with 4 atoms on simubox edges */
+    Surface(const Medium::Sizes& sizes, const double z);
 
     /** Generate system with 4 atoms at the simubox corners */
     void generate_simple(const Medium::Sizes& sizes, const double z);
@@ -43,16 +43,16 @@ public:
     void extract(const AtomReader& reader, const int type, const bool invert=false);
 
     /** Extend the flat area by generating additional atoms */
-    Media extend(const double latconst, const double box_width, Coarseners &coarseners);
+    Surface extend(const double latconst, const double box_width, Coarseners &coarseners);
 
     /** Extend the flat area by reading additional atoms */
-    Media extend(const string &file_name, Coarseners &coarseners);
+    Surface extend(const string &file_name, Coarseners &coarseners);
 
     /** Coarsen the atoms by generating additional boundary nodes and then running cleaner */
-    Media coarsen(Coarseners &coarseners);
+    Surface coarsen(Coarseners &coarseners);
 
     /** Clean the surface from atoms that are too close to each other */
-    Media clean(Coarseners &coarseners);
+    Surface clean(Coarseners &coarseners);
 
     /** Increase or decrease the total volume of system without altering the centre of mass */
     void transform(const double latconst);
@@ -86,9 +86,9 @@ private:
     void generate_middle(const Medium::Sizes& ar_sizes, const double z, const double dist);
 
     /** Separate cylindrical region from substrate region */
-    void get_nanotip(Media& nanotip, const double radius);
+    void get_nanotip(Surface& nanotip, const double radius);
 
-    int get_nanotip(Media& nanotip, vector<bool>& atom_in_nanotip, const double radius);
+    int get_nanotip(Surface& nanotip, vector<bool>& atom_in_nanotip, const double radius);
 
     int calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
             const double radius, const double latconst, const string& mesh_quality);
