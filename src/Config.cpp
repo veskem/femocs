@@ -200,7 +200,7 @@ void Config::check_obsolete(const string& command, const string& substitute) {
     for (const vector<string>& cmd : data)
         if (cmd[0] == command) {
             write_verbose_msg("Command '" + command + "' is obsolete!"
-                    " It is similar but yet different to the command '" + substitute + "'!");
+                    " It is similar yet different to the command '" + substitute + "'!");
             return;
         }
 }

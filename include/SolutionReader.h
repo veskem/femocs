@@ -152,7 +152,8 @@ public:
     /** Return electric potential in i-th interpolation point */
     double get_potential(const int i) const;
 
-    /** Compare the analytical and calculated field enhancement */
+    /** Compare the analytical and calculated field enhancement.
+     * The check is disabled if lower and upper limits are the same. */
     bool check_limits(const vector<Solution>* solutions=NULL) const;
 
     /** Set parameters to calculate analytical solution */
@@ -242,7 +243,8 @@ public:
     /** Set parameters to calculate analytical solution */
     void set_check_params(const double Q_tot, const double limit_min, const double limit_max);
 
-    /** Check whether charge is conserved within specified limits */
+    /** Check whether charge is conserved within specified limits.
+     * The check is disabled if lower and upper limits are the same. */
     bool check_limits(const vector<Solution>* solutions=NULL) const;
 
     /** Get electric field on the centroid of i-th triangle */

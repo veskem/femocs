@@ -676,6 +676,9 @@ double FieldReader::get_analyt_enhancement() const {
 
 // Compare the analytical and calculated field enhancement
 bool FieldReader::check_limits(const vector<Solution>* solutions) const {
+    if (limit_min == limit_max)
+        return false;
+
     double Emax = -1e100;
     if (solutions) {
         for (Solution s : *solutions)
@@ -1038,6 +1041,9 @@ double ChargeReader::get_charge(const int i) const {
 
 // Check whether charge is conserved within specified limits
 bool ChargeReader::check_limits(const vector<Solution>* solutions) const {
+    if (limit_min == limit_max)
+        return false;
+
     double q = 0;
     if (solutions) {
         for (Solution s : *solutions)
@@ -1192,7 +1198,7 @@ int ForceReader::calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom
         }
 
     // remove too big surface faces
-    clean_voro_faces(mesh);
+//    clean_voro_faces(mesh);
 
     // calculate charge on Voronoi cell
     int cell = -1;
