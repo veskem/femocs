@@ -29,6 +29,50 @@ void AtomReader::reserve(const int n_atoms) {
     coordination = vector<int>(n_atoms, 0);
 }
 
+/*
+Function to calculate the radial distribution function in a periodic condition for isotropic system.
+c_rdf_one: calculate the RDF of the same type of atoms
+input coordinates array need to be flatten. Example: [[x1,y1,z1],[x2,y2,z2]] should be [x1,y1,z1,x2,y2,z2]
+
+Arguments:
+r_array:   flatten array of coordinates of all atoms need to be calculated
+rdf_array: Radial Distribution Function histogram array
+dim_array: dimension array. Example: dim_array for a cubic box whose side length is 1.0 would be [1.0,1.0,1.0]
+n:         number of the molecules.
+n_bins:    number of bins of RDF
+r_cut:     upper limit of the radius range of RDF
+
+Source of inspiration: https://github.com/anyuzx/rdf
+Author: Guang Shi
+Modified: Mihkel Veske
+*/
+void AtomReader::calc_rdf(vector<double>& rdf_array, const int n_bins, const double r_cut) {
+    require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
+    require(n_bins > 1, "Invalid # histogram bins: " + to_string(n_bins));
+
+    const int n_atoms = size();
+    const double r_cut2 = r_cut * r_cut;
+    const double bin_width = r_cut / n_bins;
+    const double Vbox = sizes.xbox * sizes.ybox * sizes.zbox;
+
+    // normalisation factor. Only valid for single-atom isotropic system.
+    const double norm_factor = Vbox / (2 * 3.1415927 * n_atoms * (n_atoms-1) * bin_width);
+
+    rdf_array = vector<double>(n_bins);
+
+/* this loop part is to calculate the distances between all atom pairs excluding the pairs in the same molecules. */
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point = get_point(i);
+        for (int nbor : nborlist[i]) {
+            const double distance2 = point.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox);
+            if (distance2 < r_cut2) {
+                const int i_hist = int(sqrt(distance2) / bin_width);
+                rdf_array[i_hist] += norm_factor / pow((i_hist + 0.5) * bin_width, 2.0);
+            }
+        }
+    }
+}
+
 // Calculate root mean square of the distances atoms have moved after previous run
 double AtomReader::calc_rms_distance(const double eps) {
     if (eps <= 0) return DBL_MAX;
@@ -65,6 +109,7 @@ void AtomReader::save_current_run_points(const double eps) {
 // Calculate list of close neighbours using Parcas diagonal neighbour list
 void AtomReader::calc_nborlist(const int nnn, const double r_cut, const int* parcas_nborlist) {
     require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
+    require(nnn > 0, "Invalid # nearest neighbours: " + to_string(nnn));
 
     const int n_atoms = size();
     const double r_cut2 = r_cut * r_cut;
@@ -78,7 +123,6 @@ void AtomReader::calc_nborlist(const int nnn, const double r_cut, const int* par
     int nbor_indx = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point1 = get_point(i);
-
         int n_nbors = parcas_nborlist[nbor_indx++];
 
         // Loop through atom neighbours
@@ -95,6 +139,7 @@ void AtomReader::calc_nborlist(const int nnn, const double r_cut, const int* par
 // Calculate list of close neighbours using brute force technique
 void AtomReader::calc_nborlist(const int nnn, const double r_cut) {
     require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
+    require(nnn > 0, "Invalid # nearest neighbours: " + to_string(nnn));
 
     const int n_atoms = size();
     const double r_cut2 = r_cut * r_cut;

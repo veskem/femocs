@@ -118,6 +118,25 @@ private:
 
     /** Calculate list of close neighbours using brute force technique */
     void calc_nborlist(const int nnn, const double r_cut);
+
+    /*
+    Function to calculate the radial distribution function in a periodic condition for isotropic system.
+    c_rdf_one: calculate the RDF of the same type of atoms
+    input coordinates array need to be flatten. Example: [[x1,y1,z1],[x2,y2,z2]] should be [x1,y1,z1,x2,y2,z2]
+    Arguments:
+    r_array: flatten array of coordinates of all atoms need to be calculated
+    rdf_array: Radial Distribution Function histogram array
+    dim_array: dimension array. Example: dim_array for a cubic box whose side length is 1.0 would be [1.0,1.0,1.0]
+    n: number of the molecules.
+    natmm,natmm1,natmm2: number of the one type of atom in one molecule.
+    nHist: number of bins of RDF
+    rHistMax: upper limit of the radius range of RDF
+    v: volume of simulation box
+
+    Source of inspiration: https://github.com/anyuzx/rdf
+    Author: Guang Shi, Mihkel Veske
+    */
+    void calc_rdf(vector<double>& rdf_array, const int n_bins, const double r_cut);
 };
 
 } /* namespace femocs */

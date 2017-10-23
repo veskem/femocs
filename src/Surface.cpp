@@ -97,7 +97,8 @@ void Surface::extract(const AtomReader& reader, const int type, const bool inver
         if (is_type[i])
             append(reader.get_atom(i));
             
-    calc_statistics();        
+    calc_statistics();
+    sort_atoms(3, "down");
 }
 
 void Surface::transform(const double latconst) {

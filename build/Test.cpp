@@ -126,7 +126,6 @@ void write_molten(ofstream &file) {
     file << "infile = in/nanotip_molten.xyz" << endl;
     file << "coarse_factor = 0.3 6 4"  << endl;
     file << "radius = 65.0"            << endl;
-    file << "surface_thichness = 4.65" << endl;
     file << "box_width = 5.0"         << endl;
 }
 

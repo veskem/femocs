@@ -196,7 +196,6 @@ int Femocs::finalize() {
 int Femocs::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
     start_msg(t0, "=== Extracting surface...");
     dense_surf.extract(reader, TYPES.SURFACE);
-    dense_surf.sort_atoms(3, "down");
     end_msg(t0);
 
     dense_surf.write("out/surface_dense.xyz");
