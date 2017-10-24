@@ -29,50 +29,6 @@ void AtomReader::reserve(const int n_atoms) {
     coordination = vector<int>(n_atoms, 0);
 }
 
-/*
-Function to calculate the radial distribution function in a periodic condition for isotropic system.
-c_rdf_one: calculate the RDF of the same type of atoms
-input coordinates array need to be flatten. Example: [[x1,y1,z1],[x2,y2,z2]] should be [x1,y1,z1,x2,y2,z2]
-
-Arguments:
-r_array:   flatten array of coordinates of all atoms need to be calculated
-rdf_array: Radial Distribution Function histogram array
-dim_array: dimension array. Example: dim_array for a cubic box whose side length is 1.0 would be [1.0,1.0,1.0]
-n:         number of the molecules.
-n_bins:    number of bins of RDF
-r_cut:     upper limit of the radius range of RDF
-
-Source of inspiration: https://github.com/anyuzx/rdf
-Author: Guang Shi
-Modified: Mihkel Veske
-*/
-void AtomReader::calc_rdf(vector<double>& rdf_array, const int n_bins, const double r_cut) {
-    require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
-    require(n_bins > 1, "Invalid # histogram bins: " + to_string(n_bins));
-
-    const int n_atoms = size();
-    const double r_cut2 = r_cut * r_cut;
-    const double bin_width = r_cut / n_bins;
-    const double Vbox = sizes.xbox * sizes.ybox * sizes.zbox;
-
-    // normalisation factor. Only valid for single-atom isotropic system.
-    const double norm_factor = Vbox / (2 * 3.1415927 * n_atoms * (n_atoms-1) * bin_width);
-
-    rdf_array = vector<double>(n_bins);
-
-/* this loop part is to calculate the distances between all atom pairs excluding the pairs in the same molecules. */
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 point = get_point(i);
-        for (int nbor : nborlist[i]) {
-            const double distance2 = point.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox);
-            if (distance2 < r_cut2) {
-                const int i_hist = int(sqrt(distance2) / bin_width);
-                rdf_array[i_hist] += norm_factor / pow((i_hist + 0.5) * bin_width, 2.0);
-            }
-        }
-    }
-}
-
 // Calculate root mean square of the distances atoms have moved after previous run
 double AtomReader::calc_rms_distance(const double eps) {
     if (eps <= 0) return DBL_MAX;
@@ -233,18 +189,32 @@ void AtomReader::calc_clusters(const int nnn, const double r_cut, const int* par
     calc_clusters();
 }
 
-// Check for evaporated atoms
-void AtomReader::check_coordinations() {
-    const int coord_max = 1;
-    const int coord_min = 0;
-    for (int a : coordination)
-        if (a >= coord_min && a <= coord_max)
-            cout << "FEMOCS: Evaporated atom detected!" << endl;
-}
+// Calculate coordination for all the atoms using neighbour list
+//void AtomReader::calc_coordinations(int& nnn, double& latconst, const int* parcas_nborlist) {
+//    calc_nborlist(nnn, r_cut, parcas_nborlist);
+//    for (int i = 0; i < size(); ++i)
+//        coordination[i] = nborlist[i].size();
+//}
 
 // Calculate coordination for all the atoms using neighbour list
 void AtomReader::calc_coordinations(const int nnn, const double r_cut, const int* parcas_nborlist) {
     calc_nborlist(nnn, r_cut, parcas_nborlist);
+    for (int i = 0; i < size(); ++i)
+        coordination[i] = nborlist[i].size();
+}
+
+// Calculate coordination for all the atoms using neighbour list
+void AtomReader::calc_coordinations(int& nnn, double& r_cut, double& latconst) {
+    vector<double> peaks;
+    calc_nborlist(nnn, 2.0 * latconst);
+    calc_rdf(peaks, 100, 2.0 * latconst);
+    require(peaks.size() >= 5, "Not enough peaks in RDF: " + to_string(peaks.size()));
+
+    latconst = peaks[1];
+    r_cut = peaks[4];
+    nnn = 48;
+
+    calc_nborlist(nnn, r_cut);
     for (int i = 0; i < size(); ++i)
         coordination[i] = nborlist[i].size();
 }
@@ -265,7 +235,7 @@ void AtomReader::calc_coordinations(const int nnn) {
         if (atoms[i].marker == TYPES.BULK)
             coordination[i] = nnn;
         else if (atoms[i].marker == TYPES.SURFACE)
-            coordination[i] = nnn/2;
+            coordination[i] = nnn / 2;
         else if (atoms[i].marker == TYPES.VACANCY)
             coordination[i] = -1;
         else
@@ -273,10 +243,60 @@ void AtomReader::calc_coordinations(const int nnn) {
     }
 }
 
+//Calculate the radial distribution function (rdf) in a periodic isotropic system.
+void AtomReader::calc_rdf(vector<double>& peaks, const int n_bins, const double r_cut) {
+    require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
+    require(n_bins > 1, "Invalid # histogram bins: " + to_string(n_bins));
+
+    const int n_atoms = size();
+    const double bin_width = r_cut / n_bins;
+    // Only valid for single-atom isotropic system
+    const double norm_factor = 4.0/3.0 * M_PI * n_atoms * n_atoms / (sizes.xbox * sizes.ybox * sizes.zbox);
+
+    // calculate the rdf histogram
+    vector<double> rdf(n_bins);
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point = get_point(i);
+        for (int nbor : nborlist[i]) {
+            const double distance2 = point.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox);
+            rdf[size_t(sqrt(distance2) / bin_width)]++;
+        }
+    }
+
+    // Normalise rdf histogram by the volume and # atoms
+    // Normalisation is done in a ways OVITO does
+    double rdf_max = -1.0;
+    for (int i = 0; i < n_bins; ++i) {
+        double r = bin_width * i;
+        double r2 = r + bin_width;
+        rdf[i] /= norm_factor * (r2*r2*r2 - r*r*r);
+        rdf_max = max(rdf_max, rdf[i]);
+    }
+
+    // Normalise rdf histogram by the maximum peak and remove noise
+    for (double& r : rdf) {
+        r /= rdf_max;
+        if (r < 0.05) r = 0;
+    }
+
+    calc_rdf_peaks(peaks, rdf, bin_width);
+}
+
+void AtomReader::calc_rdf_peaks(vector<double>& peaks, const vector<double>& rdf, const double bin_width) {
+    const int grad_length = rdf.size() - 1;
+    vector<double> gradients(grad_length);
+    for (int i = 0; i < grad_length; ++i)
+        gradients[i] = rdf[i+1] - rdf[i];
+
+    peaks.clear();
+    for (int i = 0; i < grad_length - 1; ++i)
+        if (gradients[i] * gradients[i+1] < 0 && gradients[i] > gradients[i+1])
+            peaks.push_back((i+1.5) * bin_width);
+}
+
 // Extract atom types from calculated coordinations
 void AtomReader::extract_types(const int nnn, const double latconst) {
     const int n_atoms = size();
-    const int nnn_eps = 2;
     calc_statistics();
 
     for (int i = 0; i < n_atoms; ++i) {
@@ -286,7 +306,7 @@ void AtomReader::extract_types(const int nnn, const double latconst) {
             atoms[i].marker = TYPES.EVAPORATED;
         else if (get_point(i).z < (sizes.zmin + 0.49*latconst))
             atoms[i].marker = TYPES.FIXED;
-        else if ( (nnn - coordination[i]) >= nnn_eps )
+        else if (coordination[i] < nnn)
             atoms[i].marker = TYPES.SURFACE;
         else
             atoms[i].marker = TYPES.BULK;

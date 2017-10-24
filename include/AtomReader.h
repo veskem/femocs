@@ -40,9 +40,11 @@ public:
 
     /** Calculate coordination for all the atoms using Parcas neighbour list */
     void calc_coordinations(const int nnn, const double r_cut, const int* parcas_nborlist);
+//    void calc_coordinations(int& nnn, double& latconst, const int* parcas_nborlist);
 
     /** Calculate coordination for all the atoms using brute force */
     void calc_coordinations(const int nnn, const double r_cut);
+    void calc_coordinations(int& nnn, double& r_cut, double& latconst);
 
     /** Calculate pseudo-coordination for all the atoms using the atom types */
     void calc_coordinations(const int nnn);
@@ -57,10 +59,6 @@ public:
 
     /** Rebuild list of close neighbours using Parcas neighbourlist and run cluster analysis */
     void calc_clusters(const int nnn, const double r_cut, const int* parcas_nborlist);
-
-    /** Function to detect evaporated atoms by their coordinations;
-     * an atom is considered evaporated if it's coordination is between the defined limits. */
-    void check_coordinations();
 
     /** Calculate the number of atoms in clusters
      * @param print  if clusters detected, print the number atoms in clusters to the console
@@ -136,7 +134,9 @@ private:
     Source of inspiration: https://github.com/anyuzx/rdf
     Author: Guang Shi, Mihkel Veske
     */
-    void calc_rdf(vector<double>& rdf_array, const int n_bins, const double r_cut);
+    void calc_rdf(vector<double>& peaks, const int n_bins, const double r_cut);
+
+    void calc_rdf_peaks(vector<double>& peaks, const vector<double>& rdf, const double bin_width);
 };
 
 } /* namespace femocs */

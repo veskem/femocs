@@ -525,7 +525,14 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
         if (file_type == "xyz") {
             start_msg(t0, "=== Performing coordination analysis...");
             reader.calc_coordinations(conf.nnn, conf.coordination_cutoff);
+//            reader.calc_coordinations(conf.nnn, conf.coordination_cutoff, conf.latconst);
             end_msg(t0);
+
+//            stringstream stream;
+//            stream << fixed << setprecision(3)
+//                    << "latconst: " << conf.latconst << ", nnn: " << conf.nnn
+//                    << ", coord_cutoff: " << conf.coordination_cutoff;
+//            write_verbose_msg(stream.str());
 
             if (conf.cluster_anal) {
                 start_msg(t0, "=== Performing cluster analysis...");
@@ -536,7 +543,7 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
             }
 
             start_msg(t0, "=== Extracting atom types...");
-            reader.extract_types(conf.nnn, conf.latconst);
+            reader.extract_types(conf.nnn, conf.coordination_cutoff);
             end_msg(t0);
 
         } else {
