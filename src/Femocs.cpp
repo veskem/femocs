@@ -121,12 +121,13 @@ void Femocs::write_slice(const string& file_name) {
 
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
 int Femocs::run(const double elfield, const string &message) {
-    stringstream stream; stream << fixed << setprecision(3);
+    stringstream parser, stream;
+    stream << fixed << setprecision(3);
 
     // convert message to integer time step
     int tstep;
-    stream << message;
-    stream >> tstep;
+    parser << message;
+    parser >> tstep;
 
     stream.str("");
     stream << "Atoms haven't moved significantly, " << reader.rms_distance
@@ -524,20 +525,22 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
     if (!skip_calculations) {
         if (file_type == "xyz") {
             start_msg(t0, "=== Performing coordination analysis...");
-            reader.calc_coordinations(conf.nnn, conf.coordination_cutoff);
-//            reader.calc_coordinations(conf.nnn, conf.coordination_cutoff, conf.latconst);
+            if (!conf.use_rdf) reader.calc_coordinations(conf.nnn, conf.coordination_cutoff);
+            else reader.calc_coordinations(conf.nnn, conf.latconst, conf.coordination_cutoff);
             end_msg(t0);
 
-//            stringstream stream;
-//            stream << fixed << setprecision(3)
-//                    << "latconst: " << conf.latconst << ", nnn: " << conf.nnn
-//                    << ", coord_cutoff: " << conf.coordination_cutoff;
-//            write_verbose_msg(stream.str());
+            if (conf.use_rdf) {
+                stringstream stream;
+                stream << fixed << setprecision(3)
+                        << "nnn: " << conf.nnn << ", latconst: " << conf.latconst
+                        << ", coord_cutoff: " << conf.coordination_cutoff
+                        << ", cluster_cutoff: " << conf.cluster_cutoff;
+                write_verbose_msg(stream.str());
+            }
 
             if (conf.cluster_anal) {
                 start_msg(t0, "=== Performing cluster analysis...");
-                if (conf.cluster_cutoff <= 0) reader.calc_clusters();
-                else reader.calc_clusters(conf.nnn, conf.cluster_cutoff);
+                reader.calc_clusters(conf.nnn, conf.cluster_cutoff, conf.coordination_cutoff);
                 end_msg(t0);
                 reader.check_clusters(1);
             }
@@ -572,13 +575,22 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
 
     if (!skip_calculations) {
         start_msg(t0, "=== Performing coordination analysis...");
-        reader.calc_coordinations(conf.nnn, conf.coordination_cutoff, nborlist);
+        if (!conf.use_rdf) reader.calc_coordinations(conf.nnn, conf.coordination_cutoff, nborlist);
+        else reader.calc_coordinations(conf.nnn, conf.coordination_cutoff, conf.latconst, nborlist);
         end_msg(t0);
+
+        if (conf.use_rdf) {
+            stringstream stream;
+            stream << fixed << setprecision(3)
+                    << "nnn: " << conf.nnn << ", latconst: " << conf.latconst
+                    << ", coord_cutoff: " << conf.coordination_cutoff
+                    << ", cluster_cutoff: " << conf.cluster_cutoff;
+            write_verbose_msg(stream.str());
+        }
 
         if (conf.cluster_anal) {
             start_msg(t0, "=== Performing cluster analysis...");
-            if (conf.cluster_cutoff <= 0) reader.calc_clusters();
-            else reader.calc_clusters(conf.nnn, conf.cluster_cutoff, nborlist);
+            reader.calc_clusters(conf.nnn, conf.cluster_cutoff, conf.coordination_cutoff, nborlist);
             end_msg(t0);
             reader.check_clusters(1);
         }

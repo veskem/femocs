@@ -127,6 +127,92 @@ void AtomReader::calc_nborlist(const int nnn, const double r_cut) {
     }
 }
 
+// Calculate list of close neighbours using already existing list with >= cut-off radius
+void AtomReader::recalc_nborlist(const double r_cut) {
+    require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
+
+    const int n_atoms = size();
+    const double r_cut2 = r_cut * r_cut;
+
+    // Initialise list of new neighbourlist
+    vector<vector<int>> new_nborlist(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        new_nborlist[i].reserve(nborlist[i].size());
+
+    // Loop through all the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point1 = get_point(i);
+        // Loop through all the previously found neighbours of the atom
+        for (int nbor : nborlist[i]) {
+            if ( r_cut2 >= point1.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox) )
+                new_nborlist[i].push_back(nbor);
+        }
+    }
+
+    nborlist = new_nborlist;
+}
+
+void AtomReader::calc_coordinations() {
+    for (int i = 0; i < size(); ++i)
+        coordination[i] = nborlist[i].size();
+}
+
+// Calculate coordination for all the atoms using neighbour list
+void AtomReader::calc_coordinations(int& nnn, double& latconst, double& coord_cutoff, const int* parcas_nborlist) {
+    const double rdf_cutoff = 2.0 * latconst;
+
+    calc_nborlist(nnn, rdf_cutoff, parcas_nborlist);
+    calc_rdf(nnn, latconst, coord_cutoff, 200, rdf_cutoff);
+
+    require(coord_cutoff <= rdf_cutoff, "Invalid cut-off: " + to_string(coord_cutoff));
+
+    recalc_nborlist(coord_cutoff);
+    calc_coordinations();
+}
+
+// Calculate coordination for all the atoms using neighbour list
+void AtomReader::calc_coordinations(const int nnn, const double coord_cutoff, const int* parcas_nborlist) {
+    calc_nborlist(nnn, coord_cutoff, parcas_nborlist);
+    calc_coordinations();
+}
+
+// Calculate coordination for all the atoms using neighbour list
+void AtomReader::calc_coordinations(int& nnn, double& latconst, double& coord_cutoff) {
+    const double rdf_cutoff = 2.0 * latconst;
+
+    calc_nborlist(nnn, rdf_cutoff);
+    calc_rdf(nnn, latconst, coord_cutoff, 200, rdf_cutoff);
+
+    require(coord_cutoff <= rdf_cutoff, "Invalid cut-off: " + to_string(coord_cutoff));
+
+    recalc_nborlist(coord_cutoff);
+    calc_coordinations();
+}
+
+// Calculate coordination for all the atoms using neighbour list
+void AtomReader::calc_coordinations(const int nnn, const double r_cut) {
+    calc_nborlist(nnn, r_cut);
+    for (int i = 0; i < size(); ++i)
+        coordination[i] = nborlist[i].size();
+}
+
+// Calculate pseudo-coordination for all the atoms using the atom types
+void AtomReader::calc_coordinations(const int nnn) {
+    require(nnn > 0, "Invalid number of nearest neighbors!");
+    const int n_atoms = size();
+
+    for (int i = 0; i < n_atoms; ++i) {
+        if (atoms[i].marker == TYPES.BULK)
+            coordination[i] = nnn;
+        else if (atoms[i].marker == TYPES.SURFACE)
+            coordination[i] = nnn / 2;
+        else if (atoms[i].marker == TYPES.VACANCY)
+            coordination[i] = -1;
+        else
+            coordination[i] = 0;
+    }
+}
+
 // Check for clustered and evaporated atoms
 int AtomReader::check_clusters(const bool print) {
     const int n_detached = vector_sum(vector_not(&cluster, 0));
@@ -177,74 +263,31 @@ void AtomReader::calc_clusters() {
 
 }
 
-// Recalculate list of closest neighbours using brute force technique and group atoms into clusters
-void AtomReader::calc_clusters(const int nnn, const double r_cut) {
-    calc_nborlist(nnn, r_cut);
+void AtomReader::calc_clusters(const int nnn, const double cluster_cutoff, const double coord_cutoff) {
+    if (cluster_cutoff > 0 && cluster_cutoff != coord_cutoff) {
+        if (cluster_cutoff < coord_cutoff)
+            recalc_nborlist(cluster_cutoff);
+        else
+            calc_nborlist(nnn, cluster_cutoff);
+    }
     calc_clusters();
 }
 
 // Recalculate list of closest neighbours using Parcas neighbourlist and group atoms into clusters
-void AtomReader::calc_clusters(const int nnn, const double r_cut, const int* parcas_nborlist) {
-    calc_nborlist(nnn, r_cut, parcas_nborlist);
+void AtomReader::calc_clusters(const int nnn, const double cluster_cutoff,
+        const double coord_cutoff, const int* parcas_nborlist) {
+
+    if (cluster_cutoff > 0 && cluster_cutoff != coord_cutoff) {
+        if (cluster_cutoff < coord_cutoff)
+            recalc_nborlist(cluster_cutoff);
+        else
+            calc_nborlist(nnn, cluster_cutoff, parcas_nborlist);
+    }
     calc_clusters();
 }
 
-// Calculate coordination for all the atoms using neighbour list
-//void AtomReader::calc_coordinations(int& nnn, double& latconst, const int* parcas_nborlist) {
-//    calc_nborlist(nnn, r_cut, parcas_nborlist);
-//    for (int i = 0; i < size(); ++i)
-//        coordination[i] = nborlist[i].size();
-//}
-
-// Calculate coordination for all the atoms using neighbour list
-void AtomReader::calc_coordinations(const int nnn, const double r_cut, const int* parcas_nborlist) {
-    calc_nborlist(nnn, r_cut, parcas_nborlist);
-    for (int i = 0; i < size(); ++i)
-        coordination[i] = nborlist[i].size();
-}
-
-// Calculate coordination for all the atoms using neighbour list
-void AtomReader::calc_coordinations(int& nnn, double& r_cut, double& latconst) {
-    vector<double> peaks;
-    calc_nborlist(nnn, 2.0 * latconst);
-    calc_rdf(peaks, 100, 2.0 * latconst);
-    require(peaks.size() >= 5, "Not enough peaks in RDF: " + to_string(peaks.size()));
-
-    latconst = peaks[1];
-    r_cut = peaks[4];
-    nnn = 48;
-
-    calc_nborlist(nnn, r_cut);
-    for (int i = 0; i < size(); ++i)
-        coordination[i] = nborlist[i].size();
-}
-
-// Calculate coordination for all the atoms using neighbour list
-void AtomReader::calc_coordinations(const int nnn, const double r_cut) {
-    calc_nborlist(nnn, r_cut);
-    for (int i = 0; i < size(); ++i)
-        coordination[i] = nborlist[i].size();
-}
-
-// Calculate pseudo-coordination for all the atoms using the atom types
-void AtomReader::calc_coordinations(const int nnn) {
-    require(nnn > 0, "Invalid number of nearest neighbors!");
-    const int n_atoms = size();
-
-    for (int i = 0; i < n_atoms; ++i) {
-        if (atoms[i].marker == TYPES.BULK)
-            coordination[i] = nnn;
-        else if (atoms[i].marker == TYPES.SURFACE)
-            coordination[i] = nnn / 2;
-        else if (atoms[i].marker == TYPES.VACANCY)
-            coordination[i] = -1;
-        else
-            coordination[i] = 0;
-    }
-}
-
 //Calculate the radial distribution function (rdf) in a periodic isotropic system.
-void AtomReader::calc_rdf(vector<double>& peaks, const int n_bins, const double r_cut) {
+void AtomReader::calc_rdf(int & nnn, double& latconst, double& coord_cutoff, const int n_bins, const double r_cut) {
     require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
     require(n_bins > 1, "Invalid # histogram bins: " + to_string(n_bins));
 
@@ -279,7 +322,13 @@ void AtomReader::calc_rdf(vector<double>& peaks, const int n_bins, const double 
         if (r < 0.05) r = 0;
     }
 
+    vector<double> peaks;
     calc_rdf_peaks(peaks, rdf, bin_width);
+    require(peaks.size() >= 5, "Not enough peaks in RDF: " + to_string(peaks.size()));
+
+    latconst = peaks[1];
+    coord_cutoff = peaks[4];
+    nnn = 48;
 }
 
 void AtomReader::calc_rdf_peaks(vector<double>& peaks, const vector<double>& rdf, const double bin_width) {

@@ -68,6 +68,7 @@ public:
     double phi_error;           ///< Maximum allowed electric potential error
     int n_phi;                  ///< Maximum number of Conjugate Gradient iterations in phi calculation
 
+    bool use_rdf;               ///< Re-calculate lattice constant and coordination analysis parameters using radial distribution function
     bool clear_output;          ///< Clear output folder before the run
     bool use_histclean;         ///< Clean the solution with histogram cleaner
     int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off

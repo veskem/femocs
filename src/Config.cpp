@@ -43,14 +43,16 @@ Config::Config() {
     charge_tolerance_max = 1.2;  // Max ratio face charges are allowed to deviate from the total charge
     field_tolerance_min = 0.1;   // Min ratio numerical field can deviate from analytical one
     field_tolerance_max = 5.0;   // Max ratio numerical field can deviate from analytical one
-    refine_apex = false;         // refine nanotip apex
     distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
     n_writefile = 1;             // number of time steps between writing the output files
     verbose_mode = "verbose";    // mute, silent, verbose
     surface_cleaner = "faces";   // method to clean surface; voronois, faces or none
+
+    refine_apex = false;         // refine nanotip apex
     use_histclean = false;       // use histogram cleaner to get rid of sharp peaks in the solution
     cluster_anal = true;         // enable cluster analysis
     clear_output = true;         // clear output folder
+    use_rdf = false;             // use radial distribution function to recalculate lattice constant and coordination analysis parameters
 
     heating_mode = "none";       // method to calculate current density and temperature; none, stationary or transient
     transient_time = 0.05e-12;   // time resolution in transient temperature solver [sec]
@@ -85,6 +87,7 @@ void Config::read_all(const string& file_name) {
     check_obsolete("surface_thichness", "surface_thickness");
 
     // Modify the parameters that are specified in input script
+    read_command("use_rdf", use_rdf);
     read_command("work_function", work_function);
     read_command("transient_steps", transient_steps);
     read_command("transient_time", transient_time);

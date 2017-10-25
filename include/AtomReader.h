@@ -39,26 +39,21 @@ public:
     void import_kimocs();
 
     /** Calculate coordination for all the atoms using Parcas neighbour list */
-    void calc_coordinations(const int nnn, const double r_cut, const int* parcas_nborlist);
-//    void calc_coordinations(int& nnn, double& latconst, const int* parcas_nborlist);
+    void calc_coordinations(const int nnn, const double coord_cutoff, const int* parcas_nborlist);
+    void calc_coordinations(int& nnn, double& latconst, double& coord_cutoff, const int* parcas_nborlist);
 
     /** Calculate coordination for all the atoms using brute force */
-    void calc_coordinations(const int nnn, const double r_cut);
-    void calc_coordinations(int& nnn, double& r_cut, double& latconst);
+    void calc_coordinations(const int nnn, const double coord_cutoff);
+    void calc_coordinations(int& nnn, double& latconst, double& coord_cutoff);
 
     /** Calculate pseudo-coordination for all the atoms using the atom types */
     void calc_coordinations(const int nnn);
 
-    /** Group atoms into clusters using density-based spatial clustering technique
-     * http://codereview.stackexchange.com/questions/23966/density-based-clustering-of-image-keypoints
-     * https://en.wikipedia.org/wiki/DBSCAN */
-    void calc_clusters();
-
     /** Rebuild list of close neighbours using brute force technique and run cluster analysis */
-    void calc_clusters(const int nnn, const double r_cut);
+    void calc_clusters(const int nnn, const double cluster_cutoff, const double coord_cutoff);
 
     /** Rebuild list of close neighbours using Parcas neighbourlist and run cluster analysis */
-    void calc_clusters(const int nnn, const double r_cut, const int* parcas_nborlist);
+    void calc_clusters(const int nnn, const double cluster_cutoff, const double coord_cutoff, const int* parcas_nborlist);
 
     /** Calculate the number of atoms in clusters
      * @param print  if clusters detected, print the number atoms in clusters to the console
@@ -117,6 +112,8 @@ private:
     /** Calculate list of close neighbours using brute force technique */
     void calc_nborlist(const int nnn, const double r_cut);
 
+    void recalc_nborlist(const double r_cut);
+
     /*
     Function to calculate the radial distribution function in a periodic condition for isotropic system.
     c_rdf_one: calculate the RDF of the same type of atoms
@@ -134,9 +131,16 @@ private:
     Source of inspiration: https://github.com/anyuzx/rdf
     Author: Guang Shi, Mihkel Veske
     */
-    void calc_rdf(vector<double>& peaks, const int n_bins, const double r_cut);
-
+    void calc_rdf(int & nnn, double& latconst, double& coord_cutoff, const int n_bins, const double r_cut);
     void calc_rdf_peaks(vector<double>& peaks, const vector<double>& rdf, const double bin_width);
+
+    /** Group atoms into clusters using density-based spatial clustering technique
+     * http://codereview.stackexchange.com/questions/23966/density-based-clustering-of-image-keypoints
+     * https://en.wikipedia.org/wiki/DBSCAN */
+    void calc_clusters();
+
+    /** Using the previously calculated neighbour list, calculate the coordinations of atoms */
+    void calc_coordinations();
 };
 
 } /* namespace femocs */

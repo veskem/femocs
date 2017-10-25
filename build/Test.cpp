@@ -31,6 +31,7 @@ void write_defaults(ofstream &file) {
     file << "distance_tol = 0.0"         << endl;
     file << "n_writefile = 1"            << endl;
     file << "use_histclean = false"      << endl;
+    file << "use_rdf = false"            << endl;
     file << "surface_cleaner = faces"    << endl;
     file << "surface_thickness = 3.1"    << endl;
     file << "coord_cutoff = 3.1"         << endl;
