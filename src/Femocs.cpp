@@ -262,7 +262,7 @@ int Femocs::generate_meshes() {
 
     start_msg(t0, "=== Marking tetrahedral mesh...");
     fail = fem_mesh.mark_mesh();
-    fem_mesh.nodes.write("out/tetmesh_nodes.xyz");
+    fem_mesh.nodes.write("out/tetmesh_nodes.vtk");
     fem_mesh.elems.write("out/tetmesh.vtk");
     check_return(fail, "Mesh marking failed!");
     end_msg(t0);
@@ -292,7 +292,7 @@ int Femocs::generate_meshes() {
     fem_mesh.generate_hexahedra();
     end_msg(t0);
 
-    fem_mesh.nodes.write("out/hexmesh_nodes.xyz");
+    fem_mesh.nodes.write("out/hexmesh_nodes.vtk");
     fem_mesh.quads.write("out/quadmesh.vtk");
     fem_mesh.hexahedra.write("out/hexmesh.vtk");
     fem_mesh.write_separate("out/hexmesh_bulk" + conf.message + ".vtk", TYPES.BULK);

@@ -44,7 +44,9 @@ Solution LinearInterpolator<dim>::interp_solution(const Point3 &point, const int
     const int cell = abs(c);
     require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
 
-    SimpleCell<dim> scell = cells[cell];
+//    SimpleCell<dim> scell = cells[cell];
+    array<unsigned, dim> scell = solution_indices[cell];
+
     // calculate weights or barycentric coordinates
     array<double,dim> bcc;
     if (c >= 0) bcc = get_bcc(Vec3(point), cell);
@@ -69,7 +71,9 @@ Vec3 LinearInterpolator<dim>::interp_vector(const Point3 &point, const int c) co
     const int cell = abs(c);
     require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
 
-    SimpleCell<dim> scell = cells[cell];
+//    SimpleCell<dim> scell = cells[cell];
+    array<unsigned, dim> scell = solution_indices[cell];
+
     // calculate weights or barycentric coordinates
     array<double,dim> bcc;
     if (c >= 0) bcc = get_bcc(Vec3(point), cell);
@@ -89,7 +93,9 @@ double LinearInterpolator<dim>::interp_scalar(const Point3 &point, const int c) 
     const int cell = abs(c);
     require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
 
-    SimpleCell<dim> scell = cells[cell];
+//    SimpleCell<dim> scell = cells[cell];
+    array<unsigned, dim> scell = solution_indices[cell];
+
     // calculate weights or barycentric coordinates
     array<double,dim> bcc;
     if (c >= 0) bcc = get_bcc(Vec3(point), cell);
@@ -166,17 +172,17 @@ int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_gue
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
 template<int dim>
-bool LinearInterpolator<dim>::average_sharp_nodes(const vector<vector<unsigned>>& vorocells) {
+bool LinearInterpolator<dim>::average_sharp_nodes(const vector<vector<unsigned>>& nborlist) {
     // loop through the tetrahedral nodes
-    for (int i = 0; i < vorocells.size(); ++i) {
-        if (vorocells[i].size() == 0) continue;
+    for (int i = 0; i < nborlist.size(); ++i) {
+        if (nborlist[i].size() == 0) continue;
 
         Point3 tetnode = (*nodes)[i];
         Vec3 vec(0);
         double w_sum = 0;
 
-        // tetnode new solution will be the weighed average of the solutions on its voronoi cell nodes
-        for (unsigned v : vorocells[i]) {
+        // tetnode new solution will be the weighed average of the solutions on neighbouring nodes
+        for (unsigned v : nborlist[i]) {
             double w = exp(decay_factor * tetnode.distance((*nodes)[v]));
             w_sum += w;
             vec += solutions[v].vector * w;
@@ -517,6 +523,45 @@ void TetrahedronInterpolator::reserve_precompute(const int N) {
     tet_not_valid.reserve(N);
 }
 
+int TetrahedronInterpolator::opposite_node(const int tet, const int vert) const {
+    const int dim = 4;
+    vector<SimpleHex> hexs;
+    for (int i = 0; i < dim; ++i)
+        if (i != vert) hexs.push_back(mesh->hexahedra[dim * tet + i]);
+
+    for (int node0 : hexs[0]) {
+        if (nodes->get_marker(node0) != TYPES.FACECENTROID) continue;
+        for (int node1 : hexs[1]) {
+            if (node1 != node0) continue;
+            for (int node2 : hexs[2])
+                if (node2 == node0)
+                    return node0;
+        }
+    }
+
+    return -1;
+}
+
+//int TetrahedronInterpolator::opposite_node_vol2(const int tet, const int node) {
+//    vector<SimpleHex> other_hexs;
+//    for (int i = 0; i < 4; ++i)
+//        if (i != node) other_hexs.push_back(mesh->hexahedra[4 * tet + i]);
+//
+//    for (int other_node : other_hexs[0]) {
+//        bool found = true;
+//        for (int i = 1; i <= 2; ++i) {
+//            SimpleHex hex2 = other_hexs[i];
+//            if ((hex2 != other_node) || (hex == other_node)) {
+//                found = false;
+//                break;
+//            }
+//        }
+//        if (found)
+//            return other_node;
+//    }
+//    return -1;
+//}
+
 // Precompute the data to tetrahedra to make later bcc calculations faster
 void TetrahedronInterpolator::precompute() {
     const int n_elems = elems->size();
@@ -543,6 +588,14 @@ void TetrahedronInterpolator::precompute() {
     // Store tetrahedra to become free to interpolate independently from mesh state
     for (int i = 0; i < n_elems; ++i)
         cells.push_back((*elems)[i]);
+
+    // Store the indices of face centroids where the solution is located
+    for (int i = 0; i < n_elems; ++i) {
+        array<unsigned, 4> opposite_nodes;
+        for (int node = 0; node < 4; ++node)
+            opposite_nodes[node] = opposite_node(i, node);
+        solution_indices.push_back(opposite_nodes);
+    }
 
     /* Calculate main and minor determinants for 1st, 2nd, 3rd and 4th
      * barycentric coordinate of tetrahedra using the relations below */
@@ -642,7 +695,8 @@ array<double,4> TetrahedronInterpolator::get_bcc(const Vec3& point, const int i)
     const double bcc3 = det0[i] * pt.dotProduct(det3[i]);
     const double bcc4 = det0[i] * pt.dotProduct(det4[i]);
 
-    return array<double,4> {bcc1, bcc2, bcc3, bcc4};
+//    return array<double,4> {bcc1, bcc2, bcc3, bcc4};
+    return array<double,4> {1.0 - 3.0 * bcc1, 1.0 - 3.0 * bcc2, 1.0 - 3.0 * bcc3, 1.0 - 3.0 * bcc4};
 }
 
 /* ==================================================================
@@ -875,17 +929,25 @@ void TriangleInterpolator::precompute() {
         edge1.push_back(e1 * i_det);
         edge2.push_back(e2);
         pvec.push_back(pv * i_det);
+
         // store faces and norms to be able to interpolate independently of mesh state
         cells.push_back((*faces)[i]);
         norms.push_back(faces->get_norm(i));
         max_distance.push_back(e2.norm());
         centroids.push_back(faces->get_centroid(i));
+
         // calculate the neighbour list for triangles
         for (int j = i+1; j < n_faces; ++j)
             if (sface.edge_neighbor((*faces)[j])) {
                 neighbours[i].push_back(j);
                 neighbours[j].push_back(i);
             }
+
+        // Store the indices of edge centroids where the solution is located
+        array<unsigned, 3> opposite_nodes;
+        for (int node = 0; node < 3; ++node)
+            opposite_nodes[node] = opposite_node(i, node);
+        solution_indices.push_back(opposite_nodes);
     }
 }
 
@@ -900,6 +962,22 @@ int TriangleInterpolator::near_surface(const Vec3& point, const double r_cut) co
     return -1;
 }
 
+int TriangleInterpolator::opposite_node(const int tri, const int vert) const {
+    return (*faces)[tri][vert];
+//    const int dim = 3;
+//    vector<SimpleQuad> quads;
+//    for (int i = 0; i < dim; ++i)
+//        if (i != vert) quads.push_back(mesh->quads[dim * tri + i]);
+//
+//    for (int node0 : quads[0]) {
+//        if (nodes->get_marker(node0) != TYPES.EDGECENTROID) continue;
+//        for (int node1 : quads[1])
+//            if (node1 == node0)
+//                return node0;
+//    }
+//
+//    return -1;
+}
 
 Vec3 TriangleInterpolator::get_norm(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
@@ -944,8 +1022,10 @@ array<double,3> TriangleInterpolator::get_bcc(const Vec3& point, const int face)
     Vec3 qvec = tvec.crossProduct(edge1[face]);
     double u = tvec.dotProduct(pvec[face]);
     double v = qvec.dotProduct(norms[face]);
+    double w = 1.0 - u - v;
 
-    return array<double,3> {1.0 - u - v, u, v};
+    return array<double,3> {w, u, v};
+//    return array<double,3> {1.0 - 2.0 * w, 1.0 - 2.0 * u, 1.0 - 2.0 * v};
 }
 
 // Check whether the projection of a point is inside the triangle

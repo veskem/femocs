@@ -117,6 +117,7 @@ protected:
     vector<Point3> centroids;       ///< cell centroid coordinates
     vector<Point3> vertices;        ///< coordinates of cell vertices
     vector<SimpleCell<dim>> cells;  ///< interpolation cells - triangles or tetrahedra
+    vector<array<unsigned, dim>> solution_indices;
 
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
     const TetgenNodes* nodes;       ///< Mesh nodes
@@ -135,6 +136,8 @@ protected:
         centroids.reserve(N);
         cells.clear();
         cells.reserve(N);
+        solution_indices.clear();
+        solution_indices.reserve(N);
         vertices.clear();
         vertices.reserve(nodes->size());
     }
@@ -265,6 +268,8 @@ private:
 
     /** Return the tetrahedron type in vtk format */
     int get_cell_type() const { return 10; }
+
+    int opposite_node(const int tet, const int vert) const;
 };
 
 /** Class to interpolate solution on surface triangles */
@@ -333,6 +338,8 @@ private:
 
     /** Return the triangle type in vtk format */
     int get_cell_type() const { return 5; }
+
+    int opposite_node(const int tri, const int vert) const;
 };
 
 } // namespace femocs
