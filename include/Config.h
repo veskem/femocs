@@ -43,7 +43,7 @@ public:
     void print_data();
 
     string extended_atoms;      ///< Path to the file with atoms forming the extended surface
-    string atom_file;           ///< Path to the file with atom coordinates and types
+    string infile;           ///< Path to the file with atom coordinates and types
     string mesh_quality;        ///< Minimum quality (maximum radius-edge ratio) of tetrahedra
     string element_volume;      ///< Maximum volume of tetrahedra
     string message;             ///< Data string from the host code
@@ -89,7 +89,6 @@ public:
     string smooth_algorithm;    ///< surface mesh smoother algorithm; none, laplace or fujiwara
 
     /** Method to clean the surface atoms
-     * voronois - use Voronoi cells
      * faces - measure distance from surface faces
      * none - do not use the cleaner (because it is guaranteed to be clean)
      */

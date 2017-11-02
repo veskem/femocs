@@ -507,7 +507,7 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
     clear_log();
     string file_type, fname;
 
-    if (file_name == "") fname = conf.atom_file;
+    if (file_name == "") fname = conf.infile;
     else fname = file_name;
 
     file_type = get_file_type(fname);

@@ -15,7 +15,7 @@ namespace femocs {
 // Config constructor initializes configuration parameters
 Config::Config() {
     extended_atoms = "";         // file with the atoms forming the extended surface
-    atom_file = "";              // file with the nanostructure atoms
+    infile = "";              // file with the nanostructure atoms
     latconst = 3.61;             // lattice constant
     surface_thickness = 3.1;     // maximum distance the surface atom is allowed to be from surface mesh
     coordination_cutoff = 3.1;   // coordination analysis cut-off radius
@@ -46,7 +46,7 @@ Config::Config() {
     distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
     n_writefile = 1;             // number of time steps between writing the output files
     verbose_mode = "verbose";    // mute, silent, verbose
-    surface_cleaner = "faces";   // method to clean surface; voronois, faces or none
+    surface_cleaner = "faces";   // method to clean surface; faces or none
 
     refine_apex = false;         // refine nanotip apex
     use_histclean = false;       // use histogram cleaner to get rid of sharp peaks in the solution
@@ -85,6 +85,7 @@ void Config::read_all(const string& file_name) {
     check_obsolete("force_factor");
     check_obsolete("heating", "heating_mode");
     check_obsolete("surface_thichness", "surface_thickness");
+    check_obsolete("smooth_factor", "surface_smooth_factor");
 
     // Modify the parameters that are specified in input script
     read_command("use_rdf", use_rdf);
@@ -103,7 +104,7 @@ void Config::read_all(const string& file_name) {
     read_command("cluster_anal", cluster_anal);
     read_command("extended_atoms", extended_atoms);
     read_command("clear_output", clear_output);
-    read_command("infile", atom_file);
+    read_command("infile", infile);
     read_command("latconst", latconst);
     read_command("coord_cutoff", coordination_cutoff);
     read_command("cluster_cutoff", cluster_cutoff);
@@ -112,7 +113,7 @@ void Config::read_all(const string& file_name) {
     read_command("mesh_quality", mesh_quality);
     read_command("element_volume", element_volume);
     read_command("radius", radius);
-    read_command("smooth_factor", surface_smooth_factor);
+    read_command("surface_smooth_factor", surface_smooth_factor);
     read_command("charge_smooth_factor", charge_smooth_factor);
     read_command("refine_apex", refine_apex);
     read_command("distance_tol", distance_tol);
