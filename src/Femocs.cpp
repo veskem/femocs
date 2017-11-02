@@ -262,8 +262,6 @@ int Femocs::generate_meshes() {
 
     start_msg(t0, "=== Marking tetrahedral mesh...");
     fail = fem_mesh.mark_mesh();
-    fem_mesh.nodes.write("out/tetmesh_nodes.vtk");
-    fem_mesh.elems.write("out/tetmesh.vtk");
     check_return(fail, "Mesh marking failed!");
     end_msg(t0);
 
@@ -278,7 +276,9 @@ int Femocs::generate_meshes() {
         end_msg(t0);
     }
 
+    fem_mesh.nodes.write("out/tetmesh_nodes.vtk");
     fem_mesh.faces.write("out/trimesh.vtk");
+    fem_mesh.elems.write("out/tetmesh.vtk");
 
     if (conf.surface_cleaner == "faces") {
         surface_interpolator.precompute();
