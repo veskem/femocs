@@ -62,9 +62,9 @@ Config::Config() {
     neumann = 0;                 // neumann boundary contition value
     message = "";                // message from the host code
 
-    smooth_steps = 0;            // number of surface mesh smoothing iterations
-    smooth_lambda = 0.5;         // lambda parameter in surface mesh smoother
-    smooth_mu = -0.53;           // mu parameter in surface mesh smoother
+    smooth_steps = 0;             // number of surface mesh smoothing iterations
+    smooth_lambda = 0.6307;       // lambda parameter in surface mesh smoother
+    smooth_mu = -0.6732;          // mu parameter in surface mesh smoother
     smooth_algorithm = "laplace"; // surface mesh smoother algorithm; none, laplace or fujiwara
 }
 
