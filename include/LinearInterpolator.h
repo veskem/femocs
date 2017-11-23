@@ -251,6 +251,8 @@ private:
      * of the solutions on its Voronoi cell nodes */
     bool average_sharp_nodes(const bool vacuum);
 
+    bool average_and_check_sharp_nodes(const bool vacuum);
+
     /** Pre-compute data about tetrahedra to make interpolation faster */
     void precompute();
 
@@ -268,6 +270,10 @@ private:
 
     /** Locate the index of node that is in the centroid of opposite face of the given tetrahedral vertex */
     int opposite_node(const int tet, const int vert) const;
+
+    double integrate(const int hex) const;
+
+    double shape_function(array<double,8>& sf, const double u, const double v, const double w) const;
 };
 
 /** Class to interpolate solution on surface triangles */

@@ -378,6 +378,82 @@ bool TetrahedronInterpolator::average_sharp_nodes(const bool vacuum) {
     return LinearInterpolator<4>::average_sharp_nodes(vorocells);
 }
 
+bool TetrahedronInterpolator::average_and_check_sharp_nodes(const bool vacuum) {
+    vector<vector<unsigned int>> vorocells;
+    mesh->calc_pseudo_3D_vorocells(vorocells, vacuum);
+
+    const int n_hexs = mesh->hexahedra.size();
+
+    double total_before = 0;
+    for (int i = 0; i < n_hexs; ++i)
+        total_before += integrate(i);
+
+    bool success = LinearInterpolator<4>::average_sharp_nodes(vorocells);
+
+    double total_after = 0;
+    int data_size = 0;
+    for (int i = 0; i < n_hexs; ++i) {
+        double energy = integrate(i);
+        total_after += energy;
+        if (energy != 0)
+            data_size++;
+    }
+
+    if (MODES.VERBOSE)
+        printf("\n  E_before=%.3f, E_after=%.3f, diff=%.3f\%\n",
+                total_before / data_size, total_after / data_size, 100.0 * (total_after / total_before - 1.0));
+
+    return success;
+}
+
+
+double TetrahedronInterpolator::shape_function(array<double,8>& sf, const double u, const double v, const double w) const {
+    const double n1 = (1-u) * (1-v) * (1-w) / 8;
+    const double n2 = (1+u) * (1-v) * (1-w) / 8;
+    const double n3 = (1+u) * (1+v) * (1-w) / 8;
+    const double n4 = (1-u) * (1+v) * (1-w) / 8;
+    const double n5 = (1-u) * (1-v) * (1+w) / 8;
+    const double n6 = (1+u) * (1-v) * (1+w) / 8;
+    const double n7 = (1+u) * (1+v) * (1+w) / 8;
+    const double n8 = (1-u) * (1+v) * (1+w) / 8;
+    sf = array<double,8> {n1, n2, n3, n4, n5, n6, n7, n8};
+    return n1 + n2 + n3 + n4 + n5 + n6 + n7 + n8;
+}
+
+double TetrahedronInterpolator::integrate(const int hex_index) const {
+    const double eps0 = 0.0055263494; // vacuum permittivity [e/V*A]
+    const double eps = 0.01;
+
+    const int n_steps = 10;
+    const double step = 2.0 / n_steps;
+    const SimpleHex elem = mesh->hexahedra[hex_index];
+    const int n_nodes_per_hex = elem.size();
+
+    array<double,8> sf;
+    array<Vec3,8> nodal_field;
+    for (int i = 0; i < n_nodes_per_hex; ++i)
+        nodal_field[i] = solutions[elem[i]].vector;
+
+    double total_energy = 0.0;
+
+    for (double u = -1; u < 1; u += step)
+        for (double v = -1; v < 1; v += step)
+            for (double w = -1; w < 1; w += step) {
+                const double sum_of_weights = shape_function(sf, u, v, w);
+                if (fabs(sum_of_weights - 1.0) > eps) {
+                    printf("%.3f .3f .3f .5f\n", u, v, w, sum_of_weights);
+                    continue;
+                }
+                Vec3 dEnergy(0);
+                for (int i = 0; i < n_nodes_per_hex; ++i)
+                    dEnergy += nodal_field[i] * sf[i];
+
+                total_energy += dEnergy.norm2();
+            }
+
+    return step * step * step * total_energy / 2.0 / eps0;
+}
+
 // Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
 bool TetrahedronInterpolator::extract_solution(fch::Laplace<3>* fem) {
     require(fem, "NULL pointer can't be handled!");
@@ -415,7 +491,8 @@ bool TetrahedronInterpolator::extract_solution(fch::Laplace<3>* fem) {
     }
 
     // remove the spikes in the solution
-    if (average_sharp_nodes(true))
+//    if (average_sharp_nodes(true))
+    if (average_and_check_sharp_nodes(true))
         return true;
 
     return false;
