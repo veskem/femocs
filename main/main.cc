@@ -55,14 +55,15 @@ int main() {
         timer.restart();
     }
 
+
 // Transient example
-/*
+
     fch::Laplace<2> laplace;
     laplace.import_mesh_from_file("../res/2d_meshes/vacuum_aligned.msh");
-    laplace.set_applied_efield(8.0);
+    laplace.set_applied_efield(10.0);
     laplace.run();
 
-    double time_step = 0.001e-12; // seconds
+    double time_step = 0.1e-15; // seconds
     fch::CurrentsAndHeating<2> ch(time_step, &pq);
     ch.import_mesh_from_file("../res/2d_meshes/copper_aligned.msh");
 
@@ -72,14 +73,22 @@ int main() {
     ch.set_electric_field_bc(laplace);
 
     int i = 0;
-    for (double time = 0.0; time <= 1e-12; time+=time_step) {
+    for (double time = 0.0; time <= 3.0e-15; ) {
+        time+=time_step;
+
         ch.assemble_current_system();
         unsigned int ccg = ch.solve_current();
 
-        ch.assemble_heating_system_euler_implicit();
+        if (i == 0) {
+            ch.assemble_heating_system_euler_implicit();
+        } else {
+            //ch.assemble_heating_system_euler_implicit();
+            ch.assemble_heating_system_crank_nicolson();
+        }
+
         unsigned int hcg = ch.solve_heat();
         double max_T = ch.get_max_temperature();
-        std::printf("    t=%5.3fps; ccg=%2d; hcg=%2d; max_T=%6.2f\n", time*1e12, ccg, hcg, max_T);
+        std::printf("    t=%5.3ffs; ccg=%2d; hcg=%2d; max_T=%6.2f\n", time*1e15, ccg, hcg, max_T);
 
         if (i%10 == 0) {
             ch.output_results_current("./output/current_solution-"+std::to_string(i)+".vtk");
@@ -87,10 +96,10 @@ int main() {
         }
         i++;
     }
-*/
+
 
 // Simple Stationary 3d usage //
-
+/*
     fch::Laplace<3> laplace_solver;
     laplace_solver.import_mesh_from_file(res_path + "/3d_meshes/vacuum_0.msh");
     laplace_solver.set_applied_efield(1.5);
@@ -103,7 +112,7 @@ int main() {
 
     ch_solver.setup_system();
     ch_solver.run_specific(1.0, 100, true, "output/sol", true, 2.0);
-
+*/
 
 // Stationary 3d Test usage with interpolation //
 /*

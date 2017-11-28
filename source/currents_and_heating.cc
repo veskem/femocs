@@ -126,18 +126,20 @@ void CurrentsAndHeating<dim>::setup_heating_system() {
     old_solution_heat.reinit(dof_handler_heat.n_dofs());
     system_rhs_heat.reinit(dof_handler_heat.n_dofs());
 
-    const_temperature_solution.reinit(dof_handler_heat.n_dofs());
 
     // Initialize the solution to ambient temperature
     for (std::size_t i = 0; i < solution_heat.size(); i++) {
         solution_heat[i] = ambient_temperature;
         old_solution_heat[i] = ambient_temperature;
-        const_temperature_solution[i] = 1000;
     }
 }
 
 template<int dim>
 void CurrentsAndHeating<dim>::assemble_current_system() {
+
+    system_matrix_current = 0;
+    system_rhs_current = 0;
+
     QGauss<dim> quadrature_formula(currents_degree+1);
     QGauss<dim-1> face_quadrature_formula(currents_degree+1);
 
@@ -244,9 +246,10 @@ void CurrentsAndHeating<dim>::assemble_current_system() {
 template<int dim>
 void CurrentsAndHeating<dim>::assemble_heating_system_crank_nicolson() {
 
-    const double const_k = time_step/(2.0*cu_rho_cp);
+    const double gamma = cu_rho_cp/time_step;
 
-    double max_heating_power = 0.0;
+    system_matrix_heat = 0;
+    system_rhs_heat = 0;
 
     QGauss<dim> quadrature_formula(heating_degree+1);
     QGauss<dim-1> face_quadrature_formula(heating_degree+1);
@@ -314,18 +317,15 @@ void CurrentsAndHeating<dim>::assemble_heating_system_crank_nicolson() {
             for (unsigned int i = 0; i < dofs_per_cell; ++i) {
                 for (unsigned int j = 0; j < dofs_per_cell; ++j) {
                     cell_matrix(i, j) += (
-                            fe_values.shape_value(i, q) * fe_values.shape_value(j, q) // Mass matrix
-                            + const_k*kappa*fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
+                            2*gamma*fe_values.shape_value(i, q) * fe_values.shape_value(j, q) // Mass matrix
+                            + kappa*fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
                     ) * fe_values.JxW(q);
                 }
                 cell_rhs(i) += (
-                        fe_values.shape_value(i, q)*prev_temperature
-                        + const_k*fe_values.shape_value(i, q)*sigma*(pot_grad_squared+prev_pot_grad_squared)
-                        - const_k*kappa*fe_values.shape_grad(i, q)*prev_temperature_grad
+                        2*gamma*fe_values.shape_value(i, q)*prev_temperature
+                        - kappa*fe_values.shape_grad(i, q)*prev_temperature_grad
+                        + fe_values.shape_value(i, q)*sigma*(pot_grad_squared+prev_pot_grad_squared)
                 ) * fe_values.JxW(q);
-                if (1/2.0*sigma*(pot_grad_squared+prev_pot_grad_squared) > max_heating_power) {
-                    max_heating_power = 1/2.0*sigma*(pot_grad_squared+prev_pot_grad_squared);
-                }
             }
         }
         // ----------------------------------------------------------------------------------------
@@ -351,7 +351,7 @@ void CurrentsAndHeating<dim>::assemble_heating_system_crank_nicolson() {
 
                     //nottingham_heat = 0.0;
                     for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                        cell_rhs(i) += (const_k * fe_face_values.shape_value(i, q)
+                        cell_rhs(i) += (fe_face_values.shape_value(i, q)
                                 * 2.0 * nottingham_heat * fe_face_values.JxW(q));
                     }
                 }
@@ -367,8 +367,6 @@ void CurrentsAndHeating<dim>::assemble_heating_system_crank_nicolson() {
         }
     }
 
-    //std::cout << "Maximum heating power in system: " << max_heating_power << std::endl;
-
     std::map<types::global_dof_index, double> boundary_values;
     VectorTools::interpolate_boundary_values(dof_handler_heat, BoundaryId::copper_bottom,
             ConstantFunction<dim>(ambient_temperature), boundary_values);
@@ -379,9 +377,10 @@ void CurrentsAndHeating<dim>::assemble_heating_system_crank_nicolson() {
 template<int dim>
 void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
 
-    const double gamma = time_step/(cu_rho_cp);
+    const double gamma = cu_rho_cp/time_step;
 
-    double max_heating_power = 0.0;
+    system_matrix_heat = 0;
+    system_rhs_heat = 0;
 
     QGauss<dim> quadrature_formula(heating_degree+1);
     QGauss<dim-1> face_quadrature_formula(heating_degree+1);
@@ -410,7 +409,6 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
     // The other solution values in the cell quadrature points
     std::vector<Tensor<1, dim>> potential_gradients(n_q_points);
     std::vector<double> prev_sol_temperature_values(n_q_points);
-
     std::vector<double> prev_sol_face_temperature_values(n_face_q_points);
     // ---------------------------------------------------------------------------------------------
 
@@ -442,23 +440,23 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
             for (unsigned int i = 0; i < dofs_per_cell; ++i) {
                 for (unsigned int j = 0; j < dofs_per_cell; ++j) {
                     cell_matrix(i, j) += (
-                            fe_values.shape_value(i, q) * fe_values.shape_value(j, q) // Mass matrix
-                            + gamma*kappa*fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
+                            gamma*fe_values.shape_value(i, q) * fe_values.shape_value(j, q) // Mass matrix
+                            + kappa*fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
                     ) * fe_values.JxW(q);
                 }
+
                 cell_rhs(i) += (
-                        fe_values.shape_value(i, q)*prev_temperature
-                        + gamma*fe_values.shape_value(i, q)*sigma*pot_grad_squared
+                        gamma*fe_values.shape_value(i, q)*prev_temperature
+                        + fe_values.shape_value(i, q)*sigma*pot_grad_squared
                 ) * fe_values.JxW(q);
-                if (sigma*pot_grad_squared > max_heating_power) {
-                    max_heating_power = sigma*pot_grad_squared;
-                }
+
             }
         }
         // ----------------------------------------------------------------------------------------
         // Local right-hand side assembly
         // ----------------------------------------------------------------------------------------
         // Nottingham BC at the copper surface
+
         for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
             if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
                 fe_face_values.reinit(cell, f);
@@ -477,8 +475,9 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
                     double nottingham_heat = get_nottingham_heat_bc(cop_cell_info, prev_temperature);
 
                     //nottingham_heat = 0.0;
+                    //std::cout << nottingham_heat << std::endl;
                     for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                        cell_rhs(i) += (gamma * fe_face_values.shape_value(i, q)
+                        cell_rhs(i) += (fe_face_values.shape_value(i, q)
                                 * nottingham_heat * fe_face_values.JxW(q));
                     }
                 }
@@ -489,12 +488,9 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
             for (unsigned int j = 0; j < dofs_per_cell; ++j)
                 system_matrix_heat.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
-
             system_rhs_heat(local_dof_indices[i]) += cell_rhs(i);
         }
     }
-
-    //std::cout << "Maximum heating power in system: " << max_heating_power << std::endl;
 
     std::map<types::global_dof_index, double> boundary_values;
     VectorTools::interpolate_boundary_values(dof_handler_heat, BoundaryId::copper_bottom,
@@ -504,8 +500,6 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
 
 template<int dim>
 unsigned int CurrentsAndHeating<dim>::solve_current(int max_iter, double tol, bool pc_ssor, double ssor_param) {
-
-    old_solution_current = solution_current;
 
     SolverControl solver_control(max_iter, tol);
     SolverCG<> solver(solver_control);
@@ -517,16 +511,13 @@ unsigned int CurrentsAndHeating<dim>::solve_current(int max_iter, double tol, bo
     } else {
         solver.solve(system_matrix_current, solution_current, system_rhs_current, PreconditionIdentity());
     }
-    //std::cout << "   J: " << solver_control.last_step()
-    //        << " CG iterations needed to obtain convergence." << std::endl;
 
+    old_solution_current = solution_current;
     return solver_control.last_step();
 }
 
 template<int dim>
 unsigned int CurrentsAndHeating<dim>::solve_heat(int max_iter, double tol, bool pc_ssor, double ssor_param) {
-
-    old_solution_heat = solution_heat;
 
     SolverControl solver_control(max_iter, tol);
     SolverCG<> solver(solver_control);
@@ -538,9 +529,8 @@ unsigned int CurrentsAndHeating<dim>::solve_heat(int max_iter, double tol, bool 
     } else {
         solver.solve(system_matrix_heat, solution_heat, system_rhs_heat, PreconditionIdentity());
     }
-    //std::cout << "   T: " << solver_control.last_step()
-    //        << " CG iterations needed to obtain convergence." << std::endl;
 
+    old_solution_heat = solution_heat;
     return solver_control.last_step();
 }
 
@@ -780,6 +770,11 @@ Triangulation<dim>* CurrentsAndHeating<dim>::get_triangulation() {
 template<int dim>
 DoFHandler<dim>* CurrentsAndHeating<dim>::get_dof_handler_current() {
     return &dof_handler_current;
+}
+
+template<int dim>
+double CurrentsAndHeating<dim>::probe_temperature(const Point<dim> &p) const {
+    return VectorTools::point_value(dof_handler_heat, solution_heat, p);
 }
 
 // ----------------------------------------------------------------------------------------
