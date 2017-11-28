@@ -399,13 +399,12 @@ bool TetrahedronInterpolator::average_and_check_sharp_nodes(const bool vacuum) {
             data_size++;
     }
 
-    if (MODES.VERBOSE)
+//    if (MODES.VERBOSE)
         printf("\n  E_before=%.3f, E_after=%.3f, diff=%.3f\%\n",
                 total_before / data_size, total_after / data_size, 100.0 * (total_after / total_before - 1.0));
 
     return success;
 }
-
 
 double TetrahedronInterpolator::shape_function(array<double,8>& sf, const double u, const double v, const double w) const {
     const double n1 = (1-u) * (1-v) * (1-w) / 8;
@@ -422,12 +421,10 @@ double TetrahedronInterpolator::shape_function(array<double,8>& sf, const double
 
 double TetrahedronInterpolator::integrate(const int hex_index) const {
     const double eps0 = 0.0055263494; // vacuum permittivity [e/V*A]
-    const double eps = 0.01;
-
+    const int n_nodes_per_hex = 8;
     const int n_steps = 10;
     const double step = 2.0 / n_steps;
     const SimpleHex elem = mesh->hexahedra[hex_index];
-    const int n_nodes_per_hex = elem.size();
 
     array<double,8> sf;
     array<Vec3,8> nodal_field;
@@ -440,10 +437,6 @@ double TetrahedronInterpolator::integrate(const int hex_index) const {
         for (double v = -1; v < 1; v += step)
             for (double w = -1; w < 1; w += step) {
                 const double sum_of_weights = shape_function(sf, u, v, w);
-                if (fabs(sum_of_weights - 1.0) > eps) {
-                    printf("%.3f .3f .3f .5f\n", u, v, w, sum_of_weights);
-                    continue;
-                }
                 Vec3 dEnergy(0);
                 for (int i = 0; i < n_nodes_per_hex; ++i)
                     dEnergy += nodal_field[i] * sf[i];
@@ -491,8 +484,8 @@ bool TetrahedronInterpolator::extract_solution(fch::Laplace<3>* fem) {
     }
 
     // remove the spikes in the solution
-//    if (average_sharp_nodes(true))
-    if (average_and_check_sharp_nodes(true))
+    if (average_sharp_nodes(true))
+//    if (average_and_check_sharp_nodes(true))
         return true;
 
     return false;
