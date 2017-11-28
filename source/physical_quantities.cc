@@ -19,7 +19,7 @@
 
 namespace fch {
 
-PhysicalQuantities::PhysicalQuantities() {
+PhysicalQuantities::PhysicalQuantities(const femocs::Config& c) : config(c){
     initialize_with_hc_data();
 }
 
@@ -32,47 +32,46 @@ double PhysicalQuantities::nottingham_de(double field, double temperature) {
 }
 
 double PhysicalQuantities::evaluate_resistivity(double temperature) const {
-    return linear_interp(temperature, resistivity_data) * 1.0e10;
+    if (temperature < resistivity_data.front().first)
+        temperature = resistivity_data.front().first;
+    if (temperature > resistivity_data.back().first)
+        temperature = resistivity_data.back().first;
+    return linear_interp(temperature, resistivity_data);
 }
 
 double PhysicalQuantities::evaluate_resistivity_derivative(double temperature) {
-    return deriv_linear_interp(temperature, resistivity_data) * 1.0e10;
+    if (temperature < resistivity_data.front().first)
+        temperature = resistivity_data.front().first;
+    if (temperature > resistivity_data.back().first)
+        temperature = resistivity_data.back().first;
+    return deriv_linear_interp(temperature, resistivity_data);
 }
 
 double PhysicalQuantities::sigma(double temperature) const {
-    if (temperature < 200)
-        temperature = 200;
-    if (temperature > 1400)
-        temperature = 1400;
     double rho = evaluate_resistivity(temperature);
     return 1.0 / rho;
 }
 
 double PhysicalQuantities::dsigma(double temperature) {
-    if (temperature < 200)
-        temperature = 200;
-    if (temperature > 1400)
-        temperature = 1400;
     double rho = evaluate_resistivity(temperature);
     return -evaluate_resistivity_derivative(temperature) / (rho * rho);
 }
 
 double PhysicalQuantities::kappa(double temperature) {
-    if (temperature < 200)
-        temperature = 200;
-    if (temperature > 1400)
-        temperature = 1400;
-    double lorentz = 2.443e-8;
-    return lorentz * temperature * sigma(temperature);
+    if (temperature < resistivity_data.front().first)
+        temperature = resistivity_data.front().first;
+    if (temperature > resistivity_data.back().first)
+        temperature = resistivity_data.back().first;
+
+    return config.lorentz * temperature * sigma(temperature);
 }
 
 double PhysicalQuantities::dkappa(double temperature) {
-    if (temperature < 200)
-        temperature = 200;
-    if (temperature > 1400)
-        temperature = 1400;
-    double lorentz = 2.443e-8;
-    return lorentz * (sigma(temperature) + temperature * dsigma(temperature));
+    if (temperature < resistivity_data.front().first)
+        temperature = resistivity_data.front().first;
+    if (temperature > resistivity_data.back().first)
+        temperature = resistivity_data.back().first;
+    return config.lorentz * (sigma(temperature) + temperature * dsigma(temperature));
 }
 
 bool PhysicalQuantities::load_spreadsheet_grid_data(std::string filepath, InterpolationGrid &grid) {

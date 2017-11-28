@@ -11,6 +11,7 @@
 #include <vector>
 #include <string>
 #include <utility>
+#include "Config.h"
 
 namespace fch {
 
@@ -26,7 +27,7 @@ public:
      * The default constructor initializes the physical values to hardcoded ones.
      * Can be overwritten by loading the data from a file.
      */
-    PhysicalQuantities();
+    PhysicalQuantities(const femocs::Config& config);
 
     /**
      * Load emission current data from file
@@ -98,6 +99,7 @@ public:
     void output_to_files();
 
 private:
+    const femocs::Config& config;
     /**
      * A data structure to hold the uniform grid information,
      * used in bilinear interpolation
