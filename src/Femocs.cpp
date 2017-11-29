@@ -42,6 +42,7 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false),
 
     // Initialise heating module
     start_msg(t0, "=== Reading physical quantities...");
+    phys_quantities.initialize_with_hc_data();
     ch_solver1.set_physical_quantities(&phys_quantities);
     ch_solver2.set_physical_quantities(&phys_quantities);
     ch_solver  = &ch_solver1;
@@ -76,13 +77,13 @@ int Femocs::force_output() {
     surface_interpolator.write("out/result_E_phi_surface_err.vtk");
 
     if (bulk_interpolator.size() > 0) {
-        if (conf.heating_mode == "transient" || conf.heating_mode == "stationary")
+        if (conf.heating.mode == "transient" || conf.heating.mode == "stationary")
             bulk_interpolator.write("out/result_J_T_err.xyz");
-        if (conf.heating_mode == "transient") {
+        if (conf.heating.mode == "transient") {
             ch_transient_solver.output_results_current("out/result_J_err.vtk");
             ch_transient_solver.output_results_heating("out/result_T_err.vtk");
         }
-        if (conf.heating_mode == "stationary") {
+        if (conf.heating.mode == "stationary") {
             ch_solver->output_results("out/result_J_T_err.vtk");
         }
     }
@@ -113,7 +114,7 @@ void Femocs::write_slice(const string& file_name) {
             medium.append( Point3(x, reader.sizes.ymid, z) );
 
     FieldReader fr(&vacuum_interpolator);
-    fr.interpolate(medium, conf.use_histclean * conf.coordination_cutoff);
+    fr.interpolate(medium, 0, false);
     fr.write(file_name);
 
     MODES.WRITEFILE = writefile_save;
@@ -146,7 +147,7 @@ int Femocs::run(const double elfield, const string &message) {
     }
 
     // Solve heat & continuity equation on bulk mesh
-    if (solve_heat(conf.t_ambient)) {
+    if (solve_heat(conf.heating.t_ambient)) {
         force_output();
         check_return(true, "Solving heat & continuity equation failed!");
     }
@@ -158,6 +159,10 @@ int Femocs::run(const double elfield, const string &message) {
     write_silent_msg(stream.str());
 
     return 0;
+}
+
+int Femocs::run() {
+    return run(conf.E0, "");
 }
 
 // Determine whether atoms have moved significantly and whether to enable file writing
@@ -346,15 +351,13 @@ int Femocs::solve_laplace(const double E0) {
 
 // Pick a method to solve heat & continuity equations
 int Femocs::solve_heat(const double T_ambient) {
-    if (conf.heating_mode == "stationary")
+    if (conf.heating.mode == "stationary")
         return solve_stationary_heat(T_ambient);
 
-    else if (conf.heating_mode == "transient")
-        for (int i = 0; i < conf.transient_steps; ++i) {
-            if (solve_transient_heat(T_ambient))
-                return 1;
+    else if (conf.heating.mode == "transient")
+        for (int i = 0; i < conf.heating.transient_steps; ++i) {
+            if (solve_transient_heat(T_ambient)) return 1;
         }
-
     return 0;
 }
 
@@ -383,12 +386,12 @@ int Femocs::solve_stationary_heat(const double T_ambient) {
 
     start_msg(t0, "=== Running J & T solver...\n");
     ch_solver->set_ambient_temperature(T_ambient);
-    double t_error = ch_solver->run_specific(conf.t_error, conf.n_newton, false, "", MODES.VERBOSE, 2, 400, true);
+    double t_error = ch_solver->run_specific(conf.heating.t_error, conf.heating.n_newton, false, "", MODES.VERBOSE, 2, 400, true);
     end_msg(t0);
 
     ch_solver->output_results("out/result_J_T.vtk");
 
-    check_return(t_error > conf.t_error, "Temperature didn't converge, err=" + to_string(t_error));
+    check_return(t_error > conf.heating.t_error, "Temperature didn't converge, err=" + to_string(t_error));
 
     start_msg(t0, "=== Extracting J & T...");
     bulk_interpolator.extract_solution(ch_solver);
@@ -413,11 +416,11 @@ int Femocs::solve_stationary_heat(const double T_ambient) {
 int Femocs::solve_transient_heat(const double T_ambient) {
     static bool first_call = true;
     const double time_unit = 1e-12; // == picosec
-    double delta_time = 0.01 * time_unit;
-    const int n_time_steps = conf.transient_time / delta_time;
+    double delta_time = 0.2 * time_unit;
+    const int n_time_steps = conf.heating.transient_time / delta_time;
 
-    require(n_time_steps > 0, "Too small transient_time: " + to_string(conf.transient_time));
-    delta_time = conf.transient_time / n_time_steps;
+    require(n_time_steps > 0, "Too small transient_time: " + to_string(conf.heating.transient_time));
+    delta_time = conf.heating.transient_time / n_time_steps;
 
     start_msg(t0, "=== Importing mesh to transient J & T solver...");
     fail = !ch_transient_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
@@ -433,13 +436,13 @@ int Femocs::solve_transient_heat(const double T_ambient) {
 
     start_msg(t0, "=== Interpolating J & T on face centroids...");
     HeatReader heat_reader(&bulk_interpolator);
-    heat_reader.interpolate(ch_transient_solver, T_ambient);
+    heat_reader.interpolate(ch_transient_solver, T_ambient, 0, true);
     end_msg(t0);
     heat_reader.write("out/surface_temperature.xyz");
 
     start_msg(t0, "=== Calculating field emission...");
     EmissionReader emission(&vacuum_interpolator);
-    emission.transfer_emission(ch_transient_solver, field_reader, conf.work_function, heat_reader);
+    emission.transfer_emission(ch_transient_solver, field_reader, conf.heating.work_function, heat_reader);
     end_msg(t0);
     emission.write("out/surface_emission.xyz");
 
@@ -666,14 +669,14 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
 
 // calculate and export temperatures on imported atom coordinates
 int Femocs::export_temperature(const int n_atoms, double* T) {
-    if (n_atoms < 0 || conf.heating_mode == "none") return 0;
+    if (n_atoms < 0 || conf.heating.mode == "none") return 0;
     check_return(bulk_interpolator.size() == 0, "No temperature to export!");
 
     if (skip_calculations)
         write_silent_msg("Using previous temperature!");
     else {
         start_msg(t0, "=== Interpolating J & T...");
-        temperatures.interpolate(reader);
+        temperatures.interpolate(reader, conf.heating.t_ambient, 0, false);
         end_msg(t0);
 
         temperatures.write("out/interpolation_bulk.movie");

@@ -730,7 +730,7 @@ HeatReader::HeatReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet) 
         SolutionReader(tri, tet, "rho", "rho_norm", "temperature") {}
 
 // Linearly interpolate solution on Medium atoms
-void HeatReader::interpolate(const Medium &medium, const int component, const bool srt) {
+void HeatReader::interpolate(const Medium &medium, const double empty_val, const int component, const bool srt) {
     const int n_atoms = medium.size();
 
     // store the atom coordinates
@@ -738,8 +738,11 @@ void HeatReader::interpolate(const Medium &medium, const int component, const bo
     for (int i = 0; i < n_atoms; ++i)
         append( Atom(i, medium.get_point(i), 0) );
 
-    // interpolate solution
-    calc_3d_interpolation(component, srt);
+    // interpolate or assign solution
+    if (interpolator_3d->size() == 0)
+        interpolation = vector<Solution>(n_atoms, Solution(empty_val));
+    else
+        calc_3d_interpolation(component, srt);
 
     // restore the original atom id-s
     for (int i = 0; i < n_atoms; ++i)
@@ -748,20 +751,26 @@ void HeatReader::interpolate(const Medium &medium, const int component, const bo
 
 // Linearly interpolate electric field for the currents and temperature solver
 // In case of empty interpolator, constant values are stored
-void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver, const int component, const bool srt) {
+void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val,
+        const int component, const bool srt) {
 
     // import the surface nodes the solver needs
     vector<dealii::Point<3>> nodes;
     ch_solver.get_surface_nodes(nodes);
 
+    const int n_atoms = nodes.size();
+
     // store the node coordinates
-    reserve(nodes.size());
+    reserve(n_atoms);
     int i = 0;
     for (dealii::Point<3>& node : nodes)
         append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
 
-    // interpolate solution on the nodes
-    calc_3d_interpolation(component, srt);
+    // interpolate or assign solution on the atoms
+    if (interpolator_3d->size() == 0)
+        interpolation = vector<Solution>(n_atoms, Solution(empty_val));
+    else
+        calc_3d_interpolation(component, srt);
 }
 
 // Export interpolated temperature

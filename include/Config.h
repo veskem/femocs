@@ -43,7 +43,7 @@ public:
     void print_data();
 
     string extended_atoms;      ///< Path to the file with atoms forming the extended surface
-    string infile;           ///< Path to the file with atom coordinates and types
+    string infile;              ///< Path to the file with atom coordinates and types
     string mesh_quality;        ///< Minimum quality (maximum radius-edge ratio) of tetrahedra
     string element_volume;      ///< Maximum volume of tetrahedra
     string message;             ///< Data string from the host code
@@ -61,9 +61,6 @@ public:
     double box_height;          ///< Simulation box height [tip height]
     double bulk_height;         ///< Bulk substrate height [lattice constant]
 
-    double t_ambient;           ///< Ambient temperature in heat calculations
-    double t_error;             ///< Maximum allowed temperature error in Newton iterations
-    int n_newton;               ///< Maximum number of Newton iterations
     double ssor_param;          ///< Parameter for SSOR preconditioner in DealII
     double phi_error;           ///< Maximum allowed electric potential error
     int n_phi;                  ///< Maximum number of Conjugate Gradient iterations in phi calculation
@@ -79,16 +76,26 @@ public:
     double field_tolerance_min; ///< Min ratio numerical field can deviate from analytical one
     double field_tolerance_max; ///< Max ratio numerical field can deviate from analytical one
 
-    string heating_mode;        ///< Method to calculate current density and temperature; none, stationary or transient
-    double transient_time;      ///< Time resolution in transient heat equation solver [sec]
-    int transient_steps;        ///< Number of iterations in transient heat equation solver
-    double work_function;       ///< Work function [eV]
+    ///< Heating configuration parameters
+    struct Heating {
+        string mode;        ///< Method to calculate current density and temperature; none, stationary or transient
+        string rhofile;             ///< Path to the file with resistivity table
+        double transient_time;      ///< Time resolution in transient heat equation solver [sec]
+        int transient_steps;        ///< Number of iterations in transient heat equation solver
+        double work_function;       ///< Work function [eV]
+        double lorentz;             ///< Lorentz number (Wiedemenn-Franz law)
+
+
+        double t_ambient;           ///< Ambient temperature in heat calculations
+        double t_error;             ///< Maximum allowed temperature error in Newton iterations
+        int n_newton;               ///< Maximum number of Newton iterations
+    } heating;
+
     int smooth_steps;           ///< number of surface mesh smoothing iterations
     double smooth_lambda;       ///< lambda parameter in surface mesh smoother
     double smooth_mu;           ///< mu parameter in surface mesh smoother
     string smooth_algorithm;    ///< surface mesh smoother algorithm; none, laplace or fujiwara
 
-    double lorentz;             ///< Lorentz number (Wiedemenn-Franz law)
 
     /** Method to clean the surface atoms
      * faces - measure distance from surface faces

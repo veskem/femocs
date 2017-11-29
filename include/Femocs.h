@@ -39,6 +39,7 @@ public:
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
     int run(const double elfield, const string&);
+    int run();
 
     /** Function to import atoms from PARCAS
      * @param n_atoms       number of imported atoms
@@ -225,7 +226,7 @@ private:
     FieldReader fields = FieldReader(&surface_interpolator, &vacuum_interpolator); ///< interpolated fields and potentials
     ForceReader forces = ForceReader(&surface_interpolator, &vacuum_interpolator); ///< forces on surface atoms
 
-    fch::PhysicalQuantities phys_quantities=fch::PhysicalQuantities(conf);        ///< physical quantities used in heat calculations
+    fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);   ///< physical quantities used in heat calculations
     fch::CurrentsAndHeatingStationary<3> ch_solver1;      ///< first steady-state currents and heating solver
     fch::CurrentsAndHeatingStationary<3> ch_solver2;      ///< second steady-state currents and heating solver
     fch::CurrentsAndHeatingStationary<3>* ch_solver;      ///< active steady-state currents and heating solver

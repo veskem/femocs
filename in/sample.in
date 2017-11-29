@@ -4,6 +4,9 @@
 # that try to follow the best practice values.
 # However, for the sake of completeness, here they are.
 
+# General
+elfield = -0.07					# Long range electric field [V/A]
+
 # Sizes related to geometry
 nnn = 12                        # number of nearest neighbours in bulk; must be increased in molten systems
 latconst = 3.61                 # lattice constant
@@ -48,6 +51,8 @@ transient_time = 0.05e-12       # time resolution in transient temperature solve
 transient_steps = 3             # number of iterations in transient heat equation solver
 work_function = 4.5             # work function [eV]
 t_ambient = 300.0               # temperature at the bottom simulation cell [K]
+lorentz = 2.44e-8				# Lorentz number (Wiedemann Franz law) [W*Ohm/K^2]
+rhofile = in/rho_table.dat      # Table of resistivity values [Ohm*nm]
 
 # Tolerances of solution accuracy
 n_newton = 10                   # max number of Newton iterations
