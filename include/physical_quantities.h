@@ -27,7 +27,7 @@ public:
      * The default constructor initializes the physical values to hardcoded ones.
      * Can be overwritten by loading the data from a file.
      */
-    PhysicalQuantities(const femocs::Config& config);
+    PhysicalQuantities(const femocs::Config::Heating& config);
 
     /**
      * Load emission current data from file
@@ -98,8 +98,14 @@ public:
      */
     void output_to_files();
 
+    /**
+     * Method to read the tabulated resistivity data from file.
+     * If file not found, hard coded data are used.
+     */
+    void initialize_with_hc_data();
+
 private:
-    const femocs::Config& config;
+    const femocs::Config::Heating& config;
     /**
      * A data structure to hold the uniform grid information,
      * used in bilinear interpolation
@@ -149,11 +155,6 @@ private:
     static const std::vector<std::pair<double, double>> hc_resistivity_data;
     static const std::vector<double> hc_emission_current_data;
     static const std::vector<double> hc_nottingham_data;
-    /**
-     * Method to copy the hardcoded data to the variables that are used
-     * This could be made more efficient with pointer management, but shouldn't affect much overall
-     */
-    void initialize_with_hc_data();
 
 };
 

@@ -1,4 +1,3 @@
-
 #include <vector>
 #include <utility>
 #include <fstream>
@@ -9,24 +8,21 @@
 namespace fch {
 
 void PhysicalQuantities::initialize_with_hc_data() {
-    
-    
-    std::ifstream rhofile("in/rho_table.dat.in");
-    
-    if (rhofile.is_open()){
+    std::string ftype = get_file_type(config.rhofile);
+    require(ftype=="dat", "Incorrect file: " + config.rhofile);
+
+    std::ifstream resfile(config.rhofile);
+    if (resfile.is_open()){
+        write_verbose_msg("Reading rho table from " + config.rhofile);
         int Nline;
-        rhofile >> Nline;
-        std::vector<std::pair<double, double>> data(Nline);
-        std::cout << "Nline =    " << Nline << '\n';
-        double x, y;
+        resfile >> Nline;
+        resistivity_data = std::vector<std::pair<double, double>> (Nline);
         for (int i=0; i<Nline; ++i){
-            rhofile >> x;
-            rhofile >> y;
-            resistivity_data[i]= {x, y};
+            resfile >> resistivity_data[i].first;
+            resfile >> resistivity_data[i].second;
         }
     }else{
-        
-        write_silent_msg("WARNING: resistivity file not found");
+        write_silent_msg("WARNING: resistivity file" + config.rhofile + " not found. Using default (Cu infinite size).");
         resistivity_data = hc_resistivity_data;
     }
 
@@ -50,32 +46,32 @@ void PhysicalQuantities::initialize_with_hc_data() {
 
 const std::vector<std::pair<double, double>> PhysicalQuantities::hc_resistivity_data = {
 
-        {200,       1.04880891725670e2},
-        {250,       1.38746906313026e2},
-        {273.15,    1.54302576609579e2},
-        {300,       1.72303253767393e2},
-        {350,       2.05822342557969e2},
-        {400,       2.39476190263668e2},
-        {450,       2.73376276457821e2},
-        {500,       3.07598544167200e2},
-        {550,       3.42197627890272e2},
-        {600,       3.77214997429762e2},
-        {650,       4.12683756079926e2},
-        {700,       4.48631564739703e2},
-        {750,       4.85082484331790e2},
-        {800,       5.22058173711257e2},
-        {850,       5.59578691681847e2},
-        {900,       5.97663048918425e2},
-        {950,       6.36329597840890e2},
-        {1000,      6.75596315079091e2},
-        {1050,      7.15481011300350e2},
-        {1100,      7.56001491045029e2},
-        {1150,      7.97175677635730e2},
-        {1200,      8.39021713382574e2},
-        {1250,      8.81558042149690e2},
-        {1300,      9.24803479251429e2},
-        {1350,      9.68777272230961e2},
-        {1400,      1.01349915510292e3}
+        {200,       1.04880891725670e1},
+        {250,       1.38746906313026e1},
+        {273.15,    1.54302576609579e1},
+        {300,       1.72303253767393e1},
+        {350,       2.05822342557969e1},
+        {400,       2.39476190263668e1},
+        {450,       2.73376276457821e1},
+        {500,       3.07598544167200e1},
+        {550,       3.42197627890272e1},
+        {600,       3.77214997429762e1},
+        {650,       4.12683756079926e1},
+        {700,       4.48631564739703e1},
+        {750,       4.85082484331790e1},
+        {800,       5.22058173711257e1},
+        {850,       5.59578691681847e1},
+        {900,       5.97663048918425e1},
+        {950,       6.36329597840890e1},
+        {1000,      6.75596315079091e1},
+        {1050,      7.15481011300350e1},
+        {1100,      7.56001491045029e1},
+        {1150,      7.97175677635730e1},
+        {1200,      8.39021713382574e1},
+        {1250,      8.81558042149690e1},
+        {1300,      9.24803479251429e1},
+        {1350,      9.68777272230961e1},
+        {1400,      1.01349915510292e2}
 
 };
 

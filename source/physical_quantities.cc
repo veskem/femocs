@@ -19,9 +19,7 @@
 
 namespace fch {
 
-PhysicalQuantities::PhysicalQuantities(const femocs::Config& c) : config(c){
-    initialize_with_hc_data();
-}
+PhysicalQuantities::PhysicalQuantities(const femocs::Config::Heating& c) : config(c){}
 
 double PhysicalQuantities::emission_current(double field, double temperature) {
     return std::exp(bilinear_interp(std::log(field), temperature, emission_grid)) * 1.0e-20;
