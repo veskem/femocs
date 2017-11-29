@@ -88,6 +88,8 @@ public:
     double smooth_mu;           ///< mu parameter in surface mesh smoother
     string smooth_algorithm;    ///< surface mesh smoother algorithm; none, laplace or fujiwara
 
+    double lorentz;             ///< Lorentz number (Wiedemenn-Franz law)
+
     /** Method to clean the surface atoms
      * faces - measure distance from surface faces
      * none - do not use the cleaner (because it is guaranteed to be clean)

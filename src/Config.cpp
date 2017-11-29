@@ -54,6 +54,7 @@ Config::Config() {
     clear_output = true;         // clear output folder
     use_rdf = false;             // use radial distribution function to recalculate lattice constant and coordination analysis parameters
 
+    lorentz = 2.44e-8;           // Lorentz number
     heating_mode = "none";       // method to calculate current density and temperature; none, stationary or transient
     transient_time = 0.05e-12;   // time resolution in transient temperature solver [sec]
     transient_steps = 3;         // number of iterations in transient heat equation solver
@@ -125,6 +126,7 @@ void Config::read_all(const string& file_name) {
     read_command("write_log", MODES.WRITELOG);
     read_command("use_histclean", use_histclean);
     read_command("n_writefile", n_writefile);
+    read_command("lorentz", lorentz);
 
     // Read commands with potentially multiple arguments like...
     vector<double> args;

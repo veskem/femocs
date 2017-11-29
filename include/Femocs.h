@@ -225,7 +225,7 @@ private:
     FieldReader fields = FieldReader(&surface_interpolator, &vacuum_interpolator); ///< interpolated fields and potentials
     ForceReader forces = ForceReader(&surface_interpolator, &vacuum_interpolator); ///< forces on surface atoms
 
-    fch::PhysicalQuantities phys_quantities;              ///< physical quantities used in heat calculations
+    fch::PhysicalQuantities phys_quantities=fch::PhysicalQuantities(conf);        ///< physical quantities used in heat calculations
     fch::CurrentsAndHeatingStationary<3> ch_solver1;      ///< first steady-state currents and heating solver
     fch::CurrentsAndHeatingStationary<3> ch_solver2;      ///< second steady-state currents and heating solver
     fch::CurrentsAndHeatingStationary<3>* ch_solver;      ///< active steady-state currents and heating solver
