@@ -535,7 +535,7 @@ void FieldReader::transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solv
         append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
 
     // interpolate solution on the nodes and clean peaks
-    calc_3d_interpolation(1, true);
+    calc_2d_interpolation(1, false);
     clean(r_cut, use_hist_clean);
 
     // export electric field norms to the solver
@@ -561,7 +561,7 @@ void FieldReader::transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver,
         append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
 
     // interpolate solution on the nodes and clean peaks
-    calc_3d_interpolation(1, true);
+    calc_2d_interpolation(1, false);
     clean(r_cut, use_hist_clean);
 
     // export electric field norms to the solver

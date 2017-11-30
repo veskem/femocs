@@ -217,7 +217,7 @@ private:
     TetgenMesh fem_mesh;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
 
     /// data for interpolating results on vacuum-material boundary
-    TriangleInterpolator surface_interpolator = TriangleInterpolator(&fem_mesh);
+    TriangleInterpolator vacuum_surface_interpolator = TriangleInterpolator(&fem_mesh);
     /// data for interpolating results in vacuum
     TetrahedronInterpolator vacuum_interpolator = TetrahedronInterpolator(&fem_mesh);
     /// data for interpolating results on the bulk surface
@@ -226,8 +226,8 @@ private:
     TetrahedronInterpolator bulk_interpolator = TetrahedronInterpolator(&fem_mesh);
 
     HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
-    FieldReader fields = FieldReader(&surface_interpolator, &vacuum_interpolator); ///< interpolated fields and potentials
-    ForceReader forces = ForceReader(&surface_interpolator, &vacuum_interpolator); ///< forces on surface atoms
+    FieldReader fields = FieldReader(&vacuum_surface_interpolator, &vacuum_interpolator); ///< interpolated fields and potentials
+    ForceReader forces = ForceReader(&vacuum_surface_interpolator, &vacuum_interpolator); ///< forces on surface atoms
 
     fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);   ///< physical quantities used in heat calculations
     fch::CurrentsAndHeatingStationary<3> ch_solver1;      ///< first steady-state currents and heating solver
@@ -244,7 +244,10 @@ private:
     int solve_stationary_heat();
 
     /** Solve transient heat and continuity equations */
-    int solve_transient_heat(const double delta_time, unsigned int &hcg, unsigned int &ccg);
+    int solve_transient_heat(const double delta_time);
+
+    /** Solve transient heat and continuity equation until convergence reached*/
+    int solve_converge_heat();
 
     /** Interpolate the solution on the x-z plane in the middle of simulation box */
     void write_slice(const string& file_name);
