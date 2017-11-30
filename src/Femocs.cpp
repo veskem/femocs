@@ -20,7 +20,8 @@ using namespace std;
 namespace femocs {
 
 // specify simulation parameters
-Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false), timestep(-1) {
+Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false),
+        timestep(-1), last_full_timestep(0) {
     static bool first_call = true;
 
     // Read configuration parameters from configuration file
@@ -195,6 +196,7 @@ int Femocs::finalize() {
     reader.save_current_run_points(conf.distance_tol);
     end_msg(t0);
     skip_calculations = false;
+    last_full_timestep = timestep;
     return 0;
 }
 
@@ -351,18 +353,46 @@ int Femocs::solve_laplace(const double E0) {
 
 // Pick a method to solve heat & continuity equations
 int Femocs::solve_heat(const double T_ambient) {
-    if (conf.heating.mode == "stationary")
-        return solve_stationary_heat(T_ambient);
+    const double delta_t_MD = 4.05e-15; // in seconds
 
-    else if (conf.heating.mode == "transient")
-        for (int i = 0; i < conf.heating.transient_steps; ++i) {
-            if (solve_transient_heat(T_ambient)) return 1;
+    if (conf.heating.mode == "stationary") {
+        return solve_stationary_heat();
+    }
+    else if(conf.heating.mode == "transient") {
+        double delta_time = delta_t_MD * (timestep - last_full_timestep); //in sec
+        unsigned int hcg, ccg;
+        int success = solve_transient_heat(delta_time, hcg, ccg);
+        write_verbose_msg("Current and heat advanced for " + to_string(delta_time));
+        return success;
+    }
+    else if (conf.heating.mode == "converge") {
+        double delta_time = 1.e-13; //in seconds!!
+        double current_time = 0.;
+        unsigned int hcg, ccg;
+        for (int i = 0; i < 1000; ++i){
+            int success = solve_transient_heat(delta_time, hcg, ccg);
+            current_time += delta_time;
+            if (MODES.VERBOSE) {
+                double max_T = ch_transient_solver.get_max_temperature();
+                printf("  t=%5.3fps; ccg=%2d; hcg=%2d; Tmax=%6.2f\n",
+                        current_time * 1.e12, ccg, hcg, max_T);
+            }
+            check_return(success!=0, "Heat equation advancement failed.")
+            if (max(hcg, ccg) < 150)
+                delta_time *= 2.;
+            else if (max(hcg, ccg) > 150)
+                delta_time *= 0.5;
+            if (max(hcg, ccg) < 10) return success;
+
         }
+        write_verbose_msg("Heat equation did not converged after 1000 steps.");
+        return 0;
+    }
     return 0;
 }
 
 // Solve steady-state heat and continuity equations
-int Femocs::solve_stationary_heat(const double T_ambient) {
+int Femocs::solve_stationary_heat() {
     start_msg(t0, "=== Initializing stationary J & T solver...");
     ch_solver->reinitialize(&laplace_solver, prev_ch_solver);
     end_msg(t0);
@@ -385,7 +415,7 @@ int Femocs::solve_stationary_heat(const double T_ambient) {
     fr.write("out/surface_field.xyz");
 
     start_msg(t0, "=== Running J & T solver...\n");
-    ch_solver->set_ambient_temperature(T_ambient);
+    ch_solver->set_ambient_temperature(conf.heating.t_ambient);
     double t_error = ch_solver->run_specific(conf.heating.t_error, conf.heating.n_newton, false, "", MODES.VERBOSE, 2, 400, true);
     end_msg(t0);
 
@@ -413,14 +443,14 @@ int Femocs::solve_stationary_heat(const double T_ambient) {
 }
 
 // Solve transient heat and continuity equations
-int Femocs::solve_transient_heat(const double T_ambient) {
+int Femocs::solve_transient_heat(const double delta_time, unsigned int &hcg, unsigned int &ccg) {
     static bool first_call = true;
-    const double time_unit = 1e-12; // == picosec
-    double delta_time = 0.2 * time_unit;
-    const int n_time_steps = conf.heating.transient_time / delta_time;
+    //const double time_unit = 1e-12; // == picosec
+    //double delta_time = 2. * time_unit;
+    //const int n_time_steps = conf.heating.transient_time / delta_time;
 
-    require(n_time_steps > 0, "Too small transient_time: " + to_string(conf.heating.transient_time));
-    delta_time = conf.heating.transient_time / n_time_steps;
+    //require(n_time_steps > 0, "Too small transient_time: " + to_string(conf.heating.transient_time));
+    //delta_time = conf.heating.transient_time / n_time_steps;
 
     start_msg(t0, "=== Importing mesh to transient J & T solver...");
     fail = !ch_transient_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
@@ -436,7 +466,7 @@ int Femocs::solve_transient_heat(const double T_ambient) {
 
     start_msg(t0, "=== Interpolating J & T on face centroids...");
     HeatReader heat_reader(&bulk_interpolator);
-    heat_reader.interpolate(ch_transient_solver, T_ambient, 0, true);
+    heat_reader.interpolate(ch_transient_solver, conf.heating.t_ambient, 0, true);
     end_msg(t0);
     heat_reader.write("out/surface_temperature.xyz");
 
@@ -454,23 +484,19 @@ int Femocs::solve_transient_heat(const double T_ambient) {
     }
 
     start_msg(t0, "=== Calculating current density...");
-    ch_transient_solver.assemble_current_system();           // assemble matrix for current density equation; current == electric current
-    unsigned int ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
+    ch_transient_solver.assemble_current_system(); // assemble matrix for current density equation; current == electric current
+    ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
     end_msg(t0);
 
     start_msg(t0, "=== Calculating temperature distribution...\n");
     ch_transient_solver.set_timestep(delta_time);
 
-    for (int i = 0; i < n_time_steps; ++i) {
-        ch_transient_solver.assemble_heating_system_euler_implicit();
+    //for (int i = 0; i < n_time_steps; ++i) {
+    ch_transient_solver.assemble_heating_system_euler_implicit();
         //ch_transient_solver.assemble_heating_system_crank_nicolson();
 
-        unsigned int hcg = ch_transient_solver.solve_heat(); // hcg == number of temperature calculation (CG) iterations
-        if (MODES.VERBOSE) {
-            double max_T = ch_transient_solver.get_max_temperature();
-            printf("  t=%5.3fps; ccg=%2d; hcg=%2d; Tmax=%6.2f\n", i * delta_time / time_unit, ccg, hcg, max_T);
-        }
-    }
+    hcg = ch_transient_solver.solve_heat(); // hcg == number of temperature calculation (CG) iterations
+    //}
     end_msg(t0);
 
     ch_transient_solver.output_results_current("out/result_J.vtk");

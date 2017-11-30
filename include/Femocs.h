@@ -204,6 +204,7 @@ private:
     bool skip_calculations, fail;
     double t0;
     int timestep;           ///< counter to measure how many times Femocs has been called
+    int last_full_timestep; ///< timestep Femocs did full calculation
     vector<Vec3> areas;     ///< surface areas of Voronoi cells that is exposed to vacuum
     vector<int> atom2face;  ///< surface atom to triangle index map
     
@@ -237,11 +238,11 @@ private:
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
 
-    /** Solve steady-steate heat and continuity equations */
-    int solve_stationary_heat(const double T_ambient);
+    /** Solve steady-state heat and continuity equations */
+    int solve_stationary_heat();
 
     /** Solve transient heat and continuity equations */
-    int solve_transient_heat(const double T_ambient);
+    int solve_transient_heat(const double delta_time, unsigned int &hcg, unsigned int &ccg);
 
     /** Interpolate the solution on the x-z plane in the middle of simulation box */
     void write_slice(const string& file_name);

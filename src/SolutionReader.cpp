@@ -902,7 +902,7 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, co
         Vec3 field = fields.get_elfield(i);
         gt.mode = 0;
         gt.F = angstrom_per_nm * field.norm();
-        gt.Temp = heat_reader.get_temperature(i);
+        gt.Temp = max(heat_reader.get_temperature(i), 200.);
 
         if (gt.F > 0.6 * Fmax){
             field.normalize();
