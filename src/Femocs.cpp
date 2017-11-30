@@ -465,8 +465,10 @@ int Femocs::solve_transient_heat(const double delta_time, unsigned int &hcg, uns
     field_reader.write("out/surface_field.xyz");
 
     start_msg(t0, "=== Interpolating J & T on face centroids...");
-    HeatReader heat_reader(&bulk_interpolator);
-    heat_reader.interpolate(ch_transient_solver, conf.heating.t_ambient, 0, true);
+//    HeatReader heat_reader(&bulk_interpolator);
+//    heat_reader.interpolate(ch_transient_solver, conf.heating.t_ambient, 0, true);
+    HeatReader heat_reader(&bulk_surface_interpolator);
+    heat_reader.interpolate_2d(ch_transient_solver, conf.heating.t_ambient, 0, false);
     end_msg(t0);
     heat_reader.write("out/surface_temperature.xyz");
 
@@ -503,13 +505,16 @@ int Femocs::solve_transient_heat(const double delta_time, unsigned int &hcg, uns
     ch_transient_solver.output_results_heating("out/result_T.vtk");
 
     start_msg(t0, "=== Extracting J & T...");
-    bulk_interpolator.extract_solution(&ch_transient_solver);
+//    bulk_interpolator.extract_solution(&ch_transient_solver);
+    bulk_surface_interpolator.extract_solution(&ch_transient_solver);
     end_msg(t0);
-    bulk_interpolator.write("out/result_J_T.movie");
+//    bulk_interpolator.write("out/result_J_T.movie");
+    bulk_surface_interpolator.write("out/result_J_T.movie");
 
     first_call = false;
     return 0;
 }
+
 
 // Generate artificial nanotip
 int Femocs::generate_nanotip(const double height, const double radius, const double resolution) {

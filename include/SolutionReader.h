@@ -187,9 +187,13 @@ public:
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
     void interpolate(const Medium &medium, const double empty_val, const int component, const bool srt);
 
-    /** Linearly interpolate electric field for the currents and temperature solver.
+    /** Linearly interpolate currents and temperatures in the bulk.
      *  In case of empty interpolator, constant values are stored. */
     void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const int component, const bool srt);
+
+    /** Linearly interpolate currents and temperatures on the bulk surface.
+     *  In case of empty interpolator, constant values are stored. */
+    void interpolate_2d(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const int component, const bool srt);
 
     /** Export interpolated temperature */
     void export_temperature(const int n_atoms, double* T);

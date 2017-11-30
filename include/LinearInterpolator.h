@@ -225,14 +225,11 @@ public:
     /** TetrahedronInterpolator conctructor */
     TetrahedronInterpolator(const TetgenMesh* mesh);
 
-    /** Extract the electric potential and electric field values on the tetrahedra nodes from FEM solution */
+    /** Extract the electric potential and electric field values from FEM solution */
     bool extract_solution(fch::Laplace<3>* laplace);
 
-    /** Extract the current density and temperature values on the tetrahedra nodes from FEM solution */
+    /** Extract the current density and temperature values from FEM solution */
     bool extract_solution(fch::CurrentsAndHeatingStationary<3>* fem);
-
-    /** Extract the current density and temperature values on the tetrahedra nodes from FEM solution */
-    bool extract_solution(fch::CurrentsAndHeating<3>* fem);
 
     /** Print statistics about solution on node points */
     void print_statistics() const;
@@ -276,8 +273,11 @@ public:
     /** Constructor of TriangleInterpolator  */
     TriangleInterpolator(const TetgenMesh* mesh);
 
-    /** Extract the electric potential and electric field values on triangular mesh nodes from FEM solution */
+    /** Extract the electric potential and electric field values from FEM solution */
     bool extract_solution(fch::Laplace<3>* fem);
+
+    /** Extract the current density and temperature values from FEM solution */
+    bool extract_solution(fch::CurrentsAndHeating<3>* fem);
 
     /** Calculate charges on surface faces using direct solution in the face centroids */
     void calc_charges(const double E0);

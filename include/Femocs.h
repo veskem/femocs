@@ -220,6 +220,8 @@ private:
     TriangleInterpolator surface_interpolator = TriangleInterpolator(&fem_mesh);
     /// data for interpolating results in vacuum
     TetrahedronInterpolator vacuum_interpolator = TetrahedronInterpolator(&fem_mesh);
+    /// data for interpolating results on the bulk surface
+    TriangleInterpolator bulk_surface_interpolator = TriangleInterpolator(&fem_mesh);
     /// data for interpolating results in bulk
     TetrahedronInterpolator bulk_interpolator = TetrahedronInterpolator(&fem_mesh);
 

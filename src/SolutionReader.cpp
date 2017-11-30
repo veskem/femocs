@@ -773,6 +773,30 @@ void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double
         calc_3d_interpolation(component, srt);
 }
 
+// Linearly interpolate electric field for the currents and temperature solver on the surface of bulk
+// In case of empty interpolator, constant values are stored
+void HeatReader::interpolate_2d(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val,
+        const int component, const bool srt) {
+
+    // import the surface nodes the solver needs
+    vector<dealii::Point<3>> nodes;
+    ch_solver.get_surface_nodes(nodes);
+
+    const int n_atoms = nodes.size();
+
+    // store the node coordinates
+    reserve(n_atoms);
+    int i = 0;
+    for (dealii::Point<3>& node : nodes)
+        append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
+
+    // interpolate or assign solution on the atoms
+    if (interpolator_2d->size() == 0)
+        interpolation = vector<Solution>(n_atoms, Solution(empty_val));
+    else
+        calc_2d_interpolation(component, srt);
+}
+
 // Export interpolated temperature
 void HeatReader::export_temperature(const int n_atoms, double* T) {
     if (n_atoms <= 0) return;
