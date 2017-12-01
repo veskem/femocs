@@ -34,7 +34,7 @@ double PhysicalQuantities::evaluate_resistivity(double temperature) const {
         temperature = resistivity_data.front().first;
     if (temperature > resistivity_data.back().first)
         temperature = resistivity_data.back().first;
-    return linear_interp(temperature, resistivity_data);
+    return 10. * linear_interp(temperature, resistivity_data);
 }
 
 double PhysicalQuantities::evaluate_resistivity_derivative(double temperature) {
@@ -42,7 +42,7 @@ double PhysicalQuantities::evaluate_resistivity_derivative(double temperature) {
         temperature = resistivity_data.front().first;
     if (temperature > resistivity_data.back().first)
         temperature = resistivity_data.back().first;
-    return deriv_linear_interp(temperature, resistivity_data);
+    return 10. * deriv_linear_interp(temperature, resistivity_data);
 }
 
 double PhysicalQuantities::sigma(double temperature) const {
