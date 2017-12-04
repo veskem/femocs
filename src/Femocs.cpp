@@ -509,7 +509,7 @@ int Femocs::solve_converge_heat() {
     }
 
     double current_time = 0.;
-    double delta_time = 1.e-13; //in seconds!!
+    double delta_time = 1.e-12; //in seconds!!
 
     for (int i = 0; i < 1000; ++i){
 
@@ -544,14 +544,14 @@ int Femocs::solve_converge_heat() {
         current_time += delta_time;
         if (MODES.VERBOSE) {
             double max_T = ch_transient_solver.get_max_temperature();
-            printf("  i=%d; dt=%5.3fps; t=%5.3fps; ccg=%2d; hcg=%2d; Tmax=%6.2f\n",
+            printf("  i=%d ; dt= %5.3f ps ; t= %5.3f ps ; ccg= %2d ; hcg= %2d ; Tmax= %6.2f\n",
                     i, delta_time * 1.e12, current_time * 1.e12, ccg, hcg, max_T);
         }
 
         if (max(hcg, ccg) < 150)
-            delta_time *= 2.;
+            delta_time *= 1.5;
         else if (max(hcg, ccg) > 150)
-            delta_time *= 0.5;
+            delta_time /= 1.5;
 
         if (max(hcg, ccg) < 10) return 0;
     }
