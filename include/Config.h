@@ -80,10 +80,9 @@ public:
     struct Heating {
         string mode;        ///< Method to calculate current density and temperature; none, stationary or transient
         string rhofile;             ///< Path to the file with resistivity table
-        double transient_time;      ///< Time resolution in transient heat equation solver [sec]
-        int transient_steps;        ///< Number of iterations in transient heat equation solver
         double work_function;       ///< Work function [eV]
         double lorentz;             ///< Lorentz number (Wiedemenn-Franz law)
+        double Vappl;               ///< Total voltage for space charge. If <=0 space charge is ignored.
 
 
         double t_ambient;           ///< Ambient temperature in heat calculations

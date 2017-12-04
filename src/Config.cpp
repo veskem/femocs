@@ -56,10 +56,9 @@ Config::Config() {
 
     heating.lorentz = 2.44e-8;           // Lorentz number
     heating.mode = "none";       // method to calculate current density and temperature; none, stationary or transient
-    heating.transient_time = 0.05e-12;   // time resolution in transient temperature solver [sec]
-    heating.transient_steps = 3;         // number of iterations in transient heat equation solver
     heating.work_function = 4.5;         // work function [eV]
     heating.rhofile = "in/rho_table.dat.in";  //rho table file
+    heating.Vappl = -1.;       // if space charge is used.
 
     E0 = 0.0;                      // long range electric field
     neumann = 0;                 // neumann boundary contition value
@@ -94,8 +93,6 @@ void Config::read_all(const string& file_name) {
     // Modify the parameters that are specified in input script
     read_command("use_rdf", use_rdf);
     read_command("work_function", heating.work_function);
-    read_command("transient_steps", heating.transient_steps);
-    read_command("transient_time", heating.transient_time);
     read_command("t_ambient", heating.t_ambient);
     read_command("heating_mode", heating.mode);
     read_command("smooth_steps", smooth_steps);
@@ -132,6 +129,7 @@ void Config::read_all(const string& file_name) {
     read_command("lorentz", heating.lorentz);
     read_command("rhofile", heating.rhofile);
     read_command("elfield", E0);
+    read_command("V_appl", heating.Vappl);
 
     // Read commands with potentially multiple arguments like...
     vector<double> args;

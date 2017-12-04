@@ -897,10 +897,12 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 }
 
 void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const FieldReader& fields,
-        const double workfunction, const HeatReader& heat_reader) {
+        const double workfunction, const HeatReader& heat_reader, const TetgenFaces& faces) {
 
     const double angstrom_per_nm = 10.0;
     const double nm2_per_angstrom2 = 0.01;
+
+    const double Vappl = 1.e3;
 
     const int n_nodes = fields.size();
     const int n_lines = 32;
@@ -918,40 +920,65 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, co
     gt.R = 200.0;   // radius of curvature (overrided by femocs potential distribution)
     gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
 
-    for (int i = 0; i < n_nodes; ++i)
-        Fmax = max(Fmax, fields.get_elfield_norm(i));
-    Fmax *= angstrom_per_nm;
+    double theta_old = 1., theta_new = 1., multiplier;
+    double err_fact = 0.5, error;
 
-    for (int i = 0; i < n_nodes; ++i) {
-        Vec3 field = fields.get_elfield(i);
-        gt.mode = 0;
-        gt.F = angstrom_per_nm * field.norm();
-        gt.Temp = max(heat_reader.get_temperature(i), 200.);
+    for (int j = 0; j < 10; ++j){
+        cout << "Entering space charge" << conf.heating.Vappl <<  endl;
 
-        if (gt.F > 0.6 * Fmax){
-            field.normalize();
-            emission_line(get_point(i), field, 16.0 * gt.W / gt.F, rline, Vline);
-            gt.Nr = n_lines;
-            gt.xr = &rline[0];
-            gt.Vr = &Vline[0];
-            gt.mode = -21;
-        }
-        gt.approx = 0;
-        cur_dens_c(&gt);
-        if (gt.ierr != 0 )
-            write_verbose_msg("GETELEC 1st call returned with error, ierr = " + to_string(gt.ierr));
+        for (int i = 0; i < n_nodes; ++i)
+            Fmax = max(Fmax, fields.get_elfield_norm(i));
+        Fmax *= angstrom_per_nm;
 
-        if (gt.Jem > 0.1 * Jmax){
-            gt.approx = 1;
+        for (int i = 0; i < n_nodes; ++i) {
+            Vec3 field = fields.get_elfield(i);
+            gt.mode = 0;
+            gt.F = theta_new * angstrom_per_nm * field.norm();
+            gt.Temp = max(heat_reader.get_temperature(i), 200.);
+
+            double area = faces.get_area(abs(fields.get_marker(i))) / 3.;
+
+            if (gt.F > 0.6 * Fmax){
+                field.normalize();
+                emission_line(get_point(i), field, 16.0 * gt.W / gt.F, rline, Vline);
+
+                //mutliply by SC correction factor.
+                for (int i = 0; i<Vline.size(); ++i) Vline[i] *= theta_new;
+
+                gt.Nr = n_lines;
+                gt.xr = &rline[0];
+                gt.Vr = &Vline[0];
+                gt.mode = -21;
+            }
+            gt.approx = 0;
             cur_dens_c(&gt);
             if (gt.ierr != 0 )
-                write_verbose_msg("GETELEC 2nd call returned with error, ierr = " + to_string(gt.ierr));
+                write_verbose_msg("GETELEC 1st call returned with error, ierr = " + to_string(gt.ierr));
+
+            if (gt.Jem > 0.1 * Jmax){
+                gt.approx = 1;
+                cur_dens_c(&gt);
+                if (gt.ierr != 0 )
+                    write_verbose_msg("GETELEC 2nd call returned with error, ierr = " + to_string(gt.ierr));
+            }
+
+            Jmax = max(Jmax, gt.Jem);
+            currents[i] = nm2_per_angstrom2 * gt.Jem;
+            nottingham[i] = nm2_per_angstrom2 * gt.heat;
+            append_interpolation( Solution(Vec3(0), log(currents[i]), log(fabs(nottingham[i]))) );
         }
 
-        Jmax = max(Jmax, gt.Jem);
-        currents[i] = nm2_per_angstrom2 * gt.Jem;
-        nottingham[i] = nm2_per_angstrom2 * gt.heat;
-        append_interpolation( Solution(Vec3(0), log(currents[i]), log(fabs(nottingham[i]))) );
+        if (conf.heating.Vappl <= 0) break;
+        if (j > 5) err_fact *= 0.5;
+
+        write_verbose_msg("SC cycle"+to_string(j)+"theta_new="+to_string(theta_new));
+
+        theta_new = theta_SC(Jmax, conf.heating.Vappl, Fmax);
+        error = theta_new - theta_old;
+        theta_new = theta_old + error * err_fact;
+        theta_old = theta_new;
+
+
     }
 
     ch_solver.set_emission_bc(currents, nottingham);

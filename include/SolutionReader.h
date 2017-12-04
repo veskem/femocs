@@ -16,6 +16,7 @@
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
 #include "LinearInterpolator.h"
+#include "Config.h"
 
 using namespace std;
 namespace femocs {
@@ -216,7 +217,7 @@ public:
     EmissionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
 
     void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const FieldReader& fields,
-            const double workfunction, const HeatReader& heat_reader);
+            const double workfunction, const HeatReader& heat_reader, const TetgenFaces& faces);
 
     double get_rho_norm(const int i) const;
 
@@ -225,6 +226,7 @@ public:
 private:
     void emission_line(const Point3& point, const Vec3& direction, const double rmax,
                         vector<double> &rline, vector<double> &Vline);
+    Config conf;            ///< configuration parameters
 };
 
 /** Class to calculate charges from electric field */
