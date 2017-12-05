@@ -520,14 +520,14 @@ int Femocs::solve_converge_heat() {
         HeatReader heat_reader(&bulk_surface_interpolator);
         heat_reader.interpolate_2d(ch_transient_solver, conf.heating.t_ambient, 0, false);
         end_msg(t0);
-        heat_reader.write("out/surface_temperature.xyz");
+        if (MODES.VERBOSE) heat_reader.write("out/surface_temperature.xyz");
 
         start_msg(t0, "=== Calculating field emission...");
         EmissionReader emission(&vacuum_interpolator);
         emission.transfer_emission(ch_transient_solver, field_reader, heat_reader, fem_mesh.faces,
                 conf.heating.work_function, conf.heating.Vappl, multiplier);
         end_msg(t0);
-        emission.write("out/surface_emission.xyz");
+        if (MODES.VERBOSE) emission.write("out/surface_emission.xyz");
 
         start_msg(t0, "=== Calculating current density...");
         ch_transient_solver.assemble_current_system(); // assemble matrix for current density equation; current == electric current

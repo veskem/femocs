@@ -222,6 +222,17 @@ public:
 private:
     void emission_line(const Point3& point, const Vec3& direction, const double rmax,
                         vector<double> &rline, vector<double> &Vline);
+    void calc_representative(const FieldReader& fields, const vector<double>& currents,
+            const TetgenFaces& faces, double Jmax, double& Frep, double&Jrep);
+//    const FieldReader& fields;
+//    const FieldReader& potentials;
+//    const HeatReader& heat;
+//    const TetgenFaces& faces;
+//    double multiplier;
+//    vector<double> rline;
+//    vector<double> Vline;
+
+
 };
 
 /** Class to calculate charges from electric field */

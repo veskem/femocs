@@ -837,16 +837,6 @@ EmissionReader::EmissionReader(TetrahedronInterpolator* tet) :
 EmissionReader::EmissionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet) :
         SolutionReader(tri, tet, "none", "rho_norm", "temperature") {}
 
-//double EmissionReader::get_rho_norm(const int i) const {
-//    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-//    return interpolation[i].norm;
-//}
-//
-//double EmissionReader::get_temperature(const int i) const {
-//    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-//    return interpolation[i].scalar;
-//}
-
 void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax,
                         vector<double> &rline, vector<double> &Vline) {
 
@@ -897,6 +887,30 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
     }
 }
 
+
+void EmissionReader::calc_representative(const FieldReader& fields, const vector<double>& currents,
+        const TetgenFaces& faces, double Jmax, double& Frep, double& Jrep){
+
+    const int n_nodes = fields.size();
+    require(n_nodes == currents.size(), "currents and fields have not the same sizes.");
+    double area = 0., I_tot = 0., FJ = 0.;
+
+    for (int i = 0; i < n_nodes; ++i){
+
+        if (currents[i] > Jmax * 0.5){
+            double face_area = faces.get_area(abs(fields.get_marker(i))) / 3.;
+            area += face_area;
+            I_tot += face_area * currents[i];
+            FJ += face_area * currents[i] * fields.get_elfield_norm(i);
+        }
+    }
+
+    Jrep = I_tot / area;
+    Frep = FJ / I_tot;
+
+}
+
+
 void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
         const FieldReader& fields, const HeatReader& heat_reader, const TetgenFaces& faces,
         const double workfunction, const double Vappl, double& multiplier) {
@@ -912,8 +926,12 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
     reserve(n_nodes);
     atoms = fields.atoms;
 
+
     double Fmax = 0.0;
     double Jmax = 0.0;
+
+    for (int i = 0; i < n_nodes; ++i)
+        Fmax = max(Fmax, fields.get_elfield_norm(i));
 
     struct emission gt;
     gt.W = workfunction;    // set workfuntion, must be set in conf. script
@@ -923,11 +941,11 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
     double theta_old = multiplier, theta_new = multiplier;
     double err_fact = 0.5, error;
 
+    double Fmax_0 = Fmax;
+
     for (int j = 0; j < 20; ++j){
-        Fmax = 0.; Jmax = 0.;
-        for (int i = 0; i < n_nodes; ++i)
-            Fmax = max(Fmax, fields.get_elfield_norm(i));
-        Fmax *= angstrom_per_nm * theta_new;
+        Jmax = 0.;
+        Fmax = angstrom_per_nm * theta_new * Fmax_0;
 
         for (int i = 0; i < n_nodes; ++i) {
             Vec3 field = fields.get_elfield(i);
@@ -935,7 +953,7 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
             gt.F = theta_new * angstrom_per_nm * field.norm();
             gt.Temp = max(heat_reader.get_temperature(i), 200.);
 
-            //double area = faces.get_area(abs(fields.get_marker(i))) / 3.;
+
 
             if (gt.F > 0.6 * Fmax){
                 field.normalize();
@@ -968,13 +986,18 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
                 append_interpolation( Solution(Vec3(0), log(currents[i]), log(fabs(nottingham[i]))));
         }
 
+        double Frep, Jrep;
+
+        calc_representative(fields, currents, faces, nm2_per_angstrom2 * Jmax, Frep, Jrep);
+
         if (Vappl <= 0) break;
         if (j > 5) err_fact *= 0.5;
 
-        write_verbose_msg("SC cycle "+to_string(j)+" ; theta_new= "+to_string(theta_new) +
-                " ; Jmax= "+to_string(Jmax)+" ; Fmax= "+to_string(Fmax));
 
-        theta_new = theta_SC(Jmax, Vappl, Fmax);
+        if (MODES.VERBOSE) printf("\nSC j= %d th= %f Jmax= %e Jrep= %e Fmax= %f Frep= %f", j,
+                theta_new, Jmax, Jrep/ nm2_per_angstrom2, Fmax, angstrom_per_nm * theta_new * Frep);
+
+        theta_new = theta_SC(Jrep / nm2_per_angstrom2, Vappl, angstrom_per_nm * theta_new * Frep);
         error = theta_new - theta_old;
         theta_new = theta_old + error * err_fact;
         theta_old = theta_new;
