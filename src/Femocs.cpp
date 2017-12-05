@@ -425,6 +425,7 @@ int Femocs::solve_stationary_heat() {
 // Solve transient heat and continuity equations
 int Femocs::solve_transient_heat(const double delta_time) {
     static bool first_call = true;
+    double multiplier = 1.;
 
     start_msg(t0, "=== Importing mesh to transient J & T solver...");
     fail = !ch_transient_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
@@ -447,8 +448,8 @@ int Femocs::solve_transient_heat(const double delta_time) {
 
     start_msg(t0, "=== Calculating field emission...");
     EmissionReader emission(&vacuum_interpolator);
-    emission.transfer_emission(ch_transient_solver, field_reader, conf.heating.work_function,
-            heat_reader, fem_mesh.faces);
+    emission.transfer_emission(ch_transient_solver, field_reader, heat_reader, fem_mesh.faces,
+            conf.heating.work_function, conf.heating.Vappl, multiplier);
     end_msg(t0);
     emission.write("out/surface_emission.xyz");
 
@@ -511,6 +512,7 @@ int Femocs::solve_converge_heat() {
 
     double current_time = 0.;
     double delta_time = 1.e-12; //in seconds!!
+    double multiplier = 1.;
 
     for (int i = 0; i < 1000; ++i){
 
@@ -522,8 +524,8 @@ int Femocs::solve_converge_heat() {
 
         start_msg(t0, "=== Calculating field emission...");
         EmissionReader emission(&vacuum_interpolator);
-        emission.transfer_emission(ch_transient_solver, field_reader, conf.heating.work_function,
-                heat_reader, fem_mesh.faces);
+        emission.transfer_emission(ch_transient_solver, field_reader, heat_reader, fem_mesh.faces,
+                conf.heating.work_function, conf.heating.Vappl, multiplier);
         end_msg(t0);
         emission.write("out/surface_emission.xyz");
 

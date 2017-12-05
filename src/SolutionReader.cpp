@@ -837,15 +837,15 @@ EmissionReader::EmissionReader(TetrahedronInterpolator* tet) :
 EmissionReader::EmissionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet) :
         SolutionReader(tri, tet, "none", "rho_norm", "temperature") {}
 
-double EmissionReader::get_rho_norm(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].norm;
-}
-
-double EmissionReader::get_temperature(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].scalar;
-}
+//double EmissionReader::get_rho_norm(const int i) const {
+//    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+//    return interpolation[i].norm;
+//}
+//
+//double EmissionReader::get_temperature(const int i) const {
+//    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+//    return interpolation[i].scalar;
+//}
 
 void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax,
                         vector<double> &rline, vector<double> &Vline) {
@@ -888,7 +888,8 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
                 if (i > 1)
                     dVdx = (Vline[i-1] - Vline[i-2]) / (rline[i-1] - rline[i-2]);
                 else
-                    write_verbose_msg("Non-monotonous Vline could not be recovered at i = " + to_string(i));
+                    write_verbose_msg("Non-monotonous Vline could not be recovered at i = "
+                            + to_string(i));
             }
             for (int k = 0; k <= j; ++k)
                 Vline[k] =  Vline[i-1] + (rline[k] - rline[i-1]) * dVdx;
@@ -896,13 +897,12 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
     }
 }
 
-void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const FieldReader& fields,
-        const double workfunction, const HeatReader& heat_reader, const TetgenFaces& faces) {
+void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
+        const FieldReader& fields, const HeatReader& heat_reader, const TetgenFaces& faces,
+        const double workfunction, const double Vappl, double& multiplier) {
 
     const double angstrom_per_nm = 10.0;
     const double nm2_per_angstrom2 = 0.01;
-
-    const double Vappl = 1.e3;
 
     const int n_nodes = fields.size();
     const int n_lines = 32;
@@ -920,15 +920,14 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, co
     gt.R = 200.0;   // radius of curvature (overrided by femocs potential distribution)
     gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
 
-    double theta_old = 1., theta_new = 1., multiplier;
+    double theta_old = multiplier, theta_new = multiplier;
     double err_fact = 0.5, error;
 
-    for (int j = 0; j < 10; ++j){
-        cout << "Entering space charge" << conf.heating.Vappl <<  endl;
-
+    for (int j = 0; j < 20; ++j){
+        Fmax = 0.; Jmax = 0.;
         for (int i = 0; i < n_nodes; ++i)
             Fmax = max(Fmax, fields.get_elfield_norm(i));
-        Fmax *= angstrom_per_nm;
+        Fmax *= angstrom_per_nm * theta_new;
 
         for (int i = 0; i < n_nodes; ++i) {
             Vec3 field = fields.get_elfield(i);
@@ -936,7 +935,7 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, co
             gt.F = theta_new * angstrom_per_nm * field.norm();
             gt.Temp = max(heat_reader.get_temperature(i), 200.);
 
-            double area = faces.get_area(abs(fields.get_marker(i))) / 3.;
+            //double area = faces.get_area(abs(fields.get_marker(i))) / 3.;
 
             if (gt.F > 0.6 * Fmax){
                 field.normalize();
@@ -965,22 +964,25 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, co
             Jmax = max(Jmax, gt.Jem);
             currents[i] = nm2_per_angstrom2 * gt.Jem;
             nottingham[i] = nm2_per_angstrom2 * gt.heat;
-            append_interpolation( Solution(Vec3(0), log(currents[i]), log(fabs(nottingham[i]))) );
+            if (j==1)
+                append_interpolation( Solution(Vec3(0), log(currents[i]), log(fabs(nottingham[i]))));
         }
 
-        if (conf.heating.Vappl <= 0) break;
+        if (Vappl <= 0) break;
         if (j > 5) err_fact *= 0.5;
 
-        write_verbose_msg("SC cycle"+to_string(j)+"theta_new="+to_string(theta_new));
+        write_verbose_msg("SC cycle "+to_string(j)+" ; theta_new= "+to_string(theta_new) +
+                " ; Jmax= "+to_string(Jmax)+" ; Fmax= "+to_string(Fmax));
 
-        theta_new = theta_SC(Jmax, conf.heating.Vappl, Fmax);
+        theta_new = theta_SC(Jmax, Vappl, Fmax);
         error = theta_new - theta_old;
         theta_new = theta_old + error * err_fact;
         theta_old = theta_new;
-
+        if (abs(error) < 1.e-4) break;
 
     }
 
+    multiplier = theta_new;
     ch_solver.set_emission_bc(currents, nottingham);
 }
 
