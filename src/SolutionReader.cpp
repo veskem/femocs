@@ -828,21 +828,49 @@ double HeatReader::get_temperature(const int i) const {
  * ============= EMISSION READER ============
  * ========================================== */
 
-EmissionReader::EmissionReader(TriangleInterpolator* tri) :
-        SolutionReader(tri, NULL, "none", "rho_norm", "temperature") {}
+EmissionReader::EmissionReader(TriangleInterpolator* tri, const FieldReader& fields,
+        const HeatReader& heat, const TetgenFaces& faces) :
+                SolutionReader(tri, NULL, "none", "rho_norm", "temperature"), fields(fields),
+                heat(heat), faces(faces){
+    initialize();
+}
 
-EmissionReader::EmissionReader(TetrahedronInterpolator* tet) :
-        SolutionReader(NULL, tet, "none", "rho_norm", "temperature") {}
+EmissionReader::EmissionReader(TetrahedronInterpolator* tet,  const FieldReader& fields,
+        const HeatReader& heat, const TetgenFaces& faces) :
+        SolutionReader(NULL, tet, "none", "rho_norm", "temperature") , fields(fields),
+        heat(heat), faces(faces){
+    initialize();
+}
 
-EmissionReader::EmissionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet) :
-        SolutionReader(tri, tet, "none", "rho_norm", "temperature") {}
+EmissionReader::EmissionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet,
+        const FieldReader& _fields, const HeatReader& _heat, const TetgenFaces& _faces) :
+        SolutionReader(tri, tet, "none", "rho_norm", "temperature") , fields(_fields),
+        heat(_heat), faces(_faces) {
+    initialize();
+}
 
-void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax,
-                        vector<double> &rline, vector<double> &Vline) {
+void EmissionReader::initialize(){
+
+    int n_nodes = fields.size();
+
+    currents.reserve(n_nodes);
+    nottingham.reserve(n_nodes);
+
+    rline.reserve(n_lines);
+    Vline.reserve(n_lines);
+
+    for (int i = 0; i < n_nodes; ++i)
+        Fmax = max(Fmax, fields.get_elfield_norm(i));
+    Jmax = 0.;
+    Frep = Fmax;
+    Jrep = 0.;
+    multiplier = 1.;
+}
+
+void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax) {
 
     const double nm_per_angstrom = 0.1;
     const double rmin = 0.0;
-    const int n_lines = rline.size();
     Point3 pfield(direction.x, direction.y, direction.z);
 
     FieldReader fr(interpolator_3d);
@@ -854,7 +882,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
     }
     fr.calc_3d_interpolation(0, false);
     for (int i = 0; i < n_lines; i++){
-        Vline[i] = fr.get_potential(i);
+        Vline[i] = multiplier * fr.get_potential(i);
         rline[i] *= nm_per_angstrom;
     }
 
@@ -888,14 +916,10 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 }
 
 
-void EmissionReader::calc_representative(const FieldReader& fields, const vector<double>& currents,
-        const TetgenFaces& faces, double Jmax, double& Frep, double& Jrep){
+void EmissionReader::calc_representative(){
 
-    const int n_nodes = fields.size();
-    require(n_nodes == currents.size(), "currents and fields have not the same sizes.");
     double area = 0., I_tot = 0., FJ = 0.;
-
-    for (int i = 0; i < n_nodes; ++i){
+    for (int i = 0; i < fields.size(); ++i){
 
         if (currents[i] > Jmax * 0.5){
             double face_area = faces.get_area(abs(fields.get_marker(i))) / 3.;
@@ -906,106 +930,95 @@ void EmissionReader::calc_representative(const FieldReader& fields, const vector
     }
 
     Jrep = I_tot / area;
-    Frep = FJ / I_tot;
-
+    Frep = multiplier * FJ / I_tot;
 }
 
 
-void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
-        const FieldReader& fields, const HeatReader& heat_reader, const TetgenFaces& faces,
-        const double workfunction, const double Vappl, double& multiplier) {
-
-    const double angstrom_per_nm = 10.0;
-    const double nm2_per_angstrom2 = 0.01;
-
-    const int n_nodes = fields.size();
-    const int n_lines = 32;
-    vector<double> currents(n_nodes), nottingham(n_nodes);
-    vector<double> rline(n_lines), Vline(n_lines);
-
-    reserve(n_nodes);
-    atoms = fields.atoms;
-
-
-    double Fmax = 0.0;
-    double Jmax = 0.0;
-
-    for (int i = 0; i < n_nodes; ++i)
-        Fmax = max(Fmax, fields.get_elfield_norm(i));
+void EmissionReader::calc_emission(double workfunction){
 
     struct emission gt;
     gt.W = workfunction;    // set workfuntion, must be set in conf. script
     gt.R = 200.0;   // radius of curvature (overrided by femocs potential distribution)
     gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
+    double F, J;
 
-    double theta_old = multiplier, theta_new = multiplier;
+    for (int i = 0; i < fields.size(); ++i) {
+        Vec3 field = fields.get_elfield(i);
+        F = multiplier * field.norm();
+        gt.mode = 0;
+        gt.F = angstrom_per_nm * F;
+        gt.Temp = heat.get_temperature(i);
+
+        if (F > 0.6 * Fmax){
+            field.normalize();
+            emission_line(get_point(i), field, 16. * workfunction / F);
+
+            gt.Nr = n_lines;
+            gt.xr = &rline[0];
+            gt.Vr = &Vline[0];
+            gt.mode = -21;
+        }
+        gt.approx = 0;
+        cur_dens_c(&gt);
+        if (gt.ierr != 0 )
+            write_verbose_msg("GETELEC 1st call returned with error, ierr = " + to_string(gt.ierr));
+        J = gt.Jem * nm2_per_angstrom2;
+
+        if (J > 0.1 * Jmax){
+            gt.approx = 1;
+            cur_dens_c(&gt);
+            if (gt.ierr != 0 )
+                write_verbose_msg("GETELEC 2nd call returned with error, ierr = " + to_string(gt.ierr));
+            J = gt.Jem * nm2_per_angstrom2;
+        }
+
+        Jmax = max(Jmax, J);
+        currents[i] = J;
+        nottingham[i] = nm2_per_angstrom2 * gt.heat;
+    }
+
+}
+
+
+
+void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
+        const double workfunction, const double Vappl) {
+
+    const int n_nodes = fields.size();
+
+    reserve(n_nodes);
+    atoms = fields.atoms;
+
+    double theta_old = multiplier;
     double err_fact = 0.5, error;
 
     double Fmax_0 = Fmax;
 
-    for (int j = 0; j < 20; ++j){
+    for (int i = 0; i < 20; ++i){
         Jmax = 0.;
-        Fmax = angstrom_per_nm * theta_new * Fmax_0;
+        Fmax = multiplier * Fmax_0;
 
-        for (int i = 0; i < n_nodes; ++i) {
-            Vec3 field = fields.get_elfield(i);
-            gt.mode = 0;
-            gt.F = theta_new * angstrom_per_nm * field.norm();
-            gt.Temp = max(heat_reader.get_temperature(i), 200.);
-
-
-
-            if (gt.F > 0.6 * Fmax){
-                field.normalize();
-                emission_line(get_point(i), field, 16.0 * gt.W / gt.F, rline, Vline);
-
-                //mutliply by SC correction factor.
-                for (int i = 0; i<Vline.size(); ++i) Vline[i] *= theta_new;
-
-                gt.Nr = n_lines;
-                gt.xr = &rline[0];
-                gt.Vr = &Vline[0];
-                gt.mode = -21;
-            }
-            gt.approx = 0;
-            cur_dens_c(&gt);
-            if (gt.ierr != 0 )
-                write_verbose_msg("GETELEC 1st call returned with error, ierr = " + to_string(gt.ierr));
-
-            if (gt.Jem > 0.1 * Jmax){
-                gt.approx = 1;
-                cur_dens_c(&gt);
-                if (gt.ierr != 0 )
-                    write_verbose_msg("GETELEC 2nd call returned with error, ierr = " + to_string(gt.ierr));
-            }
-
-            Jmax = max(Jmax, gt.Jem);
-            currents[i] = nm2_per_angstrom2 * gt.Jem;
-            nottingham[i] = nm2_per_angstrom2 * gt.heat;
-            if (j==1)
-                append_interpolation( Solution(Vec3(0), log(currents[i]), log(fabs(nottingham[i]))));
-        }
-
-        double Frep, Jrep;
-
-        calc_representative(fields, currents, faces, nm2_per_angstrom2 * Jmax, Frep, Jrep);
+        calc_emission(workfunction);
+        calc_representative();
 
         if (Vappl <= 0) break;
-        if (j > 5) err_fact *= 0.5;
+        if (i > 5) err_fact *= 0.5;
 
+        if (MODES.VERBOSE)
+            printf("\nSC j= %d th= %f Jmax= %e Jrep= %e Fmax= %f Frep= %f\n", i, multiplier, Jmax,
+                    Jrep , Fmax, Frep);
 
-        if (MODES.VERBOSE) printf("\nSC j= %d th= %f Jmax= %e Jrep= %e Fmax= %f Frep= %f", j,
-                theta_new, Jmax, Jrep/ nm2_per_angstrom2, Fmax, angstrom_per_nm * theta_new * Frep);
-
-        theta_new = theta_SC(Jrep / nm2_per_angstrom2, Vappl, angstrom_per_nm * theta_new * Frep);
-        error = theta_new - theta_old;
-        theta_new = theta_old + error * err_fact;
-        theta_old = theta_new;
+        multiplier = theta_SC(Jrep / nm2_per_angstrom2, Vappl, angstrom_per_nm * Frep);
+        error = multiplier - theta_old;
+        multiplier = theta_old + error * err_fact;
+        theta_old = multiplier;
         if (abs(error) < 1.e-4) break;
 
     }
 
-    multiplier = theta_new;
+    for (int i = 0; i < n_nodes; i++)
+        append_interpolation( Solution(Vec3(0), log(currents[i]), log(fabs(nottingham[i]))));
+
     ch_solver.set_emission_bc(currents, nottingham);
 }
 

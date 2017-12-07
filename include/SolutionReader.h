@@ -211,27 +211,46 @@ private:
 class EmissionReader: public SolutionReader {
 public:
     /** EmissionReader constructors */
-    EmissionReader(TriangleInterpolator* tri);
-    EmissionReader(TetrahedronInterpolator* tet);
-    EmissionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
+    EmissionReader(TriangleInterpolator* tri, const FieldReader& fields, const HeatReader& heat,
+            const TetgenFaces& faces);
+    EmissionReader(TetrahedronInterpolator* tet, const FieldReader& fields,
+            const HeatReader& heat, const TetgenFaces& faces);
+    EmissionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet,
+            const FieldReader& fields, const HeatReader& heat, const TetgenFaces& faces);
 
-    void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
-            const FieldReader& fields, const HeatReader& heat_reader, const TetgenFaces& faces,
-            const double workfunction, const double Vappl, double& multiplier);
+    void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const double workfunction,
+            const double Vappl);
+
+    double get_multiplier() const {return multiplier;}
+    void set_multiplier(double _multiplier) { multiplier = _multiplier;}
 
 private:
-    void emission_line(const Point3& point, const Vec3& direction, const double rmax,
-                        vector<double> &rline, vector<double> &Vline);
-    void calc_representative(const FieldReader& fields, const vector<double>& currents,
-            const TetgenFaces& faces, double Jmax, double& Frep, double&Jrep);
-//    const FieldReader& fields;
-//    const FieldReader& potentials;
-//    const HeatReader& heat;
-//    const TetgenFaces& faces;
-//    double multiplier;
-//    vector<double> rline;
-//    vector<double> Vline;
+    void emission_line(const Point3& point, const Vec3& direction, const double rmax);
+    void calc_representative();
 
+    void initialize();
+    void calc_emission(double workfunction);
+
+
+    const double angstrom_per_nm = 10.0;
+    const double nm2_per_angstrom2 = 0.01;
+
+    const FieldReader& fields;    ///< Object containing the field on centroids of hex interface faces.
+    const HeatReader& heat;       ///< Object containing the temperature on centroids of hexahedral faces.
+    const TetgenFaces& faces;     ///< Object containing information on the faces of the mesh.
+
+    vector<double> currents;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
+    vector<double> nottingham; ///< Same as currents for nottingham heat deposition [in W/A^2]
+
+    const int n_lines = 32; ///< Number of points in the line for GETELEC
+    vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
+    vector<double> Vline;   ///< Potential on the straight line (complements rline)
+
+    double multiplier;      ///< Multiplier for the field for Space Charge.
+    double Jmax;    ///< Maximum current density of the emitter [in amps/A^2]
+    double Fmax = 0.;    ///< Maximum local field on the emitter [V/A]
+    double Frep = 0.;    ///< Representative local field (used for space charge equation) [V/A]
+    double Jrep = 0.;    ///< Representative current deinsity for space charge. [amps/A^2]
 
 };
 

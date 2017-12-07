@@ -447,9 +447,9 @@ int Femocs::solve_transient_heat(const double delta_time) {
     heat_reader.write("out/surface_temperature.xyz");
 
     start_msg(t0, "=== Calculating field emission...");
-    EmissionReader emission(&vacuum_interpolator);
-    emission.transfer_emission(ch_transient_solver, field_reader, heat_reader, fem_mesh.faces,
-            conf.heating.work_function, conf.heating.Vappl, multiplier);
+    EmissionReader emission(&vacuum_interpolator, field_reader, heat_reader, fem_mesh.faces);
+    emission.transfer_emission(ch_transient_solver,
+            conf.heating.work_function, conf.heating.Vappl);
     end_msg(t0);
     emission.write("out/surface_emission.xyz");
 
@@ -523,9 +523,10 @@ int Femocs::solve_converge_heat() {
         if (MODES.VERBOSE) heat_reader.write("out/surface_temperature.xyz");
 
         start_msg(t0, "=== Calculating field emission...");
-        EmissionReader emission(&vacuum_interpolator);
-        emission.transfer_emission(ch_transient_solver, field_reader, heat_reader, fem_mesh.faces,
-                conf.heating.work_function, conf.heating.Vappl, multiplier);
+        EmissionReader emission(&vacuum_interpolator, field_reader, heat_reader, fem_mesh.faces);
+        emission.set_multiplier(multiplier);
+        emission.transfer_emission(ch_transient_solver, conf.heating.work_function, conf.heating.Vappl);
+        multiplier = emission.get_multiplier();
         end_msg(t0);
         if (MODES.VERBOSE) emission.write("out/surface_emission.xyz");
 
