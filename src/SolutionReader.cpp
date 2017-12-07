@@ -948,6 +948,7 @@ void EmissionReader::calc_emission(double workfunction){
         gt.mode = 0;
         gt.F = angstrom_per_nm * F;
         gt.Temp = heat.get_temperature(i);
+        set_marker(i, 0);
 
         if (F > 0.6 * Fmax){
             field.normalize();
@@ -957,6 +958,7 @@ void EmissionReader::calc_emission(double workfunction){
             gt.xr = &rline[0];
             gt.Vr = &Vline[0];
             gt.mode = -21;
+            set_marker(i, 1);
         }
         gt.approx = 0;
         cur_dens_c(&gt);
@@ -970,6 +972,7 @@ void EmissionReader::calc_emission(double workfunction){
             if (gt.ierr != 0 )
                 write_verbose_msg("GETELEC 2nd call returned with error, ierr = " + to_string(gt.ierr));
             J = gt.Jem * nm2_per_angstrom2;
+            set_marker(i, 2);
         }
 
         Jmax = max(Jmax, J);
