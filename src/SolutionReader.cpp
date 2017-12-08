@@ -853,14 +853,23 @@ void EmissionReader::initialize(){
 
     int n_nodes = fields.size();
 
+    // deallocate and allocate currents data
+    currents.clear();
+    nottingham.clear();
     currents.reserve(n_nodes);
     nottingham.reserve(n_nodes);
 
+    //deallocate and allocate lines
+    rline.clear();
+    Vline.clear();
     rline.reserve(n_lines);
     Vline.reserve(n_lines);
 
+    // find Fmax
     for (int i = 0; i < n_nodes; ++i)
         Fmax = max(Fmax, fields.get_elfield_norm(i));
+
+    //Initialise data
     Jmax = 0.;
     Frep = Fmax;
     Jrep = 0.;
@@ -891,6 +900,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
         rline[i] -= rline[0];
     }
 
+    // Check data condition (should be monotonous)
     for (int i = 1; i < n_lines; ++i) { // go through points
         if (Vline[i] < Vline[i-1]) { // if decreasing at a point
             double dVdx = 0.0;
@@ -918,13 +928,16 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 
 void EmissionReader::calc_representative(){
 
-    double area = 0., I_tot = 0., FJ = 0.;
-    for (int i = 0; i < fields.size(); ++i){
+    double area = 0.; // total emitting (FWHM) area
+    double I_tot = 0.; // total emitted current within FWHM emitting area
+    double FJ = 0.; // int_FWHMarea (F*J)dS
 
-        if (currents[i] > Jmax * 0.5){
+    for (int i = 0; i < fields.size(); ++i){ // go through face centroids
+        if (currents[i] > Jmax * 0.5){ //if point eligible
+            //quadrangle face area is 1/3 of corresponding triangle face area
             double face_area = faces.get_area(abs(fields.get_marker(i))) / 3.;
-            area += face_area;
-            I_tot += face_area * currents[i];
+            area += face_area; // increase total area
+            I_tot += face_area * currents[i]; // increase total current
             FJ += face_area * currents[i] * fields.get_elfield_norm(i);
         }
     }
@@ -940,33 +953,34 @@ void EmissionReader::calc_emission(double workfunction){
     gt.W = workfunction;    // set workfuntion, must be set in conf. script
     gt.R = 200.0;   // radius of curvature (overrided by femocs potential distribution)
     gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
-    double F, J;
+    double F, J;    // Local field and current density in femocs units (Angstrom)
 
-    for (int i = 0; i < fields.size(); ++i) {
-        Vec3 field = fields.get_elfield(i);
+    for (int i = 0; i < fields.size(); ++i) { // go through all face centroids
+
+        Vec3 field = fields.get_elfield(i); //local field
         F = multiplier * field.norm();
         gt.mode = 0;
         gt.F = angstrom_per_nm * F;
         gt.Temp = heat.get_temperature(i);
-        set_marker(i, 0);
+        set_marker(i, 0); // set marker for output emission xyz file. Means No full calculation
 
-        if (F > 0.6 * Fmax){
-            field.normalize();
-            emission_line(get_point(i), field, 16. * workfunction / F);
+        if (F > 0.6 * Fmax){ // Full calculation with line only for high field points
+            field.normalize(); // get line direction
+            emission_line(get_point(i), field, 1.6 * workfunction / F); //get emission line data
 
             gt.Nr = n_lines;
             gt.xr = &rline[0];
             gt.Vr = &Vline[0];
-            gt.mode = -21;
-            set_marker(i, 1);
+            gt.mode = -21; // set mode to potential input data
+            set_marker(i, 1); //marker = 1, emission calculated with line
         }
-        gt.approx = 0;
-        cur_dens_c(&gt);
+        gt.approx = 0; // simple GTF approximation
+        cur_dens_c(&gt); // calculate emission
         if (gt.ierr != 0 )
             write_verbose_msg("GETELEC 1st call returned with error, ierr = " + to_string(gt.ierr));
-        J = gt.Jem * nm2_per_angstrom2;
+        J = gt.Jem * nm2_per_angstrom2; // current density in femocs units
 
-        if (J > 0.1 * Jmax){
+        if (J > 0.1 * Jmax){ // If J is worth it, calculate with full energy integration
             gt.approx = 1;
             cur_dens_c(&gt);
             if (gt.ierr != 0 )
@@ -975,7 +989,7 @@ void EmissionReader::calc_emission(double workfunction){
             set_marker(i, 2);
         }
 
-        Jmax = max(Jmax, J);
+        Jmax = max(Jmax, J); // output data
         currents[i] = J;
         nottingham[i] = nm2_per_angstrom2 * gt.heat;
     }
@@ -997,32 +1011,33 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
 
     double Fmax_0 = Fmax;
 
-    for (int i = 0; i < 20; ++i){
+    for (int i = 0; i < 20; ++i){ // SC calculation loop
         Jmax = 0.;
         Fmax = multiplier * Fmax_0;
 
         calc_emission(workfunction);
         calc_representative();
 
-        if (Vappl <= 0) break;
-        if (i > 5) err_fact *= 0.5;
+        if (Vappl <= 0) break; // if Vappl<=0, SC is ignored
+        if (i > 5) err_fact *= 0.5; // if not converged in first 6 steps, reduce factor
 
         if (MODES.VERBOSE)
             printf("\nSC j= %d th= %f Jmax= %e Jrep= %e Fmax= %f Frep= %f\n", i, multiplier, Jmax,
                     Jrep , Fmax, Frep);
 
+        // calculate SC multiplier (function coming from getelec)
         multiplier = theta_SC(Jrep / nm2_per_angstrom2, Vappl, angstrom_per_nm * Frep);
         error = multiplier - theta_old;
         multiplier = theta_old + error * err_fact;
         theta_old = multiplier;
-        if (abs(error) < 1.e-4) break;
+        if (abs(error) < 1.e-4) break; //if converged break
 
     }
 
-    for (int i = 0; i < n_nodes; i++)
+    for (int i = 0; i < n_nodes; i++) // append data for surface emission xyz file
         append_interpolation( Solution(Vec3(0), log(currents[i]), log(fabs(nottingham[i]))));
 
-    ch_solver.set_emission_bc(currents, nottingham);
+    ch_solver.set_emission_bc(currents, nottingham); // output data for heat BCs
 }
 
 /* ==========================================

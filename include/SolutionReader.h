@@ -210,7 +210,7 @@ private:
 /** Class to calculate field emission effects with GETELEC */
 class EmissionReader: public SolutionReader {
 public:
-    /** EmissionReader constructors */
+    /** EmissionReader constructors. */
     EmissionReader(TriangleInterpolator* tri, const FieldReader& fields, const HeatReader& heat,
             const TetgenFaces& faces);
     EmissionReader(TetrahedronInterpolator* tet, const FieldReader& fields,
@@ -218,6 +218,12 @@ public:
     EmissionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet,
             const FieldReader& fields, const HeatReader& heat, const TetgenFaces& faces);
 
+    /** Calculates the emission currents and Nottingham heat distributions, including a rough
+     * estimation of the space charge effects.
+     * @param ch_solver heat solver object where J and Nottingham BCs will be written
+     * @param workfunction Work function
+     * @param Vappl Applied voltage (required for space charge calculations)
+     */
     void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const double workfunction,
             const double Vappl);
 
@@ -225,10 +231,28 @@ public:
     void set_multiplier(double _multiplier) { multiplier = _multiplier;}
 
 private:
+    /** Prepares the line inputted to GETELEC.
+     *
+     * @param point Starting point of the line
+     * @param direction Direction of the line
+     * @param rmax Maximum distance that the line extends
+     */
     void emission_line(const Point3& point, const Vec3& direction, const double rmax);
+
+    /** Calculates representative quantities Jrep and Frep for space charge calculations
+     * (See https://arxiv.org/abs/1710.00050 for definitions)
+     */
     void calc_representative();
 
+    /**
+     * Initialises class data.
+     */
     void initialize();
+
+    /**
+     * Calculates electron emission distribution for a given configuration (
+     * @param workfunction Input work function.
+     */
     void calc_emission(double workfunction);
 
 
