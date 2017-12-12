@@ -147,7 +147,7 @@ protected:
     virtual int get_cell_type() const { return 0; }
 
     /** Calculate barycentric coordinates for a point with respect to the cell */
-    virtual array<double,dim> get_bcc(const Vec3& point, const int cell) const { return array<double,dim>(); }
+    virtual void get_bcc(array<double,dim>& bcc, const Vec3& point, const int cell) const {}
 
     /** Calculate distance-dependent weights for a point with respect to the cell */
     array<double,dim> get_weights(const Point3 &point, const SimpleCell<dim>& scell) const;
@@ -220,7 +220,7 @@ protected:
  * http://www.cwscholz.net/projects/diss/html/node37.html
  *
  */
-class TetrahedronInterpolator : public LinearInterpolator<4> {
+class TetrahedronInterpolator : public LinearInterpolator<10> {
 public:
     /** TetrahedronInterpolator conctructor */
     TetrahedronInterpolator(const TetgenMesh* mesh);
@@ -234,7 +234,7 @@ public:
     /** Print statistics about solution on node points */
     void print_statistics() const;
 
-private:
+protected:
     const TetgenElements* elems;    ///< Direct pointer to tetrahedra to access their specific routines
 
     vector<double> det0;            ///< major determinant for calculating bcc-s
@@ -248,8 +248,6 @@ private:
      * of the solutions on its Voronoi cell nodes */
     bool average_sharp_nodes(const bool vacuum);
 
-    bool average_and_check_sharp_nodes(const bool vacuum);
-
     /** Pre-compute data about tetrahedra to make interpolation faster */
     void precompute();
 
@@ -259,22 +257,31 @@ private:
     /** Get whether the point is located inside the i-th tetrahedron */
     bool point_in_cell(const Vec3& point, const int i) const;
 
+ private:
     /** Get barycentric coordinates for a point inside i-th tetrahedron */
-    array<double,4> get_bcc(const Vec3& point, const int i) const;
+     void get_bcc(array<double,4>& bcc, const Vec3& point, const int i) const;
+     void get_bcc(array<double,10>& bcc, const Vec3& point, const int i) const;
 
-    /** Return the tetrahedron type in vtk format */
-    int get_cell_type() const { return 10; }
+     /** Return the tetrahedron type in vtk format */
+     int get_cell_type() const { return 10; }
+//     int get_cell_type() const { return 24; }
 
-    /** Locate the index of node that is in the centroid of opposite face of the given tetrahedral vertex */
-    int opposite_node(const int tet, const int vert) const;
+     int match_edges(vector<unsigned>& vec1, vector<unsigned>& vec2) const;
 
-    double integrate(const int hex) const;
+     SimpleCell<10> tet2quadTet(const int i) const;
 
-    double shape_function(array<double,8>& sf, const double u, const double v, const double w) const;
+     /** Locate the index of node that is in the centroid of opposite face of the given tetrahedral vertex */
+     int opposite_node(const int tet, const int vert) const;
+
+     double integrate(const int hex) const;
+
+     double shape_function(array<double,8>& sf, const double u, const double v, const double w) const;
+
+     bool average_and_check_sharp_nodes(const bool vacuum);
 };
 
 /** Class to interpolate solution on surface triangles */
-class TriangleInterpolator : public LinearInterpolator<3> {
+class TriangleInterpolator : public LinearInterpolator<6> {
 public:
     /** Constructor of TriangleInterpolator  */
     TriangleInterpolator(const TetgenMesh* mesh);
@@ -338,10 +345,17 @@ private:
     bool point_in_cell(const Vec3& point, const int i) const;
 
     /** Calculate barycentric coordinates for a point with respect to the i-th triangle */
-    array<double,3> get_bcc(const Vec3& point, const int i) const;
+    void get_bcc(array<double,3>& bcc, const Vec3& point, const int i) const;
+    void get_bcc(array<double,6>& bcc, const Vec3& point, const int i) const;
 
     /** Return the triangle type in vtk format */
-    int get_cell_type() const { return 5; }
+    /** Return the quadratic triangle type in vtk format */
+    //    int get_cell_type() const { return 5; }
+    int get_cell_type() const { return 22; }
+
+    int match_edges(vector<unsigned>& vec1, vector<unsigned>& vec2) const;
+
+    SimpleCell<6> tri2quadTri(const int i) const;
 };
 
 } // namespace femocs

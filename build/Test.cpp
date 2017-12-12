@@ -39,6 +39,7 @@ void write_defaults(ofstream &file) {
     file << "femocs_verbose_mode = verbose" << endl;
     file << "smooth_steps = 3"           << endl;
     file << "smooth_algorithm = laplace" << endl;
+    file << "elfield = -0.07"            << endl;
 }
 
 void write_rectangle(ofstream &file) {

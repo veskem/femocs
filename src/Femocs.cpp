@@ -288,7 +288,6 @@ int Femocs::generate_meshes() {
     fem_mesh.elems.write("out/tetmesh.vtk");
 
     if (conf.surface_cleaner == "faces") {
-        vacuum_surface_interpolator.precompute();
         start_msg(t0, "=== Cleaning surface atoms...");
         dense_surf.clean_by_triangles(atom2face, vacuum_surface_interpolator, conf.latconst);
         end_msg(t0);

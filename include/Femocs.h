@@ -11,12 +11,12 @@
 #include "AtomReader.h"
 #include "Config.h"
 #include "SolutionReader.h"
+#include "Surface.h"
 #include "physical_quantities.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
 #include "laplace.h"
 #include "LinearInterpolator.h"
-#include "Surface.h"
 
 using namespace std;
 namespace femocs {
@@ -216,12 +216,12 @@ private:
 
     TetgenMesh fem_mesh;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
 
-    /// data for interpolating results on vacuum-material boundary
+    /// data for interpolating results from vacuum on the surface
     TriangleInterpolator vacuum_surface_interpolator = TriangleInterpolator(&fem_mesh);
-    /// data for interpolating results in vacuum
-    TetrahedronInterpolator vacuum_interpolator = TetrahedronInterpolator(&fem_mesh);
     /// data for interpolating results on the bulk surface
     TriangleInterpolator bulk_surface_interpolator = TriangleInterpolator(&fem_mesh);
+    /// data for interpolating results in vacuum
+    TetrahedronInterpolator vacuum_interpolator = TetrahedronInterpolator(&fem_mesh);
     /// data for interpolating results in bulk
     TetrahedronInterpolator bulk_interpolator = TetrahedronInterpolator(&fem_mesh);
 

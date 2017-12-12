@@ -5,9 +5,9 @@
  *      Author: veske
  */
 
-#include "Macros.h"
-#include "LinearInterpolator.h"
+#include "../include/LinearInterpolator.h"
 
+#include "Macros.h"
 #include "float.h"
 
 using namespace std;
@@ -48,7 +48,7 @@ Solution LinearInterpolator<dim>::interp_solution(const Point3 &point, const int
 
     // calculate weights or barycentric coordinates
     array<double,dim> bcc;
-    if (c >= 0) bcc = get_bcc(Vec3(point), cell);
+    if (c >= 0) get_bcc(bcc, Vec3(point), cell);
     else bcc = get_weights(point, cell);
 
     // Interpolate electric field
@@ -74,7 +74,7 @@ Vec3 LinearInterpolator<dim>::interp_vector(const Point3 &point, const int c) co
 
     // calculate weights or barycentric coordinates
     array<double,dim> bcc;
-    if (c >= 0) bcc = get_bcc(Vec3(point), cell);
+    if (c >= 0) get_bcc(bcc, Vec3(point), cell);
     else bcc = get_weights(point, cell);
 
     // Interpolate electric field
@@ -95,7 +95,7 @@ double LinearInterpolator<dim>::interp_scalar(const Point3 &point, const int c) 
 
     // calculate weights or barycentric coordinates
     array<double,dim> bcc;
-    if (c >= 0) bcc = get_bcc(Vec3(point), cell);
+    if (c >= 0) get_bcc(bcc, Vec3(point), cell);
     else bcc = get_weights(point, cell);
 
     // Interpolate potential
@@ -336,7 +336,7 @@ void LinearInterpolator<dim>::write_vtk(ofstream& out, const int n_nodes) const 
 
 // Initialize data vectors
 TetrahedronInterpolator::TetrahedronInterpolator(const TetgenMesh* m) :
-        LinearInterpolator<4>(m), elems(&m->elems) {}
+        LinearInterpolator<10>(m), elems(&m->elems) {}
 
 // Print statistics about solution on node points
 void TetrahedronInterpolator::print_statistics() const {
@@ -375,7 +375,7 @@ void TetrahedronInterpolator::print_statistics() const {
 bool TetrahedronInterpolator::average_sharp_nodes(const bool vacuum) {
     vector<vector<unsigned int>> vorocells;
     mesh->calc_pseudo_3D_vorocells(vorocells, vacuum);
-    return LinearInterpolator<4>::average_sharp_nodes(vorocells);
+    return LinearInterpolator<10>::average_sharp_nodes(vorocells);
 }
 
 bool TetrahedronInterpolator::average_and_check_sharp_nodes(const bool vacuum) {
@@ -388,7 +388,7 @@ bool TetrahedronInterpolator::average_and_check_sharp_nodes(const bool vacuum) {
     for (int i = 0; i < n_hexs; ++i)
         total_before += integrate(i);
 
-    bool success = LinearInterpolator<4>::average_sharp_nodes(vorocells);
+    bool success = LinearInterpolator<10>::average_sharp_nodes(vorocells);
 
     double total_after = 0;
     int data_size = 0;
@@ -485,7 +485,7 @@ bool TetrahedronInterpolator::extract_solution(fch::Laplace<3>* fem) {
 
     // remove the spikes in the solution
     if (average_sharp_nodes(true))
-//    if (average_and_check_sharp_nodes(true))
+    if (average_and_check_sharp_nodes(true))
         return true;
 
     return false;
@@ -533,7 +533,7 @@ bool TetrahedronInterpolator::extract_solution(fch::CurrentsAndHeatingStationary
 
 // Reserve memory for pre-compute data
 void TetrahedronInterpolator::reserve_precompute(const int N) {
-    LinearInterpolator<4>::reserve_precompute(N);
+    LinearInterpolator<10>::reserve_precompute(N);
 
     det0.clear();
     det1.clear();
@@ -585,21 +585,20 @@ void TetrahedronInterpolator::precompute() {
     for (int i = 0; i < n_nodes; ++i)
         vertices.push_back((*nodes)[i]);
 
-    // Calculate tetrahedra neighbours
-    for (int i = 0; i < n_elems; ++i)
+    for (int i = 0; i < n_elems; ++i) {
+        SimpleElement se = (*elems)[i];
+
+        // Calculate tetrahedra neighbours
         neighbours.push_back(elems->get_neighbours(i));
-
-    // Calculate centroids of elements
-    for (int i = 0; i < n_elems; ++i)
+        // Calculate centroids of elements
         centroids.push_back(elems->get_centroid(i));
+        // store elements to get rid of dependence on mesh
+//        cells.push_back(se);
+        cells.push_back(tet2quadTet(i));
 
-    // Store tetrahedra to become free to interpolate independently from mesh state
-    for (int i = 0; i < n_elems; ++i)
-        cells.push_back((*elems)[i]);
+        /* Calculate main and minor determinants for 1st, 2nd, 3rd and 4th
+         * barycentric coordinate of tetrahedra using the relations below */
 
-    /* Calculate main and minor determinants for 1st, 2nd, 3rd and 4th
-     * barycentric coordinate of tetrahedra using the relations below */
-    for (SimpleElement se : *elems) {
         Vec3 v1 = nodes->get_vec(se[0]);
         Vec3 v2 = nodes->get_vec(se[1]);
         Vec3 v3 = nodes->get_vec(se[2]);
@@ -686,17 +685,68 @@ bool TetrahedronInterpolator::point_in_cell(const Vec3 &point, const int i) cons
 }
 
 // Calculate barycentric coordinates for point with respect to i-th tetrahedron
-array<double,4> TetrahedronInterpolator::get_bcc(const Vec3& point, const int i) const {
+void TetrahedronInterpolator::get_bcc(array<double,4>& bcc, const Vec3& point, const int i) const {
     require(i >= 0 && i < det0.size(), "Index out of bounds: " + to_string(i));
 
     const Vec4 pt(point, 1);
-    const double bcc1 = det0[i] * pt.dotProduct(det1[i]);
-    const double bcc2 = det0[i] * pt.dotProduct(det2[i]);
-    const double bcc3 = det0[i] * pt.dotProduct(det3[i]);
-    const double bcc4 = det0[i] * pt.dotProduct(det4[i]);
+    bcc[0] = det0[i] * pt.dotProduct(det1[i]);
+    bcc[1] = det0[i] * pt.dotProduct(det2[i]);
+    bcc[2] = det0[i] * pt.dotProduct(det3[i]);
+    bcc[3] = det0[i] * pt.dotProduct(det4[i]);
+}
 
-    return array<double,4> {bcc1, bcc2, bcc3, bcc4};
-//    return array<double,4> {1.0 - 3.0 * bcc1, 1.0 - 3.0 * bcc2, 1.0 - 3.0 * bcc3, 1.0 - 3.0 * bcc4};
+// Calculate barycentric coordinates for point with respect to i-th tetrahedron
+void TetrahedronInterpolator::get_bcc(array<double,10>& bcc, const Vec3& point, const int i) const {
+    require(i >= 0 && i < det0.size(), "Index out of bounds: " + to_string(i));
+
+    const Vec4 pt(point, 1);
+    const double b1 = det0[i] * pt.dotProduct(det1[i]);
+    const double b2 = det0[i] * pt.dotProduct(det2[i]);
+    const double b3 = det0[i] * pt.dotProduct(det3[i]);
+    const double b4 = det0[i] * pt.dotProduct(det4[i]);
+
+//    bcc = {b1, b2, b3, b4, 0, 0, 0, 0, 0, 0};
+    bcc[0] =  b1 * (2 * b1 - 1);
+    bcc[1] =  b2 * (2 * b2 - 1);
+    bcc[2] =  b3 * (2 * b3 - 1);
+    bcc[3] =  b4 * (2 * b4 - 1);
+    bcc[4] =  4 * b1 * b2;
+    bcc[5] =  4 * b2 * b3;
+    bcc[6] =  4 * b3 * b1;
+    bcc[7] =  4 * b1 * b4;
+    bcc[8] =  4 * b2 * b4;
+    bcc[9] =  4 * b3 * b4;
+}
+
+int TetrahedronInterpolator::match_edges(vector<unsigned>& vec1, vector<unsigned>& vec2) const {
+    for (unsigned i : vec1)
+        for (unsigned j : vec2)
+            if (i == j) return i;
+    return -1;
+}
+
+SimpleCell<10> TetrahedronInterpolator::tet2quadTet(const int tet) const {
+    if (mesh->hexahedra.size() == 0) return QuadraticTet(0);
+
+    const int n_hexs_per_tet = 4;
+    array<vector<unsigned>,4> edge_nodes;
+
+    // locate hexahedral nodes that are located in the middle of edges
+    for (int i = 0; i < n_hexs_per_tet; ++i) {
+        for (int hexnode : mesh->hexahedra[n_hexs_per_tet * tet + i])
+            if (nodes->get_marker(hexnode) == TYPES.EDGECENTROID)
+                edge_nodes[i].push_back(hexnode);
+    }
+
+    // find second order nodes
+    const int n5 = match_edges(edge_nodes[0], edge_nodes[1]);
+    const int n6 = match_edges(edge_nodes[1], edge_nodes[2]);
+    const int n7 = match_edges(edge_nodes[2], edge_nodes[0]);
+    const int n8 = match_edges(edge_nodes[0], edge_nodes[3]);
+    const int n9 = match_edges(edge_nodes[1], edge_nodes[3]);
+    const int n10= match_edges(edge_nodes[2], edge_nodes[3]);
+
+    return QuadraticTet((*elems)[tet], n5, n6, n7, n8, n9, n10);
 }
 
 /* ==================================================================
@@ -705,7 +755,7 @@ array<double,4> TetrahedronInterpolator::get_bcc(const Vec3& point, const int i)
 
 // Initialize data vectors
 TriangleInterpolator::TriangleInterpolator(const TetgenMesh* m) :
-        LinearInterpolator<3>(m), faces(&m->faces) {}
+        LinearInterpolator<6>(m), faces(&m->faces) {}
 
 // leave only the solution in the nodes and centroids of triangles
 bool TriangleInterpolator::clean_nodes() {
@@ -825,7 +875,7 @@ void TriangleInterpolator::interp_conserved(vector<double>& scalars, const vecto
         // Find the cell that matches best to the point
         cell = abs(locate_cell(point, cell));
         // calculate barycentric coordinates
-        bcc = get_bcc(Vec3(point), cell);
+        get_bcc(bcc, Vec3(point), cell);
         // store the cell to make next step faster
         atom2cell[i] = cell;
         // append barycentric weight to the sum of all weights from given node
@@ -844,7 +894,7 @@ void TriangleInterpolator::interp_conserved(vector<double>& scalars, const vecto
     for (int i = 0; i < n_atoms; ++i) {
         int cell = atom2cell[i];
         // calculate barycentric coordinates
-        bcc = get_bcc(Vec3(atoms[i].point), cell);
+        get_bcc(bcc, Vec3(atoms[i].point), cell);
         // perform interpolation
         int j = 0;
         for (int node : (*faces)[cell])
@@ -920,12 +970,12 @@ void TriangleInterpolator::calc_charges(const double E0) {
 bool TriangleInterpolator::average_sharp_nodes(const bool vacuum) {
     vector<vector<unsigned int>> vorocells;
     mesh->calc_pseudo_3D_vorocells(vorocells, vacuum);
-    return LinearInterpolator<3>::average_sharp_nodes(vorocells);
+    return LinearInterpolator<6>::average_sharp_nodes(vorocells);
 }
 
 // Reserve memory for precompute data
 void TriangleInterpolator::reserve_precompute(const int n) {
-    LinearInterpolator<3>::reserve_precompute(n);
+    LinearInterpolator<6>::reserve_precompute(n);
 
     edge1.clear(); edge1.reserve(n);
     edge2.clear(); edge2.reserve(n);
@@ -971,7 +1021,9 @@ void TriangleInterpolator::precompute() {
         pvec.push_back(pv * i_det);
 
         // store faces and norms to be able to interpolate independently of mesh state
-        cells.push_back((*faces)[i]);
+//        cells.push_back((*faces)[i]);
+
+        cells.push_back(tri2quadTri(i));
         norms.push_back(faces->get_norm(i));
         max_distance.push_back(e2.norm());
         centroids.push_back(faces->get_centroid(i));
@@ -1025,7 +1077,7 @@ double TriangleInterpolator::distance(const Vec3& point, const int face) const {
 }
 
 void TriangleInterpolator::write_vtk(ofstream& out, const int n_nodes) const {
-    LinearInterpolator<3>::write_vtk(out, n_nodes);
+    LinearInterpolator<6>::write_vtk(out, n_nodes);
 
     // write face norms
     out << "VECTORS norm double\n";
@@ -1034,15 +1086,28 @@ void TriangleInterpolator::write_vtk(ofstream& out, const int n_nodes) const {
 }
 
 // Calculate barycentric coordinates for a projection of a point inside the triangle
-array<double,3> TriangleInterpolator::get_bcc(const Vec3& point, const int face) const {
+void TriangleInterpolator::get_bcc(array<double,3>& bcc, const Vec3& point, const int face) const {
     Vec3 tvec = point - vert0[face];
     Vec3 qvec = tvec.crossProduct(edge1[face]);
     double u = tvec.dotProduct(pvec[face]);
     double v = qvec.dotProduct(norms[face]);
     double w = 1.0 - u - v;
+    bcc = {w, u, v};
+}
 
-    return array<double,3> {w, u, v};
-//    return array<double,3> {1.0 - 2.0 * w, 1.0 - 2.0 * u, 1.0 - 2.0 * v};
+void TriangleInterpolator::get_bcc(array<double,6>& bcc, const Vec3& point, const int face) const {
+    const Vec3 tvec = point - vert0[face];
+    const Vec3 qvec = tvec.crossProduct(edge1[face]);
+    const double v = tvec.dotProduct(pvec[face]);
+    const double w = qvec.dotProduct(norms[face]);
+    const double u = 1.0 - v - w;
+//    bcc = {u, v, w, 0, 0, 0};
+    bcc[0] = u * (2 * u - 1);
+    bcc[1] = v * (2 * v - 1);
+    bcc[2] = w * (2 * w - 1);
+    bcc[3] = 4 * u * v;
+    bcc[4] = 4 * v * w;
+    bcc[5] = 4 * w * v;
 }
 
 // Check whether the projection of a point is inside the triangle
@@ -1058,6 +1123,34 @@ bool TriangleInterpolator::point_in_cell(const Vec3& point, const int face) cons
 
     // finally check the distance of the point from the triangle
     return fabs(qvec.dotProduct(edge2[face])) < max_distance[face];
+}
+
+int TriangleInterpolator::match_edges(vector<unsigned>& vec1, vector<unsigned>& vec2) const {
+    for (unsigned i : vec1)
+        for (unsigned j : vec2)
+            if (i == j) return i;
+    return -1;
+}
+
+SimpleCell<6> TriangleInterpolator::tri2quadTri(const int tri) const {
+    if (mesh->quads.size() == 0) return QuadraticTri(0);
+
+    const int n_quads_per_tri = 3;
+    array<vector<unsigned>,3> edge_nodes;
+
+    // locate hexahedral nodes that are located in the middle of edges
+    for (int i = 0; i < n_quads_per_tri; ++i) {
+        for (int quadnode : mesh->quads[n_quads_per_tri * tri + i])
+            if (nodes->get_marker(quadnode) == TYPES.EDGECENTROID)
+                edge_nodes[i].push_back(quadnode);
+    }
+
+    // find second order nodes
+    const int n4 = match_edges(edge_nodes[0], edge_nodes[1]);
+    const int n5 = match_edges(edge_nodes[1], edge_nodes[2]);
+    const int n6 = match_edges(edge_nodes[2], edge_nodes[0]);
+
+    return QuadraticTri((*faces)[tri], n4, n5, n6);
 }
 
 void TriangleInterpolator::print_statistics(const double Q) {
@@ -1080,7 +1173,7 @@ void TriangleInterpolator::print_statistics(const double Q) {
     write_verbose_msg(stream.str());
 }
 
-template class LinearInterpolator<3> ;
-template class LinearInterpolator<4> ;
+template class LinearInterpolator<6> ;
+template class LinearInterpolator<10> ;
 
 } // namespace femocs

@@ -56,9 +56,9 @@ Config::Config() {
 
     heating.lorentz = 2.44e-8;           // Lorentz number
     heating.mode = "none";       // method to calculate current density and temperature; none, stationary or transient
-    heating.work_function = 4.5;         // work function [eV]
-    heating.rhofile = "in/rho_table.dat.in";  //rho table file
-    heating.Vappl = -1.;       // if space charge is used.
+    heating.work_function = 4.5; // work function [eV]
+    heating.rhofile = "in/rho_table.dat";  //rho table file
+    heating.Vappl = -1.;         // if space charge is used.
 
     E0 = 0.0;                      // long range electric field
     neumann = 0;                 // neumann boundary contition value
