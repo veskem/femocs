@@ -39,6 +39,7 @@ public:
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
     int run(const double elfield, const string&);
+    int run();
 
     /** Function to import atoms from PARCAS
      * @param n_atoms       number of imported atoms
@@ -203,6 +204,7 @@ private:
     bool skip_calculations, fail;
     double t0;
     int timestep;           ///< counter to measure how many times Femocs has been called
+    int last_full_timestep; ///< timestep Femocs did full calculation
     vector<Vec3> areas;     ///< surface areas of Voronoi cells that is exposed to vacuum
     vector<int> atom2face;  ///< surface atom to triangle index map
     
@@ -215,17 +217,19 @@ private:
     TetgenMesh fem_mesh;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
 
     /// data for interpolating results on vacuum-material boundary
-    TriangleInterpolator surface_interpolator = TriangleInterpolator(&fem_mesh);
+    TriangleInterpolator vacuum_surface_interpolator = TriangleInterpolator(&fem_mesh);
     /// data for interpolating results in vacuum
     TetrahedronInterpolator vacuum_interpolator = TetrahedronInterpolator(&fem_mesh);
+    /// data for interpolating results on the bulk surface
+    TriangleInterpolator bulk_surface_interpolator = TriangleInterpolator(&fem_mesh);
     /// data for interpolating results in bulk
     TetrahedronInterpolator bulk_interpolator = TetrahedronInterpolator(&fem_mesh);
 
     HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
-    FieldReader fields = FieldReader(&surface_interpolator, &vacuum_interpolator); ///< interpolated fields and potentials
-    ForceReader forces = ForceReader(&surface_interpolator, &vacuum_interpolator); ///< forces on surface atoms
+    FieldReader fields = FieldReader(&vacuum_surface_interpolator, &vacuum_interpolator); ///< interpolated fields and potentials
+    ForceReader forces = ForceReader(&vacuum_surface_interpolator, &vacuum_interpolator); ///< forces on surface atoms
 
-    fch::PhysicalQuantities phys_quantities;              ///< physical quantities used in heat calculations
+    fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);   ///< physical quantities used in heat calculations
     fch::CurrentsAndHeatingStationary<3> ch_solver1;      ///< first steady-state currents and heating solver
     fch::CurrentsAndHeatingStationary<3> ch_solver2;      ///< second steady-state currents and heating solver
     fch::CurrentsAndHeatingStationary<3>* ch_solver;      ///< active steady-state currents and heating solver
@@ -236,11 +240,14 @@ private:
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
 
-    /** Solve steady-steate heat and continuity equations */
-    int solve_stationary_heat(const double T_ambient);
+    /** Solve steady-state heat and continuity equations */
+    int solve_stationary_heat();
 
     /** Solve transient heat and continuity equations */
-    int solve_transient_heat(const double T_ambient);
+    int solve_transient_heat(const double delta_time);
+
+    /** Solve transient heat and continuity equation until convergence reached*/
+    int solve_converge_heat();
 
     /** Interpolate the solution on the x-z plane in the middle of simulation box */
     void write_slice(const string& file_name);

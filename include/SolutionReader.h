@@ -113,11 +113,11 @@ public:
     FieldReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium, const int component=0, const bool srt=true);
+    void interpolate(const Medium &medium, const int component, const bool srt);
 
     /** Interpolate solution on points using the solution on tetrahedral mesh nodes */
     void interpolate(const int n_points, const double* x, const double* y, const double* z,
-            const int component=0, const bool srt=true);
+            const int component, const bool srt);
 
     /** Interpolate solution on medium atoms using the solution on triangular mesh nodes */
     void interpolate_2d(vector<int>& surf2face, const Medium &medium, const int component, const bool srt);
@@ -185,11 +185,15 @@ public:
     HeatReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium, const int component=0, const bool srt=true);
+    void interpolate(const Medium &medium, const double empty_val, const int component, const bool srt);
 
-    /** Linearly interpolate electric field for the currents and temperature solver.
+    /** Linearly interpolate currents and temperatures in the bulk.
      *  In case of empty interpolator, constant values are stored. */
-    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const int component=0, const bool srt=true);
+    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const int component, const bool srt);
+
+    /** Linearly interpolate currents and temperatures on the bulk surface.
+     *  In case of empty interpolator, constant values are stored. */
+    void interpolate_2d(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const int component, const bool srt);
 
     /** Export interpolated temperature */
     void export_temperature(const int n_atoms, double* T);
@@ -206,21 +210,72 @@ private:
 /** Class to calculate field emission effects with GETELEC */
 class EmissionReader: public SolutionReader {
 public:
-    /** EmissionReader constructors */
-    EmissionReader(TriangleInterpolator* tri);
-    EmissionReader(TetrahedronInterpolator* tet);
-    EmissionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
+    /** EmissionReader constructors. */
+    EmissionReader(TriangleInterpolator* tri, const FieldReader& fields, const HeatReader& heat,
+            const TetgenFaces& faces);
+    EmissionReader(TetrahedronInterpolator* tet, const FieldReader& fields,
+            const HeatReader& heat, const TetgenFaces& faces);
+    EmissionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet,
+            const FieldReader& fields, const HeatReader& heat, const TetgenFaces& faces);
 
-    void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const FieldReader& fields,
-            const double workfunction, const HeatReader& heat_reader);
+    /** Calculates the emission currents and Nottingham heat distributions, including a rough
+     * estimation of the space charge effects.
+     * @param ch_solver heat solver object where J and Nottingham BCs will be written
+     * @param workfunction Work function
+     * @param Vappl Applied voltage (required for space charge calculations)
+     */
+    void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const double workfunction,
+            const double Vappl);
 
-    double get_rho_norm(const int i) const;
-
-    double get_temperature(const int i) const;
+    double get_multiplier() const {return multiplier;}
+    void set_multiplier(double _multiplier) { multiplier = _multiplier;}
 
 private:
-    void emission_line(const Point3& point, const Vec3& direction, const double rmax,
-                        vector<double> &rline, vector<double> &Vline);
+    /** Prepares the line inputted to GETELEC.
+     *
+     * @param point Starting point of the line
+     * @param direction Direction of the line
+     * @param rmax Maximum distance that the line extends
+     */
+    void emission_line(const Point3& point, const Vec3& direction, const double rmax);
+
+    /** Calculates representative quantities Jrep and Frep for space charge calculations
+     * (See https://arxiv.org/abs/1710.00050 for definitions)
+     */
+    void calc_representative();
+
+    /**
+     * Initialises class data.
+     */
+    void initialize();
+
+    /**
+     * Calculates electron emission distribution for a given configuration (
+     * @param workfunction Input work function.
+     */
+    void calc_emission(double workfunction);
+
+
+    const double angstrom_per_nm = 10.0;
+    const double nm2_per_angstrom2 = 0.01;
+
+    const FieldReader& fields;    ///< Object containing the field on centroids of hex interface faces.
+    const HeatReader& heat;       ///< Object containing the temperature on centroids of hexahedral faces.
+    const TetgenFaces& faces;     ///< Object containing information on the faces of the mesh.
+
+    vector<double> currents;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
+    vector<double> nottingham; ///< Same as currents for nottingham heat deposition [in W/A^2]
+
+    const int n_lines = 32; ///< Number of points in the line for GETELEC
+    vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
+    vector<double> Vline;   ///< Potential on the straight line (complements rline)
+
+    double multiplier;      ///< Multiplier for the field for Space Charge.
+    double Jmax;    ///< Maximum current density of the emitter [in amps/A^2]
+    double Fmax = 0.;    ///< Maximum local field on the emitter [V/A]
+    double Frep = 0.;    ///< Representative local field (used for space charge equation) [V/A]
+    double Jrep = 0.;    ///< Representative current deinsity for space charge. [amps/A^2]
+
 };
 
 /** Class to calculate charges from electric field */

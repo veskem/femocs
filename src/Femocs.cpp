@@ -20,7 +20,8 @@ using namespace std;
 namespace femocs {
 
 // specify simulation parameters
-Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false), timestep(-1) {
+Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false),
+        timestep(-1), last_full_timestep(0) {
     static bool first_call = true;
 
     // Read configuration parameters from configuration file
@@ -42,6 +43,7 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false),
 
     // Initialise heating module
     start_msg(t0, "=== Reading physical quantities...");
+    phys_quantities.initialize_with_hc_data();
     ch_solver1.set_physical_quantities(&phys_quantities);
     ch_solver2.set_physical_quantities(&phys_quantities);
     ch_solver  = &ch_solver1;
@@ -72,17 +74,17 @@ int Femocs::force_output() {
 
     vacuum_interpolator.write("out/result_E_phi_vacuum_err.xyz");
     vacuum_interpolator.write("out/result_E_phi_vacuum_err.vtk");
-    surface_interpolator.write("out/result_E_phi_surface_err.xyz");
-    surface_interpolator.write("out/result_E_phi_surface_err.vtk");
+    vacuum_surface_interpolator.write("out/result_E_phi_surface_err.xyz");
+    vacuum_surface_interpolator.write("out/result_E_phi_surface_err.vtk");
 
     if (bulk_interpolator.size() > 0) {
-        if (conf.heating_mode == "transient" || conf.heating_mode == "stationary")
+        if (conf.heating.mode == "transient" || conf.heating.mode == "stationary")
             bulk_interpolator.write("out/result_J_T_err.xyz");
-        if (conf.heating_mode == "transient") {
+        if (conf.heating.mode == "transient") {
             ch_transient_solver.output_results_current("out/result_J_err.vtk");
             ch_transient_solver.output_results_heating("out/result_T_err.vtk");
         }
-        if (conf.heating_mode == "stationary") {
+        if (conf.heating.mode == "stationary") {
             ch_solver->output_results("out/result_J_T_err.vtk");
         }
     }
@@ -113,7 +115,7 @@ void Femocs::write_slice(const string& file_name) {
             medium.append( Point3(x, reader.sizes.ymid, z) );
 
     FieldReader fr(&vacuum_interpolator);
-    fr.interpolate(medium, conf.use_histclean * conf.coordination_cutoff);
+    fr.interpolate(medium, 0, false);
     fr.write(file_name);
 
     MODES.WRITEFILE = writefile_save;
@@ -146,7 +148,7 @@ int Femocs::run(const double elfield, const string &message) {
     }
 
     // Solve heat & continuity equation on bulk mesh
-    if (solve_heat(conf.t_ambient)) {
+    if (solve_heat(conf.heating.t_ambient)) {
         force_output();
         check_return(true, "Solving heat & continuity equation failed!");
     }
@@ -158,6 +160,10 @@ int Femocs::run(const double elfield, const string &message) {
     write_silent_msg(stream.str());
 
     return 0;
+}
+
+int Femocs::run() {
+    return run(conf.E0, "");
 }
 
 // Determine whether atoms have moved significantly and whether to enable file writing
@@ -190,6 +196,7 @@ int Femocs::finalize() {
     reader.save_current_run_points(conf.distance_tol);
     end_msg(t0);
     skip_calculations = false;
+    last_full_timestep = timestep;
     return 0;
 }
 
@@ -281,9 +288,9 @@ int Femocs::generate_meshes() {
     fem_mesh.elems.write("out/tetmesh.vtk");
 
     if (conf.surface_cleaner == "faces") {
-        surface_interpolator.precompute();
+        vacuum_surface_interpolator.precompute();
         start_msg(t0, "=== Cleaning surface atoms...");
-        dense_surf.clean_by_triangles(atom2face, surface_interpolator, conf.latconst);
+        dense_surf.clean_by_triangles(atom2face, vacuum_surface_interpolator, conf.latconst);
         end_msg(t0);
         dense_surf.write("out/surface_dense_clean.xyz");
     }
@@ -331,35 +338,41 @@ int Femocs::solve_laplace(const double E0) {
 
     start_msg(t0, "=== Extracting E and phi...");
     fail = vacuum_interpolator.extract_solution(&laplace_solver);
-    fail |= surface_interpolator.extract_solution(&laplace_solver);
+    fail |= vacuum_surface_interpolator.extract_solution(&laplace_solver);
     end_msg(t0);
 
     check_return(fields.check_limits(vacuum_interpolator.get_solutions()), "Field is over-enhanced!");
 
     vacuum_interpolator.write("out/result_E_phi_vacuum.xyz");
     vacuum_interpolator.write("out/result_E_phi_vacuum.vtk");
-    surface_interpolator.write("out/result_E_phi_surface.xyz");
-    surface_interpolator.write("out/result_E_phi_surface.vtk");
+    vacuum_surface_interpolator.write("out/result_E_phi_surface.xyz");
+    vacuum_surface_interpolator.write("out/result_E_phi_surface.vtk");
 
     return fail;
 }
 
 // Pick a method to solve heat & continuity equations
 int Femocs::solve_heat(const double T_ambient) {
-    if (conf.heating_mode == "stationary")
-        return solve_stationary_heat(T_ambient);
+    const double delta_t_MD = 4.05e-15; // in seconds
 
-    else if (conf.heating_mode == "transient")
-        for (int i = 0; i < conf.transient_steps; ++i) {
-            if (solve_transient_heat(T_ambient))
-                return 1;
-        }
+    if (conf.heating.mode == "stationary") {
+        return solve_stationary_heat();
+    }
+    else if(conf.heating.mode == "transient") {
+        double delta_time = delta_t_MD * (timestep - last_full_timestep); //in sec
+        int success = solve_transient_heat(delta_time);
+        write_verbose_msg("Current and heat advanced for " + to_string(delta_time));
+        return success;
+    }
+    else if (conf.heating.mode == "converge") {
+        return solve_converge_heat();
+    }
 
     return 0;
 }
 
 // Solve steady-state heat and continuity equations
-int Femocs::solve_stationary_heat(const double T_ambient) {
+int Femocs::solve_stationary_heat() {
     start_msg(t0, "=== Initializing stationary J & T solver...");
     ch_solver->reinitialize(&laplace_solver, prev_ch_solver);
     end_msg(t0);
@@ -375,20 +388,20 @@ int Femocs::solve_stationary_heat(const double T_ambient) {
     end_msg(t0);
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
-    FieldReader fr(&vacuum_interpolator);
+    FieldReader fr(&vacuum_surface_interpolator);
     fr.transfer_elfield(ch_solver, conf.coordination_cutoff, conf.use_histclean);
     end_msg(t0);
 
     fr.write("out/surface_field.xyz");
 
     start_msg(t0, "=== Running J & T solver...\n");
-    ch_solver->set_ambient_temperature(T_ambient);
-    double t_error = ch_solver->run_specific(conf.t_error, conf.n_newton, false, "", MODES.VERBOSE, 2, 400, true);
+    ch_solver->set_ambient_temperature(conf.heating.t_ambient);
+    double t_error = ch_solver->run_specific(conf.heating.t_error, conf.heating.n_newton, false, "", MODES.VERBOSE, 2, 400, true);
     end_msg(t0);
 
     ch_solver->output_results("out/result_J_T.vtk");
 
-    check_return(t_error > conf.t_error, "Temperature didn't converge, err=" + to_string(t_error));
+    check_return(t_error > conf.heating.t_error, "Temperature didn't converge, err=" + to_string(t_error));
 
     start_msg(t0, "=== Extracting J & T...");
     bulk_interpolator.extract_solution(ch_solver);
@@ -410,14 +423,9 @@ int Femocs::solve_stationary_heat(const double T_ambient) {
 }
 
 // Solve transient heat and continuity equations
-int Femocs::solve_transient_heat(const double T_ambient) {
+int Femocs::solve_transient_heat(const double delta_time) {
     static bool first_call = true;
-    const double time_unit = 1e-12; // == picosec
-    double delta_time = 0.01 * time_unit;
-    const int n_time_steps = conf.transient_time / delta_time;
-
-    require(n_time_steps > 0, "Too small transient_time: " + to_string(conf.transient_time));
-    delta_time = conf.transient_time / n_time_steps;
+    double multiplier = 1.;
 
     start_msg(t0, "=== Importing mesh to transient J & T solver...");
     fail = !ch_transient_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
@@ -426,20 +434,22 @@ int Femocs::solve_transient_heat(const double T_ambient) {
     end_msg(t0);
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
-    FieldReader field_reader(&vacuum_interpolator);
+    FieldReader field_reader(&vacuum_surface_interpolator);
     field_reader.transfer_elfield(ch_transient_solver, conf.coordination_cutoff, conf.use_histclean);
     end_msg(t0);
     field_reader.write("out/surface_field.xyz");
 
     start_msg(t0, "=== Interpolating J & T on face centroids...");
-    HeatReader heat_reader(&bulk_interpolator);
-    heat_reader.interpolate(ch_transient_solver, T_ambient);
+
+    HeatReader heat_reader(&bulk_surface_interpolator);
+    heat_reader.interpolate_2d(ch_transient_solver, conf.heating.t_ambient, 0, false);
     end_msg(t0);
     heat_reader.write("out/surface_temperature.xyz");
 
     start_msg(t0, "=== Calculating field emission...");
-    EmissionReader emission(&vacuum_interpolator);
-    emission.transfer_emission(ch_transient_solver, field_reader, conf.work_function, heat_reader);
+    EmissionReader emission(&vacuum_interpolator, field_reader, heat_reader, fem_mesh.faces);
+    emission.transfer_emission(ch_transient_solver,
+            conf.heating.work_function, conf.heating.Vappl);
     end_msg(t0);
     emission.write("out/surface_emission.xyz");
 
@@ -451,36 +461,110 @@ int Femocs::solve_transient_heat(const double T_ambient) {
     }
 
     start_msg(t0, "=== Calculating current density...");
-    ch_transient_solver.assemble_current_system();           // assemble matrix for current density equation; current == electric current
+    ch_transient_solver.assemble_current_system(); // assemble matrix for current density equation; current == electric current
     unsigned int ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
     end_msg(t0);
 
     start_msg(t0, "=== Calculating temperature distribution...\n");
     ch_transient_solver.set_timestep(delta_time);
 
-    for (int i = 0; i < n_time_steps; ++i) {
-        ch_transient_solver.assemble_heating_system_euler_implicit();
-        //ch_transient_solver.assemble_heating_system_crank_nicolson();
+    ch_transient_solver.assemble_heating_system_euler_implicit();
 
-        unsigned int hcg = ch_transient_solver.solve_heat(); // hcg == number of temperature calculation (CG) iterations
-        if (MODES.VERBOSE) {
-            double max_T = ch_transient_solver.get_max_temperature();
-            printf("  t=%5.3fps; ccg=%2d; hcg=%2d; Tmax=%6.2f\n", i * delta_time / time_unit, ccg, hcg, max_T);
-        }
-    }
+    unsigned int hcg = ch_transient_solver.solve_heat(); // hcg == number of temperature calculation (CG) iterations
     end_msg(t0);
 
     ch_transient_solver.output_results_current("out/result_J.vtk");
     ch_transient_solver.output_results_heating("out/result_T.vtk");
 
     start_msg(t0, "=== Extracting J & T...");
-    bulk_interpolator.extract_solution(&ch_transient_solver);
+    bulk_surface_interpolator.extract_solution(&ch_transient_solver);
     end_msg(t0);
-    bulk_interpolator.write("out/result_J_T.movie");
+    bulk_surface_interpolator.write("out/result_J_T.movie");
 
     first_call = false;
     return 0;
 }
+
+
+// Solve transient heat and continuity until convergence is achieved
+int Femocs::solve_converge_heat() {
+    static bool first_call = true;
+
+    start_msg(t0, "=== Importing mesh to transient J & T solver...");
+    fail = !ch_transient_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
+            fem_mesh.hexahedra.export_bulk());
+    check_return(fail, "Importing mesh to Deal.II failed!");
+    end_msg(t0);
+
+    start_msg(t0, "=== Transfering elfield to J & T solver...");
+    FieldReader field_reader(&vacuum_surface_interpolator);
+    field_reader.transfer_elfield(ch_transient_solver, conf.coordination_cutoff, conf.use_histclean);
+    end_msg(t0);
+    field_reader.write("out/surface_field.xyz");
+
+    if (first_call) {
+        start_msg(t0, "=== Setup transient J & T solver...");
+        ch_transient_solver.setup_current_system();
+        ch_transient_solver.setup_heating_system();
+        end_msg(t0);
+        first_call = false;
+    }
+
+    double current_time = 0.;
+    double delta_time = 1.e-12; //in seconds!!
+    double multiplier = 1.;
+
+    for (int i = 0; i < 1000; ++i){
+
+        start_msg(t0, "=== Interpolating J & T on face centroids...");
+        HeatReader heat_reader(&bulk_surface_interpolator);
+        heat_reader.interpolate_2d(ch_transient_solver, conf.heating.t_ambient, 0, false);
+        end_msg(t0);
+        if (MODES.VERBOSE) heat_reader.write("out/surface_temperature.xyz");
+
+        start_msg(t0, "=== Calculating field emission...");
+        EmissionReader emission(&vacuum_interpolator, field_reader, heat_reader, fem_mesh.faces);
+        emission.set_multiplier(multiplier);
+        emission.transfer_emission(ch_transient_solver, conf.heating.work_function, conf.heating.Vappl);
+        multiplier = emission.get_multiplier();
+        end_msg(t0);
+        if (MODES.VERBOSE) emission.write("out/surface_emission.xyz");
+
+        start_msg(t0, "=== Calculating current density...");
+        ch_transient_solver.assemble_current_system(); // assemble matrix for current density equation; current == electric current
+        unsigned int ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
+        end_msg(t0);
+
+        start_msg(t0, "=== Calculating temperature distribution...\n");
+        ch_transient_solver.set_timestep(delta_time);
+        ch_transient_solver.assemble_heating_system_euler_implicit();
+        unsigned int hcg = ch_transient_solver.solve_heat(); // hcg == number of temperature calculation (CG) iterations
+        end_msg(t0);
+
+        start_msg(t0, "=== Extracting J & T...");
+        bulk_surface_interpolator.extract_solution(&ch_transient_solver);
+        end_msg(t0);
+        bulk_surface_interpolator.write("out/result_J_T.movie");
+
+        current_time += delta_time;
+        if (MODES.VERBOSE) {
+            double max_T = ch_transient_solver.get_max_temperature();
+            printf("  i=%d ; dt= %5.3f ps ; t= %5.3f ps ; ccg= %2d ; hcg= %2d ; Tmax= %6.2f\n",
+                    i, delta_time * 1.e12, current_time * 1.e12, ccg, hcg, max_T);
+        }
+
+        if (max(hcg, ccg) < 150)
+            delta_time *= 1.5;
+        else if (max(hcg, ccg) > 150)
+            delta_time /= 1.5;
+
+        if (max(hcg, ccg) < 10) return 0;
+    }
+    write_silent_msg("WARNING: Heat equation did not converged after 1000 steps.");
+
+    return 0;
+}
+
 
 // Generate artificial nanotip
 int Femocs::generate_nanotip(const double height, const double radius, const double resolution) {
@@ -666,14 +750,14 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
 
 // calculate and export temperatures on imported atom coordinates
 int Femocs::export_temperature(const int n_atoms, double* T) {
-    if (n_atoms < 0 || conf.heating_mode == "none") return 0;
+    if (n_atoms < 0 || conf.heating.mode == "none") return 0;
     check_return(bulk_interpolator.size() == 0, "No temperature to export!");
 
     if (skip_calculations)
         write_silent_msg("Using previous temperature!");
     else {
         start_msg(t0, "=== Interpolating J & T...");
-        temperatures.interpolate(reader);
+        temperatures.interpolate(reader, conf.heating.t_ambient, 0, false);
         end_msg(t0);
 
         temperatures.write("out/interpolation_bulk.movie");
@@ -739,9 +823,9 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
 int Femocs::interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     if (n_points <= 0) return 0;
-    check_return(surface_interpolator.size() == 0, "No solution to export!");
+    check_return(vacuum_surface_interpolator.size() == 0, "No solution to export!");
 
-    FieldReader fr(&surface_interpolator);
+    FieldReader fr(&vacuum_surface_interpolator);
     start_msg(t0, "=== Interpolating & exporting surface elfield...");
     fr.interpolate_2d(n_points, x, y, z, 1, false);
     fail = fr.clean(conf.coordination_cutoff, conf.use_histclean);

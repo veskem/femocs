@@ -531,46 +531,6 @@ bool TetrahedronInterpolator::extract_solution(fch::CurrentsAndHeatingStationary
     return false;
 }
 
-// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-bool TetrahedronInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem) {
-    require(fem, "NULL pointer can't be handled!");
-    const int n_nodes = nodes->size();
-    expect(n_nodes > 0, "Interpolator expects non-empty mesh!");
-    const double eps = 1e-5 * elems->stat.edgemin;
-
-    // Precompute tetrahedra to make interpolation faster
-    reserve(n_nodes);
-    precompute();
-
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> tetNode2hexNode, cell_indxs, vert_indxs;
-    get_maps(tetNode2hexNode, cell_indxs, vert_indxs,
-            fem->get_triangulation(), fem->get_dof_handler_current(), eps);
-
-    vector<dealii::Tensor<1, 3>> rho = fem->get_current(cell_indxs, vert_indxs); // get list of current densities
-    vector<double> temperature = fem->get_temperature(cell_indxs, vert_indxs); // get list of temperatures
-
-    require(rho.size() == temperature.size(),
-            "Mismatch of vector sizes: " + to_string(rho.size()) + ", "
-                    + to_string(temperature.size()));
-
-    unsigned i = 0;
-    for (int n : tetNode2hexNode) {
-        // If there is a common node between tet and hex meshes, store actual solution
-        if (n >= 0) {
-            require(i < rho.size(), "Invalid index: " + to_string(i));
-            Vec3 current(rho[i][0], rho[i][1], rho[i][2]);
-            append_solution(Solution(current, temperature[i++]));
-        }
-
-        // In case of non-common node, store solution with error value
-        else
-            append_solution(Solution(0));
-    }
-
-    return false;
-}
-
 // Reserve memory for pre-compute data
 void TetrahedronInterpolator::reserve_precompute(const int N) {
     LinearInterpolator<4>::reserve_precompute(N);
@@ -735,8 +695,8 @@ array<double,4> TetrahedronInterpolator::get_bcc(const Vec3& point, const int i)
     const double bcc3 = det0[i] * pt.dotProduct(det3[i]);
     const double bcc4 = det0[i] * pt.dotProduct(det4[i]);
 
-//    return array<double,4> {bcc1, bcc2, bcc3, bcc4};
-    return array<double,4> {1.0 - 3.0 * bcc1, 1.0 - 3.0 * bcc2, 1.0 - 3.0 * bcc3, 1.0 - 3.0 * bcc4};
+    return array<double,4> {bcc1, bcc2, bcc3, bcc4};
+//    return array<double,4> {1.0 - 3.0 * bcc1, 1.0 - 3.0 * bcc2, 1.0 - 3.0 * bcc3, 1.0 - 3.0 * bcc4};
 }
 
 /* ==================================================================
@@ -804,6 +764,46 @@ bool TriangleInterpolator::extract_solution(fch::Laplace<3>* fem) {
 
     // leave only the solution in the vertices and centroids of triangles
     return clean_nodes();
+}
+
+// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
+bool TriangleInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem) {
+    require(fem, "NULL pointer can't be handled!");
+    const int n_nodes = nodes->size();
+    expect(n_nodes > 0, "Interpolator expects non-empty mesh!");
+    const double eps = 1e-5 * faces->stat.edgemin;
+
+    // Precompute tetrahedra to make interpolation faster
+    reserve(n_nodes);
+    precompute();
+
+    // To make solution extraction faster, generate mapping between desired and available data sequences
+    vector<int> tetNode2hexNode, cell_indxs, vert_indxs;
+    get_maps(tetNode2hexNode, cell_indxs, vert_indxs,
+            fem->get_triangulation(), fem->get_dof_handler_current(), eps);
+
+    vector<dealii::Tensor<1, 3>> rho = fem->get_current(cell_indxs, vert_indxs); // get list of current densities
+    vector<double> temperature = fem->get_temperature(cell_indxs, vert_indxs); // get list of temperatures
+
+    require(rho.size() == temperature.size(),
+            "Mismatch of vector sizes: " + to_string(rho.size()) + ", "
+                    + to_string(temperature.size()));
+
+    unsigned i = 0;
+    for (int n : tetNode2hexNode) {
+        // If there is a common node between tet and hex meshes, store actual solution
+        if (n >= 0) {
+            require(i < rho.size(), "Invalid index: " + to_string(i));
+            Vec3 current(rho[i][0], rho[i][1], rho[i][2]);
+            append_solution(Solution(current, temperature[i++]));
+        }
+
+        // In case of non-common node, store solution with error value
+        else
+            append_solution(Solution(0));
+    }
+
+    return false;
 }
 
 // Interpolate scalar value inside or near cell

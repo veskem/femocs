@@ -33,9 +33,9 @@ Config::Config() {
     cfactor.amplitude = 0.4;     // coarsening factor outside the warm region
     cfactor.r0_cylinder = 0;     // minimum distance between atoms in nanotip outside the apex
     cfactor.r0_sphere = 0;       // minimum distance between atoms in nanotip apex
-    t_ambient = 300.0;           // ambient temperature
-    t_error = 10.0;              // maximum allowed temperature error in Newton iterations
-    n_newton = 10;               // maximum number of Newton iterations
+    heating.t_ambient = 300.0;           // ambient temperature
+    heating.t_error = 10.0;              // maximum allowed temperature error in Newton iterations
+    heating.n_newton = 10;               // maximum number of Newton iterations
     phi_error = 1e-9;            // maximum allowed electric potential error
     n_phi = 10000;               // maximum number of Conjugate Gradient iterations in phi calculation
     ssor_param = 1.2;            // parameter for SSOR preconditioner
@@ -54,13 +54,16 @@ Config::Config() {
     clear_output = true;         // clear output folder
     use_rdf = false;             // use radial distribution function to recalculate lattice constant and coordination analysis parameters
 
-    heating_mode = "none";       // method to calculate current density and temperature; none, stationary or transient
-    transient_time = 0.05e-12;   // time resolution in transient temperature solver [sec]
-    transient_steps = 3;         // number of iterations in transient heat equation solver
-    work_function = 4.5;         // work function [eV]
-    E0 = 0;                      // long range electric field
+    heating.lorentz = 2.44e-8;           // Lorentz number
+    heating.mode = "none";       // method to calculate current density and temperature; none, stationary or transient
+    heating.work_function = 4.5;         // work function [eV]
+    heating.rhofile = "in/rho_table.dat.in";  //rho table file
+    heating.Vappl = -1.;       // if space charge is used.
+
+    E0 = 0.0;                      // long range electric field
     neumann = 0;                 // neumann boundary contition value
     message = "";                // message from the host code
+
 
     smooth_steps = 0;             // number of surface mesh smoothing iterations
     smooth_lambda = 0.6307;       // lambda parameter in surface mesh smoother
@@ -89,11 +92,9 @@ void Config::read_all(const string& file_name) {
 
     // Modify the parameters that are specified in input script
     read_command("use_rdf", use_rdf);
-    read_command("work_function", work_function);
-    read_command("transient_steps", transient_steps);
-    read_command("transient_time", transient_time);
-    read_command("t_ambient", t_ambient);
-    read_command("heating_mode", heating_mode);
+    read_command("work_function", heating.work_function);
+    read_command("t_ambient", heating.t_ambient);
+    read_command("heating_mode", heating.mode);
     read_command("smooth_steps", smooth_steps);
     read_command("smooth_lambda", smooth_lambda);
     read_command("smooth_mu", smooth_mu);
@@ -125,6 +126,10 @@ void Config::read_all(const string& file_name) {
     read_command("write_log", MODES.WRITELOG);
     read_command("use_histclean", use_histclean);
     read_command("n_writefile", n_writefile);
+    read_command("lorentz", heating.lorentz);
+    read_command("rhofile", heating.rhofile);
+    read_command("elfield", E0);
+    read_command("V_appl", heating.Vappl);
 
     // Read commands with potentially multiple arguments like...
     vector<double> args;
