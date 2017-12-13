@@ -15,7 +15,7 @@
 #include "VoronoiMesh.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
-#include "LinearInterpolator.h"
+#include "Interpolator.h"
 
 using namespace std;
 namespace femocs {

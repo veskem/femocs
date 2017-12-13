@@ -13,7 +13,7 @@
 #include "Coarseners.h"
 #include "Medium.h"
 #include "AtomReader.h"
-#include "LinearInterpolator.h"
+#include "Interpolator.h"
 #include "VoronoiMesh.h"
 
 using namespace std;

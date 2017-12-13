@@ -5,7 +5,7 @@
  *      Author: veske
  */
 
-#include "../include/LinearInterpolator.h"
+#include "../include/Interpolator.h"
 
 #include "Macros.h"
 #include "float.h"
@@ -19,8 +19,7 @@ namespace femocs {
 
 // Calculate distance-dependent weights for a point with respect to the cell
 template<int dim>
-array<double,dim> LinearInterpolator<dim>::get_weights(const Point3 &point, const SimpleCell<dim>& scell) const {
-    array<double,dim> weights;
+void Interpolator<dim>::get_weights(array<double,dim>& weights, const Point3 &point, const SimpleCell<dim>& scell) const {
     double w_sum = 0;
 
     for (int i = 0; i < dim; ++i) {
@@ -28,87 +27,86 @@ array<double,dim> LinearInterpolator<dim>::get_weights(const Point3 &point, cons
         weights[i] = w;
         w_sum += w;
     }
+
     // check for zero and nan
     require(w_sum > 0 && w_sum == w_sum, "Invalid interpolation weight: " + to_string(w_sum));
     w_sum = 1.0 / w_sum;
 
     for (int i = 0; i < dim; ++i)
         weights[i] *= w_sum;
-
-    return weights;
 }
 
 // Interpolate both scalar and vector data inside or near the cell
 template<int dim>
-Solution LinearInterpolator<dim>::interp_solution(const Point3 &point, const int c) const {
+Solution Interpolator<dim>::interp_solution(const Point3 &point, const int c) const {
     const int cell = abs(c);
     require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
 
     SimpleCell<dim> scell = cells[cell];
 
     // calculate weights or barycentric coordinates
-    array<double,dim> bcc;
-    if (c >= 0) get_bcc(bcc, Vec3(point), cell);
-    else bcc = get_weights(point, cell);
+    array<double,dim> weights;
+    if (c >= 0) get_shape_functions(weights, Vec3(point), cell);
+    else get_weights(weights, point, scell);
 
     // Interpolate electric field
     Vec3 vector_i(0.0);
     for (int i = 0; i < dim; ++i)
-        vector_i += solutions[scell[i]].vector * bcc[i];
+        vector_i += solutions[scell[i]].vector * weights[i];
 
     // Interpolate potential
     double scalar_i(0.0);
     for (int i = 0; i < dim; ++i)
-        scalar_i += solutions[scell[i]].scalar * bcc[i];
+        scalar_i += solutions[scell[i]].scalar * weights[i];
 
     return Solution(vector_i, scalar_i);
 }
 
 // Interpolate vector data inside or near the cell
 template<int dim>
-Vec3 LinearInterpolator<dim>::interp_vector(const Point3 &point, const int c) const {
+Vec3 Interpolator<dim>::interp_vector(const Point3 &point, const int c) const {
     const int cell = abs(c);
     require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
 
     SimpleCell<dim> scell = cells[cell];
 
     // calculate weights or barycentric coordinates
-    array<double,dim> bcc;
-    if (c >= 0) get_bcc(bcc, Vec3(point), cell);
-    else bcc = get_weights(point, cell);
+    array<double,dim> weights;
+    if (c >= 0) get_shape_functions(weights, Vec3(point), cell);
+    else get_weights(weights, point, scell);
 
     // Interpolate electric field
     Vec3 vector_i(0.0);
     for (int i = 0; i < dim; ++i)
-        vector_i += solutions[scell[i]].vector * bcc[i];
+        vector_i += solutions[scell[i]].vector * weights[i];
 
     return vector_i;
 }
 
 // Interpolate scalar data inside or near the cell
 template<int dim>
-double LinearInterpolator<dim>::interp_scalar(const Point3 &point, const int c) const {
+double Interpolator<dim>::interp_scalar(const Point3 &point, const int c) const {
     const int cell = abs(c);
     require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
 
     SimpleCell<dim> scell = cells[cell];
 
     // calculate weights or barycentric coordinates
-    array<double,dim> bcc;
-    if (c >= 0) get_bcc(bcc, Vec3(point), cell);
-    else bcc = get_weights(point, cell);
+    array<double,dim> weights;
+    if (c >= 0) get_shape_functions(weights, Vec3(point), cell);
+    else get_weights(weights, point, scell);
 
     // Interpolate potential
     double scalar_i(0.0);
     for (int i = 0; i < dim; ++i)
-        scalar_i += solutions[scell[i]].scalar * bcc[i];
+        scalar_i += solutions[scell[i]].scalar * weights[i];
 
     return scalar_i;
 }
 
 // Find the cell which contains the point or is the closest to it
 template<int dim>
-int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_guess) const {
+int Interpolator<dim>::locate_cell(const Point3 &point, const int cell_guess) const {
     // Check the guessed cell
     Vec3 vec_point(point);
     if (point_in_cell(vec_point, cell_guess)) return cell_guess;
@@ -169,7 +167,7 @@ int LinearInterpolator<dim>::locate_cell(const Point3 &point, const int cell_gue
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
 template<int dim>
-bool LinearInterpolator<dim>::average_sharp_nodes(const vector<vector<unsigned>>& nborlist) {
+bool Interpolator<dim>::average_sharp_nodes(const vector<vector<unsigned>>& nborlist) {
     // loop through the tetrahedral nodes
     for (int i = 0; i < nborlist.size(); ++i) {
         if (nborlist[i].size() == 0) continue;
@@ -195,53 +193,12 @@ bool LinearInterpolator<dim>::average_sharp_nodes(const vector<vector<unsigned>>
     return false;
 }
 
-/* Return the mapping between tetrahedral & hexahedral mesh nodes,
- nodes & hexahedral elements and nodes & element's vertices  */
-template<int dim>
-void LinearInterpolator<dim>::get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
-        dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps) {
-
-    require(tria->n_vertices() > 0, "Invalid triangulation size!");
-    const int n_femocs_nodes = nodes->size();
-    const int n_dealii_nodes = tria->n_used_vertices();
-    const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
-
-    vector<int> node2hex(n_dealii_nodes), node2vert(n_dealii_nodes);
-    tet2hex = vector<int>(n_femocs_nodes, -1);
-
-    typename dealii::Triangulation<3>::active_vertex_iterator vertex = tria->begin_active_vertex();
-    // Loop through tetrahedral mesh vertices
-    for (int i = 0; i < n_femocs_nodes && vertex != tria->end_vertex(); ++i)
-        if ( (*nodes)[i].distance2(vertex->vertex()) < eps ) {
-            tet2hex[i] = vertex->vertex_index();
-            vertex++;
-        }
-
-    // Loop through the hexahedral mesh elements
-    typename dealii::DoFHandler<3>::active_cell_iterator cell;
-    for (cell = dofh->begin_active(); cell != dofh->end(); ++cell)
-        // Loop through all the vertices in the element
-        for (int i = 0; i < n_verts_per_elem; ++i) {
-            node2hex[cell->vertex_index(i)] = cell->active_cell_index();
-            node2vert[cell->vertex_index(i)] = i;
-        }
-
-    // Generate lists of hexahedra and hexahedra nodes where the tetrahedra nodes are located
-    cell_indxs.reserve(n_femocs_nodes);
-    vert_indxs.reserve(n_femocs_nodes);
-    for (int n : tet2hex)
-        if (n >= 0) {
-            cell_indxs.push_back(node2hex[n]);
-            vert_indxs.push_back(node2vert[n]);
-        }
-}
-
 // Pick the suitable write function based on the file type
 template<int dim>
-void LinearInterpolator<dim>::write(const string &file_name) const {
+void Interpolator<dim>::write(const string &file_name) const {
     if (!MODES.WRITEFILE) return;
 
-    const int n_nodes = nodes->stat.n_tetnode;
+    const int n_nodes = nodes->size(); // nodes->stat.n_tetnode;
     expect(n_nodes, "Zero nodes detected!");
     string ftype = get_file_type(file_name);
 
@@ -265,7 +222,7 @@ void LinearInterpolator<dim>::write(const string &file_name) const {
 
 // Output node data in .xyz format
 template<int dim>
-void LinearInterpolator<dim>::write_xyz(ofstream& out, const int n_nodes) const {
+void Interpolator<dim>::write_xyz(ofstream& out, const int n_nodes) const {
     out << n_nodes << endl;
     out << "LinearInterpolator properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" <<
             norm_label << ":R:1:" << scalar_label << ":R:1" << endl;
@@ -276,7 +233,7 @@ void LinearInterpolator<dim>::write_xyz(ofstream& out, const int n_nodes) const 
 
 // Output interpolation cell data in .vtk format
 template<int dim>
-void LinearInterpolator<dim>::write_vtk(ofstream& out, const int n_nodes) const {
+void Interpolator<dim>::write_vtk(ofstream& out, const int n_nodes) const {
     const int celltype = get_cell_type();
     const int n_cells = cells.size();
 
@@ -330,13 +287,136 @@ void LinearInterpolator<dim>::write_vtk(ofstream& out, const int n_nodes) const 
         out << i << "\n";
 }
 
+/* Calculate mapping between Femocs & deal.II mesh nodes,
+ nodes & hexahedral elements and nodes & element's vertices */
+template<int dim>
+void Interpolator<dim>::get_maps(vector<int>& femocs2deal, vector<int>& cell_indxs, vector<int>& vert_indxs,
+        dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh) const {
+
+    const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
+
+    require(tria->n_vertices() > 0, "Invalid triangulation size!");
+    const int n_femocs_nodes = nodes->size();
+    expect(n_femocs_nodes > 0, "Interpolator expects non-empty mesh!");
+    const int n_dealii_nodes = tria->n_used_vertices();
+
+    vector<int> node2hex(n_dealii_nodes), node2vert(n_dealii_nodes);
+    femocs2deal = vector<int>(n_femocs_nodes, -1);
+
+    typename dealii::Triangulation<3>::active_vertex_iterator vertex = tria->begin_active_vertex();
+    // Loop through tetrahedral mesh vertices
+    for (int i = 0; i < n_femocs_nodes && vertex != tria->end_vertex(); ++i)
+        if ( (*nodes)[i].distance2(vertex->vertex()) < vertex_epsilon ) {
+            femocs2deal[i] = vertex->vertex_index();
+            vertex++;
+        }
+
+    // Loop through the hexahedral mesh elements
+    typename dealii::DoFHandler<3>::active_cell_iterator cell;
+    for (cell = dofh->begin_active(); cell != dofh->end(); ++cell)
+        // Loop through all the vertices in the element
+        for (int i = 0; i < n_verts_per_elem; ++i) {
+            node2hex[cell->vertex_index(i)] = cell->active_cell_index();
+            node2vert[cell->vertex_index(i)] = i;
+        }
+
+    // Generate lists of hexahedra and hexahedra nodes where the tetrahedra nodes are located
+    cell_indxs.reserve(n_femocs_nodes);
+    vert_indxs.reserve(n_femocs_nodes);
+    for (int n : femocs2deal)
+        if (n >= 0) {
+            cell_indxs.push_back(node2hex[n]);
+            vert_indxs.push_back(node2vert[n]);
+        }
+}
+
+template<int dim>
+void Interpolator<dim>::store_solution(const vector<int>& femocs2deal,
+        const vector<dealii::Tensor<1,3>> vec_data, const vector<double> scal_data) {
+
+    require(vec_data.size() == scal_data.size(), "Mismatch of vector sizes: "
+            + to_string(vec_data.size()) + ", " + to_string(scal_data.size()));
+
+    // Reserve memory for data
+    reserve(nodes->size());
+
+    unsigned i = 0;
+    for (int n : femocs2deal) {
+        // If there is a common node between Femocs and deal.II meshes, store actual solution
+        if (n >= 0) {
+            require(i < vec_data.size(), "Invalid index: " + to_string(i));
+            dealii::Tensor<1, 3> vec = vec_data[i]; // that step needed to avoid complaints from Valgrind
+            append_solution( Solution(Vec3(vec[0], vec[1], vec[2]), scal_data[i++]) );
+        }
+
+        // In case of non-common node, store solution with error value
+        else
+            append_solution(Solution(0));
+    }
+}
+
+template<int dim>
+bool Interpolator<dim>::extract_solution(fch::Laplace<3>* fem) {
+    require(fem, "NULL pointer can't be handled!");
+
+    // Precompute cells to make interpolation faster
+    precompute();
+
+    // To make solution extraction faster, generate mapping between desired and available data sequences
+    vector<int> femocs2deal, cell_indxs, vert_indxs;
+    get_maps(femocs2deal, cell_indxs, vert_indxs, fem->get_triangulation(), fem->get_dof_handler());
+
+    // Read and store the electric field and potential from FEM solver
+    store_solution(femocs2deal, fem->get_efield(cell_indxs, vert_indxs),
+            fem->get_potential(cell_indxs, vert_indxs));
+
+    // Remove the spikes from the solution
+    return average_sharp_nodes(true);
+}
+
+template<int dim>
+bool Interpolator<dim>::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
+    require(fem, "NULL pointer can't be handled!");
+
+    // Precompute cells to make interpolation faster
+    precompute();
+
+    // To make solution extraction faster, generate mapping between desired and available data sequences
+    vector<int> femocs2deal, cell_indxs, vert_indxs;
+    get_maps(femocs2deal, cell_indxs, vert_indxs, fem->get_triangulation(), fem->get_dof_handler());
+
+    // Read and store current densities and temperatures from FEM solver
+    store_solution(femocs2deal, fem->get_current(cell_indxs, vert_indxs),
+            fem->get_temperature(cell_indxs, vert_indxs));
+
+    return false;
+}
+
+template<int dim>
+bool Interpolator<dim>::extract_solution(fch::CurrentsAndHeating<3>* fem) {
+    require(fem, "NULL pointer can't be handled!");
+
+    // Precompute cells to make interpolation faster
+    precompute();
+
+    // To make solution extraction faster, generate mapping between desired and available data sequences
+    vector<int> femocs2deal, cell_indxs, vert_indxs;
+    get_maps(femocs2deal, cell_indxs, vert_indxs, fem->get_triangulation(), fem->get_dof_handler_current());
+
+    // Read and store current densities and temperatures from FEM solver
+    store_solution(femocs2deal, fem->get_current(cell_indxs, vert_indxs),
+            fem->get_temperature(cell_indxs, vert_indxs));
+
+    return false;
+}
+
 /* ==================================================================
  *  =================== TetrahedronInterpolator ====================
  * ================================================================== */
 
 // Initialize data vectors
 TetrahedronInterpolator::TetrahedronInterpolator(const TetgenMesh* m) :
-        LinearInterpolator<10>(m), elems(&m->elems) {}
+        Interpolator<10>(m), elems(&m->elems) {}
 
 // Print statistics about solution on node points
 void TetrahedronInterpolator::print_statistics() const {
@@ -375,7 +455,7 @@ void TetrahedronInterpolator::print_statistics() const {
 bool TetrahedronInterpolator::average_sharp_nodes(const bool vacuum) {
     vector<vector<unsigned int>> vorocells;
     mesh->calc_pseudo_3D_vorocells(vorocells, vacuum);
-    return LinearInterpolator<10>::average_sharp_nodes(vorocells);
+    return Interpolator<10>::average_sharp_nodes(vorocells);
 }
 
 bool TetrahedronInterpolator::average_and_check_sharp_nodes(const bool vacuum) {
@@ -388,7 +468,7 @@ bool TetrahedronInterpolator::average_and_check_sharp_nodes(const bool vacuum) {
     for (int i = 0; i < n_hexs; ++i)
         total_before += integrate(i);
 
-    bool success = LinearInterpolator<10>::average_sharp_nodes(vorocells);
+    bool success = Interpolator<10>::average_sharp_nodes(vorocells);
 
     double total_after = 0;
     int data_size = 0;
@@ -406,7 +486,7 @@ bool TetrahedronInterpolator::average_and_check_sharp_nodes(const bool vacuum) {
     return success;
 }
 
-double TetrahedronInterpolator::shape_function(array<double,8>& sf, const double u, const double v, const double w) const {
+void TetrahedronInterpolator::hex_shape_function(array<double,8>& sf, const double u, const double v, const double w) const {
     const double n1 = (1-u) * (1-v) * (1-w) / 8;
     const double n2 = (1+u) * (1-v) * (1-w) / 8;
     const double n3 = (1+u) * (1+v) * (1-w) / 8;
@@ -415,12 +495,10 @@ double TetrahedronInterpolator::shape_function(array<double,8>& sf, const double
     const double n6 = (1+u) * (1-v) * (1+w) / 8;
     const double n7 = (1+u) * (1+v) * (1+w) / 8;
     const double n8 = (1-u) * (1+v) * (1+w) / 8;
-    sf = array<double,8> {n1, n2, n3, n4, n5, n6, n7, n8};
-    return n1 + n2 + n3 + n4 + n5 + n6 + n7 + n8;
+    sf = {n1, n2, n3, n4, n5, n6, n7, n8};
 }
 
 double TetrahedronInterpolator::integrate(const int hex_index) const {
-    const double eps0 = 0.0055263494; // vacuum permittivity [e/V*A]
     const int n_nodes_per_hex = 8;
     const int n_steps = 10;
     const double step = 2.0 / n_steps;
@@ -436,7 +514,7 @@ double TetrahedronInterpolator::integrate(const int hex_index) const {
     for (double u = -1; u < 1; u += step)
         for (double v = -1; v < 1; v += step)
             for (double w = -1; w < 1; w += step) {
-                const double sum_of_weights = shape_function(sf, u, v, w);
+                hex_shape_function(sf, u, v, w);
                 Vec3 dEnergy(0);
                 for (int i = 0; i < n_nodes_per_hex; ++i)
                     dEnergy += nodal_field[i] * sf[i];
@@ -445,109 +523,6 @@ double TetrahedronInterpolator::integrate(const int hex_index) const {
             }
 
     return step * step * step * total_energy / 2.0 / eps0;
-}
-
-// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-bool TetrahedronInterpolator::extract_solution(fch::Laplace<3>* fem) {
-    require(fem, "NULL pointer can't be handled!");
-    const int n_nodes = nodes->size();
-    expect(n_nodes > 0, "Interpolator expects non-empty mesh!");
-    const double eps = 1e-5 * elems->stat.edgemin;
-
-    // Precompute tetrahedra to make interpolation faster
-    reserve(n_nodes);
-    precompute();
-
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> tetNode2hexNode, cell_indxs, vert_indxs;
-    get_maps(tetNode2hexNode, cell_indxs, vert_indxs,
-            fem->get_triangulation(), fem->get_dof_handler(), eps);
-
-    vector<dealii::Tensor<1, 3>> fields = fem->get_efield(cell_indxs, vert_indxs); // get list of electric fields
-    vector<double> pot = fem->get_potential(cell_indxs, vert_indxs); // get list of electric potentials
-
-    require(fields.size() == pot.size(),
-            "Mismatch of vector sizes: " + to_string(fields.size()) + ", " + to_string(pot.size()));
-
-    unsigned i = 0;
-    for (int n : tetNode2hexNode) {
-        // If there is a common node between tet and hex meshes, store actual solution
-        if (n >= 0) {
-            require(i < fields.size(), "Invalid index: " + to_string(i));
-            dealii::Tensor<1, 3> field = fields[i]; // that step needed to avoid complaints from Valgrind
-            append_solution( Solution(Vec3(field[0], field[1], field[2]), pot[i++]) );
-        }
-
-        // In case of non-common node, store solution with error value
-        else
-            append_solution(Solution(0));
-    }
-
-    // remove the spikes in the solution
-    if (average_sharp_nodes(true))
-    if (average_and_check_sharp_nodes(true))
-        return true;
-
-    return false;
-}
-
-// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-bool TetrahedronInterpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
-    require(fem, "NULL pointer can't be handled!");
-    const int n_nodes = nodes->size();
-    expect(n_nodes > 0, "Interpolator expects non-empty mesh!");
-    const double eps = 1e-5 * elems->stat.edgemin;
-
-    // Precompute tetrahedra to make interpolation faster
-    reserve(n_nodes);
-    precompute();
-
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> tetNode2hexNode, cell_indxs, vert_indxs;
-    get_maps(tetNode2hexNode, cell_indxs, vert_indxs,
-            fem->get_triangulation(), fem->get_dof_handler(), eps);
-
-    vector<dealii::Tensor<1, 3>> rho = fem->get_current(cell_indxs, vert_indxs); // get list of current densities
-    vector<double> temperature = fem->get_temperature(cell_indxs, vert_indxs); // get list of temperatures
-
-    require(rho.size() == temperature.size(),
-            "Mismatch of vector sizes: " + to_string(rho.size()) + ", "
-                    + to_string(temperature.size()));
-
-    unsigned i = 0;
-    for (int n : tetNode2hexNode) {
-        // If there is a common node between tet and hex meshes, store actual solution
-        if (n >= 0) {
-            require(i < rho.size(), "Invalid index: " + to_string(i));
-            Vec3 current(rho[i][0], rho[i][1], rho[i][2]);
-            append_solution(Solution(current, temperature[i++]));
-        }
-
-        // In case of non-common node, store solution with error value
-        else
-            append_solution(Solution(0));
-    }
-
-    return false;
-}
-
-// Reserve memory for pre-compute data
-void TetrahedronInterpolator::reserve_precompute(const int N) {
-    LinearInterpolator<10>::reserve_precompute(N);
-
-    det0.clear();
-    det1.clear();
-    det2.clear();
-    det3.clear();
-    det4.clear();
-    tet_not_valid.clear();
-
-    det0.reserve(N);
-    det1.reserve(N);
-    det2.reserve(N);
-    det3.reserve(N);
-    det4.reserve(N);
-    tet_not_valid.reserve(N);
 }
 
 // Locate the index of node that is in the centroid of opposite face of the given tetrahedral vertex
@@ -570,6 +545,25 @@ int TetrahedronInterpolator::opposite_node(const int tet, const int vert) const 
     return -1;
 }
 
+// Reserve memory for pre-compute data
+void TetrahedronInterpolator::reserve_precompute(const int N) {
+    Interpolator<10>::reserve_precompute(N);
+
+    det0.clear();
+    det1.clear();
+    det2.clear();
+    det3.clear();
+    det4.clear();
+    tet_not_valid.clear();
+
+    det0.reserve(N);
+    det1.reserve(N);
+    det2.reserve(N);
+    det3.reserve(N);
+    det4.reserve(N);
+    tet_not_valid.reserve(N);
+}
+
 // Precompute the data to tetrahedra to make later bcc calculations faster
 void TetrahedronInterpolator::precompute() {
     const int n_elems = elems->size();
@@ -580,6 +574,9 @@ void TetrahedronInterpolator::precompute() {
 
     // Store the constant for smoothing
     decay_factor = -1.0 / elems->stat.edgemax;
+
+    // Store max allowed distance between identical vertices
+    vertex_epsilon = 1e-5 * elems->stat.edgemin;
 
     // Store the coordinates of tetrahedra vertices
     for (int i = 0; i < n_nodes; ++i)
@@ -610,7 +607,7 @@ void TetrahedronInterpolator::precompute() {
                   |x3 y3 z3 1|
                   |x4 y4 z4 1|  */
         d0 = determinant(v1, v2, v3, v4);
-        tet_not_valid.push_back(fabs(d0) < epsilon);
+        tet_not_valid.push_back(fabs(d0) < coplanar_epsilon);
         det0.push_back(1.0 / d0);
 
         /* =====================================================================================
@@ -685,18 +682,18 @@ bool TetrahedronInterpolator::point_in_cell(const Vec3 &point, const int i) cons
 }
 
 // Calculate barycentric coordinates for point with respect to i-th tetrahedron
-void TetrahedronInterpolator::get_bcc(array<double,4>& bcc, const Vec3& point, const int i) const {
+void TetrahedronInterpolator::get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const {
     require(i >= 0 && i < det0.size(), "Index out of bounds: " + to_string(i));
 
     const Vec4 pt(point, 1);
-    bcc[0] = det0[i] * pt.dotProduct(det1[i]);
-    bcc[1] = det0[i] * pt.dotProduct(det2[i]);
-    bcc[2] = det0[i] * pt.dotProduct(det3[i]);
-    bcc[3] = det0[i] * pt.dotProduct(det4[i]);
+    sf[0] = det0[i] * pt.dotProduct(det1[i]);
+    sf[1] = det0[i] * pt.dotProduct(det2[i]);
+    sf[2] = det0[i] * pt.dotProduct(det3[i]);
+    sf[3] = det0[i] * pt.dotProduct(det4[i]);
 }
 
 // Calculate barycentric coordinates for point with respect to i-th tetrahedron
-void TetrahedronInterpolator::get_bcc(array<double,10>& bcc, const Vec3& point, const int i) const {
+void TetrahedronInterpolator::get_shape_functions(array<double,10>& sf, const Vec3& point, const int i) const {
     require(i >= 0 && i < det0.size(), "Index out of bounds: " + to_string(i));
 
     const Vec4 pt(point, 1);
@@ -705,24 +702,17 @@ void TetrahedronInterpolator::get_bcc(array<double,10>& bcc, const Vec3& point, 
     const double b3 = det0[i] * pt.dotProduct(det3[i]);
     const double b4 = det0[i] * pt.dotProduct(det4[i]);
 
-//    bcc = {b1, b2, b3, b4, 0, 0, 0, 0, 0, 0};
-    bcc[0] =  b1 * (2 * b1 - 1);
-    bcc[1] =  b2 * (2 * b2 - 1);
-    bcc[2] =  b3 * (2 * b3 - 1);
-    bcc[3] =  b4 * (2 * b4 - 1);
-    bcc[4] =  4 * b1 * b2;
-    bcc[5] =  4 * b2 * b3;
-    bcc[6] =  4 * b3 * b1;
-    bcc[7] =  4 * b1 * b4;
-    bcc[8] =  4 * b2 * b4;
-    bcc[9] =  4 * b3 * b4;
-}
-
-int TetrahedronInterpolator::match_edges(vector<unsigned>& vec1, vector<unsigned>& vec2) const {
-    for (unsigned i : vec1)
-        for (unsigned j : vec2)
-            if (i == j) return i;
-    return -1;
+    sf[0] =  b1 * (2 * b1 - 1);
+    sf[1] =  b2 * (2 * b2 - 1);
+    sf[2] =  b3 * (2 * b3 - 1);
+    sf[3] =  b4 * (2 * b4 - 1);
+    sf[4] =  4 * b1 * b2;
+    sf[5] =  4 * b2 * b3;
+    sf[6] =  4 * b3 * b1;
+    sf[7] =  4 * b1 * b4;
+    sf[8] =  4 * b2 * b4;
+    sf[9] =  4 * b3 * b4;
+//    sf = {b1, b2, b3, b4, 0, 0, 0, 0, 0, 0};
 }
 
 SimpleCell<10> TetrahedronInterpolator::tet2quadTet(const int tet) const {
@@ -739,12 +729,12 @@ SimpleCell<10> TetrahedronInterpolator::tet2quadTet(const int tet) const {
     }
 
     // find second order nodes
-    const int n5 = match_edges(edge_nodes[0], edge_nodes[1]);
-    const int n6 = match_edges(edge_nodes[1], edge_nodes[2]);
-    const int n7 = match_edges(edge_nodes[2], edge_nodes[0]);
-    const int n8 = match_edges(edge_nodes[0], edge_nodes[3]);
-    const int n9 = match_edges(edge_nodes[1], edge_nodes[3]);
-    const int n10= match_edges(edge_nodes[2], edge_nodes[3]);
+    const int n5 = common_entry(edge_nodes[0], edge_nodes[1]);
+    const int n6 = common_entry(edge_nodes[1], edge_nodes[2]);
+    const int n7 = common_entry(edge_nodes[2], edge_nodes[0]);
+    const int n8 = common_entry(edge_nodes[0], edge_nodes[3]);
+    const int n9 = common_entry(edge_nodes[1], edge_nodes[3]);
+    const int n10= common_entry(edge_nodes[2], edge_nodes[3]);
 
     return QuadraticTet((*elems)[tet], n5, n6, n7, n8, n9, n10);
 }
@@ -755,106 +745,7 @@ SimpleCell<10> TetrahedronInterpolator::tet2quadTet(const int tet) const {
 
 // Initialize data vectors
 TriangleInterpolator::TriangleInterpolator(const TetgenMesh* m) :
-        LinearInterpolator<6>(m), faces(&m->faces) {}
-
-// leave only the solution in the nodes and centroids of triangles
-bool TriangleInterpolator::clean_nodes() {
-    const int n_nodes = nodes->size();
-
-    vector<bool> node_not_in_quads(n_nodes, true);
-    for (SimpleQuad quad : mesh->quads)
-        for (int node : quad)
-            node_not_in_quads[node] = false;
-
-    for (int node = 0; node < n_nodes; ++node)
-        if (node_not_in_quads[node])
-            solutions[node] = Solution(0);
-
-    return false;
-}
-
-// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-bool TriangleInterpolator::extract_solution(fch::Laplace<3>* fem) {
-    require(fem, "NULL pointer can't be handled!");
-    const int n_nodes = nodes->size();
-    expect(n_nodes > 0, "Interpolator expects non-empty mesh!");
-    const double eps = 1e-5 * faces->stat.edgemin;
-
-    // Precompute triangles to make interpolation faster
-    reserve(n_nodes);
-    precompute();
-
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> triNode2hexNode, cell_indxs, vert_indxs;
-    get_maps(triNode2hexNode, cell_indxs, vert_indxs, fem->get_triangulation(), fem->get_dof_handler(), eps);
-
-    vector<dealii::Tensor<1, 3>> fields = fem->get_efield(cell_indxs, vert_indxs); // get list of electric fields
-    vector<double> pot = fem->get_potential(cell_indxs, vert_indxs); // get list of electric potentials
-
-    require(fields.size() == pot.size(),
-            "Mismatch of vector sizes: " + to_string(fields.size()) + ", " + to_string(pot.size()));
-
-    unsigned i = 0;
-    for (int n : triNode2hexNode) {
-        // If there is a common node between tet and hex meshes, store actual solution
-        if (n >= 0) {
-            require(i < fields.size(), "Invalid index: " + to_string(i));
-            dealii::Tensor<1, 3> field = fields[i]; // that step needed to avoid complaints from Valgrind
-            append_solution( Solution(Vec3(field[0], field[1], field[2]), pot[i++]) );
-        }
-
-        // In case of non-common node, store solution with error value
-        else
-            append_solution(Solution(0));
-    }
-
-    // remove the spikes in the solution
-    if (average_sharp_nodes(true))
-        return true;
-
-    // leave only the solution in the vertices and centroids of triangles
-    return clean_nodes();
-}
-
-// Extract the electric potential and electric field values on tetrahedral mesh nodes from FEM solution
-bool TriangleInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem) {
-    require(fem, "NULL pointer can't be handled!");
-    const int n_nodes = nodes->size();
-    expect(n_nodes > 0, "Interpolator expects non-empty mesh!");
-    const double eps = 1e-5 * faces->stat.edgemin;
-
-    // Precompute tetrahedra to make interpolation faster
-    reserve(n_nodes);
-    precompute();
-
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> tetNode2hexNode, cell_indxs, vert_indxs;
-    get_maps(tetNode2hexNode, cell_indxs, vert_indxs,
-            fem->get_triangulation(), fem->get_dof_handler_current(), eps);
-
-    vector<dealii::Tensor<1, 3>> rho = fem->get_current(cell_indxs, vert_indxs); // get list of current densities
-    vector<double> temperature = fem->get_temperature(cell_indxs, vert_indxs); // get list of temperatures
-
-    require(rho.size() == temperature.size(),
-            "Mismatch of vector sizes: " + to_string(rho.size()) + ", "
-                    + to_string(temperature.size()));
-
-    unsigned i = 0;
-    for (int n : tetNode2hexNode) {
-        // If there is a common node between tet and hex meshes, store actual solution
-        if (n >= 0) {
-            require(i < rho.size(), "Invalid index: " + to_string(i));
-            Vec3 current(rho[i][0], rho[i][1], rho[i][2]);
-            append_solution(Solution(current, temperature[i++]));
-        }
-
-        // In case of non-common node, store solution with error value
-        else
-            append_solution(Solution(0));
-    }
-
-    return false;
-}
+        Interpolator<6>(m), faces(&m->faces) {}
 
 // Interpolate scalar value inside or near cell
 //  whose total sum must remain conserved after interpolations
@@ -865,7 +756,7 @@ void TriangleInterpolator::interp_conserved(vector<double>& scalars, const vecto
     vector<double> bcc_sum(n_nodes); // sum of barycentric coordinates from given node
     vector<int> atom2cell(n_atoms);  // map storing the face indices that correspond to atom sequence
     scalars = vector<double>(n_atoms);
-    array<double,3> bcc;
+    array<double,3> weights;
 
     // calculate the sum of all the weights in all the nodes
     // it is neccesary to ensure that the total sum of a interpolated scalar does not change
@@ -875,17 +766,17 @@ void TriangleInterpolator::interp_conserved(vector<double>& scalars, const vecto
         // Find the cell that matches best to the point
         cell = abs(locate_cell(point, cell));
         // calculate barycentric coordinates
-        get_bcc(bcc, Vec3(point), cell);
+        get_shape_functions(weights, Vec3(point), cell);
         // store the cell to make next step faster
         atom2cell[i] = cell;
         // append barycentric weight to the sum of all weights from given node
         int j = 0;
         for (int node : (*faces)[cell])
-            bcc_sum[node] += bcc[j++];
+            bcc_sum[node] += weights[j++];
     }
 
     // force bcc_sum in the location of unused nodes to some non-zero value
-    // to avoid nan-s in bcc[i]/bcc_sum[i]
+    // to avoid nan-s in weights[i]/bcc_sum[i]
     for (int i = 0; i < n_nodes; ++i)
         if (bcc_sum[i] == 0)
             bcc_sum[i] = 1;
@@ -894,11 +785,11 @@ void TriangleInterpolator::interp_conserved(vector<double>& scalars, const vecto
     for (int i = 0; i < n_atoms; ++i) {
         int cell = atom2cell[i];
         // calculate barycentric coordinates
-        get_bcc(bcc, Vec3(atoms[i].point), cell);
+        get_shape_functions(weights, Vec3(atoms[i].point), cell);
         // perform interpolation
         int j = 0;
         for (int node : (*faces)[cell])
-            scalars[i] += solutions[node].scalar * bcc[j++] / bcc_sum[node];
+            scalars[i] += solutions[node].scalar * weights[j++] / bcc_sum[node];
     }
 }
 
@@ -970,12 +861,12 @@ void TriangleInterpolator::calc_charges(const double E0) {
 bool TriangleInterpolator::average_sharp_nodes(const bool vacuum) {
     vector<vector<unsigned int>> vorocells;
     mesh->calc_pseudo_3D_vorocells(vorocells, vacuum);
-    return LinearInterpolator<6>::average_sharp_nodes(vorocells);
+    return Interpolator<6>::average_sharp_nodes(vorocells);
 }
 
 // Reserve memory for precompute data
 void TriangleInterpolator::reserve_precompute(const int n) {
-    LinearInterpolator<6>::reserve_precompute(n);
+    Interpolator<6>::reserve_precompute(n);
 
     edge1.clear(); edge1.reserve(n);
     edge2.clear(); edge2.reserve(n);
@@ -995,6 +886,9 @@ void TriangleInterpolator::precompute() {
 
     // Store the constant for smoothing
     decay_factor = -1.0 / faces->stat.edgemax;
+
+    // Store max allowed distance between identical vertices
+    vertex_epsilon = 1e-5 * faces->stat.edgemin;
 
     // Store the coordinates of tetrahedral vertices
     // Tetrahedral not triangular, because the only solid knowledge about the triangle nodes
@@ -1022,8 +916,8 @@ void TriangleInterpolator::precompute() {
 
         // store faces and norms to be able to interpolate independently of mesh state
 //        cells.push_back((*faces)[i]);
-
         cells.push_back(tri2quadTri(i));
+
         norms.push_back(faces->get_norm(i));
         max_distance.push_back(e2.norm());
         centroids.push_back(faces->get_centroid(i));
@@ -1077,37 +971,12 @@ double TriangleInterpolator::distance(const Vec3& point, const int face) const {
 }
 
 void TriangleInterpolator::write_vtk(ofstream& out, const int n_nodes) const {
-    LinearInterpolator<6>::write_vtk(out, n_nodes);
+    Interpolator<6>::write_vtk(out, n_nodes);
 
     // write face norms
     out << "VECTORS norm double\n";
     for (int i = 0; i < cells.size(); ++i)
         out << norms[i] << "\n";
-}
-
-// Calculate barycentric coordinates for a projection of a point inside the triangle
-void TriangleInterpolator::get_bcc(array<double,3>& bcc, const Vec3& point, const int face) const {
-    Vec3 tvec = point - vert0[face];
-    Vec3 qvec = tvec.crossProduct(edge1[face]);
-    double u = tvec.dotProduct(pvec[face]);
-    double v = qvec.dotProduct(norms[face]);
-    double w = 1.0 - u - v;
-    bcc = {w, u, v};
-}
-
-void TriangleInterpolator::get_bcc(array<double,6>& bcc, const Vec3& point, const int face) const {
-    const Vec3 tvec = point - vert0[face];
-    const Vec3 qvec = tvec.crossProduct(edge1[face]);
-    const double v = tvec.dotProduct(pvec[face]);
-    const double w = qvec.dotProduct(norms[face]);
-    const double u = 1.0 - v - w;
-//    bcc = {u, v, w, 0, 0, 0};
-    bcc[0] = u * (2 * u - 1);
-    bcc[1] = v * (2 * v - 1);
-    bcc[2] = w * (2 * w - 1);
-    bcc[3] = 4 * u * v;
-    bcc[4] = 4 * v * w;
-    bcc[5] = 4 * w * v;
 }
 
 // Check whether the projection of a point is inside the triangle
@@ -1125,11 +994,30 @@ bool TriangleInterpolator::point_in_cell(const Vec3& point, const int face) cons
     return fabs(qvec.dotProduct(edge2[face])) < max_distance[face];
 }
 
-int TriangleInterpolator::match_edges(vector<unsigned>& vec1, vector<unsigned>& vec2) const {
-    for (unsigned i : vec1)
-        for (unsigned j : vec2)
-            if (i == j) return i;
-    return -1;
+// Calculate barycentric coordinates for a projection of a point inside the triangle
+void TriangleInterpolator::get_shape_functions(array<double,3>& sf, const Vec3& point, const int face) const {
+    Vec3 tvec = point - vert0[face];
+    Vec3 qvec = tvec.crossProduct(edge1[face]);
+    const double v = tvec.dotProduct(pvec[face]);
+    const double w = qvec.dotProduct(norms[face]);
+    const double u = 1.0 - v - w;
+    sf = {u, v, w};
+}
+
+void TriangleInterpolator::get_shape_functions(array<double,6>& sf, const Vec3& point, const int face) const {
+    const Vec3 tvec = point - vert0[face];
+    const Vec3 qvec = tvec.crossProduct(edge1[face]);
+    const double v = tvec.dotProduct(pvec[face]);
+    const double w = qvec.dotProduct(norms[face]);
+    const double u = 1.0 - v - w;
+
+    sf[0] = u * (2 * u - 1);
+    sf[1] = v * (2 * v - 1);
+    sf[2] = w * (2 * w - 1);
+    sf[3] = 4 * u * v;
+    sf[4] = 4 * v * w;
+    sf[5] = 4 * w * v;
+//    sf = {u, v, w, 0, 0, 0};
 }
 
 SimpleCell<6> TriangleInterpolator::tri2quadTri(const int tri) const {
@@ -1146,9 +1034,9 @@ SimpleCell<6> TriangleInterpolator::tri2quadTri(const int tri) const {
     }
 
     // find second order nodes
-    const int n4 = match_edges(edge_nodes[0], edge_nodes[1]);
-    const int n5 = match_edges(edge_nodes[1], edge_nodes[2]);
-    const int n6 = match_edges(edge_nodes[2], edge_nodes[0]);
+    const int n4 = common_entry(edge_nodes[0], edge_nodes[1]);
+    const int n5 = common_entry(edge_nodes[1], edge_nodes[2]);
+    const int n6 = common_entry(edge_nodes[2], edge_nodes[0]);
 
     return QuadraticTri((*faces)[tri], n4, n5, n6);
 }
@@ -1173,7 +1061,7 @@ void TriangleInterpolator::print_statistics(const double Q) {
     write_verbose_msg(stream.str());
 }
 
-template class LinearInterpolator<6> ;
-template class LinearInterpolator<10> ;
+template class Interpolator<6> ;
+template class Interpolator<10> ;
 
 } // namespace femocs

@@ -340,7 +340,7 @@ int Femocs::solve_laplace(const double E0) {
     fail |= vacuum_surface_interpolator.extract_solution(&laplace_solver);
     end_msg(t0);
 
-    check_return(fields.check_limits(vacuum_interpolator.get_solutions()), "Field is over-enhanced!");
+    check_return(fields.check_limits(vacuum_interpolator.get_solutions()), "Field enhancement is out of limits!");
 
     vacuum_interpolator.write("out/result_E_phi_vacuum.xyz");
     vacuum_interpolator.write("out/result_E_phi_vacuum.vtk");

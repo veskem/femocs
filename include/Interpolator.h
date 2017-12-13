@@ -21,31 +21,31 @@ namespace femocs {
 
 /** General class to linearly interpolate solution inside the mesh */
 template<int dim>
-class LinearInterpolator {
+class Interpolator {
 
 public:
-    LinearInterpolator() :
+    Interpolator() :
         norm_label("vector_norm"), scalar_label("scalar"), mesh(NULL), nodes(NULL)
     {
         reserve(0);
         reserve_precompute(0);
     }
 
-    LinearInterpolator(const TetgenMesh* m) :
+    Interpolator(const TetgenMesh* m) :
         norm_label("vector_norm"), scalar_label("scalar"), mesh(m), nodes(&m->nodes)
     {
         reserve(0);
         reserve_precompute(0);
     }
 
-    LinearInterpolator(const TetgenMesh* m, const string& nl, const string& sl) :
+    Interpolator(const TetgenMesh* m, const string& nl, const string& sl) :
         norm_label(nl), scalar_label(sl), mesh(m), nodes(&m->nodes)
     {
         reserve(0);
         reserve_precompute(0);
     }
 
-    virtual ~LinearInterpolator() {};
+    virtual ~Interpolator() {};
 
     /** Return number of available interpolation nodes */
     int size() const { return solutions.size(); }
@@ -105,8 +105,20 @@ public:
     /** Find the cell which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
+    /** Extract the electric potential and field values from FEM solution */
+    bool extract_solution(fch::Laplace<3>* fem);
+
+    /** Extract the current density and stationary temperature values from FEM solution */
+    bool extract_solution(fch::CurrentsAndHeatingStationary<3>* fem);
+
+    /** Extract the current density and transient temperature values from FEM solution */
+    bool extract_solution(fch::CurrentsAndHeating<3>* fem);
+
+    const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
+
 protected:
-    const double epsilon = 0.1;     ///< coplanarity tolerance
+    const double coplanar_epsilon = 0.1; ///< coplanarity tolerance
+    double vertex_epsilon = 0;      ///< max distance between two identical vertices
     double decay_factor = -1.0;     ///< exp(decay_factor * node1.distance(node2)) gives the weight that can be used in smoothing process
 
     const string norm_label;        ///< description label attached to solution.norm -values
@@ -147,10 +159,10 @@ protected:
     virtual int get_cell_type() const { return 0; }
 
     /** Calculate barycentric coordinates for a point with respect to the cell */
-    virtual void get_bcc(array<double,dim>& bcc, const Vec3& point, const int cell) const {}
+    virtual void get_shape_functions(array<double,dim>& sf, const Vec3& point, const int cell) const {}
 
     /** Calculate distance-dependent weights for a point with respect to the cell */
-    array<double,dim> get_weights(const Point3 &point, const SimpleCell<dim>& scell) const;
+    void get_weights(array<double,dim>& weights, const Point3 &point, const SimpleCell<dim>& scell) const;
 
     /** Check whether the point is inside the cell.
      * It does not use get_bcc routine to achieve faster performance. */
@@ -160,16 +172,31 @@ protected:
      *  surrounding hexahedral nodes */
     bool average_sharp_nodes(const vector<vector<unsigned>>& vorocells);
 
-    /** Return the mapping between tetrahedral and hexahedral meshes;
-     * -1 indicates that mapping for corresponding object was not found */
-    void get_maps(vector<int>& tet2hex, vector<int>& cell_indxs, vector<int>& vert_indxs,
-            dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh, const double eps);
+    virtual bool average_sharp_nodes(const bool vacuum) { return false; };
+
+    /** Calculate the mapping between Femocs & deal.II mesh nodes,
+     *  nodes & hexahedral elements and nodes & element's vertices.
+     *  -1 indicates that mapping for corresponding object was not found */
+    void get_maps(vector<int>& femocs2deal, vector<int>& cell_indxs, vector<int>& vert_indxs,
+            dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh) const;
+
+    /** Transfer solution from FEM solver to Interpolator */
+    void store_solution(const vector<int>& femocs2deal,
+            const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data);
 
     /** Output node data in .xyz format */
     void write_xyz(ofstream& out, const int n_nodes) const;
 
     /** Output interpolation cell data in .vtk format */
     virtual void write_vtk(ofstream& out, const int n_nodes) const;
+
+    /** Find the common entry between two vectors */
+    int common_entry(vector<unsigned>& vec1, vector<unsigned>& vec2) const {
+        for (unsigned i : vec1)
+            for (unsigned j : vec2)
+                if (i == j) return i;
+        return -1;
+    }
 
     /** Determinant of 3x3 matrix which's last column consists of ones */
     double determinant(const Vec3 &v1, const Vec3 &v2) {
@@ -203,7 +230,7 @@ protected:
     }
 };
 
-/** Class to linearly interpolate solution inside tetrahedral mesh */
+/** Class to interpolate solution inside tetrahedral mesh */
 /* Useful links
  *
  * Compact theory how to find barycentric coordintes (bbc):
@@ -218,23 +245,16 @@ protected:
  *
  * Interpolating inside the element using bcc:
  * http://www.cwscholz.net/projects/diss/html/node37.html
- *
  */
-class TetrahedronInterpolator : public LinearInterpolator<10> {
+class TetrahedronInterpolator : public Interpolator<10> {
 public:
     /** TetrahedronInterpolator conctructor */
     TetrahedronInterpolator(const TetgenMesh* mesh);
 
-    /** Extract the electric potential and electric field values from FEM solution */
-    bool extract_solution(fch::Laplace<3>* laplace);
-
-    /** Extract the current density and temperature values from FEM solution */
-    bool extract_solution(fch::CurrentsAndHeatingStationary<3>* fem);
-
     /** Print statistics about solution on node points */
     void print_statistics() const;
 
-protected:
+private:
     const TetgenElements* elems;    ///< Direct pointer to tetrahedra to access their specific routines
 
     vector<double> det0;            ///< major determinant for calculating bcc-s
@@ -257,16 +277,13 @@ protected:
     /** Get whether the point is located inside the i-th tetrahedron */
     bool point_in_cell(const Vec3& point, const int i) const;
 
- private:
     /** Get barycentric coordinates for a point inside i-th tetrahedron */
-     void get_bcc(array<double,4>& bcc, const Vec3& point, const int i) const;
-     void get_bcc(array<double,10>& bcc, const Vec3& point, const int i) const;
+     void get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const;
+     void get_shape_functions(array<double,10>& sf, const Vec3& point, const int i) const;
 
      /** Return the tetrahedron type in vtk format */
-     int get_cell_type() const { return 10; }
-//     int get_cell_type() const { return 24; }
-
-     int match_edges(vector<unsigned>& vec1, vector<unsigned>& vec2) const;
+//     int get_cell_type() const { return 10; }
+     int get_cell_type() const { return 24; }
 
      SimpleCell<10> tet2quadTet(const int i) const;
 
@@ -275,22 +292,16 @@ protected:
 
      double integrate(const int hex) const;
 
-     double shape_function(array<double,8>& sf, const double u, const double v, const double w) const;
+     void hex_shape_function(array<double,8>& sf, const double u, const double v, const double w) const;
 
      bool average_and_check_sharp_nodes(const bool vacuum);
 };
 
 /** Class to interpolate solution on surface triangles */
-class TriangleInterpolator : public LinearInterpolator<6> {
+class TriangleInterpolator : public Interpolator<6> {
 public:
     /** Constructor of TriangleInterpolator  */
     TriangleInterpolator(const TetgenMesh* mesh);
-
-    /** Extract the electric potential and electric field values from FEM solution */
-    bool extract_solution(fch::Laplace<3>* fem);
-
-    /** Extract the current density and temperature values from FEM solution */
-    bool extract_solution(fch::CurrentsAndHeating<3>* fem);
 
     /** Calculate charges on surface faces using direct solution in the face centroids */
     void calc_charges(const double E0);
@@ -313,8 +324,6 @@ public:
     /** Return the distance between a point and i-th triangle in the direction of its norm */
     double fast_distance(const Vec3& point, const int i) const;
 
-    const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
-
 private:
     const TetgenFaces* faces;    ///< Direct pointer to triangles to access their specific routines
 
@@ -325,8 +334,6 @@ private:
     vector<Vec3> pvec;
     vector<Vec3> norms;
     vector<double> max_distance;
-
-    bool clean_nodes();
 
     /** Add triangle specific data to vtk file */
     void write_vtk(ofstream& out, const int n_nodes) const;
@@ -345,15 +352,13 @@ private:
     bool point_in_cell(const Vec3& point, const int i) const;
 
     /** Calculate barycentric coordinates for a point with respect to the i-th triangle */
-    void get_bcc(array<double,3>& bcc, const Vec3& point, const int i) const;
-    void get_bcc(array<double,6>& bcc, const Vec3& point, const int i) const;
+    void get_shape_functions(array<double,3>& sf, const Vec3& point, const int i) const;
+    void get_shape_functions(array<double,6>& sf, const Vec3& point, const int i) const;
 
     /** Return the triangle type in vtk format */
     /** Return the quadratic triangle type in vtk format */
     //    int get_cell_type() const { return 5; }
     int get_cell_type() const { return 22; }
-
-    int match_edges(vector<unsigned>& vec1, vector<unsigned>& vec2) const;
 
     SimpleCell<6> tri2quadTri(const int i) const;
 };

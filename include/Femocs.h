@@ -15,8 +15,8 @@
 #include "physical_quantities.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
+#include "Interpolator.h"
 #include "laplace.h"
-#include "LinearInterpolator.h"
 
 using namespace std;
 namespace femocs {
