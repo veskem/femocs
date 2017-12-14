@@ -221,9 +221,9 @@ private:
     /// data for interpolating results on the bulk surface
     TriangleInterpolator bulk_surface_interpolator = TriangleInterpolator(&fem_mesh);
     /// data for interpolating results in vacuum
-    TetrahedronInterpolator vacuum_interpolator = TetrahedronInterpolator(&fem_mesh);
+    QuadTetInterpolator vacuum_interpolator = QuadTetInterpolator(&fem_mesh);
     /// data for interpolating results in bulk
-    TetrahedronInterpolator bulk_interpolator = TetrahedronInterpolator(&fem_mesh);
+    QuadTetInterpolator bulk_interpolator = QuadTetInterpolator(&fem_mesh);
 
     HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
     FieldReader fields = FieldReader(&vacuum_surface_interpolator, &vacuum_interpolator); ///< interpolated fields and potentials

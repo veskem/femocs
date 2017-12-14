@@ -25,7 +25,7 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader constructors */
     SolutionReader();
-    SolutionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet,
+    SolutionReader(TriangleInterpolator* tri, QuadTetInterpolator* tet,
             const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
     /** Interpolate solution on the system atoms using tetrahedral interpolator
@@ -77,7 +77,7 @@ protected:
     double limit_max;             ///< maximum value of accepted comparison value
 
     TriangleInterpolator* interpolator_2d;    ///< data needed for interpolating on surface
-    TetrahedronInterpolator* interpolator_3d; ///< data needed for interpolating in space
+    QuadTetInterpolator* interpolator_3d; ///< data needed for interpolating in space
     vector<Solution> interpolation;           ///< interpolated data
 
     /** Initialise statistics about coordinates and solution */
@@ -109,8 +109,8 @@ class FieldReader: public SolutionReader {
 public:
     /** FieldReader constructors */
     FieldReader(TriangleInterpolator* ip);
-    FieldReader(TetrahedronInterpolator* ip);
-    FieldReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
+    FieldReader(QuadTetInterpolator* ip);
+    FieldReader(TriangleInterpolator* tri, QuadTetInterpolator* tet);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
     void interpolate(const Medium &medium, const int component, const bool srt);
@@ -181,8 +181,8 @@ class HeatReader: public SolutionReader {
 public:
     /** HeatReader constructors */
     HeatReader(TriangleInterpolator* tri);
-    HeatReader(TetrahedronInterpolator* tet);
-    HeatReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
+    HeatReader(QuadTetInterpolator* tet);
+    HeatReader(TriangleInterpolator* tri, QuadTetInterpolator* tet);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
     void interpolate(const Medium &medium, const double empty_val, const int component, const bool srt);
@@ -213,9 +213,9 @@ public:
     /** EmissionReader constructors. */
     EmissionReader(TriangleInterpolator* tri, const FieldReader& fields, const HeatReader& heat,
             const TetgenFaces& faces);
-    EmissionReader(TetrahedronInterpolator* tet, const FieldReader& fields,
+    EmissionReader(QuadTetInterpolator* tet, const FieldReader& fields,
             const HeatReader& heat, const TetgenFaces& faces);
-    EmissionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet,
+    EmissionReader(TriangleInterpolator* tri, QuadTetInterpolator* tet,
             const FieldReader& fields, const HeatReader& heat, const TetgenFaces& faces);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
@@ -283,8 +283,8 @@ class ChargeReader: public SolutionReader {
 public:
     /** ChargeReader constructors */
     ChargeReader(TriangleInterpolator* ip);
-    ChargeReader(TetrahedronInterpolator* ip);
-    ChargeReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
+    ChargeReader(QuadTetInterpolator* ip);
+    ChargeReader(TriangleInterpolator* tri, QuadTetInterpolator* tet);
 
     /** Calculate charge on the triangular faces using interpolated solution on the face centroid */
     void calc_interpolated_charges(const TetgenMesh& mesh, const double E0);
@@ -321,8 +321,8 @@ class ForceReader: public SolutionReader {
 public:
     /** ChargeReader constructors */
     ForceReader(TriangleInterpolator* ip);
-    ForceReader(TetrahedronInterpolator* ip);
-    ForceReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
+    ForceReader(QuadTetInterpolator* ip);
+    ForceReader(TriangleInterpolator* tri, QuadTetInterpolator* tet);
 
     /** Calculate forces from atomic electric fields and face charges */
     void distribute_charges(const FieldReader &fields, const ChargeReader& faces,
