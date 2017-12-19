@@ -582,14 +582,14 @@ bool TetrahedronInterpolator<rank>::point_in_cell(const Vec3 &point, const int i
 LinTetInterpolator::LinTetInterpolator(const TetgenMesh* m) :
         TetrahedronInterpolator<4>(m) {}
 
-void LinTetInterpolator::get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const {
-    require(i >= 0 && i < det0.size(), "Index out of bounds: " + to_string(i));
+void LinTetInterpolator::get_shape_functions(array<double,4>& sf, const Vec3& point, const int tet) const {
+    require(tet >= 0 && tet < det0.size(), "Index out of bounds: " + to_string(tet));
 
     const Vec4 pt(point, 1);
-    sf[0] = det0[i] * pt.dotProduct(det1[i]);
-    sf[1] = det0[i] * pt.dotProduct(det2[i]);
-    sf[2] = det0[i] * pt.dotProduct(det3[i]);
-    sf[3] = det0[i] * pt.dotProduct(det4[i]);
+    sf[0] = det0[tet] * pt.dotProduct(det1[tet]);
+    sf[1] = det0[tet] * pt.dotProduct(det2[tet]);
+    sf[2] = det0[tet] * pt.dotProduct(det3[tet]);
+    sf[3] = det0[tet] * pt.dotProduct(det4[tet]);
 }
 
 SimpleCell<4> LinTetInterpolator::get_cell(const int i) const {
@@ -604,14 +604,14 @@ SimpleCell<4> LinTetInterpolator::get_cell(const int i) const {
 QuadTetInterpolator::QuadTetInterpolator(const TetgenMesh* m) :
         TetrahedronInterpolator<10>(m) {}
 
-void QuadTetInterpolator::get_shape_functions(array<double,10>& sf, const Vec3& point, const int i) const {
-    require(i >= 0 && i < det0.size(), "Index out of bounds: " + to_string(i));
+void QuadTetInterpolator::get_shape_functions(array<double,10>& sf, const Vec3& point, const int tet) const {
+    require(tet >= 0 && tet < det0.size(), "Index out of bounds: " + to_string(tet));
 
     const Vec4 pt(point, 1);
-    const double b1 = det0[i] * pt.dotProduct(det1[i]);
-    const double b2 = det0[i] * pt.dotProduct(det2[i]);
-    const double b3 = det0[i] * pt.dotProduct(det3[i]);
-    const double b4 = det0[i] * pt.dotProduct(det4[i]);
+    const double b1 = det0[tet] * pt.dotProduct(det1[tet]);
+    const double b2 = det0[tet] * pt.dotProduct(det2[tet]);
+    const double b3 = det0[tet] * pt.dotProduct(det3[tet]);
+    const double b4 = det0[tet] * pt.dotProduct(det4[tet]);
 
     sf[0] =  b1 * (2 * b1 - 1);
     sf[1] =  b2 * (2 * b2 - 1);
@@ -623,7 +623,8 @@ void QuadTetInterpolator::get_shape_functions(array<double,10>& sf, const Vec3& 
     sf[7] =  4 * b1 * b4;
     sf[8] =  4 * b2 * b4;
     sf[9] =  4 * b3 * b4;
-    sf = {b1, b2, b3, b4, 0, 0, 0, 0, 0, 0};
+
+//    sf = {b1, b2, b3, b4, 0, 0, 0, 0, 0, 0};
 }
 
 SimpleCell<10> QuadTetInterpolator::get_cell(const int tet) const {
@@ -994,8 +995,9 @@ void QuadTriInterpolator::get_shape_functions(array<double,6>& sf, const Vec3& p
     sf[2] = w * (2 * w - 1);
     sf[3] = 4 * u * v;
     sf[4] = 4 * v * w;
-    sf[5] = 4 * w * v;
-    sf = {u, v, w, 0, 0, 0};
+    sf[5] = 4 * w * u;
+
+//    sf = {u, v, w, 0, 0, 0};
 }
 
 SimpleCell<6> QuadTriInterpolator::get_cell(const int tri) const {
