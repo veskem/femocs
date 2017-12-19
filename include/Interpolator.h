@@ -217,8 +217,7 @@ protected:
         cells.reserve(N);
         centroids.clear();
         centroids.reserve(N);
-        neighbours.clear();
-        neighbours.reserve(N);
+        neighbours = vector<vector<int>>(N);
         vertices.clear();
         vertices.reserve(nodes->size());      
     }

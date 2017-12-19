@@ -1020,7 +1020,9 @@ void TriangleInterpolator::get_shape_functions(array<double,6>& sf, const Vec3& 
 }
 
 SimpleCell<6> TriangleInterpolator::tri2quadTri(const int tri) const {
-    if (mesh->quads.size() == 0) return QuadraticTri(0);
+    require(tri >= 0 && tri < faces->size(), "Invalid index: " + to_string(tri));
+    if (mesh->quads.size() == 0)
+        return QuadraticTri(0);
 
     const int n_quads_per_tri = 3;
     array<vector<unsigned>,3> edge_nodes;
