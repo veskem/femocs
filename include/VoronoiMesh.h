@@ -173,7 +173,6 @@ public:
 
 protected:
     static constexpr int n_coordinates = 3;  ///< number of spatial coordinates
-    static constexpr int celltype = 7;       ///< vtk cell = polygon
 
     tetgenio* tetio;     ///< mesh data that has been processed by Tetgen
     int* _n_cells;       ///< number of cells in mesh data

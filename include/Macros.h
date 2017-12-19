@@ -42,6 +42,46 @@ struct Types {
     const int EDGECENTROID = 2; ///< node on the centroid of line
     const int FACECENTROID = 3; ///< node on the centroid of triangular face
     const int TETCENTROID = 4;  ///< node on the centroid of tetrahedron
+
+    /// Vtk cell types
+    static struct Vtk_Types {
+        // Linear cells
+        static const int EMPTY_CELL       = 0;
+        static const int VERTEX           = 1;
+        static const int POLY_VERTEX      = 2;
+        static const int LINE             = 3;
+        static const int POLY_LINE        = 4;
+        static const int TRIANGLE         = 5;
+        static const int TRIANGLE_STRIP   = 6;
+        static const int POLYGON          = 7;
+        static const int PIXEL            = 8;
+        static const int QUADRANGLE       = 9;
+        static const int TETRAHEDRON      = 10;
+        static const int VOXEL            = 11;
+        static const int HEXAHEDRON       = 12;
+        static const int WEDGE            = 13;
+        static const int PYRAMID          = 14;
+        static const int PENTAGONAL_PRISM = 15;
+        static const int HEXAGONAL_PRISM  = 16;
+        // Quadratic, isoparametric cells
+        static const int QUADRATIC_EDGE                   = 21;
+        static const int QUADRATIC_TRIANGLE               = 22;
+        static const int QUADRATIC_QUADRANGLE             = 23;
+        static const int QUADRATIC_POLYGON                = 36;
+        static const int QUADRATIC_TETRAHEDRON            = 24;
+        static const int QUADRATIC_HEXAHEDRON             = 25;
+        static const int QUADRATIC_WEDGE                  = 26;
+        static const int QUADRATIC_PYRAMID                = 27;
+        static const int BIQUADRATIC_QUADRANGLE           = 28;
+        static const int TRIQUADRATIC_HEXAHEDRON          = 29;
+        static const int QUADRATIC_LINEAR_QUADRANGLE      = 30;
+        static const int QUADRATIC_LINEAR_WEDGE           = 31;
+        static const int BIQUADRATIC_QUADRATIC_WEDGE      = 32;
+        static const int BIQUADRATIC_QUADRATIC_HEXAHEDRON = 33;
+        static const int BIQUADRATIC_TRIANGLE             = 34;
+        // Polyhedron cell (consisting of polygonal faces)
+        static const int POLYHEDRON = 42;
+    } VTK;
 };
 
 /** Flags to control the output behaviour of the code */

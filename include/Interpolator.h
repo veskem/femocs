@@ -374,7 +374,7 @@ private:
      void get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const;
 
      /** Return the tetrahedron type in vtk format */
-     int get_cell_type() const { return 10; }
+     int get_cell_type() const { return TYPES.VTK.TETRAHEDRON; }
 
      SimpleCell<4> get_cell(const int i) const;
 };
@@ -390,7 +390,7 @@ private:
     void get_shape_functions(array<double,10>& sf, const Vec3& point, const int i) const;
 
     /** Return the tetrahedron type in vtk format */
-    int get_cell_type() const { return 24; }
+    int get_cell_type() const { return TYPES.VTK.QUADRATIC_TETRAHEDRON; }
      
     SimpleCell<10> get_cell(const int i) const;
 
@@ -483,7 +483,7 @@ private:
     void get_shape_functions(array<double,3>& sf, const Vec3& point, const int i) const;
 
     /** Return the triangle type in vtk format */
-    int get_cell_type() const { return 5; }
+    int get_cell_type() const { return TYPES.VTK.TRIANGLE; }
 
     /** Get stored triangle */
     SimpleCell<3> get_cell(const int i) const;
@@ -499,7 +499,7 @@ private:
     void get_shape_functions(array<double,6>& sf, const Vec3& point, const int i) const;
 
     /** Return the 6-noded triangle type in vtk format */
-    int get_cell_type() const { return 22; }
+    int get_cell_type() const { return TYPES.VTK.QUADRATIC_TRIANGLE; }
 
     /** Get stored triangle */
     SimpleCell<6> get_cell(const int i) const;
