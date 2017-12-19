@@ -65,7 +65,13 @@ public:
     void output_mesh(const std::string file_name = "vacuum_mesh.vtk");
 
     /** get the electric field at the specified point */
-    double probe_efield(const Point<dim> &p) const;
+    Tensor<1,dim> probe_efield(const Point<dim> &p) const;
+
+    /** get the electric field norm at the specified point */
+    double probe_efield_norm(const Point<dim> &p) const;
+
+    /** get the electric potential at the specified point */
+    double probe_potential(const Point<dim> &p) const;
 
     /**
      * method to obtain the electric potential values in selected nodes
