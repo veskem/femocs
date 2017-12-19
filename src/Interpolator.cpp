@@ -398,15 +398,15 @@ template<int rank>
 void TetrahedronInterpolator<rank>::print_statistics() const {
     if (!MODES.VERBOSE) return;
 
-    const int n_atoms = GeneralInterpolator::size();
+    const int n_atoms = Interpolator::size();
     Vec3 vec(0), rms_vec(0);
     double scalar = 0, rms_scalar = 0;
     int n_points = 0;
 
     for (int i = 0; i < n_atoms; ++i) {
-        if ( GeneralInterpolator::get_vector_norm(i) == 0) continue;
-        double s = GeneralInterpolator::get_scalar(i);
-        Vec3 v = GeneralInterpolator::get_vector(i);
+        if ( Interpolator::get_vector_norm(i) == 0) continue;
+        double s = Interpolator::get_scalar(i);
+        Vec3 v = Interpolator::get_vector(i);
 
         vec += v; rms_vec += v * v;
         scalar += s; rms_scalar += s * s;
@@ -481,7 +481,7 @@ void TetrahedronInterpolator<rank>::precompute() {
 
         // Calculate tetrahedra neighbours
         this->neighbours.push_back(this->elems->get_neighbours(i));
-        // Calculate centroids of elements
+        // Calculate centroids of tetrahedra
         this->centroids.push_back(this->elems->get_centroid(i));
         // Store tetrahedra to get rid of mesh dependency
         this->cells.push_back(get_cell(i));
@@ -576,7 +576,29 @@ bool TetrahedronInterpolator<rank>::point_in_cell(const Vec3 &point, const int i
 }
 
 /* ==================================================================
- *  =================== TetrahedronInterpolator ====================
+ *  ===================== LinTetInterpolator =======================
+ * ================================================================== */
+
+LinTetInterpolator::LinTetInterpolator(const TetgenMesh* m) :
+        TetrahedronInterpolator<4>(m) {}
+
+void LinTetInterpolator::get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const {
+    require(i >= 0 && i < det0.size(), "Index out of bounds: " + to_string(i));
+
+    const Vec4 pt(point, 1);
+    sf[0] = det0[i] * pt.dotProduct(det1[i]);
+    sf[1] = det0[i] * pt.dotProduct(det2[i]);
+    sf[2] = det0[i] * pt.dotProduct(det3[i]);
+    sf[3] = det0[i] * pt.dotProduct(det4[i]);
+}
+
+SimpleCell<4> LinTetInterpolator::get_cell(const int i) const {
+    if (elems->size() <= i) return SimpleElement(0);
+    return (*elems)[i];
+}
+
+/* ==================================================================
+ *  ===================== QuadTetInterpolator ======================
  * ================================================================== */
 
 QuadTetInterpolator::QuadTetInterpolator(const TetgenMesh* m) :
@@ -717,45 +739,20 @@ int QuadTetInterpolator::opposite_node(const int tet, const int vert) const {
 }
 
 /* ==================================================================
- *  ===================== LinTetInterpolator =======================
- * ================================================================== */
-
-LinTetInterpolator::LinTetInterpolator(const TetgenMesh* m) : 
-        TetrahedronInterpolator<4>(m) {}
-
-void LinTetInterpolator::get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const {
-    require(i >= 0 && i < det0.size(), "Index out of bounds: " + to_string(i));
-
-    const Vec4 pt(point, 1);
-    sf[0] = det0[i] * pt.dotProduct(det1[i]);
-    sf[1] = det0[i] * pt.dotProduct(det2[i]);
-    sf[2] = det0[i] * pt.dotProduct(det3[i]);
-    sf[3] = det0[i] * pt.dotProduct(det4[i]);
-}
-
-SimpleCell<4> LinTetInterpolator::get_cell(const int i) const {
-    if (elems->size() <= i) return SimpleElement(0);
-    return(*elems)[i];
-}
-
-/* ==================================================================
  *  ===================== TriangleInterpolator ======================
  * ================================================================== */
 
-// Initialize data vectors
-TriangleInterpolator::TriangleInterpolator(const TetgenMesh* m) :
-        TemplateInterpolator<6>(m), faces(&m->faces) {}
-
 // Interpolate scalar value inside or near cell
 //  whose total sum must remain conserved after interpolations
-void TriangleInterpolator::interp_conserved(vector<double>& scalars, const vector<Atom>& atoms) {
+template<int rank>
+void TriangleInterpolator<rank>::interp_conserved(vector<double>& scalars, const vector<Atom>& atoms) {
     const int n_atoms = atoms.size();
-    const int n_nodes = nodes->size();
+    const int n_nodes = this->nodes->size();
 
     vector<double> bcc_sum(n_nodes); // sum of barycentric coordinates from given node
     vector<int> atom2cell(n_atoms);  // map storing the face indices that correspond to atom sequence
     scalars = vector<double>(n_atoms);
-    array<double,3> weights;
+    array<double,rank> weights;
 
     // calculate the sum of all the weights in all the nodes
     // it is neccesary to ensure that the total sum of a interpolated scalar does not change
@@ -763,14 +760,14 @@ void TriangleInterpolator::interp_conserved(vector<double>& scalars, const vecto
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point = atoms[i].point;
         // Find the cell that matches best to the point
-        cell = abs(locate_cell(point, cell));
+        cell = abs(this->locate_cell(point, cell));
         // calculate barycentric coordinates
         get_shape_functions(weights, Vec3(point), cell);
         // store the cell to make next step faster
         atom2cell[i] = cell;
         // append barycentric weight to the sum of all weights from given node
         int j = 0;
-        for (int node : (*faces)[cell])
+        for (int node : get_cell(cell))
             bcc_sum[node] += weights[j++];
     }
 
@@ -787,85 +784,24 @@ void TriangleInterpolator::interp_conserved(vector<double>& scalars, const vecto
         get_shape_functions(weights, Vec3(atoms[i].point), cell);
         // perform interpolation
         int j = 0;
-        for (int node : (*faces)[cell])
-            scalars[i] += solutions[node].scalar * weights[j++] / bcc_sum[node];
-    }
-}
-
-// Calculate charges on surface faces using direct solution in the face centroids
-void TriangleInterpolator::calc_charges(const double E0) {
-    const int n_quads_per_triangle = 3;
-    const int n_faces = faces->size();
-    const int n_nodes = nodes->size();
-    const double sign = fabs(E0) / E0;
-
-    vector<double> charges(n_nodes), areas(n_nodes);
-
-    // create triangle index to its centroid index mapping
-    vector<int> tri2centroid(n_faces);
-    for (int face = 0; face < n_faces; ++face) {
-        for (int node : mesh->quads[n_quads_per_triangle * face])
-            if (nodes->get_marker(node) == TYPES.FACECENTROID) {
-                tri2centroid[face] = node;
-                break;
-            }
-    }
-
-    // find the nodes on the surface perimeter that are each-other's periodic images
-    vector<int> periodic_nodes(n_nodes, -1);
-    vector<bool> node_on_edge(n_nodes);
-    for (SimpleEdge edge : mesh->edges)
-        for (int node : edge)
-            node_on_edge[node] = true;
-
-    for (int i = 0; i < vector_sum(node_on_edge); i += 2) {
-        periodic_nodes[i] = i+1;
-        periodic_nodes[i+1] = i;
-    }
-
-    // Calculate the charges and areas in the centroids and vertices of triangles
-    for (int face = 0; face < n_faces; ++face) {
-        int centroid_indx = tri2centroid[face];
-        double area = faces->get_area(face);
-        double charge = eps0 * sign * area * solutions[centroid_indx].norm;
-        solutions[centroid_indx].norm = area;
-        solutions[centroid_indx].scalar = charge;
-
-        charge *= 1.0 / n_quads_per_triangle;
-        area *= 1.0 / n_quads_per_triangle;
-
-        // the charge on triangular node is the sum of the charges of quadrangules that surround the node
-        for (int node : (*faces)[face]) {
-            const int periodic_node = periodic_nodes[node];
-            charges[node] += charge;
-            areas[node] += area;
-            if (periodic_node >= 0) {
-                charges[periodic_node] += charge;
-                areas[periodic_node] += area;
-            }
-        }
-    }
-
-    // transfer charges and areas to solutions vector
-    for (SimpleFace face : *faces) {
-        for (int node : face) {
-            solutions[node].norm = areas[node];
-            solutions[node].scalar = charges[node];
-        }
+        for (int node : get_cell(cell))
+            scalars[i] += this->get_scalar(node) * weights[j++] / bcc_sum[node];
     }
 }
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
-bool TriangleInterpolator::average_sharp_nodes(const bool vacuum) {
+template<int rank>
+bool TriangleInterpolator<rank>::average_sharp_nodes(const bool vacuum) {
     vector<vector<unsigned int>> vorocells;
-    mesh->calc_pseudo_3D_vorocells(vorocells, vacuum);
-    return TemplateInterpolator<6>::average_sharp_nodes(vorocells);
+    this->mesh->calc_pseudo_3D_vorocells(vorocells, vacuum);
+    return TemplateInterpolator<rank>::average_sharp_nodes(vorocells);
 }
 
 // Reserve memory for precompute data
-void TriangleInterpolator::reserve_precompute(const int n) {
-    TemplateInterpolator<6>::reserve_precompute(n);
+template<int rank>
+void TriangleInterpolator<rank>::reserve_precompute(const int n) {
+    TemplateInterpolator<rank>::reserve_precompute(n);
 
     edge1.clear(); edge1.reserve(n);
     edge2.clear(); edge2.reserve(n);
@@ -876,9 +812,10 @@ void TriangleInterpolator::reserve_precompute(const int n) {
 }
 
 // Precompute the data needed to calculate the distance of points from surface in the direction of triangle norms
-void TriangleInterpolator::precompute() {
+template<int rank>
+void TriangleInterpolator<rank>::precompute() {
     const int n_faces = faces->size();
-    const int n_nodes = nodes->size();
+    const int n_nodes = this->nodes->size();
 
     // Reserve memory for precomputation data
     reserve_precompute(n_faces);
@@ -893,15 +830,15 @@ void TriangleInterpolator::precompute() {
     // Tetrahedral not triangular, because the only solid knowledge about the triangle nodes
     // is that they are among tetrahedral nodes
     for (int i = 0; i < n_nodes; ++i)
-        vertices.push_back((*nodes)[i]);
+        this->vertices.push_back( (*(this->nodes))[i] );
 
     // Loop through all the faces
     for (int i = 0; i < n_faces; ++i) {
         SimpleFace sface = (*faces)[i];
 
-        Vec3 v0 = nodes->get_vec(sface[0]);
-        Vec3 v1 = nodes->get_vec(sface[1]);
-        Vec3 v2 = nodes->get_vec(sface[2]);
+        Vec3 v0 = this->nodes->get_vec(sface[0]);
+        Vec3 v1 = this->nodes->get_vec(sface[1]);
+        Vec3 v2 = this->nodes->get_vec(sface[2]);
 
         Vec3 e1 = v1 - v0;   // edge1 of triangle
         Vec3 e2 = v2 - v0;   // edge2 of triangle
@@ -913,27 +850,29 @@ void TriangleInterpolator::precompute() {
         edge2.push_back(e2);
         pvec.push_back(pv * i_det);
 
-        // store faces and norms to be able to interpolate independently of mesh state
-//        cells.push_back((*faces)[i]);
-        cells.push_back(tri2quadTri(i));
-
-        norms.push_back(faces->get_norm(i));
-        max_distance.push_back(e2.norm());
-        centroids.push_back(faces->get_centroid(i));
+        // store triangles to get rid of dependence on mesh state
+        this->cells.push_back(get_cell(i));
+        // calculate norms of triangles
+        this->norms.push_back(faces->get_norm(i));
+        // store max distance from given triangle
+        this->max_distance.push_back(e2.norm());
+        // calculate centroids of triangles
+        this->centroids.push_back(faces->get_centroid(i));
 
         // calculate the neighbour list for triangles
         for (int j = i+1; j < n_faces; ++j)
             if (sface.edge_neighbor((*faces)[j])) {
-                neighbours[i].push_back(j);
-                neighbours[j].push_back(i);
+                this->neighbours[i].push_back(j);
+                this->neighbours[j].push_back(i);
             }
     }
 }
 
-int TriangleInterpolator::near_surface(const Vec3& point, const double r_cut) const {
+template<int rank>
+int TriangleInterpolator<rank>::near_surface(const Vec3& point, const double r_cut) const {
     require(r_cut > 0, "Invalid distance from surface: " + to_string(r_cut));
 
-    for (int face = 0; face < cells.size(); ++face) {
+    for (int face = 0; face < this->cells.size(); ++face) {
         const double dist = distance(point, face);
         if (dist >= -0.3*r_cut && dist <= r_cut) return face;
     }
@@ -941,18 +880,15 @@ int TriangleInterpolator::near_surface(const Vec3& point, const double r_cut) co
     return -1;
 }
 
-Vec3 TriangleInterpolator::get_norm(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return norms[i];
-}
-
-double TriangleInterpolator::fast_distance(const Vec3& point, const int face) const {
+template<int rank>
+double TriangleInterpolator<rank>::fast_distance(const Vec3& point, const int face) const {
     Vec3 tvec = point - vert0[face];
     Vec3 qvec = tvec.crossProduct(edge1[face]);
     return edge2[face].dotProduct(qvec);
 }
 
-double TriangleInterpolator::distance(const Vec3& point, const int face) const {
+template<int rank>
+double TriangleInterpolator<rank>::distance(const Vec3& point, const int face) const {
     // Constants to specify the tolerances in searching outside the triangle
     const static double zero = -0.1;
     const static double one = 1.1;
@@ -969,18 +905,20 @@ double TriangleInterpolator::distance(const Vec3& point, const int face) const {
     return edge2[face].dotProduct(qvec);
 }
 
-void TriangleInterpolator::write_vtk(ofstream& out) const {
-    TemplateInterpolator<6>::write_vtk(out);
+template<int rank>
+void TriangleInterpolator<rank>::write_vtk(ofstream& out) const {
+    TemplateInterpolator<rank>::write_vtk(out);
 
     // write face norms
     out << "VECTORS norm double\n";
-    for (int i = 0; i < cells.size(); ++i)
+    for (int i = 0; i < this->cells.size(); ++i)
         out << norms[i] << "\n";
 }
 
 // Check whether the projection of a point is inside the triangle
 // It is separate routine from get_bcc to achieve better performance
-bool TriangleInterpolator::point_in_cell(const Vec3& point, const int face) const {
+template<int rank>
+bool TriangleInterpolator<rank>::point_in_cell(const Vec3& point, const int face) const {
     Vec3 tvec = point - vert0[face];
     double u = tvec.dotProduct(pvec[face]);
     if (u < 0 || u > 1) return false;     // Check first barycentric coordinate
@@ -993,8 +931,37 @@ bool TriangleInterpolator::point_in_cell(const Vec3& point, const int face) cons
     return fabs(qvec.dotProduct(edge2[face])) < max_distance[face];
 }
 
+template<int rank>
+void TriangleInterpolator<rank>::print_statistics(const double Q) {
+    if (!MODES.VERBOSE) return;
+    const int n_nodes = this->size();
+    if (this->nodes->size() == n_nodes) {
+        expect(false, "Mismatch between interpolator and mesh sizes: " + to_string(n_nodes) + ", "
+                + to_string(this->nodes->size()));
+        return;
+    }
+
+    double q_sum = 0;
+    for (int i = 0; i < n_nodes; ++i) {
+        const double scalar = this->get_scalar(i);
+        if (this->nodes->get_marker(i) == TYPES.TETNODE)
+            q_sum += scalar;
+    }
+
+    stringstream stream; stream << fixed << setprecision(3);
+    stream << "Q / sum(" << this->scalar_label << ") = " << Q << " / " << q_sum << " = " << Q/q_sum;
+    write_verbose_msg(stream.str());
+}
+
+/* ==================================================================
+ *  ====================== LinTriInterpolator ======================
+ * ================================================================== */
+
+LinTriInterpolator::LinTriInterpolator(const TetgenMesh* m) :
+        TriangleInterpolator<3>(m) {}
+
 // Calculate barycentric coordinates for a projection of a point inside the triangle
-void TriangleInterpolator::get_shape_functions(array<double,3>& sf, const Vec3& point, const int face) const {
+void LinTriInterpolator::get_shape_functions(array<double,3>& sf, const Vec3& point, const int face) const {
     Vec3 tvec = point - vert0[face];
     Vec3 qvec = tvec.crossProduct(edge1[face]);
     const double v = tvec.dotProduct(pvec[face]);
@@ -1003,7 +970,19 @@ void TriangleInterpolator::get_shape_functions(array<double,3>& sf, const Vec3& 
     sf = {u, v, w};
 }
 
-void TriangleInterpolator::get_shape_functions(array<double,6>& sf, const Vec3& point, const int face) const {
+SimpleCell<3> LinTriInterpolator::get_cell(const int tri) const {
+    require(tri >= 0 && tri < faces->size(), "Invalid index: " + to_string(tri));
+    return (*faces)[tri];
+}
+
+/* ==================================================================
+ *  ====================== QuadTriInterpolator =====================
+ * ================================================================== */
+
+QuadTriInterpolator::QuadTriInterpolator(const TetgenMesh* m) :
+        TriangleInterpolator<6>(m) {}
+
+void QuadTriInterpolator::get_shape_functions(array<double,6>& sf, const Vec3& point, const int face) const {
     const Vec3 tvec = point - vert0[face];
     const Vec3 qvec = tvec.crossProduct(edge1[face]);
     const double v = tvec.dotProduct(pvec[face]);
@@ -1019,7 +998,7 @@ void TriangleInterpolator::get_shape_functions(array<double,6>& sf, const Vec3& 
     sf = {u, v, w, 0, 0, 0};
 }
 
-SimpleCell<6> TriangleInterpolator::tri2quadTri(const int tri) const {
+SimpleCell<6> QuadTriInterpolator::get_cell(const int tri) const {
     require(tri >= 0 && tri < faces->size(), "Invalid index: " + to_string(tri));
     if (mesh->quads.size() == 0)
         return QuadraticTri(0);
@@ -1042,30 +1021,13 @@ SimpleCell<6> TriangleInterpolator::tri2quadTri(const int tri) const {
     return QuadraticTri((*faces)[tri], n4, n5, n6);
 }
 
-void TriangleInterpolator::print_statistics(const double Q) {
-    if (!MODES.VERBOSE) return;
-    if (nodes->size() == size()) {
-        expect(false, "Mismatch between interpolator and mesh sizes: " + to_string(size()) + ", "
-                + to_string(nodes->size()));
-        return;
-    }
-
-    double q_sum = 0;
-    for (int i = 0; i < size(); ++i) {
-        const double scalar = get_scalar(i);
-        if (nodes->get_marker(i) == TYPES.TETNODE)
-            q_sum += scalar;
-    }
-
-    stringstream stream; stream << fixed << setprecision(3);
-    stream << "Q / sum(" << scalar_label << ") = " << Q << " / " << q_sum << " = " << Q/q_sum;
-    write_verbose_msg(stream.str());
-}
-
+template class TemplateInterpolator<3> ;
 template class TemplateInterpolator<4> ;
 template class TemplateInterpolator<6> ;
-template class TemplateInterpolator<10> ;
+template class TemplateInterpolator<10>;
+template class TriangleInterpolator<3> ;
+template class TriangleInterpolator<6> ;
 template class TetrahedronInterpolator<4> ;
-template class TetrahedronInterpolator<10> ;
+template class TetrahedronInterpolator<10>;
 
 } // namespace femocs

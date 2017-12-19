@@ -25,7 +25,7 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader constructors */
     SolutionReader();
-    SolutionReader(TriangleInterpolator* tri, QuadTetInterpolator* tet,
+    SolutionReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet,
             const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
     /** Interpolate solution on the system atoms using tetrahedral interpolator
@@ -76,7 +76,7 @@ protected:
     double limit_min;             ///< minimum value of accepted comparison value
     double limit_max;             ///< maximum value of accepted comparison value
 
-    TriangleInterpolator* interpolator_2d;    ///< data needed for interpolating on surface
+    QuadTriInterpolator* interpolator_2d;    ///< data needed for interpolating on surface
     QuadTetInterpolator* interpolator_3d; ///< data needed for interpolating in space
     vector<Solution> interpolation;           ///< interpolated data
 
@@ -108,9 +108,9 @@ protected:
 class FieldReader: public SolutionReader {
 public:
     /** FieldReader constructors */
-    FieldReader(TriangleInterpolator* ip);
+    FieldReader(QuadTriInterpolator* ip);
     FieldReader(QuadTetInterpolator* ip);
-    FieldReader(TriangleInterpolator* tri, QuadTetInterpolator* tet);
+    FieldReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
     void interpolate(const Medium &medium, const int component, const bool srt);
@@ -180,9 +180,9 @@ private:
 class HeatReader: public SolutionReader {
 public:
     /** HeatReader constructors */
-    HeatReader(TriangleInterpolator* tri);
+    HeatReader(QuadTriInterpolator* tri);
     HeatReader(QuadTetInterpolator* tet);
-    HeatReader(TriangleInterpolator* tri, QuadTetInterpolator* tet);
+    HeatReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
     void interpolate(const Medium &medium, const double empty_val, const int component, const bool srt);
@@ -211,11 +211,11 @@ private:
 class EmissionReader: public SolutionReader {
 public:
     /** EmissionReader constructors. */
-    EmissionReader(TriangleInterpolator* tri, const FieldReader& fields, const HeatReader& heat,
+    EmissionReader(QuadTriInterpolator* tri, const FieldReader& fields, const HeatReader& heat,
             const TetgenFaces& faces);
     EmissionReader(QuadTetInterpolator* tet, const FieldReader& fields,
             const HeatReader& heat, const TetgenFaces& faces);
-    EmissionReader(TriangleInterpolator* tri, QuadTetInterpolator* tet,
+    EmissionReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet,
             const FieldReader& fields, const HeatReader& heat, const TetgenFaces& faces);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
@@ -282,9 +282,9 @@ private:
 class ChargeReader: public SolutionReader {
 public:
     /** ChargeReader constructors */
-    ChargeReader(TriangleInterpolator* ip);
+    ChargeReader(QuadTriInterpolator* ip);
     ChargeReader(QuadTetInterpolator* ip);
-    ChargeReader(TriangleInterpolator* tri, QuadTetInterpolator* tet);
+    ChargeReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet);
 
     /** Calculate charge on the triangular faces using interpolated solution on the face centroid */
     void calc_interpolated_charges(const TetgenMesh& mesh, const double E0);
@@ -320,15 +320,15 @@ private:
 class ForceReader: public SolutionReader {
 public:
     /** ChargeReader constructors */
-    ForceReader(TriangleInterpolator* ip);
+    ForceReader(QuadTriInterpolator* ip);
     ForceReader(QuadTetInterpolator* ip);
-    ForceReader(TriangleInterpolator* tri, QuadTetInterpolator* tet);
+    ForceReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet);
 
     /** Calculate forces from atomic electric fields and face charges */
     void distribute_charges(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);
 
-    void calc_forces(const FieldReader &fields, TriangleInterpolator& ti);
+    void calc_forces(const FieldReader &fields, QuadTriInterpolator& ti);
 
     int calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom2surf, const FieldReader& fields,
              const double radius, const double latconst, const string& mesh_quality);

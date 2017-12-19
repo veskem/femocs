@@ -19,20 +19,20 @@
 using namespace std;
 namespace femocs {
 
-class GeneralInterpolator {
+class Interpolator {
 
 public:
-    GeneralInterpolator() : norm_label("vector_norm"), scalar_label("scalar") {
+    Interpolator() : norm_label("vector_norm"), scalar_label("scalar") {
         reserve(0);
         reserve_precompute(0);
     }
 
-    GeneralInterpolator(const string& nl, const string& sl) : norm_label(nl), scalar_label(sl) {
+    Interpolator(const string& nl, const string& sl) : norm_label(nl), scalar_label(sl) {
         reserve(0);
         reserve_precompute(0);
     }
 
-    virtual ~GeneralInterpolator() {};
+    virtual ~Interpolator() {};
 
     /** Return number of available interpolation nodes */
     int size() const { return solutions.size(); }
@@ -154,17 +154,17 @@ protected:
 
 /** General class to linearly interpolate solution inside the mesh */
 template<int rank>
-class TemplateInterpolator : public GeneralInterpolator {
+class TemplateInterpolator : public Interpolator {
 
 public:
     TemplateInterpolator() :
-            GeneralInterpolator(), mesh(NULL), nodes(NULL) {}
+            Interpolator(), mesh(NULL), nodes(NULL) {}
 
     TemplateInterpolator(const TetgenMesh* m) : 
-            GeneralInterpolator(), mesh(m), nodes(&m->nodes) {}
+            Interpolator(), mesh(m), nodes(&m->nodes) {}
 
     TemplateInterpolator(const TetgenMesh* m, const string& nl, const string& sl) : 
-            GeneralInterpolator(nl, sl), mesh(m), nodes(&m->nodes) {}
+            Interpolator(nl, sl), mesh(m), nodes(&m->nodes) {}
 
     virtual ~TemplateInterpolator() {};
 
@@ -212,7 +212,7 @@ protected:
     
     /** Reserve memory for pre-computation data */
     virtual void reserve_precompute(const int N) {
-        GeneralInterpolator::reserve_precompute(N);
+        Interpolator::reserve_precompute(N);
         cells.clear();
         cells.reserve(N);
         centroids.clear();
@@ -324,12 +324,12 @@ protected:
     bool point_in_cell(const Vec3& point, const int i) const;
 
     /** Get interpolation weights for a point inside i-th tetrahedron */
-    virtual void get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const {}
+    virtual void get_shape_functions(array<double,rank>& sf, const Vec3& point, const int i) const {}
 
     /** Return the tetrahedron type in vtk format */
     virtual int get_cell_type() const { return 0; }
 
-    /** Store tetrahedra to get rid of dependency on mesh */    
+    /** Get stored tetrahedron */
     virtual SimpleCell<rank> get_cell(const int i) const { return SimpleCell<rank>(); }
     
         /** Determinant of 3x3 matrix which's last column consists of ones */
@@ -364,6 +364,22 @@ protected:
     }
 };
 
+/** Class to interpolate solution on 4-noded tetrahedra */
+class LinTetInterpolator : public TetrahedronInterpolator<4> {
+public:
+    LinTetInterpolator(const TetgenMesh* mesh);
+
+private:
+    /** Get interpolation weights for a point inside i-th tetrahedron */
+     void get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const;
+
+     /** Return the tetrahedron type in vtk format */
+     int get_cell_type() const { return 10; }
+
+     SimpleCell<4> get_cell(const int i) const;
+};
+
+/** Class to interpolate solution on 10-noded tetrahedra */
 class QuadTetInterpolator : public TetrahedronInterpolator<10> {
 public:
     /** TetrahedronInterpolator conctructor */
@@ -388,28 +404,15 @@ private:
      bool average_and_check_sharp_nodes(const bool vacuum);
 };
 
-class LinTetInterpolator : public TetrahedronInterpolator<4> {
-public:
-    LinTetInterpolator(const TetgenMesh* mesh);
-
-private:
-    /** Get interpolation weights for a point inside i-th tetrahedron */
-     void get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const;
-
-     /** Return the tetrahedron type in vtk format */
-     int get_cell_type() const { return 10; }
-
-     SimpleCell<4> get_cell(const int i) const;
-};
-
 /** Class to interpolate solution on surface triangles */
-class TriangleInterpolator : public TemplateInterpolator<6> {
+template<int rank>
+class TriangleInterpolator : public TemplateInterpolator<rank> {
 public:
     /** Constructor of TriangleInterpolator  */
-    TriangleInterpolator(const TetgenMesh* mesh);
+    TriangleInterpolator(const TetgenMesh* m) :
+        TemplateInterpolator<rank>(m), faces(&m->faces) {}
 
-    /** Calculate charges on surface faces using direct solution in the face centroids */
-    void calc_charges(const double E0);
+    virtual ~TriangleInterpolator() {};
 
     /** Interpolate conserved scalar data for the vector of atoms */
     void interp_conserved(vector<double>& scalars, const vector<Atom>& atoms);
@@ -424,12 +427,16 @@ public:
     /** Determine whether the point is within r_cut distance from the triangular surface */
     int near_surface(const Vec3& point, const double r_cut) const;
 
-    Vec3 get_norm(const int i) const;
+    /** Return norm of i-th triangle */
+    Vec3 get_norm(const int i) const {
+        require(i >= 0 && i < this->size(), "Invalid index: " + to_string(i));
+        return norms[i];
+    }
 
     /** Return the distance between a point and i-th triangle in the direction of its norm */
     double fast_distance(const Vec3& point, const int i) const;
 
-private:
+protected:
     const TetgenFaces* faces;    ///< Direct pointer to triangles to access their specific routines
 
     /** Data computed before starting looping through the triangles */
@@ -456,16 +463,46 @@ private:
     /** Check whether the projection of a point is inside the i-th triangle */
     bool point_in_cell(const Vec3& point, const int i) const;
 
-    /** Calculate barycentric coordinates for a point with respect to the i-th triangle */
-    void get_shape_functions(array<double,3>& sf, const Vec3& point, const int i) const;
-    void get_shape_functions(array<double,6>& sf, const Vec3& point, const int i) const;
+    /** Calculate shape functions for a point with respect to the i-th triangle */
+    virtual void get_shape_functions(array<double,rank>& sf, const Vec3& point, const int i) const {}
 
     /** Return the triangle type in vtk format */
-    /** Return the quadratic triangle type in vtk format */
-    //    int get_cell_type() const { return 5; }
+    virtual int get_cell_type() const { return 0; }
+
+    /** Get stored triangle */
+    virtual SimpleCell<rank> get_cell(const int i) const { return SimpleCell<rank>(); }
+};
+
+/** Class to interpolate solution on 3-noded triangles */
+class LinTriInterpolator : public TriangleInterpolator<3> {
+public:
+    LinTriInterpolator(const TetgenMesh* mesh);
+
+private:
+    /** Calculate shape functions for a point with respect to the i-th triangle */
+    void get_shape_functions(array<double,3>& sf, const Vec3& point, const int i) const;
+
+    /** Return the triangle type in vtk format */
+    int get_cell_type() const { return 5; }
+
+    /** Get stored triangle */
+    SimpleCell<3> get_cell(const int i) const;
+};
+
+/** Class to interpolate solution on 6-noded triangles */
+class QuadTriInterpolator : public TriangleInterpolator<6> {
+public:
+    QuadTriInterpolator(const TetgenMesh* mesh);
+
+private:
+    /** Calculate shape functions for a point with respect to the i-th triangle */
+    void get_shape_functions(array<double,6>& sf, const Vec3& point, const int i) const;
+
+    /** Return the 6-noded triangle type in vtk format */
     int get_cell_type() const { return 22; }
 
-    SimpleCell<6> tri2quadTri(const int i) const;
+    /** Get stored triangle */
+    SimpleCell<6> get_cell(const int i) const;
 };
 
 } // namespace femocs

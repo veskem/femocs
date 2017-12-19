@@ -217,9 +217,9 @@ private:
     TetgenMesh fem_mesh;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
 
     /// data for interpolating results from vacuum on the surface
-    TriangleInterpolator vacuum_surface_interpolator = TriangleInterpolator(&fem_mesh);
+    QuadTriInterpolator vacuum_surface_interpolator = QuadTriInterpolator(&fem_mesh);
     /// data for interpolating results on the bulk surface
-    TriangleInterpolator bulk_surface_interpolator = TriangleInterpolator(&fem_mesh);
+    QuadTriInterpolator bulk_surface_interpolator = QuadTriInterpolator(&fem_mesh);
     /// data for interpolating results in vacuum
     QuadTetInterpolator vacuum_interpolator = QuadTetInterpolator(&fem_mesh);
     /// data for interpolating results in bulk

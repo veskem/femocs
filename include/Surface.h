@@ -58,7 +58,7 @@ public:
     void transform(const double latconst);
 
     /** Remove the atoms that are too far from surface faces */
-    void clean_by_triangles(vector<int>& surf2face, TriangleInterpolator& interpolator, const double r_cut);
+    void clean_by_triangles(vector<int>& surf2face, QuadTriInterpolator& interpolator, const double r_cut);
 
     int clean_by_voronois(const double radius, const double latconst, const string& mesh_quality);
 

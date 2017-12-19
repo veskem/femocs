@@ -26,7 +26,7 @@ SolutionReader::SolutionReader() : vec_label("vec"), vec_norm_label("vec_norm"),
     reserve(0);
 }
 
-SolutionReader::SolutionReader(TriangleInterpolator* tri, QuadTetInterpolator* tet,
+SolutionReader::SolutionReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet,
         const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
         vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab),
         limit_min(0), limit_max(0), interpolator_2d(tri), interpolator_3d(tet)
@@ -447,7 +447,7 @@ void SolutionReader::print_statistics() {
  * ============== FIELD READER ==============
  * ========================================== */
 
-FieldReader::FieldReader(TriangleInterpolator* tri) :
+FieldReader::FieldReader(QuadTriInterpolator* tri) :
         SolutionReader(tri, NULL, "elfield", "elfield_norm", "potential"),
         E0(0), radius1(0), radius2(0) {}
 
@@ -455,7 +455,7 @@ FieldReader::FieldReader(QuadTetInterpolator* tet) :
         SolutionReader(NULL, tet, "elfield", "elfield_norm", "potential"),
         E0(0), radius1(0), radius2(0) {}
 
-FieldReader::FieldReader(TriangleInterpolator* tri, QuadTetInterpolator* tet) :
+FieldReader::FieldReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet) :
         SolutionReader(tri, tet, "elfield", "elfield_norm", "potential"),
         E0(0), radius1(0), radius2(0) {}
 
@@ -720,13 +720,13 @@ void FieldReader::set_check_params(const double E0, const double limit_min, cons
  * =============== HEAT READER ==============
  * ========================================== */
 
-HeatReader::HeatReader(TriangleInterpolator* tri) :
+HeatReader::HeatReader(QuadTriInterpolator* tri) :
         SolutionReader(tri, NULL, "rho", "rho_norm", "temperature") {}
 
 HeatReader::HeatReader(QuadTetInterpolator* tet) :
         SolutionReader(NULL, tet, "rho", "rho_norm", "temperature") {}
 
-HeatReader::HeatReader(TriangleInterpolator* tri, QuadTetInterpolator* tet) :
+HeatReader::HeatReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet) :
         SolutionReader(tri, tet, "rho", "rho_norm", "temperature") {}
 
 // Linearly interpolate solution on Medium atoms
@@ -828,7 +828,7 @@ double HeatReader::get_temperature(const int i) const {
  * ============= EMISSION READER ============
  * ========================================== */
 
-EmissionReader::EmissionReader(TriangleInterpolator* tri, const FieldReader& fields,
+EmissionReader::EmissionReader(QuadTriInterpolator* tri, const FieldReader& fields,
         const HeatReader& heat, const TetgenFaces& faces) :
                 SolutionReader(tri, NULL, "none", "rho_norm", "temperature"), fields(fields),
                 heat(heat), faces(faces){
@@ -842,7 +842,7 @@ EmissionReader::EmissionReader(QuadTetInterpolator* tet,  const FieldReader& fie
     initialize();
 }
 
-EmissionReader::EmissionReader(TriangleInterpolator* tri, QuadTetInterpolator* tet,
+EmissionReader::EmissionReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet,
         const FieldReader& _fields, const HeatReader& _heat, const TetgenFaces& _faces) :
         SolutionReader(tri, tet, "none", "rho_norm", "temperature") , fields(_fields),
         heat(_heat), faces(_faces) {
@@ -1044,13 +1044,13 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
  * ============== CHARGE READER =============
  * ========================================== */
 
-ChargeReader::ChargeReader(TriangleInterpolator* tri) :
+ChargeReader::ChargeReader(QuadTriInterpolator* tri) :
         SolutionReader(tri, NULL, "elfield", "area", "charge"), Q_tot(0) {}
 
 ChargeReader::ChargeReader(QuadTetInterpolator* tet) :
         SolutionReader(NULL, tet, "elfield", "area", "charge"), Q_tot(0) {}
 
-ChargeReader::ChargeReader(TriangleInterpolator* tri, QuadTetInterpolator* tet) :
+ChargeReader::ChargeReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet) :
         SolutionReader(tri, tet, "elfield", "area", "charge"), Q_tot(0) {}
 
 // Calculate charges on surface faces using interpolated electric fields
@@ -1189,13 +1189,13 @@ void ChargeReader::set_check_params(const double Q_tot, const double limit_min, 
  * ============== FORCE READER ==============
  * ========================================== */
 
-ForceReader::ForceReader(TriangleInterpolator* tri) :
+ForceReader::ForceReader(QuadTriInterpolator* tri) :
         SolutionReader(tri, NULL, "force", "force_norm", "charge") {}
 
 ForceReader::ForceReader(QuadTetInterpolator* tet) :
         SolutionReader(NULL, tet, "force", "force_norm", "charge") {}
 
-ForceReader::ForceReader(TriangleInterpolator* tri, QuadTetInterpolator* tet) :
+ForceReader::ForceReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet) :
         SolutionReader(tri, tet, "force", "force_norm", "charge") {}
 
 void ForceReader::clean_voro_faces(VoronoiMesh& mesh) {
@@ -1337,7 +1337,7 @@ int ForceReader::calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom
 }
 
 // Calculate forces from atomic electric fields and face charges
-void ForceReader::calc_forces(const FieldReader &fields, TriangleInterpolator& ti) {
+void ForceReader::calc_forces(const FieldReader &fields, QuadTriInterpolator& ti) {
     const int n_atoms = fields.size();
 
     // Copy the atom data

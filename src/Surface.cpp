@@ -209,7 +209,7 @@ Surface Surface::clean(Coarseners &coarseners) {
 }
 
 // Remove the atoms that are too far from surface faces
-void Surface::clean_by_triangles(vector<int>& surf2face, TriangleInterpolator& interpolator, const double r_cut) {
+void Surface::clean_by_triangles(vector<int>& surf2face, QuadTriInterpolator& interpolator, const double r_cut) {
     if (r_cut <= 0) return;
 
     const int n_atoms = size();
