@@ -39,6 +39,7 @@ write_log = true                # enable writing log file
 clear_output = true             # clear output folder before the run
 
 # Mesh and solution smoothing
+interpolation_rank = 1          # rank of the solution interpolation; 1-linear, 2-quadratic
 use_histclean = false           # use histogram cleaner to get rid of sharp peaks in the solution
 surface_smooth_factor = 1.0     # surface smoothing factor; bigger number gives smoother surface
 charge_smooth_factor = 100.0    # charge smoothing factor; bigger number gives smoother charges

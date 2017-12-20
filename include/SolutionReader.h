@@ -25,7 +25,7 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader constructors */
     SolutionReader();
-    SolutionReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet,
+    SolutionReader(VolumeInterpolator* vi, SurfaceInterpolator* si,
             const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
     /** Interpolate solution on the system atoms using tetrahedral interpolator
@@ -55,6 +55,19 @@ public:
     /** Set i-th Solution */
     void set_interpolation(const int i, const Solution& s);
 
+    void set_interpolator(VolumeInterpolator* vi)  {
+        interpolator_3d = vi;
+    }
+
+    void set_interpolator(SurfaceInterpolator* si)  {
+        interpolator_2d = si;
+    }
+
+    void set_interpolator(VolumeInterpolator* vi, SurfaceInterpolator* si)  {
+        interpolator_3d = vi;
+        interpolator_2d = si;
+    }
+
     /** Calculate statistics about coordinates and solution */
     void calc_statistics();
 
@@ -76,9 +89,9 @@ protected:
     double limit_min;             ///< minimum value of accepted comparison value
     double limit_max;             ///< maximum value of accepted comparison value
 
-    QuadTriInterpolator* interpolator_2d;    ///< data needed for interpolating on surface
-    QuadTetInterpolator* interpolator_3d; ///< data needed for interpolating in space
-    vector<Solution> interpolation;           ///< interpolated data
+    VolumeInterpolator*  interpolator_3d; ///< data needed for interpolating in space
+    SurfaceInterpolator* interpolator_2d; ///< data needed for interpolating on surface
+    vector<Solution> interpolation;       ///< interpolated data
 
     /** Initialise statistics about coordinates and solution */
     void init_statistics();
@@ -107,10 +120,7 @@ protected:
 /** Class to extract solution from DealII calculations */
 class FieldReader: public SolutionReader {
 public:
-    /** FieldReader constructors */
-    FieldReader(QuadTriInterpolator* ip);
-    FieldReader(QuadTetInterpolator* ip);
-    FieldReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet);
+    FieldReader(VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
     void interpolate(const Medium &medium, const int component, const bool srt);
@@ -179,10 +189,7 @@ private:
 /** Class to interpolate current densities and temperatures */
 class HeatReader: public SolutionReader {
 public:
-    /** HeatReader constructors */
-    HeatReader(QuadTriInterpolator* tri);
-    HeatReader(QuadTetInterpolator* tet);
-    HeatReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet);
+    HeatReader(VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
     void interpolate(const Medium &medium, const double empty_val, const int component, const bool srt);
@@ -210,13 +217,8 @@ private:
 /** Class to calculate field emission effects with GETELEC */
 class EmissionReader: public SolutionReader {
 public:
-    /** EmissionReader constructors. */
-    EmissionReader(QuadTriInterpolator* tri, const FieldReader& fields, const HeatReader& heat,
-            const TetgenFaces& faces);
-    EmissionReader(QuadTetInterpolator* tet, const FieldReader& fields,
-            const HeatReader& heat, const TetgenFaces& faces);
-    EmissionReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet,
-            const FieldReader& fields, const HeatReader& heat, const TetgenFaces& faces);
+    EmissionReader(const FieldReader& fields, const HeatReader& heat, const TetgenFaces& faces,
+            VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
      * estimation of the space charge effects.
@@ -231,7 +233,7 @@ public:
     void set_multiplier(double _multiplier) { multiplier = _multiplier;}
 
 private:
-    /** Prepares the line inputted to GETELEC.
+    /** Prepares the line inputed to GETELEC.
      *
      * @param point Starting point of the line
      * @param direction Direction of the line
@@ -281,10 +283,7 @@ private:
 /** Class to calculate charges from electric field */
 class ChargeReader: public SolutionReader {
 public:
-    /** ChargeReader constructors */
-    ChargeReader(QuadTriInterpolator* ip);
-    ChargeReader(QuadTetInterpolator* ip);
-    ChargeReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet);
+    ChargeReader(VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
 
     /** Calculate charge on the triangular faces using interpolated solution on the face centroid */
     void calc_interpolated_charges(const TetgenMesh& mesh, const double E0);
@@ -319,16 +318,13 @@ private:
 /** Class to calculate forces from charges and electric fields */
 class ForceReader: public SolutionReader {
 public:
-    /** ChargeReader constructors */
-    ForceReader(QuadTriInterpolator* ip);
-    ForceReader(QuadTetInterpolator* ip);
-    ForceReader(QuadTriInterpolator* tri, QuadTetInterpolator* tet);
+    ForceReader(VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
 
     /** Calculate forces from atomic electric fields and face charges */
     void distribute_charges(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);
 
-    void calc_forces(const FieldReader &fields, QuadTriInterpolator& ti);
+    void calc_forces(const FieldReader &fields, const SurfaceInterpolator& ti);
 
     int calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom2surf, const FieldReader& fields,
              const double radius, const double latconst, const string& mesh_quality);

@@ -69,6 +69,8 @@ Config::Config() {
     smooth_lambda = 0.6307;       // lambda parameter in surface mesh smoother
     smooth_mu = -0.6732;          // mu parameter in surface mesh smoother
     smooth_algorithm = "laplace"; // surface mesh smoother algorithm; none, laplace or fujiwara
+
+    interpolation_rank = 1;       // rank of the solution interpolation; 1-linear, 2-quadratic
 }
 
 // Remove the noise from the beginning of the string
@@ -91,6 +93,7 @@ void Config::read_all(const string& file_name) {
     check_obsolete("smooth_factor", "surface_smooth_factor");
 
     // Modify the parameters that are specified in input script
+    read_command("interpolation_rank", interpolation_rank);
     read_command("use_rdf", use_rdf);
     read_command("work_function", heating.work_function);
     read_command("t_ambient", heating.t_ambient);

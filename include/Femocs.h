@@ -211,28 +211,26 @@ private:
     Config conf;            ///< configuration parameters
     Coarseners coarseners;  ///< surface coarsening data & routines
     AtomReader reader;      ///< all the imported atoms
-    Surface dense_surf;       ///< non-coarsened surface atoms
-    Surface extended_surf;    ///< atoms added for the surface atoms
+    Surface dense_surf;     ///< non-coarsened surface atoms
+    Surface extended_surf;  ///< atoms added for the surface atoms
 
     TetgenMesh fem_mesh;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
 
-    /// data for interpolating results from vacuum on the surface
-    QuadTriInterpolator vacuum_surface_interpolator = QuadTriInterpolator(&fem_mesh);
-    /// data for interpolating results on the bulk surface
-    QuadTriInterpolator bulk_surface_interpolator = QuadTriInterpolator(&fem_mesh);
-    /// data for interpolating results in vacuum
-    QuadTetInterpolator vacuum_interpolator = QuadTetInterpolator(&fem_mesh);
-    /// data for interpolating results in bulk
-    QuadTetInterpolator bulk_interpolator = QuadTetInterpolator(&fem_mesh);
+    SurfaceInterpolator* vacuum_surface_interpolator; ///< data for interpolating results from vacuum on the surface
+    SurfaceInterpolator* bulk_surface_interpolator;   ///< data for interpolating results on the bulk surface
+    VolumeInterpolator*  vacuum_interpolator;         ///< data for interpolating results in vacuum
+    VolumeInterpolator*  bulk_interpolator;           ///< data for interpolating results in bulk
 
-    HeatReader temperatures = HeatReader(&bulk_interpolator);   ///< interpolated temperatures & current densities
-    FieldReader fields = FieldReader(&vacuum_surface_interpolator, &vacuum_interpolator); ///< interpolated fields and potentials
-    ForceReader forces = ForceReader(&vacuum_surface_interpolator, &vacuum_interpolator); ///< forces on surface atoms
+    HeatReader  temperatures; ///< temperatures & current densities on bulk atoms
+    FieldReader fields;       ///< fields & potentials on surface atoms
+    ForceReader forces;       ///< forces & charges on surface atoms
 
-    fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);   ///< physical quantities used in heat calculations
-    fch::CurrentsAndHeatingStationary<3> ch_solver1;      ///< first steady-state currents and heating solver
-    fch::CurrentsAndHeatingStationary<3> ch_solver2;      ///< second steady-state currents and heating solver
-    fch::CurrentsAndHeatingStationary<3>* ch_solver;      ///< active steady-state currents and heating solver
+    /// physical quantities used in heat calculations
+    fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);
+
+    fch::CurrentsAndHeatingStationary<3>  ch_solver1;     ///< first    steady-state currents and heating solver
+    fch::CurrentsAndHeatingStationary<3>  ch_solver2;     ///< second   steady-state currents and heating solver
+    fch::CurrentsAndHeatingStationary<3>* ch_solver;      ///< active   steady-state currents and heating solver
     fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous steady-state currents and heating solver
     fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
     fch::Laplace<3> laplace_solver;                       ///< Laplace equation solver
