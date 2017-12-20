@@ -28,7 +28,7 @@ public:
     SolutionReader(VolumeInterpolator* vi, SurfaceInterpolator* si,
             const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
-    /** Interpolate solution on the system atoms using volume interpolator
+    /** Interpolate solution on the system atoms using spatial interpolator
      * @param srt       sort atoms spatially */
     void calc_3d_interpolation(const bool srt);
 

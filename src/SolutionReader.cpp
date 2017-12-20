@@ -37,12 +37,9 @@ SolutionReader::SolutionReader(VolumeInterpolator* vi, SurfaceInterpolator* si,
 // Linearly interpolate solution on system atoms using tetrahedral interpolator
 void SolutionReader::calc_3d_interpolation(const bool srt) {
     require(interpolator_3d, "NULL spacial interpolator cannot be used!");
+    require(interpolator_2d->size() > 0, "Empty spatial interpolator cannot be used!");
 
     const int n_atoms = size();
-    if (interpolator_3d->size() == 0) {
-        interpolation = vector<Solution>(n_atoms, Solution(0));
-        return;
-    }
 
     // Sort atoms into sequential order to speed up interpolation
     if (srt) sort_spatial();
@@ -72,6 +69,7 @@ void SolutionReader::calc_3d_interpolation(const bool srt) {
 // Linearly interpolate solution on system atoms using triangular interpolator
 void SolutionReader::calc_2d_interpolation(vector<int>& atom2face, const bool srt) {
     require(interpolator_2d, "NULL surface interpolator cannot be used!");
+    require(interpolator_2d->size() > 0, "Empty surface interpolator cannot be used!");
 
     const int n_atoms = size();
     const bool faces_known = atom2face.size() == n_atoms;
@@ -98,12 +96,9 @@ void SolutionReader::calc_2d_interpolation(vector<int>& atom2face, const bool sr
 
 void SolutionReader::calc_2d_interpolation(const bool srt) {
     require(interpolator_2d, "NULL surface interpolator cannot be used!");
+    require(interpolator_2d->size() > 0, "Empty surface interpolator cannot be used!");
 
     const int n_atoms = size();
-    if (interpolator_2d->size() == 0) {
-        interpolation = vector<Solution>(n_atoms, Solution(0));
-        return;
-    }
 
     // Sort atoms into sequential order to speed up interpolation
     if (srt) sort_spatial();
@@ -126,7 +121,6 @@ void SolutionReader::calc_2d_interpolation(const bool srt) {
     if (srt) {
         for (int i = 0; i < n_atoms; ++i)
             interpolation[i].id = atoms[i].id;
-
         sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
         sort( atoms.begin(), atoms.end(), Atom::sort_id() );
     }
