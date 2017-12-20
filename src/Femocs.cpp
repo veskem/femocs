@@ -134,7 +134,7 @@ void Femocs::write_slice(const string& file_name) {
             medium.append( Point3(x, reader.sizes.ymid, z) );
 
     FieldReader fr(vacuum_interpolator);
-    fr.interpolate(medium, 0, false);
+    fr.interpolate(medium, false);
     fr.write(file_name);
 
     MODES.WRITEFILE = writefile_save;
@@ -460,7 +460,7 @@ int Femocs::solve_transient_heat(const double delta_time) {
     start_msg(t0, "=== Interpolating J & T on face centroids...");
 
     HeatReader heat_reader(NULL, bulk_surface_interpolator);
-    heat_reader.interpolate_2d(ch_transient_solver, conf.heating.t_ambient, 0, false);
+    heat_reader.interpolate_2d(ch_transient_solver, conf.heating.t_ambient, false);
     end_msg(t0);
     heat_reader.write("out/surface_temperature.xyz");
 
@@ -536,7 +536,7 @@ int Femocs::solve_converge_heat() {
 
         start_msg(t0, "=== Interpolating J & T on face centroids...");
         HeatReader heat_reader(NULL, bulk_surface_interpolator);
-        heat_reader.interpolate_2d(ch_transient_solver, conf.heating.t_ambient, 0, false);
+        heat_reader.interpolate_2d(ch_transient_solver, conf.heating.t_ambient, false);
         end_msg(t0);
         if (MODES.VERBOSE) heat_reader.write("out/surface_temperature.xyz");
 
@@ -750,7 +750,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         write_silent_msg("Using previous electric field!");
     else {
         start_msg(t0, "=== Interpolating E and phi...");
-        fields.interpolate_2d(atom2face, dense_surf, 0, true);
+        fields.interpolate_2d(atom2face, dense_surf, true);
 //        fields.interpolate(dense_surf, 0, true);
         fail = fields.clean(conf.coordination_cutoff, conf.use_histclean);
         end_msg(t0);
@@ -775,7 +775,7 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
         write_silent_msg("Using previous temperature!");
     else {
         start_msg(t0, "=== Interpolating J & T...");
-        temperatures.interpolate(reader, conf.heating.t_ambient, 0, false);
+        temperatures.interpolate(reader, conf.heating.t_ambient, false);
         end_msg(t0);
 
         temperatures.write("out/interpolation_bulk.movie");
@@ -845,7 +845,7 @@ int Femocs::interpolate_surface_elfield(const int n_points, const double* x, con
 
     FieldReader fr(NULL, vacuum_surface_interpolator);
     start_msg(t0, "=== Interpolating & exporting surface elfield...");
-    fr.interpolate_2d(n_points, x, y, z, 1, false);
+    fr.interpolate_2d(n_points, x, y, z, false);
     fail = fr.clean(conf.coordination_cutoff, conf.use_histclean);
     fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
@@ -862,7 +862,7 @@ int Femocs::interpolate_elfield(const int n_points, const double* x, const doubl
 
     FieldReader fr(vacuum_interpolator);
     start_msg(t0, "=== Interpolating & exporting elfield...");
-    fr.interpolate(n_points, x, y, z, 1, false);
+    fr.interpolate(n_points, x, y, z, false);
     fail = fr.clean(conf.coordination_cutoff, conf.use_histclean);
     fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
@@ -879,7 +879,7 @@ int Femocs::interpolate_phi(const int n_points, const double* x, const double* y
     check_return(vacuum_interpolator->size() == 0, "No electric potential to export!");
 
     FieldReader fr(vacuum_interpolator);
-    fr.interpolate(n_points, x, y, z, 2, false);
+    fr.interpolate(n_points, x, y, z, false);
     fail = fr.clean(conf.coordination_cutoff, conf.use_histclean);
     fr.export_potential(n_points, phi, flag);
 

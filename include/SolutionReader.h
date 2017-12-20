@@ -28,14 +28,13 @@ public:
     SolutionReader(VolumeInterpolator* vi, SurfaceInterpolator* si,
             const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
-    /** Interpolate solution on the system atoms using tetrahedral interpolator
-     * @param component component of result to interpolate: -1-locate atoms, 0-vector and scalar data, 1-vector data, 2-scalar data
+    /** Interpolate solution on the system atoms using volume interpolator
      * @param srt       sort atoms spatially */
-    void calc_3d_interpolation(const int component, const bool srt);
+    void calc_3d_interpolation(const bool srt);
 
-    /** Interpolate solution on the system atoms using triangular interpolator */
-    void calc_2d_interpolation(const int component, const bool srt);
-    void calc_2d_interpolation(vector<int>& atom2face, const int component, const bool srt);
+    /** Interpolate solution on the system atoms using surface interpolator */
+    void calc_2d_interpolation(const bool srt);
+    void calc_2d_interpolation(vector<int>& atom2face, const bool srt);
 
     /** Reserve memory for data */
     void reserve(const int n_nodes);
@@ -123,18 +122,16 @@ public:
     FieldReader(VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium, const int component, const bool srt);
+    void interpolate(const Medium &medium, const bool srt);
 
     /** Interpolate solution on points using the solution on tetrahedral mesh nodes */
-    void interpolate(const int n_points, const double* x, const double* y, const double* z,
-            const int component, const bool srt);
+    void interpolate(const int n_points, const double* x, const double* y, const double* z, const bool srt);
 
     /** Interpolate solution on medium atoms using the solution on triangular mesh nodes */
-    void interpolate_2d(vector<int>& surf2face, const Medium &medium, const int component, const bool srt);
+    void interpolate_2d(vector<int>& surf2face, const Medium &medium, const bool srt);
 
     /** Interpolate solution on points using the solution on triangular mesh nodes */
-    void interpolate_2d(const int n_points, const double* x, const double* y, const double* z,
-            const int component, const bool srt);
+    void interpolate_2d(const int n_points, const double* x, const double* y, const double* z, const bool srt);
 
     /** Calculate the electric field for the stationary current and temperature solver */
     void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const double use_hist_clean);
@@ -192,15 +189,15 @@ public:
     HeatReader(VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium, const double empty_val, const int component, const bool srt);
+    void interpolate(const Medium &medium, const double empty_val, const bool srt);
 
     /** Linearly interpolate currents and temperatures in the bulk.
      *  In case of empty interpolator, constant values are stored. */
-    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const int component, const bool srt);
+    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const bool srt);
 
     /** Linearly interpolate currents and temperatures on the bulk surface.
      *  In case of empty interpolator, constant values are stored. */
-    void interpolate_2d(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const int component, const bool srt);
+    void interpolate_2d(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const bool srt);
 
     /** Export interpolated temperature */
     void export_temperature(const int n_atoms, double* T);
