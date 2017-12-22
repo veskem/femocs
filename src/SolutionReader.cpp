@@ -942,16 +942,18 @@ void EmissionReader::calc_representative(){
         }
     }
 
+    if (MODES.VERBOSE)
+        cout << "I_tot = " << I_tot << "Amps" << endl;
     Jrep = I_tot / area;
     Frep = multiplier * FJ / I_tot;
 }
 
 
-void EmissionReader::calc_emission(double workfunction){
+void EmissionReader::calc_emission(double workfunction, bool blunt){
 
     struct emission gt;
     gt.W = workfunction;    // set workfuntion, must be set in conf. script
-    gt.R = 200.0;   // radius of curvature (overrided by femocs potential distribution)
+    gt.R = 1000.0;   // radius of curvature (overrided by femocs potential distribution)
     gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
     double F, J;    // Local field and current density in femocs units (Angstrom)
 
@@ -964,8 +966,9 @@ void EmissionReader::calc_emission(double workfunction){
         gt.Temp = heat.get_temperature(i);
         set_marker(i, 0); // set marker for output emission xyz file. Means No full calculation
 
-        if (F > 0.6 * Fmax){ // Full calculation with line only for high field points
+        if (F > 0.6 * Fmax && !blunt){ // Full calculation with line only for high field points
             field.normalize(); // get line direction
+            cout << "calculating sharp emission" << endl;
             emission_line(get_point(i), field, 1.6 * workfunction / F); //get emission line data
 
             gt.Nr = n_lines;
@@ -999,7 +1002,7 @@ void EmissionReader::calc_emission(double workfunction){
 
 
 void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
-        const double workfunction, const double Vappl) {
+        const double workfunction, const double Vappl, bool blunt) {
 
     const int n_nodes = fields.size();
 
@@ -1015,15 +1018,15 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
         Jmax = 0.;
         Fmax = multiplier * Fmax_0;
 
-        calc_emission(workfunction);
+        calc_emission(workfunction, blunt);
         calc_representative();
-
-        if (Vappl <= 0) break; // if Vappl<=0, SC is ignored
-        if (i > 5) err_fact *= 0.5; // if not converged in first 6 steps, reduce factor
 
         if (MODES.VERBOSE)
             printf("\nSC j= %d th= %f Jmax= %e Jrep= %e Fmax= %f Frep= %f\n", i, multiplier, Jmax,
                     Jrep , Fmax, Frep);
+
+        if (Vappl <= 0) break; // if Vappl<=0, SC is ignored
+        if (i > 5) err_fact *= 0.5; // if not converged in first 6 steps, reduce factor
 
         // calculate SC multiplier (function coming from getelec)
         multiplier = theta_SC(Jrep / nm2_per_angstrom2, Vappl, angstrom_per_nm * Frep);

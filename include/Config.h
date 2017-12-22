@@ -88,6 +88,7 @@ public:
         double t_ambient;           ///< Ambient temperature in heat calculations
         double t_error;             ///< Maximum allowed temperature error in Newton iterations
         int n_newton;               ///< Maximum number of Newton iterations
+        bool blunt;                 ///< Force blunt emitter approximation (good for big systems)
     } heating;
 
     int smooth_steps;           ///< number of surface mesh smoothing iterations

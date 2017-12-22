@@ -225,7 +225,7 @@ public:
      * @param Vappl Applied voltage (required for space charge calculations)
      */
     void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const double workfunction,
-            const double Vappl);
+            const double Vappl, bool blunt = false);
 
     double get_multiplier() const {return multiplier;}
     void set_multiplier(double _multiplier) { multiplier = _multiplier;}
@@ -253,7 +253,7 @@ private:
      * Calculates electron emission distribution for a given configuration (
      * @param workfunction Input work function.
      */
-    void calc_emission(double workfunction);
+    void calc_emission(double workfunction, bool blunt  = false);
 
 
     const double angstrom_per_nm = 10.0;

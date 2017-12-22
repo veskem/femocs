@@ -59,6 +59,7 @@ Config::Config() {
     heating.work_function = 4.5;         // work function [eV]
     heating.rhofile = "in/rho_table.dat.in";  //rho table file
     heating.Vappl = -1.;       // if space charge is used.
+    heating.blunt = false;      // by default emitter is sharp
 
     E0 = 0.0;                      // long range electric field
     neumann = 0;                 // neumann boundary contition value
@@ -130,6 +131,7 @@ void Config::read_all(const string& file_name) {
     read_command("rhofile", heating.rhofile);
     read_command("elfield", E0);
     read_command("V_appl", heating.Vappl);
+    read_command("emitter_blunt", heating.blunt);
 
     // Read commands with potentially multiple arguments like...
     vector<double> args;

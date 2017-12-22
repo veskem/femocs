@@ -525,13 +525,14 @@ int Femocs::solve_converge_heat() {
         start_msg(t0, "=== Calculating field emission...");
         EmissionReader emission(&vacuum_interpolator, field_reader, heat_reader, fem_mesh.faces);
         emission.set_multiplier(multiplier);
-        emission.transfer_emission(ch_transient_solver, conf.heating.work_function, conf.heating.Vappl);
+        emission.transfer_emission(ch_transient_solver, conf.heating.work_function,
+                conf.heating.Vappl, conf.heating.blunt);
         multiplier = emission.get_multiplier();
         end_msg(t0);
         if (MODES.VERBOSE) emission.write("out/surface_emission.xyz");
 
         start_msg(t0, "=== Calculating current density...");
-        ch_transient_solver.assemble_current_system(); // assemble matrix for current density equation; current == electric current
+        ch_transient_solver.assemble_current_system(); // assemble matrix for electric current density equation
         unsigned int ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
         end_msg(t0);
 
@@ -549,13 +550,13 @@ int Femocs::solve_converge_heat() {
         current_time += delta_time;
         if (MODES.VERBOSE) {
             double max_T = ch_transient_solver.get_max_temperature();
-            printf("  i=%d ; dt= %5.3f ps ; t= %5.3f ps ; ccg= %2d ; hcg= %2d ; Tmax= %6.2f\n",
+            printf("  i=%d ; dt= %5.3e ps ; t= %5.3e ps ; ccg= %2d ; hcg= %2d ; Tmax= %6.2f \n",
                     i, delta_time * 1.e12, current_time * 1.e12, ccg, hcg, max_T);
         }
 
-        if (max(hcg, ccg) < 150)
+        if (max(hcg, ccg) < 150 || hcg < 25)
             delta_time *= 1.5;
-        else if (max(hcg, ccg) > 150)
+        else if (max(hcg, ccg) > 150 && hcg > 25)
             delta_time /= 1.5;
 
         if (max(hcg, ccg) < 10) return 0;
