@@ -89,14 +89,13 @@ void Surface::extract(const AtomReader& reader, const int type, const bool inver
                 is_type[i] = n_nbors >= coord_min;
             }
 
-    // Preallocate memory for atoms
-    reserve(vector_sum(is_type));
-
     // Store the atoms
+    reserve(vector_sum(is_type));
     for (int i = 0; i < n_atoms; ++i)
         if (is_type[i])
             append(reader.get_atom(i));
-            
+
+    // Prepare atoms for coarsening
     calc_statistics();
     sort_atoms(3, "down");
 }
@@ -223,6 +222,40 @@ Surface Surface::clean(Coarseners &coarseners) {
     Surface surf( n_atoms - vector_sum(do_delete) );
     for (int i = 0; i < n_atoms; ++i)
         if(!do_delete[i])
+            surf.append(get_atom(i));
+
+    surf.calc_statistics();
+    return surf;
+}
+
+// Clean atoms inside the region of interest
+Surface Surface::clean_roi(Coarseners &coarseners) {
+    const int n_atoms = size();
+    vector<int> do_delete(n_atoms);
+
+    // mark atoms outside the nanotip
+    for (int i = 0; i < n_atoms; ++i)
+        do_delete[i] = -1 * !coarseners.inside_interesting_region(get_point(i));
+
+    // Loop through all the nanotip atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        // skip already marked atoms
+        if (do_delete[i] != 0) continue;
+
+        Point3 point1 = get_point(i);
+        coarseners.pick_cutoff(point1);
+
+        for (int j = i+1; j < n_atoms; ++j) {
+            // skip already marked atoms
+            if (do_delete[j] == 0)
+                do_delete[j] = coarseners.nearby(point1, get_point(j));
+        }
+    }
+
+    // Store coarsened nanotip and non-coarsened outer region
+    Surface surf(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        if (do_delete[i] <= 0)
             surf.append(get_atom(i));
 
     surf.calc_statistics();

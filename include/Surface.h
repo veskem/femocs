@@ -54,6 +54,8 @@ public:
     /** Clean the surface from atoms that are too close to each other */
     Surface clean(Coarseners &coarseners);
 
+    Surface clean_roi(Coarseners &coarseners);
+
     /** Increase or decrease the total volume of system without altering the centre of mass */
     void transform(const double latconst);
 

@@ -243,14 +243,15 @@ int Femocs::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface
 
     start_msg(t0, "=== Coarsening & smoothing surface...");
     coarse_surf = extended_surf;
-    coarse_surf += dense_surf;
+//    coarse_surf += dense_surf;
+    coarse_surf += dense_surf.clean_roi(coarseners);
     coarse_surf = coarse_surf.clean(coarseners);
     coarse_surf.smoothen(conf.radius, conf.surface_smooth_factor, 3.0*conf.coordination_cutoff);
     end_msg(t0);
 
     coarse_surf.write("out/surface_coarse.xyz");
 
-    start_msg(t0, "=== Generating bulk & vacuum...");
+    start_msg(t0, "=== Generating bulk & vacuum corners...");
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
     vacuum.generate_simple(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.box_height * coarse_surf.sizes.zbox);
     bulk.generate_simple(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.bulk_height * conf.latconst);
