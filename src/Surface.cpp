@@ -135,33 +135,54 @@ Surface Surface::extend(const string &file_name, Coarseners &coarseners) {
 }
 
 // Extend the flat area by generating additional atoms
-Surface Surface::extend(const double latconst, const double box_width, Coarseners &coarseners) {
+void Surface::extend(Surface& extension, Coarseners &cr, const double latconst, const double box_width) {
     calc_statistics();
     const double desired_box_width = box_width * sizes.zbox;
+    const double z = cr.centre.z;
 
-    // Over estimate the number of generated points and reserve memory for them
-    int n_generated = pow(desired_box_width / latconst + 1, 2);
-    n_generated -= (sizes.xbox / latconst - 1) * (sizes.ybox / latconst - 1);
-    Surface stretched( max(0, n_generated) );
+    // if the input surface isn't sufficiently wide, add atoms to it
+    if (desired_box_width > sizes.xbox && desired_box_width > sizes.ybox) {
+        // Over estimate the number of generated points and reserve memory for them
+        int n_generated = pow(desired_box_width / latconst + 1, 2);
+        n_generated -= (sizes.xbox / latconst - 1) * (sizes.ybox / latconst - 1);
+        extension.reserve(max(0, n_generated));
 
-    const double Wx = (desired_box_width - sizes.xbox) / 2.0;  // generation area width
-    const double Wy = (desired_box_width - sizes.ybox) / 2.0;
+        const double r_min = min(sizes.xbox, sizes.ybox) / 2.0;
+        const double r_max = sqrt(2) * desired_box_width / 2.0;
 
-    // if the input surface isn't sufficiently wide, add atoms to it, otherwise just add the boundary nodes
-    if (Wx > 0 && Wy > 0) {
-        // add points outside the already existing area
-        for (double y = sizes.ymin - Wy; y <= sizes.ymax + Wy; y += latconst)
-            for (double x = sizes.xmin - Wx; x <= sizes.xmax + Wx; x += latconst)
-                if ( x < sizes.xmin || x > sizes.xmax || y < sizes.ymin || y > sizes.ymax)
-                    stretched.append( Point3(x, y, coarseners.centre.z) );
-        stretched.calc_statistics();
+        double dR = cr.get_cutoff(Point3(sizes.xmid - r_min, sizes.ymid - r_min, z));
+        int i;
+
+        // add points along a rectangular spiral
+        for (double r = r_min; r <= r_max; r += dR) {
+            const int n_points = int(2.0 * r / dR);
+            dR = 2.0 * r / n_points;
+
+            double x = sizes.xmid - r;
+            double y = sizes.ymid - r;
+
+            for (i = 0; i < n_points; ++i, y += dR)
+                extension.append(Point3(x, y, z));
+            for (i = 0; i < n_points; ++i, x += dR)
+                extension.append(Point3(x, y, z));
+            for (i = 0; i < n_points; ++i, y -= dR)
+                extension.append(Point3(x, y, z));
+            for (i = 0; i < n_points; ++i, x -= dR)
+                extension.append(Point3(x, y, z));
+
+            dR = cr.get_cutoff(Point3(x - dR, y - dR, z));
+        }
     }
+
+    // if the input already is sufficiently wide, add just the boundary nodes
     else {
-        stretched.copy_statistics(*this);
-        stretched.sizes.zmean = coarseners.centre.z;
+        Surface middle;
+        middle.generate_middle(sizes, z, cr.get_r0_inf(sizes));
+        extension.generate_simple(sizes, z);
+        extension += middle;
     }
 
-    return stretched.coarsen(coarseners);
+    extension.calc_statistics();
 }
 
 // Coarsen the atoms by generating additional boundary nodes and then running cleaner
@@ -185,7 +206,7 @@ Surface Surface::clean(Coarseners &coarseners) {
     vector<bool> do_delete(n_atoms, false);
 
     // Loop through all the atoms
-    for(int i = 0; i < n_atoms-1; ++i) {
+    for (int i = 0; i < n_atoms - 1; ++i) {
         // Skip already deleted atoms
         if (do_delete[i]) continue;
 

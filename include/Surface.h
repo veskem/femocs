@@ -43,7 +43,7 @@ public:
     void extract(const AtomReader& reader, const int type, const bool invert=false);
 
     /** Extend the flat area by generating additional atoms */
-    Surface extend(const double latconst, const double box_width, Coarseners &coarseners);
+    void extend(Surface &extension, Coarseners &cr, const double latconst, const double box_width);
 
     /** Extend the flat area by reading additional atoms */
     Surface extend(const string &file_name, Coarseners &coarseners);

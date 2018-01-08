@@ -234,13 +234,10 @@ int Femocs::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface
     if (first_run) {
         start_msg(t0, "=== Extending surface...");
         if (conf.extended_atoms == "")
-            extended_surf = dense_surf.extend(conf.latconst, conf.box_width, coarseners);
+            dense_surf.extend(extended_surf, coarseners, conf.latconst, conf.box_width);
         else
             extended_surf = dense_surf.extend(conf.extended_atoms, coarseners);
-
         end_msg(t0);
-
-        extended_surf.write("out/surface_extended.xyz");
         first_run = false;
     }
 
@@ -248,7 +245,6 @@ int Femocs::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface
     coarse_surf = extended_surf;
     coarse_surf += dense_surf;
     coarse_surf = coarse_surf.clean(coarseners);
-
     coarse_surf.smoothen(conf.radius, conf.surface_smooth_factor, 3.0*conf.coordination_cutoff);
     end_msg(t0);
 
@@ -503,7 +499,6 @@ int Femocs::solve_transient_heat(const double delta_time) {
     return 0;
 }
 
-
 // Solve transient heat and continuity until convergence is achieved
 int Femocs::solve_converge_heat() {
     static bool first_call = true;
@@ -582,7 +577,6 @@ int Femocs::solve_converge_heat() {
 
     return 0;
 }
-
 
 // Generate artificial nanotip
 int Femocs::generate_nanotip(const double height, const double radius, const double resolution) {
