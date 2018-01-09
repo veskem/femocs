@@ -28,15 +28,15 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false),
     conf.read_all(conf_file);
 
     // Initialise file writing
-    MODES.WRITEFILE = conf.n_writefile > 0;
+    MODES.WRITEFILE = conf.behaviour.n_writefile > 0;
 
     // Pick the correct verbosity mode flags
-    if      (conf.verbose_mode == "mute")    { MODES.MUTE = true;  MODES.VERBOSE = false; }
-    else if (conf.verbose_mode == "silent")  { MODES.MUTE = false; MODES.VERBOSE = false; }
-    else if (conf.verbose_mode == "verbose") { MODES.MUTE = false; MODES.VERBOSE = true;  }
+    if      (conf.behaviour.verbosity == "mute")    { MODES.MUTE = true;  MODES.VERBOSE = false; }
+    else if (conf.behaviour.verbosity == "silent")  { MODES.MUTE = false; MODES.VERBOSE = false; }
+    else if (conf.behaviour.verbosity == "verbose") { MODES.MUTE = false; MODES.VERBOSE = true;  }
 
     // Clear the results from previous run
-    if (first_call && conf.clear_output) fail = system("rm -rf out");
+    if (first_call && conf.run.output_cleaner) fail = system("rm -rf out");
     fail = system("mkdir -p out");
     first_call = false;
 
@@ -53,7 +53,7 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false),
     end_msg(t0);
 
     // Pick the ranks and types of interpolators
-    if (conf.interpolation_rank == 2) {
+    if (conf.behaviour.interpolation_rank == 2) {
         vacuum_surface_interpolator = new QuadTriInterpolator(&fem_mesh);
         bulk_surface_interpolator = new QuadTriInterpolator(&fem_mesh);
         vacuum_interpolator = new QuadTetInterpolator(&fem_mesh);
@@ -82,7 +82,7 @@ Femocs::~Femocs() {
 
 // Write all the available data to file for debugging purposes
 int Femocs::force_output() {
-    if (conf.n_writefile <= 0) return 1;
+    if (conf.behaviour.n_writefile <= 0) return 1;
 
     MODES.WRITEFILE = true;
 
@@ -112,18 +112,18 @@ int Femocs::force_output() {
 }
 
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
-int Femocs::run(const double elfield, const string &message) {
+int Femocs::run(const double elfield, const string &timestep) {
     stringstream parser, stream;
     stream << fixed << setprecision(3);
 
     // convert message to integer time step
     int tstep;
-    parser << message;
+    parser << timestep;
     parser >> tstep;
 
     stream.str("");
     stream << "Atoms haven't moved significantly, " << reader.rms_distance
-        << " < " << conf.distance_tol << "! Field calculation will be skipped!";
+        << " < " << conf.tolerance.distance << "! Field calculation will be skipped!";
     check_return(reinit(tstep), stream.str());
 
     double tstart = omp_get_wtime();
@@ -153,7 +153,7 @@ int Femocs::run(const double elfield, const string &message) {
 }
 
 int Femocs::run() {
-    return run(conf.E0, "");
+    return run(conf.laplace.E0, "");
 }
 
 // Determine whether atoms have moved significantly and whether to enable file writing
@@ -167,14 +167,14 @@ int Femocs::reinit(const int tstep) {
     if (!prev_skip_calculations && MODES.WRITEFILE)
         MODES.WRITEFILE = false;
 
-    if ((conf.n_writefile > 0) && (timestep % conf.n_writefile == 0))
+    if ((conf.behaviour.n_writefile > 0) && (timestep % conf.behaviour.n_writefile == 0))
         MODES.WRITEFILE = true;
 
     atom2face.clear();
 
-    conf.message = to_string(timestep);
-    write_silent_msg("Running at timestep " + conf.message);
-    conf.message = "_" + string( max(0.0, 6.0 - conf.message.length()), '0' ) + conf.message;
+    timestep_string = to_string(timestep);
+    write_silent_msg("Running at timestep " + timestep_string);
+    timestep_string = "_" + string( max(0.0, 6.0 - timestep_string.length()), '0' ) + timestep_string;
 
     prev_skip_calculations = skip_calculations;
     return skip_calculations;
@@ -183,7 +183,7 @@ int Femocs::reinit(const int tstep) {
 // Store the imported atom coordinates and set flag that enables exporters
 int Femocs::finalize() {
     start_msg(t0, "=== Saving atom positions...");
-    reader.save_current_run_points(conf.distance_tol);
+    reader.save_current_run_points(conf.tolerance.distance);
     end_msg(t0);
     skip_calculations = false;
     last_full_timestep = timestep;
@@ -198,16 +198,16 @@ int Femocs::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface
 
     dense_surf.write("out/surface_dense.xyz");
 
-    coarseners.generate(dense_surf, conf.radius, conf.cfactor, conf.latconst);
+    coarseners.generate(dense_surf, conf.geometry.radius, conf.cfactor, conf.geometry.latconst);
     coarseners.write("out/coarseners.vtk");
 
     static bool first_run = true;
     if (first_run) {
         start_msg(t0, "=== Extending surface...");
-        if (conf.extended_atoms == "")
-            dense_surf.extend(extended_surf, coarseners, conf.latconst, conf.box_width);
+        if (conf.path.extended_atoms == "")
+            dense_surf.extend(extended_surf, coarseners, conf.geometry.latconst, conf.geometry.box_width);
         else
-            extended_surf = dense_surf.extend(conf.extended_atoms, coarseners);
+            extended_surf = dense_surf.extend(conf.path.extended_atoms, coarseners);
         end_msg(t0);
         first_run = false;
     }
@@ -217,15 +217,15 @@ int Femocs::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface
 //    coarse_surf += dense_surf;
     coarse_surf += dense_surf.clean_roi(coarseners);
     coarse_surf = coarse_surf.clean(coarseners);
-    coarse_surf.smoothen(conf.radius, conf.surface_smooth_factor, 3.0*conf.coordination_cutoff);
+    coarse_surf.smoothen(conf.geometry.radius, conf.smoothing.beta_atoms, 3.0*conf.geometry.coordination_cutoff);
     end_msg(t0);
 
     coarse_surf.write("out/surface_coarse.xyz");
 
     start_msg(t0, "=== Generating bulk & vacuum corners...");
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
-    vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.box_height * coarse_surf.sizes.zbox);
-    bulk = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.bulk_height * conf.latconst);
+    vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.geometry.box_height * coarse_surf.sizes.zbox);
+    bulk = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.geometry.bulk_height * conf.geometry.latconst);
     reader.resize_box(coarse_surf.sizes.xmin, coarse_surf.sizes.xmax, 
         coarse_surf.sizes.ymin, coarse_surf.sizes.ymax,
         bulk.sizes.zmin, vacuum.sizes.zmax);
@@ -248,8 +248,8 @@ int Femocs::generate_meshes() {
     start_msg(t0, "=== Making big mesh...");
     // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality, a - element volume,
     // F - suppress output of faces and edges, B - suppress output of boundary info
-    string command = "rnQFBq" + conf.mesh_quality;
-    if (conf.element_volume != "") command += "a" + conf.element_volume;
+    string command = "rnQFBq" + conf.geometry.mesh_quality;
+    if (conf.geometry.element_volume != "") command += "a" + conf.geometry.element_volume;
     int err_code = fem_mesh.generate(bulk, coarse_surf, vacuum, command);
     check_return(err_code, "Triangulation failed with error code " + to_string(err_code));
     end_msg(t0);
@@ -264,9 +264,9 @@ int Femocs::generate_meshes() {
     end_msg(t0);
     check_return(err_code, "Generation of surface faces failed with error code " + to_string(err_code));
 
-    if (conf.smooth_algorithm != "none" && conf.smooth_steps > 0) {
+    if (conf.smoothing.algorithm != "none" && conf.smoothing.n_steps > 0) {
         start_msg(t0, "=== Smoothing surface faces...");
-        fem_mesh.smoothen(conf.smooth_steps, conf.smooth_lambda, conf.smooth_mu, conf.smooth_algorithm);
+        fem_mesh.smoothen(conf.smoothing.n_steps, conf.smoothing.lambda_mesh, conf.smoothing.mu_mesh, conf.smoothing.algorithm);
         end_msg(t0);
     }
 
@@ -274,9 +274,9 @@ int Femocs::generate_meshes() {
     fem_mesh.faces.write("out/trimesh.vtk");
     fem_mesh.elems.write("out/tetmesh.vtk");
 
-    if (conf.surface_cleaner == "faces") {
+    if (conf.run.surface_cleaner) {
         start_msg(t0, "=== Cleaning surface atoms...");
-        dense_surf.clean_by_triangles(atom2face, vacuum_surface_interpolator, conf.latconst);
+        dense_surf.clean_by_triangles(atom2face, vacuum_surface_interpolator, conf.geometry.latconst);
         end_msg(t0);
         dense_surf.write("out/surface_dense_clean.xyz");
     }
@@ -288,7 +288,7 @@ int Femocs::generate_meshes() {
     fem_mesh.nodes.write("out/hexmesh_nodes.vtk");
     fem_mesh.quads.write("out/quadmesh.vtk");
     fem_mesh.hexahedra.write("out/hexmesh.vtk");
-    fem_mesh.write_separate("out/hexmesh_bulk" + conf.message + ".vtk", TYPES.BULK);
+    fem_mesh.write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
     stringstream ss; ss << fem_mesh;
     write_verbose_msg(ss.str());
 
@@ -297,11 +297,10 @@ int Femocs::generate_meshes() {
 
 // Solve Laplace equation
 int Femocs::solve_laplace(const double E0) {
-    conf.E0 = E0;       // long-range electric field
-    conf.neumann = -E0; // set minus gradient of solution to equal to E0
+    conf.laplace.E0 = E0;       // reset long-range electric field
 
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    fields.set_check_params(E0, conf.field_tolerance_min, conf.field_tolerance_max, conf.radius, dense_surf.sizes.zbox);
+    fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
 
     start_msg(t0, "=== Importing mesh to Laplace solver...");
     fail = !laplace_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
@@ -310,7 +309,7 @@ int Femocs::solve_laplace(const double E0) {
     end_msg(t0);
 
     start_msg(t0, "=== Initializing Laplace solver...");
-    laplace_solver.set_applied_efield(conf.neumann);
+    laplace_solver.set_applied_efield(-E0);
     laplace_solver.setup_system();
     laplace_solver.assemble_system();
     end_msg(t0);
@@ -319,7 +318,7 @@ int Femocs::solve_laplace(const double E0) {
     write_verbose_msg(ss.str());
 
     start_msg(t0, "=== Running Laplace solver...");
-    laplace_solver.solve(conf.n_phi, conf.phi_error, true, conf.ssor_param);
+    laplace_solver.solve(conf.laplace.n_phi, conf.laplace.phi_error, true, conf.laplace.ssor_param);
     end_msg(t0);
 
     start_msg(t0, "=== Extracting E and phi...");
@@ -375,7 +374,7 @@ int Femocs::solve_stationary_heat() {
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
     FieldReader fr(NULL, vacuum_surface_interpolator);
-    fr.transfer_elfield(ch_solver, conf.coordination_cutoff, conf.use_histclean);
+    fr.transfer_elfield(ch_solver, conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
     end_msg(t0);
 
     fr.write("out/surface_field.xyz");
@@ -421,7 +420,7 @@ int Femocs::solve_transient_heat(const double delta_time) {
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
     FieldReader field_reader(NULL, vacuum_surface_interpolator);
-    field_reader.transfer_elfield(ch_transient_solver, conf.coordination_cutoff, conf.use_histclean);
+    field_reader.transfer_elfield(ch_transient_solver, conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
     end_msg(t0);
     field_reader.write("out/surface_field.xyz");
 
@@ -483,7 +482,7 @@ int Femocs::solve_converge_heat() {
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
     FieldReader field_reader(NULL, vacuum_surface_interpolator);
-    field_reader.transfer_elfield(ch_transient_solver, conf.coordination_cutoff, conf.use_histclean);
+    field_reader.transfer_elfield(ch_transient_solver, conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
     end_msg(t0);
     field_reader.write("out/surface_field.xyz");
 
@@ -554,15 +553,15 @@ int Femocs::solve_converge_heat() {
 int Femocs::generate_nanotip(const double height, const double radius, const double resolution) {
     clear_log();
 
-    double res = conf.latconst;
+    double res = conf.geometry.latconst;
     if (resolution > 0) res = resolution;
 
-    double r = conf.radius - res;
+    double r = conf.geometry.radius - res;
     if (radius > 0) r = radius;
 
     start_msg(t0, "=== Generating nanotip...");
     reader.generate_nanotip(height, r, res);
-    reader.calc_coordinations(conf.nnn);
+    reader.calc_coordinations(conf.geometry.nnn);
     end_msg(t0);
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
@@ -575,7 +574,7 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
     clear_log();
     string file_type, fname;
 
-    if (file_name == "") fname = conf.infile;
+    if (file_name == "") fname = conf.path.infile;
     else fname = file_name;
 
     file_type = get_file_type(fname);
@@ -587,39 +586,39 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.calc_rms_distance(conf.distance_tol) < conf.distance_tol;
+    skip_calculations = reader.calc_rms_distance(conf.tolerance.distance) < conf.tolerance.distance;
     end_msg(t0);
 
     if (!skip_calculations) {
         if (file_type == "xyz") {
             start_msg(t0, "=== Performing coordination analysis...");
-            if (!conf.use_rdf) reader.calc_coordinations(conf.nnn, conf.coordination_cutoff);
-            else reader.calc_coordinations(conf.nnn, conf.latconst, conf.coordination_cutoff);
+            if (!conf.run.rdf) reader.calc_coordinations(conf.geometry.nnn, conf.geometry.coordination_cutoff);
+            else reader.calc_coordinations(conf.geometry.nnn, conf.geometry.latconst, conf.geometry.coordination_cutoff);
             end_msg(t0);
 
-            if (conf.use_rdf) {
+            if (conf.run.rdf) {
                 stringstream stream;
                 stream << fixed << setprecision(3)
-                        << "nnn: " << conf.nnn << ", latconst: " << conf.latconst
-                        << ", coord_cutoff: " << conf.coordination_cutoff
-                        << ", cluster_cutoff: " << conf.cluster_cutoff;
+                        << "nnn: " << conf.geometry.nnn << ", latconst: " << conf.geometry.latconst
+                        << ", coord_cutoff: " << conf.geometry.coordination_cutoff
+                        << ", cluster_cutoff: " << conf.geometry.cluster_cutoff;
                 write_verbose_msg(stream.str());
             }
 
-            if (conf.cluster_anal) {
+            if (conf.run.cluster_anal) {
                 start_msg(t0, "=== Performing cluster analysis...");
-                reader.calc_clusters(conf.nnn, conf.cluster_cutoff, conf.coordination_cutoff);
+                reader.calc_clusters(conf.geometry.nnn, conf.geometry.cluster_cutoff, conf.geometry.coordination_cutoff);
                 end_msg(t0);
                 reader.check_clusters(1);
             }
 
             start_msg(t0, "=== Extracting atom types...");
-            reader.extract_types(conf.nnn, conf.coordination_cutoff);
+            reader.extract_types(conf.geometry.nnn, conf.geometry.coordination_cutoff);
             end_msg(t0);
 
         } else {
             start_msg(t0, "=== Calculating coords from atom types...");
-            reader.calc_coordinations(conf.nnn);
+            reader.calc_coordinations(conf.geometry.nnn);
             end_msg(t0);
         }
     }
@@ -638,33 +637,33 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.calc_rms_distance(conf.distance_tol) < conf.distance_tol;
+    skip_calculations = reader.calc_rms_distance(conf.tolerance.distance) < conf.tolerance.distance;
     end_msg(t0);
 
     if (!skip_calculations) {
         start_msg(t0, "=== Performing coordination analysis...");
-        if (!conf.use_rdf) reader.calc_coordinations(conf.nnn, conf.coordination_cutoff, nborlist);
-        else reader.calc_coordinations(conf.nnn, conf.coordination_cutoff, conf.latconst, nborlist);
+        if (!conf.run.rdf) reader.calc_coordinations(conf.geometry.nnn, conf.geometry.coordination_cutoff, nborlist);
+        else reader.calc_coordinations(conf.geometry.nnn, conf.geometry.coordination_cutoff, conf.geometry.latconst, nborlist);
         end_msg(t0);
 
-        if (conf.use_rdf) {
+        if (conf.run.rdf) {
             stringstream stream;
             stream << fixed << setprecision(3)
-                    << "nnn: " << conf.nnn << ", latconst: " << conf.latconst
-                    << ", coord_cutoff: " << conf.coordination_cutoff
-                    << ", cluster_cutoff: " << conf.cluster_cutoff;
+                    << "nnn: " << conf.geometry.nnn << ", latconst: " << conf.geometry.latconst
+                    << ", coord_cutoff: " << conf.geometry.coordination_cutoff
+                    << ", cluster_cutoff: " << conf.geometry.cluster_cutoff;
             write_verbose_msg(stream.str());
         }
 
-        if (conf.cluster_anal) {
+        if (conf.run.cluster_anal) {
             start_msg(t0, "=== Performing cluster analysis...");
-            reader.calc_clusters(conf.nnn, conf.cluster_cutoff, conf.coordination_cutoff, nborlist);
+            reader.calc_clusters(conf.geometry.nnn, conf.geometry.cluster_cutoff, conf.geometry.coordination_cutoff, nborlist);
             end_msg(t0);
             reader.check_clusters(1);
         }
 
         start_msg(t0, "=== Extracting atom types...");
-        reader.extract_types(conf.nnn, conf.latconst);
+        reader.extract_types(conf.geometry.nnn, conf.geometry.latconst);
         end_msg(t0);
     }
 
@@ -675,7 +674,7 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
 // import coordinates and types of atoms
 int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, const double* z, const int* types) {
     clear_log();
-    conf.surface_cleaner = "none"; // disable the surface cleaner for atoms with known types
+    conf.run.surface_cleaner = false; // disable the surface cleaner for atoms with known types
 
     start_msg(t0, "=== Importing atoms...");
     reader.import_helmod(n_atoms, x, y, z, types);
@@ -683,12 +682,12 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.calc_rms_distance(conf.distance_tol) < conf.distance_tol;
+    skip_calculations = reader.calc_rms_distance(conf.tolerance.distance) < conf.tolerance.distance;
     end_msg(t0);
 
     if (!skip_calculations) {
         start_msg(t0, "=== Calculating coordinations from atom types...");
-        reader.calc_coordinations(conf.nnn);
+        reader.calc_coordinations(conf.geometry.nnn);
         end_msg(t0);
     }
 
@@ -718,7 +717,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         start_msg(t0, "=== Interpolating E and phi...");
         fields.interpolate_2d(atom2face, dense_surf, true);
 //        fields.interpolate(dense_surf, 0, true);
-        fail = fields.clean(conf.coordination_cutoff, conf.use_histclean);
+        fail = fields.clean(conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
         end_msg(t0);
 
         fields.write("out/fields.movie");
@@ -764,28 +763,28 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         write_silent_msg("Using previous charge & force!");
     else {
         // analytical total charge without epsilon0 (will be added in ChargeReader)
-        const double tot_charge = conf.E0 * reader.sizes.xbox * reader.sizes.ybox;
+        const double tot_charge = conf.laplace.E0 * reader.sizes.xbox * reader.sizes.ybox;
 
         ChargeReader face_charges(vacuum_interpolator); // charges on surface triangles
-        face_charges.set_check_params(tot_charge, conf.charge_tolerance_min, conf.charge_tolerance_max);
+        face_charges.set_check_params(tot_charge, conf.tolerance.charge_min, conf.tolerance.charge_max);
 
         start_msg(t0, "=== Calculating face charges...");
-        face_charges.calc_charges(fem_mesh, conf.E0);
+        face_charges.calc_charges(fem_mesh, conf.laplace.E0);
         end_msg(t0);
         face_charges.write("out/face_charges.xyz");
         check_return(face_charges.check_limits(), "Face charges are not conserved!");
 
-        face_charges.clean(dense_surf.sizes, conf.latconst);
+        face_charges.clean(dense_surf.sizes, conf.geometry.latconst);
 
         start_msg(t0, "=== Distributing face charges...");
-        forces.distribute_charges(fields, face_charges, conf.use_histclean*conf.coordination_cutoff,
-                conf.charge_smooth_factor);
+        forces.distribute_charges(fields, face_charges, conf.run.hist_cleaner*conf.geometry.coordination_cutoff,
+                conf.smoothing.beta_charge);
         end_msg(t0);
 
         start_msg(t0, "=== Calculating Voronoi charges & forces...");
         VoronoiMesh voro_mesh;
         int err_code;
-        err_code = forces.calc_voronoi_charges(voro_mesh, atom2face, fields, conf.radius, conf.latconst, "10.0");
+        err_code = forces.calc_voronoi_charges(voro_mesh, atom2face, fields, conf.geometry.radius, conf.geometry.latconst, "10.0");
         check_return(err_code, "Generation of Voronoi cells failed with error code " + to_string(err_code));
         end_msg(t0);
 
@@ -812,7 +811,7 @@ int Femocs::interpolate_surface_elfield(const int n_points, const double* x, con
     FieldReader fr(NULL, vacuum_surface_interpolator);
     start_msg(t0, "=== Interpolating & exporting surface elfield...");
     fr.interpolate_2d(n_points, x, y, z, false);
-    fail = fr.clean(conf.coordination_cutoff, conf.use_histclean);
+    fail = fr.clean(conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
     fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
 
@@ -829,7 +828,7 @@ int Femocs::interpolate_elfield(const int n_points, const double* x, const doubl
     FieldReader fr(vacuum_interpolator);
     start_msg(t0, "=== Interpolating & exporting elfield...");
     fr.interpolate(n_points, x, y, z, false);
-    fail = fr.clean(conf.coordination_cutoff, conf.use_histclean);
+    fail = fr.clean(conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
     fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
 
@@ -846,7 +845,7 @@ int Femocs::interpolate_phi(const int n_points, const double* x, const double* y
 
     FieldReader fr(vacuum_interpolator);
     fr.interpolate(n_points, x, y, z, false);
-    fail = fr.clean(conf.coordination_cutoff, conf.use_histclean);
+    fail = fr.clean(conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
     fr.export_potential(n_points, phi, flag);
 
     return fail;

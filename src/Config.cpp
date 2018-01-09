@@ -14,63 +14,62 @@ namespace femocs {
 
 // Config constructor initializes configuration parameters
 Config::Config() {
-    extended_atoms = "";         // file with the atoms forming the extended surface
-    infile = "";              // file with the nanostructure atoms
-    latconst = 3.61;             // lattice constant
-    surface_thickness = 3.1;     // maximum distance the surface atom is allowed to be from surface mesh
-    coordination_cutoff = 3.1;   // coordination analysis cut-off radius
-    cluster_cutoff = 0;          // cluster analysis cut-off radius
-    nnn = 12;                    // number of nearest neighbours in bulk
-    mesh_quality = "2.0";        // minimum tetrahedron quality Tetgen is allowed to make
-    element_volume = "";         // maximum tetrahedron volume Tetgen is allowed to make
-    radius = 0.0;                // inner radius of coarsening cylinder
-    box_width = 10;              // minimal simulation box width in units of tip height
-    box_height = 6;              // simulation box height in units of tip height
-    bulk_height = 20;            // bulk substrate height [lattice constant]
+    path.extended_atoms = "";         // file with the atoms forming the extended surface
+    path.infile = "";                 // file with the nanostructure atoms
 
-    surface_smooth_factor = 0.0; // surface smoothing factor; bigger number gives smoother surface
-    charge_smooth_factor = 1.0;  // charge smoothing factor; bigger number gives smoother charges
-    cfactor.amplitude = 0.4;     // coarsening factor outside the warm region
-    cfactor.r0_cylinder = 0;     // minimum distance between atoms in nanotip outside the apex
-    cfactor.r0_sphere = 0;       // minimum distance between atoms in nanotip apex
-    heating.t_ambient = 300.0;           // ambient temperature
-    heating.t_error = 10.0;              // maximum allowed temperature error in Newton iterations
-    heating.n_newton = 10;               // maximum number of Newton iterations
-    phi_error = 1e-9;            // maximum allowed electric potential error
-    n_phi = 10000;               // maximum number of Conjugate Gradient iterations in phi calculation
-    ssor_param = 1.2;            // parameter for SSOR preconditioner
-    charge_tolerance_min = 0.8;  // Min ratio face charges are allowed to deviate from the total charge
-    charge_tolerance_max = 1.2;  // Max ratio face charges are allowed to deviate from the total charge
-    field_tolerance_min = 0.1;   // Min ratio numerical field can deviate from analytical one
-    field_tolerance_max = 5.0;   // Max ratio numerical field can deviate from analytical one
-    distance_tol = 0.0;          // distance tolerance for atom movement between two time steps
-    n_writefile = 1;             // number of time steps between writing the output files
-    verbose_mode = "verbose";    // mute, silent, verbose
-    surface_cleaner = "faces";   // method to clean surface; faces or none
+    behaviour.verbosity = "verbose";  // mute, silent, verbose
+    behaviour.n_writefile = 1;        // number of time steps between writing the output files
+    behaviour.interpolation_rank = 1; // rank of the solution interpolation; 1-linear, 2-quadratic
 
-    refine_apex = false;         // refine nanotip apex
-    use_histclean = false;       // use histogram cleaner to get rid of sharp peaks in the solution
-    cluster_anal = true;         // enable cluster analysis
-    clear_output = true;         // clear output folder
-    use_rdf = false;             // use radial distribution function to recalculate lattice constant and coordination analysis parameters
+    run.cluster_anal = true;          // enable cluster analysis
+    run.apex_refiner = false;         // refine nanotip apex
+    run.rdf = false;                  // use radial distribution function to recalculate lattice constant and coordination analysis parameters
+    run.output_cleaner = true;        // clear output folder
+    run.hist_cleaner = false;         // use histogram cleaner to get rid of sharp peaks in the solution
+    run.surface_cleaner = true;       // clean surface by measuring the atom distance from the triangular surface
 
-    heating.lorentz = 2.44e-8;           // Lorentz number
-    heating.mode = "none";       // method to calculate current density and temperature; none, stationary or transient
-    heating.work_function = 4.5; // work function [eV]
-    heating.rhofile = "in/rho_table.dat";  //rho table file
-    heating.Vappl = -1.;         // if space charge is used.
+    geometry.mesh_quality = "2.0";    // minimum tetrahedron quality Tetgen is allowed to make
+    geometry.element_volume = "";     // maximum tetrahedron volume Tetgen is allowed to make
+    geometry.nnn = 12;                // number of nearest neighbours in bulk
+    geometry.latconst = 3.61;         // lattice constant
+    geometry.coordination_cutoff = 3.1; // coordination analysis cut-off radius
+    geometry.cluster_cutoff = 0;      // cluster analysis cut-off radius
+    geometry.surface_thickness = 3.1; // maximum distance the surface atom is allowed to be from surface mesh
+    geometry.box_width = 10;          // minimal simulation box width in units of tip height
+    geometry.box_height = 6;          // simulation box height in units of tip height
+    geometry.bulk_height = 20;        // bulk substrate height [lattice constant]
+    geometry.radius = 0.0;            // inner radius of coarsening cylinder
 
-    E0 = 0.0;                      // long range electric field
-    neumann = 0;                 // neumann boundary contition value
-    message = "";                // message from the host code
+    tolerance.charge_min = 0.8;       // min ratio face charges are allowed to deviate from the total charge
+    tolerance.charge_max = 1.2;       // max ratio face charges are allowed to deviate from the total charge
+    tolerance.field_min = 0.1;        // min ratio numerical field can deviate from analytical one
+    tolerance.field_max = 5.0;        // max ratio numerical field can deviate from analytical one
+    tolerance.distance = 0.0;         // rms distance tolerance for atom movement between two time steps
 
+    laplace.E0 = 0.0;                 // long range electric field
+    laplace.ssor_param = 1.2;         // parameter for SSOR preconditioner
+    laplace.phi_error = 1e-9;         // maximum allowed electric potential error
+    laplace.n_phi = 10000;            // maximum number of Conjugate Gradient iterations in phi calculation
 
-    smooth_steps = 0;             // number of surface mesh smoothing iterations
-    smooth_lambda = 0.6307;       // lambda parameter in surface mesh smoother
-    smooth_mu = -0.6732;          // mu parameter in surface mesh smoother
-    smooth_algorithm = "laplace"; // surface mesh smoother algorithm; none, laplace or fujiwara
+    heating.mode = "none";            // method to calculate current density and temperature; none, stationary or transient
+    heating.rhofile = "in/rho_table.dat"; // rho table file
+    heating.work_function = 4.5;      // work function [eV]
+    heating.lorentz = 2.44e-8;        // Lorentz number
+    heating.Vappl = -1.;              // if space charge is used.
+    heating.t_ambient = 300.0;        // ambient temperature
+    heating.t_error = 10.0;           // maximum allowed temperature error in Newton iterations
+    heating.n_newton = 10;            // maximum number of Newton iterations
 
-    interpolation_rank = 1;       // rank of the solution interpolation; 1-linear, 2-quadratic
+    smoothing.algorithm = "laplace";  // surface mesh smoother algorithm; none, laplace or fujiwara
+    smoothing.n_steps = 0;            // number of surface mesh smoothing iterations
+    smoothing.lambda_mesh = 0.6307;   // lambda parameter in surface mesh smoother
+    smoothing.mu_mesh = -0.6732;      // mu parameter in surface mesh smoother
+    smoothing.beta_atoms = 0.0;       // surface smoothing factor; bigger number gives smoother surface
+    smoothing.beta_charge = 1.0;      // charge smoothing factor; bigger number gives smoother charges
+
+    cfactor.amplitude = 0.4;          // coarsening factor outside the warm region
+    cfactor.r0_cylinder = 0;          // minimum distance between atoms in nanotip outside the apex
+    cfactor.r0_sphere = 0;            // minimum distance between atoms in nanotip apex
 }
 
 // Remove the noise from the beginning of the string
@@ -91,52 +90,80 @@ void Config::read_all(const string& file_name) {
     check_obsolete("heating", "heating_mode");
     check_obsolete("surface_thichness", "surface_thickness");
     check_obsolete("smooth_factor", "surface_smooth_factor");
+    check_obsolete("surface_cleaner", "clean_surface");
 
     // Modify the parameters that are specified in input script
-    read_command("interpolation_rank", interpolation_rank);
-    read_command("use_rdf", use_rdf);
     read_command("work_function", heating.work_function);
     read_command("t_ambient", heating.t_ambient);
     read_command("heating_mode", heating.mode);
-    read_command("smooth_steps", smooth_steps);
-    read_command("smooth_lambda", smooth_lambda);
-    read_command("smooth_mu", smooth_mu);
-    read_command("smooth_algorithm", smooth_algorithm);
-    read_command("phi_error", phi_error);
-    read_command("n_phi", n_phi);
-    read_command("surface_cleaner", surface_cleaner);
-    read_command("cluster_anal", cluster_anal);
-    read_command("extended_atoms", extended_atoms);
-    read_command("clear_output", clear_output);
-    read_command("infile", infile);
-    read_command("latconst", latconst);
-    read_command("coord_cutoff", coordination_cutoff);
-    read_command("cluster_cutoff", cluster_cutoff);
-    read_command("surface_thickness", surface_thickness);
-    read_command("nnn", nnn);
-    read_command("mesh_quality", mesh_quality);
-    read_command("element_volume", element_volume);
-    read_command("radius", radius);
-    read_command("surface_smooth_factor", surface_smooth_factor);
-    read_command("charge_smooth_factor", charge_smooth_factor);
-    read_command("refine_apex", refine_apex);
-    read_command("distance_tol", distance_tol);
-    read_command("box_width", box_width);
-    read_command("box_height", box_height);
-    read_command("bulk_height", bulk_height);    
-    read_command("femocs_verbose_mode", verbose_mode);
-    read_command("femocs_periodic", MODES.PERIODIC);
-    read_command("write_log", MODES.WRITELOG);
-    read_command("use_histclean", use_histclean);
-    read_command("n_writefile", n_writefile);
     read_command("lorentz", heating.lorentz);
     read_command("rhofile", heating.rhofile);
-    read_command("elfield", E0);
     read_command("V_appl", heating.Vappl);
+
+    read_command("smooth_steps", smoothing.n_steps);
+    read_command("smooth_lambda", smoothing.lambda_mesh);
+    read_command("smooth_mu", smoothing.mu_mesh);
+    read_command("smooth_algorithm", smoothing.algorithm);
+    read_command("surface_smooth_factor", smoothing.beta_atoms);
+    read_command("charge_smooth_factor", smoothing.beta_charge);
+
+    read_command("phi_error", laplace.phi_error);
+    read_command("n_phi", laplace.n_phi);
+    read_command("elfield", laplace.E0);
+
+    read_command("latconst", geometry.latconst);
+    read_command("coord_cutoff", geometry.coordination_cutoff);
+    read_command("cluster_cutoff", geometry.cluster_cutoff);
+    read_command("surface_thickness", geometry.surface_thickness);
+    read_command("nnn", geometry.nnn);
+    read_command("mesh_quality", geometry.mesh_quality);
+    read_command("element_volume", geometry.element_volume);
+    read_command("radius", geometry.radius);
+    read_command("box_width", geometry.box_width);
+    read_command("box_height", geometry.box_height);
+    read_command("bulk_height", geometry.bulk_height);
+
+    read_command("extended_atoms", path.extended_atoms);
+    read_command("infile", path.infile);
+
+    read_command("cluster_anal", run.cluster_anal);
+    read_command("refine_apex", run.apex_refiner);
+    read_command("use_rdf", run.rdf);
+    read_command("clear_output", run.output_cleaner);
+    read_command("use_histclean", run.hist_cleaner);
+    read_command("clean_surface", run.surface_cleaner);
+    read_command("femocs_periodic", MODES.PERIODIC);
+    read_command("write_log", MODES.WRITELOG);
+
+    read_command("femocs_verbose_mode", behaviour.verbosity);
+    read_command("n_writefile", behaviour.n_writefile);
+    read_command("interpolation_rank", behaviour.interpolation_rank);
+
+    read_command("distance_tol", tolerance.distance);
 
     // Read commands with potentially multiple arguments like...
     vector<double> args;
     int n_read_args;
+
+    // ...charge and field tolerances
+    args = {0, 0};
+    n_read_args = read_command("charge_tolerance", args);
+    if (n_read_args == 1) {
+        tolerance.charge_min = 1.0 - args[0];
+        tolerance.charge_max = 1.0 + args[0];
+    } else if (n_read_args == 2) {
+        tolerance.charge_min = args[0];
+        tolerance.charge_max = args[1];
+    }
+
+    n_read_args = read_command("field_tolerance", args);
+    if (n_read_args == 1) {
+        tolerance.field_min = 1.0 - args[0];
+        tolerance.field_max = 1.0 + args[0];
+    } else if (n_read_args == 2) {
+        tolerance.field_min = args[0];
+        tolerance.field_max = args[1];
+    }
 
     // ...coarsening factors
     args = {cfactor.amplitude, (double)cfactor.r0_cylinder, (double)cfactor.r0_sphere};
@@ -144,26 +171,6 @@ void Config::read_all(const string& file_name) {
     cfactor.amplitude = args[0];
     cfactor.r0_cylinder = static_cast<int>(args[1]);
     cfactor.r0_sphere = static_cast<int>(args[2]);
-
-    // ...charge and field tolerances
-    args = {0, 0};
-    n_read_args = read_command("charge_tolerance", args);
-    if (n_read_args == 1) {
-        charge_tolerance_min = 1.0 - args[0];
-        charge_tolerance_max = 1.0 + args[0];
-    } else if (n_read_args == 2) {
-        charge_tolerance_min = args[0];
-        charge_tolerance_max = args[1];
-    }
-
-    n_read_args = read_command("field_tolerance", args);
-    if (n_read_args == 1) {
-        field_tolerance_min = 1.0 - args[0];
-        field_tolerance_max = 1.0 + args[0];
-    } else if (n_read_args == 2) {
-        field_tolerance_min = args[0];
-        field_tolerance_max = args[1];
-    }
 }
 
 // Read the commands and their arguments from the file and store them into the buffer

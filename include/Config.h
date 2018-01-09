@@ -42,81 +42,90 @@ public:
     /** Print the stored commands and parameters */
     void print_data();
 
-    string extended_atoms;      ///< Path to the file with atoms forming the extended surface
-    string infile;              ///< Path to the file with atom coordinates and types
-    string mesh_quality;        ///< Minimum quality (maximum radius-edge ratio) of tetrahedra
-    string element_volume;      ///< Maximum volume of tetrahedra
-    string message;             ///< Data string from the host code
-    double latconst;            ///< Lattice constant
-    double coordination_cutoff; ///< Cut-off distance for coordination analysis
-    double cluster_cutoff;      ///< Cut-off distance for cluster analysis; if 0, cluster analysis uses coordination_cutoff instead
-    double surface_thickness;   ///< Maximum distance the surface atom is allowed to be from surface mesh [angstrom]; 0 turns check off
-    int nnn;                    ///< Number of nearest neighbours for given crystal structure
-    double neumann;             ///< Value of Neumann boundary condition
-    double E0;                  ///< Value of long range electric field
-    bool cluster_anal;          ///< Enable cluster analysis
-    bool refine_apex;           ///< Add elements to the nanotip apex
+    /** Various paths */
+    struct Path {
+        string extended_atoms;      ///< Path to the file with atoms forming the extended surface
+        string infile;              ///< Path to the file with atom coordinates and types
+    } path;
 
-    double box_width;           ///< Minimal simulation box width [tip height]
-    double box_height;          ///< Simulation box height [tip height]
-    double bulk_height;         ///< Bulk substrate height [lattice constant]
+    /** User specific preferences */
+    struct Behaviour {
+        string verbosity;           ///< Verbose mode: mute, silent, verbose
+        int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
+        int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear, 2-quadratic
+    } behaviour;
 
-    double ssor_param;          ///< Parameter for SSOR preconditioner in DealII
-    double phi_error;           ///< Maximum allowed electric potential error
-    int n_phi;                  ///< Maximum number of Conjugate Gradient iterations in phi calculation
+    /** Enable or disable various support features */
+    struct Run {
+        bool cluster_anal;          ///< Enable cluster analysis
+        bool apex_refiner;          ///< Add elements to the nanotip apex
+        bool rdf;                   ///< Re-calculate lattice constant and coordination analysis parameters using radial distribution function
+        bool output_cleaner;        ///< Clear output folder before the run
+        bool hist_cleaner;          ///< Clean the solution with histogram cleaner
+        bool surface_cleaner;       ///< Clean surface by measuring the atom distance from the triangular surface
+    } run;
 
-    bool use_rdf;               ///< Re-calculate lattice constant and coordination analysis parameters using radial distribution function
-    bool clear_output;          ///< Clear output folder before the run
-    bool use_histclean;         ///< Clean the solution with histogram cleaner
-    int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
-    string verbose_mode;        ///< Verbose mode: mute, silent, verbose
+    /** Sizes related to mesh, atoms and simubox */
+    struct Geometry {
+        string mesh_quality;        ///< Minimum quality (maximum radius-edge ratio) of tetrahedra
+        string element_volume;      ///< Maximum volume of tetrahedra
+        int nnn;                    ///< Number of nearest neighbours for given crystal structure
+        double latconst;            ///< Lattice constant
+        double coordination_cutoff; ///< Cut-off distance for coordination analysis
+        double cluster_cutoff;      ///< Cut-off distance for cluster analysis; if 0, cluster analysis uses coordination_cutoff instead
+        double surface_thickness;   ///< Maximum distance the surface atom is allowed to be from surface mesh [angstrom]; 0 turns check off
+        double box_width;           ///< Minimal simulation box width [tip height]
+        double box_height;          ///< Simulation box height [tip height]
+        double bulk_height;         ///< Bulk substrate height [lattice constant]
 
-    double charge_tolerance_min; ///< Min ratio face charges are allowed to deviate from the total charge
-    double charge_tolerance_max; ///< Max ratio face charges are allowed to deviate from the total charge
-    double field_tolerance_min;  ///< Min ratio numerical field can deviate from analytical one
-    double field_tolerance_max;  ///< Max ratio numerical field can deviate from analytical one
+        /// Radius of cylinder where surface atoms are not coarsened; 0 enables coarsening of all atoms
+        double radius;
+    } geometry;
 
-    int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear, 2-quadratic
+    /** All kind of tolerances */
+    struct Tolerance {
+        double charge_min; ///< Min ratio face charges are allowed to deviate from the total charge
+        double charge_max; ///< Max ratio face charges are allowed to deviate from the total charge
+        double field_min;  ///< Min ratio numerical field can deviate from analytical one
+        double field_max;  ///< Max ratio numerical field can deviate from analytical one
 
-    ///< Heating configuration parameters
+        /** Minimum rms distance between atoms from current and previous run so that their
+         * movement is considered to be sufficiently big to recalculate electric field;
+         * 0 turns the check off */
+        double distance;
+    } tolerance;
+
+    /** Parameters for solving Laplace equation */
+    struct Laplace {
+        double E0;              ///< Value of long range electric field
+        double ssor_param;      ///< Parameter for SSOR preconditioner in DealII
+        double phi_error;       ///< Maximum allowed electric potential error
+        int n_phi;              ///< Maximum number of Conjugate Gradient iterations in phi calculation
+    } laplace;
+
+    /** Heating configuration parameters */
     struct Heating {
-        string mode;        ///< Method to calculate current density and temperature; none, stationary or transient
-        string rhofile;             ///< Path to the file with resistivity table
-        double work_function;       ///< Work function [eV]
-        double lorentz;             ///< Lorentz number (Wiedemenn-Franz law)
-        double Vappl;               ///< Total voltage for space charge. If <=0 space charge is ignored.
-        double t_ambient;           ///< Ambient temperature in heat calculations
-        double t_error;             ///< Maximum allowed temperature error in Newton iterations
-        int n_newton;               ///< Maximum number of Newton iterations
+        string mode;            ///< Method to calculate current density and temperature; none, stationary or transient
+        string rhofile;         ///< Path to the file with resistivity table
+        double work_function;   ///< Work function [eV]
+        double lorentz;         ///< Lorentz number (Wiedemenn-Franz law)
+        double Vappl;           ///< Total voltage for space charge. If <=0 space charge is ignored.
+        double t_ambient;       ///< Ambient temperature in heat calculations
+        double t_error;         ///< Maximum allowed temperature error in Newton iterations
+        int n_newton;           ///< Maximum number of Newton iterations
     } heating;
 
-    int smooth_steps;           ///< number of surface mesh smoothing iterations
-    double smooth_lambda;       ///< lambda parameter in surface mesh smoother
-    double smooth_mu;           ///< mu parameter in surface mesh smoother
-    string smooth_algorithm;    ///< surface mesh smoother algorithm; none, laplace or fujiwara
+    /** Smooth factors for surface faces, surface atoms and charges */
+    struct Smoothing {
+        string algorithm;    ///< surface mesh smoother algorithm; none, laplace or fujiwara
+        int n_steps;         ///< number of surface mesh smoothing iterations
+        double lambda_mesh;  ///< lambda parameter in surface mesh smoother
+        double mu_mesh;      ///< mu parameter in surface mesh smoother
+        double beta_atoms;   ///< extent of surface smoothing; 0 turns smoothing off
+        double beta_charge;  ///< extent of charge smoothing; 0 turns smoothing off
+    } smoothing;
 
-
-    /** Method to clean the surface atoms
-     * faces - measure distance from surface faces
-     * none - do not use the cleaner (because it is guaranteed to be clean)
-     */
-    string surface_cleaner;
-
-    /** Minimum distance between atoms from current and previous run so that their
-     * movement is considered to be sufficiently big to recalculate electric field;
-     * 0 turns the check off */
-    double distance_tol;
-
-    /// Radius of cylinder where surface atoms are not coarsened; 0 enables coarsening of all atoms
-    double radius;
-
-    /// Factor that is proportional to the extent of surface smoothing; 0 turns smoothing off
-    double surface_smooth_factor;
-
-    /// Factor that is proportional to the extent of charge smoothing; 0 turns smoothing off
-    double charge_smooth_factor;
-
-    /// Factors that are proportional to the extent of surface coarsening; 0 turns corresponding coarsening component off
+    /** Factors that are proportional to the extent of surface coarsening; 0 turns corresponding coarsening component off */
     struct CoarseFactor {
         double amplitude;
         int r0_cylinder;

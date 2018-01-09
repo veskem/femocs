@@ -484,14 +484,14 @@ void Surface::smoothen(const Config& conf, const double r_cut) {
     calc_statistics();
 
     Surface nanotip;
-    get_nanotip(nanotip, conf.radius);
+    get_nanotip(nanotip, conf.geometry.radius);
 
     vector<vector<unsigned>> nborlist;
-    nanotip.calc_nborlist(nborlist, conf.nnn, r_cut);
+    nanotip.calc_nborlist(nborlist, conf.geometry.nnn, r_cut);
 
     for (int i = 0; i < 3; ++i) {
-        nanotip.laplace_smooth(conf.smooth_lambda, nborlist);
-        nanotip.laplace_smooth(conf.smooth_mu, nborlist);
+        nanotip.laplace_smooth(conf.smoothing.lambda_mesh, nborlist);
+        nanotip.laplace_smooth(conf.smoothing.mu_mesh, nborlist);
     }
 
     *this += nanotip;

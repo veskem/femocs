@@ -35,10 +35,10 @@ public:
 
     /** Function to generate FEM mesh and to solve differential equation(s)
      * @param elfield   long range electric field strength
-     * @param message   message from the host: time step, file name etc
+     * @param timestep  active time step in the host code
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
-    int run(const double elfield, const string&);
+    int run(const double elfield, const string& timestep);
 
     /** Function to generate FEM mesh and to solve differential equation(s)
      * by using the electric field specified in configuration script.
@@ -209,7 +209,8 @@ private:
     bool skip_calculations, fail;
     double t0;
     int timestep;           ///< counter to measure how many times Femocs has been called
-    int last_full_timestep; ///< timestep Femocs did full calculation
+    int last_full_timestep; ///< last time step Femocs did full calculation
+    string timestep_string; ///< time step written to file name
     vector<Vec3> areas;     ///< surface areas of Voronoi cells that is exposed to vacuum
     vector<int> atom2face;  ///< surface atom to triangle index map
     

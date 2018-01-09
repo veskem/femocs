@@ -25,7 +25,7 @@ coarse_factor = 0.3 6 4         # coarsening factor; bigger number gives coarser
                                 # 3rd - minimum distance between atoms in nanotip apex [0.25*latconst]
 
 # Enable or disable various features
-surface_cleaner = faces         # method to clean surface: faces or none
+clean_surface = true            # clean surface by measuring the atom distance from the triangular surface
 cluster_anal = false            # enable cluster analysis
 use_rdf = false                 # use radial distribution function to recalculate lattice constant, nnn & coord_cutoff
 
