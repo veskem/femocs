@@ -36,22 +36,19 @@ SolutionReader::SolutionReader(VolumeInterpolator* vi, SurfaceInterpolator* si,
 
 // Linearly interpolate solution on system atoms using tetrahedral interpolator
 void SolutionReader::calc_3d_interpolation(const bool srt) {
+
     require(interpolator_3d, "NULL spacial interpolator cannot be used!");
-    require(interpolator_2d->size() > 0, "Empty spatial interpolator cannot be used!");
+    require(interpolator_3d->size() > 0, "Empty spatial interpolator cannot be used!");
+
 
     const int n_atoms = size();
-    if (interpolator_3d->size() == 0) {
-        interpolation = vector<Solution>(n_atoms, Solution(0));
-        return;
-    }
-
-    if (component == -1)
-        interpolation = vector<Solution>(n_atoms, Solution(0));
 
     // Sort atoms into sequential order to speed up interpolation
+
     if (srt) sort_spatial();
 
     int elem = 0;
+
     for (int i = 0; i < n_atoms; ++i) {
         Point3 point = get_point(i);
         // Find the element that contains (elem >= 0) or is closest (elem < 0) to the point

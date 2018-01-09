@@ -406,7 +406,7 @@ void TetrahedronInterpolator<rank>::precompute() {
         SimpleElement se = (*elems)[i];
 
         // Calculate tetrahedra neighbours
-        this->neighbours.push_back(this->elems->get_neighbours(i));
+        this->neighbours[i] = this->elems->get_neighbours(i);
         // Calculate centroids of tetrahedra
         this->centroids.push_back(this->elems->get_centroid(i));
         // Store tetrahedra to get rid of mesh dependency
