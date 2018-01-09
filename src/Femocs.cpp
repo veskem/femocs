@@ -554,10 +554,10 @@ int Femocs::solve_converge_heat() {
                     i, delta_time * 1.e12, current_time * 1.e12, ccg, hcg, max_T);
         }
 
-        if (max(hcg, ccg) < 150 || hcg < 25)
-            delta_time *= 1.5;
-        else if (max(hcg, ccg) > 150 && hcg > 25)
-            delta_time /= 1.5;
+        if (max(hcg, ccg) < 120 || hcg < 30)
+            delta_time *= 1.25;
+        else if (max(hcg, ccg) > 150)
+            delta_time /= 1.25;
 
         if (max(hcg, ccg) < 10) return 0;
     }

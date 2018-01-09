@@ -968,7 +968,6 @@ void EmissionReader::calc_emission(double workfunction, bool blunt){
 
         if (F > 0.6 * Fmax && !blunt){ // Full calculation with line only for high field points
             field.normalize(); // get line direction
-            cout << "calculating sharp emission" << endl;
             emission_line(get_point(i), field, 1.6 * workfunction / F); //get emission line data
 
             gt.Nr = n_lines;
@@ -1033,7 +1032,7 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
         error = multiplier - theta_old;
         multiplier = theta_old + error * err_fact;
         theta_old = multiplier;
-        if (abs(error) < 1.e-4) break; //if converged break
+        if (abs(error) < 1.e-3) break; //if converged break
 
     }
 
