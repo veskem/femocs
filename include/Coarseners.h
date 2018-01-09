@@ -49,6 +49,12 @@ public:
     /** Get nodes of polygons for writing to vtk file */
     virtual vector<vector<int>> get_polygons() { return vector<vector<int>>{vector<int>{}}; }
 
+    /** Return active cut-off radius */
+    double get_cutoff2(const Point3& p) {
+        pick_cutoff(p);
+        return cutoff2;
+    }
+
 protected:
     Point3 origin3d;  ///< centre of the coarsener
     double cutoff2;   ///< squared cut off radius
@@ -74,7 +80,7 @@ protected:
     }
 
     /** Get cut off radius that is smaller than any possible distance between atoms */
-    double get_inf_cutoff() const { return -1e20; }
+    double get_inf_cutoff() const { return -1e100; }
 
     /** Point in region? */
     virtual inline bool in_region(const Point3 &) const { return false; }
@@ -222,6 +228,15 @@ public:
     void pick_cutoff(const Point3 &point) {
         for (auto &c : coarseners)
             c->pick_cutoff(point);
+    }
+
+    /** Calculate the cut off radius for given point */
+    double get_cutoff(const Point3 &point) {
+        for (auto &c : coarseners) {
+            double cutoff = c->get_cutoff2(point);
+            if (cutoff >= 0) return sqrt(cutoff);
+        }
+        return -1;
     }
 
     /** Specify the collective action of coarseners */

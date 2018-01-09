@@ -21,23 +21,23 @@ namespace femocs {
 
 // Initialize SolutionReader
 SolutionReader::SolutionReader() : vec_label("vec"), vec_norm_label("vec_norm"), scalar_label("scalar"),
-        limit_min(0), limit_max(0), interpolator_2d(NULL), interpolator_3d(NULL)
+        limit_min(0), limit_max(0), interpolator_3d(NULL), interpolator_2d(NULL)
 {
     reserve(0);
 }
 
-SolutionReader::SolutionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet,
+SolutionReader::SolutionReader(VolumeInterpolator* vi, SurfaceInterpolator* si,
         const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
         vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab),
-        limit_min(0), limit_max(0), interpolator_2d(tri), interpolator_3d(tet)
+        limit_min(0), limit_max(0), interpolator_3d(vi), interpolator_2d(si)
 {
     reserve(0);
 }
 
 // Linearly interpolate solution on system atoms using tetrahedral interpolator
-void SolutionReader::calc_3d_interpolation(const int component, const bool srt) {
-    require(component >= -1 && component <= 2, "Invalid interpolation component: " + to_string(component));
+void SolutionReader::calc_3d_interpolation(const bool srt) {
     require(interpolator_3d, "NULL spacial interpolator cannot be used!");
+    require(interpolator_2d->size() > 0, "Empty spatial interpolator cannot be used!");
 
     const int n_atoms = size();
     if (interpolator_3d->size() == 0) {
@@ -61,26 +61,22 @@ void SolutionReader::calc_3d_interpolation(const int component, const bool srt) 
         set_marker(i, elem);
 
         // Calculate the interpolation
-        if      (component == 0) interpolation.push_back(interpolator_3d->interp_solution(point, elem));
-        else if (component == 1) interpolation.push_back(interpolator_3d->interp_vector(point, elem));
-        else if (component == 2) interpolation.push_back(interpolator_3d->interp_scalar(point, elem));
+        interpolation.push_back(interpolator_3d->interp_solution(point, elem));
     }
 
     // Sort atoms back to their initial order
     if (srt) {
-        if (component != -1) {
-            for (int i = 0; i < n_atoms; ++i)
-                interpolation[i].id = atoms[i].id;
-            sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
-        }
+        for (int i = 0; i < n_atoms; ++i)
+            interpolation[i].id = atoms[i].id;
+        sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
         sort( atoms.begin(), atoms.end(), Atom::sort_id() );
     }
 }
 
 // Linearly interpolate solution on system atoms using triangular interpolator
-void SolutionReader::calc_2d_interpolation(vector<int>& atom2face, const int component, const bool srt) {
-    require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
+void SolutionReader::calc_2d_interpolation(vector<int>& atom2face, const bool srt) {
     require(interpolator_2d, "NULL surface interpolator cannot be used!");
+    require(interpolator_2d->size() > 0, "Empty surface interpolator cannot be used!");
 
     const int n_atoms = size();
     const bool faces_known = atom2face.size() == n_atoms;
@@ -94,23 +90,20 @@ void SolutionReader::calc_2d_interpolation(vector<int>& atom2face, const int com
             set_marker(i, face);
 
             // calculate the interpolation
-            Point3 point = get_point(i);
-            if      (component == 0) interpolation.push_back(interpolator_2d->interp_solution(point, face));
-            else if (component == 1) interpolation.push_back(interpolator_2d->interp_vector(point, face));
-            else if (component == 2) interpolation.push_back(interpolator_2d->interp_scalar(point, face));
+            interpolation.push_back(interpolator_2d->interp_solution(get_point(i), face));
         }
     // ...nop, do it and interpolate
     else {
-        calc_2d_interpolation(component, srt);
+        calc_2d_interpolation(srt);
         atom2face = vector<int>(n_atoms);
         for (int i = 0; i < n_atoms; ++i)
             atom2face[i] = abs(get_marker(i));
     }
 }
 
-void SolutionReader::calc_2d_interpolation(const int component, const bool srt) {
-    require(component >= 0 && component <= 2, "Invalid interpolation component: " + to_string(component));
+void SolutionReader::calc_2d_interpolation(const bool srt) {
     require(interpolator_2d, "NULL surface interpolator cannot be used!");
+    require(interpolator_2d->size() > 0, "Empty surface interpolator cannot be used!");
 
     const int n_atoms = size();
     if (interpolator_2d->size() == 0) {
@@ -132,9 +125,7 @@ void SolutionReader::calc_2d_interpolation(const int component, const bool srt) 
         set_marker(i, face);
 
         // Calculate the interpolation
-        if      (component == 0) interpolation.push_back(interpolator_2d->interp_solution(point, face));
-        else if (component == 1) interpolation.push_back(interpolator_2d->interp_vector(point, face));
-        else if (component == 2) interpolation.push_back(interpolator_2d->interp_scalar(point, face));
+        interpolation.push_back(interpolator_2d->interp_solution(point, face));
     }
 
     // Sort atoms back to their initial order
@@ -447,21 +438,12 @@ void SolutionReader::print_statistics() {
  * ============== FIELD READER ==============
  * ========================================== */
 
-FieldReader::FieldReader(TriangleInterpolator* tri) :
-        SolutionReader(tri, NULL, "elfield", "elfield_norm", "potential"),
-        E0(0), radius1(0), radius2(0) {}
-
-FieldReader::FieldReader(TetrahedronInterpolator* tet) :
-        SolutionReader(NULL, tet, "elfield", "elfield_norm", "potential"),
-        E0(0), radius1(0), radius2(0) {}
-
-FieldReader::FieldReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet) :
-        SolutionReader(tri, tet, "elfield", "elfield_norm", "potential"),
+FieldReader::FieldReader(VolumeInterpolator* vi, SurfaceInterpolator* si) :
+        SolutionReader(vi, si, "elfield", "elfield_norm", "potential"),
         E0(0), radius1(0), radius2(0) {}
 
 // Linearly interpolate solution on Medium atoms using triangular interpolator
-void FieldReader::interpolate_2d(vector<int>& atom2face, const Medium &medium,
-        const int component, const bool srt) {
+void FieldReader::interpolate_2d(vector<int>& atom2face, const Medium &medium, const bool srt) {
 
     const int n_atoms = medium.size();
     reserve(n_atoms);
@@ -469,7 +451,7 @@ void FieldReader::interpolate_2d(vector<int>& atom2face, const Medium &medium,
         append( Atom(i, medium.get_point(i), 0) );
 
     // interpolate solution
-    calc_2d_interpolation(atom2face, component, srt);
+    calc_2d_interpolation(atom2face, srt);
 
     // store the original atom id-s
     for (int i = 0; i < n_atoms; ++i)
@@ -477,8 +459,8 @@ void FieldReader::interpolate_2d(vector<int>& atom2face, const Medium &medium,
 }
 
 // Linearly interpolate electric field on a set of points using triangular interpolator
-void FieldReader::interpolate_2d(const int n_points, const double* x, const double* y, const double* z,
-        const int component, const bool srt) {
+void FieldReader::interpolate_2d(const int n_points, const double* x, const double* y,
+        const double* z, const bool srt) {
 
     // store the point coordinates
     reserve(n_points);
@@ -486,11 +468,11 @@ void FieldReader::interpolate_2d(const int n_points, const double* x, const doub
         append(Atom(i, Point3(x[i], y[i], z[i]), 0));
 
     // interpolate solution
-    calc_2d_interpolation(component, srt);
+    calc_2d_interpolation(srt);
 }
 
 // Linearly interpolate solution on Medium atoms
-void FieldReader::interpolate(const Medium &medium, const int component, const bool srt) {
+void FieldReader::interpolate(const Medium &medium, const bool srt) {
     const int n_atoms = medium.size();
     
     // store the atom coordinates
@@ -499,7 +481,7 @@ void FieldReader::interpolate(const Medium &medium, const int component, const b
         append( Atom(i, medium.get_point(i), 0) );
 
     // interpolate solution
-   calc_3d_interpolation(component, srt);
+   calc_3d_interpolation(srt);
 
     // store the original atom id-s
     for (int i = 0; i < n_atoms; ++i)
@@ -507,8 +489,8 @@ void FieldReader::interpolate(const Medium &medium, const int component, const b
 }
 
 // Linearly interpolate electric field on a set of points
-void FieldReader::interpolate(const int n_points, const double* x, const double* y, const double* z,
-        const int component, const bool srt) {
+void FieldReader::interpolate(const int n_points, const double* x, const double* y,
+        const double* z, const bool srt) {
 
     // store the point coordinates
     reserve(n_points);
@@ -516,7 +498,7 @@ void FieldReader::interpolate(const int n_points, const double* x, const double*
         append(Atom(i, Point3(x[i], y[i], z[i]), 0));
 
     // interpolate solution
-    calc_3d_interpolation(component, srt);
+    calc_3d_interpolation(srt);
 }
 
 // Linearly interpolate electric field for the currents and temperature solver
@@ -535,7 +517,7 @@ void FieldReader::transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solv
         append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
 
     // interpolate solution on the nodes and clean peaks
-    calc_2d_interpolation(1, false);
+    calc_2d_interpolation(false);
     clean(r_cut, use_hist_clean);
 
     // export electric field norms to the solver
@@ -561,7 +543,7 @@ void FieldReader::transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver,
         append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
 
     // interpolate solution on the nodes and clean peaks
-    calc_2d_interpolation(1, false);
+    calc_2d_interpolation(false);
     clean(r_cut, use_hist_clean);
 
     // export electric field norms to the solver
@@ -720,17 +702,11 @@ void FieldReader::set_check_params(const double E0, const double limit_min, cons
  * =============== HEAT READER ==============
  * ========================================== */
 
-HeatReader::HeatReader(TriangleInterpolator* tri) :
-        SolutionReader(tri, NULL, "rho", "rho_norm", "temperature") {}
-
-HeatReader::HeatReader(TetrahedronInterpolator* tet) :
-        SolutionReader(NULL, tet, "rho", "rho_norm", "temperature") {}
-
-HeatReader::HeatReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet) :
-        SolutionReader(tri, tet, "rho", "rho_norm", "temperature") {}
+HeatReader::HeatReader(VolumeInterpolator* vi, SurfaceInterpolator* si) :
+        SolutionReader(vi, si, "rho", "rho_norm", "temperature") {}
 
 // Linearly interpolate solution on Medium atoms
-void HeatReader::interpolate(const Medium &medium, const double empty_val, const int component, const bool srt) {
+void HeatReader::interpolate(const Medium &medium, const double empty_val, const bool srt) {
     const int n_atoms = medium.size();
 
     // store the atom coordinates
@@ -742,7 +718,7 @@ void HeatReader::interpolate(const Medium &medium, const double empty_val, const
     if (interpolator_3d->size() == 0)
         interpolation = vector<Solution>(n_atoms, Solution(empty_val));
     else
-        calc_3d_interpolation(component, srt);
+        calc_3d_interpolation(srt);
 
     // restore the original atom id-s
     for (int i = 0; i < n_atoms; ++i)
@@ -751,9 +727,7 @@ void HeatReader::interpolate(const Medium &medium, const double empty_val, const
 
 // Linearly interpolate electric field for the currents and temperature solver
 // In case of empty interpolator, constant values are stored
-void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val,
-        const int component, const bool srt) {
-
+void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const bool srt) {
     // import the surface nodes the solver needs
     vector<dealii::Point<3>> nodes;
     ch_solver.get_surface_nodes(nodes);
@@ -770,14 +744,12 @@ void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double
     if (interpolator_3d->size() == 0)
         interpolation = vector<Solution>(n_atoms, Solution(empty_val));
     else
-        calc_3d_interpolation(component, srt);
+        calc_3d_interpolation(srt);
 }
 
 // Linearly interpolate electric field for the currents and temperature solver on the surface of bulk
 // In case of empty interpolator, constant values are stored
-void HeatReader::interpolate_2d(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val,
-        const int component, const bool srt) {
-
+void HeatReader::interpolate_2d(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const bool srt) {
     // import the surface nodes the solver needs
     vector<dealii::Point<3>> nodes;
     ch_solver.get_surface_nodes(nodes);
@@ -794,7 +766,7 @@ void HeatReader::interpolate_2d(fch::CurrentsAndHeating<3>& ch_solver, const dou
     if (interpolator_2d->size() == 0)
         interpolation = vector<Solution>(n_atoms, Solution(empty_val));
     else
-        calc_2d_interpolation(component, srt);
+        calc_2d_interpolation(srt);
 }
 
 // Export interpolated temperature
@@ -828,29 +800,14 @@ double HeatReader::get_temperature(const int i) const {
  * ============= EMISSION READER ============
  * ========================================== */
 
-EmissionReader::EmissionReader(TriangleInterpolator* tri, const FieldReader& fields,
-        const HeatReader& heat, const TetgenFaces& faces) :
-                SolutionReader(tri, NULL, "none", "rho_norm", "temperature"), fields(fields),
-                heat(heat), faces(faces){
+EmissionReader::EmissionReader(const FieldReader& fr, const HeatReader& hr, const TetgenFaces& f,
+        VolumeInterpolator* vi, SurfaceInterpolator* si) :
+        SolutionReader(vi, si, "none", "rho_norm", "temperature"),
+        fields(fr), heat(hr), faces(f) {
     initialize();
 }
 
-EmissionReader::EmissionReader(TetrahedronInterpolator* tet,  const FieldReader& fields,
-        const HeatReader& heat, const TetgenFaces& faces) :
-        SolutionReader(NULL, tet, "none", "rho_norm", "temperature") , fields(fields),
-        heat(heat), faces(faces){
-    initialize();
-}
-
-EmissionReader::EmissionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet,
-        const FieldReader& _fields, const HeatReader& _heat, const TetgenFaces& _faces) :
-        SolutionReader(tri, tet, "none", "rho_norm", "temperature") , fields(_fields),
-        heat(_heat), faces(_faces) {
-    initialize();
-}
-
-void EmissionReader::initialize(){
-
+void EmissionReader::initialize() {
     int n_nodes = fields.size();
 
     // deallocate and allocate currents data
@@ -889,7 +846,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
         rline[i] = rmin + ((rmax - rmin) * i) / (n_lines - 1);
         fr.append(point - pfield * rline[i]);
     }
-    fr.calc_3d_interpolation(0, false);
+    fr.calc_3d_interpolation(false);
     for (int i = 0; i < n_lines; i++){
         Vline[i] = multiplier * fr.get_potential(i);
         rline[i] *= nm_per_angstrom;
@@ -925,9 +882,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
     }
 }
 
-
-void EmissionReader::calc_representative(){
-
+void EmissionReader::calc_representative() {
     double area = 0.; // total emitting (FWHM) area
     double I_tot = 0.; // total emitted current within FWHM emitting area
     double FJ = 0.; // int_FWHMarea (F*J)dS
@@ -1046,14 +1001,8 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
  * ============== CHARGE READER =============
  * ========================================== */
 
-ChargeReader::ChargeReader(TriangleInterpolator* tri) :
-        SolutionReader(tri, NULL, "elfield", "area", "charge"), Q_tot(0) {}
-
-ChargeReader::ChargeReader(TetrahedronInterpolator* tet) :
-        SolutionReader(NULL, tet, "elfield", "area", "charge"), Q_tot(0) {}
-
-ChargeReader::ChargeReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet) :
-        SolutionReader(tri, tet, "elfield", "area", "charge"), Q_tot(0) {}
+ChargeReader::ChargeReader(VolumeInterpolator* vi, SurfaceInterpolator* si) :
+        SolutionReader(vi, si, "elfield", "area", "charge"), Q_tot(0) {}
 
 // Calculate charges on surface faces using interpolated electric fields
 // Conserves charge worse but gives smoother forces
@@ -1067,7 +1016,7 @@ void ChargeReader::calc_interpolated_charges(const TetgenMesh& mesh, const doubl
         append( Atom(i, mesh.faces.get_centroid(i), 0) );
 
     // Interpolate electric field on the centroids of triangles
-    calc_3d_interpolation(1, true);
+    calc_3d_interpolation(true);
 
     // Calculate the charge from the found electric field and store it
     for (int i = 0; i < n_faces; ++i) {
@@ -1191,14 +1140,8 @@ void ChargeReader::set_check_params(const double Q_tot, const double limit_min, 
  * ============== FORCE READER ==============
  * ========================================== */
 
-ForceReader::ForceReader(TriangleInterpolator* tri) :
-        SolutionReader(tri, NULL, "force", "force_norm", "charge") {}
-
-ForceReader::ForceReader(TetrahedronInterpolator* tet) :
-        SolutionReader(NULL, tet, "force", "force_norm", "charge") {}
-
-ForceReader::ForceReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet) :
-        SolutionReader(tri, tet, "force", "force_norm", "charge") {}
+ForceReader::ForceReader(VolumeInterpolator* vi, SurfaceInterpolator* si) :
+        SolutionReader(vi, si, "force", "force_norm", "charge") {}
 
 void ForceReader::clean_voro_faces(VoronoiMesh& mesh) {
     const int nanotip_end = mesh.nodes.indxs.surf_end;
@@ -1339,7 +1282,7 @@ int ForceReader::calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom
 }
 
 // Calculate forces from atomic electric fields and face charges
-void ForceReader::calc_forces(const FieldReader &fields, TriangleInterpolator& ti) {
+void ForceReader::calc_forces(const FieldReader &fields, const SurfaceInterpolator& ti) {
     const int n_atoms = fields.size();
 
     // Copy the atom data

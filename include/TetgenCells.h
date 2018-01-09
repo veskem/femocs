@@ -365,7 +365,7 @@ public:
 
 private:
     /** Return the vertex type in vtk format */
-    int get_cell_type() const { return 1; }
+    int get_cell_type() const { return TYPES.VTK.VERTEX; }
 
     /** Return index of i-th node */
     SimpleCell<1> get_cell(const int i) const;
@@ -410,7 +410,7 @@ public:
 
 private:
     /** Return the line type in vtk format */
-    int get_cell_type() const { return 3; }
+    int get_cell_type() const { return TYPES.VTK.LINE; }
 
     /** Return i-th edge */
     SimpleCell<2> get_cell(const int i) const;
@@ -477,7 +477,7 @@ private:
     vector<Vec3> norms;     ///< norms of triangles
 
     /** Return the triangle type in vtk format */
-    int get_cell_type() const { return 5; }
+    int get_cell_type() const { return TYPES.VTK.TRIANGLE; }
 
     /** Return i-th face */
     SimpleCell<3> get_cell(const int i) const;
@@ -542,7 +542,7 @@ public:
 
 private:
     /** Return the tetrahedron type in vtk format */
-    int get_cell_type() const { return 10; }
+    int get_cell_type() const { return TYPES.VTK.TETRAHEDRON; }
 
     /** Return i-th element */
     SimpleCell<4> get_cell(const int i) const;
@@ -575,7 +575,7 @@ protected:
     vector<SimpleQuad> quads;
 
     /** Return the quadrangle type in vtk format */
-    int get_cell_type() const { return 9; }
+    int get_cell_type() const { return TYPES.VTK.QUADRANGLE; }
 
     /** Return i-th quadrangle */
     SimpleCell<4> get_cell(const int i) const;
@@ -611,7 +611,7 @@ protected:
     vector<SimpleHex> hexs;
 
     /** Return the hexahedron type in vtk format */
-    int get_cell_type() const { return 12; }
+    int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; }
 
     /** Return i-th hexahedron */
     SimpleCell<8> get_cell(const int i) const;

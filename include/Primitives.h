@@ -795,6 +795,51 @@ public:
     }
 };
 
+/** Quadratic triangle class without Point data */
+class QuadraticTri: public SimpleCell<6> {
+public:
+    QuadraticTri() : SimpleCell<6>() {}
+    QuadraticTri(const unsigned &n1) : SimpleCell<6>(n1) {}
+
+    QuadraticTri(const unsigned &n1, const unsigned &n2, const unsigned &n3,
+            const unsigned &n4, const unsigned &n5, const unsigned &n6) {
+        node[0] = n1; node[1] = n2; node[2] = n3; node[3] = n4; node[4] = n5; node[5] = n6;
+    }
+
+    QuadraticTri(const SimpleFace &s, const unsigned &n4, const unsigned &n5, const unsigned &n6) {
+        std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
+        node[3] = n4, node[4] = n5; node[5] = n6;
+    }
+
+    QuadraticTri(const SimpleCell<6> &s) {
+        std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
+    }
+};
+
+/** Quadratic tetrahedron class without Point data */
+class QuadraticTet: public SimpleCell<10> {
+public:
+    QuadraticTet() : SimpleCell<10>() {}
+    QuadraticTet(const unsigned &n1) : SimpleCell<10>(n1) {}
+
+    QuadraticTet(const unsigned &n1, const unsigned &n2, const unsigned &n3, const unsigned &n4,
+            const unsigned &n5, const unsigned &n6, const unsigned &n7,
+            const unsigned &n8, const unsigned &n9, const unsigned &n10) {
+        node[0] = n1; node[1] = n2; node[2] = n3; node[3] = n4; node[4] = n5;
+        node[5] = n6; node[6] = n7; node[7] = n8; node[8] = n9; node[9] = n10;
+    }
+
+    QuadraticTet(const SimpleElement &s, const unsigned &n5, const unsigned &n6, const unsigned &n7,
+            const unsigned &n8, const unsigned &n9, const unsigned &n10) {
+        std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
+        node[4] = n5; node[5] = n6; node[6] = n7; node[7] = n8; node[8] = n9; node[9] = n10;
+    }
+
+    QuadraticTet(const SimpleCell<10> &s) {
+        std::copy( std::begin(s.node), std::end(s.node), std::begin(node) );
+    }
+};
+
 } // namaspace femocs
 
 #endif /* PRIMITIVES_H_ */

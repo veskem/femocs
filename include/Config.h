@@ -73,8 +73,10 @@ public:
 
     double charge_tolerance_min; ///< Min ratio face charges are allowed to deviate from the total charge
     double charge_tolerance_max; ///< Max ratio face charges are allowed to deviate from the total charge
-    double field_tolerance_min; ///< Min ratio numerical field can deviate from analytical one
-    double field_tolerance_max; ///< Max ratio numerical field can deviate from analytical one
+    double field_tolerance_min;  ///< Min ratio numerical field can deviate from analytical one
+    double field_tolerance_max;  ///< Max ratio numerical field can deviate from analytical one
+
+    int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear, 2-quadratic
 
     ///< Heating configuration parameters
     struct Heating {
@@ -83,8 +85,6 @@ public:
         double work_function;       ///< Work function [eV]
         double lorentz;             ///< Lorentz number (Wiedemenn-Franz law)
         double Vappl;               ///< Total voltage for space charge. If <=0 space charge is ignored.
-
-
         double t_ambient;           ///< Ambient temperature in heat calculations
         double t_error;             ///< Maximum allowed temperature error in Newton iterations
         int n_newton;               ///< Maximum number of Newton iterations

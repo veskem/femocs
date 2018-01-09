@@ -26,7 +26,7 @@ void write_defaults(ofstream &file) {
     file << "heating_mode = none"        << endl;
     file << "write_log = true"           << endl;
     file << "clear_output = true"        << endl;
-    file << "smooth_factor = 0.1"        << endl;
+    file << "surface_smooth_factor= 0.1" << endl;
     file << "charge_smooth_factor = 1.0" << endl;
     file << "distance_tol = 0.0"         << endl;
     file << "n_writefile = 1"            << endl;
@@ -39,6 +39,8 @@ void write_defaults(ofstream &file) {
     file << "femocs_verbose_mode = verbose" << endl;
     file << "smooth_steps = 3"           << endl;
     file << "smooth_algorithm = laplace" << endl;
+    file << "elfield = -0.07"            << endl;
+    file << "interpolation_rank = 1"     << endl;
 }
 
 void write_rectangle(ofstream &file) {

@@ -70,6 +70,8 @@ Config::Config() {
     smooth_lambda = 0.6307;       // lambda parameter in surface mesh smoother
     smooth_mu = -0.6732;          // mu parameter in surface mesh smoother
     smooth_algorithm = "laplace"; // surface mesh smoother algorithm; none, laplace or fujiwara
+
+    interpolation_rank = 1;       // rank of the solution interpolation; 1-linear, 2-quadratic
 }
 
 // Remove the noise from the beginning of the string

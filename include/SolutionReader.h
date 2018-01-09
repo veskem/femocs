@@ -15,7 +15,7 @@
 #include "VoronoiMesh.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
-#include "LinearInterpolator.h"
+#include "Interpolator.h"
 
 using namespace std;
 namespace femocs {
@@ -25,17 +25,16 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader constructors */
     SolutionReader();
-    SolutionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet,
+    SolutionReader(VolumeInterpolator* vi, SurfaceInterpolator* si,
             const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
-    /** Interpolate solution on the system atoms using tetrahedral interpolator
-     * @param component component of result to interpolate: -1-locate atoms, 0-vector and scalar data, 1-vector data, 2-scalar data
+    /** Interpolate solution on the system atoms using spatial interpolator
      * @param srt       sort atoms spatially */
-    void calc_3d_interpolation(const int component, const bool srt);
+    void calc_3d_interpolation(const bool srt);
 
-    /** Interpolate solution on the system atoms using triangular interpolator */
-    void calc_2d_interpolation(const int component, const bool srt);
-    void calc_2d_interpolation(vector<int>& atom2face, const int component, const bool srt);
+    /** Interpolate solution on the system atoms using surface interpolator */
+    void calc_2d_interpolation(const bool srt);
+    void calc_2d_interpolation(vector<int>& atom2face, const bool srt);
 
     /** Reserve memory for data */
     void reserve(const int n_nodes);
@@ -54,6 +53,19 @@ public:
 
     /** Set i-th Solution */
     void set_interpolation(const int i, const Solution& s);
+
+    void set_interpolator(VolumeInterpolator* vi)  {
+        interpolator_3d = vi;
+    }
+
+    void set_interpolator(SurfaceInterpolator* si)  {
+        interpolator_2d = si;
+    }
+
+    void set_interpolator(VolumeInterpolator* vi, SurfaceInterpolator* si)  {
+        interpolator_3d = vi;
+        interpolator_2d = si;
+    }
 
     /** Calculate statistics about coordinates and solution */
     void calc_statistics();
@@ -76,9 +88,9 @@ protected:
     double limit_min;             ///< minimum value of accepted comparison value
     double limit_max;             ///< maximum value of accepted comparison value
 
-    TriangleInterpolator* interpolator_2d;    ///< data needed for interpolating on surface
-    TetrahedronInterpolator* interpolator_3d; ///< data needed for interpolating in space
-    vector<Solution> interpolation;           ///< interpolated data
+    VolumeInterpolator*  interpolator_3d; ///< data needed for interpolating in space
+    SurfaceInterpolator* interpolator_2d; ///< data needed for interpolating on surface
+    vector<Solution> interpolation;       ///< interpolated data
 
     /** Initialise statistics about coordinates and solution */
     void init_statistics();
@@ -107,24 +119,19 @@ protected:
 /** Class to extract solution from DealII calculations */
 class FieldReader: public SolutionReader {
 public:
-    /** FieldReader constructors */
-    FieldReader(TriangleInterpolator* ip);
-    FieldReader(TetrahedronInterpolator* ip);
-    FieldReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
+    FieldReader(VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium, const int component, const bool srt);
+    void interpolate(const Medium &medium, const bool srt);
 
     /** Interpolate solution on points using the solution on tetrahedral mesh nodes */
-    void interpolate(const int n_points, const double* x, const double* y, const double* z,
-            const int component, const bool srt);
+    void interpolate(const int n_points, const double* x, const double* y, const double* z, const bool srt);
 
     /** Interpolate solution on medium atoms using the solution on triangular mesh nodes */
-    void interpolate_2d(vector<int>& surf2face, const Medium &medium, const int component, const bool srt);
+    void interpolate_2d(vector<int>& surf2face, const Medium &medium, const bool srt);
 
     /** Interpolate solution on points using the solution on triangular mesh nodes */
-    void interpolate_2d(const int n_points, const double* x, const double* y, const double* z,
-            const int component, const bool srt);
+    void interpolate_2d(const int n_points, const double* x, const double* y, const double* z, const bool srt);
 
     /** Calculate the electric field for the stationary current and temperature solver */
     void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const double use_hist_clean);
@@ -179,21 +186,18 @@ private:
 /** Class to interpolate current densities and temperatures */
 class HeatReader: public SolutionReader {
 public:
-    /** HeatReader constructors */
-    HeatReader(TriangleInterpolator* tri);
-    HeatReader(TetrahedronInterpolator* tet);
-    HeatReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
+    HeatReader(VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
 
     /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium, const double empty_val, const int component, const bool srt);
+    void interpolate(const Medium &medium, const double empty_val, const bool srt);
 
     /** Linearly interpolate currents and temperatures in the bulk.
      *  In case of empty interpolator, constant values are stored. */
-    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const int component, const bool srt);
+    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const bool srt);
 
     /** Linearly interpolate currents and temperatures on the bulk surface.
      *  In case of empty interpolator, constant values are stored. */
-    void interpolate_2d(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const int component, const bool srt);
+    void interpolate_2d(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const bool srt);
 
     /** Export interpolated temperature */
     void export_temperature(const int n_atoms, double* T);
@@ -210,13 +214,8 @@ private:
 /** Class to calculate field emission effects with GETELEC */
 class EmissionReader: public SolutionReader {
 public:
-    /** EmissionReader constructors. */
-    EmissionReader(TriangleInterpolator* tri, const FieldReader& fields, const HeatReader& heat,
-            const TetgenFaces& faces);
-    EmissionReader(TetrahedronInterpolator* tet, const FieldReader& fields,
-            const HeatReader& heat, const TetgenFaces& faces);
-    EmissionReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet,
-            const FieldReader& fields, const HeatReader& heat, const TetgenFaces& faces);
+    EmissionReader(const FieldReader& fields, const HeatReader& heat, const TetgenFaces& faces,
+            VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
      * estimation of the space charge effects.
@@ -231,7 +230,7 @@ public:
     void set_multiplier(double _multiplier) { multiplier = _multiplier;}
 
 private:
-    /** Prepares the line inputted to GETELEC.
+    /** Prepares the line inputed to GETELEC.
      *
      * @param point Starting point of the line
      * @param direction Direction of the line
@@ -281,10 +280,7 @@ private:
 /** Class to calculate charges from electric field */
 class ChargeReader: public SolutionReader {
 public:
-    /** ChargeReader constructors */
-    ChargeReader(TriangleInterpolator* ip);
-    ChargeReader(TetrahedronInterpolator* ip);
-    ChargeReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
+    ChargeReader(VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
 
     /** Calculate charge on the triangular faces using interpolated solution on the face centroid */
     void calc_interpolated_charges(const TetgenMesh& mesh, const double E0);
@@ -319,16 +315,13 @@ private:
 /** Class to calculate forces from charges and electric fields */
 class ForceReader: public SolutionReader {
 public:
-    /** ChargeReader constructors */
-    ForceReader(TriangleInterpolator* ip);
-    ForceReader(TetrahedronInterpolator* ip);
-    ForceReader(TriangleInterpolator* tri, TetrahedronInterpolator* tet);
+    ForceReader(VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
 
     /** Calculate forces from atomic electric fields and face charges */
     void distribute_charges(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);
 
-    void calc_forces(const FieldReader &fields, TriangleInterpolator& ti);
+    void calc_forces(const FieldReader &fields, const SurfaceInterpolator& ti);
 
     int calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom2surf, const FieldReader& fields,
              const double radius, const double latconst, const string& mesh_quality);

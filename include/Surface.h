@@ -13,7 +13,7 @@
 #include "Coarseners.h"
 #include "Medium.h"
 #include "AtomReader.h"
-#include "LinearInterpolator.h"
+#include "Interpolator.h"
 #include "VoronoiMesh.h"
 
 using namespace std;
@@ -43,7 +43,7 @@ public:
     void extract(const AtomReader& reader, const int type, const bool invert=false);
 
     /** Extend the flat area by generating additional atoms */
-    Surface extend(const double latconst, const double box_width, Coarseners &coarseners);
+    void extend(Surface &extension, Coarseners &cr, const double latconst, const double box_width);
 
     /** Extend the flat area by reading additional atoms */
     Surface extend(const string &file_name, Coarseners &coarseners);
@@ -54,11 +54,13 @@ public:
     /** Clean the surface from atoms that are too close to each other */
     Surface clean(Coarseners &coarseners);
 
+    Surface clean_roi(Coarseners &coarseners);
+
     /** Increase or decrease the total volume of system without altering the centre of mass */
     void transform(const double latconst);
 
     /** Remove the atoms that are too far from surface faces */
-    void clean_by_triangles(vector<int>& surf2face, const TriangleInterpolator& interpolator, const double r_cut);
+    void clean_by_triangles(vector<int>& surf2face, SurfaceInterpolator* interpolator, const double r_cut);
 
     int clean_by_voronois(const double radius, const double latconst, const string& mesh_quality);
 
