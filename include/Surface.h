@@ -22,17 +22,17 @@ namespace femocs {
 /** Routines and data related to making a Surface */
 class Surface: public Medium {
 public:
-    /** Empty surface */
+    /** Initialise empty surface */
     Surface();
 
     /** Initialise empty surface and reserve memory for atoms */
     Surface(const int n_atoms);
 
-    /** Generate surface with 4 atoms on simubox edges */
+    /** Generate surface with 4 atoms in simubox corners */
     Surface(const Medium::Sizes& sizes, const double z);
 
-    /** Generate system with 4 atoms at the simubox corners */
-    void generate_simple(const Medium::Sizes& sizes, const double z);
+    /** Generate surface with regular atom distribution along surface edges */
+    Surface(const Medium::Sizes& sizes, const double z, const double dist);
 
     /** Extract atom with desired types and clean it from lonely atoms;
      * atom is considered lonely if its coordination is lower than threshold.
@@ -83,9 +83,6 @@ private:
 
     /** Smoothen the atoms using Taubin lambda|mu algorithm with inverse neighbour count weighting */
     void laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist);
-
-    /** Generate edge with regular atom distribution between surface corners */
-    void generate_middle(const Medium::Sizes& ar_sizes, const double z, const double dist);
 
     /** Separate cylindrical region from substrate region */
     void get_nanotip(Surface& nanotip, const double radius);

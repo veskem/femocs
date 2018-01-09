@@ -161,59 +161,6 @@ private:
     void generate_manual_surface();
 };
 
-/** Class to mark mesh nodes with ray-triangle intersection technique,
- * http://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle */
-class RaySurfaceIntersect {
-public:
-    /** Constructor of RaySurfaceIntersect  */
-    RaySurfaceIntersect(const TetgenMesh* mesh);
-
-    /** Function to find with Moller-Trumbore algorithm whether the ray and the surface intersect or not */
-    bool ray_intersects_surface(const Vec3 &origin, const Vec3 &direction);
-
-    /** Determine whether the point is within cut-off distance from the surface mesh */
-    bool near_surface(const Vec3 &origin, const double r_cut);
-    
-    /** Determine whether the point is within cut-off distance from the surface mesh */
-    bool near_surface(const Vec3 &origin, const Vec3 &dir, const double r_cut);
-
-    /** Precompute the data needed to calculate the distance of points from surface in given constant direction */
-    void precompute_triangles(const Vec3 &direction);
-    
-    /** Pre-compute the data needed to calculate the distance of points from surface in the direction of triangle norms */
-    void precompute_triangles();
-
-private:
-    /** Constants to specify the tolerances */
-    const double epsilon = 0.1;
-    const double zero = 0.0 - epsilon;
-    const double one = 1.0 + epsilon;
-
-    /** Pointer to Mesh with nodes and surface faces */
-    const TetgenMesh* mesh;
-
-    /** Data computed before starting looping through the triangles */
-    vector<Vec3> vert0;
-    vector<Vec3> edge1;
-    vector<Vec3> edge2;
-    vector<Vec3> pvec;
-    vector<bool> is_parallel;
-
-    /** Function to find with Moller-Trumbore algorithm whether the ray and the triangle intersect or not */
-    bool ray_intersects_triangle(const Vec3 &origin, const Vec3 &direction, const int face);
-
-    /** Moller-Trumbore algorithm to get the distance of point from the triangle in the direction of triangle norm;
-     * if the projection of point is outside the triangle, -1 is returned. */
-    double distance_from_triangle(const Vec3 &origin, const int face);
-    
-    /** Moller-Trumbore algorithm to get the distance of point from the triangle in given direction;
-     * if the projection of point is outside the triangle, -1 is returned. */
-    double distance_from_triangle(const Vec3 &origin, const Vec3 &dir, const int face);
-
-    /** Function to reserve memory for precompute data */
-    void reserve(const int n);
-};
-
 } /* namespace femocs */
 
 #endif /* TETGENMESH_H_ */

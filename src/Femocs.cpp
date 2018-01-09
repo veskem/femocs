@@ -111,35 +111,6 @@ int Femocs::force_output() {
     return 0;
 }
 
-// Interpolate the solution on the x-z plane in the middle of simulation box
-void Femocs::write_slice(const string& file_name) {
-    int writefile_save = MODES.WRITEFILE;
-    MODES.WRITEFILE = true;
-
-    const int nx = 300;  // number of points in x-direction
-    const int nz = 300;  // number of points in z-direction
-    const double eps = 1e-5 * conf.latconst;
-
-    const double xmax = reader.sizes.xmid;
-    const double xmin = xmax - 3*conf.radius;
-    const double zmin = reader.sizes.zmin;
-    const double zmax = zmin + 3*conf.radius;
-    const double dx = (xmax - xmin) / (nx-1);
-    const double dz = (zmax - zmin) / (nz-1);
-
-    Medium medium(nx * nz);
-
-    for (double x = xmin; x < xmax + eps; x += dx)
-        for (double z = zmin; z < zmax + eps; z += dz)
-            medium.append( Point3(x, reader.sizes.ymid, z) );
-
-    FieldReader fr(vacuum_interpolator);
-    fr.interpolate(medium, false);
-    fr.write(file_name);
-
-    MODES.WRITEFILE = writefile_save;
-}
-
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
 int Femocs::run(const double elfield, const string &message) {
     stringstream parser, stream;
@@ -253,8 +224,8 @@ int Femocs::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface
 
     start_msg(t0, "=== Generating bulk & vacuum corners...");
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
-    vacuum.generate_simple(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.box_height * coarse_surf.sizes.zbox);
-    bulk.generate_simple(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.bulk_height * conf.latconst);
+    vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.box_height * coarse_surf.sizes.zbox);
+    bulk = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.bulk_height * conf.latconst);
     reader.resize_box(coarse_surf.sizes.xmin, coarse_surf.sizes.xmax, 
         coarse_surf.sizes.ymin, coarse_surf.sizes.ymax,
         bulk.sizes.zmin, vacuum.sizes.zmax);

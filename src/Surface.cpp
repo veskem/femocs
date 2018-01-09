@@ -17,11 +17,6 @@ Surface::Surface() : Medium() {}
 Surface::Surface(const int n_atoms) : Medium(n_atoms) {}
 
 Surface::Surface(const Medium::Sizes& s, const double z) {
-    generate_simple(s, z);
-}
-
-// Generate system with 4 atoms at the corners
-void Surface::generate_simple(const Medium::Sizes& s, const double z) {
     // Reserve memory for atoms
     reserve(4);
 
@@ -35,9 +30,9 @@ void Surface::generate_simple(const Medium::Sizes& s, const double z) {
     calc_statistics();
 }
 
-// Generate edge with regular atom distribution between surface corners
-void Surface::generate_middle(const Medium::Sizes& s, const double z, const double dist) {
+Surface::Surface(const Medium::Sizes& s, const double z, const double dist) {
     require(dist > 0, "Invalid distance between atoms: " + to_string(dist));
+
     const int n_atoms_per_side_x = s.xbox / dist + 1;
     const int n_atoms_per_side_y = s.ybox / dist + 1;
     const double dx = s.xbox / n_atoms_per_side_x;
@@ -175,9 +170,8 @@ void Surface::extend(Surface& extension, Coarseners &cr, const double latconst, 
 
     // if the input already is sufficiently wide, add just the boundary nodes
     else {
-        Surface middle;
-        middle.generate_middle(sizes, z, cr.get_r0_inf(sizes));
-        extension.generate_simple(sizes, z);
+        Surface middle(sizes, z, cr.get_r0_inf(sizes));
+        extension = Surface(sizes, z);
         extension += middle;
     }
 
@@ -186,13 +180,10 @@ void Surface::extend(Surface& extension, Coarseners &cr, const double latconst, 
 
 // Coarsen the atoms by generating additional boundary nodes and then running cleaner
 Surface Surface::coarsen(Coarseners &coarseners) {
-    Surface corners, middle, union_surf;
-
-    corners.generate_simple(sizes, sizes.zmean);
-    middle.generate_middle( sizes, sizes.zmean, coarseners.get_r0_inf(sizes) );
     sort_atoms(3, "down");
 
-    union_surf += corners;
+    Surface middle(sizes, sizes.zmean, coarseners.get_r0_inf(sizes));
+    Surface union_surf(sizes, sizes.zmean);
     union_surf += middle;
     union_surf += *this;
 

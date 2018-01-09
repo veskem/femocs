@@ -40,7 +40,6 @@ void Interpolator::write(const string &file_name) const {
     outfile.close();
 }
 
-// Output interpolation cell data in .xyz format
 void Interpolator::write_xyz(ofstream& out) const {
     const int n_nodes = nodes->size(); // nodes->stat.n_tetnode;
     expect(n_nodes, "Zero nodes detected!");
@@ -108,19 +107,21 @@ void Interpolator::write_vtk(ofstream& out) const {
         out << i << "\n";
 }
 
-// Find the cell which contains the point or is the closest to it
 int Interpolator::locate_cell(const Point3 &point, const int cell_guess) const {
+    vector<bool> cell_checked(neighbours.size());
+    return locate_cell(point, cell_guess, cell_checked);
+}
+
+// Find the cell which contains the point or is the closest to it
+int Interpolator::locate_cell(const Point3 &point, const int cell_guess, vector<bool>& cell_checked) const {
     // Check the guessed cell
     Vec3 vec_point(point);
     if (point_in_cell(vec_point, cell_guess)) return cell_guess;
+    cell_checked[cell_guess] = true;
 
     const int n_cells = neighbours.size();
     const int n_nbor_layers = 6;  // amount of nearest neighbouring layers that are checked before the full search
-
     vector<vector<int>> nbors(n_nbor_layers);
-    vector<bool> cell_checked(n_cells);
-
-    cell_checked[cell_guess] = true;
 
     // Check all cells on the given neighbouring layer
     for (int layer = 0; layer < n_nbor_layers; ++layer) {

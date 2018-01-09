@@ -25,7 +25,7 @@ namespace femocs {
 class Femocs {
 public:
     /**
-     * Femocs constructor reads and stores configuration parameters
+     * Femocs constructor reads and stores configuration parameters and initialises other data
      * @param path_to_conf      path to the file holding the configuration parameters
      */
     Femocs(const string &path_to_conf);
@@ -39,6 +39,11 @@ public:
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
     int run(const double elfield, const string&);
+
+    /** Function to generate FEM mesh and to solve differential equation(s)
+     * by using the electric field specified in configuration script.
+     * @return 0 - function completed normally; 1 - function did not complete normally
+     */
     int run();
 
     /** Function to import atoms from PARCAS
@@ -228,12 +233,12 @@ private:
     /// physical quantities used in heat calculations
     fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);
 
+    fch::Laplace<3> laplace_solver;                       ///< Laplace equation solver
     fch::CurrentsAndHeatingStationary<3>  ch_solver1;     ///< first    steady-state currents and heating solver
     fch::CurrentsAndHeatingStationary<3>  ch_solver2;     ///< second   steady-state currents and heating solver
     fch::CurrentsAndHeatingStationary<3>* ch_solver;      ///< active   steady-state currents and heating solver
     fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous steady-state currents and heating solver
     fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
-    fch::Laplace<3> laplace_solver;                       ///< Laplace equation solver
 
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
@@ -244,11 +249,8 @@ private:
     /** Solve transient heat and continuity equations */
     int solve_transient_heat(const double delta_time);
 
-    /** Solve transient heat and continuity equation until convergence reached*/
+    /** Solve transient heat and continuity equation until convergence is reached */
     int solve_converge_heat();
-
-    /** Interpolate the solution on the x-z plane in the middle of simulation box */
-    void write_slice(const string& file_name);
 };
 
 } /* namespace femocs */

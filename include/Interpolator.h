@@ -117,6 +117,9 @@ public:
     /** Find the cell which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
+    /** Find the cell which contains the point or is the closest to it looking only for non-marked cells */
+    int locate_cell(const Point3 &point, const int cell_guess, vector<bool>& cell_checked) const;
+
     /** Extract the electric potential and field values from FEM solution */
     bool extract_solution(fch::Laplace<3>* fem);
 
@@ -431,7 +434,9 @@ protected:
     /** Reserve memory for precompute data */
     void reserve_precompute(const int n);
 
-    /** Return the distance between a point and i-th triangle in the direction of its norm */
+    /** Return the distance between a point and i-th triangle in the direction of its norm.
+     * The calculations are based on Moller-Trumbore algorithm. The theory about it can be found from
+     * http://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/ */
     double distance(const Vec3& point, const int i) const;
 
     /** Check whether the projection of a point is inside the i-th triangle */
