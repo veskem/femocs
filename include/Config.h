@@ -105,14 +105,15 @@ public:
 
     /** Heating configuration parameters */
     struct Heating {
-        string mode;            ///< Method to calculate current density and temperature; none, stationary or transient
-        string rhofile;         ///< Path to the file with resistivity table
-        double work_function;   ///< Work function [eV]
-        double lorentz;         ///< Lorentz number (Wiedemenn-Franz law)
-        double Vappl;           ///< Total voltage for space charge. If <=0 space charge is ignored.
-        double t_ambient;       ///< Ambient temperature in heat calculations
-        double t_error;         ///< Maximum allowed temperature error in Newton iterations
-        int n_newton;           ///< Maximum number of Newton iterations
+        string mode;        ///< Method to calculate current density and temperature; none, stationary or transient
+        string rhofile;             ///< Path to the file with resistivity table
+        double work_function;       ///< Work function [eV]
+        double lorentz;             ///< Lorentz number (Wiedemenn-Franz law)
+        double Vappl;               ///< Total voltage for space charge. If <=0 space charge is ignored.
+        double t_ambient;           ///< Ambient temperature in heat calculations
+        double t_error;             ///< Maximum allowed temperature error in Newton iterations
+        int n_newton;               ///< Maximum number of Newton iterations
+        bool blunt;                 ///< Force blunt emitter approximation (good for big systems)
     } heating;
 
     /** Smooth factors for surface faces, surface atoms and charges */

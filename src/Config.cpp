@@ -59,6 +59,7 @@ Config::Config() {
     heating.t_ambient = 300.0;        // ambient temperature
     heating.t_error = 10.0;           // maximum allowed temperature error in Newton iterations
     heating.n_newton = 10;            // maximum number of Newton iterations
+    heating.blunt = false;            // by default emitter is sharp
 
     smoothing.algorithm = "laplace";  // surface mesh smoother algorithm; none, laplace or fujiwara
     smoothing.n_steps = 0;            // number of surface mesh smoothing iterations
@@ -99,6 +100,7 @@ void Config::read_all(const string& file_name) {
     read_command("lorentz", heating.lorentz);
     read_command("rhofile", heating.rhofile);
     read_command("V_appl", heating.Vappl);
+    read_command("emitter_blunt", heating.blunt);
 
     read_command("smooth_steps", smoothing.n_steps);
     read_command("smooth_lambda", smoothing.lambda_mesh);
