@@ -13,8 +13,8 @@ namespace femocs {
  *  ====================== InterpolatorNodes =======================
  * ================================================================== */
 
-InterpolatorNodes::InterpolatorNodes(const TetgenMesh* m) :
-        mesh(m), norm_label("vector_norm"), scalar_label("scalar") { reserve(0); }
+InterpolatorNodes::InterpolatorNodes() :
+        mesh(NULL), norm_label("vector_norm"), scalar_label("scalar") { reserve(0); }
 
 InterpolatorNodes::InterpolatorNodes(const TetgenMesh* m, const string& nl, const string& sl) :
         mesh(m), norm_label(nl), scalar_label(sl) { reserve(0); }
@@ -31,7 +31,7 @@ void InterpolatorNodes::reserve(const int N) {
 }
 
 void InterpolatorNodes::precompute() {
-    const int n_nodes = vertices.size();
+    const int n_nodes = mesh->nodes.size();
     reserve(n_nodes);
 
     for (int i = 0; i < n_nodes; ++i) {
@@ -69,7 +69,7 @@ void InterpolatorNodes::write_xyz(ofstream& out) const {
     expect(n_nodes, "Zero nodes detected!");
 
     out << n_nodes << endl;
-    out << "Interpolator properties=id:I:1:pos:R:3:marker:I:1: <<"
+    out << "Interpolator properties=id:I:1:pos:R:3:marker:I:1:" <<
             "force:R:3:" << norm_label << ":R:1:" << scalar_label << ":R:1" << endl;
 
     for (int i = 0; i < n_nodes; ++i)
@@ -360,6 +360,9 @@ int InterpolatorCells<dim>::common_entry(vector<unsigned>& vec1, vector<unsigned
  *  ======================= LinearTriangles ========================
  * ================================================================== */
 
+LinearTriangles::LinearTriangles() :
+        InterpolatorCells<3>(), faces(NULL) {}
+
 LinearTriangles::LinearTriangles(const TetgenMesh* m, const InterpolatorNodes* n) :
         InterpolatorCells<3>(m, n), faces(&m->faces) {}
 
@@ -533,6 +536,9 @@ void LinearTriangles::write_cell_data(ofstream& out) const {
  *  ====================== QuadraticTriangles ======================
  * ================================================================== */
 
+QuadraticTriangles::QuadraticTriangles() :
+        InterpolatorCells<6>(), faces(NULL), lintris(NULL) {}
+
 QuadraticTriangles::QuadraticTriangles(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTriangles* l) :
     InterpolatorCells<6>(m, n), faces(&m->faces), lintris(l) {}
 
@@ -616,6 +622,9 @@ SimpleCell<6> QuadraticTriangles::get_cell(const int tri) const {
 /* ==================================================================
  *  ====================== LinearTetrahedra ========================
  * ================================================================== */
+
+LinearTetrahedra::LinearTetrahedra() :
+        InterpolatorCells<4>(), elems(NULL) {}
 
 LinearTetrahedra::LinearTetrahedra(const TetgenMesh* m, const InterpolatorNodes* n) :
         InterpolatorCells<4>(m, n), elems(&m->elems) {}
@@ -781,6 +790,9 @@ double LinearTetrahedra::determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 
  *  ===================== QuadraticTetrahedra ======================
  * ================================================================== */
 
+QuadraticTetrahedra::QuadraticTetrahedra() :
+        InterpolatorCells<10>(), elems(NULL), lintets(NULL) {}
+
 QuadraticTetrahedra::QuadraticTetrahedra(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) :
     InterpolatorCells<10>(m, n), elems(&m->elems), lintets(l) {}
 
@@ -867,7 +879,12 @@ SimpleCell<10> QuadraticTetrahedra::get_cell(const int tet) const {
 
 GeneralInterpolator::GeneralInterpolator(const TetgenMesh* m, const string& nl, const string& sl) :
     mesh(m) {
-    nodes.set_labels(nl, sl);
+
+    nodes.set_dependencies(m, nl, sl);
+    lintris.set_dependencies(mesh, &nodes);
+    quadtris.set_dependencies(mesh, &nodes, &lintris);
+    lintets.set_dependencies(mesh, &nodes);
+    quadtets.set_dependencies(mesh, &nodes, &lintets);
 }
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its

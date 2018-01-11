@@ -23,7 +23,7 @@ namespace femocs {
  */
 class InterpolatorNodes {
 public:
-    InterpolatorNodes(const TetgenMesh* m);
+    InterpolatorNodes();
     InterpolatorNodes(const TetgenMesh* m, const string& norm_label, const string& scalar_label);
     ~InterpolatorNodes() {};
 
@@ -44,7 +44,7 @@ public:
 
     /** Add solution to solutions vector */
     void append_solution(const Solution& solution) {
-        expect((unsigned)size() < solutions.capacity(), "Allocated vector size exceeded!");
+        expect(solutions.size() < solutions.capacity(), "Allocated vector size exceeded!");
         solutions.push_back(solution);
     }
 
@@ -90,10 +90,11 @@ public:
         return solutions[i].scalar;
     }
 
-    /** Specify data labels for vector norm and scalar */
-    void set_labels(const string& _norm_label, const string& _scalar_label) {
-        const_cast<string&>(norm_label) = _norm_label;
-        const_cast<string&>(scalar_label) = _scalar_label;
+    /** Change the dependency data */
+    void set_dependencies(const TetgenMesh* m, const string& nl, const string& sl) {
+        mesh = const_cast<TetgenMesh*>(m);
+        const_cast<string&>(norm_label) = nl;
+        const_cast<string&>(scalar_label) = sl;
     }
 
 private:
@@ -160,6 +161,12 @@ public:
      * @param cell   index of cell around which the interpolation is performed */
     Solution interp_solution(const Point3 &point, const int c) const;
 
+    /** Change the dependency data */
+    void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n) {
+        mesh = const_cast<TetgenMesh*>(m);
+        nodes = const_cast<InterpolatorNodes*>(n);
+    }
+
     double decay_factor = -1.0;        ///< exp(decay_factor * node1.distance(node2)) gives the weight that can be used in smoothing process
 
 protected:
@@ -197,6 +204,7 @@ protected:
  */
 class LinearTetrahedra : public InterpolatorCells<4> {
 public:
+    LinearTetrahedra();
     LinearTetrahedra(const TetgenMesh* m, const InterpolatorNodes* n);
     ~LinearTetrahedra() {};
 
@@ -208,6 +216,12 @@ public:
 
     /** Get interpolation weights for a point inside i-th tetrahedron */
     void get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const;
+
+    /** Change the dependency data */
+    void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n) {
+        InterpolatorCells<4>::set_dependencies(m, n);
+        elems = &m->elems;
+    }
 
 private:
     const TetgenElements* elems;    ///< pointer to tetrahedra to access their specific routines
@@ -244,6 +258,7 @@ private:
  */
 class QuadraticTetrahedra : public InterpolatorCells<10> {
 public:
+    QuadraticTetrahedra();
     QuadraticTetrahedra(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l);
     ~QuadraticTetrahedra() {};
 
@@ -255,6 +270,13 @@ public:
 
     /** Get interpolation weights for a point inside i-th tetrahedron */
     void get_shape_functions(array<double,10>& sf, const Vec3& point, const int i) const;
+
+    /** Change the dependency data */
+    void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) {
+        InterpolatorCells<10>::set_dependencies(m, n);
+        elems = &m->elems;
+        lintets = const_cast<LinearTetrahedra*>(l);
+    }
 
 private:
     const TetgenElements* elems;    ///< pointer to tetrahedra to access their specific routines
@@ -275,6 +297,7 @@ private:
  */
 class LinearTriangles : public InterpolatorCells<3> {
 public:
+    LinearTriangles();
     LinearTriangles(const TetgenMesh* m, const InterpolatorNodes* n);
     ~LinearTriangles() {};
 
@@ -302,6 +325,12 @@ public:
      Vec3 get_norm(const int i) const {
          require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
          return norms[i];
+     }
+
+     /** Change the dependency data */
+     void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n) {
+         InterpolatorCells<3>::set_dependencies(m, n);
+         faces = &m->faces;
      }
 
 private:
@@ -337,6 +366,7 @@ private:
  */
 class QuadraticTriangles : public InterpolatorCells<6> {
 public:
+    QuadraticTriangles();
     QuadraticTriangles(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTriangles* l);
     ~QuadraticTriangles() {};
 
@@ -348,6 +378,13 @@ public:
 
     /** Get interpolation weights for a point inside i-th triangle */
     void get_shape_functions(array<double,6>& sf, const Vec3& point, const int i) const;
+
+    /** Change the dependency data */
+    void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTriangles* l) {
+        InterpolatorCells<6>::set_dependencies(m, n);
+        faces = &m->faces;
+        lintris = const_cast<LinearTriangles*>(l);
+    }
 
 private:
     const TetgenFaces* faces;    ///< Direct pointer to triangles to access their specific routines
@@ -368,7 +405,6 @@ private:
  */
 class GeneralInterpolator {
 public:
-    GeneralInterpolator();
     GeneralInterpolator(const TetgenMesh* m, const string& norm_label, const string& scalar_label);
     ~GeneralInterpolator() {};
 
@@ -382,15 +418,15 @@ public:
     bool extract_solution(fch::CurrentsAndHeating<3>* fem);
 
     /// vertices and solutions on them
-    InterpolatorNodes nodes = InterpolatorNodes(mesh);
+    InterpolatorNodes nodes;
     /// data & operations for linear triangular interpolation
-    LinearTriangles lintris = LinearTriangles(mesh, &nodes);
+    LinearTriangles lintris;
     /// data & operations for quadratic triangular interpolation
-    QuadraticTriangles quadtris = QuadraticTriangles(mesh, &nodes, &lintris);
+    QuadraticTriangles quadtris;
     /// data & operations for linear tetrahedral interpolation
-    LinearTetrahedra lintets = LinearTetrahedra(mesh, &nodes);
+    LinearTetrahedra lintets;
     /// data & operations for quadratic tetrahedral interpolation
-    QuadraticTetrahedra quadtets = QuadraticTetrahedra(mesh, &nodes, &lintets);
+    QuadraticTetrahedra quadtets;
 
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
