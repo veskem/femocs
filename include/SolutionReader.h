@@ -16,6 +16,7 @@
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
 #include "Interpolator.h"
+#include "InterpolatorCells.h"
 
 using namespace std;
 namespace femocs {
@@ -27,6 +28,15 @@ public:
     SolutionReader();
     SolutionReader(VolumeInterpolator* vi, SurfaceInterpolator* si,
             const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
+
+    /** Interpolate solution on the system atoms
+     * @param srt  sort atoms spatially to speed up interpolation of
+     * @param dim  location of interpolation; 2-on surface, 3-in space
+     * @param rank interpolation rank; 1-linear, 2-quadratic*/
+    void calc_interpolation(const bool srt, const int dim, const int rank);
+
+    /** Interpolate solution on surface using already available data about which atom is connected with which face */
+    void calc_interpolation(const bool srt, const int rank, vector<int>& atom2face);
 
     /** Interpolate solution on the system atoms using spatial interpolator
      * @param srt       sort atoms spatially */
@@ -87,6 +97,9 @@ protected:
     const string scalar_label;    ///< label for scalar data
     double limit_min;             ///< minimum value of accepted comparison value
     double limit_max;             ///< maximum value of accepted comparison value
+
+
+    GeneralInterpolator* interpolator;
 
     VolumeInterpolator*  interpolator_3d; ///< data needed for interpolating in space
     SurfaceInterpolator* interpolator_2d; ///< data needed for interpolating on surface

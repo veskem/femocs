@@ -15,8 +15,9 @@
 #include "physical_quantities.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
-#include "Interpolator.h"
 #include "laplace.h"
+#include "Interpolator.h"
+#include "InterpolatorCells.h"
 
 using namespace std;
 namespace femocs {
@@ -221,6 +222,8 @@ private:
     Surface extended_surf;  ///< atoms added for the surface atoms
 
     TetgenMesh fem_mesh;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
+
+    GeneralInterpolator general_interpolator = GeneralInterpolator(&fem_mesh, "elfield", "potential");
 
     SurfaceInterpolator* vacuum_surface_interpolator; ///< data for interpolating results from vacuum on the surface
     SurfaceInterpolator* bulk_surface_interpolator;   ///< data for interpolating results on the bulk surface

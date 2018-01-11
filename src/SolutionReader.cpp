@@ -34,12 +34,82 @@ SolutionReader::SolutionReader(VolumeInterpolator* vi, SurfaceInterpolator* si,
     reserve(0);
 }
 
+void SolutionReader::calc_interpolation(const bool srt, const int dim, const int rank) {
+    require(interpolator, "NULL interpolator cannot be used!");
+    require((dim == 2 || dim == 3) && (rank == 1 || rank == 2),
+            "Invalid interpolation dimension or rank: " + to_string(dim) + ", " + to_string(rank));
+
+    // Sort atoms into sequential order to speed up interpolation
+    if (srt) sort_spatial();
+
+    const int n_atoms = size();
+
+    int elem = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point = get_point(i);
+
+        // Depending on interpolation dimension and rank, pick corresponding functions
+        if (dim == 2 && rank == 1) {
+            elem = interpolator->lintris.locate_cell(point, abs(elem));
+            append_interpolation(interpolator->lintris.interp_solution(point, elem));
+        } else if (dim == 2 && rank == 2) {
+            elem = interpolator->quadtris.locate_cell(point, abs(elem));
+            append_interpolation(interpolator->quadtris.interp_solution(point, elem));
+        } else if (dim == 3 && rank == 1) {
+            elem = interpolator->lintets.locate_cell(point, abs(elem));
+            append_interpolation(interpolator->lintets.interp_solution(point, elem));
+        } else {
+            elem = interpolator->quadtets.locate_cell(point, abs(elem));
+            append_interpolation(interpolator->quadtets.interp_solution(point, elem));
+        }
+
+        set_marker(i, elem);
+    }
+
+    // Sort atoms back to their initial order
+    if (srt) {
+        for (int i = 0; i < n_atoms; ++i)
+            interpolation[i].id = atoms[i].id;
+        sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
+        sort( atoms.begin(), atoms.end(), Atom::sort_id() );
+    }
+}
+
+void SolutionReader::calc_interpolation(const bool srt, const int rank, vector<int>& atom2face) {
+    require(interpolator, "NULL interpolator cannot be used!");
+    require(rank == 1 || rank == 2, "Invalid interpolation rank: " + to_string(rank));
+
+    const int n_atoms = size();
+    const bool faces_known = atom2face.size() == n_atoms;
+
+    // are the atoms already mapped against the triangles?
+    if (faces_known)
+        // ...yes, no need to calculate them again, just interpolate
+        for (int i = 0; i < n_atoms; ++i) {
+            // locate the face
+            int face = atom2face[i];
+            set_marker(i, face);
+
+            // calculate the interpolation
+            if (rank == 1)
+                append_interpolation(interpolator->lintris.interp_solution(get_point(i), face));
+            else
+                append_interpolation(interpolator->quadtris.interp_solution(get_point(i), face));
+        }
+
+    // ...nop, do it and interpolate
+    else {
+        calc_interpolation(srt, 2, rank);
+        atom2face = vector<int>(n_atoms);
+        for (int i = 0; i < n_atoms; ++i)
+            atom2face[i] = abs(get_marker(i));
+    }
+}
+
 // Linearly interpolate solution on system atoms using tetrahedral interpolator
 void SolutionReader::calc_3d_interpolation(const bool srt) {
-
     require(interpolator_3d, "NULL spacial interpolator cannot be used!");
     require(interpolator_3d->size() > 0, "Empty spatial interpolator cannot be used!");
-
 
     const int n_atoms = size();
 

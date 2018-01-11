@@ -333,6 +333,14 @@ int Femocs::solve_laplace(const double E0) {
     vacuum_surface_interpolator->write("out/result_E_phi_surface.xyz");
     vacuum_surface_interpolator->write("out/result_E_phi_surface.vtk");
 
+    start_msg(t0, "=== Extracting general E and phi...");
+    fail = general_interpolator.extract_solution(&laplace_solver);
+    end_msg(t0);
+
+    general_interpolator.nodes.write("out/result_E_phi.xyz");
+    general_interpolator.lintets.write("out/result_E_phi_linear.vtk");
+    general_interpolator.quadtets.write("out/result_E_phi_quad.vtk");
+
     return fail;
 }
 
