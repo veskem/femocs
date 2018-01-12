@@ -25,7 +25,7 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader constructors */
     SolutionReader();
-    SolutionReader(GeneralInterpolator* i, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
+    SolutionReader(Interpolator* i, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
     /** Interpolate solution on the system atoms */
     void calc_interpolation();
@@ -86,7 +86,7 @@ protected:
     int rank;                     ///< interpolation rank; 1-linear, 2-quadratic
     double empty_val;             ///< empty value written to solution vector in case of empty interpolator
 
-    GeneralInterpolator* interpolator;    ///< pointer to interpolator
+    Interpolator* interpolator;    ///< pointer to interpolator
     vector<Solution> interpolation;       ///< interpolated data
 
     /** Initialise statistics about coordinates and solution */
@@ -116,7 +116,7 @@ protected:
 /** Class to extract solution from DealII calculations */
 class FieldReader: public SolutionReader {
 public:
-    FieldReader(GeneralInterpolator* i);
+    FieldReader(Interpolator* i);
 
     /** Interpolate electric field and potential on a Medium atoms */
     void interpolate(const Medium &medium);
@@ -180,7 +180,7 @@ private:
 /** Class to interpolate current densities and temperatures */
 class HeatReader: public SolutionReader {
 public:
-    HeatReader(GeneralInterpolator* i);
+    HeatReader(Interpolator* i);
 
     /** Interpolate solution on medium atoms */
     void interpolate(const Medium &medium);
@@ -205,7 +205,7 @@ private:
 class EmissionReader: public SolutionReader {
 public:
     EmissionReader(const FieldReader& fields, const HeatReader& heat, const TetgenFaces& faces,
-            GeneralInterpolator* i);
+            Interpolator* i);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
      * estimation of the space charge effects.
@@ -270,7 +270,7 @@ private:
 /** Class to calculate charges from electric field */
 class ChargeReader: public SolutionReader {
 public:
-    ChargeReader(GeneralInterpolator* i);
+    ChargeReader(Interpolator* i);
 
     /** Calculate charge on the triangular faces using direct solution on the face centroid */
     void calc_charges(const TetgenMesh& mesh, const double E0);
@@ -302,7 +302,7 @@ private:
 /** Class to calculate forces from charges and electric fields */
 class ForceReader: public SolutionReader {
 public:
-    ForceReader(GeneralInterpolator* i);
+    ForceReader(Interpolator* i);
 
     /** Calculate forces from atomic electric fields and face charges */
     void distribute_charges(const FieldReader &fields, const ChargeReader& faces,

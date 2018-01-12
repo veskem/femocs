@@ -27,7 +27,7 @@ SolutionReader::SolutionReader() :
     reserve(0);
 }
 
-SolutionReader::SolutionReader(GeneralInterpolator* i, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
+SolutionReader::SolutionReader(Interpolator* i, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
         vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab),
         limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), empty_val(0), interpolator(i)
 {
@@ -415,7 +415,7 @@ void SolutionReader::print_statistics() {
  * ============== FIELD READER ==============
  * ========================================== */
 
-FieldReader::FieldReader(GeneralInterpolator* i) :
+FieldReader::FieldReader(Interpolator* i) :
         SolutionReader(i, "elfield", "elfield_norm", "potential"),
         E0(0), radius1(0), radius2(0) {}
 
@@ -643,7 +643,7 @@ void FieldReader::set_check_params(const double E0, const double limit_min, cons
  * =============== HEAT READER ==============
  * ========================================== */
 
-HeatReader::HeatReader(GeneralInterpolator* i) :
+HeatReader::HeatReader(Interpolator* i) :
         SolutionReader(i, "rho", "rho_norm", "temperature") {}
 
 // Interpolate solution on Medium atoms
@@ -714,7 +714,7 @@ double HeatReader::get_temperature(const int i) const {
  * ========================================== */
 
 EmissionReader::EmissionReader(const FieldReader& fr, const HeatReader& hr, const TetgenFaces& f,
-        GeneralInterpolator* i) :
+        Interpolator* i) :
         SolutionReader(i, "none", "rho_norm", "temperature"),
         fields(fr), heat(hr), faces(f) {
     initialize();
@@ -912,7 +912,7 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
  * ============== CHARGE READER =============
  * ========================================== */
 
-ChargeReader::ChargeReader(GeneralInterpolator* i) :
+ChargeReader::ChargeReader(Interpolator* i) :
         SolutionReader(i, "elfield", "area", "charge"), Q_tot(0) {}
 
 void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
@@ -1027,7 +1027,7 @@ void ChargeReader::set_check_params(const double Q_tot, const double limit_min, 
  * ============== FORCE READER ==============
  * ========================================== */
 
-ForceReader::ForceReader(GeneralInterpolator* i) :
+ForceReader::ForceReader(Interpolator* i) :
         SolutionReader(i, "force", "force_norm", "charge") {}
 
 void ForceReader::clean_voro_faces(VoronoiMesh& mesh) {

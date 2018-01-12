@@ -222,8 +222,8 @@ private:
 
     TetgenMesh fem_mesh;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
 
-    GeneralInterpolator vacuum_interpolator = GeneralInterpolator(&fem_mesh, "elfield", "potential");
-    GeneralInterpolator bulk_interpolator = GeneralInterpolator(&fem_mesh, "rho", "temperature");
+    Interpolator vacuum_interpolator = Interpolator(&fem_mesh, "elfield", "potential");
+    Interpolator bulk_interpolator = Interpolator(&fem_mesh, "rho", "temperature");
 
     HeatReader  temperatures = HeatReader(&bulk_interpolator); ///< temperatures & current densities on bulk atoms
     FieldReader fields = FieldReader(&vacuum_interpolator);       ///< fields & potentials on surface atoms

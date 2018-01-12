@@ -20,13 +20,36 @@
 using namespace std;
 namespace femocs {
 
-/**
- * Data & operations for linear & quadratic triangular & tetrahedral interpolation
+/** General class for interpolating solution inside mesh
+ * Class holds subclasses (InterpolatorCells) that hold the actual interpolation data and routines
+ * that allow performing interpolation either on surface or in space.
+ * 
+ * For tetrahedral and triangular interpolation, barycentric coordinates (BCC-s)
+ * are used to calculate the shape (aka interpolation) functions.
+ * Compact theory how to find BCC-s:
+ * http://steve.hollasch.net/cgindex/geometry/ptintet.html
+ *
+ * Properties of determinant:
+ *   http://www.vitutor.com/alg/determinants/properties_determinants.html
+ *   http://www.vitutor.com/alg/determinants/minor_cofactor.html
+ *
+ * c++ code to find and handle BCC-s:
+ *   http://dennis2society.de/painless-tetrahedral-barycentric-mapping
+ *
+ * Theory about shape functions inside different primitives.
+ * Linear & quadratic triangle & quadrangle:
+ *   https://www.colorado.edu/engineering/CAS/courses.d/IFEM.d/IFEM.Ch18.d/IFEM.Ch18.pdf
+ * Linear tetrahedron:
+ *   https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch09.d/AFEM.Ch09.pdf
+ * Quadratic tetrahedron:
+ *   https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch10.d/AFEM.Ch10.pdf
+ * Linear hexahedron:
+ *   https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch11.d/AFEM.Ch11.pdf
  */
-class GeneralInterpolator {
+class Interpolator {
 public:
-    GeneralInterpolator(const TetgenMesh* m, const string& norm_label, const string& scalar_label);
-    ~GeneralInterpolator() {};
+    Interpolator(const TetgenMesh* m, const string& norm_label, const string& scalar_label);
+    ~Interpolator() {};
 
     /** Extract the electric potential and field values from FEM solution */
     bool extract_solution(fch::Laplace<3>* fem);
@@ -37,16 +60,11 @@ public:
     /** Extract the current density and transient temperature values from FEM solution */
     bool extract_solution(fch::CurrentsAndHeating<3>& fem);
 
-    /// vertices and solutions on them
-    InterpolatorNodes nodes;
-    /// data & operations for linear triangular interpolation
-    LinearTriangles lintris;
-    /// data & operations for quadratic triangular interpolation
-    QuadraticTriangles quadtris;
-    /// data & operations for linear tetrahedral interpolation
-    LinearTetrahedra lintets;
-    /// data & operations for quadratic tetrahedral interpolation
-    QuadraticTetrahedra quadtets;
+    InterpolatorNodes nodes;      ///< vertices and solutions on them
+    LinearTriangles lintris;      ///< data & operations for linear triangular interpolation
+    QuadraticTriangles quadtris;  ///< data & operations for quadratic triangular interpolation
+    LinearTetrahedra lintets;     ///< data & operations for linear tetrahedral interpolation
+    QuadraticTetrahedra quadtets; ///< data & operations for quadratic tetrahedral interpolation
 
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
@@ -68,58 +86,36 @@ private:
 
 /** General class for interpolating solution inside mesh
  * To make it possible to choose between different types of interpolators,
- * the following is built using the Strategy design pattern.
- * For tetrahedral and triangular interpolation, barycentric coordinates (BCC-s)
- * are used to calculate the shape (aka interpolation) functions.
+ * the following is inspired by the Strategy design pattern.
  *
  * Useful links about Strategy design pattern:
  * https://en.wikipedia.org/wiki/Strategy_pattern
  * https://r3dux.org/2011/07/an-example-implementation-of-the-strategy-design-pattern-in-c/
- *
- * Compact theory how to find BCC-s:
- * http://steve.hollasch.net/cgindex/geometry/ptintet.html
- *
- * Properties of determinant:
- * http://www.vitutor.com/alg/determinants/properties_determinants.html
- * http://www.vitutor.com/alg/determinants/minor_cofactor.html
- *
- * c++ code to find and handle BCC-s:
- * http://dennis2society.de/painless-tetrahedral-barycentric-mapping
- *
- * Theory about shape functions inside different primitives.
- * Linear & quadratic triangle & quadrangle:
- * https://www.colorado.edu/engineering/CAS/courses.d/IFEM.d/IFEM.Ch18.d/IFEM.Ch18.pdf
- * Linear tetrahedron:
- * https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch09.d/AFEM.Ch09.pdf
- * Quadratic tetrahedron:
- * https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch10.d/AFEM.Ch10.pdf
- * Linear hexahedron:
- * https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch11.d/AFEM.Ch11.pdf
  */
-class Interpolator {
+class GeneralInterpolator {
 public:
-    Interpolator() :
+    GeneralInterpolator() :
         mesh(NULL), nodes(NULL), norm_label("vector_norm"), scalar_label("scalar")
     {
         reserve(0);
         reserve_precompute(0);
     }
 
-    Interpolator(const TetgenMesh* m) :
+    GeneralInterpolator(const TetgenMesh* m) :
         mesh(m), nodes(&m->nodes), norm_label("vector_norm"), scalar_label("scalar")
     {
         reserve(0);
         reserve_precompute(0);
     }
 
-    Interpolator(const TetgenMesh* m, const string& nl, const string& sl) :
+    GeneralInterpolator(const TetgenMesh* m, const string& nl, const string& sl) :
         mesh(m), nodes(&m->nodes), norm_label(nl), scalar_label(sl)
     {
         reserve(0);
         reserve_precompute(0);
     }
 
-    virtual ~Interpolator() {};
+    virtual ~GeneralInterpolator() {};
 
     /** Return number of available interpolation nodes */
     int size() const { return solutions.size(); }
@@ -245,7 +241,7 @@ protected:
     void get_maps(vector<int>& femocs2deal, vector<int>& cell_indxs, vector<int>& vert_indxs,
             dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh) const;
 
-    /** Transfer solution from FEM solver to Interpolator */
+    /** Transfer solution from FEM solver to TemplateInterpolator */
     void store_solution(const vector<int>& femocs2deal,
             const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data);
 
@@ -259,9 +255,9 @@ protected:
 };
 
 /** General class for interpolating on the surface */
-class SurfaceInterpolator : public Interpolator {
+class SurfaceInterpolator : public GeneralInterpolator {
  public:
-    SurfaceInterpolator(const TetgenMesh* m) : Interpolator(m) {}
+    SurfaceInterpolator(const TetgenMesh* m) : GeneralInterpolator(m) {}
     virtual ~SurfaceInterpolator() {};
 
     /** Function to determine the distance of a point from the surface */
@@ -275,9 +271,9 @@ class SurfaceInterpolator : public Interpolator {
 };
 
 /** General class for interpolating in the space */
-class VolumeInterpolator : public Interpolator {
+class VolumeInterpolator : public GeneralInterpolator {
 public:
-    VolumeInterpolator(const TetgenMesh* m) : Interpolator(m) {}
+    VolumeInterpolator(const TetgenMesh* m) : GeneralInterpolator(m) {}
     virtual ~VolumeInterpolator() {};
 };
 

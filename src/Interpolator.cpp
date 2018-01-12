@@ -6,6 +6,7 @@
  */
 
 #include "Interpolator.h"
+
 #include "Macros.h"
 #include "float.h"
 
@@ -13,10 +14,10 @@ using namespace std;
 namespace femocs {
 
 /* ==================================================================
- *  ===================== GeneralInterpolator ======================
+ *  ======================== Interpolator ==========================
  * ================================================================== */
 
-GeneralInterpolator::GeneralInterpolator(const TetgenMesh* m, const string& nl, const string& sl) :
+Interpolator::Interpolator(const TetgenMesh* m, const string& nl, const string& sl) :
     mesh(m) {
 
     nodes.set_dependencies(m, nl, sl);
@@ -28,7 +29,7 @@ GeneralInterpolator::GeneralInterpolator(const TetgenMesh* m, const string& nl, 
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
-bool GeneralInterpolator::average_sharp_nodes(const bool vacuum) {
+bool Interpolator::average_sharp_nodes(const bool vacuum) {
     vector<vector<unsigned int>> nborlist;
     mesh->calc_pseudo_3D_vorocells(nborlist, vacuum);
 
@@ -58,7 +59,7 @@ bool GeneralInterpolator::average_sharp_nodes(const bool vacuum) {
 
 /* Calculate mapping between Femocs & deal.II mesh nodes,
  nodes & hexahedral elements and nodes & element's vertices */
-void GeneralInterpolator::get_maps(vector<int>& femocs2deal, vector<int>& cell_indxs, vector<int>& vert_indxs,
+void Interpolator::get_maps(vector<int>& femocs2deal, vector<int>& cell_indxs, vector<int>& vert_indxs,
         dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh) const {
 
     const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
@@ -99,7 +100,7 @@ void GeneralInterpolator::get_maps(vector<int>& femocs2deal, vector<int>& cell_i
         }
 }
 
-void GeneralInterpolator::store_solution(const vector<int>& femocs2deal,
+void Interpolator::store_solution(const vector<int>& femocs2deal,
         const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data) {
 
     require(vec_data.size() == scal_data.size(), "Mismatch of vector sizes: "
@@ -120,7 +121,7 @@ void GeneralInterpolator::store_solution(const vector<int>& femocs2deal,
     }
 }
 
-bool GeneralInterpolator::extract_solution(fch::Laplace<3>* fem) {
+bool Interpolator::extract_solution(fch::Laplace<3>* fem) {
     require(fem, "NULL pointer can't be handled!");
 
     // Precompute cells to make interpolation faster
@@ -142,7 +143,7 @@ bool GeneralInterpolator::extract_solution(fch::Laplace<3>* fem) {
     return average_sharp_nodes(true);
 }
 
-bool GeneralInterpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
+bool Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
     require(fem, "NULL pointer can't be handled!");
 
     // Precompute cells to make interpolation faster
@@ -163,7 +164,7 @@ bool GeneralInterpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>*
     return false;
 }
 
-bool GeneralInterpolator::extract_solution(fch::CurrentsAndHeating<3>& fem) {
+bool Interpolator::extract_solution(fch::CurrentsAndHeating<3>& fem) {
     // Precompute cells to make interpolation faster
     nodes.precompute();
     lintris.precompute();
@@ -183,11 +184,11 @@ bool GeneralInterpolator::extract_solution(fch::CurrentsAndHeating<3>& fem) {
 }
 
 /* ==================================================================
- *  ======================== Interpolator ==========================
+ *  ===================== GeneralInterpolator ======================
  * ================================================================== */
 
 // Pick the suitable write function based on the file type
-void Interpolator::write(const string &file_name) const {
+void GeneralInterpolator::write(const string &file_name) const {
     if (!MODES.WRITEFILE) return;
 
     ofstream outfile;
@@ -209,7 +210,7 @@ void Interpolator::write(const string &file_name) const {
     outfile.close();
 }
 
-void Interpolator::write_xyz(ofstream& out) const {
+void GeneralInterpolator::write_xyz(ofstream& out) const {
     const int n_nodes = nodes->size(); // nodes->stat.n_tetnode;
     expect(n_nodes, "Zero nodes detected!");
 
@@ -221,7 +222,7 @@ void Interpolator::write_xyz(ofstream& out) const {
         out << i << " " << (*nodes)[i] << " " << nodes->get_marker(i) << " " << solutions[i] << endl;
 }
 
-void Interpolator::write_vtk(ofstream& out) const {
+void GeneralInterpolator::write_vtk(ofstream& out) const {
     const int n_nodes = nodes->size(); // nodes->stat.n_tetnode;
     expect(n_nodes, "Zero nodes detected!");
 
@@ -276,13 +277,13 @@ void Interpolator::write_vtk(ofstream& out) const {
         out << i << "\n";
 }
 
-int Interpolator::locate_cell(const Point3 &point, const int cell_guess) const {
+int GeneralInterpolator::locate_cell(const Point3 &point, const int cell_guess) const {
     vector<bool> cell_checked(neighbours.size());
     return locate_cell(point, cell_guess, cell_checked);
 }
 
 // Find the cell which contains the point or is the closest to it
-int Interpolator::locate_cell(const Point3 &point, const int cell_guess, vector<bool>& cell_checked) const {
+int GeneralInterpolator::locate_cell(const Point3 &point, const int cell_guess, vector<bool>& cell_checked) const {
     // Check the guessed cell
     Vec3 vec_point(point);
     if (point_in_cell(vec_point, cell_guess)) return cell_guess;
@@ -339,7 +340,7 @@ int Interpolator::locate_cell(const Point3 &point, const int cell_guess, vector<
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
-bool Interpolator::average_sharp_nodes(const vector<vector<unsigned>>& nborlist) {
+bool GeneralInterpolator::average_sharp_nodes(const vector<vector<unsigned>>& nborlist) {
     // loop through the tetrahedral nodes
     for (int i = 0; i < nborlist.size(); ++i) {
         if (nborlist[i].size() == 0) continue;
@@ -367,7 +368,7 @@ bool Interpolator::average_sharp_nodes(const vector<vector<unsigned>>& nborlist)
 
 /* Calculate mapping between Femocs & deal.II mesh nodes,
  nodes & hexahedral elements and nodes & element's vertices */
-void Interpolator::get_maps(vector<int>& femocs2deal, vector<int>& cell_indxs, vector<int>& vert_indxs,
+void GeneralInterpolator::get_maps(vector<int>& femocs2deal, vector<int>& cell_indxs, vector<int>& vert_indxs,
         dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh) const {
 
     const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
@@ -407,7 +408,7 @@ void Interpolator::get_maps(vector<int>& femocs2deal, vector<int>& cell_indxs, v
         }
 }
 
-void Interpolator::store_solution(const vector<int>& femocs2deal,
+void GeneralInterpolator::store_solution(const vector<int>& femocs2deal,
         const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data) {
 
     require(vec_data.size() == scal_data.size(), "Mismatch of vector sizes: "
@@ -431,7 +432,7 @@ void Interpolator::store_solution(const vector<int>& femocs2deal,
     }
 }
 
-bool Interpolator::extract_solution(fch::Laplace<3>* fem) {
+bool GeneralInterpolator::extract_solution(fch::Laplace<3>* fem) {
     require(fem, "NULL pointer can't be handled!");
 
     // Precompute cells to make interpolation faster
@@ -449,7 +450,7 @@ bool Interpolator::extract_solution(fch::Laplace<3>* fem) {
     return average_sharp_nodes(true);
 }
 
-bool Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
+bool GeneralInterpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
     require(fem, "NULL pointer can't be handled!");
 
     // Precompute cells to make interpolation faster
@@ -466,7 +467,7 @@ bool Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
     return false;
 }
 
-bool Interpolator::extract_solution(fch::CurrentsAndHeating<3>* fem) {
+bool GeneralInterpolator::extract_solution(fch::CurrentsAndHeating<3>* fem) {
     require(fem, "NULL pointer can't be handled!");
 
     // Precompute cells to make interpolation faster
@@ -492,15 +493,15 @@ template<int rank>
 void TetrahedronInterpolator<rank>::print_statistics() const {
     if (!MODES.VERBOSE) return;
 
-    const int n_atoms = Interpolator::size();
+    const int n_atoms = GeneralInterpolator::size();
     Vec3 vec(0), rms_vec(0);
     double scalar = 0, rms_scalar = 0;
     int n_points = 0;
 
     for (int i = 0; i < n_atoms; ++i) {
-        if ( Interpolator::get_vector_norm(i) == 0) continue;
-        double s = Interpolator::get_scalar(i);
-        Vec3 v = Interpolator::get_vector(i);
+        if ( GeneralInterpolator::get_vector_norm(i) == 0) continue;
+        double s = GeneralInterpolator::get_scalar(i);
+        Vec3 v = GeneralInterpolator::get_vector(i);
 
         vec += v; rms_vec += v * v;
         scalar += s; rms_scalar += s * s;
@@ -526,13 +527,13 @@ template<int rank>
 bool TetrahedronInterpolator<rank>::average_sharp_nodes(const bool vacuum) {
     vector<vector<unsigned int>> vorocells;
     this->mesh->calc_pseudo_3D_vorocells(vorocells, vacuum);
-    return Interpolator::average_sharp_nodes(vorocells);
+    return GeneralInterpolator::average_sharp_nodes(vorocells);
 }
 
 // Reserve memory for pre-compute data
 template<int rank>
 void TetrahedronInterpolator<rank>::reserve_precompute(const int N) {
-    Interpolator::reserve_precompute(N);
+    GeneralInterpolator::reserve_precompute(N);
     cells.clear();
     cells.reserve(N);
 
@@ -795,7 +796,7 @@ bool QuadTetInterpolator::average_and_check_sharp_nodes(const bool vacuum) {
     for (int i = 0; i < n_hexs; ++i)
         total_before += integrate(i);
 
-    bool success = Interpolator::average_sharp_nodes(vorocells);
+    bool success = GeneralInterpolator::average_sharp_nodes(vorocells);
 
     double total_after = 0;
     int data_size = 0;
@@ -929,13 +930,13 @@ template<int rank>
 bool TriangleInterpolator<rank>::average_sharp_nodes(const bool vacuum) {
     vector<vector<unsigned int>> vorocells;
     this->mesh->calc_pseudo_3D_vorocells(vorocells, vacuum);
-    return Interpolator::average_sharp_nodes(vorocells);
+    return GeneralInterpolator::average_sharp_nodes(vorocells);
 }
 
 // Reserve memory for precompute data
 template<int rank>
 void TriangleInterpolator<rank>::reserve_precompute(const int n) {
-    Interpolator::reserve_precompute(n);
+    GeneralInterpolator::reserve_precompute(n);
     cells.clear();
     cells.reserve(n);
 
@@ -1043,7 +1044,7 @@ double TriangleInterpolator<rank>::distance(const Vec3& point, const int face) c
 
 template<int rank>
 void TriangleInterpolator<rank>::write_vtk(ofstream& out) const {
-    Interpolator::write_vtk(out);
+    GeneralInterpolator::write_vtk(out);
 
     // write face norms
     out << "VECTORS norm double\n";
