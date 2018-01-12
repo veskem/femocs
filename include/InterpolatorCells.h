@@ -400,52 +400,6 @@ private:
     SimpleCell<6> get_cell(const int i) const;
 };
 
-/**
- * Data & operations for linear & quadratic triangular & tetrahedral interpolation
- */
-class GeneralInterpolator {
-public:
-    GeneralInterpolator(const TetgenMesh* m, const string& norm_label, const string& scalar_label);
-    ~GeneralInterpolator() {};
-
-    /** Extract the electric potential and field values from FEM solution */
-    bool extract_solution(fch::Laplace<3>* fem);
-
-    /** Extract the current density and stationary temperature values from FEM solution */
-    bool extract_solution(fch::CurrentsAndHeatingStationary<3>* fem);
-
-    /** Extract the current density and transient temperature values from FEM solution */
-    bool extract_solution(fch::CurrentsAndHeating<3>* fem);
-
-    /// vertices and solutions on them
-    InterpolatorNodes nodes;
-    /// data & operations for linear triangular interpolation
-    LinearTriangles lintris;
-    /// data & operations for quadratic triangular interpolation
-    QuadraticTriangles quadtris;
-    /// data & operations for linear tetrahedral interpolation
-    LinearTetrahedra lintets;
-    /// data & operations for quadratic tetrahedral interpolation
-    QuadraticTetrahedra quadtets;
-
-private:
-    const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
-
-    /** Calculate the mapping between Femocs & deal.II mesh nodes,
-     *  nodes & hexahedral elements and nodes & element's vertices.
-     *  -1 indicates that mapping for corresponding object was not found */
-    void get_maps(vector<int>& femocs2deal, vector<int>& cell_indxs, vector<int>& vert_indxs,
-            dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh) const;
-
-    /** Transfer solution from FEM solver to Interpolator */
-    void store_solution(const vector<int>& femocs2deal,
-            const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data);
-
-    /** Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
-     *  surrounding hexahedral nodes */
-    bool average_sharp_nodes(const bool vacuum);
-};
-
 } /* namespace femocs */
 
 #endif /* INTERPOLATORCELLS_H_ */

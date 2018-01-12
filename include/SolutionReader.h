@@ -13,10 +13,9 @@
 #include "TetgenCells.h"
 #include "TetgenMesh.h"
 #include "VoronoiMesh.h"
+#include "Interpolator.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
-#include "Interpolator.h"
-#include "InterpolatorCells.h"
 
 using namespace std;
 namespace femocs {
@@ -26,25 +25,13 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader constructors */
     SolutionReader();
-    SolutionReader(VolumeInterpolator* vi, SurfaceInterpolator* si,
-            const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
+    SolutionReader(GeneralInterpolator* i, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
-    /** Interpolate solution on the system atoms
-     * @param srt  sort atoms spatially to speed up interpolation of
-     * @param dim  location of interpolation; 2-on surface, 3-in space
-     * @param rank interpolation rank; 1-linear, 2-quadratic*/
-    void calc_interpolation(const bool srt, const int dim, const int rank);
+    /** Interpolate solution on the system atoms */
+    void calc_interpolation();
 
-    /** Interpolate solution on surface using already available data about which atom is connected with which face */
-    void calc_interpolation(const bool srt, const int rank, vector<int>& atom2face);
-
-    /** Interpolate solution on the system atoms using spatial interpolator
-     * @param srt       sort atoms spatially */
-    void calc_3d_interpolation(const bool srt);
-
-    /** Interpolate solution on the system atoms using surface interpolator */
-    void calc_2d_interpolation(const bool srt);
-    void calc_2d_interpolation(vector<int>& atom2face, const bool srt);
+    /** Interpolate solution using already available data about which atom is connected with which cell */
+    void calc_interpolation(vector<int>& atom2face);
 
     /** Reserve memory for data */
     void reserve(const int n_nodes);
@@ -64,17 +51,14 @@ public:
     /** Set i-th Solution */
     void set_interpolation(const int i, const Solution& s);
 
-    void set_interpolator(VolumeInterpolator* vi)  {
-        interpolator_3d = vi;
-    }
-
-    void set_interpolator(SurfaceInterpolator* si)  {
-        interpolator_2d = si;
-    }
-
-    void set_interpolator(VolumeInterpolator* vi, SurfaceInterpolator* si)  {
-        interpolator_3d = vi;
-        interpolator_2d = si;
+    /** Set interpolation preferences */
+    void set_preferences(const bool _srt, const int _dim, const int _rank, const double _empty_val=0) {
+        require((_dim == 2 || _dim == 3), "Invalid interpolation dimension: " + to_string(_dim));
+        require((_rank == 1 || _rank == 2), "Invalid interpolation rank: " + to_string(_rank));
+        sort_atoms = _srt;
+        dim = _dim;
+        rank = _rank;
+        empty_val = _empty_val;
     }
 
     /** Calculate statistics about coordinates and solution */
@@ -97,12 +81,12 @@ protected:
     const string scalar_label;    ///< label for scalar data
     double limit_min;             ///< minimum value of accepted comparison value
     double limit_max;             ///< maximum value of accepted comparison value
+    bool sort_atoms;              ///< sort atoms along Hilbert curve to make interpolation faster
+    int dim;                      ///< location of interpolation; 2-surface, 3-space
+    int rank;                     ///< interpolation rank; 1-linear, 2-quadratic
+    double empty_val;             ///< empty value written to solution vector in case of empty interpolator
 
-
-    GeneralInterpolator* interpolator;
-
-    VolumeInterpolator*  interpolator_3d; ///< data needed for interpolating in space
-    SurfaceInterpolator* interpolator_2d; ///< data needed for interpolating on surface
+    GeneralInterpolator* interpolator;    ///< pointer to interpolator
     vector<Solution> interpolation;       ///< interpolated data
 
     /** Initialise statistics about coordinates and solution */
@@ -132,25 +116,19 @@ protected:
 /** Class to extract solution from DealII calculations */
 class FieldReader: public SolutionReader {
 public:
-    FieldReader(VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
+    FieldReader(GeneralInterpolator* i);
 
-    /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium, const bool srt);
+    /** Interpolate electric field and potential on a Medium atoms */
+    void interpolate(const Medium &medium);
 
-    /** Interpolate solution on points using the solution on tetrahedral mesh nodes */
-    void interpolate(const int n_points, const double* x, const double* y, const double* z, const bool srt);
-
-    /** Interpolate solution on medium atoms using the solution on triangular mesh nodes */
-    void interpolate_2d(vector<int>& surf2face, const Medium &medium, const bool srt);
-
-    /** Interpolate solution on points using the solution on triangular mesh nodes */
-    void interpolate_2d(const int n_points, const double* x, const double* y, const double* z, const bool srt);
+    /** Interpolate electric field and potential on a set of points */
+    void interpolate(const int n_points, const double* x, const double* y, const double* z);
 
     /** Calculate the electric field for the stationary current and temperature solver */
-    void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver, const double r_cut, const double use_hist_clean);
+    void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver);
 
     /** Calculate the electric field for the transient current and temperature solver */
-    void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver, const double r_cut, const double use_hist_clean);
+    void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver);
 
     /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
@@ -194,23 +172,22 @@ private:
 
     /** Get analytical field enhancement for hemi-ellipsoid on infinite surface */
     double get_analyt_enhancement() const;
+
+    /** Interpolate electric field for heating module */
+    void interpolate(vector<double>& elfields, const vector<dealii::Point<3>>& nodes);
 };
 
 /** Class to interpolate current densities and temperatures */
 class HeatReader: public SolutionReader {
 public:
-    HeatReader(VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
+    HeatReader(GeneralInterpolator* i);
 
-    /** Interpolate solution on medium atoms using the solution on tetrahedral mesh nodes */
-    void interpolate(const Medium &medium, const double empty_val, const bool srt);
+    /** Interpolate solution on medium atoms */
+    void interpolate(const Medium &medium);
 
     /** Linearly interpolate currents and temperatures in the bulk.
      *  In case of empty interpolator, constant values are stored. */
-    void interpolate(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const bool srt);
-
-    /** Linearly interpolate currents and temperatures on the bulk surface.
-     *  In case of empty interpolator, constant values are stored. */
-    void interpolate_2d(fch::CurrentsAndHeating<3>& ch_solver, const double empty_val, const bool srt);
+    void interpolate(fch::CurrentsAndHeating<3>& ch_solver);
 
     /** Export interpolated temperature */
     void export_temperature(const int n_atoms, double* T);
@@ -228,7 +205,7 @@ private:
 class EmissionReader: public SolutionReader {
 public:
     EmissionReader(const FieldReader& fields, const HeatReader& heat, const TetgenFaces& faces,
-            VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
+            GeneralInterpolator* i);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
      * estimation of the space charge effects.
@@ -293,10 +270,7 @@ private:
 /** Class to calculate charges from electric field */
 class ChargeReader: public SolutionReader {
 public:
-    ChargeReader(VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
-
-    /** Calculate charge on the triangular faces using interpolated solution on the face centroid */
-    void calc_interpolated_charges(const TetgenMesh& mesh, const double E0);
+    ChargeReader(GeneralInterpolator* i);
 
     /** Calculate charge on the triangular faces using direct solution on the face centroid */
     void calc_charges(const TetgenMesh& mesh, const double E0);
@@ -328,7 +302,7 @@ private:
 /** Class to calculate forces from charges and electric fields */
 class ForceReader: public SolutionReader {
 public:
-    ForceReader(VolumeInterpolator* vi=NULL, SurfaceInterpolator* si=NULL);
+    ForceReader(GeneralInterpolator* i);
 
     /** Calculate forces from atomic electric fields and face charges */
     void distribute_charges(const FieldReader &fields, const ChargeReader& faces,
@@ -345,10 +319,13 @@ public:
      */
     void export_force(const int n_atoms, double* xq);
 
+    /** Return force vector in the location of i-th point */
     Vec3 get_force(const int i) const;
 
+    /** Return force norm in the location of i-th point */
     double get_force_norm(const int i) const;
 
+    /** Return surface charge in the location of i-th point */
     double get_charge(const int i) const;
 
 private:

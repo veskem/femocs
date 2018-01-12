@@ -12,12 +12,11 @@
 #include "Config.h"
 #include "SolutionReader.h"
 #include "Surface.h"
+#include "Interpolator.h"
 #include "physical_quantities.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
 #include "laplace.h"
-#include "Interpolator.h"
-#include "InterpolatorCells.h"
 
 using namespace std;
 namespace femocs {
@@ -223,16 +222,12 @@ private:
 
     TetgenMesh fem_mesh;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
 
-    GeneralInterpolator general_interpolator = GeneralInterpolator(&fem_mesh, "elfield", "potential");
+    GeneralInterpolator vacuum_interpolator = GeneralInterpolator(&fem_mesh, "elfield", "potential");
+    GeneralInterpolator bulk_interpolator = GeneralInterpolator(&fem_mesh, "rho", "temperature");
 
-    SurfaceInterpolator* vacuum_surface_interpolator; ///< data for interpolating results from vacuum on the surface
-    SurfaceInterpolator* bulk_surface_interpolator;   ///< data for interpolating results on the bulk surface
-    VolumeInterpolator*  vacuum_interpolator;         ///< data for interpolating results in vacuum
-    VolumeInterpolator*  bulk_interpolator;           ///< data for interpolating results in bulk
-
-    HeatReader  temperatures; ///< temperatures & current densities on bulk atoms
-    FieldReader fields;       ///< fields & potentials on surface atoms
-    ForceReader forces;       ///< forces & charges on surface atoms
+    HeatReader  temperatures = HeatReader(&bulk_interpolator); ///< temperatures & current densities on bulk atoms
+    FieldReader fields = FieldReader(&vacuum_interpolator);       ///< fields & potentials on surface atoms
+    ForceReader forces = ForceReader(&vacuum_interpolator);       ///< forces & charges on surface atoms
 
     /// physical quantities used in heat calculations
     fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);

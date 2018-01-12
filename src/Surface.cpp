@@ -5,8 +5,7 @@
  *      Author: veske
  */
 
-#include "../include/Surface.h"
-
+#include "Surface.h"
 #include <numeric>
 
 using namespace std;
@@ -254,7 +253,7 @@ Surface Surface::clean_roi(Coarseners &coarseners) {
 }
 
 // Remove the atoms that are too far from surface faces
-void Surface::clean_by_triangles(vector<int>& surf2face, SurfaceInterpolator* interpolator, const double r_cut) {
+void Surface::clean_by_triangles(vector<int>& surf2face, GeneralInterpolator& interpolator, const double r_cut) {
     if (r_cut <= 0) return;
 
     const int n_atoms = size();
@@ -263,13 +262,13 @@ void Surface::clean_by_triangles(vector<int>& surf2face, SurfaceInterpolator* in
     surf2face.clear();
     surf2face.reserve(n_atoms);
 
-    interpolator->precompute();
+    interpolator.lintris.precompute();
 
     int face = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Atom atom = get_atom(i);
-        face = abs(interpolator->locate_cell(atom.point, face));
-        if (interpolator->fast_distance(atom.point, face) < r_cut) {
+        face = abs(interpolator.lintris.locate_cell(atom.point, face));
+        if (interpolator.lintris.fast_distance(atom.point, face) < r_cut) {
             atom.marker = face;
             _atoms.push_back(atom);
             surf2face.push_back(face);

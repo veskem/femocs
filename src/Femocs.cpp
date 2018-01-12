@@ -51,32 +51,10 @@ Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false),
     prev_ch_solver = NULL;
     ch_transient_solver.set_physical_quantities(&phys_quantities);
     end_msg(t0);
-
-    // Pick the ranks and types of interpolators
-    if (conf.behaviour.interpolation_rank == 2) {
-        vacuum_surface_interpolator = new QuadTriInterpolator(&fem_mesh);
-        bulk_surface_interpolator = new QuadTriInterpolator(&fem_mesh);
-        vacuum_interpolator = new QuadTetInterpolator(&fem_mesh);
-        bulk_interpolator = new QuadTetInterpolator(&fem_mesh);
-    } else {
-        vacuum_surface_interpolator = new LinTriInterpolator(&fem_mesh);
-        bulk_surface_interpolator = new LinTriInterpolator(&fem_mesh);
-        vacuum_interpolator = new LinTetInterpolator(&fem_mesh);
-        bulk_interpolator = new LinTetInterpolator(&fem_mesh);
-    }
-
-    temperatures.set_interpolator(bulk_interpolator);
-    fields.set_interpolator(vacuum_interpolator, vacuum_surface_interpolator);
-    forces.set_interpolator(vacuum_interpolator, vacuum_surface_interpolator);
 }
 
 // delete data and print bye-bye-message
 Femocs::~Femocs() {
-    delete vacuum_surface_interpolator;
-    delete bulk_surface_interpolator;
-    delete vacuum_interpolator;
-    delete bulk_interpolator;
-
     start_msg(t0, "======= Femocs finished! =======\n");
 }
 
@@ -91,21 +69,18 @@ int Femocs::force_output() {
     fem_mesh.elems.write("out/tetmesh_err.vtk");
     fem_mesh.faces.write("out/trimesh_err.vtk");
 
-    vacuum_interpolator->write("out/result_E_phi_vacuum_err.xyz");
-    vacuum_interpolator->write("out/result_E_phi_vacuum_err.vtk");
-    vacuum_surface_interpolator->write("out/result_E_phi_surface_err.xyz");
-    vacuum_surface_interpolator->write("out/result_E_phi_surface_err.vtk");
+    vacuum_interpolator.nodes.write("out/result_E_phi_err.xyz");
+    vacuum_interpolator.lintets.write("out/result_E_phi_vacuum_err.vtk");
 
-    if (bulk_interpolator->size() > 0) {
+    if (bulk_interpolator.nodes.size() > 0) {
         if (conf.heating.mode == "transient" || conf.heating.mode == "stationary")
-            bulk_interpolator->write("out/result_J_T_err.xyz");
+            bulk_interpolator.nodes.write("out/result_J_T_err.xyz");
         if (conf.heating.mode == "transient") {
             ch_transient_solver.output_results_current("out/result_J_err.vtk");
             ch_transient_solver.output_results_heating("out/result_T_err.vtk");
         }
-        if (conf.heating.mode == "stationary") {
+        if (conf.heating.mode == "stationary")
             ch_solver->output_results("out/result_J_T_err.vtk");
-        }
     }
 
     return 0;
@@ -276,7 +251,7 @@ int Femocs::generate_meshes() {
 
     if (conf.run.surface_cleaner) {
         start_msg(t0, "=== Cleaning surface atoms...");
-        dense_surf.clean_by_triangles(atom2face, vacuum_surface_interpolator, conf.geometry.latconst);
+        dense_surf.clean_by_triangles(atom2face, vacuum_interpolator, conf.geometry.latconst);
         end_msg(t0);
         dense_surf.write("out/surface_dense_clean.xyz");
     }
@@ -322,24 +297,14 @@ int Femocs::solve_laplace(const double E0) {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting E and phi...");
-    fail = vacuum_interpolator->extract_solution(&laplace_solver);
-    fail |= vacuum_surface_interpolator->extract_solution(&laplace_solver);
+    fail = vacuum_interpolator.extract_solution(&laplace_solver);
     end_msg(t0);
 
-    check_return(fields.check_limits(vacuum_interpolator->get_solutions()), "Field enhancement is out of limits!");
+    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()), "Field enhancement is out of limits!");
 
-    vacuum_interpolator->write("out/result_E_phi_vacuum.xyz");
-    vacuum_interpolator->write("out/result_E_phi_vacuum.vtk");
-    vacuum_surface_interpolator->write("out/result_E_phi_surface.xyz");
-    vacuum_surface_interpolator->write("out/result_E_phi_surface.vtk");
-
-    start_msg(t0, "=== Extracting general E and phi...");
-    fail = general_interpolator.extract_solution(&laplace_solver);
-    end_msg(t0);
-
-    general_interpolator.nodes.write("out/result_E_phi.xyz");
-    general_interpolator.lintets.write("out/result_E_phi_linear.vtk");
-    general_interpolator.quadtets.write("out/result_E_phi_quad.vtk");
+    vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
+    vacuum_interpolator.lintets.write("out/result_E_phi_linear.vtk");
+    vacuum_interpolator.quadtets.write("out/result_E_phi_quad.vtk");
 
     return fail;
 }
@@ -381,11 +346,12 @@ int Femocs::solve_stationary_heat() {
     end_msg(t0);
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
-    FieldReader fr(NULL, vacuum_surface_interpolator);
-    fr.transfer_elfield(ch_solver, conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
+    FieldReader field_reader(&vacuum_interpolator);
+    field_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+    field_reader.transfer_elfield(ch_solver);
     end_msg(t0);
 
-    fr.write("out/surface_field.xyz");
+    field_reader.write("out/surface_field.xyz");
 
     start_msg(t0, "=== Running J & T solver...\n");
     ch_solver->set_ambient_temperature(conf.heating.t_ambient);
@@ -397,10 +363,10 @@ int Femocs::solve_stationary_heat() {
     check_return(t_error > conf.heating.t_error, "Temperature didn't converge, err=" + to_string(t_error));
 
     start_msg(t0, "=== Extracting J & T...");
-    bulk_interpolator->extract_solution(ch_solver);
+    bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
-    bulk_interpolator->write("out/result_J_T.xyz");
+    bulk_interpolator.nodes.write("out/result_J_T.xyz");
 
     // Swap current-and-heat-solvers to use solution from current run as a guess in the next one
     static bool odd_run = true;
@@ -427,20 +393,22 @@ int Femocs::solve_transient_heat(const double delta_time) {
     end_msg(t0);
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
-    FieldReader field_reader(NULL, vacuum_surface_interpolator);
-    field_reader.transfer_elfield(ch_transient_solver, conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
+    FieldReader field_reader(&vacuum_interpolator);
+    field_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+    field_reader.transfer_elfield(ch_transient_solver);
     end_msg(t0);
     field_reader.write("out/surface_field.xyz");
 
     start_msg(t0, "=== Interpolating J & T on face centroids...");
 
-    HeatReader heat_reader(NULL, bulk_surface_interpolator);
-    heat_reader.interpolate_2d(ch_transient_solver, conf.heating.t_ambient, false);
+    HeatReader heat_reader(&bulk_interpolator);
+    heat_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank, conf.heating.t_ambient);
+    heat_reader.interpolate(ch_transient_solver);
     end_msg(t0);
     heat_reader.write("out/surface_temperature.xyz");
 
     start_msg(t0, "=== Calculating field emission...");
-    EmissionReader emission(field_reader, heat_reader, fem_mesh.faces, vacuum_interpolator);
+    EmissionReader emission(field_reader, heat_reader, fem_mesh.faces, &vacuum_interpolator);
     emission.transfer_emission(ch_transient_solver,
             conf.heating.work_function, conf.heating.Vappl);
     end_msg(t0);
@@ -470,9 +438,9 @@ int Femocs::solve_transient_heat(const double delta_time) {
     ch_transient_solver.output_results_heating("out/result_T.vtk");
 
     start_msg(t0, "=== Extracting J & T...");
-    bulk_surface_interpolator->extract_solution(&ch_transient_solver);
+    bulk_interpolator.extract_solution(ch_transient_solver);
     end_msg(t0);
-    bulk_surface_interpolator->write("out/result_J_T.movie");
+    bulk_interpolator.nodes.write("out/result_J_T.movie");
 
     first_call = false;
     return 0;
@@ -489,8 +457,9 @@ int Femocs::solve_converge_heat() {
     end_msg(t0);
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
-    FieldReader field_reader(NULL, vacuum_surface_interpolator);
-    field_reader.transfer_elfield(ch_transient_solver, conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
+    FieldReader field_reader(&vacuum_interpolator);
+    field_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+    field_reader.transfer_elfield(ch_transient_solver);
     end_msg(t0);
     field_reader.write("out/surface_field.xyz");
 
@@ -509,13 +478,14 @@ int Femocs::solve_converge_heat() {
     for (int i = 0; i < 1000; ++i){
 
         start_msg(t0, "=== Interpolating J & T on face centroids...");
-        HeatReader heat_reader(NULL, bulk_surface_interpolator);
-        heat_reader.interpolate_2d(ch_transient_solver, conf.heating.t_ambient, false);
+        HeatReader heat_reader(&bulk_interpolator);
+        heat_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank, conf.heating.t_ambient);
+        heat_reader.interpolate(ch_transient_solver);
         end_msg(t0);
         if (MODES.VERBOSE) heat_reader.write("out/surface_temperature.xyz");
 
         start_msg(t0, "=== Calculating field emission...");
-        EmissionReader emission(field_reader, heat_reader, fem_mesh.faces, vacuum_interpolator);
+        EmissionReader emission(field_reader, heat_reader, fem_mesh.faces, &vacuum_interpolator);
         emission.set_multiplier(multiplier);
         emission.transfer_emission(ch_transient_solver, conf.heating.work_function,
                 conf.heating.Vappl, conf.heating.blunt);
@@ -535,9 +505,9 @@ int Femocs::solve_converge_heat() {
         end_msg(t0);
 
         start_msg(t0, "=== Extracting J & T...");
-        bulk_surface_interpolator->extract_solution(&ch_transient_solver);
+        bulk_interpolator.extract_solution(ch_transient_solver);
         end_msg(t0);
-        bulk_surface_interpolator->write("out/result_J_T.movie");
+        bulk_interpolator.nodes.write("out/result_J_T.movie");
 
         current_time += delta_time;
         if (MODES.VERBOSE) {
@@ -716,7 +686,7 @@ int Femocs::export_atom_types(const int n_atoms, int* types) {
 // calculate and export electric field on imported atom coordinates
 int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     if (n_atoms < 0) return 0;
-    check_return(vacuum_interpolator->size() == 0, "No field to export!");
+    check_return(vacuum_interpolator.nodes.size() == 0, "No field to export!");
 
     fail = false;
 
@@ -724,8 +694,8 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         write_silent_msg("Using previous electric field!");
     else {
         start_msg(t0, "=== Interpolating E and phi...");
-        fields.interpolate_2d(atom2face, dense_surf, true);
-//        fields.interpolate(dense_surf, 0, true);
+        fields.set_preferences(true, 3, conf.behaviour.interpolation_rank);
+        fields.interpolate(dense_surf);
         fail = fields.clean(conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
         end_msg(t0);
 
@@ -743,13 +713,14 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
 // calculate and export temperatures on imported atom coordinates
 int Femocs::export_temperature(const int n_atoms, double* T) {
     if (n_atoms < 0 || conf.heating.mode == "none") return 0;
-    check_return(bulk_interpolator->size() == 0, "No temperature to export!");
+    check_return(bulk_interpolator.nodes.size() == 0, "No temperature to export!");
 
     if (skip_calculations)
         write_silent_msg("Using previous temperature!");
     else {
         start_msg(t0, "=== Interpolating J & T...");
-        temperatures.interpolate(reader, conf.heating.t_ambient, false);
+        temperatures.set_preferences(true, 3, conf.behaviour.interpolation_rank);
+        temperatures.interpolate(reader);
         end_msg(t0);
 
         temperatures.write("out/interpolation_bulk.movie");
@@ -774,7 +745,8 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         // analytical total charge without epsilon0 (will be added in ChargeReader)
         const double tot_charge = conf.laplace.E0 * reader.sizes.xbox * reader.sizes.ybox;
 
-        ChargeReader face_charges(vacuum_interpolator); // charges on surface triangles
+        ChargeReader face_charges(&vacuum_interpolator); // charges on surface triangles
+        face_charges.set_preferences(false, 3, 2);
         face_charges.set_check_params(tot_charge, conf.tolerance.charge_min, conf.tolerance.charge_max);
 
         start_msg(t0, "=== Calculating face charges...");
@@ -815,11 +787,12 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
 int Femocs::interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     if (n_points <= 0) return 0;
-    check_return(vacuum_surface_interpolator->size() == 0, "No solution to export!");
+    check_return(vacuum_interpolator.nodes.size() == 0, "No solution to export!");
 
-    FieldReader fr(NULL, vacuum_surface_interpolator);
+    FieldReader fr(&vacuum_interpolator);
+    fr.set_preferences(false, 2, conf.behaviour.interpolation_rank);
     start_msg(t0, "=== Interpolating & exporting surface elfield...");
-    fr.interpolate_2d(n_points, x, y, z, false);
+    fr.interpolate(n_points, x, y, z);
     fail = fr.clean(conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
     fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
@@ -832,11 +805,12 @@ int Femocs::interpolate_surface_elfield(const int n_points, const double* x, con
 int Femocs::interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     if (n_points <= 0) return 0;
-    check_return(vacuum_interpolator->size() == 0, "No electric field to export!");
+    check_return(vacuum_interpolator.nodes.size() == 0, "No electric field to export!");
 
-    FieldReader fr(vacuum_interpolator);
+    FieldReader fr(&vacuum_interpolator);
+    fr.set_preferences(false, 3, conf.behaviour.interpolation_rank);
     start_msg(t0, "=== Interpolating & exporting elfield...");
-    fr.interpolate(n_points, x, y, z, false);
+    fr.interpolate(n_points, x, y, z);
     fail = fr.clean(conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
     fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
     end_msg(t0);
@@ -850,10 +824,11 @@ int Femocs::interpolate_phi(const int n_points, const double* x, const double* y
         double* phi, int* flag) {
 
     if (n_points <= 0) return 0;
-    check_return(vacuum_interpolator->size() == 0, "No electric potential to export!");
+    check_return(vacuum_interpolator.nodes.size() == 0, "No electric potential to export!");
 
-    FieldReader fr(vacuum_interpolator);
-    fr.interpolate(n_points, x, y, z, false);
+    FieldReader fr(&vacuum_interpolator);
+    fr.set_preferences(false, 3, 2);
+    fr.interpolate(n_points, x, y, z);
     fail = fr.clean(conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
     fr.export_potential(n_points, phi, flag);
 
