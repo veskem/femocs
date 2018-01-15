@@ -130,6 +130,10 @@ void InterpolatorNodes::write_point_data(ofstream& out) const {
     out << "SCALARS " + scalar_label + " double\nLOOKUP_TABLE default\n";
     for (int i = 0; i < n_nodes; ++i)
         out << solutions[i].scalar << "\n";
+
+    out << "VECTORS " << norm_label << "_vec double\n";
+    for (int i = 0; i < n_nodes; ++i)
+        out << solutions[i].vector << "\n";
 }
 
 void InterpolatorNodes::print_statistics() const {
