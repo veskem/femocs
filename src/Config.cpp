@@ -71,6 +71,9 @@ Config::Config() {
     cfactor.amplitude = 0.4;          // coarsening factor outside the warm region
     cfactor.r0_cylinder = 0;          // minimum distance between atoms in nanotip outside the apex
     cfactor.r0_sphere = 0;            // minimum distance between atoms in nanotip apex
+
+    pic.doPIC = false;
+    pic.time_subcycle = 1;
 }
 
 // Remove the noise from the beginning of the string
@@ -143,6 +146,9 @@ void Config::read_all(const string& file_name) {
 
     read_command("distance_tol", tolerance.distance);
 
+    read_command("doPIC", pic.doPIC);
+    read_command("PIC_time_subcycle", pic.time_subcycle);
+    
     // Read commands with potentially multiple arguments like...
     vector<double> args;
     int n_read_args;

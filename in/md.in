@@ -174,3 +174,9 @@ box(3)   = 465.732
 tempmode = 1
 latflag  = 1
 timerelE = 100.00 # Time in fs before field is applied
+
+
+# PIC parameters
+---------------------
+doPIC = true
+PIC_time_subcycle = 4

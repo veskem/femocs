@@ -133,6 +133,12 @@ public:
         int r0_sphere;
     } cfactor;
 
+    /** Particle In Cell module configuration */
+    struct PIC {
+        bool doPIC;        // Switch PIC on or off
+        int time_subcycle; // How many PIC timesteps to do for each call to ::run()
+    } pic;
+    
 private:
     vector<vector<string>> data;          ///< commands and their arguments found from the input script
 
