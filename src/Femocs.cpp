@@ -107,9 +107,35 @@ int Femocs::run(const double elfield, const string &timestep) {
     check_return(generate_meshes(), "Mesh generation failed!");
 
     // Solve Laplace equation on vacuum mesh
-    if (solve_laplace(elfield)) {
-        force_output();
+    if ( conf.pic.doPIC ) {
+      //1. Insert new particles (electrons) from MD
+      // TODO
+      
+      //Timestep loop
+      for (int i = 0; i < conf.pic.time_subcycle; i++) {
+	cout << "doPIC! i=" << i << endl;
+	//2. Update fields (solve Poisson equation),
+	// taking the long range efield `elfield` into account
+	// TODO
+
+	//3. Particle pusher using the modified fields
+	// TODO
+      }
+      //3. Save modified fields to somewhere the MD solver can find them
+      //TODO
+
+      //4. Save ions and neutrals that are inbound on the MD domain
+      //    somewhere where the MD can find them
+      // TODO
+
+      //5. Give the heat- and current fluxes to the temperature solver.
+      // TODO
+    }
+    else {
+      if (solve_laplace(elfield)) {
+	force_output();
         check_return(true, "Solving Laplace equation failed!");
+      }
     }
 
     // Solve heat & continuity equation on bulk mesh
