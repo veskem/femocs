@@ -14,6 +14,16 @@
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/lac/sparse_matrix.h>
 
+
+#include <deal.II/fe/mapping_q1.h>
+#include <deal.II/hp/dof_handler.h>
+#include <deal.II/hp/fe_values.h>
+#include <deal.II/hp/mapping_collection.h>
+#include <deal.II/hp/q_collection.h>
+#include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/matrix_tools.h>
+
+
 #include <fstream>
 #include <iostream>
 
@@ -65,13 +75,11 @@ public:
     void output_mesh(const std::string file_name = "vacuum_mesh.vtk");
 
     /** get the electric field at the specified point */
-    Tensor<1,dim> probe_efield(const Point<dim> &p) const;
+    double probe_efield(const Point<dim> &p) const;
 
-    /** get the electric field norm at the specified point */
-    double probe_efield_norm(const Point<dim> &p) const;
+    double probe_value(const Point<dim> &p) const;
 
-    /** get the electric potential at the specified point */
-    double probe_potential(const Point<dim> &p) const;
+    double probe_value(const Point<dim> &p, Mapping<dim,3>& mapping) const;
 
     /**
      * method to obtain the electric potential values in selected nodes
