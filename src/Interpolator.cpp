@@ -25,6 +25,7 @@ Interpolator::Interpolator(const TetgenMesh* m, const string& nl, const string& 
     quadtris.set_dependencies(mesh, &nodes, &lintris);
     lintets.set_dependencies(mesh, &nodes);
     quadtets.set_dependencies(mesh, &nodes, &lintets);
+    linhexs.set_dependencies(mesh, &nodes, &lintets);
 }
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
@@ -130,6 +131,7 @@ bool Interpolator::extract_solution(fch::Laplace<3>* fem) {
     quadtris.precompute();
     lintets.precompute();
     quadtets.precompute();
+    linhexs.precompute();
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> femocs2deal, cell_indxs, vert_indxs;
@@ -152,6 +154,7 @@ bool Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
     quadtris.precompute();
     lintets.precompute();
     quadtets.precompute();
+    linhexs.precompute();
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> femocs2deal, cell_indxs, vert_indxs;
@@ -171,6 +174,7 @@ bool Interpolator::extract_solution(fch::CurrentsAndHeating<3>& fem) {
     quadtris.precompute();
     lintets.precompute();
     quadtets.precompute();
+    linhexs.precompute();
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> femocs2deal, cell_indxs, vert_indxs;

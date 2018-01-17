@@ -877,9 +877,81 @@ SimpleCell<10> QuadraticTetrahedra::get_cell(const int tet) const {
     return QuadraticTet((*elems)[tet], n5, n6, n7, n8, n9, n10);
 }
 
+/* ==================================================================
+ *  ======================= LinearHexahedra ========================
+ * ================================================================== */
+
+LinearHexahedra::LinearHexahedra() :
+        InterpolatorCells<8>(), hexs(NULL), lintets(NULL) {}
+
+LinearHexahedra::LinearHexahedra(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) :
+        InterpolatorCells<8>(m, n), hexs(&m->hexahedra), lintets(l) {}
+
+void LinearHexahedra::reserve(const int N) {
+    require(N >= 0, "Invalid number of points: " + to_string(N));
+
+    cells.clear();
+    cells.reserve(N);
+    markers = vector<int>(N);
+}
+
+void LinearHexahedra::precompute() {
+    const int n_elems = hexs->size();
+    expect(n_elems > 0, "Interpolator expects non-empty mesh!");
+    require(mesh->elems.size() == lintets->size(), "LinearHexahedra requires LinearTetrahedra to be pre-computed!");
+
+    reserve(n_elems);
+
+    // Loop through all the hexahedra
+    for (int i = 0; i < n_elems; ++i) {
+        // Calculate and store  hexahedra
+        cells.push_back((*hexs)[i]);
+    }
+}
+
+void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const {
+    expect(false, "Not yet implemented!");
+}
+
+int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) const {
+    static constexpr int n_hexs_per_tet = 4;
+
+    int tet_index = abs(cell_guess / n_hexs_per_tet);
+    tet_index = lintets->locate_cell(point, tet_index);
+    int sign = 1;
+    if (tet_index < 0) sign = -1;
+    tet_index = abs(tet_index);
+
+    array<double,4> bcc;
+    lintets->get_shape_functions(bcc, point, tet_index);
+
+    const double b1b2 = bcc[0] / bcc[1]; // >1 if point closer to node1 than to node2 and <1 otherwise
+    const double b1b3 = bcc[0] / bcc[2]; // >1 if point closer to node1 than to node3 and <1 otherwise
+    const double b1b4 = bcc[0] / bcc[3]; // >1 if point closer to node1 than to node4 and <1 otherwise
+    const double b2b3 = bcc[1] / bcc[2]; // >1 if point closer to node2 than to node3 and <1 otherwise
+    const double b2b4 = bcc[1] / bcc[3]; // >1 if point closer to node2 than to node4 and <1 otherwise
+    const double b3b4 = bcc[2] / bcc[3]; // >1 if point closer to node3 than to node4 and <1 otherwise
+
+    // point inside a hex connected to 1st tetrahedral node ?
+    if (b1b2 >= 1 && b1b3 >= 1 && b1b4 >= 1)
+        return sign * (n_hexs_per_tet * tet_index + 0);
+    // point inside a hex connected to 2nd tetrahedral node ?
+    if (b1b2 <= 1 && b2b3 >= 1 && b2b4 >= 1)
+        return sign * (n_hexs_per_tet * tet_index + 1);
+    // point inside a hex connected to 3rd tetrahedral node ?
+    if (b1b3 <= 1 && b2b3 <= 1 && b3b4 >= 1)
+        return sign * (n_hexs_per_tet * tet_index + 2);
+    // point inside a hex connected to 4th tetrahedral node ?
+    if (b1b4 <= 1 && b2b4 <= 1 && b3b4 <= 1)
+        return sign * (n_hexs_per_tet * tet_index + 3);
+
+    return -1;
+}
+
 template class InterpolatorCells<3> ;
 template class InterpolatorCells<6> ;
 template class InterpolatorCells<4> ;
 template class InterpolatorCells<10>;
+template class InterpolatorCells<8>;
 
 } /* namespace femocs */

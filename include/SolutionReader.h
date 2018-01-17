@@ -54,7 +54,7 @@ public:
     /** Set interpolation preferences */
     void set_preferences(const bool _srt, const int _dim, const int _rank, const double _empty_val=0) {
         require((_dim == 2 || _dim == 3), "Invalid interpolation dimension: " + to_string(_dim));
-        require((_rank == 1 || _rank == 2), "Invalid interpolation rank: " + to_string(_rank));
+        require((_rank == 1 || _rank == 2 || _rank == 3), "Invalid interpolation rank: " + to_string(_rank));
         sort_atoms = _srt;
         dim = _dim;
         rank = _rank;

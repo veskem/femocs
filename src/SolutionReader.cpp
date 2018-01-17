@@ -50,6 +50,7 @@ void SolutionReader::calc_interpolation() {
 
     // Sort atoms into sequential order to speed up interpolation
     if (sort_atoms) sort_spatial();
+    array<double,8> sf;
 
     int cell = 0;
     for (int i = 0; i < n_atoms; ++i) {
@@ -65,9 +66,12 @@ void SolutionReader::calc_interpolation() {
         } else if (dim == 3 && rank == 1) {
             cell = interpolator->lintets.locate_cell(point, abs(cell));
             append_interpolation(interpolator->lintets.interp_solution(point, cell));
-        } else {
+        } else if (dim == 3 && rank == 2) {
             cell = interpolator->quadtets.locate_cell(point, abs(cell));
             append_interpolation(interpolator->quadtets.interp_solution(point, cell));
+        } else if (dim == 3 && rank == 3) {
+            cell = interpolator->linhexs.locate_cell(point, abs(cell));
+            append_interpolation(Solution(0));
         }
 
         set_marker(i, cell);
@@ -103,8 +107,10 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
                 append_interpolation(interpolator->quadtris.interp_solution(get_point(i), cell));
             else if (dim == 3 && rank == 1)
                 append_interpolation(interpolator->lintets.interp_solution(get_point(i), cell));
-            else
+            else if (dim == 3 && rank == 2)
                 append_interpolation(interpolator->quadtets.interp_solution(get_point(i), cell));
+            else if (dim == 3 && rank == 3)
+                append_interpolation(Solution(0));
         }
 
     // ...nop, do it and interpolate
