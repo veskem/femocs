@@ -28,8 +28,8 @@ namespace femocs {
     int computeDensity();
     
     //Pushes the particles given the fields
-    // dt[s]
-    int pushParticles(const double dt);
+    // - dt[s]
+    void pushParticles(const double dt);
     
   private:
 
@@ -40,6 +40,10 @@ namespace femocs {
     std::vector<dealii::Point<dim>> v_el;
     //Management
     std::vector<int> cid_el; //Index of the cell where the particle is inside
+
+    const double q_over_m = 1.0; // [?]
+    const double q = 1.0; // [?] Charge of the particles (positive)
+    
   };
 
 }
