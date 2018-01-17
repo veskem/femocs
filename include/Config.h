@@ -133,6 +133,12 @@ public:
         int r0_sphere;
     } cfactor;
 
+    /** Particle In Cell module configuration */
+    struct PIC {
+        bool doPIC;    // Switch PIC on or off
+        double dt_max; // Maximum PIC timestep; actual timestep will be smaller such that it is an integer fraction of the MD timestep [fs]
+    } pic;
+    
 private:
     vector<vector<string>> data;          ///< commands and their arguments found from the input script
 
