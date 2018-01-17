@@ -313,7 +313,7 @@ void Laplace<dim>::setup_system() {
 }
 
 template<int dim>
-void Laplace<dim>::assemble_system() {
+void Laplace<dim>::assemble_system_lhs() {
   QGauss<dim> quadrature_formula(quadrature_degree);
   QGauss<dim-1> face_quadrature_formula(quadrature_degree);
 
@@ -384,6 +384,42 @@ void Laplace<dim>::assemble_system() {
   MatrixTools::apply_boundary_values(boundary_values, system_matrix, solution, system_rhs);
 }
 
+template<int dim>
+void Laplace<dim>::assemble_system_neuman() {
+
+  FEValues<dim> fe_values(fe, quadrature_formula,
+      update_gradients | update_quadrature_points | update_JxW_values);
+
+  typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(), endc = dof_handler.end();
+  
+  // Iterate over all cells (quadrangles in 2D, hexahedra in 3D) of the mesh
+  for (; cell != endc; ++cell) {
+    fe_values.reinit(cell);
+    cell_matrix = 0;
+    cell_rhs = 0;
+    
+    // Apply Neumann boundary condition at faces on top of vacuum domain
+    for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
+      if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == BoundaryId::vacuum_top) {
+        fe_face_values.reinit(cell, f);
+
+        for (unsigned int q = 0; q < n_face_q_points; ++q) {
+          for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+            cell_rhs(i) += (fe_face_values.shape_value(i, q)
+			    * applied_efield * fe_face_values.JxW(q));
+          }
+        }
+      }
+    }
+
+    // Add the current cell matrix and rhs entries to the system sparse matrix
+    cell->get_dof_indices(local_dof_indices);
+    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+      system_rhs(local_dof_indices[i]) += cell_rhs(i);
+    }
+  }
+}
+  
 template<int dim>
 void Laplace<dim>::solve(int max_iter, double tol, bool pc_ssor, double ssor_param) {
 

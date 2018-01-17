@@ -122,8 +122,27 @@ public:
      * Calculate sparse matrix elements and right-hand-side vector
      * according to the Laplace equation weak formulation and to the boundary conditions.
      */
-    void assemble_system();
-
+    void assemble_system(){
+      assemble_system_lhs();
+      assemble_system_neuman();
+    }
+    
+    /** @brief assemble the matrix equation
+     * Calculate sparse matrix elements
+     * according to the Laplace equation weak formulation and to the boundary conditions.
+     */
+    void assemble_system_lhs();
+    
+    /** @brief Reinitialization of the RHS of the matrix equation
+     * Set the right-hand-side vector for Neuman boundary conditions.
+     */
+    void assemble_system_neuman();
+    
+    /** @brief assemble the RHS of the matrix equation
+     * Add to the right-hand-side vector for point charges, as used in PIC.
+     */
+    void assemble_system_pointcharge(Point<dim> &r, double q);
+    
     /** solves the matrix equation using conjugate gradient method
      * @param max_iter maximum number of iterations allowed
      * @param tol tolerance of the solution
