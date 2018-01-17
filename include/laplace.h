@@ -74,13 +74,19 @@ public:
     /** outputs the mesh to file in .vtk format */
     void output_mesh(const std::string file_name = "vacuum_mesh.vtk");
 
-    /** get the electric field at the specified point */
+    /** get the electric field at the specified point using dealii
+     * (slow as it looks for the surrounding cell) */
     double probe_efield(const Point<dim> &p) const;
 
-    double probe_value(const Point<dim> &p) const;
+    /** get the potential value at a specified point using dealii (slow)
+     */
+    double probe_potential(const Point<dim> &p) const;
 
-    double probe_value(const Point<dim> &p, Mapping<dim,3>& mapping) const;
+    double probe_value(const Point<dim> &p, const int cell_index) const;
 
+    double probe_value(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
+
+    void test_probe();
     /**
      * method to obtain the electric potential values in selected nodes
      * @param cell_indexes global cell indexes, where the corresponding nodes are situated

@@ -128,58 +128,74 @@ void Laplace<dim>::output_mesh(const std::string file_name) {
 
 template<int dim>
 double Laplace<dim>::probe_efield(const Point<dim> &p) const {
-    VectorTools::point_value(dof_handler, solution, p);
-
-  return VectorTools::point_gradient (dof_handler, solution, p).norm();
+	return VectorTools::point_gradient (dof_handler, solution, p).norm();
 }
 
 template<int dim>
-double Laplace<dim>::probe_value(const Point<dim> &p) const {
-    return probe_value(p, StaticMappingQ1<dim,dim>::mapping);
+double Laplace<dim>::probe_potential(const Point<dim> &p) const{
+	return VectorTools::point_value(dof_handler, solution, p);
 }
 
 template<int dim>
-double Laplace<dim>::probe_value(const Point<dim> &p, Mapping<dim,3>& mapping) const {
-    const int cell_index = 0;
+double Laplace<dim>::probe_value(const Point<dim> &p, int cell_index) const {
+    return probe_value(p, cell_index, StaticMappingQ1<dim,dim>::mapping);
+}
 
+template<int dim>
+double Laplace<dim>::probe_value(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const {
+
+	//get finite element object
     const FiniteElement<dim> &fe = dof_handler.get_fe();
 
-    typename DoFHandler<dim>::active_cell_iterator cell(&triangulation, 0, cell_index, &dof_handler);
-    const Point<3> p_cell = mapping.transform_real_to_unit_cell(cell, p);
-    const std::pair<typename DoFHandler<3,3>::active_cell_iterator, Point<3> > cell_point;
-//    cell_point  = std::make_pair(cell, p_cell);
-//    = GridTools::find_active_cell_around_point (mapping, dof_handler, p);
+    //get active cell iterator from cell index
+	typename DoFHandler<dim>::active_cell_iterator cell(&triangulation, 0, max(0,cell_index), &dof_handler);
 
-//    const Quadrature<3> quadrature(GeometryInfo<3>::project_to_unit_cell(cell_point.second));
-    const Quadrature<3> quadrature(GeometryInfo<3>::project_to_unit_cell(p_cell));
+	// transform the point from real to unit cell coordinates
+
+	cout << "mapping point to unit cell...\n";
+	Point<dim> p_cell;
+
+
+    if (cell_index < 0){
+    	cout << "finding active cell around point\n" ;
+        const std::pair<typename DoFHandler<dim,dim>::active_cell_iterator, Point<dim> > cell_point
+        	= GridTools::find_active_cell_around_point (mapping, dof_handler, p);
+        cell = cell_point.first;
+        p_cell = cell_point.second;
+    }else
+    	p_cell = mapping.transform_real_to_unit_cell(cell, p);
+
+
+
+    const Quadrature<dim> quadrature(GeometryInfo<dim>::project_to_unit_cell(p_cell));
 
     FEValues<dim> fe_values(mapping, fe, quadrature, update_values);
 //    fe_values.reinit(cell_point.first);
     fe_values.reinit(cell);
 
-//    int n_cols = fe_values.finite_element_output.shape_values.n_cols();
-//    int n_rows = fe_values.finite_element_output.shape_values.n_rows();
-//
-//    vector<unsigned> shape_values(n_cols * n_rows);
-//    for (int i = 0; i < n_cols*n_rows; ++i)
-//        shape_values[i] = fe_values.finite_element_output.shape_values[i];
-
-//    // then use this to get at the values of
-//    // the given fe_function at this point
-
     typedef typename Vector<double>::value_type Number;
 
-    Vector<double> sol = solution;
-    for (int i = 0; i < solution.size(); ++i)
-        sol[i] = 1;
+//    Vector<double> sol = solution;
+//    for (int i = 0; i < solution.size(); ++i)
+//        sol[i] = 1;
 
     std::vector<Vector<Number> > u_value(1, Vector<Number> (fe.n_components()));
-    fe_values.get_function_values(sol, u_value);
+    fe_values.get_function_values(solution, u_value);
 
-    double value = u_value[0][0];
-    cout << u_value[0];
+    return u_value[0][0];
+//    cout << u_value[0];
+//
+//    return VectorTools::point_value(dof_handler, solution, p);
+}
 
-    return VectorTools::point_value(dof_handler, solution, p);
+template<int dim>
+void Laplace<dim>::test_probe(){
+
+    for (int i = 0; i<20; i++){
+    	double z = 30 * (1+i*.05) ;
+    	Point<dim> p = Point<dim>(0., 0., z);
+    	std::printf("%e, %e, %e", z, probe_value(p, -1), probe_potential(p));
+    }
 }
 
 template<int dim>
