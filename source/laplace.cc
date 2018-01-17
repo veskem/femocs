@@ -137,14 +137,12 @@ double Laplace<dim>::probe_potential(const Point<dim> &p) const{
 }
 
 template<int dim>
-double Laplace<dim>::probe_value(const Point<dim> &p, int cell_index) const {
-    return probe_value(p, cell_index, StaticMappingQ1<dim,dim>::mapping);
+double Laplace<dim>::probe_potential(const Point<dim> &p, int cell_index) const {
+    return probe_potential(p, cell_index, StaticMappingQ1<dim,dim>::mapping);
 }
 
-//probes the potential at any given point p
 template<int dim>
-double Laplace<dim>::probe_value(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const {
-
+double Laplace<dim>::probe_potential(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const {
 	//get finite element object
     const FiniteElement<dim> &fe = dof_handler.get_fe();
 
@@ -166,22 +164,49 @@ double Laplace<dim>::probe_value(const Point<dim> &p, const int cell_index, Mapp
     //create virtual quadrature point
     const Quadrature<dim> quadrature(GeometryInfo<dim>::project_to_unit_cell(p_cell));
 
-    //define fevalues object
     FEValues<dim> fe_values(mapping, fe, quadrature, update_values);
     fe_values.reinit(cell);
 
-    const unsigned int dofs_per_cell = fe.dofs_per_cell;
-
-
-    typedef typename Vector<double>::value_type Number;
-
-    std::cout << fe.n_components() << std::endl;
-    std::vector<Vector<Number> > u_value(1, Vector<Number> (fe.n_components()));
+    std::vector<Vector<double> > u_value(1, Vector<double> (fe.n_components()));
     fe_values.get_function_values(solution, u_value);
 
     return u_value[0][0];
 }
 
+template<int dim>
+double Laplace<dim>::probe_efield(const Point<dim> &p, int cell_index) const {
+    return probe_efield(p, cell_index, StaticMappingQ1<dim,dim>::mapping);
+}
+
+template<int dim>
+double Laplace<dim>::probe_efield(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const {
+    //get finite element object
+    const FiniteElement<dim> &fe = dof_handler.get_fe();
+
+    //get active cell iterator from cell index
+    typename DoFHandler<dim>::active_cell_iterator cell(&triangulation, 0, max(0,cell_index), &dof_handler);
+
+    // transform the point from real to unit cell coordinates
+    Point<dim> p_cell;
+    if (cell_index < 0){
+        const std::pair<typename DoFHandler<dim,dim>::active_cell_iterator, Point<dim> > cell_point
+            = GridTools::find_active_cell_around_point (mapping, dof_handler, p);
+        cell = cell_point.first;
+        p_cell = cell_point.second;
+    }else
+        p_cell = mapping.transform_real_to_unit_cell(cell, p);
+
+    const Quadrature<dim> quadrature(GeometryInfo<dim>::project_to_unit_cell(p_cell));
+
+    FEValues<dim> fe_values(mapping, fe, quadrature, update_gradients);
+    fe_values.reinit(cell);
+
+    std::vector<std::vector<Tensor<1, dim, double> > >
+    u_gradient(1, std::vector<Tensor<1, dim, double> > (fe.n_components()));
+    fe_values.get_function_gradients(solution, u_gradient);
+
+    return u_gradient[0][0].norm();
+}
 
 template<int dim>
 std::vector<double> Laplace<dim>::shape_funs(const Point<dim> &p, int cell_index) const {
@@ -224,25 +249,6 @@ std::vector<double> Laplace<dim>::shape_funs(const Point<dim> &p, const int cell
     }
 
     return sfuns;
-}
-
-
-
-template<int dim>
-void Laplace<dim>::test_probe(){
-
-    for (int i = 0; i<1; i++){
-    	double z = 30 * (1+i*.05) ;
-    	Point<dim> p = Point<dim>(0., 0., z);
-
-    	vector<double> sfuns = shape_funs(p, -1);
-    	double shapesum = 0;
-
-    	for(double sf:sfuns) shapesum += sf;
-    	std::cout << shapesum;
-    	//std::cout << sfuns ;
-    	//std::printf("%e, %e, %e", z, probe_value(p, -1), probe_potential(p));
-    }
 }
 
 template<int dim>

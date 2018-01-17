@@ -85,9 +85,9 @@ public:
      */
     double probe_potential(const Point<dim> &p) const;
 
-    double probe_value(const Point<dim> &p, const int cell_index) const;
+    double probe_potential(const Point<dim> &p, const int cell_index) const;
 
-    double probe_value(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
+    double probe_efield(const Point<dim> &p, const int cell_index) const;
 
     std::vector<double> shape_funs(const Point<dim> &p, int cell_index) const;
 
@@ -170,6 +170,10 @@ private:
 
     Vector<double> solution;              ///< resulting electric potential in the mesh nodes
     Vector<double> system_rhs;            ///< right-hand-side of the matrix equation
+
+    double probe_potential(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
+
+    double probe_efield(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
 
     friend class CurrentsAndHeating<dim> ;
     friend class CurrentsAndHeatingStationary<dim> ;
