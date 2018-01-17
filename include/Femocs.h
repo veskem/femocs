@@ -18,6 +18,8 @@
 #include "currents_and_heating_stationary.h"
 #include "laplace.h"
 
+#include "Pic.h"
+
 using namespace std;
 namespace femocs {
 
@@ -190,6 +192,9 @@ public:
     /** Generate bulk and vacuum meshes using the imported atomistic data */
     int generate_meshes();
 
+    /** Evolve the PIC simulation one Femocs time step */
+    int solve_pic(const double E0);
+    
     /** Solve Laplace equation on vacuum mesh */
     int solve_laplace(const double E0);
 
@@ -206,6 +211,8 @@ public:
     int force_output();
 
 private:
+    const double delta_t_MD = 4.05e-15; // in seconds (!)
+    
     bool skip_calculations, fail;
     double t0;
     int timestep;           ///< counter to measure how many times Femocs has been called
@@ -239,6 +246,8 @@ private:
     fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous steady-state currents and heating solver
     fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
 
+    Pic pic_solver; //The PIC solver
+    
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
 

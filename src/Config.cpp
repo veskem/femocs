@@ -73,7 +73,7 @@ Config::Config() {
     cfactor.r0_sphere = 0;            // minimum distance between atoms in nanotip apex
 
     pic.doPIC = false;
-    pic.time_subcycle = 1;
+    pic.dt_max = 1.0;
 }
 
 // Remove the noise from the beginning of the string
@@ -147,7 +147,7 @@ void Config::read_all(const string& file_name) {
     read_command("distance_tol", tolerance.distance);
 
     read_command("doPIC", pic.doPIC);
-    read_command("PIC_time_subcycle", pic.time_subcycle);
+    read_command("PIC_dtmax", pic.dt_max);
     
     // Read commands with potentially multiple arguments like...
     vector<double> args;
