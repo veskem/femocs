@@ -149,7 +149,7 @@ public:
     virtual void get_shape_functions(array<double,dim>& sf, const Vec3& point, const int i) const {}
 
     /** Find the cell which contains the point or is the closest to it */
-    int locate_cell(const Point3 &point, const int cell_guess) const;
+    virtual int locate_cell(const Point3 &point, const int cell_guess) const;
 
     /** Find the cell which contains the point or is the closest to it looking only for non-marked cells */
     int locate_cell(const Point3 &point, const int cell_guess, vector<bool>& cell_checked) const;
@@ -290,6 +290,48 @@ private:
 
     /** Calculate the vertex indices of 10-noded tetrahedron */
     SimpleCell<10> get_cell(const int i) const;
+};
+
+/**
+ * Data & operations for linear hexahedral interpolation without nodal data.
+ * Class uses the data pre-computed for LinearTetrahedra.
+ */
+class LinearHexahedra : public InterpolatorCells<8> {
+public:
+    LinearHexahedra();
+    LinearHexahedra(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l);
+    ~LinearHexahedra() {};
+
+    /** Pre-compute data about tetrahedra to make interpolation faster */
+    void precompute();
+
+    /** Get interpolation weights for a point inside i-th tetrahedron */
+    void get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const;
+
+    int locate_cell(const Point3 &point, const int cell_guess) const;
+
+    /** Change the dependency data */
+    void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) {
+        InterpolatorCells<8>::set_dependencies(m, n);
+        hexs = &m->hexahedra;
+        lintets = const_cast<LinearTetrahedra*>(l);
+    }
+
+private:
+    const Hexahedra* hexs;           ///< pointer to hexahedra to access their specific routines
+    const LinearTetrahedra* lintets; ///< Pointer to linear tetrahedra
+
+    /** Reserve memory for interpolation data */
+    void reserve(const int N);
+
+    /** Return the 10-noded tetrahedron type in vtk format */
+    int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; };
+
+    /** Check whether the point is inside the cell */
+    bool point_in_cell(const Vec3& point, const int cell) const {
+        require(false, "point_in_cell not used in LinearHexahedra!");
+        return false;
+    }
 };
 
 /**
