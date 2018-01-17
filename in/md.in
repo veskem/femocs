@@ -129,8 +129,8 @@ temp_cap = 2.e4
 
 #Femocs parameters
 ------------------
-latconst = 4.;
-coarse_factor = 0.1 10 4;    # coarsening factor; bigger number gives coarser surface; first is plate, second is shank, third is apex
+latconst = 3.5;
+coarse_factor = 0.3 12 3;    # coarsening factor; bigger number gives coarser surface; first is plate, second is shank, third is apex
 smooth_steps = 5             # number of surface mesh smoothing iterations
 smooth_algorithm = laplace  # surface mesh smoother algorithm; none, laplace, fujiwara
 
@@ -140,13 +140,13 @@ femocs_verbose_mode = verbose;     # enable or disable the verbose mode
 n_writefile = 1
 surface_cleaner = none; #faces or voronois
 charge_smooth_factor = 1.0;
-infile = in/mdlat.in.ckx
-extended_atoms = in/extension_90nm.xyz
-femocs_periodic = false
+infile = in/nanotip_small.xyz
+#extended_atoms = in/extension_90nm.xyz
+femocs_periodic = true
 clear_output = true
 coord_cutoff = 3.1
 #cluster_cutoff = 4.2
-radius = 53.0  #inner radius of coarsening cylinder
+radius = 16.0  #inner radius of coarsening cylinder
 
 
 temp     =340.0
