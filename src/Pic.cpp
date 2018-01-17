@@ -40,9 +40,9 @@ namespace femocs {
     for (size_t i = 0; i < r_el.size(); i++) {
       //Leapfrog method:
       // positions defined ON the time steps, velocities defined at half time steps
-      dealii::Point<dim> E; // Get the field!
+      dealii::Point<dim> Efield; // Get the field!
       
-      v_el[i] = v_el[i] + q_over_m*E*dt;
+      v_el[i] = v_el[i] + q_over_m*Efield*dt;
       r_el[i] = r_el[i] + v_el[i]*dt;
 
       //Update the cid_el && check if any particles have left the domain

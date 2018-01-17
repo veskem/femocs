@@ -36,12 +36,13 @@ namespace femocs {
     //ELECTRONS
     //Particle positions [Å]
     std::vector<dealii::Point<dim>> r_el;
-    //Particle velocities [Å/fs]
+    //Particle velocities [Å/fs = 10 um/s]
     std::vector<dealii::Point<dim>> v_el;
     //Management
     std::vector<int> cid_el; //Index of the cell where the particle is inside
 
-    const double q_over_m = 1.0; // [?]
+    //Constants
+    const double q_over_m = 1.0; // [?] charge/mass for electrons
     const double q = 1.0; // [?] Charge of the particles (positive)
     
   };
