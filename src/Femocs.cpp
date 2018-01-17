@@ -109,9 +109,9 @@ int Femocs::run(const double elfield, const string &timestep) {
 
     // Solve Laplace equation on vacuum mesh
     if ( conf.pic.doPIC ) {
-      if(solve_pic(elfield)){
+      if(solve_pic(elfield,delta_t_MD)){
 	force_output();
-        check_return(true, "Solving Laplace equation failed!");
+        check_return(true, "Solving PIC failed!");
       }
     }
     else {
@@ -279,11 +279,10 @@ int Femocs::generate_meshes() {
     return 0;
 }
 
-int Femocs::solve_pic(const double E0) {
+  int Femocs::solve_pic(const double E0, const double dt_main) {
 
-  cout << delta_t_MD*1e15<< ", " << conf.pic.dt_max << endl;
-  int time_subcycle = ceil(delta_t_MD*1e15/conf.pic.dt_max); // delta_t_MD in [s]
-  double dt_pic = delta_t_MD/time_subcycle;
+  int time_subcycle = ceil(dt_main*1e15/conf.pic.dt_max); // delta_t_MD in [s]
+  double dt_pic = dt_main/time_subcycle;
   
   //1. Insert new particles (electrons) from MD
   pic_solver.injectElectrons(NULL,0);

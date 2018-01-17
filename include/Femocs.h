@@ -193,7 +193,7 @@ public:
     int generate_meshes();
 
     /** Evolve the PIC simulation one Femocs time step */
-    int solve_pic(const double E0);
+    int solve_pic(const double E0, const double dt_main);
     
     /** Solve Laplace equation on vacuum mesh */
     int solve_laplace(const double E0);
