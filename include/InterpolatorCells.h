@@ -11,9 +11,6 @@
 #include "Primitives.h"
 #include "TetgenMesh.h"
 #include "TetgenCells.h"
-#include "laplace.h"
-#include "currents_and_heating.h"
-#include "currents_and_heating_stationary.h"
 
 using namespace std;
 namespace femocs {
@@ -299,15 +296,15 @@ private:
 class LinearHexahedra : public InterpolatorCells<8> {
 public:
     LinearHexahedra();
-    LinearHexahedra(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l);
     ~LinearHexahedra() {};
 
     /** Pre-compute data about tetrahedra to make interpolation faster */
     void precompute();
 
-    /** Get interpolation weights for a point inside i-th tetrahedron */
+    /** Get interpolation weights for a point inside i-th hexahedron */
     void get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const;
 
+    /** Find the hexahedron which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
     /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
@@ -324,12 +321,23 @@ public:
         lintets = const_cast<LinearTetrahedra*>(l);
     }
 
+    void set_dependencies(dealii::DoFHandler<3>* _dof_handler, dealii::Triangulation<3>* _triangulation) {
+        dof_handler = _dof_handler;
+        triangulation = _triangulation;
+    }
+
 private:
     const Hexahedra* hexs;           ///< pointer to hexahedra to access their specific routines
     const LinearTetrahedra* lintets; ///< Pointer to linear tetrahedra
+    dealii::DoFHandler<3>* dof_handler;       ///< fem solver mesh & solution
+    dealii::Triangulation<3>* triangulation;  ///< fem solver mesh & solution
 
     /** Reserve memory for interpolation data */
     void reserve(const int N);
+
+    /** Workhorse function for getting interpolation weights */
+    void get_shape_functions(array<double,8>& sf, const dealii::Point<3>& point, const int i,
+            dealii::Mapping<3,3>& mapping) const;
 
     /** Return the 10-noded tetrahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; };

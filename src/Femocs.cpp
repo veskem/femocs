@@ -377,7 +377,7 @@ int Femocs::solve_laplace(const double E0) {
     vacuum_interpolator.quadtets.write("out/result_E_phi_quad.vtk");
 
     FieldReader fr(&vacuum_interpolator);
-    fr.test_pic(&laplace_solver, dense_surf);
+    fr.test_pic_vol2(&laplace_solver, dense_surf);
 
     return fail;
 }

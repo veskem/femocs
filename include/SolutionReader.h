@@ -120,6 +120,8 @@ public:
 
     void test_pic(fch::Laplace<3>* laplace, const Medium& medium);
 
+    void test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium);
+
     /** Interpolate electric field and potential on a Medium atoms */
     void interpolate(const Medium &medium);
 

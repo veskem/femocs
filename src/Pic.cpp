@@ -56,4 +56,3 @@ namespace femocs {
   //template class Pic<2>;
   template class Pic<3>;
 }
-

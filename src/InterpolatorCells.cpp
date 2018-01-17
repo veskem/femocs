@@ -7,6 +7,52 @@
 
 #include "InterpolatorCells.h"
 
+
+
+#include <deal.II/grid/grid_generator.h>
+#include <deal.II/grid/tria_accessor.h>
+#include <deal.II/grid/tria_iterator.h>
+#include <deal.II/grid/grid_tools.h>
+
+#include <deal.II/dofs/dof_accessor.h>
+#include <deal.II/dofs/dof_tools.h>
+
+#include <deal.II/fe/fe_values.h>
+
+#include <deal.II/base/quadrature_lib.h>
+#include <deal.II/base/function.h>
+#include <deal.II/base/logstream.h>
+#include <deal.II/base/timer.h>
+
+#include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/matrix_tools.h>
+#include <deal.II/numerics/data_out.h>
+
+#include <deal.II/lac/vector.h>
+#include <deal.II/lac/full_matrix.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
+#include <deal.II/lac/solver_cg.h>
+#include <deal.II/lac/precondition.h>
+
+#include <deal.II/fe/fe_update_flags.h>
+
+#include <deal.II/grid/tria.h>
+#include <deal.II/grid/grid_reordering.h>
+#include <deal.II/dofs/dof_handler.h>
+#include <deal.II/fe/fe_q.h>
+#include <deal.II/lac/sparse_matrix.h>
+
+#include <deal.II/base/point.h>
+#include <deal.II/base/tensor.h>
+
+#include <deal.II/fe/mapping_q1.h>
+#include <deal.II/hp/dof_handler.h>
+#include <deal.II/hp/fe_values.h>
+#include <deal.II/hp/mapping_collection.h>
+#include <deal.II/hp/q_collection.h>
+#include <deal.II/numerics/vector_tools.h>
+#include <deal.II/numerics/matrix_tools.h>
+
 namespace femocs {
 
 /* ==================================================================
@@ -882,10 +928,7 @@ SimpleCell<10> QuadraticTetrahedra::get_cell(const int tet) const {
  * ================================================================== */
 
 LinearHexahedra::LinearHexahedra() :
-        InterpolatorCells<8>(), hexs(NULL), lintets(NULL) {}
-
-LinearHexahedra::LinearHexahedra(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) :
-        InterpolatorCells<8>(m, n), hexs(&m->hexahedra), lintets(l) {}
+        InterpolatorCells<8>(), hexs(NULL), lintets(NULL), dof_handler(NULL), triangulation(NULL) {}
 
 void LinearHexahedra::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));
@@ -917,7 +960,34 @@ void LinearHexahedra::precompute() {
 }
 
 void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const {
-    expect(false, "Not yet implemented!");
+    get_shape_functions(sf, dealii::Point<3>(point.x, point.y, point.z), i, dealii::StaticMappingQ1<3,3>::mapping);
+}
+
+void LinearHexahedra::get_shape_functions(array<double,8>& sf, const dealii::Point<3>& point,
+        const int i, dealii::Mapping<3,3>& mapping) const
+{
+    require(dof_handler, "NULL dof_handler can't be used!");
+    require(triangulation, "NULL triangulation can't be used!");
+    require(i >= 0 && i < cells.size(), "Index out of bounds: " + to_string(i));
+
+    const dealii::FiniteElement<3> &fe = dof_handler->get_fe();
+
+    // get active cell iterator from cell index
+    typename dealii::DoFHandler<3>::active_cell_iterator cell(triangulation, 0, i, dof_handler);
+
+    expect(false, "segfault appears after this line");
+
+    // transform the point from real to unit cell coordinates
+    dealii::Point<3> p_cell = mapping.transform_real_to_unit_cell(cell, point);
+
+    const dealii::Quadrature<3> quadrature(dealii::GeometryInfo<3>::project_to_unit_cell(p_cell));
+
+    //define fevalues object
+    dealii::FEValues<3> fe_values(mapping, fe, quadrature, dealii::update_values);
+    fe_values.reinit(cell);
+
+    for (int i = 0; i < sf.size(); i++)
+        sf[i] = fe_values.shape_value(i, 0);
 }
 
 int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) const {
