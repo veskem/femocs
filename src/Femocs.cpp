@@ -286,9 +286,29 @@ int Femocs::solve_pic(const double E0) {
   double dt_pic = delta_t_MD/time_subcycle;
   
   //1. Insert new particles (electrons) from MD
-  pic_solver.injectElectrons(NULL,NULL,NULL,0);
+  pic_solver.injectElectrons(NULL,0);
   
   //2. Re-init the Poisson solver -- similar to Femocs::solve_laplace()
+  conf.laplace.E0 = E0;       // reset long-range electric field
+  
+  // Store parameters for comparing the results with analytical hemi-ellipsoid results
+  fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
+  
+  start_msg(t0, "=== Importing mesh to Laplace solver...");
+  fail = !laplace_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
+					      fem_mesh.hexahedra.export_vacuum());
+  check_return(fail, "Importing mesh to Deal.II failed!");
+  end_msg(t0);
+  
+  start_msg(t0, "=== Initializing Laplace solver...");
+  laplace_solver.set_applied_efield(-E0);
+  laplace_solver.setup_system();
+  laplace_solver.assemble_system();
+  end_msg(t0);
+  
+  stringstream ss; ss << laplace_solver;
+  write_verbose_msg(ss.str());
+  
   // call assemble_system to update the matrices
   
   //Timestep loop
@@ -315,6 +335,8 @@ int Femocs::solve_pic(const double E0) {
   
   //8. Give the heat- and current fluxes to the temperature solver.
   // TODO LATER
+
+  return fail;
 }
     
   

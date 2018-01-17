@@ -246,7 +246,7 @@ private:
     fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous steady-state currents and heating solver
     fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
 
-    Pic pic_solver; //The PIC solver
+    Pic<3> pic_solver; //The PIC solver
     
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);

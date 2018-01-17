@@ -10,15 +10,19 @@
 
 #include "laplace.h"
 
+#include <deal.II/base/point.h>
+
 namespace femocs {
 
-  class Pic {
+
+  template<int dim> class Pic {
   public:
     Pic();
     ~Pic();
 
     //Injects electrons
-    int injectElectrons(double* x, double* y, double* z, size_t n);
+    // Indexing: (x1 y1 [z1] x2 y2 [z2] ...)
+    int injectElectrons(const double* const r, const size_t n);
     
     //Computes the charge density for each FEM DOF
     int computeDensity();
@@ -31,13 +35,9 @@ namespace femocs {
 
     //ELECTRONS
     //Particle positions [Å]
-    std::vector<double> x_el;
-    std::vector<double> y_el;
-    std::vector<double> z_el;
+    std::vector<dealii::Point<dim>> r_el;
     //Particle velocities [Å/fs]
-    std::vector<double> vx_el;
-    std::vector<double> vy_el;
-    std::vector<double> vz_el;
+    std::vector<dealii::Point<dim>> v_el;
     //Management
     std::vector<int> cid_el; //Index of the cell where the particle is inside
   };

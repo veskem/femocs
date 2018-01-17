@@ -8,23 +8,28 @@
 #include "Pic.h"
 
 namespace femocs {
-  Pic::Pic() {
+  template<int dim> Pic<dim>::Pic() {
 
   }
 
-  Pic::~Pic() {
+  template<int dim> Pic<dim>::~Pic() {
 
   }
 
-  int Pic::injectElectrons(double* x, double* y, double* z, size_t n) {
+  template<int dim> int Pic<dim>::injectElectrons(const double* const r, const size_t n) {
     
   }
   
-  int Pic::computeDensity() {
+  template<int dim> int Pic<dim>::computeDensity() {
 
   }
 
-  int Pic::pushParticles(const double dt) {
+  template<int dim> int Pic<dim>::pushParticles(const double dt) {
     
   }
+
+  //Tell the compiler which types to actually compile, so that they are available for the linker
+  template class Pic<2>;
+  template class Pic<3>;
 }
+
