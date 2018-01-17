@@ -78,9 +78,8 @@ public:
 
     /** get the electric field at the specified point using dealii
      * (slow as it looks for the surrounding cell) */
-    Tensor<1,dim> probe_efield(const Point<dim> &p) const;
+    double probe_efield(const Point<dim> &p) const;
 
-    
     /** get the potential value at a specified point using dealii (slow)
      */
     double probe_potential(const Point<dim> &p) const;
