@@ -86,6 +86,11 @@ public:
 
     double probe_value(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
 
+    std::vector<double> shape_funs(const Point<dim> &p, int cell_index) const;
+
+
+    std::vector<double> shape_funs(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
+
     void test_probe();
     /**
      * method to obtain the electric potential values in selected nodes
