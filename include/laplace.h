@@ -14,6 +14,8 @@
 #include <deal.II/fe/fe_q.h>
 #include <deal.II/lac/sparse_matrix.h>
 
+#include <deal.II/base/point.h>
+#include <deal.II/base/tensor.h>
 
 #include <deal.II/fe/mapping_q1.h>
 #include <deal.II/hp/dof_handler.h>
@@ -76,8 +78,9 @@ public:
 
     /** get the electric field at the specified point using dealii
      * (slow as it looks for the surrounding cell) */
-    double probe_efield(const Point<dim> &p) const;
+    Tensor<1,dim> probe_efield(const Point<dim> &p) const;
 
+    
     /** get the potential value at a specified point using dealii (slow)
      */
     double probe_potential(const Point<dim> &p) const;

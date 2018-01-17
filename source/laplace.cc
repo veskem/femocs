@@ -127,8 +127,8 @@ void Laplace<dim>::output_mesh(const std::string file_name) {
 }
 
 template<int dim>
-double Laplace<dim>::probe_efield(const Point<dim> &p) const {
-	return VectorTools::point_gradient (dof_handler, solution, p).norm();
+Tensor<1,dim> Laplace<dim>::probe_efield(const Point<dim> &p) const {
+  return VectorTools::point_gradient (dof_handler, solution, p);
 }
 
 template<int dim>
