@@ -82,11 +82,10 @@ public:
      */
     double probe_potential(const Point<dim> &p) const;
 
-    double probe_value(const Point<dim> &p, const int cell_index) const;
+    double probe_potential(const Point<dim> &p, const int cell_index) const;
 
-    double probe_value(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
+    double probe_efield(const Point<dim> &p, const int cell_index) const;
 
-    void test_probe();
     /**
      * method to obtain the electric potential values in selected nodes
      * @param cell_indexes global cell indexes, where the corresponding nodes are situated
@@ -162,6 +161,10 @@ private:
 
     Vector<double> solution;              ///< resulting electric potential in the mesh nodes
     Vector<double> system_rhs;            ///< right-hand-side of the matrix equation
+
+    double probe_potential(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
+
+    double probe_efield(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
 
     friend class CurrentsAndHeating<dim> ;
     friend class CurrentsAndHeatingStationary<dim> ;
