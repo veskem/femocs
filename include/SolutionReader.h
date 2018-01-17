@@ -118,6 +118,8 @@ class FieldReader: public SolutionReader {
 public:
     FieldReader(Interpolator* i);
 
+    void test_pic(fch::Laplace<3>* laplace, const Medium& medium);
+
     /** Interpolate electric field and potential on a Medium atoms */
     void interpolate(const Medium &medium);
 

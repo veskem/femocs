@@ -310,6 +310,13 @@ public:
 
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
+    /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
+     * -1 means there's no correspondence between two meshes */
+    int femocs2deal(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return markers[i];
+    }
+
     /** Change the dependency data */
     void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) {
         InterpolatorCells<8>::set_dependencies(m, n);

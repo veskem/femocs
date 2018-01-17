@@ -425,6 +425,46 @@ FieldReader::FieldReader(Interpolator* i) :
         SolutionReader(i, "elfield", "elfield_norm", "potential"),
         E0(0), radius1(0), radius2(0) {}
 
+void FieldReader::test_pic(fch::Laplace<3>* laplace, const Medium& medium) {
+    const double x = 0;
+    const double y = 0;
+    const double zmin = medium.sizes.zmax;
+    const double step = 0.5;
+
+    const int n_points = 30;
+
+    vector<Point3> points;
+    points.reserve(n_points);
+    for (int i = 0; i < n_points; ++i)
+        points.push_back(Point3(x, y, zmin + i * step));
+
+    // test potential
+
+    cout << "\nprobing potential:\n";
+
+    int hex_index = 0;
+    for (Point3 &p : points) {
+        hex_index = interpolator->linhexs.locate_cell(p, hex_index);
+        dealii::Point<3> deal_point(p.x, p.y, p.z);
+        double val1 = laplace->probe_potential(deal_point, interpolator->linhexs.femocs2deal(hex_index));
+        double val2 = laplace->probe_potential(deal_point);
+        printf("%.2f, %e, %e, %e\n", p.z, val1, val2, val1 - val2);
+    }
+
+    cout << "\nprobing elfield:\n";
+
+    // test elfield
+    hex_index = 0;
+    for (Point3 &p : points) {
+        hex_index = interpolator->linhexs.locate_cell(p, hex_index);
+        dealii::Point<3> deal_point(p.x, p.y, p.z);
+
+        double val1 = laplace->probe_efield(deal_point,interpolator->linhexs.femocs2deal(hex_index));
+        double val2 = laplace->probe_efield(deal_point);
+        printf("%.2f, %e, %e, %e\n", p.z, val1, val2, val1 - val2);
+    }
+}
+
 // Interpolate electric field and potential on a set of points
 void FieldReader::interpolate(const int n_points, const double* x, const double* y, const double* z) {
     // store the point coordinates

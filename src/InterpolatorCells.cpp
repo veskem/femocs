@@ -903,7 +903,14 @@ void LinearHexahedra::precompute() {
     reserve(n_elems);
 
     // Loop through all the hexahedra
+    int deal_hex_index = 0;
     for (int i = 0; i < n_elems; ++i) {
+        // store the mapping between femocs and deal.ii hexahedra
+        if ((*hexs).get_marker(i) > 0)
+            markers[i] = deal_hex_index++;
+        else
+            markers[i] = -1;
+
         // Calculate and store  hexahedra
         cells.push_back((*hexs)[i]);
     }
