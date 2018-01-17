@@ -22,9 +22,9 @@ namespace femocs {
 
 // specify simulation parameters
 Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false),
-        timestep(-1), last_full_timestep(0) {
+					  timestep(-1), last_full_timestep(0), pic_solver(laplace_solver) {
     static bool first_call = true;
-
+    
     // Read configuration parameters from configuration file
     conf.read_all(conf_file);
 

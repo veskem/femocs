@@ -7,9 +7,10 @@
 
 #include "Pic.h"
 
-namespace femocs {
-  template<int dim> Pic<dim>::Pic() {
+#include <deal.II/base/tensor.h>
 
+namespace femocs {
+  template<int dim> Pic<dim>::Pic(fch::Laplace<dim> &laplace_solver) : laplace_solver(laplace_solver){
   }
 
   template<int dim> Pic<dim>::~Pic() {
@@ -40,7 +41,7 @@ namespace femocs {
     for (size_t i = 0; i < r_el.size(); i++) {
       //Leapfrog method:
       // positions defined ON the time steps, velocities defined at half time steps
-      dealii::Point<dim> Efield; // Get the field!
+      dealii::Tensor<1,dim> Efield ; // Get the field!
       
       v_el[i] = v_el[i] + q_over_m*Efield*dt;
       r_el[i] = r_el[i] + v_el[i]*dt;
@@ -52,7 +53,7 @@ namespace femocs {
   }
 
   //Tell the compiler which types to actually compile, so that they are available for the linker
-  template class Pic<2>;
+  //template class Pic<2>;
   template class Pic<3>;
 }
 

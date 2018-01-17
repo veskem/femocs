@@ -17,7 +17,7 @@ namespace femocs {
 
   template<int dim> class Pic {
   public:
-    Pic();
+    Pic(fch::Laplace<dim> &laplace_solver);
     ~Pic();
 
     //Injects electrons
@@ -44,7 +44,9 @@ namespace femocs {
     //Constants
     const double q_over_m = 1.0; // [?] charge/mass for electrons
     const double q = 1.0; // [?] Charge of the particles (positive)
-    
+
+    //Useful stuff
+    fch::Laplace<dim> &laplace_solver;
   };
 
 }
