@@ -22,9 +22,9 @@ namespace femocs {
 
 // specify simulation parameters
 Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false),
-					  timestep(-1), last_full_timestep(0), pic_solver(laplace_solver) {
+        timestep(-1), last_full_timestep(0), pic_solver(laplace_solver) {
     static bool first_call = true;
-    
+
     // Read configuration parameters from configuration file
     conf.read_all(conf_file);
 
@@ -99,7 +99,7 @@ int Femocs::run(const double elfield, const string &timestep) {
 
     stream.str("");
     stream << "Atoms haven't moved significantly, " << reader.rms_distance
-        << " < " << conf.tolerance.distance << "! Field calculation will be skipped!";
+            << " < " << conf.tolerance.distance << "! Field calculation will be skipped!";
     check_return(reinit(tstep), stream.str());
 
     double tstart = omp_get_wtime();
@@ -109,16 +109,16 @@ int Femocs::run(const double elfield, const string &timestep) {
 
     // Solve Laplace equation on vacuum mesh
     if ( conf.pic.doPIC ) {
-      if(solve_pic(elfield,delta_t_MD)){
-	force_output();
-        check_return(true, "Solving PIC failed!");
-      }
+        if(solve_pic(elfield,delta_t_MD)){
+            force_output();
+            check_return(true, "Solving PIC failed!");
+        }
     }
     else {
-      if (solve_laplace(elfield)) {
-	force_output();
-        check_return(true, "Solving Laplace equation failed!");
-      }
+        if (solve_laplace(elfield)) {
+            force_output();
+            check_return(true, "Solving Laplace equation failed!");
+        }
     }
 
     // Solve heat & continuity equation on bulk mesh
@@ -198,7 +198,7 @@ int Femocs::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface
 
     start_msg(t0, "=== Coarsening & smoothing surface...");
     coarse_surf = extended_surf;
-//    coarse_surf += dense_surf;
+    //    coarse_surf += dense_surf;
     coarse_surf += dense_surf.clean_roi(coarseners);
     coarse_surf = coarse_surf.clean(coarseners);
     coarse_surf.smoothen(conf.geometry.radius, conf.smoothing.beta_atoms, 3.0*conf.geometry.coordination_cutoff);
@@ -211,10 +211,10 @@ int Femocs::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface
     vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.geometry.box_height * coarse_surf.sizes.zbox);
     bulk = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.geometry.bulk_height * conf.geometry.latconst);
     reader.resize_box(coarse_surf.sizes.xmin, coarse_surf.sizes.xmax, 
-        coarse_surf.sizes.ymin, coarse_surf.sizes.ymax,
-        bulk.sizes.zmin, vacuum.sizes.zmax);
+            coarse_surf.sizes.ymin, coarse_surf.sizes.ymax,
+            bulk.sizes.zmin, vacuum.sizes.zmax);
     end_msg(t0);
-    
+
     bulk.write("out/bulk.xyz");
     vacuum.write("out/vacuum.xyz");
 
@@ -279,66 +279,65 @@ int Femocs::generate_meshes() {
     return 0;
 }
 
-  int Femocs::solve_pic(const double E0, const double dt_main) {
+int Femocs::solve_pic(const double E0, const double dt_main) {
 
-  int time_subcycle = ceil(dt_main*1e15/conf.pic.dt_max); // delta_t_MD in [s]
-  double dt_pic = dt_main/time_subcycle;
-  
-  //1. Insert new particles (electrons) from MD
-  pic_solver.injectElectrons(NULL,0);
-  
-  //2. Re-init the Poisson solver -- similar to Femocs::solve_laplace()
-  conf.laplace.E0 = E0;       // reset long-range electric field
-  
-  // Store parameters for comparing the results with analytical hemi-ellipsoid results
-  fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
-  
-  start_msg(t0, "=== Importing mesh to Laplace solver...");
-  fail = !laplace_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
-					      fem_mesh.hexahedra.export_vacuum());
-  check_return(fail, "Importing mesh to Deal.II failed!");
-  end_msg(t0);
-  
-  start_msg(t0, "=== Initializing Laplace solver...");
-  laplace_solver.set_applied_efield(-E0);
-  laplace_solver.setup_system();
-  laplace_solver.assemble_system();
-  end_msg(t0);
-  
-  stringstream ss; ss << laplace_solver;
-  write_verbose_msg(ss.str());
-  
-  // call assemble_system to update the matrices
-  
-  //Timestep loop
-  for (int i = 0; i < time_subcycle; i++) {
-    cout << "doPIC! i=" << i << ", dt_pic=" << dt_pic << endl;
-    
-    //3. Compute particle densities on the grid
-    pic_solver.computeDensity();
-    
-    //4. Update fields (solve Poisson equation),
-    // taking the long range efield `elfield` into account
-    // TODO
-    
-    //5. Particle pusher using the modified fields
-    pic_solver.pushParticles(dt_pic);
-  }
-  //6. Save modified surface fields to somewhere the MD solver can find them
-  // (same as the laplace solver used when PIC is inactive)
-  //TODO
-  
-  //7. Save ions and neutrals that are inbound on the MD domain
-  //    somewhere where the MD can find them
-  // TODO LATER
-  
-  //8. Give the heat- and current fluxes to the temperature solver.
-  // TODO LATER
+    int time_subcycle = ceil(dt_main*1e15/conf.pic.dt_max); // delta_t_MD in [s]
+    double dt_pic = dt_main/time_subcycle;
 
-  return fail;
+    //1. Insert new particles (electrons) from MD
+    pic_solver.injectElectrons(NULL,0);
+
+    //2. Re-init the Poisson solver -- similar to Femocs::solve_laplace()
+    conf.laplace.E0 = E0;       // reset long-range electric field
+
+    // Store parameters for comparing the results with analytical hemi-ellipsoid results
+    fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
+
+    start_msg(t0, "=== Importing mesh to Laplace solver...");
+    fail = !laplace_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
+            fem_mesh.hexahedra.export_vacuum());
+    check_return(fail, "Importing mesh to Deal.II failed!");
+    end_msg(t0);
+
+    start_msg(t0, "=== Initializing Laplace solver...");
+    laplace_solver.set_applied_efield(-E0);
+    laplace_solver.setup_system();
+    end_msg(t0);
+
+    stringstream ss; ss << laplace_solver;
+    write_verbose_msg(ss.str());
+
+    // call assemble_system to update the matrices
+
+    //Timestep loop
+    for (int i = 0; i < time_subcycle; i++) {
+        cout << "doPIC! i=" << i << ", dt_pic=" << dt_pic << endl;
+
+        //3. Compute particle densities on the grid and solve Poisson equation
+        pic_solver.computeField();
+
+        //4. Update fields (solve Poisson equation),
+        // taking the long range efield `elfield` into account
+        // TODO
+
+        //5. Particle pusher using the modified fields
+        pic_solver.pushParticles(dt_pic);
+    }
+    //6. Save modified surface fields to somewhere the MD solver can find them
+    // (same as the laplace solver used when PIC is inactive)
+    //TODO
+
+    //7. Save ions and neutrals that are inbound on the MD domain
+    //    somewhere where the MD can find them
+    // TODO LATER
+
+    //8. Give the heat- and current fluxes to the temperature solver.
+    // TODO LATER
+
+    return fail;
 }
-    
-  
+
+
 // Solve Laplace equation
 int Femocs::solve_laplace(const double E0) {
     conf.laplace.E0 = E0;       // reset long-range electric field
@@ -648,9 +647,9 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
             if (conf.run.rdf) {
                 stringstream stream;
                 stream << fixed << setprecision(3)
-                        << "nnn: " << conf.geometry.nnn << ", latconst: " << conf.geometry.latconst
-                        << ", coord_cutoff: " << conf.geometry.coordination_cutoff
-                        << ", cluster_cutoff: " << conf.geometry.cluster_cutoff;
+                                << "nnn: " << conf.geometry.nnn << ", latconst: " << conf.geometry.latconst
+                                << ", coord_cutoff: " << conf.geometry.coordination_cutoff
+                                << ", cluster_cutoff: " << conf.geometry.cluster_cutoff;
                 write_verbose_msg(stream.str());
             }
 
@@ -698,9 +697,9 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
         if (conf.run.rdf) {
             stringstream stream;
             stream << fixed << setprecision(3)
-                    << "nnn: " << conf.geometry.nnn << ", latconst: " << conf.geometry.latconst
-                    << ", coord_cutoff: " << conf.geometry.coordination_cutoff
-                    << ", cluster_cutoff: " << conf.geometry.cluster_cutoff;
+                            << "nnn: " << conf.geometry.nnn << ", latconst: " << conf.geometry.latconst
+                            << ", coord_cutoff: " << conf.geometry.coordination_cutoff
+                            << ", cluster_cutoff: " << conf.geometry.cluster_cutoff;
             write_verbose_msg(stream.str());
         }
 

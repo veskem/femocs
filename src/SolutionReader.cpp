@@ -459,8 +459,8 @@ void FieldReader::test_pic(fch::Laplace<3>* laplace, const Medium& medium) {
         hex_index = interpolator->linhexs.locate_cell(p, hex_index);
         dealii::Point<3> deal_point(p.x, p.y, p.z);
 
-        double val1 = laplace->probe_efield(deal_point,interpolator->linhexs.femocs2deal(hex_index));
-        double val2 = laplace->probe_efield(deal_point);
+        double val1 = laplace->probe_efield_norm(deal_point,interpolator->linhexs.femocs2deal(hex_index));
+        double val2 = laplace->probe_efield_norm(deal_point);
         printf("%.2f, %e, %e, %e\n", p.z, val1, val2, val1 - val2);
     }
 }

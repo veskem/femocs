@@ -140,7 +140,7 @@ femocs_verbose_mode = verbose;     # enable or disable the verbose mode
 n_writefile = 1
 surface_cleaner = none; #faces or voronois
 charge_smooth_factor = 1.0;
-infile = in/nanotip_small.xyz
+infile = in/nanotip_small.ckx
 #extended_atoms = in/extension_90nm.xyz
 femocs_periodic = true
 clear_output = true
@@ -178,5 +178,5 @@ timerelE = 100.00 # Time in fs before field is applied
 
 # PIC parameters
 ---------------------
-doPIC = true
+doPIC = false
 PIC_dtmax = 1.0 #[fs]
