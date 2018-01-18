@@ -221,7 +221,7 @@ Surface Surface::clean(Coarseners &coarseners) {
 // Clean atoms inside the region of interest
 Surface Surface::clean_roi(Coarseners &coarseners) {
     const int n_atoms = size();
-    vector<int> do_delete(n_atoms);
+    vector<bool> do_delete(n_atoms, false);
 
     // mark atoms outside the nanotip
     for (int i = 0; i < n_atoms; ++i)
@@ -246,6 +246,111 @@ Surface Surface::clean_roi(Coarseners &coarseners) {
     Surface surf(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
         if (do_delete[i] <= 0)
+            surf.append(get_atom(i));
+
+    surf.calc_statistics();
+    return surf;
+}
+
+void Surface::calc_linked_list(vector<array<int,3>> &indices, vector<int> &list,
+        vector<int> &head, const double r_cut, const bool lat_periodic)
+{
+    const int n_atoms = size();
+
+    list = vector<int>(n_atoms, 0);
+    head = vector<int>(n_atoms, 0);
+    indices.clear();
+    indices.reserve(n_atoms);
+
+    Point3 simubox_size(sizes.xbox, sizes.ybox, sizes.zbox);
+    array<int,3> nborbox_size;
+    for (int j = 0; j < 3; ++j)
+        nborbox_size[j] = ceil(simubox_size[j] / r_cut);
+
+
+    // calculate linked list for the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 dx = atoms[i].point + simubox_size / 2;
+
+        // Check that we are inside lateral boundaries
+        if (lat_periodic) {
+            if (dx.x < 0) dx.x += simubox_size.x;
+            if (dx.x > simubox_size.x) dx.x -= simubox_size.x;
+            if (dx.y < 0) dx.y += simubox_size.y;
+            if (dx.y > simubox_size.y) dx.y -= simubox_size.y;
+        }
+
+        array<int,3> point_index;
+        for (int j = 0; j < 3; ++j)
+            point_index[j] = int( (dx[j] / simubox_size[j]) * nborbox_size[j] );
+
+        // If not periodic, let border cells continue to infinity
+        if (!lat_periodic)
+            for (int j = 0; j < 2; ++j) {
+                point_index[j] = max(0, point_index[j]);
+                point_index[j] = min(nborbox_size[j]-1, point_index[j]);
+            }
+
+        int i_cell = (point_index[2] * nborbox_size[1] + point_index[1]) * nborbox_size[0] + point_index[0];
+
+        set_marker(i, i_cell);
+        indices.push_back(point_index);
+        list[i] = head[i_cell];
+        head[i_cell] = i;
+    }
+}
+
+Surface Surface::fast_clean(Coarseners &coarseners) {
+    const bool lat_periodic = false;
+
+    const int n_atoms = size();
+    const double r_cut = coarseners.get_r0_inf(sizes);
+
+    Point3 simubox_size(sizes.xbox, sizes.ybox, sizes.zbox);
+    array<int,3> nborbox_size;
+    for (int j = 0; j < 3; ++j)
+        nborbox_size[j] = ceil(simubox_size[j] / r_cut);
+
+    vector<int> list;
+    vector<int> head;
+    vector<array<int,3>> indices;
+    calc_linked_list(indices, list, head, r_cut, lat_periodic);
+
+    vector<int> do_delete(n_atoms, false);
+
+    // loop through the atoms and their neighbours
+    for (int i = 0; i < n_atoms; ++i) {
+        if (do_delete[i]) continue;
+
+        array<int,3>& i_atom = indices[i];
+        int i_cell = (i_atom[2] * nborbox_size[1] + i_atom[1]) * nborbox_size[0] + i_atom[0];
+//        set_marker(i, i_cell);
+
+        Point3 point1 = atoms[i].point;
+        coarseners.pick_cutoff(point1);
+
+        for (int iz = i_atom[2]-1; iz <= i_atom[2]+1; ++iz) {
+            if (iz < 0 || iz >= nborbox_size[2]) continue;
+            for (int iy = i_atom[1]-1; iy <= i_atom[1]+1; ++iy) {
+                if (iy < 0 || iy >= nborbox_size[1]) continue;
+                for (int ix = i_atom[0]-1; ix <= i_atom[0]+1; ++ix) {
+                    if (ix < 0 || ix >= nborbox_size[0]) continue;
+
+                    int j = head[(iz * nborbox_size[1] + iy) * nborbox_size[0] + ix];
+                    while(j > 0) {
+                        if (!do_delete[j])
+                            do_delete[j] = coarseners.nearby(point1, get_point(j));
+                        j = list[j];
+                    }
+                }
+            }
+        }
+    }
+
+    // Store coarsened nanotip and non-coarsened outer region
+    Surface surf(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        if (!do_delete[i])
             surf.append(get_atom(i));
 
     surf.calc_statistics();

@@ -1621,6 +1621,68 @@ bool CoulombReader::check_limits(Vec3& xx, array<double,3>& cellc,
     return false;
 }
 
+void CoulombReader::calc_nborlist(const bool lateral_periodic) {
+    const int n_atoms = size();
+    const double r_cut = 6.0;
+    Point3 simubox_size(sizes.xbox, sizes.ybox, sizes.zbox);
+
+    vector<unsigned> list(n_atoms);
+    vector<unsigned> head(n_atoms);
+
+    array<int,3> M;
+    for (int j = 0; j < 3; ++j)
+        M[j] = ceil(simubox_size[j] / r_cut);
+
+    // calculate linked list for the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 dx = atoms[i].point + simubox_size / 2;
+        // Check that we are inside lateral boundaries
+        if (lateral_periodic)
+            for (int j = 0; j < 2; ++j) {
+                if (dx[j] < 0) dx[j] += simubox_size[j];
+                else if (dx[j] > simubox_size[j]) dx[j] -= simubox_size[j];
+            }
+
+        array<int,3> point_index;
+        for (int j = 0; j < 3; ++j)
+            point_index[j] = int( (dx[j] / simubox_size[j]) * M[j] );
+
+        // If not periodic, let border cells continue to infinity
+        if (!lateral_periodic)
+            for (int j = 0; j < 2; ++j) {
+                point_index[j] = max(0, point_index[j]);
+                point_index[j] = min(M[j]-1, point_index[j]);
+            }
+
+        int i_cell = (point_index[2] * M[1] + point_index[1]) * M[0] + point_index[0];
+        set_marker(i, i_cell);
+        list[i] = head[i_cell];
+        head[i_cell] = i;
+    }
+
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 &p1 = atoms[i].point;
+        for (int ix = 0; ix < M[0]; ++ix) {
+            for (int iy = 0; iy < M[1]; ++iy) {
+                for (int iz = 0; iz < M[2]; ++iz) {
+                    int i_cell = (iz * M[1] + iy) * M[0] + ix;
+                    int j = head[i_cell];
+                    while(true) {
+                        if (j == 0) break;
+                        double r2 = p1.distance2(get_point(j));
+                        if (r2 < r_cut2) {
+                            printf("%i and %i are neighbours!\n", i, j);
+                        }
+                        j = list[j];
+                    }
+                }
+            }
+        }
+    }
+}
+
+void CoulombReader::check_neighbours(const int i)
+
 void CoulombReader::calc_nborlist(const vector<int>& charged, const double* x0) {
     neigh_cells = -1;
 

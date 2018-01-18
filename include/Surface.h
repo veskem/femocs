@@ -64,6 +64,8 @@ public:
 
     int clean_by_voronois(const double radius, const double latconst, const string& mesh_quality);
 
+    Surface fast_clean(Coarseners &coarseners);
+
     /** Smoothen the atoms inside the cylinder */
     void smoothen(const double radius, const double smooth_factor, const double r_cut);
 
@@ -74,6 +76,9 @@ public:
     void smoothen(const Config& conf, const double r_cut);
 
 private:
+    void calc_linked_list(vector<array<int,3>> &indices, vector<int> &list, vector<int> &head,
+            const double r_cut, const bool lat_periodic);
+
     /** Function used to smoothen the atoms */
     inline double smooth_function(const double distance, const double smooth_factor) const;
 
