@@ -124,24 +124,38 @@ public:
      */
     void assemble_system(){
       assemble_system_lhs();
-      assemble_system_neuman();
+      assemble_system_neuman(BoundaryId::vacuum_top);
+      assemble_system_dirichlet(BoundaryId::copper_surface, 0.0);
+      assemble_system_finalize();
     }
     
-    /** @brief assemble the matrix equation
+    /** @brief Reset the system and assemble the LHS matrix
      * Calculate sparse matrix elements
-     * according to the Laplace equation weak formulation and to the boundary conditions.
+     * according to the Laplace equation weak formulation
+     * This should be the first function call to setup the equations (after setup_system() ).
      */
     void assemble_system_lhs();
     
-    /** @brief Reinitialization of the RHS of the matrix equation
-     * Set the right-hand-side vector for Neuman boundary conditions.
+    /** @brief Initialization of the RHS of the matrix equation
+     * Set the right-hand-side vector for Neuman boundary conditions on the given BoundaryId.
      */
-    void assemble_system_neuman();
+    void assemble_system_neuman(BoundaryId bid);
     
-    /** @brief assemble the RHS of the matrix equation
+    /** @brief Assemble the RHS of the matrix equation
      * Add to the right-hand-side vector for point charges, as used in PIC.
      */
     void assemble_system_pointcharge(Point<dim> &r, double q);
+
+    /** @brief Give value potential to all DOFs with BoundaryId bid
+     */
+    void assemble_system_dirichlet(BoundaryId bid, double potential);
+
+    /** @brief Apply all dirichlet boundary conditions to the system.
+     * This should be the last function call to setup the equations, before calling solve()
+     */
+    void assemble_system_finalize() {
+        MatrixTools::apply_boundary_values(boundary_values, system_matrix, solution, system_rhs);
+    }
     
     /** solves the matrix equation using conjugate gradient method
      * @param max_iter maximum number of iterations allowed
@@ -189,6 +203,8 @@ private:
     Vector<double> solution;              ///< resulting electric potential in the mesh nodes
     Vector<double> system_rhs;            ///< right-hand-side of the matrix equation
 
+    std::map<types::global_dof_index, double> boundary_values; // Map of dirichlet boundary conditions
+    
     double probe_potential(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
 
     double probe_efield(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
