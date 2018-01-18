@@ -32,6 +32,7 @@
 #include "currents_and_heating.h" // for friend class declaration
 #include "currents_and_heating_stationary.h" // for friend class declaration
 #include "mesh_preparer.h"
+#include "Pic.h"
 
 namespace fch {
 
@@ -76,24 +77,34 @@ public:
     /** outputs the mesh to file in .vtk format */
     void output_mesh(const std::string file_name = "vacuum_mesh.vtk");
 
-    /** get the electric field at the specified point using dealii
+    /** get the electric field norm at the specified point using dealii
      * (slow as it looks for the surrounding cell) */
-    double probe_efield(const Point<dim> &p) const;
+    double probe_efield_norm(const Point<dim> &p) const;
+
+    /** get the electric field norm at the specified point using dealii
+     * (slow as it looks for the surrounding cell) */
+    double probe_efield_norm(const Point<dim> &p, int cell_index) const;
 
     /** get the potential value at a specified point using dealii (slow)
      */
     double probe_potential(const Point<dim> &p) const;
 
+    /** get the potential value at a specified point using dealii with known cell id for the point
+     */
     double probe_potential(const Point<dim> &p, const int cell_index) const;
 
-    double probe_efield(const Point<dim> &p, const int cell_index) const;
+    Tensor<1, dim, double> probe_efield(const Point<dim> &p, const int cell_index) const;
+
+
+
 
     std::vector<double> shape_funs(const Point<dim> &p, int cell_index) const;
-
 
     std::vector<double> shape_funs(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
 
     void test_probe();
+
+
     /**
      * method to obtain the electric potential values in selected nodes
      * @param cell_indexes global cell indexes, where the corresponding nodes are situated
@@ -123,28 +134,30 @@ public:
      * according to the Laplace equation weak formulation and to the boundary conditions.
      */
     void assemble_system(){
-      assemble_system_lhs();
-      assemble_system_neuman(BoundaryId::vacuum_top);
-      assemble_system_dirichlet(BoundaryId::copper_surface, 0.0);
-      assemble_system_finalize();
+        assemble_system_lhs();
+        assemble_system_neuman(BoundaryId::vacuum_top);
+        assemble_system_dirichlet(BoundaryId::copper_surface, 0.0);
+        assemble_system_finalize();
     }
-    
+
     /** @brief Reset the system and assemble the LHS matrix
      * Calculate sparse matrix elements
      * according to the Laplace equation weak formulation
      * This should be the first function call to setup the equations (after setup_system() ).
      */
     void assemble_system_lhs();
-    
+
     /** @brief Initialization of the RHS of the matrix equation
      * Set the right-hand-side vector for Neuman boundary conditions on the given BoundaryId.
      */
     void assemble_system_neuman(BoundaryId bid);
-    
+
     /** @brief Assemble the RHS of the matrix equation
      * Add to the right-hand-side vector for point charges, as used in PIC.
      */
-    void assemble_system_pointcharge(Point<dim> &r, double q);
+    void assemble_system_pointcharge(std::vector<Point<dim>> &points,
+            std::vector<double> &charges,
+            std::vector<int> &cellids);
 
     /** @brief Give value potential to all DOFs with BoundaryId bid
      */
@@ -156,7 +169,7 @@ public:
     void assemble_system_finalize() {
         MatrixTools::apply_boundary_values(boundary_values, system_matrix, solution, system_rhs);
     }
-    
+
     /** solves the matrix equation using conjugate gradient method
      * @param max_iter maximum number of iterations allowed
      * @param tol tolerance of the solution
@@ -204,10 +217,12 @@ private:
     Vector<double> system_rhs;            ///< right-hand-side of the matrix equation
 
     std::map<types::global_dof_index, double> boundary_values; // Map of dirichlet boundary conditions
-    
+
     double probe_potential(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
 
-    double probe_efield(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
+    double probe_efield_norm(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
+
+    Tensor<1, dim, double> probe_efield(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
 
     friend class CurrentsAndHeating<dim> ;
     friend class CurrentsAndHeatingStationary<dim> ;
