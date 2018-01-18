@@ -122,7 +122,7 @@ void Interpolator::store_solution(const vector<int>& femocs2deal,
     }
 }
 
-bool Interpolator::extract_solution(fch::Laplace<3>* fem) {
+bool Interpolator::extract_solution(fch::Laplace<3>* fem, const bool smoothen) {
     require(fem, "NULL pointer can't be handled!");
 
     // Precompute cells to make interpolation faster
@@ -131,7 +131,7 @@ bool Interpolator::extract_solution(fch::Laplace<3>* fem) {
     quadtris.precompute();
     lintets.precompute();
     quadtets.precompute();
-    linhexs.set_dependencies(fem->get_dof_handler(), fem->get_triangulation());
+    linhexs.set_dependencies(fem->get_dof_handler(), fem->get_triangulation(), fem);
     linhexs.precompute();
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
@@ -143,7 +143,8 @@ bool Interpolator::extract_solution(fch::Laplace<3>* fem) {
             fem->get_potential(cell_indxs, vert_indxs));
 
     // Remove the spikes from the solution
-    return average_sharp_nodes(true);
+    if (smoothen) return average_sharp_nodes(true);
+    return false;
 }
 
 bool Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
@@ -155,7 +156,7 @@ bool Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
     quadtris.precompute();
     lintets.precompute();
     quadtets.precompute();
-    linhexs.set_dependencies(fem->get_dof_handler(), fem->get_triangulation());
+    linhexs.set_dependencies(fem->get_dof_handler(), fem->get_triangulation(), NULL);
     linhexs.precompute();
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
@@ -176,7 +177,7 @@ bool Interpolator::extract_solution(fch::CurrentsAndHeating<3>& fem) {
     quadtris.precompute();
     lintets.precompute();
     quadtets.precompute();
-    linhexs.set_dependencies(fem.get_dof_handler_current(), fem.get_triangulation());
+    linhexs.set_dependencies(fem.get_dof_handler_current(), fem.get_triangulation(), NULL);
     linhexs.precompute();
 
     // To make solution extraction faster, generate mapping between desired and available data sequences

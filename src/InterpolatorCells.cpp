@@ -928,7 +928,7 @@ SimpleCell<10> QuadraticTetrahedra::get_cell(const int tet) const {
  * ================================================================== */
 
 LinearHexahedra::LinearHexahedra() :
-        InterpolatorCells<8>(), hexs(NULL), lintets(NULL), dof_handler(NULL), triangulation(NULL) {}
+        InterpolatorCells<8>(), hexs(NULL), lintets(NULL), dof_handler(NULL), triangulation(NULL), laplace(NULL) {}
 
 void LinearHexahedra::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));
@@ -937,6 +937,7 @@ void LinearHexahedra::reserve(const int N) {
     cells.reserve(N);
     markers = vector<int>(N);
 }
+
 
 void LinearHexahedra::precompute() {
     const int n_elems = hexs->size();
@@ -959,26 +960,25 @@ void LinearHexahedra::precompute() {
     }
 }
 
+
 void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const {
-    get_shape_functions(sf, dealii::Point<3>(point.x, point.y, point.z), i, dealii::StaticMappingQ1<3,3>::mapping);
+    get_shape_functions(sf, point, i, dealii::StaticMappingQ1<3,3>::mapping);
 }
 
-void LinearHexahedra::get_shape_functions(array<double,8>& sf, const dealii::Point<3>& point,
-        const int i, dealii::Mapping<3,3>& mapping) const
+void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& p,
+        const int hex_index, dealii::Mapping<3,3>& mapping) const
 {
     require(dof_handler, "NULL dof_handler can't be used!");
     require(triangulation, "NULL triangulation can't be used!");
-    require(i >= 0 && i < cells.size(), "Index out of bounds: " + to_string(i));
+    require(hex_index >= 0 && hex_index < cells.size(), "Index out of bounds: " + to_string(hex_index));
 
     const dealii::FiniteElement<3> &fe = dof_handler->get_fe();
 
     // get active cell iterator from cell index
-    typename dealii::DoFHandler<3>::active_cell_iterator cell(triangulation, 0, i, dof_handler);
-
-    expect(false, "segfault appears after this line");
+    typename dealii::DoFHandler<3>::active_cell_iterator cell(triangulation, 0, femocs2deal(hex_index), dof_handler);
 
     // transform the point from real to unit cell coordinates
-    dealii::Point<3> p_cell = mapping.transform_real_to_unit_cell(cell, point);
+    dealii::Point<3> p_cell = mapping.transform_real_to_unit_cell(cell, dealii::Point<3>(p.x, p.y, p.z));
 
     const dealii::Quadrature<3> quadrature(dealii::GeometryInfo<3>::project_to_unit_cell(p_cell));
 

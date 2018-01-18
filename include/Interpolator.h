@@ -52,7 +52,7 @@ public:
     ~Interpolator() {};
 
     /** Extract the electric potential and field values from FEM solution */
-    bool extract_solution(fch::Laplace<3>* fem);
+    bool extract_solution(fch::Laplace<3>* fem, const bool smoothen);
 
     /** Extract the current density and stationary temperature values from FEM solution */
     bool extract_solution(fch::CurrentsAndHeatingStationary<3>* fem);

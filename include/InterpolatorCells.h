@@ -11,6 +11,24 @@
 #include "Primitives.h"
 #include "TetgenMesh.h"
 #include "TetgenCells.h"
+#include "laplace.h"
+
+#include <deal.II/base/derivative_form.h>
+#include <deal.II/base/quadrature.h>
+#include <deal.II/base/qprojector.h>
+#include <deal.II/base/quadrature_lib.h>
+#include <deal.II/base/tensor_product_polynomials.h>
+#include <deal.II/base/memory_consumption.h>
+#include <deal.II/base/std_cxx11/array.h>
+#include <deal.II/base/std_cxx11/unique_ptr.h>
+#include <deal.II/lac/full_matrix.h>
+#include <deal.II/grid/tria.h>
+#include <deal.II/grid/tria_iterator.h>
+#include <deal.II/dofs/dof_accessor.h>
+#include <deal.II/fe/fe_tools.h>
+#include <deal.II/fe/fe.h>
+#include <deal.II/fe/fe_values.h>
+#include <deal.II/fe/mapping_q1.h>
 
 using namespace std;
 namespace femocs {
@@ -321,9 +339,10 @@ public:
         lintets = const_cast<LinearTetrahedra*>(l);
     }
 
-    void set_dependencies(dealii::DoFHandler<3>* _dof_handler, dealii::Triangulation<3>* _triangulation) {
+    void set_dependencies(dealii::DoFHandler<3>* _dof_handler, dealii::Triangulation<3>* _triangulation, fch::Laplace<3>* _laplace) {
         dof_handler = _dof_handler;
         triangulation = _triangulation;
+        laplace = _laplace;
     }
 
 private:
@@ -331,12 +350,14 @@ private:
     const LinearTetrahedra* lintets; ///< Pointer to linear tetrahedra
     dealii::DoFHandler<3>* dof_handler;       ///< fem solver mesh & solution
     dealii::Triangulation<3>* triangulation;  ///< fem solver mesh & solution
+    fch::Laplace<3>* laplace;
+
 
     /** Reserve memory for interpolation data */
     void reserve(const int N);
 
-    /** Workhorse function for getting interpolation weights */
-    void get_shape_functions(array<double,8>& sf, const dealii::Point<3>& point, const int i,
+    /** Use Deal.II to calculate shape functions for a point inside i-th hexahedron */
+    void get_shape_functions(array<double,8>& sf, const Vec3& point, const int i,
             dealii::Mapping<3,3>& mapping) const;
 
     /** Return the 10-noded tetrahedron type in vtk format */
