@@ -47,7 +47,6 @@ void Pic<dim>::computeField(const double E0) {
     laplace_solver.setup_system();
     end_msg(t0);
 
-
     start_msg(t0, "Assembling system lhs");
     laplace_solver.assemble_system_lhs();
     end_msg(t0);
@@ -57,15 +56,17 @@ void Pic<dim>::computeField(const double E0) {
     end_msg(t0);
 
     start_msg(t0, "Assembling charge rhs");
-    laplace_solver.assemble_system_pointcharge(r_el, -q, cid_el);
+    laplace_solver.assemble_system_pointcharge(r_el, -q_over_eps0, cid_el);
     end_msg(t0);
 
     start_msg(t0, "Applying Dirichlet boundary conditions");
     laplace_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.0);
     end_msg(t0);
 
+    start_msg(t0, "Closing the FEM system of equations");
     laplace_solver.assemble_system_finalize();
-
+    end_msg(t0);
+    
     start_msg(t0, "Solving Poisson equation");
     laplace_solver.solve();
     end_msg(t0);
@@ -88,8 +89,13 @@ void Pic<dim>::pushParticles(const double dt, FieldReader &fr) {
         //Update the cid_el && check if any particles have left the domain
         cid_el[i] = fr.update_point_cell(r_el[i], cid_el[i]);
     }
-
 }
+
+template<int dim>
+void Pic<dim>::writeParticles(const string filename) {
+  
+}
+
 
 //Tell the compiler which types to actually compile, so that they are available for the linker
 //template class Pic<2>;

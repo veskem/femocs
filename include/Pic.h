@@ -34,6 +34,9 @@ public:
     // - dt[s]
     void pushParticles(const double dt, FieldReader &fr);
 
+    //Write the position and velocities of the particles to a file
+    void writeParticles(const string filename);
+    
 private:
 
     //ELECTRONS
@@ -48,7 +51,8 @@ private:
 
     //Constants
     const double q_over_m = 1.0; // [?] charge/mass for electrons
-    const double q = 180.9512268; // particle charge [e] / epsilon_0 [e/VA]
+    const double q_over_eps0 = 180.9512268; // particle charge [e] / epsilon_0 [e/VA]
+    const double W = 1.0; // Super particle weighting
 
     //Useful stuff
     fch::Laplace<dim> &laplace_solver;
