@@ -57,7 +57,7 @@ void Pic<dim>::computeField(const double E0) {
     end_msg(t0);
 
     start_msg(t0, "Assembling charge rhs");
-    laplace_solver.assemble_system_pointcharge(r_el, -q_over_eps0, cid_el);
+    laplace_solver.assemble_system_pointcharge(r_el, -q_over_eps0*Wsp, cid_el);
     end_msg(t0);
 
     start_msg(t0, "Applying Dirichlet boundary conditions");
@@ -78,13 +78,12 @@ void Pic<dim>::computeField(const double E0) {
 template<int dim>
 void Pic<dim>::pushParticles(const double dt, FieldReader &fr) {
 
-
     for (size_t i = 0; i < r_el.size(); i++) {
         //Leapfrog method:
         // positions defined ON the time steps, velocities defined at half time steps
         dealii::Tensor<1,dim> Efield = laplace_solver.probe_efield(r_el[i], cid_el[i]) ; // Get the field!
 
-        v_el[i] = v_el[i] + q_over_m*Efield*dt;
+        v_el[i] = v_el[i] + q_over_m_factor*Efield*(dt*1e15);
         r_el[i] = r_el[i] + v_el[i]*dt;
 
         //Update the cid_el && check if any particles have left the domain

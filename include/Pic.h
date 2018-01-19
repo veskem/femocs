@@ -50,9 +50,10 @@ private:
     std::vector<double> charges; // charges
 
     //Constants
-    const double q_over_m = 1.0; // [?] charge/mass for electrons
-    const double q_over_eps0 = 180.9512268; // particle charge [e] / epsilon_0 [e/VA]
-    const double W = 1.0; // Super particle weighting
+    const double q_over_m_factor = 5866.792099828168; // 1[e]/511e3[eV/c**2]*E[V/Å]*dt[fs] = 5866.792...*E*dt [Å/fs] charge/mass for electrons for multiplying the velocity update
+    const double q_over_eps0 = 180.9512268; // particle charge [e] / epsilon_0 [e/VÅ] = 1 [e] * (8.85...e-12/1.6...e-19/1e10 [e/VÅ])**-1
+    
+    const double Wsp = 1.0; // Super particle weighting (particles/superparticle)
 
     //Useful stuff
     fch::Laplace<dim> &laplace_solver;
