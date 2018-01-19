@@ -6,6 +6,7 @@
  */
 
 #include "Pic.h"
+#include "Macros.h"
 
 #include <deal.II/base/tensor.h>
 
@@ -93,7 +94,22 @@ void Pic<dim>::pushParticles(const double dt, FieldReader &fr) {
 
 template<int dim>
 void Pic<dim>::writeParticles(const string filename) {
-  
+    ofstream out;
+    out.setf(std::ios::scientific);
+    out.precision(6);
+
+    string ftype = get_file_type(filename);
+    if (ftype == "movie") out.open(filename, ios_base::app);
+    else out.open(filename);
+    require(out.is_open(), "Can't open a file " + filename);
+
+    out << r_el.size() << endl;
+    out << "Interpolator properties=id:I:1:pos:R:3" << endl;
+
+    for (int i = 0; i < r_el.size(); ++i)
+        out << i << " " << r_el[i][0] << " " << r_el[i][1] << " " << r_el[i][2] << endl;
+
+    out.close();
 }
 
 
