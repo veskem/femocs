@@ -257,16 +257,15 @@ void Surface::calc_linked_list(vector<array<int,3>> &indices, vector<int> &list,
 {
     const int n_atoms = size();
 
-    list = vector<int>(n_atoms, 0);
-    head = vector<int>(n_atoms, 0);
-    indices.clear();
-    indices.reserve(n_atoms);
-
     Point3 simubox_size(sizes.xbox, sizes.ybox, sizes.zbox);
     array<int,3> nborbox_size;
     for (int j = 0; j < 3; ++j)
         nborbox_size[j] = ceil(simubox_size[j] / r_cut);
 
+    head = vector<int>(simubox_size[0]*simubox_size[1]*simubox_size[2], 0);
+    list = vector<int>(n_atoms, -1);
+    indices.clear();
+    indices.reserve(n_atoms);
 
     // calculate linked list for the atoms
     for (int i = 0; i < n_atoms; ++i) {
@@ -338,7 +337,7 @@ Surface Surface::fast_clean(Coarseners &coarseners) {
 
                     int j = head[(iz * nborbox_size[1] + iy) * nborbox_size[0] + ix];
                     while(j > 0) {
-                        if (!do_delete[j])
+                        if (!do_delete[j] && i != j)
                             do_delete[j] = coarseners.nearby(point1, get_point(j));
                         j = list[j];
                     }
