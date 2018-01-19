@@ -297,13 +297,12 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     check_return(fail, "Importing mesh to Deal.II failed!");
     end_msg(t0);
 
-    start_msg(t0, "=== Initializing Laplace solver...");
-    laplace_solver.set_applied_efield(-E0);
-    laplace_solver.setup_system();
-    end_msg(t0);
+
 
     stringstream ss; ss << laplace_solver;
     write_verbose_msg(ss.str());
+
+    vacuum_interpolator.initialize();
 
 
     //Inject electrons
@@ -311,7 +310,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
 
     const double zmin = dense_surf.sizes.zmax;
     const double step = 0.5;
-    const int n_points = 30;
+    const size_t n_points = 10;
 
     cout << "injecting particles" << endl;
     double points_pic[3 * n_points];
@@ -328,7 +327,9 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         cout << "doPIC! i=" << i << ", dt_pic=" << dt_pic << endl;
 
         //3. Compute particle densities on the grid and solve Poisson equation
-        pic_solver.computeField();
+        pic_solver.computeField(E0);
+
+
 
         //4. Update fields (solve Poisson equation),
         // taking the long range efield `elfield` into account
@@ -337,9 +338,17 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         //5. Particle pusher using the modified fields
         pic_solver.pushParticles(dt_pic, fr);
     }
+
+    start_msg(t0, "=== Extracting E and phi...");
+    fail = vacuum_interpolator.extract_solution(&laplace_solver);
+    end_msg(t0);
     //6. Save modified surface fields to somewhere the MD solver can find them
     // (same as the laplace solver used when PIC is inactive)
     //TODO
+
+    vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
+    vacuum_interpolator.lintets.write("out/result_E_phi_linear.vtk");
+    vacuum_interpolator.quadtets.write("out/result_E_phi_quad.vtk");
 
     //7. Save ions and neutrals that are inbound on the MD domain
     //    somewhere where the MD can find them

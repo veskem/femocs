@@ -162,7 +162,8 @@ public:
 
     int update_point_cell(dealii::Point<3> &p, int current_cell) {
         Point3 femocs_point(p);
-        return interpolator->linhexs.locate_cell(femocs_point, current_cell);
+        int femocs_cell = interpolator->linhexs.locate_cell(femocs_point, current_cell);
+        return interpolator->linhexs.femocs2deal(femocs_cell); // gives -1 if cell is out of vacuum mesh
     }
 
 private:

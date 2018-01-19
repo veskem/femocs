@@ -32,15 +32,22 @@ int Pic<3>::injectElectrons(const double* const r, const size_t n, FieldReader &
     for (size_t i = 0; i < n; i++) {
         r_el.push_back(dealii::Point<3>(r[i*3+0],r[i*3+1],r[i*3+2]));
         v_el.push_back(dealii::Point<3>(0.0,0.0,0.0));
+        cout << "locating the cell" << endl;
         cid_el.push_back(fr.update_point_cell(r_el[i], 10));
     }
 }
 
 template<int dim>
-void Pic<dim>::computeField() {
+void Pic<dim>::computeField(const double E0) {
     //Call the laplace solver with the list of positions and charge(s)
-
     double t0;
+
+    start_msg(t0, "=== Initializing Laplace solver...");
+    laplace_solver.set_applied_efield(-E0);
+    laplace_solver.setup_system();
+    end_msg(t0);
+
+
     start_msg(t0, "Assembling system lhs");
     laplace_solver.assemble_system_lhs();
     end_msg(t0);
@@ -50,12 +57,20 @@ void Pic<dim>::computeField() {
     end_msg(t0);
 
     start_msg(t0, "Assembling charge rhs");
-    laplace_solver.assemble_system_pointcharge(r_el, q, cid_el);
+    laplace_solver.assemble_system_pointcharge(r_el, -q, cid_el);
     end_msg(t0);
 
     start_msg(t0, "Applying Dirichlet boundary conditions");
     laplace_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.0);
     end_msg(t0);
+
+    laplace_solver.assemble_system_finalize();
+
+    start_msg(t0, "Solving Poisson equation");
+    laplace_solver.solve();
+    end_msg(t0);
+
+
 }
 
 template<int dim>

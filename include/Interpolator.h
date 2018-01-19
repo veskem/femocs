@@ -51,6 +51,8 @@ public:
     Interpolator(const TetgenMesh* m, const string& norm_label, const string& scalar_label);
     ~Interpolator() {};
 
+    void initialize();
+
     /** Extract the electric potential and field values from FEM solution */
     bool extract_solution(fch::Laplace<3>* fem);
 

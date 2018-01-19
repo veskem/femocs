@@ -28,7 +28,7 @@ public:
     int injectElectrons(const double* const r, const size_t n, FieldReader &fr);
 
     //Computes the charge density for each FEM DOF
-    void computeField();
+    void computeField(const double E0);
 
     //Pushes the particles given the fields
     // - dt[s]
@@ -48,7 +48,7 @@ private:
 
     //Constants
     const double q_over_m = 1.0; // [?] charge/mass for electrons
-    const double q = 1.0; // [?] Charge of the particles (positive)
+    const double q = 180.9512268; // particle charge [e] / epsilon_0 [e/VA]
 
     //Useful stuff
     fch::Laplace<dim> &laplace_solver;
