@@ -104,10 +104,11 @@ void Pic<dim>::writeParticles(const string filename) {
     require(out.is_open(), "Can't open a file " + filename);
 
     out << r_el.size() << endl;
-    out << "Interpolator properties=id:I:1:pos:R:3" << endl;
+    out << "Interpolator properties=id:I:1:pos:R:3:vel:R:3" << endl;
 
     for (int i = 0; i < r_el.size(); ++i)
-        out << i << " " << r_el[i][0] << " " << r_el[i][1] << " " << r_el[i][2] << endl;
+        out << i << " " << r_el[i][0] << " " << r_el[i][1] << " " << r_el[i][2] << " " <<
+                v_el[i][0] << " " << v_el[i][1] << " " << v_el[i][2] << endl;
 
     out.close();
 }
