@@ -380,7 +380,6 @@ int Femocs::solve_laplace(const double E0) {
 
     FieldReader fr(&vacuum_interpolator);
     fr.test_pic_vol2(&laplace_solver, dense_surf);
-    fr.write("out/pic_test.xyz");
 
     return fail;
 }
