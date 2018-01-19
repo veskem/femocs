@@ -392,18 +392,12 @@ void Laplace<dim>::assemble_system_neuman(BoundaryId bid) {
 }
 
 template<int dim>
-void Laplace<dim>::assemble_system_pointcharge(
-        std::vector<Point<dim>> &points,
-        std::vector<double> &charges,
-        std::vector<int> &cellids) {
-
-    assert(points.size() == charges.size());
+void Laplace<dim>::assemble_system_pointcharge(std::vector<Point<dim>> &points, double q, std::vector<int> &cellids) {
     assert(cellids.size() == points.size());
 
     std::vector<types::global_dof_index> local_dof_indices(fe.dofs_per_cell);
 
     for(int i = 0; i < points.size(); ++i){ // loop over particles
-
         //get particle's active cell iterator
         typename DoFHandler<dim>::active_cell_iterator cell(&triangulation, 0, cellids[i], &dof_handler);
 
@@ -414,8 +408,9 @@ void Laplace<dim>::assemble_system_pointcharge(
         std::vector<double> sf = shape_funs(points[i], cellids[i]);
 
         //loop over nodes of the cell and add the particle's charge to the system rhs
-        for (int j = 0; j < fe.dofs_per_cell; ++j)
-            system_rhs(local_dof_indices[j]) += sf[j] * charges[i];
+        for (int j = 0; j < fe.dofs_per_cell; ++j){
+            system_rhs(local_dof_indices[j]) += sf[j] * q;
+        }
 
     }
 }
