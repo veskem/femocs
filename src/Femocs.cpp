@@ -347,6 +347,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         pic_solver.writeParticles("out/electrons.movie");
     }
 
+    pic_solver.clearLostParticles();
 
     //6. Save modified surface fields to somewhere the MD solver can find them
     // (same as the laplace solver used when PIC is inactive)

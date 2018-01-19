@@ -79,6 +79,11 @@ template<int dim>
 void Pic<dim>::pushParticles(const double dt, FieldReader &fr) {
 
     for (size_t i = 0; i < r_el.size(); i++) {
+        //Skip lost particles
+        for (auto lost : lost_el) {
+            if (lost == i) continue;
+        }
+	
         //Leapfrog method:
         // positions defined ON the time steps, velocities defined at half time steps
         dealii::Tensor<1,dim> Efield = laplace_solver.probe_efield(r_el[i], cid_el[i]) ; // Get the field!
@@ -88,9 +93,46 @@ void Pic<dim>::pushParticles(const double dt, FieldReader &fr) {
 
         //Update the cid_el && check if any particles have left the domain
         cid_el[i] = fr.update_point_cell(r_el[i], cid_el[i]);
+	if (cid_el[i] == -1) {
+	  lost_el.push_back(i);
+	}
     }
 }
 
+template<int dim>
+void Pic<dim>::clearLostParticles(){
+  size_t npart = r_el.size();
+  size_t nlost = 0;
+  
+  //Delete the lost particles from the arrays
+  for (size_t i = 0; i < npart; i++) {
+    bool islost=false;
+    //Is this particle lost?
+    for (auto lost : lost_el) {
+      if (lost == i) {
+	islost=true;
+	nlost++;
+	break;
+      }
+    }
+    if (nlost==0 or islost) continue; // Don't shuffle this particle left
+
+    r_el[i-nlost] = r_el[i];
+    v_el[i-nlost] = v_el[i];
+    cid_el[i-nlost] = cid_el[i-nlost];
+  }
+
+  //Shrink the arrays
+  if (nlost > 0){
+    r_el.resize(npart-nlost);
+    v_el.resize(npart-nlost);
+    cid_el.resize(npart-nlost);
+    cout << "Particles where lost! nlost=" << nlost << endl;
+  }
+
+  lost_el.clear();
+}
+  
 template<int dim>
 void Pic<dim>::writeParticles(const string filename) {
     ofstream out;
