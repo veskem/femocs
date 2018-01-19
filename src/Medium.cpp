@@ -82,6 +82,7 @@ void Medium::resize(const int n_atoms) {
 // Define the addition of two Mediums
 Medium& Medium::operator +=(const Medium &m) {
     atoms.insert(atoms.end(), m.atoms.begin(), m.atoms.end());
+    calc_statistics();
     return *this;
 }
 

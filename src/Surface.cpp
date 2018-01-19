@@ -221,7 +221,7 @@ Surface Surface::clean(Coarseners &coarseners) {
 // Clean atoms inside the region of interest
 Surface Surface::clean_roi(Coarseners &coarseners) {
     const int n_atoms = size();
-    vector<int> do_delete(n_atoms);
+    vector<bool> do_delete(n_atoms, false);
 
     // mark atoms outside the nanotip
     for (int i = 0; i < n_atoms; ++i)
@@ -250,6 +250,124 @@ Surface Surface::clean_roi(Coarseners &coarseners) {
 
     surf.calc_statistics();
     return surf;
+}
+
+void Surface::calc_linked_list(const double r_cut, const bool lat_periodic) {
+    const int n_atoms = size();
+
+    Point3 simubox_size(sizes.xbox, sizes.ybox, sizes.zbox);
+    for (int j = 0; j < 3; ++j) {
+        nborbox_size[j] = ceil(1.0 * simubox_size[j] / r_cut);
+        require(nborbox_size[j] > 0,
+                "Invalid " + to_string(j) + "th nborbox size: " + to_string(nborbox_size[j]));
+    }
+
+    head = vector<int>(nborbox_size[0]*nborbox_size[1]*nborbox_size[2], -1);
+    list = vector<int>(n_atoms, -1);
+    nborbox_indices.clear();
+    nborbox_indices.reserve(n_atoms);
+
+    // calculate linked list for the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 dx = atoms[i].point + simubox_size / 2;
+
+        // Check that we are inside lateral boundaries
+        if (lat_periodic) {
+            if (dx.x < 0) dx.x += simubox_size.x;
+            if (dx.x > simubox_size.x) dx.x -= simubox_size.x;
+            if (dx.y < 0) dx.y += simubox_size.y;
+            if (dx.y > simubox_size.y) dx.y -= simubox_size.y;
+            if (dx.z < 0) dx.z += simubox_size.z;
+            if (dx.z > simubox_size.z) dx.z -= simubox_size.z;
+        }
+
+        array<int,3> point_index;
+        for (int j = 0; j < 3; ++j)
+            point_index[j] = int( (dx[j] / simubox_size[j]) * nborbox_size[j] );
+
+        // If not periodic, let border cells continue to infinity
+        if (!lat_periodic)
+            for (int j = 0; j < 3; ++j) {
+                point_index[j] = max(0, point_index[j]);
+                point_index[j] = min(nborbox_size[j]-1, point_index[j]);
+            }
+
+        int i_cell = (point_index[2] * nborbox_size[1] + point_index[1]) * nborbox_size[0] + point_index[0];
+        for (int j = 0; j < 3; ++j) {
+            require(point_index[j] >= 0 && point_index[j] < nborbox_size[j],
+                    "Invalid " + to_string(j) + "th point nbor index: " + to_string(point_index[j]));
+        }
+        require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + to_string(i_cell));
+
+        nborbox_indices.push_back(point_index);
+        list[i] = head[i_cell];
+        head[i_cell] = i;
+        set_marker(i, i_cell);
+    }
+}
+
+void Surface::coarsen(Surface &surf, Coarseners &coarseners) {
+    coarsen(surf, coarseners, sizes);
+}
+
+/* TODO: Leaves bigger holes into system than brute force method,
+ * because the atoms in linked list are not radially ordered. Do something about it! */
+void Surface::coarsen(Surface &surf, Coarseners &coarseners, const Medium::Sizes &s) {
+    calc_linked_list(coarseners.get_r0_inf(s), false);
+
+    const int n_atoms = size();
+    require(list.size() == n_atoms, "Invalid linked list size: " + to_string(list.size()));
+    require(head.size() == nborbox_size[0]*nborbox_size[1]*nborbox_size[2],
+            "Invalid linked list header size: " + to_string(head.size()));
+
+    vector<int> do_delete(n_atoms, false);
+
+    // loop through the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        // skip the atoms that are already deleted
+        if (do_delete[i]) continue;
+
+        array<int,3>& i_atom = nborbox_indices[i];
+        int i_cell = (i_atom[2] * nborbox_size[1] + i_atom[1]) * nborbox_size[0] + i_atom[0];
+
+        Point3 point1 = atoms[i].point;
+        coarseners.pick_cutoff(point1);
+
+        // loop through the boxes where the neighbours are located; there are up to 3^3=27 boxes
+        for (int iz = i_atom[2]-1; iz <= i_atom[2]+1; ++iz) {
+            // some of the iterations are be skipped if the box is on the simu box boundary
+            if (iz < 0 || iz >= nborbox_size[2]) continue;
+            for (int iy = i_atom[1]-1; iy <= i_atom[1]+1; ++iy) {
+                if (iy < 0 || iy >= nborbox_size[1]) continue;
+                for (int ix = i_atom[0]-1; ix <= i_atom[0]+1; ++ix) {
+                    if (ix < 0 || ix >= nborbox_size[0]) continue;
+
+                    // transform volumetric neighbour box index to linear one
+                    int i_cell = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
+                    require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + to_string(i_cell));
+
+                    // get the index of first atom in given neighbouring cell
+                    int j = head[i_cell];
+
+                    // loop through all atoms in a given neighbouring cell
+                    while(j >= 0) {
+                        require(j < n_atoms, "Invalid index in linked list: " + to_string(j));
+                        // skip the same atoms and the atoms that are already deleted
+                        if (!do_delete[j] && i != j)
+                            do_delete[j] = coarseners.nearby(point1, get_point(j));
+                        j = list[j];
+                    }
+                }
+            }
+        }
+    }
+
+    // Store coarsened surface
+    surf.reserve(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        if (!do_delete[i])
+            surf.append(get_atom(i));
+    surf.calc_statistics();
 }
 
 // Remove the atoms that are too far from surface faces

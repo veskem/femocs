@@ -188,17 +188,17 @@ int Femocs::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface
     }
 
     start_msg(t0, "=== Coarsening & smoothing surface...");
-    coarse_surf = extended_surf;
-//    coarse_surf += dense_surf;
-    coarse_surf += dense_surf.clean_roi(coarseners);
-    coarse_surf = coarse_surf.clean(coarseners);
-    coarse_surf.smoothen(conf.geometry.radius, conf.smoothing.beta_atoms, 3.0*conf.geometry.coordination_cutoff);
+    Surface temp_surf = extended_surf;
+    temp_surf += dense_surf.clean_roi(coarseners);
+    coarse_surf = temp_surf.clean(coarseners);
+//    temp_surf += dense_surf;
+//    temp_surf.coarsen(coarse_surf, coarseners, dense_surf.sizes);
+//    coarse_surf.smoothen(conf.geometry.radius, conf.smoothing.beta_atoms, 3.0*conf.geometry.coordination_cutoff);
     end_msg(t0);
 
     coarse_surf.write("out/surface_coarse.xyz");
 
     start_msg(t0, "=== Generating bulk & vacuum corners...");
-    coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
     vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.geometry.box_height * coarse_surf.sizes.zbox);
     bulk = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.geometry.bulk_height * conf.geometry.latconst);
     reader.resize_box(coarse_surf.sizes.xmin, coarse_surf.sizes.xmax, 
@@ -305,8 +305,6 @@ int Femocs::solve_laplace(const double E0) {
     vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
     vacuum_interpolator.lintets.write("out/result_E_phi_linear.vtk");
     vacuum_interpolator.quadtets.write("out/result_E_phi_quad.vtk");
-
-    laplace_solver.test_probe();
 
     return fail;
 }

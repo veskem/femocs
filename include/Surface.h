@@ -5,8 +5,8 @@
  *      Author: veske
  */
 
-#ifndef MEDIA_H_
-#define MEDIA_H_
+#ifndef SURFACE_H_
+#define SURFACE_H_
 
 #include "Config.h"
 #include "Macros.h"
@@ -64,6 +64,14 @@ public:
 
     int clean_by_voronois(const double radius, const double latconst, const string& mesh_quality);
 
+    /** Coarsen the surface by using the linked list.
+     * Cut-off radius is taken from the size of current system. */
+    void coarsen(Surface &surf, Coarseners &coarseners);
+
+    /** Coarsen the surface by using the linked list.
+     * Cut-off radius is taken from the size of provided system. */
+    void coarsen(Surface &surf, Coarseners &coarseners, const Medium::Sizes &s);
+
     /** Smoothen the atoms inside the cylinder */
     void smoothen(const double radius, const double smooth_factor, const double r_cut);
 
@@ -74,12 +82,24 @@ public:
     void smoothen(const Config& conf, const double r_cut);
 
 private:
+    vector<array<int,3>> nborbox_indices; ///< neighbour box indices where the point belongs to
+    array<int,3> nborbox_size;            ///< # neighbour boxes in x,y,z direction
+    vector<int> list;  ///< linked list entries
+    vector<int> head;  ///< linked list header
+
     /** Function used to smoothen the atoms */
     inline double smooth_function(const double distance, const double smooth_factor) const;
 
     /** Calculate neighbour list for atoms.
      * Atoms are considered neighbours if the distance between them is no more than r_cut. */
     void calc_nborlist(vector<vector<unsigned>>& nborlist, const int nnn, const double r_cut) ;
+
+    /** Calculate linked list between atoms that holds the information about
+     * the region  of simulation cell where the atoms are located.
+     * Linked list can be used to calculate efficiently the neighbouring status of atoms. See
+     * http://www.acclab.helsinki.fi/~knordlun/moldyn/lecture03.pdf
+     */
+    void calc_linked_list(const double r_cut, const bool lat_periodic);
 
     /** Smoothen the atoms using Taubin lambda|mu algorithm with inverse neighbour count weighting */
     void laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist);
@@ -95,4 +115,4 @@ private:
 
 } /* namespace femocs */
 
-#endif /* MEDIA_H_ */
+#endif /* SURFACE_H_ */
