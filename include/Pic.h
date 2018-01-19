@@ -25,7 +25,7 @@ public:
 
     //Injects electrons
     // Indexing: (x1 y1 [z1] x2 y2 [z2] ...)
-    int injectElectrons(const double* const r, const size_t n);
+    int injectElectrons(const double* const r, const size_t n, FieldReader &fr);
 
     //Computes the charge density for each FEM DOF
     void computeField();

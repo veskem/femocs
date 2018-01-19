@@ -19,31 +19,43 @@ Pic<dim>::~Pic() {
 
 }
 
+//template<>
+//int Pic<2>::injectElectrons(const double* const r, const size_t n, FieldReader &fr) {
+//    for (size_t i = 0; i < n; i++) {
+//        r_el.push_back(dealii::Point<2>(r[i*2+0],r[i*2+1]));
+//        v_el.push_back(dealii::Point<2>(0.0,0.0));
+//        cid_el.push_back(fr.update_point_cell(r_el[i], 10));
+//    }
+//}
 template<>
-int Pic<2>::injectElectrons(const double* const r, const size_t n) {
-    for (size_t i = 0; i < n; i++) {
-        r_el.push_back(dealii::Point<2>(r[i*2+0],r[i*2+1]));
-        v_el.push_back(dealii::Point<2>(0.0,0.0));
-        cid_el.push_back(-1);//Unknown cell
-    }
-}
-template<>
-int Pic<3>::injectElectrons(const double* const r, const size_t n) {
+int Pic<3>::injectElectrons(const double* const r, const size_t n, FieldReader &fr) {
     for (size_t i = 0; i < n; i++) {
         r_el.push_back(dealii::Point<3>(r[i*3+0],r[i*3+1],r[i*3+2]));
         v_el.push_back(dealii::Point<3>(0.0,0.0,0.0));
-        cid_el.push_back(-1);//Unknown cell
+        cid_el.push_back(fr.update_point_cell(r_el[i], 10));
     }
 }
 
 template<int dim>
 void Pic<dim>::computeField() {
     //Call the laplace solver with the list of positions and charge(s)
-    laplace_solver.assemble_system_lhs();
-    laplace_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top);
 
+    double t0;
+    start_msg(t0, "Assembling system lhs");
+    laplace_solver.assemble_system_lhs();
+    end_msg(t0);
+
+    start_msg(t0, "Assembling Neumann boundary rhs");
+    laplace_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top);
+    end_msg(t0);
+
+    start_msg(t0, "Assembling charge rhs");
     laplace_solver.assemble_system_pointcharge(r_el, q, cid_el);
+    end_msg(t0);
+
+    start_msg(t0, "Applying Dirichlet boundary conditions");
     laplace_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.0);
+    end_msg(t0);
 }
 
 template<int dim>

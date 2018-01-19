@@ -11,6 +11,7 @@
 #include "Tethex.h"
 #include "TetgenMesh.h"
 #include "VoronoiMesh.h"
+#include "Medium.h"
 
 #include <omp.h>
 #include <algorithm>
@@ -284,9 +285,6 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     int time_subcycle = ceil(dt_main*1e15/conf.pic.dt_max); // delta_t_MD in [s]
     double dt_pic = dt_main/time_subcycle;
 
-    //1. Insert new particles (electrons) from MD
-    pic_solver.injectElectrons(NULL,0);
-
     //2. Re-init the Poisson solver -- similar to Femocs::solve_laplace()
     conf.laplace.E0 = E0;       // reset long-range electric field
 
@@ -307,9 +305,23 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     stringstream ss; ss << laplace_solver;
     write_verbose_msg(ss.str());
 
-    // call assemble_system to update the matrices
 
+    //Inject electrons
     FieldReader fr(&vacuum_interpolator);
+
+    const double zmin = dense_surf.sizes.zmax;
+    const double step = 0.5;
+    const int n_points = 30;
+
+    cout << "injecting particles" << endl;
+    double points_pic[3 * n_points];
+    for (int i = 0; i < n_points; ++i){
+        points_pic[i * 3] = 0;
+        points_pic[i * 3 +1] = 0;
+        points_pic[i * 3 +2] = zmin + i * step;
+    }
+
+    pic_solver.injectElectrons(points_pic, n_points, fr);
 
     //Timestep loop
     for (int i = 0; i < time_subcycle; i++) {
