@@ -325,6 +325,11 @@ public:
     /** Find the hexahedron which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
+    /** @brief Interpolate both vector and scalar data inside or near the cell.
+     * Function assumes, that cell, that fits the best to the point, is previously already found with locate_cell.
+     */
+//    Solution interp_solution(const Point3 &point, const int c) const;
+
     /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
      * -1 means there's no correspondence between two meshes */
     int femocs2deal(const int i) const {
@@ -339,10 +344,11 @@ public:
         lintets = const_cast<LinearTetrahedra*>(l);
     }
 
-    void set_dependencies(dealii::DoFHandler<3>* _dof_handler, dealii::Triangulation<3>* _triangulation, fch::Laplace<3>* _laplace) {
+    void set_dependencies(dealii::DoFHandler<3>* _dof_handler, dealii::Triangulation<3>* _triangulation,
+            dealii::Vector<double> _solution) {
         dof_handler = _dof_handler;
         triangulation = _triangulation;
-        laplace = _laplace;
+        solution = _solution;
     }
 
 private:
@@ -350,8 +356,7 @@ private:
     const LinearTetrahedra* lintets; ///< Pointer to linear tetrahedra
     dealii::DoFHandler<3>* dof_handler;       ///< fem solver mesh & solution
     dealii::Triangulation<3>* triangulation;  ///< fem solver mesh & solution
-    fch::Laplace<3>* laplace;
-
+    dealii::Vector<double> solution;          ///< resulting electric potential in the mesh nodes
 
     /** Reserve memory for interpolation data */
     void reserve(const int N);
@@ -359,6 +364,9 @@ private:
     /** Use Deal.II to calculate shape functions for a point inside i-th hexahedron */
     void get_shape_functions(array<double,8>& sf, const Vec3& point, const int i,
             dealii::Mapping<3,3>& mapping) const;
+
+//    /** Use Deal.II to calculate the interpolation for a point inside i-th hexahedron */
+//    Solution interp_solution(const dealii::Point<3> &p, const int i, dealii::Mapping<3,3>& mapping) const;
 
     /** Return the 10-noded tetrahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; };

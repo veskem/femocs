@@ -367,7 +367,7 @@ int Femocs::solve_laplace(const double E0) {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting E and phi...");
-    fail = vacuum_interpolator.extract_solution(&laplace_solver, false);
+    fail = vacuum_interpolator.extract_solution(&laplace_solver, true);
     end_msg(t0);
 
     check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()), "Field enhancement is out of limits!");

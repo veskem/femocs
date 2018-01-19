@@ -486,6 +486,8 @@ void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium) 
 
     const int n_points = 30;
 
+    double t0;
+
     reserve(n_points);
     for (int i = 0; i < n_points; ++i)
         append(Point3(x, y, zmin + i * step));
@@ -508,6 +510,7 @@ void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium) 
         Point3 p = get_point(i);
         cell_index = interpolator->linhexs.locate_cell(p, cell_index);
         double val1 = interpolator->linhexs.interp_solution(p, cell_index).norm;
+
         double val2 = laplace->probe_efield(dealii::Point<3>(p.x, p.y, p.z));
         printf("%.2f, %e, %e, %.6f\n", p.z, val1, val2, val1/val2);
     }
@@ -532,6 +535,7 @@ void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium) 
 
     cout << "\ncomparing interpolations:\n";
 
+    start_msg(t0, "dealii internal...");
     cell_index = 0;
     for (int i = 0; i < n_points; ++i) {
         Point3 p = get_point(i);
@@ -542,30 +546,50 @@ void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium) 
         double val1 = laplace->probe_efield(deal_point,interpolator->linhexs.femocs2deal(cell_index));
         double val2 = laplace->probe_potential(deal_point, interpolator->linhexs.femocs2deal(cell_index));
 
-        set_marker(i, interpolator->linhexs.femocs2deal(cell_index));
+//        set_marker(i, interpolator->linhexs.femocs2deal(cell_index));
         append_interpolation(Solution(Vec3(0), val1, val2));
     }
-
+    end_msg(t0);
     write("out/potential1.xyz");
 
     interpolation.clear();
     interpolation.reserve(n_points);
 
+    start_msg(t0, "linhexs...");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
+        cell_index = interpolator->linhexs.locate_cell(p, cell_index);
+        append_interpolation(interpolator->linhexs.interp_solution(p, cell_index));
+    }
+    end_msg(t0);
+    write("out/potential2.xyz");
+
+    interpolation.clear();
+    interpolation.reserve(n_points);
+
+    start_msg(t0, "lintets...");
     cell_index = 0;
     for (int i = 0; i < n_points; ++i) {
         Point3 p = get_point(i);
         cell_index = interpolator->lintets.locate_cell(p, cell_index);
         append_interpolation(interpolator->lintets.interp_solution(p, cell_index));
     }
-    write("out/potential2.xyz");
+    end_msg(t0);
+    write("out/potential3.xyz");
 
+    interpolation.clear();
+    interpolation.reserve(n_points);
+
+    start_msg(t0, "quadtets...");
     cell_index = 0;
     for (int i = 0; i < n_points; ++i) {
         Point3 p = get_point(i);
         cell_index = interpolator->quadtets.locate_cell(p, cell_index);
         append_interpolation(interpolator->quadtets.interp_solution(p, cell_index));
     }
-    write("out/potential3.xyz");
+    end_msg(t0);
+    write("out/potential4.xyz");
 }
 
 // Interpolate electric field and potential on a set of points

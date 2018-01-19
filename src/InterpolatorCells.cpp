@@ -928,7 +928,7 @@ SimpleCell<10> QuadraticTetrahedra::get_cell(const int tet) const {
  * ================================================================== */
 
 LinearHexahedra::LinearHexahedra() :
-        InterpolatorCells<8>(), hexs(NULL), lintets(NULL), dof_handler(NULL), triangulation(NULL), laplace(NULL) {}
+        InterpolatorCells<8>(), hexs(NULL), lintets(NULL), dof_handler(NULL), triangulation(NULL), solution(NULL) {}
 
 void LinearHexahedra::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));
@@ -937,7 +937,6 @@ void LinearHexahedra::reserve(const int N) {
     cells.reserve(N);
     markers = vector<int>(N);
 }
-
 
 void LinearHexahedra::precompute() {
     const int n_elems = hexs->size();
@@ -959,7 +958,6 @@ void LinearHexahedra::precompute() {
         cells.push_back((*hexs)[i]);
     }
 }
-
 
 void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const {
     get_shape_functions(sf, point, i, dealii::StaticMappingQ1<3,3>::mapping);
@@ -1024,6 +1022,49 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
 
     return -1;
 }
+
+//Solution LinearHexahedra::interp_solution(const Point3 &p, const int c) const {
+//    return interp_solution(dealii::Point<3>(p.x,p.y,p.z), c, dealii::StaticMappingQ1<3,3>::mapping);
+//}
+//
+//Solution LinearHexahedra::interp_solution(const dealii::Point<3> &p, const int c, dealii::Mapping<3,3>& mapping) const {
+//    const int abs_c = abs(c);
+//    require(abs_c >= 0 && abs_c < cells.size(), "Index out of bounds: " + to_string(abs_c));
+//
+//    const int cell_index = femocs2deal(abs_c);
+//    if (cell_index < 0) {
+//        write_verbose_msg("Cell out of Deal.II mesh: " + to_string(abs_c));
+//        return Solution(0);
+//    }
+//
+//    const dealii::FiniteElement<3> &fe = dof_handler->get_fe();
+//
+//    //get active cell iterator from cell index
+//    typename dealii::DoFHandler<3>::active_cell_iterator cell(triangulation, 0, cell_index, dof_handler);
+//
+//    // transform the point from real to unit cell coordinates
+//    dealii::Point<3> p_cell;
+//    p_cell = mapping.transform_real_to_unit_cell(cell, p);
+//
+//    const dealii::Quadrature<3> quadrature(dealii::GeometryInfo<3>::project_to_unit_cell(p_cell));
+//
+//    // calculate interpolation for the gradient of scalar
+//    dealii::FEValues<3> vector_fe_values(mapping, fe, quadrature, dealii::update_gradients);
+//    vector_fe_values.reinit(cell);
+//    vector<vector<dealii::Tensor<1,3,double>>> u_gradient(1, vector<dealii::Tensor<1,3,double> > (fe.n_components()));
+//    vector_fe_values.get_function_gradients(solution, u_gradient);
+//
+//    // calculate interpolation for scalar
+//    dealii::FEValues<3> scalar_fe_values(mapping, fe, quadrature, dealii::update_values);
+//    scalar_fe_values.reinit(cell);
+//    vector<dealii::Vector<double>> u_value(1, dealii::Vector<double> (fe.n_components()));
+//    scalar_fe_values.get_function_values(solution, u_value);
+//
+//    Vec3 vector_value(u_gradient[0][0][0],u_gradient[0][0][1],u_gradient[0][0][2]);
+//    double scalar_value = u_value[0][0];
+//
+//    return Solution(vector_value, scalar_value);
+//}
 
 template class InterpolatorCells<3> ;
 template class InterpolatorCells<6> ;

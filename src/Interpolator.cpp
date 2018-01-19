@@ -131,7 +131,7 @@ bool Interpolator::extract_solution(fch::Laplace<3>* fem, const bool smoothen) {
     quadtris.precompute();
     lintets.precompute();
     quadtets.precompute();
-    linhexs.set_dependencies(fem->get_dof_handler(), fem->get_triangulation(), fem);
+    linhexs.set_dependencies(fem->get_dof_handler(), fem->get_triangulation(), fem->get_solution());
     linhexs.precompute();
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
@@ -156,7 +156,7 @@ bool Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
     quadtris.precompute();
     lintets.precompute();
     quadtets.precompute();
-    linhexs.set_dependencies(fem->get_dof_handler(), fem->get_triangulation(), NULL);
+    linhexs.set_dependencies(fem->get_dof_handler(), fem->get_triangulation(), dealii::Vector<double>());
     linhexs.precompute();
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
@@ -177,7 +177,7 @@ bool Interpolator::extract_solution(fch::CurrentsAndHeating<3>& fem) {
     quadtris.precompute();
     lintets.precompute();
     quadtets.precompute();
-    linhexs.set_dependencies(fem.get_dof_handler_current(), fem.get_triangulation(), NULL);
+    linhexs.set_dependencies(fem.get_dof_handler_current(), fem.get_triangulation(), dealii::Vector<double>());
     linhexs.precompute();
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
