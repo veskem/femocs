@@ -160,6 +160,11 @@ public:
     void set_check_params(const double E0, const double limit_min, const double limit_max,
             const double radius1, const double radius2=-1);
 
+    int update_point_cell(dealii::Point<3> &p, int current_cell) {
+        Point3 femocs_point(p);
+        return interpolator->linhexs.locate_cell(femocs_point, current_cell);
+    }
+
 private:
     /** Data needed for comparing numerical solution with analytical one */
     double E0;                      ///< Long-range electric field strength

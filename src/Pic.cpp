@@ -37,17 +37,18 @@ int Pic<3>::injectElectrons(const double* const r, const size_t n) {
 }
 
 template<int dim>
-int Pic<dim>::computeField() {
+void Pic<dim>::computeField() {
     //Call the laplace solver with the list of positions and charge(s)
     laplace_solver.assemble_system_lhs();
     laplace_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top);
 
-    laplace_solver.assemble_system_pointcharge(r_el, charges, cid_el);
+    laplace_solver.assemble_system_pointcharge(r_el, q, cid_el);
     laplace_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.0);
 }
 
 template<int dim>
-void Pic<dim>::pushParticles(const double dt) {
+void Pic<dim>::pushParticles(const double dt, FieldReader &fr) {
+
 
     for (size_t i = 0; i < r_el.size(); i++) {
         //Leapfrog method:
@@ -58,7 +59,7 @@ void Pic<dim>::pushParticles(const double dt) {
         r_el[i] = r_el[i] + v_el[i]*dt;
 
         //Update the cid_el && check if any particles have left the domain
-
+        cid_el[i] = fr.update_point_cell(r_el[i], cid_el[i]);
     }
 
 }

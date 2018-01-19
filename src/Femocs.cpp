@@ -309,6 +309,8 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
 
     // call assemble_system to update the matrices
 
+    FieldReader fr(&vacuum_interpolator);
+
     //Timestep loop
     for (int i = 0; i < time_subcycle; i++) {
         cout << "doPIC! i=" << i << ", dt_pic=" << dt_pic << endl;
@@ -321,7 +323,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         // TODO
 
         //5. Particle pusher using the modified fields
-        pic_solver.pushParticles(dt_pic);
+        pic_solver.pushParticles(dt_pic, fr);
     }
     //6. Save modified surface fields to somewhere the MD solver can find them
     // (same as the laplace solver used when PIC is inactive)

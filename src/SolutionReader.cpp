@@ -465,6 +465,8 @@ void FieldReader::test_pic(fch::Laplace<3>* laplace, const Medium& medium) {
     }
 }
 
+
+
 // Interpolate electric field and potential on a set of points
 void FieldReader::interpolate(const int n_points, const double* x, const double* y, const double* z) {
     // store the point coordinates

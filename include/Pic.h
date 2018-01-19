@@ -10,6 +10,7 @@
 
 #include "laplace.h"
 #include "mesh_preparer.h"
+#include "SolutionReader.h"
 
 #include <deal.II/base/point.h>
 
@@ -27,11 +28,11 @@ public:
     int injectElectrons(const double* const r, const size_t n);
 
     //Computes the charge density for each FEM DOF
-    int computeField();
+    void computeField();
 
     //Pushes the particles given the fields
     // - dt[s]
-    void pushParticles(const double dt);
+    void pushParticles(const double dt, FieldReader &fr);
 
 private:
 
