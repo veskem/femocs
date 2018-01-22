@@ -772,8 +772,10 @@ void EmissionReader::initialize() {
     // deallocate and allocate currents data
     current_densities.clear();
     nottingham.clear();
+    currents.clear();
     current_densities.reserve(n_nodes);
     nottingham.reserve(n_nodes);
+    currents.reserve(n_nodes);
 
     //deallocate and allocate lines
     rline.clear();
@@ -954,7 +956,6 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
 
     for (int i = 0; i < n_nodes; i++) // append data for surface emission xyz file
         append_interpolation( Solution(Vec3(0), log(current_densities[i]), log(fabs(nottingham[i]))));
-
 
     ch_solver.set_emission_bc(current_densities, nottingham); // output data for heat BCs
 }

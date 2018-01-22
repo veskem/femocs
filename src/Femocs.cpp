@@ -313,12 +313,12 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     FieldReader fr(&vacuum_interpolator);
 //
 //    const double zmin = dense_surf.sizes.zmax;
-//    const double step = 0.5;
-//    const size_t n_points = 10;
+//    const double step = 20.;
+//    const size_t n_points = 5;
 //
 //    cout << "injecting particles" << endl;
 //    double points_pic[3 * n_points];
-//    for (int i = 0; i < n_points; ++i){
+//    for (int i = 1; i < n_points; ++i){
 //        points_pic[i * 3] = 0;
 //        points_pic[i * 3 +1] = 0;
 //        points_pic[i * 3 +2] = zmin + i * step;
@@ -334,17 +334,26 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         pic_solver.computeField(E0);
 
 
+        start_msg(t0, "=== Extracting E and phi...");
+        fail = vacuum_interpolator.extract_solution(&laplace_solver);
+        end_msg(t0);
+
+        start_msg(t0, "=== Calculating current density...");
         unsigned ccg = solve_current();
+        end_msg(t0);
 
+        start_msg(t0, "=== Injecting electrons...");
         pic_solver.injectElectrons(ch_transient_solver);
-
+        end_msg(t0);
 
         //4. Update fields (solve Poisson equation),
         // taking the long range efield `elfield` into account
         // TODO
 
         //5. Particle pusher using the modified fields
+        start_msg(t0, "=== Injecting electrons...");
         pic_solver.pushParticles(dt_pic, fr);
+        end_msg(t0);
 
         start_msg(t0, "=== Extracting E and phi...");
         fail = vacuum_interpolator.extract_solution(&laplace_solver);
@@ -508,12 +517,16 @@ unsigned Femocs::solve_current(){
     end_msg(t0);
     emission.write("out/surface_emission.xyz");
 
-    start_msg(t0, "=== Setup current solver...");
+    start_msg(t0, "=== Setup current and heat solvers...");
     ch_transient_solver.setup_current_system();
+    ch_transient_solver.setup_heating_system();
     end_msg(t0);
 
-    start_msg(t0, "=== Calculating current density...");
+    start_msg(t0, "=== Assembling current system...");
     ch_transient_solver.assemble_current_system(); // assemble matrix for current density equation; current == electric current
+    end_msg(t0);
+
+    start_msg(t0, "=== Solving current system...");
     unsigned int ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
     end_msg(t0);
 

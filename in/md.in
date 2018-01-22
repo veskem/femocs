@@ -121,7 +121,7 @@ jlimratio = 0.0001
 ilimratio = 0.005
 printheat = 1 # 1 if heating data are to be print in stdout when calculated
 space_charge = 1 #1: use space charge, 0: space charge ignored
-V_applied = 1000.
+V_applied = -1000.
 lorentz = 2.e-8
 maxerr_SC = 0.01
 shank = 1
@@ -179,5 +179,5 @@ timerelE = 100.00 # Time in fs before field is applied
 
 # PIC parameters
 ---------------------
-doPIC = false
+doPIC = true
 PIC_dtmax = 1.0 #[fs]
