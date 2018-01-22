@@ -309,22 +309,22 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     vacuum_interpolator.initialize();
 
 
-    //Inject electrons
+    //Inject electrons (testing)
     FieldReader fr(&vacuum_interpolator);
-//
-//    const double zmin = dense_surf.sizes.zmax;
-//    const double step = 20.;
-//    const size_t n_points = 5;
-//
-//    cout << "injecting particles" << endl;
-//    double points_pic[3 * n_points];
-//    for (int i = 1; i < n_points; ++i){
-//        points_pic[i * 3] = 0;
-//        points_pic[i * 3 +1] = 0;
-//        points_pic[i * 3 +2] = zmin + i * step;
-//    }
-//
-//    pic_solver.injectElectrons(points_pic, n_points, fr);
+
+    const double zmin = dense_surf.sizes.zmax;
+    const double step = 5.;
+    const size_t n_points = 3;
+
+    cout << "injecting particles" << endl;
+    double points_pic[3 * n_points];
+    for (int i = 0; i < n_points; ++i){
+        points_pic[i * 3] = 0;
+        points_pic[i * 3 +1] = 0;
+        points_pic[i * 3 +2] = zmin + (i+1) * step;
+    }
+
+    pic_solver.injectElectrons(points_pic, n_points, fr);
 
     //Timestep loop
     for (int i = 0; i < time_subcycle; i++) {
@@ -355,9 +355,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         pic_solver.pushParticles(dt_pic, fr);
         end_msg(t0);
 
-        start_msg(t0, "=== Extracting E and phi...");
-        fail = vacuum_interpolator.extract_solution(&laplace_solver);
-        end_msg(t0);
+        pic_solver.clearLostParticles();
 
         vacuum_interpolator.nodes.write("out/result_E_phi.movie");
 

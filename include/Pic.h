@@ -46,6 +46,8 @@ public:
      */
     void writeParticles(const string filename);
     
+    void clearLostParticles();
+
 private:
 
     //ELECTRONS

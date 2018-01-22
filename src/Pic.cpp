@@ -110,36 +110,36 @@ void Pic<dim>::pushParticles(const double dt, FieldReader &fr) {
 
 template<int dim>
 void Pic<dim>::clearLostParticles(){
-  size_t npart = r_el.size();
-  size_t nlost = 0;
-  
-  //Delete the lost particles from the arrays
-  for (size_t i = 0; i < npart; i++) {
-    bool islost=false;
-    //Is this particle lost?
-    for (auto lost : lost_el) {
-      if (lost == i) {
-	islost=true;
-	nlost++;
-	break;
-      }
+    size_t npart = r_el.size();
+    size_t nlost = 0;
+
+    //Delete the lost particles from the arrays
+    for (size_t i = 0; i < npart; i++) {
+        bool islost=false;
+        //Is this particle lost?
+        for (auto lost : lost_el) {
+            if (lost == i) {
+                islost=true;
+                nlost++;
+                break;
+            }
+        }
+        if (nlost==0 or islost) continue; // Don't shuffle this particle left
+
+        r_el[i-nlost] = r_el[i];
+        v_el[i-nlost] = v_el[i];
+        cid_el[i-nlost] = cid_el[i-nlost];
     }
-    if (nlost==0 or islost) continue; // Don't shuffle this particle left
 
-    r_el[i-nlost] = r_el[i];
-    v_el[i-nlost] = v_el[i];
-    cid_el[i-nlost] = cid_el[i-nlost];
-  }
+    //Shrink the arrays
+    if (nlost > 0){
+        r_el.resize(npart-nlost);
+        v_el.resize(npart-nlost);
+        cid_el.resize(npart-nlost);
+        cout << "Particles where lost! nlost=" << nlost << endl;
+    }
 
-  //Shrink the arrays
-  if (nlost > 0){
-    r_el.resize(npart-nlost);
-    v_el.resize(npart-nlost);
-    cid_el.resize(npart-nlost);
-    cout << "Particles where lost! nlost=" << nlost << endl;
-  }
-
-  lost_el.clear();
+    lost_el.clear();
 }
   
 template<int dim>
