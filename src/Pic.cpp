@@ -12,8 +12,8 @@
 
 namespace femocs {
 template<int dim>
-Pic<dim>::Pic(/*fch::Laplace<dim> &laplace_solver, fch::CurrentsAndHeating<3> &ch_solver*/) :
-            laplace_solver(laplace_solver), ch_solver(ch_solver), er(er), hr(hr), fr(fr) {
+Pic<dim>::Pic(fch::Laplace<dim> &laplace_solver) :
+            laplace_solver(laplace_solver){
 }
 
 template<int dim>
@@ -39,10 +39,11 @@ int Pic<3>::injectElectrons(const double* const r, const size_t n, FieldReader &
     }
 }
 
-//template<>
-//int Pic<3>::injectElectrons() {
-//
-//}
+template<>
+int Pic<3>::injectElectrons(fch::CurrentsAndHeating<3> &ch_solver) {
+
+
+}
 
 template<int dim>
 void Pic<dim>::computeField(const double E0) {

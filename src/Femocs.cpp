@@ -23,7 +23,7 @@ namespace femocs {
 
 // specify simulation parameters
 Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false),
-					  timestep(-1), last_full_timestep(0)/*, pic_solver(laplace_solver, ch_transient_solver) */{
+					  timestep(-1), last_full_timestep(0), pic_solver(laplace_solver) {
     static bool first_call = true;
 
     // Read configuration parameters from configuration file
@@ -108,34 +108,32 @@ int Femocs::run(const double elfield, const string &timestep) {
 
     check_return(generate_meshes(), "Mesh generation failed!");
 
-
-    //if PIC, enter the PIC cycle and return. PIC cycle includes everything!!
+    // Solve Laplace equation on vacuum mesh
     if ( conf.pic.doPIC ) {
-
-        if(solve_pic(elfield, delta_t_MD)){
+        if(solve_pic(elfield,delta_t_MD)){
             force_output();
             check_return(true, "Solving PIC failed!");
         }
-
-    }else{ // Solve laplace and heat equations
-
-        // Solve Laplace equation on vacuum mesh
+    }
+    else {
         if (solve_laplace(elfield)) {
             force_output();
             check_return(true, "Solving Laplace equation failed!");
         }
+    }
 
-        // Solve heat & continuity equation on bulk mesh
-        if (solve_heat(conf.heating.t_ambient)) {
-            force_output();
-            check_return(true, "Solving heat & continuity equation failed!");
-        }
+    // Solve heat & continuity equation on bulk mesh
+    if (solve_heat(conf.heating.t_ambient)) {
+        force_output();
+        check_return(true, "Solving heat & continuity equation failed!");
     }
 
     finalize();
+
     stream.str("");
     stream << "Total execution time " << omp_get_wtime() - tstart;
     write_silent_msg(stream.str());
+
     return 0;
 }
 
@@ -286,48 +284,33 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
 
     int time_subcycle = ceil(dt_main*1e15/conf.pic.dt_max); // delta_t_MD in [s]
     double dt_pic = dt_main/time_subcycle;
+
+    //2. Re-init the Poisson solver -- similar to Femocs::solve_laplace()
     conf.laplace.E0 = E0;       // reset long-range electric field
 
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
     fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
 
-    //Prepare FEM solvers
     start_msg(t0, "=== Importing mesh to Laplace solver...");
     fail = !laplace_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
             fem_mesh.hexahedra.export_vacuum());
-    check_return(fail, "Importing vacuum mesh to Deal.II failed!");
+    check_return(fail, "Importing mesh to Deal.II failed!");
     end_msg(t0);
 
     start_msg(t0, "=== Importing mesh to transient J & T solver...");
     fail = !ch_transient_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
             fem_mesh.hexahedra.export_bulk());
-    check_return(fail, "Importing bulk mesh to Deal.II failed!");
+    check_return(fail, "Importing mesh to Deal.II failed!");
     end_msg(t0);
 
-    //Prepare interpolators and Field and HEat readers
+
+    stringstream ss; ss << laplace_solver;
+    write_verbose_msg(ss.str());
     vacuum_interpolator.initialize();
-    bulk_interpolator.initialize();
-
-    start_msg(t0, "=== Preparing field reader...");
-    FieldReader field_reader(&vacuum_interpolator);
-    field_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank);
-    end_msg(t0);
-
-    start_msg(t0, "=== Interpolating J & T on face centroids (preparatory)...");
-    HeatReader heat_reader(&bulk_interpolator);
-    heat_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank, conf.heating.t_ambient);
-    heat_reader.interpolate(ch_transient_solver);
-    end_msg(t0);
-    heat_reader.write("out/surface_temperature.xyz");
-
-    start_msg(t0, "=== Calculating field emission...");
-    EmissionReader emission(field_reader, heat_reader, fem_mesh.faces, &vacuum_interpolator);
-    emission.transfer_emission(ch_transient_solver,
-            conf.heating.work_function, conf.heating.Vappl);
-    end_msg(t0);
-    emission.write("out/surface_emission.xyz");
 
 
+    //Inject electrons
+    FieldReader fr(&vacuum_interpolator);
 //
 //    const double zmin = dense_surf.sizes.zmax;
 //    const double step = 0.5;
@@ -340,8 +323,8 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
 //        points_pic[i * 3 +1] = 0;
 //        points_pic[i * 3 +2] = zmin + i * step;
 //    }
-
-
+//
+//    pic_solver.injectElectrons(points_pic, n_points, fr);
 
     //Timestep loop
     for (int i = 0; i < time_subcycle; i++) {
@@ -350,8 +333,12 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         //3. Compute particle densities on the grid and solve Poisson equation
         pic_solver.computeField(E0);
 
-        // Inject particles depending on the field emission distribution
-        pic_solver.injectElectrons(points_pic, n_points, fr);
+
+        unsigned ccg = solve_current();
+
+        pic_solver.injectElectrons(ch_transient_solver);
+
+
         //4. Update fields (solve Poisson equation),
         // taking the long range efield `elfield` into account
         // TODO
@@ -421,8 +408,8 @@ int Femocs::solve_laplace(const double E0) {
     vacuum_interpolator.lintets.write("out/result_E_phi_linear.vtk");
     vacuum_interpolator.quadtets.write("out/result_E_phi_quad.vtk");
 
-//    FieldReader fr(&vacuum_interpolator);
-//    fr.test_pic(&laplace_solver, dense_surf);
+    FieldReader fr(&vacuum_interpolator);
+    fr.test_pic(&laplace_solver, dense_surf);
 
     return fail;
 }
@@ -497,6 +484,43 @@ int Femocs::solve_stationary_heat() {
     return 0;
 }
 
+
+unsigned Femocs::solve_current(){
+    start_msg(t0, "=== Transfering elfield to J & T solver...");
+    FieldReader field_reader(&vacuum_interpolator);
+    field_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+    field_reader.transfer_elfield(ch_transient_solver);
+    end_msg(t0);
+    field_reader.write("out/surface_field.xyz");
+
+    start_msg(t0, "=== Interpolating J & T on face centroids...");
+
+    HeatReader heat_reader(&bulk_interpolator);
+    heat_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank, conf.heating.t_ambient);
+    heat_reader.interpolate(ch_transient_solver);
+    end_msg(t0);
+    heat_reader.write("out/surface_temperature.xyz");
+
+    start_msg(t0, "=== Calculating field emission...");
+    EmissionReader emission(field_reader, heat_reader, fem_mesh.faces, &vacuum_interpolator);
+    emission.transfer_emission(ch_transient_solver,
+            conf.heating.work_function, conf.heating.Vappl);
+    end_msg(t0);
+    emission.write("out/surface_emission.xyz");
+
+    start_msg(t0, "=== Setup current solver...");
+    ch_transient_solver.setup_current_system();
+    end_msg(t0);
+
+    start_msg(t0, "=== Calculating current density...");
+    ch_transient_solver.assemble_current_system(); // assemble matrix for current density equation; current == electric current
+    unsigned int ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
+    end_msg(t0);
+
+    return ccg;
+
+
+}
 // Solve transient heat and continuity equations
 int Femocs::solve_transient_heat(const double delta_time) {
     static bool first_call = true;
