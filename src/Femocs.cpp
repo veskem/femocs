@@ -297,30 +297,34 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     check_return(fail, "Importing mesh to Deal.II failed!");
     end_msg(t0);
 
+    start_msg(t0, "=== Importing mesh to transient J & T solver...");
+    fail = !ch_transient_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
+            fem_mesh.hexahedra.export_bulk());
+    check_return(fail, "Importing mesh to Deal.II failed!");
+    end_msg(t0);
 
 
     stringstream ss; ss << laplace_solver;
     write_verbose_msg(ss.str());
-
     vacuum_interpolator.initialize();
 
 
     //Inject electrons
     FieldReader fr(&vacuum_interpolator);
-
-    const double zmin = dense_surf.sizes.zmax;
-    const double step = 0.5;
-    const size_t n_points = 10;
-
-    cout << "injecting particles" << endl;
-    double points_pic[3 * n_points];
-    for (int i = 0; i < n_points; ++i){
-        points_pic[i * 3] = 0;
-        points_pic[i * 3 +1] = 0;
-        points_pic[i * 3 +2] = zmin + i * step;
-    }
-
-    pic_solver.injectElectrons(points_pic, n_points, fr);
+//
+//    const double zmin = dense_surf.sizes.zmax;
+//    const double step = 20.;
+//    const size_t n_points = 5;
+//
+//    cout << "injecting particles" << endl;
+//    double points_pic[3 * n_points];
+//    for (int i = 1; i < n_points; ++i){
+//        points_pic[i * 3] = 0;
+//        points_pic[i * 3 +1] = 0;
+//        points_pic[i * 3 +2] = zmin + i * step;
+//    }
+//
+//    pic_solver.injectElectrons(points_pic, n_points, fr);
 
     //Timestep loop
     for (int i = 0; i < time_subcycle; i++) {
@@ -330,13 +334,26 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         pic_solver.computeField(E0);
 
 
+        start_msg(t0, "=== Extracting E and phi...");
+        fail = vacuum_interpolator.extract_solution(&laplace_solver);
+        end_msg(t0);
+
+        start_msg(t0, "=== Calculating current density...");
+        unsigned ccg = solve_current();
+        end_msg(t0);
+
+        start_msg(t0, "=== Injecting electrons...");
+        pic_solver.injectElectrons(ch_transient_solver);
+        end_msg(t0);
 
         //4. Update fields (solve Poisson equation),
         // taking the long range efield `elfield` into account
         // TODO
 
         //5. Particle pusher using the modified fields
+        start_msg(t0, "=== Injecting electrons...");
         pic_solver.pushParticles(dt_pic, fr);
+        end_msg(t0);
 
         start_msg(t0, "=== Extracting E and phi...");
         fail = vacuum_interpolator.extract_solution(&laplace_solver);
@@ -477,6 +494,47 @@ int Femocs::solve_stationary_heat() {
     return 0;
 }
 
+
+unsigned Femocs::solve_current(){
+    start_msg(t0, "=== Transfering elfield to J & T solver...");
+    FieldReader field_reader(&vacuum_interpolator);
+    field_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+    field_reader.transfer_elfield(ch_transient_solver);
+    end_msg(t0);
+    field_reader.write("out/surface_field.xyz");
+
+    start_msg(t0, "=== Interpolating J & T on face centroids...");
+
+    HeatReader heat_reader(&bulk_interpolator);
+    heat_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank, conf.heating.t_ambient);
+    heat_reader.interpolate(ch_transient_solver);
+    end_msg(t0);
+    heat_reader.write("out/surface_temperature.xyz");
+
+    start_msg(t0, "=== Calculating field emission...");
+    EmissionReader emission(field_reader, heat_reader, fem_mesh.faces, &vacuum_interpolator);
+    emission.transfer_emission(ch_transient_solver,
+            conf.heating.work_function, conf.heating.Vappl);
+    end_msg(t0);
+    emission.write("out/surface_emission.xyz");
+
+    start_msg(t0, "=== Setup current and heat solvers...");
+    ch_transient_solver.setup_current_system();
+    ch_transient_solver.setup_heating_system();
+    end_msg(t0);
+
+    start_msg(t0, "=== Assembling current system...");
+    ch_transient_solver.assemble_current_system(); // assemble matrix for current density equation; current == electric current
+    end_msg(t0);
+
+    start_msg(t0, "=== Solving current system...");
+    unsigned int ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
+    end_msg(t0);
+
+    return ccg;
+
+
+}
 // Solve transient heat and continuity equations
 int Femocs::solve_transient_heat(const double delta_time) {
     static bool first_call = true;

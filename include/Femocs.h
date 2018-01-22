@@ -259,6 +259,11 @@ private:
 
     /** Solve transient heat and continuity equation until convergence is reached */
     int solve_converge_heat();
+
+    /**
+     * Calculates current emission and current density distributions on the bulk mesh
+     */
+    unsigned solve_current();
 };
 
 } /* namespace femocs */

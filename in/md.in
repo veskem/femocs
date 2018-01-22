@@ -76,7 +76,7 @@ Ekdef    = 0.234         Ekin threshold for labeling an atom defect/liquid 1.5 k
 ----------------------------------
 nsave    = 250
 dbg_lvl  = 0
-elfield  = -0.07  # Max value of applied elctric field (V/Å)
+elfield  = -0.2  # Max value of applied elctric field (V/Å)
 #Erate    = -0.07 # Rate at which field strength is increased (V/(Å*sqrt(fs)))
 rampmode = 0
 evpintval= 0 # How often to force evaporation (timesteps)
@@ -89,7 +89,7 @@ ncellp(1)= 2
 ncellp(2)= 2
 ncellp(3)= 2
 evpatype = 0 # Type to assign to evaporated atoms (make sure this type is defined!)
-
+emitter_blunt = true
 #Electrostatics HELMOD parameters (also timerelE in the end of the file)
 ----------------------------------
 nsave    = 250
@@ -121,7 +121,7 @@ jlimratio = 0.0001
 ilimratio = 0.005
 printheat = 1 # 1 if heating data are to be print in stdout when calculated
 space_charge = 1 #1: use space charge, 0: space charge ignored
-V_applied = 1000.
+V_applied = -1000.
 lorentz = 2.e-8
 maxerr_SC = 0.01
 shank = 1
@@ -133,6 +133,7 @@ latconst = 3.5;
 coarse_factor = 0.3 12 3;    # coarsening factor; bigger number gives coarser surface; first is plate, second is shank, third is apex
 smooth_steps = 5             # number of surface mesh smoothing iterations
 smooth_algorithm = laplace  # surface mesh smoother algorithm; none, laplace, fujiwara
+heating_mode = converge
 
 distance_tol = 0;
 femocs_verbose_mode = verbose;     # enable or disable the verbose mode

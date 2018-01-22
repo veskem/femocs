@@ -770,10 +770,12 @@ void EmissionReader::initialize() {
     int n_nodes = fields.size();
 
     // deallocate and allocate currents data
-    currents.clear();
+    current_densities.clear();
     nottingham.clear();
-    currents.reserve(n_nodes);
+    currents.clear();
+    current_densities.reserve(n_nodes);
     nottingham.reserve(n_nodes);
+    currents.reserve(n_nodes);
 
     //deallocate and allocate lines
     rline.clear();
@@ -844,23 +846,27 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 
 void EmissionReader::calc_representative() {
     double area = 0.; // total emitting (FWHM) area
-    double I_tot = 0.; // total emitted current within FWHM emitting area
+    double I_fwhm = 0.; // total emitted current within FWHM emitting area
     double FJ = 0.; // int_FWHMarea (F*J)dS
+    double I_tot = 0;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
-        if (currents[i] > Jmax * 0.5){ //if point eligible
+        double face_area = faces.get_area(abs(fields.get_marker(i))) / 3.;
+        currents[i] = face_area * current_densities[i];
+
+        if (current_densities[i] > Jmax * 0.5){ //if point eligible
             //quadrangle face area is 1/3 of corresponding triangle face area
             double face_area = faces.get_area(abs(fields.get_marker(i))) / 3.;
             area += face_area; // increase total area
-            I_tot += face_area * currents[i]; // increase total current
-            FJ += face_area * currents[i] * fields.get_elfield_norm(i);
+            I_fwhm += currents[i]; // increase total current
+            FJ += currents[i] * fields.get_elfield_norm(i);
         }
     }
 
     if (MODES.VERBOSE)
-        cout << "I_tot = " << I_tot << "Amps" << endl;
-    Jrep = I_tot / area;
-    Frep = multiplier * FJ / I_tot;
+        cout << "I_fwhm = " << I_fwhm << "Amps" << endl;
+    Jrep = I_fwhm / area;
+    Frep = multiplier * FJ / I_fwhm;
 }
 
 void EmissionReader::calc_emission(double workfunction, bool blunt){
@@ -906,7 +912,7 @@ void EmissionReader::calc_emission(double workfunction, bool blunt){
         }
 
         Jmax = max(Jmax, J); // output data
-        currents[i] = J;
+        current_densities[i] = J;
         nottingham[i] = nm2_per_angstrom2 * gt.heat;
     }
 
@@ -949,9 +955,9 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
     }
 
     for (int i = 0; i < n_nodes; i++) // append data for surface emission xyz file
-        append_interpolation( Solution(Vec3(0), log(currents[i]), log(fabs(nottingham[i]))));
+        append_interpolation( Solution(Vec3(0), log(current_densities[i]), log(fabs(nottingham[i]))));
 
-    ch_solver.set_emission_bc(currents, nottingham); // output data for heat BCs
+    ch_solver.set_emission_bc(current_densities, nottingham); // output data for heat BCs
 }
 
 /* ==========================================

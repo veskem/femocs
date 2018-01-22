@@ -11,6 +11,7 @@
 #include "laplace.h"
 #include "mesh_preparer.h"
 #include "SolutionReader.h"
+#include "currents_and_heating.h"
 
 #include <deal.II/base/point.h>
 
@@ -23,21 +24,26 @@ public:
     Pic(fch::Laplace<dim> &laplace_solver);
     ~Pic();
 
-    //Injects electrons
-    // Indexing: (x1 y1 [z1] x2 y2 [z2] ...)
+    /**Injects electrons
+     *     Indexing: (x1 y1 [z1] x2 y2 [z2] ...)
+     */
     int injectElectrons(const double* const r, const size_t n, FieldReader &fr);
 
-    //Computes the charge density for each FEM DOF
+    int injectElectrons(fch::CurrentsAndHeating<3> &ch_solver);
+
+    /**Computes the charge density for each FEM DOF
+     *
+     */
     void computeField(const double E0);
 
-    //Pushes the particles given the fields
-    // - dt[s]
+    /** Pushes the particles given the fields for a delta time dt [sec]
+     *
+     */
     void pushParticles(const double dt, FieldReader &fr);
 
-    //
-    void clearLostParticles();
-    
-    //Write the current position and velocities of the particles to a file
+    /** Write the position and velocities of the particles to a file
+     *
+     */
     void writeParticles(const string filename);
     
 private:
@@ -59,8 +65,12 @@ private:
     
     const double Wsp = 1.0; // Super particle weighting (particles/superparticle)
 
-    //Useful stuff
-    fch::Laplace<dim> &laplace_solver;
+
+    fch::Laplace<dim> &laplace_solver; ///< Laplace solver object to solve the Poisson in the vacuum mesh
+//    fch::CurrentsAndHeating<3> &ch_solver;       ///< transient currents and heating solver
+//    FieldReader &fr; ///< Object to read the electric field
+//    HeatReader &hr; ///< Object to read the temperature data
+//    EmissionReader &er; ///< Object to calculate the emission data
 };
 
 }

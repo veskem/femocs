@@ -260,8 +260,9 @@ private:
     const HeatReader& heat;       ///< Object containing the temperature on centroids of hexahedral faces.
     const TetgenFaces& faces;     ///< Object containing information on the faces of the mesh.
 
-    vector<double> currents;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
-    vector<double> nottingham; ///< Same as currents for nottingham heat deposition [in W/A^2]
+    vector<double> current_densities;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
+    vector<double> nottingham; ///< Same as current_densities for nottingham heat deposition [in W/A^2]
+    vector<double> currents;    ///< Current flux for every face (current_densities * face_areas) [in Amps]
 
     const int n_lines = 32; ///< Number of points in the line for GETELEC
     vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
@@ -272,6 +273,7 @@ private:
     double Fmax = 0.;    ///< Maximum local field on the emitter [V/A]
     double Frep = 0.;    ///< Representative local field (used for space charge equation) [V/A]
     double Jrep = 0.;    ///< Representative current deinsity for space charge. [amps/A^2]
+    double I_tot = 0;   ///< Total current running through the surface [in Amps]
 
 };
 
