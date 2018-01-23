@@ -230,8 +230,13 @@ std::vector<double> Laplace<dim>::shape_funs(const Point<dim> &p, const int cell
         p_cell = mapping.transform_real_to_unit_cell(cell, p);
 
 
+    Point<dim> p_unit_cell = GeometryInfo<dim>::project_to_unit_cell(p_cell);
     //create virtual quadrature point
-    const Quadrature<dim> quadrature(GeometryInfo<dim>::project_to_unit_cell(p_cell));
+    const Quadrature<dim> quadrature(p_unit_cell);
+
+//
+//    std::printf("unit cell point = %e, %e, %e\n", p_unit_cell[0], p_unit_cell[1], p_unit_cell[2] );
+//    std::printf("projected to unit cell point = %e, %e, %e\n", p_cell[0], p_cell[1], p_cell[2] );
 
     //define fevalues object
     FEValues<dim> fe_values(mapping, fe, quadrature, update_values);

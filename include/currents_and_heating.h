@@ -179,6 +179,10 @@ public:
     /** Get the temperature at the specified point. NB: Slow! */
     double probe_temperature(const Point<dim> &p) const;
 
+    std::vector<Point<dim>> inject_electrons(const double &delta_t) const;
+
+    std::vector<Point<dim>> inject_electrons(const double &delta_t, Mapping<dim-1,dim>& mapping) const;
+
 private:
 
     double get_efield_bc(std::pair<unsigned, unsigned> cop_cell_info);

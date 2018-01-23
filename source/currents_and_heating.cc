@@ -35,6 +35,8 @@
 
 #include <cassert>
 #include <algorithm>
+#include <cstdlib>
+//#include <stdlib.h>
 
 #include "currents_and_heating.h"
 #include "utility.h"
@@ -768,13 +770,69 @@ Triangulation<dim>* CurrentsAndHeating<dim>::get_triangulation() {
 }
 
 template<int dim>
+double CurrentsAndHeating<dim>::probe_temperature(const Point<dim> &p) const {
+    return VectorTools::point_value(dof_handler_heat, solution_heat, p);
+}
+
+template<int dim>
 DoFHandler<dim>* CurrentsAndHeating<dim>::get_dof_handler_current() {
     return &dof_handler_current;
 }
 
 template<int dim>
-double CurrentsAndHeating<dim>::probe_temperature(const Point<dim> &p) const {
-    return VectorTools::point_value(dof_handler_heat, solution_heat, p);
+std::vector<Point<dim>> CurrentsAndHeating<dim>::inject_electrons(const double &delta_t) const{
+    return inject_electrons(delta_t, StaticMappingQ1<dim-1,dim>::mapping);
+}
+
+template<int dim>
+std::vector<Point<dim>> CurrentsAndHeating<dim>::inject_electrons(const double &delta_t, Mapping<dim-1,dim>& mapping) const{
+
+
+    const double Amp = 6.2415e3; //[e/fs]
+    std::vector<Point<dim>> out;
+    int n_tot = 0;
+    double I_tot;
+
+    for (const auto& face : interface_map_emission_current){
+        unsigned cell_index = face.first.first;
+        unsigned face_index = face.first.second;
+        double cur_dens = face.second;
+        typename DoFHandler<dim>::active_cell_iterator cell(&triangulation, 0, cell_index, &dof_handler_current);
+        double area = cell->face(face_index)->measure();
+
+        double current = cur_dens * area * Amp; // in e/fs
+        double charge = current * delta_t;
+
+        int intpart = (int) std::floor(charge);
+        double frpart = charge - intpart;
+        int n_electrons = intpart;
+
+        I_tot += current;
+
+        //double frand = (double)std::rand()/ RAND_MAX;
+
+        if ((double)std::rand()/ RAND_MAX < frpart)
+            n_electrons++;
+
+
+        for (int i = 0; i < n_electrons; i++){
+            Point<dim-1> p_face;
+            p_face[0] = (double)std::rand()/ RAND_MAX;
+            p_face[1] = (double)std::rand()/ RAND_MAX;
+
+            Point<dim> p_real = mapping.transform_unit_to_real_cell(cell->face(face_index), p_face);
+            out.push_back(p_real);
+        }
+
+        n_tot += n_electrons;
+
+    }
+
+    std::printf("I_tot_dealii = %e, emitted electrons = %d\n", I_tot, n_tot);
+
+    return out;
+
+
 }
 
 // ----------------------------------------------------------------------------------------
