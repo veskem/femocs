@@ -11,24 +11,6 @@
 #include "Primitives.h"
 #include "TetgenMesh.h"
 #include "TetgenCells.h"
-#include "laplace.h"
-
-#include <deal.II/base/derivative_form.h>
-#include <deal.II/base/quadrature.h>
-#include <deal.II/base/qprojector.h>
-#include <deal.II/base/quadrature_lib.h>
-#include <deal.II/base/tensor_product_polynomials.h>
-#include <deal.II/base/memory_consumption.h>
-#include <deal.II/base/std_cxx11/array.h>
-#include <deal.II/base/std_cxx11/unique_ptr.h>
-#include <deal.II/lac/full_matrix.h>
-#include <deal.II/grid/tria.h>
-#include <deal.II/grid/tria_iterator.h>
-#include <deal.II/dofs/dof_accessor.h>
-#include <deal.II/fe/fe_tools.h>
-#include <deal.II/fe/fe.h>
-#include <deal.II/fe/fe_values.h>
-#include <deal.II/fe/mapping_q1.h>
 
 using namespace std;
 namespace femocs {
@@ -325,11 +307,6 @@ public:
     /** Find the hexahedron which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
-    /** @brief Interpolate both vector and scalar data inside or near the cell.
-     * Function assumes, that cell, that fits the best to the point, is previously already found with locate_cell.
-     */
-//    Solution interp_solution(const Point3 &point, const int c) const;
-
     /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
      * -1 means there's no correspondence between two meshes */
     int femocs2deal(const int i) const {
@@ -337,26 +314,24 @@ public:
         return markers[i];
     }
 
-    /** Change the dependency data */
+    /** Change the mesh dependency data */
     void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) {
         InterpolatorCells<8>::set_dependencies(m, n);
         hexs = &m->hexahedra;
-        lintets = const_cast<LinearTetrahedra*>(l);
+        lintet = const_cast<LinearTetrahedra*>(l);
     }
 
-    void set_dependencies(dealii::DoFHandler<3>* _dof_handler, dealii::Triangulation<3>* _triangulation,
-            dealii::Vector<double> _solution) {
+    /** Change the FEM solver dependency data */
+    void set_dependencies(dealii::DoFHandler<3>* _dof_handler, dealii::Triangulation<3>* _triangulation) {
         dof_handler = _dof_handler;
         triangulation = _triangulation;
-        solution = _solution;
     }
 
 private:
     const Hexahedra* hexs;           ///< pointer to hexahedra to access their specific routines
-    const LinearTetrahedra* lintets; ///< Pointer to linear tetrahedra
+    const LinearTetrahedra* lintet; ///< Pointer to linear tetrahedra
     dealii::DoFHandler<3>* dof_handler;       ///< fem solver mesh & solution
     dealii::Triangulation<3>* triangulation;  ///< fem solver mesh & solution
-    dealii::Vector<double> solution;          ///< resulting electric potential in the mesh nodes
 
     /** Reserve memory for interpolation data */
     void reserve(const int N);
@@ -364,9 +339,6 @@ private:
     /** Use Deal.II to calculate shape functions for a point inside i-th hexahedron */
     void get_shape_functions(array<double,8>& sf, const Vec3& point, const int i,
             dealii::Mapping<3,3>& mapping) const;
-
-//    /** Use Deal.II to calculate the interpolation for a point inside i-th hexahedron */
-//    Solution interp_solution(const dealii::Point<3> &p, const int i, dealii::Mapping<3,3>& mapping) const;
 
     /** Return the 10-noded tetrahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; };

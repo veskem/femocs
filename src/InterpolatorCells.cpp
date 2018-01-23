@@ -7,52 +7,6 @@
 
 #include "InterpolatorCells.h"
 
-
-
-#include <deal.II/grid/grid_generator.h>
-#include <deal.II/grid/tria_accessor.h>
-#include <deal.II/grid/tria_iterator.h>
-#include <deal.II/grid/grid_tools.h>
-
-#include <deal.II/dofs/dof_accessor.h>
-#include <deal.II/dofs/dof_tools.h>
-
-#include <deal.II/fe/fe_values.h>
-
-#include <deal.II/base/quadrature_lib.h>
-#include <deal.II/base/function.h>
-#include <deal.II/base/logstream.h>
-#include <deal.II/base/timer.h>
-
-#include <deal.II/numerics/vector_tools.h>
-#include <deal.II/numerics/matrix_tools.h>
-#include <deal.II/numerics/data_out.h>
-
-#include <deal.II/lac/vector.h>
-#include <deal.II/lac/full_matrix.h>
-#include <deal.II/lac/dynamic_sparsity_pattern.h>
-#include <deal.II/lac/solver_cg.h>
-#include <deal.II/lac/precondition.h>
-
-#include <deal.II/fe/fe_update_flags.h>
-
-#include <deal.II/grid/tria.h>
-#include <deal.II/grid/grid_reordering.h>
-#include <deal.II/dofs/dof_handler.h>
-#include <deal.II/fe/fe_q.h>
-#include <deal.II/lac/sparse_matrix.h>
-
-#include <deal.II/base/point.h>
-#include <deal.II/base/tensor.h>
-
-#include <deal.II/fe/mapping_q1.h>
-#include <deal.II/hp/dof_handler.h>
-#include <deal.II/hp/fe_values.h>
-#include <deal.II/hp/mapping_collection.h>
-#include <deal.II/hp/q_collection.h>
-#include <deal.II/numerics/vector_tools.h>
-#include <deal.II/numerics/matrix_tools.h>
-
 namespace femocs {
 
 /* ==================================================================
@@ -928,7 +882,7 @@ SimpleCell<10> QuadraticTetrahedra::get_cell(const int tet) const {
  * ================================================================== */
 
 LinearHexahedra::LinearHexahedra() :
-        InterpolatorCells<8>(), hexs(NULL), lintets(NULL), dof_handler(NULL), triangulation(NULL), solution(NULL) {}
+        InterpolatorCells<8>(), hexs(NULL), lintet(NULL), dof_handler(NULL), triangulation(NULL) {}
 
 void LinearHexahedra::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));
@@ -941,7 +895,7 @@ void LinearHexahedra::reserve(const int N) {
 void LinearHexahedra::precompute() {
     const int n_elems = hexs->size();
     expect(n_elems > 0, "Interpolator expects non-empty mesh!");
-    require(mesh->elems.size() == lintets->size(), "LinearHexahedra requires LinearTetrahedra to be pre-computed!");
+    require(mesh->elems.size() == lintet->size(), "LinearHexahedra requires LinearTetrahedra to be pre-computed!");
 
     reserve(n_elems);
 
@@ -970,42 +924,64 @@ void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& p,
     require(triangulation, "NULL triangulation can't be used!");
     require(hex_index >= 0 && hex_index < cells.size(), "Index out of bounds: " + to_string(hex_index));
 
-    const dealii::FiniteElement<3> &fe = dof_handler->get_fe();
+    // meshes in femocs and Deal.ii differ, therefore hex index must be transformed from 1st to 2nd
+    const int hex_index_in_deal = femocs2deal(hex_index);
+    // if the point is outside the mesh in deal.II, return 0 shape functions
+    if (hex_index_in_deal < 0) {
+        write_verbose_msg("Hex " + to_string(hex_index) + " is out of Deal.II mesh!");
+        sf = {0, 0, 0, 0, 0, 0, 0, 0};
+        return;
+    }
 
-    // get active cell iterator from cell index
-    typename dealii::DoFHandler<3>::active_cell_iterator cell(triangulation, 0, femocs2deal(hex_index), dof_handler);
-
-    // transform the point from real to unit cell coordinates
+    // map the point from the hexahedron to a unit cube
+    typename dealii::DoFHandler<3>::active_cell_iterator cell(triangulation, 0, hex_index_in_deal, dof_handler);
     dealii::Point<3> p_cell = mapping.transform_real_to_unit_cell(cell, dealii::Point<3>(p.x, p.y, p.z));
 
-    const dealii::Quadrature<3> quadrature(dealii::GeometryInfo<3>::project_to_unit_cell(p_cell));
-
-    //define fevalues object
-    dealii::FEValues<3> fe_values(mapping, fe, quadrature, dealii::update_values);
-    fe_values.reinit(cell);
-
-    for (int i = 0; i < sf.size(); i++)
-        sf[i] = fe_values.shape_value(i, 0);
+    // calculate shape functions using the natural coordinates of the point
+    // natural coordinates in current case are within limits [0, 1]
+    const double u = p_cell[0];
+    const double v = p_cell[1];
+    const double w = p_cell[2];
+    sf = {
+            (1 - u) * (1 - v) * (1 - w),
+            u * (1 - v) * (1 - w),
+            u * (1 - v) * w,
+            (1 - u) * (1 - v) * w,
+            (1 - u) * v * (1 - w),
+            u * v * (1 - w),
+            u * v * w,
+            (1 - u) * v * w
+    };
 }
 
+/*
+ * Function uses the fact that hexahedra are always uniquely tied with the nodes of tetrahedra.
+ * Therefore, knowing the barycentric coordinates inside a tetrahedron
+ * makes it possible to use them to determine, in which part of the tetrahedron and therefore
+ * also inside which hexahedron the point is located.
+ */
 int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) const {
     static constexpr int n_hexs_per_tet = 4;
 
     int tet_index = abs(cell_guess / n_hexs_per_tet);
-    tet_index = lintets->locate_cell(point, tet_index);
+    tet_index = lintet->locate_cell(point, tet_index);
     int sign = 1;
     if (tet_index < 0) sign = -1;
     tet_index = abs(tet_index);
 
+    // calculate barycentric coordinates for a point
     array<double,4> bcc;
-    lintets->get_shape_functions(bcc, point, tet_index);
+    lintet->get_shape_functions(bcc, point, tet_index);
 
-    const double b1b2 = bcc[0] / bcc[1]; // >1 if point closer to node1 than to node2 and <1 otherwise
-    const double b1b3 = bcc[0] / bcc[2]; // >1 if point closer to node1 than to node3 and <1 otherwise
-    const double b1b4 = bcc[0] / bcc[3]; // >1 if point closer to node1 than to node4 and <1 otherwise
-    const double b2b3 = bcc[1] / bcc[2]; // >1 if point closer to node2 than to node3 and <1 otherwise
-    const double b2b4 = bcc[1] / bcc[3]; // >1 if point closer to node2 than to node4 and <1 otherwise
-    const double b3b4 = bcc[2] / bcc[3]; // >1 if point closer to node3 than to node4 and <1 otherwise
+    // all the ratios below are == 1, if the point is exactly on the boundary of two hexahedra
+    // and 0 or inf, if point is on the face of a tetrahedron.
+    // if ratio is > 1, the point is closer to 1st corresponding node, if < 1, it's closer to 2nd node
+    const double b1b2 = bcc[0] / bcc[1];
+    const double b1b3 = bcc[0] / bcc[2];
+    const double b1b4 = bcc[0] / bcc[3];
+    const double b2b3 = bcc[1] / bcc[2];
+    const double b2b4 = bcc[1] / bcc[3];
+    const double b3b4 = bcc[2] / bcc[3];
 
     // point inside a hex connected to 1st tetrahedral node ?
     if (b1b2 >= 1 && b1b3 >= 1 && b1b4 >= 1)
@@ -1022,49 +998,6 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
 
     return -1;
 }
-
-//Solution LinearHexahedra::interp_solution(const Point3 &p, const int c) const {
-//    return interp_solution(dealii::Point<3>(p.x,p.y,p.z), c, dealii::StaticMappingQ1<3,3>::mapping);
-//}
-//
-//Solution LinearHexahedra::interp_solution(const dealii::Point<3> &p, const int c, dealii::Mapping<3,3>& mapping) const {
-//    const int abs_c = abs(c);
-//    require(abs_c >= 0 && abs_c < cells.size(), "Index out of bounds: " + to_string(abs_c));
-//
-//    const int cell_index = femocs2deal(abs_c);
-//    if (cell_index < 0) {
-//        write_verbose_msg("Cell out of Deal.II mesh: " + to_string(abs_c));
-//        return Solution(0);
-//    }
-//
-//    const dealii::FiniteElement<3> &fe = dof_handler->get_fe();
-//
-//    //get active cell iterator from cell index
-//    typename dealii::DoFHandler<3>::active_cell_iterator cell(triangulation, 0, cell_index, dof_handler);
-//
-//    // transform the point from real to unit cell coordinates
-//    dealii::Point<3> p_cell;
-//    p_cell = mapping.transform_real_to_unit_cell(cell, p);
-//
-//    const dealii::Quadrature<3> quadrature(dealii::GeometryInfo<3>::project_to_unit_cell(p_cell));
-//
-//    // calculate interpolation for the gradient of scalar
-//    dealii::FEValues<3> vector_fe_values(mapping, fe, quadrature, dealii::update_gradients);
-//    vector_fe_values.reinit(cell);
-//    vector<vector<dealii::Tensor<1,3,double>>> u_gradient(1, vector<dealii::Tensor<1,3,double> > (fe.n_components()));
-//    vector_fe_values.get_function_gradients(solution, u_gradient);
-//
-//    // calculate interpolation for scalar
-//    dealii::FEValues<3> scalar_fe_values(mapping, fe, quadrature, dealii::update_values);
-//    scalar_fe_values.reinit(cell);
-//    vector<dealii::Vector<double>> u_value(1, dealii::Vector<double> (fe.n_components()));
-//    scalar_fe_values.get_function_values(solution, u_value);
-//
-//    Vec3 vector_value(u_gradient[0][0][0],u_gradient[0][0][1],u_gradient[0][0][2]);
-//    double scalar_value = u_value[0][0];
-//
-//    return Solution(vector_value, scalar_value);
-//}
 
 template class InterpolatorCells<3> ;
 template class InterpolatorCells<6> ;
