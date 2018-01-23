@@ -882,75 +882,130 @@ SimpleCell<10> QuadraticTetrahedra::get_cell(const int tet) const {
  * ================================================================== */
 
 LinearHexahedra::LinearHexahedra() :
-        InterpolatorCells<8>(), hexs(NULL), lintet(NULL), dof_handler(NULL), triangulation(NULL) {}
+        InterpolatorCells<8>(), hexs(NULL), lintet(NULL) {}
 
 void LinearHexahedra::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));
 
-    cells.clear();
-    cells.reserve(N);
     markers = vector<int>(N);
+    cells.clear(); cells.reserve(N);
+    f0s.clear(); f0s.reserve(N);
+    f1s.clear(); f1s.reserve(N);
+    f2s.clear(); f2s.reserve(N);
+    f3s.clear(); f3s.reserve(N);
+    f4s.clear(); f4s.reserve(N);
+    f5s.clear(); f5s.reserve(N);
+    f6s.clear(); f6s.reserve(N);
+    f7s.clear(); f7s.reserve(N);
 }
 
 void LinearHexahedra::precompute() {
-    const int n_elems = hexs->size();
-    expect(n_elems > 0, "Interpolator expects non-empty mesh!");
     require(mesh->elems.size() == lintet->size(), "LinearHexahedra requires LinearTetrahedra to be pre-computed!");
 
+    const int n_elems = hexs->size();
+    expect(n_elems > 0, "Interpolator expects non-empty mesh!");
     reserve(n_elems);
 
     // Loop through all the hexahedra
     int deal_hex_index = 0;
     for (int i = 0; i < n_elems; ++i) {
         // store the mapping between femocs and deal.ii hexahedra
-        if ((*hexs).get_marker(i) > 0)
+        if (hexs->get_marker(i) > 0)
             markers[i] = deal_hex_index++;
         else
             markers[i] = -1;
 
-        // Calculate and store  hexahedra
-        cells.push_back((*hexs)[i]);
+        SimpleHex cell = (*hexs)[i];
+
+        // Store hexahedra
+        cells.push_back(cell);
+
+        // pre-calculate data to make iterpolation faster
+
+        const Vec3 x1 = mesh->nodes.get_vec(cell[0]);
+        const Vec3 x2 = mesh->nodes.get_vec(cell[1]);
+        const Vec3 x3 = mesh->nodes.get_vec(cell[2]);
+        const Vec3 x4 = mesh->nodes.get_vec(cell[3]);
+        const Vec3 x5 = mesh->nodes.get_vec(cell[4]);
+        const Vec3 x6 = mesh->nodes.get_vec(cell[5]);
+        const Vec3 x7 = mesh->nodes.get_vec(cell[6]);
+        const Vec3 x8 = mesh->nodes.get_vec(cell[7]);
+
+        f0s.push_back( Vec3((x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8) / 8.0) );
+        f1s.push_back( Vec3(((x1*-1) + x2 + x3 - x4 - x5 + x6 + x7 - x8) / 8.0) );
+        f2s.push_back( Vec3(((x1*-1) - x2 + x3 + x4 - x5 - x6 + x7 + x8) / 8.0) );
+        f3s.push_back( Vec3(((x1*-1) - x2 - x3 - x4 + x5 + x6 + x7 + x8) / 8.0) );
+        f4s.push_back( Vec3((x1 - x2 + x3 - x4 + x5 - x6 + x7 - x8) / 8.0) );
+        f5s.push_back( Vec3((x1 - x2 - x3 + x4 - x5 + x6 + x7 - x8) / 8.0) );
+        f6s.push_back( Vec3((x1 + x2 - x3 - x4 - x5 - x6 + x7 + x8) / 8.0) );
+        f7s.push_back( Vec3(((x1*-1) + x2 - x3 + x4 + x5 - x6 + x7 - x8) / 8.0) );
     }
 }
 
-void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const {
-    get_shape_functions(sf, point, i, dealii::StaticMappingQ1<3,3>::mapping);
-}
+/*
+ * The inspiration for mapping the point from Cartesian to natural coordinate space was taken from
+ * https://www.grc.nasa.gov/www/winddocs/utilities/b4wind_guide/trilinear.html
+ */
+void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point, const int hex) const {
+    require(hex >= 0 && hex < cells.size(), "Index out of bounds: " + to_string(hex));
 
-void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& p,
-        const int hex_index, dealii::Mapping<3,3>& mapping) const
-{
-    require(dof_handler, "NULL dof_handler can't be used!");
-    require(triangulation, "NULL triangulation can't be used!");
-    require(hex_index >= 0 && hex_index < cells.size(), "Index out of bounds: " + to_string(hex_index));
+    // Before calculating the shape function,
+    // map the point from Cartesian xyz-coordinates to natural uvw-coordinates.
+    // In natural coordinate system, each coordinate is within limits [-1, 1].
 
-    // meshes in femocs and Deal.ii differ, therefore hex index must be transformed from 1st to 2nd
-    const int hex_index_in_deal = femocs2deal(hex_index);
-    // if the point is outside the mesh in deal.II, return 0 shape functions
-    if (hex_index_in_deal < 0) {
-        write_verbose_msg("Hex " + to_string(hex_index) + " is out of Deal.II mesh!");
-        sf = {0, 0, 0, 0, 0, 0, 0, 0};
-        return;
+    double u, v, w, du, dv, dw, D;
+    Vec3 f0 = point - f0s[hex];
+    Vec3 f1 = f1s[hex];
+    Vec3 f2 = f2s[hex];
+    Vec3 f3 = f3s[hex];
+    Vec3 f4 = f4s[hex];
+    Vec3 f5 = f5s[hex];
+    Vec3 f6 = f6s[hex];
+    Vec3 f7 = f7s[hex];
+
+    // In 3D, direct calculation of uvw is very expensive (not to say impossible),
+    // because system of 3 nonlinear equations should be solved.
+    // More efficient is to perform Newton iterations to calculate uvw approximately.
+
+    // loop until the desired accuracy is met or # max iterations is done
+    u = 0; v = 0; w = 0;
+    for (int i = 0; i < n_newton_iterations; ++i) {
+        Vec3 f = (f0 - f1*u - f2*v - f3*w - f4*(u*v) - f5*(u*w) - f6*(v*w) - f7*(u*v*w));
+        Vec3 fu = f1 + f4*v + f5*w + f7*(v*w);
+        Vec3 fv = f2 + f4*u + f6*w + f7*(u*w);
+        Vec3 fw = f3 + f5*u + f6*v + f7*(u*v);
+
+        // solve the set of following linear equations for du, dv and dw
+        //   | fu.x * du + fv.x * dv + fw.x * dw = f.x;
+        //   | fu.y * du + fv.y * dv + fw.y * dw = f.y;
+        //   | fu.z * du + fv.z * dv + fw.z * dw = f.z;
+
+        D = lintet->determinant(fu, fv, fw);
+        require(D != 0, "Invalid determinant: " + to_string(D));
+
+        D  = 1.0 / D;
+        du = lintet->determinant(f, fv, fw) * D;
+        dv = lintet->determinant(fu, f, fw) * D;
+        dw = lintet->determinant(fu, fv, f) * D;
+
+        u += du;
+        v += dv;
+        w += dw;
+
+        if (du * du + dv * dv + dw * dw < shape_fun_epilson)
+            break;
     }
 
-    // map the point from the hexahedron to a unit cube
-    typename dealii::DoFHandler<3>::active_cell_iterator cell(triangulation, 0, hex_index_in_deal, dof_handler);
-    dealii::Point<3> p_cell = mapping.transform_real_to_unit_cell(cell, dealii::Point<3>(p.x, p.y, p.z));
-
-    // calculate shape functions using the natural coordinates of the point
-    // natural coordinates in current case are within limits [0, 1]
-    const double u = p_cell[0];
-    const double v = p_cell[1];
-    const double w = p_cell[2];
+    // use natural coordinates to calculate shape functions
     sf = {
-            (1 - u) * (1 - v) * (1 - w),
-            u * (1 - v) * (1 - w),
-            u * (1 - v) * w,
-            (1 - u) * (1 - v) * w,
-            (1 - u) * v * (1 - w),
-            u * v * (1 - w),
-            u * v * w,
-            (1 - u) * v * w
+            (1 - u) * (1 - v) * (1 - w) / 8.0,
+            (1 + u) * (1 - v) * (1 - w) / 8.0,
+            (1 + u) * (1 + v) * (1 - w) / 8.0,
+            (1 - u) * (1 + v) * (1 - w) / 8.0,
+            (1 - u) * (1 - v) * (1 + w) / 8.0,
+            (1 + u) * (1 - v) * (1 + w) / 8.0,
+            (1 + u) * (1 + v) * (1 + w) / 8.0,
+            (1 - u) * (1 + v) * (1 + w) / 8.0
     };
 }
 

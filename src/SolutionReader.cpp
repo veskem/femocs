@@ -478,7 +478,7 @@ void FieldReader::test_pic(fch::Laplace<3>* laplace, const Medium& medium) {
     }
 }
 
-void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium) {
+void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium, const TetgenMesh& mesh) {
     const double x = 0;
     const double y = 0;
     const double zmin = 0.5 + medium.sizes.zmax;
@@ -518,27 +518,26 @@ void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium) 
 //    cout << "\ntesting shape functions:\n";
 //    cout << setprecision(3) << fixed;
 //
-//    for (int i = 0; i < mesh.elems.size(); ++i) {
+//    for (int i = 0; i < mesh.elems.size(); ++i)
 //        if (mesh.elems.get_marker(i) == TYPES.VACUUM) {
 //            cell_index = 4*i;
-//
-//            SimpleHex shex = mesh.hexahedra[cell_index];
-//
-//            for (int i : shex) {
-//                Point3 p = interpolator->nodes.get_vertex(i);
-//                interpolator->linhexs.get_shape_functions(shape_functions, p, cell_index);
-//
-//                double shape_sum = 0;
-//                for (double sf : shape_functions) {
-//                    cout << fabs(sf) << ", ";
-//                    shape_sum += sf;
-//                }
-//                cout << "sum=" << shape_sum << endl;
-//            }
-//
-//            cout << endl;
+//            break;
 //        }
+//
+//    SimpleHex shex = mesh.hexahedra[cell_index];
+//    for (int i : shex) {
+//        Point3 p = interpolator->nodes.get_vertex(i);
+//        interpolator->linhexs.get_shape_functions(shape_functions, p, cell_index);
+//
+//        double shape_sum = 0;
+//        for (double sf : shape_functions) {
+//            cout << fabs(sf) << ", ";
+//            shape_sum += sf;
+//        }
+//        cout << "sum=" << shape_sum << endl;
 //    }
+//
+//    cout << endl;
 
     cout << "\ncomparing interpolations:\n";
     double t0;

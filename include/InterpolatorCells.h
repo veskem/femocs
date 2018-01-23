@@ -220,6 +220,18 @@ public:
         elems = &m->elems;
     }
 
+    /** Determinant of 3x3 matrix which's last column consists of ones */
+    double determinant(const Vec3 &v1, const Vec3 &v2) const;
+
+    /** Determinant of 3x3 matrix which's columns consist of Vec3-s */
+    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3) const;
+
+    /** Determinant of 4x4 matrix which's last column consists of ones */
+    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4) const;
+
+    /** Determinant of 4x4 matrix which's columns consist of Vec4-s */
+    double determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4) const;
+
 private:
     const TetgenElements* elems;    ///< pointer to tetrahedra to access their specific routines
 
@@ -235,18 +247,6 @@ private:
 
     /** Return the tetrahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.TETRAHEDRON; }
-
-        /** Determinant of 3x3 matrix which's last column consists of ones */
-    double determinant(const Vec3 &v1, const Vec3 &v2) const;
-
-    /** Determinant of 3x3 matrix which's columns consist of Vec3-s */
-    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3) const;
-
-    /** Determinant of 4x4 matrix which's last column consists of ones */
-    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4) const;
-
-    /** Determinant of 4x4 matrix which's columns consist of Vec4-s */
-    double determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4) const;
 };
 
 /**
@@ -321,24 +321,25 @@ public:
         lintet = const_cast<LinearTetrahedra*>(l);
     }
 
-    /** Change the FEM solver dependency data */
-    void set_dependencies(dealii::DoFHandler<3>* _dof_handler, dealii::Triangulation<3>* _triangulation) {
-        dof_handler = _dof_handler;
-        triangulation = _triangulation;
-    }
-
 private:
+    static constexpr double shape_fun_epilson = 1e-10;  ///< tolerance of natural coordinates
+    static constexpr int n_newton_iterations = 20; ///< max # Newton iterations while calculating natural coordinates
+
     const Hexahedra* hexs;           ///< pointer to hexahedra to access their specific routines
     const LinearTetrahedra* lintet; ///< Pointer to linear tetrahedra
-    dealii::DoFHandler<3>* dof_handler;       ///< fem solver mesh & solution
-    dealii::Triangulation<3>* triangulation;  ///< fem solver mesh & solution
+
+    /// data for mapping point from Cartesian coordinates to natural ones
+    vector<Vec3> f0s;
+    vector<Vec3> f1s;
+    vector<Vec3> f2s;
+    vector<Vec3> f3s;
+    vector<Vec3> f4s;
+    vector<Vec3> f5s;
+    vector<Vec3> f6s;
+    vector<Vec3> f7s;
 
     /** Reserve memory for interpolation data */
     void reserve(const int N);
-
-    /** Use Deal.II to calculate shape functions for a point inside i-th hexahedron */
-    void get_shape_functions(array<double,8>& sf, const Vec3& point, const int i,
-            dealii::Mapping<3,3>& mapping) const;
 
     /** Return the 10-noded tetrahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; };

@@ -379,7 +379,7 @@ int Femocs::solve_laplace(const double E0) {
     laplace_solver.write("out/laplace.vtk");
 
     FieldReader fr(&vacuum_interpolator);
-    fr.test_pic_vol2(&laplace_solver, dense_surf);
+    fr.test_pic_vol2(&laplace_solver, dense_surf, fem_mesh);
 
     return fail;
 }
