@@ -317,6 +317,13 @@ public:
         return markers[i];
     }
 
+    /** Return the index of hexahedron in femocs that corresponds to i-th hexahedron in Deal.II */
+    int deal2femocs(const int i) const {
+        require(i >= 0 && i < map_deal2femocs.size(), "Invalid index: " + to_string(i));
+        return map_deal2femocs[i];
+    }
+
+
     /** Change the dependency data */
     void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) {
         InterpolatorCells<8>::set_dependencies(m, n);
@@ -339,6 +346,10 @@ private:
         require(false, "point_in_cell not used in LinearHexahedra!");
         return false;
     }
+
+    vector<int> map_deal2femocs;    ///< data for mapping between deal.II and femocs hex meshes
+
+
 };
 
 /**

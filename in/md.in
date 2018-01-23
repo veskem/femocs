@@ -181,3 +181,4 @@ timerelE = 100.00 # Time in fs before field is applied
 ---------------------
 doPIC = true
 PIC_dtmax = 10.0 #[fs]
+PIC_time = 200 #[fs]

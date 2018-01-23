@@ -23,7 +23,7 @@ namespace femocs {
 
 // specify simulation parameters
 Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false),
-					  timestep(-1), last_full_timestep(0), pic_solver(laplace_solver) {
+					  timestep(-1), last_full_timestep(0), pic_solver(laplace_solver, fields) {
     static bool first_call = true;
 
     // Read configuration parameters from configuration file
@@ -110,7 +110,7 @@ int Femocs::run(const double elfield, const string &timestep) {
 
     // Solve Laplace equation on vacuum mesh
     if ( conf.pic.doPIC ) {
-        if(solve_pic(elfield, delta_t_MD)){
+        if(solve_pic(elfield, max(delta_t_MD * 1.e15, conf.pic.total_time))){
             force_output();
             check_return(true, "Solving PIC failed!");
         }
@@ -282,7 +282,7 @@ int Femocs::generate_meshes() {
 
 int Femocs::solve_pic(const double E0, const double dt_main) {
 
-    int time_subcycle = ceil(dt_main*1e15/conf.pic.dt_max); // delta_t_MD in [s]
+    int time_subcycle = ceil(dt_main / conf.pic.dt_max); // delta_t_MD in [s]
     double dt_pic = dt_main/time_subcycle;
 
     //2. Re-init the Poisson solver -- similar to Femocs::solve_laplace()
@@ -310,7 +310,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
 
 
     //Inject electrons (testing)
-    FieldReader fr(&vacuum_interpolator);
+//    FieldReader fr(&vacuum_interpolator);
 
 //    const double zmin = dense_surf.sizes.zmax;
 //    const double step = 3.;
@@ -346,14 +346,21 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         pic_solver.injectElectrons(ch_transient_solver, dt_pic);
         end_msg(t0);
 
+        vacuum_interpolator.nodes.write("out/result_E_phi.movie");
+        pic_solver.writeParticles("out/electrons.movie");
+
         //5. Particle pusher using the modified fields
-        start_msg(t0, "=== Pushing particles and removing lost ones...");
-        pic_solver.pushParticles(dt_pic, fr);
+        start_msg(t0, "=== Pushing particles...");
+        pic_solver.pushParticles(dt_pic);
+        end_msg(t0);
+
+
+
+        start_msg(t0, "=== Removing lost particles...");
         pic_solver.clearLostParticles();
         end_msg(t0);
 
-        vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-        pic_solver.writeParticles("out/electrons.movie");
+
     }
 
     //6. Save modified surface fields to somewhere the MD solver can find them

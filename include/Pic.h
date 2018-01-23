@@ -21,13 +21,13 @@ namespace femocs {
 template<int dim>
 class Pic {
 public:
-    Pic(fch::Laplace<dim> &laplace_solver);
+    Pic(fch::Laplace<dim> &laplace_solver, FieldReader &fr);
     ~Pic();
 
     /**Injects electrons
      *     Indexing: (x1 y1 [z1] x2 y2 [z2] ...)
      */
-    int injectElectrons(const double* const r, const size_t n, FieldReader &fr);
+    int injectElectrons(const double* const r, const size_t n);
 
     int injectElectrons(const fch::CurrentsAndHeating<3> &ch_solver, const double &dt_pic);
 
@@ -39,7 +39,7 @@ public:
     /** Pushes the particles given the fields for a delta time dt [sec]
      *
      */
-    void pushParticles(const double dt, FieldReader &fr);
+    void pushParticles(const double dt);
 
     /** Write the position and velocities of the particles to a file
      *
@@ -47,7 +47,6 @@ public:
     void writeParticles(const string filename);
     
     void clearLostParticles();
-
 private:
 
     //ELECTRONS
@@ -62,7 +61,7 @@ private:
     //std::vector<double> charges; // charges
 
     //Constants
-    const double q_over_m_factor = 5866.792099828168; // 1[e]/511e3[eV/c**2]*E[V/Å]*dt[fs] = 5866.792...*E*dt [Å/fs] charge/mass for electrons for multiplying the velocity update
+    const double q_over_m_factor = -5866.792099828168; // 1[e]/511e3[eV/c**2]*E[V/Å]*dt[fs] = 5866.792...*E*dt [Å/fs] charge/mass for electrons for multiplying the velocity update
     const double q_over_eps0 = 180.9512268; // particle charge [e] / epsilon_0 [e/VÅ] = 1 [e] * (8.85...e-12/1.6...e-19/1e10 [e/VÅ])**-1
     
     const double Wsp = 1.0; // Super particle weighting (particles/superparticle)
@@ -70,7 +69,7 @@ private:
 
     fch::Laplace<dim> &laplace_solver; ///< Laplace solver object to solve the Poisson in the vacuum mesh
 //    fch::CurrentsAndHeating<3> &ch_solver;       ///< transient currents and heating solver
-//    FieldReader &fr; ///< Object to read the electric field
+    FieldReader &fr; ///< Object to read the electric field
 //    HeatReader &hr; ///< Object to read the temperature data
 //    EmissionReader &er; ///< Object to calculate the emission data
 };

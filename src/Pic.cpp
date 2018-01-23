@@ -12,9 +12,8 @@
 
 namespace femocs {
 template<int dim>
-Pic<dim>::Pic(fch::Laplace<dim> &laplace_solver) :
-            laplace_solver(laplace_solver){
-}
+Pic<dim>::Pic(fch::Laplace<dim> &laplace_solver, FieldReader &fr) :
+laplace_solver(laplace_solver), fr(fr){}
 
 template<int dim>
 Pic<dim>::~Pic() {
@@ -30,7 +29,7 @@ Pic<dim>::~Pic() {
 //    }
 //}
 template<int dim>
-int Pic<dim>::injectElectrons(const double* const r, const size_t n, FieldReader &fr) {
+int Pic<dim>::injectElectrons(const double* const r, const size_t n) {
     for (size_t i = 0; i < n; i++) {
         r_el.push_back(dealii::Point<3>(r[i*3+0],r[i*3+1],r[i*3+2]));
         v_el.push_back(dealii::Point<3>(0.0,0.0,0.0));
@@ -44,8 +43,13 @@ int Pic<dim>::injectElectrons(const fch::CurrentsAndHeating<3> &ch_solver, const
 
     std::vector<dealii::Point<dim>> new_el = ch_solver.inject_electrons(dt_pic);
 
-    for (const auto& point : new_el){
+    for (auto& point : new_el){
+        printf("adding point %e, %e, %e\n", point[0], point[1], point[2]);
         r_el.push_back(point);
+        v_el.push_back(0. * point);
+        cout << "locating point ";
+        cid_el.push_back(fr.update_point_cell(point, 10));
+        cout << cid_el.back() << endl;
         //std::printf("inserting electron in point %e, %e, %e\n", point[0], point[1], point[2]);
     }
     return 0;
@@ -81,7 +85,7 @@ void Pic<dim>::computeField(const double E0) {
     start_msg(t0, "Closing the FEM system of equations");
     laplace_solver.assemble_system_finalize();
     end_msg(t0);
-    
+
     start_msg(t0, "Solving Poisson equation");
     laplace_solver.solve();
     end_msg(t0);
@@ -92,26 +96,28 @@ void Pic<dim>::computeField(const double E0) {
 }
 
 template<int dim>
-void Pic<dim>::pushParticles(const double dt, FieldReader &fr) {
+void Pic<dim>::pushParticles(const double dt) {
 
     for (size_t i = 0; i < r_el.size(); i++) {
         //Skip lost particles
         for (auto lost : lost_el) {
             if (lost == i) continue;
         }
-	
+
         //Leapfrog method:
         // positions defined ON the time steps, velocities defined at half time steps
+        cout << "probig field at particle location...\n";
         dealii::Tensor<1,dim> Efield = laplace_solver.probe_efield(r_el[i], cid_el[i]) ; // Get the field!
 
-        v_el[i] = v_el[i] + q_over_m_factor*Efield*(dt*1e15);
+        v_el[i] = v_el[i] + q_over_m_factor*Efield*(dt);
         r_el[i] = r_el[i] + v_el[i]*dt;
 
         //Update the cid_el && check if any particles have left the domain
+        cout << "updating cell for particles\n";
         cid_el[i] = fr.update_point_cell(r_el[i], cid_el[i]);
-	if (cid_el[i] == -1) {
-	  lost_el.push_back(i);
-	}
+        if (cid_el[i] == -1) {
+            lost_el.push_back(i);
+        }
     }
 }
 
@@ -148,7 +154,7 @@ void Pic<dim>::clearLostParticles(){
 
     lost_el.clear();
 }
-  
+
 template<int dim>
 void Pic<dim>::writeParticles(const string filename) {
     ofstream out;
@@ -161,11 +167,11 @@ void Pic<dim>::writeParticles(const string filename) {
     require(out.is_open(), "Can't open a file " + filename);
 
     out << r_el.size() << endl;
-    out << "Interpolator properties=id:I:1:pos:R:3:vel:R:3" << endl;
+    out << "Interpolator properties=id:I:1:pos:R:3:vel:R:3:cell:I:1" << endl;
 
     for (int i = 0; i < r_el.size(); ++i)
         out << i << " " << r_el[i][0] << " " << r_el[i][1] << " " << r_el[i][2] << " " <<
-                v_el[i][0] << " " << v_el[i][1] << " " << v_el[i][2] << endl;
+        v_el[i][0] << " " << v_el[i][1] << " " << v_el[i][2] << " " << cid_el[i] << endl;
 
     out.close();
 }

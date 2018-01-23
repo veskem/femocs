@@ -148,6 +148,7 @@ void Config::read_all(const string& file_name) {
 
     read_command("doPIC", pic.doPIC);
     read_command("PIC_dtmax", pic.dt_max);
+    read_command("PIC_time", pic.total_time);
     
     // Read commands with potentially multiple arguments like...
     vector<double> args;

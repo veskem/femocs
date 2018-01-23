@@ -914,6 +914,13 @@ void LinearHexahedra::precompute() {
         // Calculate and store  hexahedra
         cells.push_back((*hexs)[i]);
     }
+
+    map_deal2femocs = vector<int>(deal_hex_index);
+    deal_hex_index = 0;
+    for (int i = 0; i < n_elems; ++i) {
+        if (markers[i] >= 0)
+            map_deal2femocs[deal_hex_index++] = i;
+    }
 }
 
 void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const {
