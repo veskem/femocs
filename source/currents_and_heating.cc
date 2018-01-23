@@ -797,8 +797,9 @@ std::vector<Point<dim>> CurrentsAndHeating<dim>::inject_electrons(const double &
         unsigned cell_index = face.first.first;
         unsigned face_index = face.first.second;
         double cur_dens = face.second;
-        typename DoFHandler<dim>::active_cell_iterator cell(&triangulation, 0, cell_index, &dof_handler_current);
+        const typename DoFHandler<dim>::active_cell_iterator cell(&triangulation, 0, cell_index, &dof_handler_current);
         double area = cell->face(face_index)->measure();
+
 
         double current = cur_dens * area * Amp; // in e/fs
         double charge = current * delta_t;
@@ -809,18 +810,35 @@ std::vector<Point<dim>> CurrentsAndHeating<dim>::inject_electrons(const double &
 
         I_tot += current;
 
-        //double frand = (double)std::rand()/ RAND_MAX;
-
         if ((double)std::rand()/ RAND_MAX < frpart)
             n_electrons++;
 
 
         for (int i = 0; i < n_electrons; i++){
-            Point<dim-1> p_face;
-            p_face[0] = (double)std::rand()/ RAND_MAX;
-            p_face[1] = (double)std::rand()/ RAND_MAX;
+            std::printf("creating %d random electrons\n", n_electrons);
 
-            Point<dim> p_real = mapping.transform_unit_to_real_cell(cell->face(face_index), p_face);
+//            Point<dim> testp((double)std::rand()/ RAND_MAX, (double)std::rand()/ RAND_MAX, 0.);
+//            std::cout << "here1 "  << testp[0] <<" "<< testp[1]<<" " << testp[2] << std::endl;
+            double rand1 = (double)std::rand()/ RAND_MAX;
+            double rand2= (double)std::rand()/ RAND_MAX;
+            std::vector<double> rands(4);
+            rands[0] = rand1;
+            rands[1] = 1-rand1;
+            rands[2] = rand2;
+            rands[3] = 1-rand2;
+
+            std::cout << cell->face(face_index)->number_of_children() << std::endl;
+
+
+
+
+            //p_real = mapping.transform_unit_to_real_cell(myface, p_face);
+            Point<dim> p_real;
+
+
+            for ( int j=0;j <4 ; j++ )
+                p_real += rands[j] * cell->face(face_index)->vertex(j);
+
             out.push_back(p_real);
         }
 
