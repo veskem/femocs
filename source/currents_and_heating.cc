@@ -817,8 +817,6 @@ std::vector<Point<dim>> CurrentsAndHeating<dim>::inject_electrons(const double &
         for (int i = 0; i < n_electrons; i++){
             std::printf("creating %d random electrons\n", n_electrons);
 
-//            Point<dim> testp((double)std::rand()/ RAND_MAX, (double)std::rand()/ RAND_MAX, 0.);
-//            std::cout << "here1 "  << testp[0] <<" "<< testp[1]<<" " << testp[2] << std::endl;
             double rand1 = (double)std::rand()/ RAND_MAX;
             double rand2= (double)std::rand()/ RAND_MAX;
             std::vector<double> rands(4);
@@ -829,15 +827,13 @@ std::vector<Point<dim>> CurrentsAndHeating<dim>::inject_electrons(const double &
 
             std::cout << cell->face(face_index)->number_of_children() << std::endl;
 
-
-
-
-            //p_real = mapping.transform_unit_to_real_cell(myface, p_face);
             Point<dim> p_real;
 
 
+            const double crosser = 1.e-4;
             for ( int j=0;j <4 ; j++ )
-                p_real += rands[j] * cell->face(face_index)->vertex(j);
+                p_real += (.5 - crosser)  * rands[j] * cell->face(face_index)->vertex(j) + crosser * cell->barycenter();
+
 
             out.push_back(p_real);
         }
