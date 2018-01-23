@@ -314,6 +314,12 @@ public:
         return markers[i];
     }
 
+    /** Return the index of hexahedron in femocs that corresponds to i-th hexahedron in Deal.II */
+    int deal2femocs(const int i) const {
+        require(i >= 0 && i < map_deal2femocs.size(), "Invalid index: " + to_string(i));
+        return map_deal2femocs[i];
+    }
+
     /** Change the mesh dependency data */
     void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) {
         InterpolatorCells<8>::set_dependencies(m, n);
@@ -325,8 +331,10 @@ private:
     static constexpr double shape_fun_epilson = 1e-10;  ///< tolerance of natural coordinates
     static constexpr int n_newton_iterations = 20; ///< max # Newton iterations while calculating natural coordinates
 
-    const Hexahedra* hexs;           ///< pointer to hexahedra to access their specific routines
+    const Hexahedra* hexs;          ///< pointer to hexahedra to access their specific routines
     const LinearTetrahedra* lintet; ///< Pointer to linear tetrahedra
+
+    vector<int> map_deal2femocs;    ///< data for mapping between deal.II and femocs hex meshes
 
     /// data for mapping point from Cartesian coordinates to natural ones
     vector<Vec3> f0s;

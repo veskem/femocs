@@ -940,6 +940,13 @@ void LinearHexahedra::precompute() {
         f6s.push_back( Vec3((x1 + x2 - x3 - x4 - x5 - x6 + x7 + x8) / 8.0) );
         f7s.push_back( Vec3(((x1*-1) + x2 - x3 + x4 + x5 - x6 + x7 - x8) / 8.0) );
     }
+
+    map_deal2femocs = vector<int>(deal_hex_index);
+    deal_hex_index = 0;
+    for (int i = 0; i < n_elems; ++i) {
+        if (markers[i] >= 0)
+            map_deal2femocs[deal_hex_index++] = i;
+    }
 }
 
 /*
