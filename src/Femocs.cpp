@@ -110,22 +110,22 @@ int Femocs::run(const double elfield, const string &timestep) {
 
     // Solve Laplace equation on vacuum mesh
     if ( conf.pic.doPIC ) {
-        if(solve_pic(elfield,delta_t_MD)){
+        if(solve_pic(elfield, delta_t_MD)){
             force_output();
             check_return(true, "Solving PIC failed!");
         }
-    }
-    else {
+    } else {
+        //solve laplace equation
         if (solve_laplace(elfield)) {
             force_output();
             check_return(true, "Solving Laplace equation failed!");
         }
-    }
 
-    // Solve heat & continuity equation on bulk mesh
-    if (solve_heat(conf.heating.t_ambient)) {
-        force_output();
-        check_return(true, "Solving heat & continuity equation failed!");
+        // Solve heat & continuity equation on bulk mesh
+        if (solve_heat(conf.heating.t_ambient)) {
+            force_output();
+            check_return(true, "Solving heat & continuity equation failed!");
+        }
     }
 
     finalize();
@@ -312,19 +312,19 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     //Inject electrons (testing)
     FieldReader fr(&vacuum_interpolator);
 
-    const double zmin = dense_surf.sizes.zmax;
-    const double step = 5.;
-    const size_t n_points = 3;
-
-    cout << "injecting particles" << endl;
-    double points_pic[3 * n_points];
-    for (int i = 0; i < n_points; ++i){
-        points_pic[i * 3] = 0;
-        points_pic[i * 3 +1] = 0;
-        points_pic[i * 3 +2] = zmin + (i+1) * step;
-    }
-
-    pic_solver.injectElectrons(points_pic, n_points, fr);
+//    const double zmin = dense_surf.sizes.zmax;
+//    const double step = 3.;
+//    const size_t n_points = 10;
+//
+//    cout << "injecting particles" << endl;
+//    double points_pic[3 * n_points];
+//    for (int i = 0; i < n_points; ++i){
+//        points_pic[i * 3] = 0;
+//        points_pic[i * 3 +1] = 0;
+//        points_pic[i * 3 +2] = zmin + (i+1) * step;
+//    }
+//
+//    pic_solver.injectElectrons(points_pic, n_points, fr);
 
     //Timestep loop
     for (int i = 0; i < time_subcycle; i++) {
@@ -343,26 +343,18 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         end_msg(t0);
 
         start_msg(t0, "=== Injecting electrons...");
-        pic_solver.injectElectrons(ch_transient_solver);
+        pic_solver.injectElectrons(ch_transient_solver, dt_pic);
         end_msg(t0);
-
-        //4. Update fields (solve Poisson equation),
-        // taking the long range efield `elfield` into account
-        // TODO
 
         //5. Particle pusher using the modified fields
-        start_msg(t0, "=== Injecting electrons...");
+        start_msg(t0, "=== Pushing particles and removing lost ones...");
         pic_solver.pushParticles(dt_pic, fr);
+        pic_solver.clearLostParticles();
         end_msg(t0);
 
-        pic_solver.clearLostParticles();
-
         vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-
         pic_solver.writeParticles("out/electrons.movie");
     }
-
-    pic_solver.clearLostParticles();
 
     //6. Save modified surface fields to somewhere the MD solver can find them
     // (same as the laplace solver used when PIC is inactive)

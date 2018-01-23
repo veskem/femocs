@@ -853,6 +853,7 @@ void EmissionReader::calc_representative() {
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
         double face_area = faces.get_area(abs(fields.get_marker(i))) / 3.;
         currents[i] = face_area * current_densities[i];
+        I_tot += currents[i];
 
         if (current_densities[i] > Jmax * 0.5){ //if point eligible
             //quadrangle face area is 1/3 of corresponding triangle face area
@@ -864,7 +865,7 @@ void EmissionReader::calc_representative() {
     }
 
     if (MODES.VERBOSE)
-        cout << "I_fwhm = " << I_fwhm << "Amps" << endl;
+        printf("I_fwhm = %e, I_tot = %e [Amps]\n", I_fwhm, I_tot);
     Jrep = I_fwhm / area;
     Frep = multiplier * FJ / I_fwhm;
 }

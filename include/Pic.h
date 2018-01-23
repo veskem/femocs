@@ -29,7 +29,7 @@ public:
      */
     int injectElectrons(const double* const r, const size_t n, FieldReader &fr);
 
-    int injectElectrons(fch::CurrentsAndHeating<3> &ch_solver);
+    int injectElectrons(const fch::CurrentsAndHeating<3> &ch_solver, const double &dt_pic);
 
     /**Computes the charge density for each FEM DOF
      *

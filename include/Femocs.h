@@ -211,7 +211,7 @@ public:
     int force_output();
 
 private:
-    const double delta_t_MD = 4.05e-15; // in seconds (!)
+    const double delta_t_MD = 20.05e-15; // in seconds (!)
     
     bool skip_calculations, fail;
     double t0;

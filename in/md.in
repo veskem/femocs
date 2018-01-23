@@ -76,7 +76,7 @@ Ekdef    = 0.234         Ekin threshold for labeling an atom defect/liquid 1.5 k
 ----------------------------------
 nsave    = 250
 dbg_lvl  = 0
-elfield  = -0.2  # Max value of applied elctric field (V/Å)
+elfield  = -0.3  # Max value of applied elctric field (V/Å)
 #Erate    = -0.07 # Rate at which field strength is increased (V/(Å*sqrt(fs)))
 rampmode = 0
 evpintval= 0 # How often to force evaporation (timesteps)
@@ -180,4 +180,4 @@ timerelE = 100.00 # Time in fs before field is applied
 # PIC parameters
 ---------------------
 doPIC = true
-PIC_dtmax = 1.0 #[fs]
+PIC_dtmax = 10.0 #[fs]

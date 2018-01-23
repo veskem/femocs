@@ -29,8 +29,8 @@ Pic<dim>::~Pic() {
 //        cid_el.push_back(fr.update_point_cell(r_el[i], 10));
 //    }
 //}
-template<>
-int Pic<3>::injectElectrons(const double* const r, const size_t n, FieldReader &fr) {
+template<int dim>
+int Pic<dim>::injectElectrons(const double* const r, const size_t n, FieldReader &fr) {
     for (size_t i = 0; i < n; i++) {
         r_el.push_back(dealii::Point<3>(r[i*3+0],r[i*3+1],r[i*3+2]));
         v_el.push_back(dealii::Point<3>(0.0,0.0,0.0));
@@ -39,9 +39,16 @@ int Pic<3>::injectElectrons(const double* const r, const size_t n, FieldReader &
     }
 }
 
-template<>
-int Pic<3>::injectElectrons(fch::CurrentsAndHeating<3> &ch_solver) {
+template<int dim>
+int Pic<dim>::injectElectrons(const fch::CurrentsAndHeating<3> &ch_solver, const double &dt_pic) {
 
+    std::vector<dealii::Point<dim>> new_el = ch_solver.inject_electrons(dt_pic);
+
+    for (const auto& point : new_el){
+        r_el.push_back(point);
+        //std::printf("inserting electron in point %e, %e, %e\n", point[0], point[1], point[2]);
+    }
+    return 0;
 
 }
 
@@ -128,7 +135,7 @@ void Pic<dim>::clearLostParticles(){
 
         r_el[i-nlost] = r_el[i];
         v_el[i-nlost] = v_el[i];
-        cid_el[i-nlost] = cid_el[i-nlost];
+        cid_el[i-nlost] = cid_el[i];
     }
 
     //Shrink the arrays
