@@ -481,8 +481,8 @@ void FieldReader::test_pic(fch::Laplace<3>* laplace, const Medium& medium) {
 void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium) {
     const double x = 0;
     const double y = 0;
-    const double zmin = medium.sizes.zmax;
-    const double step = 0.005;
+    const double zmin = 0.5 + medium.sizes.zmax;
+    const double step = 0.0005;
 
     const int n_points = 10000;
 
@@ -550,12 +550,14 @@ void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium) 
         dealii::Point<3> deal_point(p.x, p.y, p.z);
 
         cell_index = interpolator->linhexs.locate_cell(p, cell_index);
-
-        double val1 = laplace->probe_efield(deal_point,interpolator->linhexs.femocs2deal(cell_index));
-        double val2 = laplace->probe_potential(deal_point, interpolator->linhexs.femocs2deal(cell_index));
-
-//        set_marker(i, interpolator->linhexs.femocs2deal(cell_index));
-        append_interpolation(Solution(Vec3(0), val1, val2));
+        int cell_index_in_deal = interpolator->linhexs.femocs2deal(cell_index);
+        if (cell_index_in_deal < 0)
+            append_interpolation(Solution(0));
+        else {
+            double val1 = laplace->probe_efield(deal_point,cell_index_in_deal);
+            double val2 = laplace->probe_potential(deal_point, cell_index_in_deal);
+            append_interpolation(Solution(Vec3(0), val1, val2));
+        }
     }
     end_msg(t0);
 
@@ -1355,7 +1357,7 @@ int ForceReader::calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom
 }
 
 // Calculate forces from atomic electric fields and face charges
-void ForceReader::calc_forces(const FieldReader &fields, const SurfaceInterpolator& ti) {
+void ForceReader::calc_forces(const FieldReader &fields) {
     const int n_atoms = fields.size();
 
     // Copy the atom data
@@ -1364,7 +1366,7 @@ void ForceReader::calc_forces(const FieldReader &fields, const SurfaceInterpolat
 
     // Calculate the charges by ensuring the that the total sum of it remains conserved
     vector<double> charges;
-    ti.interp_conserved(charges, atoms);
+    interpolator->lintris.interp_conserved(charges, atoms);
 
     // calculate forces and store them
     for (int i = 0; i < n_atoms; ++i) {
