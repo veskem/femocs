@@ -148,9 +148,6 @@ public:
     /** Find the cell which contains the point or is the closest to it */
     virtual int locate_cell(const Point3 &point, const int cell_guess) const;
 
-    /** Find the cell which contains the point or is the closest to it looking only for non-marked cells */
-    int locate_cell(const Point3 &point, const int cell_guess, vector<bool>& cell_checked) const;
-
     /** @brief Interpolate both vector and scalar data inside or near the cell.
      * Function assumes, that cell, that fits the best to the point, is previously already found with locate_cell.
      * cell>=0 initiates the usage of barycentric coordinates and cell<0 the usage of mere distance-dependent weighting.
@@ -308,11 +305,15 @@ public:
     /** Find the hexahedron which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
+    /** Mark the hexahedra to be skipped during the cell location either in
+     * vacuum (vacuum==true) or bulk (vacuum==false) region. */
+    void narrow_search(const bool vacuum);
+
     /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
      * -1 means there's no correspondence between two meshes */
     int femocs2deal(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-        return markers[i];
+        require(i >= 0 && i < map_femocs2deal.size(), "Invalid index: " + to_string(i));
+        return map_femocs2deal[i];
     }
 
     /** Return the index of hexahedron in femocs that corresponds to i-th hexahedron in Deal.II */
@@ -334,6 +335,7 @@ private:
     const Hexahedra* hexs;          ///< pointer to hexahedra to access their specific routines
     const LinearTetrahedra* lintet; ///< Pointer to linear tetrahedra
 
+    vector<int> map_femocs2deal;    ///< data for mapping between femocs and deal.II hex meshes
     vector<int> map_deal2femocs;    ///< data for mapping between deal.II and femocs hex meshes
 
     /// data for mapping point from Cartesian coordinates to natural ones
