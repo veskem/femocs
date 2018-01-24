@@ -274,6 +274,7 @@ int Femocs::generate_meshes() {
     fem_mesh.quads.write("out/quadmesh.vtk");
     fem_mesh.hexahedra.write("out/hexmesh.vtk");
     fem_mesh.write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
+    fem_mesh.faces.write("out/hexmesh_faces.vtk");
     stringstream ss; ss << fem_mesh;
     write_verbose_msg(ss.str());
 

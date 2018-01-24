@@ -932,6 +932,7 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
 
     int tet_index = abs(cell_guess / n_hexs_per_tet);
     tet_index = lintets->locate_cell(point, tet_index);
+    cout << "cell located in tet no " << tet_index << endl;
     int sign = 1;
     if (tet_index < 0) sign = -1;
     tet_index = abs(tet_index);

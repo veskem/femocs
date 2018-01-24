@@ -44,9 +44,9 @@ int Pic<dim>::injectElectrons(const fch::CurrentsAndHeating<3> &ch_solver, const
     std::vector<dealii::Point<dim>> new_el = ch_solver.inject_electrons(dt_pic);
 
     for (auto& point : new_el){
-        printf("adding point %e, %e, %e\n", point[0], point[1], point[2]);
         r_el.push_back(point);
         v_el.push_back(0. * point);
+
         cout << "locating point ";
         cid_el.push_back(fr.update_point_cell(point, 10));
         cout << cid_el.back() << endl;
