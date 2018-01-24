@@ -247,6 +247,11 @@ void InterpolatorCells<dim>::write_cell_data(ofstream& out) const {
     out << "SCALARS cell-ID int\nLOOKUP_TABLE default\n";
     for (int i = 0; i < n_cells; ++i)
         out << i << "\n";
+
+    // write cell markers
+    out << "SCALARS cell-marker int\nLOOKUP_TABLE default\n";
+    for (int i = 0; i < n_cells; ++i)
+        out << markers[i] << "\n";
 }
 
 template<int dim>
@@ -759,6 +764,27 @@ void LinearTetrahedra::get_shape_functions(array<double,4>& sf, const Vec3& poin
     sf[3] = zero + det0[tet] * pt.dotProduct(det4[tet]);
 }
 
+void LinearTetrahedra::narrow_search_to(const int region) {
+    const int n_cells = cells.size();
+    require(n_cells == elems->size(), "LinearTetrahedra must be intialized before narrowing search!");
+
+    const int surf_end = mesh->nodes.indxs.surf_end;
+
+    if (region == TYPES.VACUUM) {
+        for (int i = 0; i < n_cells; ++i)
+            markers[i] = elems->get_marker(i) != TYPES.VACUUM;
+    } else if (region == TYPES.BULK) {
+        for (int i = 0; i < n_cells; ++i)
+            markers[i] = elems->get_marker(i) == TYPES.VACUUM;
+    } else if (region == TYPES.SURFACE) {
+        for (int i = 0; i < n_cells; ++i) {
+            SimpleElement se = cells[i];
+            markers[i] = se[0] > surf_end && se[1] > surf_end && se[2] > surf_end && se[3] > surf_end;
+        }
+    } else
+        require(false, "Unimplemented region: " + to_string(region));
+}
+
 double LinearTetrahedra::determinant(const Vec3 &v1, const Vec3 &v2) const {
     return v1.x * (v2.y - v2.z) - v1.y * (v2.x - v2.z) + v1.z * (v2.x - v2.y);
 }
@@ -932,6 +958,10 @@ void LinearHexahedra::precompute() {
         f7s.push_back( Vec3(((x1*-1) + x2 - x3 + x4 + x5 - x6 + x7 - x8) / 8.0) );
     }
 
+    // make the markers to correspond to lintet
+    for (int i = 0; i < n_elems; ++i)
+        markers[i] = lintet->get_marker(int(i/4));
+
     // store the mapping between femocs and deal.ii hexahedra
     int deal_hex_index = 0;
     map_femocs2deal = vector<int>(n_elems);
@@ -1060,18 +1090,6 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
         return sign * (n_hexs_per_tet * tet_index + 3);
 
     return -1;
-}
-
-void LinearHexahedra::narrow_search(const bool vacuum) {
-    const int n_cells = cells.size();
-    require(n_cells == hexs->size(), "LinearHexahedra must be intialised before narrowing search!");
-
-    for (int i = 0; i < n_cells; ++i) {
-        if (hexs->get_marker(i) > 0)
-            markers[i] = vacuum;
-        else
-            markers[i] = !vacuum;
-    }
 }
 
 template class InterpolatorCells<3> ;

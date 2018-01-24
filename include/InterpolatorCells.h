@@ -161,6 +161,18 @@ public:
         nodes = const_cast<InterpolatorNodes*>(n);
     }
 
+    /** Modify cell marker */
+    void set_marker(const int i, const int m) {
+        require(i >= 0 && i < markers.size(), "Invalid index: " + to_string(i));
+        markers[i] = m;
+    }
+
+    /** Access cell marker */
+    int get_marker(const int i) const {
+        require(i >= 0 && i < markers.size(), "Invalid index: " + to_string(i));
+        return markers[i];
+    }
+
     double decay_factor = -1.0;        ///< exp(decay_factor * node1.distance(node2)) gives the weight that can be used in smoothing process
 
 protected:
@@ -216,6 +228,9 @@ public:
         InterpolatorCells<4>::set_dependencies(m, n);
         elems = &m->elems;
     }
+
+    /** Specify the region where the cells are searched during the cell location. */
+    void narrow_search_to(const int region);
 
     /** Determinant of 3x3 matrix which's last column consists of ones */
     double determinant(const Vec3 &v1, const Vec3 &v2) const;
@@ -304,10 +319,6 @@ public:
 
     /** Find the hexahedron which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
-
-    /** Mark the hexahedra to be skipped during the cell location either in
-     * vacuum (vacuum==true) or bulk (vacuum==false) region. */
-    void narrow_search(const bool vacuum);
 
     /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
      * -1 means there's no correspondence between two meshes */
