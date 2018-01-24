@@ -122,7 +122,23 @@ void Interpolator::store_solution(const vector<int>& femocs2deal,
     }
 }
 
-bool Interpolator::extract_solution(fch::Laplace<3>* fem, const bool smoothen) {
+void Interpolator::initialize() {
+    // Precompute cells to make interpolation faster
+    nodes.precompute();
+    lintris.precompute();
+    quadtris.precompute();
+    lintets.precompute();
+    quadtets.precompute();
+    linhexs.precompute();
+
+    const int n_atoms = nodes.size();
+
+    for (int i = 0; i < n_atoms; ++i){
+        nodes.append_solution(Solution(0));
+    }
+}
+
+bool Interpolator::extract_solution(fch::Laplace<3>* fem) {
     require(fem, "NULL pointer can't be handled!");
 
     // Precompute cells to make interpolation faster
@@ -142,8 +158,7 @@ bool Interpolator::extract_solution(fch::Laplace<3>* fem, const bool smoothen) {
             fem->get_potential(cell_indxs, vert_indxs));
 
     // Remove the spikes from the solution
-    if (smoothen) return average_sharp_nodes(true);
-    return false;
+    return average_sharp_nodes(true);
 }
 
 bool Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {

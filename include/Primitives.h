@@ -135,6 +135,7 @@ public:
     Point3(const double xx) : x(xx), y(xx), z(xx) {}
     Point3(const double xx, const double yy, const double zz) : x(xx), y(yy), z(zz) {}
     Point3(const Point3& p) : x(p.x), y(p.y), z(p.z) {}
+    Point3(const dealii::Point<3> &p) : x(p[0]), y(p[1]), z(p[2]) {}
 
     /** Dimensionality of point */
     int size() const { return 3; }

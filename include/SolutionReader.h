@@ -164,6 +164,12 @@ public:
     void set_check_params(const double E0, const double limit_min, const double limit_max,
             const double radius1, const double radius2=-1);
 
+    int update_point_cell(dealii::Point<3> &p, int current_cell) {
+        Point3 femocs_point(p);
+        int femocs_cell = interpolator->linhexs.locate_cell(femocs_point, current_cell);
+        return interpolator->linhexs.femocs2deal(femocs_cell); // gives -1 if cell is out of vacuum mesh
+    }
+
 private:
     /** Data needed for comparing numerical solution with analytical one */
     double E0;                      ///< Long-range electric field strength

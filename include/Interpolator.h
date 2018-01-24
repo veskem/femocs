@@ -51,8 +51,10 @@ public:
     Interpolator(const TetgenMesh* m, const string& norm_label, const string& scalar_label);
     ~Interpolator() {};
 
+    void initialize();
+
     /** Extract the electric potential and field values from FEM solution */
-    bool extract_solution(fch::Laplace<3>* fem, const bool smoothen);
+    bool extract_solution(fch::Laplace<3>* fem);
 
     /** Extract the current density and stationary temperature values from FEM solution */
     bool extract_solution(fch::CurrentsAndHeatingStationary<3>* fem);

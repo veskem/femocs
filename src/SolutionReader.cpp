@@ -459,8 +459,8 @@ void FieldReader::test_pic(fch::Laplace<3>* laplace, const Medium& medium) {
         hex_index = interpolator->linhexs.locate_cell(p, hex_index);
         dealii::Point<3> deal_point(p.x, p.y, p.z);
 
-        double val1 = laplace->probe_efield(deal_point,interpolator->linhexs.femocs2deal(hex_index));
-        double val2 = laplace->probe_efield(deal_point);
+        double val1 = laplace->probe_efield_norm(deal_point,interpolator->linhexs.femocs2deal(hex_index));
+        double val2 = laplace->probe_efield_norm(deal_point);
         printf("%.2f, %e, %e, %e\n", p.z, val1, val2, val1 - val2);
     }
 
@@ -472,7 +472,7 @@ void FieldReader::test_pic(fch::Laplace<3>* laplace, const Medium& medium) {
         hex_index = interpolator->linhexs.locate_cell(p, hex_index);
         dealii::Point<3> deal_point(p.x, p.y, p.z);
 
-        double val1 = laplace->probe_efield(deal_point,interpolator->linhexs.femocs2deal(hex_index));
+        double val1 = laplace->probe_efield_norm(deal_point,interpolator->linhexs.femocs2deal(hex_index));
         double val2 = laplace->probe_potential(deal_point,interpolator->linhexs.femocs2deal(hex_index));
         append_interpolation(Solution(Vec3(0), val1, val2));
     }
@@ -511,7 +511,7 @@ void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium, 
 //        Point3 p = get_point(i);
 //        cell_index = interpolator->linhexs.locate_cell(p, cell_index);
 //        double val1 = interpolator->linhexs.interp_solution(p, cell_index).norm;
-//        double val2 = laplace->probe_efield(dealii::Point<3>(p.x, p.y, p.z));
+//        double val2 = laplace->probe_efield_norm(dealii::Point<3>(p.x, p.y, p.z));
 //        printf("%.2f, %e, %e, %.6f\n", p.z, val1, val2, val1/val2);
 //    }
 
@@ -553,7 +553,7 @@ void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium, 
         if (cell_index_in_deal < 0)
             append_interpolation(Solution(0));
         else {
-            double val1 = laplace->probe_efield(deal_point,cell_index_in_deal);
+            double val1 = laplace->probe_efield_norm(deal_point,cell_index_in_deal);
             double val2 = laplace->probe_potential(deal_point, cell_index_in_deal);
             append_interpolation(Solution(Vec3(0), val1, val2));
         }
