@@ -167,7 +167,7 @@ public:
     double decay_factor = -1.0;        ///< exp(decay_factor * node1.distance(node2)) gives the weight that can be used in smoothing process
 
 protected:
-    static constexpr double coplanar_epsilon = 0.1; ///< coplanarity tolerance
+    static constexpr double zero = 1e-15; ///< tolerance of calculations
 
     const TetgenMesh* mesh;           ///< Full mesh data with nodes, faces, elements etc
     const InterpolatorNodes* nodes;   ///< Pointer to nodes and solutions
@@ -328,7 +328,6 @@ public:
     }
 
 private:
-    static constexpr double shape_fun_epilson = 1e-10;  ///< tolerance of natural coordinates
     static constexpr int n_newton_iterations = 20; ///< max # Newton iterations while calculating natural coordinates
 
     const Hexahedra* hexs;          ///< pointer to hexahedra to access their specific routines

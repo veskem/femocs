@@ -602,6 +602,74 @@ void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium, 
     write("out/potential4.xyz");
 }
 
+void FieldReader::test_pic_vol3(const TetgenMesh& mesh) const {
+    int cell_index;
+    array<double,8> shape_functions;
+    array<double,4> bcc;
+
+    int cntr = 0;
+    for (int i = 0; i < mesh.elems.size(); ++i)
+        if (mesh.elems.get_marker(i) == TYPES.VACUUM && cntr++ >= 0) {
+            cell_index = i;
+            break;
+        }
+
+    SimpleElement stet = mesh.elems[cell_index];
+
+
+    Point3 n1 = mesh.nodes[stet[0]];
+    Point3 n2 = mesh.nodes[stet[1]];
+    Point3 n3 = mesh.nodes[stet[2]];
+    Point3 n4 = mesh.nodes[stet[3]];
+
+    vector<Point3> points;
+
+    points.push_back(n1);
+    points.push_back(n2);
+    points.push_back(n3);
+    points.push_back(n4);
+    points.push_back((n1 + n2) / 2.0);
+    points.push_back((n1 + n3) / 2.0);
+    points.push_back((n1 + n4) / 2.0);
+    points.push_back((n2 + n3) / 2.0);
+    points.push_back((n2 + n4) / 2.0);
+    points.push_back((n3 + n4) / 2.0);
+    points.push_back((n1 + n2 + n3) / 3.0);
+    points.push_back((n1 + n2 + n4) / 3.0);
+    points.push_back((n1 + n3 + n4) / 3.0);
+    points.push_back((n2 + n3 + n4) / 3.0);
+    points.push_back((n1 + n2 + n3 + n4) / 4.0);
+
+
+
+    vector<string> labels = {"n1","n2","n3","n4","c12","c13","c14","c23","c24","c34","c123","c124","c134","c234","c1234"};
+
+    cout << "results for tet=" << cell_index << ", 4tet=" << 4*cell_index << endl;
+    cout << "with neighbours ";
+    for (int nbor : mesh.elems.get_neighbours(cell_index))
+        cout << nbor << " (" << 4*nbor << ")   ";
+    cout << endl;// << fixed << setprecision(3);
+
+    require(labels.size() == points.size(), "Incompatible vectors!");
+
+    for (int i = 0; i < 4; ++i) {
+        cell_index = interpolator->linhexs.locate_cell(points[i], 0);
+        interpolator->lintets.get_shape_functions(bcc, points[i], 0);
+        cout << endl << labels[i] << ":\t" << cell_index+1 << "\t";
+        for (double b : bcc)
+            cout << ", " << b;
+    }
+
+    for (int i = 4; i < labels.size(); ++i) {
+        cell_index = interpolator->linhexs.locate_cell(points[i], 0);
+        interpolator->lintets.get_shape_functions(bcc, points[i], abs(int(cell_index/4)));
+        cout << endl << labels[i] << ":\t" << cell_index+1 << "\t";
+        for (double b : bcc)
+            cout << ", " << b;
+    }
+
+}
+
 // Interpolate electric field and potential on a set of points
 void FieldReader::interpolate(const int n_points, const double* x, const double* y, const double* z) {
     // store the point coordinates

@@ -680,7 +680,7 @@ void LinearTetrahedra::precompute() {
                   |x3 y3 z3 1|
                   |x4 y4 z4 1|  */
         d0 = determinant(v1, v2, v3, v4);
-        tet_not_valid.push_back(fabs(d0) < this->coplanar_epsilon);
+        tet_not_valid.push_back(fabs(d0) < zero);
         det0.push_back(1.0 / d0);
 
         /* =====================================================================================
@@ -744,10 +744,10 @@ bool LinearTetrahedra::point_in_cell(const Vec3& point, const int i) const {
 
     // If one of the barycentric coordinates is < zero, the point is outside the tetrahedron
     // Source: http://steve.hollasch.net/cgindex/geometry/ptintet.html
-    if (det0[i] * pt.dotProduct(det1[i]) < 0) return false;
-    if (det0[i] * pt.dotProduct(det2[i]) < 0) return false;
-    if (det0[i] * pt.dotProduct(det3[i]) < 0) return false;
-    if (det0[i] * pt.dotProduct(det4[i]) < 0) return false;
+    if (det0[i] * pt.dotProduct(det1[i]) < -zero) return false;
+    if (det0[i] * pt.dotProduct(det2[i]) < -zero) return false;
+    if (det0[i] * pt.dotProduct(det3[i]) < -zero) return false;
+    if (det0[i] * pt.dotProduct(det4[i]) < -zero) return false;
 
     // All bcc-s are >= 0, so point is inside the tetrahedron
     return true;
@@ -757,10 +757,10 @@ void LinearTetrahedra::get_shape_functions(array<double,4>& sf, const Vec3& poin
     require(tet >= 0 && tet < det0.size(), "Index out of bounds: " + to_string(tet));
 
     const Vec4 pt(point, 1);
-    sf[0] = det0[tet] * pt.dotProduct(det1[tet]);
-    sf[1] = det0[tet] * pt.dotProduct(det2[tet]);
-    sf[2] = det0[tet] * pt.dotProduct(det3[tet]);
-    sf[3] = det0[tet] * pt.dotProduct(det4[tet]);
+    sf[0] = zero + det0[tet] * pt.dotProduct(det1[tet]);
+    sf[1] = zero + det0[tet] * pt.dotProduct(det2[tet]);
+    sf[2] = zero + det0[tet] * pt.dotProduct(det3[tet]);
+    sf[3] = zero + det0[tet] * pt.dotProduct(det4[tet]);
 }
 
 double LinearTetrahedra::determinant(const Vec3 &v1, const Vec3 &v2) const {
@@ -999,7 +999,7 @@ void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point
         v += dv;
         w += dw;
 
-        if (du * du + dv * dv + dw * dw < shape_fun_epilson)
+        if (du * du + dv * dv + dw * dw < zero)
             break;
     }
 
