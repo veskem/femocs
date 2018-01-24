@@ -825,21 +825,17 @@ std::vector<Point<dim>> CurrentsAndHeating<dim>::inject_electrons(const double &
             rands[2] = rand2;
             rands[3] = 1-rand2;
 
-            std::cout << cell->face(face_index)->number_of_children() << std::endl;
-
             Point<dim> p_real;
 
 
-            const double crosser = 1.e-4;
+            const double crosser = 1.;
             for ( int j=0;j <4 ; j++ )
-                p_real += (.5 - crosser)  * rands[j] * cell->face(face_index)->vertex(j) + crosser * cell->barycenter();
-
+                p_real += .5   * rands[j] * cell->face(face_index)->vertex(j);
 
             out.push_back(p_real);
         }
 
         n_tot += n_electrons;
-
     }
 
     std::printf("I_tot_dealii = %e, emitted electrons = %d\n", I_tot, n_tot);
