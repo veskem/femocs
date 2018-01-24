@@ -120,6 +120,10 @@ public:
 
     void test_pic(fch::Laplace<3>* laplace, const Medium& medium);
 
+    void test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium, const TetgenMesh& mesh);
+
+    void test_pic_vol3(const TetgenMesh& mesh) const;
+
     /** Interpolate electric field and potential on a Medium atoms */
     void interpolate(const Medium &medium);
 
@@ -319,7 +323,7 @@ public:
     void distribute_charges(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);
 
-    void calc_forces(const FieldReader &fields, const SurfaceInterpolator& ti);
+    void calc_forces(const FieldReader &fields);
 
     int calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom2surf, const FieldReader& fields,
              const double radius, const double latconst, const string& mesh_quality);

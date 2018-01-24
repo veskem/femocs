@@ -11,9 +11,6 @@
 #include "Primitives.h"
 #include "TetgenMesh.h"
 #include "TetgenCells.h"
-#include "laplace.h"
-#include "currents_and_heating.h"
-#include "currents_and_heating_stationary.h"
 
 using namespace std;
 namespace femocs {
@@ -170,7 +167,7 @@ public:
     double decay_factor = -1.0;        ///< exp(decay_factor * node1.distance(node2)) gives the weight that can be used in smoothing process
 
 protected:
-    static constexpr double coplanar_epsilon = 0.1; ///< coplanarity tolerance
+    static constexpr double zero = 1e-15; ///< tolerance of calculations
 
     const TetgenMesh* mesh;           ///< Full mesh data with nodes, faces, elements etc
     const InterpolatorNodes* nodes;   ///< Pointer to nodes and solutions
@@ -223,6 +220,18 @@ public:
         elems = &m->elems;
     }
 
+    /** Determinant of 3x3 matrix which's last column consists of ones */
+    double determinant(const Vec3 &v1, const Vec3 &v2) const;
+
+    /** Determinant of 3x3 matrix which's columns consist of Vec3-s */
+    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3) const;
+
+    /** Determinant of 4x4 matrix which's last column consists of ones */
+    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4) const;
+
+    /** Determinant of 4x4 matrix which's columns consist of Vec4-s */
+    double determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4) const;
+
 private:
     const TetgenElements* elems;    ///< pointer to tetrahedra to access their specific routines
 
@@ -238,18 +247,6 @@ private:
 
     /** Return the tetrahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.TETRAHEDRON; }
-
-        /** Determinant of 3x3 matrix which's last column consists of ones */
-    double determinant(const Vec3 &v1, const Vec3 &v2) const;
-
-    /** Determinant of 3x3 matrix which's columns consist of Vec3-s */
-    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3) const;
-
-    /** Determinant of 4x4 matrix which's last column consists of ones */
-    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4) const;
-
-    /** Determinant of 4x4 matrix which's columns consist of Vec4-s */
-    double determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4) const;
 };
 
 /**
@@ -305,9 +302,10 @@ public:
     /** Pre-compute data about tetrahedra to make interpolation faster */
     void precompute();
 
-    /** Get interpolation weights for a point inside i-th tetrahedron */
+    /** Get interpolation weights for a point inside i-th hexahedron */
     void get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const;
 
+    /** Find the hexahedron which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
     /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
@@ -323,17 +321,30 @@ public:
         return map_deal2femocs[i];
     }
 
-
-    /** Change the dependency data */
+    /** Change the mesh dependency data */
     void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) {
         InterpolatorCells<8>::set_dependencies(m, n);
         hexs = &m->hexahedra;
-        lintets = const_cast<LinearTetrahedra*>(l);
+        lintet = const_cast<LinearTetrahedra*>(l);
     }
 
 private:
-    const Hexahedra* hexs;           ///< pointer to hexahedra to access their specific routines
-    const LinearTetrahedra* lintets; ///< Pointer to linear tetrahedra
+    static constexpr int n_newton_iterations = 20; ///< max # Newton iterations while calculating natural coordinates
+
+    const Hexahedra* hexs;          ///< pointer to hexahedra to access their specific routines
+    const LinearTetrahedra* lintet; ///< Pointer to linear tetrahedra
+
+    vector<int> map_deal2femocs;    ///< data for mapping between deal.II and femocs hex meshes
+
+    /// data for mapping point from Cartesian coordinates to natural ones
+    vector<Vec3> f0s;
+    vector<Vec3> f1s;
+    vector<Vec3> f2s;
+    vector<Vec3> f3s;
+    vector<Vec3> f4s;
+    vector<Vec3> f5s;
+    vector<Vec3> f6s;
+    vector<Vec3> f7s;
 
     /** Reserve memory for interpolation data */
     void reserve(const int N);
@@ -346,10 +357,6 @@ private:
         require(false, "point_in_cell not used in LinearHexahedra!");
         return false;
     }
-
-    vector<int> map_deal2femocs;    ///< data for mapping between deal.II and femocs hex meshes
-
-
 };
 
 /**

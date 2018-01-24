@@ -181,4 +181,3 @@ void Pic<dim>::writeParticles(const string filename) {
 //template class Pic<2>;
 template class Pic<3>;
 }
-

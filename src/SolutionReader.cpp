@@ -433,29 +433,29 @@ void FieldReader::test_pic(fch::Laplace<3>* laplace, const Medium& medium) {
 
     const int n_points = 30;
 
-    vector<Point3> points;
-    points.reserve(n_points);
+    reserve(n_points);
     for (int i = 0; i < n_points; ++i)
-        points.push_back(Point3(x, y, zmin + i * step));
-
-    // test potential
+        append(Point3(x, y, zmin + i * step));
 
     cout << "\nprobing potential:\n";
 
+    array<double,8> shape_functions;
+
     int hex_index = 0;
-    for (Point3 &p : points) {
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
         hex_index = interpolator->linhexs.locate_cell(p, hex_index);
         dealii::Point<3> deal_point(p.x, p.y, p.z);
-        double val1 = laplace->probe_potential(deal_point, interpolator->linhexs.femocs2deal(hex_index));
+        double val1 = laplace->probe_potential(deal_point,interpolator->linhexs.femocs2deal(hex_index));
         double val2 = laplace->probe_potential(deal_point);
         printf("%.2f, %e, %e, %e\n", p.z, val1, val2, val1 - val2);
     }
 
     cout << "\nprobing elfield:\n";
 
-    // test elfield
     hex_index = 0;
-    for (Point3 &p : points) {
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
         hex_index = interpolator->linhexs.locate_cell(p, hex_index);
         dealii::Point<3> deal_point(p.x, p.y, p.z);
 
@@ -463,6 +463,211 @@ void FieldReader::test_pic(fch::Laplace<3>* laplace, const Medium& medium) {
         double val2 = laplace->probe_efield_norm(deal_point);
         printf("%.2f, %e, %e, %e\n", p.z, val1, val2, val1 - val2);
     }
+
+    cout << "\nstoring interpolation:\n";
+
+    hex_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
+        hex_index = interpolator->linhexs.locate_cell(p, hex_index);
+        dealii::Point<3> deal_point(p.x, p.y, p.z);
+
+        double val1 = laplace->probe_efield_norm(deal_point,interpolator->linhexs.femocs2deal(hex_index));
+        double val2 = laplace->probe_potential(deal_point,interpolator->linhexs.femocs2deal(hex_index));
+        append_interpolation(Solution(Vec3(0), val1, val2));
+    }
+}
+
+void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium, const TetgenMesh& mesh) {
+    const double x = 0;
+    const double y = 0;
+    const double zmin = 0.5 + medium.sizes.zmax;
+    const double step = 0.0005;
+
+    const int n_points = 10000;
+
+    reserve(n_points);
+    for (int i = 0; i < n_points; ++i)
+        append(Point3(x, y, zmin + i * step));
+
+    int cell_index;
+    array<double,8> shape_functions;
+
+//    cout << "\nprobing potential:\n";
+//
+//    cell_index = 0;
+//    for (int i = 0; i < n_points; ++i) {
+//        Point3 p = get_point(i);
+//        cell_index = interpolator->linhexs.locate_cell(p, cell_index); // necessary to per
+//        double val1 = interpolator->linhexs.interp_solution(p, cell_index).scalar;
+//        double val2 = laplace->probe_potential(dealii::Point<3>(p.x, p.y, p.z));
+//        printf("%.2f, %e, %e, %.6f\n", p.z, val1, val2, val1/val2);
+//    }
+//
+//    cout << "\nprobing elfield:\n";
+//
+//    cell_index = 0;
+//    for (int i = 0; i < n_points; ++i) {
+//        Point3 p = get_point(i);
+//        cell_index = interpolator->linhexs.locate_cell(p, cell_index);
+//        double val1 = interpolator->linhexs.interp_solution(p, cell_index).norm;
+//        double val2 = laplace->probe_efield_norm(dealii::Point<3>(p.x, p.y, p.z));
+//        printf("%.2f, %e, %e, %.6f\n", p.z, val1, val2, val1/val2);
+//    }
+
+//    cout << "\ntesting shape functions:\n";
+//    cout << setprecision(3) << fixed;
+//
+//    for (int i = 0; i < mesh.elems.size(); ++i)
+//        if (mesh.elems.get_marker(i) == TYPES.VACUUM) {
+//            cell_index = 4*i;
+//            break;
+//        }
+//
+//    SimpleHex shex = mesh.hexahedra[cell_index];
+//    for (int i : shex) {
+//        Point3 p = interpolator->nodes.get_vertex(i);
+//        interpolator->linhexs.get_shape_functions(shape_functions, p, cell_index);
+//
+//        double shape_sum = 0;
+//        for (double sf : shape_functions) {
+//            cout << fabs(sf) << ", ";
+//            shape_sum += sf;
+//        }
+//        cout << "sum=" << shape_sum << endl;
+//    }
+//
+//    cout << endl;
+
+    cout << "\ncomparing interpolations:\n";
+    double t0;
+
+    start_msg(t0, "laplace");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
+        dealii::Point<3> deal_point(p.x, p.y, p.z);
+
+        cell_index = interpolator->linhexs.locate_cell(p, cell_index);
+        int cell_index_in_deal = interpolator->linhexs.femocs2deal(cell_index);
+        if (cell_index_in_deal < 0)
+            append_interpolation(Solution(0));
+        else {
+            double val1 = laplace->probe_efield_norm(deal_point,cell_index_in_deal);
+            double val2 = laplace->probe_potential(deal_point, cell_index_in_deal);
+            append_interpolation(Solution(Vec3(0), val1, val2));
+        }
+    }
+    end_msg(t0);
+
+    write("out/potential1.xyz");
+
+    interpolation.clear();
+    interpolation.reserve(n_points);
+
+    start_msg(t0, "linhexs");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
+        cell_index = interpolator->linhexs.locate_cell(p, cell_index);
+        append_interpolation(interpolator->linhexs.interp_solution(p, cell_index));
+    }
+    end_msg(t0);
+    write("out/potential2.xyz");
+
+    interpolation.clear();
+    interpolation.reserve(n_points);
+
+    start_msg(t0, "lintets");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
+        cell_index = interpolator->lintets.locate_cell(p, cell_index);
+        append_interpolation(interpolator->lintets.interp_solution(p, cell_index));
+    }
+    end_msg(t0);
+    write("out/potential3.xyz");
+
+    interpolation.clear();
+    interpolation.reserve(n_points);
+
+    start_msg(t0, "quadtets");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
+        cell_index = interpolator->quadtets.locate_cell(p, cell_index);
+        append_interpolation(interpolator->quadtets.interp_solution(p, cell_index));
+    }
+    end_msg(t0);
+    write("out/potential4.xyz");
+}
+
+void FieldReader::test_pic_vol3(const TetgenMesh& mesh) const {
+    int cell_index;
+    array<double,8> shape_functions;
+    array<double,4> bcc;
+
+    int cntr = 0;
+    for (int i = 0; i < mesh.elems.size(); ++i)
+        if (mesh.elems.get_marker(i) == TYPES.VACUUM && cntr++ >= 0) {
+            cell_index = i;
+            break;
+        }
+
+    SimpleElement stet = mesh.elems[cell_index];
+
+
+    Point3 n1 = mesh.nodes[stet[0]];
+    Point3 n2 = mesh.nodes[stet[1]];
+    Point3 n3 = mesh.nodes[stet[2]];
+    Point3 n4 = mesh.nodes[stet[3]];
+
+    vector<Point3> points;
+
+    points.push_back(n1);
+    points.push_back(n2);
+    points.push_back(n3);
+    points.push_back(n4);
+    points.push_back((n1 + n2) / 2.0);
+    points.push_back((n1 + n3) / 2.0);
+    points.push_back((n1 + n4) / 2.0);
+    points.push_back((n2 + n3) / 2.0);
+    points.push_back((n2 + n4) / 2.0);
+    points.push_back((n3 + n4) / 2.0);
+    points.push_back((n1 + n2 + n3) / 3.0);
+    points.push_back((n1 + n2 + n4) / 3.0);
+    points.push_back((n1 + n3 + n4) / 3.0);
+    points.push_back((n2 + n3 + n4) / 3.0);
+    points.push_back((n1 + n2 + n3 + n4) / 4.0);
+
+
+
+    vector<string> labels = {"n1","n2","n3","n4","c12","c13","c14","c23","c24","c34","c123","c124","c134","c234","c1234"};
+
+    cout << "results for tet=" << cell_index << ", 4tet=" << 4*cell_index << endl;
+    cout << "with neighbours ";
+    for (int nbor : mesh.elems.get_neighbours(cell_index))
+        cout << nbor << " (" << 4*nbor << ")   ";
+    cout << endl;// << fixed << setprecision(3);
+
+    require(labels.size() == points.size(), "Incompatible vectors!");
+
+    for (int i = 0; i < 4; ++i) {
+        cell_index = interpolator->linhexs.locate_cell(points[i], 0);
+        interpolator->lintets.get_shape_functions(bcc, points[i], 0);
+        cout << endl << labels[i] << ":\t" << cell_index+1 << "\t";
+        for (double b : bcc)
+            cout << ", " << b;
+    }
+
+    for (int i = 4; i < labels.size(); ++i) {
+        cell_index = interpolator->linhexs.locate_cell(points[i], 0);
+        interpolator->lintets.get_shape_functions(bcc, points[i], abs(int(cell_index/4)));
+        cout << endl << labels[i] << ":\t" << cell_index+1 << "\t";
+        for (double b : bcc)
+            cout << ", " << b;
+    }
+
 }
 
 // Interpolate electric field and potential on a set of points
@@ -1226,7 +1431,7 @@ int ForceReader::calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom
 }
 
 // Calculate forces from atomic electric fields and face charges
-void ForceReader::calc_forces(const FieldReader &fields, const SurfaceInterpolator& ti) {
+void ForceReader::calc_forces(const FieldReader &fields) {
     const int n_atoms = fields.size();
 
     // Copy the atom data
@@ -1235,7 +1440,7 @@ void ForceReader::calc_forces(const FieldReader &fields, const SurfaceInterpolat
 
     // Calculate the charges by ensuring the that the total sum of it remains conserved
     vector<double> charges;
-    ti.interp_conserved(charges, atoms);
+    interpolator->lintris.interp_conserved(charges, atoms);
 
     // calculate forces and store them
     for (int i = 0; i < n_atoms; ++i) {
@@ -1555,6 +1760,68 @@ bool CoulombReader::check_limits(Vec3& xx, array<double,3>& cellc,
 
     return false;
 }
+
+void CoulombReader::calc_nborlist(const bool lateral_periodic) {
+    const int n_atoms = size();
+    const double r_cut = 6.0;
+    Point3 simubox_size(sizes.xbox, sizes.ybox, sizes.zbox);
+
+    vector<unsigned> list(n_atoms);
+    vector<unsigned> head(n_atoms);
+
+    array<int,3> M;
+    for (int j = 0; j < 3; ++j)
+        M[j] = ceil(simubox_size[j] / r_cut);
+
+    // calculate linked list for the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 dx = atoms[i].point + simubox_size / 2;
+        // Check that we are inside lateral boundaries
+        if (lateral_periodic)
+            for (int j = 0; j < 2; ++j) {
+                if (dx[j] < 0) dx[j] += simubox_size[j];
+                else if (dx[j] > simubox_size[j]) dx[j] -= simubox_size[j];
+            }
+
+        array<int,3> point_index;
+        for (int j = 0; j < 3; ++j)
+            point_index[j] = int( (dx[j] / simubox_size[j]) * M[j] );
+
+        // If not periodic, let border cells continue to infinity
+        if (!lateral_periodic)
+            for (int j = 0; j < 2; ++j) {
+                point_index[j] = max(0, point_index[j]);
+                point_index[j] = min(M[j]-1, point_index[j]);
+            }
+
+        int i_cell = (point_index[2] * M[1] + point_index[1]) * M[0] + point_index[0];
+        set_marker(i, i_cell);
+        list[i] = head[i_cell];
+        head[i_cell] = i;
+    }
+
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 &p1 = atoms[i].point;
+        for (int ix = 0; ix < M[0]; ++ix) {
+            for (int iy = 0; iy < M[1]; ++iy) {
+                for (int iz = 0; iz < M[2]; ++iz) {
+                    int i_cell = (iz * M[1] + iy) * M[0] + ix;
+                    int j = head[i_cell];
+                    while(true) {
+                        if (j == 0) break;
+                        double r2 = p1.distance2(get_point(j));
+                        if (r2 < r_cut2) {
+                            printf("%i and %i are neighbours!\n", i, j);
+                        }
+                        j = list[j];
+                    }
+                }
+            }
+        }
+    }
+}
+
+void CoulombReader::check_neighbours(const int i)
 
 void CoulombReader::calc_nborlist(const vector<int>& charged, const double* x0) {
     neigh_cells = -1;

@@ -680,7 +680,7 @@ void LinearTetrahedra::precompute() {
                   |x3 y3 z3 1|
                   |x4 y4 z4 1|  */
         d0 = determinant(v1, v2, v3, v4);
-        tet_not_valid.push_back(fabs(d0) < this->coplanar_epsilon);
+        tet_not_valid.push_back(fabs(d0) < zero);
         det0.push_back(1.0 / d0);
 
         /* =====================================================================================
@@ -744,10 +744,10 @@ bool LinearTetrahedra::point_in_cell(const Vec3& point, const int i) const {
 
     // If one of the barycentric coordinates is < zero, the point is outside the tetrahedron
     // Source: http://steve.hollasch.net/cgindex/geometry/ptintet.html
-    if (det0[i] * pt.dotProduct(det1[i]) < 0) return false;
-    if (det0[i] * pt.dotProduct(det2[i]) < 0) return false;
-    if (det0[i] * pt.dotProduct(det3[i]) < 0) return false;
-    if (det0[i] * pt.dotProduct(det4[i]) < 0) return false;
+    if (det0[i] * pt.dotProduct(det1[i]) < -zero) return false;
+    if (det0[i] * pt.dotProduct(det2[i]) < -zero) return false;
+    if (det0[i] * pt.dotProduct(det3[i]) < -zero) return false;
+    if (det0[i] * pt.dotProduct(det4[i]) < -zero) return false;
 
     // All bcc-s are >= 0, so point is inside the tetrahedron
     return true;
@@ -757,10 +757,10 @@ void LinearTetrahedra::get_shape_functions(array<double,4>& sf, const Vec3& poin
     require(tet >= 0 && tet < det0.size(), "Index out of bounds: " + to_string(tet));
 
     const Vec4 pt(point, 1);
-    sf[0] = det0[tet] * pt.dotProduct(det1[tet]);
-    sf[1] = det0[tet] * pt.dotProduct(det2[tet]);
-    sf[2] = det0[tet] * pt.dotProduct(det3[tet]);
-    sf[3] = det0[tet] * pt.dotProduct(det4[tet]);
+    sf[0] = zero + det0[tet] * pt.dotProduct(det1[tet]);
+    sf[1] = zero + det0[tet] * pt.dotProduct(det2[tet]);
+    sf[2] = zero + det0[tet] * pt.dotProduct(det3[tet]);
+    sf[3] = zero + det0[tet] * pt.dotProduct(det4[tet]);
 }
 
 double LinearTetrahedra::determinant(const Vec3 &v1, const Vec3 &v2) const {
@@ -882,37 +882,66 @@ SimpleCell<10> QuadraticTetrahedra::get_cell(const int tet) const {
  * ================================================================== */
 
 LinearHexahedra::LinearHexahedra() :
-        InterpolatorCells<8>(), hexs(NULL), lintets(NULL) {}
+        InterpolatorCells<8>(), hexs(NULL), lintet(NULL) {}
 
 LinearHexahedra::LinearHexahedra(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) :
-        InterpolatorCells<8>(m, n), hexs(&m->hexahedra), lintets(l) {}
+        InterpolatorCells<8>(m, n), hexs(&m->hexahedra), lintet(l) {}
 
 void LinearHexahedra::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));
 
-    cells.clear();
-    cells.reserve(N);
     markers = vector<int>(N);
+    cells.clear(); cells.reserve(N);
+    f0s.clear(); f0s.reserve(N);
+    f1s.clear(); f1s.reserve(N);
+    f2s.clear(); f2s.reserve(N);
+    f3s.clear(); f3s.reserve(N);
+    f4s.clear(); f4s.reserve(N);
+    f5s.clear(); f5s.reserve(N);
+    f6s.clear(); f6s.reserve(N);
+    f7s.clear(); f7s.reserve(N);
 }
 
 void LinearHexahedra::precompute() {
+    require(mesh->elems.size() == lintet->size(), "LinearHexahedra requires LinearTetrahedra to be pre-computed!");
+
     const int n_elems = hexs->size();
     expect(n_elems > 0, "Interpolator expects non-empty mesh!");
-    require(mesh->elems.size() == lintets->size(), "LinearHexahedra requires LinearTetrahedra to be pre-computed!");
-
     reserve(n_elems);
 
     // Loop through all the hexahedra
     int deal_hex_index = 0;
     for (int i = 0; i < n_elems; ++i) {
         // store the mapping between femocs and deal.ii hexahedra
-        if ((*hexs).get_marker(i) > 0)
+        if (hexs->get_marker(i) > 0)
             markers[i] = deal_hex_index++;
         else
             markers[i] = -1;
 
-        // Calculate and store  hexahedra
-        cells.push_back((*hexs)[i]);
+        SimpleHex cell = (*hexs)[i];
+
+        // Store hexahedra
+        cells.push_back(cell);
+
+        // pre-calculate data to make iterpolation faster
+
+        const Vec3 x1 = mesh->nodes.get_vec(cell[0]);
+        const Vec3 x2 = mesh->nodes.get_vec(cell[1]);
+        const Vec3 x3 = mesh->nodes.get_vec(cell[2]);
+        const Vec3 x4 = mesh->nodes.get_vec(cell[3]);
+        const Vec3 x5 = mesh->nodes.get_vec(cell[4]);
+        const Vec3 x6 = mesh->nodes.get_vec(cell[5]);
+        const Vec3 x7 = mesh->nodes.get_vec(cell[6]);
+        const Vec3 x8 = mesh->nodes.get_vec(cell[7]);
+
+        f0s.push_back( Vec3((x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8) / 8.0) );
+        f1s.push_back( Vec3(((x1*-1) + x2 + x3 - x4 - x5 + x6 + x7 - x8) / 8.0) );
+        f2s.push_back( Vec3(((x1*-1) - x2 + x3 + x4 - x5 - x6 + x7 + x8) / 8.0) );
+        f3s.push_back( Vec3(((x1*-1) - x2 - x3 - x4 + x5 + x6 + x7 + x8) / 8.0) );
+        f4s.push_back( Vec3((x1 - x2 + x3 - x4 + x5 - x6 + x7 - x8) / 8.0) );
+        f5s.push_back( Vec3((x1 - x2 - x3 + x4 - x5 + x6 + x7 - x8) / 8.0) );
+        f6s.push_back( Vec3((x1 + x2 - x3 - x4 - x5 - x6 + x7 + x8) / 8.0) );
+        f7s.push_back( Vec3(((x1*-1) + x2 - x3 + x4 + x5 - x6 + x7 - x8) / 8.0) );
     }
 
     map_deal2femocs = vector<int>(deal_hex_index);
@@ -923,29 +952,101 @@ void LinearHexahedra::precompute() {
     }
 }
 
-void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const {
-    expect(false, "Not yet implemented!");
+/*
+ * The inspiration for mapping the point from Cartesian to natural coordinate space was taken from
+ * https://www.grc.nasa.gov/www/winddocs/utilities/b4wind_guide/trilinear.html
+ */
+void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point, const int hex) const {
+    require(hex >= 0 && hex < cells.size(), "Index out of bounds: " + to_string(hex));
+
+    // Before calculating the shape function,
+    // map the point from Cartesian xyz-coordinates to natural uvw-coordinates.
+    // In natural coordinate system, each coordinate is within limits [-1, 1].
+
+    double u, v, w, du, dv, dw, D;
+    Vec3 f0 = point - f0s[hex];
+    Vec3 f1 = f1s[hex];
+    Vec3 f2 = f2s[hex];
+    Vec3 f3 = f3s[hex];
+    Vec3 f4 = f4s[hex];
+    Vec3 f5 = f5s[hex];
+    Vec3 f6 = f6s[hex];
+    Vec3 f7 = f7s[hex];
+
+    // In 3D, direct calculation of uvw is very expensive (not to say impossible),
+    // because system of 3 nonlinear equations should be solved.
+    // More efficient is to perform Newton iterations to calculate uvw approximately.
+
+    // loop until the desired accuracy is met or # max iterations is done
+    u = 0; v = 0; w = 0;
+    for (int i = 0; i < n_newton_iterations; ++i) {
+        Vec3 f = (f0 - f1*u - f2*v - f3*w - f4*(u*v) - f5*(u*w) - f6*(v*w) - f7*(u*v*w));
+        Vec3 fu = f1 + f4*v + f5*w + f7*(v*w);
+        Vec3 fv = f2 + f4*u + f6*w + f7*(u*w);
+        Vec3 fw = f3 + f5*u + f6*v + f7*(u*v);
+
+        // solve the set of following linear equations for du, dv and dw
+        //   | fu.x * du + fv.x * dv + fw.x * dw = f.x;
+        //   | fu.y * du + fv.y * dv + fw.y * dw = f.y;
+        //   | fu.z * du + fv.z * dv + fw.z * dw = f.z;
+
+        D = lintet->determinant(fu, fv, fw);
+        require(D != 0, "Invalid determinant: " + to_string(D));
+
+        D  = 1.0 / D;
+        du = lintet->determinant(f, fv, fw) * D;
+        dv = lintet->determinant(fu, f, fw) * D;
+        dw = lintet->determinant(fu, fv, f) * D;
+
+        u += du;
+        v += dv;
+        w += dw;
+
+        if (du * du + dv * dv + dw * dw < zero)
+            break;
+    }
+
+    // use natural coordinates to calculate shape functions
+    sf = {
+            (1 - u) * (1 - v) * (1 - w) / 8.0,
+            (1 + u) * (1 - v) * (1 - w) / 8.0,
+            (1 + u) * (1 + v) * (1 - w) / 8.0,
+            (1 - u) * (1 + v) * (1 - w) / 8.0,
+            (1 - u) * (1 - v) * (1 + w) / 8.0,
+            (1 + u) * (1 - v) * (1 + w) / 8.0,
+            (1 + u) * (1 + v) * (1 + w) / 8.0,
+            (1 - u) * (1 + v) * (1 + w) / 8.0
+    };
 }
 
+/*
+ * Function uses the fact that hexahedra are always uniquely tied with the nodes of tetrahedra.
+ * Therefore, knowing the barycentric coordinates inside a tetrahedron
+ * makes it possible to use them to determine, in which part of the tetrahedron and therefore
+ * also inside which hexahedron the point is located.
+ */
 int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) const {
     static constexpr int n_hexs_per_tet = 4;
 
     int tet_index = abs(cell_guess / n_hexs_per_tet);
-    tet_index = lintets->locate_cell(point, tet_index);
-    cout << "cell located in tet no " << tet_index << endl;
+    tet_index = lintet->locate_cell(point, tet_index);
     int sign = 1;
     if (tet_index < 0) sign = -1;
     tet_index = abs(tet_index);
 
+    // calculate barycentric coordinates for a point
     array<double,4> bcc;
-    lintets->get_shape_functions(bcc, point, tet_index);
+    lintet->get_shape_functions(bcc, point, tet_index);
 
-    const double b1b2 = bcc[0] / bcc[1]; // >1 if point closer to node1 than to node2 and <1 otherwise
-    const double b1b3 = bcc[0] / bcc[2]; // >1 if point closer to node1 than to node3 and <1 otherwise
-    const double b1b4 = bcc[0] / bcc[3]; // >1 if point closer to node1 than to node4 and <1 otherwise
-    const double b2b3 = bcc[1] / bcc[2]; // >1 if point closer to node2 than to node3 and <1 otherwise
-    const double b2b4 = bcc[1] / bcc[3]; // >1 if point closer to node2 than to node4 and <1 otherwise
-    const double b3b4 = bcc[2] / bcc[3]; // >1 if point closer to node3 than to node4 and <1 otherwise
+    // all the ratios below are == 1, if the point is exactly on the boundary of two hexahedra
+    // and 0 or inf, if point is on the face of a tetrahedron.
+    // if ratio is > 1, the point is closer to 1st corresponding node, if < 1, it's closer to 2nd node
+    const double b1b2 = bcc[0] / bcc[1];
+    const double b1b3 = bcc[0] / bcc[2];
+    const double b1b4 = bcc[0] / bcc[3];
+    const double b2b3 = bcc[1] / bcc[2];
+    const double b2b4 = bcc[1] / bcc[3];
+    const double b3b4 = bcc[2] / bcc[3];
 
     // point inside a hex connected to 1st tetrahedral node ?
     if (b1b2 >= 1 && b1b3 >= 1 && b1b4 >= 1)
