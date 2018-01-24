@@ -251,15 +251,11 @@ void InterpolatorCells<dim>::write_cell_data(ofstream& out) const {
 
 template<int dim>
 int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_guess) const {
-    vector<bool> cell_checked(neighbours.size());
-    return locate_cell(point, cell_guess, cell_checked);
-}
-
-template<int dim>
-int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_guess, vector<bool>& cell_checked) const {
     // Check the guessed cell
     Vec3 vec_point(point);
     if (point_in_cell(vec_point, cell_guess)) return cell_guess;
+
+    vector<bool> cell_checked = vector_not(&markers, 0);
     cell_checked[cell_guess] = true;
 
     const int n_cells = neighbours.size();
@@ -907,21 +903,13 @@ void LinearHexahedra::precompute() {
     reserve(n_elems);
 
     // Loop through all the hexahedra
-    int deal_hex_index = 0;
     for (int i = 0; i < n_elems; ++i) {
-        // store the mapping between femocs and deal.ii hexahedra
-        if (hexs->get_marker(i) > 0)
-            markers[i] = deal_hex_index++;
-        else
-            markers[i] = -1;
-
         SimpleHex cell = (*hexs)[i];
 
-        // Store hexahedra
+        // store hexahedra
         cells.push_back(cell);
 
         // pre-calculate data to make iterpolation faster
-
         const Vec3 x1 = mesh->nodes.get_vec(cell[0]);
         const Vec3 x2 = mesh->nodes.get_vec(cell[1]);
         const Vec3 x3 = mesh->nodes.get_vec(cell[2]);
@@ -941,10 +929,20 @@ void LinearHexahedra::precompute() {
         f7s.push_back( Vec3(((x1*-1) + x2 - x3 + x4 + x5 - x6 + x7 - x8) / 8.0) );
     }
 
+    // store the mapping between femocs and deal.ii hexahedra
+    int deal_hex_index = 0;
+    map_femocs2deal = vector<int>(n_elems);
+    for (int i = 0; i < n_elems; ++i) {
+        if (hexs->get_marker(i) > 0)
+            map_femocs2deal[i] = deal_hex_index++;
+        else
+            map_femocs2deal[i] = -1;
+    }
+
     map_deal2femocs = vector<int>(deal_hex_index);
     deal_hex_index = 0;
     for (int i = 0; i < n_elems; ++i) {
-        if (markers[i] >= 0)
+        if (map_femocs2deal[i] >= 0)
             map_deal2femocs[deal_hex_index++] = i;
     }
 }
@@ -1059,6 +1057,18 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
         return sign * (n_hexs_per_tet * tet_index + 3);
 
     return -1;
+}
+
+void LinearHexahedra::narrow_search(const bool vacuum) {
+    const int n_cells = cells.size();
+    require(n_cells == hexs->size(), "LinearHexahedra must be intialised before narrowing search!");
+
+    for (int i = 0; i < n_cells; ++i) {
+        if (hexs->get_marker(i) > 0)
+            markers[i] = vacuum;
+        else
+            markers[i] = !vacuum;
+    }
 }
 
 template class InterpolatorCells<3> ;
