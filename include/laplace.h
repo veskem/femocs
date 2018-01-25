@@ -120,7 +120,7 @@ public:
      * @return electric field vectors in the specified nodes
      */
     std::vector<Tensor<1, dim>> get_efield(const std::vector<int> &cell_indexes,
-            const std::vector<int> &vert_indexes);
+            const std::vector<int> &vert_indexes) const;
 
     /** @brief set up dynamic sparsity pattern
      *  a) define optimal structure for sparse matrix representation,

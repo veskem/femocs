@@ -202,7 +202,7 @@ Tensor<1, dim, double> Laplace<dim>::probe_efield(const Point<dim> &p, const int
     u_gradient(1, std::vector<Tensor<1, dim, double> > (fe.n_components()));
     fe_values.get_function_gradients(solution, u_gradient);
 
-    return u_gradient[0][0];
+    return -u_gradient[0][0];
 }
 
 template<int dim>
@@ -272,7 +272,7 @@ std::vector<double> Laplace<dim>::get_potential(const std::vector<int> &cell_ind
 
 template<int dim>
 std::vector<Tensor<1, dim> > Laplace<dim>::get_efield(const std::vector<int> &cell_indexes,
-        const std::vector<int> &vert_indexes) {
+        const std::vector<int> &vert_indexes) const {
 
     QGauss<dim> quadrature_formula(quadrature_degree);
     FEValues<dim> fe_values(fe, quadrature_formula, update_gradients);
