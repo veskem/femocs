@@ -323,8 +323,8 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         fail = vacuum_interpolator.extract_solution(&laplace_solver);
         end_msg(t0);
 
-        start_msg(t0, "=== Calculating current density...");
-        unsigned ccg = solve_current();
+        start_msg(t0, "=== Calculating emission...");
+        get_emission();
         end_msg(t0);
 
         start_msg(t0, "=== Injecting electrons...");
@@ -479,8 +479,7 @@ int Femocs::solve_stationary_heat() {
     return 0;
 }
 
-
-unsigned Femocs::solve_current(){
+void Femocs::get_emission(){
     start_msg(t0, "=== Transfering elfield to J & T solver...");
     surface_fields.set_preferences(false, 2, conf.behaviour.interpolation_rank);
     surface_fields.transfer_elfield(ch_transient_solver);
@@ -500,23 +499,8 @@ unsigned Femocs::solve_current(){
     end_msg(t0);
     emission.write("out/surface_emission.xyz");
 
-    start_msg(t0, "=== Setup current and heat solvers...");
-    ch_transient_solver.setup_current_system();
-    ch_transient_solver.setup_heating_system();
-    end_msg(t0);
-
-    start_msg(t0, "=== Assembling current system...");
-    ch_transient_solver.assemble_current_system(); // assemble matrix for current density equation; current == electric current
-    end_msg(t0);
-
-    start_msg(t0, "=== Solving current system...");
-    unsigned int ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
-    end_msg(t0);
-
-    return ccg;
-
-
 }
+
 // Solve transient heat and continuity equations
 int Femocs::solve_transient_heat(const double delta_time) {
     static bool first_call = true;

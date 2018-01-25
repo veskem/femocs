@@ -1097,7 +1097,7 @@ vector<pair<dealii::Point<3>, int>> EmissionReader::inject_electrons(double delt
     const double Amp = 6.2415e3; //[e/fs]
     vector<pair<dealii::Point<3>, int>> out;
     int n_tot = 0;
-    double I_tot = 0;;
+    double I_tot = 0;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
 
