@@ -47,12 +47,21 @@ int TetgenMesh::quad2tri(const int quad) const {
     return int(quad / n_quads_per_tri);
 }
 
+// map quadrangle to hexahedron using the mapping of triangle to tetrahedron
 int TetgenMesh::quad2hex(const int quad, const int region) const {
-    require(false, "Unimplemented yet!");
-
     require(quad >= 0 && quad < quads.size(), "Invalid index: " + to_string(quad));
-    const int tri = quad2tri(quad);
-    const int tet = tri2tet(tri, region);
+    SimpleQuad squad = quads[quad];
+    const int tet = tri2tet(quad2tri(quad), region);
+
+    for (int i = 0; i < n_hexs_per_tet; ++i) {
+        int n_common_nodes = 0;
+        int hex = tet2hex(tet, i);
+        for (unsigned int node : hexahedra[hex])
+            n_common_nodes += squad == node;
+        if (n_common_nodes == squad.size())
+            return hex;
+    }
+
     return -1;
 }
 
@@ -70,6 +79,20 @@ int TetgenMesh::tet2hex(const int tet, const int hex) const {
 
 int TetgenMesh::hex2quad(const int hex, const int quad) const {
     require(false, "Unimplemented yet!");
+
+//    array<int,4> tris = elems.to_tris(hex2tet(hex));
+//    SimpleHex shex = hexahedra[hex];
+//
+//    for (int tri : tris) {
+//        for (int j = 0; j < n_quads_per_tri; ++j) {
+//            int quad = tri2quad(tri, j);
+//            int n_common_nodes = 0;
+//            for (int node : quads[quad])
+//                n_common_nodes += node == shex;
+//            if (n_common_nodes)
+//        }
+//
+//    }
 
     require(hex >= 0 && hex < hexahedra.size(), "Invalid index: " + to_string(hex));
     require(quad >= 0 && quad < n_quads_per_hex, "Invalid index: " + to_string(quad));
