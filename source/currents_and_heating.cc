@@ -813,9 +813,9 @@ std::vector<std::pair<Point<dim>, unsigned>> CurrentsAndHeating<dim>::inject_ele
         if ((double)std::rand()/ RAND_MAX < frpart)
             n_electrons++;
 
+        //TODO : fix rng, fix probability distribution with face jacobian, fix dim generality
 
-        for (int i = 0; i < n_electrons; i++){
-            std::printf("creating %d random electrons\n", n_electrons);
+        for (int i = 0; i < n_electrons; i++){;
 
             double rand1 = (double)std::rand()/ RAND_MAX;
             double rand2= (double)std::rand()/ RAND_MAX;
@@ -826,8 +826,6 @@ std::vector<std::pair<Point<dim>, unsigned>> CurrentsAndHeating<dim>::inject_ele
             rands[3] = 1-rand2;
 
             Point<dim> p_real;
-
-
             const double crosser = 0.2;
             for ( int j=0;j <4 ; j++ )
                 p_real += .5   * rands[j] * cell->face(face_index)->vertex(j);
@@ -840,7 +838,7 @@ std::vector<std::pair<Point<dim>, unsigned>> CurrentsAndHeating<dim>::inject_ele
         n_tot += n_electrons;
     }
 
-    std::printf("I_tot_dealii = %e, emitted electrons = %d\n", I_tot, n_tot);
+    std::printf("I_tot_dealii = %e e/fs (%e Amps), emitted electrons = %d\n", I_tot, I_tot / Amp, n_tot);
 
     return out;
 
