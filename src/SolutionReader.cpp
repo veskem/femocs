@@ -1137,7 +1137,7 @@ vector<pair<dealii::Point<3>, int>> EmissionReader::inject_electrons(double delt
                 if (dist < 1.e-10) break;
             }
 
-            Point3 p_el(0.,0.,0.);
+            Vec3 p_el(0.,0.,0.);
             const double crosser = 0.2;
             SimpleQuad sface = mesh.quads[quad];
 
@@ -1147,6 +1147,8 @@ vector<pair<dealii::Point<3>, int>> EmissionReader::inject_electrons(double delt
 //                cout << faces.get_node(j) << endl;
             }
 
+            // push electrons little bit inside the vacuum mesh
+            p_el += mesh.faces.get_norm(tri) * 0.01;
             dealii::Point<3> p_deal(p_el.x, p_el.y, p_el.z);
             int cell_index = 0;
 
