@@ -278,6 +278,10 @@ int Femocs::generate_meshes() {
     stringstream ss; ss << fem_mesh;
     write_verbose_msg(ss.str());
 
+    fem_mesh.test_mapping();
+
+    exit(1);
+
     return 0;
 }
 

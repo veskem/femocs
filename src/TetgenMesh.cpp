@@ -18,6 +18,35 @@ TetgenMesh::TetgenMesh() {
     tetIOout.initialize();
 }
 
+void TetgenMesh::test_mapping() const {
+    cout << "\ntris of tets:" << endl;
+    for (int i = 0; i < 10; ++i) {
+        cout << i << ":\t";
+        for (int j = 0; j < n_tris_per_tet; ++j)
+            cout << tet2tri(i, j) << ", ";
+        cout << endl;
+    }
+
+    cout << "\t tets of tris:" << endl;
+    for (int i = 0; i < 10; ++i) {
+        cout << i << ":\t" << tri2tet(i, TYPES.VACUUM) << ", " << tri2tet(i, TYPES.BULK) << endl;
+    }
+
+    cout << "quads of hexs:" << endl;
+    for (int i = 0; i < 10; ++i) {
+        cout << i << ":\t";
+        vector<int> quads = hex2quad(i);
+        for (int j = 0; j < quads.size(); ++j)
+            cout << quads[j] << ", ";
+        cout << endl;
+    }
+
+    cout << "hexs of quads:" << endl;
+    for (int i = 0; i < 10; ++i) {
+        cout << i << ":\t" << quad2hex(i, TYPES.VACUUM) << ", " << quad2hex(i, TYPES.BULK) << endl;
+    }
+}
+
 int TetgenMesh::tri2quad(const int tri, const int quad) const {
     require(tri >= 0 && tri < faces.size(), "Invalid index: " + to_string(tri));
     return quad + tri * n_quads_per_tri;
@@ -58,7 +87,7 @@ int TetgenMesh::quad2hex(const int quad, const int region) const {
         int hex = tet2hex(tet, i);
         for (unsigned int node : hexahedra[hex])
             n_common_nodes += squad == node;
-        if (n_common_nodes == squad.size())
+        if (n_common_nodes == n_nodes_per_quad)
             return hex;
     }
 
@@ -77,26 +106,25 @@ int TetgenMesh::tet2hex(const int tet, const int hex) const {
     return hex + tet * n_hexs_per_tet;
 }
 
-int TetgenMesh::hex2quad(const int hex, const int quad) const {
-    require(false, "Unimplemented yet!");
-
-//    array<int,4> tris = elems.to_tris(hex2tet(hex));
-//    SimpleHex shex = hexahedra[hex];
-//
-//    for (int tri : tris) {
-//        for (int j = 0; j < n_quads_per_tri; ++j) {
-//            int quad = tri2quad(tri, j);
-//            int n_common_nodes = 0;
-//            for (int node : quads[quad])
-//                n_common_nodes += node == shex;
-//            if (n_common_nodes)
-//        }
-//
-//    }
-
+// map hexahedron to quadrangle using the mapping of tetrahedron to triangles
+vector<int> TetgenMesh::hex2quad(const int hex) const {
     require(hex >= 0 && hex < hexahedra.size(), "Invalid index: " + to_string(hex));
-    require(quad >= 0 && quad < n_quads_per_hex, "Invalid index: " + to_string(quad));
-    return -1;
+
+    SimpleHex shex = hexahedra[hex];
+    vector<int> _quads;
+
+    for (int tri : elems.to_tris(hex2tet(hex))) {
+        for (int j = 0; j < n_quads_per_tri; ++j) {
+            int quad = tri2quad(tri, j);
+            int n_common_nodes = 0;
+            for (int node : quads[quad])
+                n_common_nodes += shex == node;
+            if (n_common_nodes == n_nodes_per_quad)
+                _quads.push_back(quad);
+        }
+    }
+
+    return _quads;
 }
 
 int TetgenMesh::hex2tet(const int hex) const {
@@ -449,6 +477,46 @@ int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& v
     return recalc("Q", cmd);
 }
 
+void TetgenMesh::calc_quad2hex_mapping() {
+    const int n_quads = quads.size();
+    const int n_hexs = hexahedra.size();
+
+    vector<array<int,2>> quad2hex_map = vector<array<int,2>>(n_quads, {-1,-1});
+    vector<vector<int>> hex2quad_map = vector<vector<int>>(n_hexs);
+
+    vector<int> regions = {TYPES.VACUUM, TYPES.BULK};
+
+    for (int quad = 0; quad < n_quads; ++quad) {
+        SimpleQuad squad = quads[quad];
+
+        // loop through the tetrahedra that are connected to the quadrangle
+        // first from the vacuum and then from the bulk side
+        for (int r = 0; r < regions.size(); ++r) {
+            int tet = tri2tet(quad2tri(quad), regions[r]);
+
+            // loop through all the hexahedra connected to the tetrahedron
+            for (int i = 0; i < n_hexs_per_tet; ++i) {
+                int hex = tet2hex(tet, i);
+
+                // count for the # common nodes between quadrangle and hexahedron
+                int n_common_nodes = 0;
+                for (unsigned int node : hexahedra[hex])
+                    n_common_nodes += squad == node;
+
+                // quad belongs to hex, if they share 4 nodes
+                if (n_common_nodes == n_nodes_per_quad) {
+                    quad2hex_map[quad][r] = hex;
+                    hex2quad_map[hex].push_back(quad);
+                }
+            }
+        }
+    }
+
+    // store the mapping on the cells side
+    quads.set_map(quad2hex_map);
+    hexahedra.set_map(hex2quad_map);
+}
+
 // Group hexahedra & quadrangles around central tetrahedral & triangular nodes
 void TetgenMesh::group_hexahedra() {
     const int node_min = nodes.indxs.tetnode_start;
@@ -494,6 +562,7 @@ bool TetgenMesh::generate_hexahedra() {
     hexmesh.export_femocs(this);
 
     group_hexahedra();
+    calc_quad2hex_mapping();
 
     return 0;
 }

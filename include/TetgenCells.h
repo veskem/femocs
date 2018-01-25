@@ -468,9 +468,6 @@ public:
         return array<int,3>{I, I+1, I+2};
     }
 
-    /** Return index of first quadrangle that is connected to i-th triangle*/
-    int to_quad(const int i) const { return 3 * i; }
-
     /** Calculate statistics about triangles */
     void calc_statistics();
 
@@ -539,9 +536,6 @@ public:
         return array<int,4>{I, I+1, I+2, I+3};
     }
 
-    /** Return index of first hexahedron that is connected to i-th tetrahedron*/
-    int to_hex(const int i) const { return n_hexs_per_tet * i; }
-
     /** Calculate statistics about tetrahedra */
     void calc_statistics();
 
@@ -579,11 +573,20 @@ public:
     /** Get number of quadrangles in mesh */
     int size() const { return quads.size(); }
 
-    /** Return index of triangle that is connected to i-th quadrangle*/
-    int to_tri(const int i) const { return int(i / 3); }
+    /** Store the mapping between quadrangles and hexahedra */
+    void set_map(vector<array<int,2>>& _map2hexs) {
+        map2hexs = _map2hexs;
+    }
+
+    /** Return indices of all hexahedra that are connected to i-th quadrangle;
+     * -1 means there's no hexahedron */
+    array<int,2> to_hexs(const int i) const {
+        return map2hexs[i];
+    }
 
 protected:
     vector<SimpleQuad> quads;
+    vector<array<int,2>> map2hexs;
 
     /** Return the quadrangle type in vtk format */
     int get_cell_type() const { return TYPES.VTK.QUADRANGLE; }
@@ -609,8 +612,9 @@ public:
     /** Get number of hexahedra in mesh */
     int size() const { return hexs.size(); }
 
-    /** Return index of tetrahedron that is connected to i-th hexahedron*/
-    int to_tet(const int i) const { return int(i / 4); }
+    vector<int> to_quads(const int i) const {
+        return map2quads[i];
+    }
 
     /** Export vacuum hexahedra in Deal.II format */
     vector<dealii::CellData<3>> export_vacuum() const;
@@ -618,8 +622,14 @@ public:
     /** Export bulk hexahedra in Deal.II format */
     vector<dealii::CellData<3>> export_bulk() const;
 
+    /** Store the mapping between hexahedra and quadrangles */
+    void set_map(vector<vector<int>>& _map2quads) {
+        map2quads = _map2quads;
+    }
+
 protected:
     vector<SimpleHex> hexs;
+    vector<vector<int>> map2quads;
 
     /** Return the hexahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; }
