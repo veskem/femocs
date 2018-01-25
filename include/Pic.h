@@ -21,7 +21,8 @@ namespace femocs {
 template<int dim>
 class Pic {
 public:
-    Pic(fch::Laplace<dim> &laplace_solver, FieldReader &fr, fch::CurrentsAndHeating<3> &ch_solver, HeatReader &hr);
+    Pic(fch::Laplace<dim> &laplace_solver, FieldReader &fr,
+            fch::CurrentsAndHeating<3> &ch_solver, HeatReader &hr, EmissionReader &er);
     ~Pic();
 
     /**Injects electrons
@@ -29,7 +30,7 @@ public:
      */
     int injectElectrons(const double* const r, const size_t n);
 
-    int injectElectrons(const double &dt_pic);
+    int injectElectrons(double dt_pic);
 
     /**Computes the charge density for each FEM DOF
      *
@@ -71,7 +72,7 @@ private:
     fch::CurrentsAndHeating<3> &ch_solver;       ///< transient currents and heating solver
     FieldReader &fr; ///< Object to read the electric field
     HeatReader &hr; ///< Object to read the temperature data
-//    EmissionReader &er; ///< Object to calculate the emission data
+    EmissionReader &er; ///< Object to calculate the emission data
 };
 
 }
