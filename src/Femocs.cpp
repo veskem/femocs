@@ -331,6 +331,12 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         pic_solver.injectElectrons(dt_pic);
         end_msg(t0);
 
+
+        start_msg(t0, "=== Writing particles and fields to file...");
+        vacuum_interpolator.nodes.write("out/result_E_phi.movie");
+        pic_solver.writeParticles("out/electrons.movie");
+        end_msg(t0);
+
         //5. Particle pusher using the modified fields
         start_msg(t0, "=== Pushing particles... dt=" + to_string(dt_pic));
         pic_solver.pushParticles(dt_pic);
@@ -340,10 +346,6 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         pic_solver.clearLostParticles();
         end_msg(t0);
 
-        start_msg(t0, "=== Writing particles and fields to file...");
-        vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-        pic_solver.writeParticles("out/electrons.movie");
-        end_msg(t0);
     }
 
     //6. Save modified surface fields to somewhere the MD solver can find them

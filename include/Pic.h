@@ -51,10 +51,12 @@ public:
 private:
 
     //ELECTRONS
-    //Particle positions [Å]
-    std::vector<dealii::Point<dim>> r_el;
-    //Particle velocities [Å/fs = 10 um/s]
-    std::vector<dealii::Point<dim>> v_el;
+
+    std::vector<dealii::Point<dim>> r_el; ///< Particle positions [Å]
+
+    std::vector<dealii::Point<dim>> v_el; ///< Particle velocities [Å/fs = 10 um/s]
+
+    std::vector<dealii::Point<dim>> F_el; ///< Particle forces [eV / Å]
     //Management
     std::vector<int> cid_el; //Index of the cell where the particle is inside
     std::vector<int> lost_el; //Index into the cell array containing lost particles

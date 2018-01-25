@@ -26,6 +26,7 @@ int Pic<dim>::injectElectrons(const double* const r, const size_t n) {
     for (size_t i = 0; i < n; i++) {
         r_el.push_back(dealii::Point<3>(r[i*3+0],r[i*3+1],r[i*3+2]));
         v_el.push_back(dealii::Point<3>(0.0,0.0,0.0));
+        F_el.push_back(dealii::Point<3>(0.0,0.0,0.0));
         cid_el.push_back(fr.update_point_cell(r_el[i], 10));
     }
 }
@@ -38,6 +39,7 @@ int Pic<dim>::injectElectrons(double dt_pic) {
     for (auto& electron : injected){
         r_el.push_back(electron.first);
         v_el.push_back(0. * electron.first);
+        F_el.push_back(0. * electron.first);
         cid_el.push_back(fr.update_point_cell(electron.first, electron.second, false));
     }
     return 0;
@@ -90,9 +92,11 @@ void Pic<dim>::pushParticles(const double dt) {
 
         //Leapfrog method:
         // positions defined ON the time steps, velocities defined at half time steps
-        dealii::Tensor<1,dim> Efield = laplace_solver.probe_efield(r_el[i], cid_el[i]) ; // Get the field!
 
-        v_el[i] = v_el[i] + q_over_m_factor*Efield*(dt);
+        dealii::Tensor<1,dim> Efield = laplace_solver.probe_efield(r_el[i], cid_el[i]) ;
+        F_el[i] = -dealii::Point<dim>(Efield) ;
+
+        v_el[i] = v_el[i] + q_over_m_factor*F_el[i]*(dt);
         r_el[i] = r_el[i] + v_el[i]*dt;
 
         //Update the cid_el && check if any particles have left the domain
@@ -123,6 +127,7 @@ void Pic<dim>::clearLostParticles(){
 
         r_el[i-nlost] = r_el[i];
         v_el[i-nlost] = v_el[i];
+        F_el[i-nlost] = F_el[i];
         cid_el[i-nlost] = cid_el[i];
     }
 
@@ -131,6 +136,7 @@ void Pic<dim>::clearLostParticles(){
         r_el.resize(npart-nlost);
         v_el.resize(npart-nlost);
         cid_el.resize(npart-nlost);
+        F_el.resize(npart-nlost);
         cout << "Particles where lost! nlost=" << nlost << endl;
     }
 
@@ -153,11 +159,12 @@ void Pic<dim>::writeParticles(const string filename) {
     cout << "writing particles to " + filename << " n_size = " << r_el.size() << endl;
 
     out << r_el.size() << endl;
-    out << "Interpolator properties=id:I:1:pos:R:3:vel:R:3:cell:I:1" << endl;
+    out << "Interpolator properties=id:I:1:pos:R:3:vel:R:3:Force:R:3:cell:I:1" << endl;
 
     for (int i = 0; i < r_el.size(); ++i)
         out << i << " " << r_el[i][0] << " " << r_el[i][1] << " " << r_el[i][2] << " " <<
-        v_el[i][0] << " " << v_el[i][1] << " " << v_el[i][2] << " " << cid_el[i] << endl;
+        v_el[i][0] << " " << v_el[i][1] << " " << v_el[i][2] << " " <<
+        F_el[i][0] << " " << F_el[i][1] << " " << F_el[i][2] << " " << cid_el[i] << endl;
 
     out.close();
 }
