@@ -107,23 +107,21 @@ void Interpolator::store_solution(const vector<int>& femocs2deal,
     require(vec_data.size() == scal_data.size(), "Mismatch of vector sizes: "
             + to_string(vec_data.size()) + ", " + to_string(scal_data.size()));
 
-    unsigned i = 0;
-    for (int n : femocs2deal) {
+    int j = 0;
+    for (int i = 0; i < femocs2deal.size(); ++i) {
         // If there is a common node between Femocs and deal.II meshes, store actual solution
-        if (n >= 0) {
-            require(i < vec_data.size(), "Invalid index: " + to_string(i));
-            dealii::Tensor<1, 3> vec = vec_data[i]; // that step needed to avoid complaints from Valgrind
-            nodes.append_solution( Solution(Vec3(vec[0], vec[1], vec[2]), scal_data[i++]) );
+        if (femocs2deal[i] >= 0) {
+            require(j < vec_data.size(), "Invalid index: " + to_string(j));
+            dealii::Tensor<1, 3> vec = vec_data[j]; // that step needed to avoid complaints from Valgrind
+            nodes.set_solution(i, Solution(Vec3(vec[0], vec[1], vec[2]), scal_data[j++]) );
         }
-
-        // In case of non-common node, store solution with default value
         else
-            nodes.append_solution(Solution(0));
+            nodes.set_solution(i, Solution(0));
     }
 }
 
 void Interpolator::initialize() {
-    // Precompute cells to make interpolation faster
+    // precompute cells to make interpolation faster
     nodes.precompute();
     lintris.precompute();
     quadtris.precompute();
@@ -131,11 +129,10 @@ void Interpolator::initialize() {
     quadtets.precompute();
     linhexs.precompute();
 
+    // initially store zero solution
     const int n_atoms = nodes.size();
-
-    for (int i = 0; i < n_atoms; ++i){
+    for (int i = 0; i < n_atoms; ++i)
         nodes.append_solution(Solution(0));
-    }
 }
 
 void Interpolator::initialize(double value) {
@@ -157,14 +154,6 @@ void Interpolator::initialize(double value) {
 bool Interpolator::extract_solution(fch::Laplace<3>* fem) {
     require(fem, "NULL pointer can't be handled!");
 
-    // Precompute cells to make interpolation faster
-    nodes.precompute();
-    lintris.precompute();
-    quadtris.precompute();
-    lintets.precompute();
-    quadtets.precompute();
-    linhexs.precompute();
-
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> femocs2deal, cell_indxs, vert_indxs;
     get_maps(femocs2deal, cell_indxs, vert_indxs, fem->get_triangulation(), fem->get_dof_handler());
@@ -180,14 +169,6 @@ bool Interpolator::extract_solution(fch::Laplace<3>* fem) {
 bool Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
     require(fem, "NULL pointer can't be handled!");
 
-    // Precompute cells to make interpolation faster
-    nodes.precompute();
-    lintris.precompute();
-    quadtris.precompute();
-    lintets.precompute();
-    quadtets.precompute();
-    linhexs.precompute();
-
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> femocs2deal, cell_indxs, vert_indxs;
     get_maps(femocs2deal, cell_indxs, vert_indxs, fem->get_triangulation(), fem->get_dof_handler());
@@ -200,13 +181,6 @@ bool Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
 }
 
 bool Interpolator::extract_solution(fch::CurrentsAndHeating<3>& fem) {
-    // Precompute cells to make interpolation faster
-    nodes.precompute();
-    lintris.precompute();
-    quadtris.precompute();
-    lintets.precompute();
-    quadtets.precompute();
-    linhexs.precompute();
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> femocs2deal, cell_indxs, vert_indxs;

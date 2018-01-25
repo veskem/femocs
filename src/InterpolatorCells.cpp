@@ -247,19 +247,20 @@ void InterpolatorCells<dim>::write_cell_data(ofstream& out) const {
     out << "SCALARS cell-ID int\nLOOKUP_TABLE default\n";
     for (int i = 0; i < n_cells; ++i)
         out << i << "\n";
+
+    // write cell markers
+    out << "SCALARS cell-marker int\nLOOKUP_TABLE default\n";
+    for (int i = 0; i < n_cells; ++i)
+        out << markers[i] << "\n";
 }
 
 template<int dim>
 int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_guess) const {
-    vector<bool> cell_checked(neighbours.size());
-    return locate_cell(point, cell_guess, cell_checked);
-}
-
-template<int dim>
-int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_guess, vector<bool>& cell_checked) const {
     // Check the guessed cell
     Vec3 vec_point(point);
     if (point_in_cell(vec_point, cell_guess)) return cell_guess;
+
+    vector<bool> cell_checked = vector_not(&markers, 0);
     cell_checked[cell_guess] = true;
 
     const int n_cells = neighbours.size();
@@ -763,6 +764,27 @@ void LinearTetrahedra::get_shape_functions(array<double,4>& sf, const Vec3& poin
     sf[3] = zero + det0[tet] * pt.dotProduct(det4[tet]);
 }
 
+void LinearTetrahedra::narrow_search_to(const int region) {
+    const int n_cells = cells.size();
+    require(n_cells == elems->size(), "LinearTetrahedra must be intialized before narrowing search!");
+
+    const int surf_end = mesh->nodes.indxs.surf_end;
+
+    if (region == TYPES.VACUUM) {
+        for (int i = 0; i < n_cells; ++i)
+            markers[i] = elems->get_marker(i) != TYPES.VACUUM;
+    } else if (region == TYPES.BULK) {
+        for (int i = 0; i < n_cells; ++i)
+            markers[i] = elems->get_marker(i) == TYPES.VACUUM;
+    } else if (region == TYPES.SURFACE) {
+        for (int i = 0; i < n_cells; ++i) {
+            SimpleElement se = cells[i];
+            markers[i] = se[0] > surf_end && se[1] > surf_end && se[2] > surf_end && se[3] > surf_end;
+        }
+    } else
+        require(false, "Unimplemented region: " + to_string(region));
+}
+
 double LinearTetrahedra::determinant(const Vec3 &v1, const Vec3 &v2) const {
     return v1.x * (v2.y - v2.z) - v1.y * (v2.x - v2.z) + v1.z * (v2.x - v2.y);
 }
@@ -910,21 +932,13 @@ void LinearHexahedra::precompute() {
     reserve(n_elems);
 
     // Loop through all the hexahedra
-    int deal_hex_index = 0;
     for (int i = 0; i < n_elems; ++i) {
-        // store the mapping between femocs and deal.ii hexahedra
-        if (hexs->get_marker(i) > 0)
-            markers[i] = deal_hex_index++;
-        else
-            markers[i] = -1;
-
         SimpleHex cell = (*hexs)[i];
 
-        // Store hexahedra
+        // store hexahedra
         cells.push_back(cell);
 
         // pre-calculate data to make iterpolation faster
-
         const Vec3 x1 = mesh->nodes.get_vec(cell[0]);
         const Vec3 x2 = mesh->nodes.get_vec(cell[1]);
         const Vec3 x3 = mesh->nodes.get_vec(cell[2]);
@@ -944,10 +958,24 @@ void LinearHexahedra::precompute() {
         f7s.push_back( Vec3(((x1*-1) + x2 - x3 + x4 + x5 - x6 + x7 - x8) / 8.0) );
     }
 
+    // make the markers to correspond to lintet
+    for (int i = 0; i < n_elems; ++i)
+        markers[i] = lintet->get_marker(int(i/4));
+
+    // store the mapping between femocs and deal.ii hexahedra
+    int deal_hex_index = 0;
+    map_femocs2deal = vector<int>(n_elems);
+    for (int i = 0; i < n_elems; ++i) {
+        if (hexs->get_marker(i) > 0)
+            map_femocs2deal[i] = deal_hex_index++;
+        else
+            map_femocs2deal[i] = -1;
+    }
+
     map_deal2femocs = vector<int>(deal_hex_index);
     deal_hex_index = 0;
     for (int i = 0; i < n_elems; ++i) {
-        if (markers[i] >= 0)
+        if (map_femocs2deal[i] >= 0)
             map_deal2femocs[deal_hex_index++] = i;
     }
 }

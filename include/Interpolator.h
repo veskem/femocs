@@ -51,6 +51,7 @@ public:
     Interpolator(const TetgenMesh* m, const string& norm_label, const string& scalar_label);
     ~Interpolator() {};
 
+    /** Initialize interpolator and store zero solution */
     void initialize();
 
     void initialize(double);
