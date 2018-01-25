@@ -2,7 +2,7 @@
  * Pic.cpp
  *
  *  Created on: 17.01.2018
- *      Author: Kyrre, Andreas
+ *      Author: Kyrre, Andreas, Mihkel
  */
 
 #include "Pic.h"
@@ -21,20 +21,11 @@ Pic<dim>::~Pic() {
 
 }
 
-//template<>
-//int Pic<2>::injectElectrons(const double* const r, const size_t n, FieldReader &fr) {
-//    for (size_t i = 0; i < n; i++) {
-//        r_el.push_back(dealii::Point<2>(r[i*2+0],r[i*2+1]));
-//        v_el.push_back(dealii::Point<2>(0.0,0.0));
-//        cid_el.push_back(fr.update_point_cell(r_el[i], 10));
-//    }
-//}
 template<int dim>
 int Pic<dim>::injectElectrons(const double* const r, const size_t n) {
     for (size_t i = 0; i < n; i++) {
         r_el.push_back(dealii::Point<3>(r[i*3+0],r[i*3+1],r[i*3+2]));
         v_el.push_back(dealii::Point<3>(0.0,0.0,0.0));
-        cout << "locating the cell" << endl;
         cid_el.push_back(fr.update_point_cell(r_el[i], 10));
     }
 }
@@ -47,10 +38,7 @@ int Pic<dim>::injectElectrons(double dt_pic) {
     for (auto& electron : injected){
         r_el.push_back(electron.first);
         v_el.push_back(0. * electron.first);
-
-//        cid_el.push_back(0);
         cid_el.push_back(fr.update_point_cell(electron.first, electron.second, false));
-//        cout << "point located at dealii cell " << cid_el.back() << endl << endl;
     }
     return 0;
 
@@ -89,10 +77,6 @@ void Pic<dim>::computeField(const double E0) {
     start_msg(t0, "Solving Poisson equation");
     laplace_solver.solve();
     end_msg(t0);
-
-
-
-
 }
 
 template<int dim>
@@ -106,14 +90,12 @@ void Pic<dim>::pushParticles(const double dt) {
 
         //Leapfrog method:
         // positions defined ON the time steps, velocities defined at half time steps
-        cout << "probig field at particle location...\n";
         dealii::Tensor<1,dim> Efield = laplace_solver.probe_efield(r_el[i], cid_el[i]) ; // Get the field!
 
         v_el[i] = v_el[i] + q_over_m_factor*Efield*(dt);
         r_el[i] = r_el[i] + v_el[i]*dt;
 
         //Update the cid_el && check if any particles have left the domain
-        cout << "updating cell for particles\n";
         cid_el[i] = fr.update_point_cell(r_el[i], cid_el[i]);
         if (cid_el[i] == -1) {
             lost_el.push_back(i);
@@ -157,6 +139,8 @@ void Pic<dim>::clearLostParticles(){
 
 template<int dim>
 void Pic<dim>::writeParticles(const string filename) {
+
+    if (r_el.size() < 1) return;
     ofstream out;
     out.setf(std::ios::scientific);
     out.precision(6);
@@ -165,6 +149,8 @@ void Pic<dim>::writeParticles(const string filename) {
     if (ftype == "movie") out.open(filename, ios_base::app);
     else out.open(filename);
     require(out.is_open(), "Can't open a file " + filename);
+
+    cout << "writing particles to " + filename << " n_size = " << r_el.size() << endl;
 
     out << r_el.size() << endl;
     out << "Interpolator properties=id:I:1:pos:R:3:vel:R:3:cell:I:1" << endl;

@@ -148,6 +148,8 @@ clear_output = true
 coord_cutoff = 3.1
 #cluster_cutoff = 4.2
 radius = 16.0  #inner radius of coarsening cylinder
+box_height = 20
+box_width = 5
 
 
 temp     =340.0
@@ -180,5 +182,5 @@ timerelE = 100.00 # Time in fs before field is applied
 # PIC parameters
 ---------------------
 doPIC = true
-PIC_dtmax = 10.0 #[fs]
+PIC_dtmax = 1.0 #[fs]
 PIC_time = 200 #[fs]

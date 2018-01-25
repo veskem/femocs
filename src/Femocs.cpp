@@ -311,24 +311,6 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     bulk_interpolator.initialize(conf.heating.t_ambient);
     vacuum_interpolator.lintets.narrow_search_to(TYPES.VACUUM);
 
-
-    //Inject electrons (testing)
-//    FieldReader fr(&vacuum_interpolator);
-
-//    const double zmin = dense_surf.sizes.zmax;
-//    const double step = 3.;
-//    const size_t n_points = 10;
-//
-//    cout << "injecting particles" << endl;
-//    double points_pic[3 * n_points];
-//    for (int i = 0; i < n_points; ++i){
-//        points_pic[i * 3] = 0;
-//        points_pic[i * 3 +1] = 0;
-//        points_pic[i * 3 +2] = zmin + (i+1) * step;
-//    }
-//
-//    pic_solver.injectElectrons(points_pic, n_points, fr);
-
     //Timestep loop
     for (int i = 0; i < time_subcycle; i++) {
         cout << "doPIC! i=" << i << ", dt_pic=" << dt_pic << endl;
@@ -349,21 +331,19 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         pic_solver.injectElectrons(dt_pic);
         end_msg(t0);
 
-        vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-        pic_solver.writeParticles("out/electrons.movie");
-
         //5. Particle pusher using the modified fields
-        start_msg(t0, "=== Pushing particles...");
+        start_msg(t0, "=== Pushing particles... dt=" + to_string(dt_pic));
         pic_solver.pushParticles(dt_pic);
         end_msg(t0);
-
-
 
         start_msg(t0, "=== Removing lost particles...");
         pic_solver.clearLostParticles();
         end_msg(t0);
 
-
+        start_msg(t0, "=== Writing particles and fields to file...");
+        vacuum_interpolator.nodes.write("out/result_E_phi.movie");
+        pic_solver.writeParticles("out/electrons.movie");
+        end_msg(t0);
     }
 
     //6. Save modified surface fields to somewhere the MD solver can find them

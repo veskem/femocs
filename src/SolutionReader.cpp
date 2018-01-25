@@ -835,6 +835,8 @@ Vec3 FieldReader::get_analyt_field(const int i, const Point3& origin) const {
     return Vec3(Ex, Ey, Ez);
 }
 
+//find the hex cell where the piont p is located. initial guess: current_cell
+// if deal_index then current_cell is dealii cell index
 int FieldReader::update_point_cell(dealii::Point<3> &p, int current_cell, bool deal_index) {
     Point3 femocs_point(p);
     int femocs_current_cell;
@@ -844,10 +846,9 @@ int FieldReader::update_point_cell(dealii::Point<3> &p, int current_cell, bool d
     else
         femocs_current_cell = current_cell;
 
-    cout << "femocs_current_cell = " << femocs_current_cell << endl;
     int femocs_cell = interpolator->linhexs.locate_cell(femocs_point, femocs_current_cell);
-    cout << "point located at femocs cell " << femocs_cell << endl;
-    return interpolator->linhexs.femocs2deal(femocs_cell); // gives -1 if cell is out of vacuum mesh
+    if (femocs_cell < 0) return -1;
+    return interpolator->linhexs.femocs2deal(femocs_cell);
 }
 
 // Analytical field enhancement for ellipsoidal nanotip
@@ -1096,7 +1097,7 @@ vector<pair<dealii::Point<3>, int>> EmissionReader::inject_electrons(double delt
     const double Amp = 6.2415e3; //[e/fs]
     vector<pair<dealii::Point<3>, int>> out;
     int n_tot = 0;
-    double I_tot;
+    double I_tot = 0;;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
 
@@ -1114,8 +1115,18 @@ vector<pair<dealii::Point<3>, int>> EmissionReader::inject_electrons(double delt
 
         //TODO : fix rng, fix probability distribution with face jacobian, fix dim generality
 
-        for (int j = 0; j < n_electrons; j++){;
+        for (int j = 0; j < n_electrons; j++){
+            int tri = abs(fields.get_marker(i));
+            Point3 centoid = fields.get_point(i);
+            int quad;
+            for (int k = 0; k < 3; k++){
+                quad = 3 * tri + k;
+                double dist = centoid.distance2(mesh.quads.get_centroid(quad));
+                if (dist < 1.e-10) break;
+            }
+            SimpleQuad sface = mesh.quads[quad];
 
+            Vec3 p_el(0.,0.,0.);
             double rand1 = (double)std::rand()/ RAND_MAX;
             double rand2= (double)std::rand()/ RAND_MAX;
             vector<double> rands(4);
@@ -1123,28 +1134,8 @@ vector<pair<dealii::Point<3>, int>> EmissionReader::inject_electrons(double delt
             rands[1] = 1-rand1;
             rands[2] = rand2;
             rands[3] = 1-rand2;
-
-
-            int tri = abs(fields.get_marker(i));
-
-            Point3 centoid = fields.get_point(i);
-
-            int quad;
-
-            for (int k = 0; k < 3; k++){
-                quad = 3 * tri + k;
-                double dist = centoid.distance2(mesh.quads.get_centroid(quad));
-                if (dist < 1.e-10) break;
-            }
-
-            Vec3 p_el(0.,0.,0.);
-            const double crosser = 0.2;
-            SimpleQuad sface = mesh.quads[quad];
-
             for (int j = 0; j < 4; j++){
                 p_el += mesh.nodes[sface[j]] * (.5   * rands[j]);
-
-//                cout << faces.get_node(j) << endl;
             }
 
             // push electrons little bit inside the vacuum mesh
@@ -1158,7 +1149,7 @@ vector<pair<dealii::Point<3>, int>> EmissionReader::inject_electrons(double delt
         n_tot += n_electrons;
         I_tot += currents[i];
     }
-    printf("I_tot_dealii = %e e/fs (%e Amps), emitted electrons = %d\n", I_tot, I_tot / Amp, n_tot);
+    printf("I_inject = %e e/fs (%e Amps), emitted electrons = %d\n", I_tot, I_tot / Amp, n_tot);
     return out;
 }
 
