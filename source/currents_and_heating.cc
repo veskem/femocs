@@ -780,16 +780,16 @@ DoFHandler<dim>* CurrentsAndHeating<dim>::get_dof_handler_current() {
 }
 
 template<int dim>
-std::vector<Point<dim>> CurrentsAndHeating<dim>::inject_electrons(const double &delta_t) const{
+std::vector<std::pair<Point<dim>, unsigned>> CurrentsAndHeating<dim>::inject_electrons(const double &delta_t) const{
     return inject_electrons(delta_t, StaticMappingQ1<dim-1,dim>::mapping);
 }
 
 template<int dim>
-std::vector<Point<dim>> CurrentsAndHeating<dim>::inject_electrons(const double &delta_t, Mapping<dim-1,dim>& mapping) const{
+std::vector<std::pair<Point<dim>, unsigned>> CurrentsAndHeating<dim>::inject_electrons(const double &delta_t, Mapping<dim-1,dim>& mapping) const{
 
 
     const double Amp = 6.2415e3; //[e/fs]
-    std::vector<Point<dim>> out;
+    std::vector<std::pair<Point<dim>, unsigned>> out;
     int n_tot = 0;
     double I_tot;
 
@@ -828,11 +828,13 @@ std::vector<Point<dim>> CurrentsAndHeating<dim>::inject_electrons(const double &
             Point<dim> p_real;
 
 
-            const double crosser = 1.;
+            const double crosser = 0.2;
             for ( int j=0;j <4 ; j++ )
                 p_real += .5   * rands[j] * cell->face(face_index)->vertex(j);
+//
+            p_real += crosser * (p_real - cell->center());
 
-            out.push_back(p_real);
+            out.push_back(std::pair<Point<dim>, unsigned>(p_real, cell_index));
         }
 
         n_tot += n_electrons;
