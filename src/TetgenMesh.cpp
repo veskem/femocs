@@ -22,12 +22,13 @@ void TetgenMesh::test_mapping() const {
     cout << "\ntris of tets:" << endl;
     for (int i = 0; i < 10; ++i) {
         cout << i << ":\t";
-        for (int j = 0; j < n_tris_per_tet; ++j)
-            cout << tet2tri(i, j) << ", ";
+        vector<int> tris = tet2tri(i);
+        for (int j = 0; j < tris.size(); ++j)
+            cout << tris[j] << ", ";
         cout << endl;
     }
 
-    cout << "\t tets of tris:" << endl;
+    cout << "tets of tris:" << endl;
     for (int i = 0; i < 10; ++i) {
         cout << i << ":\t" << tri2tet(i, TYPES.VACUUM) << ", " << tri2tet(i, TYPES.BULK) << endl;
     }
@@ -94,10 +95,9 @@ int TetgenMesh::quad2hex(const int quad, const int region) const {
     return -1;
 }
 
-int TetgenMesh::tet2tri(const int tet, const int tri) const {
+vector<int> TetgenMesh::tet2tri(const int tet) const {
     require(tet >= 0 && tet < elems.size(), "Invalid index: " + to_string(tet));
-    require(tri >= 0 && tri < n_tris_per_tet, "Invalid index: " + to_string(tri));
-    return elems.to_tris(tet)[tri];
+    return elems.to_tris(tet);
 }
 
 int TetgenMesh::tet2hex(const int tet, const int hex) const {
@@ -513,8 +513,48 @@ void TetgenMesh::calc_quad2hex_mapping() {
     }
 
     // store the mapping on the cells side
-    quads.set_map(quad2hex_map);
-    hexahedra.set_map(hex2quad_map);
+    quads.store_map(quad2hex_map);
+    hexahedra.store_map(hex2quad_map);
+}
+
+void TetgenMesh::calc_tri2tet_mapping() {
+    const int n_tris = faces.size();
+    const int n_tets = elems.size();
+    const int surface_end = nodes.indxs.surf_end;
+
+    vector<array<int,2>> tri2tet_map = vector<array<int,2>>(n_tris, {-1,-1});
+    vector<vector<int>> tet2tri_map = vector<vector<int>>(n_tets);
+
+    vector<int> regions = {TYPES.VACUUM, TYPES.BULK};
+
+    // loop through the tetrahedra that can be on the surface
+    for (int tet = 0; tet < n_tets; ++tet) {
+        SimpleElement selem = elems[tet];
+        if (selem > surface_end) continue;
+
+        // loop through all the triangles
+        // TODO: inefficient, is it possible to optimise it somehow?
+        for (int tri = 0; tri < n_tris; ++tri) {
+
+            // count for the # common nodes between triangle and tetrahedron
+            int n_common_nodes = 0;
+            for (int node : faces[tri])
+                n_common_nodes += selem == node;
+
+            // tri belongs to tet, if they share 3 nodes
+            if (n_common_nodes == n_nodes_per_tri) {
+                tet2tri_map[tet].push_back(tri);
+                if (tri2tet_map[tri][0] >= 0)
+                    tri2tet_map[tri][1] = tet;
+                else
+                    tri2tet_map[tri][0] = tet;
+            }
+        }
+    }
+
+    // store the mapping on the cells side
+    faces.store_map(tri2tet_map);
+    elems.store_map(tet2tri_map);
 }
 
 // Group hexahedra & quadrangles around central tetrahedral & triangular nodes
@@ -587,6 +627,9 @@ int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd) 
     // clean the triangles that are on the simubox perimeter
     faces.clean_sides(sizes);
     faces.recalc();
+
+    calc_tri2tet_mapping();
+
     return 0;
 }
 
@@ -598,11 +641,12 @@ void TetgenMesh::generate_manual_surface() {
     // booleans showing whether element i has exactly one face on the surface or not
     vector<bool> elem_on_surface; elem_on_surface.reserve(n_elems);
     // booleans showing whether node i is on the surface or not
-    vector<bool> surf_locs;
+    vector<bool> surf_locs(4);
 
     // Mark the elements that have exactly one face on the surface
-    for (SimpleElement selem : elems) {
-        surf_locs = (selem <= max_surf_indx);
+    for (SimpleElement elem : elems) {
+        for (int i = 0; i < 4; ++i)
+            surf_locs[i] = elem[i] <= max_surf_indx;
         elem_on_surface.push_back(vector_sum(surf_locs) == 3);
     }
 
@@ -623,7 +667,8 @@ void TetgenMesh::generate_manual_surface() {
             SimpleElement elem = elems[el];
 
             // Find the indices of nodes that are on the surface
-            surf_locs = (elem <= max_surf_indx);
+            for (int i = 0; i < 4; ++i)
+                surf_locs[i] = elem[i] <= max_surf_indx;
 
             /* The possible combinations of surf_locs and n0,n1,n2:
              * surf_locs: 1110   1101   1011   0111

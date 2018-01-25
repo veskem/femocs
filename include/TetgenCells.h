@@ -450,22 +450,22 @@ public:
     /** Return the area of i-th triangle */
     double get_area(const int i) const;
 
-    /** Return indices of all edges that are connected to i-th tetrahedron*/
-    array<int,3> to_edges(const int i) const {
-        const int I = 3 * i;
-        return array<int,3>{reads->face2edgelist[I], reads->face2edgelist[I+1], reads->face2edgelist[I+2]};
-    }
-
     /** Return indices of all tetrahedra that are connected to i-th triangle; -1 means there's no tetrahedron */
     array<int,2> to_tets(const int i) const {
-        const int I = 2 * i;
-        return array<int,2>{reads->face2tetlist[I], reads->face2tetlist[I+1]};
+//        const int I = 2 * i;
+//        return array<int,2>{reads->face2tetlist[I], reads->face2tetlist[I+1]};
+        return map2tets[i];
     }
 
     /** Return indices of all quadrangles that are connected to i-th triangle*/
     array<int,3> to_quads(const int i) const {
         const int I = n_quads_per_tri * i;
         return array<int,3>{I, I+1, I+2};
+    }
+
+    /** Store the mapping between triangles and tetrahedra */
+    void store_map(vector<array<int,2>>& _map2tets) {
+        map2tets = _map2tets;
     }
 
     /** Calculate statistics about triangles */
@@ -483,6 +483,7 @@ public:
 private:
     vector<double> areas;   ///< areas of triangles
     vector<Vec3> norms;     ///< norms of triangles
+    vector<array<int,2>> map2tets;
 
     /** Return the triangle type in vtk format */
     int get_cell_type() const { return TYPES.VTK.TRIANGLE; }
@@ -514,26 +515,26 @@ public:
     /** Copy the nodes from one buffer to another */
     void recalc(const bool write2read=true);
 
-    /** Return indices of all edges that are connected to i-th tetrahedron*/
-    array<int,6> to_edges(const int i) const {
-        const int I = i * n_edges_per_tet;
-        return array<int,6> {
-            reads->tet2edgelist[I],   reads->tet2edgelist[I+1],
-            reads->tet2edgelist[I+2], reads->tet2edgelist[I+3],
-            reads->tet2edgelist[I+4], reads->tet2edgelist[I+5] };
-    }
-
     /** Return indices of all triangles that are connected to i-th tetrahedron*/
-    array<int,4> to_tris(const int i) const {
-        const int I = i * n_tris_per_tet;
-        return array<int,4>{reads->tet2facelist[I], reads->tet2facelist[I+1],
-            reads->tet2facelist[I+2], reads->tet2facelist[I+3]};
+//    array<int,4> to_tris(const int i) const {
+//        const int I = i * n_tris_per_tet;
+//        return array<int,4>{reads->tet2facelist[I], reads->tet2facelist[I+1],
+//            reads->tet2facelist[I+2], reads->tet2facelist[I+3]};
+//    }
+
+    vector<int> to_tris(const int i) const {
+        return map2tris[i];
     }
 
     /** Return indices of all hexahedra that are connected to i-th tetrahedron*/
     array<int,4> to_hexs(const int i) const {
         const int I = n_hexs_per_tet * i;
         return array<int,4>{I, I+1, I+2, I+3};
+    }
+
+    /** Store the mapping between tetrahedra and triangles */
+    void store_map(vector<vector<int>>& _map2tris) {
+        map2tris = _map2tris;
     }
 
     /** Calculate statistics about tetrahedra */
@@ -546,6 +547,8 @@ public:
     } stat;
 
 private:
+    vector<vector<int>> map2tris;
+
     /** Return the tetrahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.TETRAHEDRON; }
 
@@ -574,7 +577,7 @@ public:
     int size() const { return quads.size(); }
 
     /** Store the mapping between quadrangles and hexahedra */
-    void set_map(vector<array<int,2>>& _map2hexs) {
+    void store_map(vector<array<int,2>>& _map2hexs) {
         map2hexs = _map2hexs;
     }
 
@@ -623,7 +626,7 @@ public:
     vector<dealii::CellData<3>> export_bulk() const;
 
     /** Store the mapping between hexahedra and quadrangles */
-    void set_map(vector<vector<int>>& _map2quads) {
+    void store_map(vector<vector<int>>& _map2quads) {
         map2quads = _map2quads;
     }
 

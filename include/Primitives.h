@@ -582,25 +582,21 @@ public:
     }
 
     /** Less than, bigger than, less than or equal, bigger than or equal operators */
-    vector<bool> operator <(const unsigned int &t) const {
-        vector<bool> v; v.reserve(dim);
-        for (unsigned int n : node) v.push_back(n < t);
-        return v;
+    bool operator <(const unsigned int &t) const {
+        for (unsigned int n : node) if (n >= t) return false;
+        return true;
     }
-    vector<bool> operator >(const unsigned int &t) const {
-        vector<bool> v; v.reserve(dim);
-        for (unsigned int n : node) v.push_back(n > t);
-        return v;
+    bool operator >(const unsigned int &t) const {
+        for (unsigned int n : node) if (n <= t) return false;
+        return true;
     }
-    vector<bool> operator <=(const unsigned int &t) const {
-        vector<bool> v; v.reserve(dim);
-        for (unsigned int n : node) v.push_back(n <= t);
-        return v;
+    bool operator <=(const unsigned int &t) const {
+        for (unsigned int n : node) if (n > t) return false;
+        return true;
     }
-    vector<bool> operator >=(const unsigned int &t) const {
-        vector<bool> v; v.reserve(dim);
-        for (unsigned int n : node) v.push_back(n >= t);
-        return v;
+    bool operator >=(const unsigned int &t) const {
+        for (unsigned int n : node) if (n < t) return false;
+        return true;
     }
 
     /** Define the behaviour of string stream */

@@ -370,9 +370,8 @@ void TetgenFaces::clean_sides(const Medium::Sizes& stat) {
     calc_statistics();
     const double eps = 0.01 * this->stat.edgemin;
     int n_faces = size();
-    vector<SimpleFace> faces; faces.reserve(n_faces);
-    vector<array<int,3>> edge_list; edge_list.reserve(n_faces);
-    vector<array<int,2>> tet_list; tet_list.reserve(n_faces);
+    vector<SimpleFace> faces;
+    faces.reserve(n_faces);
 
     // Make a copy of faces not on the sides of simulation cell
     for (int i = 0; i < n_faces; ++i) {
@@ -382,8 +381,6 @@ void TetgenFaces::clean_sides(const Medium::Sizes& stat) {
         const bool side_z = on_boundary(centroid.z, stat.zmin, stat.zmax, eps);
         if (!(side_x || side_y || side_z)) {
             faces.push_back(get_cell(i));
-            edge_list.push_back(to_edges(i));
-            tet_list.push_back(to_tets(i));
         }
     }
 
@@ -392,32 +389,6 @@ void TetgenFaces::clean_sides(const Medium::Sizes& stat) {
     init(n_faces);
     for (SimpleFace face : faces)
         append(face);
-
-    // store the mapping to edges
-    if (edge_list.size() > 0) {
-        if (reads->face2edgelist != (int *) NULL)
-            delete[] reads->face2edgelist;
-        reads->face2edgelist = new int[n_edges_per_tri * n_faces];
-
-        for (int i = 0; i < n_faces; ++i) {
-            int j = n_edges_per_tri * i;
-            for (int edge : edge_list[i])
-                reads->face2edgelist[j++] = edge;
-        }
-    }
-
-    // store the mapping to tetrahedra
-    if (tet_list.size() > 0) {
-        if (reads->face2tetlist != (int *) NULL)
-            delete[] reads->face2tetlist;
-        reads->face2tetlist = new int[n_tets_per_tri * n_faces];
-
-        for (int i = 0; i < n_faces; ++i) {
-            int j = n_tets_per_tri * i;
-            for (int tet : tet_list[i])
-                reads->face2tetlist[j++] = tet;
-        }
-    }
 
     calc_norms_and_areas();
 }

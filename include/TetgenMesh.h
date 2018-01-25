@@ -98,7 +98,7 @@ public:
     int quad2hex(const int quad, const int region) const;
 
     /** Map the index of a tetrahedron to the index of a triangle */
-    int tet2tri(const int tet, const int tri=0) const;
+    vector<int> tet2tri(const int tet) const;
 
     /** Map the index of a tetrahedron to the index of a hexahedron */
     int tet2hex(const int tet, const int hex=0) const;
@@ -179,6 +179,8 @@ private:
 
     /** Calculate the mapping between quadrangle and hexahedron indices */
     void calc_quad2hex_mapping();
+
+    void calc_tri2tet_mapping();
 
     /** Mark the tetrahedra by the location of nodes */
     void mark_elems();
