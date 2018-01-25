@@ -48,13 +48,10 @@ int Pic<dim>::injectElectrons(const double &dt_pic) {
         v_el.push_back(0. * electron.first);
 
         cout << "getting femocs cell index. deal index = " << electron.second << endl;
-
         int femocs_cell = hr.get_femocs_index(electron.second);
-
-
+        cout << "femocs index = " << femocs_cell << endl;
         cid_el.push_back(fr.update_point_cell(electron.first, femocs_cell, false));
-        cout << cid_el.back() << endl;
-        //std::printf("inserting electron in point %e, %e, %e\n", point[0], point[1], point[2]);
+        cout << "point located at dealii cell " << cid_el.back() << endl << endl;
     }
     return 0;
 
