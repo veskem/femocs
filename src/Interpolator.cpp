@@ -138,6 +138,22 @@ void Interpolator::initialize() {
     }
 }
 
+void Interpolator::initialize(double value) {
+    // Precompute cells to make interpolation faster
+    nodes.precompute();
+    lintris.precompute();
+    quadtris.precompute();
+    lintets.precompute();
+    quadtets.precompute();
+    linhexs.precompute();
+
+    const int n_atoms = nodes.size();
+
+    for (int i = 0; i < n_atoms; ++i){
+        nodes.append_solution(Solution(value));
+    }
+}
+
 bool Interpolator::extract_solution(fch::Laplace<3>* fem) {
     require(fem, "NULL pointer can't be handled!");
 

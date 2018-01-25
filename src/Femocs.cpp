@@ -22,8 +22,8 @@ using namespace std;
 namespace femocs {
 
 // specify simulation parameters
-Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false),
-					  timestep(-1), last_full_timestep(0), pic_solver(laplace_solver, fields) {
+Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false), timestep(-1), last_full_timestep(0),
+        pic_solver(laplace_solver, fields, ch_transient_solver, temperatures) {
     static bool first_call = true;
 
     // Read configuration parameters from configuration file
@@ -308,6 +308,8 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     stringstream ss; ss << laplace_solver;
     write_verbose_msg(ss.str());
     vacuum_interpolator.initialize();
+    bulk_interpolator.initialize(conf.heating.t_ambient);
+
 
 
     //Inject electrons (testing)
@@ -344,7 +346,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         end_msg(t0);
 
         start_msg(t0, "=== Injecting electrons...");
-        pic_solver.injectElectrons(ch_transient_solver, dt_pic);
+        pic_solver.injectElectrons(dt_pic);
         end_msg(t0);
 
         vacuum_interpolator.nodes.write("out/result_E_phi.movie");

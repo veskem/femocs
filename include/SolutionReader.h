@@ -75,6 +75,10 @@ public:
         double scal_max;      ///< maximum value of scalar
     } stat;
 
+    int get_femocs_index(int deal_index){
+        return interpolator->linhexs.deal2femocs(deal_index);
+    }
+
 protected:
     const string vec_label;       ///< label for vector data
     const string vec_norm_label;  ///< label for data associated with vector length
@@ -164,12 +168,7 @@ public:
     void set_check_params(const double E0, const double limit_min, const double limit_max,
             const double radius1, const double radius2=-1);
 
-    int update_point_cell(dealii::Point<3> &p, int current_cell) {
-        Point3 femocs_point(p);
-        int femocs_cell = interpolator->linhexs.locate_cell(femocs_point, current_cell);
-        cout << "point located at femocs cell " << femocs_cell << endl;
-        return interpolator->linhexs.femocs2deal(femocs_cell); // gives -1 if cell is out of vacuum mesh
-    }
+    int update_point_cell(dealii::Point<3> &p, int current_cell, bool deal_index = true);
 
 private:
     /** Data needed for comparing numerical solution with analytical one */

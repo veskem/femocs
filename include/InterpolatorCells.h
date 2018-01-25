@@ -317,7 +317,7 @@ public:
 
     /** Return the index of hexahedron in femocs that corresponds to i-th hexahedron in Deal.II */
     int deal2femocs(const int i) const {
-        require(i >= 0 && i < map_deal2femocs.size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < map_deal2femocs.size(), "Invalid index: " + to_string(i) + "size = " + to_string(map_deal2femocs.size()));
         return map_deal2femocs[i];
     }
 
