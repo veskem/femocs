@@ -310,6 +310,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     vacuum_interpolator.initialize();
     bulk_interpolator.initialize(conf.heating.t_ambient);
     vacuum_interpolator.lintets.narrow_search_to(TYPES.VACUUM);
+    bulk_interpolator.lintets.narrow_search_to(TYPES.BULK);
 
 
     //Inject electrons (testing)

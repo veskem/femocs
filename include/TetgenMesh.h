@@ -85,6 +85,22 @@ public:
     /** Perform double Tetgen calculation on input buffer and store it in output one */
     int recalc(const string& cmd1, const string& cmd2);
 
+    int tri2quad(const int tri, const int quad=0) const;
+
+    int tri2tet(const int tri, const int region) const;
+
+    int quad2tri(const int quad) const;
+
+    int quad2hex(const int quad, const int region) const;
+
+    int tet2tri(const int tet, const int tri=0) const;
+
+    int tet2hex(const int tet, const int hex=0) const;
+
+    int hex2quad(const int hex, const int quad=0) const;
+
+    int hex2tet(const int hex) const;
+
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin); ///< data & operations for mesh nodes
     TetgenEdges edges = TetgenEdges(&tetIOout);           ///< data & operations for mesh edges
     TetgenFaces faces = TetgenFaces(&tetIOout);           ///< data & operations for mesh triangles
@@ -93,9 +109,18 @@ public:
     Hexahedra hexahedra = Hexahedra(&tetIOout);           ///< data & operations for mesh hexahedra
 
     static constexpr int n_coordinates = 3;     ///< Number of coordinates
-    static constexpr int n_edges_per_face = 3;  ///< Number of edges on a triangle
-    static constexpr int n_edges_per_elem = 6;  ///< Number of edges on a tetrahedron
-    static constexpr int n_faces_per_elem = 4;  ///< Number of triangles on a tetrahedron
+//    static constexpr int n_edges_per_face = 3;  ///< Number of edges on a triangle
+//    static constexpr int n_edges_per_elem = 6;  ///< Number of edges on a tetrahedron
+//    static constexpr int n_faces_per_elem = 4;  ///< Number of triangles on a tetrahedron
+
+    static constexpr int n_edges_per_tri = 3;  ///< Number of edges on a triangle
+    static constexpr int n_edges_per_quad = 4; ///< Number of edges on a quadrangle
+    static constexpr int n_edges_per_tet = 6;  ///< Number of edges on a tetrahedron
+    static constexpr int n_edges_per_hex = 12; ///< Number of edges on a hexahedron
+    static constexpr int n_tris_per_tet = 4;   ///< Number of triangles on a tetrahedron
+    static constexpr int n_hexs_per_tet = 4;   ///< Number of hexahedra connected to a tetrahedron
+    static constexpr int n_quads_per_tri = 3;  ///< Number of quadrangles connected to a triangle
+    static constexpr int n_quads_per_hex = 6;  ///< Number of quadrangles connected to a hexahedron
 
     /** String stream prints the statistics about the mesh */
     friend std::ostream& operator <<(std::ostream &s, const TetgenMesh &t) {

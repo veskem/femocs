@@ -188,10 +188,15 @@ public:
     iterator end() const { return iterator(this, size()); }
 
     static constexpr int DIM = dim; //!< dimensionality of the cell; 1-node, 2-edge, 3-triangle etc
+    static constexpr int n_coordinates = 3;    ///< Number of spatial coordinates
+    static constexpr int n_edges_per_tri = 3;  ///< Number of edges on a triangle
+    static constexpr int n_tets_per_tri = 2;   ///< Number of tetrahedra connected to a triangle
+    static constexpr int n_edges_per_tet = 6;  ///< Number of edges on a tetrahedron
+    static constexpr int n_tris_per_tet = 4;   ///< Number of triangles on a tetrahedron
+    static constexpr int n_hexs_per_tet = 4;   ///< Number of hexahedra connected to a tetrahedron
+    static constexpr int n_quads_per_tri = 3;  ///< Number of quadrangles connected to a triangle
 
 protected:
-    static constexpr int n_coordinates = 3;  //!< number of spatial coordinates
-
     int* n_cells_r;      ///< number of readable cells in mesh data
     int* n_cells_w;      ///< number of writable cells in mesh data
     tetgenio* reads;     ///< mesh data that has been processed by Tetgen
@@ -448,17 +453,23 @@ public:
     /** Return indices of all edges that are connected to i-th tetrahedron*/
     array<int,3> to_edges(const int i) const {
         const int I = 3 * i;
-        return array<int,3>{reads->tet2edgelist[I], reads->tet2edgelist[I+1], reads->tet2edgelist[I+2]};
+        return array<int,3>{reads->face2edgelist[I], reads->face2edgelist[I+1], reads->face2edgelist[I+2]};
     }
 
-    /** Return index of quadrangle that is connected to i-th triangle*/
-    int to_quad(const int i) const { return 3 * i; }
+    /** Return indices of all tetrahedra that are connected to i-th triangle; -1 means there's no tetrahedron */
+    array<int,2> to_tets(const int i) const {
+        const int I = 2 * i;
+        return array<int,2>{reads->face2tetlist[I], reads->face2tetlist[I+1]};
+    }
 
     /** Return indices of all quadrangles that are connected to i-th triangle*/
     array<int,3> to_quads(const int i) const {
-        const int I = 3 * i;
+        const int I = n_quads_per_tri * i;
         return array<int,3>{I, I+1, I+2};
     }
+
+    /** Return index of first quadrangle that is connected to i-th triangle*/
+    int to_quad(const int i) const { return 3 * i; }
 
     /** Calculate statistics about triangles */
     void calc_statistics();
@@ -508,28 +519,28 @@ public:
 
     /** Return indices of all edges that are connected to i-th tetrahedron*/
     array<int,6> to_edges(const int i) const {
-        const int I = i * 6;
+        const int I = i * n_edges_per_tet;
         return array<int,6> {
-            reads->tet2edgelist[I+0], reads->tet2edgelist[I+1],
+            reads->tet2edgelist[I],   reads->tet2edgelist[I+1],
             reads->tet2edgelist[I+2], reads->tet2edgelist[I+3],
             reads->tet2edgelist[I+4], reads->tet2edgelist[I+5] };
     }
 
     /** Return indices of all triangles that are connected to i-th tetrahedron*/
     array<int,4> to_tris(const int i) const {
-        const int I = i * 4;
-        return array<int,4>{reads->tet2facelist[I+0], reads->tet2facelist[I+1],
+        const int I = i * n_tris_per_tet;
+        return array<int,4>{reads->tet2facelist[I], reads->tet2facelist[I+1],
             reads->tet2facelist[I+2], reads->tet2facelist[I+3]};
     }
 
-    /** Return index of hexahedron that is connected to i-th tetrahedron*/
-    int to_hex(const int i) const { return 4 * i; }
-
     /** Return indices of all hexahedra that are connected to i-th tetrahedron*/
     array<int,4> to_hexs(const int i) const {
-        const int I = 4 * i;
+        const int I = n_hexs_per_tet * i;
         return array<int,4>{I, I+1, I+2, I+3};
     }
+
+    /** Return index of first hexahedron that is connected to i-th tetrahedron*/
+    int to_hex(const int i) const { return n_hexs_per_tet * i; }
 
     /** Calculate statistics about tetrahedra */
     void calc_statistics();

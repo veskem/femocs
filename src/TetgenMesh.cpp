@@ -18,6 +18,69 @@ TetgenMesh::TetgenMesh() {
     tetIOout.initialize();
 }
 
+int TetgenMesh::tri2quad(const int tri, const int quad) const {
+    require(tri >= 0 && tri < faces.size(), "Invalid index: " + to_string(tri));
+    return quad + tri * n_quads_per_tri;
+}
+
+int TetgenMesh::tri2tet(const int tri, const int region) const {
+    require(tri >= 0 && tri < faces.size(), "Invalid index: " + to_string(tri));
+
+    array<int,2> tets = faces.to_tets(tri);
+
+    if (region == TYPES.VACUUM) {
+        for (int tet : tets)
+            if (tet >= 0 && elems.get_marker(tet) == TYPES.VACUUM)
+                return tri;
+    } else if (region == TYPES.BULK) {
+        for (int tet : tets)
+            if (tet >= 0 && elems.get_marker(tet) != TYPES.VACUUM)
+                return tet;
+    } else
+        require(false, "Unimplemented region: " + to_string(region));
+
+    return -1;
+}
+
+int TetgenMesh::quad2tri(const int quad) const {
+    require(quad >= 0 && quad < quads.size(), "Invalid index: " + to_string(quad));
+    return int(quad / n_quads_per_tri);
+}
+
+int TetgenMesh::quad2hex(const int quad, const int region) const {
+    require(false, "Unimplemented yet!");
+
+    require(quad >= 0 && quad < quads.size(), "Invalid index: " + to_string(quad));
+    const int tri = quad2tri(quad);
+    const int tet = tri2tet(tri, region);
+    return -1;
+}
+
+int TetgenMesh::tet2tri(const int tet, const int tri) const {
+    require(tet >= 0 && tet < elems.size(), "Invalid index: " + to_string(tet));
+    require(tri >= 0 && tri < n_tris_per_tet, "Invalid index: " + to_string(tri));
+    return elems.to_tris(tet)[tri];
+}
+
+int TetgenMesh::tet2hex(const int tet, const int hex) const {
+    require(tet >= 0 && tet < elems.size(), "Invalid index: " + to_string(tet));
+    require(hex >= 0 && hex < n_hexs_per_tet, "Invalid index: " + to_string(hex));
+    return hex + tet * n_hexs_per_tet;
+}
+
+int TetgenMesh::hex2quad(const int hex, const int quad) const {
+    require(false, "Unimplemented yet!");
+
+    require(hex >= 0 && hex < hexahedra.size(), "Invalid index: " + to_string(hex));
+    require(quad >= 0 && quad < n_quads_per_hex, "Invalid index: " + to_string(quad));
+    return -1;
+}
+
+int TetgenMesh::hex2tet(const int hex) const {
+    require(hex >= 0 && hex < hexahedra.size(), "Invalid index: " + to_string(hex));
+    return int(hex / n_hexs_per_tet);
+}
+
 // Delete disturbing edges and faces on and near the surface perimeter
 void TetgenMesh::clean_sides(const Medium::Sizes& sizes) {
     edges.clean_sides(sizes);
@@ -247,8 +310,6 @@ void TetgenMesh::curvature_norm_smooth(const double scale, const vector<vector<u
 // Function to generate simple mesh that consists of one tetrahedron
 int TetgenMesh::generate_simple() {
     const int n_nodes = elems.DIM;
-    const int n_edges = n_edges_per_elem;
-    const int n_faces = n_faces_per_elem;
     const int n_elems = 1;
 
     nodes.init(n_nodes);
@@ -257,13 +318,13 @@ int TetgenMesh::generate_simple() {
     nodes.append(Point3(0.0, 1.0, -0.7));
     nodes.append(Point3(0.0, -1.0, -0.7));
 
-    faces.init(n_faces);
+    faces.init(n_tris_per_tet);
     faces.append(SimpleFace(0, 1, 3));
     faces.append(SimpleFace(1, 2, 3));
     faces.append(SimpleFace(2, 0, 3));
     faces.append(SimpleFace(0, 1, 2));
 
-    edges.init(n_edges);
+    edges.init(n_edges_per_tet);
     edges.append(SimpleEdge(0, 1));
     edges.append(SimpleEdge(0, 2));
     edges.append(SimpleEdge(0, 3));
@@ -487,12 +548,10 @@ void TetgenMesh::generate_manual_surface() {
 // Generate edges from the elements
 void TetgenMesh::generate_edges() {
     const int n_elems = elems.size();
-    const int n_edges = n_edges_per_elem * n_elems;
-
-    edges.init(n_edges);
+    edges.init(n_edges_per_tet * n_elems);
 
     for (SimpleElement selem : elems) {
-        for (int e = 0; e < n_edges_per_elem; ++e)
+        for (int e = 0; e < n_edges_per_tet; ++e)
             edges.append(selem.edge(e));
     }
 }
