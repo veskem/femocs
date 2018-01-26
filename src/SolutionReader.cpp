@@ -1213,7 +1213,6 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
         const double workfunction, const double Vappl, bool blunt) {
 
     const int n_nodes = fields.size();
-
     reserve(n_nodes);
     atoms = fields.atoms;
 

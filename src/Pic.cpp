@@ -17,9 +17,7 @@ Pic<dim>::Pic(fch::Laplace<dim> &laplace_solver, FieldReader &fr,
         laplace_solver(laplace_solver), fr(fr), ch_solver(ch_solver), hr(hr), er(er){}
 
 template<int dim>
-Pic<dim>::~Pic() {
-
-}
+Pic<dim>::~Pic() {}
 
 template<int dim>
 int Pic<dim>::injectElectrons(const double* const r, const size_t n) {
@@ -33,7 +31,6 @@ int Pic<dim>::injectElectrons(const double* const r, const size_t n) {
 
 template<int dim>
 int Pic<dim>::injectElectrons() {
-
     vector<dealii::Point<dim>> positions, fields;
     vector<int> cells;
     er.inject_electrons(dt, Wsp, positions, fields, cells);
@@ -48,45 +45,44 @@ int Pic<dim>::injectElectrons() {
 
 }
 
+//Call the laplace solver with the list of positions and charge(s)
 template<int dim>
 void Pic<dim>::computeField() {
-    //Call the laplace solver with the list of positions and charge(s)
-    double t0;
 
-    start_msg(t0, "=== Initializing Laplace solver...");
+//    double t0;
+//    start_msg(t0, "=== Initializing Laplace solver...");
     laplace_solver.set_applied_efield(-E0);
     laplace_solver.setup_system();
-    end_msg(t0);
+//    end_msg(t0);
 
-    start_msg(t0, "Assembling system lhs");
+//    start_msg(t0, "Assembling system lhs");
     laplace_solver.assemble_system_lhs();
-    end_msg(t0);
+//    end_msg(t0);
 
-    start_msg(t0, "Assembling Neumann boundary rhs");
+//    start_msg(t0, "Assembling Neumann boundary rhs");
     laplace_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top);
-    end_msg(t0);
+//    end_msg(t0);
 
-    start_msg(t0, "Assembling charge rhs");
+//    start_msg(t0, "Assembling charge rhs");
     laplace_solver.assemble_system_pointcharge(r_el, -q_over_eps0*Wsp, cid_el);
-    end_msg(t0);
+//    end_msg(t0);
 
-    start_msg(t0, "Applying Dirichlet boundary conditions");
+//    start_msg(t0, "Applying Dirichlet boundary conditions");
     laplace_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.0);
-    end_msg(t0);
+//    end_msg(t0);
 
-    start_msg(t0, "Closing the FEM system of equations");
+//    start_msg(t0, "Closing the FEM system of equations");
     laplace_solver.assemble_system_finalize();
-    end_msg(t0);
+//    end_msg(t0);
 
-    start_msg(t0, "Solving Poisson equation");
+//    start_msg(t0, "Solving Poisson equation");
     laplace_solver.solve();
-    end_msg(t0);
+//    end_msg(t0);
 }
 
 
 template<int dim>
 void Pic<dim>::updatePositions(){
-
     for (size_t i = 0; i < r_el.size(); i++) {
 
         //update position
@@ -102,6 +98,7 @@ void Pic<dim>::updatePositions(){
 
 template<int dim>
 void Pic<dim>::updateFieldAndVelocities(){
+
     //update field
     for (size_t i = 0; i < v_el.size(); i++) {
         dealii::Tensor<1,dim> Efield = laplace_solver.probe_efield(r_el[i], cid_el[i]) ;

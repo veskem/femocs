@@ -488,7 +488,7 @@ void Femocs::get_emission(){
     start_msg(t0, "=== Calculating field emission...");
     emission.initialize();
     emission.transfer_emission(ch_transient_solver,
-            conf.heating.work_function, conf.heating.Vappl);
+            conf.heating.work_function, conf.heating.Vappl, conf.heating.blunt);
     end_msg(t0);
     emission.write("out/surface_emission.movie");
 
