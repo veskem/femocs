@@ -1092,16 +1092,18 @@ void EmissionReader::calc_representative() {
     Frep = multiplier * FJ / I_fwhm;
 }
 
-vector<pair<dealii::Point<3>, int>> EmissionReader::inject_electrons(double delta_t){
+void EmissionReader::inject_electrons(double delta_t, vector<dealii::Point<3>> &pos,
+        vector<dealii::Point<3>> &efield, vector<int> &cells){
 
     const double Amp = 6.2415e3; //[e/fs]
-    vector<pair<dealii::Point<3>, int>> out;
     int n_tot = 0;
     double I_tot = 0;
+    Vec3 Field;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
 
         double current = currents[i] * Amp; // in e/fs
+
         double charge = current * delta_t;
 
         int intpart = (int) floor(charge);
@@ -1113,9 +1115,13 @@ vector<pair<dealii::Point<3>, int>> EmissionReader::inject_electrons(double delt
         if ((double)std::rand()/ RAND_MAX < frpart)
             n_electrons++;
 
+        if (n_electrons)
+            Field = fields.get_elfield(i);
+
         //TODO : fix rng, fix probability distribution with face jacobian, fix dim generality
 
         for (int j = 0; j < n_electrons; j++){
+
             int tri = abs(fields.get_marker(i));
             Point3 centoid = fields.get_point(i);
             int quad;
@@ -1141,16 +1147,19 @@ vector<pair<dealii::Point<3>, int>> EmissionReader::inject_electrons(double delt
             // push electrons little bit inside the vacuum mesh
             p_el += mesh.faces.get_norm(tri) * 0.01;
             dealii::Point<3> p_deal(p_el.x, p_el.y, p_el.z);
-            int cell_index = 0;
+            dealii::Point<3> e_deal(Field.x, Field.y, Field.z);
 
-            out.push_back(pair<dealii::Point<3>, int>(p_deal, cell_index));
+            int cell_index = 0;//TODO be updated correctly
+
+            pos.push_back(p_deal);
+            efield.push_back(e_deal);
+            cells.push_back(cell_index);
         }
 
         n_tot += n_electrons;
         I_tot += currents[i];
     }
     printf("I_inject = %e e/fs (%e Amps), emitted electrons = %d\n", I_tot, I_tot / Amp, n_tot);
-    return out;
 }
 
 void EmissionReader::calc_emission(double workfunction, bool blunt){

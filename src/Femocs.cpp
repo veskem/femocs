@@ -310,25 +310,29 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     vacuum_interpolator.initialize();
     bulk_interpolator.initialize(conf.heating.t_ambient);
     vacuum_interpolator.lintets.narrow_search_to(TYPES.VACUUM);
+    pic_solver.set_E0(E0);
+    pic_solver.set_timestep(dt_pic);
 
     //Timestep loop
     for (int i = 0; i < time_subcycle; i++) {
         cout << "doPIC! i=" << i << ", dt_pic=" << dt_pic << endl;
 
-        //3. Compute particle densities on the grid and solve Poisson equation
-        pic_solver.computeField(E0);
-
+        start_msg(t0, "=== Updating particles and fields...");
+        pic_solver.runCycle();
+        end_msg(t0);
 
         start_msg(t0, "=== Extracting E and phi...");
         fail = vacuum_interpolator.extract_solution(&laplace_solver);
         end_msg(t0);
 
-        start_msg(t0, "=== Calculating emission...");
+
+
+        start_msg(t0, "=== Calculating electron emission...");
         get_emission();
         end_msg(t0);
 
         start_msg(t0, "=== Injecting electrons...");
-        pic_solver.injectElectrons(dt_pic);
+        pic_solver.injectElectrons();
         end_msg(t0);
 
 
@@ -337,20 +341,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         pic_solver.writeParticles("out/electrons.movie");
         end_msg(t0);
 
-        //5. Particle pusher using the modified fields
-        start_msg(t0, "=== Pushing particles... dt=" + to_string(dt_pic));
-        pic_solver.pushParticles(dt_pic);
-        end_msg(t0);
-
-        start_msg(t0, "=== Removing lost particles...");
-        pic_solver.clearLostParticles();
-        end_msg(t0);
-
     }
-
-    //6. Save modified surface fields to somewhere the MD solver can find them
-    // (same as the laplace solver used when PIC is inactive)
-    //TODO
 
 
     //7. Save ions and neutrals that are inbound on the MD domain
@@ -900,11 +891,6 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         check_return(face_charges.check_limits(forces.get_interpolations()), "Voronoi charges are not conserved!");
     }
 
-    start_msg(t0, "=== Exporting atomic charges & forces...");
-    forces.export_force(n_atoms, xq);
-    end_msg(t0);
-
-    return 0;
 }
 
 // linearly interpolate electric field at given points

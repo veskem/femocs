@@ -32,22 +32,24 @@ int Pic<dim>::injectElectrons(const double* const r, const size_t n) {
 }
 
 template<int dim>
-int Pic<dim>::injectElectrons(double dt_pic) {
+int Pic<dim>::injectElectrons() {
 
-    vector<pair<dealii::Point<dim>, int>> injected = er.inject_electrons(dt_pic);
+    vector<dealii::Point<dim>> positions, fields;
+    vector<int> cells;
+    er.inject_electrons(dt, positions, fields, cells);
 
-    for (auto& electron : injected){
-        r_el.push_back(electron.first);
-        v_el.push_back(0. * electron.first);
-        F_el.push_back(0. * electron.first);
-        cid_el.push_back(fr.update_point_cell(electron.first, electron.second, false));
+    for (int i = 0; i < fields.size(); ++i){
+        r_el.push_back(positions[i]);
+        F_el.push_back(-fields[i]);
+        v_el.push_back(F_el.back() * q_over_m_factor * dt * .5);
+        cid_el.push_back(cells[i]);
     }
     return 0;
 
 }
 
 template<int dim>
-void Pic<dim>::computeField(const double E0) {
+void Pic<dim>::computeField() {
     //Call the laplace solver with the list of positions and charge(s)
     double t0;
 
@@ -81,30 +83,42 @@ void Pic<dim>::computeField(const double E0) {
     end_msg(t0);
 }
 
+
 template<int dim>
-void Pic<dim>::pushParticles(const double dt) {
+void Pic<dim>::updatePositions(){
 
     for (size_t i = 0; i < r_el.size(); i++) {
-        //Skip lost particles
-        for (auto lost : lost_el) {
-            if (lost == i) continue;
-        }
 
-        //Leapfrog method:
-        // positions defined ON the time steps, velocities defined at half time steps
-
-        dealii::Tensor<1,dim> Efield = laplace_solver.probe_efield(r_el[i], cid_el[i]) ;
-        F_el[i] = -dealii::Point<dim>(Efield) ;
-
-        v_el[i] = v_el[i] + q_over_m_factor*F_el[i]*(dt);
+        //update position
         r_el[i] = r_el[i] + v_el[i]*dt;
 
-        //Update the cid_el && check if any particles have left the domain
+        //Update the cid_el && check if any particles have left the domain && remove them
         cid_el[i] = fr.update_point_cell(r_el[i], cid_el[i]);
         if (cid_el[i] == -1) {
             lost_el.push_back(i);
         }
     }
+}
+
+template<int dim>
+void Pic<dim>::updateFieldAndVelocities(){
+    //update field
+    for (size_t i = 0; i < v_el.size(); i++) {
+        dealii::Tensor<1,dim> Efield = laplace_solver.probe_efield(r_el[i], cid_el[i]) ;
+        F_el[i] = -dealii::Point<dim>(Efield) ;
+
+        //update velocities (corresponds to t + .5dt)
+        v_el[i] = v_el[i] + q_over_m_factor*F_el[i]*(dt);
+
+    }
+}
+
+template<int dim>
+void Pic<dim>::runCycle() {
+    updatePositions();
+    clearLostParticles();
+    computeField();
+    updateFieldAndVelocities();
 }
 
 template<int dim>
@@ -146,7 +160,7 @@ void Pic<dim>::clearLostParticles(){
 template<int dim>
 void Pic<dim>::writeParticles(const string filename) {
 
-    if (r_el.size() < 1) return;
+//    if (r_el.size() < 1) return;
     ofstream out;
     out.setf(std::ios::scientific);
     out.precision(6);

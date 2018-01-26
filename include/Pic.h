@@ -30,24 +30,36 @@ public:
      */
     int injectElectrons(const double* const r, const size_t n);
 
-    int injectElectrons(double dt_pic);
-
-    /**Computes the charge density for each FEM DOF
-     *
+    /**
+     * Runs a full pic cycle : inject, push, update field
      */
-    void computeField(const double E0);
 
-    /** Pushes the particles given the fields for a delta time dt [sec]
-     *
+    /**
+     * Inject electrons according to the field emission surface distribution
      */
-    void pushParticles(const double dt);
+    int injectElectrons();
 
-    /** Write the position and velocities of the particles to a file
-     *
+    /**
+     * Run an particle and field update cycle
+     */
+    void runCycle();
+
+    /**
+     * Write the particle data in the current state in movie file
      */
     void writeParticles(const string filename);
     
-    void clearLostParticles();
+    void set_timestep(double _dt){
+        dt = _dt;
+    }
+
+    void set_E0(double _E0){
+        E0 = _E0;
+    }
+
+
+
+
 private:
 
     //ELECTRONS
@@ -69,12 +81,35 @@ private:
     
     const double Wsp = 1.0; // Super particle weighting (particles/superparticle)
 
+    double dt = 1.; //timestep
+
+    double E0 = -1; //Applied field at Neumann boundary
+
 
     fch::Laplace<dim> &laplace_solver; ///< Laplace solver object to solve the Poisson in the vacuum mesh
     fch::CurrentsAndHeating<3> &ch_solver;       ///< transient currents and heating solver
     FieldReader &fr; ///< Object to read the electric field
     HeatReader &hr; ///< Object to read the temperature data
     EmissionReader &er; ///< Object to calculate the emission data
+
+    /**
+     * Clear all particles out of the box
+     */
+    void clearLostParticles();
+
+    /**
+     * Update the positions of the particles and the cell they belong.
+     */
+
+    void updatePositions();
+
+    void updateFieldAndVelocities();
+
+
+    /**Computes the charge density for each FEM DOF
+     *
+     */
+    void computeField();
 };
 
 }
