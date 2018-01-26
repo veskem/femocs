@@ -22,12 +22,22 @@ void TetgenMesh::test_mapping() const {
     cout << "\ntets of tris:" << endl;
     for (int i = 0; i < 10; ++i) {
         cout << i << ":\t";
+<<<<<<< HEAD
+        vector<int> tris = tet2tri(i);
+        for (int j = 0; j < tris.size(); ++j)
+            cout << tris[j] << ", ";
+        cout << endl;
+    }
+
+    cout << "tets of tris:" << endl;
+=======
         for (int tet : faces.to_tets(i))
             cout << tet << ", ";
         cout << endl;
     }
 
     cout << "tris of tets:" << endl;
+>>>>>>> pic_devel_mihkel2
     for (int i = 0; i < 10; ++i) {
         cout << i << ":\t";
         for (int tri : elems.to_tris(i))
@@ -96,6 +106,42 @@ int TetgenMesh::tri2tet(const int tri, const int region) const {
 
 // map quadrangle to hexahedron that is located in a given region
 int TetgenMesh::quad2hex(const int quad, const int region) const {
+<<<<<<< HEAD
+    require(quad >= 0 && quad < quads.size(), "Invalid index: " + to_string(quad));
+    SimpleQuad squad = quads[quad];
+    const int tet = tri2tet(quad2tri(quad), region);
+
+    for (int i = 0; i < n_hexs_per_tet; ++i) {
+        int n_common_nodes = 0;
+        int hex = tet2hex(tet, i);
+        for (unsigned int node : hexahedra[hex])
+            n_common_nodes += squad == node;
+        if (n_common_nodes == n_nodes_per_quad)
+            return hex;
+    }
+
+    return -1;
+}
+
+vector<int> TetgenMesh::tet2tri(const int tet) const {
+    require(tet >= 0 && tet < elems.size(), "Invalid index: " + to_string(tet));
+    return elems.to_tris(tet);
+}
+
+int TetgenMesh::tet2hex(const int tet, const int hex) const {
+    require(tet >= 0 && tet < elems.size(), "Invalid index: " + to_string(tet));
+    require(hex >= 0 && hex < n_hexs_per_tet, "Invalid index: " + to_string(hex));
+    return hex + tet * n_hexs_per_tet;
+}
+
+// map hexahedron to quadrangle using the mapping of tetrahedron to triangles
+vector<int> TetgenMesh::hex2quad(const int hex) const {
+    require(hex >= 0 && hex < hexahedra.size(), "Invalid index: " + to_string(hex));
+
+    SimpleHex shex = hexahedra[hex];
+    vector<int> _quads;
+=======
+>>>>>>> pic_devel_mihkel2
 
     if (region == TYPES.VACUUM) {
         for (int hex : quads.to_hexs(quad))
@@ -374,6 +420,7 @@ int TetgenMesh::generate_simple() {
 
 // Copy mesh from input to output or vice versa without modification
 int TetgenMesh::transfer(const bool write2read) {
+
     nodes.transfer(write2read);
     edges.transfer(write2read);
     faces.transfer(write2read);
@@ -460,6 +507,89 @@ int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& v
     return recalc("Q", cmd);
 }
 
+<<<<<<< HEAD
+void TetgenMesh::calc_quad2hex_mapping() {
+    const int n_quads = quads.size();
+    const int n_hexs = hexahedra.size();
+
+    vector<array<int,2>> quad2hex_map = vector<array<int,2>>(n_quads, {-1,-1});
+    vector<vector<int>> hex2quad_map = vector<vector<int>>(n_hexs);
+
+    vector<int> regions = {TYPES.VACUUM, TYPES.BULK};
+
+    for (int quad = 0; quad < n_quads; ++quad) {
+        SimpleQuad squad = quads[quad];
+
+        // loop through the tetrahedra that are connected to the quadrangle
+        // first from the vacuum and then from the bulk side
+        for (int r = 0; r < regions.size(); ++r) {
+            int tet = tri2tet(quad2tri(quad), regions[r]);
+
+            // loop through all the hexahedra connected to the tetrahedron
+            for (int i = 0; i < n_hexs_per_tet; ++i) {
+                int hex = tet2hex(tet, i);
+
+                // count for the # common nodes between quadrangle and hexahedron
+                int n_common_nodes = 0;
+                for (unsigned int node : hexahedra[hex])
+                    n_common_nodes += squad == node;
+
+                // quad belongs to hex, if they share 4 nodes
+                if (n_common_nodes == n_nodes_per_quad) {
+                    quad2hex_map[quad][r] = hex;
+                    hex2quad_map[hex].push_back(quad);
+                }
+            }
+        }
+    }
+
+    // store the mapping on the cells side
+    quads.store_map(quad2hex_map);
+    hexahedra.store_map(hex2quad_map);
+}
+
+void TetgenMesh::calc_tri2tet_mapping() {
+    const int n_tris = faces.size();
+    const int n_tets = elems.size();
+    const int surface_end = nodes.indxs.surf_end;
+
+    vector<array<int,2>> tri2tet_map = vector<array<int,2>>(n_tris, {-1,-1});
+    vector<vector<int>> tet2tri_map = vector<vector<int>>(n_tets);
+
+    vector<int> regions = {TYPES.VACUUM, TYPES.BULK};
+
+    // loop through the tetrahedra that can be on the surface
+    for (int tet = 0; tet < n_tets; ++tet) {
+        SimpleElement selem = elems[tet];
+        if (selem > surface_end) continue;
+
+        // loop through all the triangles
+        // TODO: inefficient, is it possible to optimise it somehow?
+        for (int tri = 0; tri < n_tris; ++tri) {
+
+            // count for the # common nodes between triangle and tetrahedron
+            int n_common_nodes = 0;
+            for (int node : faces[tri])
+                n_common_nodes += selem == node;
+
+            // tri belongs to tet, if they share 3 nodes
+            if (n_common_nodes == n_nodes_per_tri) {
+                tet2tri_map[tet].push_back(tri);
+                if (tri2tet_map[tri][0] >= 0)
+                    tri2tet_map[tri][1] = tet;
+                else
+                    tri2tet_map[tri][0] = tet;
+            }
+        }
+    }
+
+    // store the mapping on the cells side
+    faces.store_map(tri2tet_map);
+    elems.store_map(tet2tri_map);
+}
+
+=======
+>>>>>>> pic_devel_mihkel2
 // Group hexahedra & quadrangles around central tetrahedral & triangular nodes
 void TetgenMesh::group_hexahedra() {
     const int node_min = nodes.indxs.tetnode_start;
@@ -527,6 +657,14 @@ int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd1,
     vacuum.faces.calc_statistics();
     faces.copy_surface(vacuum.faces, sizes);
 
+<<<<<<< HEAD
+    // clean the triangles that are on the simubox perimeter
+    faces.clean_sides(sizes);
+    faces.recalc();
+
+    calc_tri2tet_mapping();
+
+=======
     // transfer elements and nodes to input
     nodes.transfer(false);
     elems.transfer(false);
@@ -537,6 +675,7 @@ int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd1,
     if (error_code) return error_code;
 
     calc_tet2tri_mapping();
+>>>>>>> pic_devel_mihkel2
     return 0;
 }
 

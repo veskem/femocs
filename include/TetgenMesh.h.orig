@@ -91,6 +91,21 @@ public:
     /** Map the quadrangle to the hexahedron by specifying the region (vacuum or bulk) */
     int quad2hex(const int quad, const int region) const;
 
+<<<<<<< HEAD
+    /** Map the index of a tetrahedron to the index of a triangle */
+    vector<int> tet2tri(const int tet) const;
+
+    /** Map the index of a tetrahedron to the index of a hexahedron */
+    int tet2hex(const int tet, const int hex=0) const;
+
+    /** Map the index of a hexahedron to the indices of quadrangles. */
+    vector<int> hex2quad(const int hex) const;
+
+    /** Map the index of a hexahedron to the index of a tetrahedron */
+    int hex2tet(const int hex) const;
+
+=======
+>>>>>>> pic_devel_mihkel2
     void test_mapping() const;
 
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin); ///< data & operations for mesh nodes
@@ -162,8 +177,12 @@ private:
     /** Calculate the mapping between quadrangle and hexahedron indices */
     void calc_quad2hex_mapping();
 
+<<<<<<< HEAD
+    void calc_tri2tet_mapping();
+=======
     /** Calculate the mapping between tetrahedron and triangle indices */
     void calc_tet2tri_mapping();
+>>>>>>> pic_devel_mihkel2
 
     /** Mark the tetrahedra by the location of nodes */
     void mark_elems();

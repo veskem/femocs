@@ -452,12 +452,20 @@ public:
     /** Return the area of i-th triangle */
     double get_area(const int i) const;
 
+<<<<<<< HEAD
+    /** Return indices of all tetrahedra that are connected to i-th triangle; -1 means there's no tetrahedron */
+    array<int,2> to_tets(const int i) const {
+//        const int I = 2 * i;
+//        return array<int,2>{reads->face2tetlist[I], reads->face2tetlist[I+1]};
+        return map2tets[i];
+=======
     /** Return indices of all tetrahedra that are connected to i-th triangle;
      * -1 means there's no tetrahedron */
     array<int,2> to_tets(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         const int I = 2 * i;
         return array<int,2>{reads->face2tetlist[I], reads->face2tetlist[I+1]};
+>>>>>>> pic_devel_mihkel2
     }
 
     /** Return indices of all quadrangles that are connected to i-th triangle*/
@@ -465,6 +473,11 @@ public:
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         const int I = n_quads_per_tri * i;
         return array<int,3>{I, I+1, I+2};
+    }
+
+    /** Store the mapping between triangles and tetrahedra */
+    void store_map(vector<array<int,2>>& _map2tets) {
+        map2tets = _map2tets;
     }
 
     /** Calculate statistics about triangles */
@@ -482,6 +495,7 @@ public:
 private:
     vector<double> areas;   ///< areas of triangles
     vector<Vec3> norms;     ///< norms of triangles
+    vector<array<int,2>> map2tets;
 
     /** Return the triangle type in vtk format */
     int get_cell_type() const { return TYPES.VTK.TRIANGLE; }
@@ -511,11 +525,24 @@ public:
     void append(const SimpleCell<4> &cell);
 
     /** Copy the nodes from one buffer to another */
+<<<<<<< HEAD
+    void recalc(const bool write2read=true);
+
+    /** Return indices of all triangles that are connected to i-th tetrahedron*/
+//    array<int,4> to_tris(const int i) const {
+//        const int I = i * n_tris_per_tet;
+//        return array<int,4>{reads->tet2facelist[I], reads->tet2facelist[I+1],
+//            reads->tet2facelist[I+2], reads->tet2facelist[I+3]};
+//    }
+
+    vector<int> to_tris(const int i) const {
+=======
     void transfer(const bool write2read=true);
 
     /** Return indices of all triangles that are connected to i-th tetrahedron*/
     vector<int> to_tris(const int i) const {
         require(i >= 0 && i < map2tris.size(), "Invalid index: " + to_string(i));
+>>>>>>> pic_devel_mihkel2
         return map2tris[i];
     }
 
@@ -524,6 +551,11 @@ public:
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         const int I = n_hexs_per_tet * i;
         return array<int,4>{I, I+1, I+2, I+3};
+    }
+
+    /** Store the mapping between tetrahedra and triangles */
+    void store_map(vector<vector<int>>& _map2tris) {
+        map2tris = _map2tris;
     }
 
     /** Calculate statistics about tetrahedra */
@@ -541,7 +573,11 @@ public:
     } stat;
 
 private:
+<<<<<<< HEAD
+    vector<vector<int>> map2tris;
+=======
     vector<vector<int>> map2tris; ///< data for mapping tetrahedron to the triangles
+>>>>>>> pic_devel_mihkel2
 
     /** Return the tetrahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.TETRAHEDRON; }
@@ -570,6 +606,14 @@ public:
     /** Get number of quadrangles in mesh */
     int size() const { return quads.size(); }
 
+<<<<<<< HEAD
+    /** Store the mapping between quadrangles and hexahedra */
+    void store_map(vector<array<int,2>>& _map2hexs) {
+        map2hexs = _map2hexs;
+    }
+
+=======
+>>>>>>> pic_devel_mihkel2
     /** Return indices of all hexahedra that are connected to i-th quadrangle;
      * -1 means there's no hexahedron */
     array<int,2> to_hexs(const int i) const {
@@ -634,9 +678,15 @@ public:
     /** Export bulk hexahedra in Deal.II format */
     vector<dealii::CellData<3>> export_bulk() const;
 
+<<<<<<< HEAD
+    /** Store the mapping between hexahedra and quadrangles */
+    void store_map(vector<vector<int>>& _map2quads) {
+        map2quads = _map2quads;
+=======
     /** Store the data for mapping hexahedron to quadrangles */
     void store_map(vector<vector<int>>& map) {
         map2quads = map;
+>>>>>>> pic_devel_mihkel2
     }
 
 protected:

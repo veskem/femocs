@@ -370,7 +370,12 @@ void TetgenFaces::clean_sides(const Medium::Sizes& stat) {
     calc_statistics();
     const double eps = 0.01 * this->stat.edgemin;
     int n_faces = size();
+<<<<<<< HEAD
+    vector<SimpleFace> faces;
+    faces.reserve(n_faces);
+=======
     vector<SimpleFace> faces; faces.reserve(n_faces);
+>>>>>>> pic_devel_mihkel2
 
     // Make a copy of faces not on the sides of simulation cell
     for (int i = 0; i < n_faces; ++i) {
@@ -389,6 +394,8 @@ void TetgenFaces::clean_sides(const Medium::Sizes& stat) {
     for (SimpleFace face : faces)
         append(face);
 
+<<<<<<< HEAD
+=======
     calc_norms_and_areas();
 }
 
@@ -412,6 +419,7 @@ void TetgenFaces::copy_surface(const TetgenFaces& faces, const Medium::Sizes& st
         if (tri_mask[i])
             append(faces[i]);
 
+>>>>>>> pic_devel_mihkel2
     calc_norms_and_areas();
 }
 

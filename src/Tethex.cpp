@@ -818,7 +818,7 @@ void Mesh::export_femocs(femocs::TetgenMesh* mesh) {
         mesh->nodes.append_marker(points[vert]->get_material_id());
     }
 
-    mesh->nodes.recalc(); // copy nodes from write buffer to the read one
+    mesh->nodes.transfer(); // copy nodes from write buffer to the read one
     mesh->nodes.save_hex_indices(n_cell_nodes); // save the locations of added nodes
 
     //* Export quadrangles
