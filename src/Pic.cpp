@@ -36,7 +36,7 @@ int Pic<dim>::injectElectrons() {
 
     vector<dealii::Point<dim>> positions, fields;
     vector<int> cells;
-    er.inject_electrons(dt, positions, fields, cells);
+    er.inject_electrons(dt, Wsp, positions, fields, cells);
 
     for (int i = 0; i < fields.size(); ++i){
         r_el.push_back(positions[i]);
@@ -160,7 +160,7 @@ void Pic<dim>::clearLostParticles(){
 template<int dim>
 void Pic<dim>::writeParticles(const string filename) {
 
-//    if (r_el.size() < 1) return;
+    // dummy electron always added in the end (to avoid empty electrons crashing ovito)
     ofstream out;
     out.setf(std::ios::scientific);
     out.precision(6);
@@ -172,13 +172,15 @@ void Pic<dim>::writeParticles(const string filename) {
 
     cout << "writing particles to " + filename << " n_size = " << r_el.size() << endl;
 
-    out << r_el.size() << endl;
+    out << r_el.size() + 1 << endl;
     out << "Interpolator properties=id:I:1:pos:R:3:vel:R:3:Force:R:3:cell:I:1" << endl;
 
     for (int i = 0; i < r_el.size(); ++i)
         out << i << " " << r_el[i][0] << " " << r_el[i][1] << " " << r_el[i][2] << " " <<
         v_el[i][0] << " " << v_el[i][1] << " " << v_el[i][2] << " " <<
         F_el[i][0] << " " << F_el[i][1] << " " << F_el[i][2] << " " << cid_el[i] << endl;
+
+    out << "-1 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0" << endl;
 
     out.close();
 }

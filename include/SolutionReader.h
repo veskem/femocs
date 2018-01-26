@@ -228,7 +228,7 @@ public:
     void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const double workfunction,
             const double Vappl, bool blunt = false);
 
-    void inject_electrons(double delta_t, vector<dealii::Point<3>> &pos,
+    void inject_electrons(double delta_t, double Wsp, vector<dealii::Point<3>> &pos,
             vector<dealii::Point<3>> &efield, vector<int> &cell);
 
     /**

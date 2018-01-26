@@ -1092,35 +1092,34 @@ void EmissionReader::calc_representative() {
     Frep = multiplier * FJ / I_fwhm;
 }
 
-void EmissionReader::inject_electrons(double delta_t, vector<dealii::Point<3>> &pos,
+void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<dealii::Point<3>> &pos,
         vector<dealii::Point<3>> &efield, vector<int> &cells){
 
     const double Amp = 6.2415e3; //[e/fs]
     int n_tot = 0;
-    double I_tot = 0;
     Vec3 Field;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
 
         double current = currents[i] * Amp; // in e/fs
 
-        double charge = current * delta_t;
+        double charge = current * delta_t; //in e
 
-        int intpart = (int) floor(charge);
-        double frpart = charge - intpart;
-        int n_electrons = intpart;
+        double n_sps = charge / Wsp;
 
-        I_tot += current;
+        int intpart = (int) floor(n_sps);
+        double frpart = n_sps - intpart;
+        int n_electrons_sp = intpart;
 
         if ((double)std::rand()/ RAND_MAX < frpart)
-            n_electrons++;
+            n_electrons_sp++;
 
-        if (n_electrons)
+        if (n_electrons_sp)
             Field = fields.get_elfield(i);
 
         //TODO : fix rng, fix probability distribution with face jacobian, fix dim generality
 
-        for (int j = 0; j < n_electrons; j++){
+        for (int j = 0; j < n_electrons_sp; j++){
 
             int tri = abs(fields.get_marker(i));
             Point3 centoid = fields.get_point(i);
@@ -1156,10 +1155,9 @@ void EmissionReader::inject_electrons(double delta_t, vector<dealii::Point<3>> &
             cells.push_back(cell_index);
         }
 
-        n_tot += n_electrons;
-        I_tot += currents[i];
+        n_tot += n_electrons_sp;
     }
-    printf("I_inject = %e e/fs (%e Amps), emitted electrons = %d\n", I_tot, I_tot / Amp, n_tot);
+    printf("emitted SPs = %d\n", n_tot);
 }
 
 void EmissionReader::calc_emission(double workfunction, bool blunt){
