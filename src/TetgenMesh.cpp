@@ -19,17 +19,28 @@ TetgenMesh::TetgenMesh() {
 }
 
 void TetgenMesh::test_mapping() const {
-    cout << "\ntris of tets:" << endl;
+
+    cout << "\ntets of tris:" << endl;
     for (int i = 0; i < 10; ++i) {
         cout << i << ":\t";
-        for (int j = 0; j < n_tris_per_tet; ++j)
-            cout << tet2tri(i, j) << ", ";
+        for (int tet : faces.to_tets(i))
+            cout << tet << ", ";
         cout << endl;
     }
 
-    cout << "\t tets of tris:" << endl;
+    cout << "tris of tets:" << endl;
     for (int i = 0; i < 10; ++i) {
-        cout << i << ":\t" << tri2tet(i, TYPES.VACUUM) << ", " << tri2tet(i, TYPES.BULK) << endl;
+        cout << i << ":\t";
+        for (int tri : elems.to_tris(i))
+            cout << tri << ", ";
+        cout << endl;
+    }
+
+    return;
+
+    cout << "hexs of quads:" << endl;
+    for (int i = 0; i < 10; ++i) {
+        cout << i << ":\t" << quad2hex(i, TYPES.VACUUM) << ", " << quad2hex(i, TYPES.BULK) << endl;
     }
 
     cout << "quads of hexs:" << endl;
@@ -39,11 +50,6 @@ void TetgenMesh::test_mapping() const {
         for (int j = 0; j < quads.size(); ++j)
             cout << quads[j] << ", ";
         cout << endl;
-    }
-
-    cout << "hexs of quads:" << endl;
-    for (int i = 0; i < 10; ++i) {
-        cout << i << ":\t" << quad2hex(i, TYPES.VACUUM) << ", " << quad2hex(i, TYPES.BULK) << endl;
     }
 }
 
@@ -518,8 +524,8 @@ void TetgenMesh::calc_quad2hex_mapping() {
     }
 
     // store the mapping on the cells side
-    quads.set_map(quad2hex_map);
-    hexahedra.set_map(hex2quad_map);
+    quads.store_map(quad2hex_map);
+    hexahedra.store_map(hex2quad_map);
 }
 
 // Group hexahedra & quadrangles around central tetrahedral & triangular nodes
@@ -582,7 +588,7 @@ int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd1,
     vacuum.elems.copy(this->elems, tet_mask);
 
     // calculate surface triangles
-    const int error_code = vacuum.recalc(cmd1);
+    int error_code = vacuum.recalc(cmd1);
     if (error_code) return error_code;
 
     // copy the triangles that are not on the simubox perimeter to input tetIO
@@ -595,9 +601,23 @@ int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd1,
 
     // calculate the tetrahedron-face connectivity
     // the simubox boundary faces must also be calculated, no way to opt-out
-    recalc(cmd2);
+    error_code = recalc(cmd2);
+    if (error_code) return error_code;
 
+    calc_tet2tri_mapping();
     return 0;
+}
+
+void TetgenMesh::calc_tet2tri_mapping() {
+    const int n_tris = faces.size();
+    vector<vector<int>> tet2tri_map(elems.size());
+
+    for (int i = 0; i < n_tris; ++i) {
+        for (int tet : faces.to_tets(i))
+            if (tet >= 0)
+                tet2tri_map[tet].push_back(i);
+    }
+    elems.store_map(tet2tri_map);
 }
 
 // Generate manually surface faces from elements and surface nodes

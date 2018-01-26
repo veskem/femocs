@@ -113,8 +113,7 @@ public:
 
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin); ///< data & operations for mesh nodes
     TetgenEdges edges = TetgenEdges(&tetIOout);           ///< data & operations for mesh edges
-//    TetgenFaces faces = TetgenFaces(&tetIOout);           ///< data & operations for mesh triangles
-    TetgenFaces faces = TetgenFaces(&tetIOout, &tetIOin);           ///< data & operations for mesh triangles
+    TetgenFaces faces = TetgenFaces(&tetIOout, &tetIOin); ///< data & operations for mesh triangles
     TetgenElements elems = TetgenElements(&tetIOout, &tetIOin); ///< data & operations for mesh tetrahedra
     Quadrangles quads = Quadrangles(&tetIOout);           ///< data & operations for mesh quadrangles
     Hexahedra hexahedra = Hexahedra(&tetIOout);           ///< data & operations for mesh hexahedra
@@ -180,6 +179,8 @@ private:
 
     /** Calculate the mapping between quadrangle and hexahedron indices */
     void calc_quad2hex_mapping();
+
+    void calc_tet2tri_mapping();
 
     /** Mark the tetrahedra by the location of nodes */
     void mark_elems();

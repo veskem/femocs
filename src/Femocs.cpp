@@ -232,7 +232,7 @@ int Femocs::generate_meshes() {
 
     start_msg(t0, "=== Making big mesh...");
     // r - reconstruct, n(n) - output tet neighbour list (and tri-tet connection),
-    // Q - quiet, q - mesh quality, a - element volume,
+    // Q - quiet, q - mesh quality, a - element volume, E - suppress output of elements
     // F - suppress output of faces and edges, B - suppress output of boundary info
     string command = "rQFBq" + conf.geometry.mesh_quality;
     if (conf.geometry.element_volume != "") command += "a" + conf.geometry.element_volume;
