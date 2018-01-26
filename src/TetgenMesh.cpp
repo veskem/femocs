@@ -152,18 +152,22 @@ void TetgenMesh::clear() {
 void TetgenMesh::smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm) {
     if (algorithm == "none") return;
 
+    // determine the neighbouring between nodes connected to the faces
     vector<vector<unsigned>> nborlist;
     faces.calc_nborlist(nborlist);
 
+    // remove the nodes that are on the boundary of simubox
     const double eps = 0.01 * elems.stat.edgemin;
     nodes.calc_statistics();
     for (int i = 0; i < nodes.size(); ++i) {
         Point3 p = nodes[i];
         if (on_boundary(p.x, nodes.stat.xmin, nodes.stat.xmax, eps) ||
-                on_boundary(p.y, nodes.stat.ymin, nodes.stat.ymax, eps))
+                on_boundary(p.y, nodes.stat.ymin, nodes.stat.ymax, eps) ||
+                on_boundary(p.z, nodes.stat.zmin, nodes.stat.zmax, eps))
             nborlist[i] = vector<unsigned>();
     }
 
+    // run the Taubin smoothing
     if (algorithm == "laplace") {
         for (size_t s = 0; s < n_steps; ++s) {
             laplace_smooth(lambda, nborlist);
@@ -390,11 +394,12 @@ int TetgenMesh::generate_simple() {
 }
 
 // Copy mesh from input to output or vice versa without modification
-int TetgenMesh::recalc(const bool write2read) {
-    nodes.recalc(write2read);
-    edges.recalc(write2read);
-    faces.recalc(write2read);
-    elems.recalc(write2read);
+int TetgenMesh::transfer(const bool write2read) {
+
+    nodes.transfer(write2read);
+    edges.transfer(write2read);
+    faces.transfer(write2read);
+    elems.transfer(write2read);
     return 0;
 }
 
@@ -562,13 +567,13 @@ bool TetgenMesh::generate_hexahedra() {
     hexmesh.export_femocs(this);
 
     group_hexahedra();
-    calc_quad2hex_mapping();
+//    calc_quad2hex_mapping();
 
     return 0;
 }
 
 // Using the separated tetrahedra generate the triangular surface on the vacuum-material boundary
-int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd) {
+int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd1, const string& cmd2) {
     TetgenMesh vacuum;
     vector<bool> tet_mask = vector_equal(elems.get_markers(), TYPES.VACUUM);
 
@@ -577,16 +582,21 @@ int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd) 
     vacuum.elems.copy(this->elems, tet_mask);
 
     // calculate surface triangles
-    const int error_code = vacuum.recalc(cmd);
+    const int error_code = vacuum.recalc(cmd1);
     if (error_code) return error_code;
 
-    // transfer the calculated triangles
-    faces.copy(vacuum.faces);
-    faces.recalc();
+    // copy the triangles that are not on the simubox perimeter to input tetIO
+    vacuum.faces.calc_statistics();
+    faces.copy_surface(vacuum.faces, sizes);
 
-    // clean the triangles that are on the simubox perimeter
-    faces.clean_sides(sizes);
-    faces.recalc();
+    // transfer elements and nodes to input
+    nodes.transfer(false);
+    elems.transfer(false);
+
+    // calculate the tetrahedron-face connectivity
+    // the simubox boundary faces must also be calculated, no way to opt-out
+    recalc(cmd2);
+
     return 0;
 }
 
@@ -694,7 +704,7 @@ void TetgenMesh::write_separate(const string& file_name, const int type) {
     TetgenMesh tempmesh;
     tempmesh.nodes.copy(this->nodes);
     tempmesh.nodes.copy_markers(this->nodes);
-    tempmesh.nodes.recalc();
+    tempmesh.nodes.transfer();
     tempmesh.hexahedra.copy(this->hexahedra, hex_mask);
     tempmesh.hexahedra.copy_markers(this->hexahedra, hex_mask);
 

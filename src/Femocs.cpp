@@ -231,9 +231,10 @@ int Femocs::generate_meshes() {
     if (fail) return 1;
 
     start_msg(t0, "=== Making big mesh...");
-    // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality, a - element volume,
+    // r - reconstruct, n(n) - output tet neighbour list (and tri-tet connection),
+    // Q - quiet, q - mesh quality, a - element volume,
     // F - suppress output of faces and edges, B - suppress output of boundary info
-    string command = "rnQFBq" + conf.geometry.mesh_quality;
+    string command = "rQFBq" + conf.geometry.mesh_quality;
     if (conf.geometry.element_volume != "") command += "a" + conf.geometry.element_volume;
     int err_code = fem_mesh.generate(bulk, coarse_surf, vacuum, command);
     check_return(err_code, "Triangulation failed with error code " + to_string(err_code));
@@ -245,7 +246,7 @@ int Femocs::generate_meshes() {
     end_msg(t0);
 
     start_msg(t0, "=== Generating surface faces...");
-    err_code = fem_mesh.generate_surface(reader.sizes, "rnQB");
+    err_code = fem_mesh.generate_surface(reader.sizes, "rQB", "rQnn");
     end_msg(t0);
     check_return(err_code, "Generation of surface faces failed with error code " + to_string(err_code));
 

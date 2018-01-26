@@ -48,7 +48,7 @@ public:
     bool generate_hexahedra();
     
     /** Using the separated tetrahedra generate the triangular surface on the vacuum-material boundary */
-    int generate_surface(const Medium::Sizes& sizes, const string& cmd);
+    int generate_surface(const Medium::Sizes& sizes, const string& cmd1, const string& cmd2);
 
     /** Mark mesh nodes and elements by their location relative to the surface atoms */
     bool mark_mesh();
@@ -77,7 +77,7 @@ public:
     void clean_sides(const Medium::Sizes& sizes);
 
     /** Copy mesh from input to output or vice versa without modification */
-    int recalc(const bool write2read=true);
+    int transfer(const bool write2read=true);
 
     /** Perform Tetgen calculation on input buffer and store it in output one */
     int recalc(const string& cmd);
@@ -113,7 +113,8 @@ public:
 
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin); ///< data & operations for mesh nodes
     TetgenEdges edges = TetgenEdges(&tetIOout);           ///< data & operations for mesh edges
-    TetgenFaces faces = TetgenFaces(&tetIOout);           ///< data & operations for mesh triangles
+//    TetgenFaces faces = TetgenFaces(&tetIOout);           ///< data & operations for mesh triangles
+    TetgenFaces faces = TetgenFaces(&tetIOout, &tetIOin);           ///< data & operations for mesh triangles
     TetgenElements elems = TetgenElements(&tetIOout, &tetIOin); ///< data & operations for mesh tetrahedra
     Quadrangles quads = Quadrangles(&tetIOout);           ///< data & operations for mesh quadrangles
     Hexahedra hexahedra = Hexahedra(&tetIOout);           ///< data & operations for mesh hexahedra

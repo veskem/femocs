@@ -74,7 +74,7 @@ public:
     }
 
     /** Copy the nodes from write buffer to read buffer */
-    virtual void recalc(const bool write2read=false) {
+    virtual void transfer(const bool write2read=false) {
         if(write2read)
             *n_cells_r = *n_cells_w;
         else
@@ -311,7 +311,7 @@ public:
     iterator end() const { return iterator(this, size()); }
 
     /** Copy the nodes from write buffer to read buffer */
-    void recalc(const bool write2read=true);
+    void transfer(const bool write2read=true);
 
     void copy(const TetgenNodes& nodes, const vector<bool>& mask={});
 
@@ -399,7 +399,7 @@ public:
     void append(const SimpleCell<2> &cell);
 
     /** Copy the nodes from one buffer to another */
-    void recalc(const bool write2read=true);
+    void transfer(const bool write2read=true);
 
     /** Delete the edges that are not on the perimeter of surface */
     void clean_sides(const Medium::Sizes& stat);
@@ -439,10 +439,12 @@ public:
     void append(const SimpleCell<3> &cell);
 
     /** Copy the nodes from one buffer to another */
-    void recalc(const bool write2read=true);
+    void transfer(const bool write2read=true);
     
     /** Delete the faces on the sides of simulation cell */
     void clean_sides(const Medium::Sizes& stat);
+
+    void copy_surface(const TetgenFaces& faces, const Medium::Sizes& stat);
 
     /** Return the normal of i-th triangle */
     Vec3 get_norm(const int i) const;
@@ -512,7 +514,7 @@ public:
     void append(const SimpleCell<4> &cell);
 
     /** Copy the nodes from one buffer to another */
-    void recalc(const bool write2read=true);
+    void transfer(const bool write2read=true);
 
     /** Return indices of all edges that are connected to i-th tetrahedron*/
     array<int,6> to_edges(const int i) const {
