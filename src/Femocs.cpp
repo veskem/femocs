@@ -280,7 +280,6 @@ int Femocs::generate_meshes() {
     write_verbose_msg(ss.str());
 
     fem_mesh.test_mapping();
-
     exit(1);
 
     return 0;

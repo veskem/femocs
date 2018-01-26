@@ -452,14 +452,17 @@ public:
     /** Return the area of i-th triangle */
     double get_area(const int i) const;
 
-    /** Return indices of all tetrahedra that are connected to i-th triangle; -1 means there's no tetrahedron */
+    /** Return indices of all tetrahedra that are connected to i-th triangle;
+     * -1 means there's no tetrahedron */
     array<int,2> to_tets(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         const int I = 2 * i;
         return array<int,2>{reads->face2tetlist[I], reads->face2tetlist[I+1]};
     }
 
     /** Return indices of all quadrangles that are connected to i-th triangle*/
     array<int,3> to_quads(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         const int I = n_quads_per_tri * i;
         return array<int,3>{I, I+1, I+2};
     }
@@ -512,11 +515,13 @@ public:
 
     /** Return indices of all triangles that are connected to i-th tetrahedron*/
     vector<int> to_tris(const int i) const {
+        require(i >= 0 && i < map2tris.size(), "Invalid index: " + to_string(i));
         return map2tris[i];
     }
 
     /** Return indices of all hexahedra that are connected to i-th tetrahedron*/
     array<int,4> to_hexs(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         const int I = n_hexs_per_tet * i;
         return array<int,4>{I, I+1, I+2, I+3};
     }
@@ -568,11 +573,13 @@ public:
     /** Return indices of all hexahedra that are connected to i-th quadrangle;
      * -1 means there's no hexahedron */
     array<int,2> to_hexs(const int i) const {
+        require(i >= 0 && i < map2hexs.size(), "Invalid index: " + to_string(i));
         return map2hexs[i];
     }
 
     /** Return the index of triangle connected to i-th quadrangle */
     int to_tri(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         return int(i / n_quads_per_tri);
     }
 
@@ -609,12 +616,15 @@ public:
     /** Get number of hexahedra in mesh */
     int size() const { return hexs.size(); }
 
+    /** Return the indices of quadrangles connected to i-th hexahedron */
     vector<int> to_quads(const int i) const {
+        require(i >= 0 && i < map2quads.size(), "Invalid index: " + to_string(i));
         return map2quads[i];
     }
 
     /** Return the index of tetrahedron connected to i-th hexahedron */
     int to_tet(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         return int(i / n_hexs_per_tet);
     }
 

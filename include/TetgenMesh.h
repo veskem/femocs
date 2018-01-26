@@ -85,29 +85,11 @@ public:
     /** Perform double Tetgen calculation on input buffer and store it in output one */
     int recalc(const string& cmd1, const string& cmd2);
 
-    /** Map the index of a triangle to the index of a quadrangle */
-    int tri2quad(const int tri, const int quad=0) const;
-
-    /** Map the index of a triangle to the index of a tetrahedron by specifying the region (vacuum or bulk)  */
+    /** Map the triangle to the tetrahedron by specifying the region (vacuum or bulk)  */
     int tri2tet(const int tri, const int region) const;
 
-    /** Map the index of a quadrangle to the index of a triangle */
-    int quad2tri(const int quad) const;
-
-    /** Map the index of a quadrangle to the index of a hexahedron by specifying the region (vacuum or bulk) */
+    /** Map the quadrangle to the hexahedron by specifying the region (vacuum or bulk) */
     int quad2hex(const int quad, const int region) const;
-
-    /** Map the index of a tetrahedron to the index of a triangle */
-    int tet2tri(const int tet, const int tri=0) const;
-
-    /** Map the index of a tetrahedron to the index of a hexahedron */
-    int tet2hex(const int tet, const int hex=0) const;
-
-    /** Map the index of a hexahedron to the indices of quadrangles. */
-    vector<int> hex2quad(const int hex) const;
-
-    /** Map the index of a hexahedron to the index of a tetrahedron */
-    int hex2tet(const int hex) const;
 
     void test_mapping() const;
 
@@ -180,6 +162,7 @@ private:
     /** Calculate the mapping between quadrangle and hexahedron indices */
     void calc_quad2hex_mapping();
 
+    /** Calculate the mapping between tetrahedron and triangle indices */
     void calc_tet2tri_mapping();
 
     /** Mark the tetrahedra by the location of nodes */

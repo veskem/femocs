@@ -19,7 +19,6 @@ TetgenMesh::TetgenMesh() {
 }
 
 void TetgenMesh::test_mapping() const {
-
     cout << "\ntets of tris:" << endl;
     for (int i = 0; i < 10; ++i) {
         cout << i << ":\t";
@@ -36,39 +35,57 @@ void TetgenMesh::test_mapping() const {
         cout << endl;
     }
 
-    return;
-
     cout << "hexs of quads:" << endl;
     for (int i = 0; i < 10; ++i) {
-        cout << i << ":\t" << quad2hex(i, TYPES.VACUUM) << ", " << quad2hex(i, TYPES.BULK) << endl;
+        cout << i << ":\t";
+        for (int hex : quads.to_hexs(i))
+            cout << hex << ", ";
+        cout << endl;
     }
 
     cout << "quads of hexs:" << endl;
     for (int i = 0; i < 10; ++i) {
         cout << i << ":\t";
-        vector<int> quads = hex2quad(i);
-        for (int j = 0; j < quads.size(); ++j)
-            cout << quads[j] << ", ";
+        for (int quad : hexahedra.to_quads(i))
+            cout << quad << ", ";
         cout << endl;
     }
-}
 
-int TetgenMesh::tri2quad(const int tri, const int quad) const {
-    require(tri >= 0 && tri < faces.size(), "Invalid index: " + to_string(tri));
-    return quad + tri * n_quads_per_tri;
+    int n_cells, n_mapped_cells;
+
+    n_cells = faces.size();
+    n_mapped_cells = 0;
+    for (int i = 0; i < n_cells; ++i)
+        n_mapped_cells += faces.to_tets(i).size();
+    printf("faces: n_cells=%i, n_mapped_cells=%i\n", n_cells, n_mapped_cells);
+
+    n_cells = elems.size();
+    n_mapped_cells = 0;
+    for (int i = 0; i < n_cells; ++i)
+        n_mapped_cells += elems.to_tris(i).size();
+    printf("elems: n_cells=%i, n_mapped_cells=%i\n", n_cells, n_mapped_cells);
+
+    n_cells = quads.size();
+    n_mapped_cells = 0;
+    for (int i = 0; i < n_cells; ++i)
+        n_mapped_cells += quads.to_hexs(i).size();
+    printf("quads: n_cells=%i, n_mapped_cells=%i\n", n_cells, n_mapped_cells);
+
+    n_cells = hexahedra.size();
+    n_mapped_cells = 0;
+    for (int i = 0; i < n_cells; ++i)
+        n_mapped_cells += hexahedra.to_quads(i).size();
+    printf("hexahedra: n_cells=%i, n_mapped_cells=%i\n", n_cells, n_mapped_cells);
 }
 
 int TetgenMesh::tri2tet(const int tri, const int region) const {
-    require(tri >= 0 && tri < faces.size(), "Invalid index: " + to_string(tri));
-
-    array<int,2> tets = faces.to_tets(tri);
 
     if (region == TYPES.VACUUM) {
-        for (int tet : tets)
+        for (int tet : faces.to_tets(tri))
             if (tet >= 0 && elems.get_marker(tet) == TYPES.VACUUM)
-                return tri;
+                return tet;
     } else if (region == TYPES.BULK) {
-        for (int tet : tets)
+        for (int tet : faces.to_tets(tri))
             if (tet >= 0 && elems.get_marker(tet) != TYPES.VACUUM)
                 return tet;
     } else
@@ -77,65 +94,21 @@ int TetgenMesh::tri2tet(const int tri, const int region) const {
     return -1;
 }
 
-int TetgenMesh::quad2tri(const int quad) const {
-    require(quad >= 0 && quad < quads.size(), "Invalid index: " + to_string(quad));
-    return int(quad / n_quads_per_tri);
-}
-
-// map quadrangle to hexahedron using the mapping of triangle to tetrahedron
+// map quadrangle to hexahedron that is located in a given region
 int TetgenMesh::quad2hex(const int quad, const int region) const {
-    require(quad >= 0 && quad < quads.size(), "Invalid index: " + to_string(quad));
-    SimpleQuad squad = quads[quad];
-    const int tet = tri2tet(quad2tri(quad), region);
 
-    for (int i = 0; i < n_hexs_per_tet; ++i) {
-        int n_common_nodes = 0;
-        int hex = tet2hex(tet, i);
-        for (unsigned int node : hexahedra[hex])
-            n_common_nodes += squad == node;
-        if (n_common_nodes == n_nodes_per_quad)
-            return hex;
-    }
+    if (region == TYPES.VACUUM) {
+        for (int hex : quads.to_hexs(quad))
+            if (hex >= 0 && elems.get_marker(hexahedra.to_tet(hex)) == TYPES.VACUUM)
+                return hex;
+    } else if (region == TYPES.BULK) {
+        for (int hex : quads.to_hexs(quad))
+            if (hex >= 0 && elems.get_marker(hexahedra.to_tet(hex)) != TYPES.VACUUM)
+                return hex;
+    } else
+        require(false, "Unimplemented region: " + to_string(region));
 
     return -1;
-}
-
-int TetgenMesh::tet2tri(const int tet, const int tri) const {
-    require(tet >= 0 && tet < elems.size(), "Invalid index: " + to_string(tet));
-    require(tri >= 0 && tri < n_tris_per_tet, "Invalid index: " + to_string(tri));
-    return elems.to_tris(tet)[tri];
-}
-
-int TetgenMesh::tet2hex(const int tet, const int hex) const {
-    require(tet >= 0 && tet < elems.size(), "Invalid index: " + to_string(tet));
-    require(hex >= 0 && hex < n_hexs_per_tet, "Invalid index: " + to_string(hex));
-    return hex + tet * n_hexs_per_tet;
-}
-
-// map hexahedron to quadrangle using the mapping of tetrahedron to triangles
-vector<int> TetgenMesh::hex2quad(const int hex) const {
-    require(hex >= 0 && hex < hexahedra.size(), "Invalid index: " + to_string(hex));
-
-    SimpleHex shex = hexahedra[hex];
-    vector<int> _quads;
-
-    for (int tri : elems.to_tris(hex2tet(hex))) {
-        for (int j = 0; j < n_quads_per_tri; ++j) {
-            int quad = tri2quad(tri, j);
-            int n_common_nodes = 0;
-            for (int node : quads[quad])
-                n_common_nodes += shex == node;
-            if (n_common_nodes == n_nodes_per_quad)
-                _quads.push_back(quad);
-        }
-    }
-
-    return _quads;
-}
-
-int TetgenMesh::hex2tet(const int hex) const {
-    require(hex >= 0 && hex < hexahedra.size(), "Invalid index: " + to_string(hex));
-    return int(hex / n_hexs_per_tet);
 }
 
 // Delete disturbing edges and faces on and near the surface perimeter
@@ -488,46 +461,6 @@ int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& v
     return recalc("Q", cmd);
 }
 
-void TetgenMesh::calc_quad2hex_mapping() {
-    const int n_quads = quads.size();
-    const int n_hexs = hexahedra.size();
-
-    vector<array<int,2>> quad2hex_map = vector<array<int,2>>(n_quads, {-1,-1});
-    vector<vector<int>> hex2quad_map = vector<vector<int>>(n_hexs);
-
-    vector<int> regions = {TYPES.VACUUM, TYPES.BULK};
-
-    for (int quad = 0; quad < n_quads; ++quad) {
-        SimpleQuad squad = quads[quad];
-
-        // loop through the tetrahedra that are connected to the quadrangle
-        // first from the vacuum and then from the bulk side
-        for (int r = 0; r < regions.size(); ++r) {
-            int tet = tri2tet(quad2tri(quad), regions[r]);
-
-            // loop through all the hexahedra connected to the tetrahedron
-            for (int i = 0; i < n_hexs_per_tet; ++i) {
-                int hex = tet2hex(tet, i);
-
-                // count for the # common nodes between quadrangle and hexahedron
-                int n_common_nodes = 0;
-                for (unsigned int node : hexahedra[hex])
-                    n_common_nodes += squad == node;
-
-                // quad belongs to hex, if they share 4 nodes
-                if (n_common_nodes == n_nodes_per_quad) {
-                    quad2hex_map[quad][r] = hex;
-                    hex2quad_map[hex].push_back(quad);
-                }
-            }
-        }
-    }
-
-    // store the mapping on the cells side
-    quads.store_map(quad2hex_map);
-    hexahedra.store_map(hex2quad_map);
-}
-
 // Group hexahedra & quadrangles around central tetrahedral & triangular nodes
 void TetgenMesh::group_hexahedra() {
     const int node_min = nodes.indxs.tetnode_start;
@@ -573,7 +506,7 @@ bool TetgenMesh::generate_hexahedra() {
     hexmesh.export_femocs(this);
 
     group_hexahedra();
-//    calc_quad2hex_mapping();
+    calc_quad2hex_mapping();
 
     return 0;
 }
@@ -618,6 +551,43 @@ void TetgenMesh::calc_tet2tri_mapping() {
                 tet2tri_map[tet].push_back(i);
     }
     elems.store_map(tet2tri_map);
+}
+
+void TetgenMesh::calc_quad2hex_mapping() {
+    const int n_quads = quads.size();
+    const int n_hexs = hexahedra.size();
+
+    vector<array<int,2>> quad2hex_map = vector<array<int,2>>(n_quads, {-1,-1});
+    vector<vector<int>> hex2quad_map = vector<vector<int>>(n_hexs);
+
+    for (int quad = 0; quad < n_quads; ++quad) {
+        SimpleQuad squad = quads[quad];
+
+        // loop through the tetrahedra that are connected to the quadrangle
+        int region = 0;
+        for (int tet : faces.to_tets(quads.to_tri(quad))) {
+            if (tet < 0) continue;
+
+            // loop through all the hexahedra connected to the tetrahedron
+            for (int hex : elems.to_hexs(tet)) {
+
+                // count for the # common nodes between quadrangle and hexahedron
+                int n_common_nodes = 0;
+                for (unsigned int node : hexahedra[hex])
+                    n_common_nodes += squad == node;
+
+                // quad belongs to hex, if they share 4 nodes
+                if (n_common_nodes == n_nodes_per_quad) {
+                    quad2hex_map[quad][region++] = hex;
+                    hex2quad_map[hex].push_back(quad);
+                }
+            }
+        }
+    }
+
+    // store the mapping on the cells side
+    quads.store_map(quad2hex_map);
+    hexahedra.store_map(hex2quad_map);
 }
 
 // Generate manually surface faces from elements and surface nodes
