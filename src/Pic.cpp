@@ -49,35 +49,33 @@ int Pic<dim>::injectElectrons() {
 template<int dim>
 void Pic<dim>::computeField() {
 
-//    double t0;
-//    start_msg(t0, "=== Initializing Laplace solver...");
-    laplace_solver.set_applied_efield(-E0);
+    double t0;
+    start_msg(t0, "=== Solving the Poisson equation...");
     laplace_solver.setup_system();
-//    end_msg(t0);
-
-//    start_msg(t0, "Assembling system lhs");
     laplace_solver.assemble_system_lhs();
-//    end_msg(t0);
+    bool boundary_set = false;
 
-//    start_msg(t0, "Assembling Neumann boundary rhs");
-    laplace_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top);
-//    end_msg(t0);
+    if (anodeBC == "neumann"){
+        cout << "assembling neumann boundary for E0 = " << E0 << endl;
+        laplace_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top, -E0);
+        boundary_set = true;
+    }
 
-//    start_msg(t0, "Assembling charge rhs");
     laplace_solver.assemble_system_pointcharge(r_el, -q_over_eps0*Wsp, cid_el);
-//    end_msg(t0);
 
-//    start_msg(t0, "Applying Dirichlet boundary conditions");
-    laplace_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.0);
-//    end_msg(t0);
+    if(anodeBC == "dirichlet"){
+        cout << "assembling dirichlet boundary" << endl;
+        laplace_solver.assemble_system_dirichlet(fch::BoundaryId::vacuum_top, V0);
+        boundary_set = true;
+    }
 
-//    start_msg(t0, "Closing the FEM system of equations");
+    require(boundary_set, "ERROR: anodeBC parameter wrong!! anodeBC = " + anodeBC);
+
+    laplace_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.);
+
     laplace_solver.assemble_system_finalize();
-//    end_msg(t0);
-
-//    start_msg(t0, "Solving Poisson equation");
     laplace_solver.solve();
-//    end_msg(t0);
+    end_msg(t0);
 }
 
 

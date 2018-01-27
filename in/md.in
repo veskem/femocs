@@ -1,5 +1,6 @@
 elfield  = -0.35  # Max value of applied elctric field (V/Å)
-Vappl = 500
+Vappl = 300
+anode_BC = dirichlet
 
 workfunc = 4.5 
 space_charge = true

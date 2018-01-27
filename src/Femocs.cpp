@@ -108,24 +108,14 @@ int Femocs::run(const double elfield, const string &timestep) {
 
     check_return(generate_meshes(), "Mesh generation failed!");
 
-    // Solve Laplace equation on vacuum mesh
-    if ( conf.pic.doPIC ) {
-        if(solve_pic(elfield, max(delta_t_MD * 1.e15, conf.pic.total_time))){
-            force_output();
-            check_return(true, "Solving PIC failed!");
-        }
-    } else {
-        //solve laplace equation
-        if (solve_laplace(elfield)) {
-            force_output();
-            check_return(true, "Solving Laplace equation failed!");
-        }
+    if(solve_pic(elfield, max(delta_t_MD * 1.e15, conf.pic.total_time))){
+        force_output();
+        check_return(true, "Solving PIC failed!");
+    }
 
-        // Solve heat & continuity equation on bulk mesh
-        if (solve_heat(conf.heating.t_ambient)) {
-            force_output();
-            check_return(true, "Solving heat & continuity equation failed!");
-        }
+    if (solve_heat(conf.heating.t_ambient)) {
+        force_output();
+        check_return(true, "Solving heat & continuity equation failed!");
     }
 
     finalize();
@@ -281,13 +271,11 @@ int Femocs::generate_meshes() {
     return 0;
 }
 
+// Run Pic simulation for dt_main time advance
 int Femocs::solve_pic(const double E0, const double dt_main) {
 
     int time_subcycle = ceil(dt_main / conf.pic.dt_max); // delta_t_MD in [s]
     double dt_pic = dt_main/time_subcycle;
-
-    //2. Re-init the Poisson solver -- similar to Femocs::solve_laplace()
-    conf.laplace.E0 = E0;       // reset long-range electric field
 
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
     fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
@@ -310,8 +298,8 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     vacuum_interpolator.initialize();
     bulk_interpolator.initialize(conf.heating.t_ambient);
     vacuum_interpolator.lintets.narrow_search_to(TYPES.VACUUM);
-    pic_solver.set_E0(E0);
-    pic_solver.set_timestep(dt_pic);
+
+    pic_solver.set_params(conf.laplace, conf.pic, dt_pic);
 
     //Timestep loop
     for (int i = 0; i < time_subcycle; i++) {
@@ -323,8 +311,10 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
 
         start_msg(t0, "=== Extracting E and phi...");
         fail = vacuum_interpolator.extract_solution(&laplace_solver);
+        vacuum_interpolator.nodes.write("out/result_E_phi.movie");
         end_msg(t0);
 
+        if(!conf.pic.doPIC) break; // stop before injecting particles
 
 
         start_msg(t0, "=== Calculating electron emission...");
@@ -354,7 +344,6 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     return fail;
 }
 
-
 // Solve Laplace equation
 int Femocs::solve_laplace(const double E0) {
     conf.laplace.E0 = E0;       // reset long-range electric field
@@ -369,9 +358,8 @@ int Femocs::solve_laplace(const double E0) {
     end_msg(t0);
 
     start_msg(t0, "=== Initializing Laplace solver...");
-    laplace_solver.set_applied_efield(-E0);
     laplace_solver.setup_system();
-    laplace_solver.assemble_system();
+    laplace_solver.assemble_system(-E0);
     end_msg(t0);
 
     stringstream ss; ss << laplace_solver;

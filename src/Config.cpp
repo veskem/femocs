@@ -51,6 +51,7 @@ Config::Config() {
     laplace.phi_error = 1e-9;         // maximum allowed electric potential error
     laplace.n_phi = 10000;            // maximum number of Conjugate Gradient iterations in phi calculation
     laplace.V0 = 0.0;                 // Anode voltage
+    laplace.anodeBC = "neumann";      // Anode Neumann boundary
 
     heating.mode = "none";            // method to calculate current density and temperature; none, stationary or transient
     heating.rhofile = "in/rho_table.dat"; // rho table file
@@ -77,6 +78,8 @@ Config::Config() {
 
     pic.doPIC = false;
     pic.dt_max = 1.0;
+    pic.Wsp_el =  .01;
+    pic.total_time = 30;
 }
 
 // Remove the noise from the beginning of the string
@@ -158,6 +161,8 @@ void Config::read_all(const string& file_name) {
     read_command("doPIC", pic.doPIC);
     read_command("PIC_dtmax", pic.dt_max);
     read_command("PIC_time", pic.total_time);
+    read_command("elentronWsp", pic.total_time);
+
     
     // Read commands with potentially multiple arguments like...
     vector<double> args;
