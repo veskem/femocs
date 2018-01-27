@@ -63,9 +63,7 @@ public:
 
 
 template<int dim>
-Laplace<dim>::Laplace() :
-applied_efield(applied_efield_default), fe(shape_degree), dof_handler(triangulation) {
-}
+Laplace<dim>::Laplace() : fe(shape_degree), dof_handler(triangulation) {}
 
 template<int dim>
 Triangulation<dim>* Laplace<dim>::get_triangulation() {
@@ -75,12 +73,6 @@ Triangulation<dim>* Laplace<dim>::get_triangulation() {
 template <int dim>
 DoFHandler<dim>* Laplace<dim>::get_dof_handler() {
     return &dof_handler;
-}
-
-
-template<int dim>
-void Laplace<dim>::set_applied_efield(const double applied_field_) {
-    applied_efield = applied_field_;
 }
 
 
@@ -354,7 +346,7 @@ void Laplace<dim>::assemble_system_lhs() {
 }
 
 template<int dim>
-void Laplace<dim>::assemble_system_neuman(BoundaryId bid) {
+void Laplace<dim>::assemble_system_neuman(BoundaryId bid, double applied_field) {
 
     QGauss<dim-1> face_quadrature_formula(quadrature_degree);
 
@@ -382,7 +374,7 @@ void Laplace<dim>::assemble_system_neuman(BoundaryId bid) {
                 for (unsigned int q = 0; q < n_face_q_points; ++q) {
                     for (unsigned int i = 0; i < dofs_per_cell; ++i) {
                         cell_rhs(i) += (fe_face_values.shape_value(i, q)
-                                * applied_efield * fe_face_values.JxW(q));
+                                * applied_field * fe_face_values.JxW(q));
                     }
                 }
             }
@@ -459,23 +451,6 @@ void Laplace<dim>::output_results(const std::string filename) const {
         std::cerr << "WARNING: Couldn't open " + filename << ". ";
         std::cerr << "Output is not saved." << std::endl;
     }
-}
-
-template<int dim>
-void Laplace<dim>::run() {
-    Timer timer;
-    std::cout << "/---------------------------------------------------------------/" << std::endl;
-    std::cout << "Laplace solver: " << std::endl;
-    setup_system();
-    std::cout << "    setup_system(): " << timer.wall_time() << " s" << std::endl; timer.restart();
-    assemble_system();
-    std::cout << "    assemble_system(): " << timer.wall_time() << " s" << std::endl; timer.restart();
-    solve();
-    std::cout << "    solve(): " << timer.wall_time() << " s" << std::endl; timer.restart();
-    output_results("output/field_solution.vtk");
-    std::cout << "    output_results(): " << timer.wall_time() << " s" << std::endl; timer.restart();
-    std::cout << "/---------------------------------------------------------------/" << std::endl;
-
 }
 
 //template class Laplace<2> ;

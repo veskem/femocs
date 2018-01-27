@@ -58,8 +58,8 @@ public:
     /** getter for dof_handler */
     DoFHandler<dim>* get_dof_handler();
 
-    /** Sets the applied electric field in GV/m (V/nm) boundary condition */
-    void set_applied_efield(const double applied_field_);
+//    /** Sets the applied electric field in GV/m (V/nm) boundary condition */
+//    void set_applied_efield(const double applied_field_);
 
     /**
      * Imports mesh from file and sets the vacuum boundary indicators
@@ -132,9 +132,9 @@ public:
      * Calculate sparse matrix elements and right-hand-side vector
      * according to the Laplace equation weak formulation and to the boundary conditions.
      */
-    void assemble_system(){
+    void assemble_system(double applied_field){
         assemble_system_lhs();
-        assemble_system_neuman(BoundaryId::vacuum_top);
+        assemble_system_neuman(BoundaryId::vacuum_top, applied_field);
         assemble_system_dirichlet(BoundaryId::copper_surface, 0.0);
         assemble_system_finalize();
     }
@@ -149,7 +149,7 @@ public:
     /** @brief Initialization of the RHS of the matrix equation
      * Set the right-hand-side vector for Neuman boundary conditions on the given BoundaryId.
      */
-    void assemble_system_neuman(BoundaryId bid);
+    void assemble_system_neuman(BoundaryId bid, double E0);
 
     /** @brief Assemble the RHS of the matrix equation
      * Add to the right-hand-side vector for point charges, as used in PIC.
@@ -201,7 +201,6 @@ private:
     static constexpr unsigned int quadrature_degree = shape_degree + 1;  ///< degree of the Gaussian numerical integration
 
     static constexpr double applied_efield_default = 2.0;
-    double applied_efield;
 
     Triangulation<dim> triangulation;
     FE_Q<dim> fe;
