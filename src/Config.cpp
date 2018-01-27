@@ -50,16 +50,19 @@ Config::Config() {
     laplace.ssor_param = 1.2;         // parameter for SSOR preconditioner
     laplace.phi_error = 1e-9;         // maximum allowed electric potential error
     laplace.n_phi = 10000;            // maximum number of Conjugate Gradient iterations in phi calculation
+    laplace.V0 = 0.0;                 // Anode voltage
 
     heating.mode = "none";            // method to calculate current density and temperature; none, stationary or transient
     heating.rhofile = "in/rho_table.dat"; // rho table file
-    heating.work_function = 4.5;      // work function [eV]
     heating.lorentz = 2.44e-8;        // Lorentz number
-    heating.Vappl = -1.;              // if space charge is used.
     heating.t_ambient = 300.0;        // ambient temperature
     heating.t_error = 10.0;           // maximum allowed temperature error in Newton iterations
     heating.n_newton = 10;            // maximum number of Newton iterations
-    heating.blunt = false;            // by default emitter is sharp
+
+    emission.blunt = true;            // by default emitter is blunt (simple SN barrier used for emission)
+    emission.work_function = 4.5;     // work function [eV]
+    emission.SC = false;              // SC is ignored in Emission by default
+    emission.SC_error = 1.e-3;        // Convergence criterion for SC iteration
 
     smoothing.algorithm = "laplace";  // surface mesh smoother algorithm; none, laplace or fujiwara
     smoothing.n_steps = 0;            // number of surface mesh smoothing iterations
@@ -97,13 +100,17 @@ void Config::read_all(const string& file_name) {
     check_obsolete("surface_cleaner", "clean_surface");
 
     // Modify the parameters that are specified in input script
-    read_command("work_function", heating.work_function);
+    read_command("work_function", emission.work_function);
+    read_command("emitter_blunt", emission.blunt);
+    read_command("space_charge", emission.SC);
+    read_command("maxerr_SC", emission.SC_error);
+
+
     read_command("t_ambient", heating.t_ambient);
     read_command("heating_mode", heating.mode);
     read_command("lorentz", heating.lorentz);
     read_command("rhofile", heating.rhofile);
-    read_command("V_appl", heating.Vappl);
-    read_command("emitter_blunt", heating.blunt);
+
 
     read_command("smooth_steps", smoothing.n_steps);
     read_command("smooth_lambda", smoothing.lambda_mesh);
@@ -115,6 +122,8 @@ void Config::read_all(const string& file_name) {
     read_command("phi_error", laplace.phi_error);
     read_command("n_phi", laplace.n_phi);
     read_command("elfield", laplace.E0);
+    read_command("Vappl", laplace.V0);
+    read_command("anode_BC", laplace.anodeBC);
 
     read_command("latconst", geometry.latconst);
     read_command("coord_cutoff", geometry.coordination_cutoff);

@@ -8,6 +8,7 @@
 #include "SolutionReader.h"
 #include "Macros.h"
 #include "getelec.h"
+#include "Config.h"
 
 #include <float.h>
 #include <stdio.h>
@@ -1209,8 +1210,10 @@ void EmissionReader::calc_emission(double workfunction, bool blunt){
 
 }
 
-void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
-        const double workfunction, const double Vappl, bool blunt) {
+void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const Config::Emission &conf, double Vappl) {
+
+    if (Vappl <=0 && conf.SC)
+        write_silent_msg("WARNING: transfer_emission called with SC activated and Vappl <= 0");
 
     const int n_nodes = fields.size();
     reserve(n_nodes);
@@ -1225,14 +1228,14 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
         Jmax = 0.;
         Fmax = multiplier * Fmax_0;
 
-        calc_emission(workfunction, blunt);
+        calc_emission(conf.work_function, conf.blunt);
         calc_representative();
 
         if (MODES.VERBOSE)
             printf("\nSC j= %d th= %f Jmax= %e Jrep= %e Fmax= %f Frep= %f\n", i, multiplier, Jmax,
                     Jrep , Fmax, Frep);
 
-        if (Vappl <= 0) break; // if Vappl<=0, SC is ignored
+        if (Vappl <= 0 || !conf.SC) break; // if Vappl<=0, SC is ignored
         if (i > 5) err_fact *= 0.5; // if not converged in first 6 steps, reduce factor
 
         // calculate SC multiplier (function coming from getelec)
@@ -1240,7 +1243,7 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
         error = multiplier - theta_old;
         multiplier = theta_old + error * err_fact;
         theta_old = multiplier;
-        if (abs(error) < 1.e-3) break; //if converged break
+        if (abs(error) < conf.SC_error) break; //if converged break
 
     }
 

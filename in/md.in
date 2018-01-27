@@ -1,139 +1,15 @@
-#Input file for PARCAS MD - HELMOD - FEMOCS
-
-#Free format input file - parameters can be in any order, and comments
-#can be placed freely among them, as long as the parameters hold the
-#9-characters + "="-sign format. Each number must also be followed
-#by at least one space (not a tab !).
-#Input file for PARCAS MD - HELMOD - FEMOCS
-
-#Free format input file - parameters can be in any order, and comments
-#can be placed freely among them, as long as the parameters hold the
-#9-characters + "="-sign format. Each number must also be followed
-#by at least one space (not a tab !).
-
-
-#General PARCAS MD parameters
-------------------------------------------------------------------
-
-debug    = 0            Parcas side Debug bitwise: 1 general
-nsteps   = 60000        Max number of time steps
-tmax     = 20000000.0   Maximum time in fs
-restartt = 0.0          Restart time in fs for latflag=3-4
-
-Atom type-dependent parameters.
-Time unit is 10.1805*sqrt(mass) = 81.15 fs for Cu, 52.88 for Al
--------------------------------------------------------------------
-
-delta    = 0.05          Max time step (in MD units of SQRT(M*L^2/E))
-ntype    = 2            Number of atom types
-
-mass(0)  = 63.54600 
-name(0)  = Ev     
-ionpot(0)= 0.0    
-wrkfn(0) = 0.0     
-
-iac(0,0) = 0            Interaction types: -1 kill 0 none 1 potmode 2 pair
-iac(0,1) = 0               3 create EAM cross potential
-iac(1,1) = 1             - automatic symmetry used: iac(1,0) = iac(0,1)
-
-potmode  = 1             0 LJ; 1 EAM; 2 EAM, direct Epair; 3-4 SW
-
-reppotcut= 10.0          Reppotcut for SW and Tersoff: use 0 for no reppot
-
-#MD Simulation cell
----------------
-mdlatxyz = 1
-nprtbl   = 100000        Number of steps between pair table calculations
-
-pb(1)    = 1.0           Periodicity in X-direction (1=per, 0=non)
-pb(2)    = 1.0           Periodicity in Y-direction (1=per, 0=non)
-pb(3)    = 0.0           Periodicity in Z-direction (1=per, 0=non)
-
-MD Simulation
-----------
-mtemp    = 7             Temp. control (0 none,1=linear,4=set,5/7=borders)
-btctau   = 500.0          Berendsen temp. control tau (fs), if 0 not used
-bpcmode  = 1
-bpctau   = 100.0
-toll     = 0.0
-ndump    = 1             Print data every ndump steps
-nmovie   = 100000        Number of steps btwn writing to md.movie (0=no movie)
-moviemode= 2            Movie printing mode: 0 compressed, 1 normal, 2 vels
-#dtmov(1) = 250.0         Time interval for movie output before tmov(1) (fs)
-#tmov(1)  = 1000.0        Time at which to change output interval (fs)
-#dtmov(2) = 1000.0        Time interval for movie output before tmov(1) (fs)
-name(0)   =Ev          #Name of the atom type 0 in the mdlat.in.xyz
-
-amp      = 0.0
-damp     = 0.0
-
-nrestart = 1000          Number of steps between restart output
-
-Ekdef    = 0.234         Ekin threshold for labeling an atom defect/liquid 1.5 kB Tmelt in units of eV
-
-
-#Electrostatics HELMOD parameters (also timerelE in the end of the file)
-----------------------------------
-nsave    = 250
-dbg_lvl  = 0
 elfield  = -0.35  # Max value of applied elctric field (V/Å)
-#Erate    = -0.07 # Rate at which field strength is increased (V/(Å*sqrt(fs)))
-rampmode = 0
-evpintval= 0 # How often to force evaporation (timesteps)
-fullsolve= 1 # Solve full electric field every N steps. Otherwise just system half the size centered around mid top.
-EDmethod = 1;  # 0: FDM, 1: femocs
-charge_method = 0; #0 for helmod grid method, 1 for femocs
-aroundapx= 32
-clneicut = 3.090 # Don't change this
-ncellp(1)= 2
-ncellp(2)= 2
-ncellp(3)= 2
-evpatype = 0 # Type to assign to evaporated atoms (make sure this type is defined!)
-emitter_blunt = true
-#Electrostatics HELMOD parameters (also timerelE in the end of the file)
-----------------------------------
-nsave    = 250
-dbg_lvl  = 0
-elfield  = -0.07  # Max value of applied elctric field (V/Å)
-#Erate    = -0.07 # Rate at which field strength is increased (V/(Å*sqrt(fs)))
-rampmode = 0
-evpintval= 0 # How often to force evaporation (timesteps)
-fullsolve= 1 # Solve full electric field every N steps. Otherwise just system half the size centered around mid top.
-EDmethod = 1;  # 0: FDM, 1: femocs
-charge_method = 0; #0 for helmod grid method, 1 for femocs
-aroundapx= 32
-clneicut = 3.090 # Don't change this
-ncellp(1)= 2
-ncellp(2)= 2
-ncellp(3)= 2
-evpatype = 0 # Type to assign to evaporated atoms (make sure this type is defined!)
+Vappl = 500
 
-#Heating  HELMOD parameters (read femocs free style. No need to keep the = in the column)
---------------------------------------------------------------------------------
-heatmode = 2   #0: No heat, 1: Constant ramp temperature to maxtemp 2: Full calculation
-maxtemp = 1500 # Maximum temperature at top (for heatmode = 1) 
-startheat = 0
 workfunc = 4.5 
-vscale_tau = 1500.0 
-heat_comparison_mode = 1 
-flimratio = 0.3 
-jlimratio = 0.0001 
-ilimratio = 0.005
-printheat = 1 # 1 if heating data are to be print in stdout when calculated
-space_charge = 1 #1: use space charge, 0: space charge ignored
-V_applied = -1000.
+space_charge = true
 lorentz = 2.e-8
-maxerr_SC = 0.01
-shank = 1
-temp_cap = 2.e4
-
-#Femocs parameters
-------------------
+maxerr_SC = 1.e-3
 latconst = 3.5;
 coarse_factor = 0.3 12 3;    # coarsening factor; bigger number gives coarser surface; first is plate, second is shank, third is apex
 smooth_steps = 5             # number of surface mesh smoothing iterations
-smooth_algorithm = laplace  # surface mesh smoother algorithm; none, laplace, fujiwara
-heating_mode = converge
+smooth_algorithm = fujiwara  # surface mesh smoother algorithm; none, laplace, fujiwara
+heating_mode = transient
 
 distance_tol = 0;
 femocs_verbose_mode = verbose;     # enable or disable the verbose mode
@@ -142,7 +18,6 @@ n_writefile = 1
 surface_cleaner = none; #faces or voronois
 charge_smooth_factor = 1.0;
 infile = in/nanotip_small.ckx
-#extended_atoms = in/extension_90nm.xyz
 femocs_periodic = true
 clear_output = true
 coord_cutoff = 3.1
@@ -151,36 +26,8 @@ radius = 16.0  #inner radius of coarsening cylinder
 box_height = 20
 box_width = 5
 
-
-temp     =340.0
-initemp  =340.0
-mctemp   = 55.0
-ncell(1) =  32
-ncell(2) =  32
-ncell(3) = 128
-fixzmin  =-236.866
-fixzmax  =-228.866
-seed     = 98356
-iabove   = 512
-mass(1)  = 63.5460
-name(1)  =Cu
-ionpot(1)=  7.7300
-wrkfn(1) =  4.6000
-
-
-#MD parameters to be modified by continuation job script
--------------------------------------------------------
-natoms   =  206000
-box(1)   = 116.433
-box(2)   = 116.433
-box(3)   = 465.732
-tempmode = 1
-latflag  = 1
-timerelE = 100.00 # Time in fs before field is applied
-
-
 # PIC parameters
 ---------------------
-doPIC = true
+doPIC = false
 PIC_dtmax = .2 #[fs]
 PIC_time = 20 #[fs]

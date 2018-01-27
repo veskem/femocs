@@ -16,6 +16,7 @@
 #include "Interpolator.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
+#include "Config.h"
 
 using namespace std;
 namespace femocs {
@@ -222,12 +223,14 @@ public:
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
      * estimation of the space charge effects.
      * @param ch_solver heat solver object where J and Nottingham BCs will be written
-     * @param workfunction Work function
+     * @param conf Emission configuration parameters struct
      * @param Vappl Applied voltage (required for space charge calculations)
      */
-    void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const double workfunction,
-            const double Vappl, bool blunt = false);
+    void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const Config::Emission &conf, double Vappl = -1);
 
+    /**
+     * Injects electron SPs at the surface faces, depending on the current and the timestep
+     */
     void inject_electrons(double delta_t, double Wsp, vector<dealii::Point<3>> &pos,
             vector<dealii::Point<3>> &efield, vector<int> &cell);
 

@@ -487,8 +487,7 @@ void Femocs::get_emission(){
 
     start_msg(t0, "=== Calculating field emission...");
     emission.initialize();
-    emission.transfer_emission(ch_transient_solver,
-            conf.heating.work_function, conf.heating.Vappl, conf.heating.blunt);
+    emission.transfer_emission(ch_transient_solver, conf.emission, conf.laplace.V0);
     end_msg(t0);
     emission.write("out/surface_emission.movie");
 
@@ -505,27 +504,7 @@ int Femocs::solve_transient_heat(const double delta_time) {
     check_return(fail, "Importing mesh to Deal.II failed!");
     end_msg(t0);
 
-    start_msg(t0, "=== Transfering elfield to J & T solver...");
-    FieldReader field_reader(&vacuum_interpolator);
-    field_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank);
-    field_reader.transfer_elfield(ch_transient_solver);
-    end_msg(t0);
-    field_reader.write("out/surface_field.xyz");
-
-    start_msg(t0, "=== Interpolating J & T on face centroids...");
-
-    HeatReader heat_reader(&bulk_interpolator);
-    heat_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank, conf.heating.t_ambient);
-    heat_reader.interpolate(ch_transient_solver);
-    end_msg(t0);
-    heat_reader.write("out/surface_temperature.xyz");
-
-    start_msg(t0, "=== Calculating field emission...");
-    EmissionReader emission(field_reader, heat_reader, fem_mesh, &vacuum_interpolator);
-    emission.transfer_emission(ch_transient_solver,
-            conf.heating.work_function, conf.heating.Vappl);
-    end_msg(t0);
-    emission.write("out/surface_emission.xyz");
+    get_emission();
 
     if (first_call) {
         start_msg(t0, "=== Setup transient J & T solver...");
@@ -571,19 +550,17 @@ int Femocs::solve_converge_heat() {
     end_msg(t0);
 
     start_msg(t0, "=== Transfering elfield to J & T solver...");
-    FieldReader field_reader(&vacuum_interpolator);
-    field_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank);
-    field_reader.transfer_elfield(ch_transient_solver);
+    surface_fields.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+    surface_fields.transfer_elfield(ch_transient_solver);
     end_msg(t0);
-    field_reader.write("out/surface_field.xyz");
+    surface_fields.write("out/surface_field.xyz");
 
-    if (first_call) {
-        start_msg(t0, "=== Setup transient J & T solver...");
-        ch_transient_solver.setup_current_system();
-        ch_transient_solver.setup_heating_system();
-        end_msg(t0);
-        first_call = false;
-    }
+    start_msg(t0, "=== Setup transient J & T solver...");
+    emission.initialize();
+    ch_transient_solver.setup_current_system();
+    ch_transient_solver.setup_heating_system();
+    end_msg(t0);
+
 
     double current_time = 0.;
     double delta_time = 1.e-12; //in seconds!!
@@ -592,17 +569,14 @@ int Femocs::solve_converge_heat() {
     for (int i = 0; i < 1000; ++i){
 
         start_msg(t0, "=== Interpolating J & T on face centroids...");
-        HeatReader heat_reader(&bulk_interpolator);
-        heat_reader.set_preferences(false, 2, conf.behaviour.interpolation_rank, conf.heating.t_ambient);
-        heat_reader.interpolate(ch_transient_solver);
+        surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank, conf.heating.t_ambient);
+        surface_temperatures.interpolate(ch_transient_solver);
         end_msg(t0);
-        if (MODES.VERBOSE) heat_reader.write("out/surface_temperature.xyz");
+        if (MODES.VERBOSE) surface_temperatures.write("out/surface_temperature.xyz");
 
         start_msg(t0, "=== Calculating field emission...");
-        EmissionReader emission(field_reader, heat_reader, fem_mesh, &vacuum_interpolator);
         emission.set_multiplier(multiplier);
-        emission.transfer_emission(ch_transient_solver, conf.heating.work_function,
-                conf.heating.Vappl, conf.heating.blunt);
+        emission.transfer_emission(ch_transient_solver, conf.emission, conf.laplace.V0);
         multiplier = emission.get_multiplier();
         end_msg(t0);
         if (MODES.VERBOSE) emission.write("out/surface_emission.xyz");
