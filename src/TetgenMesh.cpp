@@ -111,12 +111,6 @@ int TetgenMesh::quad2hex(const int quad, const int region) const {
     return -1;
 }
 
-// Delete disturbing edges and faces on and near the surface perimeter
-void TetgenMesh::clean_sides(const Medium::Sizes& sizes) {
-    edges.clean_sides(sizes);
-    faces.clean_sides(sizes);
-}
-
 // Delete the data of previously stored mesh and initialise a new one
 void TetgenMesh::clear() {
     tetIOin.deinitialize();
@@ -525,16 +519,24 @@ int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd1,
 
     // copy the triangles that are not on the simubox perimeter to input tetIO
     vacuum.faces.calc_statistics();
-    faces.copy_surface(vacuum.faces, sizes);
+    const int n_surf_faces = faces.copy_surface(vacuum.faces, sizes);
 
     // transfer elements and nodes to input
     nodes.transfer(false);
     elems.transfer(false);
 
-    // calculate the tetrahedron-face connectivity
+    // calculate the tetrahedron-triangle connectivity
     // the simubox boundary faces must also be calculated, no way to opt-out
     error_code = recalc(cmd2);
     if (error_code) return error_code;
+
+    // the faces on the simubox sides are appended after the surface faces.
+    // such property allows to remove the faces on the sides without affecting the tri2tet mapping.
+    // such cleaning is useful to make other workflow faster.
+    faces.init(n_surf_faces);
+    for (int i = 0; i < n_surf_faces; ++i)
+        faces.append(faces[i]);
+    faces.transfer();
 
     calc_tet2tri_mapping();
     return 0;

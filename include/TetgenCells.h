@@ -441,10 +441,8 @@ public:
     /** Copy the nodes from one buffer to another */
     void transfer(const bool write2read=true);
     
-    /** Delete the faces on the sides of simulation cell */
-    void clean_sides(const Medium::Sizes& stat);
-
-    void copy_surface(const TetgenFaces& faces, const Medium::Sizes& stat);
+    /** Copy the surface faces from another TetgenFaces */
+    int copy_surface(const TetgenFaces& faces, const Medium::Sizes& stat);
 
     /** Return the normal of i-th triangle */
     Vec3 get_norm(const int i) const;

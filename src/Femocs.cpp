@@ -279,9 +279,6 @@ int Femocs::generate_meshes() {
     stringstream ss; ss << fem_mesh;
     write_verbose_msg(ss.str());
 
-    fem_mesh.test_mapping();
-    exit(1);
-
     return 0;
 }
 
@@ -385,7 +382,6 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
 
     return fail;
 }
-
 
 // Solve Laplace equation
 int Femocs::solve_laplace(const double E0) {
@@ -503,7 +499,6 @@ int Femocs::solve_stationary_heat() {
 
     return 0;
 }
-
 
 unsigned Femocs::solve_current(){
     start_msg(t0, "=== Transfering elfield to J & T solver...");

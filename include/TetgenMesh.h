@@ -73,9 +73,6 @@ public:
     /** Delete the data of previously stored mesh and initialise a new one */
     void clear();
 
-    /** Delete disturbing edges and faces on and near the surface perimeter */
-    void clean_sides(const Medium::Sizes& sizes);
-
     /** Copy mesh from input to output or vice versa without modification */
     int transfer(const bool write2read=true);
 

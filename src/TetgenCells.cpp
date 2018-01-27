@@ -365,34 +365,7 @@ SimpleCell<3> TetgenFaces::get_cell(const int i) const {
     return SimpleFace(reads->trifacelist[I], reads->trifacelist[I+1], reads->trifacelist[I+2]);
 }
 
-// Delete the faces on the sides of simulation cell
-void TetgenFaces::clean_sides(const Medium::Sizes& stat) {
-    calc_statistics();
-    const double eps = 0.01 * this->stat.edgemin;
-    int n_faces = size();
-    vector<SimpleFace> faces; faces.reserve(n_faces);
-
-    // Make a copy of faces not on the sides of simulation cell
-    for (int i = 0; i < n_faces; ++i) {
-        const Point3 centroid = get_centroid(i);
-        const bool side_x = on_boundary(centroid.x, stat.xmin, stat.xmax, eps);
-        const bool side_y = on_boundary(centroid.y, stat.ymin, stat.ymax, eps);
-        const bool side_z = on_boundary(centroid.z, stat.zmin, stat.zmax, eps);
-        if (!(side_x || side_y || side_z)) {
-            faces.push_back(get_cell(i));
-        }
-    }
-
-    // Store the surface faces
-    n_faces = faces.size();
-    init(n_faces);
-    for (SimpleFace face : faces)
-        append(face);
-
-    calc_norms_and_areas();
-}
-
-void TetgenFaces::copy_surface(const TetgenFaces& faces, const Medium::Sizes& stat) {
+int TetgenFaces::copy_surface(const TetgenFaces& faces, const Medium::Sizes& stat) {
     const double eps = 0.01 * faces.stat.edgemin;
     int n_faces = faces.size();
     vector<bool> tri_mask(n_faces);
@@ -407,12 +380,14 @@ void TetgenFaces::copy_surface(const TetgenFaces& faces, const Medium::Sizes& st
     }
 
     // Store the surface faces
-    init(vector_sum(tri_mask));
+    int n_surface_faces = vector_sum(tri_mask);
+    init(n_surface_faces);
     for (int i = 0; i < n_faces; ++i)
         if (tri_mask[i])
             append(faces[i]);
 
     calc_norms_and_areas();
+    return n_surface_faces;
 }
 
 // Calculate the norms and areas for all the triangles
