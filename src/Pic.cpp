@@ -53,26 +53,16 @@ void Pic<dim>::computeField() {
     start_msg(t0, "=== Solving the Poisson equation...");
     laplace_solver.setup_system();
     laplace_solver.assemble_system_lhs();
-    bool boundary_set = false;
-
-    if (anodeBC == "neumann"){
-        cout << "assembling neumann boundary for E0 = " << E0 << endl;
-        laplace_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top, -E0);
-        boundary_set = true;
-    }
-
     laplace_solver.assemble_system_pointcharge(r_el, -q_over_eps0*Wsp, cid_el);
 
-    if(anodeBC == "dirichlet"){
-        cout << "assembling dirichlet boundary" << endl;
+    if (anodeBC == "neumann")
+        laplace_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top, -E0);
+    else if(anodeBC == "dirichlet")
         laplace_solver.assemble_system_dirichlet(fch::BoundaryId::vacuum_top, V0);
-        boundary_set = true;
-    }
-
-    require(boundary_set, "ERROR: anodeBC parameter wrong!! anodeBC = " + anodeBC);
+    else
+        require(false, "ERROR: anodeBC parameter wrong!! anodeBC = " + anodeBC);
 
     laplace_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.);
-
     laplace_solver.assemble_system_finalize();
     laplace_solver.solve();
     end_msg(t0);
@@ -81,10 +71,15 @@ void Pic<dim>::computeField() {
 
 template<int dim>
 void Pic<dim>::updatePositions(){
+    fr.calc_statistics();
     for (size_t i = 0; i < r_el.size(); i++) {
 
         //update position
         r_el[i] = r_el[i] + v_el[i]*dt;
+
+        //apply periodic boundaries
+        r_el[i][0] = periodic_image(r_el[i][0], fr.sizes.xmax, fr.sizes.xmin);
+        r_el[i][1] = periodic_image(r_el[i][1], fr.sizes.ymax, fr.sizes.ymin);
 
         //Update the cid_el && check if any particles have left the domain && remove them
         cid_el[i] = fr.update_point_cell(r_el[i], cid_el[i]);
@@ -93,6 +88,7 @@ void Pic<dim>::updatePositions(){
         }
     }
 }
+
 
 template<int dim>
 void Pic<dim>::updateFieldAndVelocities(){

@@ -46,6 +46,8 @@ public:
     /** Get pointer to interpolation vector */
     vector<Solution>* get_interpolations();
 
+    void set_to_interpolator();
+
     /** Get i-th Solution */
     Solution get_interpolation(const int i) const;
 

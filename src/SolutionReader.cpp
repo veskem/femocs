@@ -123,6 +123,16 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
     }
 }
 
+
+void SolutionReader::set_to_interpolator() {
+    int n_nodes = interpolator->nodes.size();
+    reserve(n_nodes);
+    for (int i = 0; i < n_nodes; ++i){
+        append(interpolator->nodes.get_vertex(i));
+        append_interpolation(interpolator->nodes.get_solution(i));
+    }
+}
+
 // Reserve memory for solution vectors
 void SolutionReader::reserve(const int n_nodes) {
     require(n_nodes >= 0, "Invalid number of nodes: " + to_string(n_nodes));

@@ -292,14 +292,16 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     check_return(fail, "Importing mesh to Deal.II failed!");
     end_msg(t0);
 
-
-    stringstream ss; ss << laplace_solver;
-    write_verbose_msg(ss.str());
     vacuum_interpolator.initialize();
     bulk_interpolator.initialize(conf.heating.t_ambient);
     vacuum_interpolator.lintets.narrow_search_to(TYPES.VACUUM);
 
+    fields.set_to_interpolator();
+    fields.Medium::calc_statistics();
+
     pic_solver.set_params(conf.laplace, conf.pic, dt_pic);
+
+    cout << "Starting pic loop" <<  endl;
 
     //Timestep loop
     for (int i = 0; i < time_subcycle; i++) {
