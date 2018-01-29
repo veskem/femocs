@@ -410,6 +410,7 @@ bool TetgenMesh::generate_hexahedra() {
     hexmesh.export_femocs(this);
 
     group_hexahedra();
+    nodes.calc_statistics();
 
     return 0;
 }

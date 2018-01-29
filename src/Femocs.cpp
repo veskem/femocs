@@ -23,7 +23,7 @@ namespace femocs {
 
 // specify simulation parameters
 Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false), timestep(-1), last_full_timestep(0),
-        pic_solver(laplace_solver, fields, ch_transient_solver, temperatures, emission) {
+        pic_solver(laplace_solver, ch_transient_solver, vacuum_interpolator, emission) {
     static bool first_call = true;
 
     // Read configuration parameters from configuration file
@@ -199,7 +199,9 @@ int Femocs::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface
 
     start_msg(t0, "=== Generating bulk & vacuum corners...");
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
-    vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.geometry.box_height * coarse_surf.sizes.zbox);
+//    vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.geometry.box_height * coarse_surf.sizes.zbox);
+
+    vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.geometry.box_height * conf.geometry.latconst);
     bulk = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.geometry.bulk_height * conf.geometry.latconst);
     reader.resize_box(coarse_surf.sizes.xmin, coarse_surf.sizes.xmax, 
             coarse_surf.sizes.ymin, coarse_surf.sizes.ymax,
@@ -296,19 +298,14 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     bulk_interpolator.initialize(conf.heating.t_ambient);
     vacuum_interpolator.lintets.narrow_search_to(TYPES.VACUUM);
 
-    fields.set_to_interpolator();
-    fields.Medium::calc_statistics();
-
-    pic_solver.set_params(conf.laplace, conf.pic, dt_pic);
-
-    cout << "Starting pic loop" <<  endl;
+    pic_solver.set_params(conf.laplace, conf.pic, dt_pic, fem_mesh.nodes.stat);
 
     //Timestep loop
     for (int i = 0; i < time_subcycle; i++) {
         cout << "doPIC! i=" << i << ", dt_pic=" << dt_pic << endl;
 
         start_msg(t0, "=== Updating particles and fields...");
-        pic_solver.runCycle();
+        pic_solver.run_cycle();
         end_msg(t0);
 
         start_msg(t0, "=== Extracting E and phi...");
@@ -324,13 +321,13 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         end_msg(t0);
 
         start_msg(t0, "=== Injecting electrons...");
-        pic_solver.injectElectrons();
+        pic_solver.inject_electrons();
         end_msg(t0);
 
 
         start_msg(t0, "=== Writing particles and fields to file...");
         vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-        pic_solver.writeParticles("out/electrons.movie");
+        pic_solver.write_particles("out/electrons.movie");
         end_msg(t0);
 
     }

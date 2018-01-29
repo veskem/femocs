@@ -135,6 +135,22 @@ void Interpolator::initialize() {
         nodes.append_solution(Solution(0));
 }
 
+//find the hex cell where the piont p is located. initial guess: current_cell
+// if deal_index then current_cell is dealii cell index
+int Interpolator::update_point_cell(dealii::Point<3> &p, int current_cell, bool deal_index) {
+    Point3 femocs_point(p);
+    int femocs_current_cell;
+
+    if (deal_index)
+        femocs_current_cell = linhexs.deal2femocs(current_cell);
+    else
+        femocs_current_cell = current_cell;
+
+    int femocs_cell = linhexs.locate_cell(femocs_point, femocs_current_cell);
+    if (femocs_cell < 0) return -1;
+    return linhexs.femocs2deal(femocs_cell);
+}
+
 void Interpolator::initialize(double value) {
     // Precompute cells to make interpolation faster
     nodes.precompute();

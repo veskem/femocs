@@ -123,16 +123,6 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
     }
 }
 
-
-void SolutionReader::set_to_interpolator() {
-    int n_nodes = interpolator->nodes.size();
-    reserve(n_nodes);
-    for (int i = 0; i < n_nodes; ++i){
-        append(interpolator->nodes.get_vertex(i));
-        append_interpolation(interpolator->nodes.get_solution(i));
-    }
-}
-
 // Reserve memory for solution vectors
 void SolutionReader::reserve(const int n_nodes) {
     require(n_nodes >= 0, "Invalid number of nodes: " + to_string(n_nodes));
@@ -382,6 +372,7 @@ int SolutionReader::get_nanotip(Medium& nanotip, vector<bool>& atom_in_nanotip, 
 
 // Initialise statistics about the solution
 void SolutionReader::init_statistics() {
+    Medium::init_statistics();
     stat.vec_norm_min = stat.scal_min = DBL_MAX;
     stat.vec_norm_max = stat.scal_max = -DBL_MAX;
 }
@@ -389,6 +380,7 @@ void SolutionReader::init_statistics() {
 // Calculate statistics about the solution
 void SolutionReader::calc_statistics() {
     init_statistics();
+    Medium::calc_statistics();
 
     for (int i = 0; i < size(); ++i) {
         double norm = interpolation[i].norm;
@@ -844,22 +836,6 @@ Vec3 FieldReader::get_analyt_field(const int i, const Point3& origin) const {
     double Ez = E0 * (1.0 - r3 * f / r5);
 
     return Vec3(Ex, Ey, Ez);
-}
-
-//find the hex cell where the piont p is located. initial guess: current_cell
-// if deal_index then current_cell is dealii cell index
-int FieldReader::update_point_cell(dealii::Point<3> &p, int current_cell, bool deal_index) {
-    Point3 femocs_point(p);
-    int femocs_current_cell;
-
-    if (deal_index)
-        femocs_current_cell = interpolator->linhexs.deal2femocs(current_cell);
-    else
-        femocs_current_cell = current_cell;
-
-    int femocs_cell = interpolator->linhexs.locate_cell(femocs_point, femocs_current_cell);
-    if (femocs_cell < 0) return -1;
-    return interpolator->linhexs.femocs2deal(femocs_cell);
 }
 
 // Analytical field enhancement for ellipsoidal nanotip

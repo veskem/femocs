@@ -46,8 +46,6 @@ public:
     /** Get pointer to interpolation vector */
     vector<Solution>* get_interpolations();
 
-    void set_to_interpolator();
-
     /** Get i-th Solution */
     Solution get_interpolation(const int i) const;
 
@@ -170,8 +168,6 @@ public:
     /** Set parameters to calculate analytical solution */
     void set_check_params(const double E0, const double limit_min, const double limit_max,
             const double radius1, const double radius2=-1);
-
-    int update_point_cell(dealii::Point<3> &p, int current_cell, bool deal_index = true);
 
 private:
     /** Data needed for comparing numerical solution with analytical one */

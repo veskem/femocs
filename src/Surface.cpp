@@ -130,6 +130,8 @@ Surface Surface::extend(const string &file_name, Coarseners &coarseners) {
 // Extend the flat area by generating additional atoms
 void Surface::extend(Surface& extension, Coarseners &cr, const double latconst, const double box_width) {
     calc_statistics();
+
+    if(cr.get_r0_inf(sizes) <=0 ) return;
     const double desired_box_width = box_width * sizes.zbox;
     const double z = cr.centre.z;
 

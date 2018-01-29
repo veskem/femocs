@@ -9,10 +9,12 @@
 #define PIC_H_
 
 #include "laplace.h"
-#include "mesh_preparer.h"
-#include "SolutionReader.h"
+//#include "mesh_preparer.h"
+#include "Interpolator.h"
 #include "currents_and_heating.h"
+#include "SolutionReader.h"
 #include "Config.h"
+#include "TetgenCells.h"
 
 #include <deal.II/base/point.h>
 
@@ -22,14 +24,13 @@ namespace femocs {
 template<int dim>
 class Pic {
 public:
-    Pic(fch::Laplace<dim> &laplace_solver, FieldReader &fr,
-            fch::CurrentsAndHeating<3> &ch_solver, HeatReader &hr, EmissionReader &er);
+    Pic(fch::Laplace<dim> &laplace_solver, fch::CurrentsAndHeating<3> &ch_solver, Interpolator &interpolator, EmissionReader &er);
     ~Pic();
 
     /**Injects electrons
      *     Indexing: (x1 y1 [z1] x2 y2 [z2] ...)
      */
-    int injectElectrons(const double* const r, const size_t n);
+    int inject_electrons(const double* const r, const size_t n);
 
     /**
      * Runs a full pic cycle : inject, push, update field
@@ -38,24 +39,25 @@ public:
     /**
      * Inject electrons according to the field emission surface distribution
      */
-    int injectElectrons();
+    int inject_electrons();
 
     /**
      * Run an particle and field update cycle
      */
-    void runCycle();
+    void run_cycle();
 
     /**
      * Write the particle data in the current state in movie file
      */
-    void writeParticles(const string filename);
+    void write_particles(const string filename);
     
-    void set_params(const Config::Laplace &conf_lap, const Config::PIC &conf_pic, double _dt){
+    void set_params(const Config::Laplace &conf_lap, const Config::PIC &conf_pic, double _dt, TetgenNodes::Stat _box){
         dt = _dt;
         Wsp = conf_pic.Wsp_el;
         E0 = conf_lap.E0;
         V0 = conf_lap.V0;
         anodeBC = conf_lap.anodeBC;
+        box = _box;
     }
 
 
@@ -86,28 +88,32 @@ private:
 
     fch::Laplace<dim> &laplace_solver;      ///< Laplace solver object to solve the Poisson in the vacuum mesh
     fch::CurrentsAndHeating<3> &ch_solver;  ///< transient currents and heating solver
-    FieldReader &fr;                        ///< Object to read the electric field
-    HeatReader &hr;                         ///< Object to read the temperature data
+    Interpolator &interpolator;
+//    FieldReader &fr;                        ///< Object to read the electric field
+//    HeatReader &hr;                         ///< Object to read the temperature data
     EmissionReader &er;                     ///< Object to calculate the emission data
+
+    TetgenNodes::Stat box;                 ///< Object containing box data
+
 
     /**
      * Clear all particles out of the box
      */
-    void clearLostParticles();
+    void clear_lost_particles();
 
     /**
      * Update the positions of the particles and the cell they belong.
      */
 
-    void updatePositions();
+    void update_positions();
 
-    void updateFieldAndVelocities();
+    void update_fields_and_velocities();
 
 
     /**Computes the charge density for each FEM DOF
      *
      */
-    void computeField();
+    void compute_field();
 };
 
 }

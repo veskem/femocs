@@ -72,6 +72,8 @@ public:
     QuadraticTetrahedra quadtets; ///< data & operations for quadratic tetrahedral interpolation
     LinearHexahedra linhexs;      ///< data & operations for linear hexahedral interpolation
 
+    int update_point_cell(dealii::Point<3> &p, int current_cell, bool deal_index = true);
+
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
 

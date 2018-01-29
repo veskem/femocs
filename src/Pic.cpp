@@ -12,25 +12,25 @@
 
 namespace femocs {
 template<int dim>
-Pic<dim>::Pic(fch::Laplace<dim> &laplace_solver, FieldReader &fr,
-        fch::CurrentsAndHeating<3> &ch_solver, HeatReader &hr, EmissionReader &er) : ///< Object to read the temperature data) :
-        laplace_solver(laplace_solver), fr(fr), ch_solver(ch_solver), hr(hr), er(er){}
+Pic<dim>::Pic(fch::Laplace<dim> &laplace_solver, fch::CurrentsAndHeating<3> &ch_solver,
+        Interpolator &interpolator, EmissionReader &er) : ///< Object to read the temperature data) :
+        laplace_solver(laplace_solver), ch_solver(ch_solver), interpolator(interpolator), er(er){}
 
 template<int dim>
 Pic<dim>::~Pic() {}
 
 template<int dim>
-int Pic<dim>::injectElectrons(const double* const r, const size_t n) {
+int Pic<dim>::inject_electrons(const double* const r, const size_t n) {
     for (size_t i = 0; i < n; i++) {
         r_el.push_back(dealii::Point<3>(r[i*3+0],r[i*3+1],r[i*3+2]));
         v_el.push_back(dealii::Point<3>(0.0,0.0,0.0));
         F_el.push_back(dealii::Point<3>(0.0,0.0,0.0));
-        cid_el.push_back(fr.update_point_cell(r_el[i], 10));
+        cid_el.push_back(interpolator.update_point_cell(r_el[i], 10));
     }
 }
 
 template<int dim>
-int Pic<dim>::injectElectrons() {
+int Pic<dim>::inject_electrons() {
     vector<dealii::Point<dim>> positions, fields;
     vector<int> cells;
     er.inject_electrons(dt, Wsp, positions, fields, cells);
@@ -47,7 +47,7 @@ int Pic<dim>::injectElectrons() {
 
 //Call the laplace solver with the list of positions and charge(s)
 template<int dim>
-void Pic<dim>::computeField() {
+void Pic<dim>::compute_field() {
 
     double t0;
     start_msg(t0, "=== Solving the Poisson equation...");
@@ -70,19 +70,18 @@ void Pic<dim>::computeField() {
 
 
 template<int dim>
-void Pic<dim>::updatePositions(){
-    fr.calc_statistics();
+void Pic<dim>::update_positions(){
     for (size_t i = 0; i < r_el.size(); i++) {
 
         //update position
         r_el[i] = r_el[i] + v_el[i]*dt;
 
         //apply periodic boundaries
-        r_el[i][0] = periodic_image(r_el[i][0], fr.sizes.xmax, fr.sizes.xmin);
-        r_el[i][1] = periodic_image(r_el[i][1], fr.sizes.ymax, fr.sizes.ymin);
+        r_el[i][0] = periodic_image(r_el[i][0], box.xmax, box.xmin);
+        r_el[i][1] = periodic_image(r_el[i][1], box.ymax, box.ymin);
 
         //Update the cid_el && check if any particles have left the domain && remove them
-        cid_el[i] = fr.update_point_cell(r_el[i], cid_el[i]);
+        cid_el[i] = interpolator.update_point_cell(r_el[i], cid_el[i]);
         if (cid_el[i] == -1) {
             lost_el.push_back(i);
         }
@@ -91,7 +90,7 @@ void Pic<dim>::updatePositions(){
 
 
 template<int dim>
-void Pic<dim>::updateFieldAndVelocities(){
+void Pic<dim>::update_fields_and_velocities(){
 
     //update field
     for (size_t i = 0; i < v_el.size(); i++) {
@@ -105,15 +104,15 @@ void Pic<dim>::updateFieldAndVelocities(){
 }
 
 template<int dim>
-void Pic<dim>::runCycle() {
-    updatePositions();
-    clearLostParticles();
-    computeField();
-    updateFieldAndVelocities();
+void Pic<dim>::run_cycle() {
+    update_positions();
+    clear_lost_particles();
+    compute_field();
+    update_fields_and_velocities();
 }
 
 template<int dim>
-void Pic<dim>::clearLostParticles(){
+void Pic<dim>::clear_lost_particles(){
     size_t npart = r_el.size();
     size_t nlost = 0;
 
@@ -149,7 +148,7 @@ void Pic<dim>::clearLostParticles(){
 }
 
 template<int dim>
-void Pic<dim>::writeParticles(const string filename) {
+void Pic<dim>::write_particles(const string filename) {
 
     // dummy electron always added in the end (to avoid empty electrons crashing ovito)
     ofstream out;

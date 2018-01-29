@@ -79,16 +79,6 @@ public:
     T node[dim]; ///< VectorData data
 };
 
-
-inline double periodic_image(double p, double max, double min){
-    require(max > min, "maxbox  must be  > minbox. max = " + to_string(max) + "min = " + to_string(min));
-    double from_max = p - max;
-    double from_min = p - min;
-    if (from_max > 0) return min + from_max;
-    if (from_min < 0) return max + from_min;
-    return p;
-}
-
 /** Class to define basic operations with 2-dimensional points */
 class Point2 {
 public:
