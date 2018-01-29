@@ -540,6 +540,7 @@ unsigned Femocs::solve_current(){
 
 
 }
+
 // Solve transient heat and continuity equations
 int Femocs::solve_transient_heat(const double delta_time) {
     static bool first_call = true;
@@ -855,7 +856,8 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
         write_silent_msg("Using previous electric field!");
     else {
         start_msg(t0, "=== Interpolating E and phi...");
-        fields.set_preferences(true, 3, conf.behaviour.interpolation_rank);
+//        fields.set_preferences(true, 3, conf.behaviour.interpolation_rank);
+        fields.set_preferences(true, 2, 1);
         fields.interpolate(dense_surf);
         fail = fields.clean(conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
         end_msg(t0);

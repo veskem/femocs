@@ -71,6 +71,7 @@ public:
     LinearTetrahedra lintets;     ///< data & operations for linear tetrahedral interpolation
     QuadraticTetrahedra quadtets; ///< data & operations for quadratic tetrahedral interpolation
     LinearHexahedra linhexs;      ///< data & operations for linear hexahedral interpolation
+    LinearQuadrangles linquads;   ///< data & operations for linear quadrangular interpolation
 
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc

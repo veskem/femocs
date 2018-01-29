@@ -383,8 +383,11 @@ void LinearTriangles::reserve(const int n) {
 }
 
 void LinearTriangles::precompute() {
+    require(mesh && faces, "NULL pointers can't be used!");
     const int n_faces = faces->size();
     const int n_nodes = nodes->size();
+
+    expect(n_faces > 0, "Interpolator expects non-empty mesh!");
 
     // Reserve memory for precomputation data
     reserve(n_faces);
@@ -475,11 +478,11 @@ void LinearTriangles::interp_conserved(vector<double>& scalars, const vector<Ato
 bool LinearTriangles::point_in_cell(const Vec3& point, const int face) const {
     Vec3 tvec = point - vert0[face];
     double u = tvec.dotProduct(pvec[face]);
-    if (u < 0 || u > 1) return false;     // Check first barycentric coordinate
+    if (u < -zero || u > 1 + zero) return false;     // Check first barycentric coordinate
 
     Vec3 qvec = tvec.crossProduct(edge1[face]);
     double v = qvec.dotProduct(norms[face]);
-    if (v < 0 || u + v > 1) return false; // Check second & third barycentric coordinate
+    if (v < -zero || u + v > 1 + zero) return false; // Check second & third barycentric coordinate
 
     // finally check the distance of the point from the triangle
     return fabs(qvec.dotProduct(edge2[face])) < max_distance[face];
@@ -491,7 +494,7 @@ void LinearTriangles::get_shape_functions(array<double,3>& sf, const Vec3& point
     const double v = tvec.dotProduct(pvec[face]);
     const double w = qvec.dotProduct(norms[face]);
     const double u = 1.0 - v - w;
-    sf = {u, v, w};
+    sf = {zero + u, zero + v, zero + w};
 }
 
 int LinearTriangles::near_surface(const Vec3& point, const double r_cut) const {
@@ -542,18 +545,19 @@ void LinearTriangles::write_cell_data(ofstream& out) const {
  * ================================================================== */
 
 QuadraticTriangles::QuadraticTriangles() :
-        InterpolatorCells<6>(), faces(NULL), lintris(NULL) {}
+        InterpolatorCells<6>(), faces(NULL), lintri(NULL) {}
 
 QuadraticTriangles::QuadraticTriangles(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTriangles* l) :
-    InterpolatorCells<6>(m, n), faces(&m->faces), lintris(l) {}
+    InterpolatorCells<6>(m, n), faces(&m->faces), lintri(l) {}
 
 void QuadraticTriangles::reserve(const int N) {
     InterpolatorCells<6>::reserve(N);
 }
 
 void QuadraticTriangles::precompute() {
+    require(mesh && faces && lintri, "NULL pointers can't be used!");
     const int n_faces = faces->size();
-    require(n_faces == lintris->size(), "QuadraticTriangles requires LinearTriangles to be pre-computed!");
+    require(n_faces == lintri->size(), "QuadraticTriangles requires LinearTriangles to be pre-computed!");
 
     // Reserve memory for precomputation data
     reserve(n_faces);
@@ -580,12 +584,12 @@ void QuadraticTriangles::precompute() {
 }
 
 bool QuadraticTriangles::point_in_cell(const Vec3& point, const int face) const {
-    return lintris->point_in_cell(point, face);
+    return lintri->point_in_cell(point, face);
 }
 
 void QuadraticTriangles::get_shape_functions(array<double,6>& sf, const Vec3& point, const int face) const {
     array<double,3> bcc;
-    lintris->get_shape_functions(bcc, point, face);
+    lintri->get_shape_functions(bcc, point, face);
 
     const double u = bcc[0];
     const double v = bcc[1];
@@ -646,6 +650,7 @@ void LinearTetrahedra::reserve(const int N) {
 }
 
 void LinearTetrahedra::precompute() {
+    require(mesh && elems, "NULL pointers can't be used!");
     const int n_elems = elems->size();
     const int n_nodes = this->nodes->size();
 
@@ -817,19 +822,20 @@ double LinearTetrahedra::determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 
  * ================================================================== */
 
 QuadraticTetrahedra::QuadraticTetrahedra() :
-        InterpolatorCells<10>(), elems(NULL), lintets(NULL) {}
+        InterpolatorCells<10>(), elems(NULL), lintet(NULL) {}
 
 QuadraticTetrahedra::QuadraticTetrahedra(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) :
-    InterpolatorCells<10>(m, n), elems(&m->elems), lintets(l) {}
+    InterpolatorCells<10>(m, n), elems(&m->elems), lintet(l) {}
 
 void QuadraticTetrahedra::reserve(const int N) {
     InterpolatorCells<10>::reserve(N);
 }
 
 void QuadraticTetrahedra::precompute() {
+    require(mesh && elems && lintet, "NULL pointers can't be used!");
+
     const int n_elems = elems->size();
-    expect(n_elems > 0, "Interpolator expects non-empty mesh!");
-    require(n_elems == lintets->size(), "QuadraticTetrahedra requires LinearTetrahedra to be pre-computed!");
+    require(n_elems == lintet->size(), "QuadraticTetrahedra requires LinearTetrahedra to be pre-computed!");
 
     reserve(n_elems);
 
@@ -848,12 +854,12 @@ void QuadraticTetrahedra::precompute() {
 }
 
 bool QuadraticTetrahedra::point_in_cell(const Vec3& point, const int face) const {
-    return lintets->point_in_cell(point, face);
+    return lintet->point_in_cell(point, face);
 }
 
 void QuadraticTetrahedra::get_shape_functions(array<double,10>& sf, const Vec3& point, const int tet) const {
     array<double,4> bcc;
-    lintets->get_shape_functions(bcc, point, tet);
+    lintet->get_shape_functions(bcc, point, tet);
 
     const double b1 = bcc[0];
     const double b2 = bcc[1];
@@ -925,11 +931,14 @@ void LinearHexahedra::reserve(const int N) {
 }
 
 void LinearHexahedra::precompute() {
+    require(mesh && hexs && lintet, "NULL pointers can't be used!");
     require(mesh->elems.size() == lintet->size(), "LinearHexahedra requires LinearTetrahedra to be pre-computed!");
 
     const int n_elems = hexs->size();
     expect(n_elems > 0, "Interpolator expects non-empty mesh!");
     reserve(n_elems);
+
+    decay_factor = -1.0 / mesh->elems.stat.edgemax;
 
     // Loop through all the hexahedra
     for (int i = 0; i < n_elems; ++i) {
@@ -960,7 +969,7 @@ void LinearHexahedra::precompute() {
 
     // make the markers to correspond to lintet
     for (int i = 0; i < n_elems; ++i)
-        markers[i] = lintet->get_marker(int(i/4));
+        markers[i] = lintet->get_marker(hexs->to_tet(i));
 
     // store the mapping between femocs and deal.ii hexahedra
     int deal_hex_index = 0;
@@ -1088,6 +1097,125 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
     // point inside a hex connected to 4th tetrahedral node ?
     if (b1b4 <= 1 && b2b4 <= 1 && b3b4 <= 1)
         return sign * (n_hexs_per_tet * tet_index + 3);
+
+    return -1;
+}
+
+/* ==================================================================
+ *  ====================== LinearQuadrangles =======================
+ * ================================================================== */
+
+LinearQuadrangles::LinearQuadrangles() :
+        InterpolatorCells<4>(), quads(NULL), lintri(NULL) {}
+
+LinearQuadrangles::LinearQuadrangles(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTriangles* l) :
+        InterpolatorCells<4>(m, n), quads(&m->quads), lintri(l) {}
+
+void LinearQuadrangles::reserve(const int N) {
+    require(N >= 0, "Invalid number of points: " + to_string(N));
+
+    markers = vector<int>(N);
+    cells.clear(); cells.reserve(N);
+}
+
+void LinearQuadrangles::precompute() {
+    require(mesh && quads && lintri, "NULL pointers can't be used!");
+    require(mesh->faces.size() == lintri->size(), "LinearQuadrangles requires LinearTriangles to be pre-computed!");
+
+    const int n_elems = quads->size();
+    expect(n_elems > 0, "Interpolator expects non-empty mesh!");
+    reserve(n_elems);
+
+    // Loop through all the hexahedra
+    for (int i = 0; i < n_elems; ++i) {
+        SimpleQuad cell = (*quads)[i];
+
+        // store hexahedra
+        cells.push_back(cell);
+    }
+
+    // make the markers to correspond to lintri
+    for (int i = 0; i < n_elems; ++i)
+        markers[i] = lintri->get_marker(quads->to_tri(i));
+}
+
+/*
+ * The code for mapping the point from Cartesian to natural coordinate space was taken from
+ * https://www.gamedev.net/forums/topic/596392-uv-coordinate-on-a-2d-quadrilateral/
+ */
+void LinearQuadrangles::get_shape_functions(array<double,4>& sf, const Vec3& p, const int quad) const {
+    require(quad >= 0 && quad < cells.size(), "Index out of bounds: " + to_string(quad));
+
+    // Before calculating the shape function,
+    // map the point from Cartesian xyz-coordinates to natural uv-coordinates.
+    // In natural coordinate system, each coordinate is within limits [-1, 1].
+
+    SimpleQuad squad = cells[quad];
+    Vec3 a = mesh->nodes.get_vec(squad[0]);
+    Vec3 b = mesh->nodes.get_vec(squad[1]);
+    Vec3 c = mesh->nodes.get_vec(squad[2]);
+    Vec3 d = mesh->nodes.get_vec(squad[3]);
+
+    double C = (a.y - p.y) * (d.x - p.x) - (a.x - p.x) * (d.y - p.y);
+    double B = (a.y - p.y) * (c.x - d.x) + (b.y - a.y) * (d.x - p.x) - (a.x - p.x) * (c.y - d.y) - (b.x - a.x) * (d.y - p.y);
+    double A = (b.y - a.y) * (c.x - d.x) - (b.x - a.x) * (c.y - d.y);
+    double D = B * B - 4 * A * C;
+
+    double u = (-B - sqrt(D)) / (2 * A);
+    double p1x = a.x + (b.x - a.x) * u;
+    double p2x = d.x + (c.x - d.x) * u;
+    double v = (p.x - p1x) / (p2x - p1x);
+
+    // use natural coordinates to calculate shape functions
+//    sf = {
+//            (1 - u) * (1 - v) / 4.0,
+//            (1 + u) * (1 - v) / 4.0,
+//            (1 + u) * (1 + v) / 4.0,
+//            (1 - u) * (1 + v) / 4.0,
+//    };
+    sf = {
+            (1 - u) * (1 - v) / 4.0,
+            (u) * (1 - v) / 4.0,
+            (u) * (v) / 4.0,
+            (1 - u) * (v) / 4.0,
+    };
+}
+
+/*
+ * Function uses the fact that hexahedra are always uniquely tied with the nodes of tetrahedra.
+ * Therefore, knowing the barycentric coordinates inside a tetrahedron
+ * makes it possible to use them to determine, in which part of the tetrahedron and therefore
+ * also inside which hexahedron the point is located.
+ */
+int LinearQuadrangles::locate_cell(const Point3 &point, const int cell_guess) const {
+    static constexpr int n_quads_per_tri = 3;
+
+    int tri = quads->to_tri(abs(cell_guess));
+    tri = lintri->locate_cell(point, tri);
+    int sign = 1;
+    if (tri < 0) sign = -1;
+    tri = abs(tri);
+
+    // calculate barycentric coordinates for a point
+    array<double,3> bcc;
+    lintri->get_shape_functions(bcc, point, tri);
+
+    // all the ratios below are == 1, if the point is exactly on the boundary of two quadrangles
+    // and 0 or inf, if point is on the edge of a triangle.
+    // if ratio is > 1, the point is closer to 1st corresponding node, if < 1, it's closer to 2nd node
+    const double b1b2 = bcc[0] / bcc[1];
+    const double b1b3 = bcc[0] / bcc[2];
+    const double b2b3 = bcc[1] / bcc[2];
+
+    // point inside a quad connected to 1st triangular node ?
+    if (b1b2 >= 1 && b1b3 >= 1)
+        return sign * (n_quads_per_tri * tri + 0);
+    // point inside a quad connected to 2nd triangular node ?
+    if (b1b2 <= 1 && b2b3 >= 1)
+        return sign * (n_quads_per_tri * tri + 1);
+    // point inside a quad connected to 3rd triangular node ?
+    if (b1b3 <= 1 && b2b3 <= 1)
+        return sign * (n_quads_per_tri * tri + 2);
 
     return -1;
 }

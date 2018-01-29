@@ -22,9 +22,10 @@ Interpolator::Interpolator(const TetgenMesh* m, const string& nl, const string& 
 
     nodes.set_dependencies(m, nl, sl);
     lintris.set_dependencies(mesh, &nodes);
-    quadtris.set_dependencies(mesh, &nodes, &lintris);
     lintets.set_dependencies(mesh, &nodes);
+    quadtris.set_dependencies(mesh, &nodes, &lintris);
     quadtets.set_dependencies(mesh, &nodes, &lintets);
+    linquads.set_dependencies(mesh, &nodes, &lintris);
     linhexs.set_dependencies(mesh, &nodes, &lintets);
 }
 
@@ -127,6 +128,7 @@ void Interpolator::initialize() {
     quadtris.precompute();
     lintets.precompute();
     quadtets.precompute();
+    linquads.precompute();
     linhexs.precompute();
 
     // initially store zero solution
@@ -142,6 +144,7 @@ void Interpolator::initialize(double value) {
     quadtris.precompute();
     lintets.precompute();
     quadtets.precompute();
+    linquads.precompute();
     linhexs.precompute();
 
     const int n_atoms = nodes.size();

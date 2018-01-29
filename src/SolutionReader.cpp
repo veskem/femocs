@@ -43,7 +43,9 @@ void SolutionReader::calc_interpolation() {
     const bool b2 = dim == 3 && rank == 1 && interpolator->lintets.size() == 0;
     const bool b3 = dim == 2 && rank == 2 && interpolator->quadtris.size() == 0;
     const bool b4 = dim == 3 && rank == 2 && interpolator->quadtets.size() == 0;
-    if (b1 || b2 || b3 || b4) {
+    const bool b5 = dim == 2 && rank == 3 && interpolator->linquads.size() == 0;
+    const bool b6 = dim == 3 && rank == 3 && interpolator->linhexs.size() == 0;
+    if (b1 || b2 || b3 || b4 || b5 || b6) {
         interpolation = vector<Solution>(n_atoms, Solution(empty_val));
         return;
     }
@@ -69,9 +71,12 @@ void SolutionReader::calc_interpolation() {
         } else if (dim == 3 && rank == 2) {
             cell = interpolator->quadtets.locate_cell(point, abs(cell));
             append_interpolation(interpolator->quadtets.interp_solution(point, cell));
+        } else if (dim == 2 && rank == 3) {
+            cell = interpolator->linquads.locate_cell(point, abs(cell));
+            append_interpolation(interpolator->linquads.interp_solution(point, cell));
         } else if (dim == 3 && rank == 3) {
             cell = interpolator->linhexs.locate_cell(point, abs(cell));
-            append_interpolation(Solution(0));
+            append_interpolation(interpolator->linhexs.interp_solution(point, cell));
         }
 
         set_marker(i, cell);
@@ -103,14 +108,16 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
             // calculate the interpolation
             if (dim == 2 && rank == 1)
                 append_interpolation(interpolator->lintris.interp_solution(get_point(i), cell));
-            else if (dim == 2 && rank == 2)
-                append_interpolation(interpolator->quadtris.interp_solution(get_point(i), cell));
             else if (dim == 3 && rank == 1)
                 append_interpolation(interpolator->lintets.interp_solution(get_point(i), cell));
+            else if (dim == 2 && rank == 2)
+                append_interpolation(interpolator->quadtris.interp_solution(get_point(i), cell));
             else if (dim == 3 && rank == 2)
                 append_interpolation(interpolator->quadtets.interp_solution(get_point(i), cell));
+            else if (dim == 2 && rank == 3)
+                append_interpolation(interpolator->linquads.interp_solution(get_point(i), cell));
             else if (dim == 3 && rank == 3)
-                append_interpolation(Solution(0));
+                append_interpolation(interpolator->linhexs.interp_solution(get_point(i), cell));
         }
 
     // ...nop, do it and interpolate
