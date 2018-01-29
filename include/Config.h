@@ -145,6 +145,7 @@ public:
         double dt_max;      ///< Maximum PIC timestep; actual timestep will be smaller such that it is an integer fraction of the MD timestep [fs]
         double total_time;  ///< Total time that PIC should evolve in a femocs run (overriden by MD timestep when femocs runs in MD mode) [fs]
         double Wsp_el;      ///< Superparticle weight for electrons
+        bool fractional_push; // Do fractional timestep push when injecting electrons?
     } pic;
     
 private:

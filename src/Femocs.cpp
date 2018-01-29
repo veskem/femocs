@@ -321,7 +321,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         end_msg(t0);
 
         start_msg(t0, "=== Injecting electrons...");
-        pic_solver.inject_electrons();
+        pic_solver.inject_electrons(conf.pic.fractional_push);
         end_msg(t0);
 
 

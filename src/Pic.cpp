@@ -30,15 +30,24 @@ int Pic<dim>::inject_electrons(const double* const r, const size_t n) {
 }
 
 template<int dim>
-int Pic<dim>::inject_electrons() {
+int Pic<dim>::inject_electrons(const bool fractional_push) {
     vector<dealii::Point<dim>> positions, fields;
     vector<int> cells;
     er.inject_electrons(dt, Wsp, positions, fields, cells);
 
+    dealii::Point<dim> velocity0(0,0,0);
+    
     for (int i = 0; i < fields.size(); ++i){
+      // Random fractional timestep push -- from a random point [t_(k-1),t_k] to t_k, using field at t_k.
+        if (fractional_push) {
+	    velocity0 = -fields[i] * q_over_m_factor * dt * (double)std::rand()/ RAND_MAX;
+	    positions[i] += velocity0 * dt * ( (double)std::rand()/ RAND_MAX );
+	}
+	
+        // Save to particle arrays, including 1/2 timestep push to match up velocity.
         r_el.push_back(positions[i]);
         F_el.push_back(-fields[i]);
-        v_el.push_back(F_el.back() * q_over_m_factor * dt * .5);
+        v_el.push_back(velocity0 + F_el.back() * q_over_m_factor * dt * .5);
         cid_el.push_back(cells[i]);
     }
     return 0;

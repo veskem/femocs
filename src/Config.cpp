@@ -78,8 +78,10 @@ Config::Config() {
 
     pic.doPIC = false;
     pic.dt_max = 1.0;
-    pic.Wsp_el =  .01;
     pic.total_time = 30;
+    pic.Wsp_el =  .01;
+    pic.fractional_push = true;
+    
 }
 
 // Remove the noise from the beginning of the string
@@ -161,7 +163,8 @@ void Config::read_all(const string& file_name) {
     read_command("doPIC", pic.doPIC);
     read_command("PIC_dtmax", pic.dt_max);
     read_command("PIC_time", pic.total_time);
-    read_command("elentronWsp", pic.total_time);
+    read_command("elentronWsp", pic.Wsp_el);
+    read_command("PIC_fractional_push", pic.fractional_push);
 
     
     // Read commands with potentially multiple arguments like...

@@ -39,7 +39,7 @@ public:
     /**
      * Inject electrons according to the field emission surface distribution
      */
-    int inject_electrons();
+    int inject_electrons(const bool fractional_push);
 
     /**
      * Run an particle and field update cycle
