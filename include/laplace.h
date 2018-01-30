@@ -32,6 +32,7 @@
 #include "currents_and_heating.h" // for friend class declaration
 #include "currents_and_heating_stationary.h" // for friend class declaration
 #include "mesh_preparer.h"
+#include "ParticleSpecies.h"
 
 namespace fch {
 
@@ -154,7 +155,7 @@ public:
     /** @brief Assemble the RHS of the matrix equation
      * Add to the right-hand-side vector for point charges, as used in PIC.
      */
-    void assemble_system_pointcharge(std::vector<Point<dim>> &points, double charge, std::vector<int> &cellids);
+    void assemble_system_pointcharge(femocs::ParticleSpecies &parts);
 
     /** @brief Give value potential to all DOFs with BoundaryId bid
      */
