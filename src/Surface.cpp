@@ -221,7 +221,7 @@ Surface Surface::clean(Coarseners &coarseners) {
 // Clean atoms inside the region of interest
 Surface Surface::clean_roi(Coarseners &coarseners) {
     const int n_atoms = size();
-    vector<bool> do_delete(n_atoms, false);
+    vector<int> do_delete(n_atoms, 0);
 
     // mark atoms outside the nanotip
     for (int i = 0; i < n_atoms; ++i)
