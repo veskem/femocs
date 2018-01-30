@@ -1130,13 +1130,15 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
                 p_el += mesh.nodes[sface[j]] * (.5   * rands[j]);
             }
 
+            Vec3 vec_push = mesh.faces.get_norm(tri) * 0.01;
+
             // push electrons little bit inside the vacuum mesh
-            p_el += Point3(mesh.faces.get_norm(tri) * 0.01);
+            p_el += Point3(vec_push.x, vec_push.y, vec_push.z);
 
             int cell_index = 0;//TODO be updated correctly
 
             pos.push_back(p_el);
-            efield.push_back(Point3(Field));
+            efield.push_back(Point3(Field.x, Field.y, Field.z));
             cells.push_back(cell_index);
         }
 

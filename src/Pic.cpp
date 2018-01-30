@@ -137,10 +137,11 @@ void Pic<dim>::update_fields_and_velocities(){
     for (auto particle : electrons.parts) {
         dealii::Point<dim> p(particle.pos.x, particle.pos.y, particle.pos.z);
         dealii::Tensor<1,dim> Efield = laplace_solver.probe_efield(p, particle.cell) ;
-        Point3 Field(dealii::Point<dim>(Efield));
+        dealii::Point<dim> F(Efield);
+        Point3 Field(F);
 
         //update velocities (corresponds to t + .5dt)
-        particle.vel += Field * (dt) * electrons.q_over_m_factor ;
+        particle.vel += Field * (dt * electrons.q_over_m_factor) ;
 
     }
 }
@@ -148,7 +149,7 @@ void Pic<dim>::update_fields_and_velocities(){
 template<int dim>
 void Pic<dim>::run_cycle() {
     update_positions();
-    clear_lost_particles();
+    electrons.clear_lost();
     compute_field();
     update_fields_and_velocities();
 }
