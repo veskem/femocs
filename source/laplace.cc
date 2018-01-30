@@ -175,11 +175,7 @@ Tensor<1, dim, double> Laplace<dim>::probe_efield(const Point<dim> &p, const int
     static double tconstruct = 0, tcalc = 0, t0;
 
     //get active cell iterator from cell index
-    t0 = std::clock();
     typename DoFHandler<dim>::active_cell_iterator cell(&triangulation, 0, max(0,cell_index), &dof_handler);
-    tconstruct += std::clock() - t0;
-
-    t0 = std::clock();
 
     // transform the point from real to unit cell coordinates
     Point<dim> p_cell;
@@ -200,10 +196,6 @@ Tensor<1, dim, double> Laplace<dim>::probe_efield(const Point<dim> &p, const int
     u_gradient(1, std::vector<Tensor<1, dim, double> > (fe.n_components()));
     fe_values.get_function_gradients(solution, u_gradient);
 
-    tcalc += std::clock() -t0;
-
-    std::printf("construct = %e, calc = %e\n", tconstruct, tcalc);
-
     return -u_gradient[0][0];
 }
 
@@ -218,12 +210,7 @@ std::vector<double> Laplace<dim>::shape_funs(const Point<dim> &p, const int cell
                                                Mapping<dim,dim>& mapping) const {
 
     //get active cell iterator from cell index
-    double t;
-    t = std::clock();
     typename DoFHandler<dim>::active_cell_iterator cell(&triangulation, 0, max(0,cell_index), &dof_handler);
-    cout << "create active cell iterator: " << std::clock() - t << endl;
-
-    t = std::clock();
     //point in transformed unit cell coordinates
     Point<dim> p_cell;
 
@@ -235,40 +222,21 @@ std::vector<double> Laplace<dim>::shape_funs(const Point<dim> &p, const int cell
     }else // cell index is known
         p_cell = mapping.transform_real_to_unit_cell(cell, p);
 
-    cout << "transform real to unit cell: " << std::clock() - t << endl;
-
-
-    t = std::clock();
-
     Point<dim> p_unit_cell = GeometryInfo<dim>::project_to_unit_cell(p_cell);
-    cout << "projecting: " << std::clock() - t << endl;
-    //create virtual quadrature point
 
-    t = std::clock();
+    //create virtual quadrature point
     const Quadrature<dim> quadrature(p_unit_cell);
 
-    cout << "quadrature: " << std::clock() - t << endl;
-
-    t = std::clock();
     //define fevalues object
     FEValues<dim> fe_values(mapping, fe, quadrature, update_values);
-    cout << "constructing fe values: " << std::clock() - t << endl;
 
-    t = std::clock();
     fe_values.reinit(cell);
 
-    cout << "reinit fevalues: " << std::clock() - t << endl;
-
-
     std::vector<double> sfuns(fe.dofs_per_cell);
-
-    t = std::clock();
 
     for (int i = 0; i < sfuns.size(); i++){
         sfuns[i] = fe_values.shape_value(i,0);
     }
-
-    cout << "transfering sfuns: " << std::clock() - t << endl;
 
     return sfuns;
 }
