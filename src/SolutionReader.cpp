@@ -1079,8 +1079,8 @@ void EmissionReader::calc_representative() {
     Frep = multiplier * FJ / I_fwhm;
 }
 
-void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<dealii::Point<3>> &pos,
-        vector<dealii::Point<3>> &efield, vector<int> &cells){
+void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
+        vector<Point3> &efield, vector<int> &cells){
 
     const double Amp = 6.2415e3; //[e/fs]
     int n_tot = 0;
@@ -1118,7 +1118,7 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<dealii:
             }
             SimpleQuad sface = mesh.quads[quad];
 
-            Vec3 p_el(0.,0.,0.);
+            Point3 p_el(0.,0.,0.);
             double rand1 = (double)std::rand()/ RAND_MAX;
             double rand2= (double)std::rand()/ RAND_MAX;
             vector<double> rands(4);
@@ -1131,14 +1131,12 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<dealii:
             }
 
             // push electrons little bit inside the vacuum mesh
-            p_el += mesh.faces.get_norm(tri) * 0.01;
-            dealii::Point<3> p_deal(p_el.x, p_el.y, p_el.z);
-            dealii::Point<3> e_deal(Field.x, Field.y, Field.z);
+            p_el += Point3(mesh.faces.get_norm(tri) * 0.01);
 
             int cell_index = 0;//TODO be updated correctly
 
-            pos.push_back(p_deal);
-            efield.push_back(e_deal);
+            pos.push_back(p_el);
+            efield.push_back(Point3(Field));
             cells.push_back(cell_index);
         }
 

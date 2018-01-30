@@ -229,8 +229,8 @@ public:
     /**
      * Injects electron SPs at the surface faces, depending on the current and the timestep
      */
-    void inject_electrons(double delta_t, double Wsp, vector<dealii::Point<3>> &pos,
-            vector<dealii::Point<3>> &efield, vector<int> &cell);
+    void inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
+            vector<Point3> &efield, vector<int> &cells);
 
     /**
      * Initialises class data.

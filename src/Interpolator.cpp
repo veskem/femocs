@@ -137,8 +137,7 @@ void Interpolator::initialize() {
 
 //find the hex cell where the piont p is located. initial guess: current_cell
 // if deal_index then current_cell is dealii cell index
-int Interpolator::update_point_cell(dealii::Point<3> &p, int current_cell, bool deal_index) {
-    Point3 femocs_point(p);
+int Interpolator::update_point_cell(Point3 femocs_point, int current_cell, bool deal_index) {
     int femocs_current_cell;
 
     if (deal_index)
