@@ -71,9 +71,10 @@ public:
         string element_volume;      ///< Maximum volume of tetrahedra
         int nnn;                    ///< Number of nearest neighbours for given crystal structure
         double latconst;            ///< Lattice constant
-        double coordination_cutoff; ///< Cut-off distance for coordination analysis
-        double cluster_cutoff;      ///< Cut-off distance for cluster analysis; if 0, cluster analysis uses coordination_cutoff instead
-        double surface_thickness;   ///< Maximum distance the surface atom is allowed to be from surface mesh [angstrom]; 0 turns check off
+        double coordination_cutoff; ///< Cut-off distance for coordination analysis [same unit as latconst]
+        double cluster_cutoff;      ///< Cut-off distance for cluster analysis [same unit as latconst]; if 0, cluster analysis uses coordination_cutoff instead
+        double charge_cutoff;       ///< Cut-off distance for calculating Coulomb forces [same unit as latconst]
+        double surface_thickness;   ///< Maximum distance the surface atom is allowed to be from surface mesh [same unit as latconst]; 0 turns check off
         double box_width;           ///< Minimal simulation box width [tip height]
         double box_height;          ///< Simulation box height [tip height]
         double bulk_height;         ///< Bulk substrate height [lattice constant]

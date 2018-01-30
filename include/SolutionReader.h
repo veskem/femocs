@@ -310,8 +310,13 @@ public:
 
     void calc_forces(const FieldReader &fields, const SurfaceInterpolator& ti);
 
-    int calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom2surf, const FieldReader& fields,
+    /** Build Voronoi cells around the atoms in the region of interest
+     * and calculate atomistic charges and Lorentz forces */
+    int calc_charge_and_lorentz(VoronoiMesh& mesh, const vector<int>& atom2surf, const FieldReader& fields,
              const double radius, const double latconst, const string& mesh_quality);
+
+    /** Using the previously found charges, calculate Coulomb forces between atoms */
+    void calc_coulomb(const double r_cut);
 
     /** Export the induced charge and force on imported atoms
      * @param n_atoms  number of first atoms field is calculated
@@ -329,8 +334,21 @@ public:
     double get_charge(const int i) const;
 
 private:
-    const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
-    const double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
+    static constexpr double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
+    static constexpr double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
+    static constexpr double couloumb_constant = 14.399645; ///< force factor in Couloumb's law [V*A/e], == 1 / (4*pi*eps0)
+
+    vector<array<int,3>> nborbox_indices; ///< neighbour box indices where the point belongs to
+    array<int,3> nborbox_size;            ///< # neighbour boxes in x,y,z direction
+    vector<int> list;  ///< linked list entries
+    vector<int> head;  ///< linked list header
+
+    /** Calculate linked list between atoms that holds the information about
+     * the region  of simulation cell where the atoms are located.
+     * Linked list can be used to calculate efficiently the neighbouring status of atoms. See
+     * http://www.acclab.helsinki.fi/~knordlun/moldyn/lecture03.pdf
+     */
+    void calc_linked_list(const double r_cut, const bool lat_periodic);
 
     /** Remove cells with too big faces*/
     void clean_voro_faces(VoronoiMesh& mesh);

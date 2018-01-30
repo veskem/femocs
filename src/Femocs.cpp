@@ -762,11 +762,15 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
                 conf.smoothing.beta_charge);
         end_msg(t0);
 
-        start_msg(t0, "=== Calculating Voronoi charges & forces...");
+        start_msg(t0, "=== Calculating Voronoi charges & Lorentz forces...");
         VoronoiMesh voro_mesh;
         int err_code;
-        err_code = forces.calc_voronoi_charges(voro_mesh, atom2face, fields, conf.geometry.radius, conf.geometry.latconst, "10.0");
+        err_code = forces.calc_charge_and_lorentz(voro_mesh, atom2face, fields, conf.geometry.radius, conf.geometry.latconst, "10.0");
         check_return(err_code, "Generation of Voronoi cells failed with error code " + to_string(err_code));
+        end_msg(t0);
+
+        start_msg(t0, "=== Calculating Coulomb forces...");
+        forces.calc_coulomb(conf.geometry.charge_cutoff);
         end_msg(t0);
 
         voro_mesh.nodes.write("out/voro_nodes.vtk");

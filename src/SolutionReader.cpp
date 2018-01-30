@@ -1128,7 +1128,7 @@ int ForceReader::calc_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip,
     return 0;
 }
 
-int ForceReader::calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom2face, const FieldReader& fields,
+int ForceReader::calc_charge_and_lorentz(VoronoiMesh& mesh, const vector<int>& atom2face, const FieldReader& fields,
          const double radius, const double latconst, const string& mesh_quality)
 {
     // Extract nanotip and generate Voronoi cells around it
@@ -1194,6 +1194,110 @@ void ForceReader::calc_forces(const FieldReader &fields, const SurfaceInterpolat
     for (int i = 0; i < n_atoms; ++i) {
         Vec3 force = fields.get_elfield(i) * (charges[i] * force_factor);   // [e*V/A]
         interpolation.push_back(Solution(force, charges[i]));
+    }
+}
+
+void ForceReader::calc_coulomb(const double r_cut) {
+    const double r_cut2 = r_cut * r_cut;
+    const int n_atoms = size();
+
+    calc_linked_list(r_cut, false);
+    require(list.size() == n_atoms, "Invalid linked list size: " + to_string(list.size()));
+    require(head.size() == nborbox_size[0]*nborbox_size[1]*nborbox_size[2],
+            "Invalid linked list header size: " + to_string(head.size()));
+
+    // loop through the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+
+        array<int,3> i_atom = nborbox_indices[i];
+        Point3 point1 = atoms[i].point;
+
+        // loop through the boxes where the neighbours are located; there are up to 3^3=27 boxes
+        for (int iz = i_atom[2]-1; iz <= i_atom[2]+1; ++iz) {
+            // some of the iterations are be skipped if the box is on the simu box boundary
+            if (iz < 0 || iz >= nborbox_size[2]) continue;
+            for (int iy = i_atom[1]-1; iy <= i_atom[1]+1; ++iy) {
+                if (iy < 0 || iy >= nborbox_size[1]) continue;
+                for (int ix = i_atom[0]-1; ix <= i_atom[0]+1; ++ix) {
+                    if (ix < 0 || ix >= nborbox_size[0]) continue;
+
+                    // transform volumetric neighbour box index to linear one
+                    int i_cell = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
+                    require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + to_string(i_cell));
+
+                    // get the index of first atom in given neighbouring cell
+                    int j = head[i_cell];
+
+                    // loop through all atoms in a given neighbouring cell
+                    while(j >= 0) {
+                        // skip the same atoms
+                        if (i != j) {
+                            // TODO double check the sign of the force
+                            Vec3 displacement = Vec3(point1 - get_point(j));
+                            const double r_squared = displacement.norm2();
+                            if (r_squared <= r_cut2) {
+                                double force_norm = couloumb_constant * get_charge(i) * get_charge(j) / r_squared;
+                                Vec3 force = displacement * (force_norm / sqrt(r_squared));
+                                interpolation[i].vector += force;
+                            }
+                        }
+                        j = list[j];
+                    }
+                }
+            }
+        }
+        interpolation[i].norm = interpolation[i].vector.norm();
+    }
+}
+
+void ForceReader::calc_linked_list(const double r_cut, const bool lat_periodic) {
+    const int n_atoms = size();
+
+    Point3 simubox_size(sizes.xbox, sizes.ybox, sizes.zbox);
+    for (int j = 0; j < 3; ++j)
+        nborbox_size[j] = ceil(1e-15 + 1.0 * simubox_size[j] / r_cut);
+
+    head = vector<int>(nborbox_size[0]*nborbox_size[1]*nborbox_size[2], -1);
+    list = vector<int>(n_atoms, -1);
+    nborbox_indices.clear();
+    nborbox_indices.reserve(n_atoms);
+
+    // calculate linked list for the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 dx = atoms[i].point + simubox_size / 2;
+
+        // Check that we are inside lateral boundaries
+        if (lat_periodic) {
+            if (dx.x < 0) dx.x += simubox_size.x;
+            if (dx.x > simubox_size.x) dx.x -= simubox_size.x;
+            if (dx.y < 0) dx.y += simubox_size.y;
+            if (dx.y > simubox_size.y) dx.y -= simubox_size.y;
+            if (dx.z < 0) dx.z += simubox_size.z;
+            if (dx.z > simubox_size.z) dx.z -= simubox_size.z;
+        }
+
+        array<int,3> point_index;
+        for (int j = 0; j < 3; ++j)
+            point_index[j] = int( (dx[j] / simubox_size[j]) * nborbox_size[j] );
+
+        // If not periodic, let border cells continue to infinity
+        if (!lat_periodic)
+            for (int j = 0; j < 3; ++j) {
+                point_index[j] = max(0, point_index[j]);
+                point_index[j] = min(nborbox_size[j]-1, point_index[j]);
+            }
+
+        int i_cell = (point_index[2] * nborbox_size[1] + point_index[1]) * nborbox_size[0] + point_index[0];
+        for (int j = 0; j < 3; ++j) {
+            require(point_index[j] >= 0 && point_index[j] < nborbox_size[j],
+                    "Invalid " + to_string(j) + "th point nbor index: " + to_string(point_index[j]));
+        }
+        require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + to_string(i_cell));
+
+        nborbox_indices.push_back(point_index);
+        list[i] = head[i_cell];
+        head[i_cell] = i;
+        set_marker(i, i_cell);
     }
 }
 
