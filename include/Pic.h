@@ -17,7 +17,10 @@
 #include "TetgenCells.h"
 #include "Primitives.h"
 #include "ParticleSpecies.h"
+#include "PicCollisions.h"
+
 #include <deal.II/base/point.h>
+
 #include <algorithm>
 
 namespace femocs {
