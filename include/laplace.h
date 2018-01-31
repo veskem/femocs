@@ -175,7 +175,7 @@ public:
      * @param ssor_param   parameter to SSOR preconditioner. 1.2 is known to work well with laplace.
      *                     its fine tuning optimises calculation time
      */
-    void solve(int max_iter = 2000, double tol = 1e-9, bool pc_ssor = true,
+    int solve(int max_iter = 2000, double tol = 1e-9, bool pc_ssor = true,
             double ssor_param = 1.2);
 
     /** Outputs the results (electric potential and field) to a specified file in vtk format */
@@ -209,6 +209,7 @@ private:
 
     SparsityPattern sparsity_pattern;     ///< structure for sparse matrix representation
     SparseMatrix<double> system_matrix;   ///< system matrix of matrix equation
+    SparseMatrix<double> system_matrix_BC;   ///< system matrix of matrix equation
 
     Vector<double> solution;              ///< resulting electric potential in the mesh nodes
     Vector<double> system_rhs;            ///< right-hand-side of the matrix equation

@@ -417,7 +417,7 @@ void Laplace<dim>::assemble_system_dirichlet(BoundaryId bid, double potential) {
 }
 
 template<int dim>
-void Laplace<dim>::solve(int max_iter, double tol, bool pc_ssor, double ssor_param) {
+int Laplace<dim>::solve(int max_iter, double tol, bool pc_ssor, double ssor_param) {
 
     SolverControl solver_control(max_iter, tol);
     SolverCG<> solver(solver_control);
@@ -429,6 +429,7 @@ void Laplace<dim>::solve(int max_iter, double tol, bool pc_ssor, double ssor_par
     } else {
         solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
     }
+    return solver_control.last_step();
 }
 
 template<int dim>
