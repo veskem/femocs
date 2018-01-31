@@ -1075,74 +1075,55 @@ void EmissionReader::calc_representative() {
 }
 
 void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
-        vector<Point3> &efield, vector<int> &cells){
+        vector<Point3> &efield, vector<int> &cells) {
 
     const double Amp = 6.2415e3; //[e/fs]
     int n_tot = 0;
-    Vec3 Field;
+    Vec3 field;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
-
         double current = currents[i] * Amp; // in e/fs
-
         double charge = current * delta_t; //in e
-
         double n_sps = charge / Wsp;
 
         int intpart = (int) floor(n_sps);
         double frpart = n_sps - intpart;
         int n_electrons_sp = intpart;
 
-        if ((double)std::rand()/ RAND_MAX < frpart)
+        if ((double) rand() / RAND_MAX < frpart)
             n_electrons_sp++;
 
         if (n_electrons_sp)
-            Field = fields.get_elfield(i);
+            field = fields.get_elfield(i);
 
         //TODO : fix rng, fix probability distribution with face jacobian, fix dim generality
 
         for (int j = 0; j < n_electrons_sp; j++){
-
-//            int tri = abs(fields.get_marker(i));
-//            Point3 centoid = fields.get_point(i);
-//            int quad;
-//            for (int k = 0; k < 3; k++){
-//                quad = 3 * tri + k;
-//                double dist = centoid.distance2(mesh.quads.get_centroid(quad));
-//                if (dist < 1.e-10) break;
-//            }
-
             int quad = abs(fields.get_marker(i));
             int tri = mesh.quads.to_tri(quad);
             SimpleQuad sface = mesh.quads[quad];
 
-            Point3 p_el(0.,0.,0.);
-            double rand1 = (double)std::rand()/ RAND_MAX;
-            double rand2= (double)std::rand()/ RAND_MAX;
-            vector<double> rands(4);
-            rands[0] = rand1;
-            rands[1] = 1-rand1;
-            rands[2] = rand2;
-            rands[3] = 1-rand2;
-            for (int j = 0; j < 4; j++){
-                p_el += mesh.nodes[sface[j]] * (.5   * rands[j]);
-            }
+            Point3 electron_position(0.0);
+            double rand1 = (double) rand() / RAND_MAX;
+            double rand2= (double) rand() / RAND_MAX;
+            vector<double> rands = {rand1, 1-rand1, rand2, 1-rand2};
 
-            Vec3 vec_push = mesh.faces.get_norm(tri) * 0.01;
+            // generate a point at random location inside the quadrangle
+            for (int j = 0; j < 4; j++)
+                electron_position += mesh.nodes[sface[j]] * (0.5 * rands[j]);
 
-            // push electrons little bit inside the vacuum mesh
-            p_el += Point3(vec_push.x, vec_push.y, vec_push.z);
+            // push point little bit inside the vacuum mesh
+            electron_position += mesh.faces.get_norm(tri) * (mesh.faces.stat.edgemin * 0.01);
 
-            int cell_index = 0;//TODO be updated correctly
-
-            pos.push_back(p_el);
-            efield.push_back(Point3(Field.x, Field.y, Field.z));
-            cells.push_back(cell_index);
+            pos.push_back(electron_position);
+            efield.push_back( Point3(field) );
+            cells.push_back( mesh.quad2hex(quad, TYPES.VACUUM) );
         }
 
         n_tot += n_electrons_sp;
     }
-    printf("emitted SPs = %d\n", n_tot);
+
+    write_verbose_msg("emitted SPs = " + to_string(n_tot));
 }
 
 void EmissionReader::calc_emission(double workfunction, bool blunt){

@@ -258,9 +258,9 @@ private:
      */
     void calc_emission(double workfunction, bool blunt  = false);
 
-
-    const double angstrom_per_nm = 10.0;
-    const double nm2_per_angstrom2 = 0.01;
+    static constexpr double angstrom_per_nm = 10.0;
+    static constexpr double nm2_per_angstrom2 = 0.01;
+    static constexpr int n_lines = 32; ///< Number of points in the line for GETELEC
 
     const FieldReader& fields;    ///< Object containing the field on centroids of hex interface faces.
     const HeatReader& heat;       ///< Object containing the temperature on centroids of hexahedral faces.
@@ -270,7 +270,6 @@ private:
     vector<double> nottingham; ///< Same as current_densities for nottingham heat deposition [in W/A^2]
     vector<double> currents;    ///< Current flux for every face (current_densities * face_areas) [in Amps]
 
-    const int n_lines = 32; ///< Number of points in the line for GETELEC
     vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
     vector<double> Vline;   ///< Potential on the straight line (complements rline)
 
