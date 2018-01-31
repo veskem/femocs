@@ -476,7 +476,7 @@ void Femocs::get_emission(){
     surface_fields.write("out/surface_field.xyz");
 
     start_msg(t0, "=== Interpolating J & T on face centroids...");
-    surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank, conf.heating.t_ambient);
+    surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank);
     surface_temperatures.interpolate(ch_transient_solver);
     end_msg(t0);
     surface_temperatures.write("out/surface_temperature.xyz");
@@ -565,7 +565,7 @@ int Femocs::solve_converge_heat() {
     for (int i = 0; i < 1000; ++i){
 
         start_msg(t0, "=== Interpolating J & T on face centroids...");
-        surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank, conf.heating.t_ambient);
+        surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank);
         surface_temperatures.interpolate(ch_transient_solver);
         end_msg(t0);
         if (MODES.VERBOSE) surface_temperatures.write("out/surface_temperature.xyz");

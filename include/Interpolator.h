@@ -51,10 +51,8 @@ public:
     Interpolator(const TetgenMesh* m, const string& norm_label, const string& scalar_label);
     ~Interpolator() {};
 
-    /** Initialize interpolator and store zero solution */
-    void initialize();
-
-    void initialize(double);
+    /** Initialize interpolator and store initial solution */
+    void initialize(double empty_value=0);
 
     /** Extract the electric potential and field values from FEM solution */
     bool extract_solution(fch::Laplace<3>* fem);
@@ -77,6 +75,7 @@ public:
 
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
+    int empty_value;                ///< Solution value for nodes outside the Deal.II mesh
 
     /** Calculate the mapping between Femocs & deal.II mesh nodes,
      *  nodes & hexahedral elements and nodes & element's vertices.

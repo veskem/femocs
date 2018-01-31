@@ -23,14 +23,14 @@ namespace femocs {
 // Initialize SolutionReader
 SolutionReader::SolutionReader() :
         vec_label("vec"), vec_norm_label("vec_norm"), scalar_label("scalar"),
-        limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), empty_val(0), interpolator(NULL)
+        limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), interpolator(NULL)
 {
     reserve(0);
 }
 
 SolutionReader::SolutionReader(Interpolator* i, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
         vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab),
-        limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), empty_val(0), interpolator(i)
+        limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), interpolator(i)
 {
     reserve(0);
 }
@@ -39,17 +39,6 @@ void SolutionReader::calc_interpolation() {
     require(interpolator, "NULL interpolator cannot be used!");
 
     const int n_atoms = size();
-
-    const bool b1 = dim == 2 && rank == 1 && interpolator->lintris.size() == 0;
-    const bool b2 = dim == 3 && rank == 1 && interpolator->lintets.size() == 0;
-    const bool b3 = dim == 2 && rank == 2 && interpolator->quadtris.size() == 0;
-    const bool b4 = dim == 3 && rank == 2 && interpolator->quadtets.size() == 0;
-    const bool b5 = dim == 2 && rank == 3 && interpolator->linquads.size() == 0;
-    const bool b6 = dim == 3 && rank == 3 && interpolator->linhexs.size() == 0;
-    if (b1 || b2 || b3 || b4 || b5 || b6) {
-        interpolation = vector<Solution>(n_atoms, Solution(empty_val));
-        return;
-    }
 
     // Sort atoms into sequential order to speed up interpolation
     if (sort_atoms) sort_spatial();
@@ -1016,7 +1005,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
     Point3 pfield(direction.x, direction.y, direction.z);
 
     FieldReader fr(interpolator);
-    fr.set_preferences(false, 3, interpolation_rank, 0);
+    fr.set_preferences(false, 3, interpolation_rank);
     fr.reserve(n_lines);
 
     for (int i = 0; i < n_lines; i++){

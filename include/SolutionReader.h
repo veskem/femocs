@@ -53,13 +53,12 @@ public:
     void set_interpolation(const int i, const Solution& s);
 
     /** Set interpolation preferences */
-    void set_preferences(const bool _srt, const int _dim, const int _rank, const double _empty_val=0) {
+    void set_preferences(const bool _srt, const int _dim, const int _rank) {
         require((_dim == 2 || _dim == 3), "Invalid interpolation dimension: " + to_string(_dim));
         require((_rank == 1 || _rank == 2 || _rank == 3), "Invalid interpolation rank: " + to_string(_rank));
         sort_atoms = _srt;
         dim = _dim;
         rank = _rank;
-        empty_val = _empty_val;
     }
 
     /** Calculate statistics about coordinates and solution */
@@ -89,7 +88,6 @@ protected:
     bool sort_atoms;              ///< sort atoms along Hilbert curve to make interpolation faster
     int dim;                      ///< location of interpolation; 2-surface, 3-space
     int rank;                     ///< interpolation rank; 1-linear, 2-quadratic
-    double empty_val;             ///< empty value written to solution vector in case of empty interpolator
 
     Interpolator* interpolator;    ///< pointer to interpolator
     vector<Solution> interpolation;       ///< interpolated data
