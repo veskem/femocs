@@ -84,13 +84,15 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
 
 //Call the laplace solver with the list of positions and charge(s)
 template<int dim>
-void Pic<dim>::compute_field() {
+void Pic<dim>::compute_field(bool first_time) {
 
     //TODO : save system lhs and copy it . don't rebuild it every time
 
     double t0;
     start_msg(t0, "=== Solving the Poisson equation...");
-    laplace_solver.setup_system();
+    if (first_time)
+        laplace_solver.setup_system();
+
     laplace_solver.assemble_system_lhs();
     laplace_solver.assemble_system_pointcharge(electrons);
 
@@ -103,7 +105,7 @@ void Pic<dim>::compute_field() {
 
     laplace_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.);
     laplace_solver.assemble_system_finalize();
-    laplace_solver.solve();
+    cout << "Solving Poisson. CG iterations = " << laplace_solver.solve() << endl;
     end_msg(t0);
 }
 
@@ -147,10 +149,11 @@ void Pic<dim>::update_fields_and_velocities(){
 }
 
 template<int dim>
-void Pic<dim>::run_cycle() {
+void Pic<dim>::run_cycle(bool first_time) {
     update_positions();
+    electrons.sort_parts();
     electrons.clear_lost();
-    compute_field();
+    compute_field(first_time);
     update_fields_and_velocities();
 }
 

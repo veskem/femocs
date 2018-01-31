@@ -305,7 +305,10 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         cout << "doPIC! i=" << i << ", dt_pic=" << dt_pic << endl;
 
         start_msg(t0, "=== Updating particles and fields...");
-        pic_solver.run_cycle();
+        if (i)
+            pic_solver.run_cycle();
+        else
+            pic_solver.run_cycle(true);
         end_msg(t0);
 
         start_msg(t0, "=== Extracting E and phi...");
@@ -365,7 +368,8 @@ int Femocs::solve_laplace(const double E0) {
     write_verbose_msg(ss.str());
 
     start_msg(t0, "=== Running Laplace solver...");
-    laplace_solver.solve(conf.laplace.n_phi, conf.laplace.phi_error, true, conf.laplace.ssor_param);
+    int ncg = laplace_solver.solve(conf.laplace.n_phi, conf.laplace.phi_error, true, conf.laplace.ssor_param);
+    cout << "CG iterations = " << ncg;
     end_msg(t0);
 
     start_msg(t0, "=== Extracting E and phi...");
