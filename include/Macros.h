@@ -170,6 +170,9 @@ void write_silent_msg(const string& message);
 /** Write message to log file and if in verbose mode, also to console */
 void write_verbose_msg(const string& message);
 
+/** Periodic image of a point with respect to box xmin xmax */
+double periodic_image(double p, double max, double min);
+
 /** Append line to log-file */
 void write_log(const string& message);
 

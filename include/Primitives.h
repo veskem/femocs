@@ -124,6 +124,11 @@ public:
     /** Return data as string */
     string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
+    void periodic(Point2 pmax, Point2 pmin){
+        x = periodic_image(x, pmax.x, pmin.x);
+        y = periodic_image(y, pmax.y, pmin.y);
+    }
+
     double x, y;    ///< Cartesian coordinates
 };
 
@@ -182,6 +187,12 @@ public:
         }
 
         return dx * dx + dy * dy + dz * dz;
+    }
+
+    void periodic(Point3 pmax, Point3 pmin){
+        x = periodic_image(x, pmax.x, pmin.x);
+        y = periodic_image(y, pmax.y, pmin.y);
+        z = periodic_image(z, pmax.z, pmin.z);
     }
 
     /** Addition of two points */

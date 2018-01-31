@@ -8,6 +8,7 @@
 #include "SolutionReader.h"
 #include "Macros.h"
 #include "getelec.h"
+#include "Config.h"
 
 #include <float.h>
 #include <stdio.h>
@@ -378,6 +379,7 @@ int SolutionReader::get_nanotip(Medium& nanotip, vector<bool>& atom_in_nanotip, 
 
 // Initialise statistics about the solution
 void SolutionReader::init_statistics() {
+    Medium::init_statistics();
     stat.vec_norm_min = stat.scal_min = DBL_MAX;
     stat.vec_norm_max = stat.scal_max = -DBL_MAX;
 }
@@ -385,6 +387,7 @@ void SolutionReader::init_statistics() {
 // Calculate statistics about the solution
 void SolutionReader::calc_statistics() {
     init_statistics();
+    Medium::calc_statistics();
 
     for (int i = 0; i < size(); ++i) {
         double norm = interpolation[i].norm;
@@ -842,21 +845,6 @@ Vec3 FieldReader::get_analyt_field(const int i, const Point3& origin) const {
     return Vec3(Ex, Ey, Ez);
 }
 
-int FieldReader::update_point_cell(dealii::Point<3> &p, int current_cell, bool deal_index) {
-    Point3 femocs_point(p);
-    int femocs_current_cell;
-
-    if (deal_index)
-        femocs_current_cell = interpolator->linhexs.deal2femocs(current_cell);
-    else
-        femocs_current_cell = current_cell;
-
-    cout << "femocs_current_cell = " << femocs_current_cell << endl;
-    int femocs_cell = interpolator->linhexs.locate_cell(femocs_point, femocs_current_cell);
-    cout << "point located at femocs cell " << femocs_cell << endl;
-    return interpolator->linhexs.femocs2deal(femocs_cell); // gives -1 if cell is out of vacuum mesh
-}
-
 // Analytical field enhancement for ellipsoidal nanotip
 double FieldReader::get_analyt_enhancement() const {
     expect(radius1 > 0, "Invalid nanotip minor semi-axis: " + to_string(radius1));
@@ -1098,31 +1086,46 @@ void EmissionReader::calc_representative() {
     Frep = multiplier * FJ / I_fwhm;
 }
 
-vector<pair<dealii::Point<3>, int>> EmissionReader::inject_electrons(double delta_t){
+void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
+        vector<Point3> &efield, vector<int> &cells){
 
     const double Amp = 6.2415e3; //[e/fs]
-    vector<pair<dealii::Point<3>, int>> out;
     int n_tot = 0;
-    double I_tot;
+    Vec3 Field;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
 
         double current = currents[i] * Amp; // in e/fs
-        double charge = current * delta_t;
 
-        int intpart = (int) floor(charge);
-        double frpart = charge - intpart;
-        int n_electrons = intpart;
+        double charge = current * delta_t; //in e
 
-        I_tot += current;
+        double n_sps = charge / Wsp;
+
+        int intpart = (int) floor(n_sps);
+        double frpart = n_sps - intpart;
+        int n_electrons_sp = intpart;
 
         if ((double)std::rand()/ RAND_MAX < frpart)
-            n_electrons++;
+            n_electrons_sp++;
+
+        if (n_electrons_sp)
+            Field = fields.get_elfield(i);
 
         //TODO : fix rng, fix probability distribution with face jacobian, fix dim generality
 
-        for (int j = 0; j < n_electrons; j++){;
+        for (int j = 0; j < n_electrons_sp; j++){
 
+            int tri = abs(fields.get_marker(i));
+            Point3 centoid = fields.get_point(i);
+            int quad;
+            for (int k = 0; k < 3; k++){
+                quad = 3 * tri + k;
+                double dist = centoid.distance2(mesh.quads.get_centroid(quad));
+                if (dist < 1.e-10) break;
+            }
+            SimpleQuad sface = mesh.quads[quad];
+
+            Point3 p_el(0.,0.,0.);
             double rand1 = (double)std::rand()/ RAND_MAX;
             double rand2= (double)std::rand()/ RAND_MAX;
             vector<double> rands(4);
@@ -1130,43 +1133,25 @@ vector<pair<dealii::Point<3>, int>> EmissionReader::inject_electrons(double delt
             rands[1] = 1-rand1;
             rands[2] = rand2;
             rands[3] = 1-rand2;
-
-
-            int tri = abs(fields.get_marker(i));
-
-            Point3 centoid = fields.get_point(i);
-
-            int quad;
-
-            for (int k = 0; k < 3; k++){
-                quad = 3 * tri + k;
-                double dist = centoid.distance2(mesh.quads.get_centroid(quad));
-                if (dist < 1.e-10) break;
-            }
-
-            Vec3 p_el(0.,0.,0.);
-            const double crosser = 0.2;
-            SimpleQuad sface = mesh.quads[quad];
-
             for (int j = 0; j < 4; j++){
                 p_el += mesh.nodes[sface[j]] * (.5   * rands[j]);
-
-//                cout << faces.get_node(j) << endl;
             }
 
-            // push electrons little bit inside the vacuum mesh
-            p_el += mesh.faces.get_norm(tri) * 0.01;
-            dealii::Point<3> p_deal(p_el.x, p_el.y, p_el.z);
-            int cell_index = 0;
+            Vec3 vec_push = mesh.faces.get_norm(tri) * 0.01;
 
-            out.push_back(pair<dealii::Point<3>, int>(p_deal, cell_index));
+            // push electrons little bit inside the vacuum mesh
+            p_el += Point3(vec_push.x, vec_push.y, vec_push.z);
+
+            int cell_index = 0;//TODO be updated correctly
+
+            pos.push_back(p_el);
+            efield.push_back(Point3(Field.x, Field.y, Field.z));
+            cells.push_back(cell_index);
         }
 
-        n_tot += n_electrons;
-        I_tot += currents[i];
+        n_tot += n_electrons_sp;
     }
-    printf("I_tot_dealii = %e e/fs (%e Amps), emitted electrons = %d\n", I_tot, I_tot / Amp, n_tot);
-    return out;
+    printf("emitted SPs = %d\n", n_tot);
 }
 
 void EmissionReader::calc_emission(double workfunction, bool blunt){
@@ -1218,11 +1203,12 @@ void EmissionReader::calc_emission(double workfunction, bool blunt){
 
 }
 
-void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
-        const double workfunction, const double Vappl, bool blunt) {
+void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const Config::Emission &conf, double Vappl) {
+
+    if (Vappl <=0 && conf.SC)
+        write_silent_msg("WARNING: transfer_emission called with SC activated and Vappl <= 0");
 
     const int n_nodes = fields.size();
-
     reserve(n_nodes);
     atoms = fields.atoms;
 
@@ -1235,14 +1221,14 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
         Jmax = 0.;
         Fmax = multiplier * Fmax_0;
 
-        calc_emission(workfunction, blunt);
+        calc_emission(conf.work_function, conf.blunt);
         calc_representative();
 
         if (MODES.VERBOSE)
             printf("\nSC j= %d th= %f Jmax= %e Jrep= %e Fmax= %f Frep= %f\n", i, multiplier, Jmax,
                     Jrep , Fmax, Frep);
 
-        if (Vappl <= 0) break; // if Vappl<=0, SC is ignored
+        if (Vappl <= 0 || !conf.SC) break; // if Vappl<=0, SC is ignored
         if (i > 5) err_fact *= 0.5; // if not converged in first 6 steps, reduce factor
 
         // calculate SC multiplier (function coming from getelec)
@@ -1250,7 +1236,7 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
         error = multiplier - theta_old;
         multiplier = theta_old + error * err_fact;
         theta_old = multiplier;
-        if (abs(error) < 1.e-3) break; //if converged break
+        if (abs(error) < conf.SC_error) break; //if converged break
 
     }
 

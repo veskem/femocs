@@ -227,7 +227,7 @@ double Coarseners::get_z_mean(const Medium& medium) {
     int n_average = 0;
     for (int i = 0; i< n_atoms; ++i) {
         double z = medium.get_point(i).z;
-        if (z >= zmin && z < zmax) {
+        if (z >= zmin && z <= zmax) {
             zmean += z;
             n_average++;
         }

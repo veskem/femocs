@@ -16,6 +16,7 @@
 #include "Interpolator.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
+#include "Config.h"
 
 using namespace std;
 namespace femocs {
@@ -168,8 +169,6 @@ public:
     void set_check_params(const double E0, const double limit_min, const double limit_max,
             const double radius1, const double radius2=-1);
 
-    int update_point_cell(dealii::Point<3> &p, int current_cell, bool deal_index = true);
-
 private:
     /** Data needed for comparing numerical solution with analytical one */
     double E0;                      ///< Long-range electric field strength
@@ -222,13 +221,16 @@ public:
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
      * estimation of the space charge effects.
      * @param ch_solver heat solver object where J and Nottingham BCs will be written
-     * @param workfunction Work function
+     * @param conf Emission configuration parameters struct
      * @param Vappl Applied voltage (required for space charge calculations)
      */
-    void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const double workfunction,
-            const double Vappl, bool blunt = false);
+    void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const Config::Emission &conf, double Vappl = -1);
 
-    vector<pair<dealii::Point<3>, int>> inject_electrons(double delta_t);
+    /**
+     * Injects electron SPs at the surface faces, depending on the current and the timestep
+     */
+    void inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
+            vector<Point3> &efield, vector<int> &cells);
 
     /**
      * Initialises class data.

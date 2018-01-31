@@ -201,6 +201,11 @@ public:
     /** Pick a method to solve heat and continuity equations on bulk mesh */
     int solve_heat(const double T_ambient);
 
+    /**
+     * Calculate emission on the surface and put the results in EmissionReader emission
+     */
+    void get_emission();
+
     /** Determine whether atoms have moved significantly and whether to enable file writing */
     int reinit(const int timestep=-1);
 
@@ -264,10 +269,6 @@ private:
     /** Solve transient heat and continuity equation until convergence is reached */
     int solve_converge_heat();
 
-    /**
-     * Calculates current emission and current density distributions on the bulk mesh
-     */
-    unsigned solve_current();
 };
 
 } /* namespace femocs */

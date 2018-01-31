@@ -73,6 +73,8 @@ public:
     LinearHexahedra linhexs;      ///< data & operations for linear hexahedral interpolation
     LinearQuadrangles linquads;   ///< data & operations for linear quadrangular interpolation
 
+    int update_point_cell(Point3 point, int current_cell, bool deal_index = true);
+
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
 

@@ -97,24 +97,30 @@ public:
 
     /** Parameters for solving Laplace equation */
     struct Laplace {
-        double E0;              ///< Value of long range electric field
+        double E0;              ///< Value of long range electric field (Active in case of Neumann anodeBC
         double ssor_param;      ///< Parameter for SSOR preconditioner in DealII
         double phi_error;       ///< Maximum allowed electric potential error
         int n_phi;              ///< Maximum number of Conjugate Gradient iterations in phi calculation
+        double V0;              ///< Applied voltage at the anode (active in case of SC emission and Dirichlet anodeBC
+        string anodeBC;         ///< Type of anode boundary condition (Dirichlet or Neumann)
     } laplace;
 
     /** Heating configuration parameters */
     struct Heating {
-        string mode;        ///< Method to calculate current density and temperature; none, stationary or transient
+        string mode;                ///< Method to calculate current density and temperature; none, stationary or transient
         string rhofile;             ///< Path to the file with resistivity table
-        double work_function;       ///< Work function [eV]
         double lorentz;             ///< Lorentz number (Wiedemenn-Franz law)
-        double Vappl;               ///< Total voltage for space charge. If <=0 space charge is ignored.
         double t_ambient;           ///< Ambient temperature in heat calculations
         double t_error;             ///< Maximum allowed temperature error in Newton iterations
         int n_newton;               ///< Maximum number of Newton iterations
-        bool blunt;                 ///< Force blunt emitter approximation (good for big systems)
     } heating;
+
+    struct Emission{
+        double work_function;       ///< Work function [eV]
+        bool blunt;                 ///< Force blunt emitter approximation (good for big systems)
+        bool SC;                    ///< If SC is to be taken into account
+        double SC_error;            ///< convergence criterion for SC error
+    }emission;
 
     /** Smooth factors for surface faces, surface atoms and charges */
     struct Smoothing {
@@ -135,9 +141,11 @@ public:
 
     /** Particle In Cell module configuration */
     struct PIC {
-        bool doPIC;    // Switch PIC on or off
-        double dt_max; // Maximum PIC timestep; actual timestep will be smaller such that it is an integer fraction of the MD timestep [fs]
-        double total_time; //Total time that PIC should evolve in a femocs run (overriden by MD timestep when femocs runs in MD mode) [fs]
+        bool doPIC;         ///< Switch PIC on or off
+        double dt_max;      ///< Maximum PIC timestep; actual timestep will be smaller such that it is an integer fraction of the MD timestep [fs]
+        double total_time;  ///< Total time that PIC should evolve in a femocs run (overriden by MD timestep when femocs runs in MD mode) [fs]
+        double Wsp_el;      ///< Superparticle weight for electrons
+        bool fractional_push; // Do fractional timestep push when injecting electrons?
     } pic;
     
 private:

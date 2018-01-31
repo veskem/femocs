@@ -500,6 +500,7 @@ bool TetgenMesh::generate_hexahedra() {
 
     group_hexahedra();
     calc_quad2hex_mapping();
+    nodes.calc_statistics();
 
     return 0;
 }
