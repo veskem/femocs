@@ -12,8 +12,9 @@
 
 namespace femocs {
 template<int dim>
-Pic<dim>::Pic(fch::Laplace<dim> &laplace_solver, FieldReader &fr, fch::CurrentsAndHeating<3> &ch_solver, HeatReader &hr) : ///< Object to read the temperature data) :
-laplace_solver(laplace_solver), fr(fr), ch_solver(ch_solver), hr(hr){}
+Pic<dim>::Pic(fch::Laplace<dim> &laplace_solver, FieldReader &fr,
+        fch::CurrentsAndHeating<3> &ch_solver, HeatReader &hr, EmissionReader &er) : ///< Object to read the temperature data) :
+        laplace_solver(laplace_solver), fr(fr), ch_solver(ch_solver), hr(hr), er(er){}
 
 template<int dim>
 Pic<dim>::~Pic() {
@@ -39,19 +40,17 @@ int Pic<dim>::injectElectrons(const double* const r, const size_t n) {
 }
 
 template<int dim>
-int Pic<dim>::injectElectrons(const double &dt_pic) {
+int Pic<dim>::injectElectrons(double dt_pic) {
 
-    vector<pair<dealii::Point<dim>, unsigned>> injected = ch_solver.inject_electrons(dt_pic);
+    vector<pair<dealii::Point<dim>, int>> injected = er.inject_electrons(dt_pic);
 
     for (auto& electron : injected){
         r_el.push_back(electron.first);
         v_el.push_back(0. * electron.first);
 
-        cout << "getting femocs cell index. deal index = " << electron.second << endl;
-        int femocs_cell = hr.get_femocs_index(electron.second);
-        cout << "femocs index = " << femocs_cell << endl;
-        cid_el.push_back(fr.update_point_cell(electron.first, femocs_cell, false));
-        cout << "point located at dealii cell " << cid_el.back() << endl << endl;
+//        cid_el.push_back(0);
+        cid_el.push_back(fr.update_point_cell(electron.first, electron.second, false));
+//        cout << "point located at dealii cell " << cid_el.back() << endl << endl;
     }
     return 0;
 

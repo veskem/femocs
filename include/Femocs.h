@@ -235,6 +235,10 @@ private:
     HeatReader  temperatures = HeatReader(&bulk_interpolator); ///< temperatures & current densities on bulk atoms
     FieldReader fields = FieldReader(&vacuum_interpolator);       ///< fields & potentials on surface atoms
     ForceReader forces = ForceReader(&vacuum_interpolator);       ///< forces & charges on surface atoms
+    FieldReader surface_fields = FieldReader (&vacuum_interpolator); ///< fields on surface hex face centroids
+    HeatReader  surface_temperatures = HeatReader(&bulk_interpolator); ///< temperatures & current densities on surface hex face centroids
+    EmissionReader emission = EmissionReader(surface_fields, surface_temperatures, fem_mesh, &vacuum_interpolator);
+    ///< Emission data on surface hex face centroids
 
     /// physical quantities used in heat calculations
     fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);

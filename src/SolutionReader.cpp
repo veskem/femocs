@@ -986,10 +986,10 @@ double HeatReader::get_temperature(const int i) const {
  * ============= EMISSION READER ============
  * ========================================== */
 
-EmissionReader::EmissionReader(const FieldReader& fr, const HeatReader& hr, const TetgenFaces& f,
+EmissionReader::EmissionReader(const FieldReader& fr, const HeatReader& hr, const TetgenMesh& _mesh,
         Interpolator* i) :
         SolutionReader(i, "none", "rho_norm", "temperature"),
-        fields(fr), heat(hr), faces(f) {
+        fields(fr), heat(hr), mesh(_mesh) {
     initialize();
 }
 
@@ -1078,13 +1078,14 @@ void EmissionReader::calc_representative() {
     double I_tot = 0;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
-        double face_area = faces.get_area(abs(fields.get_marker(i))) / 3.;
+        double face_area = mesh.faces.get_area(abs(fields.get_marker(i))) / 3.;
         currents[i] = face_area * current_densities[i];
         I_tot += currents[i];
 
+
         if (current_densities[i] > Jmax * 0.5){ //if point eligible
             //quadrangle face area is 1/3 of corresponding triangle face area
-            double face_area = faces.get_area(abs(fields.get_marker(i))) / 3.;
+            double face_area = mesh.faces.get_area(abs(fields.get_marker(i))) / 3.;
             area += face_area; // increase total area
             I_fwhm += currents[i]; // increase total current
             FJ += currents[i] * fields.get_elfield_norm(i);
@@ -1095,6 +1096,77 @@ void EmissionReader::calc_representative() {
         printf("I_fwhm = %e, I_tot = %e [Amps]\n", I_fwhm, I_tot);
     Jrep = I_fwhm / area;
     Frep = multiplier * FJ / I_fwhm;
+}
+
+vector<pair<dealii::Point<3>, int>> EmissionReader::inject_electrons(double delta_t){
+
+    const double Amp = 6.2415e3; //[e/fs]
+    vector<pair<dealii::Point<3>, int>> out;
+    int n_tot = 0;
+    double I_tot;
+
+    for (int i = 0; i < fields.size(); ++i){ // go through face centroids
+
+        double current = currents[i] * Amp; // in e/fs
+        double charge = current * delta_t;
+
+        int intpart = (int) floor(charge);
+        double frpart = charge - intpart;
+        int n_electrons = intpart;
+
+        I_tot += current;
+
+        if ((double)std::rand()/ RAND_MAX < frpart)
+            n_electrons++;
+
+        //TODO : fix rng, fix probability distribution with face jacobian, fix dim generality
+
+        for (int j = 0; j < n_electrons; j++){;
+
+            double rand1 = (double)std::rand()/ RAND_MAX;
+            double rand2= (double)std::rand()/ RAND_MAX;
+            vector<double> rands(4);
+            rands[0] = rand1;
+            rands[1] = 1-rand1;
+            rands[2] = rand2;
+            rands[3] = 1-rand2;
+
+
+            int tri = abs(fields.get_marker(i));
+
+            Point3 centoid = fields.get_point(i);
+
+            int quad;
+
+            for (int k = 0; k < 3; k++){
+                quad = 3 * tri + k;
+                double dist = centoid.distance2(mesh.quads.get_centroid(quad));
+                if (dist < 1.e-10) break;
+            }
+
+            Vec3 p_el(0.,0.,0.);
+            const double crosser = 0.2;
+            SimpleQuad sface = mesh.quads[quad];
+
+            for (int j = 0; j < 4; j++){
+                p_el += mesh.nodes[sface[j]] * (.5   * rands[j]);
+
+//                cout << faces.get_node(j) << endl;
+            }
+
+            // push electrons little bit inside the vacuum mesh
+            p_el += mesh.faces.get_norm(tri) * 0.01;
+            dealii::Point<3> p_deal(p_el.x, p_el.y, p_el.z);
+            int cell_index = 0;
+
+            out.push_back(pair<dealii::Point<3>, int>(p_deal, cell_index));
+        }
+
+        n_tot += n_electrons;
+        I_tot += currents[i];
+    }
+    printf("I_tot_dealii = %e e/fs (%e Amps), emitted electrons = %d\n", I_tot, I_tot / Amp, n_tot);
+    return out;
 }
 
 void EmissionReader::calc_emission(double workfunction, bool blunt){
