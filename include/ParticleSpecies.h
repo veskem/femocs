@@ -43,12 +43,6 @@ public:
     const double Wsp; ///< SP weight
 
     vector<Particle> parts;
-    vector<int> lost;
-
-
-private:
-    //Constants
-
 
 };
 

@@ -86,11 +86,9 @@ void Pic<dim>::update_positions(){
         particle.pos.x = periodic_image(particle.pos.x, box.xmax, box.xmin);
         particle.pos.y = periodic_image(particle.pos.y, box.ymax, box.ymin);
 
-        //Update the cid_el && check if any particles have left the domain && remove them
+        //Update the cellID; if any particles have left the domain their ID is set to -1
+	// and they will be removed once we call clear_lost
         particle.cell = interpolator.update_point_cell(particle.pos, particle.cell);
-        if (particle.cell == -1) {
-            electrons.lost.push_back(i);
-        }
     }
 }
 
@@ -118,6 +116,7 @@ void Pic<dim>::run_cycle(bool first_time) {
     electrons.clear_lost();
     compute_field(first_time);
     update_velocities();
+    do_collisions();
 }
 
 template<int dim>

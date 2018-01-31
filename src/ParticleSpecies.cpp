@@ -23,16 +23,15 @@ void ParticleSpecies::clear_lost(){
 
     //Delete the lost particles from the arrays
     for (size_t i = 0; i < npart; i++) {
-        bool islost=false;
-        //Is this particle lost?
-        for (auto lpart : lost) {
-            if (lpart == i) {
-                islost=true;
-                nlost++;
-                break;
-            }
-        }
-        if (nlost==0 or islost) continue; // Don't shuffle this particle left
+        //If this particle is lost or nothing has been lost:
+        // skip shuffling this particle
+        if (parts[i].cell==-1) {
+	    nlost++;
+	    continue;
+	}
+	else if (nlost==0) {
+            continue;
+	}
 
         parts[i-nlost] = parts[i];
     }
@@ -40,10 +39,9 @@ void ParticleSpecies::clear_lost(){
     //Shrink the arrays
     if (nlost > 0){
         parts.resize(npart-nlost);
-        cout << "Particles where lost! nlost=" << nlost << endl;
+        cout << "Particles were lost! nlost=" << nlost << endl;
     }
 
-    lost.clear();
 }
 
 }
