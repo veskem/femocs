@@ -58,15 +58,6 @@ public:
 
 private:
 
-    //ELECTRONS
-
-//    std::vector<dealii::Point<dim>> r_el; ///< Particle positions [Å]
-//    std::vector<dealii::Point<dim>> v_el; ///< Particle velocities [Å/fs = 10 um/s]
-//    std::vector<dealii::Point<dim>> F_el; ///< Particle forces [eV / Å]
-//    //Management
-//    std::vector<int> cid_el; ///< Index of the cell where the particle is inside
-//    std::vector<int> lost_el; ///< Index into the cell array containing lost particles
-
     //Constants
     const double e_over_m_e_factor = 17.58820024182468; ///< charge/mass for electrons for multiplying the velocity update
     const double e_over_eps0 = 180.9512268; ///< particle charge [e] / epsilon_0 [e/VÅ] = 1 [e] * (8.85...e-12/1.6...e-19/1e10 [e/VÅ])**-1
@@ -95,13 +86,14 @@ private:
     /** Update the positions of the particles and the cell they belong. */
     void update_positions();
 
-
-    /** Update the fields and the velocities on the particles */
-    void update_fields_and_velocities();
-
+    /** Update the velocities on the particles using the fields calculated at the given positions */
+    void update_velocities();
 
     /** Computes the charge density for each FEM DOF */
     void compute_field(bool first_time = false);
+    
+    /** Calls the relevant collision routines */
+    void do_collisions();
 };
 
 }
