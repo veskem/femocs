@@ -287,19 +287,28 @@ std::vector<Tensor<1, dim> > Laplace<dim>::get_efield(const std::vector<int> &ce
 }
 
 template<int dim>
-void Laplace<dim>::setup_system() {
-    dof_handler.distribute_dofs(fe);
+void Laplace<dim>::setup_system(bool first_time) {
+
+    if (first_time){ // find n_dofs
+        dof_handler.distribute_dofs(fe);
+    }
+
+    system_rhs.reinit(dof_handler.n_dofs()); // set rhs to zeros
+
+    if (!first_time){
+        return;
+    }
+
+    boundary_values.clear();
 
     DynamicSparsityPattern dsp(dof_handler.n_dofs());
     DoFTools::make_sparsity_pattern(dof_handler, dsp);
     sparsity_pattern.copy_from(dsp);
 
     system_matrix.reinit(sparsity_pattern);
+    system_matrix_save.reinit(sparsity_pattern);
 
     solution.reinit(dof_handler.n_dofs());
-    system_rhs.reinit(dof_handler.n_dofs());
-
-    boundary_values.clear();
 }
 
 template<int dim>

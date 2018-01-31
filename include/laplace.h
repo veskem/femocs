@@ -59,9 +59,6 @@ public:
     /** getter for dof_handler */
     DoFHandler<dim>* get_dof_handler();
 
-//    /** Sets the applied electric field in GV/m (V/nm) boundary condition */
-//    void set_applied_efield(const double applied_field_);
-
     /**
      * Imports mesh from file and sets the vacuum boundary indicators
      * @param file_name name of the mesh file
@@ -85,25 +82,33 @@ public:
      * (slow as it looks for the surrounding cell) */
     double probe_efield_norm(const Point<dim> &p, int cell_index) const;
 
-    /** get the potential value at a specified point using dealii (slow)
-     */
+    /** get the potential value at a specified point using dealii (slow)  */
     double probe_potential(const Point<dim> &p) const;
 
-    /** get the potential value at a specified point using dealii with known cell id for the point
-     */
+    /** get the potential value at a specified point using dealii with known cell id for the point  */
     double probe_potential(const Point<dim> &p, const int cell_index) const;
 
+    /** Probes the field at point p that belongs in cell with cell_index. Fast, when cell_index is correct */
     Tensor<1, dim, double> probe_efield(const Point<dim> &p, const int cell_index) const;
 
+    /** saves the system matrix (useful before BCs have been applied) */
+    void save_system(){
+        system_matrix_save.copy_from(system_matrix);
+//        system_rhs_save = system_rhs;
+    }
 
+    /** Restores the system matrix to the saved one */
+    void restore_system(){
+        system_matrix.copy_from(system_matrix_save);
+//        system_rhs = system_rhs_save;
+    }
 
-
+    /** Values of the shape functions at point p with respect to the nodes of
+     * cell with cell_index p has to belong in cell_index!!
+     */
     std::vector<double> shape_funs(const Point<dim> &p, int cell_index) const;
-
+    /** Helper function for the above */
     std::vector<double> shape_funs(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
-
-    void test_probe();
-
 
     /**
      * method to obtain the electric potential values in selected nodes
@@ -127,7 +132,7 @@ public:
      *  a) define optimal structure for sparse matrix representation,
      *  b) allocate memory for sparse matrix and solution and right-hand-side (rhs) vector
      */
-    void setup_system();
+    void setup_system(bool first_time);
 
     /** @brief assemble the matrix equation
      * Calculate sparse matrix elements and right-hand-side vector
@@ -209,10 +214,11 @@ private:
 
     SparsityPattern sparsity_pattern;     ///< structure for sparse matrix representation
     SparseMatrix<double> system_matrix;   ///< system matrix of matrix equation
-    SparseMatrix<double> system_matrix_BC;   ///< system matrix of matrix equation
+    SparseMatrix<double> system_matrix_save;   ///< system matrix of matrix equation (save before Dirichlet BCs remove dofs)
 
     Vector<double> solution;              ///< resulting electric potential in the mesh nodes
     Vector<double> system_rhs;            ///< right-hand-side of the matrix equation
+    Vector<double> system_rhs_save; ///< system RHS of matrix equation (save before Dirichlet BCs remove dofs)
 
     std::map<types::global_dof_index, double> boundary_values; // Map of dirichlet boundary conditions
 
