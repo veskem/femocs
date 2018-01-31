@@ -1098,32 +1098,37 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
 
         //TODO : fix rng, fix probability distribution with face jacobian, fix dim generality
 
-        for (int j = 0; j < n_electrons_sp; j++){
-            int quad = abs(fields.get_marker(i));
-            int tri = mesh.quads.to_tri(quad);
-            SimpleQuad sface = mesh.quads[quad];
+        int quad = abs(fields.get_marker(i));
+        int tri = mesh.quads.to_tri(quad);
+        int hex = mesh.quad2hex(quad, TYPES.VACUUM);
+        hex = interpolator->linhexs.femocs2deal(hex);
 
-            Point3 electron_position(0.0);
+        SimpleQuad squad = mesh.quads[quad];
+
+        // generate desired amount of electrons
+        // that are uniformly distributed on a given quadrangle
+        for (int j = 0; j < n_electrons_sp; j++){
+            Point3 position(0.0);
             double rand1 = (double) rand() / RAND_MAX;
             double rand2= (double) rand() / RAND_MAX;
             vector<double> rands = {rand1, 1-rand1, rand2, 1-rand2};
 
-            // generate a point at random location inside the quadrangle
+			// generate a point at random location inside the quadrangle
             for (int j = 0; j < 4; j++)
-                electron_position += mesh.nodes[sface[j]] * (0.5 * rands[j]);
+                position += mesh.nodes[squad[j]] * (0.5 * rands[j]);
 
             // push point little bit inside the vacuum mesh
-            electron_position += mesh.faces.get_norm(tri) * (mesh.faces.stat.edgemin * 0.01);
+            position += mesh.faces.get_norm(tri) * (mesh.faces.stat.edgemin * 0.01);
 
-            pos.push_back(electron_position);
-            efield.push_back( Point3(field) );
-            cells.push_back( mesh.quad2hex(quad, TYPES.VACUUM) );
+            pos.push_back(position);
+            efield.push_back(field);
+			cells.push_back(hex);
         }
 
         n_tot += n_electrons_sp;
     }
 
-    write_verbose_msg("emitted SPs = " + to_string(n_tot));
+    write_verbose_msg("emitted " + to_string(n_tot) + " electrons");
 }
 
 void EmissionReader::calc_emission(double workfunction, bool blunt){
