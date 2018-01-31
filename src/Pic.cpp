@@ -13,43 +13,6 @@
 namespace femocs {
 
 
-ParticleSpecies::ParticleSpecies(double _q_over_m_factor, double _charge, double _Wsp) :
-                q_over_m_factor(_q_over_m_factor), q_over_eps0(_charge), Wsp(_Wsp) {}
-
-ParticleSpecies::~ParticleSpecies(){
-    return;
-}
-
-void ParticleSpecies::clear_lost(){
-    size_t npart = parts.size();
-    size_t nlost = 0;
-
-    //Delete the lost particles from the arrays
-    for (size_t i = 0; i < npart; i++) {
-        bool islost=false;
-        //Is this particle lost?
-        for (auto lpart : lost) {
-            if (lpart == i) {
-                islost=true;
-                nlost++;
-                break;
-            }
-        }
-        if (nlost==0 or islost) continue; // Don't shuffle this particle left
-
-        parts[i-nlost] = parts[i];
-    }
-
-    //Shrink the arrays
-    if (nlost > 0){
-        parts.resize(npart-nlost);
-        cout << "Particles where lost! nlost=" << nlost << endl;
-    }
-
-    lost.clear();
-}
-
-
 template<int dim>
 Pic<dim>::Pic(fch::Laplace<dim> &laplace_solver, fch::CurrentsAndHeating<3> &ch_solver,
         Interpolator &interpolator, EmissionReader &er) : ///< Object to read the temperature data) :
@@ -123,17 +86,15 @@ void Pic<dim>::update_positions(){
         particle.pos.x = periodic_image(particle.pos.x, box.xmax, box.xmin);
         particle.pos.y = periodic_image(particle.pos.y, box.ymax, box.ymin);
 
-        //Update the cid_el && check if any particles have left the domain && remove them
+        //Update the cellID; if any particles have left the domain their ID is set to -1
+	// and they will be removed once we call clear_lost
         particle.cell = interpolator.update_point_cell(particle.pos, particle.cell);
-        if (particle.cell == -1) {
-            electrons.lost.push_back(i);
-        }
     }
 }
 
 
 template<int dim>
-void Pic<dim>::update_fields_and_velocities(){
+void Pic<dim>::update_velocities(){
 
     //update field
     for (auto particle : electrons.parts) {
@@ -154,44 +115,9 @@ void Pic<dim>::run_cycle(bool first_time) {
     electrons.sort_parts();
     electrons.clear_lost();
     compute_field(first_time);
-    update_fields_and_velocities();
+    update_velocities();
+    do_collisions();
 }
-
-//template<int dim>
-//void Pic<dim>::clear_lost_particles(){
-//    size_t npart = r_el.size();
-//    size_t nlost = 0;
-//
-//    //Delete the lost particles from the arrays
-//    for (size_t i = 0; i < npart; i++) {
-//        bool islost=false;
-//        //Is this particle lost?
-//        for (auto lost : lost_el) {
-//            if (lost == i) {
-//                islost=true;
-//                nlost++;
-//                break;
-//            }
-//        }
-//        if (nlost==0 or islost) continue; // Don't shuffle this particle left
-//
-//        r_el[i-nlost] = r_el[i];
-//        v_el[i-nlost] = v_el[i];
-//        F_el[i-nlost] = F_el[i];
-//        cid_el[i-nlost] = cid_el[i];
-//    }
-//
-//    //Shrink the arrays
-//    if (nlost > 0){
-//        r_el.resize(npart-nlost);
-//        v_el.resize(npart-nlost);
-//        cid_el.resize(npart-nlost);
-//        F_el.resize(npart-nlost);
-//        cout << "Particles where lost! nlost=" << nlost << endl;
-//    }
-//
-//    lost_el.clear();
-//}
 
 template<int dim>
 void Pic<dim>::write_particles(const string filename) {
@@ -222,6 +148,10 @@ void Pic<dim>::write_particles(const string filename) {
     out.close();
 }
 
+template<int dim>
+void Pic<dim>::do_collisions() {
+
+}
 
 //Tell the compiler which types to actually compile, so that they are available for the linker
 //template class Pic<2>;
