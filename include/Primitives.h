@@ -133,6 +133,7 @@ public:
 };
 
 /** Class to define basic operations with 3-dimensional points */
+class Vec3; // Forward declaration so that we can use it in a constructor
 class Point3 {
 public:
     /** Constructors of Point3 class */
@@ -141,7 +142,8 @@ public:
     Point3(const double xx, const double yy, const double zz) : x(xx), y(yy), z(zz) {}
     Point3(const Point3& p) : x(p.x), y(p.y), z(p.z) {}
     Point3(const dealii::Point<3> &p) : x(p[0]), y(p[1]), z(p[2]) {}
-
+    Point3(const Vec3 &v); // Body of this one needs the full definition of Vec3 -> Defined after Vec3.
+  
     /** Dimensionality of point */
     int size() const { return 3; }
 
@@ -335,6 +337,9 @@ public:
     double x, y, z; ///< Cartesian coordinates
 };
 
+//Inline so that it can live in the header
+inline Point3::Point3(const Vec3 &v) : x(v.x), y(v.y), z(v.z) {}
+ 
 /** Class to define basic operations with 4-dimensional vector */
 class Vec4 {
 public:
