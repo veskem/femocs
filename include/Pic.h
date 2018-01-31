@@ -20,7 +20,6 @@
 #include "PicCollisions.h"
 
 #include <deal.II/base/point.h>
-
 #include <algorithm>
 
 namespace femocs {
@@ -57,6 +56,7 @@ public:
     }
 
 private:
+
 
     //Constants
     const double e_over_m_e_factor = 17.58820024182468; ///< charge/mass for electrons for multiplying the velocity update

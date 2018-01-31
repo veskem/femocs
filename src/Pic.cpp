@@ -52,13 +52,18 @@ void Pic<dim>::compute_field(bool first_time) {
     //TODO : save system lhs and copy it . don't rebuild it every time
 
     double t0;
-    start_msg(t0, "=== Solving the Poisson equation...");
-    if (first_time)
-        laplace_solver.setup_system();
+    start_msg(t0, "=== Setting up system lhs... first_time = " + to_string(first_time));
+    laplace_solver.setup_system(first_time);
+    if (first_time){
+        laplace_solver.assemble_system_lhs();
+        laplace_solver.save_system();
+    }else{
+        laplace_solver.restore_system();
+    }
+    end_msg(t0);
 
-    laplace_solver.assemble_system_lhs();
+    start_msg(t0, "=== Setting up system RHS and BCs...");
     laplace_solver.assemble_system_pointcharge(electrons);
-
     if (anodeBC == "neumann")
         laplace_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top, -E0);
     else if(anodeBC == "dirichlet")
@@ -68,7 +73,10 @@ void Pic<dim>::compute_field(bool first_time) {
 
     laplace_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.);
     laplace_solver.assemble_system_finalize();
-    cout << "Solving Poisson. CG iterations = " << laplace_solver.solve() << endl;
+    end_msg(t0);
+
+    start_msg(t0, "=== Solving Poisson equation... CG iterations = ");
+    cout << laplace_solver.solve() << " ";
     end_msg(t0);
 }
 

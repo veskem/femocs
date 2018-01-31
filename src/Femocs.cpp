@@ -311,9 +311,10 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
             pic_solver.run_cycle(true);
         end_msg(t0);
 
-        start_msg(t0, "=== Extracting E and phi...");
+        start_msg(t0, "=== Extracting fields and writing into file...");
         fail = vacuum_interpolator.extract_solution(&laplace_solver);
         vacuum_interpolator.nodes.write("out/result_E_phi.movie");
+        pic_solver.write_particles("out/electrons.movie");
         end_msg(t0);
 
         if(!conf.pic.doPIC) break; // stop before injecting particles
@@ -325,12 +326,6 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
 
         start_msg(t0, "=== Injecting electrons...");
         pic_solver.inject_electrons(conf.pic.fractional_push);
-        end_msg(t0);
-
-
-        start_msg(t0, "=== Writing particles and fields to file...");
-        vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-        pic_solver.write_particles("out/electrons.movie");
         end_msg(t0);
 
     }
@@ -360,7 +355,7 @@ int Femocs::solve_laplace(const double E0) {
     end_msg(t0);
 
     start_msg(t0, "=== Initializing Laplace solver...");
-    laplace_solver.setup_system();
+    laplace_solver.setup_system(true);
     laplace_solver.assemble_system(-E0);
     end_msg(t0);
 

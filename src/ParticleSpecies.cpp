@@ -50,6 +50,7 @@ void ParticleSpecies::sort_parts(){
     ordcount.clear();
     if (parts.size() > 0) {
         int cell0 = parts[0].cell;
+        ordcount.push_back(0);
         size_t ordCounter = 0;
         for (auto p : parts) {
             if (p.cell == cell0) {
