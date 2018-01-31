@@ -284,12 +284,12 @@ public:
     void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) {
         InterpolatorCells<10>::set_dependencies(m, n);
         elems = &m->elems;
-        lintets = const_cast<LinearTetrahedra*>(l);
+        lintet = const_cast<LinearTetrahedra*>(l);
     }
 
 private:
     const TetgenElements* elems;    ///< pointer to tetrahedra to access their specific routines
-    const LinearTetrahedra* lintets;   ///< Pointer to linear tetrahedra
+    const LinearTetrahedra* lintet;   ///< Pointer to linear tetrahedra
 
     /** Reserve memory for interpolation data */
     void reserve(const int N);
@@ -362,7 +362,7 @@ private:
     /** Reserve memory for interpolation data */
     void reserve(const int N);
 
-    /** Return the 10-noded tetrahedron type in vtk format */
+    /** Return the linear hexahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; };
 
     /** Check whether the point is inside the cell */
@@ -463,12 +463,12 @@ public:
     void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTriangles* l) {
         InterpolatorCells<6>::set_dependencies(m, n);
         faces = &m->faces;
-        lintris = const_cast<LinearTriangles*>(l);
+        lintri = const_cast<LinearTriangles*>(l);
     }
 
 private:
     const TetgenFaces* faces;    ///< Direct pointer to triangles to access their specific routines
-    const LinearTriangles* lintris;   ///< Pointer to linear triangles
+    const LinearTriangles* lintri;   ///< Pointer to linear triangles
 
     /** Reserve memory for interpolation data */
     void reserve(const int N);
@@ -478,6 +478,52 @@ private:
 
     /** Calculate the vertex indices of 6-noded triangle */
     SimpleCell<6> get_cell(const int i) const;
+};
+
+/**
+ * Data & operations for linear quadrangular interpolation without nodal data.
+ * Class uses the data pre-computed for LinearTriangles.
+ */
+class LinearQuadrangles : public InterpolatorCells<4> {
+public:
+    LinearQuadrangles();
+    LinearQuadrangles(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTriangles* l);
+    ~LinearQuadrangles() {};
+
+    /** Pre-compute data about tetrahedra to make interpolation faster */
+    void precompute();
+
+    /** Get interpolation weights for a point inside i-th hexahedron */
+    void get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const;
+
+    /** Find the hexahedron which contains the point or is the closest to it */
+    int locate_cell(const Point3 &point, const int cell_guess) const;
+
+    /** Until proper way to calculate shape functions is found, use lintri interpolator */
+    Solution interp_solution(const Point3 &point, const int c) const;
+
+    /** Change the mesh dependency data */
+    void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTriangles* l) {
+        InterpolatorCells<4>::set_dependencies(m, n);
+        quads = &m->quads;
+        lintri = const_cast<LinearTriangles*>(l);
+    }
+
+private:
+    const Quadrangles* quads;       ///< pointer to quadrangles to access their specific routines
+    const LinearTriangles* lintri;  ///< Pointer to linear triangles
+
+    /** Reserve memory for interpolation data */
+    void reserve(const int N);
+
+    /** Return the quadrangle type in vtk format */
+    int get_cell_type() const { return TYPES.VTK.QUADRANGLE; };
+
+    /** Check whether the point is inside the cell */
+    bool point_in_cell(const Vec3& point, const int cell) const {
+        require(false, "point_in_cell not used in LinearQuadrangles!");
+        return false;
+    }
 };
 
 } /* namespace femocs */

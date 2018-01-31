@@ -76,7 +76,8 @@ Vec3 VoronoiFace::norm(const int cell) const {
     const int C2 = 3 * nborcell(cell);
     Vec3 p1(data->pointlist[C1], data->pointlist[C1+1], data->pointlist[C1+2]);
     Vec3 p2(data->pointlist[C2], data->pointlist[C2+1], data->pointlist[C2+2]);
-    return (p2 - p1).normalize();
+    p2 -= p1;
+    return p2.normalize();
 }
 
 vector<int> VoronoiCell::get_neighbours() const {

@@ -23,14 +23,14 @@ namespace femocs {
 // Initialize SolutionReader
 SolutionReader::SolutionReader() :
         vec_label("vec"), vec_norm_label("vec_norm"), scalar_label("scalar"),
-        limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), empty_val(0), interpolator(NULL)
+        limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), interpolator(NULL)
 {
     reserve(0);
 }
 
 SolutionReader::SolutionReader(Interpolator* i, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
         vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab),
-        limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), empty_val(0), interpolator(i)
+        limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), interpolator(i)
 {
     reserve(0);
 }
@@ -39,15 +39,6 @@ void SolutionReader::calc_interpolation() {
     require(interpolator, "NULL interpolator cannot be used!");
 
     const int n_atoms = size();
-
-    const bool b1 = dim == 2 && rank == 1 && interpolator->lintris.size() == 0;
-    const bool b2 = dim == 3 && rank == 1 && interpolator->lintets.size() == 0;
-    const bool b3 = dim == 2 && rank == 2 && interpolator->quadtris.size() == 0;
-    const bool b4 = dim == 3 && rank == 2 && interpolator->quadtets.size() == 0;
-    if (b1 || b2 || b3 || b4) {
-        interpolation = vector<Solution>(n_atoms, Solution(empty_val));
-        return;
-    }
 
     // Sort atoms into sequential order to speed up interpolation
     if (sort_atoms) sort_spatial();
@@ -70,9 +61,12 @@ void SolutionReader::calc_interpolation() {
         } else if (dim == 3 && rank == 2) {
             cell = interpolator->quadtets.locate_cell(point, abs(cell));
             append_interpolation(interpolator->quadtets.interp_solution(point, cell));
+        } else if (dim == 2 && rank == 3) {
+            cell = interpolator->linquads.locate_cell(point, abs(cell));
+            append_interpolation(interpolator->linquads.interp_solution(point, cell));
         } else if (dim == 3 && rank == 3) {
             cell = interpolator->linhexs.locate_cell(point, abs(cell));
-            append_interpolation(Solution(0));
+            append_interpolation(interpolator->linhexs.interp_solution(point, cell));
         }
 
         set_marker(i, cell);
@@ -104,14 +98,16 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
             // calculate the interpolation
             if (dim == 2 && rank == 1)
                 append_interpolation(interpolator->lintris.interp_solution(get_point(i), cell));
-            else if (dim == 2 && rank == 2)
-                append_interpolation(interpolator->quadtris.interp_solution(get_point(i), cell));
             else if (dim == 3 && rank == 1)
                 append_interpolation(interpolator->lintets.interp_solution(get_point(i), cell));
+            else if (dim == 2 && rank == 2)
+                append_interpolation(interpolator->quadtris.interp_solution(get_point(i), cell));
             else if (dim == 3 && rank == 2)
                 append_interpolation(interpolator->quadtets.interp_solution(get_point(i), cell));
+            else if (dim == 2 && rank == 3)
+                append_interpolation(interpolator->linquads.interp_solution(get_point(i), cell));
             else if (dim == 3 && rank == 3)
-                append_interpolation(Solution(0));
+                append_interpolation(interpolator->linhexs.interp_solution(get_point(i), cell));
         }
 
     // ...nop, do it and interpolate
@@ -1009,7 +1005,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
     Point3 pfield(direction.x, direction.y, direction.z);
 
     FieldReader fr(interpolator);
-    fr.set_preferences(false, 3, interpolation_rank, 0);
+    fr.set_preferences(false, 3, interpolation_rank);
     fr.reserve(n_lines);
 
     for (int i = 0; i < n_lines; i++){
@@ -1059,14 +1055,13 @@ void EmissionReader::calc_representative() {
     double I_tot = 0;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
-        double face_area = mesh.faces.get_area(abs(fields.get_marker(i))) / 3.;
+        int tri = mesh.quads.to_tri(abs(fields.get_marker(i)));
+        // quadrangle area is 1/3 of corresponding triangle area
+        double face_area = mesh.faces.get_area(tri) / 3.;
         currents[i] = face_area * current_densities[i];
         I_tot += currents[i];
 
-
         if (current_densities[i] > Jmax * 0.5){ //if point eligible
-            //quadrangle face area is 1/3 of corresponding triangle face area
-            double face_area = mesh.faces.get_area(abs(fields.get_marker(i))) / 3.;
             area += face_area; // increase total area
             I_fwhm += currents[i]; // increase total current
             FJ += currents[i] * fields.get_elfield_norm(i);
@@ -1080,71 +1075,60 @@ void EmissionReader::calc_representative() {
 }
 
 void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
-        vector<Point3> &efield, vector<int> &cells){
+        vector<Point3> &efield, vector<int> &cells) {
 
     const double Amp = 6.2415e3; //[e/fs]
     int n_tot = 0;
-    Vec3 Field;
+    Vec3 field;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
-
         double current = currents[i] * Amp; // in e/fs
-
         double charge = current * delta_t; //in e
-
         double n_sps = charge / Wsp;
 
         int intpart = (int) floor(n_sps);
         double frpart = n_sps - intpart;
         int n_electrons_sp = intpart;
 
-        if ((double)std::rand()/ RAND_MAX < frpart)
+        if ((double) rand() / RAND_MAX < frpart)
             n_electrons_sp++;
 
         if (n_electrons_sp)
-            Field = fields.get_elfield(i);
+            field = fields.get_elfield(i);
 
         //TODO : fix rng, fix probability distribution with face jacobian, fix dim generality
 
+        int quad = abs(fields.get_marker(i));
+        int tri = mesh.quads.to_tri(quad);
+        int hex = mesh.quad2hex(quad, TYPES.VACUUM);
+        hex = interpolator->linhexs.femocs2deal(hex);
+
+        SimpleQuad squad = mesh.quads[quad];
+
+        // generate desired amount of electrons
+        // that are uniformly distributed on a given quadrangle
         for (int j = 0; j < n_electrons_sp; j++){
+            Point3 position(0.0);
+            double rand1 = (double) rand() / RAND_MAX;
+            double rand2= (double) rand() / RAND_MAX;
+            vector<double> rands = {rand1, 1-rand1, rand2, 1-rand2};
 
-            int tri = abs(fields.get_marker(i));
-            Point3 centoid = fields.get_point(i);
-            int quad;
-            for (int k = 0; k < 3; k++){
-                quad = 3 * tri + k;
-                double dist = centoid.distance2(mesh.quads.get_centroid(quad));
-                if (dist < 1.e-10) break;
-            }
-            SimpleQuad sface = mesh.quads[quad];
+			// generate a point at random location inside the quadrangle
+            for (int j = 0; j < 4; j++)
+                position += mesh.nodes[squad[j]] * (0.5 * rands[j]);
 
-            Point3 p_el(0.,0.,0.);
-            double rand1 = (double)std::rand()/ RAND_MAX;
-            double rand2= (double)std::rand()/ RAND_MAX;
-            vector<double> rands(4);
-            rands[0] = rand1;
-            rands[1] = 1-rand1;
-            rands[2] = rand2;
-            rands[3] = 1-rand2;
-            for (int j = 0; j < 4; j++){
-                p_el += mesh.nodes[sface[j]] * (.5   * rands[j]);
-            }
+            // push point little bit inside the vacuum mesh
+            position += mesh.faces.get_norm(tri) * (mesh.faces.stat.edgemin * 0.01);
 
-            Vec3 vec_push = mesh.faces.get_norm(tri) * 0.01;
-
-            // push electrons little bit inside the vacuum mesh
-            p_el += Point3(vec_push.x, vec_push.y, vec_push.z);
-
-            int cell_index = 0;//TODO be updated correctly
-
-            pos.push_back(p_el);
-            efield.push_back(Point3(Field.x, Field.y, Field.z));
-            cells.push_back(cell_index);
+            pos.push_back(position);
+            efield.push_back(field);
+			cells.push_back(hex);
         }
 
         n_tot += n_electrons_sp;
     }
-    printf("emitted SPs = %d\n", n_tot);
+
+    write_verbose_msg("emitted " + to_string(n_tot) + " electrons");
 }
 
 void EmissionReader::calc_emission(double workfunction, bool blunt){

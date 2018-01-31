@@ -28,25 +28,25 @@ ConstCoarsener::ConstCoarsener() : Coarsener() {}
 ConstCoarsener::ConstCoarsener(const double r0_min) : Coarsener(Point3(), 0, 0, r0_min) {}
 
 // FlatlandCoarsener for coarsening area outside one infinite cylinder
-FlatlandCoarsener::FlatlandCoarsener() : Coarsener(), origin2d(Point2(0.0)) {}
+FlatlandCoarsener::FlatlandCoarsener() : Coarsener(), origin2d(0.0) {}
 
 FlatlandCoarsener::FlatlandCoarsener(const Point3 &origin, const double radius, const double A,
         const double r0_min, const double r0_max) :
         Coarsener(origin, radius, A, r0_min, r0_max),
-        origin2d(Point2(origin.x, origin.y)) {}
+        origin2d(origin.x, origin.y) {}
 
 // CylinderCoarsener for coarsening area inside one infinite cylinder
-CylinderCoarsener::CylinderCoarsener() : Coarsener() {}
+CylinderCoarsener::CylinderCoarsener() : Coarsener(), origin2d(0.0) {}
 
 CylinderCoarsener::CylinderCoarsener(const Point2 &base, const double radius, const double r0_cylinder) :
-        Coarsener(Point3(), radius, 0, r0_cylinder), origin2d(base) {}
+        Coarsener(Point3(), radius, 0, r0_cylinder), origin2d(base.x, base.y) {}
 
 // NanotipCoarsener for coarsening area inside one infinite vertical nanotip
-NanotipCoarsener::NanotipCoarsener() : Coarsener(), origin2d(Point2()) {}
+NanotipCoarsener::NanotipCoarsener() : Coarsener(), origin2d(0.0) {}
 
 NanotipCoarsener::NanotipCoarsener(const Point3 &apex, const double radius, const double A,
         const double r0_apex, const double r0_cylinder) :
-        Coarsener(apex, radius, A, r0_apex, r0_cylinder), origin2d(Point2(apex.x, apex.y)) {}
+        Coarsener(apex, radius, A, r0_apex, r0_cylinder), origin2d(apex.x, apex.y) {}
 
 // TiltedNanotipCoarsener for coarsening area inside one infinite tilted nanotip
 TiltedNanotipCoarsener::TiltedNanotipCoarsener() : NanotipCoarsener(), bottom(Vec3()), axis(Vec3()), height2(0) {}

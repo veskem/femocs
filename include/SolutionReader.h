@@ -53,13 +53,12 @@ public:
     void set_interpolation(const int i, const Solution& s);
 
     /** Set interpolation preferences */
-    void set_preferences(const bool _srt, const int _dim, const int _rank, const double _empty_val=0) {
+    void set_preferences(const bool _srt, const int _dim, const int _rank) {
         require((_dim == 2 || _dim == 3), "Invalid interpolation dimension: " + to_string(_dim));
         require((_rank == 1 || _rank == 2 || _rank == 3), "Invalid interpolation rank: " + to_string(_rank));
         sort_atoms = _srt;
         dim = _dim;
         rank = _rank;
-        empty_val = _empty_val;
     }
 
     /** Calculate statistics about coordinates and solution */
@@ -89,7 +88,6 @@ protected:
     bool sort_atoms;              ///< sort atoms along Hilbert curve to make interpolation faster
     int dim;                      ///< location of interpolation; 2-surface, 3-space
     int rank;                     ///< interpolation rank; 1-linear, 2-quadratic
-    double empty_val;             ///< empty value written to solution vector in case of empty interpolator
 
     Interpolator* interpolator;    ///< pointer to interpolator
     vector<Solution> interpolation;       ///< interpolated data
@@ -260,9 +258,9 @@ private:
      */
     void calc_emission(double workfunction, bool blunt  = false);
 
-
-    const double angstrom_per_nm = 10.0;
-    const double nm2_per_angstrom2 = 0.01;
+    static constexpr double angstrom_per_nm = 10.0;
+    static constexpr double nm2_per_angstrom2 = 0.01;
+    static constexpr int n_lines = 32; ///< Number of points in the line for GETELEC
 
     const FieldReader& fields;    ///< Object containing the field on centroids of hex interface faces.
     const HeatReader& heat;       ///< Object containing the temperature on centroids of hexahedral faces.
@@ -272,7 +270,6 @@ private:
     vector<double> nottingham; ///< Same as current_densities for nottingham heat deposition [in W/A^2]
     vector<double> currents;    ///< Current flux for every face (current_densities * face_areas) [in Amps]
 
-    const int n_lines = 32; ///< Number of points in the line for GETELEC
     vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
     vector<double> Vline;   ///< Potential on the straight line (complements rline)
 

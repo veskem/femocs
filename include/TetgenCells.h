@@ -74,7 +74,7 @@ public:
     }
 
     /** Copy the nodes from write buffer to read buffer */
-    virtual void recalc(const bool write2read=false) {
+    virtual void transfer(const bool write2read=false) {
         if(write2read)
             *n_cells_r = *n_cells_w;
         else
@@ -188,10 +188,15 @@ public:
     iterator end() const { return iterator(this, size()); }
 
     static constexpr int DIM = dim; //!< dimensionality of the cell; 1-node, 2-edge, 3-triangle etc
+    static constexpr int n_coordinates = 3;    ///< Number of spatial coordinates
+    static constexpr int n_edges_per_tri = 3;  ///< Number of edges on a triangle
+    static constexpr int n_tets_per_tri = 2;   ///< Number of tetrahedra connected to a triangle
+    static constexpr int n_edges_per_tet = 6;  ///< Number of edges on a tetrahedron
+    static constexpr int n_tris_per_tet = 4;   ///< Number of triangles on a tetrahedron
+    static constexpr int n_hexs_per_tet = 4;   ///< Number of hexahedra connected to a tetrahedron
+    static constexpr int n_quads_per_tri = 3;  ///< Number of quadrangles connected to a triangle
 
 protected:
-    static constexpr int n_coordinates = 3;  //!< number of spatial coordinates
-
     int* n_cells_r;      ///< number of readable cells in mesh data
     int* n_cells_w;      ///< number of writable cells in mesh data
     tetgenio* reads;     ///< mesh data that has been processed by Tetgen
@@ -306,7 +311,7 @@ public:
     iterator end() const { return iterator(this, size()); }
 
     /** Copy the nodes from write buffer to read buffer */
-    void recalc(const bool write2read=true);
+    void transfer(const bool write2read=true);
 
     void copy(const TetgenNodes& nodes, const vector<bool>& mask={});
 
@@ -394,7 +399,7 @@ public:
     void append(const SimpleCell<2> &cell);
 
     /** Copy the nodes from one buffer to another */
-    void recalc(const bool write2read=true);
+    void transfer(const bool write2read=true);
 
     /** Delete the edges that are not on the perimeter of surface */
     void clean_sides(const Medium::Sizes& stat);
@@ -434,10 +439,10 @@ public:
     void append(const SimpleCell<3> &cell);
 
     /** Copy the nodes from one buffer to another */
-    void recalc(const bool write2read=true);
+    void transfer(const bool write2read=true);
     
-    /** Delete the faces on the sides of simulation cell */
-    void clean_sides(const Medium::Sizes& stat);
+    /** Copy the surface faces from another TetgenFaces */
+    int copy_surface(const TetgenFaces& faces, const Medium::Sizes& stat);
 
     /** Return the normal of i-th triangle */
     Vec3 get_norm(const int i) const;
@@ -445,18 +450,18 @@ public:
     /** Return the area of i-th triangle */
     double get_area(const int i) const;
 
-    /** Return indices of all edges that are connected to i-th tetrahedron*/
-    array<int,3> to_edges(const int i) const {
-        const int I = 3 * i;
-        return array<int,3>{reads->tet2edgelist[I], reads->tet2edgelist[I+1], reads->tet2edgelist[I+2]};
+    /** Return indices of all tetrahedra that are connected to i-th triangle;
+     * -1 means there's no tetrahedron */
+    array<int,2> to_tets(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        const int I = 2 * i;
+        return array<int,2>{reads->face2tetlist[I], reads->face2tetlist[I+1]};
     }
-
-    /** Return index of quadrangle that is connected to i-th triangle*/
-    int to_quad(const int i) const { return 3 * i; }
 
     /** Return indices of all quadrangles that are connected to i-th triangle*/
     array<int,3> to_quads(const int i) const {
-        const int I = 3 * i;
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        const int I = n_quads_per_tri * i;
         return array<int,3>{I, I+1, I+2};
     }
 
@@ -504,35 +509,28 @@ public:
     void append(const SimpleCell<4> &cell);
 
     /** Copy the nodes from one buffer to another */
-    void recalc(const bool write2read=true);
-
-    /** Return indices of all edges that are connected to i-th tetrahedron*/
-    array<int,6> to_edges(const int i) const {
-        const int I = i * 6;
-        return array<int,6> {
-            reads->tet2edgelist[I+0], reads->tet2edgelist[I+1],
-            reads->tet2edgelist[I+2], reads->tet2edgelist[I+3],
-            reads->tet2edgelist[I+4], reads->tet2edgelist[I+5] };
-    }
+    void transfer(const bool write2read=true);
 
     /** Return indices of all triangles that are connected to i-th tetrahedron*/
-    array<int,4> to_tris(const int i) const {
-        const int I = i * 4;
-        return array<int,4>{reads->tet2facelist[I+0], reads->tet2facelist[I+1],
-            reads->tet2facelist[I+2], reads->tet2facelist[I+3]};
+    vector<int> to_tris(const int i) const {
+        require(i >= 0 && i < map2tris.size(), "Invalid index: " + to_string(i));
+        return map2tris[i];
     }
-
-    /** Return index of hexahedron that is connected to i-th tetrahedron*/
-    int to_hex(const int i) const { return 4 * i; }
 
     /** Return indices of all hexahedra that are connected to i-th tetrahedron*/
     array<int,4> to_hexs(const int i) const {
-        const int I = 4 * i;
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        const int I = n_hexs_per_tet * i;
         return array<int,4>{I, I+1, I+2, I+3};
     }
 
     /** Calculate statistics about tetrahedra */
     void calc_statistics();
+
+    /** Store data for mapping tetrahedron to triangles */
+    void store_map(const vector<vector<int>>& map) {
+        map2tris = map;
+    }
 
     /** Struct holding statistics about tetrahedra */
     struct Stat {
@@ -541,6 +539,8 @@ public:
     } stat;
 
 private:
+    vector<vector<int>> map2tris; ///< data for mapping tetrahedron to the triangles
+
     /** Return the tetrahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.TETRAHEDRON; }
 
@@ -568,11 +568,27 @@ public:
     /** Get number of quadrangles in mesh */
     int size() const { return quads.size(); }
 
-    /** Return index of triangle that is connected to i-th quadrangle*/
-    int to_tri(const int i) const { return int(i / 3); }
+    /** Return indices of all hexahedra that are connected to i-th quadrangle;
+     * -1 means there's no hexahedron */
+    array<int,2> to_hexs(const int i) const {
+        require(i >= 0 && i < map2hexs.size(), "Invalid index: " + to_string(i));
+        return map2hexs[i];
+    }
+
+    /** Return the index of triangle connected to i-th quadrangle */
+    int to_tri(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return int(i / n_quads_per_tri);
+    }
+
+    /** Store data for mapping quadrangle to hexahedra */
+    void store_map(const vector<array<int,2>>& map) {
+        map2hexs = map;
+    }
 
 protected:
     vector<SimpleQuad> quads;
+    vector<array<int,2>> map2hexs;
 
     /** Return the quadrangle type in vtk format */
     int get_cell_type() const { return TYPES.VTK.QUADRANGLE; }
@@ -598,8 +614,17 @@ public:
     /** Get number of hexahedra in mesh */
     int size() const { return hexs.size(); }
 
-    /** Return index of tetrahedron that is connected to i-th hexahedron*/
-    int to_tet(const int i) const { return int(i / 4); }
+    /** Return the indices of quadrangles connected to i-th hexahedron */
+    vector<int> to_quads(const int i) const {
+        require(i >= 0 && i < map2quads.size(), "Invalid index: " + to_string(i));
+        return map2quads[i];
+    }
+
+    /** Return the index of tetrahedron connected to i-th hexahedron */
+    int to_tet(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return int(i / n_hexs_per_tet);
+    }
 
     /** Export vacuum hexahedra in Deal.II format */
     vector<dealii::CellData<3>> export_vacuum() const;
@@ -607,8 +632,14 @@ public:
     /** Export bulk hexahedra in Deal.II format */
     vector<dealii::CellData<3>> export_bulk() const;
 
+    /** Store the data for mapping hexahedron to quadrangles */
+    void store_map(vector<vector<int>>& map) {
+        map2quads = map;
+    }
+
 protected:
     vector<SimpleHex> hexs;
+    vector<vector<int>> map2quads;
 
     /** Return the hexahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; }

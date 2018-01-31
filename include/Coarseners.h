@@ -113,11 +113,11 @@ public:
     }
 
 private:
-    Point2 origin2d;
+    Point3 origin2d;
 
     /** Point outside infinitely high vertical cylinder? */
     inline bool in_region(const Point3 &point) const {
-        return origin2d.distance2(Point2(point.x, point.y)) > radius2;
+        return origin2d.distance2(point) > radius2;
     }
 };
 
@@ -143,13 +143,13 @@ public:
 protected:
     /** Point in infinitely high vertical cylinder? */
     inline bool in_region(const Point3 &point) const {
-        return origin2d.distance2(Point2(point.x, point.y)) <= radius2;
+        return origin2d.distance2(point) <= radius2;
     }
 
 private:
     const int n_circles = 1;
     const int n_lines = 4;
-    Point2 origin2d;
+    Point3 origin2d;
 };
 
 /** Class to coarsen surface inside one infinite vertical nanotip */
@@ -174,13 +174,13 @@ public:
 protected:
     /** Point in infinitely high vertical cylinder? */
     inline bool in_region(const Point3 &point) const {
-        return origin2d.distance2(Point2(point.x, point.y)) <= radius2;
+        return origin2d.distance2(point) <= radius2;
     }
 
 private:
     const int n_circles = 4;
     const int n_lines = 6;
-    Point2 origin2d;
+    Point3 origin2d;
 };
 
 /** Class to coarsen surface inside one infinite tilted nanotip */

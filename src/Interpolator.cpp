@@ -18,13 +18,14 @@ namespace femocs {
  * ================================================================== */
 
 Interpolator::Interpolator(const TetgenMesh* m, const string& nl, const string& sl) :
-    mesh(m) {
+    mesh(m), empty_value(0) {
 
     nodes.set_dependencies(m, nl, sl);
     lintris.set_dependencies(mesh, &nodes);
-    quadtris.set_dependencies(mesh, &nodes, &lintris);
     lintets.set_dependencies(mesh, &nodes);
+    quadtris.set_dependencies(mesh, &nodes, &lintris);
     quadtets.set_dependencies(mesh, &nodes, &lintets);
+    linquads.set_dependencies(mesh, &nodes, &lintris);
     linhexs.set_dependencies(mesh, &nodes, &lintets);
 }
 
@@ -116,28 +117,13 @@ void Interpolator::store_solution(const vector<int>& femocs2deal,
             nodes.set_solution(i, Solution(Vec3(vec[0], vec[1], vec[2]), scal_data[j++]) );
         }
         else
-            nodes.set_solution(i, Solution(0));
+            nodes.set_solution(i, Solution(empty_value));
     }
-}
-
-void Interpolator::initialize() {
-    // precompute cells to make interpolation faster
-    nodes.precompute();
-    lintris.precompute();
-    quadtris.precompute();
-    lintets.precompute();
-    quadtets.precompute();
-    linhexs.precompute();
-
-    // initially store zero solution
-    const int n_atoms = nodes.size();
-    for (int i = 0; i < n_atoms; ++i)
-        nodes.append_solution(Solution(0));
 }
 
 //find the hex cell where the piont p is located. initial guess: current_cell
 // if deal_index then current_cell is dealii cell index
-int Interpolator::update_point_cell(Point3 femocs_point, int current_cell, bool deal_index) {
+int Interpolator::update_point_cell(Point3& point, int current_cell, bool deal_index) {
     int femocs_current_cell;
 
     if (deal_index)
@@ -145,25 +131,26 @@ int Interpolator::update_point_cell(Point3 femocs_point, int current_cell, bool 
     else
         femocs_current_cell = current_cell;
 
-    int femocs_cell = linhexs.locate_cell(femocs_point, femocs_current_cell);
+    int femocs_cell = linhexs.locate_cell(point, femocs_current_cell);
     if (femocs_cell < 0) return -1;
     return linhexs.femocs2deal(femocs_cell);
 }
 
-void Interpolator::initialize(double value) {
+void Interpolator::initialize(double empty_val) {
     // Precompute cells to make interpolation faster
     nodes.precompute();
     lintris.precompute();
     quadtris.precompute();
     lintets.precompute();
     quadtets.precompute();
+    linquads.precompute();
     linhexs.precompute();
 
-    const int n_atoms = nodes.size();
+    empty_value = empty_val;
 
-    for (int i = 0; i < n_atoms; ++i){
-        nodes.append_solution(Solution(value));
-    }
+    const int n_atoms = nodes.size();
+    for (int i = 0; i < n_atoms; ++i)
+        nodes.append_solution(Solution(empty_val));
 }
 
 bool Interpolator::extract_solution(fch::Laplace<3>* fem) {

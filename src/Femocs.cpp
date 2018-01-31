@@ -223,9 +223,10 @@ int Femocs::generate_meshes() {
     if (fail) return 1;
 
     start_msg(t0, "=== Making big mesh...");
-    // r - reconstruct, n - output neighbour list, Q - quiet, q - mesh quality, a - element volume,
+    // r - reconstruct, n(n) - output tet neighbour list (and tri-tet connection),
+    // Q - quiet, q - mesh quality, a - element volume, E - suppress output of elements
     // F - suppress output of faces and edges, B - suppress output of boundary info
-    string command = "rnQFBq" + conf.geometry.mesh_quality;
+    string command = "rQFBq" + conf.geometry.mesh_quality;
     if (conf.geometry.element_volume != "") command += "a" + conf.geometry.element_volume;
     int err_code = fem_mesh.generate(bulk, coarse_surf, vacuum, command);
     check_return(err_code, "Triangulation failed with error code " + to_string(err_code));
@@ -237,7 +238,7 @@ int Femocs::generate_meshes() {
     end_msg(t0);
 
     start_msg(t0, "=== Generating surface faces...");
-    err_code = fem_mesh.generate_surface(reader.sizes, "rnQB");
+    err_code = fem_mesh.generate_surface(reader.sizes, "rQB", "rQnn");
     end_msg(t0);
     check_return(err_code, "Generation of surface faces failed with error code " + to_string(err_code));
 
@@ -297,6 +298,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     vacuum_interpolator.initialize();
     bulk_interpolator.initialize(conf.heating.t_ambient);
     vacuum_interpolator.lintets.narrow_search_to(TYPES.VACUUM);
+    bulk_interpolator.lintets.narrow_search_to(TYPES.BULK);
 
     pic_solver.set_params(conf.laplace, conf.pic, dt_pic, fem_mesh.nodes.stat);
 
@@ -311,22 +313,28 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
             pic_solver.run_cycle(true);
         end_msg(t0);
 
-        start_msg(t0, "=== Extracting fields and writing into file...");
+        start_msg(t0, "=== Extracting E and phi...");
         fail = vacuum_interpolator.extract_solution(&laplace_solver);
+        end_msg(t0);
+
+        
+        if(!conf.pic.doPIC) break; // stop before injecting particles
+
+ 	start_msg(t0, "=== Writing particles and fields to file...");
         vacuum_interpolator.nodes.write("out/result_E_phi.movie");
         pic_solver.write_particles("out/electrons.movie");
         end_msg(t0);
-
-        if(!conf.pic.doPIC) break; // stop before injecting particles
-
-
-        start_msg(t0, "=== Calculating electron emission...");
+        
+	start_msg(t0, "=== Calculating electron emission...");
         get_emission();
         end_msg(t0);
 
         start_msg(t0, "=== Injecting electrons...");
         pic_solver.inject_electrons(conf.pic.fractional_push);
         end_msg(t0);
+
+
+       
 
     }
 
@@ -439,7 +447,7 @@ int Femocs::solve_stationary_heat() {
     check_return(t_error > conf.heating.t_error, "Temperature didn't converge, err=" + to_string(t_error));
 
     start_msg(t0, "=== Extracting J & T...");
-    bulk_interpolator.initialize();
+    bulk_interpolator.initialize(conf.heating.t_ambient);
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
@@ -460,13 +468,13 @@ int Femocs::solve_stationary_heat() {
 
 void Femocs::get_emission(){
     start_msg(t0, "=== Transfering elfield to J & T solver...");
-    surface_fields.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+    surface_fields.set_preferences(false, 2, 3);
     surface_fields.transfer_elfield(ch_transient_solver);
     end_msg(t0);
     surface_fields.write("out/surface_field.xyz");
 
     start_msg(t0, "=== Interpolating J & T on face centroids...");
-    surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank, conf.heating.t_ambient);
+    surface_temperatures.set_preferences(false, 2, 3);
     surface_temperatures.interpolate(ch_transient_solver);
     end_msg(t0);
     surface_temperatures.write("out/surface_temperature.xyz");
@@ -516,7 +524,7 @@ int Femocs::solve_transient_heat(const double delta_time) {
     ch_transient_solver.output_results_heating("out/result_T.vtk");
 
     start_msg(t0, "=== Extracting J & T...");
-    bulk_interpolator.initialize();
+    bulk_interpolator.initialize(conf.heating.t_ambient);
     bulk_interpolator.extract_solution(ch_transient_solver);
     end_msg(t0);
     bulk_interpolator.nodes.write("out/result_J_T.movie");
@@ -555,7 +563,7 @@ int Femocs::solve_converge_heat() {
     for (int i = 0; i < 1000; ++i){
 
         start_msg(t0, "=== Interpolating J & T on face centroids...");
-        surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank, conf.heating.t_ambient);
+        surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank);
         surface_temperatures.interpolate(ch_transient_solver);
         end_msg(t0);
         if (MODES.VERBOSE) surface_temperatures.write("out/surface_temperature.xyz");
@@ -579,7 +587,7 @@ int Femocs::solve_converge_heat() {
         end_msg(t0);
 
         start_msg(t0, "=== Extracting J & T...");
-        bulk_interpolator.initialize();
+        bulk_interpolator.initialize(conf.heating.t_ambient);
         bulk_interpolator.extract_solution(ch_transient_solver);
         end_msg(t0);
         bulk_interpolator.nodes.write("out/result_J_T.movie");
@@ -851,6 +859,11 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         check_return(face_charges.check_limits(forces.get_interpolations()), "Voronoi charges are not conserved!");
     }
 
+    start_msg(t0, "=== Exporting atomic charges & forces...");
+    forces.export_force(n_atoms, xq);
+    end_msg(t0);
+
+    return 0;
 }
 
 // linearly interpolate electric field at given points

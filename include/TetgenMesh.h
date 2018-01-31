@@ -48,7 +48,7 @@ public:
     bool generate_hexahedra();
     
     /** Using the separated tetrahedra generate the triangular surface on the vacuum-material boundary */
-    int generate_surface(const Medium::Sizes& sizes, const string& cmd);
+    int generate_surface(const Medium::Sizes& sizes, const string& cmd1, const string& cmd2);
 
     /** Mark mesh nodes and elements by their location relative to the surface atoms */
     bool mark_mesh();
@@ -73,11 +73,8 @@ public:
     /** Delete the data of previously stored mesh and initialise a new one */
     void clear();
 
-    /** Delete disturbing edges and faces on and near the surface perimeter */
-    void clean_sides(const Medium::Sizes& sizes);
-
     /** Copy mesh from input to output or vice versa without modification */
-    int recalc(const bool write2read=true);
+    int transfer(const bool write2read=true);
 
     /** Perform Tetgen calculation on input buffer and store it in output one */
     int recalc(const string& cmd);
@@ -85,17 +82,39 @@ public:
     /** Perform double Tetgen calculation on input buffer and store it in output one */
     int recalc(const string& cmd1, const string& cmd2);
 
+    /** Map the triangle to the tetrahedron by specifying the region (vacuum or bulk)  */
+    int tri2tet(const int tri, const int region) const;
+
+    /** Map the quadrangle to the hexahedron by specifying the region (vacuum or bulk) */
+    int quad2hex(const int quad, const int region) const;
+
+    void test_mapping() const;
+
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin); ///< data & operations for mesh nodes
     TetgenEdges edges = TetgenEdges(&tetIOout);           ///< data & operations for mesh edges
-    TetgenFaces faces = TetgenFaces(&tetIOout);           ///< data & operations for mesh triangles
+    TetgenFaces faces = TetgenFaces(&tetIOout, &tetIOin); ///< data & operations for mesh triangles
     TetgenElements elems = TetgenElements(&tetIOout, &tetIOin); ///< data & operations for mesh tetrahedra
     Quadrangles quads = Quadrangles(&tetIOout);           ///< data & operations for mesh quadrangles
     Hexahedra hexahedra = Hexahedra(&tetIOout);           ///< data & operations for mesh hexahedra
 
-    static constexpr int n_coordinates = 3;     ///< Number of coordinates
-    static constexpr int n_edges_per_face = 3;  ///< Number of edges on a triangle
-    static constexpr int n_edges_per_elem = 6;  ///< Number of edges on a tetrahedron
-    static constexpr int n_faces_per_elem = 4;  ///< Number of triangles on a tetrahedron
+    static constexpr int n_coordinates = 3;     ///< # coordinates
+
+    static constexpr int n_nodes_per_edge = 2; ///< # nodes on an edge
+    static constexpr int n_nodes_per_tri = 3;  ///< # nodes on a triangle
+    static constexpr int n_nodes_per_quad = 4; ///< # nodes on a quadrangle
+    static constexpr int n_nodes_per_tet = 4;  ///< # nodes on a tetrahedron
+    static constexpr int n_nodes_per_hex = 8;  ///< # nodes on a hexahedron
+
+    static constexpr int n_edges_per_tri = 3;  ///< # edges on a triangle
+    static constexpr int n_edges_per_quad = 4; ///< # edges on a quadrangle
+    static constexpr int n_edges_per_tet = 6;  ///< # edges on a tetrahedron
+    static constexpr int n_edges_per_hex = 12; ///< # edges on a hexahedron
+    static constexpr int n_tris_per_tet = 4;   ///< # triangles on a tetrahedron
+    static constexpr int n_tets_per_tri = 2;   ///< # tetrahedra connected to a triangle
+    static constexpr int n_hexs_per_quad = 2;  ///< # hexahedra connected to a quadrangle
+    static constexpr int n_hexs_per_tet = 4;   ///< # hexahedra connected to a tetrahedron
+    static constexpr int n_quads_per_tri = 3;  ///< # quadrangles connected to a triangle
+    static constexpr int n_quads_per_hex = 6;  ///< # quadrangles connected to a hexahedron
 
     /** String stream prints the statistics about the mesh */
     friend std::ostream& operator <<(std::ostream &s, const TetgenMesh &t) {
@@ -136,6 +155,12 @@ private:
     void group_hexahedra();
 
     bool calc_ranks(vector<int>& ranks, const vector<vector<unsigned>>& nborlist);
+
+    /** Calculate the mapping between quadrangle and hexahedron indices */
+    void calc_quad2hex_mapping();
+
+    /** Calculate the mapping between tetrahedron and triangle indices */
+    void calc_tet2tri_mapping();
 
     /** Mark the tetrahedra by the location of nodes */
     void mark_elems();
