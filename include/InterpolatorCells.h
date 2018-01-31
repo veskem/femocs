@@ -499,6 +499,9 @@ public:
     /** Find the hexahedron which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
+    /** Until proper way to calculate shape functions is found, use lintri interpolator */
+    Solution interp_solution(const Point3 &point, const int c) const;
+
     /** Change the mesh dependency data */
     void set_dependencies(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTriangles* l) {
         InterpolatorCells<4>::set_dependencies(m, n);

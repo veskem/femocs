@@ -51,7 +51,7 @@ public:
     Interpolator(const TetgenMesh* m, const string& norm_label, const string& scalar_label);
     ~Interpolator() {};
 
-    /** Initialize interpolator and store initial solution */
+    /** Initialise interpolator and store solution with default value */
     void initialize(double empty_value=0);
 
     /** Extract the electric potential and field values from FEM solution */
@@ -63,6 +63,8 @@ public:
     /** Extract the current density and transient temperature values from FEM solution */
     bool extract_solution(fch::CurrentsAndHeating<3>& fem);
 
+    int update_point_cell(Point3& point, int current_cell, bool deal_index = true);
+
     InterpolatorNodes nodes;      ///< vertices and solutions on them
     LinearTriangles lintris;      ///< data & operations for linear triangular interpolation
     QuadraticTriangles quadtris;  ///< data & operations for quadratic triangular interpolation
@@ -70,8 +72,6 @@ public:
     QuadraticTetrahedra quadtets; ///< data & operations for quadratic tetrahedral interpolation
     LinearHexahedra linhexs;      ///< data & operations for linear hexahedral interpolation
     LinearQuadrangles linquads;   ///< data & operations for linear quadrangular interpolation
-
-    int update_point_cell(Point3 point, int current_cell, bool deal_index = true);
 
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc

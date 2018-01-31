@@ -296,8 +296,8 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     end_msg(t0);
 
 
-    stringstream ss; ss << laplace_solver;
-    write_verbose_msg(ss.str());
+//    stringstream ss; ss << laplace_solver;
+//    write_verbose_msg(ss.str());
     vacuum_interpolator.initialize();
     bulk_interpolator.initialize(conf.heating.t_ambient);
     vacuum_interpolator.lintets.narrow_search_to(TYPES.VACUUM);
@@ -318,8 +318,8 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
 
         start_msg(t0, "=== Extracting E and phi...");
         fail = vacuum_interpolator.extract_solution(&laplace_solver);
-        vacuum_interpolator.nodes.write("out/result_E_phi.movie");
         end_msg(t0);
+        vacuum_interpolator.nodes.write("out/result_E_phi.movie");
 
         if(!conf.pic.doPIC) break; // stop before injecting particles
 
@@ -449,7 +449,7 @@ int Femocs::solve_stationary_heat() {
     check_return(t_error > conf.heating.t_error, "Temperature didn't converge, err=" + to_string(t_error));
 
     start_msg(t0, "=== Extracting J & T...");
-    bulk_interpolator.initialize();
+    bulk_interpolator.initialize(conf.heating.t_ambient);
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
@@ -470,13 +470,13 @@ int Femocs::solve_stationary_heat() {
 
 void Femocs::get_emission(){
     start_msg(t0, "=== Transfering elfield to J & T solver...");
-    surface_fields.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+    surface_fields.set_preferences(false, 2, 3);
     surface_fields.transfer_elfield(ch_transient_solver);
     end_msg(t0);
     surface_fields.write("out/surface_field.xyz");
 
     start_msg(t0, "=== Interpolating J & T on face centroids...");
-    surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+    surface_temperatures.set_preferences(false, 2, 3);
     surface_temperatures.interpolate(ch_transient_solver);
     end_msg(t0);
     surface_temperatures.write("out/surface_temperature.xyz");
@@ -526,7 +526,7 @@ int Femocs::solve_transient_heat(const double delta_time) {
     ch_transient_solver.output_results_heating("out/result_T.vtk");
 
     start_msg(t0, "=== Extracting J & T...");
-    bulk_interpolator.initialize();
+    bulk_interpolator.initialize(conf.heating.t_ambient);
     bulk_interpolator.extract_solution(ch_transient_solver);
     end_msg(t0);
     bulk_interpolator.nodes.write("out/result_J_T.movie");
@@ -589,7 +589,7 @@ int Femocs::solve_converge_heat() {
         end_msg(t0);
 
         start_msg(t0, "=== Extracting J & T...");
-        bulk_interpolator.initialize();
+        bulk_interpolator.initialize(conf.heating.t_ambient);
         bulk_interpolator.extract_solution(ch_transient_solver);
         end_msg(t0);
         bulk_interpolator.nodes.write("out/result_J_T.movie");

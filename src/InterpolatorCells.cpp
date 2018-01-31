@@ -1139,11 +1139,21 @@ void LinearQuadrangles::precompute() {
         markers[i] = lintri->get_marker(quads->to_tri(i));
 }
 
+Solution LinearQuadrangles::interp_solution(const Point3 &point, const int c) const {
+    int cell;
+    if (c >= 0) cell = quads->to_tri(c);
+    else cell = -quads->to_tri(abs(c));
+
+    return lintri->interp_solution(point, cell);
+}
+
 /*
  * The code for mapping the point from Cartesian to natural coordinate space was taken from
  * https://www.gamedev.net/forums/topic/596392-uv-coordinate-on-a-2d-quadrilateral/
  */
 void LinearQuadrangles::get_shape_functions(array<double,4>& sf, const Vec3& p, const int quad) const {
+    require(false, "LinearQuadrangles::get_shape_functions is not implemented!");
+
     require(quad >= 0 && quad < cells.size(), "Index out of bounds: " + to_string(quad));
 
     // Before calculating the shape function,

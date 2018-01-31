@@ -123,7 +123,7 @@ void Interpolator::store_solution(const vector<int>& femocs2deal,
 
 //find the hex cell where the piont p is located. initial guess: current_cell
 // if deal_index then current_cell is dealii cell index
-int Interpolator::update_point_cell(Point3 femocs_point, int current_cell, bool deal_index) {
+int Interpolator::update_point_cell(Point3& point, int current_cell, bool deal_index) {
     int femocs_current_cell;
 
     if (deal_index)
@@ -131,7 +131,7 @@ int Interpolator::update_point_cell(Point3 femocs_point, int current_cell, bool 
     else
         femocs_current_cell = current_cell;
 
-    int femocs_cell = linhexs.locate_cell(femocs_point, femocs_current_cell);
+    int femocs_cell = linhexs.locate_cell(point, femocs_current_cell);
     if (femocs_cell < 0) return -1;
     return linhexs.femocs2deal(femocs_cell);
 }

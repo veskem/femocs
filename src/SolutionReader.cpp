@@ -1055,14 +1055,13 @@ void EmissionReader::calc_representative() {
     double I_tot = 0;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
-        double face_area = mesh.faces.get_area(abs(fields.get_marker(i))) / 3.;
+        int tri = mesh.quads.to_tri(abs(fields.get_marker(i)));
+        // quadrangle area is 1/3 of corresponding triangle area
+        double face_area = mesh.faces.get_area(tri) / 3.;
         currents[i] = face_area * current_densities[i];
         I_tot += currents[i];
 
-
         if (current_densities[i] > Jmax * 0.5){ //if point eligible
-            //quadrangle face area is 1/3 of corresponding triangle face area
-            double face_area = mesh.faces.get_area(abs(fields.get_marker(i))) / 3.;
             area += face_area; // increase total area
             I_fwhm += currents[i]; // increase total current
             FJ += currents[i] * fields.get_elfield_norm(i);
@@ -1104,14 +1103,17 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
 
         for (int j = 0; j < n_electrons_sp; j++){
 
-            int tri = abs(fields.get_marker(i));
-            Point3 centoid = fields.get_point(i);
-            int quad;
-            for (int k = 0; k < 3; k++){
-                quad = 3 * tri + k;
-                double dist = centoid.distance2(mesh.quads.get_centroid(quad));
-                if (dist < 1.e-10) break;
-            }
+//            int tri = abs(fields.get_marker(i));
+//            Point3 centoid = fields.get_point(i);
+//            int quad;
+//            for (int k = 0; k < 3; k++){
+//                quad = 3 * tri + k;
+//                double dist = centoid.distance2(mesh.quads.get_centroid(quad));
+//                if (dist < 1.e-10) break;
+//            }
+
+            int quad = abs(fields.get_marker(i));
+            int tri = mesh.quads.to_tri(quad);
             SimpleQuad sface = mesh.quads[quad];
 
             Point3 p_el(0.,0.,0.);
