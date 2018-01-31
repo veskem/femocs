@@ -34,16 +34,14 @@ public:
         bool operator < (const Particle &partj) {return (cell < partj.cell);}
     };
 
-    void sort_parts(){
-        sort(parts.begin(), parts.end());
-    }
+    void sort_parts();
 
     const double q_over_m_factor; ///< charge/mass [A^2 / (V fs^2)]
     const double q_over_eps0; ///< charge / eps0
     const double Wsp; ///< SP weight
 
     vector<Particle> parts;
-
+    vector<size_t> ordcount;
 };
 
 } // namespace

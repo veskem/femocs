@@ -26,22 +26,41 @@ void ParticleSpecies::clear_lost(){
         //If this particle is lost or nothing has been lost:
         // skip shuffling this particle
         if (parts[i].cell==-1) {
-	    nlost++;
-	    continue;
-	}
-	else if (nlost==0) {
+            nlost++;
             continue;
-	}
+        }
+        else if (nlost==0) {
+            continue;
+        }
 
         parts[i-nlost] = parts[i];
     }
-
+    
     //Shrink the arrays
     if (nlost > 0){
         parts.resize(npart-nlost);
         cout << "Particles were lost! nlost=" << nlost << endl;
     }
 
+}
+
+void ParticleSpecies::sort_parts(){
+    sort(parts.begin(), parts.end());
+    //Update the array tracking how many particles per cell
+    ordcount.clear();
+    if (parts.size() > 0) {
+        int cell0 = parts[0].cell;
+        size_t ordCounter = 0;
+        for (auto p : parts) {
+            if (p.cell == cell0) {
+                ordcount[ordCounter] += 1;
+            }
+            else {
+                ordcount.push_back(1);
+                cell0 = p.cell;
+            }
+        }
+    }
 }
 
 }
