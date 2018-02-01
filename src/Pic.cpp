@@ -95,7 +95,7 @@ void Pic<dim>::update_positions(){
         particle.pos.y = periodic_image(particle.pos.y, box.ymax, box.ymin);
 
         //Update the cellID; if any particles have left the domain their ID is set to -1
-	// and they will be removed once we call clear_lost
+        // and they will be removed once we call clear_lost
         particle.cell = interpolator.update_point_cell(particle.pos, particle.cell);
     }
 }
@@ -123,8 +123,8 @@ void Pic<dim>::run_cycle(bool first_time) {
 
     start_msg(t0,"=== Updating PIC particle positions ...");
     update_positions();
-    electrons.sort_parts();
     electrons.clear_lost();
+    electrons.sort_parts();
     end_msg(t0);
 
     start_msg(t0, "=== Calculating electric field ...");
@@ -136,7 +136,7 @@ void Pic<dim>::run_cycle(bool first_time) {
     end_msg(t0);
 
     start_msg(t0, "=== Colliding PIC particles ...");
-    do_collisions();
+    //coll_el_knm_2D(electrons);
     end_msg(t0);
 }
 
@@ -167,11 +167,6 @@ void Pic<dim>::write_particles(const string filename, double time) {
     out << "-1 0.0 0.0 0.0 0.0 0.0 0.0 0" << endl; // always write one dummy particle (ovito crashes with zero parts)
 
     out.close();
-}
-
-template<int dim>
-void Pic<dim>::do_collisions() {
-
 }
 
 //Tell the compiler which types to actually compile, so that they are available for the linker

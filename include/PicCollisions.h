@@ -11,9 +11,11 @@
 #include "ParticleSpecies.h"
 
 namespace femocs {
-  class PicCollide {
-    PicCollide();
-  };
+
+    /*
+     * e-e or i-i Coulomb collision routine (for the same type of particles)
+     */
+    void coll_el_knm_2D( ParticleSpecies &pa);
 }
 
 #endif

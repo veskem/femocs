@@ -92,8 +92,6 @@ private:
     /** Computes the charge density for each FEM DOF */
     void compute_field(bool first_time = false);
     
-    /** Calls the relevant collision routines */
-    void do_collisions();
 };
 
 }
