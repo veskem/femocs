@@ -114,6 +114,7 @@ int Femocs::run(const double elfield, const string &timestep) {
         }else{ // meshing succesfull
             fem_mesh = mesh_new; // assigning active mesh to new mesh
             mesh_old = mesh_new; // saving new mesh to old mesh (deep copy)
+            //TODO : this deep copy does not work. fix it from the TetgenMesh side!!!
             new_mesh_exists = true;
             prepare_fem();
         }
@@ -475,19 +476,18 @@ void Femocs::get_emission(){
     surface_fields.set_preferences(false, 2, 3);
     surface_fields.transfer_elfield(ch_transient_solver);
     end_msg(t0);
-    surface_fields.write("out/surface_field.xyz");
 
     start_msg(t0, "=== Interpolating J & T on face centroids...");
     surface_temperatures.set_preferences(false, 2, 3);
     surface_temperatures.interpolate(ch_transient_solver);
     end_msg(t0);
-    surface_temperatures.write("out/surface_temperature.xyz");
 
     start_msg(t0, "=== Calculating field emission...");
     emission.initialize();
     emission.transfer_emission(ch_transient_solver, conf.emission, conf.laplace.V0);
     end_msg(t0);
-    emission.write("out/surface_emission.movie");
+    if(MODES.VERBOSE)
+        emission.write("out/surface_emission.movie");
 
 }
 
@@ -507,42 +507,26 @@ int Femocs::solve_transient_heat(const double delta_time) {
     start_msg(t0, "=== Calculating current density...");
     ch_transient_solver.assemble_current_system(); // assemble matrix for current density equation; current == electric current
     unsigned int ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
+    cout << "CG steps: " << ccg << " ";
     end_msg(t0);
 
-    start_msg(t0, "=== Calculating temperature distribution...\n");
+    start_msg(t0, "=== Calculating temperature distribution...");
     ch_transient_solver.set_timestep(delta_time);
-
     ch_transient_solver.assemble_heating_system_euler_implicit();
-
     unsigned int hcg = ch_transient_solver.solve_heat(); // hcg == number of temperature calculation (CG) iterations
+    cout << "CG steps: " << hcg << " ";
     end_msg(t0);
-
-//    ch_transient_solver.output_results_current("out/result_J.vtk");
-//    ch_transient_solver.output_results_heating("out/result_T.vtk");
 
     start_msg(t0, "=== Extracting J & T...");
     bulk_interpolator.initialize(conf.heating.t_ambient);
     bulk_interpolator.extract_solution(ch_transient_solver);
     end_msg(t0);
-    bulk_interpolator.nodes.write("out/result_J_T.movie");
     return 0;
 }
 
 // Solve transient heat and continuity until convergence is achieved
 int Femocs::solve_converge_heat() {
     static bool first_call = true;
-
-    start_msg(t0, "=== Importing mesh to transient J & T solver...");
-    fail = !ch_transient_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
-            fem_mesh.hexahedra.export_bulk());
-    check_return(fail, "Importing mesh to Deal.II failed!");
-    end_msg(t0);
-
-    start_msg(t0, "=== Transfering elfield to J & T solver...");
-    surface_fields.set_preferences(false, 2, conf.behaviour.interpolation_rank);
-    surface_fields.transfer_elfield(ch_transient_solver);
-    end_msg(t0);
-    surface_fields.write("out/surface_field.xyz");
 
     start_msg(t0, "=== Setup transient J & T solver...");
     emission.initialize();

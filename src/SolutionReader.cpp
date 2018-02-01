@@ -1114,6 +1114,7 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
             position = mesh.nodes[squad[0]] * (1. - rand1 - rand2) +
                     mesh.nodes[squad[1]] * rand1 + mesh.nodes[squad[3]] * rand2;
 
+
             // push point little bit inside the vacuum mesh
             position += mesh.faces.get_norm(tri) * (mesh.faces.stat.edgemin * 0.01);
 
