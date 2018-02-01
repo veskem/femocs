@@ -5,7 +5,7 @@
  *      Author: Kyrre
  */
 
-#include "ParticleSpecies.h"
+#include "PicCollisions.h"
 
 #define RAND ( (double)std::rand()/ RAND_MAX )
 
@@ -14,7 +14,8 @@
 #define  TWOPI  6.2831853071795864
 
 namespace femocs {
-    void coll_el_knm_2D( ParticleSpecies &pa) {
+    void coll_el_knm_2D( ParticleSpecies &pa, const double dt, fch::Laplace<3> &laplace_solver ) {
+
         static std::vector<size_t> inds2coll; //Not nice for parallelization
                                               // (neither over spieces- or cell)
 
@@ -34,7 +35,7 @@ namespace femocs {
             inds2coll.resize(N2coll);
 
             //Constant factor in columb collisions for this cell
-            double Acoll_cell = Acoll;//*pa->ordcount[ir*NZ+iz]/(2.0*ir+1.0);
+            double Acoll_cell = Acoll * ord / laplace_solver.get_cell_vol(pa.parts[Next].cell);
 
             if ( N2coll>1 ) {
                 //Pick two random particle indices (j,k) from the particles that have not yet collide

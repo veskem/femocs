@@ -28,17 +28,18 @@ public:
     void clear_lost();
 
     struct Particle{
-        Point3 pos;
-        Point3 vel;
-        int cell;
+        Point3 pos; ///< Particle position [Å]
+        Point3 vel; ///< Particle velocity [Å/fs]
+        int cell;   ///< Cell ID, -1 if outside the domain
+                    ///< (to be cleared up by ParticleSpecies::clear_lost())
         bool operator < (const Particle &partj) {return (cell < partj.cell);}
     };
 
     void sort_parts();
 
     const double q_over_m_factor; ///< charge/mass [A^2 / (V fs^2)]
-    const double q_over_eps0; ///< charge / eps0
-    const double Wsp; ///< SP weight
+    const double q_over_eps0;     ///< (whole) particle charge / eps0 [e/VÅ]
+    const double Wsp;             ///< SP weight [particles/superparticle]
 
     vector<Particle> parts;
     vector<size_t> ordcount;

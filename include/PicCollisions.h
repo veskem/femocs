@@ -9,13 +9,14 @@
 #define PICCOLLISIONS_H_
 
 #include "ParticleSpecies.h"
+#include "laplace.h" //Needs to access the mesh
 
 namespace femocs {
 
     /*
      * e-e or i-i Coulomb collision routine (for the same type of particles)
      */
-    void coll_el_knm_2D( ParticleSpecies &pa);
+    void coll_el_knm_2D( ParticleSpecies &pa, const double dt, fch::Laplace<3> &laplace_solver );
 }
 
 #endif

@@ -319,7 +319,7 @@ int Femocs::prepare_fem(){
 // Run Pic simulation for dt_main time advance
 int Femocs::solve_pic(const double E0, const double dt_main) {
 
-    int time_subcycle = ceil(dt_main / conf.pic.dt_max); // delta_t_MD in [s]
+    int time_subcycle = ceil(dt_main / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
     double dt_pic = dt_main/time_subcycle;
 
     pic_solver.set_params(conf.laplace, conf.pic, dt_pic, fem_mesh.nodes.stat);

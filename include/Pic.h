@@ -66,10 +66,10 @@ private:
     const double e_over_eps0 = 180.9512268; ///< particle charge [e] / epsilon_0 [e/VÅ] = 1 [e] * (8.85...e-12/1.6...e-19/1e10 [e/VÅ])**-1
     
     //Parameters
-    double Wsp = .01;   ///< Super particle weighting (particles/superparticle)
-    double dt = 1.;     ///< timestep
-    double E0 = -1;     ///< Applied field at Neumann boundary
-    double V0 = 1000;///< Applied voltage (in case Dirichlet boundary at anode)
+    double Wsp = .01;   ///< Super particle weighting [particles/superparticle]
+    double dt = 1.;     ///< timestep [fs]
+    double E0 = -1;     ///< Applied field at Neumann boundary [V/Å]
+    double V0 = 1000;   ///< Applied voltage (in case Dirichlet boundary at anode) [V]
     string anodeBC = "Neumann"; ///< Boundary type at the anode
 
 
