@@ -136,7 +136,9 @@ void Pic<dim>::run_cycle(bool first_time) {
     end_msg(t0);
 
     start_msg(t0, "=== Colliding PIC particles ...");
-    //coll_el_knm_2D(electrons);
+    if (coll_coulomb_ee){
+        coll_el_knm_2D(electrons);
+    }
     end_msg(t0);
 }
 

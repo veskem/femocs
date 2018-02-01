@@ -15,7 +15,6 @@
 
 namespace femocs {
     void coll_el_knm_2D( ParticleSpecies &pa) {
-
         static std::vector<size_t> inds2coll; //Not nice for parallelization
                                               // (neither over spieces- or cell)
 

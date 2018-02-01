@@ -35,3 +35,4 @@ PIC_dtmax = 1 #[fs]
 #PIC_dtmax = .01 #[f]s
 PIC_time = 40 #[fs]
 PIC_fractional_push = false
+PIC_collide_coulomb_ee = false

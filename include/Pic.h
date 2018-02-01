@@ -19,6 +19,7 @@
 #include "ParticleSpecies.h"
 #include "PicCollisions.h"
 
+
 #include <deal.II/base/point.h>
 #include <algorithm>
 
@@ -46,13 +47,15 @@ public:
     void write_particles(const string filename, double time);
     
     void set_params(const Config::Laplace &conf_lap,
-            const Config::PIC &conf_pic, double _dt, TetgenNodes::Stat _box){
+            const Config::PIC &conf_pic,
+            double _dt, TetgenNodes::Stat _box){
         dt = _dt;
         Wsp = conf_pic.Wsp_el;
         E0 = conf_lap.E0;
         V0 = conf_lap.V0;
         anodeBC = conf_lap.anodeBC;
         box = _box;
+        coll_coulomb_ee = conf_pic.coll_coulomb_ee;
     }
 
 private:
@@ -75,8 +78,10 @@ private:
     Interpolator &interpolator;
     EmissionReader &er;                     ///< Object to calculate the emission data
 
-    TetgenNodes::Stat box;                 ///< Object containing box data
+    TetgenNodes::Stat box;                  ///< Object containing box data
 
+    bool coll_coulomb_ee;                   ///< Switch 2e->2e Coulomb collisions on/off
+    
     ParticleSpecies electrons = ParticleSpecies(-e_over_m_e_factor, -e_over_eps0, Wsp);
 
 

@@ -165,7 +165,7 @@ void Config::read_all(const string& file_name) {
     read_command("PIC_time", pic.total_time);
     read_command("elentronWsp", pic.Wsp_el);
     read_command("PIC_fractional_push", pic.fractional_push);
-
+    read_command("PIC_collide_coulomb_ee", pic.coll_coulomb_ee);
     
     // Read commands with potentially multiple arguments like...
     vector<double> args;
