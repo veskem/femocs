@@ -119,6 +119,9 @@ public:
     std::vector<double> get_potential(const std::vector<int> &cell_indexes,
             const std::vector<int> &vert_indexes);
 
+
+    double get_cell_vol(int cellid);
+
     /**
      * method to obtain the electric field values in selected nodes
      * @param cell_indexes global cell indexes, where the corresponding nodes are situated

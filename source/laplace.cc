@@ -242,6 +242,14 @@ std::vector<double> Laplace<dim>::shape_funs(const Point<dim> &p, const int cell
 }
 
 template<int dim>
+double Laplace<dim>::get_cell_vol(int cellid){
+
+    typename DoFHandler<dim>::active_cell_iterator cell(&triangulation,
+            0, cellid, &dof_handler);
+    return cell->measure();
+}
+
+template<int dim>
 std::vector<double> Laplace<dim>::get_potential(const std::vector<int> &cell_indexes,
         const std::vector<int> &vert_indexes) {
 
