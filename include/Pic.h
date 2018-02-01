@@ -43,7 +43,7 @@ public:
     /**
      * Write the particle data in the current state in movie file
      */
-    void write_particles(const string filename);
+    void write_particles(const string filename, double time);
     
     void set_params(const Config::Laplace &conf_lap,
             const Config::PIC &conf_pic, double _dt, TetgenNodes::Stat _box){

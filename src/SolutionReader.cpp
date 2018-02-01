@@ -1111,11 +1111,8 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
             Point3 position(0.0);
             double rand1 = (double) rand() / RAND_MAX;
             double rand2= (double) rand() / RAND_MAX;
-            vector<double> rands = {rand1, 1-rand1, rand2, 1-rand2};
-
-			// generate a point at random location inside the quadrangle
-            for (int j = 0; j < 4; j++)
-                position += mesh.nodes[squad[j]] * (0.5 * rands[j]);
+            position = mesh.nodes[squad[0]] * (1. - rand1 - rand2) +
+                    mesh.nodes[squad[1]] * rand1 + mesh.nodes[squad[3]] * rand2;
 
             // push point little bit inside the vacuum mesh
             position += mesh.faces.get_norm(tri) * (mesh.faces.stat.edgemin * 0.01);

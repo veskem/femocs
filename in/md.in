@@ -31,7 +31,7 @@ box_width = 0.
 # PIC parameters
 ---------------------
 doPIC = true
-PIC_dtmax = .2 #[fs]
+PIC_dtmax = 1 #[fs]
 #PIC_dtmax = .01 #[f]s
 PIC_time = 40 #[fs]
-PIC_fractional_push = true
+PIC_fractional_push = false

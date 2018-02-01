@@ -218,8 +218,11 @@ public:
 private:
     const double delta_t_MD = 4.05e-15; // in seconds (!)
     
-    bool skip_calculations, fail;
-    double t0;
+    bool skip_meshing;      ///< If the mesh is to be kept the same
+    bool fail;              ///< If meshing failed
+    bool new_mesh_exists;          ///< Whether the mesh is new or already used
+    double t0;              ///< CPU timer
+    double time;            ///< Time since the start of the simulation
     int timestep;           ///< counter to measure how many times Femocs has been called
     int last_full_timestep; ///< last time step Femocs did full calculation
     string timestep_string; ///< time step written to file name
@@ -232,7 +235,9 @@ private:
     Surface dense_surf;     ///< non-coarsened surface atoms
     Surface extended_surf;  ///< atoms added for the surface atoms
 
-    TetgenMesh fem_mesh;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
+    TetgenMesh mesh_new;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
+    TetgenMesh mesh_old; ///< Saved version of the old FEM mesh (in case mesh generation fails)
+    TetgenMesh &fem_mesh = mesh_new; ///< Active mesh being used now
 
     Interpolator vacuum_interpolator = Interpolator(&fem_mesh, "elfield", "potential");
     Interpolator bulk_interpolator = Interpolator(&fem_mesh, "rho", "temperature");
@@ -268,6 +273,12 @@ private:
 
     /** Solve transient heat and continuity equation until convergence is reached */
     int solve_converge_heat();
+
+    /** Import meshes to dealii and set params to various objects */
+    int prepare_fem();
+
+    /** Write results into files */
+    int write_files();
 
 };
 

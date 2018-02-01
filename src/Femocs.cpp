@@ -22,8 +22,8 @@ using namespace std;
 namespace femocs {
 
 // specify simulation parameters
-Femocs::Femocs(const string &conf_file) : skip_calculations(false), fail(false), timestep(-1), last_full_timestep(0),
-        pic_solver(laplace_solver, ch_transient_solver, vacuum_interpolator, emission) {
+Femocs::Femocs(const string &conf_file) : skip_meshing(false), fail(false), timestep(-1), last_full_timestep(0),
+        pic_solver(laplace_solver, ch_transient_solver, vacuum_interpolator, emission), time(0), new_mesh_exists(true) {
     static bool first_call = true;
 
     // Read configuration parameters from configuration file
@@ -100,13 +100,29 @@ int Femocs::run(const double elfield, const string &timestep) {
 
     stream.str("");
     stream << "Atoms haven't moved significantly, " << reader.rms_distance
-            << " < " << conf.tolerance.distance << "! Field calculation will be skipped!";
-    check_return(reinit(tstep), stream.str());
+            << " < " << conf.tolerance.distance << "! The old mesh will be reused !";
 
+    //******************** MESHING *****************************
+    if (reinit(tstep)){ // reinit and check skip_meshing
+        write_verbose_msg(stream.str());
+        new_mesh_exists = false;
+    }else{ //try to make new mesh
+        if(generate_meshes()){ // meshing failed
+            check_return(new_mesh_exists, "First meshing failed. No mesh available. Skipping calculations!!!");
+            fem_mesh = mesh_old; // assigning active mesh to old mesh
+            new_mesh_exists = false;
+        }else{ // meshing succesfull
+            fem_mesh = mesh_new; // assigning active mesh to new mesh
+            mesh_old = mesh_new; // saving new mesh to old mesh (deep copy)
+            new_mesh_exists = true;
+            prepare_fem();
+        }
+    }
+//    check_return(reinit(tstep), stream.str());
+
+    //****************** RUNNING Field - PIC calculation ********
     double tstart = omp_get_wtime();
-    skip_calculations = true;
-
-    check_return(generate_meshes(), "Mesh generation failed!");
+    skip_meshing = true;
 
     if(solve_pic(elfield, max(delta_t_MD * 1.e15, conf.pic.total_time))){
         force_output();
@@ -151,8 +167,8 @@ int Femocs::reinit(const int tstep) {
     write_silent_msg("Running at timestep " + timestep_string);
     timestep_string = "_" + string( max(0.0, 6.0 - timestep_string.length()), '0' ) + timestep_string;
 
-    prev_skip_calculations = skip_calculations;
-    return skip_calculations;
+    prev_skip_calculations = skip_meshing;
+    return skip_meshing;
 }
 
 // Store the imported atom coordinates and set flag that enables exporters
@@ -160,7 +176,7 @@ int Femocs::finalize() {
     start_msg(t0, "=== Saving atom positions...");
     reader.save_current_run_points(conf.tolerance.distance);
     end_msg(t0);
-    skip_calculations = false;
+    skip_meshing = false;
     last_full_timestep = timestep;
     return 0;
 }
@@ -274,25 +290,21 @@ int Femocs::generate_meshes() {
     return 0;
 }
 
-// Run Pic simulation for dt_main time advance
-int Femocs::solve_pic(const double E0, const double dt_main) {
-
-    int time_subcycle = ceil(dt_main / conf.pic.dt_max); // delta_t_MD in [s]
-    double dt_pic = dt_main/time_subcycle;
-
+int Femocs::prepare_fem(){
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
+    fields.set_check_params(conf.laplace.E0, conf.tolerance.field_min, conf.tolerance.field_max,
+            conf.geometry.radius, dense_surf.sizes.zbox);
 
     start_msg(t0, "=== Importing mesh to Laplace solver...");
     fail = !laplace_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
             fem_mesh.hexahedra.export_vacuum());
-    check_return(fail, "Importing mesh to Deal.II failed!");
+    check_return(fail, "Importing vacuum mesh to Deal.II failed!");
     end_msg(t0);
 
     start_msg(t0, "=== Importing mesh to transient J & T solver...");
     fail = !ch_transient_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
             fem_mesh.hexahedra.export_bulk());
-    check_return(fail, "Importing mesh to Deal.II failed!");
+    check_return(fail, "Importing bulk mesh to Deal.II failed!");
     end_msg(t0);
 
     vacuum_interpolator.initialize();
@@ -300,44 +312,38 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     vacuum_interpolator.lintets.narrow_search_to(TYPES.VACUUM);
     bulk_interpolator.lintets.narrow_search_to(TYPES.BULK);
 
+    return 0;
+}
+
+// Run Pic simulation for dt_main time advance
+int Femocs::solve_pic(const double E0, const double dt_main) {
+
+    int time_subcycle = ceil(dt_main / conf.pic.dt_max); // delta_t_MD in [s]
+    double dt_pic = dt_main/time_subcycle;
+
     pic_solver.set_params(conf.laplace, conf.pic, dt_pic, fem_mesh.nodes.stat);
 
-    //Timestep loop
+    //Time loop
     for (int i = 0; i < time_subcycle; i++) {
-        cout << "doPIC! i=" << i << ", dt_pic=" << dt_pic << endl;
 
-        start_msg(t0, "=== Updating particles and fields...");
-        if (i)
-            pic_solver.run_cycle();
-        else
-            pic_solver.run_cycle(true);
-        end_msg(t0);
+        pic_solver.run_cycle(new_mesh_exists);
 
         start_msg(t0, "=== Extracting E and phi...");
         fail = vacuum_interpolator.extract_solution(&laplace_solver);
         end_msg(t0);
+        // TODO Performance optimization: no need to extract the solution on the whole grid here!
 
-        
         if(!conf.pic.doPIC) break; // stop before injecting particles
-
- 	start_msg(t0, "=== Writing particles and fields to file...");
-        vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-        pic_solver.write_particles("out/electrons.movie");
-        end_msg(t0);
         
-	start_msg(t0, "=== Calculating electron emission...");
+        start_msg(t0, "=== Calculating electron emission...");
         get_emission();
         end_msg(t0);
 
         start_msg(t0, "=== Injecting electrons...");
         pic_solver.inject_electrons(conf.pic.fractional_push);
         end_msg(t0);
-
-
-       
-
     }
-
+    return fail;
 
     //7. Save ions and neutrals that are inbound on the MD domain
     //    somewhere where the MD can find them
@@ -345,8 +351,6 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
 
     //8. Give the heat- and current fluxes to the temperature solver.
     // TODO LATER
-
-    return fail;
 }
 
 // Solve Laplace equation
@@ -489,18 +493,11 @@ void Femocs::get_emission(){
 
 // Solve transient heat and continuity equations
 int Femocs::solve_transient_heat(const double delta_time) {
-    static bool first_call = true;
     double multiplier = 1.;
-
-    start_msg(t0, "=== Importing mesh to transient J & T solver...");
-    fail = !ch_transient_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
-            fem_mesh.hexahedra.export_bulk());
-    check_return(fail, "Importing mesh to Deal.II failed!");
-    end_msg(t0);
 
     get_emission();
 
-    if (first_call) {
+    if (new_mesh_exists) {
         start_msg(t0, "=== Setup transient J & T solver...");
         ch_transient_solver.setup_current_system();
         ch_transient_solver.setup_heating_system();
@@ -520,16 +517,14 @@ int Femocs::solve_transient_heat(const double delta_time) {
     unsigned int hcg = ch_transient_solver.solve_heat(); // hcg == number of temperature calculation (CG) iterations
     end_msg(t0);
 
-    ch_transient_solver.output_results_current("out/result_J.vtk");
-    ch_transient_solver.output_results_heating("out/result_T.vtk");
+//    ch_transient_solver.output_results_current("out/result_J.vtk");
+//    ch_transient_solver.output_results_heating("out/result_T.vtk");
 
     start_msg(t0, "=== Extracting J & T...");
     bulk_interpolator.initialize(conf.heating.t_ambient);
     bulk_interpolator.extract_solution(ch_transient_solver);
     end_msg(t0);
     bulk_interpolator.nodes.write("out/result_J_T.movie");
-
-    first_call = false;
     return 0;
 }
 
@@ -648,10 +643,10 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.calc_rms_distance(conf.tolerance.distance) < conf.tolerance.distance;
+    skip_meshing = reader.calc_rms_distance(conf.tolerance.distance) < conf.tolerance.distance;
     end_msg(t0);
 
-    if (!skip_calculations) {
+    if (!skip_meshing) {
         if (file_type == "xyz") {
             start_msg(t0, "=== Performing coordination analysis...");
             if (!conf.run.rdf) reader.calc_coordinations(conf.geometry.nnn, conf.geometry.coordination_cutoff);
@@ -699,10 +694,10 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.calc_rms_distance(conf.tolerance.distance) < conf.tolerance.distance;
+    skip_meshing = reader.calc_rms_distance(conf.tolerance.distance) < conf.tolerance.distance;
     end_msg(t0);
 
-    if (!skip_calculations) {
+    if (!skip_meshing) {
         start_msg(t0, "=== Performing coordination analysis...");
         if (!conf.run.rdf) reader.calc_coordinations(conf.geometry.nnn, conf.geometry.coordination_cutoff, nborlist);
         else reader.calc_coordinations(conf.geometry.nnn, conf.geometry.coordination_cutoff, conf.geometry.latconst, nborlist);
@@ -744,10 +739,10 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_calculations = reader.calc_rms_distance(conf.tolerance.distance) < conf.tolerance.distance;
+    skip_meshing = reader.calc_rms_distance(conf.tolerance.distance) < conf.tolerance.distance;
     end_msg(t0);
 
-    if (!skip_calculations) {
+    if (!skip_meshing) {
         start_msg(t0, "=== Calculating coordinations from atom types...");
         reader.calc_coordinations(conf.geometry.nnn);
         end_msg(t0);
@@ -773,7 +768,7 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
 
     fail = false;
 
-    if (skip_calculations)
+    if (skip_meshing)
         write_silent_msg("Using previous electric field!");
     else {
         start_msg(t0, "=== Interpolating E and phi...");
@@ -798,7 +793,7 @@ int Femocs::export_temperature(const int n_atoms, double* T) {
     if (n_atoms < 0 || conf.heating.mode == "none") return 0;
     check_return(bulk_interpolator.nodes.size() == 0, "No temperature to export!");
 
-    if (skip_calculations)
+    if (skip_meshing)
         write_silent_msg("Using previous temperature!");
     else {
         start_msg(t0, "=== Interpolating J & T...");
@@ -822,7 +817,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
     if (n_atoms < 0) return 0;
     check_return(fields.size() == 0, "No charge & force to export!");
 
-    if (skip_calculations)
+    if (skip_meshing)
         write_silent_msg("Using previous charge & force!");
     else {
         // analytical total charge without epsilon0 (will be added in ChargeReader)

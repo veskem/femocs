@@ -52,7 +52,7 @@ void Pic<dim>::compute_field(bool first_time) {
     //TODO : save system lhs and copy it . don't rebuild it every time
 
     double t0;
-    start_msg(t0, "=== Setting up system lhs... first_time = " + to_string(first_time));
+    start_msg(t0, "\nSetting up system lhs... first_time = " + to_string(first_time));
     laplace_solver.setup_system(first_time);
     if (first_time){
         laplace_solver.assemble_system_lhs();
@@ -62,7 +62,7 @@ void Pic<dim>::compute_field(bool first_time) {
     }
     end_msg(t0);
 
-    start_msg(t0, "=== Setting up system RHS and BCs...");
+    start_msg(t0, "\nSetting up system RHS and BCs...");
     laplace_solver.assemble_system_pointcharge(electrons);
     if (anodeBC == "neumann")
         laplace_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top, -E0);
@@ -75,7 +75,7 @@ void Pic<dim>::compute_field(bool first_time) {
     laplace_solver.assemble_system_finalize();
     end_msg(t0);
 
-    start_msg(t0, "=== Solving Poisson equation... CG iterations = ");
+    start_msg(t0, "\nSolving Poisson equation... CG iterations = ");
     cout << laplace_solver.solve() << " ";
     end_msg(t0);
 }
@@ -119,16 +119,29 @@ void Pic<dim>::update_velocities(){
 
 template<int dim>
 void Pic<dim>::run_cycle(bool first_time) {
+    double t0;
+
+    start_msg(t0,"=== Updating PIC particle positions ...");
     update_positions();
     electrons.sort_parts();
     electrons.clear_lost();
+    end_msg(t0);
+
+    start_msg(t0, "=== Calculating electric field ...");
     compute_field(first_time);
+    end_msg(t0);
+
+    start_msg(t0, "=== Updating the PIC particle velocities ...");
     update_velocities();
+    end_msg(t0);
+
+    start_msg(t0, "=== Colliding PIC particles ...");
     do_collisions();
+    end_msg(t0);
 }
 
 template<int dim>
-void Pic<dim>::write_particles(const string filename) {
+void Pic<dim>::write_particles(const string filename, double time) {
 
     // dummy electron always added in the end (to avoid empty electrons crashing ovito)
     ofstream out;
@@ -143,7 +156,7 @@ void Pic<dim>::write_particles(const string filename) {
     cout << "writing particles to " + filename << " n_size = " << electrons.parts.size() << endl;
 
     out << electrons.parts.size() + 1 << endl;
-    out << "Interpolator properties=id:I:1:pos:R:3:vel:R:3:cell:I:1" << endl;
+    out << "time = " << time << " Interpolator properties=id:I:1:pos:R:3:vel:R:3:cell:I:1" << endl;
 
     for (int i = 0; i < electrons.parts.size();  ++i){
         ParticleSpecies::Particle &p = electrons.parts[i];
