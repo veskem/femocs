@@ -130,6 +130,8 @@ Surface Surface::extend(const string &file_name, Coarseners &coarseners) {
 // Extend the flat area by generating additional atoms
 void Surface::extend(Surface& extension, Coarseners &cr, const double latconst, const double box_width) {
     calc_statistics();
+
+    if(cr.get_r0_inf(sizes) <=0 ) return;
     const double desired_box_width = box_width * sizes.zbox;
     const double z = cr.centre.z;
 
@@ -371,7 +373,7 @@ void Surface::coarsen(Surface &surf, Coarseners &coarseners, const Medium::Sizes
 }
 
 // Remove the atoms that are too far from surface faces
-void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const double r_cut) {
+void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const TetgenMesh* mesh, const double r_cut) {
     if (r_cut <= 0) return;
 
     const int n_atoms = size();
@@ -380,6 +382,7 @@ void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpola
     surf2face.clear();
     surf2face.reserve(n_atoms);
 
+    interpolator.lintris.set_mesh(mesh);
     interpolator.lintris.precompute();
 
     int face = 0;

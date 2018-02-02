@@ -16,6 +16,7 @@
 #include "Interpolator.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
+#include "Config.h"
 
 using namespace std;
 namespace femocs {
@@ -52,13 +53,12 @@ public:
     void set_interpolation(const int i, const Solution& s);
 
     /** Set interpolation preferences */
-    void set_preferences(const bool _srt, const int _dim, const int _rank, const double _empty_val=0) {
+    void set_preferences(const bool _srt, const int _dim, const int _rank) {
         require((_dim == 2 || _dim == 3), "Invalid interpolation dimension: " + to_string(_dim));
         require((_rank == 1 || _rank == 2 || _rank == 3), "Invalid interpolation rank: " + to_string(_rank));
         sort_atoms = _srt;
         dim = _dim;
         rank = _rank;
-        empty_val = _empty_val;
     }
 
     /** Calculate statistics about coordinates and solution */
@@ -75,6 +75,10 @@ public:
         double scal_max;      ///< maximum value of scalar
     } stat;
 
+    int get_femocs_index(int deal_index){
+        return interpolator->linhexs.deal2femocs(deal_index);
+    }
+
 protected:
     const string vec_label;       ///< label for vector data
     const string vec_norm_label;  ///< label for data associated with vector length
@@ -84,7 +88,6 @@ protected:
     bool sort_atoms;              ///< sort atoms along Hilbert curve to make interpolation faster
     int dim;                      ///< location of interpolation; 2-surface, 3-space
     int rank;                     ///< interpolation rank; 1-linear, 2-quadratic
-    double empty_val;             ///< empty value written to solution vector in case of empty interpolator
 
     Interpolator* interpolator;    ///< pointer to interpolator
     vector<Solution> interpolation;       ///< interpolated data
@@ -117,6 +120,12 @@ protected:
 class FieldReader: public SolutionReader {
 public:
     FieldReader(Interpolator* i);
+
+    void test_pic(fch::Laplace<3>* laplace, const Medium& medium);
+
+    void test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium, const TetgenMesh& mesh);
+
+    void test_pic_vol3(const TetgenMesh& mesh) const;
 
     /** Interpolate electric field and potential on a Medium atoms */
     void interpolate(const Medium &medium);
@@ -204,20 +213,26 @@ private:
 /** Class to calculate field emission effects with GETELEC */
 class EmissionReader: public SolutionReader {
 public:
-    EmissionReader(const FieldReader& fields, const HeatReader& heat, const TetgenFaces& faces,
-            Interpolator* i);
+    EmissionReader(const FieldReader& fields, const HeatReader& heat, Interpolator* i);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
      * estimation of the space charge effects.
      * @param ch_solver heat solver object where J and Nottingham BCs will be written
-     * @param workfunction Work function
+     * @param conf Emission configuration parameters struct
      * @param Vappl Applied voltage (required for space charge calculations)
      */
-    void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const double workfunction,
-            const double Vappl, bool blunt = false);
+    void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const Config::Emission &conf, double Vappl = -1);
 
-    double get_multiplier() const {return multiplier;}
-    void set_multiplier(double _multiplier) { multiplier = _multiplier;}
+    /** Injects electron SPs at the surface faces, depending on the current and the timestep */
+    void inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
+            vector<Point3> &efield, vector<int> &cells);
+
+    /** Initialises class data */
+    void initialize(const TetgenMesh* m);
+
+    double get_multiplier() const { return multiplier; }
+
+    void set_multiplier(double _multiplier) { multiplier = _multiplier; }
 
 private:
     /** Prepares the line inputed to GETELEC.
@@ -234,28 +249,23 @@ private:
     void calc_representative();
 
     /**
-     * Initialises class data.
-     */
-    void initialize();
-
-    /**
      * Calculates electron emission distribution for a given configuration (
      * @param workfunction Input work function.
      */
     void calc_emission(double workfunction, bool blunt  = false);
 
-
-    const double angstrom_per_nm = 10.0;
-    const double nm2_per_angstrom2 = 0.01;
+    static constexpr double angstrom_per_nm = 10.0;
+    static constexpr double nm2_per_angstrom2 = 0.01;
+    static constexpr int n_lines = 32; ///< Number of points in the line for GETELEC
 
     const FieldReader& fields;    ///< Object containing the field on centroids of hex interface faces.
     const HeatReader& heat;       ///< Object containing the temperature on centroids of hexahedral faces.
-    const TetgenFaces& faces;     ///< Object containing information on the faces of the mesh.
+    const TetgenMesh* mesh;     ///< Object containing information on the mesh.
 
-    vector<double> currents;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
-    vector<double> nottingham; ///< Same as currents for nottingham heat deposition [in W/A^2]
+    vector<double> current_densities;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
+    vector<double> nottingham; ///< Same as current_densities for nottingham heat deposition [in W/A^2]
+    vector<double> currents;    ///< Current flux for every face (current_densities * face_areas) [in Amps]
 
-    const int n_lines = 32; ///< Number of points in the line for GETELEC
     vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
     vector<double> Vline;   ///< Potential on the straight line (complements rline)
 
@@ -264,6 +274,7 @@ private:
     double Fmax = 0.;    ///< Maximum local field on the emitter [V/A]
     double Frep = 0.;    ///< Representative local field (used for space charge equation) [V/A]
     double Jrep = 0.;    ///< Representative current deinsity for space charge. [amps/A^2]
+    double I_tot = 0;   ///< Total current running through the surface [in Amps]
 
 };
 
@@ -308,7 +319,7 @@ public:
     void distribute_charges(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);
 
-    void calc_forces(const FieldReader &fields, const SurfaceInterpolator& ti);
+    void calc_forces(const FieldReader &fields);
 
     /** Build Voronoi cells around the atoms in the region of interest
      * and calculate atomistic charges and Lorentz forces */

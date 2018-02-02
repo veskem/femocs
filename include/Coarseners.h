@@ -117,7 +117,7 @@ private:
 
     /** Point outside infinitely high vertical cylinder? */
     inline bool in_region(const Point3 &point) const {
-        return origin2d.distance2(Point2(point.x, point.y)) > radius2;
+        return point.distance2(origin2d) > radius2;
     }
 };
 
@@ -143,7 +143,7 @@ public:
 protected:
     /** Point in infinitely high vertical cylinder? */
     inline bool in_region(const Point3 &point) const {
-        return origin2d.distance2(Point2(point.x, point.y)) <= radius2;
+        return point.distance2(origin2d) <= radius2;
     }
 
 private:
@@ -174,7 +174,7 @@ public:
 protected:
     /** Point in infinitely high vertical cylinder? */
     inline bool in_region(const Point3 &point) const {
-        return origin2d.distance2(Point2(point.x, point.y)) <= radius2;
+        return point.distance2(origin2d) <= radius2;
     }
 
 private:

@@ -16,9 +16,9 @@ namespace femocs {
  * ===================================================================== */
 
 // Copy the nodes from write to read buffer
-void TetgenNodes::recalc(const bool write2read) {
+void TetgenNodes::transfer(const bool write2read) {
     if (reads == writes) return;
-    TetgenCells::recalc(write2read);
+    TetgenCells::transfer(write2read);
     init_statistics();
     if (write2read) {
         if (reads->pointlist != (REAL*) NULL)
@@ -229,9 +229,9 @@ void TetgenNodes::write_xyz(const string &file_name) const {
  *  =========================== TetgenEdges ===========================
  * ===================================================================== */
 
-void TetgenEdges::recalc(const bool write2read) {
+void TetgenEdges::transfer(const bool write2read) {
     if (reads == writes) return;
-    TetgenCells::recalc(write2read);
+    TetgenCells::transfer(write2read);
     if (write2read) {
         if (reads->edgelist != (int *) NULL)
             delete[] reads->edgelist;
@@ -323,9 +323,9 @@ void TetgenEdges::clean_sides(const Medium::Sizes& stat) {
  *  =========================== TetgenFaces ===========================
  * ===================================================================== */
 
-void TetgenFaces::recalc(const bool write2read) {
+void TetgenFaces::transfer(const bool write2read) {
     if (reads == writes) return;
-    TetgenCells::recalc(write2read);
+    TetgenCells::transfer(write2read);
     if (write2read) {
         if (reads->trifacelist != (int *) NULL)
             delete[] reads->trifacelist;
@@ -365,29 +365,29 @@ SimpleCell<3> TetgenFaces::get_cell(const int i) const {
     return SimpleFace(reads->trifacelist[I], reads->trifacelist[I+1], reads->trifacelist[I+2]);
 }
 
-// Delete the faces on the sides of simulation cell
-void TetgenFaces::clean_sides(const Medium::Sizes& stat) {
-    calc_statistics();
-    const double eps = 0.01 * this->stat.edgemin;
-    const int n_faces = size();
-    vector<SimpleFace> faces; faces.reserve(n_faces);
+int TetgenFaces::copy_surface(const TetgenFaces& faces, const Medium::Sizes& stat) {
+    const double eps = 0.01 * faces.stat.edgemin;
+    int n_faces = faces.size();
+    vector<bool> tri_mask(n_faces);
 
     // Make a copy of faces not on the sides of simulation cell
     for (int i = 0; i < n_faces; ++i) {
-        const Point3 centroid = get_centroid(i);
+        const Point3 centroid = faces.get_centroid(i);
         const bool side_x = on_boundary(centroid.x, stat.xmin, stat.xmax, eps);
         const bool side_y = on_boundary(centroid.y, stat.ymin, stat.ymax, eps);
         const bool side_z = on_boundary(centroid.z, stat.zmin, stat.zmax, eps);
-        if (!(side_x || side_y || side_z))
-            faces.push_back(get_cell(i));
+        tri_mask[i] = !(side_x || side_y || side_z);
     }
 
     // Store the surface faces
-    init(faces.size());
-    for (SimpleFace face : faces)
-        append(face);
+    int n_surface_faces = vector_sum(tri_mask);
+    init(n_surface_faces);
+    for (int i = 0; i < n_faces; ++i)
+        if (tri_mask[i])
+            append(faces[i]);
 
     calc_norms_and_areas();
+    return n_surface_faces;
 }
 
 // Calculate the norms and areas for all the triangles
@@ -490,9 +490,9 @@ void TetgenElements::calc_statistics() {
     stat.edgemax = sqrt(stat.edgemax);
 }
 
-void TetgenElements::recalc(const bool write2read) {
+void TetgenElements::transfer(const bool write2read) {
     if (reads == writes) return;
-    TetgenCells::recalc(write2read);
+    TetgenCells::transfer(write2read);
     init_statistics();
     if (write2read) {
         if (reads->tetrahedronlist != (int *) NULL)

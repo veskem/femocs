@@ -1,38 +1,34 @@
 elfield  = -0.35  # Max value of applied elctric field (V/Å)
-Vappl = 500
+Vappl = 300
 anode_BC = dirichlet
 
 workfunc = 4.5 
 space_charge = false
+lorentz = 2.e-8
 maxerr_SC = 1.e-3
-latconst = 3.5; #Characteristic length, [Å], scaling box_height etc. 
-#coarse_factor = 0.001 6 6;    # coarsening factor; bigger number gives coarser surface; first is plate, second is shank, third is apex
-coarse_factor = 0 0 0
+latconst = 3.5;
+coarse_factor = 0.3 12 3;    # coarsening factor; bigger number gives coarser surface; first is plate, second is shank, third is apex
 smooth_steps = 5             # number of surface mesh smoothing iterations
 smooth_algorithm = fujiwara  # surface mesh smoother algorithm; none, laplace, fujiwara
 heating_mode = transient
 
 distance_tol = 0;
 femocs_verbose_mode = verbose;     # enable or disable the verbose mode
-element_volume = 1000 #10x10x10 Angstrom
-#mesh_quality = 1.25
+#mesh_quality = 2.
 n_writefile = 1
 surface_cleaner = none; #faces or voronois
 charge_smooth_factor = 1.0;
-infile = in/flat.ckx
-femocs_periodic = false
+infile = in/nanotip_small.ckx
+femocs_periodic = true
 clear_output = true
 coord_cutoff = 3.1
 #cluster_cutoff = 4.2
-radius = 10000.0  #inner radius of coarsening cylinder
-box_height = 50
-box_width = 0.
+radius = 16.0  #inner radius of coarsening cylinder
+box_height = 20
+box_width = 5
 
 # PIC parameters
 ---------------------
 doPIC = true
-PIC_dtmax = 1 #[fs]
-#PIC_dtmax = .01 #[f]s
-PIC_time = 40 #[fs]
-PIC_fractional_push = false
-PIC_collide_coulomb_ee = false
+PIC_dtmax = .2 #[fs]
+PIC_time = 20 #[fs]

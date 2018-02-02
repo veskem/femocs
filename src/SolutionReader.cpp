@@ -8,6 +8,7 @@
 #include "SolutionReader.h"
 #include "Macros.h"
 #include "getelec.h"
+#include "Config.h"
 
 #include <float.h>
 #include <stdio.h>
@@ -22,14 +23,14 @@ namespace femocs {
 // Initialize SolutionReader
 SolutionReader::SolutionReader() :
         vec_label("vec"), vec_norm_label("vec_norm"), scalar_label("scalar"),
-        limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), empty_val(0), interpolator(NULL)
+        limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), interpolator(NULL)
 {
     reserve(0);
 }
 
 SolutionReader::SolutionReader(Interpolator* i, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
         vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab),
-        limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), empty_val(0), interpolator(i)
+        limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), interpolator(i)
 {
     reserve(0);
 }
@@ -38,15 +39,6 @@ void SolutionReader::calc_interpolation() {
     require(interpolator, "NULL interpolator cannot be used!");
 
     const int n_atoms = size();
-
-    const bool b1 = dim == 2 && rank == 1 && interpolator->lintris.size() == 0;
-    const bool b2 = dim == 3 && rank == 1 && interpolator->lintets.size() == 0;
-    const bool b3 = dim == 2 && rank == 2 && interpolator->quadtris.size() == 0;
-    const bool b4 = dim == 3 && rank == 2 && interpolator->quadtets.size() == 0;
-    if (b1 || b2 || b3 || b4) {
-        interpolation = vector<Solution>(n_atoms, Solution(empty_val));
-        return;
-    }
 
     // Sort atoms into sequential order to speed up interpolation
     if (sort_atoms) sort_spatial();
@@ -69,9 +61,12 @@ void SolutionReader::calc_interpolation() {
         } else if (dim == 3 && rank == 2) {
             cell = interpolator->quadtets.locate_cell(point, abs(cell));
             append_interpolation(interpolator->quadtets.interp_solution(point, cell));
+        } else if (dim == 2 && rank == 3) {
+            cell = interpolator->linquads.locate_cell(point, abs(cell));
+            append_interpolation(interpolator->linquads.interp_solution(point, cell));
         } else if (dim == 3 && rank == 3) {
             cell = interpolator->linhexs.locate_cell(point, abs(cell));
-            append_interpolation(Solution(0));
+            append_interpolation(interpolator->linhexs.interp_solution(point, cell));
         }
 
         set_marker(i, cell);
@@ -103,14 +98,16 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
             // calculate the interpolation
             if (dim == 2 && rank == 1)
                 append_interpolation(interpolator->lintris.interp_solution(get_point(i), cell));
-            else if (dim == 2 && rank == 2)
-                append_interpolation(interpolator->quadtris.interp_solution(get_point(i), cell));
             else if (dim == 3 && rank == 1)
                 append_interpolation(interpolator->lintets.interp_solution(get_point(i), cell));
+            else if (dim == 2 && rank == 2)
+                append_interpolation(interpolator->quadtris.interp_solution(get_point(i), cell));
             else if (dim == 3 && rank == 2)
                 append_interpolation(interpolator->quadtets.interp_solution(get_point(i), cell));
+            else if (dim == 2 && rank == 3)
+                append_interpolation(interpolator->linquads.interp_solution(get_point(i), cell));
             else if (dim == 3 && rank == 3)
-                append_interpolation(Solution(0));
+                append_interpolation(interpolator->linhexs.interp_solution(get_point(i), cell));
         }
 
     // ...nop, do it and interpolate
@@ -371,6 +368,7 @@ int SolutionReader::get_nanotip(Medium& nanotip, vector<bool>& atom_in_nanotip, 
 
 // Initialise statistics about the solution
 void SolutionReader::init_statistics() {
+    Medium::init_statistics();
     stat.vec_norm_min = stat.scal_min = DBL_MAX;
     stat.vec_norm_max = stat.scal_max = -DBL_MAX;
 }
@@ -378,6 +376,7 @@ void SolutionReader::init_statistics() {
 // Calculate statistics about the solution
 void SolutionReader::calc_statistics() {
     init_statistics();
+    Medium::calc_statistics();
 
     for (int i = 0; i < size(); ++i) {
         double norm = interpolation[i].norm;
@@ -424,6 +423,251 @@ void SolutionReader::print_statistics() {
 FieldReader::FieldReader(Interpolator* i) :
         SolutionReader(i, "elfield", "elfield_norm", "potential"),
         E0(0), radius1(0), radius2(0) {}
+
+void FieldReader::test_pic(fch::Laplace<3>* laplace, const Medium& medium) {
+    const double x = 0;
+    const double y = 0;
+    const double zmin = medium.sizes.zmax;
+    const double step = 0.5;
+
+    const int n_points = 30;
+
+    reserve(n_points);
+    for (int i = 0; i < n_points; ++i)
+        append(Point3(x, y, zmin + i * step));
+
+    cout << "\nprobing potential:\n";
+
+    array<double,8> shape_functions;
+
+    int hex_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
+        hex_index = interpolator->linhexs.locate_cell(p, hex_index);
+        dealii::Point<3> deal_point(p.x, p.y, p.z);
+        double val1 = laplace->probe_potential(deal_point,interpolator->linhexs.femocs2deal(hex_index));
+        double val2 = laplace->probe_potential(deal_point);
+        printf("%.2f, %e, %e, %e\n", p.z, val1, val2, val1 - val2);
+    }
+
+    cout << "\nprobing elfield:\n";
+
+    hex_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
+        hex_index = interpolator->linhexs.locate_cell(p, hex_index);
+        dealii::Point<3> deal_point(p.x, p.y, p.z);
+
+        double val1 = laplace->probe_efield_norm(deal_point,interpolator->linhexs.femocs2deal(hex_index));
+        double val2 = laplace->probe_efield_norm(deal_point);
+        printf("%.2f, %e, %e, %e\n", p.z, val1, val2, val1 - val2);
+    }
+
+    cout << "\nstoring interpolation:\n";
+
+    hex_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
+        hex_index = interpolator->linhexs.locate_cell(p, hex_index);
+        dealii::Point<3> deal_point(p.x, p.y, p.z);
+
+        double val1 = laplace->probe_efield_norm(deal_point,interpolator->linhexs.femocs2deal(hex_index));
+        double val2 = laplace->probe_potential(deal_point,interpolator->linhexs.femocs2deal(hex_index));
+        append_interpolation(Solution(Vec3(0), val1, val2));
+    }
+}
+
+void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium, const TetgenMesh& mesh) {
+    const double x = 0;
+    const double y = 0;
+    const double zmin = 0.5 + medium.sizes.zmax;
+    const double step = 0.0005;
+
+    const int n_points = 10000;
+
+    reserve(n_points);
+    for (int i = 0; i < n_points; ++i)
+        append(Point3(x, y, zmin + i * step));
+
+    int cell_index;
+    array<double,8> shape_functions;
+
+//    cout << "\nprobing potential:\n";
+//
+//    cell_index = 0;
+//    for (int i = 0; i < n_points; ++i) {
+//        Point3 p = get_point(i);
+//        cell_index = interpolator->linhexs.locate_cell(p, cell_index); // necessary to per
+//        double val1 = interpolator->linhexs.interp_solution(p, cell_index).scalar;
+//        double val2 = laplace->probe_potential(dealii::Point<3>(p.x, p.y, p.z));
+//        printf("%.2f, %e, %e, %.6f\n", p.z, val1, val2, val1/val2);
+//    }
+//
+//    cout << "\nprobing elfield:\n";
+//
+//    cell_index = 0;
+//    for (int i = 0; i < n_points; ++i) {
+//        Point3 p = get_point(i);
+//        cell_index = interpolator->linhexs.locate_cell(p, cell_index);
+//        double val1 = interpolator->linhexs.interp_solution(p, cell_index).norm;
+//        double val2 = laplace->probe_efield_norm(dealii::Point<3>(p.x, p.y, p.z));
+//        printf("%.2f, %e, %e, %.6f\n", p.z, val1, val2, val1/val2);
+//    }
+
+//    cout << "\ntesting shape functions:\n";
+//    cout << setprecision(3) << fixed;
+//
+//    for (int i = 0; i < mesh.elems.size(); ++i)
+//        if (mesh.elems.get_marker(i) == TYPES.VACUUM) {
+//            cell_index = 4*i;
+//            break;
+//        }
+//
+//    SimpleHex shex = mesh.hexahedra[cell_index];
+//    for (int i : shex) {
+//        Point3 p = interpolator->nodes.get_vertex(i);
+//        interpolator->linhexs.get_shape_functions(shape_functions, p, cell_index);
+//
+//        double shape_sum = 0;
+//        for (double sf : shape_functions) {
+//            cout << fabs(sf) << ", ";
+//            shape_sum += sf;
+//        }
+//        cout << "sum=" << shape_sum << endl;
+//    }
+//
+//    cout << endl;
+
+    cout << "\ncomparing interpolations:\n";
+    double t0;
+
+    start_msg(t0, "laplace");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
+        dealii::Point<3> deal_point(p.x, p.y, p.z);
+
+        cell_index = interpolator->linhexs.locate_cell(p, cell_index);
+        int cell_index_in_deal = interpolator->linhexs.femocs2deal(cell_index);
+        if (cell_index_in_deal < 0)
+            append_interpolation(Solution(0));
+        else {
+            double val1 = laplace->probe_efield_norm(deal_point,cell_index_in_deal);
+            double val2 = laplace->probe_potential(deal_point, cell_index_in_deal);
+            append_interpolation(Solution(Vec3(0), val1, val2));
+        }
+    }
+    end_msg(t0);
+
+    write("out/potential1.xyz");
+
+    interpolation.clear();
+    interpolation.reserve(n_points);
+
+    start_msg(t0, "linhexs");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
+        cell_index = interpolator->linhexs.locate_cell(p, cell_index);
+        append_interpolation(interpolator->linhexs.interp_solution(p, cell_index));
+    }
+    end_msg(t0);
+    write("out/potential2.xyz");
+
+    interpolation.clear();
+    interpolation.reserve(n_points);
+
+    start_msg(t0, "lintets");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
+        cell_index = interpolator->lintets.locate_cell(p, cell_index);
+        append_interpolation(interpolator->lintets.interp_solution(p, cell_index));
+    }
+    end_msg(t0);
+    write("out/potential3.xyz");
+
+    interpolation.clear();
+    interpolation.reserve(n_points);
+
+    start_msg(t0, "quadtets");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
+        cell_index = interpolator->quadtets.locate_cell(p, cell_index);
+        append_interpolation(interpolator->quadtets.interp_solution(p, cell_index));
+    }
+    end_msg(t0);
+    write("out/potential4.xyz");
+}
+
+void FieldReader::test_pic_vol3(const TetgenMesh& mesh) const {
+    int cell_index;
+    array<double,8> shape_functions;
+    array<double,4> bcc;
+
+    int cntr = 0;
+    for (int i = 0; i < mesh.elems.size(); ++i)
+        if (mesh.elems.get_marker(i) == TYPES.VACUUM && cntr++ >= 0) {
+            cell_index = i;
+            break;
+        }
+
+    SimpleElement stet = mesh.elems[cell_index];
+
+
+    Point3 n1 = mesh.nodes[stet[0]];
+    Point3 n2 = mesh.nodes[stet[1]];
+    Point3 n3 = mesh.nodes[stet[2]];
+    Point3 n4 = mesh.nodes[stet[3]];
+
+    vector<Point3> points;
+
+    points.push_back(n1);
+    points.push_back(n2);
+    points.push_back(n3);
+    points.push_back(n4);
+    points.push_back((n1 + n2) / 2.0);
+    points.push_back((n1 + n3) / 2.0);
+    points.push_back((n1 + n4) / 2.0);
+    points.push_back((n2 + n3) / 2.0);
+    points.push_back((n2 + n4) / 2.0);
+    points.push_back((n3 + n4) / 2.0);
+    points.push_back((n1 + n2 + n3) / 3.0);
+    points.push_back((n1 + n2 + n4) / 3.0);
+    points.push_back((n1 + n3 + n4) / 3.0);
+    points.push_back((n2 + n3 + n4) / 3.0);
+    points.push_back((n1 + n2 + n3 + n4) / 4.0);
+
+
+
+    vector<string> labels = {"n1","n2","n3","n4","c12","c13","c14","c23","c24","c34","c123","c124","c134","c234","c1234"};
+
+    cout << "results for tet=" << cell_index << ", 4tet=" << 4*cell_index << endl;
+    cout << "with neighbours ";
+    for (int nbor : mesh.elems.get_neighbours(cell_index))
+        cout << nbor << " (" << 4*nbor << ")   ";
+    cout << endl;// << fixed << setprecision(3);
+
+    require(labels.size() == points.size(), "Incompatible vectors!");
+
+    for (int i = 0; i < 4; ++i) {
+        cell_index = interpolator->linhexs.locate_cell(points[i], 0);
+        interpolator->lintets.get_shape_functions(bcc, points[i], 0);
+        cout << endl << labels[i] << ":\t" << cell_index+1 << "\t";
+        for (double b : bcc)
+            cout << ", " << b;
+    }
+
+    for (int i = 4; i < labels.size(); ++i) {
+        cell_index = interpolator->linhexs.locate_cell(points[i], 0);
+        interpolator->lintets.get_shape_functions(bcc, points[i], abs(int(cell_index/4)));
+        cout << endl << labels[i] << ":\t" << cell_index+1 << "\t";
+        for (double b : bcc)
+            cout << ", " << b;
+    }
+
+}
 
 // Interpolate electric field and potential on a set of points
 void FieldReader::interpolate(const int n_points, const double* x, const double* y, const double* z) {
@@ -719,21 +963,23 @@ double HeatReader::get_temperature(const int i) const {
  * ============= EMISSION READER ============
  * ========================================== */
 
-EmissionReader::EmissionReader(const FieldReader& fr, const HeatReader& hr, const TetgenFaces& f,
-        Interpolator* i) :
+EmissionReader::EmissionReader(const FieldReader& fr, const HeatReader& hr, Interpolator* i) :
         SolutionReader(i, "none", "rho_norm", "temperature"),
-        fields(fr), heat(hr), faces(f) {
-    initialize();
+        fields(fr), heat(hr), mesh(NULL) {
+    initialize(NULL);
 }
 
-void EmissionReader::initialize() {
+void EmissionReader::initialize(const TetgenMesh* m) {
+    mesh = m;
     int n_nodes = fields.size();
 
     // deallocate and allocate currents data
-    currents.clear();
+    current_densities.clear();
     nottingham.clear();
-    currents.reserve(n_nodes);
+    currents.clear();
+    current_densities.reserve(n_nodes);
     nottingham.reserve(n_nodes);
+    currents.reserve(n_nodes);
 
     //deallocate and allocate lines
     rline.clear();
@@ -759,7 +1005,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
     Point3 pfield(direction.x, direction.y, direction.z);
 
     FieldReader fr(interpolator);
-    fr.set_preferences(false, 3, interpolation_rank, 0);
+    fr.set_preferences(false, 3, interpolation_rank);
     fr.reserve(n_lines);
 
     for (int i = 0; i < n_lines; i++){
@@ -804,23 +1050,83 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 
 void EmissionReader::calc_representative() {
     double area = 0.; // total emitting (FWHM) area
-    double I_tot = 0.; // total emitted current within FWHM emitting area
+    double I_fwhm = 0.; // total emitted current within FWHM emitting area
     double FJ = 0.; // int_FWHMarea (F*J)dS
+    double I_tot = 0;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
-        if (currents[i] > Jmax * 0.5){ //if point eligible
-            //quadrangle face area is 1/3 of corresponding triangle face area
-            double face_area = faces.get_area(abs(fields.get_marker(i))) / 3.;
+        int tri = mesh->quads.to_tri(abs(fields.get_marker(i)));
+        // quadrangle area is 1/3 of corresponding triangle area
+        double face_area = mesh->faces.get_area(tri) / 3.;
+        currents[i] = face_area * current_densities[i];
+        I_tot += currents[i];
+
+        if (current_densities[i] > Jmax * 0.5){ //if point eligible
             area += face_area; // increase total area
-            I_tot += face_area * currents[i]; // increase total current
-            FJ += face_area * currents[i] * fields.get_elfield_norm(i);
+            I_fwhm += currents[i]; // increase total current
+            FJ += currents[i] * fields.get_elfield_norm(i);
         }
     }
 
     if (MODES.VERBOSE)
-        cout << "I_tot = " << I_tot << "Amps" << endl;
-    Jrep = I_tot / area;
-    Frep = multiplier * FJ / I_tot;
+        printf("I_fwhm = %e, I_tot = %e [Amps]\n", I_fwhm, I_tot);
+    Jrep = I_fwhm / area;
+    Frep = multiplier * FJ / I_fwhm;
+}
+
+void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
+        vector<Point3> &efield, vector<int> &cells) {
+
+    const double Amp = 6.2415e3; //[e/fs]
+    int n_tot = 0;
+    Vec3 field;
+
+    for (int i = 0; i < fields.size(); ++i){ // go through face centroids
+        double current = currents[i] * Amp; // in e/fs
+        double charge = current * delta_t; //in e
+        double n_sps = charge / Wsp;
+
+        int intpart = (int) floor(n_sps);
+        double frpart = n_sps - intpart;
+        int n_electrons_sp = intpart;
+
+        if ((double) rand() / RAND_MAX < frpart)
+            n_electrons_sp++;
+
+        if (n_electrons_sp)
+            field = fields.get_elfield(i);
+
+        //TODO : fix rng, fix probability distribution with face jacobian, fix dim generality
+
+        int quad = abs(fields.get_marker(i));
+        int tri = mesh->quads.to_tri(quad);
+        int hex = mesh->quad2hex(quad, TYPES.VACUUM);
+        hex = interpolator->linhexs.femocs2deal(hex);
+
+        SimpleQuad squad = mesh->quads[quad];
+
+        // generate desired amount of electrons
+        // that are uniformly distributed on a given quadrangle
+        for (int j = 0; j < n_electrons_sp; j++){
+            Point3 position(0.0);
+            double rand1 = (double) rand() / RAND_MAX;
+            double rand2= (double) rand() / RAND_MAX;
+            position = mesh->nodes[squad[0]] * (1. - rand1 - rand2) +
+                    mesh->nodes[squad[1]] * rand1 + mesh->nodes[squad[3]] * rand2;
+
+
+            // push point little bit inside the vacuum mesh
+            position += mesh->faces.get_norm(tri) * (mesh->faces.stat.edgemin * 0.01);
+
+            pos.push_back(position);
+            efield.push_back(field);
+			cells.push_back(hex);
+        }
+
+        n_tot += n_electrons_sp;
+    }
+
+    write_verbose_msg("emitted " + to_string(n_tot) + " electrons");
 }
 
 void EmissionReader::calc_emission(double workfunction, bool blunt){
@@ -866,17 +1172,18 @@ void EmissionReader::calc_emission(double workfunction, bool blunt){
         }
 
         Jmax = max(Jmax, J); // output data
-        currents[i] = J;
+        current_densities[i] = J;
         nottingham[i] = nm2_per_angstrom2 * gt.heat;
     }
 
 }
 
-void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
-        const double workfunction, const double Vappl, bool blunt) {
+void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const Config::Emission &conf, double Vappl) {
+
+    if (Vappl <=0 && conf.SC)
+        write_silent_msg("WARNING: transfer_emission called with SC activated and Vappl <= 0");
 
     const int n_nodes = fields.size();
-
     reserve(n_nodes);
     atoms = fields.atoms;
 
@@ -889,14 +1196,14 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
         Jmax = 0.;
         Fmax = multiplier * Fmax_0;
 
-        calc_emission(workfunction, blunt);
+        calc_emission(conf.work_function, conf.blunt);
         calc_representative();
 
         if (MODES.VERBOSE)
             printf("\nSC j= %d th= %f Jmax= %e Jrep= %e Fmax= %f Frep= %f\n", i, multiplier, Jmax,
                     Jrep , Fmax, Frep);
 
-        if (Vappl <= 0) break; // if Vappl<=0, SC is ignored
+        if (Vappl <= 0 || !conf.SC) break; // if Vappl<=0, SC is ignored
         if (i > 5) err_fact *= 0.5; // if not converged in first 6 steps, reduce factor
 
         // calculate SC multiplier (function coming from getelec)
@@ -904,14 +1211,14 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver,
         error = multiplier - theta_old;
         multiplier = theta_old + error * err_fact;
         theta_old = multiplier;
-        if (abs(error) < 1.e-3) break; //if converged break
+        if (abs(error) < conf.SC_error) break; //if converged break
 
     }
 
     for (int i = 0; i < n_nodes; i++) // append data for surface emission xyz file
-        append_interpolation( Solution(Vec3(0), log(currents[i]), log(fabs(nottingham[i]))));
+        append_interpolation( Solution(Vec3(0), log(current_densities[i]), log(fabs(nottingham[i]))));
 
-    ch_solver.set_emission_bc(currents, nottingham); // output data for heat BCs
+    ch_solver.set_emission_bc(current_densities, nottingham); // output data for heat BCs
 }
 
 /* ==========================================
@@ -1179,7 +1486,7 @@ int ForceReader::calc_charge_and_lorentz(VoronoiMesh& mesh, const vector<int>& a
 }
 
 // Calculate forces from atomic electric fields and face charges
-void ForceReader::calc_forces(const FieldReader &fields, const SurfaceInterpolator& ti) {
+void ForceReader::calc_forces(const FieldReader &fields) {
     const int n_atoms = fields.size();
 
     // Copy the atom data
@@ -1188,7 +1495,7 @@ void ForceReader::calc_forces(const FieldReader &fields, const SurfaceInterpolat
 
     // Calculate the charges by ensuring the that the total sum of it remains conserved
     vector<double> charges;
-    ti.interp_conserved(charges, atoms);
+    interpolator->lintris.interp_conserved(charges, atoms);
 
     // calculate forces and store them
     for (int i = 0; i < n_atoms; ++i) {
@@ -1396,251 +1703,5 @@ double ForceReader::get_charge(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].scalar;
 }
-
-/* ==========================================
- * ============= CoulombReader =============
- * ========================================== */
-
-/**
- * @brief Module containing subrotuines for calculating the Coloumb force between atoms
- * @brief Add forces due to Coloumb interaction and Lorentz force to atoms
- * The subroutine adds the Coulomb force between atoms based on the charge in the "first column" in @p xq.
- * The Lorentz force is calculated elsewhere, but the force itself is added to the total force here.
- * The Lorentz force components are also stored in @p xq.
- */
-
-/*
-
-void CoulombReader::init(vector<int>& charged, double* xnp,
-        const double* xq, const double* _box, const double* pbc, const double qrcut, const int natoms) {
-
-    static bool firsttime = true;
-    charged.reserve(natoms / 3);  // List of atoms with charge
-
-    // Figure out size of image cells and neighbour cells
-    if (firsttime) {
-        box = Vec3(_box[0], _box[1], _box[2]);
-
-        imxmax = ceil(qrcut / box[0]);
-        if (pbc[0] == 0) imxmax = 0;
-        imymax = ceil(qrcut / box[1]);
-        if (pbc[1] == 0) imymax = 0;
-        imzmax = ceil(qrcut / box[2]);
-        if (pbc[2] == 0) imzmax = 0;
-
-        neigh_cell_size = {2.01*qrcut, 2.01*qrcut, 2.01*qrcut};
-        // Assume max 50% higher atomic density than in crystal
-        max_in_cell = ceil(1.5*0.85 * neigh_cell_size[0] * neigh_cell_size[1] * neigh_cell_size[2]);
-
-        for (int j = 0; j < 3; ++j)
-          ncell[j] = ceil(box[j] / neigh_cell_size[j]);
-
-        if(MODES.VERBOSE) printf("  qforces initial range of image cells %i %i %i", imxmax,imymax,imzmax);
-        if(MODES.VERBOSE) printf("neigh_cells %i, %i, %i, %i", ncell[0], ncell[1], ncell[2], max_in_cell);
-
-        neigh_cells[0].reserve(ncell[0]);
-        neigh_cells[1].reserve(ncell[1]);
-        neigh_cells[2].reserve(ncell[2]);
-        neigh_cells[3].reserve(max_in_cell);
-    }
-
-    for (int i = 0; i < natoms; ++i) {
-        int i3 = i * 3;
-        int i4 = i * 4;
-
-        // Transform any outer forces from Parcas units into eV/A for force routines
-        for (int j = 0; j < 3; ++j)
-            xnp[i3+j] *= box[j];
-
-        //  Make a list of charged atoms. Later we only need to loop over these
-        if(abs(xq[i4]) > 0.0)
-            charged.push_back(i);
-    }
-
-    firsttime = false;
-}
-
-void CoulombReader::qforces(
-        const double* x0,    ///< Atom positions (parcas units)
-        double* xnp,         ///<  Forces on atoms (parcas units)
-        const double* _box,  ///<  Simulation box size (Å)
-        const double* pbc,   ///<  Periodic boundaries
-        double* Epair,       ///<  Potential energy per atom
-        const double* xq,    ///<  Charges on atoms (unit charges) and Lorentz force components
-        double Vpair,        ///<  Total potential energy of atoms. Pot. due to Coloumb forces are added here. NOTE: Lorentz is missing!
-        double Vqq,          ///<  Potnetial energy due to coloumb interaction
-        const double qrcut,  ///<  Cut-off for Coloumb force
-        const double qscreen, ///<  Screening factor for Coulomb force
-        const int natoms     ///<  Number of atoms
-        ) {
-
-    const int update_neighbours_every = 10;
-    const double couloumb_constant = 14.399758;
-    const double r_cut_square = qrcut * qrcut;
-
-    static int times_called = 0;
-
-    double t0;
-    array<int,3> cell, nei;
-    array<double,3> cellc; // Center-point of cell
-    vector<int> charged;
-
-    start_msg(t0, "Initializing Coulomb forces...");
-    init(charged, xnp, xq, _box, pbc, qrcut, natoms);
-    Vqq = 0;
-    end_msg(t0);
-
-    // Divide system into cells, update which atoms belong where
-    if (times_called++ % update_neighbours_every == 0) {
-        start_msg(t0, "Building neighbour list for qforces cells...");
-        calc_nborlist(charged, x0);
-        end_msg(t0);
-    }
-
-    start_msg(t0, "Looping over image cells...");
-
-    for (int imx = -imxmax; imx <= imxmax; ++imx) {
-    for (int imy = -imymax; imy <= imymax; ++imy) {
-    for (int imz = -imzmax; imz <= imzmax; ++imz) {
-        // Determine whether we should include atoms in this image cell
-        // (idea similar to fig. 5.7 in Allen-Tildesley)
-        // by checking whether cell _center_ is farther than qrcut
-        // from the central cell
-
-        double rsq = imx*imx*box[0]*box[0] + imy*imy*box[1]*box[1] + imz*imz*box[2]*box[2];
-        if (rsq > r_cut_square) continue;
-
-        // Once we have chosen to handle one image cell, take
-        // care of all atoms in there
-
-//      $OMP PARALLEL DO DEFAULT(SHARED), &
-//      $OMP PRIVATE(i,i3,i4,xi,yi,zi,t,t3,t4,&
-//      $OMP xtim,ytim,ztim,dx,dy,dz,rsq,r,kCoulomb_q1q2,qscreenfact,V,dVdr), &
-//      $OMP REDUCTION(+:Vqq), REDUCTION(+:Vpair)
-
-        for (int i : charged) {
-            int i3 = i*3;
-            int i4 = i*4;
-
-            Vec3 xx(x0[i3+0], x0[i3+1], x0[i3+2]);
-            xx *= box;
-
-            for (int j = 0; j < 3; ++j) {
-                cell[j] = ceil( (x0[i3+j]*box[j] + box[j]/2.0) / neigh_cell_size[j] );
-                cellc[j] = cell[j] * neigh_cell_size[j] - neigh_cell_size[j] / 2.0;
-                if (cell[j] > ncell[j]) cell[j] = ncell[j];
-            }
-
-            for (int ineiz = -1; ineiz <= 1; ++ineiz) {
-                if (check_limits(xx, cellc, nei, ncell,cell, ineiz, 2)) continue;
-
-                for (int ineiy = -1; ineiy <= 1; ++ineiy) {
-                    if (check_limits(xx, cellc, nei, ncell,cell, ineiy, 1)) continue;
-
-                    for (int ineix = -1; ineix <= 1; ++ineix) {
-                        if (check_limits(xx, cellc, nei, ncell,cell, ineix, 0)) continue;
-
-                        // loop over atoms s which are neighbours of i
-                        for (int cht = 1; cht < neigh_cells(nei[0],nei[1],nei[2],0); ++cht) {
-                            int t = neigh_cells(nei[0],nei[1],nei[2],cht);
-                            int t4 = t*4;
-                            int t3 = t*3;
-                            if (xq[t4] == 0) continue;
-                            if (i==t && imx==0 && imy==0 && imz==0) continue;
-
-                            // Find distance. Because image cells are used, periodics are not needed.
-                            Vec3 point(x0[t3+0]+imx, x0[t3+1]+imy, x0[t3+2]+imz);
-                            point *= box;
-                            point -= xx;
-
-                            rsq = point.norm2();
-                            double r=sqrt(rsq);
-
-                            // With cutoff 20.0 Vqq differs by 0.0002% from w.o. cutoff
-                            if (r > qrcut) continue;
-
-                            double V = exp(-qscreen * r) * couloumb_constant * xq[i4] * xq[t4] / r;
-                            Epair[i] += 0.5 * V;
-                            Vqq += 0.5 * V;
-                            Vpair += 0.5 * V;
-
-                            double dVdr=-V/rsq;
-                            // rsq because one 1/r from derivative, another from
-                            // vector projection
-
-                            for (int j = 0; j < 3; ++j)
-                                xnp[i3+j] += dVdr * point[j];
-                        }
-                    }
-                }
-            }
-        }
-//      $OMP END PARALLEL DO
-    }
-    }
-    }
-
-    end_msg(t0);
-
-//    $OMP PARALLEL DO PRIVATE(i3,i4)
-    // TODO check whether unit transformation from eV-A system to parcas units is needed
-    for (int i = 0; i < natoms; ++i) {
-        int i3 = i * 3;
-        int i4 = i * 4;
-
-        for (int j = 0; j < 3; ++j)
-            xnp[i3+j] = (xnp[i3+j] + xq[i4+j+1]) / box[j];
-    }
-//    $OMP END PARALLEL DO
-}
-
-bool CoulombReader::check_limits(Vec3& xx, array<double,3>& cellc,
-        array<int,3>& nei, array<int,3>& ncell, array<int,3>& cell, int inei, int i)
-{
-    // check if past midpoint for not looking the other way
-    if (xx[i] > cellc[i] && inei == -1) return true;
-    if (xx[i] < cellc[i] && inei == 1) return true;
-
-    nei[i] = cell[i] + inei;
-
-    // check periodic boundaries
-    if (i == 2)
-        return nei[i] > ncell[i] || nei[i] < 1;
-
-    if (nei[i] > ncell[i]) nei[i] = 1;
-    if (nei[i] < 1) nei[i] = ncell[i];
-
-    return false;
-}
-
-void CoulombReader::calc_nborlist(const vector<int>& charged, const double* x0) {
-    neigh_cells = -1;
-
-    array<int,3> cell;
-    for (int i : charged) {
-        int i3 = i * 3;
-        int i4 = i * 4;
-
-        for (int j = 0; j < 3; ++j) {
-            cell[j] = ceil( (x0[i3+j] * box[j] + box[j] / 2.0) / neigh_cell_size[j] );
-            if (cell[j] > ncell[j]) cell[j] = ncell[j];
-            if(cell[j] < 1) cell[j] = 1; // Can happen if atom is exactly at border?
-        }
-
-        int atoms_in_cell = neigh_cells(cell[0], cell[1], cell[2], 0);
-        if (atoms_in_cell >= max_in_cell) {
-            printf("Qforces: too many atoms in cell %i, %i", atoms_in_cell,max_in_cell);
-            return;
-        }
-
-        atoms_in_cell = max(atoms_in_cell, 0);
-
-        atoms_in_cell++;
-        neigh_cells(cell[0], cell[1], cell[2], 0) = atoms_in_cell;
-        neigh_cells(cell[0], cell[1], cell[2], atoms_in_cell) = i;
-    }
-}
-
-//*/
 
 } // namespace femocs

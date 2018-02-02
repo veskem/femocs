@@ -18,10 +18,97 @@ TetgenMesh::TetgenMesh() {
     tetIOout.initialize();
 }
 
-// Delete disturbing edges and faces on and near the surface perimeter
-void TetgenMesh::clean_sides(const Medium::Sizes& sizes) {
-    edges.clean_sides(sizes);
-    faces.clean_sides(sizes);
+void TetgenMesh::test_mapping() const {
+    cout << "\ntets of tris:" << endl;
+    for (int i = 0; i < 10; ++i) {
+        cout << i << ":\t";
+        for (int tet : faces.to_tets(i))
+            cout << tet << ", ";
+        cout << endl;
+    }
+
+    cout << "tris of tets:" << endl;
+    for (int i = 0; i < 10; ++i) {
+        cout << i << ":\t";
+        for (int tri : elems.to_tris(i))
+            cout << tri << ", ";
+        cout << endl;
+    }
+
+    cout << "hexs of quads:" << endl;
+    for (int i = 0; i < 10; ++i) {
+        cout << i << ":\t";
+        for (int hex : quads.to_hexs(i))
+            cout << hex << ", ";
+        cout << endl;
+    }
+
+    cout << "quads of hexs:" << endl;
+    for (int i = 0; i < 10; ++i) {
+        cout << i << ":\t";
+        for (int quad : hexahedra.to_quads(i))
+            cout << quad << ", ";
+        cout << endl;
+    }
+
+    int n_cells, n_mapped_cells;
+
+    n_cells = faces.size();
+    n_mapped_cells = 0;
+    for (int i = 0; i < n_cells; ++i)
+        n_mapped_cells += faces.to_tets(i).size();
+    printf("faces: n_cells=%i, n_mapped_cells=%i\n", n_cells, n_mapped_cells);
+
+    n_cells = elems.size();
+    n_mapped_cells = 0;
+    for (int i = 0; i < n_cells; ++i)
+        n_mapped_cells += elems.to_tris(i).size();
+    printf("elems: n_cells=%i, n_mapped_cells=%i\n", n_cells, n_mapped_cells);
+
+    n_cells = quads.size();
+    n_mapped_cells = 0;
+    for (int i = 0; i < n_cells; ++i)
+        n_mapped_cells += quads.to_hexs(i).size();
+    printf("quads: n_cells=%i, n_mapped_cells=%i\n", n_cells, n_mapped_cells);
+
+    n_cells = hexahedra.size();
+    n_mapped_cells = 0;
+    for (int i = 0; i < n_cells; ++i)
+        n_mapped_cells += hexahedra.to_quads(i).size();
+    printf("hexahedra: n_cells=%i, n_mapped_cells=%i\n", n_cells, n_mapped_cells);
+}
+
+int TetgenMesh::tri2tet(const int tri, const int region) const {
+
+    if (region == TYPES.VACUUM) {
+        for (int tet : faces.to_tets(tri))
+            if (tet >= 0 && elems.get_marker(tet) == TYPES.VACUUM)
+                return tet;
+    } else if (region == TYPES.BULK) {
+        for (int tet : faces.to_tets(tri))
+            if (tet >= 0 && elems.get_marker(tet) != TYPES.VACUUM)
+                return tet;
+    } else
+        require(false, "Unimplemented region: " + to_string(region));
+
+    return -1;
+}
+
+// map quadrangle to hexahedron that is located in a given region
+int TetgenMesh::quad2hex(const int quad, const int region) const {
+
+    if (region == TYPES.VACUUM) {
+        for (int hex : quads.to_hexs(quad))
+            if (hex >= 0 && elems.get_marker(hexahedra.to_tet(hex)) == TYPES.VACUUM)
+                return hex;
+    } else if (region == TYPES.BULK) {
+        for (int hex : quads.to_hexs(quad))
+            if (hex >= 0 && elems.get_marker(hexahedra.to_tet(hex)) != TYPES.VACUUM)
+                return hex;
+    } else
+        require(false, "Unimplemented region: " + to_string(region));
+
+    return -1;
 }
 
 // Delete the data of previously stored mesh and initialise a new one
@@ -38,18 +125,22 @@ void TetgenMesh::clear() {
 void TetgenMesh::smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm) {
     if (algorithm == "none") return;
 
+    // determine the neighbouring between nodes connected to the faces
     vector<vector<unsigned>> nborlist;
     faces.calc_nborlist(nborlist);
 
+    // remove the nodes that are on the boundary of simubox
     const double eps = 0.01 * elems.stat.edgemin;
     nodes.calc_statistics();
     for (int i = 0; i < nodes.size(); ++i) {
         Point3 p = nodes[i];
         if (on_boundary(p.x, nodes.stat.xmin, nodes.stat.xmax, eps) ||
-                on_boundary(p.y, nodes.stat.ymin, nodes.stat.ymax, eps))
+                on_boundary(p.y, nodes.stat.ymin, nodes.stat.ymax, eps) ||
+                on_boundary(p.z, nodes.stat.zmin, nodes.stat.zmax, eps))
             nborlist[i] = vector<unsigned>();
     }
 
+    // run the Taubin smoothing
     if (algorithm == "laplace") {
         for (size_t s = 0; s < n_steps; ++s) {
             laplace_smooth(lambda, nborlist);
@@ -247,8 +338,6 @@ void TetgenMesh::curvature_norm_smooth(const double scale, const vector<vector<u
 // Function to generate simple mesh that consists of one tetrahedron
 int TetgenMesh::generate_simple() {
     const int n_nodes = elems.DIM;
-    const int n_edges = n_edges_per_elem;
-    const int n_faces = n_faces_per_elem;
     const int n_elems = 1;
 
     nodes.init(n_nodes);
@@ -257,13 +346,13 @@ int TetgenMesh::generate_simple() {
     nodes.append(Point3(0.0, 1.0, -0.7));
     nodes.append(Point3(0.0, -1.0, -0.7));
 
-    faces.init(n_faces);
+    faces.init(n_tris_per_tet);
     faces.append(SimpleFace(0, 1, 3));
     faces.append(SimpleFace(1, 2, 3));
     faces.append(SimpleFace(2, 0, 3));
     faces.append(SimpleFace(0, 1, 2));
 
-    edges.init(n_edges);
+    edges.init(n_edges_per_tet);
     edges.append(SimpleEdge(0, 1));
     edges.append(SimpleEdge(0, 2));
     edges.append(SimpleEdge(0, 3));
@@ -278,11 +367,11 @@ int TetgenMesh::generate_simple() {
 }
 
 // Copy mesh from input to output or vice versa without modification
-int TetgenMesh::recalc(const bool write2read) {
-    nodes.recalc(write2read);
-    edges.recalc(write2read);
-    faces.recalc(write2read);
-    elems.recalc(write2read);
+int TetgenMesh::transfer(const bool write2read) {
+    nodes.transfer(write2read);
+    edges.transfer(write2read);
+    faces.transfer(write2read);
+    elems.transfer(write2read);
     return 0;
 }
 
@@ -410,12 +499,14 @@ bool TetgenMesh::generate_hexahedra() {
     hexmesh.export_femocs(this);
 
     group_hexahedra();
+    calc_quad2hex_mapping();
+    nodes.calc_statistics();
 
     return 0;
 }
 
 // Using the separated tetrahedra generate the triangular surface on the vacuum-material boundary
-int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd) {
+int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd1, const string& cmd2) {
     TetgenMesh vacuum;
     vector<bool> tet_mask = vector_equal(elems.get_markers(), TYPES.VACUUM);
 
@@ -424,17 +515,81 @@ int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd) 
     vacuum.elems.copy(this->elems, tet_mask);
 
     // calculate surface triangles
-    const int error_code = vacuum.recalc(cmd);
+    int error_code = vacuum.recalc(cmd1);
     if (error_code) return error_code;
 
-    // transfer the calculated triangles
-    faces.copy(vacuum.faces);
-    faces.recalc();
+    // copy the triangles that are not on the simubox perimeter to input tetIO
+    vacuum.faces.calc_statistics();
+    const int n_surf_faces = faces.copy_surface(vacuum.faces, sizes);
 
-    // clean the triangles that are on the simubox perimeter
-    faces.clean_sides(sizes);
-    faces.recalc();
+    // transfer elements and nodes to input
+    nodes.transfer(false);
+    elems.transfer(false);
+
+    // calculate the tetrahedron-triangle connectivity
+    // the simubox boundary faces must also be calculated, no way to opt-out
+    error_code = recalc(cmd2);
+    if (error_code) return error_code;
+
+    // the faces on the simubox sides are appended after the surface faces.
+    // such property allows to remove the faces on the sides without affecting the tri2tet mapping.
+    // such cleaning is useful to make other workflow faster.
+    faces.init(n_surf_faces);
+    for (int i = 0; i < n_surf_faces; ++i)
+        faces.append(faces[i]);
+    faces.transfer();
+
+    calc_tet2tri_mapping();
     return 0;
+}
+
+void TetgenMesh::calc_tet2tri_mapping() {
+    const int n_tris = faces.size();
+    vector<vector<int>> tet2tri_map(elems.size());
+
+    for (int i = 0; i < n_tris; ++i) {
+        for (int tet : faces.to_tets(i))
+            if (tet >= 0)
+                tet2tri_map[tet].push_back(i);
+    }
+    elems.store_map(tet2tri_map);
+}
+
+void TetgenMesh::calc_quad2hex_mapping() {
+    const int n_quads = quads.size();
+    const int n_hexs = hexahedra.size();
+
+    vector<array<int,2>> quad2hex_map = vector<array<int,2>>(n_quads, {-1,-1});
+    vector<vector<int>> hex2quad_map = vector<vector<int>>(n_hexs);
+
+    for (int quad = 0; quad < n_quads; ++quad) {
+        SimpleQuad squad = quads[quad];
+
+        // loop through the tetrahedra that are connected to the quadrangle
+        int region = 0;
+        for (int tet : faces.to_tets(quads.to_tri(quad))) {
+            if (tet < 0) continue;
+
+            // loop through all the hexahedra connected to the tetrahedron
+            for (int hex : elems.to_hexs(tet)) {
+
+                // count for the # common nodes between quadrangle and hexahedron
+                int n_common_nodes = 0;
+                for (unsigned int node : hexahedra[hex])
+                    n_common_nodes += squad == node;
+
+                // quad belongs to hex, if they share 4 nodes
+                if (n_common_nodes == n_nodes_per_quad) {
+                    quad2hex_map[quad][region++] = hex;
+                    hex2quad_map[hex].push_back(quad);
+                }
+            }
+        }
+    }
+
+    // store the mapping on the cells side
+    quads.store_map(quad2hex_map);
+    hexahedra.store_map(hex2quad_map);
 }
 
 // Generate manually surface faces from elements and surface nodes
@@ -445,11 +600,12 @@ void TetgenMesh::generate_manual_surface() {
     // booleans showing whether element i has exactly one face on the surface or not
     vector<bool> elem_on_surface; elem_on_surface.reserve(n_elems);
     // booleans showing whether node i is on the surface or not
-    vector<bool> surf_locs;
+    vector<bool> surf_locs(4);
 
     // Mark the elements that have exactly one face on the surface
-    for (SimpleElement selem : elems) {
-        surf_locs = (selem <= max_surf_indx);
+    for (SimpleElement elem : elems) {
+        for (int i = 0; i < 4; ++i)
+            surf_locs[i] = elem[i] <= max_surf_indx;
         elem_on_surface.push_back(vector_sum(surf_locs) == 3);
     }
 
@@ -470,7 +626,8 @@ void TetgenMesh::generate_manual_surface() {
             SimpleElement elem = elems[el];
 
             // Find the indices of nodes that are on the surface
-            surf_locs = (elem <= max_surf_indx);
+            for (int i = 0; i < 4; ++i)
+                surf_locs[i] = elem[i] <= max_surf_indx;
 
             /* The possible combinations of surf_locs and n0,n1,n2:
              * surf_locs: 1110   1101   1011   0111
@@ -487,12 +644,10 @@ void TetgenMesh::generate_manual_surface() {
 // Generate edges from the elements
 void TetgenMesh::generate_edges() {
     const int n_elems = elems.size();
-    const int n_edges = n_edges_per_elem * n_elems;
-
-    edges.init(n_edges);
+    edges.init(n_edges_per_tet * n_elems);
 
     for (SimpleElement selem : elems) {
-        for (int e = 0; e < n_edges_per_elem; ++e)
+        for (int e = 0; e < n_edges_per_tet; ++e)
             edges.append(selem.edge(e));
     }
 }
@@ -543,7 +698,7 @@ void TetgenMesh::write_separate(const string& file_name, const int type) {
     TetgenMesh tempmesh;
     tempmesh.nodes.copy(this->nodes);
     tempmesh.nodes.copy_markers(this->nodes);
-    tempmesh.nodes.recalc();
+    tempmesh.nodes.transfer();
     tempmesh.hexahedra.copy(this->hexahedra, hex_mask);
     tempmesh.hexahedra.copy_markers(this->hexahedra, hex_mask);
 

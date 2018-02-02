@@ -18,6 +18,8 @@
 #include "currents_and_heating_stationary.h"
 #include "laplace.h"
 
+#include "Pic.h"
+
 using namespace std;
 namespace femocs {
 
@@ -188,13 +190,21 @@ public:
     int generate_nanotip(const double height, const double radius=-1, const double resolution=-1);
 
     /** Generate bulk and vacuum meshes using the imported atomistic data */
-    int generate_meshes();
+    int generate_mesh();
 
+    /** Evolve the PIC simulation one Femocs time step */
+    int solve_pic(const double E0, const double dt_main);
+    
     /** Solve Laplace equation on vacuum mesh */
     int solve_laplace(const double E0);
 
     /** Pick a method to solve heat and continuity equations on bulk mesh */
     int solve_heat(const double T_ambient);
+
+    /**
+     * Calculate emission on the surface and put the results in EmissionReader emission
+     */
+    void get_emission();
 
     /** Determine whether atoms have moved significantly and whether to enable file writing */
     int reinit(const int timestep=-1);
@@ -206,8 +216,12 @@ public:
     int force_output();
 
 private:
-    bool skip_calculations, fail;
-    double t0;
+    const double delta_t_MD = 4.05e-15; // in seconds (!)
+    
+    bool skip_meshing;      ///< If the mesh is to be kept the same
+    bool fail;              ///< If some process failed
+    double t0;              ///< CPU timer
+    double time;            ///< Time since the start of the simulation
     int timestep;           ///< counter to measure how many times Femocs has been called
     int last_full_timestep; ///< last time step Femocs did full calculation
     string timestep_string; ///< time step written to file name
@@ -220,14 +234,22 @@ private:
     Surface dense_surf;     ///< non-coarsened surface atoms
     Surface extended_surf;  ///< atoms added for the surface atoms
 
-    TetgenMesh fem_mesh;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
+    TetgenMesh mesh1;       ///< FEM mesh for the whole simulation domain (both bulk and vacuum)
+    TetgenMesh mesh2;
+    TetgenMesh *new_mesh;   ///< Pointer to mesh where the new one will be generated
+    TetgenMesh *mesh;       ///< Readily available mesh
 
-    Interpolator vacuum_interpolator = Interpolator(&fem_mesh, "elfield", "potential");
-    Interpolator bulk_interpolator = Interpolator(&fem_mesh, "rho", "temperature");
+    Interpolator vacuum_interpolator = Interpolator("elfield", "potential");
+    Interpolator bulk_interpolator = Interpolator("rho", "temperature");
 
     HeatReader  temperatures = HeatReader(&bulk_interpolator); ///< temperatures & current densities on bulk atoms
     FieldReader fields = FieldReader(&vacuum_interpolator);       ///< fields & potentials on surface atoms
     ForceReader forces = ForceReader(&vacuum_interpolator);       ///< forces & charges on surface atoms
+    FieldReader surface_fields = FieldReader (&vacuum_interpolator); ///< fields on surface hex face centroids
+    HeatReader  surface_temperatures = HeatReader(&bulk_interpolator); ///< temperatures & current densities on surface hex face centroids
+
+    /// emission data on centroids of surface quadrangles
+    EmissionReader emission = EmissionReader(surface_fields, surface_temperatures, &vacuum_interpolator);
 
     /// physical quantities used in heat calculations
     fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);
@@ -239,6 +261,8 @@ private:
     fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous steady-state currents and heating solver
     fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
 
+    Pic<3> pic_solver; //The PIC solver
+    
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
 
@@ -250,6 +274,13 @@ private:
 
     /** Solve transient heat and continuity equation until convergence is reached */
     int solve_converge_heat();
+
+    /** Import meshes to dealii and set params to various objects */
+    int prepare_fem();
+
+    /** Write results into files */
+    int write_files();
+
 };
 
 } /* namespace femocs */
