@@ -82,18 +82,6 @@ public:
     void smoothen(const Config& conf, const double r_cut);
 
 private:
-    vector<array<int,3>> nborbox_indices; ///< neighbour box indices where the point belongs to
-    array<int,3> nborbox_size;            ///< # neighbour boxes in x,y,z direction
-    vector<int> list;  ///< linked list entries
-    vector<int> head;  ///< linked list header
-
-    /** Calculate linked list between atoms that holds the information about
-     * the region  of simulation cell where the atoms are located.
-     * Linked list can be used to calculate efficiently the neighbour list. See
-     * http://www.acclab.helsinki.fi/~knordlun/moldyn/lecture03.pdf
-     */
-    void calc_linked_list(const double r_cut, const bool lat_periodic);
-
     /** Function used to smoothen the atoms */
     inline double smooth_function(const double distance, const double smooth_factor) const;
 

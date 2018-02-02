@@ -349,61 +349,13 @@ private:
     static constexpr double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
     static constexpr double couloumb_constant = 14.399645; ///< force factor in Couloumb's law [V*A/e], == 1 / (4*pi*eps0)
 
-    vector<array<int,3>> nborbox_indices; ///< neighbour box indices where the point belongs to
-    array<int,3> nborbox_size;            ///< # neighbour boxes in x,y,z direction
-    vector<int> list;  ///< linked list entries
-    vector<int> head;  ///< linked list header
-
-    /** Calculate linked list between atoms that holds the information about
-     * the region  of simulation cell where the atoms are located.
-     * Linked list can be used to calculate efficiently the neighbouring status of atoms. See
-     * http://www.acclab.helsinki.fi/~knordlun/moldyn/lecture03.pdf
-     */
-    void calc_linked_list(const double r_cut, const bool lat_periodic);
-
     /** Remove cells with too big faces*/
     void clean_voro_faces(VoronoiMesh& mesh);
 
     int calc_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip, const vector<int>& atom2face,
             const double radius, const double latconst, const string& mesh_quality);
 };
-/*
-class CoulombReader: public SolutionReader {
-public:
 
-    void qforces(
-            const double* x0,     ///< Atom positions (parcas units)
-            double* xnp,          ///<  Forces on atoms (parcas units)
-            const double* _box,   ///<  Simulation box size (Å)
-            const double* pbc,    ///<  Periodic boundaries
-            double* Epair,        ///<  Potential energy per atom
-            const double* xq,     ///<  Charges on atoms (unit charges) and Lorentz force components
-            double Vpair,         ///<  Total potential energy of atoms. Pot. due to Coloumb forces are added here. NOTE: Lorentz is missing!
-            double Vqq,           ///<  Potnetial energy due to coloumb interaction
-            const double qrcut,   ///<  Cut-off for Coloumb force
-            const double qscreen, ///<  Screening factor for Coulomb force
-            const int natoms      ///<  Number of atoms
-            );
-
-private:
-    /// Divide system into cells to ease force calculation. First number in 4th column is number of atoms.
-    array<vector<int>,4> neigh_cells;
-    array<double,3> neigh_cell_size;
-    array<int,3> ncell; // How many cells we have
-    Vec3 box;
-
-    int max_in_cell, imxmax, imymax, imzmax;
-
-    void init(vector<int>& charged, double* xnp, const double* xq,
-            const double* _box, const double* pbc, const double qrcut, const int natoms);
-
-    void calc_nborlist(const vector<int>& charged, const double* x0);
-
-    inline bool check_limits(Vec3& xx, array<double,3>& cellc,
-            array<int,3>& nei, array<int,3>& ncell, array<int,3>& cell, int inei, int i);
-
-};
-//*/
 } // namespace femocs
 
 #endif /* SOLUTIONREADER_H_ */
