@@ -95,15 +95,16 @@ public:
         double distance;
     } tolerance;
 
-    /** Parameters for solving Laplace equation */
-    struct Laplace {
+    /** Parameters for solving field equation */
+    struct Field {
         double E0;              ///< Value of long range electric field (Active in case of Neumann anodeBC
         double ssor_param;      ///< Parameter for SSOR preconditioner in DealII
         double phi_error;       ///< Maximum allowed electric potential error
         int n_phi;              ///< Maximum number of Conjugate Gradient iterations in phi calculation
         double V0;              ///< Applied voltage at the anode (active in case of SC emission and Dirichlet anodeBC
         string anodeBC;         ///< Type of anode boundary condition (Dirichlet or Neumann)
-    } laplace;
+        string solver;          ///< Type of field equation to be solved; laplace or poisson
+    } field;
 
     /** Heating configuration parameters */
     struct Heating {

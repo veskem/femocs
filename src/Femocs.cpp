@@ -94,7 +94,7 @@ int Femocs::force_output() {
 
 // Generate FEM mesh and solve differential equation(s) using E0 from configuration file
 int Femocs::run() {
-    return run(conf.laplace.E0, "");
+    return run(conf.field.E0, "");
 }
 
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
@@ -297,7 +297,7 @@ int Femocs::generate_mesh() {
 
 int Femocs::prepare_fem(){
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    fields.set_check_params(conf.laplace.E0, conf.tolerance.field_min, conf.tolerance.field_max,
+    fields.set_check_params(conf.field.E0, conf.tolerance.field_min, conf.tolerance.field_max,
             conf.geometry.radius, dense_surf.sizes.zbox);
 
     start_msg(t0, "=== Importing mesh to Laplace solver...");
@@ -326,7 +326,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     int time_subcycle = ceil(dt_main / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
     double dt_pic = dt_main/time_subcycle;
 
-    pic_solver.set_params(conf.laplace, conf.pic, dt_pic, mesh->nodes.stat);
+    pic_solver.set_params(conf.field, conf.pic, dt_pic, mesh->nodes.stat);
 
     //Time loop
     for (int i = 0; i < time_subcycle; i++) {
@@ -360,7 +360,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
 
 // Solve Laplace equation
 int Femocs::solve_laplace(const double E0) {
-    conf.laplace.E0 = E0;       // reset long-range electric field
+    conf.field.E0 = E0;       // reset long-range electric field
 
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
     fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
@@ -380,7 +380,7 @@ int Femocs::solve_laplace(const double E0) {
     write_verbose_msg(ss.str());
 
     start_msg(t0, "=== Running Laplace solver...");
-    int ncg = laplace_solver.solve(conf.laplace.n_phi, conf.laplace.phi_error, true, conf.laplace.ssor_param);
+    int ncg = laplace_solver.solve(conf.field.n_phi, conf.field.phi_error, true, conf.field.ssor_param);
     cout << "CG iterations = " << ncg;
     end_msg(t0);
 
@@ -488,7 +488,7 @@ void Femocs::get_emission(){
 
     start_msg(t0, "=== Calculating field emission...");
     emission.initialize(mesh);
-    emission.transfer_emission(ch_transient_solver, conf.emission, conf.laplace.V0);
+    emission.transfer_emission(ch_transient_solver, conf.emission, conf.field.V0);
     end_msg(t0);
     if(MODES.VERBOSE)
         emission.write("out/surface_emission.movie");
@@ -551,7 +551,7 @@ int Femocs::solve_converge_heat() {
 
         start_msg(t0, "=== Calculating field emission...");
         emission.set_multiplier(multiplier);
-        emission.transfer_emission(ch_transient_solver, conf.emission, conf.laplace.V0);
+        emission.transfer_emission(ch_transient_solver, conf.emission, conf.field.V0);
         multiplier = emission.get_multiplier();
         end_msg(t0);
         if (MODES.VERBOSE) emission.write("out/surface_emission.xyz");
@@ -807,14 +807,14 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         write_silent_msg("Using previous charge & force!");
     else {
         // analytical total charge without epsilon0 (will be added in ChargeReader)
-        const double tot_charge = conf.laplace.E0 * reader.sizes.xbox * reader.sizes.ybox;
+        const double tot_charge = conf.field.E0 * reader.sizes.xbox * reader.sizes.ybox;
 
         ChargeReader face_charges(&vacuum_interpolator); // charges on surface triangles
         face_charges.set_preferences(false, 3, 2);
         face_charges.set_check_params(tot_charge, conf.tolerance.charge_min, conf.tolerance.charge_max);
 
         start_msg(t0, "=== Calculating face charges...");
-        face_charges.calc_charges(*mesh, conf.laplace.E0);
+        face_charges.calc_charges(*mesh, conf.field.E0);
         end_msg(t0);
         face_charges.write("out/face_charges.xyz");
         check_return(face_charges.check_limits(), "Face charges are not conserved!");
