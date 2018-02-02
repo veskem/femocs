@@ -484,11 +484,8 @@ void Femocs::get_emission(){
 
     start_msg(t0, "=== Calculating field emission...");
     emission.initialize();
-    emission.transfer_emission(ch_transient_solver, conf.emission, conf.laplace.V0);
+    emission.calc_emission(conf.emission, conf.laplace.V0);
     end_msg(t0);
-    if(MODES.VERBOSE)
-        emission.write("out/surface_emission.movie");
-
 }
 
 // Solve transient heat and continuity equations
@@ -497,6 +494,7 @@ int Femocs::solve_transient_heat(const double delta_time) {
 
     get_emission();
 
+    emission.export_emission(ch_transient_solver);
     if (new_mesh_exists) {
         start_msg(t0, "=== Setup transient J & T solver...");
         ch_transient_solver.setup_current_system();
@@ -549,7 +547,7 @@ int Femocs::solve_converge_heat() {
 
         start_msg(t0, "=== Calculating field emission...");
         emission.set_multiplier(multiplier);
-        emission.transfer_emission(ch_transient_solver, conf.emission, conf.laplace.V0);
+        emission.calc_emission(ch_transient_solver, conf.emission, conf.laplace.V0);
         multiplier = emission.get_multiplier();
         end_msg(t0);
         if (MODES.VERBOSE) emission.write("out/surface_emission.xyz");

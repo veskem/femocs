@@ -1125,7 +1125,7 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
     write_verbose_msg("emitted " + to_string(n_tot) + " electrons");
 }
 
-void EmissionReader::calc_emission(double workfunction, bool blunt){
+void EmissionReader::emission_cycle(double workfunction, bool blunt){
 
     struct emission gt;
     gt.W = workfunction;    // set workfuntion, must be set in conf. script
@@ -1174,7 +1174,7 @@ void EmissionReader::calc_emission(double workfunction, bool blunt){
 
 }
 
-void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const Config::Emission &conf, double Vappl) {
+void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
 
     if (Vappl <= 0 && conf.SC)
         write_silent_msg("WARNING: transfer_emission called with SC activated and Vappl <= 0");
@@ -1192,7 +1192,7 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, co
         global_data.Jmax = 0.;
         global_data.Fmax = global_data.multiplier * Fmax_0;
 
-        calc_emission(conf.work_function, conf.blunt);
+        emission_cycle(conf.work_function, conf.blunt);
         calc_representative();
 
         if (Vappl <= 0 || !conf.SC) break; // if Vappl<=0, SC is ignored
@@ -1207,8 +1207,12 @@ void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, co
         if (abs(error) < conf.SC_error) break; //if converged break
 
     }
+}
 
-    for (int i = 0; i < n_nodes; i++) // append data for surface emission xyz file
+
+//export emissino to ch solver
+void EmissionReader::export_emission(fch::CurrentsAndHeating<3>& ch_solver){
+    for (int i = 0; i < nottingham.size(); i++) // append data for surface emission xyz file
         append_interpolation( Solution(Vec3(0), log(current_densities[i]), log(fabs(nottingham[i]))));
 
     ch_solver.set_emission_bc(current_densities, nottingham); // output data for heat BCs

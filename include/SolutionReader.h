@@ -222,7 +222,9 @@ public:
      * @param conf Emission configuration parameters struct
      * @param Vappl Applied voltage (required for space charge calculations)
      */
-    void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const Config::Emission &conf, double Vappl = -1);
+    void calc_emission( const Config::Emission &conf, double Vappl = -1);
+
+    void export_emission(fch::CurrentsAndHeating<3>& ch_solver);
 
     /**
      * Injects electron SPs at the surface faces, depending on the current and the timestep
@@ -256,7 +258,7 @@ private:
      * Calculates electron emission distribution for a given configuration (
      * @param workfunction Input work function.
      */
-    void calc_emission(double workfunction, bool blunt  = false);
+    void emission_cycle(double workfunction, bool blunt  = false);
 
     static constexpr double angstrom_per_nm = 10.0;
     static constexpr double nm2_per_angstrom2 = 0.01;
