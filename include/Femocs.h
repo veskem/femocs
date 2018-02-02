@@ -220,7 +220,7 @@ private:
     
     bool skip_meshing;      ///< If the mesh is to be kept the same
     bool fail;              ///< If meshing failed
-    bool new_mesh_exists;          ///< Whether the mesh is new or already used
+    bool new_mesh_exists;   ///< Whether the mesh is new or already used
     double t0;              ///< CPU timer
     double time;            ///< Time since the start of the simulation
     int timestep;           ///< counter to measure how many times Femocs has been called

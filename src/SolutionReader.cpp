@@ -989,13 +989,13 @@ void EmissionReader::initialize() {
 
     // find Fmax
     for (int i = 0; i < n_nodes; ++i)
-        Fmax = max(Fmax, fields.get_elfield_norm(i));
+        global_data.Fmax = max(global_data.Fmax, fields.get_elfield_norm(i));
 
     //Initialise data
-    Jmax = 0.;
-    Frep = Fmax;
-    Jrep = 0.;
-    multiplier = 1.;
+    global_data.Jmax = 0.;
+    global_data.Frep = global_data.Fmax;
+    global_data.Jrep = 0.;
+    global_data.multiplier = 1.;
 }
 
 void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax) {
@@ -1014,7 +1014,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
     }
     fr.calc_interpolation();
     for (int i = 0; i < n_lines; i++){
-        Vline[i] = multiplier * fr.get_potential(i);
+        Vline[i] = global_data.multiplier * fr.get_potential(i);
         rline[i] *= nm_per_angstrom;
     }
 
@@ -1050,28 +1050,24 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 
 void EmissionReader::calc_representative() {
     double area = 0.; // total emitting (FWHM) area
-    double I_fwhm = 0.; // total emitted current within FWHM emitting area
     double FJ = 0.; // int_FWHMarea (F*J)dS
-    double I_tot = 0;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
         int tri = mesh.quads.to_tri(abs(fields.get_marker(i)));
         // quadrangle area is 1/3 of corresponding triangle area
         double face_area = mesh.faces.get_area(tri) / 3.;
         currents[i] = face_area * current_densities[i];
-        I_tot += currents[i];
+        global_data.I_tot += currents[i];
 
-        if (current_densities[i] > Jmax * 0.5){ //if point eligible
+        if (current_densities[i] > global_data.Jmax * 0.5){ //if point eligible
             area += face_area; // increase total area
-            I_fwhm += currents[i]; // increase total current
+            global_data.I_fwhm += currents[i]; // increase total current
             FJ += currents[i] * fields.get_elfield_norm(i);
         }
     }
 
-    if (MODES.VERBOSE)
-        printf("I_fwhm = %e, I_tot = %e [Amps]\n", I_fwhm, I_tot);
-    Jrep = I_fwhm / area;
-    Frep = multiplier * FJ / I_fwhm;
+    global_data.Jrep = global_data.I_fwhm / area;
+    global_data.Frep = global_data.multiplier * FJ / global_data.I_fwhm;
 }
 
 void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
@@ -1096,7 +1092,7 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
         if (n_electrons_sp)
             field = fields.get_elfield(i);
 
-        //TODO : fix rng, fix probability distribution with face jacobian, fix dim generality
+        //TODO : fix rng, check probability distribution
 
         int quad = abs(fields.get_marker(i));
         int tri = mesh.quads.to_tri(quad);
@@ -1140,13 +1136,13 @@ void EmissionReader::calc_emission(double workfunction, bool blunt){
     for (int i = 0; i < fields.size(); ++i) { // go through all face centroids
 
         Vec3 field = fields.get_elfield(i); //local field
-        F = multiplier * field.norm();
+        F = global_data.multiplier * field.norm();
         gt.mode = 0;
         gt.F = angstrom_per_nm * F;
         gt.Temp = heat.get_temperature(i);
         set_marker(i, 0); // set marker for output emission xyz file. Means No full calculation
 
-        if (F > 0.6 * Fmax && !blunt){ // Full calculation with line only for high field points
+        if (F > 0.6 * global_data.Fmax && !blunt){ // Full calculation with line only for high field points
             field.normalize(); // get line direction
             emission_line(get_point(i), field, 1.6 * workfunction / F); //get emission line data
 
@@ -1162,7 +1158,7 @@ void EmissionReader::calc_emission(double workfunction, bool blunt){
             write_verbose_msg("GETELEC 1st call returned with error, ierr = " + to_string(gt.ierr));
         J = gt.Jem * nm2_per_angstrom2; // current density in femocs units
 
-        if (J > 0.1 * Jmax){ // If J is worth it, calculate with full energy integration
+        if (J > 0.1 * global_data.Jmax){ // If J is worth it, calculate with full energy integration
             gt.approx = 1;
             cur_dens_c(&gt);
             if (gt.ierr != 0 )
@@ -1171,7 +1167,7 @@ void EmissionReader::calc_emission(double workfunction, bool blunt){
             set_marker(i, 2);
         }
 
-        Jmax = max(Jmax, J); // output data
+        global_data.Jmax = max(global_data.Jmax, J); // output data
         current_densities[i] = J;
         nottingham[i] = nm2_per_angstrom2 * gt.heat;
     }
@@ -1180,37 +1176,34 @@ void EmissionReader::calc_emission(double workfunction, bool blunt){
 
 void EmissionReader::transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const Config::Emission &conf, double Vappl) {
 
-    if (Vappl <=0 && conf.SC)
+    if (Vappl <= 0 && conf.SC)
         write_silent_msg("WARNING: transfer_emission called with SC activated and Vappl <= 0");
 
     const int n_nodes = fields.size();
     reserve(n_nodes);
     atoms = fields.atoms;
 
-    double theta_old = multiplier;
+    double theta_old = global_data.multiplier;
     double err_fact = 0.5, error;
 
-    double Fmax_0 = Fmax;
+    double Fmax_0 = global_data.Fmax;
 
     for (int i = 0; i < 20; ++i){ // SC calculation loop
-        Jmax = 0.;
-        Fmax = multiplier * Fmax_0;
+        global_data.Jmax = 0.;
+        global_data.Fmax = global_data.multiplier * Fmax_0;
 
         calc_emission(conf.work_function, conf.blunt);
         calc_representative();
-
-        if (MODES.VERBOSE)
-            printf("\nSC j= %d th= %f Jmax= %e Jrep= %e Fmax= %f Frep= %f\n", i, multiplier, Jmax,
-                    Jrep , Fmax, Frep);
 
         if (Vappl <= 0 || !conf.SC) break; // if Vappl<=0, SC is ignored
         if (i > 5) err_fact *= 0.5; // if not converged in first 6 steps, reduce factor
 
         // calculate SC multiplier (function coming from getelec)
-        multiplier = theta_SC(Jrep / nm2_per_angstrom2, Vappl, angstrom_per_nm * Frep);
-        error = multiplier - theta_old;
-        multiplier = theta_old + error * err_fact;
-        theta_old = multiplier;
+        global_data.multiplier = theta_SC(global_data.Jrep / nm2_per_angstrom2, Vappl,
+                angstrom_per_nm * global_data.Frep);
+        error = global_data.multiplier - theta_old;
+        global_data.multiplier = theta_old + error * err_fact;
+        theta_old = global_data.multiplier;
         if (abs(error) < conf.SC_error) break; //if converged break
 
     }

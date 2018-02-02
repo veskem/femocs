@@ -235,8 +235,8 @@ public:
      */
     void initialize();
 
-    double get_multiplier() const {return multiplier;}
-    void set_multiplier(double _multiplier) { multiplier = _multiplier;}
+    double get_multiplier() const {return global_data.multiplier;}
+    void set_multiplier(double _multiplier) { global_data.multiplier = _multiplier;}
 
 private:
     /** Prepares the line inputed to GETELEC.
@@ -273,12 +273,20 @@ private:
     vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
     vector<double> Vline;   ///< Potential on the straight line (complements rline)
 
-    double multiplier;      ///< Multiplier for the field for Space Charge.
-    double Jmax;    ///< Maximum current density of the emitter [in amps/A^2]
-    double Fmax = 0.;    ///< Maximum local field on the emitter [V/A]
-    double Frep = 0.;    ///< Representative local field (used for space charge equation) [V/A]
-    double Jrep = 0.;    ///< Representative current deinsity for space charge. [amps/A^2]
-    double I_tot = 0;   ///< Total current running through the surface [in Amps]
+
+    struct EmGlobalData{
+        double multiplier;      ///< Multiplier for the field for Space Charge.
+        double Jmax;    ///< Maximum current density of the emitter [in amps/A^2]
+        double Fmax = 0.;    ///< Maximum local field on the emitter [V/A]
+        double Frep = 0.;    ///< Representative local field (used for space charge equation) [V/A]
+        double Jrep = 0.;    ///< Representative current deinsity for space charge. [amps/A^2]
+        double I_tot = 0;   ///< Total current running through the surface [in Amps]
+        double I_fwhm = 0;
+    }global_data;
+
+    vector<EmGlobalData> global_data_history;
+
+
 
 };
 
