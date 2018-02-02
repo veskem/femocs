@@ -23,7 +23,7 @@ namespace femocs {
 
 // specify simulation parameters
 Femocs::Femocs(const string &conf_file) : skip_meshing(false), fail(false), timestep(-1), last_full_timestep(0),
-        pic_solver(laplace_solver, ch_transient_solver, vacuum_interpolator, emission), time(0), new_mesh_exists(true) {
+        pic_solver(laplace_solver, ch_transient_solver, vacuum_interpolator, emission), time(0) {
     static bool first_call = true;
 
     // Read configuration parameters from configuration file
@@ -49,10 +49,14 @@ Femocs::Femocs(const string &conf_file) : skip_meshing(false), fail(false), time
     phys_quantities.initialize_with_hc_data();
     ch_solver1.set_physical_quantities(&phys_quantities);
     ch_solver2.set_physical_quantities(&phys_quantities);
-    ch_solver = &ch_solver1;
-    prev_ch_solver = NULL;
     ch_transient_solver.set_physical_quantities(&phys_quantities);
     end_msg(t0);
+
+    new_mesh = &mesh1;
+    mesh = NULL;
+
+    ch_solver = &ch_solver1;
+    prev_ch_solver = NULL;
 }
 
 // delete data and print bye-bye-message
@@ -67,9 +71,9 @@ int Femocs::force_output() {
     MODES.WRITEFILE = true;
 
     reader.write("out/reader.xyz");
-    fem_mesh.hexahedra.write("out/hexmesh_err.vtk");
-    fem_mesh.elems.write("out/tetmesh_err.vtk");
-    fem_mesh.faces.write("out/trimesh_err.vtk");
+    mesh->hexahedra.write("out/hexmesh_err.vtk");
+    mesh->elems.write("out/tetmesh_err.vtk");
+    mesh->faces.write("out/trimesh_err.vtk");
 
     vacuum_interpolator.nodes.write("out/result_E_phi_err.xyz");
     vacuum_interpolator.lintets.write("out/result_E_phi_vacuum_err.vtk");
@@ -88,6 +92,11 @@ int Femocs::force_output() {
     return 0;
 }
 
+// Generate FEM mesh and solve differential equation(s) using E0 from configuration file
+int Femocs::run() {
+    return run(conf.laplace.E0, "");
+}
+
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
 int Femocs::run(const double elfield, const string &timestep) {
     stringstream parser, stream;
@@ -100,32 +109,21 @@ int Femocs::run(const double elfield, const string &timestep) {
 
     stream.str("");
     stream << "Atoms haven't moved significantly, " << reader.rms_distance
-            << " < " << conf.tolerance.distance << "! The old mesh will be reused !";
+            << " < " << conf.tolerance.distance << "! Previous mesh will be used!";
 
     //******************** MESHING *****************************
-    if (reinit(tstep)){ // reinit and check skip_meshing
+    if (reinit(tstep)) { // reinit and check skip_meshing
         write_verbose_msg(stream.str());
-        new_mesh_exists = false;
-    }else{ //try to make new mesh
-        if(generate_meshes()){ // meshing failed
-            check_return(new_mesh_exists, "First meshing failed. No mesh available. Skipping calculations!!!");
-            fem_mesh = mesh_old; // assigning active mesh to old mesh
-            new_mesh_exists = false;
-        }else{ // meshing succesfull
-            fem_mesh = mesh_new; // assigning active mesh to new mesh
-            mesh_old = mesh_new; // saving new mesh to old mesh (deep copy)
-            //TODO : this deep copy does not work. fix it from the TetgenMesh side!!!
-            new_mesh_exists = true;
-            prepare_fem();
-        }
+    } else {
+        generate_mesh();
+        prepare_fem();
     }
-//    check_return(reinit(tstep), stream.str());
 
     //****************** RUNNING Field - PIC calculation ********
     double tstart = omp_get_wtime();
     skip_meshing = true;
 
-    if(solve_pic(elfield, max(delta_t_MD * 1.e15, conf.pic.total_time))){
+    if (solve_pic(elfield, max(delta_t_MD * 1.e15, conf.pic.total_time))) {
         force_output();
         check_return(true, "Solving PIC failed!");
     }
@@ -142,10 +140,6 @@ int Femocs::run(const double elfield, const string &timestep) {
     write_silent_msg(stream.str());
 
     return 0;
-}
-
-int Femocs::run() {
-    return run(conf.laplace.E0, "");
 }
 
 // Determine whether atoms have moved significantly and whether to enable file writing
@@ -232,8 +226,8 @@ int Femocs::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface
 }
 
 // Generate bulk and vacuum meshes
-int Femocs::generate_meshes() {
-    fem_mesh.clear();
+int Femocs::generate_mesh() {
+    new_mesh->clear();
 
     Surface bulk, coarse_surf, vacuum;
     fail = generate_boundary_nodes(bulk, coarse_surf, vacuum);
@@ -245,48 +239,58 @@ int Femocs::generate_meshes() {
     // F - suppress output of faces and edges, B - suppress output of boundary info
     string command = "rQFBq" + conf.geometry.mesh_quality;
     if (conf.geometry.element_volume != "") command += "a" + conf.geometry.element_volume;
-    int err_code = fem_mesh.generate(bulk, coarse_surf, vacuum, command);
+    int err_code = new_mesh->generate(bulk, coarse_surf, vacuum, command);
     check_return(err_code, "Triangulation failed with error code " + to_string(err_code));
     end_msg(t0);
 
     start_msg(t0, "=== Marking tetrahedral mesh...");
-    fail = fem_mesh.mark_mesh();
+    fail = new_mesh->mark_mesh();
     check_return(fail, "Mesh marking failed!");
     end_msg(t0);
 
     start_msg(t0, "=== Generating surface faces...");
-    err_code = fem_mesh.generate_surface(reader.sizes, "rQB", "rQnn");
+    err_code = new_mesh->generate_surface(reader.sizes, "rQB", "rQnn");
     end_msg(t0);
     check_return(err_code, "Generation of surface faces failed with error code " + to_string(err_code));
 
     if (conf.smoothing.algorithm != "none" && conf.smoothing.n_steps > 0) {
         start_msg(t0, "=== Smoothing surface faces...");
-        fem_mesh.smoothen(conf.smoothing.n_steps, conf.smoothing.lambda_mesh, conf.smoothing.mu_mesh, conf.smoothing.algorithm);
+        new_mesh->smoothen(conf.smoothing.n_steps, conf.smoothing.lambda_mesh, conf.smoothing.mu_mesh, conf.smoothing.algorithm);
         end_msg(t0);
     }
 
-    fem_mesh.nodes.write("out/tetmesh_nodes.vtk");
-    fem_mesh.faces.write("out/trimesh.vtk");
-    fem_mesh.elems.write("out/tetmesh.vtk");
+    new_mesh->nodes.write("out/tetmesh_nodes.vtk");
+    new_mesh->faces.write("out/trimesh.vtk");
+    new_mesh->elems.write("out/tetmesh.vtk");
 
     if (conf.run.surface_cleaner) {
         start_msg(t0, "=== Cleaning surface atoms...");
+        vacuum_interpolator.initialize(new_mesh);
         dense_surf.clean_by_triangles(atom2face, vacuum_interpolator, conf.geometry.latconst);
         end_msg(t0);
         dense_surf.write("out/surface_dense_clean.xyz");
     }
 
     start_msg(t0, "=== Converting tetrahedra to hexahedra...");
-    fem_mesh.generate_hexahedra();
+    new_mesh->generate_hexahedra();
     end_msg(t0);
 
-    fem_mesh.nodes.write("out/hexmesh_nodes.vtk");
-    fem_mesh.quads.write("out/quadmesh.vtk");
-    fem_mesh.hexahedra.write("out/hexmesh.vtk");
-    fem_mesh.write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
-    fem_mesh.faces.write("out/hexmesh_faces.vtk");
-    stringstream ss; ss << fem_mesh;
+    new_mesh->nodes.write("out/hexmesh_nodes.vtk");
+    new_mesh->quads.write("out/quadmesh.vtk");
+    new_mesh->hexahedra.write("out/hexmesh.vtk");
+    new_mesh->write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
+    new_mesh->faces.write("out/hexmesh_faces.vtk");
+    stringstream ss; ss << mesh;
     write_verbose_msg(ss.str());
+
+    // update mesh pointers
+    static bool odd_run = true;
+
+    mesh = new_mesh;
+    if (odd_run) new_mesh = &mesh2;
+    else new_mesh = &mesh1;
+
+    odd_run = !odd_run;
 
     return 0;
 }
@@ -297,19 +301,19 @@ int Femocs::prepare_fem(){
             conf.geometry.radius, dense_surf.sizes.zbox);
 
     start_msg(t0, "=== Importing mesh to Laplace solver...");
-    fail = !laplace_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
-            fem_mesh.hexahedra.export_vacuum());
+    fail = !laplace_solver.import_mesh_directly(mesh->nodes.export_dealii(),
+            mesh->hexahedra.export_vacuum());
     check_return(fail, "Importing vacuum mesh to Deal.II failed!");
     end_msg(t0);
 
     start_msg(t0, "=== Importing mesh to transient J & T solver...");
-    fail = !ch_transient_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
-            fem_mesh.hexahedra.export_bulk());
+    fail = !ch_transient_solver.import_mesh_directly(mesh->nodes.export_dealii(),
+            mesh->hexahedra.export_bulk());
     check_return(fail, "Importing bulk mesh to Deal.II failed!");
     end_msg(t0);
 
-    vacuum_interpolator.initialize();
-    bulk_interpolator.initialize(conf.heating.t_ambient);
+    vacuum_interpolator.initialize(mesh);
+    bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
     vacuum_interpolator.lintets.narrow_search_to(TYPES.VACUUM);
     bulk_interpolator.lintets.narrow_search_to(TYPES.BULK);
 
@@ -322,12 +326,12 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     int time_subcycle = ceil(dt_main / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
     double dt_pic = dt_main/time_subcycle;
 
-    pic_solver.set_params(conf.laplace, conf.pic, dt_pic, fem_mesh.nodes.stat);
+    pic_solver.set_params(conf.laplace, conf.pic, dt_pic, mesh->nodes.stat);
 
     //Time loop
     for (int i = 0; i < time_subcycle; i++) {
 
-        pic_solver.run_cycle(new_mesh_exists);
+        pic_solver.run_cycle(mesh != NULL);
 
         start_msg(t0, "=== Extracting E and phi...");
         fail = vacuum_interpolator.extract_solution(&laplace_solver);
@@ -362,8 +366,8 @@ int Femocs::solve_laplace(const double E0) {
     fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
 
     start_msg(t0, "=== Importing mesh to Laplace solver...");
-    fail = !laplace_solver.import_mesh_directly(fem_mesh.nodes.export_dealii(),
-            fem_mesh.hexahedra.export_vacuum());
+    fail = !laplace_solver.import_mesh_directly(mesh->nodes.export_dealii(),
+            mesh->hexahedra.export_vacuum());
     check_return(fail, "Importing mesh to Deal.II failed!");
     end_msg(t0);
 
@@ -381,7 +385,7 @@ int Femocs::solve_laplace(const double E0) {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting E and phi...");
-    vacuum_interpolator.initialize();
+    vacuum_interpolator.initialize(mesh);
     fail = vacuum_interpolator.extract_solution(&laplace_solver);
     end_msg(t0);
 
@@ -394,7 +398,7 @@ int Femocs::solve_laplace(const double E0) {
     laplace_solver.write("out/laplace.vtk");
 
     FieldReader fr(&vacuum_interpolator);
-    fr.test_pic_vol2(&laplace_solver, dense_surf, fem_mesh);
+    fr.test_pic_vol2(&laplace_solver, dense_surf, *mesh);
 //    fr.test_pic_vol3(fem_mesh);
 
     return fail;
@@ -428,8 +432,8 @@ int Femocs::solve_stationary_heat() {
     write_verbose_msg(ss.str());
 
     start_msg(t0, "=== Importing mesh to J & T solver...");
-    fail = !ch_solver->import_mesh_directly(fem_mesh.nodes.export_dealii(),
-            fem_mesh.hexahedra.export_bulk());
+    fail = !ch_solver->import_mesh_directly(mesh->nodes.export_dealii(),
+            mesh->hexahedra.export_bulk());
     check_return(fail, "Importing mesh to Deal.II failed!");
     ch_solver->setup_system();
     end_msg(t0);
@@ -452,7 +456,7 @@ int Femocs::solve_stationary_heat() {
     check_return(t_error > conf.heating.t_error, "Temperature didn't converge, err=" + to_string(t_error));
 
     start_msg(t0, "=== Extracting J & T...");
-    bulk_interpolator.initialize(conf.heating.t_ambient);
+    bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
@@ -483,7 +487,7 @@ void Femocs::get_emission(){
     end_msg(t0);
 
     start_msg(t0, "=== Calculating field emission...");
-    emission.initialize();
+    emission.initialize(mesh);
     emission.transfer_emission(ch_transient_solver, conf.emission, conf.laplace.V0);
     end_msg(t0);
     if(MODES.VERBOSE)
@@ -497,12 +501,10 @@ int Femocs::solve_transient_heat(const double delta_time) {
 
     get_emission();
 
-    if (new_mesh_exists) {
-        start_msg(t0, "=== Setup transient J & T solver...");
-        ch_transient_solver.setup_current_system();
-        ch_transient_solver.setup_heating_system();
-        end_msg(t0);
-    }
+    start_msg(t0, "=== Setup transient J & T solver...");
+    ch_transient_solver.setup_current_system();
+    ch_transient_solver.setup_heating_system();
+    end_msg(t0);
 
     start_msg(t0, "=== Calculating current density...");
     ch_transient_solver.assemble_current_system(); // assemble matrix for current density equation; current == electric current
@@ -518,7 +520,7 @@ int Femocs::solve_transient_heat(const double delta_time) {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting J & T...");
-    bulk_interpolator.initialize(conf.heating.t_ambient);
+    bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
     bulk_interpolator.extract_solution(ch_transient_solver);
     end_msg(t0);
     return 0;
@@ -529,7 +531,7 @@ int Femocs::solve_converge_heat() {
     static bool first_call = true;
 
     start_msg(t0, "=== Setup transient J & T solver...");
-    emission.initialize();
+    emission.initialize(mesh);
     ch_transient_solver.setup_current_system();
     ch_transient_solver.setup_heating_system();
     end_msg(t0);
@@ -566,7 +568,7 @@ int Femocs::solve_converge_heat() {
         end_msg(t0);
 
         start_msg(t0, "=== Extracting J & T...");
-        bulk_interpolator.initialize(conf.heating.t_ambient);
+        bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
         bulk_interpolator.extract_solution(ch_transient_solver);
         end_msg(t0);
         bulk_interpolator.nodes.write("out/result_J_T.movie");
@@ -812,7 +814,7 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
         face_charges.set_check_params(tot_charge, conf.tolerance.charge_min, conf.tolerance.charge_max);
 
         start_msg(t0, "=== Calculating face charges...");
-        face_charges.calc_charges(fem_mesh, conf.laplace.E0);
+        face_charges.calc_charges(*mesh, conf.laplace.E0);
         end_msg(t0);
         face_charges.write("out/face_charges.xyz");
         check_return(face_charges.check_limits(), "Face charges are not conserved!");

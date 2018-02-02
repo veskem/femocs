@@ -213,8 +213,7 @@ private:
 /** Class to calculate field emission effects with GETELEC */
 class EmissionReader: public SolutionReader {
 public:
-    EmissionReader(const FieldReader& fields, const HeatReader& heat, const TetgenMesh& mesh,
-            Interpolator* i);
+    EmissionReader(const FieldReader& fields, const HeatReader& heat, Interpolator* i);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
      * estimation of the space charge effects.
@@ -224,19 +223,16 @@ public:
      */
     void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const Config::Emission &conf, double Vappl = -1);
 
-    /**
-     * Injects electron SPs at the surface faces, depending on the current and the timestep
-     */
+    /** Injects electron SPs at the surface faces, depending on the current and the timestep */
     void inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
             vector<Point3> &efield, vector<int> &cells);
 
-    /**
-     * Initialises class data.
-     */
-    void initialize();
+    /** Initialises class data */
+    void initialize(const TetgenMesh* m);
 
-    double get_multiplier() const {return multiplier;}
-    void set_multiplier(double _multiplier) { multiplier = _multiplier;}
+    double get_multiplier() const { return multiplier; }
+
+    void set_multiplier(double _multiplier) { multiplier = _multiplier; }
 
 private:
     /** Prepares the line inputed to GETELEC.
@@ -264,7 +260,7 @@ private:
 
     const FieldReader& fields;    ///< Object containing the field on centroids of hex interface faces.
     const HeatReader& heat;       ///< Object containing the temperature on centroids of hexahedral faces.
-    const TetgenMesh& mesh;     ///< Object containing information on the mesh.
+    const TetgenMesh* mesh;     ///< Object containing information on the mesh.
 
     vector<double> current_densities;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
     vector<double> nottingham; ///< Same as current_densities for nottingham heat deposition [in W/A^2]

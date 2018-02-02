@@ -48,11 +48,11 @@ namespace femocs {
  */
 class Interpolator {
 public:
-    Interpolator(const TetgenMesh* m, const string& norm_label, const string& scalar_label);
+    Interpolator(const string& norm_label, const string& scalar_label);
     ~Interpolator() {};
 
     /** Initialise interpolator and store solution with default value */
-    void initialize(double empty_value=0);
+    void initialize(const TetgenMesh* mesh, const double empty_value=0);
 
     /** Extract the electric potential and field values from FEM solution */
     bool extract_solution(fch::Laplace<3>* fem);
@@ -67,11 +67,11 @@ public:
 
     InterpolatorNodes nodes;      ///< vertices and solutions on them
     LinearTriangles lintris;      ///< data & operations for linear triangular interpolation
-    QuadraticTriangles quadtris;  ///< data & operations for quadratic triangular interpolation
     LinearTetrahedra lintets;     ///< data & operations for linear tetrahedral interpolation
+    QuadraticTriangles quadtris;  ///< data & operations for quadratic triangular interpolation
     QuadraticTetrahedra quadtets; ///< data & operations for quadratic tetrahedral interpolation
-    LinearHexahedra linhexs;      ///< data & operations for linear hexahedral interpolation
     LinearQuadrangles linquads;   ///< data & operations for linear quadrangular interpolation
+    LinearHexahedra linhexs;      ///< data & operations for linear hexahedral interpolation
 
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc

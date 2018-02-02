@@ -16,9 +16,6 @@ namespace femocs {
 InterpolatorNodes::InterpolatorNodes() :
         mesh(NULL), norm_label("vector_norm"), scalar_label("scalar") { reserve(0); }
 
-InterpolatorNodes::InterpolatorNodes(const TetgenMesh* m, const string& nl, const string& sl) :
-        mesh(m), norm_label(nl), scalar_label(sl) { reserve(0); }
-
 void InterpolatorNodes::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));
 
@@ -368,8 +365,8 @@ int InterpolatorCells<dim>::common_entry(vector<unsigned>& vec1, vector<unsigned
 LinearTriangles::LinearTriangles() :
         InterpolatorCells<3>(), faces(NULL) {}
 
-LinearTriangles::LinearTriangles(const TetgenMesh* m, const InterpolatorNodes* n) :
-        InterpolatorCells<3>(m, n), faces(&m->faces) {}
+LinearTriangles::LinearTriangles(const InterpolatorNodes* n) :
+        InterpolatorCells<3>(n), faces(NULL) {}
 
 void LinearTriangles::reserve(const int n) {
     InterpolatorCells<3>::reserve(n);
@@ -547,8 +544,8 @@ void LinearTriangles::write_cell_data(ofstream& out) const {
 QuadraticTriangles::QuadraticTriangles() :
         InterpolatorCells<6>(), faces(NULL), lintri(NULL) {}
 
-QuadraticTriangles::QuadraticTriangles(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTriangles* l) :
-    InterpolatorCells<6>(m, n), faces(&m->faces), lintri(l) {}
+QuadraticTriangles::QuadraticTriangles(const InterpolatorNodes* n, const LinearTriangles* l) :
+    InterpolatorCells<6>(n), faces(NULL), lintri(l) {}
 
 void QuadraticTriangles::reserve(const int N) {
     InterpolatorCells<6>::reserve(N);
@@ -635,8 +632,8 @@ SimpleCell<6> QuadraticTriangles::get_cell(const int tri) const {
 LinearTetrahedra::LinearTetrahedra() :
         InterpolatorCells<4>(), elems(NULL) {}
 
-LinearTetrahedra::LinearTetrahedra(const TetgenMesh* m, const InterpolatorNodes* n) :
-        InterpolatorCells<4>(m, n), elems(&m->elems) {}
+LinearTetrahedra::LinearTetrahedra(const InterpolatorNodes* n) :
+        InterpolatorCells<4>(n), elems(NULL) {}
 
 void LinearTetrahedra::reserve(const int N) {
     InterpolatorCells<4>::reserve(N);
@@ -824,8 +821,8 @@ double LinearTetrahedra::determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 
 QuadraticTetrahedra::QuadraticTetrahedra() :
         InterpolatorCells<10>(), elems(NULL), lintet(NULL) {}
 
-QuadraticTetrahedra::QuadraticTetrahedra(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) :
-    InterpolatorCells<10>(m, n), elems(&m->elems), lintet(l) {}
+QuadraticTetrahedra::QuadraticTetrahedra(const InterpolatorNodes* n, const LinearTetrahedra* l) :
+    InterpolatorCells<10>(n), elems(NULL), lintet(l) {}
 
 void QuadraticTetrahedra::reserve(const int N) {
     InterpolatorCells<10>::reserve(N);
@@ -912,8 +909,8 @@ SimpleCell<10> QuadraticTetrahedra::get_cell(const int tet) const {
 LinearHexahedra::LinearHexahedra() :
         InterpolatorCells<8>(), hexs(NULL), lintet(NULL) {}
 
-LinearHexahedra::LinearHexahedra(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTetrahedra* l) :
-        InterpolatorCells<8>(m, n), hexs(&m->hexahedra), lintet(l) {}
+LinearHexahedra::LinearHexahedra(const InterpolatorNodes* n, const LinearTetrahedra* l) :
+        InterpolatorCells<8>(n), hexs(NULL), lintet(l) {}
 
 void LinearHexahedra::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));
@@ -1108,8 +1105,8 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
 LinearQuadrangles::LinearQuadrangles() :
         InterpolatorCells<4>(), quads(NULL), lintri(NULL) {}
 
-LinearQuadrangles::LinearQuadrangles(const TetgenMesh* m, const InterpolatorNodes* n, const LinearTriangles* l) :
-        InterpolatorCells<4>(m, n), quads(&m->quads), lintri(l) {}
+LinearQuadrangles::LinearQuadrangles(const InterpolatorNodes* n, const LinearTriangles* l) :
+        InterpolatorCells<4>(n), quads(NULL), lintri(l) {}
 
 void LinearQuadrangles::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));

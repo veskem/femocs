@@ -963,14 +963,14 @@ double HeatReader::get_temperature(const int i) const {
  * ============= EMISSION READER ============
  * ========================================== */
 
-EmissionReader::EmissionReader(const FieldReader& fr, const HeatReader& hr, const TetgenMesh& _mesh,
-        Interpolator* i) :
+EmissionReader::EmissionReader(const FieldReader& fr, const HeatReader& hr, Interpolator* i) :
         SolutionReader(i, "none", "rho_norm", "temperature"),
-        fields(fr), heat(hr), mesh(_mesh) {
-    initialize();
+        fields(fr), heat(hr), mesh(NULL) {
+    initialize(NULL);
 }
 
-void EmissionReader::initialize() {
+void EmissionReader::initialize(const TetgenMesh* m) {
+    mesh = m;
     int n_nodes = fields.size();
 
     // deallocate and allocate currents data
@@ -1055,9 +1055,9 @@ void EmissionReader::calc_representative() {
     double I_tot = 0;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
-        int tri = mesh.quads.to_tri(abs(fields.get_marker(i)));
+        int tri = mesh->quads.to_tri(abs(fields.get_marker(i)));
         // quadrangle area is 1/3 of corresponding triangle area
-        double face_area = mesh.faces.get_area(tri) / 3.;
+        double face_area = mesh->faces.get_area(tri) / 3.;
         currents[i] = face_area * current_densities[i];
         I_tot += currents[i];
 
@@ -1099,11 +1099,11 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
         //TODO : fix rng, fix probability distribution with face jacobian, fix dim generality
 
         int quad = abs(fields.get_marker(i));
-        int tri = mesh.quads.to_tri(quad);
-        int hex = mesh.quad2hex(quad, TYPES.VACUUM);
+        int tri = mesh->quads.to_tri(quad);
+        int hex = mesh->quad2hex(quad, TYPES.VACUUM);
         hex = interpolator->linhexs.femocs2deal(hex);
 
-        SimpleQuad squad = mesh.quads[quad];
+        SimpleQuad squad = mesh->quads[quad];
 
         // generate desired amount of electrons
         // that are uniformly distributed on a given quadrangle
@@ -1111,12 +1111,12 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
             Point3 position(0.0);
             double rand1 = (double) rand() / RAND_MAX;
             double rand2= (double) rand() / RAND_MAX;
-            position = mesh.nodes[squad[0]] * (1. - rand1 - rand2) +
-                    mesh.nodes[squad[1]] * rand1 + mesh.nodes[squad[3]] * rand2;
+            position = mesh->nodes[squad[0]] * (1. - rand1 - rand2) +
+                    mesh->nodes[squad[1]] * rand1 + mesh->nodes[squad[3]] * rand2;
 
 
             // push point little bit inside the vacuum mesh
-            position += mesh.faces.get_norm(tri) * (mesh.faces.stat.edgemin * 0.01);
+            position += mesh->faces.get_norm(tri) * (mesh->faces.stat.edgemin * 0.01);
 
             pos.push_back(position);
             efield.push_back(field);
@@ -1599,313 +1599,5 @@ double ForceReader::get_charge(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].scalar;
 }
-
-/* ==========================================
- * ============= CoulombReader =============
- * ========================================== */
-
-/**
- * @brief Module containing subrotuines for calculating the Coloumb force between atoms
- * @brief Add forces due to Coloumb interaction and Lorentz force to atoms
- * The subroutine adds the Coulomb force between atoms based on the charge in the "first column" in @p xq.
- * The Lorentz force is calculated elsewhere, but the force itself is added to the total force here.
- * The Lorentz force components are also stored in @p xq.
- */
-
-/*
-
-void CoulombReader::init(vector<int>& charged, double* xnp,
-        const double* xq, const double* _box, const double* pbc, const double qrcut, const int natoms) {
-
-    static bool firsttime = true;
-    charged.reserve(natoms / 3);  // List of atoms with charge
-
-    // Figure out size of image cells and neighbour cells
-    if (firsttime) {
-        box = Vec3(_box[0], _box[1], _box[2]);
-
-        imxmax = ceil(qrcut / box[0]);
-        if (pbc[0] == 0) imxmax = 0;
-        imymax = ceil(qrcut / box[1]);
-        if (pbc[1] == 0) imymax = 0;
-        imzmax = ceil(qrcut / box[2]);
-        if (pbc[2] == 0) imzmax = 0;
-
-        neigh_cell_size = {2.01*qrcut, 2.01*qrcut, 2.01*qrcut};
-        // Assume max 50% higher atomic density than in crystal
-        max_in_cell = ceil(1.5*0.85 * neigh_cell_size[0] * neigh_cell_size[1] * neigh_cell_size[2]);
-
-        for (int j = 0; j < 3; ++j)
-          ncell[j] = ceil(box[j] / neigh_cell_size[j]);
-
-        if(MODES.VERBOSE) printf("  qforces initial range of image cells %i %i %i", imxmax,imymax,imzmax);
-        if(MODES.VERBOSE) printf("neigh_cells %i, %i, %i, %i", ncell[0], ncell[1], ncell[2], max_in_cell);
-
-        neigh_cells[0].reserve(ncell[0]);
-        neigh_cells[1].reserve(ncell[1]);
-        neigh_cells[2].reserve(ncell[2]);
-        neigh_cells[3].reserve(max_in_cell);
-    }
-
-    for (int i = 0; i < natoms; ++i) {
-        int i3 = i * 3;
-        int i4 = i * 4;
-
-        // Transform any outer forces from Parcas units into eV/A for force routines
-        for (int j = 0; j < 3; ++j)
-            xnp[i3+j] *= box[j];
-
-        //  Make a list of charged atoms. Later we only need to loop over these
-        if(abs(xq[i4]) > 0.0)
-            charged.push_back(i);
-    }
-
-    firsttime = false;
-}
-
-void CoulombReader::qforces(
-        const double* x0,    ///< Atom positions (parcas units)
-        double* xnp,         ///<  Forces on atoms (parcas units)
-        const double* _box,  ///<  Simulation box size (Å)
-        const double* pbc,   ///<  Periodic boundaries
-        double* Epair,       ///<  Potential energy per atom
-        const double* xq,    ///<  Charges on atoms (unit charges) and Lorentz force components
-        double Vpair,        ///<  Total potential energy of atoms. Pot. due to Coloumb forces are added here. NOTE: Lorentz is missing!
-        double Vqq,          ///<  Potnetial energy due to coloumb interaction
-        const double qrcut,  ///<  Cut-off for Coloumb force
-        const double qscreen, ///<  Screening factor for Coulomb force
-        const int natoms     ///<  Number of atoms
-        ) {
-
-    const int update_neighbours_every = 10;
-    const double couloumb_constant = 14.399758;
-    const double r_cut_square = qrcut * qrcut;
-
-    static int times_called = 0;
-
-    double t0;
-    array<int,3> cell, nei;
-    array<double,3> cellc; // Center-point of cell
-    vector<int> charged;
-
-    start_msg(t0, "Initializing Coulomb forces...");
-    init(charged, xnp, xq, _box, pbc, qrcut, natoms);
-    Vqq = 0;
-    end_msg(t0);
-
-    // Divide system into cells, update which atoms belong where
-    if (times_called++ % update_neighbours_every == 0) {
-        start_msg(t0, "Building neighbour list for qforces cells...");
-        calc_nborlist(charged, x0);
-        end_msg(t0);
-    }
-
-    start_msg(t0, "Looping over image cells...");
-
-    for (int imx = -imxmax; imx <= imxmax; ++imx) {
-    for (int imy = -imymax; imy <= imymax; ++imy) {
-    for (int imz = -imzmax; imz <= imzmax; ++imz) {
-        // Determine whether we should include atoms in this image cell
-        // (idea similar to fig. 5.7 in Allen-Tildesley)
-        // by checking whether cell _center_ is farther than qrcut
-        // from the central cell
-
-        double rsq = imx*imx*box[0]*box[0] + imy*imy*box[1]*box[1] + imz*imz*box[2]*box[2];
-        if (rsq > r_cut_square) continue;
-
-        // Once we have chosen to handle one image cell, take
-        // care of all atoms in there
-
-//      $OMP PARALLEL DO DEFAULT(SHARED), &
-//      $OMP PRIVATE(i,i3,i4,xi,yi,zi,t,t3,t4,&
-//      $OMP xtim,ytim,ztim,dx,dy,dz,rsq,r,kCoulomb_q1q2,qscreenfact,V,dVdr), &
-//      $OMP REDUCTION(+:Vqq), REDUCTION(+:Vpair)
-
-        for (int i : charged) {
-            int i3 = i*3;
-            int i4 = i*4;
-
-            Vec3 xx(x0[i3+0], x0[i3+1], x0[i3+2]);
-            xx *= box;
-
-            for (int j = 0; j < 3; ++j) {
-                cell[j] = ceil( (x0[i3+j]*box[j] + box[j]/2.0) / neigh_cell_size[j] );
-                cellc[j] = cell[j] * neigh_cell_size[j] - neigh_cell_size[j] / 2.0;
-                if (cell[j] > ncell[j]) cell[j] = ncell[j];
-            }
-
-            for (int ineiz = -1; ineiz <= 1; ++ineiz) {
-                if (check_limits(xx, cellc, nei, ncell,cell, ineiz, 2)) continue;
-
-                for (int ineiy = -1; ineiy <= 1; ++ineiy) {
-                    if (check_limits(xx, cellc, nei, ncell,cell, ineiy, 1)) continue;
-
-                    for (int ineix = -1; ineix <= 1; ++ineix) {
-                        if (check_limits(xx, cellc, nei, ncell,cell, ineix, 0)) continue;
-
-                        // loop over atoms s which are neighbours of i
-                        for (int cht = 1; cht < neigh_cells(nei[0],nei[1],nei[2],0); ++cht) {
-                            int t = neigh_cells(nei[0],nei[1],nei[2],cht);
-                            int t4 = t*4;
-                            int t3 = t*3;
-                            if (xq[t4] == 0) continue;
-                            if (i==t && imx==0 && imy==0 && imz==0) continue;
-
-                            // Find distance. Because image cells are used, periodics are not needed.
-                            Vec3 point(x0[t3+0]+imx, x0[t3+1]+imy, x0[t3+2]+imz);
-                            point *= box;
-                            point -= xx;
-
-                            rsq = point.norm2();
-                            double r=sqrt(rsq);
-
-                            // With cutoff 20.0 Vqq differs by 0.0002% from w.o. cutoff
-                            if (r > qrcut) continue;
-
-                            double V = exp(-qscreen * r) * couloumb_constant * xq[i4] * xq[t4] / r;
-                            Epair[i] += 0.5 * V;
-                            Vqq += 0.5 * V;
-                            Vpair += 0.5 * V;
-
-                            double dVdr=-V/rsq;
-                            // rsq because one 1/r from derivative, another from
-                            // vector projection
-
-                            for (int j = 0; j < 3; ++j)
-                                xnp[i3+j] += dVdr * point[j];
-                        }
-                    }
-                }
-            }
-        }
-//      $OMP END PARALLEL DO
-    }
-    }
-    }
-
-    end_msg(t0);
-
-//    $OMP PARALLEL DO PRIVATE(i3,i4)
-    // TODO check whether unit transformation from eV-A system to parcas units is needed
-    for (int i = 0; i < natoms; ++i) {
-        int i3 = i * 3;
-        int i4 = i * 4;
-
-        for (int j = 0; j < 3; ++j)
-            xnp[i3+j] = (xnp[i3+j] + xq[i4+j+1]) / box[j];
-    }
-//    $OMP END PARALLEL DO
-}
-
-bool CoulombReader::check_limits(Vec3& xx, array<double,3>& cellc,
-        array<int,3>& nei, array<int,3>& ncell, array<int,3>& cell, int inei, int i)
-{
-    // check if past midpoint for not looking the other way
-    if (xx[i] > cellc[i] && inei == -1) return true;
-    if (xx[i] < cellc[i] && inei == 1) return true;
-
-    nei[i] = cell[i] + inei;
-
-    // check periodic boundaries
-    if (i == 2)
-        return nei[i] > ncell[i] || nei[i] < 1;
-
-    if (nei[i] > ncell[i]) nei[i] = 1;
-    if (nei[i] < 1) nei[i] = ncell[i];
-
-    return false;
-}
-
-void CoulombReader::calc_nborlist(const bool lateral_periodic) {
-    const int n_atoms = size();
-    const double r_cut = 6.0;
-    Point3 simubox_size(sizes.xbox, sizes.ybox, sizes.zbox);
-
-    vector<unsigned> list(n_atoms);
-    vector<unsigned> head(n_atoms);
-
-    array<int,3> M;
-    for (int j = 0; j < 3; ++j)
-        M[j] = ceil(simubox_size[j] / r_cut);
-
-    // calculate linked list for the atoms
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 dx = atoms[i].point + simubox_size / 2;
-        // Check that we are inside lateral boundaries
-        if (lateral_periodic)
-            for (int j = 0; j < 2; ++j) {
-                if (dx[j] < 0) dx[j] += simubox_size[j];
-                else if (dx[j] > simubox_size[j]) dx[j] -= simubox_size[j];
-            }
-
-        array<int,3> point_index;
-        for (int j = 0; j < 3; ++j)
-            point_index[j] = int( (dx[j] / simubox_size[j]) * M[j] );
-
-        // If not periodic, let border cells continue to infinity
-        if (!lateral_periodic)
-            for (int j = 0; j < 2; ++j) {
-                point_index[j] = max(0, point_index[j]);
-                point_index[j] = min(M[j]-1, point_index[j]);
-            }
-
-        int i_cell = (point_index[2] * M[1] + point_index[1]) * M[0] + point_index[0];
-        set_marker(i, i_cell);
-        list[i] = head[i_cell];
-        head[i_cell] = i;
-    }
-
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 &p1 = atoms[i].point;
-        for (int ix = 0; ix < M[0]; ++ix) {
-            for (int iy = 0; iy < M[1]; ++iy) {
-                for (int iz = 0; iz < M[2]; ++iz) {
-                    int i_cell = (iz * M[1] + iy) * M[0] + ix;
-                    int j = head[i_cell];
-                    while(true) {
-                        if (j == 0) break;
-                        double r2 = p1.distance2(get_point(j));
-                        if (r2 < r_cut2) {
-                            printf("%i and %i are neighbours!\n", i, j);
-                        }
-                        j = list[j];
-                    }
-                }
-            }
-        }
-    }
-}
-
-void CoulombReader::check_neighbours(const int i)
-
-void CoulombReader::calc_nborlist(const vector<int>& charged, const double* x0) {
-    neigh_cells = -1;
-
-    array<int,3> cell;
-    for (int i : charged) {
-        int i3 = i * 3;
-        int i4 = i * 4;
-
-        for (int j = 0; j < 3; ++j) {
-            cell[j] = ceil( (x0[i3+j] * box[j] + box[j] / 2.0) / neigh_cell_size[j] );
-            if (cell[j] > ncell[j]) cell[j] = ncell[j];
-            if(cell[j] < 1) cell[j] = 1; // Can happen if atom is exactly at border?
-        }
-
-        int atoms_in_cell = neigh_cells(cell[0], cell[1], cell[2], 0);
-        if (atoms_in_cell >= max_in_cell) {
-            printf("Qforces: too many atoms in cell %i, %i", atoms_in_cell,max_in_cell);
-            return;
-        }
-
-        atoms_in_cell = max(atoms_in_cell, 0);
-
-        atoms_in_cell++;
-        neigh_cells(cell[0], cell[1], cell[2], 0) = atoms_in_cell;
-        neigh_cells(cell[0], cell[1], cell[2], atoms_in_cell) = i;
-    }
-}
-
-//*/
 
 } // namespace femocs
