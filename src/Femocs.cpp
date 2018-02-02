@@ -104,6 +104,7 @@ int Femocs::run(const double elfield, const string &timestep) {
 
     // convert message to integer time step
     int tstep;
+    parser.str();
     parser << timestep;
     parser >> tstep;
 
