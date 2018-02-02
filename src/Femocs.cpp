@@ -104,9 +104,9 @@ int Femocs::run(const double elfield, const string &timestep) {
 
     // convert message to integer time step
     int tstep;
-    parser.str();
     parser << timestep;
     parser >> tstep;
+    parser.flush();
 
     stream.str("");
     stream << "Atoms haven't moved significantly, " << reader.rms_distance
@@ -211,9 +211,8 @@ int Femocs::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface
 
     start_msg(t0, "=== Generating bulk & vacuum corners...");
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
-//    vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.geometry.box_height * coarse_surf.sizes.zbox);
-
-    vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + conf.geometry.box_height * conf.geometry.latconst);
+    double box_height = max(conf.geometry.latconst, coarse_surf.sizes.zbox) * conf.geometry.box_height;
+    vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + box_height);
     bulk = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.geometry.bulk_height * conf.geometry.latconst);
     reader.resize_box(coarse_surf.sizes.xmin, coarse_surf.sizes.xmax, 
             coarse_surf.sizes.ymin, coarse_surf.sizes.ymax,
@@ -266,8 +265,7 @@ int Femocs::generate_mesh() {
 
     if (conf.run.surface_cleaner) {
         start_msg(t0, "=== Cleaning surface atoms...");
-        vacuum_interpolator.initialize(new_mesh);
-        dense_surf.clean_by_triangles(atom2face, vacuum_interpolator, conf.geometry.latconst);
+        dense_surf.clean_by_triangles(atom2face, vacuum_interpolator, new_mesh, conf.geometry.latconst);
         end_msg(t0);
         dense_surf.write("out/surface_dense_clean.xyz");
     }
@@ -281,8 +279,6 @@ int Femocs::generate_mesh() {
     new_mesh->hexahedra.write("out/hexmesh.vtk");
     new_mesh->write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
     new_mesh->faces.write("out/hexmesh_faces.vtk");
-    stringstream ss; ss << mesh;
-    write_verbose_msg(ss.str());
 
     // update mesh pointers
     static bool odd_run = true;
@@ -292,6 +288,9 @@ int Femocs::generate_mesh() {
     else new_mesh = &mesh1;
 
     odd_run = !odd_run;
+
+    stringstream ss; ss << *mesh;
+    write_verbose_msg(ss.str());
 
     return 0;
 }

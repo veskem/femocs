@@ -359,7 +359,8 @@ Surface Surface::fast_clean(Coarseners &coarseners) {
 }
 
 // Remove the atoms that are too far from surface faces
-void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const double r_cut) {
+void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator,
+        const TetgenMesh* m, const double r_cut) {
     if (r_cut <= 0) return;
 
     const int n_atoms = size();
@@ -368,6 +369,7 @@ void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpola
     surf2face.clear();
     surf2face.reserve(n_atoms);
 
+    interpolator.lintris.set_mesh(m);
     interpolator.lintris.precompute();
 
     int face = 0;
