@@ -5,8 +5,7 @@
  *      Author: veske
  */
 
-#include "../include/Surface.h"
-
+#include "Surface.h"
 #include <numeric>
 
 using namespace std;
@@ -17,11 +16,6 @@ Surface::Surface() : Medium() {}
 Surface::Surface(const int n_atoms) : Medium(n_atoms) {}
 
 Surface::Surface(const Medium::Sizes& s, const double z) {
-    generate_simple(s, z);
-}
-
-// Generate system with 4 atoms at the corners
-void Surface::generate_simple(const Medium::Sizes& s, const double z) {
     // Reserve memory for atoms
     reserve(4);
 
@@ -35,9 +29,9 @@ void Surface::generate_simple(const Medium::Sizes& s, const double z) {
     calc_statistics();
 }
 
-// Generate edge with regular atom distribution between surface corners
-void Surface::generate_middle(const Medium::Sizes& s, const double z, const double dist) {
+Surface::Surface(const Medium::Sizes& s, const double z, const double dist) {
     require(dist > 0, "Invalid distance between atoms: " + to_string(dist));
+
     const int n_atoms_per_side_x = s.xbox / dist + 1;
     const int n_atoms_per_side_y = s.ybox / dist + 1;
     const double dx = s.xbox / n_atoms_per_side_x;
@@ -175,9 +169,8 @@ void Surface::extend(Surface& extension, Coarseners &cr, const double latconst, 
 
     // if the input already is sufficiently wide, add just the boundary nodes
     else {
-        Surface middle;
-        middle.generate_middle(sizes, z, cr.get_r0_inf(sizes));
-        extension.generate_simple(sizes, z);
+        Surface middle(sizes, z, cr.get_r0_inf(sizes));
+        extension = Surface(sizes, z);
         extension += middle;
     }
 
@@ -186,13 +179,10 @@ void Surface::extend(Surface& extension, Coarseners &cr, const double latconst, 
 
 // Coarsen the atoms by generating additional boundary nodes and then running cleaner
 Surface Surface::coarsen(Coarseners &coarseners) {
-    Surface corners, middle, union_surf;
-
-    corners.generate_simple(sizes, sizes.zmean);
-    middle.generate_middle( sizes, sizes.zmean, coarseners.get_r0_inf(sizes) );
     sort_atoms(3, "down");
 
-    union_surf += corners;
+    Surface middle(sizes, sizes.zmean, coarseners.get_r0_inf(sizes));
+    Surface union_surf(sizes, sizes.zmean);
     union_surf += middle;
     union_surf += *this;
 
@@ -263,7 +253,7 @@ Surface Surface::clean_roi(Coarseners &coarseners) {
 }
 
 // Remove the atoms that are too far from surface faces
-void Surface::clean_by_triangles(vector<int>& surf2face, SurfaceInterpolator* interpolator, const double r_cut) {
+void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const double r_cut) {
     if (r_cut <= 0) return;
 
     const int n_atoms = size();
@@ -272,13 +262,13 @@ void Surface::clean_by_triangles(vector<int>& surf2face, SurfaceInterpolator* in
     surf2face.clear();
     surf2face.reserve(n_atoms);
 
-    interpolator->precompute();
+    interpolator.lintris.precompute();
 
     int face = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Atom atom = get_atom(i);
-        face = abs(interpolator->locate_cell(atom.point, face));
-        if (interpolator->fast_distance(atom.point, face) < r_cut) {
+        face = abs(interpolator.lintris.locate_cell(atom.point, face));
+        if (interpolator.lintris.fast_distance(atom.point, face) < r_cut) {
             atom.marker = face;
             _atoms.push_back(atom);
             surf2face.push_back(face);
@@ -493,14 +483,14 @@ void Surface::smoothen(const Config& conf, const double r_cut) {
     calc_statistics();
 
     Surface nanotip;
-    get_nanotip(nanotip, conf.radius);
+    get_nanotip(nanotip, conf.geometry.radius);
 
     vector<vector<unsigned>> nborlist;
-    nanotip.calc_nborlist(nborlist, conf.nnn, r_cut);
+    nanotip.calc_nborlist(nborlist, conf.geometry.nnn, r_cut);
 
     for (int i = 0; i < 3; ++i) {
-        nanotip.laplace_smooth(conf.smooth_lambda, nborlist);
-        nanotip.laplace_smooth(conf.smooth_mu, nborlist);
+        nanotip.laplace_smooth(conf.smoothing.lambda_mesh, nborlist);
+        nanotip.laplace_smooth(conf.smoothing.mu_mesh, nborlist);
     }
 
     *this += nanotip;

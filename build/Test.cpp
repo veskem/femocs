@@ -32,7 +32,7 @@ void write_defaults(ofstream &file) {
     file << "n_writefile = 1"            << endl;
     file << "use_histclean = false"      << endl;
     file << "use_rdf = false"            << endl;
-    file << "surface_cleaner = faces"    << endl;
+    file << "clean_surface = true"    << endl;
     file << "surface_thickness = 3.1"    << endl;
     file << "coord_cutoff = 3.1"         << endl;
     file << "latconst = 3.61"            << endl;
@@ -72,7 +72,7 @@ void write_kmcsmall(ofstream &file) {
     file << "coarse_factor = 0.3 6 4" << endl;
     file << "latconst = 2.0"          << endl;
     file << "radius = 11.0"           << endl;
-    file << "surface_cleaner = none"  << endl;
+    file << "clean_surface = false"  << endl;
 }
 
 void write_kmcbig(ofstream &file) {
@@ -80,7 +80,7 @@ void write_kmcbig(ofstream &file) {
     file << "coarse_factor = 0.4 6 4" << endl;
     file << "latconst = 2.0"          << endl;
     file << "radius = 20.0"           << endl;
-    file << "surface_cleaner = none"  << endl;
+    file << "clean_surface = false"  << endl;
     file << "mesh_quality = 1.6"      << endl;
 }
 
@@ -91,7 +91,7 @@ void write_kmcregular(ofstream &file) {
     file << "radius = 42.0"           << endl;
     file << "box_width = 5.0"         << endl;
     file << "box_height = 5.0"        << endl;
-    file << "surface_cleaner = none"  << endl;
+    file << "clean_surface = false"  << endl;
 }
 
 void write_stretch(ofstream &file) {
@@ -162,7 +162,7 @@ void write_generate(ofstream &file) {
     file << "radius = 31.0"            << endl;
     file << "box_width = 10.0"         << endl;
     file << "box_height = 10.0"        << endl;
-    file << "surface_cleaner = none"   << endl;
+    file << "clean_surface = false"   << endl;
 }
 
 void read_xyz(const string &file_name, double* x, double* y, double* z) {

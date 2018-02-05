@@ -12,10 +12,10 @@
 #include "Config.h"
 #include "SolutionReader.h"
 #include "Surface.h"
+#include "Interpolator.h"
 #include "physical_quantities.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
-#include "Interpolator.h"
 #include "laplace.h"
 
 using namespace std;
@@ -25,7 +25,7 @@ namespace femocs {
 class Femocs {
 public:
     /**
-     * Femocs constructor reads and stores configuration parameters
+     * Femocs constructor reads and stores configuration parameters and initialises other data
      * @param path_to_conf      path to the file holding the configuration parameters
      */
     Femocs(const string &path_to_conf);
@@ -35,10 +35,15 @@ public:
 
     /** Function to generate FEM mesh and to solve differential equation(s)
      * @param elfield   long range electric field strength
-     * @param message   message from the host: time step, file name etc
+     * @param timestep  active time step in the host code
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
-    int run(const double elfield, const string&);
+    int run(const double elfield, const string& timestep);
+
+    /** Function to generate FEM mesh and to solve differential equation(s)
+     * by using the electric field specified in configuration script.
+     * @return 0 - function completed normally; 1 - function did not complete normally
+     */
     int run();
 
     /** Function to import atoms from PARCAS
@@ -204,7 +209,8 @@ private:
     bool skip_calculations, fail;
     double t0;
     int timestep;           ///< counter to measure how many times Femocs has been called
-    int last_full_timestep; ///< timestep Femocs did full calculation
+    int last_full_timestep; ///< last time step Femocs did full calculation
+    string timestep_string; ///< time step written to file name
     vector<Vec3> areas;     ///< surface areas of Voronoi cells that is exposed to vacuum
     vector<int> atom2face;  ///< surface atom to triangle index map
     
@@ -216,24 +222,22 @@ private:
 
     TetgenMesh fem_mesh;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
 
-    SurfaceInterpolator* vacuum_surface_interpolator; ///< data for interpolating results from vacuum on the surface
-    SurfaceInterpolator* bulk_surface_interpolator;   ///< data for interpolating results on the bulk surface
-    VolumeInterpolator*  vacuum_interpolator;         ///< data for interpolating results in vacuum
-    VolumeInterpolator*  bulk_interpolator;           ///< data for interpolating results in bulk
+    Interpolator vacuum_interpolator = Interpolator(&fem_mesh, "elfield", "potential");
+    Interpolator bulk_interpolator = Interpolator(&fem_mesh, "rho", "temperature");
 
-    HeatReader  temperatures; ///< temperatures & current densities on bulk atoms
-    FieldReader fields;       ///< fields & potentials on surface atoms
-    ForceReader forces;       ///< forces & charges on surface atoms
+    HeatReader  temperatures = HeatReader(&bulk_interpolator); ///< temperatures & current densities on bulk atoms
+    FieldReader fields = FieldReader(&vacuum_interpolator);       ///< fields & potentials on surface atoms
+    ForceReader forces = ForceReader(&vacuum_interpolator);       ///< forces & charges on surface atoms
 
     /// physical quantities used in heat calculations
     fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);
 
+    fch::Laplace<3> laplace_solver;                       ///< Laplace equation solver
     fch::CurrentsAndHeatingStationary<3>  ch_solver1;     ///< first    steady-state currents and heating solver
     fch::CurrentsAndHeatingStationary<3>  ch_solver2;     ///< second   steady-state currents and heating solver
     fch::CurrentsAndHeatingStationary<3>* ch_solver;      ///< active   steady-state currents and heating solver
     fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous steady-state currents and heating solver
     fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
-    fch::Laplace<3> laplace_solver;                       ///< Laplace equation solver
 
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
@@ -244,11 +248,8 @@ private:
     /** Solve transient heat and continuity equations */
     int solve_transient_heat(const double delta_time);
 
-    /** Solve transient heat and continuity equation until convergence reached*/
+    /** Solve transient heat and continuity equation until convergence is reached */
     int solve_converge_heat();
-
-    /** Interpolate the solution on the x-z plane in the middle of simulation box */
-    void write_slice(const string& file_name);
 };
 
 } /* namespace femocs */

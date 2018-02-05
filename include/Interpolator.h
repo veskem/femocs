@@ -11,6 +11,7 @@
 #include "Primitives.h"
 #include "TetgenMesh.h"
 #include "TetgenCells.h"
+#include "InterpolatorCells.h"
 #include "Coarseners.h"
 #include "laplace.h"
 #include "currents_and_heating.h"
@@ -20,59 +21,101 @@ using namespace std;
 namespace femocs {
 
 /** General class for interpolating solution inside mesh
- * To make it possible to choose between different types of interpolators,
- * the following is built using the Strategy design pattern.
+ * Class holds subclasses (InterpolatorCells) that hold the actual interpolation data and routines
+ * that allow performing interpolation either on surface or in space.
+ * 
  * For tetrahedral and triangular interpolation, barycentric coordinates (BCC-s)
  * are used to calculate the shape (aka interpolation) functions.
- *
- * Useful links about Strategy design pattern:
- * https://en.wikipedia.org/wiki/Strategy_pattern
- * https://r3dux.org/2011/07/an-example-implementation-of-the-strategy-design-pattern-in-c/
- *
  * Compact theory how to find BCC-s:
  * http://steve.hollasch.net/cgindex/geometry/ptintet.html
  *
  * Properties of determinant:
- * http://www.vitutor.com/alg/determinants/properties_determinants.html
- * http://www.vitutor.com/alg/determinants/minor_cofactor.html
+ *   http://www.vitutor.com/alg/determinants/properties_determinants.html
+ *   http://www.vitutor.com/alg/determinants/minor_cofactor.html
  *
  * c++ code to find and handle BCC-s:
- * http://dennis2society.de/painless-tetrahedral-barycentric-mapping
+ *   http://dennis2society.de/painless-tetrahedral-barycentric-mapping
  *
  * Theory about shape functions inside different primitives.
  * Linear & quadratic triangle & quadrangle:
- * https://www.colorado.edu/engineering/CAS/courses.d/IFEM.d/IFEM.Ch18.d/IFEM.Ch18.pdf
+ *   https://www.colorado.edu/engineering/CAS/courses.d/IFEM.d/IFEM.Ch18.d/IFEM.Ch18.pdf
  * Linear tetrahedron:
- * https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch09.d/AFEM.Ch09.pdf
+ *   https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch09.d/AFEM.Ch09.pdf
  * Quadratic tetrahedron:
- * https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch10.d/AFEM.Ch10.pdf
+ *   https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch10.d/AFEM.Ch10.pdf
  * Linear hexahedron:
- * https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch11.d/AFEM.Ch11.pdf
+ *   https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch11.d/AFEM.Ch11.pdf
  */
 class Interpolator {
 public:
-    Interpolator() :
+    Interpolator(const TetgenMesh* m, const string& norm_label, const string& scalar_label);
+    ~Interpolator() {};
+
+    /** Extract the electric potential and field values from FEM solution */
+    bool extract_solution(fch::Laplace<3>* fem);
+
+    /** Extract the current density and stationary temperature values from FEM solution */
+    bool extract_solution(fch::CurrentsAndHeatingStationary<3>* fem);
+
+    /** Extract the current density and transient temperature values from FEM solution */
+    bool extract_solution(fch::CurrentsAndHeating<3>& fem);
+
+    InterpolatorNodes nodes;      ///< vertices and solutions on them
+    LinearTriangles lintris;      ///< data & operations for linear triangular interpolation
+    QuadraticTriangles quadtris;  ///< data & operations for quadratic triangular interpolation
+    LinearTetrahedra lintets;     ///< data & operations for linear tetrahedral interpolation
+    QuadraticTetrahedra quadtets; ///< data & operations for quadratic tetrahedral interpolation
+
+private:
+    const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
+
+    /** Calculate the mapping between Femocs & deal.II mesh nodes,
+     *  nodes & hexahedral elements and nodes & element's vertices.
+     *  -1 indicates that mapping for corresponding object was not found */
+    void get_maps(vector<int>& femocs2deal, vector<int>& cell_indxs, vector<int>& vert_indxs,
+            dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh) const;
+
+    /** Transfer solution from FEM solver to Interpolator */
+    void store_solution(const vector<int>& femocs2deal,
+            const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data);
+
+    /** Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
+     *  surrounding hexahedral nodes */
+    bool average_sharp_nodes(const bool vacuum);
+};
+
+/** General class for interpolating solution inside mesh
+ * To make it possible to choose between different types of interpolators,
+ * the following is inspired by the Strategy design pattern.
+ *
+ * Useful links about Strategy design pattern:
+ * https://en.wikipedia.org/wiki/Strategy_pattern
+ * https://r3dux.org/2011/07/an-example-implementation-of-the-strategy-design-pattern-in-c/
+ */
+class GeneralInterpolator {
+public:
+    GeneralInterpolator() :
         mesh(NULL), nodes(NULL), norm_label("vector_norm"), scalar_label("scalar")
     {
         reserve(0);
         reserve_precompute(0);
     }
 
-    Interpolator(const TetgenMesh* m) :
+    GeneralInterpolator(const TetgenMesh* m) :
         mesh(m), nodes(&m->nodes), norm_label("vector_norm"), scalar_label("scalar")
     {
         reserve(0);
         reserve_precompute(0);
     }
 
-    Interpolator(const TetgenMesh* m, const string& nl, const string& sl) :
+    GeneralInterpolator(const TetgenMesh* m, const string& nl, const string& sl) :
         mesh(m), nodes(&m->nodes), norm_label(nl), scalar_label(sl)
     {
         reserve(0);
         reserve_precompute(0);
     }
 
-    virtual ~Interpolator() {};
+    virtual ~GeneralInterpolator() {};
 
     /** Return number of available interpolation nodes */
     int size() const { return solutions.size(); }
@@ -116,6 +159,9 @@ public:
 
     /** Find the cell which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
+
+    /** Find the cell which contains the point or is the closest to it looking only for non-marked cells */
+    int locate_cell(const Point3 &point, const int cell_guess, vector<bool>& cell_checked) const;
 
     /** Extract the electric potential and field values from FEM solution */
     bool extract_solution(fch::Laplace<3>* fem);
@@ -195,7 +241,7 @@ protected:
     void get_maps(vector<int>& femocs2deal, vector<int>& cell_indxs, vector<int>& vert_indxs,
             dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh) const;
 
-    /** Transfer solution from FEM solver to Interpolator */
+    /** Transfer solution from FEM solver to TemplateInterpolator */
     void store_solution(const vector<int>& femocs2deal,
             const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data);
 
@@ -209,9 +255,9 @@ protected:
 };
 
 /** General class for interpolating on the surface */
-class SurfaceInterpolator : public Interpolator {
+class SurfaceInterpolator : public GeneralInterpolator {
  public:
-    SurfaceInterpolator(const TetgenMesh* m) : Interpolator(m) {}
+    SurfaceInterpolator(const TetgenMesh* m) : GeneralInterpolator(m) {}
     virtual ~SurfaceInterpolator() {};
 
     /** Function to determine the distance of a point from the surface */
@@ -225,9 +271,9 @@ class SurfaceInterpolator : public Interpolator {
 };
 
 /** General class for interpolating in the space */
-class VolumeInterpolator : public Interpolator {
+class VolumeInterpolator : public GeneralInterpolator {
 public:
-    VolumeInterpolator(const TetgenMesh* m) : Interpolator(m) {}
+    VolumeInterpolator(const TetgenMesh* m) : GeneralInterpolator(m) {}
     virtual ~VolumeInterpolator() {};
 };
 
@@ -431,7 +477,9 @@ protected:
     /** Reserve memory for precompute data */
     void reserve_precompute(const int n);
 
-    /** Return the distance between a point and i-th triangle in the direction of its norm */
+    /** Return the distance between a point and i-th triangle in the direction of its norm.
+     * The calculations are based on Moller-Trumbore algorithm. The theory about it can be found from
+     * http://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/ */
     double distance(const Vec3& point, const int i) const;
 
     /** Check whether the projection of a point is inside the i-th triangle */
