@@ -547,8 +547,9 @@ int Femocs::solve_converge_heat() {
 
         start_msg(t0, "=== Calculating field emission...");
         emission.set_multiplier(multiplier);
-        emission.calc_emission(ch_transient_solver, conf.emission, conf.laplace.V0);
+        emission.calc_emission(conf.emission, conf.laplace.V0);
         multiplier = emission.get_multiplier();
+        emission.export_emission(ch_transient_solver);
         end_msg(t0);
         if (MODES.VERBOSE) emission.write("out/surface_emission.xyz");
 

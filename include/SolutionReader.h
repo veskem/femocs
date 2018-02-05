@@ -222,7 +222,7 @@ public:
      * @param conf Emission configuration parameters struct
      * @param Vappl Applied voltage (required for space charge calculations)
      */
-    void calc_emission( const Config::Emission &conf, double Vappl = -1);
+    void calc_emission(const Config::Emission &conf, double Vappl = -1);
 
     void export_emission(fch::CurrentsAndHeating<3>& ch_solver);
 
