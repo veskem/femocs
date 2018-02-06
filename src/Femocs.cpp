@@ -847,7 +847,18 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
     }
 
     start_msg(t0, "=== Exporting atomic charges & forces...");
-    forces.export_force(n_atoms, xq);
+    forces.export_charge_and_force(n_atoms, xq);
+    end_msg(t0);
+
+    return 0;
+}
+
+int Femocs::export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) {
+    if (n_atoms < 0) return 0;
+    check_return(forces.size() == 0, "No force to export!");
+
+    start_msg(t0, "=== Exporting atomic forces...");
+    forces.export_force_and_pairpot(n_atoms, xnp, Epair, Vpair);
     end_msg(t0);
 
     return 0;

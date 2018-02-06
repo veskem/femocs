@@ -1542,7 +1542,6 @@ void ForceReader::calc_coulomb(const double r_cut) {
         interpolation[i].norm = interpolation[i].vector.norm();
 }
 
-// Calculate forces from atomic electric fields and face charges
 void ForceReader::distribute_charges(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor) {
 
@@ -1603,8 +1602,7 @@ void ForceReader::distribute_charges(const FieldReader &fields, const ChargeRead
     histogram_clean(4, r_cut);  // clean by scalar
 }
 
-// Export the induced charge and force on imported atoms
-void ForceReader::export_force(const int n_atoms, double* xq) {
+void ForceReader::export_charge_and_force(const int n_atoms, double* xq) const {
     if (n_atoms <= 0) return;
 
     // Initially pass the zero force and charge for all the atoms
@@ -1620,6 +1618,25 @@ void ForceReader::export_force(const int n_atoms, double* xq) {
         xq[identifier++] = interpolation[i].scalar;
         for (double x : interpolation[i].vector)
             xq[identifier++] = x;
+    }
+}
+
+void ForceReader::export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const {
+    if (n_atoms <= 0) return;
+    Vec3 box(sizes.xbox, sizes.ybox, sizes.zbox);
+
+    for (int i = 0; i < size(); ++i) {
+        int id = get_id(i);
+        if (id < 0 || id >= n_atoms) continue;
+
+        double V = 0.5 * interpolation[i].scalar;
+        Epair[id] += V;
+        Vpair[0] += V;
+
+        id *= 3;
+        Vec3 force = interpolation[i].vector;
+        for (int j = 0; j < 3; ++j)
+            xnp[id+j] += force[j] / box[j];
     }
 }
 

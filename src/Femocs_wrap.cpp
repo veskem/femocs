@@ -69,6 +69,10 @@ void femocs_export_charge_and_force(FEMOCS* femocs, int* retval, int n_atoms, do
     retval[0] = femocs->export_charge_and_force(n_atoms, xq);
 }
 
+void femocs_export_force_and_pairpot(FEMOCS* femocs, int* retval, int n_atoms, double* xnp, double* Epair, double* Vpair) {
+    retval[0] = femocs->export_force_and_pairpot(n_atoms, xnp, Epair, Vpair);
+}
+
 void femocs_interpolate_elfield(FEMOCS* femocs, int* retval, int n_points, double* x, double* y, double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     retval[0] = femocs->interpolate_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
