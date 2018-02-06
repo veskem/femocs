@@ -27,166 +27,31 @@ Medium::Medium(const int n_atoms) {
     reserve(n_atoms);
 }
 
-void Medium::calc_linked_list(const double r_cut, const bool lat_periodic) {
-    const int n_atoms = size();
+void Medium::calc_verlet_nborlist(vector<vector<int>>& nborlist, const double r_cut, const bool periodic) {
+    require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
+    calc_linked_list(r_cut);
 
-    Point3 simubox_size(sizes.xbox, sizes.ybox, sizes.zbox);
-    for (int j = 0; j < 3; ++j) {
-        nborbox_size[j] = ceil(1.0 * simubox_size[j] / r_cut);
-        require(nborbox_size[j] > 0,
-                "Invalid " + to_string(j) + "th nborbox size: " + to_string(nborbox_size[j]));
-    }
-
-    head = vector<int>(nborbox_size[0]*nborbox_size[1]*nborbox_size[2], -1);
-    list = vector<int>(n_atoms, -1);
-    nborbox_indices.clear();
-    nborbox_indices.reserve(n_atoms);
-
-    // calculate linked list for the atoms
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 dx = atoms[i].point + simubox_size / 2;
-
-        // Check that we are inside lateral boundaries
-        if (lat_periodic) {
-            if (dx.x < 0) dx.x += simubox_size.x;
-            if (dx.x > simubox_size.x) dx.x -= simubox_size.x;
-            if (dx.y < 0) dx.y += simubox_size.y;
-            if (dx.y > simubox_size.y) dx.y -= simubox_size.y;
-            if (dx.z < 0) dx.z += simubox_size.z;
-            if (dx.z > simubox_size.z) dx.z -= simubox_size.z;
-        }
-
-        array<int,3> point_index;
-        for (int j = 0; j < 3; ++j)
-            point_index[j] = int( (dx[j] / simubox_size[j]) * nborbox_size[j] );
-
-        // If not periodic, let border cells continue to infinity
-        if (!lat_periodic)
-            for (int j = 0; j < 3; ++j) {
-                point_index[j] = max(0, point_index[j]);
-                point_index[j] = min(nborbox_size[j]-1, point_index[j]);
-            }
-
-        int i_cell = (point_index[2] * nborbox_size[1] + point_index[1]) * nborbox_size[0] + point_index[0];
-        for (int j = 0; j < 3; ++j) {
-            require(point_index[j] >= 0 && point_index[j] < nborbox_size[j],
-                    "Invalid " + to_string(j) + "th point nbor index: " + to_string(point_index[j]));
-        }
-        require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + to_string(i_cell));
-
-        nborbox_indices.push_back(point_index);
-        list[i] = head[i_cell];
-        head[i_cell] = i;
-        set_marker(i, i_cell);
-    }
-}
-
-void Medium::calc_linked_list2(const double r_cut) {
-    const int n_atoms = size();
-
-    array<double,3> rc = {sizes.xbox, sizes.ybox, sizes.zbox};
-    array<int,3> lc {ceil(rc[0]/r_cut), ceil(rc[1]/r_cut), ceil(rc[2]/r_cut)};
-    array<int,3> mc;
-
-    int lcyz = lc[1]*lc[2];
-    int lcxyz = lcyz * lc[0];
-
-    vector<int> lscl(n_atoms);
-
-    /* Reset the headers, head */
-    vector<int> head(lcxyz, -1);
-
-
-    /* Scan atoms to construct headers, head, & linked lists, lscl */
-    for (int i = 0; i < n_atoms; i++) {
-        /* Vector cell index to which this atom belongs */
-        Point3 r = get_point(i);
-        for (int a=0; a<3; a++)
-            mc[a] = r[a] / rc[a];
-        /* Translate the vector cell index, mc, to a scalar cell index */
-        int c = mc[0]*lcyz+mc[1]*lc[2]+mc[2];
-        /* Link to the previous occupant (or EMPTY if you're the 1st) */
-        lscl[i] = head[c];
-        /* The last one goes to the header */
-        head[c] = i;
-    }
-}
-
-// algorithm from
-// http://cacs.usc.edu/education/cs596/01-1LinkedListCell.pdf
-// useful Google:
-// linked list to verlet neighborlist c++
-void Medium::calc_nborlist2(double r_cut) {
-    const int n_atoms = size;
-
-    vector<int> head;
-    vector<int> lscl;
-    vector<vector<int>> nborlist(n_atoms);
-
-    array<double,3> rc = {sizes.xbox, sizes.ybox, sizes.zbox};
-    array<int,3> lc {ceil(rc[0]/r_cut), ceil(rc[1]/r_cut), ceil(rc[2]/r_cut)};
-    array<int,3> mc, mc1;
-    Point3 rshift;
-
-    int lcyz = lc[1]*lc[2];
-    int lcxyz = lcyz * lc[0];
-
-    /* Scan inner cells */
-     for (mc[0]=0; mc[0]<lc[0]; (mc[0])++)
-     for (mc[1]=0; mc[1]<lc[1]; (mc[1])++)
-     for (mc[2]=0; mc[2]<lc[2]; (mc[2])++) {
-         /* Calculate a scalar cell index */
-         int c = mc[0] * lcyz+mc[1] * lc[2] + mc[2];
-         /* Scan the neighbor cells (including itself) of cell c */
-         for (mc1[0]=mc[0]-1; mc1[0]<=mc[0]+1; (mc1[0])++)
-         for (mc1[1]=mc[1]-1; mc1[1]<=mc[1]+1; (mc1[1])++)
-         for (mc1[2]=mc[2]-1; mc1[2]<=mc[2]+1; (mc1[2])++) {
-
-             /* Periodic boundary condition by shifting coordinates */
-             for (int a = 0; a < 3; a++) {
-                 if (mc1[a] < 0)
-                     rshift[a] = -rc[a];
-                 else if (mc1[a]>=lc[a])
-                     rshift[a] = rc[a];
-                 else
-                     rshift[a] = 0.0;
-             }
-             /* Calculate the scalar cell index of the neighbor cell */
-             int c1 = ((mc1[0]+lc[0])%lc[0])*lcyz
-                     +((mc1[1]+lc[1])%lc[1])*lc[2]
-                     +((mc1[2]+lc[2])%lc[2]);
-             /* Scan atom i in cell c */
-             int i = head[c];
-             while (i != -1) {
-                 Point3 ri = get_point(i);
-                 /* Scan atom j in cell c1 */
-                 int j = head[c1];
-                 while (j != -1) {
-                     if (i < j) { /* Avoid double counting of pair (i, j) */
-                         Point3 rj = get_point(j);
-                         /* Image-corrected relative pair position */
-                         if (ri.distance2(rj+rshift) < r_cut) {
-                             // Compute forces on pair (i, j)...
-                             nborlist[i].push_back(j);
-                             nborlist[j].push_back(i);
-                         }
-
-                     }
-                     j = lscl[j];
-                 }
-                 i = lscl[i];
-             }
-         }
-     }
-}
-
-void Medium::calc_nborlist(vector<vector<int>>& nborlist, const double r_cut, const bool lat_periodic) {
     const int n_atoms = size();
     const double r_cut2 = r_cut * r_cut;
+    nborlist = vector<vector<int>>(n_atoms);
+
+    if (periodic) {
+        for (int i = 0; i < n_atoms; ++i)
+            loop_periodic_nbor_boxes(nborlist, r_cut2, i);
+    } else {
+        for (int i = 0; i < n_atoms; ++i)
+            loop_nbor_boxes(nborlist, r_cut2, i);
+    }
+}
+
+void Medium::calc_linked_list(const double r_cut) {
+    const int n_atoms = size();
+    calc_statistics();
 
     Point3 simubox_size(sizes.xbox, sizes.ybox, sizes.zbox);
+    Point3 simubox_edges(sizes.xmin, sizes.ymin, sizes.zmin);
     for (int j = 0; j < 3; ++j) {
-        nborbox_size[j] = ceil(1.0 * simubox_size[j] / r_cut);
+        nborbox_size[j] = ceil(1e-15 + 1.0 * simubox_size[j] / r_cut);
         require(nborbox_size[j] > 0,
                 "Invalid " + to_string(j) + "th nborbox size: " + to_string(nborbox_size[j]));
     }
@@ -198,82 +63,98 @@ void Medium::calc_nborlist(vector<vector<int>>& nborlist, const double r_cut, co
 
     // calculate linked list for the atoms
     for (int i = 0; i < n_atoms; ++i) {
-        Point3 dx = atoms[i].point + simubox_size / 2;
-
-        // Check that we are inside lateral boundaries
-        if (lat_periodic) {
-            if (dx.x < 0) dx.x += simubox_size.x;
-            if (dx.x > simubox_size.x) dx.x -= simubox_size.x;
-            if (dx.y < 0) dx.y += simubox_size.y;
-            if (dx.y > simubox_size.y) dx.y -= simubox_size.y;
-            if (dx.z < 0) dx.z += simubox_size.z;
-            if (dx.z > simubox_size.z) dx.z -= simubox_size.z;
-        }
+        Point3 dx = atoms[i].point - simubox_edges;
+        dx *= 0.9999999;  // make sure dx is slightly smaller than simubox_size
 
         array<int,3> point_index;
-        for (int j = 0; j < 3; ++j)
-            point_index[j] = int( (dx[j] / simubox_size[j]) * nborbox_size[j] );
-
-        // If not periodic, let border cells continue to infinity
-        if (!lat_periodic)
-            for (int j = 0; j < 3; ++j) {
-                point_index[j] = max(0, point_index[j]);
-                point_index[j] = min(nborbox_size[j]-1, point_index[j]);
-            }
-
-        int i_cell = (point_index[2] * nborbox_size[1] + point_index[1]) * nborbox_size[0] + point_index[0];
         for (int j = 0; j < 3; ++j) {
+            point_index[j] = int( (dx[j] / simubox_size[j]) * nborbox_size[j] );
             require(point_index[j] >= 0 && point_index[j] < nborbox_size[j],
                     "Invalid " + to_string(j) + "th point nbor index: " + to_string(point_index[j]));
         }
+
+        int i_cell = (point_index[2] * nborbox_size[1] + point_index[1]) * nborbox_size[0] + point_index[0];
         require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + to_string(i_cell));
 
         nborbox_indices.push_back(point_index);
         list[i] = head[i_cell];
         head[i_cell] = i;
-        set_marker(i, i_cell);
+        set_marker(i, i_cell);  // for debugging purposes store the cell index as a marker
     }
+}
 
+void Medium::loop_nbor_boxes(vector<vector<int>>& nborlist, const double r_cut2, const int atom) {
+    array<int,3> atom_box = nborbox_indices[atom];
+    Point3 point = atoms[atom].point;
 
+    // loop through the boxes where the non-periodic neighbours are located
+    // there are 3^3=27 boxes for points in the middle of simubox and less for atoms on simubox perimeter
+    for (int iz = atom_box[2]-1; iz <= atom_box[2]+1; ++iz) {
+        // skip the boxes that doesn't exist
+        if (iz < 0 || iz >= nborbox_size[2]) continue;
 
-    nborlist = vector<vector<int>>(n_atoms);
+        for (int iy = atom_box[1]-1; iy <= atom_box[1]+1; ++iy) {
+            if (iy < 0 || iy >= nborbox_size[1]) continue;
 
-    for (int i = 0; i < n_atoms; ++i) {
-        array<int,3> i_atom = nborbox_indices[i];
-        Point3 point1 = atoms[i].point;
+            for (int ix = atom_box[0]-1; ix <= atom_box[0]+1; ++ix) {
+                if (ix < 0 || ix >= nborbox_size[0]) continue;
 
-        // loop through the boxes where the neighbours are located; there are up to 3^3=27 boxes
-        for (int iz = i_atom[2]-1; iz <= i_atom[2]+1; ++iz) {
-            // some of the iterations can be skipped if the box is on the simu box boundary
-            if (iz < 0 || iz >= nborbox_size[2]) continue;
-            for (int iy = i_atom[1]-1; iy <= i_atom[1]+1; ++iy) {
-                if (iy < 0 || iy >= nborbox_size[1]) continue;
-                for (int ix = i_atom[0]-1; ix <= i_atom[0]+1; ++ix) {
-                    if (ix < 0 || ix >= nborbox_size[0]) continue;
+                // transform volumetric neighbour box index to linear one
+                int nbor_box = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
+                require(nbor_box >= 0 && nbor_box < head.size(), "Invalid neighbouring cell index: " + to_string(nbor_box));
 
-                    // transform volumetric neighbour box index to linear one
-                    int i_cell = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
-                    require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + to_string(i_cell));
-
-                    // get the index of first atom in given neighbouring cell
-                    int j = head[i_cell];
-
-                    // loop through all atoms in a given neighbouring cell
-                    while(j >= 0) {
-                        if (i != j && point1.distance2(get_point(j)) <= r_cut2) {
-                            nborlist[i].push_back(j);
-                        }
-                        j = list[j];
+                // get the index of first atom in given neighbouring cell and loop through all the neighbours
+                int nbor = head[nbor_box];
+                while(nbor >= 0) {
+                    if (atom < nbor && point.distance2(get_point(nbor)) <= r_cut2) {
+                        nborlist[atom].push_back(nbor);
+                        nborlist[nbor].push_back(atom);
                     }
+                    nbor = list[nbor];
                 }
             }
         }
     }
 }
 
+void Medium::loop_periodic_nbor_boxes(vector<vector<int>>& nborlist, const double r_cut2, const int atom) {
+    array<int,3> atom_box = nborbox_indices[atom];
+    Point3 point = atoms[atom].point;
 
+    // loop through the boxes where the periodic neighbours are located
+    // there are 3^3=27 boxes
+    for (int k : {-1, 0, 1}) {
+        int iz = periodic_image(atom_box[2] + k, nborbox_size[2]);
 
+        for (int j : {-1, 0, 1}) {
+            int iy = periodic_image(atom_box[1] + j, nborbox_size[1]);
 
+            for (int i : {-1, 0, 1}) {
+                int ix = periodic_image(atom_box[0] + i, nborbox_size[0]);
+
+                 // transform volumetric neighbour box index to linear one
+                int nbor_box = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
+                require(nbor_box >= 0 && nbor_box < head.size(), "Invalid neighbouring cell index: " + to_string(nbor_box));
+
+                // get the index of first atom in given neighbouring cell and loop through all the neighbours
+                int nbor = head[nbor_box];
+                while(nbor >= 0) {
+                    if (atom < nbor && point.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox) <= r_cut2) {
+                        nborlist[atom].push_back(nbor);
+                        nborlist[nbor].push_back(atom);
+                    }
+                    nbor = list[nbor];
+                }
+            }
+        }
+    }
+}
+
+int Medium::periodic_image(int image, int box_size) const {
+    if (image >= box_size) return 0;
+    if (image < 0) return box_size - 1;
+    return image;
+}
 
 // Sort the atoms by their cartesian or radial coordinate
 void Medium::sort_atoms(const int coord, const string& direction) {

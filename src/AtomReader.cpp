@@ -191,7 +191,7 @@ void AtomReader::calc_coordinations(int& nnn, double& latconst, double& coord_cu
 
 // Calculate coordination for all the atoms using neighbour list
 void AtomReader::calc_coordinations(const int nnn, const double r_cut) {
-    calc_nborlist(nnn, r_cut);
+    calc_verlet_nborlist(nborlist, r_cut, true);
     for (int i = 0; i < size(); ++i)
         coordination[i] = nborlist[i].size();
 }

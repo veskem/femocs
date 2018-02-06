@@ -1507,7 +1507,7 @@ void ForceReader::calc_coulomb(const double r_cut) {
     const double r_cut2 = r_cut * r_cut;
     const int n_atoms = size();
 
-    calc_linked_list(r_cut, false);
+    calc_linked_list(r_cut);
     require(list.size() == n_atoms, "Invalid linked list size: " + to_string(list.size()));
     require(head.size() == nborbox_size[0]*nborbox_size[1]*nborbox_size[2],
             "Invalid linked list header size: " + to_string(head.size()));

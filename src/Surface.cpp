@@ -261,7 +261,7 @@ void Surface::coarsen(Surface &surf, Coarseners &coarseners) {
 /* TODO: Leaves bigger holes into system than brute force method,
  * because the atoms in linked list are not radially ordered. Do something about it! */
 void Surface::coarsen(Surface &surf, Coarseners &coarseners, const Medium::Sizes &s) {
-    calc_linked_list(coarseners.get_r0_inf(s), false);
+    calc_linked_list(coarseners.get_r0_inf(s));
 
     const int n_atoms = size();
     require(list.size() == n_atoms, "Invalid linked list size: " + to_string(list.size()));
