@@ -112,8 +112,6 @@ protected:
     void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
 
     Solution get_average_solution(const int I, const double r_cut);
-
-    int get_nanotip(Medium& nanotip, vector<bool>& atom_in_nanotip, const double radius);
 };
 
 /** Class to extract solution from DealII calculations */
@@ -319,14 +317,16 @@ public:
     void distribute_charges(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);
 
-    void calc_forces(const FieldReader &fields);
+    void calc_lorentz(const FieldReader &fields);
 
-    /** Build Voronoi cells around the atoms in the region of interest
-     * and calculate atomistic charges and Lorentz forces */
-    int calc_charge_and_lorentz(VoronoiMesh& mesh, const vector<int>& atom2surf, const FieldReader& fields,
-             const double radius, const double latconst, const string& mesh_quality);
+    /** Build Voronoi cells around the atoms in the region of interest */
+    int calc_voronois(VoronoiMesh& mesh, const vector<int>& atom2face,
+            const double radius, const double latconst, const string& mesh_quality);
 
-    /** Using the previously found charges, calculate Coulomb forces between atoms */
+    /** Calculate atomistic charges and Lorentz forces by using the Voronoi cells */
+    void calc_charge_and_lorentz(const VoronoiMesh& mesh, const FieldReader& fields);
+
+    /** Using the previously found surface charge, calculate Coulomb forces between atoms */
     void calc_coulomb(const double r_cut);
 
     /** Export the induced charge and force on imported atoms
@@ -352,8 +352,8 @@ private:
     /** Remove cells with too big faces*/
     void clean_voro_faces(VoronoiMesh& mesh);
 
-    int calc_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip, const vector<int>& atom2face,
-            const double radius, const double latconst, const string& mesh_quality);
+    /** Separate cylindrical region from substrate region */
+    int get_nanotip(Medium& nanotip, const double radius);
 };
 
 } // namespace femocs

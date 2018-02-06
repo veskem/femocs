@@ -19,7 +19,7 @@ public:
     /** Medium constructor */
     Medium();
     Medium(const int n_atoms);
-    virtual ~Medium() {}; // = 0;
+    virtual ~Medium() {};
 
     /** Sort the atoms by their x, y or z coordinate (coord=0|1|2) or radial coordinate(coord=3) */
     void sort_atoms(const int coord, const string& direction="up");
@@ -124,15 +124,16 @@ protected:
      * Linked list can be used to calculate efficiently the neighbour list. */
     void calc_linked_list(const double r_cut);
 
-    void loop_nbor_boxes(vector<vector<int>>& nborlist, const double r_cut2, const int atom);
-
-    void loop_periodic_nbor_boxes(vector<vector<int>>& nborlist, const double r_cut2, const int atom);
-
-    inline int periodic_image(int image, int coordinate) const;
-
     /** Initialise statistics about the coordinates in Medium */
     void init_statistics();
 
+    /** Get scalar and vector data associated with atoms */
+    virtual void get_cell_data(ofstream& outfile) const;
+
+    /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
+    virtual string get_data_string(const int i) const;
+
+private:
     /** Output atom data in .xyz format */
     void write_xyz(ofstream &outfile, const int n_atoms) const;
 
@@ -143,11 +144,11 @@ protected:
      * Atom types are the same as in Types struct in Macros.h */
     void write_ckx(ofstream &outfile, const int n_atoms) const;
 
-    /** Get scalar and vector data associated with atoms */
-    virtual void get_cell_data(ofstream& outfile) const;
+    void loop_nbor_boxes(vector<vector<int>>& nborlist, const double r_cut2, const int atom);
 
-    /** Get i-th entry from all data vectors; i < 0 gives the header of data vectors */
-    virtual string get_data_string(const int i) const;
+    void loop_periodic_nbor_boxes(vector<vector<int>>& nborlist, const double r_cut2, const int atom);
+
+    inline int periodic_image(int image, int coordinate) const;
 };
 
 } /* namespace femocs */

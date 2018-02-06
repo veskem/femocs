@@ -56,13 +56,8 @@ public:
 
     Surface clean_roi(Coarseners &coarseners);
 
-    /** Increase or decrease the total volume of system without altering the centre of mass */
-    void transform(const double latconst);
-
     /** Remove the atoms that are too far from surface faces */
     void clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const TetgenMesh* mesh, const double r_cut);
-
-    int clean_by_voronois(const double radius, const double latconst, const string& mesh_quality);
 
     /** Coarsen the surface by using the linked list.
      * Cut-off radius is taken from the size of current system. */
@@ -78,27 +73,12 @@ public:
     /** Smoothen all the atoms in the system */
     void smoothen(const double smooth_factor, const double r_cut);
 
-    /** Smoothen the atoms using Taubin lambda|mu smoothing algorithm */
-    void smoothen(const Config& conf, const double r_cut);
-
 private:
     /** Function used to smoothen the atoms */
     inline double smooth_function(const double distance, const double smooth_factor) const;
 
-    /** Calculate neighbour list for atoms.
-     * Atoms are considered neighbours if the distance between them is no more than r_cut. */
-    void calc_nborlist(vector<vector<unsigned>>& nborlist, const int nnn, const double r_cut) ;
-
-    /** Smoothen the atoms using Taubin lambda|mu algorithm with inverse neighbour count weighting */
-    void laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist);
-
     /** Separate cylindrical region from substrate region */
     void get_nanotip(Surface& nanotip, const double radius);
-
-    int get_nanotip(Surface& nanotip, vector<bool>& atom_in_nanotip, const double radius);
-
-    int calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
-            const double radius, const double latconst, const string& mesh_quality);
 };
 
 } /* namespace femocs */

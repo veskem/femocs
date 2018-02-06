@@ -50,7 +50,7 @@ public:
     void calc_coordinations(const int nnn);
 
     /** Rebuild list of close neighbours using brute force technique and run cluster analysis */
-    void calc_clusters(const int nnn, const double cluster_cutoff, const double coord_cutoff);
+    void calc_clusters(const double cluster_cutoff, const double coord_cutoff);
 
     /** Rebuild list of close neighbours using Parcas neighbourlist and run cluster analysis */
     void calc_clusters(const int nnn, const double cluster_cutoff, const double coord_cutoff, const int* parcas_nborlist);
@@ -109,27 +109,11 @@ private:
     /** Calculate list of close neighbours using Parcas diagonal neighbour list */
     void calc_nborlist(const int nnn, const double r_cut, const int* parcas_nborlist);
 
-    /** Calculate list of close neighbours using brute force technique */
-    void calc_nborlist(const int nnn, const double r_cut);
-
     void recalc_nborlist(const double r_cut);
 
-    /*
-    Function to calculate the radial distribution function in a periodic condition for isotropic system.
-    c_rdf_one: calculate the RDF of the same type of atoms
-    input coordinates array need to be flatten. Example: [[x1,y1,z1],[x2,y2,z2]] should be [x1,y1,z1,x2,y2,z2]
-    Arguments:
-    r_array: flatten array of coordinates of all atoms need to be calculated
-    rdf_array: Radial Distribution Function histogram array
-    dim_array: dimension array. Example: dim_array for a cubic box whose side length is 1.0 would be [1.0,1.0,1.0]
-    n: number of the molecules.
-    natmm,natmm1,natmm2: number of the one type of atom in one molecule.
-    nHist: number of bins of RDF
-    rHistMax: upper limit of the radius range of RDF
-    v: volume of simulation box
-
-    Source of inspiration: https://github.com/anyuzx/rdf
-    Author: Guang Shi, Mihkel Veske
+    /** Function to calculate the radial distribution function in a periodic condition for isotropic system.
+     *  Source of inspiration: https://github.com/anyuzx/rdf
+     *  Author: Guang Shi, Mihkel Veske
     */
     void calc_rdf(int & nnn, double& latconst, double& coord_cutoff, const int n_bins, const double r_cut);
     void calc_rdf_peaks(vector<double>& peaks, const vector<double>& rdf, const double bin_width);

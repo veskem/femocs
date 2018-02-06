@@ -27,23 +27,6 @@ Medium::Medium(const int n_atoms) {
     reserve(n_atoms);
 }
 
-void Medium::calc_verlet_nborlist(vector<vector<int>>& nborlist, const double r_cut, const bool periodic) {
-    require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
-    calc_linked_list(r_cut);
-
-    const int n_atoms = size();
-    const double r_cut2 = r_cut * r_cut;
-    nborlist = vector<vector<int>>(n_atoms);
-
-    if (periodic) {
-        for (int i = 0; i < n_atoms; ++i)
-            loop_periodic_nbor_boxes(nborlist, r_cut2, i);
-    } else {
-        for (int i = 0; i < n_atoms; ++i)
-            loop_nbor_boxes(nborlist, r_cut2, i);
-    }
-}
-
 void Medium::calc_linked_list(const double r_cut) {
     const int n_atoms = size();
     calc_statistics();
@@ -80,6 +63,23 @@ void Medium::calc_linked_list(const double r_cut) {
         list[i] = head[i_cell];
         head[i_cell] = i;
         set_marker(i, i_cell);  // for debugging purposes store the cell index as a marker
+    }
+}
+
+void Medium::calc_verlet_nborlist(vector<vector<int>>& nborlist, const double r_cut, const bool periodic) {
+    require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
+    calc_linked_list(r_cut);
+
+    const int n_atoms = size();
+    const double r_cut2 = r_cut * r_cut;
+    nborlist = vector<vector<int>>(n_atoms);
+
+    if (periodic) {
+        for (int i = 0; i < n_atoms; ++i)
+            loop_periodic_nbor_boxes(nborlist, r_cut2, i);
+    } else {
+        for (int i = 0; i < n_atoms; ++i)
+            loop_nbor_boxes(nborlist, r_cut2, i);
     }
 }
 
