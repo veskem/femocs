@@ -1461,8 +1461,7 @@ void ForceReader::calc_charge_and_lorentz(const VoronoiMesh& mesh, const FieldRe
                 }
             }
             charge *= eps0;
-//            interpolation[i] = Solution(field * charge, charge);
-            interpolation[i] = Solution(Vec3(0), charge);
+            interpolation[i] = Solution(field * charge, charge);
         }
 }
 
@@ -1489,7 +1488,7 @@ void ForceReader::calc_coulomb(const double r_cut) {
     const double r_cut2 = r_cut * r_cut;
     const int n_atoms = size();
 
-    // it is more efficinet to calculate forces from linked list not from neighbour list,
+    // it is more efficinet to calculate forces from linked list than from neighbour list,
     // as in that ways it is possible to avoid double calculation of the distances
     calc_linked_list(r_cut);
     require(list.size() == n_atoms, "Invalid linked list size: " + to_string(list.size()));
@@ -1518,13 +1517,16 @@ void ForceReader::calc_coulomb(const double r_cut) {
                     // get the index of first atom in given neighbouring cell and loop through neighbours
                     int j = head[i_cell];
                     while(j >= 0) {
+                        // avoid double looping over atom-pairs
                         if (i < j) {
                             // TODO double check the sign of the force
                             Vec3 displacement = point - get_point(j);
                             const double r_squared = displacement.norm2();
                             if (r_squared <= r_cut2) {
-                                double force_norm = couloumb_constant * get_charge(i) * get_charge(j) / r_squared;
-                                Vec3 force = displacement * (force_norm / sqrt(r_squared));
+                                double r = sqrt(r_squared);
+                                double force_norm = exp(-q_screen * r) * couloumb_constant *
+                                        get_charge(i) * get_charge(j) / r_squared;
+                                Vec3 force = displacement * (force_norm / r);
                                 interpolation[i].vector += force;
                                 interpolation[j].vector -= force;
                             }

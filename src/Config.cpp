@@ -34,7 +34,7 @@ Config::Config() {
     geometry.latconst = 3.61;         // lattice constant
     geometry.coordination_cutoff = 3.1; // coordination analysis cut-off radius
     geometry.cluster_cutoff = 0;      // cluster analysis cut-off radius
-    geometry.charge_cutoff = 50;     // Coulomb force cut-off radius
+    geometry.charge_cutoff = 30;      // Coulomb force cut-off radius
     geometry.surface_thickness = 3.1; // maximum distance the surface atom is allowed to be from surface mesh
     geometry.box_width = 10;          // minimal simulation box width in units of tip height
     geometry.box_height = 6;          // simulation box height in units of tip height

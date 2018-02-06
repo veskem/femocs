@@ -349,6 +349,10 @@ private:
     static constexpr double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
     static constexpr double couloumb_constant = 14.399645; ///< force factor in Couloumb's law [V*A/e], == 1 / (4*pi*eps0)
 
+    /** Screening factor for Coulomb force.
+     * For details see Djurabekova et al, 2011, Physical Review E, 83(2), p.026704 */
+    static constexpr double q_screen = 0.6809;
+
     /** Remove cells with too big faces*/
     void clean_voro_faces(VoronoiMesh& mesh);
 
