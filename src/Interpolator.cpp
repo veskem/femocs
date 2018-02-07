@@ -17,16 +17,14 @@ namespace femocs {
  *  ======================== Interpolator ==========================
  * ================================================================== */
 
-Interpolator::Interpolator(const TetgenMesh* m, const string& nl, const string& sl) :
-    mesh(m), empty_value(0) {
-
-    nodes.set_dependencies(m, nl, sl);
-    lintris.set_dependencies(mesh, &nodes);
-    lintets.set_dependencies(mesh, &nodes);
-    quadtris.set_dependencies(mesh, &nodes, &lintris);
-    quadtets.set_dependencies(mesh, &nodes, &lintets);
-    linquads.set_dependencies(mesh, &nodes, &lintris);
-    linhexs.set_dependencies(mesh, &nodes, &lintets);
+Interpolator::Interpolator(const string& nl, const string& sl) : mesh(NULL), empty_value(0) {
+    nodes.set_labels(nl, sl);
+    lintris = LinearTriangles(&nodes);
+    lintets = LinearTetrahedra(&nodes);
+    quadtris = QuadraticTriangles(&nodes, &lintris);
+    quadtets = QuadraticTetrahedra(&nodes, &lintets);
+    linquads = LinearQuadrangles(&nodes, &lintris);
+    linhexs = LinearHexahedra(&nodes, &lintets);
 }
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
@@ -136,7 +134,17 @@ int Interpolator::update_point_cell(Point3& point, int current_cell, bool deal_i
     return linhexs.femocs2deal(femocs_cell);
 }
 
-void Interpolator::initialize(double empty_val) {
+void Interpolator::initialize(const TetgenMesh* m, const double empty_val) {
+    // update mesh
+    mesh = m;
+    nodes.set_mesh(mesh);
+    lintris.set_mesh(mesh);
+    lintets.set_mesh(mesh);
+    quadtris.set_mesh(mesh);
+    quadtets.set_mesh(mesh);
+    linquads.set_mesh(mesh);
+    linhexs.set_mesh(mesh);
+
     // Precompute cells to make interpolation faster
     nodes.precompute();
     lintris.precompute();

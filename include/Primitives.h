@@ -100,14 +100,6 @@ public:
     /** Distance between two points */
     double distance(const Point2 &p) const { return sqrt(distance2(p)); }
 
-    /** Subtraction of two points */
-    Point2 operator -(const Point2 &p) const {
-        return Point2(x - p.x, y - p.y);
-    }
-
-    /** Comparison operators between two points */
-    bool operator ==(const Point2 &p) const { return x == p.x && y == p.y; }
-
     /** Accessor for accessing the i-th coordinate */
     const double& operator [](size_t i) const { return (&x)[i]; }
 
@@ -124,7 +116,7 @@ public:
     /** Return data as string */
     string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
-    void periodic(Point2 pmax, Point2 pmin){
+    void periodic(Point2 &pmax, Point2 &pmin){
         x = periodic_image(x, pmax.x, pmin.x);
         y = periodic_image(y, pmax.y, pmin.y);
     }
@@ -138,10 +130,12 @@ public:
     Vector3Data() : x(0), y(0), z(0) {}
     Vector3Data(const double xx) : x(xx), y(xx), z(xx) {}
     Vector3Data(const double xx, const double yy, const double zz) : x(xx), y(yy), z(zz) {}
-    Vector3Data(const Vector3Data& v) : x(v.x), y(v.z), z(v.z) {}
+    Vector3Data(const Vector3Data& v) : x(v.x), y(v.y), z(v.z) {}
 
     /** Dimensionality of vector */
     int size() const { return 3; }
+
+    Vector3Data& operator +=(const Point2 &p) { x += p.x, y += p.y; return *this; }
 
     /** Addition of two vectors */
     Vector3Data operator +(const Vector3Data &p) const { return Vector3Data(x+p.x, y+p.y, z+p.z); }
@@ -198,107 +192,26 @@ public:
     double x, y, z; ///< VectorData data
 };
 
-///** Basic operations with 3-dimensional point */
+/** Basic operations with 3-dimensional point */
 // TODO: For some reason not working properly
-//class Point3 : public Vector3Data {
-//public:
-//    /** Constructors of Point3 class */
-//    Point3() : Vector3Data() {}
-//    Point3(const double xx) : Vector3Data(xx) {}
-//    Point3(const double xx, const double yy, const double zz) : Vector3Data(xx, yy, zz) {}
-//    Point3(const double xx, const double yy) : Vector3Data(xx, yy, 0) {}
-//    Point3(const Vector3Data &v) : Vector3Data(v) {}
-//    Point3(const dealii::Point<3> &p) : Vector3Data(p[0], p[1], p[2]) {}
-//
-//    /** Squared distance between two points */
-//    double distance2(const Point3 &p) const {
-//        double xx = x - p.x;
-//        double yy = y - p.y;
-//        double zz = z - p.z;
-//        return xx * xx + yy * yy + zz * zz;
-//    }
-//
-//    /** Distance between two points */
-//    double distance(const Point3 &p) const { return sqrt(distance2(p)); }
-//
-//    /** Squared distance between two Point3-s taking into account the simulation cell periodicity.
-//     * Period == 0 in some direction gives the result without periodicity in that direction. */
-//    double periodic_distance2(const Point3 &p, const double period_x = 0,
-//            const double period_y = 0, const double period_z = 0) const {
-//
-//        double dx = fabs(x - p.x);
-//        double dy = fabs(y - p.y);
-//        double dz = fabs(z - p.z);
-//
-////        dx = min(dx, fabs(dx - period_x)); // apply periodic boundary condition in x-direction
-////        dy = min(dy, fabs(dy - period_y)); // apply periodic boundary condition in y-direction
-////        dz = min(dz, fabs(dz - period_z)); // apply periodic boundary condition in z-direction
-//
-//        if (MODES.PERIODIC) {
-//            if (dx > period_x * 0.5) dx = period_x - dx; // apply periodic boundary condition in x-direction
-//            if (dy > period_y * 0.5) dy = period_y - dy; // apply periodic boundary condition in y-direction
-//            if (dz > period_z * 0.5) dz = period_z - dz; // apply periodic boundary condition in z-direction
-//        }
-//
-//        return dx * dx + dy * dy + dz * dz;
-//    }
-//
-//    void periodic(Point3 pmax, Point3 pmin){
-//        x = periodic_image(x, pmax.x, pmin.x);
-//        y = periodic_image(y, pmax.y, pmin.y);
-//        z = periodic_image(z, pmax.z, pmin.z);
-//    }
-//};
-//
-///** Basic operations with 3-dimensional vector */
-//class Vec3 : public Vector3Data {
-//public:
-//    /** Vec3 constructors */
-//    Vec3() : Vector3Data() {}
-//    Vec3(const double xx) : Vector3Data(xx) {}
-//    Vec3(const double xx, const double yy, const double zz) : Vector3Data(xx, yy, zz) {}
-//    Vec3(const Vector3Data &v) : Vector3Data(v) {}
-//    Vec3(const dealii::Tensor<1,3>& t) : Vector3Data(t[0], t[1], t[2])  {}
-//
-//    /** Vector norm */
-//    double norm2() const { return x * x + y * y + z * z; }
-//    double norm() const { return sqrt(norm2()); }
-//
-//    /** Normalize the vector */
-//    Vec3& normalize() {
-//        double n = norm();
-//        if (n > 0) {
-//            double factor = 1 / n;
-//            x *= factor, y *= factor, z *= factor;
-//        }
-//        return *this;
-//    }
-//
-//    /** Dot product of two vectors */
-//    double dotProduct(const Vec3 &v) const { return x * v.x + y * v.y + z * v.z; }
-//
-//    /** Cross product of two vectors */
-//    Vec3 crossProduct(const Vec3 &v) const {
-//        return Vec3(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
-//    }
-//};
-
-class Vec3; // Forward declaration so that we can use it in a constructor
-class Point3 {
+class Point3 : public Vector3Data {
 public:
     /** Constructors of Point3 class */
-    Point3() : x(0), y(0), z(0) {}
-    Point3(const double xx) : x(xx), y(xx), z(xx) {}
-    Point3(const double xx, const double yy) : x(xx), y(yy), z(0) {}
-    Point3(const double xx, const double yy, const double zz) : x(xx), y(yy), z(zz) {}
-    Point3(const Point3& p) : x(p.x), y(p.y), z(p.z) {}
-    Point3(const dealii::Point<3> &p) : x(p[0]), y(p[1]), z(p[2]) {}
-    Point3(const Vec3 &v); // Body of this one needs the full definition of Vec3 -> Defined after Vec3.
+    Point3() : Vector3Data() {}
+    Point3(const double xx) : Vector3Data(xx) {}
+    Point3(const double xx, const double yy, const double zz) : Vector3Data(xx, yy, zz) {}
+    Point3(const double xx, const double yy) : Vector3Data(xx, yy, 0) {}
+    Point3(const Vector3Data &v) : Vector3Data(v) {}
+    Point3(const dealii::Point<3> &p) : Vector3Data(p[0], p[1], p[2]) {}
 
-    /** Dimensionality of point */
-    int size() const { return 3; }
+    /** Squared distance between two points */
 
-    /** Squared distance between two Point3-s */
+    double distance2(const Point2 &p) const {
+        const double xx = x - p.x;
+        const double yy = y - p.y;
+        return xx * xx + yy * yy;
+    }
+
     double distance2(const Point3 &p) const {
         double xx = x - p.x;
         double yy = y - p.y;
@@ -306,19 +219,8 @@ public:
         return xx * xx + yy * yy + zz * zz;
     }
 
-    /** Distance between two Point3-s */
+    /** Distance between two points */
     double distance(const Point3 &p) const { return sqrt(distance2(p)); }
-
-    /** Squared distance between a Point3 and dealii::Point<3> */
-    double distance2(dealii::Point<3> &p) const {
-        double xx = x - p[0];
-        double yy = y - p[1];
-        double zz = z - p[2];
-        return xx * xx + yy * yy + zz * zz;
-    }
-
-    /** Distance between a Point3 and dealii::SimpleCell_T<3> */
-    double distance(dealii::Point<3> &p) const { return sqrt(distance2(p)); }
 
     /** Squared distance between two Point3-s taking into account the simulation cell periodicity.
      * Period == 0 in some direction gives the result without periodicity in that direction. */
@@ -329,10 +231,6 @@ public:
         double dy = fabs(y - p.y);
         double dz = fabs(z - p.z);
 
-//        dx = min(dx, fabs(dx - period_x)); // apply periodic boundary condition in x-direction
-//        dy = min(dy, fabs(dy - period_y)); // apply periodic boundary condition in y-direction
-//        dz = min(dz, fabs(dz - period_z)); // apply periodic boundary condition in z-direction
-
         if (MODES.PERIODIC) {
             if (dx > period_x * 0.5) dx = period_x - dx; // apply periodic boundary condition in x-direction
             if (dy > period_y * 0.5) dy = period_y - dy; // apply periodic boundary condition in y-direction
@@ -342,115 +240,22 @@ public:
         return dx * dx + dy * dy + dz * dz;
     }
 
-    void periodic(Point3 pmax, Point3 pmin){
+    void periodic(Point3 &pmax, Point3 &pmin){
         x = periodic_image(x, pmax.x, pmin.x);
         y = periodic_image(y, pmax.y, pmin.y);
         z = periodic_image(z, pmax.z, pmin.z);
     }
-
-    /** Addition of two points */
-    Point3& operator +=(const Point2 &p) { x += p.x, y += p.y; return *this; }
-
-    Point3 operator +(const Point3 &p) const { return Point3(x+p.x, y+p.y, z+p.z); }
-    Point3& operator +=(const Point3 &p) { x += p.x, y += p.y, z += p.z; return *this; }
-
-    /** Subtraction of two points */
-    Point3 operator -(const Point3 &p) const { return Point3(x-p.x, y-p.y, z-p.z); }
-    Point3& operator -=(const Point3 &p) { x -= p.x, y -= p.y, z -= p.z; return *this; }
-
-    /** Multiplication and division of two points */
-    Point3& operator *=(const Point3 &p) { x *= p.x, y *= p.y, z *= p.z; return *this; }
-    Point3& operator /=(const Point3 &p) { x /= p.x, y /= p.y, z /= p.z; return *this; }
-
-    /** Multiplying point with a scalar */
-    Point3 operator *(const double &r) const { return Point3(x * r, y * r, z * r); }
-    Point3& operator *=(const double &r) { x *= r, y *= r, z *= r; return *this; }
-
-    /** Dividing point with a scalar */
-    Point3 operator /(const double &r) const { return Point3(x / r, y / r, z / r); }
-    Point3& operator /=(const double &r) { x /= r, y /= r, z /= r; return *this; }
-
-    /** Adding a scalar to the point */
-    Point3 operator +(const double &r) const { return Point3(x + r, y + r, z + r); }
-    Point3& operator +=(const double &r) { x += r, y += r, z += r; return *this; }
-
-    /** Subtracting a scalar from the point */
-    Point3 operator -(const double &r) const { return Point3(x - r, y - r, z - r); }
-    Point3& operator -=(const double &r) { x -= r, y -= r, z -= r; return *this; }
-
-    /** Comparison operators between two 3D points */
-    bool operator ==(const Point3 &p) const { return x == p.x && y == p.y && z == p.z; }
-    bool operator ==(const dealii::Point<3> &p) const {
-        return x == p[0] && y == p[1] && z == p[2];
-    }
-
-    /** Accessor for accessing the i-th coordinate */
-    const double& operator [](const size_t i) const { return (&x)[i]; }
-
-    /** Iterator for accessing the coordinates */
-    typedef Iterator<Point3, double> iterator;
-    iterator begin() const { return iterator(this, 0); }
-    iterator end() const { return iterator(this, size()); }
-
-    /** Define the behaviour of string stream */
-    friend std::ostream& operator <<(std::ostream &s, const Point3 &p) {
-        return s << p.x << ' ' << p.y << ' ' << p.z;
-    }
-
-    /** Return data as string */
-    string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
-
-    double x, y, z; ///< Cartesian coordinates
 };
 
-/** Class to define basic operations with 3-dimensional vector */
-class Vec3 {
+/** Basic operations with 3-dimensional vector */
+class Vec3 : public Vector3Data {
 public:
     /** Vec3 constructors */
-    Vec3() : x(0), y(0), z(0) {}
-    Vec3(const double xx) : x(xx), y(xx), z(xx) {}
-    Vec3(const double xx, const double yy, const double zz) : x(xx), y(yy), z(zz) {}
-    Vec3(const Point3 &p) : x(p.x), y(p.y), z(p.z) {}
-    Vec3(const dealii::Tensor<1,3> &t) : x(t[0]), y(t[1]), z(t[2]) {}
-
-    /** Dimensionality of vector */
-    int size() const { return 3; }
-
-    /** Compare vector with a scalar */
-    bool operator ==(const double d) const { return x == d && y == d && z == d; }
-
-    /** Compare one vector with another */
-    bool operator ==(const Vec3 &v) const { return x == v.x && y == v.y && z == v.z; }
-
-    /** Addition of two vectors */
-    Vec3 operator +(const Vec3 &v) const { return Vec3(x + v.x, y + v.y, z + v.z); }
-    Vec3& operator +=(const Vec3 &v) { x += v.x, y += v.y, z += v.z; return *this; }
-
-    /** Subtraction of two vectors */
-    Vec3 operator -(const Vec3 &v) const { return Vec3(x - v.x, y - v.y, z - v.z); }
-    Vec3& operator -=(const Vec3 &v) { x -= v.x, y -= v.y, z -= v.z; return *this; }
-
-    /** Multiplication of two vectors */
-    Vec3 operator *(const Vec3 &v) const { return Vec3(x * v.x, y * v.y, z * v.z); }
-    Vec3& operator *=(const Vec3 &v) { x *= v.x, y *= v.y, z *= v.z; return *this; }
-
-    /** Scalar multiplication of vector with a scalar */
-    Vec3 operator *(const double &r) const { return Vec3(x * r, y * r, z * r); }
-    Vec3& operator *=(const double &r) { x *= r, y *= r, z *= r; return *this; }
-
-    /** Division of two vectors */
-    Vec3 operator /(const Vec3 &v) const { return Vec3(x / v.x, y / v.y, z / v.z); }
-    Vec3& operator /=(const Vec3 &v) { x /= v.x, y /= v.y, z /= v.z; return *this; }
-
-    /** Scalar division of vector with a scalar */
-    Vec3 operator /(const double &r) const { return Vec3(x / r, y / r, z / r); }
-    Vec3& operator /=(const double &r) { x /= r, y /= r, z /= r; return *this; }
-
-    /** Dot product and cross product of two vectors */
-    double dotProduct(const Vec3 &v) const { return x * v.x + y * v.y + z * v.z; }
-    Vec3 crossProduct(const Vec3 &v) const {
-        return Vec3(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
-    }
+    Vec3() : Vector3Data() {}
+    Vec3(const double xx) : Vector3Data(xx) {}
+    Vec3(const double xx, const double yy, const double zz) : Vector3Data(xx, yy, zz) {}
+    Vec3(const Vector3Data &v) : Vector3Data(v) {}
+    Vec3(const dealii::Tensor<1,3>& t) : Vector3Data(t[0], t[1], t[2])  {}
 
     /** Vector norm */
     double norm2() const { return x * x + y * y + z * z; }
@@ -466,31 +271,14 @@ public:
         return *this;
     }
 
-    /**
-     Define access operators or accessors.
-     The Vec3 coordinates can be accessed that way v[0], v[1], v[2], rather than v.x, v.y, v.z.
-     This is useful in loops: the coordinates can be accessed with the loop index (e.g. v[i]).
-     */
-    const double& operator [](const size_t i) const { return (&x)[i]; }
+    /** Dot product of two vectors */
+    double dotProduct(const Vec3 &v) const { return x * v.x + y * v.y + z * v.z; }
 
-    /** Attach iterator for accessing the vector components */
-    typedef Iterator<Vec3, double> iterator;
-    iterator begin() const { return iterator(this, 0); }
-    iterator end() const { return iterator(this, size()); }
-
-    /** Define the behaviour of string stream */
-    friend std::ostream& operator <<(std::ostream &s, const Vec3 &v) {
-        return s << v.x << ' ' << v.y << ' ' << v.z;
+    /** Cross product of two vectors */
+    Vec3 crossProduct(const Vec3 &v) const {
+        return Vec3(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
     }
-
-    /** Return data as string */
-    string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
-
-    double x, y, z; ///< Cartesian coordinates
 };
-
-//Inline so that it can live in the header
-inline Point3::Point3(const Vec3 &v) : x(v.x), y(v.y), z(v.z) {}
 
 /** Class to define basic operations with 4-dimensional vector */
 class Vec4 {

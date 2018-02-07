@@ -190,7 +190,7 @@ public:
     int generate_nanotip(const double height, const double radius=-1, const double resolution=-1);
 
     /** Generate bulk and vacuum meshes using the imported atomistic data */
-    int generate_meshes();
+    int generate_mesh();
 
     /** Evolve the PIC simulation one Femocs time step */
     int solve_pic(const double E0, const double dt_main);
@@ -219,8 +219,7 @@ private:
     const double delta_t_MD = 4.05e-15; // in seconds (!)
     
     bool skip_meshing;      ///< If the mesh is to be kept the same
-    bool fail;              ///< If meshing failed
-    bool new_mesh_exists;   ///< Whether the mesh is new or already used
+    bool fail;              ///< If some process failed
     double t0;              ///< CPU timer
     double time;            ///< Time since the start of the simulation
     int timestep;           ///< counter to measure how many times Femocs has been called
@@ -235,20 +234,22 @@ private:
     Surface dense_surf;     ///< non-coarsened surface atoms
     Surface extended_surf;  ///< atoms added for the surface atoms
 
-    TetgenMesh mesh_new;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
-    TetgenMesh mesh_old; ///< Saved version of the old FEM mesh (in case mesh generation fails)
-    TetgenMesh &fem_mesh = mesh_new; ///< Active mesh being used now
+    TetgenMesh mesh1;       ///< FEM mesh for the whole simulation domain (both bulk and vacuum)
+    TetgenMesh mesh2;
+    TetgenMesh *new_mesh;   ///< Pointer to mesh where the new one will be generated
+    TetgenMesh *mesh;       ///< Readily available mesh
 
-    Interpolator vacuum_interpolator = Interpolator(&fem_mesh, "elfield", "potential");
-    Interpolator bulk_interpolator = Interpolator(&fem_mesh, "rho", "temperature");
+    Interpolator vacuum_interpolator = Interpolator("elfield", "potential");
+    Interpolator bulk_interpolator = Interpolator("rho", "temperature");
 
     HeatReader  temperatures = HeatReader(&bulk_interpolator); ///< temperatures & current densities on bulk atoms
     FieldReader fields = FieldReader(&vacuum_interpolator);       ///< fields & potentials on surface atoms
     ForceReader forces = ForceReader(&vacuum_interpolator);       ///< forces & charges on surface atoms
     FieldReader surface_fields = FieldReader (&vacuum_interpolator); ///< fields on surface hex face centroids
     HeatReader  surface_temperatures = HeatReader(&bulk_interpolator); ///< temperatures & current densities on surface hex face centroids
-    EmissionReader emission = EmissionReader(surface_fields, surface_temperatures, fem_mesh, &vacuum_interpolator);
-    ///< Emission data on surface hex face centroids
+
+    /// emission data on centroids of surface quadrangles
+    EmissionReader emission = EmissionReader(surface_fields, surface_temperatures, &vacuum_interpolator);
 
     /// physical quantities used in heat calculations
     fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);

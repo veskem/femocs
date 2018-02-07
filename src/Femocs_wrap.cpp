@@ -30,7 +30,7 @@ void femocs_force_output(FEMOCS* femocs, int* retval) {
 }
 
 void femocs_generate_meshes(FEMOCS* femocs, int* retval) {
-    retval[0] = femocs->generate_meshes();
+    retval[0] = femocs->generate_mesh();
 }
 
 void femocs_solve_laplace(FEMOCS* femocs, int* retval, double E_field) {

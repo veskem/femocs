@@ -60,7 +60,7 @@ public:
     void transform(const double latconst);
 
     /** Remove the atoms that are too far from surface faces */
-    void clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const double r_cut);
+    void clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const TetgenMesh* m, const double r_cut);
 
     int clean_by_voronois(const double radius, const double latconst, const string& mesh_quality);
 

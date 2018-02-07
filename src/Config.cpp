@@ -46,12 +46,13 @@ Config::Config() {
     tolerance.field_max = 5.0;        // max ratio numerical field can deviate from analytical one
     tolerance.distance = 0.0;         // rms distance tolerance for atom movement between two time steps
 
-    laplace.E0 = 0.0;                 // long range electric field
-    laplace.ssor_param = 1.2;         // parameter for SSOR preconditioner
-    laplace.phi_error = 1e-9;         // maximum allowed electric potential error
-    laplace.n_phi = 10000;            // maximum number of Conjugate Gradient iterations in phi calculation
-    laplace.V0 = 0.0;                 // Anode voltage
-    laplace.anodeBC = "neumann";      // Anode Neumann boundary
+    field.E0 = 0.0;                 // long range electric field
+    field.ssor_param = 1.2;         // parameter for SSOR preconditioner
+    field.phi_error = 1e-9;         // maximum allowed electric potential error
+    field.n_phi = 10000;            // maximum number of Conjugate Gradient iterations in phi calculation
+    field.V0 = 0.0;                 // anode voltage
+    field.anodeBC = "neumann";      // anode Neumann boundary
+    field.solver = "laplace";       // type of field equation to be solved; laplace or poisson
 
     heating.mode = "none";            // method to calculate current density and temperature; none, stationary or transient
     heating.rhofile = "in/rho_table.dat"; // rho table file
@@ -110,12 +111,10 @@ void Config::read_all(const string& file_name) {
     read_command("space_charge", emission.SC);
     read_command("maxerr_SC", emission.SC_error);
 
-
     read_command("t_ambient", heating.t_ambient);
     read_command("heating_mode", heating.mode);
     read_command("lorentz", heating.lorentz);
     read_command("rhofile", heating.rhofile);
-
 
     read_command("smooth_steps", smoothing.n_steps);
     read_command("smooth_lambda", smoothing.lambda_mesh);
@@ -124,11 +123,12 @@ void Config::read_all(const string& file_name) {
     read_command("surface_smooth_factor", smoothing.beta_atoms);
     read_command("charge_smooth_factor", smoothing.beta_charge);
 
-    read_command("phi_error", laplace.phi_error);
-    read_command("n_phi", laplace.n_phi);
-    read_command("elfield", laplace.E0);
-    read_command("Vappl", laplace.V0);
-    read_command("anode_BC", laplace.anodeBC);
+    read_command("phi_error", field.phi_error);
+    read_command("n_phi", field.n_phi);
+    read_command("elfield", field.E0);
+    read_command("Vappl", field.V0);
+    read_command("anode_BC", field.anodeBC);
+    read_command("field_solver", field.solver);
 
     read_command("latconst", geometry.latconst);
     read_command("coord_cutoff", geometry.coordination_cutoff);
