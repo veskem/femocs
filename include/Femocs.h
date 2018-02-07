@@ -210,9 +210,6 @@ public:
     /** Pick a method to solve heat and continuity equations on bulk mesh */
     int solve_heat(const double T_ambient);
 
-    /** Calculate emission on the surface and put the results in EmissionReader emission */
-    void get_emission();
-
     /** Determine whether atoms have moved significantly and whether to enable file writing */
     int reinit(const int timestep=-1);
 

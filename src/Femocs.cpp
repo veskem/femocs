@@ -124,9 +124,16 @@ int Femocs::run(const double elfield, const string &timestep) {
     //****************** RUNNING Field - PIC calculation ********
     skip_meshing = true;
 
-    if (solve_pic(elfield, max(delta_t_MD * 1.e15, conf.pic.total_time))) {
-        force_output();
-        check_return(true, "Solving PIC failed!");
+    if (conf.field.solver == "poisson") {
+        if (solve_pic(elfield, max(delta_t_MD * 1.e15, conf.pic.total_time))) {
+            force_output();
+            check_return(true, "Solving PIC failed!");
+        }
+    } else {
+        if (solve_laplace(elfield)) {
+            force_output();
+            check_return(true, "Solving Laplace equation failed!");
+        }
     }
 
     if (solve_heat(conf.heating.t_ambient)) {
@@ -329,28 +336,24 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     start_msg(t0, "=== Running PIC...\n");
     pic_solver.set_params(conf.field, conf.pic, dt_pic, mesh->nodes.stat);
 
-    int n_lost, n_injected, n_cg_steps;
+    // Obtain quadrangle centroids where field will be probed
+    surface_fields.set_preferences(false, 2, 3);
+    surface_fields.transfer_elfield(ch_transient_solver);
 
+    // Interpolate J & T on quadrangle centroids
+    // Temperature do not need to be recalculated, as thermal timestep is >> PIC timestep
+    surface_temperatures.set_preferences(false, 2, 3);
+    surface_temperatures.interpolate(ch_transient_solver);
+
+    emission.initialize(mesh);
+
+    int n_lost, n_injected, n_cg_steps;
     for (int i = 0; i < time_subcycle; i++) {
         n_lost = pic_solver.update_positions();
         n_cg_steps = pic_solver.run_cycle(i == 0);
 
-        fail = vacuum_interpolator.extract_solution(&laplace_solver);
-
-        // TODO Performance optimization: no need to extract the solution on the whole grid here!
-
-        if(!conf.pic.doPIC) break; // stop before injecting particles
-        
-        // Transfer elfield to J & T solver
-        surface_fields.set_preferences(false, 2, 3);
-        surface_fields.transfer_elfield(ch_transient_solver);
-
-        // Interpolate J & T on face centroids
-        surface_temperatures.set_preferences(false, 2, 3);
-        surface_temperatures.interpolate(ch_transient_solver);
-
-        // Calculate field emission
-        emission.initialize(mesh);
+        vacuum_interpolator.extract_solution(&laplace_solver);
+        surface_fields.calc_interpolation();
         emission.calc_emission(conf.emission, conf.field.V0);
 
         n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
@@ -359,22 +362,23 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
                 + to_string(n_cg_steps) + "|" + to_string(n_injected) + "|" + to_string(n_lost));
     }
     end_msg(t0);
+
     pic_solver.write("out/electrons.movie", 0);
 
-    const double norm_avg_field = 2.518780;
-    const double norm_max_field = 302.992500;
-    double avg_field = 0;
-    double max_field = 0;
-    for (Solution s : *vacuum_interpolator.nodes.get_solutions()) {
-        avg_field += s.norm;
-        max_field = max(max_field, s.norm);
-    }
-    avg_field /= vacuum_interpolator.nodes.size();
+//    const double norm_avg_field = 2.518780;
+//    const double norm_max_field = 302.992500;
+//    double avg_field = 0;
+//    double max_field = 0;
+//    for (Solution s : *vacuum_interpolator.nodes.get_solutions()) {
+//        avg_field += s.norm;
+//        max_field = max(max_field, s.norm);
+//    }
+//    avg_field /= vacuum_interpolator.nodes.size();
+//
+//    write_verbose_msg("avg: calc/norm = " + to_string(avg_field) + "/" + to_string(norm_avg_field) + " = " + to_string(avg_field/norm_avg_field));
+//    write_verbose_msg("enhancement: calc/norm = " + to_string(max_field/E0) + "/" + to_string(norm_max_field/E0) + " = " + to_string(max_field/norm_max_field));
 
-    write_verbose_msg("avg: calc/norm = " + to_string(avg_field) + "/" + to_string(norm_avg_field) + " = " + to_string(avg_field/norm_avg_field));
-    write_verbose_msg("enhancement: calc/norm = " + to_string(max_field/E0) + "/" + to_string(norm_max_field/E0) + " = " + to_string(max_field/norm_max_field));
-
-    return fail;
+    return 0;
 
     //7. Save ions and neutrals that are inbound on the MD domain
     //    somewhere where the MD can find them
@@ -412,7 +416,7 @@ int Femocs::solve_laplace(const double E0) {
 
     start_msg(t0, "=== Extracting E and phi...");
     vacuum_interpolator.initialize(mesh);
-    fail = vacuum_interpolator.extract_solution(&laplace_solver);
+    vacuum_interpolator.extract_solution(&laplace_solver);
     end_msg(t0);
 
     check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()), "Field enhancement is out of limits!");
@@ -501,7 +505,10 @@ int Femocs::solve_stationary_heat() {
     return 0;
 }
 
-void Femocs::get_emission(){
+// Solve transient heat and continuity equations
+int Femocs::solve_transient_heat(const double delta_time) {
+    double multiplier = 1.;
+
     // Transfer elfield to J & T solver
     surface_fields.set_preferences(false, 2, 3);
     surface_fields.transfer_elfield(ch_transient_solver);
@@ -513,13 +520,6 @@ void Femocs::get_emission(){
     // Calculate field emission
     emission.initialize(mesh);
     emission.calc_emission(conf.emission, conf.field.V0);
-}
-
-// Solve transient heat and continuity equations
-int Femocs::solve_transient_heat(const double delta_time) {
-    double multiplier = 1.;
-
-    get_emission();
     emission.export_emission(ch_transient_solver);
 
     start_msg(t0, "=== Setup transient J & T solver...");

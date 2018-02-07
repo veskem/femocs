@@ -161,7 +161,7 @@ void Interpolator::initialize(const TetgenMesh* m, const double empty_val) {
         nodes.append_solution(Solution(empty_val));
 }
 
-bool Interpolator::extract_solution(fch::Laplace<3>* fem) {
+void Interpolator::extract_solution(fch::Laplace<3>* fem) {
     require(fem, "NULL pointer can't be handled!");
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
@@ -173,10 +173,10 @@ bool Interpolator::extract_solution(fch::Laplace<3>* fem) {
             fem->get_potential(cell_indxs, vert_indxs));
 
     // Remove the spikes from the solution
-    return average_sharp_nodes(true);
+    average_sharp_nodes(true);
 }
 
-bool Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
+void Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
     require(fem, "NULL pointer can't be handled!");
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
@@ -186,11 +186,9 @@ bool Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
     // Read and store current densities and temperatures from FEM solver
     store_solution(femocs2deal, fem->get_current(cell_indxs, vert_indxs),
             fem->get_temperature(cell_indxs, vert_indxs));
-
-    return false;
 }
 
-bool Interpolator::extract_solution(fch::CurrentsAndHeating<3>& fem) {
+void Interpolator::extract_solution(fch::CurrentsAndHeating<3>& fem) {
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> femocs2deal, cell_indxs, vert_indxs;
@@ -199,8 +197,6 @@ bool Interpolator::extract_solution(fch::CurrentsAndHeating<3>& fem) {
     // Read and store current densities and temperatures from FEM solver
     store_solution(femocs2deal, fem.get_current(cell_indxs, vert_indxs),
             fem.get_temperature(cell_indxs, vert_indxs));
-
-    return false;
 }
 
 } // namespace femocs

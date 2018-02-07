@@ -55,13 +55,13 @@ public:
     void initialize(const TetgenMesh* mesh, const double empty_value=0);
 
     /** Extract the electric potential and field values from FEM solution */
-    bool extract_solution(fch::Laplace<3>* fem);
+    void extract_solution(fch::Laplace<3>* fem);
 
     /** Extract the current density and stationary temperature values from FEM solution */
-    bool extract_solution(fch::CurrentsAndHeatingStationary<3>* fem);
+    void extract_solution(fch::CurrentsAndHeatingStationary<3>* fem);
 
     /** Extract the current density and transient temperature values from FEM solution */
-    bool extract_solution(fch::CurrentsAndHeating<3>& fem);
+    void extract_solution(fch::CurrentsAndHeating<3>& fem);
 
     int update_point_cell(Point3& point, int current_cell, bool deal_index = true);
 

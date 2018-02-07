@@ -39,6 +39,10 @@ void SolutionReader::calc_interpolation() {
     require(interpolator, "NULL interpolator cannot be used!");
 
     const int n_atoms = size();
+    if (interpolation.size() != 0) {
+        interpolation.clear();
+        interpolation.reserve(n_atoms);
+    }
 
     // Sort atoms into sequential order to speed up interpolation
     if (sort_atoms) sort_spatial();
@@ -49,24 +53,28 @@ void SolutionReader::calc_interpolation() {
         Point3 point = get_point(i);
 
         // Depending on interpolation dimension and rank, pick corresponding functions
-        if (dim == 2 && rank == 1) {
-            cell = interpolator->lintris.locate_cell(point, abs(cell));
-            append_interpolation(interpolator->lintris.interp_solution(point, cell));
-        } else if (dim == 2 && rank == 2) {
-            cell = interpolator->quadtris.locate_cell(point, abs(cell));
-            append_interpolation(interpolator->quadtris.interp_solution(point, cell));
-        } else if (dim == 3 && rank == 1) {
-            cell = interpolator->lintets.locate_cell(point, abs(cell));
-            append_interpolation(interpolator->lintets.interp_solution(point, cell));
-        } else if (dim == 3 && rank == 2) {
-            cell = interpolator->quadtets.locate_cell(point, abs(cell));
-            append_interpolation(interpolator->quadtets.interp_solution(point, cell));
-        } else if (dim == 2 && rank == 3) {
-            cell = interpolator->linquads.locate_cell(point, abs(cell));
-            append_interpolation(interpolator->linquads.interp_solution(point, cell));
-        } else if (dim == 3 && rank == 3) {
-            cell = interpolator->linhexs.locate_cell(point, abs(cell));
-            append_interpolation(interpolator->linhexs.interp_solution(point, cell));
+        if (dim == 2) {
+            if (rank == 1) {
+                cell = interpolator->lintris.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->lintris.interp_solution(point, cell));
+            } else if (rank == 2) {
+                cell = interpolator->quadtris.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->quadtris.interp_solution(point, cell));
+            } else if (rank == 3) {
+                cell = interpolator->linquads.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->linquads.interp_solution(point, cell));
+            }
+        } else {
+            if (rank == 1) {
+                cell = interpolator->lintets.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->lintets.interp_solution(point, cell));
+            } else if (rank == 2) {
+                cell = interpolator->quadtets.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->quadtets.interp_solution(point, cell));
+            } else if (rank == 3) {
+                cell = interpolator->linhexs.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->linhexs.interp_solution(point, cell));
+            }
         }
 
         set_marker(i, cell);
@@ -88,7 +96,7 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
     const bool cells_known = atom2cell.size() == n_atoms;
 
     // are the atoms already mapped against the triangles?
-    if (cells_known)
+    if (cells_known) {
         // ...yes, no need to calculate them again, just interpolate
         for (int i = 0; i < n_atoms; ++i) {
             // locate the face
@@ -96,22 +104,25 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
             set_marker(i, cell);
 
             // calculate the interpolation
-            if (dim == 2 && rank == 1)
-                append_interpolation(interpolator->lintris.interp_solution(get_point(i), cell));
-            else if (dim == 3 && rank == 1)
-                append_interpolation(interpolator->lintets.interp_solution(get_point(i), cell));
-            else if (dim == 2 && rank == 2)
-                append_interpolation(interpolator->quadtris.interp_solution(get_point(i), cell));
-            else if (dim == 3 && rank == 2)
-                append_interpolation(interpolator->quadtets.interp_solution(get_point(i), cell));
-            else if (dim == 2 && rank == 3)
-                append_interpolation(interpolator->linquads.interp_solution(get_point(i), cell));
-            else if (dim == 3 && rank == 3)
-                append_interpolation(interpolator->linhexs.interp_solution(get_point(i), cell));
+            if (dim == 2) {
+                if (rank == 1)
+                    append_interpolation(interpolator->lintris.interp_solution(get_point(i), cell));
+                else if (rank == 2)
+                    append_interpolation(interpolator->quadtris.interp_solution(get_point(i), cell));
+                else if (rank == 3)
+                    append_interpolation(interpolator->linquads.interp_solution(get_point(i), cell));
+            } else {
+                if (rank == 1)
+                    append_interpolation(interpolator->lintets.interp_solution(get_point(i), cell));
+                else if (rank == 2)
+                    append_interpolation(interpolator->quadtets.interp_solution(get_point(i), cell));
+                else if (rank == 3)
+                    append_interpolation(interpolator->linhexs.interp_solution(get_point(i), cell));
+            }
         }
 
     // ...nop, do it and interpolate
-    else {
+    } else {
         calc_interpolation();
         atom2cell = vector<int>(n_atoms);
         for (int i = 0; i < n_atoms; ++i)
@@ -949,18 +960,13 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     int n_nodes = fields.size();
 
     // deallocate and allocate currents data
-    current_densities.clear();
-    nottingham.clear();
-    currents.clear();
-    current_densities.reserve(n_nodes);
-    nottingham.reserve(n_nodes);
-    currents.reserve(n_nodes);
+    current_densities.resize(n_nodes);
+    nottingham.resize(n_nodes);
+    currents.resize(n_nodes);
 
     //deallocate and allocate lines
-    rline.clear();
-    Vline.clear();
-    rline.reserve(n_lines);
-    Vline.reserve(n_lines);
+    rline.resize(n_lines);
+    Vline.resize(n_lines);
 
     // find Fmax
     for (int i = 0; i < n_nodes; ++i)

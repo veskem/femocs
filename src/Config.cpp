@@ -199,6 +199,10 @@ void Config::read_all(const string& file_name) {
     cfactor.amplitude = args[0];
     cfactor.r0_cylinder = static_cast<int>(args[1]);
     cfactor.r0_sphere = static_cast<int>(args[2]);
+
+
+    if (pic.doPIC) field.solver = "poisson";
+    else field.solver = "laplace";
 }
 
 // Read the commands and their arguments from the file and store them into the buffer
