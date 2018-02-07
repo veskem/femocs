@@ -16,24 +16,16 @@
 namespace femocs {
 
 
-class ParticleSpecies{
+class ParticleSpecies {
 public:
     ParticleSpecies(double q_ovr_m, double charge, double Wsp);
     ~ParticleSpecies();
 
-    void inject_particle(Point3 &_pos, Vec3 &_vel, int _cell){
-        parts.push_back(Particle{.pos = _pos, .vel = _vel, .cell = _cell});
+    void inject_particle(const Point3 &pos, const Vec3 &vel, const int cell) {
+        parts.push_back(SuperParticle(pos, vel, cell));
     }
 
     void clear_lost();
-
-    struct Particle{
-        Point3 pos; ///< Particle position [Å]
-        Vec3 vel; ///< Particle velocity [Å/fs]
-        int cell;   ///< Cell ID, -1 if outside the domain
-                    ///< (to be cleared up by ParticleSpecies::clear_lost())
-        bool operator < (const Particle &partj) {return (cell < partj.cell);}
-    };
 
     void sort_parts();
 
@@ -41,9 +33,10 @@ public:
     const double q_over_eps0;     ///< (whole) particle charge / eps0 [e/VÅ]
     const double Wsp;             ///< SP weight [particles/superparticle]
 
-    vector<Particle> parts;
+    vector<SuperParticle> parts;
     vector<size_t> ordcount;
 };
+
 
 } // namespace femocs
 

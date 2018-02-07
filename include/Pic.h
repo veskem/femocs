@@ -37,7 +37,7 @@ public:
     void run_cycle(const bool first_time = false);
 
     /** Write the particle data in the current state in movie file */
-    void write_particles(const string filename, const double time);
+    void write(const string filename, const double time) const;
     
     /** Store various data */
     void set_params(const Config::Field &conf_lap, const Config::PIC &conf_pic, const double _dt,

@@ -83,7 +83,7 @@ template<int dim>
 void Pic<dim>::update_positions(){
 
     for  (size_t i = 0; i < electrons.parts.size(); ++i){
-        ParticleSpecies::Particle &particle = electrons.parts[i];
+        SuperParticle &particle = electrons.parts[i];
 
         //update position
         particle.pos += particle.vel * dt;
@@ -136,27 +136,26 @@ void Pic<dim>::run_cycle(bool first_time) {
 }
 
 template<int dim>
-void Pic<dim>::write_particles(const string filename, double time) {
+void Pic<dim>::write(const string filename, const double time) const {
     string ftype = get_file_type(filename);
     require(ftype == "xyz" || ftype == "movie", "Invalid file type: " + ftype);
 
+    if (electrons.parts.size() == 0) return;  // Ovito can't handle 0 particles
+
     ofstream out;
-    out.setf(ios::scientific);
-    out.precision(6);
 
     if (ftype == "movie") out.open(filename, ios_base::app);
     else out.open(filename);
     require(out.is_open(), "Can't open a file " + filename);
 
-    out << electrons.parts.size() + 1 << endl;
-    out << "time = " << time << " Interpolator properties=id:I:1:pos:R:3:vel:R:3:cell:I:1" << endl;
+    out << electrons.parts.size() << endl;
+    out << "time=" << time << ", Pic properties=id:I:1:pos:R:3:Velocity:R:3:cell:I:1" << endl;
 
-    for (int i = 0; i < electrons.parts.size();  ++i){
-        ParticleSpecies::Particle &p = electrons.parts[i];
-        out << i << " " << p.pos << " " << p.vel << " " << p.cell << endl;
-    }
+    out.setf(ios::scientific);
+    out.precision(6);
 
-    out << "-1 0.0 0.0 0.0 0.0 0.0 0.0 0" << endl; // always write one dummy particle (ovito crashes with zero parts)
+    for (int i = 0; i < electrons.parts.size();  ++i)
+        out << i << " " << electrons.parts[i] << endl;
 
     out.close();
 }
