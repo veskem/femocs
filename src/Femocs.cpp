@@ -326,26 +326,54 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     int time_subcycle = ceil(dt_main / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
     double dt_pic = dt_main/time_subcycle;
 
+    start_msg(t0, "=== Running PIC...\n");
     pic_solver.set_params(conf.field, conf.pic, dt_pic, mesh->nodes.stat);
 
-    for (int i = 0; i < time_subcycle; i++) {
-        pic_solver.run_cycle(mesh != NULL);
+    int n_lost, n_injected, n_cg_steps;
 
-        start_msg(t0, "=== Extracting E and phi...");
+    for (int i = 0; i < time_subcycle; i++) {
+        n_lost = pic_solver.update_positions();
+        n_cg_steps = pic_solver.run_cycle(i == 0);
+
         fail = vacuum_interpolator.extract_solution(&laplace_solver);
-        end_msg(t0);
+
         // TODO Performance optimization: no need to extract the solution on the whole grid here!
 
         if(!conf.pic.doPIC) break; // stop before injecting particles
         
-        start_msg(t0, "=== Calculating electron emission...");
-        get_emission();
-        end_msg(t0);
+        // Transfer elfield to J & T solver
+        surface_fields.set_preferences(false, 2, 3);
+        surface_fields.transfer_elfield(ch_transient_solver);
 
-        start_msg(t0, "=== Injecting electrons...");
-        pic_solver.inject_electrons(conf.pic.fractional_push);
-        end_msg(t0);
+        // Interpolate J & T on face centroids
+        surface_temperatures.set_preferences(false, 2, 3);
+        surface_temperatures.interpolate(ch_transient_solver);
+
+        // Calculate field emission
+        emission.initialize(mesh);
+        emission.calc_emission(conf.emission, conf.field.V0);
+
+        n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
+
+        write_verbose_msg("# CG steps|injected|deleted electrons: "
+                + to_string(n_cg_steps) + "|" + to_string(n_injected) + "|" + to_string(n_lost));
     }
+    end_msg(t0);
+    pic_solver.write("out/electrons.movie", 0);
+
+    const double norm_avg_field = 2.518780;
+    const double norm_max_field = 302.992500;
+    double avg_field = 0;
+    double max_field = 0;
+    for (Solution s : *vacuum_interpolator.nodes.get_solutions()) {
+        avg_field += s.norm;
+        max_field = max(max_field, s.norm);
+    }
+    avg_field /= vacuum_interpolator.nodes.size();
+
+    write_verbose_msg("avg: calc/norm = " + to_string(avg_field) + "/" + to_string(norm_avg_field) + " = " + to_string(avg_field/norm_avg_field));
+    write_verbose_msg("enhancement: calc/norm = " + to_string(max_field/E0) + "/" + to_string(norm_max_field/E0) + " = " + to_string(max_field/norm_max_field));
+
     return fail;
 
     //7. Save ions and neutrals that are inbound on the MD domain
@@ -474,20 +502,17 @@ int Femocs::solve_stationary_heat() {
 }
 
 void Femocs::get_emission(){
-    start_msg(t0, "=== Transfering elfield to J & T solver...");
+    // Transfer elfield to J & T solver
     surface_fields.set_preferences(false, 2, 3);
     surface_fields.transfer_elfield(ch_transient_solver);
-    end_msg(t0);
 
-    start_msg(t0, "=== Interpolating J & T on face centroids...");
+    // Interpolate J & T on face centroids
     surface_temperatures.set_preferences(false, 2, 3);
     surface_temperatures.interpolate(ch_transient_solver);
-    end_msg(t0);
 
-    start_msg(t0, "=== Calculating field emission...");
+    // Calculate field emission
     emission.initialize(mesh);
     emission.calc_emission(conf.emission, conf.field.V0);
-    end_msg(t0);
 }
 
 // Solve transient heat and continuity equations

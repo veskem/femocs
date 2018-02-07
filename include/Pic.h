@@ -34,7 +34,10 @@ public:
     int inject_electrons(const bool fractional_push);
 
     /** Run an particle and field update cycle */
-    void run_cycle(const bool first_time = false);
+    int run_cycle(const bool first_time = false);
+
+    /** Update the positions of the particles and the cell they belong. */
+    int update_positions();
 
     /** Write the particle data in the current state in movie file */
     void write(const string filename, const double time) const;
@@ -56,35 +59,30 @@ private:
     static constexpr double e_over_m_e_factor = 17.58820024182468;
     /// particle charge [e] / epsilon_0 [e/VÅ] = 1 [e] * (8.85e-12 / 1.6e-19/1e10 [e/VÅ])**-1
     static constexpr double e_over_eps0 = 180.9512268;
-    
+
     double Wsp = .01;   ///< Super particle weighting [particles/superparticle]
     double dt = 1.;     ///< timestep [fs]
     double E0 = -1;     ///< Applied field at Neumann boundary [V/Å]
     double V0 = 1000;   ///< Applied voltage (in case Dirichlet boundary at anode) [V]
     string anodeBC = "Neumann"; ///< Boundary type at the anode
+    bool coll_coulomb_ee;       ///< Switch 2e->2e Coulomb collisions on/off
 
     fch::Laplace<dim> &laplace_solver;      ///< Laplace solver object to solve the Poisson in the vacuum mesh
     fch::CurrentsAndHeating<3> &ch_solver;  ///< transient currents and heating solver
     Interpolator &interpolator;
     EmissionReader &er;                     ///< Object to calculate the emission data
+    TetgenNodes::Stat box;                  ///< simubox size data
 
-    TetgenNodes::Stat box;                  ///< Object containing box data
-
-    bool coll_coulomb_ee;                   ///< Switch 2e->2e Coulomb collisions on/off
-    
     ParticleSpecies electrons = ParticleSpecies(-e_over_m_e_factor, -e_over_eps0, Wsp);
 
     /** Clear all particles out of the box */
     void clear_lost_particles();
 
-    /** Update the positions of the particles and the cell they belong. */
-    void update_positions();
-
     /** Update the velocities on the particles using the fields calculated at the given positions */
     void update_velocities();
 
     /** Computes the charge density for each FEM DOF */
-    void compute_field(bool first_time = false);
+    int compute_field(bool first_time = false);
 };
 
 } // namespace femocs

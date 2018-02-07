@@ -1048,12 +1048,8 @@ void EmissionReader::calc_representative() {
 void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
         vector<Vec3> &efield, vector<int> &cells) {
 
-    const double Amp = 6.2415e3; //[e/fs]
-    int n_tot = 0;
-    Vec3 field;
-
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
-        double current = currents[i] * Amp; // in e/fs
+        double current = currents[i] * electrons_per_fs;
         double charge = current * delta_t; //in e
         double n_sps = charge / Wsp;
 
@@ -1064,11 +1060,11 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
         if ((double) rand() / RAND_MAX < frpart)
             n_electrons_sp++;
 
-        if (n_electrons_sp)
-            field = fields.get_elfield(i);
+        if (n_electrons_sp == 0) continue;
 
         //TODO : fix rng, check probability distribution
 
+        Vec3 field = fields.get_elfield(i);
         int quad = abs(fields.get_marker(i));
         int tri = mesh->quads.to_tri(quad);
         int hex = mesh->quad2hex(quad, TYPES.VACUUM);
@@ -1093,11 +1089,7 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
             efield.push_back(field);
 			cells.push_back(hex);
         }
-
-        n_tot += n_electrons_sp;
     }
-
-    write_verbose_msg("emitted " + to_string(n_tot) + " electrons");
 }
 
 void EmissionReader::emission_cycle(double workfunction, bool blunt){

@@ -254,6 +254,7 @@ private:
      */
     void emission_cycle(double workfunction, bool blunt  = false);
 
+    static constexpr double electrons_per_fs = 6.2415e3; ///< definition of 1 ampere
     static constexpr double angstrom_per_nm = 10.0;
     static constexpr double nm2_per_angstrom2 = 0.01;
     static constexpr int n_lines = 32; ///< Number of points in the line for GETELEC

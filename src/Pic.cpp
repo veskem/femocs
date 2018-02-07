@@ -41,48 +41,41 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
         electrons.inject_particle(positions[i], velocity, cells[i]);
     }
     return fields.size();
-
 }
 
 //Call the laplace solver with the list of positions and charge(s)
 template<int dim>
-void Pic<dim>::compute_field(bool first_time) {
+int Pic<dim>::compute_field(bool first_time) {
 
     //TODO : save system lhs and copy it . don't rebuild it every time
 
-    double t0;
-    start_msg(t0, "\nSetting up system lhs... first_time = " + to_string(first_time));
+    // Set-up system lhs
     laplace_solver.setup_system(first_time);
     if (first_time){
         laplace_solver.assemble_system_lhs();
         laplace_solver.save_system();
-    }else{
+    } else
         laplace_solver.restore_system();
-    }
-    end_msg(t0);
 
-    start_msg(t0, "\nSetting up system RHS and BCs...");
+    // Set-up system RHS and BCs
     laplace_solver.assemble_system_pointcharge(electrons);
     if (anodeBC == "neumann")
         laplace_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top, -E0);
     else if(anodeBC == "dirichlet")
         laplace_solver.assemble_system_dirichlet(fch::BoundaryId::vacuum_top, V0);
     else
-        require(false, "ERROR: anodeBC parameter wrong!! anodeBC = " + anodeBC);
+        require(false, "Invalid anode boundary condition: " + anodeBC);
 
     laplace_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.);
     laplace_solver.assemble_system_finalize();
-    end_msg(t0);
 
-    start_msg(t0, "\nSolving Poisson equation... CG iterations = ");
-    cout << laplace_solver.solve() << " ";
-    end_msg(t0);
+    // solve Poisson equation
+    return laplace_solver.solve();
 }
 
 template<int dim>
-void Pic<dim>::update_positions(){
-
-    for  (size_t i = 0; i < electrons.parts.size(); ++i){
+int Pic<dim>::update_positions() {
+    for  (size_t i = 0; i < electrons.size(); ++i) {
         SuperParticle &particle = electrons.parts[i];
 
         //update position
@@ -92,10 +85,14 @@ void Pic<dim>::update_positions(){
         particle.pos.x = periodic_image(particle.pos.x, box.xmax, box.xmin);
         particle.pos.y = periodic_image(particle.pos.y, box.ymax, box.ymin);
 
-        //Update the cellID; if any particles have left the domain their ID is set to -1
+        // Update the cell ID; if any particles have left the domain their ID is set to -1
         // and they will be removed once we call clear_lost
         particle.cell = interpolator.update_point_cell(particle.pos, particle.cell);
     }
+
+    int n_lost_particles = electrons.clear_lost();
+    electrons.sort();
+    return n_lost_particles;
 }
 
 template<int dim>
@@ -111,28 +108,18 @@ void Pic<dim>::update_velocities(){
 }
 
 template<int dim>
-void Pic<dim>::run_cycle(bool first_time) {
-    double t0;
+int Pic<dim>::run_cycle(bool first_time) {
+    // calculate electric field
+    int n_cg_steps = compute_field(first_time);
 
-    start_msg(t0,"=== Updating PIC particle positions ...");
-    update_positions();
-    electrons.clear_lost();
-    electrons.sort_parts();
-    end_msg(t0);
-
-    start_msg(t0, "=== Calculating electric field ...");
-    compute_field(first_time);
-    end_msg(t0);
-
-    start_msg(t0, "=== Updating the PIC particle velocities ...");
+    // updating the PIC particle velocities
     update_velocities();
-    end_msg(t0);
 
-    start_msg(t0, "=== Colliding PIC particles ...");
-    if (coll_coulomb_ee){
+    // collide PIC particles
+    if (coll_coulomb_ee)
         coll_el_knm_2D(electrons, dt, laplace_solver);
-    }
-    end_msg(t0);
+
+    return n_cg_steps;
 }
 
 template<int dim>
@@ -140,7 +127,7 @@ void Pic<dim>::write(const string filename, const double time) const {
     string ftype = get_file_type(filename);
     require(ftype == "xyz" || ftype == "movie", "Invalid file type: " + ftype);
 
-    if (electrons.parts.size() == 0) return;  // Ovito can't handle 0 particles
+    if (electrons.size() == 0) return;  // Ovito can't handle 0 particles
 
     ofstream out;
 
@@ -148,13 +135,13 @@ void Pic<dim>::write(const string filename, const double time) const {
     else out.open(filename);
     require(out.is_open(), "Can't open a file " + filename);
 
-    out << electrons.parts.size() << endl;
+    out << electrons.size() << endl;
     out << "time=" << time << ", Pic properties=id:I:1:pos:R:3:Velocity:R:3:cell:I:1" << endl;
 
     out.setf(ios::scientific);
     out.precision(6);
 
-    for (int i = 0; i < electrons.parts.size();  ++i)
+    for (int i = 0; i < electrons.size();  ++i)
         out << i << " " << electrons.parts[i] << endl;
 
     out.close();

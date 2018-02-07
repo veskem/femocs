@@ -19,15 +19,17 @@ namespace femocs {
 class ParticleSpecies {
 public:
     ParticleSpecies(double q_ovr_m, double charge, double Wsp);
-    ~ParticleSpecies();
+    ~ParticleSpecies() {};
 
     void inject_particle(const Point3 &pos, const Vec3 &vel, const int cell) {
         parts.push_back(SuperParticle(pos, vel, cell));
     }
 
-    void clear_lost();
+    int clear_lost();
 
-    void sort_parts();
+    void sort();
+
+    int size() const { return parts.size(); }
 
     const double q_over_m_factor; ///< charge/mass [A^2 / (V fs^2)]
     const double q_over_eps0;     ///< (whole) particle charge / eps0 [e/VÅ]
