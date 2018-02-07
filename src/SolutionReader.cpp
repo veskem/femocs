@@ -1046,7 +1046,7 @@ void EmissionReader::calc_representative() {
 }
 
 void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
-        vector<Point3> &efield, vector<int> &cells) {
+        vector<Vec3> &efield, vector<int> &cells) {
 
     const double Amp = 6.2415e3; //[e/fs]
     int n_tot = 0;

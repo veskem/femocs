@@ -2,7 +2,7 @@
  * ParticleSpecies.h
  *
  *  Created on: Jan 30, 2018
- *      Author: andreas
+ *      Author: andreas, Mihkel
  */
 
 #ifndef PARTICLESPECIES_H_
@@ -21,7 +21,7 @@ public:
     ParticleSpecies(double q_ovr_m, double charge, double Wsp);
     ~ParticleSpecies();
 
-    void inject_particle(Point3 _pos, Point3 _vel, int _cell){
+    void inject_particle(Point3 &_pos, Vec3 &_vel, int _cell){
         parts.push_back(Particle{.pos = _pos, .vel = _vel, .cell = _cell});
     }
 
@@ -29,7 +29,7 @@ public:
 
     struct Particle{
         Point3 pos; ///< Particle position [Å]
-        Point3 vel; ///< Particle velocity [Å/fs]
+        Vec3 vel; ///< Particle velocity [Å/fs]
         int cell;   ///< Cell ID, -1 if outside the domain
                     ///< (to be cleared up by ParticleSpecies::clear_lost())
         bool operator < (const Particle &partj) {return (cell < partj.cell);}
@@ -45,9 +45,6 @@ public:
     vector<size_t> ordcount;
 };
 
-} // namespace
+} // namespace femocs
 
-
-
-
-#endif /* INCLUDE_PARTICLESPECIES_H_ */
+#endif /* PARTICLESPECIES_H_ */

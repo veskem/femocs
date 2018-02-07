@@ -223,24 +223,23 @@ public:
 
     void export_emission(fch::CurrentsAndHeating<3>& ch_solver);
 
-    /**
-     * Injects electron SPs at the surface faces, depending on the current and the timestep
-     */
+    /** Injects electron SPs at the surface faces, depending on the current and the timestep */
     void inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
-            vector<Point3> &efield, vector<int> &cells);
+            vector<Vec3> &efield, vector<int> &cells);
 
     /** Initialises class data */
     void initialize(const TetgenMesh* m);
 
-    double get_multiplier() const {return global_data.multiplier;}
-    void set_multiplier(double _multiplier) { global_data.multiplier = _multiplier;}
+    double get_multiplier() const { return global_data.multiplier; }
+
+    void set_multiplier(double _multiplier) { global_data.multiplier = _multiplier; }
 
 private:
     /** Prepares the line inputed to GETELEC.
      *
-     * @param point Starting point of the line
-     * @param direction Direction of the line
-     * @param rmax Maximum distance that the line extends
+     * @param point      Starting point of the line
+     * @param direction  Direction of the line
+     * @param rmax       Maximum distance that the line extends
      */
     void emission_line(const Point3& point, const Vec3& direction, const double rmax);
 
@@ -251,7 +250,7 @@ private:
 
     /**
      * Calculates electron emission distribution for a given configuration (
-     * @param workfunction Input work function.
+     * @param workfunction  Input work function.
      */
     void emission_cycle(double workfunction, bool blunt  = false);
 
@@ -270,8 +269,7 @@ private:
     vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
     vector<double> Vline;   ///< Potential on the straight line (complements rline)
 
-
-    struct EmGlobalData{
+    struct EmGlobalData {
         double multiplier;      ///< Multiplier for the field for Space Charge.
         double Jmax;    ///< Maximum current density of the emitter [in amps/A^2]
         double Fmax = 0.;    ///< Maximum local field on the emitter [V/A]
@@ -279,12 +277,9 @@ private:
         double Jrep = 0.;    ///< Representative current deinsity for space charge. [amps/A^2]
         double I_tot = 0;   ///< Total current running through the surface [in Amps]
         double I_fwhm = 0;
-    }global_data;
+    } global_data;
 
     vector<EmGlobalData> global_data_history;
-
-
-
 };
 
 /** Class to calculate charges from electric field */

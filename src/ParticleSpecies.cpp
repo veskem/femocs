@@ -2,7 +2,7 @@
  * ParticleSpecies.cpp
  *
  *  Created on: Jan 31, 2018
- *      Author: andreas, Kyrre
+ *      Author: andreas, Kyrre, Mihkel
  */
 
 #include "ParticleSpecies.h"
@@ -64,4 +64,4 @@ void ParticleSpecies::sort_parts(){
     }
 }
 
-}
+} // namespace femocs

@@ -120,7 +120,6 @@ int Femocs::run(const double elfield, const string &timestep) {
         generate_mesh();
         prepare_fem();
     }
-//    check_return(reinit(tstep), stream.str());
 
     //****************** RUNNING Field - PIC calculation ********
     skip_meshing = true;
@@ -329,9 +328,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
 
     pic_solver.set_params(conf.field, conf.pic, dt_pic, mesh->nodes.stat);
 
-    //Time loop
     for (int i = 0; i < time_subcycle; i++) {
-
         pic_solver.run_cycle(mesh != NULL);
 
         start_msg(t0, "=== Extracting E and phi...");

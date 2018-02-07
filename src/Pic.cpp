@@ -10,36 +10,35 @@
 
 #include <deal.II/base/tensor.h>
 
+using namespace std;
 namespace femocs {
-
 
 template<int dim>
 Pic<dim>::Pic(fch::Laplace<dim> &laplace_solver, fch::CurrentsAndHeating<3> &ch_solver,
-        Interpolator &interpolator, EmissionReader &er) : ///< Object to read the temperature data) :
-        laplace_solver(laplace_solver), ch_solver(ch_solver), interpolator(interpolator), er(er){}
-
-template<int dim>
-Pic<dim>::~Pic() {}
+        Interpolator &interpolator, EmissionReader &er) :
+        laplace_solver(laplace_solver), ch_solver(ch_solver), interpolator(interpolator), er(er),
+        coll_coulomb_ee(false) {}
 
 template<int dim>
 int Pic<dim>::inject_electrons(const bool fractional_push) {
-    vector<Point3> positions, fields;
+    vector<Point3> positions;
+    vector<Vec3> fields;
     vector<int> cells;
     er.inject_electrons(dt, Wsp, positions, fields, cells);
 
-    Point3 velocity0(0,0,0);
+    Vec3 velocity(0);
 
     for (int i = 0; i < fields.size(); ++i){
         // Random fractional timestep push -- from a random point [t_(k-1),t_k] to t_k, t_(k + 1/2), using field at t_k.
         if (fractional_push) {
-            velocity0 = fields[i] * electrons.q_over_m_factor * dt * ( (double)std::rand()/ RAND_MAX +.5 );
-            positions[i] += velocity0 * dt * ( (double)std::rand()/ RAND_MAX );
-        }else{
-            velocity0 = fields[i] * (electrons.q_over_m_factor * dt * .5);
+            velocity = fields[i] * electrons.q_over_m_factor * dt * ( (double)rand()/ RAND_MAX +.5 );
+            positions[i] += velocity * dt * ( (double)rand()/ RAND_MAX );
+        } else {
+            velocity = fields[i] * (electrons.q_over_m_factor * dt * .5);
         }
 
         // Save to particle arrays
-        electrons.inject_particle(positions[i], velocity0, cells[i]);
+        electrons.inject_particle(positions[i], velocity, cells[i]);
     }
     return fields.size();
 
@@ -80,7 +79,6 @@ void Pic<dim>::compute_field(bool first_time) {
     end_msg(t0);
 }
 
-
 template<int dim>
 void Pic<dim>::update_positions(){
 
@@ -100,20 +98,15 @@ void Pic<dim>::update_positions(){
     }
 }
 
-
 template<int dim>
 void Pic<dim>::update_velocities(){
-
     //update field
     for (auto particle : electrons.parts) {
         dealii::Point<dim> p(particle.pos.x, particle.pos.y, particle.pos.z);
         dealii::Tensor<1,dim> Efield = laplace_solver.probe_efield(p, particle.cell) ;
-        dealii::Point<dim> F(Efield);
-        Point3 Field(F);
 
         //update velocities (corresponds to t + .5dt)
-        particle.vel += Field * (dt * electrons.q_over_m_factor) ;
-
+        particle.vel += Vec3(Efield) * (dt * electrons.q_over_m_factor) ;
     }
 }
 
@@ -144,26 +137,23 @@ void Pic<dim>::run_cycle(bool first_time) {
 
 template<int dim>
 void Pic<dim>::write_particles(const string filename, double time) {
+    string ftype = get_file_type(filename);
+    require(ftype == "xyz" || ftype == "movie", "Invalid file type: " + ftype);
 
-    // dummy electron always added in the end (to avoid empty electrons crashing ovito)
     ofstream out;
-    out.setf(std::ios::scientific);
+    out.setf(ios::scientific);
     out.precision(6);
 
-    string ftype = get_file_type(filename);
     if (ftype == "movie") out.open(filename, ios_base::app);
     else out.open(filename);
     require(out.is_open(), "Can't open a file " + filename);
-
-    cout << "writing particles to " + filename << " n_size = " << electrons.parts.size() << endl;
 
     out << electrons.parts.size() + 1 << endl;
     out << "time = " << time << " Interpolator properties=id:I:1:pos:R:3:vel:R:3:cell:I:1" << endl;
 
     for (int i = 0; i < electrons.parts.size();  ++i){
         ParticleSpecies::Particle &p = electrons.parts[i];
-        out << i << " " << p.pos.x << " " << p.pos.y << " " << p.pos.z << " " <<
-        p.vel.x << " " << p.vel.y << " " << p.vel.z << " " << p.cell << endl;
+        out << i << " " << p.pos << " " << p.vel << " " << p.cell << endl;
     }
 
     out << "-1 0.0 0.0 0.0 0.0 0.0 0.0 0" << endl; // always write one dummy particle (ovito crashes with zero parts)
@@ -174,4 +164,5 @@ void Pic<dim>::write_particles(const string filename, double time) {
 //Tell the compiler which types to actually compile, so that they are available for the linker
 //template class Pic<2>;
 template class Pic<3>;
-}
+
+} // namespace femocs
