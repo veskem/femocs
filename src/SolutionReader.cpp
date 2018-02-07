@@ -1316,7 +1316,7 @@ void ChargeReader::set_check_params(const double Q_tot, const double limit_min, 
  * ========================================== */
 
 ForceReader::ForceReader(Interpolator* i) :
-        SolutionReader(i, "force", "force_norm", "charge") {}
+        SolutionReader(i, "force", "pair_potential", "charge") {}
 
 int ForceReader::get_nanotip(Medium& nanotip, const double radius) {
     const int n_atoms = size();
@@ -1461,7 +1461,7 @@ void ForceReader::calc_charge_and_lorentz(const VoronoiMesh& mesh, const FieldRe
                 }
             }
             charge *= eps0;
-            interpolation[i] = Solution(field * charge, charge);
+            interpolation[i] = Solution(field * charge, 0, charge);
         }
 }
 
@@ -1480,7 +1480,7 @@ void ForceReader::calc_lorentz(const FieldReader &fields) {
     // calculate forces and store them
     for (int i = 0; i < n_atoms; ++i) {
         Vec3 force = fields.get_elfield(i) * (charges[i] * force_factor);   // [e*V/A]
-        interpolation.push_back(Solution(force, charges[i]));
+        interpolation.push_back(Solution(force, 0, charges[i]));
     }
 }
 
@@ -1519,16 +1519,18 @@ void ForceReader::calc_coulomb(const double r_cut) {
                     while(j >= 0) {
                         // avoid double looping over atom-pairs
                         if (i < j) {
-                            // TODO double check the sign of the force
                             Vec3 displacement = point - get_point(j);
                             const double r_squared = displacement.norm2();
                             if (r_squared <= r_cut2) {
                                 double r = sqrt(r_squared);
-                                double force_norm = exp(-q_screen * r) * couloumb_constant *
-                                        get_charge(i) * get_charge(j) / r_squared;
-                                Vec3 force = displacement * (force_norm / r);
+                                double V = exp(-q_screen * r) * couloumb_constant *
+                                        get_charge(i) * get_charge(j) / r;
+
+                                Vec3 force = displacement * (V / r_squared);
                                 interpolation[i].vector += force;
                                 interpolation[j].vector -= force;
+                                interpolation[i].norm += 0.5 * V;
+                                interpolation[j].norm += 0.5 * V;
                             }
                         }
                         j = list[j];
@@ -1537,9 +1539,6 @@ void ForceReader::calc_coulomb(const double r_cut) {
             }
         }
     }
-
-    for (int i = 0; i < n_atoms; ++i)
-        interpolation[i].norm = interpolation[i].vector.norm();
 }
 
 void ForceReader::distribute_charges(const FieldReader &fields, const ChargeReader& faces,
@@ -1629,7 +1628,7 @@ void ForceReader::export_force_and_pairpot(const int n_atoms, double* xnp, doubl
         int id = get_id(i);
         if (id < 0 || id >= n_atoms) continue;
 
-        double V = 0.5 * interpolation[i].scalar;
+        double V = interpolation[i].norm;
         Epair[id] += V;
         Vpair[0] += V;
 
@@ -1638,21 +1637,6 @@ void ForceReader::export_force_and_pairpot(const int n_atoms, double* xnp, doubl
         for (int j = 0; j < 3; ++j)
             xnp[id+j] += force[j] / box[j];
     }
-}
-
-Vec3 ForceReader::get_force(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].vector;
-}
-
-double ForceReader::get_force_norm(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].norm;
-}
-
-double ForceReader::get_charge(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].scalar;
 }
 
 } // namespace femocs

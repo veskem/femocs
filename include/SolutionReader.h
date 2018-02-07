@@ -343,14 +343,23 @@ public:
      */
     void export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const;
 
-    /** Return force vector in the location of i-th point */
-    Vec3 get_force(const int i) const;
+    /** Return the force that is applied to i-th atom */
+    Vec3 get_force(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].vector;
+    }
 
-    /** Return force norm in the location of i-th point */
-    double get_force_norm(const int i) const;
+    /** Return pair potential of i-th atom */
+    double get_pairpot(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].norm;
+    }
 
-    /** Return surface charge in the location of i-th point */
-    double get_charge(const int i) const;
+    /** Return the charge of i-th atom */
+    double get_charge(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].scalar;
+    }
 
 private:
     static constexpr double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
