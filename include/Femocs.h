@@ -107,6 +107,15 @@ public:
      */
     int export_charge_and_force(const int n_atoms, double* xq);
 
+    /** Export Laplace + Coulomb force and pair potential on imported atoms
+     * @param n_atoms  number of first atoms the data will be exported
+     * @param xnp      forces in PARCAS format & units (xnp[0] = Fx1, xnp[1] = Fy1, xnp[2] = Fz1, xnp[3] = Fx2 etc)
+     * @param Epair    potential energy per atom
+     * @param Vpair    total potential energy of atoms. Pot. due to Coloumb forces are added here. NOTE: Lorentz is missing!
+     * @return         success of the operation (always 0)
+     */
+    int export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair);
+
     /** Function to linearly interpolate electric field at points anywhere in space
      * @param n_points  number of points where electric field is interpolated; n_points <= 0 turns the interpolation off
      * @param x         x-coordinates of the points of interest

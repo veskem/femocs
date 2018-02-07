@@ -11,7 +11,6 @@
 #include "Tethex.h"
 #include "TetgenMesh.h"
 #include "VoronoiMesh.h"
-#include "Medium.h"
 
 #include <omp.h>
 #include <algorithm>
@@ -102,6 +101,8 @@ int Femocs::run(const double elfield, const string &timestep) {
     stringstream parser, stream;
     stream << fixed << setprecision(3);
 
+    double tstart = omp_get_wtime();
+
     // convert message to integer time step
     int tstep;
     parser << timestep;
@@ -122,7 +123,6 @@ int Femocs::run(const double elfield, const string &timestep) {
 //    check_return(reinit(tstep), stream.str());
 
     //****************** RUNNING Field - PIC calculation ********
-    double tstart = omp_get_wtime();
     skip_meshing = true;
 
     if (solve_pic(elfield, max(delta_t_MD * 1.e15, conf.pic.total_time))) {
@@ -650,7 +650,7 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
 
             if (conf.run.cluster_anal) {
                 start_msg(t0, "=== Performing cluster analysis...");
-                reader.calc_clusters(conf.geometry.nnn, conf.geometry.cluster_cutoff, conf.geometry.coordination_cutoff);
+                reader.calc_clusters(conf.geometry.cluster_cutoff, conf.geometry.coordination_cutoff);
                 end_msg(t0);
                 reader.check_clusters(1);
             }
@@ -826,22 +826,39 @@ int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
                 conf.smoothing.beta_charge);
         end_msg(t0);
 
-        start_msg(t0, "=== Calculating Voronoi charges & forces...");
+        start_msg(t0, "=== Generating Voronoi cells...");
         VoronoiMesh voro_mesh;
         int err_code;
-        err_code = forces.calc_voronoi_charges(voro_mesh, atom2face, fields, conf.geometry.radius, conf.geometry.latconst, "10.0");
-        check_return(err_code, "Generation of Voronoi cells failed with error code " + to_string(err_code));
+        err_code = forces.calc_voronois(voro_mesh, atom2face, conf.geometry.radius, conf.geometry.latconst, "10.0");
         end_msg(t0);
 
+        check_return(err_code, "Generation of Voronoi cells failed with error code " + to_string(err_code));
         voro_mesh.nodes.write("out/voro_nodes.vtk");
         voro_mesh.voros.write("out/voro_cells.vtk");
         voro_mesh.vfaces.write("out/voro_faces.vtk");
+
+        start_msg(t0, "=== Calculating Lorentz & Coulomb force...");
+        forces.calc_charge_and_lorentz(voro_mesh, fields);
+        forces.calc_coulomb(conf.geometry.charge_cutoff);
+        end_msg(t0);
+
         forces.write("out/forces.movie");
         check_return(face_charges.check_limits(forces.get_interpolations()), "Voronoi charges are not conserved!");
     }
 
     start_msg(t0, "=== Exporting atomic charges & forces...");
-    forces.export_force(n_atoms, xq);
+    forces.export_charge_and_force(n_atoms, xq);
+    end_msg(t0);
+
+    return 0;
+}
+
+int Femocs::export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) {
+    if (n_atoms < 0) return 0;
+    check_return(forces.size() == 0, "No force to export!");
+
+    start_msg(t0, "=== Exporting atomic forces...");
+    forces.export_force_and_pairpot(n_atoms, xnp, Epair, Vpair);
     end_msg(t0);
 
     return 0;

@@ -35,6 +35,7 @@ void write_defaults(ofstream &file) {
     file << "clean_surface = true"    << endl;
     file << "surface_thickness = 3.1"    << endl;
     file << "coord_cutoff = 3.1"         << endl;
+    file << "charge_cutoff = 30"        << endl;
     file << "latconst = 3.61"            << endl;
     file << "femocs_verbose_mode = verbose" << endl;
     file << "smooth_steps = 3"           << endl;

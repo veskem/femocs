@@ -112,8 +112,6 @@ protected:
     void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
 
     Solution get_average_solution(const int I, const double r_cut);
-
-    int get_nanotip(Medium& nanotip, vector<bool>& atom_in_nanotip, const double radius);
 };
 
 /** Class to extract solution from DealII calculations */
@@ -330,73 +328,66 @@ public:
     void distribute_charges(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor);
 
-    void calc_forces(const FieldReader &fields);
+    void calc_lorentz(const FieldReader &fields);
 
-    int calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom2surf, const FieldReader& fields,
-             const double radius, const double latconst, const string& mesh_quality);
+    /** Build Voronoi cells around the atoms in the region of interest */
+    int calc_voronois(VoronoiMesh& mesh, const vector<int>& atom2face,
+            const double radius, const double latconst, const string& mesh_quality);
+
+    /** Calculate atomistic charges and Lorentz forces by using the Voronoi cells */
+    void calc_charge_and_lorentz(const VoronoiMesh& mesh, const FieldReader& fields);
+
+    /** Using the previously found surface charge, calculate Coulomb forces between atoms */
+    void calc_coulomb(const double r_cut);
 
     /** Export the induced charge and force on imported atoms
-     * @param n_atoms  number of first atoms field is calculated
+     * @param n_atoms  number of first atoms the data will be exported
      * @param xq       charge and force in PARCAS format (xq[0] = q1, xq[1] = Fx1, xq[2] = Fy1, xq[3] = Fz1, xq[4] = q2, xq[5] = Fx2 etc)
      */
-    void export_force(const int n_atoms, double* xq);
+    void export_charge_and_force(const int n_atoms, double* xq) const;
 
-    /** Return force vector in the location of i-th point */
-    Vec3 get_force(const int i) const;
+    /** Export Laplace + Coulomb force and pair potential on imported atoms
+     * @param n_atoms  number of first atoms the data will be exported
+     * @param xnp      forces in PARCAS format & units (xnp[0] = Fx1, xnp[1] = Fy1, xnp[2] = Fz1, xnp[3] = Fx2 etc)
+     * @param Epair    potential energy per atom
+     * @param Vpair    total potential energy of atoms. Pot. due to Coloumb forces are added here. NOTE: Lorentz is missing!
+     */
+    void export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const;
 
-    /** Return force norm in the location of i-th point */
-    double get_force_norm(const int i) const;
+    /** Return the force that is applied to i-th atom */
+    Vec3 get_force(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].vector;
+    }
 
-    /** Return surface charge in the location of i-th point */
-    double get_charge(const int i) const;
+    /** Return pair potential of i-th atom */
+    double get_pairpot(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].norm;
+    }
+
+    /** Return the charge of i-th atom */
+    double get_charge(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].scalar;
+    }
 
 private:
-    const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
-    const double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
+    static constexpr double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
+    static constexpr double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
+    static constexpr double couloumb_constant = 14.399645; ///< force factor in Couloumb's law [V*A/e], == 1 / (4*pi*eps0)
+
+    /** Screening factor for Coulomb force.
+     * For details see Djurabekova et al, 2011, Physical Review E, 83(2), p.026704 */
+    static constexpr double q_screen = 0.6809;
 
     /** Remove cells with too big faces*/
     void clean_voro_faces(VoronoiMesh& mesh);
 
-    int calc_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip, const vector<int>& atom2face,
-            const double radius, const double latconst, const string& mesh_quality);
+    /** Separate cylindrical region from substrate region */
+    int get_nanotip(Medium& nanotip, const double radius);
 };
-/*
-class CoulombReader: public SolutionReader {
-public:
 
-    void qforces(
-            const double* x0,     ///< Atom positions (parcas units)
-            double* xnp,          ///<  Forces on atoms (parcas units)
-            const double* _box,   ///<  Simulation box size (Å)
-            const double* pbc,    ///<  Periodic boundaries
-            double* Epair,        ///<  Potential energy per atom
-            const double* xq,     ///<  Charges on atoms (unit charges) and Lorentz force components
-            double Vpair,         ///<  Total potential energy of atoms. Pot. due to Coloumb forces are added here. NOTE: Lorentz is missing!
-            double Vqq,           ///<  Potnetial energy due to coloumb interaction
-            const double qrcut,   ///<  Cut-off for Coloumb force
-            const double qscreen, ///<  Screening factor for Coulomb force
-            const int natoms      ///<  Number of atoms
-            );
-
-private:
-    /// Divide system into cells to ease force calculation. First number in 4th column is number of atoms.
-    array<vector<int>,4> neigh_cells;
-    array<double,3> neigh_cell_size;
-    array<int,3> ncell; // How many cells we have
-    Vec3 box;
-
-    int max_in_cell, imxmax, imymax, imzmax;
-
-    void init(vector<int>& charged, double* xnp, const double* xq,
-            const double* _box, const double* pbc, const double qrcut, const int natoms);
-
-    void calc_nborlist(const vector<int>& charged, const double* x0);
-
-    inline bool check_limits(Vec3& xx, array<double,3>& cellc,
-            array<int,3>& nei, array<int,3>& ncell, array<int,3>& cell, int inei, int i);
-
-};
-//*/
 } // namespace femocs
 
 #endif /* SOLUTIONREADER_H_ */

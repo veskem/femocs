@@ -342,30 +342,6 @@ bool SolutionReader::clean(const double r_cut, const bool use_hist_clean) {
     return fail;
 }
 
-// Separate cylindrical region from substrate region
-int SolutionReader::get_nanotip(Medium& nanotip, vector<bool>& atom_in_nanotip, const double radius) {
-    const int n_atoms = size();
-    const double radius2 = radius * radius;
-    Medium::calc_statistics();
-
-    // Make map for atoms in nanotip
-    Point2 centre(sizes.xmid, sizes.ymid);
-    atom_in_nanotip = vector<bool>(n_atoms);
-    for (int i = 0; i < n_atoms; ++i)
-        atom_in_nanotip[i] = centre.distance2(get_point2(i)) <= radius2;
-
-    const int n_nanotip_atoms = vector_sum(atom_in_nanotip);
-
-    // Separate nanotip from substrate
-    nanotip.reserve(n_nanotip_atoms);
-    for (int i = 0; i < n_atoms; ++i)
-        if (atom_in_nanotip[i])
-            nanotip.append(Atom(i, get_point(i), TYPES.SURFACE));
-
-    nanotip.calc_statistics();
-    return n_nanotip_atoms;
-}
-
 // Initialise statistics about the solution
 void SolutionReader::init_statistics() {
     Medium::init_statistics();
@@ -931,7 +907,6 @@ void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver) {
     calc_interpolation();
 }
 
-
 // Export interpolated temperature
 void HeatReader::export_temperature(const int n_atoms, double* T) {
     if (n_atoms <= 0) return;
@@ -1338,7 +1313,33 @@ void ChargeReader::set_check_params(const double Q_tot, const double limit_min, 
  * ========================================== */
 
 ForceReader::ForceReader(Interpolator* i) :
-        SolutionReader(i, "force", "force_norm", "charge") {}
+        SolutionReader(i, "force", "pair_potential", "charge") {}
+
+int ForceReader::get_nanotip(Medium& nanotip, const double radius) {
+    const int n_atoms = size();
+    const double radius2 = radius * radius;
+    Medium::calc_statistics();
+
+    // Make map for atoms in nanotip
+    Point2 centre(sizes.xmid, sizes.ymid);
+    vector<bool> atom_in_nanotip(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        atom_in_nanotip[i] = centre.distance2(get_point2(i)) <= radius2;
+
+    const int n_nanotip_atoms = vector_sum(atom_in_nanotip);
+
+    // Separate nanotip from substrate
+    nanotip.reserve(n_nanotip_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        if (atom_in_nanotip[i]) {
+            nanotip.append(Atom(i, get_point(i), TYPES.SURFACE));
+            set_marker(i, 1);
+        } else
+            set_marker(i, 0);
+
+    nanotip.calc_statistics();
+    return n_nanotip_atoms;
+}
 
 void ForceReader::clean_voro_faces(VoronoiMesh& mesh) {
     const int nanotip_end = mesh.nodes.indxs.surf_end;
@@ -1380,8 +1381,8 @@ void ForceReader::clean_voro_faces(VoronoiMesh& mesh) {
 
 }
 
-int ForceReader::calc_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip,
-        const vector<int>& atom2face, const double radius, const double latconst, const string& mesh_quality)
+int ForceReader::calc_voronois(VoronoiMesh& mesh, const vector<int>& atom2face,
+        const double radius, const double latconst, const string& mesh_quality)
 {
     require(interpolator, "NULL interpolator cannot be used!");
     const int n_atoms = size();
@@ -1391,32 +1392,26 @@ int ForceReader::calc_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip,
     const double shift_distance = 1.0 * latconst;
 
     Medium nanotip;
-    const int n_nanotip_atoms = get_nanotip(nanotip, atom_in_nanotip, radius);
+    const int n_nanotip_atoms = get_nanotip(nanotip, radius);
 
     // calculate support points for the nanotip
     // by moving the nanotip points in direction of its corresponding triangle norm by r_cut
     Medium support(n_nanotip_atoms);
     int face = 0;
     for (int i = 0; i < n_atoms; ++i)
-        if (atom_in_nanotip[i]) {
+        if (get_marker(i)) {
             Point3 point = get_point(i);
-            if (faces_known)
-                face = atom2face[i];
-            else if (rank == 1)
-                face = abs( interpolator->lintris.locate_cell(point, face) );
-            else if (rank == 2)
-                face = abs( interpolator->quadtris.locate_cell(point, face) );
+            if (faces_known) face = atom2face[i];
+            else face = abs( interpolator->lintris.locate_cell(point, face) );
 
             if (interpolator->lintris.fast_distance(point, face) < max_distance_from_surface) {
-                Vec3 shift = interpolator->lintris.get_norm(face) * shift_distance;
-                point += Point3(shift.x, shift.y, shift.z);
+                point += interpolator->lintris.get_norm(face) * shift_distance;
                 support.append(Atom(i, point, TYPES.VACANCY));
             }
         }
 
     nanotip += support;
     nanotip.calc_statistics();
-    nanotip.write("out/nanotip.xyz");
 
     // Generate Voronoi cells around the nanotip
     // r - reconstruct, v - output Voronoi cells, Q - quiet, q - mesh quality
@@ -1426,26 +1421,12 @@ int ForceReader::calc_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip,
     // Clean the mesh from faces and cells that have node in the infinity
     mesh.clean();
 
-    // Save the location of nanotip and support atoms to speed up later calculations
-    mesh.nodes.save_indices(n_nanotip_atoms, 0, support.size());
-
-    return 0;
-}
-
-int ForceReader::calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom2face, const FieldReader& fields,
-         const double radius, const double latconst, const string& mesh_quality)
-{
-    // Extract nanotip and generate Voronoi cells around it
-    vector<bool> atom_in_nanotip;
-    int err_code = calc_voronois(mesh, atom_in_nanotip, atom2face, radius, latconst, mesh_quality);
-    if (err_code) return err_code;
-
-    const int nanotip_end = mesh.nodes.indxs.surf_end;
-    const int support_start = mesh.nodes.indxs.vacuum_start;
-    const int support_end = mesh.nodes.indxs.vacuum_end;
-
     require(mesh.nodes.size() > 0, "Empty Voronoi mesh cannot be handled!");
     require(mesh.voros.size() > 0, "Empty Voronoi mesh cannot be handled!");
+
+    const int nanotip_end = n_nanotip_atoms - 1;
+    const int support_start = n_nanotip_atoms;
+    const int support_end = n_nanotip_atoms + support.size() - 1;
 
     // specify the location of Voronoi faces
     for (int cell = 0; cell <= nanotip_end; ++cell)
@@ -1459,13 +1440,14 @@ int ForceReader::calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom
                 mesh.vfaces.set_marker(face.id, TYPES.NONE);
         }
 
-    // remove too big surface faces
-//    clean_voro_faces(mesh);
+    return 0;
+}
 
-    // calculate charge on Voronoi cell
+void ForceReader::calc_charge_and_lorentz(const VoronoiMesh& mesh, const FieldReader& fields) {
+    const int n_atoms = size();
     int cell = -1;
-    for (int i = 0; i < size(); ++i)
-        if (atom_in_nanotip[i]) {
+    for (int i = 0; i < n_atoms; ++i)
+        if (get_marker(i)) {
             Vec3 field = fields.get_elfield(i);
             double charge = 0;
             for (VoronoiFace face : mesh.voros[++cell]) {
@@ -1476,14 +1458,12 @@ int ForceReader::calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom
                 }
             }
             charge *= eps0;
-            interpolation[i] = Solution(field * charge, charge);
+            interpolation[i] = Solution(field * charge, 0, charge);
         }
-
-    return 0;
 }
 
 // Calculate forces from atomic electric fields and face charges
-void ForceReader::calc_forces(const FieldReader &fields) {
+void ForceReader::calc_lorentz(const FieldReader &fields) {
     const int n_atoms = fields.size();
 
     // Copy the atom data
@@ -1497,11 +1477,67 @@ void ForceReader::calc_forces(const FieldReader &fields) {
     // calculate forces and store them
     for (int i = 0; i < n_atoms; ++i) {
         Vec3 force = fields.get_elfield(i) * (charges[i] * force_factor);   // [e*V/A]
-        interpolation.push_back(Solution(force, charges[i]));
+        interpolation.push_back(Solution(force, 0, charges[i]));
     }
 }
 
-// Calculate forces from atomic electric fields and face charges
+void ForceReader::calc_coulomb(const double r_cut) {
+    const double r_cut2 = r_cut * r_cut;
+    const int n_atoms = size();
+
+    // it is more efficinet to calculate forces from linked list than from neighbour list,
+    // as in that ways it is possible to avoid double calculation of the distances
+    calc_linked_list(r_cut);
+    require(list.size() == n_atoms, "Invalid linked list size: " + to_string(list.size()));
+    require(head.size() == nborbox_size[0]*nborbox_size[1]*nborbox_size[2],
+            "Invalid linked list header size: " + to_string(head.size()));
+
+    // loop through the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        array<int,3> i_atom = nborbox_indices[i];
+        Point3 point = atoms[i].point;
+
+        // loop through the boxes where the neighbours are located; there are up to 3^3=27 boxes
+        // no periodicity needed, as the charge on simubox boundary is very small
+        for (int iz = i_atom[2]-1; iz <= i_atom[2]+1; ++iz) {
+            // some of the iterations are be skipped if the box is on simubox boundary
+            if (iz < 0 || iz >= nborbox_size[2]) continue;
+            for (int iy = i_atom[1]-1; iy <= i_atom[1]+1; ++iy) {
+                if (iy < 0 || iy >= nborbox_size[1]) continue;
+                for (int ix = i_atom[0]-1; ix <= i_atom[0]+1; ++ix) {
+                    if (ix < 0 || ix >= nborbox_size[0]) continue;
+
+                    // transform volumetric neighbour box index to linear one
+                    int i_cell = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
+                    require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + to_string(i_cell));
+
+                    // get the index of first atom in given neighbouring cell and loop through neighbours
+                    int j = head[i_cell];
+                    while(j >= 0) {
+                        // avoid double looping over atom-pairs
+                        if (i < j) {
+                            Vec3 displacement = point - get_point(j);
+                            const double r_squared = displacement.norm2();
+                            if (r_squared <= r_cut2) {
+                                double r = sqrt(r_squared);
+                                double V = exp(-q_screen * r) * couloumb_constant *
+                                        get_charge(i) * get_charge(j) / r;
+
+                                Vec3 force = displacement * (V / r_squared);
+                                interpolation[i].vector += force;
+                                interpolation[j].vector -= force;
+                                interpolation[i].norm += 0.5 * V;
+                                interpolation[j].norm += 0.5 * V;
+                            }
+                        }
+                        j = list[j];
+                    }
+                }
+            }
+        }
+    }
+}
+
 void ForceReader::distribute_charges(const FieldReader &fields, const ChargeReader& faces,
         const double r_cut, const double smooth_factor) {
 
@@ -1562,8 +1598,7 @@ void ForceReader::distribute_charges(const FieldReader &fields, const ChargeRead
     histogram_clean(4, r_cut);  // clean by scalar
 }
 
-// Export the induced charge and force on imported atoms
-void ForceReader::export_force(const int n_atoms, double* xq) {
+void ForceReader::export_charge_and_force(const int n_atoms, double* xq) const {
     if (n_atoms <= 0) return;
 
     // Initially pass the zero force and charge for all the atoms
@@ -1582,19 +1617,23 @@ void ForceReader::export_force(const int n_atoms, double* xq) {
     }
 }
 
-Vec3 ForceReader::get_force(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].vector;
-}
+void ForceReader::export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const {
+    if (n_atoms <= 0) return;
+    Vec3 box(sizes.xbox, sizes.ybox, sizes.zbox);
 
-double ForceReader::get_force_norm(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].norm;
-}
+    for (int i = 0; i < size(); ++i) {
+        int id = get_id(i);
+        if (id < 0 || id >= n_atoms) continue;
 
-double ForceReader::get_charge(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].scalar;
+        double V = interpolation[i].norm;
+        Epair[id] += V;
+        Vpair[0] += V;
+
+        id *= 3;
+        Vec3 force = interpolation[i].vector;
+        for (int j = 0; j < 3; ++j)
+            xnp[id+j] += force[j] / box[j];
+    }
 }
 
 } // namespace femocs

@@ -143,6 +143,18 @@ module libfemocs
             real(c_double) :: xq(*)
         end subroutine
         
+        subroutine femocs_export_force_and_pairpot_c(femocs, retval, n_atoms, xnp, Epair, Vpair) &
+                                                 bind(C, name="femocs_export_force_and_pairpot")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
+            integer(c_int), value :: n_atoms
+            real(c_double) :: xnp(*)
+            real(c_double) :: Epair(*)
+            real(c_double) :: Vpair
+        end subroutine
+
         subroutine femocs_interpolate_elfield_c(femocs, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag) &
                                                  bind(C, name="femocs_interpolate_elfield")
             use iso_c_binding
@@ -248,13 +260,14 @@ module libfemocs
         procedure :: export_elfield => femocs_export_elfield
         procedure :: export_temperature => femocs_export_temperature
         procedure :: export_charge_and_force => femocs_export_charge_and_force
+        procedure :: export_force_and_pairpot => femocs_export_force_and_pairpot
         procedure :: interpolate_elfield => femocs_interpolate_elfield
         procedure :: interpolate_surface_elfield => femocs_interpolate_surface_elfield
         procedure :: interpolate_phi => femocs_interpolate_phi
         procedure :: parse_int => femocs_parse_int
         procedure :: parse_double => femocs_parse_double
         procedure :: parse_string => femocs_parse_string
-    end type       
+    end type
         
     ! This function will act as the constructor for femocs type
     interface femocs
@@ -439,7 +452,19 @@ module libfemocs
         real(c_double) :: xq(*)
         call femocs_export_charge_and_force_c(this%ptr, retval, n_atoms, xq)
     end subroutine
-        
+
+    subroutine femocs_export_force_and_pairpot(this, retval, n_atoms, xnp, Epair, Vpair)
+        implicit none
+        class(femocs), intent(in) :: this
+        type(c_ptr), intent(in), value :: femocs
+        integer(c_int) :: retval
+        integer(c_int), value :: n_atoms
+        real(c_double) :: xnp(*)
+        real(c_double) :: Epair(*)
+        real(c_double) :: Vpair
+        call femocs_export_force_and_pairpot_c(this%ptr, retval, n_atoms, xnp, Epair, Vpair)
+    end subroutine
+
     subroutine femocs_interpolate_elfield(this, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag)
         implicit none
         class(femocs), intent(in) :: this

@@ -42,6 +42,8 @@ void femocs_export_temperature(FEMOCS* femocs, int* retval, int n_atoms, double*
 
 void femocs_export_charge_and_force(FEMOCS* femocs, int* retval, int n_atoms, double* xq);
 
+void femocs_export_force_and_pairpot(FEMOCS* femocs, int* retval, int n_atoms, double* xnp, double* Epair, double* Vpair);
+
 void femocs_interpolate_elfield(FEMOCS* femocs, int* retval, int n_points, double* x, double* y,
         double* z, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 

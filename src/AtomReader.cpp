@@ -92,41 +92,6 @@ void AtomReader::calc_nborlist(const int nnn, const double r_cut, const int* par
     }
 }
 
-// Calculate list of close neighbours using brute force technique
-void AtomReader::calc_nborlist(const int nnn, const double r_cut) {
-    require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
-    require(nnn > 0, "Invalid # nearest neighbours: " + to_string(nnn));
-
-    const int n_atoms = size();
-    const double r_cut2 = r_cut * r_cut;
-
-    // Initialise list of closest neighbours
-    nborlist = vector<vector<int>>(n_atoms);
-    for (int i = 0; i < n_atoms; ++i)
-        nborlist[i].reserve(nnn);
-
-    int percentage = 0;
-    if (MODES.VERBOSE) cout << endl;
-
-    // Loop through all the atoms
-    for (int i = 0; i < n_atoms - 1; ++i) {
-        // show the progress (for big systems the calculation may take a lot of time)
-        if (MODES.VERBOSE && i % (n_atoms / 44) == 0) {
-            cout << "\r" << string(percentage, '*') << string(44-percentage, ' ') << " " << flush;
-            percentage++;
-        }
-
-        Point3 point1 = get_point(i);
-        // Loop through all the possible neighbours of the atom
-        for (int j = i + 1; j < n_atoms; ++j) {
-            if ( r_cut2 >= point1.periodic_distance2(get_point(j), sizes.xbox, sizes.ybox) ) {
-                nborlist[i].push_back(j);
-                nborlist[j].push_back(i);
-            }
-        }
-    }
-}
-
 // Calculate list of close neighbours using already existing list with >= cut-off radius
 void AtomReader::recalc_nborlist(const double r_cut) {
     require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
@@ -180,7 +145,7 @@ void AtomReader::calc_coordinations(const int nnn, const double coord_cutoff, co
 void AtomReader::calc_coordinations(int& nnn, double& latconst, double& coord_cutoff) {
     const double rdf_cutoff = 2.0 * latconst;
 
-    calc_nborlist(nnn, rdf_cutoff);
+    calc_verlet_nborlist(nborlist, rdf_cutoff, true);
     calc_rdf(nnn, latconst, coord_cutoff, 200, rdf_cutoff);
 
     require(coord_cutoff <= rdf_cutoff, "Invalid cut-off: " + to_string(coord_cutoff));
@@ -191,7 +156,7 @@ void AtomReader::calc_coordinations(int& nnn, double& latconst, double& coord_cu
 
 // Calculate coordination for all the atoms using neighbour list
 void AtomReader::calc_coordinations(const int nnn, const double r_cut) {
-    calc_nborlist(nnn, r_cut);
+    calc_verlet_nborlist(nborlist, r_cut, true);
     for (int i = 0; i < size(); ++i)
         coordination[i] = nborlist[i].size();
 }
@@ -263,12 +228,12 @@ void AtomReader::calc_clusters() {
 
 }
 
-void AtomReader::calc_clusters(const int nnn, const double cluster_cutoff, const double coord_cutoff) {
+void AtomReader::calc_clusters(const double cluster_cutoff, const double coord_cutoff) {
     if (cluster_cutoff > 0 && cluster_cutoff != coord_cutoff) {
         if (cluster_cutoff < coord_cutoff)
             recalc_nborlist(cluster_cutoff);
         else
-            calc_nborlist(nnn, cluster_cutoff);
+            calc_verlet_nborlist(nborlist, cluster_cutoff, true);
     }
     calc_clusters();
 }
