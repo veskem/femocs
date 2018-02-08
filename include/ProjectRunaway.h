@@ -8,9 +8,6 @@
 #ifndef PROJECTRUNAWAY_H_
 #define PROJECTRUNAWAY_H_
 
-using namespace std;
-namespace femocs {
-
 #include "GeneralProject.h"
 #include "ProjectNanotip.h"
 #include "AtomReader.h"
@@ -24,12 +21,19 @@ namespace femocs {
 #include "currents_and_heating_stationary.h"
 #include "Pic.h"
 
-/*
- *
+using namespace std;
+namespace femocs {
+
+/**
+ * Class for calculating electric field and heating effects
+ * around a nanostructure that fits into central cylinder
+ * by solving Laplace or Poisson equation
+ * and taking into account change of temperature due to field emission.
  */
 class ProjectRunaway : public ProjectNanotip {
+public:
 
-    ProjectRunaway(const AtomReader &a, const Config &c);
+    ProjectRunaway(AtomReader &a, Config &c);
     ~ProjectRunaway() {}
 
     /** Function to generate FEM mesh and to solve differential equation(s)
@@ -44,29 +48,6 @@ class ProjectRunaway : public ProjectNanotip {
 
     /** Pick a method to solve heat and continuity equations on bulk mesh */
     int solve_heat(const double T_ambient);
-
-    /** Function to export the calculated temperatures on imported atom coordinates
-     * @param n_atoms   number of points of interest; n_atoms <= 0 turns the export off
-     * @param T         temperature in the atom location
-     * @return          success of the operation (always 0)
-     */
-    int export_temperature(const int n_atoms, double* T);
-
-    /** Calculate and export charges & forces on imported atom coordinates
-     * @param n_atoms   number of points of interest; n_atoms <= 0 turns the export off
-     * @param xq        charges and forces in PARCAS format (xq[0] = q1, xq[1] = Fx1, xq[2] = Fy1, xq[3] = Fz1, xq[4] = q2, xq[5] = Fx2 etc)
-     * @return          success of the operation (always 0)
-     */
-    int export_charge_and_force(const int n_atoms, double* xq);
-
-    /** Export Laplace + Coulomb force and pair potential on imported atoms
-     * @param n_atoms  number of first atoms the data will be exported
-     * @param xnp      forces in PARCAS format & units (xnp[0] = Fx1, xnp[1] = Fy1, xnp[2] = Fz1, xnp[3] = Fx2 etc)
-     * @param Epair    potential energy per atom
-     * @param Vpair    total potential energy of atoms. Pot. due to Coloumb forces are added here. NOTE: Lorentz is missing!
-     * @return         success of the operation (always 0)
-     */
-    int export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair);
 
     /** Force the data to the files for debugging purposes */
     int force_output();

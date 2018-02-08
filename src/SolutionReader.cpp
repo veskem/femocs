@@ -731,51 +731,6 @@ void FieldReader::transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver) {
     ch_solver.set_electric_field_bc(elfields);
 }
 
-// Linearly interpolate electric field on a set of points
-void FieldReader::export_elfield(const int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-    require(n_points == size(), "Invalid query size: " + to_string(n_points));
-    for (int i = 0; i < n_points; ++i) {
-        Ex[i] = interpolation[i].vector.x;
-        Ey[i] = interpolation[i].vector.y;
-        Ez[i] = interpolation[i].vector.z;
-        Enorm[i] = interpolation[i].norm;
-        flag[i] = atoms[i].marker < 0;
-    }
-}
-
-// Linearly interpolate electric potential on a set of points
-void FieldReader::export_potential(const int n_points, double* phi, int* flag) {
-    require(n_points == size(), "Invalid query size: " + to_string(n_points));
-    for (int i = 0; i < n_points; ++i) {
-        phi[i] = interpolation[i].scalar;
-        flag[i] = atoms[i].marker < 0;
-    }
-}
-
-// Export interpolated electric field
-void FieldReader::export_solution(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    if (n_atoms <= 0) return;
-
-    // Initially pass the zero electric field for all the atoms
-    for (int i = 0; i < n_atoms; ++i) {
-        Ex[i] = 0;
-        Ey[i] = 0;
-        Ez[i] = 0;
-        Enorm[i] = 0;
-    }
-
-    // Pass the the calculated electric field for stored atoms
-    for (int i = 0; i < size(); ++i) {
-        int id = get_id(i);
-        if (id < 0 || id >= n_atoms) continue;
-
-        Ex[id] = interpolation[i].vector.x;
-        Ey[id] = interpolation[i].vector.y;
-        Ez[id] = interpolation[i].vector.z;
-        Enorm[id] = interpolation[i].norm;
-    }
-}
-
 // Return electric field in i-th interpolation point
 Vec3 FieldReader::get_elfield(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
@@ -876,6 +831,94 @@ void FieldReader::set_check_params(const double E0, const double limit_min, cons
         this->radius2 = radius1;
 }
 
+// Export interpolated electric field
+int FieldReader::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+    if (n_atoms <= 0) return 0;
+    check_return(size() == 0, "No field to export!");
+
+    // Initially pass the zero electric field for all the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        Ex[i] = 0;
+        Ey[i] = 0;
+        Ez[i] = 0;
+        Enorm[i] = 0;
+    }
+
+    // Pass the the calculated electric field for stored atoms
+    for (int i = 0; i < size(); ++i) {
+        int id = get_id(i);
+        if (id < 0 || id >= n_atoms) continue;
+
+        Ex[id] = interpolation[i].vector.x;
+        Ey[id] = interpolation[i].vector.y;
+        Ez[id] = interpolation[i].vector.z;
+        Enorm[id] = interpolation[i].norm;
+    }
+    return 0;
+}
+
+int FieldReader::interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
+    if (n_points <= 0) return 0;
+    check_return(interpolator->nodes.size() == 0, "No surface field to export!");
+    require(n_points == size(), "Invalid query size: " + to_string(n_points));
+
+    FieldReader fr(interpolator);
+    fr.set_preferences(false, 2, rank);
+    fr.interpolate(n_points, x, y, z);
+
+    for (int i = 0; i < n_points; ++i) {
+        Ex[i] = fr.interpolation[i].vector.x;
+        Ey[i] = fr.interpolation[i].vector.y;
+        Ez[i] = fr.interpolation[i].vector.z;
+        Enorm[i] = fr.interpolation[i].norm;
+        flag[i] = fr.atoms[i].marker < 0;
+    }
+
+    fr.write("out/interpolation_E_surf.movie");
+    return check_limits(fr.get_interpolations());
+}
+
+int FieldReader::interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
+    if (n_points <= 0) return 0;
+    check_return(interpolator->nodes.size() == 0, "No electric field to interpolate!");
+    require(n_points == size(), "Invalid query size: " + to_string(n_points));
+
+    FieldReader fr(interpolator);
+    fr.set_preferences(false, 3, rank);
+    fr.interpolate(n_points, x, y, z);
+
+    for (int i = 0; i < n_points; ++i) {
+        Ex[i] = fr.interpolation[i].vector.x;
+        Ey[i] = fr.interpolation[i].vector.y;
+        Ez[i] = fr.interpolation[i].vector.z;
+        Enorm[i] = fr.interpolation[i].norm;
+        flag[i] = fr.atoms[i].marker < 0;
+    }
+
+    fr.write("out/interpolation_E.movie");
+    return check_limits(fr.get_interpolations());
+}
+
+int FieldReader::interpolate_phi(const int n_points, const double* x, const double* y, const double* z,
+        double* phi, int* flag) {
+    if (n_points <= 0) return 0;
+    check_return(interpolator->nodes.size() == 0, "No electric potential to interpolate!");
+    require(n_points == size(), "Invalid query size: " + to_string(n_points));
+
+    FieldReader fr(interpolator);
+    fr.set_preferences(false,  3, 2);
+    fr.interpolate(n_points, x, y, z);
+
+    for (int i = 0; i < n_points; ++i) {
+        phi[i] = fr.interpolation[i].scalar;
+        flag[i] = fr.atoms[i].marker < 0;
+    }
+
+    return 0;
+}
+
 /* ==========================================
  * =============== HEAT READER ==============
  * ========================================== */
@@ -919,8 +962,9 @@ void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver) {
 }
 
 // Export interpolated temperature
-void HeatReader::export_temperature(const int n_atoms, double* T) {
-    if (n_atoms <= 0) return;
+int HeatReader::export_temperature(const int n_atoms, double* T) {
+    if (n_atoms <= 0) return 0;
+    check_return(size() == 0, "No temperature to export!");
 
     // Pass the the calculated temperature for stored atoms
     for (int i = 0; i < size(); ++i) {
@@ -928,6 +972,8 @@ void HeatReader::export_temperature(const int n_atoms, double* T) {
         if (identifier < 0 || identifier >= n_atoms) continue;
         T[identifier] = get_temperature(i);
     }
+
+    return 0;
 }
 
 Vec3 HeatReader::get_rho(const int i) const {
@@ -1596,8 +1642,9 @@ void ForceReader::distribute_charges(const FieldReader &fields, const ChargeRead
     histogram_clean(4, r_cut);  // clean by scalar
 }
 
-void ForceReader::export_charge_and_force(const int n_atoms, double* xq) const {
-    if (n_atoms <= 0) return;
+int ForceReader::export_charge_and_force(const int n_atoms, double* xq) const {
+    if (n_atoms < 0) return 0;
+    check_return(size() == 0, "No charge & force to export!");
 
     // Initially pass the zero force and charge for all the atoms
     for (int i = 0; i < 4*n_atoms; ++i)
@@ -1613,10 +1660,14 @@ void ForceReader::export_charge_and_force(const int n_atoms, double* xq) const {
         for (double x : interpolation[i].vector)
             xq[identifier++] = x;
     }
+
+    return 0;
 }
 
-void ForceReader::export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const {
-    if (n_atoms <= 0) return;
+int ForceReader::export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const {
+    if (n_atoms < 0) return 0;
+    check_return(size() == 0, "No force & pair potential to export!");
+
     Vec3 box(sizes.xbox, sizes.ybox, sizes.zbox);
 
     for (int i = 0; i < size(); ++i) {
@@ -1632,6 +1683,8 @@ void ForceReader::export_force_and_pairpot(const int n_atoms, double* xnp, doubl
         for (int j = 0; j < 3; ++j)
             xnp[id+j] += force[j] / box[j];
     }
+
+    return 0;
 }
 
 } // namespace femocs

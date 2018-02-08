@@ -18,16 +18,19 @@
 #include <sstream>
 #include <cmath>
 
+using namespace std;
 namespace femocs {
 
-// specify simulation parameters
-ProjectRunaway::ProjectRunaway(const AtomReader &a, const Config &c) :
+ProjectRunaway::ProjectRunaway(AtomReader &a, Config &c) :
         ProjectNanotip(a, c),
-        forces(&vacuum_interpolator), temperatures(&bulk_interpolator),
         surface_fields(&vacuum_interpolator), surface_temperatures(&bulk_interpolator),
         emission(surface_fields, surface_temperatures, &vacuum_interpolator),
+        ch_solver(&ch_solver1), prev_ch_solver(NULL),
         pic_solver(laplace_solver, ch_transient_solver, vacuum_interpolator, emission)
 {
+    forces.set_interpolator(&vacuum_interpolator);
+    temperatures.set_interpolator(&bulk_interpolator);
+
     // Initialise heating module
     start_msg(t0, "=== Reading physical quantities...");
     phys_quantities.initialize_with_hc_data();
@@ -35,9 +38,6 @@ ProjectRunaway::ProjectRunaway(const AtomReader &a, const Config &c) :
     ch_solver2.set_physical_quantities(&phys_quantities);
     ch_transient_solver.set_physical_quantities(&phys_quantities);
     end_msg(t0);
-
-    ch_solver = &ch_solver1;
-    prev_ch_solver = NULL;
 }
 
 // Write all the available data to file for debugging purposes
@@ -378,96 +378,6 @@ int ProjectRunaway::solve_converge_heat() {
         if (max(hcg, ccg) < 10) return 0;
     }
     write_silent_msg("WARNING: Heat equation did not converged after 1000 steps.");
-
-    return 0;
-}
-
-// calculate and export temperatures on imported atom coordinates
-int ProjectRunaway::export_temperature(const int n_atoms, double* T) {
-    if (n_atoms < 0 || conf.heating.mode == "none") return 0;
-    check_return(bulk_interpolator.nodes.size() == 0, "No temperature to export!");
-
-    if (skip_meshing)
-        write_silent_msg("Using previous temperature!");
-    else {
-        start_msg(t0, "=== Interpolating J & T...");
-        temperatures.set_preferences(true, 3, conf.behaviour.interpolation_rank);
-        temperatures.interpolate(reader);
-        end_msg(t0);
-
-        temperatures.write("out/interpolation_bulk.movie");
-        temperatures.print_statistics();
-    }
-
-    start_msg(t0, "=== Exporting temperature...");
-    temperatures.export_temperature(n_atoms, T);
-    end_msg(t0);
-
-    return 0;
-}
-
-// calculate and export charges & forces on imported atom coordinates
-int ProjectRunaway::export_charge_and_force(const int n_atoms, double* xq) {
-    if (n_atoms < 0) return 0;
-    check_return(fields.size() == 0, "No charge & force to export!");
-
-    if (skip_meshing)
-        write_silent_msg("Using previous charge & force!");
-    else {
-        // analytical total charge without epsilon0 (will be added in ChargeReader)
-        const double tot_charge = conf.field.E0 * reader.sizes.xbox * reader.sizes.ybox;
-
-        ChargeReader face_charges(&vacuum_interpolator); // charges on surface triangles
-        face_charges.set_preferences(false, 3, 2);
-        face_charges.set_check_params(tot_charge, conf.tolerance.charge_min, conf.tolerance.charge_max);
-
-        start_msg(t0, "=== Calculating face charges...");
-        face_charges.calc_charges(*mesh, conf.field.E0);
-        end_msg(t0);
-        face_charges.write("out/face_charges.xyz");
-        check_return(face_charges.check_limits(), "Face charges are not conserved!");
-
-        face_charges.clean(dense_surf.sizes, conf.geometry.latconst);
-
-        start_msg(t0, "=== Distributing face charges...");
-        forces.distribute_charges(fields, face_charges, conf.run.hist_cleaner*conf.geometry.coordination_cutoff,
-                conf.smoothing.beta_charge);
-        end_msg(t0);
-
-        start_msg(t0, "=== Generating Voronoi cells...");
-        VoronoiMesh voro_mesh;
-        int err_code;
-        err_code = forces.calc_voronois(voro_mesh, atom2face, conf.geometry.radius, conf.geometry.latconst, "10.0");
-        end_msg(t0);
-
-        check_return(err_code, "Generation of Voronoi cells failed with error code " + to_string(err_code));
-        voro_mesh.nodes.write("out/voro_nodes.vtk");
-        voro_mesh.voros.write("out/voro_cells.vtk");
-        voro_mesh.vfaces.write("out/voro_faces.vtk");
-
-        start_msg(t0, "=== Calculating Lorentz & Coulomb force...");
-        forces.calc_charge_and_lorentz(voro_mesh, fields);
-        forces.calc_coulomb(conf.geometry.charge_cutoff);
-        end_msg(t0);
-
-        forces.write("out/forces.movie");
-        check_return(face_charges.check_limits(forces.get_interpolations()), "Voronoi charges are not conserved!");
-    }
-
-    start_msg(t0, "=== Exporting atomic charges & forces...");
-    forces.export_charge_and_force(n_atoms, xq);
-    end_msg(t0);
-
-    return 0;
-}
-
-int ProjectRunaway::export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) {
-    if (n_atoms < 0) return 0;
-    check_return(forces.size() == 0, "No force to export!");
-
-    start_msg(t0, "=== Exporting atomic forces...");
-    forces.export_force_and_pairpot(n_atoms, xnp, Epair, Vpair);
-    end_msg(t0);
 
     return 0;
 }

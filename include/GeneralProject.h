@@ -8,33 +8,32 @@
 #ifndef GENERALPROJECT_H_
 #define GENERALPROJECT_H_
 
-namespace femocs {
-
 #include "AtomReader.h"
 #include "Config.h"
 #include "Coarseners.h"
 #include "SolutionReader.h"
 #include "TetgenMesh.h"
 
-/*
- *
+using namespace std;
+namespace femocs {
+
+/**
+ * Template for creating FEM project for FEMOCS
+ * See other Project* classes to get inspiration for building up the work flow.
  */
 class GeneralProject {
-
-    GeneralProject(const AtomReader &reader, const Config& conf);
-
-    virtual ~GeneralProject() = 0;
-
-    /** Generate meshes using the imported atomistic data */
-    virtual int generate_mesh();
+public:
+    GeneralProject();
+    GeneralProject(AtomReader &reader, Config& conf);
+    virtual ~GeneralProject() {};
 
     /** Function to generate FEM mesh and to solve differential equation(s)
      * @return  0 - function completed normally; 1 - function did not complete normally
      */
-    virtual int run();
+    virtual int run(const int timestep=-1) = 0;
 
     /** Force the data to the files for debugging purposes */
-    virtual int force_output();
+    virtual int force_output() = 0;
 
     FieldReader fields;       ///< fields & potentials on surface atoms
     HeatReader  temperatures; ///< temperatures & current densities on bulk atoms
@@ -50,6 +49,10 @@ protected:
     TetgenMesh mesh2;
     TetgenMesh *new_mesh;   ///< Pointer to mesh where the new one will be generated
     TetgenMesh *mesh;       ///< Readily available mesh
+
+private:
+    AtomReader dummy_reader;
+    Config dummy_config;
 };
 
 } /* namespace femocs */

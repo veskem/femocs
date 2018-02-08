@@ -10,16 +10,7 @@
 
 #include "AtomReader.h"
 #include "Config.h"
-#include "SolutionReader.h"
-#include "Surface.h"
-#include "Interpolator.h"
-#include "TetgenMesh.h"
-#include "physical_quantities.h"
-#include "currents_and_heating.h"
-#include "currents_and_heating_stationary.h"
-#include "laplace.h"
-
-#include "Pic.h"
+#include "GeneralProject.h"
 
 using namespace std;
 namespace femocs {
@@ -44,10 +35,19 @@ public:
     int run(const double elfield, const string& timestep);
 
     /** Function to generate FEM mesh and to solve differential equation(s)
-     * by using the electric field specified in configuration script.
-     * @return 0 - function completed normally; 1 - function did not complete normally
+     * by using the parameters specified in configuration script.
+     * @param timestep  active time step in the host code; if not provided, internal counter will be used
+     * @return          0 - function completed normally; 1 - function did not complete normally
      */
-    int run();
+    int run(const int timestep=-1);
+
+    /** Function to generate artificial nanotip without crystallographic features
+     * @param height      height of the tip sides in units of radius; the total tip height is therefore (height + 1)*radius; negative value makes open void instead of tip
+     * @param radius      radius of the tip; if not specified, its value is taken from the configuration script
+     * @param resolution  distance between the atoms; if not specified, its value will be equal to lattice constant
+     * @return            success of the operation (always 0)
+     */
+    int generate_nanotip(const double height, const double radius=-1, const double resolution=-1);
 
     /** Function to import atoms from PARCAS
      * @param n_atoms       number of imported atoms
@@ -190,97 +190,17 @@ public:
      * @return          0 - command was found and arg was modified; 1 - command was not found and arg was not modified
      */
     int parse_command(const string& command, string& arg);
-
-    /** Function to generate artificial nanotip without crystallographic features
-     * @param height      height of the tip sides in units of radius; the total tip height is therefore (height + 1)*radius; negative value makes open void instead of tip
-     * @param radius      radius of the tip; if not specified, its value is taken from the configuration script
-     * @param resolution  distance between the atoms; if not specified, its value will be equal to lattice constant
-     * @return            success of the operation (always 0)
-     */
-    int generate_nanotip(const double height, const double radius=-1, const double resolution=-1);
-
-    /** Generate bulk and vacuum meshes using the imported atomistic data */
-    int generate_mesh();
-
-    /** Evolve the PIC simulation one Femocs time step */
-    int solve_pic(const double E0, const double dt_main);
     
-    /** Solve Laplace equation on vacuum mesh */
-    int solve_laplace(const double E0);
-
-    /** Pick a method to solve heat and continuity equations on bulk mesh */
-    int solve_heat(const double T_ambient);
-
-    /** Determine whether atoms have moved significantly and whether to enable file writing */
-    int reinit(const int timestep=-1);
-
-    /** Store the imported atom coordinates and set the flag that enables exporters */
-    int finalize();
-
     /** Force the data to the files for debugging purposes */
     int force_output();
 
 private:
-    const double delta_t_MD = 4.05e-15; // in seconds (!)
-    
-    bool skip_meshing;      ///< If the mesh is to be kept the same
-    bool fail;              ///< If some process failed
-    double t0;              ///< CPU timer
-    double time;            ///< Time since the start of the simulation
-    int timestep;           ///< counter to measure how many times Femocs has been called
-    int last_full_timestep; ///< last time step Femocs did full calculation
-    string timestep_string; ///< time step written to file name
-    vector<int> atom2face;  ///< surface atom to triangle index map
-    
-    Config conf;            ///< configuration parameters
-    Coarseners coarseners;  ///< surface coarsening data & routines
-    AtomReader reader;      ///< all the imported atoms
-    Surface dense_surf;     ///< non-coarsened surface atoms
-    Surface extended_surf;  ///< atoms added for the surface atoms
+    double t0;
+    bool skip_meshing;
 
-    TetgenMesh mesh1;       ///< FEM mesh for the whole simulation domain (both bulk and vacuum)
-    TetgenMesh mesh2;
-    TetgenMesh *new_mesh;   ///< Pointer to mesh where the new one will be generated
-    TetgenMesh *mesh;       ///< Readily available mesh
-
-    Interpolator vacuum_interpolator = Interpolator("elfield", "potential");
-    Interpolator bulk_interpolator = Interpolator("rho", "temperature");
-
-    HeatReader  temperatures = HeatReader(&bulk_interpolator); ///< temperatures & current densities on bulk atoms
-    FieldReader fields = FieldReader(&vacuum_interpolator);       ///< fields & potentials on surface atoms
-    ForceReader forces = ForceReader(&vacuum_interpolator);       ///< forces & charges on surface atoms
-    FieldReader surface_fields = FieldReader (&vacuum_interpolator); ///< fields on surface hex face centroids
-    HeatReader  surface_temperatures = HeatReader(&bulk_interpolator); ///< temperatures & current densities on surface hex face centroids
-
-    /// emission data on centroids of surface quadrangles
-    EmissionReader emission = EmissionReader(surface_fields, surface_temperatures, &vacuum_interpolator);
-
-    /// physical quantities used in heat calculations
-    fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);
-
-    fch::Laplace<3> laplace_solver;                       ///< Laplace equation solver
-    fch::CurrentsAndHeatingStationary<3>  ch_solver1;     ///< first    steady-state currents and heating solver
-    fch::CurrentsAndHeatingStationary<3>  ch_solver2;     ///< second   steady-state currents and heating solver
-    fch::CurrentsAndHeatingStationary<3>* ch_solver;      ///< active   steady-state currents and heating solver
-    fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous steady-state currents and heating solver
-    fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
-
-    Pic<3> pic_solver; //The PIC solver
-    
-    /** Generate boundary nodes for mesh */
-    int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
-
-    /** Solve steady-state heat and continuity equations */
-    int solve_stationary_heat();
-
-    /** Solve transient heat and continuity equations */
-    int solve_transient_heat(const double delta_time);
-
-    /** Solve transient heat and continuity equation until convergence is reached */
-    int solve_converge_heat();
-
-    /** Import meshes to dealii and set params to various objects */
-    int prepare_fem();
+    Config conf;             ///< configuration parameters
+    AtomReader reader;       ///< all the imported atoms
+    GeneralProject *project; ///< project Femocs is going to run
 };
 
 } /* namespace femocs */

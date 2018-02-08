@@ -11,6 +11,7 @@
 #include "Macros.h"
 #include "Tethex.h"
 #include "VoronoiMesh.h"
+#include "TetgenMesh.h"
 
 #include <omp.h>
 #include <algorithm>
@@ -20,12 +21,12 @@
 using namespace std;
 namespace femocs {
 
-// specify simulation parameters
-ProjectNanotip::ProjectNanotip(const AtomReader &a, const Config &c) :
+ProjectNanotip::ProjectNanotip(AtomReader &a, Config &c) :
         GeneralProject(a, c),
-        skip_meshing(false), fail(false), t0(0), timestep(-1), last_full_timestep(0),
-        fields(&vacuum_interpolator)
-{}
+        skip_meshing(false), fail(false), t0(0), timestep(-1), last_full_timestep(0)
+{
+    fields.set_interpolator(&vacuum_interpolator);
+}
 
 // Write all the available data to file for debugging purposes
 int ProjectNanotip::force_output() {
@@ -44,8 +45,8 @@ int ProjectNanotip::force_output() {
     return 0;
 }
 
-int ProjectNanotip::run() {
-    return run(conf.field.E0);
+int ProjectNanotip::run(const int timestep) {
+    return run(conf.field.E0, timestep);
 }
 
 // Workhorse function to generate FEM mesh and to solve differential equation(s)
@@ -273,85 +274,6 @@ int ProjectNanotip::solve_laplace(const double E0) {
     vacuum_interpolator.quadtets.write("out/result_E_phi_quad.vtk");
 
     laplace_solver.write("out/laplace.vtk");
-
-    return fail;
-}
-
-// calculate and export electric field on imported atom coordinates
-int ProjectNanotip::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    if (n_atoms < 0) return 0;
-    check_return(vacuum_interpolator.nodes.size() == 0, "No field to export!");
-
-    fail = false;
-
-    if (skip_meshing)
-        write_silent_msg("Using previous electric field!");
-    else {
-        start_msg(t0, "=== Interpolating E and phi...");
-        fields.set_preferences(true, 3, conf.behaviour.interpolation_rank);
-        fields.interpolate(dense_surf);
-        fail = fields.clean(conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
-        end_msg(t0);
-
-        fields.write("out/fields.movie");
-        fail |= fields.check_limits();
-    }
-
-    start_msg(t0, "=== Exporting electric field...");
-    fields.export_solution(n_atoms, Ex, Ey, Ez, Enorm);
-    end_msg(t0);
-
-    return fail;
-}
-
-// linearly interpolate electric field at given points
-int ProjectNanotip::interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
-        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-    if (n_points <= 0) return 0;
-    check_return(vacuum_interpolator.nodes.size() == 0, "No solution to export!");
-
-    FieldReader fr(&vacuum_interpolator);
-    fr.set_preferences(false, 2, conf.behaviour.interpolation_rank);
-    start_msg(t0, "=== Interpolating & exporting surface elfield...");
-    fr.interpolate(n_points, x, y, z);
-    fail = fr.clean(conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
-    fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
-    end_msg(t0);
-
-    fr.write("out/interpolation_E_surf.movie");
-    return fields.check_limits(fr.get_interpolations()) || fail;
-}
-
-// linearly interpolate electric field at given points
-int ProjectNanotip::interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
-        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-    if (n_points <= 0) return 0;
-    check_return(vacuum_interpolator.nodes.size() == 0, "No electric field to export!");
-
-    FieldReader fr(&vacuum_interpolator);
-    fr.set_preferences(false, 3, conf.behaviour.interpolation_rank);
-    start_msg(t0, "=== Interpolating & exporting elfield...");
-    fr.interpolate(n_points, x, y, z);
-    fail = fr.clean(conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
-    fr.export_elfield(n_points, Ex, Ey, Ez, Enorm, flag);
-    end_msg(t0);
-
-    fr.write("out/interpolation_E.movie");
-    return fields.check_limits(fr.get_interpolations()) || fail;
-}
-
-// linearly interpolate electric potential at given points
-int ProjectNanotip::interpolate_phi(const int n_points, const double* x, const double* y, const double* z,
-        double* phi, int* flag) {
-
-    if (n_points <= 0) return 0;
-    check_return(vacuum_interpolator.nodes.size() == 0, "No electric potential to export!");
-
-    FieldReader fr(&vacuum_interpolator);
-    fr.set_preferences(false, 3, 2);
-    fr.interpolate(n_points, x, y, z);
-    fail = fr.clean(conf.geometry.coordination_cutoff, conf.run.hist_cleaner);
-    fr.export_potential(n_points, phi, flag);
 
     return fail;
 }

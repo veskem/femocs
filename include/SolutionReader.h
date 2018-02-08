@@ -61,6 +61,9 @@ public:
         rank = _rank;
     }
 
+    /** Alter the pointer to interpolator */
+    void set_interpolator(Interpolator* i) { interpolator = i; }
+
     /** Calculate statistics about coordinates and solution */
     void calc_statistics();
 
@@ -117,6 +120,7 @@ protected:
 /** Class to extract solution from DealII calculations */
 class FieldReader: public SolutionReader {
 public:
+
     FieldReader(Interpolator* i);
 
     void test_pic(fch::Laplace<3>* laplace, const Medium& medium);
@@ -137,17 +141,6 @@ public:
     /** Calculate the electric field for the transient current and temperature solver */
     void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver);
 
-    /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
-     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    void export_elfield(const int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
-
-    /** Interpolate electric potential on set of points using the solution on tetrahedral mesh nodes
-     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    void export_potential(const int n_points, double* phi, int* flag);
-
-    /** Export calculated electic field distribution to HOLMOD */
-    void export_solution(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
-
     /** Return electric field in i-th interpolation point */
     Vec3 get_elfield(const int i) const;
 
@@ -164,6 +157,24 @@ public:
     /** Set parameters to calculate analytical solution */
     void set_check_params(const double E0, const double limit_min, const double limit_max,
             const double radius1, const double radius2=-1);
+
+    /** Export calculated electic field distribution to HOLMOD */
+    int export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
+
+    /** Interpolate electric field on set of points using the solution on surface mesh nodes
+     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
+    int interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
+            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
+
+    /** Interpolate electric field on set of points using the solution on volumetric mesh nodes
+     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
+    int interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
+            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
+
+    /** Interpolate electric potential on set of points using the solution on tetrahedral mesh nodes
+     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
+    int interpolate_phi(const int n_points, const double* x, const double* y, const double* z,
+            double* phi, int* flag);
 
 private:
     /** Data needed for comparing numerical solution with analytical one */
@@ -187,6 +198,7 @@ private:
 /** Class to interpolate current densities and temperatures */
 class HeatReader: public SolutionReader {
 public:
+
     HeatReader(Interpolator* i);
 
     /** Interpolate solution on medium atoms */
@@ -197,7 +209,7 @@ public:
     void interpolate(fch::CurrentsAndHeating<3>& ch_solver);
 
     /** Export interpolated temperature */
-    void export_temperature(const int n_atoms, double* T);
+    int export_temperature(const int n_atoms, double* T);
 
     Vec3 get_rho(const int i) const;
 
@@ -211,6 +223,7 @@ private:
 /** Class to calculate field emission effects with GETELEC */
 class EmissionReader: public SolutionReader {
 public:
+
     EmissionReader(const FieldReader& fields, const HeatReader& heat, Interpolator* i);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
@@ -286,6 +299,7 @@ private:
 /** Class to calculate charges from electric field */
 class ChargeReader: public SolutionReader {
 public:
+
     ChargeReader(Interpolator* i);
 
     /** Calculate charge on the triangular faces using direct solution on the face centroid */
@@ -318,6 +332,7 @@ private:
 /** Class to calculate forces from charges and electric fields */
 class ForceReader: public SolutionReader {
 public:
+
     ForceReader(Interpolator* i);
 
     /** Calculate forces from atomic electric fields and face charges */
@@ -340,7 +355,7 @@ public:
      * @param n_atoms  number of first atoms the data will be exported
      * @param xq       charge and force in PARCAS format (xq[0] = q1, xq[1] = Fx1, xq[2] = Fy1, xq[3] = Fz1, xq[4] = q2, xq[5] = Fx2 etc)
      */
-    void export_charge_and_force(const int n_atoms, double* xq) const;
+    int export_charge_and_force(const int n_atoms, double* xq) const;
 
     /** Export Laplace + Coulomb force and pair potential on imported atoms
      * @param n_atoms  number of first atoms the data will be exported
@@ -348,7 +363,7 @@ public:
      * @param Epair    potential energy per atom
      * @param Vpair    total potential energy of atoms. Pot. due to Coloumb forces are added here. NOTE: Lorentz is missing!
      */
-    void export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const;
+    int export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const;
 
     /** Return the force that is applied to i-th atom */
     Vec3 get_force(const int i) const {

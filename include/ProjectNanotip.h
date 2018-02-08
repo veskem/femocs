@@ -8,29 +8,28 @@
 #ifndef PROJECTNANOTIP_H_
 #define PROJECTNANOTIP_H_
 
-using namespace std;
-namespace femocs {
-
+#include "GeneralProject.h"
 #include "AtomReader.h"
 #include "Config.h"
 #include "SolutionReader.h"
 #include "Surface.h"
 #include "Interpolator.h"
-#include "TetgenMesh.h"
 #include "laplace.h"
-#include "GeneralProject.h"
 
-/*
- *
+using namespace std;
+namespace femocs {
+
+/**
+ * Class for calculating electric field around a nanostructure that fits into central cylinder
+ * by solving Laplace equation.
  */
 class ProjectNanotip : public GeneralProject {
 public:
 
-    ProjectNanotip(const AtomReader &reader, const Config &conf);
+    ProjectNanotip(AtomReader &reader, Config &conf);
+    ~ProjectNanotip() {};
 
-    ~ProjectNanotip() {}
-
-    int run();
+    int run(const int timestep=-1);
 
     /** Function to generate FEM mesh and to solve differential equation(s)
      * @param elfield   long range electric field strength
@@ -38,58 +37,6 @@ public:
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
     int run(const double elfield, const int timestep=-1);
-
-    /** Function to export the calculated electric field on imported atom coordinates
-     * @param n_atoms   number of points of interest; n_atoms <= 0 turns the export off
-     * @param Ex        x-component of electric field
-     * @param Ey        y-component of electric field
-     * @param Ez        z-component of electric field
-     * @param Enorm     norm of electric field
-     * @return          success of the operation (always 0)
-     */
-    int export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
-
-    /** Function to linearly interpolate electric field at points anywhere in space
-     * @param n_points  number of points where electric field is interpolated; n_points <= 0 turns the interpolation off
-     * @param x         x-coordinates of the points of interest
-     * @param y         y-coordinates of the points of interest
-     * @param z         z-coordinates of the points of interest
-     * @param Ex        x-component of the interpolated electric field
-     * @param Ey        y-component of the interpolated electric field
-     * @param Ez        z-component of the interpolated electric field
-     * @param Enorm     norm of the interpolated electric field
-     * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
-     * @return          0 - function used solution from current run; 1 - function used solution from previous run
-     */
-    int interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
-            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
-
-    /** Function to linearly interpolate electric field at points on or near the surface.
-     * It is faster than interpolate_elfield but is inadequate for points far away from surface
-     * @param n_points  number of points where electric field is interpolated; n_points <= 0 turns the interpolation off
-     * @param x         x-coordinates of the points of interest
-     * @param y         y-coordinates of the points of interest
-     * @param z         z-coordinates of the points of interest
-     * @param Ex        x-component of the interpolated electric field
-     * @param Ey        y-component of the interpolated electric field
-     * @param Ez        z-component of the interpolated electric field
-     * @param Enorm     norm of the interpolated electric field
-     * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
-     * @return          0 - function used solution from current run; 1 - function used solution from previous run
-     */
-    int interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
-            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
-
-    /** Function to linearly interpolate electric potential at given points
-     * @param n_points  number of points where electric potential is interpolated; n_points <= 0 turns the interpolation off
-     * @param x         x-coordinates of the points of interest
-     * @param y         y-coordinates of the points of interest
-     * @param z         z-coordinates of the points of interest
-     * @param phi       electric potential
-     * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
-     * @return          0 - function used solution from current run; 1 - function used solution from previous run
-     */
-    int interpolate_phi(const int n_points, const double* x, const double* y, const double* z, double* phi, int* flag);
 
     /** Generate bulk and vacuum meshes using the imported atomistic data */
     int generate_mesh();
