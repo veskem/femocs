@@ -13,6 +13,7 @@
 #include "SolutionReader.h"
 #include "Surface.h"
 #include "Interpolator.h"
+#include "TetgenMesh.h"
 #include "physical_quantities.h"
 #include "currents_and_heating.h"
 #include "currents_and_heating_stationary.h"
@@ -229,7 +230,6 @@ private:
     int timestep;           ///< counter to measure how many times Femocs has been called
     int last_full_timestep; ///< last time step Femocs did full calculation
     string timestep_string; ///< time step written to file name
-    vector<Vec3> areas;     ///< surface areas of Voronoi cells that is exposed to vacuum
     vector<int> atom2face;  ///< surface atom to triangle index map
     
     Config conf;            ///< configuration parameters
@@ -281,10 +281,6 @@ private:
 
     /** Import meshes to dealii and set params to various objects */
     int prepare_fem();
-
-    /** Write results into files */
-    int write_files();
-
 };
 
 } /* namespace femocs */

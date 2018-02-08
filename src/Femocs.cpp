@@ -9,7 +9,6 @@
 #include "Coarseners.h"
 #include "Macros.h"
 #include "Tethex.h"
-#include "TetgenMesh.h"
 #include "VoronoiMesh.h"
 
 #include <omp.h>
