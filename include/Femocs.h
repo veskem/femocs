@@ -159,6 +159,14 @@ public:
      */
     int interpolate_phi(const int n_points, const double* x, const double* y, const double* z, double* phi, int* flag);
 
+    int export_results(const int n_points, const char cmd, double* data);
+
+    int interpolate_results(const int n_points, const char cmd,
+            const double* x, const double* y, const double* z, double* data, int* flag);
+
+    int interpolate_surface_results(const int n_points, const char cmd,
+            const double* x, const double* y, const double* z, double* data, int* flag);
+
     /**
      * Function to parse integer argument of the command from input script
      * @param command   name of the command which's argument should be parsed

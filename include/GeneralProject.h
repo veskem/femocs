@@ -35,6 +35,11 @@ public:
     /** Force the data to the files for debugging purposes */
     virtual int force_output() = 0;
 
+    virtual int export_results(const int n_points, const string &data_type, double* data) = 0;
+
+    virtual int interpolate_results(const int n_points, const string &data_type, const bool surface,
+            const double* x, const double* y, const double* z, double* data, int* flag) = 0;
+
     FieldReader fields;       ///< fields & potentials on surface atoms
     HeatReader  temperatures; ///< temperatures & current densities on bulk atoms
     ForceReader forces;       ///< forces & charges on surface atoms

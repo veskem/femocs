@@ -82,6 +82,11 @@ public:
         return interpolator->linhexs.deal2femocs(deal_index);
     }
 
+    int export_results(const int n_points, const string &data_type, const bool append, double* data);
+
+    int interpolate_results(const int n_points, const string &data_type, const double* x,
+            const double* y, const double* z, double* data);
+
 protected:
     const string vec_label;       ///< label for vector data
     const string vec_norm_label;  ///< label for data associated with vector length

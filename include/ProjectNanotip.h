@@ -53,6 +53,11 @@ public:
     /** Force the data to the files for debugging purposes */
     int force_output();
 
+    int export_results(const int n_points, const string &cmd, double* data);
+
+    int interpolate_results(const int n_points, const string &cmd, const bool surface,
+            const double* x, const double* y, const double* z, double* data, int* flag);
+
 protected:
     static constexpr double delta_t_MD = 4.05e-15; ///< MD timestep in seconds
 

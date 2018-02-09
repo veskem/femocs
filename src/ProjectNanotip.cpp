@@ -278,4 +278,24 @@ int ProjectNanotip::solve_laplace(const double E0) {
     return fail;
 }
 
+int ProjectNanotip::export_results(const int n_points, const string &cmd, double* data) {
+    if (cmd == LABELS.elfield.second || cmd == LABELS.elfield_norm.second || cmd == LABELS.potential.second)
+        return fields.export_results(n_points, cmd, false, data);
+
+    require(false, "Unimplemented type of export data: " + cmd);
+    return 0;
+}
+
+int ProjectNanotip::interpolate_results(const int n_points, const string &cmd, const bool surface,
+        const double* x, const double* y, const double* z, double* data, int* flag) {
+
+    if (cmd == LABELS.elfield.second || cmd == LABELS.elfield_norm.second || cmd == LABELS.potential.second) {
+        fields.set_preferences(true, 3, conf.behaviour.interpolation_rank);
+        return fields.interpolate_results(n_points, cmd, x, y, z, data);
+    }
+
+    require(false, "Unimplemented type of export data: " + cmd);
+    return 0;
+}
+
 } /* namespace femocs */

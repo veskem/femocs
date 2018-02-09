@@ -46,42 +46,85 @@ struct Types {
     /// Vtk cell types
     static struct Vtk_Types {
         // Linear cells
-        static const int EMPTY_CELL       = 0;
-        static const int VERTEX           = 1;
-        static const int POLY_VERTEX      = 2;
-        static const int LINE             = 3;
-        static const int POLY_LINE        = 4;
-        static const int TRIANGLE         = 5;
-        static const int TRIANGLE_STRIP   = 6;
-        static const int POLYGON          = 7;
-        static const int PIXEL            = 8;
-        static const int QUADRANGLE       = 9;
-        static const int TETRAHEDRON      = 10;
-        static const int VOXEL            = 11;
-        static const int HEXAHEDRON       = 12;
-        static const int WEDGE            = 13;
-        static const int PYRAMID          = 14;
-        static const int PENTAGONAL_PRISM = 15;
-        static const int HEXAGONAL_PRISM  = 16;
+        static constexpr int EMPTY_CELL       = 0;
+        static constexpr int VERTEX           = 1;
+        static constexpr int POLY_VERTEX      = 2;
+        static constexpr int LINE             = 3;
+        static constexpr int POLY_LINE        = 4;
+        static constexpr int TRIANGLE         = 5;
+        static constexpr int TRIANGLE_STRIP   = 6;
+        static constexpr int POLYGON          = 7;
+        static constexpr int PIXEL            = 8;
+        static constexpr int QUADRANGLE       = 9;
+        static constexpr int TETRAHEDRON      = 10;
+        static constexpr int VOXEL            = 11;
+        static constexpr int HEXAHEDRON       = 12;
+        static constexpr int WEDGE            = 13;
+        static constexpr int PYRAMID          = 14;
+        static constexpr int PENTAGONAL_PRISM = 15;
+        static constexpr int HEXAGONAL_PRISM  = 16;
         // Quadratic, isoparametric cells
-        static const int QUADRATIC_EDGE                   = 21;
-        static const int QUADRATIC_TRIANGLE               = 22;
-        static const int QUADRATIC_QUADRANGLE             = 23;
-        static const int QUADRATIC_POLYGON                = 36;
-        static const int QUADRATIC_TETRAHEDRON            = 24;
-        static const int QUADRATIC_HEXAHEDRON             = 25;
-        static const int QUADRATIC_WEDGE                  = 26;
-        static const int QUADRATIC_PYRAMID                = 27;
-        static const int BIQUADRATIC_QUADRANGLE           = 28;
-        static const int TRIQUADRATIC_HEXAHEDRON          = 29;
-        static const int QUADRATIC_LINEAR_QUADRANGLE      = 30;
-        static const int QUADRATIC_LINEAR_WEDGE           = 31;
-        static const int BIQUADRATIC_QUADRATIC_WEDGE      = 32;
-        static const int BIQUADRATIC_QUADRATIC_HEXAHEDRON = 33;
-        static const int BIQUADRATIC_TRIANGLE             = 34;
+        static constexpr int QUADRATIC_EDGE                   = 21;
+        static constexpr int QUADRATIC_TRIANGLE               = 22;
+        static constexpr int QUADRATIC_QUADRANGLE             = 23;
+        static constexpr int QUADRATIC_POLYGON                = 36;
+        static constexpr int QUADRATIC_TETRAHEDRON            = 24;
+        static constexpr int QUADRATIC_HEXAHEDRON             = 25;
+        static constexpr int QUADRATIC_WEDGE                  = 26;
+        static constexpr int QUADRATIC_PYRAMID                = 27;
+        static constexpr int BIQUADRATIC_QUADRANGLE           = 28;
+        static constexpr int TRIQUADRATIC_HEXAHEDRON          = 29;
+        static constexpr int QUADRATIC_LINEAR_QUADRANGLE      = 30;
+        static constexpr int QUADRATIC_LINEAR_WEDGE           = 31;
+        static constexpr int BIQUADRATIC_QUADRATIC_WEDGE      = 32;
+        static constexpr int BIQUADRATIC_QUADRATIC_HEXAHEDRON = 33;
+        static constexpr int BIQUADRATIC_TRIANGLE             = 34;
         // Polyhedron cell (consisting of polygonal faces)
-        static const int POLYHEDRON = 42;
+        static constexpr int POLYHEDRON = 42;
     } VTK;
+};
+
+/** Labels of the exported/interpolated data.
+ * Char component is used while calling Femocs externally, while string component is used internally.
+ * Note that labels for vectors are capitalised, while lower case designates scalars.
+ * While adding new labels, make sure not to use already taken char. */
+struct Labels {
+    const pair<char, string> vec = {'X', "vec"};
+    const pair<char, string> vec_norm = {'y', "vec_norm"};
+    const pair<char, string> scalar = {'z', "scalar"};
+    const pair<char, string> elfield = {'E', "elfield"};
+    const pair<char, string> elfield_norm = {'e', "elfield_norm"};
+    const pair<char, string> potential = {'u', "potential"};
+    const pair<char, string> temperature = {'t', "temperature"};
+    const pair<char, string> rho = {'C', "rho"};
+    const pair<char, string> rho_norm = {'c', "rho_norm"};
+    const pair<char, string> pair_potential = {'p', "pair_potential"};
+    const pair<char, string> pair_potential_sum = {'s', "pair_potential_sum"};
+    const pair<char, string> force = {'F', "force"};
+    const pair<char, string> force_norm = {'f', "force_norm"};
+    const pair<char, string> charge = {'q', "charge"};
+    const pair<char, string> velocity = {'V', "velocity"};
+    const pair<char, string> velocity_norm = {'v', "velocity_norm"};
+
+    int size() const { return (&velocity_norm)-(&vec) + 1; }  ///< number of values in Commands
+
+    /** Convert given short char command into string label */
+    string decode(const char c) {
+        pair<char,string> const *ptr = &vec - 1;
+        for (int i = 0; i < size(); ++i)
+            if ((++ptr)->first == c)
+                return ptr->second;
+        return "";
+    }
+
+    /** Convert given string label into short char command */
+    char encode(const string &s) {
+        pair<char,string> const *ptr = &vec - 1;
+        for (int i = 0; i < size(); ++i)
+            if ((++ptr)->second == s)
+                return ptr->first;
+        return '\0';
+    }
 };
 
 /** Flags to control the output behaviour of the code */
@@ -97,9 +140,11 @@ struct Modes {
 #ifdef MAINFILE
     Types TYPES;
     Modes MODES;
+    Labels LABELS;
 #else
     extern Types TYPES;
     extern Modes MODES;
+    extern Labels LABELS;
 #endif
 
 // Asserts for catching errors in development mode

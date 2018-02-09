@@ -403,6 +403,90 @@ void SolutionReader::print_statistics() {
     write_verbose_msg(stream.str());
 }
 
+int SolutionReader::export_results(const int n_points, const string &data_type, const bool append, double* data) {
+    if (n_points <= 0) return 0;
+    check_return(size() == 0, "No result to export!");
+
+    // Check whether the already excising data must survive or not
+    if (append) {
+        // Pass the desired solution
+        for (int i = 0; i < size(); ++i) {
+            int id = get_id(i);
+            if (id < 0 || id >= n_points) continue;
+
+            if (data_type == vec_label) {
+                id *= 3;
+                for (double v : interpolation[i].vector)
+                    data[id++] += v;
+            }
+            else if (data_type == scalar_label)
+                data[id] += interpolation[i].scalar;
+            else
+                data[id] += interpolation[i].norm;
+        }
+
+    } else {
+        // Clear the previous results
+        int export_type_len = 1;
+        if (data_type == vec_label)
+            export_type_len = 3;
+        for (int i = 0; i < export_type_len * n_points; ++i)
+            data[i] = 0;
+
+        // Pass the desired solution
+        for (int i = 0; i < size(); ++i) {
+            int id = get_id(i);
+            if (id < 0 || id >= n_points) continue;
+
+            if (data_type == vec_label) {
+                id *= 3;
+                for (double v : interpolation[i].vector)
+                    data[id++] = v;
+            }
+            else if (data_type == scalar_label)
+                data[id] = interpolation[i].scalar;
+            else
+                data[id] = interpolation[i].norm;
+        }
+    }
+
+    return 0;
+}
+
+int SolutionReader::interpolate_results(const int n_points, const string &data_type, const double* x,
+        const double* y, const double* z, double* data) {
+    if (n_points <= 0) return 0;
+    check_return(size() == 0, "No interpolation to export!");
+
+    // transfer coordinates
+    SolutionReader sr(interpolator, vec_label, vec_norm_label, scalar_label);
+    sr.set_preferences(false, dim, rank);
+    sr.reserve(n_points);
+    for (int i = 0; i < n_points; ++i)
+        sr.append(Atom(i, Point3(x[i], y[i], z[i]), 0));
+
+    // interpolate solution
+    sr.calc_interpolation();
+
+    // export solution
+    if (data_type == vec_label) {
+        for (int i = 0; i < n_points; ++i) {
+            int j = 3*i;
+            for (double v : sr.interpolation[i].vector)
+                data[j++] = v;
+        }
+    } else if (data_type == scalar_label) {
+        for (int i = 0; i < n_points; ++i)
+            data[i] = sr.interpolation[i].scalar;
+    } else {
+        for (int i = 0; i < n_points; ++i)
+            data[i] = sr.interpolation[i].norm;
+    }
+
+    return 0;
+
+}
+
 /* ==========================================
  * ============== FIELD READER ==============
  * ========================================== */
