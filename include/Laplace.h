@@ -5,8 +5,8 @@
  *      Author: kristjan
  */
 
-#ifndef INCLUDE_LAPLACE_H_
-#define INCLUDE_LAPLACE_H_
+#ifndef LAPLACE_H_
+#define LAPLACE_H_
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_reordering.h>
@@ -34,6 +34,10 @@
 #include "MeshPreparer.h"
 #include "ParticleSpecies.h"
 
+
+#include "DealSolver.h"
+
+using namespace std;
 namespace fch {
 
 // forward declaration for friend class
@@ -47,32 +51,15 @@ using namespace dealii;
  * https://www.dealii.org/8.5.0/doxygen/deal.II/step_3.html
  */
 template<int dim>
-class Laplace {
+class Laplace : public DealSolver<dim> {
 public:
     Laplace();
 
     /** Runs the calculation: setup and assemble system, solve Laplace equation, output the results*/
     void run();
 
-    /** getter for the mesh */
-    Triangulation<dim>* get_triangulation();
-    /** getter for dof_handler */
-    DoFHandler<dim>* get_dof_handler();
-
-    /**
-     * Imports mesh from file and sets the vacuum boundary indicators
-     * @param file_name name of the mesh file
-     */
-    void import_mesh_from_file(const std::string file_name);
-
-    /**
-     * imports mesh directly from vertex and cell data and sets the boundary indicators
-     * @return true if success, otherwise false
-     */
-    bool import_mesh_directly(std::vector<Point<dim> > vertices, std::vector<CellData<dim> > cells);
-
-    /** outputs the mesh to file in .vtk format */
-    void output_mesh(const std::string file_name = "vacuum_mesh.vtk");
+    /** Return the solution vector */
+    Vector<double>* get_solution() { return &solution; };
 
     /** get the electric field norm at the specified point using dealii
      * (slow as it looks for the surrounding cell) */
@@ -91,36 +78,14 @@ public:
     /** Probes the field at point p that belongs in cell with cell_index. Fast, when cell_index is correct */
     Tensor<1, dim, double> probe_efield(const Point<dim> &p, const int cell_index) const;
 
-    /** saves the system matrix (useful before BCs have been applied) */
-    void save_system(){
-        system_matrix_save.copy_from(system_matrix);
-//        system_rhs_save = system_rhs;
-    }
-
-    /** Restores the system matrix to the saved one */
-    void restore_system(){
-        system_matrix.copy_from(system_matrix_save);
-//        system_rhs = system_rhs_save;
-    }
-
-    /** Values of the shape functions at point p with respect to the nodes of
-     * cell with cell_index p has to belong in cell_index!!
-     */
-    std::vector<double> shape_funs(const Point<dim> &p, int cell_index) const;
-    /** Helper function for the above */
-    std::vector<double> shape_funs(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
-
     /**
      * method to obtain the electric potential values in selected nodes
      * @param cell_indexes global cell indexes, where the corresponding nodes are situated
      * @param vert_indexes the vertex indexes of the nodes inside the cell
      * @return potential values in the specified nodes
      */
-    std::vector<double> get_potential(const std::vector<int> &cell_indexes,
-            const std::vector<int> &vert_indexes);
-
-
-    double get_cell_vol(int cellid);
+    vector<double> get_potential(const vector<int> &cell_indexes,
+            const vector<int> &vert_indexes);
 
     /**
      * method to obtain the electric field values in selected nodes
@@ -128,8 +93,8 @@ public:
      * @param vert_indexes the vertex indexes of the nodes inside the cell
      * @return electric field vectors in the specified nodes
      */
-    std::vector<Tensor<1, dim>> get_efield(const std::vector<int> &cell_indexes,
-            const std::vector<int> &vert_indexes) const;
+    vector<Tensor<1, dim>> get_efield(const vector<int> &cell_indexes,
+            const vector<int> &vert_indexes) const;
 
     /** @brief set up dynamic sparsity pattern
      *  a) define optimal structure for sparse matrix representation,
@@ -141,12 +106,7 @@ public:
      * Calculate sparse matrix elements and right-hand-side vector
      * according to the Laplace equation weak formulation and to the boundary conditions.
      */
-    void assemble_system(double applied_field){
-        assemble_system_lhs();
-        assemble_system_neuman(BoundaryId::vacuum_top, applied_field);
-        assemble_system_dirichlet(BoundaryId::copper_surface, 0.0);
-        assemble_system_finalize();
-    }
+    void assemble_system(double applied_field);
 
     /** @brief Reset the system and assemble the LHS matrix
      * Calculate sparse matrix elements
@@ -172,9 +132,7 @@ public:
     /** @brief Apply all dirichlet boundary conditions to the system.
      * This should be the last function call to setup the equations, before calling solve()
      */
-    void assemble_system_finalize() {
-        MatrixTools::apply_boundary_values(boundary_values, system_matrix, solution, system_rhs);
-    }
+    void assemble_system_finalize();
 
     /** solves the matrix equation using conjugate gradient method
      * @param max_iter maximum number of iterations allowed
@@ -187,43 +145,14 @@ public:
             double ssor_param = 1.2);
 
     /** Outputs the results (electric potential and field) to a specified file in vtk format */
-    void output_results(const std::string filename = "field_solution.vtk") const;
-
-    /** Outputs the results (electric potential and field) to a specified file in vtk format.
-     * Identical to output_results */
-    void write(const std::string filename = "field_solution.vtk") const {
-        output_results(filename);
-    };
-
-    /** Print the statistics about the mesh and # degrees of freedom */
-    friend std::ostream& operator <<(std::ostream &os, const Laplace<dim>& d) {
-        os << "#elems=" << d.triangulation.n_active_cells() << ",\t#faces="
-                << d.triangulation.n_active_faces() << ",\t#edges="
-                << d.triangulation.n_active_lines() << ",\t#nodes="
-                << d.triangulation.n_used_vertices() << ",\t#dofs="
-                << d.dof_handler.n_dofs();
-        return os;
-    }
+    void output_results(const string &filename) const;
 
 private:
-    static constexpr unsigned int shape_degree = 1;   ///< degree of the shape functions (linear, quadratic etc elements)
-    static constexpr unsigned int quadrature_degree = shape_degree + 1;  ///< degree of the Gaussian numerical integration
-
     static constexpr double applied_efield_default = 2.0;
 
-    Triangulation<dim> triangulation;
-    FE_Q<dim> fe;
-    DoFHandler<dim> dof_handler;
-
-    SparsityPattern sparsity_pattern;     ///< structure for sparse matrix representation
-    SparseMatrix<double> system_matrix;   ///< system matrix of matrix equation
-    SparseMatrix<double> system_matrix_save;   ///< system matrix of matrix equation (save before Dirichlet BCs remove dofs)
-
     Vector<double> solution;              ///< resulting electric potential in the mesh nodes
-    Vector<double> system_rhs;            ///< right-hand-side of the matrix equation
-    Vector<double> system_rhs_save; ///< system RHS of matrix equation (save before Dirichlet BCs remove dofs)
 
-    std::map<types::global_dof_index, double> boundary_values; // Map of dirichlet boundary conditions
+    map<types::global_dof_index, double> boundary_values; // Map of dirichlet boundary conditions
 
     double probe_potential(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
 
@@ -231,10 +160,13 @@ private:
 
     Tensor<1, dim, double> probe_efield(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
 
+    /** Mark different regions in mesh */
+    void mark_boundary();
+
     friend class CurrentsAndHeating<dim> ;
     friend class CurrentsAndHeatingStationary<dim> ;
 };
 
 } // namespace fch
 
-#endif /* INCLUDE_LAPLACE_H_ */
+#endif /* LAPLACE_H_ */
