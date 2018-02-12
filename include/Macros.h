@@ -15,7 +15,7 @@
 #include <cmath>
 
 using namespace std;
-//namespace femocs {
+namespace femocs {
 
 /** If ASSERTMODE then the asserts are operating.
  * It must be controlled on compile time to enable deeper code optimisation. */
@@ -30,10 +30,10 @@ void expectation_fails(const char *file, int line, string message);
 // Asserts for catching errors in development mode
 #if ASSERTMODE
     /** Definition to give informative error if the requirement is not met */
-    #define require(condition, message) if (!(condition)) requirement_fails(__FILE__, __LINE__, message)
+    #define require(condition, message) if (!(condition)) femocs::requirement_fails(__FILE__, __LINE__, message)
 
     /** Definition to give informative warning if the expectation is not met */
-    #define expect(condition, message)  if (!(condition)) expectation_fails(__FILE__, __LINE__, message)
+    #define expect(condition, message)  if (!(condition)) femocs::expectation_fails(__FILE__, __LINE__, message)
 
 // In release(-like) versions nothing happens
 #else
@@ -104,5 +104,5 @@ void start_msg(double& t0, const string& message);
 /** Print the execution time of the code */
 void end_msg(const double t0);
 
-//} /* namespace femocs */
+} /* namespace femocs */
 #endif /* MACROS_H_ */
