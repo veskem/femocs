@@ -1,6 +1,3 @@
-[submodule "deal-solver"]
-	path = deal-solver
-	url = https://github.com/veskem/deal-solver.git
 [submodule "GETELEC"]
 	path = GETELEC
 	url = https://github.com/AndKyr/GETELEC
