@@ -6,7 +6,7 @@ include build/makefile.defs
 
 all: lib/libfemocs.a
 
-lib/libfemocs.a: build/.build/Makefile src/* include/* deal-solver/source/* deal-solver/include/*
+lib/libfemocs.a: build/.build/Makefile src/* include/*
 	cd build/.build; make -j${NPROCS}
 
 build/.build/Makefile:

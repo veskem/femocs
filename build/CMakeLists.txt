@@ -43,13 +43,13 @@ SET(DEAL_II_DIR ../dealii)
 SET(CGAL_DIR ../cgal)
 
 # Find source files
-FILE(GLOB_RECURSE TARGET_SRC "../src/*.cpp" "../src/*.f90" "../deal-solver/source/*")
+FILE(GLOB_RECURSE TARGET_SRC "../src/*.cpp" "../src/*.f90")
 
 # path to the directories with headers
 IF (LIBCGAL AND CMAKE_BUILD_TYPE MATCHES Release)
-    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../cgal/include ../GETELEC/modules)
+    INCLUDE_DIRECTORIES(../include ../cgal/include ../GETELEC/modules)
 ELSE()
-    INCLUDE_DIRECTORIES(../include ../deal-solver/include ../GETELEC/modules)
+    INCLUDE_DIRECTORIES(../include ../GETELEC/modules)
 ENDIF()
 
 # ==============================================
