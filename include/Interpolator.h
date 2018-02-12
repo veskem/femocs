@@ -62,7 +62,7 @@ public:
     /** Extract the current density and transient temperature values from FEM solution */
     void extract_solution(fch::CurrentsAndHeating<3>& fem);
 
-    int update_point_cell(Point3& point, int current_cell, bool deal_index = true);
+    int update_point_cell(Point3& point, int current_cell);
 
     InterpolatorNodes nodes;      ///< vertices and solutions on them
     LinearTriangles lintris;      ///< data & operations for linear triangular interpolation

@@ -317,7 +317,7 @@ int main(int argc, char **argv) {
         n_iterations = atoi(argv[2]);
     }
 
-    int n_atoms = 0, n_points = 100;
+    int n_atoms = 0;
     read_n_atoms(infile, n_atoms);
 
     int* flag  = (int*)    malloc(n_atoms * sizeof(int));
