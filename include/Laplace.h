@@ -37,7 +37,6 @@
 
 #include "DealSolver.h"
 
-using namespace std;
 namespace fch {
 
 // forward declaration for friend class
@@ -45,6 +44,7 @@ template<int dim> class CurrentsAndHeating;
 template<int dim> class CurrentsAndHeatingStationary;
 
 using namespace dealii;
+using namespace std;
 
 /** @brief Class to solve Laplace equation in 2D or 3D
  * It is inspired by the step-3 of Deal.II tutorial

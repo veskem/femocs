@@ -19,6 +19,7 @@
 #include <iostream>
 #include <tuple>
 
+#include "DealSolver.h"
 #include "Laplace.h"
 #include "MeshPreparer.h" // for BoundaryId-s.. probably should think of a better place for them
 #include "PhysicalQuantities.h"
@@ -28,6 +29,7 @@ namespace fch {
 // forward declaration for Laplace to exist when declaring CurrentsAndHeating
 template<int dim> class Laplace;
 
+using namespace std;
 using namespace dealii;
 
 /** @brief Class to solve stationary heat and continuity equations in 2D or 3D to obtain temperature and current density distribution in material.
@@ -38,7 +40,7 @@ using namespace dealii;
  * https://www.dealii.org/8.5.0/doxygen/deal.II/Tutorial.html
  */
 template<int dim>
-class CurrentsAndHeatingStationary {
+class CurrentsAndHeatingStationary : public DealSolver<dim> {
 public:
 
     /**
@@ -104,41 +106,19 @@ public:
      */
     double run_specific(double temperature_tolerance = 1.0,
             int max_newton_iter = 10, bool file_output = true,
-            std::string out_fname = "sol", bool print = true,
+            string out_fname = "sol", bool print = true,
             double sor_alpha = 1.0, double ic_interp_treshold = 400,
             bool skip_field_mapping = false);
 
-    /** Provide triangulation object to get access to the mesh data */
-    Triangulation<dim>* get_triangulation();
-
-    /** Provide dof_handler object to get access to the mesh data */
-    DoFHandler<dim>* get_dof_handler();
-
     /** Return the solution vector with potential and temperature values */
     Vector<double>* get_solution();
-
-    /**
-     * Imports mesh from file and sets the boundary indicators corresponding to copper
-     * @param file_name file from the mesh is imported
-     */
-    void import_mesh_from_file(const std::string file_name);
-
-    /**
-     * imports mesh directly from vertex and cell data and sets the boundary indicators
-     * @return true if success, otherwise false
-     */
-    bool import_mesh_directly(std::vector<Point<dim> > vertices,
-            std::vector<CellData<dim> > cells);
-
-    /** outputs the mesh to .vtk file */
-    void output_mesh(const std::string file_name = "copper_mesh.vtk");
 
     /**
      * Outputs the calculated solution to file
      * @param file_name name of the destination file
      * @param iteration if positive, will be appendend to the name before extension
      */
-    void output_results(const std::string file_name = "sol.vtk",
+    void output_results(const string file_name = "sol.vtk",
             const int iteration = -1) const;
 
     /**
@@ -147,34 +127,21 @@ public:
      * @param vert_indexes the vertex indexes of the nodes inside the cell
      * @return temperature values in the specified nodes
      */
-    std::vector<double> get_temperature(const std::vector<int> &cell_indexes,
-            const std::vector<int> &vert_indexes);
+    vector<double> get_temperature(const vector<int> &cell_indexes,
+            const vector<int> &vert_indexes);
     /**
      * method to obtain the current density values in selected nodes
      * @param cell_indexes global cell indexes, where the corresponding nodes are situated
      * @param vert_indexes the vertex indexes of the nodes inside the cell
      * @return current density vectors in the specified nodes
      */
-    std::vector<Tensor<1, dim>> get_current(
-            const std::vector<int> &cell_indexes,
-            const std::vector<int> &vert_indexes);
-
-    /** string stream prints the statistics about the system */
-    friend std::ostream& operator <<(std::ostream &os,
-            const CurrentsAndHeatingStationary<dim>& d) {
-        os << "#elems=" << d.triangulation.n_active_cells() << ",\t#faces="
-                << d.triangulation.n_active_faces() << ",\t#edges="
-                << d.triangulation.n_active_lines() << ",\t#nodes="
-                << d.triangulation.n_used_vertices() << ",\t#dofs="
-                << d.dof_handler.n_dofs();
-        return os;
-    }
+    vector<Tensor<1, dim>> get_current(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
 
     /** export the centroids of surface faces */
-    void get_surface_nodes(std::vector<Point<dim>>& nodes);
+    void get_surface_nodes(vector<Point<dim>>& nodes);
 
     /** read the electric field norm on the centroids of surface faces */
-    void set_electric_field_bc(const std::vector<double>& elfields);
+    void set_electric_field_bc(const vector<double>& elfields);
 
 private:
     void assemble_system_newton();
@@ -189,9 +156,6 @@ private:
     void set_initial_condition();
     void set_initial_condition_slow();
 
-    static constexpr unsigned int currents_degree = 1; ///< degree of the shape functions in current density solver
-    static constexpr unsigned int heating_degree = 1;  ///< degree of the shape functions in temperature solver
-
     static constexpr double ambient_temperature_default = 300.0;  ///< default temperature applied on bottom of the material
     double ambient_temperature;
 
@@ -199,15 +163,8 @@ private:
 
     FESystem<dim> fe;
 
-    Triangulation<dim> triangulation;
-    DoFHandler<dim> dof_handler;
-
-    SparsityPattern sparsity_pattern;
-    SparseMatrix<double> system_matrix;
-
     Vector<double> present_solution;
     Vector<double> newton_update;
-    Vector<double> system_rhs;
 
     PhysicalQuantities *pq;
     Laplace<dim> *laplace;
@@ -215,15 +172,18 @@ private:
     /** Mapping of copper interface face to vacuum side
      * (copper_cell_index, copper_cell_face) <-> (vacuum_cell_index, vacuum_cell_face)
      */
-    std::map<std::pair<unsigned, unsigned>, std::pair<unsigned, unsigned> > interface_map;
+    map<pair<unsigned, unsigned>, pair<unsigned, unsigned> > interface_map;
     /** Mapping of copper interface face to vacuum side e field norm
      * (copper_cell_index, copper_cell_face) <-> (electric field norm)
      */
-    std::map<std::pair<unsigned, unsigned>, double> interface_map_field;
+    map<pair<unsigned, unsigned>, double> interface_map_field;
 
     /** Previous iteration mesh and solution for setting the initial condition */
     CurrentsAndHeatingStationary* previous_iteration;
     bool interp_initial_conditions;
+
+    /** Mark different regions in mesh */
+    void mark_boundary();
 };
 
 } // end fch namespace

@@ -94,6 +94,7 @@ void DealSolver<dim>::output_mesh(const string &file_name) {
     mesh_preparer.output_mesh(&triangulation, file_name);
 }
 
+template class DealSolver<2>;
 template class DealSolver<3>;
 
 } /* namespace femocs */
