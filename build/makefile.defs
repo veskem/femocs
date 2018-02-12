@@ -14,7 +14,7 @@ CGAL_VER = 4.9
 FMAIN = build/Test.f90
 CXXMAIN = build/Test.cpp
 CMAIN = build/Test.c
-SOLVERMAIN = deal-solver/main/main.cc
+SOLVERMAIN = build/Test_deal_solver.cpp
 
 ## Number of cores used during compilation
 NPROCS = 4
@@ -22,7 +22,7 @@ NPROCS = 4
 ## Fortran, C, C++ and their common path flags
 FCFLAGS = "-Ilib"
 CCFLAGS =
-CXXCFLAGS = "-Ideal-solver/include -IGETELEC/modules -Idealii/include -std=c++11"
+CXXCFLAGS = "-IGETELEC/modules -Idealii/include -std=c++11"
 CFLAGS = -Iinclude -Llib -LGETELEC/lib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu -Lcgal/lib64
 
 ## Optimization and warnings

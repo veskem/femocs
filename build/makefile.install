@@ -30,4 +30,4 @@ clean:
 	rm -rf lib/libtet.a dealii/lib/*
 
 clean-all:
-	rm -rf lib/libtet.a tetgen/.build dealii/* deal-solver GETELEC
+	rm -rf lib/libtet.a tetgen/.build dealii/* GETELEC
