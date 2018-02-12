@@ -11,6 +11,7 @@
 #include "Primitives.h"
 #include "TetgenMesh.h"
 #include "TetgenCells.h"
+#include "Constants.h"
 
 using namespace std;
 namespace femocs {

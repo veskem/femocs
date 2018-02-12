@@ -6,13 +6,14 @@
  */
 
 #include "Macros.h"
-
+#include "Constants.h"
 #include <omp.h>
 #include <algorithm>
 #include <fstream>
 #include <numeric>
 
 using namespace std;
+//namespace femocs {
 
 const string FEMOCSLOGPATH = "out/femocs.log";
 
@@ -58,8 +59,8 @@ double periodic_image(double p, double max, double min){
 
 // Write debug message to console and log file and start timer
 void start_msg(double& t0, const string& message) {
-    if (MODES.WRITELOG) write_log(message);
-    if (MODES.VERBOSE) {
+    if (femocs::MODES.WRITELOG) write_log(message);
+    if (femocs::MODES.VERBOSE) {
         const int row_len = 45;
         const size_t msg_len = message.size();
 
@@ -76,19 +77,19 @@ void start_msg(double& t0, const string& message) {
 
 // Print code execution time to console
 void end_msg(const double t0) {
-    if (MODES.VERBOSE) printf("time: %.3f\n", omp_get_wtime() - t0);
+    if (femocs::MODES.VERBOSE) printf("time: %.3f\n", omp_get_wtime() - t0);
 }
 
 // Write message to log file and console
 void write_silent_msg(const string& message) {
-    if (MODES.WRITELOG) write_log(message);
-    if (!MODES.MUTE) cout << "\nFEMOCS: " << message << endl;
+    if (femocs::MODES.WRITELOG) write_log(message);
+    if (!femocs::MODES.MUTE) cout << "\nFEMOCS: " << message << endl;
 }
 
 // Write message to log file and console
 void write_verbose_msg(const string& message) {
-    if (MODES.WRITELOG) write_log("  " + message);
-    if (MODES.VERBOSE) cout << "  " << message << endl;
+    if (femocs::MODES.WRITELOG) write_log("  " + message);
+    if (femocs::MODES.VERBOSE) cout << "  " << message << endl;
 }
 
 // Append line to log file
@@ -99,7 +100,7 @@ void write_log(const string& message) {
 
 // Delete contents of log file
 void clear_log() {
-    if (MODES.WRITELOG) {
+    if (femocs::MODES.WRITELOG) {
         const string cmd = "rm -f " + FEMOCSLOGPATH;
         if ( system(cmd.c_str()) ) return;
     }
@@ -187,3 +188,5 @@ string get_file_type(const string& file_name) {
     const int end = file_name.size();
     return file_name.substr(start, end);
 }
+
+//} /* namespace femocs */

@@ -259,7 +259,6 @@ int ProjectNanotip::solve_laplace(const double E0) {
 
     start_msg(t0, "=== Running Laplace solver...");
     int ncg = laplace_solver.solve(conf.field.n_phi, conf.field.phi_error, true, conf.field.ssor_param);
-    cout << "CG iterations = " << ncg;
     end_msg(t0);
 
     start_msg(t0, "=== Extracting E and phi...");

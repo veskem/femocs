@@ -8,6 +8,7 @@
 #ifndef VORONOIMESH_H_
 #define VORONOIMESH_H_
 
+#include "Constants.h"
 #include "Macros.h"
 #include "Primitives.h"
 #include "Tetgen.h"

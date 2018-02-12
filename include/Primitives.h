@@ -10,6 +10,7 @@
 #define PRIMITIVES_H_
 
 #include "Macros.h"
+#include "Constants.h"
 #include "deal.II/numerics/vector_tools.h"
 
 namespace femocs {

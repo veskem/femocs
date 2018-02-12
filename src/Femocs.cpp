@@ -8,6 +8,7 @@
 #include "Femocs.h"
 #include "ProjectNanotip.h"
 #include "ProjectRunaway.h"
+#include "Constants.h"
 
 using namespace std;
 namespace femocs {
