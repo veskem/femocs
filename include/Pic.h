@@ -8,16 +8,15 @@
 #ifndef PIC_H_
 #define PIC_H_
 
-#include "laplace.h"
 #include "Interpolator.h"
-#include "currents_and_heating.h"
 #include "SolutionReader.h"
 #include "Config.h"
 #include "TetgenCells.h"
 #include "Primitives.h"
 #include "ParticleSpecies.h"
 #include "PicCollisions.h"
-
+#include "Laplace.h"
+#include "CurrentsAndHeating.h"
 
 #include <deal.II/base/point.h>
 #include <algorithm>

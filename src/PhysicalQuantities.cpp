@@ -1,21 +1,20 @@
 /*
- * physical_quantities.cc
+ * physical_quantities.cc -> PhysicalQuantities.cpp
  *
  *  Created on: Apr 30, 2016
  *      Author: kristjan
  */
 
-#include "physical_quantities.h"
-#include "utility.h"
-
 #include <fstream>
 #include <sstream>
 #include <cmath>
-#include <cstdio>  // fopen
+#include <cstdio>
 #include <iostream>
 #include <algorithm>
-
 #include <sys/stat.h>
+
+#include "PhysicalQuantities.h"
+#include "Utility.h"
 
 namespace fch {
 

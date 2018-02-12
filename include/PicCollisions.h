@@ -9,7 +9,7 @@
 #define PICCOLLISIONS_H_
 
 #include "ParticleSpecies.h"
-#include "laplace.h" //Needs to access the mesh
+#include "Laplace.h" //Needs to access the mesh
 
 namespace femocs {
 

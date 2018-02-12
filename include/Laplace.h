@@ -1,5 +1,5 @@
 /*
- * laplace.h
+ * laplace.h -> Laplace.h
  *
  *  Created on: Jul 26, 2016
  *      Author: kristjan
@@ -29,9 +29,9 @@
 #include <fstream>
 #include <iostream>
 
-#include "currents_and_heating.h" // for friend class declaration
-#include "currents_and_heating_stationary.h" // for friend class declaration
-#include "mesh_preparer.h"
+#include "CurrentsAndHeating.h" // for friend class declaration
+#include "CurrentsAndHeatingStationary.h" // for friend class declaration
+#include "MeshPreparer.h"
 #include "ParticleSpecies.h"
 
 namespace fch {

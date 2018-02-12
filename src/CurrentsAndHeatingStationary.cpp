@@ -1,11 +1,12 @@
 /*
- * currents_and_heating.cc
+ * currents_and_heating_stationary.cc -> CurrentsAndHeatingStationary.cpp
  *
  *  Created on: Jul 28, 2016
  *      Author: kristjan
  */
 
-#include "../include/currents_and_heating_stationary.h"
+#include "CurrentsAndHeatingStationary.h"
+#include "Utility.h"
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria_accessor.h>
@@ -38,7 +39,6 @@
 #include <cassert>
 #include <algorithm>
 
-#include "utility.h"
 
 namespace fch {
 using namespace dealii;

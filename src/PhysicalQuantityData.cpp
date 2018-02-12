@@ -2,7 +2,7 @@
 #include <utility>
 #include <fstream>
 
-#include "physical_quantities.h"
+#include "PhysicalQuantities.h"
 #include "Macros.h"
 
 namespace fch {

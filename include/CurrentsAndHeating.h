@@ -1,12 +1,12 @@
 /*
- * currents_and_heating.h
+ * currents_and_heating.h -> CurrentsAndHeating.h
  *
  *  Created on: Jul 28, 2016
  *      Author: kristjan
  */
 
-#ifndef INCLUDE_CURRENTS_AND_HEATING_H_
-#define INCLUDE_CURRENTS_AND_HEATING_H_
+#ifndef CURRENTSANDHEATING_H_
+#define CURRENTSANDHEATING_H_
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_reordering.h>
@@ -19,9 +19,9 @@
 #include <iostream>
 #include <tuple>
 
-#include "mesh_preparer.h"
-#include "physical_quantities.h"
-#include "laplace.h"
+#include "Laplace.h"
+#include "MeshPreparer.h"
+#include "PhysicalQuantities.h"
 
 namespace fch {
 
@@ -239,4 +239,4 @@ private:
 
 } // end fch namespace
 
-#endif /* INCLUDE_CURRENTS_AND_HEATING_H_ */
+#endif /* CURRENTSANDHEATING_H_ */

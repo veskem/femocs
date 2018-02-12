@@ -28,7 +28,7 @@
 #include <deal.II/fe/fe_update_flags.h>
 
 
-#include "laplace.h"
+#include "Laplace.h"
 
 
 namespace fch {

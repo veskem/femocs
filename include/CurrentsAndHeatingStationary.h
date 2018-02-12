@@ -1,12 +1,12 @@
 /*
- * currents_and_heating.h
+ * currents_and_heating_stationary.h -> CurrentsAndHeatingStationary.h
  *
  *  Created on: Jul 28, 2016
  *      Author: kristjan
  */
 
-#ifndef INCLUDE_CURRENTS_AND_HEATING_STATIONARY_H_
-#define INCLUDE_CURRENTS_AND_HEATING_STATIONARY_H_
+#ifndef CURRENTSANDHEATINGSTATIONARY_H_
+#define CURRENTSANDHEATINGSTATIONARY_H_
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_reordering.h>
@@ -19,9 +19,9 @@
 #include <iostream>
 #include <tuple>
 
-#include "mesh_preparer.h" // for BoundaryId-s.. probably should think of a better place for them
-#include "physical_quantities.h"
-#include "laplace.h"
+#include "Laplace.h"
+#include "MeshPreparer.h" // for BoundaryId-s.. probably should think of a better place for them
+#include "PhysicalQuantities.h"
 
 namespace fch {
 
@@ -228,4 +228,4 @@ private:
 
 } // end fch namespace
 
-#endif /* INCLUDE_CURRENTS_AND_HEATING_STATIONARY_H_ */
+#endif /* CURRENTSANDHEATINGSTATIONARY_H_ */

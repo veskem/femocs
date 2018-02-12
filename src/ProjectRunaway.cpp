@@ -11,7 +11,7 @@
 #include "Macros.h"
 #include "Tethex.h"
 #include "VoronoiMesh.h"
-#include "laplace.h"
+#include "Laplace.h"
 
 #include <omp.h>
 #include <algorithm>

@@ -14,7 +14,7 @@ CGAL_VER = 4.9
 FMAIN = build/Test.f90
 CXXMAIN = build/Test.cpp
 CMAIN = build/Test.c
-SOLVERMAIN = build/Test_deal_solver.cpp
+SOLVERMAIN = build/Test_solver.cpp
 
 ## Number of cores used during compilation
 NPROCS = 4

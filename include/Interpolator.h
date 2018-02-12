@@ -8,14 +8,13 @@
 #ifndef INTERPOLATOR_H_
 #define INTERPOLATOR_H_
 
+
 #include "Primitives.h"
 #include "TetgenMesh.h"
-//#include "TetgenCells.h"
 #include "InterpolatorCells.h"
-//#include "Coarseners.h"
-#include "laplace.h"
-#include "currents_and_heating.h"
-#include "currents_and_heating_stationary.h"
+#include "CurrentsAndHeating.h"
+#include "CurrentsAndHeatingStationary.h"
+#include "Laplace.h"
 
 using namespace std;
 namespace femocs {

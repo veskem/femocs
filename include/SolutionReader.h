@@ -14,9 +14,9 @@
 #include "TetgenMesh.h"
 #include "VoronoiMesh.h"
 #include "Interpolator.h"
-#include "currents_and_heating.h"
-#include "currents_and_heating_stationary.h"
 #include "Config.h"
+#include "CurrentsAndHeating.h"
+#include "CurrentsAndHeatingStationary.h"
 
 using namespace std;
 namespace femocs {

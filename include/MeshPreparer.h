@@ -1,12 +1,12 @@
 /*
- * mesh_input.h
+ * mesh_input.h -> MeshPreparer.h
  *
  *  Created on: Jul 27, 2016
  *      Author: kristjan
  */
 
-#ifndef INCLUDE_MESH_PREPARER_H_
-#define INCLUDE_MESH_PREPARER_H_
+#ifndef MESHPREPARER_H_
+#define MESHPREPARER_H_
 
 #include <string>
 #include <iostream>
@@ -95,4 +95,4 @@ public:
 
 } // namespace fch
 
-#endif /* INCLUDE_MESH_PREPARER_H_ */
+#endif /* MESHPREPARER_H_ */

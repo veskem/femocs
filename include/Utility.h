@@ -1,5 +1,5 @@
 /*
- * utility.h
+ * utility.h -> Utility.h
  *
  *  Created on: Oct 26, 2016
  *      Author: kristjan
@@ -7,8 +7,8 @@
  *  Some useful snippet tools
  */
 
-#ifndef INCLUDE_UTILITY_H_
-#define INCLUDE_UTILITY_H_
+#ifndef UTILITY_H_
+#define UTILITY_H_
 
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/grid_generator.h>
@@ -84,4 +84,4 @@ inline bool contains_digit(const std::string& s) {
 
 } // namespace fch
 
-#endif /* INCLUDE_UTILITY_H_ */
+#endif /* UTILITY_H_ */

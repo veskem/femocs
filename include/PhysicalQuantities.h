@@ -1,12 +1,12 @@
 /*
- * physical_quantities.h
+ * physical_quantities.h -> PhysicalQuantities.h
  *
  *  Created on: Apr 30, 2016
  *      Author: kristjan
  */
 
-#ifndef INCLUDE_PHYSICAL_QUANTITIES_H_
-#define INCLUDE_PHYSICAL_QUANTITIES_H_
+#ifndef PHYSICALQUANTITIES_H_
+#define PHYSICALQUANTITIES_H_
 
 #include <vector>
 #include <string>
@@ -160,4 +160,4 @@ private:
 
 } // namespace fch
 
-#endif /* INCLUDE_PHYSICAL_QUANTITIES_H_ */
+#endif /* PHYSICALQUANTITIES_H_ */

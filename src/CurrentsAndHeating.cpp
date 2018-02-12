@@ -1,5 +1,5 @@
 /*
- * currents_and_heating.cc
+ * currents_and_heating.cc -> CurrentsAndHeating.cpp
  *
  *  Created on: Jul 28, 2016
  *      Author: kristjan
@@ -36,10 +36,9 @@
 #include <cassert>
 #include <algorithm>
 #include <cstdlib>
-//#include <stdlib.h>
 
-#include "currents_and_heating.h"
-#include "utility.h"
+#include "CurrentsAndHeating.h"
+#include "Utility.h"
 
 namespace fch {
 using namespace dealii;

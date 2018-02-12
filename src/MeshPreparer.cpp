@@ -1,11 +1,11 @@
 /*
- * mesh_preparer.cc
+ * mesh_preparer.cc -> MeshPreparer.cpp
  *
  *  Created on: Jul 27, 2016
  *      Author: kristjan
  */
 
-#include "mesh_preparer.h"
+#include "MeshPreparer.h"
 
 #include <fstream>
 

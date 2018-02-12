@@ -16,9 +16,9 @@
 #include "Surface.h"
 #include "Interpolator.h"
 #include "TetgenMesh.h"
-#include "physical_quantities.h"
-#include "currents_and_heating.h"
-#include "currents_and_heating_stationary.h"
+#include "CurrentsAndHeating.h"
+#include "CurrentsAndHeatingStationary.h"
+#include "PhysicalQuantities.h"
 #include "Pic.h"
 
 using namespace std;
