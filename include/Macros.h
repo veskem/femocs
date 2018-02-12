@@ -18,8 +18,9 @@ using namespace std;
 namespace femocs {
 
 /** If ASSERTMODE then the asserts are operating.
- * It must be controlled on compile time to enable deeper code optimisation. */
-#define ASSERTMODE true
+ * It must be controlled on compile time to enable deeper code optimisation.
+ * Currently that flag is controlled from CMakeLists.txt side. */
+//#define ASSERTMODE true
 
 /** Throw an informative error if requirement fails */
 void requirement_fails(const char *file, int line, string message);
@@ -27,16 +28,17 @@ void requirement_fails(const char *file, int line, string message);
 /** Throw an informative warning if expectation fails */
 void expectation_fails(const char *file, int line, string message);
 
-// Asserts for catching errors in development mode
+
 #if ASSERTMODE
+// Asserts for catching errors in development mode
     /** Definition to give informative error if the requirement is not met */
     #define require(condition, message) if (!(condition)) femocs::requirement_fails(__FILE__, __LINE__, message)
 
     /** Definition to give informative warning if the expectation is not met */
     #define expect(condition, message)  if (!(condition)) femocs::expectation_fails(__FILE__, __LINE__, message)
 
-// In release(-like) versions nothing happens
 #else
+// In release(-like) versions nothing happens
     #define require(condition, message) {}
     #define expect(condition, message) {}
 #endif // ASSERTMODE

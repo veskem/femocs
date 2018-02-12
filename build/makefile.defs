@@ -27,7 +27,7 @@ CFLAGS = -Iinclude -Llib -LGETELEC/lib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu 
 
 ## Optimization and warnings
 OPT = -O3 -w
-OPT_DEBUG = -g -O1 -Wall -Wpedantic -Wno-unused-local-typedefs
+OPT_DEBUG = -g -Og -Wall -Wpedantic -Wno-unused-local-typedefs
 
 ## Fortran, C++ and C Compilers
 F90 = gfortran
@@ -36,7 +36,9 @@ CC = gcc
 
 ## Library flags for
 ##  All systems
-LFLAGS = -lfemocs -ltet -ldeal_II ${LIBCGAL} -lgetelec -lslatec -fopenmp
+LFLAGS_ALL = -ltet -ldeal_II ${LIBCGAL} -lgetelec -lslatec -fopenmp
+LFLAGS = -lfemocs ${LFLAGS_ALL}
+LFLAGS_DEBUG = -lfemocs_debug ${LFLAGS_ALL}
 ##  Ubuntu desktop
 EXTLFLAGS = -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -lgfortran
 ##  CSC Taito cluser

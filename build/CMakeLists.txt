@@ -5,15 +5,6 @@
 
 cmake_minimum_required (VERSION 2.8.8)
 
-# specify the name of the library
-SET(LIB_NAME "femocs")
-
-# specify which languages project uses
-PROJECT(${LIB_NAME} C CXX Fortran)
-
-# enable or disable verbose build
-SET(CMAKE_VERBOSE_MAKEFILE off)
-
 # ==============================================
 # ======= Variables to be set on cmd-line ======
 # ==============================================
@@ -26,6 +17,25 @@ SET(CMAKE_VERBOSE_MAKEFILE off)
 # specify whether to build in debug or release mode
 #SET(CMAKE_BUILD_TYPE Release)
 #SET(CMAKE_BUILD_TYPE Debug)
+
+# ==============================================
+# ====== Set library name and verbosity =======
+# ==============================================
+
+MESSAGE(STATUS "Building code in a " ${CMAKE_BUILD_TYPE} " mode")
+
+# specify the name of the library
+IF (CMAKE_BUILD_TYPE MATCHES Debug)
+    SET(LIB_NAME "femocs_debug")
+ELSE()
+    SET(LIB_NAME "femocs")
+ENDIF()
+
+# specify which languages project uses
+PROJECT(${LIB_NAME} C CXX Fortran)
+
+# enable or disable verbose build
+SET(CMAKE_VERBOSE_MAKEFILE off)
 
 # ==============================================
 # ========== Path for input & output ===========
@@ -88,11 +98,20 @@ ENDIF()
 # ============= Compilation flags ==============
 # ==============================================
 
+# in debug mode enable asserts
+IF (CMAKE_BUILD_TYPE MATCHES Debug)
+    MESSAGE(STATUS "Enabling FEMOCS asserts")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DASSERTMODE=true")
+ELSE()
+    MESSAGE(STATUS "Disabling FEMOCS asserts")
+ENDIF()
+
 #add OpenMP flag
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 
 # Specify warnings that are checked and that are omitted
-SET(WARNINGS "-pedantic -Wall -Wextra -Wno-unused-local-typedefs -Wno-unused-parameter")
+#SET(WARNINGS "-pedantic -Wall -Wextra -Wno-unused-local-typedefs -Wno-unused-parameter")
+SET(WARNINGS "")
 
 # flags should not be set in CMAKE_CXX_FLAGS, because deal.II overrides many of them.
 # The deal.II flags can be seen from dealii/share/deal.II/Make.global_options
@@ -107,8 +126,8 @@ STRING(REGEX REPLACE "-O[0-9]" "" DEAL_II_CXX_FLAGS_RELEASE ${DEAL_II_CXX_FLAGS_
 # set warning and optimization level
 IF (CMAKE_BUILD_TYPE MATCHES Release)
     SET(DEAL_II_CXX_FLAGS "${DEAL_II_CXX_FLAGS} -O3 -w")
-ELSE()    
-    SET(DEAL_II_CXX_FLAGS "${DEAL_II_CXX_FLAGS} -g -O1 ${WARNINGS}")
+ELSE()
+    SET(DEAL_II_CXX_FLAGS "${DEAL_II_CXX_FLAGS} -g -Og ${WARNINGS}")
 ENDIF()
 
 # ==============================================

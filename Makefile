@@ -14,7 +14,7 @@ all: lib
 
 lib: femocs_lib
 femocs_lib:
-	make -f build/makefile.lib mode=Release
+	make -s -f build/makefile.lib lib/libfemocs.a
 
 test_f90: femocs_lib femocs_f90
 femocs_f90:
@@ -30,13 +30,15 @@ femocs_solver:
 
 release: femocs_lib femocs_release
 femocs_release:
-	make  -f build/makefile.exec main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
+	make -s -f build/makefile.exec build/femocs main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
 
-debug: femocs_debug
+debug: femocs_debug_lib femocs_debug
 femocs_debug:
-	make -f build/makefile.lib mode=Debug
 	make -s -f build/makefile.exec build/femocs.debug main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
 
+femocs_debug_lib:
+	make -s -f build/makefile.lib lib/libfemocs_debug.a
+	
 doc: femocs_doc
 femocs_doc:
 	make -f build/makefile.doc

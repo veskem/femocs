@@ -11,11 +11,10 @@ dealii/*
 !dealii/dealii-*.tar.gz
 cgal/*
 !cgal/CGAL*.zip
-lib/libtet.a
-lib/libfemocs.a
-lib/libfemocs.mod
+lib/*.a
+lib/*.mod
 build/femocs*
-.build
+.build*
 in/md.in
 out/*
 tmpfile

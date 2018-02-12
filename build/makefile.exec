@@ -13,9 +13,9 @@ build/femocs.o: lib/libfemocs.a ${main}
 	${compiler} -c ${main} ${OPT} ${CFLAGS} ${cf} -o $@
 	
 build/femocs.debug: build/femocs.debug.o
-	${compiler} $< ${OPT_DEBUG} ${CFLAGS} ${cf} ${LFLAGS} ${EXTLFLAGS} -o $@
+	${compiler} $< ${OPT_DEBUG} ${CFLAGS} ${cf} ${LFLAGS_DEBUG} ${EXTLFLAGS} -o $@
 
-build/femocs.debug.o: lib/libfemocs.a ${main}
+build/femocs.debug.o: lib/libfemocs_debug.a ${main}
 	${compiler} -c ${main} ${OPT_DEBUG} ${CFLAGS} ${cf} -o $@
 
 clean:
