@@ -22,6 +22,7 @@
 #include "Laplace.h"
 #include "MeshPreparer.h"
 #include "PhysicalQuantities.h"
+#include "DealSolver.h"
 
 namespace fch {
 
@@ -29,6 +30,168 @@ namespace fch {
 template<int dim> class Laplace;
 
 using namespace dealii;
+using namespace std;
+
+template<int dim>
+class EmissionSolver : public DealSolver<dim> {
+public:
+
+    EmissionSolver();
+
+    /**
+     * Constructor for CurrentsAndHeating
+     * @param time_step_  timestep of time domain integration [sec]
+     * @param pq_         object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
+     */
+    EmissionSolver(Triangulation<dim> *tria, PhysicalQuantities *pq_, const double default_value);
+
+    /** Solve the matrix equation using conjugate gradient method
+     * @param max_iter maximum number of iterations allowed
+     * @param tol tolerance of the solution
+     * @param pc_ssor flag to use SSOR preconditioner
+     * @param ssor_param   parameter to SSOR preconditioner. 1.2 is known to work well with laplace.
+     *                     its fine tuning optimises calculation time
+     */
+    unsigned int solve(int max_iter = 2000, double tol = 1e-9, bool pc_ssor = true, double ssor_param = 1.2);
+
+    /** @brief set up dynamic sparsity pattern for calculations */
+    void setup();
+
+    /** Set the electric field boundary condition on copper-vacuum boundary.
+     * The electric fields must be on the centroids of the vacuum-material boundary faces
+     * in the order specified in the get_surface_nodes() method.
+     */
+    void set_electric_field_bc(const vector<double> &e_fields);
+
+    /** Set the emission current and Nottingham boundary condition on copper-vacuum boundary.
+     * The values must be on the centroids of the vacuum-material boundary faces
+     * in the order specified in the get_surface_nodes() method.
+     */
+    void set_emission_bc(const vector<double> &emission);
+
+protected:
+    const double default_solution_value;
+    double uniform_efield_bc;
+    PhysicalQuantities *pq;
+    Triangulation<dim> *tria;
+
+    /** Mapping of copper interface faces to vacuum side e field norm
+     * (copper_cell_index, copper_cell_face) <-> (electric field norm)
+     */
+    map<pair<unsigned, unsigned>, double> interface_map_field;
+
+    /** Mapping of copper interface faces to emission BCs
+     * (copper_cell_index, copper_cell_face) <-> (emission_current/nottingham_heat)
+     */
+    map<pair<unsigned, unsigned>, double> interface_map;
+
+    double get_efield_bc(pair<unsigned, unsigned> cop_cell_info);
+};
+
+template<int dim>
+class CurrentSolver : public EmissionSolver<dim> {
+public:
+
+    CurrentSolver();
+    CurrentSolver(Triangulation<dim> *tria_, PhysicalQuantities *pq_, const double default_value);
+
+    /** Output the electric potential [V] and field [V/nm] in vtk format */
+    void output_results(const string &filename) const;
+
+    /**
+     * Method to obtain the current density values in selected nodes.
+     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
+     * @param vert_indexes the vertex indexes of the nodes inside the cell
+     * @return current density vectors in the specified nodes
+     */
+    vector<Tensor<1, dim>> get_current(const vector<int> &cell_indexes,
+            const vector<int> &vert_indexes);
+
+private:
+    // TODO delete those variables
+    Vector<double> solution_heat;
+
+    double get_emission_current_bc(pair<unsigned, unsigned> cop_cell_info, const double temperature);
+};
+
+template<int dim>
+class HeatSolver : public EmissionSolver<dim> {
+public:
+
+    HeatSolver();
+    HeatSolver(Triangulation<dim> *tria_, PhysicalQuantities *pq_, const double default_value);
+
+    /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] in vtk format */
+    void output_results(const string &filename) const;
+
+    /**
+     * Method to obtain the temperature values in selected nodes.
+     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
+     * @param vert_indexes the vertex indexes of the nodes inside the cell
+     * @return temperature  ///< default temperature applied on bottom of the materiale values in the specified nodes
+     */
+    vector<double> get_temperature(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
+
+    double get_max_temperature();
+
+    /** Get the temperature at the specified point. NB: Slow! */
+    double probe_temperature(const Point<dim> &p) const;
+
+private:
+     double get_nottingham_heat_bc(pair<unsigned, unsigned> cop_cell_info, const double temperature);
+
+};
+
+template<int dim>
+class CurrentsAndHeatingSolver : public DealSolver<dim> {
+    CurrentsAndHeatingSolver();
+    CurrentsAndHeatingSolver(PhysicalQuantities *pq_);
+
+    /** @brief assemble the matrix equation for temperature calculation using Crank-Nicolson time integration method
+     * Calculate sparse matrix elements and right-hand-side vector
+     * according to the time dependent heat equation weak formulation and to the boundary conditions.
+     */
+    void assemble_heating_system_crank_nicolson();
+
+    /** @brief assemble the matrix equation for temperature calculation using implicit Euler time integration method
+     * Calculate sparse matrix elements and right-hand-side vector
+     * according to the time dependent heat equation weak formulation and to the boundary conditions.
+     */
+    void assemble_heating_system_euler_implicit();
+
+    /** @brief assemble the matrix equation for current density calculation ()
+     * Calculate sparse matrix elements and right-hand-side vector
+     * according to the continuity equation weak formulation and to the boundary conditions.
+     */
+    void assemble_current_system();
+
+    /** Set timestep of time domain integration [sec] */
+    void set_timestep(const double time_step_) { time_step = time_step_; }
+
+    /** Sets the physical quantities object */
+    void set_physical_quantities(PhysicalQuantities *pq_) {
+        pq = pq_;
+        heat_solver.pq = pq_;
+        current_solver.pq = pq_;
+        heat_solver.tria = &this->triangulation;
+        current_solver.tria = &this->triangulation;
+    }
+
+    void set_emission_bc(const vector<double> &emission_currents, const vector<double> &nottingham_heats);
+
+private:
+    static constexpr double ambient_temperature = 300.0; ///< temperature boundary condition, i.e temperature applied on bottom of the material
+    static constexpr double cu_rho_cp = 3.4496e-24;    ///< volumetric heat capacity of copper J/(K*ang^3)
+
+    double time_step;
+    PhysicalQuantities *pq;
+
+    HeatSolver<dim> heat_solver;
+    CurrentSolver<dim> current_solver;
+
+    friend class HeatSolver<dim> ;
+    friend class CurrentSolver<dim> ;
+};
 
 /** @brief Class to solve time dependent heat and continuity equations in 2D or 3D to obtain temperature and current density distribution in material.
  * It is inspired by the step-26 of Deal.II tutorial that includes only heat equation.
@@ -58,14 +221,14 @@ public:
      * Imports mesh from file and sets the boundary indicators corresponding to copper
      * @param file_name file from the mesh is imported
      */
-    void import_mesh_from_file(const std::string file_name);
+    void import_mesh_from_file(const string file_name);
 
     /**
      * imports mesh directly from vertex and cell data and sets the boundary indicators
      * @return true if success, otherwise false
      */
-    bool import_mesh_directly(std::vector<Point<dim> > vertices,
-            std::vector<CellData<dim> > cells);
+    bool import_mesh_directly(vector<Point<dim> > vertices,
+            vector<CellData<dim> > cells);
 
     /** @brief set up dynamic sparsity pattern for current density calculation
      */
@@ -114,10 +277,10 @@ public:
             double ssor_param = 1.2);
 
     /** Output the electric potential [V] and field [V/nm] to a specified file in vtk format */
-    void output_results_current(const std::string filename = "current_solution.vtk") const;
+    void output_results_current(const string filename = "current_solution.vtk") const;
 
     /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] to a specified file in vtk format */
-    void output_results_heating(const std::string filename = "heating_solution.vtk") const;
+    void output_results_heating(const string filename = "heating_solution.vtk") const;
 
     /** Set the electric field boundary condition on copper-vacuum boundary.
      * The electric field is extracted directly from the Laplace solver.
@@ -128,11 +291,7 @@ public:
      * The electric fields must be on the centroids of the vacuum-material boundary faces
      * in the order specified in the get_surface_nodes() method.
      */
-    void set_electric_field_bc(const std::vector<double> &e_fields);
-
-    /** Set the electric field boundary condition on copper-vacuum boundary.
-     * The electric field on every face will be the same. */
-    void set_electric_field_bc(const double uniform_efield);
+    void set_electric_field_bc(const vector<double> &e_fields);
 
     /** Set timestep of time domain integration [sec] */
     void set_timestep(const double time_step_);
@@ -141,8 +300,7 @@ public:
      * The values must be on the centroids of the vacuum-material boundary faces
      * in the order specified in the get_surface_nodes() method.
      */
-    void set_emission_bc(const std::vector<double> &emission_currents,
-            const std::vector<double> &nottingham_heats);
+    void set_emission_bc(const vector<double> &emission_currents, const vector<double> &nottingham_heats);
 
     /** Sets the physical quantities object */
     void set_physical_quantities(PhysicalQuantities *pq_);
@@ -153,8 +311,8 @@ public:
      * @param vert_indexes the vertex indexes of the nodes inside the cell
      * @return temperature  ///< default temperature applied on bottom of the materiale values in the specified nodes
      */
-    std::vector<double> get_temperature(const std::vector<int> &cell_indexes,
-            const std::vector<int> &vert_indexes);
+    vector<double> get_temperature(const vector<int> &cell_indexes,
+            const vector<int> &vert_indexes);
 
     /**
      * Method to obtain the current density values in selected nodes.
@@ -162,11 +320,11 @@ public:
      * @param vert_indexes the vertex indexes of the nodes inside the cell
      * @return current density vectors in the specified nodes
      */
-    std::vector<Tensor<1, dim>> get_current(const std::vector<int> &cell_indexes,
-            const std::vector<int> &vert_indexes);
+    vector<Tensor<1, dim>> get_current(const vector<int> &cell_indexes,
+            const vector<int> &vert_indexes);
 
     /** export the centroids of surface faces */
-    void get_surface_nodes(std::vector<Point<dim>>& nodes);
+    void get_surface_nodes(vector<Point<dim>>& nodes);
 
     double get_max_temperature();
 
@@ -179,15 +337,11 @@ public:
     /** Get the temperature at the specified point. NB: Slow! */
     double probe_temperature(const Point<dim> &p) const;
 
-    std::vector<std::pair<Point<dim>, unsigned>> inject_electrons(const double &delta_t) const;
-
-    std::vector<std::pair<Point<dim>, unsigned>> inject_electrons(const double &delta_t, Mapping<dim-1,dim>& mapping) const;
-
 private:
 
-    double get_efield_bc(std::pair<unsigned, unsigned> cop_cell_info);
-    double get_emission_current_bc(std::pair<unsigned, unsigned> cop_cell_info, const double temperature);
-    double get_nottingham_heat_bc(std::pair<unsigned, unsigned> cop_cell_info, const double temperature);
+    double get_efield_bc(pair<unsigned, unsigned> cop_cell_info);
+    double get_emission_current_bc(pair<unsigned, unsigned> cop_cell_info, const double temperature);
+    double get_nottingham_heat_bc(pair<unsigned, unsigned> cop_cell_info, const double temperature);
 
     static constexpr unsigned int currents_degree = 1; ///< degree of the shape functions in current density solver
     static constexpr unsigned int heating_degree = 1;  ///< degree of the shape functions in temperature solver
@@ -228,13 +382,13 @@ private:
     /** Mapping of copper interface faces to vacuum side e field norm
      * (copper_cell_index, copper_cell_face) <-> (electric field norm)
      */
-    std::map<std::pair<unsigned, unsigned>, double> interface_map_field;
+    map<pair<unsigned, unsigned>, double> interface_map_field;
 
     /** Mapping of copper interface faces to emission BCs
      * (copper_cell_index, copper_cell_face) <-> (emission_current/nottingham_heat)
      */
-     std::map<std::pair<unsigned, unsigned>, double> interface_map_emission_current;
-     std::map<std::pair<unsigned, unsigned>, double> interface_map_nottingham;
+     map<pair<unsigned, unsigned>, double> interface_map_emission_current;
+     map<pair<unsigned, unsigned>, double> interface_map_nottingham;
 };
 
 } // end fch namespace

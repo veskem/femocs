@@ -58,9 +58,6 @@ public:
     /** Runs the calculation: setup and assemble system, solve Laplace equation, output the results*/
     void run();
 
-    /** Return the solution vector */
-    Vector<double>* get_solution() { return &solution; };
-
     /** get the electric field norm at the specified point using dealii
      * (slow as it looks for the surrounding cell) */
     double probe_efield_norm(const Point<dim> &p) const;
@@ -149,8 +146,6 @@ public:
 
 private:
     static constexpr double applied_efield_default = 2.0;
-
-    Vector<double> solution;              ///< resulting electric potential in the mesh nodes
 
     map<types::global_dof_index, double> boundary_values; // Map of dirichlet boundary conditions
 

@@ -42,6 +42,675 @@
 
 namespace fch {
 using namespace dealii;
+using namespace std;
+
+// ----------------------------------------------------------------------------------------
+// Class for outputting the electrical conductivity distribution
+template <int dim>
+class SigmaPostProcessor : public DataPostprocessorScalar<dim> {
+    PhysicalQuantities *pq;
+public:
+    SigmaPostProcessor(PhysicalQuantities *pq_) :
+            DataPostprocessorScalar<dim>("sigma", update_values), pq(pq_) {
+    }
+    void
+    compute_derived_quantities_scalar ( const vector<double>               &uh,
+                                        const vector<Tensor<1,dim> >       &/*duh*/,
+                                        const vector<Tensor<2,dim> >       &/*dduh*/,
+                                        const vector<Point<dim> >          &/*normals*/,
+                                        const vector<Point<dim> >          &/*evaluation_points*/,
+                                        vector<Vector<double> >            &computed_quantities) const {
+        for (unsigned int i=0; i<computed_quantities.size(); i++) {
+            double temperature = uh[i];
+            computed_quantities[i](0) = pq->sigma(temperature);
+        }
+    }
+};
+// ----------------------------------------------------------------------------
+// Class for outputting the resulting field distribution (calculated from potential distribution)
+template <int dim>
+class FieldPostProcessor : public DataPostprocessorVector<dim> {
+public:
+    FieldPostProcessor() : DataPostprocessorVector<dim>("field", update_gradients) {}
+
+    void
+    compute_derived_quantities_scalar ( const vector<double>               &/*uh*/,
+                                        const vector<Tensor<1,dim> >       &duh,
+                                        const vector<Tensor<2,dim> >       &/*dduh*/,
+                                        const vector<Point<dim> >          &/*normals*/,
+                                        const vector<Point<dim> >          &/*evaluation_points*/,
+                                        vector<Vector<double> >            &computed_quantities) const {
+        for (unsigned int i=0; i<computed_quantities.size(); i++) {
+            for (unsigned int d=0; d<dim; ++d)
+                computed_quantities[i](d) = duh[i][d];
+        }
+    }
+};
+// ----------------------------------------------------------------------------------------
+
+/* ==================================================================
+ *  ======================== EmissionSolver ========================
+ * ================================================================== */
+
+template<int dim>
+EmissionSolver<dim>::EmissionSolver() :
+        DealSolver<dim>(),
+        uniform_efield_bc(1.0), default_solution_value(0), pq(NULL), tria(NULL)
+        {}
+
+template<int dim>
+EmissionSolver<dim>::EmissionSolver(Triangulation<dim> *tria_, PhysicalQuantities *pq_, const double dsf) :
+        DealSolver<dim>(tria_),
+        uniform_efield_bc(1.0), default_solution_value(dsf), pq(pq_), tria(tria_)
+        {}
+
+template<int dim>
+void EmissionSolver<dim>::set_electric_field_bc(const vector<double>& elfields) {
+    const unsigned n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
+    interface_map_field.clear();
+
+    // Loop over copper interface cells
+    typename DoFHandler<dim>::active_cell_iterator cell;
+    unsigned i = 0;
+    for (cell = this->dof_handler.begin_active(); cell != this->dof_handler.end(); ++cell)
+        for (unsigned f = 0; f < n_faces_per_cell; ++f)
+            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+                pair<unsigned, unsigned> face_info(cell->index(), f);
+                interface_map_field.insert( pair<pair<unsigned, unsigned>, double>(face_info, elfields[i++]) );
+            }
+}
+
+template<int dim>
+void EmissionSolver<dim>::set_emission_bc(const vector<double> &emission) {
+    const unsigned n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
+    interface_map.clear();
+
+    // Loop over copper interface cells
+    typename DoFHandler<dim>::active_cell_iterator cell;
+    unsigned i = 0;
+    for (cell = this->dof_handler.begin_active(); cell != this->dof_handler.end(); ++cell)
+        for (unsigned f = 0; f < n_faces_per_cell; ++f)
+            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+                pair<unsigned, unsigned> face_info(cell->index(), f);
+                interface_map.insert( pair<pair<unsigned, unsigned>, double>(face_info, emission[i++]) );
+            }
+}
+
+template<int dim>
+double EmissionSolver<dim>::get_efield_bc(const pair<unsigned, unsigned> cop_cell_info) {
+    double e_field = 1.0;
+    if (interface_map_field.empty()) {
+        e_field = uniform_efield_bc;
+    } else {
+        assert(interface_map_field.count(cop_cell_info) == 1);
+        e_field = interface_map_field[cop_cell_info];
+    }
+    return e_field;
+}
+
+template<int dim>
+unsigned int EmissionSolver<dim>::solve(int max_iter, double tol, bool pc_ssor, double ssor_param) {
+    SolverControl solver_control(max_iter, tol);
+    SolverCG<> solver(solver_control);
+
+    if (pc_ssor) {
+        PreconditionSSOR<> preconditioner;
+        preconditioner.initialize(this->system_matrix, ssor_param);
+        solver.solve(this->system_matrix, this->solution, this->system_rhs, preconditioner);
+    } else {
+        solver.solve(this->system_matrix, this->solution, this->system_rhs, PreconditionIdentity());
+    }
+
+    this->solution_old = this->solution;
+    return solver_control.last_step();
+}
+
+template<int dim>
+void EmissionSolver<dim>::setup() {
+    this->dof_handler.distribute_dofs(this->fe);
+
+    DynamicSparsityPattern dsp(this->dof_handler.n_dofs());
+    DoFTools::make_sparsity_pattern(this->dof_handler, dsp);
+    this->sparsity_pattern.copy_from(dsp);
+
+    this->system_matrix.reinit(this->sparsity_pattern);
+
+    this->solution.reinit(this->dof_handler.n_dofs());
+    this->solution_old.reinit(this->dof_handler.n_dofs());
+    this->system_rhs.reinit(this->dof_handler.n_dofs());
+
+
+    // Initialize the solution to ambient temperature
+    for (size_t i = 0; i < this->solution.size(); i++) {
+        this->solution[i] = default_solution_value;
+        this->solution_old[i] = default_solution_value;
+    }
+}
+
+/* ==================================================================
+ *  ========================== HeatSolver ==========================
+ * ================================================================== */
+
+template<int dim>
+HeatSolver<dim>::HeatSolver() :
+        EmissionSolver<dim>() {}
+
+template<int dim>
+HeatSolver<dim>::HeatSolver(Triangulation<dim> *tria_, PhysicalQuantities *pq_, const double default_value) :
+        EmissionSolver<dim>(tria_, pq_, default_value) {}
+
+template<int dim>
+vector<double> HeatSolver<dim>::get_temperature(const vector<int> &cell_indexes,
+        const vector<int> &vert_indexes) {
+
+    // Initialize vector with a value that is immediately visible if it's not changed to proper one
+    vector<double> temperatures(cell_indexes.size(), 1e15);
+
+    for (unsigned i = 0; i < cell_indexes.size(); i++) {
+        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+        // NB: only works without refinement !!!
+        typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation, 0, cell_indexes[i],
+                &this->dof_handler);
+
+        double temperature = this->solution[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
+        temperatures[i] = temperature;
+    }
+    return temperatures;
+}
+
+template<int dim>
+double HeatSolver<dim>::get_nottingham_heat_bc(const pair<unsigned, unsigned> cop_cell_info,
+        const double temperature) {
+    double nottingham_heat = 0.0;
+    if (this->interface_map.empty()) {
+        double e_field = this->get_efield_bc(cop_cell_info);
+        double emission_current = this->pq->emission_current(e_field, temperature);
+        nottingham_heat = -1.0 * this->pq->nottingham_de(e_field, temperature) * emission_current;
+    } else {
+        assert(this->interface_map.count(cop_cell_info) == 1);
+        nottingham_heat = this->interface_map[cop_cell_info];
+    }
+    return nottingham_heat;
+}
+
+template<int dim>
+double HeatSolver<dim>::get_max_temperature() {
+    return this->solution.linfty_norm();
+}
+
+template<int dim>
+double HeatSolver<dim>::probe_temperature(const Point<dim> &p) const {
+    return VectorTools::point_value(this->dof_handler, this->solution, p);
+}
+
+template<int dim>
+void HeatSolver<dim>::output_results(const string &filename) const {
+    SigmaPostProcessor<dim> sigma_post_processor(this->pq);
+    DataOut<dim> data_out;
+
+    data_out.attach_dof_handler(this->dof_handler);
+    data_out.add_data_vector(this->solution, "temperature");
+    data_out.add_data_vector(this->solution, sigma_post_processor);
+
+    data_out.build_patches();
+
+    try {
+        ofstream output(filename);
+        data_out.write_vtk(output);
+    } catch (...) {
+        femocs::write_verbose_msg("Could not open " + filename);
+    }
+}
+
+/* ==================================================================
+ *  ========================= CurrentSolver ========================
+ * ================================================================== */
+
+template<int dim>
+CurrentSolver<dim>::CurrentSolver() :
+        EmissionSolver<dim>() {}
+
+template<int dim>
+CurrentSolver<dim>::CurrentSolver(Triangulation<dim> *tria_, PhysicalQuantities *pq_, const double default_value) :
+        EmissionSolver<dim>(tria_, pq_, default_value) {}
+
+template<int dim>
+vector<Tensor<1, dim>> CurrentSolver<dim>::get_current(const vector<int> &cell_indexes,
+        const vector<int> &vert_indexes)
+{
+    QGauss<dim> quadrature_formula(this->quadrature_degree);
+    FEValues<dim> fe_values(this->fe, quadrature_formula, update_gradients);
+
+    vector<Tensor<1, dim> > potential_gradients(quadrature_formula.size());
+    const FEValuesExtractors::Scalar potential(0);
+
+    vector<Tensor<1, dim> > currents(cell_indexes.size());
+
+    for (unsigned i = 0; i < cell_indexes.size(); i++) {
+        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+        // NB: only works without refinement !!!
+        typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation, 0, cell_indexes[i],
+                &this->dof_handler);
+
+        double temperature = solution_heat[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
+
+        fe_values.reinit(dof_cell);
+        fe_values.get_function_gradients(this->solution, potential_gradients);
+
+        Tensor<1, dim> field = -1.0 * potential_gradients.at(vert_indexes[i]);
+        Tensor<1, dim> current = this->pq->sigma(temperature) * field;
+
+        currents[i] = current;
+    }
+    return currents;
+}
+
+template<int dim>
+double CurrentSolver<dim>::get_emission_current_bc(const pair<unsigned, unsigned> cop_cell_info,
+        const double temperature) {
+    double emission_current = 0.0;
+    if (this->interface_map.empty()) {
+        double e_field = this->get_efield_bc(cop_cell_info);
+        emission_current = this->pq->emission_current(e_field, temperature);
+    } else {
+        assert(this->interface_map.count(cop_cell_info) == 1);
+        emission_current = this->interface_map[cop_cell_info];
+    }
+    return emission_current;
+}
+
+template<int dim>
+void CurrentSolver<dim>::output_results(const string &filename) const {
+
+    FieldPostProcessor<dim> field_post_processor; // needs to be before data_out
+    DataOut<dim> data_out;
+
+    data_out.attach_dof_handler(this->dof_handler);
+    data_out.add_data_vector(this->solution, "potential");
+    data_out.add_data_vector(this->solution, field_post_processor);
+
+    data_out.build_patches();
+
+    try {
+        ofstream output(filename);
+        data_out.write_vtk(output);
+    } catch (...) {
+        femocs::write_verbose_msg("Could not open " + filename);
+    }
+}
+
+/* ==================================================================
+ *  =================== CurrentsAndHeatingSolver ===================
+ * ================================================================== */
+
+template<int dim>
+CurrentsAndHeatingSolver<dim>::CurrentsAndHeatingSolver() :
+        DealSolver<dim>(), time_step(0), pq(NULL),
+        heat_solver(NULL, NULL, ambient_temperature),
+        current_solver(NULL, NULL, 0.0) {}
+
+template<int dim>
+CurrentsAndHeatingSolver<dim>::CurrentsAndHeatingSolver(PhysicalQuantities *pq_) :
+        DealSolver<dim>(), time_step(1e-13), pq(pq_),
+        heat_solver(&this->triangulation, pq_, ambient_temperature),
+        current_solver(&this->triangulation, pq_, 0.0) {}
+
+template<int dim>
+void CurrentsAndHeatingSolver<dim>::assemble_current_system() {
+
+    current_solver->system_matrix = 0;
+    current_solver->system_rhs = 0;
+
+    QGauss<dim> quadrature_formula(this->quadrature_degree);
+    QGauss<dim-1> face_quadrature_formula(this->quadrature_degree);
+
+    // Current finite element values
+    FEValues<dim> fe_values(current_solver->fe, quadrature_formula,
+            update_gradients | update_quadrature_points | update_JxW_values);
+    FEFaceValues<dim> fe_face_values(current_solver->fe, face_quadrature_formula,
+            update_values | update_quadrature_points | update_JxW_values);
+
+    // Temperature finite element values (only for accessing previous iteration solution)
+    FEValues<dim> fe_values_heat(heat_solver->fe, quadrature_formula, update_values);
+    FEFaceValues<dim> fe_face_values_heat(heat_solver->fe, face_quadrature_formula, update_values);
+
+    const unsigned int dofs_per_cell = current_solver->fe.dofs_per_cell;
+    const unsigned int n_q_points = quadrature_formula.size();
+    const unsigned int n_face_q_points = face_quadrature_formula.size();
+
+    FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
+    Vector<double> cell_rhs(dofs_per_cell);
+
+    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+    // ---------------------------------------------------------------------------------------------
+    // The previous solution values in the cell quadrature points
+    vector<double> prev_sol_temperature_values(n_q_points);
+    // The previous solution values in the face quadrature points
+    vector<double> prev_sol_face_temperature_values(n_face_q_points);
+    // ---------------------------------------------------------------------------------------------
+
+    typename DoFHandler<dim>::active_cell_iterator cell = current_solver->dof_handler.begin_active();
+    typename DoFHandler<dim>::active_cell_iterator heat_cell = heat_solver->dof_handler.begin_active();
+
+    for (; cell != current_solver->dof_handler.end(); ++cell, ++heat_cell) {
+        fe_values.reinit(cell);
+        cell_matrix = 0;
+        cell_rhs = 0;
+
+        fe_values_heat.reinit(heat_cell);
+        fe_values_heat.get_function_values(heat_solver->solution, prev_sol_temperature_values);
+
+        // ----------------------------------------------------------------------------------------
+        // Local matrix assembly
+        // ----------------------------------------------------------------------------------------
+        for (unsigned int q = 0; q < n_q_points; ++q) {
+
+            double temperature = prev_sol_temperature_values[q];
+            double sigma = pq->sigma(temperature);
+
+            for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+                for (unsigned int j = 0; j < dofs_per_cell; ++j)
+                    cell_matrix(i, j) += (fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
+                            * sigma * fe_values.JxW(q));
+            }
+        }
+        // ----------------------------------------------------------------------------------------
+        // Local right-hand side assembly
+        // ----------------------------------------------------------------------------------------
+        // Emission current BC at the copper surface
+        for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
+            if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+                fe_face_values.reinit(cell, f);
+
+                fe_face_values_heat.reinit(heat_cell, f);
+                fe_face_values_heat.get_function_values(heat_solver->solution, prev_sol_face_temperature_values);
+
+                // ----------------------------------------------------------------------------------
+                // Cell and face info
+                pair<unsigned, unsigned> cop_cell_info = pair<unsigned, unsigned>(cell->index(), f);
+                // ----------------------------------------------------------------------------------
+
+                for (unsigned int q = 0; q < n_face_q_points; ++q) {
+                    double temperature = prev_sol_face_temperature_values[q];
+                    double emission_current = current_solver->get_emission_current_bc(cop_cell_info, temperature);
+
+                    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+                        cell_rhs(i) += (fe_face_values.shape_value(i, q)
+                                * emission_current * fe_face_values.JxW(q));
+                    }
+                }
+            }
+        }
+
+        cell->get_dof_indices(local_dof_indices);
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+            for (unsigned int j = 0; j < dofs_per_cell; ++j)
+                current_solver->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
+
+            current_solver->system_rhs(local_dof_indices[i]) += cell_rhs(i);
+        }
+    }
+
+    map<types::global_dof_index, double> boundary_values;
+    VectorTools::interpolate_boundary_values(current_solver->dof_handler, BoundaryId::copper_bottom,
+            ZeroFunction<dim>(), boundary_values);
+    MatrixTools::apply_boundary_values(boundary_values, current_solver->system_matrix, current_solver->solution, current_solver->system_rhs);
+}
+
+template<int dim>
+void CurrentsAndHeatingSolver<dim>::assemble_heating_system_crank_nicolson() {
+    const double gamma = cu_rho_cp / time_step;
+
+    heat_solver->system_matrix = 0;
+    heat_solver->system_rhs = 0;
+
+    QGauss<dim> quadrature_formula(this->quadrature_degree);
+    QGauss<dim-1> face_quadrature_formula(this->quadrature_degree);
+
+    // Heating finite element values
+    FEValues<dim> fe_values(heat_solver->fe, quadrature_formula,
+            update_values | update_gradients | update_quadrature_points | update_JxW_values);
+    FEFaceValues<dim> fe_face_values(heat_solver->fe, face_quadrature_formula,
+            update_values | update_quadrature_points | update_JxW_values);
+
+    // Finite element values for accessing current calculation
+    FEValues<dim> fe_values_current(current_solver->fe, quadrature_formula, update_gradients);
+
+    const unsigned int dofs_per_cell = heat_solver->fe.dofs_per_cell;
+    const unsigned int n_q_points = quadrature_formula.size();
+    const unsigned int n_face_q_points = face_quadrature_formula.size();
+
+    FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
+    Vector<double> cell_rhs(dofs_per_cell);
+
+    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+    // ---------------------------------------------------------------------------------------------
+    // The other solution values in the cell quadrature points
+    vector<Tensor<1, dim>> potential_gradients(n_q_points);
+    vector<Tensor<1, dim>> prev_sol_potential_gradients(n_q_points);
+    vector<double> prev_sol_temperature_values(n_q_points);
+    vector<Tensor<1, dim>> prev_sol_temperature_gradients(n_q_points);
+
+    vector<double> prev_sol_face_temperature_values(n_face_q_points);
+    // ---------------------------------------------------------------------------------------------
+
+    typename DoFHandler<dim>::active_cell_iterator cell = heat_solver->dof_handler.begin_active();
+    typename DoFHandler<dim>::active_cell_iterator current_cell = current_solver->dof_handler.begin_active();
+
+    for (; cell != heat_solver->dof_handler.end(); ++cell, ++current_cell) {
+        fe_values.reinit(cell);
+        cell_matrix = 0;
+        cell_rhs = 0;
+
+        fe_values.get_function_values(heat_solver->solution_old, prev_sol_temperature_values);
+        fe_values.get_function_gradients(heat_solver->solution_old, prev_sol_temperature_gradients);
+
+        fe_values_current.reinit(current_cell);
+        fe_values_current.get_function_gradients(current_solver->solution, potential_gradients);
+        fe_values_current.get_function_gradients(current_solver->solution_old, prev_sol_potential_gradients);
+
+        // ----------------------------------------------------------------------------------------
+        // Local matrix assembly
+        // ----------------------------------------------------------------------------------------
+        for (unsigned int q = 0; q < n_q_points; ++q) {
+
+            double prev_temperature = prev_sol_temperature_values[q];
+            double kappa = pq->kappa(prev_temperature);
+            double sigma = pq->sigma(prev_temperature);
+
+            Tensor<1, dim> prev_temperature_grad = prev_sol_temperature_gradients[q];
+
+            double pot_grad_squared = potential_gradients[q].norm_square();
+            double prev_pot_grad_squared = prev_sol_potential_gradients[q].norm_square();
+
+            for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+                for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+                    cell_matrix(i, j) += (
+                            2*gamma*fe_values.shape_value(i, q) * fe_values.shape_value(j, q) // Mass matrix
+                            + kappa*fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
+                    ) * fe_values.JxW(q);
+                }
+                cell_rhs(i) += (
+                        2*gamma*fe_values.shape_value(i, q)*prev_temperature
+                        - kappa*fe_values.shape_grad(i, q)*prev_temperature_grad
+                        + fe_values.shape_value(i, q)*sigma*(pot_grad_squared+prev_pot_grad_squared)
+                ) * fe_values.JxW(q);
+            }
+        }
+        // ----------------------------------------------------------------------------------------
+        // Local right-hand side assembly
+        // ----------------------------------------------------------------------------------------
+        // Nottingham BC at the copper surface
+        for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
+            if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+                fe_face_values.reinit(cell, f);
+
+                fe_face_values.get_function_values(heat_solver->solution_old, prev_sol_face_temperature_values);
+
+                // ----------------------------------------------------------------------------------
+                // Cell & face info
+                pair<unsigned, unsigned> cop_cell_info = pair<unsigned, unsigned>(
+                                                              cell->index(), f);
+                // ----------------------------------------------------------------------------------
+
+                for (unsigned int q = 0; q < n_face_q_points; ++q) {
+
+                    double prev_temperature = prev_sol_face_temperature_values[q];
+                    double nottingham_heat = heat_solver->get_nottingham_heat_bc(cop_cell_info, prev_temperature);
+
+                    //nottingham_heat = 0.0;
+                    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+                        cell_rhs(i) += (fe_face_values.shape_value(i, q)
+                                * 2.0 * nottingham_heat * fe_face_values.JxW(q));
+                    }
+                }
+            }
+        }
+
+        cell->get_dof_indices(local_dof_indices);
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+            for (unsigned int j = 0; j < dofs_per_cell; ++j)
+                heat_solver->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
+
+            heat_solver->system_rhs(local_dof_indices[i]) += cell_rhs(i);
+        }
+    }
+
+    map<types::global_dof_index, double> boundary_values;
+    VectorTools::interpolate_boundary_values(heat_solver->dof_handler, BoundaryId::copper_bottom,
+            ConstantFunction<dim>(ambient_temperature), boundary_values);
+    MatrixTools::apply_boundary_values(boundary_values, heat_solver->system_matrix, heat_solver->solution, heat_solver->system_rhs);
+}
+
+template<int dim>
+void CurrentsAndHeatingSolver<dim>::assemble_heating_system_euler_implicit() {
+    const double gamma = cu_rho_cp / time_step;
+
+    heat_solver->system_matrix = 0;
+    heat_solver->system_rhs = 0;
+
+    QGauss<dim> quadrature_formula(this->quadrature_degree);
+    QGauss<dim-1> face_quadrature_formula(this->quadrature_degree);
+
+    // Heating finite element values
+    FEValues<dim> fe_values(heat_solver->fe, quadrature_formula,
+            update_values | update_gradients | update_quadrature_points | update_JxW_values);
+    FEFaceValues<dim> fe_face_values(heat_solver->fe, face_quadrature_formula,
+            update_values | update_quadrature_points | update_JxW_values);
+
+    // Finite element values for accessing current calculation
+    FEValues<dim> fe_values_current(current_solver->fe, quadrature_formula, update_gradients);
+
+    const unsigned int dofs_per_cell = heat_solver->fe.dofs_per_cell;
+    const unsigned int n_q_points = quadrature_formula.size();
+    const unsigned int n_face_q_points = face_quadrature_formula.size();
+
+    FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
+    Vector<double> cell_rhs(dofs_per_cell);
+
+    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+    // ---------------------------------------------------------------------------------------------
+    // The other solution values in the cell quadrature points
+    vector<Tensor<1, dim>> potential_gradients(n_q_points);
+    vector<double> prev_sol_temperature_values(n_q_points);
+    vector<double> prev_sol_face_temperature_values(n_face_q_points);
+    // ---------------------------------------------------------------------------------------------
+
+    typename DoFHandler<dim>::active_cell_iterator cell = heat_solver->dof_handler.begin_active();
+    typename DoFHandler<dim>::active_cell_iterator current_cell = current_solver->dof_handler.begin_active();
+
+    for (; cell != heat_solver->dof_handler.end(); ++cell, ++current_cell) {
+        fe_values.reinit(cell);
+        cell_matrix = 0;
+        cell_rhs = 0;
+
+        fe_values.get_function_values(heat_solver->solution_old, prev_sol_temperature_values);
+
+        fe_values_current.reinit(current_cell);
+        fe_values_current.get_function_gradients(current_solver->solution, potential_gradients);
+
+        // ----------------------------------------------------------------------------------------
+        // Local matrix assembly
+        // ----------------------------------------------------------------------------------------
+        for (unsigned int q = 0; q < n_q_points; ++q) {
+            double prev_temperature = prev_sol_temperature_values[q];
+            double kappa = pq->kappa(prev_temperature);
+            double sigma = pq->sigma(prev_temperature);
+
+            double pot_grad_squared = potential_gradients[q].norm_square();
+
+            for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+                for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+                    cell_matrix(i, j) += (
+                            gamma*fe_values.shape_value(i, q) * fe_values.shape_value(j, q) // Mass matrix
+                            + kappa*fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
+                    ) * fe_values.JxW(q);
+                }
+
+                cell_rhs(i) += (
+                        gamma*fe_values.shape_value(i, q)*prev_temperature
+                        + fe_values.shape_value(i, q)*sigma*pot_grad_squared
+                ) * fe_values.JxW(q);
+
+            }
+        }
+        // ----------------------------------------------------------------------------------------
+        // Local right-hand side assembly
+        // ----------------------------------------------------------------------------------------
+        // Nottingham BC at the copper surface
+
+        for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
+            if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+                fe_face_values.reinit(cell, f);
+
+                fe_face_values.get_function_values(heat_solver->solution_old, prev_sol_face_temperature_values);
+
+                // ----------------------------------------------------------------------------------
+                // cell & face info
+                pair<unsigned, unsigned> cop_cell_info = pair<unsigned, unsigned>(
+                                                              cell->index(), f);
+                // ----------------------------------------------------------------------------------
+
+                for (unsigned int q = 0; q < n_face_q_points; ++q) {
+                    double prev_temperature = prev_sol_face_temperature_values[q];
+                    double nottingham_heat = heat_solver->get_nottingham_heat_bc(cop_cell_info, prev_temperature);
+
+                    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+                        cell_rhs(i) += (fe_face_values.shape_value(i, q)
+                                * nottingham_heat * fe_face_values.JxW(q));
+                    }
+                }
+            }
+        }
+
+        cell->get_dof_indices(local_dof_indices);
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+            for (unsigned int j = 0; j < dofs_per_cell; ++j)
+                heat_solver->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
+            heat_solver->system_rhs(local_dof_indices[i]) += cell_rhs(i);
+        }
+    }
+
+    map<types::global_dof_index, double> boundary_values;
+    VectorTools::interpolate_boundary_values(heat_solver->dof_handler, BoundaryId::copper_bottom,
+            ConstantFunction<dim>(ambient_temperature), boundary_values);
+    MatrixTools::apply_boundary_values(boundary_values, heat_solver->system_matrix, heat_solver->solution, heat_solver->system_rhs);
+}
+
+template<int dim>
+void CurrentsAndHeatingSolver<dim>::set_emission_bc(const vector<double> &emission_currents,
+        const vector<double> &nottingham_heats)
+{
+    current_solver->set_emission_bc(emission_currents);
+    heat_solver->set_emission_bc(nottingham_heats);
+}
+
+/* ==================================================================
+ *  ====================== CurrentsAndHeating ======================
+ * ================================================================== */
 
 template<int dim>
 CurrentsAndHeating<dim>::CurrentsAndHeating() :
@@ -58,7 +727,7 @@ CurrentsAndHeating<dim>::CurrentsAndHeating(double time_step_, PhysicalQuantitie
 }
 
 template<int dim>
-void CurrentsAndHeating<dim>::import_mesh_from_file(const std::string file_name) {
+void CurrentsAndHeating<dim>::import_mesh_from_file(const string file_name) {
     MeshPreparer<dim> mesh_preparer;
 
     mesh_preparer.import_mesh_from_file(&triangulation, file_name);
@@ -66,8 +735,8 @@ void CurrentsAndHeating<dim>::import_mesh_from_file(const std::string file_name)
 }
 
 template<int dim>
-bool CurrentsAndHeating<dim>::import_mesh_directly(std::vector<Point<dim> > vertices,
-        std::vector<CellData<dim> > cells) {
+bool CurrentsAndHeating<dim>::import_mesh_directly(vector<Point<dim> > vertices,
+        vector<CellData<dim> > cells) {
     try {
         SubCellData subcelldata;
         // Do some clean-up on vertices...
@@ -86,13 +755,12 @@ bool CurrentsAndHeating<dim>::import_mesh_directly(std::vector<Point<dim> > vert
     return true;
 }
 
-
 template<int dim>
 void CurrentsAndHeating<dim>::setup_current_system() {
 
     dof_handler_current.distribute_dofs(fe_current);
-    //std::cout << "Number of degrees of freedom: " << dof_handler.n_dofs()
-    //      << std::endl;
+    //cout << "Number of degrees of freedom: " << dof_handler.n_dofs()
+    //      << endl;
 
     DynamicSparsityPattern dsp(dof_handler_current.n_dofs());
     DoFTools::make_sparsity_pattern(dof_handler_current, dsp);
@@ -104,7 +772,7 @@ void CurrentsAndHeating<dim>::setup_current_system() {
     old_solution_current.reinit(dof_handler_current.n_dofs());
     system_rhs_current.reinit(dof_handler_current.n_dofs());
 
-    for (std::size_t i = 0; i < solution_current.size(); i++) {
+    for (size_t i = 0; i < solution_current.size(); i++) {
         solution_current[i] = 0;
         old_solution_current[i] = 0;
     }
@@ -114,8 +782,8 @@ template<int dim>
 void CurrentsAndHeating<dim>::setup_heating_system() {
 
     dof_handler_heat.distribute_dofs(fe_heat);
-    //std::cout << "Number of degrees of freedom: " << dof_handler.n_dofs()
-    //      << std::endl;
+    //cout << "Number of degrees of freedom: " << dof_handler.n_dofs()
+    //      << endl;
 
     DynamicSparsityPattern dsp(dof_handler_heat.n_dofs());
     DoFTools::make_sparsity_pattern(dof_handler_heat, dsp);
@@ -129,7 +797,7 @@ void CurrentsAndHeating<dim>::setup_heating_system() {
 
 
     // Initialize the solution to ambient temperature
-    for (std::size_t i = 0; i < solution_heat.size(); i++) {
+    for (size_t i = 0; i < solution_heat.size(); i++) {
         solution_heat[i] = ambient_temperature;
         old_solution_heat[i] = ambient_temperature;
     }
@@ -163,13 +831,13 @@ void CurrentsAndHeating<dim>::assemble_current_system() {
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
     Vector<double> cell_rhs(dofs_per_cell);
 
-    std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     // ---------------------------------------------------------------------------------------------
     // The previous solution values in the cell quadrature points
-    std::vector<double> prev_sol_temperature_values(n_q_points);
+    vector<double> prev_sol_temperature_values(n_q_points);
     // The previous solution values in the face quadrature points
-    std::vector<double> prev_sol_face_temperature_values(n_face_q_points);
+    vector<double> prev_sol_face_temperature_values(n_face_q_points);
     // ---------------------------------------------------------------------------------------------
 
     typename DoFHandler<dim>::active_cell_iterator cell = dof_handler_current.begin_active(),
@@ -211,7 +879,7 @@ void CurrentsAndHeating<dim>::assemble_current_system() {
 
                 // ----------------------------------------------------------------------------------
                 // Cell and face info
-                std::pair<unsigned, unsigned> cop_cell_info = std::pair<unsigned, unsigned>(
+                pair<unsigned, unsigned> cop_cell_info = pair<unsigned, unsigned>(
                                                               cell->index(), f);
                 // ----------------------------------------------------------------------------------
 
@@ -237,12 +905,11 @@ void CurrentsAndHeating<dim>::assemble_current_system() {
         }
     }
 
-    std::map<types::global_dof_index, double> boundary_values;
+    map<types::global_dof_index, double> boundary_values;
     VectorTools::interpolate_boundary_values(dof_handler_current, BoundaryId::copper_bottom,
             ZeroFunction<dim>(), boundary_values);
     MatrixTools::apply_boundary_values(boundary_values, system_matrix_current, solution_current, system_rhs_current);
 }
-
 
 template<int dim>
 void CurrentsAndHeating<dim>::assemble_heating_system_crank_nicolson() {
@@ -273,16 +940,16 @@ void CurrentsAndHeating<dim>::assemble_heating_system_crank_nicolson() {
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
     Vector<double> cell_rhs(dofs_per_cell);
 
-    std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     // ---------------------------------------------------------------------------------------------
     // The other solution values in the cell quadrature points
-    std::vector<Tensor<1, dim>> potential_gradients(n_q_points);
-    std::vector<Tensor<1, dim>> prev_sol_potential_gradients(n_q_points);
-    std::vector<double> prev_sol_temperature_values(n_q_points);
-    std::vector<Tensor<1, dim>> prev_sol_temperature_gradients(n_q_points);
+    vector<Tensor<1, dim>> potential_gradients(n_q_points);
+    vector<Tensor<1, dim>> prev_sol_potential_gradients(n_q_points);
+    vector<double> prev_sol_temperature_values(n_q_points);
+    vector<Tensor<1, dim>> prev_sol_temperature_gradients(n_q_points);
 
-    std::vector<double> prev_sol_face_temperature_values(n_face_q_points);
+    vector<double> prev_sol_face_temperature_values(n_face_q_points);
     // ---------------------------------------------------------------------------------------------
 
     typename DoFHandler<dim>::active_cell_iterator cell = dof_handler_heat.begin_active(),
@@ -341,7 +1008,7 @@ void CurrentsAndHeating<dim>::assemble_heating_system_crank_nicolson() {
 
                 // ----------------------------------------------------------------------------------
                 // Cell & face info
-                std::pair<unsigned, unsigned> cop_cell_info = std::pair<unsigned, unsigned>(
+                pair<unsigned, unsigned> cop_cell_info = pair<unsigned, unsigned>(
                                                               cell->index(), f);
                 // ----------------------------------------------------------------------------------
 
@@ -368,12 +1035,11 @@ void CurrentsAndHeating<dim>::assemble_heating_system_crank_nicolson() {
         }
     }
 
-    std::map<types::global_dof_index, double> boundary_values;
+    map<types::global_dof_index, double> boundary_values;
     VectorTools::interpolate_boundary_values(dof_handler_heat, BoundaryId::copper_bottom,
             ConstantFunction<dim>(ambient_temperature), boundary_values);
     MatrixTools::apply_boundary_values(boundary_values, system_matrix_heat, solution_heat, system_rhs_heat);
 }
-
 
 template<int dim>
 void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
@@ -404,13 +1070,13 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
     Vector<double> cell_rhs(dofs_per_cell);
 
-    std::vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     // ---------------------------------------------------------------------------------------------
     // The other solution values in the cell quadrature points
-    std::vector<Tensor<1, dim>> potential_gradients(n_q_points);
-    std::vector<double> prev_sol_temperature_values(n_q_points);
-    std::vector<double> prev_sol_face_temperature_values(n_face_q_points);
+    vector<Tensor<1, dim>> potential_gradients(n_q_points);
+    vector<double> prev_sol_temperature_values(n_q_points);
+    vector<double> prev_sol_face_temperature_values(n_face_q_points);
     // ---------------------------------------------------------------------------------------------
 
     typename DoFHandler<dim>::active_cell_iterator cell = dof_handler_heat.begin_active(),
@@ -466,7 +1132,7 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
 
                 // ----------------------------------------------------------------------------------
                 // cell & face info
-                std::pair<unsigned, unsigned> cop_cell_info = std::pair<unsigned, unsigned>(
+                pair<unsigned, unsigned> cop_cell_info = pair<unsigned, unsigned>(
                                                               cell->index(), f);
                 // ----------------------------------------------------------------------------------
 
@@ -476,7 +1142,7 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
                     double nottingham_heat = get_nottingham_heat_bc(cop_cell_info, prev_temperature);
 
                     //nottingham_heat = 0.0;
-                    //std::cout << nottingham_heat << std::endl;
+                    //cout << nottingham_heat << endl;
                     for (unsigned int i = 0; i < dofs_per_cell; ++i) {
                         cell_rhs(i) += (fe_face_values.shape_value(i, q)
                                 * nottingham_heat * fe_face_values.JxW(q));
@@ -493,7 +1159,7 @@ void CurrentsAndHeating<dim>::assemble_heating_system_euler_implicit() {
         }
     }
 
-    std::map<types::global_dof_index, double> boundary_values;
+    map<types::global_dof_index, double> boundary_values;
     VectorTools::interpolate_boundary_values(dof_handler_heat, BoundaryId::copper_bottom,
             ConstantFunction<dim>(ambient_temperature), boundary_values);
     MatrixTools::apply_boundary_values(boundary_values, system_matrix_heat, solution_heat, system_rhs_heat);
@@ -535,7 +1201,6 @@ unsigned int CurrentsAndHeating<dim>::solve_heat(int max_iter, double tol, bool 
     return solver_control.last_step();
 }
 
-
 template<int dim>
 void CurrentsAndHeating<dim>::set_physical_quantities(PhysicalQuantities *pq_) {
     pq = pq_;
@@ -556,15 +1221,15 @@ void CurrentsAndHeating<dim>::set_electric_field_bc(const Laplace<dim> &laplace)
     // ---------------------------------------------------------------------------------------------
     // Loop over vacuum interface cells
 
-    std::vector<Point<dim> > vacuum_interface_centers;
-    std::vector<double> vacuum_interface_efield;
+    vector<Point<dim> > vacuum_interface_centers;
+    vector<double> vacuum_interface_efield;
 
     QGauss<dim-1> face_quadrature_formula(1); // Quadrature with one point
     FEFaceValues<dim> vacuum_fe_face_values(laplace.fe, face_quadrature_formula,
             update_gradients | update_quadrature_points);
 
     // Electric field values from laplace solver
-    std::vector<Tensor<1, dim> > electric_field_value(1);
+    vector<Tensor<1, dim> > electric_field_value(1);
 
     typename DoFHandler<dim>::active_cell_iterator vac_cell = laplace.dof_handler.begin_active(),
             vac_endc = laplace.dof_handler.end();
@@ -595,25 +1260,25 @@ void CurrentsAndHeating<dim>::set_electric_field_bc(const Laplace<dim> &laplace)
         for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; f++) {
             if (cop_cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
                 Point<dim> cop_face_center = cop_cell->face(f)->center();
-                std::pair<unsigned, unsigned> cop_face_info(cop_cell->index(), f);
+                pair<unsigned, unsigned> cop_face_info(cop_cell->index(), f);
                 // Loop over vacuum side and find corresponding (cell, face) pair
                 for (unsigned int i = 0; i < vacuum_interface_centers.size(); i++) {
                     if (cop_face_center.distance(vacuum_interface_centers[i]) < eps) {
-                        std::pair<std::pair<unsigned, unsigned>, double> pair(cop_face_info,
+                        pair<pair<unsigned, unsigned>, double> pair(cop_face_info,
                                 vacuum_interface_efield[i]);
                         interface_map_field.insert(pair);
                         break;
                     }
                 }
                 if (interface_map_field.count(cop_face_info) == 0)
-                    std::cerr << "Error: probably a mismatch between copper and vacuum meshes." << std::endl;
+                    cerr << "Error: probably a mismatch between copper and vacuum meshes." << endl;
             }
         }
     }
 }
 
 template<int dim>
-void CurrentsAndHeating<dim>::set_electric_field_bc(const std::vector<double>& elfields) {
+void CurrentsAndHeating<dim>::set_electric_field_bc(const vector<double>& elfields) {
     const unsigned n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
     interface_map_field.clear();
 
@@ -623,20 +1288,15 @@ void CurrentsAndHeating<dim>::set_electric_field_bc(const std::vector<double>& e
     for (cell = dof_handler_current.begin_active(); cell != dof_handler_current.end(); ++cell)
         for (unsigned f = 0; f < n_faces_per_cell; ++f)
             if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
-                std::pair<unsigned, unsigned> face_info(cell->index(), f);
+                pair<unsigned, unsigned> face_info(cell->index(), f);
                 interface_map_field.insert(
-                        std::pair<std::pair<unsigned, unsigned>, double>(face_info, elfields[i++]));
+                        pair<pair<unsigned, unsigned>, double>(face_info, elfields[i++]));
             }
 }
 
 template<int dim>
-void CurrentsAndHeating<dim>::set_electric_field_bc(const double uniform_efield) {
-    uniform_efield_bc = uniform_efield;
-}
-
-template<int dim>
-void CurrentsAndHeating<dim>::set_emission_bc(const std::vector<double> &emission_currents,
-        const std::vector<double> &nottingham_heats) {
+void CurrentsAndHeating<dim>::set_emission_bc(const vector<double> &emission_currents,
+        const vector<double> &nottingham_heats) {
     const unsigned n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
     interface_map_emission_current.clear();
     interface_map_nottingham.clear();
@@ -647,20 +1307,20 @@ void CurrentsAndHeating<dim>::set_emission_bc(const std::vector<double> &emissio
     for (cell = dof_handler_current.begin_active(); cell != dof_handler_current.end(); ++cell)
         for (unsigned f = 0; f < n_faces_per_cell; ++f)
             if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
-                std::pair<unsigned, unsigned> face_info(cell->index(), f);
+                pair<unsigned, unsigned> face_info(cell->index(), f);
                 interface_map_emission_current.insert(
-                        std::pair<std::pair<unsigned, unsigned>, double>(face_info, emission_currents[i]));
+                        pair<pair<unsigned, unsigned>, double>(face_info, emission_currents[i]));
                 interface_map_nottingham.insert(
-                        std::pair<std::pair<unsigned, unsigned>, double>(face_info, nottingham_heats[i++]));
+                        pair<pair<unsigned, unsigned>, double>(face_info, nottingham_heats[i++]));
             }
 }
 
 template<int dim>
-std::vector<double> CurrentsAndHeating<dim>::get_temperature(const std::vector<int> &cell_indexes,
-        const std::vector<int> &vert_indexes) {
+vector<double> CurrentsAndHeating<dim>::get_temperature(const vector<int> &cell_indexes,
+        const vector<int> &vert_indexes) {
 
     // Initialize vector with a value that is immediately visible if it's not changed to proper one
-    std::vector<double> temperatures(cell_indexes.size(), 1e15);
+    vector<double> temperatures(cell_indexes.size(), 1e15);
 
     for (unsigned i = 0; i < cell_indexes.size(); i++) {
         // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
@@ -675,15 +1335,15 @@ std::vector<double> CurrentsAndHeating<dim>::get_temperature(const std::vector<i
 }
 
 template<int dim>
-std::vector<Tensor<1, dim> > CurrentsAndHeating<dim>::get_current(
-        const std::vector<int> &cell_indexes, const std::vector<int> &vert_indexes) {
+vector<Tensor<1, dim> > CurrentsAndHeating<dim>::get_current(
+        const vector<int> &cell_indexes, const vector<int> &vert_indexes) {
     QGauss<dim> quadrature_formula(currents_degree + 1);
     FEValues<dim> fe_values(fe_current, quadrature_formula, update_gradients);
 
-    std::vector<Tensor<1, dim> > potential_gradients(quadrature_formula.size());
+    vector<Tensor<1, dim> > potential_gradients(quadrature_formula.size());
     const FEValuesExtractors::Scalar potential(0);
 
-    std::vector<Tensor<1, dim> > currents(cell_indexes.size());
+    vector<Tensor<1, dim> > currents(cell_indexes.size());
 
     for (unsigned i = 0; i < cell_indexes.size(); i++) {
         // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
@@ -705,7 +1365,7 @@ std::vector<Tensor<1, dim> > CurrentsAndHeating<dim>::get_current(
 }
 
 template<int dim>
-void CurrentsAndHeating<dim>::get_surface_nodes(std::vector<Point<dim>>& nodes) {
+void CurrentsAndHeating<dim>::get_surface_nodes(vector<Point<dim>>& nodes) {
     const int n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
     nodes.clear();
 
@@ -718,7 +1378,7 @@ void CurrentsAndHeating<dim>::get_surface_nodes(std::vector<Point<dim>>& nodes) 
 }
 
 template<int dim>
-double CurrentsAndHeating<dim>::get_efield_bc(const std::pair<unsigned, unsigned> cop_cell_info) {
+double CurrentsAndHeating<dim>::get_efield_bc(const pair<unsigned, unsigned> cop_cell_info) {
     double e_field = 1.0;
     if (interface_map_field.empty()) {
         e_field = uniform_efield_bc;
@@ -730,7 +1390,7 @@ double CurrentsAndHeating<dim>::get_efield_bc(const std::pair<unsigned, unsigned
 }
 
 template<int dim>
-double CurrentsAndHeating<dim>::get_emission_current_bc(const std::pair<unsigned, unsigned> cop_cell_info,
+double CurrentsAndHeating<dim>::get_emission_current_bc(const pair<unsigned, unsigned> cop_cell_info,
         const double temperature) {
     double emission_current = 0.0;
     if (interface_map_emission_current.empty()) {
@@ -744,7 +1404,7 @@ double CurrentsAndHeating<dim>::get_emission_current_bc(const std::pair<unsigned
 }
 
 template<int dim>
-double CurrentsAndHeating<dim>::get_nottingham_heat_bc(const std::pair<unsigned, unsigned> cop_cell_info,
+double CurrentsAndHeating<dim>::get_nottingham_heat_bc(const pair<unsigned, unsigned> cop_cell_info,
         const double temperature) {
     double nottingham_heat = 0.0;
     if (interface_map_nottingham.empty()) {
@@ -779,117 +1439,7 @@ DoFHandler<dim>* CurrentsAndHeating<dim>::get_dof_handler_current() {
 }
 
 template<int dim>
-std::vector<std::pair<Point<dim>, unsigned>> CurrentsAndHeating<dim>::inject_electrons(const double &delta_t) const{
-    return inject_electrons(delta_t, StaticMappingQ1<dim-1,dim>::mapping);
-}
-
-template<int dim>
-std::vector<std::pair<Point<dim>, unsigned>> CurrentsAndHeating<dim>::inject_electrons(const double &delta_t, Mapping<dim-1,dim>& mapping) const{
-
-
-    const double Amp = 6.2415e3; //[e/fs]
-    std::vector<std::pair<Point<dim>, unsigned>> out;
-    int n_tot = 0;
-    double I_tot;
-
-    for (const auto& face : interface_map_emission_current){
-        unsigned cell_index = face.first.first;
-        unsigned face_index = face.first.second;
-        double cur_dens = face.second;
-        const typename DoFHandler<dim>::active_cell_iterator cell(&triangulation, 0, cell_index, &dof_handler_current);
-        double area = cell->face(face_index)->measure();
-
-
-        double current = cur_dens * area * Amp; // in e/fs
-        double charge = current * delta_t;
-
-        int intpart = (int) std::floor(charge);
-        double frpart = charge - intpart;
-        int n_electrons = intpart;
-
-        I_tot += current;
-
-        if ((double)std::rand()/ RAND_MAX < frpart)
-            n_electrons++;
-
-        //TODO : fix rng, fix probability distribution with face jacobian, fix dim generality
-
-        for (int i = 0; i < n_electrons; i++){;
-
-            double rand1 = (double)std::rand()/ RAND_MAX;
-            double rand2= (double)std::rand()/ RAND_MAX;
-            std::vector<double> rands(4);
-            rands[0] = rand1;
-            rands[1] = 1-rand1;
-            rands[2] = rand2;
-            rands[3] = 1-rand2;
-
-            Point<dim> p_real;
-            const double crosser = 0.2;
-            for ( int j=0;j <4 ; j++ )
-                p_real += .5   * rands[j] * cell->face(face_index)->vertex(j);
-//
-            p_real += crosser * (p_real - cell->center());
-
-            out.push_back(std::pair<Point<dim>, unsigned>(p_real, cell_index));
-        }
-
-        n_tot += n_electrons;
-    }
-
-    std::printf("I_tot_dealii = %e e/fs (%e Amps), emitted electrons = %d\n", I_tot, I_tot / Amp, n_tot);
-
-    return out;
-
-
-}
-
-// ----------------------------------------------------------------------------------------
-// Class for outputting the resulting field distribution (calculated from potential distr.)
-template <int dim>
-class FieldPostProcessor : public DataPostprocessorVector<dim> {
-public:
-    FieldPostProcessor() : DataPostprocessorVector<dim>("field", update_gradients) {}
-
-    void
-    compute_derived_quantities_scalar ( const std::vector<double>               &/*uh*/,
-                                        const std::vector<Tensor<1,dim> >       &duh,
-                                        const std::vector<Tensor<2,dim> >       &/*dduh*/,
-                                        const std::vector<Point<dim> >          &/*normals*/,
-                                        const std::vector<Point<dim> >          &/*evaluation_points*/,
-                                        std::vector<Vector<double> >            &computed_quantities) const {
-        for (unsigned int i=0; i<computed_quantities.size(); i++) {
-            for (unsigned int d=0; d<dim; ++d)
-                computed_quantities[i](d) = duh[i][d];
-        }
-    }
-};
-// ----------------------------------------------------------------------------------------
-// Class for outputting the electrical conductivity distribution
-template <int dim>
-class SigmaPostProcessor : public DataPostprocessorScalar<dim> {
-    PhysicalQuantities *pq;
-public:
-    SigmaPostProcessor(PhysicalQuantities *pq_) :
-            DataPostprocessorScalar<dim>("sigma", update_values), pq(pq_) {
-    }
-    void
-    compute_derived_quantities_scalar ( const std::vector<double>               &uh,
-                                        const std::vector<Tensor<1,dim> >       &/*duh*/,
-                                        const std::vector<Tensor<2,dim> >       &/*dduh*/,
-                                        const std::vector<Point<dim> >          &/*normals*/,
-                                        const std::vector<Point<dim> >          &/*evaluation_points*/,
-                                        std::vector<Vector<double> >            &computed_quantities) const {
-        for (unsigned int i=0; i<computed_quantities.size(); i++) {
-            double temperature = uh[i];
-            computed_quantities[i](0) = pq->sigma(temperature);
-        }
-    }
-};
-// ----------------------------------------------------------------------------
-
-template<int dim>
-void CurrentsAndHeating<dim>::output_results_current(const std::string filename) const {
+void CurrentsAndHeating<dim>::output_results_current(const string filename) const {
 
     FieldPostProcessor<dim> field_post_processor; // needs to be before data_out
     DataOut<dim> data_out;
@@ -901,16 +1451,16 @@ void CurrentsAndHeating<dim>::output_results_current(const std::string filename)
     data_out.build_patches();
 
     try {
-        std::ofstream output(filename);
+        ofstream output(filename);
         data_out.write_vtk(output);
     } catch (...) {
-        std::cerr << "WARNING: Couldn't open " + filename << ". ";
-        std::cerr << "Output is not saved." << std::endl;
+        cerr << "WARNING: Couldn't open " + filename << ". ";
+        cerr << "Output is not saved." << endl;
     }
 }
 
 template<int dim>
-void CurrentsAndHeating<dim>::output_results_heating(const std::string filename) const {
+void CurrentsAndHeating<dim>::output_results_heating(const string filename) const {
 
     SigmaPostProcessor<dim> sigma_post_processor(pq);
     DataOut<dim> data_out;
@@ -922,11 +1472,11 @@ void CurrentsAndHeating<dim>::output_results_heating(const std::string filename)
     data_out.build_patches();
 
     try {
-        std::ofstream output(filename);
+        ofstream output(filename);
         data_out.write_vtk(output);
     } catch (...) {
-        std::cerr << "WARNING: Couldn't open " + filename << ". ";
-        std::cerr << "Output is not saved." << std::endl;
+        cerr << "WARNING: Couldn't open " + filename << ". ";
+        cerr << "Output is not saved." << endl;
     }
 }
 

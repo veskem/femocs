@@ -71,12 +71,12 @@ void Laplace<dim>::mark_boundary() {
 
 template<int dim>
 double Laplace<dim>::probe_efield_norm(const Point<dim> &p) const {
-    return VectorTools::point_gradient (this->dof_handler, solution, p).norm();
+    return VectorTools::point_gradient (this->dof_handler, this->solution, p).norm();
 }
 
 template<int dim>
 double Laplace<dim>::probe_potential(const Point<dim> &p) const{
-    return VectorTools::point_value(this->dof_handler, solution, p);
+    return VectorTools::point_value(this->dof_handler, this->solution, p);
 }
 
 template<int dim>
@@ -109,7 +109,7 @@ double Laplace<dim>::probe_potential(const Point<dim> &p, const int cell_index, 
     fe_values.reinit(cell);
 
     vector<Vector<double> > u_value(1, Vector<double> (this->fe.n_components()));
-    fe_values.get_function_values(solution, u_value);
+    fe_values.get_function_values(this->solution, u_value);
 
     return u_value[0][0];
 }
@@ -149,7 +149,7 @@ Tensor<1, dim, double> Laplace<dim>::probe_efield(const Point<dim> &p, const int
 
     vector<vector<Tensor<1, dim, double> > >
     u_gradient(1, vector<Tensor<1, dim, double> > (this->fe.n_components()));
-    fe_values.get_function_gradients(solution, u_gradient);
+    fe_values.get_function_gradients(this->solution, u_gradient);
 
     return -u_gradient[0][0];
 }
@@ -167,7 +167,7 @@ vector<double> Laplace<dim>::get_potential(const vector<int> &cell_indexes,
         typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation,
                 0, cell_indexes[i], &this->dof_handler);
 
-        double potential = solution[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
+        double potential = this->solution[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
         potentials[i] = potential;
     }
     return potentials;
@@ -191,7 +191,7 @@ vector<Tensor<1, dim> > Laplace<dim>::get_efield(const vector<int> &cell_indexes
                 0, cell_indexes[i], &this->dof_handler);
 
         fe_values.reinit(dof_cell);
-        fe_values.get_function_gradients(solution, solution_gradients);
+        fe_values.get_function_gradients(this->solution, solution_gradients);
         Tensor<1, dim> field = -1.0 * solution_gradients.at(vert_indexes[i]);
 
         fields[i] = field;
@@ -219,7 +219,7 @@ void Laplace<dim>::setup_system(bool first_time) {
     this->system_matrix.reinit(this->sparsity_pattern);
     this->system_matrix_save.reinit(this->sparsity_pattern);
 
-    solution.reinit(this->dof_handler.n_dofs());
+    this->solution.reinit(this->dof_handler.n_dofs());
 }
 
 template<int dim>
@@ -345,7 +345,7 @@ void Laplace<dim>::assemble_system_dirichlet(BoundaryId bid, double potential) {
 
 template<int dim>
 void Laplace<dim>::assemble_system_finalize() {
-    MatrixTools::apply_boundary_values(boundary_values, this->system_matrix, solution, this->system_rhs);
+    MatrixTools::apply_boundary_values(boundary_values, this->system_matrix, this->solution, this->system_rhs);
 }
 
 template<int dim>
@@ -357,9 +357,9 @@ int Laplace<dim>::solve(int max_iter, double tol, bool pc_ssor, double ssor_para
     if (pc_ssor) {
         PreconditionSSOR<> preconditioner;
         preconditioner.initialize(this->system_matrix, ssor_param);
-        solver.solve(this->system_matrix, solution, this->system_rhs, preconditioner);
+        solver.solve(this->system_matrix, this->solution, this->system_rhs, preconditioner);
     } else {
-        solver.solve(this->system_matrix, solution, this->system_rhs, PreconditionIdentity());
+        solver.solve(this->system_matrix, this->solution, this->system_rhs, PreconditionIdentity());
     }
     return solver_control.last_step();
 }
@@ -370,8 +370,8 @@ void Laplace<dim>::output_results(const string &filename) const {
     DataOut<dim> data_out;
 
     data_out.attach_dof_handler(this->dof_handler);
-    data_out.add_data_vector(solution, "potential_v");
-    data_out.add_data_vector(solution, field_calculator);
+    data_out.add_data_vector(this->solution, "potential_v");
+    data_out.add_data_vector(this->solution, field_calculator);
 
     data_out.build_patches();
 

@@ -26,6 +26,7 @@ class DealSolver {
 public:
 
     DealSolver();
+    DealSolver(Triangulation<dim> *tria);
     virtual ~DealSolver() {}
 
     /** Provide triangulation object to get access to the mesh data */
@@ -34,6 +35,9 @@ public:
     /** Provide dof_handler object to get access to the mesh data */
     DoFHandler<dim>* get_dof_handler() { return &dof_handler; }
 
+    /** Return the solution vector */
+    Vector<double>* get_solution() { return &solution; };
+
     /** Values of the shape functions at point p with respect to the nodes of
      * cell with cell_index p has to belong in cell_index!!
      */
@@ -41,6 +45,9 @@ public:
 
     /** Return the volume/area of i-th cell */
     double get_cell_vol(const int i) const;
+
+    /** export the centroids of surface faces */
+    void get_surface_nodes(vector<Point<dim>>& nodes);
 
     /**
      * Import mesh from file and set the boundary indicators corresponding to copper
@@ -101,7 +108,10 @@ protected:
     SparseMatrix<double> system_matrix;   ///< system matrix of matrix equation
     SparseMatrix<double> system_matrix_save;   ///< system matrix of matrix equation (save before Dirichlet BCs remove dofs)
     Vector<double> system_rhs;            ///< right-hand-side of the matrix equation
-    Vector<double> system_rhs_save; ///< system RHS of matrix equation (save before Dirichlet BCs remove dofs)
+    Vector<double> system_rhs_save;       ///< system RHS of matrix equation (save before Dirichlet BCs remove dofs)
+
+    Vector<double> solution;              ///< resulting solution in the mesh nodes
+    Vector<double> solution_old;         ///< resulting solution in the mesh nodes
 
     /** Helper function for the public shape_funs */
     vector<double> shape_funs(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;

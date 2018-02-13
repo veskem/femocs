@@ -16,6 +16,9 @@ template<int dim>
 DealSolver<dim>::DealSolver() : fe(shape_degree), dof_handler(triangulation) {}
 
 template<int dim>
+DealSolver<dim>::DealSolver(Triangulation<dim> *tria_) : fe(shape_degree), dof_handler(*tria_) {}
+
+template<int dim>
 vector<double> DealSolver<dim>::shape_funs(const Point<dim> &p, int cell_index) const {
     return shape_funs(p, cell_index, StaticMappingQ1<dim,dim>::mapping);
 }
@@ -92,6 +95,19 @@ template<int dim>
 void DealSolver<dim>::output_mesh(const string &file_name) {
     MeshPreparer<dim> mesh_preparer;
     mesh_preparer.output_mesh(&triangulation, file_name);
+}
+
+template<int dim>
+void DealSolver<dim>::get_surface_nodes(vector<Point<dim>>& nodes) {
+    const int n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
+    nodes.clear();
+
+    // Loop over copper interface cells
+    typename DoFHandler<dim>::active_cell_iterator cell;
+    for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell)
+        for (int f = 0; f < n_faces_per_cell; ++f)
+            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface)
+                nodes.push_back(cell->face(f)->center());
 }
 
 template class DealSolver<2>;
