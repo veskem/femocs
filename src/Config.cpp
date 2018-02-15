@@ -48,20 +48,25 @@ Config::Config() {
     tolerance.field_max = 5.0;        // max ratio numerical field can deviate from analytical one
     tolerance.distance = 0.0;         // rms distance tolerance for atom movement between two time steps
 
-    field.E0 = 0.0;                 // long range electric field
-    field.ssor_param = 1.2;         // parameter for SSOR preconditioner
-    field.phi_error = 1e-9;         // maximum allowed electric potential error
-    field.n_phi = 10000;            // maximum number of Conjugate Gradient iterations in phi calculation
-    field.V0 = 0.0;                 // anode voltage
-    field.anodeBC = "neumann";      // anode Neumann boundary
-    field.solver = "laplace";       // type of field equation to be solved; laplace or poisson
+    field.E0 = 0.0;                   // long range electric field
+    field.ssor_param = 1.2;           // parameter for SSOR preconditioner
+    field.phi_error = 1e-9;           // maximum allowed electric potential error
+    field.n_phi = 10000;              // maximum number of Conjugate Gradient iterations in phi calculation
+    field.V0 = 0.0;                   // anode voltage
+    field.anodeBC = "neumann";        // anode Neumann boundary
+    field.solver = "laplace";         // type of field equation to be solved; laplace or poisson
 
     heating.mode = "none";            // method to calculate current density and temperature; none, stationary or transient
     heating.rhofile = "in/rho_table.dat"; // rho table file
     heating.lorentz = 2.44e-8;        // Lorentz number
     heating.t_ambient = 300.0;        // ambient temperature
-    heating.t_error = 10.0;           // maximum allowed temperature error in Newton iterations
-    heating.n_newton = 10;            // maximum number of Newton iterations
+    heating.t_error = 10.0;           // max allowed temperature error in Newton iterations
+    heating.n_newton = 10;            // max number of Newton iterations
+    heating.n_cg = 2000;              // max number of Conjugate-Gradient iterations
+    heating.cg_tolerance = 1e-9;      // solution accuracy in Conjugate-Gradient solver
+    heating.ssor_param = 1.2;         // parameter for SSOR pre-conditioner in DealII; 1.2 is known to work well with Laplace
+    heating.delta_time = 1e-12;       // timestep of time domain integration [sec]
+    heating.assemble_method = "euler"; // method to assemble system matrix for solving heat equation
 
     emission.blunt = true;            // by default emitter is blunt (simple SN barrier used for emission)
     emission.work_function = 4.5;     // work function [eV]
@@ -84,7 +89,6 @@ Config::Config() {
     pic.total_time = 30;
     pic.Wsp_el =  .01;
     pic.fractional_push = true;
-    
 }
 
 // Remove the noise from the beginning of the string

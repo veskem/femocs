@@ -7,6 +7,7 @@
 
 #include "DealSolver.h"
 
+#include <deal.II/numerics/vector_tools.h>
 
 using namespace dealii;
 using namespace std;
@@ -16,7 +17,7 @@ template<int dim>
 DealSolver<dim>::DealSolver() : fe(shape_degree), dof_handler(triangulation) {}
 
 template<int dim>
-DealSolver<dim>::DealSolver(Triangulation<dim> *tria_) : fe(shape_degree), dof_handler(*tria_) {}
+DealSolver<dim>::DealSolver(Triangulation<dim> &tria) : fe(shape_degree), dof_handler(tria) {}
 
 template<int dim>
 vector<double> DealSolver<dim>::shape_funs(const Point<dim> &p, int cell_index) const {
@@ -56,6 +57,16 @@ vector<double> DealSolver<dim>::shape_funs(const Point<dim> &p, const int cell_i
         sfuns[i] = fe_values.shape_value(i,0);
 
     return sfuns;
+}
+
+template<int dim>
+double DealSolver<dim>::probe_solution(const Point<dim> &p) const {
+    return VectorTools::point_value(dof_handler, solution, p);
+}
+
+template<int dim>
+double DealSolver<dim>::max_solution() const {
+    return solution.linfty_norm();
 }
 
 template<int dim>

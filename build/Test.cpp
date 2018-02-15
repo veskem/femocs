@@ -24,7 +24,7 @@ void print_progress(const string& message, const bool contition) {
 
 void write_defaults(ofstream &file) {
     file << "mesh_quality = 1.8"         << endl;
-    file << "heating_mode = none"        << endl;
+    file << "heating_mode = transient"        << endl;
     file << "write_log = true"           << endl;
     file << "clear_output = true"        << endl;
     file << "surface_smooth_factor= 0.1" << endl;
@@ -41,7 +41,7 @@ void write_defaults(ofstream &file) {
     file << "femocs_verbose_mode = verbose" << endl;
     file << "smooth_steps = 3"           << endl;
     file << "smooth_algorithm = laplace" << endl;
-    file << "elfield = -0.07"            << endl;
+    file << "elfield = -1.0"            << endl;
     file << "interpolation_rank = 1"     << endl;
 }
 

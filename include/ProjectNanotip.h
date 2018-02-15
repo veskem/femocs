@@ -36,7 +36,7 @@ public:
      * @param timestep  active time step in the host code
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
-    int run(const double elfield, const int timestep=-1);
+    virtual int run(const double elfield, const int timestep=-1);
 
     /** Generate bulk and vacuum meshes using the imported atomistic data */
     int generate_mesh();

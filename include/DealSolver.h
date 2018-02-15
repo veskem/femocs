@@ -26,7 +26,7 @@ class DealSolver {
 public:
 
     DealSolver();
-    DealSolver(Triangulation<dim> *tria);
+    DealSolver(Triangulation<dim> &tria);
     virtual ~DealSolver() {}
 
     /** Provide triangulation object to get access to the mesh data */
@@ -78,6 +78,12 @@ public:
 
     /** Run the full calculation */
     void run() {}
+
+    /** Get the solution value at the specified point. NB: Slow! */
+    double probe_solution(const Point<dim> &p) const;
+
+    /** Calculate max value from solution vector */
+    double max_solution() const;
 
     /** Write the simulation results to file */
     virtual void output_results(const string &filename) const {};

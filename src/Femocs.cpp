@@ -35,7 +35,8 @@ Femocs::Femocs(const string &conf_file) : t0(0), skip_meshing(false) {
     first_call = false;
 
     write_verbose_msg("======= Femocs started! =======");
-    project = new ProjectNanotip(reader, conf);
+//    project = new ProjectNanotip(reader, conf);
+    project = new ProjectRunaway(reader, conf);
 }
 
 // delete data and print bye-bye-message

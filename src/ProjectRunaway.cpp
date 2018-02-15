@@ -298,20 +298,24 @@ int ProjectRunaway::solve_transient_heat(const double delta_time) {
     start_msg(t0, "=== Calculating current density...");
     ch_transient_solver.assemble_current_system(); // assemble matrix for current density equation; current == electric current
     unsigned int ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
-    cout << "CG steps: " << ccg << " ";
     end_msg(t0);
+    write_verbose_msg("# CG steps: " + to_string(ccg));
 
     start_msg(t0, "=== Calculating temperature distribution...");
     ch_transient_solver.set_timestep(delta_time);
     ch_transient_solver.assemble_heating_system_euler_implicit();
     unsigned int hcg = ch_transient_solver.solve_heat(); // hcg == number of temperature calculation (CG) iterations
-    cout << "CG steps: " << hcg << " ";
     end_msg(t0);
+    write_verbose_msg("# CG steps: " + to_string(hcg));
 
     start_msg(t0, "=== Extracting J & T...");
     bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
     bulk_interpolator.extract_solution(ch_transient_solver);
     end_msg(t0);
+
+    bulk_interpolator.nodes.write("out/result_rho_T.xyz");
+    bulk_interpolator.lintets.write("out/result_rho_T.vtk");
+
     return 0;
 }
 

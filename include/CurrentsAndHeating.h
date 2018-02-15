@@ -23,6 +23,7 @@
 #include "MeshPreparer.h"
 #include "PhysicalQuantities.h"
 #include "DealSolver.h"
+#include "Config.h"
 
 namespace fch {
 
@@ -35,33 +36,14 @@ using namespace std;
 template<int dim>
 class EmissionSolver : public DealSolver<dim> {
 public:
-
     EmissionSolver();
+    EmissionSolver(Triangulation<dim> &tria, const double default_value);
 
-    /**
-     * Constructor for CurrentsAndHeating
-     * @param time_step_  timestep of time domain integration [sec]
-     * @param pq_         object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
-     */
-    EmissionSolver(Triangulation<dim> *tria, PhysicalQuantities *pq_, const double default_value);
+    /** Solve the matrix equation using conjugate gradient method */
+    unsigned int solve();
 
-    /** Solve the matrix equation using conjugate gradient method
-     * @param max_iter maximum number of iterations allowed
-     * @param tol tolerance of the solution
-     * @param pc_ssor flag to use SSOR preconditioner
-     * @param ssor_param   parameter to SSOR preconditioner. 1.2 is known to work well with laplace.
-     *                     its fine tuning optimises calculation time
-     */
-    unsigned int solve(int max_iter = 2000, double tol = 1e-9, bool pc_ssor = true, double ssor_param = 1.2);
-
-    /** @brief set up dynamic sparsity pattern for calculations */
+    /** Set up dynamic sparsity pattern for calculations */
     void setup();
-
-    /** Set the electric field boundary condition on copper-vacuum boundary.
-     * The electric fields must be on the centroids of the vacuum-material boundary faces
-     * in the order specified in the get_surface_nodes() method.
-     */
-    void set_electric_field_bc(const vector<double> &e_fields);
 
     /** Set the emission current and Nottingham boundary condition on copper-vacuum boundary.
      * The values must be on the centroids of the vacuum-material boundary faces
@@ -71,58 +53,74 @@ public:
 
 protected:
     const double default_solution_value;
-    double uniform_efield_bc;
-    PhysicalQuantities *pq;
-    Triangulation<dim> *tria;
-
-    /** Mapping of copper interface faces to vacuum side e field norm
-     * (copper_cell_index, copper_cell_face) <-> (electric field norm)
-     */
-    map<pair<unsigned, unsigned>, double> interface_map_field;
+    const PhysicalQuantities *pq;             ///< object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
+    const femocs::Config::Heating *conf;      ///< solver parameters
 
     /** Mapping of copper interface faces to emission BCs
      * (copper_cell_index, copper_cell_face) <-> (emission_current/nottingham_heat)
      */
     map<pair<unsigned, unsigned>, double> interface_map;
-
-    double get_efield_bc(pair<unsigned, unsigned> cop_cell_info);
 };
+
+template<int dim> class HeatSolver;
 
 template<int dim>
 class CurrentSolver : public EmissionSolver<dim> {
 public:
-
     CurrentSolver();
-    CurrentSolver(Triangulation<dim> *tria_, PhysicalQuantities *pq_, const double default_value);
+    CurrentSolver(Triangulation<dim> &tria, const HeatSolver<dim> *hs, const double default_value);
 
     /** Output the electric potential [V] and field [V/nm] in vtk format */
     void output_results(const string &filename) const;
 
-    /**
-     * Method to obtain the current density values in selected nodes.
-     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
-     * @param vert_indexes the vertex indexes of the nodes inside the cell
-     * @return current density vectors in the specified nodes
+    /** @brief assemble the matrix equation for current density calculation ()
+     * Calculate sparse matrix elements and right-hand-side vector
+     * according to the continuity equation weak formulation and to the boundary conditions.
      */
-    vector<Tensor<1, dim>> get_current(const vector<int> &cell_indexes,
-            const vector<int> &vert_indexes);
+    void assemble();
 
 private:
-    // TODO delete those variables
-    Vector<double> solution_heat;
+    const HeatSolver<dim>* heat_solver;
 
-    double get_emission_current_bc(pair<unsigned, unsigned> cop_cell_info, const double temperature);
+    friend class HeatSolver<dim> ;
 };
 
 template<int dim>
 class HeatSolver : public EmissionSolver<dim> {
 public:
-
     HeatSolver();
-    HeatSolver(Triangulation<dim> *tria_, PhysicalQuantities *pq_, const double default_value);
+    HeatSolver(Triangulation<dim> &tria, const CurrentSolver<dim> *cs, const double default_value);
 
     /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] in vtk format */
     void output_results(const string &filename) const;
+
+    /** Assemble the matrix equation for temperature calculation
+     * using Crank-Nicolson or implicit Euler time integration method. */
+    void assemble();
+
+private:
+    static constexpr double cu_rho_cp = 3.4496e-24;      ///< volumetric heat capacity of copper J/(K*ang^3)
+    const CurrentSolver<dim>* current_solver;
+
+    /** @brief assemble the matrix equation for temperature calculation using Crank-Nicolson time integration method
+     * Calculate sparse matrix elements and right-hand-side vector
+     * according to the time dependent heat equation weak formulation and to the boundary conditions.
+     */
+    void assemble_crank_nicolson();
+
+    /** @brief assemble the matrix equation for temperature calculation using implicit Euler time integration method
+     * Calculate sparse matrix elements and right-hand-side vector
+     * according to the time dependent heat equation weak formulation and to the boundary conditions.
+     */
+    void assemble_euler_implicit();
+
+    friend class CurrentSolver<dim> ;
+};
+
+template<int dim>
+class CurrentsAndHeatingSolver : public DealSolver<dim> {
+    CurrentsAndHeatingSolver();
+    CurrentsAndHeatingSolver(const PhysicalQuantities *pq_, const femocs::Config::Heating *conf_);
 
     /**
      * Method to obtain the temperature values in selected nodes.
@@ -132,62 +130,28 @@ public:
      */
     vector<double> get_temperature(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
 
-    double get_max_temperature();
-
-    /** Get the temperature at the specified point. NB: Slow! */
-    double probe_temperature(const Point<dim> &p) const;
-
-private:
-     double get_nottingham_heat_bc(pair<unsigned, unsigned> cop_cell_info, const double temperature);
-
-};
-
-template<int dim>
-class CurrentsAndHeatingSolver : public DealSolver<dim> {
-    CurrentsAndHeatingSolver();
-    CurrentsAndHeatingSolver(PhysicalQuantities *pq_);
-
-    /** @brief assemble the matrix equation for temperature calculation using Crank-Nicolson time integration method
-     * Calculate sparse matrix elements and right-hand-side vector
-     * according to the time dependent heat equation weak formulation and to the boundary conditions.
+    /**
+     * Method to obtain the current density values in selected nodes.
+     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
+     * @param vert_indexes the vertex indexes of the nodes inside the cell
+     * @return current density vectors in the specified nodes
      */
-    void assemble_heating_system_crank_nicolson();
+    vector<Tensor<1,dim>> get_current(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
 
-    /** @brief assemble the matrix equation for temperature calculation using implicit Euler time integration method
-     * Calculate sparse matrix elements and right-hand-side vector
-     * according to the time dependent heat equation weak formulation and to the boundary conditions.
-     */
-    void assemble_heating_system_euler_implicit();
+    /** Set the pointers for obtaining external data */
+    void set_dependencies(const PhysicalQuantities *pq_, const femocs::Config::Heating *conf_);
 
-    /** @brief assemble the matrix equation for current density calculation ()
-     * Calculate sparse matrix elements and right-hand-side vector
-     * according to the continuity equation weak formulation and to the boundary conditions.
-     */
-    void assemble_current_system();
-
-    /** Set timestep of time domain integration [sec] */
-    void set_timestep(const double time_step_) { time_step = time_step_; }
-
-    /** Sets the physical quantities object */
-    void set_physical_quantities(PhysicalQuantities *pq_) {
-        pq = pq_;
-        heat_solver.pq = pq_;
-        current_solver.pq = pq_;
-        heat_solver.tria = &this->triangulation;
-        current_solver.tria = &this->triangulation;
-    }
-
-    void set_emission_bc(const vector<double> &emission_currents, const vector<double> &nottingham_heats);
+    HeatSolver<dim> heat_solver;        ///< data and operations of heat equation solver
+    CurrentSolver<dim> current_solver;  ///< data and operations for finding current density in material
 
 private:
     static constexpr double ambient_temperature = 300.0; ///< temperature boundary condition, i.e temperature applied on bottom of the material
-    static constexpr double cu_rho_cp = 3.4496e-24;    ///< volumetric heat capacity of copper J/(K*ang^3)
 
-    double time_step;
-    PhysicalQuantities *pq;
+    const PhysicalQuantities *pq;
+    const femocs::Config::Heating *conf;
 
-    HeatSolver<dim> heat_solver;
-    CurrentSolver<dim> current_solver;
+    /** Mark different regions of the mesh */
+    void mark_boundary();
 
     friend class HeatSolver<dim> ;
     friend class CurrentSolver<dim> ;
