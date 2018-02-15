@@ -1087,7 +1087,10 @@ EmissionReader::EmissionReader(const FieldReader& fr, const HeatReader& hr, Inte
 
 void EmissionReader::initialize(const TetgenMesh* m) {
     mesh = m;
+
     int n_nodes = fields.size();
+    reserve(n_nodes);
+    atoms = fields.atoms;
 
     // deallocate and allocate currents data
     current_densities.resize(n_nodes);
@@ -1282,13 +1285,8 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
     if (Vappl <= 0 && conf.SC)
         write_silent_msg("WARNING: transfer_emission called with SC activated and Vappl <= 0");
 
-    const int n_nodes = fields.size();
-    reserve(n_nodes);
-    atoms = fields.atoms;
-
     double theta_old = global_data.multiplier;
     double err_fact = 0.5, error;
-
     double Fmax_0 = global_data.Fmax;
 
     for (int i = 0; i < 20; ++i){ // SC calculation loop
@@ -1307,8 +1305,9 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         error = global_data.multiplier - theta_old;
         global_data.multiplier = theta_old + error * err_fact;
         theta_old = global_data.multiplier;
-        if (abs(error) < conf.SC_error) break; //if converged break
 
+        // if converged break
+        if (abs(error) < conf.SC_error) break;
     }
 }
 

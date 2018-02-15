@@ -118,14 +118,14 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
 
 int ProjectRunaway::prepare_fem(){
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    fields.set_check_params(conf.field.E0, conf.tolerance.field_min, conf.tolerance.field_max,
-            conf.geometry.radius, dense_surf.sizes.zbox);
+//    fields.set_check_params(conf.field.E0, conf.tolerance.field_min, conf.tolerance.field_max,
+//            conf.geometry.radius, dense_surf.sizes.zbox);
 
-    start_msg(t0, "=== Importing mesh to Laplace solver...");
-    fail = !laplace_solver.import_mesh_directly(mesh->nodes.export_dealii(),
-            mesh->hexahedra.export_vacuum());
-    check_return(fail, "Importing vacuum mesh to Deal.II failed!");
-    end_msg(t0);
+//    start_msg(t0, "=== Importing mesh to Laplace solver...");
+//    fail = !laplace_solver.import_mesh_directly(mesh->nodes.export_dealii(),
+//            mesh->hexahedra.export_vacuum());
+//    check_return(fail, "Importing vacuum mesh to Deal.II failed!");
+//    end_msg(t0);
 
     start_msg(t0, "=== Importing mesh to transient J & T solver...");
     fail = !ch_transient_solver.import_mesh_directly(mesh->nodes.export_dealii(),
@@ -323,54 +323,55 @@ int ProjectRunaway::solve_transient_heat(const double delta_time) {
 int ProjectRunaway::solve_converge_heat() {
     static bool first_call = true;
 
+    start_msg(t0, "=== Transfering elfield to J & T solver...");
+    surface_fields.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+    surface_fields.transfer_elfield(ch_transient_solver);
+    end_msg(t0);
+    surface_fields.write("out/surface_field.xyz");
+
     start_msg(t0, "=== Setup transient J & T solver...");
-    emission.initialize(mesh);
     ch_transient_solver.setup_current_system();
     ch_transient_solver.setup_heating_system();
     end_msg(t0);
 
+    bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
 
     double current_time = 0.;
     double delta_time = 1.e-12; //in seconds!!
     double multiplier = 1.;
 
-    for (int i = 0; i < 1000; ++i){
-
-        start_msg(t0, "=== Interpolating J & T on face centroids...");
+    start_msg(t0, "=== Running converge J & T solver...\n");
+    for (int i = 0; i < 1000; ++i) {
+        // Interpolate J & T on face centroids
         surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank);
         surface_temperatures.interpolate(ch_transient_solver);
-        end_msg(t0);
         if (MODES.VERBOSE) surface_temperatures.write("out/surface_temperature.xyz");
 
-        start_msg(t0, "=== Calculating field emission...");
+        // Calculating field emission
+        emission.initialize(mesh);
         emission.set_multiplier(multiplier);
         emission.calc_emission(conf.emission, conf.field.V0);
-        multiplier = emission.get_multiplier();
         emission.export_emission(ch_transient_solver);
-        end_msg(t0);
+        multiplier = emission.get_multiplier();
         if (MODES.VERBOSE) emission.write("out/surface_emission.xyz");
 
-        start_msg(t0, "=== Calculating current density...");
+        // Calculate current density
         ch_transient_solver.assemble_current_system(); // assemble matrix for electric current density equation
         unsigned int ccg = ch_transient_solver.solve_current();  // ccg == number of current calculation (CG) iterations
-        end_msg(t0);
 
-        start_msg(t0, "=== Calculating temperature distribution...\n");
+        // Calculate temperature distribution
         ch_transient_solver.set_timestep(delta_time);
         ch_transient_solver.assemble_heating_system_euler_implicit();
         unsigned int hcg = ch_transient_solver.solve_heat(); // hcg == number of temperature calculation (CG) iterations
-        end_msg(t0);
 
-        start_msg(t0, "=== Extracting J & T...");
-        bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
+        // Extract J & T
         bulk_interpolator.extract_solution(ch_transient_solver);
-        end_msg(t0);
         bulk_interpolator.nodes.write("out/result_J_T.movie");
 
         current_time += delta_time;
         if (MODES.VERBOSE) {
             double max_T = ch_transient_solver.get_max_temperature();
-            printf("  i=%d ; dt= %5.3e ps ; t= %5.3e ps ; ccg= %2d ; hcg= %2d ; Tmax= %6.2f \n",
+            printf("  i=%d, dt=%5.3e ps, t=%5.3eps, ccg=%2d, hcg=%2d, Tmax=%6.2f\n",
                     i, delta_time * 1.e12, current_time * 1.e12, ccg, hcg, max_T);
         }
 
@@ -379,9 +380,11 @@ int ProjectRunaway::solve_converge_heat() {
         else if (max(hcg, ccg) > 150)
             delta_time /= 1.25;
 
-        if (max(hcg, ccg) < 10) return 0;
+//        if (max(hcg, ccg) < 10) return 0;
+        if (max(hcg, ccg) < 10) break;
     }
-    write_silent_msg("WARNING: Heat equation did not converged after 1000 steps.");
+    end_msg(t0);
+//    write_silent_msg("WARNING: Heat equation did not converged after 1000 steps.");
 
     return 0;
 }

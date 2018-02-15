@@ -297,8 +297,6 @@ private:
         double I_tot = 0;   ///< Total current running through the surface [in Amps]
         double I_fwhm = 0;
     } global_data;
-
-    vector<EmGlobalData> global_data_history;
 };
 
 /** Class to calculate charges from electric field */
