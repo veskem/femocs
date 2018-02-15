@@ -104,12 +104,11 @@ void Pic<dim>::update_positions(){
 template<int dim>
 void Pic<dim>::update_velocities(){
 
-    //update field
-    for (auto particle : electrons.parts) {
+    for (auto &particle : electrons.parts){
+        //get field
         dealii::Point<dim> p(particle.pos.x, particle.pos.y, particle.pos.z);
         dealii::Tensor<1,dim> Efield = laplace_solver.probe_efield(p, particle.cell) ;
-        dealii::Point<dim> F(Efield);
-        Point3 Field(F);
+        Point3 Field(Efield[0], Efield[1], Efield[2]);
 
         //update velocities (corresponds to t + .5dt)
         particle.vel += Field * (dt * electrons.q_over_m_factor) ;
@@ -121,6 +120,8 @@ template<int dim>
 void Pic<dim>::run_cycle(bool first_time) {
     double t0;
 
+    write_particles("out/bpos.movie", 0);
+
     start_msg(t0,"=== Updating PIC particle positions ...");
     update_positions();
     electrons.clear_lost();
@@ -131,15 +132,20 @@ void Pic<dim>::run_cycle(bool first_time) {
     compute_field(first_time);
     end_msg(t0);
 
+    write_particles("out/bvel.movie", 0);
+
     start_msg(t0, "=== Updating the PIC particle velocities ...");
     update_velocities();
     end_msg(t0);
 
-    start_msg(t0, "=== Colliding PIC particles ...");
+    write_particles("out/after_vel.movie", 0);
+
     if (coll_coulomb_ee){
+        start_msg(t0, "=== Colliding PIC particles ...");
         coll_el_knm_2D(electrons, dt, laplace_solver);
+        end_msg(t0);
     }
-    end_msg(t0);
+
 }
 
 template<int dim>
@@ -148,7 +154,7 @@ void Pic<dim>::write_particles(const string filename, double time) {
     // dummy electron always added in the end (to avoid empty electrons crashing ovito)
     ofstream out;
     out.setf(std::ios::scientific);
-    out.precision(6);
+    out.precision(15);
 
     string ftype = get_file_type(filename);
     if (ftype == "movie") out.open(filename, ios_base::app);

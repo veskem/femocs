@@ -1,5 +1,5 @@
 elfield  = -0.35  # Max value of applied elctric field (V/Å)
-Vappl = 500
+Vappl = 300
 anode_BC = dirichlet
 
 workfunc = 4.5 
@@ -31,8 +31,9 @@ box_width = 0.
 # PIC parameters
 ---------------------
 doPIC = true
-PIC_dtmax = 1 #[fs]
+PIC_dtmax = .01 #[fs]
 #PIC_dtmax = .01 #[f]s
-PIC_time = 40 #[fs]
-PIC_fractional_push = false
+PIC_time = 500 #[fs]
+PIC_fractional_push = true
 PIC_collide_coulomb_ee = false
+electronWsp = 0.02

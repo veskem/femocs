@@ -235,6 +235,8 @@ public:
     double get_multiplier() const {return global_data.multiplier;}
     void set_multiplier(double _multiplier) { global_data.multiplier = _multiplier;}
 
+    void write_data(string filename, double time);
+
 private:
     /** Prepares the line inputed to GETELEC.
      *

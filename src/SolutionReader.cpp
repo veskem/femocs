@@ -1026,6 +1026,9 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 void EmissionReader::calc_representative() {
     double area = 0.; // total emitting (FWHM) area
     double FJ = 0.; // int_FWHMarea (F*J)dS
+    global_data.I_tot = 0;
+    global_data.I_fwhm = 0;
+
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
         int tri = mesh->quads.to_tri(abs(fields.get_marker(i)));
@@ -1183,6 +1186,24 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
 
     }
 }
+
+
+void EmissionReader::write_data(string filename, double time) {
+    ofstream out;
+    out.setf(std::ios::scientific);
+    out.precision(6);
+
+    string ftype = get_file_type(filename);
+    out.open(filename, ios_base::app);
+    require(out.is_open(), "Can't open a file " + filename);
+
+    out << time << " " << global_data.I_tot << " " << global_data.Jrep <<
+            " " << global_data.Frep << " " << global_data.Jmax << " " << global_data.Fmax <<
+            " " << global_data.multiplier << endl;
+
+}
+
+
 
 
 //export emissino to ch solver

@@ -324,6 +324,8 @@ int Femocs::prepare_fem(){
 // Run Pic simulation for dt_main time advance
 int Femocs::solve_pic(const double E0, const double dt_main) {
 
+    const int n_write = 20;
+
     int time_subcycle = ceil(dt_main / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
     double dt_pic = dt_main/time_subcycle;
 
@@ -332,7 +334,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     //Time loop
     for (int i = 0; i < time_subcycle; i++) {
 
-        pic_solver.run_cycle(mesh != NULL);
+        pic_solver.run_cycle(mesh != NULL && i == 0);
 
         start_msg(t0, "=== Extracting E and phi...");
         fail = vacuum_interpolator.extract_solution(&laplace_solver);
@@ -340,10 +342,16 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         // TODO Performance optimization: no need to extract the solution on the whole grid here!
 
         if(!conf.pic.doPIC) break; // stop before injecting particles
-        
+
         start_msg(t0, "=== Calculating electron emission...");
         get_emission();
         end_msg(t0);
+
+        if ((i % n_write) == 0){
+            pic_solver.write_particles("out/electrons.movie", i * dt_pic);
+            vacuum_interpolator.nodes.write("out/result_E_phi.movie");
+            emission.write_data("out/emission_data.dat", i * dt_pic);
+        }
 
         start_msg(t0, "=== Injecting electrons...");
         pic_solver.inject_electrons(conf.pic.fractional_push);
