@@ -407,6 +407,7 @@ template<int dim>
 void Laplace<dim>::assemble_system_pointcharge(femocs::ParticleSpecies &particles) {
 
     std::vector<types::global_dof_index> local_dof_indices(fe.dofs_per_cell);
+//    std::cout << "particles.Wsp = " << particles.get_Wsp() << std::endl;
 
     for(auto particle : particles.parts){ // loop over particles
         Point<dim> p_deal = Point<dim>(particle.pos.x, particle.pos.y, particle.pos.z);
@@ -421,7 +422,7 @@ void Laplace<dim>::assemble_system_pointcharge(femocs::ParticleSpecies &particle
 
         //loop over nodes of the cell and add the particle's charge to the system rhs
         for (int j = 0; j < fe.dofs_per_cell; ++j){
-            system_rhs(local_dof_indices[j]) += sf[j] * particles.q_over_eps0 * particles.Wsp;
+            system_rhs(local_dof_indices[j]) += sf[j] * particles.q_over_eps0 * particles.get_Wsp();
         }
 
     }

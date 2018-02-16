@@ -25,7 +25,7 @@ template<int dim>
 int Pic<dim>::inject_electrons(const bool fractional_push) {
     vector<Point3> positions, fields;
     vector<int> cells;
-    er.inject_electrons(dt, Wsp, positions, fields, cells);
+    er.inject_electrons(dt, Wel, positions, fields, cells);
 
     Point3 velocity0(0,0,0);
 
@@ -152,8 +152,8 @@ void Pic<dim>::write_particles(const string filename, double time) {
 
     size_t Nel = electrons.parts.size();
     out << Nel + 1 << endl;
-    out << "time = " << time << " charge = " << Wsp * Nel <<
-            "Interpolator properties=id:I:1:pos:R:3:vel:R:3:cell:I:1" << endl;
+    out << "time = " << time << " charge = " << Wel * Nel <<
+            " properties=id:I:1:pos:R:3:vel:R:3:cell:I:1" << endl;
 
     for (int i = 0; i < Nel;  ++i){
         ParticleSpecies::Particle &p = electrons.parts[i];

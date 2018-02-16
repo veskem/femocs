@@ -1,5 +1,5 @@
 elfield  = -0.35  # Max value of applied elctric field (V/Å)
-Vappl = 300
+Vappl = 450
 anode_BC = dirichlet
 
 workfunc = 4.5 
@@ -25,15 +25,15 @@ clear_output = true
 coord_cutoff = 3.1
 #cluster_cutoff = 4.2
 radius = 10000.0  #inner radius of coarsening cylinder
-box_height = 80
+box_height = 100
 box_width = 0.
 bulk_height = 10.
 
 # PIC parameters
 ---------------------
 doPIC = true
-PIC_dtmax = .01 #[fs]
+PIC_dtmax = .007 #[fs]
 PIC_time = 50 #[fs]
 PIC_fractional_push = true
 PIC_collide_coulomb_ee = false
-electronWsp = 0.005
+electronWsp = 0.002

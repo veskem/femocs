@@ -221,7 +221,7 @@ private:
 
     Vector<double> solution;              ///< resulting electric potential in the mesh nodes
     Vector<double> system_rhs;            ///< right-hand-side of the matrix equation
-    Vector<double> system_rhs_save; ///< system RHS of matrix equation (save before Dirichlet BCs remove dofs)
+//    Vector<double> system_rhs_save; ///< system RHS of matrix equation (save before Dirichlet BCs remove dofs)
 
     std::map<types::global_dof_index, double> boundary_values; // Map of dirichlet boundary conditions
 

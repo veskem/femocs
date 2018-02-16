@@ -37,12 +37,19 @@ public:
 
     void sort_parts();
 
-    const double q_over_m_factor; ///< charge/mass [A^2 / (V fs^2)]
-    const double q_over_eps0;     ///< (whole) particle charge / eps0 [e/VÅ]
-    const double Wsp;             ///< SP weight [particles/superparticle]
+    void set_Wsp(double _Wsp){ Wsp = _Wsp; }
+    double get_Wsp(){ return Wsp; }
 
     vector<Particle> parts;
     vector<size_t> ordcount;
+
+    const double q_over_m_factor; ///< charge/mass [A^2 / (V fs^2)]
+    const double q_over_eps0;     ///< (whole) particle charge / eps0 [e/VÅ]
+
+private:
+
+
+    double Wsp;                 ///< SP weight [particles/superparticle]
 };
 
 } // namespace
