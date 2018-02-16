@@ -58,13 +58,10 @@ public:
 
 protected:
     const double default_solution_value;
-    PhysicalQuantities *pq;             ///< object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
-    const femocs::Config::Heating *conf;      ///< solver parameters
+    PhysicalQuantities *pq;                ///< object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
+    const femocs::Config::Heating *conf;   ///< solver parameters
 
-    /** Mapping of copper interface faces to emission BCs
-     * (copper_cell_index, copper_cell_face) <-> (emission_current/nottingham_heat)
-     */
-    map<pair<unsigned, unsigned>, double> interface_map;
+    vector<double> bc_values; ///< current or heat values on the centroids of surface faces
 
     friend class CurrentHeatSolver<dim> ;
 };

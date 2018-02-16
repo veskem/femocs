@@ -424,6 +424,7 @@ int ProjectRunaway::solve_converge_heat_vol2() {
     end_msg(t0);
 
     surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+    emission.initialize(mesh);
 
     double current_time = 0.;
     double delta_time = 1.e-12; //in seconds!!
@@ -438,7 +439,6 @@ int ProjectRunaway::solve_converge_heat_vol2() {
         surface_temperatures.interpolate(ch_solver_vol2);
 
         // Calculating field emission
-        emission.initialize(mesh);
         multiplier = emission.calc_emission(multiplier, conf.emission, conf.field.V0);
         emission.export_emission(ch_solver_vol2);
 

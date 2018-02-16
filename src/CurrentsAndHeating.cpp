@@ -104,18 +104,9 @@ EmissionSolver<dim>::EmissionSolver(Triangulation<dim> *tria, const double dsf) 
 
 template<int dim>
 void EmissionSolver<dim>::set_bc(const vector<double> &emission) {
-    const unsigned n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
-    interface_map.clear();
-
-    // Loop over copper interface cells
-    typename DoFHandler<dim>::active_cell_iterator cell;
-    unsigned i = 0;
-    for (cell = this->dof_handler.begin_active(); cell != this->dof_handler.end(); ++cell)
-        for (unsigned f = 0; f < n_faces_per_cell; ++f)
-            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
-                pair<unsigned, unsigned> face_info(cell->index(), f);
-                interface_map.insert( pair<pair<unsigned, unsigned>, double>(face_info, emission[i++]) );
-            }
+    require(emission.size() > 0, "Boundary condition vector should not be empty!");
+    bc_values = emission;
+    return;
 }
 
 template<int dim>
@@ -203,6 +194,8 @@ void HeatSolver<dim>::assemble(const double delta_time) {
 
 template<int dim>
 void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
+    require(false, "Implementation of Crank-Nicolson assembly not verified!");
+
     require(current_solver, "NULL current solver can't be used!");
 
     const double gamma = cu_rho_cp / delta_time;
@@ -236,13 +229,12 @@ void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
     vector<Tensor<1, dim>> prev_sol_potential_gradients(n_q_points);
     vector<double> prev_sol_temperature_values(n_q_points);
     vector<Tensor<1, dim>> prev_sol_temperature_gradients(n_q_points);
-
-    vector<double> prev_sol_face_temperature_values(n_face_q_points);
     // ---------------------------------------------------------------------------------------------
 
     typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
     typename DoFHandler<dim>::active_cell_iterator current_cell = current_solver->dof_handler.begin_active();
 
+    int face_index = 0;
     for (; cell != this->dof_handler.end(); ++cell, ++current_cell) {
         fe_values.reinit(cell);
         cell_matrix = 0;
@@ -288,23 +280,11 @@ void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
         // ----------------------------------------------------------------------------------------
         // Nottingham BC at the copper surface
         for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
-            if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
                 fe_face_values.reinit(cell, f);
-
-                fe_face_values.get_function_values(this->solution_old, prev_sol_face_temperature_values);
-
-                // ----------------------------------------------------------------------------------
-                // Cell & face info
-                pair<unsigned, unsigned> cop_cell_info = pair<unsigned, unsigned>(
-                                                              cell->index(), f);
-                // ----------------------------------------------------------------------------------
-
-                double nottingham_heat = this->interface_map[cop_cell_info];
+                double nottingham_heat = this->bc_values[face_index++];
 
                 for (unsigned int q = 0; q < n_face_q_points; ++q) {
-//                    double prev_temperature = prev_sol_face_temperature_values[q];
-//                    double nottingham_heat = this->get_nottingham_heat_bc(cop_cell_info, prev_temperature);
-
                     for (unsigned int i = 0; i < dofs_per_cell; ++i) {
                         cell_rhs(i) += (fe_face_values.shape_value(i, q)
                                 * 2.0 * nottingham_heat * fe_face_values.JxW(q));
@@ -361,12 +341,12 @@ void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
     // The other solution values in the cell quadrature points
     vector<Tensor<1, dim>> potential_gradients(n_q_points);
     vector<double> prev_sol_temperature_values(n_q_points);
-    vector<double> prev_sol_face_temperature_values(n_face_q_points);
     // ---------------------------------------------------------------------------------------------
 
     typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
     typename DoFHandler<dim>::active_cell_iterator current_cell = current_solver->dof_handler.begin_active();
 
+    int face_index = 0;
     for (; cell != this->dof_handler.end(); ++cell, ++current_cell) {
         fe_values.reinit(cell);
         cell_matrix = 0;
@@ -408,25 +388,14 @@ void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
         // Nottingham BC at the copper surface
 
         for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
-            if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
                 fe_face_values.reinit(cell, f);
-
-                fe_face_values.get_function_values(this->solution_old, prev_sol_face_temperature_values);
-
-                // ----------------------------------------------------------------------------------
-                // cell & face info
-                pair<unsigned, unsigned> cop_cell_info = pair<unsigned, unsigned>(cell->index(), f);
-                // ----------------------------------------------------------------------------------
-
-                double nottingham_heat = this->interface_map[cop_cell_info];
+                double nottingham_heat = this->bc_values[face_index++];
 
                 for (unsigned int q = 0; q < n_face_q_points; ++q) {
-//                    double prev_temperature = prev_sol_face_temperature_values[q];
-//                    double nottingham_heat = this->get_nottingham_heat_bc(cop_cell_info, prev_temperature);
-
                     for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                        cell_rhs(i) += (fe_face_values.shape_value(i, q)
-                                * nottingham_heat * fe_face_values.JxW(q));
+                        cell_rhs(i) += fe_face_values.shape_value(i, q)
+                                * nottingham_heat * fe_face_values.JxW(q);
                     }
                 }
             }
@@ -496,7 +465,6 @@ void CurrentSolver<dim>::assemble() {
 
     // Temperature finite element values (only for accessing previous iteration solution)
     FEValues<dim> fe_values_heat(heat_solver->fe, quadrature_formula, update_values);
-    FEFaceValues<dim> fe_face_values_heat(heat_solver->fe, face_quadrature_formula, update_values);
 
     const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
     const unsigned int n_q_points = quadrature_formula.size();
@@ -510,13 +478,12 @@ void CurrentSolver<dim>::assemble() {
     // ---------------------------------------------------------------------------------------------
     // The previous solution values in the cell quadrature points
     vector<double> prev_sol_temperature_values(n_q_points);
-    // The previous solution values in the face quadrature points
-    vector<double> prev_sol_face_temperature_values(n_face_q_points);
     // ---------------------------------------------------------------------------------------------
 
     typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
     typename DoFHandler<dim>::active_cell_iterator heat_cell = heat_solver->dof_handler.begin_active();
 
+    int face_index = 0;
     for (; cell != this->dof_handler.end(); ++cell, ++heat_cell) {
         fe_values.reinit(cell);
         cell_matrix = 0;
@@ -535,8 +502,8 @@ void CurrentSolver<dim>::assemble() {
 
             for (unsigned int i = 0; i < dofs_per_cell; ++i) {
                 for (unsigned int j = 0; j < dofs_per_cell; ++j)
-                    cell_matrix(i, j) += (fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
-                            * sigma * fe_values.JxW(q));
+                    cell_matrix(i, j) += fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
+                            * sigma * fe_values.JxW(q);
             }
         }
         // ----------------------------------------------------------------------------------------
@@ -544,26 +511,14 @@ void CurrentSolver<dim>::assemble() {
         // ----------------------------------------------------------------------------------------
         // Emission current BC at the copper surface
         for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
-            if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
                 fe_face_values.reinit(cell, f);
-
-                fe_face_values_heat.reinit(heat_cell, f);
-                fe_face_values_heat.get_function_values(heat_solver->solution, prev_sol_face_temperature_values);
-
-                // ----------------------------------------------------------------------------------
-                // Cell and face info
-                pair<unsigned, unsigned> cop_cell_info = pair<unsigned, unsigned>(cell->index(), f);
-                // ----------------------------------------------------------------------------------
-
-                double emission_current = this->interface_map[cop_cell_info];
+                double emission_current = this->bc_values[face_index++];
 
                 for (unsigned int q = 0; q < n_face_q_points; ++q) {
-//                    double temperature = prev_sol_face_temperature_values[q];
-//                    double emission_current = this->get_emission_current_bc(cop_cell_info, temperature);
-
                     for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                        cell_rhs(i) += (fe_face_values.shape_value(i, q)
-                                * emission_current * fe_face_values.JxW(q));
+                        cell_rhs(i) += fe_face_values.shape_value(i, q)
+                                * emission_current * fe_face_values.JxW(q);
                     }
                 }
             }

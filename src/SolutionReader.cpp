@@ -1125,6 +1125,7 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     int n_nodes = fields.size();
     reserve(n_nodes);
     atoms = fields.atoms;
+    interpolation = vector<Solution>(n_nodes, Solution(0));
 
     // deallocate and allocate currents data
     current_densities.resize(n_nodes);
@@ -1354,15 +1355,17 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
 
 //export emissino to ch solver
 void EmissionReader::export_emission(fch::CurrentsAndHeating<3>& ch_solver){
-    for (int i = 0; i < nottingham.size(); i++) // append data for surface emission xyz file
-        append_interpolation( Solution(Vec3(0), log(current_densities[i]), log(fabs(nottingham[i]))));
+    // save data for surface emission xyz file
+    for (int i = 0; i < nottingham.size(); i++)
+        interpolation[i] = Solution( Vec3(0), log(current_densities[i]), log(fabs(nottingham[i])) );
 
     ch_solver.set_emission_bc(current_densities, nottingham); // output data for heat BCs
 }
 
 void EmissionReader::export_emission(fch::CurrentHeatSolver<3>& ch_solver) {
-    for (int i = 0; i < nottingham.size(); i++) // append data for surface emission xyz file
-        append_interpolation( Solution(Vec3(0), log(current_densities[i]), log(fabs(nottingham[i]))));
+    // save data for surface emission xyz file
+    for (int i = 0; i < nottingham.size(); i++)
+        interpolation[i] = Solution( Vec3(0), log(current_densities[i]), log(fabs(nottingham[i])) );
 
     ch_solver.current.set_bc(current_densities);
     ch_solver.heat.set_bc(nottingham);
