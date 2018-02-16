@@ -19,7 +19,7 @@ using namespace dealii;
 using namespace std;
 namespace fch {
 
-template<int dim> class CurrentHeatStatSolver;
+template<int dim> class PoissonSolver;
 template<int dim> class CurrentHeatSolver;
 template<int dim> class CurrentSolver;
 template<int dim> class HeatSolver;
@@ -124,14 +124,13 @@ protected:
     Vector<double> solution;              ///< resulting solution in the mesh nodes
     Vector<double> solution_old;         ///< resulting solution in the mesh nodes
 
-    /** Helper function for the public shape_funs */
-    vector<double> shape_funs(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
-
     /** Mark different regions of the mesh */
     virtual void mark_boundary() {}
 
-    friend class CurrentHeatStatSolver<dim>;
-    friend class CurrentHeatSolver<dim>;
+    /** Helper function for the public shape_funs */
+    vector<double> shape_funs(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
+
+    friend class PoissonSolver<dim>;
     friend class CurrentHeatSolver<dim>;
     friend class CurrentSolver<dim>;
     friend class HeatSolver<dim>;
