@@ -1052,7 +1052,6 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
         vector<Point3> &efield, vector<int> &cells) {
 
     const double Amp = 6.2415e3; //[e/fs]
-    int n_tot = 0;
     Vec3 field;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
@@ -1067,8 +1066,10 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
         if ((double) rand() / RAND_MAX < frpart)
             n_electrons_sp++;
 
-        if (n_electrons_sp)
-            field = fields.get_elfield(i);
+        if (!n_electrons_sp)
+            continue;
+
+        field = fields.get_elfield(i);
 
         //TODO : fix rng, check probability distribution
 
@@ -1096,11 +1097,8 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
             efield.push_back(field);
 			cells.push_back(hex);
         }
-
-        n_tot += n_electrons_sp;
     }
 
-    write_verbose_msg("emitted " + to_string(n_tot) + " electrons");
 }
 
 void EmissionReader::emission_cycle(double workfunction, bool blunt){

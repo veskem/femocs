@@ -28,7 +28,7 @@ namespace femocs {
 template<int dim>
 class Pic {
 public:
-    Pic(fch::Laplace<dim> &laplace_solver, fch::CurrentsAndHeating<3> &ch_solver, Interpolator &interpolator, EmissionReader &er);
+    Pic(fch::Laplace<dim> &laplace_solver, Interpolator &interpolator, EmissionReader &er);
     ~Pic();
 
     /**
@@ -51,6 +51,7 @@ public:
             double _dt, TetgenNodes::Stat _box){
         dt = _dt;
         Wsp = conf_pic.Wsp_el;
+        cout << "Wsp = " <<  Wsp << endl;
         E0 = conf_lap.E0;
         V0 = conf_lap.V0;
         anodeBC = conf_lap.anodeBC;
@@ -74,7 +75,6 @@ private:
 
 
     fch::Laplace<dim> &laplace_solver;      ///< Laplace solver object to solve the Poisson in the vacuum mesh
-    fch::CurrentsAndHeating<3> &ch_solver;  ///< transient currents and heating solver
     Interpolator &interpolator;
     EmissionReader &er;                     ///< Object to calculate the emission data
 

@@ -22,7 +22,7 @@ namespace femocs {
 
 // specify simulation parameters
 Femocs::Femocs(const string &conf_file) : skip_meshing(false), fail(false), timestep(-1), last_full_timestep(0),
-        pic_solver(laplace_solver, ch_transient_solver, vacuum_interpolator, emission), time(0) {
+        pic_solver(laplace_solver, vacuum_interpolator, emission), time(0) {
     static bool first_call = true;
 
     // Read configuration parameters from configuration file
@@ -324,7 +324,7 @@ int Femocs::prepare_fem(){
 // Run Pic simulation for dt_main time advance
 int Femocs::solve_pic(const double E0, const double dt_main) {
 
-    const int n_write = 20;
+    const int n_write = 50;
 
     int time_subcycle = ceil(dt_main / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
     double dt_pic = dt_main/time_subcycle;
@@ -343,9 +343,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
 
         if(!conf.pic.doPIC) break; // stop before injecting particles
 
-        start_msg(t0, "=== Calculating electron emission...");
         get_emission();
-        end_msg(t0);
 
         if ((i % n_write) == 0){
             pic_solver.write_particles("out/electrons.movie", i * dt_pic);

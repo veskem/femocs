@@ -13,7 +13,7 @@ smooth_algorithm = fujiwara  # surface mesh smoother algorithm; none, laplace, f
 heating_mode = transient
 
 distance_tol = 0;
-femocs_verbose_mode = verbose;     # enable or disable the verbose mode
+femocs_verbose_mode = silent;     # enable or disable the verbose mode
 element_volume = 1000 #10x10x10 Angstrom
 #mesh_quality = 1.25
 n_writefile = 1
@@ -25,15 +25,15 @@ clear_output = true
 coord_cutoff = 3.1
 #cluster_cutoff = 4.2
 radius = 10000.0  #inner radius of coarsening cylinder
-box_height = 50
+box_height = 80
 box_width = 0.
+bulk_height = 10.
 
 # PIC parameters
 ---------------------
 doPIC = true
 PIC_dtmax = .01 #[fs]
-#PIC_dtmax = .01 #[f]s
-PIC_time = 500 #[fs]
+PIC_time = 50 #[fs]
 PIC_fractional_push = true
 PIC_collide_coulomb_ee = false
-electronWsp = 0.02
+electronWsp = 0.005

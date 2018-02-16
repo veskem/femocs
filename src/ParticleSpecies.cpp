@@ -39,7 +39,7 @@ void ParticleSpecies::clear_lost(){
     //Shrink the arrays
     if (nlost > 0){
         parts.resize(npart-nlost);
-        cout << "Particles were lost! nlost=" << nlost << endl;
+//        cout << nlost << " particles were lost!" << endl;
     }
 
 }

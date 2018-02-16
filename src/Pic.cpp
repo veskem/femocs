@@ -14,9 +14,9 @@ namespace femocs {
 
 
 template<int dim>
-Pic<dim>::Pic(fch::Laplace<dim> &laplace_solver, fch::CurrentsAndHeating<3> &ch_solver,
+Pic<dim>::Pic(fch::Laplace<dim> &laplace_solver,
         Interpolator &interpolator, EmissionReader &er) : ///< Object to read the temperature data) :
-        laplace_solver(laplace_solver), ch_solver(ch_solver), interpolator(interpolator), er(er){}
+        laplace_solver(laplace_solver), interpolator(interpolator), er(er){}
 
 template<int dim>
 Pic<dim>::~Pic() {}
@@ -52,7 +52,6 @@ void Pic<dim>::compute_field(bool first_time) {
     //TODO : save system lhs and copy it . don't rebuild it every time
 
     double t0;
-    start_msg(t0, "\nSetting up system lhs... first_time = " + to_string(first_time));
     laplace_solver.setup_system(first_time);
     if (first_time){
         laplace_solver.assemble_system_lhs();
@@ -60,9 +59,7 @@ void Pic<dim>::compute_field(bool first_time) {
     }else{
         laplace_solver.restore_system();
     }
-    end_msg(t0);
 
-    start_msg(t0, "\nSetting up system RHS and BCs...");
     laplace_solver.assemble_system_pointcharge(electrons);
     if (anodeBC == "neumann")
         laplace_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top, -E0);
@@ -73,11 +70,8 @@ void Pic<dim>::compute_field(bool first_time) {
 
     laplace_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.);
     laplace_solver.assemble_system_finalize();
-    end_msg(t0);
 
-    start_msg(t0, "\nSolving Poisson equation... CG iterations = ");
-    cout << laplace_solver.solve() << " ";
-    end_msg(t0);
+    laplace_solver.solve();
 }
 
 
@@ -120,10 +114,9 @@ template<int dim>
 void Pic<dim>::run_cycle(bool first_time) {
     double t0;
 
-    write_particles("out/bpos.movie", 0);
-
     start_msg(t0,"=== Updating PIC particle positions ...");
     update_positions();
+//    write_particles("out/electrons.movie", 0);
     electrons.clear_lost();
     electrons.sort_parts();
     end_msg(t0);
@@ -132,13 +125,9 @@ void Pic<dim>::run_cycle(bool first_time) {
     compute_field(first_time);
     end_msg(t0);
 
-    write_particles("out/bvel.movie", 0);
-
     start_msg(t0, "=== Updating the PIC particle velocities ...");
     update_velocities();
     end_msg(t0);
-
-    write_particles("out/after_vel.movie", 0);
 
     if (coll_coulomb_ee){
         start_msg(t0, "=== Colliding PIC particles ...");
@@ -161,12 +150,12 @@ void Pic<dim>::write_particles(const string filename, double time) {
     else out.open(filename);
     require(out.is_open(), "Can't open a file " + filename);
 
-    cout << "writing particles to " + filename << " n_size = " << electrons.parts.size() << endl;
+    size_t Nel = electrons.parts.size();
+    out << Nel + 1 << endl;
+    out << "time = " << time << " charge = " << Wsp * Nel <<
+            "Interpolator properties=id:I:1:pos:R:3:vel:R:3:cell:I:1" << endl;
 
-    out << electrons.parts.size() + 1 << endl;
-    out << "time = " << time << " Interpolator properties=id:I:1:pos:R:3:vel:R:3:cell:I:1" << endl;
-
-    for (int i = 0; i < electrons.parts.size();  ++i){
+    for (int i = 0; i < Nel;  ++i){
         ParticleSpecies::Particle &p = electrons.parts[i];
         out << i << " " << p.pos.x << " " << p.pos.y << " " << p.pos.z << " " <<
         p.vel.x << " " << p.vel.y << " " << p.vel.z << " " << p.cell << endl;
