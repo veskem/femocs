@@ -787,6 +787,23 @@ void FieldReader::interpolate(vector<double>& elfields, const vector<dealii::Poi
         elfields[i] = 10.0 * get_elfield_norm(i);
 }
 
+void FieldReader::interpolate(const fch::DealSolver<3>& solver) {
+    // import the surface nodes the solver needs
+    vector<dealii::Point<3>> nodes;
+    solver.get_surface_nodes(nodes);
+
+    const int n_atoms = nodes.size();
+
+    // store the node coordinates
+    reserve(n_atoms);
+    int i = 0;
+    for (dealii::Point<3>& node : nodes)
+        append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
+
+    // interpolate or assign solution on the atoms
+    calc_interpolation();
+}
+
 // Linearly interpolate electric field for the currents and temperature solver
 void FieldReader::transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver) {
     // import the surface nodes the solver needs
@@ -1025,6 +1042,23 @@ void HeatReader::interpolate(const Medium &medium) {
     // restore the original atom id-s
     for (int i = 0; i < n_atoms; ++i)
         atoms[i].id = medium.get_id(i);
+}
+
+void HeatReader::interpolate(fch::DealSolver<3>& solver) {
+    // import the surface nodes the solver needs
+    vector<dealii::Point<3>> nodes;
+    solver.get_surface_nodes(nodes);
+
+    const int n_atoms = nodes.size();
+
+    // store the node coordinates
+    reserve(n_atoms);
+    int i = 0;
+    for (dealii::Point<3>& node : nodes)
+        append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
+
+    // interpolate or assign solution on the atoms
+    calc_interpolation();
 }
 
 // Interpolate temperature for the currents and temperature solver
@@ -1280,6 +1314,13 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt){
 
 }
 
+double EmissionReader::calc_emission(const double multiplier, const Config::Emission &conf,
+        double Vappl) {
+    set_multiplier(multiplier);
+    calc_emission(conf, Vappl);
+    return get_multiplier();
+}
+
 void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
 
     if (Vappl <= 0 && conf.SC)
@@ -1311,13 +1352,20 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
     }
 }
 
-
 //export emissino to ch solver
 void EmissionReader::export_emission(fch::CurrentsAndHeating<3>& ch_solver){
     for (int i = 0; i < nottingham.size(); i++) // append data for surface emission xyz file
         append_interpolation( Solution(Vec3(0), log(current_densities[i]), log(fabs(nottingham[i]))));
 
     ch_solver.set_emission_bc(current_densities, nottingham); // output data for heat BCs
+}
+
+void EmissionReader::export_emission(fch::CurrentHeatSolver<3>& ch_solver) {
+    for (int i = 0; i < nottingham.size(); i++) // append data for surface emission xyz file
+        append_interpolation( Solution(Vec3(0), log(current_densities[i]), log(fabs(nottingham[i]))));
+
+    ch_solver.current.set_bc(current_densities);
+    ch_solver.heat.set_bc(nottingham);
 }
 
 /* ==========================================

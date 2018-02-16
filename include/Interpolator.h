@@ -62,6 +62,9 @@ public:
     /** Extract the current density and transient temperature values from FEM solution */
     void extract_solution(fch::CurrentsAndHeating<3>& fem);
 
+    /** Extract the current density and transient temperature values from FEM solution */
+    void extract_solution(fch::CurrentHeatSolver<3>& fem);
+
     int update_point_cell(Point3& point, int current_cell);
 
     InterpolatorNodes nodes;      ///< vertices and solutions on them

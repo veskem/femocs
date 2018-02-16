@@ -67,6 +67,8 @@ private:
     fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous steady-state currents and heating solver
     fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
 
+    fch::CurrentHeatSolver<3> ch_solver_vol2;
+
     Pic<3> pic_solver;    ///< Class for solving Poisson equation and handling space charge
 
     /** Solve steady-state heat and continuity equations */
@@ -77,6 +79,8 @@ private:
 
     /** Solve transient heat and continuity equation until convergence is reached */
     int solve_converge_heat();
+
+    int solve_converge_heat_vol2();
 
     /** Import meshes to dealii and set params to various objects */
     int prepare_fem();

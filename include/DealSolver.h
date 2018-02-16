@@ -19,6 +19,11 @@ using namespace dealii;
 using namespace std;
 namespace fch {
 
+template<int dim> class CurrentHeatStatSolver;
+template<int dim> class CurrentHeatSolver;
+template<int dim> class CurrentSolver;
+template<int dim> class HeatSolver;
+
 /** @brief General class to implement FEM solver in Deal.II
  */
 template<int dim>
@@ -26,7 +31,7 @@ class DealSolver {
 public:
 
     DealSolver();
-    DealSolver(Triangulation<dim> &tria);
+    DealSolver(Triangulation<dim> *tria);
     virtual ~DealSolver() {}
 
     /** Provide triangulation object to get access to the mesh data */
@@ -47,7 +52,7 @@ public:
     double get_cell_vol(const int i) const;
 
     /** export the centroids of surface faces */
-    void get_surface_nodes(vector<Point<dim>>& nodes);
+    void get_surface_nodes(vector<Point<dim>>& nodes) const;
 
     /**
      * Import mesh from file and set the boundary indicators corresponding to copper
@@ -124,6 +129,12 @@ protected:
 
     /** Mark different regions of the mesh */
     virtual void mark_boundary() {}
+
+    friend class CurrentHeatStatSolver<dim>;
+    friend class CurrentHeatSolver<dim>;
+    friend class CurrentHeatSolver<dim>;
+    friend class CurrentSolver<dim>;
+    friend class HeatSolver<dim>;
 };
 
 } /* namespace femocs */

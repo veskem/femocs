@@ -15,6 +15,7 @@
 #include "VoronoiMesh.h"
 #include "Interpolator.h"
 #include "Config.h"
+#include "DealSolver.h"
 #include "CurrentsAndHeating.h"
 #include "CurrentsAndHeatingStationary.h"
 
@@ -134,6 +135,9 @@ public:
 
     void test_pic_vol3(const TetgenMesh& mesh) const;
 
+    /** Interpolate solution on the surface mesh centroids of the FEM solver */
+    void interpolate(const fch::DealSolver<3>& solver);
+
     /** Interpolate electric field and potential on a Medium atoms */
     void interpolate(const Medium &medium);
 
@@ -213,6 +217,8 @@ public:
      *  In case of empty interpolator, constant values are stored. */
     void interpolate(fch::CurrentsAndHeating<3>& ch_solver);
 
+    void interpolate(fch::DealSolver<3>& solver);
+
     /** Export interpolated temperature */
     int export_temperature(const int n_atoms, double* T);
 
@@ -239,7 +245,11 @@ public:
      */
     void calc_emission(const Config::Emission &conf, double Vappl = -1);
 
+    double calc_emission(const double multiplier, const Config::Emission &conf, double Vappl);
+
     void export_emission(fch::CurrentsAndHeating<3>& ch_solver);
+
+    void export_emission(fch::CurrentHeatSolver<3>& ch_solver);
 
     /** Injects electron SPs at the surface faces, depending on the current and the timestep */
     void inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,

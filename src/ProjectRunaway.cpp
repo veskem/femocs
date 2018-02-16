@@ -37,6 +37,9 @@ ProjectRunaway::ProjectRunaway(AtomReader &a, Config &c) :
     ch_solver1.set_physical_quantities(&phys_quantities);
     ch_solver2.set_physical_quantities(&phys_quantities);
     ch_transient_solver.set_physical_quantities(&phys_quantities);
+
+    ch_solver_vol2.set_dependencies(&phys_quantities, &c.heating);
+
     end_msg(t0);
 }
 
@@ -214,7 +217,8 @@ int ProjectRunaway::solve_heat(const double T_ambient) {
         return success;
     }
     else if (conf.heating.mode == "converge") {
-        return solve_converge_heat();
+//        return solve_converge_heat();
+        return solve_converge_heat_vol2();
     }
 
     return 0;
@@ -341,11 +345,14 @@ int ProjectRunaway::solve_converge_heat() {
     double multiplier = 1.;
 
     start_msg(t0, "=== Running converge J & T solver...\n");
-    for (int i = 0; i < 1000; ++i) {
+    int converge_steps = 0;
+    for (; converge_steps < 1000; ++converge_steps) {
+        double tstart = omp_get_wtime();
+
         // Interpolate J & T on face centroids
         surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank);
         surface_temperatures.interpolate(ch_transient_solver);
-        if (MODES.VERBOSE) surface_temperatures.write("out/surface_temperature.xyz");
+
 
         // Calculating field emission
         emission.initialize(mesh);
@@ -353,7 +360,6 @@ int ProjectRunaway::solve_converge_heat() {
         emission.calc_emission(conf.emission, conf.field.V0);
         emission.export_emission(ch_transient_solver);
         multiplier = emission.get_multiplier();
-        if (MODES.VERBOSE) emission.write("out/surface_emission.xyz");
 
         // Calculate current density
         ch_transient_solver.assemble_current_system(); // assemble matrix for electric current density equation
@@ -366,14 +372,14 @@ int ProjectRunaway::solve_converge_heat() {
 
         // Extract J & T
         bulk_interpolator.extract_solution(ch_transient_solver);
-        bulk_interpolator.nodes.write("out/result_J_T.movie");
 
-        current_time += delta_time;
         if (MODES.VERBOSE) {
             double max_T = ch_transient_solver.get_max_temperature();
-            printf("  i=%d, dt=%5.3e ps, t=%5.3eps, ccg=%2d, hcg=%2d, Tmax=%6.2f\n",
-                    i, delta_time * 1.e12, current_time * 1.e12, ccg, hcg, max_T);
+            double time = omp_get_wtime() - tstart;
+            printf("  i=%d, dt= %.2f ps, t= %.2f ps, ccg=%d, hcg=%d, time=%.3f, Tmax=%.2f\n",
+                    converge_steps, delta_time * 1.e12, current_time * 1.e12, ccg, hcg, time, max_T);
         }
+        current_time += delta_time;
 
         if (max(hcg, ccg) < 120 || hcg < 30)
             delta_time *= 1.25;
@@ -384,7 +390,91 @@ int ProjectRunaway::solve_converge_heat() {
         if (max(hcg, ccg) < 10) break;
     }
     end_msg(t0);
-//    write_silent_msg("WARNING: Heat equation did not converged after 1000 steps.");
+    if (converge_steps >= 1000)
+        write_silent_msg("WARNING: Heat equation did not converge after 1000 steps!");
+
+    surface_temperatures.write("out/surface_temperature.xyz");
+    emission.write("out/surface_emission.xyz");
+    bulk_interpolator.nodes.write("out/result_J_T.movie");
+
+    return 0;
+}
+
+int ProjectRunaway::solve_converge_heat_vol2() {
+
+    start_msg(t0, "=== Importing mesh to J & T solver...");
+    fail = !ch_solver_vol2.import_mesh_directly(mesh->nodes.export_dealii(), mesh->hexahedra.export_bulk());
+    check_return(fail, "Importing bulk mesh to Deal.II failed!");
+    end_msg(t0);
+
+    ch_solver_vol2.write("out/ch_solver.vtk");
+
+    bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
+    bulk_interpolator.lintets.narrow_search_to(TYPES.BULK);
+
+    start_msg(t0, "=== Interpolating elfield on faces...");
+    surface_fields.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+    surface_fields.interpolate(ch_solver_vol2);
+    end_msg(t0);
+    surface_fields.write("out/surface_field.xyz");
+
+    start_msg(t0, "=== Setup transient J & T solver...");
+    ch_solver_vol2.current.setup();
+    ch_solver_vol2.heat.setup();
+    end_msg(t0);
+
+    surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+
+    double current_time = 0.;
+    double delta_time = 1.e-12; //in seconds!!
+    double multiplier = 1.;
+
+    start_msg(t0, "=== Running converge J & T solver...\n");
+    int converge_steps = 0;
+    for (; converge_steps < 1000; ++converge_steps) {
+        double tstart = omp_get_wtime();
+
+        // Interpolate J & T on face centroids
+        surface_temperatures.interpolate(ch_solver_vol2);
+
+        // Calculating field emission
+        emission.initialize(mesh);
+        multiplier = emission.calc_emission(multiplier, conf.emission, conf.field.V0);
+        emission.export_emission(ch_solver_vol2);
+
+        // Calculate current density
+        ch_solver_vol2.current.assemble();
+        unsigned int ccg = ch_solver_vol2.current.solve(); // ccg == nr of CG iterations
+
+        // Calculate temperature distribution
+        ch_solver_vol2.heat.assemble(delta_time);
+        unsigned int hcg = ch_solver_vol2.heat.solve(); // hcg == nr of CG iterations
+
+        // Extract J & T
+        bulk_interpolator.extract_solution(ch_solver_vol2);
+
+        if (MODES.VERBOSE) {
+            double max_T = ch_solver_vol2.heat.max_solution();
+            double time = omp_get_wtime() - tstart;
+            printf("  i=%d, t=%.2fps, dt=%.2fps, ccg=%d, hcg=%d, time=%.3fs, Tmax=%.2fK\n",
+                    converge_steps, current_time * 1.e12, delta_time * 1.e12, ccg, hcg, time, max_T);
+        }
+        current_time += delta_time;
+
+        if (max(hcg, ccg) < 120 || hcg < 30)
+            delta_time *= 1.25;
+        else if (max(hcg, ccg) > 150)
+            delta_time /= 1.25;
+
+        if (max(hcg, ccg) < 10) break;
+    }
+    end_msg(t0);
+    if (converge_steps >= 1000)
+        write_silent_msg("WARNING: Heat equation did not converge after 1000 steps!");
+
+    surface_temperatures.write("out/surface_temperature.xyz");
+    emission.write("out/surface_emission.xyz");
+    bulk_interpolator.nodes.write("out/result_J_T.xyz");
 
     return 0;
 }

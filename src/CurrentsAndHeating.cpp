@@ -97,13 +97,13 @@ EmissionSolver<dim>::EmissionSolver() :
         {}
 
 template<int dim>
-EmissionSolver<dim>::EmissionSolver(Triangulation<dim> &tria, const double dsf) :
+EmissionSolver<dim>::EmissionSolver(Triangulation<dim> *tria, const double dsf) :
         DealSolver<dim>(tria),
         default_solution_value(dsf), pq(NULL), conf(NULL)
         {}
 
 template<int dim>
-void EmissionSolver<dim>::set_emission_bc(const vector<double> &emission) {
+void EmissionSolver<dim>::set_bc(const vector<double> &emission) {
     const unsigned n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
     interface_map.clear();
 
@@ -156,6 +156,12 @@ void EmissionSolver<dim>::setup() {
     }
 }
 
+template<int dim>
+void EmissionSolver<dim>::set_dependencies(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_) {
+    pq = pq_;
+    conf = conf_;
+}
+
 /* ==================================================================
  *  ========================== HeatSolver ==========================
  * ================================================================== */
@@ -165,8 +171,8 @@ HeatSolver<dim>::HeatSolver() :
         EmissionSolver<dim>(), current_solver(NULL) {}
 
 template<int dim>
-HeatSolver<dim>::HeatSolver(Triangulation<dim> &tria_, const CurrentSolver<dim> *cs, const double default_value) :
-        EmissionSolver<dim>(tria_, default_value), current_solver(cs) {}
+HeatSolver<dim>::HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *cs, const double default_value) :
+        EmissionSolver<dim>(tria, default_value), current_solver(cs) {}
 
 template<int dim>
 void HeatSolver<dim>::output_results(const string &filename) const {
@@ -188,18 +194,18 @@ void HeatSolver<dim>::output_results(const string &filename) const {
 }
 
 template<int dim>
-void HeatSolver<dim>::assemble() {
+void HeatSolver<dim>::assemble(const double delta_time) {
     if (this->conf->assemble_method == "euler")
-        assemble_euler_implicit();
+        assemble_euler_implicit(delta_time);
     else
-        assemble_crank_nicolson();
+        assemble_crank_nicolson(delta_time);
 }
 
 template<int dim>
-void HeatSolver<dim>::assemble_crank_nicolson() {
+void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
     require(current_solver, "NULL current solver can't be used!");
 
-    const double gamma = cu_rho_cp / this->conf->delta_time;
+    const double gamma = cu_rho_cp / delta_time;
     this->system_matrix = 0;
     this->system_rhs = 0;
 
@@ -323,10 +329,10 @@ void HeatSolver<dim>::assemble_crank_nicolson() {
 }
 
 template<int dim>
-void HeatSolver<dim>::assemble_euler_implicit() {
+void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
     require(current_solver, "NULL current solver can't be used!");
 
-    const double gamma = cu_rho_cp / this->conf->delta_time;
+    const double gamma = cu_rho_cp / delta_time;
     this->system_matrix = 0;
     this->system_rhs = 0;
 
@@ -449,7 +455,7 @@ CurrentSolver<dim>::CurrentSolver() :
         EmissionSolver<dim>(), heat_solver(NULL) {}
 
 template<int dim>
-CurrentSolver<dim>::CurrentSolver(Triangulation<dim> &tria, const HeatSolver<dim> *hs, const double default_value) :
+CurrentSolver<dim>::CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim> *hs, const double default_value) :
         EmissionSolver<dim>(tria, default_value), heat_solver(hs) {}
 
 template<int dim>
@@ -579,38 +585,36 @@ void CurrentSolver<dim>::assemble() {
 }
 
 /* ==================================================================
- *  =================== CurrentsAndHeatingSolver ===================
+ *  ======================= CurrentHeatSolver ======================
  * ================================================================== */
 
 template<int dim>
-CurrentsAndHeatingSolver<dim>::CurrentsAndHeatingSolver() :
+CurrentHeatSolver<dim>::CurrentHeatSolver() :
         DealSolver<dim>(), pq(NULL), conf(NULL),
-        heat_solver(), current_solver() {}
+        heat(&this->triangulation, &current, ambient_temperature),
+        current(&this->triangulation, &heat, 0.0)
+{}
 
 template<int dim>
-CurrentsAndHeatingSolver<dim>::CurrentsAndHeatingSolver(const PhysicalQuantities *pq_, const femocs::Config::Heating *conf_) :
+CurrentHeatSolver<dim>::CurrentHeatSolver(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_) :
         DealSolver<dim>(), pq(pq_), conf(conf_),
-        heat_solver(this->triangulation, &current_solver, ambient_temperature),
-        current_solver(this->triangulation, &heat_solver, 0.0)
+        heat(&this->triangulation, &current, ambient_temperature),
+        current(&this->triangulation, &heat, 0.0)
 {
-    heat_solver.pq = pq_;
-    heat_solver.conf = conf_;
-    current_solver.pq = pq_;
-    current_solver.conf = conf_;
+    heat.set_dependencies(pq_, conf_);
+    current.set_dependencies(pq_, conf_);
 }
 
 template<int dim>
-void CurrentsAndHeatingSolver<dim>::set_dependencies(const PhysicalQuantities *pq_, const femocs::Config::Heating *conf_) {
+void CurrentHeatSolver<dim>::set_dependencies(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_) {
     pq = pq_;
     conf = conf_;
-    heat_solver.pq = pq_;
-    heat_solver.conf = conf_;
-    current_solver.pq = pq_;
-    current_solver.conf = conf_;
+    heat.set_dependencies(pq_, conf_);
+    current.set_dependencies(pq_, conf_);
 }
 
 template<int dim>
-vector<double> CurrentsAndHeatingSolver<dim>::get_temperature(const vector<int> &cell_indexes,
+vector<double> CurrentHeatSolver<dim>::get_temperature(const vector<int> &cell_indexes,
         const vector<int> &vert_indexes)
 {
     // Initialize vector with a value that is immediately visible if it's not changed to proper one
@@ -620,20 +624,20 @@ vector<double> CurrentsAndHeatingSolver<dim>::get_temperature(const vector<int> 
         // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
         // NB: only works without refinement !!!
         typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation, 0,
-                cell_indexes[i], &heat_solver.dof_handler);
+                cell_indexes[i], &heat.dof_handler);
 
-        double temperature = heat_solver.solution[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
+        double temperature = heat.solution[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
         temperatures[i] = temperature;
     }
     return temperatures;
 }
 
 template<int dim>
-vector<Tensor<1, dim>> CurrentsAndHeatingSolver<dim>::get_current(const vector<int> &cell_indexes,
+vector<Tensor<1, dim>> CurrentHeatSolver<dim>::get_current(const vector<int> &cell_indexes,
         const vector<int> &vert_indexes)
 {
     QGauss<dim> quadrature_formula(this->quadrature_degree);
-    FEValues<dim> fe_values(current_solver.fe, quadrature_formula, update_gradients);
+    FEValues<dim> fe_values(current.fe, quadrature_formula, update_gradients);
 
     vector<Tensor<1, dim> > potential_gradients(quadrature_formula.size());
     const FEValuesExtractors::Scalar potential(0);
@@ -644,12 +648,12 @@ vector<Tensor<1, dim>> CurrentsAndHeatingSolver<dim>::get_current(const vector<i
         // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
         // NB: only works without refinement !!!
         typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation, 0,
-                cell_indexes[i], &current_solver->dof_handler);
+                cell_indexes[i], &current.dof_handler);
 
         fe_values.reinit(dof_cell);
-        fe_values.get_function_gradients(current_solver.solution, potential_gradients);
+        fe_values.get_function_gradients(current.solution, potential_gradients);
 
-        double temperature = heat_solver.solution[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
+        double temperature = heat.solution[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
         Tensor<1, dim> field = -1.0 * potential_gradients.at(vert_indexes[i]);
         Tensor<1, dim> current = pq->sigma(temperature) * field;
 
@@ -659,7 +663,7 @@ vector<Tensor<1, dim>> CurrentsAndHeatingSolver<dim>::get_current(const vector<i
 }
 
 template<int dim>
-void CurrentsAndHeatingSolver<dim>::mark_boundary() {
+void CurrentHeatSolver<dim>::mark_boundary() {
     MeshPreparer<dim> mesh_preparer;
     mesh_preparer.mark_copper_boundary(&this->triangulation);
 }
@@ -1440,6 +1444,11 @@ void CurrentsAndHeating<dim>::output_results_heating(const std::string filename)
         std::cerr << "Output is not saved." << std::endl;
     }
 }
+
+template class EmissionSolver<3> ;
+template class HeatSolver<3> ;
+template class CurrentSolver<3> ;
+template class CurrentHeatSolver<3> ;
 
 template class CurrentsAndHeating<2> ;
 template class CurrentsAndHeating<3> ;

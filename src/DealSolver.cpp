@@ -17,7 +17,7 @@ template<int dim>
 DealSolver<dim>::DealSolver() : fe(shape_degree), dof_handler(triangulation) {}
 
 template<int dim>
-DealSolver<dim>::DealSolver(Triangulation<dim> &tria) : fe(shape_degree), dof_handler(tria) {}
+DealSolver<dim>::DealSolver(Triangulation<dim> *tria) : fe(shape_degree), dof_handler(*tria) {}
 
 template<int dim>
 vector<double> DealSolver<dim>::shape_funs(const Point<dim> &p, int cell_index) const {
@@ -109,7 +109,7 @@ void DealSolver<dim>::output_mesh(const string &file_name) {
 }
 
 template<int dim>
-void DealSolver<dim>::get_surface_nodes(vector<Point<dim>>& nodes) {
+void DealSolver<dim>::get_surface_nodes(vector<Point<dim>>& nodes) const {
     const int n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
     nodes.clear();
 

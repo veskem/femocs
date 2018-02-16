@@ -29,6 +29,8 @@ namespace fch {
 
 // forward declaration for Laplace to exist when declaring CurrentsAndHeating
 template<int dim> class Laplace;
+template<int dim> class CurrentHeatSolver;
+template<int dim> class HeatSolver;
 
 using namespace dealii;
 using namespace std;
@@ -37,7 +39,7 @@ template<int dim>
 class EmissionSolver : public DealSolver<dim> {
 public:
     EmissionSolver();
-    EmissionSolver(Triangulation<dim> &tria, const double default_value);
+    EmissionSolver(Triangulation<dim> *tria, const double default_value);
 
     /** Solve the matrix equation using conjugate gradient method */
     unsigned int solve();
@@ -45,30 +47,33 @@ public:
     /** Set up dynamic sparsity pattern for calculations */
     void setup();
 
-    /** Set the emission current and Nottingham boundary condition on copper-vacuum boundary.
+    /** Set the boundary condition values on copper-vacuum boundary.
      * The values must be on the centroids of the vacuum-material boundary faces
      * in the order specified in the get_surface_nodes() method.
      */
-    void set_emission_bc(const vector<double> &emission);
+    void set_bc(const vector<double> &emission);
+
+    /** Set the pointers for obtaining external data */
+    void set_dependencies(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_);
 
 protected:
     const double default_solution_value;
-    const PhysicalQuantities *pq;             ///< object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
+    PhysicalQuantities *pq;             ///< object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
     const femocs::Config::Heating *conf;      ///< solver parameters
 
     /** Mapping of copper interface faces to emission BCs
      * (copper_cell_index, copper_cell_face) <-> (emission_current/nottingham_heat)
      */
     map<pair<unsigned, unsigned>, double> interface_map;
-};
 
-template<int dim> class HeatSolver;
+    friend class CurrentHeatSolver<dim> ;
+};
 
 template<int dim>
 class CurrentSolver : public EmissionSolver<dim> {
 public:
     CurrentSolver();
-    CurrentSolver(Triangulation<dim> &tria, const HeatSolver<dim> *hs, const double default_value);
+    CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim> *hs, const double default_value);
 
     /** Output the electric potential [V] and field [V/nm] in vtk format */
     void output_results(const string &filename) const;
@@ -81,22 +86,21 @@ public:
 
 private:
     const HeatSolver<dim>* heat_solver;
-
-    friend class HeatSolver<dim> ;
+    friend class CurrentHeatSolver<dim> ;
 };
 
 template<int dim>
 class HeatSolver : public EmissionSolver<dim> {
 public:
     HeatSolver();
-    HeatSolver(Triangulation<dim> &tria, const CurrentSolver<dim> *cs, const double default_value);
+    HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *cs, const double default_value);
 
     /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] in vtk format */
     void output_results(const string &filename) const;
 
     /** Assemble the matrix equation for temperature calculation
      * using Crank-Nicolson or implicit Euler time integration method. */
-    void assemble();
+    void assemble(const double delta_time);
 
 private:
     static constexpr double cu_rho_cp = 3.4496e-24;      ///< volumetric heat capacity of copper J/(K*ang^3)
@@ -106,21 +110,22 @@ private:
      * Calculate sparse matrix elements and right-hand-side vector
      * according to the time dependent heat equation weak formulation and to the boundary conditions.
      */
-    void assemble_crank_nicolson();
+    void assemble_crank_nicolson(const double delta_time);
 
     /** @brief assemble the matrix equation for temperature calculation using implicit Euler time integration method
      * Calculate sparse matrix elements and right-hand-side vector
      * according to the time dependent heat equation weak formulation and to the boundary conditions.
      */
-    void assemble_euler_implicit();
+    void assemble_euler_implicit(const double delta_time);
 
-    friend class CurrentSolver<dim> ;
+    friend class CurrentHeatSolver<dim> ;
 };
 
 template<int dim>
-class CurrentsAndHeatingSolver : public DealSolver<dim> {
-    CurrentsAndHeatingSolver();
-    CurrentsAndHeatingSolver(const PhysicalQuantities *pq_, const femocs::Config::Heating *conf_);
+class CurrentHeatSolver : public DealSolver<dim> {
+public:
+    CurrentHeatSolver();
+    CurrentHeatSolver(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_);
 
     /**
      * Method to obtain the temperature values in selected nodes.
@@ -139,22 +144,19 @@ class CurrentsAndHeatingSolver : public DealSolver<dim> {
     vector<Tensor<1,dim>> get_current(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
 
     /** Set the pointers for obtaining external data */
-    void set_dependencies(const PhysicalQuantities *pq_, const femocs::Config::Heating *conf_);
+    void set_dependencies(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_);
 
-    HeatSolver<dim> heat_solver;        ///< data and operations of heat equation solver
-    CurrentSolver<dim> current_solver;  ///< data and operations for finding current density in material
+    HeatSolver<dim> heat;        ///< data and operations of heat equation solver
+    CurrentSolver<dim> current;  ///< data and operations for finding current density in material
 
 private:
     static constexpr double ambient_temperature = 300.0; ///< temperature boundary condition, i.e temperature applied on bottom of the material
 
-    const PhysicalQuantities *pq;
+    PhysicalQuantities *pq;
     const femocs::Config::Heating *conf;
 
     /** Mark different regions of the mesh */
     void mark_boundary();
-
-    friend class HeatSolver<dim> ;
-    friend class CurrentSolver<dim> ;
 };
 
 /** @brief Class to solve time dependent heat and continuity equations in 2D or 3D to obtain temperature and current density distribution in material.
