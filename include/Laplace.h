@@ -336,12 +336,10 @@ public:
     void output_results(const string &filename) const;
 
 private:
-    static constexpr double applied_efield_default = 2.0;
-
     map<types::global_dof_index, double> boundary_values; // Map of dirichlet boundary conditions
 
     double probe_potential(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
-
+    
     double probe_efield_norm(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
 
     Tensor<1, dim, double> probe_efield(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;

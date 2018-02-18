@@ -247,10 +247,10 @@ void PoissonSolver<dim>::assemble_system_lhs() {
 
     vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
-    typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active(), endc = this->dof_handler.end();
+    typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
 
     // Iterate over all cells (quadrangles in 2D, hexahedra in 3D) of the mesh
-    for (; cell != endc; ++cell) {
+    for (; cell != this->dof_handler.end(); ++cell) {
         fe_values.reinit(cell);
         cell_matrix = 0;
 
@@ -271,6 +271,8 @@ void PoissonSolver<dim>::assemble_system_lhs() {
                 this->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
         }
     }
+    
+    this->save_system();
 }
 
 template<int dim>
@@ -335,6 +337,7 @@ void PoissonSolver<dim>::assemble_system_pointcharge(femocs::ParticleSpecies &pa
             this->system_rhs(local_dof_indices[j]) += sf[j] * particles.q_over_eps0 * particles.Wsp;
     }
 }
+
 template<int dim>
 void PoissonSolver<dim>::assemble_system_dirichlet(BoundaryId bid, double potential) {
     VectorTools::interpolate_boundary_values(this->dof_handler, bid, ConstantFunction<dim>(potential), boundary_values);

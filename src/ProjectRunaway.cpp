@@ -123,6 +123,53 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
 
 // Solve Laplace equation
 int ProjectRunaway::solve_poisson(const double E0) {
+    static bool first_time = true;
+    conf.field.E0 = E0;       // reset long-range electric field
+
+    // Store parameters for comparing the results with analytical hemi-ellipsoid results
+    fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
+
+    start_msg(t0, "=== Importing mesh to Poisson solver...");
+    fail = !poisson_solver.import_mesh_directly(mesh->nodes.export_dealii(), mesh->hexahedra.export_vacuum());
+    check_return(fail, "Importing mesh to Deal.II failed!");
+    end_msg(t0);
+
+    start_msg(t0, "=== Initializing Poisson solver...");
+    // Initialize vectors and matrices
+    poisson_solver.setup_system(first_time);
+    
+    // Set-up system LHS
+    if (first_time)
+        poisson_solver.assemble_system_lhs();
+    else
+        poisson_solver.restore_system();
+
+    // Set-up system RHS and BCs
+    poisson_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top, -E0);
+    poisson_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.);
+    poisson_solver.assemble_system_finalize();
+    end_msg(t0);
+
+    stringstream ss; ss << poisson_solver;
+    write_verbose_msg(ss.str());
+
+    start_msg(t0, "=== Running Poisson solver...");
+    int ncg = poisson_solver.solve();
+    end_msg(t0);
+
+    start_msg(t0, "=== Extracting E and phi...");
+    vacuum_interpolator.initialize(mesh);
+    vacuum_interpolator.extract_solution(poisson_solver);
+    end_msg(t0);
+
+    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()), "Field enhancement is out of limits!");
+
+    vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
+    vacuum_interpolator.lintets.write("out/result_E_phi_linear.vtk");
+    vacuum_interpolator.quadtets.write("out/result_E_phi_quad.vtk");
+    
+    first_time = false;
+
     return fail;
 }
 
@@ -305,7 +352,7 @@ int ProjectRunaway::solve_heat(const double T_ambient) {
         return success;
     }
     else if (conf.heating.mode == "converge") {
-//        return solve_converge_heat();
+        //return solve_converge_heat();
         return solve_converge_heat_vol2();
     }
 
@@ -414,7 +461,15 @@ int ProjectRunaway::solve_transient_heat(const double delta_time) {
 // Solve transient heat and continuity until convergence is achieved
 int ProjectRunaway::solve_converge_heat() {
     static bool first_call = true;
+    
+    start_msg(t0, "=== Importing mesh to J & T solver...");
+    fail = !ch_transient_solver.import_mesh_directly(mesh->nodes.export_dealii(), mesh->hexahedra.export_bulk());
+    check_return(fail, "Importing bulk mesh to Deal.II failed!");
+    end_msg(t0);
 
+    bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
+    bulk_interpolator.lintets.narrow_search_to(TYPES.BULK);
+    
     start_msg(t0, "=== Transfering elfield to J & T solver...");
     surface_fields.set_preferences(false, 2, conf.behaviour.interpolation_rank);
     surface_fields.transfer_elfield(ch_transient_solver);
