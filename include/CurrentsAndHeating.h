@@ -66,6 +66,12 @@ protected:
     /** @brief Apply all dirichlet boundary conditions to the system.
      * This should be the last function call to setup the equations, before calling solve() */
     void assemble_finalize(const BoundaryId bid, const double boundary_val);
+    
+    /** Set the right-hand-side vector of the matrix equation */
+    void assemble_rhs(const BoundaryId bid);
+    
+    /** Return the boundary condition value at the centroid of face */
+    virtual double get_face_bc(const unsigned int face) const { return default_solution_value; }
 
     friend class CurrentHeatSolver<dim> ;
 };
@@ -84,9 +90,13 @@ public:
      * according to the continuity equation weak formulation and to the boundary conditions.
      */
     void assemble();
-
+    
+protected:
+    double get_face_bc(const unsigned int face) const;
+    
 private:
     const HeatSolver<dim>* heat_solver;
+    
     friend class CurrentHeatSolver<dim> ;
 };
 

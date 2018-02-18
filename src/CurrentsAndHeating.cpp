@@ -146,6 +146,50 @@ void EmissionSolver<dim>::assemble_finalize(const BoundaryId bid, const double b
         VectorTools::interpolate_boundary_values(this->dof_handler, bid, ZeroFunction<dim>(), boundary_values);
     MatrixTools::apply_boundary_values(boundary_values, this->system_matrix, this->solution, this->system_rhs);    
 }
+
+template<int dim>
+void EmissionSolver<dim>::assemble_rhs(const BoundaryId bid) {
+    
+    QGauss<dim-1> face_quadrature_formula(this->quadrature_degree);
+    FEFaceValues<dim> fe_face_values(this->fe, face_quadrature_formula,
+            update_values | update_quadrature_points | update_JxW_values);
+
+    const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
+    const unsigned int n_face_q_points = face_quadrature_formula.size();
+
+    Vector<double> cell_rhs(dofs_per_cell);
+    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+    typename DoFHandler<dim>::active_cell_iterator cell;
+
+    // Iterate over all cells (quadrangles in 2D, hexahedra in 3D) of the mesh
+    unsigned int boundary_face_index = 0;
+    for (cell = this->dof_handler.begin_active(); cell != this->dof_handler.end(); ++cell) {
+        cell_rhs = 0;
+
+        // Apply boundary condition at faces on top of vacuum domain
+        for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
+            if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == bid) {
+                fe_face_values.reinit(cell, f);
+                double bc_value = get_face_bc(boundary_face_index++);
+
+                // Compose local rhs update
+                for (unsigned int q = 0; q < n_face_q_points; ++q) {
+                    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+                        cell_rhs(i) += fe_face_values.shape_value(i, q)
+                                * bc_value * fe_face_values.JxW(q);
+                    }
+                }
+            }
+        }
+
+        // Add the current cell rhs entries to the system rhs
+        cell->get_dof_indices(local_dof_indices);
+        for (unsigned int i = 0; i < dofs_per_cell; ++i)
+            this->system_rhs(local_dof_indices[i]) += cell_rhs(i);
+    }
+}
+
 /* ==================================================================
  *  ========================== HeatSolver ==========================
  * ================================================================== */
@@ -442,24 +486,18 @@ void CurrentSolver<dim>::assemble() {
     this->system_rhs = 0;
 
     QGauss<dim> quadrature_formula(this->quadrature_degree);
-    QGauss<dim-1> face_quadrature_formula(this->quadrature_degree);
 
     // Current finite element values
     FEValues<dim> fe_values(this->fe, quadrature_formula,
             update_gradients | update_quadrature_points | update_JxW_values);
-    FEFaceValues<dim> fe_face_values(this->fe, face_quadrature_formula,
-            update_values | update_quadrature_points | update_JxW_values);
 
     // Temperature finite element values (only for accessing previous iteration solution)
     FEValues<dim> fe_values_heat(heat_solver->fe, quadrature_formula, update_values);
 
     const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
     const unsigned int n_q_points = quadrature_formula.size();
-    const unsigned int n_face_q_points = face_quadrature_formula.size();
 
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
-    Vector<double> cell_rhs(dofs_per_cell);
-
     vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
     // ---------------------------------------------------------------------------------------------
@@ -474,7 +512,6 @@ void CurrentSolver<dim>::assemble() {
     for (; cell != this->dof_handler.end(); ++cell, ++heat_cell) {
         fe_values.reinit(cell);
         cell_matrix = 0;
-        cell_rhs = 0;
 
         fe_values_heat.reinit(heat_cell);
         fe_values_heat.get_function_values(heat_solver->solution, prev_sol_temperature_values);
@@ -483,7 +520,6 @@ void CurrentSolver<dim>::assemble() {
         // Local matrix assembly
         // ----------------------------------------------------------------------------------------
         for (unsigned int q = 0; q < n_q_points; ++q) {
-
             double temperature = prev_sol_temperature_values[q];
             double sigma = this->pq->sigma(temperature);
 
@@ -493,34 +529,25 @@ void CurrentSolver<dim>::assemble() {
                             * sigma * fe_values.JxW(q);
             }
         }
+        
         // ----------------------------------------------------------------------------------------
-        // Local right-hand side assembly
+        // Global matrix update
         // ----------------------------------------------------------------------------------------
-        // Emission current BC at the copper surface
-        for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
-            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
-                fe_face_values.reinit(cell, f);
-                double emission_current = this->bc_values[face_index++];
-
-                for (unsigned int q = 0; q < n_face_q_points; ++q) {
-                    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                        cell_rhs(i) += fe_face_values.shape_value(i, q)
-                                * emission_current * fe_face_values.JxW(q);
-                    }
-                }
-            }
-        }
-
         cell->get_dof_indices(local_dof_indices);
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
             for (unsigned int j = 0; j < dofs_per_cell; ++j)
                 this->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
-
-            this->system_rhs(local_dof_indices[i]) += cell_rhs(i);
         }
     }
 
+    this->assemble_rhs(BoundaryId::copper_surface);
     this->assemble_finalize(BoundaryId::copper_bottom, 0.0);
+}
+
+template<int dim>
+double CurrentSolver<dim>::get_face_bc(const unsigned int face) const {
+    require(face < this->bc_values.size(), "Invalid index: " + to_string(face));
+    return this->bc_values[face];
 }
 
 /* ==================================================================
