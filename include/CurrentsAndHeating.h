@@ -63,6 +63,10 @@ protected:
 
     vector<double> bc_values; ///< current or heat values on the centroids of surface faces
 
+    /** @brief Apply all dirichlet boundary conditions to the system.
+     * This should be the last function call to setup the equations, before calling solve() */
+    void assemble_finalize(const BoundaryId bid, const double boundary_val);
+
     friend class CurrentHeatSolver<dim> ;
 };
 

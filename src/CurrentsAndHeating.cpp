@@ -110,7 +110,14 @@ void EmissionSolver<dim>::set_bc(const vector<double> &emission) {
 }
 
 template<int dim>
+void EmissionSolver<dim>::set_dependencies(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_) {
+    pq = pq_;
+    conf = conf_;
+}
+
+template<int dim>
 void EmissionSolver<dim>::setup() {
+    // TODO implement assert for empty mesh!    
     this->dof_handler.distribute_dofs(this->fe);
 
     DynamicSparsityPattern dsp(this->dof_handler.n_dofs());
@@ -131,11 +138,14 @@ void EmissionSolver<dim>::setup() {
 }
 
 template<int dim>
-void EmissionSolver<dim>::set_dependencies(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_) {
-    pq = pq_;
-    conf = conf_;
+void EmissionSolver<dim>::assemble_finalize(const BoundaryId bid, const double boundary_val) {
+    map<types::global_dof_index, double> boundary_values;
+    if (boundary_val > 0.0)
+        VectorTools::interpolate_boundary_values(this->dof_handler, bid, ConstantFunction<dim>(boundary_val), boundary_values);
+    else
+        VectorTools::interpolate_boundary_values(this->dof_handler, bid, ZeroFunction<dim>(), boundary_values);
+    MatrixTools::apply_boundary_values(boundary_values, this->system_matrix, this->solution, this->system_rhs);    
 }
-
 /* ==================================================================
  *  ========================== HeatSolver ==========================
  * ================================================================== */
@@ -285,10 +295,7 @@ void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
         }
     }
 
-    map<types::global_dof_index, double> boundary_values;
-    VectorTools::interpolate_boundary_values(this->dof_handler, BoundaryId::copper_bottom,
-            ConstantFunction<dim>(this->default_solution_value), boundary_values);
-    MatrixTools::apply_boundary_values(boundary_values, this->system_matrix, this->solution, this->system_rhs);
+    this->assemble_finalize(BoundaryId::copper_bottom, this->default_solution_value);
 }
 
 template<int dim>
@@ -392,10 +399,7 @@ void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
         }
     }
 
-    map<types::global_dof_index, double> boundary_values;
-    VectorTools::interpolate_boundary_values(this->dof_handler, BoundaryId::copper_bottom,
-            ConstantFunction<dim>(this->default_solution_value), boundary_values);
-    MatrixTools::apply_boundary_values(boundary_values, this->system_matrix, this->solution, this->system_rhs);
+    this->assemble_finalize(BoundaryId::copper_bottom, this->default_solution_value);
 }
 
 /* ==================================================================
@@ -516,10 +520,7 @@ void CurrentSolver<dim>::assemble() {
         }
     }
 
-    map<types::global_dof_index, double> boundary_values;
-    VectorTools::interpolate_boundary_values(this->dof_handler, BoundaryId::copper_bottom,
-            ZeroFunction<dim>(), boundary_values);
-    MatrixTools::apply_boundary_values(boundary_values, this->system_matrix, this->solution, this->system_rhs);
+    this->assemble_finalize(BoundaryId::copper_bottom, 0.0);
 }
 
 /* ==================================================================
