@@ -33,6 +33,13 @@ public:
     DealSolver();
     DealSolver(Triangulation<dim> *tria);
     virtual ~DealSolver() {}
+    
+    /** Solve the matrix equation using conjugate gradient method
+     * @param n_steps     maximum number of iterations allowed
+     * @param tolerance   tolerance of the solution
+     * @param ssor_param  parameter to SSOR preconditioner. Its fine tuning optimises calculation time
+     */
+    unsigned int solve_cg(const int n_steps, const double tolerance, const double ssor_param);
 
     /** Provide triangulation object to get access to the mesh data */
     Triangulation<dim>* get_triangulation() { return &triangulation; }

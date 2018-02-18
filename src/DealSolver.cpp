@@ -8,6 +8,9 @@
 #include "DealSolver.h"
 
 #include <deal.II/numerics/vector_tools.h>
+#include <deal.II/lac/solver_cg.h>
+#include <deal.II/lac/precondition.h>
+
 
 using namespace dealii;
 using namespace std;
@@ -18,6 +21,22 @@ DealSolver<dim>::DealSolver() : fe(shape_degree), dof_handler(triangulation) {}
 
 template<int dim>
 DealSolver<dim>::DealSolver(Triangulation<dim> *tria) : fe(shape_degree), dof_handler(*tria) {}
+
+template<int dim>
+unsigned int DealSolver<dim>::solve_cg(int max_iter, double tol, double ssor_param) {
+    SolverControl solver_control(max_iter, tol);
+    SolverCG<> solver(solver_control);
+
+    if (ssor_param > 0.0) {
+        PreconditionSSOR<> preconditioner;
+        preconditioner.initialize(system_matrix, ssor_param);
+        solver.solve(system_matrix, solution, system_rhs, preconditioner);
+    } else
+        solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
+    
+    solution_old = solution;
+    return solver_control.last_step();
+}
 
 template<int dim>
 vector<double> DealSolver<dim>::shape_funs(const Point<dim> &p, int cell_index) const {

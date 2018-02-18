@@ -253,6 +253,9 @@ class PoissonSolver : public DealSolver<dim> {
 public:
     PoissonSolver();
 
+    /** Run Conjugate-Gradient solver to solve matrix equation */
+    unsigned int solve() { return this->solve_cg(2000, 1e-9, 1.2); }
+    
     /** Runs the calculation: setup and assemble system, solve PoissonSolver equation, output the results*/
     void run();
 
@@ -328,16 +331,6 @@ public:
      * This should be the last function call to setup the equations, before calling solve()
      */
     void assemble_system_finalize();
-
-    /** solves the matrix equation using conjugate gradient method
-     * @param max_iter maximum number of iterations allowed
-     * @param tol tolerance of the solution
-     * @param pc_ssor flag to use SSOR preconditioner
-     * @param ssor_param   parameter to SSOR preconditioner. 1.2 is known to work well with laplace.
-     *                     its fine tuning optimises calculation time
-     */
-    int solve(int max_iter = 2000, double tol = 1e-9, bool pc_ssor = true,
-            double ssor_param = 1.2);
 
     /** Outputs the results (electric potential and field) to a specified file in vtk format */
     void output_results(const string &filename) const;

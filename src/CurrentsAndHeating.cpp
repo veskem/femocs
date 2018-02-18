@@ -110,23 +110,6 @@ void EmissionSolver<dim>::set_bc(const vector<double> &emission) {
 }
 
 template<int dim>
-unsigned int EmissionSolver<dim>::solve() {
-    SolverControl solver_control(conf->n_cg, conf->cg_tolerance);
-    SolverCG<> solver(solver_control);
-
-    if (conf->ssor_param > 0.0) {
-        PreconditionSSOR<> preconditioner;
-        preconditioner.initialize(this->system_matrix, conf->ssor_param);
-        solver.solve(this->system_matrix, this->solution, this->system_rhs, preconditioner);
-    } else {
-        solver.solve(this->system_matrix, this->solution, this->system_rhs, PreconditionIdentity());
-    }
-
-    this->solution_old = this->solution;
-    return solver_control.last_step();
-}
-
-template<int dim>
 void EmissionSolver<dim>::setup() {
     this->dof_handler.distribute_dofs(this->fe);
 

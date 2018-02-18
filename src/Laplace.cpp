@@ -346,22 +346,6 @@ void PoissonSolver<dim>::assemble_system_finalize() {
 }
 
 template<int dim>
-int PoissonSolver<dim>::solve(int max_iter, double tol, bool pc_ssor, double ssor_param) {
-
-    SolverControl solver_control(max_iter, tol);
-    SolverCG<> solver(solver_control);
-
-    if (pc_ssor) {
-        PreconditionSSOR<> preconditioner;
-        preconditioner.initialize(this->system_matrix, ssor_param);
-        solver.solve(this->system_matrix, this->solution, this->system_rhs, preconditioner);
-    } else {
-        solver.solve(this->system_matrix, this->solution, this->system_rhs, PreconditionIdentity());
-    }
-    return solver_control.last_step();
-}
-
-template<int dim>
 void PoissonSolver<dim>::output_results(const string &filename) const {
     LaplacePostProcessor<dim> field_calculator; // needs to be before data_out
     DataOut<dim> data_out;

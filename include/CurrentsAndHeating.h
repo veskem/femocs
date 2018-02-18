@@ -42,7 +42,7 @@ public:
     EmissionSolver(Triangulation<dim> *tria, const double default_value);
 
     /** Solve the matrix equation using conjugate gradient method */
-    unsigned int solve();
+    unsigned int solve() { return this->solve_cg(conf->n_cg, conf->cg_tolerance, conf->ssor_param); }
 
     /** Set up dynamic sparsity pattern for calculations */
     void setup();
