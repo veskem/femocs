@@ -318,7 +318,8 @@ template<int dim>
 void PoissonSolver<dim>::assemble_system_pointcharge(femocs::ParticleSpecies &particles) {
     vector<types::global_dof_index> local_dof_indices(this->fe.dofs_per_cell);
 
-    for(auto particle : particles.parts){ // loop over particles
+    // loop over particles
+    for (auto particle : particles.parts) {
         Point<dim> p_deal = Point<dim>(particle.pos.x, particle.pos.y, particle.pos.z);
         //get particle's active cell iterator
         typename DoFHandler<dim>::active_cell_iterator cell(&this->triangulation, 0, particle.cell, &this->dof_handler);
@@ -327,17 +328,13 @@ void PoissonSolver<dim>::assemble_system_pointcharge(femocs::ParticleSpecies &pa
         cell->get_dof_indices(local_dof_indices);
 
         //get the shape functions of the cell on the given point
-//        vector<double> sf = this->shape_funs(p_deal, particle.cell);
-
-        require(false, "Wrong implementation!");
-        vector<double> sf = vector<double>(this->fe.dofs_per_cell);
+        vector<double> sf = this->shape_funs(p_deal, particle.cell);
 
         //loop over nodes of the cell and add the particle's charge to the system rhs
         for (int j = 0; j < this->fe.dofs_per_cell; ++j)
             this->system_rhs(local_dof_indices[j]) += sf[j] * particles.q_over_eps0 * particles.Wsp;
     }
 }
-
 template<int dim>
 void PoissonSolver<dim>::assemble_system_dirichlet(BoundaryId bid, double potential) {
     VectorTools::interpolate_boundary_values(this->dof_handler, bid, ConstantFunction<dim>(potential), boundary_values);

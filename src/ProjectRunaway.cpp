@@ -26,7 +26,8 @@ ProjectRunaway::ProjectRunaway(AtomReader &a, Config &c) :
         surface_fields(&vacuum_interpolator), surface_temperatures(&bulk_interpolator),
         emission(surface_fields, surface_temperatures, &vacuum_interpolator),
         ch_solver(&ch_solver1), prev_ch_solver(NULL),
-        pic_solver(laplace_solver, ch_transient_solver, vacuum_interpolator, emission)
+        pic_solver(laplace_solver, ch_transient_solver, vacuum_interpolator, emission),
+        pic_solver_vol2(poisson_solver, vacuum_interpolator, emission)
 {
     forces.set_interpolator(&vacuum_interpolator);
     temperatures.set_interpolator(&bulk_interpolator);
@@ -87,14 +88,15 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
         write_verbose_msg(stream.str());
     } else {
         generate_mesh();
-        prepare_fem();
+//        prepare_fem();
     }
 
     //****************** RUNNING Field - PIC calculation ********
     skip_meshing = true;
 
     if (conf.field.solver == "poisson") {
-        if (solve_pic(elfield, max(delta_t_MD * 1.e15, conf.pic.total_time))) {
+        double delta_t = max(delta_t_MD * 1.e15, conf.pic.total_time);
+        if (solve_pic_vol2(elfield, delta_t)) {
             force_output();
             check_return(true, "Solving PIC failed!");
         }
@@ -117,6 +119,11 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
     write_silent_msg(stream.str());
 
     return 0;
+}
+
+// Solve Laplace equation
+int ProjectRunaway::solve_poisson(const double E0) {
+    return fail;
 }
 
 int ProjectRunaway::prepare_fem(){
@@ -146,9 +153,28 @@ int ProjectRunaway::prepare_fem(){
 
 // Run Pic simulation for dt_main time advance
 int ProjectRunaway::solve_pic(const double E0, const double dt_main) {
-
-    int time_subcycle = ceil(dt_main / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
+//    int time_subcycle = ceil(dt_main / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
+    int time_subcycle = 10;
     double dt_pic = dt_main/time_subcycle;
+    
+    // Store parameters for comparing the results with analytical hemi-ellipsoid results
+    fields.set_check_params(conf.field.E0, conf.tolerance.field_min, conf.tolerance.field_max,
+            conf.geometry.radius, dense_surf.sizes.zbox);
+            
+    start_msg(t0, "=== Importing mesh to Laplace solver...");
+    fail = !laplace_solver.import_mesh_directly(mesh->nodes.export_dealii(), mesh->hexahedra.export_vacuum());
+    check_return(fail, "Importing vacuum mesh to Deal.II failed!");
+    end_msg(t0);
+
+    start_msg(t0, "=== Importing mesh to transient J & T solver...");
+    fail = !ch_transient_solver.import_mesh_directly(mesh->nodes.export_dealii(), mesh->hexahedra.export_bulk());
+    check_return(fail, "Importing bulk mesh to Deal.II failed!");
+    end_msg(t0);
+
+    vacuum_interpolator.initialize(mesh);
+    bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
+    vacuum_interpolator.lintets.narrow_search_to(TYPES.VACUUM);
+    bulk_interpolator.lintets.narrow_search_to(TYPES.BULK);
 
     start_msg(t0, "=== Running PIC...\n");
     pic_solver.set_params(conf.field, conf.pic, dt_pic, mesh->nodes.stat);
@@ -175,34 +201,96 @@ int ProjectRunaway::solve_pic(const double E0, const double dt_main) {
 
         n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
 
-        write_verbose_msg("# CG steps|injected|deleted electrons: "
-                + to_string(n_cg_steps) + "|" + to_string(n_injected) + "|" + to_string(n_lost));
+        if (MODES.VERBOSE)
+            printf("  #CG steps=%d, max field=%.3f, #injected|deleted electrons=%d|%d\n",
+                    n_cg_steps, max_field(), n_injected, n_lost);
     }
     end_msg(t0);
 
     pic_solver.write("out/electrons.movie", 0);
+    return 0;
 
-//    const double norm_avg_field = 2.518780;
-//    const double norm_max_field = 302.992500;
-//    double avg_field = 0;
-//    double max_field = 0;
-//    for (Solution s : *vacuum_interpolator.nodes.get_solutions()) {
-//        avg_field += s.norm;
-//        max_field = max(max_field, s.norm);
-//    }
-//    avg_field /= vacuum_interpolator.nodes.size();
-//
-//    write_verbose_msg("avg: calc/norm = " + to_string(avg_field) + "/" + to_string(norm_avg_field) + " = " + to_string(avg_field/norm_avg_field));
-//    write_verbose_msg("enhancement: calc/norm = " + to_string(max_field/E0) + "/" + to_string(norm_max_field/E0) + " = " + to_string(max_field/norm_max_field));
+    //7. Save ions and neutrals that are inbound on the MD domain somewhere where the MD can find them
+    // TODO LATER
+    //8. Give the heat- and current fluxes to the temperature solver.
+    // TODO LATER
+}
+
+int ProjectRunaway::solve_pic_vol2(const double E0, const double dt_main) {
+
+//    int time_subcycle = ceil(dt_main / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
+    int time_subcycle = 10;
+    double dt_pic = dt_main/time_subcycle;
+    
+    start_msg(t0, "=== Importing mesh to Poisson solver...");
+    fail = !poisson_solver.import_mesh_directly(mesh->nodes.export_dealii(), mesh->hexahedra.export_vacuum());
+    check_return(fail, "Importing vacuum mesh to Deal.II failed!");
+    end_msg(t0);
+    
+    start_msg(t0, "=== Importing mesh to J&T solver...");
+    fail = !ch_solver_vol2.import_mesh_directly(mesh->nodes.export_dealii(), mesh->hexahedra.export_bulk());
+    check_return(fail, "Importing bulk mesh to Deal.II failed!");
+    end_msg(t0);
+
+    start_msg(t0, "=== Initializing PIC dependencies...");
+    vacuum_interpolator.initialize(mesh);
+    bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
+    vacuum_interpolator.lintets.narrow_search_to(TYPES.VACUUM);
+    bulk_interpolator.lintets.narrow_search_to(TYPES.BULK);
+    pic_solver_vol2.set_params(conf.field, conf.pic, dt_pic, mesh->nodes.stat);
+    end_msg(t0);
+
+    start_msg(t0, "=== Interpolating elfield on faces...");
+    surface_fields.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+    surface_fields.interpolate(ch_solver_vol2);
+    end_msg(t0);
+    
+    surface_fields.write("out/surface_field.xyz");
+    
+    // Temperature do not need to be recalculated, as thermal timestep is >> PIC timestep
+    start_msg(t0, "=== Interpolating J & T on faces...");
+    surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+    surface_temperatures.interpolate(ch_solver_vol2);
+    end_msg(t0);
+    
+    emission.initialize(mesh);
+    
+    start_msg(t0, "=== Running PIC...\n");
+    int n_lost, n_injected, n_cg_steps;
+    
+    for (int i = 0; i < time_subcycle; i++) {
+        n_lost = pic_solver_vol2.update_positions();
+        
+        n_cg_steps = pic_solver_vol2.run_cycle(i == 0);
+
+        vacuum_interpolator.extract_solution(poisson_solver);
+        surface_fields.calc_interpolation();
+        emission.calc_emission(conf.emission, conf.field.V0);
+
+        n_injected = pic_solver_vol2.inject_electrons(conf.pic.fractional_push);
+        
+        if (MODES.VERBOSE)
+            printf("  #CG steps=%d, max field=%.3f, #injected|deleted electrons=%d|%d\n",
+                    n_cg_steps, max_field(), n_injected, n_lost);
+    }
+    
+    end_msg(t0);
+
+    pic_solver_vol2.write("out/electrons.movie", 0);
 
     return 0;
 
-    //7. Save ions and neutrals that are inbound on the MD domain
-    //    somewhere where the MD can find them
+    //7. Save ions and neutrals that are inbound on the MD domain somewhere where the MD can find them
     // TODO LATER
-
     //8. Give the heat- and current fluxes to the temperature solver.
     // TODO LATER
+}
+
+double ProjectRunaway::max_field() {
+    double max_field = 0;
+    for (Solution s : *vacuum_interpolator.nodes.get_solutions())
+        max_field = max(max_field, s.norm);
+    return max_field;
 }
 
 // Pick a method to solve heat & continuity equations

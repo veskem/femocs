@@ -42,9 +42,13 @@ public:
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
     int run(const double elfield, const int timestep=-1);
-
+    
+    int solve_poisson(const double E0);
+    
     /** Evolve the PIC simulation one Femocs time step */
     int solve_pic(const double E0, const double dt_main);
+    
+    int solve_pic_vol2(const double E0, const double dt_main);
 
     /** Pick a method to solve heat and continuity equations on bulk mesh */
     int solve_heat(const double T_ambient);
@@ -67,9 +71,10 @@ private:
     fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous steady-state currents and heating solver
     fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
 
-    fch::CurrentHeatSolver<3> ch_solver_vol2;
-
     Pic<3> pic_solver;    ///< Class for solving Poisson equation and handling space charge
+    
+    fch::CurrentHeatSolver<3> ch_solver_vol2;
+    PicSolver<3> pic_solver_vol2;    ///< Class for solving Poisson equation and handling space charge
 
     /** Solve steady-state heat and continuity equations */
     int solve_stationary_heat();
@@ -84,6 +89,8 @@ private:
 
     /** Import meshes to dealii and set params to various objects */
     int prepare_fem();
+    
+    double max_field();
 };
 
 } /* namespace femocs */

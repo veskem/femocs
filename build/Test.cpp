@@ -59,7 +59,7 @@ void write_mdsmall(ofstream &file) {
     file << "box_height = 3.5"           << endl;
 }
 
-void write_heating(ofstream &file) {
+void write_heating(ofstream &file) {    
     file << "infile = in/nanotip_small.xyz" << endl;
     file << "coarse_factor = 0.3 4 2"    << endl;
     file << "radius = 16.0"              << endl;
@@ -68,6 +68,7 @@ void write_heating(ofstream &file) {
 
     file << "elfield = -0.3"             << endl;
     file << "heating_mode = converge"    << endl;
+    file << "field_solver = laplace"     << endl;
 }
 
 void write_wobble(ofstream &file) {

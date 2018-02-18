@@ -204,4 +204,15 @@ void Interpolator::extract_solution(fch::CurrentHeatSolver<3>& fem) {
             fem.get_temperature(cell_indxs, vert_indxs));
 }
 
+void Interpolator::extract_solution(fch::PoissonSolver<3>& fem) {
+
+    // To make solution extraction faster, generate mapping between desired and available data sequences
+    vector<int> femocs2deal, cell_indxs, vert_indxs;
+    get_maps(femocs2deal, cell_indxs, vert_indxs, fem.get_triangulation(), fem.get_dof_handler());
+
+    // Read and store current densities and temperatures from FEM solver
+    store_solution(femocs2deal, fem.get_efield(cell_indxs, vert_indxs),
+            fem.get_potential(cell_indxs, vert_indxs));
+}
+
 } // namespace femocs

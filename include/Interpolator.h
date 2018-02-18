@@ -64,6 +64,9 @@ public:
 
     /** Extract the current density and transient temperature values from FEM solution */
     void extract_solution(fch::CurrentHeatSolver<3>& fem);
+    
+    /** Extract electric potential and field values from FEM solution */
+    void extract_solution(fch::PoissonSolver<3>& fem);
 
     int update_point_cell(Point3& point, int current_cell);
 
