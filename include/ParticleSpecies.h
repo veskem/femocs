@@ -15,7 +15,6 @@
 
 namespace femocs {
 
-
 class ParticleSpecies {
 public:
     ParticleSpecies(double q_ovr_m, double charge, double Wsp);
@@ -38,7 +37,6 @@ public:
     vector<SuperParticle> parts;
     vector<size_t> ordcount;
 };
-
 
 } // namespace femocs
 

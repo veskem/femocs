@@ -12,6 +12,9 @@
 
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
+#include <deal.II/lac/dynamic_sparsity_pattern.h>
+
+#include <deal.II/dofs/dof_tools.h>
 
 
 using namespace dealii;
@@ -19,26 +22,12 @@ using namespace std;
 namespace fch {
 
 template<int dim>
-DealSolver<dim>::DealSolver() : fe(shape_degree), dof_handler(triangulation) {}
+DealSolver<dim>::DealSolver() :
+        default_solution_value(0), fe(shape_degree), dof_handler(triangulation) {}
 
 template<int dim>
-DealSolver<dim>::DealSolver(Triangulation<dim> *tria) : fe(shape_degree), dof_handler(*tria) {}
-
-template<int dim>
-unsigned int DealSolver<dim>::solve_cg(int max_iter, double tol, double ssor_param) {
-    SolverControl solver_control(max_iter, tol);
-    SolverCG<> solver(solver_control);
-
-    if (ssor_param > 0.0) {
-        PreconditionSSOR<> preconditioner;
-        preconditioner.initialize(system_matrix, ssor_param);
-        solver.solve(system_matrix, solution, system_rhs, preconditioner);
-    } else
-        solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
-    
-    solution_old = solution;
-    return solver_control.last_step();
-}
+DealSolver<dim>::DealSolver(Triangulation<dim> *tria, const double dsf) :
+        default_solution_value(dsf), fe(shape_degree), dof_handler(*tria) {}
 
 template<int dim>
 vector<double> DealSolver<dim>::shape_funs(const Point<dim> &p, int cell_index) const {
@@ -143,6 +132,32 @@ void DealSolver<dim>::get_surface_nodes(vector<Point<dim>>& nodes) const {
 }
 
 template<int dim>
+void DealSolver<dim>::setup() {
+    // TODO implement assert for empty mesh!
+    this->dof_handler.distribute_dofs(this->fe);
+
+    // Clear Diriclet boundary condition values
+    this->boundary_values.clear();
+
+    DynamicSparsityPattern dsp(this->dof_handler.n_dofs());
+    DoFTools::make_sparsity_pattern(this->dof_handler, dsp);
+    this->sparsity_pattern.copy_from(dsp);
+
+    this->system_rhs.reinit(this->dof_handler.n_dofs());
+    this->system_matrix.reinit(this->sparsity_pattern);
+    this->system_matrix_save.reinit(this->sparsity_pattern);
+
+    this->solution.reinit(this->dof_handler.n_dofs());
+    this->solution_save.reinit(this->dof_handler.n_dofs());
+
+    // Initialize the solution
+    for (size_t i = 0; i < this->solution.size(); i++) {
+        this->solution[i] = this->default_solution_value;
+        this->solution_save[i] = this->default_solution_value;
+    }
+}
+
+template<int dim>
 void DealSolver<dim>::assemble_rhs(const BoundaryId bid) {
 
     QGauss<dim-1> face_quadrature_formula(this->quadrature_degree);
@@ -186,13 +201,29 @@ void DealSolver<dim>::assemble_rhs(const BoundaryId bid) {
 }
 
 template<int dim>
-void DealSolver<dim>::assemble_finalize(const BoundaryId bid, const double boundary_val) {
-    map<types::global_dof_index, double> boundary_values;
-    if (boundary_val > 0.0)
-        VectorTools::interpolate_boundary_values(this->dof_handler, bid, ConstantFunction<dim>(boundary_val), boundary_values);
-    else
-        VectorTools::interpolate_boundary_values(this->dof_handler, bid, ZeroFunction<dim>(), boundary_values);
+void DealSolver<dim>::assemble_set_dirichlet(const BoundaryId bid, const double value) {
+    VectorTools::interpolate_boundary_values(this->dof_handler, bid, ConstantFunction<dim>(value), boundary_values);
+}
+
+template<int dim>
+void DealSolver<dim>::assemble_apply_dirichlet() {
     MatrixTools::apply_boundary_values(boundary_values, this->system_matrix, this->solution, this->system_rhs);
+}
+
+template<int dim>
+unsigned int DealSolver<dim>::solve_cg(int max_iter, double tol, double ssor_param) {
+    SolverControl solver_control(max_iter, tol);
+    SolverCG<> solver(solver_control);
+
+    if (ssor_param > 0.0) {
+        PreconditionSSOR<> preconditioner;
+        preconditioner.initialize(system_matrix, ssor_param);
+        solver.solve(system_matrix, solution, system_rhs, preconditioner);
+    } else
+        solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
+
+    solution_save = solution;
+    return solver_control.last_step();
 }
 
 template class DealSolver<2>;

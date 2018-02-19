@@ -29,6 +29,9 @@ public:
     PicSolver(fch::PoissonSolver<dim> &poisson_solver, Interpolator &interpolator, EmissionReader &er);
     ~PicSolver() {};
 
+    /** Return pointer to charged super-particles */
+    ParticleSpecies* get_particles() { return &electrons; }
+
     /** Inject electrons according to the field emission surface distribution */
     int inject_electrons(const bool fractional_push);
 

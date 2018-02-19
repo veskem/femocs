@@ -45,9 +45,6 @@ public:
     /** Solve the matrix equation using conjugate gradient method */
     unsigned int solve() { return this->solve_cg(conf->n_cg, conf->cg_tolerance, conf->ssor_param); }
 
-    /** Set up dynamic sparsity pattern for calculations */
-    void setup();
-
     /** Set the boundary condition values on copper-vacuum boundary.
      * The values must be on the centroids of the vacuum-material boundary faces
      * in the order specified in the get_surface_nodes() method.
@@ -58,7 +55,6 @@ public:
     void set_dependencies(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_);
 
 protected:
-    const double default_solution_value;
     PhysicalQuantities *pq;                ///< object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
     const femocs::Config::Heating *conf;   ///< solver parameters
 
@@ -74,7 +70,7 @@ public:
     CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim> *hs, const double default_value);
 
     /** Output the electric potential [V] and field [V/nm] in vtk format */
-    void output_results(const string &filename) const;
+    void write(const string &filename) const;
 
     /** @brief assemble the matrix equation for current density calculation ()
      * Calculate sparse matrix elements and right-hand-side vector
@@ -97,7 +93,7 @@ public:
     HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *cs, const double default_value);
 
     /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] in vtk format */
-    void output_results(const string &filename) const;
+    void write(const string &filename) const;
 
     /** Assemble the matrix equation for temperature calculation
      * using Crank-Nicolson or implicit Euler time integration method. */

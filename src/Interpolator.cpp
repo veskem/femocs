@@ -213,6 +213,9 @@ void Interpolator::extract_solution(fch::PoissonSolver<3>& fem) {
     // Read and store current densities and temperatures from FEM solver
     store_solution(femocs2deal, fem.get_efield(cell_indxs, vert_indxs),
             fem.get_potential(cell_indxs, vert_indxs));
+
+    // Remove the spikes from the solution
+    average_sharp_nodes(true);
 }
 
 } // namespace femocs

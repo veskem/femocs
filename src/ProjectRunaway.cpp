@@ -12,6 +12,7 @@
 #include "Tethex.h"
 #include "VoronoiMesh.h"
 #include "Laplace.h"
+#include "DealSolver.h"
 
 #include <omp.h>
 #include <algorithm>
@@ -88,7 +89,6 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
         write_verbose_msg(stream.str());
     } else {
         generate_mesh();
-//        prepare_fem();
     }
 
     //****************** RUNNING Field - PIC calculation ********
@@ -101,8 +101,8 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
             check_return(true, "Solving PIC failed!");
         }
     } else {
-        if (solve_laplace(elfield)) {
-//        if (solve_poisson(elfield)) {
+//        if (solve_laplace(elfield)) {
+        if (solve_poisson(elfield)) {
             force_output();
             check_return(true, "Solving Laplace equation failed!");
         }
@@ -124,7 +124,7 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
 
 // Solve Laplace equation
 int ProjectRunaway::solve_poisson(const double E0) {
-    static bool first_time = true;
+    bool first_time = true;
     conf.field.E0 = E0;       // reset long-range electric field
 
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
@@ -136,20 +136,8 @@ int ProjectRunaway::solve_poisson(const double E0) {
     end_msg(t0);
 
     start_msg(t0, "=== Initializing Poisson solver...");
-    // Initialize vectors and matrices
-    poisson_solver.setup_system(first_time);
-    
-    // Set-up system LHS
-    if (first_time)
-        poisson_solver.assemble_lhs();
-    else
-        poisson_solver.restore_system();
-
-    // Set-up system RHS and BCs
-    poisson_solver.set_applied_field(-E0);
-    poisson_solver.assemble_rhs(fch::BoundaryId::vacuum_top);
-    poisson_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.);
-    poisson_solver.assemble_system_finalize();
+    poisson_solver.setup();
+    poisson_solver.assemble_laplace(-E0);
     end_msg(t0);
 
     stringstream ss; ss << poisson_solver;
@@ -169,35 +157,8 @@ int ProjectRunaway::solve_poisson(const double E0) {
     vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
     vacuum_interpolator.lintets.write("out/result_E_phi_linear.vtk");
     vacuum_interpolator.quadtets.write("out/result_E_phi_quad.vtk");
-    
-    first_time = false;
 
     return fail;
-}
-
-int ProjectRunaway::prepare_fem(){
-    // Store parameters for comparing the results with analytical hemi-ellipsoid results
-//    fields.set_check_params(conf.field.E0, conf.tolerance.field_min, conf.tolerance.field_max,
-//            conf.geometry.radius, dense_surf.sizes.zbox);
-
-//    start_msg(t0, "=== Importing mesh to Laplace solver...");
-//    fail = !laplace_solver.import_mesh_directly(mesh->nodes.export_dealii(),
-//            mesh->hexahedra.export_vacuum());
-//    check_return(fail, "Importing vacuum mesh to Deal.II failed!");
-//    end_msg(t0);
-
-    start_msg(t0, "=== Importing mesh to transient J & T solver...");
-    fail = !ch_transient_solver.import_mesh_directly(mesh->nodes.export_dealii(),
-            mesh->hexahedra.export_bulk());
-    check_return(fail, "Importing bulk mesh to Deal.II failed!");
-    end_msg(t0);
-
-    vacuum_interpolator.initialize(mesh);
-    bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
-    vacuum_interpolator.lintets.narrow_search_to(TYPES.VACUUM);
-    bulk_interpolator.lintets.narrow_search_to(TYPES.BULK);
-
-    return 0;
 }
 
 // Run Pic simulation for dt_main time advance
@@ -276,6 +237,11 @@ int ProjectRunaway::solve_pic_vol2(const double E0, const double dt_main) {
     check_return(fail, "Importing vacuum mesh to Deal.II failed!");
     end_msg(t0);
     
+    start_msg(t0, "=== Initializing Poisson solver...");
+    poisson_solver.set_dependencies(pic_solver_vol2.get_particles(), -E0, 0.0);
+    poisson_solver.setup();
+    end_msg(t0);
+
     start_msg(t0, "=== Importing mesh to J&T solver...");
     fail = !ch_solver_vol2.import_mesh_directly(mesh->nodes.export_dealii(), mesh->hexahedra.export_bulk());
     check_return(fail, "Importing bulk mesh to Deal.II failed!");
@@ -309,7 +275,6 @@ int ProjectRunaway::solve_pic_vol2(const double E0, const double dt_main) {
     
     for (int i = 0; i < time_subcycle; i++) {
         n_lost = pic_solver_vol2.update_positions();
-        
         n_cg_steps = pic_solver_vol2.run_cycle(i == 0);
 
         vacuum_interpolator.extract_solution(poisson_solver);
@@ -546,6 +511,8 @@ int ProjectRunaway::solve_converge_heat() {
 }
 
 int ProjectRunaway::solve_converge_heat_vol2() {
+
+    cout << "max field = " << max_field() << endl;
 
     start_msg(t0, "=== Importing mesh to J & T solver...");
     fail = !ch_solver_vol2.import_mesh_directly(mesh->nodes.export_dealii(), mesh->hexahedra.export_bulk());

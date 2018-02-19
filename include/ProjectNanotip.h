@@ -74,7 +74,6 @@ protected:
 
     Interpolator vacuum_interpolator = Interpolator("elfield", "potential");
     fch::Laplace<3> laplace_solver;         ///< Laplace equation solver
-    fch::PoissonSolver<3> poisson_solver;   ///< Poisson equation solver
 
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);

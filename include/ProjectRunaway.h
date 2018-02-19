@@ -63,6 +63,8 @@ private:
     HeatReader  surface_temperatures; ///< temperatures & current densities on surface hex face centroids
     EmissionReader emission;          ///< emission data on centroids of surface quadrangles
 
+    fch::PoissonSolver<3> poisson_solver;   ///< Poisson equation solver
+
     /// physical quantities used in heat calculations
     fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);
     fch::CurrentsAndHeatingStationary<3>  ch_solver1;     ///< first    steady-state currents and heating solver
@@ -86,9 +88,6 @@ private:
     int solve_converge_heat();
 
     int solve_converge_heat_vol2();
-
-    /** Import meshes to dealii and set params to various objects */
-    int prepare_fem();
     
     double max_field();
 };

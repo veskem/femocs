@@ -92,14 +92,12 @@ public:
 
 template<int dim>
 EmissionSolver<dim>::EmissionSolver() :
-        DealSolver<dim>(),
-        default_solution_value(0), pq(NULL), conf(NULL)
+        DealSolver<dim>(), pq(NULL), conf(NULL)
         {}
 
 template<int dim>
 EmissionSolver<dim>::EmissionSolver(Triangulation<dim> *tria, const double dsf) :
-        DealSolver<dim>(tria),
-        default_solution_value(dsf), pq(NULL), conf(NULL)
+        DealSolver<dim>(tria, dsf), pq(NULL), conf(NULL)
         {}
 
 template<int dim>
@@ -115,27 +113,6 @@ void EmissionSolver<dim>::set_dependencies(PhysicalQuantities *pq_, const femocs
     conf = conf_;
 }
 
-template<int dim>
-void EmissionSolver<dim>::setup() {
-    // TODO implement assert for empty mesh!    
-    this->dof_handler.distribute_dofs(this->fe);
-    this->system_rhs.reinit(this->dof_handler.n_dofs());
-
-    DynamicSparsityPattern dsp(this->dof_handler.n_dofs());
-    DoFTools::make_sparsity_pattern(this->dof_handler, dsp);
-    this->sparsity_pattern.copy_from(dsp);
-
-    this->system_matrix.reinit(this->sparsity_pattern);
-    this->solution.reinit(this->dof_handler.n_dofs());
-    this->solution_old.reinit(this->dof_handler.n_dofs());
-
-    // Initialize the solution
-    for (size_t i = 0; i < this->solution.size(); i++) {
-        this->solution[i] = default_solution_value;
-        this->solution_old[i] = default_solution_value;
-    }
-}
-
 /* ==================================================================
  *  ========================== HeatSolver ==========================
  * ================================================================== */
@@ -149,7 +126,7 @@ HeatSolver<dim>::HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *
         EmissionSolver<dim>(tria, default_value), current_solver(cs) {}
 
 template<int dim>
-void HeatSolver<dim>::output_results(const string &filename) const {
+void HeatSolver<dim>::write(const string &filename) const {
     SigmaPostProcessor<dim> sigma_post_processor(this->pq);
     DataOut<dim> data_out;
 
@@ -223,12 +200,12 @@ void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
         cell_matrix = 0;
         cell_rhs = 0;
 
-        fe_values.get_function_values(this->solution_old, prev_sol_temperature_values);
-        fe_values.get_function_gradients(this->solution_old, prev_sol_temperature_gradients);
+        fe_values.get_function_values(this->solution_save, prev_sol_temperature_values);
+        fe_values.get_function_gradients(this->solution_save, prev_sol_temperature_gradients);
 
         fe_values_current.reinit(current_cell);
         fe_values_current.get_function_gradients(current_solver->solution, potential_gradients);
-        fe_values_current.get_function_gradients(current_solver->solution_old, prev_sol_potential_gradients);
+        fe_values_current.get_function_gradients(current_solver->solution_save, prev_sol_potential_gradients);
 
         // ----------------------------------------------------------------------------------------
         // Local matrix assembly
@@ -283,7 +260,8 @@ void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
         }
     }
 
-    this->assemble_finalize(BoundaryId::copper_bottom, this->default_solution_value);
+    this->assemble_set_dirichlet(BoundaryId::copper_bottom, this->default_solution_value);
+    this->assemble_apply_dirichlet();
 }
 
 template<int dim>
@@ -320,7 +298,7 @@ void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
 
     for (; cell != this->dof_handler.end(); ++cell, ++current_cell) {
         fe_values.reinit(cell);
-        fe_values.get_function_values(this->solution_old, prev_temperatures);
+        fe_values.get_function_values(this->solution_save, prev_temperatures);
 
         // Local matrix assembly
         cell_matrix = 0;
@@ -364,7 +342,8 @@ void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
     }
 
     this->assemble_rhs(BoundaryId::copper_surface);
-    this->assemble_finalize(BoundaryId::copper_bottom, this->default_solution_value);
+    this->assemble_set_dirichlet(BoundaryId::copper_bottom, this->default_solution_value);
+    this->assemble_apply_dirichlet();
 }
 
 template<int dim>
@@ -397,7 +376,7 @@ void HeatSolver<dim>::assemble_heat_rhs(const double delta_time) {
 
     for (; cell != this->dof_handler.end(); ++cell, ++current_cell) {
         fe_values.reinit(cell);
-        fe_values.get_function_values(this->solution_old, prev_temperatures);
+        fe_values.get_function_values(this->solution_save, prev_temperatures);
 
         fe_values_current.reinit(current_cell);
         fe_values_current.get_function_gradients(current_solver->solution, potential_gradients);
@@ -442,7 +421,7 @@ void HeatSolver<dim>::assemble_heat_lhs(const double delta_time) {
     typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
     for (; cell != this->dof_handler.end(); ++cell) {
         fe_values.reinit(cell);
-        fe_values.get_function_values(this->solution_old, prev_temperatures);
+        fe_values.get_function_values(this->solution_save, prev_temperatures);
 
         // Assemble system matrix elements corresponding the current cell
         cell_matrix = 0;
@@ -486,7 +465,7 @@ CurrentSolver<dim>::CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim
         EmissionSolver<dim>(tria, default_value), heat_solver(hs) {}
 
 template<int dim>
-void CurrentSolver<dim>::output_results(const string &filename) const {
+void CurrentSolver<dim>::write(const string &filename) const {
 
     FieldPostProcessor<dim> field_post_processor; // needs to be before data_out
     DataOut<dim> data_out;
@@ -566,7 +545,8 @@ void CurrentSolver<dim>::assemble() {
     }
 
     this->assemble_rhs(BoundaryId::copper_surface);
-    this->assemble_finalize(BoundaryId::copper_bottom, 0.0);
+    this->assemble_set_dirichlet(BoundaryId::copper_bottom, this->default_solution_value);
+    this->assemble_apply_dirichlet();
 }
 
 template<int dim>

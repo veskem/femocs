@@ -64,7 +64,8 @@ public:
  * ================================================================== */
 
 template<int dim>
-PoissonSolver<dim>::PoissonSolver() : DealSolver<dim>(), applied_field(0) {};
+PoissonSolver<dim>::PoissonSolver() : DealSolver<dim>(),
+        particles(NULL), applied_field(0), applied_potential(0) {};
 
 template<int dim>
 void PoissonSolver<dim>::mark_boundary() {
@@ -208,36 +209,42 @@ double PoissonSolver<dim>::get_face_bc(const unsigned int face) const {
 }
 
 template<int dim>
-void PoissonSolver<dim>::setup_system(bool first_time) {
-
-    // find n_dofs
-    if (first_time) this->dof_handler.distribute_dofs(this->fe);
-
-    // set rhs to zeros
-    this->system_rhs.reinit(this->dof_handler.n_dofs());
-
-    if (!first_time) return;
-
-    boundary_values.clear();
-
-    DynamicSparsityPattern dsp(this->dof_handler.n_dofs());
-    DoFTools::make_sparsity_pattern(this->dof_handler, dsp);
-    this->sparsity_pattern.copy_from(dsp);
-
-    this->system_matrix.reinit(this->sparsity_pattern);
-    this->system_matrix_save.reinit(this->sparsity_pattern);
-    this->solution.reinit(this->dof_handler.n_dofs());
+void PoissonSolver<dim>::assemble_laplace(double applied_field) {
+    this->set_applied_field(applied_field);
+    this->assemble_lhs();
+    this->assemble_rhs(BoundaryId::vacuum_top);
+    this->assemble_set_dirichlet(fch::BoundaryId::copper_surface, 0.);
+    this->assemble_apply_dirichlet();
 }
 
 template<int dim>
-void PoissonSolver<dim>::assemble_system(double applied_field_) {
-    set_applied_field(applied_field_);
+void PoissonSolver<dim>::assemble_neumann(const bool first_time) {
+    this->system_rhs = 0;
+    if (first_time) {
+        this->system_matrix = 0;
+        assemble_lhs();
+        this->assemble_set_dirichlet(fch::BoundaryId::copper_surface, 0.);
+    } else
+        this->restore_system();
 
-    assemble_lhs();
-    this->assemble_rhs(BoundaryId::vacuum_top);
+    this->assemble_rhs(fch::BoundaryId::vacuum_top);
+    assemble_space_charge();
+    this->assemble_apply_dirichlet();
+}
 
-    assemble_system_dirichlet(BoundaryId::copper_surface, 0.0);
-    assemble_system_finalize();
+template<int dim>
+void PoissonSolver<dim>::assemble_dirichlet(const bool first_time) {
+    this->system_rhs = 0;
+    if (first_time) {
+        this->system_matrix = 0;
+        assemble_lhs();
+        this->assemble_set_dirichlet(fch::BoundaryId::copper_surface, 0.0);
+        this->assemble_set_dirichlet(fch::BoundaryId::vacuum_top, applied_potential);
+    } else
+        this->restore_system();
+
+    assemble_space_charge();
+    this->assemble_apply_dirichlet();
 }
 
 template<int dim>
@@ -280,11 +287,17 @@ void PoissonSolver<dim>::assemble_lhs() {
 }
 
 template<int dim>
-void PoissonSolver<dim>::assemble_system_pointcharge(femocs::ParticleSpecies &particles) {
+void PoissonSolver<dim>::assemble_space_charge() {
+//    require(particles, "NULL particles can't be used!");
+    if (!particles) {
+        femocs::write_verbose_msg("No charged particles present!");
+        return;
+    }
+
     vector<types::global_dof_index> local_dof_indices(this->fe.dofs_per_cell);
 
     // loop over particles
-    for (auto particle : particles.parts) {
+    for (auto particle : particles->parts) {
         Point<dim> p_deal = Point<dim>(particle.pos.x, particle.pos.y, particle.pos.z);
         //get particle's active cell iterator
         typename DoFHandler<dim>::active_cell_iterator cell(&this->triangulation, 0, particle.cell, &this->dof_handler);
@@ -297,22 +310,12 @@ void PoissonSolver<dim>::assemble_system_pointcharge(femocs::ParticleSpecies &pa
 
         //loop over nodes of the cell and add the particle's charge to the system rhs
         for (int i = 0; i < this->fe.dofs_per_cell; ++i)
-            this->system_rhs(local_dof_indices[i]) += sf[i] * particles.q_over_eps0 * particles.Wsp;
+            this->system_rhs(local_dof_indices[i]) += sf[i] * particles->q_over_eps0 * particles->Wsp;
     }
 }
 
 template<int dim>
-void PoissonSolver<dim>::assemble_system_dirichlet(BoundaryId bid, double potential) {
-    VectorTools::interpolate_boundary_values(this->dof_handler, bid, ConstantFunction<dim>(potential), boundary_values);
-}
-
-template<int dim>
-void PoissonSolver<dim>::assemble_system_finalize() {
-    MatrixTools::apply_boundary_values(boundary_values, this->system_matrix, this->solution, this->system_rhs);
-}
-
-template<int dim>
-void PoissonSolver<dim>::output_results(const string &filename) const {
+void PoissonSolver<dim>::write(const string &filename) const {
     LaplacePostProcessor<dim> field_calculator; // needs to be before data_out
     DataOut<dim> data_out;
 
@@ -326,8 +329,7 @@ void PoissonSolver<dim>::output_results(const string &filename) const {
         ofstream output(filename);
         data_out.write_vtk(output);
     } catch (...) {
-        cerr << "WARNING: Couldn't open " + filename << ". ";
-        cerr << "Output is not saved." << endl;
+        femocs::write_verbose_msg("Could not open " + filename);
     }
 }
 
@@ -700,6 +702,11 @@ void Laplace<dim>::assemble_system_pointcharge(femocs::ParticleSpecies &particle
 template<int dim>
 void Laplace<dim>::assemble_system_dirichlet(BoundaryId bid, double potential) {
     VectorTools::interpolate_boundary_values(dof_handler, bid, ConstantFunction<dim>(potential), boundary_values);
+}
+
+template<int dim>
+void Laplace<dim>::assemble_system_finalize() {
+    MatrixTools::apply_boundary_values(boundary_values, system_matrix, solution, system_rhs);
 }
 
 template<int dim>

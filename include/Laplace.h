@@ -42,7 +42,7 @@ namespace fch {
 // forward declaration for friend class
 template<int dim> class CurrentsAndHeating;
 template<int dim> class CurrentsAndHeatingStationary;
-template<int dim> class CurrentHeatStatSolver;
+template<int dim> class CurrentHeatSolver;
 
 
 using namespace dealii;
@@ -99,13 +99,11 @@ public:
     /** saves the system matrix (useful before BCs have been applied) */
     void save_system(){
         system_matrix_save.copy_from(system_matrix);
-//        system_rhs_save = system_rhs;
     }
 
     /** Restores the system matrix to the saved one */
     void restore_system(){
         system_matrix.copy_from(system_matrix_save);
-//        system_rhs = system_rhs_save;
     }
 
     /** Values of the shape functions at point p with respect to the nodes of
@@ -177,9 +175,7 @@ public:
     /** @brief Apply all dirichlet boundary conditions to the system.
      * This should be the last function call to setup the equations, before calling solve()
      */
-    void assemble_system_finalize() {
-        MatrixTools::apply_boundary_values(boundary_values, system_matrix, solution, system_rhs);
-    }
+    void assemble_system_finalize();
 
     /** solves the matrix equation using conjugate gradient method
      * @param max_iter maximum number of iterations allowed
@@ -226,7 +222,6 @@ private:
 
     Vector<double> solution;              ///< resulting electric potential in the mesh nodes
     Vector<double> system_rhs;            ///< right-hand-side of the matrix equation
-    Vector<double> system_rhs_save; ///< system RHS of matrix equation (save before Dirichlet BCs remove dofs)
 
     std::map<types::global_dof_index, double> boundary_values; // Map of dirichlet boundary conditions
 
@@ -241,7 +236,7 @@ private:
 };
 
 
-
+using namespace femocs;
 using namespace std;
 
 /** @brief Class to solve Laplace equation in 2D or 3D
@@ -252,12 +247,6 @@ template<int dim>
 class PoissonSolver : public DealSolver<dim> {
 public:
     PoissonSolver();
-
-    /** Run Conjugate-Gradient solver to solve matrix equation */
-    unsigned int solve() { return this->solve_cg(2000, 1e-9, 1.2); }
-    
-    /** Runs the calculation: setup and assemble system, solve PoissonSolver equation, output the results*/
-    void run();
 
     /** get the electric field norm at the specified point using dealii
      * (slow as it looks for the surrounding cell) */
@@ -294,20 +283,28 @@ public:
     vector<Tensor<1, dim>> get_efield(const vector<int> &cell_indexes,
             const vector<int> &vert_indexes) const;
 
-    /** @brief set up dynamic sparsity pattern
-     *  a) define optimal structure for sparse matrix representation,
-     *  b) allocate memory for sparse matrix and solution and right-hand-side (rhs) vector
-     */
-    void setup_system(bool first_time);
+    /** Run Conjugate-Gradient solver to solve matrix equation */
+    unsigned int solve() { return this->solve_cg(2000, 1e-9, 1.2); }
 
-    /** @brief assemble the matrix equation
-     * Calculate sparse matrix elements and right-hand-side vector
-     * according to the PoissonSolver equation weak formulation and to the boundary conditions.
-     */
-    void assemble_system(double applied_field);
+    void assemble_laplace(double applied_field);
+
+    /** Assemble the matrix equation by appling Neumann BC on top of simubox */
+    void assemble_neumann(const bool first_time);
+
+    /** Assemble the matrix equation by appling Dirichlet BC on top of simubox */
+    void assemble_dirichlet(const bool first_time);
 
     /** Store long range electric field value */
-    void set_applied_field(const double applied_field_) { applied_field = applied_field_; }
+    void set_applied_field(const double field) { applied_field = field; }
+
+    /** Store electric potential value on top of simubox */
+    void set_applied_potential(const double potential) { applied_potential = potential; }
+
+    void set_dependencies(const ParticleSpecies *particles_, const double field, const double potential) {
+        particles = particles_;
+        applied_field = field;
+        applied_potential = potential;
+    }
 
     /** @brief Reset the system and assemble the LHS matrix
      * Calculate sparse matrix elements
@@ -316,26 +313,17 @@ public:
      */
     void assemble_lhs();
 
-    /** @brief Assemble the RHS of the matrix equation
-     * Add to the right-hand-side vector for point charges, as used in PIC.
-     */
-    void assemble_system_pointcharge(femocs::ParticleSpecies &parts);
-
-    /** @brief Give value potential to all DOFs with BoundaryId bid
-     */
-    void assemble_system_dirichlet(BoundaryId bid, double potential);
-
-    /** @brief Apply all dirichlet boundary conditions to the system.
-     * This should be the last function call to setup the equations, before calling solve()
-     */
-    void assemble_system_finalize();
+    /** Add to the right-hand-side vector for point charges, as used in PIC. */
+    void assemble_space_charge();
 
     /** Outputs the results (electric potential and field) to a specified file in vtk format */
-    void output_results(const string &filename) const;
+    void write(const string &filename) const;
 
 private:
-    map<types::global_dof_index, double> boundary_values; // Map of dirichlet boundary conditions
-    double applied_field; ///< long-range electric field
+    const ParticleSpecies* particles;
+
+    double applied_field;     ///< applied electric field on top of simubox
+    double applied_potential; ///< applied potential on top of simubox
 
     double probe_potential(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
     
@@ -351,7 +339,7 @@ private:
 
     friend class CurrentsAndHeating<dim> ;
     friend class CurrentsAndHeatingStationary<dim> ;
-    friend class CurrentHeatStatSolver<dim> ;
+    friend class CurrentHeatSolver<dim> ;
 };
 
 } // namespace fch

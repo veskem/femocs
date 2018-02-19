@@ -49,28 +49,13 @@ int PicSolver<dim>::inject_electrons(const bool fractional_push) {
 //Call the laplace solver with the list of positions and charge(s)
 template<int dim>
 int PicSolver<dim>::compute_field(bool first_time) {
+    require(anodeBC == "neumann" || anodeBC == "dirichlet",
+            "Invalid anode boundary condition: " + anodeBC);
 
-    //TODO : save system lhs and copy it . don't rebuild it every time
-
-    // Set-up system lhs
-    poisson_solver.setup_system(first_time);
-    if (first_time)
-        poisson_solver.assemble_lhs();
-    else
-        poisson_solver.restore_system();
-
-    // Set-up system RHS and BCs
-    poisson_solver.assemble_system_pointcharge(electrons);
-    poisson_solver.set_applied_field(-E0);
     if (anodeBC == "neumann")
-        poisson_solver.assemble_rhs(fch::BoundaryId::vacuum_top);
-    else if(anodeBC == "dirichlet")
-        poisson_solver.assemble_system_dirichlet(fch::BoundaryId::vacuum_top, V0);
+        poisson_solver.assemble_neumann(first_time);
     else
-        require(false, "Invalid anode boundary condition: " + anodeBC);
-
-    poisson_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.);
-    poisson_solver.assemble_system_finalize();
+        poisson_solver.assemble_dirichlet(first_time);
 
     // solve Poisson equation
     return poisson_solver.solve();
