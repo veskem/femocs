@@ -499,6 +499,9 @@ public:
     /** Until proper way to calculate shape functions is found, use lintri interpolator */
     Solution interp_solution(const Point3 &point, const int c) const;
 
+    /** Generate point with an uniform distribution inside a quadrangle */
+    Point3 get_rnd_point(const int quad) const;
+
     /** Change the mesh */
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<4>::set_mesh(m);

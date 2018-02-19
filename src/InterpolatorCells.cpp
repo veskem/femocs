@@ -1227,6 +1227,47 @@ int LinearQuadrangles::locate_cell(const Point3 &point, const int cell_guess) co
     return -1;
 }
 
+Point3 LinearQuadrangles::get_rnd_point(const int quad) const {
+    const int tri = quads->to_tri(quad);
+    const int section = quad % quads->n_quads_per_tri;
+
+    int i, j, k;
+    if (section == 0) {
+        i = 0; j = 1; k = 2;
+    } else if (section == 1) {
+        i = 1; j = 0; k = 2;
+    } else {
+        i = 2; j = 0; j = 1;
+    }
+
+    SimpleFace sface = mesh->faces[tri];
+    Vec3 node0 = mesh->nodes.get_vec(sface[0]);
+    Vec3 edge1 = mesh->nodes.get_vec(sface[1]) - node0;
+    Vec3 edge2 = mesh->nodes.get_vec(sface[2]) - node0;
+
+    array<double,3> bcc;
+
+    // loop until desired point is found
+    for (int safe_cntr = 0; safe_cntr < 100; ++safe_cntr) {
+        // Generate random point inside parallelogram composed of edge1 & edge2
+        double rand1 = (double) rand() / RAND_MAX;
+        double rand2 = (double) rand() / RAND_MAX;
+        Point3 point = edge1 * rand1 + edge2 * rand2;
+
+        // calculate barycentric coordinates for a point
+        lintri->get_shape_functions(bcc, point, tri);
+
+        // check if point is inside triangle
+        if (bcc[0] >= 0 && bcc[0] <= 1 && bcc[1] >= 0 && bcc[1] <= 1 && bcc[2] >= 0 && bcc[2] <= 1)
+            // check if point is inside quadrangle
+            if (bcc[i] / bcc[j] >= 1 && bcc[i] / bcc[k] >= 1)
+                return point;
+    }
+
+    write_verbose_msg("Random point generation failed for cell " + to_string(quad));
+    return mesh->quads.get_centroid(quad);
+}
+
 template class InterpolatorCells<3> ;
 template class InterpolatorCells<6> ;
 template class InterpolatorCells<4> ;
