@@ -64,7 +64,7 @@ public:
  * ================================================================== */
 
 template<int dim>
-PoissonSolver<dim>::PoissonSolver() : DealSolver<dim>() {};
+PoissonSolver<dim>::PoissonSolver() : DealSolver<dim>(), applied_field(0) {};
 
 template<int dim>
 void PoissonSolver<dim>::mark_boundary() {
@@ -203,6 +203,11 @@ vector<Tensor<1, dim> > PoissonSolver<dim>::get_efield(const vector<int> &cell_i
 }
 
 template<int dim>
+double PoissonSolver<dim>::get_face_bc(const unsigned int face) const {
+    return applied_field;
+}
+
+template<int dim>
 void PoissonSolver<dim>::setup_system(bool first_time) {
 
     // find n_dofs
@@ -221,20 +226,22 @@ void PoissonSolver<dim>::setup_system(bool first_time) {
 
     this->system_matrix.reinit(this->sparsity_pattern);
     this->system_matrix_save.reinit(this->sparsity_pattern);
-
     this->solution.reinit(this->dof_handler.n_dofs());
 }
 
 template<int dim>
-void PoissonSolver<dim>::assemble_system(double applied_field){
-    assemble_system_lhs();
-    assemble_system_neuman(BoundaryId::vacuum_top, applied_field);
+void PoissonSolver<dim>::assemble_system(double applied_field_) {
+    set_applied_field(applied_field_);
+
+    assemble_lhs();
+    this->assemble_rhs(BoundaryId::vacuum_top);
+
     assemble_system_dirichlet(BoundaryId::copper_surface, 0.0);
     assemble_system_finalize();
 }
 
 template<int dim>
-void PoissonSolver<dim>::assemble_system_lhs() {
+void PoissonSolver<dim>::assemble_lhs() {
 
     QGauss<dim> quadrature_formula(this->quadrature_degree);
     FEValues<dim> fe_values(this->fe, quadrature_formula,
@@ -244,23 +251,20 @@ void PoissonSolver<dim>::assemble_system_lhs() {
     const unsigned int n_q_points = quadrature_formula.size();
 
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
-
     vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
-    typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
-
     // Iterate over all cells (quadrangles in 2D, hexahedra in 3D) of the mesh
+    typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
     for (; cell != this->dof_handler.end(); ++cell) {
         fe_values.reinit(cell);
-        cell_matrix = 0;
 
         // Assemble system matrix elements corresponding the current cell
+        cell_matrix = 0;
         for (unsigned int q = 0; q < n_q_points; ++q) {
             for (unsigned int i = 0; i < dofs_per_cell; ++i) {
                 for (unsigned int j = 0; j < dofs_per_cell; ++j)
                     cell_matrix(i, j) += fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
                             * fe_values.JxW(q);
-
             }
         }
 
@@ -273,47 +277,6 @@ void PoissonSolver<dim>::assemble_system_lhs() {
     }
     
     this->save_system();
-}
-
-template<int dim>
-void PoissonSolver<dim>::assemble_system_neuman(BoundaryId bid, double applied_field) {
-
-    QGauss<dim-1> face_quadrature_formula(this->quadrature_degree);
-    FEFaceValues<dim> fe_face_values(this->fe, face_quadrature_formula,
-            update_values | update_quadrature_points | update_JxW_values);
-
-    const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
-    const unsigned int n_face_q_points = face_quadrature_formula.size();
-
-    Vector<double> cell_rhs(dofs_per_cell);
-    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-
-    typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
-
-    // Iterate over all cells (quadrangles in 2D, hexahedra in 3D) of the mesh
-    for (; cell != this->dof_handler.end(); ++cell) {
-        cell_rhs = 0;
-
-        // Apply Neumann boundary condition at faces on top of vacuum domain
-        for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
-            if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == bid) {
-                fe_face_values.reinit(cell, f);
-
-                for (unsigned int q = 0; q < n_face_q_points; ++q) {
-                    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                        cell_rhs(i) += fe_face_values.shape_value(i, q)
-                                * applied_field * fe_face_values.JxW(q);
-                    }
-                }
-            }
-        }
-
-        // Add the current cell matrix and rhs entries to the system sparse matrix
-        cell->get_dof_indices(local_dof_indices);
-        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-            this->system_rhs(local_dof_indices[i]) += cell_rhs(i);
-        }
-    }
 }
 
 template<int dim>
@@ -333,8 +296,8 @@ void PoissonSolver<dim>::assemble_system_pointcharge(femocs::ParticleSpecies &pa
         vector<double> sf = this->shape_funs(p_deal, particle.cell);
 
         //loop over nodes of the cell and add the particle's charge to the system rhs
-        for (int j = 0; j < this->fe.dofs_per_cell; ++j)
-            this->system_rhs(local_dof_indices[j]) += sf[j] * particles.q_over_eps0 * particles.Wsp;
+        for (int i = 0; i < this->fe.dofs_per_cell; ++i)
+            this->system_rhs(local_dof_indices[i]) += sf[i] * particles.q_over_eps0 * particles.Wsp;
     }
 }
 
@@ -774,7 +737,6 @@ void Laplace<dim>::output_results(const std::string filename) const {
         std::cerr << "Output is not saved." << std::endl;
     }
 }
-
 
 template class PoissonSolver<3> ;
 //template class Laplace<2> ;

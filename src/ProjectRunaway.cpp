@@ -102,6 +102,7 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
         }
     } else {
         if (solve_laplace(elfield)) {
+//        if (solve_poisson(elfield)) {
             force_output();
             check_return(true, "Solving Laplace equation failed!");
         }
@@ -140,12 +141,13 @@ int ProjectRunaway::solve_poisson(const double E0) {
     
     // Set-up system LHS
     if (first_time)
-        poisson_solver.assemble_system_lhs();
+        poisson_solver.assemble_lhs();
     else
         poisson_solver.restore_system();
 
     // Set-up system RHS and BCs
-    poisson_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top, -E0);
+    poisson_solver.set_applied_field(-E0);
+    poisson_solver.assemble_rhs(fch::BoundaryId::vacuum_top);
     poisson_solver.assemble_system_dirichlet(fch::BoundaryId::copper_surface, 0.);
     poisson_solver.assemble_system_finalize();
     end_msg(t0);

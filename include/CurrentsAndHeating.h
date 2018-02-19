@@ -40,6 +40,7 @@ class EmissionSolver : public DealSolver<dim> {
 public:
     EmissionSolver();
     EmissionSolver(Triangulation<dim> *tria, const double default_value);
+    virtual ~EmissionSolver() {}
 
     /** Solve the matrix equation using conjugate gradient method */
     unsigned int solve() { return this->solve_cg(conf->n_cg, conf->cg_tolerance, conf->ssor_param); }
@@ -62,17 +63,7 @@ protected:
     const femocs::Config::Heating *conf;   ///< solver parameters
 
     vector<double> bc_values; ///< current or heat values on the centroids of surface faces
-
-    /** @brief Apply all dirichlet boundary conditions to the system.
-     * This should be the last function call to setup the equations, before calling solve() */
-    void assemble_finalize(const BoundaryId bid, const double boundary_val);
     
-    /** Set the right-hand-side vector of the matrix equation */
-    void assemble_rhs(const BoundaryId bid);
-    
-    /** Return the boundary condition value at the centroid of face */
-    virtual double get_face_bc(const unsigned int face) const { return default_solution_value; }
-
     friend class CurrentHeatSolver<dim> ;
 };
 
@@ -91,12 +82,11 @@ public:
      */
     void assemble();
     
-protected:
-    double get_face_bc(const unsigned int face) const;
-    
 private:
     const HeatSolver<dim>* heat_solver;
     
+    double get_face_bc(const unsigned int face) const;
+
     friend class CurrentHeatSolver<dim> ;
 };
 
@@ -113,6 +103,10 @@ public:
      * using Crank-Nicolson or implicit Euler time integration method. */
     void assemble(const double delta_time);
 
+    void assemble_heat_lhs(const double delta_time);
+
+    void assemble_heat_rhs(const double delta_time);
+
 private:
     static constexpr double cu_rho_cp = 3.4496e-24;      ///< volumetric heat capacity of copper J/(K*ang^3)
     const CurrentSolver<dim>* current_solver;
@@ -128,6 +122,8 @@ private:
      * according to the time dependent heat equation weak formulation and to the boundary conditions.
      */
     void assemble_euler_implicit(const double delta_time);
+
+    double get_face_bc(const unsigned int face) const;
 
     friend class CurrentHeatSolver<dim> ;
 };

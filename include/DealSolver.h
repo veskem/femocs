@@ -97,6 +97,13 @@ public:
     /** Calculate max value from solution vector */
     double max_solution() const;
 
+    /** Modify the right-hand-side vector of the matrix equation */
+    void assemble_rhs(const BoundaryId bid);
+
+    /** @brief Apply all dirichlet boundary conditions to the system.
+     * This should be the last function call to setup the equations, before calling solve() */
+    void assemble_finalize(const BoundaryId bid, const double boundary_val);
+
     /** Write the simulation results to file */
     virtual void output_results(const string &filename) const {};
 
@@ -133,6 +140,9 @@ protected:
 
     /** Mark different regions of the mesh */
     virtual void mark_boundary() {}
+
+    /** Return the boundary condition value at the centroid of face */
+    virtual double get_face_bc(const unsigned int face) const { return 1.0; }
 
     /** Helper function for the public shape_funs */
     vector<double> shape_funs(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;

@@ -54,16 +54,16 @@ int PicSolver<dim>::compute_field(bool first_time) {
 
     // Set-up system lhs
     poisson_solver.setup_system(first_time);
-    if (first_time){
-        poisson_solver.assemble_system_lhs();
-        poisson_solver.save_system();
-    } else
+    if (first_time)
+        poisson_solver.assemble_lhs();
+    else
         poisson_solver.restore_system();
 
     // Set-up system RHS and BCs
     poisson_solver.assemble_system_pointcharge(electrons);
+    poisson_solver.set_applied_field(-E0);
     if (anodeBC == "neumann")
-        poisson_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top, -E0);
+        poisson_solver.assemble_rhs(fch::BoundaryId::vacuum_top);
     else if(anodeBC == "dirichlet")
         poisson_solver.assemble_system_dirichlet(fch::BoundaryId::vacuum_top, V0);
     else

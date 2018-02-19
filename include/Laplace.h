@@ -306,17 +306,15 @@ public:
      */
     void assemble_system(double applied_field);
 
+    /** Store long range electric field value */
+    void set_applied_field(const double applied_field_) { applied_field = applied_field_; }
+
     /** @brief Reset the system and assemble the LHS matrix
      * Calculate sparse matrix elements
      * according to the Laplace equation weak formulation
      * This should be the first function call to setup the equations (after setup_system() ).
      */
-    void assemble_system_lhs();
-
-    /** @brief Initialization of the RHS of the matrix equation
-     * Set the right-hand-side vector for Neuman boundary conditions on the given BoundaryId.
-     */
-    void assemble_system_neuman(BoundaryId bid, double E0);
+    void assemble_lhs();
 
     /** @brief Assemble the RHS of the matrix equation
      * Add to the right-hand-side vector for point charges, as used in PIC.
@@ -337,6 +335,7 @@ public:
 
 private:
     map<types::global_dof_index, double> boundary_values; // Map of dirichlet boundary conditions
+    double applied_field; ///< long-range electric field
 
     double probe_potential(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
     
@@ -346,6 +345,9 @@ private:
 
     /** Mark different regions in mesh */
     void mark_boundary();
+
+    /** Return the boundary condition value at the centroid of face */
+    double get_face_bc(const unsigned int face) const;
 
     friend class CurrentsAndHeating<dim> ;
     friend class CurrentsAndHeatingStationary<dim> ;

@@ -119,74 +119,20 @@ template<int dim>
 void EmissionSolver<dim>::setup() {
     // TODO implement assert for empty mesh!    
     this->dof_handler.distribute_dofs(this->fe);
+    this->system_rhs.reinit(this->dof_handler.n_dofs());
 
     DynamicSparsityPattern dsp(this->dof_handler.n_dofs());
     DoFTools::make_sparsity_pattern(this->dof_handler, dsp);
     this->sparsity_pattern.copy_from(dsp);
 
     this->system_matrix.reinit(this->sparsity_pattern);
-
     this->solution.reinit(this->dof_handler.n_dofs());
     this->solution_old.reinit(this->dof_handler.n_dofs());
-    this->system_rhs.reinit(this->dof_handler.n_dofs());
 
     // Initialize the solution
     for (size_t i = 0; i < this->solution.size(); i++) {
         this->solution[i] = default_solution_value;
         this->solution_old[i] = default_solution_value;
-    }
-}
-
-template<int dim>
-void EmissionSolver<dim>::assemble_finalize(const BoundaryId bid, const double boundary_val) {
-    map<types::global_dof_index, double> boundary_values;
-    if (boundary_val > 0.0)
-        VectorTools::interpolate_boundary_values(this->dof_handler, bid, ConstantFunction<dim>(boundary_val), boundary_values);
-    else
-        VectorTools::interpolate_boundary_values(this->dof_handler, bid, ZeroFunction<dim>(), boundary_values);
-    MatrixTools::apply_boundary_values(boundary_values, this->system_matrix, this->solution, this->system_rhs);    
-}
-
-template<int dim>
-void EmissionSolver<dim>::assemble_rhs(const BoundaryId bid) {
-    
-    QGauss<dim-1> face_quadrature_formula(this->quadrature_degree);
-    FEFaceValues<dim> fe_face_values(this->fe, face_quadrature_formula,
-            update_values | update_quadrature_points | update_JxW_values);
-
-    const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
-    const unsigned int n_face_q_points = face_quadrature_formula.size();
-
-    Vector<double> cell_rhs(dofs_per_cell);
-    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-
-    typename DoFHandler<dim>::active_cell_iterator cell;
-
-    // Iterate over all cells (quadrangles in 2D, hexahedra in 3D) of the mesh
-    unsigned int boundary_face_index = 0;
-    for (cell = this->dof_handler.begin_active(); cell != this->dof_handler.end(); ++cell) {
-        cell_rhs = 0;
-
-        // Apply boundary condition at faces on top of vacuum domain
-        for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
-            if (cell->face(f)->at_boundary() && cell->face(f)->boundary_id() == bid) {
-                fe_face_values.reinit(cell, f);
-                double bc_value = get_face_bc(boundary_face_index++);
-
-                // Compose local rhs update
-                for (unsigned int q = 0; q < n_face_q_points; ++q) {
-                    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                        cell_rhs(i) += fe_face_values.shape_value(i, q)
-                                * bc_value * fe_face_values.JxW(q);
-                    }
-                }
-            }
-        }
-
-        // Add the current cell rhs entries to the system rhs
-        cell->get_dof_indices(local_dof_indices);
-        for (unsigned int i = 0; i < dofs_per_cell; ++i)
-            this->system_rhs(local_dof_indices[i]) += cell_rhs(i);
     }
 }
 
@@ -300,16 +246,14 @@ void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
 
             for (unsigned int i = 0; i < dofs_per_cell; ++i) {
                 for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-                    cell_matrix(i, j) += (
+                    cell_matrix(i, j) += fe_values.JxW(q) * (
                             2*gamma*fe_values.shape_value(i, q) * fe_values.shape_value(j, q) // Mass matrix
-                            + kappa*fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
-                    ) * fe_values.JxW(q);
+                            + kappa*fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q) );
                 }
-                cell_rhs(i) += (
+                cell_rhs(i) += fe_values.JxW(q) * (
                         2*gamma*fe_values.shape_value(i, q)*prev_temperature
                         - kappa*fe_values.shape_grad(i, q)*prev_temperature_grad
-                        + fe_values.shape_value(i, q)*sigma*(pot_grad_squared+prev_pot_grad_squared)
-                ) * fe_values.JxW(q);
+                        + fe_values.shape_value(i, q)*sigma*(pot_grad_squared+prev_pot_grad_squared) );
             }
         }
         // ----------------------------------------------------------------------------------------
@@ -351,99 +295,182 @@ void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
     this->system_rhs = 0;
 
     QGauss<dim> quadrature_formula(this->quadrature_degree);
-    QGauss<dim-1> face_quadrature_formula(this->quadrature_degree);
 
     // Heating finite element values
     FEValues<dim> fe_values(this->fe, quadrature_formula,
             update_values | update_gradients | update_quadrature_points | update_JxW_values);
-    FEFaceValues<dim> fe_face_values(this->fe, face_quadrature_formula,
-            update_values | update_quadrature_points | update_JxW_values);
 
     // Finite element values for accessing current calculation
     FEValues<dim> fe_values_current(current_solver->fe, quadrature_formula, update_gradients);
 
     const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
     const unsigned int n_q_points = quadrature_formula.size();
-    const unsigned int n_face_q_points = face_quadrature_formula.size();
 
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
     Vector<double> cell_rhs(dofs_per_cell);
 
     vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
-    // ---------------------------------------------------------------------------------------------
     // The other solution values in the cell quadrature points
     vector<Tensor<1, dim>> potential_gradients(n_q_points);
-    vector<double> prev_sol_temperature_values(n_q_points);
-    // ---------------------------------------------------------------------------------------------
+    vector<double> prev_temperatures(n_q_points);
 
     typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
     typename DoFHandler<dim>::active_cell_iterator current_cell = current_solver->dof_handler.begin_active();
 
-    int face_index = 0;
     for (; cell != this->dof_handler.end(); ++cell, ++current_cell) {
         fe_values.reinit(cell);
-        cell_matrix = 0;
-        cell_rhs = 0;
+        fe_values.get_function_values(this->solution_old, prev_temperatures);
 
-        fe_values.get_function_values(this->solution_old, prev_sol_temperature_values);
+        // Local matrix assembly
+        cell_matrix = 0;
+        for (unsigned int q = 0; q < n_q_points; ++q) {
+            double temperature = prev_temperatures[q];
+            double kappa = this->pq->kappa(temperature);
+
+            for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+                for (unsigned int j = 0; j < dofs_per_cell; ++j) {
+                    cell_matrix(i, j) += fe_values.JxW(q) * (
+                            gamma * fe_values.shape_value(i, q) * fe_values.shape_value(j, q) // Mass matrix
+                            + kappa * fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q) );
+                }
+            }
+        }
 
         fe_values_current.reinit(current_cell);
         fe_values_current.get_function_gradients(current_solver->solution, potential_gradients);
 
-        // ----------------------------------------------------------------------------------------
-        // Local matrix assembly
-        // ----------------------------------------------------------------------------------------
+        // Local right-hand-side vector assembly
+        cell_rhs = 0;
         for (unsigned int q = 0; q < n_q_points; ++q) {
-            double prev_temperature = prev_sol_temperature_values[q];
-            double kappa = this->pq->kappa(prev_temperature);
-            double sigma = this->pq->sigma(prev_temperature);
-
             double pot_grad_squared = potential_gradients[q].norm_square();
+            double temperature = prev_temperatures[q];
+            double sigma = this->pq->sigma(temperature);
+
+            for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+                cell_rhs(i) += fe_values.JxW(q) * fe_values.shape_value(i, q)
+                        * (gamma * temperature + sigma * pot_grad_squared);
+            }
+        }
+
+        // Update global matrix and right-hand-side vector
+        cell->get_dof_indices(local_dof_indices);
+        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+            this->system_rhs(local_dof_indices[i]) += cell_rhs(i);
+
+            for (unsigned int j = 0; j < dofs_per_cell; ++j)
+                this->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
+        }
+    }
+
+    this->assemble_rhs(BoundaryId::copper_surface);
+    this->assemble_finalize(BoundaryId::copper_bottom, this->default_solution_value);
+}
+
+template<int dim>
+void HeatSolver<dim>::assemble_heat_rhs(const double delta_time) {
+    require(current_solver, "NULL current solver can't be used!");
+
+    const double gamma = cu_rho_cp / delta_time;
+
+    QGauss<dim> quadrature_formula(this->quadrature_degree);
+
+    // Heating finite element values
+    FEValues<dim> fe_values(this->fe, quadrature_formula,
+            update_values | update_gradients | update_quadrature_points | update_JxW_values);
+
+    // Finite element values for accessing current calculation
+    FEValues<dim> fe_values_current(current_solver->fe, quadrature_formula, update_gradients);
+
+    const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
+    const unsigned int n_q_points = quadrature_formula.size();
+
+    Vector<double> cell_rhs(dofs_per_cell);
+    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+    // The previous solution values in the cell quadrature points
+    vector<Tensor<1, dim>> potential_gradients(n_q_points);
+    vector<double> prev_temperatures(n_q_points);
+
+    typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
+    typename DoFHandler<dim>::active_cell_iterator current_cell = current_solver->dof_handler.begin_active();
+
+    for (; cell != this->dof_handler.end(); ++cell, ++current_cell) {
+        fe_values.reinit(cell);
+        fe_values.get_function_values(this->solution_old, prev_temperatures);
+
+        fe_values_current.reinit(current_cell);
+        fe_values_current.get_function_gradients(current_solver->solution, potential_gradients);
+
+        // Local right-hand-side vector assembly
+        cell_rhs = 0;
+        for (unsigned int q = 0; q < n_q_points; ++q) {
+            double pot_grad_squared = potential_gradients[q].norm_square();
+            double temperature = prev_temperatures[q];
+            double sigma = this->pq->sigma(temperature);
+
+            for (unsigned int i = 0; i < dofs_per_cell; ++i) {
+                cell_rhs(i) += fe_values.JxW(q) * fe_values.shape_value(i, q)
+                        * (gamma * temperature + sigma * pot_grad_squared);
+            }
+        }
+
+        // Update global matrix and right-hand-side vector
+        cell->get_dof_indices(local_dof_indices);
+        for (unsigned int i = 0; i < dofs_per_cell; ++i)
+            this->system_rhs(local_dof_indices[i]) += cell_rhs(i);
+    }
+}
+
+template<int dim>
+void HeatSolver<dim>::assemble_heat_lhs(const double delta_time) {
+    const double gamma = cu_rho_cp / delta_time;
+
+    QGauss<dim> quadrature_formula(this->quadrature_degree);
+    FEValues<dim> fe_values(this->fe, quadrature_formula,
+            update_values | update_gradients | update_quadrature_points | update_JxW_values);
+
+    const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
+    const unsigned int n_q_points = quadrature_formula.size();
+
+    FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
+    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+
+    vector<double> prev_temperatures(n_q_points);
+
+    // Iterate over all cells (quadrangles in 2D, hexahedra in 3D) of the mesh
+    typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
+    for (; cell != this->dof_handler.end(); ++cell) {
+        fe_values.reinit(cell);
+        fe_values.get_function_values(this->solution_old, prev_temperatures);
+
+        // Assemble system matrix elements corresponding the current cell
+        cell_matrix = 0;
+        for (unsigned int q = 0; q < n_q_points; ++q) {
+            double kappa = this->pq->kappa(prev_temperatures[q]);
 
             for (unsigned int i = 0; i < dofs_per_cell; ++i) {
                 for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-                    cell_matrix(i, j) += (
-                            gamma*fe_values.shape_value(i, q) * fe_values.shape_value(j, q) // Mass matrix
-                            + kappa*fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
-                    ) * fe_values.JxW(q);
-                }
-
-                cell_rhs(i) += (
-                        gamma*fe_values.shape_value(i, q)*prev_temperature
-                        + fe_values.shape_value(i, q)*sigma*pot_grad_squared
-                ) * fe_values.JxW(q);
-
-            }
-        }
-        // ----------------------------------------------------------------------------------------
-        // Local right-hand side assembly
-        // ----------------------------------------------------------------------------------------
-        // Nottingham BC at the copper surface
-
-        for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
-            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
-                fe_face_values.reinit(cell, f);
-                double nottingham_heat = this->bc_values[face_index++];
-
-                for (unsigned int q = 0; q < n_face_q_points; ++q) {
-                    for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                        cell_rhs(i) += fe_face_values.shape_value(i, q)
-                                * nottingham_heat * fe_face_values.JxW(q);
-                    }
+                    cell_matrix(i, j) += fe_values.JxW(q) * (
+                            gamma * fe_values.shape_value(i, q) * fe_values.shape_value(j, q) // Mass matrix
+                            + kappa * fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q) );
                 }
             }
         }
 
+        // Update global matrix
         cell->get_dof_indices(local_dof_indices);
         for (unsigned int i = 0; i < dofs_per_cell; ++i) {
             for (unsigned int j = 0; j < dofs_per_cell; ++j)
                 this->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
-            this->system_rhs(local_dof_indices[i]) += cell_rhs(i);
         }
     }
+}
 
-    this->assemble_finalize(BoundaryId::copper_bottom, this->default_solution_value);
+template<int dim>
+double HeatSolver<dim>::get_face_bc(const unsigned int face) const {
+    require(face < this->bc_values.size(), "Invalid index: " + to_string(face));
+    return this->bc_values[face];
 }
 
 /* ==================================================================
@@ -500,10 +527,8 @@ void CurrentSolver<dim>::assemble() {
     FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
     vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
 
-    // ---------------------------------------------------------------------------------------------
-    // The previous solution values in the cell quadrature points
-    vector<double> prev_sol_temperature_values(n_q_points);
-    // ---------------------------------------------------------------------------------------------
+    // The previous temperature values in the cell quadrature points
+    vector<double> prev_temperatures(n_q_points);
 
     typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
     typename DoFHandler<dim>::active_cell_iterator heat_cell = heat_solver->dof_handler.begin_active();
@@ -514,13 +539,13 @@ void CurrentSolver<dim>::assemble() {
         cell_matrix = 0;
 
         fe_values_heat.reinit(heat_cell);
-        fe_values_heat.get_function_values(heat_solver->solution, prev_sol_temperature_values);
+        fe_values_heat.get_function_values(heat_solver->solution, prev_temperatures);
 
         // ----------------------------------------------------------------------------------------
         // Local matrix assembly
         // ----------------------------------------------------------------------------------------
         for (unsigned int q = 0; q < n_q_points; ++q) {
-            double temperature = prev_sol_temperature_values[q];
+            double temperature = prev_temperatures[q];
             double sigma = this->pq->sigma(temperature);
 
             for (unsigned int i = 0; i < dofs_per_cell; ++i) {
