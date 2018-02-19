@@ -659,7 +659,7 @@ void FieldReader::interpolate(const int n_points, const double* x, const double*
 // Interpolate electric field and potential on a Medium atoms
 void FieldReader::interpolate(const Medium &medium) {
     const int n_atoms = medium.size();
-    
+
     // store the atom coordinates
     reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
@@ -1071,7 +1071,7 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
 
         field = fields.get_elfield(i);
 
-        //TODO : fix rng, check probability distribution
+        //TODO : fix rng
 
         int quad = abs(fields.get_marker(i));
         int tri = mesh->quads.to_tri(quad);
@@ -1083,13 +1083,7 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
         // generate desired amount of electrons
         // that are uniformly distributed on a given quadrangle
         for (int j = 0; j < n_electrons_sp; j++){
-            Point3 position(0.0);
-            double rand1 = (double) rand() / RAND_MAX;
-            double rand2= (double) rand() / RAND_MAX;
-            position = mesh->nodes[squad[0]] * (1. - rand1 - rand2) +
-                    mesh->nodes[squad[1]] * rand1 + mesh->nodes[squad[3]] * rand2;
-
-
+            Point3 position = interpolator->linquads.get_rnd_point(quad);
             // push point little bit inside the vacuum mesh
             position += mesh->faces.get_norm(tri) * (mesh->faces.stat.edgemin * 0.01);
 

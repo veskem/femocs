@@ -32,8 +32,8 @@ bulk_height = 10.
 # PIC parameters
 ---------------------
 doPIC = true
-PIC_dtmax = .007 #[fs]
+PIC_dtmax = .01 #[fs]
 PIC_time = 50 #[fs]
 PIC_fractional_push = true
 PIC_collide_coulomb_ee = false
-electronWsp = 0.002
+electronWsp = 0.005

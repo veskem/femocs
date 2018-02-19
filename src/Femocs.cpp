@@ -345,15 +345,15 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
 
         get_emission();
 
+        start_msg(t0, "=== Injecting electrons...");
+        pic_solver.inject_electrons(conf.pic.fractional_push);
+        end_msg(t0);
+
         if ((i % n_write) == 0){
             pic_solver.write_particles("out/electrons.movie", i * dt_pic);
             vacuum_interpolator.nodes.write("out/result_E_phi.movie");
             emission.write_data("out/emission_data.dat", i * dt_pic);
         }
-
-        start_msg(t0, "=== Injecting electrons...");
-        pic_solver.inject_electrons(conf.pic.fractional_push);
-        end_msg(t0);
     }
     return fail;
 
@@ -497,6 +497,9 @@ void Femocs::get_emission(){
     emission.initialize(mesh);
     emission.calc_emission(conf.emission, conf.field.V0);
     end_msg(t0);
+
+//    surface_fields.write("out/surface_fields.xyz");
+//    emission.write("out/surface_emission.xyz");
 }
 
 // Solve transient heat and continuity equations
