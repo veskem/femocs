@@ -132,7 +132,7 @@ int ProjectRunaway::solve_poisson(const double E0) {
     fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
 
     start_msg(t0, "=== Importing mesh to Poisson solver...");
-    fail = !poisson_solver.import_mesh_directly(mesh->nodes.export_dealii(), mesh->hexahedra.export_vacuum());
+    fail = !poisson_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexahedra.export_vacuum());
     check_return(fail, "Importing mesh to Deal.II failed!");
     end_msg(t0);
 
@@ -234,7 +234,7 @@ int ProjectRunaway::solve_pic_vol2(const double E0, const double dt_main) {
     double dt_pic = dt_main/time_subcycle;
     
     start_msg(t0, "=== Importing mesh to Poisson solver...");
-    fail = !poisson_solver.import_mesh_directly(mesh->nodes.export_dealii(), mesh->hexahedra.export_vacuum());
+    fail = !poisson_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexahedra.export_vacuum());
     check_return(fail, "Importing vacuum mesh to Deal.II failed!");
     end_msg(t0);
     
@@ -243,7 +243,7 @@ int ProjectRunaway::solve_pic_vol2(const double E0, const double dt_main) {
     end_msg(t0);
 
     start_msg(t0, "=== Importing mesh to J&T solver...");
-    fail = !ch_solver_vol2.import_mesh_directly(mesh->nodes.export_dealii(), mesh->hexahedra.export_bulk());
+    fail = !ch_solver_vol2.import_mesh(mesh->nodes.export_dealii(), mesh->hexahedra.export_bulk());
     check_return(fail, "Importing bulk mesh to Deal.II failed!");
     end_msg(t0);
 
@@ -513,11 +513,9 @@ int ProjectRunaway::solve_converge_heat() {
 int ProjectRunaway::solve_converge_heat_vol2() {
 
     start_msg(t0, "=== Importing mesh to J & T solver...");
-    fail = !ch_solver_vol2.import_mesh_directly(mesh->nodes.export_dealii(), mesh->hexahedra.export_bulk());
+    fail = !ch_solver_vol2.import_mesh(mesh->nodes.export_dealii(), mesh->hexahedra.export_bulk());
     check_return(fail, "Importing bulk mesh to Deal.II failed!");
     end_msg(t0);
-
-    ch_solver_vol2.write("out/ch_solver.vtk");
 
     bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
     bulk_interpolator.lintets.narrow_search_to(TYPES.BULK);

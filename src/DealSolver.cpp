@@ -6,9 +6,14 @@
  */
 
 #include "DealSolver.h"
+#include "Constants.h"
+#include "Macros.h"
+
+#include <fstream>
 
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/matrix_tools.h>
+#include <deal.II/numerics/data_out.h>
 
 #include <deal.II/lac/solver_cg.h>
 #include <deal.II/lac/precondition.h>
@@ -16,9 +21,9 @@
 
 #include <deal.II/dofs/dof_tools.h>
 
-
 using namespace dealii;
 using namespace std;
+
 namespace fch {
 
 template<int dim>
@@ -86,14 +91,24 @@ double DealSolver<dim>::get_cell_vol(const int i) const {
 }
 
 template<int dim>
-void DealSolver<dim>::import_mesh_from_file(const string &file_name) {
-    MeshPreparer<dim> mesh_preparer;
-    mesh_preparer.import_mesh_from_file(&triangulation, file_name);
+bool DealSolver<dim>::import_mesh(const string &file_name) {
+    const string file_type = femocs::get_file_type(file_name);
+    require(file_type == "msh", "Unimplemented file type for mesh importing: " + file_type);
+
+    ifstream infile(file_name);
+    require(infile.is_open(), "Can't open a file " + file_name);
+
+    GridIn<dim, dim> gi;
+    gi.attach_triangulation(triangulation);
+    gi.read_msh(infile);
+
     mark_boundary();
+
+    return true;
 }
 
 template<int dim>
-bool DealSolver<dim>::import_mesh_directly(vector<Point<dim>> vertices, vector<CellData<dim>> cells) {
+bool DealSolver<dim>::import_mesh(vector<Point<dim>> vertices, vector<CellData<dim>> cells) {
     try {
         SubCellData subcelldata;
         // Do some clean-up on vertices...
@@ -113,9 +128,47 @@ bool DealSolver<dim>::import_mesh_directly(vector<Point<dim>> vertices, vector<C
 }
 
 template<int dim>
-void DealSolver<dim>::output_mesh(const string &file_name) {
-    MeshPreparer<dim> mesh_preparer;
-    mesh_preparer.output_mesh(&triangulation, file_name);
+void DealSolver<dim>::write(const string &file_name) const {
+    if (!femocs::MODES.WRITEFILE) return;
+
+    const string ftype = femocs::get_file_type(file_name);
+    ofstream outfile;
+    outfile.open(file_name);
+    require(outfile.is_open(), "Can't open a file " + file_name);
+
+    if (ftype == "vtk") {
+        const int n_nodes = solution.size();
+        require(n_nodes > 0, "Can't write empty solution!");
+        write_vtk(outfile);
+    }
+
+    else if (ftype == "msh") {
+        const int n_dofs = dof_handler.n_dofs();
+        require(n_dofs > 0, "Can't write empty mesh!");
+        write_msh(outfile);
+    }
+
+    else
+        require(false, "Unsupported file type: " + ftype);
+
+    outfile.close();
+}
+
+template<int dim>
+void DealSolver<dim>::write_vtk(ofstream& out) const {
+    DataOut<dim> data_out;
+    data_out.attach_dof_handler(dof_handler);
+    data_out.add_data_vector(solution, "solution");
+    data_out.build_patches();
+
+    data_out.write_vtk(out);
+}
+
+template<int dim>
+void DealSolver<dim>::write_msh(ofstream& out) const {
+    GridOut grid_out;
+    grid_out.set_flags(GridOutFlags::Msh(true, true));
+    grid_out.write_msh(triangulation, out);
 }
 
 template<int dim>
@@ -133,16 +186,16 @@ void DealSolver<dim>::get_surface_nodes(vector<Point<dim>>& nodes) const {
 
 template<int dim>
 void DealSolver<dim>::setup_system() {
-    // TODO implement assert for empty mesh!
-    this->dof_handler.distribute_dofs(this->fe);
+    require(this->dof_handler.get_triangulation().n_used_vertices() > 0,
+            "Can't setup system with no mesh!");
 
-    // Clear Diriclet boundary condition values
+    this->dof_handler.distribute_dofs(this->fe);
     this->boundary_values.clear();
 
     DynamicSparsityPattern dsp(this->dof_handler.n_dofs());
     DoFTools::make_sparsity_pattern(this->dof_handler, dsp);
-    this->sparsity_pattern.copy_from(dsp);
 
+    this->sparsity_pattern.copy_from(dsp);
     this->system_rhs.reinit(this->dof_handler.n_dofs());
     this->system_matrix.reinit(this->sparsity_pattern);
     this->system_matrix_save.reinit(this->sparsity_pattern);

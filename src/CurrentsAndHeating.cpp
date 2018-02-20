@@ -43,19 +43,21 @@ using namespace dealii;
 using namespace std;
 
 // ----------------------------------------------------------------------------------------
-// Class for outputting the resulting field distribution (calculated from potential distr.)
+/* Class for outputting the current density distribution
+ * being calculated from current potential distribution */
 template <int dim>
-class FieldPostProcessor : public DataPostprocessorVector<dim> {
+class CurrentPostProcessor : public DataPostprocessorVector<dim> {
 public:
-    FieldPostProcessor() : DataPostprocessorVector<dim>("field", update_gradients) {}
+    CurrentPostProcessor() : DataPostprocessorVector<dim>("current_density", update_gradients) {}
 
     void
-    compute_derived_quantities_scalar ( const std::vector<double>               &/*uh*/,
-                                        const std::vector<Tensor<1,dim> >       &duh,
-                                        const std::vector<Tensor<2,dim> >       &/*dduh*/,
-                                        const std::vector<Point<dim> >          &/*normals*/,
-                                        const std::vector<Point<dim> >          &/*evaluation_points*/,
-                                        std::vector<Vector<double> >            &computed_quantities) const {
+    compute_derived_quantities_scalar (
+            const vector<double>               &/*uh*/,
+            const vector<Tensor<1,dim> >       &duh,
+            const vector<Tensor<2,dim> >       &/*dduh*/,
+            const vector<Point<dim> >          &/*normals*/,
+            const vector<Point<dim> >          &/*evaluation_points*/,
+            vector<Vector<double> >            &computed_quantities) const {
         for (unsigned int i=0; i<computed_quantities.size(); i++) {
             for (unsigned int d=0; d<dim; ++d)
                 computed_quantities[i](d) = duh[i][d];
@@ -69,15 +71,16 @@ class SigmaPostProcessor : public DataPostprocessorScalar<dim> {
     PhysicalQuantities *pq;
 public:
     SigmaPostProcessor(PhysicalQuantities *pq_) :
-            DataPostprocessorScalar<dim>("sigma", update_values), pq(pq_) {
-    }
+            DataPostprocessorScalar<dim>("conductivity", update_values), pq(pq_) {}
+
     void
-    compute_derived_quantities_scalar ( const std::vector<double>               &uh,
-                                        const std::vector<Tensor<1,dim> >       &/*duh*/,
-                                        const std::vector<Tensor<2,dim> >       &/*dduh*/,
-                                        const std::vector<Point<dim> >          &/*normals*/,
-                                        const std::vector<Point<dim> >          &/*evaluation_points*/,
-                                        std::vector<Vector<double> >            &computed_quantities) const {
+    compute_derived_quantities_scalar (
+            const vector<double>               &uh,
+            const vector<Tensor<1,dim> >       &/*duh*/,
+            const vector<Tensor<2,dim> >       &/*dduh*/,
+            const vector<Point<dim> >          &/*normals*/,
+            const vector<Point<dim> >          &/*evaluation_points*/,
+            vector<Vector<double> >            &computed_quantities) const {
         for (unsigned int i=0; i<computed_quantities.size(); i++) {
             double temperature = uh[i];
             computed_quantities[i](0) = pq->sigma(temperature);
@@ -126,22 +129,16 @@ HeatSolver<dim>::HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *
         EmissionSolver<dim>(tria), current_solver(cs) {}
 
 template<int dim>
-void HeatSolver<dim>::write(const string &filename) const {
-    SigmaPostProcessor<dim> sigma_post_processor(this->pq);
+void HeatSolver<dim>::write_vtk(ofstream& out) const {
+    SigmaPostProcessor<dim> post_processor(this->pq);
     DataOut<dim> data_out;
 
     data_out.attach_dof_handler(this->dof_handler);
     data_out.add_data_vector(this->solution, "temperature");
-    data_out.add_data_vector(this->solution, sigma_post_processor);
+    data_out.add_data_vector(this->solution, post_processor);
 
     data_out.build_patches();
-
-    try {
-        ofstream output(filename);
-        data_out.write_vtk(output);
-    } catch (...) {
-        femocs::write_verbose_msg("Could not open " + filename);
-    }
+    data_out.write_vtk(out);
 }
 
 template<int dim>
@@ -362,23 +359,16 @@ CurrentSolver<dim>::CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim
         EmissionSolver<dim>(tria), heat_solver(hs) {}
 
 template<int dim>
-void CurrentSolver<dim>::write(const string &filename) const {
-
-    FieldPostProcessor<dim> field_post_processor; // needs to be before data_out
+void CurrentSolver<dim>::write_vtk(ofstream& out) const {
+    CurrentPostProcessor<dim> post_processor; // needs to be before data_out
     DataOut<dim> data_out;
 
     data_out.attach_dof_handler(this->dof_handler);
-    data_out.add_data_vector(this->solution, "potential");
-    data_out.add_data_vector(this->solution, field_post_processor);
+    data_out.add_data_vector(this->solution, "current_potential");
+    data_out.add_data_vector(this->solution, post_processor);
 
     data_out.build_patches();
-
-    try {
-        ofstream output(filename);
-        data_out.write_vtk(output);
-    } catch (...) {
-        femocs::write_verbose_msg("Could not open " + filename);
-    }
+    data_out.write_vtk(out);
 }
 
 template<int dim>
@@ -1285,7 +1275,7 @@ DoFHandler<dim>* CurrentsAndHeating<dim>::get_dof_handler_current() {
 template<int dim>
 void CurrentsAndHeating<dim>::output_results_current(const std::string filename) const {
 
-    FieldPostProcessor<dim> field_post_processor; // needs to be before data_out
+    CurrentPostProcessor<dim> field_post_processor; // needs to be before data_out
     DataOut<dim> data_out;
 
     data_out.attach_dof_handler(dof_handler_current);

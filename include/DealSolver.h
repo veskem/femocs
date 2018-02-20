@@ -17,6 +17,7 @@
 
 using namespace dealii;
 using namespace std;
+
 namespace fch {
 
 template<int dim> class PoissonSolver;
@@ -40,9 +41,6 @@ public:
     /** Provide dof_handler object to get access to the mesh data */
     DoFHandler<dim>* get_dof_handler() { return &dof_handler; }
 
-    /** Return the solution vector */
-    Vector<double>* get_solution() { return &solution; };
-
     /** Get the solution value at the specified point. NB: Slow! */
     double probe_solution(const Point<dim> &p) const;
 
@@ -64,19 +62,16 @@ public:
      * Import mesh from file and set the boundary indicators corresponding to copper
      * @param file_name   file from the mesh is imported
      */
-    void import_mesh_from_file(const string &file_name);
+    bool import_mesh(const string &file_name);
 
     /**
      * imports mesh directly from vertex and cell data and sets the boundary indicators
      * @return true if success, otherwise false
      */
-    bool import_mesh_directly(vector<Point<dim>> vertices, vector<CellData<dim>> cells);
+    bool import_mesh(vector<Point<dim>> vertices, vector<CellData<dim>> cells);
 
-    /** outputs the mesh to .vtk file */
-    void output_mesh(const string &file_name);
-
-    /** Write the simulation results to file */
-    virtual void write(const string &filename) const {};
+    /** Write data to file; data type and format is determined with the file extention */
+    void write(const string &filename) const;
 
     /** Print the statistics about the mesh and # degrees of freedom */
     friend ostream& operator <<(ostream &os, const DealSolver<dim>& d) {
@@ -108,12 +103,6 @@ protected:
 
     /** Variables used during the assembly of matrix equation */
     map<types::global_dof_index, double> boundary_values;
-
-    /** Mark different regions of the mesh */
-    virtual void mark_boundary() {}
-
-    /** Return the boundary condition value at the centroid of face */
-    virtual double get_face_bc(const unsigned int face) const { return 1.0; }
 
     /** Helper function for the public shape_funs */
     vector<double> shape_funs(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
@@ -147,6 +136,18 @@ protected:
     void restore_system() {
         system_matrix.copy_from(system_matrix_save);
     }
+
+    /** Write the mesh to msh file that can in turn be imported to Deal.II */
+    void write_msh(ofstream& out) const;
+
+    /** Write the simulation results to file in vtk format that can be visualized in Paraview */
+    virtual void write_vtk(ofstream& out) const;
+
+    /** Mark different regions of the mesh */
+    virtual void mark_boundary() {}
+
+    /** Return the boundary condition value at the centroid of face */
+    virtual double get_face_bc(const unsigned int face) const { return 1.0; }
 
     friend class PoissonSolver<dim>;
     friend class CurrentHeatSolver<dim>;

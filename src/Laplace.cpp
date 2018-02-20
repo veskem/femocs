@@ -36,20 +36,22 @@ using namespace dealii;
 //using namespace std;
 
 // ----------------------------------------------------------------------------------------
-// Class for outputting the resulting field distribution (calculated from potential distr.)
-
+/* Class for outputting the field distribution
+ * being calculated from potential distribution */
 template <int dim>
 class LaplacePostProcessor : public DataPostprocessorVector<dim> {
 public:
-    LaplacePostProcessor() : DataPostprocessorVector<dim>("Field", update_values | update_gradients) {}
+//    LaplacePostProcessor() : DataPostprocessorVector<dim>("field", update_values | update_gradients) {}
+    LaplacePostProcessor() : DataPostprocessorVector<dim>("field", update_gradients) {}
 
     void
-    compute_derived_quantities_scalar ( const vector<double>             &/*uh*/,
+    compute_derived_quantities_scalar (
+            const vector<double>             &/*uh*/,
             const vector<Tensor<1,dim> >     &duh,
             const vector<Tensor<2,dim> >     &/*dduh*/,
-            const vector<Point<dim> >          &/*normals*/,
-            const vector<Point<dim> >          &/*evaluation_points*/,
-            vector<Vector<double> >            &computed_quantities) const {
+            const vector<Point<dim> >        &/*normals*/,
+            const vector<Point<dim> >        &/*evaluation_points*/,
+            vector<Vector<double> >          &computed_quantities) const {
         for (unsigned int i=0; i<computed_quantities.size(); i++) {
             for (unsigned int d=0; d<dim; ++d)
                 computed_quantities[i](d) = duh[i][d];
@@ -335,22 +337,16 @@ void PoissonSolver<dim>::assemble_space_charge() {
 }
 
 template<int dim>
-void PoissonSolver<dim>::write(const string &filename) const {
-    LaplacePostProcessor<dim> field_calculator; // needs to be before data_out
+void PoissonSolver<dim>::write_vtk(ofstream& out) const {
+    LaplacePostProcessor<dim> post_processor; // needs to be before data_out
     DataOut<dim> data_out;
 
     data_out.attach_dof_handler(this->dof_handler);
-    data_out.add_data_vector(this->solution, "potential_v");
-    data_out.add_data_vector(this->solution, field_calculator);
+    data_out.add_data_vector(this->solution, "electric_potential");
+    data_out.add_data_vector(this->solution, post_processor);
 
     data_out.build_patches();
-
-    try {
-        ofstream output(filename);
-        data_out.write_vtk(output);
-    } catch (...) {
-        femocs::write_verbose_msg("Could not open " + filename);
-    }
+    data_out.write_vtk(out);
 }
 
 /* ==================================================================

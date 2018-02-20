@@ -42,7 +42,6 @@ namespace fch {
 // forward declaration for friend class
 template<int dim> class CurrentsAndHeating;
 template<int dim> class CurrentsAndHeatingStationary;
-template<int dim> class CurrentHeatSolver;
 
 
 using namespace dealii;
@@ -299,9 +298,6 @@ public:
      * as specified in config file. */
     void assemble_poisson(const bool first_time);
 
-    /** Outputs the results (electric potential and field) to a specified file in vtk format */
-    void write(const string &filename) const;
-
 private:
     const ParticleSpecies* particles;
     const femocs::Config::Field *conf;   ///< solver parameters
@@ -314,6 +310,9 @@ private:
     double probe_efield_norm(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
 
     Tensor<1, dim, double> probe_efield(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
+
+    /** Write the electric potential and field to a file in vtk format */
+    void write_vtk(ofstream& out) const;
 
     /** Mark different regions in mesh */
     void mark_boundary();
@@ -330,10 +329,6 @@ private:
 
     /** Add to the right-hand-side vector for point charges, as used in PIC. */
     void assemble_space_charge();
-
-    friend class CurrentsAndHeating<dim> ;
-    friend class CurrentsAndHeatingStationary<dim> ;
-    friend class CurrentHeatSolver<dim> ;
 };
 
 } // namespace fch

@@ -69,9 +69,6 @@ public:
     CurrentSolver();
     CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim> *hs);
 
-    /** Output the electric potential [V] and field [V/nm] in vtk format */
-    void write(const string &filename) const;
-
     /** @brief assemble the matrix equation for current density calculation.
      * Calculate sparse matrix elements and right-hand-side vector
      * according to the continuity equation weak formulation and to the boundary conditions.
@@ -81,6 +78,9 @@ public:
 private:
     const HeatSolver<dim>* heat_solver;
     
+    // TODO figure out what is written
+    void write_vtk(ofstream& out) const;
+
     /** Return the boundary condition value at the centroid of face */
     double get_face_bc(const unsigned int face) const;
 
@@ -95,9 +95,6 @@ class HeatSolver : public EmissionSolver<dim> {
 public:
     HeatSolver();
     HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *cs);
-
-    /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] in vtk format */
-    void write(const string &filename) const;
 
     /** Assemble the matrix equation for temperature calculation
      * using Crank-Nicolson or implicit Euler time integration method. */
@@ -118,6 +115,9 @@ private:
      * according to the time dependent heat equation weak formulation and to the boundary conditions.
      */
     void assemble_euler_implicit(const double delta_time);
+
+    /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] in vtk format */
+    void write_vtk(ofstream& out) const;
 
     /** Return the boundary condition value at the centroid of face */
     double get_face_bc(const unsigned int face) const;
