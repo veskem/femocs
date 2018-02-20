@@ -23,25 +23,31 @@ Pic<dim>::~Pic() {}
 
 template<int dim>
 int Pic<dim>::inject_electrons(const bool fractional_push) {
-    vector<Point3> positions, fields;
+    vector<Point3> positions;
     vector<int> cells;
-    er.inject_electrons(dt, Wel, positions, fields, cells);
+    er.inject_electrons(dt, Wel, positions, cells);
 
     Point3 velocity0(0,0,0);
 
-    for (int i = 0; i < fields.size(); ++i){
+    for (int i = 0; i < positions.size(); ++i){
+
+        //update the field
+        dealii::Point<dim> p(positions[i].x, positions[i].y, positions[i].z);
+        dealii::Tensor<1,dim> Efield = laplace_solver.probe_efield(p, cells[i]) ;
+        Point3 Field(Efield[0], Efield[1], Efield[2]);
+
         // Random fractional timestep push -- from a random point [t_(k-1),t_k] to t_k, t_(k + 1/2), using field at t_k.
         if (fractional_push) {
-            velocity0 = fields[i] * electrons.q_over_m_factor * dt * ( (double)std::rand()/ RAND_MAX +.5 );
+            velocity0 = Field * electrons.q_over_m_factor * dt * ( (double)std::rand()/ RAND_MAX +.5 );
             positions[i] += velocity0 * dt * ( (double)std::rand()/ RAND_MAX );
         }else{
-            velocity0 = fields[i] * (electrons.q_over_m_factor * dt * .5);
+            velocity0 = Field * (electrons.q_over_m_factor * dt * .5);
         }
 
         // Save to particle arrays
         electrons.inject_particle(positions[i], velocity0, cells[i]);
     }
-    return fields.size();
+    return positions.size();
 
 }
 

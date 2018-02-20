@@ -258,7 +258,7 @@ private:
     HeatReader  surface_temperatures = HeatReader(&bulk_interpolator); ///< temperatures & current densities on surface hex face centroids
 
     /// emission data on centroids of surface quadrangles
-    EmissionReader emission = EmissionReader(surface_fields, surface_temperatures, &vacuum_interpolator);
+    EmissionReader emission = EmissionReader(surface_fields, surface_temperatures, &vacuum_interpolator, laplace_solver);
 
     /// physical quantities used in heat calculations
     fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);

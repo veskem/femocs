@@ -137,6 +137,8 @@ public:
     /** Calculate the electric field for the transient current and temperature solver */
     void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver);
 
+    void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver, fch::Laplace<3>& laplace_solver);
+
     /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
     void export_elfield(const int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
@@ -211,7 +213,7 @@ private:
 /** Class to calculate field emission effects with GETELEC */
 class EmissionReader: public SolutionReader {
 public:
-    EmissionReader(const FieldReader& fields, const HeatReader& heat, Interpolator* i);
+    EmissionReader(const FieldReader& fields, const HeatReader& heat, Interpolator* i, fch::Laplace<3>& laplace);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
      * estimation of the space charge effects.
@@ -226,8 +228,7 @@ public:
     /**
      * Injects electron SPs at the surface faces, depending on the current and the timestep
      */
-    void inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
-            vector<Point3> &efield, vector<int> &cells);
+    void inject_electrons(double delta_t, double Wsp, vector<Point3> &pos, vector<int> &cells);
 
     /** Initialises class data */
     void initialize(const TetgenMesh* m);
@@ -264,6 +265,8 @@ private:
     const FieldReader& fields;    ///< Object containing the field on centroids of hex interface faces.
     const HeatReader& heat;       ///< Object containing the temperature on centroids of hexahedral faces.
     const TetgenMesh* mesh;     ///< Object containing information on the mesh.
+
+    const fch::Laplace<3>& laplace; ///< Object containing Poisson solver information
 
     vector<double> current_densities;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
     vector<double> nottingham; ///< Same as current_densities for nottingham heat deposition [in W/A^2]

@@ -325,6 +325,7 @@ int Femocs::prepare_fem(){
 int Femocs::solve_pic(const double E0, const double dt_main) {
 
     const int n_write = 50;
+    const int n_write_data = 50;
 
     int time_subcycle = ceil(dt_main / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
     double dt_pic = dt_main/time_subcycle;
@@ -349,10 +350,18 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         pic_solver.inject_electrons(conf.pic.fractional_push);
         end_msg(t0);
 
+
+        if (i % n_write_data == 0){
+            emission.export_emission(ch_transient_solver);
+            emission.write("out/surface_emission.movie");
+            emission.write_data("out/emission_data.dat", i * dt_pic);
+            surface_fields.write("out/surface_fields.movie");
+        }
+
+
         if ((i % n_write) == 0){
             pic_solver.write_particles("out/electrons.movie", i * dt_pic);
             vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-            emission.write_data("out/emission_data.dat", i * dt_pic);
         }
     }
     return fail;
@@ -497,9 +506,6 @@ void Femocs::get_emission(){
     emission.initialize(mesh);
     emission.calc_emission(conf.emission, conf.field.V0);
     end_msg(t0);
-
-//    surface_fields.write("out/surface_fields.xyz");
-//    emission.write("out/surface_emission.xyz");
 }
 
 // Solve transient heat and continuity equations

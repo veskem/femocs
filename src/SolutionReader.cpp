@@ -938,9 +938,9 @@ double HeatReader::get_temperature(const int i) const {
  * ============= EMISSION READER ============
  * ========================================== */
 
-EmissionReader::EmissionReader(const FieldReader& fr, const HeatReader& hr, Interpolator* i) :
+EmissionReader::EmissionReader(const FieldReader& fr, const HeatReader& hr, Interpolator* i,fch::Laplace<3>& _laplace) :
         SolutionReader(i, "none", "rho_norm", "temperature"),
-        fields(fr), heat(hr), mesh(NULL) {
+        fields(fr), heat(hr), mesh(NULL), laplace(_laplace) {
     initialize(NULL);
 }
 
@@ -949,18 +949,14 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     int n_nodes = fields.size();
 
     // deallocate and allocate currents data
-    current_densities.clear();
-    nottingham.clear();
-    currents.clear();
-    current_densities.reserve(n_nodes);
-    nottingham.reserve(n_nodes);
-    currents.reserve(n_nodes);
+
+    current_densities.resize(n_nodes);
+    nottingham.resize(n_nodes);
+    currents.resize(n_nodes);
 
     //deallocate and allocate lines
-    rline.clear();
-    Vline.clear();
-    rline.reserve(n_lines);
-    Vline.reserve(n_lines);
+    rline.resize(n_lines);
+    Vline.resize(n_lines);
 
     // find Fmax
     for (int i = 0; i < n_nodes; ++i)
@@ -1048,11 +1044,9 @@ void EmissionReader::calc_representative() {
     global_data.Frep = global_data.multiplier * FJ / global_data.I_fwhm;
 }
 
-void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3> &pos,
-        vector<Point3> &efield, vector<int> &cells) {
+void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3> &pos, vector<int> &cells) {
 
     const double Amp = 6.2415e3; //[e/fs]
-    Vec3 field;
 
     for (int i = 0; i < fields.size(); ++i){ // go through face centroids
         double current = currents[i] * Amp; // in e/fs
@@ -1069,7 +1063,6 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
         if (!n_electrons_sp)
             continue;
 
-        field = fields.get_elfield(i);
 
         //TODO : fix rng
 
@@ -1077,7 +1070,6 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
         int tri = mesh->quads.to_tri(quad);
         int hex = mesh->quad2hex(quad, TYPES.VACUUM);
         hex = interpolator->linhexs.femocs2deal(hex);
-
         SimpleQuad squad = mesh->quads[quad];
 
         // generate desired amount of electrons
@@ -1085,10 +1077,9 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
         for (int j = 0; j < n_electrons_sp; j++){
             Point3 position = interpolator->linquads.get_rnd_point(quad);
             // push point little bit inside the vacuum mesh
-            position += mesh->faces.get_norm(tri) * (mesh->faces.stat.edgemin * 0.01);
+            position += mesh->faces.get_norm(tri) * (mesh->faces.stat.edgemin * 1.e-5);
 
             pos.push_back(position);
-            efield.push_back(field);
 			cells.push_back(hex);
         }
     }
@@ -1106,7 +1097,20 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt){
     for (int i = 0; i < fields.size(); ++i) { // go through all face centroids
 
         Vec3 field = fields.get_elfield(i); //local field
-        F = global_data.multiplier * field.norm();
+
+//        F = global_data.multiplier * field.norm();
+        int quad = fields.get_marker(i);
+
+        int hexfemocs = mesh->quad2hex(quad, TYPES.VACUUM);
+        int hexdeal = interpolator->linhexs.femocs2deal(hexfemocs);
+
+//
+
+        Point3 centr = fields.get_point(i);
+
+        dealii::Point<3> centr_deal(centr.x, centr.y, centr.z);
+
+        F = global_data.multiplier * laplace.probe_efield(centr_deal, hexdeal).norm();
         gt.mode = 0;
         gt.F = angstrom_per_nm * F;
         gt.Temp = heat.get_temperature(i);
@@ -1175,7 +1179,6 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         global_data.multiplier = theta_old + error * err_fact;
         theta_old = global_data.multiplier;
         if (abs(error) < conf.SC_error) break; //if converged break
-
     }
 }
 
@@ -1195,14 +1198,11 @@ void EmissionReader::write_data(string filename, double time) {
 
 }
 
-
-
-
-//export emissino to ch solver
+//export emission to ch solver and set interpolation for file writing
 void EmissionReader::export_emission(fch::CurrentsAndHeating<3>& ch_solver){
-    for (int i = 0; i < nottingham.size(); i++) // append data for surface emission xyz file
+    for (int i = 0; i < nottingham.size(); i++) {// append data for surface emission xyz file
         append_interpolation( Solution(Vec3(0), log(current_densities[i]), log(fabs(nottingham[i]))));
-
+    }
     ch_solver.set_emission_bc(current_densities, nottingham); // output data for heat BCs
 }
 

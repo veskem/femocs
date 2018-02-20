@@ -1,5 +1,5 @@
 elfield  = -0.35  # Max value of applied elctric field (V/Å)
-Vappl = 450
+Vappl = 150
 anode_BC = dirichlet
 
 workfunc = 4.5 
@@ -15,7 +15,7 @@ heating_mode = transient
 distance_tol = 0;
 femocs_verbose_mode = silent;     # enable or disable the verbose mode
 element_volume = 1000 #10x10x10 Angstrom
-#mesh_quality = 1.25
+mesh_quality = 1.5
 n_writefile = 1
 surface_cleaner = none; #faces or voronois
 charge_smooth_factor = 1.0;
@@ -25,15 +25,15 @@ clear_output = true
 coord_cutoff = 3.1
 #cluster_cutoff = 4.2
 radius = 10000.0  #inner radius of coarsening cylinder
-box_height = 100
+box_height = 30
 box_width = 0.
 bulk_height = 10.
-
+emitter_blunt = true
 # PIC parameters
 ---------------------
 doPIC = true
-PIC_dtmax = .01 #[fs]
-PIC_time = 50 #[fs]
+PIC_dtmax = .004 #[fs]
+PIC_time = 30 #[fs]
 PIC_fractional_push = true
-PIC_collide_coulomb_ee = false
-electronWsp = 0.005
+PIC_collide_coulomb_ee = true
+electronWsp = 0.0005
