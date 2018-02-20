@@ -155,44 +155,6 @@ void Interpolator::initialize(const TetgenMesh* m, const double empty_val) {
         nodes.append_solution(Solution(empty_val));
 }
 
-void Interpolator::extract_solution(fch::Laplace<3>* fem) {
-    require(fem, "NULL pointer can't be handled!");
-
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> femocs2deal, cell_indxs, vert_indxs;
-    get_maps(femocs2deal, cell_indxs, vert_indxs, fem->get_triangulation(), fem->get_dof_handler());
-
-    // Read and store the electric field and potential from FEM solver
-    store_solution(femocs2deal, fem->get_efield(cell_indxs, vert_indxs),
-            fem->get_potential(cell_indxs, vert_indxs));
-
-    // Remove the spikes from the solution
-    average_sharp_nodes(true);
-}
-
-void Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
-    require(fem, "NULL pointer can't be handled!");
-
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> femocs2deal, cell_indxs, vert_indxs;
-    get_maps(femocs2deal, cell_indxs, vert_indxs, fem->get_triangulation(), fem->get_dof_handler());
-
-    // Read and store current densities and temperatures from FEM solver
-    store_solution(femocs2deal, fem->get_current(cell_indxs, vert_indxs),
-            fem->get_temperature(cell_indxs, vert_indxs));
-}
-
-void Interpolator::extract_solution(fch::CurrentsAndHeating<3>& fem) {
-
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> femocs2deal, cell_indxs, vert_indxs;
-    get_maps(femocs2deal, cell_indxs, vert_indxs, fem.get_triangulation(), fem.get_dof_handler_current());
-
-    // Read and store current densities and temperatures from FEM solver
-    store_solution(femocs2deal, fem.get_current(cell_indxs, vert_indxs),
-            fem.get_temperature(cell_indxs, vert_indxs));
-}
-
 void Interpolator::extract_solution(fch::CurrentHeatSolver<3>& fem) {
 
     // To make solution extraction faster, generate mapping between desired and available data sequences

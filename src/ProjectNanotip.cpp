@@ -21,9 +21,11 @@
 using namespace std;
 namespace femocs {
 
-ProjectNanotip::ProjectNanotip(AtomReader &a, Config &c) :
-        GeneralProject(a, c),
-        skip_meshing(false), fail(false), t0(0), timestep(-1), last_full_timestep(0)
+ProjectNanotip::ProjectNanotip(AtomReader &a, Config &conf_) :
+        GeneralProject(a, conf_),
+        skip_meshing(false), fail(false), t0(0), timestep(-1), last_full_timestep(0),
+        vacuum_interpolator("elfield", "potential"),
+        poisson_solver(NULL, &conf_.field)
 {
     fields.set_interpolator(&vacuum_interpolator);
 }
@@ -238,32 +240,32 @@ int ProjectNanotip::generate_mesh() {
 
 // Solve Laplace equation
 int ProjectNanotip::solve_laplace(const double E0) {
+    bool first_time = true;
     conf.field.E0 = E0;       // reset long-range electric field
 
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
     fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
 
-    start_msg(t0, "=== Importing mesh to Laplace solver...");
-    fail = !laplace_solver.import_mesh_directly(mesh->nodes.export_dealii(),
-            mesh->hexahedra.export_vacuum());
+    start_msg(t0, "=== Importing mesh to Poisson solver...");
+    fail = !poisson_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexahedra.export_vacuum());
     check_return(fail, "Importing mesh to Deal.II failed!");
     end_msg(t0);
 
-    start_msg(t0, "=== Initializing Laplace solver...");
-    laplace_solver.setup_system(true);
-    laplace_solver.assemble_system(-E0);
+    start_msg(t0, "=== Initializing Poisson solver...");
+    poisson_solver.setup(-E0);
+    poisson_solver.assemble_laplace(first_time);
     end_msg(t0);
 
-    stringstream ss; ss << laplace_solver;
+    stringstream ss; ss << poisson_solver;
     write_verbose_msg(ss.str());
 
-    start_msg(t0, "=== Running Laplace solver...");
-    int ncg = laplace_solver.solve(conf.field.n_phi, conf.field.phi_error, true, conf.field.ssor_param);
+    start_msg(t0, "=== Running Poisson solver...");
+    int ncg = poisson_solver.solve();
     end_msg(t0);
 
     start_msg(t0, "=== Extracting E and phi...");
     vacuum_interpolator.initialize(mesh);
-    vacuum_interpolator.extract_solution(&laplace_solver);
+    vacuum_interpolator.extract_solution(poisson_solver);
     end_msg(t0);
 
     check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()), "Field enhancement is out of limits!");
@@ -271,8 +273,6 @@ int ProjectNanotip::solve_laplace(const double E0) {
     vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
     vacuum_interpolator.lintets.write("out/result_E_phi_linear.vtk");
     vacuum_interpolator.quadtets.write("out/result_E_phi_quad.vtk");
-
-    laplace_solver.write("out/laplace.vtk");
 
     return fail;
 }

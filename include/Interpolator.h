@@ -13,7 +13,6 @@
 #include "TetgenMesh.h"
 #include "InterpolatorCells.h"
 #include "CurrentsAndHeating.h"
-#include "CurrentsAndHeatingStationary.h"
 #include "Laplace.h"
 
 using namespace std;
@@ -52,15 +51,6 @@ public:
 
     /** Initialise interpolator and store solution with default value */
     void initialize(const TetgenMesh* mesh, const double empty_value=0);
-
-    /** Extract the electric potential and field values from FEM solution */
-    void extract_solution(fch::Laplace<3>* fem);
-
-    /** Extract the current density and stationary temperature values from FEM solution */
-    void extract_solution(fch::CurrentsAndHeatingStationary<3>* fem);
-
-    /** Extract the current density and transient temperature values from FEM solution */
-    void extract_solution(fch::CurrentsAndHeating<3>& fem);
 
     /** Extract the current density and transient temperature values from FEM solution */
     void extract_solution(fch::CurrentHeatSolver<3>& fem);

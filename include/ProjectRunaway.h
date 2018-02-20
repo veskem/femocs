@@ -17,7 +17,6 @@
 #include "Interpolator.h"
 #include "TetgenMesh.h"
 #include "CurrentsAndHeating.h"
-#include "CurrentsAndHeatingStationary.h"
 #include "PhysicalQuantities.h"
 #include "Pic.h"
 
@@ -42,13 +41,9 @@ public:
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
     int run(const double elfield, const int timestep=-1);
-    
-    int solve_poisson(const double E0);
-    
+
     /** Evolve the PIC simulation one Femocs time step */
     int solve_pic(const double E0, const double dt_main);
-    
-    int solve_pic_vol2(const double E0, const double dt_main);
 
     /** Pick a method to solve heat and continuity equations on bulk mesh */
     int solve_heat(const double T_ambient);
@@ -57,37 +52,22 @@ public:
     int force_output();
 
 private:
-    Interpolator bulk_interpolator = Interpolator("rho", "temperature");
+    Interpolator bulk_interpolator;
 
     FieldReader surface_fields;       ///< fields on surface hex face centroids
     HeatReader  surface_temperatures; ///< temperatures & current densities on surface hex face centroids
     EmissionReader emission;          ///< emission data on centroids of surface quadrangles
 
-    fch::PoissonSolver<3> poisson_solver;   ///< Poisson equation solver
-
     /// physical quantities used in heat calculations
-    fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);
-    fch::CurrentsAndHeatingStationary<3>  ch_solver1;     ///< first    steady-state currents and heating solver
-    fch::CurrentsAndHeatingStationary<3>  ch_solver2;     ///< second   steady-state currents and heating solver
-    fch::CurrentsAndHeatingStationary<3>* ch_solver;      ///< active   steady-state currents and heating solver
-    fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous steady-state currents and heating solver
-    fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
-
-    Pic<3> pic_solver;    ///< Class for solving Poisson equation and handling space charge
-    
-    fch::CurrentHeatSolver<3> ch_solver_vol2;
-    PicSolver<3> pic_solver_vol2;    ///< Class for solving Poisson equation and handling space charge
-
-    /** Solve steady-state heat and continuity equations */
-    int solve_stationary_heat();
+    fch::PhysicalQuantities phys_quantities;
+    fch::CurrentHeatSolver<3> ch_solver;   ///< transient currents and heating solver
+    Pic<3> pic_solver;                     ///< class for solving Poisson equation and handling space charge
 
     /** Solve transient heat and continuity equations */
     int solve_transient_heat(const double delta_time);
 
     /** Solve transient heat and continuity equation until convergence is reached */
     int solve_converge_heat();
-
-    int solve_converge_heat_vol2();
     
     double max_field();
 };

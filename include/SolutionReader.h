@@ -17,7 +17,6 @@
 #include "Config.h"
 #include "DealSolver.h"
 #include "CurrentsAndHeating.h"
-#include "CurrentsAndHeatingStationary.h"
 
 using namespace std;
 namespace femocs {
@@ -129,9 +128,9 @@ public:
 
     FieldReader(Interpolator* i);
 
-    void test_pic(fch::Laplace<3>* laplace, const Medium& medium);
+    void test_pic(fch::PoissonSolver<3>* laplace, const Medium& medium);
 
-    void test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium, const TetgenMesh& mesh);
+    void test_pic_vol2(fch::PoissonSolver<3>* laplace, const Medium& medium, const TetgenMesh& mesh);
 
     void test_pic_vol3(const TetgenMesh& mesh) const;
 
@@ -143,12 +142,6 @@ public:
 
     /** Interpolate electric field and potential on a set of points */
     void interpolate(const int n_points, const double* x, const double* y, const double* z);
-
-    /** Calculate the electric field for the stationary current and temperature solver */
-    void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver);
-
-    /** Calculate the electric field for the transient current and temperature solver */
-    void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver);
 
     /** Return electric field in i-th interpolation point */
     Vec3 get_elfield(const int i) const;
@@ -201,7 +194,7 @@ private:
     double get_analyt_enhancement() const;
 
     /** Interpolate electric field for heating module */
-    void interpolate(vector<double>& elfields, const vector<dealii::Point<3>>& nodes);
+//    void interpolate(vector<double>& elfields, const vector<dealii::Point<3>>& nodes);
 };
 
 /** Class to interpolate current densities and temperatures */
@@ -215,8 +208,6 @@ public:
 
     /** Linearly interpolate currents and temperatures in the bulk.
      *  In case of empty interpolator, constant values are stored. */
-    void interpolate(fch::CurrentsAndHeating<3>& ch_solver);
-
     void interpolate(fch::DealSolver<3>& solver);
 
     /** Export interpolated temperature */
@@ -235,7 +226,7 @@ private:
 class EmissionReader: public SolutionReader {
 public:
 
-    EmissionReader(const FieldReader& fields, const HeatReader& heat, Interpolator* i);
+    EmissionReader(const FieldReader *fields, const HeatReader *heat, Interpolator* i);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
      * estimation of the space charge effects.
@@ -246,8 +237,6 @@ public:
     void calc_emission(const Config::Emission &conf, double Vappl = -1);
 
     double calc_emission(const double multiplier, const Config::Emission &conf, double Vappl);
-
-    void export_emission(fch::CurrentsAndHeating<3>& ch_solver);
 
     void export_emission(fch::CurrentHeatSolver<3>& ch_solver);
 
@@ -287,9 +276,9 @@ private:
     static constexpr double nm2_per_angstrom2 = 0.01;
     static constexpr int n_lines = 32; ///< Number of points in the line for GETELEC
 
-    const FieldReader& fields;    ///< Object containing the field on centroids of hex interface faces.
-    const HeatReader& heat;       ///< Object containing the temperature on centroids of hexahedral faces.
-    const TetgenMesh* mesh;     ///< Object containing information on the mesh.
+    const FieldReader *fields;    ///< Object containing the field on centroids of hex interface faces.
+    const HeatReader *heat;       ///< Object containing the temperature on centroids of hexahedral faces.
+    const TetgenMesh *mesh;     ///< Object containing information on the mesh.
 
     vector<double> current_densities;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
     vector<double> nottingham; ///< Same as current_densities for nottingham heat deposition [in W/A^2]
