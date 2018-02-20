@@ -39,7 +39,7 @@ public:
     /**
      * Run an particle and field update cycle
      */
-    void run_cycle(bool first_time = false);
+    void run_cycle(bool first_time = false, bool write_time = false);
 
     /**
      * Write the particle data in the current state in movie file
@@ -95,7 +95,7 @@ private:
     void update_velocities();
 
     /** Computes the charge density for each FEM DOF */
-    void compute_field(bool first_time = false);
+    void compute_field(bool first_time = false, bool write_time = false);
     
 };
 

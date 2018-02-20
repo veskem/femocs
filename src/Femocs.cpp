@@ -335,7 +335,7 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
     //Time loop
     for (int i = 0; i < time_subcycle; i++) {
 
-        pic_solver.run_cycle(mesh != NULL && i == 0);
+        pic_solver.run_cycle(mesh != NULL && i == 0, i % n_write_data == 0);
 
         start_msg(t0, "=== Extracting E and phi...");
         fail = vacuum_interpolator.extract_solution(&laplace_solver);
@@ -362,6 +362,8 @@ int Femocs::solve_pic(const double E0, const double dt_main) {
         if ((i % n_write) == 0){
             pic_solver.write_particles("out/electrons.movie", i * dt_pic);
             vacuum_interpolator.nodes.write("out/result_E_phi.movie");
+            vacuum_interpolator.extract_rhs(&laplace_solver);
+            vacuum_interpolator.nodes.write("out/result_E_charge.movie");
         }
     }
     return fail;

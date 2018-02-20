@@ -53,20 +53,26 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
 
 //Call the laplace solver with the list of positions and charge(s)
 template<int dim>
-void Pic<dim>::compute_field(bool first_time) {
+void Pic<dim>::compute_field(bool first_time, bool write_time) {
 
     //TODO : save system lhs and copy it . don't rebuild it every time
 
-    double t0;
     laplace_solver.setup_system(first_time);
     if (first_time){
         laplace_solver.assemble_system_lhs();
+        laplace_solver.update_dof_vol();
         laplace_solver.save_system();
     }else{
         laplace_solver.restore_system();
     }
 
     laplace_solver.assemble_system_pointcharge(electrons);
+
+    if (write_time){
+        laplace_solver.save_charge();
+    }
+
+
     if (anodeBC == "neumann")
         laplace_solver.assemble_system_neuman(fch::BoundaryId::vacuum_top, -E0);
     else if(anodeBC == "dirichlet")
@@ -117,7 +123,7 @@ void Pic<dim>::update_velocities(){
 }
 
 template<int dim>
-void Pic<dim>::run_cycle(bool first_time) {
+void Pic<dim>::run_cycle(bool first_time, bool charge_write_time) {
     double t0;
 
     start_msg(t0,"=== Updating PIC particle positions ...");
@@ -128,7 +134,7 @@ void Pic<dim>::run_cycle(bool first_time) {
     end_msg(t0);
 
     start_msg(t0, "=== Calculating electric field ...");
-    compute_field(first_time);
+    compute_field(first_time, charge_write_time);
     end_msg(t0);
 
     start_msg(t0, "=== Updating the PIC particle velocities ...");

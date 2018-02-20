@@ -103,6 +103,10 @@ public:
 //        system_rhs = system_rhs_save;
     }
 
+    void save_charge(){
+        system_rhs_save = system_rhs;
+    }
+
     /** Values of the shape functions at point p with respect to the nodes of
      * cell with cell_index p has to belong in cell_index!!
      */
@@ -119,8 +123,13 @@ public:
     std::vector<double> get_potential(const std::vector<int> &cell_indexes,
             const std::vector<int> &vert_indexes);
 
+    std::vector<double> get_charge_dens(const std::vector<int> &cell_indexes,
+            const std::vector<int> &vert_indexes);
+
 
     double get_cell_vol(int cellid);
+
+    double update_dof_vol();
 
     /**
      * method to obtain the electric field values in selected nodes
@@ -221,7 +230,11 @@ private:
 
     Vector<double> solution;              ///< resulting electric potential in the mesh nodes
     Vector<double> system_rhs;            ///< right-hand-side of the matrix equation
-//    Vector<double> system_rhs_save; ///< system RHS of matrix equation (save before Dirichlet BCs remove dofs)
+    Vector<double> system_rhs_save;     ///< system RHS of matrix equation (save before Dirichlet BCs remove dofs)
+
+    Vector<double> dof_vol;             ///< integral of the shape functions
+
+
 
     std::map<types::global_dof_index, double> boundary_values; // Map of dirichlet boundary conditions
 

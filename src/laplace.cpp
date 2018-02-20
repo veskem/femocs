@@ -249,6 +249,35 @@ double Laplace<dim>::get_cell_vol(int cellid){
     return cell->measure();
 }
 
+
+template<int dim>
+double Laplace<dim>::update_dof_vol(){
+
+    QGauss<dim> quadrature_formula(quadrature_degree);
+
+    FEValues<dim> fe_values(fe, quadrature_formula, update_quadrature_points | update_JxW_values);
+
+
+    dof_vol.reinit(dof_handler.n_dofs()); // reset dof_vol
+    std::vector<types::global_dof_index> local_dof_indices(fe.dofs_per_cell);
+
+    typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(), endc = dof_handler.end();
+
+    // Iterate over all cells
+    for (; cell != endc; ++cell) {
+        fe_values.reinit(cell);
+        cell->get_dof_indices(local_dof_indices);
+
+        // Iterate through quadrature points to integrate
+        for (unsigned q = 0; q < quadrature_formula.size(); ++q) {
+            //iterate through local dofs
+            for (unsigned int i = 0; i < fe.dofs_per_cell; ++i) {
+                dof_vol[local_dof_indices[i]] +=  fe_values.JxW(q);
+            }
+        }
+    }
+}
+
 template<int dim>
 std::vector<double> Laplace<dim>::get_potential(const std::vector<int> &cell_indexes,
         const std::vector<int> &vert_indexes) {
@@ -266,6 +295,27 @@ std::vector<double> Laplace<dim>::get_potential(const std::vector<int> &cell_ind
         potentials[i] = potential;
     }
     return potentials;
+}
+
+
+template<int dim>
+std::vector<double> Laplace<dim>::get_charge_dens(const std::vector<int> &cell_indexes,
+        const std::vector<int> &vert_indexes) {
+
+    // Initialise potentials with a value that is immediately visible if it's not changed to proper one
+    std::vector<double> charge_dens(cell_indexes.size(), 1e15);
+
+    for (unsigned i = 0; i < cell_indexes.size(); i++) {
+        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+        // NB: only works without refinement !!!
+        typename DoFHandler<dim>::active_cell_iterator dof_cell(&triangulation,
+                0, cell_indexes[i], &dof_handler);
+
+        double rhs = system_rhs_save[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
+        double vol = dof_vol[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
+        charge_dens[i] = rhs / vol;
+    }
+    return charge_dens;
 }
 
 template<int dim>
@@ -407,7 +457,6 @@ template<int dim>
 void Laplace<dim>::assemble_system_pointcharge(femocs::ParticleSpecies &particles) {
 
     std::vector<types::global_dof_index> local_dof_indices(fe.dofs_per_cell);
-//    std::cout << "particles.Wsp = " << particles.get_Wsp() << std::endl;
 
     for(auto particle : particles.parts){ // loop over particles
         Point<dim> p_deal = Point<dim>(particle.pos.x, particle.pos.y, particle.pos.z);
@@ -458,6 +507,8 @@ void Laplace<dim>::output_results(const std::string filename) const {
     data_out.attach_dof_handler(dof_handler);
     data_out.add_data_vector(solution, "potential_v");
     data_out.add_data_vector(solution, field_calculator);
+
+    data_out.add_data_vector(system_rhs, "charge");
 
     data_out.build_patches();
 

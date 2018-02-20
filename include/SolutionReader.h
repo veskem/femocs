@@ -134,10 +134,7 @@ public:
     /** Calculate the electric field for the stationary current and temperature solver */
     void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver);
 
-    /** Calculate the electric field for the transient current and temperature solver */
     void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver);
-
-    void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver, fch::Laplace<3>& laplace_solver);
 
     /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
      * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
