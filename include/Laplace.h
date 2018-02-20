@@ -29,13 +29,13 @@
 #include <fstream>
 #include <iostream>
 
+#include "DealSolver.h"
 #include "CurrentsAndHeating.h" // for friend class declaration
 #include "CurrentsAndHeatingStationary.h" // for friend class declaration
 #include "MeshPreparer.h"
 #include "ParticleSpecies.h"
+#include "Config.h"
 
-
-#include "DealSolver.h"
 
 namespace fch {
 
@@ -247,6 +247,7 @@ template<int dim>
 class PoissonSolver : public DealSolver<dim> {
 public:
     PoissonSolver();
+    PoissonSolver(const ParticleSpecies* particles, const femocs::Config::Field *conf_);
 
     /** get the electric field norm at the specified point using dealii
      * (slow as it looks for the surrounding cell) */
@@ -284,43 +285,26 @@ public:
             const vector<int> &vert_indexes) const;
 
     /** Run Conjugate-Gradient solver to solve matrix equation */
-    unsigned int solve() { return this->solve_cg(2000, 1e-9, 1.2); }
+    unsigned int solve() { return this->solve_cg(conf->n_phi, conf->phi_error, conf->ssor_param); }
 
-    void assemble_laplace(double applied_field);
+    /** Setup system for solving Poisson equation */
+    void setup(const double field, const double potential=0);
 
-    /** Assemble the matrix equation by appling Neumann BC on top of simubox */
-    void assemble_neumann(const bool first_time);
+    /** Assemble the matrix equation to solve Laplace equation
+     * by appling Neumann BC (constant field) on top of simubox */
+    void assemble_laplace(const bool first_time);
 
-    /** Assemble the matrix equation by appling Dirichlet BC on top of simubox */
-    void assemble_dirichlet(const bool first_time);
-
-    /** Store long range electric field value */
-    void set_applied_field(const double field) { applied_field = field; }
-
-    /** Store electric potential value on top of simubox */
-    void set_applied_potential(const double potential) { applied_potential = potential; }
-
-    void set_dependencies(const ParticleSpecies *particles_, const double field, const double potential) {
-        particles = particles_;
-        applied_field = field;
-        applied_potential = potential;
-    }
-
-    /** @brief Reset the system and assemble the LHS matrix
-     * Calculate sparse matrix elements
-     * according to the Laplace equation weak formulation
-     * This should be the first function call to setup the equations (after setup_system() ).
-     */
-    void assemble_lhs();
-
-    /** Add to the right-hand-side vector for point charges, as used in PIC. */
-    void assemble_space_charge();
+    /** Assemble the matrix equation to solve Poisson equation
+     * by appling Neumann BC (constant field) or Dirichlet BC (constant potential) on top of simubox
+     * as specified in config file. */
+    void assemble_poisson(const bool first_time);
 
     /** Outputs the results (electric potential and field) to a specified file in vtk format */
     void write(const string &filename) const;
 
 private:
     const ParticleSpecies* particles;
+    const femocs::Config::Field *conf;   ///< solver parameters
 
     double applied_field;     ///< applied electric field on top of simubox
     double applied_potential; ///< applied potential on top of simubox
@@ -336,6 +320,16 @@ private:
 
     /** Return the boundary condition value at the centroid of face */
     double get_face_bc(const unsigned int face) const;
+
+    /** @brief Reset the system and assemble the LHS matrix
+     * Calculate sparse matrix elements
+     * according to the Laplace equation weak formulation
+     * This should be the first function call to setup the equations (after setup_system() ).
+     */
+    void assemble_lhs();
+
+    /** Add to the right-hand-side vector for point charges, as used in PIC. */
+    void assemble_space_charge();
 
     friend class CurrentsAndHeating<dim> ;
     friend class CurrentsAndHeatingStationary<dim> ;

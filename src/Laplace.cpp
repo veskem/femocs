@@ -65,7 +65,14 @@ public:
 
 template<int dim>
 PoissonSolver<dim>::PoissonSolver() : DealSolver<dim>(),
-        particles(NULL), applied_field(0), applied_potential(0) {};
+        particles(NULL), conf(NULL), applied_field(0), applied_potential(0)
+        {};
+
+template<int dim>
+PoissonSolver<dim>::PoissonSolver(const ParticleSpecies* particles_, const femocs::Config::Field *conf_) :
+        DealSolver<dim>(),
+        particles(particles_), conf(conf_), applied_field(0), applied_potential(0)
+        {};
 
 template<int dim>
 void PoissonSolver<dim>::mark_boundary() {
@@ -209,46 +216,60 @@ double PoissonSolver<dim>::get_face_bc(const unsigned int face) const {
 }
 
 template<int dim>
-void PoissonSolver<dim>::assemble_laplace(double applied_field) {
-    this->set_applied_field(applied_field);
-    this->assemble_lhs();
-    this->assemble_rhs(BoundaryId::vacuum_top);
-    this->assemble_set_dirichlet(fch::BoundaryId::copper_surface, 0.);
-    this->assemble_apply_dirichlet();
+void PoissonSolver<dim>::setup(const double field, const double potential) {
+    DealSolver<dim>::setup_system();
+    applied_field = field;
+    applied_potential = potential;
 }
 
 template<int dim>
-void PoissonSolver<dim>::assemble_neumann(const bool first_time) {
+void PoissonSolver<dim>::assemble_laplace(const bool first_time) {
+    require(conf, "NULL conf can't be used!");
+
     this->system_rhs = 0;
+
     if (first_time) {
-        this->system_matrix = 0;
         assemble_lhs();
-        this->assemble_set_dirichlet(fch::BoundaryId::copper_surface, 0.);
+        this->append_dirichlet(fch::BoundaryId::copper_surface, 0.);
     } else
         this->restore_system();
 
     this->assemble_rhs(fch::BoundaryId::vacuum_top);
-    assemble_space_charge();
-    this->assemble_apply_dirichlet();
+    this->apply_dirichlet();
 }
 
 template<int dim>
-void PoissonSolver<dim>::assemble_dirichlet(const bool first_time) {
+void PoissonSolver<dim>::assemble_poisson(const bool first_time) {
+    require(conf, "NULL conf can't be used!");
+    require(conf->anodeBC == "neumann" || conf->anodeBC == "dirichlet",
+            "Unimplemented anode BC: " + conf->anodeBC);
+
     this->system_rhs = 0;
-    if (first_time) {
-        this->system_matrix = 0;
-        assemble_lhs();
-        this->assemble_set_dirichlet(fch::BoundaryId::copper_surface, 0.0);
-        this->assemble_set_dirichlet(fch::BoundaryId::vacuum_top, applied_potential);
-    } else
-        this->restore_system();
+
+    if (conf->anodeBC == "neumann") {
+        if (first_time) {
+            assemble_lhs();
+            this->append_dirichlet(fch::BoundaryId::copper_surface, this->dirichlet_bc_value);
+        } else
+            this->restore_system();
+        this->assemble_rhs(fch::BoundaryId::vacuum_top);
+
+    } else {
+        if (first_time) {
+            assemble_lhs();
+            this->append_dirichlet(fch::BoundaryId::copper_surface, this->dirichlet_bc_value);
+            this->append_dirichlet(fch::BoundaryId::vacuum_top, applied_potential);
+        } else
+            this->restore_system();
+    }
 
     assemble_space_charge();
-    this->assemble_apply_dirichlet();
+    this->apply_dirichlet();
 }
 
 template<int dim>
 void PoissonSolver<dim>::assemble_lhs() {
+    this->system_matrix = 0;
 
     QGauss<dim> quadrature_formula(this->quadrature_degree);
     FEValues<dim> fe_values(this->fe, quadrature_formula,
@@ -288,7 +309,6 @@ void PoissonSolver<dim>::assemble_lhs() {
 
 template<int dim>
 void PoissonSolver<dim>::assemble_space_charge() {
-//    require(particles, "NULL particles can't be used!");
     if (!particles) {
         femocs::write_verbose_msg("No charged particles present!");
         return;

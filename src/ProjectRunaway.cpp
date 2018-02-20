@@ -26,6 +26,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &a, Config &c) :
         ProjectNanotip(a, c),
         surface_fields(&vacuum_interpolator), surface_temperatures(&bulk_interpolator),
         emission(surface_fields, surface_temperatures, &vacuum_interpolator),
+        poisson_solver(pic_solver_vol2.get_particles(), &conf.field),
         ch_solver(&ch_solver1), prev_ch_solver(NULL),
         pic_solver(laplace_solver, ch_transient_solver, vacuum_interpolator, emission),
         pic_solver_vol2(poisson_solver, vacuum_interpolator, emission)
@@ -136,8 +137,8 @@ int ProjectRunaway::solve_poisson(const double E0) {
     end_msg(t0);
 
     start_msg(t0, "=== Initializing Poisson solver...");
-    poisson_solver.setup();
-    poisson_solver.assemble_laplace(-E0);
+    poisson_solver.setup(-E0);
+    poisson_solver.assemble_laplace(first_time);
     end_msg(t0);
 
     stringstream ss; ss << poisson_solver;
@@ -238,8 +239,7 @@ int ProjectRunaway::solve_pic_vol2(const double E0, const double dt_main) {
     end_msg(t0);
     
     start_msg(t0, "=== Initializing Poisson solver...");
-    poisson_solver.set_dependencies(pic_solver_vol2.get_particles(), -E0, 0.0);
-    poisson_solver.setup();
+    poisson_solver.setup(-E0, conf.field.V0);
     end_msg(t0);
 
     start_msg(t0, "=== Importing mesh to J&T solver...");
@@ -512,8 +512,6 @@ int ProjectRunaway::solve_converge_heat() {
 
 int ProjectRunaway::solve_converge_heat_vol2() {
 
-    cout << "max field = " << max_field() << endl;
-
     start_msg(t0, "=== Importing mesh to J & T solver...");
     fail = !ch_solver_vol2.import_mesh_directly(mesh->nodes.export_dealii(), mesh->hexahedra.export_bulk());
     check_return(fail, "Importing bulk mesh to Deal.II failed!");
@@ -531,8 +529,7 @@ int ProjectRunaway::solve_converge_heat_vol2() {
     surface_fields.write("out/surface_field.xyz");
 
     start_msg(t0, "=== Setup transient J & T solver...");
-    ch_solver_vol2.current.setup();
-    ch_solver_vol2.heat.setup();
+    ch_solver_vol2.setup(conf.heating.t_ambient);
     end_msg(t0);
 
     surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank);

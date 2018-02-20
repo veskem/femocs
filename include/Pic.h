@@ -84,9 +84,6 @@ private:
 
     /** Update the velocities on the particles using the fields calculated at the given positions */
     void update_velocities();
-
-    /** Computes the charge density for each FEM DOF */
-    int compute_field(bool first_time = false);
 };
 
 template<int dim>

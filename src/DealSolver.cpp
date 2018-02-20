@@ -23,11 +23,11 @@ namespace fch {
 
 template<int dim>
 DealSolver<dim>::DealSolver() :
-        default_solution_value(0), fe(shape_degree), dof_handler(triangulation) {}
+        dirichlet_bc_value(0), fe(shape_degree), dof_handler(triangulation) {}
 
 template<int dim>
-DealSolver<dim>::DealSolver(Triangulation<dim> *tria, const double dsf) :
-        default_solution_value(dsf), fe(shape_degree), dof_handler(*tria) {}
+DealSolver<dim>::DealSolver(Triangulation<dim> *tria) :
+        dirichlet_bc_value(0), fe(shape_degree), dof_handler(*tria) {}
 
 template<int dim>
 vector<double> DealSolver<dim>::shape_funs(const Point<dim> &p, int cell_index) const {
@@ -132,7 +132,7 @@ void DealSolver<dim>::get_surface_nodes(vector<Point<dim>>& nodes) const {
 }
 
 template<int dim>
-void DealSolver<dim>::setup() {
+void DealSolver<dim>::setup_system() {
     // TODO implement assert for empty mesh!
     this->dof_handler.distribute_dofs(this->fe);
 
@@ -152,8 +152,8 @@ void DealSolver<dim>::setup() {
 
     // Initialize the solution
     for (size_t i = 0; i < this->solution.size(); i++) {
-        this->solution[i] = this->default_solution_value;
-        this->solution_save[i] = this->default_solution_value;
+        this->solution[i] = this->dirichlet_bc_value;
+        this->solution_save[i] = this->dirichlet_bc_value;
     }
 }
 
@@ -201,12 +201,12 @@ void DealSolver<dim>::assemble_rhs(const BoundaryId bid) {
 }
 
 template<int dim>
-void DealSolver<dim>::assemble_set_dirichlet(const BoundaryId bid, const double value) {
+void DealSolver<dim>::append_dirichlet(const BoundaryId bid, const double value) {
     VectorTools::interpolate_boundary_values(this->dof_handler, bid, ConstantFunction<dim>(value), boundary_values);
 }
 
 template<int dim>
-void DealSolver<dim>::assemble_apply_dirichlet() {
+void DealSolver<dim>::apply_dirichlet() {
     MatrixTools::apply_boundary_values(boundary_values, this->system_matrix, this->solution, this->system_rhs);
 }
 

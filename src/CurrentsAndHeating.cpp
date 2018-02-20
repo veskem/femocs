@@ -96,8 +96,8 @@ EmissionSolver<dim>::EmissionSolver() :
         {}
 
 template<int dim>
-EmissionSolver<dim>::EmissionSolver(Triangulation<dim> *tria, const double dsf) :
-        DealSolver<dim>(tria, dsf), pq(NULL), conf(NULL)
+EmissionSolver<dim>::EmissionSolver(Triangulation<dim> *tria) :
+        DealSolver<dim>(tria), pq(NULL), conf(NULL)
         {}
 
 template<int dim>
@@ -122,8 +122,8 @@ HeatSolver<dim>::HeatSolver() :
         EmissionSolver<dim>(), current_solver(NULL) {}
 
 template<int dim>
-HeatSolver<dim>::HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *cs, const double default_value) :
-        EmissionSolver<dim>(tria, default_value), current_solver(cs) {}
+HeatSolver<dim>::HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *cs) :
+        EmissionSolver<dim>(tria), current_solver(cs) {}
 
 template<int dim>
 void HeatSolver<dim>::write(const string &filename) const {
@@ -146,10 +146,14 @@ void HeatSolver<dim>::write(const string &filename) const {
 
 template<int dim>
 void HeatSolver<dim>::assemble(const double delta_time) {
-    if (this->conf->assemble_method == "euler")
+    if (this->conf->assemble_method == "euler") {
         assemble_euler_implicit(delta_time);
-    else
+        this->assemble_rhs(BoundaryId::copper_surface);
+    } else
         assemble_crank_nicolson(delta_time);
+
+    this->append_dirichlet(BoundaryId::copper_bottom, this->dirichlet_bc_value);
+    this->apply_dirichlet();
 }
 
 template<int dim>
@@ -259,9 +263,6 @@ void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
             this->system_rhs(local_dof_indices[i]) += cell_rhs(i);
         }
     }
-
-    this->assemble_set_dirichlet(BoundaryId::copper_bottom, this->default_solution_value);
-    this->assemble_apply_dirichlet();
 }
 
 template<int dim>
@@ -340,110 +341,6 @@ void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
                 this->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
         }
     }
-
-    this->assemble_rhs(BoundaryId::copper_surface);
-    this->assemble_set_dirichlet(BoundaryId::copper_bottom, this->default_solution_value);
-    this->assemble_apply_dirichlet();
-}
-
-template<int dim>
-void HeatSolver<dim>::assemble_heat_rhs(const double delta_time) {
-    require(current_solver, "NULL current solver can't be used!");
-
-    const double gamma = cu_rho_cp / delta_time;
-
-    QGauss<dim> quadrature_formula(this->quadrature_degree);
-
-    // Heating finite element values
-    FEValues<dim> fe_values(this->fe, quadrature_formula,
-            update_values | update_gradients | update_quadrature_points | update_JxW_values);
-
-    // Finite element values for accessing current calculation
-    FEValues<dim> fe_values_current(current_solver->fe, quadrature_formula, update_gradients);
-
-    const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
-    const unsigned int n_q_points = quadrature_formula.size();
-
-    Vector<double> cell_rhs(dofs_per_cell);
-    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-
-    // The previous solution values in the cell quadrature points
-    vector<Tensor<1, dim>> potential_gradients(n_q_points);
-    vector<double> prev_temperatures(n_q_points);
-
-    typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
-    typename DoFHandler<dim>::active_cell_iterator current_cell = current_solver->dof_handler.begin_active();
-
-    for (; cell != this->dof_handler.end(); ++cell, ++current_cell) {
-        fe_values.reinit(cell);
-        fe_values.get_function_values(this->solution_save, prev_temperatures);
-
-        fe_values_current.reinit(current_cell);
-        fe_values_current.get_function_gradients(current_solver->solution, potential_gradients);
-
-        // Local right-hand-side vector assembly
-        cell_rhs = 0;
-        for (unsigned int q = 0; q < n_q_points; ++q) {
-            double pot_grad_squared = potential_gradients[q].norm_square();
-            double temperature = prev_temperatures[q];
-            double sigma = this->pq->sigma(temperature);
-
-            for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                cell_rhs(i) += fe_values.JxW(q) * fe_values.shape_value(i, q)
-                        * (gamma * temperature + sigma * pot_grad_squared);
-            }
-        }
-
-        // Update global matrix and right-hand-side vector
-        cell->get_dof_indices(local_dof_indices);
-        for (unsigned int i = 0; i < dofs_per_cell; ++i)
-            this->system_rhs(local_dof_indices[i]) += cell_rhs(i);
-    }
-}
-
-template<int dim>
-void HeatSolver<dim>::assemble_heat_lhs(const double delta_time) {
-    const double gamma = cu_rho_cp / delta_time;
-
-    QGauss<dim> quadrature_formula(this->quadrature_degree);
-    FEValues<dim> fe_values(this->fe, quadrature_formula,
-            update_values | update_gradients | update_quadrature_points | update_JxW_values);
-
-    const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
-    const unsigned int n_q_points = quadrature_formula.size();
-
-    FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
-    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-
-    vector<double> prev_temperatures(n_q_points);
-
-    // Iterate over all cells (quadrangles in 2D, hexahedra in 3D) of the mesh
-    typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
-    for (; cell != this->dof_handler.end(); ++cell) {
-        fe_values.reinit(cell);
-        fe_values.get_function_values(this->solution_save, prev_temperatures);
-
-        // Assemble system matrix elements corresponding the current cell
-        cell_matrix = 0;
-        for (unsigned int q = 0; q < n_q_points; ++q) {
-            double kappa = this->pq->kappa(prev_temperatures[q]);
-
-            for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                for (unsigned int j = 0; j < dofs_per_cell; ++j) {
-                    cell_matrix(i, j) += fe_values.JxW(q) * (
-                            gamma * fe_values.shape_value(i, q) * fe_values.shape_value(j, q) // Mass matrix
-                            + kappa * fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q) );
-                }
-            }
-        }
-
-        // Update global matrix
-        cell->get_dof_indices(local_dof_indices);
-        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-            for (unsigned int j = 0; j < dofs_per_cell; ++j)
-                this->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
-        }
-    }
 }
 
 template<int dim>
@@ -461,8 +358,8 @@ CurrentSolver<dim>::CurrentSolver() :
         EmissionSolver<dim>(), heat_solver(NULL) {}
 
 template<int dim>
-CurrentSolver<dim>::CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim> *hs, const double default_value) :
-        EmissionSolver<dim>(tria, default_value), heat_solver(hs) {}
+CurrentSolver<dim>::CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim> *hs) :
+        EmissionSolver<dim>(tria), heat_solver(hs) {}
 
 template<int dim>
 void CurrentSolver<dim>::write(const string &filename) const {
@@ -486,6 +383,14 @@ void CurrentSolver<dim>::write(const string &filename) const {
 
 template<int dim>
 void CurrentSolver<dim>::assemble() {
+    assemble_lhs();
+    this->assemble_rhs(BoundaryId::copper_surface);
+    this->append_dirichlet(BoundaryId::copper_bottom, this->dirichlet_bc_value);
+    this->apply_dirichlet();
+}
+
+template<int dim>
+void CurrentSolver<dim>::assemble_lhs() {
     require(heat_solver, "NULL heat solver can't be used!");
 
     this->system_matrix = 0;
@@ -543,10 +448,6 @@ void CurrentSolver<dim>::assemble() {
                 this->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
         }
     }
-
-    this->assemble_rhs(BoundaryId::copper_surface);
-    this->assemble_set_dirichlet(BoundaryId::copper_bottom, this->default_solution_value);
-    this->assemble_apply_dirichlet();
 }
 
 template<int dim>
@@ -562,18 +463,25 @@ double CurrentSolver<dim>::get_face_bc(const unsigned int face) const {
 template<int dim>
 CurrentHeatSolver<dim>::CurrentHeatSolver() :
         DealSolver<dim>(), pq(NULL), conf(NULL),
-        heat(&this->triangulation, &current, ambient_temperature),
-        current(&this->triangulation, &heat, 0.0)
+        heat(&this->triangulation, &current),
+        current(&this->triangulation, &heat)
 {}
 
 template<int dim>
 CurrentHeatSolver<dim>::CurrentHeatSolver(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_) :
         DealSolver<dim>(), pq(pq_), conf(conf_),
-        heat(&this->triangulation, &current, ambient_temperature),
-        current(&this->triangulation, &heat, 0.0)
+        heat(&this->triangulation, &current),
+        current(&this->triangulation, &heat)
 {
     heat.set_dependencies(pq_, conf_);
     current.set_dependencies(pq_, conf_);
+}
+
+template<int dim>
+void CurrentHeatSolver<dim>::setup(const double temperature) {
+    heat.dirichlet_bc_value = temperature;
+    current.setup_system();
+    heat.setup_system();
 }
 
 template<int dim>

@@ -39,7 +39,7 @@ template<int dim>
 class EmissionSolver : public DealSolver<dim> {
 public:
     EmissionSolver();
-    EmissionSolver(Triangulation<dim> *tria, const double default_value);
+    EmissionSolver(Triangulation<dim> *tria);
     virtual ~EmissionSolver() {}
 
     /** Solve the matrix equation using conjugate gradient method */
@@ -67,12 +67,12 @@ template<int dim>
 class CurrentSolver : public EmissionSolver<dim> {
 public:
     CurrentSolver();
-    CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim> *hs, const double default_value);
+    CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim> *hs);
 
     /** Output the electric potential [V] and field [V/nm] in vtk format */
     void write(const string &filename) const;
 
-    /** @brief assemble the matrix equation for current density calculation ()
+    /** @brief assemble the matrix equation for current density calculation.
      * Calculate sparse matrix elements and right-hand-side vector
      * according to the continuity equation weak formulation and to the boundary conditions.
      */
@@ -81,7 +81,11 @@ public:
 private:
     const HeatSolver<dim>* heat_solver;
     
+    /** Return the boundary condition value at the centroid of face */
     double get_face_bc(const unsigned int face) const;
+
+    /** Assemble left-hand-side of matrix equation */
+    void assemble_lhs();
 
     friend class CurrentHeatSolver<dim> ;
 };
@@ -90,7 +94,7 @@ template<int dim>
 class HeatSolver : public EmissionSolver<dim> {
 public:
     HeatSolver();
-    HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *cs, const double default_value);
+    HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *cs);
 
     /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] in vtk format */
     void write(const string &filename) const;
@@ -98,10 +102,6 @@ public:
     /** Assemble the matrix equation for temperature calculation
      * using Crank-Nicolson or implicit Euler time integration method. */
     void assemble(const double delta_time);
-
-    void assemble_heat_lhs(const double delta_time);
-
-    void assemble_heat_rhs(const double delta_time);
 
 private:
     static constexpr double cu_rho_cp = 3.4496e-24;      ///< volumetric heat capacity of copper J/(K*ang^3)
@@ -119,6 +119,7 @@ private:
      */
     void assemble_euler_implicit(const double delta_time);
 
+    /** Return the boundary condition value at the centroid of face */
     double get_face_bc(const unsigned int face) const;
 
     friend class CurrentHeatSolver<dim> ;
@@ -149,12 +150,12 @@ public:
     /** Set the pointers for obtaining external data */
     void set_dependencies(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_);
 
+    void setup(const double temperature);
+
     HeatSolver<dim> heat;        ///< data and operations of heat equation solver
     CurrentSolver<dim> current;  ///< data and operations for finding current density in material
 
 private:
-    static constexpr double ambient_temperature = 300.0; ///< temperature boundary condition, i.e temperature applied on bottom of the material
-
     PhysicalQuantities *pq;
     const femocs::Config::Heating *conf;
 

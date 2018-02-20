@@ -46,21 +46,6 @@ int PicSolver<dim>::inject_electrons(const bool fractional_push) {
     return fields.size();
 }
 
-//Call the laplace solver with the list of positions and charge(s)
-template<int dim>
-int PicSolver<dim>::compute_field(bool first_time) {
-    require(anodeBC == "neumann" || anodeBC == "dirichlet",
-            "Invalid anode boundary condition: " + anodeBC);
-
-    if (anodeBC == "neumann")
-        poisson_solver.assemble_neumann(first_time);
-    else
-        poisson_solver.assemble_dirichlet(first_time);
-
-    // solve Poisson equation
-    return poisson_solver.solve();
-}
-
 template<int dim>
 int PicSolver<dim>::update_positions() {
     for  (size_t i = 0; i < electrons.size(); ++i) {
@@ -98,7 +83,8 @@ void PicSolver<dim>::update_velocities(){
 template<int dim>
 int PicSolver<dim>::run_cycle(bool first_time) {
     // calculate electric field
-    int n_cg_steps = compute_field(first_time);
+    poisson_solver.assemble_poisson(first_time);
+    int n_cg_steps = poisson_solver.solve();
 
     // updating the PIC particle velocities
     update_velocities();

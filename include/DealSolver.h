@@ -31,32 +31,9 @@ class DealSolver {
 public:
 
     DealSolver();
-    DealSolver(Triangulation<dim> *tria, const double default_value);
+    DealSolver(Triangulation<dim> *tria);
     virtual ~DealSolver() {}
     
-    /** Set up dynamic sparsity pattern for calculations */
-    void setup();
-
-    /** Modify the right-hand-side vector of the matrix equation */
-    void assemble_rhs(const BoundaryId bid);
-
-    /** Give the value to all DOFs with given boundary ID */
-    void assemble_set_dirichlet(const BoundaryId bid, const double value);
-
-    /** Apply all dirichlet boundary conditions to the system.
-     * This should be the last function call to setup the equations, before calling solve(). */
-    void assemble_apply_dirichlet();
-
-    /** saves the system matrix (useful before BCs have been applied) */
-    void save_system() {
-        system_matrix_save.copy_from(system_matrix);
-    }
-
-    /** Restores the system matrix to the saved one */
-    void restore_system() {
-        system_matrix.copy_from(system_matrix_save);
-    }
-
     /** Provide triangulation object to get access to the mesh data */
     Triangulation<dim>* get_triangulation() { return &triangulation; }
 
@@ -115,7 +92,7 @@ protected:
     static constexpr unsigned int shape_degree = 1;   ///< degree of the shape functions (linear, quadratic etc elements)
     static constexpr unsigned int quadrature_degree = shape_degree + 1;  ///< degree of the Gaussian numerical integration
 
-    const double default_solution_value;
+    double dirichlet_bc_value;
 
     Triangulation<dim> triangulation;
     FE_Q<dim> fe;
@@ -147,6 +124,29 @@ protected:
      * @param ssor_param  parameter to SSOR preconditioner. Its fine tuning optimises calculation time
      */
     unsigned int solve_cg(const int n_steps, const double tolerance, const double ssor_param);
+
+    /** Set up dynamic sparsity pattern for calculations */
+    void setup_system();
+
+    /** Modify the right-hand-side vector of the matrix equation */
+    void assemble_rhs(const BoundaryId bid);
+
+    /** Give the value to all DOFs with given boundary ID */
+    void append_dirichlet(const BoundaryId bid, const double value);
+
+    /** Apply all dirichlet boundary conditions to the system.
+     * This should be the last function call to setup the equations, before calling solve(). */
+    void apply_dirichlet();
+
+    /** saves the system matrix (useful before BCs have been applied) */
+    void save_system() {
+        system_matrix_save.copy_from(system_matrix);
+    }
+
+    /** Restores the system matrix to the saved one */
+    void restore_system() {
+        system_matrix.copy_from(system_matrix_save);
+    }
 
     friend class PoissonSolver<dim>;
     friend class CurrentHeatSolver<dim>;
