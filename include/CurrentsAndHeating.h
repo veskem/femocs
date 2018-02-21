@@ -2,35 +2,24 @@
  * currents_and_heating.h -> CurrentsAndHeating.h
  *
  *  Created on: Jul 28, 2016
- *      Author: kristjan
+ *      Author: kristjan, Mihkel
  */
 
 #ifndef CURRENTSANDHEATING_H_
 #define CURRENTSANDHEATING_H_
 
-#include <deal.II/grid/tria.h>
-#include <deal.II/grid/grid_reordering.h>
-#include <deal.II/dofs/dof_handler.h>
-#include <deal.II/fe/fe_q.h>
-#include <deal.II/fe/fe_system.h>
-#include <deal.II/lac/sparse_matrix.h>
 
-#include <fstream>
-#include <iostream>
-#include <tuple>
-
-#include "Laplace.h"
-#include "MeshPreparer.h"
-#include "PhysicalQuantities.h"
 #include "DealSolver.h"
+#include "Laplace.h"
+#include "PhysicalQuantities.h"
 #include "Config.h"
+
 
 namespace fch {
 
-// forward declaration for Laplace to exist when declaring CurrentsAndHeating
-template<int dim> class Laplace;
-template<int dim> class CurrentHeatSolver;
+// forward declare some classes to make them available for declaring dependencies
 template<int dim> class HeatSolver;
+template<int dim> class CurrentHeatSolver;
 
 using namespace dealii;
 using namespace std;
@@ -160,7 +149,7 @@ private:
     const femocs::Config::Heating *conf;
 
     /** Mark different regions of the mesh */
-    void mark_boundary();
+    void mark_mesh();
 };
 
 } // namespace fch

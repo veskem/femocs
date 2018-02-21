@@ -106,5 +106,14 @@ void start_msg(double& t0, const string& message);
 /** Print the execution time of the code */
 void end_msg(const double t0);
 
+/** Determine whether given string contains a digit */
+inline bool contains_digit(const string& s) {
+    for (string::const_iterator it = s.begin(); it < s.end(); it++) {
+        if (isdigit(*it))
+            return true;
+    }
+    return false;
+}
+
 } /* namespace femocs */
 #endif /* MACROS_H_ */

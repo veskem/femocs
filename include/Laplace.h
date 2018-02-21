@@ -8,29 +8,7 @@
 #ifndef LAPLACE_H_
 #define LAPLACE_H_
 
-#include <deal.II/grid/tria.h>
-#include <deal.II/grid/grid_reordering.h>
-#include <deal.II/dofs/dof_handler.h>
-#include <deal.II/fe/fe_q.h>
-#include <deal.II/lac/sparse_matrix.h>
-
-#include <deal.II/base/point.h>
-#include <deal.II/base/tensor.h>
-
-#include <deal.II/fe/mapping_q1.h>
-#include <deal.II/hp/dof_handler.h>
-#include <deal.II/hp/fe_values.h>
-#include <deal.II/hp/mapping_collection.h>
-#include <deal.II/hp/q_collection.h>
-#include <deal.II/numerics/vector_tools.h>
-#include <deal.II/numerics/matrix_tools.h>
-
-
-#include <fstream>
-#include <iostream>
-
 #include "DealSolver.h"
-#include "MeshPreparer.h"
 #include "ParticleSpecies.h"
 #include "Config.h"
 
@@ -121,7 +99,7 @@ private:
     void write_vtk(ofstream& out) const;
 
     /** Mark different regions in mesh */
-    void mark_boundary();
+    void mark_mesh();
 
     /** Return the boundary condition value at the centroid of face */
     double get_face_bc(const unsigned int face) const;

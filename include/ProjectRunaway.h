@@ -52,16 +52,15 @@ public:
     int force_output();
 
 private:
-    Interpolator bulk_interpolator;
+    Interpolator bulk_interpolator;   ///< data & operations for interpolating current density & temperature in bulk
 
     FieldReader surface_fields;       ///< fields on surface hex face centroids
     HeatReader  surface_temperatures; ///< temperatures & current densities on surface hex face centroids
     EmissionReader emission;          ///< emission data on centroids of surface quadrangles
 
-    /// physical quantities used in heat calculations
-    fch::PhysicalQuantities phys_quantities;
-    fch::CurrentHeatSolver<3> ch_solver;   ///< transient currents and heating solver
-    Pic<3> pic_solver;                     ///< class for solving Poisson equation and handling space charge
+    fch::PhysicalQuantities phys_quantities; ///< quantities used in heat calculations
+    fch::CurrentHeatSolver<3> ch_solver;     ///< transient currents and heating solver
+    Pic<3> pic_solver;                       ///< class for solving Poisson equation and handling space charge
 
     /** Solve transient heat and continuity equations */
     int solve_transient_heat(const double delta_time);

@@ -72,8 +72,8 @@ protected:
     Surface dense_surf;     ///< non-coarsened surface atoms
     Surface extended_surf;  ///< atoms added for the surface atoms
 
-    Interpolator vacuum_interpolator = Interpolator("elfield", "potential");
-    fch::PoissonSolver<3> poisson_solver;   ///< Poisson equation solver
+    Interpolator vacuum_interpolator;      ///< data & operations for interpolating field & potential in vacuum
+    fch::PoissonSolver<3> poisson_solver;  ///< Poisson equation solver
 
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);

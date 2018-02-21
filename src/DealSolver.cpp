@@ -9,8 +9,6 @@
 #include "Constants.h"
 #include "Macros.h"
 
-#include <fstream>
-
 #include <deal.II/numerics/vector_tools.h>
 #include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/data_out.h>
@@ -19,7 +17,12 @@
 #include <deal.II/lac/precondition.h>
 #include <deal.II/lac/dynamic_sparsity_pattern.h>
 
+#include <deal.II/grid/grid_in.h>
+#include <deal.II/grid/grid_out.h>
+#include <deal.II/grid/grid_tools.h>
+
 #include <deal.II/dofs/dof_tools.h>
+
 
 using namespace dealii;
 using namespace std;
@@ -102,7 +105,7 @@ bool DealSolver<dim>::import_mesh(const string &file_name) {
     gi.attach_triangulation(triangulation);
     gi.read_msh(infile);
 
-    mark_boundary();
+    mark_mesh();
 
     return true;
 }
@@ -123,7 +126,7 @@ bool DealSolver<dim>::import_mesh(vector<Point<dim>> vertices, vector<CellData<d
         return false;
     }
 
-    mark_boundary();
+    mark_mesh();
     return true;
 }
 
@@ -277,6 +280,66 @@ unsigned int DealSolver<dim>::solve_cg(int max_iter, double tol, double ssor_par
 
     solution_save = solution;
     return solver_control.last_step();
+}
+
+template<int dim>
+void DealSolver<dim>::mark_boundary(char top, char bottom, char sides, char other) {
+    static constexpr double eps = 1e-6;
+    double xmax = -1e16, ymax = -1e16, zmax = -1e16;
+    double xmin = 1e16, ymin = 1e16, zmin = 1e16;
+
+    typename Triangulation<dim>::active_face_iterator face;
+
+    // Loop through the faces and find maximum and minimum values for coordinates
+    for (face = triangulation.begin_face(); face != triangulation.end_face(); ++face) {
+        if (face->at_boundary()) {
+            double x = face->center()[0];
+            double y = face->center()[1];
+            xmax = max(x, xmax);
+            xmin = min(x, xmin);
+            ymax = max(y, ymax);
+            ymin = min(y, ymin);
+
+            if (dim == 3) {
+                double z = face->center()[2];
+                zmax = max(z, zmax);
+                zmin = min(z, zmin);
+            }
+        }
+    }
+
+    // Loop through the faces and mark them by their position
+    for (face = triangulation.begin_face(); face != triangulation.end_face(); ++face) {
+        if (face->at_boundary()) {
+            if (dim == 2) {
+                double x = face->center()[0];
+                double y = face->center()[1];
+
+                if (femocs::on_boundary(x, xmin, xmax, eps))
+                    face->set_all_boundary_ids(sides);
+                else if (femocs::on_boundary(y, ymax, eps))
+                    face->set_all_boundary_ids(top);
+                else if (femocs::on_boundary(y, ymin, eps))
+                    face->set_all_boundary_ids(bottom);
+                else
+                    face->set_all_boundary_ids(other);
+            }
+            else if (dim == 3) {
+                double x = face->center()[0];
+                double y = face->center()[1];
+                double z = face->center()[2];
+
+                if (femocs::on_boundary(x, xmin, xmax, eps) || femocs::on_boundary(y, ymin, ymax, eps))
+                    face->set_all_boundary_ids(sides);
+                else if (femocs::on_boundary(z, zmax, eps))
+                    face->set_all_boundary_ids(top);
+                else if (femocs::on_boundary(z, zmin, eps))
+                    face->set_all_boundary_ids(bottom);
+                else
+                    face->set_all_boundary_ids(other);
+            }
+        }
+    }
 }
 
 template class DealSolver<2>;

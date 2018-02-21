@@ -8,12 +8,13 @@
 #ifndef DEALSOLVER_H_
 #define DEALSOLVER_H_
 
+#include "Constants.h"
+
 #include <deal.II/grid/grid_reordering.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/hp/fe_values.h>
 
-#include "MeshPreparer.h"
-
+#include <fstream>
 
 using namespace dealii;
 using namespace std;
@@ -144,10 +145,19 @@ protected:
     virtual void write_vtk(ofstream& out) const;
 
     /** Mark different regions of the mesh */
-    virtual void mark_boundary() {}
+    virtual void mark_mesh() {}
 
     /** Return the boundary condition value at the centroid of face */
     virtual double get_face_bc(const unsigned int face) const { return 1.0; }
+
+    /**
+     * Marks boundary (top, bottom, sides, vacuum-copper surface) faces (3D) or edges (2D) in the mesh
+     * @param top     id for top faces|edges
+     * @param bottom  id for bottom faces|edges
+     * @param sides   id for lateral faces|edges
+     * @param other   id for vacuum-copper surface faces|edges
+     */
+    void mark_boundary(char top, char bottom, char sides, char other);
 
     friend class PoissonSolver<dim>;
     friend class CurrentHeatSolver<dim>;

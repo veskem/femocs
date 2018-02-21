@@ -14,7 +14,7 @@
 #include <sys/stat.h>
 
 #include "PhysicalQuantities.h"
-#include "Utility.h"
+
 
 namespace fch {
 
@@ -128,7 +128,7 @@ bool PhysicalQuantities::load_compact_grid_data(std::string filepath, Interpolat
     int line_counter = 0;
 
     while (std::getline(infile, line)) {
-        if (line[0] == '%' || line.size() == 0 || !contains_digit(line))
+        if (line[0] == '%' || line.size() == 0 || !femocs::contains_digit(line))
             continue;
 
         std::istringstream stm(line);

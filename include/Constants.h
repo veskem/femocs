@@ -11,6 +11,19 @@
 #include <string>
 
 using namespace std;
+
+namespace fch {
+
+enum BoundaryId {
+    copper_surface = 1,
+    vacuum_top = 2,
+    copper_bottom = 3,
+    vacuum_sides = 4,
+    copper_sides = 5
+};
+
+} // namespace fch
+
 namespace femocs {
 
 /** Types of regions used in the simulation */

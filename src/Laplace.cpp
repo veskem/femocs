@@ -1,35 +1,10 @@
 
+#include "Laplace.h"
+#include "Constants.h"
 
-
-#include <deal.II/grid/grid_generator.h>
-#include <deal.II/grid/tria_accessor.h>
-#include <deal.II/grid/tria_iterator.h>
 #include <deal.II/grid/grid_tools.h>
-
-#include <deal.II/dofs/dof_accessor.h>
-#include <deal.II/dofs/dof_tools.h>
-
-#include <deal.II/fe/fe_values.h>
-
-#include <deal.II/base/quadrature_lib.h>
-#include <deal.II/base/function.h>
-#include <deal.II/base/logstream.h>
-#include <deal.II/base/timer.h>
-
-#include <deal.II/numerics/vector_tools.h>
-#include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/data_out.h>
 
-#include <deal.II/lac/vector.h>
-#include <deal.II/lac/full_matrix.h>
-#include <deal.II/lac/dynamic_sparsity_pattern.h>
-#include <deal.II/lac/solver_cg.h>
-#include <deal.II/lac/precondition.h>
-#include <deal.II/fe/fe_update_flags.h>
-
-
-#include "DealSolver.h"
-#include "Laplace.h"
 
 namespace fch {
 using namespace dealii;
@@ -41,7 +16,6 @@ using namespace std;
 template <int dim>
 class LaplacePostProcessor : public DataPostprocessorVector<dim> {
 public:
-//    LaplacePostProcessor() : DataPostprocessorVector<dim>("field", update_values | update_gradients) {}
     LaplacePostProcessor() : DataPostprocessorVector<dim>("field", update_gradients) {}
 
     void
@@ -73,9 +47,11 @@ PoissonSolver<dim>::PoissonSolver(const ParticleSpecies* particles_, const femoc
         {};
 
 template<int dim>
-void PoissonSolver<dim>::mark_boundary() {
-    MeshPreparer<dim> mesh_preparer;
-    mesh_preparer.mark_vacuum_boundary(&this->triangulation);
+void PoissonSolver<dim>::mark_mesh() {
+//    MeshPreparer<dim> mesh_preparer;
+//    mesh_preparer.mark_vacuum_boundary(&this->triangulation);
+    this->mark_boundary(BoundaryId::vacuum_top, BoundaryId::copper_surface,
+            BoundaryId::vacuum_sides, BoundaryId::copper_surface);
 }
 
 template<int dim>

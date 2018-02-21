@@ -2,41 +2,14 @@
  * currents_and_heating.cc -> CurrentsAndHeating.cpp
  *
  *  Created on: Jul 28, 2016
- *      Author: kristjan
+ *      Author: kristjan, Mihkel
  */
 
-#include <deal.II/grid/tria_accessor.h>
-#include <deal.II/grid/tria_iterator.h>
+#include "CurrentsAndHeating.h"
+//#include "Utility.h"
 
-#include <deal.II/dofs/dof_accessor.h>
-#include <deal.II/dofs/dof_tools.h>
-#include <deal.II/dofs/dof_renumbering.h>
-
-#include <deal.II/fe/fe_values.h>
-#include <deal.II/fe/fe_dgq.h>
-
-#include <deal.II/base/quadrature_lib.h>
-#include <deal.II/base/function.h>
-#include <deal.II/base/logstream.h>
-#include <deal.II/base/timer.h>
-
-#include <deal.II/numerics/vector_tools.h>
-#include <deal.II/numerics/matrix_tools.h>
 #include <deal.II/numerics/data_out.h>
 
-#include <deal.II/lac/vector.h>
-#include <deal.II/lac/full_matrix.h>
-#include <deal.II/lac/dynamic_sparsity_pattern.h>
-#include <deal.II/lac/solver_cg.h>
-#include <deal.II/lac/solver_gmres.h>
-#include <deal.II/lac/precondition.h>
-
-#include <cassert>
-#include <algorithm>
-#include <cstdlib>
-
-#include "CurrentsAndHeating.h"
-#include "Utility.h"
 
 namespace fch {
 using namespace dealii;
@@ -532,9 +505,9 @@ vector<Tensor<1, dim>> CurrentHeatSolver<dim>::get_current(const vector<int> &ce
 }
 
 template<int dim>
-void CurrentHeatSolver<dim>::mark_boundary() {
-    MeshPreparer<dim> mesh_preparer;
-    mesh_preparer.mark_copper_boundary(&this->triangulation);
+void CurrentHeatSolver<dim>::mark_mesh() {
+    this->mark_boundary(BoundaryId::copper_surface, BoundaryId::copper_bottom,
+            BoundaryId::copper_sides, BoundaryId::copper_surface);
 }
 
 /* ==================================================================
