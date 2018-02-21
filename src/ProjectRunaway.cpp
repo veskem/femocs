@@ -215,6 +215,9 @@ int ProjectRunaway::generate_mesh() {
         end_msg(t0);
     }
 
+    // has to be separate to ensure that data is for sure calculated
+    new_mesh->faces.calc_norms_and_areas();
+
     new_mesh->nodes.write("out/tetmesh_nodes.vtk");
     new_mesh->faces.write("out/trimesh.vtk");
     new_mesh->elems.write("out/tetmesh.vtk");
