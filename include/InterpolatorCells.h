@@ -8,10 +8,10 @@
 #ifndef INTERPOLATORCELLS_H_
 #define INTERPOLATORCELLS_H_
 
+#include "Globals.h"
 #include "Primitives.h"
 #include "TetgenMesh.h"
 #include "TetgenCells.h"
-#include "Constants.h"
 
 using namespace std;
 namespace femocs {

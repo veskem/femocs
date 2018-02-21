@@ -5,10 +5,11 @@
  *      Author: veske
  */
 
-#include "Config.h"
-#include "Constants.h"
 #include <fstream>
 #include <algorithm>
+
+#include "Config.h"
+#include "Globals.h"
 
 using namespace std;
 namespace femocs {

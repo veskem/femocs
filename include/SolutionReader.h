@@ -15,8 +15,8 @@
 #include "VoronoiMesh.h"
 #include "Interpolator.h"
 #include "Config.h"
+#include "CurrentHeatSolver.h"
 #include "DealSolver.h"
-#include "CurrentsAndHeating.h"
 
 using namespace std;
 namespace femocs {

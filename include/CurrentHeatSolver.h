@@ -10,9 +10,9 @@
 
 
 #include "DealSolver.h"
-#include "Laplace.h"
 #include "PhysicalQuantities.h"
 #include "Config.h"
+#include "PoissonSolver.h"
 
 
 namespace fch {

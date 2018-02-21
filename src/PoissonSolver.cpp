@@ -1,9 +1,11 @@
 
-#include "Laplace.h"
-#include "Constants.h"
 
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/numerics/data_out.h>
+
+#include "PoissonSolver.h"
+#include "Globals.h"
+
 
 
 namespace fch {

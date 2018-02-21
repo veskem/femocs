@@ -12,9 +12,9 @@
 
 #include <deal.II/base/timer.h>
 
-#include "CurrentsAndHeating.h"
-#include "CurrentsAndHeatingStationary.h"
-#include "Laplace.h"
+#include "CurrentHeatSolver.h"
+#include "PoissonSolver.h"
+
 #include "PhysicalQuantities.h"
 
 int main() {

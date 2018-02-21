@@ -12,11 +12,11 @@
 #include "ProjectNanotip.h"
 #include "AtomReader.h"
 #include "Config.h"
+#include "CurrentHeatSolver.h"
 #include "SolutionReader.h"
 #include "Surface.h"
 #include "Interpolator.h"
 #include "TetgenMesh.h"
-#include "CurrentsAndHeating.h"
 #include "PhysicalQuantities.h"
 #include "Pic.h"
 

@@ -5,19 +5,16 @@
  *      Author: veske
  */
 
-#include "GeneralProject.h"
+#include <omp.h>
+#include <algorithm>
+#include <sstream>
+#include <cmath>
+
 #include "ProjectRunaway.h"
 #include "Coarseners.h"
 #include "Macros.h"
 #include "Tethex.h"
 #include "VoronoiMesh.h"
-#include "Laplace.h"
-#include "DealSolver.h"
-
-#include <omp.h>
-#include <algorithm>
-#include <sstream>
-#include <cmath>
 
 using namespace std;
 namespace femocs {

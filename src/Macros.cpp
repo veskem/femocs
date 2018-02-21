@@ -5,12 +5,13 @@
  *      Author: veske
  */
 
-#include "Macros.h"
-#include "Constants.h"
 #include <omp.h>
 #include <algorithm>
 #include <fstream>
 #include <numeric>
+
+#include "Macros.h"
+#include "Globals.h"
 
 using namespace std;
 namespace femocs {

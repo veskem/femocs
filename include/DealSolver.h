@@ -8,13 +8,12 @@
 #ifndef DEALSOLVER_H_
 #define DEALSOLVER_H_
 
-#include "Constants.h"
-
 #include <deal.II/grid/grid_reordering.h>
 #include <deal.II/lac/sparse_matrix.h>
 #include <deal.II/hp/fe_values.h>
 
 #include <fstream>
+#include "Globals.h"
 
 using namespace dealii;
 using namespace std;

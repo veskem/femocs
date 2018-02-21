@@ -16,11 +16,10 @@
 #include "ParticleSpecies.h"
 #include "PicCollisions.h"
 #include "DealSolver.h"
-#include "Laplace.h"
-#include "CurrentsAndHeating.h"
-
 #include <deal.II/base/point.h>
 #include <algorithm>
+#include "CurrentHeatSolver.h"
+#include "PoissonSolver.h"
 
 namespace femocs {
 

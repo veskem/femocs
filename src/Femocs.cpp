@@ -6,9 +6,9 @@
  */
 
 #include "Femocs.h"
+#include "Globals.h"
 #include "ProjectNanotip.h"
 #include "ProjectRunaway.h"
-#include "Constants.h"
 
 using namespace std;
 namespace femocs {

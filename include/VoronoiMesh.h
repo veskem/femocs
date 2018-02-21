@@ -8,13 +8,13 @@
 #ifndef VORONOIMESH_H_
 #define VORONOIMESH_H_
 
-#include "Constants.h"
 #include "Macros.h"
 #include "Primitives.h"
 #include "Tetgen.h"
 #include "Medium.h"
 #include "TetgenCells.h"
 #include <fstream>
+#include "Globals.h"
 
 using namespace std;
 namespace femocs {

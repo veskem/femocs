@@ -14,7 +14,7 @@
 #include "SolutionReader.h"
 #include "Surface.h"
 #include "Interpolator.h"
-#include "Laplace.h"
+#include "PoissonSolver.h"
 
 using namespace std;
 namespace femocs {

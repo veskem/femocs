@@ -9,12 +9,12 @@
 #define TETGENCELLS_H_
 
 #include "Macros.h"
-#include "Constants.h"
 #include "Primitives.h"
 #include "Tetgen.h"
 #include "Medium.h"
 
 #include <fstream>
+#include "Globals.h"
 
 using namespace std;
 namespace femocs {

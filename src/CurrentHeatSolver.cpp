@@ -5,10 +5,9 @@
  *      Author: kristjan, Mihkel
  */
 
-#include "CurrentsAndHeating.h"
-//#include "Utility.h"
-
 #include <deal.II/numerics/data_out.h>
+
+#include "CurrentHeatSolver.h"
 
 
 namespace fch {

@@ -9,11 +9,11 @@
 #define INTERPOLATOR_H_
 
 
+#include "CurrentHeatSolver.h"
 #include "Primitives.h"
 #include "TetgenMesh.h"
 #include "InterpolatorCells.h"
-#include "CurrentsAndHeating.h"
-#include "Laplace.h"
+#include "PoissonSolver.h"
 
 using namespace std;
 namespace femocs {
