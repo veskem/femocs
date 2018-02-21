@@ -1069,14 +1069,15 @@ double HeatReader::get_temperature(const int i) const {
 
 EmissionReader::EmissionReader(const FieldReader *fr, const HeatReader *hr, Interpolator *i) :
         SolutionReader(i, "none", "rho_norm", "temperature"),
-        fields(fr), heat(hr), mesh(NULL) {
-    initialize(NULL);
-}
+        fields(fr), heat(hr), mesh(NULL)
+{}
 
 void EmissionReader::initialize(const TetgenMesh* m) {
     mesh = m;
 
     int n_nodes = fields->size();
+    require(n_nodes > 0, "EmissionReader can't use empty dependencies!");
+
     reserve(n_nodes);
     atoms = fields->atoms;
     interpolation = vector<Solution>(n_nodes, Solution(0));

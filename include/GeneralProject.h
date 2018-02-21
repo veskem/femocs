@@ -11,8 +11,8 @@
 #include "AtomReader.h"
 #include "Config.h"
 #include "Coarseners.h"
-#include "SolutionReader.h"
 #include "TetgenMesh.h"
+#include "SolutionReader.h"
 
 using namespace std;
 namespace femocs {

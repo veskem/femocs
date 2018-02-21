@@ -204,7 +204,6 @@ public:
 
 private:
     double t0;
-    bool skip_meshing;
 
     Config conf;             ///< configuration parameters
     AtomReader reader;       ///< all the imported atoms

@@ -7,14 +7,13 @@
 
 #include "Femocs.h"
 #include "Globals.h"
-#include "ProjectNanotip.h"
 #include "ProjectRunaway.h"
 
 using namespace std;
 namespace femocs {
 
 // specify simulation parameters
-Femocs::Femocs(const string &conf_file) : t0(0), skip_meshing(false) {
+Femocs::Femocs(const string &conf_file) : t0(0) {
     static bool first_call = true;
     bool fail;
 
@@ -35,7 +34,8 @@ Femocs::Femocs(const string &conf_file) : t0(0), skip_meshing(false) {
     first_call = false;
 
     write_verbose_msg("======= Femocs started! =======");
-//    project = new ProjectNanotip(reader, conf);
+
+    // pick the project to run
     project = new ProjectRunaway(reader, conf);
 }
 
@@ -104,10 +104,10 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_meshing = reader.calc_rms_distance(conf.tolerance.distance) < conf.tolerance.distance;
+    bool system_changed = reader.calc_rms_distance(conf.tolerance.distance) >= conf.tolerance.distance;
     end_msg(t0);
 
-    if (!skip_meshing) {
+    if (system_changed) {
         if (file_type == "xyz") {
             start_msg(t0, "=== Performing coordination analysis...");
             if (!conf.run.rdf) reader.calc_coordinations(conf.geometry.nnn, conf.geometry.coordination_cutoff);
@@ -155,10 +155,10 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_meshing = reader.calc_rms_distance(conf.tolerance.distance) < conf.tolerance.distance;
+    bool system_changed = reader.calc_rms_distance(conf.tolerance.distance) >= conf.tolerance.distance;
     end_msg(t0);
 
-    if (!skip_meshing) {
+    if (system_changed) {
         start_msg(t0, "=== Performing coordination analysis...");
         if (!conf.run.rdf) reader.calc_coordinations(conf.geometry.nnn, conf.geometry.coordination_cutoff, nborlist);
         else reader.calc_coordinations(conf.geometry.nnn, conf.geometry.coordination_cutoff, conf.geometry.latconst, nborlist);
@@ -200,10 +200,10 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
 
     start_msg(t0, "=== Comparing with previous run...");
-    skip_meshing = reader.calc_rms_distance(conf.tolerance.distance) < conf.tolerance.distance;
+    bool system_changed = reader.calc_rms_distance(conf.tolerance.distance) >= conf.tolerance.distance;
     end_msg(t0);
 
-    if (!skip_meshing) {
+    if (system_changed) {
         start_msg(t0, "=== Calculating coordinations from atom types...");
         reader.calc_coordinations(conf.geometry.nnn);
         end_msg(t0);
