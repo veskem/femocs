@@ -77,13 +77,6 @@ int ProjectRunaway::finalize() {
     return 0;
 }
 
-double ProjectRunaway::max_field() {
-    double max_field = 0;
-    for (Solution s : *vacuum_interpolator.nodes.get_solutions())
-        max_field = max(max_field, s.norm);
-    return max_field;
-}
-
 int ProjectRunaway::run(const int timestep) {
     return run(conf.field.E0, timestep);
 }
@@ -355,7 +348,7 @@ int ProjectRunaway::solve_pic(const double E0) {
         
         if (MODES.VERBOSE)
             printf("  #CG steps=%d, max field=%.3f, #injected|deleted electrons=%d|%d\n",
-                    n_cg_steps, max_field(), n_injected, n_lost);
+                    n_cg_steps, vacuum_interpolator.nodes.max_norm(), n_injected, n_lost);
     }
     
     end_msg(t0);

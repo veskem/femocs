@@ -117,8 +117,6 @@ private:
     
     /** Import mesh to FEM solvers and initialize interpolators */
     int prepare_solvers();
-
-    double max_field();
 };
 
 } /* namespace femocs */

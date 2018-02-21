@@ -98,6 +98,9 @@ public:
         mesh = m;
     }
 
+    /** Return the max value of solution.norm data */
+    double max_norm() const;
+
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
     const string norm_label;        ///< description label attached to solution.norm -values
