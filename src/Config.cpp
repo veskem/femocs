@@ -54,6 +54,7 @@ Config::Config() {
     field.V0 = 0.0;                 // anode voltage
     field.anodeBC = "neumann";      // anode Neumann boundary
     field.solver = "laplace";       // type of field equation to be solved; laplace or poisson
+    field.element_degree = 1;
 
     heating.mode = "none";            // method to calculate current density and temperature; none, stationary or transient
     heating.rhofile = "in/rho_table.dat"; // rho table file
@@ -63,6 +64,7 @@ Config::Config() {
     heating.n_newton = 10;            // maximum number of Newton iterations
 
     emission.blunt = true;            // by default emitter is blunt (simple SN barrier used for emission)
+    emission.cold = false;
     emission.work_function = 4.5;     // work function [eV]
     emission.SC = false;              // SC is ignored in Emission by default
     emission.SC_error = 1.e-3;        // Convergence criterion for SC iteration
@@ -111,6 +113,7 @@ void Config::read_all(const string& file_name) {
     read_command("emitter_blunt", emission.blunt);
     read_command("space_charge", emission.SC);
     read_command("maxerr_SC", emission.SC_error);
+    read_command("emitter_cold", emission.cold);
 
     read_command("t_ambient", heating.t_ambient);
     read_command("heating_mode", heating.mode);
@@ -130,6 +133,7 @@ void Config::read_all(const string& file_name) {
     read_command("Vappl", field.V0);
     read_command("anode_BC", field.anodeBC);
     read_command("field_solver", field.solver);
+    read_command("element_degree", field.element_degree);
 
     read_command("latconst", geometry.latconst);
     read_command("coord_cutoff", geometry.coordination_cutoff);

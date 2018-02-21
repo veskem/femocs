@@ -215,8 +215,8 @@ public:
     }
 
 private:
-    static constexpr unsigned int shape_degree = 1;   ///< degree of the shape functions (linear, quadratic etc elements)
-    static constexpr unsigned int quadrature_degree = shape_degree + 1;  ///< degree of the Gaussian numerical integration
+    const unsigned int shape_degree = 1;   ///< degree of the shape functions (linear, quadratic etc elements)
+    const unsigned int quadrature_degree = shape_degree + 1;  ///< degree of the Gaussian numerical integration
 
     static constexpr double applied_efield_default = 2.0;
 

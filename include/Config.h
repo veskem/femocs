@@ -105,6 +105,7 @@ public:
         double V0;              ///< Applied voltage at the anode (active in case of SC emission and Dirichlet anodeBC
         string anodeBC;         ///< Type of anode boundary condition (Dirichlet or Neumann)
         string solver;          ///< Type of field equation to be solved; laplace or poisson
+        int element_degree;     ///< Degree of Finite elements (1: linear, 2: quadratic, 3: cubic ...
     } field;
 
     /** Heating configuration parameters */
@@ -120,8 +121,10 @@ public:
     struct Emission{
         double work_function;       ///< Work function [eV]
         bool blunt;                 ///< Force blunt emitter approximation (good for big systems)
+        bool cold;                  ///< force cold field emission approximation (good for low temperatures)
         bool SC;                    ///< If SC is to be taken into account
         double SC_error;            ///< convergence criterion for SC error
+
     }emission;
 
     /** Smooth factors for surface faces, surface atoms and charges */

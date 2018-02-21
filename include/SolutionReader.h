@@ -253,7 +253,7 @@ private:
      * Calculates electron emission distribution for a given configuration (
      * @param workfunction Input work function.
      */
-    void emission_cycle(double workfunction, bool blunt  = false);
+    void emission_cycle(double workfunction, bool blunt  = false, bool cold = false);
 
     static constexpr double angstrom_per_nm = 10.0;
     static constexpr double nm2_per_angstrom2 = 0.01;

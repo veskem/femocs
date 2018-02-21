@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import numpy as np
-width = 20
-Nwidth = 5
+width = 30
+Nwidth = 8
 
 x = np.linspace(-width, width, Nwidth)
 y = np.copy(x)

@@ -959,6 +959,7 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     Vline.resize(n_lines);
 
     // find Fmax
+    global_data.Fmax = 0.;
     for (int i = 0; i < n_nodes; ++i)
         global_data.Fmax = max(global_data.Fmax, fields.get_elfield_norm(i));
 
@@ -1086,7 +1087,7 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
 
 }
 
-void EmissionReader::emission_cycle(double workfunction, bool blunt){
+void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold){
 
     struct emission gt;
     gt.W = workfunction;    // set workfuntion, must be set in conf. script
@@ -1096,21 +1097,21 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt){
 
     for (int i = 0; i < fields.size(); ++i) { // go through all face centroids
 
-        Vec3 field = fields.get_elfield(i); //local field
+         //local field
 
-//        F = global_data.multiplier * field.norm();
         int quad = fields.get_marker(i);
 
         int hexfemocs = mesh->quad2hex(quad, TYPES.VACUUM);
         int hexdeal = interpolator->linhexs.femocs2deal(hexfemocs);
 
-//
-
         Point3 centr = fields.get_point(i);
 
         dealii::Point<3> centr_deal(centr.x, centr.y, centr.z);
+        dealii::Tensor<1, 3, double> Fdealii = laplace.probe_efield(centr_deal, hexdeal);
 
-        F = global_data.multiplier * laplace.probe_efield(centr_deal, hexdeal).norm();
+        Vec3 field(Fdealii[0], Fdealii[1], Fdealii[2]);
+
+        F = global_data.multiplier * field.norm();
         gt.mode = 0;
         gt.F = angstrom_per_nm * F;
         gt.Temp = heat.get_temperature(i);
@@ -1132,7 +1133,7 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt){
             write_verbose_msg("GETELEC 1st call returned with error, ierr = " + to_string(gt.ierr));
         J = gt.Jem * nm2_per_angstrom2; // current density in femocs units
 
-        if (J > 0.1 * global_data.Jmax){ // If J is worth it, calculate with full energy integration
+        if (J > 0.1 * global_data.Jmax && !cold){ // If J is worth it, calculate with full energy integration
             gt.approx = 1;
             cur_dens_c(&gt);
             if (gt.ierr != 0 )
@@ -1166,7 +1167,7 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         global_data.Jmax = 0.;
         global_data.Fmax = global_data.multiplier * Fmax_0;
 
-        emission_cycle(conf.work_function, conf.blunt);
+        emission_cycle(conf.work_function, conf.blunt, conf.cold);
         calc_representative();
 
         if (Vappl <= 0 || !conf.SC) break; // if Vappl<=0, SC is ignored
