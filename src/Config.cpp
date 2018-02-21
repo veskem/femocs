@@ -74,6 +74,8 @@ Config::Config() {
     emission.SC = false;              // SC is ignored in Emission by default
     emission.SC_error = 1.e-3;        // Convergence criterion for SC iteration
 
+    force.mode = "none";              // forces to be calculated; lorentz, all, none
+
     smoothing.algorithm = "laplace";  // surface mesh smoother algorithm; none, laplace or fujiwara
     smoothing.n_steps = 0;            // number of surface mesh smoothing iterations
     smoothing.lambda_mesh = 0.6307;   // lambda parameter in surface mesh smoother
@@ -136,6 +138,8 @@ void Config::read_all(const string& file_name) {
     read_command("Vappl", field.V0);
     read_command("anode_BC", field.anodeBC);
     read_command("field_solver", field.solver);
+
+    read_command("force_mode", force.mode);
 
     read_command("latconst", geometry.latconst);
     read_command("coord_cutoff", geometry.coordination_cutoff);

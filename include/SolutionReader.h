@@ -192,9 +192,6 @@ private:
 
     /** Get analytical field enhancement for hemi-ellipsoid on infinite surface */
     double get_analyt_enhancement() const;
-
-    /** Interpolate electric field for heating module */
-//    void interpolate(vector<double>& elfields, const vector<dealii::Point<3>>& nodes);
 };
 
 /** Class to interpolate current densities and temperatures */

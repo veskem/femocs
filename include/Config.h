@@ -129,6 +129,11 @@ public:
         double SC_error;            ///< convergence criterion for SC error
     } emission;
 
+    /** Parameters related to atomic force calculations */
+    struct Force {
+        string mode;                ///< Forces to be calculated; lorentz, all, none
+    } force;
+
     /** Smooth factors for surface faces, surface atoms and charges */
     struct Smoothing {
         string algorithm;    ///< surface mesh smoother algorithm; none, laplace or fujiwara

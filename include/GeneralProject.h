@@ -40,11 +40,14 @@ public:
     virtual int interpolate_results(const int n_points, const string &data_type, const bool surface,
             const double* x, const double* y, const double* z, double* data, int* flag) = 0;
 
+    // those objects are not necessarily general
+    // needed for the ability to call export/interpolate field/phi directly from Femocs.cpp side
     FieldReader fields;       ///< fields & potentials on surface atoms
     HeatReader  temperatures; ///< temperatures & current densities on bulk atoms
     ForceReader forces;       ///< forces & charges on surface atoms
 
 protected:
+    // references instead of pointers to make their access more convenient
     AtomReader &reader;     ///< all the imported atoms
     Config &conf;           ///< configuration parameters
 
@@ -56,6 +59,8 @@ protected:
     TetgenMesh *mesh;       ///< Readily available mesh
 
 private:
+    // needed to give initial values for references
+    // in case of call for empty constructor
     AtomReader dummy_reader;
     Config dummy_config;
 };

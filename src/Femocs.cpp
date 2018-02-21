@@ -260,15 +260,18 @@ int Femocs::interpolate_phi(const int n_points, const double* x, const double* y
     return project->fields.interpolate_phi(n_points, x, y, z, phi, flag);
 }
 
+// export solution on atom coordinates; data is specified with cmd label
 int Femocs::export_results(const int n_points, const char cmd, double* data) {
     return project->export_results(n_points, LABELS.decode(cmd), data);
 }
 
+// interpolate solution (component specified with cmd label) on specified points
 int Femocs::interpolate_results(const int n_points, const char cmd,
         const double* x, const double* y, const double* z, double* data, int* flag) {
     return project->interpolate_results(n_points, LABELS.decode(cmd), false, x, y, z, data, flag);
 }
 
+// interpolate solution near the surface on specified points
 int Femocs::interpolate_surface_results(const int n_points, const char cmd,
         const double* x, const double* y, const double* z, double* data, int* flag) {
     return project->interpolate_results(n_points, LABELS.decode(cmd), true, x, y, z, data, flag);

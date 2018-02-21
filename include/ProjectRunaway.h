@@ -9,7 +9,6 @@
 #define PROJECTRUNAWAY_H_
 
 #include "GeneralProject.h"
-
 #include "Surface.h"
 #include "Interpolator.h"
 #include "PhysicalQuantities.h"
@@ -42,21 +41,6 @@ public:
      */
     int run(const double elfield, const int timestep=-1);
 
-    /** Determine whether atoms have moved significantly and whether to enable file writing */
-    int reinit(const int timestep);
-
-    /** Store the imported atom coordinates and set the flag that enables exporters */
-    int finalize();
-
-    /** Solve Laplace equation on vacuum mesh */
-    int solve_laplace(const double E0);
-
-    /** Evolve the PIC simulation one Femocs time step */
-    int solve_pic(const double E0);
-
-    /** Pick a method to solve heat and continuity equations on bulk mesh */
-    int solve_heat(const double T_ambient);
-
     /** Force the data to the files for debugging purposes */
     int force_output();
 
@@ -68,14 +52,14 @@ public:
     int export_results(const int n_points, const string &cmd, double* data);
 
     /** Export the solution on the specified points.
-      * @param n_points  # of first imported atoms where data exported; 0 disables the export
-      * @param cmd       label of the data to be exported. See Labels class for a list of possible cmd-s
-      * @param surface   data is located on or near the surface.
-      * @param x,y,z     x,y,z coordinates of the points where interpolation is performed
-      * @param data      array where results are written. Vector data is exported coordinate-wise, i.e in a form x1,y1,z1,x2,y2,...
-      * @param flag      array showing whether specified point was located inside the mesh (1) or not (0)
+      * @param n_points    # of first imported atoms where data exported; 0 disables the export
+      * @param cmd         label of the data to be exported. See Labels class for a list of possible cmd-s
+      * @param on_surface  data is located on or near the surface.
+      * @param x,y,z       coordinates of the points where interpolation is performed
+      * @param data        array where results are written. Vector data is exported coordinate-wise, i.e in a form x1,y1,z1,x2,y2,...
+      * @param flag        array showing whether specified point was located inside the mesh (1) or not (0)
       */
-    int interpolate_results(const int n_points, const string &cmd, const bool surface,
+    int interpolate_results(const int n_points, const string &cmd, const bool on_surface,
             const double* x, const double* y, const double* z, double* data, int* flag);
 
 private:
@@ -86,6 +70,7 @@ private:
     int timestep;           ///< counter to measure how many times Femocs has been called
     int last_full_timestep; ///< last time step Femocs did full calculation
     string timestep_string; ///< time step written to file name
+    // as surface atom->triangle mapping is quite heavy but useful in many places, it's good to prevent doing it many times
     vector<int> atom2face;  ///< surface atom to triangle index map
 
     Interpolator vacuum_interpolator;  ///< data & operations for interpolating field & potential in vacuum
@@ -103,11 +88,26 @@ private:
     fch::CurrentHeatSolver<3> ch_solver;     ///< transient currents and heating solver
     Pic<3> pic_solver;                       ///< class for solving Poisson equation and handling space charge
 
+    /** Determine whether atoms have moved significantly and whether to enable file writing */
+    int reinit(const int timestep);
+
+    /** Store the imported atom coordinates and set the flag that enables exporters */
+    int finalize();
+
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
 
     /** Generate bulk and vacuum meshes using the imported atomistic data */
     int generate_mesh();
+
+    /** Solve Laplace equation on vacuum mesh */
+    int solve_laplace(const double E0);
+
+    /** Evolve the PIC simulation one Femocs time step */
+    int solve_pic(const double E0);
+
+    /** Pick a method to solve heat and continuity equations on bulk mesh */
+    int solve_heat(const double T_ambient);
 
     /** Solve transient heat and continuity equations */
     int solve_transient_heat(const double T_ambient, const double delta_time);
@@ -117,6 +117,9 @@ private:
     
     /** Import mesh to FEM solvers and initialize interpolators */
     int prepare_solvers();
+
+    /** Calculate data of interest on the locations of imported atoms */
+    int prepare_export();
 };
 
 } /* namespace femocs */

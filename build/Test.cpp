@@ -33,16 +33,17 @@ void write_defaults(ofstream &file) {
     file << "n_writefile = 1"            << endl;
     file << "use_histclean = false"      << endl;
     file << "use_rdf = false"            << endl;
-    file << "clean_surface = true"    << endl;
+    file << "clean_surface = true"       << endl;
     file << "surface_thickness = 3.1"    << endl;
     file << "coord_cutoff = 3.1"         << endl;
-    file << "charge_cutoff = 30"        << endl;
+    file << "charge_cutoff = 30"         << endl;
     file << "latconst = 3.61"            << endl;
     file << "femocs_verbose_mode = verbose" << endl;
     file << "smooth_steps = 3"           << endl;
     file << "smooth_algorithm = laplace" << endl;
-    file << "elfield = -0.1"            << endl;
+    file << "elfield = -0.1"             << endl;
     file << "interpolation_rank = 1"     << endl;
+    file << "force_mode = all"           << endl;
 }
 
 void write_rectangle(ofstream &file) {

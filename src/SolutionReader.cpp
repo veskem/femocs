@@ -404,50 +404,32 @@ void SolutionReader::print_statistics() {
 }
 
 int SolutionReader::export_results(const int n_points, const string &data_type, const bool append, double* data) {
-    if (n_points <= 0) return 0;
-    check_return(size() == 0, "No result to export!");
+    check_return(size() == 0, "No " + data_type + " to export!");
 
     // Check whether the already excising data must survive or not
-    if (append) {
-        // Pass the desired solution
-        for (int i = 0; i < size(); ++i) {
-            int id = get_id(i);
-            if (id < 0 || id >= n_points) continue;
-
-            if (data_type == vec_label) {
-                id *= 3;
-                for (double v : interpolation[i].vector)
-                    data[id++] += v;
-            }
-            else if (data_type == scalar_label)
-                data[id] += interpolation[i].scalar;
-            else
-                data[id] += interpolation[i].norm;
-        }
-
-    } else {
-        // Clear the previous results
+    if (!append) {
+        // No, clear the previous data
         int export_type_len = 1;
         if (data_type == vec_label)
             export_type_len = 3;
         for (int i = 0; i < export_type_len * n_points; ++i)
             data[i] = 0;
+    }
 
-        // Pass the desired solution
-        for (int i = 0; i < size(); ++i) {
-            int id = get_id(i);
-            if (id < 0 || id >= n_points) continue;
+    // Pass the desired solution
+    for (int i = 0; i < size(); ++i) {
+        int id = get_id(i);
+        if (id < 0 || id >= n_points) continue;
 
-            if (data_type == vec_label) {
-                id *= 3;
-                for (double v : interpolation[i].vector)
-                    data[id++] = v;
-            }
-            else if (data_type == scalar_label)
-                data[id] = interpolation[i].scalar;
-            else
-                data[id] = interpolation[i].norm;
+        if (data_type == vec_label) {
+            id *= 3;
+            for (double v : interpolation[i].vector)
+                data[id++] = v;
         }
+        else if (data_type == scalar_label)
+            data[id] = interpolation[i].scalar;
+        else
+            data[id] = interpolation[i].norm;
     }
 
     return 0;
@@ -455,12 +437,11 @@ int SolutionReader::export_results(const int n_points, const string &data_type, 
 
 int SolutionReader::interpolate_results(const int n_points, const string &data_type, const double* x,
         const double* y, const double* z, double* data) {
-    if (n_points <= 0) return 0;
-    check_return(size() == 0, "No interpolation to export!");
+    check_return(size() == 0, "No " + data_type + " to interpolate!");
 
     // transfer coordinates
     SolutionReader sr(interpolator, vec_label, vec_norm_label, scalar_label);
-    sr.set_preferences(false, dim, rank);
+    sr.set_preferences(sort_atoms, dim, rank);
     sr.reserve(n_points);
     for (int i = 0; i < n_points; ++i)
         sr.append(Atom(i, Point3(x[i], y[i], z[i]), 0));
@@ -484,7 +465,6 @@ int SolutionReader::interpolate_results(const int n_points, const string &data_t
     }
 
     return 0;
-
 }
 
 /* ==========================================
@@ -768,25 +748,6 @@ void FieldReader::interpolate(const Medium &medium) {
         atoms[i].id = medium.get_id(i);
 }
 
-//void FieldReader::interpolate(vector<double>& elfields, const vector<dealii::Point<3>>& nodes) {
-//    // import the surface nodes the solver needs
-//    const int n_nodes = nodes.size();
-//
-//    // store the node coordinates
-//    reserve(n_nodes);
-//    int i = 0;
-//    for (const dealii::Point<3>& node : nodes)
-//        append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
-//
-//    // interpolate solution on the nodes and clean peaks
-//    calc_interpolation();
-//
-//    // export electric field norms to the solver
-//    elfields = vector<double>(n_nodes);
-//    for (int i = 0; i < n_nodes; ++i)
-//        elfields[i] = 10.0 * get_elfield_norm(i);
-//}
-
 void FieldReader::interpolate(const fch::DealSolver<3>& solver) {
     // import the surface nodes the solver needs
     vector<dealii::Point<3>> nodes;
@@ -934,7 +895,6 @@ int FieldReader::interpolate_surface_elfield(const int n_points, const double* x
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     if (n_points <= 0) return 0;
     check_return(interpolator->nodes.size() == 0, "No surface field to export!");
-    require(n_points == size(), "Invalid query size: " + to_string(n_points));
 
     FieldReader fr(interpolator);
     fr.set_preferences(false, 2, rank);
@@ -956,7 +916,6 @@ int FieldReader::interpolate_elfield(const int n_points, const double* x, const 
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
     if (n_points <= 0) return 0;
     check_return(interpolator->nodes.size() == 0, "No electric field to interpolate!");
-    require(n_points == size(), "Invalid query size: " + to_string(n_points));
 
     FieldReader fr(interpolator);
     fr.set_preferences(false, 3, rank);
@@ -978,10 +937,9 @@ int FieldReader::interpolate_phi(const int n_points, const double* x, const doub
         double* phi, int* flag) {
     if (n_points <= 0) return 0;
     check_return(interpolator->nodes.size() == 0, "No electric potential to interpolate!");
-    require(n_points == size(), "Invalid query size: " + to_string(n_points));
 
     FieldReader fr(interpolator);
-    fr.set_preferences(false,  3, 2);
+    fr.set_preferences(false, 3, 2);
     fr.interpolate(n_points, x, y, z);
 
     for (int i = 0; i < n_points; ++i) {

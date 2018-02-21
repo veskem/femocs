@@ -6,14 +6,12 @@
  */
 
 #include <omp.h>
-#include <algorithm>
-#include <sstream>
-#include <cmath>
 
 #include "ProjectRunaway.h"
 #include "Macros.h"
 #include "Tethex.h"
 #include "VoronoiMesh.h"
+
 
 using namespace std;
 namespace femocs {
@@ -91,7 +89,7 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
     stream << "Atoms haven't moved significantly, " << reader.rms_distance
             << " < " << conf.tolerance.distance << "! Previous mesh will be used!";
 
-    //************************* MESHING ************************
+    //***** Build mesh *****
     bool skip_meshing = reinit(tstep);
     if (skip_meshing)
         write_verbose_msg(stream.str());
@@ -106,7 +104,7 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
         }
     }
 
-    //****************** RUNNING FEM SOLVERS *******************
+    //***** Run FEM solvers *****
     if (conf.field.solver == "poisson") {
         if (solve_pic(elfield)) {
             force_output();
@@ -124,6 +122,12 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
     if (!skip_meshing && solve_heat(conf.heating.t_ambient)) {
         force_output();
         check_return(true, "Solving heat & continuity equation failed!");
+    }
+
+    //***** Prepare for data export and next run *****
+    if (prepare_export()) {
+        force_output();
+        check_return(true, "Extracting solution on atoms failed!");
     }
 
     finalize();
@@ -279,22 +283,86 @@ int ProjectRunaway::prepare_solvers() {
     return 0;
 }
 
-int ProjectRunaway::solve_laplace(const double E0) {
-    bool first_time = true;
-    conf.field.E0 = E0;       // reset long-range electric field
+int ProjectRunaway::prepare_export() {
+    start_msg(t0, "=== Interpolating E and phi...");
+    fields.set_preferences(true, 2, conf.behaviour.interpolation_rank);
+    fields.interpolate(dense_surf);
+    end_msg(t0);
 
+    fields.write("out/fields.movie");
+    check_return(fields.check_limits(), "Field enhancement is out of limits!");
+
+    if (conf.heating.mode != "none") {
+        start_msg(t0, "=== Interpolating J & T...");
+        temperatures.set_preferences(true, 3, conf.behaviour.interpolation_rank);
+        temperatures.interpolate(reader);
+        end_msg(t0);
+
+        temperatures.write("out/temperatures.movie");
+        // TODO implement reasonable temperature limit check
+    }
+
+    if (conf.force.mode != "none") {
+        // analytical total charge without epsilon0 (will be added in ChargeReader)
+        const double tot_charge = conf.field.E0 * reader.sizes.xbox * reader.sizes.ybox;
+
+        ChargeReader face_charges(&vacuum_interpolator); // charges on surface triangles
+        face_charges.set_check_params(tot_charge, conf.tolerance.charge_min, conf.tolerance.charge_max);
+
+        start_msg(t0, "=== Calculating face charges...");
+        face_charges.calc_charges(*mesh, conf.field.E0);
+        end_msg(t0);
+
+        face_charges.write("out/face_charges.xyz");
+        check_return(face_charges.check_limits(), "Face charges are not conserved!");
+
+        start_msg(t0, "=== Distributing face charges...");
+        // Remove the atoms and their solutions outside the box
+        face_charges.clean(dense_surf.sizes, conf.geometry.latconst);
+        forces.distribute_charges(fields, face_charges, 0, conf.smoothing.beta_charge);
+        end_msg(t0);
+
+        start_msg(t0, "=== Generating Voronoi cells...");
+        VoronoiMesh voro_mesh;
+        int err_code;
+        err_code = forces.calc_voronois(voro_mesh, atom2face, conf.geometry.radius, conf.geometry.latconst, "10.0");
+        end_msg(t0);
+
+        check_return(err_code, "Generation of Voronoi cells failed with error code " + to_string(err_code));
+        voro_mesh.nodes.write("out/voro_nodes.vtk");
+        voro_mesh.voros.write("out/voro_cells.vtk");
+        voro_mesh.vfaces.write("out/voro_faces.vtk");
+
+        if (conf.force.mode == "lorentz") {
+            start_msg(t0, "=== Calculating Lorentz force...");
+            forces.calc_charge_and_lorentz(voro_mesh, fields);
+        } else {
+            start_msg(t0, "=== Calculating Lorentz & Coulomb force...");
+            forces.calc_charge_and_lorentz(voro_mesh, fields);
+            forces.calc_coulomb(conf.geometry.charge_cutoff);
+        }
+        end_msg(t0);
+
+        forces.write("out/forces.movie");
+        check_return(face_charges.check_limits(forces.get_interpolations()), "Voronoi charges are not conserved!");
+    }
+
+    return 0;
+}
+
+int ProjectRunaway::solve_laplace(const double E0) {
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
     fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
 
-    start_msg(t0, "=== Initializing Poisson solver...");
+    start_msg(t0, "=== Initializing Laplace solver...");
     poisson_solver.setup(-E0);
-    poisson_solver.assemble_laplace(first_time);
+    poisson_solver.assemble_laplace(true);
     end_msg(t0);
 
     stringstream ss; ss << poisson_solver;
     write_verbose_msg(ss.str());
 
-    start_msg(t0, "=== Running Poisson solver...");
+    start_msg(t0, "=== Running Laplace solver...");
     int ncg = poisson_solver.solve();
     end_msg(t0);
 
@@ -302,16 +370,17 @@ int ProjectRunaway::solve_laplace(const double E0) {
     vacuum_interpolator.extract_solution(poisson_solver);
     end_msg(t0);
 
+    vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
+    vacuum_interpolator.lintets.write("out/result_E_phi.vtk");
     check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()), "Field enhancement is out of limits!");
 
-    vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
-    vacuum_interpolator.lintets.write("out/result_E_phi_linear.vtk");
-    vacuum_interpolator.quadtets.write("out/result_E_phi_quad.vtk");
-
-    return fail;
+    return 0;
 }
 
 int ProjectRunaway::solve_pic(const double E0) {
+    // Store parameters for comparing the results with analytical hemi-ellipsoid results
+    fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
+
     const double dt_main = max(delta_t_MD * 1.e15, conf.pic.total_time);
 
     int time_subcycle = ceil(dt_main / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
@@ -352,11 +421,15 @@ int ProjectRunaway::solve_pic(const double E0) {
         if (MODES.VERBOSE)
             printf("  #CG steps=%d, max field=%.3f, #injected|deleted electrons=%d|%d\n",
                     n_cg_steps, vacuum_interpolator.nodes.max_norm(), n_injected, n_lost);
+
+        pic_solver.write("out/electrons.movie", 0);
     }
     
     end_msg(t0);
 
-    pic_solver.write("out/electrons.movie", 0);
+    vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
+    vacuum_interpolator.lintets.write("out/result_E_phi.vtk");
+    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()), "Field enhancement is out of limits!");
 
     return 0;
 
@@ -511,23 +584,45 @@ int ProjectRunaway::force_output() {
 }
 
 int ProjectRunaway::export_results(const int n_points, const string &cmd, double* data) {
+    if (n_points <= 0) return 0;
+
     if (cmd == LABELS.elfield.second || cmd == LABELS.elfield_norm.second || cmd == LABELS.potential.second)
         return fields.export_results(n_points, cmd, false, data);
 
+    if (cmd == LABELS.rho.second || cmd == LABELS.rho_norm.second || cmd == LABELS.temperature.second)
+        return temperatures.export_results(n_points, cmd, false, data);
+
+    if (cmd == LABELS.force.second || cmd == LABELS.force_norm.second || cmd == LABELS.charge.second)
+        return forces.export_results(n_points, cmd, true, data);
+
     require(false, "Unimplemented type of export data: " + cmd);
-    return 0;
+    return 1;
 }
 
-int ProjectRunaway::interpolate_results(const int n_points, const string &cmd, const bool surface,
+int ProjectRunaway::interpolate_results(const int n_points, const string &cmd, const bool on_surface,
         const double* x, const double* y, const double* z, double* data, int* flag) {
 
+    // location of interpolation; 2-on surface, 3-in space
+    int dim = 3;
+    if (on_surface) dim = 2;
+
     if (cmd == LABELS.elfield.second || cmd == LABELS.elfield_norm.second || cmd == LABELS.potential.second) {
-        fields.set_preferences(true, 3, conf.behaviour.interpolation_rank);
+        fields.set_preferences(false, dim, conf.behaviour.interpolation_rank);
         return fields.interpolate_results(n_points, cmd, x, y, z, data);
     }
 
-    require(false, "Unimplemented type of export data: " + cmd);
-    return 0;
+    if (cmd == LABELS.rho.second || cmd == LABELS.rho_norm.second || cmd == LABELS.temperature.second) {
+        temperatures.set_preferences(false, dim, conf.behaviour.interpolation_rank);
+        return fields.interpolate_results(n_points, cmd, x, y, z, data);
+    }
+
+    if (cmd == LABELS.force.second || cmd == LABELS.force_norm.second || cmd == LABELS.charge.second) {
+        forces.set_preferences(false, dim, conf.behaviour.interpolation_rank);
+        return forces.interpolate_results(n_points, cmd, x, y, z, data);
+    }
+
+    require(false, "Unimplemented type of interpolation data: " + cmd);
+    return 1;
 }
 
 } /* namespace femocs */
