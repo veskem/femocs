@@ -2,7 +2,7 @@
  * ParticleSpecies.h
  *
  *  Created on: Jan 30, 2018
- *      Author: andreas
+ *      Author: andreas, Mihkel
  */
 
 #ifndef PARTICLESPECIES_H_
@@ -15,32 +15,25 @@
 
 namespace femocs {
 
-
-class ParticleSpecies{
+class ParticleSpecies {
 public:
     ParticleSpecies(double q_ovr_m, double charge, double Wsp);
-    ~ParticleSpecies();
+    ~ParticleSpecies() {};
 
-    void inject_particle(Point3 _pos, Point3 _vel, int _cell){
-        parts.push_back(Particle{.pos = _pos, .vel = _vel, .cell = _cell});
+    void inject_particle(const Point3 &pos, const Vec3 &vel, const int cell) {
+        parts.push_back(SuperParticle(pos, vel, cell));
     }
 
-    void clear_lost();
+    int clear_lost();
 
-    struct Particle{
-        Point3 pos; ///< Particle position [Å]
-        Point3 vel; ///< Particle velocity [Å/fs]
-        int cell;   ///< Cell ID, -1 if outside the domain
-                    ///< (to be cleared up by ParticleSpecies::clear_lost())
-        bool operator < (const Particle &partj) {return (cell < partj.cell);}
-    };
+    void sort();
 
-    void sort_parts();
+    int size() const { return parts.size(); }
 
     void set_Wsp(double _Wsp){ Wsp = _Wsp; }
     double get_Wsp(){ return Wsp; }
 
-    vector<Particle> parts;
+    vector<SuperParticle> parts;
     vector<size_t> ordcount;
 
     const double q_over_m_factor; ///< charge/mass [A^2 / (V fs^2)]
@@ -52,9 +45,6 @@ private:
     double Wsp;                 ///< SP weight [particles/superparticle]
 };
 
-} // namespace
+} // namespace femocs
 
-
-
-
-#endif /* INCLUDE_PARTICLESPECIES_H_ */
+#endif /* PARTICLESPECIES_H_ */

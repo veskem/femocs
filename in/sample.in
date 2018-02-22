@@ -61,6 +61,9 @@ t_ambient = 300.0               # temperature at the bottom simulation cell [K]
 lorentz = 2.44e-8				# Lorentz number (Wiedemann Franz law) [W*Ohm/K^2]
 rhofile = in/rhotable.dat       # Table of resistivity values [Ohm*nm]
 
+# Parameters related to force calculation
+force_mode = all                # forces to be calculated; lorentz, all, none
+
 # Tolerances of solution accuracy
 n_newton = 10                   # max number of Newton iterations
 n_phi = 10000                   # max number of Conjugate Gradient iterations in phi calculation

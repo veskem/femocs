@@ -1,12 +1,12 @@
 /*
- * physical_quantities.h
+ * physical_quantities.h -> PhysicalQuantities.h
  *
  *  Created on: Apr 30, 2016
  *      Author: kristjan
  */
 
-#ifndef INCLUDE_PHYSICAL_QUANTITIES_H_
-#define INCLUDE_PHYSICAL_QUANTITIES_H_
+#ifndef PHYSICALQUANTITIES_H_
+#define PHYSICALQUANTITIES_H_
 
 #include <vector>
 #include <string>
@@ -53,7 +53,7 @@ public:
      * @param temperature Temperature in (K)
      * @return Emission current density in (A/ang^2)
      */
-    double emission_current(double field, double temperature);
+    double emission_current(double field, double temperature) const;
 
     /**
      * Evaluates the nottingham delta energy <DE> (eV)
@@ -61,7 +61,7 @@ public:
      * @param temperature Temperature in (K)
      * @return nottingham delta energy in (eV)
      */
-    double nottingham_de(double field, double temperature);
+    double nottingham_de(double field, double temperature) const;
 
     /**
      * Evaluates the electrical resistivity rho
@@ -70,7 +70,7 @@ public:
      */
     double evaluate_resistivity(double temperature) const;
 
-    double evaluate_resistivity_derivative(double temperature);
+    double evaluate_resistivity_derivative(double temperature) const;
 
     /**
      * electrical conductivity sigma in (1/(Ohm*ang))
@@ -80,23 +80,23 @@ public:
     /**
      * electrical conductivity derivative
      */
-    double dsigma(double temperature);
+    double dsigma(double temperature) const;
 
     /**
      * thermal conductivity in (W/(ang*K))
      */
-    double kappa(double temperature);
+    double kappa(double temperature) const;
 
     /**
      * thermal conductivity derivative
      */
-    double dkappa(double temperature);
+    double dkappa(double temperature) const;
 
     /**
      * Outputs sigma, kappa, res (and d-s) and emission currents to files in specified path
      * NB: Slow!!!
      */
-    void output_to_files();
+    void output_to_files() const;
 
     /**
      * Method to read the tabulated resistivity data from file.
@@ -124,28 +124,24 @@ private:
     /**
      * 1d linear interpolation with constant extrapolation using binary search
      */
-    double linear_interp(double x,
-            std::vector<std::pair<double, double>> data) const;
+    double linear_interp(double x, std::vector<std::pair<double, double>> data) const;
 
     /**
      * 1d linear interpolation of the derivative with constant extrapolation using binary search
      * derivative is approximated with central differences (one sided at ends)
      */
-    double deriv_linear_interp(double x,
-            std::vector<std::pair<double, double>> data);
+    double deriv_linear_interp(double x, std::vector<std::pair<double, double>> data) const;
 
     double evaluate_derivative(std::vector<std::pair<double, double>> &data,
-            std::vector<std::pair<double, double>>::iterator it);
+            std::vector<std::pair<double, double>>::iterator it) const;
 
     /**
      * 2d bilinear interpolation with constant extrapolation
      * NB: Assumes uniform grid
      */
-    double bilinear_interp(double x, double y,
-            const InterpolationGrid &grid_data);
+    double bilinear_interp(double x, double y, const InterpolationGrid &grid_data) const;
 
-    bool load_spreadsheet_grid_data(std::string filepath,
-            InterpolationGrid &grid);
+    bool load_spreadsheet_grid_data(std::string filepath, InterpolationGrid &grid);
 
     bool load_compact_grid_data(std::string filepath, InterpolationGrid &grid);
 
@@ -160,4 +156,4 @@ private:
 
 } // namespace fch
 
-#endif /* INCLUDE_PHYSICAL_QUANTITIES_H_ */
+#endif /* PHYSICALQUANTITIES_H_ */

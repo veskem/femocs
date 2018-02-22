@@ -5,14 +5,16 @@
  *      Author: veske
  */
 
-#include "Macros.h"
-
 #include <omp.h>
 #include <algorithm>
 #include <fstream>
 #include <numeric>
 
+#include "Macros.h"
+#include "Globals.h"
+
 using namespace std;
+namespace femocs {
 
 const string FEMOCSLOGPATH = "out/femocs.log";
 
@@ -187,3 +189,5 @@ string get_file_type(const string& file_name) {
     const int end = file_name.size();
     return file_name.substr(start, end);
 }
+
+} /* namespace femocs */

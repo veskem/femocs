@@ -1,31 +1,30 @@
 /*
- * physical_quantities.cc
+ * physical_quantities.cc -> PhysicalQuantities.cpp
  *
  *  Created on: Apr 30, 2016
  *      Author: kristjan
  */
 
-#include "physical_quantities.h"
-#include "utility.h"
-
 #include <fstream>
 #include <sstream>
 #include <cmath>
-#include <cstdio>  // fopen
+#include <cstdio>
 #include <iostream>
 #include <algorithm>
-
 #include <sys/stat.h>
+
+#include "PhysicalQuantities.h"
+
 
 namespace fch {
 
 PhysicalQuantities::PhysicalQuantities(const femocs::Config::Heating& c) : config(c){}
 
-double PhysicalQuantities::emission_current(double field, double temperature) {
+double PhysicalQuantities::emission_current(double field, double temperature) const {
     return std::exp(bilinear_interp(std::log(field), temperature, emission_grid)) * 1.0e-20;
 }
 
-double PhysicalQuantities::nottingham_de(double field, double temperature) {
+double PhysicalQuantities::nottingham_de(double field, double temperature) const {
     return bilinear_interp(std::log(field), temperature, nottingham_grid);
 }
 
@@ -37,7 +36,7 @@ double PhysicalQuantities::evaluate_resistivity(double temperature) const {
     return 10. * linear_interp(temperature, resistivity_data);
 }
 
-double PhysicalQuantities::evaluate_resistivity_derivative(double temperature) {
+double PhysicalQuantities::evaluate_resistivity_derivative(double temperature) const {
     if (temperature < resistivity_data.front().first)
         temperature = resistivity_data.front().first;
     if (temperature > resistivity_data.back().first)
@@ -50,12 +49,12 @@ double PhysicalQuantities::sigma(double temperature) const {
     return 1.0 / rho;
 }
 
-double PhysicalQuantities::dsigma(double temperature) {
+double PhysicalQuantities::dsigma(double temperature) const {
     double rho = evaluate_resistivity(temperature);
     return -evaluate_resistivity_derivative(temperature) / (rho * rho);
 }
 
-double PhysicalQuantities::kappa(double temperature) {
+double PhysicalQuantities::kappa(double temperature) const {
     if (temperature < resistivity_data.front().first)
         temperature = resistivity_data.front().first;
     if (temperature > resistivity_data.back().first)
@@ -64,7 +63,7 @@ double PhysicalQuantities::kappa(double temperature) {
     return config.lorentz * temperature * sigma(temperature);
 }
 
-double PhysicalQuantities::dkappa(double temperature) {
+double PhysicalQuantities::dkappa(double temperature) const {
     if (temperature < resistivity_data.front().first)
         temperature = resistivity_data.front().first;
     if (temperature > resistivity_data.back().first)
@@ -129,7 +128,7 @@ bool PhysicalQuantities::load_compact_grid_data(std::string filepath, Interpolat
     int line_counter = 0;
 
     while (std::getline(infile, line)) {
-        if (line[0] == '%' || line.size() == 0 || !contains_digit(line))
+        if (line[0] == '%' || line.size() == 0 || !femocs::contains_digit(line))
             continue;
 
         std::istringstream stm(line);
@@ -186,7 +185,7 @@ double PhysicalQuantities::linear_interp(double x,
 }
 
 double PhysicalQuantities::evaluate_derivative(std::vector<std::pair<double, double>> &data,
-        std::vector<std::pair<double, double>>::iterator it) {
+        std::vector<std::pair<double, double>>::iterator it) const {
     if (it == data.begin()) {
         return ((it + 1)->second - it->second) / ((it + 1)->first - it->first);
     } else if (it == data.end() - 1) {
@@ -195,7 +194,7 @@ double PhysicalQuantities::evaluate_derivative(std::vector<std::pair<double, dou
     return ((it + 1)->second - (it - 1)->second) / ((it + 1)->first - (it - 1)->first);
 }
 
-void PhysicalQuantities::output_to_files() {
+void PhysicalQuantities::output_to_files() const {
 
     // temperature for emission current evaluation
     double temperature = 500.0;
@@ -238,8 +237,7 @@ void PhysicalQuantities::output_to_files() {
 /**
  * NB: Derivative is extrapolated by boundary values; out of bounds the real derivative should be zero!
  */
-double PhysicalQuantities::deriv_linear_interp(double x,
-        std::vector<std::pair<double, double>> data) {
+double PhysicalQuantities::deriv_linear_interp(double x, std::vector<std::pair<double, double>> data) const {
     double eps = 1e-10;
     if (x <= data[0].first)
         x = data[0].first + eps;
@@ -258,7 +256,7 @@ double PhysicalQuantities::deriv_linear_interp(double x,
 }
 
 // NB: This assumes uniform grid
-double PhysicalQuantities::bilinear_interp(double x, double y, const InterpolationGrid &grid_data) {
+double PhysicalQuantities::bilinear_interp(double x, double y, const InterpolationGrid &grid_data) const {
 //std::printf("%f, %f, %f\n", x, grid_data.xmin, grid_data.xmax);
 //std::printf("%f, %f, %f\n", y, grid_data.ymin, grid_data.ymax);
     double eps = 1e-10;

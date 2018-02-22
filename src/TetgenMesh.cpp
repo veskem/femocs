@@ -154,8 +154,6 @@ void TetgenMesh::smoothen(const int n_steps, const double lambda, const double m
             fujiwara_smooth(mu, nborlist);
         }
     }
-
-    faces.calc_norms_and_areas();
 }
 
 // Smoothen the surface mesh using Taubin lambda|mu algorithm with inverse neighbour count weighting

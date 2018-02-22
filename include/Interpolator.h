@@ -8,14 +8,12 @@
 #ifndef INTERPOLATOR_H_
 #define INTERPOLATOR_H_
 
+
+#include "CurrentHeatSolver.h"
 #include "Primitives.h"
 #include "TetgenMesh.h"
-//#include "TetgenCells.h"
 #include "InterpolatorCells.h"
-//#include "Coarseners.h"
-#include "laplace.h"
-#include "currents_and_heating.h"
-#include "currents_and_heating_stationary.h"
+#include "PoissonSolver.h"
 
 using namespace std;
 namespace femocs {
@@ -54,18 +52,15 @@ public:
     /** Initialise interpolator and store solution with default value */
     void initialize(const TetgenMesh* mesh, const double empty_value=0);
 
-    /** Extract the electric potential and field values from FEM solution */
-    bool extract_solution(fch::Laplace<3>* fem);
-
-    /** Extract the current density and stationary temperature values from FEM solution */
-    bool extract_solution(fch::CurrentsAndHeatingStationary<3>* fem);
-
     /** Extract the current density and transient temperature values from FEM solution */
-    bool extract_solution(fch::CurrentsAndHeating<3>& fem);
+    void extract_solution(fch::CurrentHeatSolver<3>& fem);
+    
+    /** Extract electric potential and field values from FEM solution */
+    void extract_solution(fch::PoissonSolver<3>& fem);
 
     bool extract_rhs(fch::Laplace<3>* fem);
 
-    int update_point_cell(Point3& point, int current_cell, bool deal_index = true);
+    int update_point_cell(Point3& point, int current_cell);
 
     InterpolatorNodes nodes;      ///< vertices and solutions on them
     LinearTriangles lintris;      ///< data & operations for linear triangular interpolation

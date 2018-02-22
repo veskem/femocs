@@ -2,18 +2,18 @@
 #include <utility>
 #include <fstream>
 
-#include "physical_quantities.h"
+#include "PhysicalQuantities.h"
 #include "Macros.h"
 
 namespace fch {
 
 void PhysicalQuantities::initialize_with_hc_data() {
-    std::string ftype = get_file_type(config.rhofile);
+    std::string ftype = femocs::get_file_type(config.rhofile);
     require(ftype=="dat", "Unknown file type: " + config.rhofile);
 
     std::ifstream resfile(config.rhofile);
     if (resfile.is_open()) {
-        write_verbose_msg("Reading rho table from " + config.rhofile);
+        femocs::write_verbose_msg("Reading rho table from " + config.rhofile);
         int Nline;
         resfile >> Nline;
         resistivity_data = std::vector<std::pair<double, double>> (Nline);
@@ -22,7 +22,7 @@ void PhysicalQuantities::initialize_with_hc_data() {
             resfile >> resistivity_data[i].second;
         }
     } else {
-        write_silent_msg("Resistivity file " + config.rhofile + " not found! Using the values for infinite sized Cu.");
+        femocs::write_silent_msg("Resistivity file " + config.rhofile + " not found! Using the values for infinite sized Cu.");
         resistivity_data = hc_resistivity_data;
     }
 

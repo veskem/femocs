@@ -5,6 +5,7 @@
  *      Author: veske
  */
 
+#include <float.h>
 #include "InterpolatorCells.h"
 
 namespace femocs {
@@ -162,6 +163,13 @@ void InterpolatorNodes::print_statistics() const {
     stream << "\n  mean & rms scalar: " << scalar << "\t" << rms_scalar;
 
     write_verbose_msg(stream.str());
+}
+
+double InterpolatorNodes::max_norm() const {
+    double max_norm = -DBL_MAX;
+    for (Solution s : solutions)
+        max_norm = max(max_norm, s.norm);
+    return max_norm;
 }
 
 /* ==================================================================

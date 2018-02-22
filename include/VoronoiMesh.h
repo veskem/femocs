@@ -14,6 +14,7 @@
 #include "Medium.h"
 #include "TetgenCells.h"
 #include <fstream>
+#include "Globals.h"
 
 using namespace std;
 namespace femocs {

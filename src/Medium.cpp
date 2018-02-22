@@ -367,7 +367,7 @@ void Medium::write(const string &file_name) const {
     outfile.setf(std::ios::scientific);
     outfile.precision(6);
 
-    if (ftype == "movie") outfile.open(file_name, ios_base::app);
+    if (ftype == "movie" || ftype == "dat") outfile.open(file_name, ios_base::app);
     else outfile.open(file_name);
     require(outfile.is_open(), "Can't open a file " + file_name);
     
@@ -377,6 +377,8 @@ void Medium::write(const string &file_name) const {
         write_vtk(outfile, n_atoms);
     else if (ftype == "ckx")
         write_ckx(outfile, n_atoms);
+    else if (ftype == "dat")
+        write_dat(outfile);
     else    
         require(false, "Unsupported file type: " + ftype);
 
@@ -390,6 +392,13 @@ string Medium::get_data_string(const int i) const {
     ostringstream strs; strs << fixed;
     strs << atoms[i];
     return strs.str();
+}
+
+// Compile entry to the dat-file
+string Medium::get_global_data(const bool first_line) const {
+    static int timestep = 0;
+    if (first_line) return "time_step";
+    return to_string(timestep++);
 }
 
 // Output atom data in .xyz format
@@ -422,6 +431,12 @@ void Medium::write_ckx(ofstream &out, const int n_atoms) const {
     out << "Medium properties=type:I:1:pos:R:3" << endl;
     for (int i = 0; i < n_atoms; ++i)
         out << atoms[i].marker << " " << atoms[i].point << endl;
+}
+
+// Output single line of data
+void Medium::write_dat(ofstream &out) const {
+    if (out.tellp() == 0) out << get_global_data(true) << endl;
+    out << get_global_data(false) << endl;
 }
 
 // Get scalar and vector data associated with vtk cells

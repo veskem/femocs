@@ -108,7 +108,7 @@ public:
         int element_degree;     ///< Degree of Finite elements (1: linear, 2: quadratic, 3: cubic ...
     } field;
 
-    /** Heating configuration parameters */
+    /** Heating module configuration parameters */
     struct Heating {
         string mode;                ///< Method to calculate current density and temperature; none, stationary or transient
         string rhofile;             ///< Path to the file with resistivity table
@@ -116,16 +116,25 @@ public:
         double t_ambient;           ///< Ambient temperature in heat calculations
         double t_error;             ///< Maximum allowed temperature error in Newton iterations
         int n_newton;               ///< Maximum number of Newton iterations
+        int n_cg;                   ///< Max # Conjugate-Gradient iterations
+        double cg_tolerance;        ///< Solution accuracy in Conjugate-Gradient solver
+        double ssor_param;          ///< Parameter for SSOR preconditioner in DealII. Its fine tuning optimises calculation time.
+        double delta_time;          ///< Timestep of time domain integration [sec]
+        string assemble_method;     ///< Method to assemble system matrix for solving heat equation; euler or crank_nicolson
     } heating;
 
-    struct Emission{
+    struct Emission {
         double work_function;       ///< Work function [eV]
         bool blunt;                 ///< Force blunt emitter approximation (good for big systems)
         bool cold;                  ///< force cold field emission approximation (good for low temperatures)
         bool SC;                    ///< If SC is to be taken into account
         double SC_error;            ///< convergence criterion for SC error
+    } emission;
 
-    }emission;
+    /** Parameters related to atomic force calculations */
+    struct Force {
+        string mode;                ///< Forces to be calculated; lorentz, all, none
+    } force;
 
     /** Smooth factors for surface faces, surface atoms and charges */
     struct Smoothing {

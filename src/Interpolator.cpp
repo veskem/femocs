@@ -123,15 +123,9 @@ void Interpolator::store_solution(const vector<int>& femocs2deal,
 
 //find the hex cell where the piont p is located. initial guess: current_cell
 // if deal_index then current_cell is dealii cell index
-int Interpolator::update_point_cell(Point3& point, int current_cell, bool deal_index) {
-    int femocs_current_cell;
-
-    if (deal_index)
-        femocs_current_cell = linhexs.deal2femocs(current_cell);
-    else
-        femocs_current_cell = current_cell;
-
-    int femocs_cell = linhexs.locate_cell(point, femocs_current_cell);
+int Interpolator::update_point_cell(Point3& point, int current_cell) {
+    int femocs_cell = linhexs.deal2femocs(current_cell);
+    femocs_cell = linhexs.locate_cell(point, femocs_cell);
     if (femocs_cell < 0) return -1;
     return linhexs.femocs2deal(femocs_cell);
 }
@@ -163,59 +157,41 @@ void Interpolator::initialize(const TetgenMesh* m, const double empty_val) {
         nodes.append_solution(Solution(empty_val));
 }
 
-bool Interpolator::extract_solution(fch::Laplace<3>* fem) {
-    require(fem, "NULL pointer can't be handled!");
+bool Interpolator::extract_rhs(fch::DealSolver<3>& fem) {
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> femocs2deal, cell_indxs, vert_indxs;
-    get_maps(femocs2deal, cell_indxs, vert_indxs, fem->get_triangulation(), fem->get_dof_handler());
+    get_maps(femocs2deal, cell_indxs, vert_indxs, fem.get_triangulation(), fem.get_dof_handler());
 
     // Read and store the electric field and potential from FEM solver
-    store_solution(femocs2deal, fem->get_efield(cell_indxs, vert_indxs),
-            fem->get_potential(cell_indxs, vert_indxs));
-
-    // Remove the spikes from the solution
-    return average_sharp_nodes(true);
-}
-
-bool Interpolator::extract_rhs(fch::Laplace<3>* fem) {
-    require(fem, "NULL pointer can't be handled!");
-
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> femocs2deal, cell_indxs, vert_indxs;
-    get_maps(femocs2deal, cell_indxs, vert_indxs, fem->get_triangulation(), fem->get_dof_handler());
-
-    // Read and store the electric field and potential from FEM solver
-    store_solution(femocs2deal, fem->get_efield(cell_indxs, vert_indxs),
-            fem->get_charge_dens(cell_indxs, vert_indxs));
+    store_solution(femocs2deal, fem.get_efield(cell_indxs, vert_indxs),
+            fem.get_charge_dens(cell_indxs, vert_indxs));
     return true;
 }
 
-bool Interpolator::extract_solution(fch::CurrentsAndHeatingStationary<3>* fem) {
-    require(fem, "NULL pointer can't be handled!");
+void Interpolator::extract_solution(fch::CurrentHeatSolver<3>& fem) {
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> femocs2deal, cell_indxs, vert_indxs;
-    get_maps(femocs2deal, cell_indxs, vert_indxs, fem->get_triangulation(), fem->get_dof_handler());
-
-    // Read and store current densities and temperatures from FEM solver
-    store_solution(femocs2deal, fem->get_current(cell_indxs, vert_indxs),
-            fem->get_temperature(cell_indxs, vert_indxs));
-
-    return false;
-}
-
-bool Interpolator::extract_solution(fch::CurrentsAndHeating<3>& fem) {
-
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> femocs2deal, cell_indxs, vert_indxs;
-    get_maps(femocs2deal, cell_indxs, vert_indxs, fem.get_triangulation(), fem.get_dof_handler_current());
+    get_maps(femocs2deal, cell_indxs, vert_indxs, fem.get_triangulation(), fem.current.get_dof_handler());
 
     // Read and store current densities and temperatures from FEM solver
     store_solution(femocs2deal, fem.get_current(cell_indxs, vert_indxs),
             fem.get_temperature(cell_indxs, vert_indxs));
+}
 
-    return false;
+void Interpolator::extract_solution(fch::PoissonSolver<3>& fem) {
+
+    // To make solution extraction faster, generate mapping between desired and available data sequences
+    vector<int> femocs2deal, cell_indxs, vert_indxs;
+    get_maps(femocs2deal, cell_indxs, vert_indxs, fem.get_triangulation(), fem.get_dof_handler());
+
+    // Read and store current densities and temperatures from FEM solver
+    store_solution(femocs2deal, fem.get_efield(cell_indxs, vert_indxs),
+            fem.get_potential(cell_indxs, vert_indxs));
+
+    // Remove the spikes from the solution
+    average_sharp_nodes(true);
 }
 
 } // namespace femocs

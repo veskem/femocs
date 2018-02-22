@@ -11,6 +11,7 @@
 
 #include "Macros.h"
 #include "deal.II/numerics/vector_tools.h"
+#include "Globals.h"
 
 namespace femocs {
 
@@ -498,6 +499,25 @@ public:
     Vec3 vector;
     double norm;
     double scalar;
+};
+
+/** Super particles for PIC calculations */
+class SuperParticle {
+public:
+    SuperParticle() : pos(Point3(0)), vel(Vec3(0)), cell(0) {}
+    SuperParticle(const Point3 &p, const Vec3 &v, const int c) : pos(p), vel(v), cell(c) {}
+
+    Point3 pos;    ///< particle position [Å]
+    Vec3 vel;      ///< particle velocity [Å/fs]
+    int cell;      ///< mesh hexahedron ID, -1 if outside the domain
+
+    /** Define sorting order */
+    bool operator < (const SuperParticle &p) { return (cell < p.cell); }
+
+    /** Define the behaviour of string stream */
+    friend std::ostream& operator <<(std::ostream &s, const SuperParticle &p) {
+        return s << p.pos << ' ' << p.vel << ' ' << p.cell;
+    }
 };
 
 /** Template class for finite element cell */

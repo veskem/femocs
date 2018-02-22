@@ -11,11 +11,19 @@ lib/libfemocs.a: build/.build/Makefile src/* include/*
 
 build/.build/Makefile:
 	cd build; mkdir -p .build;
-	cd build/.build; rm -rf *; cmake -DCMAKE_BUILD_TYPE=${mode} -DLIBCGAL=${LIBCGAL} \
+	cd build/.build; rm -rf *; cmake -DCMAKE_BUILD_TYPE=Release -DLIBCGAL=${LIBCGAL} \
+-DCMAKE_Fortran_COMPILER=${F90} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} ..;
+
+lib/libfemocs_debug.a: build/.build_debug/Makefile src/* include/*
+	cd build/.build_debug; make -j${NPROCS}
+
+build/.build_debug/Makefile:
+	cd build; mkdir -p .build_debug;
+	cd build/.build_debug; rm -rf *; cmake -DCMAKE_BUILD_TYPE=Debug -DLIBCGAL=${LIBCGAL} \
 -DCMAKE_Fortran_COMPILER=${F90} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} ..;
 
 clean:
-	rm -rf lib/libfemocs.a lib/libfemocs.mod build/.build
+	rm -rf lib/libfemocs.a lib/libfemocs.mod build/.build*
 
 clean-all:
-	rm -rf lib/libfemocs.a lib/libfemocs.mod build/.build
+	rm -rf lib/libfemocs.a lib/libfemocs.mod build/.build*

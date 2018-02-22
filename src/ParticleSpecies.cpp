@@ -2,7 +2,7 @@
  * ParticleSpecies.cpp
  *
  *  Created on: Jan 31, 2018
- *      Author: andreas, Kyrre
+ *      Author: andreas, Kyrre, Mihkel
  */
 
 #include "ParticleSpecies.h"
@@ -13,38 +13,24 @@ namespace femocs {
 ParticleSpecies::ParticleSpecies(double _q_over_m_factor, double _charge, double _Wsp) :
                 q_over_m_factor(_q_over_m_factor), q_over_eps0(_charge), Wsp(_Wsp) {}
 
-ParticleSpecies::~ParticleSpecies(){
-    return;
-}
-
-void ParticleSpecies::clear_lost(){
+int ParticleSpecies::clear_lost() {
     size_t npart = parts.size();
     size_t nlost = 0;
 
-    //Delete the lost particles from the arrays
+    // Delete the lost particles from the array
     for (size_t i = 0; i < npart; i++) {
-        //If this particle is lost or nothing has been lost:
-        // skip shuffling this particle
-        if (parts[i].cell==-1) {
+        if (parts[i].cell==-1)
             nlost++;
-            continue;
-        }
-        else if (nlost==0) {
-            continue;
-        }
-
-        parts[i-nlost] = parts[i];
+        else if (nlost > 0)
+            parts[i-nlost] = parts[i];
     }
     
-    //Shrink the arrays
-    if (nlost > 0){
-        parts.resize(npart-nlost);
-//        cout << nlost << " particles were lost!" << endl;
-    }
-
+    // Shrink the array
+    if (nlost > 0) parts.resize(npart-nlost);
+    return nlost;
 }
 
-void ParticleSpecies::sort_parts(){
+void ParticleSpecies::sort(){
     sort(parts.begin(), parts.end());
     //Update the array tracking how many particles per cell
     ordcount.clear();
@@ -64,4 +50,4 @@ void ParticleSpecies::sort_parts(){
     }
 }
 
-}
+} // namespace femocs

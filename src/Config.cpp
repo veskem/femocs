@@ -5,9 +5,11 @@
  *      Author: veske
  */
 
-#include "Config.h"
 #include <fstream>
 #include <algorithm>
+
+#include "Config.h"
+#include "Globals.h"
 
 using namespace std;
 namespace femocs {
@@ -47,27 +49,34 @@ Config::Config() {
     tolerance.field_max = 5.0;        // max ratio numerical field can deviate from analytical one
     tolerance.distance = 0.0;         // rms distance tolerance for atom movement between two time steps
 
-    field.E0 = 0.0;                 // long range electric field
-    field.ssor_param = 1.2;         // parameter for SSOR preconditioner
-    field.phi_error = 1e-9;         // maximum allowed electric potential error
-    field.n_phi = 10000;            // maximum number of Conjugate Gradient iterations in phi calculation
-    field.V0 = 0.0;                 // anode voltage
-    field.anodeBC = "neumann";      // anode Neumann boundary
-    field.solver = "laplace";       // type of field equation to be solved; laplace or poisson
-    field.element_degree = 1;
+    field.E0 = 0.0;                   // long range electric field
+    field.ssor_param = 1.2;           // parameter for SSOR preconditioner
+    field.phi_error = 1e-9;           // maximum allowed electric potential error
+    field.n_phi = 10000;              // maximum number of Conjugate Gradient iterations in phi calculation
+    field.V0 = 0.0;                   // anode voltage
+    field.anodeBC = "neumann";        // anode Neumann boundary
+    field.solver = "laplace";         // type of field equation to be solved; laplace or poisson
+    field.element_degree = 1;         // FEM element shape function degree
 
     heating.mode = "none";            // method to calculate current density and temperature; none, stationary or transient
     heating.rhofile = "in/rho_table.dat"; // rho table file
     heating.lorentz = 2.44e-8;        // Lorentz number
     heating.t_ambient = 300.0;        // ambient temperature
-    heating.t_error = 10.0;           // maximum allowed temperature error in Newton iterations
-    heating.n_newton = 10;            // maximum number of Newton iterations
+    heating.t_error = 10.0;           // max allowed temperature error in Newton iterations
+    heating.n_newton = 10;            // max number of Newton iterations
+    heating.n_cg = 2000;              // max number of Conjugate-Gradient iterations
+    heating.cg_tolerance = 1e-9;      // solution accuracy in Conjugate-Gradient solver
+    heating.ssor_param = 1.2;         // parameter for SSOR pre-conditioner in DealII; 1.2 is known to work well with Laplace
+    heating.delta_time = 1e-12;       // timestep of time domain integration [sec]
+    heating.assemble_method = "euler"; // method to assemble system matrix for solving heat equation
 
     emission.blunt = true;            // by default emitter is blunt (simple SN barrier used for emission)
     emission.cold = false;
     emission.work_function = 4.5;     // work function [eV]
     emission.SC = false;              // SC is ignored in Emission by default
     emission.SC_error = 1.e-3;        // Convergence criterion for SC iteration
+
+    force.mode = "none";              // forces to be calculated; lorentz, all, none
 
     smoothing.algorithm = "laplace";  // surface mesh smoother algorithm; none, laplace or fujiwara
     smoothing.n_steps = 0;            // number of surface mesh smoothing iterations
@@ -85,7 +94,6 @@ Config::Config() {
     pic.total_time = 30;
     pic.Wsp_el =  .01;
     pic.fractional_push = true;
-    
 }
 
 // Remove the noise from the beginning of the string
@@ -134,6 +142,8 @@ void Config::read_all(const string& file_name) {
     read_command("anode_BC", field.anodeBC);
     read_command("field_solver", field.solver);
     read_command("element_degree", field.element_degree);
+
+    read_command("force_mode", force.mode);
 
     read_command("latconst", geometry.latconst);
     read_command("coord_cutoff", geometry.coordination_cutoff);

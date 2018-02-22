@@ -39,6 +39,10 @@ void SolutionReader::calc_interpolation() {
     require(interpolator, "NULL interpolator cannot be used!");
 
     const int n_atoms = size();
+    if (interpolation.size() != 0) {
+        interpolation.clear();
+        interpolation.reserve(n_atoms);
+    }
 
     // Sort atoms into sequential order to speed up interpolation
     if (sort_atoms) sort_spatial();
@@ -49,24 +53,28 @@ void SolutionReader::calc_interpolation() {
         Point3 point = get_point(i);
 
         // Depending on interpolation dimension and rank, pick corresponding functions
-        if (dim == 2 && rank == 1) {
-            cell = interpolator->lintris.locate_cell(point, abs(cell));
-            append_interpolation(interpolator->lintris.interp_solution(point, cell));
-        } else if (dim == 2 && rank == 2) {
-            cell = interpolator->quadtris.locate_cell(point, abs(cell));
-            append_interpolation(interpolator->quadtris.interp_solution(point, cell));
-        } else if (dim == 3 && rank == 1) {
-            cell = interpolator->lintets.locate_cell(point, abs(cell));
-            append_interpolation(interpolator->lintets.interp_solution(point, cell));
-        } else if (dim == 3 && rank == 2) {
-            cell = interpolator->quadtets.locate_cell(point, abs(cell));
-            append_interpolation(interpolator->quadtets.interp_solution(point, cell));
-        } else if (dim == 2 && rank == 3) {
-            cell = interpolator->linquads.locate_cell(point, abs(cell));
-            append_interpolation(interpolator->linquads.interp_solution(point, cell));
-        } else if (dim == 3 && rank == 3) {
-            cell = interpolator->linhexs.locate_cell(point, abs(cell));
-            append_interpolation(interpolator->linhexs.interp_solution(point, cell));
+        if (dim == 2) {
+            if (rank == 1) {
+                cell = interpolator->lintris.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->lintris.interp_solution(point, cell));
+            } else if (rank == 2) {
+                cell = interpolator->quadtris.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->quadtris.interp_solution(point, cell));
+            } else if (rank == 3) {
+                cell = interpolator->linquads.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->linquads.interp_solution(point, cell));
+            }
+        } else {
+            if (rank == 1) {
+                cell = interpolator->lintets.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->lintets.interp_solution(point, cell));
+            } else if (rank == 2) {
+                cell = interpolator->quadtets.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->quadtets.interp_solution(point, cell));
+            } else if (rank == 3) {
+                cell = interpolator->linhexs.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->linhexs.interp_solution(point, cell));
+            }
         }
 
         set_marker(i, cell);
@@ -88,7 +96,7 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
     const bool cells_known = atom2cell.size() == n_atoms;
 
     // are the atoms already mapped against the triangles?
-    if (cells_known)
+    if (cells_known) {
         // ...yes, no need to calculate them again, just interpolate
         for (int i = 0; i < n_atoms; ++i) {
             // locate the face
@@ -96,22 +104,25 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
             set_marker(i, cell);
 
             // calculate the interpolation
-            if (dim == 2 && rank == 1)
-                append_interpolation(interpolator->lintris.interp_solution(get_point(i), cell));
-            else if (dim == 3 && rank == 1)
-                append_interpolation(interpolator->lintets.interp_solution(get_point(i), cell));
-            else if (dim == 2 && rank == 2)
-                append_interpolation(interpolator->quadtris.interp_solution(get_point(i), cell));
-            else if (dim == 3 && rank == 2)
-                append_interpolation(interpolator->quadtets.interp_solution(get_point(i), cell));
-            else if (dim == 2 && rank == 3)
-                append_interpolation(interpolator->linquads.interp_solution(get_point(i), cell));
-            else if (dim == 3 && rank == 3)
-                append_interpolation(interpolator->linhexs.interp_solution(get_point(i), cell));
+            if (dim == 2) {
+                if (rank == 1)
+                    append_interpolation(interpolator->lintris.interp_solution(get_point(i), cell));
+                else if (rank == 2)
+                    append_interpolation(interpolator->quadtris.interp_solution(get_point(i), cell));
+                else if (rank == 3)
+                    append_interpolation(interpolator->linquads.interp_solution(get_point(i), cell));
+            } else {
+                if (rank == 1)
+                    append_interpolation(interpolator->lintets.interp_solution(get_point(i), cell));
+                else if (rank == 2)
+                    append_interpolation(interpolator->quadtets.interp_solution(get_point(i), cell));
+                else if (rank == 3)
+                    append_interpolation(interpolator->linhexs.interp_solution(get_point(i), cell));
+            }
         }
 
     // ...nop, do it and interpolate
-    else {
+    } else {
         calc_interpolation();
         atom2cell = vector<int>(n_atoms);
         for (int i = 0; i < n_atoms; ++i)
@@ -392,6 +403,70 @@ void SolutionReader::print_statistics() {
     write_verbose_msg(stream.str());
 }
 
+int SolutionReader::export_results(const int n_points, const string &data_type, const bool append, double* data) {
+    check_return(size() == 0, "No " + data_type + " to export!");
+
+    // Check whether the already excising data must survive or not
+    if (!append) {
+        // No, clear the previous data
+        int export_type_len = 1;
+        if (data_type == vec_label)
+            export_type_len = 3;
+        for (int i = 0; i < export_type_len * n_points; ++i)
+            data[i] = 0;
+    }
+
+    // Pass the desired solution
+    for (int i = 0; i < size(); ++i) {
+        int id = get_id(i);
+        if (id < 0 || id >= n_points) continue;
+
+        if (data_type == vec_label) {
+            id *= 3;
+            for (double v : interpolation[i].vector)
+                data[id++] = v;
+        }
+        else if (data_type == scalar_label)
+            data[id] = interpolation[i].scalar;
+        else
+            data[id] = interpolation[i].norm;
+    }
+
+    return 0;
+}
+
+int SolutionReader::interpolate_results(const int n_points, const string &data_type, const double* x,
+        const double* y, const double* z, double* data) {
+    check_return(size() == 0, "No " + data_type + " to interpolate!");
+
+    // transfer coordinates
+    SolutionReader sr(interpolator, vec_label, vec_norm_label, scalar_label);
+    sr.set_preferences(sort_atoms, dim, rank);
+    sr.reserve(n_points);
+    for (int i = 0; i < n_points; ++i)
+        sr.append(Atom(i, Point3(x[i], y[i], z[i]), 0));
+
+    // interpolate solution
+    sr.calc_interpolation();
+
+    // export solution
+    if (data_type == vec_label) {
+        for (int i = 0; i < n_points; ++i) {
+            int j = 3*i;
+            for (double v : sr.interpolation[i].vector)
+                data[j++] = v;
+        }
+    } else if (data_type == scalar_label) {
+        for (int i = 0; i < n_points; ++i)
+            data[i] = sr.interpolation[i].scalar;
+    } else {
+        for (int i = 0; i < n_points; ++i)
+            data[i] = sr.interpolation[i].norm;
+    }
+
+    return 0;
+}
+
 /* ==========================================
  * ============== FIELD READER ==============
  * ========================================== */
@@ -400,7 +475,7 @@ FieldReader::FieldReader(Interpolator* i) :
         SolutionReader(i, "elfield", "elfield_norm", "potential"),
         E0(0), radius1(0), radius2(0) {}
 
-void FieldReader::test_pic(fch::Laplace<3>* laplace, const Medium& medium) {
+void FieldReader::test_pic(fch::PoissonSolver<3>* laplace, const Medium& medium) {
     const double x = 0;
     const double y = 0;
     const double zmin = medium.sizes.zmax;
@@ -453,7 +528,7 @@ void FieldReader::test_pic(fch::Laplace<3>* laplace, const Medium& medium) {
     }
 }
 
-void FieldReader::test_pic_vol2(fch::Laplace<3>* laplace, const Medium& medium, const TetgenMesh& mesh) {
+void FieldReader::test_pic_vol2(fch::PoissonSolver<3>* laplace, const Medium& medium, const TetgenMesh& mesh) {
     const double x = 0;
     const double y = 0;
     const double zmin = 0.5 + medium.sizes.zmax;
@@ -673,96 +748,21 @@ void FieldReader::interpolate(const Medium &medium) {
         atoms[i].id = medium.get_id(i);
 }
 
-void FieldReader::interpolate(vector<double>& elfields, const vector<dealii::Point<3>>& nodes) {
+void FieldReader::interpolate(const fch::DealSolver<3>& solver) {
     // import the surface nodes the solver needs
-    const int n_nodes = nodes.size();
+    vector<dealii::Point<3>> nodes;
+    solver.get_surface_nodes(nodes);
+
+    const int n_atoms = nodes.size();
 
     // store the node coordinates
-    reserve(n_nodes);
+    reserve(n_atoms);
     int i = 0;
-    for (const dealii::Point<3>& node : nodes)
+    for (dealii::Point<3>& node : nodes)
         append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
 
-    // interpolate solution on the nodes and clean peaks
+    // interpolate or assign solution on the atoms
     calc_interpolation();
-
-    // export electric field norms to the solver
-    elfields = vector<double>(n_nodes);
-    for (int i = 0; i < n_nodes; ++i)
-        elfields[i] = 10.0 * get_elfield_norm(i);
-}
-
-// Linearly interpolate electric field for the currents and temperature solver
-void FieldReader::transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver) {
-    // import the surface nodes the solver needs
-    vector<dealii::Point<3>> nodes;
-    ch_solver->get_surface_nodes(nodes);
-
-    // interpolate electric fields and potentials
-    vector<double> elfields;
-    interpolate(elfields, nodes);
-
-    // transfer electric fields to solver
-    ch_solver->set_electric_field_bc(elfields);
-}
-
-// Linearly interpolate electric field for the currents and temperature solver
-void FieldReader::transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver) {
-    // import the surface nodes the solver needs
-    vector<dealii::Point<3>> nodes;
-    ch_solver.get_surface_nodes(nodes);
-
-    // interpolate electric fields and potentials
-    vector<double> elfields;
-    interpolate(elfields, nodes);
-
-    // transfer electric fields to solver
-    ch_solver.set_electric_field_bc(elfields);
-}
-
-// Linearly interpolate electric field on a set of points
-void FieldReader::export_elfield(const int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-    require(n_points == size(), "Invalid query size: " + to_string(n_points));
-    for (int i = 0; i < n_points; ++i) {
-        Ex[i] = interpolation[i].vector.x;
-        Ey[i] = interpolation[i].vector.y;
-        Ez[i] = interpolation[i].vector.z;
-        Enorm[i] = interpolation[i].norm;
-        flag[i] = atoms[i].marker < 0;
-    }
-}
-
-// Linearly interpolate electric potential on a set of points
-void FieldReader::export_potential(const int n_points, double* phi, int* flag) {
-    require(n_points == size(), "Invalid query size: " + to_string(n_points));
-    for (int i = 0; i < n_points; ++i) {
-        phi[i] = interpolation[i].scalar;
-        flag[i] = atoms[i].marker < 0;
-    }
-}
-
-// Export interpolated electric field
-void FieldReader::export_solution(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    if (n_atoms <= 0) return;
-
-    // Initially pass the zero electric field for all the atoms
-    for (int i = 0; i < n_atoms; ++i) {
-        Ex[i] = 0;
-        Ey[i] = 0;
-        Ez[i] = 0;
-        Enorm[i] = 0;
-    }
-
-    // Pass the the calculated electric field for stored atoms
-    for (int i = 0; i < size(); ++i) {
-        int id = get_id(i);
-        if (id < 0 || id >= n_atoms) continue;
-
-        Ex[id] = interpolation[i].vector.x;
-        Ey[id] = interpolation[i].vector.y;
-        Ez[id] = interpolation[i].vector.z;
-        Enorm[id] = interpolation[i].norm;
-    }
 }
 
 // Return electric field in i-th interpolation point
@@ -865,6 +865,91 @@ void FieldReader::set_check_params(const double E0, const double limit_min, cons
         this->radius2 = radius1;
 }
 
+// Export interpolated electric field
+int FieldReader::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
+    if (n_atoms <= 0) return 0;
+    check_return(size() == 0, "No field to export!");
+
+    // Initially pass the zero electric field for all the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        Ex[i] = 0;
+        Ey[i] = 0;
+        Ez[i] = 0;
+        Enorm[i] = 0;
+    }
+
+    // Pass the the calculated electric field for stored atoms
+    for (int i = 0; i < size(); ++i) {
+        int id = get_id(i);
+        if (id < 0 || id >= n_atoms) continue;
+
+        Ex[id] = interpolation[i].vector.x;
+        Ey[id] = interpolation[i].vector.y;
+        Ez[id] = interpolation[i].vector.z;
+        Enorm[id] = interpolation[i].norm;
+    }
+    return 0;
+}
+
+int FieldReader::interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
+    if (n_points <= 0) return 0;
+    check_return(interpolator->nodes.size() == 0, "No surface field to export!");
+
+    FieldReader fr(interpolator);
+    fr.set_preferences(false, 2, rank);
+    fr.interpolate(n_points, x, y, z);
+
+    for (int i = 0; i < n_points; ++i) {
+        Ex[i] = fr.interpolation[i].vector.x;
+        Ey[i] = fr.interpolation[i].vector.y;
+        Ez[i] = fr.interpolation[i].vector.z;
+        Enorm[i] = fr.interpolation[i].norm;
+        flag[i] = fr.atoms[i].marker < 0;
+    }
+
+    fr.write("out/interpolation_E_surf.movie");
+    return check_limits(fr.get_interpolations());
+}
+
+int FieldReader::interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
+    if (n_points <= 0) return 0;
+    check_return(interpolator->nodes.size() == 0, "No electric field to interpolate!");
+
+    FieldReader fr(interpolator);
+    fr.set_preferences(false, 3, rank);
+    fr.interpolate(n_points, x, y, z);
+
+    for (int i = 0; i < n_points; ++i) {
+        Ex[i] = fr.interpolation[i].vector.x;
+        Ey[i] = fr.interpolation[i].vector.y;
+        Ez[i] = fr.interpolation[i].vector.z;
+        Enorm[i] = fr.interpolation[i].norm;
+        flag[i] = fr.atoms[i].marker < 0;
+    }
+
+    fr.write("out/interpolation_E.movie");
+    return check_limits(fr.get_interpolations());
+}
+
+int FieldReader::interpolate_phi(const int n_points, const double* x, const double* y, const double* z,
+        double* phi, int* flag) {
+    if (n_points <= 0) return 0;
+    check_return(interpolator->nodes.size() == 0, "No electric potential to interpolate!");
+
+    FieldReader fr(interpolator);
+    fr.set_preferences(false, 3, 2);
+    fr.interpolate(n_points, x, y, z);
+
+    for (int i = 0; i < n_points; ++i) {
+        phi[i] = fr.interpolation[i].scalar;
+        flag[i] = fr.atoms[i].marker < 0;
+    }
+
+    return 0;
+}
+
 /* ==========================================
  * =============== HEAT READER ==============
  * ========================================== */
@@ -889,11 +974,10 @@ void HeatReader::interpolate(const Medium &medium) {
         atoms[i].id = medium.get_id(i);
 }
 
-// Interpolate temperature for the currents and temperature solver
-void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver) {
+void HeatReader::interpolate(fch::DealSolver<3>& solver) {
     // import the surface nodes the solver needs
     vector<dealii::Point<3>> nodes;
-    ch_solver.get_surface_nodes(nodes);
+    solver.get_surface_nodes(nodes);
 
     const int n_atoms = nodes.size();
 
@@ -908,8 +992,9 @@ void HeatReader::interpolate(fch::CurrentsAndHeating<3>& ch_solver) {
 }
 
 // Export interpolated temperature
-void HeatReader::export_temperature(const int n_atoms, double* T) {
-    if (n_atoms <= 0) return;
+int HeatReader::export_temperature(const int n_atoms, double* T) {
+    if (n_atoms <= 0) return 0;
+    check_return(size() == 0, "No temperature to export!");
 
     // Pass the the calculated temperature for stored atoms
     for (int i = 0; i < size(); ++i) {
@@ -917,6 +1002,8 @@ void HeatReader::export_temperature(const int n_atoms, double* T) {
         if (identifier < 0 || identifier >= n_atoms) continue;
         T[identifier] = get_temperature(i);
     }
+
+    return 0;
 }
 
 Vec3 HeatReader::get_rho(const int i) const {
@@ -938,18 +1025,22 @@ double HeatReader::get_temperature(const int i) const {
  * ============= EMISSION READER ============
  * ========================================== */
 
-EmissionReader::EmissionReader(const FieldReader& fr, const HeatReader& hr, Interpolator* i,fch::Laplace<3>& _laplace) :
+EmissionReader::EmissionReader(const FieldReader *fr, const HeatReader *hr, Interpolator *i) :
         SolutionReader(i, "none", "rho_norm", "temperature"),
-        fields(fr), heat(hr), mesh(NULL), laplace(_laplace) {
-    initialize(NULL);
-}
+        fields(fr), heat(hr), mesh(NULL)
+{}
 
 void EmissionReader::initialize(const TetgenMesh* m) {
     mesh = m;
-    int n_nodes = fields.size();
+
+    int n_nodes = fields->size();
+    require(n_nodes > 0, "EmissionReader can't use empty dependencies!");
+
+    reserve(n_nodes);
+    atoms = fields->atoms;
+    interpolation = vector<Solution>(n_nodes, Solution(0));
 
     // deallocate and allocate currents data
-
     current_densities.resize(n_nodes);
     nottingham.resize(n_nodes);
     currents.resize(n_nodes);
@@ -961,7 +1052,7 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     // find Fmax
     global_data.Fmax = 0.;
     for (int i = 0; i < n_nodes; ++i)
-        global_data.Fmax = max(global_data.Fmax, fields.get_elfield_norm(i));
+        global_data.Fmax = max(global_data.Fmax, fields->get_elfield_norm(i));
 
     //Initialise data
     global_data.Jmax = 0.;
@@ -1026,9 +1117,8 @@ void EmissionReader::calc_representative() {
     global_data.I_tot = 0;
     global_data.I_fwhm = 0;
 
-
-    for (int i = 0; i < fields.size(); ++i){ // go through face centroids
-        int tri = mesh->quads.to_tri(abs(fields.get_marker(i)));
+    for (int i = 0; i < fields->size(); ++i){ // go through face centroids
+        int tri = mesh->quads.to_tri(abs(fields->get_marker(i)));
         // quadrangle area is 1/3 of corresponding triangle area
         double face_area = mesh->faces.get_area(tri) / 3.;
         currents[i] = face_area * current_densities[i];
@@ -1037,7 +1127,7 @@ void EmissionReader::calc_representative() {
         if (current_densities[i] > global_data.Jmax * 0.5){ //if point eligible
             area += face_area; // increase total area
             global_data.I_fwhm += currents[i]; // increase total current
-            FJ += currents[i] * fields.get_elfield_norm(i);
+            FJ += currents[i] * fields->get_elfield_norm(i);
         }
     }
 
@@ -1047,10 +1137,8 @@ void EmissionReader::calc_representative() {
 
 void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3> &pos, vector<int> &cells) {
 
-    const double Amp = 6.2415e3; //[e/fs]
-
-    for (int i = 0; i < fields.size(); ++i){ // go through face centroids
-        double current = currents[i] * Amp; // in e/fs
+    for (int i = 0; i < fields->size(); ++i){ // go through face centroids
+        double current = currents[i] * electrons_per_fs;
         double charge = current * delta_t; //in e
         double n_sps = charge / Wsp;
 
@@ -1061,8 +1149,7 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
         if ((double) rand() / RAND_MAX < frpart)
             n_electrons_sp++;
 
-        if (!n_electrons_sp)
-            continue;
+        if (n_electrons_sp == 0) continue;
 
 
         //TODO : fix rng
@@ -1084,10 +1171,9 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
 			cells.push_back(hex);
         }
     }
-
 }
 
-void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold){
+void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) {
 
     struct emission gt;
     gt.W = workfunction;    // set workfuntion, must be set in conf. script
@@ -1108,13 +1194,12 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold){
 
         dealii::Point<3> centr_deal(centr.x, centr.y, centr.z);
         dealii::Tensor<1, 3, double> Fdealii = laplace.probe_efield(centr_deal, hexdeal);
-
-        Vec3 field(Fdealii[0], Fdealii[1], Fdealii[2]);
+        Vec3 field(Fdealii);
 
         F = global_data.multiplier * field.norm();
         gt.mode = 0;
         gt.F = angstrom_per_nm * F;
-        gt.Temp = heat.get_temperature(i);
+        gt.Temp = heat->get_temperature(i);
         set_marker(i, 0); // set marker for output emission xyz file. Means No full calculation
 
         if (F > 0.6 * global_data.Fmax && !blunt){ // Full calculation with line only for high field points
@@ -1149,18 +1234,20 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold){
 
 }
 
+double EmissionReader::calc_emission(const double multiplier, const Config::Emission &conf,
+        double Vappl) {
+    set_multiplier(multiplier);
+    calc_emission(conf, Vappl);
+    return get_multiplier();
+}
+
 void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
 
     if (Vappl <= 0 && conf.SC)
         write_silent_msg("WARNING: transfer_emission called with SC activated and Vappl <= 0");
 
-    const int n_nodes = fields.size();
-    reserve(n_nodes);
-    atoms = fields.atoms;
-
     double theta_old = global_data.multiplier;
     double err_fact = 0.5, error;
-
     double Fmax_0 = global_data.Fmax;
 
     for (int i = 0; i < 20; ++i){ // SC calculation loop
@@ -1179,10 +1266,11 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         error = global_data.multiplier - theta_old;
         global_data.multiplier = theta_old + error * err_fact;
         theta_old = global_data.multiplier;
-        if (abs(error) < conf.SC_error) break; //if converged break
+
+        // if converged break
+        if (abs(error) < conf.SC_error) break;
     }
 }
-
 
 void EmissionReader::write_data(string filename, double time) {
     ofstream out;
@@ -1196,15 +1284,15 @@ void EmissionReader::write_data(string filename, double time) {
     out << time << " " << global_data.I_tot << " " << global_data.Jrep <<
             " " << global_data.Frep << " " << global_data.Jmax << " " << global_data.Fmax <<
             " " << global_data.multiplier << endl;
-
 }
 
-//export emission to ch solver and set interpolation for file writing
-void EmissionReader::export_emission(fch::CurrentsAndHeating<3>& ch_solver){
-    for (int i = 0; i < nottingham.size(); i++) {// append data for surface emission xyz file
-        append_interpolation( Solution(Vec3(0), log(current_densities[i]), log(fabs(nottingham[i]))));
-    }
-    ch_solver.set_emission_bc(current_densities, nottingham); // output data for heat BCs
+void EmissionReader::export_emission(fch::CurrentHeatSolver<3>& ch_solver) {
+    // save data for surface emission xyz file
+    for (int i = 0; i < nottingham.size(); i++)
+        interpolation[i] = Solution( Vec3(0), log(current_densities[i]), log(fabs(nottingham[i])) );
+
+    ch_solver.current.set_bc(current_densities);
+    ch_solver.heat.set_bc(nottingham);
 }
 
 /* ==========================================
@@ -1612,8 +1700,9 @@ void ForceReader::distribute_charges(const FieldReader &fields, const ChargeRead
     histogram_clean(4, r_cut);  // clean by scalar
 }
 
-void ForceReader::export_charge_and_force(const int n_atoms, double* xq) const {
-    if (n_atoms <= 0) return;
+int ForceReader::export_charge_and_force(const int n_atoms, double* xq) const {
+    if (n_atoms < 0) return 0;
+    check_return(size() == 0, "No charge & force to export!");
 
     // Initially pass the zero force and charge for all the atoms
     for (int i = 0; i < 4*n_atoms; ++i)
@@ -1629,10 +1718,14 @@ void ForceReader::export_charge_and_force(const int n_atoms, double* xq) const {
         for (double x : interpolation[i].vector)
             xq[identifier++] = x;
     }
+
+    return 0;
 }
 
-void ForceReader::export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const {
-    if (n_atoms <= 0) return;
+int ForceReader::export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const {
+    if (n_atoms < 0) return 0;
+    check_return(size() == 0, "No force & pair potential to export!");
+
     Vec3 box(sizes.xbox, sizes.ybox, sizes.zbox);
 
     for (int i = 0; i < size(); ++i) {
@@ -1648,6 +1741,8 @@ void ForceReader::export_force_and_pairpot(const int n_atoms, double* xnp, doubl
         for (int j = 0; j < 3; ++j)
             xnp[id+j] += force[j] / box[j];
     }
+
+    return 0;
 }
 
 } // namespace femocs

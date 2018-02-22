@@ -8,6 +8,7 @@
 #ifndef INTERPOLATORCELLS_H_
 #define INTERPOLATORCELLS_H_
 
+#include "Globals.h"
 #include "Primitives.h"
 #include "TetgenMesh.h"
 #include "TetgenCells.h"
@@ -96,6 +97,9 @@ public:
     void set_mesh(const TetgenMesh* m) {
         mesh = m;
     }
+
+    /** Return the max value of solution.norm data */
+    double max_norm() const;
 
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
