@@ -31,7 +31,7 @@ int ParticleSpecies::clear_lost() {
 }
 
 void ParticleSpecies::sort(){
-    sort(parts.begin(), parts.end());
+    std::sort(parts.begin(), parts.end());
     //Update the array tracking how many particles per cell
     ordcount.clear();
     if (parts.size() > 0) {

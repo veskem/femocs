@@ -157,7 +157,7 @@ void Interpolator::initialize(const TetgenMesh* m, const double empty_val) {
         nodes.append_solution(Solution(empty_val));
 }
 
-bool Interpolator::extract_rhs(fch::DealSolver<3>& fem) {
+void Interpolator::extract_charge_density(fch::PoissonSolver<3>& fem) {
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> femocs2deal, cell_indxs, vert_indxs;
@@ -166,7 +166,6 @@ bool Interpolator::extract_rhs(fch::DealSolver<3>& fem) {
     // Read and store the electric field and potential from FEM solver
     store_solution(femocs2deal, fem.get_efield(cell_indxs, vert_indxs),
             fem.get_charge_dens(cell_indxs, vert_indxs));
-    return true;
 }
 
 void Interpolator::extract_solution(fch::CurrentHeatSolver<3>& fem) {

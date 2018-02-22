@@ -55,8 +55,7 @@ public:
      * @param vert_indexes the vertex indexes of the nodes inside the cell
      * @return potential values in the specified nodes
      */
-    vector<double> get_potential(const vector<int> &cell_indexes,
-            const vector<int> &vert_indexes);
+    vector<double> get_potential(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
 
     /**
      * method to obtain the electric field values in selected nodes
@@ -64,8 +63,10 @@ public:
      * @param vert_indexes the vertex indexes of the nodes inside the cell
      * @return electric field vectors in the specified nodes
      */
-    vector<Tensor<1, dim>> get_efield(const vector<int> &cell_indexes,
-            const vector<int> &vert_indexes) const;
+    vector<Tensor<1, dim>> get_efield(const vector<int> &cell_indexes, const vector<int> &vert_indexes) const;
+
+    /** Calculate charge densities at given nodes in given cells */
+    vector<double> get_charge_dens(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
 
     /** Run Conjugate-Gradient solver to solve matrix equation */
     unsigned int solve() { return this->solve_cg(conf->n_phi, conf->phi_error, conf->ssor_param); }
@@ -80,7 +81,7 @@ public:
     /** Assemble the matrix equation to solve Poisson equation
      * by appling Neumann BC (constant field) or Dirichlet BC (constant potential) on top of simubox
      * as specified in config file. */
-    void assemble_poisson(const bool first_time);
+    void assemble_poisson(const bool first_time, const bool write_time);
 
 private:
     const ParticleSpecies* particles;

@@ -50,8 +50,6 @@ PoissonSolver<dim>::PoissonSolver(const ParticleSpecies* particles_, const femoc
 
 template<int dim>
 void PoissonSolver<dim>::mark_mesh() {
-//    MeshPreparer<dim> mesh_preparer;
-//    mesh_preparer.mark_vacuum_boundary(&this->triangulation);
     this->mark_boundary(BoundaryId::vacuum_top, BoundaryId::copper_surface,
             BoundaryId::vacuum_sides, BoundaryId::copper_surface);
 }
@@ -167,9 +165,8 @@ vector<Tensor<1, dim> > PoissonSolver<dim>::get_efield(const vector<int> &cell_i
     QGauss<dim> quadrature_formula(this->quadrature_degree);
     FEValues<dim> fe_values(this->fe, quadrature_formula, update_gradients);
 
-    vector< Tensor<1, dim> > solution_gradients (quadrature_formula.size());
-
-    vector<Tensor<1, dim> > fields(cell_indexes.size());
+    vector<Tensor<1, dim>> solution_gradients(quadrature_formula.size());
+    vector<Tensor<1, dim>> fields(cell_indexes.size());
 
     for (unsigned i = 0; i < cell_indexes.size(); i++) {
         // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
@@ -184,6 +181,29 @@ vector<Tensor<1, dim> > PoissonSolver<dim>::get_efield(const vector<int> &cell_i
         fields[i] = field;
     }
     return fields;
+}
+
+template<int dim>
+vector<double> PoissonSolver<dim>::get_charge_dens(const vector<int> &cell_indexes,
+        const vector<int> &vert_indexes) {
+
+    this->calc_dof_volumes();
+
+    // Initialise potentials with a value that is immediately visible if it's not changed to proper one
+    vector<double> charge_dens(cell_indexes.size(), 1e15);
+
+    for (unsigned i = 0; i < cell_indexes.size(); i++) {
+        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+        // NB: only works without refinement !!!
+        typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation,
+                0, cell_indexes[i], &this->dof_handler);
+
+        double rhs = this->system_rhs_save[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
+        double vol = this->dof_volume[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
+        charge_dens[i] = rhs / vol;
+    }
+
+    return charge_dens;
 }
 
 template<int dim>
@@ -215,7 +235,7 @@ void PoissonSolver<dim>::assemble_laplace(const bool first_time) {
 }
 
 template<int dim>
-void PoissonSolver<dim>::assemble_poisson(const bool first_time) {
+void PoissonSolver<dim>::assemble_poisson(const bool first_time, const bool write_time) {
     require(conf, "NULL conf can't be used!");
     require(conf->anodeBC == "neumann" || conf->anodeBC == "dirichlet",
             "Unimplemented anode BC: " + conf->anodeBC);
@@ -240,6 +260,9 @@ void PoissonSolver<dim>::assemble_poisson(const bool first_time) {
     }
 
     assemble_space_charge();
+
+    if (write_time) this->save_rhs();
+
     this->apply_dirichlet();
 }
 
@@ -306,7 +329,7 @@ void PoissonSolver<dim>::assemble_space_charge() {
 
         //loop over nodes of the cell and add the particle's charge to the system rhs
         for (int i = 0; i < this->fe.dofs_per_cell; ++i)
-            this->system_rhs(local_dof_indices[i]) += sf[i] * particles->q_over_eps0 * particles->Wsp;
+            this->system_rhs(local_dof_indices[i]) += sf[i] * particles->q_over_eps0 * particles->get_Wsp();
     }
 }
 

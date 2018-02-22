@@ -25,11 +25,12 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 
         surface_fields(&vacuum_interpolator),
         surface_temperatures(&bulk_interpolator),
-        emission(&surface_fields, &surface_temperatures, &vacuum_interpolator),
 
         phys_quantities(config.heating),
         poisson_solver(NULL, &config.field),
         ch_solver(&phys_quantities, &config.heating),
+
+        emission(&surface_fields, &surface_temperatures, &poisson_solver, &vacuum_interpolator),
         pic_solver(&poisson_solver, &ch_solver, &vacuum_interpolator, &emission)
 {
     fields.set_interpolator(&vacuum_interpolator);

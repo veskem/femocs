@@ -36,7 +36,7 @@ public:
     /**
      * Run an particle and field update cycle
      */
-    void run_cycle(bool first_time = false, bool write_time = false);
+    int run_cycle(bool first_time = false, bool write_time = false);
 
     /** Update the positions of the particles and the cell they belong. */
     int update_positions();
@@ -79,15 +79,6 @@ private:
     Interpolator *interpolator;
     EmissionReader *er;                     ///< object to calculate the emission data
     TetgenNodes::Stat box;                  ///< simubox size data
-
-    fch::Laplace<dim> &laplace_solver;      ///< Laplace solver object to solve the Poisson in the vacuum mesh
-    fch::CurrentsAndHeating<3> &ch_solver;  ///< transient currents and heating solver
-    Interpolator &interpolator;
-    EmissionReader &er;                     ///< Object to calculate the emission data
-
-    TetgenNodes::Stat box;                  ///< Object containing box data
-
-    bool coll_coulomb_ee;                   ///< Switch 2e->2e Coulomb collisions on/off
     
     ParticleSpecies electrons = ParticleSpecies(-e_over_m_e_factor, -e_over_eps0, Wel);
 

@@ -30,8 +30,8 @@ public:
 
     int size() const { return parts.size(); }
 
-    void set_Wsp(double _Wsp){ Wsp = _Wsp; }
-    double get_Wsp(){ return Wsp; }
+    void set_Wsp(double _Wsp) { Wsp = _Wsp; }
+    double get_Wsp() const { return Wsp; }
 
     vector<SuperParticle> parts;
     vector<size_t> ordcount;
@@ -40,8 +40,6 @@ public:
     const double q_over_eps0;     ///< (whole) particle charge / eps0 [e/VÅ]
 
 private:
-
-
     double Wsp;                 ///< SP weight [particles/superparticle]
 };
 

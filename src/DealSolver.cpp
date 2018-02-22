@@ -197,12 +197,12 @@ void DealSolver<dim>::setup_system() {
 
     DynamicSparsityPattern dsp(this->dof_handler.n_dofs());
     DoFTools::make_sparsity_pattern(this->dof_handler, dsp);
-
     this->sparsity_pattern.copy_from(dsp);
+
     this->system_rhs.reinit(this->dof_handler.n_dofs());
+    this->system_rhs_save.reinit(this->dof_handler.n_dofs());
     this->system_matrix.reinit(this->sparsity_pattern);
     this->system_matrix_save.reinit(this->sparsity_pattern);
-
     this->solution.reinit(this->dof_handler.n_dofs());
     this->solution_save.reinit(this->dof_handler.n_dofs());
 
@@ -338,6 +338,30 @@ void DealSolver<dim>::mark_boundary(char top, char bottom, char sides, char othe
                 else
                     face->set_all_boundary_ids(other);
             }
+        }
+    }
+}
+
+template<int dim>
+void DealSolver<dim>::calc_dof_volumes() {
+
+    QGauss<dim> quadrature_formula(quadrature_degree);
+    FEValues<dim> fe_values(fe, quadrature_formula, update_quadrature_points | update_JxW_values);
+
+    dof_volume.reinit(dof_handler.n_dofs()); // reset volumes
+    vector<types::global_dof_index> local_dof_indices(fe.dofs_per_cell);
+
+    typename DoFHandler<dim>::active_cell_iterator cell;
+    // Iterate over all cells
+    for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell) {
+        fe_values.reinit(cell);
+        cell->get_dof_indices(local_dof_indices);
+
+        // Iterate through quadrature points to integrate
+        for (unsigned q = 0; q < quadrature_formula.size(); ++q) {
+            //iterate through local dofs
+            for (unsigned int i = 0; i < fe.dofs_per_cell; ++i)
+                dof_volume[local_dof_indices[i]] +=  fe_values.JxW(q);
         }
     }
 }

@@ -58,7 +58,8 @@ public:
     /** Extract electric potential and field values from FEM solution */
     void extract_solution(fch::PoissonSolver<3>& fem);
 
-    bool extract_rhs(fch::Laplace<3>* fem);
+    /** Extract charge density from FEM solution */
+    void extract_charge_density(fch::PoissonSolver<3>& fem);
 
     int update_point_cell(Point3& point, int current_cell);
 

@@ -1025,9 +1025,10 @@ double HeatReader::get_temperature(const int i) const {
  * ============= EMISSION READER ============
  * ========================================== */
 
-EmissionReader::EmissionReader(const FieldReader *fr, const HeatReader *hr, Interpolator *i) :
+EmissionReader::EmissionReader(const FieldReader *fr, const HeatReader *hr,
+        const fch::PoissonSolver<3> *p, Interpolator* i) :
         SolutionReader(i, "none", "rho_norm", "temperature"),
-        fields(fr), heat(hr), mesh(NULL)
+        fields(fr), heat(hr), mesh(NULL), poisson(p)
 {}
 
 void EmissionReader::initialize(const TetgenMesh* m) {
@@ -1154,7 +1155,7 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
 
         //TODO : fix rng
 
-        int quad = abs(fields.get_marker(i));
+        int quad = abs(fields->get_marker(i));
         int tri = mesh->quads.to_tri(quad);
         int hex = mesh->quad2hex(quad, TYPES.VACUUM);
         hex = interpolator->linhexs.femocs2deal(hex);
@@ -1181,19 +1182,19 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
     gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
     double F, J;    // Local field and current density in femocs units (Angstrom)
 
-    for (int i = 0; i < fields.size(); ++i) { // go through all face centroids
+    for (int i = 0; i < fields->size(); ++i) { // go through all face centroids
 
          //local field
 
-        int quad = fields.get_marker(i);
+        int quad = fields->get_marker(i);
 
         int hexfemocs = mesh->quad2hex(quad, TYPES.VACUUM);
         int hexdeal = interpolator->linhexs.femocs2deal(hexfemocs);
 
-        Point3 centr = fields.get_point(i);
+        Point3 centr = fields->get_point(i);
 
         dealii::Point<3> centr_deal(centr.x, centr.y, centr.z);
-        dealii::Tensor<1, 3, double> Fdealii = laplace.probe_efield(centr_deal, hexdeal);
+        dealii::Tensor<1, 3, double> Fdealii = poisson->probe_efield(centr_deal, hexdeal);
         Vec3 field(Fdealii);
 
         F = global_data.multiplier * field.norm();

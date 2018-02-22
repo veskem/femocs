@@ -17,8 +17,9 @@ namespace femocs {
 template<int dim>
 Pic<dim>::Pic(fch::PoissonSolver<dim> *poisson, fch::CurrentHeatSolver<3> *ch_solver,
         Interpolator *interpolator, EmissionReader *er) :
-        poisson_solver(poisson), ch_solver(ch_solver), interpolator(interpolator), er(er),
-        coll_coulomb_ee(false) {}
+        coll_coulomb_ee(false),
+        poisson_solver(poisson), ch_solver(ch_solver), interpolator(interpolator), er(er)
+        {}
 
 template<int dim>
 int Pic<dim>::inject_electrons(const bool fractional_push) {
@@ -32,19 +33,18 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
 
         //update the field
         dealii::Point<dim> p(positions[i].x, positions[i].y, positions[i].z);
-        dealii::Tensor<1,dim> Efield = laplace_solver.probe_efield(p, cells[i]) ;
-        Vec3 Field(Efield);
+        dealii::Tensor<1,dim> Efield = poisson_solver->probe_efield(p, cells[i]) ;
 
         // Random fractional timestep push -- from a random point [t_(k-1),t_k] to t_k, t_(k + 1/2), using field at t_k.
         if (fractional_push) {
-            velocity0 = Field * electrons.q_over_m_factor * dt * ( (double) rand() / RAND_MAX +.5 );
-            positions[i] += velocity0 * dt * ( (double) rand() / RAND_MAX );
-        }else{
-            velocity0 = Field * (electrons.q_over_m_factor * dt * .5);
+            velocity = Vec3(Efield) * electrons.q_over_m_factor * dt * ( (double) rand() / RAND_MAX +.5 );
+            positions[i] += velocity * dt * ( (double) rand() / RAND_MAX );
+        } else {
+            velocity = Vec3(Efield) * (electrons.q_over_m_factor * dt * .5);
         }
 
         // Save to particle arrays
-        electrons.inject_particle(positions[i], velocity0, cells[i]);
+        electrons.inject_particle(positions[i], velocity, cells[i]);
     }
 
     return positions.size();
@@ -110,7 +110,6 @@ void Pic<dim>::write(const string filename, const double time) const {
     out.setf(std::ios::scientific);
     out.precision(6);
 
-    string ftype = get_file_type(filename);
     if (ftype == "movie") out.open(filename, ios_base::app);
     else out.open(filename);
     require(out.is_open(), "Can't open a file " + filename);

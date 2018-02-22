@@ -96,10 +96,12 @@ protected:
     SparsityPattern sparsity_pattern;        ///< structure for sparse matrix representation
     SparseMatrix<double> system_matrix;      ///< system matrix of matrix equation
     SparseMatrix<double> system_matrix_save; ///< system matrix of matrix equation (save before Dirichlet BCs remove dofs)
-    Vector<double> system_rhs;            ///< right-hand-side of the matrix equation
+    Vector<double> system_rhs;               ///< right-hand-side of the matrix equation
+    Vector<double> system_rhs_save;          ///< saved right-hand-side of the matrix equation
 
-    Vector<double> solution;              ///< resulting solution in the mesh nodes
-    Vector<double> solution_save;         ///< resulting solution in the mesh nodes
+    Vector<double> solution;                 ///< resulting solution in the mesh nodes
+    Vector<double> solution_save;            ///< saved solutions in the mesh nodes
+    Vector<double> dof_volume;               ///< integral of the shape functions
 
     /** Variables used during the assembly of matrix equation */
     map<types::global_dof_index, double> boundary_values;
@@ -132,10 +134,17 @@ protected:
         system_matrix_save.copy_from(system_matrix);
     }
 
+    /** saves the system right-hand-side (useful for obtaining it before Diriclet BCs are applied) */
+    void save_rhs(){
+        system_rhs_save = system_rhs;
+    }
+
     /** Restores the system matrix to the saved one */
     void restore_system() {
         system_matrix.copy_from(system_matrix_save);
     }
+
+    void calc_dof_volumes();
 
     /** Write the mesh to msh file that can in turn be imported to Deal.II */
     void write_msh(ofstream& out) const;

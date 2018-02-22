@@ -223,7 +223,8 @@ private:
 class EmissionReader: public SolutionReader {
 public:
 
-    EmissionReader(const FieldReader *fields, const HeatReader *heat, Interpolator* i);
+    EmissionReader(const FieldReader *fields, const HeatReader *heat,
+            const fch::PoissonSolver<3> *poisson, Interpolator* i);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
      * estimation of the space charge effects.
@@ -267,16 +268,17 @@ private:
      * Calculates electron emission distribution for a given configuration (
      * @param workfunction  Input work function.
      */
-    void emission_cycle(double workfunction, bool blunt  = false);
+    void emission_cycle(double workfunction, bool blunt  = false, bool cold = false);
 
     static constexpr double electrons_per_fs = 6.2415e3; ///< definition of 1 ampere
     static constexpr double angstrom_per_nm = 10.0;
     static constexpr double nm2_per_angstrom2 = 0.01;
     static constexpr int n_lines = 32; ///< Number of points in the line for GETELEC
 
-    const FieldReader *fields;    ///< Object containing the field on centroids of hex interface faces.
-    const HeatReader *heat;       ///< Object containing the temperature on centroids of hexahedral faces.
-    const TetgenMesh *mesh;     ///< Object containing information on the mesh.
+    const FieldReader *fields;      ///< field on centroids of hex interface faces.
+    const HeatReader *heat;         ///< temperature on centroids of hexahedral faces.
+    const TetgenMesh *mesh;         ///< data & operations about the mesh.
+    const fch::PoissonSolver<3> *poisson; ///< Poisson solver information (field, potential etc)
 
     vector<double> current_densities;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
     vector<double> nottingham; ///< Same as current_densities for nottingham heat deposition [in W/A^2]

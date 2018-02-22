@@ -29,7 +29,7 @@ namespace femocs {
 class ProjectRunaway : public GeneralProject {
 public:
 
-    ProjectRunaway(AtomReader &a, Config &c);
+    ProjectRunaway(AtomReader &reader, Config &conf);
     ~ProjectRunaway() {}
 
     int run(const int timestep=-1);
@@ -81,11 +81,12 @@ private:
 
     FieldReader surface_fields;       ///< fields on surface hex face centroids
     HeatReader  surface_temperatures; ///< temperatures & current densities on surface hex face centroids
-    EmissionReader emission;          ///< emission data on centroids of surface quadrangles
 
     fch::PhysicalQuantities phys_quantities; ///< quantities used in heat calculations
     fch::PoissonSolver<3> poisson_solver;    ///< Poisson equation solver
     fch::CurrentHeatSolver<3> ch_solver;     ///< transient currents and heating solver
+
+    EmissionReader emission;          ///< emission data on centroids of surface quadrangles
     Pic<3> pic_solver;                       ///< class for solving Poisson equation and handling space charge
 
     /** Determine whether atoms have moved significantly and whether to enable file writing */
