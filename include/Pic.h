@@ -60,6 +60,8 @@ public:
     /** Return pointer to charged super-particles */
     ParticleSpecies* get_particles() { return &electrons; }
 
+    int get_n_electrons() const { return electrons.size(); }
+
 private:
     /// charge/mass for electrons for multiplying the velocity update
     static constexpr double e_over_m_e_factor = 17.58820024182468;
@@ -91,7 +93,6 @@ private:
 
     /** Computes the charge density for each FEM DOF */
     void compute_field(bool first_time = false, bool write_time = false);
-    
 };
 
 } // namespace femocs

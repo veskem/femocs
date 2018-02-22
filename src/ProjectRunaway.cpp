@@ -277,8 +277,8 @@ int ProjectRunaway::prepare_solvers() {
         bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
         bulk_interpolator.lintets.narrow_search_to(TYPES.BULK);
 
-        surface_fields.set_preferences(false, 2, conf.behaviour.interpolation_rank);
-        surface_temperatures.set_preferences(false, 2, conf.behaviour.interpolation_rank);
+        surface_fields.set_preferences(false, 2, 3);
+        surface_temperatures.set_preferences(false, 2, 3);
     }
 
     return 0;
@@ -420,15 +420,16 @@ int ProjectRunaway::solve_pic(const double E0) {
         n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
         
         if (MODES.VERBOSE)
-            printf("  #CG steps=%d, max field=%.3f, #injected|deleted electrons=%d|%d\n",
-                    n_cg_steps, vacuum_interpolator.nodes.max_norm(), n_injected, n_lost);
+            printf("  #CG steps=%d, max field=%.3f, #injected|deleted|total=%d|%d|%d\n",
+                    n_cg_steps, vacuum_interpolator.nodes.max_norm(), n_injected, n_lost, pic_solver.get_n_electrons());
 
         pic_solver.write("out/electrons.movie", 0);
+        vacuum_interpolator.nodes.write("out/result_E_phi.movie");
+        emission.write_data("out/emission_data.dat", i * dt_pic);
     }
     
     end_msg(t0);
 
-    vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
     vacuum_interpolator.lintets.write("out/result_E_phi.vtk");
     check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()), "Field enhancement is out of limits!");
 

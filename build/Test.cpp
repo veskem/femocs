@@ -60,7 +60,7 @@ void write_mdsmall(ofstream &file) {
     file << "box_height = 3.5"           << endl;
 }
 
-void write_heating(ofstream &file) {    
+void write_heating_small(ofstream &file) {
     file << "infile = in/nanotip_small.xyz" << endl;
     file << "coarse_factor = 0.3 4 2"    << endl;
     file << "radius = 16.0"              << endl;
@@ -70,6 +70,16 @@ void write_heating(ofstream &file) {
     file << "elfield = -0.3"             << endl;
     file << "heating_mode = converge"    << endl;
     file << "field_solver = laplace"     << endl;
+}
+
+void write_heating_big(ofstream &file) {
+    file << "infile = in/tip100.ckx"   << endl;
+    file << "coarse_factor = 0.4 8 3"  << endl;
+    file << "radius = 45.0"            << endl;
+
+    file << "elfield = -0.2"             << endl;
+    file << "heating_mode = transient"    << endl;
+    file << "field_solver = poisson"     << endl;
 }
 
 void write_wobble(ofstream &file) {
@@ -275,7 +285,8 @@ int main(int argc, char **argv) {
         else if (mode == "tip111")    write_tip111(file);
         else if (mode == "rectangle") write_rectangle(file);
         else if (mode == "mdsmall")   write_mdsmall(file);
-        else if (mode == "heating")   write_heating(file);
+        else if (mode == "heating_small") write_heating_small(file);
+        else if (mode == "heating_big")   write_heating_big(file);
         else if (mode == "mdbig")     write_mdbig(file);
         else if (mode == "stretch")   write_stretch(file);
         else if (mode == "extend")    write_extend(file);
@@ -298,7 +309,8 @@ int main(int argc, char **argv) {
             printf("  tip110      symmetric nanotip with h/r = 5 and <110> orientation\n");
             printf("  tip111      symmetric nanotip with h/r = 5 and <111> orientation\n");
             printf("  rectangle   symmetric nanotip with rectangular substrate\n");
-            printf("  heating     field, current & heat solver enabled in small MD nanotip\n");
+            printf("  heating_big    PIC, current & heat solver enabled in big symmetric MD nanotip\n");
+            printf("  heating_small  field, current & heat solver enabled in small MD nanotip\n");
             printf("  stretch     stretch the substrate of small MD nanotip\n");
             printf("  extend      extend the system below the round MD apex\n");
             printf("  tablet      extend the system below the tablet shaped MD apex\n");

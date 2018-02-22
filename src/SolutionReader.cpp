@@ -1183,18 +1183,13 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
     double F, J;    // Local field and current density in femocs units (Angstrom)
 
     for (int i = 0; i < fields->size(); ++i) { // go through all face centroids
-
-         //local field
-
         int quad = fields->get_marker(i);
+        int hex_femocs = mesh->quad2hex(quad, TYPES.VACUUM);
+        int hex_deal = interpolator->linhexs.femocs2deal(hex_femocs);
 
-        int hexfemocs = mesh->quad2hex(quad, TYPES.VACUUM);
-        int hexdeal = interpolator->linhexs.femocs2deal(hexfemocs);
-
-        Point3 centr = fields->get_point(i);
-
-        dealii::Point<3> centr_deal(centr.x, centr.y, centr.z);
-        dealii::Tensor<1, 3, double> Fdealii = poisson->probe_efield(centr_deal, hexdeal);
+        Point3 centroid = fields->get_point(i);
+        dealii::Point<3> point(centroid.x, centroid.y, centroid.z);
+        dealii::Tensor<1, 3, double> Fdealii = poisson->probe_efield(point, hex_deal);
         Vec3 field(Fdealii);
 
         F = global_data.multiplier * field.norm();
@@ -1232,7 +1227,6 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
         current_densities[i] = J;
         nottingham[i] = nm2_per_angstrom2 * gt.heat;
     }
-
 }
 
 double EmissionReader::calc_emission(const double multiplier, const Config::Emission &conf,
