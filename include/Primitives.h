@@ -35,31 +35,63 @@ private:
     const T* data;
 };
 
-template <typename T, size_t dim>
-class VectorData {
+template <size_t dim>
+class Vec {
 public:
 
-    /** SimpleCell constructors */
-    VectorData() { std::fill_n(node, dim, T()); }
-    VectorData(const T &nn) { std::fill_n(node, dim, nn); }
+    /** Vec constructors */
+    Vec() { std::fill_n(node, dim, double()); }
+    Vec(const double &nn) { std::fill_n(node, dim, nn); }
 
     /** Dimensionality of vector */
     int size() const { return dim; }
 
     /** Check if one of the nodes equals to the one of interest */
-    bool operator ==(const T &t) const {
-        for (T n : node) if (n == t) return true;
+    bool operator ==(const double &t) const {
+        for (double n : node) if (n == t) return true;
         return false;
     }
 
-    bool operator ==(const VectorData<T, dim> &t) const {
+    bool operator ==(const Vec<dim> &t) const {
         for (size_t i = 0; i < dim; ++i) if ((*this)[i] != t[i]) return false;
         return true;
     }
 
+    /** Addition of two vectors */
+    Vec<dim>& operator +=(const Vec<dim> &p) { for(size_t i = 0; i < dim; ++i) node[i] += p[i]; return *this; }
+
+    /** Subtraction of two vectors */
+    Vec<dim>& operator -=(const Vec<dim> &p) { for(size_t i = 0; i < dim; ++i) node[i] -= p[i]; return *this; }
+
+    /** Multiplication of two vectors */
+    Vec<dim>& operator *=(const Vec<dim> &p) { for(size_t i = 0; i < dim; ++i) node[i] *= p[i]; return *this; }
+
+    /** Division of two vectors */
+    Vec<dim>& operator /=(const Vec<dim> &p) { for(size_t i = 0; i < dim; ++i) node[i] /= p[i]; return *this; }
+
+    /** Adding a scalar to the vector */
+    Vec<dim>& operator +=(const double &t) { for(double &n : node) n += t; return *this; }
+
+    /** Subtracting a scalar from the vector */
+    Vec<dim>& operator -=(const double &t) { for(double &n : node) n -= t; return *this; }
+
+    /** Multiplying vector with a scalar */
+    Vec<dim>& operator *=(const double &t) { for(double &n : node) n *= t; return *this; }
+
+    /** Dividing vector with a scalar */
+    Vec<dim>& operator /=(const double &t) { for(double &n : node) n /= t; return *this; }
+
+    /** Dot product of two vectors */
+    double dotProduct(const Vec<dim> &v) const {
+        double product = 0;
+        for (size_t i = 0; i < dim; ++i)
+            product += node[i] *= v[i];
+        return product;
+    }
+
     /** Define the behaviour of string stream */
-    friend std::ostream& operator <<(std::ostream &s, const VectorData<T, dim> &t) {
-        for (T nn : t.node) s << nn << ' ';
+    friend std::ostream& operator <<(std::ostream &s, const Vec<dim> &t) {
+        for (double nn : t.node) s << nn << ' ';
         return s;
     }
 
@@ -67,17 +99,17 @@ public:
     string to_str() const { stringstream ss; ss << this; return ss.str(); }
 
     /** Accessor for accessing the i-th node */
-    const T& operator [](const size_t i) const {
+    const double& operator [](const size_t i) const {
         require(i >= 0 && i < dim, "Invalid index: " + to_string(i));
         return node[i];
     }
 
     /** Iterator to access the cell nodes */
-    typedef Iterator<VectorData<T, dim>, T> iterator;
+    typedef Iterator<Vec<dim>, double> iterator;
     iterator begin() const { return iterator(this, 0); }
     iterator end() const { return iterator(this, dim); }
 
-    T node[dim]; ///< VectorData data
+    double node[dim]; ///< Vec data
 };
 
 /** Class to define basic operations with 2-dimensional points */

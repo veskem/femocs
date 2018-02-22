@@ -320,6 +320,9 @@ public:
     /** Get interpolation weights for a point inside i-th hexahedron */
     void get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const;
 
+    /** Calculate the gradient of shape functions for a point inside i-th hexahedron */
+    void get_shape_fun_grads(array<array<double,3>, 8>& sfg, const Vec3& point, const int i) const;
+
     /** Find the hexahedron which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
@@ -366,6 +369,13 @@ private:
 
     /** Return the linear hexahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; };
+
+    /** Map the point from Cartesian xyz-coordinates to natural uvw-coordinates.
+     * In natural coordinate system, each coordinate is within limits [-1, 1].
+     * The inspiration for mapping the point was taken from
+     * https://www.grc.nasa.gov/www/winddocs/utilities/b4wind_guide/trilinear.html
+     */
+    void project_to_nat_coords(double &u, double &v, double &w, const Vec3& point, const int hex) const;
 
     /** Check whether the point is inside the cell */
     bool point_in_cell(const Vec3& point, const int cell) const {

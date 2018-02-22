@@ -994,18 +994,10 @@ void LinearHexahedra::precompute() {
     }
 }
 
-/*
- * The inspiration for mapping the point from Cartesian to natural coordinate space was taken from
- * https://www.grc.nasa.gov/www/winddocs/utilities/b4wind_guide/trilinear.html
- */
-void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point, const int hex) const {
-    require(hex >= 0 && hex < cells.size(), "Index out of bounds: " + to_string(hex));
+void LinearHexahedra::project_to_nat_coords(double &u, double &v, double &w,
+        const Vec3& point, const int hex) const {
 
-    // Before calculating the shape function,
-    // map the point from Cartesian xyz-coordinates to natural uvw-coordinates.
-    // In natural coordinate system, each coordinate is within limits [-1, 1].
-
-    double u, v, w, du, dv, dw, D;
+    double du, dv, dw, D;
     Vec3 f0 = point - f0s[hex];
     Vec3 f1 = f1s[hex];
     Vec3 f2 = f2s[hex];
@@ -1045,8 +1037,17 @@ void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point
         w += dw;
 
         if (du * du + dv * dv + dw * dw < zero)
-            break;
+            return;
     }
+}
+
+void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point, const int hex) const {
+    require(hex >= 0 && hex < cells.size(), "Index out of bounds: " + to_string(hex));
+
+    // Before calculating the shape function,
+    // map the point from Cartesian xyz-coordinates to natural uvw-coordinates.
+    double u, v, w;
+    project_to_nat_coords(u, v, w, point, hex);
 
     // use natural coordinates to calculate shape functions
     sf = {
@@ -1059,6 +1060,94 @@ void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point
             (1 + u) * (1 + v) * (1 + w) / 8.0,
             (1 - u) * (1 + v) * (1 + w) / 8.0
     };
+}
+
+void LinearHexahedra::get_shape_fun_grads(array<array<double,3>, 8>& sfg, const Vec3& point, const int hex) const {
+    require(hex >= 0 && hex < cells.size(), "Index out of bounds: " + to_string(hex));
+    double u, v, w;
+    project_to_nat_coords(u, v, w, point, hex);
+
+    SimpleHex shex = mesh->hexahedra[hex];
+
+    array<double,8> x, y, z;
+
+    for (int i = 0; i < 8; ++i) {
+        Vec3 xyz = mesh->nodes[shex[i]];
+        x[i] = xyz[0];
+        y[i] = xyz[1];
+        z[i] = xyz[2];
+    }
+
+    array<double,8> dNu {-(1-v)*(1-w), (1-v)*(1-w), (1+v)*(1-w),-(1+v)*(1-w), -(1-v)*(1+w), (1-v)*(1+w), (1+v)*(1+w),-(1+v)*(1+w)};
+    array<double,8> dNv {-(1-u)*(1-w),-(1+u)*(1-w), (1+u)*(1-w), (1-u)*(1-w), -(1-u)*(1+w),-(1+u)*(1+w), (1+u)*(1+w), (1-u)*(1+w)};
+    array<double,8> dNw {-(1-u)*(1-v),-(1+u)*(1-v),-(1+u)*(1+v),-(1-u)*(1+v),  (1-u)*(1-v), (1+u)*(1-v), (1+u)*(1+v), (1-u)*(1+v)};
+    for (int i = 0; i < 8; ++i) {
+        dNu[i] *= 0.125;
+        dNv[i] *= 0.125;
+        dNw[i] *= 0.125;
+    }
+
+    array<array<double,8>, 3> dN = {dNu, dNv, dNw};
+
+    /* calculate the components of Jacobian matrix
+       J = {{J11,J12,J13},
+           {J21,J22,J23},
+           {J31,J32,J33}};
+    */
+    double J11=0, J21=0, J31=0, J12=0, J22=0, J32=0, J13=0, J23=0, J33=0;
+    for (int i = 0; i < 8; ++i) {
+        J11 += dNu[i] * x[i]; J21 += dNv[i] * x[i]; J31 += dNw[i] * x[i];
+        J12 += dNu[i] * y[i]; J22 += dNv[i] * y[i]; J32 += dNw[i] * y[i];
+        J13 += dNu[i] * z[i]; J23 += dNv[i] * z[i]; J33 += dNw[i] * z[i];
+    }
+
+    // determinant of Jacobian
+    double Jdet= J11*J22*J33 + J21*J32*J13 + J31*J12*J23 - J31*J22*J13 - J11*J32*J23 - J21*J12*J33;
+    require(Jdet != 0, "Singular Jacobian can't be handled!");
+    Jdet = 1.0 / Jdet;
+
+    // inverse of Jacobian
+    array<Vec3,3> Jinv = {
+            Vec3(J22*J33-J32*J23, J32*J13-J12*J33, J12*J23-J22*J13) * Jdet,
+            Vec3(J31*J23-J21*J33, J11*J33-J31*J13, J21*J13-J11*J23) * Jdet,
+            Vec3(J21*J32-J31*J22, J31*J12-J11*J32, J11*J22-J21*J12) * Jdet
+    };
+
+    for (int i = 0; i < 8; ++i)
+        for (int j = 0; j < 3; ++j)
+            sfg[i][j] = 0;
+
+    for (int i = 0; i < 8; ++i)
+        for (int j = 0; j < 3; ++j)
+            for (int k = 0; k < 3; ++k)
+                sfg[i][j] += Jinv[j][k] * dN[i][j];
+
+/*
+     xn = Table[encoor[[i,1]],{i,8}];
+     yn = Table[encoor[[i,2]],{i,8}];
+     zn = Table[encoor[[i,3]],{i,8}];
+
+     {dNξ,dNη,dNµ} = (1/8) *
+     {{-(1-η)*(1-µ), (1-η)*(1-µ), (1+η)*(1-µ),-(1+η)*(1-µ), -(1-η)*(1+µ), (1-η)*(1+µ), (1+η)*(1+µ),-(1+η)*(1+µ)},
+      {-(1-ξ)*(1-µ),-(1+ξ)*(1-µ), (1+ξ)*(1-µ), (1-ξ)*(1-µ), -(1-ξ)*(1+µ),-(1+ξ)*(1+µ), (1+ξ)*(1+µ), (1-ξ)*(1+µ)},
+      {-(1-ξ)*(1-η),-(1+ξ)*(1-η),-(1+ξ)*(1+η),-(1-ξ)*(1+η),  (1-ξ)*(1-η), (1+ξ)*(1-η), (1+ξ)*(1+η), (1-ξ)*(1+η)}};
+
+     J11 = dNξ * xn; J21 = dNη * xn; J31 = dNµ * xn;
+     J12 = dNξ * yn; J22 = dNη * yn; J32 = dNµ * yn;
+     J13 = dNξ * zn; J23 = dNη * zn; J33 = dNµ * zn;
+
+     J = {{J11,J12,J13},
+          {J21,J22,J23},
+          {J31,J32,J33}};
+
+     Jdet= J11*J22*J33 + J21*J32*J13 + J31*J12*J23 - J31*J22*J13 - J11*J32*J23 - J21*J12*J33;
+
+     Jinv = {{J22*J33-J32*J23, J32*J13-J12*J33, J12*J23-J22*J13},
+             {J31*J23-J21*J33, J11*J33-J31*J13, J21*J13-J11*J23},
+             {J21*J32-J31*J22, J31*J12-J11*J32, J11*J22-J21*J12}};
+
+     {Bx,By,Bz} = Jinv * {dNξ,dNη,dNµ} / Jdet;
+*/
 }
 
 /*
