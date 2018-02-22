@@ -13,7 +13,10 @@
 using namespace std;
 namespace femocs {
 
-
+/** Class for running PIC (particle-in-cell) simulations.
+ * For further details about PIC, see Kyrre Ness Sjøbæk PhD thesis at
+ * https://cds.cern.ch/record/2226840
+ */
 template<int dim>
 Pic<dim>::Pic(fch::PoissonSolver<dim> *poisson, fch::CurrentHeatSolver<3> *ch_solver,
         Interpolator *interpolator, EmissionReader *er) :
