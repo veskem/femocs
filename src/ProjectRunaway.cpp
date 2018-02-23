@@ -411,21 +411,32 @@ int ProjectRunaway::solve_pic(const double E0) {
     
     for (int i = 0; i < time_subcycle; i++) {
         n_lost = pic_solver.update_positions();
-        n_cg_steps = pic_solver.run_cycle(i == 0);
+        n_cg_steps = pic_solver.run_cycle(i == 0, i % conf.pic.n_write == 0);
 
-        vacuum_interpolator.extract_solution(poisson_solver);
-        surface_fields.calc_interpolation();
+        if (conf.field.solver == "laplace") break;
+
         emission.calc_emission(conf.emission, conf.field.V0);
 
         n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
         
         if (MODES.VERBOSE)
-            printf("  #CG steps=%d, max field=%.3f, #injected|deleted|total=%d|%d|%d\n",
-                    n_cg_steps, vacuum_interpolator.nodes.max_norm(), n_injected, n_lost, pic_solver.get_n_electrons());
+            printf("  #CG steps=%d, Fmax=%.3f, Itot=%.3e #injected|deleted|total=%d|%d|%d\n",
+                    n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot, n_injected,
+                    n_lost, pic_solver.get_n_electrons());
 
-        pic_solver.write("out/electrons.movie", 0);
-        vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-        emission.write_data("out/emission_data.dat", i * dt_pic);
+        if (i % conf.pic.n_write == 0){
+            pic_solver.write("out/electrons.movie", 0);
+
+            vacuum_interpolator.extract_solution(poisson_solver);
+            vacuum_interpolator.nodes.write("out/result_E_phi.movie");
+
+            vacuum_interpolator.extract_charge_density(poisson_solver);
+            vacuum_interpolator.nodes.write("out/result_E_charge.movie");
+
+            emission.export_emission(ch_solver);
+            emission.write_data("out/emission_data.dat", i * dt_pic);
+            emission.write("out/surface_emission.movie");
+        }
     }
     
     end_msg(t0);
@@ -454,7 +465,6 @@ int ProjectRunaway::solve_heat(const double T_ambient) {
 }
 
 int ProjectRunaway::solve_transient_heat(const double T_ambient, const double delta_time) {
-    double multiplier = 1.;
 
     // Interpolate elfield on face centroids
     surface_fields.interpolate(ch_solver);
@@ -466,6 +476,8 @@ int ProjectRunaway::solve_transient_heat(const double T_ambient, const double de
     emission.initialize(mesh);
     emission.calc_emission(conf.emission, conf.field.V0);
     emission.export_emission(ch_solver);
+    emission.write("out/surface_emission.xyz");
+    emission.write_data("out/emission_data.dat", 0);
 
     start_msg(t0, "=== Setup transient J & T solver...");
     ch_solver.setup(T_ambient);

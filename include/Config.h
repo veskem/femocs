@@ -127,7 +127,7 @@ public:
         double work_function;       ///< Work function [eV]
         bool blunt;                 ///< Force blunt emitter approximation (good for big systems)
         bool cold;                  ///< force cold field emission approximation (good for low temperatures)
-        bool SC;                    ///< If SC is to be taken into account
+        double omega_SC;            ///< Voltage correction factor for SC calculation (negative for ignoring SC)
         double SC_error;            ///< convergence criterion for SC error
     } emission;
 
@@ -165,6 +165,7 @@ public:
         bool fractional_push; ///< Do fractional timestep push when injecting electrons?
 
         bool coll_coulomb_ee; ///< Do 2e->2e Coulomb collisions?
+        int n_write;          ///< Output files every N pic time steps
     } pic;
     
 private:
