@@ -73,9 +73,9 @@ protected:
     double get_const_cutoff() const { return r0_min * r0_min; }
 
     /** Get cut off radius that increases with distance from origin */
-    double get_increasing_cutoff(const Point3 &point, double exponent = .9) const {
+    double get_increasing_cutoff(const Point3 &point, double exp = 0.9) const {
         double cutoff = max(0.0, origin3d.distance(point) - radius);
-        cutoff = min( r0_max, A * pow(cutoff, exponent) + r0_min );
+        cutoff = min( r0_max, A * pow(cutoff, exp) + r0_min );
         return cutoff * cutoff;
     }
 

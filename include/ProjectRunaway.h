@@ -63,11 +63,15 @@ public:
             const double* x, const double* y, const double* z, double* data, int* flag);
 
 private:
-    static constexpr double delta_t_MD = 4.05e-15; ///< MD timestep in seconds
 
-    bool fail;              ///< If some process failed
-    double t0;              ///< CPU timer
-    int timestep;           ///< counter to measure how many times Femocs has been called
+    bool fail;                  ///< If some process failed
+    double t0;                  ///< CPU timer
+    int timestep;               ///< counter to measure how many times Femocs has been called
+    double time = 0;            ///< Keeps the time that the simulation is (synchronize stpes)
+    double last_write_time = -1.e200; ///< Keeps the time that last file output was done1
+    double last_heat_time = -1.e200; ///< Last time heat was updated
+
+    bool new_mesh_exists = false;          ///< True if new mesh has been created
     int last_full_timestep; ///< last time step Femocs did full calculation
     string timestep_string; ///< time step written to file name
     // as surface atom->triangle mapping is quite heavy but useful in many places, it's good to prevent doing it many times
@@ -89,6 +93,14 @@ private:
     EmissionReader emission;          ///< emission data on centroids of surface quadrangles
     Pic<3> pic_solver;                       ///< class for solving Poisson equation and handling space charge
 
+    /** Write output data to files */
+    int write();
+
+    /** Determine if it is writing time */
+    bool is_write_time(){
+        return (time > (last_write_time + conf.behaviour.write_period));
+    }
+
     /** Determine whether atoms have moved significantly and whether to enable file writing */
     int reinit(const int timestep);
 
@@ -105,16 +117,13 @@ private:
     int solve_laplace(const double E0);
 
     /** Evolve the PIC simulation one Femocs time step */
-    int solve_pic(const double E0);
-
-    /** Pick a method to solve heat and continuity equations on bulk mesh */
-    int solve_heat(const double T_ambient);
+    int solve_pic();
 
     /** Solve transient heat and continuity equations */
-    int solve_transient_heat(const double T_ambient, const double delta_time);
+    int solve_transient_heat(const double T_ambient, const double delta_time, int& ccg, int& hcg);
 
     /** Solve transient heat and continuity equation until convergence is reached */
-    int solve_converge_heat(const double T_ambient);
+    int run_heat_converge(const double T_ambient);
     
     /** Import mesh to FEM solvers and initialize interpolators */
     int prepare_solvers();
