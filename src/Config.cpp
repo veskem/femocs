@@ -180,7 +180,7 @@ void Config::read_all(const string& file_name) {
 
     read_command("distance_tol", tolerance.distance);
 
-    read_command("doPIC", pic.run_pic);
+    read_command("run_pic", pic.run_pic);
     read_command("PIC_dtmax", pic.dt_max);
     read_command("electronWsp", pic.Wsp_el);
     read_command("PIC_fractional_push", pic.fractional_push);

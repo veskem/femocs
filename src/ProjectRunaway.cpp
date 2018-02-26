@@ -113,8 +113,9 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
     if (conf.heating.mode == "converge") return run_heat_converge(conf.heating.t_ambient);
 
     //***** Run FEM solvers *****
-    if (conf.field.solver == "poisson") {
-        if (solve_pic()) {
+
+    if (conf.field.solver == "poisson") { // solver Poisson equation - run PIC
+        if (solve_pic(conf.behaviour.total_time)) {
             force_output();
             check_return(true, "Solving PIC failed!");
         }
@@ -132,6 +133,10 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
         force_output();
         check_return(true, "Solving heat & continuity equation failed!");
     }
+
+    // In case no transient simulations (time has stayed the same) advance the time
+    if (!conf.pic.run_pic && conf.heating.mode == "none")
+        time += conf.behaviour.total_time;
 
     //***** Prepare for data export and next run *****
     if (prepare_export()) {
@@ -395,33 +400,34 @@ int ProjectRunaway::solve_laplace(const double E0) {
     return 0;
 }
 
-int ProjectRunaway::solve_pic() {
+int ProjectRunaway::solve_pic(double advance_time) {
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
     fields.set_check_params(conf.field.E0, conf.tolerance.field_min, conf.tolerance.field_max,
             conf.geometry.radius, dense_surf.sizes.zbox);
 
-    int time_subcycle = ceil(conf.behaviour.total_time / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
-    double dt_pic = conf.behaviour.total_time/time_subcycle;
+    int time_subcycle = ceil(advance_time / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
+    double dt_pic = advance_time / time_subcycle;
 
 
-    
-    start_msg(t0, "=== Initializing Poisson solver...");
-    poisson_solver.setup(conf.field.E0, conf.field.V0);
+    if (new_mesh_exists){
+        start_msg(t0, "=== Initializing Poisson solver...");
+        poisson_solver.setup(conf.field.E0, conf.field.V0);
+        end_msg(t0);
+    }
     pic_solver.set_params(conf.field, conf.pic, dt_pic, mesh->nodes.stat);
-    end_msg(t0);
     
-    start_msg(t0, "=== Running PIC...\n");
+    if (conf.pic.run_pic)
+        start_msg(t0, "=== Running PIC...\n");
+    else
+        start_msg(t0, "=== Solving Poisson equation...\n");
     
     for (int i = 0; i < time_subcycle; i++) {
-
         int n_lost = pic_solver.update_positions();
         int n_cg_steps = pic_solver.run_cycle(new_mesh_exists, is_write_time());
 
         // If not PIC, advance time by whole timestep and return
-        if (conf.pic.run_pic) {
-            time += conf.behaviour.total_time;
-            return 0;
-        }
+        if (!conf.pic.run_pic)
+            break;
 
         // Set up emission input
         if (i == 0) {
@@ -435,8 +441,8 @@ int ProjectRunaway::solve_pic() {
         int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
         
         if (MODES.VERBOSE)
-            printf("  #CG steps=%d, Fmax=%.3f, Itot=%.3e #injected|deleted|total=%d|%d|%d\n",
-                    n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot, n_injected,
+            printf("t= %f fs, #CG =%d, Fmax=%.3f V/A, Itot=%.3e A #e|inj|del|tot=%d|%d|%d\n",
+                    time, n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot, n_injected,
                     n_lost, pic_solver.get_n_electrons());
 
         time += dt_pic;
@@ -450,7 +456,8 @@ int ProjectRunaway::solve_pic() {
     }
     
     end_msg(t0);
-    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()), "Field enhancement is out of limits!");
+    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
+            "Field enhancement is out of limits!");
 
     return 0;
 
@@ -463,7 +470,8 @@ int ProjectRunaway::solve_pic() {
 
 int ProjectRunaway::solve_transient_heat(const double T_ambient, const double delta_time, int& ccg, int& hcg) {
 
-    ch_solver.setup(T_ambient);
+    if (new_mesh_exists)
+        ch_solver.setup(T_ambient);
 
     // Calculate field emission in case not ready from pic
     if(!conf.pic.run_pic){
@@ -480,13 +488,13 @@ int ProjectRunaway::solve_transient_heat(const double T_ambient, const double de
     ch_solver.current.assemble();
     ccg = ch_solver.current.solve();
     end_msg(t0);
-    write_verbose_msg("# CG steps: " + to_string(ccg));
+    write_verbose_msg("#CG steps: " + to_string(ccg));
 
     start_msg(t0, "=== Calculating temperature distribution...");
     ch_solver.heat.assemble(delta_time * 1.e-15); // caution!! ch_solver internal time in sec
     hcg = ch_solver.heat.solve();
     end_msg(t0);
-    write_verbose_msg("# CG steps: " + to_string(hcg));
+    write_verbose_msg("#CG steps: " + to_string(hcg));
 
     start_msg(t0, "=== Extracting J & T...");
     bulk_interpolator.extract_solution(ch_solver);
@@ -507,17 +515,16 @@ int ProjectRunaway::solve_transient_heat(const double T_ambient, const double de
 
 int ProjectRunaway::run_heat_converge(const double T_ambient) {
 
-    double delta_time = 100;
-    double multiplier = 1.;
+    double delta_time = 1;
 
     start_msg(t0, "=== Running heat convergence...\n");
     int ccg, hcg;
     int converge_steps = 0;
     for (; converge_steps < 1000; ++converge_steps) {
 
-        //calculate field - advance pic
+        //calculate field - advance pic for the given timestep
         if (conf.pic.run_pic || converge_steps == 0){
-            if (solve_pic()) {
+            if (solve_pic(delta_time)) {
                 force_output();
                 check_return(true, "Solving PIC failed!");
             }
@@ -529,16 +536,20 @@ int ProjectRunaway::run_heat_converge(const double T_ambient) {
             check_return(true, "Solving heat & continuity equation failed!");
         }
 
+        new_mesh_exists = false; //running convergence with the same mesh always
+
         if (MODES.VERBOSE) {
             double max_T = ch_solver.heat.max_solution();
-            printf("  i=%d, t=%.2fps, dt=%.2fps, ccg=%d, hcg=%d, time=%.3fs, Tmax=%.2fK\n",
-                    converge_steps, time * 1.e3, delta_time * 1.e3, ccg, hcg, time, max_T);
+            printf("t=%.2e ps, dt=%.2f ps, Tmax=%.2fK\n",
+                    time * 1.e-3, delta_time * 1.e-3, ccg, hcg, max_T);
         }
-        time += delta_time;
 
-        if (max(hcg, ccg) < 120 || hcg < 30)
+        if (!conf.pic.run_pic)
+            time += delta_time;
+
+        if (hcg < (ccg - 10)) // if heat changed too little
             delta_time *= 1.25;
-        else if (max(hcg, ccg) > 150)
+        else if (hcg > (ccg + 10)) // if heat changed too much
             delta_time /= 1.25;
 
         if (is_write_time()){
@@ -546,6 +557,7 @@ int ProjectRunaway::run_heat_converge(const double T_ambient) {
             write();
             end_msg(t0);
         }
+
 
         if (max(hcg, ccg) < 10) break;
     }

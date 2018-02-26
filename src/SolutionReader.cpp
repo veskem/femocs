@@ -1062,9 +1062,9 @@ void EmissionReader::initialize(const TetgenMesh* m) {
 }
 
 void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax) {
-    const int interpolation_rank = 1;
+    const int interpolation_rank = 3;
     const double nm_per_angstrom = 0.1;
-    const double rmin = 0.0;
+    const double rmin = 1.e-5 * rmax;
     Point3 pfield(direction.x, direction.y, direction.z);
 
     FieldReader fr(interpolator);
@@ -1077,15 +1077,17 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
     }
     fr.calc_interpolation();
 
-    for (int i = 0; i < n_lines; i++){
-        int quad = fr.get_marker(i);
-        int hex_femocs = mesh->quad2hex(quad, TYPES.VACUUM);
-        int hex_deal = interpolator->linhexs.femocs2deal(hex_femocs);
 
-        Point3 p = fields->get_point(i);
-        dealii::Point<3> pdeal(p.x, p.y, p.z);
-        Vline[i] = global_data.multiplier * poisson->probe_potential(pdeal, hex_deal);
+    for (int i = 0; i < n_lines; i++){
+        int hex = fr.get_marker(i);
+        int hex_deal = interpolator->linhexs.femocs2deal(hex);
+
+        Point3 p = fr.get_point(i);
+        dealii::Point<3> p_deal(p.x, p.y, p.z);
+
+        Vline[i] = global_data.multiplier * poisson->probe_potential(p_deal, hex_deal);
         rline[i] *= nm_per_angstrom;
+
     }
 
     for (int i = 0; i < n_lines; i++){
@@ -1180,6 +1182,7 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
 }
 
 void EmissionReader::get_field_loc(){
+
     global_data.Fmax = 0;
 
     for (int i = 0; i < fields->size(); ++i) { // go through all face centroids
@@ -1190,7 +1193,6 @@ void EmissionReader::get_field_loc(){
         Point3 centroid = fields->get_point(i);
         dealii::Point<3> point(centroid.x, centroid.y, centroid.z);
         dealii::Tensor<1, 3, double> Fdealii = poisson->probe_efield(point, hex_deal);
-
         field_loc[i] = Vec3(Fdealii);
         global_data.Fmax = max(global_data.Fmax, field_loc[i].norm());
     }
@@ -1219,6 +1221,7 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
 
         if (F > 0.6 * global_data.Fmax && !blunt){ // Full calculation with line only for high field points
             field.normalize(); // get line direction
+
             emission_line(get_point(i), field, 1.6 * workfunction / F); //get emission line data
 
             gt.Nr = n_lines;

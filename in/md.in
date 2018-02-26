@@ -36,9 +36,10 @@ emitter_cold = true
 
 # PIC parameters
 ---------------------
-doPIC = true
-PIC_dtmax = .005 #[fs]
-PIC_time = 30 #[fs]
+field_solver = poisson
+run_pic = true
+PIC_dtmax = .01 #[fs]
+PIC_time = 10 #[fs]
 PIC_fractional_push = true
 PIC_collide_coulomb_ee = false
 electronWsp = 0.0002

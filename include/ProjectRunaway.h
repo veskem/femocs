@@ -117,7 +117,7 @@ private:
     int solve_laplace(const double E0);
 
     /** Evolve the PIC simulation one Femocs time step */
-    int solve_pic();
+    int solve_pic(double advance_time);
 
     /** Solve transient heat and continuity equations */
     int solve_transient_heat(const double T_ambient, const double delta_time, int& ccg, int& hcg);
