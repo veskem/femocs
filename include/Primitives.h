@@ -208,6 +208,7 @@ public:
 
     /** Accessor for accessing the i-th coordinate */
     const double& operator [](const size_t i) const { return (&x)[i]; }
+    double& operator [](const size_t i) { return (&x)[i]; }
 
     /** Iterator for accessing the coordinates */
     typedef Iterator<Vector3Data, double> iterator;

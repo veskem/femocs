@@ -321,7 +321,10 @@ public:
     void get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const;
 
     /** Calculate the gradient of shape functions for a point inside i-th hexahedron */
-    void get_shape_fun_grads(array<array<double,3>, 8>& sfg, const Vec3& point, const int i) const;
+    void get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int i) const;
+
+    /** Calculate gradient of shape function for a hexahedral node */
+    void get_shape_fun_grads(array<Vec3, 8>& sfg, const int hex, const int node) const;
 
     /** Find the hexahedron which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
@@ -376,6 +379,11 @@ private:
      * https://www.grc.nasa.gov/www/winddocs/utilities/b4wind_guide/trilinear.html
      */
     void project_to_nat_coords(double &u, double &v, double &w, const Vec3& point, const int hex) const;
+
+    /** Look up for the natural coordinates u,v,w and nearest neighbouring nodes n1,n2,n3
+     *  for the node inside a hexahedron. */
+    void project_to_nat_coords(double &u, double &v, double &w,
+        int &n1, int &n2, int &n3, const int node) const;
 
     /** Check whether the point is inside the cell */
     bool point_in_cell(const Vec3& point, const int cell) const {

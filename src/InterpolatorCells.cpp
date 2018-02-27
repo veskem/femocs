@@ -1041,6 +1041,21 @@ void LinearHexahedra::project_to_nat_coords(double &u, double &v, double &w,
     }
 }
 
+void LinearHexahedra::project_to_nat_coords(double &u, double &v, double &w,
+        int &n1, int &n2, int &n3, const int node) const {
+
+    switch (node) {
+        case 0: u=-1; v=-1; w=-1; n1=1; n2=3; n3=4; return;
+        case 1: u=1;  v=-1; w=-1; n1=0; n2=2; n3=5; return;
+        case 2: u=1;  v=1;  w=-1; n1=3; n2=1; n3=6; return;
+        case 3: u=-1; v=1;  w=-1; n1=2; n2=0; n3=7; return;
+        case 4: u=-1; v=-1; w=1;  n1=5; n2=7; n3=0; return;
+        case 5: u=1;  v=-1; w=1;  n1=4; n2=6; n3=1; return;
+        case 6: u=1;  v=1;  w=1;  n1=7; n2=5; n3=2; return;
+        case 7: u=-1; v=1;  w=1;  n1=6; n2=4; n3=3; return;
+    }
+}
+
 void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point, const int hex) const {
     require(hex >= 0 && hex < cells.size(), "Index out of bounds: " + to_string(hex));
 
@@ -1062,67 +1077,80 @@ void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point
     };
 }
 
-void LinearHexahedra::get_shape_fun_grads(array<array<double,3>, 8>& sfg, const Vec3& point, const int hex) const {
+void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int hex) const {
     require(hex >= 0 && hex < cells.size(), "Index out of bounds: " + to_string(hex));
     double u, v, w;
     project_to_nat_coords(u, v, w, point, hex);
 
+    // Transfer the coordinates of hex nodes into a matrix
     SimpleHex shex = mesh->hexahedra[hex];
-
-    array<double,8> x, y, z;
-
+    double xyz[8][3];
     for (int i = 0; i < 8; ++i) {
-        Vec3 xyz = mesh->nodes[shex[i]];
-        x[i] = xyz[0];
-        y[i] = xyz[1];
-        z[i] = xyz[2];
+        Vec3 point = mesh->nodes[shex[i]];
+        for (int j = 0; j < 3; ++j)
+            xyz[i][j] = point[j];
     }
 
-    array<double,8> dNu {-(1-v)*(1-w), (1-v)*(1-w), (1+v)*(1-w),-(1+v)*(1-w), -(1-v)*(1+w), (1-v)*(1+w), (1+v)*(1+w),-(1+v)*(1+w)};
-    array<double,8> dNv {-(1-u)*(1-w),-(1+u)*(1-w), (1+u)*(1-w), (1-u)*(1-w), -(1-u)*(1+w),-(1+u)*(1+w), (1+u)*(1+w), (1-u)*(1+w)};
-    array<double,8> dNw {-(1-u)*(1-v),-(1+u)*(1-v),-(1+u)*(1+v),-(1-u)*(1+v),  (1-u)*(1-v), (1+u)*(1-v), (1+u)*(1+v), (1-u)*(1+v)};
-    for (int i = 0; i < 8; ++i) {
-        dNu[i] *= 0.125;
-        dNv[i] *= 0.125;
-        dNw[i] *= 0.125;
+    // calculate gradient of shape functions in uvw-space
+    double dN[3][8] = {
+        {-(1-v)*(1-w), (1-v)*(1-w), (1+v)*(1-w),-(1+v)*(1-w),-(1-v)*(1+w), (1-v)*(1+w), (1+v)*(1+w),-(1+v)*(1+w)},
+        {-(1-u)*(1-w),-(1+u)*(1-w), (1+u)*(1-w), (1-u)*(1-w),-(1-u)*(1+w),-(1+u)*(1+w), (1+u)*(1+w), (1-u)*(1+w)},
+        {-(1-u)*(1-v),-(1+u)*(1-v),-(1+u)*(1+v),-(1-u)*(1+v), (1-u)*(1-v), (1+u)*(1-v), (1+u)*(1+v), (1-u)*(1+v)}
+    };
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 8; ++j)
+            dN[i][j] *= 0.125;
+
+    // calculate Jacobian
+    double J[3][3] = {0};
+    for (int k = 0; k < 8; ++k) {
+        for (int i = 0; i < 3; ++i)
+            for (int j = 0; j < 3; ++j)
+                J[i][j] += dN[i][k] * xyz[k][j];
     }
 
-    array<array<double,8>, 3> dN = {dNu, dNv, dNw};
-
-    /* calculate the components of Jacobian matrix
-       J = {{J11,J12,J13},
-           {J21,J22,J23},
-           {J31,J32,J33}};
-    */
-    double J11=0, J21=0, J31=0, J12=0, J22=0, J32=0, J13=0, J23=0, J33=0;
-    for (int i = 0; i < 8; ++i) {
-        J11 += dNu[i] * x[i]; J21 += dNv[i] * x[i]; J31 += dNw[i] * x[i];
-        J12 += dNu[i] * y[i]; J22 += dNv[i] * y[i]; J32 += dNw[i] * y[i];
-        J13 += dNu[i] * z[i]; J23 += dNv[i] * z[i]; J33 += dNw[i] * z[i];
-    }
-
-    // determinant of Jacobian
-    double Jdet= J11*J22*J33 + J21*J32*J13 + J31*J12*J23 - J31*J22*J13 - J11*J32*J23 - J21*J12*J33;
-    require(Jdet != 0, "Singular Jacobian can't be handled!");
+    // calculate determinant (and its inverse) of Jacobian
+    double Jdet = J[0][0] * (J[1][1]*J[2][2] - J[2][1]*J[1][2])
+                + J[1][0] * (J[2][1]*J[0][2] - J[0][1]*J[2][2])
+                + J[2][0] * (J[0][1]*J[1][2] - J[1][1]*J[0][2]);
+    require(fabs(Jdet) > 1e-15, "Singular Jacobian can't be handled!");
     Jdet = 1.0 / Jdet;
 
-    // inverse of Jacobian
-    array<Vec3,3> Jinv = {
-            Vec3(J22*J33-J32*J23, J32*J13-J12*J33, J12*J23-J22*J13) * Jdet,
-            Vec3(J31*J23-J21*J33, J11*J33-J31*J13, J21*J13-J11*J23) * Jdet,
-            Vec3(J21*J32-J31*J22, J31*J12-J11*J32, J11*J22-J21*J12) * Jdet
+    // calculate inverse of Jacobian
+    double Jinv[3][3] = {
+        {J[1][1]*J[2][2]-J[2][1]*J[1][2], J[2][1]*J[0][2]-J[0][1]*J[2][2], J[0][1]*J[1][2]-J[1][1]*J[0][2]},
+        {J[2][0]*J[1][2]-J[1][0]*J[2][2], J[0][0]*J[2][2]-J[2][0]*J[0][2], J[1][0]*J[0][2]-J[0][0]*J[1][2]},
+        {J[1][0]*J[2][1]-J[2][0]*J[1][1], J[2][0]*J[0][1]-J[0][0]*J[2][1], J[0][0]*J[1][1]-J[1][0]*J[0][1]}
     };
-
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < 3; ++i)
         for (int j = 0; j < 3; ++j)
-            sfg[i][j] = 0;
+            Jinv[i][j] *= Jdet;
 
-    for (int i = 0; i < 8; ++i)
-        for (int j = 0; j < 3; ++j)
-            for (int k = 0; k < 3; ++k)
-                sfg[i][j] += Jinv[j][k] * dN[i][j];
+    // calculate gradient of shape functions in xyz-space
+    for (int k = 0; k < 8; ++k) {
+        sfg[k] = Vec3(0);
+        for (int i = 0; i < 3; ++i)
+            for (int j = 0; j < 3; ++j)
+                sfg[k][i] += Jinv[i][j] * dN[j][k];
+    }
 
-/*
+    // TODO try to make it possible to modify Vec3 via its accessor
+    //for (int k = 0; k < 8; ++k) {
+    //    sfg[k] = Vec3(0);
+    //    for (int j = 0; j < 3; ++j)
+    //        sfg[k].x += Jinv[0][j] * dN[j][k];
+    //    for (int j = 0; j < 3; ++j)
+    //        sfg[k].y += Jinv[1][j] * dN[j][k];
+    //    for (int j = 0; j < 3; ++j)
+    //        sfg[k].z += Jinv[2][j] * dN[j][k];
+    //}
+
+    /* The last summation in other notation:
+     * dM(k,0) = J(0,0)*dN(0,k) + J(0,1)*dN(1,k) + J(0,2)*dN(2,k)
+     * dM(k,1) = J(1,0)*dN(0,k) + J(1,1)*dN(1,k) + J(1,2)*dN(2,k)
+     * dM(k,2) = J(2,0)*dN(0,k) + J(2,1)*dN(1,k) + J(2,2)*dN(2,k)
+     * k = 0,1..7
+
      xn = Table[encoor[[i,1]],{i,8}];
      yn = Table[encoor[[i,2]],{i,8}];
      zn = Table[encoor[[i,3]],{i,8}];
@@ -1148,6 +1176,86 @@ void LinearHexahedra::get_shape_fun_grads(array<array<double,3>, 8>& sfg, const 
 
      {Bx,By,Bz} = Jinv * {dNξ,dNη,dNµ} / Jdet;
 */
+}
+
+/* The gradient of shape functions in uvw space consists in case of
+ * nodal data mostly of zeros. For example, for the 2nd node,
+ * the uvw coordinates and the gradient look like
+ *     u=1, v=-1, w=-1
+ *     2*dN=[[-1     1     0     0     0     0     0     0]
+ *           [ 0    -1     1     0     0     0     0     0]
+ *           [ 0    -1     0     0     0     1     0     0]]
+ *
+ * Another important porperty of nodal data is, that only the neighbouring
+ * nodes are included in Jacobian. Continuing with the example of 2nd node,
+ * the neighbouring nodes and Jacobian look like
+ *     n0=0, n1=2, n2=5
+ *     2*J=[[ x1 - x0, y1 - y0, z1 - z0]
+ *          [ x2 - x1, y2 - y1, z2 - z1]
+ *          [ x5 - x1, y5 - y1, z5 - z1]]
+ *
+ * Those properties can be used to reduce the amount of necessary flops.
+ *
+ * The Jacobian can be expressed as
+ *     J[i,:] = (xyz[node] - xyz[n_i]) * uvw[i]/2 .
+ *
+ * The explicit formula to calculate gradient of shape functions in uvw-space
+ *     double dN[3][8] = {0};
+ *     for (int i = 0; i < 3; ++i) {
+ *         dN[i][node] = 0.5 * uvw[i];
+ *         dN[i][nnn[i]] = -0.5 * uvw[i];
+ *     }
+ *
+ * And finally the gradient of shape functions in xyz-space
+ *     sfg = array<Vec3,8>;
+ *     for (int i = 0; i < 3; ++i) {
+ *         sfg[node][i] = Jinv[i][0] * dN[0][node] + Jinv[i][1] * dN[1][node] + Jinv[i][2] * dN[2][node];
+ *         sfg[nnn[i]][i] = Jinv[i][i] * dN[i][nnn[i]];
+ *     }
+ *
+ * As the explicit knowledge about dN is not needed,
+ * above two expressions can be optimized to a single one.
+ */
+void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const int hex, const int node) const {
+    require(hex >= 0 && hex < size(), "Invalid hex: " + to_string(hex));
+    require(node >= 0 && node < 8, "Invalid node: " + to_string(node));
+
+    double u, v, w; // natural coordinates
+    int n1, n2, n3; // indices of nearest neighbouring nodes of the node
+    project_to_nat_coords(u, v, w, n1, n2, n3, node);
+
+    Vec3 uvw(u, v, w);
+    int nnn[3] = {n1, n2, n3};
+    SimpleHex shex = mesh->hexahedra[hex];
+
+    // calculate Jacobian
+    Vec3 vec0 = nodes->get_vertex(shex[node]);
+    array<Vec3, 3> J = {
+        Vec3(vec0 - nodes->get_vertex(shex[nnn[0]])) * (uvw[0] * 0.5),
+        Vec3(vec0 - nodes->get_vertex(shex[nnn[1]])) * (uvw[1] * 0.5),
+        Vec3(vec0 - nodes->get_vertex(shex[nnn[2]])) * (uvw[2] * 0.5)
+    };
+
+    // calculate determinant (and its inverse) of Jacobian
+    double Jdet = lintet->determinant(J[0], J[1], J[2]);
+    require(fabs(Jdet) > 1e-15, "Singular Jacobian can't be handled!");
+    Jdet = 1.0 / Jdet;
+
+    // calculate inverse of Jacobian
+    array<Vec3,3> Jinv = {
+        Vec3(J[1][1]*J[2][2]-J[2][1]*J[1][2], J[2][1]*J[0][2]-J[0][1]*J[2][2], J[0][1]*J[1][2]-J[1][1]*J[0][2]),
+        Vec3(J[2][0]*J[1][2]-J[1][0]*J[2][2], J[0][0]*J[2][2]-J[2][0]*J[0][2], J[1][0]*J[0][2]-J[0][0]*J[1][2]),
+        Vec3(J[1][0]*J[2][1]-J[2][0]*J[1][1], J[2][0]*J[0][1]-J[0][0]*J[2][1], J[0][0]*J[1][1]-J[1][0]*J[0][1])
+    };
+    for (int i = 0; i < 3; ++i)
+        Jinv[i] *= Jdet;
+
+    // calculate gradient of shape functions in xyz-space
+    sfg = array<Vec3,8>();
+    for (int i = 0; i < 3; ++i) {
+        sfg[node][i] = 0.5 * (Jinv[i].dotProduct(uvw));
+        sfg[nnn[i]][i] = -0.5 * Jinv[i][i] * uvw[i];
+    }
 }
 
 /*
