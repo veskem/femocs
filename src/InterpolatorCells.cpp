@@ -994,6 +994,9 @@ void LinearHexahedra::precompute() {
     }
 }
 
+/* The inspiration for mapping the point was taken from
+ * https://www.grc.nasa.gov/www/winddocs/utilities/b4wind_guide/trilinear.html
+ */
 void LinearHexahedra::project_to_nat_coords(double &u, double &v, double &w,
         const Vec3& point, const int hex) const {
 
@@ -1077,6 +1080,9 @@ void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point
     };
 }
 
+/* For more information, see the lecture materials in
+ * https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch11.d/AFEM.Ch11.pdf
+ */
 void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int hex) const {
     require(hex >= 0 && hex < cells.size(), "Index out of bounds: " + to_string(hex));
     double u, v, w;
@@ -1133,49 +1139,6 @@ void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point
             for (int j = 0; j < 3; ++j)
                 sfg[k][i] += Jinv[i][j] * dN[j][k];
     }
-
-    // TODO try to make it possible to modify Vec3 via its accessor
-    //for (int k = 0; k < 8; ++k) {
-    //    sfg[k] = Vec3(0);
-    //    for (int j = 0; j < 3; ++j)
-    //        sfg[k].x += Jinv[0][j] * dN[j][k];
-    //    for (int j = 0; j < 3; ++j)
-    //        sfg[k].y += Jinv[1][j] * dN[j][k];
-    //    for (int j = 0; j < 3; ++j)
-    //        sfg[k].z += Jinv[2][j] * dN[j][k];
-    //}
-
-    /* The last summation in other notation:
-     * dM(k,0) = J(0,0)*dN(0,k) + J(0,1)*dN(1,k) + J(0,2)*dN(2,k)
-     * dM(k,1) = J(1,0)*dN(0,k) + J(1,1)*dN(1,k) + J(1,2)*dN(2,k)
-     * dM(k,2) = J(2,0)*dN(0,k) + J(2,1)*dN(1,k) + J(2,2)*dN(2,k)
-     * k = 0,1..7
-
-     xn = Table[encoor[[i,1]],{i,8}];
-     yn = Table[encoor[[i,2]],{i,8}];
-     zn = Table[encoor[[i,3]],{i,8}];
-
-     {dNξ,dNη,dNµ} = (1/8) *
-     {{-(1-η)*(1-µ), (1-η)*(1-µ), (1+η)*(1-µ),-(1+η)*(1-µ), -(1-η)*(1+µ), (1-η)*(1+µ), (1+η)*(1+µ),-(1+η)*(1+µ)},
-      {-(1-ξ)*(1-µ),-(1+ξ)*(1-µ), (1+ξ)*(1-µ), (1-ξ)*(1-µ), -(1-ξ)*(1+µ),-(1+ξ)*(1+µ), (1+ξ)*(1+µ), (1-ξ)*(1+µ)},
-      {-(1-ξ)*(1-η),-(1+ξ)*(1-η),-(1+ξ)*(1+η),-(1-ξ)*(1+η),  (1-ξ)*(1-η), (1+ξ)*(1-η), (1+ξ)*(1+η), (1-ξ)*(1+η)}};
-
-     J11 = dNξ * xn; J21 = dNη * xn; J31 = dNµ * xn;
-     J12 = dNξ * yn; J22 = dNη * yn; J32 = dNµ * yn;
-     J13 = dNξ * zn; J23 = dNη * zn; J33 = dNµ * zn;
-
-     J = {{J11,J12,J13},
-          {J21,J22,J23},
-          {J31,J32,J33}};
-
-     Jdet= J11*J22*J33 + J21*J32*J13 + J31*J12*J23 - J31*J22*J13 - J11*J32*J23 - J21*J12*J33;
-
-     Jinv = {{J22*J33-J32*J23, J32*J13-J12*J33, J12*J23-J22*J13},
-             {J31*J23-J21*J33, J11*J33-J31*J13, J21*J13-J11*J23},
-             {J21*J32-J31*J22, J31*J12-J11*J32, J11*J22-J21*J12}};
-
-     {Bx,By,Bz} = Jinv * {dNξ,dNη,dNµ} / Jdet;
-*/
 }
 
 /* The gradient of shape functions in uvw space consists in case of
@@ -1203,18 +1166,19 @@ void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point
  *     double dN[3][8] = {0};
  *     for (int i = 0; i < 3; ++i) {
  *         dN[i][node] = 0.5 * uvw[i];
- *         dN[i][nnn[i]] = -0.5 * uvw[i];
+ *         dN[i][n_i] = -0.5 * uvw[i];
  *     }
  *
  * And finally the gradient of shape functions in xyz-space
- *     sfg = array<Vec3,8>;
+ *     sfg = array<Vec3,8>();
  *     for (int i = 0; i < 3; ++i) {
  *         sfg[node][i] = Jinv[i][0] * dN[0][node] + Jinv[i][1] * dN[1][node] + Jinv[i][2] * dN[2][node];
- *         sfg[nnn[i]][i] = Jinv[i][i] * dN[i][nnn[i]];
+ *         for (int j = 0; j < 3; ++j)
+ *             sfg[n_j][i] = Jinv[i][j] * dN[j][n_j];
  *     }
  *
  * As the explicit knowledge about dN is not needed,
- * above two expressions can be optimized to a single one.
+ * last two expressions can be optimized to a single one.
  */
 void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const int hex, const int node) const {
     require(hex >= 0 && hex < size(), "Invalid hex: " + to_string(hex));
@@ -1249,12 +1213,31 @@ void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const int hex, co
     };
     for (int i = 0; i < 3; ++i)
         Jinv[i] *= Jdet;
-
+    
     // calculate gradient of shape functions in xyz-space
     sfg = array<Vec3,8>();
     for (int i = 0; i < 3; ++i) {
         sfg[node][i] = 0.5 * (Jinv[i].dotProduct(uvw));
-        sfg[nnn[i]][i] = -0.5 * Jinv[i][i] * uvw[i];
+        for (int j = 0; j < 3; ++j)
+            sfg[nnn[j]][i] = -0.5 * Jinv[i][j] * uvw[j];
+    }
+}
+
+void LinearHexahedra::test_shape_funs() {
+    array<Vec3, 8> sfg1, sfg2;
+
+    int hex = 0;
+    SimpleHex shex = mesh->hexahedra[hex];
+
+    cout << fixed << setprecision(3);
+    for (int i = 0; i < 8; ++i) {
+        Point3 point = mesh->nodes[shex[i]];
+        get_shape_fun_grads(sfg1, point, hex);
+        get_shape_fun_grads(sfg2, hex, i);
+
+        cout << endl << i << endl;
+        for (int j = 0; j < 8; ++j)
+            cout << sfg1[j] << " | " << sfg2[j] << " | " << sfg2[j] - sfg1[j] << endl; 
     }
 }
 
@@ -1301,6 +1284,31 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
         return sign * (n_hexs_per_tet * tet_index + 3);
 
     return -1;
+}
+
+Solution LinearHexahedra::interp_solution(const Point3 &point, const int c) const {    
+    const int cell = abs(c);
+    require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
+
+    SimpleHex scell = cells[cell];
+
+    // calculate weights or barycentric coordinates
+    array<double,8> sf;
+    array<Vec3, 8> sfg;
+    get_shape_functions(sf, Vec3(point), cell);
+    get_shape_fun_grads(sfg, Vec3(point), cell);
+
+    // Interpolate vector data
+    Vec3 vector_i(0.0);
+    for (int i = 0; i < 8; ++i)
+        vector_i += sfg[i] * nodes->get_scalar(scell[i]);
+
+    // Interpolate scalar data
+    double scalar_i(0.0);
+    for (int i = 0; i < 8; ++i)
+        scalar_i += sf[i] * nodes->get_scalar(scell[i]);
+
+    return Solution(vector_i, scalar_i);
 }
 
 /* ==================================================================
