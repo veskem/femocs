@@ -22,6 +22,7 @@ namespace femocs {
 class InterpolatorNodes {
 public:
     InterpolatorNodes();
+    InterpolatorNodes(const string &norm_label, const string &scalar_label);
     ~InterpolatorNodes() {};
 
     /** Return number of available nodes */

@@ -475,67 +475,14 @@ FieldReader::FieldReader(Interpolator* i) :
         SolutionReader(i, "elfield", "elfield_norm", "potential"),
         E0(0), radius1(0), radius2(0) {}
 
-void FieldReader::test_pic(fch::PoissonSolver<3>* laplace, const Medium& medium) {
+void FieldReader::compare_interpolators(fch::PoissonSolver<3> &poisson, const double zmax) {
     const double x = 0;
     const double y = 0;
-    const double zmin = medium.sizes.zmax;
-    const double step = 0.5;
-
-    const int n_points = 30;
-
-    reserve(n_points);
-    for (int i = 0; i < n_points; ++i)
-        append(Point3(x, y, zmin + i * step));
-
-    cout << "\nprobing potential:\n";
-
-    array<double,8> shape_functions;
-
-    int hex_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        Point3 p = get_point(i);
-        hex_index = interpolator->linhexs.locate_cell(p, hex_index);
-        dealii::Point<3> deal_point(p.x, p.y, p.z);
-        double val1 = laplace->probe_potential(deal_point,interpolator->linhexs.femocs2deal(hex_index));
-        double val2 = laplace->probe_potential(deal_point);
-        printf("%.2f, %e, %e, %e\n", p.z, val1, val2, val1 - val2);
-    }
-
-    cout << "\nprobing elfield:\n";
-
-    hex_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        Point3 p = get_point(i);
-        hex_index = interpolator->linhexs.locate_cell(p, hex_index);
-        dealii::Point<3> deal_point(p.x, p.y, p.z);
-
-        double val1 = laplace->probe_efield_norm(deal_point,interpolator->linhexs.femocs2deal(hex_index));
-        double val2 = laplace->probe_efield_norm(deal_point);
-        printf("%.2f, %e, %e, %e\n", p.z, val1, val2, val1 - val2);
-    }
-
-    cout << "\nstoring interpolation:\n";
-
-    hex_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        Point3 p = get_point(i);
-        hex_index = interpolator->linhexs.locate_cell(p, hex_index);
-        dealii::Point<3> deal_point(p.x, p.y, p.z);
-
-        double val1 = laplace->probe_efield_norm(deal_point,interpolator->linhexs.femocs2deal(hex_index));
-        double val2 = laplace->probe_potential(deal_point,interpolator->linhexs.femocs2deal(hex_index));
-        append_interpolation(Solution(Vec3(0), val1, val2));
-    }
-}
-
-void FieldReader::test_pic_vol2(fch::PoissonSolver<3>* laplace, const Medium& medium, const TetgenMesh& mesh) {
-    const double x = 0;
-    const double y = 0;
-    const double zmin = 0.5 + medium.sizes.zmax;
+    const double zmin = 0.5 + zmax;
     const double step = 0.0005;
-
     const int n_points = 10000;
 
+    
     reserve(n_points);
     for (int i = 0; i < n_points; ++i)
         append(Point3(x, y, zmin + i * step));
@@ -543,56 +490,9 @@ void FieldReader::test_pic_vol2(fch::PoissonSolver<3>* laplace, const Medium& me
     int cell_index;
     array<double,8> shape_functions;
 
-//    cout << "\nprobing potential:\n";
-//
-//    cell_index = 0;
-//    for (int i = 0; i < n_points; ++i) {
-//        Point3 p = get_point(i);
-//        cell_index = interpolator->linhexs.locate_cell(p, cell_index); // necessary to per
-//        double val1 = interpolator->linhexs.interp_solution(p, cell_index).scalar;
-//        double val2 = laplace->probe_potential(dealii::Point<3>(p.x, p.y, p.z));
-//        printf("%.2f, %e, %e, %.6f\n", p.z, val1, val2, val1/val2);
-//    }
-//
-//    cout << "\nprobing elfield:\n";
-//
-//    cell_index = 0;
-//    for (int i = 0; i < n_points; ++i) {
-//        Point3 p = get_point(i);
-//        cell_index = interpolator->linhexs.locate_cell(p, cell_index);
-//        double val1 = interpolator->linhexs.interp_solution(p, cell_index).norm;
-//        double val2 = laplace->probe_efield_norm(dealii::Point<3>(p.x, p.y, p.z));
-//        printf("%.2f, %e, %e, %.6f\n", p.z, val1, val2, val1/val2);
-//    }
-
-//    cout << "\ntesting shape functions:\n";
-//    cout << setprecision(3) << fixed;
-//
-//    for (int i = 0; i < mesh.elems.size(); ++i)
-//        if (mesh.elems.get_marker(i) == TYPES.VACUUM) {
-//            cell_index = 4*i;
-//            break;
-//        }
-//
-//    SimpleHex shex = mesh.hexahedra[cell_index];
-//    for (int i : shex) {
-//        Point3 p = interpolator->nodes.get_vertex(i);
-//        interpolator->linhexs.get_shape_functions(shape_functions, p, cell_index);
-//
-//        double shape_sum = 0;
-//        for (double sf : shape_functions) {
-//            cout << fabs(sf) << ", ";
-//            shape_sum += sf;
-//        }
-//        cout << "sum=" << shape_sum << endl;
-//    }
-//
-//    cout << endl;
-
-    cout << "\ncomparing interpolations:\n";
     double t0;
 
-    start_msg(t0, "laplace");
+    start_msg(t0, "poisson");
     cell_index = 0;
     for (int i = 0; i < n_points; ++i) {
         Point3 p = get_point(i);
@@ -603,8 +503,8 @@ void FieldReader::test_pic_vol2(fch::PoissonSolver<3>* laplace, const Medium& me
         if (cell_index_in_deal < 0)
             append_interpolation(Solution(0));
         else {
-            double val1 = laplace->probe_efield_norm(deal_point,cell_index_in_deal);
-            double val2 = laplace->probe_potential(deal_point, cell_index_in_deal);
+            double val1 = poisson.probe_efield_norm(deal_point,cell_index_in_deal);
+            double val2 = poisson.probe_potential(deal_point, cell_index_in_deal);
             append_interpolation(Solution(Vec3(0), val1, val2));
         }
     }
@@ -652,7 +552,7 @@ void FieldReader::test_pic_vol2(fch::PoissonSolver<3>* laplace, const Medium& me
     write("out/potential4.xyz");
 }
 
-void FieldReader::test_pic_vol3(const TetgenMesh& mesh) const {
+void FieldReader::test_corners(const TetgenMesh& mesh) const {
     int cell_index;
     array<double,8> shape_functions;
     array<double,4> bcc;
@@ -665,7 +565,6 @@ void FieldReader::test_pic_vol3(const TetgenMesh& mesh) const {
         }
 
     SimpleElement stet = mesh.elems[cell_index];
-
 
     Point3 n1 = mesh.nodes[stet[0]];
     Point3 n2 = mesh.nodes[stet[1]];
@@ -690,22 +589,15 @@ void FieldReader::test_pic_vol3(const TetgenMesh& mesh) const {
     points.push_back((n2 + n3 + n4) / 3.0);
     points.push_back((n1 + n2 + n3 + n4) / 4.0);
 
-
-
     vector<string> labels = {"n1","n2","n3","n4","c12","c13","c14","c23","c24","c34","c123","c124","c134","c234","c1234"};
-
-    cout << "results for tet=" << cell_index << ", 4tet=" << 4*cell_index << endl;
-    cout << "with neighbours ";
-    for (int nbor : mesh.elems.get_neighbours(cell_index))
-        cout << nbor << " (" << 4*nbor << ")   ";
-    cout << endl;// << fixed << setprecision(3);
-
     require(labels.size() == points.size(), "Incompatible vectors!");
+    
+    cout << "results for tet=" << cell_index << ", 4tet=" << 4*cell_index << endl;
 
     for (int i = 0; i < 4; ++i) {
         cell_index = interpolator->linhexs.locate_cell(points[i], 0);
         interpolator->lintets.get_shape_functions(bcc, points[i], 0);
-        cout << endl << labels[i] << ":\t" << cell_index+1 << "\t";
+        cout << endl << labels[i] << ":\t" << cell_index << "\t";
         for (double b : bcc)
             cout << ", " << b;
     }
@@ -713,11 +605,10 @@ void FieldReader::test_pic_vol3(const TetgenMesh& mesh) const {
     for (int i = 4; i < labels.size(); ++i) {
         cell_index = interpolator->linhexs.locate_cell(points[i], 0);
         interpolator->lintets.get_shape_functions(bcc, points[i], abs(int(cell_index/4)));
-        cout << endl << labels[i] << ":\t" << cell_index+1 << "\t";
+        cout << endl << labels[i] << ":\t" << cell_index << "\t";
         for (double b : bcc)
             cout << ", " << b;
     }
-
 }
 
 // Interpolate electric field and potential on a set of points

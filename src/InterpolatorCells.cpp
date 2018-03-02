@@ -17,6 +17,9 @@ namespace femocs {
 InterpolatorNodes::InterpolatorNodes() :
         mesh(NULL), norm_label("vector_norm"), scalar_label("scalar") { reserve(0); }
 
+InterpolatorNodes::InterpolatorNodes(const string &nl, const string &sl) :
+        mesh(NULL), norm_label(nl), scalar_label(sl) { reserve(0); }
+
 void InterpolatorNodes::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));
 

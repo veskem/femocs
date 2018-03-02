@@ -128,11 +128,8 @@ public:
 
     FieldReader(Interpolator* i);
 
-    void test_pic(fch::PoissonSolver<3>* laplace, const Medium& medium);
-
-    void test_pic_vol2(fch::PoissonSolver<3>* laplace, const Medium& medium, const TetgenMesh& mesh);
-
-    void test_pic_vol3(const TetgenMesh& mesh) const;
+    void compare_interpolators(fch::PoissonSolver<3> &poisson, const double zmax);
+    void test_corners(const TetgenMesh& mesh) const;
 
     /** Interpolate solution on the surface mesh centroids of the FEM solver */
     void interpolate(const fch::DealSolver<3>& solver);

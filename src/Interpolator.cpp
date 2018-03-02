@@ -17,15 +17,13 @@ namespace femocs {
  *  ======================== Interpolator ==========================
  * ================================================================== */
 
-Interpolator::Interpolator(const string& nl, const string& sl) : mesh(NULL), empty_value(0) {
-    nodes.set_labels(nl, sl);
-    lintris = LinearTriangles(&nodes);
-    lintets = LinearTetrahedra(&nodes);
-    quadtris = QuadraticTriangles(&nodes, &lintris);
-    quadtets = QuadraticTetrahedra(&nodes, &lintets);
-    linquads = LinearQuadrangles(&nodes, &lintris);
-    linhexs = LinearHexahedra(&nodes, &lintets);
-}
+Interpolator::Interpolator(const string& nl, const string& sl) : 
+    nodes(nl, sl),
+    lintris(&nodes), lintets(&nodes),
+    quadtris(&nodes, &lintris), quadtets(&nodes, &lintets),
+    linquads(&nodes, &lintris), linhexs(&nodes, &lintets),
+    mesh(NULL), empty_value(0) 
+    {}
 
 // Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
 // surrounding hexahedral nodes
