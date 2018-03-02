@@ -884,8 +884,82 @@ void QuadraticTetrahedra::get_shape_functions(array<double,10>& sf, const Vec3& 
     sf[7] =  4 * b1 * b4;
     sf[8] =  4 * b2 * b4;
     sf[9] =  4 * b3 * b4;
+}
 
-//    sf = {b1, b2, b3, b4, 0, 0, 0, 0, 0, 0};
+void QuadraticTetrahedra::get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& point, const int tet) const {
+    require(tet >= 0 && tet < cells.size(), "Index out of bounds: " + to_string(tet));
+
+    array<double,4> bcc;
+    lintet->get_shape_functions(bcc, point, tet);
+
+    // Store tetrahedron nodes for more convenient access
+    SimpleCell<10> cell = cells[tet];
+    array<Vec3, 10> node;
+    for (int i = 0; i < 10; ++i)
+        node[i] = mesh->nodes[cell[i]];
+
+    // calculate 4x4 Jacobian
+    // the upmost row consists of 1-s and is not used, therefore no need to store it
+    array<Vec3, 4> J = {
+        node[0]*(bcc[0]-0.25) + node[4]*bcc[1] + node[6]*bcc[2] + node[7]*bcc[3],
+        node[4]*bcc[0] + node[1]*(bcc[1]-0.25) + node[5]*bcc[2] + node[8]*bcc[3],
+        node[6]*bcc[0] + node[5]*bcc[1] + node[2]*(bcc[2]-0.25) + node[9]*bcc[3],
+        node[7]*bcc[0] + node[8]*bcc[1] + node[9]*bcc[2] + node[3]*(bcc[3]-0.25)
+    };
+    for (int i = 0; i < 4; ++i)
+        J[i] *= 4.0;
+
+    // calculate determinant (and its inverse) of Jacobian
+    double Jdet = lintet->determinant(J[0], J[1], J[2], J[3]);
+    require(fabs(Jdet) > 1e-15, "Singular Jacobian can't be handled!");
+    Jdet = 1.0 / Jdet;
+
+    // calculate inverse of Jacobian
+    // The first column is omitted, as it's not used
+    Vec3 J01 = J[0] - J[1];
+    Vec3 J02 = J[0] - J[2];
+    Vec3 J03 = J[0] - J[3];
+    Vec3 J12 = J[1] - J[2];
+    Vec3 J13 = J[1] - J[3];
+    Vec3 J23 = J[2] - J[3];
+
+    array<Vec3, 4> Jinv =
+    { Vec3(
+          J[2].y*J13.z - J[3].y*J12.z - J[1].y*J23.z,
+         -J[2].x*J13.z + J[3].x*J12.z + J[1].x*J23.z,
+          J[2].x*J13.y - J[3].x*J12.y - J[1].x*J23.y
+    ), Vec3(
+         -J[2].y*J03.z + J[3].y*J02.z + J[0].y*J23.z,
+          J[2].x*J03.z - J[3].x*J02.z - J[0].x*J23.z,
+         -J[2].x*J03.y + J[3].x*J02.y + J[0].x*J23.y
+    ), Vec3(
+          J[1].y*J03.z - J[3].y*J01.z - J[0].y*J13.z,
+         -J[1].x*J03.z + J[3].x*J01.z + J[0].x*J13.z,
+          J[1].x*J03.y - J[3].x*J01.y - J[0].x*J13.y
+    ), Vec3(
+         -J[1].y*J02.z + J[2].y*J01.z + J[0].y*J12.z,
+          J[1].x*J02.z - J[2].x*J01.z - J[0].x*J12.z,
+         -J[1].x*J02.y + J[2].x*J01.y + J[0].x*J12.y
+    )};
+    for (int i = 0; i < 4; ++i)
+        Jinv[i] *= Jdet;
+
+    // calculate gradient of shape functions in bcc-space
+    double dN[4][10] = {
+        {4*bcc[0]-1, 0, 0, 0,  4*bcc[1], 0, 4*bcc[2], 4*bcc[3], 0, 0},
+        {0, 4*bcc[1]-1, 0, 0,  4*bcc[0], 4*bcc[2], 0, 0, 4*bcc[3], 0},
+        {0, 0, 4*bcc[2]-1, 0,  0, 4*bcc[1], 4*bcc[0], 0, 0, 4*bcc[3]},
+        {0, 0, 0, 4*bcc[3]-1,  0, 0, 0, 4*bcc[0], 4*bcc[1], 4*bcc[2]}
+    };
+
+    // calculate gradient of shape functions in xyz-space
+    sfg = array<Vec3, 10>();
+
+    for (int k = 0; k < 10; ++k) {
+        for (int i = 0; i < 3; ++i)
+            for (int j = 0; j < 4; ++j)
+                sfg[k][i] += Jinv[j][i] * dN[j][k];
+    }
 }
 
 SimpleCell<10> QuadraticTetrahedra::get_cell(const int tet) const {
@@ -1216,7 +1290,7 @@ void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const int hex, co
     };
     for (int i = 0; i < 3; ++i)
         Jinv[i] *= Jdet;
-    
+
     // calculate gradient of shape functions in xyz-space
     sfg = array<Vec3,8>();
     for (int i = 0; i < 3; ++i) {
@@ -1240,7 +1314,7 @@ void LinearHexahedra::test_shape_funs() {
 
         cout << endl << i << endl;
         for (int j = 0; j < 8; ++j)
-            cout << sfg1[j] << " | " << sfg2[j] << " | " << sfg2[j] - sfg1[j] << endl; 
+            cout << sfg1[j] << " | " << sfg2[j] << " | " << sfg2[j] - sfg1[j] << endl;
     }
 }
 
@@ -1289,7 +1363,7 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
     return -1;
 }
 
-Solution LinearHexahedra::interp_solution(const Point3 &point, const int c) const {    
+Solution LinearHexahedra::interp_solution(const Point3 &point, const int c) const {
     const int cell = abs(c);
     require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
 

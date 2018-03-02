@@ -282,8 +282,10 @@ public:
     /** Check whether the point is inside the cell */
     bool point_in_cell(const Vec3& point, const int cell) const;
 
-    /** Get interpolation weights for a point inside i-th tetrahedron */
-    void get_shape_functions(array<double,10>& sf, const Vec3& point, const int i) const;
+    /** Get interpolation weights for a point inside the tetrahedron */
+    void get_shape_functions(array<double,10>& sf, const Vec3& point, const int tet) const;
+    
+    void get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& point, const int tet) const;
 
     /** Change the dependency data */
     void set_mesh(const TetgenMesh* m) {
