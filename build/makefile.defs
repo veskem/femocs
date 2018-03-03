@@ -39,8 +39,11 @@ CC = gcc
 LFLAGS_ALL = -ltet -ldeal_II ${LIBCGAL} -lgetelec -lslatec -fopenmp
 LFLAGS = -lfemocs ${LFLAGS_ALL}
 LFLAGS_DEBUG = -lfemocs_debug ${LFLAGS_ALL}
-##  Ubuntu desktop
-EXTLFLAGS = -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -lgfortran
+##  Ubuntu14 desktop
+##EXTLFLAGS = -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -lgfortran
+EXTLFLAGS = -ltbb -llapack -lz -lnetcdf_c++ -lgfortran
+## Ubuntu16 desktop
+#EXTLFLAGS = -lstdc++ -lgfortran
 ##  CSC Taito cluser
 #EXTLFLAGS = -lz -lstdc++
 ##  Alcyone
@@ -65,3 +68,4 @@ CGAL_FLAGS_TAITO =\
  -DMPFR_INCLUDE_DIR=/appl/opt/mpfr/3.1.4/include\
  -DGMP_LIBRARIES=/appl/opt/gmp/6.0.0a/lib/libgmp.so.10.2.0\
  -DMPFR_LIBRARIES=/appl/opt/mpfr/3.1.4/lib/libmpfr.so.4.1.4
+

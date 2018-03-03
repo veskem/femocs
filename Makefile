@@ -38,14 +38,20 @@ femocs_debug:
 
 femocs_debug_lib:
 	make -s -f build/makefile.lib lib/libfemocs_debug.a
-	
+
 doc: femocs_doc
 femocs_doc:
 	make -f build/makefile.doc
-	
+
 ubuntu:
+	mkdir -p share/.build && cd share/.build && rm -rf * && cmake .. -Dmode=ubuntu14
 	make -s -f build/makefile.cgal release
 	make -f build/makefile.install
+	
+ubuntu16:
+	mkdir -p share/.build && cd share/.build && rm -rf * && cmake .. -Dmode=ubuntu16
+	make -s -f build/makefile.cgal release
+	make -f build/makefile.install	
 
 taito:
 	make -s -f build/makefile.cgal taito
@@ -60,6 +66,7 @@ clean:
 	make -s -f build/makefile.doc clean
 
 clean-all:
+	rm -rf share/.build
 	make -s -f build/makefile.lib clean-all
 	make -s -f build/makefile.exec clean-all
 	make -s -f build/makefile.install clean-all
@@ -70,6 +77,7 @@ help:
 	@echo ''
 	@echo 'make all        pick default build type for Femocs'
 	@echo 'make ubuntu     build in Ubuntu desktop all the external libraries that Femocs needs'
+	@echo 'make ubuntu16   build in Ubuntu16 desktop all the external libraries that Femocs needs'
 	@echo 'make taito      build in CSC Taito cluster all the external libraries that Femocs needs'
 	@echo 'make alcyone    build in Alcyone cluster all the external libraries that Femocs needs'
 	@echo 'make lib        build Femocs as static library'
