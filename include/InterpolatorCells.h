@@ -150,18 +150,23 @@ public:
     /** Check whether the point is inside the cell */
     virtual bool point_in_cell(const Vec3& point, const int cell) const { return false; };
 
-    /** Get interpolation weights for a point inside i-th tetrahedron */
-    virtual void get_shape_functions(array<double,dim>& sf, const Vec3& point, const int i) const {}
+    /** Get interpolation weights for a point inside the cell */
+    virtual void get_shape_functions(array<double,dim>& sf, const Vec3& point, const int cell) const {}
+
+    /** Get gradient of interpolation weights for a point inside the cell */
+    virtual void get_shape_fun_grads(array<Vec3,dim>& sfg, const Vec3& point, const int cell) const {}
 
     /** Find the cell which contains the point or is the closest to it */
     virtual int locate_cell(const Point3 &point, const int cell_guess) const;
 
     /** @brief Interpolate both vector and scalar data inside or near the cell.
-     * Function assumes, that cell, that fits the best to the point, is previously already found with locate_cell.
+     * Function assumes that cell, that surrounds the point, is previously already found with locate_cell.
      * cell>=0 initiates the usage of barycentric coordinates and cell<0 the usage of mere distance-dependent weighting.
      * @param point  point where the interpolation is performed
      * @param cell   index of cell around which the interpolation is performed */
-    Solution interp_solution(const Point3 &point, const int c) const;
+    Solution interp_solution(const Point3 &point, const int cell) const;
+
+    Solution interp_solution_v2(const Point3 &point, const int cell) const;
 
     /** Modify cell marker */
     void set_marker(const int i, const int m) {
@@ -287,6 +292,8 @@ public:
     
     void get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& point, const int tet) const;
 
+    void test_shape_funs();
+
     /** Change the dependency data */
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<10>::set_mesh(m);
@@ -328,8 +335,6 @@ public:
 
     /** Calculate gradient of shape function for a hexahedral node */
     void get_shape_fun_grads(array<Vec3, 8>& sfg, const int hex, const int node) const;
-    
-    Solution interp_solution(const Point3 &point, const int c) const;
     
     void test_shape_funs();
 

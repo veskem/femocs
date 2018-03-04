@@ -362,6 +362,31 @@ Solution InterpolatorCells<dim>::interp_solution(const Point3 &point, const int 
 }
 
 template<int dim>
+Solution InterpolatorCells<dim>::interp_solution_v2(const Point3 &point, const int c) const {
+    const int cell = abs(c);
+    require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
+
+    // calculate shape functions and their gradients
+    array<double, dim> sf;
+    array<Vec3, dim> sfg;
+    get_shape_functions(sf, point, cell);
+    get_shape_fun_grads(sfg, point, cell);
+
+    // using them as weights, interpolate scalar data and its gradient
+    SimpleCell<dim> scell = cells[cell];
+    Vec3 vector_i(0.0);
+    double scalar_i(0.0);
+
+    for (int i = 0; i < dim; ++i) {
+        double scalar = nodes->get_scalar(scell[i]);
+        vector_i += sfg[i] * scalar;
+        scalar_i += sf[i] * scalar;
+    }
+
+    return Solution(vector_i, scalar_i);
+}
+
+template<int dim>
 int InterpolatorCells<dim>::common_entry(vector<unsigned>& vec1, vector<unsigned>& vec2) const {
     for (unsigned i : vec1)
         for (unsigned j : vec2)
@@ -886,6 +911,45 @@ void QuadraticTetrahedra::get_shape_functions(array<double,10>& sf, const Vec3& 
     sf[9] =  4 * b3 * b4;
 }
 
+/*
+ * Calculate gradient of shape function for 10-noded tetrahedra.
+ * The theory can be found from lecture notes at
+ * https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch10.d/AFEM.Ch10.pdf
+ *
+ * The summary:
+ * a) As the shape functions of tetrahedra are defined by 4 barycentric coordinates (bcc),
+ * the coordinate matrix must be appended with additional row of 1-s:
+ *
+ *    double xyz[4][10] = {{1 x0 y0 z0}, {1 x1 y1 z1}, ... {1 x9 y9 z9}},
+ *
+ * b) Calculate gradient of shape functions in bcc-space:
+ *    double dN[4][10] = {
+ *        {4*bcc[0]-1, 0, 0, 0,  4*bcc[1],        0, 4*bcc[2], 4*bcc[3],        0,        0},
+ *        {0, 4*bcc[1]-1, 0, 0,  4*bcc[0], 4*bcc[2],        0,        0, 4*bcc[3],        0},
+ *        {0, 0, 4*bcc[2]-1, 0,         0, 4*bcc[1], 4*bcc[0],        0,        0, 4*bcc[3]},
+ *        {0, 0, 0, 4*bcc[3]-1,         0,        0,        0, 4*bcc[0], 4*bcc[1], 4*bcc[2]}
+ *    };
+ *
+ * c) Calculate 4x4 Jacobian, upmost row of J will consist of 1-s
+ *    double J[4][4] = {0};
+ *    for (int k = 0; k < 10; ++k)
+ *      for (int i = 0; i < 4; ++i)
+ *        for (int j = 0; j < 4; ++j)
+ *          J[i][j] += xyz[i][k] * dN[j][k];
+ *
+ * d) Calculate determinant and inverse of Jacobian in a standard way;
+ *    omit leftmost column of J inverse, as it is not needed; obtain array<Vec3,4> Jinv.
+ *
+ * e) Calculate gradient of shape functions in xyz-space
+ *    array<Vec3, 10> sfg;
+ *    for (int k = 0; k < 10; ++k)
+ *      for (int j = 0; j < 4; ++j)
+ *        sfg[k] += Jinv[j] * dN[j][k];
+ *
+ * As dN contains many zeros and the upmost row of J and leftmost column of Jinv is not used,
+ * the above calculations can be optimized to reduce nr of needed flops.
+ * For instance there's no need to calculate dN explicitly.
+ */
 void QuadraticTetrahedra::get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& point, const int tet) const {
     require(tet >= 0 && tet < cells.size(), "Index out of bounds: " + to_string(tet));
 
@@ -910,7 +974,7 @@ void QuadraticTetrahedra::get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& 
         J[i] *= 4.0;
 
     // calculate determinant (and its inverse) of Jacobian
-    double Jdet = lintet->determinant(J[0], J[1], J[2], J[3]);
+    double Jdet = -1.0 * lintet->determinant(J[0], J[1], J[2], J[3]);
     require(fabs(Jdet) > 1e-15, "Singular Jacobian can't be handled!");
     Jdet = 1.0 / Jdet;
 
@@ -944,21 +1008,38 @@ void QuadraticTetrahedra::get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& 
     for (int i = 0; i < 4; ++i)
         Jinv[i] *= Jdet;
 
-    // calculate gradient of shape functions in bcc-space
-    double dN[4][10] = {
-        {4*bcc[0]-1, 0, 0, 0,  4*bcc[1], 0, 4*bcc[2], 4*bcc[3], 0, 0},
-        {0, 4*bcc[1]-1, 0, 0,  4*bcc[0], 4*bcc[2], 0, 0, 4*bcc[3], 0},
-        {0, 0, 4*bcc[2]-1, 0,  0, 4*bcc[1], 4*bcc[0], 0, 0, 4*bcc[3]},
-        {0, 0, 0, 4*bcc[3]-1,  0, 0, 0, 4*bcc[0], 4*bcc[1], 4*bcc[2]}
-    };
-
     // calculate gradient of shape functions in xyz-space
-    sfg = array<Vec3, 10>();
+    sfg = {
+        Jinv[0] * (4*bcc[0]-1),
+        Jinv[1] * (4*bcc[0]-1),
+        Jinv[2] * (4*bcc[0]-1),
+        Jinv[3] * (4*bcc[0]-1),
+        Jinv[0]*bcc[1] + Jinv[1]*bcc[0],
+        Jinv[1]*bcc[2] + Jinv[2]*bcc[1],
+        Jinv[0]*bcc[2] + Jinv[2]*bcc[0],
+        Jinv[0]*bcc[3] + Jinv[3]*bcc[0],
+        Jinv[1]*bcc[3] + Jinv[3]*bcc[1],
+        Jinv[2]*bcc[3] + Jinv[3]*bcc[2]
+    };
+    for (int i = 4; i < 10; ++i)
+        sfg[i] *= 4.0;
+}
 
-    for (int k = 0; k < 10; ++k) {
-        for (int i = 0; i < 3; ++i)
-            for (int j = 0; j < 4; ++j)
-                sfg[k][i] += Jinv[j][i] * dN[j][k];
+void QuadraticTetrahedra::test_shape_funs() {
+    array<Vec3, 10> sfg, sfg2;
+
+    cout << fixed << setprecision(3);
+
+    int tet = 0;
+    QuadraticTet cell = cells[tet];
+    for (int i = 0; i < 4; ++i) {
+        cout << "\ni = " << i << endl;
+        Point3 point = mesh->nodes[cell[i]];
+        get_shape_fun_grads(sfg, point, tet);
+
+        cout << "sfg = " << endl;
+        for (int i = 0; i < 10; ++i)
+            cout << sfg[i] << endl;
     }
 }
 
@@ -1361,31 +1442,6 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
         return sign * (n_hexs_per_tet * tet_index + 3);
 
     return -1;
-}
-
-Solution LinearHexahedra::interp_solution(const Point3 &point, const int c) const {
-    const int cell = abs(c);
-    require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
-
-    SimpleHex scell = cells[cell];
-
-    // calculate weights or barycentric coordinates
-    array<double,8> sf;
-    array<Vec3, 8> sfg;
-    get_shape_functions(sf, Vec3(point), cell);
-    get_shape_fun_grads(sfg, Vec3(point), cell);
-
-    // Interpolate vector data
-    Vec3 vector_i(0.0);
-    for (int i = 0; i < 8; ++i)
-        vector_i += sfg[i] * nodes->get_scalar(scell[i]);
-
-    // Interpolate scalar data
-    double scalar_i(0.0);
-    for (int i = 0; i < 8; ++i)
-        scalar_i += sf[i] * nodes->get_scalar(scell[i]);
-
-    return Solution(vector_i, scalar_i);
 }
 
 /* ==================================================================
