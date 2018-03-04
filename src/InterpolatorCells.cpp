@@ -935,7 +935,7 @@ void QuadraticTetrahedra::get_shape_functions(array<double,10>& sf, const Vec3& 
  *    for (int k = 0; k < 10; ++k)
  *      for (int i = 0; i < 4; ++i)
  *        for (int j = 0; j < 4; ++j)
- *          J[i][j] += xyz[i][k] * dN[j][k];
+ *          J[i][j] += dN[i][k] * xyz[j][k];
  *
  * d) Calculate determinant and inverse of Jacobian in a standard way;
  *    omit leftmost column of J inverse, as it is not needed; obtain array<Vec3,4> Jinv.
@@ -1248,54 +1248,49 @@ void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point
 
     // Transfer the coordinates of hex nodes into a matrix
     SimpleHex shex = mesh->hexahedra[hex];
-    double xyz[8][3];
-    for (int i = 0; i < 8; ++i) {
-        Vec3 point = mesh->nodes[shex[i]];
-        for (int j = 0; j < 3; ++j)
-            xyz[i][j] = point[j];
-    }
+    array<Vec3,8> xyz;
+    for (int i = 0; i < 8; ++i)
+        xyz[i] = mesh->nodes[shex[i]];
 
     // calculate gradient of shape functions in uvw-space
-    double dN[3][8] = {
-        {-(1-v)*(1-w), (1-v)*(1-w), (1+v)*(1-w),-(1+v)*(1-w),-(1-v)*(1+w), (1-v)*(1+w), (1+v)*(1+w),-(1+v)*(1+w)},
-        {-(1-u)*(1-w),-(1+u)*(1-w), (1+u)*(1-w), (1-u)*(1-w),-(1-u)*(1+w),-(1+u)*(1+w), (1+u)*(1+w), (1-u)*(1+w)},
-        {-(1-u)*(1-v),-(1+u)*(1-v),-(1+u)*(1+v),-(1-u)*(1+v), (1-u)*(1-v), (1+u)*(1-v), (1+u)*(1+v), (1-u)*(1+v)}
+    array<Vec3,8> dN = {
+            Vec3(-(1-v)*(1-w), -(1-u)*(1-w), -(1-u)*(1-v)),
+            Vec3( (1-v)*(1-w), -(1+u)*(1-w), -(1+u)*(1-v)),
+            Vec3( (1+v)*(1-w),  (1+u)*(1-w), -(1+u)*(1+v)),
+            Vec3(-(1+v)*(1-w),  (1-u)*(1-w), -(1-u)*(1+v)),
+            Vec3(-(1-v)*(1+w), -(1-u)*(1+w),  (1-u)*(1-v)),
+            Vec3( (1-v)*(1+w), -(1+u)*(1+w),  (1+u)*(1-v)),
+            Vec3( (1+v)*(1+w),  (1+u)*(1+w),  (1+u)*(1+v)),
+            Vec3(-(1+v)*(1+w),  (1-u)*(1+w),  (1-u)*(1+v))
     };
-    for (int i = 0; i < 3; ++i)
-        for (int j = 0; j < 8; ++j)
-            dN[i][j] *= 0.125;
+    for (int i = 0; i < 8; ++i)
+        dN[i] *= 0.125;
 
     // calculate Jacobian
-    double J[3][3] = {0};
-    for (int k = 0; k < 8; ++k) {
+    array<Vec3,3> J;
+    for (int k = 0; k < 8; ++k)
         for (int i = 0; i < 3; ++i)
-            for (int j = 0; j < 3; ++j)
-                J[i][j] += dN[i][k] * xyz[k][j];
-    }
+            J[i] += xyz[k] * dN[k][i];
 
     // calculate determinant (and its inverse) of Jacobian
-    double Jdet = J[0][0] * (J[1][1]*J[2][2] - J[2][1]*J[1][2])
-                + J[1][0] * (J[2][1]*J[0][2] - J[0][1]*J[2][2])
-                + J[2][0] * (J[0][1]*J[1][2] - J[1][1]*J[0][2]);
+    double Jdet = lintet->determinant(J[0], J[1], J[2]);
     require(fabs(Jdet) > 1e-15, "Singular Jacobian can't be handled!");
     Jdet = 1.0 / Jdet;
 
     // calculate inverse of Jacobian
-    double Jinv[3][3] = {
-        {J[1][1]*J[2][2]-J[2][1]*J[1][2], J[2][1]*J[0][2]-J[0][1]*J[2][2], J[0][1]*J[1][2]-J[1][1]*J[0][2]},
-        {J[2][0]*J[1][2]-J[1][0]*J[2][2], J[0][0]*J[2][2]-J[2][0]*J[0][2], J[1][0]*J[0][2]-J[0][0]*J[1][2]},
-        {J[1][0]*J[2][1]-J[2][0]*J[1][1], J[2][0]*J[0][1]-J[0][0]*J[2][1], J[0][0]*J[1][1]-J[1][0]*J[0][1]}
+    array<Vec3, 3> Jinv = {
+        Vec3(J[1][1]*J[2][2]-J[2][1]*J[1][2], J[2][0]*J[1][2]-J[1][0]*J[2][2], J[1][0]*J[2][1]-J[2][0]*J[1][1]),
+        Vec3(J[2][1]*J[0][2]-J[0][1]*J[2][2], J[0][0]*J[2][2]-J[2][0]*J[0][2], J[2][0]*J[0][1]-J[0][0]*J[2][1]),
+        Vec3(J[0][1]*J[1][2]-J[1][1]*J[0][2], J[1][0]*J[0][2]-J[0][0]*J[1][2], J[0][0]*J[1][1]-J[1][0]*J[0][1])
     };
     for (int i = 0; i < 3; ++i)
-        for (int j = 0; j < 3; ++j)
-            Jinv[i][j] *= Jdet;
+        Jinv[i] *= Jdet;
 
     // calculate gradient of shape functions in xyz-space
     for (int k = 0; k < 8; ++k) {
         sfg[k] = Vec3(0);
         for (int i = 0; i < 3; ++i)
-            for (int j = 0; j < 3; ++j)
-                sfg[k][i] += Jinv[i][j] * dN[j][k];
+            sfg[k] += Jinv[i] * dN[k][i];
     }
 }
 
@@ -1388,14 +1383,13 @@ void LinearHexahedra::test_shape_funs() {
     SimpleHex shex = mesh->hexahedra[hex];
 
     cout << fixed << setprecision(3);
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 1; ++i) {
         Point3 point = mesh->nodes[shex[i]];
         get_shape_fun_grads(sfg1, point, hex);
-        get_shape_fun_grads(sfg2, hex, i);
 
         cout << endl << i << endl;
         for (int j = 0; j < 8; ++j)
-            cout << sfg1[j] << " | " << sfg2[j] << " | " << sfg2[j] - sfg1[j] << endl;
+            cout << sfg2[j] - sfg1[j] << endl;
     }
 }
 
@@ -1574,6 +1568,7 @@ int LinearQuadrangles::locate_cell(const Point3 &point, const int cell_guess) co
 }
 
 Point3 LinearQuadrangles::get_rnd_point(const int quad) const {
+    require(quad >= 0 && quad < size(), "Invalid quadrangle: " + to_string(quad));
     const int tri = quads->to_tri(quad);
     const int section = quad % quads->n_quads_per_tri;
 
