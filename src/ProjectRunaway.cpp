@@ -375,6 +375,9 @@ int ProjectRunaway::solve_laplace(const double E0) {
     vacuum_interpolator.lintets.write("out/result_E_phi.vtk");
     check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()), "Field enhancement is out of limits!");
 
+    vacuum_interpolator.quadtets.test_shape_funs();
+    exit(1);
+
     return 0;
 }
 

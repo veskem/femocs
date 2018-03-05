@@ -292,6 +292,8 @@ public:
     
     void get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& point, const int tet) const;
 
+    void get_shape_fun_grads_slow(array<Vec3, 10>& sfg, const Vec3& point, const int tet) const;
+
     void test_shape_funs();
 
     /** Change the dependency data */

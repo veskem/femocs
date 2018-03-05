@@ -364,6 +364,7 @@ public:
 
     /** Define access operator */
     const double& operator [](const size_t i) const { return (&x)[i]; }
+    double& operator [](const size_t i) { return (&x)[i]; }
 
     /** Attach iterator for accessing the vector components */
     typedef Iterator<Vec4, double> iterator;

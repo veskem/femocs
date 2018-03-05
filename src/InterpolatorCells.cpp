@@ -1025,8 +1025,208 @@ void QuadraticTetrahedra::get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& 
         sfg[i] *= 4.0;
 }
 
+void QuadraticTetrahedra::get_shape_fun_grads_slow(array<Vec3, 10>& sfg, const Vec3& point, const int tet) const {
+    require(tet >= 0 && tet < cells.size(), "Index out of bounds: " + to_string(tet));
+
+    array<double,4> bcc;
+    lintet->get_shape_functions(bcc, point, tet);
+
+    cout << fixed << setprecision(3);
+
+    cout << "bcc = ";
+    for (int i = 0; i < 4; ++i)
+        cout << bcc[i] << " ";
+    cout << endl;
+
+    // Store tetrahedron nodes for more convenient access
+    SimpleCell<10> cell = cells[tet];
+
+    array<Vec4,10> xyz;
+    for (int i = 0; i < 10; ++i) {
+        Vec3 node = mesh->nodes[cell[i]];
+        xyz[i][0] = 1;
+        for (int j = 0; j < 3; ++j)
+            xyz[i][j+1] = node[j];
+    }
+
+    cout << "xyz = \n";
+    for (int i = 0; i < 10; ++i)
+        cout << xyz[i] << endl;
+
+    // Calculate gradient of shape functions in bcc-space:
+    array<Vec4,10> dN = {
+            Vec4(4*bcc[0]-1, 0, 0, 0),
+            Vec4(0, 4*bcc[1]-1, 0, 0),
+            Vec4(0, 0, 4*bcc[2]-1, 0),
+            Vec4(0, 0, 0, 4*bcc[3]-1),
+            Vec4(4*bcc[1], 4*bcc[0], 0, 0),
+            Vec4(0, 4*bcc[2], 4*bcc[1], 0),
+            Vec4(4*bcc[2], 0, 4*bcc[0], 0),
+            Vec4(4*bcc[3], 0, 0, 4*bcc[0]),
+            Vec4(0, 4*bcc[3], 0, 4*bcc[1]),
+            Vec4(0, 0, 4*bcc[3],4*bcc[2])
+    };
+
+    cout << "dN = \n";
+    for (int i = 0; i < 10; ++i)
+        cout << dN[i] << endl;
+
+    // calculate 4x4 Jacobian
+    array<Vec4,4> J;
+    for (int k = 0; k < 10; ++k)
+        for (int i = 0; i < 4; ++i)
+            for (int j = 0; j < 4; ++j)
+                J[j][i] += dN[k][i] * xyz[k][j];
+
+    cout << "J = {\n";
+    for (int i = 0; i < 4; ++i) {
+        cout << "{";
+        for (int j = 0; j < 3; ++j)
+            cout << J[i][j] << ", ";
+        if (i != 3)
+            cout << J[i][3] << "}," << endl;
+        else
+            cout << J[i][3] << "}\n}" << endl;
+    }
+
+    // calculate determinant (and its inverse) of Jacobian
+    double Jdet = lintet->determinant(J[0], J[1], J[2], J[3]);
+
+    cout << "Jdet = " << Jdet << endl;
+
+    require(fabs(Jdet) > 1e-15, "Singular Jacobian can't be handled!");
+    Jdet = 1.0 / Jdet;
+
+    array<Vec4, 4> Jinv;
+    Jinv[0][0] = J[1][1]  * J[2][2] * J[3][3] -
+             J[1][1]  * J[2][3] * J[3][2] -
+             J[2][1]  * J[1][2]  * J[3][3] +
+             J[2][1]  * J[1][3]  * J[3][2] +
+             J[3][1] * J[1][2]  * J[2][3] -
+             J[3][1] * J[1][3]  * J[2][2];
+
+    Jinv[1][0] = -J[1][0]  * J[2][2] * J[3][3] +
+              J[1][0]  * J[2][3] * J[3][2] +
+              J[2][0]  * J[1][2]  * J[3][3] -
+              J[2][0]  * J[1][3]  * J[3][2] -
+              J[3][0] * J[1][2]  * J[2][3] +
+              J[3][0] * J[1][3]  * J[2][2];
+
+    Jinv[2][0] = J[1][0]  * J[2][1] * J[3][3] -
+             J[1][0]  * J[2][3] * J[3][1] -
+             J[2][0]  * J[1][1] * J[3][3] +
+             J[2][0]  * J[1][3] * J[3][1] +
+             J[3][0] * J[1][1] * J[2][3] -
+             J[3][0] * J[1][3] * J[2][1];
+
+    Jinv[3][0] = -J[1][0]  * J[2][1] * J[3][2] +
+               J[1][0]  * J[2][2] * J[3][1] +
+               J[2][0]  * J[1][1] * J[3][2] -
+               J[2][0]  * J[1][2] * J[3][1] -
+               J[3][0] * J[1][1] * J[2][2] +
+               J[3][0] * J[1][2] * J[2][1];
+
+    Jinv[0][1] = -J[0][1]  * J[2][2] * J[3][3] +
+              J[0][1]  * J[2][3] * J[3][2] +
+              J[2][1]  * J[0][2] * J[3][3] -
+              J[2][1]  * J[0][3] * J[3][2] -
+              J[3][1] * J[0][2] * J[2][3] +
+              J[3][1] * J[0][3] * J[2][2];
+
+    Jinv[1][1] = J[0][0]  * J[2][2] * J[3][3] -
+             J[0][0]  * J[2][3] * J[3][2] -
+             J[2][0]  * J[0][2] * J[3][3] +
+             J[2][0]  * J[0][3] * J[3][2] +
+             J[3][0] * J[0][2] * J[2][3] -
+             J[3][0] * J[0][3] * J[2][2];
+
+    Jinv[2][1] = -J[0][0]  * J[2][1] * J[3][3] +
+              J[0][0]  * J[2][3] * J[3][1] +
+              J[2][0]  * J[0][1] * J[3][3] -
+              J[2][0]  * J[0][3] * J[3][1] -
+              J[3][0] * J[0][1] * J[2][3] +
+              J[3][0] * J[0][3] * J[2][1];
+
+    Jinv[3][1] = J[0][0]  * J[2][1] * J[3][2] -
+              J[0][0]  * J[2][2] * J[3][1] -
+              J[2][0]  * J[0][1] * J[3][2] +
+              J[2][0]  * J[0][2] * J[3][1] +
+              J[3][0] * J[0][1] * J[2][2] -
+              J[3][0] * J[0][2] * J[2][1];
+
+    Jinv[0][2] = J[0][1]  * J[1][2] * J[3][3] -
+             J[0][1]  * J[1][3] * J[3][2] -
+             J[1][1]  * J[0][2] * J[3][3] +
+             J[1][1]  * J[0][3] * J[3][2] +
+             J[3][1] * J[0][2] * J[1][3] -
+             J[3][1] * J[0][3] * J[1][2];
+
+    Jinv[1][2] = -J[0][0]  * J[1][2] * J[3][3] +
+              J[0][0]  * J[1][3] * J[3][2] +
+              J[1][0]  * J[0][2] * J[3][3] -
+              J[1][0]  * J[0][3] * J[3][2] -
+              J[3][0] * J[0][2] * J[1][3] +
+              J[3][0] * J[0][3] * J[1][2];
+
+    Jinv[2][2] = J[0][0]  * J[1][1] * J[3][3] -
+              J[0][0]  * J[1][3] * J[3][1] -
+              J[1][0]  * J[0][1] * J[3][3] +
+              J[1][0]  * J[0][3] * J[3][1] +
+              J[3][0] * J[0][1] * J[1][3] -
+              J[3][0] * J[0][3] * J[1][1];
+
+    Jinv[3][2] = -J[0][0]  * J[1][1] * J[3][2] +
+               J[0][0]  * J[1][2] * J[3][1] +
+               J[1][0]  * J[0][1] * J[3][2] -
+               J[1][0]  * J[0][2] * J[3][1] -
+               J[3][0] * J[0][1] * J[1][2] +
+               J[3][0] * J[0][2] * J[1][1];
+
+    Jinv[0][3] = -J[0][1] * J[1][2] * J[2][3] +
+              J[0][1] * J[1][3] * J[2][2] +
+              J[1][1] * J[0][2] * J[2][3] -
+              J[1][1] * J[0][3] * J[2][2] -
+              J[2][1] * J[0][2] * J[1][3] +
+              J[2][1] * J[0][3] * J[1][2];
+
+    Jinv[1][3] = J[0][0] * J[1][2] * J[2][3] -
+             J[0][0] * J[1][3] * J[2][2] -
+             J[1][0] * J[0][2] * J[2][3] +
+             J[1][0] * J[0][3] * J[2][2] +
+             J[2][0] * J[0][2] * J[1][3] -
+             J[2][0] * J[0][3] * J[1][2];
+
+    Jinv[2][3] = -J[0][0] * J[1][1] * J[2][3] +
+               J[0][0] * J[1][3] * J[2][1] +
+               J[1][0] * J[0][1] * J[2][3] -
+               J[1][0] * J[0][3] * J[2][1] -
+               J[2][0] * J[0][1] * J[1][3] +
+               J[2][0] * J[0][3] * J[1][1];
+
+    Jinv[3][3] = J[0][0] * J[1][1] * J[2][2] -
+              J[0][0] * J[1][2] * J[2][1] -
+              J[1][0] * J[0][1] * J[2][2] +
+              J[1][0] * J[0][2] * J[2][1] +
+              J[2][0] * J[0][1] * J[1][2] -
+              J[2][0] * J[0][2] * J[1][1];
+    for (int i = 0; i < 4; ++i)
+        Jinv[i] *= Jdet;
+
+    cout << "Jinv = \n";
+    for (int i = 0; i < 4; ++i)
+        cout << Jinv[i] << endl;
+
+    // calculate gradient of shape functions in xyz-space
+    for (int k = 0; k < 10; ++k) {
+        sfg[k] = Vec3(0);
+        for (int i = 0; i < 3; ++i)
+            for (int j = 0; j < 4; ++j)
+                sfg[k][i] += Jinv[j][i+1] * dN[k][j];
+    }
+}
+
 void QuadraticTetrahedra::test_shape_funs() {
-    array<Vec3, 10> sfg, sfg2;
+    array<Vec3, 10> sfg1, sfg2;
 
     cout << fixed << setprecision(3);
 
@@ -1035,11 +1235,12 @@ void QuadraticTetrahedra::test_shape_funs() {
     for (int i = 0; i < 4; ++i) {
         cout << "\ni = " << i << endl;
         Point3 point = mesh->nodes[cell[i]];
-        get_shape_fun_grads(sfg, point, tet);
+        get_shape_fun_grads(sfg1, point, tet);
+        get_shape_fun_grads_slow(sfg2, point, tet);
 
-        cout << "sfg = " << endl;
+        cout << "delta sfg = " << endl;
         for (int i = 0; i < 10; ++i)
-            cout << sfg[i] << endl;
+            cout << sfg1[i] - sfg2[i] << endl;
     }
 }
 
