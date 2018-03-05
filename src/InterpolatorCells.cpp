@@ -394,6 +394,37 @@ int InterpolatorCells<dim>::common_entry(vector<unsigned>& vec1, vector<unsigned
     return -1;
 }
 
+template<int dim>
+double InterpolatorCells<dim>::determinant(const Vec3 &v1, const Vec3 &v2) const {
+    return v1.x * (v2.y - v2.z) - v1.y * (v2.x - v2.z) + v1.z * (v2.x - v2.y);
+}
+
+template<int dim>
+double InterpolatorCells<dim>::determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3) const {
+    return v1.x * (v2.y * v3.z - v3.y * v2.z) - v2.x * (v1.y * v3.z - v3.y * v1.z)
+            + v3.x * (v1.y * v2.z - v2.y * v1.z);
+}
+
+template<int dim>
+double InterpolatorCells<dim>::determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4) const {
+    const double det1 = determinant(v2, v3, v4);
+    const double det2 = determinant(v1, v3, v4);
+    const double det3 = determinant(v1, v2, v4);
+    const double det4 = determinant(v1, v2, v3);
+
+    return det4 - det3 + det2 - det1;
+}
+
+template<int dim>
+double InterpolatorCells<dim>::determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4) const {
+    double det1 = determinant(Vec3(v1.y,v1.z,v1.w), Vec3(v2.y,v2.z,v2.w), Vec3(v3.y,v3.z,v3.w));
+    double det2 = determinant(Vec3(v1.x,v1.z,v1.w), Vec3(v2.x,v2.z,v2.w), Vec3(v3.x,v3.z,v3.w));
+    double det3 = determinant(Vec3(v1.x,v1.y,v1.w), Vec3(v2.x,v2.y,v2.w), Vec3(v3.x,v3.y,v3.w));
+    double det4 = determinant(Vec3(v1.x,v1.y,v1.z), Vec3(v2.x,v2.y,v2.z), Vec3(v3.x,v3.y,v3.z));
+
+    return v4.w * det4 - v4.z * det3 + v4.y * det2 - v4.x * det1;
+}
+
 /* ==================================================================
  *  ======================= LinearTriangles ========================
  * ================================================================== */
@@ -802,6 +833,63 @@ void LinearTetrahedra::get_shape_functions(array<double,4>& sf, const Vec3& poin
     sf[3] = zero + det0[tet] * pt.dotProduct(det4[tet]);
 }
 
+void LinearTetrahedra::get_shape_fun_grads(array<Vec3, 4>& sfg, const Vec3& point, const int tet) const {
+    require(tet >= 0 && tet < cells.size(), "Index out of bounds: " + to_string(tet));
+
+    // The gradient of shape function inside linear tetrahedron does not depend
+    // on the point of interest, therefore its value could be precalculated and
+    // used upon request. However, for the consistency with other cells it's not
+    // done now. Maybe in the future, if someone wants to use this function very heavily.
+
+    // calculate 4x4 Jacobian
+    // the upmost row consists of 1-s and is not used, therefore no need to store it
+    SimpleCell<4> cell = cells[tet];
+    array<Vec3, 4> J = {
+        mesh->nodes[cell[0]],
+        mesh->nodes[cell[1]],
+        mesh->nodes[cell[2]],
+        mesh->nodes[cell[3]]
+    };
+
+    // calculate determinant (and its inverse) of Jacobian
+    double Jdet = -1.0 * determinant(J[0], J[1], J[2], J[3]);
+    require(fabs(Jdet) > 1e-15, "Singular Jacobian can't be handled!");
+    Jdet = 1.0 / Jdet;
+
+    // calculate inverse of Jacobian
+    // The first column is omitted, as it's not used
+    Vec3 J01 = J[0] - J[1];
+    Vec3 J02 = J[0] - J[2];
+    Vec3 J03 = J[0] - J[3];
+    Vec3 J12 = J[1] - J[2];
+    Vec3 J13 = J[1] - J[3];
+    Vec3 J23 = J[2] - J[3];
+
+    array<Vec3, 4> Jinv =
+    { Vec3(
+          J[2].y*J13.z - J[3].y*J12.z - J[1].y*J23.z,
+         -J[2].x*J13.z + J[3].x*J12.z + J[1].x*J23.z,
+          J[2].x*J13.y - J[3].x*J12.y - J[1].x*J23.y
+    ), Vec3(
+         -J[2].y*J03.z + J[3].y*J02.z + J[0].y*J23.z,
+          J[2].x*J03.z - J[3].x*J02.z - J[0].x*J23.z,
+         -J[2].x*J03.y + J[3].x*J02.y + J[0].x*J23.y
+    ), Vec3(
+          J[1].y*J03.z - J[3].y*J01.z - J[0].y*J13.z,
+         -J[1].x*J03.z + J[3].x*J01.z + J[0].x*J13.z,
+          J[1].x*J03.y - J[3].x*J01.y - J[0].x*J13.y
+    ), Vec3(
+         -J[1].y*J02.z + J[2].y*J01.z + J[0].y*J12.z,
+          J[1].x*J02.z - J[2].x*J01.z - J[0].x*J12.z,
+         -J[1].x*J02.y + J[2].x*J01.y + J[0].x*J12.y
+    )};
+    for (int i = 0; i < 4; ++i)
+        Jinv[i] *= Jdet;
+
+    // calculate gradient of shape functions in xyz-space
+    sfg = {Jinv[0], Jinv[1], Jinv[2], Jinv[3]};
+}
+
 void LinearTetrahedra::narrow_search_to(const int region) {
     const int n_cells = cells.size();
     require(n_cells == elems->size(), "LinearTetrahedra must be intialized before narrowing search!");
@@ -821,33 +909,6 @@ void LinearTetrahedra::narrow_search_to(const int region) {
         }
     } else
         require(false, "Unimplemented region: " + to_string(region));
-}
-
-double LinearTetrahedra::determinant(const Vec3 &v1, const Vec3 &v2) const {
-    return v1.x * (v2.y - v2.z) - v1.y * (v2.x - v2.z) + v1.z * (v2.x - v2.y);
-}
-
-double LinearTetrahedra::determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3) const {
-    return v1.x * (v2.y * v3.z - v3.y * v2.z) - v2.x * (v1.y * v3.z - v3.y * v1.z)
-            + v3.x * (v1.y * v2.z - v2.y * v1.z);
-}
-
-double LinearTetrahedra::determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4) const {
-    const double det1 = determinant(v2, v3, v4);
-    const double det2 = determinant(v1, v3, v4);
-    const double det3 = determinant(v1, v2, v4);
-    const double det4 = determinant(v1, v2, v3);
-
-    return det4 - det3 + det2 - det1;
-}
-
-double LinearTetrahedra::determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4) const {
-    double det1 = determinant(Vec3(v1.y,v1.z,v1.w), Vec3(v2.y,v2.z,v2.w), Vec3(v3.y,v3.z,v3.w));
-    double det2 = determinant(Vec3(v1.x,v1.z,v1.w), Vec3(v2.x,v2.z,v2.w), Vec3(v3.x,v3.z,v3.w));
-    double det3 = determinant(Vec3(v1.x,v1.y,v1.w), Vec3(v2.x,v2.y,v2.w), Vec3(v3.x,v3.y,v3.w));
-    double det4 = determinant(Vec3(v1.x,v1.y,v1.z), Vec3(v2.x,v2.y,v2.z), Vec3(v3.x,v3.y,v3.z));
-
-    return v4.w * det4 - v4.z * det3 + v4.y * det2 - v4.x * det1;
 }
 
 /* ==================================================================
@@ -974,7 +1035,7 @@ void QuadraticTetrahedra::get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& 
         J[i] *= 4.0;
 
     // calculate determinant (and its inverse) of Jacobian
-    double Jdet = -1.0 * lintet->determinant(J[0], J[1], J[2], J[3]);
+    double Jdet = -1.0 * determinant(J[0], J[1], J[2], J[3]);
     require(fabs(Jdet) > 1e-15, "Singular Jacobian can't be handled!");
     Jdet = 1.0 / Jdet;
 
@@ -1011,9 +1072,9 @@ void QuadraticTetrahedra::get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& 
     // calculate gradient of shape functions in xyz-space
     sfg = {
         Jinv[0] * (4*bcc[0]-1),
-        Jinv[1] * (4*bcc[0]-1),
-        Jinv[2] * (4*bcc[0]-1),
-        Jinv[3] * (4*bcc[0]-1),
+        Jinv[1] * (4*bcc[1]-1),
+        Jinv[2] * (4*bcc[2]-1),
+        Jinv[3] * (4*bcc[3]-1),
         Jinv[0]*bcc[1] + Jinv[1]*bcc[0],
         Jinv[1]*bcc[2] + Jinv[2]*bcc[1],
         Jinv[0]*bcc[2] + Jinv[2]*bcc[0],
@@ -1090,7 +1151,7 @@ void QuadraticTetrahedra::get_shape_fun_grads_slow(array<Vec3, 10>& sfg, const V
     }
 
     // calculate determinant (and its inverse) of Jacobian
-    double Jdet = lintet->determinant(J[0], J[1], J[2], J[3]);
+    double Jdet = determinant(J[0], J[1], J[2], J[3]);
 
     cout << "Jdet = " << Jdet << endl;
 
@@ -1386,13 +1447,13 @@ void LinearHexahedra::project_to_nat_coords(double &u, double &v, double &w,
         //   | fu.y * du + fv.y * dv + fw.y * dw = f.y;
         //   | fu.z * du + fv.z * dv + fw.z * dw = f.z;
 
-        D = lintet->determinant(fu, fv, fw);
+        D = determinant(fu, fv, fw);
         require(D != 0, "Invalid determinant: " + to_string(D));
 
         D  = 1.0 / D;
-        du = lintet->determinant(f, fv, fw) * D;
-        dv = lintet->determinant(fu, f, fw) * D;
-        dw = lintet->determinant(fu, fv, f) * D;
+        du = determinant(f, fv, fw) * D;
+        dv = determinant(fu, f, fw) * D;
+        dw = determinant(fu, fv, f) * D;
 
         u += du;
         v += dv;
@@ -1474,7 +1535,7 @@ void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point
             J[i] += xyz[k] * dN[k][i];
 
     // calculate determinant (and its inverse) of Jacobian
-    double Jdet = lintet->determinant(J[0], J[1], J[2]);
+    double Jdet = determinant(J[0], J[1], J[2]);
     require(fabs(Jdet) > 1e-15, "Singular Jacobian can't be handled!");
     Jdet = 1.0 / Jdet;
 
@@ -1555,7 +1616,7 @@ void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const int hex, co
     };
 
     // calculate determinant (and its inverse) of Jacobian
-    double Jdet = lintet->determinant(J[0], J[1], J[2]);
+    double Jdet = determinant(J[0], J[1], J[2]);
     require(fabs(Jdet) > 1e-15, "Singular Jacobian can't be handled!");
     Jdet = 1.0 / Jdet;
 

@@ -478,14 +478,14 @@ FieldReader::FieldReader(Interpolator* i) :
 void FieldReader::compare_interpolators(fch::PoissonSolver<3> &poisson, const double zmax) {
     const double x = 0;
     const double y = 0;
-    const double zmin = 0.5 + zmax;
+    const double zmin = zmax;
     const double step = 0.001;
     const int n_points = 10000;
 
     
     reserve(n_points);
     for (int i = 0; i < n_points; ++i)
-        append(Point3(x, y, zmin + i * step));
+        append(Point3(x + 0.1*i*step, y + 0.1*i*step, zmin + i * step));
 
     int cell_index;
     array<double,8> shape_functions;
@@ -533,7 +533,7 @@ void FieldReader::compare_interpolators(fch::PoissonSolver<3> &poisson, const do
     for (int i = 0; i < n_points; ++i) {
         Point3 p = get_point(i);
         cell_index = interpolator->lintets.locate_cell(p, cell_index);
-        append_interpolation(interpolator->lintets.interp_solution(p, cell_index));
+        append_interpolation(interpolator->lintets.interp_solution_v2(p, cell_index));
     }
     end_msg(t0);
     write("out/potential3.xyz");
@@ -546,23 +546,10 @@ void FieldReader::compare_interpolators(fch::PoissonSolver<3> &poisson, const do
     for (int i = 0; i < n_points; ++i) {
         Point3 p = get_point(i);
         cell_index = interpolator->quadtets.locate_cell(p, cell_index);
-        append_interpolation(interpolator->quadtets.interp_solution(p, cell_index));
-    }
-    end_msg(t0);
-    write("out/potential4.xyz");
-
-    interpolation.clear();
-    interpolation.reserve(n_points);
-
-    start_msg(t0, "quadtets2");
-    cell_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        Point3 p = get_point(i);
-        cell_index = interpolator->quadtets.locate_cell(p, cell_index);
         append_interpolation(interpolator->quadtets.interp_solution_v2(p, cell_index));
     }
     end_msg(t0);
-    write("out/potential5.xyz");
+    write("out/potential4.xyz");
 }
 
 void FieldReader::test_corners(const TetgenMesh& mesh) const {

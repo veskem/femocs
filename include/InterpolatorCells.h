@@ -213,6 +213,18 @@ protected:
 
     /** Find the common entry between two vectors */
     inline int common_entry(vector<unsigned>& vec1, vector<unsigned>& vec2) const;
+
+    /** Determinant of 3x3 matrix which's last column consists of ones */
+    double determinant(const Vec3 &v1, const Vec3 &v2) const;
+
+    /** Determinant of 3x3 matrix which's columns consist of Vec3-s */
+    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3) const;
+
+    /** Determinant of 4x4 matrix which's last column consists of ones */
+    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4) const;
+
+    /** Determinant of 4x4 matrix which's columns consist of Vec4-s */
+    double determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4) const;
 };
 
 /**
@@ -233,6 +245,9 @@ public:
     /** Get interpolation weights for a point inside i-th tetrahedron */
     void get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const;
 
+    /** Calculate the gradient of shape functions for a point inside the tetrahedron */
+    void get_shape_fun_grads(array<Vec3, 4>& sfg, const Vec3& point, const int tet) const;
+
     /** Change the dependency data */
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<4>::set_mesh(m);
@@ -241,18 +256,6 @@ public:
 
     /** Specify the region where the cells are searched during the cell location. */
     void narrow_search_to(const int region);
-
-    /** Determinant of 3x3 matrix which's last column consists of ones */
-    double determinant(const Vec3 &v1, const Vec3 &v2) const;
-
-    /** Determinant of 3x3 matrix which's columns consist of Vec3-s */
-    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3) const;
-
-    /** Determinant of 4x4 matrix which's last column consists of ones */
-    double determinant(const Vec3 &v1, const Vec3 &v2, const Vec3 &v3, const Vec3 &v4) const;
-
-    /** Determinant of 4x4 matrix which's columns consist of Vec4-s */
-    double determinant(const Vec4 &v1, const Vec4 &v2, const Vec4 &v3, const Vec4 &v4) const;
 
 private:
     const TetgenElements* elems;    ///< pointer to tetrahedra to access their specific routines
@@ -290,6 +293,7 @@ public:
     /** Get interpolation weights for a point inside the tetrahedron */
     void get_shape_functions(array<double,10>& sf, const Vec3& point, const int tet) const;
     
+    /** Calculate the gradient of shape functions for a point inside the tetrahedron */
     void get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& point, const int tet) const;
 
     void get_shape_fun_grads_slow(array<Vec3, 10>& sfg, const Vec3& point, const int tet) const;
