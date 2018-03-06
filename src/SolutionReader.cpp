@@ -936,15 +936,14 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     current_densities.resize(n_nodes);
     nottingham.resize(n_nodes);
     currents.resize(n_nodes);
+    field_loc.resize(n_nodes);
 
     //deallocate and allocate lines
     rline.resize(n_lines);
     Vline.resize(n_lines);
 
     // find Fmax
-    global_data.Fmax = 0.;
-    for (int i = 0; i < n_nodes; ++i)
-        global_data.Fmax = max(global_data.Fmax, fields->get_elfield_norm(i));
+    get_field_loc();
 
     //Initialise data
     global_data.Jmax = 0.;
@@ -954,9 +953,9 @@ void EmissionReader::initialize(const TetgenMesh* m) {
 }
 
 void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax) {
-    const int interpolation_rank = 1;
+    const int interpolation_rank = 3;
     const double nm_per_angstrom = 0.1;
-    const double rmin = 0.0;
+    const double rmin = 1.e-5 * rmax;
     Point3 pfield(direction.x, direction.y, direction.z);
 
     FieldReader fr(interpolator);
@@ -968,9 +967,18 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
         fr.append(point - pfield * rline[i]);
     }
     fr.calc_interpolation();
+
+
     for (int i = 0; i < n_lines; i++){
-        Vline[i] = global_data.multiplier * fr.get_potential(i);
+        int hex = fr.get_marker(i);
+        int hex_deal = interpolator->linhexs.femocs2deal(hex);
+
+        Point3 p = fr.get_point(i);
+        dealii::Point<3> p_deal(p.x, p.y, p.z);
+
+        Vline[i] = global_data.multiplier * poisson->probe_potential(p_deal, hex_deal);
         rline[i] *= nm_per_angstrom;
+
     }
 
     for (int i = 0; i < n_lines; i++){
@@ -1009,7 +1017,7 @@ void EmissionReader::calc_representative() {
     global_data.I_tot = 0;
     global_data.I_fwhm = 0;
 
-    for (int i = 0; i < fields->size(); ++i){ // go through face centroids
+    for (int i = 0; i < currents.size(); ++i){ // go through face centroids
         int tri = mesh->quads.to_tri(abs(fields->get_marker(i)));
         // quadrangle area is 1/3 of corresponding triangle area
         double face_area = mesh->faces.get_area(tri) / 3.;
@@ -1019,7 +1027,7 @@ void EmissionReader::calc_representative() {
         if (current_densities[i] > global_data.Jmax * 0.5){ //if point eligible
             area += face_area; // increase total area
             global_data.I_fwhm += currents[i]; // increase total current
-            FJ += currents[i] * fields->get_elfield_norm(i);
+            FJ += currents[i] * field_loc[i].norm();
         }
     }
 
@@ -1043,7 +1051,6 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
 
         if (n_electrons_sp == 0) continue;
 
-
         //TODO : fix rng
 
         int quad = abs(fields->get_marker(i));
@@ -1065,13 +1072,9 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
     }
 }
 
-void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) {
+void EmissionReader::get_field_loc(){
 
-    struct emission gt;
-    gt.W = workfunction;    // set workfuntion, must be set in conf. script
-    gt.R = 1000.0;   // radius of curvature (overrided by femocs potential distribution)
-    gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
-    double F, J;    // Local field and current density in femocs units (Angstrom)
+    global_data.Fmax = 0;
 
     for (int i = 0; i < fields->size(); ++i) { // go through all face centroids
         int quad = fields->get_marker(i);
@@ -1081,7 +1084,25 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
         Point3 centroid = fields->get_point(i);
         dealii::Point<3> point(centroid.x, centroid.y, centroid.z);
         dealii::Tensor<1, 3, double> Fdealii = poisson->probe_efield(point, hex_deal);
-        Vec3 field(Fdealii);
+        field_loc[i] = Vec3(Fdealii);
+        global_data.Fmax = max(global_data.Fmax, field_loc[i].norm());
+    }
+
+}
+
+void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) {
+
+    struct emission gt;
+    gt.W = workfunction;    // set workfuntion, must be set in conf. script
+    gt.R = 1000.0;   // radius of curvature (overrided by femocs potential distribution)
+    gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
+    double F, J;    // Local field and current density in femocs units (Angstrom)
+
+    get_field_loc();
+
+    for (int i = 0; i < fields->size(); ++i) { // go through all face centroids
+
+        Vec3 field = field_loc[i];
 
         F = global_data.multiplier * field.norm();
         gt.mode = 0;
@@ -1091,6 +1112,7 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
 
         if (F > 0.6 * global_data.Fmax && !blunt){ // Full calculation with line only for high field points
             field.normalize(); // get line direction
+
             emission_line(get_point(i), field, 1.6 * workfunction / F); //get emission line data
 
             gt.Nr = n_lines;
@@ -1129,9 +1151,6 @@ double EmissionReader::calc_emission(const double multiplier, const Config::Emis
 
 void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
 
-    if (Vappl <= 0 && conf.SC)
-        write_silent_msg("WARNING: transfer_emission called with SC activated and Vappl <= 0");
-
     double theta_old = global_data.multiplier;
     double err_fact = 0.5, error;
     double Fmax_0 = global_data.Fmax;
@@ -1143,15 +1162,18 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         emission_cycle(conf.work_function, conf.blunt, conf.cold);
         calc_representative();
 
-        if (Vappl <= 0 || !conf.SC) break; // if Vappl<=0, SC is ignored
+        if (conf.omega_SC <= 0.) break; // if Vappl<=0, SC is ignored
         if (i > 5) err_fact *= 0.5; // if not converged in first 6 steps, reduce factor
 
         // calculate SC multiplier (function coming from getelec)
-        global_data.multiplier = theta_SC(global_data.Jrep / nm2_per_angstrom2, Vappl,
-                angstrom_per_nm * global_data.Frep);
+        global_data.multiplier = theta_SC(global_data.Jrep / nm2_per_angstrom2,
+                conf.omega_SC * Vappl, angstrom_per_nm * global_data.Frep);
         error = global_data.multiplier - theta_old;
         global_data.multiplier = theta_old + error * err_fact;
         theta_old = global_data.multiplier;
+
+        printf("SC cycle #%d, theta=%f, Jrep=%e, Frep=%e, Itot=%e\n", i, global_data.multiplier,
+                global_data.Jrep, global_data.Frep, global_data.I_tot);
 
         // if converged break
         if (abs(error) < conf.SC_error) break;
@@ -1175,7 +1197,8 @@ void EmissionReader::write_data(string filename, double time) {
 void EmissionReader::export_emission(fch::CurrentHeatSolver<3>& ch_solver) {
     // save data for surface emission xyz file
     for (int i = 0; i < nottingham.size(); i++)
-        interpolation[i] = Solution( Vec3(0), log(current_densities[i]), log(fabs(nottingham[i])) );
+        interpolation[i] = Solution(field_loc[i],
+                log(current_densities[i]), log(fabs(nottingham[i])) );
 
     ch_solver.current.set_bc(current_densities);
     ch_solver.heat.set_bc(nottingham);

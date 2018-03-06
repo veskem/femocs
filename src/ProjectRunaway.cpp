@@ -95,40 +95,59 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
     if (skip_meshing)
         write_verbose_msg(stream.str());
     else {
+        new_mesh_exists = true;
         if (generate_mesh()) {
             force_output();
-            check_return(true, "Mesh generation failed!");
+            write_silent_msg("Mesh generation failed!");
+            new_mesh_exists = false;
         }
         if (prepare_solvers()) {
             force_output();
-            check_return(true, "Preparation of FEM solvers failed!");
+            write_silent_msg("Preparation of FEM solvers failed!");
+            new_mesh_exists = false;
         }
     }
+    check_return(time == 0 && !new_mesh_exists, "first meshing failed! FEMOCS terminating...");
+
+    //***** Run heat convergence calculation with constant mesh
+    if (conf.heating.mode == "converge") return run_heat_converge(conf.heating.t_ambient);
 
     //***** Run FEM solvers *****
-    if (conf.field.solver == "poisson") {
-        if (solve_pic(elfield)) {
+
+    if (conf.field.solver == "poisson") { // solver Poisson equation - run PIC
+        if (solve_pic(conf.behaviour.total_time)) {
             force_output();
             check_return(true, "Solving PIC failed!");
         }
     }
 
-    if (!skip_meshing && conf.field.solver == "laplace") {
+    if (new_mesh_exists && conf.field.solver == "laplace") {
         if (solve_laplace(elfield)) {
             force_output();
             check_return(true, "Solving Laplace equation failed!");
         }
     }
 
-    if (!skip_meshing && solve_heat(conf.heating.t_ambient)) {
+    int ccg, hcg;
+    if (!skip_meshing && solve_transient_heat(conf.heating.t_ambient, time - last_heat_time, ccg, hcg)) {
         force_output();
         check_return(true, "Solving heat & continuity equation failed!");
     }
+
+    // In case no transient simulations (time has stayed the same) advance the time
+    if (!conf.pic.run_pic && conf.heating.mode == "none")
+        time += conf.behaviour.total_time;
 
     //***** Prepare for data export and next run *****
     if (prepare_export()) {
         force_output();
         check_return(true, "Extracting solution on atoms failed!");
+    }
+
+    if (is_write_time()){
+        start_msg(t0, "=== Writing to files...");
+        write();
+        end_msg(t0);
     }
 
     finalize();
@@ -139,6 +158,9 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
 
     return 0;
 }
+
+
+
 
 int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
     start_msg(t0, "=== Extracting surface...");
@@ -378,60 +400,64 @@ int ProjectRunaway::solve_laplace(const double E0) {
     return 0;
 }
 
-int ProjectRunaway::solve_pic(const double E0) {
+int ProjectRunaway::solve_pic(double advance_time) {
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
+    fields.set_check_params(conf.field.E0, conf.tolerance.field_min, conf.tolerance.field_max,
+            conf.geometry.radius, dense_surf.sizes.zbox);
 
-    const double dt_main = max(delta_t_MD * 1.e15, conf.pic.total_time);
+    int time_subcycle = ceil(advance_time / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
+    double dt_pic = advance_time / time_subcycle;
 
-    int time_subcycle = ceil(dt_main / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
-    double dt_pic = dt_main/time_subcycle;
 
-    start_msg(t0, "=== Interpolating elfield on faces...");
-    surface_fields.interpolate(ch_solver);
-    end_msg(t0);
-    
-    surface_fields.write("out/surface_field.xyz");
-    
-    // Temperature do not need to be recalculated, as thermal timestep is >> PIC timestep
-    start_msg(t0, "=== Interpolating J & T on faces...");
-    surface_temperatures.interpolate(ch_solver);
-    end_msg(t0);
-    
-    surface_temperatures.write("out/surface_temperature.xyz");
-
-    start_msg(t0, "=== Initializing Poisson solver...");
-    poisson_solver.setup(-E0, conf.field.V0);
+    if (new_mesh_exists){
+        start_msg(t0, "=== Initializing Poisson solver...");
+        poisson_solver.setup(conf.field.E0, conf.field.V0);
+        end_msg(t0);
+    }
     pic_solver.set_params(conf.field, conf.pic, dt_pic, mesh->nodes.stat);
-    emission.initialize(mesh);
-    end_msg(t0);
     
-    start_msg(t0, "=== Running PIC...\n");
-    int n_lost, n_injected, n_cg_steps;
+    if (conf.pic.run_pic)
+        start_msg(t0, "=== Running PIC...\n");
+    else
+        start_msg(t0, "=== Solving Poisson equation...\n");
     
     for (int i = 0; i < time_subcycle; i++) {
-        n_lost = pic_solver.update_positions();
-        n_cg_steps = pic_solver.run_cycle(i == 0);
+        int n_lost = pic_solver.update_positions();
+        int n_cg_steps = pic_solver.run_cycle(new_mesh_exists, is_write_time());
 
-        vacuum_interpolator.extract_solution(poisson_solver);
-        surface_fields.calc_interpolation();
+        // If not PIC, advance time by whole timestep and return
+        if (!conf.pic.run_pic)
+            break;
+
+        // Set up emission input
+        if (i == 0) {
+            if (new_mesh_exists) surface_fields.interpolate(ch_solver);
+            surface_temperatures.interpolate(ch_solver);
+            emission.initialize(mesh);
+        }
+
+        //calculate emission and inject electrons
         emission.calc_emission(conf.emission, conf.field.V0);
-
-        n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
+        int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
         
         if (MODES.VERBOSE)
-            printf("  #CG steps=%d, max field=%.3f, #injected|deleted|total=%d|%d|%d\n",
-                    n_cg_steps, vacuum_interpolator.nodes.max_norm(), n_injected, n_lost, pic_solver.get_n_electrons());
+            printf("t= %f fs, #CG =%d, Fmax=%.3f V/A, Itot=%.3e A #e|inj|del|tot=%d|%d|%d\n",
+                    time, n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot, n_injected,
+                    n_lost, pic_solver.get_n_electrons());
 
-        pic_solver.write("out/electrons.movie", 0);
-        vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-        emission.write_data("out/emission_data.dat", i * dt_pic);
+        time += dt_pic;
+
+        if (is_write_time()){
+            start_msg(t0, "=== Writing to files...");
+            write();
+            end_msg(t0);
+        }
+
     }
     
     end_msg(t0);
-
-    vacuum_interpolator.lintets.write("out/result_E_phi.vtk");
-    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()), "Field enhancement is out of limits!");
+    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
+            "Field enhancement is out of limits!");
 
     return 0;
 
@@ -441,122 +467,105 @@ int ProjectRunaway::solve_pic(const double E0) {
     // TODO LATER
 }
 
-int ProjectRunaway::solve_heat(const double T_ambient) {
-    if(conf.heating.mode == "transient") {
-        double delta_time = delta_t_MD * (timestep - last_full_timestep); //in sec
-        return solve_transient_heat(T_ambient, delta_time);
+
+int ProjectRunaway::solve_transient_heat(const double T_ambient, const double delta_time, int& ccg, int& hcg) {
+
+    if (new_mesh_exists)
+        ch_solver.setup(T_ambient);
+
+    // Calculate field emission in case not ready from pic
+    if(!conf.pic.run_pic){
+        start_msg(t0, "=== Calculating electron emission...");
+        if (new_mesh_exists) surface_fields.interpolate(ch_solver);
+        surface_temperatures.interpolate(ch_solver);
+        emission.initialize(mesh);
+        emission.calc_emission(conf.emission, conf.field.V0);
+        emission.export_emission(ch_solver);
+        end_msg(t0);
     }
-    else if (conf.heating.mode == "converge") {
-        return solve_converge_heat(T_ambient);
-    }
-
-    return 0;
-}
-
-int ProjectRunaway::solve_transient_heat(const double T_ambient, const double delta_time) {
-    double multiplier = 1.;
-
-    // Interpolate elfield on face centroids
-    surface_fields.interpolate(ch_solver);
-
-    // Interpolate J & T on face centroids
-    surface_temperatures.interpolate(ch_solver);
-
-    // Calculate field emission
-    emission.initialize(mesh);
-    emission.calc_emission(conf.emission, conf.field.V0);
-    emission.export_emission(ch_solver);
-
-    start_msg(t0, "=== Setup transient J & T solver...");
-    ch_solver.setup(T_ambient);
-    end_msg(t0);
 
     start_msg(t0, "=== Calculating current density...");
     ch_solver.current.assemble();
-    unsigned int ccg = ch_solver.current.solve();
+    ccg = ch_solver.current.solve();
     end_msg(t0);
-    write_verbose_msg("# CG steps: " + to_string(ccg));
+    write_verbose_msg("#CG steps: " + to_string(ccg));
 
     start_msg(t0, "=== Calculating temperature distribution...");
-    ch_solver.heat.assemble(delta_time);
-    unsigned int hcg = ch_solver.heat.solve();
+    ch_solver.heat.assemble(delta_time * 1.e-15); // caution!! ch_solver internal time in sec
+    hcg = ch_solver.heat.solve();
     end_msg(t0);
-    write_verbose_msg("# CG steps: " + to_string(hcg));
+    write_verbose_msg("#CG steps: " + to_string(hcg));
 
     start_msg(t0, "=== Extracting J & T...");
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
-    write_verbose_msg("Current and heat advanced for " + to_string(delta_time));
+    if(!conf.pic.run_pic) time += delta_time;
 
-    bulk_interpolator.nodes.write("out/result_J_T.xyz");
-    bulk_interpolator.lintets.write("out/result_J_T.vtk");
+    if (is_write_time()){
+        start_msg(t0, "=== Writing to files...");
+        write();
+        end_msg(t0);
+    }
+
+    last_heat_time = time;
 
     return 0;
 }
 
-int ProjectRunaway::solve_converge_heat(const double T_ambient) {
-    start_msg(t0, "=== Interpolating elfield on faces...");
-    surface_fields.interpolate(ch_solver);
-    end_msg(t0);
+int ProjectRunaway::run_heat_converge(const double T_ambient) {
 
-    surface_fields.write("out/surface_field.xyz");
+    double delta_time = 1;
 
-    start_msg(t0, "=== Setup transient J & T solver...");
-    ch_solver.setup(T_ambient);
-    end_msg(t0);
-
-    emission.initialize(mesh);
-
-    double current_time = 0.;
-    double delta_time = 1.e-12; //in seconds!!
-    double multiplier = 1.;
-
-    start_msg(t0, "=== Running converge J & T solver...\n");
+    start_msg(t0, "=== Running heat convergence...\n");
+    int ccg, hcg;
     int converge_steps = 0;
     for (; converge_steps < 1000; ++converge_steps) {
-        double tstart = omp_get_wtime();
 
-        // Interpolate J & T on face centroids
-        surface_temperatures.interpolate(ch_solver);
+        //calculate field - advance pic for the given timestep
+        if (conf.pic.run_pic || converge_steps == 0){
+            if (solve_pic(delta_time)) {
+                force_output();
+                check_return(true, "Solving PIC failed!");
+            }
+        }
 
-        // Calculating field emission
-        multiplier = emission.calc_emission(multiplier, conf.emission, conf.field.V0);
-        emission.export_emission(ch_solver);
+        // advance heat and current system by delta_time
+        if (solve_transient_heat(conf.heating.t_ambient, delta_time, ccg, hcg)) {
+            force_output();
+            check_return(true, "Solving heat & continuity equation failed!");
+        }
 
-        // Calculate current density
-        ch_solver.current.assemble();
-        unsigned int ccg = ch_solver.current.solve(); // ccg == nr of CG iterations
-
-        // Calculate temperature distribution
-        ch_solver.heat.assemble(delta_time);
-        unsigned int hcg = ch_solver.heat.solve(); // hcg == nr of CG iterations
-
-        // Extract J & T
-        bulk_interpolator.extract_solution(ch_solver);
+        new_mesh_exists = false; //running convergence with the same mesh always
 
         if (MODES.VERBOSE) {
             double max_T = ch_solver.heat.max_solution();
-            double time = omp_get_wtime() - tstart;
-            printf("  i=%d, t=%.2fps, dt=%.2fps, ccg=%d, hcg=%d, time=%.3fs, Tmax=%.2fK\n",
-                    converge_steps, current_time * 1.e12, delta_time * 1.e12, ccg, hcg, time, max_T);
+            printf("t=%.2e ps, dt=%.2f ps, Tmax=%.2fK\n",
+                    time * 1.e-3, delta_time * 1.e-3, ccg, hcg, max_T);
         }
-        current_time += delta_time;
 
-        if (max(hcg, ccg) < 120 || hcg < 30)
+        if (!conf.pic.run_pic)
+            time += delta_time;
+
+        if (hcg < (ccg - 10)) // if heat changed too little
             delta_time *= 1.25;
-        else if (max(hcg, ccg) > 150)
+        else if (hcg > (ccg + 10)) // if heat changed too much
             delta_time /= 1.25;
+
+        if (is_write_time()){
+            start_msg(t0, "=== Writing to files...");
+            write();
+            end_msg(t0);
+        }
+
 
         if (max(hcg, ccg) < 10) break;
     }
     end_msg(t0);
+
     if (converge_steps >= 1000)
         write_silent_msg("WARNING: Heat equation did not converge after 1000 steps!");
 
-    surface_temperatures.write("out/surface_temperature.xyz");
-    emission.write("out/surface_emission.xyz");
-    bulk_interpolator.nodes.write("out/result_J_T.xyz");
 
     return 0;
 }
@@ -625,6 +634,38 @@ int ProjectRunaway::interpolate_results(const int n_points, const string &cmd, c
 
     require(false, "Unimplemented type of interpolation data: " + cmd);
     return 1;
+}
+
+
+int ProjectRunaway::write(){
+    // write the field
+    vacuum_interpolator.extract_solution(poisson_solver);
+    vacuum_interpolator.nodes.write("out/result_E_phi.movie");
+    vacuum_interpolator.lintets.write("out/result_E_phi.vtk");
+
+    // write PIC (particles and charge density)
+    if (conf.pic.run_pic){
+        pic_solver.write("out/electrons.movie", 0);
+        vacuum_interpolator.extract_charge_density(poisson_solver);
+        vacuum_interpolator.nodes.write("out/result_E_charge.movie");
+    }
+
+    //write emission
+    if (emission.atoms.size() > 0){
+        emission.export_emission(ch_solver);
+        emission.write_data("out/emission_data.dat", time);
+        emission.write("out/surface_emission.movie");
+    }
+
+    //write heat
+    if (conf.heating.mode != "none"){
+        bulk_interpolator.nodes.write("out/result_J_T.movie");
+        bulk_interpolator.lintets.write("out/result_J_T.vtk");
+    }
+
+    last_write_time = time;
+
+    return 0;
 }
 
 } /* namespace femocs */

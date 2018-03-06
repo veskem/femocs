@@ -53,6 +53,8 @@ public:
         string verbosity;           ///< Verbose mode: mute, silent, verbose
         int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
         int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear, 2-quadratic
+        double write_period;        ///< Write files every write_period (in fs)
+        double total_time;          ///< Total time evolution within a FEMOCS run call [fs]
     } behaviour;
 
     /** Enable or disable various support features */
@@ -127,7 +129,7 @@ public:
         double work_function;       ///< Work function [eV]
         bool blunt;                 ///< Force blunt emitter approximation (good for big systems)
         bool cold;                  ///< force cold field emission approximation (good for low temperatures)
-        bool SC;                    ///< If SC is to be taken into account
+        double omega_SC;            ///< Voltage correction factor for SC calculation (negative for ignoring SC)
         double SC_error;            ///< convergence criterion for SC error
     } emission;
 
@@ -155,16 +157,15 @@ public:
 
     /** Particle In Cell module configuration */
     struct PIC {
-        bool doPIC;           ///< Switch PIC on or off
+        bool run_pic;           ///< Switch PIC on or off
         double dt_max;        ///< Maximum PIC timestep [fs];
                               ///  the actual PIC timestep will be smaller
                               ///  such that it is an integer fraction of the MD timestep
-        double total_time;    ///< Total time that PIC should evolve in a femocs run [fs]
-                              ///  (overriden by MD timestep when femocs runs in MD mode)
         double Wsp_el;        ///< Superparticle weight for electrons
         bool fractional_push; ///< Do fractional timestep push when injecting electrons?
 
         bool coll_coulomb_ee; ///< Do 2e->2e Coulomb collisions?
+        int n_write;          ///< Output files every N pic time steps
     } pic;
     
 private:

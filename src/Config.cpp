@@ -22,6 +22,8 @@ Config::Config() {
     behaviour.verbosity = "verbose";  // mute, silent, verbose
     behaviour.n_writefile = 1;        // number of time steps between writing the output files
     behaviour.interpolation_rank = 1; // rank of the solution interpolation; 1-linear, 2-quadratic
+    behaviour.write_period = 1.e5;    // write files every write_period of time
+    behaviour.total_time = 4.05;      // Total time of a FEMOCS run [fs]
 
     run.cluster_anal = true;          // enable cluster analysis
     run.apex_refiner = false;         // refine nanotip apex
@@ -73,7 +75,7 @@ Config::Config() {
     emission.blunt = true;            // by default emitter is blunt (simple SN barrier used for emission)
     emission.cold = false;
     emission.work_function = 4.5;     // work function [eV]
-    emission.SC = false;              // SC is ignored in Emission by default
+    emission.omega_SC = -1;           // SC is ignored in Emission by default
     emission.SC_error = 1.e-3;        // Convergence criterion for SC iteration
 
     force.mode = "none";              // forces to be calculated; lorentz, all, none
@@ -89,11 +91,11 @@ Config::Config() {
     cfactor.r0_cylinder = 0;          // minimum distance between atoms in nanotip outside the apex
     cfactor.r0_sphere = 0;            // minimum distance between atoms in nanotip apex
 
-    pic.doPIC = false;
+    pic.run_pic = false;
     pic.dt_max = 1.0;
-    pic.total_time = 30;
     pic.Wsp_el =  .01;
     pic.fractional_push = true;
+    pic.n_write = 1;
 }
 
 // Remove the noise from the beginning of the string
@@ -119,7 +121,7 @@ void Config::read_all(const string& file_name) {
     // Modify the parameters that are specified in input script
     read_command("work_function", emission.work_function);
     read_command("emitter_blunt", emission.blunt);
-    read_command("space_charge", emission.SC);
+    read_command("omega_SC", emission.omega_SC);
     read_command("maxerr_SC", emission.SC_error);
     read_command("emitter_cold", emission.cold);
 
@@ -173,15 +175,17 @@ void Config::read_all(const string& file_name) {
     read_command("femocs_verbose_mode", behaviour.verbosity);
     read_command("n_writefile", behaviour.n_writefile);
     read_command("interpolation_rank", behaviour.interpolation_rank);
+    read_command("write_period", behaviour.write_period);
+    read_command("femocs_run_time", behaviour.total_time);
 
     read_command("distance_tol", tolerance.distance);
 
-    read_command("doPIC", pic.doPIC);
+    read_command("run_pic", pic.run_pic);
     read_command("PIC_dtmax", pic.dt_max);
-    read_command("PIC_time", pic.total_time);
     read_command("electronWsp", pic.Wsp_el);
     read_command("PIC_fractional_push", pic.fractional_push);
     read_command("PIC_collide_coulomb_ee", pic.coll_coulomb_ee);
+    read_command("PIC_n_write", pic.n_write);
     
     // Read commands with potentially multiple arguments like...
     vector<double> args;
