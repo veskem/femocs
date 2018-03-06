@@ -128,7 +128,7 @@ public:
 
     FieldReader(Interpolator* i);
 
-    void compare_interpolators(fch::PoissonSolver<3> &poisson, const double zmax);
+    void compare_interpolators(fch::PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
     void test_corners(const TetgenMesh& mesh) const;
 
     /** Interpolate solution on the surface mesh centroids of the FEM solver */

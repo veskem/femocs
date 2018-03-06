@@ -475,10 +475,10 @@ FieldReader::FieldReader(Interpolator* i) :
         SolutionReader(i, "elfield", "elfield_norm", "potential"),
         E0(0), radius1(0), radius2(0) {}
 
-void FieldReader::compare_interpolators(fch::PoissonSolver<3> &poisson, const double zmax) {
-    const double x = 0;
-    const double y = 0;
-    const double zmin = zmax;
+void FieldReader::compare_interpolators(fch::PoissonSolver<3> &poisson, const Medium::Sizes &sizes) {
+    const double x = sizes.xmid;
+    const double y = sizes.ymid;
+    const double zmin = 1.0 + sizes.zmax;
     const double step = 0.001;
     const int n_points = 10000;
 
