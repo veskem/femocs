@@ -55,25 +55,25 @@ void SolutionReader::calc_interpolation() {
         // Depending on interpolation dimension and rank, pick corresponding functions
         if (dim == 2) {
             if (rank == 1) {
-                cell = interpolator->lintris.locate_cell(point, abs(cell));
-                append_interpolation(interpolator->lintris.interp_solution(point, cell));
+                cell = interpolator->lintri.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->lintri.interp_solution(point, cell));
             } else if (rank == 2) {
-                cell = interpolator->quadtris.locate_cell(point, abs(cell));
-                append_interpolation(interpolator->quadtris.interp_solution(point, cell));
+                cell = interpolator->quadtri.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->quadtri.interp_solution(point, cell));
             } else if (rank == 3) {
-                cell = interpolator->linquads.locate_cell(point, abs(cell));
-                append_interpolation(interpolator->linquads.interp_solution(point, cell));
+                cell = interpolator->linquad.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->linquad.interp_solution(point, cell));
             }
         } else {
             if (rank == 1) {
-                cell = interpolator->lintets.locate_cell(point, abs(cell));
-                append_interpolation(interpolator->lintets.interp_solution(point, cell));
+                cell = interpolator->lintet.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->lintet.interp_solution(point, cell));
             } else if (rank == 2) {
-                cell = interpolator->quadtets.locate_cell(point, abs(cell));
-                append_interpolation(interpolator->quadtets.interp_solution(point, cell));
+                cell = interpolator->quadtet.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->quadtet.interp_solution(point, cell));
             } else if (rank == 3) {
-                cell = interpolator->linhexs.locate_cell(point, abs(cell));
-                append_interpolation(interpolator->linhexs.interp_solution(point, cell));
+                cell = interpolator->linhex.locate_cell(point, abs(cell));
+                append_interpolation(interpolator->linhex.interp_solution(point, cell));
             }
         }
 
@@ -106,18 +106,18 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
             // calculate the interpolation
             if (dim == 2) {
                 if (rank == 1)
-                    append_interpolation(interpolator->lintris.interp_solution(get_point(i), cell));
+                    append_interpolation(interpolator->lintri.interp_solution(get_point(i), cell));
                 else if (rank == 2)
-                    append_interpolation(interpolator->quadtris.interp_solution(get_point(i), cell));
+                    append_interpolation(interpolator->quadtri.interp_solution(get_point(i), cell));
                 else if (rank == 3)
-                    append_interpolation(interpolator->linquads.interp_solution(get_point(i), cell));
+                    append_interpolation(interpolator->linquad.interp_solution(get_point(i), cell));
             } else {
                 if (rank == 1)
-                    append_interpolation(interpolator->lintets.interp_solution(get_point(i), cell));
+                    append_interpolation(interpolator->lintet.interp_solution(get_point(i), cell));
                 else if (rank == 2)
-                    append_interpolation(interpolator->quadtets.interp_solution(get_point(i), cell));
+                    append_interpolation(interpolator->quadtet.interp_solution(get_point(i), cell));
                 else if (rank == 3)
-                    append_interpolation(interpolator->linhexs.interp_solution(get_point(i), cell));
+                    append_interpolation(interpolator->linhex.interp_solution(get_point(i), cell));
             }
         }
 
@@ -498,8 +498,8 @@ void FieldReader::compare_interpolators(fch::PoissonSolver<3> &poisson, const Me
         Point3 p = get_point(i);
         dealii::Point<3> deal_point(p.x, p.y, p.z);
 
-        cell_index = interpolator->linhexs.locate_cell(p, cell_index);
-        int cell_index_in_deal = interpolator->linhexs.femocs2deal(cell_index);
+        cell_index = interpolator->linhex.locate_cell(p, cell_index);
+        int cell_index_in_deal = interpolator->linhex.femocs2deal(cell_index);
         if (cell_index_in_deal < 0)
             append_interpolation(Solution(0));
         else {
@@ -519,8 +519,8 @@ void FieldReader::compare_interpolators(fch::PoissonSolver<3> &poisson, const Me
     cell_index = 0;
     for (int i = 0; i < n_points; ++i) {
         Point3 p = get_point(i);
-        cell_index = interpolator->linhexs.locate_cell(p, cell_index);
-        append_interpolation(interpolator->linhexs.interp_solution_v2(p, cell_index));
+        cell_index = interpolator->linhex.locate_cell(p, cell_index);
+        append_interpolation(interpolator->linhex.interp_solution_v2(p, cell_index));
     }
     end_msg(t0);
     write("out/potential2.xyz");
@@ -532,8 +532,8 @@ void FieldReader::compare_interpolators(fch::PoissonSolver<3> &poisson, const Me
     cell_index = 0;
     for (int i = 0; i < n_points; ++i) {
         Point3 p = get_point(i);
-        cell_index = interpolator->lintets.locate_cell(p, cell_index);
-        append_interpolation(interpolator->lintets.interp_solution_v2(p, cell_index));
+        cell_index = interpolator->lintet.locate_cell(p, cell_index);
+        append_interpolation(interpolator->lintet.interp_solution_v2(p, cell_index));
     }
     end_msg(t0);
     write("out/potential3.xyz");
@@ -545,8 +545,8 @@ void FieldReader::compare_interpolators(fch::PoissonSolver<3> &poisson, const Me
     cell_index = 0;
     for (int i = 0; i < n_points; ++i) {
         Point3 p = get_point(i);
-        cell_index = interpolator->quadtets.locate_cell(p, cell_index);
-        append_interpolation(interpolator->quadtets.interp_solution_v2(p, cell_index));
+        cell_index = interpolator->quadtet.locate_cell(p, cell_index);
+        append_interpolation(interpolator->quadtet.interp_solution_v2(p, cell_index));
     }
     end_msg(t0);
     write("out/potential4.xyz");
@@ -558,13 +558,13 @@ void FieldReader::test_corners(const TetgenMesh& mesh) const {
     array<double,4> bcc;
 
     int cntr = 0;
-    for (int i = 0; i < mesh.elems.size(); ++i)
-        if (mesh.elems.get_marker(i) == TYPES.VACUUM && cntr++ >= 0) {
+    for (int i = 0; i < mesh.tets.size(); ++i)
+        if (mesh.tets.get_marker(i) == TYPES.VACUUM && cntr++ >= 0) {
             cell_index = i;
             break;
         }
 
-    SimpleElement stet = mesh.elems[cell_index];
+    SimpleElement stet = mesh.tets[cell_index];
 
     Point3 n1 = mesh.nodes[stet[0]];
     Point3 n2 = mesh.nodes[stet[1]];
@@ -595,16 +595,16 @@ void FieldReader::test_corners(const TetgenMesh& mesh) const {
     cout << "results for tet=" << cell_index << ", 4tet=" << 4*cell_index << endl;
 
     for (int i = 0; i < 4; ++i) {
-        cell_index = interpolator->linhexs.locate_cell(points[i], 0);
-        interpolator->lintets.get_shape_functions(bcc, points[i], 0);
+        cell_index = interpolator->linhex.locate_cell(points[i], 0);
+        interpolator->lintet.get_shape_functions(bcc, points[i], 0);
         cout << endl << labels[i] << ":\t" << cell_index << "\t";
         for (double b : bcc)
             cout << ", " << b;
     }
 
     for (int i = 4; i < labels.size(); ++i) {
-        cell_index = interpolator->linhexs.locate_cell(points[i], 0);
-        interpolator->lintets.get_shape_functions(bcc, points[i], abs(int(cell_index/4)));
+        cell_index = interpolator->linhex.locate_cell(points[i], 0);
+        interpolator->lintet.get_shape_functions(bcc, points[i], abs(int(cell_index/4)));
         cout << endl << labels[i] << ":\t" << cell_index << "\t";
         for (double b : bcc)
             cout << ", " << b;
@@ -971,7 +971,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 
     for (int i = 0; i < n_lines; i++){
         int hex = fr.get_marker(i);
-        int hex_deal = interpolator->linhexs.femocs2deal(hex);
+        int hex_deal = interpolator->linhex.femocs2deal(hex);
 
         Point3 p = fr.get_point(i);
         dealii::Point<3> p_deal(p.x, p.y, p.z);
@@ -1020,7 +1020,7 @@ void EmissionReader::calc_representative() {
     for (int i = 0; i < currents.size(); ++i){ // go through face centroids
         int tri = mesh->quads.to_tri(abs(fields->get_marker(i)));
         // quadrangle area is 1/3 of corresponding triangle area
-        double face_area = mesh->faces.get_area(tri) / 3.;
+        double face_area = mesh->tris.get_area(tri) / 3.;
         currents[i] = face_area * current_densities[i];
         global_data.I_tot += currents[i];
 
@@ -1056,15 +1056,15 @@ void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3>
         int quad = abs(fields->get_marker(i));
         int tri = mesh->quads.to_tri(quad);
         int hex = mesh->quad2hex(quad, TYPES.VACUUM);
-        hex = interpolator->linhexs.femocs2deal(hex);
+        hex = interpolator->linhex.femocs2deal(hex);
         SimpleQuad squad = mesh->quads[quad];
 
         // generate desired amount of electrons
         // that are uniformly distributed on a given quadrangle
         for (int j = 0; j < n_electrons_sp; j++){
-            Point3 position = interpolator->linquads.get_rnd_point(quad);
+            Point3 position = interpolator->linquad.get_rnd_point(quad);
             // push point little bit inside the vacuum mesh
-            position += mesh->faces.get_norm(tri) * (mesh->faces.stat.edgemin * 1.e-5);
+            position += mesh->tris.get_norm(tri) * (mesh->tris.stat.edgemin * 1.e-5);
 
             pos.push_back(position);
 			cells.push_back(hex);
@@ -1079,7 +1079,7 @@ void EmissionReader::get_field_loc(){
     for (int i = 0; i < fields->size(); ++i) { // go through all face centroids
         int quad = fields->get_marker(i);
         int hex_femocs = mesh->quad2hex(quad, TYPES.VACUUM);
-        int hex_deal = interpolator->linhexs.femocs2deal(hex_femocs);
+        int hex_deal = interpolator->linhex.femocs2deal(hex_femocs);
 
         Point3 centroid = fields->get_point(i);
         dealii::Point<3> point(centroid.x, centroid.y, centroid.z);
@@ -1215,13 +1215,13 @@ ChargeReader::ChargeReader(Interpolator* i) :
 
 void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
     const double sign = fabs(E0) / E0;
-    const int n_faces = mesh.faces.size();
+    const int n_faces = mesh.tris.size();
     const int n_quads_per_triangle = 3;
 
     // Store the centroids of the triangles
     reserve(n_faces);
     for (int i = 0; i < n_faces; ++i)
-        append( Atom(i, mesh.faces.get_centroid(i), 0) );
+        append( Atom(i, mesh.tris.get_centroid(i), 0) );
 
     // create triangle index to its centroid index mapping
     vector<int> tri2centroid(n_faces);
@@ -1235,7 +1235,7 @@ void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
 
     // Calculate the charges for the triangles
     for (int face = 0; face < n_faces; ++face) {
-        double area = mesh.faces.get_area(face);
+        double area = mesh.tris.get_area(face);
         Vec3 elfield = interpolator->nodes.get_vector(tri2centroid[face]);
         double charge = eps0 * area * elfield.norm() * sign;
         append_interpolation(Solution(elfield, area, charge));
@@ -1415,10 +1415,10 @@ int ForceReader::calc_voronois(VoronoiMesh& mesh, const vector<int>& atom2face,
         if (get_marker(i)) {
             Point3 point = get_point(i);
             if (faces_known) face = atom2face[i];
-            else face = abs( interpolator->lintris.locate_cell(point, face) );
+            else face = abs( interpolator->lintri.locate_cell(point, face) );
 
-            if (interpolator->lintris.fast_distance(point, face) < max_distance_from_surface) {
-                point += interpolator->lintris.get_norm(face) * shift_distance;
+            if (interpolator->lintri.fast_distance(point, face) < max_distance_from_surface) {
+                point += interpolator->lintri.get_norm(face) * shift_distance;
                 support.append(Atom(i, point, TYPES.VACANCY));
             }
         }
@@ -1485,7 +1485,7 @@ void ForceReader::calc_lorentz(const FieldReader &fields) {
 
     // Calculate the charges by ensuring the that the total sum of it remains conserved
     vector<double> charges;
-    interpolator->lintris.interp_conserved(charges, atoms);
+    interpolator->lintri.interp_conserved(charges, atoms);
 
     // calculate forces and store them
     for (int i = 0; i < n_atoms; ++i) {

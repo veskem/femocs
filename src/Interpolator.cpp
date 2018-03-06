@@ -19,9 +19,9 @@ namespace femocs {
 
 Interpolator::Interpolator(const string& nl, const string& sl) : 
     nodes(nl, sl),
-    lintris(&nodes), lintets(&nodes),
-    quadtris(&nodes, &lintris), quadtets(&nodes, &lintets),
-    linquads(&nodes, &lintris), linhexs(&nodes, &lintets),
+    lintri(&nodes), lintet(&nodes),
+    quadtri(&nodes, &lintri), quadtet(&nodes, &lintet),
+    linquad(&nodes, &lintri), linhex(&nodes, &lintet),
     mesh(NULL), empty_value(0) 
     {}
 
@@ -43,7 +43,7 @@ bool Interpolator::average_sharp_nodes(const bool vacuum) {
 
         // tetnode new solution will be the weighed average of the solutions on neighbouring nodes
         for (unsigned nbor : nborlist[i]) {
-            double w = exp(lintets.decay_factor * tetnode.distance(nodes.get_vertex(nbor)));
+            double w = exp(lintet.decay_factor * tetnode.distance(nodes.get_vertex(nbor)));
             w_sum += w;
             vec += nodes.get_vector(nbor) * w;
         }
@@ -63,7 +63,7 @@ void Interpolator::get_maps(vector<int>& femocs2deal, vector<int>& cell_indxs, v
         dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh) const {
 
     const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
-    const double vertex_epsilon = 1e-5 * mesh->elems.stat.edgemin;
+    const double vertex_epsilon = 1e-5 * mesh->tets.stat.edgemin;
 
     require(tria->n_vertices() > 0, "Invalid triangulation size!");
     const int n_femocs_nodes = mesh->nodes.size();
@@ -122,31 +122,31 @@ void Interpolator::store_solution(const vector<int>& femocs2deal,
 //find the hex cell where the piont p is located. initial guess: current_cell
 // if deal_index then current_cell is dealii cell index
 int Interpolator::update_point_cell(Point3& point, int current_cell) {
-    int femocs_cell = linhexs.deal2femocs(current_cell);
-    femocs_cell = linhexs.locate_cell(point, femocs_cell);
+    int femocs_cell = linhex.deal2femocs(current_cell);
+    femocs_cell = linhex.locate_cell(point, femocs_cell);
     if (femocs_cell < 0) return -1;
-    return linhexs.femocs2deal(femocs_cell);
+    return linhex.femocs2deal(femocs_cell);
 }
 
 void Interpolator::initialize(const TetgenMesh* m, const double empty_val) {
     // update mesh
     mesh = m;
     nodes.set_mesh(mesh);
-    lintris.set_mesh(mesh);
-    lintets.set_mesh(mesh);
-    quadtris.set_mesh(mesh);
-    quadtets.set_mesh(mesh);
-    linquads.set_mesh(mesh);
-    linhexs.set_mesh(mesh);
+    lintri.set_mesh(mesh);
+    lintet.set_mesh(mesh);
+    quadtri.set_mesh(mesh);
+    quadtet.set_mesh(mesh);
+    linquad.set_mesh(mesh);
+    linhex.set_mesh(mesh);
 
     // Precompute cells to make interpolation faster
     nodes.precompute();
-    lintris.precompute();
-    quadtris.precompute();
-    lintets.precompute();
-    quadtets.precompute();
-    linquads.precompute();
-    linhexs.precompute();
+    lintri.precompute();
+    quadtri.precompute();
+    lintet.precompute();
+    quadtet.precompute();
+    linquad.precompute();
+    linhex.precompute();
 
     empty_value = empty_val;
 

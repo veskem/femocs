@@ -241,11 +241,11 @@ int ProjectRunaway::generate_mesh() {
     }
 
     // has to be separate to ensure that data is for sure calculated
-    new_mesh->faces.calc_norms_and_areas();
+    new_mesh->tris.calc_norms_and_areas();
 
     new_mesh->nodes.write("out/tetmesh_nodes.vtk");
-    new_mesh->faces.write("out/trimesh.vtk");
-    new_mesh->elems.write("out/tetmesh.vtk");
+    new_mesh->tris.write("out/trimesh.vtk");
+    new_mesh->tets.write("out/tetmesh.vtk");
 
     if (conf.run.surface_cleaner) {
         start_msg(t0, "=== Cleaning surface atoms...");
@@ -260,9 +260,9 @@ int ProjectRunaway::generate_mesh() {
 
     new_mesh->nodes.write("out/hexmesh_nodes.vtk");
     new_mesh->quads.write("out/quadmesh.vtk");
-    new_mesh->hexahedra.write("out/hexmesh.vtk");
+    new_mesh->hexs.write("out/hexmesh.vtk");
     new_mesh->write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
-    new_mesh->faces.write("out/hexmesh_faces.vtk");
+    new_mesh->tris.write("out/hexmesh_faces.vtk");
 
     // update mesh pointers
     static bool odd_run = true;
@@ -281,21 +281,21 @@ int ProjectRunaway::generate_mesh() {
 
 int ProjectRunaway::prepare_solvers() {
     start_msg(t0, "=== Importing mesh to Poisson solver...");
-    fail = !poisson_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexahedra.export_vacuum());
+    fail = !poisson_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_vacuum());
     check_return(fail, "Importing vacuum mesh to Deal.II failed!");
     end_msg(t0);
 
     vacuum_interpolator.initialize(mesh);
-    vacuum_interpolator.lintets.narrow_search_to(TYPES.VACUUM);
+    vacuum_interpolator.lintet.narrow_search_to(TYPES.VACUUM);
 
     if (conf.field.solver == "poisson" || conf.heating.mode != "none") {
         start_msg(t0, "=== Importing mesh to J & T solver...");
-        fail = !ch_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexahedra.export_bulk());
+        fail = !ch_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_bulk());
         check_return(fail, "Importing bulk mesh to Deal.II failed!");
         end_msg(t0);
 
         bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
-        bulk_interpolator.lintets.narrow_search_to(TYPES.BULK);
+        bulk_interpolator.lintet.narrow_search_to(TYPES.BULK);
 
         surface_fields.set_preferences(false, 2, 3);
         surface_temperatures.set_preferences(false, 2, 3);
@@ -392,7 +392,7 @@ int ProjectRunaway::solve_laplace(const double E0) {
     end_msg(t0);
 
     vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
-    vacuum_interpolator.lintets.write("out/result_E_phi.vtk");
+    vacuum_interpolator.lintet.write("out/result_E_phi.vtk");
     check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()), "Field enhancement is out of limits!");
 
     return 0;
@@ -556,12 +556,12 @@ int ProjectRunaway::force_output() {
     MODES.WRITEFILE = true;
 
     reader.write("out/reader.xyz");
-    mesh->hexahedra.write("out/hexmesh_err.vtk");
-    mesh->elems.write("out/tetmesh_err.vtk");
-    mesh->faces.write("out/trimesh_err.vtk");
+    mesh->hexs.write("out/hexmesh_err.vtk");
+    mesh->tets.write("out/tetmesh_err.vtk");
+    mesh->tris.write("out/trimesh_err.vtk");
 
     vacuum_interpolator.nodes.write("out/result_E_phi_err.xyz");
-    vacuum_interpolator.lintets.write("out/result_E_phi_err.vtk");
+    vacuum_interpolator.lintet.write("out/result_E_phi_err.vtk");
 
     if (bulk_interpolator.nodes.size() > 0) {
         if (conf.heating.mode == "transient") {
@@ -620,7 +620,7 @@ int ProjectRunaway::write(){
     // write the field
     vacuum_interpolator.extract_solution(poisson_solver);
     vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-    vacuum_interpolator.lintets.write("out/result_E_phi.vtk");
+    vacuum_interpolator.lintet.write("out/result_E_phi.vtk");
 
     // write PIC (particles and charge density)
     if (conf.pic.run_pic){
@@ -639,7 +639,7 @@ int ProjectRunaway::write(){
     //write heat
     if (conf.heating.mode != "none"){
         bulk_interpolator.nodes.write("out/result_J_T.movie");
-        bulk_interpolator.lintets.write("out/result_J_T.vtk");
+        bulk_interpolator.lintet.write("out/result_J_T.vtk");
     }
 
     last_write_time = GLOBALS.TIME;

@@ -251,14 +251,14 @@ public:
     /** Change the dependency data */
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<4>::set_mesh(m);
-        elems = &m->elems;
+        tets = &m->tets;
     }
 
     /** Specify the region where the cells are searched during the cell location. */
     void narrow_search_to(const int region);
 
 private:
-    const TetgenElements* elems;    ///< pointer to tetrahedra to access their specific routines
+    const TetgenElements* tets;    ///< pointer to tetrahedra to access their specific routines
 
     vector<double> det0;            ///< major determinant for calculating bcc-s
     vector<Vec4> det1;              ///< minor determinants for calculating 1st bcc
@@ -303,11 +303,11 @@ public:
     /** Change the dependency data */
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<10>::set_mesh(m);
-        elems = &m->elems;
+        tets = &m->tets;
     }
 
 private:
-    const TetgenElements* elems;    ///< pointer to tetrahedra to access their specific routines
+    const TetgenElements* tets;    ///< pointer to tetrahedra to access their specific routines
     const LinearTetrahedra* lintet;   ///< Pointer to linear tetrahedra
 
     /** Reserve memory for interpolation data */
@@ -363,7 +363,7 @@ public:
     /** Change the mesh dependency data */
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<8>::set_mesh(m);
-        hexs = &m->hexahedra;
+        hexs = &m->hexs;
     }
 
 private:
@@ -445,11 +445,11 @@ public:
      /** Change the mesh */
      void set_mesh(const TetgenMesh* m) {
          InterpolatorCells<3>::set_mesh(m);
-         faces = &m->faces;
+         tris = &m->tris;
      }
 
 private:
-    const TetgenFaces* faces;    ///< Direct pointer to triangles to access their specific routines
+    const TetgenFaces* tris;    ///< Direct pointer to triangles to access their specific routines
 
     /** Data computed before starting looping through the triangles */
     vector<Vec3> vert0;
@@ -497,11 +497,11 @@ public:
     /** Change the mesh */
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<6>::set_mesh(m);
-        faces = &m->faces;
+        tris = &m->tris;
     }
 
 private:
-    const TetgenFaces* faces;    ///< Direct pointer to triangles to access their specific routines
+    const TetgenFaces* tris;    ///< Direct pointer to triangles to access their specific routines
     const LinearTriangles* lintri;   ///< Pointer to linear triangles
 
     /** Reserve memory for interpolation data */

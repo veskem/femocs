@@ -308,14 +308,14 @@ void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpola
     surf2face.clear();
     surf2face.reserve(n_atoms);
 
-    interpolator.lintris.set_mesh(mesh);
-    interpolator.lintris.precompute();
+    interpolator.lintri.set_mesh(mesh);
+    interpolator.lintri.precompute();
 
     int face = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Atom atom = get_atom(i);
-        face = abs(interpolator.lintris.locate_cell(atom.point, face));
-        if (interpolator.lintris.fast_distance(atom.point, face) < r_cut) {
+        face = abs(interpolator.lintri.locate_cell(atom.point, face));
+        if (interpolator.lintri.fast_distance(atom.point, face) < r_cut) {
             atom.marker = face;
             _atoms.push_back(atom);
             surf2face.push_back(face);

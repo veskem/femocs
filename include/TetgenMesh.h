@@ -92,10 +92,10 @@ public:
 
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin); ///< data & operations for mesh nodes
     TetgenEdges edges = TetgenEdges(&tetIOout);           ///< data & operations for mesh edges
-    TetgenFaces faces = TetgenFaces(&tetIOout, &tetIOin); ///< data & operations for mesh triangles
-    TetgenElements elems = TetgenElements(&tetIOout, &tetIOin); ///< data & operations for mesh tetrahedra
+    TetgenFaces tris = TetgenFaces(&tetIOout, &tetIOin); ///< data & operations for mesh triangles
+    TetgenElements tets = TetgenElements(&tetIOout, &tetIOin); ///< data & operations for mesh tetrahedra
     Quadrangles quads = Quadrangles(&tetIOout);           ///< data & operations for mesh quadrangles
-    Hexahedra hexahedra = Hexahedra(&tetIOout);           ///< data & operations for mesh hexahedra
+    Hexahedra hexs = Hexahedra(&tetIOout);           ///< data & operations for mesh hexahedra
 
     static constexpr int n_coordinates = 3;     ///< # coordinates
 
@@ -118,10 +118,10 @@ public:
 
     /** String stream prints the statistics about the mesh */
     friend std::ostream& operator <<(std::ostream &s, const TetgenMesh &t) {
-        s << "#hexs=" << t.hexahedra.size()
-                << ", #tets=" << t.elems.size()
+        s << "#hexs=" << t.hexs.size()
+                << ", #tets=" << t.tets.size()
                 << ", #quads=" << t.quads.size()
-                << ", #tris=" << t.faces.size()
+                << ", #tris=" << t.tris.size()
                 << ", #edges=" << t.edges.size()
                 << ", #nodes=" << t.nodes.size();
         return s;

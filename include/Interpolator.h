@@ -64,12 +64,12 @@ public:
     int update_point_cell(Point3& point, int current_cell);
 
     InterpolatorNodes nodes;     ///< vertices and solutions on them
-    LinearTriangles lintris;      ///< data & operations for linear triangular interpolation
-    LinearTetrahedra lintets;     ///< data & operations for linear tetrahedral interpolation
-    QuadraticTriangles quadtris;  ///< data & operations for quadratic triangular interpolation
-    QuadraticTetrahedra quadtets; ///< data & operations for quadratic tetrahedral interpolation
-    LinearQuadrangles linquads;   ///< data & operations for linear quadrangular interpolation
-    LinearHexahedra linhexs;      ///< data & operations for linear hexahedral interpolation
+    LinearTriangles lintri;      ///< data & operations for linear triangular interpolation
+    LinearTetrahedra lintet;     ///< data & operations for linear tetrahedral interpolation
+    QuadraticTriangles quadtri;  ///< data & operations for quadratic triangular interpolation
+    QuadraticTetrahedra quadtet; ///< data & operations for quadratic tetrahedral interpolation
+    LinearQuadrangles linquad;   ///< data & operations for linear quadrangular interpolation
+    LinearHexahedra linhex;      ///< data & operations for linear hexahedral interpolation
 
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc

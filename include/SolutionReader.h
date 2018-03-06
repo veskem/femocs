@@ -79,7 +79,7 @@ public:
     } stat;
 
     int get_femocs_index(int deal_index){
-        return interpolator->linhexs.deal2femocs(deal_index);
+        return interpolator->linhex.deal2femocs(deal_index);
     }
 
     int export_results(const int n_points, const string &data_type, const bool append, double* data);
