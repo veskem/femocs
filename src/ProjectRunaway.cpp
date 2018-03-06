@@ -145,11 +145,7 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
         check_return(true, "Extracting solution on atoms failed!");
     }
 
-    if (is_write_time()){
-        start_msg(t0, "=== Writing to files...");
-        write();
-        end_msg(t0);
-    }
+    if (is_write_time()) write();
 
     finalize();
 
@@ -484,11 +480,7 @@ int ProjectRunaway::solve_transient_heat(const double T_ambient, const double de
 
     if(!conf.pic.run_pic) GLOBALS.TIME += delta_time;
 
-    if (is_write_time()){
-        start_msg(t0, "=== Writing to files...");
-        write();
-        end_msg(t0);
-    }
+    if (is_write_time()) write();
 
     last_heat_time = GLOBALS.TIME;
 
@@ -534,11 +526,7 @@ int ProjectRunaway::run_heat_converge(const double T_ambient) {
         else if (hcg > (ccg + 10)) // if heat changed too much
             delta_time /= 1.25;
 
-        if (is_write_time()){
-            start_msg(t0, "=== Writing to files...");
-            write();
-            end_msg(t0);
-        }
+        if (is_write_time()) write();
 
         if (max(hcg, ccg) < 10) break;
     }
@@ -624,14 +612,13 @@ int ProjectRunaway::write(){
 
     // write PIC (particles and charge density)
     if (conf.pic.run_pic){
-        pic_solver.write("out/electrons.movie", 0);
+        pic_solver.write("out/electrons.movie");
         vacuum_interpolator.extract_charge_density(poisson_solver);
         vacuum_interpolator.nodes.write("out/result_E_charge.movie");
     }
 
     //write emission
     if (emission.atoms.size() > 0){
-        emission.export_emission(ch_solver);
         emission.write("out/emission_data.dat");
         emission.write("out/surface_emission.movie");
     }

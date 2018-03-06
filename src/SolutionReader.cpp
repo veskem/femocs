@@ -928,9 +928,7 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     int n_nodes = fields->size();
     require(n_nodes > 0, "EmissionReader can't use empty dependencies!");
 
-    reserve(n_nodes);
     atoms = fields->atoms;
-    interpolation = vector<Solution>(n_nodes, Solution(0));
 
     // deallocate and allocate currents data
     current_densities.resize(n_nodes);
@@ -1181,6 +1179,16 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
     }
 }
 
+string EmissionReader::get_data_string(const int i) const {
+    if (i < 0) return "EmissionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
+
+    ostringstream strs; strs << fixed;
+    strs << atoms[i] << ' ' << field_loc[i]
+             << ' ' << log(current_densities[i]) << ' ' << log(fabs(nottingham[i]));
+
+    return strs.str();
+}
+
 string EmissionReader::get_global_data(const bool first_line) const {
     ostringstream strs;
 
@@ -1197,11 +1205,6 @@ string EmissionReader::get_global_data(const bool first_line) const {
 }
 
 void EmissionReader::export_emission(fch::CurrentHeatSolver<3>& ch_solver) {
-    // save data for surface emission xyz file
-    for (int i = 0; i < nottingham.size(); i++)
-        interpolation[i] = Solution(field_loc[i],
-                log(current_densities[i]), log(fabs(nottingham[i])) );
-
     ch_solver.current.set_bc(current_densities);
     ch_solver.heat.set_bc(nottingham);
 }

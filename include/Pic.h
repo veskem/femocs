@@ -42,7 +42,7 @@ public:
     int update_positions();
 
     /** Write the particle data in the current state in movie file */
-    void write(const string filename, const double time) const;
+    void write(const string &filename) const;
     
     /** Store various data */
     void set_params(const Config::Field &conf_lap, const Config::PIC &conf_pic, const double _dt,

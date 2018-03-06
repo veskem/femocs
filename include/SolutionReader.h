@@ -276,6 +276,9 @@ private:
      */
     void get_field_loc();
 
+    /** Compose entry to xyz or movie file */
+    string get_data_string(const int i) const;
+
     /** Compose entry to dat file */
     string get_global_data(const bool first_line) const;
 

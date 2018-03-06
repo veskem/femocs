@@ -105,7 +105,9 @@ int Pic<dim>::run_cycle(bool first_time, bool charge_write_time) {
 }
 
 template<int dim>
-void Pic<dim>::write(const string filename, const double time) const {
+void Pic<dim>::write(const string &filename) const {
+    if (!MODES.WRITEFILE) return;
+
     string ftype = get_file_type(filename);
     require(ftype == "xyz" || ftype == "movie", "Invalid file type: " + ftype);
 
@@ -118,7 +120,7 @@ void Pic<dim>::write(const string filename, const double time) const {
     require(out.is_open(), "Can't open a file " + filename);
 
     out << max(1, electrons.size()) << endl;
-    out << "time=" << time << ", Pic properties=id:I:1:pos:R:3:Velocity:R:3:cell:I:1" << endl;
+    out << "time=" << GLOBALS.TIME << ", Pic properties=id:I:1:pos:R:3:Velocity:R:3:cell:I:1" << endl;
 
     out.setf(ios::scientific);
     out.precision(6);
