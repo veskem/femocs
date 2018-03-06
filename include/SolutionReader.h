@@ -241,19 +241,13 @@ public:
     /** Initialises class data */
     void initialize(const TetgenMesh* m);
 
-    double get_multiplier() const { return global_data.multiplier; }
-
-    void set_multiplier(double _multiplier) { global_data.multiplier = _multiplier; }
-
-	void write_data(string filename, double time);
-
     struct EmGlobalData {
-        double multiplier;      ///< Multiplier for the field for Space Charge.
-        double Jmax;    ///< Maximum current density of the emitter [in amps/A^2]
+        double multiplier;   ///< Multiplier for the field for Space Charge.
+        double Jmax;         ///< Maximum current density of the emitter [in amps/A^2]
         double Fmax = 0.;    ///< Maximum local field on the emitter [V/A]
         double Frep = 0.;    ///< Representative local field (used for space charge equation) [V/A]
         double Jrep = 0.;    ///< Representative current deinsity for space charge. [amps/A^2]
-        double I_tot = 0;   ///< Total current running through the surface [in Amps]
+        double I_tot = 0;    ///< Total current running through the surface [in Amps]
         double I_fwhm = 0;
     } global_data;
 
@@ -281,6 +275,9 @@ private:
      * Exports the local field from poisson solver (dealii) and calculates the Fmax
      */
     void get_field_loc();
+
+    /** Compose entry to dat file */
+    string get_global_data(const bool first_line) const;
 
     static constexpr double electrons_per_fs = 6.2415e3; ///< definition of 1 ampere
     static constexpr double angstrom_per_nm = 10.0;

@@ -5,8 +5,8 @@
  *      Author: veske
  */
 
-#ifndef CONSTANTS_H_
-#define CONSTANTS_H_
+#ifndef GLOBALS_H_
+#define GLOBALS_H_
 
 #include <string>
 
@@ -135,11 +135,15 @@ struct Labels {
 
 /** Flags to control the output behaviour of the code */
 struct Modes {
-    bool MUTE = false;      ///< If QUIET no information about the code execution progress is printed to console.
+    bool MUTE = false;       ///< If QUIET no information about the code execution progress is printed to console.
     bool VERBOSE = true;     ///< If VERBOSE all the information about the code execution progress is printed to console.
     bool WRITEFILE = true;   ///< If WRITEFILE then file writers operate normally, otherwise they return immediately.
     bool WRITELOG = true;    ///< If WRITELOG then writing log file is enabled
     bool PERIODIC = true;    ///< Imported atoms have periodic boundaries in x- & y-direction
+};
+
+struct Globals {
+    double TIME = 0;         ///< Simulation time in fs
 };
 
 // Small hack to define structs only once
@@ -147,11 +151,14 @@ struct Modes {
     Types TYPES;
     Modes MODES;
     Labels LABELS;
+    Globals GLOBALS;
 #else
     extern Types TYPES;
     extern Modes MODES;
     extern Labels LABELS;
+    extern Globals GLOBALS;
 #endif
 
 } /* namespace femocs */
-#endif /* CONSTANTS_H_ */
+
+#endif /* GLOBALS_H_ */

@@ -67,11 +67,10 @@ private:
     bool fail;                  ///< If some process failed
     double t0;                  ///< CPU timer
     int timestep;               ///< counter to measure how many times Femocs has been called
-    double time = 0;            ///< Keeps the time that the simulation is (synchronize stpes)
     double last_write_time = -1.e200; ///< Keeps the time that last file output was done1
     double last_heat_time = -1.e200; ///< Last time heat was updated
 
-    bool new_mesh_exists = false;          ///< True if new mesh has been created
+    bool mesh_changed = false;          ///< True if new mesh has been created
     int last_full_timestep; ///< last time step Femocs did full calculation
     string timestep_string; ///< time step written to file name
     // as surface atom->triangle mapping is quite heavy but useful in many places, it's good to prevent doing it many times
@@ -98,7 +97,7 @@ private:
 
     /** Determine if it is writing time */
     bool is_write_time(){
-        return (time > (last_write_time + conf.behaviour.write_period));
+        return (GLOBALS.TIME > (last_write_time + conf.behaviour.write_period));
     }
 
     /** Determine whether atoms have moved significantly and whether to enable file writing */

@@ -63,7 +63,7 @@ public:
 
     int update_point_cell(Point3& point, int current_cell);
 
-    InterpolatorNodes nodes;      ///< vertices and solutions on them
+    InterpolatorNodes nodes;     ///< vertices and solutions on them
     LinearTriangles lintris;      ///< data & operations for linear triangular interpolation
     LinearTetrahedra lintets;     ///< data & operations for linear tetrahedral interpolation
     QuadraticTriangles quadtris;  ///< data & operations for quadratic triangular interpolation

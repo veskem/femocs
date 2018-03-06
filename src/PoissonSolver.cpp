@@ -261,7 +261,9 @@ void PoissonSolver<dim>::assemble_poisson(const bool first_time, const bool writ
 
     assemble_space_charge();
 
-    if (write_time) this->save_rhs();
+    // save the system right-hand-side to make it possible to write space charge into file
+    if (write_time)
+        this->system_rhs_save = this->system_rhs;
 
     this->apply_dirichlet();
 }

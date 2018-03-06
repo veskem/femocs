@@ -1144,9 +1144,10 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
 
 double EmissionReader::calc_emission(const double multiplier, const Config::Emission &conf,
         double Vappl) {
-    set_multiplier(multiplier);
+
+    global_data.multiplier = multiplier;
     calc_emission(conf, Vappl);
-    return get_multiplier();
+    return global_data.multiplier;
 }
 
 void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
@@ -1180,18 +1181,19 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
     }
 }
 
-void EmissionReader::write_data(string filename, double time) {
-    ofstream out;
-    out.setf(std::ios::scientific);
-    out.precision(6);
+string EmissionReader::get_global_data(const bool first_line) const {
+    ostringstream strs;
 
-    string ftype = get_file_type(filename);
-    out.open(filename, ios_base::app);
-    require(out.is_open(), "Can't open a file " + filename);
+    // uncomment to add header to the file
+//    if (first_line) strs << "time Itot Jrep Frep Jmax Fmax multiplier";
 
-    out << time << " " << global_data.I_tot << " " << global_data.Jrep <<
-            " " << global_data.Frep << " " << global_data.Jmax << " " << global_data.Fmax <<
-            " " << global_data.multiplier << endl;
+    strs << fixed << setprecision(2)
+            << GLOBALS.TIME;
+    strs << scientific << setprecision(6)
+            << " " << global_data.I_tot << " " << global_data.Jrep << " " << global_data.Frep
+            << " " << global_data.Jmax << " " << global_data.Fmax << " " << global_data.multiplier;
+
+    return strs.str();
 }
 
 void EmissionReader::export_emission(fch::CurrentHeatSolver<3>& ch_solver) {

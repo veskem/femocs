@@ -396,9 +396,8 @@ string Medium::get_data_string(const int i) const {
 
 // Compile entry to the dat-file
 string Medium::get_global_data(const bool first_line) const {
-    static int timestep = 0;
-    if (first_line) return "time_step";
-    return to_string(timestep++);
+    if (first_line) return "time";
+    return to_string(GLOBALS.TIME);
 }
 
 // Output atom data in .xyz format

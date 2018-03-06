@@ -134,11 +134,6 @@ protected:
         system_matrix_save.copy_from(system_matrix);
     }
 
-    /** saves the system right-hand-side (useful for obtaining it before Diriclet BCs are applied) */
-    void save_rhs(){
-        system_rhs_save = system_rhs;
-    }
-
     /** Restores the system matrix to the saved one */
     void restore_system() {
         system_matrix.copy_from(system_matrix_save);
