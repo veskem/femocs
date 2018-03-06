@@ -90,7 +90,8 @@ Config::Config() {
     cfactor.amplitude = 0.4;          // coarsening factor outside the warm region
     cfactor.r0_cylinder = 0;          // minimum distance between atoms in nanotip outside the apex
     cfactor.r0_sphere = 0;            // minimum distance between atoms in nanotip apex
-
+    cfactor.exponential = 0.5;        // coarsening rate; min distance between coarsened atoms outside the warm region is
+                                      // d_min ~ pow(|r1-r2|, exponential)
     pic.run_pic = false;
     pic.dt_max = 1.0;
     pic.Wsp_el =  .01;
@@ -212,6 +213,7 @@ void Config::read_all(const string& file_name) {
     }
 
     // ...coarsening factors
+    read_command("coarse_rate", cfactor.exponential);
     args = {cfactor.amplitude, (double)cfactor.r0_cylinder, (double)cfactor.r0_sphere};
     n_read_args = read_command("coarse_factor", args);
     cfactor.amplitude = args[0];

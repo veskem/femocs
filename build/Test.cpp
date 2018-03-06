@@ -44,6 +44,7 @@ void write_defaults(ofstream &file) {
     file << "elfield = -0.1"             << endl;
     file << "interpolation_rank = 1"     << endl;
     file << "force_mode = all"           << endl;
+    file << "coarse_rate = 0.5"          << endl;
 }
 
 void write_rectangle(ofstream &file) {

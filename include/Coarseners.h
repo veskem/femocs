@@ -20,7 +20,8 @@ namespace femocs {
 class Coarsener {
 public:
     Coarsener();
-    Coarsener(const Point3 &origin, const double radius, const double A, const double r0_min=0, const double r0_max=1e20);
+    Coarsener(const Point3 &origin, const double exp, const double radius,
+            const double A, const double r0_min=0, const double r0_max=1e20);
 
     virtual ~Coarsener() {};
 
@@ -57,6 +58,7 @@ public:
 
 protected:
     Point3 origin3d;  ///< centre of the coarsener
+    double exponential; ///< exponential factor that determines coarsening rate outside the region of interest
     double cutoff2;   ///< squared cut off radius
     double radius;    ///< radius of the system
     double radius2;   ///< squared radius of the system
@@ -73,9 +75,9 @@ protected:
     double get_const_cutoff() const { return r0_min * r0_min; }
 
     /** Get cut off radius that increases with distance from origin */
-    double get_increasing_cutoff(const Point3 &point, double exp = 0.9) const {
+    double get_increasing_cutoff(const Point3 &point) const {
         double cutoff = max(0.0, origin3d.distance(point) - radius);
-        cutoff = min( r0_max, A * pow(cutoff, exp) + r0_min );
+        cutoff = min( r0_max, A * pow(cutoff, exponential) + r0_min );
         return cutoff * cutoff;
     }
 
@@ -102,7 +104,8 @@ private:
 class FlatlandCoarsener: public Coarsener {
 public:
     FlatlandCoarsener();
-    FlatlandCoarsener(const Point3 &origin, const double radius, const double A, const double r0_min=0, const double r0_max=1e20);
+    FlatlandCoarsener(const Point3 &origin, const double exponential, const double radius,
+            const double A, const double r0_min=0, const double r0_max=1e20);
 
     /** Points OUTSIDE the region will be coarsened */
     void pick_cutoff(const Point3 &point) {
@@ -125,7 +128,8 @@ private:
 class CylinderCoarsener: public Coarsener {
 public:
     CylinderCoarsener();
-    CylinderCoarsener(const Point2 &base, const double radius, const double r0_cylinder=0);
+    CylinderCoarsener(const Point2 &base, const double exponential, const double radius,
+            const double r0_cylinder=0);
 
     /** Points INSIDE the nanotip will be coarsened */
     void pick_cutoff(const Point3 &point) {
@@ -156,7 +160,8 @@ private:
 class NanotipCoarsener: public Coarsener {
 public:
     NanotipCoarsener();
-    NanotipCoarsener(const Point3 &apex, const double radius, const double A, const double r0_apex, const double r0_cylinder);
+    NanotipCoarsener(const Point3 &apex, const double exponential, const double radius,
+            const double A, const double r0_apex, const double r0_cylinder);
 
     /** Points INSIDE the nanotip will be coarsened */
     void pick_cutoff(const Point3 &point) {
@@ -187,8 +192,8 @@ private:
 class TiltedNanotipCoarsener: public NanotipCoarsener {
 public:
     TiltedNanotipCoarsener();
-    TiltedNanotipCoarsener(const Point3 &apex, const Point3 &base, const double radius, const double A,
-            const double r0_apex, const double r0_cylinder);
+    TiltedNanotipCoarsener(const Point3 &apex, const Point3 &base, const double exponential,
+            const double radius, const double A, const double r0_apex, const double r0_cylinder);
 
 private:
     const int n_circles = 4;

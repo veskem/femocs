@@ -22,6 +22,8 @@ box_height = 6                  # simulation box height [tip height]
 bulk_height = 20                # bulk substrate height [latconst]
 distance_tol = 0.16             # max rms distance atoms are allowed to move between runs before the solution is recalculated; 0 forces to recalculate every time-step
 radius = 70.0                   # inner radius of coarsening cylinder
+coarse_rate = 0.5               # factor detemining the rate atoms are coarsened outside the warm region is
+                                # the distance between coarsened atoms is proportional to pow(distance(p1,p2), rate)
 coarse_factor = 0.3 6 4         # coarsening factor; bigger number gives coarser surface
                                 # 1st - coarsening factor for atoms outside the coarsening cylinder
                                 # 2nd - minimum distance between atoms in nanotip below apex [0.25*latconst]

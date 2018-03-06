@@ -153,6 +153,7 @@ public:
         double amplitude;
         int r0_cylinder;
         int r0_sphere;
+        double exponential;
     } cfactor;
 
     /** Particle In Cell module configuration */
