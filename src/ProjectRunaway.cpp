@@ -149,7 +149,7 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
         check_return(true, "Extracting solution on atoms failed!");
     }
 
-    if (is_write_time()) write();
+//    if (is_write_time()) write();
 
     finalize();
 
@@ -407,36 +407,47 @@ int ProjectRunaway::solve_pic(double advance_time) {
 
     if (mesh_changed){
         start_msg(t0, "=== Initializing Poisson solver...");
-        poisson_solver.setup(conf.field.E0, conf.field.V0);
+        poisson_solver.setup(-conf.field.E0, conf.field.V0);
         end_msg(t0);
+        stringstream ss; ss << poisson_solver;
+        write_verbose_msg(ss.str());
     }
+
     pic_solver.set_params(conf.field, conf.pic, dt_pic, mesh->nodes.stat);
-    
+    surface_temperatures.interpolate(ch_solver);
+
     start_msg(t0, "=== Running PIC...\n");
     
     for (int i = 0; i < time_subcycle; i++) {
         int n_lost = pic_solver.update_positions();
-        int n_cg_steps = pic_solver.run_cycle(mesh_changed, is_write_time());
+//        int n_cg_steps = pic_solver.run_cycle(mesh_changed, is_write_time());
+        int n_cg_steps = pic_solver.run_cycle(i==0, false);
+
+        vacuum_interpolator.extract_solution(poisson_solver);
+        surface_fields.interpolate(ch_solver);
 
         // Set up emission input
-        if (i == 0) {
-            if (mesh_changed) surface_fields.interpolate(ch_solver);
-            surface_temperatures.interpolate(ch_solver);
-            emission.initialize(mesh);
-        }
+        if (i == 0) emission.initialize(mesh);
 
         //calculate emission and inject electrons
         emission.calc_emission(conf.emission, conf.field.V0);
         int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
         
+        if (i % conf.behaviour.n_writefile == 0) {
+            pic_solver.write("out/electrons.movie");
+            surface_fields.write("out/surface_fields.movie");
+            emission.write("out/emission.dat");
+            emission.write("out/emission.movie");
+        }
+
         if (MODES.VERBOSE)
-            printf("t=%.2f fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
+            printf("  t=%.2f fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
                     GLOBALS.TIME, n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot, n_injected,
                     n_lost, pic_solver.get_n_electrons());
 
         GLOBALS.TIME += dt_pic;
 
-        if (is_write_time()) write();
+//        if (is_write_time()) write();
     }
     
     end_msg(t0);

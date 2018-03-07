@@ -434,8 +434,7 @@ void Medium::write_ckx(ofstream &out, const int n_atoms) const {
 
 // Output single line of data
 void Medium::write_dat(ofstream &out) const {
-    if (out.tellp() == 0) out << get_global_data(true) << endl;
-    out << get_global_data(false) << endl;
+    out << get_global_data(out.tellp() == 0) << endl;
 }
 
 // Get scalar and vector data associated with vtk cells

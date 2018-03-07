@@ -926,7 +926,8 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     mesh = m;
 
     int n_nodes = fields->size();
-    require(n_nodes > 0, "EmissionReader can't use empty dependencies!");
+
+    require(n_nodes > 0, "EmissionReader can't use empty fields!");
 
     atoms = fields->atoms;
 
@@ -941,7 +942,7 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     Vline.resize(n_lines);
 
     // find Fmax
-    get_loc_field();
+    get_loc_field_new();
 
     //Initialise data
     global_data.Jmax = 0.;
@@ -1033,6 +1034,7 @@ void EmissionReader::calc_representative() {
     global_data.Frep = global_data.multiplier * FJ / global_data.I_fwhm;
 }
 
+// sometimes it fails, as the point might be outside the mesh
 void EmissionReader::get_loc_field() {
 
     global_data.Fmax = 0;
@@ -1050,6 +1052,14 @@ void EmissionReader::get_loc_field() {
     }
 }
 
+void EmissionReader::get_loc_field_new() {
+    global_data.Fmax = 0;
+    for (int i = 0; i < fields->size(); ++i) {
+        field_loc[i] = fields->get_elfield(i);
+        global_data.Fmax = max(global_data.Fmax, fields->get_elfield_norm(i));
+    }
+}
+
 void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) {
 
     struct emission gt;
@@ -1058,7 +1068,7 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
     gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
     double F, J;    // Local field and current density in femocs units (Angstrom)
 
-    get_loc_field();
+    get_loc_field_new();
 
     for (int i = 0; i < fields->size(); ++i) { // go through all face centroids
 
@@ -1154,8 +1164,8 @@ string EmissionReader::get_data_string(const int i) const {
 string EmissionReader::get_global_data(const bool first_line) const {
     ostringstream strs;
 
-    // uncomment to add header to the file
-//    if (first_line) strs << "time Itot Jrep Frep Jmax Fmax multiplier";
+    // specify data header
+//    if (first_line) strs << "time Itot Jrep Frep Jmax Fmax multiplier" << endl;
 
     strs << fixed << setprecision(2)
             << GLOBALS.TIME;

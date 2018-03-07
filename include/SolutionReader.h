@@ -275,6 +275,7 @@ private:
      * Exports the local field from poisson solver (dealii) and calculates the Fmax
      */
     void get_loc_field();
+    void get_loc_field_new();
 
     /** Compose entry to xyz or movie file */
     string get_data_string(const int i) const;

@@ -25,7 +25,7 @@ void print_progress(const string& message, const bool contition) {
 void write_defaults(ofstream &file) {
     file << "mesh_quality = 1.8"         << endl;
     file << "heating_mode = none"        << endl;
-    file << "write_log = true"           << endl;
+    file << "write_log = false"           << endl;
     file << "clear_output = true"        << endl;
     file << "surface_smooth_factor= 0.1" << endl;
     file << "charge_smooth_factor = 1.0" << endl;
@@ -183,13 +183,36 @@ void write_tip111(ofstream &file) {
     file << "radius = 45.0"            << endl;
 }
 
-void write_generate(ofstream &file) {
-    file << "infile = in/nanotip_small.xyz" << endl;
-    file << "coarse_factor = 0.2 1 1"  << endl;
+void write_generate(ofstream &file, string seed, string voltage) {
+    file << "coarse_factor = 0.38 6 2"  << endl;
     file << "radius = 31.0"            << endl;
     file << "box_width = 10.0"         << endl;
     file << "box_height = 10.0"        << endl;
+    file << "bulk_height = 10.0"        << endl;
+
     file << "clean_surface = false"   << endl;
+    file << "smooth_steps = 0"           << endl;
+    file << "force_mode = none"          << endl;
+    file << "coarse_rate = 0.5"          << endl;
+    file << "seed = " << seed            << endl;
+
+    file << "n_writefile = 2"            << endl;
+
+    file << "Vappl = " << voltage        << endl;
+    file << "anode_BC = dirichlet"       << endl;
+//    file << "anode_BC = neumann"       << endl;
+//    file << "elfield = -0.35"             << endl;
+    file << "heating_mode = none"   << endl;
+    file << "field_solver = poisson"     << endl;
+    file << "run_pic = true"               << endl;
+
+    file << "pic_dtmax = 1.0"              << endl;
+    file << "femocs_run_time = 50"          << endl;
+    file << "pic_fractional_push = true"   << endl;
+    file << "pic_collide_coulomb_ee = false" << endl;
+    file << "electronWsp = 0.0002"         << endl;
+    file << "emitter_blunt = true"         << endl;
+    file << "emitter_cold = true"          << endl;
 }
 
 void read_xyz(const string &file_name, double* x, double* y, double* z) {
@@ -296,8 +319,22 @@ int main(int argc, char **argv) {
         else if (mode == "cluster")   write_cluster(file);
         else if (mode == "molten")    write_molten(file);
         else if (mode == "moltenbig") write_moltenbig(file);
-        else if (mode == "generate")  write_generate(file);
         else if (mode == "wobble")    write_wobble(file);
+
+        else if (mode == "generate") {
+            if (argc >= 4) {
+                sscanf(argv[2], "%s", arg);
+                string seed = string(arg);
+                sscanf(argv[3], "%s", arg);
+                string voltage = string(arg);
+
+                write_generate(file, seed, voltage);
+            }
+            else {
+                cout << "Seed or voltage missing!" << endl;
+                exit(0);
+            }
+        }
 
         else {
             printf("Usage:\n");
@@ -342,9 +379,9 @@ int main(int argc, char **argv) {
 
     // determine number of iterations
     int n_iterations = 1;
-    if (argc >= 3) {
-        n_iterations = atoi(argv[2]);
-    }
+//    if (argc >= 3) {
+//        n_iterations = atoi(argv[2]);
+//    }
 
     int n_atoms = 0;
     read_n_atoms(infile, n_atoms);
@@ -366,20 +403,17 @@ int main(int argc, char **argv) {
     for (int i = 1; i <= n_iterations; ++i) {
         if (n_iterations > 1) cout << "\n> iteration " << i << endl;
 
-        if (mode == "generate") {
-            if (argc >= 3)
-                success += femocs.generate_nanotip(0, 30, atof(argv[2]));
-            else
-                success += femocs.generate_nanotip(0, 30);
-        } else if (mode == "wobble")
+        if (mode == "generate")
+            success += femocs.generate_nanotip(3, 30);
+        else if (mode == "wobble")
             success += femocs.import_atoms(infile, true);
         else
             success += femocs.import_atoms(infile);
 
         success += femocs.run();
-        success += femocs.export_elfield(0, Ex, Ey, Ez, En);
+//        success += femocs.export_elfield(0, Ex, Ey, Ez, En);
 //        success += femocs.export_temperature(n_atoms, T);
-        success += femocs.export_charge_and_force(n_atoms, xq);
+//        success += femocs.export_charge_and_force(n_atoms, xq);
 //        success += femocs.interpolate_elfield(n_atoms, x, y, z, Ex, Ey, Ez, En, flag);
 //        success += femocs.interpolate_phi(n_atoms, x, y, z, phi, flag);
     }
