@@ -61,7 +61,9 @@ public:
     /** Extract charge density from FEM solution */
     void extract_charge_density(fch::PoissonSolver<3>& fem);
 
-    int update_point_cell(Point3& point, int current_cell);
+    /** Find the hexahedron where the point is located.
+     * Both input and output hex indices are Deal.II ones. */
+    int update_point_cell(const Point3& point, const int current_cell) const;
 
     InterpolatorNodes nodes;     ///< vertices and solutions on them
     LinearTriangles lintri;      ///< data & operations for linear triangular interpolation

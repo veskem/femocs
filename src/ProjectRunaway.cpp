@@ -31,7 +31,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         ch_solver(&phys_quantities, &config.heating),
 
         emission(&surface_fields, &surface_temperatures, &poisson_solver, &vacuum_interpolator),
-        pic_solver(&poisson_solver, &ch_solver, &vacuum_interpolator, &emission)
+        pic_solver(&poisson_solver, &ch_solver, &emission, conf.behaviour.rnd_seed)
 {
     fields.set_interpolator(&vacuum_interpolator);
     temperatures.set_interpolator(&bulk_interpolator);

@@ -941,7 +941,7 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     Vline.resize(n_lines);
 
     // find Fmax
-    get_field_loc();
+    get_loc_field();
 
     //Initialise data
     global_data.Jmax = 0.;
@@ -1033,44 +1033,7 @@ void EmissionReader::calc_representative() {
     global_data.Frep = global_data.multiplier * FJ / global_data.I_fwhm;
 }
 
-void EmissionReader::inject_electrons(double delta_t, double Wsp, vector<Point3> &pos, vector<int> &cells) {
-
-    for (int i = 0; i < fields->size(); ++i){ // go through face centroids
-        double current = currents[i] * electrons_per_fs;
-        double charge = current * delta_t; //in e
-        double n_sps = charge / Wsp;
-
-        int intpart = (int) floor(n_sps);
-        double frpart = n_sps - intpart;
-        int n_electrons_sp = intpart;
-
-        if ((double) rand() / RAND_MAX < frpart)
-            n_electrons_sp++;
-
-        if (n_electrons_sp == 0) continue;
-
-        //TODO : fix rng
-
-        int quad = abs(fields->get_marker(i));
-        int tri = mesh->quads.to_tri(quad);
-        int hex = mesh->quad2hex(quad, TYPES.VACUUM);
-        hex = interpolator->linhex.femocs2deal(hex);
-        SimpleQuad squad = mesh->quads[quad];
-
-        // generate desired amount of electrons
-        // that are uniformly distributed on a given quadrangle
-        for (int j = 0; j < n_electrons_sp; j++){
-            Point3 position = interpolator->linquad.get_rnd_point(quad);
-            // push point little bit inside the vacuum mesh
-            position += mesh->tris.get_norm(tri) * (mesh->tris.stat.edgemin * 1.e-5);
-
-            pos.push_back(position);
-			cells.push_back(hex);
-        }
-    }
-}
-
-void EmissionReader::get_field_loc(){
+void EmissionReader::get_loc_field() {
 
     global_data.Fmax = 0;
 
@@ -1085,7 +1048,6 @@ void EmissionReader::get_field_loc(){
         field_loc[i] = Vec3(Fdealii);
         global_data.Fmax = max(global_data.Fmax, field_loc[i].norm());
     }
-
 }
 
 void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) {
@@ -1096,7 +1058,7 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
     gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
     double F, J;    // Local field and current density in femocs units (Angstrom)
 
-    get_field_loc();
+    get_loc_field();
 
     for (int i = 0; i < fields->size(); ++i) { // go through all face centroids
 

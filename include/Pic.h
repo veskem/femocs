@@ -11,23 +11,24 @@
 #include "Interpolator.h"
 #include "SolutionReader.h"
 #include "Config.h"
+#include "TetgenMesh.h"
 #include "TetgenCells.h"
 #include "Primitives.h"
 #include "ParticleSpecies.h"
 #include "PicCollisions.h"
 #include "DealSolver.h"
-#include <deal.II/base/point.h>
-#include <algorithm>
 #include "CurrentHeatSolver.h"
 #include "PoissonSolver.h"
+
+#include <random>
 
 namespace femocs {
 
 template<int dim>
 class Pic {
 public:
-    Pic(fch::PoissonSolver<dim> *poisson_solver, fch::CurrentHeatSolver<3> *ch_solver,
-            Interpolator *interpolator, EmissionReader *er);
+    Pic(fch::PoissonSolver<dim> *poisson_solver, const fch::CurrentHeatSolver<3> *ch_solver,
+            const EmissionReader *emission, const unsigned int seed);
     ~Pic() {};
 
     /** Inject electrons according to the field emission surface distribution */
@@ -67,23 +68,27 @@ private:
     static constexpr double e_over_m_e_factor = 17.58820024182468;
     /// particle charge [e] / epsilon_0 [e/VÅ] = 1 [e] * (8.85e-12 / 1.6e-19/1e10 [e/VÅ])**-1
     static constexpr double e_over_eps0 = 180.9512268;
+    /// definition of 1 ampere
+    static constexpr double electrons_per_fs = 6.2415e3;
 
     //Parameters
     double Wel = .01;   ///< Super particle weighting [particles/superparticle]
     double dt = 1.;     ///< timestep [fs]
     double E0 = -1;     ///< Applied field at Neumann boundary [V/Å]
     double V0 = 1000;   ///< Applied voltage (in case Dirichlet boundary at anode) [V]
-    string anodeBC = "Neumann"; ///< Boundary type at the anode
-    bool coll_coulomb_ee;       ///< Switch 2e->2e Coulomb collisions on/off
+    string anodeBC = "Neumann";     ///< Boundary type at the anode
+    bool coll_coulomb_ee = false;   ///< Switch 2e->2e Coulomb collisions on/off
 
-    fch::PoissonSolver<dim> *poisson_solver; ///< object to solve Poisson equation in the vacuum mesh
-    fch::CurrentHeatSolver<3> *ch_solver;    ///< transient currents and heating solver
-    Interpolator *interpolator;
-    EmissionReader *er;                     ///< object to calculate the emission data
+    fch::PoissonSolver<dim> *poisson_solver;      ///< object to solve Poisson equation in the vacuum mesh
+    const fch::CurrentHeatSolver<3> *ch_solver;   ///< transient currents and heating solver
+    const EmissionReader *emission;               ///< object to obtain the field emission data
+    const Interpolator *interpolator;       ///< data & operation for interpolating in vacuum
     TetgenNodes::Stat box;                  ///< simubox size data
     
     ParticleSpecies electrons = ParticleSpecies(-e_over_m_e_factor, -e_over_eps0, Wel);
 
+    mt19937 mersenne;     ///< Mersenne twister pseudo-random number engine
+    uniform_real_distribution<double> uniform{0.0, 1.0};  ///< Random nr generator that maps Mersenne twister output uniformly into range [0.0 1.0] (both inclusive)
 
     /** Clear all particles out of the box */
     void clear_lost_particles();
@@ -93,6 +98,12 @@ private:
 
     /** Computes the charge density for each FEM DOF */
     void compute_field(bool first_time = false, bool write_time = false);
+
+    /** Inject electron super particles at the surface faces, depending on the current and the timestep */
+    int inject_electrons(vector<Point3> &pos, vector<int> &cells, const TetgenMesh &mesh);
+
+    /** Generate point with an uniform distribution inside a quadrangle */
+    Point3 get_rnd_point(const int quad, const TetgenMesh &mesh);
 };
 
 } // namespace femocs

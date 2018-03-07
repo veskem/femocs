@@ -24,6 +24,7 @@ Config::Config() {
     behaviour.interpolation_rank = 1; // rank of the solution interpolation; 1-linear, 2-quadratic
     behaviour.write_period = 1.e5;    // write files every write_period of time
     behaviour.total_time = 4.05;      // Total time of a FEMOCS run [fs]
+    behaviour.rnd_seed = 12345;       // Seed for random number generator
 
     run.cluster_anal = true;          // enable cluster analysis
     run.apex_refiner = false;         // refine nanotip apex
@@ -178,6 +179,7 @@ void Config::read_all(const string& file_name) {
     read_command("interpolation_rank", behaviour.interpolation_rank);
     read_command("write_period", behaviour.write_period);
     read_command("femocs_run_time", behaviour.total_time);
+    read_command("seed", behaviour.rnd_seed);
 
     read_command("distance_tol", tolerance.distance);
 
@@ -298,6 +300,20 @@ int Config::read_command(string param, bool& arg) {
             if (is1 >> std::boolalpha >> result) { arg = result; return 0; }
             // try to parse the bool argument in numeric format
             else if (is2 >> result) { arg = result; return 0; }
+            return 1;
+        }
+    return 1;
+}
+
+// Look up the parameter with unsigned integer argument
+int Config::read_command(string param, unsigned int& arg) {
+    // force the parameter to lower case
+    std::transform(param.begin(), param.end(), param.begin(), ::tolower);
+    // loop through all the commands that were found from input script
+    for (const vector<string>& str : data)
+        if (str.size() >= 2 && str[0] == param) {
+            istringstream is(str[1]); int result;
+            if (is >> result) { arg = result; return 0; }
             return 1;
         }
     return 1;

@@ -30,6 +30,9 @@ public:
     /** Look up the configuration parameter with boolean argument */
     int read_command(string param, bool& arg);
 
+    /** Look up the configuration parameter with unsigned integer argument */
+    int read_command(string param, unsigned int& arg);
+
     /** Look up the configuration parameter with integer argument */
     int read_command(string param, int& arg);
 
@@ -55,6 +58,7 @@ public:
         int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear, 2-quadratic
         double write_period;        ///< Write files every write_period (in fs)
         double total_time;          ///< Total time evolution within a FEMOCS run call [fs]
+        unsigned int rnd_seed;      ///< Seed for random number generator
     } behaviour;
 
     /** Enable or disable various support features */

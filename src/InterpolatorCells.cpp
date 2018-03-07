@@ -5,8 +5,8 @@
  *      Author: veske
  */
 
-#include <float.h>
 #include "InterpolatorCells.h"
+#include <float.h>
 
 namespace femocs {
 
@@ -1827,45 +1827,6 @@ int LinearQuadrangles::locate_cell(const Point3 &point, const int cell_guess) co
         return sign * (n_quads_per_tri * tri + 2);
 
     return -1;
-}
-
-Point3 LinearQuadrangles::get_rnd_point(const int quad) const {
-    require(quad >= 0 && quad < size(), "Invalid quadrangle: " + to_string(quad));
-    const int tri = quads->to_tri(quad);
-    const int section = quad % quads->n_quads_per_tri;
-
-    int i, j, k;
-    if (section == 0) {
-        i = 0; j = 1; k = 2;
-    } else if (section == 1) {
-        i = 1; j = 2; k = 0;
-    } else {
-        i = 2; j = 0; j = 1;
-    }
-
-    SimpleFace sface = mesh->tris[tri];
-    Vec3 node0 = mesh->nodes.get_vec(sface[i]);
-    Vec3 edge1 = (mesh->nodes.get_vec(sface[j]) - node0) * 0.5;
-    Vec3 edge2 = (mesh->nodes.get_vec(sface[k]) - node0) * 0.5;
-
-    array<double,3> bcc;
-
-    // loop until desired point is found
-    for (int safe_cntr = 0; safe_cntr < 100; ++safe_cntr) {
-        // Generate random point inside parallelogram composed of edge1 & edge2
-        double rand1 = (double) rand() / RAND_MAX;
-        double rand2 = (double) rand() / RAND_MAX;
-        Point3 point = node0 + edge1 * rand1 + edge2 * rand2;
-
-        // calculate barycentric coordinates for a point
-        lintri->get_shape_functions(bcc, point, tri);
-
-        if (bcc[i] >= bcc[j] && bcc[i] >= bcc[k])
-            return point;
-    }
-
-    write_verbose_msg("Random point generation failed for cell " + to_string(quad));
-    return mesh->quads.get_centroid(quad);
 }
 
 template class InterpolatorCells<3> ;

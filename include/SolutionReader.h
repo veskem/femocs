@@ -216,6 +216,9 @@ public:
 private:
 };
 
+// forward declaration of Pic for declaring it as a friend
+template<int dim> class Pic;
+
 /** Class to calculate field emission effects with GETELEC */
 class EmissionReader: public SolutionReader {
 public:
@@ -234,9 +237,6 @@ public:
     double calc_emission(const double multiplier, const Config::Emission &conf, double Vappl);
 
     void export_emission(fch::CurrentHeatSolver<3>& ch_solver);
-
-    /** Injects electron SPs at the surface faces, depending on the current and the timestep */
-    void inject_electrons(double delta_t, double Wsp, vector<Point3> &pos, vector<int> &cells);
 
     /** Initialises class data */
     void initialize(const TetgenMesh* m);
@@ -274,7 +274,7 @@ private:
     /**
      * Exports the local field from poisson solver (dealii) and calculates the Fmax
      */
-    void get_field_loc();
+    void get_loc_field();
 
     /** Compose entry to xyz or movie file */
     string get_data_string(const int i) const;
@@ -282,7 +282,6 @@ private:
     /** Compose entry to dat file */
     string get_global_data(const bool first_line) const;
 
-    static constexpr double electrons_per_fs = 6.2415e3; ///< definition of 1 ampere
     static constexpr double angstrom_per_nm = 10.0;
     static constexpr double nm2_per_angstrom2 = 0.01;
     static constexpr int n_lines = 32; ///< Number of points in the line for GETELEC
@@ -299,6 +298,8 @@ private:
 
     vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
     vector<double> Vline;   ///< Potential on the straight line (complements rline)
+
+    friend class Pic<3>;   // for convenience, allow Pic-class to access private data
 };
 
 /** Class to calculate charges from electric field */
