@@ -29,7 +29,7 @@ Interpolator::Interpolator(const string& nl, const string& sl) :
 // surrounding hexahedral nodes
 bool Interpolator::average_sharp_nodes(const bool vacuum) {
 
-    return false;
+//    return false;
     vector<vector<unsigned int>> nborlist;
     mesh->calc_pseudo_3D_vorocells(nborlist, vacuum);
 

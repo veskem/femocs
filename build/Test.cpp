@@ -70,7 +70,7 @@ void write_heating_small(ofstream &file) {
     file << "box_height = 3.5"           << endl;
 
     file << "elfield = -0.3"             << endl;
-    file << "heating_mode = converge"    << endl;
+    file << "heating_mode = transient"    << endl;
     file << "field_solver = laplace"     << endl;
 }
 

@@ -72,7 +72,13 @@ int ProjectRunaway::finalize() {
     start_msg(t0, "=== Saving atom positions...");
     reader.save_current_run_points(conf.tolerance.distance);
     end_msg(t0);
+
     last_full_timestep = timestep;
+
+    // In case no transient simulations (time has stayed the same) advance the time
+    if (!conf.pic.run_pic && conf.heating.mode == "none")
+        GLOBALS.TIME += conf.behaviour.total_time;
+
     return 0;
 }
 
@@ -130,14 +136,12 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
     }
 
     int ccg, hcg;
-    if (!skip_meshing && solve_transient_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, ccg, hcg)) {
-        force_output();
-        check_return(true, "Solving heat & continuity equation failed!");
+    if (mesh_changed && conf.heating.mode == "transient") {
+        if (solve_transient_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, ccg, hcg)) {
+            force_output();
+            check_return(true, "Solving heat & continuity equation failed!");
+        }
     }
-
-    // In case no transient simulations (time has stayed the same) advance the time
-    if (!conf.pic.run_pic && conf.heating.mode == "none")
-        GLOBALS.TIME += conf.behaviour.total_time;
 
     //***** Prepare for data export and next run *****
     if (prepare_export()) {
@@ -258,7 +262,6 @@ int ProjectRunaway::generate_mesh() {
     new_mesh->quads.write("out/quadmesh.vtk");
     new_mesh->hexs.write("out/hexmesh.vtk");
     new_mesh->write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
-    new_mesh->tris.write("out/hexmesh_faces.vtk");
 
     // update mesh pointers
     static bool odd_run = true;
@@ -427,7 +430,7 @@ int ProjectRunaway::solve_pic(double advance_time) {
         int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
         
         if (MODES.VERBOSE)
-            printf("t=%f fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
+            printf("t=%.2f fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
                     GLOBALS.TIME, n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot, n_injected,
                     n_lost, pic_solver.get_n_electrons());
 
@@ -458,9 +461,10 @@ int ProjectRunaway::solve_transient_heat(const double T_ambient, const double de
         surface_temperatures.interpolate(ch_solver);
         emission.initialize(mesh);
         emission.calc_emission(conf.emission, conf.field.V0);
-        emission.export_emission(ch_solver);
         end_msg(t0);
     }
+
+    emission.export_emission(ch_solver);
 
     start_msg(t0, "=== Calculating current density...");
     ch_solver.current.assemble();

@@ -105,7 +105,7 @@ Point3 Pic<dim>::get_rnd_point(const int quad, const TetgenMesh &mesh) {
     } else if (section == 1) {
         i = 1; j = 2; k = 0;
     } else {
-        i = 2; j = 0; j = 1;
+        i = 2; j = 0; k = 1;
     }
 
     SimpleFace sface = mesh.tris[tri];
