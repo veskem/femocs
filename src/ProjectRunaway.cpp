@@ -115,7 +115,11 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
     //***** Run FEM solvers *****
 
     if (conf.field.solver == "poisson") { // solver Poisson equation - run PIC
-        if (solve_pic(conf.behaviour.total_time)) {
+//        if (solve_pic(conf.behaviour.total_time)) {
+//            force_output();
+//            check_return(true, "Solving PIC failed!");
+//        }
+        if (solve_pic_converge()) {
             force_output();
             check_return(true, "Solving PIC failed!");
         }
@@ -466,6 +470,83 @@ int ProjectRunaway::solve_pic(double advance_time) {
     //8. Give the heat- and current fluxes to the temperature solver.
     // TODO LATER
 }
+
+
+int ProjectRunaway::solve_pic_converge() {
+    // Store parameters for comparing the results with analytical hemi-ellipsoid results
+    fields.set_check_params(conf.field.E0, conf.tolerance.field_min, conf.tolerance.field_max,
+            conf.geometry.radius, dense_surf.sizes.zbox);
+
+    double dt_pic = conf.pic.dt_max;
+
+    if (new_mesh_exists){
+        start_msg(t0, "=== Initializing Poisson solver...");
+        poisson_solver.setup(conf.field.E0, conf.field.V0);
+        end_msg(t0);
+    }
+    pic_solver.set_params(conf.field, conf.pic, dt_pic, mesh->nodes.stat);
+
+
+    double time_save = time;
+
+    start_msg(t0, "=== Running PIC...\n");
+
+    double Icum = 0., Imean = 0., Imean_prev = 0.;
+    int N_reinit = 30, i_reinit = 0;
+
+    for (int i = 0; i < 2000; i++) {
+        int n_lost = pic_solver.update_positions();
+        int n_cg_steps = pic_solver.run_cycle(new_mesh_exists, is_write_time());
+
+
+        // Set up emission input
+        if (i == 0) {
+            if (new_mesh_exists) surface_fields.interpolate(ch_solver);
+            surface_temperatures.interpolate(ch_solver);
+            emission.initialize(mesh);
+        }
+
+        //calculate emission and inject electrons
+        emission.calc_emission(conf.emission, conf.field.V0);
+        int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
+
+
+        if (MODES.VERBOSE)
+            printf("t= %f fs, #CG =%d, Imean=%.3e A, Itot=%.3e A #e|inj|del|tot=%d|%d|%d\n",
+                    i * dt_pic, n_cg_steps, Imean, emission.global_data.I_tot, n_injected,
+                    n_lost, pic_solver.get_n_electrons());
+
+
+        if (i_reinit++ == N_reinit){
+            cout << "REINIT..." << endl;
+            Icum = 0;
+            i_reinit = 1;
+            write();
+            if (fabs(Imean - Imean_prev) < Imean * 1.e-3){
+                time = time_save;
+                return 0;
+            }
+            Imean_prev = Imean;
+
+        }
+        Icum += emission.global_data.I_tot;
+        Imean = Icum / (i_reinit);
+        time += dt_pic;
+
+    }
+
+    end_msg(t0);
+    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
+            "Field enhancement is out of limits!");
+
+    return 0;
+
+    //7. Save ions and neutrals that are inbound on the MD domain somewhere where the MD can find them
+    // TODO LATER
+    //8. Give the heat- and current fluxes to the temperature solver.
+    // TODO LATER
+}
+
 
 
 int ProjectRunaway::solve_transient_heat(const double T_ambient, const double delta_time, int& ccg, int& hcg) {
