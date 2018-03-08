@@ -489,10 +489,8 @@ int ProjectRunaway::solve_pic_converge() {
 
     double time_save = time;
 
-    start_msg(t0, "=== Running PIC...\n");
-
     double Icum = 0., Imean = 0., Imean_prev = 0.;
-    int N_reinit = 30, i_reinit = 0;
+    int N_reinit = 50, i_reinit = 0;
 
     for (int i = 0; i < 2000; i++) {
         int n_lost = pic_solver.update_positions();
@@ -512,9 +510,10 @@ int ProjectRunaway::solve_pic_converge() {
 
 
         if (MODES.VERBOSE)
-            printf("t= %f fs, #CG =%d, Imean=%.3e A, Itot=%.3e A #e|inj|del|tot=%d|%d|%d\n",
+            printf("t= %f fs, #CG= %d, Imean= %.3e A, Itot= %.3e A #e|inj|del|tot=%d|%d|%d\n",
                     i * dt_pic, n_cg_steps, Imean, emission.global_data.I_tot, n_injected,
                     n_lost, pic_solver.get_n_electrons());
+        emission.write_data("out/emission_data.dat", i * dt_pic);
 
 
         if (i_reinit++ == N_reinit){
