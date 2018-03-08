@@ -42,12 +42,9 @@ public:
     int run(const int timestep=-1);
 
     /** Function to generate artificial nanotip without crystallographic features
-     * @param height      height of the tip sides in units of radius; the total tip height is therefore (height + 1)*radius; negative value makes open void instead of tip
-     * @param radius      radius of the tip; if not specified, its value is taken from the configuration script
-     * @param resolution  distance between the atoms; if not specified, its value will be equal to lattice constant
      * @return            success of the operation (always 0)
      */
-    int generate_nanotip(const double height, const double radius=-1, const double resolution=-1);
+    int generate_nanotip();
 
     /** Function to import atoms from PARCAS
      * @param n_atoms       number of imported atoms

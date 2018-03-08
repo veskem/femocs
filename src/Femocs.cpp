@@ -68,17 +68,14 @@ int Femocs::run(const double elfield, const string &timestep) {
 }
 
 // Generate artificial nanotip
-int Femocs::generate_nanotip(const double height, const double radius, const double resolution) {
+int Femocs::generate_nanotip() {
     clear_log();
 
-    double res = conf.geometry.latconst;
-    if (resolution > 0) res = resolution;
-
-    double r = conf.geometry.radius - res;
-    if (radius > 0) r = radius;
+    double r = conf.geometry.radius;
+    conf.geometry.radius += 0.01*conf.geometry.latconst;
 
     start_msg(t0, "=== Generating nanotip...");
-    reader.generate_nanotip(height, r, res);
+    reader.generate_nanotip(conf.geometry.height, r, conf.geometry.latconst);
     reader.calc_coordinations(conf.geometry.nnn);
     end_msg(t0);
     write_verbose_msg( "#input atoms: " + to_string(reader.size()) );

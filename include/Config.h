@@ -87,6 +87,7 @@ public:
 
         /// Radius of cylinder where surface atoms are not coarsened; 0 enables coarsening of all atoms
         double radius;
+        double height;              ///< height of generated artificial nanotip in the units of radius
     } geometry;
 
     /** All kind of tolerances */

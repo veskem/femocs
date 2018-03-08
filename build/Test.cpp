@@ -183,10 +183,13 @@ void write_tip111(ofstream &file) {
     file << "radius = 45.0"            << endl;
 }
 
-void write_generate(ofstream &file, string seed, string voltage) {
-    file << "coarse_factor = 0.38 6 2"  << endl;
-    file << "radius = 31.0"            << endl;
-    file << "box_width = 10.0"         << endl;
+void write_generate(ofstream &file, string params="") {
+    file << params << endl;
+
+    file << "coarse_factor = 0.38 6 2" << endl;
+    file << "radius = 30"              << endl;
+    file << "tip_height = 3"           << endl;
+    file << "box_width = 7.0"         << endl;
     file << "box_height = 10.0"        << endl;
     file << "bulk_height = 10.0"        << endl;
 
@@ -194,11 +197,11 @@ void write_generate(ofstream &file, string seed, string voltage) {
     file << "smooth_steps = 0"           << endl;
     file << "force_mode = none"          << endl;
     file << "coarse_rate = 0.5"          << endl;
-    file << "seed = " << seed            << endl;
 
     file << "n_writefile = 2"            << endl;
 
-    file << "Vappl = " << voltage        << endl;
+    file << "seed = 12345"               << endl;
+    file << "Vappl = 200"                << endl;
     file << "anode_BC = dirichlet"       << endl;
 //    file << "anode_BC = neumann"       << endl;
 //    file << "elfield = -0.35"             << endl;
@@ -207,7 +210,7 @@ void write_generate(ofstream &file, string seed, string voltage) {
     file << "run_pic = true"               << endl;
 
     file << "pic_dtmax = 1.0"              << endl;
-    file << "femocs_run_time = 50"          << endl;
+    file << "femocs_run_time = 30"          << endl;
     file << "pic_fractional_push = true"   << endl;
     file << "pic_collide_coulomb_ee = false" << endl;
     file << "electronWsp = 0.0002"         << endl;
@@ -295,7 +298,7 @@ int main(int argc, char **argv) {
 
     // read the running mode
     if (argc >= 2) {
-        filename = "tmpfile";
+        filename = "md.in.tmp";
 
         sscanf(argv[1], "%s", arg);
         mode = string(arg);
@@ -322,17 +325,28 @@ int main(int argc, char **argv) {
         else if (mode == "wobble")    write_wobble(file);
 
         else if (mode == "generate") {
-            if (argc >= 4) {
-                sscanf(argv[2], "%s", arg);
-                string seed = string(arg);
-                sscanf(argv[3], "%s", arg);
-                string voltage = string(arg);
-
-                write_generate(file, seed, voltage);
-            }
+            if (argc == 2)
+                write_generate(file);
             else {
-                cout << "Seed or voltage missing!" << endl;
-                exit(0);
+                const int n_params = 4;
+                if (argc - 2 != n_params) {
+                    cout << "Invalid # parameters: " << argc - 2 << endl;
+                    cout << "Valid is 0 or " << n_params << endl;
+                    exit(0);
+                }
+
+                string params = "";
+
+                sscanf(argv[2], "%s", arg);
+                params += "seed = " + string(arg) + "\n";
+                sscanf(argv[3], "%s", arg);
+                params += "Vappl = " + string(arg) + "\n";
+                sscanf(argv[4], "%s", arg);
+                params += "tip_height = " + string(arg) + "\n";
+                sscanf(argv[5], "%s", arg);
+                params += "latconst = " + string(arg) + "\n";
+
+                write_generate(file, params);
             }
         }
 
@@ -360,7 +374,6 @@ int main(int argc, char **argv) {
             printf("  wobble      read small MD nanotip and add random noise to emulate real MD simulation\n");
 
             file.close();
-            success = system("rm -rf tmpfile");
             exit(0);
         }
 
@@ -371,7 +384,7 @@ int main(int argc, char **argv) {
     cout << "\n> running FEMOCS test program in a mode:  " << mode << endl;
 
     femocs::Femocs femocs(filename);
-    success = system("rm -rf tmpfile");
+    success = system("rm -rf md.in.tmp");
 
     string cmd1 = "infile"; string infile = "";
     success = femocs.parse_command(cmd1, infile);
@@ -404,7 +417,7 @@ int main(int argc, char **argv) {
         if (n_iterations > 1) cout << "\n> iteration " << i << endl;
 
         if (mode == "generate")
-            success += femocs.generate_nanotip(3, 30);
+            success += femocs.generate_nanotip();
         else if (mode == "wobble")
             success += femocs.import_atoms(infile, true);
         else

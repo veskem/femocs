@@ -45,6 +45,7 @@ Config::Config() {
     geometry.box_height = 6;          // simulation box height in units of tip height
     geometry.bulk_height = 20;        // bulk substrate height [lattice constant]
     geometry.radius = 0.0;            // inner radius of coarsening cylinder
+    geometry.height = 0.0;            // height of generated artificial nanotip in the units of radius
 
     tolerance.charge_min = 0.8;       // min ratio face charges are allowed to deviate from the total charge
     tolerance.charge_max = 1.2;       // max ratio face charges are allowed to deviate from the total charge
@@ -158,6 +159,7 @@ void Config::read_all(const string& file_name) {
     read_command("mesh_quality", geometry.mesh_quality);
     read_command("element_volume", geometry.element_volume);
     read_command("radius", geometry.radius);
+    read_command("tip_height", geometry.height);
     read_command("box_width", geometry.box_width);
     read_command("box_height", geometry.box_height);
     read_command("bulk_height", geometry.bulk_height);
