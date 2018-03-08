@@ -168,6 +168,8 @@ public:
 
     Solution interp_solution_v2(const Point3 &point, const int cell) const;
 
+    Vec3 interp_gradient(const Point3 &point, const int c) const;
+
     /** Modify cell marker */
     void set_marker(const int i, const int m) {
         require(i >= 0 && i < markers.size(), "Invalid index: " + to_string(i));

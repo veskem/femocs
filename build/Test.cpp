@@ -38,7 +38,7 @@ void write_defaults(ofstream &file) {
     file << "coord_cutoff = 3.1"         << endl;
     file << "charge_cutoff = 30"         << endl;
     file << "latconst = 3.61"            << endl;
-    file << "femocs_verbose_mode = verbose" << endl;
+    file << "femocs_verbose_mode = silent" << endl;
     file << "smooth_steps = 3"           << endl;
     file << "smooth_algorithm = laplace" << endl;
     file << "elfield = -0.1"             << endl;
@@ -210,7 +210,7 @@ void write_generate(ofstream &file, string params="") {
     file << "run_pic = true"               << endl;
 
     file << "pic_dtmax = 1.0"              << endl;
-    file << "femocs_run_time = 30"          << endl;
+    file << "femocs_run_time = 4"          << endl;
     file << "pic_fractional_push = true"   << endl;
     file << "pic_collide_coulomb_ee = false" << endl;
     file << "electronWsp = 0.0002"         << endl;

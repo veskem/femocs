@@ -41,6 +41,8 @@ public:
     /** Provide dof_handler object to get access to the mesh data */
     DoFHandler<dim>* get_dof_handler() { return &dof_handler; }
 
+    Vector<double>* get_solution() { return &solution; };
+
     /** Get the solution value at the specified point. NB: Slow! */
     double probe_solution(const Point<dim> &p) const;
 
@@ -51,6 +53,8 @@ public:
      * cell with cell_index p has to belong in cell_index!!
      */
     vector<double> shape_funs(const Point<dim> &p, int cell_index) const;
+
+    vector<Tensor<1, dim, double>> shape_fun_grads(const Point<dim> &p, const int cell_index) const;
 
     /** Return the volume/area of i-th cell */
     double get_cell_vol(const int i) const;
@@ -108,6 +112,8 @@ protected:
 
     /** Helper function for the public shape_funs */
     vector<double> shape_funs(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
+
+    vector<Tensor<1, dim, double>> shape_fun_grads(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
 
     /** Solve the matrix equation using Conjugate Gradient method
      * @param n_steps     maximum number of iterations allowed

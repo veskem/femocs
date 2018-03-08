@@ -402,8 +402,8 @@ int ProjectRunaway::solve_pic(double advance_time) {
     fields.set_check_params(conf.field.E0, conf.tolerance.field_min, conf.tolerance.field_max,
             conf.geometry.radius, dense_surf.sizes.zbox);
 
-    int time_subcycle = ceil(advance_time / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
-    double dt_pic = advance_time / time_subcycle;
+    int n_pic_steps = ceil(advance_time / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
+    double dt_pic = advance_time / n_pic_steps;
 
     if (mesh_changed){
         start_msg(t0, "=== Initializing Poisson solver...");
@@ -418,7 +418,7 @@ int ProjectRunaway::solve_pic(double advance_time) {
 
     start_msg(t0, "=== Running PIC...\n");
     
-    for (int i = 0; i < time_subcycle; i++) {
+    for (int i = 0; i < n_pic_steps; i++) {
         int n_lost = pic_solver.update_positions();
 //        int n_cg_steps = pic_solver.run_cycle(mesh_changed, is_write_time());
         int n_cg_steps = pic_solver.run_cycle(i==0, false);
@@ -442,12 +442,10 @@ int ProjectRunaway::solve_pic(double advance_time) {
 
         if (MODES.VERBOSE)
             printf("  t=%.2f fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
-                    GLOBALS.TIME, n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot, n_injected,
-                    n_lost, pic_solver.get_n_electrons());
+                    GLOBALS.TIME, n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot,
+                    n_injected, n_lost, pic_solver.get_n_electrons());
 
         GLOBALS.TIME += dt_pic;
-
-//        if (is_write_time()) write();
     }
     
     end_msg(t0);

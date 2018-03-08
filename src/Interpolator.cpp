@@ -29,7 +29,7 @@ Interpolator::Interpolator(const string& nl, const string& sl) :
 // surrounding hexahedral nodes
 bool Interpolator::average_sharp_nodes(const bool vacuum) {
 
-//    return false;
+    return false;
     vector<vector<unsigned int>> nborlist;
     mesh->calc_pseudo_3D_vorocells(nborlist, vacuum);
 
@@ -185,8 +185,43 @@ void Interpolator::extract_solution(fch::PoissonSolver<3>& fem) {
     store_solution(femocs2deal, fem.get_efield(cell_indxs, vert_indxs),
             fem.get_potential(cell_indxs, vert_indxs));
 
+    store_solution(fem.get_solution(), fem.get_triangulation(), fem.get_dof_handler());
+
     // Remove the spikes from the solution
     average_sharp_nodes(true);
+
+//    fem.get_potential(*nodes.get_solutions(), *mesh);
+}
+
+void Interpolator::store_solution(dealii::Vector<double>* dealii_solution,
+        dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh) {
+
+    const int n_verts_per_hex = 8;
+    const int eps = 0.1*mesh->tets.stat.edgemin;
+
+    vector<Solution>* femocs_solution = nodes.get_solutions();
+
+    vector<int> node2hex(mesh->nodes.size(), -1);
+    for (int hex = 0; hex < mesh->hexs.size(); ++hex) {
+        if (mesh->hexs.get_marker(hex) >= 0)
+            for (int node : mesh->hexs[hex]) {
+                node2hex[node] = hex;
+            }
+    }
+
+    for (int node = 0; node < mesh->nodes.size(); ++node) {
+        if (node2hex[node] < 0) continue;
+        int deal_hex = linhex.femocs2deal(node2hex[node]);
+        if (deal_hex < 0) continue;
+
+        typename DoFHandler<3>::active_cell_iterator cell(tria, 0, deal_hex, dofh);
+        for (int i = 0; i < n_verts_per_hex; ++i)
+            if (mesh->nodes[node].distance2(cell->vertex(i)) < eps) {
+                double sol = (*dealii_solution)[cell->vertex_dof_index(i, 0)];
+                (*femocs_solution)[node].scalar = sol;
+                break;
+            }
+    }
 }
 
 } // namespace femocs

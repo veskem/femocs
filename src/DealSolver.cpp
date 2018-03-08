@@ -78,6 +78,45 @@ vector<double> DealSolver<dim>::shape_funs(const Point<dim> &p, const int cell_i
 }
 
 template<int dim>
+vector<Tensor<1, dim, double>> DealSolver<dim>::shape_fun_grads(const Point<dim> &p, const int cell_index) const {
+    return shape_fun_grads(p, cell_index, StaticMappingQ1<dim,dim>::mapping);
+}
+
+template<int dim>
+vector<Tensor<1, dim, double>> DealSolver<dim>::shape_fun_grads(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const {
+
+    static double tconstruct = 0, tcalc = 0, t0;
+
+    //get active cell iterator from cell index
+    typename DoFHandler<dim>::active_cell_iterator cell(&this->triangulation, 0, max(0,cell_index), &this->dof_handler);
+
+    // transform the point from real to unit cell coordinates
+    Point<dim> p_cell;
+    if (cell_index < 0){
+        const pair<typename DoFHandler<dim,dim>::active_cell_iterator, Point<dim> > cell_point
+        = GridTools::find_active_cell_around_point (mapping, this->dof_handler, p);
+        cell = cell_point.first;
+        p_cell = cell_point.second;
+    }else
+        p_cell = mapping.transform_real_to_unit_cell(cell, p);
+
+    const Quadrature<dim> quadrature(GeometryInfo<dim>::project_to_unit_cell(p_cell));
+
+    FEValues<dim> fe_values(mapping, this->fe, quadrature, update_gradients);
+    fe_values.reinit(cell);
+
+//    vector<vector<Tensor<1, dim, double> > >
+//    u_gradient(1, vector<Tensor<1, dim, double> > (this->fe.n_components()));
+//    fe_values.get_function_gradients(this->solution, u_gradient);
+
+    vector<Tensor<1, dim, double>> sfun_grads(fe.dofs_per_cell);
+    for (int i = 0; i < sfun_grads.size(); i++)
+        sfun_grads[i] = fe_values.shape_grad(i,0);
+
+    return sfun_grads;
+}
+
+template<int dim>
 double DealSolver<dim>::probe_solution(const Point<dim> &p) const {
     return VectorTools::point_value(dof_handler, solution, p);
 }

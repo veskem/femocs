@@ -159,6 +159,26 @@ vector<double> PoissonSolver<dim>::get_potential(const vector<int> &cell_indexes
 }
 
 template<int dim>
+void PoissonSolver<dim>::get_potential(vector<Solution> &solutions, const TetgenMesh &mesh) {
+    const double eps = 1e-6 * mesh.tets.stat.edgemin;
+    const int n_femocs_nodes = mesh.nodes.size();
+
+    // Initialise potentials with a value that is immediately visible if it's not changed to proper one
+    for (int i = 0; i < n_femocs_nodes; ++i)
+        solutions[i].scalar = 1e15;
+
+    typename Triangulation<dim>::active_vertex_iterator vertex = this->triangulation.begin_active_vertex();
+    typename Triangulation<dim>::active_vertex_iterator end_vert = this->triangulation.end_vertex();
+
+    for (int i = 0; i < n_femocs_nodes; ++i) {
+        if ( mesh.nodes[i].distance2(vertex->vertex()) < eps ) {
+            solutions[i].scalar = this->solution[vertex->vertex_index()];
+            vertex++;
+        }
+    }
+}
+
+template<int dim>
 vector<Tensor<1, dim> > PoissonSolver<dim>::get_efield(const vector<int> &cell_indexes,
         const vector<int> &vert_indexes) const {
 

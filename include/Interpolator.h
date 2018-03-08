@@ -90,6 +90,8 @@ private:
     /** Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
      *  surrounding hexahedral nodes */
     bool average_sharp_nodes(const bool vacuum);
+
+    void store_solution(dealii::Vector<double>* solution, dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh);
 };
 
 } // namespace femocs
