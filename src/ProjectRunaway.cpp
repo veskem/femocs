@@ -415,19 +415,33 @@ int ProjectRunaway::solve_pic(double advance_time) {
 
     pic_solver.set_params(conf.field, conf.pic, dt_pic, mesh->nodes.stat);
     surface_temperatures.interpolate(ch_solver);
+    surface_fields.store_points(ch_solver);
+    emission.initialize(mesh);
 
     start_msg(t0, "=== Running PIC...\n");
     
     for (int i = 0; i < n_pic_steps; i++) {
+
+        // It might be good idea to put all the following steps to pic.run_cycle
+        // However, good system for printing data out must be developed
+        // for instance, print data could be stored to struct that can be read while reading
+        // To make it possible to run emission.calc_emission etc inside pic,
+        // some of the class objects have to be made non-constant
+
         int n_lost = pic_solver.update_positions();
-//        int n_cg_steps = pic_solver.run_cycle(mesh_changed, is_write_time());
-        int n_cg_steps = pic_solver.run_cycle(i==0, false);
 
+        poisson_solver.assemble_poisson(i==0, is_write_time());
+        int n_cg_steps = poisson_solver.solve();
+
+        // must be after solving Poisson and before updating velocities
         vacuum_interpolator.extract_solution(poisson_solver);
-        surface_fields.interpolate(ch_solver);
 
-        // Set up emission input
-        if (i == 0) emission.initialize(mesh);
+        // updating the PIC particle velocities
+        pic_solver.update_velocities();
+
+        pic_solver.collide_particles();
+
+        surface_fields.calc_interpolation();
 
         //calculate emission and inject electrons
         emission.calc_emission(conf.emission, conf.field.V0);

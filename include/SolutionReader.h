@@ -70,6 +70,9 @@ public:
     /** Check and replace the NaNs and peaks in the solution */
     bool clean(const double r_cut, const bool use_hist_clean);
 
+    /** Store the surface mesh centroids of the FEM solver */
+    void store_points(const fch::DealSolver<3>& solver);
+
     /** Statistics about solution */
     struct Statistics {
         double vec_norm_min;  ///< minimum value of vector norm
@@ -229,8 +232,6 @@ public:
      * @param Vappl Applied voltage (required for space charge calculations)
      */
     void calc_emission(const Config::Emission &conf, double Vappl = -1);
-
-    double calc_emission(const double multiplier, const Config::Emission &conf, double Vappl);
 
     void export_emission(fch::CurrentHeatSolver<3>& ch_solver);
 

@@ -38,7 +38,7 @@ void write_defaults(ofstream &file) {
     file << "coord_cutoff = 3.1"         << endl;
     file << "charge_cutoff = 30"         << endl;
     file << "latconst = 3.61"            << endl;
-    file << "femocs_verbose_mode = silent" << endl;
+    file << "femocs_verbose_mode = verbose" << endl;
     file << "smooth_steps = 3"           << endl;
     file << "smooth_algorithm = laplace" << endl;
     file << "elfield = -0.1"             << endl;

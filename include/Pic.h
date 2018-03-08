@@ -39,8 +39,13 @@ public:
      */
     int run_cycle(bool first_time = false, bool write_time = false);
 
+    void collide_particles();
+
     /** Update the positions of the particles and the cell they belong. */
     int update_positions();
+
+    /** Update the velocities on the particles using the fields calculated at the given positions */
+    void update_velocities();
 
     /** Write the particle data in the current state in movie file */
     void write(const string &filename) const;
@@ -92,9 +97,6 @@ private:
 
     /** Clear all particles out of the box */
     void clear_lost_particles();
-
-    /** Update the velocities on the particles using the fields calculated at the given positions */
-    void update_velocities();
 
     /** Computes the charge density for each FEM DOF */
     void compute_field(bool first_time = false, bool write_time = false);

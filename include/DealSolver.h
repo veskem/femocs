@@ -41,6 +41,7 @@ public:
     /** Provide dof_handler object to get access to the mesh data */
     DoFHandler<dim>* get_dof_handler() { return &dof_handler; }
 
+    /** Provide access to solution vector */
     Vector<double>* get_solution() { return &solution; };
 
     /** Get the solution value at the specified point. NB: Slow! */
@@ -49,12 +50,13 @@ public:
     /** Calculate max value from solution vector */
     double max_solution() const;
 
-    /** Values of the shape functions at point p with respect to the nodes of
-     * cell with cell_index p has to belong in cell_index!!
-     */
-    vector<double> shape_funs(const Point<dim> &p, int cell_index) const;
+    /** Values of the shape functions for a point with respect to the cell.
+     *  The cell that surrounds the point has to be found before hand. */
+    vector<double> shape_funs(const Point<dim> &point, int cell_index) const;
 
-    vector<Tensor<1, dim, double>> shape_fun_grads(const Point<dim> &p, const int cell_index) const;
+    /** Values of the shape function gradients for a point with respect to the cell.
+     *  The cell that surrounds the point has to be found before hand. */
+    vector<Tensor<1, dim, double>> shape_fun_grads(const Point<dim> &point, const int cell_index) const;
 
     /** Return the volume/area of i-th cell */
     double get_cell_vol(const int i) const;
@@ -113,7 +115,8 @@ protected:
     /** Helper function for the public shape_funs */
     vector<double> shape_funs(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
 
-    vector<Tensor<1, dim, double>> shape_fun_grads(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
+    /** Helper function for the public shape_fun_grads */
+    vector<Tensor<1, dim, double>> shape_fun_grads(const Point<dim> &point, const int cell_index, Mapping<dim,dim>& mapping) const;
 
     /** Solve the matrix equation using Conjugate Gradient method
      * @param n_steps     maximum number of iterations allowed

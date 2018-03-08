@@ -11,8 +11,6 @@
 #include "DealSolver.h"
 #include "ParticleSpecies.h"
 #include "Config.h"
-#include "TetgenMesh.h"
-
 
 namespace fch {
 
@@ -57,8 +55,6 @@ public:
      * @return potential values in the specified nodes
      */
     vector<double> get_potential(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
-
-    void get_potential(vector<Solution> &solutions, const TetgenMesh &mesh);
 
     /**
      * method to obtain the electric field values in selected nodes

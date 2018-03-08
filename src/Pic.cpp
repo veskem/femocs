@@ -35,28 +35,16 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
 
     for (int i = 0; i < positions.size(); ++i) {
         //update the field
-        dealii::Point<dim> p(positions[i].x, positions[i].y, positions[i].z);
-        dealii::Tensor<1,dim> Efield = poisson_solver->probe_efield(p, cells[i]) ;
+        int cell = interpolator->linhex.deal2femocs(cells[i]);
+        Vec3 elfield = interpolator->linhex.interp_gradient(positions[i], cell) ;
 
         // Random fractional timestep push -- from a random point [t_(k-1),t_k] to t_k, t_(k + 1/2), using field at t_k.
         if (fractional_push) {
-            velocity = Vec3(Efield) * (electrons.q_over_m_factor * dt * (uniform(mersenne) + 0.5));
+            velocity = elfield * (electrons.q_over_m_factor * dt * (uniform(mersenne) + 0.5));
             positions[i] += velocity * (dt * uniform(mersenne));
         } else {
-            velocity = Vec3(Efield) * (electrons.q_over_m_factor * dt * 0.5);
+            velocity = elfield * (electrons.q_over_m_factor * dt * 0.5);
         }
-
-//        //update the field
-//        int cell = interpolator->linhex.deal2femocs(cells[i]);
-//        Vec3 elfield = interpolator->linhex.interp_gradient(positions[i], cell) ;
-//
-//        // Random fractional timestep push -- from a random point [t_(k-1),t_k] to t_k, t_(k + 1/2), using field at t_k.
-//        if (fractional_push) {
-//            velocity = elfield * (electrons.q_over_m_factor * dt * (uniform(mersenne) + 0.5));
-//            positions[i] += velocity * (dt * uniform(mersenne));
-//        } else {
-//            velocity = elfield * (electrons.q_over_m_factor * dt * 0.5);
-//        }
 
         // Save to particle arrays
         electrons.inject_particle(positions[i], velocity, cells[i]);
@@ -170,67 +158,13 @@ int Pic<dim>::update_positions() {
 
 template<int dim>
 void Pic<dim>::update_velocities(){
-
-    int cntr = 0;
-
     for (auto &particle : electrons.parts) {
-        // Deal.II
-
-        vector<int> cells(8, particle.cell);
-        vector<int> verts = {0,1,2,3,4,5,6,7};
-
-        dealii::Point<dim> p(particle.pos.x, particle.pos.y, particle.pos.z);
-        dealii::Tensor<1,dim> Efield = poisson_solver->probe_efield(p, particle.cell);
-
-        vector<double> sf1 = poisson_solver->shape_funs(p, particle.cell);
-        vector<Tensor<1, dim, double>> sfg1 = poisson_solver->shape_fun_grads(p, particle.cell);
-        vector<double> pot1 = poisson_solver->get_potential(cells, verts);
-
-
-        // Femocs
-
-
+        // find electric field
         int cell = interpolator->linhex.deal2femocs(particle.cell);
         Vec3 elfield = interpolator->linhex.interp_gradient(particle.pos, cell);
 
-        array<double, 8> sf2;
-        array<Vec3, 8> sfg2;
-        vector<double> pot2;
-        interpolator->linhex.get_shape_functions(sf2, particle.pos, cell);
-        interpolator->linhex.get_shape_fun_grads(sfg2, particle.pos, cell);
-        for (int n : emission->mesh->hexs[cell])
-            pot2.push_back(interpolator->nodes.get_scalar(n));
-
-
-        cout << "cell = " << cell << endl;
-
-        cout << "\npotentials:" << endl;
-        for (int i = 0; i < 8; ++i)
-            printf("%.8f, %.8f\n", pot1[i], pot2[i]);
-
-        cout << "\nshape funs:" << endl;
-        for (int i = 0; i < 8; ++i)
-            printf("%.8f, %.8f\n", sf1[i], sf2[i]);
-
-        cout << "shape fun grads:" << endl;
-        for (int i = 0; i < 8; ++i) {
-            for (int j = 0; j < 3; ++j)
-                printf("%.10f, %.10f | ", sfg1[i][j], sfg2[i][j]);
-            cout << endl;
-        }
-
-
-//        if (cntr++ > 2)
-            exit(1);
-    }
-
-    for (auto &particle : electrons.parts) {
-        //get field
-        dealii::Point<dim> p(particle.pos.x, particle.pos.y, particle.pos.z);
-        dealii::Tensor<1,dim> Efield = poisson_solver->probe_efield(p, particle.cell) ;
-
-        //update velocities (corresponds to t + .5dt)
-        particle.vel += Vec3(Efield) * (dt * electrons.q_over_m_factor) ;
+        // update velocities (corresponds to t + .5dt)
+        particle.vel += elfield * (dt * electrons.q_over_m_factor);
     }
 }
 
@@ -248,6 +182,13 @@ int Pic<dim>::run_cycle(bool first_time, bool charge_write_time) {
         coll_el_knm_2D(electrons, dt, *poisson_solver);
 
     return n_cg_steps;
+}
+
+template<int dim>
+void Pic<dim>::collide_particles() {
+    // collide PIC particles
+    if (coll_coulomb_ee)
+        coll_el_knm_2D(electrons, dt, *poisson_solver);
 }
 
 template<int dim>

@@ -467,6 +467,20 @@ int SolutionReader::interpolate_results(const int n_points, const string &data_t
     return 0;
 }
 
+void SolutionReader::store_points(const fch::DealSolver<3>& solver) {
+    // import the quadrangle centroids
+    vector<dealii::Point<3>> nodes;
+    solver.get_surface_nodes(nodes);
+
+    const int n_atoms = nodes.size();
+
+    // store the centroid coordinates
+    reserve(n_atoms);
+    int i = 0;
+    for (dealii::Point<3>& node : nodes)
+        append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
+}
+
 /* ==========================================
  * ============== FIELD READER ==============
  * ========================================== */
@@ -640,19 +654,7 @@ void FieldReader::interpolate(const Medium &medium) {
 }
 
 void FieldReader::interpolate(const fch::DealSolver<3>& solver) {
-    // import the surface nodes the solver needs
-    vector<dealii::Point<3>> nodes;
-    solver.get_surface_nodes(nodes);
-
-    const int n_atoms = nodes.size();
-
-    // store the node coordinates
-    reserve(n_atoms);
-    int i = 0;
-    for (dealii::Point<3>& node : nodes)
-        append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
-
-    // interpolate or assign solution on the atoms
+    store_points(solver);
     calc_interpolation();
 }
 
@@ -866,19 +868,7 @@ void HeatReader::interpolate(const Medium &medium) {
 }
 
 void HeatReader::interpolate(fch::DealSolver<3>& solver) {
-    // import the surface nodes the solver needs
-    vector<dealii::Point<3>> nodes;
-    solver.get_surface_nodes(nodes);
-
-    const int n_atoms = nodes.size();
-
-    // store the node coordinates
-    reserve(n_atoms);
-    int i = 0;
-    for (dealii::Point<3>& node : nodes)
-        append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
-
-    // interpolate or assign solution on the atoms
+    store_points(solver);
     calc_interpolation();
 }
 
@@ -1110,14 +1100,6 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
         current_densities[i] = J;
         nottingham[i] = nm2_per_angstrom2 * gt.heat;
     }
-}
-
-double EmissionReader::calc_emission(const double multiplier, const Config::Emission &conf,
-        double Vappl) {
-
-    global_data.multiplier = multiplier;
-    calc_emission(conf, Vappl);
-    return global_data.multiplier;
 }
 
 void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
