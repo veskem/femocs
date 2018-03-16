@@ -489,6 +489,41 @@ FieldReader::FieldReader(Interpolator* i) :
         SolutionReader(i, "elfield", "elfield_norm", "potential"),
         E0(0), radius1(0), radius2(0) {}
 
+void FieldReader::compare_shape_funs(fch::PoissonSolver<3> &poisson, const Medium::Sizes &sizes) {
+    const double x = sizes.xmid;
+    const double y = sizes.ymid;
+    const double zmin = 1.0 + sizes.zmax;
+    const double step = 0.1;
+    const int n_points = 100;
+
+    reserve(n_points);
+    for (int i = 0; i < n_points; ++i)
+        append(Point3(x + 0.1*i*step, y + 0.1*i*step, zmin + i * step));
+
+    array<double,8> shape_functions;
+    array<Vec3,8> sfg2;
+
+    cout << fixed << setprecision(4);
+
+    int cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        Point3 p = get_point(i);
+        dealii::Point<3> deal_point(p.x, p.y, p.z);
+
+        cell_index = interpolator->linhex.locate_cell(p, cell_index);
+        int cell_index_in_deal = interpolator->linhex.femocs2deal(cell_index);
+
+        vector<Tensor<1, 3, double>> sfg = poisson.shape_fun_grads(deal_point, cell_index_in_deal);
+        interpolator->linhex.get_dealii_shape_fun_grads(sfg2, p, cell_index);
+
+        cout << "\n  i = " << i << endl;
+        for (int i = 0; i < 8; ++i) {
+            Vec3 sfg1(sfg[i]);
+            cout << sfg1 << " | " << sfg2[i] << " | " << sfg1 - sfg2[i] << endl;
+        }
+    }
+}
+
 void FieldReader::compare_interpolators(fch::PoissonSolver<3> &poisson, const Medium::Sizes &sizes) {
     const double x = sizes.xmid;
     const double y = sizes.ymid;
@@ -496,7 +531,6 @@ void FieldReader::compare_interpolators(fch::PoissonSolver<3> &poisson, const Me
     const double step = 0.001;
     const int n_points = 10000;
 
-    
     reserve(n_points);
     for (int i = 0; i < n_points; ++i)
         append(Point3(x + 0.1*i*step, y + 0.1*i*step, zmin + i * step));

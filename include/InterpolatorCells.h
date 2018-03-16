@@ -341,6 +341,10 @@ public:
     /** Calculate the gradient of shape functions for a point inside the hexahedron */
     void get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int hex) const;
 
+    /** Calculate the gradient of shape functions for a point inside the hexahedron
+     * and sort the result according to Deal.II ordering */
+    void get_dealii_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int hex) const;
+
     /** Calculate gradient of shape function for a hexahedral node */
     void get_shape_fun_grads(array<Vec3, 8>& sfg, const int hex, const int node) const;
     

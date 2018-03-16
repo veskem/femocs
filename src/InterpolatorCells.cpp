@@ -1519,6 +1519,12 @@ void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point
     };
 }
 
+void LinearHexahedra::get_dealii_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int hex) const {
+	array<Vec3, 8> sfg2;
+	get_shape_fun_grads(sfg2, point, hex);
+	sfg = {sfg2[0], sfg2[1], sfg2[4], sfg2[5], sfg2[3], sfg2[2], sfg2[7], sfg2[6]};
+}
+
 /* For more information, see the lecture materials in
  * https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch11.d/AFEM.Ch11.pdf
  */

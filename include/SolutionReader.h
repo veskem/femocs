@@ -127,6 +127,7 @@ public:
 
     FieldReader(Interpolator* i);
 
+    void compare_shape_funs(fch::PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
     void compare_interpolators(fch::PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
     void test_corners(const TetgenMesh& mesh) const;
 
