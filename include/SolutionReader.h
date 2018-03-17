@@ -40,9 +40,6 @@ public:
     /** Print statistics about interpolated solution */
     void print_statistics();
 
-    /** Append solution */
-    void append_interpolation(const Solution& s);
-
     /** Get pointer to interpolation vector */
     vector<Solution>* get_interpolations();
 
@@ -119,6 +116,11 @@ protected:
     void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
 
     Solution get_average_solution(const int I, const double r_cut);
+
+    /** Find the cell that surrounds i-th atom and interpolate the solution for it.
+     * @param cell   initial guess for the cell that might surround the point
+     * @return cell index that was found to surround the point */
+    int update_interpolation(const int i, int cell);
 };
 
 /** Class to extract solution from DealII calculations */
