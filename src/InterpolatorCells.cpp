@@ -1519,6 +1519,12 @@ void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point
     };
 }
 
+void LinearHexahedra::get_dealii_shape_funs(array<double,8>& sf, const Vec3& point, const int hex) const {
+    array<double, 8> sf2;
+    get_shape_functions(sf2, point, hex);
+    sf = {sf2[0], sf2[1], sf2[4], sf2[5], sf2[3], sf2[2], sf2[7], sf2[6]};
+}
+
 /* For more information, see the lecture materials in
  * https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch11.d/AFEM.Ch11.pdf
  */
@@ -1573,6 +1579,12 @@ void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point
         for (int i = 0; i < 3; ++i)
             sfg[k] += Jinv[i] * dN[k][i];
     }
+}
+
+void LinearHexahedra::get_dealii_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int hex) const {
+    array<Vec3, 8> sfg2;
+    get_shape_fun_grads(sfg2, point, hex);
+    sfg = {sfg2[0], sfg2[1], sfg2[4], sfg2[5], sfg2[3], sfg2[2], sfg2[7], sfg2[6]};
 }
 
 /* The gradient of shape functions in uvw space consists in case of
