@@ -34,11 +34,6 @@ public:
     /** Inject electrons according to the field emission surface distribution */
     int inject_electrons(const bool fractional_push);
 
-    /**
-     * Run an particle and field update cycle
-     */
-    int run_cycle(bool first_time = false, bool write_time = false);
-
     void collide_particles();
 
     /** Update the positions of the particles and the cell they belong. */
@@ -106,6 +101,9 @@ private:
 
     /** Generate point with an uniform distribution inside a quadrangle */
     Point3 get_rnd_point(const int quad, const TetgenMesh &mesh);
+
+    /** Update position and cell index of a super particle with given index */
+    void update_position(const int particle_index);
 };
 
 } // namespace femocs

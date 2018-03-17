@@ -136,24 +136,40 @@ Point3 Pic<dim>::get_rnd_point(const int quad, const TetgenMesh &mesh) {
 
 template<int dim>
 int Pic<dim>::update_positions() {
-    for  (size_t i = 0; i < electrons.size(); ++i) {
-        SuperParticle &particle = electrons.parts[i];
 
-        //update position
-        particle.pos += particle.vel * dt;
-
-        //apply periodic boundaries
-        particle.pos.x = periodic_image(particle.pos.x, box.xmax, box.xmin);
-        particle.pos.y = periodic_image(particle.pos.y, box.ymax, box.ymin);
-
-        // Update the cell ID; if any particles have left the domain their ID is set to -1
-        // and they will be removed once we call clear_lost
-        particle.cell = interpolator->update_point_cell(particle.pos, particle.cell);
-    }
+#pragma omp parallel for
+    for  (int i = 0; i < electrons.size(); ++i)
+        // positions are updated in separate routine to make it easier
+        // to parallelize the process with OpenMP
+        update_position(i);
 
     int n_lost_particles = electrons.clear_lost();
     electrons.sort();
     return n_lost_particles;
+}
+
+template<int dim>
+void Pic<dim>::update_position(const int particle_index) {
+    SuperParticle &particle = electrons.parts[particle_index];
+
+    //update position
+    particle.pos += particle.vel * dt;
+
+    //apply periodic boundaries
+    // No needed as particles outside the box are deleted anyways
+//    particle.pos.x = periodic_image(particle.pos.x, box.xmax, box.xmin);
+//    particle.pos.y = periodic_image(particle.pos.y, box.ymax, box.ymin);
+
+    // Update the cell ID; if any particles have left the domain their ID is set to -1
+    // and they will be removed once we call clear_lost
+    const bool b1 = particle.pos.x > box.xmin && particle.pos.x < box.xmax;
+    const bool b2 = particle.pos.y > box.ymin && particle.pos.y < box.ymax;
+    const bool b3 = particle.pos.z < box.zmax;
+
+    if (b1 && b2 && b3)
+        particle.cell = interpolator->update_point_cell(particle.pos, particle.cell);
+    else
+        particle.cell = -1;
 }
 
 template<int dim>
@@ -166,22 +182,6 @@ void Pic<dim>::update_velocities(){
         // update velocities (corresponds to t + .5dt)
         particle.vel += elfield * (dt * electrons.q_over_m_factor);
     }
-}
-
-template<int dim>
-int Pic<dim>::run_cycle(bool first_time, bool charge_write_time) {
-    // calculate electric field
-    poisson_solver->assemble_poisson(first_time, charge_write_time);
-    int n_cg_steps = poisson_solver->solve();
-
-    // updating the PIC particle velocities
-    update_velocities();
-
-    // collide PIC particles
-    if (coll_coulomb_ee)
-        coll_el_knm_2D(electrons, dt, *poisson_solver);
-
-    return n_cg_steps;
 }
 
 template<int dim>
