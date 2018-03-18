@@ -119,9 +119,9 @@ void Interpolator::store_solution(const vector<int>& femocs2deal,
     }
 }
 
-int Interpolator::update_point_cell(const Point3& point, const int current_cell) const {
-    int femocs_cell = linhex.deal2femocs(current_cell);
-    femocs_cell = linhex.locate_cell(point, femocs_cell);
+int Interpolator::update_point_cell(const SuperParticle& particle) const {
+    int femocs_cell = linhex.deal2femocs(particle.cell);
+    femocs_cell = linhex.locate_cell(particle.pos, femocs_cell);
     if (femocs_cell < 0) return -1;
     return linhex.femocs2deal(femocs_cell);
 }

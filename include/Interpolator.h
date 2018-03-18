@@ -63,7 +63,7 @@ public:
 
     /** Find the hexahedron where the point is located.
      * Both input and output hex indices are Deal.II ones. */
-    int update_point_cell(const Point3& point, const int current_cell) const;
+    int update_point_cell(const SuperParticle& particle) const;
 
     InterpolatorNodes nodes;     ///< vertices and solutions on them
     LinearTriangles lintri;      ///< data & operations for linear triangular interpolation

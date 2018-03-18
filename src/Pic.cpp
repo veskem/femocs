@@ -57,7 +57,7 @@ template<int dim>
 int Pic<dim>::inject_electrons(vector<Point3> &positions, vector<int> &cells,
         const TetgenMesh &mesh) {
 
-    const double shift_factor = mesh.tris.stat.edgemin * 1e-5;
+    const double shift_factor = mesh.tris.stat.edgemin * 1e-6;
     const int n_points = emission->fields->size();
 
     // loop through quadrangle centroids
@@ -167,7 +167,7 @@ void Pic<dim>::update_position(const int particle_index) {
     const bool b3 = particle.pos.z < box.zmax;
 
     if (b1 && b2 && b3)
-        particle.cell = interpolator->update_point_cell(particle.pos, particle.cell);
+        particle.cell = interpolator->update_point_cell(particle);
     else
         particle.cell = -1;
 }

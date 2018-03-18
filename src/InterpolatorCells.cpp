@@ -261,41 +261,71 @@ void InterpolatorCells<dim>::write_cell_data(ofstream& out) const {
         out << markers[i] << "\n";
 }
 
+// See the derivation of equations from
+// http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
+template<int dim>
+bool InterpolatorCells<dim>::inside_cylinder(const Vec3 &bottom,
+        const Vec3 &direction, const Point3 &point, double radius_sq) const
+{
+    Vec3 vec = point - bottom;
+    double dot = direction.dotProduct(vec);
+
+    // check if point behind the bottom cap of cylinder
+    if (dot < 0) return false;
+
+    Vec3 cross = direction.crossProduct(vec);
+
+    // check the distance to the cylinder axis:
+    if (cross.norm2() / direction.norm2() > radius_sq) return false;
+
+    return true;
+}
+
 template<int dim>
 int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_guess) const {
-    // Check the guessed cell
+
+    // === Check the guessed cell
     if (point_in_cell(point, cell_guess))
         return cell_guess;
 
+    // amount of nearest neighbouring layers that are checked before the full search
+    const int n_nbor_layers = 12;
+    const int n_cells = neighbours.size();
     vector<int> cell_checked = markers;
     cell_checked[cell_guess] = true;
 
-    const int n_cells = neighbours.size();
-    const int n_nbor_layers = 6;  // amount of nearest neighbouring layers that are checked before the full search
-    vector<vector<int>> nbors(n_nbor_layers);
+    int n_start = 0, n_end = 0;
+    vector<int> nbors; // list of promising neighbors of already tested cells
 
-    // Check all cells on the given neighbouring layer
+    // === Check if point is surrounded by one of the neighbouring cells
     for (int layer = 0; layer < n_nbor_layers; ++layer) {
         // build next layer of neighbour list
-        if (layer == 0)
-            nbors[0] = neighbours[cell_guess];
-        else {
-            for (int cell : nbors[layer-1])
-                if (cell >= 0)
-                    nbors[layer].insert(nbors[layer].end(), neighbours[cell].begin(), neighbours[cell].end());
+        if (layer == 0) {
+            for (int nbor : neighbours[cell_guess])
+                if (nbor >= 0)
+                    nbors.push_back(nbor);
+        } else {
+            for (int n = n_start; n < n_end; ++n)
+                for (int nbor : neighbours[nbors[n]])
+                    if (nbor >= 0 && !cell_checked[nbor])
+                        nbors.push_back(nbor);
         }
 
+        n_start = n_end;
+        n_end = nbors.size();
+        if (n_start == n_end) break;
+
         // check whether some of the unchecked neighbouring cells surround the point
-        for (int cell : nbors[layer])
-            if (cell >= 0 && !cell_checked[cell]) {
-                if (point_in_cell(point, cell))
-                    return cell;
-                else
-                    cell_checked[cell] = true;
-            }
+        for (int n = n_start; n < n_end; ++n) {
+            int cell = nbors[n];
+            if (point_in_cell(point, cell))
+                return cell;
+            else
+                cell_checked[cell] = true;
+        }
     }
 
-    // If no success, loop through all the cells
+    // === In case of no success, loop through all the cells
     double min_distance2 = 1e100;
     int min_index = 0;
 
@@ -317,58 +347,6 @@ int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_gues
     // If no perfect cell found, return the best.
     // Indicate the imperfectness with the minus sign
     return -min_index;
-}
-
-template<int dim>
-int InterpolatorCells<dim>::locate_cell_v2(const Point3 &point, const int cell_guess) const {
-    const int n_cells = neighbours.size();
-
-    // Check the guessed cell
-    if (point_in_cell(point, cell_guess))
-        return cell_guess;
-
-    vector<int> cell_checked = markers;
-    cell_checked[cell_guess] = true;
-
-    const int n_nbor_layers = 12;  // amount of nearest neighbouring layers that are checked before the full search
-
-    int n_start = 0, n_end = 0;
-    vector<int> nbors; // list of promising neighbors of already tested cells
-
-    for (int layer = 0; layer < n_nbor_layers; ++layer) {
-        // build next layer of neighbour list
-        if (layer == 0) {
-            for (int nbor : neighbours[cell_guess])
-                if (nbor >= 0)
-                    nbors.push_back(nbor);
-        } else {
-            for (int n = n_start; n < n_end; ++n)
-                for (int nbor : neighbours[nbors[n]])
-                    if (nbor >= 0 && !cell_checked[nbor])
-                        nbors.push_back(nbor);
-        }
-
-        n_start = n_end;
-        n_end = nbors.size();
-
-        // check whether some of the unchecked neighbouring cells surround the point
-        for (int n = n_start; n < n_end; ++n) {
-            int cell = nbors[n];
-            if (point_in_cell(point, cell))
-                return cell;
-            else
-                cell_checked[cell] = true;
-        }
-    }
-
-    // If no success, loop through all the cells
-    for (int cell = 0; cell < n_cells; ++cell) {
-        if (!cell_checked[cell] && point_in_cell(point, cell))
-            return cell;
-    }
-
-    // If no cell found, return error
-    return -1;
 }
 
 template<int dim>
@@ -1775,8 +1753,7 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
 
     int tet_index = abs(cell_guess / n_hexs_per_tet);
 
-//    tet_index = lintet->locate_cell(point, tet_index);
-    tet_index = lintet->locate_cell_v2(point, tet_index);
+    tet_index = lintet->locate_cell(point, tet_index);
     int sign = 1;
     if (tet_index < 0) sign = -1;
     tet_index = abs(tet_index);
