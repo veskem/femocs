@@ -121,7 +121,9 @@ void Interpolator::store_solution(const vector<int>& femocs2deal,
 
 int Interpolator::update_point_cell(const Point3& point, const int current_cell) const {
     int femocs_cell = linhex.deal2femocs(current_cell);
-    femocs_cell = linhex.locate_cell(point, femocs_cell);
+//    femocs_cell = linhex.locate_cell(point, femocs_cell);
+    int n_steps;
+    femocs_cell = linhex.locate_cell_v2(point, femocs_cell, n_steps);
     if (femocs_cell < 0) return -1;
     return linhex.femocs2deal(femocs_cell);
 }
