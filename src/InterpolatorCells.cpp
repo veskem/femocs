@@ -9,7 +9,6 @@
 #include <float.h>
 
 namespace femocs {
-
 /* ==================================================================
  *  ====================== InterpolatorNodes =======================
  * ================================================================== */
@@ -321,36 +320,40 @@ int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_gues
 }
 
 template<int dim>
-int InterpolatorCells<dim>::locate_cell_v2(const Point3 &point, const int cell_guess, int &n_steps) const {
+int InterpolatorCells<dim>::locate_cell_v2(const Point3 &point, const int cell_guess) const {
+    const int n_cells = neighbours.size();
+
     // Check the guessed cell
-//    n_steps = 1;
     if (point_in_cell(point, cell_guess))
         return cell_guess;
 
     vector<int> cell_checked = markers;
     cell_checked[cell_guess] = true;
 
-    const int n_cells = neighbours.size();
     const int n_nbor_layers = 12;  // amount of nearest neighbouring layers that are checked before the full search
-    vector<vector<int>> nbors(n_nbor_layers);
 
-    // Check all cells on the given neighbouring layer
+    int n_start = 0, n_end = 0;
+    vector<int> nbors; // list of promising neighbors of already tested cells
+
     for (int layer = 0; layer < n_nbor_layers; ++layer) {
         // build next layer of neighbour list
         if (layer == 0) {
             for (int nbor : neighbours[cell_guess])
                 if (nbor >= 0)
-                    nbors[layer].push_back(nbor);
+                    nbors.push_back(nbor);
         } else {
-            for (int cell : nbors[layer-1])
-                for (int nbor : neighbours[cell])
+            for (int n = n_start; n < n_end; ++n)
+                for (int nbor : neighbours[nbors[n]])
                     if (nbor >= 0 && !cell_checked[nbor])
-                        nbors[layer].push_back(nbor);
+                        nbors.push_back(nbor);
         }
 
+        n_start = n_end;
+        n_end = nbors.size();
+
         // check whether some of the unchecked neighbouring cells surround the point
-        for (int cell : nbors[layer]) {
-//            ++n_steps;
+        for (int n = n_start; n < n_end; ++n) {
+            int cell = nbors[n];
             if (point_in_cell(point, cell))
                 return cell;
             else
@@ -358,31 +361,14 @@ int InterpolatorCells<dim>::locate_cell_v2(const Point3 &point, const int cell_g
         }
     }
 
-//    n_steps *= -1;
-
     // If no success, loop through all the cells
-    double min_distance2 = 1e100;
-    int min_index = 0;
-
     for (int cell = 0; cell < n_cells; ++cell) {
-//        --n_steps;
-        // If correct cell is found, we're done
         if (!cell_checked[cell] && point_in_cell(point, cell))
             return cell;
-
-        // Otherwise look for the cell whose centroid is closest to the point
-//        else {
-//            const double distance2 = point.distance2(centroids[cell]);
-//            if (distance2 < min_distance2) {
-//                min_distance2 = distance2;
-//                min_index = cell;
-//            }
-//        }
     }
 
-    // If no perfect cell found, return the best.
-    // Indicate the imperfectness with the minus sign
-    return -min_index;
+    // If no cell found, return error
+    return -1;
 }
 
 template<int dim>
@@ -1789,37 +1775,8 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
 
     int tet_index = abs(cell_guess / n_hexs_per_tet);
 
-    tet_index = lintet->locate_cell(point, tet_index);
-    int sign = 1;
-    if (tet_index < 0) sign = -1;
-    tet_index = abs(tet_index);
-
-    // calculate barycentric coordinates for a point
-    array<double,4> bcc;
-    lintet->get_shape_functions(bcc, point, tet_index);
-
-    // point inside a hex connected to 1st tetrahedral node ?
-    if (bcc[0] >= bcc[1] && bcc[0] >= bcc[2] && bcc[0] >= bcc[3])
-        return sign * (n_hexs_per_tet * tet_index + 0);
-    // point inside a hex connected to 2nd tetrahedral node ?
-    if (bcc[1] >= bcc[0] && bcc[1] >= bcc[2] && bcc[1] >= bcc[3])
-        return sign * (n_hexs_per_tet * tet_index + 1);
-    // point inside a hex connected to 3rd tetrahedral node ?
-    if (bcc[2] >= bcc[0] && bcc[2] >= bcc[1] && bcc[2] >= bcc[3])
-        return sign * (n_hexs_per_tet * tet_index + 2);
-    // point inside a hex connected to 4th tetrahedral node ?
-    if (bcc[3] >= bcc[0] && bcc[3] >= bcc[1] && bcc[3] >= bcc[2])
-        return sign * (n_hexs_per_tet * tet_index + 3);
-
-    return -1;
-}
-
-int LinearHexahedra::locate_cell_v2(const Point3 &point, const int cell_guess, int &n_steps) const {
-    static constexpr int n_hexs_per_tet = 4;
-
-    int tet_index = abs(cell_guess / n_hexs_per_tet);
-
-    tet_index = lintet->locate_cell_v2(point, tet_index, n_steps);
+//    tet_index = lintet->locate_cell(point, tet_index);
+    tet_index = lintet->locate_cell_v2(point, tet_index);
     int sign = 1;
     if (tet_index < 0) sign = -1;
     tet_index = abs(tet_index);

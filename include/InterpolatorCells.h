@@ -159,7 +159,7 @@ public:
     /** Find the cell which contains the point or is the closest to it */
     virtual int locate_cell(const Point3 &point, const int cell_guess) const;
 
-    int locate_cell_v2(const Point3 &point, const int cell_guess, int &n_steps) const;
+    int locate_cell_v2(const Point3 &point, const int cell_guess) const;
 
     /** @brief Interpolate both vector and scalar data inside or near the cell.
      * Function assumes that cell, that surrounds the point, is previously already found with locate_cell.
@@ -361,7 +361,6 @@ public:
 
     /** Find the hexahedron which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
-    int locate_cell_v2(const Point3 &point, const int cell_guess, int &n_steps) const;
 
     /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
      * -1 means there's no correspondence between two meshes */
