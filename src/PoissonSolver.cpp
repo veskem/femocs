@@ -7,10 +7,7 @@
 #include "Globals.h"
 
 
-
 namespace fch {
-using namespace dealii;
-using namespace std;
 
 // ----------------------------------------------------------------------------------------
 /* Class for outputting the field distribution
@@ -39,13 +36,15 @@ public:
 
 template<int dim>
 PoissonSolver<dim>::PoissonSolver() : DealSolver<dim>(),
-        particles(NULL), conf(NULL), applied_field(0), applied_potential(0)
+        particles(NULL), conf(NULL), interpolator(NULL), applied_field(0), applied_potential(0)
         {};
 
 template<int dim>
-PoissonSolver<dim>::PoissonSolver(const ParticleSpecies* particles_, const femocs::Config::Field *conf_) :
+PoissonSolver<dim>::PoissonSolver(const ParticleSpecies* particles_,
+        const Config::Field* conf_, const LinearHexahedra* interpolator_) :
         DealSolver<dim>(),
-        particles(particles_), conf(conf_), applied_field(0), applied_potential(0)
+        particles(particles_), conf(conf_), interpolator(interpolator_),
+        applied_field(0), applied_potential(0)
         {};
 
 template<int dim>
@@ -308,10 +307,16 @@ void PoissonSolver<dim>::assemble_lhs() {
     this->save_system();
 }
 
+// In general case, use only Deal.II built-in tools
 template<int dim>
 void PoissonSolver<dim>::assemble_space_charge() {
     if (!particles) {
-        femocs::write_verbose_msg("No charged particles present!");
+        write_silent_msg("No charged particles present!");
+        return;
+    }
+
+    if (dim == 3 && this->shape_degree == 1) {
+        assemble_space_charge_fast();
         return;
     }
 
@@ -332,6 +337,32 @@ void PoissonSolver<dim>::assemble_space_charge() {
         //loop over nodes of the cell and add the particle's charge to the system rhs
         for (int i = 0; i < this->fe.dofs_per_cell; ++i)
             this->system_rhs(local_dof_indices[i]) += sf[i] * particles->q_over_eps0 * particles->get_Wsp();
+    }
+}
+
+// In linear 3D case, Femocs interpolator can be used to speed up calculations
+template<>
+void PoissonSolver<3>::assemble_space_charge_fast() {
+
+    static constexpr int n_dofs = 8;
+    vector<types::global_dof_index> local_dof_indices(n_dofs);
+    array<double, n_dofs> shape_fun;
+
+    const double charge_factor = particles->q_over_eps0 * particles->get_Wsp();
+
+    // loop over particles
+    for (auto particle : particles->parts) {
+        // get the node indices of the particle's cell
+        typename DoFHandler<3>::active_cell_iterator cell(&this->triangulation, 0, particle.cell, &this->dof_handler);
+        cell->get_dof_indices(local_dof_indices);
+
+        //get the shape functions of the cell on the given point
+        int femocs_cell = interpolator->deal2femocs(particle.cell);
+        interpolator->get_dealii_shape_funs(shape_fun, particle.pos, femocs_cell);
+
+        //loop over nodes of the cell and add the particle's charge to the system rhs
+        for (int i = 0; i < n_dofs; ++i)
+            this->system_rhs(local_dof_indices[i]) += shape_fun[i] * charge_factor;
     }
 }
 
