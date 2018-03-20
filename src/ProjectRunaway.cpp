@@ -143,6 +143,10 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
         }
     }
 
+    // In case no transient simulations (time has stayed the same) advance the time
+    if (!conf.pic.run_pic && conf.heating.mode == "none")
+        time += conf.behaviour.total_time;
+
     //***** Prepare for data export and next run *****
     if (prepare_export()) {
         force_output();
@@ -159,6 +163,9 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
 
     return 0;
 }
+
+
+
 
 int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
     start_msg(t0, "=== Extracting surface...");
@@ -262,6 +269,7 @@ int ProjectRunaway::generate_mesh() {
     new_mesh->quads.write("out/quadmesh.vtk");
     new_mesh->hexs.write("out/hexmesh.vtk");
     new_mesh->write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
+    new_mesh->faces.write("out/hexmesh_faces.vtk");
 
     // update mesh pointers
     static bool odd_run = true;
@@ -430,6 +438,7 @@ int ProjectRunaway::solve_pic(double advance_time) {
         // some of the class objects have to be made non-constant
 
         int n_lost = pic_solver.update_positions();
+        int n_cg_steps = pic_solver.run_cycle(new_mesh_exists, is_write_time());
 
         poisson_solver.assemble_poisson(i==0, is_write_time());
 
@@ -475,6 +484,83 @@ int ProjectRunaway::solve_pic(double advance_time) {
     // TODO Give the heat- and current fluxes to the temperature solver.
 }
 
+
+int ProjectRunaway::solve_pic_converge() {
+    // Store parameters for comparing the results with analytical hemi-ellipsoid results
+    fields.set_check_params(conf.field.E0, conf.tolerance.field_min, conf.tolerance.field_max,
+            conf.geometry.radius, dense_surf.sizes.zbox);
+
+    double dt_pic = conf.pic.dt_max;
+
+    if (new_mesh_exists){
+        start_msg(t0, "=== Initializing Poisson solver...");
+        poisson_solver.setup(conf.field.E0, conf.field.V0);
+        end_msg(t0);
+    }
+    pic_solver.set_params(conf.field, conf.pic, dt_pic, mesh->nodes.stat);
+
+
+    double time_save = time;
+
+    double Icum = 0., Imean = 0., Imean_prev = 0.;
+    int N_reinit = 50, i_reinit = 0;
+
+    for (int i = 0; i < 2000; i++) {
+        int n_lost = pic_solver.update_positions();
+        int n_cg_steps = pic_solver.run_cycle(new_mesh_exists, is_write_time());
+
+
+        // Set up emission input
+        if (i == 0) {
+            if (new_mesh_exists) surface_fields.interpolate(ch_solver);
+            surface_temperatures.interpolate(ch_solver);
+            emission.initialize(mesh);
+        }
+
+        //calculate emission and inject electrons
+        emission.calc_emission(conf.emission, conf.field.V0);
+        int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
+
+
+        if (MODES.VERBOSE)
+            printf("t= %f fs, #CG= %d, Imean= %.3e A, Itot= %.3e A #e|inj|del|tot=%d|%d|%d\n",
+                    i * dt_pic, n_cg_steps, Imean, emission.global_data.I_tot, n_injected,
+                    n_lost, pic_solver.get_n_electrons());
+        emission.write_data("out/emission_data.dat", i * dt_pic);
+
+
+        if (i_reinit++ == N_reinit){
+            cout << "REINIT..." << endl;
+            Icum = 0;
+            i_reinit = 1;
+            write();
+            if (fabs(Imean - Imean_prev) < Imean * 1.e-3){
+                time = time_save;
+                return 0;
+            }
+            Imean_prev = Imean;
+
+        }
+        Icum += emission.global_data.I_tot;
+        Imean = Icum / (i_reinit);
+        time += dt_pic;
+
+    }
+
+    end_msg(t0);
+    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
+            "Field enhancement is out of limits!");
+
+    return 0;
+
+    //7. Save ions and neutrals that are inbound on the MD domain somewhere where the MD can find them
+    // TODO LATER
+    //8. Give the heat- and current fluxes to the temperature solver.
+    // TODO LATER
+}
+
+
+
 int ProjectRunaway::solve_transient_heat(const double T_ambient, const double delta_time, int& ccg, int& hcg) {
 
     if (mesh_changed)
@@ -487,6 +573,7 @@ int ProjectRunaway::solve_transient_heat(const double T_ambient, const double de
         surface_temperatures.interpolate(ch_solver);
         emission.initialize(mesh);
         emission.calc_emission(conf.emission, conf.field.V0);
+        emission.export_emission(ch_solver);
         end_msg(t0);
     }
 
@@ -565,6 +652,7 @@ int ProjectRunaway::run_heat_converge(const double T_ambient) {
     if (converge_steps >= 1000)
         write_silent_msg("WARNING: Heat equation did not converge after 1000 steps!");
 
+
     return 0;
 }
 
@@ -633,6 +721,7 @@ int ProjectRunaway::interpolate_results(const int n_points, const string &cmd, c
     require(false, "Unimplemented type of interpolation data: " + cmd);
     return 1;
 }
+
 
 int ProjectRunaway::write(){
     // write the field
