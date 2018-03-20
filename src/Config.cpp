@@ -94,7 +94,7 @@ Config::Config() {
     cfactor.r0_sphere = 0;            // minimum distance between atoms in nanotip apex
     cfactor.exponential = 0.5;        // coarsening rate; min distance between coarsened atoms outside the warm region is
                                       // d_min ~ pow(|r1-r2|, exponential)
-    pic.run_pic = false;
+    pic.mode = "none";
     pic.dt_max = 1.0;
     pic.Wsp_el =  .01;
     pic.fractional_push = true;
@@ -185,7 +185,7 @@ void Config::read_all(const string& file_name) {
 
     read_command("distance_tol", tolerance.distance);
 
-    read_command("run_pic", pic.run_pic);
+    read_command("pic_mode", pic.mode);
     read_command("PIC_dtmax", pic.dt_max);
     read_command("electronWsp", pic.Wsp_el);
     read_command("PIC_fractional_push", pic.fractional_push);

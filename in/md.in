@@ -37,7 +37,7 @@ emitter_cold = true
 # PIC parameters
 ---------------------
 field_solver = poisson
-run_pic = true
+pic_mode = converge
 PIC_dtmax = .01 #[fs]
 PIC_time = 10 #[fs]
 PIC_fractional_push = true

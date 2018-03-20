@@ -960,6 +960,8 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     global_data.Frep = 0.;
     global_data.Jrep = 0.;
     global_data.multiplier = 1.;
+    global_data.N_calls = 0;
+    global_data.I_cum = 0.;
 }
 
 void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax) {
@@ -1123,6 +1125,7 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
 
 void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
     get_loc_field_new();
+    global_data.N_calls++;
 
     double theta_old = global_data.multiplier;
     double err_fact = 0.5, error;
@@ -1151,6 +1154,7 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         // if converged break
         if (abs(error) < conf.SC_error) break;
     }
+    global_data.I_cum += global_data.I_tot;
 }
 
 string EmissionReader::get_data_string(const int i) const {

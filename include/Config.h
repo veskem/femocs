@@ -163,7 +163,7 @@ public:
 
     /** Particle In Cell module configuration */
     struct PIC {
-        bool run_pic;           ///< Switch PIC on or off
+        string mode;      ///< Pic mode (transient, converge or none)
         double dt_max;        ///< Maximum PIC timestep [fs];
                               ///  the actual PIC timestep will be smaller
                               ///  such that it is an integer fraction of the MD timestep
