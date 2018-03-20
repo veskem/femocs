@@ -262,47 +262,77 @@ void InterpolatorCells<dim>::write_cell_data(ofstream& out) const {
         out << markers[i] << "\n";
 }
 
+// See the derivation of equations from
+// http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
+template<int dim>
+bool InterpolatorCells<dim>::inside_cylinder(const Vec3 &bottom,
+        const Vec3 &direction, const Point3 &point, double radius_sq) const
+{
+    Vec3 vec = point - bottom;
+    double dot = direction.dotProduct(vec);
+
+    // check if point behind the bottom cap of cylinder
+    if (dot < 0) return false;
+
+    Vec3 cross = direction.crossProduct(vec);
+
+    // check the distance to the cylinder axis:
+    if (cross.norm2() / direction.norm2() > radius_sq) return false;
+
+    return true;
+}
+
 template<int dim>
 int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_guess) const {
-    // Check the guessed cell
-    Vec3 vec_point(point);
-    if (point_in_cell(vec_point, cell_guess)) return cell_guess;
 
-    vector<bool> cell_checked = vector_not(&markers, 0);
+    // === Check the guessed cell
+    if (point_in_cell(point, cell_guess))
+        return cell_guess;
+
+    // amount of nearest neighbouring layers that are checked before the full search
+    const int n_nbor_layers = 12;
+    const int n_cells = neighbours.size();
+    vector<int> cell_checked = markers;
     cell_checked[cell_guess] = true;
 
-    const int n_cells = neighbours.size();
-    const int n_nbor_layers = 6;  // amount of nearest neighbouring layers that are checked before the full search
-    vector<vector<int>> nbors(n_nbor_layers);
+    int n_start = 0, n_end = 0;
+    vector<int> nbors; // list of promising neighbors of already tested cells
 
-    // Check all cells on the given neighbouring layer
+    // === Check if point is surrounded by one of the neighbouring cells
     for (int layer = 0; layer < n_nbor_layers; ++layer) {
         // build next layer of neighbour list
-        if (layer == 0)
-            nbors[0] = neighbours[cell_guess];
-        else {
-            for (int nbor : nbors[layer-1])
+        if (layer == 0) {
+            for (int nbor : neighbours[cell_guess])
                 if (nbor >= 0)
-                    nbors[layer].insert(nbors[layer].end(), neighbours[nbor].begin(), neighbours[nbor].end());
+                    nbors.push_back(nbor);
+        } else {
+            for (int n = n_start; n < n_end; ++n)
+                for (int nbor : neighbours[nbors[n]])
+                    if (nbor >= 0 && !cell_checked[nbor])
+                        nbors.push_back(nbor);
         }
 
+        n_start = n_end;
+        n_end = nbors.size();
+        if (n_start == n_end) break;
+
         // check whether some of the unchecked neighbouring cells surround the point
-        for (int cell : nbors[layer])
-            if (cell >= 0 && !cell_checked[cell]) {
-                if (point_in_cell(vec_point, cell))
-                    return cell;
-                else
-                    cell_checked[cell] = true;
-            }
+        for (int n = n_start; n < n_end; ++n) {
+            int cell = nbors[n];
+            if (point_in_cell(point, cell))
+                return cell;
+            else
+                cell_checked[cell] = true;
+        }
     }
 
-    // If no success, loop through all the cells
+    // === In case of no success, loop through all the cells
     double min_distance2 = 1e100;
     int min_index = 0;
 
     for (int cell = 0; cell < n_cells; ++cell) {
         // If correct cell is found, we're done
-        if (!cell_checked[cell] && point_in_cell(vec_point, cell))
+        if (!cell_checked[cell] && point_in_cell(point, cell))
             return cell;
 
         // Otherwise look for the cell whose centroid is closest to the point
@@ -926,6 +956,8 @@ void LinearTetrahedra::narrow_search_to(const int region) {
             SimpleElement se = cells[i];
             markers[i] = se[0] > surf_end && se[1] > surf_end && se[2] > surf_end && se[3] > surf_end;
         }
+    } else if (region == TYPES.NONE) {
+        markers = vector<int>(n_cells);
     } else
         require(false, "Unimplemented region: " + to_string(region));
 }
@@ -1519,10 +1551,10 @@ void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point
     };
 }
 
-void LinearHexahedra::get_dealii_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int hex) const {
-	array<Vec3, 8> sfg2;
-	get_shape_fun_grads(sfg2, point, hex);
-	sfg = {sfg2[0], sfg2[1], sfg2[4], sfg2[5], sfg2[3], sfg2[2], sfg2[7], sfg2[6]};
+void LinearHexahedra::get_dealii_shape_funs(array<double,8>& sf, const Vec3& point, const int hex) const {
+    array<double, 8> sf2;
+    get_shape_functions(sf2, point, hex);
+    sf = {sf2[0], sf2[1], sf2[4], sf2[5], sf2[3], sf2[2], sf2[7], sf2[6]};
 }
 
 /* For more information, see the lecture materials in
@@ -1579,6 +1611,12 @@ void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point
         for (int i = 0; i < 3; ++i)
             sfg[k] += Jinv[i] * dN[k][i];
     }
+}
+
+void LinearHexahedra::get_dealii_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int hex) const {
+    array<Vec3, 8> sfg2;
+    get_shape_fun_grads(sfg2, point, hex);
+    sfg = {sfg2[0], sfg2[1], sfg2[4], sfg2[5], sfg2[3], sfg2[2], sfg2[7], sfg2[6]};
 }
 
 /* The gradient of shape functions in uvw space consists in case of
@@ -1680,6 +1718,31 @@ void LinearHexahedra::test_shape_funs() {
     }
 }
 
+bool LinearHexahedra::point_in_cell(const Vec3 &point, const int cell) const {
+    static constexpr int n_hexs_per_tet = 4;
+
+    array<double,4> bcc;
+    int tet_index = abs(cell / n_hexs_per_tet);
+
+    lintet->get_shape_functions(bcc, point, tet_index);
+
+    if (bcc[0] >= 0 && bcc[1] >= 0 && bcc[2] >= 0 && bcc[3] >= 0) {
+        int section = cell % n_hexs_per_tet;
+        switch (section) {
+            case 0:
+                return bcc[0] >= bcc[1] && bcc[0] >= bcc[2] && bcc[0] >= bcc[3];
+            case 1:
+                return bcc[1] >= bcc[0] && bcc[1] >= bcc[2] && bcc[1] >= bcc[3];
+            case 2:
+                return bcc[2] >= bcc[0] && bcc[2] >= bcc[1] && bcc[2] >= bcc[3];
+            case 3:
+                return bcc[3] >= bcc[0] && bcc[3] >= bcc[1] && bcc[3] >= bcc[2];
+        }
+    }
+
+    return false;
+}
+
 /*
  * Function uses the fact that hexahedra are always uniquely tied with the nodes of tetrahedra.
  * Therefore, knowing the barycentric coordinates inside a tetrahedron
@@ -1699,27 +1762,17 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
     array<double,4> bcc;
     lintet->get_shape_functions(bcc, point, tet_index);
 
-    // all the ratios below are == 1, if the point is exactly on the boundary of two hexahedra
-    // and 0 or inf, if point is on the face of a tetrahedron.
-    // if ratio is > 1, the point is closer to 1st corresponding node, if < 1, it's closer to 2nd node
-    const double b1b2 = bcc[0] / bcc[1];
-    const double b1b3 = bcc[0] / bcc[2];
-    const double b1b4 = bcc[0] / bcc[3];
-    const double b2b3 = bcc[1] / bcc[2];
-    const double b2b4 = bcc[1] / bcc[3];
-    const double b3b4 = bcc[2] / bcc[3];
-
     // point inside a hex connected to 1st tetrahedral node ?
-    if (b1b2 >= 1 && b1b3 >= 1 && b1b4 >= 1)
+    if (bcc[0] >= bcc[1] && bcc[0] >= bcc[2] && bcc[0] >= bcc[3])
         return sign * (n_hexs_per_tet * tet_index + 0);
     // point inside a hex connected to 2nd tetrahedral node ?
-    if (b1b2 <= 1 && b2b3 >= 1 && b2b4 >= 1)
+    if (bcc[1] >= bcc[0] && bcc[1] >= bcc[2] && bcc[1] >= bcc[3])
         return sign * (n_hexs_per_tet * tet_index + 1);
     // point inside a hex connected to 3rd tetrahedral node ?
-    if (b1b3 <= 1 && b2b3 <= 1 && b3b4 >= 1)
+    if (bcc[2] >= bcc[0] && bcc[2] >= bcc[1] && bcc[2] >= bcc[3])
         return sign * (n_hexs_per_tet * tet_index + 2);
     // point inside a hex connected to 4th tetrahedral node ?
-    if (b1b4 <= 1 && b2b4 <= 1 && b3b4 <= 1)
+    if (bcc[3] >= bcc[0] && bcc[3] >= bcc[1] && bcc[3] >= bcc[2])
         return sign * (n_hexs_per_tet * tet_index + 3);
 
     return -1;

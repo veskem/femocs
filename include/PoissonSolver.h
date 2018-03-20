@@ -11,6 +11,7 @@
 #include "DealSolver.h"
 #include "ParticleSpecies.h"
 #include "Config.h"
+#include "InterpolatorCells.h"
 
 namespace fch {
 
@@ -26,7 +27,7 @@ template<int dim>
 class PoissonSolver : public DealSolver<dim> {
 public:
     PoissonSolver();
-    PoissonSolver(const ParticleSpecies* particles, const femocs::Config::Field *conf_);
+    PoissonSolver(const ParticleSpecies* particles, const Config::Field* conf, const LinearHexahedra* interpolator);
 
     /** Change the pointer to charged particles */
     void set_particles(const ParticleSpecies* parts) { particles = parts; }
@@ -84,7 +85,8 @@ public:
 
 private:
     const ParticleSpecies* particles;
-    const femocs::Config::Field *conf;   ///< solver parameters
+    const Config::Field* conf;   ///< solver parameters
+    const LinearHexahedra* interpolator;
 
     double applied_field;     ///< applied electric field on top of simubox
     double applied_potential; ///< applied potential on top of simubox
@@ -113,6 +115,7 @@ private:
 
     /** Add to the right-hand-side vector for point charges, as used in PIC. */
     void assemble_space_charge();
+    void assemble_space_charge_fast();
 };
 
 } // namespace fch

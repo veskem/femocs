@@ -27,7 +27,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         surface_temperatures(&bulk_interpolator),
 
         phys_quantities(config.heating),
-        poisson_solver(NULL, &config.field),
+        poisson_solver(NULL, &config.field, &vacuum_interpolator.linhex),
         ch_solver(&phys_quantities, &config.heating),
 
         emission(&surface_fields, &surface_temperatures, &poisson_solver, &vacuum_interpolator),
@@ -418,8 +418,9 @@ int ProjectRunaway::solve_pic(double advance_time) {
     surface_fields.store_points(ch_solver);
     emission.initialize(mesh);
 
+
     start_msg(t0, "=== Running PIC...\n");
-    
+
     for (int i = 0; i < n_pic_steps; i++) {
 
         // It might be good idea to put all the following steps to pic.run_cycle
@@ -431,6 +432,7 @@ int ProjectRunaway::solve_pic(double advance_time) {
         int n_lost = pic_solver.update_positions();
 
         poisson_solver.assemble_poisson(i==0, is_write_time());
+
         int n_cg_steps = poisson_solver.solve();
 
         // must be after solving Poisson and before updating velocities
@@ -445,9 +447,10 @@ int ProjectRunaway::solve_pic(double advance_time) {
 
         //calculate emission and inject electrons
         emission.calc_emission(conf.emission, conf.field.V0);
+
         int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
         
-        if (i % conf.behaviour.n_writefile == 0) {
+        if (conf.behaviour.n_writefile > 0 && i % conf.behaviour.n_writefile == 0) {
             pic_solver.write("out/electrons.movie");
             surface_fields.write("out/surface_fields.movie");
             emission.write("out/emission.dat");

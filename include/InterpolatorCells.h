@@ -216,6 +216,14 @@ protected:
     /** Find the common entry between two vectors */
     inline int common_entry(vector<unsigned>& vec1, vector<unsigned>& vec2) const;
 
+    /** Test if point is inside a semi-infinite cylinder
+     * @param bottom     coordinates of bottom cap
+     * @param direction  direction of cylinder axis; does not need to be normalized
+     * @param point      point to be tested
+     * @param radius_sq  squared radius of cylinder
+     *  */
+    bool inside_cylinder(const Vec3 &bottom, const Vec3 &direction, const Point3 &point, double radius_sq) const;
+
     /** Determinant of 3x3 matrix which's last column consists of ones */
     double determinant(const Vec3 &v1, const Vec3 &v2) const;
 
@@ -338,6 +346,10 @@ public:
     /** Get interpolation weights for a point inside i-th hexahedron */
     void get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const;
 
+    /** Get interpolation weights for a point inside i-th hexahedron
+     *  and sort the result according to Deal.II ordering */
+    void get_dealii_shape_funs(array<double,8>& sf, const Vec3& point, const int i) const;
+
     /** Calculate the gradient of shape functions for a point inside the hexahedron */
     void get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int hex) const;
 
@@ -349,6 +361,9 @@ public:
     void get_shape_fun_grads(array<Vec3, 8>& sfg, const int hex, const int node) const;
     
     void test_shape_funs();
+
+    /** Check whether the point is inside the cell */
+    bool point_in_cell(const Vec3 &point, const int cell) const;
 
     /** Find the hexahedron which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
@@ -405,12 +420,6 @@ private:
      *  for the node inside a hexahedron. */
     void project_to_nat_coords(double &u, double &v, double &w,
         int &n1, int &n2, int &n3, const int node) const;
-
-    /** Check whether the point is inside the cell */
-    bool point_in_cell(const Vec3& point, const int cell) const {
-        require(false, "point_in_cell not used in LinearHexahedra!");
-        return false;
-    }
 };
 
 /**

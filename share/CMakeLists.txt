@@ -65,7 +65,7 @@ IF (${mode} MATCHES "ubuntu14" OR ${mode} MATCHES "alcyone")
     ENDIF()
 ENDIF()
 
-IF (${mode} MATCHES "ubuntu14")
+IF (${mode} MATCHES "ubuntu14" OR ${mode} MATCHES "ubuntu16")
     # Tbb (Intel Threading Building Blocks), required by Deal.II
     FIND_PACKAGE(TBB)
     IF (NOT TBB_FOUND)
@@ -73,7 +73,9 @@ IF (${mode} MATCHES "ubuntu14")
               "libtbb not found. Please install it by running\n"
               "sudo apt install libtbb-dev") 
     ENDIF()
+ENDIF()
 
+IF (${mode} MATCHES "ubuntu14")
     # Z, required by Deal.II
     FIND_PACKAGE(Z)
     IF (NOT Z_FOUND)
