@@ -1170,14 +1170,14 @@ string EmissionReader::get_data_string(const int i) const {
 string EmissionReader::get_global_data(const bool first_line) const {
     ostringstream strs;
 
-    // specify data header
-//    if (first_line) strs << "time Itot Jrep Frep Jmax Fmax multiplier" << endl;
+    //specify data header
+    if (first_line) strs << "time Itot Imean Jrep Frep Jmax Fmax multiplier" << endl;
 
-    strs << fixed << setprecision(2)
-            << GLOBALS.TIME;
-    strs << scientific << setprecision(6)
-            << " " << global_data.I_tot << " " << global_data.Jrep << " " << global_data.Frep
-            << " " << global_data.Jmax << " " << global_data.Fmax << " " << global_data.multiplier;
+    strs << fixed << setprecision(2) << GLOBALS.TIME;
+    strs << scientific << setprecision(6) << " " << global_data.I_tot << " "
+            << global_data.I_cum / global_data.N_calls << " " << global_data.Jrep << " "
+            << global_data.Frep << " " << global_data.Jmax << " "
+            << global_data.Fmax << " " << global_data.multiplier;
 
     return strs.str();
 }

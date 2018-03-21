@@ -468,10 +468,10 @@ int ProjectRunaway::solve_pic(double advance_time) {
 
         int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
         
+        emission.write("out/emission.dat");
         if (conf.behaviour.n_writefile > 0 && i % conf.behaviour.n_writefile == 0) {
             pic_solver.write("out/electrons.movie");
             surface_fields.write("out/surface_fields.movie");
-            emission.write("out/emission.dat");
             emission.write("out/emission.movie");
         }
 
@@ -497,11 +497,11 @@ int ProjectRunaway::solve_pic_converge(double max_time) {
 
     double time_window; //time window to check convergence
     int i_max; //window iterations
-    if (max_time < conf.pic.dt_max * 20){
+    if (max_time < conf.pic.dt_max * 32){
         time_window = max_time;
         i_max = 1;
     }else{
-        i_max =  ceil(max_time / (20 * conf.pic.dt_max));
+        i_max =  ceil(max_time / (16 * conf.pic.dt_max));
         time_window = max_time / i_max;
     }
 
