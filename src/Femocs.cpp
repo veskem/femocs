@@ -63,6 +63,7 @@ int Femocs::run(const double elfield, const string &timestep) {
     parser << timestep;
     parser >> tstep;
     parser.flush();
+    conf.field.E0 = elfield;
 
     return project->run(tstep);
 }
