@@ -13,7 +13,7 @@ lib/libtet.a:
 
 dealii/lib/libdeal_II.a: dealii/dealii-${DEALII_VER}.tar.gz
 	cd dealii; tar -xvf dealii-${DEALII_VER}.tar.gz; mkdir -p dealii-${DEALII_VER}/.build
-	cd dealii/dealii-*/.build; cmake ${DEALII_FLAGS} -DDEAL_II_STATIC_EXECUTABLE=ON ..; make -j${NPROCS} install
+	cd dealii/dealii-*/.build; cmake ${DEALII_FLAGS} ..; make -j${NPROCS} install
 	cd dealii; cp -r dealii-${DEALII_VER}/source .; rm -rf examples dealii-${DEALII_VER};
 
 dealii/dealii-${DEALII_VER}.tar.gz:

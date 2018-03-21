@@ -47,7 +47,7 @@ IF (NOT Boost_FOUND)
           "sudo apt install libboost-all-dev") 
 ENDIF()
 
-IF (${mode} MATCHES "ubuntu14" OR ${mode} MATCHES "alcyone")
+IF (${machine} MATCHES "ubuntu" OR ${machine} MATCHES "alcyone")
     # Blas, required by Lapack
     FIND_PACKAGE(BLAS)
     IF (NOT BLAS_FOUND)
@@ -65,7 +65,7 @@ IF (${mode} MATCHES "ubuntu14" OR ${mode} MATCHES "alcyone")
     ENDIF()
 ENDIF()
 
-IF (${mode} MATCHES "ubuntu14" OR ${mode} MATCHES "ubuntu16")
+IF (${machine} MATCHES "ubuntu")
     # Tbb (Intel Threading Building Blocks), required by Deal.II
     FIND_PACKAGE(TBB)
     IF (NOT TBB_FOUND)
@@ -73,9 +73,7 @@ IF (${mode} MATCHES "ubuntu14" OR ${mode} MATCHES "ubuntu16")
               "libtbb not found. Please install it by running\n"
               "sudo apt install libtbb-dev") 
     ENDIF()
-ENDIF()
 
-IF (${mode} MATCHES "ubuntu14")
     # Z, required by Deal.II
     FIND_PACKAGE(Z)
     IF (NOT Z_FOUND)
@@ -94,9 +92,7 @@ IF (${mode} MATCHES "ubuntu14")
     #          "sudo apt install libnetcdf-c++4\n"
     #          "sudo ln -s /usr/lib/*/libnetcdf_c++.so.4 /usr/lib/libnetcdf_c++.so") 
     #ENDIF()
-ENDIF()
 
-IF (${mode} MATCHES "ubuntu16")
     #  mpfr, required by CGAL
     FIND_PACKAGE(MPFR)
     IF (NOT MPFR_FOUND)

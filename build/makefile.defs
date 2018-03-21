@@ -10,51 +10,56 @@ LIBCGAL =
 DEALII_VER = 8.4.1
 CGAL_VER = 4.9
 
-## Paths to the Fortran, C, C++ and deal-solver main files
-FMAIN = build/Test.f90
-CXXMAIN = build/Test.cpp
-CMAIN = build/Test.c
-SOLVERMAIN = build/Test_solver.cpp
+## Paths to the Fortran, C and C++ main files
+FMAIN = build/Main.f90
+CXXMAIN = build/Main.cpp
+CMAIN = build/Main.c
 
 ## Number of cores used during compilation
 NPROCS = 4
-
-## Fortran, C, C++ and their common path flags
-FCFLAGS = "-Ilib"
-CCFLAGS =
-CXXCFLAGS = "-IGETELEC/modules -Idealii/include -std=c++11"
-CFLAGS = -Iinclude -Llib -LGETELEC/lib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu -Lcgal/lib64
-
-## Optimization and warnings
-OPT = -O3 -w
-OPT_DEBUG = -g -Og -Wall -Wpedantic -Wno-unused-local-typedefs
 
 ## Fortran, C++ and C Compilers
 F90 = gfortran
 CXX = c++
 CC = gcc
 
+## Fortran, C and C++ path flags
+FCFLAGS = "-Ilib"
+CCFLAGS =
+CXXCFLAGS = "-IGETELEC/modules -Idealii/include -std=c++11"
+#CFLAGS = -Iinclude -Llib -LGETELEC/lib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu -Lcgal/lib64
+
+# extra paths for Taito
+EXTCFLAGS = "-I/appl/opt/cluster_studio_xe2018/parallel_studio_xe_2018.1.038/compilers_and_libraries_2018/linux/tbb/include"
+
+CFLAGS = ${EXTCFLAGS} -Iinclude -Llib -LGETELEC/lib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu -Lcgal/lib64
+
+## Optimization and warnings
+OPT = -O3 -w
+OPT_DEBUG = -g -Og -Wall -Wpedantic -Wno-unused-local-typedefs
+
 ## Library flags for
 ##  All systems
 LFLAGS_ALL = -ltet -ldeal_II ${LIBCGAL} -lgetelec -lslatec -fopenmp
 LFLAGS = -lfemocs ${LFLAGS_ALL}
 LFLAGS_DEBUG = -lfemocs_debug ${LFLAGS_ALL}
-##  Ubuntu14 desktop
-##EXTLFLAGS = -ltbb -lpthread -lumfpack -lblas -llapack -lm -lz -lstdc++ -lnetcdf_c++ -lgfortran
+
+##  Ubuntu desktop
 EXTLFLAGS = -ltbb -llapack -lz -lnetcdf_c++ -lgfortran
-## Ubuntu16 desktop
-#EXTLFLAGS = -lstdc++ -lgfortran
+
 ##  CSC Taito cluser
 #EXTLFLAGS = -lz -lstdc++
+
 ##  Alcyone
 #EXTLFLAGS = -llapack -lnetcdf_c++
+
 
 ## Flags for Tetgen
 TETGEN_FLAGS = -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=../../lib -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}
 
 ## Flags for Deal.II
 DEALII_FLAGS = -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}\
- -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../..
+ -DDEAL_II_STATIC_EXECUTABLE=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../..
 
 ## Flags for CGAL
 CGAL_FLAGS = -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}\
