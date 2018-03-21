@@ -30,7 +30,7 @@ CXXCFLAGS = "-IGETELEC/modules -Idealii/include -std=c++11"
 #CFLAGS = -Iinclude -Llib -LGETELEC/lib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu -Lcgal/lib64
 
 # extra paths for Taito
-EXTCFLAGS = "-I/appl/opt/cluster_studio_xe2018/parallel_studio_xe_2018.1.038/compilers_and_libraries_2018/linux/tbb/include"
+EXTCFLAGS = -I/appl/opt/cluster_studio_xe2018/parallel_studio_xe_2018.1.038/compilers_and_libraries_2018/linux/tbb/include
 
 CFLAGS = ${EXTCFLAGS} -Iinclude -Llib -LGETELEC/lib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu -Lcgal/lib64
 
@@ -45,10 +45,10 @@ LFLAGS = -lfemocs ${LFLAGS_ALL}
 LFLAGS_DEBUG = -lfemocs_debug ${LFLAGS_ALL}
 
 ##  Ubuntu desktop
-EXTLFLAGS = -ltbb -llapack -lz -lnetcdf_c++ -lgfortran
+#EXTLFLAGS = -ltbb -llapack -lz -lnetcdf_c++ -lgfortran
 
 ##  CSC Taito cluser
-#EXTLFLAGS = -lz -lstdc++
+EXTLFLAGS = -lz -lstdc++ -lgfortran
 
 ##  Alcyone
 #EXTLFLAGS = -llapack -lnetcdf_c++
