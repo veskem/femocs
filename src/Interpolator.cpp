@@ -19,9 +19,9 @@ namespace femocs {
 
 Interpolator::Interpolator(const string& nl, const string& sl) : 
     nodes(nl, sl),
-    lintri(&nodes), lintet(&nodes),
-    quadtri(&nodes, &lintri), quadtet(&nodes, &lintet),
-    linquad(&nodes, &lintri), linhex(&nodes, &lintet),
+    lintet(&nodes), lintri(&nodes, &lintet),
+    quadtet(&nodes, &lintet), quadtri(&nodes, &lintri, &quadtet),
+    linhex(&nodes, &lintet), linquad(&nodes, &lintri, &linhex),
     mesh(NULL), empty_value(0) 
     {}
 

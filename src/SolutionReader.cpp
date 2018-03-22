@@ -45,8 +45,28 @@ void SolutionReader::calc_interpolation() {
     int cell = 0;
 
 #pragma omp parallel for private(cell)
-    for (int i = 0; i < n_atoms; ++i)
-        cell = update_interpolation(i, cell);
+    for (int i = 0; i < n_atoms; ++i) {
+
+        // Depending on interpolation dimension and rank, pick function
+        // to first locate a cell that surrounds the point and then interpolate wrt this cell
+        if (dim == 2) {
+            if (rank == 1)
+                interpolation[i] = interpolator->lintri.locate_interpolate(get_point(i), cell);
+            else if (rank == 2)
+                interpolation[i] = interpolator->quadtri.locate_interpolate(get_point(i), cell);
+            else if (rank == 3)
+                interpolation[i] = interpolator->linquad.locate_interpolate(get_point(i), cell);
+        } else {
+            if (rank == 1)
+                interpolation[i] = interpolator->lintet.locate_interpolate(get_point(i), cell);
+            else if (rank == 2)
+                interpolation[i] = interpolator->quadtet.locate_interpolate(get_point(i), cell);
+            else if (rank == 3)
+                interpolation[i] = interpolator->linhex.locate_interpolate(get_point(i), cell);
+        }
+
+        set_marker(i, cell);
+    }
 
     // Sort atoms back to their initial order
     if (sort_atoms) {
@@ -57,80 +77,47 @@ void SolutionReader::calc_interpolation() {
     }
 }
 
-int SolutionReader::update_interpolation(const int i, int cell) {
-    Point3 point = get_point(i);
-
-    // Depending on interpolation dimension and rank, pick corresponding functions
-    if (dim == 2) {
-        if (rank == 1) {
-            cell = interpolator->lintri.locate_cell(point, abs(cell));
-            interpolation[i] = interpolator->lintri.interp_solution(point, cell);
-        } else if (rank == 2) {
-            cell = interpolator->quadtri.locate_cell(point, abs(cell));
-            interpolation[i] = interpolator->quadtri.interp_solution(point, cell);
-        } else if (rank == 3) {
-            cell = interpolator->linquad.locate_cell(point, abs(cell));
-            interpolation[i] = interpolator->linquad.interp_solution(point, cell);
-        }
-    } else {
-        if (rank == 1) {
-            cell = interpolator->lintet.locate_cell(point, abs(cell));
-            interpolation[i] = interpolator->lintet.interp_solution(point, cell);
-        } else if (rank == 2) {
-            cell = interpolator->quadtet.locate_cell(point, abs(cell));
-            interpolation[i] = interpolator->quadtet.interp_solution(point, cell);
-        } else if (rank == 3) {
-            cell = interpolator->linhex.locate_cell(point, abs(cell));
-            interpolation[i] = interpolator->linhex.interp_solution(point, cell);
-        }
-    }
-
-    set_marker(i, cell);
-    return cell;
-}
-
 void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
     require(interpolator, "NULL interpolator cannot be used!");
 
     const int n_atoms = size();
-    const bool cells_known = atom2cell.size() == n_atoms;
+    const bool cells_not_known = atom2cell.size() != n_atoms;
 
     // are the atoms already mapped against the triangles?
-    if (cells_known) {
-
-        // ...yes, no need to calculate them again, just interpolate
-        int cell;
-
-#pragma omp parallel for private(cell)
-        for (int i = 0; i < n_atoms; ++i) {
-            // locate the face
-            cell = atom2cell[i];
-            set_marker(i, cell);
-
-            // calculate the interpolation
-            if (dim == 2) {
-                if (rank == 1)
-                    interpolation[i] = interpolator->lintri.interp_solution(get_point(i), cell);
-                else if (rank == 2)
-                    interpolation[i] = interpolator->quadtri.interp_solution(get_point(i), cell);
-                else if (rank == 3)
-                    interpolation[i] = interpolator->linquad.interp_solution(get_point(i), cell);
-            } else {
-                if (rank == 1)
-                    interpolation[i] = interpolator->lintet.interp_solution(get_point(i), cell);
-                else if (rank == 2)
-                    interpolation[i] = interpolator->quadtet.interp_solution(get_point(i), cell);
-                else if (rank == 3)
-                    interpolation[i] = interpolator->linhex.interp_solution(get_point(i), cell);
-            }
-        }
-
-    // ...nop, do the mapping, interpolate and output mapping
-    } else {
+    if (cells_not_known) {
+        // ...nop, do the mapping, interpolate and output mapping
         calc_interpolation();
         atom2cell = vector<int>(n_atoms);
         for (int i = 0; i < n_atoms; ++i)
             atom2cell[i] = abs(get_marker(i));
+        return;
+    }
+
+    // ...yes, no need to calculate them again, just interpolate
+    int cell;
+
+#pragma omp parallel for private(cell)
+    for (int i = 0; i < n_atoms; ++i) {
+        // locate the face
+        cell = atom2cell[i];
+        set_marker(i, cell);
+
+        // calculate the interpolation
+        if (dim == 2) {
+            if (rank == 1)
+                interpolation[i] = interpolator->lintri.interp_solution(get_point(i), cell);
+            else if (rank == 2)
+                interpolation[i] = interpolator->quadtri.interp_solution(get_point(i), cell);
+            else if (rank == 3)
+                interpolation[i] = interpolator->linquad.interp_solution(get_point(i), cell);
+        } else {
+            if (rank == 1)
+                interpolation[i] = interpolator->lintet.interp_solution(get_point(i), cell);
+            else if (rank == 2)
+                interpolation[i] = interpolator->quadtet.interp_solution(get_point(i), cell);
+            else if (rank == 3)
+                interpolation[i] = interpolator->linhex.interp_solution(get_point(i), cell);
+        }
     }
 }
 

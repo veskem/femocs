@@ -66,12 +66,12 @@ public:
     int update_point_cell(const SuperParticle& particle) const;
 
     InterpolatorNodes nodes;     ///< vertices and solutions on them
-    LinearTriangles lintri;      ///< data & operations for linear triangular interpolation
     LinearTetrahedra lintet;     ///< data & operations for linear tetrahedral interpolation
-    QuadraticTriangles quadtri;  ///< data & operations for quadratic triangular interpolation
+    LinearTriangles lintri;      ///< data & operations for linear triangular interpolation
     QuadraticTetrahedra quadtet; ///< data & operations for quadratic tetrahedral interpolation
-    LinearQuadrangles linquad;   ///< data & operations for linear quadrangular interpolation
+    QuadraticTriangles quadtri;  ///< data & operations for quadratic triangular interpolation
     LinearHexahedra linhex;      ///< data & operations for linear hexahedral interpolation
+    LinearQuadrangles linquad;   ///< data & operations for linear quadrangular interpolation
 
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc

@@ -21,7 +21,7 @@ Config::Config() {
 
     behaviour.verbosity = "verbose";  // mute, silent, verbose
     behaviour.n_writefile = 1;        // number of time steps between writing the output files
-    behaviour.interpolation_rank = 1; // rank of the solution interpolation; 1-linear, 2-quadratic
+    behaviour.interpolation_rank = 1; // rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
     behaviour.write_period = 1.e5;    // write files every write_period of time
     behaviour.total_time = 4.05;      // Total time of a FEMOCS run [fs]
     behaviour.rnd_seed = 12345;       // Seed for random number generator

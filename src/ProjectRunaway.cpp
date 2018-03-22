@@ -75,10 +75,6 @@ int ProjectRunaway::finalize() {
 
     last_full_timestep = timestep;
 
-    // In case no transient simulations (time has stayed the same) advance the time
-    if (conf.pic.mode == "none" && conf.heating.mode == "none")
-        GLOBALS.TIME += conf.behaviour.total_time;
-
     return 0;
 }
 
@@ -173,9 +169,6 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
 
     return 0;
 }
-
-
-
 
 int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
     start_msg(t0, "=== Extracting surface...");
@@ -695,7 +688,6 @@ int ProjectRunaway::interpolate_results(const int n_points, const string &cmd, c
     require(false, "Unimplemented type of interpolation data: " + cmd);
     return 1;
 }
-
 
 int ProjectRunaway::write(){
     // write the field

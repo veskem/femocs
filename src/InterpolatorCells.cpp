@@ -284,14 +284,17 @@ bool InterpolatorCells<dim>::inside_cylinder(const Vec3 &bottom,
 
 template<int dim>
 int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_guess) const {
+    // amount of nearest neighbouring layers that are checked before the full search
+    static constexpr int n_nbor_layers = 1;// 12;
+    const int n_cells = neighbours.size();
+
+    require(cell_guess >= 0 && cell_guess < n_cells,
+            "Index out of bounds: " + to_string(cell_guess));
 
     // === Check the guessed cell
     if (point_in_cell(point, cell_guess))
         return cell_guess;
 
-    // amount of nearest neighbouring layers that are checked before the full search
-    const int n_nbor_layers = 12;
-    const int n_cells = neighbours.size();
     vector<int> cell_checked = markers;
     cell_checked[cell_guess] = true;
 
@@ -392,9 +395,8 @@ Solution InterpolatorCells<dim>::interp_solution(const Point3 &point, const int 
 }
 
 template<int dim>
-Solution InterpolatorCells<dim>::interp_solution_v2(const Point3 &point, const int c) const {
-    const int cell = abs(c);
-    require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
+Solution InterpolatorCells<dim>::interp_solution_v2(const Point3 &point, const int cell) const {
+    require(cell >= 0 && cell < cells.size(), "Index out of bounds: " + to_string(cell));
 
     // calculate shape functions and their gradients
     array<double, dim> sf;
@@ -417,9 +419,8 @@ Solution InterpolatorCells<dim>::interp_solution_v2(const Point3 &point, const i
 }
 
 template<int dim>
-Vec3 InterpolatorCells<dim>::interp_gradient(const Point3 &point, const int c) const {
-    const int cell = abs(c);
-    require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
+Vec3 InterpolatorCells<dim>::interp_gradient(const Point3 &point, const int cell) const {
+    require(cell >= 0 && cell < cells.size(), "Index out of bounds: " + to_string(cell));
 
     // calculate shape function gradients
     array<Vec3, dim> sfg;
@@ -433,6 +434,12 @@ Vec3 InterpolatorCells<dim>::interp_gradient(const Point3 &point, const int c) c
         vector_i -= sfg[i] * nodes->get_scalar(scell[i]);
 
     return vector_i;
+}
+
+template<int dim>
+Solution InterpolatorCells<dim>::locate_interpolate(const Point3 &point, int& cell) const {
+    cell = locate_cell(point, abs(cell));
+    return interp_solution(point, abs(cell));
 }
 
 template<int dim>
@@ -475,273 +482,6 @@ double InterpolatorCells<dim>::determinant(const Vec4 &v1, const Vec4 &v2, const
 }
 
 /* ==================================================================
- *  ======================= LinearTriangles ========================
- * ================================================================== */
-
-LinearTriangles::LinearTriangles() :
-        InterpolatorCells<3>(), tris(NULL) {}
-
-LinearTriangles::LinearTriangles(const InterpolatorNodes* n) :
-        InterpolatorCells<3>(n), tris(NULL) {}
-
-void LinearTriangles::reserve(const int n) {
-    InterpolatorCells<3>::reserve(n);
-
-    edge1.clear(); edge1.reserve(n);
-    edge2.clear(); edge2.reserve(n);
-    vert0.clear(); vert0.reserve(n);
-    pvec.clear();  pvec.reserve(n);
-    norms.clear(); norms.reserve(n);
-    max_distance.clear(); max_distance.reserve(n);
-}
-
-void LinearTriangles::precompute() {
-    require(mesh && tris, "NULL pointers can't be used!");
-    const int n_faces = tris->size();
-    const int n_nodes = nodes->size();
-
-    expect(n_faces > 0, "Interpolator expects non-empty mesh!");
-
-    // Reserve memory for precomputation data
-    reserve(n_faces);
-
-    // Store the constant for smoothing
-    decay_factor = -1.0 / tris->stat.edgemax;
-
-    // Loop through all the faces
-    for (int i = 0; i < n_faces; ++i) {
-        SimpleFace sface = (*tris)[i];
-
-        Vec3 v0 = mesh->nodes.get_vec(sface[0]);
-        Vec3 v1 = mesh->nodes.get_vec(sface[1]);
-        Vec3 v2 = mesh->nodes.get_vec(sface[2]);
-
-        Vec3 e1 = v1 - v0;   // edge1 of triangle
-        Vec3 e2 = v2 - v0;   // edge2 of triangle
-        Vec3 pv = tris->get_norm(i).crossProduct(e2);
-        double i_det = 1.0 / e1.dotProduct(pv);
-
-        vert0.push_back(v0);
-        edge1.push_back(e1 * i_det);
-        edge2.push_back(e2);
-        pvec.push_back(pv * i_det);
-
-        // store triangles to get rid of dependence on mesh state
-        cells.push_back(sface);
-        // calculate norms of triangles
-        norms.push_back(tris->get_norm(i));
-        // store max distance from given triangle
-        max_distance.push_back(e2.norm());
-        // calculate centroids of triangles
-        centroids.push_back(tris->get_centroid(i));
-
-        // calculate the neighbour list for triangles
-        for (int j = i+1; j < n_faces; ++j)
-            if (sface.edge_neighbor((*tris)[j])) {
-                neighbours[i].push_back(j);
-                neighbours[j].push_back(i);
-            }
-    }
-}
-
-void LinearTriangles::interp_conserved(vector<double>& scalars, const vector<Atom>& atoms) const {
-    const int n_atoms = atoms.size();
-    const int n_nodes = nodes->size();
-
-    vector<double> bcc_sum(n_nodes); // sum of barycentric coordinates from given node
-    vector<int> atom2cell(n_atoms);  // map storing the face indices that correspond to atom sequence
-    scalars = vector<double>(n_atoms);
-    array<double,3> weights;
-
-    // calculate the sum of all the weights in all the nodes
-    // it is neccesary to ensure that the total sum of a interpolated scalar does not change
-    int cell = 0;
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 point = atoms[i].point;
-        // Find the cell that matches best to the point
-        cell = abs(this->locate_cell(point, cell));
-        // calculate barycentric coordinates
-        get_shape_functions(weights, Vec3(point), cell);
-        // store the cell to make next step faster
-        atom2cell[i] = cell;
-        // append barycentric weight to the sum of all weights from given node
-        int j = 0;
-        for (int node : cells[cell])
-            bcc_sum[node] += weights[j++];
-    }
-
-    // force bcc_sum in the location of unused nodes to some non-zero value
-    // to avoid nan-s in weights[i]/bcc_sum[i]
-    for (int i = 0; i < n_nodes; ++i)
-        if (bcc_sum[i] == 0)
-            bcc_sum[i] = 1;
-
-    // perform actual interpolation for all the atoms
-    for (int i = 0; i < n_atoms; ++i) {
-        int cell = atom2cell[i];
-        // calculate barycentric coordinates
-        get_shape_functions(weights, Vec3(atoms[i].point), cell);
-        // perform interpolation
-        int j = 0;
-        for (int node : cells[cell])
-            scalars[i] += nodes->get_scalar(node) * weights[j++] / bcc_sum[node];
-    }
-}
-
-bool LinearTriangles::point_in_cell(const Vec3& point, const int face) const {
-    Vec3 tvec = point - vert0[face];
-    double u = tvec.dotProduct(pvec[face]);
-    if (u < -zero || u > 1 + zero) return false;     // Check first barycentric coordinate
-
-    Vec3 qvec = tvec.crossProduct(edge1[face]);
-    double v = qvec.dotProduct(norms[face]);
-    if (v < -zero || u + v > 1 + zero) return false; // Check second & third barycentric coordinate
-
-    // finally check the distance of the point from the triangle
-    return fabs(qvec.dotProduct(edge2[face])) < max_distance[face];
-}
-
-void LinearTriangles::get_shape_functions(array<double,3>& sf, const Vec3& point, const int face) const {
-    Vec3 tvec = point - vert0[face];
-    Vec3 qvec = tvec.crossProduct(edge1[face]);
-    const double v = tvec.dotProduct(pvec[face]);
-    const double w = qvec.dotProduct(norms[face]);
-    const double u = 1.0 - v - w;
-    sf = {zero + u, zero + v, zero + w};
-}
-
-int LinearTriangles::near_surface(const Vec3& point, const double r_cut) const {
-    require(r_cut > 0, "Invalid distance from surface: " + to_string(r_cut));
-
-    for (int face = 0; face < cells.size(); ++face) {
-        const double dist = distance(point, face);
-        if (dist >= -0.3*r_cut && dist <= r_cut) return face;
-    }
-
-    return -1;
-}
-
-double LinearTriangles::fast_distance(const Vec3& point, const int face) const {
-    Vec3 tvec = point - vert0[face];
-    Vec3 qvec = tvec.crossProduct(edge1[face]);
-    return edge2[face].dotProduct(qvec);
-}
-
-double LinearTriangles::distance(const Vec3& point, const int face) const {
-    // Constants to specify the tolerances in searching outside the triangle
-    const double zero = -0.1;
-    const double one = 1.1;
-
-    Vec3 tvec = point - vert0[face];
-    double u = tvec.dotProduct(pvec[face]);
-    if (u < zero || u > one) return 1e100;     // Check first barycentric coordinate
-
-    Vec3 qvec = tvec.crossProduct(edge1[face]);
-    double v = norms[face].dotProduct(qvec);
-    if (v < zero || u + v > one) return 1e100; // Check second & third barycentric coordinate
-
-    // return the distance from point to triangle
-    return edge2[face].dotProduct(qvec);
-}
-
-void LinearTriangles::write_cell_data(ofstream& out) const {
-    InterpolatorCells<3>::write_cell_data(out);
-
-    // write face norms
-    out << "VECTORS norm double\n";
-    for (int i = 0; i < cells.size(); ++i)
-        out << norms[i] << "\n";
-}
-
-/* ==================================================================
- *  ====================== QuadraticTriangles ======================
- * ================================================================== */
-
-QuadraticTriangles::QuadraticTriangles() :
-        InterpolatorCells<6>(), tris(NULL), lintri(NULL) {}
-
-QuadraticTriangles::QuadraticTriangles(const InterpolatorNodes* n, const LinearTriangles* l) :
-    InterpolatorCells<6>(n), tris(NULL), lintri(l) {}
-
-void QuadraticTriangles::reserve(const int N) {
-    InterpolatorCells<6>::reserve(N);
-}
-
-void QuadraticTriangles::precompute() {
-    require(mesh && tris && lintri, "NULL pointers can't be used!");
-    const int n_faces = tris->size();
-    require(n_faces == lintri->size(), "QuadraticTriangles requires LinearTriangles to be pre-computed!");
-
-    // Reserve memory for precomputation data
-    reserve(n_faces);
-
-    // Store the constant for smoothing
-    decay_factor = -1.0 / tris->stat.edgemax;
-
-    // Loop through all the faces
-    for (int i = 0; i < n_faces; ++i) {
-        // store triangles to get rid of dependence on mesh state
-        cells.push_back(get_cell(i));
-
-        // calculate and store centroids of triangles
-        centroids.push_back(tris->get_centroid(i));
-
-        // calculate the neighbour list for triangles
-        SimpleFace sface = (*tris)[i];
-        for (int j = i + 1; j < n_faces; ++j)
-            if (sface.edge_neighbor((*tris)[j])) {
-                neighbours[i].push_back(j);
-                neighbours[j].push_back(i);
-            }
-    }
-}
-
-bool QuadraticTriangles::point_in_cell(const Vec3& point, const int face) const {
-    return lintri->point_in_cell(point, face);
-}
-
-void QuadraticTriangles::get_shape_functions(array<double,6>& sf, const Vec3& point, const int face) const {
-    array<double,3> bcc;
-    lintri->get_shape_functions(bcc, point, face);
-
-    const double u = bcc[0];
-    const double v = bcc[1];
-    const double w = bcc[2];
-
-    sf[0] = u * (2 * u - 1);
-    sf[1] = v * (2 * v - 1);
-    sf[2] = w * (2 * w - 1);
-    sf[3] = 4 * u * v;
-    sf[4] = 4 * v * w;
-    sf[5] = 4 * w * u;
-
-//    sf = {u, v, w, 0, 0, 0};
-}
-
-SimpleCell<6> QuadraticTriangles::get_cell(const int tri) const {
-    require(tri >= 0 && tri < tris->size(), "Invalid index: " + to_string(tri));
-    if (mesh->quads.size() == 0)
-        return QuadraticTri(0);
-
-    const int n_quads_per_tri = 3;
-    array<vector<unsigned>,3> edge_nodes;
-
-    // locate hexahedral nodes that are located in the middle of edges
-    for (int i = 0; i < n_quads_per_tri; ++i) {
-        for (int quadnode : mesh->quads[n_quads_per_tri * tri + i])
-            if (mesh->nodes.get_marker(quadnode) == TYPES.EDGECENTROID)
-                edge_nodes[i].push_back(quadnode);
-    }
-
-    // find second order nodes
-    const int n4 = common_entry(edge_nodes[0], edge_nodes[1]);
-    const int n5 = common_entry(edge_nodes[1], edge_nodes[2]);
-    const int n6 = common_entry(edge_nodes[2], edge_nodes[0]);
-
-    return QuadraticTri((*tris)[tri], n4, n5, n6);
-}
-
-/* ==================================================================
  *  ====================== LinearTetrahedra ========================
  * ================================================================== */
 
@@ -765,9 +505,9 @@ void LinearTetrahedra::reserve(const int N) {
 void LinearTetrahedra::precompute() {
     require(mesh && tets, "NULL pointers can't be used!");
     const int n_elems = tets->size();
-    const int n_nodes = this->nodes->size();
+    const int n_nodes = mesh->nodes.size();
 
-    expect(n_elems > 0, "Interpolator expects non-empty mesh!");
+    expect(n_nodes > 0 && n_elems > 0, "Interpolator expects non-empty mesh!");
     double d0, d1, d2, d3, d4;
 
     reserve(n_elems);
@@ -775,23 +515,35 @@ void LinearTetrahedra::precompute() {
     // Store the constant for smoothing
     decay_factor = -1.0 / tets->stat.edgemax;
 
-    for (int i = 0; i < n_elems; ++i) {
-        SimpleElement se = (*tets)[i];
+    // Calculate which tetrahedra are connected to the node
+    vector<vector<int>> node2tets(n_nodes);
+    for (int tet = 0; tet < n_elems; ++tet) {
+        for (int node : (*tets)[tet])
+            node2tets[node].push_back(tet);
+    }
 
-        // Calculate tetrahedra neighbours
-        neighbours[i] = tets->get_neighbours(i);
+    // loop through all the tetrahedra
+    for (int tet = 0; tet < n_elems; ++tet) {
+        SimpleElement selem = (*tets)[tet];
+
+        // store nodal neighbours of tetrahedron
+        for (int node : selem)
+            for (int nbor_tet : node2tets[node])
+                if (nbor_tet != tet)
+                    neighbours[tet].push_back(nbor_tet);
+
         // Calculate centroids of tetrahedra
-        centroids.push_back(tets->get_centroid(i));
+        centroids.push_back(tets->get_centroid(tet));
         // Store tetrahedra to get rid of mesh dependency
-        cells.push_back(se);
+        cells.push_back(selem);
 
         /* Calculate main and minor determinants for 1st, 2nd, 3rd and 4th
          * barycentric coordinate of tetrahedra using the relations below */
 
-        Vec3 v1 = mesh->nodes.get_vec(se[0]);
-        Vec3 v2 = mesh->nodes.get_vec(se[1]);
-        Vec3 v3 = mesh->nodes.get_vec(se[2]);
-        Vec3 v4 = mesh->nodes.get_vec(se[3]);
+        Vec3 v1 = mesh->nodes.get_vec(selem[0]);
+        Vec3 v2 = mesh->nodes.get_vec(selem[1]);
+        Vec3 v3 = mesh->nodes.get_vec(selem[2]);
+        Vec3 v4 = mesh->nodes.get_vec(selem[3]);
 
         /* =====================================================================================
          * det0 = |x1 y1 z1 1|
@@ -989,17 +741,19 @@ void QuadraticTetrahedra::precompute() {
 
     // Loop through all the tetrahedra
     for (int i = 0; i < n_elems; ++i) {
-        // Calculate tetrahedra neighbours
-        neighbours[i] = tets->get_neighbours(i);
-        // Calculate centroids of tetrahedra
-        centroids.push_back(tets->get_centroid(i));
         // Calculate and store 10-noded tetrahedra
         cells.push_back(get_cell(i));
+        // Calculate centroids of tetrahedra
+        centroids.push_back(tets->get_centroid(i));
     }
 }
 
-bool QuadraticTetrahedra::point_in_cell(const Vec3& point, const int face) const {
-    return lintet->point_in_cell(point, face);
+bool QuadraticTetrahedra::point_in_cell(const Vec3& point, const int cell) const {
+    return lintet->point_in_cell(point, cell);
+}
+
+int QuadraticTetrahedra::locate_cell(const Point3 &point, const int cell_guess) const {
+    return lintet->locate_cell(point, cell_guess);
 }
 
 void QuadraticTetrahedra::get_shape_functions(array<double,10>& sf, const Vec3& point, const int tet) const {
@@ -1392,10 +1146,8 @@ LinearHexahedra::LinearHexahedra(const InterpolatorNodes* n, const LinearTetrahe
         InterpolatorCells<8>(n), hexs(NULL), lintet(l) {}
 
 void LinearHexahedra::reserve(const int N) {
-    require(N >= 0, "Invalid number of points: " + to_string(N));
+    InterpolatorCells<8>::reserve(N);
 
-    markers = vector<int>(N);
-    cells.clear(); cells.reserve(N);
     f0s.clear(); f0s.reserve(N);
     f1s.clear(); f1s.reserve(N);
     f2s.clear(); f2s.reserve(N);
@@ -1411,27 +1163,43 @@ void LinearHexahedra::precompute() {
     require(mesh->tets.size() == lintet->size(), "LinearHexahedra requires LinearTetrahedra to be pre-computed!");
 
     const int n_elems = hexs->size();
-    expect(n_elems > 0, "Interpolator expects non-empty mesh!");
+    const int n_nodes = mesh->nodes.size();
+    expect(n_elems > 0 && n_nodes > 0, "Interpolator expects non-empty mesh!");
     reserve(n_elems);
 
     decay_factor = -1.0 / mesh->tets.stat.edgemax;
 
+    // Calculate which hexahedra are connected to which node
+    vector<vector<int>> node2hexs(n_nodes);
+    for (int hex = 0; hex < n_elems; ++hex) {
+        for (int node : (*hexs)[hex])
+            node2hexs[node].push_back(hex);
+    }
+
     // Loop through all the hexahedra
-    for (int i = 0; i < n_elems; ++i) {
-        SimpleHex cell = (*hexs)[i];
+    for (int hex = 0; hex < n_elems; ++hex) {
+        SimpleHex shex = (*hexs)[hex];
+
+        // store nodal neighbours of hexahedron
+        for (int node : shex)
+            for (int nbor_hex : node2hexs[node])
+                if (nbor_hex != hex)
+                    neighbours[hex].push_back(nbor_hex);
 
         // store hexahedra
-        cells.push_back(cell);
+        cells.push_back(shex);
+        // Calculate centroids of hexahedra
+        centroids.push_back(hexs->get_centroid(hex));
 
         // pre-calculate data to make iterpolation faster
-        const Vec3 x1 = mesh->nodes.get_vec(cell[0]);
-        const Vec3 x2 = mesh->nodes.get_vec(cell[1]);
-        const Vec3 x3 = mesh->nodes.get_vec(cell[2]);
-        const Vec3 x4 = mesh->nodes.get_vec(cell[3]);
-        const Vec3 x5 = mesh->nodes.get_vec(cell[4]);
-        const Vec3 x6 = mesh->nodes.get_vec(cell[5]);
-        const Vec3 x7 = mesh->nodes.get_vec(cell[6]);
-        const Vec3 x8 = mesh->nodes.get_vec(cell[7]);
+        const Vec3 x1 = mesh->nodes.get_vec(shex[0]);
+        const Vec3 x2 = mesh->nodes.get_vec(shex[1]);
+        const Vec3 x3 = mesh->nodes.get_vec(shex[2]);
+        const Vec3 x4 = mesh->nodes.get_vec(shex[3]);
+        const Vec3 x5 = mesh->nodes.get_vec(shex[4]);
+        const Vec3 x6 = mesh->nodes.get_vec(shex[5]);
+        const Vec3 x7 = mesh->nodes.get_vec(shex[6]);
+        const Vec3 x8 = mesh->nodes.get_vec(shex[7]);
 
         f0s.push_back( Vec3((x1 + x2 + x3 + x4 + x5 + x6 + x7 + x8) / 8.0) );
         f1s.push_back( Vec3(((x1*-1) + x2 + x3 - x4 - x5 + x6 + x7 - x8) / 8.0) );
@@ -1722,7 +1490,7 @@ bool LinearHexahedra::point_in_cell(const Vec3 &point, const int cell) const {
     static constexpr int n_hexs_per_tet = 4;
 
     array<double,4> bcc;
-    int tet_index = abs(cell / n_hexs_per_tet);
+    int tet_index = (int) cell / n_hexs_per_tet;
 
     lintet->get_shape_functions(bcc, point, tet_index);
 
@@ -1752,7 +1520,7 @@ bool LinearHexahedra::point_in_cell(const Vec3 &point, const int cell) const {
 int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) const {
     static constexpr int n_hexs_per_tet = 4;
 
-    int tet_index = abs(cell_guess / n_hexs_per_tet);
+    int tet_index = (int) cell_guess / n_hexs_per_tet;
     tet_index = lintet->locate_cell(point, tet_index);
     int sign = 1;
     if (tet_index < 0) sign = -1;
@@ -1779,14 +1547,341 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
 }
 
 /* ==================================================================
+ *  ======================= LinearTriangles ========================
+ * ================================================================== */
+
+LinearTriangles::LinearTriangles() :
+        InterpolatorCells<3>(), tris(NULL), lintet(NULL) {}
+
+LinearTriangles::LinearTriangles(const InterpolatorNodes* n, const LinearTetrahedra* lt) :
+        InterpolatorCells<3>(n), tris(NULL), lintet(lt) {}
+
+void LinearTriangles::reserve(const int n) {
+    InterpolatorCells<3>::reserve(n);
+
+    edge1.clear(); edge1.reserve(n);
+    edge2.clear(); edge2.reserve(n);
+    vert0.clear(); vert0.reserve(n);
+    pvec.clear();  pvec.reserve(n);
+    norms.clear(); norms.reserve(n);
+    max_distance.clear(); max_distance.reserve(n);
+}
+
+void LinearTriangles::precompute() {
+    require(mesh && tris && lintet, "NULL pointers can't be used!");
+    const int n_faces = tris->size();
+    const int n_nodes = mesh->nodes.size();
+
+    expect(n_nodes > 0 && n_faces > 0, "Interpolator expects non-empty mesh!");
+    require(mesh->tris.size() == lintet->size(), "LinearTriangles requires LinearTetrahedra to be pre-computed!");
+
+    // Reserve memory for precomputation data
+    reserve(n_faces);
+
+    // Store the constant for smoothing
+    decay_factor = -1.0 / tris->stat.edgemax;
+
+    // Calculate which triangles are connected to which node
+    vector<vector<int>> node2tris(n_nodes);
+    for (int tri = 0; tri < n_faces; ++tri)
+        for (int node : (*tris)[tri]) {
+            node2tris[node].push_back(tri);
+    }
+
+    // Loop through all the faces
+    for (int tri = 0; tri < n_faces; ++tri) {
+        SimpleFace sface = (*tris)[tri];
+
+        // store nodal neighbours of a triangle
+        for (int node : sface)
+            for (int nbor_tri : node2tris[node])
+                if (nbor_tri != tri)
+                    neighbours[tri].push_back(nbor_tri);
+
+        Vec3 v0 = mesh->nodes.get_vec(sface[0]);
+        Vec3 v1 = mesh->nodes.get_vec(sface[1]);
+        Vec3 v2 = mesh->nodes.get_vec(sface[2]);
+
+        Vec3 e1 = v1 - v0;   // edge1 of triangle
+        Vec3 e2 = v2 - v0;   // edge2 of triangle
+        Vec3 pv = tris->get_norm(tri).crossProduct(e2);
+        double i_det = 1.0 / e1.dotProduct(pv);
+
+        vert0.push_back(v0);
+        edge1.push_back(e1 * i_det);
+        edge2.push_back(e2);
+        pvec.push_back(pv * i_det);
+
+        // store triangles
+        cells.push_back(sface);
+        // calculate norms of triangles
+        norms.push_back(tris->get_norm(tri));
+        // store max distance from given triangle
+        max_distance.push_back(e2.norm());
+        // calculate centroids of triangles
+        centroids.push_back(tris->get_centroid(tri));
+    }
+}
+
+bool LinearTriangles::point_in_cell(const Vec3& point, const int face) const {
+    Vec3 tvec = point - vert0[face];
+    double u = tvec.dotProduct(pvec[face]);
+    if (u < -zero || u > 1 + zero) return false;     // Check first barycentric coordinate
+
+    Vec3 qvec = tvec.crossProduct(edge1[face]);
+    double v = qvec.dotProduct(norms[face]);
+    if (v < -zero || u + v > 1 + zero) return false; // Check second & third barycentric coordinate
+
+    // finally check the distance of the point from the triangle
+    return fabs(qvec.dotProduct(edge2[face])) < max_distance[face];
+}
+
+void LinearTriangles::get_shape_functions(array<double,3>& sf, const Vec3& point, const int face) const {
+    Vec3 tvec = point - vert0[face];
+    Vec3 qvec = tvec.crossProduct(edge1[face]);
+    const double v = tvec.dotProduct(pvec[face]);
+    const double w = qvec.dotProduct(norms[face]);
+    const double u = 1.0 - v - w;
+    sf = {zero + u, zero + v, zero + w};
+}
+
+Solution LinearTriangles::locate_interpolate(const Point3 &point, int& cell) const {
+    // find a tri that is close to the point
+    cell = locate_cell(point, abs(cell));
+    int tri = abs(cell);
+    array<int, 2> tets = tris->to_tets(tri);
+
+    // test if tets that are connected to a face surround the point and if yes, interpolate there
+    if (tets[0] >= 0 && lintet->point_in_cell(point, tets[0]))
+        return lintet->interp_solution(point, tets[0]);
+    if (tets[1] >= 0 && lintet->point_in_cell(point, tets[1]))
+        return lintet->interp_solution(point, tets[1]);
+
+    // if appropriate tet not found, loop through all their neighbors
+    if (tets[0] >= 0)
+        for (int tet : lintet->get_neighbours(tets[0])) {
+            if (tet >= 0 && lintet->point_in_cell(point, tet))
+                return lintet->interp_solution(point, tet);
+        }
+
+    if (tets[1] >= 0)
+        for (int tet : lintet->get_neighbours(tets[1])) {
+            if (tet >= 0 && lintet->point_in_cell(point, tet))
+                return lintet->interp_solution(point, tet);
+        }
+
+    // in case of really bad luck, return empty solution
+    return Solution(0);
+}
+
+void LinearTriangles::interp_conserved(vector<double>& scalars, const vector<Atom>& atoms) const {
+    const int n_atoms = atoms.size();
+    const int n_nodes = nodes->size();
+
+    vector<double> bcc_sum(n_nodes); // sum of barycentric coordinates from given node
+    vector<int> atom2cell(n_atoms);  // map storing the face indices that correspond to atom sequence
+    scalars = vector<double>(n_atoms);
+    array<double,3> weights;
+
+    // calculate the sum of all the weights in all the nodes
+    // it is neccesary to ensure that the total sum of a interpolated scalar does not change
+    int cell = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point = atoms[i].point;
+        // Find the cell that matches best to the point
+        cell = abs(this->locate_cell(point, cell));
+        // calculate barycentric coordinates
+        get_shape_functions(weights, Vec3(point), cell);
+        // store the cell to make next step faster
+        atom2cell[i] = cell;
+        // append barycentric weight to the sum of all weights from given node
+        int j = 0;
+        for (int node : cells[cell])
+            bcc_sum[node] += weights[j++];
+    }
+
+    // force bcc_sum in the location of unused nodes to some non-zero value
+    // to avoid nan-s in weights[i]/bcc_sum[i]
+    for (int i = 0; i < n_nodes; ++i)
+        if (bcc_sum[i] == 0)
+            bcc_sum[i] = 1;
+
+    // perform actual interpolation for all the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        int cell = atom2cell[i];
+        // calculate barycentric coordinates
+        get_shape_functions(weights, Vec3(atoms[i].point), cell);
+        // perform interpolation
+        int j = 0;
+        for (int node : cells[cell])
+            scalars[i] += nodes->get_scalar(node) * weights[j++] / bcc_sum[node];
+    }
+}
+
+int LinearTriangles::near_surface(const Vec3& point, const double r_cut) const {
+    require(r_cut > 0, "Invalid distance from surface: " + to_string(r_cut));
+
+    for (int face = 0; face < cells.size(); ++face) {
+        const double dist = distance(point, face);
+        if (dist >= -0.3*r_cut && dist <= r_cut) return face;
+    }
+
+    return -1;
+}
+
+double LinearTriangles::fast_distance(const Vec3& point, const int face) const {
+    Vec3 tvec = point - vert0[face];
+    Vec3 qvec = tvec.crossProduct(edge1[face]);
+    return edge2[face].dotProduct(qvec);
+}
+
+double LinearTriangles::distance(const Vec3& point, const int face) const {
+    // Constants to specify the tolerances in searching outside the triangle
+    const double zero = -0.1;
+    const double one = 1.1;
+
+    Vec3 tvec = point - vert0[face];
+    double u = tvec.dotProduct(pvec[face]);
+    if (u < zero || u > one) return 1e100;     // Check first barycentric coordinate
+
+    Vec3 qvec = tvec.crossProduct(edge1[face]);
+    double v = norms[face].dotProduct(qvec);
+    if (v < zero || u + v > one) return 1e100; // Check second & third barycentric coordinate
+
+    // return the distance from point to triangle
+    return edge2[face].dotProduct(qvec);
+}
+
+void LinearTriangles::write_cell_data(ofstream& out) const {
+    InterpolatorCells<3>::write_cell_data(out);
+
+    // write face norms
+    out << "VECTORS norm double\n";
+    for (int i = 0; i < cells.size(); ++i)
+        out << norms[i] << "\n";
+}
+
+/* ==================================================================
+ *  ====================== QuadraticTriangles ======================
+ * ================================================================== */
+
+QuadraticTriangles::QuadraticTriangles() :
+        InterpolatorCells<6>(), tris(NULL), lintri(NULL), quadtet(NULL) {}
+
+QuadraticTriangles::QuadraticTriangles(const InterpolatorNodes* n, const LinearTriangles* lt, const QuadraticTetrahedra* qt) :
+    InterpolatorCells<6>(n), tris(NULL), lintri(lt), quadtet(qt) {}
+
+void QuadraticTriangles::reserve(const int N) {
+    InterpolatorCells<6>::reserve(N);
+}
+
+void QuadraticTriangles::precompute() {
+    require(mesh && tris && lintri && quadtet, "NULL pointers can't be used!");
+    const int n_faces = tris->size();
+    require(n_faces == lintri->size(), "QuadraticTriangles requires LinearTriangles to be pre-computed!");
+
+    // Reserve memory for precomputation data
+    reserve(n_faces);
+
+    // Store the constant for smoothing
+    decay_factor = -1.0 / tris->stat.edgemax;
+
+    // Loop through all the faces
+    for (int i = 0; i < n_faces; ++i) {
+        // store triangles
+        cells.push_back(get_cell(i));
+        // calculate centroids of triangles
+        centroids.push_back(tris->get_centroid(i));
+    }
+}
+
+bool QuadraticTriangles::point_in_cell(const Vec3& point, const int face) const {
+    return lintri->point_in_cell(point, face);
+}
+
+int QuadraticTriangles::locate_cell(const Point3 &point, const int cell_guess) const {
+    return lintri->locate_cell(point, cell_guess);
+}
+
+void QuadraticTriangles::get_shape_functions(array<double,6>& sf, const Vec3& point, const int face) const {
+    array<double,3> bcc;
+    lintri->get_shape_functions(bcc, point, face);
+
+    const double u = bcc[0];
+    const double v = bcc[1];
+    const double w = bcc[2];
+
+    sf[0] = u * (2 * u - 1);
+    sf[1] = v * (2 * v - 1);
+    sf[2] = w * (2 * w - 1);
+    sf[3] = 4 * u * v;
+    sf[4] = 4 * v * w;
+    sf[5] = 4 * w * u;
+
+//    sf = {u, v, w, 0, 0, 0};
+}
+
+Solution QuadraticTriangles::locate_interpolate(const Point3 &point, int& cell) const {
+    // find a tri that is close to the point
+    cell = locate_cell(point, abs(cell));
+    int tri = abs(cell);
+    array<int, 2> tets = tris->to_tets(tri);
+
+    // find a tet that surrounds the point and if available, interpolate there
+    if (tets[0] >= 0 && quadtet->point_in_cell(point, tets[0]))
+        return quadtet->interp_solution(point, tets[0]);
+    if (tets[1] >= 0 && quadtet->point_in_cell(point, tets[1]))
+        return quadtet->interp_solution(point, tets[1]);
+
+    // if appropriate tet not found, loop through all their neighbors
+    if (tets[0] >= 0)
+        for (int tet : quadtet->get_neighbours(tets[0])) {
+            if (tet >= 0 && quadtet->point_in_cell(point, tet))
+                return quadtet->interp_solution(point, tet);
+        }
+
+    if (tets[1] >= 0)
+        for (int tet : quadtet->get_neighbours(tets[1])) {
+            if (tet >= 0 && quadtet->point_in_cell(point, tet))
+                return quadtet->interp_solution(point, tet);
+        }
+
+    // in case of really bad luck, return empty solution
+    return Solution(0);
+}
+
+SimpleCell<6> QuadraticTriangles::get_cell(const int tri) const {
+    require(tri >= 0 && tri < tris->size(), "Invalid index: " + to_string(tri));
+    if (mesh->quads.size() == 0)
+        return QuadraticTri(0);
+
+    const int n_quads_per_tri = 3;
+    array<vector<unsigned>,3> edge_nodes;
+
+    // locate hexahedral nodes that are located in the middle of edges
+    for (int i = 0; i < n_quads_per_tri; ++i) {
+        for (int quadnode : mesh->quads[n_quads_per_tri * tri + i])
+            if (mesh->nodes.get_marker(quadnode) == TYPES.EDGECENTROID)
+                edge_nodes[i].push_back(quadnode);
+    }
+
+    // find second order nodes
+    const int n4 = common_entry(edge_nodes[0], edge_nodes[1]);
+    const int n5 = common_entry(edge_nodes[1], edge_nodes[2]);
+    const int n6 = common_entry(edge_nodes[2], edge_nodes[0]);
+
+    return QuadraticTri((*tris)[tri], n4, n5, n6);
+}
+
+/* ==================================================================
  *  ====================== LinearQuadrangles =======================
  * ================================================================== */
 
 LinearQuadrangles::LinearQuadrangles() :
-        InterpolatorCells<4>(), quads(NULL), lintri(NULL) {}
+        InterpolatorCells<4>(), quads(NULL), lintri(NULL), linhex(NULL) {}
 
-LinearQuadrangles::LinearQuadrangles(const InterpolatorNodes* n, const LinearTriangles* l) :
-        InterpolatorCells<4>(n), quads(NULL), lintri(l) {}
+LinearQuadrangles::LinearQuadrangles(const InterpolatorNodes* n, const LinearTriangles* lt, const LinearHexahedra* lh) :
+        InterpolatorCells<4>(n), quads(NULL), lintri(lt), linhex(lh) {}
 
 void LinearQuadrangles::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));
@@ -1796,7 +1891,7 @@ void LinearQuadrangles::reserve(const int N) {
 }
 
 void LinearQuadrangles::precompute() {
-    require(mesh && quads && lintri, "NULL pointers can't be used!");
+    require(mesh && quads && lintri && linhex, "NULL pointers can't be used!");
     require(mesh->tris.size() == lintri->size(), "LinearQuadrangles requires LinearTriangles to be pre-computed!");
 
     const int n_elems = quads->size();
@@ -1805,10 +1900,10 @@ void LinearQuadrangles::precompute() {
 
     // Loop through all the hexahedra
     for (int i = 0; i < n_elems; ++i) {
-        SimpleQuad cell = (*quads)[i];
-
         // store hexahedra
-        cells.push_back(cell);
+        cells.push_back((*quads)[i]);
+        // Calculate centroids of quadrangle
+        centroids.push_back(quads->get_centroid(i));
     }
 
     // make the markers to correspond to lintri
@@ -1816,12 +1911,33 @@ void LinearQuadrangles::precompute() {
         markers[i] = lintri->get_marker(quads->to_tri(i));
 }
 
-Solution LinearQuadrangles::interp_solution(const Point3 &point, const int c) const {
-    int cell;
-    if (c >= 0) cell = quads->to_tri(c);
-    else cell = -quads->to_tri(abs(c));
+Solution LinearQuadrangles::locate_interpolate(const Point3 &point, int& cell) const {
+    // find a quad that is close to the point
+    cell = locate_cell(point, abs(cell));
+    int quad = abs(cell);
+    array<int, 2> hexs = quads->to_hexs(quad);
 
-    return lintri->interp_solution(point, cell);
+    // find a hex that surrounds the point and if available, interpolate there
+    if (hexs[0] >= 0 && linhex->point_in_cell(point, hexs[0]))
+        return linhex->interp_solution(point, hexs[0]);
+    if (hexs[1] >= 0 && linhex->point_in_cell(point, hexs[1]))
+        return linhex->interp_solution(point, hexs[1]);
+
+    // if appropriate hex not found, loop through all their neighbors
+    if (hexs[0] >= 0)
+        for (int hex : linhex->get_neighbours(hexs[0])) {
+            if (linhex->point_in_cell(point, hex))
+                return linhex->interp_solution(point, hex);
+        }
+
+    if (hexs[1] >= 0)
+        for (int hex : linhex->get_neighbours(hexs[1])) {
+            if (linhex->point_in_cell(point, hex))
+                return linhex->interp_solution(point, hex);
+        }
+
+    // in case of really bad luck, return empty solution
+    return Solution(0);
 }
 
 /*
@@ -1868,6 +1984,28 @@ void LinearQuadrangles::get_shape_functions(array<double,4>& sf, const Vec3& p, 
     };
 }
 
+bool LinearQuadrangles::point_in_cell(const Vec3 &point, const int cell) const {
+    static constexpr int n_quads_per_tri = 3;
+
+    array<double,3> bcc;
+    int tri = (int) cell / n_quads_per_tri;
+    lintri->get_shape_functions(bcc, point, tri);
+
+    if (bcc[0] >= 0 && bcc[1] >= 0 && bcc[2] >= 0) {
+        int section = cell % n_quads_per_tri;
+        switch (section) {
+            case 0:
+                return bcc[0] >= bcc[1] && bcc[0] >= bcc[2];
+            case 1:
+                return bcc[1] >= bcc[0] && bcc[1] >= bcc[2];
+            case 2:
+                return bcc[2] >= bcc[0] && bcc[2] >= bcc[1];
+        }
+    }
+
+    return false;
+}
+
 /*
  * Function uses the fact that hexahedra are always uniquely tied with the nodes of tetrahedra.
  * Therefore, knowing the barycentric coordinates inside a tetrahedron
@@ -1887,21 +2025,14 @@ int LinearQuadrangles::locate_cell(const Point3 &point, const int cell_guess) co
     array<double,3> bcc;
     lintri->get_shape_functions(bcc, point, tri);
 
-    // all the ratios below are == 1, if the point is exactly on the boundary of two quadrangles
-    // and 0 or inf, if point is on the edge of a triangle.
-    // if ratio is > 1, the point is closer to 1st corresponding node, if < 1, it's closer to 2nd node
-    const double b1b2 = bcc[0] / bcc[1];
-    const double b1b3 = bcc[0] / bcc[2];
-    const double b2b3 = bcc[1] / bcc[2];
-
     // point inside a quad connected to 1st triangular node ?
-    if (b1b2 >= 1 && b1b3 >= 1)
+    if (bcc[0] >= bcc[1] && bcc[0] >= bcc[2])
         return sign * (n_quads_per_tri * tri + 0);
     // point inside a quad connected to 2nd triangular node ?
-    if (b1b2 <= 1 && b2b3 >= 1)
+    if (bcc[1] >= bcc[0] && bcc[1] >= bcc[2])
         return sign * (n_quads_per_tri * tri + 1);
     // point inside a quad connected to 3rd triangular node ?
-    if (b1b3 <= 1 && b2b3 <= 1)
+    if (bcc[2] >= bcc[0] && bcc[2] >= bcc[1])
         return sign * (n_quads_per_tri * tri + 2);
 
     return -1;

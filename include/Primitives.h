@@ -702,10 +702,7 @@ public:
 
     /** Check whether two triangles share a node or an edge */
     bool node_neighbor(const SimpleFace& s) const {
-        int sum = s == node[0];
-        sum += s == node[1];
-        sum += s == node[2];
-        return sum == 1 || sum == 2 ;
+        return s == node[0] || s == node[1] || s == node[2];
     }
 
     /** Check whether triangle contains an edge */
@@ -751,12 +748,16 @@ public:
     }
 
     /** Check whether two tetrahedra share a triangle */
-    bool neighbor(const SimpleElement& s) const {
+    bool face_neighbor(const SimpleElement& s) const {
         int sum = s == node[0];
         sum += s == node[1];
         sum += s == node[2];
         sum += s == node[3];
         return sum == 3;
+    }
+
+    bool node_neighbor(const SimpleElement& s) const {
+        return s == node[0] || s == node[1] || s == node[2] || s == node[3];
     }
 
     /** Check whether tetrahedron contains a triangle */

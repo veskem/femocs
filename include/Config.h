@@ -55,7 +55,7 @@ public:
     struct Behaviour {
         string verbosity;           ///< Verbose mode: mute, silent, verbose
         int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
-        int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear, 2-quadratic
+        int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
         double write_period;        ///< Write files every write_period (in fs)
         double total_time;          ///< Total time evolution within a FEMOCS run call [fs]
         unsigned int rnd_seed;      ///< Seed for random number generator

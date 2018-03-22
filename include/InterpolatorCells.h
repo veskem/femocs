@@ -161,7 +161,7 @@ public:
 
     /** @brief Interpolate both vector and scalar data inside or near the cell.
      * Function assumes that cell, that surrounds the point, is previously already found with locate_cell.
-     * cell>=0 initiates the usage of barycentric coordinates and cell<0 the usage of mere distance-dependent weighting.
+     * cell>=0 initiates the usage of shape functions and cell<0 the usage of mere distance-dependent weighting.
      * @param point  point where the interpolation is performed
      * @param cell   index of cell around which the interpolation is performed */
     Solution interp_solution(const Point3 &point, const int cell) const;
@@ -169,6 +169,10 @@ public:
     Solution interp_solution_v2(const Point3 &point, const int cell) const;
 
     Vec3 interp_gradient(const Point3 &point, const int c) const;
+
+    /** Locate cell that surrounds the point (search starts from input cell index)
+     * and interpolate solution at this point */
+    Solution locate_interpolate(const Point3 &point, int& cell) const;
 
     /** Modify cell marker */
     void set_marker(const int i, const int m) {
@@ -180,6 +184,12 @@ public:
     int get_marker(const int i) const {
         require(i >= 0 && i < markers.size(), "Invalid index: " + to_string(i));
         return markers[i];
+    }
+
+    /** Access cell neighbours */
+    vector<int> get_neighbours(const int i) const {
+        require(i >= 0 && i < neighbours.size(), "Invalid index: " + to_string(i));
+        return neighbours[i];
     }
 
     /** Change the pointer to mesh */
@@ -300,6 +310,9 @@ public:
     /** Check whether the point is inside the cell */
     bool point_in_cell(const Vec3& point, const int cell) const;
 
+    /** Find the tetrahedron which contains the point or is the closest to it */
+    int locate_cell(const Point3 &point, const int cell_guess) const;
+
     /** Get interpolation weights for a point inside the tetrahedron */
     void get_shape_functions(array<double,10>& sf, const Vec3& point, const int tet) const;
     
@@ -314,6 +327,11 @@ public:
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<10>::set_mesh(m);
         tets = &m->tets;
+    }
+
+    /** Access cell neighbours */
+    vector<int> get_neighbours(const int i) const {
+        return lintet->get_neighbours(i);
     }
 
 private:
@@ -343,6 +361,12 @@ public:
     /** Pre-compute data about tetrahedra to make interpolation faster */
     void precompute();
 
+    /** Check whether the point is inside the cell */
+    bool point_in_cell(const Vec3 &point, const int cell) const;
+
+    /** Find the hexahedron which contains the point or is the closest to it */
+    int locate_cell(const Point3 &point, const int cell_guess) const;
+
     /** Get interpolation weights for a point inside i-th hexahedron */
     void get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const;
 
@@ -361,12 +385,6 @@ public:
     void get_shape_fun_grads(array<Vec3, 8>& sfg, const int hex, const int node) const;
     
     void test_shape_funs();
-
-    /** Check whether the point is inside the cell */
-    bool point_in_cell(const Vec3 &point, const int cell) const;
-
-    /** Find the hexahedron which contains the point or is the closest to it */
-    int locate_cell(const Point3 &point, const int cell_guess) const;
 
     /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
      * -1 means there's no correspondence between two meshes */
@@ -428,7 +446,7 @@ private:
 class LinearTriangles : public InterpolatorCells<3> {
 public:
     LinearTriangles();
-    LinearTriangles(const InterpolatorNodes* n);
+    LinearTriangles(const InterpolatorNodes* n, const LinearTetrahedra* lintet);
     ~LinearTriangles() {};
 
     /** Pre-compute data about triangles to make interpolation faster */
@@ -439,6 +457,10 @@ public:
 
     /** Calculate shape functions for a point with respect to the i-th triangle */
     void get_shape_functions(array<double,3>& sf, const Vec3& point, const int i) const;
+
+    /** Locate cell that surrounds the point (search starts from input cell index)
+     * and interpolate solution at this point */
+    Solution locate_interpolate(const Point3 &point, int& cell) const;
 
     /** Interpolate conserved scalar data for the vector of atoms */
     void interp_conserved(vector<double>& scalars, const vector<Atom>& atoms) const;
@@ -464,7 +486,8 @@ public:
      }
 
 private:
-    const TetgenFaces* tris;    ///< Direct pointer to triangles to access their specific routines
+    const TetgenFaces* tris;         ///< Direct pointer to mesh triangles
+    const LinearTetrahedra* lintet;  ///< Pointer to linear tetrahedron interpolator
 
     /** Data computed before starting looping through the triangles */
     vector<Vec3> vert0;
@@ -497,7 +520,7 @@ private:
 class QuadraticTriangles : public InterpolatorCells<6> {
 public:
     QuadraticTriangles();
-    QuadraticTriangles(const InterpolatorNodes* n, const LinearTriangles* l);
+    QuadraticTriangles(const InterpolatorNodes* n, const LinearTriangles* lintri, const QuadraticTetrahedra* quadtet);
     ~QuadraticTriangles() {};
 
     /** Pre-compute data about triangles to make interpolation faster */
@@ -506,8 +529,15 @@ public:
     /** Check whether the point is inside the cell */
     bool point_in_cell(const Vec3& point, const int cell) const;
 
+    /** Find the triangle which contains the point or is the closest to it */
+    int locate_cell(const Point3 &point, const int cell_guess) const;
+
     /** Get interpolation weights for a point inside i-th triangle */
     void get_shape_functions(array<double,6>& sf, const Vec3& point, const int i) const;
+
+    /** Locate cell that surrounds the point (search starts from input cell index)
+     * and interpolate solution at this point */
+    Solution locate_interpolate(const Point3 &point, int& cell) const;
 
     /** Change the mesh */
     void set_mesh(const TetgenMesh* m) {
@@ -515,9 +545,15 @@ public:
         tris = &m->tris;
     }
 
+    /** Access cell neighbours */
+    vector<int> get_neighbours(const int i) const {
+        return lintri->get_neighbours(i);
+    }
+
 private:
-    const TetgenFaces* tris;    ///< Direct pointer to triangles to access their specific routines
-    const LinearTriangles* lintri;   ///< Pointer to linear triangles
+    const TetgenFaces* tris;            ///< Direct pointer to mesh triangles
+    const LinearTriangles* lintri;      ///< Pointer to linear triangular interpolator
+    const QuadraticTetrahedra* quadtet; ///< Pointer to quadratic tetrahedral interpolator
 
     /** Reserve memory for interpolation data */
     void reserve(const int N);
@@ -536,7 +572,7 @@ private:
 class LinearQuadrangles : public InterpolatorCells<4> {
 public:
     LinearQuadrangles();
-    LinearQuadrangles(const InterpolatorNodes* n, const LinearTriangles* l);
+    LinearQuadrangles(const InterpolatorNodes* n, const LinearTriangles* lintri, const LinearHexahedra* linhex);
     ~LinearQuadrangles() {};
 
     /** Pre-compute data about tetrahedra to make interpolation faster */
@@ -545,11 +581,15 @@ public:
     /** Get interpolation weights for a point inside i-th hexahedron */
     void get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const;
 
+    /** Check whether the point is inside the cell */
+    bool point_in_cell(const Vec3 &point, const int cell) const;
+
     /** Find the hexahedron which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
-    /** Until proper way to calculate shape functions is found, use lintri interpolator */
-    Solution interp_solution(const Point3 &point, const int c) const;
+    /** Locate cell that surrounds the point (search starts from input cell index)
+     * and interpolate solution at this point */
+    Solution locate_interpolate(const Point3 &point, int& cell) const;
 
     /** Change the mesh */
     void set_mesh(const TetgenMesh* m) {
@@ -558,20 +598,15 @@ public:
     }
 
 private:
-    const Quadrangles* quads;       ///< pointer to quadrangles to access their specific routines
-    const LinearTriangles* lintri;  ///< Pointer to linear triangles
+    const Quadrangles* quads;       ///< Direct pointer to mesh quadrangles
+    const LinearTriangles* lintri;  ///< Pointer to linear triangular interpolator
+    const LinearHexahedra* linhex;  ///< Pointer to linear hexahedral interpolator
 
     /** Reserve memory for interpolation data */
     void reserve(const int N);
 
     /** Return the quadrangle type in vtk format */
     int get_cell_type() const { return TYPES.VTK.QUADRANGLE; };
-
-    /** Check whether the point is inside the cell */
-    bool point_in_cell(const Vec3& point, const int cell) const {
-        require(false, "point_in_cell not used in LinearQuadrangles!");
-        return false;
-    }
 };
 
 } /* namespace femocs */
