@@ -249,6 +249,8 @@ public:
         double Jrep = 0.;    ///< Representative current deinsity for space charge. [amps/A^2]
         double I_tot = 0;    ///< Total current running through the surface [in Amps]
         double I_fwhm = 0;
+        int N_calls;        ///< Counter keeping the last N_calls
+        double I_cum = 0;  ///< Sum of the I_tot for the last N_calls (useful for convergence check)
     } global_data;
 
 private:

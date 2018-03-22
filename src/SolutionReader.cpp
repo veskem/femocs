@@ -960,6 +960,8 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     global_data.Frep = 0.;
     global_data.Jrep = 0.;
     global_data.multiplier = 1.;
+    global_data.N_calls = 0;
+    global_data.I_cum = 0.;
 }
 
 void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax) {
@@ -1123,6 +1125,7 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
 
 void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
     get_loc_field_new();
+    global_data.N_calls++;
 
     double theta_old = global_data.multiplier;
     double err_fact = 0.5, error;
@@ -1151,6 +1154,7 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         // if converged break
         if (abs(error) < conf.SC_error) break;
     }
+    global_data.I_cum += global_data.I_tot;
 }
 
 string EmissionReader::get_data_string(const int i) const {
@@ -1166,14 +1170,14 @@ string EmissionReader::get_data_string(const int i) const {
 string EmissionReader::get_global_data(const bool first_line) const {
     ostringstream strs;
 
-    // specify data header
-//    if (first_line) strs << "time Itot Jrep Frep Jmax Fmax multiplier" << endl;
+    //specify data header
+    if (first_line) strs << "time Itot Imean Jrep Frep Jmax Fmax multiplier" << endl;
 
-    strs << fixed << setprecision(2)
-            << GLOBALS.TIME;
-    strs << scientific << setprecision(6)
-            << " " << global_data.I_tot << " " << global_data.Jrep << " " << global_data.Frep
-            << " " << global_data.Jmax << " " << global_data.Fmax << " " << global_data.multiplier;
+    strs << fixed << setprecision(2) << GLOBALS.TIME;
+    strs << scientific << setprecision(6) << " " << global_data.I_tot << " "
+            << global_data.I_cum / global_data.N_calls << " " << global_data.Jrep << " "
+            << global_data.Frep << " " << global_data.Jmax << " "
+            << global_data.Fmax << " " << global_data.multiplier;
 
     return strs.str();
 }
