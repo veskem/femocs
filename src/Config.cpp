@@ -120,6 +120,7 @@ void Config::read_all(const string& file_name) {
     check_obsolete("surface_thichness", "surface_thickness");
     check_obsolete("smooth_factor", "surface_smooth_factor");
     check_obsolete("surface_cleaner", "clean_surface");
+    check_obsolete("run_pic", "pic_mode");
 
     // Modify the parameters that are specified in input script
     read_command("work_function", emission.work_function);

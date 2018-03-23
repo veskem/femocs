@@ -206,8 +206,8 @@ void write_generate(ofstream &file, string params="") {
 //    file << "anode_BC = neumann"       << endl;
 //    file << "elfield = -0.35"             << endl;
     file << "heating_mode = none"   << endl;
-    file << "field_solver = poisson"     << endl;
-    file << "run_pic = true"               << endl;
+    file << "field_solver = laplace"     << endl;
+    file << "pic_mode = none"               << endl;
 
     file << "pic_dtmax = 1.0"              << endl;
     file << "femocs_run_time = 4"          << endl;
