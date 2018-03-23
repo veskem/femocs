@@ -376,10 +376,11 @@ Solution InterpolatorCells<dim>::interp_solution(const Point3 &point, const int 
 
     SimpleCell<dim> scell = cells[cell];
 
-    // calculate weights or barycentric coordinates
+    // calculate interpolation weights (shape function of dummy nodal distance based weights)
     array<double,dim> weights;
-    if (c >= 0) get_shape_functions(weights, Vec3(point), cell);
-    else get_weights(weights, point, scell);
+//    if (c >= 0) get_shape_functions(weights, Vec3(point), cell);
+//    else get_weights(weights, point, scell);
+    get_shape_functions(weights, Vec3(point), cell);
 
     // Interpolate vector data
     Vec3 vector_i(0.0);
@@ -733,7 +734,6 @@ void QuadraticTetrahedra::precompute() {
 
     const int n_elems = tets->size();
     require(n_elems == lintet->size(), "QuadraticTetrahedra requires LinearTetrahedra to be pre-computed!");
-
     reserve(n_elems);
 
     // Store the constant for smoothing
@@ -775,6 +775,8 @@ void QuadraticTetrahedra::get_shape_functions(array<double,10>& sf, const Vec3& 
     sf[7] =  4 * b1 * b4;
     sf[8] =  4 * b2 * b4;
     sf[9] =  4 * b3 * b4;
+
+//    sf = {b1, b2, b3, b4, 0, 0, 0, 0, 0, 0};
 }
 
 /*
@@ -1573,7 +1575,6 @@ void LinearTriangles::precompute() {
     const int n_nodes = mesh->nodes.size();
 
     expect(n_nodes > 0 && n_faces > 0, "Interpolator expects non-empty mesh!");
-    require(mesh->tris.size() == lintet->size(), "LinearTriangles requires LinearTetrahedra to be pre-computed!");
 
     // Reserve memory for precomputation data
     reserve(n_faces);
@@ -1646,29 +1647,31 @@ void LinearTriangles::get_shape_functions(array<double,3>& sf, const Vec3& point
 }
 
 Solution LinearTriangles::locate_interpolate(const Point3 &point, int& cell) const {
+    require(mesh->tets.size() == lintet->size(), "LinearTriangles requires LinearTetrahedra to be pre-computed!");
+
     // find a tri that is close to the point
     cell = locate_cell(point, abs(cell));
     int tri = abs(cell);
     array<int, 2> tets = tris->to_tets(tri);
 
-    // test if tets that are connected to a face surround the point and if yes, interpolate there
-    if (tets[0] >= 0 && lintet->point_in_cell(point, tets[0]))
+    require(tets[0] >= 0, "Triangle " + to_string(tri) + " doesn't have any associated tetrahedron!");
+
+    // if the point is exactly inside the face, 3D cell locator doesn't work
+    double distance_to_tri = abs(fast_distance(point, tri));
+    if (distance_to_tri <= 100.0 * zero) {
+        for (int tet : tets)
+            return lintet->interp_solution(point, tet);
+    }
+
+    // test if point is inside the 3D cell that is associated with the face
+    if (lintet->point_in_cell(point, tets[0]))
         return lintet->interp_solution(point, tets[0]);
-    if (tets[1] >= 0 && lintet->point_in_cell(point, tets[1]))
-        return lintet->interp_solution(point, tets[1]);
 
-    // if appropriate tet not found, loop through all their neighbors
-    if (tets[0] >= 0)
-        for (int tet : lintet->get_neighbours(tets[0])) {
-            if (tet >= 0 && lintet->point_in_cell(point, tet))
-                return lintet->interp_solution(point, tet);
-        }
-
-    if (tets[1] >= 0)
-        for (int tet : lintet->get_neighbours(tets[1])) {
-            if (tet >= 0 && lintet->point_in_cell(point, tet))
-                return lintet->interp_solution(point, tet);
-        }
+    // if point is outside the 3D cell, loop through all its neighbors
+    for (int tet : lintet->get_neighbours(tets[0])) {
+        if (lintet->point_in_cell(point, tet))
+            return lintet->interp_solution(point, tet);
+    }
 
     // in case of really bad luck, return empty solution
     return Solution(0);
@@ -1778,7 +1781,6 @@ void QuadraticTriangles::reserve(const int N) {
 void QuadraticTriangles::precompute() {
     require(mesh && tris && lintri && quadtet, "NULL pointers can't be used!");
     const int n_faces = tris->size();
-    require(n_faces == lintri->size(), "QuadraticTriangles requires LinearTriangles to be pre-computed!");
 
     // Reserve memory for precomputation data
     reserve(n_faces);
@@ -1822,29 +1824,31 @@ void QuadraticTriangles::get_shape_functions(array<double,6>& sf, const Vec3& po
 }
 
 Solution QuadraticTriangles::locate_interpolate(const Point3 &point, int& cell) const {
+    require(tris->size() == lintri->size(), "QuadraticTriangles requires LinearTriangles to be pre-computed!");
+
     // find a tri that is close to the point
     cell = locate_cell(point, abs(cell));
     int tri = abs(cell);
     array<int, 2> tets = tris->to_tets(tri);
 
-    // find a tet that surrounds the point and if available, interpolate there
-    if (tets[0] >= 0 && quadtet->point_in_cell(point, tets[0]))
+    require(tets[0] >= 0, "Triangle " + to_string(tri) + " doesn't have any associated tetrahedron!");
+
+    // if the point is exactly inside the face, 3D cell locator doesn't work
+    double distance_to_tri = abs(lintri->fast_distance(point, tri));
+    if (distance_to_tri <= 100.0 * zero) {
+        for (int tet : tets)
+            return quadtet->interp_solution(point, tet);
+    }
+
+    // test if point is inside the 3D cell that is associated with the face
+    if (quadtet->point_in_cell(point, tets[0]))
         return quadtet->interp_solution(point, tets[0]);
-    if (tets[1] >= 0 && quadtet->point_in_cell(point, tets[1]))
-        return quadtet->interp_solution(point, tets[1]);
 
-    // if appropriate tet not found, loop through all their neighbors
-    if (tets[0] >= 0)
-        for (int tet : quadtet->get_neighbours(tets[0])) {
-            if (tet >= 0 && quadtet->point_in_cell(point, tet))
-                return quadtet->interp_solution(point, tet);
-        }
-
-    if (tets[1] >= 0)
-        for (int tet : quadtet->get_neighbours(tets[1])) {
-            if (tet >= 0 && quadtet->point_in_cell(point, tet))
-                return quadtet->interp_solution(point, tet);
-        }
+    // if point is outside the 3D cell, loop through all its neighbors
+    for (int tet : quadtet->get_neighbours(tets[0])) {
+        if (quadtet->point_in_cell(point, tet))
+            return quadtet->interp_solution(point, tet);
+    }
 
     // in case of really bad luck, return empty solution
     return Solution(0);
@@ -1855,8 +1859,8 @@ SimpleCell<6> QuadraticTriangles::get_cell(const int tri) const {
     if (mesh->quads.size() == 0)
         return QuadraticTri(0);
 
-    const int n_quads_per_tri = 3;
-    array<vector<unsigned>,3> edge_nodes;
+    static constexpr int n_quads_per_tri = 3;
+    array<vector<unsigned>, n_quads_per_tri> edge_nodes;
 
     // locate hexahedral nodes that are located in the middle of edges
     for (int i = 0; i < n_quads_per_tri; ++i) {
@@ -1917,24 +1921,22 @@ Solution LinearQuadrangles::locate_interpolate(const Point3 &point, int& cell) c
     int quad = abs(cell);
     array<int, 2> hexs = quads->to_hexs(quad);
 
-    // find a hex that surrounds the point and if available, interpolate there
-    if (hexs[0] >= 0 && linhex->point_in_cell(point, hexs[0]))
+    require(hexs[0] >= 0, "Quadrangle " + to_string(quad) + " doesn't have any associated hexahedron!");
+
+    // if the point is exactly inside the face, 3D cell locator doesn't work
+    double distance_to_tri = abs( lintri->fast_distance(point, mesh->quads.to_tri(quad)) );
+    if (distance_to_tri <= 100.0 * zero)
         return linhex->interp_solution(point, hexs[0]);
-    if (hexs[1] >= 0 && linhex->point_in_cell(point, hexs[1]))
-        return linhex->interp_solution(point, hexs[1]);
 
-    // if appropriate hex not found, loop through all their neighbors
-    if (hexs[0] >= 0)
-        for (int hex : linhex->get_neighbours(hexs[0])) {
-            if (linhex->point_in_cell(point, hex))
-                return linhex->interp_solution(point, hex);
-        }
+    // test if point is inside the 3D cell that is associated with the face
+    if (linhex->point_in_cell(point, hexs[0]))
+        return linhex->interp_solution(point, hexs[0]);
 
-    if (hexs[1] >= 0)
-        for (int hex : linhex->get_neighbours(hexs[1])) {
-            if (linhex->point_in_cell(point, hex))
-                return linhex->interp_solution(point, hex);
-        }
+    // if point is outside the 3D cell, loop through all its neighbors
+    for (int hex : linhex->get_neighbours(hexs[0])) {
+        if (linhex->point_in_cell(point, hex))
+            return linhex->interp_solution(point, hex);
+    }
 
     // in case of really bad luck, return empty solution
     return Solution(0);

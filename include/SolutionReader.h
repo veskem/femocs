@@ -127,6 +127,9 @@ public:
     void compare_shape_funs(fch::PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
     void compare_interpolators(fch::PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
     void test_corners(const TetgenMesh& mesh) const;
+    void compare_space(const Medium::Sizes &sizes);
+    void compare_surface(const Medium &medium);
+    void perform_comparison(const string &file_name);
 
     /** Interpolate solution on the surface mesh centroids of the FEM solver */
     void interpolate(const fch::DealSolver<3>& solver);
