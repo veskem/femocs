@@ -44,7 +44,7 @@ void SolutionReader::calc_interpolation() {
 
     int cell = 0;
 
-#pragma omp parallel for private(cell)
+//#pragma omp parallel for private(cell)
     for (int i = 0; i < n_atoms; ++i) {
 
         // Depending on interpolation dimension and rank, pick function
