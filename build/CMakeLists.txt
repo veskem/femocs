@@ -66,15 +66,15 @@ SET(TET_PATH ${CMAKE_SOURCE_DIR}/${TET_DIR}/libtet.a)
 SET(GETELEC_PATH ${CMAKE_SOURCE_DIR}/${GETELEC_DIR}/libgetelec.a)
 SET(SLATEC_PATH ${CMAKE_SOURCE_DIR}/${SLATEC_DIR}/libslatec.a)
 
-# Specify the path to CGAL files
-SET(TARGET_MAIN Main.cpp)
-
 # Find source files
 IF (TARGET_TYPE MATCHES lib)
-    FILE(GLOB_RECURSE TARGET_SRC "../src/*.cpp" "../src/*.f90")
+    FILE(GLOB TARGET_SRC "../src/*.cpp" "../src/*.f90")
 ELSE()
-    FILE(GLOB_RECURSE TARGET_SRC "../src/*.cpp")
+    FILE(GLOB TARGET_SRC "../src/*.cpp")
 ENDIF()
+
+# Specify the path to main file separately
+SET(TARGET_MAIN ../src/main/Main.cpp)
 
 # path to the directories with headers
 IF (LIBCGAL)

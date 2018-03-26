@@ -22,23 +22,31 @@ femocs_debug_lib:
 
 test_f90: femocs_lib femocs_f90
 femocs_f90:
-	make -f build/makefile.test main=${FMAIN} cf=${FCFLAGS} compiler=${F90}
+	make -f build/makefile.main main=${FMAIN} cf=${FCFLAGS} compiler=${F90}
 
 test_c: femocs_lib femocs_c
 femocs_c:
-	make -f build/makefile.test main=${CMAIN} cf=${CCFLAGS} compiler=${CC}
+	make -f build/makefile.main main=${CMAIN} cf=${CCFLAGS} compiler=${CC}
 
 test_cpp: femocs_lib femocs_cpp
 femocs_cpp:
-	make -f build/makefile.test main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
-
-release: femocs_release
+	make -f build/makefile.main main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
+	
+release: femocs_lib femocs_release
 femocs_release:
-	make -s -f build/makefile.exec build/femocs
+	make -f build/makefile.main main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
 
-debug: femocs_debug
+debug: femocs_debug_lib femocs_debug
 femocs_debug:
-	make -s -f build/makefile.exec build/femocs_debug
+	make -f build/makefile.main build/femocs_debug main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
+
+#release: femocs_release
+#femocs_release:
+#	make -s -f build/makefile.exec build/femocs
+#
+#debug: femocs_debug
+#femocs_debug:
+#	make -s -f build/makefile.exec build/femocs_debug
 
 doc: femocs_doc
 femocs_doc:
@@ -59,7 +67,7 @@ alcyone:
 clean:
 	make -s -f build/makefile.lib clean
 	make -s -f build/makefile.exec clean
-	make -s -f build/makefile.test clean
+	make -s -f build/makefile.main clean
 	make -s -f build/makefile.doc clean
 
 clean-all:

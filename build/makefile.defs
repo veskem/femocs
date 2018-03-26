@@ -11,9 +11,9 @@ DEALII_VER = 8.4.1
 CGAL_VER = 4.9
 
 ## Paths to the Fortran, C and C++ main files
-FMAIN = build/Main.f90
-CXXMAIN = build/Main.cpp
-CMAIN = build/Main.c
+FMAIN = src/main/Main.f90
+CXXMAIN = src/main/Main.cpp
+CMAIN = src/main/Main.c
 
 ## Number of cores used during compilation
 NPROCS = 4
@@ -45,10 +45,10 @@ LFLAGS = -lfemocs ${LFLAGS_ALL}
 LFLAGS_DEBUG = -lfemocs_debug ${LFLAGS_ALL}
 
 ##  Ubuntu desktop
-#EXTLFLAGS = -ltbb -llapack -lz -lnetcdf_c++ -lgfortran
+EXTLFLAGS = -ltbb -llapack -lz -lnetcdf_c++ -lgfortran
 
 ##  CSC Taito cluser
-EXTLFLAGS = -lz -lstdc++ -lgfortran
+#EXTLFLAGS = -lz -lstdc++ -lgfortran
 
 ##  Alcyone
 #EXTLFLAGS = -llapack -lnetcdf_c++
@@ -59,7 +59,7 @@ TETGEN_FLAGS = -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=../../lib -DCMAKE_C_COMPILER=${C
 
 ## Flags for Deal.II
 DEALII_FLAGS = -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}\
- -DDEAL_II_STATIC_EXECUTABLE=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../..
+ -DDEAL_II_STATIC_EXECUTABLE=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../..
 
 ## Flags for CGAL
 CGAL_FLAGS = -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}\
@@ -73,4 +73,3 @@ CGAL_FLAGS_TAITO =\
  -DMPFR_INCLUDE_DIR=/appl/opt/mpfr/3.1.4/include\
  -DGMP_LIBRARIES=/appl/opt/gmp/6.0.0a/lib/libgmp.so.10.2.0\
  -DMPFR_LIBRARIES=/appl/opt/mpfr/3.1.4/lib/libmpfr.so.4.1.4
-
