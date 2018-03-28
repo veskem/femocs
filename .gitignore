@@ -18,4 +18,4 @@ build/femocs*
 in/md.in
 out/*
 tmpfile
-
+share/makefile.*

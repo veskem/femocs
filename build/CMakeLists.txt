@@ -102,7 +102,7 @@ IF (LIBCGAL)
         MESSAGE(FATAL_ERROR "CGAL not found from " ${CGAL_DIR}) 
     ENDIF()
 ELSE()
-    MESSAGE(STATUS "Not using CGAL!")
+    MESSAGE(STATUS "Disabling usage of CGAL")
 ENDIF()
 
 

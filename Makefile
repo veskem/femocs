@@ -14,7 +14,7 @@ all: lib
 
 lib: femocs_lib
 femocs_lib:
-	make -s -f build/makefile.lib lib/libfemocs.a
+	@make --no-print-directory -f build/makefile.lib
 
 dlib: femocs_debug_lib
 femocs_debug_lib:
@@ -22,23 +22,23 @@ femocs_debug_lib:
 
 test_f90: femocs_lib femocs_f90
 femocs_f90:
-	make -f build/makefile.main main=${FMAIN} cf=${FCFLAGS} compiler=${F90}
+	@make --no-print-directory -f build/makefile.main main=${FMAIN} compiler=${F90}
 
 test_c: femocs_lib femocs_c
 femocs_c:
-	make -f build/makefile.main main=${CMAIN} cf=${CCFLAGS} compiler=${CC}
+	@make --no-print-directory -f build/makefile.main main=${CMAIN} compiler=${CC}
 
 test_cpp: femocs_lib femocs_cpp
 femocs_cpp:
-	make -f build/makefile.main main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
+	@make --no-print-directory -f build/makefile.main main=${CXXMAIN} compiler=${CXX}
 	
 release: femocs_lib femocs_release
 femocs_release:
-	make -f build/makefile.main main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
+	@make --no-print-directory -f build/makefile.main main=${CXXMAIN} compiler=${CXX}
 
 debug: femocs_debug_lib femocs_debug
 femocs_debug:
-	make -f build/makefile.main build/femocs_debug main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
+	@make -s -f build/makefile.main build/femocs_debug main=${CXXMAIN} compiler=${CXX}
 
 #release: femocs_release
 #femocs_release:
@@ -52,17 +52,25 @@ doc: femocs_doc
 femocs_doc:
 	make -f build/makefile.doc
 
-ubuntu:
-	mkdir -p share/.build && cd share/.build && rm -rf * && cmake .. -Dmachine=ubuntu
-	#make -s -f build/makefile.cgal release
-	make -f build/makefile.install
+install-ubuntu:
+	@chmod +x ./build/install.sh
+	@./build/install.sh ubuntu
 
-taito:
-	#make -s -f build/makefile.cgal taito
-	make -f build/makefile.install
+install-taito:
+	@chmod +x ./build/install.sh
+	@./build/install.sh taito
 
-alcyone:
-	make -f build/makefile.install
+install-alcyone:
+	@chmod +x ./build/install.sh
+	@./build/install.sh alcyone
+
+install-cgal:
+	@chmod +x ./build/install.sh
+	@./build/install.sh cgal
+
+install-no-cgal:
+	@chmod +x ./build/install.sh
+	@./build/install.sh no-cgal
 
 clean:
 	make -s -f build/makefile.lib clean
@@ -71,17 +79,19 @@ clean:
 	make -s -f build/makefile.doc clean
 
 clean-all:
-	@chmod +x ./build/makefile.clean-all
-	./build/makefile.clean-all
-	@chmod -x ./build/makefile.clean-all
+	@chmod +x ./build/clean-all.sh
+	./build/clean-all.sh
 
 help:
 	@echo ''
 	@echo 'make all        pick default build type for Femocs'
 	@echo ''
-	@echo 'make ubuntu     build in Ubuntu desktop all the external libraries that Femocs needs'
-	@echo 'make taito      build in CSC Taito cluster all the external libraries that Femocs needs'
-	@echo 'make alcyone    build in Alcyone cluster all the external libraries that Femocs needs'
+	@echo 'make install-'
+	@echo '       ubuntu   build in Ubuntu desktop Femocs mandatory dependencies'
+	@echo '       taito    build in CSC Taito cluster all the external libraries that Femocs needs'
+	@echo '       alcyone  build in Alcyone cluster all the external libraries that Femocs needs'
+	@echo '       cgal     build CGAL and enable its usage in the code'
+	@echo '       no-cgal  disable CGAL usage in the code'
 	@echo ''
 	@echo 'make lib        build Femocs as static library with maximum optimization level'
 	@echo 'make dlib       build Femocs as static library with debugging features enabled'

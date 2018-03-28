@@ -7,7 +7,7 @@ if echo ${answer} | grep -iq "^y" ; then
     make -s -f build/makefile.lib clean-all
     make -s -f build/makefile.exec clean-all
     make -s -f build/makefile.test clean
-    #make -s -f build/makefile.install clean-all
+    make -s -f build/makefile.install clean-all
     make -s -f build/makefile.cgal clean-all
     make -s -f build/makefile.doc clean-all
 fi

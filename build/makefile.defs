@@ -2,69 +2,36 @@
 #               Definitions used during the make of Femocs
 #############################################################################
 
-## Specify whether to use CGAL or not
-LIBCGAL =
-#LIBCGAL = -lCGAL
-
 ## Deal.II and CGAL versions
-DEALII_VER = 8.4.1
-CGAL_VER = 4.9
+DEALII_VER=8.4.1
+CGAL_VER=4.9
 
-## Paths to the Fortran, C and C++ main files
-FMAIN = src/main/Main.f90
-CXXMAIN = src/main/Main.cpp
-CMAIN = src/main/Main.c
+## Paths to the C++, C and Fortran main files
+CXXMAIN=src/main/Main.cpp
+CMAIN=src/main/Main.c
+FMAIN=src/main/Main.f90
 
 ## Number of cores used during compilation
-NPROCS = 4
+NPROCS=4
 
 ## Fortran, C++ and C Compilers
-F90 = gfortran
-CXX = c++
-CC = gcc
-
-## Fortran, C and C++ path flags
-FCFLAGS = "-Ilib"
-CCFLAGS =
-CXXCFLAGS = "-IGETELEC/modules -Idealii/include -std=c++11"
-#CFLAGS = -Iinclude -Llib -LGETELEC/lib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu -Lcgal/lib64
-
-# extra paths for Taito
-EXTCFLAGS = -I/appl/opt/cluster_studio_xe2018/parallel_studio_xe_2018.1.038/compilers_and_libraries_2018/linux/tbb/include
-
-CFLAGS = ${EXTCFLAGS} -Iinclude -Llib -LGETELEC/lib -Ldealii/lib -Lcgal/lib/x86_64-linux-gnu -Lcgal/lib64
-
-## Optimization and warnings
-OPT = -O3 -w
-OPT_DEBUG = -g -Og -Wall -Wpedantic -Wno-unused-local-typedefs
-
-## Library flags for
-##  All systems
-LFLAGS_ALL = -ltet -ldeal_II ${LIBCGAL} -lgetelec -lslatec -fopenmp
-LFLAGS = -lfemocs ${LFLAGS_ALL}
-LFLAGS_DEBUG = -lfemocs_debug ${LFLAGS_ALL}
-
-##  Ubuntu desktop
-EXTLFLAGS = -ltbb -llapack -lz -lnetcdf_c++ -lgfortran
-
-##  CSC Taito cluser
-#EXTLFLAGS = -lz -lstdc++ -lgfortran
-
-##  Alcyone
-#EXTLFLAGS = -llapack -lnetcdf_c++
-
+F90=gfortran
+CXX=c++
+CC=gcc
 
 ## Flags for Tetgen
-TETGEN_FLAGS = -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=../../lib -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}
+TETGEN_FLAGS=-DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}\
+ -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=../../lib
 
 ## Flags for Deal.II
-DEALII_FLAGS = -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}\
+DEALII_FLAGS=-DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}\
  -DDEAL_II_STATIC_EXECUTABLE=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../..
 
 ## Flags for CGAL
 CGAL_FLAGS = -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX}\
- -DCMAKE_INSTALL_PREFIX=../.. -DBUILD_SHARED_LIBS=FALSE
-CGAL_FLAGS_TAITO =\
+ -DBUILD_SHARED_LIBS=FALSE -DCMAKE_INSTALL_PREFIX=../..
+ 
+CGAL_FLAGS_TAITO=\
  -DBoost_NO_BOOST_CMAKE=TRUE\
  -DBOOST_ROOT=/appl/opt/boost/gcc-5.3.0/intelmpi-5.1.3/boost-1.63\
  -DGMP_LIBRARIES_DIR=/appl/opt/gmp/6.0.0a/lib\
