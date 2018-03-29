@@ -316,7 +316,7 @@ int ProjectRunaway::prepare_solvers() {
 
 int ProjectRunaway::prepare_export() {
     start_msg(t0, "=== Interpolating E and phi...");
-    fields.set_preferences(true, 2, conf.behaviour.interpolation_rank);
+    fields.set_preferences(true, 2, 1);
     fields.interpolate(dense_surf);
     end_msg(t0);
 

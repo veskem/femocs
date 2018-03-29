@@ -283,9 +283,9 @@ bool InterpolatorCells<dim>::inside_cylinder(const Vec3 &bottom,
 }
 
 template<int dim>
-int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_guess) const {
+int InterpolatorCells<dim>::locate_cell_v2(const Point3 &point, const int cell_guess) const {
     // amount of nearest neighbouring layers that are checked before the full search
-    static constexpr int n_nbor_layers = 1;// 12;
+    static constexpr int n_nbor_layers = 12;
     const int n_cells = neighbours.size();
 
     require(cell_guess >= 0 && cell_guess < n_cells,
@@ -336,6 +336,45 @@ int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_gues
     for (int cell = 0; cell < n_cells; ++cell) {
         // If correct cell is found, we're done
         if (!cell_checked[cell] && point_in_cell(point, cell))
+            return cell;
+
+        // Otherwise look for the cell whose centroid is closest to the point
+        else {
+            const double distance2 = point.distance2(centroids[cell]);
+            if (distance2 < min_distance2) {
+                min_distance2 = distance2;
+                min_index = cell;
+            }
+        }
+    }
+
+    // If no perfect cell found, return the best.
+    // Indicate the imperfectness with the minus sign
+    return -min_index;
+}
+
+template<int dim>
+int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_guess) const {
+    require(cell_guess >= 0 && cell_guess < n_cells,
+            "Index out of bounds: " + to_string(cell_guess));
+
+    // === Check the guessed cell
+    if (point_in_cell(point, cell_guess))
+        return cell_guess;
+
+    // === Check if point is surrounded by one of the neighbouring cells
+    for (int cell : neighbours[cell_guess]) {
+        if (markers[cell] == 0 && point_in_cell(point, cell))
+            return cell;
+    }
+
+    // === In case of no success, loop through all the cells
+    const int n_cells = neighbours.size();
+    double min_distance2 = 1e100;
+    int min_index = 0;
+
+    for (int cell = 0; cell < n_cells; ++cell) {
+        if (markers[cell] == 0 && point_in_cell(point, cell))
             return cell;
 
         // Otherwise look for the cell whose centroid is closest to the point
@@ -1522,28 +1561,28 @@ bool LinearHexahedra::point_in_cell(const Vec3 &point, const int cell) const {
 int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) const {
     static constexpr int n_hexs_per_tet = 4;
 
-    int tet_index = (int) cell_guess / n_hexs_per_tet;
-    tet_index = lintet->locate_cell(point, tet_index);
+    int tet = (int) cell_guess / n_hexs_per_tet;
+    tet = lintet->locate_cell(point, tet);
     int sign = 1;
-    if (tet_index < 0) sign = -1;
-    tet_index = abs(tet_index);
+    if (tet < 0) sign = -1;
+    tet = abs(tet);
 
     // calculate barycentric coordinates for a point
     array<double,4> bcc;
-    lintet->get_shape_functions(bcc, point, tet_index);
+    lintet->get_shape_functions(bcc, point, tet);
 
     // point inside a hex connected to 1st tetrahedral node ?
     if (bcc[0] >= bcc[1] && bcc[0] >= bcc[2] && bcc[0] >= bcc[3])
-        return sign * (n_hexs_per_tet * tet_index + 0);
+        return sign * (n_hexs_per_tet * tet + 0);
     // point inside a hex connected to 2nd tetrahedral node ?
     if (bcc[1] >= bcc[0] && bcc[1] >= bcc[2] && bcc[1] >= bcc[3])
-        return sign * (n_hexs_per_tet * tet_index + 1);
+        return sign * (n_hexs_per_tet * tet + 1);
     // point inside a hex connected to 3rd tetrahedral node ?
     if (bcc[2] >= bcc[0] && bcc[2] >= bcc[1] && bcc[2] >= bcc[3])
-        return sign * (n_hexs_per_tet * tet_index + 2);
+        return sign * (n_hexs_per_tet * tet + 2);
     // point inside a hex connected to 4th tetrahedral node ?
     if (bcc[3] >= bcc[0] && bcc[3] >= bcc[1] && bcc[3] >= bcc[2])
-        return sign * (n_hexs_per_tet * tet_index + 3);
+        return sign * (n_hexs_per_tet * tet + 3);
 
     return -1;
 }
@@ -1654,27 +1693,21 @@ Solution LinearTriangles::locate_interpolate(const Point3 &point, int& cell) con
     int tri = abs(cell);
     array<int, 2> tets = tris->to_tets(tri);
 
-    require(tets[0] >= 0, "Triangle " + to_string(tri) + " doesn't have any associated tetrahedron!");
+    require(tets[0] >= 0 && tets[1] >= 0, "Triangle " + to_string(tri) + " should have two associated tetrahedra!");
 
     // if the point is exactly inside the face, 3D cell locator doesn't work
+    // therefore it's necessary to assume that for points on the face plane
+    // either of the cells are fine
     double distance_to_tri = abs(fast_distance(point, tri));
-    if (distance_to_tri <= 100.0 * zero) {
-        for (int tet : tets)
-            return lintet->interp_solution(point, tet);
-    }
+    if (distance_to_tri <= 100.0 * zero)
+        return lintet->interp_solution(point, tets[0]);
 
-    // test if point is inside the 3D cell that is associated with the face
+    // test if point is inside the cell directly connected to face
     if (lintet->point_in_cell(point, tets[0]))
         return lintet->interp_solution(point, tets[0]);
 
-    // if point is outside the 3D cell, loop through all its neighbors
-    for (int tet : lintet->get_neighbours(tets[0])) {
-        if (lintet->point_in_cell(point, tet))
-            return lintet->interp_solution(point, tet);
-    }
-
-    // in case of really bad luck, return empty solution
-    return Solution(0);
+    // no, use tetrahedral cell locator to obtain the result
+    return lintet->locate_interpolate(point, tets[1]);
 }
 
 void LinearTriangles::interp_conserved(vector<double>& scalars, const vector<Atom>& atoms) const {
@@ -1831,27 +1864,21 @@ Solution QuadraticTriangles::locate_interpolate(const Point3 &point, int& cell) 
     int tri = abs(cell);
     array<int, 2> tets = tris->to_tets(tri);
 
-    require(tets[0] >= 0, "Triangle " + to_string(tri) + " doesn't have any associated tetrahedron!");
+    require(tets[0] >= 0 && tets[1] >= 0, "Triangle " + to_string(tri) + " should have two associated tetrahedra!");
 
     // if the point is exactly inside the face, 3D cell locator doesn't work
+    // therefore it's necessary to assume that for points on the face plane
+    // either of the cells are fine
     double distance_to_tri = abs(lintri->fast_distance(point, tri));
-    if (distance_to_tri <= 100.0 * zero) {
-        for (int tet : tets)
-            return quadtet->interp_solution(point, tet);
-    }
+    if (distance_to_tri <= 100.0 * zero)
+        return quadtet->interp_solution(point, tets[0]);
 
-    // test if point is inside the 3D cell that is associated with the face
+    // test if point is inside the cell directly connected to face
     if (quadtet->point_in_cell(point, tets[0]))
         return quadtet->interp_solution(point, tets[0]);
 
-    // if point is outside the 3D cell, loop through all its neighbors
-    for (int tet : quadtet->get_neighbours(tets[0])) {
-        if (quadtet->point_in_cell(point, tet))
-            return quadtet->interp_solution(point, tet);
-    }
-
-    // in case of really bad luck, return empty solution
-    return Solution(0);
+    // no, use tetrahedral cell locator to obtain the result
+    return quadtet->locate_interpolate(point, tets[1]);
 }
 
 SimpleCell<6> QuadraticTriangles::get_cell(const int tri) const {
@@ -1921,7 +1948,7 @@ Solution LinearQuadrangles::locate_interpolate(const Point3 &point, int& cell) c
     int quad = abs(cell);
     array<int, 2> hexs = quads->to_hexs(quad);
 
-    require(hexs[0] >= 0, "Quadrangle " + to_string(quad) + " doesn't have any associated hexahedron!");
+    require(hexs[0] >= 0 && hexs[1] >= 0, "Quadrangle " + to_string(quad) + " should have two associated hexahedra!");
 
     // if the point is exactly inside the face, 3D cell locator doesn't work
     double distance_to_tri = abs( lintri->fast_distance(point, mesh->quads.to_tri(quad)) );
@@ -1932,14 +1959,8 @@ Solution LinearQuadrangles::locate_interpolate(const Point3 &point, int& cell) c
     if (linhex->point_in_cell(point, hexs[0]))
         return linhex->interp_solution(point, hexs[0]);
 
-    // if point is outside the 3D cell, loop through all its neighbors
-    for (int hex : linhex->get_neighbours(hexs[0])) {
-        if (linhex->point_in_cell(point, hex))
-            return linhex->interp_solution(point, hex);
-    }
-
-    // in case of really bad luck, return empty solution
-    return Solution(0);
+    // no, use hexahedral cell locator to obtain the result
+    return linhex->locate_interpolate(point, hexs[1]);
 }
 
 /*

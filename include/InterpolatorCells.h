@@ -158,6 +158,7 @@ public:
 
     /** Find the cell which contains the point or is the closest to it */
     virtual int locate_cell(const Point3 &point, const int cell_guess) const;
+    virtual int locate_cell_v2(const Point3 &point, const int cell_guess) const;
 
     /** @brief Interpolate both vector and scalar data inside or near the cell.
      * Function assumes that cell, that surrounds the point, is previously already found with locate_cell.
@@ -184,12 +185,6 @@ public:
     int get_marker(const int i) const {
         require(i >= 0 && i < markers.size(), "Invalid index: " + to_string(i));
         return markers[i];
-    }
-
-    /** Access cell neighbours */
-    vector<int> get_neighbours(const int i) const {
-        require(i >= 0 && i < neighbours.size(), "Invalid index: " + to_string(i));
-        return neighbours[i];
     }
 
     /** Change the pointer to mesh */
@@ -327,11 +322,6 @@ public:
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<10>::set_mesh(m);
         tets = &m->tets;
-    }
-
-    /** Access cell neighbours */
-    vector<int> get_neighbours(const int i) const {
-        return lintet->get_neighbours(i);
     }
 
 private:
@@ -543,11 +533,6 @@ public:
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<6>::set_mesh(m);
         tris = &m->tris;
-    }
-
-    /** Access cell neighbours */
-    vector<int> get_neighbours(const int i) const {
-        return lintri->get_neighbours(i);
     }
 
 private:
