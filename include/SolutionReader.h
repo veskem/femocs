@@ -113,6 +113,11 @@ protected:
      * made up the entries to last bin will be replaced by the average field around those two atoms. */
     void histogram_clean(const int coordinate, const double r_cut);
 
+    /** Find the cell that surrounds i-th atom and interpolate the solution for it.
+     * @param cell   initial guess for the cell that might surround the point
+     * @return cell index that was found to surround the point */
+    int update_interpolation(const int i, int cell);
+
     void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
 
     Solution get_average_solution(const int I, const double r_cut);

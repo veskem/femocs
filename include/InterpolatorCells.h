@@ -171,10 +171,6 @@ public:
 
     Vec3 interp_gradient(const Point3 &point, const int c) const;
 
-    /** Locate cell that surrounds the point (search starts from input cell index)
-     * and interpolate solution at this point */
-    Solution locate_interpolate(const Point3 &point, int& cell) const;
-
     /** Modify cell marker */
     void set_marker(const int i, const int m) {
         require(i >= 0 && i < markers.size(), "Invalid index: " + to_string(i));
@@ -448,9 +444,8 @@ public:
     /** Calculate shape functions for a point with respect to the i-th triangle */
     void get_shape_functions(array<double,3>& sf, const Vec3& point, const int i) const;
 
-    /** Locate cell that surrounds the point (search starts from input cell index)
-     * and interpolate solution at this point */
-    Solution locate_interpolate(const Point3 &point, int& cell) const;
+    /** Interpolate solution at point that is close to given triangle */
+    Solution interp_solution(const Point3 &point, const int tri) const;
 
     /** Interpolate conserved scalar data for the vector of atoms */
     void interp_conserved(vector<double>& scalars, const vector<Atom>& atoms) const;
@@ -525,9 +520,8 @@ public:
     /** Get interpolation weights for a point inside i-th triangle */
     void get_shape_functions(array<double,6>& sf, const Vec3& point, const int i) const;
 
-    /** Locate cell that surrounds the point (search starts from input cell index)
-     * and interpolate solution at this point */
-    Solution locate_interpolate(const Point3 &point, int& cell) const;
+    /** Interpolate solution at point that is close to given triangle */
+    Solution interp_solution(const Point3 &point, const int tri) const;
 
     /** Change the mesh */
     void set_mesh(const TetgenMesh* m) {
@@ -572,9 +566,8 @@ public:
     /** Find the hexahedron which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
-    /** Locate cell that surrounds the point (search starts from input cell index)
-     * and interpolate solution at this point */
-    Solution locate_interpolate(const Point3 &point, int& cell) const;
+    /** Interpolate solution at point that is close to given quadrangle */
+    Solution interp_solution(const Point3 &point, const int quad) const;
 
     /** Change the mesh */
     void set_mesh(const TetgenMesh* m) {

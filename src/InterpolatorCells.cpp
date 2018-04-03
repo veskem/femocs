@@ -477,12 +477,6 @@ Vec3 InterpolatorCells<dim>::interp_gradient(const Point3 &point, const int cell
 }
 
 template<int dim>
-Solution InterpolatorCells<dim>::locate_interpolate(const Point3 &point, int& cell) const {
-    cell = locate_cell(point, abs(cell));
-    return interp_solution(point, abs(cell));
-}
-
-template<int dim>
 int InterpolatorCells<dim>::common_entry(vector<unsigned>& vec1, vector<unsigned>& vec2) const {
     for (unsigned i : vec1)
         for (unsigned j : vec2)
@@ -1685,12 +1679,10 @@ void LinearTriangles::get_shape_functions(array<double,3>& sf, const Vec3& point
     sf = {zero + u, zero + v, zero + w};
 }
 
-Solution LinearTriangles::locate_interpolate(const Point3 &point, int& cell) const {
+Solution LinearTriangles::interp_solution(const Point3 &point, const int t) const {
     require(mesh->tets.size() == lintet->size(), "LinearTriangles requires LinearTetrahedra to be pre-computed!");
 
-    // find a tri that is close to the point
-    cell = locate_cell(point, abs(cell));
-    int tri = abs(cell);
+    int tri = abs(t);
     array<int, 2> tets = tris->to_tets(tri);
 
     require(tets[0] >= 0 && tets[1] >= 0, "Triangle " + to_string(tri) + " should have two associated tetrahedra!");
@@ -1706,8 +1698,9 @@ Solution LinearTriangles::locate_interpolate(const Point3 &point, int& cell) con
     if (lintet->point_in_cell(point, tets[0]))
         return lintet->interp_solution(point, tets[0]);
 
-    // no, use tetrahedral cell locator to obtain the result
-    return lintet->locate_interpolate(point, tets[1]);
+    // no, use tetrahedral tools to obtain the result
+    int tet = lintet->locate_cell(point, tets[1]);
+    return lintet->interp_solution(point, tet);
 }
 
 void LinearTriangles::interp_conserved(vector<double>& scalars, const vector<Atom>& atoms) const {
@@ -1856,12 +1849,10 @@ void QuadraticTriangles::get_shape_functions(array<double,6>& sf, const Vec3& po
 //    sf = {u, v, w, 0, 0, 0};
 }
 
-Solution QuadraticTriangles::locate_interpolate(const Point3 &point, int& cell) const {
+Solution QuadraticTriangles::interp_solution(const Point3 &point, const int t) const {
     require(tris->size() == lintri->size(), "QuadraticTriangles requires LinearTriangles to be pre-computed!");
 
-    // find a tri that is close to the point
-    cell = locate_cell(point, abs(cell));
-    int tri = abs(cell);
+    int tri = abs(t);
     array<int, 2> tets = tris->to_tets(tri);
 
     require(tets[0] >= 0 && tets[1] >= 0, "Triangle " + to_string(tri) + " should have two associated tetrahedra!");
@@ -1877,8 +1868,9 @@ Solution QuadraticTriangles::locate_interpolate(const Point3 &point, int& cell) 
     if (quadtet->point_in_cell(point, tets[0]))
         return quadtet->interp_solution(point, tets[0]);
 
-    // no, use tetrahedral cell locator to obtain the result
-    return quadtet->locate_interpolate(point, tets[1]);
+    // no, use tetrahedral tools to obtain the result
+    int tet = quadtet->locate_cell(point, tets[1]);
+    return quadtet->interp_solution(point, tet);
 }
 
 SimpleCell<6> QuadraticTriangles::get_cell(const int tri) const {
@@ -1942,10 +1934,9 @@ void LinearQuadrangles::precompute() {
         markers[i] = lintri->get_marker(quads->to_tri(i));
 }
 
-Solution LinearQuadrangles::locate_interpolate(const Point3 &point, int& cell) const {
-    // find a quad that is close to the point
-    cell = locate_cell(point, abs(cell));
-    int quad = abs(cell);
+Solution LinearQuadrangles::interp_solution(const Point3 &point, const int q) const {
+
+    int quad = abs(q);
     array<int, 2> hexs = quads->to_hexs(quad);
 
     require(hexs[0] >= 0 && hexs[1] >= 0, "Quadrangle " + to_string(quad) + " should have two associated hexahedra!");
@@ -1959,8 +1950,9 @@ Solution LinearQuadrangles::locate_interpolate(const Point3 &point, int& cell) c
     if (linhex->point_in_cell(point, hexs[0]))
         return linhex->interp_solution(point, hexs[0]);
 
-    // no, use hexahedral cell locator to obtain the result
-    return linhex->locate_interpolate(point, hexs[1]);
+    // no, use hexahedral tools to obtain the result
+    int hex = linhex->locate_cell(point, hexs[1]);
+    return linhex->interp_solution(point, hex);
 }
 
 /*
