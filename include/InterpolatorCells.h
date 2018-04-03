@@ -26,7 +26,7 @@ public:
     ~InterpolatorNodes() {};
 
     /** Return number of available nodes */
-    int size() const { return vertices.size(); }
+    int size() const { return markers.size(); }
 
     /** Pre-compute data about vertices to make interpolation faster */
     void precompute();
@@ -55,20 +55,8 @@ public:
         return solutions[i];
     }
 
-    /** Modify solution on the i-th node */
-    void set_solution(const int i, const Solution& s) {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-        solutions[i] = s;
-    }
-
-    /** Return the pointer to the vertices vector */
-    vector<Point3>* get_vertices() { return &vertices; }
-
     /** Return the i-th vertex */
-    Point3 get_vertex(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-        return vertices[i];
-    }
+    Point3 get_vertex(const int i) const { return mesh->nodes[i]; }
 
     /** Return vector component of solution on i-th node */
     Vec3 get_vector(const int i) const {
@@ -86,6 +74,12 @@ public:
     double get_scalar(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         return solutions[i].scalar;
+    }
+
+    /** Modify solution on the i-th node */
+    void set_solution(const int i, const Solution& s) {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        solutions[i] = s;
     }
 
     /** Change the data labels */
@@ -108,7 +102,6 @@ private:
     const string scalar_label;      ///< description label attached to solution.scalar -values
 
     vector<Solution> solutions;     ///< interpolation data
-    vector<Point3> vertices;        ///< coordinates of cell vertices
     vector<int> markers;            ///< markers for nodes
 
     /** Reserve memory for interpolation data */
@@ -138,7 +131,7 @@ public:
     virtual ~InterpolatorCells() {};
 
     /** Return number of available cells */
-    int size() const { return cells.size(); }
+    int size() const { return markers.size(); }
 
     /** Pick the suitable write function based on the file type.
      * Function is active only when file write is enabled */
@@ -197,13 +190,15 @@ protected:
     vector<int> markers;            ///< markers for cells
     vector<Point3> centroids;       ///< cell centroid coordinates
     vector<vector<int>> neighbours; ///< nearest neighbours of the cells
-    vector<SimpleCell<dim>> cells;  ///< interpolation cells
 
     /** Reserve memory for interpolation data */
     virtual void reserve(const int N);
 
     /** Return the cell type in vtk format */
     virtual int get_cell_type() const { return 0; };
+
+    /** Return i-th cell */
+    virtual SimpleCell<dim> get_cell(const int i) const { return SimpleCell<dim>(); }
 
     /** Calculate distance-dependent weights for a point with respect to the cell */
     void get_weights(array<double,dim>& weights, const Point3 &point, const SimpleCell<dim>& scell) const;
@@ -283,6 +278,9 @@ private:
 
     /** Return the tetrahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.TETRAHEDRON; }
+
+    /** Return i-th tetrahedron */
+    SimpleCell<4> get_cell(const int i) const { return (*tets)[i]; }
 };
 
 /**
@@ -323,6 +321,7 @@ public:
 private:
     const TetgenElements* tets;    ///< pointer to tetrahedra to access their specific routines
     const LinearTetrahedra* lintet;   ///< Pointer to linear tetrahedra
+    vector<QuadraticTet> cells;    ///< stored 10-noded tetrahedra
 
     /** Reserve memory for interpolation data */
     void reserve(const int N);
@@ -330,8 +329,14 @@ private:
     /** Return the 10-noded tetrahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.QUADRATIC_TETRAHEDRON; };
 
+    /** Return i-th tetrahedron */
+    SimpleCell<10> get_cell(const int i) const {
+        require(i >= 0 && i < cells.size(), "Invalid index: " + to_string(i));
+        return cells[i];
+    }
+
     /** Calculate the vertex indices of 10-noded tetrahedron */
-    SimpleCell<10> get_cell(const int i) const;
+    SimpleCell<10> calc_cell(const int i) const;
 };
 
 /**
@@ -381,7 +386,7 @@ public:
 
     /** Return the index of hexahedron in femocs that corresponds to i-th hexahedron in Deal.II */
     int deal2femocs(const int i) const {
-        require(i >= 0 && i < map_deal2femocs.size(), "Invalid index: " + to_string(i) + "size = " + to_string(map_deal2femocs.size()));
+        require(i >= 0 && i < map_deal2femocs.size(), "Invalid index: " + to_string(i) + ", size = " + to_string(map_deal2femocs.size()));
         return map_deal2femocs[i];
     }
 
@@ -413,8 +418,11 @@ private:
     /** Reserve memory for interpolation data */
     void reserve(const int N);
 
-    /** Return the linear hexahedron type in vtk format */
+    /** Return linear hexahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; };
+
+    /** Return i-th hexahedron */
+    SimpleCell<8> get_cell(const int i) const { return (*hexs)[i]; }
 
     /** Map the point from Cartesian xyz-coordinates to natural uvw-coordinates.
      * In natural coordinate system, each coordinate is within limits [-1, 1]. */
@@ -428,6 +436,7 @@ private:
 
 /**
  * Data & operations for linear triangular interpolation without nodal data
+ * Class uses the data pre-computed for LinearTetrahedra.
  */
 class LinearTriangles : public InterpolatorCells<3> {
 public:
@@ -444,7 +453,8 @@ public:
     /** Calculate shape functions for a point with respect to the i-th triangle */
     void get_shape_functions(array<double,3>& sf, const Vec3& point, const int i) const;
 
-    /** Interpolate solution at point that is close to given triangle */
+    /** Locate tetrahedron the surrounds the point and interpolate there.
+     * Search starts from tetrahedra that are connected to the given triangle. */
     Solution interp_solution(const Point3 &point, const int tri) const;
 
     /** Interpolate conserved scalar data for the vector of atoms */
@@ -488,6 +498,9 @@ private:
     /** Return the triangle type in vtk format */
     int get_cell_type() const { return TYPES.VTK.TRIANGLE; };
 
+    /** Return i-th triangle */
+    SimpleCell<3> get_cell(const int i) const { return (*tris)[i]; }
+
     /** Return the distance between a point and i-th triangle in the direction of its norm.
      * If the projection of the point is outside the triangle, the 1e100 distance will be returned.
      * The calculations are based on Moller-Trumbore algorithm. The theory about it can be found from
@@ -500,7 +513,7 @@ private:
 
 /**
  * Data & operations for quadratic triangular interpolation without nodal data.
- * Class uses the data pre-computed for LinearTriangles.
+ * Class uses the data pre-computed for LinearTriangles and QuadraticTetrahedra.
  */
 class QuadraticTriangles : public InterpolatorCells<6> {
 public:
@@ -511,16 +524,17 @@ public:
     /** Pre-compute data about triangles to make interpolation faster */
     void precompute();
 
-    /** Check whether the point is inside the cell */
+    /** Check whether the projection of a point is inside the i-th triangle */
     bool point_in_cell(const Vec3& point, const int cell) const;
 
-    /** Find the triangle which contains the point or is the closest to it */
+    /** Find the triangle which contains the point projection or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
     /** Get interpolation weights for a point inside i-th triangle */
     void get_shape_functions(array<double,6>& sf, const Vec3& point, const int i) const;
 
-    /** Interpolate solution at point that is close to given triangle */
+    /** Locate tetrahedron the surrounds the point and interpolate there.
+     * Search starts from tetrahedra that are connected to the given triangle. */
     Solution interp_solution(const Point3 &point, const int tri) const;
 
     /** Change the mesh */
@@ -533,6 +547,7 @@ private:
     const TetgenFaces* tris;            ///< Direct pointer to mesh triangles
     const LinearTriangles* lintri;      ///< Pointer to linear triangular interpolator
     const QuadraticTetrahedra* quadtet; ///< Pointer to quadratic tetrahedral interpolator
+    vector<QuadraticTri> cells;         ///< stored 6-noded triangles
 
     /** Reserve memory for interpolation data */
     void reserve(const int N);
@@ -540,13 +555,19 @@ private:
     /** Return the 6-noded triangle type in vtk format */
     int get_cell_type() const { return TYPES.VTK.QUADRATIC_TRIANGLE; };
 
+    /** Return i-th hexahedron */
+    SimpleCell<6> get_cell(const int i) const {
+        require(i >= 0 && i < cells.size(), "Invalid index: " + to_string(i));
+        return cells[i];
+    }
+
     /** Calculate the vertex indices of 6-noded triangle */
-    SimpleCell<6> get_cell(const int i) const;
+    SimpleCell<6> calc_cell(const int i) const;
 };
 
 /**
  * Data & operations for linear quadrangular interpolation without nodal data.
- * Class uses the data pre-computed for LinearTriangles.
+ * Class uses the data pre-computed for LinearTriangles and LinearHexahedra.
  */
 class LinearQuadrangles : public InterpolatorCells<4> {
 public:
@@ -563,10 +584,11 @@ public:
     /** Check whether the point is inside the cell */
     bool point_in_cell(const Vec3 &point, const int cell) const;
 
-    /** Find the hexahedron which contains the point or is the closest to it */
+    /** Find the quadrangle which contains the point projection or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
-    /** Interpolate solution at point that is close to given quadrangle */
+    /** Locate hexahedron the surrounds the point and interpolate there.
+     * Search starts from hexahedra that are connected to the given quadrangle. */
     Solution interp_solution(const Point3 &point, const int quad) const;
 
     /** Change the mesh */
@@ -585,6 +607,9 @@ private:
 
     /** Return the quadrangle type in vtk format */
     int get_cell_type() const { return TYPES.VTK.QUADRANGLE; };
+
+    /** Return i-th quadrangle */
+    SimpleCell<4> get_cell(const int i) const { return (*quads)[i]; }
 };
 
 } /* namespace femocs */

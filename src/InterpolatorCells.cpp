@@ -23,10 +23,7 @@ InterpolatorNodes::InterpolatorNodes(const string &nl, const string &sl) :
 void InterpolatorNodes::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));
 
-    markers.clear();
-    markers.reserve(N);
-    vertices.clear();
-    vertices.reserve(N);
+    markers = vector<int>(N);
     solutions.clear();
     solutions.reserve(N);
 }
@@ -36,10 +33,8 @@ void InterpolatorNodes::precompute() {
     reserve(n_nodes);
 
     for (int i = 0; i < n_nodes; ++i) {
-        // Store the coordinates of mesh nodes
-        vertices.push_back(mesh->nodes[i]);
         // Store node markers
-        markers.push_back(mesh->nodes.get_marker(i));
+        markers[i] = mesh->nodes.get_marker(i);
     }
 }
 
@@ -66,7 +61,7 @@ void InterpolatorNodes::write(const string &file_name) const {
 }
 
 void InterpolatorNodes::write_xyz(ofstream& out) const {
-    const int n_nodes = vertices.size();
+    const int n_nodes = size();
     expect(n_nodes, "Zero nodes detected!");
 
     out << n_nodes << endl;
@@ -74,7 +69,7 @@ void InterpolatorNodes::write_xyz(ofstream& out) const {
             "force:R:3:" << norm_label << ":R:1:" << scalar_label << ":R:1" << endl;
 
     for (int i = 0; i < n_nodes; ++i)
-        out << i << " " << vertices[i] << " " << markers[i] << " " << solutions[i] << endl;
+        out << i << " " << get_vertex(i) << " " << markers[i] << " " << solutions[i] << endl;
 }
 
 void InterpolatorNodes::write_vtk(ofstream& out) const {
@@ -93,7 +88,7 @@ void InterpolatorNodes::write_vtk(ofstream& out) const {
     // Output the point coordinates
     out << "POINTS " << n_nodes << " double\n";
     for (int i = 0; i < n_nodes; ++i)
-        out << vertices[i] << "\n";
+        out << get_vertex(i) << "\n";
 
     // Output # vertices and vertex indices
     out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
@@ -185,8 +180,6 @@ void InterpolatorCells<dim>::reserve(const int N) {
 
     centroids.clear();
     centroids.reserve(N);
-    cells.clear();
-    cells.reserve(N);
     markers = vector<int>(N);
     neighbours = vector<vector<int>>(N);
 }
@@ -217,7 +210,7 @@ void InterpolatorCells<dim>::write_vtk(ofstream& out) const {
     expect(n_nodes, "Zero nodes detected!");
 
     const int celltype = get_cell_type();
-    const int n_cells = cells.size();
+    const int n_cells = size();
 
     out << "# vtk DataFile Version 3.0\n";
     out << "# InterpolatorCells data\n";
@@ -232,7 +225,7 @@ void InterpolatorCells<dim>::write_vtk(ofstream& out) const {
     // Output # vertices and vertex indices
     out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
-        out << dim << " " << cells[i] << "\n";
+        out << dim << " " << get_cell(i) << "\n";
 
     // Output cell types
     out << "\nCELL_TYPES " << n_cells << "\n";
@@ -248,7 +241,7 @@ void InterpolatorCells<dim>::write_vtk(ofstream& out) const {
 
 template<int dim>
 void InterpolatorCells<dim>::write_cell_data(ofstream& out) const {
-    const int n_cells = cells.size();
+    const int n_cells = size();
     out << "\nCELL_DATA " << n_cells << "\n";
 
     // write cell IDs
@@ -413,7 +406,7 @@ Solution InterpolatorCells<dim>::interp_solution(const Point3 &point, const int 
     const int cell = abs(c);
     require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
 
-    SimpleCell<dim> scell = cells[cell];
+    SimpleCell<dim> scell = get_cell(cell);
 
     // calculate interpolation weights (shape function of dummy nodal distance based weights)
     array<double,dim> weights;
@@ -445,7 +438,7 @@ Solution InterpolatorCells<dim>::interp_solution_v2(const Point3 &point, const i
     get_shape_fun_grads(sfg, point, cell);
 
     // using them as weights, interpolate scalar data and its gradient
-    SimpleCell<dim> scell = cells[cell];
+    SimpleCell<dim> scell = get_cell(cell);
     Vec3 vector_i(0.0);
     double scalar_i(0.0);
 
@@ -467,7 +460,7 @@ Vec3 InterpolatorCells<dim>::interp_gradient(const Point3 &point, const int cell
     get_shape_fun_grads(sfg, point, cell);
 
     // using them as weights, interpolate the gradient of scalar data
-    SimpleCell<dim> scell = cells[cell];
+    SimpleCell<dim> scell = get_cell(cell);
     Vec3 vector_i(0.0);
 
     for (int i = 0; i < dim; ++i)
@@ -568,8 +561,6 @@ void LinearTetrahedra::precompute() {
 
         // Calculate centroids of tetrahedra
         centroids.push_back(tets->get_centroid(tet));
-        // Store tetrahedra to get rid of mesh dependency
-        cells.push_back(selem);
 
         /* Calculate main and minor determinants for 1st, 2nd, 3rd and 4th
          * barycentric coordinate of tetrahedra using the relations below */
@@ -678,7 +669,7 @@ void LinearTetrahedra::get_shape_fun_grads(array<Vec3, 4>& sfg, const Vec3& poin
 
     // calculate 4x4 Jacobian
     // the upmost row consists of 1-s and is not used, therefore no need to store it
-    SimpleCell<4> cell = cells[tet];
+    SimpleCell<4> cell = get_cell(tet);
     array<Vec3, 4> J = {
         mesh->nodes[cell[0]],
         mesh->nodes[cell[1]],
@@ -726,7 +717,7 @@ void LinearTetrahedra::get_shape_fun_grads(array<Vec3, 4>& sfg, const Vec3& poin
 }
 
 void LinearTetrahedra::narrow_search_to(const int region) {
-    const int n_cells = cells.size();
+    const int n_cells = size();
     require(n_cells == tets->size(), "LinearTetrahedra must be intialized before narrowing search!");
 
     const int surf_end = mesh->nodes.indxs.surf_end;
@@ -739,8 +730,9 @@ void LinearTetrahedra::narrow_search_to(const int region) {
             markers[i] = tets->get_marker(i) == TYPES.VACUUM;
     } else if (region == TYPES.SURFACE) {
         for (int i = 0; i < n_cells; ++i) {
-            SimpleElement se = cells[i];
-            markers[i] = se[0] > surf_end && se[1] > surf_end && se[2] > surf_end && se[3] > surf_end;
+//            SimpleElement se = get_cell(i);
+//            markers[i] = se[0] > surf_end && se[1] > surf_end && se[2] > surf_end && se[3] > surf_end;
+            markers[i] = get_cell(i) > surf_end;
         }
     } else if (region == TYPES.NONE) {
         markers = vector<int>(n_cells);
@@ -759,7 +751,10 @@ QuadraticTetrahedra::QuadraticTetrahedra(const InterpolatorNodes* n, const Linea
     InterpolatorCells<10>(n), tets(NULL), lintet(l) {}
 
 void QuadraticTetrahedra::reserve(const int N) {
-    InterpolatorCells<10>::reserve(N);
+    require(N >= 0, "Invalid number of points: " + to_string(N));
+    markers = vector<int>(N);
+    cells.clear();
+    cells.reserve(N);
 }
 
 void QuadraticTetrahedra::precompute() {
@@ -775,9 +770,7 @@ void QuadraticTetrahedra::precompute() {
     // Loop through all the tetrahedra
     for (int i = 0; i < n_elems; ++i) {
         // Calculate and store 10-noded tetrahedra
-        cells.push_back(get_cell(i));
-        // Calculate centroids of tetrahedra
-        centroids.push_back(tets->get_centroid(i));
+        cells.push_back(calc_cell(i));
     }
 }
 
@@ -858,7 +851,7 @@ void QuadraticTetrahedra::get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& 
     lintet->get_shape_functions(bcc, point, tet);
 
     // Store tetrahedron nodes for more convenient access
-    SimpleCell<10> cell = cells[tet];
+    SimpleCell<10> cell = get_cell(tet);
     array<Vec3, 10> node;
     for (int i = 0; i < 10; ++i)
         node[i] = mesh->nodes[cell[i]];
@@ -1145,7 +1138,7 @@ void QuadraticTetrahedra::test_shape_funs() {
     }
 }
 
-SimpleCell<10> QuadraticTetrahedra::get_cell(const int tet) const {
+SimpleCell<10> QuadraticTetrahedra::calc_cell(const int tet) const {
     if (mesh->hexs.size() <= tet)
         return QuadraticTet(0);
 
@@ -1181,7 +1174,9 @@ LinearHexahedra::LinearHexahedra(const InterpolatorNodes* n, const LinearTetrahe
         InterpolatorCells<8>(n), hexs(NULL), lintet(l) {}
 
 void LinearHexahedra::reserve(const int N) {
-    InterpolatorCells<8>::reserve(N);
+    require(N >= 0, "Invalid number of points: " + to_string(N));
+
+    markers = vector<int>(N);
 
     f0s.clear(); f0s.reserve(N);
     f1s.clear(); f1s.reserve(N);
@@ -1204,27 +1199,12 @@ void LinearHexahedra::precompute() {
 
     decay_factor = -1.0 / mesh->tets.stat.edgemax;
 
-    // Calculate which hexahedra are connected to which node
-    vector<vector<int>> node2hexs(n_nodes);
-    for (int hex = 0; hex < n_elems; ++hex) {
-        for (int node : (*hexs)[hex])
-            node2hexs[node].push_back(hex);
-    }
-
     // Loop through all the hexahedra
     for (int hex = 0; hex < n_elems; ++hex) {
+        // make the markers to correspond to lintet
+        markers[hex] = lintet->get_marker(hexs->to_tet(hex));
+
         SimpleHex shex = (*hexs)[hex];
-
-        // store nodal neighbours of hexahedron
-        for (int node : shex)
-            for (int nbor_hex : node2hexs[node])
-                if (nbor_hex != hex)
-                    neighbours[hex].push_back(nbor_hex);
-
-        // store hexahedra
-        cells.push_back(shex);
-        // Calculate centroids of hexahedra
-        centroids.push_back(hexs->get_centroid(hex));
 
         // pre-calculate data to make iterpolation faster
         const Vec3 x1 = mesh->nodes.get_vec(shex[0]);
@@ -1246,18 +1226,12 @@ void LinearHexahedra::precompute() {
         f7s.push_back( Vec3(((x1*-1) + x2 - x3 + x4 + x5 - x6 + x7 - x8) / 8.0) );
     }
 
-    // make the markers to correspond to lintet
-    for (int i = 0; i < n_elems; ++i)
-        markers[i] = lintet->get_marker(hexs->to_tet(i));
-
     // store the mapping between femocs and deal.ii hexahedra
     int deal_hex_index = 0;
-    map_femocs2deal = vector<int>(n_elems);
+    map_femocs2deal = vector<int>(n_elems, -1);
     for (int i = 0; i < n_elems; ++i) {
         if (hexs->get_marker(i) > 0)
             map_femocs2deal[i] = deal_hex_index++;
-        else
-            map_femocs2deal[i] = -1;
     }
 
     map_deal2femocs = vector<int>(deal_hex_index);
@@ -1369,7 +1343,7 @@ void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point
     project_to_nat_coords(u, v, w, point, hex);
 
     // Transfer the coordinates of hex nodes into a matrix
-    SimpleHex shex = mesh->hexs[hex];
+    SimpleHex shex = get_cell(hex);
     array<Vec3,8> xyz;
     for (int i = 0; i < 8; ++i)
         xyz[i] = mesh->nodes[shex[i]];
@@ -1471,7 +1445,7 @@ void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const int hex, co
 
     Vec3 uvw(u, v, w);
     int nnn[3] = {n1, n2, n3};
-    SimpleHex shex = mesh->hexs[hex];
+    SimpleHex shex = get_cell(hex);
 
     // calculate Jacobian
     Vec3 vec0 = nodes->get_vertex(shex[node]);
@@ -1646,8 +1620,6 @@ void LinearTriangles::precompute() {
         edge2.push_back(e2);
         pvec.push_back(pv * i_det);
 
-        // store triangles
-        cells.push_back(sface);
         // calculate norms of triangles
         norms.push_back(tris->get_norm(tri));
         // store max distance from given triangle
@@ -1725,7 +1697,7 @@ void LinearTriangles::interp_conserved(vector<double>& scalars, const vector<Ato
         atom2cell[i] = cell;
         // append barycentric weight to the sum of all weights from given node
         int j = 0;
-        for (int node : cells[cell])
+        for (int node : get_cell(cell))
             bcc_sum[node] += weights[j++];
     }
 
@@ -1737,12 +1709,12 @@ void LinearTriangles::interp_conserved(vector<double>& scalars, const vector<Ato
 
     // perform actual interpolation for all the atoms
     for (int i = 0; i < n_atoms; ++i) {
-        int cell = atom2cell[i];
+        int tri = atom2cell[i];
         // calculate barycentric coordinates
-        get_shape_functions(weights, Vec3(atoms[i].point), cell);
+        get_shape_functions(weights, atoms[i].point, tri);
         // perform interpolation
         int j = 0;
-        for (int node : cells[cell])
+        for (int node : get_cell(tri))
             scalars[i] += nodes->get_scalar(node) * weights[j++] / bcc_sum[node];
     }
 }
@@ -1750,7 +1722,7 @@ void LinearTriangles::interp_conserved(vector<double>& scalars, const vector<Ato
 int LinearTriangles::near_surface(const Vec3& point, const double r_cut) const {
     require(r_cut > 0, "Invalid distance from surface: " + to_string(r_cut));
 
-    for (int face = 0; face < cells.size(); ++face) {
+    for (int face = 0; face < size(); ++face) {
         const double dist = distance(point, face);
         if (dist >= -0.3*r_cut && dist <= r_cut) return face;
     }
@@ -1786,7 +1758,7 @@ void LinearTriangles::write_cell_data(ofstream& out) const {
 
     // write face norms
     out << "VECTORS norm double\n";
-    for (int i = 0; i < cells.size(); ++i)
+    for (int i = 0; i < size(); ++i)
         out << norms[i] << "\n";
 }
 
@@ -1801,7 +1773,10 @@ QuadraticTriangles::QuadraticTriangles(const InterpolatorNodes* n, const LinearT
     InterpolatorCells<6>(n), tris(NULL), lintri(lt), quadtet(qt) {}
 
 void QuadraticTriangles::reserve(const int N) {
-    InterpolatorCells<6>::reserve(N);
+    require(N >= 0, "Invalid number of points: " + to_string(N));
+    markers = vector<int>(N);
+    cells.clear();
+    cells.reserve(N);
 }
 
 void QuadraticTriangles::precompute() {
@@ -1816,10 +1791,8 @@ void QuadraticTriangles::precompute() {
 
     // Loop through all the faces
     for (int i = 0; i < n_faces; ++i) {
-        // store triangles
-        cells.push_back(get_cell(i));
-        // calculate centroids of triangles
-        centroids.push_back(tris->get_centroid(i));
+        // calc & store triangles
+        cells.push_back(calc_cell(i));
     }
 }
 
@@ -1873,7 +1846,7 @@ Solution QuadraticTriangles::interp_solution(const Point3 &point, const int t) c
     return quadtet->interp_solution(point, tet);
 }
 
-SimpleCell<6> QuadraticTriangles::get_cell(const int tri) const {
+SimpleCell<6> QuadraticTriangles::calc_cell(const int tri) const {
     require(tri >= 0 && tri < tris->size(), "Invalid index: " + to_string(tri));
     if (mesh->quads.size() == 0)
         return QuadraticTri(0);
@@ -1908,9 +1881,7 @@ LinearQuadrangles::LinearQuadrangles(const InterpolatorNodes* n, const LinearTri
 
 void LinearQuadrangles::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + to_string(N));
-
     markers = vector<int>(N);
-    cells.clear(); cells.reserve(N);
 }
 
 void LinearQuadrangles::precompute() {
@@ -1921,17 +1892,10 @@ void LinearQuadrangles::precompute() {
     expect(n_elems > 0, "Interpolator expects non-empty mesh!");
     reserve(n_elems);
 
-    // Loop through all the hexahedra
-    for (int i = 0; i < n_elems; ++i) {
-        // store hexahedra
-        cells.push_back((*quads)[i]);
-        // Calculate centroids of quadrangle
-        centroids.push_back(quads->get_centroid(i));
-    }
-
     // make the markers to correspond to lintri
-    for (int i = 0; i < n_elems; ++i)
+    for (int i = 0; i < n_elems; ++i) {
         markers[i] = lintri->get_marker(quads->to_tri(i));
+    }
 }
 
 Solution LinearQuadrangles::interp_solution(const Point3 &point, const int q) const {
@@ -1955,48 +1919,8 @@ Solution LinearQuadrangles::interp_solution(const Point3 &point, const int q) co
     return linhex->interp_solution(point, hex);
 }
 
-/*
- * The code for mapping the point from Cartesian to natural coordinate space was taken from
- * https://www.gamedev.net/forums/topic/596392-uv-coordinate-on-a-2d-quadrilateral/
- */
 void LinearQuadrangles::get_shape_functions(array<double,4>& sf, const Vec3& p, const int quad) const {
     require(false, "LinearQuadrangles::get_shape_functions is not implemented!");
-
-    require(quad >= 0 && quad < cells.size(), "Index out of bounds: " + to_string(quad));
-
-    // Before calculating the shape function,
-    // map the point from Cartesian xyz-coordinates to natural uv-coordinates.
-    // In natural coordinate system, each coordinate is within limits [-1, 1].
-
-    SimpleQuad squad = cells[quad];
-    Vec3 a = mesh->nodes.get_vec(squad[0]);
-    Vec3 b = mesh->nodes.get_vec(squad[1]);
-    Vec3 c = mesh->nodes.get_vec(squad[2]);
-    Vec3 d = mesh->nodes.get_vec(squad[3]);
-
-    double C = (a.y - p.y) * (d.x - p.x) - (a.x - p.x) * (d.y - p.y);
-    double B = (a.y - p.y) * (c.x - d.x) + (b.y - a.y) * (d.x - p.x) - (a.x - p.x) * (c.y - d.y) - (b.x - a.x) * (d.y - p.y);
-    double A = (b.y - a.y) * (c.x - d.x) - (b.x - a.x) * (c.y - d.y);
-    double D = B * B - 4 * A * C;
-
-    double u = (-B - sqrt(D)) / (2 * A);
-    double p1x = a.x + (b.x - a.x) * u;
-    double p2x = d.x + (c.x - d.x) * u;
-    double v = (p.x - p1x) / (p2x - p1x);
-
-    // use natural coordinates to calculate shape functions
-//    sf = {
-//            (1 - u) * (1 - v) / 4.0,
-//            (1 + u) * (1 - v) / 4.0,
-//            (1 + u) * (1 + v) / 4.0,
-//            (1 - u) * (1 + v) / 4.0,
-//    };
-    sf = {
-            (1 - u) * (1 - v) / 4.0,
-            (u) * (1 - v) / 4.0,
-            (u) * (v) / 4.0,
-            (1 - u) * (v) / 4.0,
-    };
 }
 
 bool LinearQuadrangles::point_in_cell(const Vec3 &point, const int cell) const {
