@@ -82,6 +82,19 @@ public:
         solutions[i] = s;
     }
 
+    /** Modify vector component of solution on the i-th node */
+    void set_vector(const int i, const Vec3& v) {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        solutions[i].vector = v;
+        solutions[i].norm = v.norm();
+    }
+
+    /** Modify scalar component of solution on the i-th node */
+    void set_scalar(const int i, const double d) {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        solutions[i].scalar = d;
+    }
+
     /** Change the data labels */
     void set_labels(const string& nl, const string& sl) {
         const_cast<string&>(norm_label) = nl;
@@ -149,6 +162,8 @@ public:
     /** Get gradient of interpolation weights for a point inside the cell */
     virtual void get_shape_fun_grads(array<Vec3,dim>& sfg, const Vec3& point, const int cell) const {}
 
+    virtual void get_shape_fun_grads(array<Vec3,dim>& sfg, const int cell, const int node) const {}
+
     /** Find the cell which contains the point or is the closest to it */
     virtual int locate_cell(const Point3 &point, const int cell_guess) const;
     virtual int locate_cell_v2(const Point3 &point, const int cell_guess) const;
@@ -159,15 +174,21 @@ public:
      * @param point  point where the interpolation is performed
      * @param cell   index of cell around which the interpolation is performed */
     virtual Solution interp_solution(const Point3 &point, const int cell) const;
-
     Solution interp_solution_v2(const Point3 &point, const int cell) const;
 
-    Vec3 interp_gradient(const Point3 &point, const int c) const;
+    /** Interpolate minus gradient of solution for any point inside a given cell
+     * @param point  point where the interpolation is performed
+     * @param cell   index of cell around which the interpolation is performed */
+    Vec3 interp_gradient(const Point3 &point, const int cell) const;
+
+    /** Interpolate minus gradient of solution for a node of a cell
+     * @param cell   index of cell where the interpolation is performed
+     * @param node   index of cell vertex where the interpolation is performed */
+    Vec3 interp_gradient(const int cell, const int node) const;
 
     /** First locate the cell that surrounds or is closest to the point and then interpolate there.
      * Search starts from the argument cell. */
     Solution locate_interpolate(const Point3 &point, int& cell) const;
-
     Solution locate_interpolate_v2(const Point3 &point, int& cell) const;
 
     /** Modify cell marker */

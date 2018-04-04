@@ -119,6 +119,162 @@ void Interpolator::store_solution(const vector<int>& femocs2deal,
     }
 }
 
+void Interpolator::store_solution(const vector<int>& femocs2deal, const vector<double> solution) {
+    require(femocs2deal.size() == nodes.size(), "Invalid femocs2deal size: " + to_string(femocs2deal.size()));
+
+    const int n_nodes = nodes.size();
+    const int n_hexs = mesh->hexs.size();
+    static constexpr int n_nodes_per_hex = 8;
+
+    int j = 0;
+    vector<double> scalars(n_nodes, empty_value);
+    for (int i = 0; i < n_nodes; ++i)
+        if (femocs2deal[i] >= 0)
+            scalars[i] = solution[j++];
+
+    for (int i = 0; i < n_nodes; ++i)
+        nodes.set_solution(i, Solution(Vec3(empty_value), scalars[i]));
+
+    vector<Vec3> fields(n_hexs);
+    vector<double> field_norms(n_hexs);
+    for (int hex = 0; hex < n_hexs; ++hex) {
+        fields[hex] = linhex.interp_gradient(mesh->hexs.get_centroid(hex), hex);
+        field_norms[hex] = fields[hex].norm2();
+    }
+
+    vector<vector<int>> node2cells(n_nodes);
+    for (int hex = 0; hex < n_hexs; ++hex) {
+        for (int node : mesh->hexs[hex])
+            node2cells[node].push_back(hex);
+    }
+
+    vector<Vec3> gradients(n_nodes, Vec3(empty_value));
+    for (int node = 0; node < n_nodes; ++node)
+        if (femocs2deal[node] >= 0) {
+            Vec3 field(0);
+            int n_fields = 0;
+            for (int hex : node2cells[node]) {
+                if (field_norms[hex] > 0) {
+                    field += fields[hex];
+                    n_fields++;
+                }
+            }
+
+            if (n_fields > 0) field *= (1.0 / n_fields);
+            nodes.set_solution(node, Solution(field, scalars[node]));
+        }
+}
+
+void Interpolator::store_solution_v2(const vector<int>& femocs2deal, const vector<double> solution) {
+    require(femocs2deal.size() == nodes.size(), "Invalid femocs2deal size: " + to_string(femocs2deal.size()));
+
+    const int n_nodes = nodes.size();
+    const int n_hexs = mesh->hexs.size();
+
+    int j = 0;
+    vector<double> scalars(n_nodes, empty_value);
+    for (int i = 0; i < n_nodes; ++i)
+        if (femocs2deal[i] >= 0)
+            scalars[i] = solution[j++];
+
+    for (int i = 0; i < n_nodes; ++i)
+        nodes.set_solution(i, Solution(Vec3(empty_value), scalars[i]));
+
+    vector<vector<int>> node2cells(n_nodes);
+    for (int hex = 0; hex < n_hexs; ++hex) {
+        for (int node : mesh->hexs[hex])
+            node2cells[node].push_back(hex);
+    }
+
+    for (int node = 0; node < n_nodes; ++node)
+        if (femocs2deal[node] >= 0) {
+            Vec3 sum_field(0);
+            int n_fields = 0;
+            Point3 point = nodes.get_vertex(node);
+
+            for (int hex : node2cells[node]) {
+                Vec3 field = linhex.interp_gradient(point, hex);
+                if (field.norm2() > 0) {
+                    sum_field += field;
+                    n_fields++;
+                }
+            }
+
+            if (n_fields > 0) sum_field *= (1.0 / n_fields);
+            nodes.set_solution(node, Solution(sum_field, scalars[node]));
+        }
+}
+
+void Interpolator::store_solution_v3(const vector<int>& femocs2deal, const vector<double> solution) {
+    require(femocs2deal.size() == nodes.size(), "Invalid femocs2deal size: " + to_string(femocs2deal.size()));
+
+    const int n_nodes = nodes.size();
+
+    int j = 0;
+    for (int i = 0; i < n_nodes; ++i) {
+        if (femocs2deal[i] >= 0)
+            nodes.set_scalar(i, solution[j++]);
+        else
+            nodes.set_scalar(i, empty_value);
+    }
+
+    for (int node = 0; node < n_nodes; ++node) {
+        if (femocs2deal[node] >= 0) {
+            Vec3 sum_field(0);
+            int n_fields = 0;
+
+            for (pair<int,int> &p : node2cells[node]) {
+                Vec3 field = linhex.interp_gradient(p.first, p.second);
+                if (field.norm2() > 0) {
+                    sum_field += field;
+                    n_fields++;
+                }
+            }
+
+            if (n_fields > 0) sum_field *= (1.0 / n_fields);
+            nodes.set_vector(node, sum_field);
+        }
+
+        else nodes.set_vector(node, Vec3(empty_value));
+    }
+}
+
+void Interpolator::store_solution_v4(const vector<int>& femocs2deal, const vector<double> scalars) {
+    require(femocs2deal.size() == nodes.size(), "Invalid femocs2deal size: " + to_string(femocs2deal.size()));
+
+    const int n_nodes = nodes.size();
+
+    int j = 0;
+    for (int i = 0; i < n_nodes; ++i) {
+        if (femocs2deal[i] >= 0)
+            nodes.set_scalar(i, scalars[j++]);
+    }
+
+    // calculate field in the location of mesh nodes by calculating minus gradient of potential
+#pragma omp parallel for
+    for (int node = 0; node < n_nodes; ++node) {
+        if (femocs2deal[node] >= 0)
+            store_vec(node);
+    }
+}
+
+void Interpolator::store_vec(const int node) {
+    // due to linear elements, field on a node must be averaged
+    // over all the hexahedra that are connected to the node,
+    // as the field is discontinuous between hexahedra
+
+    Vec3 mean_field(0);
+
+    int n_fields = node2cells[node].size();
+    if (n_fields > 0) {
+        for (pair<int,int> p : node2cells[node])
+            mean_field += linhex.interp_gradient(p.first, p.second);
+        mean_field *= (1.0 / n_fields);
+    }
+
+    nodes.set_vector(node, mean_field);
+}
+
 int Interpolator::update_point_cell(const SuperParticle& particle) const {
     int femocs_cell = linhex.deal2femocs(particle.cell);
     femocs_cell = linhex.locate_cell(particle.pos, femocs_cell);
@@ -148,9 +304,22 @@ void Interpolator::initialize(const TetgenMesh* m, const double empty_val) {
 
     empty_value = empty_val;
 
-    const int n_atoms = nodes.size();
-    for (int i = 0; i < n_atoms; ++i)
+    const int n_nodes = nodes.size();
+    const int n_hexs = mesh->hexs.size();
+    static constexpr int n_nodes_per_hex = 8;
+
+    // initialize solution values
+    for (int i = 0; i < n_nodes; ++i)
         nodes.append_solution(Solution(empty_val));
+
+    // store mapping between mesh nodes and hexahedra
+    node2cells = vector<vector<pair<int,int>>>(n_nodes);
+    for (int hex = 0; hex < n_hexs; ++hex)
+        if (mesh->hexs.get_marker(hex) > 0) {
+            SimpleHex shex = mesh->hexs[hex];
+            for (int node = 0; node < n_nodes_per_hex; ++node)
+                node2cells[shex[node]].push_back( make_pair(hex, node) );
+        }
 }
 
 void Interpolator::extract_charge_density(fch::PoissonSolver<3>& fem) {
@@ -182,11 +351,11 @@ void Interpolator::extract_solution(fch::PoissonSolver<3>& fem) {
     get_maps(femocs2deal, cell_indxs, vert_indxs, fem.get_triangulation(), fem.get_dof_handler());
 
     // Read and store current densities and temperatures from FEM solver
-    store_solution(femocs2deal, fem.get_efield(cell_indxs, vert_indxs),
-            fem.get_potential(cell_indxs, vert_indxs));
+//    store_solution(femocs2deal, fem.get_efield(cell_indxs, vert_indxs), fem.get_potential(cell_indxs, vert_indxs));
+    store_solution_v4(femocs2deal, fem.get_potential(cell_indxs, vert_indxs));
 
     // Remove the spikes from the solution
-    average_sharp_nodes(true);
+//    average_sharp_nodes(true);
 }
 
 } // namespace femocs

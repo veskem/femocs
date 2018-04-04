@@ -473,6 +473,24 @@ Vec3 InterpolatorCells<dim>::interp_gradient(const Point3 &point, const int cell
 }
 
 template<int dim>
+Vec3 InterpolatorCells<dim>::interp_gradient(const int cell, const int node) const {
+    require(cell >= 0 && cell < size(), "Index out of bounds: " + to_string(cell));
+
+    // calculate shape function gradients
+    array<Vec3, dim> sfg;
+    get_shape_fun_grads(sfg, cell, node);
+
+    // using them as weights, interpolate the gradient of scalar data
+    SimpleCell<dim> scell = get_cell(cell);
+    Vec3 vector_i(0.0);
+
+    for (int i = 0; i < dim; ++i)
+        vector_i -= sfg[i] * nodes->get_scalar(scell[i]);
+
+    return vector_i;
+}
+
+template<int dim>
 Solution InterpolatorCells<dim>::locate_interpolate(const Point3 &point, int& cell) const {
     cell = locate_cell(point, abs(cell));
     return interp_solution(point, cell);

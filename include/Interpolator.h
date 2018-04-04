@@ -76,6 +76,7 @@ public:
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
     int empty_value;                ///< Solution value for nodes outside the Deal.II mesh
+    vector<vector<pair<int,int>>> node2cells;  ///< list of hexahedra that are associated with given node
 
     /** Calculate the mapping between Femocs & deal.II mesh nodes,
      *  nodes & hexahedral elements and nodes & element's vertices.
@@ -86,6 +87,17 @@ private:
     /** Transfer solution from FEM solver to Interpolator */
     void store_solution(const vector<int>& femocs2deal,
             const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data);
+
+    void store_solution(const vector<int>& femocs2deal, const vector<double> scal_data);
+
+    void store_solution_v2(const vector<int>& femocs2deal, const vector<double> scal_data);
+
+    void store_solution_v3(const vector<int>& femocs2deal, const vector<double> scal_data);
+
+    void store_solution_v4(const vector<int>& femocs2deal, const vector<double> scalars);
+
+    /** Calculate field in the location of mesh node */
+    void store_vec(const int node);
 
     /** Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
      *  surrounding hexahedral nodes */
