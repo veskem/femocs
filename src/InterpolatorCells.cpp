@@ -348,6 +348,7 @@ int InterpolatorCells<dim>::locate_cell_v2(const Point3 &point, const int cell_g
 
 template<int dim>
 int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_guess) const {
+    const int n_cells = neighbours.size();
     require(cell_guess >= 0 && cell_guess < n_cells,
             "Index out of bounds: " + to_string(cell_guess));
 
@@ -355,18 +356,19 @@ int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_gues
     if (point_in_cell(point, cell_guess))
         return cell_guess;
 
+
     // === Check if point is surrounded by one of the neighbouring cells
     for (int cell : neighbours[cell_guess]) {
-        if (markers[cell] == 0 && point_in_cell(point, cell))
+        if (point_in_cell(point, cell))
             return cell;
     }
 
     // === In case of no success, loop through all the cells
-    const int n_cells = neighbours.size();
     double min_distance2 = 1e100;
     int min_index = 0;
 
     for (int cell = 0; cell < n_cells; ++cell) {
+        // If correct cell is found, we're done
         if (markers[cell] == 0 && point_in_cell(point, cell))
             return cell;
 
@@ -404,15 +406,15 @@ void InterpolatorCells<dim>::get_weights(array<double,dim>& weights, const Point
 template<int dim>
 Solution InterpolatorCells<dim>::interp_solution(const Point3 &point, const int c) const {
     const int cell = abs(c);
-    require(cell < cells.size(), "Index out of bounds: " + to_string(cell));
-
-    SimpleCell<dim> scell = get_cell(cell);
+    require(cell < size(), "Index out of bounds: " + to_string(cell));
 
     // calculate interpolation weights (shape function of dummy nodal distance based weights)
     array<double,dim> weights;
 //    if (c >= 0) get_shape_functions(weights, Vec3(point), cell);
 //    else get_weights(weights, point, scell);
     get_shape_functions(weights, Vec3(point), cell);
+
+    SimpleCell<dim> scell = get_cell(cell);
 
     // Interpolate vector data
     Vec3 vector_i(0.0);
@@ -428,8 +430,9 @@ Solution InterpolatorCells<dim>::interp_solution(const Point3 &point, const int 
 }
 
 template<int dim>
-Solution InterpolatorCells<dim>::interp_solution_v2(const Point3 &point, const int cell) const {
-    require(cell >= 0 && cell < cells.size(), "Index out of bounds: " + to_string(cell));
+Solution InterpolatorCells<dim>::interp_solution_v2(const Point3 &point, const int c) const {
+    const int cell = abs(c);
+    require(cell < size(), "Index out of bounds: " + to_string(cell));
 
     // calculate shape functions and their gradients
     array<double, dim> sf;
@@ -453,7 +456,7 @@ Solution InterpolatorCells<dim>::interp_solution_v2(const Point3 &point, const i
 
 template<int dim>
 Vec3 InterpolatorCells<dim>::interp_gradient(const Point3 &point, const int cell) const {
-    require(cell >= 0 && cell < cells.size(), "Index out of bounds: " + to_string(cell));
+    require(cell >= 0 && cell < size(), "Index out of bounds: " + to_string(cell));
 
     // calculate shape function gradients
     array<Vec3, dim> sfg;
@@ -471,13 +474,13 @@ Vec3 InterpolatorCells<dim>::interp_gradient(const Point3 &point, const int cell
 
 template<int dim>
 Solution InterpolatorCells<dim>::locate_interpolate(const Point3 &point, int& cell) const {
-    cell = locate_cell(point, cell);
+    cell = locate_cell(point, abs(cell));
     return interp_solution(point, cell);
 }
 
 template<int dim>
 Solution InterpolatorCells<dim>::locate_interpolate_v2(const Point3 &point, int& cell) const {
-    cell = locate_cell(point, cell);
+    cell = locate_cell(point, abs(cell));
     return interp_solution_v2(point, cell);
 }
 
@@ -672,7 +675,7 @@ void LinearTetrahedra::get_shape_functions(array<double,4>& sf, const Vec3& poin
 }
 
 void LinearTetrahedra::get_shape_fun_grads(array<Vec3, 4>& sfg, const Vec3& point, const int tet) const {
-    require(tet >= 0 && tet < cells.size(), "Index out of bounds: " + to_string(tet));
+    require(tet >= 0 && tet < size(), "Index out of bounds: " + to_string(tet));
 
     // The gradient of shape function inside linear tetrahedron does not depend
     // on the point of interest, therefore its value could be precalculated and
@@ -742,8 +745,6 @@ void LinearTetrahedra::narrow_search_to(const int region) {
             markers[i] = tets->get_marker(i) == TYPES.VACUUM;
     } else if (region == TYPES.SURFACE) {
         for (int i = 0; i < n_cells; ++i) {
-//            SimpleElement se = get_cell(i);
-//            markers[i] = se[0] > surf_end && se[1] > surf_end && se[2] > surf_end && se[3] > surf_end;
             markers[i] = get_cell(i) > surf_end;
         }
     } else if (region == TYPES.NONE) {
@@ -1320,7 +1321,7 @@ void LinearHexahedra::project_to_nat_coords(double &u, double &v, double &w,
 }
 
 void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point, const int hex) const {
-    require(hex >= 0 && hex < cells.size(), "Index out of bounds: " + to_string(hex));
+    require(hex >= 0 && hex < size(), "Index out of bounds: " + to_string(hex));
 
     // Before calculating the shape function,
     // map the point from Cartesian xyz-coordinates to natural uvw-coordinates.
@@ -1350,7 +1351,7 @@ void LinearHexahedra::get_dealii_shape_funs(array<double,8>& sf, const Vec3& poi
  * https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch11.d/AFEM.Ch11.pdf
  */
 void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int hex) const {
-    require(hex >= 0 && hex < cells.size(), "Index out of bounds: " + to_string(hex));
+    require(hex >= 0 && hex < size(), "Index out of bounds: " + to_string(hex));
     double u, v, w;
     project_to_nat_coords(u, v, w, point, hex);
 
