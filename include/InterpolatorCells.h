@@ -158,11 +158,17 @@ public:
      * cell>=0 initiates the usage of shape functions and cell<0 the usage of mere distance-dependent weighting.
      * @param point  point where the interpolation is performed
      * @param cell   index of cell around which the interpolation is performed */
-    Solution interp_solution(const Point3 &point, const int cell) const;
+    virtual Solution interp_solution(const Point3 &point, const int cell) const;
 
     Solution interp_solution_v2(const Point3 &point, const int cell) const;
 
     Vec3 interp_gradient(const Point3 &point, const int c) const;
+
+    /** First locate the cell that surrounds or is closest to the point and then interpolate there.
+     * Search starts from the argument cell. */
+    Solution locate_interpolate(const Point3 &point, int& cell) const;
+
+    Solution locate_interpolate_v2(const Point3 &point, int& cell) const;
 
     /** Modify cell marker */
     void set_marker(const int i, const int m) {

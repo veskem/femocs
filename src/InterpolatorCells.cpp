@@ -470,6 +470,18 @@ Vec3 InterpolatorCells<dim>::interp_gradient(const Point3 &point, const int cell
 }
 
 template<int dim>
+Solution InterpolatorCells<dim>::locate_interpolate(const Point3 &point, int& cell) const {
+    cell = locate_cell(point, cell);
+    return interp_solution(point, cell);
+}
+
+template<int dim>
+Solution InterpolatorCells<dim>::locate_interpolate_v2(const Point3 &point, int& cell) const {
+    cell = locate_cell(point, cell);
+    return interp_solution_v2(point, cell);
+}
+
+template<int dim>
 int InterpolatorCells<dim>::common_entry(vector<unsigned>& vec1, vector<unsigned>& vec2) const {
     for (unsigned i : vec1)
         for (unsigned j : vec2)
@@ -1899,7 +1911,6 @@ void LinearQuadrangles::precompute() {
 }
 
 Solution LinearQuadrangles::interp_solution(const Point3 &point, const int q) const {
-
     int quad = abs(q);
     array<int, 2> hexs = quads->to_hexs(quad);
 
@@ -1954,7 +1965,7 @@ bool LinearQuadrangles::point_in_cell(const Vec3 &point, const int cell) const {
 int LinearQuadrangles::locate_cell(const Point3 &point, const int cell_guess) const {
     static constexpr int n_quads_per_tri = 3;
 
-    int tri = quads->to_tri(abs(cell_guess));
+    int tri = quads->to_tri(cell_guess);
     tri = lintri->locate_cell(point, tri);
     int sign = 1;
     if (tri < 0) sign = -1;

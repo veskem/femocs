@@ -57,32 +57,25 @@ void SolutionReader::calc_interpolation() {
     }
 }
 
+// that function can't be directly moved into calc_interpolation, as OpenMP can't handle reference to cell
 int SolutionReader::update_interpolation(const int i, int cell) {
     Point3 point = get_point(i);
 
     // Depending on interpolation dimension and rank, pick corresponding functions
     if (dim == 2) {
-        if (rank == 1) {
-            cell = interpolator->lintri.locate_cell(point, abs(cell));
-            interpolation[i] = interpolator->lintri.interp_solution(point, cell);
-        } else if (rank == 2) {
-            cell = interpolator->quadtri.locate_cell(point, abs(cell));
-            interpolation[i] = interpolator->quadtri.interp_solution(point, cell);
-        } else if (rank == 3) {
-            cell = interpolator->linquad.locate_cell(point, abs(cell));
-            interpolation[i] = interpolator->linquad.interp_solution(point, cell);
-        }
+        if (rank == 1)
+            interpolation[i] = interpolator->lintri.locate_interpolate(point, cell);
+        else if (rank == 2)
+            interpolation[i] = interpolator->quadtri.locate_interpolate(point, cell);
+        else if (rank == 3)
+            interpolation[i] = interpolator->linquad.locate_interpolate(point, cell);
     } else {
-        if (rank == 1) {
-            cell = interpolator->lintet.locate_cell(point, abs(cell));
-            interpolation[i] = interpolator->lintet.interp_solution(point, cell);
-        } else if (rank == 2) {
-            cell = interpolator->quadtet.locate_cell(point, abs(cell));
-            interpolation[i] = interpolator->quadtet.interp_solution(point, cell);
-        } else if (rank == 3) {
-            cell = interpolator->linhex.locate_cell(point, abs(cell));
-            interpolation[i] = interpolator->linhex.interp_solution(point, cell);
-        }
+        if (rank == 1)
+            interpolation[i] = interpolator->lintet.locate_interpolate(point, cell);
+        else if (rank == 2)
+            interpolation[i] = interpolator->quadtet.locate_interpolate(point, cell);
+        else if (rank == 3)
+            interpolation[i] = interpolator->linhex.locate_interpolate(point, cell);
     }
 
     set_marker(i, cell);
