@@ -157,12 +157,19 @@ public:
     virtual bool point_in_cell(const Vec3& point, const int cell) const { return false; };
 
     /** Get interpolation weights for a point inside the cell */
-    virtual void get_shape_functions(array<double,dim>& sf, const Vec3& point, const int cell) const {}
+    virtual void get_shape_functions(array<double,dim>& sf, const Vec3& point, const int cell) const {
+        require(false, "get_shape_functions(point, cell) not implemented for dim-" + to_string(dim));
+    }
 
-    /** Get gradient of interpolation weights for a point inside the cell */
-    virtual void get_shape_fun_grads(array<Vec3,dim>& sfg, const Vec3& point, const int cell) const {}
+    /** Get gradient of shape function for a point inside the cell */
+    virtual void get_shape_fun_grads(array<Vec3,dim>& sfg, const Vec3& point, const int cell) const {
+        require(false, "get_shape_fun_grads(point, cell) not implemented for dim-" + to_string(dim));
+    }
 
-    virtual void get_shape_fun_grads(array<Vec3,dim>& sfg, const int cell, const int node) const {}
+    /** Get gradient of shape function for a cell node */
+    virtual void get_shape_fun_grads(array<Vec3,dim>& sfg, const int cell, const int node) const {
+        require(false, "get_shape_fun_grads(cell, node) not implemented for dim-" + to_string(dim));
+    }
 
     /** Find the cell which contains the point or is the closest to it */
     virtual int locate_cell(const Point3 &point, const int cell_guess) const;
@@ -604,9 +611,6 @@ public:
 
     /** Pre-compute data about tetrahedra to make interpolation faster */
     void precompute();
-
-    /** Get interpolation weights for a point inside i-th hexahedron */
-    void get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const;
 
     /** Check whether the point is inside the cell */
     bool point_in_cell(const Vec3 &point, const int cell) const;

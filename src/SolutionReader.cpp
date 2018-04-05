@@ -606,63 +606,63 @@ void FieldReader::compare_surface(const Medium &medium) {
 }
 
 void FieldReader::perform_comparison(const string &fname) {
-//    const int n_points = size();
-//    double t0;
-//    int cell_index;
-//
-//    start_msg(t0, "lintri");
-//    cell_index = 0;
-//    for (int i = 0; i < n_points; ++i) {
-//        interpolation[i] = interpolator->lintri.locate_interpolate(get_point(i), cell_index);
-//        set_marker(i, cell_index);
-//    }
-//    end_msg(t0);
-//    write("out/" + fname + "_1.xyz");
-//
-//    start_msg(t0, "lintet");
-//    cell_index = 0;
-//    for (int i = 0; i < n_points; ++i) {
-//        interpolation[i] = interpolator->lintet.locate_interpolate(get_point(i), cell_index);
-//        set_marker(i, cell_index);
-//    }
-//    end_msg(t0);
-//    write("out/" + fname + "_2.xyz");
-//
-//    start_msg(t0, "quadtri");
-//    cell_index = 0;
-//    for (int i = 0; i < n_points; ++i) {
-//        interpolation[i] = interpolator->quadtri.locate_interpolate(get_point(i), cell_index);
-//        set_marker(i, cell_index);
-//    }
-//    end_msg(t0);
-//    write("out/" + fname + "_3.xyz");
-//
-//    start_msg(t0, "quadtet");
-//    cell_index = 0;
-//    for (int i = 0; i < n_points; ++i) {
-//        interpolation[i] = interpolator->quadtet.locate_interpolate(get_point(i), cell_index);
-//        set_marker(i, cell_index);
-//    }
-//    end_msg(t0);
-//    write("out/" + fname + "_4.xyz");
-//
-//    start_msg(t0, "linquad");
-//    cell_index = 0;
-//    for (int i = 0; i < n_points; ++i) {
-//        interpolation[i] = interpolator->linquad.locate_interpolate(get_point(i), cell_index);
-//        set_marker(i, cell_index);
-//    }
-//    end_msg(t0);
-//    write("out/" + fname + "_5.xyz");
-//
-//    start_msg(t0, "linhex");
-//    cell_index = 0;
-//    for (int i = 0; i < n_points; ++i) {
-//        interpolation[i] = interpolator->linhex.locate_interpolate(get_point(i), cell_index);
-//        set_marker(i, cell_index);
-//    }
-//    end_msg(t0);
-//    write("out/" + fname + "_6.xyz");
+    const int n_points = size();
+    double t0;
+    int cell_index;
+
+    start_msg(t0, "lintri");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        interpolation[i] = interpolator->lintri.locate_interpolate(get_point(i), cell_index);
+        set_marker(i, cell_index);
+    }
+    end_msg(t0);
+    write("out/" + fname + "_1.xyz");
+
+    start_msg(t0, "lintet");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        interpolation[i] = interpolator->lintet.locate_interpolate_v2(get_point(i), cell_index);
+        set_marker(i, cell_index);
+    }
+    end_msg(t0);
+    write("out/" + fname + "_2.xyz");
+
+    start_msg(t0, "quadtri");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        interpolation[i] = interpolator->quadtri.locate_interpolate(get_point(i), cell_index);
+        set_marker(i, cell_index);
+    }
+    end_msg(t0);
+    write("out/" + fname + "_3.xyz");
+
+    start_msg(t0, "quadtet");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        interpolation[i] = interpolator->quadtet.locate_interpolate_v2(get_point(i), cell_index);
+        set_marker(i, cell_index);
+    }
+    end_msg(t0);
+    write("out/" + fname + "_4.xyz");
+
+    start_msg(t0, "linquad");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        interpolation[i] = interpolator->linquad.locate_interpolate(get_point(i), cell_index);
+        set_marker(i, cell_index);
+    }
+    end_msg(t0);
+    write("out/" + fname + "_5.xyz");
+
+    start_msg(t0, "linhex");
+    cell_index = 0;
+    for (int i = 0; i < n_points; ++i) {
+        interpolation[i] = interpolator->linhex.locate_interpolate_v2(get_point(i), cell_index);
+        set_marker(i, cell_index);
+    }
+    end_msg(t0);
+    write("out/" + fname + "_6.xyz");
 }
 
 void FieldReader::test_corners(const TetgenMesh& mesh) const {

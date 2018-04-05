@@ -356,7 +356,6 @@ int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_gues
     if (point_in_cell(point, cell_guess))
         return cell_guess;
 
-
     // === Check if point is surrounded by one of the neighbouring cells
     for (int cell : neighbours[cell_guess]) {
         if (point_in_cell(point, cell))
@@ -586,11 +585,19 @@ void LinearTetrahedra::precompute() {
     for (int tet = 0; tet < n_elems; ++tet) {
         SimpleElement selem = (*tets)[tet];
 
-        // store nodal neighbours of tetrahedron
+        // store nearest neighbours of tetrahedron
+        vector<int> nnbors = tets->get_neighbours(tet);
+        for (int nbor : nnbors)
+            if (nbor >= 0)
+                neighbours[tet].push_back(nbor);
+
+        // store next nearest neighbours of tetrahedron
         for (int node : selem)
-            for (int nbor_tet : node2tets[node])
-                if (nbor_tet != tet)
+            for (int nbor_tet : node2tets[node]) {
+                if (nbor_tet != tet && nbor_tet != nnbors[0] && nbor_tet != nnbors[1]
+                         && nbor_tet != nnbors[2] && nbor_tet != nnbors[3])
                     neighbours[tet].push_back(nbor_tet);
+            }
 
         // Calculate centroids of tetrahedra
         centroids.push_back(tets->get_centroid(tet));
@@ -800,6 +807,9 @@ void QuadraticTetrahedra::precompute() {
 
     // Loop through all the tetrahedra
     for (int i = 0; i < n_elems; ++i) {
+        // make the markers to correspond to tetrahedra
+        markers[i] = tets->get_marker(i);
+
         // Calculate and store 10-noded tetrahedra
         cells.push_back(calc_cell(i));
     }
@@ -1232,12 +1242,11 @@ void LinearHexahedra::precompute() {
 
     // Loop through all the hexahedra
     for (int hex = 0; hex < n_elems; ++hex) {
-        // make the markers to correspond to lintet
-        markers[hex] = lintet->get_marker(hexs->to_tet(hex));
-
-        SimpleHex shex = (*hexs)[hex];
+        // make the markers to correspond to hexahedra
+        markers[hex] = hexs->get_marker(hex);
 
         // pre-calculate data to make iterpolation faster
+        SimpleHex shex = (*hexs)[hex];
         const Vec3 x1 = mesh->nodes.get_vec(shex[0]);
         const Vec3 x2 = mesh->nodes.get_vec(shex[1]);
         const Vec3 x3 = mesh->nodes.get_vec(shex[2]);
@@ -1631,11 +1640,12 @@ void LinearTriangles::precompute() {
     for (int tri = 0; tri < n_faces; ++tri) {
         SimpleFace sface = (*tris)[tri];
 
-        // store nodal neighbours of a triangle
+        // store next nearest neighbours of a triangle
         for (int node : sface)
-            for (int nbor_tri : node2tris[node])
+            for (int nbor_tri : node2tris[node]) {
                 if (nbor_tri != tri)
                     neighbours[tri].push_back(nbor_tri);
+            }
 
         Vec3 v0 = mesh->nodes.get_vec(sface[0]);
         Vec3 v1 = mesh->nodes.get_vec(sface[1]);
@@ -1820,7 +1830,6 @@ void QuadraticTriangles::precompute() {
     // Store the constant for smoothing
     decay_factor = -1.0 / tris->stat.edgemax;
 
-    // Loop through all the faces
     for (int i = 0; i < n_faces; ++i) {
         // calc & store triangles
         cells.push_back(calc_cell(i));
@@ -1919,14 +1928,14 @@ void LinearQuadrangles::precompute() {
     require(mesh && quads && lintri && linhex, "NULL pointers can't be used!");
     require(mesh->tris.size() == lintri->size(), "LinearQuadrangles requires LinearTriangles to be pre-computed!");
 
-    const int n_elems = quads->size();
-    expect(n_elems > 0, "Interpolator expects non-empty mesh!");
-    reserve(n_elems);
+    const int n_faces = quads->size();
+    expect(n_faces > 0, "Interpolator expects non-empty mesh!");
+    reserve(n_faces);
 
-    // make the markers to correspond to lintri
-    for (int i = 0; i < n_elems; ++i) {
-        markers[i] = lintri->get_marker(quads->to_tri(i));
-    }
+//    for (int i = 0; i < n_faces; ++i) {
+//        // make the markers to correspond to lintri
+//        markers[i] = lintri->get_marker(quads->to_tri(i));
+//    }
 }
 
 Solution LinearQuadrangles::interp_solution(const Point3 &point, const int q) const {
@@ -1947,10 +1956,6 @@ Solution LinearQuadrangles::interp_solution(const Point3 &point, const int q) co
     // no, use hexahedral tools to obtain the result
     int hex = linhex->locate_cell(point, hexs[1]);
     return linhex->interp_solution(point, hex);
-}
-
-void LinearQuadrangles::get_shape_functions(array<double,4>& sf, const Vec3& p, const int quad) const {
-    require(false, "LinearQuadrangles::get_shape_functions is not implemented!");
 }
 
 bool LinearQuadrangles::point_in_cell(const Vec3 &point, const int cell) const {
@@ -1982,13 +1987,14 @@ bool LinearQuadrangles::point_in_cell(const Vec3 &point, const int cell) const {
  * also inside which hexahedron the point is located.
  */
 int LinearQuadrangles::locate_cell(const Point3 &point, const int cell_guess) const {
-    static constexpr int n_quads_per_tri = 3;
-
     int tri = quads->to_tri(cell_guess);
     tri = lintri->locate_cell(point, tri);
     int sign = 1;
     if (tri < 0) sign = -1;
     tri = abs(tri);
+
+    // list of quadrangles where the point might be located
+    array<int,3> quad_indices = mesh->tris.to_quads(tri);
 
     // calculate barycentric coordinates for a point
     array<double,3> bcc;
@@ -1996,13 +2002,13 @@ int LinearQuadrangles::locate_cell(const Point3 &point, const int cell_guess) co
 
     // point inside a quad connected to 1st triangular node ?
     if (bcc[0] >= bcc[1] && bcc[0] >= bcc[2])
-        return sign * (n_quads_per_tri * tri + 0);
+        return sign * quad_indices[0];
     // point inside a quad connected to 2nd triangular node ?
     if (bcc[1] >= bcc[0] && bcc[1] >= bcc[2])
-        return sign * (n_quads_per_tri * tri + 1);
+        return sign * quad_indices[1];
     // point inside a quad connected to 3rd triangular node ?
     if (bcc[2] >= bcc[0] && bcc[2] >= bcc[1])
-        return sign * (n_quads_per_tri * tri + 2);
+        return sign * quad_indices[2];
 
     return -1;
 }
