@@ -61,8 +61,14 @@ public:
     /** Return the volume/area of i-th cell */
     double get_cell_vol(const int i) const;
 
-    /** export the centroids of surface faces */
+    /** Export the centroids of surface faces */
     void get_surface_nodes(vector<Point<dim>>& nodes) const;
+
+    /** Extract the solution on all mesh nodes */
+    void get_nodal_solution(vector<double>& solution) const;
+
+    /** Calculate mapping between vertex and dof indices */
+    void calc_vertex2dof();
 
     /**
      * Import mesh from file and set the boundary indicators corresponding to copper
@@ -108,6 +114,8 @@ protected:
     Vector<double> solution;                 ///< resulting solution in the mesh nodes
     Vector<double> solution_save;            ///< saved solutions in the mesh nodes
     Vector<double> dof_volume;               ///< integral of the shape functions
+
+    vector<unsigned> vertex2dof;             ///< map of Deal.II vertex indices to dof indices
 
     /** Variables used during the assembly of matrix equation */
     map<types::global_dof_index, double> boundary_values;

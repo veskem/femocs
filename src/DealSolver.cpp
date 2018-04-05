@@ -221,6 +221,44 @@ void DealSolver<dim>::get_surface_nodes(vector<Point<dim>>& nodes) const {
 }
 
 template<int dim>
+void DealSolver<dim>::get_nodal_solution(vector<double>& solutions) const {
+    const int n_nodes = this->triangulation.n_used_vertices();
+    require(vertex2dof.size() == n_nodes, "Before extracting solution, vertex2dof mapping must be calculated!");
+
+    solutions.resize(n_nodes);
+    for (int i = 0; i < n_nodes; ++i)
+        solutions[i] = this->solution[vertex2dof[i]];
+}
+
+template<int dim>
+void DealSolver<dim>::calc_vertex2dof() {
+    static constexpr int n_verts_per_elem = GeometryInfo<dim>::vertices_per_cell;
+    const int n_verts = this->triangulation.n_used_vertices();
+
+    // create mapping from mesh vertex to cell index & cell node
+    vector<unsigned> vertex2hex(n_verts), vertex2node(n_verts);
+
+    typename DoFHandler<dim>::active_cell_iterator cell;
+    for (cell = this->dof_handler.begin_active(); cell != this->dof_handler.end(); ++cell)
+        for (int i = 0; i < n_verts_per_elem; ++i) {
+            vertex2hex[cell->vertex_index(i)] = cell->active_cell_index();
+            vertex2node[cell->vertex_index(i)] = i;
+        }
+
+    // create mapping from vertex index to dof index
+    this->vertex2dof.resize(n_verts);
+
+    for (unsigned i = 0; i < n_verts; ++i) {
+        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+        // NB: only works without refinement !!!
+        typename DoFHandler<dim>::active_cell_iterator cell(&this->triangulation,
+                0, vertex2hex[i], &this->dof_handler);
+
+        this->vertex2dof[i] = cell->vertex_dof_index(vertex2node[i], 0);
+    }
+}
+
+template<int dim>
 void DealSolver<dim>::setup_system() {
     require(this->dof_handler.get_triangulation().n_used_vertices() > 0,
             "Can't setup system with no mesh!");
