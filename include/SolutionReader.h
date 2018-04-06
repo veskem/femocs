@@ -81,8 +81,11 @@ public:
         double scal_max;      ///< maximum value of scalar
     } stat;
 
+    /** General function to export desired component of calculated data */
     int export_results(const int n_points, const string &data_type, const bool append, double* data);
 
+    /** General function to first perform interpolation
+     * and then export desired component of calculated data */
     int interpolate_results(const int n_points, const string &data_type, const double* x,
             const double* y, const double* z, double* data);
 
@@ -138,13 +141,22 @@ public:
     void interpolate(const int n_points, const double* x, const double* y, const double* z);
 
     /** Return electric field in i-th interpolation point */
-    Vec3 get_elfield(const int i) const;
+    Vec3 get_elfield(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].vector;
+    }
 
     /** Return electric field norm in i-th interpolation point */
-    double get_elfield_norm(const int i) const;
+    double get_elfield_norm(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].norm;
+    }
 
     /** Return electric potential in i-th interpolation point */
-    double get_potential(const int i) const;
+    double get_potential(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].scalar;
+    }
 
     /** Compare the analytical and calculated field enhancement.
      * The check is disabled if lower and upper limits are the same. */
@@ -157,7 +169,7 @@ public:
     void set_check_params(const double E0, const double limit_min, const double limit_max,
             const double radius1, const double radius2=-1);
 
-    /** Export calculated electic field distribution to HOLMOD */
+    /** Export calculated electic field distribution to HELMOD */
     int export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
     /** Interpolate electric field on set of points using the solution on surface mesh nodes
@@ -207,11 +219,23 @@ public:
     /** Export interpolated temperature */
     int export_temperature(const int n_atoms, double* T);
 
-    Vec3 get_rho(const int i) const;
+    /** Return current density in i-th interpolation point */
+    Vec3 get_rho(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].vector;
+    }
 
-    double get_rho_norm(const int i) const;
+    /** Return magnitude of current density in i-th interpolation point */
+    double get_rho_norm(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].norm;
+    }
 
-    double get_temperature(const int i) const;
+    /** Return temperature in i-th interpolation point */
+    double get_temperature(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].scalar;
+    }
 
 private:
 };
@@ -316,13 +340,22 @@ public:
     bool check_limits(const vector<Solution>* solutions=NULL) const;
 
     /** Get electric field on the centroid of i-th triangle */
-    Vec3 get_elfield(const int i) const;
+    Vec3 get_elfield(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].vector;
+    }
 
     /** Get area of i-th triangle */
-    double get_area(const int i) const;
+    double get_area(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].norm;
+    }
 
     /** Get charge of i-th triangle */
-    double get_charge(const int i) const;
+    double get_charge(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].scalar;
+    }
 
 private:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
@@ -338,11 +371,12 @@ public:
     /** Calculate forces from atomic electric fields and face charges */
     void distribute_charges(const FieldReader &fields, const ChargeReader& faces, const double smooth_factor);
 
-    void calc_lorentz(const FieldReader &fields);
-
     /** Build Voronoi cells around the atoms in the region of interest */
     int calc_voronois(VoronoiMesh& mesh, const vector<int>& atom2face,
             const double radius, const double latconst, const string& mesh_quality);
+
+    /** Calculate Lorentz forces from atomistic electric fields and face charges */
+    void calc_lorentz(const FieldReader &fields);
 
     /** Calculate atomistic charges and Lorentz forces by using the Voronoi cells */
     void calc_charge_and_lorentz(const VoronoiMesh& mesh, const FieldReader& fields);

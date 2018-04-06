@@ -20,7 +20,6 @@ namespace femocs {
  * ============= SOLUTION READER ============
  * ========================================== */
 
-// Initialize SolutionReader
 SolutionReader::SolutionReader() :
         vec_label("vec"), vec_norm_label("vec_norm"), scalar_label("scalar"),
         limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), interpolator(NULL)
@@ -33,28 +32,6 @@ SolutionReader::SolutionReader(Interpolator* i, const string& vec_lab, const str
         limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), interpolator(i)
 {
     reserve(0);
-}
-
-void SolutionReader::calc_interpolation() {
-    require(interpolator, "NULL interpolator cannot be used!");
-    const int n_atoms = size();
-
-    // Sort atoms into sequential order to speed up interpolation
-    if (sort_atoms) sort_spatial();
-
-    int cell = 0;
-
-#pragma omp parallel for private(cell)
-    for (int i = 0; i < n_atoms; ++i)
-        cell = update_interpolation(i, cell);
-
-    // Sort atoms back to their initial order
-    if (sort_atoms) {
-        for (int i = 0; i < n_atoms; ++i)
-            interpolation[i].id = atoms[i].id;
-        sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
-        sort( atoms.begin(), atoms.end(), Atom::sort_id() );
-    }
 }
 
 // that function can't be directly moved into calc_interpolation, as OpenMP can't handle reference to cell
@@ -80,6 +57,28 @@ int SolutionReader::update_interpolation(const int i, int cell) {
 
     set_marker(i, cell);
     return cell;
+}
+
+void SolutionReader::calc_interpolation() {
+    require(interpolator, "NULL interpolator cannot be used!");
+    const int n_atoms = size();
+
+    // Sort atoms into sequential order to speed up interpolation
+    if (sort_atoms) sort_spatial();
+
+    int cell = 0;
+
+#pragma omp parallel for private(cell)
+    for (int i = 0; i < n_atoms; ++i)
+        cell = update_interpolation(i, cell);
+
+    // Sort atoms back to their initial order
+    if (sort_atoms) {
+        for (int i = 0; i < n_atoms; ++i)
+            interpolation[i].id = atoms[i].id;
+        sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
+        sort( atoms.begin(), atoms.end(), Atom::sort_id() );
+    }
 }
 
 void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
@@ -126,7 +125,6 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
     }
 }
 
-// Reserve memory for solution vectors
 void SolutionReader::reserve(const int n_nodes) {
     require(n_nodes >= 0, "Invalid number of nodes: " + to_string(n_nodes));
 
@@ -135,7 +133,6 @@ void SolutionReader::reserve(const int n_nodes) {
     interpolation.resize(n_nodes);
 }
 
-// Compile data string from the data vectors for file output
 string SolutionReader::get_data_string(const int i) const{
     if (i < 0) return "SolutionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
 
@@ -144,7 +141,6 @@ string SolutionReader::get_data_string(const int i) const{
     return strs.str();
 }
 
-// Get information about data vectors for .vtk file
 void SolutionReader::get_point_data(ofstream& out) const {
     const int n_atoms = size();
 
@@ -174,14 +170,12 @@ void SolutionReader::get_point_data(ofstream& out) const {
         out << interpolation[i].vector << "\n";
 }
 
-// Initialise statistics about the solution
 void SolutionReader::init_statistics() {
     Medium::init_statistics();
     stat.vec_norm_min = stat.scal_min = DBL_MAX;
     stat.vec_norm_max = stat.scal_max = -DBL_MAX;
 }
 
-// Calculate statistics about the solution
 void SolutionReader::calc_statistics() {
     init_statistics();
     Medium::calc_statistics();
@@ -196,7 +190,6 @@ void SolutionReader::calc_statistics() {
     }
 }
 
-// Print statistics about interpolated solution
 void SolutionReader::print_statistics() {
     if (!MODES.VERBOSE) return;
 
@@ -556,7 +549,6 @@ void FieldReader::test_corners(const TetgenMesh& mesh) const {
     }
 }
 
-// Interpolate electric field and potential on a set of points
 void FieldReader::interpolate(const int n_points, const double* x, const double* y, const double* z) {
     // store the point coordinates
     reserve(n_points);
@@ -567,7 +559,6 @@ void FieldReader::interpolate(const int n_points, const double* x, const double*
     calc_interpolation();
 }
 
-// Interpolate electric field and potential on a Medium atoms
 void FieldReader::interpolate(const Medium &medium) {
     const int n_atoms = medium.size();
 
@@ -589,25 +580,6 @@ void FieldReader::interpolate(const fch::DealSolver<3>& solver) {
     calc_interpolation();
 }
 
-// Return electric field in i-th interpolation point
-Vec3 FieldReader::get_elfield(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].vector;
-}
-
-// Return electric field norm in i-th interpolation point
-double FieldReader::get_elfield_norm(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].norm;
-}
-
-// Return electric potential in i-th interpolation point
-double FieldReader::get_potential(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].scalar;
-}
-
-// Analytical potential for i-th point near the hemisphere
 double FieldReader::get_analyt_potential(const int i, const Point3& origin) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
 
@@ -617,7 +589,6 @@ double FieldReader::get_analyt_potential(const int i, const Point3& origin) cons
     return -E0 * point.z * (1 - pow(radius1 / r, 3.0));
 }
 
-// Analytical electric field for i-th point near the hemisphere
 Vec3 FieldReader::get_analyt_field(const int i, const Point3& origin) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
 
@@ -634,7 +605,6 @@ Vec3 FieldReader::get_analyt_field(const int i, const Point3& origin) const {
     return Vec3(Ex, Ey, Ez);
 }
 
-// Analytical field enhancement for ellipsoidal nanotip
 double FieldReader::get_analyt_enhancement() const {
     expect(radius1 > 0, "Invalid nanotip minor semi-axis: " + to_string(radius1));
 
@@ -647,7 +617,6 @@ double FieldReader::get_analyt_enhancement() const {
     }
 }
 
-// Compare the analytical and calculated field enhancement
 bool FieldReader::check_limits(const vector<Solution>* solutions) const {
     if (limit_min == limit_max)
         return false;
@@ -680,7 +649,6 @@ double FieldReader::calc_max_field(const vector<Solution>* solutions) const {
     return E_max;
 }
 
-// Set parameters for calculating analytical solution
 void FieldReader::set_check_params(const double E0, const double limit_min, const double limit_max,
         const double radius1, const double radius2) {
     this->E0 = E0;
@@ -693,7 +661,6 @@ void FieldReader::set_check_params(const double E0, const double limit_min, cons
         this->radius2 = radius1;
 }
 
-// Export interpolated electric field
 int FieldReader::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
     if (n_atoms <= 0) return 0;
     check_return(size() == 0, "No field to export!");
@@ -785,7 +752,6 @@ int FieldReader::interpolate_phi(const int n_points, const double* x, const doub
 HeatReader::HeatReader(Interpolator* i) :
         SolutionReader(i, "rho", "rho_norm", "temperature") {}
 
-// Interpolate solution on Medium atoms
 void HeatReader::interpolate(const Medium &medium) {
     const int n_atoms = medium.size();
 
@@ -807,7 +773,6 @@ void HeatReader::interpolate(fch::DealSolver<3>& solver) {
     calc_interpolation();
 }
 
-// Export interpolated temperature
 int HeatReader::export_temperature(const int n_atoms, double* T) {
     if (n_atoms <= 0) return 0;
     check_return(size() == 0, "No temperature to export!");
@@ -820,21 +785,6 @@ int HeatReader::export_temperature(const int n_atoms, double* T) {
     }
 
     return 0;
-}
-
-Vec3 HeatReader::get_rho(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].vector;
-}
-
-double HeatReader::get_rho_norm(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].norm;
-}
-
-double HeatReader::get_temperature(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].scalar;
 }
 
 /* ==========================================
@@ -1097,7 +1047,6 @@ void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
     }
 }
 
-// Remove the atoms and their solutions outside the box
 void ChargeReader::clean(const Medium::Sizes& sizes, const double latconst) {
     const int n_atoms = size();
     const int eps = latconst / 2.0;;
@@ -1131,22 +1080,6 @@ void ChargeReader::clean(const Medium::Sizes& sizes, const double latconst) {
         Q_tot += s.scalar;
 }
 
-Vec3 ChargeReader::get_elfield(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].vector;
-}
-
-double ChargeReader::get_area(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].norm;
-}
-
-double ChargeReader::get_charge(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
-    return interpolation[i].scalar;
-}
-
-// Check whether charge is conserved within specified limits
 bool ChargeReader::check_limits(const vector<Solution>* solutions) const {
     if (limit_min == limit_max)
         return false;
@@ -1169,7 +1102,6 @@ bool ChargeReader::check_limits(const vector<Solution>* solutions) const {
     return q < limit_min || q > limit_max;
 }
 
-// Set parameters for calculating analytical solution
 void ChargeReader::set_check_params(const double Q_tot, const double limit_min, const double limit_max) {
     this->Q_tot = Q_tot * eps0;
     this->limit_min = limit_min;
@@ -1330,7 +1262,6 @@ void ForceReader::calc_charge_and_lorentz(const VoronoiMesh& mesh, const FieldRe
         }
 }
 
-// Calculate forces from atomic electric fields and face charges
 void ForceReader::calc_lorentz(const FieldReader &fields) {
     const int n_atoms = fields.size();
 
