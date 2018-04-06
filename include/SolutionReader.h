@@ -41,13 +41,19 @@ public:
     void print_statistics();
 
     /** Get pointer to interpolation vector */
-    vector<Solution>* get_interpolations();
+    vector<Solution>* get_interpolations() { return &interpolation; }
 
     /** Get i-th Solution */
-    Solution get_interpolation(const int i) const;
+    Solution get_interpolation(const int i) const {
+        require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + to_string(i));
+        return interpolation[i];
+    }
 
     /** Set i-th Solution */
-    void set_interpolation(const int i, const Solution& s);
+    void set_interpolation(const int i, const Solution& s) {
+        require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + to_string(i));
+        interpolation[i] = s;
+    }
 
     /** Set interpolation preferences */
     void set_preferences(const bool _srt, const int _dim, const int _rank) {
@@ -157,6 +163,9 @@ public:
     /** Compare the analytical and calculated field enhancement.
      * The check is disabled if lower and upper limits are the same. */
     bool check_limits(const vector<Solution>* solutions=NULL) const;
+
+    /** Find the maximum field norm from the solution vector */
+    double calc_max_field(const vector<Solution>* solutions=NULL) const;
 
     /** Set parameters to calculate analytical solution */
     void set_check_params(const double E0, const double limit_min, const double limit_max,
@@ -276,12 +285,6 @@ private:
      */
     void emission_cycle(double workfunction, bool blunt  = false, bool cold = false);
 
-    /**
-     * Exports the local field from poisson solver (dealii) and calculates the Fmax
-     */
-    void get_loc_field();
-    void get_loc_field_new();
-
     /** Compose entry to xyz or movie file */
     string get_data_string(const int i) const;
 
@@ -300,7 +303,6 @@ private:
     vector<double> current_densities;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
     vector<double> nottingham; ///< Same as current_densities for nottingham heat deposition [in W/A^2]
     vector<double> currents;    ///< Current flux for every face (current_densities * face_areas) [in Amps]
-    vector<Vec3> field_loc;    ///< Local fields as read from dealii in V/nm
 
     vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
     vector<double> Vline;   ///< Potential on the straight line (complements rline)

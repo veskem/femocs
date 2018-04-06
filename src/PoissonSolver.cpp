@@ -225,7 +225,8 @@ void PoissonSolver<dim>::assemble_laplace(const bool first_time) {
 
     if (first_time) {
         assemble_lhs();
-        this->append_dirichlet(fch::BoundaryId::copper_surface, 0.);
+        this->append_dirichlet(fch::BoundaryId::copper_surface, this->dirichlet_bc_value);
+        this->calc_vertex2dof();
     } else
         this->restore_system();
 
@@ -245,6 +246,7 @@ void PoissonSolver<dim>::assemble_poisson(const bool first_time, const bool writ
         if (first_time) {
             assemble_lhs();
             this->append_dirichlet(fch::BoundaryId::copper_surface, this->dirichlet_bc_value);
+            this->calc_vertex2dof();
         } else
             this->restore_system();
         this->assemble_rhs(fch::BoundaryId::vacuum_top);
@@ -254,6 +256,7 @@ void PoissonSolver<dim>::assemble_poisson(const bool first_time, const bool writ
             assemble_lhs();
             this->append_dirichlet(fch::BoundaryId::copper_surface, this->dirichlet_bc_value);
             this->append_dirichlet(fch::BoundaryId::vacuum_top, applied_potential);
+            this->calc_vertex2dof();
         } else
             this->restore_system();
     }

@@ -50,14 +50,13 @@ public:
     ~Interpolator() {};
 
     /** Initialise interpolator and store solution with default value */
-    void initialize(const TetgenMesh* mesh, const double empty_value=0);
+    void initialize(const TetgenMesh* mesh, fch::DealSolver<3>& solver, const double empty_value=0);
 
     /** Extract the current density and transient temperature values from FEM solution */
     void extract_solution(fch::CurrentHeatSolver<3>& fem);
     
     /** Extract electric potential and field values from FEM solution */
     void extract_solution(fch::PoissonSolver<3>& fem);
-    void extract_solution_v1(fch::PoissonSolver<3>& fem);
     void extract_solution_v2(fch::PoissonSolver<3>& fem);
 
     /** Extract charge density from FEM solution */
@@ -66,9 +65,6 @@ public:
     /** Find the hexahedron where the point is located.
      * Both input and output hex indices are Deal.II ones. */
     int update_point_cell(const SuperParticle& particle) const;
-
-    /** Calculate mapping between Femocs and Deal.II mesh vertices */
-    void calc_mapping(fch::DealSolver<3>& solver);
 
     InterpolatorNodes nodes;     ///< vertices and solutions on them
     LinearTetrahedra lintet;     ///< data & operations for linear tetrahedral interpolation
@@ -92,10 +88,10 @@ private:
 
     /** Transfer solution from FEM solver to Interpolator */
     void store_solution(const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data);
-    void store_solution(const vector<double> &scalars);
+    void store_solution(fch::DealSolver<3>& solver);
 
-    /** Calculate field in the location of mesh node */
-    void store_vec(const int node);
+    /** Calculate electric field in the location of mesh node */
+    void store_elfield(const int node);
 
     /** Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
      *  surrounding hexahedral nodes */

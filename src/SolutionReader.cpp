@@ -135,23 +135,6 @@ void SolutionReader::reserve(const int n_nodes) {
     interpolation.resize(n_nodes);
 }
 
-// Get pointer to interpolation vector
-vector<Solution>* SolutionReader::get_interpolations() {
-    return &interpolation;
-}
-
-// Get i-th Solution
-Solution SolutionReader::get_interpolation(const int i) const {
-    require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + to_string(i));
-    return interpolation[i];
-}
-
-// Set i-th Solution
-void SolutionReader::set_interpolation(const int i, const Solution& s) {
-    require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + to_string(i));
-    interpolation[i] = s;
-}
-
 // Compile data string from the data vectors for file output
 string SolutionReader::get_data_string(const int i) const{
     if (i < 0) return "SolutionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
@@ -820,15 +803,7 @@ bool FieldReader::check_limits(const vector<Solution>* solutions) const {
     if (limit_min == limit_max)
         return false;
 
-    double Emax = -1e100;
-    if (solutions) {
-        for (Solution s : *solutions)
-            Emax = max(Emax, s.norm);
-    } else {
-        for (Solution s : interpolation)
-            Emax = max(Emax, s.norm);
-    }
-
+    double Emax = calc_max_field(solutions);
     const double gamma1 = fabs(Emax / E0);
     const double gamma2 = get_analyt_enhancement();
     const double beta = fabs(gamma1 / gamma2);
@@ -842,6 +817,18 @@ bool FieldReader::check_limits(const vector<Solution>* solutions) const {
 
     write_verbose_msg(stream.str());
     return beta < limit_min || beta > limit_max;
+}
+
+double FieldReader::calc_max_field(const vector<Solution>* solutions) const {
+    double E_max = -1e100;
+    if (solutions) {
+        for (Solution s : *solutions)
+            E_max = max(E_max, s.norm);
+    } else {
+        for (Solution s : interpolation)
+            E_max = max(E_max, s.norm);
+    }
+    return E_max;
 }
 
 // Set parameters for calculating analytical solution
@@ -1023,7 +1010,6 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     current_densities.resize(n_nodes);
     nottingham.resize(n_nodes);
     currents.resize(n_nodes);
-    field_loc.resize(n_nodes);
 
     //deallocate and allocate lines
     rline.resize(n_lines);
@@ -1042,7 +1028,6 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
     const int interpolation_rank = 3;
     const double nm_per_angstrom = 0.1;
     const double rmin = 1.e-5 * rmax;
-    Point3 pfield(direction.x, direction.y, direction.z);
 
     FieldReader fr(interpolator);
     fr.set_preferences(false, 3, interpolation_rank);
@@ -1050,21 +1035,13 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 
     for (int i = 0; i < n_lines; i++){
         rline[i] = rmin + ((rmax - rmin) * i) / (n_lines - 1);
-        fr.append(point - pfield * rline[i]);
+        fr.append(point + direction * rline[i]);
     }
     fr.calc_interpolation();
 
-
     for (int i = 0; i < n_lines; i++){
-        int hex = fr.get_marker(i);
-        int hex_deal = interpolator->linhex.femocs2deal(hex);
-
-        Point3 p = fr.get_point(i);
-        dealii::Point<3> p_deal(p.x, p.y, p.z);
-
-        Vline[i] = global_data.multiplier * poisson->probe_potential(p_deal, hex_deal);
+        Vline[i] = global_data.multiplier * fr.get_potential(i);
         rline[i] *= nm_per_angstrom;
-
     }
 
     for (int i = 0; i < n_lines; i++){
@@ -1113,7 +1090,7 @@ void EmissionReader::calc_representative() {
         if (current_densities[i] > global_data.Jmax * 0.5){ //if point eligible
             area += face_area; // increase total area
             global_data.I_fwhm += currents[i]; // increase total current
-            FJ += currents[i] * field_loc[i].norm();
+            FJ += currents[i] * fields->get_elfield_norm(i);
         }
     }
 
@@ -1121,54 +1098,26 @@ void EmissionReader::calc_representative() {
     global_data.Frep = global_data.multiplier * FJ / global_data.I_fwhm;
 }
 
-// sometimes it fails, as the point might be outside the mesh
-void EmissionReader::get_loc_field() {
-
-    global_data.Fmax = 0;
-
-    for (int i = 0; i < fields->size(); ++i) { // go through all face centroids
-        int quad = fields->get_marker(i);
-        int hex_femocs = mesh->quad2hex(quad, TYPES.VACUUM);
-        int hex_deal = interpolator->linhex.femocs2deal(hex_femocs);
-
-        Point3 centroid = fields->get_point(i);
-        dealii::Point<3> point(centroid.x, centroid.y, centroid.z);
-        dealii::Tensor<1, 3, double> Fdealii = poisson->probe_efield(point, hex_deal);
-        field_loc[i] = Vec3(Fdealii);
-        global_data.Fmax = max(global_data.Fmax, field_loc[i].norm());
-    }
-}
-
-void EmissionReader::get_loc_field_new() {
-    global_data.Fmax = 0;
-    for (int i = 0; i < fields->size(); ++i) {
-        field_loc[i] = fields->get_elfield(i);
-        global_data.Fmax = max(global_data.Fmax, fields->get_elfield_norm(i));
-    }
-}
-
 void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) {
-
     struct emission gt;
     gt.W = workfunction;    // set workfuntion, must be set in conf. script
     gt.R = 1000.0;   // radius of curvature (overrided by femocs potential distribution)
     gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
     double F, J;    // Local field and current density in femocs units (Angstrom)
 
-    for (int i = 0; i < field_loc.size(); ++i) { // go through all face centroids
+    for (int i = 0; i < fields->size(); ++i) { // go through all face centroids
+        double elfield_norm = fields->get_elfield_norm(i);
 
-        Vec3 field = field_loc[i];
-
-        F = global_data.multiplier * field.norm();
+        F = global_data.multiplier * elfield_norm;
         gt.mode = 0;
         gt.F = angstrom_per_nm * F;
         gt.Temp = heat->get_temperature(i);
         set_marker(i, 0); // set marker for output emission xyz file. Means No full calculation
 
         if (F > 0.6 * global_data.Fmax && !blunt){ // Full calculation with line only for high field points
-            field.normalize(); // get line direction
-
-            emission_line(get_point(i), field, 1.6 * workfunction / F); //get emission line data
+            Vec3 normal = fields->get_elfield(i);
+            normal *= (-1.0 / elfield_norm);
+            emission_line(get_point(i), normal, 1.6 * workfunction / F); //get emission line data
 
             gt.Nr = n_lines;
             gt.xr = &rline[0];
@@ -1176,8 +1125,10 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
             gt.mode = -21; // set mode to potential input data
             set_marker(i, 1); //marker = 1, emission calculated with line
         }
+
         gt.approx = 0; // simple GTF approximation
         cur_dens_c(&gt); // calculate emission
+
         if (gt.ierr != 0 )
             write_verbose_msg("GETELEC 1st call returned with error, ierr = " + to_string(gt.ierr));
         J = gt.Jem * nm2_per_angstrom2; // current density in femocs units
@@ -1198,7 +1149,7 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
 }
 
 void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
-    get_loc_field_new();
+    global_data.Fmax = fields->calc_max_field();
     global_data.N_calls++;
 
     double theta_old = global_data.multiplier;
@@ -1235,7 +1186,7 @@ string EmissionReader::get_data_string(const int i) const {
     if (i < 0) return "EmissionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
 
     ostringstream strs; strs << fixed;
-    strs << atoms[i] << ' ' << field_loc[i]
+    strs << atoms[i] << ' ' << fields->get_elfield(i)
              << ' ' << log(current_densities[i]) << ' ' << log(fabs(nottingham[i]));
 
     return strs.str();

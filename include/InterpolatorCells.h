@@ -176,7 +176,6 @@ public:
 
     /** Find the cell which contains the point or is the closest to it */
     virtual int locate_cell(const Point3 &point, const int cell_guess) const;
-    virtual int locate_cell_v2(const Point3 &point, const int cell_guess) const;
 
     /** @brief Interpolate both vector and scalar data inside or near the cell.
      * Function assumes that cell, that surrounds the point, is previously already found with locate_cell.
@@ -237,9 +236,6 @@ protected:
     /** Return i-th cell */
     virtual SimpleCell<dim> get_cell(const int i) const { return SimpleCell<dim>(); }
 
-    /** Calculate distance-dependent weights for a point with respect to the cell */
-    void get_weights(array<double,dim>& weights, const Point3 &point, const SimpleCell<dim>& scell) const;
-
     /** Output interpolation data in .vtk format */
     void write_vtk(ofstream& out) const;
 
@@ -248,14 +244,6 @@ protected:
 
     /** Find the common entry between two vectors */
     inline int common_entry(vector<unsigned>& vec1, vector<unsigned>& vec2) const;
-
-    /** Test if point is inside a semi-infinite cylinder
-     * @param bottom     coordinates of bottom cap
-     * @param direction  direction of cylinder axis; does not need to be normalized
-     * @param point      point to be tested
-     * @param radius_sq  squared radius of cylinder
-     *  */
-    bool inside_cylinder(const Vec3 &bottom, const Vec3 &direction, const Point3 &point, double radius_sq) const;
 
     /** Determinant of 3x3 matrix which's last column consists of ones */
     double determinant(const Vec3 &v1, const Vec3 &v2) const;
