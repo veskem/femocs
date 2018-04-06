@@ -30,7 +30,6 @@ Config::Config() {
     run.apex_refiner = false;         // refine nanotip apex
     run.rdf = false;                  // use radial distribution function to recalculate lattice constant and coordination analysis parameters
     run.output_cleaner = true;        // clear output folder
-    run.hist_cleaner = false;         // use histogram cleaner to get rid of sharp peaks in the solution
     run.surface_cleaner = true;       // clean surface by measuring the atom distance from the triangular surface
 
     geometry.mesh_quality = "2.0";    // minimum tetrahedron quality Tetgen is allowed to make
@@ -121,6 +120,7 @@ void Config::read_all(const string& file_name) {
     check_obsolete("smooth_factor", "surface_smooth_factor");
     check_obsolete("surface_cleaner", "clean_surface");
     check_obsolete("run_pic", "pic_mode");
+    check_obsolete("use_histclean");
 
     // Modify the parameters that are specified in input script
     read_command("work_function", emission.work_function);
@@ -172,7 +172,6 @@ void Config::read_all(const string& file_name) {
     read_command("refine_apex", run.apex_refiner);
     read_command("use_rdf", run.rdf);
     read_command("clear_output", run.output_cleaner);
-    read_command("use_histclean", run.hist_cleaner);
     read_command("clean_surface", run.surface_cleaner);
     read_command("femocs_periodic", MODES.PERIODIC);
     read_command("write_log", MODES.WRITELOG);

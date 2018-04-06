@@ -31,7 +31,6 @@ void write_defaults(ofstream &file) {
     file << "charge_smooth_factor = 1.0" << endl;
     file << "distance_tol = 0.0"         << endl;
     file << "n_writefile = 1"            << endl;
-    file << "use_histclean = false"      << endl;
     file << "use_rdf = false"            << endl;
     file << "clean_surface = true"       << endl;
     file << "surface_thickness = 3.1"    << endl;
@@ -191,23 +190,23 @@ void write_generate(ofstream &file, string params="") {
     file << "tip_height = 0"           << endl;
     file << "box_width = 10.0"         << endl;
     file << "box_height = 10.0"        << endl;
-    file << "bulk_height = 10.0"        << endl;
+    file << "bulk_height = 10.0"       << endl;
 
-    file << "clean_surface = false"   << endl;
-    file << "smooth_steps = 0"           << endl;
-    file << "force_mode = none"          << endl;
-    file << "coarse_rate = 0.5"          << endl;
+    file << "clean_surface = false"    << endl;
+    file << "smooth_steps = 0"         << endl;
+    file << "force_mode = none"        << endl;
+    file << "coarse_rate = 0.5"        << endl;
 
-    file << "n_writefile = 1"            << endl;
+    file << "n_writefile = 0"          << endl;
 
-    file << "seed = 12345"               << endl;
-//    file << "Vappl = 200"                << endl;
-//    file << "anode_BC = dirichlet"       << endl;
+    file << "seed = 12345"             << endl;
+//    file << "Vappl = 200"              << endl;
+//    file << "anode_BC = dirichlet"     << endl;
     file << "anode_BC = neumann"       << endl;
-    file << "elfield = -0.35"             << endl;
-    file << "heating_mode = none"   << endl;
-    file << "field_solver = poisson"     << endl;
-    file << "pic_mode = transient"               << endl;
+    file << "elfield = -0.35"          << endl;
+    file << "heating_mode = none"      << endl;
+    file << "field_solver = poisson"   << endl;
+    file << "pic_mode = transient"     << endl;
 
     file << "pic_dtmax = 1.0"              << endl;
     file << "femocs_run_time = 4"          << endl;

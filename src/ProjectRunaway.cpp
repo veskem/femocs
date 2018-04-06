@@ -350,7 +350,7 @@ int ProjectRunaway::prepare_export() {
         start_msg(t0, "=== Distributing face charges...");
         // Remove the atoms and their solutions outside the box
         face_charges.clean(dense_surf.sizes, conf.geometry.latconst);
-        forces.distribute_charges(fields, face_charges, 0, conf.smoothing.beta_charge);
+        forces.distribute_charges(fields, face_charges, conf.smoothing.beta_charge);
         end_msg(t0);
 
         start_msg(t0, "=== Generating Voronoi cells...");

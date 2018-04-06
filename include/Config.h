@@ -67,7 +67,6 @@ public:
         bool apex_refiner;          ///< Add elements to the nanotip apex
         bool rdf;                   ///< Re-calculate lattice constant and coordination analysis parameters using radial distribution function
         bool output_cleaner;        ///< Clear output folder before the run
-        bool hist_cleaner;          ///< Clean the solution with histogram cleaner
         bool surface_cleaner;       ///< Clean surface by measuring the atom distance from the triangular surface
     } run;
 

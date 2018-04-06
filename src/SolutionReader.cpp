@@ -174,157 +174,6 @@ void SolutionReader::get_point_data(ofstream& out) const {
         out << interpolation[i].vector << "\n";
 }
 
-// Get average electric field around I-th solution point
-Solution SolutionReader::get_average_solution(const int I, const double r_cut) {
-    // Cut off weights after 5 sigma
-    const double r_cut2 = pow(5 * r_cut, 2);
-    const double smooth_factor = r_cut / 5.0;
-
-    Vec3 elfield(0.0);
-    double potential = 0.0;
-
-    Point3 point1 = get_point(I);
-    double w_sum = 0.0;
-
-    // E_I = sum i!=I [E_i * a*exp( -b*distance(i,I) )] / sum i!=I [a*exp( -b*distance(i,I) )]
-    for (int i = 0; i < size(); ++i)
-        if (i != I) {
-            double dist2 = point1.distance2(get_point(i));
-            if (dist2 > r_cut2) continue;
-
-            double w = exp(-1.0 * sqrt(dist2) / smooth_factor);
-            w_sum += w;
-            elfield += interpolation[i].vector * w;
-            potential += interpolation[i].scalar * w;
-        }
-
-    if (w_sum > 0) {
-        elfield *= (1.0 / w_sum); potential /= w_sum;
-        return Solution(elfield, potential);
-    }
-
-    expect(false, "Node " + to_string(I) + " can't be averaged!");
-    return(interpolation[I]);
-}
-
-// Get histogram for electric field x,y,z component or for its norm
-void SolutionReader::get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate) {
-    require(coordinate >= 0 && coordinate <= 4, "Invalid component: " + to_string(coordinate));
-
-    const int n_atoms = size();
-    const int n_bins = bins.size();
-    const int n_bounds = bounds.size();
-
-    // Find minimum and maximum values from all non-error values
-    double value_min = DBL_MAX;
-    double value_max =-DBL_MAX;
-    double value;
-    for (int i = 0; i < n_atoms; ++i) {
-        if (coordinate == 4) value = interpolation[i].scalar;
-        else if (coordinate == 3) value = interpolation[i].norm;
-        else                 value = interpolation[i].vector[coordinate];
-
-        value_min = min(value_min, value);
-        value_max = max(value_max, value);
-    }
-
-    // Fill the bounds with values value_min:value_step:(value_max + epsilon)
-    // Epsilon is added to value_max to include the maximum value in the up-most bin
-    double value_step = (value_max - value_min) / n_bins;
-    for (int i = 0; i < n_bounds; ++i)
-        bounds[i] = value_min + value_step * i;
-    bounds[n_bounds-1] += 1e-5 * value_step;
-
-    for (int i = 0; i < n_atoms; ++i)
-        for (int j = 0; j < n_bins; ++j) {
-            if (coordinate == 4) value = interpolation[i].scalar;
-            else if (coordinate == 3) value = interpolation[i].norm;
-            else                 value = interpolation[i].vector[coordinate];
-
-            if (value >= bounds[j] && value < bounds[j+1]) {
-                bins[j]++;
-                break;
-            }
-        }
-}
-
-// Clean the interpolation from peaks using histogram cleaner
-void SolutionReader::histogram_clean(const int coordinate, const double r_cut) {
-    require(coordinate >= 0 && coordinate <= 4, "Invalid coordinate: " + to_string(coordinate));
-    const int n_atoms = size();
-    const int n_bins = static_cast<int>(n_atoms / 250);
-
-    if (n_bins <= 1 || r_cut < 0.1) return;
-
-    vector<int> bins(n_bins, 0);
-    vector<double> bounds(n_bins+1);
-    get_histogram(bins, bounds, coordinate);
-
-    // Find the first bin with zero entries from positive edge of bounds;
-    // this will determine the maximum allowed elfield value
-    double value_max = bounds[n_bins];
-    for (int i = n_bins-1; i >= 0; --i) {
-        if (bounds[i] < 0) break;
-        if (bins[i] == 0) value_max = bounds[i];
-    }
-
-    // Find the last bin with zero entries from negative edge of bounds;
-    // this will determine the minimum allowed elfield value
-    double value_min = bounds[0];
-    for (int i = 0; i < n_bins; ++i) {
-        if (bounds[i+1] >= 0) break;
-        if (bins[i] == 0) value_min = bounds[i+1];
-    }
-
-    require(value_min <= value_max, "Error in histogram cleaner!");
-
-//    cout.precision(3);
-//    cout << endl << coordinate << " " << value_min << " " << value_max << endl;
-//    for (int i = 0; i < bins.size(); ++i) cout << bins[i] << " ";
-//    cout << endl;
-//    for (int i = 0; i < bounds.size(); ++i) cout << bounds[i] << " ";
-//    cout << endl;
-
-    // If all the bins are filled, no blocking will be applied
-    if (value_min == bounds[0] && value_max == bounds[n_bins])
-        return;
-
-    double value;
-    for (int i = 0; i < n_atoms; ++i) {
-        if (coordinate < 3)  value = fabs(interpolation[i].vector[coordinate]);
-        else if (coordinate == 3) value = fabs(interpolation[i].norm);
-        else if (coordinate == 4) value = fabs(interpolation[i].scalar);
-
-        if (value < value_min || value > value_max)
-            interpolation[i] = get_average_solution(i, r_cut);
-    }
-}
-
-bool SolutionReader::clean(const double r_cut, const bool use_hist_clean) {
-    const int n_atoms = size();
-
-    // Apply histogram cleaner for the solution
-    if (use_hist_clean) {
-        histogram_clean(0, r_cut);  // clean by vector x-component
-        histogram_clean(1, r_cut);  // clean by vector y-component
-        histogram_clean(2, r_cut);  // clean by vector z-component
-        histogram_clean(3, r_cut);  // clean by vector norm
-        histogram_clean(4, r_cut);  // clean by scalar
-    }
-
-    // replace the NaN-s with average solution
-    bool fail = false;
-    for (int i = 0; i < n_atoms; ++i) {
-        double s = interpolation[i].scalar;
-        if (s != s) {
-            expect(false, "Replacing NaN at interpolation point " + to_string(i));
-            interpolation[i] = get_average_solution(i, r_cut);
-            fail = true;
-        }
-    }
-    return fail;
-}
-
 // Initialise statistics about the solution
 void SolutionReader::init_statistics() {
     Medium::init_statistics();
@@ -1557,9 +1406,7 @@ void ForceReader::calc_coulomb(const double r_cut) {
     }
 }
 
-void ForceReader::distribute_charges(const FieldReader &fields, const ChargeReader& faces,
-        const double r_cut, const double smooth_factor) {
-
+void ForceReader::distribute_charges(const FieldReader &fields, const ChargeReader& faces, const double smooth_factor) {
     const int n_atoms = fields.size();
     const int n_faces = faces.size();
 
@@ -1602,19 +1449,12 @@ void ForceReader::distribute_charges(const FieldReader &fields, const ChargeRead
         for (int atom = 0; atom < n_atoms; ++atom)
             if (weights[atom] > 0)
                 charges[atom] += weights[atom] * w_sum * q_face;
-
     }
 
     for (int atom = 0; atom < n_atoms; ++atom) {
         Vec3 force = fields.get_elfield(atom) * (charges[atom] * force_factor);   // [e*V/A]
         interpolation.push_back(Solution(force, charges[atom]));
     }
-
-    histogram_clean(0, r_cut);  // clean by vector x-component
-    histogram_clean(1, r_cut);  // clean by vector y-component
-    histogram_clean(2, r_cut);  // clean by vector z-component
-    histogram_clean(3, r_cut);  // clean by vector norm
-    histogram_clean(4, r_cut);  // clean by scalar
 }
 
 int ForceReader::export_charge_and_force(const int n_atoms, double* xq) const {

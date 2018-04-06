@@ -70,9 +70,6 @@ public:
     /** Calculate statistics about coordinates and solution */
     void calc_statistics();
 
-    /** Check and replace the NaNs and peaks in the solution */
-    bool clean(const double r_cut, const bool use_hist_clean);
-
     /** Store the surface mesh centroids of the FEM solver */
     void store_points(const fch::DealSolver<3>& solver);
 
@@ -112,21 +109,10 @@ protected:
     /** Get information about data vectors for .vtk file. */
     void get_point_data(ofstream& out) const;
 
-    /** Function to clean the result from peaks
-     * The cleaner makes the histogram for given component of electric field and applies smoothing
-     * for the atoms, where field has diverging values.
-     * For example, if histogram looks like [10 7 2 4 1 4 2 0 0 2], then the field on the two atoms that
-     * made up the entries to last bin will be replaced by the average field around those two atoms. */
-    void histogram_clean(const int coordinate, const double r_cut);
-
     /** Find the cell that surrounds i-th atom and interpolate the solution for it.
      * @param cell   initial guess for the cell that might surround the point
      * @return cell index that was found to surround the point */
     int update_interpolation(const int i, int cell);
-
-    void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
-
-    Solution get_average_solution(const int I, const double r_cut);
 };
 
 /** Class to extract solution from DealII calculations */
@@ -350,8 +336,7 @@ public:
     ForceReader(Interpolator* i);
 
     /** Calculate forces from atomic electric fields and face charges */
-    void distribute_charges(const FieldReader &fields, const ChargeReader& faces,
-        const double r_cut, const double smooth_factor);
+    void distribute_charges(const FieldReader &fields, const ChargeReader& faces, const double smooth_factor);
 
     void calc_lorentz(const FieldReader &fields);
 
