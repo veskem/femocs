@@ -505,8 +505,8 @@ void FieldReader::compare_shape_funs(fch::PoissonSolver<3> &poisson, const Mediu
         vector<Tensor<1, 3, double>> sfg = poisson.shape_fun_grads(deal_point, cell_index_in_deal);
         vector<double> sf1 = poisson.shape_funs(deal_point, cell_index_in_deal);
 
-        interpolator->linhex.get_dealii_shape_fun_grads(sfg2, p, cell_index);
-        interpolator->linhex.get_dealii_shape_funs(sf2, p, cell_index);
+        sfg2 = interpolator->linhex.shape_fun_grads_dealii(p, cell_index);
+        sf2 = interpolator->linhex.shape_funs_dealii(p, cell_index);
 
         cout << "\n  i = " << i << endl;
         for (int i = 0; i < 8; ++i) {
@@ -709,7 +709,7 @@ void FieldReader::test_corners(const TetgenMesh& mesh) const {
 
     for (int i = 0; i < 4; ++i) {
         cell_index = interpolator->linhex.locate_cell(points[i], 0);
-        interpolator->lintet.get_shape_functions(bcc, points[i], 0);
+        bcc = interpolator->lintet.shape_functions(points[i], 0);
         cout << endl << labels[i] << ":\t" << cell_index << "\t";
         for (double b : bcc)
             cout << ", " << b;
@@ -717,7 +717,7 @@ void FieldReader::test_corners(const TetgenMesh& mesh) const {
 
     for (int i = 4; i < labels.size(); ++i) {
         cell_index = interpolator->linhex.locate_cell(points[i], 0);
-        interpolator->lintet.get_shape_functions(bcc, points[i], abs(int(cell_index/4)));
+        bcc = interpolator->lintet.shape_functions(points[i], abs(int(cell_index/4)));
         cout << endl << labels[i] << ":\t" << cell_index << "\t";
         for (double b : bcc)
             cout << ", " << b;

@@ -343,12 +343,9 @@ void PoissonSolver<dim>::assemble_space_charge() {
 // In linear 3D case, Femocs interpolator can be used to speed up calculations
 template<>
 void PoissonSolver<3>::assemble_space_charge_fast() {
-
-    static constexpr int n_dofs = 8;
-    vector<types::global_dof_index> local_dof_indices(n_dofs);
-    array<double, n_dofs> shape_fun;
-
+    static constexpr int n_dofs = GeometryInfo<3>::vertices_per_cell;
     const double charge_factor = particles->q_over_eps0 * particles->get_Wsp();
+    vector<types::global_dof_index> local_dof_indices(n_dofs);
 
     // loop over particles
     for (auto particle : particles->parts) {
@@ -358,7 +355,7 @@ void PoissonSolver<3>::assemble_space_charge_fast() {
 
         //get the shape functions of the cell on the given point
         int femocs_cell = interpolator->deal2femocs(particle.cell);
-        interpolator->get_dealii_shape_funs(shape_fun, particle.pos, femocs_cell);
+        array<double,n_dofs> shape_fun = interpolator->shape_funs_dealii(particle.pos, femocs_cell);
 
         //loop over nodes of the cell and add the particle's charge to the system rhs
         for (int i = 0; i < n_dofs; ++i)

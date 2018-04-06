@@ -157,18 +157,21 @@ public:
     virtual bool point_in_cell(const Vec3& point, const int cell) const { return false; };
 
     /** Get interpolation weights for a point inside the cell */
-    virtual void get_shape_functions(array<double,dim>& sf, const Vec3& point, const int cell) const {
-        require(false, "get_shape_functions(point, cell) not implemented for dim-" + to_string(dim));
+    virtual array<double,dim> shape_functions(const Vec3& point, const int cell) const {
+        require(false, "shape_functions(point, cell) not implemented for dim-" + to_string(dim));
+        return array<double,dim>();
     }
 
     /** Get gradient of shape function for a point inside the cell */
-    virtual void get_shape_fun_grads(array<Vec3,dim>& sfg, const Vec3& point, const int cell) const {
-        require(false, "get_shape_fun_grads(point, cell) not implemented for dim-" + to_string(dim));
+    virtual array<Vec3,dim> shape_fun_grads(const Vec3& point, const int cell) const {
+        require(false, "shape_fun_grads(point, cell) not implemented for dim-" + to_string(dim));
+        return array<Vec3,dim>();
     }
 
     /** Get gradient of shape function for a cell node */
-    virtual void get_shape_fun_grads(array<Vec3,dim>& sfg, const int cell, const int node) const {
-        require(false, "get_shape_fun_grads(cell, node) not implemented for dim-" + to_string(dim));
+    virtual array<Vec3,dim> shape_fun_grads(const int cell, const int node) const {
+        require(false, "shape_fun_grads(cell, node) not implemented for dim-" + to_string(dim));
+        return array<Vec3,dim>();
     }
 
     /** Find the cell which contains the point or is the closest to it */
@@ -283,10 +286,10 @@ public:
     bool point_in_cell(const Vec3& point, const int i) const;
 
     /** Get interpolation weights for a point inside i-th tetrahedron */
-    void get_shape_functions(array<double,4>& sf, const Vec3& point, const int i) const;
+    array<double,4> shape_functions(const Vec3& point, const int i) const;
 
-    /** Calculate the gradient of shape functions for a point inside the tetrahedron */
-    void get_shape_fun_grads(array<Vec3, 4>& sfg, const Vec3& point, const int tet) const;
+    /** Calculate the gradient of shape functions for a point inside i-th tetrahedron */
+    array<Vec3, 4> shape_fun_grads(const Vec3& point, const int i) const;
 
     /** Change the dependency data */
     void set_mesh(const TetgenMesh* m) {
@@ -337,12 +340,12 @@ public:
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
     /** Get interpolation weights for a point inside the tetrahedron */
-    void get_shape_functions(array<double,10>& sf, const Vec3& point, const int tet) const;
+    array<double,10> shape_functions(const Vec3& point, const int tet) const;
     
     /** Calculate the gradient of shape functions for a point inside the tetrahedron */
-    void get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& point, const int tet) const;
+    array<Vec3,10> shape_fun_grads(const Vec3& point, const int tet) const;
 
-    void get_shape_fun_grads_slow(array<Vec3, 10>& sfg, const Vec3& point, const int tet) const;
+    array<Vec3,10> shape_fun_grads_slow(const Vec3& point, const int tet) const;
 
     void test_shape_funs();
 
@@ -393,23 +396,21 @@ public:
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
     /** Get interpolation weights for a point inside i-th hexahedron */
-    void get_shape_functions(array<double,8>& sf, const Vec3& point, const int i) const;
+    array<double,8> shape_functions(const Vec3& point, const int i) const;
 
     /** Get interpolation weights for a point inside i-th hexahedron
      *  and sort the result according to Deal.II ordering */
-    void get_dealii_shape_funs(array<double,8>& sf, const Vec3& point, const int i) const;
+    array<double,8> shape_funs_dealii(const Vec3& point, const int i) const;
 
-    /** Calculate the gradient of shape functions for a point inside the hexahedron */
-    void get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int hex) const;
+    /** Calculate the gradient of shape functions for a point inside i-th hexahedron */
+    array<Vec3,8> shape_fun_grads(const Vec3& point, const int i) const;
+
+    /** Calculate gradient of shape function for a hexahedral node */
+    array<Vec3,8> shape_fun_grads(const int hex, const int node) const;
 
     /** Calculate the gradient of shape functions for a point inside the hexahedron
      * and sort the result according to Deal.II ordering */
-    void get_dealii_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int hex) const;
-
-    /** Calculate gradient of shape function for a hexahedral node */
-    void get_shape_fun_grads(array<Vec3, 8>& sfg, const int hex, const int node) const;
-    
-    void test_shape_funs();
+    array<Vec3,8> shape_fun_grads_dealii(const Vec3& point, const int hex) const;
 
     /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
      * -1 means there's no correspondence between two meshes */
@@ -485,7 +486,7 @@ public:
     bool point_in_cell(const Vec3& point, const int i) const;
 
     /** Calculate shape functions for a point with respect to the i-th triangle */
-    void get_shape_functions(array<double,3>& sf, const Vec3& point, const int i) const;
+    array<double,3> shape_functions(const Vec3& point, const int i) const;
 
     /** Locate tetrahedron the surrounds the point and interpolate there.
      * Search starts from tetrahedra that are connected to the given triangle. */
@@ -565,7 +566,7 @@ public:
     int locate_cell(const Point3 &point, const int cell_guess) const;
 
     /** Get interpolation weights for a point inside i-th triangle */
-    void get_shape_functions(array<double,6>& sf, const Vec3& point, const int i) const;
+    array<double,6> shape_functions(const Vec3& point, const int i) const;
 
     /** Locate tetrahedron the surrounds the point and interpolate there.
      * Search starts from tetrahedra that are connected to the given triangle. */

@@ -291,6 +291,7 @@ int InterpolatorCells<dim>::locate_cell_v2(const Point3 &point, const int cell_g
     vector<int> cell_checked = markers;
     cell_checked[cell_guess] = true;
 
+
     int n_start = 0, n_end = 0;
     vector<int> nbors; // list of promising neighbors of already tested cells
 
@@ -408,10 +409,7 @@ Solution InterpolatorCells<dim>::interp_solution(const Point3 &point, const int 
     require(cell < size(), "Index out of bounds: " + to_string(cell));
 
     // calculate interpolation weights (shape function of dummy nodal distance based weights)
-    array<double,dim> weights;
-//    if (c >= 0) get_shape_functions(weights, Vec3(point), cell);
-//    else get_weights(weights, point, scell);
-    get_shape_functions(weights, Vec3(point), cell);
+    array<double,dim> weights = shape_functions(Vec3(point), cell);
 
     SimpleCell<dim> scell = get_cell(cell);
 
@@ -434,10 +432,8 @@ Solution InterpolatorCells<dim>::interp_solution_v2(const Point3 &point, const i
     require(cell < size(), "Index out of bounds: " + to_string(cell));
 
     // calculate shape functions and their gradients
-    array<double, dim> sf;
-    array<Vec3, dim> sfg;
-    get_shape_functions(sf, point, cell);
-    get_shape_fun_grads(sfg, point, cell);
+    array<double,dim> sf = shape_functions(point, cell);
+    array<Vec3,dim> sfg = shape_fun_grads(point, cell);
 
     // using them as weights, interpolate scalar data and its gradient
     SimpleCell<dim> scell = get_cell(cell);
@@ -458,8 +454,7 @@ Vec3 InterpolatorCells<dim>::interp_gradient(const Point3 &point, const int cell
     require(cell >= 0 && cell < size(), "Index out of bounds: " + to_string(cell));
 
     // calculate shape function gradients
-    array<Vec3, dim> sfg;
-    get_shape_fun_grads(sfg, point, cell);
+    array<Vec3, dim> sfg = shape_fun_grads(point, cell);
 
     // using them as weights, interpolate the gradient of scalar data
     SimpleCell<dim> scell = get_cell(cell);
@@ -476,8 +471,7 @@ Vec3 InterpolatorCells<dim>::interp_gradient(const int cell, const int node) con
     require(cell >= 0 && cell < size(), "Index out of bounds: " + to_string(cell));
 
     // calculate shape function gradients
-    array<Vec3, dim> sfg;
-    get_shape_fun_grads(sfg, cell, node);
+    array<Vec3,dim> sfg = shape_fun_grads(cell, node);
 
     // using them as weights, interpolate the gradient of scalar data
     SimpleCell<dim> scell = get_cell(cell);
@@ -689,17 +683,19 @@ bool LinearTetrahedra::point_in_cell(const Vec3& point, const int i) const {
     return true;
 }
 
-void LinearTetrahedra::get_shape_functions(array<double,4>& sf, const Vec3& point, const int tet) const {
+array<double,4> LinearTetrahedra::shape_functions(const Vec3& point, const int tet) const {
     require(tet >= 0 && tet < det0.size(), "Index out of bounds: " + to_string(tet));
 
     const Vec4 pt(point, 1);
-    sf[0] = zero + det0[tet] * pt.dotProduct(det1[tet]);
-    sf[1] = zero + det0[tet] * pt.dotProduct(det2[tet]);
-    sf[2] = zero + det0[tet] * pt.dotProduct(det3[tet]);
-    sf[3] = zero + det0[tet] * pt.dotProduct(det4[tet]);
+    return {
+        zero + det0[tet] * pt.dotProduct(det1[tet]),
+        zero + det0[tet] * pt.dotProduct(det2[tet]),
+        zero + det0[tet] * pt.dotProduct(det3[tet]),
+        zero + det0[tet] * pt.dotProduct(det4[tet])
+    };
 }
 
-void LinearTetrahedra::get_shape_fun_grads(array<Vec3, 4>& sfg, const Vec3& point, const int tet) const {
+array<Vec3,4> LinearTetrahedra::shape_fun_grads(const Vec3& point, const int tet) const {
     require(tet >= 0 && tet < size(), "Index out of bounds: " + to_string(tet));
 
     // The gradient of shape function inside linear tetrahedron does not depend
@@ -753,7 +749,7 @@ void LinearTetrahedra::get_shape_fun_grads(array<Vec3, 4>& sfg, const Vec3& poin
         Jinv[i] *= Jdet;
 
     // calculate gradient of shape functions in xyz-space
-    sfg = {Jinv[0], Jinv[1], Jinv[2], Jinv[3]};
+    return {Jinv[0], Jinv[1], Jinv[2], Jinv[3]};
 }
 
 void LinearTetrahedra::narrow_search_to(const int region) {
@@ -823,27 +819,27 @@ int QuadraticTetrahedra::locate_cell(const Point3 &point, const int cell_guess) 
     return lintet->locate_cell(point, cell_guess);
 }
 
-void QuadraticTetrahedra::get_shape_functions(array<double,10>& sf, const Vec3& point, const int tet) const {
-    array<double,4> bcc;
-    lintet->get_shape_functions(bcc, point, tet);
+array<double,10> QuadraticTetrahedra::shape_functions(const Vec3& point, const int tet) const {
+    array<double,4> bcc = lintet->shape_functions(point, tet);
 
     const double b1 = bcc[0];
     const double b2 = bcc[1];
     const double b3 = bcc[2];
     const double b4 = bcc[3];
 
-    sf[0] =  b1 * (2 * b1 - 1);
-    sf[1] =  b2 * (2 * b2 - 1);
-    sf[2] =  b3 * (2 * b3 - 1);
-    sf[3] =  b4 * (2 * b4 - 1);
-    sf[4] =  4 * b1 * b2;
-    sf[5] =  4 * b2 * b3;
-    sf[6] =  4 * b3 * b1;
-    sf[7] =  4 * b1 * b4;
-    sf[8] =  4 * b2 * b4;
-    sf[9] =  4 * b3 * b4;
-
-//    sf = {b1, b2, b3, b4, 0, 0, 0, 0, 0, 0};
+    return {
+        b1 * (2 * b1 - 1),
+        b2 * (2 * b2 - 1),
+        b3 * (2 * b3 - 1),
+        b4 * (2 * b4 - 1),
+        4 * b1 * b2,
+        4 * b2 * b3,
+        4 * b3 * b1,
+        4 * b1 * b4,
+        4 * b2 * b4,
+        4 * b3 * b4
+    };
+//    return {b1, b2, b3, b4, 0, 0, 0, 0, 0, 0};
 }
 
 /*
@@ -885,11 +881,10 @@ void QuadraticTetrahedra::get_shape_functions(array<double,10>& sf, const Vec3& 
  * the above calculations can be optimized to reduce nr of needed flops.
  * For instance there's no need to calculate dN explicitly.
  */
-void QuadraticTetrahedra::get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& point, const int tet) const {
+array<Vec3,10> QuadraticTetrahedra::shape_fun_grads(const Vec3& point, const int tet) const {
     require(tet >= 0 && tet < cells.size(), "Index out of bounds: " + to_string(tet));
 
-    array<double,4> bcc;
-    lintet->get_shape_functions(bcc, point, tet);
+    array<double,4> bcc = lintet->shape_functions(point, tet);
 
     // Store tetrahedron nodes for more convenient access
     SimpleCell<10> cell = get_cell(tet);
@@ -944,27 +939,24 @@ void QuadraticTetrahedra::get_shape_fun_grads(array<Vec3, 10>& sfg, const Vec3& 
         Jinv[i] *= Jdet;
 
     // calculate gradient of shape functions in xyz-space
-    sfg = {
+    return {
         Jinv[0] * (4*bcc[0]-1),
         Jinv[1] * (4*bcc[1]-1),
         Jinv[2] * (4*bcc[2]-1),
         Jinv[3] * (4*bcc[3]-1),
-        Jinv[0]*bcc[1] + Jinv[1]*bcc[0],
-        Jinv[1]*bcc[2] + Jinv[2]*bcc[1],
-        Jinv[0]*bcc[2] + Jinv[2]*bcc[0],
-        Jinv[0]*bcc[3] + Jinv[3]*bcc[0],
-        Jinv[1]*bcc[3] + Jinv[3]*bcc[1],
-        Jinv[2]*bcc[3] + Jinv[3]*bcc[2]
+        (Jinv[0]*bcc[1] + Jinv[1]*bcc[0]) * 4.0,
+        (Jinv[1]*bcc[2] + Jinv[2]*bcc[1]) * 4.0,
+        (Jinv[0]*bcc[2] + Jinv[2]*bcc[0]) * 4.0,
+        (Jinv[0]*bcc[3] + Jinv[3]*bcc[0]) * 4.0,
+        (Jinv[1]*bcc[3] + Jinv[3]*bcc[1]) * 4.0,
+        (Jinv[2]*bcc[3] + Jinv[3]*bcc[2]) * 4.0
     };
-    for (int i = 4; i < 10; ++i)
-        sfg[i] *= 4.0;
 }
 
-void QuadraticTetrahedra::get_shape_fun_grads_slow(array<Vec3, 10>& sfg, const Vec3& point, const int tet) const {
+array<Vec3,10> QuadraticTetrahedra::shape_fun_grads_slow(const Vec3& point, const int tet) const {
     require(tet >= 0 && tet < cells.size(), "Index out of bounds: " + to_string(tet));
 
-    array<double,4> bcc;
-    lintet->get_shape_functions(bcc, point, tet);
+    array<double,4> bcc = lintet->shape_functions(point, tet);
 
     cout << fixed << setprecision(3);
 
@@ -1151,6 +1143,8 @@ void QuadraticTetrahedra::get_shape_fun_grads_slow(array<Vec3, 10>& sfg, const V
     for (int i = 0; i < 4; ++i)
         cout << Jinv[i] << endl;
 
+    array<Vec3,10> sfg;
+
     // calculate gradient of shape functions in xyz-space
     for (int k = 0; k < 10; ++k) {
         sfg[k] = Vec3(0);
@@ -1158,6 +1152,8 @@ void QuadraticTetrahedra::get_shape_fun_grads_slow(array<Vec3, 10>& sfg, const V
             for (int j = 0; j < 4; ++j)
                 sfg[k][i] += Jinv[j][i+1] * dN[k][j];
     }
+
+    return sfg;
 }
 
 void QuadraticTetrahedra::test_shape_funs() {
@@ -1170,8 +1166,8 @@ void QuadraticTetrahedra::test_shape_funs() {
     for (int i = 0; i < 4; ++i) {
         cout << "\ni = " << i << endl;
         Point3 point = mesh->nodes[cell[i]];
-        get_shape_fun_grads(sfg1, point, tet);
-        get_shape_fun_grads_slow(sfg2, point, tet);
+        sfg1 = shape_fun_grads(point, tet);
+        sfg2 = shape_fun_grads_slow(point, tet);
 
         cout << "delta sfg = " << endl;
         for (int i = 0; i < 10; ++i)
@@ -1347,7 +1343,7 @@ void LinearHexahedra::project_to_nat_coords(double &u, double &v, double &w,
     }
 }
 
-void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point, const int hex) const {
+array<double,8> LinearHexahedra::shape_functions(const Vec3& point, const int hex) const {
     require(hex >= 0 && hex < size(), "Index out of bounds: " + to_string(hex));
 
     // Before calculating the shape function,
@@ -1356,7 +1352,7 @@ void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point
     project_to_nat_coords(u, v, w, point, hex);
 
     // use natural coordinates to calculate shape functions
-    sf = {
+    return {
             (1 - u) * (1 - v) * (1 - w) / 8.0,
             (1 + u) * (1 - v) * (1 - w) / 8.0,
             (1 + u) * (1 + v) * (1 - w) / 8.0,
@@ -1368,16 +1364,15 @@ void LinearHexahedra::get_shape_functions(array<double,8>& sf, const Vec3& point
     };
 }
 
-void LinearHexahedra::get_dealii_shape_funs(array<double,8>& sf, const Vec3& point, const int hex) const {
-    array<double, 8> sf2;
-    get_shape_functions(sf2, point, hex);
-    sf = {sf2[0], sf2[1], sf2[4], sf2[5], sf2[3], sf2[2], sf2[7], sf2[6]};
+array<double,8> LinearHexahedra::shape_funs_dealii(const Vec3& point, const int hex) const {
+    array<double,8> sf = shape_functions(point, hex);
+    return {sf[0], sf[1], sf[4], sf[5], sf[3], sf[2], sf[7], sf[6]};
 }
 
 /* For more information, see the lecture materials in
  * https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch11.d/AFEM.Ch11.pdf
  */
-void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int hex) const {
+array<Vec3,8> LinearHexahedra::shape_fun_grads(const Vec3& point, const int hex) const {
     require(hex >= 0 && hex < size(), "Index out of bounds: " + to_string(hex));
     double u, v, w;
     project_to_nat_coords(u, v, w, point, hex);
@@ -1422,18 +1417,19 @@ void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point
     for (int i = 0; i < 3; ++i)
         Jinv[i] *= Jdet;
 
+    array<Vec3,8> sfg;
     // calculate gradient of shape functions in xyz-space
     for (int k = 0; k < 8; ++k) {
-        sfg[k] = Vec3(0);
+//        sfg[k] = Vec3(0);
         for (int i = 0; i < 3; ++i)
             sfg[k] += Jinv[i] * dN[k][i];
     }
+    return sfg;
 }
 
-void LinearHexahedra::get_dealii_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3& point, const int hex) const {
-    array<Vec3, 8> sfg2;
-    get_shape_fun_grads(sfg2, point, hex);
-    sfg = {sfg2[0], sfg2[1], sfg2[4], sfg2[5], sfg2[3], sfg2[2], sfg2[7], sfg2[6]};
+array<Vec3, 8> LinearHexahedra::shape_fun_grads_dealii(const Vec3& point, const int hex) const {
+    array<Vec3, 8> sfg = shape_fun_grads(point, hex);
+    return {sfg[0], sfg[1], sfg[4], sfg[5], sfg[3], sfg[2], sfg[7], sfg[6]};
 }
 
 /* The gradient of shape functions in uvw space consists in case of
@@ -1475,7 +1471,7 @@ void LinearHexahedra::get_dealii_shape_fun_grads(array<Vec3, 8>& sfg, const Vec3
  * As the explicit knowledge about dN is not needed,
  * last two expressions can be optimized to a single one.
  */
-void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const int hex, const int node) const {
+array<Vec3, 8> LinearHexahedra::shape_fun_grads(const int hex, const int node) const {
     require(hex >= 0 && hex < size(), "Invalid hex: " + to_string(hex));
     require(node >= 0 && node < 8, "Invalid node: " + to_string(node));
 
@@ -1510,38 +1506,21 @@ void LinearHexahedra::get_shape_fun_grads(array<Vec3, 8>& sfg, const int hex, co
         Jinv[i] *= Jdet;
 
     // calculate gradient of shape functions in xyz-space
-    sfg = array<Vec3,8>();
+    array<Vec3,8> sfg;
     for (int i = 0; i < 3; ++i) {
         sfg[node][i] = 0.5 * (Jinv[i].dotProduct(uvw));
         for (int j = 0; j < 3; ++j)
             sfg[nnn[j]][i] = -0.5 * Jinv[i][j] * uvw[j];
     }
-}
 
-void LinearHexahedra::test_shape_funs() {
-    array<Vec3, 8> sfg1, sfg2;
-
-    int hex = 0;
-    SimpleHex shex = mesh->hexs[hex];
-
-    cout << fixed << setprecision(3);
-    for (int i = 0; i < 1; ++i) {
-        Point3 point = mesh->nodes[shex[i]];
-        get_shape_fun_grads(sfg1, point, hex);
-
-        cout << endl << i << endl;
-        for (int j = 0; j < 8; ++j)
-            cout << sfg2[j] - sfg1[j] << endl;
-    }
+    return sfg;
 }
 
 bool LinearHexahedra::point_in_cell(const Vec3 &point, const int cell) const {
     static constexpr int n_hexs_per_tet = 4;
 
-    array<double,4> bcc;
     int tet_index = (int) cell / n_hexs_per_tet;
-
-    lintet->get_shape_functions(bcc, point, tet_index);
+    array<double,4> bcc = lintet->shape_functions(point, tet_index);
 
     if (bcc[0] >= 0 && bcc[1] >= 0 && bcc[2] >= 0 && bcc[3] >= 0) {
         int section = cell % n_hexs_per_tet;
@@ -1576,8 +1555,7 @@ int LinearHexahedra::locate_cell(const Point3 &point, const int cell_guess) cons
     tet = abs(tet);
 
     // calculate barycentric coordinates for a point
-    array<double,4> bcc;
-    lintet->get_shape_functions(bcc, point, tet);
+    array<double,4> bcc = lintet->shape_functions(point, tet);
 
     // point inside a hex connected to 1st tetrahedral node ?
     if (bcc[0] >= bcc[1] && bcc[0] >= bcc[2] && bcc[0] >= bcc[3])
@@ -1683,13 +1661,14 @@ bool LinearTriangles::point_in_cell(const Vec3& point, const int face) const {
     return fabs(qvec.dotProduct(edge2[face])) < max_distance[face];
 }
 
-void LinearTriangles::get_shape_functions(array<double,3>& sf, const Vec3& point, const int face) const {
+array<double,3> LinearTriangles::shape_functions(const Vec3& point, const int face) const {
     Vec3 tvec = point - vert0[face];
     Vec3 qvec = tvec.crossProduct(edge1[face]);
     const double v = tvec.dotProduct(pvec[face]);
     const double w = qvec.dotProduct(norms[face]);
     const double u = 1.0 - v - w;
-    sf = {zero + u, zero + v, zero + w};
+
+    return {zero + u, zero + v, zero + w};
 }
 
 Solution LinearTriangles::interp_solution(const Point3 &point, const int t) const {
@@ -1733,7 +1712,7 @@ void LinearTriangles::interp_conserved(vector<double>& scalars, const vector<Ato
         // Find the cell that matches best to the point
         cell = abs(this->locate_cell(point, cell));
         // calculate barycentric coordinates
-        get_shape_functions(weights, Vec3(point), cell);
+        weights = shape_functions(point, cell);
         // store the cell to make next step faster
         atom2cell[i] = cell;
         // append barycentric weight to the sum of all weights from given node
@@ -1752,7 +1731,7 @@ void LinearTriangles::interp_conserved(vector<double>& scalars, const vector<Ato
     for (int i = 0; i < n_atoms; ++i) {
         int tri = atom2cell[i];
         // calculate barycentric coordinates
-        get_shape_functions(weights, atoms[i].point, tri);
+        weights = shape_functions(atoms[i].point, tri);
         // perform interpolation
         int j = 0;
         for (int node : get_cell(tri))
@@ -1844,22 +1823,22 @@ int QuadraticTriangles::locate_cell(const Point3 &point, const int cell_guess) c
     return lintri->locate_cell(point, cell_guess);
 }
 
-void QuadraticTriangles::get_shape_functions(array<double,6>& sf, const Vec3& point, const int face) const {
-    array<double,3> bcc;
-    lintri->get_shape_functions(bcc, point, face);
+array<double,6> QuadraticTriangles::shape_functions(const Vec3& point, const int face) const {
+    array<double,3> bcc = lintri->shape_functions(point, face);
 
     const double u = bcc[0];
     const double v = bcc[1];
     const double w = bcc[2];
 
-    sf[0] = u * (2 * u - 1);
-    sf[1] = v * (2 * v - 1);
-    sf[2] = w * (2 * w - 1);
-    sf[3] = 4 * u * v;
-    sf[4] = 4 * v * w;
-    sf[5] = 4 * w * u;
-
-//    sf = {u, v, w, 0, 0, 0};
+    return {
+        u * (2 * u - 1),
+        v * (2 * v - 1),
+        w * (2 * w - 1),
+        4 * u * v,
+        4 * v * w,
+        4 * w * u
+    };
+//    return {u, v, w, 0, 0, 0};
 }
 
 Solution QuadraticTriangles::interp_solution(const Point3 &point, const int t) const {
@@ -1961,9 +1940,8 @@ Solution LinearQuadrangles::interp_solution(const Point3 &point, const int q) co
 bool LinearQuadrangles::point_in_cell(const Vec3 &point, const int cell) const {
     static constexpr int n_quads_per_tri = 3;
 
-    array<double,3> bcc;
     int tri = (int) cell / n_quads_per_tri;
-    lintri->get_shape_functions(bcc, point, tri);
+    array<double,3> bcc = lintri->shape_functions(point, tri);
 
     if (bcc[0] >= 0 && bcc[1] >= 0 && bcc[2] >= 0) {
         int section = cell % n_quads_per_tri;
@@ -1997,8 +1975,7 @@ int LinearQuadrangles::locate_cell(const Point3 &point, const int cell_guess) co
     array<int,3> quad_indices = mesh->tris.to_quads(tri);
 
     // calculate barycentric coordinates for a point
-    array<double,3> bcc;
-    lintri->get_shape_functions(bcc, point, tri);
+    array<double,3> bcc = lintri->shape_functions(point, tri);
 
     // point inside a quad connected to 1st triangular node ?
     if (bcc[0] >= bcc[1] && bcc[0] >= bcc[2])
