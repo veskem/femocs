@@ -31,7 +31,7 @@ femocs_c:
 test_cpp: femocs_lib femocs_cpp
 femocs_cpp:
 	@make --no-print-directory -f build/makefile.main main=${CXXMAIN} compiler=${CXX}
-	
+
 release: femocs_lib femocs_release
 femocs_release:
 	@make --no-print-directory -f build/makefile.main main=${CXXMAIN} compiler=${CXX}
@@ -72,6 +72,10 @@ install-no-cgal:
 	@chmod +x ./build/install.sh
 	@./build/install.sh no-cgal
 
+uninstall-all:
+	@chmod +x ./build/uninstall-all.sh
+	./build/uninstall-all.sh
+
 clean:
 	make -s -f build/makefile.lib clean
 	make -s -f build/makefile.exec clean
@@ -79,8 +83,10 @@ clean:
 	make -s -f build/makefile.doc clean
 
 clean-all:
-	@chmod +x ./build/clean-all.sh
-	./build/clean-all.sh
+	make -s -f build/makefile.lib clean-all
+	make -s -f build/makefile.exec clean-all
+	make -s -f build/makefile.main clean-all
+	make -s -f build/makefile.doc clean-all
 
 help:
 	@echo ''
@@ -92,6 +98,9 @@ help:
 	@echo '       alcyone  build in Alcyone cluster all the external libraries that Femocs needs'
 	@echo '       cgal     build CGAL and enable its usage in the code'
 	@echo '       no-cgal  disable CGAL usage in the code'
+	@echo ''
+	@echo 'make uninstall-'
+	@echo '       all      remove all installation files'
 	@echo ''
 	@echo 'make lib        build Femocs as static library with maximum optimization level'
 	@echo 'make dlib       build Femocs as static library with debugging features enabled'

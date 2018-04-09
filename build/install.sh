@@ -58,10 +58,12 @@ print_all() {
 }
 
 if (test $mode = ubuntu) then
-    echo "Checking Ubuntu dependencies"
-    mkdir -p share/.build && rm -rf share/.build/*
-    cd share/.build && cmake .. -Dmachine=ubuntu && cd ../..
-    echo "Ubuntu dependencies met"
+    if [ ! -f share/makefile.femocs ]; then
+        echo "Checking Ubuntu dependencies"
+        mkdir -p share/.build && rm -rf share/.build/*
+        cd share/.build && cmake .. -Dmachine=ubuntu && cd ../..
+        echo "All Femocs external dependencies found"
+    fi
 
     echo -e "\nWriting Ubuntu flags"
     write_initial_flags
