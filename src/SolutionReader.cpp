@@ -1614,8 +1614,7 @@ void ForceReader::distribute_charges(const FieldReader &fields, const ChargeRead
 
     // Copy the atom data
     reserve(n_atoms);
-    for (int i = 0; i < n_atoms; ++i)
-        append(fields.get_atom(i));
+    atoms = fields.atoms;
 
     calc_statistics();
 
@@ -1656,7 +1655,7 @@ void ForceReader::distribute_charges(const FieldReader &fields, const ChargeRead
 
     for (int atom = 0; atom < n_atoms; ++atom) {
         Vec3 force = fields.get_elfield(atom) * (charges[atom] * force_factor);   // [e*V/A]
-        interpolation.push_back(Solution(force, charges[atom]));
+        interpolation[atom] = Solution(force, charges[atom]);
     }
 
     histogram_clean(0, r_cut);  // clean by vector x-component
