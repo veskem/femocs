@@ -55,8 +55,8 @@ protected:
 
     TetgenMesh mesh1;       ///< FEM mesh for the whole simulation domain
     TetgenMesh mesh2;
-    TetgenMesh *new_mesh;   ///< Pointer to mesh where the new one will be generated
-    TetgenMesh *mesh;       ///< Readily available mesh
+    TetgenMesh *new_mesh;  ///< Reference to mesh where the new one will be generated
+    TetgenMesh *mesh;      ///< Readily available mesh
 
 private:
     // needed to give initial values for references

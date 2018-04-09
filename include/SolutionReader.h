@@ -267,6 +267,8 @@ public:
 
     void export_emission(CurrentHeatSolver<3>& ch_solver);
 
+    double get_mean_current() const { return global_data.I_cum / global_data.N_calls; }
+
     /** Initialises class data */
     void initialize(const TetgenMesh* m);
 

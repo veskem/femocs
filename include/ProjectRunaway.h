@@ -63,11 +63,10 @@ public:
             const double* x, const double* y, const double* z, double* data, int* flag);
 
 private:
-
     bool fail;                  ///< If some process failed
     double t0;                  ///< CPU timer
     int timestep;               ///< counter to measure how many times Femocs has been called
-    double last_write_time = -1.e200; ///< Keeps the time that last file output was done1
+    double last_write_time = -1.e200; ///< Keeps the time that last file output was done
     double last_heat_time = -1.e200; ///< Last time heat was updated
 
     bool mesh_changed = false;          ///< True if new mesh has been created
@@ -93,12 +92,10 @@ private:
     Pic<3> pic_solver;                       ///< class for solving Poisson equation and handling space charge
 
     /** Write output data to files */
-    int write();
+    int write_results();
 
-    /** Determine if it is writing time */
-    bool is_write_time(){
-        return (GLOBALS.TIME > (last_write_time + conf.behaviour.write_period));
-    }
+    /** Check if enough time has passed since the last file write_results */
+    bool write_time() const { return GLOBALS.TIME < (last_write_time + conf.behaviour.write_period); }
 
     /** Determine whether atoms have moved significantly and whether to enable file writing */
     int reinit(const int timestep);
@@ -113,18 +110,18 @@ private:
     int generate_mesh();
 
     /** Solve Laplace equation on vacuum mesh */
-    int solve_laplace(const double E0);
+    int solve_laplace(double E0);
 
     /** Evolve the PIC simulation one Femocs time step */
-    int solve_pic(double advance_time);
+    int solve_pic(const double advance_time);
 
-    int solve_pic_converge(double max_time);
+    int converge_pic(double max_time);
 
     /** Solve transient heat and continuity equations */
-    int solve_transient_heat(const double T_ambient, const double delta_time, int& ccg, int& hcg);
+    int solve_heat(double T_ambient, double delta_time, int& ccg, int& hcg);
 
     /** Solve transient heat and continuity equation until convergence is reached */
-    int run_heat_converge(const double T_ambient);
+    int converge_heat(double T_ambient);
     
     /** Import mesh to FEM solvers and initialize interpolators */
     int prepare_solvers();
