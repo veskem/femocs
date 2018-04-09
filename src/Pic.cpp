@@ -123,7 +123,7 @@ Point3 Pic<dim>::get_rnd_point(const int quad, const TetgenMesh &mesh) {
         Point3 point = node0 + edge1 * rand1 + edge2 * rand2;
 
         // calculate barycentric coordinates for a point
-        interpolator->lintri.get_shape_functions(bcc, point, tri);
+        bcc = interpolator->lintri.shape_functions(point, tri);
 
         // check whether the point is inside the quadrangle
         if (bcc[i] >= bcc[j] && bcc[i] >= bcc[k])

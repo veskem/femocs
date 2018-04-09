@@ -225,7 +225,8 @@ void PoissonSolver<dim>::assemble_laplace(const bool first_time) {
 
     if (first_time) {
         assemble_lhs();
-        this->append_dirichlet(fch::BoundaryId::copper_surface, 0.);
+        this->append_dirichlet(fch::BoundaryId::copper_surface, this->dirichlet_bc_value);
+        this->calc_vertex2dof();
     } else
         this->restore_system();
 
@@ -245,6 +246,7 @@ void PoissonSolver<dim>::assemble_poisson(const bool first_time, const bool writ
         if (first_time) {
             assemble_lhs();
             this->append_dirichlet(fch::BoundaryId::copper_surface, this->dirichlet_bc_value);
+            this->calc_vertex2dof();
         } else
             this->restore_system();
         this->assemble_rhs(fch::BoundaryId::vacuum_top);
@@ -254,6 +256,7 @@ void PoissonSolver<dim>::assemble_poisson(const bool first_time, const bool writ
             assemble_lhs();
             this->append_dirichlet(fch::BoundaryId::copper_surface, this->dirichlet_bc_value);
             this->append_dirichlet(fch::BoundaryId::vacuum_top, applied_potential);
+            this->calc_vertex2dof();
         } else
             this->restore_system();
     }
@@ -343,12 +346,9 @@ void PoissonSolver<dim>::assemble_space_charge() {
 // In linear 3D case, Femocs interpolator can be used to speed up calculations
 template<>
 void PoissonSolver<3>::assemble_space_charge_fast() {
-
-    static constexpr int n_dofs = 8;
-    vector<types::global_dof_index> local_dof_indices(n_dofs);
-    array<double, n_dofs> shape_fun;
-
+    static constexpr int n_dofs = GeometryInfo<3>::vertices_per_cell;
     const double charge_factor = particles->q_over_eps0 * particles->get_Wsp();
+    vector<types::global_dof_index> local_dof_indices(n_dofs);
 
     // loop over particles
     for (auto particle : particles->parts) {
@@ -358,7 +358,7 @@ void PoissonSolver<3>::assemble_space_charge_fast() {
 
         //get the shape functions of the cell on the given point
         int femocs_cell = interpolator->deal2femocs(particle.cell);
-        interpolator->get_dealii_shape_funs(shape_fun, particle.pos, femocs_cell);
+        array<double,n_dofs> shape_fun = interpolator->shape_funs_dealii(particle.pos, femocs_cell);
 
         //loop over nodes of the cell and add the particle's charge to the system rhs
         for (int i = 0; i < n_dofs; ++i)

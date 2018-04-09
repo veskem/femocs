@@ -71,15 +71,15 @@ void Interpolator::get_maps(vector<int>& cell_indxs, vector<int>& vert_indxs,
     const int n_dealii_nodes = tria->n_used_vertices();
 
     vector<int> node2hex(n_dealii_nodes), node2vert(n_dealii_nodes);
-    femocs2deal = vector<int>(n_femocs_nodes, -1);
-
-    typename dealii::Triangulation<3>::active_vertex_iterator vertex = tria->begin_active_vertex();
-    // Loop through tetrahedral mesh vertices
-    for (int i = 0; i < n_femocs_nodes && vertex != tria->end_vertex(); ++i)
-        if ( mesh->nodes[i].distance2(vertex->vertex()) < vertex_epsilon ) {
-            femocs2deal[i] = vertex->vertex_index();
-            vertex++;
-        }
+//    femocs2deal = vector<int>(n_femocs_nodes, -1);
+//
+//    typename dealii::Triangulation<3>::active_vertex_iterator vertex = tria->begin_active_vertex();
+//    // Loop through tetrahedral mesh vertices
+//    for (int i = 0; i < n_femocs_nodes && vertex != tria->end_vertex(); ++i)
+//        if ( mesh->nodes[i].distance2(vertex->vertex()) < vertex_epsilon ) {
+//            femocs2deal[i] = vertex->vertex_index();
+//            vertex++;
+//        }
 
     // Loop through the hexahedral mesh elements
     typename dealii::DoFHandler<3>::active_cell_iterator cell;
@@ -118,25 +118,22 @@ void Interpolator::store_solution(const vector<dealii::Tensor<1, 3>> vec_data, c
     }
 }
 
-void Interpolator::store_solution(const vector<double> &scalars) {
+void Interpolator::store_solution(fch::DealSolver<3>& solver) {
     const int n_nodes = nodes.size();
     require(femocs2deal.size() == n_nodes, "Invalid femocs2deal size: " + to_string(femocs2deal.size()));
 
-    int j = 0;
-    for (int i = 0; i < n_nodes; ++i) {
-        if (femocs2deal[i] >= 0)
-            nodes.set_scalar(i, scalars[j++]);
-    }
+    vector<double> scalars;
+    solver.get_nodal_solution(scalars);
 
-    // calculate field in the location of mesh nodes by calculating minus gradient of potential
-#pragma omp parallel for
-    for (int node = 0; node < n_nodes; ++node) {
-        if (femocs2deal[node] >= 0)
-            store_vec(node);
-    }
+    int j = 0;
+    for (int i = 0; i < n_nodes; ++i)
+        if (femocs2deal[i] >= 0) {
+            require(j < scalars.size(), "Invalid Femocs nodes to Deal.II nodes mapping!");
+            nodes.set_scalar(i, scalars[j++]);
+        }
 }
 
-void Interpolator::store_vec(const int node) {
+void Interpolator::store_elfield(const int node) {
     // due to linear elements, field on a node must be averaged
     // over all the hexahedra that are connected to the node,
     // as the field is discontinuous between hexahedra
@@ -160,8 +157,8 @@ int Interpolator::update_point_cell(const SuperParticle& particle) const {
     return linhex.femocs2deal(femocs_cell);
 }
 
-void Interpolator::initialize(const TetgenMesh* m, const double empty_val) {
-    // update mesh
+void Interpolator::initialize(const TetgenMesh* m, fch::DealSolver<3>& solver, const double empty_val) {
+    // === update mesh
     mesh = m;
     nodes.set_mesh(mesh);
     lintri.set_mesh(mesh);
@@ -171,7 +168,7 @@ void Interpolator::initialize(const TetgenMesh* m, const double empty_val) {
     linquad.set_mesh(mesh);
     linhex.set_mesh(mesh);
 
-    // Precompute cells to make interpolation faster
+    // === precompute cells to make interpolation faster
     nodes.precompute();
     lintri.precompute();
     quadtri.precompute();
@@ -186,17 +183,32 @@ void Interpolator::initialize(const TetgenMesh* m, const double empty_val) {
     const int n_hexs = mesh->hexs.size();
     static constexpr int n_nodes_per_hex = 8;
 
-    // initialize solution values
+    expect(n_nodes > 0, "Interpolator expects non-empty mesh!");
+
+    // === initialize solution values
     for (int i = 0; i < n_nodes; ++i)
         nodes.append_solution(Solution(empty_val));
 
-    // store mapping between mesh nodes and hexahedra
+    // === store mapping between mesh nodes and hexahedra
     node2cells = vector<vector<pair<int,int>>>(n_nodes);
     for (int hex = 0; hex < n_hexs; ++hex)
         if (mesh->hexs.get_marker(hex) > 0) {
             SimpleHex shex = mesh->hexs[hex];
             for (int node = 0; node < n_nodes_per_hex; ++node)
                 node2cells[shex[node]].push_back( make_pair(hex, node) );
+        }
+
+    // === store mapping between Femocs and Deal.II mesh nodes
+
+    const double vertex_epsilon = 1e-5 * mesh->tets.stat.edgemin;
+    dealii::Triangulation<3>* tria = solver.get_triangulation();
+    typename dealii::Triangulation<3>::active_vertex_iterator vertex = tria->begin_active_vertex();
+
+    femocs2deal = vector<int>(n_nodes, -1);
+    for (int i = 0; i < n_nodes && vertex != tria->end_vertex(); ++i)
+        if ( mesh->nodes[i].distance2(vertex->vertex()) < vertex_epsilon ) {
+            femocs2deal[i] = vertex->vertex_index();
+            vertex++;
         }
 }
 
@@ -220,7 +232,7 @@ void Interpolator::extract_solution(fch::CurrentHeatSolver<3>& fem) {
     store_solution(fem.get_current(cell_indxs, vert_indxs), fem.get_temperature(cell_indxs, vert_indxs));
 }
 
-void Interpolator::extract_solution_v1(fch::PoissonSolver<3>& fem) {
+void Interpolator::extract_solution_v2(fch::PoissonSolver<3>& fem) {
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> cell_indxs, vert_indxs;
@@ -233,46 +245,15 @@ void Interpolator::extract_solution_v1(fch::PoissonSolver<3>& fem) {
     average_sharp_nodes(true);
 }
 
-void Interpolator::extract_solution_v2(fch::PoissonSolver<3>& fem) {
-
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> cell_indxs, vert_indxs;
-    get_maps(cell_indxs, vert_indxs, fem.get_triangulation(), fem.get_dof_handler());
-
-    // Read and store current densities and temperatures from FEM solver
-    store_solution(fem.get_potential(cell_indxs, vert_indxs));
-}
-
 void Interpolator::extract_solution(fch::PoissonSolver<3>& fem) {
-    // TODO call this routine separately
-    calc_mapping(fem);
+    store_solution(fem);
 
-    vector<double> potential;
-    fem.get_nodal_solution(potential);
-    store_solution(potential);
-}
-
-void Interpolator::calc_mapping(fch::DealSolver<3>& solver) {
-    const double vertex_epsilon = 1e-5 * mesh->tets.stat.edgemin;
-    const int n_femocs_nodes = nodes.size();
-    expect(n_femocs_nodes > 0, "Interpolator expects non-empty mesh!");
-
-    // check whether mapping already exists
-    if (femocs2deal.size() == n_femocs_nodes) return;
-
-    femocs2deal = vector<int>(n_femocs_nodes, -1);
-    dealii::Triangulation<3>* tria = solver.get_triangulation();
-    typename dealii::Triangulation<3>::active_vertex_iterator vertex = tria->begin_active_vertex();
-
-    // match Femocs and Deal.II mesh vertices
-    for (int i = 0; i < n_femocs_nodes && vertex != tria->end_vertex(); ++i)
-        if ( mesh->nodes[i].distance2(vertex->vertex()) < vertex_epsilon ) {
-            femocs2deal[i] = vertex->vertex_index();
-            vertex++;
-        }
-
-    // calculate mapping between indices of Deal.II vertices and dofs
-    solver.calc_vertex2dof();
+    // calculate field in the location of mesh nodes by calculating minus gradient of potential
+#pragma omp parallel for
+    for (int node = 0; node < nodes.size(); ++node) {
+        if (femocs2deal[node] >= 0)
+            store_elfield(node);
+    }
 }
 
 } // namespace femocs

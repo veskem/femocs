@@ -139,7 +139,6 @@ bool DealSolver<dim>::import_mesh(const string &file_name) {
     gi.read_msh(infile);
 
     mark_mesh();
-
     return true;
 }
 

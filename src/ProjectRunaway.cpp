@@ -295,7 +295,7 @@ int ProjectRunaway::prepare_solvers() {
     check_return(fail, "Importing vacuum mesh to Deal.II failed!");
     end_msg(t0);
 
-    vacuum_interpolator.initialize(mesh);
+    vacuum_interpolator.initialize(mesh, poisson_solver);
     vacuum_interpolator.lintet.narrow_search_to(TYPES.VACUUM);
 
     if (conf.field.solver == "poisson" || conf.heating.mode != "none") {
@@ -304,7 +304,7 @@ int ProjectRunaway::prepare_solvers() {
         check_return(fail, "Importing bulk mesh to Deal.II failed!");
         end_msg(t0);
 
-        bulk_interpolator.initialize(mesh, conf.heating.t_ambient);
+        bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient);
         bulk_interpolator.lintet.narrow_search_to(TYPES.BULK);
 
         surface_fields.set_preferences(false, 2, 3);
@@ -350,7 +350,7 @@ int ProjectRunaway::prepare_export() {
         start_msg(t0, "=== Distributing face charges...");
         // Remove the atoms and their solutions outside the box
         face_charges.clean(dense_surf.sizes, conf.geometry.latconst);
-        forces.distribute_charges(fields, face_charges, 0, conf.smoothing.beta_charge);
+        forces.distribute_charges(fields, face_charges, conf.smoothing.beta_charge);
         end_msg(t0);
 
         start_msg(t0, "=== Generating Voronoi cells...");
@@ -429,6 +429,8 @@ int ProjectRunaway::solve_pic(double advance_time) {
     surface_fields.store_points(ch_solver);
     emission.initialize(mesh);
 
+    // vector holding point to cell mapping to make interpolation faster
+    vector<int> point2cell;
 
     start_msg(t0, "=== Running PIC for delta_time = " + to_string(advance_time) + "\n");
 
@@ -454,15 +456,15 @@ int ProjectRunaway::solve_pic(double advance_time) {
 
         pic_solver.collide_particles();
 
-        surface_fields.calc_interpolation();
+        surface_fields.calc_interpolation(point2cell);
 
         //calculate emission and inject electrons
         emission.calc_emission(conf.emission, conf.field.V0);
 
         int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
         
-        emission.write("out/emission.dat");
         if (conf.behaviour.n_writefile > 0 && i % conf.behaviour.n_writefile == 0) {
+            emission.write("out/emission.dat");
             pic_solver.write("out/electrons.movie");
             surface_fields.write("out/surface_fields.movie");
             emission.write("out/emission.movie");

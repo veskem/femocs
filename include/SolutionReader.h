@@ -41,13 +41,19 @@ public:
     void print_statistics();
 
     /** Get pointer to interpolation vector */
-    vector<Solution>* get_interpolations();
+    vector<Solution>* get_interpolations() { return &interpolation; }
 
     /** Get i-th Solution */
-    Solution get_interpolation(const int i) const;
+    Solution get_interpolation(const int i) const {
+        require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + to_string(i));
+        return interpolation[i];
+    }
 
     /** Set i-th Solution */
-    void set_interpolation(const int i, const Solution& s);
+    void set_interpolation(const int i, const Solution& s) {
+        require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + to_string(i));
+        interpolation[i] = s;
+    }
 
     /** Set interpolation preferences */
     void set_preferences(const bool _srt, const int _dim, const int _rank) {
@@ -64,9 +70,6 @@ public:
     /** Calculate statistics about coordinates and solution */
     void calc_statistics();
 
-    /** Check and replace the NaNs and peaks in the solution */
-    bool clean(const double r_cut, const bool use_hist_clean);
-
     /** Store the surface mesh centroids of the FEM solver */
     void store_points(const fch::DealSolver<3>& solver);
 
@@ -78,8 +81,11 @@ public:
         double scal_max;      ///< maximum value of scalar
     } stat;
 
+    /** General function to export desired component of calculated data */
     int export_results(const int n_points, const string &data_type, const bool append, double* data);
 
+    /** General function to first perform interpolation
+     * and then export desired component of calculated data */
     int interpolate_results(const int n_points, const string &data_type, const double* x,
             const double* y, const double* z, double* data);
 
@@ -106,21 +112,10 @@ protected:
     /** Get information about data vectors for .vtk file. */
     void get_point_data(ofstream& out) const;
 
-    /** Function to clean the result from peaks
-     * The cleaner makes the histogram for given component of electric field and applies smoothing
-     * for the atoms, where field has diverging values.
-     * For example, if histogram looks like [10 7 2 4 1 4 2 0 0 2], then the field on the two atoms that
-     * made up the entries to last bin will be replaced by the average field around those two atoms. */
-    void histogram_clean(const int coordinate, const double r_cut);
-
     /** Find the cell that surrounds i-th atom and interpolate the solution for it.
      * @param cell   initial guess for the cell that might surround the point
      * @return cell index that was found to surround the point */
     int update_interpolation(const int i, int cell);
-
-    void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
-
-    Solution get_average_solution(const int I, const double r_cut);
 };
 
 /** Class to extract solution from DealII calculations */
@@ -146,23 +141,35 @@ public:
     void interpolate(const int n_points, const double* x, const double* y, const double* z);
 
     /** Return electric field in i-th interpolation point */
-    Vec3 get_elfield(const int i) const;
+    Vec3 get_elfield(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].vector;
+    }
 
     /** Return electric field norm in i-th interpolation point */
-    double get_elfield_norm(const int i) const;
+    double get_elfield_norm(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].norm;
+    }
 
     /** Return electric potential in i-th interpolation point */
-    double get_potential(const int i) const;
+    double get_potential(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].scalar;
+    }
 
     /** Compare the analytical and calculated field enhancement.
      * The check is disabled if lower and upper limits are the same. */
     bool check_limits(const vector<Solution>* solutions=NULL) const;
 
+    /** Find the maximum field norm from the solution vector */
+    double calc_max_field(const vector<Solution>* solutions=NULL) const;
+
     /** Set parameters to calculate analytical solution */
     void set_check_params(const double E0, const double limit_min, const double limit_max,
             const double radius1, const double radius2=-1);
 
-    /** Export calculated electic field distribution to HOLMOD */
+    /** Export calculated electic field distribution to HELMOD */
     int export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
 
     /** Interpolate electric field on set of points using the solution on surface mesh nodes
@@ -217,11 +224,23 @@ public:
     void scale_berendsen(const int n_atoms, double* x1);
     void scale_berendsen_v2(const int n_atoms, double* x1);
 
-    Vec3 get_rho(const int i) const;
+    /** Return current density in i-th interpolation point */
+    Vec3 get_rho(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].vector;
+    }
 
-    double get_rho_norm(const int i) const;
+    /** Return magnitude of current density in i-th interpolation point */
+    double get_rho_norm(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].norm;
+    }
 
-    double get_temperature(const int i) const;
+    /** Return temperature in i-th interpolation point */
+    double get_temperature(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].scalar;
+    }
 
 private:
     static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant in eV/K
@@ -283,12 +302,6 @@ private:
      */
     void emission_cycle(double workfunction, bool blunt  = false, bool cold = false);
 
-    /**
-     * Exports the local field from poisson solver (dealii) and calculates the Fmax
-     */
-    void get_loc_field();
-    void get_loc_field_new();
-
     /** Compose entry to xyz or movie file */
     string get_data_string(const int i) const;
 
@@ -307,8 +320,6 @@ private:
     vector<double> current_densities;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
     vector<double> nottingham; ///< Same as current_densities for nottingham heat deposition [in W/A^2]
     vector<double> currents;    ///< Current flux for every face (current_densities * face_areas) [in Amps]
-    vector<Vec3> field_loc;    ///< Local fields as read from dealii in V/nm
-
     vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
     vector<double> Vline;   ///< Potential on the straight line (complements rline)
 
@@ -335,13 +346,22 @@ public:
     bool check_limits(const vector<Solution>* solutions=NULL) const;
 
     /** Get electric field on the centroid of i-th triangle */
-    Vec3 get_elfield(const int i) const;
+    Vec3 get_elfield(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].vector;
+    }
 
     /** Get area of i-th triangle */
-    double get_area(const int i) const;
+    double get_area(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].norm;
+    }
 
     /** Get charge of i-th triangle */
-    double get_charge(const int i) const;
+    double get_charge(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].scalar;
+    }
 
 private:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
@@ -355,14 +375,14 @@ public:
     ForceReader(Interpolator* i);
 
     /** Calculate forces from atomic electric fields and face charges */
-    void distribute_charges(const FieldReader &fields, const ChargeReader& faces,
-        const double r_cut, const double smooth_factor);
-
-    void calc_lorentz(const FieldReader &fields);
+    void distribute_charges(const FieldReader &fields, const ChargeReader& faces, const double smooth_factor);
 
     /** Build Voronoi cells around the atoms in the region of interest */
     int calc_voronois(VoronoiMesh& mesh, const vector<int>& atom2face,
             const double radius, const double latconst, const string& mesh_quality);
+
+    /** Calculate Lorentz forces from atomistic electric fields and face charges */
+    void calc_lorentz(const FieldReader &fields);
 
     /** Calculate atomistic charges and Lorentz forces by using the Voronoi cells */
     void calc_charge_and_lorentz(const VoronoiMesh& mesh, const FieldReader& fields);
