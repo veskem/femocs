@@ -947,7 +947,8 @@ int FieldReader::interpolate_phi(const int n_points, const double* x, const doub
  * ========================================== */
 
 HeatReader::HeatReader(Interpolator* i) :
-        SolutionReader(i, "rho", "rho_norm", "temperature") {}
+        SolutionReader(i, "rho", "rho_norm", "temperature"), lintet(&i->lintet) {
+}
 
 // Interpolate solution on Medium atoms
 void HeatReader::interpolate(const Medium &medium) {
@@ -999,6 +1000,130 @@ double HeatReader::get_rho_norm(const int i) const {
 double HeatReader::get_temperature(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     return interpolation[i].scalar;
+}
+
+void HeatReader::locate_atoms(const Medium &medium) {
+    const int n_atoms = medium.size();
+
+    // store the atom coordinates
+    reserve(n_atoms);
+    atoms = medium.atoms;
+    sizes = medium.sizes;
+
+    // determine the tetrahedron that surrounds the point
+    // and assign its mean temperature to the atom
+    int cell = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        cell = lintet->locate_cell(get_point(i), cell);
+        set_marker(i, cell);
+    }
+}
+
+void HeatReader::scale_berendsen(const int n_atoms, double* x1) {
+    require(n_atoms == size(),
+            "Lenght of velocity array does not equal to # atoms in system: " + to_string(n_atoms));
+
+    const int n_tets = lintet->size();
+
+    const double time_unit = 1.0;  // TODO clarify its actual value
+    const double tau = 1.0;        // time constant
+    const double delta_t_fs = 4.05; // MD time step
+
+    // factor to transfer velocity from Parcas units to fm/fs
+    const Vec3 velocity_factor = Vec3(sizes.xbox, sizes.ybox, sizes.zbox) * (1.0 / time_unit);
+    // factor to transfer 2*kinetic energy to temperature
+    const double heat_factor = 1.0 / (3.0 * kB);
+    // factor determining intensity of Berendsen scaling
+    const double scale_factor = delta_t_fs / tau;
+
+    // store the indices of atoms that are inside a tetrahedron
+    vector<vector<int>> tet2atoms(n_tets);
+    for (int atom = 0; atom < n_atoms; ++atom)
+        tet2atoms[abs(get_marker(atom))].push_back(atom);
+
+    // transfer velocities from Parcas units to fm / fs
+    // NB! reserve without push_back is dangerous as size() remains 0; it's the most efficient option, though
+    vector<Vec3> velocities;
+    velocities.reserve(n_atoms);
+    for (int i = 0; i < n_atoms; ++i) {
+        int I = 3*i;
+        velocities[i] = Vec3(x1[I], x1[I+1], x1[I+2]) * velocity_factor;
+    }
+
+    // calculate average temperature inside each tetrahedron
+    vector<double> fem_temp(n_tets);
+    for (int tet = 0; tet < n_tets; ++tet) {
+        for (int node : lintet->get_cell(tet))
+            fem_temp[tet] += interpolator->nodes.get_scalar(node);
+        fem_temp[tet] /= 4.0;
+    }
+
+    // calculate atomistic temperatures before the scaling
+    vector<double> md_temp(n_tets);
+    for (int tet = 0; tet < n_tets; ++tet) {
+        int n_atoms_in_tet = tet2atoms[tet].size();
+        if (n_atoms_in_tet > 0) {
+            double Ekin = 0;
+            for (int atom : tet2atoms[tet])
+                Ekin += velocities[atom].norm2();
+            md_temp[tet] = Ekin * heat_factor / n_atoms_in_tet;
+        }
+    }
+
+    // scale velocities from MD temperature to calculated one
+    for (int tet = 0; tet < n_tets; ++tet) {
+        if (tet2atoms[tet].size() > 0) {
+            double lambda = sqrt( 1.0 + scale_factor * (fem_temp[tet] / md_temp[tet] - 1.0) );
+            for (int atom : tet2atoms[tet]) {
+                int I = 3 * atom;
+                x1[I] *= lambda;
+                x1[I+1] *= lambda;
+                x1[I+2] *= lambda;
+                interpolation[atom].vector = velocities[atom] * lambda;
+                interpolation[atom].scalar = fem_temp[tet];
+            }
+        }
+    }
+}
+
+void HeatReader::scale_berendsen_v2(const int n_atoms, double* x1) {
+    require(n_atoms == size(),
+            "Lenght of velocity array does not equal to # atoms in system: " + to_string(n_atoms));
+
+    const double time_unit = 1.0;  // TODO clarify its actual value
+    const double tau = 1.0;        // Berendsen coupling parameter
+    const double delta_t_fs = 4.05; // MD time step
+
+    // factor to transfer velocity from Parcas units to fm/fs
+    const Vec3 velocity_factor = Vec3(sizes.xbox, sizes.ybox, sizes.zbox) * (1.0 / time_unit);
+    // factor to transfer 2*kinetic energy to temperature
+    const double heat_factor = 1.0 / (3.0 * kB);
+    // factor determining intensity of Berendsen scaling
+    const double scale_factor = delta_t_fs / tau;
+
+    // transfer velocities from Parcas units to fm / fs
+    vector<Vec3> velocities;
+    velocities.reserve(n_atoms);
+    for (int i = 0; i < n_atoms; ++i) {
+        int I = 3*i;
+        velocities[i] = Vec3(x1[I], x1[I+1], x1[I+2]) * velocity_factor;
+    }
+
+    // scale velocities from MD temperature to calculated one
+    for (int i = 0; i < n_atoms; ++i) {
+        double fem_temperature = get_temperature(i);
+        double md_temperature = velocities[i].norm2() * heat_factor;
+        double lambda = sqrt( 1.0 + scale_factor * (fem_temperature / md_temperature - 1.0) );
+
+        // export scaled velocity
+        int I = 3 * i;
+        x1[I] *= lambda;
+        x1[I+1] *= lambda;
+        x1[I+2] *= lambda;
+
+        // store scaled velocity without affecting current density norm and temperature
+        interpolation[i].vector = velocities[i] * lambda;
+    }
 }
 
 /* ==========================================

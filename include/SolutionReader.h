@@ -212,6 +212,11 @@ public:
     /** Export interpolated temperature */
     int export_temperature(const int n_atoms, double* T);
 
+    void locate_atoms(const Medium &medium);
+
+    void scale_berendsen(const int n_atoms, double* x1);
+    void scale_berendsen_v2(const int n_atoms, double* x1);
+
     Vec3 get_rho(const int i) const;
 
     double get_rho_norm(const int i) const;
@@ -219,6 +224,8 @@ public:
     double get_temperature(const int i) const;
 
 private:
+    static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant in eV/K
+    const LinearTetrahedra* lintet;   ///< direct pointer to linear tetrahedral interpolator
 };
 
 // forward declaration of Pic for declaring it as a friend

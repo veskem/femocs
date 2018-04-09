@@ -210,6 +210,9 @@ public:
         return markers[i];
     }
 
+    /** Return i-th cell */
+    virtual SimpleCell<dim> get_cell(const int i) const { return SimpleCell<dim>(); }
+
     /** Change the pointer to mesh */
     void set_mesh(const TetgenMesh* m) { mesh = m; }
 
@@ -230,9 +233,6 @@ protected:
 
     /** Return the cell type in vtk format */
     virtual int get_cell_type() const { return 0; };
-
-    /** Return i-th cell */
-    virtual SimpleCell<dim> get_cell(const int i) const { return SimpleCell<dim>(); }
 
     /** Calculate distance-dependent weights for a point with respect to the cell */
     void get_weights(array<double,dim>& weights, const Point3 &point, const SimpleCell<dim>& scell) const;
@@ -288,6 +288,9 @@ public:
     /** Calculate the gradient of shape functions for a point inside the tetrahedron */
     void get_shape_fun_grads(array<Vec3, 4>& sfg, const Vec3& point, const int tet) const;
 
+    /** Return i-th tetrahedron */
+    SimpleCell<4> get_cell(const int i) const { return (*tets)[i]; }
+
     /** Change the dependency data */
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<4>::set_mesh(m);
@@ -312,9 +315,6 @@ private:
 
     /** Return the tetrahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.TETRAHEDRON; }
-
-    /** Return i-th tetrahedron */
-    SimpleCell<4> get_cell(const int i) const { return (*tets)[i]; }
 };
 
 /**
@@ -346,6 +346,12 @@ public:
 
     void test_shape_funs();
 
+    /** Return i-th tetrahedron */
+    SimpleCell<10> get_cell(const int i) const {
+        require(i >= 0 && i < cells.size(), "Invalid index: " + to_string(i));
+        return cells[i];
+    }
+
     /** Change the dependency data */
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<10>::set_mesh(m);
@@ -362,12 +368,6 @@ private:
 
     /** Return the 10-noded tetrahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.QUADRATIC_TETRAHEDRON; };
-
-    /** Return i-th tetrahedron */
-    SimpleCell<10> get_cell(const int i) const {
-        require(i >= 0 && i < cells.size(), "Invalid index: " + to_string(i));
-        return cells[i];
-    }
 
     /** Calculate the vertex indices of 10-noded tetrahedron */
     SimpleCell<10> calc_cell(const int i) const;
@@ -424,6 +424,9 @@ public:
         return map_deal2femocs[i];
     }
 
+    /** Return i-th hexahedron */
+    SimpleCell<8> get_cell(const int i) const { return (*hexs)[i]; }
+
     /** Change the mesh dependency data */
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<8>::set_mesh(m);
@@ -454,9 +457,6 @@ private:
 
     /** Return linear hexahedron type in vtk format */
     int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; };
-
-    /** Return i-th hexahedron */
-    SimpleCell<8> get_cell(const int i) const { return (*hexs)[i]; }
 
     /** Map the point from Cartesian xyz-coordinates to natural uvw-coordinates.
      * In natural coordinate system, each coordinate is within limits [-1, 1]. */
@@ -508,6 +508,9 @@ public:
          return norms[i];
      }
 
+     /** Return i-th triangle */
+     SimpleCell<3> get_cell(const int i) const { return (*tris)[i]; }
+
      /** Change the mesh */
      void set_mesh(const TetgenMesh* m) {
          InterpolatorCells<3>::set_mesh(m);
@@ -531,9 +534,6 @@ private:
 
     /** Return the triangle type in vtk format */
     int get_cell_type() const { return TYPES.VTK.TRIANGLE; };
-
-    /** Return i-th triangle */
-    SimpleCell<3> get_cell(const int i) const { return (*tris)[i]; }
 
     /** Return the distance between a point and i-th triangle in the direction of its norm.
      * If the projection of the point is outside the triangle, the 1e100 distance will be returned.
@@ -571,6 +571,12 @@ public:
      * Search starts from tetrahedra that are connected to the given triangle. */
     Solution interp_solution(const Point3 &point, const int tri) const;
 
+    /** Return i-th hexahedron */
+    SimpleCell<6> get_cell(const int i) const {
+        require(i >= 0 && i < cells.size(), "Invalid index: " + to_string(i));
+        return cells[i];
+    }
+
     /** Change the mesh */
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<6>::set_mesh(m);
@@ -588,12 +594,6 @@ private:
 
     /** Return the 6-noded triangle type in vtk format */
     int get_cell_type() const { return TYPES.VTK.QUADRATIC_TRIANGLE; };
-
-    /** Return i-th hexahedron */
-    SimpleCell<6> get_cell(const int i) const {
-        require(i >= 0 && i < cells.size(), "Invalid index: " + to_string(i));
-        return cells[i];
-    }
 
     /** Calculate the vertex indices of 6-noded triangle */
     SimpleCell<6> calc_cell(const int i) const;
@@ -622,6 +622,9 @@ public:
      * Search starts from hexahedra that are connected to the given quadrangle. */
     Solution interp_solution(const Point3 &point, const int quad) const;
 
+    /** Return i-th quadrangle */
+    SimpleCell<4> get_cell(const int i) const { return (*quads)[i]; }
+
     /** Change the mesh */
     void set_mesh(const TetgenMesh* m) {
         InterpolatorCells<4>::set_mesh(m);
@@ -638,9 +641,6 @@ private:
 
     /** Return the quadrangle type in vtk format */
     int get_cell_type() const { return TYPES.VTK.QUADRANGLE; };
-
-    /** Return i-th quadrangle */
-    SimpleCell<4> get_cell(const int i) const { return (*quads)[i]; }
 };
 
 } /* namespace femocs */
