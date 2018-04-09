@@ -15,7 +15,7 @@
 #include "PoissonSolver.h"
 
 
-namespace fch {
+namespace femocs {
 
 // forward declare some classes to make them available for declaring dependencies
 template<int dim> class HeatSolver;
@@ -41,11 +41,11 @@ public:
     void set_bc(const vector<double> &emission);
 
     /** Set the pointers for obtaining external data */
-    void set_dependencies(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_);
+    void set_dependencies(PhysicalQuantities *pq_, const Config::Heating *conf_);
 
 protected:
     PhysicalQuantities *pq;                ///< object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
-    const femocs::Config::Heating *conf;   ///< solver parameters
+    const Config::Heating *conf;   ///< solver parameters
 
     vector<double> bc_values; ///< current or heat values on the centroids of surface faces
     
@@ -118,7 +118,7 @@ template<int dim>
 class CurrentHeatSolver : public DealSolver<dim> {
 public:
     CurrentHeatSolver();
-    CurrentHeatSolver(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_);
+    CurrentHeatSolver(PhysicalQuantities *pq_, const Config::Heating *conf_);
 
     /**
      * Method to obtain the temperature values in selected nodes.
@@ -137,7 +137,7 @@ public:
     vector<Tensor<1,dim>> get_current(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
 
     /** Set the pointers for obtaining external data */
-    void set_dependencies(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_);
+    void set_dependencies(PhysicalQuantities *pq_, const Config::Heating *conf_);
 
     void setup(const double temperature);
 
@@ -146,12 +146,12 @@ public:
 
 private:
     PhysicalQuantities *pq;
-    const femocs::Config::Heating *conf;
+    const Config::Heating *conf;
 
     /** Mark different regions of the mesh */
     void mark_mesh();
 };
 
-} // namespace fch
+} // namespace femocs
 
 #endif /* CURRENTSANDHEATING_H_ */

@@ -71,7 +71,7 @@ public:
     void calc_statistics();
 
     /** Store the surface mesh centroids of the FEM solver */
-    void store_points(const fch::DealSolver<3>& solver);
+    void store_points(const DealSolver<3>& solver);
 
     /** Statistics about solution */
     struct Statistics {
@@ -124,15 +124,15 @@ public:
 
     FieldReader(Interpolator* i);
 
-    void compare_shape_funs(fch::PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
-    void compare_interpolators(fch::PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
+    void compare_shape_funs(PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
+    void compare_interpolators(PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
     void test_corners(const TetgenMesh& mesh) const;
     void compare_space(const Medium::Sizes &sizes);
     void compare_surface(const Medium &medium);
     void perform_comparison(const string &file_name);
 
     /** Interpolate solution on the surface mesh centroids of the FEM solver */
-    void interpolate(const fch::DealSolver<3>& solver);
+    void interpolate(const DealSolver<3>& solver);
 
     /** Interpolate electric field and potential on a Medium atoms */
     void interpolate(const Medium &medium);
@@ -214,7 +214,7 @@ public:
 
     /** Linearly interpolate currents and temperatures in the bulk.
      *  In case of empty interpolator, constant values are stored. */
-    void interpolate(fch::DealSolver<3>& solver);
+    void interpolate(DealSolver<3>& solver);
 
     /** Export interpolated temperature */
     int export_temperature(const int n_atoms, double* T);
@@ -255,7 +255,7 @@ class EmissionReader: public SolutionReader {
 public:
 
     EmissionReader(const FieldReader *fields, const HeatReader *heat,
-            const fch::PoissonSolver<3> *poisson, Interpolator* i);
+            const PoissonSolver<3> *poisson, Interpolator* i);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
      * estimation of the space charge effects.
@@ -265,7 +265,7 @@ public:
      */
     void calc_emission(const Config::Emission &conf, double Vappl = -1);
 
-    void export_emission(fch::CurrentHeatSolver<3>& ch_solver);
+    void export_emission(CurrentHeatSolver<3>& ch_solver);
 
     /** Initialises class data */
     void initialize(const TetgenMesh* m);
@@ -315,7 +315,7 @@ private:
     const FieldReader *fields;      ///< field on centroids of hex interface faces.
     const HeatReader *heat;         ///< temperature on centroids of hexahedral faces.
     const TetgenMesh *mesh;         ///< data & operations about the mesh.
-    const fch::PoissonSolver<3> *poisson; ///< Poisson solver information (field, potential etc)
+    const PoissonSolver<3> *poisson; ///< Poisson solver information (field, potential etc)
 
     vector<double> current_densities;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
     vector<double> nottingham; ///< Same as current_densities for nottingham heat deposition [in W/A^2]

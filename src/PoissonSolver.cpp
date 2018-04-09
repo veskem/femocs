@@ -7,7 +7,7 @@
 #include "Globals.h"
 
 
-namespace fch {
+namespace femocs {
 
 // ----------------------------------------------------------------------------------------
 /* Class for outputting the field distribution
@@ -225,12 +225,12 @@ void PoissonSolver<dim>::assemble_laplace(const bool first_time) {
 
     if (first_time) {
         assemble_lhs();
-        this->append_dirichlet(fch::BoundaryId::copper_surface, this->dirichlet_bc_value);
+        this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
         this->calc_vertex2dof();
     } else
         this->restore_system();
 
-    this->assemble_rhs(fch::BoundaryId::vacuum_top);
+    this->assemble_rhs(BoundaryId::vacuum_top);
     this->apply_dirichlet();
 }
 
@@ -245,17 +245,17 @@ void PoissonSolver<dim>::assemble_poisson(const bool first_time, const bool writ
     if (conf->anodeBC == "neumann") {
         if (first_time) {
             assemble_lhs();
-            this->append_dirichlet(fch::BoundaryId::copper_surface, this->dirichlet_bc_value);
+            this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
             this->calc_vertex2dof();
         } else
             this->restore_system();
-        this->assemble_rhs(fch::BoundaryId::vacuum_top);
+        this->assemble_rhs(BoundaryId::vacuum_top);
 
     } else {
         if (first_time) {
             assemble_lhs();
-            this->append_dirichlet(fch::BoundaryId::copper_surface, this->dirichlet_bc_value);
-            this->append_dirichlet(fch::BoundaryId::vacuum_top, applied_potential);
+            this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
+            this->append_dirichlet(BoundaryId::vacuum_top, applied_potential);
             this->calc_vertex2dof();
         } else
             this->restore_system();
@@ -381,4 +381,4 @@ void PoissonSolver<dim>::write_vtk(ofstream& out) const {
 
 template class PoissonSolver<3> ;
 
-} // namespace fch
+} // namespace femocs

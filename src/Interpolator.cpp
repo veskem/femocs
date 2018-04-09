@@ -118,7 +118,7 @@ void Interpolator::store_solution(const vector<dealii::Tensor<1, 3>> vec_data, c
     }
 }
 
-void Interpolator::store_solution(fch::DealSolver<3>& solver) {
+void Interpolator::store_solution(DealSolver<3>& solver) {
     const int n_nodes = nodes.size();
     require(femocs2deal.size() == n_nodes, "Invalid femocs2deal size: " + to_string(femocs2deal.size()));
 
@@ -157,7 +157,7 @@ int Interpolator::update_point_cell(const SuperParticle& particle) const {
     return linhex.femocs2deal(femocs_cell);
 }
 
-void Interpolator::initialize(const TetgenMesh* m, fch::DealSolver<3>& solver, const double empty_val) {
+void Interpolator::initialize(const TetgenMesh* m, DealSolver<3>& solver, const double empty_val) {
     // === update mesh
     mesh = m;
     nodes.set_mesh(mesh);
@@ -212,7 +212,7 @@ void Interpolator::initialize(const TetgenMesh* m, fch::DealSolver<3>& solver, c
         }
 }
 
-void Interpolator::extract_charge_density(fch::PoissonSolver<3>& fem) {
+void Interpolator::extract_charge_density(PoissonSolver<3>& fem) {
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> cell_indxs, vert_indxs;
@@ -222,7 +222,7 @@ void Interpolator::extract_charge_density(fch::PoissonSolver<3>& fem) {
     store_solution(fem.get_efield(cell_indxs, vert_indxs), fem.get_charge_dens(cell_indxs, vert_indxs));
 }
 
-void Interpolator::extract_solution(fch::CurrentHeatSolver<3>& fem) {
+void Interpolator::extract_solution(CurrentHeatSolver<3>& fem) {
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> cell_indxs, vert_indxs;
@@ -232,7 +232,7 @@ void Interpolator::extract_solution(fch::CurrentHeatSolver<3>& fem) {
     store_solution(fem.get_current(cell_indxs, vert_indxs), fem.get_temperature(cell_indxs, vert_indxs));
 }
 
-void Interpolator::extract_solution_v2(fch::PoissonSolver<3>& fem) {
+void Interpolator::extract_solution_v2(PoissonSolver<3>& fem) {
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> cell_indxs, vert_indxs;
@@ -245,7 +245,7 @@ void Interpolator::extract_solution_v2(fch::PoissonSolver<3>& fem) {
     average_sharp_nodes(true);
 }
 
-void Interpolator::extract_solution(fch::PoissonSolver<3>& fem) {
+void Interpolator::extract_solution(PoissonSolver<3>& fem) {
     store_solution(fem);
 
     // calculate field in the location of mesh nodes by calculating minus gradient of potential

@@ -85,9 +85,9 @@ private:
     FieldReader surface_fields;       ///< fields on surface hex face centroids
     HeatReader  surface_temperatures; ///< temperatures & current densities on surface hex face centroids
 
-    fch::PhysicalQuantities phys_quantities; ///< quantities used in heat calculations
-    fch::PoissonSolver<3> poisson_solver;    ///< Poisson equation solver
-    fch::CurrentHeatSolver<3> ch_solver;     ///< transient currents and heating solver
+    PhysicalQuantities phys_quantities; ///< quantities used in heat calculations
+    PoissonSolver<3> poisson_solver;    ///< Poisson equation solver
+    CurrentHeatSolver<3> ch_solver;     ///< transient currents and heating solver
 
     EmissionReader emission;          ///< emission data on centroids of surface quadrangles
     Pic<3> pic_solver;                       ///< class for solving Poisson equation and handling space charge

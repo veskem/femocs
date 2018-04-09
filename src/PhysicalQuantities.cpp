@@ -16,9 +16,9 @@
 #include "PhysicalQuantities.h"
 
 
-namespace fch {
+namespace femocs {
 
-PhysicalQuantities::PhysicalQuantities(const femocs::Config::Heating& c) : config(c){}
+PhysicalQuantities::PhysicalQuantities(const Config::Heating& c) : config(c){}
 
 double PhysicalQuantities::emission_current(double field, double temperature) const {
     return std::exp(bilinear_interp(std::log(field), temperature, emission_grid)) * 1.0e-20;
@@ -128,7 +128,7 @@ bool PhysicalQuantities::load_compact_grid_data(std::string filepath, Interpolat
     int line_counter = 0;
 
     while (std::getline(infile, line)) {
-        if (line[0] == '%' || line.size() == 0 || !femocs::contains_digit(line))
+        if (line[0] == '%' || line.size() == 0 || !contains_digit(line))
             continue;
 
         std::istringstream stm(line);
@@ -293,5 +293,5 @@ double PhysicalQuantities::bilinear_interp(double x, double y, const Interpolati
             + grid_data.v[(xi + 1) * yn + yi + 1] * xc * yc;
 }
 
-} // namespace fch
+} // namespace femocs
 

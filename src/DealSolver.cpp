@@ -27,7 +27,7 @@
 using namespace dealii;
 using namespace std;
 
-namespace fch {
+namespace femocs {
 
 template<int dim>
 DealSolver<dim>::DealSolver() :
@@ -128,7 +128,7 @@ double DealSolver<dim>::get_cell_vol(const int i) const {
 
 template<int dim>
 bool DealSolver<dim>::import_mesh(const string &file_name) {
-    const string file_type = femocs::get_file_type(file_name);
+    const string file_type = get_file_type(file_name);
     require(file_type == "msh", "Unimplemented file type for mesh importing: " + file_type);
 
     ifstream infile(file_name);
@@ -164,9 +164,9 @@ bool DealSolver<dim>::import_mesh(vector<Point<dim>> vertices, vector<CellData<d
 
 template<int dim>
 void DealSolver<dim>::write(const string &file_name) const {
-    if (!femocs::MODES.WRITEFILE) return;
+    if (!MODES.WRITEFILE) return;
 
-    const string ftype = femocs::get_file_type(file_name);
+    const string ftype = get_file_type(file_name);
     ofstream outfile;
     outfile.open(file_name);
     require(outfile.is_open(), "Can't open a file " + file_name);
@@ -385,11 +385,11 @@ void DealSolver<dim>::mark_boundary(char top, char bottom, char sides, char othe
                 double x = face->center()[0];
                 double y = face->center()[1];
 
-                if (femocs::on_boundary(x, xmin, xmax, eps))
+                if (on_boundary(x, xmin, xmax, eps))
                     face->set_all_boundary_ids(sides);
-                else if (femocs::on_boundary(y, ymax, eps))
+                else if (on_boundary(y, ymax, eps))
                     face->set_all_boundary_ids(top);
-                else if (femocs::on_boundary(y, ymin, eps))
+                else if (on_boundary(y, ymin, eps))
                     face->set_all_boundary_ids(bottom);
                 else
                     face->set_all_boundary_ids(other);
@@ -399,11 +399,11 @@ void DealSolver<dim>::mark_boundary(char top, char bottom, char sides, char othe
                 double y = face->center()[1];
                 double z = face->center()[2];
 
-                if (femocs::on_boundary(x, xmin, xmax, eps) || femocs::on_boundary(y, ymin, ymax, eps))
+                if (on_boundary(x, xmin, xmax, eps) || on_boundary(y, ymin, ymax, eps))
                     face->set_all_boundary_ids(sides);
-                else if (femocs::on_boundary(z, zmax, eps))
+                else if (on_boundary(z, zmax, eps))
                     face->set_all_boundary_ids(top);
-                else if (femocs::on_boundary(z, zmin, eps))
+                else if (on_boundary(z, zmin, eps))
                     face->set_all_boundary_ids(bottom);
                 else
                     face->set_all_boundary_ids(other);

@@ -13,10 +13,8 @@
 #include "Config.h"
 #include "InterpolatorCells.h"
 
-namespace fch {
-
+namespace femocs {
 using namespace dealii;
-using namespace femocs;
 using namespace std;
 
 /** @brief Class to solve Laplace equation in 2D or 3D
@@ -118,6 +116,6 @@ private:
     void assemble_space_charge_fast();
 };
 
-} // namespace fch
+} // namespace femocs
 
 #endif /* LAPLACE_H_ */

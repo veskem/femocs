@@ -27,7 +27,7 @@ namespace femocs {
 template<int dim>
 class Pic {
 public:
-    Pic(fch::PoissonSolver<dim> *poisson_solver, const fch::CurrentHeatSolver<3> *ch_solver,
+    Pic(PoissonSolver<dim> *poisson_solver, const CurrentHeatSolver<3> *ch_solver,
             const EmissionReader *emission, const unsigned int seed);
     ~Pic() {};
 
@@ -79,8 +79,8 @@ private:
     string anodeBC = "Neumann";     ///< Boundary type at the anode
     bool coll_coulomb_ee = false;   ///< Switch 2e->2e Coulomb collisions on/off
 
-    fch::PoissonSolver<dim> *poisson_solver;      ///< object to solve Poisson equation in the vacuum mesh
-    const fch::CurrentHeatSolver<3> *ch_solver;   ///< transient currents and heating solver
+    PoissonSolver<dim> *poisson_solver;      ///< object to solve Poisson equation in the vacuum mesh
+    const CurrentHeatSolver<3> *ch_solver;   ///< transient currents and heating solver
     const EmissionReader *emission;               ///< object to obtain the field emission data
     const Interpolator *interpolator;       ///< data & operation for interpolating in vacuum
     TetgenNodes::Stat box;                  ///< simubox size data

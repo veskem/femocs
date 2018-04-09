@@ -14,7 +14,7 @@
 #define  TWOPI  6.2831853071795864
 
 namespace femocs {
-    void coll_el_knm_2D( ParticleSpecies &pa, const double dt, fch::PoissonSolver<3> &poisson_solver ) {
+    void coll_el_knm_2D( ParticleSpecies &pa, const double dt, PoissonSolver<3> &poisson_solver ) {
 
         static std::vector<size_t> inds2coll; //Not nice for parallelization
                                               // (neither over spieces- or cell)

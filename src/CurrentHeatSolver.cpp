@@ -10,7 +10,7 @@
 #include "CurrentHeatSolver.h"
 
 
-namespace fch {
+namespace femocs {
 using namespace dealii;
 using namespace std;
 
@@ -83,7 +83,7 @@ void EmissionSolver<dim>::set_bc(const vector<double> &emission) {
 }
 
 template<int dim>
-void EmissionSolver<dim>::set_dependencies(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_) {
+void EmissionSolver<dim>::set_dependencies(PhysicalQuantities *pq_, const Config::Heating *conf_) {
     pq = pq_;
     conf = conf_;
 }
@@ -430,7 +430,7 @@ CurrentHeatSolver<dim>::CurrentHeatSolver() :
 {}
 
 template<int dim>
-CurrentHeatSolver<dim>::CurrentHeatSolver(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_) :
+CurrentHeatSolver<dim>::CurrentHeatSolver(PhysicalQuantities *pq_, const Config::Heating *conf_) :
         DealSolver<dim>(), pq(pq_), conf(conf_),
         heat(&this->triangulation, &current),
         current(&this->triangulation, &heat)
@@ -447,7 +447,7 @@ void CurrentHeatSolver<dim>::setup(const double temperature) {
 }
 
 template<int dim>
-void CurrentHeatSolver<dim>::set_dependencies(PhysicalQuantities *pq_, const femocs::Config::Heating *conf_) {
+void CurrentHeatSolver<dim>::set_dependencies(PhysicalQuantities *pq_, const Config::Heating *conf_) {
     pq = pq_;
     conf = conf_;
     heat.set_dependencies(pq_, conf_);
@@ -518,5 +518,5 @@ template class HeatSolver<3> ;
 template class CurrentSolver<3> ;
 template class CurrentHeatSolver<3> ;
 
-} // namespace fch
+} // namespace femocs
 

@@ -18,7 +18,7 @@
 using namespace dealii;
 using namespace std;
 
-namespace fch {
+namespace femocs {
 
 template<int dim> class PoissonSolver;
 template<int dim> class CurrentHeatSolver;

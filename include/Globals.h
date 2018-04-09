@@ -11,8 +11,7 @@
 #include <string>
 
 using namespace std;
-
-namespace fch {
+namespace femocs {
 
 enum BoundaryId {
     copper_surface = 1,
@@ -21,10 +20,6 @@ enum BoundaryId {
     vacuum_sides = 4,
     copper_sides = 5
 };
-
-} // namespace fch
-
-namespace femocs {
 
 /** Types of regions used in the simulation */
 struct Types {

@@ -281,7 +281,7 @@ int SolutionReader::interpolate_results(const int n_points, const string &data_t
     return 0;
 }
 
-void SolutionReader::store_points(const fch::DealSolver<3>& solver) {
+void SolutionReader::store_points(const DealSolver<3>& solver) {
     // import the quadrangle centroids
     vector<dealii::Point<3>> nodes;
     solver.get_surface_nodes(nodes);
@@ -303,7 +303,7 @@ FieldReader::FieldReader(Interpolator* i) :
         SolutionReader(i, "elfield", "elfield_norm", "potential"),
         E0(0), radius1(0), radius2(0) {}
 
-void FieldReader::compare_shape_funs(fch::PoissonSolver<3> &poisson, const Medium::Sizes &sizes) {
+void FieldReader::compare_shape_funs(PoissonSolver<3> &poisson, const Medium::Sizes &sizes) {
     const double x = sizes.xmid;
     const double y = sizes.ymid;
     const double zmin = 1.0 + sizes.zmax;
@@ -341,7 +341,7 @@ void FieldReader::compare_shape_funs(fch::PoissonSolver<3> &poisson, const Mediu
     }
 }
 
-void FieldReader::compare_interpolators(fch::PoissonSolver<3> &poisson, const Medium::Sizes &sizes) {
+void FieldReader::compare_interpolators(PoissonSolver<3> &poisson, const Medium::Sizes &sizes) {
     const double x = sizes.xmid;
     const double y = sizes.ymid;
     const double zmin = 1.0 + sizes.zmax;
@@ -575,7 +575,7 @@ void FieldReader::interpolate(const Medium &medium) {
         atoms[i].id = medium.get_id(i);
 }
 
-void FieldReader::interpolate(const fch::DealSolver<3>& solver) {
+void FieldReader::interpolate(const DealSolver<3>& solver) {
     store_points(solver);
     calc_interpolation();
 }
@@ -769,7 +769,7 @@ void HeatReader::interpolate(const Medium &medium) {
         atoms[i].id = medium.get_id(i);
 }
 
-void HeatReader::interpolate(fch::DealSolver<3>& solver) {
+void HeatReader::interpolate(DealSolver<3>& solver) {
     store_points(solver);
     calc_interpolation();
 }
@@ -917,7 +917,7 @@ void HeatReader::scale_berendsen_v2(const int n_atoms, double* x1) {
  * ========================================== */
 
 EmissionReader::EmissionReader(const FieldReader *fr, const HeatReader *hr,
-        const fch::PoissonSolver<3> *p, Interpolator* i) :
+        const PoissonSolver<3> *p, Interpolator* i) :
         SolutionReader(i, "none", "rho_norm", "temperature"),
         fields(fr), heat(hr), mesh(NULL), poisson(p)
 {}
@@ -1131,7 +1131,7 @@ string EmissionReader::get_global_data(const bool first_line) const {
     return strs.str();
 }
 
-void EmissionReader::export_emission(fch::CurrentHeatSolver<3>& ch_solver) {
+void EmissionReader::export_emission(CurrentHeatSolver<3>& ch_solver) {
     ch_solver.current.set_bc(current_densities);
     ch_solver.heat.set_bc(nottingham);
 }

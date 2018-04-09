@@ -5,15 +5,15 @@
 #include "PhysicalQuantities.h"
 #include "Macros.h"
 
-namespace fch {
+namespace femocs {
 
 void PhysicalQuantities::initialize_with_hc_data() {
-    std::string ftype = femocs::get_file_type(config.rhofile);
+    std::string ftype = get_file_type(config.rhofile);
     require(ftype=="dat", "Unknown file type: " + config.rhofile);
 
     std::ifstream resfile(config.rhofile);
     if (resfile.is_open()) {
-        femocs::write_verbose_msg("Reading rho table from " + config.rhofile);
+        write_verbose_msg("Reading rho table from " + config.rhofile);
         int Nline;
         resfile >> Nline;
         resistivity_data = std::vector<std::pair<double, double>> (Nline);
@@ -22,7 +22,7 @@ void PhysicalQuantities::initialize_with_hc_data() {
             resfile >> resistivity_data[i].second;
         }
     } else {
-        femocs::write_silent_msg("Resistivity file " + config.rhofile + " not found! Using the values for infinite sized Cu.");
+        write_silent_msg("Resistivity file " + config.rhofile + " not found! Using the values for infinite sized Cu.");
         resistivity_data = hc_resistivity_data;
     }
 
@@ -13421,8 +13421,6 @@ const std::vector<double> PhysicalQuantities::hc_nottingham_data = {
         -0.45218402, -0.45111287, -0.45003721, -0.44895703, -0.44787240, -0.44678324,
         -0.44568965, -0.44459158, -0.44348904, -0.44238210, -0.44127068, -0.44015485,
         -0.43903461, -0.43790999, -0.43678093, -0.43564749
-
 };
 
-} // namespace fch
-
+} // namespace femocs

@@ -19,7 +19,7 @@ namespace femocs {
  * https://cds.cern.ch/record/2226840
  */
 template<int dim>
-Pic<dim>::Pic(fch::PoissonSolver<dim> *poisson, const fch::CurrentHeatSolver<3> *ch_solver,
+Pic<dim>::Pic(PoissonSolver<dim> *poisson, const CurrentHeatSolver<3> *ch_solver,
         const EmissionReader *er, const unsigned int seed) :
         poisson_solver(poisson), ch_solver(ch_solver), emission(er), interpolator(er->interpolator),
         mersenne{seed}

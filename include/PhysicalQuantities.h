@@ -13,7 +13,7 @@
 #include <utility>
 #include "Config.h"
 
-namespace fch {
+namespace femocs {
 
 /** @brief Evaluation tools for emission and conductivities based on tabulated data.
  * Resisitivity data is from literature, emission and nottingham data is pre-calculated
@@ -27,7 +27,7 @@ public:
      * The default constructor initializes the physical values to hardcoded ones.
      * Can be overwritten by loading the data from a file.
      */
-    PhysicalQuantities(const femocs::Config::Heating& config);
+    PhysicalQuantities(const Config::Heating& config);
 
     /**
      * Load emission current data from file
@@ -105,7 +105,7 @@ public:
     void initialize_with_hc_data();
 
 private:
-    const femocs::Config::Heating& config;
+    const Config::Heating& config;
     /**
      * A data structure to hold the uniform grid information,
      * used in bilinear interpolation
@@ -154,6 +154,6 @@ private:
 
 };
 
-} // namespace fch
+} // namespace femocs
 
 #endif /* PHYSICALQUANTITIES_H_ */
