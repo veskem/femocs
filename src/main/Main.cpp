@@ -14,6 +14,7 @@
 #include <stdlib.h>
 
 using namespace std;
+using namespace femocs;
 
 void print_progress(const string& message, const bool contition) {
     cout << message << ":  ";
@@ -24,23 +25,26 @@ void print_progress(const string& message, const bool contition) {
 void write_defaults(ofstream &file) {
     file << "mesh_quality = 1.8"         << endl;
     file << "heating_mode = none"        << endl;
-    file << "write_log = true"           << endl;
+    file << "write_log = false"           << endl;
     file << "clear_output = true"        << endl;
     file << "surface_smooth_factor= 0.1" << endl;
     file << "charge_smooth_factor = 1.0" << endl;
     file << "distance_tol = 0.0"         << endl;
     file << "n_writefile = 1"            << endl;
-    file << "use_histclean = false"      << endl;
     file << "use_rdf = false"            << endl;
-    file << "clean_surface = true"    << endl;
+    file << "clean_surface = true"       << endl;
     file << "surface_thickness = 3.1"    << endl;
     file << "coord_cutoff = 3.1"         << endl;
+    file << "charge_cutoff = 30"         << endl;
     file << "latconst = 3.61"            << endl;
     file << "femocs_verbose_mode = verbose" << endl;
     file << "smooth_steps = 3"           << endl;
     file << "smooth_algorithm = laplace" << endl;
-    file << "elfield = -0.07"            << endl;
+    file << "elfield = -0.1"             << endl;
     file << "interpolation_rank = 1"     << endl;
+    file << "force_mode = all"           << endl;
+    file << "coarse_rate = 0.5"          << endl;
+    file << "seed = 56789"               << endl;
 }
 
 void write_rectangle(ofstream &file) {
@@ -55,6 +59,28 @@ void write_mdsmall(ofstream &file) {
     file << "radius = 16.0"              << endl;
     file << "box_width = 4.0"            << endl;
     file << "box_height = 3.5"           << endl;
+}
+
+void write_heating_small(ofstream &file) {
+    file << "infile = in/nanotip_small.xyz" << endl;
+    file << "coarse_factor = 0.3 4 2"    << endl;
+    file << "radius = 16.0"              << endl;
+    file << "box_width = 4.0"            << endl;
+    file << "box_height = 3.5"           << endl;
+
+    file << "elfield = -0.3"             << endl;
+    file << "heating_mode = transient"    << endl;
+    file << "field_solver = laplace"     << endl;
+}
+
+void write_heating_big(ofstream &file) {
+    file << "infile = in/tip100.ckx"   << endl;
+    file << "coarse_factor = 0.4 8 3"  << endl;
+    file << "radius = 45.0"            << endl;
+
+    file << "elfield = -0.2"             << endl;
+    file << "heating_mode = transient"    << endl;
+    file << "field_solver = poisson"     << endl;
 }
 
 void write_wobble(ofstream &file) {
@@ -156,13 +182,39 @@ void write_tip111(ofstream &file) {
     file << "radius = 45.0"            << endl;
 }
 
-void write_generate(ofstream &file) {
-    file << "infile = in/nanotip_small.xyz" << endl;
-    file << "coarse_factor = 0.2 1 1"  << endl;
-    file << "radius = 31.0"            << endl;
+void write_generate(ofstream &file, string params="") {
+    file << params << endl;
+
+    file << "coarse_factor = 0.35 2 2" << endl;
+    file << "radius = 30"              << endl;
+    file << "tip_height = 0"           << endl;
     file << "box_width = 10.0"         << endl;
     file << "box_height = 10.0"        << endl;
-    file << "clean_surface = false"   << endl;
+    file << "bulk_height = 10.0"       << endl;
+
+    file << "clean_surface = false"    << endl;
+    file << "smooth_steps = 0"         << endl;
+    file << "force_mode = none"        << endl;
+    file << "coarse_rate = 0.5"        << endl;
+
+    file << "n_writefile = 0"          << endl;
+
+    file << "seed = 12345"             << endl;
+//    file << "Vappl = 200"              << endl;
+//    file << "anode_BC = dirichlet"     << endl;
+    file << "anode_BC = neumann"       << endl;
+    file << "elfield = -0.35"          << endl;
+    file << "heating_mode = none"      << endl;
+    file << "field_solver = poisson"   << endl;
+    file << "pic_mode = transient"     << endl;
+
+    file << "pic_dtmax = 1.0"              << endl;
+    file << "femocs_run_time = 4"          << endl;
+    file << "pic_fractional_push = true"   << endl;
+    file << "pic_collide_coulomb_ee = false" << endl;
+    file << "electronWsp = 0.0002"         << endl;
+    file << "emitter_blunt = true"         << endl;
+    file << "emitter_cold = true"          << endl;
 }
 
 void read_xyz(const string &file_name, double* x, double* y, double* z) {
@@ -245,7 +297,7 @@ int main(int argc, char **argv) {
 
     // read the running mode
     if (argc >= 2) {
-        filename = "tmpfile";
+        filename = "md.in.tmp";
 
         sscanf(argv[1], "%s", arg);
         mode = string(arg);
@@ -260,6 +312,8 @@ int main(int argc, char **argv) {
         else if (mode == "tip111")    write_tip111(file);
         else if (mode == "rectangle") write_rectangle(file);
         else if (mode == "mdsmall")   write_mdsmall(file);
+        else if (mode == "heating_small") write_heating_small(file);
+        else if (mode == "heating_big")   write_heating_big(file);
         else if (mode == "mdbig")     write_mdbig(file);
         else if (mode == "stretch")   write_stretch(file);
         else if (mode == "extend")    write_extend(file);
@@ -267,8 +321,33 @@ int main(int argc, char **argv) {
         else if (mode == "cluster")   write_cluster(file);
         else if (mode == "molten")    write_molten(file);
         else if (mode == "moltenbig") write_moltenbig(file);
-        else if (mode == "generate")  write_generate(file);
         else if (mode == "wobble")    write_wobble(file);
+
+        else if (mode == "generate") {
+            if (argc == 2)
+                write_generate(file);
+            else {
+                const int n_params = 4;
+                if (argc - 2 != n_params) {
+                    cout << "Invalid # parameters: " << argc - 2 << endl;
+                    cout << "Valid is 0 or " << n_params << endl;
+                    exit(0);
+                }
+
+                string params = "";
+
+                sscanf(argv[2], "%s", arg);
+                params += "seed = " + string(arg) + "\n";
+                sscanf(argv[3], "%s", arg);
+                params += "Vappl = " + string(arg) + "\n";
+                sscanf(argv[4], "%s", arg);
+                params += "tip_height = " + string(arg) + "\n";
+                sscanf(argv[5], "%s", arg);
+                params += "latconst = " + string(arg) + "\n";
+
+                write_generate(file, params);
+            }
+        }
 
         else {
             printf("Usage:\n");
@@ -282,6 +361,8 @@ int main(int argc, char **argv) {
             printf("  tip110      symmetric nanotip with h/r = 5 and <110> orientation\n");
             printf("  tip111      symmetric nanotip with h/r = 5 and <111> orientation\n");
             printf("  rectangle   symmetric nanotip with rectangular substrate\n");
+            printf("  heating_big    PIC, current & heat solver enabled in big symmetric MD nanotip\n");
+            printf("  heating_small  field, current & heat solver enabled in small MD nanotip\n");
             printf("  stretch     stretch the substrate of small MD nanotip\n");
             printf("  extend      extend the system below the round MD apex\n");
             printf("  tablet      extend the system below the tablet shaped MD apex\n");
@@ -292,7 +373,6 @@ int main(int argc, char **argv) {
             printf("  wobble      read small MD nanotip and add random noise to emulate real MD simulation\n");
 
             file.close();
-            success = system("rm -rf tmpfile");
             exit(0);
         }
 
@@ -303,7 +383,7 @@ int main(int argc, char **argv) {
     cout << "\n> running FEMOCS test program in a mode:  " << mode << endl;
 
     femocs::Femocs femocs(filename);
-    success = system("rm -rf tmpfile");
+    success = system("rm -rf md.in.tmp");
 
     string cmd1 = "infile"; string infile = "";
     success = femocs.parse_command(cmd1, infile);
@@ -311,11 +391,11 @@ int main(int argc, char **argv) {
 
     // determine number of iterations
     int n_iterations = 1;
-    if (argc >= 3) {
-        n_iterations = atoi(argv[2]);
-    }
+//    if (argc >= 3) {
+//        n_iterations = atoi(argv[2]);
+//    }
 
-    int n_atoms = 0, n_points = 100;
+    int n_atoms = 0;
     read_n_atoms(infile, n_atoms);
 
     int* flag  = (int*)    malloc(n_atoms * sizeof(int));
@@ -335,20 +415,17 @@ int main(int argc, char **argv) {
     for (int i = 1; i <= n_iterations; ++i) {
         if (n_iterations > 1) cout << "\n> iteration " << i << endl;
 
-        if (mode == "generate") {
-            if (argc >= 3)
-                success += femocs.generate_nanotip(0, 30, atof(argv[2]));
-            else
-                success += femocs.generate_nanotip(0, 30);
-        } else if (mode == "wobble")
+        if (mode == "generate")
+            success += femocs.generate_nanotip();
+        else if (mode == "wobble")
             success += femocs.import_atoms(infile, true);
         else
             success += femocs.import_atoms(infile);
 
         success += femocs.run();
-        success += femocs.export_elfield(0, Ex, Ey, Ez, En);
+//        success += femocs.export_elfield(0, Ex, Ey, Ez, En);
 //        success += femocs.export_temperature(n_atoms, T);
-        success += femocs.export_charge_and_force(n_atoms, xq);
+//        success += femocs.export_charge_and_force(n_atoms, xq);
 //        success += femocs.interpolate_elfield(n_atoms, x, y, z, Ex, Ey, Ez, En, flag);
 //        success += femocs.interpolate_phi(n_atoms, x, y, z, phi, flag);
     }

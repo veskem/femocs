@@ -3,23 +3,28 @@
 #############################################################################
 
 include build/makefile.defs
+include share/makefile.femocs
 
 all: build/femocs
 
-build/femocs: build/femocs.o
-	${compiler} $< ${OPT} ${CFLAGS} ${cf} ${LFLAGS} ${EXTLFLAGS} -o $@
+build/femocs: build/.build/Makefile src/* include/* ${CXXMAIN}
+	cd build/.build; make -j${NPROCS}
 
-build/femocs.o: lib/libfemocs.a ${main}
-	${compiler} -c ${main} ${OPT} ${CFLAGS} ${cf} -o $@
-	
-build/femocs.debug: build/femocs.debug.o
-	${compiler} $< ${OPT_DEBUG} ${CFLAGS} ${cf} ${LFLAGS} ${EXTLFLAGS} -o $@
+build/.build/Makefile:
+	mkdir -p build/.build;
+	cd build/.build; rm -rf *; cmake -DCMAKE_BUILD_TYPE=Release -DTARGET_TYPE=exec -DLIBCGAL=${LIBCGAL} \
+-DCMAKE_Fortran_COMPILER=${F90} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} ..;
 
-build/femocs.debug.o: lib/libfemocs.a ${main}
-	${compiler} -c ${main} ${OPT_DEBUG} ${CFLAGS} ${cf} -o $@
+build/femocs_debug: build/.build_debug/Makefile src/* include/* ${CXXMAIN}
+	cd build/.build_debug; make -j${NPROCS}
+
+build/.build_debug/Makefile:
+	mkdir -p build/.build_debug;
+	cd build/.build_debug; rm -rf *; cmake -DCMAKE_BUILD_TYPE=Debug -DTARGET_TYPE=exec -DLIBCGAL=${LIBCGAL} \
+-DCMAKE_Fortran_COMPILER=${F90} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} ..;
 
 clean:
-	rm -f build/femocs* include/*.o src/*.o
+	rm -rf build/femocs* build/.build*
 
 clean-all:
-	rm -f build/femocs* include/*.o src/*.o
+	rm -rf build/femocs* build/.build*

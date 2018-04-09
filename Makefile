@@ -14,69 +14,104 @@ all: lib
 
 lib: femocs_lib
 femocs_lib:
-	make -f build/makefile.lib mode=Release
+	@make --no-print-directory -f build/makefile.lib
+
+dlib: femocs_debug_lib
+femocs_debug_lib:
+	make -s -f build/makefile.lib lib/libfemocs_debug.a
 
 test_f90: femocs_lib femocs_f90
 femocs_f90:
-	make -f build/makefile.exec main=${FMAIN} cf=${FCFLAGS} compiler=${F90}
+	@make --no-print-directory -f build/makefile.main main=${FMAIN} compiler=${F90}
 
 test_c: femocs_lib femocs_c
 femocs_c:
-	make -f build/makefile.exec main=${CMAIN} cf=${CCFLAGS} compiler=${CC}
+	@make --no-print-directory -f build/makefile.main main=${CMAIN} compiler=${CC}
 
-solver: femocs_lib femocs_solver
-femocs_solver:
-	make -f build/makefile.exec main=${SOLVERMAIN} cf=${CXXCFLAGS} compiler=${CXX}
+test_cpp: femocs_lib femocs_cpp
+femocs_cpp:
+	@make --no-print-directory -f build/makefile.main main=${CXXMAIN} compiler=${CXX}
 
 release: femocs_lib femocs_release
 femocs_release:
-	make  -f build/makefile.exec main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
+	@make --no-print-directory -f build/makefile.main main=${CXXMAIN} compiler=${CXX}
 
-debug: femocs_debug
+debug: femocs_debug_lib femocs_debug
 femocs_debug:
-	make -f build/makefile.lib mode=Debug
-	make -s -f build/makefile.exec build/femocs.debug main=${CXXMAIN} cf=${CXXCFLAGS} compiler=${CXX}
+	@make -s -f build/makefile.main build/femocs_debug main=${CXXMAIN} compiler=${CXX}
+
+#release: femocs_release
+#femocs_release:
+#	make -s -f build/makefile.exec build/femocs
+#
+#debug: femocs_debug
+#femocs_debug:
+#	make -s -f build/makefile.exec build/femocs_debug
 
 doc: femocs_doc
 femocs_doc:
 	make -f build/makefile.doc
-	
-ubuntu:
-	make -s -f build/makefile.cgal release
-	make -f build/makefile.install
 
-taito:
-	make -s -f build/makefile.cgal taito
-	make -f build/makefile.install
+install-ubuntu:
+	@chmod +x ./build/install.sh
+	@./build/install.sh ubuntu
 
-alcyone:
-	make -f build/makefile.install
+install-taito:
+	@chmod +x ./build/install.sh
+	@./build/install.sh taito
+
+install-alcyone:
+	@chmod +x ./build/install.sh
+	@./build/install.sh alcyone
+
+install-cgal:
+	@chmod +x ./build/install.sh
+	@./build/install.sh cgal
+
+install-no-cgal:
+	@chmod +x ./build/install.sh
+	@./build/install.sh no-cgal
+
+uninstall-all:
+	@chmod +x ./build/uninstall-all.sh
+	./build/uninstall-all.sh
 
 clean:
 	make -s -f build/makefile.lib clean
 	make -s -f build/makefile.exec clean
+	make -s -f build/makefile.main clean
 	make -s -f build/makefile.doc clean
 
 clean-all:
 	make -s -f build/makefile.lib clean-all
 	make -s -f build/makefile.exec clean-all
-	make -s -f build/makefile.install clean-all
-	make -s -f build/makefile.cgal clean-all
+	make -s -f build/makefile.main clean-all
 	make -s -f build/makefile.doc clean-all
 
 help:
 	@echo ''
 	@echo 'make all        pick default build type for Femocs'
-	@echo 'make ubuntu     build in Ubuntu desktop all the external libraries that Femocs needs'
-	@echo 'make taito      build in CSC Taito cluster all the external libraries that Femocs needs'
-	@echo 'make alcyone    build in Alcyone cluster all the external libraries that Femocs needs'
-	@echo 'make lib        build Femocs as static library'
-	@echo 'make solver     build Femocs executable from main file in the FEM solver module'
+	@echo ''
+	@echo 'make install-'
+	@echo '       ubuntu   build in Ubuntu desktop Femocs mandatory dependencies'
+	@echo '       taito    build in CSC Taito cluster all the external libraries that Femocs needs'
+	@echo '       alcyone  build in Alcyone cluster all the external libraries that Femocs needs'
+	@echo '       cgal     build CGAL and enable its usage in the code'
+	@echo '       no-cgal  disable CGAL usage in the code'
+	@echo ''
+	@echo 'make uninstall-'
+	@echo '       all      remove all installation files'
+	@echo ''
+	@echo 'make lib        build Femocs as static library with maximum optimization level'
+	@echo 'make dlib       build Femocs as static library with debugging features enabled'
 	@echo 'make release    build Femocs executable from c++ main with highest optimization level'
 	@echo 'make debug      build Femocs executable from c++ main with debugging features enabled'
+	@echo ''
 	@echo 'make test_f90   build Femocs executable from Fortran main'
 	@echo 'make test_c     build Femocs executable from C main'
-	@echo 'make doc        generate Femocs documentation in html and pdf format
+	@echo 'make test_cpp   build Femocs executable from C++ main'
+	@echo ''
+	@echo 'make doc        generate Femocs documentation in html and pdf format'
 	@echo 'make clean      delete key files excluding installed libraries to start building from the scratch'
 	@echo 'make clean-all  delete all the files and folders produced during the make process'
 	@echo ''

@@ -30,6 +30,9 @@ public:
     /** Look up the configuration parameter with boolean argument */
     int read_command(string param, bool& arg);
 
+    /** Look up the configuration parameter with unsigned integer argument */
+    int read_command(string param, unsigned int& arg);
+
     /** Look up the configuration parameter with integer argument */
     int read_command(string param, int& arg);
 
@@ -52,7 +55,10 @@ public:
     struct Behaviour {
         string verbosity;           ///< Verbose mode: mute, silent, verbose
         int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
-        int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear, 2-quadratic
+        int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
+        double write_period;        ///< Write files every write_period (in fs)
+        double total_time;          ///< Total time evolution within a FEMOCS run call [fs]
+        unsigned int rnd_seed;      ///< Seed for random number generator
     } behaviour;
 
     /** Enable or disable various support features */
@@ -61,7 +67,6 @@ public:
         bool apex_refiner;          ///< Add elements to the nanotip apex
         bool rdf;                   ///< Re-calculate lattice constant and coordination analysis parameters using radial distribution function
         bool output_cleaner;        ///< Clear output folder before the run
-        bool hist_cleaner;          ///< Clean the solution with histogram cleaner
         bool surface_cleaner;       ///< Clean surface by measuring the atom distance from the triangular surface
     } run;
 
@@ -71,15 +76,17 @@ public:
         string element_volume;      ///< Maximum volume of tetrahedra
         int nnn;                    ///< Number of nearest neighbours for given crystal structure
         double latconst;            ///< Lattice constant
-        double coordination_cutoff; ///< Cut-off distance for coordination analysis
-        double cluster_cutoff;      ///< Cut-off distance for cluster analysis; if 0, cluster analysis uses coordination_cutoff instead
-        double surface_thickness;   ///< Maximum distance the surface atom is allowed to be from surface mesh [angstrom]; 0 turns check off
+        double coordination_cutoff; ///< Cut-off distance for coordination analysis [same unit as latconst]
+        double cluster_cutoff;      ///< Cut-off distance for cluster analysis [same unit as latconst]; if 0, cluster analysis uses coordination_cutoff instead
+        double charge_cutoff;       ///< Cut-off distance for calculating Coulomb forces [same unit as latconst]
+        double surface_thickness;   ///< Maximum distance the surface atom is allowed to be from surface mesh [same unit as latconst]; 0 turns check off
         double box_width;           ///< Minimal simulation box width [tip height]
         double box_height;          ///< Simulation box height [tip height]
         double bulk_height;         ///< Bulk substrate height [lattice constant]
 
         /// Radius of cylinder where surface atoms are not coarsened; 0 enables coarsening of all atoms
         double radius;
+        double height;              ///< height of generated artificial nanotip in the units of radius
     } geometry;
 
     /** All kind of tolerances */
@@ -95,26 +102,45 @@ public:
         double distance;
     } tolerance;
 
-    /** Parameters for solving Laplace equation */
-    struct Laplace {
-        double E0;              ///< Value of long range electric field
+    /** Parameters for solving field equation */
+    struct Field {
+        double E0;              ///< Value of long range electric field (Active in case of Neumann anodeBC
         double ssor_param;      ///< Parameter for SSOR preconditioner in DealII
         double phi_error;       ///< Maximum allowed electric potential error
         int n_phi;              ///< Maximum number of Conjugate Gradient iterations in phi calculation
-    } laplace;
+        double V0;              ///< Applied voltage at the anode (active in case of SC emission and Dirichlet anodeBC
+        string anodeBC;         ///< Type of anode boundary condition (Dirichlet or Neumann)
+        string solver;          ///< Type of field equation to be solved; laplace or poisson
+        int element_degree;     ///< Degree of Finite elements (1: linear, 2: quadratic, 3: cubic ...
+    } field;
 
-    /** Heating configuration parameters */
+    /** Heating module configuration parameters */
     struct Heating {
-        string mode;        ///< Method to calculate current density and temperature; none, stationary or transient
+        string mode;                ///< Method to calculate current density and temperature; none, stationary or transient
         string rhofile;             ///< Path to the file with resistivity table
-        double work_function;       ///< Work function [eV]
         double lorentz;             ///< Lorentz number (Wiedemenn-Franz law)
-        double Vappl;               ///< Total voltage for space charge. If <=0 space charge is ignored.
         double t_ambient;           ///< Ambient temperature in heat calculations
         double t_error;             ///< Maximum allowed temperature error in Newton iterations
         int n_newton;               ///< Maximum number of Newton iterations
-        bool blunt;                 ///< Force blunt emitter approximation (good for big systems)
+        int n_cg;                   ///< Max # Conjugate-Gradient iterations
+        double cg_tolerance;        ///< Solution accuracy in Conjugate-Gradient solver
+        double ssor_param;          ///< Parameter for SSOR preconditioner in DealII. Its fine tuning optimises calculation time.
+        double delta_time;          ///< Timestep of time domain integration [sec]
+        string assemble_method;     ///< Method to assemble system matrix for solving heat equation; euler or crank_nicolson
     } heating;
+
+    struct Emission {
+        double work_function;       ///< Work function [eV]
+        bool blunt;                 ///< Force blunt emitter approximation (good for big systems)
+        bool cold;                  ///< force cold field emission approximation (good for low temperatures)
+        double omega_SC;            ///< Voltage correction factor for SC calculation (negative for ignoring SC)
+        double SC_error;            ///< convergence criterion for SC error
+    } emission;
+
+    /** Parameters related to atomic force calculations */
+    struct Force {
+        string mode;                ///< Forces to be calculated; lorentz, all, none
+    } force;
 
     /** Smooth factors for surface faces, surface atoms and charges */
     struct Smoothing {
@@ -131,8 +157,22 @@ public:
         double amplitude;
         int r0_cylinder;
         int r0_sphere;
+        double exponential;
     } cfactor;
 
+    /** Particle In Cell module configuration */
+    struct PIC {
+        string mode;      ///< Pic mode (transient, converge or none)
+        double dt_max;        ///< Maximum PIC timestep [fs];
+                              ///  the actual PIC timestep will be smaller
+                              ///  such that it is an integer fraction of the MD timestep
+        double Wsp_el;        ///< Superparticle weight for electrons
+        bool fractional_push; ///< Do fractional timestep push when injecting electrons?
+
+        bool coll_coulomb_ee; ///< Do 2e->2e Coulomb collisions?
+        int n_write;          ///< Output files every N pic time steps
+    } pic;
+    
 private:
     vector<vector<string>> data;          ///< commands and their arguments found from the input script
 

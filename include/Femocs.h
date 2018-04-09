@@ -10,13 +10,7 @@
 
 #include "AtomReader.h"
 #include "Config.h"
-#include "SolutionReader.h"
-#include "Surface.h"
-#include "Interpolator.h"
-#include "physical_quantities.h"
-#include "currents_and_heating.h"
-#include "currents_and_heating_stationary.h"
-#include "laplace.h"
+#include "GeneralProject.h"
 
 using namespace std;
 namespace femocs {
@@ -41,10 +35,16 @@ public:
     int run(const double elfield, const string& timestep);
 
     /** Function to generate FEM mesh and to solve differential equation(s)
-     * by using the electric field specified in configuration script.
-     * @return 0 - function completed normally; 1 - function did not complete normally
+     * by using the parameters specified in configuration script.
+     * @param timestep  active time step in the host code; if not provided, internal counter will be used
+     * @return          0 - function completed normally; 1 - function did not complete normally
      */
-    int run();
+    int run(const int timestep=-1);
+
+    /** Function to generate artificial nanotip without crystallographic features
+     * @return            success of the operation (always 0)
+     */
+    int generate_nanotip();
 
     /** Function to import atoms from PARCAS
      * @param n_atoms       number of imported atoms
@@ -105,6 +105,15 @@ public:
      */
     int export_charge_and_force(const int n_atoms, double* xq);
 
+    /** Export Laplace + Coulomb force and pair potential on imported atoms
+     * @param n_atoms  number of first atoms the data will be exported
+     * @param xnp      forces in PARCAS format & units (xnp[0] = Fx1, xnp[1] = Fy1, xnp[2] = Fz1, xnp[3] = Fx2 etc)
+     * @param Epair    potential energy per atom
+     * @param Vpair    total potential energy of atoms. Pot. due to Coloumb forces are added here. NOTE: Lorentz is missing!
+     * @return         success of the operation (always 0)
+     */
+    int export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair);
+
     /** Function to linearly interpolate electric field at points anywhere in space
      * @param n_points  number of points where electric field is interpolated; n_points <= 0 turns the interpolation off
      * @param x         x-coordinates of the points of interest
@@ -147,6 +156,34 @@ public:
      */
     int interpolate_phi(const int n_points, const double* x, const double* y, const double* z, double* phi, int* flag);
 
+    /** Export the solution data in the location of imported atoms
+     * @param n_points  number of first imported points where solution is exported; <= 0 turns export off
+     * @param cmd       label specifying the data to be exported
+     * @param data      array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
+     */
+    int export_results(const int n_points, const char cmd, double* data);
+
+    /** Export the solution data in the location of specified points
+     * @param n_points  number of points in x,y,z arrays; <= 0 turns interpolation off
+     * @param cmd       label specifying the data to be exported
+     * @param x,y,z     coordinates of the points
+     * @param data      array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
+     * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
+     */
+    int interpolate_results(const int n_points, const char cmd,
+            const double* x, const double* y, const double* z, double* data, int* flag);
+
+    /** Export the solution data in the location of specified points.
+     * Points are assumed to be near the surface, allowing to make interpolation faster.
+     * @param n_points  number of points in x,y,z arrays; <= 0 turns interpolation off
+     * @param cmd       label specifying the data to be exported
+     * @param x,y,z     coordinates of the points
+     * @param data      array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
+     * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
+     */
+    int interpolate_surface_results(const int n_points, const char cmd,
+            const double* x, const double* y, const double* z, double* data, int* flag);
+
     /**
      * Function to parse integer argument of the command from input script
      * @param command   name of the command which's argument should be parsed
@@ -179,77 +216,15 @@ public:
      */
     int parse_command(const string& command, string& arg);
 
-    /** Function to generate artificial nanotip without crystallographic features
-     * @param height      height of the tip sides in units of radius; the total tip height is therefore (height + 1)*radius; negative value makes open void instead of tip
-     * @param radius      radius of the tip; if not specified, its value is taken from the configuration script
-     * @param resolution  distance between the atoms; if not specified, its value will be equal to lattice constant
-     * @return            success of the operation (always 0)
-     */
-    int generate_nanotip(const double height, const double radius=-1, const double resolution=-1);
-
-    /** Generate bulk and vacuum meshes using the imported atomistic data */
-    int generate_meshes();
-
-    /** Solve Laplace equation on vacuum mesh */
-    int solve_laplace(const double E0);
-
-    /** Pick a method to solve heat and continuity equations on bulk mesh */
-    int solve_heat(const double T_ambient);
-
-    /** Determine whether atoms have moved significantly and whether to enable file writing */
-    int reinit(const int timestep=-1);
-
-    /** Store the imported atom coordinates and set the flag that enables exporters */
-    int finalize();
-
     /** Force the data to the files for debugging purposes */
     int force_output();
 
 private:
-    bool skip_calculations, fail;
     double t0;
-    int timestep;           ///< counter to measure how many times Femocs has been called
-    int last_full_timestep; ///< last time step Femocs did full calculation
-    string timestep_string; ///< time step written to file name
-    vector<Vec3> areas;     ///< surface areas of Voronoi cells that is exposed to vacuum
-    vector<int> atom2face;  ///< surface atom to triangle index map
-    
-    Config conf;            ///< configuration parameters
-    Coarseners coarseners;  ///< surface coarsening data & routines
-    AtomReader reader;      ///< all the imported atoms
-    Surface dense_surf;     ///< non-coarsened surface atoms
-    Surface extended_surf;  ///< atoms added for the surface atoms
 
-    TetgenMesh fem_mesh;    ///< FEM mesh in the whole simulation domain (both bulk and vacuum)
-
-    Interpolator vacuum_interpolator = Interpolator(&fem_mesh, "elfield", "potential");
-    Interpolator bulk_interpolator = Interpolator(&fem_mesh, "rho", "temperature");
-
-    HeatReader  temperatures = HeatReader(&bulk_interpolator); ///< temperatures & current densities on bulk atoms
-    FieldReader fields = FieldReader(&vacuum_interpolator);       ///< fields & potentials on surface atoms
-    ForceReader forces = ForceReader(&vacuum_interpolator);       ///< forces & charges on surface atoms
-
-    /// physical quantities used in heat calculations
-    fch::PhysicalQuantities phys_quantities = fch::PhysicalQuantities(conf.heating);
-
-    fch::Laplace<3> laplace_solver;                       ///< Laplace equation solver
-    fch::CurrentsAndHeatingStationary<3>  ch_solver1;     ///< first    steady-state currents and heating solver
-    fch::CurrentsAndHeatingStationary<3>  ch_solver2;     ///< second   steady-state currents and heating solver
-    fch::CurrentsAndHeatingStationary<3>* ch_solver;      ///< active   steady-state currents and heating solver
-    fch::CurrentsAndHeatingStationary<3>* prev_ch_solver; ///< previous steady-state currents and heating solver
-    fch::CurrentsAndHeating<3> ch_transient_solver;       ///< transient currents and heating solver
-
-    /** Generate boundary nodes for mesh */
-    int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
-
-    /** Solve steady-state heat and continuity equations */
-    int solve_stationary_heat();
-
-    /** Solve transient heat and continuity equations */
-    int solve_transient_heat(const double delta_time);
-
-    /** Solve transient heat and continuity equation until convergence is reached */
-    int solve_converge_heat();
+    Config conf;             ///< configuration parameters
+    AtomReader reader;       ///< all the imported atoms
+    GeneralProject *project; ///< project Femocs is going to run
 };
 
 } /* namespace femocs */

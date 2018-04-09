@@ -5,14 +5,16 @@
  *      Author: veske
  */
 
-#include "Macros.h"
-
 #include <omp.h>
 #include <algorithm>
 #include <fstream>
 #include <numeric>
 
+#include "Macros.h"
+#include "Globals.h"
+
 using namespace std;
+namespace femocs {
 
 const string FEMOCSLOGPATH = "out/femocs.log";
 
@@ -45,6 +47,15 @@ void requirement_fails(const char *file, int line, string message) {
 void expectation_fails(const char *file, int line, string message) {
     string exc = "\nFEMOCS WARNING:\nfile = " + string(file) + "\nline = " + d2s(line) + "\n" + message;
     cout << exc << endl;
+}
+
+double periodic_image(double p, double max, double min){
+    require(max > min, "maxbox  must be  > minbox. max = " + to_string(max) + "min = " + to_string(min));
+    double from_max = p - max;
+    double from_min = p - min;
+    if (from_max > 0) return min + from_max;
+    if (from_min < 0) return max + from_min;
+    return p;
 }
 
 // Write debug message to console and log file and start timer
@@ -178,3 +189,5 @@ string get_file_type(const string& file_name) {
     const int end = file_name.size();
     return file_name.substr(start, end);
 }
+
+} /* namespace femocs */

@@ -17,43 +17,46 @@ namespace femocs {
 
 // Coarsener constructors
 Coarsener::Coarsener() :
-        origin3d(Point3(0)), cutoff2(0), radius(0), radius2(0), r0_min(0), r0_max(0), A(0) {}
+        origin3d(Point3(0)), exponential(0.5), cutoff2(0), radius(0), radius2(0), r0_min(0), r0_max(0), A(0) {}
 
-Coarsener::Coarsener(const Point3 &origin, const double radius, const double A, const double r0_min, const double r0_max) :
-        origin3d(origin), cutoff2(0), radius(radius), radius2(radius*radius), r0_min(r0_min), r0_max(r0_max), A(A) {}
+Coarsener::Coarsener(const Point3 &origin, const double exp, const double radius,
+        const double A, const double r0_min, const double r0_max) :
+        origin3d(origin), exponential(exp), cutoff2(0), radius(radius), radius2(radius*radius),
+        r0_min(r0_min), r0_max(r0_max), A(A) {}
 
 // ConstCoarsener for coarsening area uniformly
 ConstCoarsener::ConstCoarsener() : Coarsener() {}
 
-ConstCoarsener::ConstCoarsener(const double r0_min) : Coarsener(Point3(), 0, 0, r0_min) {}
+ConstCoarsener::ConstCoarsener(const double r0_min) : Coarsener(Point3(), 0, 0, 0, r0_min) {}
 
 // FlatlandCoarsener for coarsening area outside one infinite cylinder
-FlatlandCoarsener::FlatlandCoarsener() : Coarsener(), origin2d(Point2(0.0)) {}
+FlatlandCoarsener::FlatlandCoarsener() : Coarsener(), origin2d(0.0) {}
 
-FlatlandCoarsener::FlatlandCoarsener(const Point3 &origin, const double radius, const double A,
-        const double r0_min, const double r0_max) :
-        Coarsener(origin, radius, A, r0_min, r0_max),
-        origin2d(Point2(origin.x, origin.y)) {}
+FlatlandCoarsener::FlatlandCoarsener(const Point3 &origin, const double exp, const double radius,
+        const double A, const double r0_min, const double r0_max) :
+        Coarsener(origin, exp, radius, A, r0_min, r0_max),
+        origin2d(origin.x, origin.y) {}
 
 // CylinderCoarsener for coarsening area inside one infinite cylinder
-CylinderCoarsener::CylinderCoarsener() : Coarsener() {}
+CylinderCoarsener::CylinderCoarsener() : Coarsener(), origin2d(0.0) {}
 
-CylinderCoarsener::CylinderCoarsener(const Point2 &base, const double radius, const double r0_cylinder) :
-        Coarsener(Point3(), radius, 0, r0_cylinder), origin2d(base) {}
+CylinderCoarsener::CylinderCoarsener(const Point2 &base, const double exp, const double radius,
+        const double r0_cylinder) :
+        Coarsener(Point3(), exp, radius, 0, r0_cylinder), origin2d(base.x, base.y) {}
 
 // NanotipCoarsener for coarsening area inside one infinite vertical nanotip
-NanotipCoarsener::NanotipCoarsener() : Coarsener(), origin2d(Point2()) {}
+NanotipCoarsener::NanotipCoarsener() : Coarsener(), origin2d(0.0) {}
 
-NanotipCoarsener::NanotipCoarsener(const Point3 &apex, const double radius, const double A,
-        const double r0_apex, const double r0_cylinder) :
-        Coarsener(apex, radius, A, r0_apex, r0_cylinder), origin2d(Point2(apex.x, apex.y)) {}
+NanotipCoarsener::NanotipCoarsener(const Point3 &apex, const double exp, const double radius,
+        const double A, const double r0_apex, const double r0_cylinder) :
+        Coarsener(apex, exp, radius, A, r0_apex, r0_cylinder), origin2d(apex.x, apex.y) {}
 
 // TiltedNanotipCoarsener for coarsening area inside one infinite tilted nanotip
 TiltedNanotipCoarsener::TiltedNanotipCoarsener() : NanotipCoarsener(), bottom(Vec3()), axis(Vec3()), height2(0) {}
 
-TiltedNanotipCoarsener::TiltedNanotipCoarsener(const Point3 &apex, const Point3 &base, const double radius,
-        const double A, const double r0_apex, const double r0_cylinder) :
-        NanotipCoarsener(apex, radius, A, r0_apex, r0_cylinder), bottom(Vec3(base.x, base.y, base.z)) {
+TiltedNanotipCoarsener::TiltedNanotipCoarsener(const Point3 &apex, const Point3 &base, const double exp,
+        const double radius, const double A, const double r0_apex, const double r0_cylinder) :
+        NanotipCoarsener(apex, exp, radius, A, r0_apex, r0_cylinder), bottom(Vec3(base.x, base.y, base.z)) {
 
     Vec3 top(apex.x, apex.y, apex.z);
     axis = top - bottom;
@@ -183,6 +186,7 @@ void Coarseners::generate(const Medium &medium, const double radius, const Confi
     require(n_atoms > 0, "Not enough points to generate coarseners: " + to_string(n_atoms));
     require(cf.r0_cylinder >= 0 && cf.r0_sphere >= 0, "Coarsening factors must be non-negative!");
     require(cf.r0_cylinder >= cf.r0_sphere, "Coarsening factor in cylinder wall must be >= coarsening factor in apex!");
+    require(cf.exponential > 0, "Coarsening rate must be positive!");
 
     const double z_bot = get_z_mean(medium);  // medium.sizes.zmin;
     const double z_top = max(z_bot, medium.sizes.zmax - 0.5*radius);
@@ -199,8 +203,8 @@ void Coarseners::generate(const Medium &medium, const double radius, const Confi
     const double r0_flat = min(amplitude*1e20, r0_cylinder);
 
     coarseners.clear();
-    attach_coarsener( make_shared<NanotipCoarsener>(apex, radius, amplitude, r0_sphere, r0_cylinder) );
-    attach_coarsener( make_shared<FlatlandCoarsener>(centre, radius, amplitude, r0_flat) );
+    attach_coarsener( make_shared<NanotipCoarsener>(apex, cf.exponential, radius, amplitude, r0_sphere, r0_cylinder) );
+    attach_coarsener( make_shared<FlatlandCoarsener>(centre, cf.exponential, radius, amplitude, r0_flat) );
 }
 
 // Return the average z-coordinate of substrate atoms
@@ -227,7 +231,7 @@ double Coarseners::get_z_mean(const Medium& medium) {
     int n_average = 0;
     for (int i = 0; i< n_atoms; ++i) {
         double z = medium.get_point(i).z;
-        if (z >= zmin && z < zmax) {
+        if (z >= zmin && z <= zmax) {
             zmean += z;
             n_average++;
         }

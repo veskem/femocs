@@ -94,26 +94,6 @@ void Surface::extract(const AtomReader& reader, const int type, const bool inver
     sort_atoms(3, "down");
 }
 
-void Surface::transform(const double latconst) {
-    const int n_atoms = size();
-    calc_statistics();
-    Point3 origin(sizes.xmid, sizes.ymid, sizes.zmid);
-
-    double fx = 1.0 + 3.0 * latconst / sizes.xbox;
-    double fy = 1.0 + 3.0 * latconst / sizes.ybox;
-    double fz = 1.0 + 3.0 * latconst / sizes.zbox;
-    Point3 df(fx, fy, fz);
-
-    for (int i = 0; i < n_atoms; ++i)
-        atoms[i].point *= df;
-
-    calc_statistics();
-    origin -= Point3(sizes.xmid, sizes.ymid, sizes.zmid);
-
-    for (int i = 0; i < n_atoms; ++i)
-        atoms[i].point += origin;
-}
-
 // Extend the flat area by reading additional atoms
 Surface Surface::extend(const string &file_name, Coarseners &coarseners) {
     AtomReader reader;
@@ -130,6 +110,8 @@ Surface Surface::extend(const string &file_name, Coarseners &coarseners) {
 // Extend the flat area by generating additional atoms
 void Surface::extend(Surface& extension, Coarseners &cr, const double latconst, const double box_width) {
     calc_statistics();
+
+    if(cr.get_r0_inf(sizes) <=0 ) return;
     const double desired_box_width = box_width * sizes.zbox;
     const double z = cr.centre.z;
 
@@ -221,7 +203,7 @@ Surface Surface::clean(Coarseners &coarseners) {
 // Clean atoms inside the region of interest
 Surface Surface::clean_roi(Coarseners &coarseners) {
     const int n_atoms = size();
-    vector<int> do_delete(n_atoms);
+    vector<int> do_delete(n_atoms, 0);
 
     // mark atoms outside the nanotip
     for (int i = 0; i < n_atoms; ++i)
@@ -252,8 +234,72 @@ Surface Surface::clean_roi(Coarseners &coarseners) {
     return surf;
 }
 
+void Surface::coarsen(Surface &surf, Coarseners &coarseners) {
+    coarsen(surf, coarseners, sizes);
+}
+
+/* TODO: Leaves bigger holes into system than brute force method,
+ * because the atoms in linked list are not radially ordered. Do something about it! */
+void Surface::coarsen(Surface &surf, Coarseners &coarseners, const Medium::Sizes &s) {
+    calc_linked_list(coarseners.get_r0_inf(s));
+
+    const int n_atoms = size();
+    require(list.size() == n_atoms, "Invalid linked list size: " + to_string(list.size()));
+    require(head.size() == nborbox_size[0]*nborbox_size[1]*nborbox_size[2],
+            "Invalid linked list header size: " + to_string(head.size()));
+
+    vector<int> do_delete(n_atoms, false);
+
+    // loop through the atoms
+    for (int i = 0; i < n_atoms; ++i) {
+        // skip the atoms that are already deleted
+        if (do_delete[i]) continue;
+
+        array<int,3>& i_atom = nborbox_indices[i];
+        int i_cell = (i_atom[2] * nborbox_size[1] + i_atom[1]) * nborbox_size[0] + i_atom[0];
+
+        Point3 point1 = atoms[i].point;
+        coarseners.pick_cutoff(point1);
+
+        // loop through the boxes where the neighbours are located; there are up to 3^3=27 boxes
+        for (int iz = i_atom[2]-1; iz <= i_atom[2]+1; ++iz) {
+            // some of the iterations are be skipped if the box is on the simu box boundary
+            if (iz < 0 || iz >= nborbox_size[2]) continue;
+            for (int iy = i_atom[1]-1; iy <= i_atom[1]+1; ++iy) {
+                if (iy < 0 || iy >= nborbox_size[1]) continue;
+                for (int ix = i_atom[0]-1; ix <= i_atom[0]+1; ++ix) {
+                    if (ix < 0 || ix >= nborbox_size[0]) continue;
+
+                    // transform volumetric neighbour box index to linear one
+                    int i_cell = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
+                    require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + to_string(i_cell));
+
+                    // get the index of first atom in given neighbouring cell
+                    int j = head[i_cell];
+
+                    // loop through all atoms in a given neighbouring cell
+                    while(j >= 0) {
+                        require(j < n_atoms, "Invalid index in linked list: " + to_string(j));
+                        // skip the same atoms and the atoms that are already deleted
+                        if (!do_delete[j] && i != j)
+                            do_delete[j] = coarseners.nearby(point1, get_point(j));
+                        j = list[j];
+                    }
+                }
+            }
+        }
+    }
+
+    // Store coarsened surface
+    surf.reserve(n_atoms);
+    for (int i = 0; i < n_atoms; ++i)
+        if (!do_delete[i])
+            surf.append(get_atom(i));
+    surf.calc_statistics();
+}
+
 // Remove the atoms that are too far from surface faces
-void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const double r_cut) {
+void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const TetgenMesh* mesh, const double r_cut) {
     if (r_cut <= 0) return;
 
     const int n_atoms = size();
@@ -262,13 +308,14 @@ void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpola
     surf2face.clear();
     surf2face.reserve(n_atoms);
 
-    interpolator.lintris.precompute();
+    interpolator.lintri.set_mesh(mesh);
+    interpolator.lintri.precompute();
 
     int face = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Atom atom = get_atom(i);
-        face = abs(interpolator.lintris.locate_cell(atom.point, face));
-        if (interpolator.lintris.fast_distance(atom.point, face) < r_cut) {
+        face = abs(interpolator.lintri.locate_cell(atom.point, face));
+        if (interpolator.lintri.fast_distance(atom.point, face) < r_cut) {
             atom.marker = face;
             _atoms.push_back(atom);
             surf2face.push_back(face);
@@ -277,117 +324,6 @@ void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpola
 
     atoms = _atoms;
     calc_statistics();
-}
-
-int Surface::calc_voronois(VoronoiMesh& voromesh, vector<bool>& node_in_nanotip,
-        const double radius, const double latconst, const string& mesh_quality)
-{
-    const int n_this_nodes = size();
-    const double radius2 = radius * radius;
-    Medium::calc_statistics();
-
-    // Make map for atoms in nanotip
-    Point2 centre(sizes.xmid, sizes.ymid);
-    node_in_nanotip = vector<bool>(n_this_nodes);
-    for (int i = 0; i < n_this_nodes; ++i)
-        node_in_nanotip[i] = centre.distance2(get_point2(i)) <= radius2;
-
-    const int n_nanotip_nodes = vector_sum(node_in_nanotip);
-
-    // Separate nanotip from substrate
-    Medium nanotip(n_nanotip_nodes);
-    for (int i = 0; i < n_this_nodes; ++i)
-        if (node_in_nanotip[i])
-            nanotip.append(get_atom(i));
-
-    nanotip.calc_statistics();
-
-    double t0;
-    start_msg(t0, "  Generating Voronoi mesh...");
-
-    // Generate Voronoi cells around the nanotip
-    // r - reconstruct, v - output Voronoi cells, Q - quiet, q - mesh quality
-    int errcode = voromesh.generate(nanotip, latconst, "rQq" + mesh_quality, "vQ");
-    if (errcode) return errcode;
-
-    // Clean the mesh from faces and cells that have node in the infinity
-    voromesh.clean();
-    end_msg(t0);
-
-    voromesh.nodes.write("out/voro_nodes.vtk");
-    voromesh.vfaces.write("out/voro_faces.vtk");
-    voromesh.voros.write("out/voro_cells.vtk");
-
-    return 0;
-}
-
-int Surface::clean_by_voronois(const double radius, const double latconst, const string& mesh_quality) {
-    // Extract nanotip
-    Surface nanotip;
-    vector<bool> node_in_nanotip;
-    const int n_nanotip_nodes = get_nanotip(nanotip, node_in_nanotip, radius);
-
-    // Generate Voronoi cells around the nanotip
-    VoronoiMesh mesh;
-
-    // r - reconstruct, v - output Voronoi cells, Q - quiet, q - mesh quality
-    // F - suppress output of faces and edges, B - suppress output of boundary info
-    const int err_code = mesh.generate(nanotip, latconst, "rQFBq" + mesh_quality, "vQFB");
-    if (err_code) return err_code;
-
-    // Clean the mesh from faces and cells that have node in the infinity
-    mesh.clean();
-
-    // Extract the surface faces and cells
-    mesh.mark_mesh(nanotip, latconst);
-
-//    mesh.nodes.write("out/voro_nodes.vtk");
-//    mesh.vfaces.write("out/voro_faces.vtk");
-//    mesh.voros.write("out/voro_cells.vtk");
-
-    require(mesh.nodes.size() > 0, "Empty Voronoi mesh cannot be handled!");
-    require(mesh.voros.size() > 0, "Empty Voronoi mesh cannot be handled!");
-
-    // delete atoms whose Voronoi cell is not exposed to vacuum
-    vector<Atom> _atoms;
-    _atoms.reserve(size());
-
-    int cell = 0;
-    for (int i = 0; i < size(); ++i)
-        if (node_in_nanotip[i]) {
-            if (mesh.voros.get_marker(cell++) == TYPES.SURFACE)
-                _atoms.push_back(get_atom(i));
-        } else
-            _atoms.push_back(get_atom(i));
-
-    atoms = _atoms;
-    calc_statistics();
-
-    return 0;
-}
-
-// Separate cylindrical region from substrate region
-int Surface::get_nanotip(Surface& nanotip, vector<bool>& atom_in_nanotip, const double radius) {
-    const int n_atoms = size();
-    const double radius2 = radius * radius;
-    Medium::calc_statistics();
-
-    // Make map for atoms in nanotip
-    Point2 centre(sizes.xmid, sizes.ymid);
-    atom_in_nanotip = vector<bool>(n_atoms);
-    for (int i = 0; i < n_atoms; ++i)
-        atom_in_nanotip[i] = centre.distance2(get_point2(i)) <= radius2;
-
-    const int n_nanotip_atoms = vector_sum(atom_in_nanotip);
-
-    // Separate nanotip from substrate
-    nanotip.reserve(n_nanotip_atoms);
-    for (int i = 0; i < n_atoms; ++i)
-        if (atom_in_nanotip[i])
-            nanotip.append(Atom(i, get_point(i), TYPES.SURFACE));
-
-    nanotip.calc_statistics();
-    return n_nanotip_atoms;
 }
 
 // Separate cylindrical region from substrate region
@@ -475,82 +411,4 @@ void Surface::smoothen(const double smooth_factor, const double r_cut) {
     }
 }
 
-// Smoothen the atoms inside the cylinder
-void Surface::smoothen(const Config& conf, const double r_cut) {
-    if (r_cut <= 0) return;
-
-    // Calculate the horizontal span of the surface
-    calc_statistics();
-
-    Surface nanotip;
-    get_nanotip(nanotip, conf.geometry.radius);
-
-    vector<vector<unsigned>> nborlist;
-    nanotip.calc_nborlist(nborlist, conf.geometry.nnn, r_cut);
-
-    for (int i = 0; i < 3; ++i) {
-        nanotip.laplace_smooth(conf.smoothing.lambda_mesh, nborlist);
-        nanotip.laplace_smooth(conf.smoothing.mu_mesh, nborlist);
-    }
-
-    *this += nanotip;
-}
-
-// Apply one cycle of Taubin lambda|mu algorithm
-void Surface::laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist) {
-    size_t n_nodes = size();
-    vector<Point3> displacements(n_nodes);
-
-    // Get per-vertex displacement
-    for (size_t i = 0; i < n_nodes; ++i) {
-        // Skip lonely vertices
-        if (nborlist[i].size() == 0)
-            continue;
-
-        const double weight = 1.0 / nborlist[i].size();
-
-        // Sum the displacements
-        Point3 point = get_point(i);
-        for(size_t nbor : nborlist[i])
-            displacements[i] += (get_point(nbor) - point) * weight;
-    }
-
-    // Apply per-point displacement
-    for (size_t i = 0; i < n_nodes; ++i)
-        atoms[i].point += displacements[i] * scale;
-}
-
-
-// Calculate list of close neighbours using brute force technique
-void Surface::calc_nborlist(vector<vector<unsigned>>& nborlist, const int nnn, const double r_cut) {
-    require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
-
-    const size_t n_atoms = size();
-    const double r_cut2 = r_cut * r_cut;
-    const double eps = 0.001 * r_cut;
-
-    // Initialise list of closest neighbours
-    nborlist = vector<vector<unsigned>>(n_atoms);
-    for (int i = 0; i < n_atoms; ++i)
-        nborlist[i].reserve(nnn);
-
-    // Loop through all the atoms
-    for (size_t i = 0; i < n_atoms - 1; ++i) {
-
-        Point3 point1 = get_point(i);
-
-        // Skip the points that are on the boundary of simubox
-        if (on_boundary(point1.x, sizes.xmin, sizes.xmax, eps) ||
-                on_boundary(point1.y, sizes.ymin, sizes.ymax, eps))
-            continue;
-
-        // Loop through all the possible neighbours of the atom
-        for (size_t j = i + 1; j < n_atoms; ++j) {
-            if ( r_cut2 >= point1.distance2(get_point(j)) ) {
-                nborlist[i].push_back(j);
-                nborlist[j].push_back(i);
-            }
-        }
-    }
-}
 } /* namespace femocs */

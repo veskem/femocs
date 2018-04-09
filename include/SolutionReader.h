@@ -14,8 +14,9 @@
 #include "TetgenMesh.h"
 #include "VoronoiMesh.h"
 #include "Interpolator.h"
-#include "currents_and_heating.h"
-#include "currents_and_heating_stationary.h"
+#include "Config.h"
+#include "CurrentHeatSolver.h"
+#include "DealSolver.h"
 
 using namespace std;
 namespace femocs {
@@ -39,33 +40,38 @@ public:
     /** Print statistics about interpolated solution */
     void print_statistics();
 
-    /** Append solution */
-    void append_interpolation(const Solution& s);
-
     /** Get pointer to interpolation vector */
-    vector<Solution>* get_interpolations();
+    vector<Solution>* get_interpolations() { return &interpolation; }
 
     /** Get i-th Solution */
-    Solution get_interpolation(const int i) const;
+    Solution get_interpolation(const int i) const {
+        require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + to_string(i));
+        return interpolation[i];
+    }
 
     /** Set i-th Solution */
-    void set_interpolation(const int i, const Solution& s);
+    void set_interpolation(const int i, const Solution& s) {
+        require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + to_string(i));
+        interpolation[i] = s;
+    }
 
     /** Set interpolation preferences */
-    void set_preferences(const bool _srt, const int _dim, const int _rank, const double _empty_val=0) {
+    void set_preferences(const bool _srt, const int _dim, const int _rank) {
         require((_dim == 2 || _dim == 3), "Invalid interpolation dimension: " + to_string(_dim));
-        require((_rank == 1 || _rank == 2), "Invalid interpolation rank: " + to_string(_rank));
+        require((_rank == 1 || _rank == 2 || _rank == 3), "Invalid interpolation rank: " + to_string(_rank));
         sort_atoms = _srt;
         dim = _dim;
         rank = _rank;
-        empty_val = _empty_val;
     }
+
+    /** Alter the pointer to interpolator */
+    void set_interpolator(Interpolator* i) { interpolator = i; }
 
     /** Calculate statistics about coordinates and solution */
     void calc_statistics();
 
-    /** Check and replace the NaNs and peaks in the solution */
-    bool clean(const double r_cut, const bool use_hist_clean);
+    /** Store the surface mesh centroids of the FEM solver */
+    void store_points(const DealSolver<3>& solver);
 
     /** Statistics about solution */
     struct Statistics {
@@ -74,6 +80,14 @@ public:
         double scal_min;      ///< minimum value of scalar
         double scal_max;      ///< maximum value of scalar
     } stat;
+
+    /** General function to export desired component of calculated data */
+    int export_results(const int n_points, const string &data_type, const bool append, double* data);
+
+    /** General function to first perform interpolation
+     * and then export desired component of calculated data */
+    int interpolate_results(const int n_points, const string &data_type, const double* x,
+            const double* y, const double* z, double* data);
 
 protected:
     const string vec_label;       ///< label for vector data
@@ -84,7 +98,6 @@ protected:
     bool sort_atoms;              ///< sort atoms along Hilbert curve to make interpolation faster
     int dim;                      ///< location of interpolation; 2-surface, 3-space
     int rank;                     ///< interpolation rank; 1-linear, 2-quadratic
-    double empty_val;             ///< empty value written to solution vector in case of empty interpolator
 
     Interpolator* interpolator;    ///< pointer to interpolator
     vector<Solution> interpolation;       ///< interpolated data
@@ -99,24 +112,27 @@ protected:
     /** Get information about data vectors for .vtk file. */
     void get_point_data(ofstream& out) const;
 
-    /** Function to clean the result from peaks
-     * The cleaner makes the histogram for given component of electric field and applies smoothing
-     * for the atoms, where field has diverging values.
-     * For example, if histogram looks like [10 7 2 4 1 4 2 0 0 2], then the field on the two atoms that
-     * made up the entries to last bin will be replaced by the average field around those two atoms. */
-    void histogram_clean(const int coordinate, const double r_cut);
-
-    void get_histogram(vector<int> &bins, vector<double> &bounds, const int coordinate);
-
-    Solution get_average_solution(const int I, const double r_cut);
-
-    int get_nanotip(Medium& nanotip, vector<bool>& atom_in_nanotip, const double radius);
+    /** Find the cell that surrounds i-th atom and interpolate the solution for it.
+     * @param cell   initial guess for the cell that might surround the point
+     * @return cell index that was found to surround the point */
+    int update_interpolation(const int i, int cell);
 };
 
 /** Class to extract solution from DealII calculations */
 class FieldReader: public SolutionReader {
 public:
+
     FieldReader(Interpolator* i);
+
+    void compare_shape_funs(PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
+    void compare_interpolators(PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
+    void test_corners(const TetgenMesh& mesh) const;
+    void compare_space(const Medium::Sizes &sizes);
+    void compare_surface(const Medium &medium);
+    void perform_comparison(const string &file_name);
+
+    /** Interpolate solution on the surface mesh centroids of the FEM solver */
+    void interpolate(const DealSolver<3>& solver);
 
     /** Interpolate electric field and potential on a Medium atoms */
     void interpolate(const Medium &medium);
@@ -124,39 +140,52 @@ public:
     /** Interpolate electric field and potential on a set of points */
     void interpolate(const int n_points, const double* x, const double* y, const double* z);
 
-    /** Calculate the electric field for the stationary current and temperature solver */
-    void transfer_elfield(fch::CurrentsAndHeatingStationary<3>* ch_solver);
-
-    /** Calculate the electric field for the transient current and temperature solver */
-    void transfer_elfield(fch::CurrentsAndHeating<3>& ch_solver);
-
-    /** Interpolate electric field on set of points using the solution on tetrahedral mesh nodes
-     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    void export_elfield(const int n_points, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
-
-    /** Interpolate electric potential on set of points using the solution on tetrahedral mesh nodes
-     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    void export_potential(const int n_points, double* phi, int* flag);
-
-    /** Export calculated electic field distribution to HOLMOD */
-    void export_solution(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
-
     /** Return electric field in i-th interpolation point */
-    Vec3 get_elfield(const int i) const;
+    Vec3 get_elfield(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].vector;
+    }
 
     /** Return electric field norm in i-th interpolation point */
-    double get_elfield_norm(const int i) const;
+    double get_elfield_norm(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].norm;
+    }
 
     /** Return electric potential in i-th interpolation point */
-    double get_potential(const int i) const;
+    double get_potential(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].scalar;
+    }
 
     /** Compare the analytical and calculated field enhancement.
      * The check is disabled if lower and upper limits are the same. */
     bool check_limits(const vector<Solution>* solutions=NULL) const;
 
+    /** Find the maximum field norm from the solution vector */
+    double calc_max_field(const vector<Solution>* solutions=NULL) const;
+
     /** Set parameters to calculate analytical solution */
     void set_check_params(const double E0, const double limit_min, const double limit_max,
             const double radius1, const double radius2=-1);
+
+    /** Export calculated electic field distribution to HELMOD */
+    int export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
+
+    /** Interpolate electric field on set of points using the solution on surface mesh nodes
+     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
+    int interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
+            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
+
+    /** Interpolate electric field on set of points using the solution on volumetric mesh nodes
+     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
+    int interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
+            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
+
+    /** Interpolate electric potential on set of points using the solution on tetrahedral mesh nodes
+     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
+    int interpolate_phi(const int n_points, const double* x, const double* y, const double* z,
+            double* phi, int* flag);
 
 private:
     /** Data needed for comparing numerical solution with analytical one */
@@ -172,14 +201,12 @@ private:
 
     /** Get analytical field enhancement for hemi-ellipsoid on infinite surface */
     double get_analyt_enhancement() const;
-
-    /** Interpolate electric field for heating module */
-    void interpolate(vector<double>& elfields, const vector<dealii::Point<3>>& nodes);
 };
 
 /** Class to interpolate current densities and temperatures */
 class HeatReader: public SolutionReader {
 public:
+
     HeatReader(Interpolator* i);
 
     /** Interpolate solution on medium atoms */
@@ -187,44 +214,82 @@ public:
 
     /** Linearly interpolate currents and temperatures in the bulk.
      *  In case of empty interpolator, constant values are stored. */
-    void interpolate(fch::CurrentsAndHeating<3>& ch_solver);
+    void interpolate(DealSolver<3>& solver);
 
     /** Export interpolated temperature */
-    void export_temperature(const int n_atoms, double* T);
+    int export_temperature(const int n_atoms, double* T);
 
-    Vec3 get_rho(const int i) const;
+    void locate_atoms(const Medium &medium);
 
-    double get_rho_norm(const int i) const;
+    void scale_berendsen(const int n_atoms, double* x1);
+    void scale_berendsen_v2(const int n_atoms, double* x1);
 
-    double get_temperature(const int i) const;
+    /** Return current density in i-th interpolation point */
+    Vec3 get_rho(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].vector;
+    }
+
+    /** Return magnitude of current density in i-th interpolation point */
+    double get_rho_norm(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].norm;
+    }
+
+    /** Return temperature in i-th interpolation point */
+    double get_temperature(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].scalar;
+    }
 
 private:
+    static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant in eV/K
+    const LinearTetrahedra* lintet;   ///< direct pointer to linear tetrahedral interpolator
 };
+
+// forward declaration of Pic for declaring it as a friend
+template<int dim> class Pic;
 
 /** Class to calculate field emission effects with GETELEC */
 class EmissionReader: public SolutionReader {
 public:
-    EmissionReader(const FieldReader& fields, const HeatReader& heat, const TetgenFaces& faces,
-            Interpolator* i);
+
+    EmissionReader(const FieldReader *fields, const HeatReader *heat,
+            const PoissonSolver<3> *poisson, Interpolator* i);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
      * estimation of the space charge effects.
      * @param ch_solver heat solver object where J and Nottingham BCs will be written
-     * @param workfunction Work function
+     * @param conf Emission configuration parameters struct
      * @param Vappl Applied voltage (required for space charge calculations)
      */
-    void transfer_emission(fch::CurrentsAndHeating<3>& ch_solver, const double workfunction,
-            const double Vappl, bool blunt = false);
+    void calc_emission(const Config::Emission &conf, double Vappl = -1);
 
-    double get_multiplier() const {return multiplier;}
-    void set_multiplier(double _multiplier) { multiplier = _multiplier;}
+    void export_emission(CurrentHeatSolver<3>& ch_solver);
+
+    double get_mean_current() const { return global_data.I_cum / global_data.N_calls; }
+
+    /** Initialises class data */
+    void initialize(const TetgenMesh* m);
+
+    struct EmGlobalData {
+        double multiplier;   ///< Multiplier for the field for Space Charge.
+        double Jmax;         ///< Maximum current density of the emitter [in amps/A^2]
+        double Fmax = 0.;    ///< Maximum local field on the emitter [V/A]
+        double Frep = 0.;    ///< Representative local field (used for space charge equation) [V/A]
+        double Jrep = 0.;    ///< Representative current deinsity for space charge. [amps/A^2]
+        double I_tot = 0;    ///< Total current running through the surface [in Amps]
+        double I_fwhm = 0;
+        int N_calls;        ///< Counter keeping the last N_calls
+        double I_cum = 0;  ///< Sum of the I_tot for the last N_calls (useful for convergence check)
+    } global_data;
 
 private:
     /** Prepares the line inputed to GETELEC.
      *
-     * @param point Starting point of the line
-     * @param direction Direction of the line
-     * @param rmax Maximum distance that the line extends
+     * @param point      Starting point of the line
+     * @param direction  Direction of the line
+     * @param rmax       Maximum distance that the line extends
      */
     void emission_line(const Point3& point, const Vec3& direction, const double rmax);
 
@@ -234,42 +299,39 @@ private:
     void calc_representative();
 
     /**
-     * Initialises class data.
-     */
-    void initialize();
-
-    /**
      * Calculates electron emission distribution for a given configuration (
-     * @param workfunction Input work function.
+     * @param workfunction  Input work function.
      */
-    void calc_emission(double workfunction, bool blunt  = false);
+    void emission_cycle(double workfunction, bool blunt  = false, bool cold = false);
 
+    /** Compose entry to xyz or movie file */
+    string get_data_string(const int i) const;
 
-    const double angstrom_per_nm = 10.0;
-    const double nm2_per_angstrom2 = 0.01;
+    /** Compose entry to dat file */
+    string get_global_data(const bool first_line) const;
 
-    const FieldReader& fields;    ///< Object containing the field on centroids of hex interface faces.
-    const HeatReader& heat;       ///< Object containing the temperature on centroids of hexahedral faces.
-    const TetgenFaces& faces;     ///< Object containing information on the faces of the mesh.
+    static constexpr double angstrom_per_nm = 10.0;
+    static constexpr double nm2_per_angstrom2 = 0.01;
+    static constexpr int n_lines = 32; ///< Number of points in the line for GETELEC
 
-    vector<double> currents;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
-    vector<double> nottingham; ///< Same as currents for nottingham heat deposition [in W/A^2]
+    const FieldReader *fields;      ///< field on centroids of hex interface faces.
+    const HeatReader *heat;         ///< temperature on centroids of hexahedral faces.
+    const TetgenMesh *mesh;         ///< data & operations about the mesh.
+    const PoissonSolver<3> *poisson; ///< Poisson solver information (field, potential etc)
 
-    const int n_lines = 32; ///< Number of points in the line for GETELEC
+    vector<double> current_densities;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
+    vector<double> nottingham; ///< Same as current_densities for nottingham heat deposition [in W/A^2]
+    vector<double> currents;    ///< Current flux for every face (current_densities * face_areas) [in Amps]
     vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
     vector<double> Vline;   ///< Potential on the straight line (complements rline)
 
-    double multiplier;      ///< Multiplier for the field for Space Charge.
-    double Jmax;    ///< Maximum current density of the emitter [in amps/A^2]
-    double Fmax = 0.;    ///< Maximum local field on the emitter [V/A]
-    double Frep = 0.;    ///< Representative local field (used for space charge equation) [V/A]
-    double Jrep = 0.;    ///< Representative current deinsity for space charge. [amps/A^2]
-
+    friend class Pic<3>;   // for convenience, allow Pic-class to access private data
 };
 
 /** Class to calculate charges from electric field */
 class ChargeReader: public SolutionReader {
 public:
+
     ChargeReader(Interpolator* i);
 
     /** Calculate charge on the triangular faces using direct solution on the face centroid */
@@ -286,13 +348,22 @@ public:
     bool check_limits(const vector<Solution>* solutions=NULL) const;
 
     /** Get electric field on the centroid of i-th triangle */
-    Vec3 get_elfield(const int i) const;
+    Vec3 get_elfield(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].vector;
+    }
 
     /** Get area of i-th triangle */
-    double get_area(const int i) const;
+    double get_area(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].norm;
+    }
 
     /** Get charge of i-th triangle */
-    double get_charge(const int i) const;
+    double get_charge(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].scalar;
+    }
 
 private:
     const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
@@ -302,79 +373,73 @@ private:
 /** Class to calculate forces from charges and electric fields */
 class ForceReader: public SolutionReader {
 public:
+
     ForceReader(Interpolator* i);
 
     /** Calculate forces from atomic electric fields and face charges */
-    void distribute_charges(const FieldReader &fields, const ChargeReader& faces,
-        const double r_cut, const double smooth_factor);
+    void distribute_charges(const FieldReader &fields, const ChargeReader& faces, const double smooth_factor);
 
-    void calc_forces(const FieldReader &fields, const SurfaceInterpolator& ti);
+    /** Build Voronoi cells around the atoms in the region of interest */
+    int calc_voronois(VoronoiMesh& mesh, const vector<int>& atom2face,
+            const double radius, const double latconst, const string& mesh_quality);
 
-    int calc_voronoi_charges(VoronoiMesh& mesh, const vector<int>& atom2surf, const FieldReader& fields,
-             const double radius, const double latconst, const string& mesh_quality);
+    /** Calculate Lorentz forces from atomistic electric fields and face charges */
+    void calc_lorentz(const FieldReader &fields);
+
+    /** Calculate atomistic charges and Lorentz forces by using the Voronoi cells */
+    void calc_charge_and_lorentz(const VoronoiMesh& mesh, const FieldReader& fields);
+
+    /** Using the previously found surface charge, calculate Coulomb forces between atoms */
+    void calc_coulomb(const double r_cut);
 
     /** Export the induced charge and force on imported atoms
-     * @param n_atoms  number of first atoms field is calculated
+     * @param n_atoms  number of first atoms the data will be exported
      * @param xq       charge and force in PARCAS format (xq[0] = q1, xq[1] = Fx1, xq[2] = Fy1, xq[3] = Fz1, xq[4] = q2, xq[5] = Fx2 etc)
      */
-    void export_force(const int n_atoms, double* xq);
+    int export_charge_and_force(const int n_atoms, double* xq) const;
 
-    /** Return force vector in the location of i-th point */
-    Vec3 get_force(const int i) const;
+    /** Export Laplace + Coulomb force and pair potential on imported atoms
+     * @param n_atoms  number of first atoms the data will be exported
+     * @param xnp      forces in PARCAS format & units (xnp[0] = Fx1, xnp[1] = Fy1, xnp[2] = Fz1, xnp[3] = Fx2 etc)
+     * @param Epair    potential energy per atom
+     * @param Vpair    total potential energy of atoms. Pot. due to Coloumb forces are added here. NOTE: Lorentz is missing!
+     */
+    int export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const;
 
-    /** Return force norm in the location of i-th point */
-    double get_force_norm(const int i) const;
+    /** Return the force that is applied to i-th atom */
+    Vec3 get_force(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].vector;
+    }
 
-    /** Return surface charge in the location of i-th point */
-    double get_charge(const int i) const;
+    /** Return pair potential of i-th atom */
+    double get_pairpot(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].norm;
+    }
+
+    /** Return the charge of i-th atom */
+    double get_charge(const int i) const {
+        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        return interpolation[i].scalar;
+    }
 
 private:
-    const double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
-    const double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
+    static constexpr double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
+    static constexpr double force_factor = 0.5;  ///< force_factor = force / (charge * elfield)
+    static constexpr double couloumb_constant = 14.399645; ///< force factor in Couloumb's law [V*A/e], == 1 / (4*pi*eps0)
+
+    /** Screening factor for Coulomb force.
+     * For details see Djurabekova et al, 2011, Physical Review E, 83(2), p.026704 */
+    static constexpr double q_screen = 0.6809;
 
     /** Remove cells with too big faces*/
     void clean_voro_faces(VoronoiMesh& mesh);
 
-    int calc_voronois(VoronoiMesh& mesh, vector<bool>& atom_in_nanotip, const vector<int>& atom2face,
-            const double radius, const double latconst, const string& mesh_quality);
+    /** Separate cylindrical region from substrate region */
+    int get_nanotip(Medium& nanotip, const double radius);
 };
-/*
-class CoulombReader: public SolutionReader {
-public:
 
-    void qforces(
-            const double* x0,     ///< Atom positions (parcas units)
-            double* xnp,          ///<  Forces on atoms (parcas units)
-            const double* _box,   ///<  Simulation box size (Å)
-            const double* pbc,    ///<  Periodic boundaries
-            double* Epair,        ///<  Potential energy per atom
-            const double* xq,     ///<  Charges on atoms (unit charges) and Lorentz force components
-            double Vpair,         ///<  Total potential energy of atoms. Pot. due to Coloumb forces are added here. NOTE: Lorentz is missing!
-            double Vqq,           ///<  Potnetial energy due to coloumb interaction
-            const double qrcut,   ///<  Cut-off for Coloumb force
-            const double qscreen, ///<  Screening factor for Coulomb force
-            const int natoms      ///<  Number of atoms
-            );
-
-private:
-    /// Divide system into cells to ease force calculation. First number in 4th column is number of atoms.
-    array<vector<int>,4> neigh_cells;
-    array<double,3> neigh_cell_size;
-    array<int,3> ncell; // How many cells we have
-    Vec3 box;
-
-    int max_in_cell, imxmax, imymax, imzmax;
-
-    void init(vector<int>& charged, double* xnp, const double* xq,
-            const double* _box, const double* pbc, const double qrcut, const int natoms);
-
-    void calc_nborlist(const vector<int>& charged, const double* x0);
-
-    inline bool check_limits(Vec3& xx, array<double,3>& cellc,
-            array<int,3>& nei, array<int,3>& ncell, array<int,3>& cell, int inei, int i);
-
-};
-//*/
 } // namespace femocs
 
 #endif /* SOLUTIONREADER_H_ */

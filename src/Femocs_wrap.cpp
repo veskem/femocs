@@ -17,28 +17,8 @@ void femocs_run(FEMOCS* femocs, int* retval, double E_field, const char* message
     retval[0] = femocs->run(E_field, string(message));
 }
 
-void femocs_reinit(FEMOCS* femocs, int* retval, int timestep) {
-    retval[0] = femocs->reinit(timestep);
-}
-
-void femocs_finalize(FEMOCS* femocs, int* retval) {
-    retval[0] = femocs->finalize();
-}
-
 void femocs_force_output(FEMOCS* femocs, int* retval) {
     retval[0] = femocs->force_output();
-}
-
-void femocs_generate_meshes(FEMOCS* femocs, int* retval) {
-    retval[0] = femocs->generate_meshes();
-}
-
-void femocs_solve_laplace(FEMOCS* femocs, int* retval, double E_field) {
-    retval[0] = femocs->solve_laplace(E_field);
-}
-
-void femocs_solve_heat(FEMOCS* femocs, int* retval, double T_ambient) {
-    retval[0] = femocs->solve_heat(T_ambient);
 }
 
 void femocs_import_file(FEMOCS* femocs, int* retval, const char* s) {
@@ -67,6 +47,10 @@ void femocs_export_temperature(FEMOCS* femocs, int* retval, int n_atoms, double*
 
 void femocs_export_charge_and_force(FEMOCS* femocs, int* retval, int n_atoms, double* xq) {
     retval[0] = femocs->export_charge_and_force(n_atoms, xq);
+}
+
+void femocs_export_force_and_pairpot(FEMOCS* femocs, int* retval, int n_atoms, double* xnp, double* Epair, double* Vpair) {
+    retval[0] = femocs->export_force_and_pairpot(n_atoms, xnp, Epair, Vpair);
 }
 
 void femocs_interpolate_elfield(FEMOCS* femocs, int* retval, int n_points, double* x, double* y, double* z,
