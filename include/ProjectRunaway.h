@@ -109,6 +109,9 @@ private:
     /** Generate bulk and vacuum meshes using the imported atomistic data */
     int generate_mesh();
 
+    /** Read bulk and vacuum meshes from file and generate metadata for them */
+    int read_mesh();
+
     /** Solve Laplace equation on vacuum mesh */
     int solve_laplace(double E0);
 

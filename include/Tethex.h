@@ -22,7 +22,7 @@
 #include <map>
 #include <iostream>
 
-#define DEBUG 0
+#define DEBUG 1
 
 namespace tethex {
 
@@ -717,7 +717,7 @@ public:
      * Read the mesh from file
      * @param file - the name of the mesh file
      */
-    void read(const std::string &file);
+    void read(const std::string &file, bool read_edges, bool read_all_faces);
 
     /**
      * Import tetrahedral mesh from Femocs
@@ -725,6 +725,7 @@ public:
      */
     void read_femocs(femocs::TetgenMesh* mesh);
     void export_femocs(femocs::TetgenMesh* mesh);
+    void export_all_mesh(femocs::TetgenMesh* mesh, bool transfer);
     vector<int> n_cell_nodes;
 
     /**

@@ -67,6 +67,9 @@ public:
     /** Use Tetgen built-in functions to write mesh elements data into vtk file */
     bool write(const string& file_name);
 
+    /** Read mesh from file and generate mappings between cells */
+    int read(const string &file, const string &cmd);
+
     /** Write bulk or vacuum mesh */
     void write_separate(const string& file_name, const int type);
 
@@ -87,8 +90,6 @@ public:
 
     /** Map the quadrangle to the hexahedron by specifying the region (vacuum or bulk) */
     int quad2hex(const int quad, const int region) const;
-
-    void test_mapping() const;
 
     TetgenNodes nodes = TetgenNodes(&tetIOout, &tetIOin); ///< data & operations for mesh nodes
     TetgenEdges edges = TetgenEdges(&tetIOout);           ///< data & operations for mesh edges
@@ -160,7 +161,7 @@ private:
     void calc_quad2hex_mapping();
 
     /** Calculate the mapping between tetrahedron and triangle indices */
-    void calc_tet2tri_mapping();
+    int calc_tet2tri_mapping(const string &cmd, int n_surf_faces);
 
     /** Mark the tetrahedra by the location of nodes */
     void mark_elems();

@@ -285,6 +285,28 @@ int ProjectRunaway::generate_mesh() {
     return 0;
 }
 
+int ProjectRunaway::read_mesh() {
+    start_msg(t0, "=== Reading mesh from file...");
+    int err_code = new_mesh->read("in/sample_mesh.msh", "rQnn");
+    end_msg(t0);
+    check_return(err_code, "Reading mesh failed with error code " + to_string(err_code));
+
+    new_mesh->nodes.write("out/hexmesh_nodes.vtk");
+    new_mesh->nodes.write("out/hexmesh_nodes.xyz");
+    new_mesh->tris.write("out/trimesh.vtk");
+    new_mesh->quads.write("out/quadmesh.vtk");
+    new_mesh->tets.write("out/tetmesh.vtk");
+    new_mesh->hexs.write("out/hexmesh.vtk");
+    new_mesh->write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
+
+    mesh = new_mesh;
+    mesh_changed = true;
+    stringstream ss; ss << *mesh;
+    write_verbose_msg(ss.str());
+
+    return 0;
+}
+
 int ProjectRunaway::prepare_solvers() {
     start_msg(t0, "=== Importing mesh to Poisson solver...");
     fail = !poisson_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_vacuum());

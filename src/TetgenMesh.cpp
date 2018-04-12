@@ -18,64 +18,33 @@ TetgenMesh::TetgenMesh() {
     tetIOout.initialize();
 }
 
-void TetgenMesh::test_mapping() const {
-    cout << "\ntets of tris:" << endl;
-    for (int i = 0; i < 10; ++i) {
-        cout << i << ":\t";
-        for (int tet : tris.to_tets(i))
-            cout << tet << ", ";
-        cout << endl;
-    }
+int TetgenMesh::read(const string &file_name, const string &cmd) {
+    string extension = get_file_type(file_name);
+    require(extension == "msh", "Unimplemented file type: " + extension);
 
-    cout << "tris of tets:" << endl;
-    for (int i = 0; i < 10; ++i) {
-        cout << i << ":\t";
-        for (int tri : tets.to_tris(i))
-            cout << tri << ", ";
-        cout << endl;
-    }
+    // delete available mesh data
+    clear();
 
-    cout << "hexs of quads:" << endl;
-    for (int i = 0; i < 10; ++i) {
-        cout << i << ":\t";
-        for (int hex : quads.to_hexs(i))
-            cout << hex << ", ";
-        cout << endl;
-    }
+    tethex::Mesh hexmesh;
+    // read tetrahedral mesh from file
+    hexmesh.read(file_name, false, false);
+    // generate hexahedra and quadrangles
+    hexmesh.convert();
+    // export mesh to Femocs
+    hexmesh.export_all_mesh(this, true);
 
-    cout << "quads of hexs:" << endl;
-    for (int i = 0; i < 10; ++i) {
-        cout << i << ":\t";
-        for (int quad : hexs.to_quads(i))
-            cout << quad << ", ";
-        cout << endl;
-    }
+    // calculate mapping between triangles and tetrahedra
+    int error_code = calc_tet2tri_mapping(cmd, tris.get_n_markers());
+    if (error_code) return error_code;
 
-    int n_cells, n_mapped_cells;
+    // calculate mapping between quadrangles and hexahedra
+    group_hexahedra();
+    calc_quad2hex_mapping();
 
-    n_cells = tris.size();
-    n_mapped_cells = 0;
-    for (int i = 0; i < n_cells; ++i)
-        n_mapped_cells += tris.to_tets(i).size();
-    printf("faces: n_cells=%i, n_mapped_cells=%i\n", n_cells, n_mapped_cells);
+    nodes.calc_statistics();
+    tris.calc_norms_and_areas();
 
-    n_cells = tets.size();
-    n_mapped_cells = 0;
-    for (int i = 0; i < n_cells; ++i)
-        n_mapped_cells += tets.to_tris(i).size();
-    printf("elems: n_cells=%i, n_mapped_cells=%i\n", n_cells, n_mapped_cells);
-
-    n_cells = quads.size();
-    n_mapped_cells = 0;
-    for (int i = 0; i < n_cells; ++i)
-        n_mapped_cells += quads.to_hexs(i).size();
-    printf("quads: n_cells=%i, n_mapped_cells=%i\n", n_cells, n_mapped_cells);
-
-    n_cells = hexs.size();
-    n_mapped_cells = 0;
-    for (int i = 0; i < n_cells; ++i)
-        n_mapped_cells += hexs.to_quads(i).size();
-    printf("hexahedra: n_cells=%i, n_mapped_cells=%i\n", n_cells, n_mapped_cells);
+    return 0;
 }
 
 int TetgenMesh::tri2tet(const int tri, const int region) const {
@@ -524,9 +493,13 @@ int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd1,
     nodes.transfer(false);
     tets.transfer(false);
 
+    return calc_tet2tri_mapping(cmd2, n_surf_faces);
+}
+
+int TetgenMesh::calc_tet2tri_mapping(const string &cmd, int n_surf_faces) {
     // calculate the tetrahedron-triangle connectivity
     // the simubox boundary faces must also be calculated, no way to opt-out
-    error_code = recalc(cmd2);
+    int error_code = recalc(cmd);
     if (error_code) return error_code;
 
     // the faces on the simubox sides are appended after the surface faces.
@@ -537,20 +510,15 @@ int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd1,
         tris.append(tris[i]);
     tris.transfer();
 
-    calc_tet2tri_mapping();
-    return 0;
-}
-
-void TetgenMesh::calc_tet2tri_mapping() {
-    const int n_tris = tris.size();
     vector<vector<int>> tet2tri_map(tets.size());
-
-    for (int i = 0; i < n_tris; ++i) {
+    for (int i = 0; i < n_surf_faces; ++i) {
         for (int tet : tris.to_tets(i))
             if (tet >= 0)
                 tet2tri_map[tet].push_back(i);
     }
     tets.store_map(tet2tri_map);
+
+    return 0;
 }
 
 void TetgenMesh::calc_quad2hex_mapping() {

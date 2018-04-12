@@ -97,7 +97,7 @@ void TetgenNodes::save_indices(const int n_surf, const int n_bulk, const int n_v
 
 // Store the locations of different kinds of nodes that were produced while splitting tetrahedra into hexahedra
 void TetgenNodes::save_hex_indices(const vector<int>& n_nodes) {
-    require(n_nodes.size() == 4, "Invalid indices!");
+    require(n_nodes.size() == 4, "Invalid size of indices: " + to_string(n_nodes.size()));
 
     stat.n_tetnode = n_nodes[0];
     stat.n_midedge = n_nodes[1];

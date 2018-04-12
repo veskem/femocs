@@ -475,7 +475,7 @@ void Mesh::clean() {
         delete hexahedra[i];
 }
 
-void Mesh::read(const std::string &file) {
+void Mesh::read(const std::string &file, bool read_edges, bool read_all_faces) {
     std::ifstream in(file.c_str());
     require(in, "File " + file + " cannot be opened!");
 
@@ -532,6 +532,7 @@ void Mesh::read(const std::string &file) {
             int n_vertices; // the number of all mesh vertices (that are saved in the file)
             in >> n_vertices; // read that number
             vertices.resize(n_vertices); // allocate the memory for mesh vertices
+            points.resize(n_vertices);
             getline(in, str); // read some empty string
 
             int number; // the number of the vertex
@@ -553,6 +554,7 @@ void Mesh::read(const std::string &file) {
                 }
                 vertices[ver] = Point(coord); // save the vertex
                 vertices_map[number] = ver; // add the number of vertex to the map
+                points[ver] = new PhysPoint(ver, 0);
             }
 
             expect(n_vertices == (int)vertices_map.size(),
@@ -707,19 +709,22 @@ void Mesh::read(const std::string &file) {
                     }
 
                     switch (el_type) {
-                    case 15: // 1-node point
-                        points.push_back(new PhysPoint(nodes, phys_domain));
-                        break;
+                    // prevent reading from vertex markers from file, as they might not be present there
+//                    case 15: // 1-node point
+//                        points.push_back(new PhysPoint(nodes, phys_domain));
+//                        break;
                     case 1: // 2-nodes line
-                        lines.push_back(new Line(nodes, phys_domain));
+                        if (read_edges)
+                            lines.push_back(new Line(nodes, phys_domain));
                         break;
                     case 2: // 3-nodes triangle
-                        triangles.push_back(new Triangle(nodes, phys_domain));
+                        if (read_all_faces || phys_domain == femocs::TYPES.SURFACE)
+                            triangles.push_back(new Triangle(nodes, phys_domain));
                         break;
                     case 3: // 4-nodes quadrangle
                         quadrangles.push_back(new Quadrangle(nodes, phys_domain));
                         break;
-                    case 4: //4-nodes tetrahedron
+                    case 4: // 4-nodes tetrahedron
                         tetrahedra.push_back(new Tetrahedron(nodes, phys_domain));
                         break;
                     case 5: // 8-nodes hexahedron
@@ -778,7 +783,7 @@ void Mesh::read_femocs(femocs::TetgenMesh* mesh) {
     for (int vert = 0; vert < n_vertices; ++vert)
         points[vert] = new PhysPoint(vert, mesh->nodes.get_marker(vert));
 
-    //* read the mesh faces
+    // read the mesh faces
     int n_faces = mesh->tris.size(); // the number of mesh elements
     triangles.reserve(n_faces);
 
@@ -788,7 +793,6 @@ void Mesh::read_femocs(femocs::TetgenMesh* mesh) {
     else
         for (int f = 0; f < n_faces; ++f)
             triangles.push_back( new Triangle(mesh->tris[f].to_vector()) );
-    //*/
 
     // read the mesh elements
     int n_elements = mesh->tets.size(); // the number of mesh elements
@@ -821,7 +825,7 @@ void Mesh::export_femocs(femocs::TetgenMesh* mesh) {
     mesh->nodes.transfer(); // copy nodes from write buffer to the read one
     mesh->nodes.save_hex_indices(n_cell_nodes); // save the locations of added nodes
 
-    //* Export quadrangles
+    // Export quadrangles
     const int n_quads = quadrangles.size();
     mesh->quads.init(n_quads);
     mesh->quads.init_markers(n_quads);
@@ -831,7 +835,7 @@ void Mesh::export_femocs(femocs::TetgenMesh* mesh) {
                 quadrangles[i]->get_vertex(0), quadrangles[i]->get_vertex(1),
                 quadrangles[i]->get_vertex(2), quadrangles[i]->get_vertex(3) ));
         mesh->quads.append_marker(quadrangles[i]->get_material_id());
-    } //*/
+    }
 
     // Export hexahedra
     const int n_hexs = hexahedra.size();
@@ -845,6 +849,68 @@ void Mesh::export_femocs(femocs::TetgenMesh* mesh) {
                 hexahedra[i]->get_vertex(4), hexahedra[i]->get_vertex(5),
                 hexahedra[i]->get_vertex(6), hexahedra[i]->get_vertex(7) ));
         mesh->hexs.append_marker(hexahedra[i]->get_material_id());
+    }
+}
+
+void Mesh::export_all_mesh(femocs::TetgenMesh* mesh, bool transfer) {
+    // Export vertex coordinates
+
+    const int n_verts = vertices.size();
+    mesh->nodes.init(n_verts);
+    mesh->nodes.init_markers(n_verts);
+    for (int i = 0; i < n_verts; ++i) {
+        mesh->nodes.append_marker(points[i]->get_material_id());
+        mesh->nodes.append(femocs::Point3(vertices[i].get_coord(0),
+                vertices[i].get_coord(1), vertices[i].get_coord(2) ));
+    }
+    if (transfer) mesh->nodes.transfer(); // copy nodes from write buffer to the read one
+    mesh->nodes.save_hex_indices(n_cell_nodes); // save the locations of added nodes
+
+    // Export triangles
+    const int n_tris = triangles.size();
+    mesh->tris.init(n_tris);
+    mesh->tris.init_markers(n_tris);
+    for (int i = 0; i < n_tris; ++i) {
+        mesh->tris.append_marker(triangles[i]->get_material_id());
+        mesh->tris.append(femocs::SimpleFace(triangles[i]->get_vertex(0),
+                triangles[i]->get_vertex(1), triangles[i]->get_vertex(2) ));
+    }
+    if (transfer) mesh->tris.transfer();
+
+    // Export quadrangles
+    const int n_quads = quadrangles.size();
+    mesh->quads.init(n_quads);
+    mesh->quads.init_markers(n_quads);
+    for (int i = 0; i < n_quads; ++i) {
+        mesh->quads.append_marker(quadrangles[i]->get_material_id());
+        mesh->quads.append(femocs::SimpleQuad(
+                quadrangles[i]->get_vertex(0), quadrangles[i]->get_vertex(1),
+                quadrangles[i]->get_vertex(2), quadrangles[i]->get_vertex(3) ));
+    }
+
+    // Export tetrahedra
+    const int n_tets = tetrahedra.size();
+    mesh->tets.init(n_tets);
+    mesh->tets.init_markers(n_tets);
+    for (int i = 0; i < n_tets; ++i) {
+        mesh->tets.append_marker(tetrahedra[i]->get_material_id());
+        mesh->tets.append(femocs::SimpleElement(
+                tetrahedra[i]->get_vertex(0), tetrahedra[i]->get_vertex(1),
+                tetrahedra[i]->get_vertex(2), tetrahedra[i]->get_vertex(3) ));
+    }
+    if (transfer) mesh->tets.transfer();
+
+    // Export hexahedra
+    const int n_hexs = hexahedra.size();
+    mesh->hexs.init(n_hexs);
+    mesh->hexs.init_markers(n_hexs);
+    for (int i = 0; i < n_hexs; ++i) {
+        mesh->hexs.append_marker(hexahedra[i]->get_material_id());
+        mesh->hexs.append(femocs::SimpleHex(
+                hexahedra[i]->get_vertex(0), hexahedra[i]->get_vertex(1),
+                hexahedra[i]->get_vertex(2), hexahedra[i]->get_vertex(3),
+                hexahedra[i]->get_vertex(4), hexahedra[i]->get_vertex(5),
+                hexahedra[i]->get_vertex(6), hexahedra[i]->get_vertex(7) ));
     }
 }
 

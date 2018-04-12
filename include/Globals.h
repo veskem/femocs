@@ -29,6 +29,8 @@ struct Types {
     const int VACUUM = 3;    ///< type of vacuum
     const int VACANCY = 3;   ///< type of vacancies
     const int PERIMETER = 4; ///< type of the rim/outer edge of surface
+    const int TOP = 5;   ///< type of vacancies
+    const int BOTTOM = 6; ///< type of the rim/outer edge of surface
     const int FIXED = -1;    ///< type of fixed atoms
     const int CLUSTER = -2;  ///< type of a cluster
     const int EVAPORATED= -3;///< type of a evaporated atom
