@@ -73,7 +73,7 @@ int Femocs::generate_nanotip() {
     clear_log();
 
     double r = conf.geometry.radius;
-    conf.geometry.radius += 0.01*conf.geometry.latconst;
+    conf.geometry.radius += 0.05*conf.geometry.latconst;
 
     start_msg(t0, "=== Generating nanotip...");
     reader.generate_nanotip(conf.geometry.height, r, conf.geometry.latconst);
@@ -93,13 +93,19 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
     if (file_name == "") fname = conf.path.infile;
     else fname = file_name;
 
-    file_type = get_file_type(fname);
-    require(file_type == "ckx" || file_type == "xyz", "Unknown file type: " + file_type);
+    if (fname == "generate"){
+        generate_nanotip();
+    }else{
+        file_type = get_file_type(fname);
+        require(file_type == "ckx" || file_type == "xyz", "Unknown file type: " + file_type);
 
-    start_msg(t0, "=== Importing atoms...");
-    reader.import_file(fname, add_noise);
-    end_msg(t0);
-    write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
+        start_msg(t0, "=== Importing atoms...");
+        reader.import_file(fname, add_noise);
+        end_msg(t0);
+        write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
+    }
+
+
 
     start_msg(t0, "=== Comparing with previous run...");
     bool system_changed = reader.calc_rms_distance(conf.tolerance.distance) >= conf.tolerance.distance;
