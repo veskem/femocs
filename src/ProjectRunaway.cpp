@@ -70,9 +70,7 @@ int ProjectRunaway::reinit(int tstep) {
 }
 
 int ProjectRunaway::finalize(double tstart) {
-    start_msg(t0, "=== Saving atom positions...");
     reader.save_current_run_points(conf.tolerance.distance);
-    end_msg(t0);
 
     // In case no transient simulations (time has stayed the same) advance the time
     if (conf.pic.mode == "none" && conf.heating.mode == "none")
@@ -171,6 +169,9 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
 }
 
 int ProjectRunaway::generate_mesh() {
+    if (conf.path.mesh_file != "")
+        return read_mesh();
+
     new_mesh->clear();
 
     Surface bulk, coarse_surf, vacuum;
@@ -241,7 +242,7 @@ int ProjectRunaway::generate_mesh() {
 
 int ProjectRunaway::read_mesh() {
     start_msg(t0, "=== Reading mesh from file...");
-    int err_code = new_mesh->read("in/sample_mesh.msh", "rQnn");
+    int err_code = new_mesh->read(conf.path.mesh_file, "rQnn");
     end_msg(t0);
     check_return(err_code, "Reading mesh failed with error code " + d2s(err_code));
 

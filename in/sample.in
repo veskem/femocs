@@ -38,6 +38,7 @@ use_rdf = false                 # use radial distribution function to recalculat
 # File and message input & output
 infile = in/apex.ckx            # default file used with atom coordinates
 extended_atoms = in/extension.xyz   # file with atoms of extended surface
+mesh_file = in/sample_mesh.msh  # file containing triangular and tetrahedral mesh data
 femocs_periodic = false         # imported atoms have periodic boundaries in x- & y-direction; must be false in systems without slab
 n_writefile = 1                 # minimum number of time steps between writing file; 0 turns writing off
 femocs_verbose_mode = verbose   # control verbosity in console; mute, silent or verbose

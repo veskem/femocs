@@ -49,6 +49,7 @@ public:
     struct Path {
         string extended_atoms;      ///< Path to the file with atoms forming the extended surface
         string infile;              ///< Path to the file with atom coordinates and types
+        string mesh_file;           ///< Path to the triangular and tetrahedral mesh data
     } path;
 
     /** User specific preferences */

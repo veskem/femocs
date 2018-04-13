@@ -18,6 +18,7 @@ namespace femocs {
 Config::Config() {
     path.extended_atoms = "";         // file with the atoms forming the extended surface
     path.infile = "";                 // file with the nanostructure atoms
+    path.mesh_file = "";              // file containing triangular and tetrahedral mesh data
 
     behaviour.verbosity = "verbose";  // mute, silent, verbose
     behaviour.n_writefile = 1;        // number of time steps between writing the output files
@@ -167,6 +168,7 @@ void Config::read_all(const string& file_name) {
 
     read_command("extended_atoms", path.extended_atoms);
     read_command("infile", path.infile);
+    read_command("mesh_file", path.mesh_file);
 
     read_command("cluster_anal", run.cluster_anal);
     read_command("refine_apex", run.apex_refiner);
