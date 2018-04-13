@@ -21,7 +21,7 @@ InterpolatorNodes::InterpolatorNodes(const string &nl, const string &sl) :
         mesh(NULL), norm_label(nl), scalar_label(sl) { reserve(0); }
 
 void InterpolatorNodes::reserve(const int N) {
-    require(N >= 0, "Invalid number of points: " + to_string(N));
+    require(N >= 0, "Invalid number of points: " + d2s(N));
 
     markers = vector<int>(N);
     solutions.clear();
@@ -176,7 +176,7 @@ double InterpolatorNodes::max_norm() const {
 
 template<int dim>
 void InterpolatorCells<dim>::reserve(const int N) {
-    require(N >= 0, "Invalid number of points: " + to_string(N));
+    require(N >= 0, "Invalid number of points: " + d2s(N));
 
     centroids.clear();
     centroids.reserve(N);
@@ -259,7 +259,7 @@ template<int dim>
 int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_guess) const {
     const int n_cells = neighbours.size();
     require(cell_guess >= 0 && cell_guess < n_cells,
-            "Index out of bounds: " + to_string(cell_guess));
+            "Index out of bounds: " + d2s(cell_guess));
 
     // === Check the guessed cell
     if (point_in_cell(point, cell_guess))
@@ -298,7 +298,7 @@ int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_gues
 template<int dim>
 Solution InterpolatorCells<dim>::interp_solution(const Point3 &point, const int c) const {
     const int cell = abs(c);
-    require(cell < size(), "Index out of bounds: " + to_string(cell));
+    require(cell < size(), "Index out of bounds: " + d2s(cell));
 
     // calculate interpolation weights (shape function of dummy nodal distance based weights)
     array<double,dim> weights = shape_functions(Vec3(point), cell);
@@ -321,7 +321,7 @@ Solution InterpolatorCells<dim>::interp_solution(const Point3 &point, const int 
 template<int dim>
 Solution InterpolatorCells<dim>::interp_solution_v2(const Point3 &point, const int c) const {
     const int cell = abs(c);
-    require(cell < size(), "Index out of bounds: " + to_string(cell));
+    require(cell < size(), "Index out of bounds: " + d2s(cell));
 
     // calculate shape functions and their gradients
     array<double,dim> sf = shape_functions(point, cell);
@@ -343,7 +343,7 @@ Solution InterpolatorCells<dim>::interp_solution_v2(const Point3 &point, const i
 
 template<int dim>
 Vec3 InterpolatorCells<dim>::interp_gradient(const Point3 &point, const int cell) const {
-    require(cell >= 0 && cell < size(), "Index out of bounds: " + to_string(cell));
+    require(cell >= 0 && cell < size(), "Index out of bounds: " + d2s(cell));
 
     // calculate shape function gradients
     array<Vec3, dim> sfg = shape_fun_grads(point, cell);
@@ -360,7 +360,7 @@ Vec3 InterpolatorCells<dim>::interp_gradient(const Point3 &point, const int cell
 
 template<int dim>
 Vec3 InterpolatorCells<dim>::interp_gradient(const int cell, const int node) const {
-    require(cell >= 0 && cell < size(), "Index out of bounds: " + to_string(cell));
+    require(cell >= 0 && cell < size(), "Index out of bounds: " + d2s(cell));
 
     // calculate shape function gradients
     array<Vec3,dim> sfg = shape_fun_grads(cell, node);
@@ -556,7 +556,7 @@ void LinearTetrahedra::precompute() {
 }
 
 bool LinearTetrahedra::point_in_cell(const Vec3& point, const int i) const {
-    require(i >= 0 && i < det0.size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < det0.size(), "Index out of bounds: " + d2s(i));
 
     // Ignore co-planar tetrahedra
     // no need to check because Tetgen guarantees non-co-planar tetrahedra
@@ -576,7 +576,7 @@ bool LinearTetrahedra::point_in_cell(const Vec3& point, const int i) const {
 }
 
 array<double,4> LinearTetrahedra::shape_functions(const Vec3& point, const int tet) const {
-    require(tet >= 0 && tet < det0.size(), "Index out of bounds: " + to_string(tet));
+    require(tet >= 0 && tet < det0.size(), "Index out of bounds: " + d2s(tet));
 
     const Vec4 pt(point, 1);
     return {
@@ -588,7 +588,7 @@ array<double,4> LinearTetrahedra::shape_functions(const Vec3& point, const int t
 }
 
 array<Vec3,4> LinearTetrahedra::shape_fun_grads(const Vec3& point, const int tet) const {
-    require(tet >= 0 && tet < size(), "Index out of bounds: " + to_string(tet));
+    require(tet >= 0 && tet < size(), "Index out of bounds: " + d2s(tet));
 
     // The gradient of shape function inside linear tetrahedron does not depend
     // on the point of interest, therefore its value could be precalculated and
@@ -663,7 +663,7 @@ void LinearTetrahedra::narrow_search_to(const int region) {
     } else if (region == TYPES.NONE) {
         markers = vector<int>(n_cells);
     } else
-        require(false, "Unimplemented region: " + to_string(region));
+        require(false, "Unimplemented region: " + d2s(region));
 }
 
 /* ==================================================================
@@ -677,7 +677,7 @@ QuadraticTetrahedra::QuadraticTetrahedra(const InterpolatorNodes* n, const Linea
     InterpolatorCells<10>(n), tets(NULL), lintet(l) {}
 
 void QuadraticTetrahedra::reserve(const int N) {
-    require(N >= 0, "Invalid number of points: " + to_string(N));
+    require(N >= 0, "Invalid number of points: " + d2s(N));
     markers = vector<int>(N);
     cells.clear();
     cells.reserve(N);
@@ -774,7 +774,7 @@ array<double,10> QuadraticTetrahedra::shape_functions(const Vec3& point, const i
  * For instance there's no need to calculate dN explicitly.
  */
 array<Vec3,10> QuadraticTetrahedra::shape_fun_grads(const Vec3& point, const int tet) const {
-    require(tet >= 0 && tet < cells.size(), "Index out of bounds: " + to_string(tet));
+    require(tet >= 0 && tet < cells.size(), "Index out of bounds: " + d2s(tet));
 
     array<double,4> bcc = lintet->shape_functions(point, tet);
 
@@ -846,7 +846,7 @@ array<Vec3,10> QuadraticTetrahedra::shape_fun_grads(const Vec3& point, const int
 }
 
 array<Vec3,10> QuadraticTetrahedra::shape_fun_grads_slow(const Vec3& point, const int tet) const {
-    require(tet >= 0 && tet < cells.size(), "Index out of bounds: " + to_string(tet));
+    require(tet >= 0 && tet < cells.size(), "Index out of bounds: " + d2s(tet));
 
     array<double,4> bcc = lintet->shape_functions(point, tet);
 
@@ -1103,7 +1103,7 @@ LinearHexahedra::LinearHexahedra(const InterpolatorNodes* n, const LinearTetrahe
         InterpolatorCells<8>(n), hexs(NULL), lintet(l) {}
 
 void LinearHexahedra::reserve(const int N) {
-    require(N >= 0, "Invalid number of points: " + to_string(N));
+    require(N >= 0, "Invalid number of points: " + d2s(N));
 
     markers = vector<int>(N);
 
@@ -1204,7 +1204,7 @@ void LinearHexahedra::project_to_nat_coords(double &u, double &v, double &w,
         //   | fu.z * du + fv.z * dv + fw.z * dw = f.z;
 
         D = determinant(fu, fv, fw);
-        require(D != 0, "Invalid determinant: " + to_string(D));
+        require(D != 0, "Invalid determinant: " + d2s(D));
 
         D  = 1.0 / D;
         du = determinant(f, fv, fw) * D;
@@ -1236,7 +1236,7 @@ void LinearHexahedra::project_to_nat_coords(double &u, double &v, double &w,
 }
 
 array<double,8> LinearHexahedra::shape_functions(const Vec3& point, const int hex) const {
-    require(hex >= 0 && hex < size(), "Index out of bounds: " + to_string(hex));
+    require(hex >= 0 && hex < size(), "Index out of bounds: " + d2s(hex));
 
     // Before calculating the shape function,
     // map the point from Cartesian xyz-coordinates to natural uvw-coordinates.
@@ -1265,7 +1265,7 @@ array<double,8> LinearHexahedra::shape_funs_dealii(const Vec3& point, const int 
  * https://www.colorado.edu/engineering/CAS/courses.d/AFEM.d/AFEM.Ch11.d/AFEM.Ch11.pdf
  */
 array<Vec3,8> LinearHexahedra::shape_fun_grads(const Vec3& point, const int hex) const {
-    require(hex >= 0 && hex < size(), "Index out of bounds: " + to_string(hex));
+    require(hex >= 0 && hex < size(), "Index out of bounds: " + d2s(hex));
     double u, v, w;
     project_to_nat_coords(u, v, w, point, hex);
 
@@ -1364,8 +1364,8 @@ array<Vec3, 8> LinearHexahedra::shape_fun_grads_dealii(const Vec3& point, const 
  * last two expressions can be optimized to a single one.
  */
 array<Vec3, 8> LinearHexahedra::shape_fun_grads(const int hex, const int node) const {
-    require(hex >= 0 && hex < size(), "Invalid hex: " + to_string(hex));
-    require(node >= 0 && node < 8, "Invalid node: " + to_string(node));
+    require(hex >= 0 && hex < size(), "Invalid hex: " + d2s(hex));
+    require(node >= 0 && node < 8, "Invalid node: " + d2s(node));
 
     double u, v, w; // natural coordinates
     int n1, n2, n3; // indices of nearest neighbouring nodes of the node
@@ -1569,7 +1569,7 @@ Solution LinearTriangles::interp_solution(const Point3 &point, const int t) cons
     int tri = abs(t);
     array<int, 2> tets = tris->to_tets(tri);
 
-    require(tets[0] >= 0 && tets[1] >= 0, "Triangle " + to_string(tri) + " should have two associated tetrahedra!");
+    require(tets[0] >= 0 && tets[1] >= 0, "Triangle " + d2s(tri) + " should have two associated tetrahedra!");
 
     // if the point is exactly inside the face, 3D cell locator doesn't work
     // therefore it's necessary to assume that for points on the face plane
@@ -1632,7 +1632,7 @@ void LinearTriangles::interp_conserved(vector<double>& scalars, const vector<Ato
 }
 
 int LinearTriangles::near_surface(const Vec3& point, const double r_cut) const {
-    require(r_cut > 0, "Invalid distance from surface: " + to_string(r_cut));
+    require(r_cut > 0, "Invalid distance from surface: " + d2s(r_cut));
 
     for (int face = 0; face < size(); ++face) {
         const double dist = distance(point, face);
@@ -1685,7 +1685,7 @@ QuadraticTriangles::QuadraticTriangles(const InterpolatorNodes* n, const LinearT
     InterpolatorCells<6>(n), tris(NULL), lintri(lt), quadtet(qt) {}
 
 void QuadraticTriangles::reserve(const int N) {
-    require(N >= 0, "Invalid number of points: " + to_string(N));
+    require(N >= 0, "Invalid number of points: " + d2s(N));
     markers = vector<int>(N);
     cells.clear();
     cells.reserve(N);
@@ -1739,7 +1739,7 @@ Solution QuadraticTriangles::interp_solution(const Point3 &point, const int t) c
     int tri = abs(t);
     array<int, 2> tets = tris->to_tets(tri);
 
-    require(tets[0] >= 0 && tets[1] >= 0, "Triangle " + to_string(tri) + " should have two associated tetrahedra!");
+    require(tets[0] >= 0 && tets[1] >= 0, "Triangle " + d2s(tri) + " should have two associated tetrahedra!");
 
     // if the point is exactly inside the face, 3D cell locator doesn't work
     // therefore it's necessary to assume that for points on the face plane
@@ -1758,7 +1758,7 @@ Solution QuadraticTriangles::interp_solution(const Point3 &point, const int t) c
 }
 
 SimpleCell<6> QuadraticTriangles::calc_cell(const int tri) const {
-    require(tri >= 0 && tri < tris->size(), "Invalid index: " + to_string(tri));
+    require(tri >= 0 && tri < tris->size(), "Invalid index: " + d2s(tri));
     if (mesh->quads.size() == 0)
         return QuadraticTri(0);
 
@@ -1791,7 +1791,7 @@ LinearQuadrangles::LinearQuadrangles(const InterpolatorNodes* n, const LinearTri
         InterpolatorCells<4>(n), quads(NULL), lintri(lt), linhex(lh) {}
 
 void LinearQuadrangles::reserve(const int N) {
-    require(N >= 0, "Invalid number of points: " + to_string(N));
+    require(N >= 0, "Invalid number of points: " + d2s(N));
     markers = vector<int>(N);
 }
 
@@ -1813,7 +1813,7 @@ Solution LinearQuadrangles::interp_solution(const Point3 &point, const int q) co
     int quad = abs(q);
     array<int, 2> hexs = quads->to_hexs(quad);
 
-    require(hexs[0] >= 0 && hexs[1] >= 0, "Quadrangle " + to_string(quad) + " should have two associated hexahedra!");
+    require(hexs[0] >= 0 && hexs[1] >= 0, "Quadrangle " + d2s(quad) + " should have two associated hexahedra!");
 
     // if the point is exactly inside the face, 3D cell locator doesn't work
     double distance_to_tri = abs( lintri->fast_distance(point, mesh->quads.to_tri(quad)) );

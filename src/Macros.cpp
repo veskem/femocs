@@ -29,14 +29,6 @@ vector<bool> __vector_compare(const vector<T> *v, const T entry) {
     return mask;
 }
 
-/* Template to convert data to string */
-template<typename T>
-inline string d2s(T data) {
-    ostringstream o;
-    if (!(o << data)) throw runtime_error("Bad conversion of data to string!");
-    return o.str();
-}
-
 // Function to handle failed requirement
 void requirement_fails(const char *file, int line, string message) {
     string exc = "\nFEMOCS ERROR:\nfile = " + string(file) + "\nline = " + d2s(line) + "\n" + message;

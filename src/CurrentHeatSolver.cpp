@@ -314,7 +314,7 @@ void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
 
 template<int dim>
 double HeatSolver<dim>::get_face_bc(const unsigned int face) const {
-    require(face < this->bc_values.size(), "Invalid index: " + to_string(face));
+    require(face < this->bc_values.size(), "Invalid index: " + d2s(face));
     return this->bc_values[face];
 }
 
@@ -414,7 +414,7 @@ void CurrentSolver<dim>::assemble_lhs() {
 
 template<int dim>
 double CurrentSolver<dim>::get_face_bc(const unsigned int face) const {
-    require(face < this->bc_values.size(), "Invalid index: " + to_string(face));
+    require(face < this->bc_values.size(), "Invalid index: " + d2s(face));
     return this->bc_values[face];
 }
 

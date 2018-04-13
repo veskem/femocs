@@ -128,6 +128,9 @@ public:
         return s;
     }
 
+    /** Return mesh statistics as string */
+    string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
+
 private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format

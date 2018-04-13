@@ -183,7 +183,7 @@ vector<Point3> NanotipCoarsener::get_points(const double zmin) {
 // Generate coarseners for one nanotip system
 void Coarseners::generate(const Medium &medium, const double radius, const Config::CoarseFactor &cf, const double latconst) {
     const int n_atoms = medium.size();
-    require(n_atoms > 0, "Not enough points to generate coarseners: " + to_string(n_atoms));
+    require(n_atoms > 0, "Not enough points to generate coarseners: " + d2s(n_atoms));
     require(cf.r0_cylinder >= 0 && cf.r0_sphere >= 0, "Coarsening factors must be non-negative!");
     require(cf.r0_cylinder >= cf.r0_sphere, "Coarsening factor in cylinder wall must be >= coarsening factor in apex!");
     require(cf.exponential > 0, "Coarsening rate must be positive!");

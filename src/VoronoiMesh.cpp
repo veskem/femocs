@@ -617,7 +617,7 @@ int VoronoiMesh::generate_modi(const Medium& surf, const double latconst, const 
 
 
 int VoronoiMesh::generate(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2) {
-    require(surf.size() > 0, "Invalid # generator points: " + to_string(surf.size()));
+    require(surf.size() > 0, "Invalid # generator points: " + d2s(surf.size()));
     const double l = 1.0*latconst;
 
     Medium bulk(4), vacuum(4);

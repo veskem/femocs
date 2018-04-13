@@ -59,7 +59,7 @@ int ProjectRunaway::reinit(const int tstep) {
 
     atom2face.clear();
 
-    timestep_string = to_string(timestep);
+    timestep_string = d2s(timestep);
     write_silent_msg("Running at timestep " + timestep_string);
     timestep_string = "_" + string( max(0.0, 6.0 - timestep_string.length()), '0' ) + timestep_string;
 
@@ -82,20 +82,16 @@ int ProjectRunaway::run(const int timestep) {
 }
 
 int ProjectRunaway::run(const double elfield, const int tstep) {
-    stringstream stream;
-    stream << fixed << setprecision(3);
-
     double tstart = omp_get_wtime();
-
-    stream.str("");
-    stream << "Atoms haven't moved significantly, " << reader.rms_distance
-            << " < " << conf.tolerance.distance << "! Previous mesh will be used!";
 
     //***** Build mesh *****
     mesh_changed = false;
     bool skip_meshing = reinit(tstep);
-    if (skip_meshing)
-        write_verbose_msg(stream.str());
+    if (skip_meshing) {
+        write_verbose_msg("Atoms haven't moved significantly, "
+                + d2s(reader.rms_distance, 3) + " < " + d2s(conf.tolerance.distance, 3)
+                + "! Previous mesh will be used!");
+    }
     else {
         if (generate_mesh()) {
             force_output();
@@ -159,10 +155,7 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
     }
 
     finalize();
-
-    stream.str("");
-    stream << "Total execution time " << omp_get_wtime() - tstart;
-    write_silent_msg(stream.str());
+    write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
 
     return 0;
 }
@@ -228,7 +221,7 @@ int ProjectRunaway::generate_mesh() {
     string command = "rQFBq" + conf.geometry.mesh_quality;
     if (conf.geometry.element_volume != "") command += "a" + conf.geometry.element_volume;
     int err_code = new_mesh->generate(bulk, coarse_surf, vacuum, command);
-    check_return(err_code, "Triangulation failed with error code " + to_string(err_code));
+    check_return(err_code, "Triangulation failed with error code " + d2s(err_code));
     end_msg(t0);
 
     start_msg(t0, "=== Marking tetrahedral mesh...");
@@ -239,7 +232,7 @@ int ProjectRunaway::generate_mesh() {
     start_msg(t0, "=== Generating surface faces...");
     err_code = new_mesh->generate_surface(reader.sizes, "rQB", "rQnn");
     end_msg(t0);
-    check_return(err_code, "Generation of surface faces failed with error code " + to_string(err_code));
+    check_return(err_code, "Generation of surface faces failed with error code " + d2s(err_code));
 
     if (conf.smoothing.algorithm != "none" && conf.smoothing.n_steps > 0) {
         start_msg(t0, "=== Smoothing surface faces...");
@@ -271,17 +264,15 @@ int ProjectRunaway::generate_mesh() {
     new_mesh->write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
 
     // update mesh pointers
-    static bool odd_run = true;
-
     mesh = new_mesh;
+    mesh_changed = true;
+
+    static bool odd_run = true;
     if (odd_run) new_mesh = &mesh2;
     else new_mesh = &mesh1;
-
     odd_run = !odd_run;
 
-    mesh_changed = true;
-    stringstream ss; ss << *mesh;
-    write_verbose_msg(ss.str());
+    write_verbose_msg(mesh->to_str());
     return 0;
 }
 
@@ -289,7 +280,7 @@ int ProjectRunaway::read_mesh() {
     start_msg(t0, "=== Reading mesh from file...");
     int err_code = new_mesh->read("in/sample_mesh.msh", "rQnn");
     end_msg(t0);
-    check_return(err_code, "Reading mesh failed with error code " + to_string(err_code));
+    check_return(err_code, "Reading mesh failed with error code " + d2s(err_code));
 
     new_mesh->nodes.write("out/hexmesh_nodes.vtk");
     new_mesh->nodes.write("out/hexmesh_nodes.xyz");
@@ -301,9 +292,8 @@ int ProjectRunaway::read_mesh() {
 
     mesh = new_mesh;
     mesh_changed = true;
-    stringstream ss; ss << *mesh;
-    write_verbose_msg(ss.str());
 
+    write_verbose_msg(mesh->to_str());
     return 0;
 }
 
@@ -377,7 +367,7 @@ int ProjectRunaway::prepare_export() {
         err_code = forces.calc_voronois(voro_mesh, atom2face, conf.geometry.radius, conf.geometry.latconst, "10.0");
         end_msg(t0);
 
-        check_return(err_code, "Generation of Voronoi cells failed with error code " + to_string(err_code));
+        check_return(err_code, "Generation of Voronoi cells failed with error code " + d2s(err_code));
         voro_mesh.nodes.write("out/voro_nodes.vtk");
         voro_mesh.voros.write("out/voro_cells.vtk");
         voro_mesh.vfaces.write("out/voro_faces.vtk");
@@ -408,8 +398,7 @@ int ProjectRunaway::solve_laplace(double E0) {
     poisson_solver.assemble_laplace(true);
     end_msg(t0);
 
-    stringstream ss; ss << poisson_solver;
-    write_verbose_msg(ss.str());
+    write_verbose_msg(poisson_solver.to_str());
 
     start_msg(t0, "=== Running Laplace solver...");
     int ncg = poisson_solver.solve();
@@ -436,14 +425,12 @@ int ProjectRunaway::solve_pic(double advance_time) {
 
     // vector holding point to cell mapping to make interpolation faster
     vector<int> point2cell;
-    stringstream ss;
 
     if (mesh_changed) {
         start_msg(t0, "=== Initializing Poisson solver...");
         poisson_solver.setup(-conf.field.E0, conf.field.V0);
         end_msg(t0);
-        ss << poisson_solver;
-        write_verbose_msg(ss.str());
+        write_verbose_msg(poisson_solver.to_str());
     }
 
     pic_solver.set_params(conf.field, conf.pic, dt_pic, mesh->nodes.stat);
@@ -451,9 +438,7 @@ int ProjectRunaway::solve_pic(double advance_time) {
     surface_fields.store_points(ch_solver);
     emission.initialize(mesh);
 
-    ss.str(""); ss << "=== Running PIC for delta_time = " << advance_time << endl;
-    start_msg(t0, ss.str());
-
+    start_msg(t0, "=== Running PIC for delta time " + d2s(advance_time, 2) + " fs\n");
     for (int i = 0; i < n_pic_steps; ++i) {
         // advance super particles
         int n_lost = pic_solver.update_positions();
@@ -508,9 +493,7 @@ int ProjectRunaway::converge_pic(double max_time) {
     double time_save = GLOBALS.TIME;
     double I_mean, I_mean_prev;
 
-    if (MODES.VERBOSE)
-        printf("=== Running PIC converge with window %.2f\n", time_window);
-
+    start_msg(t0, "=== Converging PIC with time window " + d2s(time_window, 2) + " fs\n");
     for (int i = 0; i < i_max; ++i) {
         I_mean_prev = emission.get_mean_current();
         solve_pic(time_window);
@@ -549,13 +532,13 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, int& ccg, in
     ch_solver.current.assemble();
     ccg = ch_solver.current.solve();
     end_msg(t0);
-    write_verbose_msg("#CG steps: " + to_string(ccg));
+    write_verbose_msg("#CG steps: " + d2s(ccg));
 
     start_msg(t0, "=== Calculating temperature distribution...");
     ch_solver.heat.assemble(delta_time * 1.e-15); // caution!! ch_solver internal time in sec
     hcg = ch_solver.heat.solve();
     end_msg(t0);
-    write_verbose_msg("#CG steps: " + to_string(hcg));
+    write_verbose_msg("#CG steps: " + d2s(hcg));
 
     start_msg(t0, "=== Extracting J & T...");
     bulk_interpolator.extract_solution(ch_solver);
@@ -617,7 +600,7 @@ int ProjectRunaway::converge_heat(double T_ambient) {
     }
     end_msg(t0);
 
-    check_return(step < max_steps, "Failed to converge heat equation after " + to_string(max_steps) + " steps!");
+    check_return(step < max_steps, "Failed to converge heat equation after " + d2s(max_steps) + " steps!");
     return 0;
 }
 

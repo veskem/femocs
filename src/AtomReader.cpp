@@ -183,8 +183,8 @@ int AtomReader::check_clusters(const bool print) {
     const int n_detached = vector_sum(vector_not(&cluster, 0));
     if (print && n_detached > 0) {
         const int n_evaporated = vector_sum(vector_less(&cluster, 0));
-        write_silent_msg("# evaporated|clustered atoms: " + to_string(n_evaporated) +
-                "|" + to_string(n_detached - n_evaporated));
+        write_silent_msg("# evaporated|clustered atoms: " + d2s(n_evaporated) +
+                "|" + d2s(n_detached - n_evaporated));
     }
 
     return n_detached;

@@ -57,7 +57,7 @@ public:
 
     /** Accessor for accessing the index of i-th edge */
     int operator [](int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return data->vfacetlist[id].elist[i+1];
     }
 
@@ -102,7 +102,7 @@ public:
 
     /** Accessor for accessing the i-th face */
     VoronoiFace operator [](int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return VoronoiFace(data, data->vcelllist[id][i+1]);
     }
 
@@ -137,13 +137,13 @@ public:
 
     /** Assign i-th marker */
     void set_marker(const int i, const int value) {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         markers[i] = value;
     }
 
     /** Return i-th marker */
     int get_marker(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return markers[i];
     }
 
@@ -163,7 +163,7 @@ public:
 
     /** Accessor for accessing the i-th cell */
     T operator [](const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return T(tetio, i);
     }
 
@@ -184,13 +184,13 @@ protected:
 
     /** Return i-th node from the voronoi mesh */
     Point3 get_node(const int i) const {
-        require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < get_n_nodes(), "Invalid index: " + d2s(i));
         const int n = n_coordinates * i;
         return Point3(tetio->vpointlist[n+0], tetio->vpointlist[n+1], tetio->vpointlist[n+2]);
     }
 
     Vec3 get_vec(const int i) const {
-        require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < get_n_nodes(), "Invalid index: " + d2s(i));
         const int n = n_coordinates * i;
         return Vec3(tetio->vpointlist[n+0], tetio->vpointlist[n+1], tetio->vpointlist[n+2]);
     }
@@ -238,12 +238,12 @@ public:
     void calc_centroids();
 
     vector<int> get_neighbours(const int i) const {
-        require(i >= 0 && i < static_cast<int>(neighbours.size()), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < static_cast<int>(neighbours.size()), "Invalid index: " + d2s(i));
         return neighbours[i];
     }
 
     Vec3 get_centroid(const int i) const {
-        require(i >= 0 && i < static_cast<int>(centroids.size()), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < static_cast<int>(centroids.size()), "Invalid index: " + d2s(i));
         return centroids[i];
     }
 

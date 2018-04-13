@@ -51,7 +51,7 @@ public:
 
     /** Return full solution on i-th node */
     Solution get_solution(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return solutions[i];
     }
 
@@ -60,38 +60,38 @@ public:
 
     /** Return vector component of solution on i-th node */
     Vec3 get_vector(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return solutions[i].vector;
     }
 
     /** Return vector norm of solution on i-th node */
     double get_vector_norm(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return solutions[i].norm;
     }
 
     /** Return scalar component of solution on i-th node */
     double get_scalar(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return solutions[i].scalar;
     }
 
     /** Modify solution on the i-th node */
     void set_solution(const int i, const Solution& s) {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         solutions[i] = s;
     }
 
     /** Modify vector component of solution on the i-th node */
     void set_vector(const int i, const Vec3& v) {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         solutions[i].vector = v;
         solutions[i].norm = v.norm();
     }
 
     /** Modify scalar component of solution on the i-th node */
     void set_scalar(const int i, const double d) {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         solutions[i].scalar = d;
     }
 
@@ -158,19 +158,19 @@ public:
 
     /** Get interpolation weights for a point inside the cell */
     virtual array<double,dim> shape_functions(const Vec3& point, const int cell) const {
-        require(false, "shape_functions(point, cell) not implemented for dim-" + to_string(dim));
+        require(false, "shape_functions(point, cell) not implemented for dim-" + d2s(dim));
         return array<double,dim>();
     }
 
     /** Get gradient of shape function for a point inside the cell */
     virtual array<Vec3,dim> shape_fun_grads(const Vec3& point, const int cell) const {
-        require(false, "shape_fun_grads(point, cell) not implemented for dim-" + to_string(dim));
+        require(false, "shape_fun_grads(point, cell) not implemented for dim-" + d2s(dim));
         return array<Vec3,dim>();
     }
 
     /** Get gradient of shape function for a cell node */
     virtual array<Vec3,dim> shape_fun_grads(const int cell, const int node) const {
-        require(false, "shape_fun_grads(cell, node) not implemented for dim-" + to_string(dim));
+        require(false, "shape_fun_grads(cell, node) not implemented for dim-" + d2s(dim));
         return array<Vec3,dim>();
     }
 
@@ -202,13 +202,13 @@ public:
 
     /** Modify cell marker */
     void set_marker(const int i, const int m) {
-        require(i >= 0 && i < markers.size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < markers.size(), "Invalid index: " + d2s(i));
         markers[i] = m;
     }
 
     /** Access cell marker */
     int get_marker(const int i) const {
-        require(i >= 0 && i < markers.size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < markers.size(), "Invalid index: " + d2s(i));
         return markers[i];
     }
 
@@ -339,7 +339,7 @@ public:
 
     /** Return i-th tetrahedron */
     SimpleCell<10> get_cell(const int i) const {
-        require(i >= 0 && i < cells.size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < cells.size(), "Invalid index: " + d2s(i));
         return cells[i];
     }
 
@@ -403,13 +403,13 @@ public:
     /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
      * -1 means there's no correspondence between two meshes */
     int femocs2deal(const int i) const {
-        require(i >= 0 && i < map_femocs2deal.size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < map_femocs2deal.size(), "Invalid index: " + d2s(i));
         return map_femocs2deal[i];
     }
 
     /** Return the index of hexahedron in femocs that corresponds to i-th hexahedron in Deal.II */
     int deal2femocs(const int i) const {
-        require(i >= 0 && i < map_deal2femocs.size(), "Invalid index: " + to_string(i) + ", size = " + to_string(map_deal2femocs.size()));
+        require(i >= 0 && i < map_deal2femocs.size(), "Invalid index: " + d2s(i) + ", size = " + d2s(map_deal2femocs.size()));
         return map_deal2femocs[i];
     }
 
@@ -493,7 +493,7 @@ public:
 
     /** Return norm of i-th triangle */
      Vec3 get_norm(const int i) const {
-         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
          return norms[i];
      }
 
@@ -562,7 +562,7 @@ public:
 
     /** Return i-th hexahedron */
     SimpleCell<6> get_cell(const int i) const {
-        require(i >= 0 && i < cells.size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < cells.size(), "Invalid index: " + d2s(i));
         return cells[i];
     }
 

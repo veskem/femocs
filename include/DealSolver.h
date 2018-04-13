@@ -95,6 +95,9 @@ public:
         return os;
     }
 
+    /** Return mesh statistics as string */
+    string to_str() const { ostringstream ss; ss << (*this); return ss.str(); }
+
 protected:
     static constexpr unsigned int shape_degree = 1;   ///< degree of the shape functions (linear, quadratic etc elements)
     static constexpr unsigned int quadrature_degree = shape_degree + 1;  ///< degree of the Gaussian numerical integration

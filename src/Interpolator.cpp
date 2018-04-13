@@ -103,13 +103,13 @@ void Interpolator::get_maps(vector<int>& cell_indxs, vector<int>& vert_indxs,
 void Interpolator::store_solution(const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data) {
 
     require(vec_data.size() == scal_data.size(), "Mismatch of vector sizes: "
-            + to_string(vec_data.size()) + ", " + to_string(scal_data.size()));
+            + d2s(vec_data.size()) + ", " + d2s(scal_data.size()));
 
     int j = 0;
     for (int i = 0; i < femocs2deal.size(); ++i) {
         // If there is a common node between Femocs and deal.II meshes, store actual solution
         if (femocs2deal[i] >= 0) {
-            require(j < vec_data.size(), "Invalid index: " + to_string(j));
+            require(j < vec_data.size(), "Invalid index: " + d2s(j));
             dealii::Tensor<1, 3> vec = vec_data[j]; // that step needed to avoid complaints from Valgrind
             nodes.set_solution(i, Solution(Vec3(vec[0], vec[1], vec[2]), scal_data[j++]) );
         }
@@ -120,7 +120,7 @@ void Interpolator::store_solution(const vector<dealii::Tensor<1, 3>> vec_data, c
 
 void Interpolator::store_solution(DealSolver<3>& solver) {
     const int n_nodes = nodes.size();
-    require(femocs2deal.size() == n_nodes, "Invalid femocs2deal size: " + to_string(femocs2deal.size()));
+    require(femocs2deal.size() == n_nodes, "Invalid femocs2deal size: " + d2s(femocs2deal.size()));
 
     vector<double> scalars;
     solver.get_nodal_solution(scalars);

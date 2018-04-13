@@ -30,7 +30,7 @@ Surface::Surface(const Medium::Sizes& s, const double z) {
 }
 
 Surface::Surface(const Medium::Sizes& s, const double z, const double dist) {
-    require(dist > 0, "Invalid distance between atoms: " + to_string(dist));
+    require(dist > 0, "Invalid distance between atoms: " + d2s(dist));
 
     const int n_atoms_per_side_x = s.xbox / dist + 1;
     const int n_atoms_per_side_y = s.ybox / dist + 1;
@@ -76,7 +76,7 @@ void Surface::extract(const AtomReader& reader, const int type, const bool inver
             if (is_type[i]) {
                 int n_nbors = 0;
                 for (int nbor : reader.get_neighbours(i)) {
-                    require(nbor >= 0 && nbor < n_atoms, "Invalid index: " + to_string(nbor));
+                    require(nbor >= 0 && nbor < n_atoms, "Invalid index: " + d2s(nbor));
                     if (is_type[nbor]) n_nbors++;
                 }
 
@@ -244,9 +244,9 @@ void Surface::coarsen(Surface &surf, Coarseners &coarseners, const Medium::Sizes
     calc_linked_list(coarseners.get_r0_inf(s));
 
     const int n_atoms = size();
-    require(list.size() == n_atoms, "Invalid linked list size: " + to_string(list.size()));
+    require(list.size() == n_atoms, "Invalid linked list size: " + d2s(list.size()));
     require(head.size() == nborbox_size[0]*nborbox_size[1]*nborbox_size[2],
-            "Invalid linked list header size: " + to_string(head.size()));
+            "Invalid linked list header size: " + d2s(head.size()));
 
     vector<int> do_delete(n_atoms, false);
 
@@ -272,14 +272,14 @@ void Surface::coarsen(Surface &surf, Coarseners &coarseners, const Medium::Sizes
 
                     // transform volumetric neighbour box index to linear one
                     int i_cell = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
-                    require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + to_string(i_cell));
+                    require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + d2s(i_cell));
 
                     // get the index of first atom in given neighbouring cell
                     int j = head[i_cell];
 
                     // loop through all atoms in a given neighbouring cell
                     while(j >= 0) {
-                        require(j < n_atoms, "Invalid index in linked list: " + to_string(j));
+                        require(j < n_atoms, "Invalid index in linked list: " + d2s(j));
                         // skip the same atoms and the atoms that are already deleted
                         if (!do_delete[j] && i != j)
                             do_delete[j] = coarseners.nearby(point1, get_point(j));

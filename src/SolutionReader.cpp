@@ -990,7 +990,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
                     dVdx = (Vline[i-1] - Vline[i-2]) / (rline[i-1] - rline[i-2]);
                 else
                     write_verbose_msg("Non-monotonous Vline could not be recovered at i = "
-                            + to_string(i));
+                            + d2s(i));
             }
             for (int k = 0; k <= j; ++k)
                 Vline[k] =  Vline[i-1] + (rline[k] - rline[i-1]) * dVdx;
@@ -1054,14 +1054,14 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
         cur_dens_c(&gt); // calculate emission
 
         if (gt.ierr != 0 )
-            write_verbose_msg("GETELEC 1st call returned with error, ierr = " + to_string(gt.ierr));
+            write_verbose_msg("GETELEC 1st call returned with error, ierr = " + d2s(gt.ierr));
         J = gt.Jem * nm2_per_angstrom2; // current density in femocs units
 
         if (J > 0.1 * global_data.Jmax && !cold){ // If J is worth it, calculate with full energy integration
             gt.approx = 1;
             cur_dens_c(&gt);
             if (gt.ierr != 0 )
-                write_verbose_msg("GETELEC 2nd call returned with error, ierr = " + to_string(gt.ierr));
+                write_verbose_msg("GETELEC 2nd call returned with error, ierr = " + d2s(gt.ierr));
             J = gt.Jem * nm2_per_angstrom2;
             set_marker(i, 2);
         }
@@ -1412,9 +1412,9 @@ void ForceReader::calc_coulomb(const double r_cut) {
     // it is more efficinet to calculate forces from linked list than from neighbour list,
     // as in that ways it is possible to avoid double calculation of the distances
     calc_linked_list(r_cut);
-    require(list.size() == n_atoms, "Invalid linked list size: " + to_string(list.size()));
+    require(list.size() == n_atoms, "Invalid linked list size: " + d2s(list.size()));
     require(head.size() == nborbox_size[0]*nborbox_size[1]*nborbox_size[2],
-            "Invalid linked list header size: " + to_string(head.size()));
+            "Invalid linked list header size: " + d2s(head.size()));
 
     // loop through the atoms
     for (int i = 0; i < n_atoms; ++i) {
@@ -1433,7 +1433,7 @@ void ForceReader::calc_coulomb(const double r_cut) {
 
                     // transform volumetric neighbour box index to linear one
                     int i_cell = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
-                    require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + to_string(i_cell));
+                    require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + d2s(i_cell));
 
                     // get the index of first atom in given neighbouring cell and loop through neighbours
                     int j = head[i_cell];

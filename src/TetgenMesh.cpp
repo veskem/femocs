@@ -58,7 +58,7 @@ int TetgenMesh::tri2tet(const int tri, const int region) const {
             if (tet >= 0 && tets.get_marker(tet) != TYPES.VACUUM)
                 return tet;
     } else
-        require(false, "Unimplemented region: " + to_string(region));
+        require(false, "Unimplemented region: " + d2s(region));
 
     return -1;
 }
@@ -75,7 +75,7 @@ int TetgenMesh::quad2hex(const int quad, const int region) const {
             if (hex >= 0 && tets.get_marker(hexs.to_tet(hex)) != TYPES.VACUUM)
                 return hex;
     } else
-        require(false, "Unimplemented region: " + to_string(region));
+        require(false, "Unimplemented region: " + d2s(region));
 
     return -1;
 }
@@ -714,8 +714,8 @@ void TetgenMesh::calc_pseudo_2D_vorocells(vector<vector<unsigned>>& cells) const
 
     for (int quad = 0; quad < quads.size(); ++quad) {
         const int trinode = quads.get_marker(quad);
-        expect(trinode >= node_min && trinode <= node_max, "Quadrangle " + to_string(quad) +
-                " is not marked by the triangle node: " + to_string(trinode));
+        expect(trinode >= node_min && trinode <= node_max, "Quadrangle " + d2s(quad) +
+                " is not marked by the triangle node: " + d2s(trinode));
 
         for (int node : quads[quad])
             if (node != trinode)

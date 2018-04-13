@@ -41,7 +41,7 @@ public:
 
     /** Initialize cell appending */
     virtual void init(const int N) {
-        require(N >= 0, "Invalid number of cells: " + to_string(N));
+        require(N >= 0, "Invalid number of cells: " + d2s(N));
         i_cells = 0;
         *n_cells_w = N;
     }
@@ -51,13 +51,13 @@ public:
 
     /** Initialize markers with value */
     void init_markers(const int N, const int value) {
-        require(N >= 0, "Invalid number of markers: " + to_string(N));
+        require(N >= 0, "Invalid number of markers: " + d2s(N));
         markers = vector<int>(N, value);
     }
     
     /** Initialize marker appending */
     void init_markers(const int N) {
-        require(N >= 0, "Invalid number of markers: " + to_string(N));
+        require(N >= 0, "Invalid number of markers: " + d2s(N));
         markers.clear();
         markers.reserve(N);
     }
@@ -70,7 +70,7 @@ public:
 
     /** Set the number of available cells */
     void set_counter(const int n_cells) {
-        require(n_cells >= 0, "Invalid number of cells: " + to_string(n_cells));
+        require(n_cells >= 0, "Invalid number of cells: " + d2s(n_cells));
         i_cells = n_cells;
     }
 
@@ -133,13 +133,13 @@ public:
 
     /** Return i-th marker */
     int get_marker(const int i) const {
-        require(i >= 0 && i < static_cast<int>(get_n_markers()), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < static_cast<int>(get_n_markers()), "Invalid index: " + d2s(i));
         return markers[i];
     }
 
     /** Get cell centroid coordinates */
     Point3 get_centroid(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
 
         Point3 centroid(0.0);
         for (int v : get_cell(i))
@@ -154,7 +154,7 @@ public:
 
     /** Assign m-th marker */
     void set_marker(const int node, const int m) {
-        require(node >= 0 && node < static_cast<int>(get_n_markers()), "Invalid index: " + to_string(node));
+        require(node >= 0 && node < static_cast<int>(get_n_markers()), "Invalid index: " + d2s(node));
         markers[node] = m;
     }
 
@@ -220,14 +220,14 @@ protected:
 
     /** Return i-th readable node from the mesh in point form */
     Point3 get_node(const int i) const {
-        require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < get_n_nodes(), "Invalid index: " + d2s(i));
         const int n = n_coordinates * i;
         return Point3(reads->pointlist[n+0], reads->pointlist[n+1], reads->pointlist[n+2]);
     }
     
     /** Return i-th readable node from the mesh in vector form */
     Vec3 get_vec(const int i) const {
-        require(i >= 0 && i < get_n_nodes(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < get_n_nodes(), "Invalid index: " + d2s(i));
         const int n = n_coordinates * i;
         return Vec3(reads->pointlist[n+0], reads->pointlist[n+1], reads->pointlist[n+2]);
     }
@@ -454,14 +454,14 @@ public:
     /** Return indices of all tetrahedra that are connected to i-th triangle;
      * -1 means there's no tetrahedron */
     array<int,2> to_tets(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         const int I = 2 * i;
         return array<int,2>{reads->face2tetlist[I], reads->face2tetlist[I+1]};
     }
 
     /** Return indices of all quadrangles that are connected to i-th triangle*/
     array<int,3> to_quads(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         const int I = n_quads_per_tri * i;
         return array<int,3>{I, I+1, I+2};
     }
@@ -514,13 +514,13 @@ public:
 
     /** Return indices of all triangles that are connected to i-th tetrahedron*/
     vector<int> to_tris(const int i) const {
-        require(i >= 0 && i < map2tris.size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < map2tris.size(), "Invalid index: " + d2s(i));
         return map2tris[i];
     }
 
     /** Return indices of all hexahedra that are connected to i-th tetrahedron*/
     array<int,4> to_hexs(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         const int I = n_hexs_per_tet * i;
         return array<int,4>{I, I+1, I+2, I+3};
     }
@@ -572,13 +572,13 @@ public:
     /** Return indices of all hexahedra that are connected to i-th quadrangle;
      * -1 means there's no hexahedron */
     array<int,2> to_hexs(const int i) const {
-        require(i >= 0 && i < map2hexs.size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < map2hexs.size(), "Invalid index: " + d2s(i));
         return map2hexs[i];
     }
 
     /** Return the index of triangle connected to i-th quadrangle */
     int to_tri(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return int(i / n_quads_per_tri);
     }
 
@@ -617,13 +617,13 @@ public:
 
     /** Return the indices of quadrangles connected to i-th hexahedron */
     vector<int> to_quads(const int i) const {
-        require(i >= 0 && i < map2quads.size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < map2quads.size(), "Invalid index: " + d2s(i));
         return map2quads[i];
     }
 
     /** Return the index of tetrahedron connected to i-th hexahedron */
     int to_tet(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return int(i / n_hexs_per_tet);
     }
 

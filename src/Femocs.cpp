@@ -79,7 +79,7 @@ int Femocs::generate_nanotip() {
     reader.generate_nanotip(conf.geometry.height, r, conf.geometry.latconst);
     reader.calc_coordinations(conf.geometry.nnn);
     end_msg(t0);
-    write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
+    write_verbose_msg( "#input atoms: " + d2s(reader.size()) );
 
     reader.write("out/atomreader.ckx");
     return 0;
@@ -102,7 +102,7 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
         start_msg(t0, "=== Importing atoms...");
         reader.import_file(fname, add_noise);
         end_msg(t0);
-        write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
+        write_verbose_msg( "#input atoms: " + d2s(reader.size()) );
     }
 
 
@@ -156,7 +156,7 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
     start_msg(t0, "=== Importing atoms...");
     reader.import_parcas(n_atoms, coordinates, box);
     end_msg(t0);
-    write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
+    write_verbose_msg( "#input atoms: " + d2s(reader.size()) );
 
     start_msg(t0, "=== Comparing with previous run...");
     bool system_changed = reader.calc_rms_distance(conf.tolerance.distance) >= conf.tolerance.distance;
@@ -201,7 +201,7 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
     start_msg(t0, "=== Importing atoms...");
     reader.import_helmod(n_atoms, x, y, z, types);
     end_msg(t0);
-    write_verbose_msg( "#input atoms: " + to_string(reader.size()) );
+    write_verbose_msg( "#input atoms: " + d2s(reader.size()) );
 
     start_msg(t0, "=== Comparing with previous run...");
     bool system_changed = reader.calc_rms_distance(conf.tolerance.distance) >= conf.tolerance.distance;

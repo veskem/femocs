@@ -130,7 +130,7 @@ Point3 Pic<dim>::get_rnd_point(const int quad, const TetgenMesh &mesh) {
             return point;
     }
 
-    write_silent_msg("Random point generation failed for cell " + to_string(quad));
+    write_silent_msg("Random point generation failed for cell " + d2s(quad));
     return mesh.quads.get_centroid(quad);
 }
 

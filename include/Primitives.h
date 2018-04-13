@@ -96,7 +96,7 @@ public:
     }
 
     /** Return data as string */
-    string to_str() const { stringstream ss; ss << this; return ss.str(); }
+    string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
     /** Accessor for accessing the i-th node */
     const double& operator [](const size_t i) const {
@@ -615,7 +615,7 @@ public:
     }
 
     /** Return data as string */
-    string to_str() const { stringstream ss; ss << this; return ss.str(); }
+    string to_str() const { stringstream ss; ss << (*this); return ss.str(); }
 
     /** Transform SimpleCell to vector */
     vector<int> to_vector() const { return vector<int>(std::begin(node), std::end(node)); }

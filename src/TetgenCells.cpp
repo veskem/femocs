@@ -60,27 +60,27 @@ void TetgenNodes::append(const Point3 &point) {
 
 // Get i-th node from the mesh
 SimpleCell<1> TetgenNodes::get_cell(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     return SimpleNode(i);
 }
 
 // Return the coordinates of i-th node as a 3D vector
 Vec3 TetgenNodes::get_vec(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     const int n = n_coordinates * i;
     return Vec3(reads->pointlist[n+0], reads->pointlist[n+1], reads->pointlist[n+2]);
 }
 
 // Modify the coordinates of i-th node
 void TetgenNodes::set_node(const int i, const Point3 &point) {
-    require(i >= 0 && i < get_n_nodes(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < get_n_nodes(), "Index out of bounds: " + d2s(i));
     int I = n_coordinates * i;
     for (double node : point)
         reads->pointlist[I++] = node;
 }
 
 void TetgenNodes::set_boundary(const int i, const int value) {
-    require(i >= 0 && i < get_n_nodes(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < get_n_nodes(), "Index out of bounds: " + d2s(i));
     writes->pointmarkerlist[i] = value;
 }
 
@@ -97,7 +97,7 @@ void TetgenNodes::save_indices(const int n_surf, const int n_bulk, const int n_v
 
 // Store the locations of different kinds of nodes that were produced while splitting tetrahedra into hexahedra
 void TetgenNodes::save_hex_indices(const vector<int>& n_nodes) {
-    require(n_nodes.size() == 4, "Invalid size of indices: " + to_string(n_nodes.size()));
+    require(n_nodes.size() == 4, "Invalid size of indices: " + d2s(n_nodes.size()));
 
     stat.n_tetnode = n_nodes[0];
     stat.n_midedge = n_nodes[1];
@@ -266,7 +266,7 @@ void TetgenEdges::append(const SimpleCell<2> &cell) {
 
 // Get i-th edge from the mesh
 SimpleCell<2> TetgenEdges::get_cell(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     const int I = DIM * i;
     return SimpleEdge(reads->edgelist[I], reads->edgelist[I+1]);
 }
@@ -360,7 +360,7 @@ void TetgenFaces::append(const SimpleCell<3> &cell) {
 
 // Get i-th face from the mesh
 SimpleCell<3> TetgenFaces::get_cell(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     const int I = DIM * i;
     return SimpleFace(reads->trifacelist[I], reads->trifacelist[I+1], reads->trifacelist[I+2]);
 }
@@ -412,13 +412,13 @@ void TetgenFaces::calc_norms_and_areas() {
 
 // Return the normal of i-th triangle
 Vec3 TetgenFaces::get_norm(const int i) const {
-    require(i >= 0 && i < static_cast<int>(norms.size()), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < static_cast<int>(norms.size()), "Invalid index: " + d2s(i));
     return norms[i];
 }
 
 // Return the area of i-th triangle
 double TetgenFaces::get_area(const int i) const {
-    require(i >= 0 && i < static_cast<int>(areas.size()), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < static_cast<int>(areas.size()), "Invalid index: " + d2s(i));
     return areas[i];
 }
     
@@ -529,7 +529,7 @@ void TetgenElements::append(const SimpleCell<4> &cell) {
 
 // Get i-th element from the mesh
 SimpleCell<4> TetgenElements::get_cell(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     const int I = DIM * i;
     return SimpleElement(reads->tetrahedronlist[I], reads->tetrahedronlist[I+1],
             reads->tetrahedronlist[I+2], reads->tetrahedronlist[I+3]);
@@ -537,7 +537,7 @@ SimpleCell<4> TetgenElements::get_cell(const int i) const {
 
 // Get indices of neighbouring elements of i-th element
 vector<int> TetgenElements::get_neighbours(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     require(reads->neighborlist, "Query from empty neighbour list!");
 
     const int I = DIM * i;
@@ -565,7 +565,7 @@ void Quadrangles::append(const SimpleCell<4> &cell) {
 
 // Get i-th element from the mesh
 SimpleCell<4> Quadrangles::get_cell(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     return quads[i];
 }
 
@@ -589,7 +589,7 @@ void Hexahedra::append(const SimpleCell<8> &cell) {
 
 // Get i-th element from the mesh
 SimpleCell<8> Hexahedra::get_cell(const int i) const {
-    require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+    require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     return hexs[i];
 }
 
