@@ -44,14 +44,14 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
     end_msg(t0);
 }
 
-int ProjectRunaway::reinit(const int tstep) {
-    static bool prev_skip_calculations = true;  // Value of skip_calculations in last call
+int ProjectRunaway::reinit(int tstep) {
+    static bool skip_meshing = true;  // remember the value of skip_meshing
     if (tstep >= 0)
         timestep = tstep;
     else
         ++timestep;
 
-    if (!prev_skip_calculations && MODES.WRITEFILE)
+    if (!skip_meshing && MODES.WRITEFILE)
         MODES.WRITEFILE = false;
 
     if ((conf.behaviour.n_writefile > 0) && (timestep % conf.behaviour.n_writefile == 0))
@@ -60,20 +60,27 @@ int ProjectRunaway::reinit(const int tstep) {
     atom2face.clear();
 
     timestep_string = d2s(timestep);
-    write_silent_msg("Running at timestep " + timestep_string);
     timestep_string = "_" + string( max(0.0, 6.0 - timestep_string.length()), '0' ) + timestep_string;
 
-    bool skip_meshing = reader.rms_distance < conf.tolerance.distance;
-    prev_skip_calculations = skip_meshing;
+    mesh_changed = false;
+    skip_meshing = reader.rms_distance < conf.tolerance.distance;
+
+    write_silent_msg("Running at timestep " + d2s(timestep));
     return skip_meshing;
 }
 
-int ProjectRunaway::finalize() {
+int ProjectRunaway::finalize(double tstart) {
     start_msg(t0, "=== Saving atom positions...");
     reader.save_current_run_points(conf.tolerance.distance);
     end_msg(t0);
 
+    // In case no transient simulations (time has stayed the same) advance the time
+    if (conf.pic.mode == "none" && conf.heating.mode == "none")
+        GLOBALS.TIME += conf.behaviour.timestep_fs;
+
     last_full_timestep = timestep;
+
+    write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
     return 0;
 }
 
@@ -84,79 +91,35 @@ int ProjectRunaway::run(const int timestep) {
 int ProjectRunaway::run(const double elfield, const int tstep) {
     double tstart = omp_get_wtime();
 
-    //***** Build mesh *****
-    mesh_changed = false;
-    bool skip_meshing = reinit(tstep);
-    if (skip_meshing) {
+    //***** Build or import mesh *****
+
+    if (reinit(tstep))
         write_verbose_msg("Atoms haven't moved significantly, "
                 + d2s(reader.rms_distance, 3) + " < " + d2s(conf.tolerance.distance, 3)
                 + "! Previous mesh will be used!");
-    }
-    else {
-        if (generate_mesh()) {
-            force_output();
-            write_silent_msg("Mesh generation failed!");
-        }
-        // TODO implement reasonable case where mesh
-        if (prepare_solvers()) {
-            force_output();
-            write_silent_msg("Preparation of FEM solvers failed!");
-            mesh_changed = false;
-        }
-    }
+
+    else if (generate_mesh())
+        return process_failed("Mesh generation failed!");
+
     check_return(GLOBALS.TIME == 0 && !mesh_changed, "First meshing failed! Terminating...");
 
-    //***** Run heat convergence calculation with constant mesh
-    if (conf.heating.mode == "converge")
-        return converge_heat(conf.heating.t_ambient);
+    if (mesh_changed && prepare_solvers())
+        return process_failed("Preparation of FEM solvers failed!");
 
     //***** Run FEM solvers *****
 
-    if (conf.field.solver == "poisson") {
-        if (conf.pic.mode == "transient") {
-            if (solve_pic(conf.behaviour.total_time)) {
-                force_output();
-                print_return("Solving PIC failed!");
-            }
-        } else if (conf.pic.mode == "converge") {
-            if (converge_pic(1.e4)) {
-                force_output();
-                print_return("Converging PIC failed!");
-            }
-        } else {
-            print_return("Invalid PIC mode: " + conf.pic.mode);
-        }
+    if (run_field_solver())
+        return process_failed("Running field solver in a " + conf.field.solver + " mode failed!");
 
-    }
-
-    if (mesh_changed && conf.field.solver == "laplace") {
-        if (solve_laplace(elfield)) {
-            force_output();
-            print_return("Solving Laplace equation failed!");
-        }
-    }
-
-    int ccg, hcg;
-    if (mesh_changed && conf.heating.mode == "transient") {
-        if (solve_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, ccg, hcg)) {
-            force_output();
-            print_return("Solving heat & continuity equation failed!");
-        }
-    }
-
-    // In case no transient simulations (time has stayed the same) advance the time
-    if (conf.pic.mode == "none" && conf.heating.mode == "none")
-        GLOBALS.TIME += conf.behaviour.total_time;
+    if (run_heat_solver())
+        return process_failed("Running heat solver in a " + conf.heating.mode + " mode failed!");
 
     //***** Prepare for data export and next run *****
-    if (prepare_export()) {
-        force_output();
-        print_return("Extracting solution on atoms failed!");
-    }
 
-    finalize();
-    write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
+    if (prepare_export())
+        return process_failed("Interpolating solution on atoms failed!");
 
+    finalize(tstart);
     return 0;
 }
 
@@ -323,6 +286,11 @@ int ProjectRunaway::prepare_solvers() {
 }
 
 int ProjectRunaway::prepare_export() {
+    if (dense_surf.size() == 0) {
+        write_silent_msg("No atoms for solution interpolation!");
+        return 0;
+    }
+
     start_msg(t0, "=== Interpolating E and phi...");
     fields.set_preferences(true, 2, 1);
     fields.interpolate(dense_surf);
@@ -337,8 +305,8 @@ int ProjectRunaway::prepare_export() {
         temperatures.interpolate(reader);
         end_msg(t0);
 
-        temperatures.write("out/temperatures.movie");
         // TODO implement reasonable temperature limit check
+        temperatures.write("out/temperatures.movie");
     }
 
     if (conf.force.mode != "none") {
@@ -363,8 +331,7 @@ int ProjectRunaway::prepare_export() {
 
         start_msg(t0, "=== Generating Voronoi cells...");
         VoronoiMesh voro_mesh;
-        int err_code;
-        err_code = forces.calc_voronois(voro_mesh, atom2face, conf.geometry.radius, conf.geometry.latconst, "10.0");
+        int err_code = forces.calc_voronois(voro_mesh, atom2face, conf.geometry.radius, conf.geometry.latconst, "10.0");
         end_msg(t0);
 
         check_return(err_code, "Generation of Voronoi cells failed with error code " + d2s(err_code));
@@ -385,6 +352,34 @@ int ProjectRunaway::prepare_export() {
         forces.write("out/forces.movie");
         check_return(face_charges.check_limits(forces.get_interpolations()), "Voronoi charges are not conserved!");
     }
+
+    return 0;
+}
+
+int ProjectRunaway::run_field_solver() {
+    if (conf.field.solver == "poisson") {
+        if (conf.pic.mode == "transient")
+            return solve_pic(conf.behaviour.timestep_fs);
+        else if (conf.pic.mode == "converge")
+            return converge_pic(1.e4);
+        else
+            check_return(false, "Invalid PIC mode: " + conf.pic.mode);
+    }
+
+    if (mesh_changed && conf.field.solver == "laplace")
+        return solve_laplace(conf.field.E0);
+
+    return 0;
+}
+
+int ProjectRunaway::run_heat_solver() {
+    int ccg, hcg;
+
+    if (conf.heating.mode == "converge")
+        return converge_heat(conf.heating.t_ambient);
+
+    if (mesh_changed && conf.heating.mode == "transient")
+        return solve_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, ccg, hcg);
 
     return 0;
 }
@@ -522,7 +517,6 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, int& ccg, in
         surface_temperatures.interpolate(ch_solver);
         emission.initialize(mesh);
         emission.calc_emission(conf.emission, conf.field.V0);
-        emission.export_emission(ch_solver);
         end_msg(t0);
     }
 
@@ -555,49 +549,47 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, int& ccg, in
 
 int ProjectRunaway::converge_heat(double T_ambient) {
     const int max_steps = 1000;
-    double delta_time = 1;
-    int ccg, hcg, step;
+    double delta_time = conf.heating.delta_time;
+    int ccg, hcg, step, error;
+
+    mesh_changed = false; // run convergence always with the same mesh
+    bool global_verbosity = MODES.VERBOSE;
 
     start_msg(t0, "=== Converging heat...\n");
+    MODES.VERBOSE = false;
+
     for (step = 0; step < max_steps; ++step) {
+        // calculate field - advance PIC for delta time
+        if (conf.pic.mode == "transient")
+            error = solve_pic(delta_time);
+        else if (conf.pic.mode == "converge")
+            error = converge_pic(delta_time);
+        if (error) return error;
 
-        //calculate field - advance pic for the given timestep
-        if (conf.pic.mode == "transient"){
-            if (solve_pic(delta_time)) {
-                force_output();
-                print_return("Solving PIC failed!");
-            }
-        } else if (conf.pic.mode == "converge") {
-            if (converge_pic(delta_time)) {
-                force_output();
-                print_return("Converging PIC failed!");
-            }
-        }
+        // advance heat and current system for delta_time
+        error = solve_heat(conf.heating.t_ambient, delta_time, ccg, hcg);
+        if (error) return error;
 
-        // advance heat and current system by delta_time
-        if (solve_heat(conf.heating.t_ambient, delta_time, ccg, hcg)) {
-            force_output();
-            print_return("Solving heat & continuity equation failed!");
-        }
-
-        mesh_changed = false; //running convergence with the same mesh always
-
-        if (MODES.VERBOSE)
-            printf( "t=%.2e ps, dt=%.2f ps, Tmax=%.2fK\n",
-                    GLOBALS.TIME * 1.e-3, delta_time * 1.e-3, ch_solver.heat.max_solution() );
-
+        // modify the advance time depending on how slowly the solution is changing
         if (conf.pic.mode == "none" || conf.pic.mode == "converge")
             GLOBALS.TIME += delta_time;
 
-        if (hcg < (ccg - 10)) // if heat changed too little
+        if (hcg < (ccg - 10)) // heat changed too little?
             delta_time *= 1.25;
-        else if (hcg > (ccg + 10)) // if heat changed too much
+        else if (hcg > (ccg + 10)) // heat changed too much?
             delta_time /= 1.25;
 
+        // write debug data
+        if (global_verbosity)
+            printf( "t=%.2e ps, dt=%.2f ps, Tmax=%.2fK\n",
+                    GLOBALS.TIME * 1.e-3, delta_time * 1.e-3, ch_solver.heat.max_solution() );
         write_results();
 
+        // check if the result has converged
         if (max(hcg, ccg) < 10) break;
     }
+
+    MODES.VERBOSE = global_verbosity;
     end_msg(t0);
 
     check_return(step < max_steps, "Failed to converge heat equation after " + d2s(max_steps) + " steps!");
@@ -689,7 +681,7 @@ int ProjectRunaway::interpolate_results(const int n_points, const string &cmd, c
 
     if (cmd == LABELS.rho.second || cmd == LABELS.rho_norm.second || cmd == LABELS.temperature.second) {
         temperatures.set_preferences(false, dim, conf.behaviour.interpolation_rank);
-        return fields.interpolate_results(n_points, cmd, x, y, z, data);
+        return temperatures.interpolate_results(n_points, cmd, x, y, z, data);
     }
 
     if (cmd == LABELS.force.second || cmd == LABELS.force_norm.second || cmd == LABELS.charge.second) {

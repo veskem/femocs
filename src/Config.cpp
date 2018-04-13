@@ -23,7 +23,7 @@ Config::Config() {
     behaviour.n_writefile = 1;        // number of time steps between writing the output files
     behaviour.interpolation_rank = 1; // rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
     behaviour.write_period = 1.e5;    // write files every write_period of time
-    behaviour.total_time = 4.05;      // Total time of a FEMOCS run [fs]
+    behaviour.timestep_fs = 4.05;     // Total time of a FEMOCS run [fs]
     behaviour.rnd_seed = 12345;       // Seed for random number generator
 
     run.cluster_anal = true;          // enable cluster analysis
@@ -180,7 +180,7 @@ void Config::read_all(const string& file_name) {
     read_command("n_writefile", behaviour.n_writefile);
     read_command("interpolation_rank", behaviour.interpolation_rank);
     read_command("write_period", behaviour.write_period);
-    read_command("femocs_run_time", behaviour.total_time);
+    read_command("femocs_run_time", behaviour.timestep_fs);
     read_command("seed", behaviour.rnd_seed);
 
     read_command("distance_tol", tolerance.distance);

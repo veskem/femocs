@@ -54,7 +54,6 @@ void expectation_fails(const char *file, int line, string message);
 
 /** Definitions to handle cases where operation does not complete normally */
 #define check_return(condition, message) if (condition) { write_silent_msg(message); return 1; }
-#define print_return(message) { write_silent_msg(message); return 1; }
 
 /** Return mask of indices that are equal to the scalar */
 vector<bool> vector_equal(const vector<int> *v, const int s);

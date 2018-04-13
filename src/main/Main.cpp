@@ -185,6 +185,7 @@ void write_tip111(ofstream &file) {
 void write_generate(ofstream &file, string params="") {
     file << params << endl;
 
+    file << "infile = generate"        << endl;
     file << "coarse_factor = 0.35 2 2" << endl;
     file << "radius = 30"              << endl;
     file << "tip_height = 0"           << endl;
@@ -196,10 +197,10 @@ void write_generate(ofstream &file, string params="") {
     file << "smooth_steps = 0"         << endl;
     file << "force_mode = none"        << endl;
     file << "coarse_rate = 0.5"        << endl;
+    file << "seed = 12345"             << endl;
 
     file << "n_writefile = 0"          << endl;
 
-    file << "seed = 12345"             << endl;
 //    file << "Vappl = 200"              << endl;
 //    file << "anode_BC = dirichlet"     << endl;
     file << "anode_BC = neumann"       << endl;
