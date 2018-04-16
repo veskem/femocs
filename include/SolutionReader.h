@@ -167,7 +167,7 @@ public:
 
     /** Set parameters to calculate analytical solution */
     void set_check_params(const double E0, const double limit_min, const double limit_max,
-            const double radius1, const double radius2=-1);
+            const double radius, const double height=-1);
 
     /** Export calculated electic field distribution to HELMOD */
     int export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);

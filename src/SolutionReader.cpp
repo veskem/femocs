@@ -650,15 +650,18 @@ double FieldReader::calc_max_field(const vector<Solution>* solutions) const {
 }
 
 void FieldReader::set_check_params(const double E0, const double limit_min, const double limit_max,
-        const double radius1, const double radius2) {
+        const double radius, const double height) {
     this->E0 = E0;
     this->limit_min = limit_min;
     this->limit_max = limit_max;
-    this->radius1 = radius1;
-    if (radius2 > radius1)
-        this->radius2 = radius2;
-    else
-        this->radius2 = radius1;
+
+    if (height > radius) {
+        this->radius2 = height;
+        this->radius1 = sqrt(height*radius);
+    } else {
+        this->radius2 = radius;
+        this->radius1 = radius;
+    }
 }
 
 int FieldReader::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
