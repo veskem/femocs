@@ -95,7 +95,7 @@ private:
     int write_results();
 
     /** Check if enough time has passed since the last file write_results */
-    bool write_time() const { return GLOBALS.TIME < (last_write_time + conf.behaviour.write_period); }
+    bool write_time() const { return GLOBALS.TIME >= (last_write_time + conf.behaviour.write_period); }
 
     int process_failed(const string &msg) { write_verbose_msg(msg); force_output(); return 1; }
 
