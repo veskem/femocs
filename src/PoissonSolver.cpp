@@ -237,12 +237,12 @@ void PoissonSolver<dim>::assemble_laplace(const bool first_time) {
 template<int dim>
 void PoissonSolver<dim>::assemble_poisson(const bool first_time, const bool write_time) {
     require(conf, "NULL conf can't be used!");
-    require(conf->anodeBC == "neumann" || conf->anodeBC == "dirichlet",
-            "Unimplemented anode BC: " + conf->anodeBC);
+    require(conf->anode_BC == "neumann" || conf->anode_BC == "dirichlet",
+            "Unimplemented anode BC: " + conf->anode_BC);
 
     this->system_rhs = 0;
 
-    if (conf->anodeBC == "neumann") {
+    if (conf->anode_BC == "neumann") {
         if (first_time) {
             assemble_lhs();
             this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);

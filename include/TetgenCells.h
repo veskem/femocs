@@ -451,6 +451,9 @@ public:
     /** Return the area of i-th triangle */
     double get_area(const int i) const;
 
+    /** Return the centroid of i-th triangle */
+    Point3 get_centroid(const int i) const;
+
     /** Return indices of all tetrahedra that are connected to i-th triangle;
      * -1 means there's no tetrahedron */
     array<int,2> to_tets(const int i) const {
@@ -470,17 +473,24 @@ public:
     void calc_statistics();
 
     /** Calculate the norms and areas for all the triangles */
-    void calc_norms_and_areas();
+    void calc_appendices();
 
     /** Struct holding statistics about triangles */
     struct Stat {
         double edgemin;    //!< Minimum edge length
         double edgemax;    //!< Maximum edge length
+        double xmin;
+        double xmax;
+        double ymin;
+        double ymax;
+        double zmin;
+        double zmax;
     } stat;
 
 private:
-    vector<double> areas;   ///< areas of triangles
-    vector<Vec3> norms;     ///< norms of triangles
+    vector<double> areas;     ///< areas of triangles
+    vector<Vec3> norms;       ///< norms of triangles
+    vector<Point3> centroids; ///< pre-calculated centroids of triangles
 
     /** Return the triangle type in vtk format */
     int get_cell_type() const { return TYPES.VTK.TRIANGLE; }

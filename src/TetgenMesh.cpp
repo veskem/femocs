@@ -42,7 +42,7 @@ int TetgenMesh::read(const string &file_name, const string &cmd) {
     calc_quad2hex_mapping();
 
     nodes.calc_statistics();
-    tris.calc_norms_and_areas();
+    tris.calc_appendices();
 
     return 0;
 }
@@ -486,7 +486,7 @@ int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd1,
     if (error_code) return error_code;
 
     // copy the triangles that are not on the simubox perimeter to input tetIO
-    vacuum.tris.calc_statistics();
+    vacuum.tris.calc_appendices();
     const int n_surf_faces = tris.copy_surface(vacuum.tris, sizes);
 
     // transfer elements and nodes to input

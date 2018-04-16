@@ -46,16 +46,12 @@ public:
     void write(const string &filename) const;
     
     /** Store various data */
-    void set_params(const Config::Field &conf_lap, const Config::PIC &conf_pic, const double _dt,
-            const TetgenNodes::Stat _box) {
+    void set_params(const Config::PIC &conf, const double _dt, const TetgenNodes::Stat _box) {
         dt = _dt;
-        Wel = conf_pic.Wsp_el;
+        Wel = conf.Wsp_el;
         electrons.set_Wsp(Wel);
-        E0 = conf_lap.E0;
-        V0 = conf_lap.V0;
-        anodeBC = conf_lap.anodeBC;
         box = _box;
-        coll_coulomb_ee = conf_pic.coll_coulomb_ee;
+        coll_coulomb_ee = conf.coll_coulomb_ee;
     }
 
     /** Return pointer to charged super-particles */
@@ -74,9 +70,6 @@ private:
     //Parameters
     double Wel = .01;   ///< Super particle weighting [particles/superparticle]
     double dt = 1.;     ///< timestep [fs]
-    double E0 = -1;     ///< Applied field at Neumann boundary [V/Å]
-    double V0 = 1000;   ///< Applied voltage (in case Dirichlet boundary at anode) [V]
-    string anodeBC = "Neumann";     ///< Boundary type at the anode
     bool coll_coulomb_ee = false;   ///< Switch 2e->2e Coulomb collisions on/off
 
     PoissonSolver<dim> *poisson_solver;      ///< object to solve Poisson equation in the vacuum mesh

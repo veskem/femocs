@@ -58,7 +58,7 @@ Config::Config() {
     field.phi_error = 1e-9;           // maximum allowed electric potential error
     field.n_phi = 10000;              // maximum number of Conjugate Gradient iterations in phi calculation
     field.V0 = 0.0;                   // anode voltage
-    field.anodeBC = "neumann";        // anode Neumann boundary
+    field.anode_BC = "neumann";        // anode Neumann boundary
     field.solver = "laplace";         // type of field equation to be solved; laplace or poisson
     field.element_degree = 1;         // FEM element shape function degree
 
@@ -146,7 +146,7 @@ void Config::read_all(const string& file_name) {
     read_command("n_phi", field.n_phi);
     read_command("elfield", field.E0);
     read_command("Vappl", field.V0);
-    read_command("anode_BC", field.anodeBC);
+    read_command("anode_BC", field.anode_BC);
     read_command("field_solver", field.solver);
     read_command("element_degree", field.element_degree);
 

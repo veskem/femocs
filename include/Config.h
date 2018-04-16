@@ -110,7 +110,7 @@ public:
         double phi_error;       ///< Maximum allowed electric potential error
         int n_phi;              ///< Maximum number of Conjugate Gradient iterations in phi calculation
         double V0;              ///< Applied voltage at the anode (active in case of SC emission and Dirichlet anodeBC
-        string anodeBC;         ///< Type of anode boundary condition (Dirichlet or Neumann)
+        string anode_BC;         ///< Type of anode boundary condition (Dirichlet or Neumann)
         string solver;          ///< Type of field equation to be solved; laplace or poisson
         int element_degree;     ///< Degree of Finite elements (1: linear, 2: quadratic, 3: cubic ...
     } field;

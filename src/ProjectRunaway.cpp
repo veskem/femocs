@@ -205,7 +205,7 @@ int ProjectRunaway::generate_mesh() {
     }
 
     // has to be separate to ensure that data is for sure calculated
-    new_mesh->tris.calc_norms_and_areas();
+    new_mesh->tris.calc_appendices();
 
     new_mesh->nodes.write("out/tetmesh_nodes.vtk");
     new_mesh->tris.write("out/trimesh.vtk");
@@ -387,7 +387,8 @@ int ProjectRunaway::run_heat_solver() {
 
 int ProjectRunaway::solve_laplace(double E0) {
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max, conf.geometry.radius, dense_surf.sizes.zbox);
+    fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max,
+            conf.geometry.radius, mesh->tris.stat.zmax - mesh->tris.stat.zmin);
 
     start_msg(t0, "=== Initializing Laplace solver...");
     poisson_solver.setup(-E0);
@@ -414,7 +415,7 @@ int ProjectRunaway::solve_laplace(double E0) {
 int ProjectRunaway::solve_pic(double advance_time) {
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
     fields.set_check_params(conf.field.E0, conf.tolerance.field_min, conf.tolerance.field_max,
-            conf.geometry.radius, dense_surf.sizes.zbox);
+            conf.geometry.radius, mesh->tris.stat.zmax - mesh->tris.stat.zmin);
 
     int n_pic_steps = ceil(advance_time / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
     double dt_pic = advance_time / n_pic_steps;
@@ -429,7 +430,7 @@ int ProjectRunaway::solve_pic(double advance_time) {
         write_verbose_msg(poisson_solver.to_str());
     }
 
-    pic_solver.set_params(conf.field, conf.pic, dt_pic, mesh->nodes.stat);
+    pic_solver.set_params(conf.pic, dt_pic, mesh->nodes.stat);
     surface_temperatures.interpolate(ch_solver);
     surface_fields.store_points(ch_solver);
     emission.initialize(mesh);
@@ -467,8 +468,10 @@ int ProjectRunaway::solve_pic(double advance_time) {
     }
     end_msg(t0);
 
-    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
-            "Field enhancement is out of limits!");
+    if (conf.field.anode_BC == "neumann") {
+        check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
+                "Field enhancement is out of limits!");
+    }
     return 0;
 
     // TODO Save ions and neutrals that are inbound on the MD domain somewhere where the MD can find them
@@ -603,7 +606,7 @@ int ProjectRunaway::write_results(){
 
     vacuum_interpolator.extract_solution(poisson_solver);
     vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-    vacuum_interpolator.lintet.write("out/result_E_phi.vtk");
+    vacuum_interpolator.linhex.write("out/result_E_phi.vtk");
 
     if (conf.pic.mode != "none"){
         emission.write("out/emission.dat");

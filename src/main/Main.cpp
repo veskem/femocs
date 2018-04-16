@@ -167,7 +167,7 @@ void write_moltenbig(ofstream &file) {
 void write_tip100(ofstream &file) {
     file << "infile = in/tip100.ckx"   << endl;
     file << "coarse_factor = 0.4 8 3"  << endl;
-    file << "radius = 45.0"            << endl;
+    file << "radius = 40.0"            << endl;
 }
 
 void write_tip110(ofstream &file) {
@@ -199,13 +199,40 @@ void write_generate(ofstream &file, string params="") {
     file << "coarse_rate = 0.5"        << endl;
     file << "seed = 12345"             << endl;
 
-    file << "n_writefile = 0"          << endl;
+    file << "n_writefile = 1"          << endl;
 
 //    file << "Vappl = 200"              << endl;
 //    file << "anode_BC = dirichlet"     << endl;
     file << "anode_BC = neumann"       << endl;
     file << "elfield = -0.35"          << endl;
     file << "heating_mode = none"      << endl;
+    file << "field_solver = poisson"   << endl;
+    file << "pic_mode = transient"     << endl;
+
+    file << "pic_dtmax = 1.0"              << endl;
+    file << "femocs_run_time = 4"          << endl;
+    file << "pic_fractional_push = true"   << endl;
+    file << "pic_collide_coulomb_ee = false" << endl;
+    file << "electronWsp = 0.0002"         << endl;
+    file << "emitter_blunt = true"         << endl;
+    file << "emitter_cold = true"          << endl;
+}
+
+void write_read_mesh(ofstream &file, string params="") {
+    file << params << endl;
+
+    file << "mesh_file = in/hemicone.msh"  << endl;
+    file << "radius = 10"              << endl;
+    file << "box_width = 10.0"         << endl;
+    file << "box_height = 10.0"        << endl;
+    file << "bulk_height = 10.0"       << endl;
+    file << "seed = 12345"             << endl;
+    file << "n_writefile = 1"          << endl;
+
+    file << "anode_BC = neumann"       << endl;
+    file << "elfield = -0.2"          << endl;
+    file << "heating_mode = none"      << endl;
+    file << "force_mode = none"        << endl;
     file << "field_solver = poisson"   << endl;
     file << "pic_mode = transient"     << endl;
 
@@ -324,6 +351,7 @@ int main(int argc, char **argv) {
         else if (mode == "moltenbig") write_moltenbig(file);
         else if (mode == "wobble")    write_wobble(file);
 
+        else if (mode == "read_mesh") write_read_mesh(file);
         else if (mode == "generate") {
             if (argc == 2)
                 write_generate(file);
@@ -371,6 +399,7 @@ int main(int argc, char **argv) {
             printf("  molten      nanotip with molten apex on top of thin rod\n");
             printf("  moltenbig   symmetric MD nanotip with molten apex\n");
             printf("  generate    generate and use perfectly symmetric nanotip without crystallographic properties\n");
+            printf("  read_mesh   read mesh from file\n");
             printf("  wobble      read small MD nanotip and add random noise to emulate real MD simulation\n");
 
             file.close();
@@ -392,12 +421,10 @@ int main(int argc, char **argv) {
 
     // determine number of iterations
     int n_iterations = 1;
-//    if (argc >= 3) {
-//        n_iterations = atoi(argv[2]);
-//    }
-
     int n_atoms = 0;
-    read_n_atoms(infile, n_atoms);
+    success = 0;
+
+    if (infile != "") read_n_atoms(infile, n_atoms);
 
     int* flag  = (int*)    malloc(n_atoms * sizeof(int));
     double* x  = (double*) malloc(n_atoms * sizeof(double));
@@ -411,17 +438,17 @@ int main(int argc, char **argv) {
     double* T  = (double*) malloc(n_atoms * sizeof(double));
     double* xq = (double*) malloc(4 * n_atoms * sizeof(double));
 
-    read_atoms(infile, x, y, z);
+    if (infile != "") read_atoms(infile, x, y, z);
 
     for (int i = 1; i <= n_iterations; ++i) {
         if (n_iterations > 1) cout << "\n> iteration " << i << endl;
 
         if (mode == "generate")
-            success += femocs.generate_nanotip();
+            success = femocs.generate_nanotip();
         else if (mode == "wobble")
-            success += femocs.import_atoms(infile, true);
-        else
-            success += femocs.import_atoms(infile);
+            success = femocs.import_atoms(infile, true);
+        else if (n_atoms > 0)
+            success = femocs.import_atoms(infile);
 
         success += femocs.run();
 //        success += femocs.export_elfield(0, Ex, Ey, Ez, En);

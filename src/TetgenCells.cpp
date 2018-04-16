@@ -386,15 +386,16 @@ int TetgenFaces::copy_surface(const TetgenFaces& faces, const Medium::Sizes& sta
         if (tri_mask[i])
             append(faces[i]);
 
-    calc_norms_and_areas();
+    calc_appendices();
     return n_surface_faces;
 }
 
 // Calculate the norms and areas for all the triangles
-void TetgenFaces::calc_norms_and_areas() {
+void TetgenFaces::calc_appendices() {
     const int n_faces = size();
     areas.clear(); areas.reserve(n_faces);
     norms.clear(); norms.reserve(n_faces);
+    centroids.clear(); centroids.reserve(n_faces);
     
     for (SimpleFace sface : *this) {
         Vec3 v0 = get_vec(sface[0]);
@@ -407,7 +408,16 @@ void TetgenFaces::calc_norms_and_areas() {
         
         areas.push_back(n.norm() * 0.5);
         norms.push_back(n.normalize());
+        centroids.push_back((v0 + v1 + v2) / 3.0);
     }
+
+   calc_statistics();
+}
+
+// Return the pre-calculated centroid of i-th triangle
+Point3 TetgenFaces::get_centroid(const int i) const {
+    require(i >= 0 && i < static_cast<int>(centroids.size()), "Invalid index: " + d2s(i));
+    return centroids[i];
 }
 
 // Return the normal of i-th triangle
@@ -425,6 +435,8 @@ double TetgenFaces::get_area(const int i) const {
 void TetgenFaces::init_statistics() {
     stat.edgemin =  DBL_MAX;
     stat.edgemax = -DBL_MAX;
+    stat.xmin = stat.ymin = stat.zmin = DBL_MAX;
+    stat.xmax = stat.ymax = stat.zmax =-DBL_MAX;
 }
 
 void TetgenFaces::calc_statistics() {
@@ -450,6 +462,17 @@ void TetgenFaces::calc_statistics() {
     // squared length -> length
     stat.edgemin = sqrt(stat.edgemin);
     stat.edgemax = sqrt(stat.edgemax);
+
+    // calculate the span of centroid coordinates
+    for (int i = 0; i < centroids.size(); ++i) {
+        Point3 centroid = get_centroid(i);
+        stat.xmax = max(stat.xmax, centroid.x);
+        stat.xmin = min(stat.xmin, centroid.x);
+        stat.ymax = max(stat.ymax, centroid.y);
+        stat.ymin = min(stat.ymin, centroid.y);
+        stat.zmax = max(stat.zmax, centroid.z);
+        stat.zmin = min(stat.zmin, centroid.z);
+    }
 }
 
 /* =====================================================================
