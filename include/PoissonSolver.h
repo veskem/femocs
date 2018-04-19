@@ -70,7 +70,7 @@ public:
     unsigned int solve() { return this->solve_cg(conf->n_phi, conf->phi_error, conf->ssor_param); }
 
     /** Setup system for solving Poisson equation */
-    void setup(const double field, const double potential=0);
+    void setup(const double field, const double potential);
 
     /** Assemble the matrix equation to solve Laplace equation
      * by appling Neumann BC (constant field) on top of simubox */

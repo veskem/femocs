@@ -360,15 +360,15 @@ int ProjectRunaway::prepare_export() {
 int ProjectRunaway::run_field_solver() {
     if (conf.field.solver == "poisson") {
         if (conf.pic.mode == "transient")
-            return solve_pic(conf.behaviour.timestep_fs);
+            return solve_pic(conf.behaviour.timestep_fs, new_mesh);
         else if (conf.pic.mode == "converge")
             return converge_pic(1.e4);
         else
             check_return(false, "Invalid PIC mode: " + conf.pic.mode);
     }
 
-    if (mesh_changed && conf.field.solver == "laplace")
-        return solve_laplace(conf.field.E0);
+    if (mesh_changed && (conf.field.solver == "laplace" || conf.pic.mode == "none"))
+        return solve_laplace(conf.field.E0, conf.field.V0);
 
     return 0;
 }
@@ -380,18 +380,18 @@ int ProjectRunaway::run_heat_solver() {
         return converge_heat(conf.heating.t_ambient);
 
     if (mesh_changed && conf.heating.mode == "transient")
-        return solve_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, ccg, hcg);
+        return solve_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, true, ccg, hcg);
 
     return 0;
 }
 
-int ProjectRunaway::solve_laplace(double E0) {
+int ProjectRunaway::solve_laplace(double E0, double V0) {
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
     fields.set_check_params(E0, conf.tolerance.field_min, conf.tolerance.field_max,
             conf.geometry.radius, mesh->tris.stat.zmax - mesh->tris.stat.zmin);
 
     start_msg(t0, "=== Initializing Laplace solver...");
-    poisson_solver.setup(-E0);
+    poisson_solver.setup(-E0, V0);
     poisson_solver.assemble_laplace(true);
     end_msg(t0);
 
@@ -407,12 +407,14 @@ int ProjectRunaway::solve_laplace(double E0) {
 
     vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
     vacuum_interpolator.lintet.write("out/result_E_phi.vtk");
-    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()), "Field enhancement is out of limits!");
+
+    //TODO write a check for the dirichlet anode BC case
+//    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()), "Field enhancement is out of limits!");
 
     return 0;
 }
 
-int ProjectRunaway::solve_pic(double advance_time) {
+int ProjectRunaway::solve_pic(double advance_time, bool reinit) {
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
     fields.set_check_params(conf.field.E0, conf.tolerance.field_min, conf.tolerance.field_max,
             conf.geometry.radius, mesh->tris.stat.zmax - mesh->tris.stat.zmin);
@@ -423,7 +425,7 @@ int ProjectRunaway::solve_pic(double advance_time) {
     // vector holding point to cell mapping to make interpolation faster
     vector<int> point2cell;
 
-    if (mesh_changed) {
+    if (reinit) {
         start_msg(t0, "=== Initializing Poisson solver...");
         poisson_solver.setup(-conf.field.E0, conf.field.V0);
         end_msg(t0);
@@ -460,7 +462,7 @@ int ProjectRunaway::solve_pic(double advance_time) {
         
         write_results();
         if (MODES.VERBOSE)
-            printf("  t=%.2f fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
+            printf("  t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
                     GLOBALS.TIME, n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot,
                     n_injected, n_lost, pic_solver.get_n_electrons());
 
@@ -484,18 +486,17 @@ int ProjectRunaway::converge_pic(double max_time) {
         time_window = max_time;
         i_max = 1;
     } else {
-        i_max =  ceil(max_time / (16 * conf.pic.dt_max));
+        i_max =  ceil(max_time / (25 * conf.pic.dt_max));
         time_window = max_time / i_max;
     }
 
-    double max_error = 1e-3;
-    double time_save = GLOBALS.TIME;
+    double max_error = 2.e-3;
     double I_mean, I_mean_prev;
 
     start_msg(t0, "=== Converging PIC with time window " + d2s(time_window, 2) + " fs\n");
     for (int i = 0; i < i_max; ++i) {
         I_mean_prev = emission.get_mean_current();
-        solve_pic(time_window);
+        solve_pic(time_window, i==0);
         I_mean = emission.get_mean_current();
 
         double err = fabs(I_mean - I_mean_prev) / I_mean;
@@ -505,19 +506,17 @@ int ProjectRunaway::converge_pic(double max_time) {
         if (err < max_error)
             break;
     }
-
-    GLOBALS.TIME = time_save;
     return 0;
 }
 
-int ProjectRunaway::solve_heat(double T_ambient, double delta_time, int& ccg, int& hcg) {
-    if (mesh_changed)
+int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {
+    if (full_run)
         ch_solver.setup(T_ambient);
 
     // Calculate field emission in case not ready from pic
     if (conf.pic.mode == "none") {
         start_msg(t0, "=== Calculating electron emission...");
-        if (mesh_changed) surface_fields.interpolate(ch_solver);
+        if (full_run) surface_fields.interpolate(ch_solver);
         surface_temperatures.interpolate(ch_solver);
         emission.initialize(mesh);
         emission.calc_emission(conf.emission, conf.field.V0);
@@ -542,7 +541,7 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, int& ccg, in
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
-    if(conf.pic.mode == "none")
+    if(conf.pic.mode != "transient")
         GLOBALS.TIME += delta_time;
 
     write_results();
@@ -556,22 +555,16 @@ int ProjectRunaway::converge_heat(double T_ambient) {
     double delta_time = conf.heating.delta_time;
     int ccg, hcg, step, error;
 
-    mesh_changed = false; // run convergence always with the same mesh
+//    mesh_changed = false; // run convergence always with the same mesh
     bool global_verbosity = MODES.VERBOSE;
 
     start_msg(t0, "=== Converging heat...\n");
-    MODES.VERBOSE = false;
+//    MODES.VERBOSE = false;
 
     for (step = 0; step < max_steps; ++step) {
-        // calculate field - advance PIC for delta time
-        if (conf.pic.mode == "transient")
-            error = solve_pic(delta_time);
-        else if (conf.pic.mode == "converge")
-            error = converge_pic(delta_time);
-        if (error) return error;
 
         // advance heat and current system for delta_time
-        error = solve_heat(conf.heating.t_ambient, delta_time, ccg, hcg);
+        error = solve_heat(conf.heating.t_ambient, delta_time, step == 0, ccg, hcg);
         if (error) return error;
 
         // modify the advance time depending on how slowly the solution is changing
@@ -585,12 +578,20 @@ int ProjectRunaway::converge_heat(double T_ambient) {
 
         // write debug data
         if (global_verbosity)
-            printf( "t=%.2e ps, dt=%.2f ps, Tmax=%.2fK\n",
+            printf( "t=%.2e ps, dt=%.2e ps, Tmax=%.2fK\n",
                     GLOBALS.TIME * 1.e-3, delta_time * 1.e-3, ch_solver.heat.max_solution() );
         write_results();
 
         // check if the result has converged
         if (max(hcg, ccg) < 10) break;
+
+        // update field - advance PIC for delta time
+        if (conf.pic.mode == "transient")
+            error = solve_pic(delta_time, new_mesh);
+        else if (conf.pic.mode == "converge")
+            error = converge_pic(delta_time);
+        if (error) return error;
+
     }
 
     MODES.VERBOSE = global_verbosity;

@@ -71,7 +71,7 @@ Config::Config() {
     heating.n_cg = 2000;              // max number of Conjugate-Gradient iterations
     heating.cg_tolerance = 1e-9;      // solution accuracy in Conjugate-Gradient solver
     heating.ssor_param = 1.2;         // parameter for SSOR pre-conditioner in DealII; 1.2 is known to work well with Laplace
-    heating.delta_time = 1e-12;       // timestep of time domain integration [sec]
+    heating.delta_time = 1.e3;       // timestep of time domain integration [sec]
     heating.assemble_method = "euler"; // method to assemble system matrix for solving heat equation
 
     emission.blunt = true;            // by default emitter is blunt (simple SN barrier used for emission)
@@ -134,6 +134,7 @@ void Config::read_all(const string& file_name) {
     read_command("heating_mode", heating.mode);
     read_command("lorentz", heating.lorentz);
     read_command("rhofile", heating.rhofile);
+    read_command("heat_dtinit", heating.delta_time);
 
     read_command("smooth_steps", smoothing.n_steps);
     read_command("smooth_lambda", smoothing.lambda_mesh);

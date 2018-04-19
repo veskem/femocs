@@ -66,8 +66,8 @@ private:
     bool fail;                  ///< If some process failed
     double t0;                  ///< CPU timer
     int timestep;               ///< counter to measure how many times Femocs has been called
-    double last_write_time = -1.e200; ///< Keeps the time that last file output was done
-    double last_heat_time = -1.e200; ///< Last time heat was updated
+    double last_write_time = GLOBALS.TIME; ///< Keeps the time that last file output was done
+    double last_heat_time = GLOBALS.TIME; ///< Last time heat was updated
 
     bool mesh_changed = false;          ///< True if new mesh has been created
     int last_full_timestep; ///< last time step Femocs did full calculation
@@ -121,15 +121,15 @@ private:
     int run_heat_solver();
 
     /** Solve Laplace equation on vacuum mesh */
-    int solve_laplace(double E0);
+    int solve_laplace(double E0, double V0);
 
     /** Evolve the PIC simulation one Femocs time step */
-    int solve_pic(const double advance_time);
+    int solve_pic(const double advance_time, bool reinit);
 
     int converge_pic(double max_time);
 
     /** Solve transient heat and continuity equations */
-    int solve_heat(double T_ambient, double delta_time, int& ccg, int& hcg);
+    int solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg);
 
     /** Using constant mesh, solve transient heat and continuity equation until convergence is reached */
     int converge_heat(double T_ambient);

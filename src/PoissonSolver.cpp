@@ -223,14 +223,25 @@ void PoissonSolver<dim>::assemble_laplace(const bool first_time) {
 
     this->system_rhs = 0;
 
-    if (first_time) {
-        assemble_lhs();
-        this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
-        this->calc_vertex2dof();
-    } else
-        this->restore_system();
+    if (conf->anode_BC == "neumann") {
+        if (first_time) {
+            assemble_lhs();
+            this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
+            this->calc_vertex2dof();
+        } else
+            this->restore_system();
+        this->assemble_rhs(BoundaryId::vacuum_top);
 
-    this->assemble_rhs(BoundaryId::vacuum_top);
+    } else {
+        if (first_time) {
+            assemble_lhs();
+            this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
+            this->append_dirichlet(BoundaryId::vacuum_top, applied_potential);
+            this->calc_vertex2dof();
+        } else
+            this->restore_system();
+    }
+
     this->apply_dirichlet();
 }
 
