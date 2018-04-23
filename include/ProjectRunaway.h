@@ -66,7 +66,7 @@ private:
     bool fail;                  ///< If some process failed
     double t0;                  ///< CPU timer
     int timestep;               ///< counter to measure how many times Femocs has been called
-    double last_write_time = GLOBALS.TIME; ///< Keeps the time that last file output was done
+    double last_write_time = GLOBALS.TIME - conf.behaviour.write_period; ///< Keeps the time that last file output was done
     double last_heat_time = GLOBALS.TIME; ///< Last time heat was updated
 
     bool mesh_changed = false;          ///< True if new mesh has been created
@@ -95,7 +95,9 @@ private:
     int write_results();
 
     /** Check if enough time has passed since the last file write_results */
-    bool write_time() const { return GLOBALS.TIME >= (last_write_time + conf.behaviour.write_period); }
+    bool write_time() const {
+        return GLOBALS.TIME >= (last_write_time + conf.behaviour.write_period);
+    }
 
     int process_failed(const string &msg) { write_verbose_msg(msg); force_output(); return 1; }
 

@@ -490,7 +490,6 @@ int ProjectRunaway::converge_pic(double max_time) {
         time_window = max_time / i_max;
     }
 
-    double max_error = 2.e-3;
     double I_mean, I_mean_prev;
 
     start_msg(t0, "=== Converging PIC with time window " + d2s(time_window, 2) + " fs\n");
@@ -499,11 +498,11 @@ int ProjectRunaway::converge_pic(double max_time) {
         solve_pic(time_window, i==0);
         I_mean = emission.get_mean_current();
 
-        double err = fabs(I_mean - I_mean_prev) / I_mean;
+        double err = (I_mean - I_mean_prev) / I_mean;
         if (MODES.VERBOSE)
             printf("  i=%d, I_mean=%e, error=%e\n", i, I_mean, err);
 
-        if (err < max_error)
+        if (fabs(err) < conf.pic.convergence)
             break;
     }
     return 0;
@@ -514,7 +513,7 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
         ch_solver.setup(T_ambient);
 
     // Calculate field emission in case not ready from pic
-    if (conf.pic.mode == "none") {
+    if (conf.pic.mode == "none" || conf.field.solver == "laplace") {
         start_msg(t0, "=== Calculating electron emission...");
         if (full_run) surface_fields.interpolate(ch_solver);
         surface_temperatures.interpolate(ch_solver);
@@ -587,7 +586,7 @@ int ProjectRunaway::converge_heat(double T_ambient) {
 
         // update field - advance PIC for delta time
         if (conf.pic.mode == "transient")
-            error = solve_pic(delta_time, new_mesh);
+            error = solve_pic(delta_time, false);
         else if (conf.pic.mode == "converge")
             error = converge_pic(delta_time);
         if (error) return error;
@@ -618,8 +617,8 @@ int ProjectRunaway::write_results(){
         vacuum_interpolator.nodes.write("out/result_E_charge.movie");
     }
 
-    if (emission.atoms.size() > 0){
-        emission.write("out/emission_data.dat");
+    if (conf.pic.mode == "none" && emission.atoms.size() > 0){
+        emission.write("out/emission.dat");
         emission.write("out/surface_emission.movie");
     }
 

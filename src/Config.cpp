@@ -98,7 +98,7 @@ Config::Config() {
     pic.dt_max = 1.0;
     pic.Wsp_el =  .01;
     pic.fractional_push = true;
-    pic.n_write = 1;
+    pic.convergence = 1.e-3;
 }
 
 // Remove the noise from the beginning of the string
@@ -193,7 +193,7 @@ void Config::read_all(const string& file_name) {
     read_command("electronWsp", pic.Wsp_el);
     read_command("PIC_fractional_push", pic.fractional_push);
     read_command("PIC_collide_coulomb_ee", pic.coll_coulomb_ee);
-    read_command("PIC_n_write", pic.n_write);
+    read_command("PIC_converge_criterion", pic.convergence);
     
     // Read commands with potentially multiple arguments like...
     vector<double> args;

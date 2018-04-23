@@ -169,9 +169,9 @@ public:
                               ///  such that it is an integer fraction of the MD timestep
         double Wsp_el;        ///< Superparticle weight for electrons
         bool fractional_push; ///< Do fractional timestep push when injecting electrons?
-
         bool coll_coulomb_ee; ///< Do 2e->2e Coulomb collisions?
-        int n_write;          ///< Output files every N pic time steps
+        double convergence;    ///< relative error in current for convergence criterion
+
     } pic;
     
 private:
