@@ -649,18 +649,25 @@ double FieldReader::calc_max_field(const vector<Solution>* solutions) const {
     return E_max;
 }
 
-void FieldReader::set_check_params(const double E0, const double limit_min, const double limit_max,
-        const double radius, const double height) {
-    this->E0 = E0;
-    this->limit_min = limit_min;
-    this->limit_max = limit_max;
+void FieldReader::set_check_params(const Config& conf, double radius,
+        double tip_height, double box_height)
+{
+    require(conf.field.anode_BC == "neumann" || conf.field.anode_BC == "dirichlet",
+            "Invalid anode boundary condition: " + conf.field.anode_BC);
 
-    if (height > radius) {
-        this->radius2 = height;
-        this->radius1 = sqrt(height*radius);
+    if (conf.field.anode_BC == "neumann")
+        E0 = conf.field.E0;
+    else
+        E0 = conf.field.V0 / box_height;
+    limit_min = conf.tolerance.field_min;
+    limit_max = conf.tolerance.field_max;
+
+    if (tip_height > radius) {
+        radius2 = tip_height;
+        radius1 = sqrt(tip_height * radius);
     } else {
-        this->radius2 = radius;
-        this->radius1 = radius;
+        radius2 = radius;
+        radius1 = radius;
     }
 }
 

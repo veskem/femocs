@@ -166,8 +166,7 @@ public:
     double calc_max_field(const vector<Solution>* solutions=NULL) const;
 
     /** Set parameters to calculate analytical solution */
-    void set_check_params(const double E0, const double limit_min, const double limit_max,
-            const double radius, const double height=-1);
+    void set_check_params(const Config& conf, double radius, double tip_height, double box_height);
 
     /** Export calculated electic field distribution to HELMOD */
     int export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
@@ -189,9 +188,9 @@ public:
 
 private:
     /** Data needed for comparing numerical solution with analytical one */
-    double E0;                      ///< Long-range electric field strength
-    double radius1;                 ///< Minor semi-axis of ellipse
-    double radius2;                 ///< Major semi-axis of ellipse
+    double E0;         ///< Long-range electric field strength
+    double radius1;    ///< Minor semi-axis of ellipse
+    double radius2;    ///< Major semi-axis of ellipse
 
     /** Return analytical electric field value for i-th point near the hemisphere */
     Vec3 get_analyt_field(const int i, const Point3& origin) const;

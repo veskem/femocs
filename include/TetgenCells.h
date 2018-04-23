@@ -367,6 +367,10 @@ public:
         double ymax;    //!< Maximum value of y-coordinate
         double zmin;    //!< Minimum value of z-coordinate
         double zmax;    //!< Maximum value of z-coordinate
+
+        double xbox;    ///< distance between max & min x-coordinate
+        double ybox;    ///< distance between max & min y-coordinate
+        double zbox;    ///< distance between max & min z-coordinate
     } stat;
 
 private:
@@ -477,14 +481,17 @@ public:
 
     /** Struct holding statistics about triangles */
     struct Stat {
-        double edgemin;    //!< Minimum edge length
-        double edgemax;    //!< Maximum edge length
-        double xmin;
-        double xmax;
-        double ymin;
-        double ymax;
-        double zmin;
-        double zmax;
+        double edgemin;    ///< min edge length
+        double edgemax;    ///< max edge length
+        double xmin;       ///< min x-coordinate of face centroids
+        double xmax;       ///< max x-coordinate of face centroids
+        double ymin;       ///< min y-coordinate of face centroids
+        double ymax;       ///< max y-coordinate of face centroids
+        double zmin;       ///< min z-coordinate of face centroids
+        double zmax;       ///< max z-coordinate of face centroids
+        double xbox;       ///< distance between max & min x-coordinate of face centroids
+        double ybox;       ///< distance between max & min y-coordinate of face centroids
+        double zbox;       ///< distance between max & min z-coordinate of face centroids
     } stat;
 
 private:

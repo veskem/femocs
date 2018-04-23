@@ -118,6 +118,7 @@ void TetgenNodes::init_statistics() {
     stat.n_bulk = stat.n_surface = stat.n_vacuum = 0;
     stat.xmin = stat.ymin = stat.zmin = DBL_MAX;
     stat.xmax = stat.ymax = stat.zmax =-DBL_MAX;
+    stat.xbox = stat.ybox = stat.zbox = 0;
 }
 
 void TetgenNodes::calc_statistics() {
@@ -135,6 +136,9 @@ void TetgenNodes::calc_statistics() {
         stat.zmax = max(stat.zmax, point.z);
         stat.zmin = min(stat.zmin, point.z);
     }
+    stat.xbox = stat.xmax - stat.xmin;
+    stat.ybox = stat.ymax - stat.ymin;
+    stat.zbox = stat.zmax - stat.zmin;
 
     // Find the number of nodes in various regions
     if (n_markers > 0)
@@ -437,6 +441,7 @@ void TetgenFaces::init_statistics() {
     stat.edgemax = -DBL_MAX;
     stat.xmin = stat.ymin = stat.zmin = DBL_MAX;
     stat.xmax = stat.ymax = stat.zmax =-DBL_MAX;
+    stat.xbox = stat.ybox = stat.zbox = 0;
 }
 
 void TetgenFaces::calc_statistics() {
@@ -473,6 +478,9 @@ void TetgenFaces::calc_statistics() {
         stat.zmax = max(stat.zmax, centroid.z);
         stat.zmin = min(stat.zmin, centroid.z);
     }
+    stat.xbox = stat.xmax - stat.xmin;
+    stat.ybox = stat.ymax - stat.ymin;
+    stat.zbox = stat.zmax - stat.zmin;
 }
 
 /* =====================================================================
