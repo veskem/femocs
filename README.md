@@ -23,41 +23,41 @@ All the build options are displayed with
 
 FEMOCS directory is cleaned from previous builds by
 
-    $ make clean     # doesn't clean the installations of deal.II and other libraries
+    $ make clean     # deletes executables and object files
     $ make clean-all # performs the full clean-up in FEMOCS directory
 
-Before building FEMOCS as a library or executable, FEMOCS dependencies must be installed. In Ubuntu desktop this can be done with
+Before building FEMOCS as a library or executable, FEMOCS dependencies must be installed. This can be done with
 
-    $ make ubuntu
+    $ make install-ubuntu   # Ubuntu desktop            
+    $ make install-taito    # CSC Taito
+    $ make install-alcyone  # Alcyone
     
-In clusters first the appropriate modules must be loaded and after that the build can be performed:
-
-    $ module load gcc/5.3.0              # CSC Taito
-    $ make taito
-    $ module load PrgEnv-gnu gcc/5.1.0   # Alcyone
-    $ make alcyone
+The files that were build during installation can be removed by
+    
+    $ make uninstall-all
 
 FEMOCS is built as static library by
 
-    $ make lib
+    $ make lib       # fully optimized and no debugger flags
+    $ make dlib      # debugging options enabled
 
 For test purposes FEMOCS could also be built as an executable. The options for this are as follows:
 
-    $ make debug     # main file in build/Test.cpp, minimal optimization, debugger & warnings enabled
-    $ make release   # main file in build/Test.cpp, full optimization, no debugger & warnings
-    $ make solver    # main file in deal-solver/main/main.cc, full optimization, no debugger & warnings
-    $ make test_f90  # main file in build/Test.f90, full optimization, no debugger & warnings
-    $ make test_c    # main file in build/Test.c, full optimization, no debugger & warnings
+    $ make debug     # main file in src/main/Main.cpp, minimal optimization, debugger & warnings enabled
+    $ make release   # main file in src/main/Main.cpp, full optimization, no debugger & warnings
+    $ make test_f90  # main file in src/main/Main.f90, full optimization, no debugger & warnings
+    $ make test_cpp  # main file in src/main/Main.cpp, full optimization, no debugger & warnings
+    $ make test_c    # main file in src/main/Main.c, full optimization, no debugger & warnings
 
 In **release** mode FEMOCS is fully optimized and emulates a static simulation. Running the code in **debug** mode minimizes optimization and allows to follow the simulation line-by-line by using [GDB](https://en.wikipedia.org/wiki/GNU_Debugger), [Eclipse debugger](http://www.eclipse.org/cdt/) or their analogues.
     
 ## Testing and running FEMOCS
-The behavior of FEMOCS can be changed by changing the main files in **build** directory or by modifing the configuration script. The sample script that also has PARCAS and HELMOD commands inside is located in **in/md.in**. 
+The behavior of FEMOCS can be changed by changing the main files in **src** directory or by modifing the configuration script. The sample script is located in **in/sample.in**. 
 
-FEMOCS executable that was built in **debug**, **release**, **solver**, **test_f90** or **test_c** mode should be run in FEMOCS main directory by
+FEMOCS executable that was built in **debug**, **release**, **test_f90**, **test_c** or **test_cpp** mode should be run in FEMOCS main directory by
 
-    $ ./build/femocs        # release, solver, test_f90 or test_c mode
-    $ ./build/femocs.debug  # debug mode
+    $ ./build/femocs        # release, test_f90, test_c and test_cpp mode
+    $ ./build/femocs_debug  # debug mode
     
 ## Visualization
 During the run FEMOCS writes couple of files to the **out** folder if *n_filewrite > 0* in configuration file. Those files can be used to estimate the validity of the results. Files with extension *xyz* and *movie* contain atomistic data and can be visualized in [OVITO](https://ovito.org/index.php/download). *movie* files contain the data from many timesteps, *xyz* files are the snapshots of a last full run. The files ending with *vtk* contain the geometric data (mesh elements, faces etc) that can be visualized in [ParaView](http://www.paraview.org/download/).
@@ -66,3 +66,33 @@ During the run FEMOCS writes couple of files to the **out** folder if *n_filewri
 To build FEMOCS documentation, first make sure [Doxygen](http://www.stack.nl/~dimitri/doxygen/download.html) is installed in the system. The documentation in *pdf* and *html* format will be generated with command
 
     $ make doc
+    
+## Setting up Eclipse
+For developers it's highly recommended to do FEMOCS development in an IDE (integrated develpment editor) instead of some conventional text editor. However, to take maximum out of IDE, it is necessary to configure it properly before usage. The fresh copy of [Eclipse](https://www.eclipse.org/downloads/eclipse-packages/) underlines c++ code even if it doesn't contain any errors there. It's because fresh copy of Eclipse doesn't know about *stdc++11* features. Below are the instructions to make Eclipse *Oxygen* aware of them.
+
+**Step 1**
+
+    Window > Preferences
+    C/C++ > Build > Settings > Tab [Discovery] > CDT GCC Built-in Compiler Settings
+
+Add the *-std=c++11* flag to *Command to get compiler specs*. After the modification it should be similar to
+
+    ${COMMAND} ${FLAGS} -E -P -v -std=c++11 -dD "${INPUTS}"
+
+**Step 2**
+
+Repeat the same procedure in
+
+    Project > Properties
+    C/C++ General > Preprocessor include > Tab [Providers] > CDT GCC Built-in Compiler Settings
+
+**Step 3**
+
+    Project > Properties
+    C/C++ General > Path and Symbols > Tab [Symbols] > GNU C++
+
+Add the symbol *__cplusplus* with the value *201103L*
+
+**Step 4**
+
+Clean and rebuild both the project (*Project > Clean*, *Project > Rebuild all*) and the index (*Project > C/C++ Index > Rebuild*) as Eclipse tends to cache error messages and show them even though they are gone after changing the settings.
