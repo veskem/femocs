@@ -21,6 +21,7 @@ Config::Config() {
     path.mesh_file = "";              // file containing triangular and tetrahedral mesh data
 
     behaviour.verbosity = "verbose";  // mute, silent, verbose
+    behaviour.project = "runaway";    // project to be run; runaway, ...
     behaviour.n_writefile = 1;        // number of time steps between writing the output files
     behaviour.interpolation_rank = 1; // rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
     behaviour.write_period = 1.e5;    // write files every write_period of time
@@ -180,6 +181,7 @@ void Config::read_all(const string& file_name) {
     read_command("write_log", MODES.WRITELOG);
 
     read_command("femocs_verbose_mode", behaviour.verbosity);
+    read_command("project", behaviour.project);
     read_command("n_writefile", behaviour.n_writefile);
     read_command("interpolation_rank", behaviour.interpolation_rank);
     read_command("write_period", behaviour.write_period);
@@ -189,11 +191,11 @@ void Config::read_all(const string& file_name) {
     read_command("distance_tol", tolerance.distance);
 
     read_command("pic_mode", pic.mode);
-    read_command("PIC_dtmax", pic.dt_max);
+    read_command("pic_dtmax", pic.dt_max);
     read_command("electronWsp", pic.Wsp_el);
-    read_command("PIC_fractional_push", pic.fractional_push);
-    read_command("PIC_collide_coulomb_ee", pic.coll_coulomb_ee);
-    read_command("PIC_converge_criterion", pic.convergence);
+    read_command("pic_fractional_push", pic.fractional_push);
+    read_command("pic_collide_coulomb_ee", pic.coll_coulomb_ee);
+    read_command("pic_converge_criterion", pic.convergence);
     
     // Read commands with potentially multiple arguments like...
     vector<double> args;

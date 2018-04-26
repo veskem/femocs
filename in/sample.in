@@ -5,6 +5,7 @@
 # However, for the sake of completeness, here they are.
 
 # General
+project = runaway               # project to be run; runaway, ...
 anode_BC = Neumann				# Boundary condition type at anode ("Dirichlet" or "Neumann")
 elfield = -0.07					# Long range electric field [V/A]
 Vappl = 0.					    # Anode voltage (used for Poisson eq. if 

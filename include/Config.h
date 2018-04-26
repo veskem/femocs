@@ -55,6 +55,7 @@ public:
     /** User specific preferences */
     struct Behaviour {
         string verbosity;           ///< Verbose mode: mute, silent, verbose
+        string project;             ///< Type of project to be called
         int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
         int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
         double write_period;        ///< Write files every write_period (in fs)

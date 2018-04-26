@@ -36,6 +36,7 @@ Femocs::Femocs(const string &conf_file) : t0(0) {
     write_verbose_msg("======= Femocs started! =======");
 
     // pick the project to run
+    require(conf.behaviour.project == "runaway", "Unimplemented project: " + conf.behaviour.project);
     project = new ProjectRunaway(reader, conf);
 }
 
