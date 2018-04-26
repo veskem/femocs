@@ -485,17 +485,17 @@ int ProjectRunaway::converge_pic(double max_time) {
         time_window = max_time / i_max;
     }
 
-    double I_mean, I_mean_prev;
+    double I_mean = 0., I_mean_prev = 0., I_std = 0.;
 
     start_msg(t0, "=== Converging PIC with time window " + d2s(time_window, 2) + " fs\n");
     for (int i = 0; i < i_max; ++i) {
-        I_mean_prev = emission.get_mean_current();
         solve_pic(time_window, i==0);
-        I_mean = emission.get_mean_current();
-
+        I_mean = emission.get_global_stats(I_std);
         double err = (I_mean - I_mean_prev) / I_mean;
         if (MODES.VERBOSE)
-            printf("  i=%d, I_mean=%e, error=%e\n", i, I_mean, err);
+            printf("  i=%d, I_mean=%e A, I_std=%.2f%, error=%.2f%\n",
+                    i, I_mean, 100. * I_std / I_mean, 100 * err);
+        I_mean_prev = I_mean;
 
         if (fabs(err) < conf.pic.convergence)
             break;
