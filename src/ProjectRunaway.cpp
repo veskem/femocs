@@ -497,7 +497,7 @@ int ProjectRunaway::converge_pic(double max_time) {
         if (MODES.VERBOSE)
             printf("  i=%d, I_mean=%e, error=%e\n", i, I_mean, err);
 
-        if (fabs(err) < conf.pic.convergence)
+        if (fabs(err) < 0.05 && fabs(err) < conf.pic.convergence * I_std / I_mean)
             break;
     }
     return 0;

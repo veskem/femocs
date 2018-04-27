@@ -266,7 +266,12 @@ public:
 
     void export_emission(CurrentHeatSolver<3>& ch_solver);
 
-    double get_mean_current() const { return global_data.I_cum / global_data.N_calls; }
+    /**
+     * Calculates the mean and the standard deviation of the total current for the last N_calls
+     * @param std the returned standard deviation
+     * @return
+     */
+    double get_global_stats(double &std);
 
     /** Initialises class data */
     void initialize(const TetgenMesh* m);
@@ -280,7 +285,9 @@ public:
         double I_tot = 0;    ///< Total current running through the surface [in Amps]
         double I_fwhm = 0;
         int N_calls;        ///< Counter keeping the last N_calls
-        double I_cum = 0;  ///< Sum of the I_tot for the last N_calls (useful for convergence check)
+        double area;        ///< total area of emitting region
+        //double I_cum = 0;  ///< Sum of the I_tot for the last N_calls (useful for convergence check)
+        vector<double> Ilist; ///< List of all the I_tot for the last N_calls (useful for convergence check)
     } global_data;
 
 private:

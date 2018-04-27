@@ -955,7 +955,7 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     global_data.Jrep = 0.;
     global_data.multiplier = 1.;
     global_data.N_calls = 0;
-    global_data.I_cum = 0.;
+    global_data.Ilist.resize(0);
 }
 
 void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax) {
@@ -1009,7 +1009,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 }
 
 void EmissionReader::calc_representative() {
-    double area = 0.; // total emitting (FWHM) area
+    global_data.area = 0.; // total emitting (FWHM) area
     double FJ = 0.; // int_FWHMarea (F*J)dS
     global_data.I_tot = 0;
     global_data.I_fwhm = 0;
@@ -1021,14 +1021,14 @@ void EmissionReader::calc_representative() {
         currents[i] = face_area * current_densities[i];
         global_data.I_tot += currents[i];
 
-        if (current_densities[i] > global_data.Jmax * 0.5){ //if point eligible
-            area += face_area; // increase total area
+        if (current_densities[i] > global_data.Jmax * 0.01){ //if point eligible
+            global_data.area += face_area; // increase total area
             global_data.I_fwhm += currents[i]; // increase total current
             FJ += currents[i] * fields->get_elfield_norm(i);
         }
     }
 
-    global_data.Jrep = global_data.I_fwhm / area;
+    global_data.Jrep = global_data.I_fwhm / global_data.area;
     global_data.Frep = global_data.multiplier * FJ / global_data.I_fwhm;
 }
 
@@ -1114,7 +1114,7 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         // if converged break
         if (abs(error) < conf.SC_error) break;
     }
-    global_data.I_cum += global_data.I_tot;
+    global_data.Ilist.push_back(global_data.I_tot);
 }
 
 string EmissionReader::get_data_string(const int i) const {
@@ -1131,15 +1131,39 @@ string EmissionReader::get_global_data(const bool first_line) const {
     ostringstream strs;
 
     //specify data header
-    if (first_line) strs << "time Itot Imean Jrep Frep Jmax Fmax multiplier" << endl;
+    if (first_line) strs << "time      Itot        Imean        I_fwhm        Area        Jrep"
+            "         Frep         Jmax        Fmax         multiplier" << endl;
+
+    double I_mean = 0.;
+    for (auto x : global_data.Ilist)
+        I_mean += x;
 
     strs << fixed << setprecision(2) << GLOBALS.TIME;
     strs << scientific << setprecision(6) << " " << global_data.I_tot << " "
-            << global_data.I_cum / global_data.N_calls << " " << global_data.Jrep << " "
+            << I_mean / global_data.N_calls << " " << global_data.I_fwhm << " "
+            << global_data.area << " " << global_data.Jrep << " "
             << global_data.Frep << " " << global_data.Jmax << " "
             << global_data.Fmax << " " << global_data.multiplier;
 
     return strs.str();
+}
+
+double EmissionReader::get_global_stats(double &std){
+    double I_mean = 0.;
+    double I_std = 0;
+
+    for (auto x : global_data.Ilist)
+        I_mean += x;
+    I_mean /= global_data.Ilist.size();
+
+    for (auto x : global_data.Ilist)
+        I_std += (x - I_mean) * (x - I_mean);
+
+    I_std = sqrt(I_std / global_data.Ilist.size());
+
+    std = I_std;
+    global_data.Ilist.resize(0); //reinit statistics
+    return I_mean;
 }
 
 void EmissionReader::export_emission(CurrentHeatSolver<3>& ch_solver) {

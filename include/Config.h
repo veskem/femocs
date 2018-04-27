@@ -171,6 +171,7 @@ public:
         bool fractional_push; ///< Do fractional timestep push when injecting electrons?
         bool coll_coulomb_ee; ///< Do 2e->2e Coulomb collisions?
         double convergence;    ///< relative error in current for convergence criterion
+                               ///< It is compared with the corresponding std in the pic convergence step
 
     } pic;
     
