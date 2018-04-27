@@ -1009,7 +1009,7 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 }
 
 void EmissionReader::calc_representative() {
-    global_data.area = 0.; // total emitting (FWHM) area
+    double area = 0.; // total emitting (FWHM) area
     double FJ = 0.; // int_FWHMarea (F*J)dS
     global_data.I_tot = 0;
     global_data.I_fwhm = 0;
@@ -1021,14 +1021,14 @@ void EmissionReader::calc_representative() {
         currents[i] = face_area * current_densities[i];
         global_data.I_tot += currents[i];
 
-        if (current_densities[i] > global_data.Jmax * 0.01){ //if point eligible
-            global_data.area += face_area; // increase total area
+        if (current_densities[i] > global_data.Jmax * 0.5){ //if point eligible
+            area += face_area; // increase total area
             global_data.I_fwhm += currents[i]; // increase total current
             FJ += currents[i] * fields->get_elfield_norm(i);
         }
     }
 
-    global_data.Jrep = global_data.I_fwhm / global_data.area;
+    global_data.Jrep = global_data.I_fwhm / area;
     global_data.Frep = global_data.multiplier * FJ / global_data.I_fwhm;
 }
 
