@@ -87,47 +87,27 @@ struct Types {
     } VTK;
 };
 
-/** Labels of the exported/interpolated data.
- * Char component is used while calling Femocs externally, while string component is used internally.
- * Note that labels for vectors are capitalised, while lower case designates scalars.
- * While adding new labels, make sure not to use already taken char. */
+/** Labels of the calculated/exported/interpolated data. */
 struct Labels {
-    const pair<char, string> vec = {'X', "vec"};
-    const pair<char, string> vec_norm = {'y', "vec_norm"};
-    const pair<char, string> scalar = {'z', "scalar"};
-    const pair<char, string> elfield = {'E', "elfield"};
-    const pair<char, string> elfield_norm = {'e', "elfield_norm"};
-    const pair<char, string> potential = {'u', "potential"};
-    const pair<char, string> temperature = {'t', "temperature"};
-    const pair<char, string> rho = {'C', "rho"};
-    const pair<char, string> rho_norm = {'c', "rho_norm"};
-    const pair<char, string> pair_potential = {'p', "pair_potential"};
-    const pair<char, string> pair_potential_sum = {'s', "pair_potential_sum"};
-    const pair<char, string> force = {'F', "force"};
-    const pair<char, string> force_norm = {'f', "force_norm"};
-    const pair<char, string> charge = {'q', "charge"};
-    const pair<char, string> velocity = {'V', "velocity"};
-    const pair<char, string> velocity_norm = {'v', "velocity_norm"};
-
-    int size() const { return (&velocity_norm)-(&vec) + 1; }  ///< number of values in Commands
-
-    /** Convert given short char command into string label */
-    string decode(const char c) {
-        pair<char,string> const *ptr = &vec - 1;
-        for (int i = 0; i < size(); ++i)
-            if ((++ptr)->first == c)
-                return ptr->second;
-        return "";
-    }
-
-    /** Convert given string label into short char command */
-    char encode(const string &s) {
-        pair<char,string> const *ptr = &vec - 1;
-        for (int i = 0; i < size(); ++i)
-            if ((++ptr)->second == s)
-                return ptr->first;
-        return '\0';
-    }
+    const string vec = "vec";
+    const string vec_norm = "vec_norm";
+    const string scalar = "scalar";
+    const string elfield = "elfield";
+    const string elfield_norm = "elfield_norm";
+    const string potential = "potential";
+    const string temperature = "temperature";
+    const string rho = "rho";
+    const string rho_norm = "rho_norm";
+    const string pair_potential = "pair_potential";
+    const string pair_potential_sum = "pair_potential_sum";
+    const string parcas_force = "parcas_force";
+    const string force = "force";
+    const string force_norm = "force_norm";
+    const string charge = "charge";
+    const string velocity = "velocity";
+    const string velocity_norm = "velocity_norm";
+    const string heat = "heat";
+    const string area = "area";
 };
 
 /** Flags to control the output behaviour of the code */

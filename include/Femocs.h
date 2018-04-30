@@ -157,31 +157,21 @@ public:
     int interpolate_phi(const int n_points, const double* x, const double* y, const double* z, double* phi, int* flag);
 
     /** Export the solution data in the location of imported atoms
-     * @param n_points  number of first imported points where solution is exported; <= 0 turns export off
-     * @param cmd       label specifying the data to be exported
-     * @param data      array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
+     * @param n_points   number of first imported points where solution is exported; <= 0 turns export off
+     * @param data_type  label of data to be exported
+     * @param data       array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
      */
-    int export_results(const int n_points, const char cmd, double* data);
+    int export_results(const int n_points, const string& data_type, double* data);
 
     /** Export the solution data in the location of specified points
-     * @param n_points  number of points in x,y,z arrays; <= 0 turns interpolation off
-     * @param cmd       label specifying the data to be exported
-     * @param x,y,z     coordinates of the points
-     * @param data      array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
-     * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
+     * @param n_points      number of points in x,y,z arrays; <= 0 turns interpolation off
+     * @param data_type     label of data to be exported
+     * @param near_surface  data points are located near the surface
+     * @param x,y,z         coordinates of the points
+     * @param data_type     array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
+     * @param flag          indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
      */
-    int interpolate_results(const int n_points, const char cmd,
-            const double* x, const double* y, const double* z, double* data, int* flag);
-
-    /** Export the solution data in the location of specified points.
-     * Points are assumed to be near the surface, allowing to make interpolation faster.
-     * @param n_points  number of points in x,y,z arrays; <= 0 turns interpolation off
-     * @param cmd       label specifying the data to be exported
-     * @param x,y,z     coordinates of the points
-     * @param data      array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
-     * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
-     */
-    int interpolate_surface_results(const int n_points, const char cmd,
+    int interpolate_results(const int n_points, const string& data_type, const bool near_surface,
             const double* x, const double* y, const double* z, double* data, int* flag);
 
     /**

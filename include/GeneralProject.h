@@ -35,9 +35,9 @@ public:
     /** Force the data to the files for debugging purposes */
     virtual int force_output() = 0;
 
-    virtual int export_results(const int n_points, const string &data_type, double* data) = 0;
+    virtual int export_results(const int n_points, const string& data_type, double* data) = 0;
 
-    virtual int interpolate_results(const int n_points, const string &data_type, const bool surface,
+    virtual int interpolate_results(const int n_points, const string& data_type, const bool near_surface,
             const double* x, const double* y, const double* z, double* data, int* flag) = 0;
 
     // those objects are not necessarily general

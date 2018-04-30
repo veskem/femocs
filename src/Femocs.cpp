@@ -229,22 +229,51 @@ int Femocs::export_atom_types(const int n_atoms, int* types) {
 
 // export electric field on imported atom coordinates
 int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    return project->fields.export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
+//    return project->fields.export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
+
+    double fields[3*n_atoms];
+    int retval1 = project->export_results(n_atoms, LABELS.elfield, fields);
+    int retval2 = project->export_results(n_atoms, LABELS.elfield_norm, Enorm);
+
+    int I = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        Ex[i] = fields[I++];
+        Ey[i] = fields[I++];
+        Ez[i] = fields[I++];
+    }
+    return retval1 | retval2;
 }
 
 // calculate and export temperatures on imported atom coordinates
 int Femocs::export_temperature(const int n_atoms, double* T) {
-    return project->temperatures.export_temperature(n_atoms, T);
+//    return project->temperatures.export_temperature(n_atoms, T);
+
+    return project->export_results(n_atoms, LABELS.temperature, T);
 }
 
 // export charges & forces on imported atom coordinates
 int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
-    return project->forces.export_charge_and_force(n_atoms, xq);
+//    return project->forces.export_charge_and_force(n_atoms, xq);
+
+    double charges[n_atoms];
+    double forces[3*n_atoms];
+    int retval1 = project->export_results(n_atoms, LABELS.charge, charges);
+    int retval2 = project->export_results(n_atoms, LABELS.force, forces);
+
+    int I = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        int J = 3*i;
+        xq[I++] = charges[i];
+        xq[I++] = forces[J++];
+        xq[I++] = forces[J++];
+        xq[I++] = forces[J++];
+    }
+    return retval1 | retval2;
 }
 
 // export forces & pair potentials on imported atom coordinates
 int Femocs::export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) {
-    return project->forces.export_force_and_pairpot(n_atoms, xnp, Epair, Vpair);;
+    return project->forces.export_force_and_pairpot(n_atoms, xnp, Epair, Vpair);
 }
 
 // linearly interpolate electric field at given points
@@ -266,20 +295,14 @@ int Femocs::interpolate_phi(const int n_points, const double* x, const double* y
 }
 
 // export solution on atom coordinates; data is specified with cmd label
-int Femocs::export_results(const int n_points, const char cmd, double* data) {
-    return project->export_results(n_points, LABELS.decode(cmd), data);
+int Femocs::export_results(const int n_points, const string& data_type, double* data) {
+    return project->export_results(n_points, data_type, data);
 }
 
 // interpolate solution (component specified with cmd label) on specified points
-int Femocs::interpolate_results(const int n_points, const char cmd,
+int Femocs::interpolate_results(const int n_points, const string &data_type, const bool near_surface,
         const double* x, const double* y, const double* z, double* data, int* flag) {
-    return project->interpolate_results(n_points, LABELS.decode(cmd), false, x, y, z, data, flag);
-}
-
-// interpolate solution near the surface on specified points
-int Femocs::interpolate_surface_results(const int n_points, const char cmd,
-        const double* x, const double* y, const double* z, double* data, int* flag) {
-    return project->interpolate_results(n_points, LABELS.decode(cmd), true, x, y, z, data, flag);
+    return project->interpolate_results(n_points, data_type, near_surface, x, y, z, data, flag);
 }
 
 // parse integer argument of the command from input script

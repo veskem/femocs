@@ -48,7 +48,7 @@ public:
     bool generate_hexahedra();
     
     /** Using the separated tetrahedra generate the triangular surface on the vacuum-material boundary */
-    int generate_surface(const Medium::Sizes& sizes, const string& cmd1, const string& cmd2);
+    int generate_surface(const string& cmd1, const string& cmd2);
 
     /** Mark mesh nodes and elements by their location relative to the surface atoms */
     bool mark_mesh();

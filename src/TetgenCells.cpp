@@ -369,7 +369,7 @@ SimpleCell<3> TetgenFaces::get_cell(const int i) const {
     return SimpleFace(reads->trifacelist[I], reads->trifacelist[I+1], reads->trifacelist[I+2]);
 }
 
-int TetgenFaces::copy_surface(const TetgenFaces& faces, const Medium::Sizes& stat) {
+int TetgenFaces::copy_surface(const TetgenFaces& faces, const TetgenNodes::Stat& stat) {
     const double eps = 0.01 * faces.stat.edgemin;
     int n_faces = faces.size();
     vector<bool> tri_mask(n_faces);

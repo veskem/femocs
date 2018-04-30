@@ -45,21 +45,21 @@ public:
     int force_output();
 
     /** Export the solution on the imported atomistic points.
-     * @param n_points  # of first imported atoms where data exported; 0 disables the export
-     * @param cmd   label of the data to be exported. See Labels class for a list of possible cmd-s
-     * @param data  array where results are written. Vector data is exported coordinate-wise, i.e in a form x1,y1,z1,x2,y2,...
+     * @param n_points   # of first imported atoms where data exported; 0 disables the export
+     * @param data_type  label of the data to be exported. See Labels class for a list of possible cmd-s
+     * @param data       array where results are written. Vector data is exported coordinate-wise, i.e in a form x1,y1,z1,x2,y2,...
      */
-    int export_results(const int n_points, const string &cmd, double* data);
+    int export_results(const int n_points, const string &data_type, double* data);
 
     /** Export the solution on the specified points.
-      * @param n_points    # of first imported atoms where data exported; 0 disables the export
-      * @param cmd         label of the data to be exported. See Labels class for a list of possible cmd-s
-      * @param on_surface  data is located on or near the surface.
-      * @param x,y,z       coordinates of the points where interpolation is performed
-      * @param data        array where results are written. Vector data is exported coordinate-wise, i.e in a form x1,y1,z1,x2,y2,...
-      * @param flag        array showing whether specified point was located inside the mesh (1) or not (0)
+      * @param n_points      # of first imported atoms where data exported; 0 disables the export
+      * @param data_type     label of the data to be exported. See Labels class for a list of possible cmd-s
+      * @param near_surface  data is located on or near the surface.
+      * @param x,y,z         coordinates of the points where interpolation is performed
+      * @param data          array where results are written. Vector data is exported coordinate-wise, i.e in a form x1,y1,z1,x2,y2,...
+      * @param flag          array showing whether specified point was located inside the mesh (1) or not (0)
       */
-    int interpolate_results(const int n_points, const string &cmd, const bool on_surface,
+    int interpolate_results(const int n_points, const string &data_type, const bool near_surface,
             const double* x, const double* y, const double* z, double* data, int* flag);
 
 private:

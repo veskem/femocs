@@ -42,6 +42,11 @@ void femocs_interpolate_surface_elfield(FEMOCS* femocs, int* retval, int n_point
 
 void femocs_interpolate_phi(FEMOCS* femocs, int* retval, int n_points, double* x, double* y, double* z, double* phi, int* flag);
 
+void femocs_export_results(FEMOCS* femocs, int* retval, int n_points, const char* data_type, double* data);
+
+void femocs_interpolate_results(FEMOCS* femocs, int* retval, int n_points, const char* data_type,
+        int near_surface, const double* x, const double* y, const double* z, double* data, int* flag);
+
 void femocs_parse_int(FEMOCS* femocs, int* retval, const char* command, int* arg);
 
 void femocs_parse_double(FEMOCS* femocs, int* retval, const char* command, double* arg);

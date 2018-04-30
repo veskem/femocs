@@ -73,6 +73,17 @@ public:
     /** Store the surface mesh centroids of the FEM solver */
     void store_points(const DealSolver<3>& solver);
 
+    /** Determine whether given data is included in SolutionReader */
+    int contains(const string& data_label) const;
+
+    /** General function to export desired component of calculated data */
+    int export_results(const int n_points, const string &data_type, double* data) const;
+
+    /** General function to first perform interpolation
+     * and then export desired component of calculated data */
+    int interpolate_results(const int n_points, const string &data_type, const double* x,
+            const double* y, const double* z, double* data);
+
     /** Statistics about solution */
     struct Statistics {
         double vec_norm_min;  ///< minimum value of vector norm
@@ -80,14 +91,6 @@ public:
         double scal_min;      ///< minimum value of scalar
         double scal_max;      ///< maximum value of scalar
     } stat;
-
-    /** General function to export desired component of calculated data */
-    int export_results(const int n_points, const string &data_type, const bool append, double* data);
-
-    /** General function to first perform interpolation
-     * and then export desired component of calculated data */
-    int interpolate_results(const int n_points, const string &data_type, const double* x,
-            const double* y, const double* z, double* data);
 
 protected:
     const string vec_label;       ///< label for vector data
@@ -404,6 +407,8 @@ public:
      * @param Vpair    total potential energy of atoms. Pot. due to Coloumb forces are added here. NOTE: Lorentz is missing!
      */
     int export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const;
+
+    int export_parcas(const int n_points, const string &data_type, const Medium::Sizes &sizes, double* data) const;
 
     /** Return the force that is applied to i-th atom */
     Vec3 get_force(const int i) const {

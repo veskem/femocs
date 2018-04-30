@@ -67,6 +67,15 @@ void femocs_interpolate_phi(FEMOCS* femocs, int* retval, int n_points, double* x
     retval[0] = femocs->interpolate_phi(n_points, x, y, z, phi, flag);
 }
 
+void femocs_export_results(FEMOCS* femocs, int* retval, int n_points, const char* data_type, double* data) {
+    retval[0] = femocs->export_results(n_points, data_type, data);
+}
+
+void femocs_interpolate_results(FEMOCS* femocs, int* retval, int n_points, const char* data_type, int near_surface,
+        const double* x, const double* y, const double* z, double* data, int* flag) {
+    retval[0] = femocs->interpolate_results(n_points, data_type, near_surface, x, y, z, data, flag);
+}
+
 void femocs_parse_int(FEMOCS* femocs, int* retval, const char* command, int* arg) {
     retval[0] = femocs->parse_command(string(command), arg);
 }

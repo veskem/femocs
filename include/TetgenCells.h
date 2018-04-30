@@ -447,7 +447,7 @@ public:
     void transfer(const bool write2read=true);
     
     /** Copy the surface faces from another TetgenFaces */
-    int copy_surface(const TetgenFaces& faces, const Medium::Sizes& stat);
+    int copy_surface(const TetgenFaces& faces, const TetgenNodes::Stat& stat);
 
     /** Return the normal of i-th triangle */
     Vec3 get_norm(const int i) const;

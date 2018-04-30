@@ -157,9 +157,9 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
     double box_height = max(conf.geometry.latconst, coarse_surf.sizes.zbox) * conf.geometry.box_height;
     vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + box_height);
     bulk = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.geometry.bulk_height * conf.geometry.latconst);
-    reader.resize_box(coarse_surf.sizes.xmin, coarse_surf.sizes.xmax,
-            coarse_surf.sizes.ymin, coarse_surf.sizes.ymax,
-            bulk.sizes.zmin, vacuum.sizes.zmax);
+//    reader.resize_box(coarse_surf.sizes.xmin, coarse_surf.sizes.xmax,
+//            coarse_surf.sizes.ymin, coarse_surf.sizes.ymax,
+//            bulk.sizes.zmin, vacuum.sizes.zmax);
     end_msg(t0);
 
     bulk.write("out/bulk.xyz");
@@ -194,7 +194,7 @@ int ProjectRunaway::generate_mesh() {
     end_msg(t0);
 
     start_msg(t0, "=== Generating surface faces...");
-    err_code = new_mesh->generate_surface(reader.sizes, "rQB", "rQnn");
+    err_code = new_mesh->generate_surface("rQB", "rQnn");
     end_msg(t0);
     check_return(err_code, "Generation of surface faces failed with error code " + d2s(err_code));
 
@@ -312,7 +312,7 @@ int ProjectRunaway::prepare_export() {
 
     if (conf.force.mode != "none") {
         // analytical total charge without epsilon0 (will be added in ChargeReader)
-        const double tot_charge = conf.field.E0 * reader.sizes.xbox * reader.sizes.ybox;
+        const double tot_charge = conf.field.E0 * mesh->nodes.stat.xbox * mesh->nodes.stat.ybox;
 
         ChargeReader face_charges(&vacuum_interpolator); // charges on surface triangles
         face_charges.set_check_params(tot_charge, conf.tolerance.charge_min, conf.tolerance.charge_max);
@@ -650,42 +650,45 @@ int ProjectRunaway::force_output() {
     return 0;
 }
 
-int ProjectRunaway::export_results(const int n_points, const string &cmd, double* data) {
+int ProjectRunaway::export_results(const int n_points, const string &data_type, double* data) {
     if (n_points <= 0) return 0;
 
-    if (cmd == LABELS.elfield.second || cmd == LABELS.elfield_norm.second || cmd == LABELS.potential.second)
-        return fields.export_results(n_points, cmd, false, data);
+    if (fields.contains(data_type))
+        return fields.export_results(n_points, data_type, data);
 
-    if (cmd == LABELS.rho.second || cmd == LABELS.rho_norm.second || cmd == LABELS.temperature.second)
-        return temperatures.export_results(n_points, cmd, false, data);
+    if (temperatures.contains(data_type))
+        return temperatures.export_results(n_points, data_type, data);
 
-    if (cmd == LABELS.force.second || cmd == LABELS.force_norm.second || cmd == LABELS.charge.second)
-        return forces.export_results(n_points, cmd, true, data);
+    if (forces.contains(data_type))
+        return forces.export_results(n_points, data_type, data);
 
-    require(false, "Unimplemented type of export data: " + cmd);
+    if (data_type == LABELS.pair_potential_sum || data_type == LABELS.parcas_force)
+        return forces.export_parcas(n_points, data_type, reader.sizes, data);
+
+    require(false, "Unimplemented type of export data: " + data_type);
     return 1;
 }
 
-int ProjectRunaway::interpolate_results(const int n_points, const string &cmd, const bool on_surface,
+int ProjectRunaway::interpolate_results(const int n_points, const string &data_type, const bool near_surface,
         const double* x, const double* y, const double* z, double* data, int* flag) {
 
     // location of interpolation; 2-on surface, 3-in space
     int dim = 3;
-    if (on_surface) dim = 2;
+    if (near_surface) dim = 2;
 
-    if (cmd == LABELS.elfield.second || cmd == LABELS.elfield_norm.second || cmd == LABELS.potential.second) {
+    if (fields.contains(data_type)) {
         fields.set_preferences(false, dim, conf.behaviour.interpolation_rank);
-        return fields.interpolate_results(n_points, cmd, x, y, z, data);
+        return fields.interpolate_results(n_points, data_type, x, y, z, data);
     }
 
-    if (cmd == LABELS.rho.second || cmd == LABELS.rho_norm.second || cmd == LABELS.temperature.second) {
+    if (temperatures.contains(data_type)) {
         temperatures.set_preferences(false, dim, conf.behaviour.interpolation_rank);
-        return temperatures.interpolate_results(n_points, cmd, x, y, z, data);
+        return temperatures.interpolate_results(n_points, data_type, x, y, z, data);
     }
 
-    if (cmd == LABELS.force.second || cmd == LABELS.force_norm.second || cmd == LABELS.charge.second) {
+    if (forces.contains(data_type)) {
         forces.set_preferences(false, dim, conf.behaviour.interpolation_rank);
-        return forces.interpolate_results(n_points, cmd, x, y, z, data);
+        return forces.interpolate_results(n_points, data_type, x, y, z, data);
     }
 
     require(false, "Unimplemented type of interpolation data: " + cmd);

@@ -151,7 +151,7 @@ module libfemocs
             integer(c_int) :: flag(*)
         end subroutine
 
-        subroutine femocs_interpolate_phi_c(femocs, retval, n_points, x, y, z, phi, flag) &
+        subroutine femocs_interpolate_phi_c(femocs,retval,n_points,x,y,z,phi,flag) &
                                                  bind(C, name="femocs_interpolate_phi")
             use iso_c_binding
             implicit none
@@ -164,7 +164,34 @@ module libfemocs
             real(c_double) :: phi(*)
             integer(c_int) :: flag(*)
         end subroutine
-        
+
+        subroutine femocs_export_results_c(femocs,retval,n_points,data_type,data) &
+                                                 bind(C, name="femocs_export_results")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
+            integer(c_int), value :: n_points
+            character(len=1, kind=C_CHAR), intent(in) :: data_type(*)
+            real(c_double) :: data(*)
+        end subroutine
+
+        subroutine femocs_interpolate_results_c(femocs,retval,n_points,data_type,near_surface,x,y,z,data,flag) &
+                                                    bind(C, name="femocs_interpolate_results")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
+            integer(c_int), value :: n_points
+            character(len=1, kind=C_CHAR), intent(in) :: data_type(*)
+            integer(c_int), value :: near_surface
+            real(c_double) :: x(*)
+            real(c_double) :: y(*)
+            real(c_double) :: z(*)
+            real(c_double) :: data(*)
+            integer(c_int) :: flag(*)
+        end subroutine
+
         subroutine femocs_parse_int_c(femocs, retval, command, arg) bind(C, name="femocs_parse_int")
             use iso_c_binding
             implicit none
@@ -199,14 +226,8 @@ module libfemocs
         private
         type(c_ptr) :: ptr ! pointer to the Femocs class
     contains
-        ! Compiler gives the following warning when this line is uncommented: 
-        ! Only array FINAL procedures declared for derived type ‘femocs’ defined at (1), suggest also scalar one [-Wsurprising]
-        ! For some reason the original sample of the wrapper had that function and I'm not exactly sure what it does, therefore I didn't dare to erase it.
-        ! However, it seems wrapper can perfectly do without it
-!         final :: delete_femocs
-
         ! Destructor for gfortran
-        procedure :: delete => delete_femocs_polymorph
+        procedure :: delete => delete_femocs
         ! Function members
         procedure :: run => femocs_run
         procedure :: force_output => femocs_force_output
@@ -221,6 +242,8 @@ module libfemocs
         procedure :: interpolate_elfield => femocs_interpolate_elfield
         procedure :: interpolate_surface_elfield => femocs_interpolate_surface_elfield
         procedure :: interpolate_phi => femocs_interpolate_phi
+        procedure :: export_results => femocs_export_results
+        procedure :: interpolate_results => femocs_interpolate_results
         procedure :: parse_int => femocs_parse_int
         procedure :: parse_double => femocs_parse_double
         procedure :: parse_string => femocs_parse_string
@@ -250,15 +273,7 @@ module libfemocs
         create_femocs%ptr = create_femocs_c(c_str)
     end function
 
-    ! See the comment about compiler warnings above
-!     subroutine delete_femocs(this)
-!         implicit none
-!         type(femocs) :: this
-!         call delete_femocs_c(this%ptr)
-!     end subroutine
-
-    ! Bounds procedure needs to take a polymorphic (class) argument
-    subroutine delete_femocs_polymorph(this)
+    subroutine delete_femocs(this)
         implicit none
         class(femocs) :: this
         call delete_femocs_c(this%ptr)
@@ -427,6 +442,51 @@ module libfemocs
         real(c_double) :: phi(*)
         integer(c_int) :: flag(*)
         call femocs_interpolate_phi_c(this%ptr, retval, n_points, x, y, z, phi, flag)
+    end subroutine
+
+    subroutine femocs_export_results(this, retval, n_points, data_type, data)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval
+        integer(c_int) :: n_points
+        character(len=*), intent(in) :: data_type
+        real(c_double) :: data(*)
+        character(len=1, kind=C_CHAR) :: c_str(len_trim(data_type) + 1)
+        integer :: N, i
+
+        ! Convert Fortran string to C string
+        N = len_trim(data_type)
+        do i = 1, N
+            c_str(i) = data_type(i:i)
+        end do
+        c_str(N + 1) = C_NULL_CHAR
+
+        call femocs_export_results_c(this%ptr, retval, n_points, c_str,data)
+    end subroutine
+
+    subroutine femocs_interpolate_results(this,retval,n_points,data_type,near_surface,x,y,z,data,flag)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval
+        integer(c_int) :: n_points
+        character(len=*), intent(in) :: data_type
+        integer(c_int) :: near_surface
+        real(c_double) :: x(*)
+        real(c_double) :: y(*)
+        real(c_double) :: z(*)
+        real(c_double) :: data(*)
+        integer(c_int) :: flag(*)
+        character(len=1, kind=C_CHAR) :: c_str(len_trim(data_type) + 1)
+        integer :: N, i
+
+        ! Convert Fortran string to C string
+        N = len_trim(data_type)
+        do i = 1, N
+            c_str(i) = data_type(i:i)
+        end do
+        c_str(N + 1) = C_NULL_CHAR
+
+        call femocs_interpolate_results_c(this%ptr,retval,n_points,c_str,near_surface,x,y,z,data,flag)
     end subroutine
 
     subroutine femocs_parse_int(this, retval, command, arg)

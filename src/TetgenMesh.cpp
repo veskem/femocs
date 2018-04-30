@@ -473,7 +473,7 @@ bool TetgenMesh::generate_hexahedra() {
 }
 
 // Using the separated tetrahedra generate the triangular surface on the vacuum-material boundary
-int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd1, const string& cmd2) {
+int TetgenMesh::generate_surface(const string& cmd1, const string& cmd2) {
     TetgenMesh vacuum;
     vector<bool> tet_mask = vector_equal(tets.get_markers(), TYPES.VACUUM);
 
@@ -487,7 +487,7 @@ int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd1,
 
     // copy the triangles that are not on the simubox perimeter to input tetIO
     vacuum.tris.calc_appendices();
-    const int n_surf_faces = tris.copy_surface(vacuum.tris, sizes);
+    const int n_surf_faces = tris.copy_surface(vacuum.tris, nodes.stat);
 
     // transfer elements and nodes to input
     nodes.transfer(false);

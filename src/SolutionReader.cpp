@@ -217,35 +217,38 @@ void SolutionReader::print_statistics() {
     write_verbose_msg(stream.str());
 }
 
-int SolutionReader::export_results(const int n_points, const string &data_type, const bool append, double* data) {
+int SolutionReader::contains(const string& data_label) const {
+    if (data_label == vec_label) return 1;
+    if (data_label == vec_norm_label) return 2;
+    if (data_label == scalar_label) return 3;
+
+    return 0;
+}
+
+int SolutionReader::export_results(const int n_points, const string &data_type, double* data) const {
     check_return(size() == 0, "No " + data_type + " to export!");
 
-    // Check whether the already excising data must survive or not
-    if (!append) {
-        // No, clear the previous data
-        int export_type_len = 1;
-        if (data_type == vec_label)
-            export_type_len = 3;
-        for (int i = 0; i < export_type_len * n_points; ++i)
-            data[i] = 0;
-    }
+    int dtype = contains(data_type);
+    require(dtype > 0 && dt <= 3, "SolutionReader does not contain " + data_type);
 
     // Pass the desired solution
     for (int i = 0; i < size(); ++i) {
         int id = get_id(i);
         if (id < 0 || id >= n_points) continue;
 
-        if (data_type == vec_label) {
-            id *= 3;
-            for (double v : interpolation[i].vector)
-                data[id++] = v;
+        switch(dtype) {
+            case 1:
+                id *= 3;
+                for (double v : interpolation[i].vector)
+                    data[id++] = v;
+                continue;
+            case 2:
+                data[id] = interpolation[i].norm;
+                continue;
+            default:
+                data[id] = interpolation[i].scalar;
         }
-        else if (data_type == scalar_label)
-            data[id] = interpolation[i].scalar;
-        else
-            data[id] = interpolation[i].norm;
     }
-
     return 0;
 }
 
@@ -263,22 +266,8 @@ int SolutionReader::interpolate_results(const int n_points, const string &data_t
     // interpolate solution
     sr.calc_interpolation();
 
-    // export solution
-    if (data_type == vec_label) {
-        for (int i = 0; i < n_points; ++i) {
-            int j = 3*i;
-            for (double v : sr.interpolation[i].vector)
-                data[j++] = v;
-        }
-    } else if (data_type == scalar_label) {
-        for (int i = 0; i < n_points; ++i)
-            data[i] = sr.interpolation[i].scalar;
-    } else {
-        for (int i = 0; i < n_points; ++i)
-            data[i] = sr.interpolation[i].norm;
-    }
-
-    return 0;
+    // export interpolation
+    return sr.export_results(n_points, data_type, data);
 }
 
 void SolutionReader::store_points(const DealSolver<3>& solver) {
@@ -300,7 +289,7 @@ void SolutionReader::store_points(const DealSolver<3>& solver) {
  * ========================================== */
 
 FieldReader::FieldReader(Interpolator* i) :
-        SolutionReader(i, "elfield", "elfield_norm", "potential"),
+        SolutionReader(i, LABELS.elfield, LABELS.elfield_norm, LABELS.potential),
         E0(0), radius1(0), radius2(0) {}
 
 void FieldReader::compare_shape_funs(PoissonSolver<3> &poisson, const Medium::Sizes &sizes) {
@@ -760,7 +749,7 @@ int FieldReader::interpolate_phi(const int n_points, const double* x, const doub
  * ========================================== */
 
 HeatReader::HeatReader(Interpolator* i) :
-        SolutionReader(i, "rho", "rho_norm", "temperature"), lintet(&i->lintet) {
+        SolutionReader(i, LABELS.rho, LABELS.rho_norm, LABELS.temperature), lintet(&i->lintet) {
 }
 
 void HeatReader::interpolate(const Medium &medium) {
@@ -928,7 +917,7 @@ void HeatReader::scale_berendsen_v2(const int n_atoms, double* x1) {
 
 EmissionReader::EmissionReader(const FieldReader *fr, const HeatReader *hr,
         const PoissonSolver<3> *p, Interpolator* i) :
-        SolutionReader(i, "none", "rho_norm", "temperature"),
+        SolutionReader(i, LABELS.elfield, LABELS.rho_norm, LABELS.heat),
         fields(fr), heat(hr), mesh(NULL), poisson(p)
 {}
 
@@ -1152,7 +1141,7 @@ void EmissionReader::export_emission(CurrentHeatSolver<3>& ch_solver) {
  * ========================================== */
 
 ChargeReader::ChargeReader(Interpolator* i) :
-        SolutionReader(i, "elfield", "area", "charge"), Q_tot(0) {}
+        SolutionReader(i, LABELS.elfield, LABELS.area, LABELS.charge), Q_tot(0) {}
 
 void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
     const double sign = fabs(E0) / E0;
@@ -1249,7 +1238,7 @@ void ChargeReader::set_check_params(const double Q_tot, const double limit_min, 
  * ========================================== */
 
 ForceReader::ForceReader(Interpolator* i) :
-        SolutionReader(i, "force", "pair_potential", "charge") {}
+        SolutionReader(i, LABELS.force, LABELS.pair_potential, LABELS.charge) {}
 
 int ForceReader::get_nanotip(Medium& nanotip, const double radius) {
     const int n_atoms = size();
@@ -1563,6 +1552,38 @@ int ForceReader::export_force_and_pairpot(const int n_atoms, double* xnp, double
         Vec3 force = interpolation[i].vector;
         for (int j = 0; j < 3; ++j)
             xnp[id+j] += force[j] / box[j];
+    }
+
+    return 0;
+}
+
+int ForceReader::export_parcas(const int n_points, const string &data_type,
+        const Medium::Sizes &sizes, double* data) const
+{
+    require(data_type == LABELS.pair_potential_sum || data_type == LABELS.parcas_force,
+            "Unimplemented type of export data: " + data_type);
+    check_return(size() == 0, "No " + data_type + " to export!");
+
+    // export total pair-potential ?
+    if (data_type == LABELS.pair_potential_sum) {
+        data[0] = 0;
+        for (int i = 0; i < size(); ++i)
+            data[0] += get_pairpot(i);
+    }
+
+    // export force perturbation in reduced units (used in Parcas)
+    else {
+        Vec3 simubox(sizes.xbox, sizes.ybox, sizes.zbox);
+
+        for (int i = 0; i < size(); ++i) {
+            int id = get_id(i);
+            if (id < 0 || id >= n_points) continue;
+
+            Vec3 reduced_force = get_force(i) * simubox;
+            id *= 3;
+            for (double f : reduced_force)
+                data[id++] += f;
+        }
     }
 
     return 0;
