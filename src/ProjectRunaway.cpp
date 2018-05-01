@@ -662,8 +662,8 @@ int ProjectRunaway::export_results(const int n_points, const string &data_type, 
     if (forces.contains(data_type))
         return forces.export_results(n_points, data_type, data);
 
-    if (data_type == LABELS.pair_potential_sum || data_type == LABELS.parcas_force)
-        return forces.export_parcas(n_points, data_type, reader.sizes, data);
+    if (data_type == LABELS.pair_potential_sum || data_type == LABELS.parcas_force || data_type == LABELS.charge_force)
+        return forces.export_parcas(n_points, data_type, reader.sizes, conf.geometry.latconst, data);
 
     require(false, "Unimplemented type of export data: " + data_type);
     return 1;

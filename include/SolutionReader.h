@@ -408,7 +408,8 @@ public:
      */
     int export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const;
 
-    int export_parcas(const int n_points, const string &data_type, const Medium::Sizes &sizes, double* data) const;
+    int export_parcas(const int n_points, const string &data_type, const Medium::Sizes &sizes,
+            const double latconst, double* data) const;
 
     /** Return the force that is applied to i-th atom */
     Vec3 get_force(const int i) const {
