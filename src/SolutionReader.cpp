@@ -703,7 +703,7 @@ int FieldReader::interpolate_surface_elfield(const int n_points, const double* x
     }
 
     fr.write("out/interpolation_E_surf.movie");
-    return check_limits(fr.get_interpolations());
+    return 0;
 }
 
 int FieldReader::interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
@@ -724,7 +724,7 @@ int FieldReader::interpolate_elfield(const int n_points, const double* x, const 
     }
 
     fr.write("out/interpolation_E.movie");
-    return check_limits(fr.get_interpolations());
+    return 0;
 }
 
 int FieldReader::interpolate_phi(const int n_points, const double* x, const double* y, const double* z,

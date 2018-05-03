@@ -686,11 +686,6 @@ int ProjectRunaway::interpolate_results(const int n_points, const string &data_t
         return temperatures.interpolate_results(n_points, data_type, x, y, z, data);
     }
 
-    if (forces.contains(data_type)) {
-        forces.set_preferences(false, dim, conf.behaviour.interpolation_rank);
-        return forces.interpolate_results(n_points, data_type, x, y, z, data);
-    }
-
     require(false, "Unimplemented type of interpolation data: " + cmd);
     return 1;
 }
