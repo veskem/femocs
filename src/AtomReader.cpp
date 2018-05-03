@@ -16,10 +16,8 @@
 using namespace std;
 namespace femocs {
 
-// AtomReader constructor
 AtomReader::AtomReader() : Medium(), rms_distance(0) {}
 
-// Reserve memory for data vectors
 void AtomReader::reserve(const int n_atoms) {
     require(n_atoms >= 0, "Invalid # atoms: " + to_string(n_atoms));
     atoms.clear();
@@ -29,7 +27,6 @@ void AtomReader::reserve(const int n_atoms) {
     coordination = vector<int>(n_atoms, 0);
 }
 
-// Calculate root mean square of the distances atoms have moved after previous run
 double AtomReader::calc_rms_distance(const double eps) {
     if (eps <= 0) return DBL_MAX;
 
@@ -62,7 +59,6 @@ void AtomReader::save_current_run_points(const double eps) {
     }
 }
 
-// Calculate list of close neighbours using Parcas diagonal neighbour list
 void AtomReader::calc_nborlist(const int nnn, const double r_cut, const int* parcas_nborlist) {
     require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
     require(nnn > 0, "Invalid # nearest neighbours: " + to_string(nnn));
@@ -92,7 +88,6 @@ void AtomReader::calc_nborlist(const int nnn, const double r_cut, const int* par
     }
 }
 
-// Calculate list of close neighbours using already existing list with >= cut-off radius
 void AtomReader::recalc_nborlist(const double r_cut) {
     require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
 
@@ -122,7 +117,6 @@ void AtomReader::calc_coordinations() {
         coordination[i] = nborlist[i].size();
 }
 
-// Calculate coordination for all the atoms using neighbour list
 void AtomReader::calc_coordinations(int& nnn, double& latconst, double& coord_cutoff, const int* parcas_nborlist) {
     const double rdf_cutoff = 2.0 * latconst;
 
@@ -135,7 +129,6 @@ void AtomReader::calc_coordinations(int& nnn, double& latconst, double& coord_cu
     calc_coordinations();
 }
 
-// Calculate coordination for all the atoms using neighbour list
 void AtomReader::calc_coordinations(const int nnn, const double coord_cutoff, const int* parcas_nborlist) {
     calc_nborlist(nnn, coord_cutoff, parcas_nborlist);
     calc_coordinations();
@@ -358,7 +351,6 @@ void AtomReader::resize_box(double xmin, double xmax, double ymin, double ymax, 
     sizes.zmid = (zmax + zmin) / 2;
 }
 
-// Compile data string from the data vectors
 string AtomReader::get_data_string(const int i) const {
     if (i < 0) return "AtomReader properties=id:I:1:pos:R:3:type:I:1:coordination:I:1";
 
@@ -367,7 +359,6 @@ string AtomReader::get_data_string(const int i) const {
     return strs.str();
 }
 
-// Get the closest neighbours of i-th atom
 const vector<int>& AtomReader::get_neighbours(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
     require(size() == (int)nborlist.size(), "Query from invalid neighbour list!");
@@ -377,6 +368,16 @@ const vector<int>& AtomReader::get_neighbours(const int i) const {
 // Return the size of neighbour list
 int AtomReader::get_nborlist_size() const {
     return nborlist.size();
+}
+
+Vec3 AtomReader::get_si2parcas_box() const {
+    require(simubox.x > 0 && simubox.y > 0 && simubox.z > 0, "Invalid simubox dimensions: " + d2s(simubox));
+    return Vec3(1/simubox.x, 1/simubox.y, 1/simubox.z);
+}
+
+Vec3 AtomReader::get_parcas2si_box() const {
+    require(simubox.x > 0 && simubox.y > 0 && simubox.z > 0, "Invalid simubox dimensions: " + d2s(simubox));
+    return simubox;
 }
 
 // =================================
@@ -459,6 +460,10 @@ void AtomReader::import_helmod(const int n_atoms, const double* x, const double*
 
 void AtomReader::import_parcas(const int n_atoms, const double* xyz, const double* box) {
     require(n_atoms > 0, "Zero input atoms detected!");
+
+    simubox = Vec3(box[0], box[1], box[2]);
+    require(simubox.x > 0 && simubox.y > 0 && simubox.z > 0, "Invalid simubox dimensions: " + d2s(simubox));
+
     reserve(n_atoms);
     for (int i = 0; i < 3*n_atoms; i+=3)
         append( Atom(i/3, Point3(xyz[i+0]*box[0], xyz[i+1]*box[1], xyz[i+2]*box[2]), TYPES.BULK) );

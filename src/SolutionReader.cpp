@@ -804,7 +804,7 @@ void HeatReader::locate_atoms(const Medium &medium) {
     }
 }
 
-void HeatReader::scale_berendsen(const int n_atoms, double* x1) {
+int HeatReader::scale_berendsen(const int n_atoms, const Vec3& parcas2si, double* x1) {
     require(n_atoms == size(),
             "Lenght of velocity array does not equal to # atoms in system: " + to_string(n_atoms));
 
@@ -815,7 +815,7 @@ void HeatReader::scale_berendsen(const int n_atoms, double* x1) {
     const double delta_t_fs = 4.05; // MD time step
 
     // factor to transfer velocity from Parcas units to fm/fs
-    const Vec3 velocity_factor = Vec3(sizes.xbox, sizes.ybox, sizes.zbox) * (1.0 / time_unit);
+    const Vec3 velocity_factor = parcas2si * (1.0 / time_unit);
     // factor to transfer 2*kinetic energy to temperature
     const double heat_factor = 1.0 / (3.0 * kB);
     // factor determining intensity of Berendsen scaling
@@ -869,9 +869,11 @@ void HeatReader::scale_berendsen(const int n_atoms, double* x1) {
             }
         }
     }
+
+    return 0;
 }
 
-void HeatReader::scale_berendsen_v2(const int n_atoms, double* x1) {
+int HeatReader::scale_berendsen_v2(const int n_atoms, const Vec3& parcas2si, double* x1) {
     require(n_atoms == size(),
             "Lenght of velocity array does not equal to # atoms in system: " + to_string(n_atoms));
 
@@ -880,7 +882,7 @@ void HeatReader::scale_berendsen_v2(const int n_atoms, double* x1) {
     const double delta_t_fs = 4.05; // MD time step
 
     // factor to transfer velocity from Parcas units to fm/fs
-    const Vec3 velocity_factor = Vec3(sizes.xbox, sizes.ybox, sizes.zbox) * (1.0 / time_unit);
+    const Vec3 velocity_factor = parcas2si * (1.0 / time_unit);
     // factor to transfer 2*kinetic energy to temperature
     const double heat_factor = 1.0 / (3.0 * kB);
     // factor determining intensity of Berendsen scaling
@@ -909,6 +911,8 @@ void HeatReader::scale_berendsen_v2(const int n_atoms, double* x1) {
         // store scaled velocity without affecting current density norm and temperature
         interpolation[i].vector = velocities[i] * lambda;
     }
+
+    return 0;
 }
 
 /* ==========================================
@@ -1557,8 +1561,8 @@ int ForceReader::export_force_and_pairpot(const int n_atoms, double* xnp, double
     return 0;
 }
 
-int ForceReader::export_parcas(const int n_points, const string &data_type,
-        const Medium::Sizes &sizes, const double latconst, double* data) const
+int ForceReader::export_parcas(const int n_points, const string &data_type, const Vec3& si2parcas,
+        double* data) const
 {
     check_return(size() == 0, "No " + data_type + " to export!");
 
@@ -1571,12 +1575,11 @@ int ForceReader::export_parcas(const int n_points, const string &data_type,
 
     // export force perturbation in reduced units (used in Parcas)
     else if (data_type == LABELS.parcas_force) {
-        Vec3 simubox(1/(sizes.xbox+0.5*latconst), 1/(sizes.ybox+0.5*latconst), 1/sizes.zbox);
         for (int i = 0; i < size(); ++i) {
             int id = get_id(i);
             if (id < 0 || id >= n_points) continue;
 
-            Vec3 reduced_force = get_force(i) * simubox;
+            Vec3 reduced_force = get_force(i) * si2parcas;
             id *= 3;
             for (double f : reduced_force)
                 data[id++] += f;

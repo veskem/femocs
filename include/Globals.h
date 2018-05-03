@@ -105,6 +105,7 @@ struct Labels {
     const string force = "force";
     const string force_norm = "force_norm";
     const string charge = "charge";
+    const string parcas_velocity = "parcas_velocity";
     const string velocity = "velocity";
     const string velocity_norm = "velocity_norm";
     const string heat = "heat";

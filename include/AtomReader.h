@@ -40,6 +40,10 @@ public:
 
     /** Calculate coordination for all the atoms using Parcas neighbour list */
     void calc_coordinations(const int nnn, const double coord_cutoff, const int* parcas_nborlist);
+
+    /** Calculate coordination for all the atoms using neighbour list.
+     * Before doing so, update nnn, lattice constant and coordination cut-off radius
+     * by calculating radial distribution function */
     void calc_coordinations(int& nnn, double& latconst, double& coord_cutoff, const int* parcas_nborlist);
 
     /** Calculate coordination for all the atoms using brute force */
@@ -83,6 +87,12 @@ public:
     /** Return the size of neighbour list */
     int get_nborlist_size() const;
 
+    /** Return factors to covert SI units to Parcas ones */
+    Vec3 get_si2parcas_box() const;
+
+    /** Return factors to covert Parcas units to SI ones */
+    Vec3 get_parcas2si_box() const;
+
     double rms_distance;            ///< rms distance between atoms from previous and current run
 
 private:
@@ -91,6 +101,7 @@ private:
     vector<int> previous_types;     ///< atom types from previous run
     vector<Point3> previous_points; ///< atom coordinates from previous run
     vector<vector<int>> nborlist;   ///< list of closest neighbours
+    Vec3 simubox;                   ///< MD simulation box dimensions; needed to convert SI units to Parcas one
 
     /**
      * Functions to import atoms from different types of file.
@@ -109,6 +120,7 @@ private:
     /** Calculate list of close neighbours using Parcas diagonal neighbour list */
     void calc_nborlist(const int nnn, const double r_cut, const int* parcas_nborlist);
 
+    /** Calculate list of close neighbours using already existing list with >= cut-off radius */
     void recalc_nborlist(const double r_cut);
 
     /** Function to calculate the radial distribution function in a periodic condition for isotropic system.

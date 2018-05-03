@@ -663,7 +663,10 @@ int ProjectRunaway::export_results(const int n_points, const string &data_type, 
         return forces.export_results(n_points, data_type, data);
 
     if (data_type == LABELS.pair_potential_sum || data_type == LABELS.parcas_force || data_type == LABELS.charge_force)
-        return forces.export_parcas(n_points, data_type, reader.sizes, conf.geometry.latconst, data);
+        return forces.export_parcas(n_points, data_type, reader.get_si2parcas_box(), data);
+
+    if (data_type == LABELS.parcas_velocity)
+        return temperatures.scale_berendsen(n_points, reader.get_parcas2si_box(), data);
 
     require(false, "Unimplemented type of export data: " + data_type);
     return 1;

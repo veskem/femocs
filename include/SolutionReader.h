@@ -223,8 +223,11 @@ public:
 
     void locate_atoms(const Medium &medium);
 
-    void scale_berendsen(const int n_atoms, double* x1);
-    void scale_berendsen_v2(const int n_atoms, double* x1);
+    /** Apply Berendsen thermostat for atoms within a tetrahedron */
+    int scale_berendsen(const int n_atoms, const Vec3& parcas2si, double* x1);
+
+    /** Apply Berendsen thermostat for individual atoms */
+    int scale_berendsen_v2(const int n_atoms, const Vec3& parcas2si, double* x1);
 
     /** Return current density in i-th interpolation point */
     Vec3 get_rho(const int i) const {
@@ -408,8 +411,7 @@ public:
      */
     int export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const;
 
-    int export_parcas(const int n_points, const string &data_type, const Medium::Sizes &sizes,
-            const double latconst, double* data) const;
+    int export_parcas(const int n_points, const string &data_type, const Vec3& si2parcas, double* data) const;
 
     /** Return the force that is applied to i-th atom */
     Vec3 get_force(const int i) const {
