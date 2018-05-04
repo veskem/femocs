@@ -303,7 +303,7 @@ int ProjectRunaway::prepare_export() {
     if (conf.heating.mode != "none") {
         start_msg(t0, "=== Interpolating J & T...");
         temperatures.set_preferences(true, 3, conf.behaviour.interpolation_rank);
-        temperatures.interpolate(reader);
+        temperatures.interpolate(reader, TYPES.FIXED);
         end_msg(t0);
 
         // TODO implement reasonable temperature limit check
@@ -666,7 +666,7 @@ int ProjectRunaway::export_results(const int n_points, const string &data_type, 
         return forces.export_parcas(n_points, data_type, reader.get_si2parcas_box(), data);
 
     if (data_type == LABELS.parcas_velocity)
-        return temperatures.scale_berendsen(n_points, reader.get_parcas2si_box(), data);
+        return temperatures.scale_berendsen(data, n_points, reader.get_parcas2si_box());
 
     require(false, "Unimplemented type of export data: " + data_type);
     return 1;
@@ -689,7 +689,7 @@ int ProjectRunaway::interpolate_results(const int n_points, const string &data_t
         return temperatures.interpolate_results(n_points, data_type, x, y, z, data);
     }
 
-    require(false, "Unimplemented type of interpolation data: " + cmd);
+    require(false, "Unimplemented type of interpolation data: " + data_type);
     return 1;
 }
 

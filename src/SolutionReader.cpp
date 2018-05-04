@@ -229,7 +229,7 @@ int SolutionReader::export_results(const int n_points, const string &data_type, 
     check_return(size() == 0, "No " + data_type + " to export!");
 
     int dtype = contains(data_type);
-    require(dtype > 0 && dt <= 3, "SolutionReader does not contain " + data_type);
+    require(dtype > 0 && dtype <= 3, "SolutionReader does not contain " + data_type);
 
     // Pass the desired solution
     for (int i = 0; i < size(); ++i) {
@@ -282,6 +282,44 @@ void SolutionReader::store_points(const DealSolver<3>& solver) {
     int i = 0;
     for (dealii::Point<3>& node : nodes)
         append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
+}
+
+void SolutionReader::interpolate(const DealSolver<3>& solver) {
+    store_points(solver);
+    calc_interpolation();
+}
+
+void SolutionReader::interpolate(const Medium &medium, const int type) {
+    const int n_atoms = medium.size();
+
+    // store the atom coordinates
+    reserve(n_atoms);
+
+    if (type == TYPES.NONE) {
+        for (int i = 0; i < n_atoms; ++i)
+            append( Atom(i, medium.get_point(i), 0) );
+    } else {
+        for (int i = 0; i < n_atoms; ++i)
+            if (medium.get_marker(i) != type)
+                append( Atom(i, medium.get_point(i), 0) );
+    }
+
+    // interpolate solution
+    calc_interpolation();
+
+    // restore the original atom id-s
+    for (int i = 0; i < n_atoms; ++i)
+        atoms[i].id = medium.get_id(i);
+}
+
+void SolutionReader::interpolate(const int n_points, const double* x, const double* y, const double* z) {
+    // store the point coordinates
+    reserve(n_points);
+    for (int i = 0; i < n_points; ++i)
+        append(Atom(i, Point3(x[i], y[i], z[i]), 0));
+
+    // interpolate solution
+    calc_interpolation();
 }
 
 /* ==========================================
@@ -538,37 +576,6 @@ void FieldReader::test_corners(const TetgenMesh& mesh) const {
     }
 }
 
-void FieldReader::interpolate(const int n_points, const double* x, const double* y, const double* z) {
-    // store the point coordinates
-    reserve(n_points);
-    for (int i = 0; i < n_points; ++i)
-        append(Atom(i, Point3(x[i], y[i], z[i]), 0));
-
-    // interpolate solution
-    calc_interpolation();
-}
-
-void FieldReader::interpolate(const Medium &medium) {
-    const int n_atoms = medium.size();
-
-    // store the atom coordinates
-    reserve(n_atoms);
-    for (int i = 0; i < n_atoms; ++i)
-        append( Atom(i, medium.get_point(i), 0) );
-
-    // interpolate solution
-    calc_interpolation();
-
-    // store the original atom id-s
-    for (int i = 0; i < n_atoms; ++i)
-        atoms[i].id = medium.get_id(i);
-}
-
-void FieldReader::interpolate(const DealSolver<3>& solver) {
-    store_points(solver);
-    calc_interpolation();
-}
-
 double FieldReader::get_analyt_potential(const int i, const Point3& origin) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
 
@@ -749,28 +756,7 @@ int FieldReader::interpolate_phi(const int n_points, const double* x, const doub
  * ========================================== */
 
 HeatReader::HeatReader(Interpolator* i) :
-        SolutionReader(i, LABELS.rho, LABELS.rho_norm, LABELS.temperature), lintet(&i->lintet) {
-}
-
-void HeatReader::interpolate(const Medium &medium) {
-    const int n_atoms = medium.size();
-
-    // store the atom coordinates
-    reserve(n_atoms);
-    for (int i = 0; i < n_atoms; ++i)
-        append( Atom(i, medium.get_point(i), 0) );
-
-    // interpolate or assign solution
-    calc_interpolation();
-
-    // restore the original atom id-s
-    for (int i = 0; i < n_atoms; ++i)
-        atoms[i].id = medium.get_id(i);
-}
-
-void HeatReader::interpolate(DealSolver<3>& solver) {
-    store_points(solver);
-    calc_interpolation();
+        SolutionReader(i, LABELS.rho, LABELS.rho_norm, LABELS.temperature) {
 }
 
 int HeatReader::export_temperature(const int n_atoms, double* T) {
@@ -799,49 +785,32 @@ void HeatReader::locate_atoms(const Medium &medium) {
     // and assign its mean temperature to the atom
     int cell = 0;
     for (int i = 0; i < n_atoms; ++i) {
-        cell = lintet->locate_cell(get_point(i), cell);
+        cell = interpolator->lintet.locate_cell(get_point(i), cell);
         set_marker(i, cell);
     }
 }
 
-int HeatReader::scale_berendsen(const int n_atoms, const Vec3& parcas2si, double* x1) {
-    require(n_atoms == size(),
-            "Lenght of velocity array does not equal to # atoms in system: " + to_string(n_atoms));
+int HeatReader::scale_berendsen(double* x1, const int n_atoms, const Vec3& parcas2si) {
+    check_return(size() == 0, "No " + LABELS.parcas_velocity + " to export!");
 
-    const int n_tets = lintet->size();
-
-    const double time_unit = 1.0;  // TODO clarify its actual value
-    const double tau = 1.0;        // time constant
-    const double delta_t_fs = 4.05; // MD time step
-
-    // factor to transfer velocity from Parcas units to fm/fs
-    const Vec3 velocity_factor = parcas2si * (1.0 / time_unit);
-    // factor to transfer 2*kinetic energy to temperature
-    const double heat_factor = 1.0 / (3.0 * kB);
-    // factor determining intensity of Berendsen scaling
-    const double scale_factor = delta_t_fs / tau;
+    const int n_tets = interpolator->lintet.size();
+    const int n_nodes_per_tet = 4;
 
     // store the indices of atoms that are inside a tetrahedron
     vector<vector<int>> tet2atoms(n_tets);
-    for (int atom = 0; atom < n_atoms; ++atom)
-        tet2atoms[abs(get_marker(atom))].push_back(atom);
-
-    // transfer velocities from Parcas units to fm / fs
-    // NB! reserve without push_back is dangerous as size() remains 0; it's the most efficient option, though
-    vector<Vec3> velocities;
-    velocities.reserve(n_atoms);
-    for (int i = 0; i < n_atoms; ++i) {
-        int I = 3*i;
-        velocities[i] = Vec3(x1[I], x1[I+1], x1[I+2]) * velocity_factor;
-    }
+    for (int i = 0; i < size(); ++i)
+        tet2atoms[abs(get_marker(i))].push_back(i);
 
     // calculate average temperature inside each tetrahedron
     vector<double> fem_temp(n_tets);
     for (int tet = 0; tet < n_tets; ++tet) {
-        for (int node : lintet->get_cell(tet))
+        for (int node : interpolator->lintet.get_cell(tet))
             fem_temp[tet] += interpolator->nodes.get_scalar(node);
-        fem_temp[tet] /= 4.0;
+        fem_temp[tet] /= n_nodes_per_tet;
     }
+
+    vector<Vec3> velocities;
+    calc_SI_velocities(velocities, n_atoms, parcas2si, x1);
 
     // calculate atomistic temperatures before the scaling
     vector<double> md_temp(n_tets);
@@ -858,12 +827,15 @@ int HeatReader::scale_berendsen(const int n_atoms, const Vec3& parcas2si, double
     // scale velocities from MD temperature to calculated one
     for (int tet = 0; tet < n_tets; ++tet) {
         if (tet2atoms[tet].size() > 0) {
-            double lambda = sqrt( 1.0 + scale_factor * (fem_temp[tet] / md_temp[tet] - 1.0) );
+            double lambda = calc_lambda(md_temp[tet], fem_temp[tet]);
             for (int atom : tet2atoms[tet]) {
-                int I = 3 * atom;
-                x1[I] *= lambda;
-                x1[I+1] *= lambda;
-                x1[I+2] *= lambda;
+                int id = get_id(atom);
+                if (id < 0 || id >= n_atoms) continue;
+
+                int I = 3 * id;
+                for (int j = 0; j < 3; ++j)
+                    x1[I+j] *= lambda;
+
                 interpolation[atom].vector = velocities[atom] * lambda;
                 interpolation[atom].scalar = fem_temp[tet];
             }
@@ -873,46 +845,53 @@ int HeatReader::scale_berendsen(const int n_atoms, const Vec3& parcas2si, double
     return 0;
 }
 
-int HeatReader::scale_berendsen_v2(const int n_atoms, const Vec3& parcas2si, double* x1) {
-    require(n_atoms == size(),
-            "Lenght of velocity array does not equal to # atoms in system: " + to_string(n_atoms));
+int HeatReader::scale_berendsen_v2(double* x1, const int n_atoms, const Vec3& parcas2si) {
+    check_return(size() == 0, "No " + LABELS.parcas_velocity + " to export!");
 
-    const double time_unit = 1.0;  // TODO clarify its actual value
-    const double tau = 1.0;        // Berendsen coupling parameter
-    const double delta_t_fs = 4.05; // MD time step
-
-    // factor to transfer velocity from Parcas units to fm/fs
-    const Vec3 velocity_factor = parcas2si * (1.0 / time_unit);
-    // factor to transfer 2*kinetic energy to temperature
-    const double heat_factor = 1.0 / (3.0 * kB);
-    // factor determining intensity of Berendsen scaling
-    const double scale_factor = delta_t_fs / tau;
-
-    // transfer velocities from Parcas units to fm / fs
     vector<Vec3> velocities;
-    velocities.reserve(n_atoms);
-    for (int i = 0; i < n_atoms; ++i) {
-        int I = 3*i;
-        velocities[i] = Vec3(x1[I], x1[I+1], x1[I+2]) * velocity_factor;
-    }
+    calc_SI_velocities(velocities, n_atoms, parcas2si, x1);
 
     // scale velocities from MD temperature to calculated one
-    for (int i = 0; i < n_atoms; ++i) {
-        double fem_temperature = get_temperature(i);
+    for (int i = 0; i < size(); ++i) {
+        int id = get_id(i);
+        if (id < 0 || id >= n_atoms) continue;
+
         double md_temperature = velocities[i].norm2() * heat_factor;
-        double lambda = sqrt( 1.0 + scale_factor * (fem_temperature / md_temperature - 1.0) );
+        double lambda = calc_lambda(md_temperature, get_temperature(i));
 
         // export scaled velocity
-        int I = 3 * i;
-        x1[I] *= lambda;
-        x1[I+1] *= lambda;
-        x1[I+2] *= lambda;
+        int I = 3 * id;
+        for (int j = 0; j < 3; ++j)
+            x1[I+j] *= lambda;
 
         // store scaled velocity without affecting current density norm and temperature
         interpolation[i].vector = velocities[i] * lambda;
     }
 
     return 0;
+}
+
+double HeatReader::calc_lambda(const double T_start, const double T_end) const {
+    const double tau = 100.0;         // Berendsen coupling parameter
+    const double delta_t_fs = 4.05; // MD time step
+    const double scale_factor = delta_t_fs / tau;
+    return sqrt( 1.0 + scale_factor * (T_end / T_start - 1.0) );
+}
+
+void HeatReader::calc_SI_velocities(vector<Vec3>& velocities,
+        const int n_atoms, const Vec3& parcas2si, double* x1) {
+
+    const double time_unit = 1.0;  // TODO clarify its actual value
+
+    // factor to transfer velocity from Parcas units to fm/fs
+    const Vec3 velocity_factor = parcas2si * (1.0 / time_unit);
+
+    // NB! reserve without push_back is dangerous as size() remains 0; it's the most efficient option, though
+    velocities.reserve(n_atoms);
+    for (int i = 0; i < n_atoms; ++i) {
+        int I = 3*i;
+        velocities[i] = Vec3(x1[I], x1[I+1], x1[I+2]) * velocity_factor;
+    }
 }
 
 /* ==========================================

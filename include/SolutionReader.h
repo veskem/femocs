@@ -73,6 +73,15 @@ public:
     /** Store the surface mesh centroids of the FEM solver */
     void store_points(const DealSolver<3>& solver);
 
+    /** Interpolate solution on the surface mesh centroids of the FEM solver */
+    void interpolate(const DealSolver<3>& solver);
+
+    /** Interpolate electric field and potential on a Medium atoms */
+    void interpolate(const Medium &medium, const int type=0);
+
+    /** Interpolate electric field and potential on a set of points */
+    void interpolate(const int n_points, const double* x, const double* y, const double* z);
+
     /** Determine whether given data is included in SolutionReader */
     int contains(const string& data_label) const;
 
@@ -133,15 +142,6 @@ public:
     void compare_space(const Medium::Sizes &sizes);
     void compare_surface(const Medium &medium);
     void perform_comparison(const string &file_name);
-
-    /** Interpolate solution on the surface mesh centroids of the FEM solver */
-    void interpolate(const DealSolver<3>& solver);
-
-    /** Interpolate electric field and potential on a Medium atoms */
-    void interpolate(const Medium &medium);
-
-    /** Interpolate electric field and potential on a set of points */
-    void interpolate(const int n_points, const double* x, const double* y, const double* z);
 
     /** Return electric field in i-th interpolation point */
     Vec3 get_elfield(const int i) const {
@@ -211,23 +211,16 @@ public:
 
     HeatReader(Interpolator* i);
 
-    /** Interpolate solution on medium atoms */
-    void interpolate(const Medium &medium);
-
-    /** Linearly interpolate currents and temperatures in the bulk.
-     *  In case of empty interpolator, constant values are stored. */
-    void interpolate(DealSolver<3>& solver);
-
     /** Export interpolated temperature */
     int export_temperature(const int n_atoms, double* T);
 
     void locate_atoms(const Medium &medium);
 
     /** Apply Berendsen thermostat for atoms within a tetrahedron */
-    int scale_berendsen(const int n_atoms, const Vec3& parcas2si, double* x1);
+    int scale_berendsen(double* x1, const int n_atoms, const Vec3& parcas2si);
 
     /** Apply Berendsen thermostat for individual atoms */
-    int scale_berendsen_v2(const int n_atoms, const Vec3& parcas2si, double* x1);
+    int scale_berendsen_v2(double* x1, const int n_atoms, const Vec3& parcas2si);
 
     /** Return current density in i-th interpolation point */
     Vec3 get_rho(const int i) const {
@@ -249,7 +242,13 @@ public:
 
 private:
     static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant in eV/K
-    const LinearTetrahedra* lintet;   ///< direct pointer to linear tetrahedral interpolator
+    static constexpr double heat_factor = 1.0/(3.0*kB);  ///< Factor to transfer 2*kinetic energy to temperature
+
+    /** Transfer velocities from Parcas units to fm / fs */
+    void calc_SI_velocities(vector<Vec3>& velocities, const int n_atoms, const Vec3& parcas2si, double* x1);
+
+    /** Calculate scaling factor for Berendsen thermostat */
+    double calc_lambda(const double T_start, const double T_end) const;
 };
 
 // forward declaration of Pic for declaring it as a friend
