@@ -419,6 +419,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit) {
     int n_pic_steps = ceil(advance_time / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
     double dt_pic = advance_time / n_pic_steps;
 
+
     // vector holding point to cell mapping to make interpolation faster
     vector<int> point2cell;
 
@@ -458,10 +459,13 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit) {
         int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
         
         write_results();
-        if (MODES.VERBOSE)
-            printf("  t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
+        if (MODES.VERBOSE){
+            char buff[256];
+            sprintf(buff, "  t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d",
                     GLOBALS.TIME, n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot,
                     n_injected, n_lost, pic_solver.get_n_electrons());
+            cout << buff << endl;
+        }
 
         GLOBALS.TIME += dt_pic;
     }
@@ -492,9 +496,12 @@ int ProjectRunaway::converge_pic(double max_time) {
         solve_pic(time_window, i==0);
         I_mean = emission.get_global_stats(I_std);
         double err = (I_mean - I_mean_prev) / I_mean;
-        if (MODES.VERBOSE)
-            printf("  i=%d, I_mean=%e A, I_std=%.2f%, error=%.2f%\n",
+        if (MODES.VERBOSE){
+            char buff[256];
+            printf(buff, "  i=%d, I_mean=%e A, I_std=%.2f%, error=%.2f%",
                     i, I_mean, 100. * I_std / I_mean, 100 * err);
+            cout << buff << endl;
+        }
         I_mean_prev = I_mean;
 
         if (fabs(err) < 0.05 && fabs(err) < conf.pic.convergence * I_std / I_mean)

@@ -1104,8 +1104,13 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         global_data.multiplier = theta_SC(global_data.Jrep / nm2_per_angstrom2,
                 conf.omega_SC * Vappl, angstrom_per_nm * global_data.Frep);
 
-        printf("SC cycle #%d, theta=%f, Jrep=%e, Frep=%e, Itot=%e\n", i, global_data.multiplier,
-                global_data.Jrep, global_data.Frep, global_data.I_tot);
+
+        if (MODES.VERBOSE){
+            char buff[256];
+            sprintf(buff, "SC cycle #%d, theta=%f, Jrep=%e, Frep=%e, Itot=%e", i,
+                    global_data.multiplier, global_data.Jrep, global_data.Frep, global_data.I_tot);
+            cout << buff << endl;
+        }
 
         error = global_data.multiplier - theta_old;
         global_data.multiplier = theta_old + error * err_fact;
