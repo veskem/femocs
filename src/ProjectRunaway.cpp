@@ -302,8 +302,8 @@ int ProjectRunaway::prepare_export() {
 
     if (conf.heating.mode != "none") {
         start_msg(t0, "=== Interpolating J & T...");
-        temperatures.set_preferences(true, 3, conf.behaviour.interpolation_rank);
-        temperatures.interpolate(reader, TYPES.FIXED);
+        temperatures.set_preferences(false, 3, conf.behaviour.interpolation_rank);
+        temperatures.interpolate(reader);
         end_msg(t0);
 
         // TODO implement reasonable temperature limit check

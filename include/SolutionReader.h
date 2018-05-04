@@ -10,6 +10,7 @@
 
 #include "Primitives.h"
 #include "Medium.h"
+#include "AtomReader.h"
 #include "TetgenCells.h"
 #include "TetgenMesh.h"
 #include "VoronoiMesh.h"
@@ -76,11 +77,14 @@ public:
     /** Interpolate solution on the surface mesh centroids of the FEM solver */
     void interpolate(const DealSolver<3>& solver);
 
-    /** Interpolate electric field and potential on a Medium atoms */
-    void interpolate(const Medium &medium, const int type=0);
-
-    /** Interpolate electric field and potential on a set of points */
+    /** Interpolate solution on a set of given points */
     void interpolate(const int n_points, const double* x, const double* y, const double* z);
+
+    /** Interpolate solution on all Medium atoms */
+    void interpolate(const Medium &medium);
+
+    /** Interpolate solution on non-fixed AtomReader atoms */
+    void interpolate(const AtomReader &reader);
 
     /** Determine whether given data is included in SolutionReader */
     int contains(const string& data_label) const;

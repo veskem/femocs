@@ -289,34 +289,41 @@ void SolutionReader::interpolate(const DealSolver<3>& solver) {
     calc_interpolation();
 }
 
-void SolutionReader::interpolate(const Medium &medium, const int type) {
-    const int n_atoms = medium.size();
-
-    // store the atom coordinates
-    reserve(n_atoms);
-
-    if (type == TYPES.NONE) {
-        for (int i = 0; i < n_atoms; ++i)
-            append( Atom(i, medium.get_point(i), 0) );
-    } else {
-        for (int i = 0; i < n_atoms; ++i)
-            if (medium.get_marker(i) != type)
-                append( Atom(i, medium.get_point(i), 0) );
-    }
-
-    // interpolate solution
-    calc_interpolation();
-
-    // restore the original atom id-s
-    for (int i = 0; i < n_atoms; ++i)
-        atoms[i].id = medium.get_id(i);
-}
-
 void SolutionReader::interpolate(const int n_points, const double* x, const double* y, const double* z) {
     // store the point coordinates
     reserve(n_points);
     for (int i = 0; i < n_points; ++i)
         append(Atom(i, Point3(x[i], y[i], z[i]), 0));
+
+    // interpolate solution
+    calc_interpolation();
+}
+
+void SolutionReader::interpolate(const Medium &medium) {
+    const int n_atoms = medium.size();
+    reserve(n_atoms);
+
+    // store atom coordinates
+    for (int i = 0; i < n_atoms; ++i)
+        append( Atom(i, medium.get_point(i), 0) );
+
+    // interpolate solution
+    calc_interpolation();
+
+    // restore original atom id-s
+    for (int i = 0; i < n_atoms; ++i)
+        atoms[i].id = medium.get_id(i);
+}
+
+void SolutionReader::interpolate(const AtomReader &reader) {
+    require(!sort, "Atom sorting not allowed here!");
+    const int n_atoms = reader.size();
+    reserve(n_atoms);
+
+    // store atom coordinates
+    for (Atom atom : reader.atoms)
+        if (atom.marker != TYPES.FIXED)
+            append(atom);
 
     // interpolate solution
     calc_interpolation();
