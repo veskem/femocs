@@ -62,7 +62,9 @@ public:
     int interpolate_results(const int n_points, const string &cmd, const bool on_surface,
             const double* x, const double* y, const double* z, double* data, int* flag);
 
-private:
+
+protected:
+
     bool fail;                  ///< If some process failed
     double t0;                  ///< CPU timer
     int timestep;               ///< counter to measure how many times Femocs has been called
@@ -91,36 +93,15 @@ private:
     EmissionReader emission;          ///< emission data on centroids of surface quadrangles
     Pic<3> pic_solver;                       ///< class for solving Poisson equation and handling space charge
 
-    /** Write output data to files */
-    int write_results();
-
-    /** Check if enough time has passed since the last file write_results */
-    bool write_time() const {
-        return GLOBALS.TIME >= (last_write_time + conf.behaviour.write_period);
-    }
-
-    int process_failed(const string &msg) { write_verbose_msg(msg); force_output(); return 1; }
-
-    /** Determine whether atoms have moved significantly and whether to enable file writing */
-    int reinit(int timestep);
-
-    /** Store the imported atom coordinates and set the flag that enables exporters */
-    int finalize(double tstart);
-
-    /** Generate boundary nodes for mesh */
-    int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
 
     /** Generate bulk and vacuum meshes using the imported atomistic data */
     int generate_mesh();
 
-    /** Read bulk and vacuum meshes from file and generate metadata for them */
-    int read_mesh();
+    /** Import mesh to FEM solvers and initialize interpolators */
+    int prepare_solvers();
 
-    /** Pick a field solver and calculcate field distribution */
-    int run_field_solver();
-
-    /** Pick a heat solver and calculcate temperature & current density distribution */
-    int run_heat_solver();
+    /** Write output data to files */
+    int write_results();
 
     /** Solve Laplace equation on vacuum mesh */
     int solve_laplace(double E0, double V0);
@@ -128,19 +109,41 @@ private:
     /** Evolve the PIC simulation one Femocs time step */
     int solve_pic(const double advance_time, bool reinit);
 
-    int converge_pic(double max_time);
-
     /** Solve transient heat and continuity equations */
     int solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg);
 
-    /** Using constant mesh, solve transient heat and continuity equation until convergence is reached */
-    int converge_heat(double T_ambient);
-    
-    /** Import mesh to FEM solvers and initialize interpolators */
-    int prepare_solvers();
-
     /** Calculate data of interest on the locations of imported atoms */
     int prepare_export();
+
+    /** Store the imported atom coordinates and set the flag that enables exporters */
+    int finalize(double tstart);
+
+    int process_failed(const string &msg) { write_verbose_msg(msg); force_output(); return 1; }
+
+private:
+
+
+    /** Read bulk and vacuum meshes from file and generate metadata for them */
+    int read_mesh();
+
+    /** Check if enough time has passed since the last file write_results */
+    bool write_time() const {
+        return GLOBALS.TIME >= (last_write_time + conf.behaviour.write_period);
+    }
+
+    /** Determine whether atoms have moved significantly and whether to enable file writing */
+    int reinit(int timestep);
+
+    /** Pick a field solver and calculcate field distribution */
+    int run_field_solver();
+
+    /** Pick a heat solver and calculcate temperature & current density distribution */
+    int run_heat_solver();
+
+    /** Generate boundary nodes for mesh */
+    int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
+
+
 };
 
 } /* namespace femocs */
