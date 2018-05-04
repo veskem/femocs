@@ -25,11 +25,7 @@ cmake_minimum_required (VERSION 2.8.8)
 MESSAGE(STATUS "Building " ${TARGET_TYPE} " in a " ${CMAKE_BUILD_TYPE} " mode")
 
 # specify the name of the library
-IF (CMAKE_BUILD_TYPE MATCHES Debug)
-    SET(TARGET "femocs_debug")
-ELSE()
-    SET(TARGET "femocs")
-ENDIF()
+SET(TARGET "femocs")
 
 # specify which languages project uses
 PROJECT(${TARGET} C CXX Fortran)
@@ -119,7 +115,6 @@ ELSE()
 ENDIF()
 
 # add OpenMP flag
-#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
 # Specify warnings that are checked and that are omitted

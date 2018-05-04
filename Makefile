@@ -14,11 +14,11 @@ all: lib
 
 lib: femocs_lib
 femocs_lib:
-	@make --no-print-directory -f build/makefile.lib
+	@make --no-print-directory -f build/makefile.lib build_type=Release
 
-dlib: femocs_debug_lib
-femocs_debug_lib:
-	make -s -f build/makefile.lib lib/libfemocs_debug.a
+dlib: femocs_dlib
+femocs_dlib:
+	@make --no-print-directory -f build/makefile.lib build_type=Debug
 
 test_f90: femocs_lib femocs_f90
 femocs_f90:
@@ -28,25 +28,23 @@ test_c: femocs_lib femocs_c
 femocs_c:
 	@make --no-print-directory -f build/makefile.main main=${CMAIN} compiler=${CC}
 
-test_cpp: femocs_lib femocs_cpp
-femocs_cpp:
-	@make --no-print-directory -f build/makefile.main main=${CXXMAIN} compiler=${CXX}
+test_cpp: femocs_lib femocs_release
 
 release: femocs_lib femocs_release
 femocs_release:
 	@make --no-print-directory -f build/makefile.main main=${CXXMAIN} compiler=${CXX}
 
-debug: femocs_debug_lib femocs_debug
+debug: femocs_dlib femocs_debug
 femocs_debug:
 	@make -s -f build/makefile.main build/femocs_debug main=${CXXMAIN} compiler=${CXX}
 
 #release: femocs_release
 #femocs_release:
-#	make -s -f build/makefile.exec build/femocs
+#	make -s -f build/makefile.exec build/femocs build_type=Release
 #
 #debug: femocs_debug
 #femocs_debug:
-#	make -s -f build/makefile.exec build/femocs_debug
+#	make -s -f build/makefile.exec build/femocs build_type=Debug
 
 doc: femocs_doc
 femocs_doc:

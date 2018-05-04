@@ -16,7 +16,7 @@ build/femocs.o: lib/libfemocs.a ${main}
 build/femocs_debug: build/femocs_debug.o
 	${compiler} $< ${FEMOCS_DOPT} ${FEMOCS_LIBPATH} ${FEMOCS_DLIB} -o $@
 
-build/femocs_debug.o: lib/libfemocs_debug.a ${main}
+build/femocs_debug.o: lib/libfemocs.a ${main}
 	${compiler} -c ${main} ${FEMOCS_DOPT} ${FEMOCS_HEADPATH} -o $@
 
 clean:

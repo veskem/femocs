@@ -23,9 +23,8 @@ LIB_TAITO="-lz -lm -lstdc++ -lgfortran"
 LIB_ALCYONE="-llapack -lz -lm -lstdc++ -lnetcdf_c++ -lgfortran"
 LIB_CGAL="-lCGAL"
 
-## Name of Femocs library in release and debug mode
+## Name of Femocs library
 LIB_FEMOCS="-lfemocs"
-LIB_FEMOCS_DBG="-lfemocs_debug"
 
 
 mode=$1
@@ -43,7 +42,7 @@ write_initial_flags () {
     sed -i "/^FEMOCS_LIB=/ s|$|$LIB_FEMOCS |" share/makefile.femocs
     sed -i "/^FEMOCS_LIB=/ s|$|$LIB_ALL |" share/makefile.femocs
     
-    sed -i "/^FEMOCS_DLIB=/ s|$|$LIB_FEMOCS_DBG |" share/makefile.femocs
+    sed -i "/^FEMOCS_DLIB=/ s|$|$LIB_FEMOCS |" share/makefile.femocs
     sed -i "/^FEMOCS_DLIB=/ s|$|$LIB_ALL |" share/makefile.femocs
 }
 
