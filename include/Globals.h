@@ -110,6 +110,7 @@ struct Labels {
     const string velocity_norm = "velocity_norm";
     const string heat = "heat";
     const string area = "area";
+    const string atom_type = "atom_type";
 };
 
 /** Flags to control the output behaviour of the code */

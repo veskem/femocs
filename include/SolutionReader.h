@@ -140,12 +140,15 @@ public:
 
     FieldReader(Interpolator* i);
 
-    void compare_shape_funs(PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
-    void compare_interpolators(PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
-    void test_corners(const TetgenMesh& mesh) const;
-    void compare_space(const Medium::Sizes &sizes);
-    void compare_surface(const Medium &medium);
-    void perform_comparison(const string &file_name);
+    /** Compare the analytical and calculated field enhancement.
+     * The check is disabled if lower and upper limits are the same. */
+    bool check_limits(const vector<Solution>* solutions=NULL) const;
+
+    /** Find the maximum field norm from the solution vector */
+    double calc_max_field(const vector<Solution>* solutions=NULL) const;
+
+    /** Set parameters to calculate analytical solution */
+    void set_check_params(const Config& conf, double radius, double tip_height, double box_height);
 
     /** Return electric field in i-th interpolation point */
     Vec3 get_elfield(const int i) const {
@@ -164,34 +167,6 @@ public:
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         return interpolation[i].scalar;
     }
-
-    /** Compare the analytical and calculated field enhancement.
-     * The check is disabled if lower and upper limits are the same. */
-    bool check_limits(const vector<Solution>* solutions=NULL) const;
-
-    /** Find the maximum field norm from the solution vector */
-    double calc_max_field(const vector<Solution>* solutions=NULL) const;
-
-    /** Set parameters to calculate analytical solution */
-    void set_check_params(const Config& conf, double radius, double tip_height, double box_height);
-
-    /** Export calculated electic field distribution to HELMOD */
-    int export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
-
-    /** Interpolate electric field on set of points using the solution on surface mesh nodes
-     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    int interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
-            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
-
-    /** Interpolate electric field on set of points using the solution on volumetric mesh nodes
-     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    int interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
-            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
-
-    /** Interpolate electric potential on set of points using the solution on tetrahedral mesh nodes
-     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    int interpolate_phi(const int n_points, const double* x, const double* y, const double* z,
-            double* phi, int* flag);
 
 private:
     /** Data needed for comparing numerical solution with analytical one */
@@ -214,9 +189,6 @@ class HeatReader: public SolutionReader {
 public:
 
     HeatReader(Interpolator* i);
-
-    /** Export interpolated temperature */
-    int export_temperature(const int n_atoms, double* T);
 
     void locate_atoms(const Medium &medium);
 
@@ -450,6 +422,23 @@ private:
     int get_nanotip(Medium& nanotip, const double radius);
 };
 
+
+/**
+ * Class for performing tests with shape functions
+ */
+class InterpolatorTester : public SolutionReader {
+public:
+    InterpolatorTester(Interpolator* i);
+
+    void compare_shape_funs(PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
+    void compare_interpolators(PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
+    void test_corners(const TetgenMesh& mesh) const;
+    void compare_space(const Medium::Sizes &sizes);
+    void compare_surface(const Medium &medium);
+    void perform_comparison(const string &file_name);
+
+private:
+};
 } // namespace femocs
 
 #endif /* SOLUTIONREADER_H_ */

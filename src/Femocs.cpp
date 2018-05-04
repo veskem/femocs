@@ -229,8 +229,6 @@ int Femocs::export_atom_types(const int n_atoms, int* types) {
 
 // export electric field on imported atom coordinates
 int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-//    return project->fields.export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
-
     double fields[3*n_atoms];
     int retval1 = project->export_results(n_atoms, LABELS.elfield, fields);
     int retval2 = project->export_results(n_atoms, LABELS.elfield_norm, Enorm);
@@ -246,8 +244,6 @@ int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez
 
 // calculate and export temperatures on imported atom coordinates
 int Femocs::export_temperature(const int n_atoms, double* T) {
-//    return project->temperatures.export_temperature(n_atoms, T);
-
     return project->export_results(n_atoms, LABELS.temperature, T);
 }
 
@@ -279,19 +275,43 @@ int Femocs::export_force_and_pairpot(const int n_atoms, double* xnp, double* Epa
 // linearly interpolate electric field at given points
 int Femocs::interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-    return project->fields.interpolate_surface_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
+
+    double fields[3*n_points];
+    int retval = project->interpolate_results(n_points, LABELS.elfield, true, x, y, z, fields, flag);
+
+    for (int i = 0; i < n_points; ++i) {
+        int I = 3*i;
+        Ex[i] = fields[I];
+        Ey[i] = fields[I+1];
+        Ez[i] = fields[I+2];
+        Enorm[i] = sqrt(fields[I]*fields[I] + fields[I+1]*fields[I+1] + fields[I+2]*fields[I+2]);
+    }
+
+    return retval;
 }
 
 // linearly interpolate electric field at given points
 int Femocs::interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-    return project->fields.interpolate_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
+
+    double fields[3*n_points];
+    int retval = project->interpolate_results(n_points, LABELS.elfield, false, x, y, z, fields, flag);
+
+    for (int i = 0; i < n_points; ++i) {
+        int I = 3*i;
+        Ex[i] = fields[I];
+        Ey[i] = fields[I+1];
+        Ez[i] = fields[I+2];
+        Enorm[i] = sqrt(fields[I]*fields[I] + fields[I+1]*fields[I+1] + fields[I+2]*fields[I+2]);
+    }
+
+    return retval;
 }
 
 // linearly interpolate electric potential at given points
 int Femocs::interpolate_phi(const int n_points, const double* x, const double* y, const double* z,
         double* phi, int* flag) {
-    return project->fields.interpolate_phi(n_points, x, y, z, phi, flag);
+    return project->interpolate_results(n_points, LABELS.potential, false, x, y, z, phi, flag);
 }
 
 // export solution on atom coordinates; data is specified with cmd label

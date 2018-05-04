@@ -668,6 +668,13 @@ int ProjectRunaway::export_results(const int n_points, const string &data_type, 
     if (data_type == LABELS.parcas_velocity)
         return temperatures.scale_berendsen(data, n_points, reader.get_parcas2si_box());
 
+    if (data_type == LABELS.atom_type) {
+        require(n_points <= reader.size(), "Invalid data query size: " + d2s(n_points));
+        for (int i = 0; i < n_points; ++i)
+            data[i] = reader.get_marker(i);
+        return reader.check_clusters(0);
+    }
+
     require(false, "Unimplemented type of export data: " + data_type);
     return 1;
 }
