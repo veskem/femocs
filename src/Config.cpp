@@ -26,6 +26,7 @@ Config::Config() {
     behaviour.write_period = 1.e5;    // write files every write_period of time
     behaviour.timestep_fs = 4.05;     // Total time of a FEMOCS run [fs]
     behaviour.rnd_seed = 12345;       // Seed for random number generator
+    behaviour.project = "runaway";    // choose which project will be run
 
     run.cluster_anal = true;          // enable cluster analysis
     run.apex_refiner = false;         // refine nanotip apex
@@ -185,6 +186,7 @@ void Config::read_all(const string& file_name) {
     read_command("write_period", behaviour.write_period);
     read_command("femocs_run_time", behaviour.timestep_fs);
     read_command("seed", behaviour.rnd_seed);
+    read_command("project", behaviour.project);
 
     read_command("distance_tol", tolerance.distance);
 
@@ -226,6 +228,11 @@ void Config::read_all(const string& file_name) {
     cfactor.amplitude = args[0];
     cfactor.r0_cylinder = static_cast<int>(args[1]);
     cfactor.r0_sphere = static_cast<int>(args[2]);
+
+    field.apply_factors.resize(16);
+    n_read_args = read_command("apply_factors", field.apply_factors);
+    field.apply_factors.resize(n_read_args);
+
 }
 
 // Read the commands and their arguments from the file and store them into the buffer

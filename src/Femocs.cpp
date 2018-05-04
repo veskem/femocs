@@ -8,6 +8,7 @@
 #include "Femocs.h"
 #include "Globals.h"
 #include "ProjectRunaway.h"
+#include "ProjectHeat.h"
 
 using namespace std;
 namespace femocs {
@@ -36,7 +37,14 @@ Femocs::Femocs(const string &conf_file) : t0(0) {
     write_verbose_msg("======= Femocs started! =======");
 
     // pick the project to run
-    project = new ProjectRunaway(reader, conf);
+
+    if (conf.behaviour.project == "runaway")
+        project = new ProjectRunaway(reader, conf);
+    else if(conf.behaviour.project == "heat")
+        project = new ProjectHeat(reader, conf);
+    else
+        cout << "Choose a valid project. project = " << conf.behaviour.project << endl;
+
 }
 
 // delete data and print bye-bye-message

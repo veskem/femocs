@@ -54,6 +54,7 @@ public:
 
     /** User specific preferences */
     struct Behaviour {
+        string project;             ///< General: Which project is called
         string verbosity;           ///< Verbose mode: mute, silent, verbose
         int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
         int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
@@ -113,6 +114,7 @@ public:
         string anode_BC;         ///< Type of anode boundary condition (Dirichlet or Neumann)
         string solver;          ///< Type of field equation to be solved; laplace or poisson
         int element_degree;     ///< Degree of Finite elements (1: linear, 2: quadratic, 3: cubic ...
+        vector<double> apply_factors = {1.}; ///< run for multiple applied E0 (or V0) multiplied by the factors
     } field;
 
     /** Heating module configuration parameters */
