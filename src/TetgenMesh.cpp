@@ -18,37 +18,7 @@ TetgenMesh::TetgenMesh() {
     tetIOout.initialize();
 }
 
-int TetgenMesh::read(const string &file_name, const string &cmd) {
-    string extension = get_file_type(file_name);
-    require(extension == "msh", "Unimplemented file type: " + extension);
-
-    // delete available mesh data
-    clear();
-
-    tethex::Mesh hexmesh;
-    // read tetrahedral mesh from file
-    hexmesh.read(file_name, false, false);
-    // generate hexahedra and quadrangles
-    hexmesh.convert();
-    // export mesh to Femocs
-    hexmesh.export_all_mesh(this, true);
-
-    // calculate mapping between triangles and tetrahedra
-    int error_code = calc_tet2tri_mapping(cmd, tris.get_n_markers());
-    if (error_code) return error_code;
-
-    // calculate mapping between quadrangles and hexahedra
-    group_hexahedra();
-    calc_quad2hex_mapping();
-
-    nodes.calc_statistics();
-    tris.calc_appendices();
-
-    return 0;
-}
-
 int TetgenMesh::tri2tet(const int tri, const int region) const {
-
     if (region == TYPES.VACUUM) {
         for (int tet : tris.to_tets(tri))
             if (tet >= 0 && tets.get_marker(tet) == TYPES.VACUUM)
@@ -63,9 +33,7 @@ int TetgenMesh::tri2tet(const int tri, const int region) const {
     return -1;
 }
 
-// map quadrangle to hexahedron that is located in a given region
 int TetgenMesh::quad2hex(const int quad, const int region) const {
-
     if (region == TYPES.VACUUM) {
         for (int hex : quads.to_hexs(quad))
             if (hex >= 0 && tets.get_marker(hexs.to_tet(hex)) == TYPES.VACUUM)
@@ -80,7 +48,6 @@ int TetgenMesh::quad2hex(const int quad, const int region) const {
     return -1;
 }
 
-// Delete the data of previously stored mesh and initialise a new one
 void TetgenMesh::clear() {
     tetIOin.deinitialize();
     tetIOout.deinitialize();
@@ -88,7 +55,6 @@ void TetgenMesh::clear() {
     tetIOout.initialize();
 }
 
-// Smoothen the triangles using different versions of Taubin smoothing algorithm
 // Code is inspired from the work of Shawn Halayka
 // TODO if found, add the link to Shawn's version
 void TetgenMesh::smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm) {
@@ -125,7 +91,6 @@ void TetgenMesh::smoothen(const int n_steps, const double lambda, const double m
     }
 }
 
-// Smoothen the surface mesh using Taubin lambda|mu algorithm with inverse neighbour count weighting
 void TetgenMesh::laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist) {
     size_t n_nodes = nodes.size();
     vector<Point3> displacements(n_nodes);
@@ -148,7 +113,6 @@ void TetgenMesh::laplace_smooth(const double scale, const vector<vector<unsigned
         nodes.set_node(i, nodes[i] + displacements[i]*scale);
 }
 
-// Smoothen the surface mesh using Taubin lambda|mu algorithm with Fujiwara weighting
 void TetgenMesh::fujiwara_smooth(const double scale, const vector<vector<unsigned>>& nborlist) {
     vector<Point3> displacements(nodes.size());
 
@@ -191,9 +155,8 @@ void TetgenMesh::fujiwara_smooth(const double scale, const vector<vector<unsigne
         nodes.set_node(i, nodes[i] + displacements[i]*scale);
 }
 
-// Smoothen the surface mesh using Taubin lambda|mu algorithm with curvature normal weighting
 void TetgenMesh::curvature_norm_smooth(const double scale, const vector<vector<unsigned>>& nborlist) {
-    size_t n_nodes = nodes.size(); 
+    size_t n_nodes = nodes.size();
     vector<Point3> displacements(n_nodes);
 
     // Generate vertex to triangle mapping
@@ -302,7 +265,6 @@ void TetgenMesh::curvature_norm_smooth(const double scale, const vector<vector<u
         nodes.set_node(i, nodes[i] + displacements[i] * scale);
 }
 
-// Function to generate simple mesh that consists of one tetrahedron
 int TetgenMesh::generate_simple() {
     const int n_nodes = tets.DIM;
     const int n_elems = 1;
@@ -333,70 +295,7 @@ int TetgenMesh::generate_simple() {
     return recalc("rQ");
 }
 
-// Copy mesh from input to output or vice versa without modification
-int TetgenMesh::transfer(const bool write2read) {
-    nodes.transfer(write2read);
-    edges.transfer(write2read);
-    tris.transfer(write2read);
-    tets.transfer(write2read);
-    return 0;
-}
-
-// Function to perform tetgen calculation on input and write_tetgen data
-int TetgenMesh::recalc(const string& cmd) {
-    try {
-        tetrahedralize(const_cast<char*>(cmd.c_str()), &tetIOin, &tetIOout);
-        nodes.set_counter(tetIOout.numberofpoints);
-        edges.set_counter(tetIOout.numberofedges);
-        tris.set_counter(tetIOout.numberoftrifaces);
-        tets.set_counter(tetIOout.numberoftetrahedra);
-        tris.calc_statistics();
-        tets.calc_statistics();
-    }
-    catch (int e) { return e; }
-    return 0;
-}
-
-// Function to perform tetgen calculation on input and write_tetgen data
-int TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
-    try {
-        tetgenio tetIOtemp;
-        tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOtemp);
-        tetrahedralize(const_cast<char*>(cmd2.c_str()), &tetIOtemp, &tetIOout);
-        nodes.set_counter(tetIOout.numberofpoints);
-        edges.set_counter(tetIOout.numberofedges);
-        tris.set_counter(tetIOout.numberoftrifaces);
-        tets.set_counter(tetIOout.numberoftetrahedra);
-        tris.calc_statistics();
-        tets.calc_statistics();
-    }
-    catch (int e) { return e; }
-    return 0;
-}
-
-// Write mesh into files using Tetgen built-in functions
-bool TetgenMesh::write(const string& file_name) {
-    string file_type = get_file_type(file_name);
-    require(file_type == file_name, "Only file names without extension are supported: " + file_type);
-
-    // k - write vtk, Q - quiet, I - suppresses iteration numbers,
-    // F - suppress output of .face and .edge, E - suppress output of .ele
-    const string cmd = "kIFEQ";
-    tetgenbehavior tetgenbeh;
-
-    try {
-        tetgenbeh.parse_commandline(const_cast<char*>(cmd.c_str()));
-        for (unsigned i = 0; i < file_name.size(); ++i)
-            tetgenbeh.outfilename[i] = file_name[i];
-
-        tetrahedralize(&tetgenbeh, &tetIOout, NULL);
-    } catch (int e) { return 1; }
-
-    return 0;
-}
-
-// Function to generate mesh from surface, bulk and vacuum atoms
-int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd) {
+int TetgenMesh::generate_union(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd) {
     const int n_bulk = bulk.size();
     const int n_surf = surf.size();
     const int n_vacuum = vacuum.size();
@@ -421,7 +320,111 @@ int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& v
     return recalc("Q", cmd);
 }
 
-// Group hexahedra & quadrangles around central tetrahedral & triangular nodes
+int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const Config& conf) {
+    require(bulk.size() > 0,   "Empty mesh generators in bulk detected!");
+    require(surf.size() > 0,   "Empty mesh generators on surface detected!");
+    require(vacuum.size() > 0, "Empty mesh generators in vacuum detected!");
+
+    // Delete previous mesh
+    clear();
+
+    // r - reconstruct, n(n) - output tet neighbour list (and tri-tet connection),
+    // Q - quiet, q - mesh quality, a - element volume, E - suppress output of elements
+    // F - suppress output of faces and edges, B - suppress output of boundary info
+    string command = "rQFBq" + conf.geometry.mesh_quality;
+    if (conf.geometry.element_volume != "") command += "a" + conf.geometry.element_volume;
+
+    // Make union mesh where both vacuum and material domain are present
+    int err_code = generate_union(bulk, surf, vacuum, command);
+    check_return(err_code, "Tetrahedrization failed with error code " + d2s(err_code));
+
+    // Mark tetrahedral mesh
+    bool fail = mark_mesh();
+    check_return(fail, "Mesh marking failed!");
+
+    // Generate surface faces
+    err_code = generate_surface("rQB", "rQnn");
+    check_return(err_code, "Generation of surface faces failed with error code " + d2s(err_code));
+
+    // Smoothen surface faces
+    if (conf.smoothing.algorithm != "none" && conf.smoothing.n_steps > 0)
+        smoothen(conf.smoothing.n_steps, conf.smoothing.lambda_mesh, conf.smoothing.mu_mesh, conf.smoothing.algorithm);
+
+    // has to be separate to ensure that data is for sure calculated
+    tris.calc_appendices();
+
+    // Convert tetrahedra & triangles to hexahedra & quadrangles
+    fail = generate_hexahedra();
+    return fail;
+}
+
+int TetgenMesh::read(const string &file_name, const string &cmd) {
+    string extension = get_file_type(file_name);
+    require(extension == "msh", "Unimplemented file type: " + extension);
+
+    // delete available mesh data
+    clear();
+
+    tethex::Mesh hexmesh;
+    // read tetrahedral mesh from file
+    hexmesh.read(file_name, false, false);
+    // generate hexahedra and quadrangles
+    hexmesh.convert();
+    // export mesh to Femocs
+    hexmesh.export_all_mesh(this, true);
+
+    // calculate mapping between triangles and tetrahedra
+    int err_code = calc_tet2tri_mapping(cmd, tris.get_n_markers());
+    check_return(err_code, "Generation of tri2tet mapping failed with error code " + d2s(err_code));
+
+    // calculate mapping between quadrangles and hexahedra
+    group_hexahedra();
+    calc_quad2hex_mapping();
+
+    nodes.calc_statistics();
+    tris.calc_appendices();
+
+    return 0;
+}
+
+int TetgenMesh::transfer(const bool write2read) {
+    nodes.transfer(write2read);
+    edges.transfer(write2read);
+    tris.transfer(write2read);
+    tets.transfer(write2read);
+    return 0;
+}
+
+int TetgenMesh::recalc(const string& cmd) {
+    try {
+        tetrahedralize(const_cast<char*>(cmd.c_str()), &tetIOin, &tetIOout);
+        nodes.set_counter(tetIOout.numberofpoints);
+        edges.set_counter(tetIOout.numberofedges);
+        tris.set_counter(tetIOout.numberoftrifaces);
+        tets.set_counter(tetIOout.numberoftetrahedra);
+        tris.calc_statistics();
+        tets.calc_statistics();
+    }
+    catch (int e) { return e; }
+    return 0;
+}
+
+int TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
+    try {
+        tetgenio tetIOtemp;
+        tetrahedralize(const_cast<char*>(cmd1.c_str()), &tetIOin, &tetIOtemp);
+        tetrahedralize(const_cast<char*>(cmd2.c_str()), &tetIOtemp, &tetIOout);
+        nodes.set_counter(tetIOout.numberofpoints);
+        edges.set_counter(tetIOout.numberofedges);
+        tris.set_counter(tetIOout.numberoftrifaces);
+        tets.set_counter(tetIOout.numberoftetrahedra);
+        tris.calc_statistics();
+        tets.calc_statistics();
+    }
+    catch (int e) { return e; }
+    return 0;
+}
+
 void TetgenMesh::group_hexahedra() {
     const int node_min = nodes.indxs.tetnode_start;
     const int node_max = nodes.indxs.tetnode_end;
@@ -458,7 +461,6 @@ void TetgenMesh::group_hexahedra() {
     }
 }
 
-// Separate tetrahedra & triangles into hexahedra & quadrangles
 bool TetgenMesh::generate_hexahedra() {
     tethex::Mesh hexmesh;
     hexmesh.read_femocs(this);
@@ -472,7 +474,6 @@ bool TetgenMesh::generate_hexahedra() {
     return 0;
 }
 
-// Using the separated tetrahedra generate the triangular surface on the vacuum-material boundary
 int TetgenMesh::generate_surface(const string& cmd1, const string& cmd2) {
     TetgenMesh vacuum;
     vector<bool> tet_mask = vector_equal(tets.get_markers(), TYPES.VACUUM);
@@ -558,7 +559,6 @@ void TetgenMesh::calc_quad2hex_mapping() {
     hexs.store_map(hex2quad_map);
 }
 
-// Generate manually surface faces from elements and surface nodes
 void TetgenMesh::generate_manual_surface() {
     const int n_elems = tets.size();
     const int max_surf_indx = nodes.indxs.surf_end;
@@ -607,7 +607,6 @@ void TetgenMesh::generate_manual_surface() {
         }
 }
 
-// Generate edges from the elements
 void TetgenMesh::generate_edges() {
     const int n_elems = tets.size();
     edges.init(n_edges_per_tet * n_elems);
@@ -618,7 +617,6 @@ void TetgenMesh::generate_edges() {
     }
 }
 
-// Separate vacuum and bulk mesh from the union mesh by the element markers
 int TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const string &cmd) {
     vector<bool> tet_mask = vector_equal(tets.get_markers(), TYPES.VACUUM);
     vector<bool> hex_mask = vector_equal(hexs.get_markers(), TYPES.VACUUM);
@@ -653,7 +651,26 @@ int TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const stri
     return vacuum.recalc(cmd) + bulk.recalc(cmd);
 }
 
-// Write bulk or vacuum mesh
+bool TetgenMesh::write(const string& file_name) {
+    string file_type = get_file_type(file_name);
+    require(file_type == file_name, "Only file names without extension are supported: " + file_type);
+
+    // k - write vtk, Q - quiet, I - suppresses iteration numbers,
+    // F - suppress output of .face and .edge, E - suppress output of .ele
+    const string cmd = "kIFEQ";
+    tetgenbehavior tetgenbeh;
+
+    try {
+        tetgenbeh.parse_commandline(const_cast<char*>(cmd.c_str()));
+        for (unsigned i = 0; i < file_name.size(); ++i)
+            tetgenbeh.outfilename[i] = file_name[i];
+
+        tetrahedralize(&tetgenbeh, &tetIOout, NULL);
+    } catch (int e) { return 1; }
+
+    return 0;
+}
+
 void TetgenMesh::write_separate(const string& file_name, const int type) {
     vector<bool> hex_mask;
     if (type == TYPES.VACUUM)
@@ -671,7 +688,6 @@ void TetgenMesh::write_separate(const string& file_name, const int type) {
     tempmesh.hexs.write(file_name);
 }
 
-// Mark mesh nodes and elements
 bool TetgenMesh::mark_mesh() {
 //    if (mark_nodes())
     if (rank_and_mark_nodes())
@@ -681,8 +697,6 @@ bool TetgenMesh::mark_mesh() {
     return 0;
 }
 
-// Generate list of nodes that surround the tetrahedral nodes
-// The resulting cells resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells
 void TetgenMesh::calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells, const bool vacuum) const {
     cells = vector<vector<unsigned>>(nodes.stat.n_tetnode);
     const int node_min = nodes.indxs.tetnode_start;
@@ -705,8 +719,6 @@ void TetgenMesh::calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells, const
     }
 }
 
-// Generate list of quadrangle nodes that surround the triangle nodes
-// The resulting cells resemble Voronoi cells but are still something else, i.e pseudo Voronoi cells
 void TetgenMesh::calc_pseudo_2D_vorocells(vector<vector<unsigned>>& cells) const {
     cells = vector<vector<unsigned>>(nodes.stat.n_tetnode);
     const int node_min = nodes.indxs.tetnode_start;
@@ -723,7 +735,6 @@ void TetgenMesh::calc_pseudo_2D_vorocells(vector<vector<unsigned>>& cells) const
     }
 }
 
-// Mark the nodes by using DBSCAN algorithm (the same as in cluster analysis)
 bool TetgenMesh::mark_nodes() {
     int node;
     vector<unsigned> neighbours;
@@ -778,9 +789,6 @@ bool TetgenMesh::mark_nodes() {
     return nodes.stat.n_vacuum <= 4;
 }
 
-// Calculate factors that show many connections the non-surface nodes have with its non-surface neighbors.
-// Nodes with small amount of neighbours are either on the boundary of simubox or on the edge of a hole,
-// while nodes with large amount of neighbours are inside the bulk or vacuum domain.
 bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<unsigned>>& nborlist) {
     const int n_nbor_layers = 4;  // number of nearest tetrahedra whose nodes will act as a seed
     const int n_nodes = nodes.size();
@@ -845,11 +853,6 @@ bool TetgenMesh::calc_ranks(vector<int>& ranks, const vector<vector<unsigned>>& 
     return false;
 }
 
-// Mark the nodes by using the DBSCAN clustering algorithm
-// To increase the tolerance against the holes in the surface, calculate the ranking of the nodes,
-// i.e the measure how close the node is to the hole or to the simubox boundary.
-// Nodes with small ranking act as a boundary for the clustering algorithm.
-// The ranking helps to get rid of the effect of small holes.
 bool TetgenMesh::rank_and_mark_nodes() {
     const int n_nodes = nodes.size();
     const int min_rank = 30;
@@ -910,7 +913,6 @@ bool TetgenMesh::rank_and_mark_nodes() {
     return 0;
 }
 
-// Locate the tetrahedron by the location of its nodes
 int TetgenMesh::locate_element(SimpleElement& elem) {
     // Element in vacuum is supposed not to have nodes in bulk,
     //  in bulk is supposed not to have nodes in vacuum,
@@ -926,7 +928,6 @@ int TetgenMesh::locate_element(SimpleElement& elem) {
     return TYPES.SURFACE;
 }
 
-// Mark the tetrahedra by the location of its nodes
 void TetgenMesh::mark_elems() {
     // Reserve memory for markers
     tets.init_markers(tets.size());
@@ -936,7 +937,6 @@ void TetgenMesh::mark_elems() {
         tets.append_marker(locate_element(elem));
 }
 
-// Mark the edges on the simulation cell perimeter by the node markers
 void TetgenMesh::mark_edges() {
     const int n_edges = edges.size();
     edges.init_markers(n_edges);
@@ -953,7 +953,6 @@ void TetgenMesh::mark_edges() {
     }
 }
 
-// Mark the boundary faces of mesh
 void TetgenMesh::mark_faces() {
     const double eps = 0.1 * tets.stat.edgemin;
     const int n_faces = tris.size();

@@ -115,11 +115,8 @@ private:
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
 
-    /** Generate bulk and vacuum meshes using the imported atomistic data */
+    /** Generate bulk and vacuum meshes into simulation domain */
     int generate_mesh();
-
-    /** Read bulk and vacuum meshes from file and generate metadata for them */
-    int read_mesh();
 
     /** Pick a field solver and calculcate field distribution */
     int run_field_solver();

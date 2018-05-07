@@ -13,6 +13,7 @@
 #include "Tetgen.h"
 #include "TetgenCells.h"
 #include "Medium.h"
+#include "Config.h"
 
 using namespace std;
 namespace femocs {
@@ -30,14 +31,20 @@ public:
     TetgenMesh();
     ~TetgenMesh() {}
 
+    /** Read mesh from file and generate mappings between cells */
+    int read(const string &file, const string &cmd);
+
+    /** Generate union mesh between generator points */
+    int generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const Config& conf);
+
     /** Smoothen the triangles using different versions of Taubin smoothing algorithm */
     void smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm);
 
-    /** Function to generate simple mesh that consists of one element */
+    /** Generate simple mesh that consists of one element */
     int generate_simple();
 
     /** Function to generate mesh from surface, bulk and vacuum atoms */
-    int generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd);
+    int generate_union(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd);
 
     /** @brief Separate tetrahedra & triangles into hexahedra & quadrangles
      * Separation is done by adding node to the centroid of the tetrahedron edges,
@@ -66,9 +73,6 @@ public:
 
     /** Use Tetgen built-in functions to write mesh elements data into vtk file */
     bool write(const string& file_name);
-
-    /** Read mesh from file and generate mappings between cells */
-    int read(const string &file, const string &cmd);
 
     /** Write bulk or vacuum mesh */
     void write_separate(const string& file_name, const int type);
@@ -158,6 +162,11 @@ private:
      */
     void group_hexahedra();
 
+    /** @brief Calculate factors that show many connections the non-surface nodes have with its non-surface neighbors.
+     *
+     * Nodes with small amount of neighbours are either on the boundary of simubox or on the edge
+     * of a hole, while nodes with large amount of neighbours are inside the bulk or vacuum domain.
+     */
     bool calc_ranks(vector<int>& ranks, const vector<vector<unsigned>>& nborlist);
 
     /** Calculate the mapping between quadrangle and hexahedron indices */
@@ -173,6 +182,13 @@ private:
      * algorithm. The same algorithm is also used in cluster analysis. */
     bool mark_nodes();
 
+    /** @brief Mark the nodes by using the DBSCAN clustering algorithm
+     *
+     *  To increase the tolerance against the holes in the surface, calculate the ranking of
+     *  the nodes, i.e the measure how close the node is to the hole or to the simubox boundary.
+     *  Nodes with small ranking act as a boundary for the clustering algorithm.
+     *  The ranking helps to get rid of the effect of small holes.
+     */
     bool rank_and_mark_nodes();
 
     /** Mark the edges on the simulation cell perimeter by the node markers */

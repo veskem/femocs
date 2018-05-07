@@ -158,9 +158,6 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
     double box_height = max(conf.geometry.latconst, coarse_surf.sizes.zbox) * conf.geometry.box_height;
     vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + box_height);
     bulk = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.geometry.bulk_height * conf.geometry.latconst);
-//    reader.resize_box(coarse_surf.sizes.xmin, coarse_surf.sizes.xmax,
-//            coarse_surf.sizes.ymin, coarse_surf.sizes.ymax,
-//            bulk.sizes.zmin, vacuum.sizes.zmax);
     end_msg(t0);
 
     bulk.write("out/bulk.xyz");
@@ -170,61 +167,32 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
 }
 
 int ProjectRunaway::generate_mesh() {
-    if (conf.path.mesh_file != "")
-        return read_mesh();
+    int err_code;
 
-    new_mesh->clear();
+    if (conf.path.mesh_file != "") {
+        start_msg(t0, "=== Reading mesh from file...");
+        fail = new_mesh->read(conf.path.mesh_file, "rQnn");
+    } else {
+        Surface bulk, coarse_surf, vacuum;
+        fail = generate_boundary_nodes(bulk, coarse_surf, vacuum);
+        check_return(fail, "Generation of mesh generator nodes failed!");
 
-    Surface bulk, coarse_surf, vacuum;
-    fail = generate_boundary_nodes(bulk, coarse_surf, vacuum);
-    if (fail) return 1;
-
-    start_msg(t0, "=== Making big mesh...");
-    // r - reconstruct, n(n) - output tet neighbour list (and tri-tet connection),
-    // Q - quiet, q - mesh quality, a - element volume, E - suppress output of elements
-    // F - suppress output of faces and edges, B - suppress output of boundary info
-    string command = "rQFBq" + conf.geometry.mesh_quality;
-    if (conf.geometry.element_volume != "") command += "a" + conf.geometry.element_volume;
-    int err_code = new_mesh->generate(bulk, coarse_surf, vacuum, command);
-    check_return(err_code, "Triangulation failed with error code " + d2s(err_code));
-    end_msg(t0);
-
-    start_msg(t0, "=== Marking tetrahedral mesh...");
-    fail = new_mesh->mark_mesh();
-    check_return(fail, "Mesh marking failed!");
-    end_msg(t0);
-
-    start_msg(t0, "=== Generating surface faces...");
-    err_code = new_mesh->generate_surface("rQB", "rQnn");
-    end_msg(t0);
-    check_return(err_code, "Generation of surface faces failed with error code " + d2s(err_code));
-
-    if (conf.smoothing.algorithm != "none" && conf.smoothing.n_steps > 0) {
-        start_msg(t0, "=== Smoothing surface faces...");
-        new_mesh->smoothen(conf.smoothing.n_steps, conf.smoothing.lambda_mesh, conf.smoothing.mu_mesh, conf.smoothing.algorithm);
-        end_msg(t0);
+        start_msg(t0, "=== Generating vacuum & bulk mesh...");
+        fail = new_mesh->generate(bulk, coarse_surf, vacuum, conf);
     }
-
-    // has to be separate to ensure that data is for sure calculated
-    new_mesh->tris.calc_appendices();
-
-    new_mesh->nodes.write("out/tetmesh_nodes.vtk");
-    new_mesh->tris.write("out/trimesh.vtk");
-    new_mesh->tets.write("out/tetmesh.vtk");
+    end_msg(t0);
+    check_return(fail, "Mesh generation failed!");
 
     if (conf.run.surface_cleaner) {
         start_msg(t0, "=== Cleaning surface atoms...");
         dense_surf.clean_by_triangles(atom2face, vacuum_interpolator, new_mesh, conf.geometry.latconst);
         end_msg(t0);
-        dense_surf.write("out/surface_dense_clean.xyz");
     }
 
-    start_msg(t0, "=== Converting tetrahedra to hexahedra...");
-    new_mesh->generate_hexahedra();
-    end_msg(t0);
-
     new_mesh->nodes.write("out/hexmesh_nodes.vtk");
+    new_mesh->tris.write("out/trimesh.vtk");
     new_mesh->quads.write("out/quadmesh.vtk");
+    new_mesh->tets.write("out/tetmesh.vtk");
     new_mesh->hexs.write("out/hexmesh.vtk");
     new_mesh->write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
 
@@ -236,27 +204,6 @@ int ProjectRunaway::generate_mesh() {
     if (odd_run) new_mesh = &mesh2;
     else new_mesh = &mesh1;
     odd_run = !odd_run;
-
-    write_verbose_msg(mesh->to_str());
-    return 0;
-}
-
-int ProjectRunaway::read_mesh() {
-    start_msg(t0, "=== Reading mesh from file...");
-    int err_code = new_mesh->read(conf.path.mesh_file, "rQnn");
-    end_msg(t0);
-    check_return(err_code, "Reading mesh failed with error code " + d2s(err_code));
-
-    new_mesh->nodes.write("out/hexmesh_nodes.vtk");
-    new_mesh->nodes.write("out/hexmesh_nodes.xyz");
-    new_mesh->tris.write("out/trimesh.vtk");
-    new_mesh->quads.write("out/quadmesh.vtk");
-    new_mesh->tets.write("out/tetmesh.vtk");
-    new_mesh->hexs.write("out/hexmesh.vtk");
-    new_mesh->write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
-
-    mesh = new_mesh;
-    mesh_changed = true;
 
     write_verbose_msg(mesh->to_str());
     return 0;

@@ -316,7 +316,7 @@ void SolutionReader::interpolate(const Medium &medium) {
 }
 
 void SolutionReader::interpolate(const AtomReader &reader) {
-    require(!sort, "Atom sorting not allowed here!");
+    require(!sort_atoms, "Atom sorting not allowed here!");
     const int n_atoms = reader.size();
     reserve(n_atoms);
 
