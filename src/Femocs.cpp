@@ -46,27 +46,9 @@ Femocs::~Femocs() {
     write_verbose_msg("======= Femocs finished! =======");
 }
 
-// Write all the available data to file for debugging purposes
-int Femocs::force_output() {
-    return project->force_output();
-}
-
 // Generate FEM mesh and solve differential equation(s)
 int Femocs::run(const int timestep) {
     return project->run(timestep);
-}
-
-// Generate FEM mesh and solve differential equation(s)
-int Femocs::run(const double elfield, const string &timestep) {
-    // convert message to integer time step
-    stringstream parser;
-    int tstep;
-    parser << timestep;
-    parser >> tstep;
-    parser.flush();
-    conf.field.E0 = elfield;
-
-    return project->run(tstep);
 }
 
 // Generate artificial nanotip
@@ -225,51 +207,6 @@ int Femocs::export_atom_types(const int n_atoms, int* types) {
         types[i] = reader.get_marker(i);
 
     return reader.check_clusters(0);
-}
-
-// export electric field on imported atom coordinates
-int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    double fields[3*n_atoms];
-    int retval1 = project->export_results(n_atoms, LABELS.elfield, fields);
-    int retval2 = project->export_results(n_atoms, LABELS.elfield_norm, Enorm);
-
-    int I = 0;
-    for (int i = 0; i < n_atoms; ++i) {
-        Ex[i] = fields[I++];
-        Ey[i] = fields[I++];
-        Ez[i] = fields[I++];
-    }
-    return retval1 | retval2;
-}
-
-// calculate and export temperatures on imported atom coordinates
-int Femocs::export_temperature(const int n_atoms, double* T) {
-    return project->export_results(n_atoms, LABELS.temperature, T);
-}
-
-// export charges & forces on imported atom coordinates
-int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
-//    return project->forces.export_charge_and_force(n_atoms, xq);
-
-    double charges[n_atoms];
-    double forces[3*n_atoms];
-    int retval1 = project->export_results(n_atoms, LABELS.charge, charges);
-    int retval2 = project->export_results(n_atoms, LABELS.force, forces);
-
-    int I = 0;
-    for (int i = 0; i < n_atoms; ++i) {
-        int J = 3*i;
-        xq[I++] = charges[i];
-        xq[I++] = forces[J++];
-        xq[I++] = forces[J++];
-        xq[I++] = forces[J++];
-    }
-    return retval1 | retval2;
-}
-
-// export forces & pair potentials on imported atom coordinates
-int Femocs::export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) {
-    return project->forces.export_force_and_pairpot(n_atoms, xnp, Epair, Vpair);
 }
 
 // linearly interpolate electric field at given points

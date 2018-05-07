@@ -19,20 +19,12 @@ module libfemocs
             type(c_ptr), value :: femocs
         end subroutine
 
-        subroutine femocs_run_c(femocs, retval, E_field, message) bind(C, name="femocs_run")
+        subroutine femocs_run_c(femocs, retval, timestep) bind(C, name="femocs_run")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
             integer(c_int) :: retval
-            real(c_double), intent(in), value :: E_field
-            character(len=1, kind=C_CHAR), intent(in) :: message(*)
-        end subroutine
-
-        subroutine femocs_force_output_c(femocs, retval) bind(C, name="femocs_force_output")
-            use iso_c_binding
-            implicit none
-            type(c_ptr), intent(in), value :: femocs
-            integer(c_int) :: retval
+            integer(c_int), intent(in), value :: timestep
         end subroutine
        
         subroutine femocs_import_atoms_c(femocs, retval, n_atoms, x, y, z, types) bind(C, name="femocs_import_atoms")
@@ -75,18 +67,6 @@ module libfemocs
             integer(c_int) :: types(*)
         end subroutine
         
-        subroutine femocs_export_elfield_c(femocs, retval, n_atoms, Ex, Ey, Ez, Enorm) bind(C, name="femocs_export_elfield")
-            use iso_c_binding
-            implicit none
-            type(c_ptr), intent(in), value :: femocs
-            integer(c_int) :: retval            
-            integer(c_int), value :: n_atoms
-            real(c_double) :: Ex(*)
-            real(c_double) :: Ey(*)
-            real(c_double) :: Ez(*)
-            real(c_double) :: Enorm(*)
-        end subroutine
-
         subroutine femocs_interpolate_elfield_c(femocs, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag) &
                                                  bind(C, name="femocs_interpolate_elfield")
             use iso_c_binding
@@ -200,12 +180,10 @@ module libfemocs
         procedure :: delete => delete_femocs
         ! Function members
         procedure :: run => femocs_run
-        procedure :: force_output => femocs_force_output
         procedure :: import_atoms => femocs_import_atoms
         procedure :: import_parcas => femocs_import_parcas
         procedure :: import_file => femocs_import_file
         procedure :: export_atom_types => femocs_export_atom_types
-        procedure :: export_elfield => femocs_export_elfield
         procedure :: interpolate_elfield => femocs_interpolate_elfield
         procedure :: interpolate_surface_elfield => femocs_interpolate_surface_elfield
         procedure :: interpolate_phi => femocs_interpolate_phi
@@ -246,30 +224,12 @@ module libfemocs
         call delete_femocs_c(this%ptr)
     end subroutine
 
-    subroutine femocs_run(this, retval, E_field, message)
+    subroutine femocs_run(this, retval, timestep)
         implicit none
         class(femocs), intent(in) :: this
         integer(c_int) :: retval
-        real(c_double), intent(in) :: E_field
-        character(len=*), intent(in) :: message
-        character(len=1, kind=C_CHAR) :: c_str(len_trim(message) + 1)
-        integer :: N, i
-
-        ! Converting Fortran string to C string
-        N = len_trim(message)
-        do i = 1, N
-            c_str(i) = message(i:i)
-        end do
-        c_str(N + 1) = C_NULL_CHAR
-
-        call femocs_run_c(this%ptr, retval, E_field, c_str)
-    end subroutine
-    
-    subroutine femocs_force_output(this, retval)
-        implicit none
-        class(femocs), intent(in) :: this
-        integer(c_int) :: retval
-        call femocs_force_output_c(this%ptr, retval)
+        integer(c_int), intent(in) :: timestep
+        call femocs_run_c(this%ptr, retval, timestep)
     end subroutine
 
     subroutine femocs_import_atoms(this, retval, n_atoms, x, y, z, types)
@@ -322,18 +282,6 @@ module libfemocs
         call femocs_export_atom_types_c(this%ptr, retval, n_atoms, types)
     end subroutine
     
-    subroutine femocs_export_elfield(this, retval, n_atoms, Ex, Ey, Ez, Enorm)
-        implicit none
-        class(femocs), intent(in) :: this
-        integer(c_int) :: retval        
-        integer(c_int) :: n_atoms
-        real(c_double) :: Ex(*)
-        real(c_double) :: Ey(*)
-        real(c_double) :: Ez(*)
-        real(c_double) :: Enorm(*)
-        call femocs_export_elfield_c(this%ptr, retval, n_atoms, Ex, Ey, Ez, Enorm)
-    end subroutine
-
     subroutine femocs_interpolate_elfield(this, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag)
         implicit none
         class(femocs), intent(in) :: this
@@ -349,7 +297,7 @@ module libfemocs
         integer(c_int) :: flag(*)
         call femocs_interpolate_elfield_c(this%ptr, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag)
     end subroutine
-    
+
     subroutine femocs_interpolate_surface_elfield(this,retval,n_points,x,y,z,Ex,Ey,Ez,Enorm,flag)
         implicit none
         class(femocs), intent(in) :: this
