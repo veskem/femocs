@@ -497,6 +497,9 @@ int TetgenMesh::generate_surface(const Medium::Sizes& sizes, const string& cmd1,
 }
 
 int TetgenMesh::calc_tet2tri_mapping(const string &cmd, int n_surf_faces) {
+    tetIOout.deinitialize();
+    tetIOout.initialize();
+
     // calculate the tetrahedron-triangle connectivity
     // the simubox boundary faces must also be calculated, no way to opt-out
     int error_code = recalc(cmd);
