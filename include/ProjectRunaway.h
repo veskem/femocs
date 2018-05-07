@@ -82,6 +82,10 @@ private:
     Surface dense_surf;       ///< non-coarsened surface atoms
     Surface extended_surf;    ///< atoms added for the surface atoms
 
+    FieldReader fields;       ///< fields & potentials on surface atoms
+    HeatReader  temperatures; ///< temperatures & current densities on bulk atoms
+    ForceReader forces;       ///< forces & charges on surface atoms
+
     FieldReader surface_fields;       ///< fields on surface hex face centroids
     HeatReader  surface_temperatures; ///< temperatures & current densities on surface hex face centroids
 

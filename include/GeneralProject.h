@@ -40,12 +40,6 @@ public:
             const int n_points, const string& data_type, const bool near_surface,
             const double* x, const double* y, const double* z) = 0;
 
-    // those objects are not necessarily general
-    // needed for the ability to call export/interpolate field/phi directly from Femocs.cpp side
-    FieldReader fields;       ///< fields & potentials on surface atoms
-    HeatReader  temperatures; ///< temperatures & current densities on bulk atoms
-    ForceReader forces;       ///< forces & charges on surface atoms
-
 protected:
     // references instead of pointers to make their access more convenient
     AtomReader &reader;     ///< all the imported atoms

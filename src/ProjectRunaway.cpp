@@ -23,6 +23,10 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         vacuum_interpolator("elfield", "potential"),
         bulk_interpolator("rho", "temperature"),
 
+        fields(&vacuum_interpolator),
+        temperatures(&bulk_interpolator),
+        forces(&vacuum_interpolator),
+
         surface_fields(&vacuum_interpolator),
         surface_temperatures(&bulk_interpolator),
 
@@ -33,9 +37,6 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         emission(&surface_fields, &surface_temperatures, &poisson_solver, &vacuum_interpolator),
         pic_solver(&poisson_solver, &ch_solver, &emission, conf.behaviour.rnd_seed)
 {
-    fields.set_interpolator(&vacuum_interpolator);
-    temperatures.set_interpolator(&bulk_interpolator);
-    forces.set_interpolator(&vacuum_interpolator);
     poisson_solver.set_particles(pic_solver.get_particles());
 
     // Initialise heating module
