@@ -650,7 +650,7 @@ int ProjectRunaway::force_output() {
     return 0;
 }
 
-int ProjectRunaway::export_results(const int n_points, const string &data_type, double* data) {
+int ProjectRunaway::export_data(double* data, const int n_points, const string &data_type) {
     if (n_points <= 0) return 0;
 
     if (fields.contains(data_type))
@@ -679,8 +679,10 @@ int ProjectRunaway::export_results(const int n_points, const string &data_type, 
     return 1;
 }
 
-int ProjectRunaway::interpolate_results(const int n_points, const string &data_type, const bool near_surface,
-        const double* x, const double* y, const double* z, double* data, int* flag) {
+int ProjectRunaway::interpolate(double* data, int* flag,
+        const int n_points, const string &data_type, const bool near_surface,
+        const double* x, const double* y, const double* z)
+{
 
     // location of interpolation; 2-on surface, 3-in space
     int dim = 3;

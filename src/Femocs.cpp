@@ -47,7 +47,7 @@ Femocs::~Femocs() {
 }
 
 // Generate FEM mesh and solve differential equation(s)
-int Femocs::run(const int timestep) {
+int Femocs::run (const int timestep) {
     return project->run(timestep);
 }
 
@@ -69,7 +69,7 @@ int Femocs::generate_nanotip() {
 }
 
 // import atoms from a file
-int Femocs::import_atoms(const string& file_name, const int add_noise) {
+int Femocs::import_atoms (const string& file_name, const int add_noise) {
     clear_log();
     string file_type, fname;
 
@@ -133,7 +133,7 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
 }
 
 // import atoms from PARCAS
-int Femocs::import_atoms(const int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
+int Femocs::import_atoms (const int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
     clear_log();
 
     start_msg(t0, "=== Importing atoms...");
@@ -177,7 +177,7 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
 }
 
 // import coordinates and types of atoms
-int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, const double* z, const int* types) {
+int Femocs::import_atoms (const int n_atoms, const double* x, const double* y, const double* z, const int* types) {
     clear_log();
     conf.run.surface_cleaner = false; // disable the surface cleaner for atoms with known types
 
@@ -200,21 +200,12 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
     return 0;
 }
 
-// export the atom types as seen by FEMOCS
-int Femocs::export_atom_types(const int n_atoms, int* types) {
-    const int export_size = min(n_atoms, reader.size());
-    for (int i = 0; i < export_size; ++i)
-        types[i] = reader.get_marker(i);
-
-    return reader.check_clusters(0);
-}
-
 // linearly interpolate electric field at given points
-int Femocs::interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
-        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-
+int Femocs::interpolate_surface_elfield (const int n_points, const double* x, const double* y, const double* z,
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag)
+{
     double fields[3*n_points];
-    int retval = project->interpolate_results(n_points, LABELS.elfield, true, x, y, z, fields, flag);
+    int retval = project->interpolate(fields, flag, n_points, LABELS.elfield, true, x, y, z);
 
     for (int i = 0; i < n_points; ++i) {
         int I = 3*i;
@@ -228,11 +219,11 @@ int Femocs::interpolate_surface_elfield(const int n_points, const double* x, con
 }
 
 // linearly interpolate electric field at given points
-int Femocs::interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
-        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-
+int Femocs::interpolate_elfield (const int n_points, const double* x, const double* y, const double* z,
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag)
+{
     double fields[3*n_points];
-    int retval = project->interpolate_results(n_points, LABELS.elfield, false, x, y, z, fields, flag);
+    int retval = project->interpolate(fields, flag, n_points, LABELS.elfield, false, x, y, z);
 
     for (int i = 0; i < n_points; ++i) {
         int I = 3*i;
@@ -246,20 +237,23 @@ int Femocs::interpolate_elfield(const int n_points, const double* x, const doubl
 }
 
 // linearly interpolate electric potential at given points
-int Femocs::interpolate_phi(const int n_points, const double* x, const double* y, const double* z,
-        double* phi, int* flag) {
-    return project->interpolate_results(n_points, LABELS.potential, false, x, y, z, phi, flag);
+int Femocs::interpolate_phi (const int n_points, const double* x, const double* y, const double* z,
+        double* phi, int* flag)
+{
+    return project->interpolate(phi, flag, n_points, LABELS.potential, false, x, y, z);
 }
 
 // export solution on atom coordinates; data is specified with cmd label
-int Femocs::export_results(const int n_points, const string& data_type, double* data) {
-    return project->export_results(n_points, data_type, data);
+int Femocs::export_data (double* data, const int n_points, const string& data_type) {
+    return project->export_data(data, n_points, data_type);
 }
 
 // interpolate solution (component specified with cmd label) on specified points
-int Femocs::interpolate_results(const int n_points, const string &data_type, const bool near_surface,
-        const double* x, const double* y, const double* z, double* data, int* flag) {
-    return project->interpolate_results(n_points, data_type, near_surface, x, y, z, data, flag);
+int Femocs::interpolate (double* data, int* flag,
+        const int n_points, const string &data_type, const bool near_surface,
+        const double* x, const double* y, const double* z)
+{
+    return project->interpolate(data, flag, n_points, data_type, near_surface, x, y, z);
 }
 
 // parse integer argument of the command from input script

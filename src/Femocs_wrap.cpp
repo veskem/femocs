@@ -33,12 +33,6 @@ void femocs_import_atoms(FEMOCS* femocs, int* retval, int n_atoms,
     retval[0] = femocs->import_atoms(n_atoms, x, y, z, types);
 }
 
-void femocs_export_atom_types(FEMOCS* femocs, int* retval, int n_atoms,
-        int* types)
-{
-    retval[0] = femocs->export_atom_types(n_atoms, types);
-}
-
 void femocs_interpolate_elfield(FEMOCS* femocs, int* retval, int n_points,
         const double* x, const double* y, const double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag)
@@ -59,17 +53,17 @@ void femocs_interpolate_phi(FEMOCS* femocs, int* retval, int n_points,
     retval[0] = femocs->interpolate_phi(n_points, x, y, z, phi, flag);
 }
 
-void femocs_export_results(FEMOCS* femocs, int* retval, int n_points,
-        const char* data_type, double* data)
+void femocs_export_data(FEMOCS* femocs, int* retval, double* data,
+        int n_points, const char* data_type)
 {
-    retval[0] = femocs->export_results(n_points, data_type, data);
+    retval[0] = femocs->export_data(data, n_points, data_type);
 }
 
-void femocs_interpolate_results(FEMOCS* femocs, int* retval, int n_points,
-        const char* data_type, int near_surface,
-        const double* x, const double* y, const double* z, double* data, int* flag)
+void femocs_interpolate(FEMOCS* femocs, int* retval, double* data, int* flag,
+        int n_points, const char* data_type, int near_surface,
+        const double* x, const double* y, const double* z)
 {
-    retval[0] = femocs->interpolate_results(n_points, data_type, near_surface, x, y, z, data, flag);
+    retval[0] = femocs->interpolate(data, flag, n_points, data_type, near_surface, x, y, z);
 }
 
 void femocs_parse_int(FEMOCS* femocs, int* retval, const char* command, int* arg) {

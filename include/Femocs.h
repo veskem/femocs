@@ -67,13 +67,6 @@ public:
      */
     int import_atoms(const string& file_name, const int add_noise=0);
     
-    /** Export the types of all the atoms as seen by FEMOCS
-     * @param n_atoms   number of atoms to export; n_atoms <= 0 turns the export off
-     * @param types     array where the atom types are written
-     * @return          boolean whether there are any clustered or evaporated atom
-     */
-    int export_atom_types(const int n_atoms, int* types);
-
     /** Function to linearly interpolate electric field at points anywhere in space
      * @param n_points  number of points where electric field is interpolated; n_points <= 0 turns the interpolation off
      * @param x         x-coordinates of the points of interest
@@ -117,22 +110,23 @@ public:
     int interpolate_phi(const int n_points, const double* x, const double* y, const double* z, double* phi, int* flag);
 
     /** Export the solution data in the location of imported atoms
+     * @param data       array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
      * @param n_points   number of first imported points where solution is exported; <= 0 turns export off
      * @param data_type  label of data to be exported
-     * @param data       array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
      */
-    int export_results(const int n_points, const string& data_type, double* data);
+    int export_data(double* data, const int n_points, const string& data_type);
 
-    /** Export the solution data in the location of specified points
+    /** Interpolate the solution data in the location of specified points
+     * @param data          array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
+     * @param flag          indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
      * @param n_points      number of points in x,y,z arrays; <= 0 turns interpolation off
      * @param data_type     label of data to be exported
      * @param near_surface  data points are located near the surface
      * @param x,y,z         coordinates of the points
-     * @param data_type     array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
-     * @param flag          indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
      */
-    int interpolate_results(const int n_points, const string& data_type, const bool near_surface,
-            const double* x, const double* y, const double* z, double* data, int* flag);
+    int interpolate(double* data, int* flag,
+            const int n_points, const string& data_type, const bool near_surface,
+            const double* x, const double* y, const double* z);
 
     /**
      * Function to parse integer argument of the command from input script

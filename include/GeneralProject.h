@@ -32,13 +32,13 @@ public:
      */
     virtual int run(const int timestep=-1) = 0;
 
-    /** Force the data to the files for debugging purposes */
-    virtual int force_output() = 0;
+    /** Export the solution data in the location of imported atoms */
+    virtual int export_data(double* data, const int n_points, const string& data_type) = 0;
 
-    virtual int export_results(const int n_points, const string& data_type, double* data) = 0;
-
-    virtual int interpolate_results(const int n_points, const string& data_type, const bool near_surface,
-            const double* x, const double* y, const double* z, double* data, int* flag) = 0;
+    /** Interpolate the solution data in the location of specified points */
+    virtual int interpolate(double* data, int* flag,
+            const int n_points, const string& data_type, const bool near_surface,
+            const double* x, const double* y, const double* z) = 0;
 
     // those objects are not necessarily general
     // needed for the ability to call export/interpolate field/phi directly from Femocs.cpp side

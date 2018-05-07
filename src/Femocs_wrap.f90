@@ -57,16 +57,7 @@ module libfemocs
             integer(c_int) :: retval            
             character(len=1, kind=C_CHAR), intent(in) :: file_name(*)
         end subroutine
-        
-        subroutine femocs_export_atom_types_c(femocs, retval, n_atoms, types) bind(C, name="femocs_export_atom_types")
-            use iso_c_binding
-            implicit none
-            type(c_ptr), intent(in), value :: femocs
-            integer(c_int) :: retval
-            integer(c_int), value :: n_atoms
-            integer(c_int) :: types(*)
-        end subroutine
-        
+
         subroutine femocs_interpolate_elfield_c(femocs, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag) &
                                                  bind(C, name="femocs_interpolate_elfield")
             use iso_c_binding
@@ -115,8 +106,8 @@ module libfemocs
             integer(c_int) :: flag(*)
         end subroutine
 
-        subroutine femocs_export_results_c(femocs,retval,n_points,data_type,data) &
-                                                 bind(C, name="femocs_export_results")
+        subroutine femocs_export_data_c(femocs,retval,data,n_points,data_type) &
+                                                 bind(C, name="femocs_export_data")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
@@ -126,8 +117,8 @@ module libfemocs
             real(c_double) :: data(*)
         end subroutine
 
-        subroutine femocs_interpolate_results_c(femocs,retval,n_points,data_type,near_surface,x,y,z,data,flag) &
-                                                    bind(C, name="femocs_interpolate_results")
+        subroutine femocs_interpolate_c(femocs,retval,data,flag,n_points,data_type,near_surface,x,y,z) &
+                                                    bind(C, name="femocs_interpolate")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
@@ -183,12 +174,11 @@ module libfemocs
         procedure :: import_atoms => femocs_import_atoms
         procedure :: import_parcas => femocs_import_parcas
         procedure :: import_file => femocs_import_file
-        procedure :: export_atom_types => femocs_export_atom_types
         procedure :: interpolate_elfield => femocs_interpolate_elfield
         procedure :: interpolate_surface_elfield => femocs_interpolate_surface_elfield
         procedure :: interpolate_phi => femocs_interpolate_phi
-        procedure :: export_results => femocs_export_results
-        procedure :: interpolate_results => femocs_interpolate_results
+        procedure :: export_data => femocs_export_data
+        procedure :: interpolate => femocs_interpolate
         procedure :: parse_int => femocs_parse_int
         procedure :: parse_double => femocs_parse_double
         procedure :: parse_string => femocs_parse_string
@@ -273,15 +263,6 @@ module libfemocs
         call femocs_import_file_c(this%ptr, retval, c_str)
     end subroutine
     
-    subroutine femocs_export_atom_types(this, retval, n_atoms, types)
-        implicit none
-        class(femocs), intent(in) :: this
-        integer(c_int) :: retval
-        integer(c_int) :: n_atoms
-        integer(c_int) :: types(*)
-        call femocs_export_atom_types_c(this%ptr, retval, n_atoms, types)
-    end subroutine
-    
     subroutine femocs_interpolate_elfield(this, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag)
         implicit none
         class(femocs), intent(in) :: this
@@ -327,7 +308,7 @@ module libfemocs
         call femocs_interpolate_phi_c(this%ptr, retval, n_points, x, y, z, phi, flag)
     end subroutine
 
-    subroutine femocs_export_results(this, retval, n_points, data_type, data)
+    subroutine femocs_export_data(this, retval, data, n_points, data_type)
         implicit none
         class(femocs), intent(in) :: this
         integer(c_int) :: retval
@@ -344,10 +325,10 @@ module libfemocs
         end do
         c_str(N + 1) = C_NULL_CHAR
 
-        call femocs_export_results_c(this%ptr, retval, n_points, c_str,data)
+        call femocs_export_data_c(this%ptr, retval, data, n_points, c_str)
     end subroutine
 
-    subroutine femocs_interpolate_results(this,retval,n_points,data_type,near_surface,x,y,z,data,flag)
+    subroutine femocs_interpolate(this,retval,data,flag,n_points,data_type,near_surface,x,y,z)
         implicit none
         class(femocs), intent(in) :: this
         integer(c_int) :: retval
@@ -369,7 +350,7 @@ module libfemocs
         end do
         c_str(N + 1) = C_NULL_CHAR
 
-        call femocs_interpolate_results_c(this%ptr,retval,n_points,c_str,near_surface,x,y,z,data,flag)
+        call femocs_interpolate_c(this%ptr,retval,data,flag,n_points,c_str,near_surface,x,y,z)
     end subroutine
 
     subroutine femocs_parse_int(this, retval, command, arg)
