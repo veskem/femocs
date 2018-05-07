@@ -97,7 +97,7 @@ int Pic<dim>::inject_electrons(vector<Point3> &positions, vector<int> &cells,
 template<int dim>
 Point3 Pic<dim>::get_rnd_point(const int quad, const TetgenMesh &mesh) {
     const int tri = mesh.quads.to_tri(quad);
-    const int section = quad % mesh.quads.n_quads_per_tri;
+    const int section = quad % n_quads_per_tri;
 
     int i, j, k;
     if (section == 0) {

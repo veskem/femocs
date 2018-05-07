@@ -189,13 +189,6 @@ public:
     iterator end() const { return iterator(this, size()); }
 
     static constexpr int DIM = dim; //!< dimensionality of the cell; 1-node, 2-edge, 3-triangle etc
-    static constexpr int n_coordinates = 3;    ///< Number of spatial coordinates
-    static constexpr int n_edges_per_tri = 3;  ///< Number of edges on a triangle
-    static constexpr int n_tets_per_tri = 2;   ///< Number of tetrahedra connected to a triangle
-    static constexpr int n_edges_per_tet = 6;  ///< Number of edges on a tetrahedron
-    static constexpr int n_tris_per_tet = 4;   ///< Number of triangles on a tetrahedron
-    static constexpr int n_hexs_per_tet = 4;   ///< Number of hexahedra connected to a tetrahedron
-    static constexpr int n_quads_per_tri = 3;  ///< Number of quadrangles connected to a triangle
 
 protected:
     int* n_cells_r;      ///< number of readable cells in mesh data

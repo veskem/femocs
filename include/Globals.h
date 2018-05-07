@@ -21,6 +21,25 @@ enum BoundaryId {
     copper_sides = 5
 };
 
+enum MeshData {
+    n_coordinates = 3,     ///< # coordinates
+    n_nodes_per_edge = 2, ///< # nodes on an edge
+    n_nodes_per_tri = 3,  ///< # nodes on a triangle
+    n_nodes_per_quad = 4, ///< # nodes on a quadrangle
+    n_nodes_per_tet = 4,  ///< # nodes on a tetrahedron
+    n_nodes_per_hex = 8,  ///< # nodes on a hexahedron
+    n_edges_per_tri = 3,  ///< # edges on a triangle
+    n_edges_per_quad = 4, ///< # edges on a quadrangle
+    n_edges_per_tet = 6,  ///< # edges on a tetrahedron
+    n_edges_per_hex = 12, ///< # edges on a hexahedron
+    n_tris_per_tet = 4,   ///< # triangles on a tetrahedron
+    n_tets_per_tri = 2,   ///< # tetrahedra connected to a triangle
+    n_hexs_per_quad = 2,  ///< # hexahedra connected to a quadrangle
+    n_hexs_per_tet = 4,   ///< # hexahedra connected to a tetrahedron
+    n_quads_per_tri = 3,  ///< # quadrangles connected to a triangle
+    n_quads_per_hex = 6  ///< # quadrangles connected to a hexahedron
+};
+
 /** Types of regions used in the simulation */
 struct Types {
     const int NONE = 0;      ///< type of atom with unknown position
