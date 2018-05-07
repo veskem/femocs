@@ -27,6 +27,42 @@ void AtomReader::reserve(const int n_atoms) {
     coordination = vector<int>(n_atoms, 0);
 }
 
+void AtomReader::extract(Surface& surface, const int type, const bool invert) {
+    const int coord_min = 2;
+    const int n_atoms = size();
+    vector<bool> is_type(n_atoms);
+
+    // Get number and locations of atoms of desired type
+    if (!invert) {
+        for (int i = 0; i < n_atoms; ++i)
+            is_type[i] = get_marker(i) == type;
+    } else {
+        for (int i = 0; i < n_atoms; ++i)
+            is_type[i] = get_marker(i) != type;
+    }
+
+    // Clean lonely atoms; atom is considered lonely if its coordination is lower than coord_min
+    if (get_nborlist_size() == n_atoms)
+        for (int i = 0; i < n_atoms; ++i)
+            if (is_type[i]) {
+                int n_nbors = 0;
+                for (int nbor : get_neighbours(i)) {
+                    require(nbor >= 0 && nbor < n_atoms, "Invalid index: " + d2s(nbor));
+                    if (is_type[nbor]) n_nbors++;
+                }
+
+                is_type[i] = n_nbors >= coord_min;
+            }
+
+    // Store the atoms
+    surface.reserve(vector_sum(is_type));
+    for (int i = 0; i < n_atoms; ++i)
+        if (is_type[i])
+            surface.append(get_atom(i));
+
+    surface.calc_statistics();
+}
+
 double AtomReader::calc_rms_distance(const double eps) {
     if (eps <= 0) return DBL_MAX;
 

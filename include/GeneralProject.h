@@ -10,9 +10,7 @@
 
 #include "AtomReader.h"
 #include "Config.h"
-#include "Coarseners.h"
 #include "TetgenMesh.h"
-#include "SolutionReader.h"
 
 using namespace std;
 namespace femocs {
@@ -42,15 +40,13 @@ public:
 
 protected:
     // references instead of pointers to make their access more convenient
-    AtomReader &reader;     ///< all the imported atoms
-    Config &conf;           ///< configuration parameters
+    AtomReader &reader;    ///< All the imported atoms
+    Config &conf;          ///< Configuration parameters
 
-    Coarseners coarseners;  ///< atomistic coarsening data & routines
-
-    TetgenMesh mesh1;       ///< FEM mesh for the whole simulation domain
+    TetgenMesh mesh1;      ///< FEM mesh for the whole simulation domain
     TetgenMesh mesh2;
-    TetgenMesh *new_mesh;  ///< Reference to mesh where the new one will be generated
-    TetgenMesh *mesh;      ///< Readily available mesh
+    TetgenMesh *new_mesh;  ///< Pointer to mesh where the new one will be generated
+    TetgenMesh *mesh;      ///< Pointer to readily available mesh
 
 private:
     // needed to give initial values for references

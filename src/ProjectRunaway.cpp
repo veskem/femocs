@@ -124,42 +124,24 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
 
 int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
     start_msg(t0, "=== Extracting surface...");
-    dense_surf.extract(reader, TYPES.SURFACE);
+    reader.extract(dense_surf, TYPES.SURFACE);
     end_msg(t0);
-
     dense_surf.write("out/surface_dense.xyz");
 
-    coarseners.generate(dense_surf, conf.geometry.radius, conf.cfactor, conf.geometry.latconst);
-    coarseners.write("out/coarseners.vtk");
-
-    static bool first_run = true;
-    if (first_run) {
+    if (GLOBALS.TIME == 0) {
         start_msg(t0, "=== Extending surface...");
-        if (conf.path.extended_atoms == "")
-            dense_surf.extend(extended_surf, coarseners, conf.geometry.latconst, conf.geometry.box_width);
-        else
-            extended_surf = dense_surf.extend(conf.path.extended_atoms, coarseners);
+        dense_surf.extend(extended_surf, conf);
         end_msg(t0);
-        first_run = false;
     }
 
-    start_msg(t0, "=== Coarsening & smoothing surface...");
-    coarse_surf = extended_surf;
-    //    coarse_surf += dense_surf;
-    coarse_surf += dense_surf.clean_roi(coarseners);
-    coarse_surf = coarse_surf.clean(coarseners);
-    coarse_surf.smoothen(conf.geometry.radius, conf.smoothing.beta_atoms, 3.0*conf.geometry.coordination_cutoff);
+    start_msg(t0, "=== Coarsening surface...");
+    dense_surf.generate_boundary_nodes(bulk, coarse_surf, vacuum, extended_surf, conf, GLOBALS.TIME==0);
     end_msg(t0);
+
+    if (MODES.VERBOSE)
+        printf("  #extended=%d, #coarse=%d, #dense=%d\n", extended_surf.size(), coarse_surf.size(), dense_surf.size());
 
     coarse_surf.write("out/surface_coarse.xyz");
-
-    start_msg(t0, "=== Generating bulk & vacuum corners...");
-    coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
-    double box_height = max(conf.geometry.latconst, coarse_surf.sizes.zbox) * conf.geometry.box_height;
-    vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + box_height);
-    bulk = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.geometry.bulk_height * conf.geometry.latconst);
-    end_msg(t0);
-
     bulk.write("out/bulk.xyz");
     vacuum.write("out/vacuum.xyz");
 

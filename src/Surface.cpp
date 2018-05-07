@@ -6,6 +6,7 @@
  */
 
 #include "Surface.h"
+#include "AtomReader.h"
 #include <numeric>
 
 using namespace std;
@@ -55,65 +56,24 @@ Surface::Surface(const Medium::Sizes& s, const double z, const double dist) {
     }
 }
 
-// Extract surface by the atom types
-void Surface::extract(const AtomReader& reader, const int type, const bool invert) {
-    const int coord_min = 2;
-    const int n_atoms = reader.size();
-    vector<bool> is_type(n_atoms);
-
-    // Get number and locations of atoms of desired type
-    if (!invert) {
-        for (int i = 0; i < n_atoms; ++i)
-            is_type[i] = reader.get_marker(i) == type;
-    } else {
-        for (int i = 0; i < n_atoms; ++i)
-            is_type[i] = reader.get_marker(i) != type;
-    }
-
-    // Clean lonely atoms; atom is considered lonely if its coordination is lower than coord_min
-    if (reader.get_nborlist_size() == n_atoms)
-        for (int i = 0; i < n_atoms; ++i)
-            if (is_type[i]) {
-                int n_nbors = 0;
-                for (int nbor : reader.get_neighbours(i)) {
-                    require(nbor >= 0 && nbor < n_atoms, "Invalid index: " + d2s(nbor));
-                    if (is_type[nbor]) n_nbors++;
-                }
-
-                is_type[i] = n_nbors >= coord_min;
-            }
-
-    // Store the atoms
-    reserve(vector_sum(is_type));
-    for (int i = 0; i < n_atoms; ++i)
-        if (is_type[i])
-            append(reader.get_atom(i));
-
-    // Prepare atoms for coarsening
-    calc_statistics();
-    sort_atoms(3, "down");
-}
-
-// Extend the flat area by reading additional atoms
-Surface Surface::extend(const string &file_name, Coarseners &coarseners) {
+void Surface::extend(Surface& extension, const string &file_name) {
     AtomReader reader;
     reader.import_file(file_name);
 
-    Surface stretched(reader.size());
-    stretched += reader;
-    stretched.calc_statistics();
-    stretched.sizes.zmean = stretched.sizes.zmin;
+    extension.reserve(reader.size());
+    extension += reader;
+    extension.calc_statistics();
+    extension.sizes.zmean = extension.sizes.zmin;
 
-    return stretched.coarsen(coarseners);
+    coarsen(extension);
 }
 
-// Extend the flat area by generating additional atoms
-void Surface::extend(Surface& extension, Coarseners &cr, const double latconst, const double box_width) {
+void Surface::extend(Surface& extension, const double latconst, const double box_width) {
     calc_statistics();
 
-    if(cr.get_r0_inf(sizes) <=0 ) return;
+    if(coarseners.get_r0_inf(sizes) <=0 ) return;
     const double desired_box_width = box_width * sizes.zbox;
-    const double z = cr.centre.z;
+    const double z = coarseners.centre.z;
 
     // if the input surface isn't sufficiently wide, add atoms to it
     if (desired_box_width > sizes.xbox && desired_box_width > sizes.ybox) {
@@ -125,7 +85,7 @@ void Surface::extend(Surface& extension, Coarseners &cr, const double latconst, 
         const double r_min = min(sizes.xbox, sizes.ybox) / 2.0;
         const double r_max = sqrt(2) * desired_box_width / 2.0;
 
-        double dR = cr.get_cutoff(Point3(sizes.xmid - r_min, sizes.ymid - r_min, z));
+        double dR = coarseners.get_cutoff(Point3(sizes.xmid - r_min, sizes.ymid - r_min, z));
         int i;
 
         // add points along a rectangular spiral
@@ -145,13 +105,13 @@ void Surface::extend(Surface& extension, Coarseners &cr, const double latconst, 
             for (i = 0; i < n_points; ++i, x -= dR)
                 extension.append(Point3(x, y, z));
 
-            dR = cr.get_cutoff(Point3(x - dR, y - dR, z));
+            dR = coarseners.get_cutoff(Point3(x - dR, y - dR, z));
         }
     }
 
     // if the input already is sufficiently wide, add just the boundary nodes
     else {
-        Surface middle(sizes, z, cr.get_r0_inf(sizes));
+        Surface middle(sizes, z, coarseners.get_r0_inf(sizes));
         extension = Surface(sizes, z);
         extension += middle;
     }
@@ -159,21 +119,19 @@ void Surface::extend(Surface& extension, Coarseners &cr, const double latconst, 
     extension.calc_statistics();
 }
 
-// Coarsen the atoms by generating additional boundary nodes and then running cleaner
-Surface Surface::coarsen(Coarseners &coarseners) {
+void Surface::coarsen(Surface& surface) {
     sort_atoms(3, "down");
 
     Surface middle(sizes, sizes.zmean, coarseners.get_r0_inf(sizes));
     Surface union_surf(sizes, sizes.zmean);
     union_surf += middle;
-    union_surf += *this;
+    union_surf += surface;
 
-    return union_surf.clean(coarseners);
+    clean(union_surf);
 }
 
-// Clean the surface from atoms that are too close to each other
-Surface Surface::clean(Coarseners &coarseners) {
-    const int n_atoms = size();
+void Surface::clean(Surface& surface) {
+    const int n_atoms = surface.size();
     vector<bool> do_delete(n_atoms, false);
 
     // Loop through all the atoms
@@ -181,27 +139,27 @@ Surface Surface::clean(Coarseners &coarseners) {
         // Skip already deleted atoms
         if (do_delete[i]) continue;
 
-        Point3 point1 = get_point(i);
+        Point3 point1 = surface.get_point(i);
         coarseners.pick_cutoff(point1);
 
         for (int j = i+1; j < n_atoms; ++j) {
             // Skip already deleted atoms
             if (do_delete[j]) continue;
-            do_delete[j] = coarseners.nearby(point1, get_point(j));
+            do_delete[j] = coarseners.nearby(point1, surface.get_point(j));
         }
     }
 
-    Surface surf( n_atoms - vector_sum(do_delete) );
+    // remove coarsened atoms
+    int j = 0;
     for (int i = 0; i < n_atoms; ++i)
         if(!do_delete[i])
-            surf.append(get_atom(i));
+            surface.atoms[j++] = surface.get_atom(i);
 
-    surf.calc_statistics();
-    return surf;
+    surface.atoms.resize(j);
+    surface.calc_statistics();
 }
 
-// Clean atoms inside the region of interest
-Surface Surface::clean_roi(Coarseners &coarseners) {
+void Surface::add_cleaned_roi_to(Surface& surface) {
     const int n_atoms = size();
     vector<int> do_delete(n_atoms, 0);
 
@@ -224,23 +182,24 @@ Surface Surface::clean_roi(Coarseners &coarseners) {
         }
     }
 
-    // Store coarsened nanotip and non-coarsened outer region
-    Surface surf(n_atoms);
+    // add coarsened atoms to the input surface
+
+    int n_coarsened_atoms = 0;
+    for (int dd : do_delete)
+        if (dd <= 0)
+            n_coarsened_atoms++;
+
+    surface.atoms.reserve(surface.size() + n_coarsened_atoms);
     for (int i = 0; i < n_atoms; ++i)
-        if (do_delete[i] <= 0)
-            surf.append(get_atom(i));
+        if(do_delete[i] <= 0)
+            surface.append(get_atom(i));
 
-    surf.calc_statistics();
-    return surf;
-}
-
-void Surface::coarsen(Surface &surf, Coarseners &coarseners) {
-    coarsen(surf, coarseners, sizes);
+    surface.calc_statistics();
 }
 
 /* TODO: Leaves bigger holes into system than brute force method,
  * because the atoms in linked list are not radially ordered. Do something about it! */
-void Surface::coarsen(Surface &surf, Coarseners &coarseners, const Medium::Sizes &s) {
+void Surface::fast_coarsen(Surface &surface, const Medium::Sizes &s) {
     calc_linked_list(coarseners.get_r0_inf(s));
 
     const int n_atoms = size();
@@ -291,42 +250,38 @@ void Surface::coarsen(Surface &surf, Coarseners &coarseners, const Medium::Sizes
     }
 
     // Store coarsened surface
-    surf.reserve(n_atoms);
+    surface.reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
         if (!do_delete[i])
-            surf.append(get_atom(i));
-    surf.calc_statistics();
+            surface.append(get_atom(i));
+    surface.calc_statistics();
 }
 
-// Remove the atoms that are too far from surface faces
 void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const TetgenMesh* mesh, const double r_cut) {
     if (r_cut <= 0) return;
 
     const int n_atoms = size();
-    vector<Atom> _atoms;
-    _atoms.reserve(n_atoms);
-    surf2face.clear();
-    surf2face.reserve(n_atoms);
+    surf2face.resize(n_atoms);
 
     interpolator.lintri.set_mesh(mesh);
     interpolator.lintri.precompute();
 
-    int face = 0;
+    int face = 0, j = 0;
     for (int i = 0; i < n_atoms; ++i) {
         Atom atom = get_atom(i);
         face = abs(interpolator.lintri.locate_cell(atom.point, face));
         if (interpolator.lintri.fast_distance(atom.point, face) < r_cut) {
             atom.marker = face;
-            _atoms.push_back(atom);
-            surf2face.push_back(face);
+            atoms[j] = atom;
+            surf2face[j++] = face;
         }
     }
 
-    atoms = _atoms;
+    surf2face.resize(j);
+    atoms.resize(j);
     calc_statistics();
 }
 
-// Separate cylindrical region from substrate region
 void Surface::get_nanotip(Surface& nanotip, const double radius) {
     const int n_atoms = size();
     const double radius2 = radius * radius;
@@ -339,23 +294,21 @@ void Surface::get_nanotip(Surface& nanotip, const double radius) {
        is_nanotip.push_back( centre.distance2(get_point2(i)) <= radius2 );
 
     // Reserve memory for nanotip and substrate
-    const int n_nanotip = vector_sum(is_nanotip);
-    nanotip.reserve(n_nanotip);
-    vector<Atom> atoms_save; atoms_save.reserve(n_atoms - n_nanotip);
+    nanotip.reserve(vector_sum(is_nanotip));
 
     // Separate nanotip and substrate
+    int j = 0;
     for (int i = 0; i < n_atoms; ++i) {
         if (is_nanotip[i])
             nanotip.append(get_atom(i));
         else
-            atoms_save.push_back(get_atom(i));
+            atoms[j++] = get_atom(i);
     }
 
+    atoms.resize(j);
     nanotip.calc_statistics();
-    atoms = atoms_save;
 }
 
-// Smoothen the atoms inside the cylinder
 void Surface::smoothen(const double radius, const double smooth_factor, const double r_cut) {
     if (smooth_factor <= 0) return;
 
@@ -369,7 +322,6 @@ void Surface::smoothen(const double radius, const double smooth_factor, const do
     *this += nanotip;
 }
 
-// Smoothen all the atoms in the system
 void Surface::smoothen(const double smooth_factor, const double r_cut) {
     if (smooth_factor <= 0) return;
 
@@ -409,6 +361,43 @@ void Surface::smoothen(const double smooth_factor, const double r_cut) {
         else
             atoms[i].point = points[i];
     }
+}
+
+void Surface::extend(Surface& extended_surf, const Config& conf) {
+    coarseners.generate(*this, conf.geometry.radius, conf.cfactor, conf.geometry.latconst);
+    if (conf.path.extended_atoms == "")
+        // Extend surface by generating additional nodes
+        extend(extended_surf, conf.geometry.latconst, conf.geometry.box_width);
+    else
+        // Extend surface by reading the data from file
+        extend(extended_surf, conf.path.extended_atoms);
+}
+
+int Surface::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum,
+        const Surface& extended_surf, const Config& conf, const bool first_time)
+{
+    if (!first_time)
+        coarseners.generate(*this, conf.geometry.radius, conf.cfactor, conf.geometry.latconst);
+
+    // sort atoms radially to increase the symmetry or the resulting surface
+    sort_atoms(3, "down");
+
+    // Coarsen & smoothen surface
+    coarse_surf = extended_surf;
+//    coarse_surf += *this;
+    add_cleaned_roi_to(coarse_surf);
+    clean(coarse_surf);
+    coarse_surf.smoothen(conf.geometry.radius, conf.smoothing.beta_atoms, 3.0*conf.geometry.coordination_cutoff);
+
+    // Generate bulk & vacuum corners
+    coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
+    double vacuum_height = max(conf.geometry.latconst, coarse_surf.sizes.zbox) * conf.geometry.box_height;
+    double bulk_height = conf.geometry.bulk_height * conf.geometry.latconst;
+
+    vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + vacuum_height);
+    bulk   = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin - bulk_height);
+
+    return 0;
 }
 
 } /* namespace femocs */

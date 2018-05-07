@@ -10,6 +10,7 @@
 
 #include "GeneralProject.h"
 #include "Surface.h"
+#include "SolutionReader.h"
 #include "Interpolator.h"
 #include "PhysicalQuantities.h"
 #include "PoissonSolver.h"

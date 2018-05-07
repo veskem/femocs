@@ -10,6 +10,7 @@
 
 #include "Macros.h"
 #include "Medium.h"
+#include "Surface.h"
 
 using namespace std;
 namespace femocs {
@@ -20,6 +21,15 @@ public:
     /** Constructor for AtomReader */
     AtomReader();
 
+    /** Extract atom with desired types and clean it from lonely atoms;
+     * atom is considered lonely if its coordination is lower than threshold.
+     * @param surface  Surface where the extracted atoms will be written
+     * @param type     type of the atoms that will be read
+     * @param invert   if true all the atoms except the 'type'-ones will be stored
+     */
+    void extract(Surface& surface, const int type, const bool invert=false);
+
+    /** Generate nanotip with high rotational symmetry and without crystallographic faceting */
     void generate_nanotip(const double height, const double radius, const double latconst);
 
     /**
