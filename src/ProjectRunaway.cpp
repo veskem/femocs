@@ -478,7 +478,7 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
         start_msg(t0, "=== Calculating electron emission...");
         if (full_run) surface_fields.interpolate(ch_solver);
         surface_temperatures.interpolate(ch_solver);
-        emission.initialize(mesh);
+        emission.initialize(mesh, full_run);
         emission.calc_emission(conf.emission, conf.field.V0);
         end_msg(t0);
     }

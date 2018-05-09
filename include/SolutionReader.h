@@ -274,7 +274,7 @@ public:
     double get_global_stats(double &std);
 
     /** Initialises class data */
-    void initialize(const TetgenMesh* m);
+    void initialize(const TetgenMesh* m, bool reinit = true);
 
     struct EmGlobalData {
         double multiplier;   ///< Multiplier for the field for Space Charge.

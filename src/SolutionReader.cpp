@@ -932,7 +932,7 @@ EmissionReader::EmissionReader(const FieldReader *fr, const HeatReader *hr,
         fields(fr), heat(hr), mesh(NULL), poisson(p)
 {}
 
-void EmissionReader::initialize(const TetgenMesh* m) {
+void EmissionReader::initialize(const TetgenMesh* m, bool reinit) {
     mesh = m;
 
     int n_nodes = fields->size();
@@ -953,7 +953,7 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     global_data.Jmax = 0.;
     global_data.Frep = 0.;
     global_data.Jrep = 0.;
-    global_data.multiplier = 1.;
+    if (reinit) global_data.multiplier = 1.;
     global_data.N_calls = 0;
     global_data.Ilist.resize(0);
 }

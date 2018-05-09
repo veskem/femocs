@@ -129,6 +129,7 @@ public:
         double cg_tolerance;        ///< Solution accuracy in Conjugate-Gradient solver
         double ssor_param;          ///< Parameter for SSOR preconditioner in DealII. Its fine tuning optimises calculation time.
         double delta_time;          ///< Timestep of time domain integration [sec]
+        double dt_max;               ///< Maximum allowed timestep for heat convergence run
         string assemble_method;     ///< Method to assemble system matrix for solving heat equation; euler or crank_nicolson
     } heating;
 
