@@ -114,7 +114,7 @@ public:
         string anode_BC;         ///< Type of anode boundary condition (Dirichlet or Neumann)
         string solver;          ///< Type of field equation to be solved; laplace or poisson
         int element_degree;     ///< Degree of Finite elements (1: linear, 2: quadratic, 3: cubic ...
-        vector<double> apply_factors = {1.}; ///< run for multiple applied E0 (or V0) multiplied by the factors
+        vector<double> apply_factors; ///< run for multiple applied E0 (or V0) multiplied by the factors
     } field;
 
     /** Heating module configuration parameters */
@@ -138,6 +138,7 @@ public:
         bool cold;                  ///< force cold field emission approximation (good for low temperatures)
         double omega_SC;            ///< Voltage correction factor for SC calculation (negative for ignoring SC)
         double SC_error;            ///< convergence criterion for SC error
+        double Vappl_SC;             ///< Applied voltage used for SC calculations (overrides Vappl * omega_SC)
     } emission;
 
     /** Parameters related to atomic force calculations */

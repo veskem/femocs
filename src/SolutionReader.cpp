@@ -1097,12 +1097,17 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         emission_cycle(conf.work_function, conf.blunt, conf.cold);
         calc_representative();
 
-        if (conf.omega_SC <= 0.) break; // if Vappl<=0, SC is ignored
+        if (conf.omega_SC <= 0. && conf.Vappl_SC <=0.) break; // if Vappl<=0, SC is ignored
         if (i > 5) err_fact *= 0.5; // if not converged in first 6 steps, reduce factor
 
+        double Veff;
+        if (conf.Vappl_SC > 0.)
+            Veff = conf.Vappl_SC;
+        else
+            Veff = conf.omega_SC * Vappl;
         // calculate SC multiplier (function coming from getelec)
         global_data.multiplier = theta_SC(global_data.Jrep / nm2_per_angstrom2,
-                conf.omega_SC * Vappl, angstrom_per_nm * global_data.Frep);
+                Veff, angstrom_per_nm * global_data.Frep);
 
 
         if (MODES.VERBOSE){
