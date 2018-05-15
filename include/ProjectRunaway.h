@@ -101,7 +101,7 @@ protected:
     int prepare_solvers();
 
     /** Write output data to files */
-    int write_results();
+    int write_results(bool force_write = false);
 
     /** Solve Laplace equation on vacuum mesh */
     int solve_laplace(double E0, double V0);

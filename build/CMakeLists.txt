@@ -143,6 +143,8 @@ ELSE()
     SET(DEAL_II_CXX_FLAGS "${DEAL_II_CXX_FLAGS} -g -O0 ${WARNINGS}")
 ENDIF()
 
+SET(DEAL_II_NUM_THREADS 2)
+
 # ==============================================
 # =========== Start building ===========
 # ==============================================

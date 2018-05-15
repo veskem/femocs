@@ -65,7 +65,7 @@ void InterpolatorNodes::write_xyz(ofstream& out) const {
     expect(n_nodes, "Zero nodes detected!");
 
     out << n_nodes << endl;
-    out << "Interpolator properties=id:I:1:pos:R:3:marker:I:1:" <<
+    out << "time= " << GLOBALS.TIME << " Interpolator properties=id:I:1:pos:R:3:marker:I:1:" <<
             "force:R:3:" << norm_label << ":R:1:" << scalar_label << ":R:1" << endl;
 
     for (int i = 0; i < n_nodes; ++i)

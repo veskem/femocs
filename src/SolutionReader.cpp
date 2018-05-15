@@ -1009,7 +1009,6 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 }
 
 void EmissionReader::calc_representative() {
-    double area = 0.; // total emitting (FWHM) area
     double FJ = 0.; // int_FWHMarea (F*J)dS
     global_data.I_tot = 0;
     global_data.I_fwhm = 0;
@@ -1022,13 +1021,13 @@ void EmissionReader::calc_representative() {
         global_data.I_tot += currents[i];
 
         if (current_densities[i] > global_data.Jmax * 0.5){ //if point eligible
-            area += face_area; // increase total area
+            global_data.area += face_area; // increase total area
             global_data.I_fwhm += currents[i]; // increase total current
             FJ += currents[i] * fields->get_elfield_norm(i);
         }
     }
 
-    global_data.Jrep = global_data.I_fwhm / area;
+    global_data.Jrep = global_data.I_fwhm / global_data.area;
     global_data.Frep = global_data.multiplier * FJ / global_data.I_fwhm;
 }
 
@@ -1063,11 +1062,12 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
         gt.approx = 0; // simple GTF approximation
         cur_dens_c(&gt); // calculate emission
 
-        if (gt.ierr != 0 )
-            write_verbose_msg("GETELEC 1st call returned with error, ierr = " + d2s(gt.ierr));
+//        if (gt.ierr != 0 )
+//            write_verbose_msg("GETELEC 1st call returned with error, ierr = " + d2s(gt.ierr));
+
         J = gt.Jem * nm2_per_angstrom2; // current density in femocs units
 
-        if (J > 0.1 * global_data.Jmax && !cold){ // If J is worth it, calculate with full energy integration
+        if ((J > 0.1 * global_data.Jmax || gt.ierr) && !cold){ // If J is worth it, calculate with full energy integration
             gt.approx = 1;
             cur_dens_c(&gt);
             if (gt.ierr != 0 )
@@ -1075,6 +1075,8 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
             J = gt.Jem * nm2_per_angstrom2;
             set_marker(i, 2);
         }
+
+
 
         global_data.Jmax = max(global_data.Jmax, J); // output data
         current_densities[i] = J;
@@ -1125,14 +1127,18 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         if (abs(error) < conf.SC_error) break;
     }
     global_data.Ilist.push_back(global_data.I_tot);
+    write("out/emission.dat");
 }
 
 string EmissionReader::get_data_string(const int i) const {
-    if (i < 0) return "EmissionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
+    if (i < 0)
+        return "time = " + to_string(GLOBALS.TIME) +
+                ", EmissionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" +
+                vec_norm_label + ":R:1:" + scalar_label + ":R:1";
 
-    ostringstream strs; strs << fixed;
+    ostringstream strs; strs << setprecision(6);
     strs << atoms[i] << ' ' << fields->get_elfield(i)
-             << ' ' << log(current_densities[i]) << ' ' << log(fabs(nottingham[i]));
+             << ' ' << log(current_densities[i]) << ' ' << nottingham[i];
 
     return strs.str();
 }

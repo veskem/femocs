@@ -451,11 +451,10 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit) {
         
         write_results();
         if (MODES.VERBOSE){
-            char buff[256];
-            sprintf(buff, "  t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d",
+            printf("  t= %e fs, #CG=%d, Fmax= %.3f V/A, Itot= %.3e A, #el inj|del|tot=%d|%d|%d",
                     GLOBALS.TIME, n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot,
                     n_injected, n_lost, pic_solver.get_n_electrons());
-            cout << buff << endl;
+            cout << endl;
         }
 
         GLOBALS.TIME += dt_pic;
@@ -510,16 +509,15 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     return 0;
 }
 
-int ProjectRunaway::write_results(){
+int ProjectRunaway::write_results(bool force_write){
 
-    if (!write_time()) return 1;
+    if (!write_time() && !force_write) return 1;
 
     vacuum_interpolator.extract_solution(poisson_solver);
     vacuum_interpolator.nodes.write("out/result_E_phi.movie");
     vacuum_interpolator.linhex.write("out/result_E_phi.vtk");
 
     if (conf.pic.mode != "none"){
-        emission.write("out/emission.dat");
         emission.write("out/emission.movie");
         pic_solver.write("out/electrons.movie");
         surface_fields.write("out/surface_fields.movie");
@@ -527,10 +525,8 @@ int ProjectRunaway::write_results(){
         vacuum_interpolator.nodes.write("out/result_E_charge.movie");
     }
 
-    if (conf.pic.mode == "none" && emission.atoms.size() > 0){
-        emission.write("out/emission.dat");
+    if (conf.pic.mode == "none" && emission.atoms.size() > 0)
         emission.write("out/surface_emission.movie");
-    }
 
     if (conf.heating.mode != "none"){
         bulk_interpolator.nodes.write("out/result_J_T.movie");

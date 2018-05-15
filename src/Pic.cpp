@@ -207,7 +207,7 @@ void Pic<dim>::write(const string &filename) const {
     require(out.is_open(), "Can't open a file " + filename);
 
     out << max(1, electrons.size()) << endl;
-    out << "time=" << GLOBALS.TIME << ", Pic properties=id:I:1:pos:R:3:Velocity:R:3:cell:I:1" << endl;
+    out << "time= " << GLOBALS.TIME << ", Pic properties=id:I:1:pos:R:3:Velocity:R:3:cell:I:1" << endl;
 
     out.setf(ios::scientific);
     out.precision(6);
