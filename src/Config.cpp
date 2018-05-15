@@ -26,6 +26,7 @@ Config::Config() {
     behaviour.write_period = 1.e5;    // write files every write_period of time
     behaviour.timestep_fs = 4.05;     // Total time of a FEMOCS run [fs]
     behaviour.rnd_seed = 12345;       // Seed for random number generator
+    behaviour.n_omp_threads = 1;      // Maximum number of opened OpenMP threads
 
     run.cluster_anal = true;          // enable cluster analysis
     run.apex_refiner = false;         // refine nanotip apex

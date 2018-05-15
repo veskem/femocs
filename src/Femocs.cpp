@@ -8,6 +8,7 @@
 #include "Femocs.h"
 #include "Globals.h"
 #include "ProjectRunaway.h"
+#include <omp.h>
 
 using namespace std;
 namespace femocs {
@@ -34,6 +35,8 @@ Femocs::Femocs(const string &conf_file) : t0(0) {
     first_call = false;
 
     write_verbose_msg("======= Femocs started! =======");
+
+    omp_set_num_threads(conf.behaviour.n_omp_threads);
 
     // pick the project to run
     project = new ProjectRunaway(reader, conf);
