@@ -21,5 +21,10 @@ FEMOCS_DLIB=
 ## flag indicating whether CGAL is used in the code or not
 LIBCGAL=
 
+## flags for building Tetgen, Deal.II and CGAL libraries
+TETGEN_FLAGS=
+DEALII_FLAGS=
+CGAL_FLAGS=
+
 ## flag indicating in which machine the compilation happens
 MACHINE=
