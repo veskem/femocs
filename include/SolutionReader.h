@@ -271,7 +271,7 @@ public:
      * @param std the returned standard deviation
      * @return
      */
-    double get_global_stats(double &std);
+    void calc_global_stats(void);
 
     /** Initialises class data */
     void initialize(const TetgenMesh* m, bool reinit = true);
@@ -283,11 +283,12 @@ public:
         double Frep = 0.;    ///< Representative local field (used for space charge equation) [V/A]
         double Jrep = 0.;    ///< Representative current deinsity for space charge. [amps/A^2]
         double I_tot = 0;    ///< Total current running through the surface [in Amps]
-        double I_fwhm = 0;
+        double I_fwhm = 0;   ///< Total current within the FWHM area
         int N_calls;        ///< Counter keeping the last N_calls
         double area;        ///< total area of emitting region
-        //double I_cum = 0;  ///< Sum of the I_tot for the last N_calls (useful for convergence check)
         vector<double> Ilist; ///< List of all the I_tot for the last N_calls (useful for convergence check)
+        double I_mean = 0;  ///< Mean current of the last Ilist;
+        double I_std = 0;  ///< STD of the last Ilist;
     } global_data;
 
 private:

@@ -9,6 +9,7 @@
 #include "Globals.h"
 #include "ProjectRunaway.h"
 #include "ProjectHeat.h"
+#include "ProjectSpaceCharge.h"
 
 using namespace std;
 namespace femocs {
@@ -42,6 +43,8 @@ Femocs::Femocs(const string &conf_file) : t0(0) {
         project = new ProjectRunaway(reader, conf);
     else if(conf.behaviour.project == "heat")
         project = new ProjectHeat(reader, conf);
+    else if(conf.behaviour.project == "space_charge")
+        project = new ProjectSpaceCharge(reader, conf);
     else
         cout << "Choose a valid project. project = " << conf.behaviour.project << endl;
 

@@ -50,6 +50,7 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
         electrons.inject_particle(positions[i], velocity, cells[i]);
     }
 
+    inject_stats.injected += positions.size();
     return positions.size();
 }
 
@@ -145,6 +146,8 @@ int Pic<dim>::update_positions() {
 
     int n_lost_particles = electrons.clear_lost();
     electrons.sort();
+
+    inject_stats.removed += n_lost_particles;
     return n_lost_particles;
 }
 

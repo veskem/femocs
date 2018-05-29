@@ -1164,22 +1164,18 @@ string EmissionReader::get_global_data(const bool first_line) const {
     return strs.str();
 }
 
-double EmissionReader::get_global_stats(double &std){
-    double I_mean = 0.;
-    double I_std = 0;
+void EmissionReader::calc_global_stats(){
+    global_data.I_mean = 0;
+    global_data.I_std = 0;
+    for (auto x : global_data.Ilist)
+        global_data.I_mean += x;
+    global_data.I_mean /= global_data.Ilist.size();
 
     for (auto x : global_data.Ilist)
-        I_mean += x;
-    I_mean /= global_data.Ilist.size();
+        global_data.I_std += (x - global_data.I_mean) * (x - global_data.I_mean);
 
-    for (auto x : global_data.Ilist)
-        I_std += (x - I_mean) * (x - I_mean);
-
-    I_std = sqrt(I_std / global_data.Ilist.size());
-
-    std = I_std;
+    global_data.I_std = sqrt(global_data.I_std / global_data.Ilist.size());
     global_data.Ilist.resize(0); //reinit statistics
-    return I_mean;
 }
 
 void EmissionReader::export_emission(CurrentHeatSolver<3>& ch_solver) {

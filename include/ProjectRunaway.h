@@ -75,6 +75,7 @@ protected:
     int last_full_timestep; ///< last time step Femocs did full calculation
     string timestep_string; ///< time step written to file name
     // as surface atom->triangle mapping is quite heavy but useful in many places, it's good to prevent doing it many times
+
     vector<int> atom2face;  ///< surface atom to triangle index map
 
     Interpolator vacuum_interpolator;  ///< data & operations for interpolating field & potential in vacuum

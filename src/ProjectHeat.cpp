@@ -88,21 +88,22 @@ int ProjectHeat::converge_pic(double max_time) {
         time_window = max_time / i_max;
     }
 
-    double I_mean = 0., I_mean_prev = 0., I_std = 0.;
+    double I_mean_prev = emission.global_data.I_mean;
 
     start_msg(t0, "=== Converging PIC with time window " + d2s(time_window, 2) + " fs\n");
     for (int i = 0; i < i_max; ++i) {
         solve_pic(time_window, i==0);
-        I_mean = emission.get_global_stats(I_std);
-        double err = (I_mean - I_mean_prev) / I_mean;
+        emission.calc_global_stats();
+        double err = (emission.global_data.I_mean - I_mean_prev) / emission.global_data.I_mean;
         if (MODES.VERBOSE){
-            printf("  i=%d, I_mean= %e A, I_std=%.2f%, error=%.2f%",
-                    i, I_mean, 100. * I_std / I_mean, 100 * err);
+            printf("  i=%d, I_mean= %e A, I_std=%.2f%, error=%.2f%", i, emission.global_data.I_mean,
+                    100. * emission.global_data.I_std / emission.global_data.I_mean, 100 * err);
             cout << endl;
         }
-        I_mean_prev = I_mean;
+        I_mean_prev = emission.global_data.I_mean;
 
-        if (fabs(err) < 0.05 && fabs(err) < conf.pic.convergence * I_std / I_mean)
+        if (fabs(err) < 0.05 && fabs(err) < conf.pic.convergence * emission.global_data.I_std /
+                emission.global_data.I_mean)
             return 0;
     }
     return 0;

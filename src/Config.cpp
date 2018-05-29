@@ -101,7 +101,7 @@ Config::Config() {
     pic.dt_max = 1.0;
     pic.Wsp_el =  .01;
     pic.fractional_push = true;
-    pic.convergence = 1.e-3;
+    pic.convergence = .1;
 }
 
 // Remove the noise from the beginning of the string

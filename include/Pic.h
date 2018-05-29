@@ -59,6 +59,20 @@ public:
 
     int get_n_electrons() const { return electrons.size(); }
 
+    void stats_reinit(){
+        inject_stats.injected = 0;
+        inject_stats.removed = 0;
+    }
+
+    int get_injected(){ return inject_stats.injected; }
+
+    int get_removed(){ return inject_stats.removed; }
+
+    /**  Check if the number of injected particles is roughly equal to the number of removed*/
+    bool is_stable(){
+        return abs(inject_stats.injected - inject_stats.removed) / inject_stats.injected < 0.1 ;
+    }
+
 private:
     /// charge/mass for electrons for multiplying the velocity update
     static constexpr double e_over_m_e_factor = 17.58820024182468;
@@ -79,6 +93,11 @@ private:
     TetgenNodes::Stat box;                  ///< simubox size data
     
     ParticleSpecies electrons = ParticleSpecies(-e_over_m_e_factor, -e_over_eps0, Wel);
+
+    struct InjectStats{
+        int injected = 0;
+        int removed = 0;
+    }inject_stats;
 
     mt19937 mersenne;     ///< Mersenne twister pseudo-random number engine
     uniform_real_distribution<double> uniform{0.0, 1.0};  ///< Random nr generator that maps Mersenne twister output uniformly into range [0.0 1.0] (both inclusive)
