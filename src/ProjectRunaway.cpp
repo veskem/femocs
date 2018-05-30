@@ -78,6 +78,7 @@ int ProjectRunaway::finalize(double tstart) {
         GLOBALS.TIME += conf.behaviour.timestep_fs;
 
     last_full_timestep = timestep;
+    require(GLOBALS.TIME > 0, "Global time has not increased!");
 
     write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
     return 0;
@@ -310,7 +311,7 @@ int ProjectRunaway::run_heat_solver() {
         return converge_heat(conf.heating.t_ambient);
 
     if (mesh_changed && conf.heating.mode == "transient")
-        return solve_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, true, ccg, hcg);
+        return solve_heat(conf.heating.t_ambient, conf.behaviour.timestep_fs, true, ccg, hcg);
 
     return 0;
 }

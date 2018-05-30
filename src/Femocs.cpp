@@ -91,8 +91,6 @@ int Femocs::import_atoms (const string& file_name, const int add_noise) {
         write_verbose_msg( "#input atoms: " + d2s(reader.size()) );
     }
 
-
-
     start_msg(t0, "=== Comparing with previous run...");
     bool system_changed = reader.calc_rms_distance(conf.tolerance.distance) >= conf.tolerance.distance;
     end_msg(t0);

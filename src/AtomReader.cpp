@@ -64,6 +64,7 @@ void AtomReader::extract(Surface& surface, const int type, const bool invert) {
 }
 
 double AtomReader::calc_rms_distance(const double eps) {
+    rms_distance = DBL_MAX;
     if (eps <= 0) return DBL_MAX;
 
     const size_t n_atoms = size();
