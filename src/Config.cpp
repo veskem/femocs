@@ -73,7 +73,8 @@ Config::Config() {
     heating.n_cg = 2000;              // max number of Conjugate-Gradient iterations
     heating.cg_tolerance = 1e-9;      // solution accuracy in Conjugate-Gradient solver
     heating.ssor_param = 1.2;         // parameter for SSOR pre-conditioner in DealII; 1.2 is known to work well with Laplace
-    heating.delta_time = 1.e3;       // timestep of time domain integration [sec]
+    heating.delta_time = 1.e3;        // timestep of time domain integration [fs]
+    heating.dt_max = 1.e5;            // max allowed timestep
     heating.assemble_method = "euler"; // method to assemble system matrix for solving heat equation
 
     emission.blunt = true;            // by default emitter is blunt (simple SN barrier used for emission)
@@ -81,6 +82,7 @@ Config::Config() {
     emission.work_function = 4.5;     // work function [eV]
     emission.omega_SC = -1;           // SC is ignored in Emission by default
     emission.SC_error = 1.e-3;        // Convergence criterion for SC iteration
+    emission.Vappl_SC = 0.;           // Vappl used for SC calculations
 
     force.mode = "none";              // forces to be calculated; lorentz, all, none
 
@@ -100,7 +102,7 @@ Config::Config() {
     pic.dt_max = 1.0;
     pic.Wsp_el =  .01;
     pic.fractional_push = true;
-    pic.convergence = 1.e-3;
+    pic.convergence = .1;
 }
 
 // Remove the noise from the beginning of the string
@@ -131,12 +133,14 @@ void Config::read_all(const string& file_name) {
     read_command("omega_SC", emission.omega_SC);
     read_command("maxerr_SC", emission.SC_error);
     read_command("emitter_cold", emission.cold);
+    read_command("Vappl_SC", emission.Vappl_SC);
 
     read_command("t_ambient", heating.t_ambient);
     read_command("heating_mode", heating.mode);
     read_command("lorentz", heating.lorentz);
     read_command("rhofile", heating.rhofile);
     read_command("heat_dtinit", heating.delta_time);
+    read_command("heat_dtmax", heating.dt_max);
 
     read_command("smooth_steps", smoothing.n_steps);
     read_command("smooth_lambda", smoothing.lambda_mesh);
@@ -230,6 +234,13 @@ void Config::read_all(const string& file_name) {
     cfactor.amplitude = args[0];
     cfactor.r0_cylinder = static_cast<int>(args[1]);
     cfactor.r0_sphere = static_cast<int>(args[2]);
+
+    field.apply_factors.resize(16);
+    n_read_args = read_command("apply_factors", field.apply_factors);
+    if (n_read_args > 0)
+        field.apply_factors.resize(n_read_args);
+    else
+        field.apply_factors = {1.};
 }
 
 // Read the commands and their arguments from the file and store them into the buffer

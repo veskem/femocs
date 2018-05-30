@@ -387,7 +387,9 @@ void Medium::write(const string &file_name) const {
 
 // Compile data string from the data vectors
 string Medium::get_data_string(const int i) const {
-    if(i < 0) return "Medium properties=id:I:1:pos:R:3:marker:I:1";
+    if(i < 0)
+        return "time = " + to_string(GLOBALS.TIME) +
+            "Medium properties=id:I:1:pos:R:3:marker:I:1";
 
     ostringstream strs; strs << fixed;
     strs << atoms[i];

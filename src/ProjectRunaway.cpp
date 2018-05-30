@@ -289,14 +289,8 @@ int ProjectRunaway::prepare_export() {
 }
 
 int ProjectRunaway::run_field_solver() {
-    if (conf.field.solver == "poisson") {
-        if (conf.pic.mode == "transient")
-            return solve_pic(conf.behaviour.timestep_fs, mesh_changed);
-        else if (conf.pic.mode == "converge")
-            return converge_pic(1.e4);
-        else
-            check_return(false, "Invalid PIC mode: " + conf.pic.mode);
-    }
+    if (conf.field.solver == "poisson")
+        return solve_pic(conf.behaviour.timestep_fs, mesh_changed);
 
     if (mesh_changed && (conf.field.solver == "laplace" || conf.pic.mode == "none"))
         return solve_laplace(conf.field.E0, conf.field.V0);
@@ -306,9 +300,6 @@ int ProjectRunaway::run_field_solver() {
 
 int ProjectRunaway::run_heat_solver() {
     int ccg, hcg;
-
-    if (conf.heating.mode == "converge")
-        return converge_heat(conf.heating.t_ambient);
 
     if (mesh_changed && conf.heating.mode == "transient")
         return solve_heat(conf.heating.t_ambient, conf.behaviour.timestep_fs, true, ccg, hcg);
@@ -405,35 +396,6 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit) {
     // TODO Save ions and neutrals that are inbound on the MD domain somewhere where the MD can find them
 }
 
-int ProjectRunaway::converge_pic(double max_time) {
-    double time_window; //time window to check convergence
-    int i_max; //window iterations
-    if (max_time < conf.pic.dt_max * 32) {
-        time_window = max_time;
-        i_max = 1;
-    } else {
-        i_max =  ceil(max_time / (25 * conf.pic.dt_max));
-        time_window = max_time / i_max;
-    }
-
-    double I_mean, I_mean_prev;
-
-    start_msg(t0, "=== Converging PIC with time window " + d2s(time_window, 2) + " fs\n");
-    for (int i = 0; i < i_max; ++i) {
-        I_mean_prev = emission.get_mean_current();
-        solve_pic(time_window, i==0);
-        I_mean = emission.get_mean_current();
-
-        double err = (I_mean - I_mean_prev) / I_mean;
-        if (MODES.VERBOSE)
-            printf("  i=%d, I_mean=%e, error=%e\n", i, I_mean, err);
-
-        if (fabs(err) < conf.pic.convergence)
-            break;
-    }
-    return 0;
-}
-
 int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {
     if (full_run)
         ch_solver.setup(T_ambient);
@@ -443,7 +405,7 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
         start_msg(t0, "=== Calculating electron emission...");
         if (full_run) surface_fields.interpolate(ch_solver);
         surface_temperatures.interpolate(ch_solver);
-        emission.initialize(mesh);
+        emission.initialize(mesh, full_run);
         emission.calc_emission(conf.emission, conf.field.V0);
         end_msg(t0);
     }
@@ -475,67 +437,15 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     return 0;
 }
 
-int ProjectRunaway::converge_heat(double T_ambient) {
-    const int max_steps = 1000;
-    double delta_time = conf.heating.delta_time;
-    int ccg, hcg, step, error;
+int ProjectRunaway::write_results(bool force_write){
 
-//    mesh_changed = false; // run convergence always with the same mesh
-    bool global_verbosity = MODES.VERBOSE;
-
-    start_msg(t0, "=== Converging heat...\n");
-//    MODES.VERBOSE = false;
-
-    for (step = 0; step < max_steps; ++step) {
-
-        // advance heat and current system for delta_time
-        error = solve_heat(conf.heating.t_ambient, delta_time, step == 0, ccg, hcg);
-        if (error) return error;
-
-        // modify the advance time depending on how slowly the solution is changing
-        if (conf.pic.mode == "none" || conf.pic.mode == "converge")
-            GLOBALS.TIME += delta_time;
-
-        if (hcg < (ccg - 10)) // heat changed too little?
-            delta_time *= 1.25;
-        else if (hcg > (ccg + 10)) // heat changed too much?
-            delta_time /= 1.25;
-
-        // write debug data
-        if (global_verbosity)
-            printf( "t=%.2e ps, dt=%.2e ps, Tmax=%.2fK\n",
-                    GLOBALS.TIME * 1.e-3, delta_time * 1.e-3, ch_solver.heat.max_solution() );
-        write_results();
-
-        // check if the result has converged
-        if (max(hcg, ccg) < 10) break;
-
-        // update field - advance PIC for delta time
-        if (conf.pic.mode == "transient")
-            error = solve_pic(delta_time, false);
-        else if (conf.pic.mode == "converge")
-            error = converge_pic(delta_time);
-        if (error) return error;
-
-    }
-
-    MODES.VERBOSE = global_verbosity;
-    end_msg(t0);
-
-    check_return(step < max_steps, "Failed to converge heat equation after " + d2s(max_steps) + " steps!");
-    return 0;
-}
-
-int ProjectRunaway::write_results(){
-
-    if (!write_time()) return 1;
+    if (!write_time() && !force_write) return 1;
 
     vacuum_interpolator.extract_solution(poisson_solver);
     vacuum_interpolator.nodes.write("out/result_E_phi.movie");
     vacuum_interpolator.linhex.write("out/result_E_phi.vtk");
 
     if (conf.pic.mode != "none"){
-        emission.write("out/emission.dat");
         emission.write("out/emission.movie");
         pic_solver.write("out/electrons.movie");
         surface_fields.write("out/surface_fields.movie");
@@ -543,10 +453,8 @@ int ProjectRunaway::write_results(){
         vacuum_interpolator.nodes.write("out/result_E_charge.movie");
     }
 
-    if (conf.pic.mode == "none" && emission.atoms.size() > 0){
-        emission.write("out/emission.dat");
+    if (conf.pic.mode == "none" && emission.atoms.size() > 0)
         emission.write("out/surface_emission.movie");
-    }
 
     if (conf.heating.mode != "none"){
         bulk_interpolator.nodes.write("out/result_J_T.movie");

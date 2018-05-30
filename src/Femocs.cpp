@@ -8,6 +8,8 @@
 #include "Femocs.h"
 #include "Globals.h"
 #include "ProjectRunaway.h"
+#include "ProjectHeat.h"
+
 #include <omp.h>
 
 using namespace std;
@@ -39,8 +41,13 @@ Femocs::Femocs(const string &conf_file) : t0(0) {
     omp_set_num_threads(conf.behaviour.n_omp_threads);
 
     // pick the project to run
-    require(conf.behaviour.project == "runaway", "Unimplemented project: " + conf.behaviour.project);
-    project = new ProjectRunaway(reader, conf);
+    if (conf.behaviour.project == "runaway")
+        project = new ProjectRunaway(reader, conf);
+    else if(conf.behaviour.project == "heat")
+        project = new ProjectHeat(reader, conf);
+    else {
+        require(false, "Unimplemented project: " + conf.behaviour.project);
+    }
 }
 
 // delete data and print bye-bye-message
@@ -50,7 +57,7 @@ Femocs::~Femocs() {
 }
 
 // Generate FEM mesh and solve differential equation(s)
-int Femocs::run (const int timestep) {
+int Femocs::run(const int timestep) {
     return project->run(timestep);
 }
 
@@ -72,7 +79,7 @@ int Femocs::generate_nanotip() {
 }
 
 // import atoms from a file
-int Femocs::import_atoms (const string& file_name, const int add_noise) {
+int Femocs::import_atoms(const string& file_name, const int add_noise) {
     clear_log();
     string file_type, fname;
 
@@ -134,7 +141,7 @@ int Femocs::import_atoms (const string& file_name, const int add_noise) {
 }
 
 // import atoms from PARCAS
-int Femocs::import_atoms (const int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
+int Femocs::import_atoms(const int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
     clear_log();
 
     start_msg(t0, "=== Importing atoms...");
@@ -178,7 +185,7 @@ int Femocs::import_atoms (const int n_atoms, const double* coordinates, const do
 }
 
 // import coordinates and types of atoms
-int Femocs::import_atoms (const int n_atoms, const double* x, const double* y, const double* z, const int* types) {
+int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, const double* z, const int* types) {
     clear_log();
     conf.run.surface_cleaner = false; // disable the surface cleaner for atoms with known types
 

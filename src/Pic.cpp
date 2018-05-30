@@ -50,6 +50,7 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
         electrons.inject_particle(positions[i], velocity, cells[i]);
     }
 
+    inject_stats.injected += positions.size();
     return positions.size();
 }
 
@@ -145,6 +146,8 @@ int Pic<dim>::update_positions() {
 
     int n_lost_particles = electrons.clear_lost();
     electrons.sort();
+
+    inject_stats.removed += n_lost_particles;
     return n_lost_particles;
 }
 
@@ -207,7 +210,7 @@ void Pic<dim>::write(const string &filename) const {
     require(out.is_open(), "Can't open a file " + filename);
 
     out << max(1, electrons.size()) << endl;
-    out << "time=" << GLOBALS.TIME << ", Pic properties=id:I:1:pos:R:3:Velocity:R:3:cell:I:1" << endl;
+    out << "time= " << GLOBALS.TIME << ", Pic properties=id:I:1:pos:R:3:Velocity:R:3:cell:I:1" << endl;
 
     out.setf(ios::scientific);
     out.precision(6);

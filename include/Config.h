@@ -115,6 +115,7 @@ public:
         string anode_BC;         ///< Type of anode boundary condition (Dirichlet or Neumann)
         string solver;          ///< Type of field equation to be solved; laplace or poisson
         int element_degree;     ///< Degree of Finite elements (1: linear, 2: quadratic, 3: cubic ...
+        vector<double> apply_factors; ///< run for multiple applied E0 (or V0) multiplied by the factors
     } field;
 
     /** Heating module configuration parameters */
@@ -129,6 +130,7 @@ public:
         double cg_tolerance;        ///< Solution accuracy in Conjugate-Gradient solver
         double ssor_param;          ///< Parameter for SSOR preconditioner in DealII. Its fine tuning optimises calculation time.
         double delta_time;          ///< Timestep of time domain integration [sec]
+        double dt_max;               ///< Maximum allowed timestep for heat convergence run
         string assemble_method;     ///< Method to assemble system matrix for solving heat equation; euler or crank_nicolson
     } heating;
 
@@ -138,6 +140,7 @@ public:
         bool cold;                  ///< force cold field emission approximation (good for low temperatures)
         double omega_SC;            ///< Voltage correction factor for SC calculation (negative for ignoring SC)
         double SC_error;            ///< convergence criterion for SC error
+        double Vappl_SC;             ///< Applied voltage used for SC calculations (overrides Vappl * omega_SC)
     } emission;
 
     /** Parameters related to atomic force calculations */
@@ -173,6 +176,7 @@ public:
         bool fractional_push; ///< Do fractional timestep push when injecting electrons?
         bool coll_coulomb_ee; ///< Do 2e->2e Coulomb collisions?
         double convergence;    ///< relative error in current for convergence criterion
+                               ///< It is compared with the corresponding std in the pic convergence step
 
     } pic;
     

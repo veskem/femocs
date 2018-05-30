@@ -249,6 +249,7 @@ int SolutionReader::export_results(const int n_points, const string &data_type, 
                 data[id] = interpolation[i].scalar;
         }
     }
+
     return 0;
 }
 
@@ -567,7 +568,7 @@ EmissionReader::EmissionReader(const FieldReader *fr, const HeatReader *hr,
         fields(fr), heat(hr), mesh(NULL), poisson(p)
 {}
 
-void EmissionReader::initialize(const TetgenMesh* m) {
+void EmissionReader::initialize(const TetgenMesh* m, bool reinit) {
     mesh = m;
 
     int n_nodes = fields->size();
@@ -588,9 +589,9 @@ void EmissionReader::initialize(const TetgenMesh* m) {
     global_data.Jmax = 0.;
     global_data.Frep = 0.;
     global_data.Jrep = 0.;
-    global_data.multiplier = 1.;
+    if (reinit) global_data.multiplier = 1.;
     global_data.N_calls = 0;
-    global_data.I_cum = 0.;
+    global_data.Ilist.resize(0);
 }
 
 void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax) {
@@ -644,7 +645,6 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 }
 
 void EmissionReader::calc_representative() {
-    double area = 0.; // total emitting (FWHM) area
     double FJ = 0.; // int_FWHMarea (F*J)dS
     global_data.I_tot = 0;
     global_data.I_fwhm = 0;
@@ -657,13 +657,13 @@ void EmissionReader::calc_representative() {
         global_data.I_tot += currents[i];
 
         if (current_densities[i] > global_data.Jmax * 0.5){ //if point eligible
-            area += face_area; // increase total area
+            global_data.area += face_area; // increase total area
             global_data.I_fwhm += currents[i]; // increase total current
             FJ += currents[i] * fields->get_elfield_norm(i);
         }
     }
 
-    global_data.Jrep = global_data.I_fwhm / area;
+    global_data.Jrep = global_data.I_fwhm / global_data.area;
     global_data.Frep = global_data.multiplier * FJ / global_data.I_fwhm;
 }
 
@@ -698,11 +698,12 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
         gt.approx = 0; // simple GTF approximation
         cur_dens_c(&gt); // calculate emission
 
-        if (gt.ierr != 0 )
-            write_verbose_msg("GETELEC 1st call returned with error, ierr = " + d2s(gt.ierr));
+//        if (gt.ierr != 0 )
+//            write_verbose_msg("GETELEC 1st call returned with error, ierr = " + d2s(gt.ierr));
+
         J = gt.Jem * nm2_per_angstrom2; // current density in femocs units
 
-        if (J > 0.1 * global_data.Jmax && !cold){ // If J is worth it, calculate with full energy integration
+        if ((J > 0.1 * global_data.Jmax || gt.ierr) && !cold){ // If J is worth it, calculate with full energy integration
             gt.approx = 1;
             cur_dens_c(&gt);
             if (gt.ierr != 0 )
@@ -732,15 +733,23 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         emission_cycle(conf.work_function, conf.blunt, conf.cold);
         calc_representative();
 
-        if (conf.omega_SC <= 0.) break; // if Vappl<=0, SC is ignored
+        if (conf.omega_SC <= 0. && conf.Vappl_SC <=0.) break; // if Vappl<=0, SC is ignored
         if (i > 5) err_fact *= 0.5; // if not converged in first 6 steps, reduce factor
 
+        double Veff;
+        if (conf.Vappl_SC > 0.)
+            Veff = conf.Vappl_SC;
+        else
+            Veff = conf.omega_SC * Vappl;
         // calculate SC multiplier (function coming from getelec)
         global_data.multiplier = theta_SC(global_data.Jrep / nm2_per_angstrom2,
-                conf.omega_SC * Vappl, angstrom_per_nm * global_data.Frep);
+                Veff, angstrom_per_nm * global_data.Frep);
 
-        printf("SC cycle #%d, theta=%f, Jrep=%e, Frep=%e, Itot=%e\n", i, global_data.multiplier,
-                global_data.Jrep, global_data.Frep, global_data.I_tot);
+        if (MODES.VERBOSE) {
+            // setbuf(stdout, NULL);  // if flushing still active, try commenting in this line
+            printf("SC cycle #%d, theta=%f, Jrep=%e, Frep=%e, Itot=%e\n", i,
+                    global_data.multiplier, global_data.Jrep, global_data.Frep, global_data.I_tot);
+        }
 
         error = global_data.multiplier - theta_old;
         global_data.multiplier = theta_old + error * err_fact;
@@ -749,15 +758,19 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         // if converged break
         if (abs(error) < conf.SC_error) break;
     }
-    global_data.I_cum += global_data.I_tot;
+    global_data.Ilist.push_back(global_data.I_tot);
+    write("out/emission.dat");
 }
 
 string EmissionReader::get_data_string(const int i) const {
-    if (i < 0) return "EmissionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
-
-    ostringstream strs; strs << fixed;
+    if (i < 0) {
+        return "time = " + to_string(GLOBALS.TIME) +
+                ", EmissionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" +
+                vec_norm_label + ":R:1:" + scalar_label + ":R:1";
+    }
+    ostringstream strs; strs << setprecision(6);
     strs << atoms[i] << ' ' << fields->get_elfield(i)
-             << ' ' << log(current_densities[i]) << ' ' << log(fabs(nottingham[i]));
+             << ' ' << log(current_densities[i]) << ' ' << nottingham[i];
 
     return strs.str();
 }
@@ -766,15 +779,35 @@ string EmissionReader::get_global_data(const bool first_line) const {
     ostringstream strs;
 
     //specify data header
-    if (first_line) strs << "time Itot Imean Jrep Frep Jmax Fmax multiplier" << endl;
+    if (first_line) strs << "time      Itot        Imean        I_fwhm        Area        Jrep"
+            "         Frep         Jmax        Fmax         multiplier" << endl;
+
+    double I_mean = 0.;
+    for (auto x : global_data.Ilist)
+        I_mean += x;
 
     strs << fixed << setprecision(2) << GLOBALS.TIME;
     strs << scientific << setprecision(6) << " " << global_data.I_tot << " "
-            << global_data.I_cum / global_data.N_calls << " " << global_data.Jrep << " "
+            << I_mean / global_data.N_calls << " " << global_data.I_fwhm << " "
+            << global_data.area << " " << global_data.Jrep << " "
             << global_data.Frep << " " << global_data.Jmax << " "
             << global_data.Fmax << " " << global_data.multiplier;
 
     return strs.str();
+}
+
+void EmissionReader::calc_global_stats(){
+    global_data.I_mean = 0;
+    global_data.I_std = 0;
+    for (auto x : global_data.Ilist)
+        global_data.I_mean += x;
+    global_data.I_mean /= global_data.Ilist.size();
+
+    for (auto x : global_data.Ilist)
+        global_data.I_std += (x - global_data.I_mean) * (x - global_data.I_mean);
+
+    global_data.I_std = sqrt(global_data.I_std / global_data.Ilist.size());
+    global_data.Ilist.resize(0); //reinit statistics
 }
 
 void EmissionReader::export_emission(CurrentHeatSolver<3>& ch_solver) {
