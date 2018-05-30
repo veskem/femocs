@@ -12,7 +12,7 @@ lib/libfemocs.a: build/.build/Makefile src/* include/*
 
 build/.build/Makefile:
 	mkdir -p build/.build;
-	cd build/.build; rm -rf *; cmake -DCMAKE_BUILD_TYPE=${build_type} -DTARGET_TYPE=lib -DLIBCGAL=${LIBCGAL} \
+	cd build/.build; rm -rf *; cmake -DCMAKE_BUILD_TYPE=${build_type} -DTARGET_TYPE=lib -DLIBCGAL=${LIBCGAL} -DN_DEALII=${N_DEALII} \
 -DCMAKE_Fortran_COMPILER=${F90} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} ..;
 
 clean:

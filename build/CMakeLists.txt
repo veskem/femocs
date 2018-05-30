@@ -33,6 +33,13 @@ PROJECT(${TARGET} C CXX Fortran)
 # enable or disable verbose build
 SET(CMAKE_VERBOSE_MAKEFILE off)
 
+# set explicitly number of threads used by Deal.II
+# if not set, determination will be done automatically
+IF (N_DEALII GREATER 0)
+    MESSAGE(STATUS "Setting \# Deal.II threads to " ${N_DEALII})
+    SET(DEAL_II_NUM_THREADS N_DEALII)
+ENDIF()
+
 # ==============================================
 # ========== Path for input & output ===========
 # ==============================================

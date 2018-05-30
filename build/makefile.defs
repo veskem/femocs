@@ -14,6 +14,10 @@ FMAIN=src/main/Main.f90
 ## Number of cores used during compilation
 NPROCS=4
 
+## Number of parallel threads used by Deal.II
+## <= 0 activates automatic determination
+N_DEALII=-1
+
 ## Fortran, C++ and C Compilers
 F90=gfortran
 CXX=c++
