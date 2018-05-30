@@ -61,6 +61,7 @@ public:
         double write_period;        ///< Write files every write_period (in fs)
         double timestep_fs;         ///< Total time evolution within a FEMOCS run call [fs]
         unsigned int rnd_seed;      ///< Seed for random number generator
+        unsigned int n_omp_threads; ///< Maximum number of opened OpenMP threads
     } behaviour;
 
     /** Enable or disable various support features */

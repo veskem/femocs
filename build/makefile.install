@@ -3,6 +3,7 @@
 #############################################################################
 
 include build/makefile.defs
+include share/makefile.femocs
 
 all: GETELEC/Makefile GETELEC/lib/libgetelec.a lib/libtet.a dealii/lib/libdeal_II.a
 
