@@ -34,11 +34,6 @@ public:
      */
     int run(const int timestep=-1);
 
-    /** Function to generate artificial nanotip without crystallographic features
-     * @return            success of the operation (always 0)
-     */
-    int generate_nanotip();
-
     /** Function to import atoms from PARCAS
      * @param n_atoms       number of imported atoms
      * @param coordinates   normalised coordinates of atoms in PARCAS format
@@ -166,6 +161,9 @@ private:
     Config conf;             ///< configuration parameters
     AtomReader reader;       ///< all the imported atoms
     GeneralProject *project; ///< project Femocs is going to run
+
+    void perform_full_analysis(const int* nborlist);
+    void perform_pseudo_analysis();
 };
 
 } /* namespace femocs */

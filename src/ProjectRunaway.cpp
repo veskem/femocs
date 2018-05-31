@@ -64,7 +64,7 @@ int ProjectRunaway::reinit(int tstep) {
     timestep_string = "_" + string( max(0.0, 6.0 - timestep_string.length()), '0' ) + timestep_string;
 
     mesh_changed = false;
-    skip_meshing = reader.rms_distance < conf.tolerance.distance;
+    skip_meshing = reader.get_rmsd() < conf.tolerance.distance;
 
     write_silent_msg("Running at timestep " + d2s(timestep));
     return skip_meshing;
@@ -95,7 +95,7 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
 
     if (reinit(tstep))
         write_verbose_msg("Atoms haven't moved significantly, "
-                + d2s(reader.rms_distance, 3) + " < " + d2s(conf.tolerance.distance, 3)
+                + d2s(reader.get_rmsd(), 3) + " < " + d2s(conf.tolerance.distance, 3)
                 + "! Previous mesh will be used!");
 
     else if (generate_mesh())
@@ -511,7 +511,7 @@ int ProjectRunaway::export_data(double* data, const int n_points, const string &
         require(n_points <= reader.size(), "Invalid data query size: " + d2s(n_points));
         for (int i = 0; i < n_points; ++i)
             data[i] = reader.get_marker(i);
-        return reader.check_clusters(0);
+        return reader.get_n_detached();
     }
 
     require(false, "Unimplemented type of export data: " + data_type);

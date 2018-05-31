@@ -443,12 +443,8 @@ int main(int argc, char **argv) {
     for (int i = 1; i <= n_iterations; ++i) {
         if (n_iterations > 1) cout << "\n> iteration " << i << endl;
 
-        if (mode == "generate")
-            success = femocs.generate_nanotip();
-        else if (mode == "wobble")
-            success = femocs.import_atoms(infile, true);
-        else if (n_atoms > 0)
-            success = femocs.import_atoms(infile);
+        if (n_atoms > 0)
+            success = femocs.import_atoms(infile, mode=="wobble");
 
         success += femocs.run();
 //        success += femocs.export_elfield(0, Ex, Ey, Ez, En);
