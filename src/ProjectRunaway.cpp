@@ -85,18 +85,15 @@ int ProjectRunaway::finalize(double tstart) {
 }
 
 int ProjectRunaway::run(const int timestep) {
-    return run(conf.field.E0, timestep);
-}
-
-int ProjectRunaway::run(const double elfield, const int tstep) {
     double tstart = omp_get_wtime();
 
     //***** Build or import mesh *****
 
-    if (reinit(tstep))
+    if (reinit(timestep)) {
         write_verbose_msg("Atoms haven't moved significantly, "
                 + d2s(reader.get_rmsd(), 3) + " < " + d2s(conf.tolerance.distance, 3)
                 + "! Previous mesh will be used!");
+    }
 
     else if (generate_mesh())
         return process_failed("Mesh generation failed!");
@@ -166,7 +163,7 @@ int ProjectRunaway::generate_mesh() {
     end_msg(t0);
     check_return(fail, "Mesh generation failed!");
 
-    if (conf.run.surface_cleaner) {
+    if (conf.run.surface_cleaner && dense_surf.size() > 0) {
         start_msg(t0, "=== Cleaning surface atoms...");
         dense_surf.clean_by_triangles(atom2face, vacuum_interpolator, new_mesh, conf.geometry.latconst);
         end_msg(t0);
@@ -301,8 +298,8 @@ int ProjectRunaway::run_field_solver() {
 int ProjectRunaway::run_heat_solver() {
     int ccg, hcg;
 
-    if (mesh_changed && conf.heating.mode == "transient")
-        return solve_heat(conf.heating.t_ambient, conf.behaviour.timestep_fs, true, ccg, hcg);
+    if (conf.heating.mode == "transient")
+        return solve_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, mesh_changed, ccg, hcg);
 
     return 0;
 }
@@ -325,6 +322,8 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
     start_msg(t0, "=== Extracting E and phi...");
     vacuum_interpolator.extract_solution(poisson_solver);
     end_msg(t0);
+
+    GLOBALS.TIME += conf.behaviour.timestep_fs;
 
     vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
     vacuum_interpolator.lintet.write("out/result_E_phi.vtk");
@@ -380,10 +379,12 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit) {
         int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
         
         write_results();
-        if (MODES.VERBOSE)
+
+        if (MODES.VERBOSE) {
             printf("  t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
                     GLOBALS.TIME, n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot,
                     n_injected, n_lost, pic_solver.get_n_electrons());
+        }
 
         GLOBALS.TIME += dt_pic;
     }
@@ -470,20 +471,18 @@ int ProjectRunaway::force_output() {
 
     MODES.WRITEFILE = true;
 
-    reader.write("out/reader.xyz");
+    reader.write("out/reader.ckx");
     mesh->hexs.write("out/hexmesh_err.vtk");
-    mesh->tets.write("out/tetmesh_err.vtk");
-    mesh->tris.write("out/trimesh_err.vtk");
+    mesh->quads.write("out/quadmesh_err.vtk");
 
-    vacuum_interpolator.nodes.write("out/result_E_phi_err.xyz");
-    vacuum_interpolator.lintet.write("out/result_E_phi_err.vtk");
+    if (conf.field.solver != "none" && vacuum_interpolator.nodes.size() > 0) {
+        vacuum_interpolator.nodes.write("out/result_E_phi_err.xyz");
+        vacuum_interpolator.lintet.write("out/result_E_phi_err.vtk");
+    }
 
-    if (bulk_interpolator.nodes.size() > 0) {
-        if (conf.heating.mode == "transient") {
-            bulk_interpolator.nodes.write("out/result_J_T_err.xyz");
-            ch_solver.current.write("out/result_J_err.vtk");
-            ch_solver.heat.write("out/result_T_err.vtk");
-        }
+    if (conf.heating.mode != "none" && bulk_interpolator.nodes.size() > 0) {
+        bulk_interpolator.nodes.write("out/result_J_T_err.xyz");
+        bulk_interpolator.lintet.write("out/result_J_T_err.vtk");
     }
 
     return 0;
@@ -522,7 +521,6 @@ int ProjectRunaway::interpolate(double* data, int* flag,
         const int n_points, const string &data_type, const bool near_surface,
         const double* x, const double* y, const double* z)
 {
-
     // location of interpolation; 2-on surface, 3-in space
     int dim = 3;
     if (near_surface) dim = 2;

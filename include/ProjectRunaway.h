@@ -32,14 +32,12 @@ public:
     ProjectRunaway(AtomReader &reader, Config &conf);
     ~ProjectRunaway() {}
 
-    int run(const int timestep=-1);
-
     /** Function to generate FEM mesh and to solve differential equation(s)
      * @param elfield   long range electric field strength
      * @param timestep  active time step in the host code
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
-    int run(const double elfield, const int timestep=-1);
+    int run(const int timestep=-1);
 
     /** Force the data to the files for debugging purposes */
     int force_output();

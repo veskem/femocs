@@ -96,9 +96,8 @@ int ProjectHeat::converge_pic(double max_time) {
         emission.calc_global_stats();
         double err = (emission.global_data.I_mean - I_mean_prev) / emission.global_data.I_mean;
         if (MODES.VERBOSE){
-            printf("  i=%d, I_mean= %e A, I_std=%.2f%, error=%.2f%", i, emission.global_data.I_mean,
+            printf("  i=%d, I_mean= %e A, I_std=%.2f, error=%.2f\n", i, emission.global_data.I_mean,
                     100. * emission.global_data.I_std / emission.global_data.I_mean, 100 * err);
-            cout << endl;
         }
         I_mean_prev = emission.global_data.I_mean;
 
