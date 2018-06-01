@@ -193,10 +193,16 @@ public:
     void locate_atoms(const Medium &medium);
 
     /** Apply Berendsen thermostat for atoms within a tetrahedron */
-    int scale_berendsen(double* x1, const int n_atoms, const Vec3& parcas2si);
+    int scale_berendsen_long(double* x1, const int n_atoms, const Vec3& parcas2si);
 
     /** Apply Berendsen thermostat for individual atoms */
-    int scale_berendsen_v2(double* x1, const int n_atoms, const Vec3& parcas2si);
+    int scale_berendsen_short(double* x1, const int n_atoms, const Vec3& parcas2si);
+
+    void set_params(const Config& conf) {
+        data.tau = conf.heating.tau;
+        data.md_timestep = conf.behaviour.timestep_fs;
+        data.timeunit = 10.1805*sqrt(conf.behaviour.mass);
+    }
 
     /** Return current density in i-th interpolation point */
     Vec3 get_rho(const int i) const {
@@ -217,8 +223,19 @@ public:
     }
 
 private:
-    static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant in eV/K
-    static constexpr double heat_factor = 1.0/(3.0*kB);  ///< Factor to transfer 2*kinetic energy to temperature
+    static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant [eV/K]
+    static constexpr double heat_factor = 1.0 / (2*1.5*kB);  ///< Factor to transfer 2*kinetic energy to temperature
+
+    struct Data {
+        double tau;          ///< Time constant in Berendsen scaling [fs]
+        double md_timestep;  ///< MD time step [fs]
+        double timeunit;     ///< the conversion factor of Parcas internal units to fs.
+    } data;
+
+    void calc_MD_temperatures(vector<double> &md_temp,
+            const vector<vector<int>> &tet2atoms, const vector<Vec3> &velocities);
+
+    void calc_FEM_temperatures(vector<double> &fem_temp);
 
     /** Transfer velocities from Parcas units to fm / fs */
     void calc_SI_velocities(vector<Vec3>& velocities, const int n_atoms, const Vec3& parcas2si, double* x1);

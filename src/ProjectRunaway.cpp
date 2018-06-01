@@ -38,6 +38,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         pic_solver(&poisson_solver, &ch_solver, &emission, conf.behaviour.rnd_seed)
 {
     poisson_solver.set_particles(pic_solver.get_particles());
+    temperatures.set_params(config);
 
     // Initialise heating module
     start_msg(t0, "=== Reading physical quantities...");
@@ -504,7 +505,7 @@ int ProjectRunaway::export_data(double* data, const int n_points, const string &
         return forces.export_parcas(n_points, data_type, reader.get_si2parcas_box(), data);
 
     if (data_type == LABELS.parcas_velocity)
-        return temperatures.scale_berendsen(data, n_points, reader.get_parcas2si_box());
+        return temperatures.scale_berendsen_long(data, n_points, reader.get_parcas2si_box());
 
     if (data_type == LABELS.atom_type) {
         require(n_points <= reader.size(), "Invalid data query size: " + d2s(n_points));

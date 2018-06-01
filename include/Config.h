@@ -60,6 +60,7 @@ public:
         int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
         double write_period;        ///< Write files every write_period (in fs)
         double timestep_fs;         ///< Total time evolution within a FEMOCS run call [fs]
+        double mass;                ///< Atom mass [amu]
         unsigned int rnd_seed;      ///< Seed for random number generator
         unsigned int n_omp_threads; ///< Number of opened OpenMP threads
     } behaviour;
@@ -130,7 +131,8 @@ public:
         double cg_tolerance;        ///< Solution accuracy in Conjugate-Gradient solver
         double ssor_param;          ///< Parameter for SSOR preconditioner in DealII. Its fine tuning optimises calculation time.
         double delta_time;          ///< Timestep of time domain integration [sec]
-        double dt_max;               ///< Maximum allowed timestep for heat convergence run
+        double dt_max;              ///< Maximum allowed timestep for heat convergence run
+        double tau;                 ///< Time constant in Berendsen thermostat
         string assemble_method;     ///< Method to assemble system matrix for solving heat equation; euler or crank_nicolson
     } heating;
 
@@ -169,22 +171,25 @@ public:
     /** Particle In Cell module configuration */
     struct PIC {
         string mode;      ///< Pic mode (transient, converge or none)
-        double dt_max;        ///< Maximum PIC timestep [fs];
-                              ///  the actual PIC timestep will be smaller
-                              ///  such that it is an integer fraction of the MD timestep
+
+        /** Maximum PIC timestep [fs].
+         * The actual PIC timestep will be smaller
+         * such that it is an integer fraction of the MD timestep. */
+        double dt_max;
         double Wsp_el;        ///< Superparticle weight for electrons
         bool fractional_push; ///< Do fractional timestep push when injecting electrons?
         bool coll_coulomb_ee; ///< Do 2e->2e Coulomb collisions?
-        double convergence;    ///< relative error in current for convergence criterion
-                               ///< It is compared with the corresponding std in the pic convergence step
 
+        /** Relative error in current for convergence criterion.
+         * It is compared with the corresponding std in the pic convergence step. */
+        double convergence;
     } pic;
     
 private:
     vector<vector<string>> data;          ///< commands and their arguments found from the input script
 
     const string comment_symbols = "!#%";
-    const string data_symbols = "+-/*_.0123456789abcdefghijklmnopqrstuvwxyz";
+    const string data_symbols = "+-/*_.0123456789abcdefghijklmnopqrstuvwxyz()";
 
     /** Check for the obsolete commands from the buffered commands */
     void check_obsolete(const string& file_name);

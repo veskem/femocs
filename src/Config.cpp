@@ -26,6 +26,7 @@ Config::Config() {
     behaviour.interpolation_rank = 1; // rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
     behaviour.write_period = 1.e5;    // write files every write_period of time
     behaviour.timestep_fs = 4.05;     // Total time of a FEMOCS run [fs]
+    behaviour.mass = 63.5460;         // Atom mass [amu]
     behaviour.rnd_seed = 12345;       // Seed for random number generator
     behaviour.n_omp_threads = 1;      // Number of opened OpenMP threads
 
@@ -75,6 +76,7 @@ Config::Config() {
     heating.ssor_param = 1.2;         // parameter for SSOR pre-conditioner in DealII; 1.2 is known to work well with Laplace
     heating.delta_time = 1.e3;        // timestep of time domain integration [fs]
     heating.dt_max = 1.e5;            // max allowed timestep
+    heating.tau = 100.0;              // time constant in Berendsen thermostat
     heating.assemble_method = "euler"; // method to assemble system matrix for solving heat equation
 
     emission.blunt = true;            // by default emitter is blunt (simple SN barrier used for emission)
@@ -191,6 +193,7 @@ void Config::read_all(const string& file_name) {
     read_command("interpolation_rank", behaviour.interpolation_rank);
     read_command("write_period", behaviour.write_period);
     read_command("femocs_run_time", behaviour.timestep_fs);
+    read_command("mass(1)", behaviour.mass);
     read_command("seed", behaviour.rnd_seed);
     read_command("n_omp", behaviour.n_omp_threads);
 
