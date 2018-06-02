@@ -192,6 +192,9 @@ public:
 
     void locate_atoms(const Medium &medium);
 
+    /** Compute data that Berendsen thermostat requires for re-using old solution */
+    void precalc_berendsen_long();
+
     /** Apply Berendsen thermostat for individual atoms */
     int scale_berendsen_short(double* x1, const int n_atoms, const Vec3& parcas2si);
 
@@ -226,6 +229,9 @@ public:
 private:
     static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant [eV/K]
     static constexpr double heat_factor = 1.0 / (2*1.5*kB);  ///< Factor to transfer 2*kinetic energy to temperature
+
+    vector<vector<int>> tet2atoms;
+    vector<double> fem_temp;
 
     struct Data {
         double tau;          ///< Time constant in Berendsen scaling [fs]

@@ -192,7 +192,7 @@ int ProjectRunaway::generate_mesh() {
 }
 
 int ProjectRunaway::prepare_solvers() {
-    start_msg(t0, "=== Importing mesh to Poisson solver...");
+    start_msg(t0, "=== Importing vacuum mesh to Deal.II...");
     fail = !poisson_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_vacuum());
     check_return(fail, "Importing vacuum mesh to Deal.II failed!");
     end_msg(t0);
@@ -201,7 +201,7 @@ int ProjectRunaway::prepare_solvers() {
     vacuum_interpolator.lintet.narrow_search_to(TYPES.VACUUM);
 
     if (conf.field.solver == "poisson" || conf.heating.mode != "none") {
-        start_msg(t0, "=== Importing mesh to J & T solver...");
+        start_msg(t0, "=== Importing bulk mesh to Deal.II...");
         fail = !ch_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_bulk());
         check_return(fail, "Importing bulk mesh to Deal.II failed!");
         end_msg(t0);
@@ -234,6 +234,7 @@ int ProjectRunaway::prepare_export() {
         start_msg(t0, "=== Interpolating J & T...");
         temperatures.set_preferences(false, 3, conf.behaviour.interpolation_rank);
         temperatures.interpolate(reader);
+        temperatures.precalc_berendsen_long();
         end_msg(t0);
 
         // TODO implement reasonable temperature limit check
