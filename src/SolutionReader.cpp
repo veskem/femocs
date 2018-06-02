@@ -323,7 +323,7 @@ void SolutionReader::interpolate(const AtomReader &reader) {
 
     // store atom coordinates
     for (Atom atom : reader.atoms)
-//        if (atom.marker != TYPES.FIXED)
+        if (atom.marker != TYPES.FIXED)
             append(atom);
 
     // interpolate solution
@@ -471,7 +471,7 @@ int HeatReader::scale_berendsen_short(double* x1, const int n_atoms, const Vec3&
         int id = get_id(i);
         if (id < 0 || id >= n_atoms) continue;
 
-        double md_temperature = velocities[i].norm2() * heat_factor;
+        double md_temperature = velocities[id].norm2() * heat_factor;
         double lambda = calc_lambda(md_temperature, get_temperature(i));
 
         // export scaled velocity
@@ -480,8 +480,10 @@ int HeatReader::scale_berendsen_short(double* x1, const int n_atoms, const Vec3&
             x1[I+j] *= lambda;
 
         // store scaled velocity without affecting current density norm and temperature
-        interpolation[i].vector = velocities[i] * lambda;
+//        interpolation[i].vector = velocities[id] * lambda;
     }
+
+//    write("out/berendsen.movie");
 
     return 0;
 }
@@ -500,62 +502,48 @@ int HeatReader::scale_berendsen_long(double* x1, const int n_atoms, const Vec3& 
     vector<Vec3> velocities;
     calc_SI_velocities(velocities, n_atoms, parcas2si, x1);
 
-    // calculate average temperature inside each tetrahedron
-    vector<double> fem_temp;
-    calc_FEM_temperatures(fem_temp);
 
-    // calculate atomistic temperatures before the scaling
-    vector<double> md_temp;
-    calc_MD_temperatures(md_temp, tet2atoms, velocities);
-
-    // scale velocities from MD temperature to calculated one
     for (int tet = 0; tet < n_tets; ++tet) {
-        if (tet2atoms[tet].size() > 0) {
-            double lambda = calc_lambda(md_temp[tet], fem_temp[tet]);
+        int n_atoms_in_tet = tet2atoms[tet].size();
+        if (n_atoms_in_tet) {
+
+            // calculate average temperature inside tetrahedron
+            double fem_temp = 0;
+            for (int node : interpolator->lintet.get_cell(tet))
+                fem_temp += interpolator->nodes.get_scalar(node);
+            fem_temp /= n_nodes_per_tet;
+
+            // calculate average temperature of atoms inside a tetrahedron
+            double md_temp = 0;
             for (int atom : tet2atoms[tet]) {
                 int id = get_id(atom);
+                if (id < 0 || id >= n_atoms) continue;
+                md_temp += velocities[id].norm2();
+            }
+            md_temp *= heat_factor / n_atoms_in_tet;
 
+            // calculate scaling factor
+            double lambda = calc_lambda(md_temp, fem_temp);
+
+            // scale the velocities towards tetrahedron temperature
+            for (int atom : tet2atoms[tet]) {
+                int id = get_id(atom);
                 if (id < 0 || id >= n_atoms) continue;
 
                 int I = 3 * id;
                 for (int j = 0; j < 3; ++j)
                     x1[I+j] *= lambda;
 
-                interpolation[atom].vector = velocities[atom] * lambda;
-                interpolation[atom].scalar = fem_temp[tet];
+                // store scaled velocity and temperature without affecting current density norm
+//                interpolation[atom].vector = velocities[id] * lambda;
+//                interpolation[atom].scalar = fem_temp;
             }
         }
     }
 
+//    write("out/berendsen.movie");
+
     return 0;
-}
-
-void HeatReader::calc_FEM_temperatures(vector<double> &fem_temp) {
-    const int n_tets = interpolator->lintet.size();
-
-    fem_temp = vector<double>(n_tets);
-    for (int tet = 0; tet < n_tets; ++tet) {
-        for (int node : interpolator->lintet.get_cell(tet))
-            fem_temp[tet] += interpolator->nodes.get_scalar(node);
-        fem_temp[tet] /= n_nodes_per_tet;
-    }
-}
-
-void HeatReader::calc_MD_temperatures(vector<double> &md_temp, const vector<vector<int>> &tet2atoms,
-        const vector<Vec3> &velocities)
-{
-    const int n_tets = interpolator->lintet.size();
-
-    md_temp = vector<double>(n_tets);
-    for (int tet = 0; tet < n_tets; ++tet) {
-        int n_atoms_in_tet = tet2atoms[tet].size();
-        if (n_atoms_in_tet > 0) {
-            double Ekin = 0;
-            for (int atom : tet2atoms[tet])
-                Ekin += velocities[atom].norm2();
-            md_temp[tet] = Ekin * heat_factor / n_atoms_in_tet;
-        }
-    }
 }
 
 double HeatReader::calc_lambda(const double T_start, const double T_end) const {
@@ -567,7 +555,7 @@ void HeatReader::calc_SI_velocities(vector<Vec3>& velocities,
         const int n_atoms, const Vec3& parcas2si, double* x1) {
 
     // timestep in PARCAS units
-    const double delta_t = data.md_timestep/data.timeunit;
+    const double delta_t = data.md_timestep/data.time_unit;
 
     // factor to transfer velocity from PARCAS units to fm / fs
     const Vec3 velocity_factor = parcas2si / delta_t;
