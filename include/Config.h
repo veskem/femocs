@@ -72,6 +72,7 @@ public:
         bool rdf;                   ///< Re-calculate lattice constant and coordination analysis parameters using radial distribution function
         bool output_cleaner;        ///< Clear output folder before the run
         bool surface_cleaner;       ///< Clean surface by measuring the atom distance from the triangular surface
+        bool field_smoother;        ///< Replace nodal field with the average of its neighbouring nodal fields
     } run;
 
     /** Sizes related to mesh, atoms and simubox */

@@ -35,6 +35,7 @@ Config::Config() {
     run.rdf = false;                  // use radial distribution function to recalculate lattice constant and coordination analysis parameters
     run.output_cleaner = true;        // clear output folder
     run.surface_cleaner = true;       // clean surface by measuring the atom distance from the triangular surface
+    run.field_smoother = true;        // replace nodal field with the average of its neighbouring nodal fields
 
     geometry.mesh_quality = "2.0";    // minimum tetrahedron quality Tetgen is allowed to make
     geometry.element_volume = "";     // maximum tetrahedron volume Tetgen is allowed to make
@@ -184,6 +185,7 @@ void Config::read_all(const string& file_name) {
     read_command("use_rdf", run.rdf);
     read_command("clear_output", run.output_cleaner);
     read_command("clean_surface", run.surface_cleaner);
+    read_command("smoothen_field", run.field_smoother);
     read_command("femocs_periodic", MODES.PERIODIC);
     read_command("write_log", MODES.WRITELOG);
 

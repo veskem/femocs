@@ -25,11 +25,7 @@ Interpolator::Interpolator(const string& nl, const string& sl) :
     mesh(NULL), empty_value(0) 
     {}
 
-// Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
-// surrounding hexahedral nodes
-bool Interpolator::average_sharp_nodes(const bool vacuum) {
-
-    return false;
+bool Interpolator::average_nodal_fields(const bool vacuum) {
     vector<vector<unsigned int>> nborlist;
     mesh->calc_pseudo_3D_vorocells(nborlist, vacuum);
 
@@ -57,8 +53,6 @@ bool Interpolator::average_sharp_nodes(const bool vacuum) {
     return false;
 }
 
-/* Calculate mapping between Femocs & deal.II mesh nodes,
- nodes & hexahedral elements and nodes & element's vertices */
 void Interpolator::get_maps(vector<int>& cell_indxs, vector<int>& vert_indxs,
         dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh)
 {
@@ -71,15 +65,6 @@ void Interpolator::get_maps(vector<int>& cell_indxs, vector<int>& vert_indxs,
     const int n_dealii_nodes = tria->n_used_vertices();
 
     vector<int> node2hex(n_dealii_nodes), node2vert(n_dealii_nodes);
-//    femocs2deal = vector<int>(n_femocs_nodes, -1);
-//
-//    typename dealii::Triangulation<3>::active_vertex_iterator vertex = tria->begin_active_vertex();
-//    // Loop through tetrahedral mesh vertices
-//    for (int i = 0; i < n_femocs_nodes && vertex != tria->end_vertex(); ++i)
-//        if ( mesh->nodes[i].distance2(vertex->vertex()) < vertex_epsilon ) {
-//            femocs2deal[i] = vertex->vertex_index();
-//            vertex++;
-//        }
 
     // Loop through the hexahedral mesh elements
     typename dealii::DoFHandler<3>::active_cell_iterator cell;
@@ -232,8 +217,7 @@ void Interpolator::extract_solution(CurrentHeatSolver<3>& fem) {
     store_solution(fem.get_current(cell_indxs, vert_indxs), fem.get_temperature(cell_indxs, vert_indxs));
 }
 
-void Interpolator::extract_solution_v2(PoissonSolver<3>& fem) {
-
+void Interpolator::extract_solution_v2(PoissonSolver<3>& fem, const bool smoothen) {
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> cell_indxs, vert_indxs;
     get_maps(cell_indxs, vert_indxs, fem.get_triangulation(), fem.get_dof_handler());
@@ -242,10 +226,10 @@ void Interpolator::extract_solution_v2(PoissonSolver<3>& fem) {
     store_solution(fem.get_efield(cell_indxs, vert_indxs), fem.get_potential(cell_indxs, vert_indxs));
 
     // Remove the spikes from the solution
-    average_sharp_nodes(true);
+    if (smoothen) average_nodal_fields(true);
 }
 
-void Interpolator::extract_solution(PoissonSolver<3>& fem) {
+void Interpolator::extract_solution(PoissonSolver<3>& fem, const bool smoothen) {
     store_solution(fem);
 
     // calculate field in the location of mesh nodes by calculating minus gradient of potential
@@ -254,6 +238,8 @@ void Interpolator::extract_solution(PoissonSolver<3>& fem) {
         if (femocs2deal[node] >= 0)
             store_elfield(node);
     }
+
+    if (smoothen) average_nodal_fields(true);
 }
 
 } // namespace femocs

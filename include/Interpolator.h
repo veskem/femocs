@@ -56,8 +56,8 @@ public:
     void extract_solution(CurrentHeatSolver<3>& fem);
     
     /** Extract electric potential and field values from FEM solution */
-    void extract_solution(PoissonSolver<3>& fem);
-    void extract_solution_v2(PoissonSolver<3>& fem);
+    void extract_solution(PoissonSolver<3>& fem, const bool smoothen);
+    void extract_solution_v2(PoissonSolver<3>& fem, const bool smoothen);
 
     /** Extract charge density from FEM solution */
     void extract_charge_density(PoissonSolver<3>& fem);
@@ -95,7 +95,7 @@ private:
 
     /** Force the solution on tetrahedral nodes to be the weighed average of the solutions on its
      *  surrounding hexahedral nodes */
-    bool average_sharp_nodes(const bool vacuum);
+    bool average_nodal_fields(const bool vacuum);
 };
 
 } // namespace femocs

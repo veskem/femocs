@@ -323,7 +323,7 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
     end_msg(t0);
 
     start_msg(t0, "=== Extracting E and phi...");
-    vacuum_interpolator.extract_solution(poisson_solver);
+    vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
     end_msg(t0);
 
     GLOBALS.TIME += conf.behaviour.timestep_fs;
@@ -368,7 +368,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit) {
         int n_cg_steps = poisson_solver.solve();
 
         // must be after solving Poisson and before updating velocities
-        vacuum_interpolator.extract_solution(poisson_solver);
+        vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
 
         // update velocities of super particles and collide them
         pic_solver.update_velocities();
@@ -445,7 +445,7 @@ int ProjectRunaway::write_results(bool force_write){
 
     if (!write_time() && !force_write) return 1;
 
-    vacuum_interpolator.extract_solution(poisson_solver);
+    vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
     vacuum_interpolator.nodes.write("out/result_E_phi.movie");
     vacuum_interpolator.linhex.write("out/result_E_phi.vtk");
 

@@ -97,7 +97,7 @@ public:
                 << ", latconst=" << ar.data.latconst
                 << ", coord_cutoff=" << ar.data.coord_cutoff
                 << ", cluster_cutoff=" << ar.data.cluster_cutoff
-                << ", # evaporated|clustered atoms=" << ar.data.n_evaporated << "|" << ar.data.n_detached;
+                << ", #evap|clust atoms=" << ar.data.n_evaporated << "|" << ar.data.n_detached;
         return os;
     }
 
