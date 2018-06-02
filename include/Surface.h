@@ -40,6 +40,9 @@ public:
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum,
             const Surface& extended_surf, const Config& conf, const bool first_time);
 
+    /** Make the surface atoms positions to correspond the changed AtomReader */
+    void update_positions(const Medium& medium);
+
     /** Remove the atoms that are too far from surface faces */
     void clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const TetgenMesh* mesh, const double r_cut);
 

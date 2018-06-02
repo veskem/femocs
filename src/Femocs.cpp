@@ -105,13 +105,13 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
     end_msg(t0);
     write_verbose_msg( "#input atoms: " + d2s(reader.size()) );
 
-    if (system_changed) {
-        file_type = get_file_type(fname);
-        if (file_type == "xyz")
-            perform_full_analysis(NULL);
-        else
-            perform_pseudo_analysis();
-    }
+    file_type = get_file_type(fname);
+    if (system_changed && file_type == "xyz")
+        perform_full_analysis(NULL);
+    else if (system_changed)
+        perform_pseudo_analysis();
+    else
+        reader.extract_types();
 
     reader.write("out/atomreader.ckx");
     return 0;
@@ -127,6 +127,8 @@ int Femocs::import_atoms(const int n_atoms, const double* coordinates, const dou
 
     if (system_changed)
         perform_full_analysis(nborlist);
+    else
+        reader.extract_types();
 
     reader.write("out/atomreader.ckx");
     return 0;

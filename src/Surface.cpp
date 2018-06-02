@@ -400,4 +400,10 @@ int Surface::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surfac
     return 0;
 }
 
+void Surface::update_positions(const Medium& medium) {
+    for (int i = 0; i < size(); ++i) {
+        set_point(i, medium.get_point(get_id(i)));
+    }
+}
+
 } /* namespace femocs */

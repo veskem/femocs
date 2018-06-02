@@ -94,6 +94,7 @@ int ProjectRunaway::run(const int timestep) {
         write_verbose_msg("Atoms haven't moved significantly, "
                 + d2s(reader.get_rmsd(), 3) + " < " + d2s(conf.tolerance.distance, 3)
                 + "! Previous mesh will be used!");
+        dense_surf.update_positions(reader);
     }
 
     else if (generate_mesh())
