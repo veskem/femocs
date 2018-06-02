@@ -14,7 +14,7 @@ FEMOCS* create_femocs(const char* s);
 /* Destructor */
 void delete_femocs(FEMOCS* femocs);
 
-void femocs_run(FEMOCS* femocs, int* retval, int timestep);
+void femocs_run(FEMOCS* femocs, int* retval, int timestep, double time);
 
 void femocs_import_file(FEMOCS* femocs, int* retval, const char* file_name);
 

@@ -37,7 +37,7 @@ public:
      * @param timestep  active time step in the host code
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
-    int run(const int timestep=-1);
+    int run(const int timestep=-1, const double time=-1);
 
     /** Force the data to the files for debugging purposes */
     int force_output();
@@ -65,12 +65,14 @@ protected:
     bool fail;                  ///< If some process failed
     double t0;                  ///< CPU timer
     int timestep;               ///< counter to measure how many times Femocs has been called
-    double last_write_time = GLOBALS.TIME - conf.behaviour.write_period; ///< Keeps the time that last file output was done
-    double last_heat_time = GLOBALS.TIME; ///< Last time heat was updated
-
     bool mesh_changed = false;          ///< True if new mesh has been created
-    int last_full_timestep; ///< last time step Femocs did full calculation
-    string timestep_string; ///< time step written to file name
+
+    string timestep_string;     ///< time step written to file name
+
+    int last_full_timestep;     ///< last time step Femocs did    full calculation
+    double last_heat_time;      ///< Last time heat was updated
+    double last_write_time;     ///< Keeps the time that last file output was done
+
     // as surface atom->triangle mapping is quite heavy but useful in many places, it's good to prevent doing it many times
     vector<int> atom2face;  ///< surface atom to triangle index map
 
@@ -127,7 +129,7 @@ private:
     }
 
     /** Determine whether atoms have moved significantly and whether to enable file writing */
-    int reinit(int timestep);
+    int reinit(int timestep, double time);
 
     /** Pick a field solver and calculcate field distribution */
     int run_field_solver();

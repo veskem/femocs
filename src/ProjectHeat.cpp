@@ -12,7 +12,7 @@ namespace femocs {
 ProjectHeat::ProjectHeat(AtomReader &reader, Config &conf) : ProjectRunaway(reader, conf) {
 }
 
-int ProjectHeat::run(int timestep) {
+int ProjectHeat::run(int timestep, double time) {
     double tstart = omp_get_wtime();
 
     //***** Build or import mesh *****
@@ -74,6 +74,47 @@ int ProjectHeat::run_heat_solver() {
     if (mesh_changed && conf.heating.mode == "transient")
         return solve_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, true, ccg, hcg);
 
+    return 0;
+}
+
+int ProjectHeat::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {
+    if (full_run)
+        ch_solver.setup(T_ambient);
+
+    // Calculate field emission in case not ready from pic
+    if (conf.pic.mode == "none" || conf.field.solver == "laplace") {
+        start_msg(t0, "=== Calculating electron emission...");
+        if (full_run) surface_fields.interpolate(ch_solver);
+        surface_temperatures.interpolate(ch_solver);
+        emission.initialize(mesh, full_run);
+        emission.calc_emission(conf.emission, conf.field.V0);
+        end_msg(t0);
+    }
+
+    emission.export_emission(ch_solver);
+
+    start_msg(t0, "=== Calculating current density...");
+    ch_solver.current.assemble();
+    ccg = ch_solver.current.solve();
+    end_msg(t0);
+    write_verbose_msg("#CG steps: " + d2s(ccg));
+
+    start_msg(t0, "=== Calculating temperature distribution...");
+    ch_solver.heat.assemble(delta_time * 1.e-15); // caution!! ch_solver internal time in sec
+    hcg = ch_solver.heat.solve();
+    end_msg(t0);
+    write_verbose_msg("#CG steps: " + d2s(hcg));
+
+    start_msg(t0, "=== Extracting J & T...");
+    bulk_interpolator.extract_solution(ch_solver);
+    end_msg(t0);
+
+    if(conf.pic.mode != "transient")
+        GLOBALS.TIME += delta_time;
+
+    write_results();
+
+    last_heat_time = GLOBALS.TIME;
     return 0;
 }
 

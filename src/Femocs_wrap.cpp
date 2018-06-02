@@ -13,8 +13,8 @@ void delete_femocs(FEMOCS* femocs) {
     delete femocs;
 }
 
-void femocs_run(FEMOCS* femocs, int* retval, int timestep) {
-    retval[0] = femocs->run(timestep);
+void femocs_run(FEMOCS* femocs, int* retval, int timestep, double time) {
+    retval[0] = femocs->run(timestep, time);
 }
 
 void femocs_import_file(FEMOCS* femocs, int* retval, const char* file_name) {

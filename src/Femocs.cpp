@@ -55,8 +55,8 @@ Femocs::~Femocs() {
     write_verbose_msg("======= Femocs finished! =======");
 }
 
-int Femocs::run(const int timestep) {
-    return project->run(timestep);
+int Femocs::run(const int timestep, const double time) {
+    return project->run(timestep, time);
 }
 
 void Femocs::perform_full_analysis(const int* nborlist) {

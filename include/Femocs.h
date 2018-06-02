@@ -32,7 +32,7 @@ public:
      * @param timestep  active time step in the host code; if not provided, internal counter will be used
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
-    int run(const int timestep=-1);
+    int run(const int timestep=-1, const double time=-1);
 
     /** Function to import atoms from PARCAS
      * @param n_atoms       number of imported atoms

@@ -19,6 +19,7 @@ namespace femocs {
 ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         GeneralProject(reader, config),
         fail(false), t0(0), timestep(-1), last_full_timestep(0),
+        last_heat_time(0), last_write_time(0),
 
         vacuum_interpolator("elfield", "potential"),
         bulk_interpolator("rho", "temperature"),
@@ -46,12 +47,15 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
     end_msg(t0);
 }
 
-int ProjectRunaway::reinit(int tstep) {
+int ProjectRunaway::reinit(int tstep, double time) {
     static bool skip_meshing = true;  // remember the value of skip_meshing
-    if (tstep >= 0)
-        timestep = tstep;
-    else
-        ++timestep;
+    if (tstep >= 0) timestep = tstep;
+    else ++timestep;
+
+    if (conf.field.solver == "laplace") {
+        if (time >= 0) GLOBALS.TIME = time;
+        else GLOBALS.TIME += conf.behaviour.timestep_fs;
+    }
 
     if (!skip_meshing && MODES.WRITEFILE)
         MODES.WRITEFILE = false;
@@ -67,7 +71,7 @@ int ProjectRunaway::reinit(int tstep) {
     mesh_changed = false;
     skip_meshing = reader.get_rmsd() < conf.tolerance.distance;
 
-    write_silent_msg("Running at timestep " + d2s(timestep));
+    write_silent_msg("Running at timestep=" + d2s(timestep) + ", time=" + d2s(GLOBALS.TIME, 2) + " fs");
     return skip_meshing;
 }
 
@@ -85,12 +89,12 @@ int ProjectRunaway::finalize(double tstart) {
     return 0;
 }
 
-int ProjectRunaway::run(const int timestep) {
+int ProjectRunaway::run(const int timestep, const double time) {
     double tstart = omp_get_wtime();
 
     //***** Build or import mesh *****
 
-    if (reinit(timestep)) {
+    if (reinit(timestep, time)) {
         write_verbose_msg("Atoms haven't moved significantly, "
                 + d2s(reader.get_rmsd(), 3) + " < " + d2s(conf.tolerance.distance, 3)
                 + "! Previous mesh will be used!");
@@ -100,7 +104,7 @@ int ProjectRunaway::run(const int timestep) {
     else if (generate_mesh())
         return process_failed("Mesh generation failed!");
 
-    check_return(GLOBALS.TIME == 0 && !mesh_changed, "First meshing failed! Terminating...");
+    check_return(GLOBALS.TIME < 1e-10 && !mesh_changed, "First meshing failed! Terminating...");
 
     if (mesh_changed && prepare_solvers())
         return process_failed("Preparation of FEM solvers failed!");
@@ -326,8 +330,6 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
     vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
     end_msg(t0);
 
-    GLOBALS.TIME += conf.behaviour.timestep_fs;
-
     vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
     vacuum_interpolator.lintet.write("out/result_E_phi.vtk");
 
@@ -412,6 +414,10 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
         emission.initialize(mesh, full_run);
         emission.calc_emission(conf.emission, conf.field.V0);
         end_msg(t0);
+
+        emission.write("out/emission.movie");
+        surface_fields.write("out/surface_fields.movie");
+        surface_temperatures.write("out/surface_temperatures.movie");
     }
 
     emission.export_emission(ch_solver);
@@ -432,10 +438,8 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
-    if(conf.pic.mode != "transient")
-        GLOBALS.TIME += delta_time;
-
-    write_results();
+    bulk_interpolator.nodes.write("out/result_J_T.movie");
+    bulk_interpolator.lintet.write("out/result_J_T.vtk");
 
     last_heat_time = GLOBALS.TIME;
     return 0;

@@ -19,12 +19,13 @@ module libfemocs
             type(c_ptr), value :: femocs
         end subroutine
 
-        subroutine femocs_run_c(femocs, retval, timestep) bind(C, name="femocs_run")
+        subroutine femocs_run_c(femocs, retval, timestep, time) bind(C, name="femocs_run")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
             integer(c_int) :: retval
             integer(c_int), intent(in), value :: timestep
+            real(c_double), intent(in), value :: time
         end subroutine
        
         subroutine femocs_import_atoms_c(femocs, retval, n_atoms, x, y, z, types) bind(C, name="femocs_import_atoms")
@@ -214,12 +215,13 @@ module libfemocs
         call delete_femocs_c(this%ptr)
     end subroutine
 
-    subroutine femocs_run(this, retval, timestep)
+    subroutine femocs_run(this, retval, timestep, time)
         implicit none
         class(femocs), intent(in) :: this
         integer(c_int) :: retval
         integer(c_int), intent(in) :: timestep
-        call femocs_run_c(this%ptr, retval, timestep)
+        real(c_double), intent(in) :: time
+        call femocs_run_c(this%ptr, retval, timestep, time)
     end subroutine
 
     subroutine femocs_import_atoms(this, retval, n_atoms, x, y, z, types)

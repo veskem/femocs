@@ -28,7 +28,7 @@ public:
     /** Function to generate FEM mesh and to solve differential equation(s)
      * @return  0 - function completed normally; 1 - function did not complete normally
      */
-    virtual int run(const int timestep=-1) = 0;
+    virtual int run(const int timestep=-1, const double time=-1) = 0;
 
     /** Export the solution data in the location of imported atoms */
     virtual int export_data(double* data, const int n_points, const string& data_type) = 0;
