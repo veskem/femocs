@@ -115,7 +115,7 @@ private:
         double cluster_cutoff=0;      ///< cluster analysis cut-off radius
         double coord_cutoff=0;        ///< coordination analysis cut-off radius
         double latconst=0;            ///< lattice constant
-        unsigned int nnn=0;           ///< effective number of nearest neighbours
+        int nnn=0;                    ///< effective number of nearest neighbours
         unsigned int n_detached=0;    ///< number of atoms that are detached from the big structure
         unsigned int n_evaporated=0;  ///< number of atoms that are evaporated from the big structure
     } data;

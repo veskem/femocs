@@ -33,7 +33,7 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
 
     Vec3 velocity(0);
 
-    for (int i = 0; i < positions.size(); ++i) {
+    for (unsigned int i = 0; i < positions.size(); ++i) {
         //update the field
         int cell = interpolator->linhex.deal2femocs(cells[i]);
         Vec3 elfield = interpolator->linhex.interp_gradient(positions[i], cell) ;
@@ -55,7 +55,7 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
 }
 
 template<int dim>
-int Pic<dim>::inject_electrons(vector<Point3> &positions, vector<int> &cells,
+void Pic<dim>::inject_electrons(vector<Point3> &positions, vector<int> &cells,
         const TetgenMesh &mesh) {
 
     const double shift_factor = mesh.tris.stat.edgemin * 1e-6;

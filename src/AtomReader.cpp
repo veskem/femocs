@@ -37,26 +37,26 @@ void AtomReader::reserve(const int n_atoms) {
 }
 
 void AtomReader::extract(Surface& surface, const int type, const bool invert) {
-    const int coord_min = 2;
-    const int n_atoms = size();
+    const unsigned int coord_min = 2;
+    const unsigned int n_atoms = size();
     vector<bool> is_type(n_atoms);
 
     // Get number and locations of atoms of desired type
     if (!invert) {
-        for (int i = 0; i < n_atoms; ++i)
+        for (unsigned int i = 0; i < n_atoms; ++i)
             is_type[i] = get_marker(i) == type;
     } else {
-        for (int i = 0; i < n_atoms; ++i)
+        for (unsigned int i = 0; i < n_atoms; ++i)
             is_type[i] = get_marker(i) != type;
     }
 
     // Clean lonely atoms; atom is considered lonely if its coordination is lower than coord_min
     if (nborlist.size() == n_atoms)
-        for (int i = 0; i < n_atoms; ++i)
+        for (unsigned i = 0; i < n_atoms; ++i)
             if (is_type[i]) {
-                int n_nbors = 0;
+                unsigned int n_nbors = 0;
                 for (int nbor : nborlist[i]) {
-                    require(nbor >= 0 && nbor < n_atoms, "Invalid index: " + d2s(nbor));
+                    require(nbor >= 0 && nbor < (int)n_atoms, "Invalid index: " + d2s(nbor));
                     if (is_type[nbor]) n_nbors++;
                 }
 
@@ -65,7 +65,7 @@ void AtomReader::extract(Surface& surface, const int type, const bool invert) {
 
     // Store the atoms
     surface.reserve(vector_sum(is_type));
-    for (int i = 0; i < n_atoms; ++i)
+    for (unsigned i = 0; i < n_atoms; ++i)
         if (is_type[i])
             surface.append(get_atom(i));
 
@@ -211,7 +211,7 @@ void AtomReader::calc_clusters(const int* parcas_nborlist) {
             calc_verlet_nborlist(nborlist, data.cluster_cutoff, true);
     }
 
-    const int n_atoms = size();
+    const unsigned int n_atoms = size();
     require(nborlist.size() == n_atoms, "Clusters cannot be calculated if neighborlist is missing!");
 
     // group atoms into clusters, i.e perform cluster analysis
@@ -221,7 +221,7 @@ void AtomReader::calc_clusters(const int* parcas_nborlist) {
     int c = -1;
 
     // for each unvisited point P in all the points
-    for (int i = 0; i < n_atoms; ++i)
+    for (unsigned int i = 0; i < n_atoms; ++i)
         if (cluster[i] < 0) {
             // mark P as visited & expand cluster
             cluster[i] = ++c;
@@ -229,7 +229,7 @@ void AtomReader::calc_clusters(const int* parcas_nborlist) {
             vector<int> neighbours = nborlist[i];
 
             int c_counter = 1;
-            for (unsigned j = 0; j < neighbours.size(); ++j) {
+            for (unsigned int j = 0; j < neighbours.size(); ++j) {
                 int nbor = neighbours[j];
                 // if P' is not visited, connect it into the cluster
                 if (cluster[nbor] < 0) {

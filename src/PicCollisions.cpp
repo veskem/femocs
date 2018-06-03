@@ -19,8 +19,8 @@ namespace femocs {
         static std::vector<size_t> inds2coll; //Not nice for parallelization
                                               // (neither over spieces- or cell)
 
-        static const double Amplcoulomb =  1.;  // Amplification of coulomb collisions, only for testing purposes
-        static const double LanLog = 13.;       // Coulomb Log
+//        static const double Amplcoulomb =  1.;  // Amplification of coulomb collisions, only for testing purposes
+//        static const double LanLog = 13.;       // Coulomb Log
         //Constant factor in coulomb collisions
         //double Acoll = Amplcoulomb * ( !kind ? 1.0 : dt_ion*dt_ion*dt_ion ) * LanLog * SQU(SQU(Omega_pe)) * ncoll /
         //    ( TWOPI*PI * SQU(SQU(dz))*SQU(dz) * SQU(pa->mass) * SQU(Ndb) * N_sp );

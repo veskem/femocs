@@ -40,14 +40,14 @@ void TetgenMesh::smoothen(const int n_steps, const double lambda, const double m
 
     // run the Taubin smoothing
     if (algorithm == "laplace") {
-        for (size_t s = 0; s < n_steps; ++s) {
+        for (int s = 0; s < n_steps; ++s) {
             laplace_smooth(lambda, nborlist);
             laplace_smooth(mu, nborlist);
         }
     }
 
     else if (algorithm == "fujiwara") {
-        for (size_t s = 0; s < n_steps; ++s) {
+        for (int s = 0; s < n_steps; ++s) {
             fujiwara_smooth(lambda, nborlist);
             fujiwara_smooth(mu, nborlist);
         }
@@ -78,9 +78,10 @@ void TetgenMesh::laplace_smooth(const double scale, const vector<vector<unsigned
 
 void TetgenMesh::fujiwara_smooth(const double scale, const vector<vector<unsigned>>& nborlist) {
     vector<Point3> displacements(nodes.size());
+    const unsigned int n_nodes = nodes.size();
 
     // Get per-vertex displacement.
-    for (size_t i = 0; i < nodes.size(); ++i) {
+    for (size_t i = 0; i < n_nodes; ++i) {
         // Skip vertices that are not on the surface.
         if (nborlist[i].size() == 0)
             continue;
@@ -114,7 +115,7 @@ void TetgenMesh::fujiwara_smooth(const double scale, const vector<vector<unsigne
     }
 
     // Apply per-vertex displacement.
-    for (size_t i = 0; i < nodes.size(); i++)
+    for (size_t i = 0; i < n_nodes; i++)
         nodes.set_node(i, nodes[i] + displacements[i]*scale);
 }
 
@@ -288,8 +289,6 @@ int TetgenMesh::recalc(const string& cmd1, const string& cmd2) {
 void TetgenMesh::group_hexahedra() {
     const int node_min = nodes.indxs.tetnode_start;
     const int node_max = nodes.indxs.tetnode_end;
-    const int n_hexs = hexs.size();
-    const int n_quads = quads.size();
 
     // find which hexahedra correspond to which tetrahedral node
     // hexahedra with the same tetrahedral node form the pseudo 3D Voronoi cell of that node
@@ -358,7 +357,7 @@ int TetgenMesh::generate_surface(const string& cmd1, const string& cmd2) {
 }
 
 void TetgenMesh::generate_manual_surface() {
-    const int n_elems = tets.size();
+    const unsigned int n_elems = tets.size();
     const int max_surf_indx = nodes.indxs.surf_end;
 
     // booleans showing whether element i has exactly one face on the surface or not
@@ -368,8 +367,8 @@ void TetgenMesh::generate_manual_surface() {
 
     // Mark the elements that have exactly one face on the surface
     for (SimpleElement elem : tets) {
-        for (int i = 0; i < 4; ++i)
-            surf_locs[i] = elem[i] <= max_surf_indx;
+        for (unsigned int i = 0; i < 4; ++i)
+            surf_locs[i] = (int)elem[i] <= max_surf_indx;
         elem_on_surface.push_back(vector_sum(surf_locs) == 3);
     }
 
@@ -385,13 +384,13 @@ void TetgenMesh::generate_manual_surface() {
 
     // Generate the faces that separate material and vacuum
     // The faces are taken from the elements that have exactly one face on the surface
-    for (int el = 0; el < n_elems; ++el)
+    for (unsigned int el = 0; el < n_elems; ++el)
         if (elem_on_surface[el]) {
             SimpleElement elem = tets[el];
 
             // Find the indices of nodes that are on the surface
             for (int i = 0; i < 4; ++i)
-                surf_locs[i] = elem[i] <= max_surf_indx;
+                surf_locs[i] = (int)elem[i] <= max_surf_indx;
 
             /* The possible combinations of surf_locs and n0,n1,n2:
              * surf_locs: 1110   1101   1011   0111
@@ -573,8 +572,6 @@ void TetgenMesh::write_separate(const string& file_name, const int type) {
 
 void TetgenMesh::calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells, const bool vacuum) const {
     cells = vector<vector<unsigned>>(nodes.stat.n_tetnode);
-    const int node_min = nodes.indxs.tetnode_start;
-    const int node_max = nodes.indxs.tetnode_end;
 
     // the sign of hexahedron marker shows its location (>0 == vacuum, <0 == bulk)
     // and the (magnitude - 1) the index of tetrahedral node it is connected to

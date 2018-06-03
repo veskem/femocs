@@ -524,7 +524,7 @@ public:
 
     /** Return indices of all triangles that are connected to i-th tetrahedron*/
     vector<int> to_tris(const int i) const {
-        require(i >= 0 && i < map2tris.size(), "Invalid index: " + d2s(i));
+        require(i >= 0 && i < (int)map2tris.size(), "Invalid index: " + d2s(i));
         return map2tris[i];
     }
 
@@ -582,7 +582,7 @@ public:
     /** Return indices of all hexahedra that are connected to i-th quadrangle;
      * -1 means there's no hexahedron */
     array<int,2> to_hexs(const int i) const {
-        require(i >= 0 && i < map2hexs.size(), "Invalid index: " + d2s(i));
+        require(i >= 0 && i < (int)map2hexs.size(), "Invalid index: " + d2s(i));
         return map2hexs[i];
     }
 
@@ -627,7 +627,7 @@ public:
 
     /** Return the indices of quadrangles connected to i-th hexahedron */
     vector<int> to_quads(const int i) const {
-        require(i >= 0 && i < map2quads.size(), "Invalid index: " + d2s(i));
+        require(i >= 0 && i < (int)map2quads.size(), "Invalid index: " + d2s(i));
         return map2quads[i];
     }
 

@@ -30,7 +30,7 @@ bool Interpolator::average_nodal_fields(const bool vacuum) {
     mesh->calc_pseudo_3D_vorocells(nborlist, vacuum);
 
     // loop through the tetrahedral nodes
-    for (int i = 0; i < nborlist.size(); ++i) {
+    for (unsigned int i = 0; i < nborlist.size(); ++i) {
         if (nborlist[i].size() == 0) continue;
 
         Point3 tetnode = nodes.get_vertex(i);
@@ -56,10 +56,8 @@ bool Interpolator::average_nodal_fields(const bool vacuum) {
 void Interpolator::get_maps(vector<int>& cell_indxs, vector<int>& vert_indxs,
         dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh)
 {
-    const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
-    const double vertex_epsilon = 1e-5 * mesh->tets.stat.edgemin;
-
     require(tria->n_vertices() > 0, "Invalid triangulation size!");
+    const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
     const int n_femocs_nodes = mesh->nodes.size();
     expect(n_femocs_nodes > 0, "Interpolator expects non-empty mesh!");
     const int n_dealii_nodes = tria->n_used_vertices();
@@ -90,8 +88,8 @@ void Interpolator::store_solution(const vector<dealii::Tensor<1, 3>> vec_data, c
     require(vec_data.size() == scal_data.size(), "Mismatch of vector sizes: "
             + d2s(vec_data.size()) + ", " + d2s(scal_data.size()));
 
-    int j = 0;
-    for (int i = 0; i < femocs2deal.size(); ++i) {
+    unsigned int j = 0;
+    for (unsigned int i = 0; i < femocs2deal.size(); ++i) {
         // If there is a common node between Femocs and deal.II meshes, store actual solution
         if (femocs2deal[i] >= 0) {
             require(j < vec_data.size(), "Invalid index: " + d2s(j));
@@ -104,14 +102,14 @@ void Interpolator::store_solution(const vector<dealii::Tensor<1, 3>> vec_data, c
 }
 
 void Interpolator::store_solution(DealSolver<3>& solver) {
-    const int n_nodes = nodes.size();
+    const unsigned int n_nodes = nodes.size();
     require(femocs2deal.size() == n_nodes, "Invalid femocs2deal size: " + d2s(femocs2deal.size()));
 
     vector<double> scalars;
     solver.get_nodal_solution(scalars);
 
-    int j = 0;
-    for (int i = 0; i < n_nodes; ++i)
+    unsigned int j = 0;
+    for (unsigned int i = 0; i < n_nodes; ++i)
         if (femocs2deal[i] >= 0) {
             require(j < scalars.size(), "Invalid Femocs nodes to Deal.II nodes mapping!");
             nodes.set_scalar(i, scalars[j++]);

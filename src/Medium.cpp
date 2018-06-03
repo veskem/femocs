@@ -57,7 +57,7 @@ void Medium::calc_linked_list(const double r_cut) {
         }
 
         int i_cell = (point_index[2] * nborbox_size[1] + point_index[1]) * nborbox_size[0] + point_index[0];
-        require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + to_string(i_cell));
+        require(i_cell >= 0 && i_cell < (int)head.size(), "Invalid neighbouring cell index: " + to_string(i_cell));
 
         nborbox_indices.push_back(point_index);
         list[i] = head[i_cell];
@@ -101,7 +101,7 @@ void Medium::loop_nbor_boxes(vector<vector<int>>& nborlist, const double r_cut2,
 
                 // transform volumetric neighbour box index to linear one
                 int nbor_box = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
-                require(nbor_box >= 0 && nbor_box < head.size(), "Invalid neighbouring cell index: " + to_string(nbor_box));
+                require(nbor_box >= 0 && nbor_box < (int)head.size(), "Invalid neighbouring cell index: " + to_string(nbor_box));
 
                 // get the index of first atom in given neighbouring cell and loop through all the neighbours
                 int nbor = head[nbor_box];
@@ -134,7 +134,7 @@ void Medium::loop_periodic_nbor_boxes(vector<vector<int>>& nborlist, const doubl
 
                  // transform volumetric neighbour box index to linear one
                 int nbor_box = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
-                require(nbor_box >= 0 && nbor_box < head.size(), "Invalid neighbouring cell index: " + to_string(nbor_box));
+                require(nbor_box >= 0 && nbor_box < (int)head.size(), "Invalid neighbouring cell index: " + to_string(nbor_box));
 
                 // get the index of first atom in given neighbouring cell and loop through all the neighbours
                 int nbor = head[nbor_box];

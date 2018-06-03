@@ -153,7 +153,7 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
 int Femocs::interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag)
 {
-    double fields[3*n_points];
+    double *fields = new double[3*n_points];
     int retval = project->interpolate(fields, flag, n_points, LABELS.elfield, true, x, y, z);
 
     for (int i = 0; i < n_points; ++i) {
@@ -164,13 +164,14 @@ int Femocs::interpolate_surface_elfield(const int n_points, const double* x, con
         Enorm[i] = sqrt(fields[I]*fields[I] + fields[I+1]*fields[I+1] + fields[I+2]*fields[I+2]);
     }
 
+    delete[] fields;
     return retval;
 }
 
 int Femocs::interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
         double* Ex, double* Ey, double* Ez, double* Enorm, int* flag)
 {
-    double fields[3*n_points];
+    double *fields = new double[3*n_points];
     int retval = project->interpolate(fields, flag, n_points, LABELS.elfield, false, x, y, z);
 
     for (int i = 0; i < n_points; ++i) {
@@ -181,6 +182,7 @@ int Femocs::interpolate_elfield(const int n_points, const double* x, const doubl
         Enorm[i] = sqrt(fields[I]*fields[I] + fields[I+1]*fields[I+1] + fields[I+2]*fields[I+2]);
     }
 
+    delete[] fields;
     return retval;
 }
 

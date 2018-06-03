@@ -469,7 +469,7 @@ void TetgenFaces::calc_statistics() {
     stat.edgemax = sqrt(stat.edgemax);
 
     // calculate the span of centroid coordinates
-    for (int i = 0; i < centroids.size(); ++i) {
+    for (unsigned int i = 0; i < centroids.size(); ++i) {
         Point3 centroid = get_centroid(i);
         stat.xmax = max(stat.xmax, centroid.x);
         stat.xmin = min(stat.xmin, centroid.x);

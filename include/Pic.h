@@ -109,7 +109,7 @@ private:
     void compute_field(bool first_time = false, bool write_time = false);
 
     /** Inject electron super particles at the surface faces, depending on the current and the timestep */
-    int inject_electrons(vector<Point3> &pos, vector<int> &cells, const TetgenMesh &mesh);
+    void inject_electrons(vector<Point3> &pos, vector<int> &cells, const TetgenMesh &mesh);
 
     /** Generate point with an uniform distribution inside a quadrangle */
     Point3 get_rnd_point(const int quad, const TetgenMesh &mesh);

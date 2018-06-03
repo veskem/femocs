@@ -203,8 +203,8 @@ void Surface::fast_coarsen(Surface &surface, const Medium::Sizes &s) {
     calc_linked_list(coarseners.get_r0_inf(s));
 
     const int n_atoms = size();
-    require(list.size() == n_atoms, "Invalid linked list size: " + d2s(list.size()));
-    require(head.size() == nborbox_size[0]*nborbox_size[1]*nborbox_size[2],
+    require((int)list.size() == n_atoms, "Invalid linked list size: " + d2s(list.size()));
+    require((int)head.size() == nborbox_size[0]*nborbox_size[1]*nborbox_size[2],
             "Invalid linked list header size: " + d2s(head.size()));
 
     vector<int> do_delete(n_atoms, false);
@@ -215,7 +215,6 @@ void Surface::fast_coarsen(Surface &surface, const Medium::Sizes &s) {
         if (do_delete[i]) continue;
 
         array<int,3>& i_atom = nborbox_indices[i];
-        int i_cell = (i_atom[2] * nborbox_size[1] + i_atom[1]) * nborbox_size[0] + i_atom[0];
 
         Point3 point1 = atoms[i].point;
         coarseners.pick_cutoff(point1);
@@ -231,7 +230,8 @@ void Surface::fast_coarsen(Surface &surface, const Medium::Sizes &s) {
 
                     // transform volumetric neighbour box index to linear one
                     int i_cell = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
-                    require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + d2s(i_cell));
+                    require(i_cell >= 0 && i_cell < (int)head.size(),
+                            "Invalid neighbouring cell index: " + d2s(i_cell));
 
                     // get the index of first atom in given neighbouring cell
                     int j = head[i_cell];

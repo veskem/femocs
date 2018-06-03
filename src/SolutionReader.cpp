@@ -85,7 +85,7 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
     require(interpolator, "NULL interpolator cannot be used!");
 
     const int n_atoms = size();
-    const bool cells_not_known = atom2cell.size() != n_atoms;
+    const bool cells_not_known = (int)atom2cell.size() != n_atoms;
 
     // are the atoms already mapped against the triangles?
     if (cells_not_known) {
@@ -511,7 +511,7 @@ void HeatReader::precalc_berendsen_long() {
 int HeatReader::scale_berendsen_long(double* x1, const int n_atoms, const Vec3& parcas2si) {
     check_return(size() == 0, "No " + LABELS.parcas_velocity + " to export!");
 
-    const int n_tets = tet2atoms.size();
+    const unsigned int n_tets = tet2atoms.size();
     require(n_tets > 0, "Data is missing for long Berendsen thermostat!");
     require(fem_temp.size() == n_tets, "Mismatch between vector sizes: "
             + d2s(n_tets) + ", " + d2s(fem_temp.size()));
@@ -520,7 +520,7 @@ int HeatReader::scale_berendsen_long(double* x1, const int n_atoms, const Vec3& 
     vector<Vec3> velocities;
     calc_SI_velocities(velocities, n_atoms, parcas2si, x1);
 
-    for (int tet = 0; tet < n_tets; ++tet) {
+    for (unsigned int tet = 0; tet < n_tets; ++tet) {
         int n_atoms_in_tet = tet2atoms[tet].size();
         if (n_atoms_in_tet) {
 
@@ -671,7 +671,7 @@ void EmissionReader::calc_representative() {
     global_data.I_tot = 0;
     global_data.I_fwhm = 0;
 
-    for (int i = 0; i < currents.size(); ++i){ // go through face centroids
+    for (unsigned int i = 0; i < currents.size(); ++i){ // go through face centroids
         int tri = mesh->quads.to_tri(abs(fields->get_marker(i)));
         // quadrangle area is 1/3 of corresponding triangle area
         double face_area = mesh->tris.get_area(tri) / 3.;
@@ -1012,7 +1012,7 @@ int ForceReader::calc_voronois(VoronoiMesh& mesh, const vector<int>& atom2face,
 {
     require(interpolator, "NULL interpolator cannot be used!");
     const int n_atoms = size();
-    const bool faces_known = n_atoms == atom2face.size();
+    const bool faces_known = n_atoms == (int)atom2face.size();
     // TODO put those values to Config, because they affect heavily how the voronoi charges will look like
     const double max_distance_from_surface = 0.5 * latconst;
     const double shift_distance = 1.0 * latconst;
@@ -1113,8 +1113,8 @@ void ForceReader::calc_coulomb(const double r_cut) {
     // it is more efficinet to calculate forces from linked list than from neighbour list,
     // as in that ways it is possible to avoid double calculation of the distances
     calc_linked_list(r_cut);
-    require(list.size() == n_atoms, "Invalid linked list size: " + d2s(list.size()));
-    require(head.size() == nborbox_size[0]*nborbox_size[1]*nborbox_size[2],
+    require((int)list.size() == n_atoms, "Invalid linked list size: " + d2s(list.size()));
+    require((int)head.size() == nborbox_size[0]*nborbox_size[1]*nborbox_size[2],
             "Invalid linked list header size: " + d2s(head.size()));
 
     // loop through the atoms
@@ -1134,7 +1134,7 @@ void ForceReader::calc_coulomb(const double r_cut) {
 
                     // transform volumetric neighbour box index to linear one
                     int i_cell = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
-                    require(i_cell >= 0 && i_cell < head.size(), "Invalid neighbouring cell index: " + d2s(i_cell));
+                    require(i_cell >= 0 && i_cell < (int)head.size(), "Invalid neighbouring cell index: " + d2s(i_cell));
 
                     // get the index of first atom in given neighbouring cell and loop through neighbours
                     int j = head[i_cell];
@@ -1359,8 +1359,6 @@ void InterpolatorTester::compare_interpolators(PoissonSolver<3> &poisson, const 
         append(Point3(x + 0.1*i*step, y + 0.1*i*step, zmin + i * step));
 
     int cell_index;
-    array<double,8> shape_functions;
-
     double t0;
 
     start_msg(t0, "poisson");
@@ -1498,7 +1496,6 @@ void InterpolatorTester::perform_comparison(const string &fname) {
 
 void InterpolatorTester::test_corners(const TetgenMesh& mesh) const {
     int cell_index;
-    array<double,8> shape_functions;
     array<double,4> bcc;
 
     int cntr = 0;
@@ -1538,7 +1535,7 @@ void InterpolatorTester::test_corners(const TetgenMesh& mesh) const {
 
     cout << "results for tet=" << cell_index << ", 4tet=" << 4*cell_index << endl;
 
-    for (int i = 0; i < 4; ++i) {
+    for (unsigned int i = 0; i < 4; ++i) {
         cell_index = interpolator->linhex.locate_cell(points[i], 0);
         bcc = interpolator->lintet.shape_functions(points[i], 0);
         cout << endl << labels[i] << ":\t" << cell_index << "\t";
@@ -1546,7 +1543,7 @@ void InterpolatorTester::test_corners(const TetgenMesh& mesh) const {
             cout << ", " << b;
     }
 
-    for (int i = 4; i < labels.size(); ++i) {
+    for (unsigned int i = 4; i < labels.size(); ++i) {
         cell_index = interpolator->linhex.locate_cell(points[i], 0);
         bcc = interpolator->lintet.shape_functions(points[i], abs(int(cell_index/4)));
         cout << endl << labels[i] << ":\t" << cell_index << "\t";

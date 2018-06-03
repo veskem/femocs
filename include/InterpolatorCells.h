@@ -202,13 +202,13 @@ public:
 
     /** Modify cell marker */
     void set_marker(const int i, const int m) {
-        require(i >= 0 && i < markers.size(), "Invalid index: " + d2s(i));
+        require(i >= 0 && i < (int)markers.size(), "Invalid index: " + d2s(i));
         markers[i] = m;
     }
 
     /** Access cell marker */
     int get_marker(const int i) const {
-        require(i >= 0 && i < markers.size(), "Invalid index: " + d2s(i));
+        require(i >= 0 && i < (int)markers.size(), "Invalid index: " + d2s(i));
         return markers[i];
     }
 
@@ -339,7 +339,7 @@ public:
 
     /** Return i-th tetrahedron */
     SimpleCell<10> get_cell(const int i) const {
-        require(i >= 0 && i < cells.size(), "Invalid index: " + d2s(i));
+        require(i >= 0 && i < (int)cells.size(), "Invalid index: " + d2s(i));
         return cells[i];
     }
 
@@ -403,13 +403,13 @@ public:
     /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
      * -1 means there's no correspondence between two meshes */
     int femocs2deal(const int i) const {
-        require(i >= 0 && i < map_femocs2deal.size(), "Invalid index: " + d2s(i));
+        require(i >= 0 && i < (int)map_femocs2deal.size(), "Invalid index: " + d2s(i));
         return map_femocs2deal[i];
     }
 
     /** Return the index of hexahedron in femocs that corresponds to i-th hexahedron in Deal.II */
     int deal2femocs(const int i) const {
-        require(i >= 0 && i < map_deal2femocs.size(), "Invalid index: " + d2s(i) + ", size = " + d2s(map_deal2femocs.size()));
+        require(i >= 0 && i < (int)map_deal2femocs.size(), "Invalid index: " + d2s(i) + ", size = " + d2s(map_deal2femocs.size()));
         return map_deal2femocs[i];
     }
 
@@ -562,7 +562,7 @@ public:
 
     /** Return i-th hexahedron */
     SimpleCell<6> get_cell(const int i) const {
-        require(i >= 0 && i < cells.size(), "Invalid index: " + d2s(i));
+        require(i >= 0 && i < (int)cells.size(), "Invalid index: " + d2s(i));
         return cells[i];
     }
 

@@ -153,8 +153,6 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
 }
 
 int ProjectRunaway::generate_mesh() {
-    int err_code;
-
     if (conf.path.mesh_file != "") {
         start_msg(t0, "=== Reading mesh from file...");
         fail = new_mesh->read(conf.path.mesh_file, "rQnn");
@@ -323,7 +321,7 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
     write_verbose_msg(poisson_solver.to_str());
 
     start_msg(t0, "=== Running Laplace solver...");
-    int ncg = poisson_solver.solve();
+    poisson_solver.solve();
     end_msg(t0);
 
     start_msg(t0, "=== Extracting E and phi...");
@@ -534,12 +532,18 @@ int ProjectRunaway::interpolate(double* data, int* flag,
 
     if (fields.contains(data_type)) {
         fields.set_preferences(false, dim, conf.behaviour.interpolation_rank);
-        return fields.interpolate_results(n_points, data_type, x, y, z, data);
+        int retval = fields.interpolate_results(n_points, data_type, x, y, z, data);
+        for (int i = 0; i < n_points; ++i)
+            flag[i] = fields.get_marker(i) >= 0;
+        return retval;
     }
 
     if (temperatures.contains(data_type)) {
         temperatures.set_preferences(false, dim, conf.behaviour.interpolation_rank);
-        return temperatures.interpolate_results(n_points, data_type, x, y, z, data);
+        int retval = temperatures.interpolate_results(n_points, data_type, x, y, z, data);
+        for (int i = 0; i < n_points; ++i)
+            flag[i] = fields.get_marker(i) >= 0;
+        return retval;
     }
 
     require(false, "Unimplemented type of interpolation data: " + data_type);

@@ -379,7 +379,6 @@ void CurrentSolver<dim>::assemble_lhs() {
     typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
     typename DoFHandler<dim>::active_cell_iterator heat_cell = heat_solver->dof_handler.begin_active();
 
-    int face_index = 0;
     for (; cell != this->dof_handler.end(); ++cell, ++heat_cell) {
         fe_values.reinit(cell);
         cell_matrix = 0;
@@ -424,16 +423,18 @@ double CurrentSolver<dim>::get_face_bc(const unsigned int face) const {
 
 template<int dim>
 CurrentHeatSolver<dim>::CurrentHeatSolver() :
-        DealSolver<dim>(), pq(NULL), conf(NULL),
+        DealSolver<dim>(),
         heat(&this->triangulation, &current),
-        current(&this->triangulation, &heat)
+        current(&this->triangulation, &heat),
+        pq(NULL), conf(NULL)
 {}
 
 template<int dim>
 CurrentHeatSolver<dim>::CurrentHeatSolver(PhysicalQuantities *pq_, const Config::Heating *conf_) :
-        DealSolver<dim>(), pq(pq_), conf(conf_),
+        DealSolver<dim>(),
         heat(&this->triangulation, &current),
-        current(&this->triangulation, &heat)
+        current(&this->triangulation, &heat),
+        pq(pq_), conf(conf_)
 {
     heat.set_dependencies(pq_, conf_);
     current.set_dependencies(pq_, conf_);
