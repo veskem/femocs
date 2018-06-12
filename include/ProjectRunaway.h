@@ -118,7 +118,7 @@ protected:
     int prepare_export();
 
     /** Store the imported atom coordinates and set the flag that enables exporters */
-    int finalize(double tstart);
+    int finalize(double tstart, double time);
 
     int process_failed(const string &msg) { write_verbose_msg(msg); force_output(); return 1; }
 

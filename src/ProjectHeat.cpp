@@ -41,7 +41,7 @@ int ProjectHeat::run(int timestep, double time) {
         if (prepare_export())
             return process_failed("Interpolating solution on atoms failed!");
 
-        finalize(tstart);
+        finalize(tstart, time);
         conf.field.E0 /= factor;
         conf.field.V0 /= factor;
     }

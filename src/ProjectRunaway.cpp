@@ -52,10 +52,7 @@ int ProjectRunaway::reinit(int tstep, double time) {
     if (tstep >= 0) timestep = tstep;
     else ++timestep;
 
-    if (conf.field.solver == "laplace") {
-        if (time >= 0) GLOBALS.TIME = time;
-        else GLOBALS.TIME += conf.behaviour.timestep_fs;
-    }
+    if (time >= 0) GLOBALS.TIME = time;
 
     if (!skip_meshing && MODES.WRITEFILE)
         MODES.WRITEFILE = false;
@@ -75,11 +72,11 @@ int ProjectRunaway::reinit(int tstep, double time) {
     return skip_meshing;
 }
 
-int ProjectRunaway::finalize(double tstart) {
+int ProjectRunaway::finalize(double tstart, double time) {
     reader.save_current_run_points(conf.tolerance.distance);
 
     // In case no transient simulations (time has stayed the same) advance the time
-    if (conf.pic.mode == "none" && conf.heating.mode == "none")
+    if (time < 0 && (conf.pic.mode == "none" || conf.field.solver == "laplace"))
         GLOBALS.TIME += conf.behaviour.timestep_fs;
 
     last_full_timestep = timestep;
@@ -104,7 +101,7 @@ int ProjectRunaway::run(const int timestep, const double time) {
     else if (generate_mesh())
         return process_failed("Mesh generation failed!");
 
-    check_return(GLOBALS.TIME < 1e-10 && !mesh_changed, "First meshing failed! Terminating...");
+    check_return(GLOBALS.TIME == 0 && !mesh_changed, "First meshing failed! Terminating...");
 
     if (mesh_changed && prepare_solvers())
         return process_failed("Preparation of FEM solvers failed!");
@@ -122,7 +119,7 @@ int ProjectRunaway::run(const int timestep, const double time) {
     if (prepare_export())
         return process_failed("Interpolating solution on atoms failed!");
 
-    finalize(tstart);
+    finalize(tstart, time);
     return 0;
 }
 
