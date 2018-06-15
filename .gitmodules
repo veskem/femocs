@@ -1,0 +1,3 @@
+[submodule "GETELEC"]
+	path = GETELEC
+	url = https://github.com/AndKyr/GETELEC.git
