@@ -14,16 +14,18 @@
 #include "TetgenMesh.h"
 #include "TetgenCells.h"
 #include "Primitives.h"
-#include "ParticleSpecies.h"
-#include "PicCollisions.h"
-#include "DealSolver.h"
-#include "CurrentHeatSolver.h"
 #include "PoissonSolver.h"
+#include "CurrentHeatSolver.h"
+#include "ParticleSpecies.h"
 
 #include <random>
 
 namespace femocs {
 
+/** Class for running PIC (particle-in-cell) simulations to solve Poisson equation.
+ * For further details about PIC, see Kyrre Ness Sjøbæk PhD thesis at
+ * https://cds.cern.ch/record/2226840
+ */
 template<int dim>
 class Pic {
 public:
@@ -80,19 +82,21 @@ private:
     static constexpr double e_over_eps0 = 180.9512268;
     /// definition of 1 ampere
     static constexpr double electrons_per_fs = 6.2415e3;
+    /// 2*pi
+    static constexpr double twopi = 6.2831853071795864;
 
     //Parameters
     double Wel = .01;   ///< Super particle weighting [particles/superparticle]
     double dt = 1.;     ///< timestep [fs]
     bool coll_coulomb_ee = false;   ///< Switch 2e->2e Coulomb collisions on/off
 
-    PoissonSolver<dim> *poisson_solver;      ///< object to solve Poisson equation in the vacuum mesh
-    const CurrentHeatSolver<3> *ch_solver;   ///< transient currents and heating solver
-    const EmissionReader *emission;               ///< object to obtain the field emission data
+    PoissonSolver<dim> *poisson_solver;        ///< object to solve Poisson equation in the vacuum mesh
+    const CurrentHeatSolver<dim> *ch_solver;  ///< transient currents and heating solver
+    const EmissionReader *emission;         ///< object to obtain the field emission data
     const Interpolator *interpolator;       ///< data & operation for interpolating in vacuum
     TetgenNodes::Stat box;                  ///< simubox size data
-    
-    ParticleSpecies electrons = ParticleSpecies(-e_over_m_e_factor, -e_over_eps0, Wel);
+
+    ParticleSpecies electrons;   ///< super particles carring charge density in space
 
     struct InjectStats{
         int injected = 0;
@@ -116,6 +120,13 @@ private:
 
     /** Update position and cell index of a super particle with given index */
     void update_position(const int particle_index);
+
+    /** Find the hexahedron where the point is located.
+     * Both input and output hex indices are Deal.II ones. */
+    int update_point_cell(const SuperParticle& particle) const;
+
+    /** e-e or i-i Coulomb collision routine (for the same type of particles) */
+    void coll_el_knm_2D( ParticleSpecies &pa, const double dt, PoissonSolver<3> &poisson_solver );
 };
 
 } // namespace femocs

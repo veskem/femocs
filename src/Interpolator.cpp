@@ -133,13 +133,6 @@ void Interpolator::store_elfield(const int node) {
     nodes.set_vector(node, mean_field);
 }
 
-int Interpolator::update_point_cell(const SuperParticle& particle) const {
-    int femocs_cell = linhex.deal2femocs(particle.cell);
-    femocs_cell = linhex.locate_cell(particle.pos, femocs_cell);
-    if (femocs_cell < 0) return -1;
-    return linhex.femocs2deal(femocs_cell);
-}
-
 void Interpolator::initialize(const TetgenMesh* m, DealSolver<3>& solver, const double empty_val) {
     // === update mesh
     mesh = m;

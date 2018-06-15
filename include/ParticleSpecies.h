@@ -9,12 +9,11 @@
 #define PARTICLESPECIES_H_
 
 #include "Primitives.h"
-
-#include <deal.II/base/point.h>
 #include <algorithm>
 
 namespace femocs {
 
+/** Super particles for PIC simulation */
 class ParticleSpecies {
 public:
     ParticleSpecies(double q_ovr_m, double charge, double Wsp);
