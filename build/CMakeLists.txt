@@ -25,17 +25,20 @@ cmake_minimum_required (VERSION 2.8.8)
 MESSAGE(STATUS "Building " ${TARGET_TYPE} " in a " ${CMAKE_BUILD_TYPE} " mode")
 
 # specify the name of the library
-IF (CMAKE_BUILD_TYPE MATCHES Debug)
-    SET(TARGET "femocs_debug")
-ELSE()
-    SET(TARGET "femocs")
-ENDIF()
+SET(TARGET "femocs")
 
 # specify which languages project uses
 PROJECT(${TARGET} C CXX Fortran)
 
 # enable or disable verbose build
 SET(CMAKE_VERBOSE_MAKEFILE off)
+
+# set explicitly number of threads used by Deal.II
+# if not set, determination will be done automatically
+IF (N_DEALII GREATER 0)
+    MESSAGE(STATUS "Setting \# Deal.II threads to " ${N_DEALII})
+    SET(DEAL_II_NUM_THREADS N_DEALII)
+ENDIF()
 
 # ==============================================
 # ========== Path for input & output ===========
@@ -119,7 +122,6 @@ ELSE()
 ENDIF()
 
 # add OpenMP flag
-#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
 # Specify warnings that are checked and that are omitted
@@ -142,8 +144,6 @@ IF (CMAKE_BUILD_TYPE MATCHES Release)
 ELSE()
     SET(DEAL_II_CXX_FLAGS "${DEAL_II_CXX_FLAGS} -g -O0 ${WARNINGS}")
 ENDIF()
-
-SET(DEAL_II_NUM_THREADS 2)
 
 # ==============================================
 # =========== Start building ===========

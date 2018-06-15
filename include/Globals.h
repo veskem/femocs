@@ -21,6 +21,25 @@ enum BoundaryId {
     copper_sides = 5
 };
 
+enum MeshData {
+    n_coordinates = 3,     ///< # coordinates
+    n_nodes_per_edge = 2, ///< # nodes on an edge
+    n_nodes_per_tri = 3,  ///< # nodes on a triangle
+    n_nodes_per_quad = 4, ///< # nodes on a quadrangle
+    n_nodes_per_tet = 4,  ///< # nodes on a tetrahedron
+    n_nodes_per_hex = 8,  ///< # nodes on a hexahedron
+    n_edges_per_tri = 3,  ///< # edges on a triangle
+    n_edges_per_quad = 4, ///< # edges on a quadrangle
+    n_edges_per_tet = 6,  ///< # edges on a tetrahedron
+    n_edges_per_hex = 12, ///< # edges on a hexahedron
+    n_tris_per_tet = 4,   ///< # triangles on a tetrahedron
+    n_tets_per_tri = 2,   ///< # tetrahedra connected to a triangle
+    n_hexs_per_quad = 2,  ///< # hexahedra connected to a quadrangle
+    n_hexs_per_tet = 4,   ///< # hexahedra connected to a tetrahedron
+    n_quads_per_tri = 3,  ///< # quadrangles connected to a triangle
+    n_quads_per_hex = 6  ///< # quadrangles connected to a hexahedron
+};
+
 /** Types of regions used in the simulation */
 struct Types {
     const int NONE = 0;      ///< type of atom with unknown position
@@ -87,47 +106,30 @@ struct Types {
     } VTK;
 };
 
-/** Labels of the exported/interpolated data.
- * Char component is used while calling Femocs externally, while string component is used internally.
- * Note that labels for vectors are capitalised, while lower case designates scalars.
- * While adding new labels, make sure not to use already taken char. */
+/** Labels of the calculated/exported/interpolated data. */
 struct Labels {
-    const pair<char, string> vec = {'X', "vec"};
-    const pair<char, string> vec_norm = {'y', "vec_norm"};
-    const pair<char, string> scalar = {'z', "scalar"};
-    const pair<char, string> elfield = {'E', "elfield"};
-    const pair<char, string> elfield_norm = {'e', "elfield_norm"};
-    const pair<char, string> potential = {'u', "potential"};
-    const pair<char, string> temperature = {'t', "temperature"};
-    const pair<char, string> rho = {'C', "rho"};
-    const pair<char, string> rho_norm = {'c', "rho_norm"};
-    const pair<char, string> pair_potential = {'p', "pair_potential"};
-    const pair<char, string> pair_potential_sum = {'s', "pair_potential_sum"};
-    const pair<char, string> force = {'F', "force"};
-    const pair<char, string> force_norm = {'f', "force_norm"};
-    const pair<char, string> charge = {'q', "charge"};
-    const pair<char, string> velocity = {'V', "velocity"};
-    const pair<char, string> velocity_norm = {'v', "velocity_norm"};
-
-    int size() const { return (&velocity_norm)-(&vec) + 1; }  ///< number of values in Commands
-
-    /** Convert given short char command into string label */
-    string decode(const char c) {
-        pair<char,string> const *ptr = &vec - 1;
-        for (int i = 0; i < size(); ++i)
-            if ((++ptr)->first == c)
-                return ptr->second;
-        return "";
-    }
-
-    /** Convert given string label into short char command */
-    char encode(const string &s) {
-        pair<char,string> const *ptr = &vec - 1;
-        for (int i = 0; i < size(); ++i)
-            if ((++ptr)->second == s)
-                return ptr->first;
-        return '\0';
-    }
+    const string vec = "vec";
+    const string vec_norm = "vec_norm";
+    const string scalar = "scalar";
+    const string elfield = "elfield";
+    const string elfield_norm = "elfield_norm";
+    const string potential = "potential";
+    const string temperature = "temperature";
+    const string rho = "rho";
+    const string rho_norm = "rho_norm";
+    const string pair_potential = "pair_potential";
+    const string pair_potential_sum = "pair_potential_sum";
+    const string parcas_force = "parcas_force";
+    const string charge_force = "charge_force";
+    const string force = "force";
+    const string force_norm = "force_norm";
+    const string charge = "charge";
+    const string parcas_velocity = "parcas_velocity";
+    const string velocity = "velocity";
+    const string velocity_norm = "velocity_norm";
+    const string heat = "heat";
+    const string area = "area";
+    const string atom_type = "atom_type";
 };
 
 /** Flags to control the output behaviour of the code */

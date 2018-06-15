@@ -24,7 +24,7 @@ int ParticleSpecies::clear_lost() {
         else if (nlost > 0)
             parts[i-nlost] = parts[i];
     }
-    
+
     // Shrink the array
     if (nlost > 0) parts.resize(npart-nlost);
     return nlost;

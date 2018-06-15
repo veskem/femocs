@@ -10,6 +10,7 @@
 
 #include "Primitives.h"
 #include "Medium.h"
+#include "AtomReader.h"
 #include "TetgenCells.h"
 #include "TetgenMesh.h"
 #include "VoronoiMesh.h"
@@ -73,6 +74,29 @@ public:
     /** Store the surface mesh centroids of the FEM solver */
     void store_points(const DealSolver<3>& solver);
 
+    /** Interpolate solution on the surface mesh centroids of the FEM solver */
+    void interpolate(const DealSolver<3>& solver);
+
+    /** Interpolate solution on a set of given points */
+    void interpolate(const int n_points, const double* x, const double* y, const double* z);
+
+    /** Interpolate solution on all Medium atoms */
+    void interpolate(const Medium &medium);
+
+    /** Interpolate solution on non-fixed AtomReader atoms */
+    void interpolate(const AtomReader &reader);
+
+    /** Determine whether given data is included in SolutionReader */
+    int contains(const string& data_label) const;
+
+    /** General function to export desired component of calculated data */
+    int export_results(const int n_points, const string &data_type, double* data) const;
+
+    /** General function to first perform interpolation
+     * and then export desired component of calculated data */
+    int interpolate_results(const int n_points, const string &data_type, const double* x,
+            const double* y, const double* z, double* data);
+
     /** Statistics about solution */
     struct Statistics {
         double vec_norm_min;  ///< minimum value of vector norm
@@ -80,14 +104,6 @@ public:
         double scal_min;      ///< minimum value of scalar
         double scal_max;      ///< maximum value of scalar
     } stat;
-
-    /** General function to export desired component of calculated data */
-    int export_results(const int n_points, const string &data_type, const bool append, double* data);
-
-    /** General function to first perform interpolation
-     * and then export desired component of calculated data */
-    int interpolate_results(const int n_points, const string &data_type, const double* x,
-            const double* y, const double* z, double* data);
 
 protected:
     const string vec_label;       ///< label for vector data
@@ -124,21 +140,15 @@ public:
 
     FieldReader(Interpolator* i);
 
-    void compare_shape_funs(PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
-    void compare_interpolators(PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
-    void test_corners(const TetgenMesh& mesh) const;
-    void compare_space(const Medium::Sizes &sizes);
-    void compare_surface(const Medium &medium);
-    void perform_comparison(const string &file_name);
+    /** Compare the analytical and calculated field enhancement.
+     * The check is disabled if lower and upper limits are the same. */
+    bool check_limits(const vector<Solution>* solutions=NULL) const;
 
-    /** Interpolate solution on the surface mesh centroids of the FEM solver */
-    void interpolate(const DealSolver<3>& solver);
+    /** Find the maximum field norm from the solution vector */
+    double calc_max_field(const vector<Solution>* solutions=NULL) const;
 
-    /** Interpolate electric field and potential on a Medium atoms */
-    void interpolate(const Medium &medium);
-
-    /** Interpolate electric field and potential on a set of points */
-    void interpolate(const int n_points, const double* x, const double* y, const double* z);
+    /** Set parameters to calculate analytical solution */
+    void set_check_params(const Config& conf, double radius, double tip_height, double box_height);
 
     /** Return electric field in i-th interpolation point */
     Vec3 get_elfield(const int i) const {
@@ -157,34 +167,6 @@ public:
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         return interpolation[i].scalar;
     }
-
-    /** Compare the analytical and calculated field enhancement.
-     * The check is disabled if lower and upper limits are the same. */
-    bool check_limits(const vector<Solution>* solutions=NULL) const;
-
-    /** Find the maximum field norm from the solution vector */
-    double calc_max_field(const vector<Solution>* solutions=NULL) const;
-
-    /** Set parameters to calculate analytical solution */
-    void set_check_params(const Config& conf, double radius, double tip_height, double box_height);
-
-    /** Export calculated electic field distribution to HELMOD */
-    int export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
-
-    /** Interpolate electric field on set of points using the solution on surface mesh nodes
-     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    int interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
-            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
-
-    /** Interpolate electric field on set of points using the solution on volumetric mesh nodes
-     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    int interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
-            double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
-
-    /** Interpolate electric potential on set of points using the solution on tetrahedral mesh nodes
-     * @return  index of first point outside the mesh; index == -1 means all the points were inside the mesh */
-    int interpolate_phi(const int n_points, const double* x, const double* y, const double* z,
-            double* phi, int* flag);
 
 private:
     /** Data needed for comparing numerical solution with analytical one */
@@ -208,20 +190,23 @@ public:
 
     HeatReader(Interpolator* i);
 
-    /** Interpolate solution on medium atoms */
-    void interpolate(const Medium &medium);
-
-    /** Linearly interpolate currents and temperatures in the bulk.
-     *  In case of empty interpolator, constant values are stored. */
-    void interpolate(DealSolver<3>& solver);
-
-    /** Export interpolated temperature */
-    int export_temperature(const int n_atoms, double* T);
-
     void locate_atoms(const Medium &medium);
 
-    void scale_berendsen(const int n_atoms, double* x1);
-    void scale_berendsen_v2(const int n_atoms, double* x1);
+    /** Compute data that Berendsen thermostat requires for re-using old solution */
+    void precalc_berendsen_long();
+
+    /** Apply Berendsen thermostat for individual atoms */
+    int scale_berendsen_short(double* x1, const int n_atoms, const Vec3& parcas2si);
+
+    /** Apply Berendsen thermostat for atoms within a tetrahedron */
+    int scale_berendsen_long(double* x1, const int n_atoms, const Vec3& parcas2si);
+
+    /** Store velocity scaling constants */
+    void set_params(const Config& conf) {
+        data.tau = conf.heating.tau;
+        data.md_timestep = conf.behaviour.timestep_fs;
+        data.time_unit = 10.1805*sqrt(conf.behaviour.mass);
+    }
 
     /** Return current density in i-th interpolation point */
     Vec3 get_rho(const int i) const {
@@ -242,8 +227,23 @@ public:
     }
 
 private:
-    static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant in eV/K
-    const LinearTetrahedra* lintet;   ///< direct pointer to linear tetrahedral interpolator
+    static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant [eV/K]
+    static constexpr double heat_factor = 1.0 / (2*1.5*kB);  ///< Factor to transfer 2*kinetic energy to temperature
+
+    vector<vector<int>> tet2atoms;
+    vector<double> fem_temp;
+
+    struct Data {
+        double tau;          ///< Time constant in Berendsen scaling [fs]
+        double md_timestep;  ///< MD time step [fs]
+        double time_unit;    ///< the conversion factor of Parcas internal units to fs.
+    } data;
+
+    /** Transfer velocities from Parcas units to fm / fs */
+    void calc_SI_velocities(vector<Vec3>& velocities, const int n_atoms, const Vec3& parcas2si, double* x1);
+
+    /** Calculate scaling factor for Berendsen thermostat */
+    double calc_lambda(const double T_start, const double T_end) const;
 };
 
 // forward declaration of Pic for declaring it as a friend
@@ -413,6 +413,8 @@ public:
      */
     int export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const;
 
+    int export_parcas(const int n_points, const string &data_type, const Vec3& si2parcas, double* data) const;
+
     /** Return the force that is applied to i-th atom */
     Vec3 get_force(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
@@ -447,6 +449,23 @@ private:
     int get_nanotip(Medium& nanotip, const double radius);
 };
 
+
+/**
+ * Class for performing tests with shape functions
+ */
+class InterpolatorTester : public SolutionReader {
+public:
+    InterpolatorTester(Interpolator* i);
+
+    void compare_shape_funs(PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
+    void compare_interpolators(PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
+    void test_corners(const TetgenMesh& mesh) const;
+    void compare_space(const Medium::Sizes &sizes);
+    void compare_surface(const Medium &medium);
+    void perform_comparison(const string &file_name);
+
+private:
+};
 } // namespace femocs
 
 #endif /* SOLUTIONREADER_H_ */

@@ -28,23 +28,11 @@ public:
     ~Femocs();
 
     /** Function to generate FEM mesh and to solve differential equation(s)
-     * @param elfield   long range electric field strength
-     * @param timestep  active time step in the host code
-     * @return          0 - function completed normally; 1 - function did not complete normally
-     */
-    int run(const double elfield, const string& timestep);
-
-    /** Function to generate FEM mesh and to solve differential equation(s)
      * by using the parameters specified in configuration script.
      * @param timestep  active time step in the host code; if not provided, internal counter will be used
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
-    int run(const int timestep=-1);
-
-    /** Function to generate artificial nanotip without crystallographic features
-     * @return            success of the operation (always 0)
-     */
-    int generate_nanotip();
+    int run(const int timestep=-1, const double time=-1);
 
     /** Function to import atoms from PARCAS
      * @param n_atoms       number of imported atoms
@@ -74,46 +62,6 @@ public:
      */
     int import_atoms(const string& file_name, const int add_noise=0);
     
-    /** Export the types of all the atoms as seen by FEMOCS
-     * @param n_atoms   number of atoms to export; n_atoms <= 0 turns the export off
-     * @param types     array where the atom types are written
-     * @return          boolean whether there are any clustered or evaporated atom
-     */
-    int export_atom_types(const int n_atoms, int* types);
-
-    /** Function to export the calculated electric field on imported atom coordinates
-     * @param n_atoms   number of points of interest; n_atoms <= 0 turns the export off
-     * @param Ex        x-component of electric field
-     * @param Ey        y-component of electric field
-     * @param Ez        z-component of electric field
-     * @param Enorm     norm of electric field
-     * @return          success of the operation (always 0)
-     */
-    int export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
-    
-    /** Function to export the calculated temperatures on imported atom coordinates
-     * @param n_atoms   number of points of interest; n_atoms <= 0 turns the export off
-     * @param T         temperature in the atom location
-     * @return          success of the operation (always 0)
-     */
-    int export_temperature(const int n_atoms, double* T);
-
-    /** Calculate and export charges & forces on imported atom coordinates
-     * @param n_atoms   number of points of interest; n_atoms <= 0 turns the export off
-     * @param xq        charges and forces in PARCAS format (xq[0] = q1, xq[1] = Fx1, xq[2] = Fy1, xq[3] = Fz1, xq[4] = q2, xq[5] = Fx2 etc)
-     * @return          success of the operation (always 0)
-     */
-    int export_charge_and_force(const int n_atoms, double* xq);
-
-    /** Export Laplace + Coulomb force and pair potential on imported atoms
-     * @param n_atoms  number of first atoms the data will be exported
-     * @param xnp      forces in PARCAS format & units (xnp[0] = Fx1, xnp[1] = Fy1, xnp[2] = Fz1, xnp[3] = Fx2 etc)
-     * @param Epair    potential energy per atom
-     * @param Vpair    total potential energy of atoms. Pot. due to Coloumb forces are added here. NOTE: Lorentz is missing!
-     * @return         success of the operation (always 0)
-     */
-    int export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair);
-
     /** Function to linearly interpolate electric field at points anywhere in space
      * @param n_points  number of points where electric field is interpolated; n_points <= 0 turns the interpolation off
      * @param x         x-coordinates of the points of interest
@@ -157,32 +105,23 @@ public:
     int interpolate_phi(const int n_points, const double* x, const double* y, const double* z, double* phi, int* flag);
 
     /** Export the solution data in the location of imported atoms
-     * @param n_points  number of first imported points where solution is exported; <= 0 turns export off
-     * @param cmd       label specifying the data to be exported
-     * @param data      array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
+     * @param data       array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
+     * @param n_points   number of first imported points where solution is exported; <= 0 turns export off
+     * @param data_type  label of data to be exported
      */
-    int export_results(const int n_points, const char cmd, double* data);
+    int export_data(double* data, const int n_points, const string& data_type);
 
-    /** Export the solution data in the location of specified points
-     * @param n_points  number of points in x,y,z arrays; <= 0 turns interpolation off
-     * @param cmd       label specifying the data to be exported
-     * @param x,y,z     coordinates of the points
-     * @param data      array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
-     * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
+    /** Interpolate the solution data in the location of specified points
+     * @param data          array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
+     * @param flag          indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
+     * @param n_points      number of points in x,y,z arrays; <= 0 turns interpolation off
+     * @param data_type     label of data to be exported
+     * @param near_surface  data points are located near the surface
+     * @param x,y,z         coordinates of the points
      */
-    int interpolate_results(const int n_points, const char cmd,
-            const double* x, const double* y, const double* z, double* data, int* flag);
-
-    /** Export the solution data in the location of specified points.
-     * Points are assumed to be near the surface, allowing to make interpolation faster.
-     * @param n_points  number of points in x,y,z arrays; <= 0 turns interpolation off
-     * @param cmd       label specifying the data to be exported
-     * @param x,y,z     coordinates of the points
-     * @param data      array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
-     * @param flag      indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
-     */
-    int interpolate_surface_results(const int n_points, const char cmd,
-            const double* x, const double* y, const double* z, double* data, int* flag);
+    int interpolate(double* data, int* flag,
+            const int n_points, const string& data_type, const bool near_surface,
+            const double* x, const double* y, const double* z);
 
     /**
      * Function to parse integer argument of the command from input script
@@ -216,15 +155,15 @@ public:
      */
     int parse_command(const string& command, string& arg);
 
-    /** Force the data to the files for debugging purposes */
-    int force_output();
-
 private:
     double t0;
 
     Config conf;             ///< configuration parameters
     AtomReader reader;       ///< all the imported atoms
     GeneralProject *project; ///< project Femocs is going to run
+
+    void perform_full_analysis(const int* nborlist);
+    void perform_pseudo_analysis();
 };
 
 } /* namespace femocs */

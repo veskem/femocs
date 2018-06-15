@@ -37,7 +37,7 @@ public:
 template<int dim>
 PoissonSolver<dim>::PoissonSolver() : DealSolver<dim>(),
         particles(NULL), conf(NULL), interpolator(NULL), applied_field(0), applied_potential(0)
-        {};
+        {}
 
 template<int dim>
 PoissonSolver<dim>::PoissonSolver(const ParticleSpecies* particles_,
@@ -45,7 +45,7 @@ PoissonSolver<dim>::PoissonSolver(const ParticleSpecies* particles_,
         DealSolver<dim>(),
         particles(particles_), conf(conf_), interpolator(interpolator_),
         applied_field(0), applied_potential(0)
-        {};
+        {}
 
 template<int dim>
 void PoissonSolver<dim>::mark_mesh() {
@@ -110,8 +110,6 @@ Tensor<1, dim, double> PoissonSolver<dim>::probe_efield(const Point<dim> &p, int
 
 template<int dim>
 Tensor<1, dim, double> PoissonSolver<dim>::probe_efield(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const {
-
-    static double tconstruct = 0, tcalc = 0, t0;
 
     //get active cell iterator from cell index
     typename DoFHandler<dim>::active_cell_iterator cell(&this->triangulation, 0, max(0,cell_index), &this->dof_handler);
@@ -349,7 +347,7 @@ void PoissonSolver<dim>::assemble_space_charge() {
         vector<double> sf = this->shape_funs(p_deal, particle.cell);
 
         //loop over nodes of the cell and add the particle's charge to the system rhs
-        for (int i = 0; i < this->fe.dofs_per_cell; ++i)
+        for (unsigned int i = 0; i < this->fe.dofs_per_cell; ++i)
             this->system_rhs(local_dof_indices[i]) += sf[i] * particles->q_over_eps0 * particles->get_Wsp();
     }
 }

@@ -556,7 +556,7 @@ void LinearTetrahedra::precompute() {
 }
 
 bool LinearTetrahedra::point_in_cell(const Vec3& point, const int i) const {
-    require(i >= 0 && i < det0.size(), "Index out of bounds: " + d2s(i));
+    require(i >= 0 && i < (int)det0.size(), "Index out of bounds: " + d2s(i));
 
     // Ignore co-planar tetrahedra
     // no need to check because Tetgen guarantees non-co-planar tetrahedra
@@ -576,7 +576,7 @@ bool LinearTetrahedra::point_in_cell(const Vec3& point, const int i) const {
 }
 
 array<double,4> LinearTetrahedra::shape_functions(const Vec3& point, const int tet) const {
-    require(tet >= 0 && tet < det0.size(), "Index out of bounds: " + d2s(tet));
+    require(tet >= 0 && tet < (int)det0.size(), "Index out of bounds: " + d2s(tet));
 
     const Vec4 pt(point, 1);
     return {
@@ -774,7 +774,7 @@ array<double,10> QuadraticTetrahedra::shape_functions(const Vec3& point, const i
  * For instance there's no need to calculate dN explicitly.
  */
 array<Vec3,10> QuadraticTetrahedra::shape_fun_grads(const Vec3& point, const int tet) const {
-    require(tet >= 0 && tet < cells.size(), "Index out of bounds: " + d2s(tet));
+    require(tet >= 0 && tet < (int)cells.size(), "Index out of bounds: " + d2s(tet));
 
     array<double,4> bcc = lintet->shape_functions(point, tet);
 
@@ -846,7 +846,7 @@ array<Vec3,10> QuadraticTetrahedra::shape_fun_grads(const Vec3& point, const int
 }
 
 array<Vec3,10> QuadraticTetrahedra::shape_fun_grads_slow(const Vec3& point, const int tet) const {
-    require(tet >= 0 && tet < cells.size(), "Index out of bounds: " + d2s(tet));
+    require(tet >= 0 && tet < (int)cells.size(), "Index out of bounds: " + d2s(tet));
 
     array<double,4> bcc = lintet->shape_functions(point, tet);
 

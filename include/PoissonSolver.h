@@ -9,9 +9,9 @@
 #define LAPLACE_H_
 
 #include "DealSolver.h"
-#include "ParticleSpecies.h"
 #include "Config.h"
 #include "InterpolatorCells.h"
+#include "ParticleSpecies.h"
 
 namespace femocs {
 using namespace dealii;

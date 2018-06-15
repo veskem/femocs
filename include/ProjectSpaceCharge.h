@@ -24,7 +24,7 @@ public:
     ProjectSpaceCharge(AtomReader &reader, Config &conf);
     ~ProjectSpaceCharge(){};
 
-    int run(int timestep);
+    int run(int timestep, double time);
 
 private:
 

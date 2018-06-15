@@ -10,6 +10,7 @@
 
 #include "GeneralProject.h"
 #include "Surface.h"
+#include "SolutionReader.h"
 #include "Interpolator.h"
 #include "PhysicalQuantities.h"
 #include "PoissonSolver.h"
@@ -28,54 +29,51 @@ namespace femocs {
  */
 class ProjectRunaway : public GeneralProject {
 public:
-
     ProjectRunaway(AtomReader &reader, Config &conf);
     ~ProjectRunaway() {}
-
-    int run(const int timestep=-1);
 
     /** Function to generate FEM mesh and to solve differential equation(s)
      * @param elfield   long range electric field strength
      * @param timestep  active time step in the host code
      * @return          0 - function completed normally; 1 - function did not complete normally
      */
-    int run(const double elfield, const int timestep=-1);
+    int run(const int timestep=-1, const double time=-1);
 
     /** Force the data to the files for debugging purposes */
     int force_output();
 
     /** Export the solution on the imported atomistic points.
-     * @param n_points  # of first imported atoms where data exported; 0 disables the export
-     * @param cmd   label of the data to be exported. See Labels class for a list of possible cmd-s
-     * @param data  array where results are written. Vector data is exported coordinate-wise, i.e in a form x1,y1,z1,x2,y2,...
+     * @param n_points   # of first imported atoms where data exported; 0 disables the export
+     * @param data_type  label of the data to be exported. See Labels class for a list of possible cmd-s
+     * @param data       array where results are written. Vector data is exported coordinate-wise, i.e in a form x1,y1,z1,x2,y2,...
      */
-    int export_results(const int n_points, const string &cmd, double* data);
+    int export_data(double* data, const int n_points, const string &data_type);
 
     /** Export the solution on the specified points.
-      * @param n_points    # of first imported atoms where data exported; 0 disables the export
-      * @param cmd         label of the data to be exported. See Labels class for a list of possible cmd-s
-      * @param on_surface  data is located on or near the surface.
-      * @param x,y,z       coordinates of the points where interpolation is performed
-      * @param data        array where results are written. Vector data is exported coordinate-wise, i.e in a form x1,y1,z1,x2,y2,...
-      * @param flag        array showing whether specified point was located inside the mesh (1) or not (0)
+      * @param n_points      # of first imported atoms where data exported; 0 disables the export
+      * @param data_type     label of the data to be exported. See Labels class for a list of possible cmd-s
+      * @param near_surface  data is located on or near the surface.
+      * @param x,y,z         coordinates of the points where interpolation is performed
+      * @param data          array where results are written. Vector data is exported coordinate-wise, i.e in a form x1,y1,z1,x2,y2,...
+      * @param flag          array showing whether specified point was located inside the mesh (1) or not (0)
       */
-    int interpolate_results(const int n_points, const string &cmd, const bool on_surface,
-            const double* x, const double* y, const double* z, double* data, int* flag);
-
+    int interpolate(double* data, int* flag,
+            const int n_points, const string &data_type, const bool near_surface,
+            const double* x, const double* y, const double* z);
 
 protected:
-
     bool fail;                  ///< If some process failed
     double t0;                  ///< CPU timer
     int timestep;               ///< counter to measure how many times Femocs has been called
-    double last_write_time = GLOBALS.TIME - conf.behaviour.write_period; ///< Keeps the time that last file output was done
-    double last_heat_time = GLOBALS.TIME; ///< Last time heat was updated
-
     bool mesh_changed = false;          ///< True if new mesh has been created
-    int last_full_timestep; ///< last time step Femocs did full calculation
-    string timestep_string; ///< time step written to file name
-    // as surface atom->triangle mapping is quite heavy but useful in many places, it's good to prevent doing it many times
 
+    string timestep_string;     ///< time step written to file name
+
+    int last_full_timestep;     ///< last time step Femocs did    full calculation
+    double last_heat_time;      ///< Last time heat was updated
+    double last_write_time;     ///< Keeps the time that last file output was done
+
+    // as surface atom->triangle mapping is quite heavy but useful in many places, it's good to prevent doing it many times
     vector<int> atom2face;  ///< surface atom to triangle index map
 
     Interpolator vacuum_interpolator;  ///< data & operations for interpolating field & potential in vacuum
@@ -83,6 +81,10 @@ protected:
 
     Surface dense_surf;       ///< non-coarsened surface atoms
     Surface extended_surf;    ///< atoms added for the surface atoms
+
+    FieldReader fields;       ///< fields & potentials on surface atoms
+    HeatReader  temperatures; ///< temperatures & current densities on bulk atoms
+    ForceReader forces;       ///< forces & charges on surface atoms
 
     FieldReader surface_fields;       ///< fields on surface hex face centroids
     HeatReader  surface_temperatures; ///< temperatures & current densities on surface hex face centroids
@@ -93,7 +95,6 @@ protected:
 
     EmissionReader emission;          ///< emission data on centroids of surface quadrangles
     Pic<3> pic_solver;                       ///< class for solving Poisson equation and handling space charge
-
 
     /** Generate bulk and vacuum meshes using the imported atomistic data */
     int generate_mesh();
@@ -117,23 +118,18 @@ protected:
     int prepare_export();
 
     /** Store the imported atom coordinates and set the flag that enables exporters */
-    int finalize(double tstart);
+    int finalize(double tstart, double time);
 
     int process_failed(const string &msg) { write_verbose_msg(msg); force_output(); return 1; }
 
 private:
-
-
-    /** Read bulk and vacuum meshes from file and generate metadata for them */
-    int read_mesh();
-
     /** Check if enough time has passed since the last file write_results */
     bool write_time() const {
         return GLOBALS.TIME >= (last_write_time + conf.behaviour.write_period);
     }
 
     /** Determine whether atoms have moved significantly and whether to enable file writing */
-    int reinit(int timestep);
+    int reinit(int timestep, double time);
 
     /** Pick a field solver and calculcate field distribution */
     int run_field_solver();
@@ -143,8 +139,6 @@ private:
 
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
-
-
 };
 
 } /* namespace femocs */

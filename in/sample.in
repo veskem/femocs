@@ -5,6 +5,7 @@
 # However, for the sake of completeness, here they are.
 
 # General
+project = runaway               # project to be run; runaway, ...
 anode_BC = Neumann				# Boundary condition type at anode ("Dirichlet" or "Neumann")
 elfield = -0.07					# Long range electric field [V/A]
 Vappl = 0.					    # Anode voltage (used for Poisson eq. if 
@@ -31,6 +32,7 @@ coarse_factor = 0.3 6 4         # coarsening factor; bigger number gives coarser
                                 # 3rd - minimum distance between atoms in nanotip apex [0.25*latconst]
 
 # Enable or disable various features
+n_omp = 4                       # number of opened OMP threads
 clean_surface = true            # clean surface by measuring the atom distance from the triangular surface
 cluster_anal = false            # enable cluster analysis
 use_rdf = false                 # use radial distribution function to recalculate lattice constant, nnn & coord_cutoff

@@ -358,7 +358,7 @@ void VoronoiMesh::calc_ranks(vector<int>& ranks, const int seedface) {
 // Mark Voronoi faces that are on the vacuum-material boundary
 void VoronoiMesh::mark_faces_vol2(const double zmin, const int seed) {
     const int cell_max = nodes.indxs.surf_end;
-    const int min_rank = 40;
+//    const int min_rank = 40;
 
     vfaces.calc_neighbours();
     vfaces.set_marker(seed, TYPES.ZMAX);

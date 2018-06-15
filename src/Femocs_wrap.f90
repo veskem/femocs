@@ -19,20 +19,13 @@ module libfemocs
             type(c_ptr), value :: femocs
         end subroutine
 
-        subroutine femocs_run_c(femocs, retval, E_field, message) bind(C, name="femocs_run")
+        subroutine femocs_run_c(femocs, retval, timestep, time) bind(C, name="femocs_run")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
             integer(c_int) :: retval
-            real(c_double), intent(in), value :: E_field
-            character(len=1, kind=C_CHAR), intent(in) :: message(*)
-        end subroutine
-
-        subroutine femocs_force_output_c(femocs, retval) bind(C, name="femocs_force_output")
-            use iso_c_binding
-            implicit none
-            type(c_ptr), intent(in), value :: femocs
-            integer(c_int) :: retval
+            integer(c_int), intent(in), value :: timestep
+            real(c_double), intent(in), value :: time
         end subroutine
        
         subroutine femocs_import_atoms_c(femocs, retval, n_atoms, x, y, z, types) bind(C, name="femocs_import_atoms")
@@ -64,57 +57,6 @@ module libfemocs
             type(c_ptr), intent(in), value :: femocs
             integer(c_int) :: retval            
             character(len=1, kind=C_CHAR), intent(in) :: file_name(*)
-        end subroutine
-        
-        subroutine femocs_export_atom_types_c(femocs, retval, n_atoms, types) bind(C, name="femocs_export_atom_types")
-            use iso_c_binding
-            implicit none
-            type(c_ptr), intent(in), value :: femocs
-            integer(c_int) :: retval            
-            integer(c_int), value :: n_atoms
-            integer(c_int) :: types(*)
-        end subroutine
-        
-        subroutine femocs_export_elfield_c(femocs, retval, n_atoms, Ex, Ey, Ez, Enorm) bind(C, name="femocs_export_elfield")
-            use iso_c_binding
-            implicit none
-            type(c_ptr), intent(in), value :: femocs
-            integer(c_int) :: retval            
-            integer(c_int), value :: n_atoms
-            real(c_double) :: Ex(*)
-            real(c_double) :: Ey(*)
-            real(c_double) :: Ez(*)
-            real(c_double) :: Enorm(*)
-        end subroutine
-        
-        subroutine femocs_export_temperature_c(femocs, retval, n_atoms, T) bind(C, name="femocs_export_temperature")
-            use iso_c_binding
-            implicit none
-            type(c_ptr), intent(in), value :: femocs
-            integer(c_int) :: retval            
-            integer(c_int), value :: n_atoms
-            real(c_double) :: T(*)
-        end subroutine
-        
-        subroutine femocs_export_charge_and_force_c(femocs, retval, n_atoms, xq) bind(C, name="femocs_export_charge_and_force")
-            use iso_c_binding
-            implicit none
-            type(c_ptr), intent(in), value :: femocs
-            integer(c_int) :: retval            
-            integer(c_int), value :: n_atoms
-            real(c_double) :: xq(*)
-        end subroutine
-        
-        subroutine femocs_export_force_and_pairpot_c(femocs, retval, n_atoms, xnp, Epair, Vpair) &
-                                                 bind(C, name="femocs_export_force_and_pairpot")
-            use iso_c_binding
-            implicit none
-            type(c_ptr), intent(in), value :: femocs
-            integer(c_int) :: retval
-            integer(c_int), value :: n_atoms
-            real(c_double) :: xnp(*)
-            real(c_double) :: Epair(*)
-            real(c_double) :: Vpair
         end subroutine
 
         subroutine femocs_interpolate_elfield_c(femocs, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag) &
@@ -151,7 +93,7 @@ module libfemocs
             integer(c_int) :: flag(*)
         end subroutine
 
-        subroutine femocs_interpolate_phi_c(femocs, retval, n_points, x, y, z, phi, flag) &
+        subroutine femocs_interpolate_phi_c(femocs,retval,n_points,x,y,z,phi,flag) &
                                                  bind(C, name="femocs_interpolate_phi")
             use iso_c_binding
             implicit none
@@ -164,7 +106,34 @@ module libfemocs
             real(c_double) :: phi(*)
             integer(c_int) :: flag(*)
         end subroutine
-        
+
+        subroutine femocs_export_data_c(femocs,retval,data,n_points,data_type) &
+                                                 bind(C, name="femocs_export_data")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
+            integer(c_int), value :: n_points
+            character(len=1, kind=C_CHAR), intent(in) :: data_type(*)
+            real(c_double) :: data(*)
+        end subroutine
+
+        subroutine femocs_interpolate_c(femocs,retval,data,flag,n_points,data_type,near_surface,x,y,z) &
+                                                    bind(C, name="femocs_interpolate")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
+            integer(c_int), value :: n_points
+            character(len=1, kind=C_CHAR), intent(in) :: data_type(*)
+            integer(c_int), value :: near_surface
+            real(c_double) :: x(*)
+            real(c_double) :: y(*)
+            real(c_double) :: z(*)
+            real(c_double) :: data(*)
+            integer(c_int) :: flag(*)
+        end subroutine
+
         subroutine femocs_parse_int_c(femocs, retval, command, arg) bind(C, name="femocs_parse_int")
             use iso_c_binding
             implicit none
@@ -199,28 +168,18 @@ module libfemocs
         private
         type(c_ptr) :: ptr ! pointer to the Femocs class
     contains
-        ! Compiler gives the following warning when this line is uncommented: 
-        ! Only array FINAL procedures declared for derived type ‘femocs’ defined at (1), suggest also scalar one [-Wsurprising]
-        ! For some reason the original sample of the wrapper had that function and I'm not exactly sure what it does, therefore I didn't dare to erase it.
-        ! However, it seems wrapper can perfectly do without it
-!         final :: delete_femocs
-
         ! Destructor for gfortran
-        procedure :: delete => delete_femocs_polymorph
+        procedure :: delete => delete_femocs
         ! Function members
         procedure :: run => femocs_run
-        procedure :: force_output => femocs_force_output
         procedure :: import_atoms => femocs_import_atoms
         procedure :: import_parcas => femocs_import_parcas
         procedure :: import_file => femocs_import_file
-        procedure :: export_atom_types => femocs_export_atom_types
-        procedure :: export_elfield => femocs_export_elfield
-        procedure :: export_temperature => femocs_export_temperature
-        procedure :: export_charge_and_force => femocs_export_charge_and_force
-        procedure :: export_force_and_pairpot => femocs_export_force_and_pairpot
         procedure :: interpolate_elfield => femocs_interpolate_elfield
         procedure :: interpolate_surface_elfield => femocs_interpolate_surface_elfield
         procedure :: interpolate_phi => femocs_interpolate_phi
+        procedure :: export_data => femocs_export_data
+        procedure :: interpolate => femocs_interpolate
         procedure :: parse_int => femocs_parse_int
         procedure :: parse_double => femocs_parse_double
         procedure :: parse_string => femocs_parse_string
@@ -250,44 +209,19 @@ module libfemocs
         create_femocs%ptr = create_femocs_c(c_str)
     end function
 
-    ! See the comment about compiler warnings above
-!     subroutine delete_femocs(this)
-!         implicit none
-!         type(femocs) :: this
-!         call delete_femocs_c(this%ptr)
-!     end subroutine
-
-    ! Bounds procedure needs to take a polymorphic (class) argument
-    subroutine delete_femocs_polymorph(this)
+    subroutine delete_femocs(this)
         implicit none
         class(femocs) :: this
         call delete_femocs_c(this%ptr)
     end subroutine
 
-    subroutine femocs_run(this, retval, E_field, message)
+    subroutine femocs_run(this, retval, timestep, time)
         implicit none
         class(femocs), intent(in) :: this
         integer(c_int) :: retval
-        real(c_double), intent(in) :: E_field
-        character(len=*), intent(in) :: message
-        character(len=1, kind=C_CHAR) :: c_str(len_trim(message) + 1)
-        integer :: N, i
-
-        ! Converting Fortran string to C string
-        N = len_trim(message)
-        do i = 1, N
-            c_str(i) = message(i:i)
-        end do
-        c_str(N + 1) = C_NULL_CHAR
-
-        call femocs_run_c(this%ptr, retval, E_field, c_str)
-    end subroutine
-    
-    subroutine femocs_force_output(this, retval)
-        implicit none
-        class(femocs), intent(in) :: this
-        integer(c_int) :: retval
-        call femocs_force_output_c(this%ptr, retval)
+        integer(c_int), intent(in) :: timestep
+        real(c_double), intent(in) :: time
+        call femocs_run_c(this%ptr, retval, timestep, time)
     end subroutine
 
     subroutine femocs_import_atoms(this, retval, n_atoms, x, y, z, types)
@@ -331,59 +265,6 @@ module libfemocs
         call femocs_import_file_c(this%ptr, retval, c_str)
     end subroutine
     
-    subroutine femocs_export_atom_types(this, retval, n_atoms, types)
-        implicit none
-        class(femocs), intent(in) :: this
-        integer(c_int) :: retval        
-        integer(c_int) :: n_atoms
-        integer(c_int) :: types(*)
-        call femocs_export_atom_types_c(this%ptr, retval, n_atoms, types)
-    end subroutine
-    
-    subroutine femocs_export_elfield(this, retval, n_atoms, Ex, Ey, Ez, Enorm)
-        implicit none
-        class(femocs), intent(in) :: this
-        integer(c_int) :: retval        
-        integer(c_int) :: n_atoms
-        real(c_double) :: Ex(*)
-        real(c_double) :: Ey(*)
-        real(c_double) :: Ez(*)
-        real(c_double) :: Enorm(*)
-        call femocs_export_elfield_c(this%ptr, retval, n_atoms, Ex, Ey, Ez, Enorm)
-    end subroutine
-
-    subroutine femocs_export_temperature(this, retval, n_atoms, T)
-        implicit none
-        class(femocs), intent(in) :: this
-        type(c_ptr), intent(in), value :: femocs
-        integer(c_int) :: retval            
-        integer(c_int), value :: n_atoms
-        real(c_double) :: T(*)
-        call femocs_export_temperature_c(this%ptr, retval, n_atoms, T)
-    end subroutine
-    
-    subroutine femocs_export_charge_and_force(this, retval, n_atoms, xq)
-        implicit none
-        class(femocs), intent(in) :: this
-        type(c_ptr), intent(in), value :: femocs
-        integer(c_int) :: retval            
-        integer(c_int), value :: n_atoms
-        real(c_double) :: xq(*)
-        call femocs_export_charge_and_force_c(this%ptr, retval, n_atoms, xq)
-    end subroutine
-
-    subroutine femocs_export_force_and_pairpot(this, retval, n_atoms, xnp, Epair, Vpair)
-        implicit none
-        class(femocs), intent(in) :: this
-        type(c_ptr), intent(in), value :: femocs
-        integer(c_int) :: retval
-        integer(c_int), value :: n_atoms
-        real(c_double) :: xnp(*)
-        real(c_double) :: Epair(*)
-        real(c_double) :: Vpair
-        call femocs_export_force_and_pairpot_c(this%ptr, retval, n_atoms, xnp, Epair, Vpair)
-    end subroutine
-
     subroutine femocs_interpolate_elfield(this, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag)
         implicit none
         class(femocs), intent(in) :: this
@@ -399,7 +280,7 @@ module libfemocs
         integer(c_int) :: flag(*)
         call femocs_interpolate_elfield_c(this%ptr, retval, n_points, x, y, z, Ex, Ey, Ez, Enorm, flag)
     end subroutine
-    
+
     subroutine femocs_interpolate_surface_elfield(this,retval,n_points,x,y,z,Ex,Ey,Ez,Enorm,flag)
         implicit none
         class(femocs), intent(in) :: this
@@ -427,6 +308,51 @@ module libfemocs
         real(c_double) :: phi(*)
         integer(c_int) :: flag(*)
         call femocs_interpolate_phi_c(this%ptr, retval, n_points, x, y, z, phi, flag)
+    end subroutine
+
+    subroutine femocs_export_data(this, retval, data, n_points, data_type)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval
+        integer(c_int) :: n_points
+        character(len=*), intent(in) :: data_type
+        real(c_double) :: data(*)
+        character(len=1, kind=C_CHAR) :: c_str(len_trim(data_type) + 1)
+        integer :: N, i
+
+        ! Convert Fortran string to C string
+        N = len_trim(data_type)
+        do i = 1, N
+            c_str(i) = data_type(i:i)
+        end do
+        c_str(N + 1) = C_NULL_CHAR
+
+        call femocs_export_data_c(this%ptr, retval, data, n_points, c_str)
+    end subroutine
+
+    subroutine femocs_interpolate(this,retval,data,flag,n_points,data_type,near_surface,x,y,z)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval
+        integer(c_int) :: n_points
+        character(len=*), intent(in) :: data_type
+        integer(c_int) :: near_surface
+        real(c_double) :: x(*)
+        real(c_double) :: y(*)
+        real(c_double) :: z(*)
+        real(c_double) :: data(*)
+        integer(c_int) :: flag(*)
+        character(len=1, kind=C_CHAR) :: c_str(len_trim(data_type) + 1)
+        integer :: N, i
+
+        ! Convert Fortran string to C string
+        N = len_trim(data_type)
+        do i = 1, N
+            c_str(i) = data_type(i:i)
+        end do
+        c_str(N + 1) = C_NULL_CHAR
+
+        call femocs_interpolate_c(this%ptr,retval,data,flag,n_points,c_str,near_surface,x,y,z)
     end subroutine
 
     subroutine femocs_parse_int(this, retval, command, arg)

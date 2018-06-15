@@ -9,18 +9,19 @@
 #include "Globals.h"
 #include "ProjectRunaway.h"
 #include "ProjectHeat.h"
-#include "ProjectSpaceCharge.h"
+
+#include <omp.h>
 
 using namespace std;
 namespace femocs {
 
-// specify simulation parameters
 Femocs::Femocs(const string &conf_file) : t0(0) {
     static bool first_call = true;
     bool fail;
 
     // Read configuration parameters from configuration file
     conf.read_all(conf_file);
+    reader.store_data(conf);
 
     // Initialise file writing
     MODES.WRITEFILE = conf.behaviour.n_writefile > 0;
@@ -37,66 +38,55 @@ Femocs::Femocs(const string &conf_file) : t0(0) {
 
     write_verbose_msg("======= Femocs started! =======");
 
-    // pick the project to run
+    omp_set_num_threads(conf.behaviour.n_omp_threads);
 
+    // pick the project to run
     if (conf.behaviour.project == "runaway")
         project = new ProjectRunaway(reader, conf);
     else if(conf.behaviour.project == "heat")
         project = new ProjectHeat(reader, conf);
-    else if(conf.behaviour.project == "space_charge")
-        project = new ProjectSpaceCharge(reader, conf);
-    else
-        cout << "Choose a valid project. project = " << conf.behaviour.project << endl;
-
+    else {
+        require(false, "Unimplemented project: " + conf.behaviour.project);
+    }
 }
 
-// delete data and print bye-bye-message
 Femocs::~Femocs() {
     delete project;
     write_verbose_msg("======= Femocs finished! =======");
 }
 
-// Write all the available data to file for debugging purposes
-int Femocs::force_output() {
-    return project->force_output();
+int Femocs::run(const int timestep, const double time) {
+    return project->run(timestep, time);
 }
 
-// Generate FEM mesh and solve differential equation(s)
-int Femocs::run(const int timestep) {
-    return project->run(timestep);
-}
+void Femocs::perform_full_analysis(const int* nborlist) {
+    string debug_msg = "=== Performing coordination";
+    if (conf.run.rdf) debug_msg += ", rdf";
+    if (conf.run.cluster_anal) debug_msg += ", cluster";
+    start_msg(t0, debug_msg + " analysis...");
 
-// Generate FEM mesh and solve differential equation(s)
-int Femocs::run(const double elfield, const string &timestep) {
-    // convert message to integer time step
-    stringstream parser;
-    int tstep;
-    parser << timestep;
-    parser >> tstep;
-    parser.flush();
-    conf.field.E0 = elfield;
+    if (conf.run.rdf)
+        reader.calc_rdf_coordinations(nborlist);
+    else
+        reader.calc_coordinations(nborlist);
 
-    return project->run(tstep);
-}
+    if (conf.run.cluster_anal)
+        reader.calc_clusters(nborlist);
 
-// Generate artificial nanotip
-int Femocs::generate_nanotip() {
-    clear_log();
-
-    double r = conf.geometry.radius;
-    conf.geometry.radius += 0.05*conf.geometry.latconst;
-
-    start_msg(t0, "=== Generating nanotip...");
-    reader.generate_nanotip(conf.geometry.height, r, conf.geometry.latconst);
-    reader.calc_coordinations(conf.geometry.nnn);
     end_msg(t0);
-    write_verbose_msg( "#input atoms: " + d2s(reader.size()) );
+    write_verbose_msg(d2s(reader));
 
-    reader.write("out/atomreader.ckx");
-    return 0;
+    start_msg(t0, "=== Extracting atom types...");
+    reader.extract_types();
+    end_msg(t0);
 }
 
-// import atoms from a file
+void Femocs::perform_pseudo_analysis() {
+    start_msg(t0, "=== Calculating coords from atom types...");
+    reader.calc_pseudo_coordinations();
+    end_msg(t0);
+}
+
 int Femocs::import_atoms(const string& file_name, const int add_noise) {
     clear_log();
     string file_type, fname;
@@ -104,210 +94,127 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
     if (file_name == "") fname = conf.path.infile;
     else fname = file_name;
 
-    if (fname == "generate"){
-        generate_nanotip();
-    }else{
-        file_type = get_file_type(fname);
-        require(file_type == "ckx" || file_type == "xyz", "Unknown file type: " + file_type);
-
+    bool system_changed = true;
+    if (fname == "generate") {
+        start_msg(t0, "=== Generating nanotip...");
+        reader.generate_nanotip(conf.geometry.height, conf.geometry.radius, conf.geometry.latconst);
+    } else {
         start_msg(t0, "=== Importing atoms...");
-        reader.import_file(fname, add_noise);
-        end_msg(t0);
-        write_verbose_msg( "#input atoms: " + d2s(reader.size()) );
+        system_changed = reader.import_file(fname, add_noise);
     }
-
-
-
-    start_msg(t0, "=== Comparing with previous run...");
-    bool system_changed = reader.calc_rms_distance(conf.tolerance.distance) >= conf.tolerance.distance;
     end_msg(t0);
+    write_verbose_msg( "#input atoms: " + d2s(reader.size()) );
 
-    if (system_changed) {
-        if (file_type == "xyz") {
-            start_msg(t0, "=== Performing coordination analysis...");
-            if (!conf.run.rdf) reader.calc_coordinations(conf.geometry.nnn, conf.geometry.coordination_cutoff);
-            else reader.calc_coordinations(conf.geometry.nnn, conf.geometry.latconst, conf.geometry.coordination_cutoff);
-            end_msg(t0);
-
-            if (conf.run.rdf) {
-                stringstream stream;
-                stream << fixed << setprecision(3);
-                stream << "nnn: " << conf.geometry.nnn << ", latconst: " << conf.geometry.latconst
-                        << ", coord_cutoff: " << conf.geometry.coordination_cutoff
-                        << ", cluster_cutoff: " << conf.geometry.cluster_cutoff;
-                write_verbose_msg(stream.str());
-            }
-
-            if (conf.run.cluster_anal) {
-                start_msg(t0, "=== Performing cluster analysis...");
-                reader.calc_clusters(conf.geometry.cluster_cutoff, conf.geometry.coordination_cutoff);
-                end_msg(t0);
-                reader.check_clusters(1);
-            }
-
-            start_msg(t0, "=== Extracting atom types...");
-            reader.extract_types(conf.geometry.nnn, conf.geometry.coordination_cutoff);
-            end_msg(t0);
-
-        } else {
-            start_msg(t0, "=== Calculating coords from atom types...");
-            reader.calc_coordinations(conf.geometry.nnn);
-            end_msg(t0);
-        }
-    }
+    file_type = get_file_type(fname);
+    if (system_changed && file_type == "xyz")
+        perform_full_analysis(NULL);
+    else if (system_changed)
+        perform_pseudo_analysis();
+    else
+        reader.extract_types();
 
     reader.write("out/atomreader.ckx");
     return 0;
 }
 
-// import atoms from PARCAS
 int Femocs::import_atoms(const int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
     clear_log();
 
     start_msg(t0, "=== Importing atoms...");
-    reader.import_parcas(n_atoms, coordinates, box);
+    bool system_changed = reader.import_parcas(n_atoms, coordinates, box);
     end_msg(t0);
     write_verbose_msg( "#input atoms: " + d2s(reader.size()) );
 
-    start_msg(t0, "=== Comparing with previous run...");
-    bool system_changed = reader.calc_rms_distance(conf.tolerance.distance) >= conf.tolerance.distance;
-    end_msg(t0);
-
-    if (system_changed) {
-        start_msg(t0, "=== Performing coordination analysis...");
-        if (!conf.run.rdf) reader.calc_coordinations(conf.geometry.nnn, conf.geometry.coordination_cutoff, nborlist);
-        else reader.calc_coordinations(conf.geometry.nnn, conf.geometry.coordination_cutoff, conf.geometry.latconst, nborlist);
-        end_msg(t0);
-
-        if (conf.run.rdf) {
-            stringstream stream;
-            stream << fixed << setprecision(3)
-                            << "nnn: " << conf.geometry.nnn << ", latconst: " << conf.geometry.latconst
-                            << ", coord_cutoff: " << conf.geometry.coordination_cutoff
-                            << ", cluster_cutoff: " << conf.geometry.cluster_cutoff;
-            write_verbose_msg(stream.str());
-        }
-
-        if (conf.run.cluster_anal) {
-            start_msg(t0, "=== Performing cluster analysis...");
-            reader.calc_clusters(conf.geometry.nnn, conf.geometry.cluster_cutoff, conf.geometry.coordination_cutoff, nborlist);
-            end_msg(t0);
-            reader.check_clusters(1);
-        }
-
-        start_msg(t0, "=== Extracting atom types...");
-        reader.extract_types(conf.geometry.nnn, conf.geometry.latconst);
-        end_msg(t0);
-    }
+    if (system_changed)
+        perform_full_analysis(nborlist);
+    else
+        reader.extract_types();
 
     reader.write("out/atomreader.ckx");
     return 0;
 }
 
-// import coordinates and types of atoms
 int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, const double* z, const int* types) {
     clear_log();
     conf.run.surface_cleaner = false; // disable the surface cleaner for atoms with known types
 
     start_msg(t0, "=== Importing atoms...");
-    reader.import_helmod(n_atoms, x, y, z, types);
+    bool system_changed = reader.import_atoms(n_atoms, x, y, z, types);
     end_msg(t0);
     write_verbose_msg( "#input atoms: " + d2s(reader.size()) );
 
-    start_msg(t0, "=== Comparing with previous run...");
-    bool system_changed = reader.calc_rms_distance(conf.tolerance.distance) >= conf.tolerance.distance;
-    end_msg(t0);
-
-    if (system_changed) {
-        start_msg(t0, "=== Calculating coordinations from atom types...");
-        reader.calc_coordinations(conf.geometry.nnn);
-        end_msg(t0);
-    }
+    if (system_changed)
+        perform_pseudo_analysis();
 
     reader.write("out/atomreader.ckx");
     return 0;
 }
 
-// export the atom types as seen by FEMOCS
-int Femocs::export_atom_types(const int n_atoms, int* types) {
-    const int export_size = min(n_atoms, reader.size());
-    for (int i = 0; i < export_size; ++i)
-        types[i] = reader.get_marker(i);
-
-    return reader.check_clusters(0);
-}
-
-// export electric field on imported atom coordinates
-int Femocs::export_elfield(const int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm) {
-    return project->fields.export_elfield(n_atoms, Ex, Ey, Ez, Enorm);
-}
-
-// calculate and export temperatures on imported atom coordinates
-int Femocs::export_temperature(const int n_atoms, double* T) {
-    return project->temperatures.export_temperature(n_atoms, T);
-}
-
-// export charges & forces on imported atom coordinates
-int Femocs::export_charge_and_force(const int n_atoms, double* xq) {
-    return project->forces.export_charge_and_force(n_atoms, xq);
-}
-
-// export forces & pair potentials on imported atom coordinates
-int Femocs::export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) {
-    return project->forces.export_force_and_pairpot(n_atoms, xnp, Epair, Vpair);;
-}
-
-// linearly interpolate electric field at given points
 int Femocs::interpolate_surface_elfield(const int n_points, const double* x, const double* y, const double* z,
-        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-    return project->fields.interpolate_surface_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag)
+{
+    double *fields = new double[3*n_points];
+    int retval = project->interpolate(fields, flag, n_points, LABELS.elfield, true, x, y, z);
+
+    for (int i = 0; i < n_points; ++i) {
+        int I = 3*i;
+        Ex[i] = fields[I];
+        Ey[i] = fields[I+1];
+        Ez[i] = fields[I+2];
+        Enorm[i] = sqrt(fields[I]*fields[I] + fields[I+1]*fields[I+1] + fields[I+2]*fields[I+2]);
+    }
+
+    delete[] fields;
+    return retval;
 }
 
-// linearly interpolate electric field at given points
 int Femocs::interpolate_elfield(const int n_points, const double* x, const double* y, const double* z,
-        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag) {
-    return project->fields.interpolate_elfield(n_points, x, y, z, Ex, Ey, Ez, Enorm, flag);
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag)
+{
+    double *fields = new double[3*n_points];
+    int retval = project->interpolate(fields, flag, n_points, LABELS.elfield, false, x, y, z);
+
+    for (int i = 0; i < n_points; ++i) {
+        int I = 3*i;
+        Ex[i] = fields[I];
+        Ey[i] = fields[I+1];
+        Ez[i] = fields[I+2];
+        Enorm[i] = sqrt(fields[I]*fields[I] + fields[I+1]*fields[I+1] + fields[I+2]*fields[I+2]);
+    }
+
+    delete[] fields;
+    return retval;
 }
 
-// linearly interpolate electric potential at given points
 int Femocs::interpolate_phi(const int n_points, const double* x, const double* y, const double* z,
-        double* phi, int* flag) {
-    return project->fields.interpolate_phi(n_points, x, y, z, phi, flag);
+        double* phi, int* flag)
+{
+    return project->interpolate(phi, flag, n_points, LABELS.potential, false, x, y, z);
 }
 
-// export solution on atom coordinates; data is specified with cmd label
-int Femocs::export_results(const int n_points, const char cmd, double* data) {
-    return project->export_results(n_points, LABELS.decode(cmd), data);
+int Femocs::export_data(double* data, const int n_points, const string& data_type) {
+    return project->export_data(data, n_points, data_type);
 }
 
-// interpolate solution (component specified with cmd label) on specified points
-int Femocs::interpolate_results(const int n_points, const char cmd,
-        const double* x, const double* y, const double* z, double* data, int* flag) {
-    return project->interpolate_results(n_points, LABELS.decode(cmd), false, x, y, z, data, flag);
+int Femocs::interpolate(double* data, int* flag,
+        const int n_points, const string &data_type, const bool near_surface,
+        const double* x, const double* y, const double* z)
+{
+    return project->interpolate(data, flag, n_points, data_type, near_surface, x, y, z);
 }
 
-// interpolate solution near the surface on specified points
-int Femocs::interpolate_surface_results(const int n_points, const char cmd,
-        const double* x, const double* y, const double* z, double* data, int* flag) {
-    return project->interpolate_results(n_points, LABELS.decode(cmd), true, x, y, z, data, flag);
-}
-
-// parse integer argument of the command from input script
 int Femocs::parse_command(const string& command, int* arg) {
     return conf.read_command(command, arg[0]);
 }
 
-// parse double argument of the command from input script
 int Femocs::parse_command(const string& command, double* arg) {
     return conf.read_command(command, arg[0]);
 }
 
-// parse string argument of the command from input script
 int Femocs::parse_command(const string& command, string& arg) {
     return conf.read_command(command, arg);
 }
 
-// parse char array argument of the command from input script
 int Femocs::parse_command(const string& command, char* arg) {
     string string_arg;
     bool fail = conf.read_command(command, string_arg);

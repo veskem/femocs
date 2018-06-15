@@ -19,9 +19,14 @@ namespace femocs {
 ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         GeneralProject(reader, config),
         fail(false), t0(0), timestep(-1), last_full_timestep(0),
+        last_heat_time(0), last_write_time(0),
 
         vacuum_interpolator("elfield", "potential"),
         bulk_interpolator("rho", "temperature"),
+
+        fields(&vacuum_interpolator),
+        temperatures(&bulk_interpolator),
+        forces(&vacuum_interpolator),
 
         surface_fields(&vacuum_interpolator),
         surface_temperatures(&bulk_interpolator),
@@ -33,10 +38,8 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         emission(&surface_fields, &surface_temperatures, &poisson_solver, &vacuum_interpolator),
         pic_solver(&poisson_solver, &ch_solver, &emission, conf.behaviour.rnd_seed)
 {
-    fields.set_interpolator(&vacuum_interpolator);
-    temperatures.set_interpolator(&bulk_interpolator);
-    forces.set_interpolator(&vacuum_interpolator);
     poisson_solver.set_particles(pic_solver.get_particles());
+    temperatures.set_params(config);
 
     // Initialise heating module
     start_msg(t0, "=== Reading physical quantities...");
@@ -44,12 +47,12 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
     end_msg(t0);
 }
 
-int ProjectRunaway::reinit(int tstep) {
+int ProjectRunaway::reinit(int tstep, double time) {
     static bool skip_meshing = true;  // remember the value of skip_meshing
-    if (tstep >= 0)
-        timestep = tstep;
-    else
-        ++timestep;
+    if (tstep >= 0) timestep = tstep;
+    else ++timestep;
+
+    if (time >= 0) GLOBALS.TIME = time;
 
     if (!skip_meshing && MODES.WRITEFILE)
         MODES.WRITEFILE = false;
@@ -63,38 +66,37 @@ int ProjectRunaway::reinit(int tstep) {
     timestep_string = "_" + string( max(0.0, 6.0 - timestep_string.length()), '0' ) + timestep_string;
 
     mesh_changed = false;
-    skip_meshing = reader.rms_distance < conf.tolerance.distance;
+    skip_meshing = reader.get_rmsd() < conf.tolerance.distance;
 
-    write_silent_msg("Running at timestep " + d2s(timestep));
+    write_silent_msg("Running at timestep=" + d2s(timestep) + ", time=" + d2s(GLOBALS.TIME, 2) + " fs");
     return skip_meshing;
 }
 
-int ProjectRunaway::finalize(double tstart) {
+int ProjectRunaway::finalize(double tstart, double time) {
     reader.save_current_run_points(conf.tolerance.distance);
 
     // In case no transient simulations (time has stayed the same) advance the time
-    if (conf.pic.mode == "none" && conf.heating.mode == "none")
+    if (time < 0 && (conf.pic.mode == "none" || conf.field.solver == "laplace"))
         GLOBALS.TIME += conf.behaviour.timestep_fs;
 
     last_full_timestep = timestep;
+    require(GLOBALS.TIME > 0, "Global time has not increased!");
 
     write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
     return 0;
 }
 
-int ProjectRunaway::run(const int timestep) {
-    return run(conf.field.E0, timestep);
-}
-
-int ProjectRunaway::run(const double elfield, const int tstep) {
+int ProjectRunaway::run(const int timestep, const double time) {
     double tstart = omp_get_wtime();
 
     //***** Build or import mesh *****
 
-    if (reinit(tstep))
+    if (reinit(timestep, time)) {
         write_verbose_msg("Atoms haven't moved significantly, "
-                + d2s(reader.rms_distance, 3) + " < " + d2s(conf.tolerance.distance, 3)
+                + d2s(reader.get_rmsd(), 3) + " < " + d2s(conf.tolerance.distance, 3)
                 + "! Previous mesh will be used!");
+        dense_surf.update_positions(reader);
+    }
 
     else if (generate_mesh())
         return process_failed("Mesh generation failed!");
@@ -117,51 +119,30 @@ int ProjectRunaway::run(const double elfield, const int tstep) {
     if (prepare_export())
         return process_failed("Interpolating solution on atoms failed!");
 
-    finalize(tstart);
+    finalize(tstart, time);
     return 0;
 }
 
 int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
     start_msg(t0, "=== Extracting surface...");
-    dense_surf.extract(reader, TYPES.SURFACE);
+    reader.extract(dense_surf, TYPES.SURFACE);
     end_msg(t0);
-
     dense_surf.write("out/surface_dense.xyz");
 
-    coarseners.generate(dense_surf, conf.geometry.radius, conf.cfactor, conf.geometry.latconst);
-    coarseners.write("out/coarseners.vtk");
-
-    static bool first_run = true;
-    if (first_run) {
+    if (GLOBALS.TIME == 0) {
         start_msg(t0, "=== Extending surface...");
-        if (conf.path.extended_atoms == "")
-            dense_surf.extend(extended_surf, coarseners, conf.geometry.latconst, conf.geometry.box_width);
-        else
-            extended_surf = dense_surf.extend(conf.path.extended_atoms, coarseners);
+        dense_surf.extend(extended_surf, conf);
         end_msg(t0);
-        first_run = false;
     }
 
-    start_msg(t0, "=== Coarsening & smoothing surface...");
-    coarse_surf = extended_surf;
-    //    coarse_surf += dense_surf;
-    coarse_surf += dense_surf.clean_roi(coarseners);
-    coarse_surf = coarse_surf.clean(coarseners);
-    coarse_surf.smoothen(conf.geometry.radius, conf.smoothing.beta_atoms, 3.0*conf.geometry.coordination_cutoff);
+    start_msg(t0, "=== Coarsening surface...");
+    dense_surf.generate_boundary_nodes(bulk, coarse_surf, vacuum, extended_surf, conf, GLOBALS.TIME==0);
     end_msg(t0);
+
+    if (MODES.VERBOSE)
+        printf("  #extended=%d, #coarse=%d, #dense=%d\n", extended_surf.size(), coarse_surf.size(), dense_surf.size());
 
     coarse_surf.write("out/surface_coarse.xyz");
-
-    start_msg(t0, "=== Generating bulk & vacuum corners...");
-    coarse_surf.calc_statistics();  // calculate zmin and zmax for surface
-    double box_height = max(conf.geometry.latconst, coarse_surf.sizes.zbox) * conf.geometry.box_height;
-    vacuum = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin + box_height);
-    bulk = Surface(coarse_surf.sizes, coarse_surf.sizes.zmin - conf.geometry.bulk_height * conf.geometry.latconst);
-    reader.resize_box(coarse_surf.sizes.xmin, coarse_surf.sizes.xmax,
-            coarse_surf.sizes.ymin, coarse_surf.sizes.ymax,
-            bulk.sizes.zmin, vacuum.sizes.zmax);
-    end_msg(t0);
-
     bulk.write("out/bulk.xyz");
     vacuum.write("out/vacuum.xyz");
 
@@ -169,61 +150,30 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
 }
 
 int ProjectRunaway::generate_mesh() {
-    if (conf.path.mesh_file != "")
-        return read_mesh();
+    if (conf.path.mesh_file != "") {
+        start_msg(t0, "=== Reading mesh from file...");
+        fail = new_mesh->read(conf.path.mesh_file, "rQnn");
+    } else {
+        Surface bulk, coarse_surf, vacuum;
+        fail = generate_boundary_nodes(bulk, coarse_surf, vacuum);
+        check_return(fail, "Generation of mesh generator nodes failed!");
 
-    new_mesh->clear();
-
-    Surface bulk, coarse_surf, vacuum;
-    fail = generate_boundary_nodes(bulk, coarse_surf, vacuum);
-    if (fail) return 1;
-
-    start_msg(t0, "=== Making big mesh...");
-    // r - reconstruct, n(n) - output tet neighbour list (and tri-tet connection),
-    // Q - quiet, q - mesh quality, a - element volume, E - suppress output of elements
-    // F - suppress output of faces and edges, B - suppress output of boundary info
-    string command = "rQFBq" + conf.geometry.mesh_quality;
-    if (conf.geometry.element_volume != "") command += "a" + conf.geometry.element_volume;
-    int err_code = new_mesh->generate(bulk, coarse_surf, vacuum, command);
-    check_return(err_code, "Triangulation failed with error code " + d2s(err_code));
-    end_msg(t0);
-
-    start_msg(t0, "=== Marking tetrahedral mesh...");
-    fail = new_mesh->mark_mesh();
-    check_return(fail, "Mesh marking failed!");
-    end_msg(t0);
-
-    start_msg(t0, "=== Generating surface faces...");
-    err_code = new_mesh->generate_surface(reader.sizes, "rQB", "rQnn");
-    end_msg(t0);
-    check_return(err_code, "Generation of surface faces failed with error code " + d2s(err_code));
-
-    if (conf.smoothing.algorithm != "none" && conf.smoothing.n_steps > 0) {
-        start_msg(t0, "=== Smoothing surface faces...");
-        new_mesh->smoothen(conf.smoothing.n_steps, conf.smoothing.lambda_mesh, conf.smoothing.mu_mesh, conf.smoothing.algorithm);
-        end_msg(t0);
+        start_msg(t0, "=== Generating vacuum & bulk mesh...");
+        fail = new_mesh->generate(bulk, coarse_surf, vacuum, conf);
     }
+    end_msg(t0);
+    check_return(fail, "Mesh generation failed!");
 
-    // has to be separate to ensure that data is for sure calculated
-    new_mesh->tris.calc_appendices();
-
-    new_mesh->nodes.write("out/tetmesh_nodes.vtk");
-    new_mesh->tris.write("out/trimesh.vtk");
-    new_mesh->tets.write("out/tetmesh.vtk");
-
-    if (conf.run.surface_cleaner) {
+    if (conf.run.surface_cleaner && dense_surf.size() > 0) {
         start_msg(t0, "=== Cleaning surface atoms...");
         dense_surf.clean_by_triangles(atom2face, vacuum_interpolator, new_mesh, conf.geometry.latconst);
         end_msg(t0);
-        dense_surf.write("out/surface_dense_clean.xyz");
     }
 
-    start_msg(t0, "=== Converting tetrahedra to hexahedra...");
-    new_mesh->generate_hexahedra();
-    end_msg(t0);
-
     new_mesh->nodes.write("out/hexmesh_nodes.vtk");
+    new_mesh->tris.write("out/trimesh.vtk");
     new_mesh->quads.write("out/quadmesh.vtk");
+    new_mesh->tets.write("out/tetmesh.vtk");
     new_mesh->hexs.write("out/hexmesh.vtk");
     new_mesh->write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
 
@@ -240,29 +190,8 @@ int ProjectRunaway::generate_mesh() {
     return 0;
 }
 
-int ProjectRunaway::read_mesh() {
-    start_msg(t0, "=== Reading mesh from file...");
-    int err_code = new_mesh->read(conf.path.mesh_file, "rQnn");
-    end_msg(t0);
-    check_return(err_code, "Reading mesh failed with error code " + d2s(err_code));
-
-    new_mesh->nodes.write("out/hexmesh_nodes.vtk");
-    new_mesh->nodes.write("out/hexmesh_nodes.xyz");
-    new_mesh->tris.write("out/trimesh.vtk");
-    new_mesh->quads.write("out/quadmesh.vtk");
-    new_mesh->tets.write("out/tetmesh.vtk");
-    new_mesh->hexs.write("out/hexmesh.vtk");
-    new_mesh->write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
-
-    mesh = new_mesh;
-    mesh_changed = true;
-
-    write_verbose_msg(mesh->to_str());
-    return 0;
-}
-
 int ProjectRunaway::prepare_solvers() {
-    start_msg(t0, "=== Importing mesh to Poisson solver...");
+    start_msg(t0, "=== Importing vacuum mesh to Deal.II...");
     fail = !poisson_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_vacuum());
     check_return(fail, "Importing vacuum mesh to Deal.II failed!");
     end_msg(t0);
@@ -271,7 +200,7 @@ int ProjectRunaway::prepare_solvers() {
     vacuum_interpolator.lintet.narrow_search_to(TYPES.VACUUM);
 
     if (conf.field.solver == "poisson" || conf.heating.mode != "none") {
-        start_msg(t0, "=== Importing mesh to J & T solver...");
+        start_msg(t0, "=== Importing bulk mesh to Deal.II...");
         fail = !ch_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_bulk());
         check_return(fail, "Importing bulk mesh to Deal.II failed!");
         end_msg(t0);
@@ -302,8 +231,9 @@ int ProjectRunaway::prepare_export() {
 
     if (conf.heating.mode != "none") {
         start_msg(t0, "=== Interpolating J & T...");
-        temperatures.set_preferences(true, 3, conf.behaviour.interpolation_rank);
+        temperatures.set_preferences(false, 3, conf.behaviour.interpolation_rank);
         temperatures.interpolate(reader);
+        temperatures.precalc_berendsen_long();
         end_msg(t0);
 
         // TODO implement reasonable temperature limit check
@@ -312,7 +242,7 @@ int ProjectRunaway::prepare_export() {
 
     if (conf.force.mode != "none") {
         // analytical total charge without epsilon0 (will be added in ChargeReader)
-        const double tot_charge = conf.field.E0 * reader.sizes.xbox * reader.sizes.ybox;
+        const double tot_charge = conf.field.E0 * mesh->nodes.stat.xbox * mesh->nodes.stat.ybox;
 
         ChargeReader face_charges(&vacuum_interpolator); // charges on surface triangles
         face_charges.set_check_params(tot_charge, conf.tolerance.charge_min, conf.tolerance.charge_max);
@@ -370,8 +300,8 @@ int ProjectRunaway::run_field_solver() {
 int ProjectRunaway::run_heat_solver() {
     int ccg, hcg;
 
-    if (mesh_changed)
-        return solve_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, true, ccg, hcg);
+    if (conf.heating.mode == "transient")
+        return solve_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, mesh_changed, ccg, hcg);
 
     return 0;
 }
@@ -388,11 +318,11 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
     write_verbose_msg(poisson_solver.to_str());
 
     start_msg(t0, "=== Running Laplace solver...");
-    int ncg = poisson_solver.solve();
+    poisson_solver.solve();
     end_msg(t0);
 
     start_msg(t0, "=== Extracting E and phi...");
-    vacuum_interpolator.extract_solution(poisson_solver);
+    vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
     end_msg(t0);
 
     vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
@@ -409,7 +339,6 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit) {
 
     int n_pic_steps = ceil(advance_time / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
     double dt_pic = advance_time / n_pic_steps;
-
 
     // vector holding point to cell mapping to make interpolation faster
     vector<int> point2cell;
@@ -436,7 +365,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit) {
         int n_cg_steps = poisson_solver.solve();
 
         // must be after solving Poisson and before updating velocities
-        vacuum_interpolator.extract_solution(poisson_solver);
+        vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
 
         // update velocities of super particles and collide them
         pic_solver.update_velocities();
@@ -450,11 +379,11 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit) {
         int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
         
         write_results();
-        if (MODES.VERBOSE){
-            printf("  t= %e fs, #CG=%d, Fmax= %.3f V/A, Itot= %.3e A, #el inj|del|tot=%d|%d|%d",
+
+        if (MODES.VERBOSE) {
+            printf("  t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
                     GLOBALS.TIME, n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot,
                     n_injected, n_lost, pic_solver.get_n_electrons());
-            cout << endl;
         }
 
         GLOBALS.TIME += dt_pic;
@@ -480,6 +409,10 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
         emission.initialize(mesh, full_run);
         emission.calc_emission(conf.emission, conf.field.V0);
         end_msg(t0);
+
+        emission.write("out/emission.movie");
+        surface_fields.write("out/surface_fields.movie");
+        surface_temperatures.write("out/surface_temperatures.movie");
     }
 
     emission.export_emission(ch_solver);
@@ -500,10 +433,8 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
-    if(conf.pic.mode != "transient")
-        GLOBALS.TIME += delta_time;
-
-    write_results();
+    bulk_interpolator.nodes.write("out/result_J_T.movie");
+    bulk_interpolator.lintet.write("out/result_J_T.vtk");
 
     last_heat_time = GLOBALS.TIME;
     return 0;
@@ -513,7 +444,7 @@ int ProjectRunaway::write_results(bool force_write){
 
     if (!write_time() && !force_write) return 1;
 
-    vacuum_interpolator.extract_solution(poisson_solver);
+    vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
     vacuum_interpolator.nodes.write("out/result_E_phi.movie");
     vacuum_interpolator.linhex.write("out/result_E_phi.vtk");
 
@@ -542,64 +473,77 @@ int ProjectRunaway::force_output() {
 
     MODES.WRITEFILE = true;
 
-    reader.write("out/reader.xyz");
+    reader.write("out/reader.ckx");
     mesh->hexs.write("out/hexmesh_err.vtk");
-    mesh->tets.write("out/tetmesh_err.vtk");
-    mesh->tris.write("out/trimesh_err.vtk");
+    mesh->quads.write("out/quadmesh_err.vtk");
 
-    vacuum_interpolator.nodes.write("out/result_E_phi_err.xyz");
-    vacuum_interpolator.lintet.write("out/result_E_phi_err.vtk");
+    if (conf.field.solver != "none" && vacuum_interpolator.nodes.size() > 0) {
+        vacuum_interpolator.nodes.write("out/result_E_phi_err.xyz");
+        vacuum_interpolator.lintet.write("out/result_E_phi_err.vtk");
+    }
 
-    if (bulk_interpolator.nodes.size() > 0) {
-        if (conf.heating.mode == "transient") {
-            bulk_interpolator.nodes.write("out/result_J_T_err.xyz");
-            ch_solver.current.write("out/result_J_err.vtk");
-            ch_solver.heat.write("out/result_T_err.vtk");
-        }
+    if (conf.heating.mode != "none" && bulk_interpolator.nodes.size() > 0) {
+        bulk_interpolator.nodes.write("out/result_J_T_err.xyz");
+        bulk_interpolator.lintet.write("out/result_J_T_err.vtk");
     }
 
     return 0;
 }
 
-int ProjectRunaway::export_results(const int n_points, const string &cmd, double* data) {
+int ProjectRunaway::export_data(double* data, const int n_points, const string &data_type) {
     if (n_points <= 0) return 0;
 
-    if (cmd == LABELS.elfield.second || cmd == LABELS.elfield_norm.second || cmd == LABELS.potential.second)
-        return fields.export_results(n_points, cmd, false, data);
+    if (fields.contains(data_type))
+        return fields.export_results(n_points, data_type, data);
 
-    if (cmd == LABELS.rho.second || cmd == LABELS.rho_norm.second || cmd == LABELS.temperature.second)
-        return temperatures.export_results(n_points, cmd, false, data);
+    if (temperatures.contains(data_type))
+        return temperatures.export_results(n_points, data_type, data);
 
-    if (cmd == LABELS.force.second || cmd == LABELS.force_norm.second || cmd == LABELS.charge.second)
-        return forces.export_results(n_points, cmd, true, data);
+    if (forces.contains(data_type))
+        return forces.export_results(n_points, data_type, data);
 
-    require(false, "Unimplemented type of export data: " + cmd);
+    if (data_type == LABELS.pair_potential_sum || data_type == LABELS.parcas_force || data_type == LABELS.charge_force)
+        return forces.export_parcas(n_points, data_type, reader.get_si2parcas_box(), data);
+
+    if (data_type == LABELS.parcas_velocity)
+        return temperatures.scale_berendsen_long(data, n_points, reader.get_parcas2si_box());
+
+    if (data_type == LABELS.atom_type) {
+        require(n_points <= reader.size(), "Invalid data query size: " + d2s(n_points));
+        for (int i = 0; i < n_points; ++i)
+            data[i] = reader.get_marker(i);
+        return reader.get_n_detached();
+    }
+
+    require(false, "Unimplemented type of export data: " + data_type);
     return 1;
 }
 
-int ProjectRunaway::interpolate_results(const int n_points, const string &cmd, const bool on_surface,
-        const double* x, const double* y, const double* z, double* data, int* flag) {
-
+int ProjectRunaway::interpolate(double* data, int* flag,
+        const int n_points, const string &data_type, const bool near_surface,
+        const double* x, const double* y, const double* z)
+{
     // location of interpolation; 2-on surface, 3-in space
     int dim = 3;
-    if (on_surface) dim = 2;
+    if (near_surface) dim = 2;
 
-    if (cmd == LABELS.elfield.second || cmd == LABELS.elfield_norm.second || cmd == LABELS.potential.second) {
+    if (fields.contains(data_type)) {
         fields.set_preferences(false, dim, conf.behaviour.interpolation_rank);
-        return fields.interpolate_results(n_points, cmd, x, y, z, data);
+        int retval = fields.interpolate_results(n_points, data_type, x, y, z, data);
+        for (int i = 0; i < n_points; ++i)
+            flag[i] = fields.get_marker(i) >= 0;
+        return retval;
     }
 
-    if (cmd == LABELS.rho.second || cmd == LABELS.rho_norm.second || cmd == LABELS.temperature.second) {
+    if (temperatures.contains(data_type)) {
         temperatures.set_preferences(false, dim, conf.behaviour.interpolation_rank);
-        return temperatures.interpolate_results(n_points, cmd, x, y, z, data);
+        int retval = temperatures.interpolate_results(n_points, data_type, x, y, z, data);
+        for (int i = 0; i < n_points; ++i)
+            flag[i] = fields.get_marker(i) >= 0;
+        return retval;
     }
 
-    if (cmd == LABELS.force.second || cmd == LABELS.force_norm.second || cmd == LABELS.charge.second) {
-        forces.set_preferences(false, dim, conf.behaviour.interpolation_rank);
-        return forces.interpolate_results(n_points, cmd, x, y, z, data);
-    }
-
-    require(false, "Unimplemented type of interpolation data: " + cmd);
+    require(false, "Unimplemented type of interpolation data: " + data_type);
     return 1;
 }
 

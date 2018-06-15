@@ -12,7 +12,7 @@ namespace femocs {
 ProjectSpaceCharge::ProjectSpaceCharge(AtomReader &reader, Config &conf) : ProjectRunaway(reader, conf) {
 }
 
-int ProjectSpaceCharge::run(int timestep) {
+int ProjectSpaceCharge::run(int timestep, double time) {
     double tstart = omp_get_wtime();
 
     //***** Build or import mesh *****

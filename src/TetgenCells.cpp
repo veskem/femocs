@@ -369,7 +369,7 @@ SimpleCell<3> TetgenFaces::get_cell(const int i) const {
     return SimpleFace(reads->trifacelist[I], reads->trifacelist[I+1], reads->trifacelist[I+2]);
 }
 
-int TetgenFaces::copy_surface(const TetgenFaces& faces, const Medium::Sizes& stat) {
+int TetgenFaces::copy_surface(const TetgenFaces& faces, const TetgenNodes::Stat& stat) {
     const double eps = 0.01 * faces.stat.edgemin;
     int n_faces = faces.size();
     vector<bool> tri_mask(n_faces);
@@ -469,7 +469,7 @@ void TetgenFaces::calc_statistics() {
     stat.edgemax = sqrt(stat.edgemax);
 
     // calculate the span of centroid coordinates
-    for (int i = 0; i < centroids.size(); ++i) {
+    for (unsigned int i = 0; i < centroids.size(); ++i) {
         Point3 centroid = get_centroid(i);
         stat.xmax = max(stat.xmax, centroid.x);
         stat.xmin = min(stat.xmin, centroid.x);

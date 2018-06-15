@@ -14,33 +14,32 @@ FEMOCS* create_femocs(const char* s);
 /* Destructor */
 void delete_femocs(FEMOCS* femocs);
 
-void femocs_run(FEMOCS* femocs, int* retval, double E_field, const char* message);
+void femocs_run(FEMOCS* femocs, int* retval, int timestep, double time);
 
-void femocs_force_output(FEMOCS* femocs, int* retval);
+void femocs_import_file(FEMOCS* femocs, int* retval, const char* file_name);
 
-void femocs_import_file(FEMOCS* femocs, int* retval, const char* s);
+void femocs_import_parcas(FEMOCS* femocs, int* retval, int n_atoms,
+        const double* coordinates, const double* box, const int* nborlist);
 
-void femocs_import_parcas(FEMOCS* femocs, int* retval, int n_atoms, double* coordinates, double* box, int* nborlist);
+void femocs_import_atoms(FEMOCS* femocs, int* retval, int n_atoms,
+        const double* x, const double* y, const double* z, const int* types);
 
-void femocs_import_atoms(FEMOCS* femocs, int* retval, int n_atoms, double* x, double* y, double* z, int* types);
+void femocs_interpolate_elfield(FEMOCS* femocs, int* retval, int n_points,
+        const double* x, const double* y, const double* z,
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 
-void femocs_export_atom_types(FEMOCS* femocs, int* retval, int n_atoms, int* types);
+void femocs_interpolate_surface_elfield(FEMOCS* femocs, int* retval, int n_points,
+        const double* x, const double* y, const double* z,
+        double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
 
-void femocs_export_elfield(FEMOCS* femocs, int* retval, int n_atoms, double* Ex, double* Ey, double* Ez, double* Enorm);
+void femocs_interpolate_phi(FEMOCS* femocs, int* retval, int n_points,
+        const double* x, const double* y, const double* z,
+        double* phi, int* flag);
 
-void femocs_export_temperature(FEMOCS* femocs, int* retval, int n_atoms, double* T);
+void femocs_export_data(FEMOCS* femocs, int* retval, double* data, int n_points, const char* data_type);
 
-void femocs_export_charge_and_force(FEMOCS* femocs, int* retval, int n_atoms, double* xq);
-
-void femocs_export_force_and_pairpot(FEMOCS* femocs, int* retval, int n_atoms, double* xnp, double* Epair, double* Vpair);
-
-void femocs_interpolate_elfield(FEMOCS* femocs, int* retval, int n_points, double* x, double* y,
-        double* z, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
-
-void femocs_interpolate_surface_elfield(FEMOCS* femocs, int* retval, int n_points, double* x, double* y,
-        double* z, double* Ex, double* Ey, double* Ez, double* Enorm, int* flag);
-
-void femocs_interpolate_phi(FEMOCS* femocs, int* retval, int n_points, double* x, double* y, double* z, double* phi, int* flag);
+void femocs_interpolate(FEMOCS* femocs, int* retval, double* data, int* flag, int n_points, const char* data_type,
+        int near_surface, const double* x, const double* y, const double* z);
 
 void femocs_parse_int(FEMOCS* femocs, int* retval, const char* command, int* arg);
 

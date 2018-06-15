@@ -70,7 +70,7 @@ vector<double> DealSolver<dim>::shape_funs(const Point<dim> &p, const int cell_i
 
     // store shape functions
     vector<double> sfuns(fe.dofs_per_cell);
-    for (int i = 0; i < sfuns.size(); i++)
+    for (unsigned int i = 0; i < sfuns.size(); i++)
         sfuns[i] = fe_values.shape_value(i,0);
 
     return sfuns;
@@ -104,7 +104,7 @@ vector<Tensor<1, dim, double>> DealSolver<dim>::shape_fun_grads(const Point<dim>
 
     // store shape function gradients
     vector<Tensor<1, dim, double>> sfun_grads(fe.dofs_per_cell);
-    for (int i = 0; i < sfun_grads.size(); i++)
+    for (unsigned int i = 0; i < sfun_grads.size(); i++)
         sfun_grads[i] = fe_values.shape_grad(i,0);
 
     return sfun_grads;
@@ -221,18 +221,18 @@ void DealSolver<dim>::get_surface_nodes(vector<Point<dim>>& nodes) const {
 
 template<int dim>
 void DealSolver<dim>::get_nodal_solution(vector<double>& solutions) const {
-    const int n_nodes = this->triangulation.n_used_vertices();
+    const unsigned int n_nodes = this->triangulation.n_used_vertices();
     require(vertex2dof.size() == n_nodes, "Before extracting solution, vertex2dof mapping must be calculated!");
 
     solutions.resize(n_nodes);
-    for (int i = 0; i < n_nodes; ++i)
+    for (unsigned int i = 0; i < n_nodes; ++i)
         solutions[i] = this->solution[vertex2dof[i]];
 }
 
 template<int dim>
 void DealSolver<dim>::calc_vertex2dof() {
     static constexpr int n_verts_per_elem = GeometryInfo<dim>::vertices_per_cell;
-    const int n_verts = this->triangulation.n_used_vertices();
+    const unsigned int n_verts = this->triangulation.n_used_vertices();
 
     // create mapping from mesh vertex to cell index & cell node
     vector<unsigned> vertex2hex(n_verts), vertex2node(n_verts);
