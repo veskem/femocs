@@ -1,0 +1,22 @@
+#############################################################################
+#            Makefile for building Femocs as a static library
+#############################################################################
+
+include build/makefile.defs
+include share/makefile.femocs
+
+all: lib/libfemocs.a
+
+lib/libfemocs.a: build/.build/Makefile src/* include/*
+	cd build/.build; make -j${NPROCS}
+
+build/.build/Makefile:
+	mkdir -p build/.build;
+	cd build/.build; rm -rf *; cmake -DCMAKE_BUILD_TYPE=${build_type} -DTARGET_TYPE=lib -DLIBCGAL=${LIBCGAL} -DN_DEALII=${N_DEALII} \
+-DCMAKE_Fortran_COMPILER=${F90} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} ..;
+
+clean:
+	rm -rf lib/libfemocs.a lib/libfemocs.mod build/.build*
+
+clean-all:
+	rm -rf lib/libfemocs.a lib/libfemocs.mod build/.build*

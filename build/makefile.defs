@@ -1,0 +1,24 @@
+#############################################################################
+#               Definitions used during the make of Femocs
+#############################################################################
+
+## Deal.II and CGAL versions
+DEALII_VER=8.4.1
+CGAL_VER=4.9
+
+## Paths to the C++, C and Fortran main files
+CXXMAIN=src/main/Main.cpp
+CMAIN=src/main/Main.c
+FMAIN=src/main/Main.f90
+
+## Number of cores used during compilation
+NPROCS=4
+
+## Number of parallel threads used by Deal.II
+## <= 0 activates automatic determination
+N_DEALII=-1
+
+## Fortran, C++ and C Compilers
+F90=gfortran
+CXX=c++
+CC=gcc

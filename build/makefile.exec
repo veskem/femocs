@@ -1,0 +1,22 @@
+#############################################################################
+#     Makefile for building Femocs executable from given main funciton
+#############################################################################
+
+include build/makefile.defs
+include share/makefile.femocs
+
+all: build/femocs
+
+build/femocs: build/.build/Makefile src/* include/* ${CXXMAIN}
+	cd build/.build; make -j${NPROCS}
+
+build/.build/Makefile:
+	mkdir -p build/.build;
+	cd build/.build; rm -rf *; cmake -DCMAKE_BUILD_TYPE=${build_type} -DTARGET_TYPE=exec -DLIBCGAL=${LIBCGAL} \
+-DCMAKE_Fortran_COMPILER=${F90} -DCMAKE_C_COMPILER=${CC} -DCMAKE_CXX_COMPILER=${CXX} ..;
+
+clean:
+	rm -rf build/femocs* build/.build*
+
+clean-all:
+	rm -rf build/femocs* build/.build*

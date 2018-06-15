@@ -1,0 +1,87 @@
+# Sample input parameters for FEMOCS
+# Most of them can be omitted in real application,
+# as all the parameters have default values (see src/Config.cpp)
+# that try to follow the best practice values.
+# However, for the sake of completeness, here they are.
+
+# General
+project = runaway               # project to be run; runaway, ...
+anode_BC = Neumann				# Boundary condition type at anode ("Dirichlet" or "Neumann")
+elfield = -0.07					# Long range electric field [V/A]
+Vappl = 0.					    # Anode voltage (used for Poisson eq. if 
+
+# Sizes related to geometry
+nnn = 12                        # number of nearest neighbours in bulk; must be increased in molten systems
+latconst = 3.61                 # lattice constant
+coord_cutoff = 3.1              # coordination analysis cut-off radius
+cluster_cutoff = 0              # cluster anal. cut-off radius; if 0, cluster anal. uses coord_cutoff instead
+charge_cutoff = 30              # Coulomb force cut-off radius
+surface_thickness = 4.0         # maximum distance surface atom can have from surface faces [angstrom]
+mesh_quality = 1.8              # minimum mesh quality Tetgen is allowed to make
+box_width = 6                   # minimal simulation box width [tip height]
+box_height = 6                  # simulation box height [tip height]
+bulk_height = 20                # bulk substrate height [latconst]
+distance_tol = 0.16             # max rms distance atoms are allowed to move between runs before the solution is recalculated; 0 forces to recalculate every time-step
+radius = 70.0                   # inner radius of coarsening cylinder
+tip_height = 2                  # height of generated artificial nanotip in the units of radius
+coarse_rate = 0.5               # factor detemining the rate atoms are coarsened outside the warm region is
+                                # the distance between coarsened atoms is proportional to pow(distance(p1,p2), rate)
+coarse_factor = 0.3 6 4         # coarsening factor; bigger number gives coarser surface
+                                # 1st - coarsening factor for atoms outside the coarsening cylinder
+                                # 2nd - minimum distance between atoms in nanotip below apex [0.25*latconst]
+                                # 3rd - minimum distance between atoms in nanotip apex [0.25*latconst]
+
+# Enable or disable various features
+n_omp = 4                       # number of opened OMP threads
+clean_surface = true            # clean surface by measuring the atom distance from the triangular surface
+cluster_anal = false            # enable cluster analysis
+use_rdf = false                 # use radial distribution function to recalculate lattice constant, nnn & coord_cutoff
+
+# File and message input & output
+infile = in/apex.ckx            # default file used with atom coordinates
+extended_atoms = in/extension.xyz   # file with atoms of extended surface
+mesh_file = in/sample_mesh.msh  # file containing triangular and tetrahedral mesh data
+femocs_periodic = false         # imported atoms have periodic boundaries in x- & y-direction; must be false in systems without slab
+n_writefile = 1                 # minimum number of time steps between writing file; 0 turns writing off
+femocs_verbose_mode = verbose   # control verbosity in console; mute, silent or verbose
+write_log = true                # enable writing log file
+clear_output = true             # clear output folder before the run
+
+# Mesh and solution smoothing
+interpolation_rank = 1          # rank of the solution interpolation; 1-linear, 2-quadratic
+surface_smooth_factor = 1.0     # surface smoothing factor; bigger number gives smoother surface
+charge_smooth_factor = 100.0    # charge smoothing factor; bigger number gives smoother charges
+smooth_steps = 3                # number of surface mesh smoothing iterations
+smooth_algorithm = laplace      # surface mesh smoother algorithm; none, laplace or fujiwara
+
+# Field emission parameters
+work_function = 4.5             # work function [eV]
+emitter_blunt = true			# if true blunt emitter SN barrier approximation used
+space_charge = false			# if space charge is taken into account
+maxerr_SC = 1.e-3				# convergence criterion for space charge loop
+
+# Heating parameters
+heating_mode = none             # method to calculate current density and temperature in material; none, stationary, transient, converge
+t_ambient = 300.0               # temperature at the bottom simulation cell [K]
+lorentz = 2.44e-8				# Lorentz number (Wiedemann Franz law) [W*Ohm/K^2]
+rhofile = in/rhotable.dat       # Table of resistivity values [Ohm*nm]
+
+# Parameters related to force calculation
+force_mode = all                # forces to be calculated; lorentz, all, none
+
+# Tolerances of solution accuracy
+n_newton = 10                   # max number of Newton iterations
+n_phi = 10000                   # max number of Conjugate Gradient iterations in phi calculation
+t_error = 10.0                  # max allowed temperature error in Newton iterations
+phi_error = 1e-9                # max allowed electric potential error
+charge_tolerance_min = 0.8      # min ratio face charges are allowed to deviate from the total charge
+charge_tolerance_max = 1.2      # max ratio face charges are allowed to deviate from the total charge
+field_tolerance_min = 0.1       # min ratio numerical field can deviate from analytical one
+field_tolerance_max = 5.0       # max ratio numerical field can deviate from analytical one
+
+#PIC simulation
+doPIC = false					# PIC calculations activated
+PIC_dtmax = 0.1					# maximum PIC time step allowed [fs]
+PIC_time = 50					# total PIC simulation time [fs]
+
+femocs_end                      # optional; terminate the search for FEMOCS parameters

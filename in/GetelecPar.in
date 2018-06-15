@@ -1,0 +1,14 @@
+Keep format and params order unchanged. The number should start at 14th column. Don't put spaces at the recognizing string.  The first two lines are always ignored. After the number put a space and the rest is ignored.
+
+debug=       0 # if true some error messages are printed
+xlim=        0.1 # limit for the usage of KX approximations
+nlimfield=   .6 # limit in 1/n for field regime
+nlimthermal= 2.3 # limit for 1/n to go to thermal regime
+nmaxlim=     3.  # for n>5 use MG expressions.
+gammalim=    1.e4 # maximum acceptable gamma. above it KX is forced    
+varlim=      0.05 #limit of variance for the fitting approximation (has meaning for mode==-2). If the fitting variance is more than varlim we switch to spline mode
+epsfit=      1.e-4 #  accuracy required in fittings
+Nmaxpoly=    10 #    max degree of the fitted polynomial
+spectra=     F #  set to true if you want to output spectroscopy data (T or F)
+aboveUm=     1 # set how Transmission coefficient above barrier is considered. 0: T(E>Um)=1, T(E>Um) = Kemble linear approximation
+output=      out

@@ -1,0 +1,34 @@
+#############################################################################
+#    Makefile for obtaining and installing external libraries Femocs needs
+#############################################################################
+
+include build/makefile.defs
+include share/makefile.femocs
+
+all: GETELEC/Makefile GETELEC/lib/libgetelec.a lib/libtet.a dealii/lib/libdeal_II.a
+
+lib/libtet.a:
+	cd tetgen; rm -rf .build; mkdir -p .build
+	cd tetgen/.build; cmake ${TETGEN_FLAGS} ..; make -j${NPROCS}
+	rm -rf tetgen/.build
+
+dealii/lib/libdeal_II.a: dealii/dealii-${DEALII_VER}.tar.gz
+	cd dealii; tar -xvf dealii-${DEALII_VER}.tar.gz; mkdir -p dealii-${DEALII_VER}/.build
+	cd dealii/dealii-*/.build; cmake ${DEALII_FLAGS} ..; make -j${NPROCS} install
+	cd dealii; cp -r dealii-${DEALII_VER}/source .; rm -rf examples dealii-${DEALII_VER};
+
+dealii/dealii-${DEALII_VER}.tar.gz:
+	mkdir -p dealii; cd dealii; wget https://github.com/dealii/dealii/releases/download/v${DEALII_VER}/dealii-${DEALII_VER}.tar.gz
+
+GETELEC/lib/libgetelec.a:
+	cd GETELEC; make -j${NPROCS}
+
+GETELEC/Makefile:
+	git submodule init
+	git submodule update --recursive
+
+clean:
+	rm -rf lib/libtet.a dealii/lib/*
+
+clean-all:
+	rm -rf lib/libtet.a tetgen/.build dealii/* GETELEC

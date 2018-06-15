@@ -1,0 +1,30 @@
+# Flags to compile and link FEMOCS
+
+## release mode optimization flags
+FEMOCS_OPT=
+
+## debug mode optimization flags
+FEMOCS_DOPT=
+
+## paths to headers
+FEMOCS_HEADPATH=
+
+## paths to libraries
+FEMOCS_LIBPATH=
+
+## release mode libraries
+FEMOCS_LIB=
+
+## debug mode libraries
+FEMOCS_DLIB=
+
+## flag indicating whether CGAL is used in the code or not
+LIBCGAL=
+
+## flags for building Tetgen, Deal.II and CGAL libraries
+TETGEN_FLAGS=
+DEALII_FLAGS=
+CGAL_FLAGS=
+
+## flag indicating in which machine the compilation happens
+MACHINE=
