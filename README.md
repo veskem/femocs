@@ -1,5 +1,6 @@
 ## Overview
-FEMOCS - Finite Elements on Crystal Surfaces - is a C++ library for coupling the effects of high electric field into Molecular Dynamics or kinetic Monte Carlo simulations. FEMOCS has the methods to
+FEMOCS - Finite Elements on Crystal Surfaces - is a C++ library for coupling the effects of high electric
+field into Molecular Dynamics or kinetic Monte Carlo simulations. Current version of FEMOCS can
 
 * import the atomistic data,
 * generate finite element mesh around it,
@@ -7,41 +8,45 @@ FEMOCS - Finite Elements on Crystal Surfaces - is a C++ library for coupling the
 * convert calculated electric field and temperature into atomistic forces and velocities,
 * export results to atomistic simulation. 
 
-FEMOCS can be used both in static and dynamic simulations. For the latter ones FEMOCS checks the difference between current and previous run and decides whether to perform the full calculation or to use the previous result. Such strategy helps to significantly increase the computational efficiency of simulations.
+FEMOCS can be used both in static and dynamic simulations. For the latter ones FEMOCS checks the
+difference between current and previous run and decides whether to perform the full calculation or to use
+the previous result. Such strategy helps to significantly increase the computational efficiency of
+simulations.
 
 ## Citing
-FEMOCS is an open-source and freely available code. The details about its algorithms are described in a preprint in [arXiv](https://arxiv.org/abs/1706.09661).
+FEMOCS is an open-source and freely available code. The details about its algorithms are published in
+[Journal of Computational Physics](https://doi.org/10.1016/j.jcp.2018.04.031). When publishing results
+obtained with the help of FEMOCS, please cite
 
-When publishing results obtained with the help of FEMOCS, please cite
-
-    Veske, M., Kyritsakis, A., Eimre, K., Zadin, V., Aabloo, A. and Djurabekova, F., 2017. Dynamic coupling of a finite element solver to large-scale atomistic simulations. arXiv preprint arXiv:1706.09661.
+    Veske, M. et al, 2018. Dynamic coupling of a finite element solver to large-scale atomistic simulations. Journal of Computational Physics, 367, pp.279–294.
 
 ## Instructions to build FEMOCS
 All the build options are displayed with
 
     $ make help
 
-FEMOCS directory is cleaned from previous builds by
+FEMOCS directory is cleaned from previous builds with
 
-    $ make clean     # deletes executables and object files
-    $ make clean-all # performs the full clean-up in FEMOCS directory
+    $ make clean      # deletes executables and object files
+    $ make clean-all  # performs the full clean-up in FEMOCS directory
 
-Before building FEMOCS as a library or executable, FEMOCS dependencies must be installed. This can be done with
+Before building FEMOCS as a library or executable, FEMOCS dependencies must be installed.
+This can be done with
 
     $ make install-ubuntu   # Ubuntu desktop            
     $ make install-taito    # CSC Taito
     $ make install-alcyone  # Alcyone
     
-The files that were build during installation can be removed by
+The files that were built during installation can be removed with
     
     $ make uninstall-all
 
-FEMOCS is built as static library by
+FEMOCS is built as static library with
 
     $ make lib       # fully optimized and no debugger flags
     $ make dlib      # debugging options enabled
 
-For test purposes FEMOCS could also be built as an executable. The options for this are as follows:
+FEMOCS could also be built as an executable. The options for this are as follows:
 
     $ make debug     # main file in src/main/Main.cpp, minimal optimization, debugger & warnings enabled
     $ make release   # main file in src/main/Main.cpp, full optimization, no debugger & warnings
@@ -49,26 +54,67 @@ For test purposes FEMOCS could also be built as an executable. The options for t
     $ make test_cpp  # main file in src/main/Main.cpp, full optimization, no debugger & warnings
     $ make test_c    # main file in src/main/Main.c, full optimization, no debugger & warnings
 
-In **release** mode FEMOCS is fully optimized and emulates a static simulation. Running the code in **debug** mode minimizes optimization and allows to follow the simulation line-by-line by using [GDB](https://en.wikipedia.org/wiki/GNU_Debugger), [Eclipse debugger](http://www.eclipse.org/cdt/) or their analogues.
+In **release** mode FEMOCS is fully optimized and emulates a static simulation. Running the code in
+**debug** mode minimizes optimization and allows to follow the simulation line-by-line by using
+[GDB](https://en.wikipedia.org/wiki/GNU_Debugger), [Eclipse debugger](http://www.eclipse.org/cdt/)
+or their analogues.
     
-## Testing and running FEMOCS
-The behavior of FEMOCS can be changed by changing the main files in **src** directory or by modifing the configuration script. The sample script is located in **in/sample.in**. 
+## Notes about linking & compilation
+FEMOCS was developed and tested using **GNU** compiler with version **5**. The earlier and later versions
+are likely to cause compilation errors. Therefore, before running any FEMOCS installation or compilation
+routine, make sure your machine is using the mentioned compiler. One way to ensure that correct compiler
+is used is to modify the *.bashrc* file. Another option is to modify compiler variables in 
+*build/makefile.defs*. The most reliable option, that is not always available, thou, is to make **GNU 5**
+as a default system-wise compiler. Notice that FEMOCS uses *gcc*, *c++* and *gfortran* compilers that all
+must meet the correct version criterion.
 
-FEMOCS executable that was built in **debug**, **release**, **test_f90**, **test_c** or **test_cpp** mode should be run in FEMOCS main directory by
+While linking FEMOCS library it might happen that some of the libraries that are needed by Deal.II are
+not found from the system. Often this issue can be solved by modifing the file *share/makefile.femocs*
+that was created after running *make install-machine*. In this file find the libraries the linker is
+complaining about and remove them.
+
+To obtain the compilation and linker flags for the external code that is using FEMOCS, add
+    
+    include path_to_femocs/share/makefile.femocs
+    
+into your makefile. The variables in this file contain all the includes and paths
+that are needed to call FEMOCS externally. Those paths are relative to FEMOCS main directory. One way to
+change the origin is to use *patsubst* command. For example, if FEMOCS is located inside a directory
+*my_project* and you want to obtain the location or FEMOCS libraries with respect to this directory, add
+the following line to your makefile
+
+    NEW_PATHS=$(patsubst -L%, -Lmy_project/%, $(FEMOCS_LIBPATH))
+
+## Testing and running FEMOCS
+The behavior of FEMOCS can be changed by changing the main files in **src** directory or by modifing the
+configuration script. The sample script is located in **in/sample.in**. 
+
+FEMOCS executable that was built in **debug**, **release**, **test_f90**, **test_c** or **test_cpp** mode
+should be run in FEMOCS main directory by
 
     $ ./build/femocs        # release, test_f90, test_c and test_cpp mode
     $ ./build/femocs_debug  # debug mode
     
 ## Visualization
-During the run FEMOCS writes couple of files to the **out** folder if *n_filewrite > 0* in configuration file. Those files can be used to estimate the validity of the results. Files with extension *xyz* and *movie* contain atomistic data and can be visualized in [OVITO](https://ovito.org/index.php/download). *movie* files contain the data from many timesteps, *xyz* files are the snapshots of a last full run. The files ending with *vtk* contain the geometric data (mesh elements, faces etc) that can be visualized in [ParaView](http://www.paraview.org/download/).
+During the run FEMOCS writes couple of files to the **out** folder if *n_filewrite > 0* in configuration
+file. Those files can be used to estimate the validity of the results. Files with extension *xyz* and
+*movie* contain atomistic data and can be visualized in [OVITO](https://ovito.org/index.php/download).
+*movie* files contain the data from many timesteps, *xyz* files are the snapshots of a last full run.
+The files ending with *vtk* contain the geometric data (mesh elements, faces etc) that can be visualized
+in [ParaView](http://www.paraview.org/download/).
 
 ## Documentation
-To build FEMOCS documentation, first make sure [Doxygen](http://www.stack.nl/~dimitri/doxygen/download.html) is installed in the system. The documentation in *pdf* and *html* format will be generated with command
+To build FEMOCS documentation, first make sure [Doxygen](http://www.stack.nl/~dimitri/doxygen/download.html)
+is installed in the system. The documentation in *pdf* and *html* format will be generated with command
 
     $ make doc
     
 ## Setting up Eclipse
-For developers it's highly recommended to do FEMOCS development in an IDE (integrated develpment editor) instead of some conventional text editor. However, to take maximum out of IDE, it is necessary to configure it properly before usage. The fresh copy of [Eclipse](https://www.eclipse.org/downloads/eclipse-packages/) underlines c++ code even if it doesn't contain any errors there. It's because fresh copy of Eclipse doesn't know about *stdc++11* features. Below are the instructions to make Eclipse *Oxygen* aware of them.
+For developers it's highly recommended to do FEMOCS development in an IDE (integrated develpment editor)
+instead of some conventional text editor. However, to take maximum out of IDE, it is necessary to
+configure it properly before usage. The fresh copy of [Eclipse](https://www.eclipse.org/downloads/eclipse-packages/)
+underlines c++ code even if it doesn't contain any errors there. It's because fresh copy of Eclipse does
+not know about *stdc++11* features. Below are the instructions to make Eclipse *Oxygen* aware of them.
 
 **Step 1**
 
@@ -95,4 +141,6 @@ Add the symbol *__cplusplus* with the value *201103L*
 
 **Step 4**
 
-Clean and rebuild both the project (*Project > Clean*, *Project > Rebuild all*) and the index (*Project > C/C++ Index > Rebuild*) as Eclipse tends to cache error messages and show them even though they are gone after changing the settings.
+Clean and rebuild both the project (*Project > Clean*, *Project > Rebuild all*) and the index
+(*Project > C/C++ Index > Rebuild*) as Eclipse tends to cache error messages and show them even though
+they are gone after changing the settings.
