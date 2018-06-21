@@ -670,6 +670,7 @@ void EmissionReader::calc_representative() {
     double FJ = 0.; // int_FWHMarea (F*J)dS
     global_data.I_tot = 0;
     global_data.I_fwhm = 0;
+    double cutoff = 0.1; //cutoff threshold of J/Jmax to consider emitting area
 
     for (unsigned int i = 0; i < currents.size(); ++i){ // go through face centroids
         int tri = mesh->quads.to_tri(abs(fields->get_marker(i)));
@@ -678,7 +679,7 @@ void EmissionReader::calc_representative() {
         currents[i] = face_area * current_densities[i];
         global_data.I_tot += currents[i];
 
-        if (current_densities[i] > global_data.Jmax * 0.5){ //if point eligible
+        if (current_densities[i] > global_data.Jmax * cutoff){ //if point eligible
             global_data.area += face_area; // increase total area
             global_data.I_fwhm += currents[i]; // increase total current
             FJ += currents[i] * fields->get_elfield_norm(i);
@@ -734,6 +735,8 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
             set_marker(i, 2);
         }
 
+
+
         global_data.Jmax = max(global_data.Jmax, J); // output data
         current_densities[i] = J;
         nottingham[i] = nm2_per_angstrom2 * gt.heat;
@@ -744,11 +747,17 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
     global_data.Fmax = fields->calc_max_field();
     global_data.N_calls++;
 
-    double theta_old = global_data.multiplier;
-    double err_fact = 0.5, error;
+    double theta;
+    double error;
     double Fmax_0 = global_data.Fmax;
+    double Veff;
+    if (conf.Vappl_SC > 0.)
+        Veff = conf.Vappl_SC;
+    else
+        Veff = conf.omega_SC * Vappl;
 
-    for (int i = 0; i < 20; ++i){ // SC calculation loop
+
+    for (int i = 0; i < 1000; ++i){ // SC calculation loop
         global_data.Jmax = 0.;
         global_data.Fmax = global_data.multiplier * Fmax_0;
 
@@ -756,40 +765,34 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         calc_representative();
 
         if (conf.omega_SC <= 0. && conf.Vappl_SC <=0.) break; // if Vappl<=0, SC is ignored
-        if (i > 5) err_fact *= 0.5; // if not converged in first 6 steps, reduce factor
 
-        double Veff;
-        if (conf.Vappl_SC > 0.)
-            Veff = conf.Vappl_SC;
-        else
-            Veff = conf.omega_SC * Vappl;
+
         // calculate SC multiplier (function coming from getelec)
-        global_data.multiplier = theta_SC(global_data.Jrep / nm2_per_angstrom2,
-                Veff, angstrom_per_nm * global_data.Frep);
+        theta = theta_SC(global_data.Jmax / nm2_per_angstrom2,
+                Veff, angstrom_per_nm * global_data.Fmax);
 
-        if (MODES.VERBOSE) {
-            // setbuf(stdout, NULL);  // if flushing still active, try commenting in this line
-            printf("SC cycle #%d, theta=%f, Jrep=%e, Frep=%e, Itot=%e\n", i,
-                    global_data.multiplier, global_data.Jrep, global_data.Frep, global_data.I_tot);
+        error = global_data.multiplier - theta;
+        if (MODES.VERBOSE){
+            printf("SC cycle #%d, mult=%f, theta=%f, err=%f, Jmax=%e, F=%e, Itot=%e", i,
+                    global_data.multiplier, theta,  error,  global_data.Jmax, global_data.Fmax,
+                    global_data.I_tot);
+            cout << endl;
         }
 
-        error = global_data.multiplier - theta_old;
-        global_data.multiplier = theta_old + error * err_fact;
-        theta_old = global_data.multiplier;
-
-        // if converged break
-        if (abs(error) < conf.SC_error) break;
+        global_data.multiplier = .5 * (theta + global_data.multiplier);
+        if (abs(error) < conf.SC_error)
+            break;
     }
     global_data.Ilist.push_back(global_data.I_tot);
     write("out/emission.dat");
 }
 
 string EmissionReader::get_data_string(const int i) const {
-    if (i < 0) {
-        return "time = " + d2s(GLOBALS.TIME) +
+    if (i < 0)
+        return "time = " + to_string(GLOBALS.TIME) +
                 ", EmissionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" +
                 vec_norm_label + ":R:1:" + scalar_label + ":R:1";
-    }
+
     ostringstream strs; strs << setprecision(6);
     strs << atoms[i] << ' ' << fields->get_elfield(i)
              << ' ' << log(current_densities[i]) << ' ' << nottingham[i];
