@@ -27,9 +27,9 @@ int ProjectSpaceCharge::run(int timestep) {
         return process_failed("Preparation of FEM solvers failed!");
 
 
-    vector<double> I_target = {0.001};
+    vector<double> I_target = {1.};
     cout << find_Veff(I_target) << endl;
-    //***** Run FEM solvers *****
+//    //***** Run FEM solvers *****
 
 
 //    for(auto factor : conf.field.apply_factors){
@@ -38,6 +38,7 @@ int ProjectSpaceCharge::run(int timestep) {
 //
 //        if (converge_pic())
 //            return process_failed("Running field solver in a " + conf.field.solver + " mode failed!");
+//
 //
 //        finalize(tstart);
 //        conf.field.E0 /= factor;
@@ -85,16 +86,11 @@ void ProjectSpaceCharge::get_currents(double Vappl, vector<double> &curs){
         solve_laplace(conf.field.E0 * factor, conf.field.V0 * factor);
         start_msg(t0, "=== Calculating electron emission...");
 
-        cout << "interpolating surface fields" << endl;
         surface_fields.interpolate(ch_solver);
 
-        cout << "inteprolating surface temperatures" << endl;
         if (!i) surface_temperatures.interpolate(ch_solver);
-
-        cout << "initializing emission" << endl;
         emission.initialize(mesh, i == 0);
 
-        cout << "calculating emission" << endl;
         emission.calc_emission(conf.emission, Vappl);
         end_msg(t0);
         curs[i++] = emission.global_data.I_tot;
@@ -104,32 +100,45 @@ void ProjectSpaceCharge::get_currents(double Vappl, vector<double> &curs){
 
 double ProjectSpaceCharge::find_Veff(vector<double> I_target){
 
-    int Nmax = 20;
+    int Nmax = 50;
     double errlim = 0.01;
 
-    bool lim_found = false;
-    double Veff = conf.field.V0, Vhigh, Vlow;
-    double errorlim;
+    double Veff = conf.field.V0, Vhigh, Vlow, old_error;
 
     vector<double> currents;
 
     for(int i = 0; i < Nmax; ++i){
         get_currents(Veff, currents);
         double error = get_current_error(currents, I_target);
-
-        cout << "Currents = " <<  currents[0] << " Veff = " << Veff << ", error = " <<  error << endl;
-        if(error > errlim){
-            Vhigh = Veff;
-            if (lim_found)
-                Veff = 0.5 * (Vhigh + Vlow);
-            else
-                Veff *= 2;
-        } else if(error < -errlim) {
+        if (i == 0)
+            old_error = error;
+        cout << " Veff = " << Veff << ", error = " <<  error << ", old_error = " << old_error << endl;
+        if(error > errlim && error * old_error > 0){
             Vlow = Veff;
-            if (lim_found)
-                Veff = 0.5 * (Vhigh + Vlow);
-            else
-                Veff /= 2;
+            Veff *= 2;
+            Vhigh = Veff;
+        } else if(error < -errlim && error * old_error > 0){
+            Vhigh = Veff;
+            Veff /= 2;
+            Vlow = Veff;
+        } else
+            break;
+        old_error = error;
+    }
+
+    Veff = .5 * (Vhigh + Vlow);
+    cout << "found Vhigh = " << Vhigh << ", Vlow = " << Vlow << endl;
+    for(int i = 0; i < Nmax; ++i){
+        get_currents(Veff, currents);
+        double error = get_current_error(currents, I_target);
+        cout  << " Veff = " << Veff << ", error = " <<  error << endl;
+        if(error > errlim){
+            Vlow = Veff;
+            Veff = .5 * (Vhigh + Vlow);
+        }
+        else if(error < -errlim){
+            Vhigh = Veff;
+            Veff = .5 * (Vhigh + Vlow);
         }
         else
             return Veff;
