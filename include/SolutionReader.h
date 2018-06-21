@@ -260,9 +260,9 @@ public:
      * estimation of the space charge effects.
      * @param ch_solver heat solver object where J and Nottingham BCs will be written
      * @param conf Emission configuration parameters struct
-     * @param Vappl Applied voltage (required for space charge calculations)
+     * @param Veff_SC (effective applied voltage for space charge calculations)
      */
-    void calc_emission(const Config::Emission &conf, double Vappl = -1);
+    void calc_emission(const Config::Emission &conf, double Veff_SC = -1);
 
     void export_emission(CurrentHeatSolver<3>& ch_solver);
 
@@ -276,8 +276,14 @@ public:
     /** Initialises class data */
     void initialize(const TetgenMesh* m, bool reinit = true);
 
+    void set_sfactor(double factor){
+        global_data.sfactor = factor;
+    }
+
     struct EmGlobalData {
-        double multiplier;   ///< Multiplier for the field for Space Charge.
+        double multiplier=1.;   ///< Multiplier for the field for Space Charge.
+        double theta=1.;       ///< correction multiplier for Space Charge
+        double sfactor=1.;     ///< factor that rescales the field (accounts for changed applied V or F)
         double Jmax;         ///< Maximum current density of the emitter [in amps/A^2]
         double Fmax = 0.;    ///< Maximum local field on the emitter [V/A]
         double Frep = 0.;    ///< Representative local field (used for space charge equation) [V/A]

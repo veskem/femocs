@@ -375,7 +375,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit) {
         surface_fields.calc_interpolation(point2cell);
 
         // calculate field emission and inject electrons
-        emission.calc_emission(conf.emission, conf.field.V0);
+        emission.calc_emission(conf.emission);
         int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
         
         write_results();
@@ -407,7 +407,7 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
         if (full_run) surface_fields.interpolate(ch_solver);
         surface_temperatures.interpolate(ch_solver);
         emission.initialize(mesh, full_run);
-        emission.calc_emission(conf.emission, conf.field.V0);
+        emission.calc_emission(conf.emission);
         end_msg(t0);
 
         emission.write("out/emission.movie");

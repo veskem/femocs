@@ -17,33 +17,33 @@ int ProjectSpaceCharge::run(int timestep, double time) {
 
     //***** Build or import mesh *****
 
+    cout << "starting project space charge..." << endl;
     if (generate_mesh())
         return process_failed("Mesh generation failed!");
-
+    cout << "here";
     check_return(!mesh_changed, "First meshing failed! Terminating...");
 
     cout << "Preparing solvers..." << endl;
     if (prepare_solvers())
         return process_failed("Preparation of FEM solvers failed!");
 
+    vector<double> I_target;
 
-    vector<double> I_target = {1.};
-    cout << find_Veff(I_target) << endl;
-//    //***** Run FEM solvers *****
+    double E_orig = conf.field.E0, V_orig = conf.field.V0;
 
+    for(auto factor : conf.field.apply_factors){
+        conf.field.E0 = E_orig * factor;
+        conf.field.V0 = V_orig * factor;
 
-//    for(auto factor : conf.field.apply_factors){
-//        conf.field.E0 *= factor;
-//        conf.field.V0 *= factor;
-//
-//        if (converge_pic())
-//            return process_failed("Running field solver in a " + conf.field.solver + " mode failed!");
-//
-//
-//        finalize(tstart);
-//        conf.field.E0 /= factor;
-//        conf.field.V0 /= factor;
-//    }
+        if (converge_pic())
+            return process_failed("Running field solver in a " + conf.field.solver + " mode failed!");
+
+        I_target.push_back(emission.global_data.I_mean);
+    }
+
+    double Veff = find_Veff(I_target);
+
+    cout << "Effective applied voltage: " << Veff << endl;
 
     return 0;
 }
@@ -79,26 +79,22 @@ int ProjectSpaceCharge::converge_pic() {
 void ProjectSpaceCharge::get_currents(double Vappl, vector<double> &curs){
     curs.resize(conf.field.apply_factors.size());
 
-    conf.emission.Vappl_SC = Vappl;
-
     int i = 0;
     for(auto factor : conf.field.apply_factors){
-        solve_laplace(conf.field.E0 * factor, conf.field.V0 * factor);
-        start_msg(t0, "=== Calculating electron emission...");
-
-        surface_fields.interpolate(ch_solver);
-
-        if (!i) surface_temperatures.interpolate(ch_solver);
-        emission.initialize(mesh, i == 0);
-
+        emission.set_sfactor(factor);
         emission.calc_emission(conf.emission, Vappl);
-        end_msg(t0);
         curs[i++] = emission.global_data.I_tot;
     }
 
 }
 
 double ProjectSpaceCharge::find_Veff(vector<double> I_target){
+
+
+    solve_laplace(conf.field.E0, conf.field.V0);
+    surface_fields.interpolate(ch_solver);
+    surface_temperatures.interpolate(ch_solver);
+    emission.initialize(mesh, true);
 
     int Nmax = 50;
     double errlim = 0.01;
@@ -107,7 +103,7 @@ double ProjectSpaceCharge::find_Veff(vector<double> I_target){
 
     vector<double> currents;
 
-    for(int i = 0; i < Nmax; ++i){
+    for(int i = 0; i < Nmax; ++i){ // first find two values that produce opposite sign errors
         get_currents(Veff, currents);
         double error = get_current_error(currents, I_target);
         if (i == 0)
@@ -127,8 +123,8 @@ double ProjectSpaceCharge::find_Veff(vector<double> I_target){
     }
 
     Veff = .5 * (Vhigh + Vlow);
-    cout << "found Vhigh = " << Vhigh << ", Vlow = " << Vlow << endl;
-    for(int i = 0; i < Nmax; ++i){
+
+    for(int i = 0; i < Nmax; ++i){ // perform bisection
         get_currents(Veff, currents);
         double error = get_current_error(currents, I_target);
         cout  << " Veff = " << Veff << ", error = " <<  error << endl;

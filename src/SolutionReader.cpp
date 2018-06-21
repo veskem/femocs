@@ -743,18 +743,19 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
     }
 }
 
-void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
+void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC) {
     global_data.Fmax = fields->calc_max_field();
     global_data.N_calls++;
 
-    double theta;
+    double theta_new;
     double error;
     double Fmax_0 = global_data.Fmax;
     double Veff;
-    if (conf.Vappl_SC > 0.)
-        Veff = conf.Vappl_SC;
+
+    if (Veff_SC > 0)
+        Veff = Veff_SC;
     else
-        Veff = conf.omega_SC * Vappl;
+        Veff = conf.Vappl_SC;
 
 
     for (int i = 0; i < 1000; ++i){ // SC calculation loop
@@ -764,22 +765,23 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
         emission_cycle(conf.work_function, conf.blunt, conf.cold);
         calc_representative();
 
-        if (conf.omega_SC <= 0. && conf.Vappl_SC <=0.) break; // if Vappl<=0, SC is ignored
+        if (Veff <= 0) break; // if Vappl<=0, SC is ignored
 
 
         // calculate SC multiplier (function coming from getelec)
-        theta = theta_SC(global_data.Jmax / nm2_per_angstrom2,
+        theta_new = theta_SC(global_data.Jmax / nm2_per_angstrom2,
                 Veff, angstrom_per_nm * global_data.Fmax);
 
-        error = global_data.multiplier - theta;
+        error = global_data.theta - theta_new;
         if (MODES.VERBOSE){
             printf("SC cycle #%d, mult=%f, theta=%f, err=%f, Jmax=%e, F=%e, Itot=%e", i,
-                    global_data.multiplier, theta,  error,  global_data.Jmax, global_data.Fmax,
+                    global_data.theta, theta_new,  error,  global_data.Jmax, global_data.Fmax,
                     global_data.I_tot);
             cout << endl;
         }
 
-        global_data.multiplier = .5 * (theta + global_data.multiplier);
+        global_data.theta = .5 * (theta_new + global_data.theta);
+        global_data.multiplier = global_data.theta * global_data.sfactor;
         if (abs(error) < conf.SC_error)
             break;
     }
