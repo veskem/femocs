@@ -41,8 +41,6 @@ Femocs::Femocs(const string &conf_file) : t0(0) {
 
     omp_set_num_threads(conf.behaviour.n_omp_threads);
 
-    cout << "creating project..." << conf.behaviour.project << endl;
-
     // pick the project to run
     if (conf.behaviour.project == "runaway")
         project = new ProjectRunaway(reader, conf);

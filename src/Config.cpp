@@ -240,12 +240,19 @@ void Config::read_all(const string& file_name) {
     cfactor.r0_cylinder = static_cast<int>(args[1]);
     cfactor.r0_sphere = static_cast<int>(args[2]);
 
-    field.apply_factors.resize(16);
+    field.apply_factors.resize(128);
     n_read_args = read_command("apply_factors", field.apply_factors);
     if (n_read_args > 0)
         field.apply_factors.resize(n_read_args);
     else
         field.apply_factors = {1.};
+
+    emission.I_pic.resize(128);
+    n_read_args = read_command("currents_pic", emission.I_pic);
+    emission.I_pic.resize(n_read_args);
+    require(!n_read_args ||n_read_args == field.apply_factors.size(),
+            "current_pic & apply_factors sizes don't match");
+
 }
 
 // Read the commands and their arguments from the file and store them into the buffer

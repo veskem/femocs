@@ -27,16 +27,19 @@ public:
     int run(int timestep, double time);
 
 private:
+    vector<double> I_pic, I_sc;
 
     /** Run the pic Space charge until convergence is reached */
     int converge_pic();
 
     /** Find the omega_SC that minimizes the error of factors-currents curve */
-    double find_Veff(vector<double> currents);
+    double find_Veff();
 
-     void get_currents(double Vappl, vector<double> &curs);
+     void get_currents(double Vappl);
 
-     double get_current_error(vector<double> I_calc, vector<double> I_target);
+     double get_current_error();
+
+     void write_results(double Veff);
 
 };
 

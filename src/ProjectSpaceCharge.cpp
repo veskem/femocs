@@ -15,35 +15,37 @@ ProjectSpaceCharge::ProjectSpaceCharge(AtomReader &reader, Config &conf) : Proje
 int ProjectSpaceCharge::run(int timestep, double time) {
     double tstart = omp_get_wtime();
 
-    //***** Build or import mesh *****
-
-    cout << "starting project space charge..." << endl;
     if (generate_mesh())
         return process_failed("Mesh generation failed!");
-    cout << "here";
     check_return(!mesh_changed, "First meshing failed! Terminating...");
 
-    cout << "Preparing solvers..." << endl;
     if (prepare_solvers())
         return process_failed("Preparation of FEM solvers failed!");
 
-    vector<double> I_target;
 
-    double E_orig = conf.field.E0, V_orig = conf.field.V0;
+    if (conf.emission.I_pic.size()){
+        for(int i = 0; i < conf.emission.I_pic.size(); ++i)
+            I_pic.push_back(conf.emission.I_pic[i]);
+    } else{
+        double E_orig = conf.field.E0, V_orig = conf.field.V0;
+        for(auto factor : conf.field.apply_factors){
+            conf.field.E0 = E_orig * factor;
+            conf.field.V0 = V_orig * factor;
 
-    for(auto factor : conf.field.apply_factors){
-        conf.field.E0 = E_orig * factor;
-        conf.field.V0 = V_orig * factor;
+            if (converge_pic())
+                return process_failed("Running field solver in a " + conf.field.solver + " mode failed!");
 
-        if (converge_pic())
-            return process_failed("Running field solver in a " + conf.field.solver + " mode failed!");
-
-        I_target.push_back(emission.global_data.I_mean);
+            I_pic.push_back(emission.global_data.I_mean);
+        }
+        conf.field.V0 = V_orig;
+        conf.field.E0 = E_orig;
     }
 
-    double Veff = find_Veff(I_target);
+    I_sc.resize(I_pic.size());
 
-    cout << "Effective applied voltage: " << Veff << endl;
+    double Veff = find_Veff();
+
+    write_results(Veff);
 
     return 0;
 }
@@ -76,19 +78,16 @@ int ProjectSpaceCharge::converge_pic() {
     return 0;
 }
 
-void ProjectSpaceCharge::get_currents(double Vappl, vector<double> &curs){
-    curs.resize(conf.field.apply_factors.size());
+void ProjectSpaceCharge::get_currents(double Vappl){
 
-    int i = 0;
-    for(auto factor : conf.field.apply_factors){
-        emission.set_sfactor(factor);
+    for(int i = 0; i < I_pic.size(); ++i){
+        emission.set_sfactor(conf.field.apply_factors[i]);
         emission.calc_emission(conf.emission, Vappl);
-        curs[i++] = emission.global_data.I_tot;
+        I_sc[i] = emission.global_data.I_tot;
     }
-
 }
 
-double ProjectSpaceCharge::find_Veff(vector<double> I_target){
+double ProjectSpaceCharge::find_Veff(){
 
 
     solve_laplace(conf.field.E0, conf.field.V0);
@@ -104,11 +103,11 @@ double ProjectSpaceCharge::find_Veff(vector<double> I_target){
     vector<double> currents;
 
     for(int i = 0; i < Nmax; ++i){ // first find two values that produce opposite sign errors
-        get_currents(Veff, currents);
-        double error = get_current_error(currents, I_target);
+        get_currents(Veff);
+        double error = get_current_error();
         if (i == 0)
             old_error = error;
-        cout << " Veff = " << Veff << ", error = " <<  error << ", old_error = " << old_error << endl;
+        cout << " Veff = " << Veff << ", error = " <<  error << endl;
         if(error > errlim && error * old_error > 0){
             Vlow = Veff;
             Veff *= 2;
@@ -125,8 +124,8 @@ double ProjectSpaceCharge::find_Veff(vector<double> I_target){
     Veff = .5 * (Vhigh + Vlow);
 
     for(int i = 0; i < Nmax; ++i){ // perform bisection
-        get_currents(Veff, currents);
-        double error = get_current_error(currents, I_target);
+        get_currents(Veff);
+        double error = get_current_error();
         cout  << " Veff = " << Veff << ", error = " <<  error << endl;
         if(error > errlim){
             Vlow = Veff;
@@ -137,20 +136,41 @@ double ProjectSpaceCharge::find_Veff(vector<double> I_target){
             Veff = .5 * (Vhigh + Vlow);
         }
         else
-            return Veff;
+            break;
     }
+
+    return Veff;
 }
 
-double ProjectSpaceCharge::get_current_error(vector<double> I_calc, vector<double> I_target){
-    require(I_calc.size() == I_target.size(), "comparison of current vectors no equal sizes");
+double ProjectSpaceCharge::get_current_error(){
+    require(I_sc.size() == I_pic.size(), "comparison of current vectors no equal sizes");
     double error = 0;
-    for(int i = 0; i < I_calc.size(); i++){
-        error += log(I_calc[i] / I_target[i]);
+    for(int i = 0; i < I_sc.size(); i++){
+        error += log(I_sc[i] / I_pic[i]);
     }
     return error;
 }
 
+void ProjectSpaceCharge::write_results(double Veff){
+    ofstream out;
+    out.open("results_SC.dat");
+    out.setf(std::ios::scientific);
+    out.precision(6);
 
+    double Emax = surface_fields.calc_max_field();
+
+    out << "effective Voltage = " << Veff << endl;
+    out << "   F_max_L      Voltage       I_sc        I_pic" << endl;
+
+    for (int i = 0; i < I_sc.size(); ++i){
+        out << conf.field.apply_factors[i] * Emax << " " <<
+                conf.field.apply_factors[i] * conf.field.V0 << " "
+                << I_sc[i] << " " << I_pic[i] << endl;
+    }
+
+    out.close();
+
+}
 
 
 } /* namespace femocs */

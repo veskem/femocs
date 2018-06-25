@@ -277,7 +277,9 @@ public:
     void initialize(const TetgenMesh* m, bool reinit = true);
 
     void set_sfactor(double factor){
+        global_data.multiplier *= factor / global_data.sfactor;
         global_data.sfactor = factor;
+
     }
 
     struct EmGlobalData {
