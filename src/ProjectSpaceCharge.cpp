@@ -28,10 +28,12 @@ int ProjectSpaceCharge::run(int timestep, double time) {
             I_pic.push_back(conf.emission.I_pic[i]);
     } else{
         double E_orig = conf.field.E0, V_orig = conf.field.V0;
+
         for(auto factor : conf.field.apply_factors){
             conf.field.E0 = E_orig * factor;
             conf.field.V0 = V_orig * factor;
 
+            find_Wsp();
             if (converge_pic())
                 return process_failed("Running field solver in a " + conf.field.solver + " mode failed!");
 
@@ -44,6 +46,8 @@ int ProjectSpaceCharge::run(int timestep, double time) {
     I_sc.resize(I_pic.size());
 
     double Veff = find_Veff();
+
+    full_curve(Veff);
 
     write_results(Veff);
 
@@ -70,11 +74,13 @@ int ProjectSpaceCharge::converge_pic() {
         I_mean_prev = emission.global_data.I_mean;
 
         bool converged = fabs(err) < conf.pic.convergence * emission.global_data.I_std /
-                emission.global_data.I_mean && fabs(err) < 0.05 && pic_solver.is_stable() ;
+                emission.global_data.I_mean && fabs(err) < 0.05;
+        //&& pic_solver.is_stable() ;
 
         if (converged)
             return 0;
     }
+    end_msg(t0);
     return 0;
 }
 
@@ -153,7 +159,7 @@ double ProjectSpaceCharge::get_current_error(){
 
 void ProjectSpaceCharge::write_results(double Veff){
     ofstream out;
-    out.open("results_SC.dat");
+    out.open("out/results_SC.dat");
     out.setf(std::ios::scientific);
     out.precision(6);
 
@@ -162,13 +168,71 @@ void ProjectSpaceCharge::write_results(double Veff){
     out << "effective Voltage = " << Veff << endl;
     out << "   F_max_L      Voltage       I_sc        I_pic" << endl;
 
-    for (int i = 0; i < I_sc.size(); ++i){
+    for (int i = 0; i < I_sc.size(); ++i)
         out << conf.field.apply_factors[i] * Emax << " " <<
                 conf.field.apply_factors[i] * conf.field.V0 << " "
                 << I_sc[i] << " " << I_pic[i] << endl;
-    }
 
     out.close();
+
+    out.open("out/full_curve.dat");
+
+    out << "   F_max_L      Voltage       I_sc        " << endl;
+
+    for (int i = 0; i < I_full.size(); ++i)
+        out << fact_full[i] * Emax << " " << fact_full[i] * conf.field.V0
+                << " " << I_full[i] << endl;
+
+    out.close();
+
+}
+
+void ProjectSpaceCharge::full_curve(double Veff){
+
+    int Npoints = 128;
+    double fmax = *max_element(conf.field.apply_factors.begin(), conf.field.apply_factors.end());
+    double fmin = *min_element(conf.field.apply_factors.begin(), conf.field.apply_factors.end());
+
+    fact_full.resize(Npoints);
+    I_full.resize(Npoints);
+
+    for(int i = 0; i < Npoints; ++i){
+        fact_full[i] = fmin + i * (fmax - fmin) / (Npoints - 1);
+        emission.set_sfactor(fact_full[i]);
+        emission.calc_emission(conf.emission, Veff);
+        I_full[i] = emission.global_data.I_tot;
+    }
+}
+
+
+void ProjectSpaceCharge::find_Wsp(){
+    double time_window = 16 * conf.pic.dt_max; //time window to check convergence
+    int i_max = 1024; //window iterations
+
+    double I_mean_prev = emission.global_data.I_mean;
+
+    start_msg(t0, "=== Calculating a reasonable  Wsp ...\n");
+
+    pic_solver.reinit();
+    solve_pic(time_window, true);
+    emission.calc_global_stats();
+    double inj_per_step = pic_solver.get_injected() / (double) 32;
+    if ((inj_per_step < 200 || inj_per_step > 1000))
+        conf.pic.Wsp_el *= inj_per_step /  500;
+
+    if (!inj_per_step){
+        conf.pic.Wsp_el /= 1000;
+        find_Wsp();
+
+    }
+
+    cout << "Found Wsp = " << conf.pic.Wsp_el << endl;
+
+    pic_solver.reinit();
+
+    end_msg(t0);
+
+
 
 }
 

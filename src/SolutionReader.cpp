@@ -757,7 +757,7 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC)
     else
         Veff = conf.Vappl_SC;
 
-    if (MODES.VERBOSE){
+    if (MODES.VERBOSE && Veff > 0){
         printf("\nCalculating SC convergence for multiplier = %f ...", global_data.sfactor);
         cout << endl;
     }

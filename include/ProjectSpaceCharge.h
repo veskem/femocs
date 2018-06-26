@@ -28,6 +28,7 @@ public:
 
 private:
     vector<double> I_pic, I_sc;
+    vector<double> fact_full, I_full;
 
     /** Run the pic Space charge until convergence is reached */
     int converge_pic();
@@ -40,6 +41,10 @@ private:
      double get_current_error();
 
      void write_results(double Veff);
+
+     void full_curve(double Veff);
+
+     void find_Wsp();
 
 };
 

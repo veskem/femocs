@@ -66,6 +66,11 @@ public:
         inject_stats.removed = 0;
     }
 
+    void reinit(){
+        stats_reinit();
+        electrons.clear();
+    }
+
     int get_injected(){ return inject_stats.injected; }
 
     int get_removed(){ return inject_stats.removed; }

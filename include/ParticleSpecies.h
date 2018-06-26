@@ -32,6 +32,8 @@ public:
     void set_Wsp(double _Wsp) { Wsp = _Wsp; }
     double get_Wsp() const { return Wsp; }
 
+    void clear() {parts.clear();}
+
     vector<SuperParticle> parts;
     vector<size_t> ordcount;
 
