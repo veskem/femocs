@@ -378,6 +378,11 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit, bool force_write
         emission.calc_emission(conf.emission);
         int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
 
+        if (n_injected > 30000){
+            write_verbose_msg("WARNING: too many injected SPs. Check the SP weight");
+            return 1;
+        }
+
         if (MODES.VERBOSE) {
             printf("  t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d",
                     GLOBALS.TIME, n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot,

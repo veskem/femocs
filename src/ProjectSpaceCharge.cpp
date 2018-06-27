@@ -88,8 +88,8 @@ int ProjectSpaceCharge::converge_pic() {
 
         I_mean_prev = emission.global_data.I_mean;
 
-        bool converged = fabs(err) < conf.pic.convergence * emission.global_data.I_std /
-                emission.global_data.I_mean && fabs(err) < 0.05;
+        bool converged = fabs(err) < 1.e-4 || (fabs(err) < conf.pic.convergence * emission.global_data.I_std /
+                emission.global_data.I_mean && fabs(err) < 0.05);
         //&& pic_solver.is_stable() ;
 
         if (converged)
@@ -221,26 +221,30 @@ void ProjectSpaceCharge::full_curve(double Veff){
 
 void ProjectSpaceCharge::find_Wsp(){
     double time_window = 16 * conf.pic.dt_max; //time window to check convergence
-    int i_max = 1024; //window iterations
+    int i_max = 10; //window iterations
 
     double I_mean_prev = emission.global_data.I_mean;
 
-    start_msg(t0, "=== Calculating a reasonable  Wsp ...\n");
+    start_msg(t0, "=== Calculating a reasonable Wsp... \n");
 
-    solve_pic(time_window, true);
-    emission.calc_global_stats();
-    double inj_per_step = pic_solver.get_injected() / (double) 32;
-    if ((inj_per_step < 200 || inj_per_step > 1000))
-        conf.pic.Wsp_el *= inj_per_step /  500;
+    for (int i = 0; i <  i_max; ++i){
+        int fail = solve_pic(time_window, true);
 
-    if (!inj_per_step){
-        conf.pic.Wsp_el /= 1000;
-        find_Wsp();
+        emission.calc_global_stats();
+        double inj_per_step = pic_solver.get_injected() / (double) 32;
+        pic_solver.reinit();
+
+        if (fail)
+            conf.pic.Wsp_el *= 10;
+        else if (!inj_per_step)
+            conf.pic.Wsp_el /= 10;
+        else if (inj_per_step < 200 || inj_per_step > 1000)
+            conf.pic.Wsp_el *= inj_per_step /  500;
+        else
+            break;
     }
 
     cout << "Found Wsp = " << conf.pic.Wsp_el << endl;
-    pic_solver.reinit();
-
     end_msg(t0);
 }
 
