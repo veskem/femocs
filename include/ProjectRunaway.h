@@ -109,7 +109,7 @@ protected:
     int solve_laplace(double E0, double V0);
 
     /** Evolve the PIC simulation one Femocs time step */
-    int solve_pic(const double advance_time, bool reinit);
+    int solve_pic(const double advance_time, bool reinit, bool force_write = false);
 
     /** Solve transient heat and continuity equations */
     int solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg);

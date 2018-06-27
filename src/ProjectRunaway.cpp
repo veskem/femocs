@@ -333,7 +333,7 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
     return 0;
 }
 
-int ProjectRunaway::solve_pic(double advance_time, bool reinit) {
+int ProjectRunaway::solve_pic(double advance_time, bool reinit, bool force_write) {
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
     fields.set_check_params(conf, conf.geometry.radius, mesh->tris.stat.zbox, mesh->nodes.stat.zbox);
 
@@ -361,7 +361,8 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit) {
         int n_lost = pic_solver.update_positions();
 
         // assemble and solve Poisson equation
-        poisson_solver.assemble_poisson(i == 0, write_time());
+        bool force_write_now = force_write && i == (n_pic_steps - 1);
+        poisson_solver.assemble_poisson(i == 0, force_write_now || write_time());
         int n_cg_steps = poisson_solver.solve();
 
         // must be after solving Poisson and before updating velocities
@@ -370,25 +371,24 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit) {
         // update velocities of super particles and collide them
         pic_solver.update_velocities();
         pic_solver.collide_particles();
-
         // update field on the surface
         surface_fields.calc_interpolation(point2cell);
 
         // calculate field emission and inject electrons
         emission.calc_emission(conf.emission);
         int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
-        
-        write_results();
 
         if (MODES.VERBOSE) {
-            printf("  t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
+            printf("  t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d",
                     GLOBALS.TIME, n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot,
                     n_injected, n_lost, pic_solver.get_n_electrons());
+            cout << endl;
         }
+
+        write_results(force_write_now);
 
         GLOBALS.TIME += dt_pic;
     }
-    end_msg(t0);
 
     check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
             "Field enhancement is out of limits!");
@@ -444,6 +444,8 @@ int ProjectRunaway::write_results(bool force_write){
 
     if (!write_time() && !force_write) return 1;
 
+    start_msg(t0, "=== Writing data to files...");
+
     vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
     vacuum_interpolator.nodes.write("out/result_E_phi.movie");
     vacuum_interpolator.linhex.write("out/result_E_phi.vtk");
@@ -465,6 +467,7 @@ int ProjectRunaway::write_results(bool force_write){
     }
 
     last_write_time = GLOBALS.TIME;
+    end_msg(t0);
     return 0;
 }
 
