@@ -198,14 +198,17 @@ void Interpolator::extract_charge_density(PoissonSolver<3>& fem) {
     store_solution(fem.get_efield(cell_indxs, vert_indxs), fem.get_charge_dens(cell_indxs, vert_indxs));
 }
 
-void Interpolator::extract_solution(CurrentHeatSolver<3>& fem) {
+void Interpolator::extract_solution(CurrentHeatSolver<3>& fem, bool temp_grad) {
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> cell_indxs, vert_indxs;
     get_maps(cell_indxs, vert_indxs, fem.get_triangulation(), fem.current.get_dof_handler());
 
     // Read and store current densities and temperatures from FEM solver
-    store_solution(fem.get_current(cell_indxs, vert_indxs), fem.get_temperature(cell_indxs, vert_indxs));
+    if (temp_grad)
+        store_solution(fem.get_temp_grad(cell_indxs, vert_indxs), fem.get_temperature(cell_indxs, vert_indxs));
+    else
+        store_solution(fem.get_current(cell_indxs, vert_indxs), fem.get_temperature(cell_indxs, vert_indxs));
 }
 
 void Interpolator::extract_solution_v2(PoissonSolver<3>& fem, const bool smoothen) {

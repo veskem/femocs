@@ -505,6 +505,31 @@ vector<Tensor<1, dim>> CurrentHeatSolver<dim>::get_current(const vector<int> &ce
 }
 
 template<int dim>
+vector<Tensor<1, dim>> CurrentHeatSolver<dim>::get_temp_grad(const vector<int> &cell_indexes,
+        const vector<int> &vert_indexes)
+{
+    QGauss<dim> quadrature_formula(this->quadrature_degree);
+    FEValues<dim> fe_values(heat.fe, quadrature_formula, update_gradients);
+
+    vector<Tensor<1, dim> > grads(cell_indexes.size());
+
+    vector<Tensor<1, dim> > temperature_gradients(quadrature_formula.size());
+
+    for (unsigned i = 0; i < cell_indexes.size(); i++) {
+        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+        // NB: only works without refinement !!!
+        typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation, 0,
+                cell_indexes[i], &heat.dof_handler);
+
+        fe_values.reinit(dof_cell);
+        fe_values.get_function_gradients(heat.solution, temperature_gradients);
+        grads[i] = temperature_gradients.at(vert_indexes[i]);
+
+    }
+    return grads;
+}
+
+template<int dim>
 void CurrentHeatSolver<dim>::mark_mesh() {
     this->mark_boundary(BoundaryId::copper_surface, BoundaryId::copper_bottom,
             BoundaryId::copper_sides, BoundaryId::copper_surface);
