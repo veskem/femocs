@@ -378,7 +378,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit, bool force_write
         emission.calc_emission(conf.emission);
         int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
 
-        if (n_injected > 30000){
+        if (n_injected > 30000 || n_injected < 0){
             write_verbose_msg("WARNING: too many injected SPs. Check the SP weight");
             return 1;
         }
@@ -395,8 +395,8 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit, bool force_write
         GLOBALS.TIME += dt_pic;
     }
 
-    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
-            "Field enhancement is out of limits!");
+//    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
+//            "Field enhancement is out of limits!");
     return 0;
 
     // TODO Save ions and neutrals that are inbound on the MD domain somewhere where the MD can find them

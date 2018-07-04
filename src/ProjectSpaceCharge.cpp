@@ -30,6 +30,7 @@ int ProjectSpaceCharge::run(int timestep, double time) {
     } else{
         double E_orig = conf.field.E0, V_orig = conf.field.V0;
         for(auto factor : conf.field.apply_factors){
+            write_verbose_msg("=== Running for apply factor = " + to_string(factor));
             conf.field.E0 = E_orig * factor;
             conf.field.V0 = V_orig * factor;
             find_Wsp();
@@ -43,7 +44,7 @@ int ProjectSpaceCharge::run(int timestep, double time) {
             I_pic.push_back(emission.global_data.I_mean);
 
             export_on_line();
-            string line_name = "out/line_data" + to_string((int) factor * 10) + ".dat";
+            string line_name = "out/line_data" + to_string((int) (factor * 10.0)) + ".dat";
             write_line(line_name);
         }
         conf.field.V0 = V_orig;
@@ -71,7 +72,8 @@ int ProjectSpaceCharge::converge_pic() {
 
     double I_mean_prev = emission.global_data.I_mean;
 
-    start_msg(t0, "=== Converging PIC...\n");
+    write_verbose_msg("=== Converging PIC...");
+
     for (int i = 0; i < i_max; ++i) {
         pic_solver.stats_reinit();
         solve_pic(time_window, i == 0, true);
@@ -88,14 +90,13 @@ int ProjectSpaceCharge::converge_pic() {
 
         I_mean_prev = emission.global_data.I_mean;
 
-        bool converged = fabs(err) < 1.e-4 || (fabs(err) < conf.pic.convergence * emission.global_data.I_std /
+        bool converged = fabs(err) < 1.e-3 || (fabs(err) < conf.pic.convergence * emission.global_data.I_std /
                 emission.global_data.I_mean && fabs(err) < 0.05);
         //&& pic_solver.is_stable() ;
 
         if (converged)
             return 0;
     }
-    end_msg(t0);
     return 0;
 }
 
@@ -228,6 +229,7 @@ void ProjectSpaceCharge::find_Wsp(){
     start_msg(t0, "=== Calculating a reasonable Wsp... \n");
 
     for (int i = 0; i <  i_max; ++i){
+        pic_solver.reinit();
         int fail = solve_pic(time_window, true);
 
         emission.calc_global_stats();
@@ -236,11 +238,12 @@ void ProjectSpaceCharge::find_Wsp(){
 
         if (fail)
             conf.pic.Wsp_el *= 10;
-        else if (!inj_per_step)
+        else if (inj_per_step < 1)
             conf.pic.Wsp_el /= 10;
-        else if (inj_per_step < 200 || inj_per_step > 1000)
+        else if (inj_per_step < 200 || inj_per_step > 1000){
             conf.pic.Wsp_el *= inj_per_step /  500;
-        else
+            break;
+        } else
             break;
     }
 
