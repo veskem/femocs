@@ -317,7 +317,8 @@ private:
      * Calculates electron emission distribution for a given configuration (
      * @param workfunction  Input work function.
      */
-    void emission_cycle(double workfunction, bool blunt  = false, bool cold = false);
+    void emission_cycle(double workfunction, bool blunt  = false,
+            bool cold = false, double Vappl = 0);
 
     /** Compose entry to xyz or movie file */
     string get_data_string(const int i) const;

@@ -690,7 +690,8 @@ void EmissionReader::calc_representative() {
     global_data.Frep = global_data.multiplier * FJ / global_data.I_fwhm;
 }
 
-void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) {
+void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold,
+        double Vappl) {
     struct emission gt;
     gt.W = workfunction;    // set workfuntion, must be set in conf. script
     gt.R = 1000.0;   // radius of curvature (overrided by femocs potential distribution)
@@ -719,16 +720,22 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
         }
 
         gt.approx = 0; // simple GTF approximation
-        cur_dens_c(&gt); // calculate emission
-
-//        if (gt.ierr != 0 )
-//            write_verbose_msg("GETELEC 1st call returned with error, ierr = " + d2s(gt.ierr));
+        if (Vappl <= 0)
+            cur_dens_c(&gt); // calculate emission
+        else{
+            cur_dens_SC(&gt, Vappl);
+        }
 
         J = gt.Jem * nm2_per_angstrom2; // current density in femocs units
 
         if ((J > 0.1 * global_data.Jmax || gt.ierr) && !cold){ // If J is worth it, calculate with full energy integration
             gt.approx = 1;
-            cur_dens_c(&gt);
+            if (Vappl <= 0)
+                cur_dens_c(&gt); // calculate emission
+            else{
+                gt.voltage = Vappl;
+                cur_dens_SC(&gt, Vappl);
+            }
             if (gt.ierr != 0 )
                 write_verbose_msg("GETELEC 2nd call returned with error, ierr = " + d2s(gt.ierr));
             J = gt.Jem * nm2_per_angstrom2;
@@ -757,19 +764,22 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC)
     else
         Veff = conf.Vappl_SC;
 
-    if (MODES.VERBOSE && Veff > 0){
-        printf("\nCalculating SC convergence for multiplier = %f ...", global_data.sfactor);
-        cout << endl;
-    }
+//    if (MODES.VERBOSE && Veff > 0){
+//        printf("\nCalculating SC convergence for multiplier = %f ...", global_data.sfactor);
+//        cout << endl;
+//    }
 
     for (int i = 0; i < 1000; ++i){ // SC calculation loop
         global_data.Jmax = 0.;
         global_data.Fmax = global_data.multiplier * Fmax_0;
 
-        emission_cycle(conf.work_function, conf.blunt, conf.cold);
+        emission_cycle(conf.work_function, conf.blunt, conf.cold, Veff_SC);
         calc_representative();
 
-        if (Veff <= 0) break; // if Vappl<=0, SC is ignored
+        if (Veff <= 0 || conf.SC_mode == "local"){
+            cout << "exiting global SC cycle" << endl;
+            break; // if Vappl<=0, SC is ignored
+        }
 
 
         // calculate SC multiplier (function coming from getelec)

@@ -86,6 +86,7 @@ Config::Config() {
     emission.omega_SC = -1;           // SC is ignored in Emission by default
     emission.SC_error = 1.e-3;        // Convergence criterion for SC iteration
     emission.Vappl_SC = 0.;           // Vappl used for SC calculations
+    emission.SC_mode = "local";       // local current density with SC
 
     force.mode = "none";              // forces to be calculated; lorentz, all, none
 
@@ -137,6 +138,7 @@ void Config::read_all(const string& file_name) {
     read_command("maxerr_SC", emission.SC_error);
     read_command("emitter_cold", emission.cold);
     read_command("Vappl_SC", emission.Vappl_SC);
+    read_command("SC_mode", emission.SC_mode);
 
     read_command("t_ambient", heating.t_ambient);
     read_command("heating_mode", heating.mode);

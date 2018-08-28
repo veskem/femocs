@@ -144,6 +144,7 @@ public:
         double omega_SC;            ///< Voltage correction factor for SC calculation (negative for ignoring SC)
         double SC_error;            ///< convergence criterion for SC error
         double Vappl_SC;            ///< Applied voltage used for SC calculations (overrides Vappl * omega_SC)
+        string SC_mode;             ///< Mode by which the SC is taken into account. global or local
         vector<double> I_pic;       ///< Current target for finding Applied SC voltage (for SC calculations)
     } emission;
 

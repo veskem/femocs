@@ -25,8 +25,12 @@ int ProjectSpaceCharge::run(int timestep, double time) {
 
 
     if (conf.emission.I_pic.size()){
-        for(int i = 0; i < conf.emission.I_pic.size(); ++i)
+        cout << "Reading I_pic from file. Ipic = " << endl;
+        for(int i = 0; i < conf.emission.I_pic.size(); ++i){
             I_pic.push_back(conf.emission.I_pic[i]);
+            cout << I_pic[i] << endl;
+        }
+
     } else{
         double E_orig = conf.field.E0, V_orig = conf.field.V0;
         for(auto factor : conf.field.apply_factors){
