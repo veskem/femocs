@@ -776,10 +776,8 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC)
         emission_cycle(conf.work_function, conf.blunt, conf.cold, Veff_SC);
         calc_representative();
 
-        if (Veff <= 0 || conf.SC_mode == "local"){
-            cout << "exiting global SC cycle" << endl;
+        if (Veff <= 0 || conf.SC_mode == "local")
             break; // if Vappl<=0, SC is ignored
-        }
 
 
         // calculate SC multiplier (function coming from getelec)

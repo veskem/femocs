@@ -106,7 +106,10 @@ Config::Config() {
     pic.dt_max = 1.0;
     pic.Wsp_el =  .01;
     pic.fractional_push = true;
-    pic.convergence = .1;
+
+    SC.convergence = .1;
+    SC.ramping_factors = 0;
+    SC.recalc_Wsp = false;
 }
 
 // Remove the noise from the beginning of the string
@@ -208,8 +211,11 @@ void Config::read_all(const string& file_name) {
     read_command("electronWsp", pic.Wsp_el);
     read_command("pic_fractional_push", pic.fractional_push);
     read_command("pic_collide_coulomb_ee", pic.coll_coulomb_ee);
-    read_command("pic_converge_criterion", pic.convergence);
     
+    read_command("SC_converge_criterion", SC.convergence);
+    read_command("recalc_Wsp", SC.recalc_Wsp);
+    read_command("ramping_factors", SC.ramping_factors);
+
     // Read commands with potentially multiple arguments like...
     vector<double> args;
     int n_read_args;
@@ -242,16 +248,16 @@ void Config::read_all(const string& file_name) {
     cfactor.r0_cylinder = static_cast<int>(args[1]);
     cfactor.r0_sphere = static_cast<int>(args[2]);
 
-    field.apply_factors.resize(128);
-    n_read_args = read_command("apply_factors", field.apply_factors);
+    SC.apply_factors.resize(128);
+    n_read_args = read_command("apply_factors", SC.apply_factors);
     if (n_read_args > 0)
-        field.apply_factors.resize(n_read_args);
+        SC.apply_factors.resize(n_read_args);
     else
-        field.apply_factors = {1.};
+        SC.apply_factors = {1.};
 
-    emission.I_pic.resize(128);
-    n_read_args = read_command("currents_pic", emission.I_pic);
-    emission.I_pic.resize(n_read_args);
+    SC.I_pic.resize(128);
+    n_read_args = read_command("currents_pic", SC.I_pic);
+    SC.I_pic.resize(n_read_args);
     require(!n_read_args ||n_read_args == field.apply_factors.size(),
             "current_pic & apply_factors sizes don't match");
 

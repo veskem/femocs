@@ -117,7 +117,6 @@ public:
         string anode_BC;         ///< Type of anode boundary condition (Dirichlet or Neumann)
         string solver;          ///< Type of field equation to be solved; laplace or poisson
         int element_degree;     ///< Degree of Finite elements (1: linear, 2: quadratic, 3: cubic ...
-        vector<double> apply_factors; ///< run for multiple applied E0 (or V0) multiplied by the factors
     } field;
 
     /** Heating module configuration parameters */
@@ -145,7 +144,6 @@ public:
         double SC_error;            ///< convergence criterion for SC error
         double Vappl_SC;            ///< Applied voltage used for SC calculations (overrides Vappl * omega_SC)
         string SC_mode;             ///< Mode by which the SC is taken into account. global or local
-        vector<double> I_pic;       ///< Current target for finding Applied SC voltage (for SC calculations)
     } emission;
 
     /** Parameters related to atomic force calculations */
@@ -183,11 +181,19 @@ public:
         bool fractional_push; ///< Do fractional timestep push when injecting electrons?
         bool coll_coulomb_ee; ///< Do 2e->2e Coulomb collisions?
 
-        /** Relative error in current for convergence criterion.
-         * It is compared with the corresponding std in the pic convergence step. */
-        double convergence;
+
     } pic;
     
+    /** Parameters related to SpaceCharge project */
+    struct SpaceCharge {
+        vector<double> apply_factors; ///< run for multiple applied E0 (or V0) multiplied by the factors
+        int ramping_factors;    ///< First N factors used only for ramping (not fully calculated)
+        double convergence;     ///< Relative error in current for convergence criterion.
+                                ///< It is compared with the corresponding std in the pic convergence step.
+        vector<double> I_pic;   ///< Current target for finding Applied SC voltage (for SC calculations)
+        bool recalc_Wsp;        ///<
+    } SC;
+
 private:
     vector<vector<string>> data;          ///< commands and their arguments found from the input script
 

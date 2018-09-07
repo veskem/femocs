@@ -27,7 +27,7 @@ int ProjectHeat::run(int timestep, double time) {
 
     //***** Run FEM solvers *****
 
-    for(auto factor : conf.field.apply_factors){
+    for(auto factor : conf.SC.apply_factors){
         conf.field.E0 *= factor;
         conf.field.V0 *= factor;
 
@@ -142,7 +142,7 @@ int ProjectHeat::converge_pic(double max_time) {
         }
         I_mean_prev = emission.global_data.I_mean;
 
-        if (fabs(err) < 0.05 && fabs(err) < conf.pic.convergence * emission.global_data.I_std /
+        if (fabs(err) < 0.05 && fabs(err) < conf.SC.convergence * emission.global_data.I_std /
                 emission.global_data.I_mean)
             return 0;
     }

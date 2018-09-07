@@ -35,7 +35,7 @@ private:
     bool apex_found = false;
 
     /** Run the pic Space charge until convergence is reached */
-    int converge_pic();
+    int converge_pic(bool ramp = false);
 
     /** Find the omega_SC that minimizes the error of factors-currents curve */
     double find_Veff();

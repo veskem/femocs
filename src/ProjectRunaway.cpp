@@ -378,7 +378,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit, bool force_write
         emission.calc_emission(conf.emission);
         int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
 
-        if (n_injected > 30000 || n_injected < 0){
+        if (n_injected > 50000 || n_injected < 0){
             write_verbose_msg("WARNING: too many injected SPs. Check the SP weight");
             return 1;
         }
@@ -393,6 +393,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit, bool force_write
         write_results(force_write_now);
 
         GLOBALS.TIME += dt_pic;
+
     }
 
 //    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),

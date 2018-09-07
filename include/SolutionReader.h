@@ -279,7 +279,6 @@ public:
     void set_sfactor(double factor){
         global_data.multiplier *= factor / global_data.sfactor;
         global_data.sfactor = factor;
-
     }
 
     struct EmGlobalData {
