@@ -20,9 +20,9 @@ LIBPATH_CGAL="-Lcgal/lib/x86_64-linux-gnu -Lcgal/lib64"
 
 ## Incorporated libraries
 LIB_ALL="-ltet -ldeal_II -lgetelec -lslatec -fopenmp"
-LIB_UBUNTU="-ltbb -llapack -lz -lm -lstdc++ -lnetcdf_c++ -lgfortran"
+LIB_UBUNTU="-ltbb -llapack -lz -lm -lstdc++ -lgfortran"
 LIB_TAITO="-lz -lm -lstdc++ -lgfortran"
-LIB_ALCYONE="-llapack -lz -lm -lstdc++ -lnetcdf_c++ -lgfortran"
+LIB_ALCYONE="-llapack -lz -lm -lstdc++ -lgfortran"
 LIB_CGAL="-lCGAL"
 
 ## Name of Femocs library
@@ -34,7 +34,8 @@ TETGEN_FLAGS="-DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX\
 
 ## Flags for Deal.II
 DEALII_FLAGS="-DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX\
- -DDEAL_II_STATIC_EXECUTABLE=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../.."
+ -DDEAL_II_WITH_NETCDF=OFF -DDEAL_II_STATIC_EXECUTABLE=ON\
+ -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../.."
 
 DEALII_FLAGS_TAITO="-DDEAL_II_WITH_THREADS=OFF"
 
