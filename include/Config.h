@@ -173,7 +173,7 @@ private:
     vector<vector<string>> data;          ///< commands and their arguments found from the input script
 
     const string comment_symbols = "!#%";
-    const string data_symbols = "+-/*_.0123456789abcdefghijklmnopqrstuvwxyz()";
+    const string data_symbols = "+-/*_.0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ()";
 
     /** Check for the obsolete commands from the buffered commands */
     void check_obsolete(const string& file_name);

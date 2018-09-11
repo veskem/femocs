@@ -443,9 +443,7 @@ int main(int argc, char **argv) {
     for (int i = 1; i <= n_iterations; ++i) {
         if (n_iterations > 1) cout << "\n> iteration " << i << endl;
 
-        if (n_atoms > 0)
-            success = femocs.import_atoms(infile, mode=="wobble");
-
+        success = femocs.import_atoms(infile, mode=="wobble");
         success += femocs.run();
 //        success += femocs.export_elfield(0, Ex, Ey, Ez, En);
 //        success += femocs.export_temperature(n_atoms, T);

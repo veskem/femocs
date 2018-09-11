@@ -245,9 +245,6 @@ void Config::parse_file(const string& file_name) {
 
     // loop through the lines in a file
     while (getline(file, line)) {
-        // force all the characters in a line to lower case
-        std::transform(line.begin(), line.end(), line.begin(), ::tolower);
-
         line += " "; // needed to find the end of line
 
         bool line_started = true;
@@ -259,8 +256,15 @@ void Config::parse_file(const string& file_name) {
 
             if (line_started && line.substr(0, i) == "femocs_end") return;
             if (line_started) data.push_back({});
+            if (line_started) {
+                // force all the characters in a command to lower case
+                string command = line.substr(0, i);
+                std::transform(command.begin(), command.end(), command.begin(), ::tolower);
+                data.back().push_back(command);
+            } else {
+                data.back().push_back( line.substr(0, i) );
+            }
 
-            data.back().push_back( line.substr(0, i) );
             line = line.substr(i);
             line_started = false;
         }
