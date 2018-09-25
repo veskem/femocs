@@ -281,6 +281,8 @@ public:
         global_data.sfactor = factor;
     }
 
+    string get_stats(const bool first_line) const;
+
     struct EmGlobalData {
         double multiplier=1.;   ///< Multiplier for the field for Space Charge.
         double theta=1.;       ///< correction multiplier for Space Charge
@@ -290,13 +292,35 @@ public:
         double Frep = 0.;    ///< Representative local field (used for space charge equation) [V/A]
         double Jrep = 0.;    ///< Representative current deinsity for space charge. [amps/A^2]
         double I_tot = 0;    ///< Total current running through the surface [in Amps]
-        double I_fwhm = 0;   ///< Total current within the FWHM area
-        int N_calls;        ///< Counter keeping the last N_calls
+        double I_eff = 0;   ///< Total current within the effective area
         double area;        ///< total area of emitting region
-        vector<double> Ilist; ///< List of all the I_tot for the last N_calls (useful for convergence check)
-        double I_mean = 0;  ///< Mean current of the last Ilist;
-        double I_std = 0;  ///< STD of the last Ilist;
     } global_data;
+
+
+    struct EmStats{
+        int N_calls;        ///< Counter keeping the last N_calls
+
+        vector<double> I_tot; ///< List of all the I_tot for the last N_calls (useful for convergence check)
+        double Itot_mean = 0;  ///< Mean current of the last Ilist;
+        double Itot_std = 0;  ///< STD of the last Ilist;
+
+        vector<double> Jrep; ///< List of all the Jrep for the last N_calls (useful for convergence check)
+        double Jrep_mean = 0;  ///< Mean of the last Jrep list;
+        double Jrep_std = 0;  ///< STD of the last Jrep list;
+
+        vector<double> Frep; ///< List of all the Frep for the last N_calls (useful for convergence check)
+        double Frep_mean = 0;  ///< Mean of the last Frep list;
+        double Frep_std = 0;  ///< STD of the last Frep list;
+
+        vector<double> Jmax; ///< List of all the Jmax for the last N_calls (useful for convergence check)
+        double Jmax_mean = 0;  ///< Mean of the last Jmax list;
+        double Jmax_std = 0;  ///< STD of the last Jmax list;
+
+        vector<double> Fmax; ///< List of all the Fmax for the last N_calls (useful for convergence check)
+        double Fmax_mean = 0;  ///< Mean of the last Fmax list;
+        double Fmax_std = 0;  ///< STD of the last Fmax list;
+
+    } stats;
 
 private:
     /** Prepares the line inputed to GETELEC.
@@ -308,9 +332,15 @@ private:
     void emission_line(const Point3& point, const Vec3& direction, const double rmax);
 
     /** Calculates representative quantities Jrep and Frep for space charge calculations
-     * (See https://arxiv.org/abs/1710.00050 for definitions)
      */
     void calc_representative();
+
+    /**
+     * Calculates the effective emission area (assigns flag to each surface face
+     * @param threshold minimum value (fraction of maximum) to be considered effective area
+     * @param mode "field" or "current", whether the criterion is on the field or the current
+     */
+    void calc_effective_region(double threshold, string mode);
 
     /**
      * Calculates electron emission distribution for a given configuration (
@@ -337,6 +367,7 @@ private:
     vector<double> current_densities;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
     vector<double> nottingham; ///< Same as current_densities for nottingham heat deposition [in W/A^2]
     vector<double> currents;    ///< Current flux for every face (current_densities * face_areas) [in Amps]
+    vector<bool> is_effective;  ///< effective emission area
     vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
     vector<double> Vline;   ///< Potential on the straight line (complements rline)
 

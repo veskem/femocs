@@ -45,10 +45,10 @@ int ProjectSpaceCharge::run(int timestep, double time) {
             GLOBALS.TIME = 0;
             last_write_time = 0.;
 
-            if (converge_pic(i <= conf.SC.ramping_factors))
+            if (converge_pic(i < conf.SC.ramping_factors))
                 return process_failed("Running field solver in a " + conf.field.solver + " mode failed!");
 
-            I_pic.push_back(emission.global_data.I_mean);
+            I_pic.push_back(emission.stats.Itot_mean);
 
             export_on_line();
             string line_name = "out/line_data" + to_string((int) (factor * 10.0)) + ".dat";
@@ -83,28 +83,31 @@ int ProjectSpaceCharge::converge_pic(bool ramp) {
 
     int i_max = 32; //maximum window iterations to achieve convergence
 
-    double I_mean_prev = emission.global_data.I_mean;
+    double I_mean_prev = emission.stats.Itot_mean;
 
-    write_verbose_msg("=== Converging PIC...");
+    if (ramp)
+        write_verbose_msg("making " + to_string(window_steps) + " steps to ramp up the field");
+    else
+        write_verbose_msg("Converging PIC...");
 
     for (int i = 0; i < i_max; ++i) {
         pic_solver.stats_reinit();
-        solve_pic(time_window, i == 0, true);
+        solve_pic(time_window, i == 0, !ramp);
         emission.calc_global_stats();
-        double err = (emission.global_data.I_mean - I_mean_prev) / emission.global_data.I_mean;
+        double err = (emission.stats.Itot_mean - I_mean_prev) / emission.stats.Itot_mean;
 
         if (MODES.VERBOSE){
             printf("  i=%d, I_mean= %e A, I_std=%.2f%, error=%.2f%, inj=%d, del=%d",
-                    i, emission.global_data.I_mean,
-                    100. * emission.global_data.I_std / emission.global_data.I_mean,
+                    i, emission.stats.Itot_mean,
+                    100. * emission.stats.Itot_std / emission.stats.Itot_mean,
                     100 * err, pic_solver.get_injected(), pic_solver.get_removed());
             cout << endl;
         }
 
-        I_mean_prev = emission.global_data.I_mean;
+        I_mean_prev = emission.stats.Itot_mean;
 
-        bool converged = fabs(err) < 5.e-3 || (fabs(err) < conf.SC.convergence * emission.global_data.I_std /
-                emission.global_data.I_mean && fabs(err) < 0.05);
+        bool converged = fabs(err) < 5.e-3 || (fabs(err) < conf.SC.convergence * emission.stats.Itot_std /
+                emission.stats.Itot_mean && fabs(err) < 0.05);
         //&& pic_solver.is_stable() ;
 
         if (converged || ramp)
@@ -253,7 +256,7 @@ void ProjectSpaceCharge::find_Wsp(){
     double time_window = 16 * conf.pic.dt_max; //time window to check convergence
     int i_max = 10; //window iterations
 
-    double I_mean_prev = emission.global_data.I_mean;
+    double I_mean_prev = emission.stats.Itot_mean;
 
     start_msg(t0, "=== Calculating a reasonable Wsp... \n");
 

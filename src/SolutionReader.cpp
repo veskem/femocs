@@ -612,8 +612,13 @@ void EmissionReader::initialize(const TetgenMesh* m, bool reinit) {
     global_data.Frep = 0.;
     global_data.Jrep = 0.;
     if (reinit) global_data.multiplier = 1.;
-    global_data.N_calls = 0;
-    global_data.Ilist.resize(0);
+
+    stats.N_calls = 0;
+    stats.I_tot.resize(0);
+    stats.Jrep.resize(0);
+    stats.Jmax.resize(0);
+    stats.Frep.resize(0);
+    stats.Fmax.resize(0);
 }
 
 void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax) {
@@ -667,10 +672,15 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 }
 
 void EmissionReader::calc_representative() {
-    double FJ = 0.; // int_FWHMarea (F*J)dS
     global_data.I_tot = 0;
-    global_data.I_fwhm = 0;
-    double cutoff = 0.1; //cutoff threshold of J/Jmax to consider emitting area
+    global_data.I_eff = 0;
+
+    double Fsum = 0.;
+
+    if (is_effective.size() != current_densities.size()){
+        is_effective.resize(current_densities.size());
+        for (int i = 0; i < is_effective.size(); ++i) is_effective[i] = true;
+    }
 
     for (unsigned int i = 0; i < currents.size(); ++i){ // go through face centroids
         int tri = mesh->quads.to_tri(abs(fields->get_marker(i)));
@@ -679,19 +689,30 @@ void EmissionReader::calc_representative() {
         currents[i] = face_area * current_densities[i];
         global_data.I_tot += currents[i];
 
-        if (current_densities[i] > global_data.Jmax * cutoff){ //if point eligible
+        if (is_effective[i]){ //if point eligible
             global_data.area += face_area; // increase total area
-            global_data.I_fwhm += currents[i]; // increase total current
-            FJ += currents[i] * fields->get_elfield_norm(i);
+            global_data.I_eff += currents[i]; // increase total current
+            Fsum += fields->get_elfield_norm(i) * face_area;
         }
     }
 
-    global_data.Jrep = global_data.I_fwhm / global_data.area;
-    global_data.Frep = global_data.multiplier * FJ / global_data.I_fwhm;
+    global_data.Jrep = global_data.I_eff / global_data.area;
+    global_data.Frep = Fsum / global_data.area;
 }
 
-void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold,
-        double Vappl) {
+void EmissionReader::calc_effective_region(double threshold, string mode) {
+    is_effective.resize(current_densities.size());
+
+    if (mode == "field"){
+        for (int i = 0; i < current_densities.size(); ++i)
+            is_effective[i] = current_densities[i] > global_data.Jmax * threshold;
+    } else {
+        for (int i = 0; i < current_densities.size(); ++i)
+            is_effective[i] = fields->get_elfield_norm(i) > global_data.Fmax * threshold;
+    }
+}
+
+void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold, double Vappl) {
     struct emission gt;
     gt.W = workfunction;    // set workfuntion, must be set in conf. script
     gt.R = 1000.0;   // radius of curvature (overrided by femocs potential distribution)
@@ -752,7 +773,7 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold,
 
 void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC) {
     global_data.Fmax = fields->calc_max_field();
-    global_data.N_calls++;
+    stats.N_calls++;
 
     double theta_new;
     double error;
@@ -763,11 +784,6 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC)
         Veff = Veff_SC;
     else
         Veff = conf.Vappl_SC;
-
-//    if (MODES.VERBOSE && Veff > 0){
-//        printf("\nCalculating SC convergence for multiplier = %f ...", global_data.sfactor);
-//        cout << endl;
-//    }
 
     for (int i = 0; i < 1000; ++i){ // SC calculation loop
         global_data.Jmax = 0.;
@@ -797,7 +813,11 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC)
         if (abs(error) < conf.SC_error)
             break;
     }
-    global_data.Ilist.push_back(global_data.I_tot);
+    stats.I_tot.push_back(global_data.I_tot);
+    stats.Jrep.push_back(global_data.Jrep);
+    stats.Jmax.push_back(global_data.Jmax);
+    stats.Fmax.push_back(global_data.Fmax);
+    stats.Frep.push_back(global_data.Frep);
     write("out/emission.dat");
 }
 
@@ -822,12 +842,12 @@ string EmissionReader::get_global_data(const bool first_line) const {
             "         Frep         Jmax        Fmax         multiplier" << endl;
 
     double I_mean = 0.;
-    for (auto x : global_data.Ilist)
+    for (auto x : stats.I_tot)
         I_mean += x;
 
     strs << fixed << setprecision(2) << GLOBALS.TIME;
     strs << scientific << setprecision(6) << " " << global_data.I_tot << " "
-            << I_mean / global_data.N_calls << " " << global_data.I_fwhm << " "
+            << I_mean / stats.N_calls << " " << global_data.I_eff << " "
             << global_data.area << " " << global_data.Jrep << " "
             << global_data.Frep << " " << global_data.Jmax << " "
             << global_data.Fmax << " " << global_data.multiplier;
@@ -835,19 +855,66 @@ string EmissionReader::get_global_data(const bool first_line) const {
     return strs.str();
 }
 
-void EmissionReader::calc_global_stats(){
-    global_data.I_mean = 0;
-    global_data.I_std = 0;
-    for (auto x : global_data.Ilist)
-        global_data.I_mean += x;
-    global_data.I_mean /= global_data.Ilist.size();
+string EmissionReader::get_stats(const bool first_line) const {
+    ostringstream strs;
 
-    for (auto x : global_data.Ilist)
-        global_data.I_std += (x - global_data.I_mean) * (x - global_data.I_mean);
+    //specify data header
+    if (first_line) strs << "   Itot_mean   Itot_std    Jrep_mean   Jrep_std" <<
+                            "   Jmax_mean   Jmax_std    Frep_mean   Frep_std" <<
+                            "   Fmax_mean   Fmax_std" << endl;
 
-    global_data.I_std = sqrt(global_data.I_std / global_data.Ilist.size());
-    global_data.Ilist.resize(0); //reinit statistics
+    strs << scientific << setprecision(6) << " "
+            << stats.Itot_mean << " " << stats.Itot_std << " "
+            << stats.Jrep_mean << " " << stats.Jrep_std << " "
+            << stats.Jmax_mean << " " << stats.Jmax_std << " "
+            << stats.Frep_mean << " " << stats.Frep_std << " "
+            << stats.Fmax_mean << " " << stats.Fmax_std << endl;
+
+    return strs.str();
 }
+
+void EmissionReader::calc_global_stats(){
+
+    cout << "entering calc_global_stats" << endl;
+    //initialise statistics
+    stats.Itot_mean = 0; stats.Itot_std = 0;
+    stats.Jmax_mean = 0; stats.Jmax_std = 0;
+    stats.Fmax_mean = 0; stats.Fmax_std = 0;
+    stats.Jrep_mean = 0; stats.Jrep_std = 0;
+    stats.Frep_mean = 0; stats.Frep_std = 0;
+
+    //calculate mean values
+    for (int i = 0; i < stats.N_calls; ++i){
+        stats.Itot_mean += stats.I_tot[i] / stats.N_calls;
+        stats.Jmax_mean += stats.Jmax[i] / stats.N_calls;
+        stats.Jrep_mean += stats.Jrep[i] / stats.N_calls;
+        stats.Fmax_mean += stats.Fmax[i] / stats.N_calls;
+        stats.Frep_mean += stats.Frep[i] / stats.N_calls;
+    }
+
+    //calculate standard deviations
+    for (int i = 0; i < stats.N_calls; ++i){
+        stats.Itot_std += pow(stats.I_tot[i] - stats.Itot_mean, 2);
+        stats.Jmax_std += pow(stats.Jmax[i] - stats.Jmax_mean, 2);
+        stats.Jrep_std += pow(stats.Jrep[i] - stats.Jrep_mean, 2);
+        stats.Fmax_std += pow(stats.Fmax[i] - stats.Fmax_mean, 2);
+        stats.Frep_std += pow(stats.Frep[i] - stats.Frep_mean, 2);
+    }
+    stats.Itot_std = sqrt(stats.Itot_std / stats.N_calls);
+    stats.Jmax_std = sqrt(stats.Jmax_std / stats.N_calls);
+    stats.Jrep_std = sqrt(stats.Jrep_std / stats.N_calls);
+    stats.Fmax_std = sqrt(stats.Fmax_std / stats.N_calls);
+    stats.Frep_std = sqrt(stats.Frep_std / stats.N_calls);
+
+    //re-initialise statistics
+    stats.I_tot.resize(0);
+    stats.Jmax.resize(0);
+    stats.Jrep.resize(0);
+    stats.Fmax.resize(0);
+    stats.Frep.resize(0);
+}
+
+
 
 void EmissionReader::export_emission(CurrentHeatSolver<3>& ch_solver) {
     ch_solver.current.set_bc(current_densities);
