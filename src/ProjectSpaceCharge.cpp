@@ -47,6 +47,7 @@ int ProjectSpaceCharge::run(int timestep, double time) {
 
             if (converge_pic(i < conf.SC.ramping_factors))
                 return process_failed("Running field solver in a " + conf.field.solver + " mode failed!");
+            write_emission_stats("out/emission_stats.dat", i == conf.SC.ramping_factors);
 
             I_pic.push_back(emission.stats.Itot_mean);
 
@@ -334,6 +335,22 @@ void ProjectSpaceCharge::write_line(string filename){
 
     out.close();
 }
+
+void ProjectSpaceCharge::write_emission_stats(string filename, bool first_time){
+    ofstream out;
+    out.open(filename);
+    out.setf(std::ios::scientific);
+    out.precision(6);
+
+    if (first_time)
+        out << "Vappl      " << emission.get_stats(true) << endl;
+
+    out << conf.field.V0 << emission.get_stats(false) <<  endl;
+
+    out.close();
+}
+
+
 
 
 void ProjectSpaceCharge::find_apex(){

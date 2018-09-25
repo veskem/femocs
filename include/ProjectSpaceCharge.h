@@ -56,6 +56,8 @@ private:
 
      void find_apex();
 
+     void write_emission_stats(string filename, bool first_time);
+
 
 };
 

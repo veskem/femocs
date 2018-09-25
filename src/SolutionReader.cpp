@@ -859,16 +859,17 @@ string EmissionReader::get_stats(const bool first_line) const {
     ostringstream strs;
 
     //specify data header
-    if (first_line) strs << "   Itot_mean   Itot_std    Jrep_mean   Jrep_std" <<
-                            "   Jmax_mean   Jmax_std    Frep_mean   Frep_std" <<
-                            "   Fmax_mean   Fmax_std" << endl;
-
-    strs << scientific << setprecision(6) << " "
-            << stats.Itot_mean << " " << stats.Itot_std << " "
-            << stats.Jrep_mean << " " << stats.Jrep_std << " "
-            << stats.Jmax_mean << " " << stats.Jmax_std << " "
-            << stats.Frep_mean << " " << stats.Frep_std << " "
-            << stats.Fmax_mean << " " << stats.Fmax_std << endl;
+    if (first_line)
+        strs << "   Itot_mean     Itot_std     Jrep_mean    Jrep_std" <<
+                "    Jmax_mean    Jmax_std     Frep_mean    Frep_std" <<
+                "    Fmax_mean    Fmax_std";
+    else
+        strs << scientific << setprecision(6) << " "
+                << stats.Itot_mean << " " << stats.Itot_std << " "
+                << stats.Jrep_mean << " " << stats.Jrep_std << " "
+                << stats.Jmax_mean << " " << stats.Jmax_std << " "
+                << stats.Frep_mean << " " << stats.Frep_std << " "
+                << stats.Fmax_mean << " " << stats.Fmax_std;
 
     return strs.str();
 }
