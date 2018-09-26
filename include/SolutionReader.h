@@ -281,7 +281,15 @@ public:
         global_data.sfactor = factor;
     }
 
+    /**
+     * Get the statistic data for a dat file
+     * @param first_line
+     * @return
+     */
     string get_stats(const bool first_line) const;
+
+    /** Compose entry to dat file */
+    string get_global_data(const bool first_line) const;
 
     struct EmGlobalData {
         double multiplier=1.;   ///< Multiplier for the field for Space Charge.
@@ -351,9 +359,6 @@ private:
 
     /** Compose entry to xyz or movie file */
     string get_data_string(const int i) const;
-
-    /** Compose entry to dat file */
-    string get_global_data(const bool first_line) const;
 
     static constexpr double angstrom_per_nm = 10.0;
     static constexpr double nm2_per_angstrom2 = 0.01;

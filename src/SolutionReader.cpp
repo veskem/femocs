@@ -875,8 +875,6 @@ string EmissionReader::get_stats(const bool first_line) const {
 }
 
 void EmissionReader::calc_global_stats(){
-
-    cout << "entering calc_global_stats" << endl;
     //initialise statistics
     stats.Itot_mean = 0; stats.Itot_std = 0;
     stats.Jmax_mean = 0; stats.Jmax_std = 0;

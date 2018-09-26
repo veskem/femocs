@@ -108,8 +108,6 @@ Config::Config() {
     pic.fractional_push = true;
 
     SC.convergence = .1;
-    SC.ramping_factors = 0;
-    SC.recalc_Wsp = false;
 }
 
 // Remove the noise from the beginning of the string
@@ -213,8 +211,6 @@ void Config::read_all(const string& file_name) {
     read_command("pic_collide_coulomb_ee", pic.coll_coulomb_ee);
     
     read_command("SC_converge_criterion", SC.convergence);
-    read_command("recalc_Wsp", SC.recalc_Wsp);
-    read_command("ramping_factors", SC.ramping_factors);
 
     // Read commands with potentially multiple arguments like...
     vector<double> args;

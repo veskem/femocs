@@ -11,6 +11,9 @@
 namespace femocs {
 
 ProjectSpaceCharge::ProjectSpaceCharge(AtomReader &reader, Config &conf) : ProjectRunaway(reader, conf) {
+    Ebase = conf.field.E0;
+    Vbase = conf.field.V0;
+    Fmax_base = Ebase;
 }
 
 int ProjectSpaceCharge::run(int timestep, double time) {
@@ -23,7 +26,6 @@ int ProjectSpaceCharge::run(int timestep, double time) {
     if (prepare_solvers())
         return process_failed("Preparation of FEM solvers failed!");
 
-
     if (conf.SC.I_pic.size()){
         cout << "Reading I_pic from file. Ipic = " << endl;
         for(int i = 0; i < conf.SC.I_pic.size(); ++i){
@@ -32,53 +34,109 @@ int ProjectSpaceCharge::run(int timestep, double time) {
         }
 
     } else{
-        double E_orig = conf.field.E0, V_orig = conf.field.V0;
+
         for(int i = 0; i < conf.SC.apply_factors.size(); ++i){
             double factor = conf.SC.apply_factors[i];
-            write_verbose_msg("=== Running for apply factor = " + to_string(factor));
-            conf.field.E0 = E_orig * factor;
-            conf.field.V0 = V_orig * factor;
-
-            if (conf.SC.recalc_Wsp)
-                find_Wsp();
-
+            prepare(i);
             GLOBALS.TIME = 0;
             last_write_time = 0.;
 
-            if (converge_pic(i < conf.SC.ramping_factors))
+            if (converge_pic())
                 return process_failed("Running field solver in a " + conf.field.solver + " mode failed!");
-            write_emission_stats("out/emission_stats.dat", i == conf.SC.ramping_factors);
+            write_emission_stats("out/emission_stats_pic.dat", i == 0, factor);
 
             I_pic.push_back(emission.stats.Itot_mean);
-
-            export_on_line();
-            string line_name = "out/line_data" + to_string((int) (factor * 10.0)) + ".dat";
-            write_line(line_name);
+//            export_on_line();
+//            string line_name = "out/line_data" + to_string((int) (factor * 10.0)) + ".dat";
+//            write_line(line_name);
         }
-        conf.field.V0 = V_orig;
-        conf.field.E0 = E_orig;
     }
+
+    conf.field.V0 = Vbase;
+    conf.field.E0 = Ebase;
 
     I_sc.resize(I_pic.size());
 
     double Veff = find_Veff();
 
-    full_curve(Veff);
-
-
-
+    full_emission_curve(Veff);
     write_output(Veff);
 
     return 0;
 }
 
-int ProjectSpaceCharge::converge_pic(bool ramp) {
+int ProjectSpaceCharge::prepare(int i){
 
-    int window_steps;
-    if (ramp)
-        window_steps = 8;
+    int max_electrons = 500000;
+    int max_Wsp_iter = 10;
+
+    double init_factor, target_factor;
+
+    start_msg(t0, "=== Preparing next applied field... \n");
+
+    target_factor = conf.SC.apply_factors[i];
+    if (i == 0)
+        init_factor = target_factor / 10;
     else
-        window_steps = 32;
+        init_factor = conf.SC.apply_factors[i-1];
+
+    if ((i == 0) || pic_solver.get_n_electrons() > max_electrons){
+        pic_solver.reinit();
+        init_factor = target_factor / 10;
+    }
+
+    for (int i = 0; i < max_Wsp_iter; i++){
+        double inj_per_step = ramp_field(init_factor, target_factor);
+        if (inj_per_step > 1.e100){
+            pic_solver.reinit();
+            conf.pic.Wsp_el *= 10;
+            write_verbose_msg("Trying with higher Wsp");
+        } else if (inj_per_step < 1){
+            pic_solver.reinit();
+            conf.pic.Wsp_el /= 10;
+            write_verbose_msg("Trying with lower Wsp");
+        } else if (inj_per_step < 200 || inj_per_step > 2000){
+            pic_solver.reinit();
+            conf.pic.Wsp_el *= inj_per_step /  600;
+            init_factor = target_factor / 10; //reinitializing pic
+            write_verbose_msg("Resetting the particle weight to Wsp = "
+                    + to_string(conf.pic.Wsp_el));
+        } else
+            break;
+    }
+    end_msg(t0);
+    return 0;
+}
+
+double ProjectSpaceCharge::ramp_field(double start_factor, double target_factor) {
+
+    int window_steps = 12;
+    double time_window = window_steps * conf.pic.dt_max; //time window to check convergence
+
+    int ramping_steps = 5; // number of ramping window steps
+
+    write_verbose_msg("ramping up the field from factor = " + to_string(start_factor) +
+            "to " + to_string(target_factor));
+
+    double factor_step = (target_factor - start_factor) / (ramping_steps - 1);
+
+    for (int i = 0; i < ramping_steps; ++i) {
+        double factor = start_factor + i * factor_step;
+        conf.field.E0 = Ebase * factor;
+        conf.field.V0 = Vbase * factor;
+        pic_solver.stats_reinit(); //reinit stats to get the last cycle injections
+        if (solve_pic(time_window, true, false))
+            return 1.e200;
+    }
+
+    return pic_solver.get_injected() / (double) window_steps;
+
+}
+
+
+int ProjectSpaceCharge::converge_pic() {
+
+    int window_steps = 25;
 
     double time_window = window_steps * conf.pic.dt_max; //time window to check convergence
 
@@ -86,14 +144,11 @@ int ProjectSpaceCharge::converge_pic(bool ramp) {
 
     double I_mean_prev = emission.stats.Itot_mean;
 
-    if (ramp)
-        write_verbose_msg("making " + to_string(window_steps) + " steps to ramp up the field");
-    else
-        write_verbose_msg("Converging PIC...");
+    write_verbose_msg("Converging PIC...");
 
     for (int i = 0; i < i_max; ++i) {
         pic_solver.stats_reinit();
-        solve_pic(time_window, i == 0, !ramp);
+        solve_pic(time_window, i == 0, true);
         emission.calc_global_stats();
         double err = (emission.stats.Itot_mean - I_mean_prev) / emission.stats.Itot_mean;
 
@@ -111,7 +166,7 @@ int ProjectSpaceCharge::converge_pic(bool ramp) {
                 emission.stats.Itot_mean && fabs(err) < 0.05);
         //&& pic_solver.is_stable() ;
 
-        if (converged || ramp)
+        if (converged)
             return 0;
     }
     return 0;
@@ -138,6 +193,8 @@ double ProjectSpaceCharge::find_Veff(){
     surface_fields.interpolate(ch_solver);
     surface_temperatures.interpolate(ch_solver);
     emission.initialize(mesh, true);
+
+    Fmax_base = surface_fields.calc_max_field();
 
     int Nmax = 50;
     double errlim = 0.01;
@@ -201,8 +258,6 @@ void ProjectSpaceCharge::write_output(double Veff){
     out.setf(std::ios::scientific);
     out.precision(6);
 
-    double Emax = surface_fields.calc_max_field();
-
     if (conf.emission.omega_SC > 0)
         out << "omega_SC = " << Veff / conf.field.V0 << endl;
     else
@@ -211,79 +266,33 @@ void ProjectSpaceCharge::write_output(double Veff){
     out << "   F_max_L      Voltage       I_sc        I_pic" << endl;
 
     for (int i = 0; i < I_sc.size(); ++i)
-        out << conf.SC.apply_factors[i] * Emax << " " <<
+        out << conf.SC.apply_factors[i] * Fmax_base << " " <<
                 conf.SC.apply_factors[i] * conf.field.V0 << " "
                 << I_sc[i] << " " << I_pic[i] << endl;
 
     out.close();
 
-    out.open("out/full_curve.dat");
-
-    out << "   F_max_L      Voltage       I_sc        " << endl;
-
-    for (int i = 0; i < I_full.size(); ++i)
-        out << fact_full[i] * Emax << " " << fact_full[i] * conf.field.V0
-                << " " << I_full[i] << endl;
-
-    out.close();
-
 }
 
-void ProjectSpaceCharge::full_curve(double Vappl){
+void ProjectSpaceCharge::full_emission_curve(double Vappl){
 
     int Npoints = 128;
     double fmax = *max_element(conf.SC.apply_factors.begin(), conf.SC.apply_factors.end());
     double fmin = *min_element(conf.SC.apply_factors.begin(), conf.SC.apply_factors.end());
-
-    fact_full.resize(Npoints);
-    I_full.resize(Npoints);
-    double Veff;
+    double factor, Veff;
 
     for(int i = 0; i < Npoints; ++i){
-        fact_full[i] = fmin + i * (fmax - fmin) / (Npoints - 1);
+        factor = fmin + i * (fmax - fmin) / (Npoints - 1);
 
         if (conf.emission.omega_SC > 0)
-            Veff = Vappl * fact_full[i];
+            Veff = Vappl * factor;
         else
             Veff = Vappl;
 
-        emission.set_sfactor(fact_full[i]);
+        emission.set_sfactor(factor);
         emission.calc_emission(conf.emission, Veff);
-        I_full[i] = emission.global_data.I_tot;
+        write_emission_data("out/emission_full_data.dat", i == 0);
     }
-}
-
-void ProjectSpaceCharge::find_Wsp(){
-    double time_window = 16 * conf.pic.dt_max; //time window to check convergence
-    int i_max = 10; //window iterations
-
-    double I_mean_prev = emission.stats.Itot_mean;
-
-    start_msg(t0, "=== Calculating a reasonable Wsp... \n");
-
-    GLOBALS.TIME = 0;
-
-    for (int i = 0; i <  i_max; ++i){
-        pic_solver.reinit();
-        int fail = solve_pic(time_window, true);
-
-        emission.calc_global_stats();
-        double inj_per_step = pic_solver.get_injected() / (double) 32;
-        pic_solver.reinit();
-
-        if (fail)
-            conf.pic.Wsp_el *= 10;
-        else if (inj_per_step < 1)
-            conf.pic.Wsp_el /= 10;
-        else if (inj_per_step < 200 || inj_per_step > 1000){
-            conf.pic.Wsp_el *= inj_per_step /  500;
-            break;
-        } else
-            break;
-    }
-
-    cout << "Found Wsp = " << conf.pic.Wsp_el << endl;
-    end_msg(t0);
 }
 
 void ProjectSpaceCharge::export_on_line(){
@@ -336,20 +345,31 @@ void ProjectSpaceCharge::write_line(string filename){
     out.close();
 }
 
-void ProjectSpaceCharge::write_emission_stats(string filename, bool first_time){
+void ProjectSpaceCharge::write_emission_stats(string filename, bool first_time, double factor){
     ofstream out;
-    out.open(filename);
+    out.open(filename, ios_base::app);
     out.setf(std::ios::scientific);
     out.precision(6);
 
     if (first_time)
-        out << "Vappl      " << emission.get_stats(true) << endl;
+        out << "factor      " << emission.get_stats(true) << endl;
 
-    out << conf.field.V0 << emission.get_stats(false) <<  endl;
-
+    out << factor << emission.get_stats(false) <<  endl;
     out.close();
 }
 
+void ProjectSpaceCharge::write_emission_data(string filename, bool first_time){
+    ofstream out;
+    out.open(filename, ios_base::app);
+    out.setf(std::ios::scientific);
+    out.precision(6);
+
+    if (first_time)
+        out << "Fmax_base = " << Fmax_base << endl << emission.get_global_data(true) << endl;
+
+    out << emission.get_global_data(false) << endl;
+    out.close();
+}
 
 
 

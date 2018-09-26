@@ -180,18 +180,14 @@ public:
         double Wsp_el;        ///< Superparticle weight for electrons
         bool fractional_push; ///< Do fractional timestep push when injecting electrons?
         bool coll_coulomb_ee; ///< Do 2e->2e Coulomb collisions?
-
-
     } pic;
     
     /** Parameters related to SpaceCharge project */
     struct SpaceCharge {
         vector<double> apply_factors; ///< run for multiple applied E0 (or V0) multiplied by the factors
-        int ramping_factors;    ///< First N factors used only for ramping (not fully calculated)
         double convergence;     ///< Relative error in current for convergence criterion.
                                 ///< It is compared with the corresponding std in the pic convergence step.
         vector<double> I_pic;   ///< Current target for finding Applied SC voltage (for SC calculations)
-        bool recalc_Wsp;        ///<
     } SC;
 
 private:
