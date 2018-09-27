@@ -106,6 +106,7 @@ Config::Config() {
     pic.dt_max = 1.0;
     pic.Wsp_el =  .01;
     pic.fractional_push = true;
+    pic.coll_coulomb_ee = false;
 
     SC.convergence = .1;
 }

@@ -9,7 +9,7 @@
 #define PIC_H_
 
 #include "Interpolator.h"
-#include "SolutionReader.h"
+#include "EmissionReader.h"
 #include "Config.h"
 #include "TetgenMesh.h"
 #include "TetgenCells.h"
