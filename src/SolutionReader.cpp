@@ -673,12 +673,12 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
 }
 
 void EmissionReader::calculate_globals() {
-    global_data.Jmax = 0;
     global_data.I_tot = 0;
     global_data.I_eff = 0;
-    global_data.Fmax = 0;
+    global_data.area = 0;
 
     if (is_effective.size() != current_densities.size()){
+        write_verbose_msg("WARNING: is_effected not set. Defining it as the whole surface!!");
         is_effective.resize(current_densities.size());
         for (int i = 0; i < is_effective.size(); ++i) is_effective[i] = true;
     }
@@ -692,8 +692,6 @@ void EmissionReader::calculate_globals() {
 
         currents[i] = face_area * current_densities[i];
         global_data.I_tot += currents[i];
-        global_data.Fmax = max(global_data.Fmax, Floc);
-        global_data.Jmax = max(global_data.Jmax, current_densities[i]); // output data
 
         if (is_effective[i]){ //if point eligible
             global_data.area += face_area; // increase total area
@@ -717,22 +715,28 @@ void EmissionReader::calculate_globals() {
 void EmissionReader::calc_effective_region(double threshold, string mode) {
     is_effective.resize(current_densities.size());
 
-    if (mode == "field"){
+    if (mode == "current"){
         for (int i = 0; i < current_densities.size(); ++i)
             is_effective[i] = current_densities[i] > global_data.Jmax * threshold;
-    } else {
+    } else if(mode == "field") {
         for (int i = 0; i < current_densities.size(); ++i)
             is_effective[i] = fields->get_elfield_norm(i) > global_data.Fmax * threshold;
+    } else {
+        require(false, "calc_effective_region called with wrong mode");
     }
 }
 
-void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC) {
+void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC,
+        bool update_eff_region) {
 
     double Veff;
     if (Veff_SC > 0)
         Veff = Veff_SC;
     else
         Veff = conf.Vappl_SC;
+
+    global_data.Fmax = 0;
+    global_data.Jmax = 0;
 
     struct emission gt;
     gt.W = conf.work_function;    // set workfuntion, must be set in conf. script
@@ -773,7 +777,7 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC)
             gt.approx = 1;
             if (Veff <= 0)
                 cur_dens_c(&gt); // calculate emission
-            else{
+            else {
                 gt.voltage = Veff;
                 cur_dens_SC(&gt, Veff);
             }
@@ -786,7 +790,13 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC)
         current_densities[i] = J;
         nottingham[i] = nm2_per_angstrom2 * gt.heat;
         thetas_SC[i] = gt.theta;
+
+        global_data.Fmax = max(global_data.Fmax, F * gt.theta);
+        global_data.Jmax = max(global_data.Jmax, J); // output data
     }
+
+    if (update_eff_region)
+        calc_effective_region(0.9, "field");
 
     calculate_globals();
 

@@ -26,6 +26,8 @@ int ProjectSpaceCharge::run(int timestep, double time) {
     if (prepare_solvers())
         return process_failed("Preparation of FEM solvers failed!");
 
+    prepare_emission();
+
     if (conf.SC.I_pic.size()){
         cout << "Reading I_pic from file. Ipic = " << endl;
         for(int i = 0; i < conf.SC.I_pic.size(); ++i){
@@ -130,7 +132,17 @@ double ProjectSpaceCharge::ramp_field(double start_factor, double target_factor)
     }
 
     return pic_solver.get_injected() / (double) window_steps;
+}
 
+void ProjectSpaceCharge::prepare_emission() {
+    solve_laplace(conf.field.E0, conf.field.V0);
+    surface_fields.interpolate(ch_solver);
+    surface_temperatures.interpolate(ch_solver);
+    emission.initialize(mesh, true);
+
+    emission.calc_emission(conf.emission, -1, true);
+
+    Fmax_base = surface_fields.calc_max_field();
 }
 
 
@@ -194,14 +206,9 @@ double ProjectSpaceCharge::find_Veff(){
     surface_temperatures.interpolate(ch_solver);
     emission.initialize(mesh, true);
 
-    Fmax_base = surface_fields.calc_max_field();
-
     int Nmax = 50;
     double errlim = 0.01;
-
     double Veff = conf.field.V0, Vhigh, Vlow, old_error;
-
-    vector<double> currents;
 
     for(int i = 0; i < Nmax; ++i){ // first find two values that produce opposite sign errors
         get_currents(Veff);

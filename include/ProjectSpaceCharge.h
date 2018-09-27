@@ -49,6 +49,8 @@ private:
 
     void get_currents(double Vappl);
 
+    void prepare_emission();
+
     double get_current_error();
 
     void write_output(double Veff);

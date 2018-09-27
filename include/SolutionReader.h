@@ -262,7 +262,8 @@ public:
      * @param conf Emission configuration parameters struct
      * @param Veff_SC (effective applied voltage for space charge calculations)
      */
-    void calc_emission(const Config::Emission &conf, double Veff_SC = -1);
+    void calc_emission(const Config::Emission &conf, double Veff_SC = -1,
+            bool update_eff_region = false);
 
     void export_emission(CurrentHeatSolver<3>& ch_solver);
 
