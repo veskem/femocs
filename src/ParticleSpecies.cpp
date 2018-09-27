@@ -11,7 +11,7 @@ namespace femocs {
 
 
 ParticleSpecies::ParticleSpecies(double _q_over_m_factor, double _charge, double _Wsp) :
-                q_over_m_factor(_q_over_m_factor), q_over_eps0(_charge), Wsp(_Wsp) {}
+                q_over_m(_q_over_m_factor), q_over_eps0(_charge), Wsp(_Wsp) {}
 
 int ParticleSpecies::clear_lost() {
     size_t npart = parts.size();

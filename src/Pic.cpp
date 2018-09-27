@@ -19,7 +19,7 @@ Pic<dim>::Pic(PoissonSolver<dim> *poisson, const CurrentHeatSolver<3> *ch_solver
         const EmissionReader *er, const unsigned int seed) :
         poisson_solver(poisson), ch_solver(ch_solver), emission(er),
         interpolator(er->interpolator),
-        electrons(-e_over_m_e_factor, -e_over_eps0, Wel),
+        electrons(-e_over_me, -e_over_eps0, Wel),
         mersenne{seed}
         {}
 
@@ -27,8 +27,7 @@ template<int dim>
 int Pic<dim>::inject_electrons(const bool fractional_push) {
     vector<Point3> positions;
     vector<int> cells;
-    if (inject_electrons(positions, cells, *emission->mesh))
-        return -1;
+    inject_electrons(positions, cells, *emission->mesh);
 
     Vec3 velocity(0);
 
@@ -39,10 +38,10 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
 
         // Random fractional timestep push -- from a random point [t_(k-1),t_k] to t_k, t_(k + 1/2), using field at t_k.
         if (fractional_push) {
-            velocity = elfield * (electrons.q_over_m_factor * dt * (uniform(mersenne) + 0.5));
+            velocity = elfield * (electrons.q_over_m * dt * (uniform(mersenne) + 0.5));
             positions[i] += velocity * (dt * uniform(mersenne));
         } else {
-            velocity = elfield * (electrons.q_over_m_factor * dt * 0.5);
+            velocity = elfield * (electrons.q_over_m * dt * 0.5);
         }
 
         // Save to particle arrays
@@ -54,8 +53,7 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
 }
 
 template<int dim>
-int Pic<dim>::inject_electrons(vector<Point3> &positions, vector<int> &cells,
-        const TetgenMesh &mesh) {
+void Pic<dim>::inject_electrons(vector<Point3> &positions, vector<int> &cells, const TetgenMesh &mesh) {
 
     const double shift_factor = mesh.tris.stat.edgemin * 1e-6;
     const int n_points = emission->fields->size();
@@ -82,10 +80,6 @@ int Pic<dim>::inject_electrons(vector<Point3> &positions, vector<int> &cells,
         hex = interpolator->linhex.femocs2deal(hex);
         Vec3 shift = mesh.tris.get_norm(tri) * shift_factor;
 
-        check_return(n_electrons > 1000,
-                "WARNING: too many injected electrons in 1 face (" + to_string(n_electrons) +
-                "). Check the SP weight");
-
         // generate desired amount of electrons
         // that are uniformly distributed on a given quadrangle
         for (int j = 0; j < n_electrons; ++j) {
@@ -96,7 +90,6 @@ int Pic<dim>::inject_electrons(vector<Point3> &positions, vector<int> &cells,
             cells.push_back(hex);
         }
     }
-    return 0;
 }
 
 template<int dim>
@@ -195,12 +188,104 @@ void Pic<dim>::update_velocities(){
         Vec3 elfield = interpolator->linhex.interp_gradient(particle.pos, cell);
 
         // update velocities (corresponds to t + .5dt)
-        particle.vel += elfield * (dt * electrons.q_over_m_factor);
+        particle.vel += elfield * (dt * electrons.q_over_m);
     }
 }
 
 template<int dim>
 void Pic<dim>::collide_particles() {
+    if (!coll_coulomb_ee) return;
+
+    // TODO masses and charges
+    double variance_factor = dt * lanlog / (twopi*eps0*eps0);
+
+    vector<vector<size_t>> particles_in_cell;
+    group_and_shuffle_particles(particles_in_cell);
+
+    for (size_t cell = 0; cell < particles_in_cell.size(); ++cell) {
+        size_t n_parts = particles_in_cell[cell].size();
+
+        // constant factor in Coulomb collisions for this cell
+        // TODO why is volume needed ?
+        double Acoll_cell = variance_factor * n_parts / poisson_solver->get_cell_vol(cell);
+
+        // TODO what happens with unpaired electrons?
+        for (size_t p = 0; p < n_parts; p+=2) {
+            size_t p1 = particles_in_cell[cell][p];
+            size_t p2 = particles_in_cell[cell][p+1];
+
+            // relative velocity
+            Vec3 v_rel = electrons.parts[p1].vel - electrons.parts[p2].vel;
+            double v_rel_norm  = v_rel.norm();
+
+            // if u->0, the relative change might be big,
+            // but it's a big change on top of nothing => SKIP
+            if (v_rel_norm < 1.e-20) continue;
+
+            // MC to find the scattering angle, through transformation of theta
+            // which is is distributed with P(theta) = Gauss(0, <theta^2>)
+            double variance2 = Acoll_cell / (v_rel_norm*v_rel_norm*v_rel_norm);
+
+            // TODO sqrt or not?
+            std::normal_distribution<double> rnd_gauss(0.0, sqrt(variance2));
+            double theta = rnd_gauss(mersenne);     // scattering angle
+            double phi = twopi * uniform(mersenne); // azimuth angle
+
+            // calculate rotation/scattering matrix entries
+            double sin_theta = sin(theta);
+            double cos_phi = cos(phi);
+            double cos_theta_minus_one = cos(theta) - 1;
+
+            double v_cross  = sqrt(v_rel.x * v_rel.x + v_rel.y * v_rel.y);
+            double A = v_rel_norm * sin_theta * sin(phi) / v_cross;
+            double B = v_rel.x * sin_theta * cos_phi / v_cross;
+            double C = v_rel.y * sin_theta * cos_phi / v_cross;
+
+            // calculate change of velocity
+            Vec3 v_delta = Vec3(
+                    v_rel.dotProduct( Vec3(cos_theta_minus_one, A, B) ),
+                    v_rel.dotProduct( Vec3(-A, cos_theta_minus_one, C) ),
+                    v_rel.dotProduct( Vec3(-B, -C, cos_theta_minus_one) )
+            );
+            v_delta *= 0.5;
+
+            // Update the particle velocities (identical particle masses)
+            electrons.parts[p1].vel += v_delta;
+            electrons.parts[p2].vel -= v_delta;
+        } // loop over particles
+    } // loop over cells
+}
+
+template<int dim>
+void Pic<dim>::group_and_shuffle_particles(vector<vector<size_t>> &parts_in_cell) {
+    const int n_cells = interpolator->linhex.size();
+    const int n_particles = electrons.parts.size();
+
+    // group particles
+    parts_in_cell = vector<vector<size_t>>(n_cells);
+    for (size_t p = 0; p < n_particles; ++p) {
+        int cell = interpolator->linhex.deal2femocs(electrons.parts[p].cell);
+        if (cell >= 0) parts_in_cell[cell].push_back(p);
+    }
+
+    // randomize the ordering of particles in a group
+    for (int cell = 0; cell < n_cells; ++cell) {
+        int n_particles = parts_in_cell[cell].size();
+        if (n_particles > 1) {
+            std::uniform_int_distribution<int> rnd_int(0, n_particles-1);
+
+            for (size_t &p : parts_in_cell[cell]) {
+                int new_index = rnd_int(mersenne);
+                size_t temporary = parts_in_cell[cell][new_index];
+                parts_in_cell[cell][new_index] = p;
+                p = temporary;
+            }
+        }
+    }
+}
+
+template<int dim>
+void Pic<dim>::collide_particles_old() {
     if (!coll_coulomb_ee) return;
 
 //    static const double Amplcoulomb =  1.;  // Amplification of coulomb collisions, only for testing purposes

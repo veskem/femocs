@@ -37,7 +37,7 @@ public:
     vector<SuperParticle> parts;
     vector<size_t> ordcount;
 
-    const double q_over_m_factor; ///< charge/mass [A^2 / (V fs^2)]
+    const double q_over_m; ///< charge/mass [A^2 / (V fs^2)]
     const double q_over_eps0;     ///< (whole) particle charge / eps0 [e/VÅ]
 
 private:

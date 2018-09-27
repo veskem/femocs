@@ -36,7 +36,9 @@ public:
     /** Inject electrons according to the field emission surface distribution */
     int inject_electrons(const bool fractional_push);
 
+    /** e-e or i-i Coulomb collision routine (for the same type of particles) */
     void collide_particles();
+    void collide_particles_old();
 
     /** Update the positions of the particles and the cell they belong. */
     int update_positions();
@@ -54,6 +56,7 @@ public:
         electrons.set_Wsp(Wel);
         box = _box;
         coll_coulomb_ee = conf.coll_coulomb_ee;
+        lanlog = conf.lanlog;
     }
 
     /** Return pointer to charged super-particles */
@@ -82,18 +85,17 @@ public:
 
 private:
     /// charge/mass for electrons for multiplying the velocity update
-    static constexpr double e_over_m_e_factor = 17.58820024182468;
-    /// particle charge [e] / epsilon_0 [e/VÅ] = 1 [e] * (8.85e-12 / 1.6e-19/1e10 [e/VÅ])**-1
-    static constexpr double e_over_eps0 = 180.9512268;
-    /// definition of 1 ampere
-    static constexpr double electrons_per_fs = 6.2415e3;
-    /// 2*pi
-    static constexpr double twopi = 6.2831853071795864;
+    static constexpr double e_over_me = 17.58820024182468;
+    static constexpr double e_over_eps0 = 180.9512268; ///< electron charge / vacuum permittivity [V*Angstrom]
+    static constexpr double electrons_per_fs = 6.2415e3; ///< definition of 1 ampere
+    static constexpr double twopi = 6.2831853071795864;  ///< 2 * pi
+    static constexpr double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
 
     //Parameters
     double Wel = .01;   ///< Super particle weighting [particles/superparticle]
     double dt = 1.;     ///< timestep [fs]
     bool coll_coulomb_ee = false;   ///< Switch 2e->2e Coulomb collisions on/off
+    double lanlog = 0;  ///< Landau logarithm
 
     PoissonSolver<dim> *poisson_solver;        ///< object to solve Poisson equation in the vacuum mesh
     const CurrentHeatSolver<dim> *ch_solver;  ///< transient currents and heating solver
@@ -103,10 +105,10 @@ private:
 
     ParticleSpecies electrons;   ///< super particles carring charge density in space
 
-    struct InjectStats{
+    struct InjectStats {
         int injected = 0;
         int removed = 0;
-    }inject_stats;
+    } inject_stats;
 
     mt19937 mersenne;     ///< Mersenne twister pseudo-random number engine
     uniform_real_distribution<double> uniform{0.0, 1.0};  ///< Random nr generator that maps Mersenne twister output uniformly into range [0.0 1.0] (both inclusive)
@@ -118,7 +120,7 @@ private:
     void compute_field(bool first_time = false, bool write_time = false);
 
     /** Inject electron super particles at the surface faces, depending on the current and the timestep */
-    int inject_electrons(vector<Point3> &pos, vector<int> &cells, const TetgenMesh &mesh);
+    void inject_electrons(vector<Point3> &pos, vector<int> &cells, const TetgenMesh &mesh);
 
     /** Generate point with an uniform distribution inside a quadrangle */
     Point3 get_rnd_point(const int quad, const TetgenMesh &mesh);
@@ -130,8 +132,7 @@ private:
      * Both input and output hex indices are Deal.II ones. */
     int update_point_cell(const SuperParticle& particle) const;
 
-    /** e-e or i-i Coulomb collision routine (for the same type of particles) */
-    void coll_el_knm_2D( ParticleSpecies &pa, const double dt, PoissonSolver<3> &poisson_solver );
+    void group_and_shuffle_particles(vector<vector<size_t>> &particles_in_cell);
 };
 
 } // namespace femocs
