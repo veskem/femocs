@@ -83,10 +83,6 @@ void write_heating_big(ofstream &file) {
     file << "field_solver = poisson"     << endl;
 }
 
-void write_wobble(ofstream &file) {
-    write_mdsmall(file);
-}
-
 void write_mdbig(ofstream &file) {
     file << "infile = in/nanotip_big.xyz" << endl;
     file << "coarse_factor = 0.3 4 2" << endl;
@@ -153,15 +149,17 @@ void write_cluster(ofstream &file) {
 
 void write_molten(ofstream &file) {
     file << "infile = in/nanotip_molten.xyz" << endl;
-    file << "coarse_factor = 0.3 6 4"  << endl;
-    file << "radius = 65.0"            << endl;
-    file << "box_width = 5.0"         << endl;
-}
-
-void write_moltenbig(ofstream &file) {
-    file << "infile = in/nanotip_molten.ckx" << endl;
     file << "coarse_factor = 0.4 8 3"  << endl;
     file << "radius = 45.0"            << endl;
+}
+
+void write_moltenrdf(ofstream &file) {
+    file << "infile = in/nanotip_molten.xyz" << endl;
+    file << "coarse_factor = 0.4 8 3"  << endl;
+    file << "radius = 45.0"            << endl;
+    file << "clean_surface = false"    << endl;
+    file << "use_rdf = true"           << endl;
+    file << "nnn = 48"                 << endl;
 }
 
 void write_tip100(ofstream &file) {
@@ -322,6 +320,7 @@ int main(int argc, char **argv) {
     string mode = "default";
     char arg[128];
     int success = 0;
+    bool add_rnd_noise = false;
 
     // read the running mode
     if (argc >= 2) {
@@ -331,6 +330,12 @@ int main(int argc, char **argv) {
         mode = string(arg);
 
         ofstream file(filename);
+
+        if (mode == "wobble" && argc >= 3) {
+            add_rnd_noise = true;
+            sscanf(argv[2], "%s", arg);
+            mode = string(arg);
+        }
 
         if      (mode == "kmcsmall")  write_kmcsmall(file);
         else if (mode == "kmcbig")    write_kmcbig(file);
@@ -348,9 +353,7 @@ int main(int argc, char **argv) {
         else if (mode == "tablet")    write_tablet(file);
         else if (mode == "cluster")   write_cluster(file);
         else if (mode == "molten")    write_molten(file);
-        else if (mode == "moltenbig") write_moltenbig(file);
-        else if (mode == "wobble")    write_wobble(file);
-
+        else if (mode == "moltenrdf") write_moltenrdf(file);
         else if (mode == "read_mesh") write_read_mesh(file);
         else if (mode == "generate") {
             if (argc == 2)
@@ -380,27 +383,27 @@ int main(int argc, char **argv) {
 
         else {
             printf("Usage:\n");
-            printf("  no-arg      configuration is obtained from in/md.in\n");
-            printf("  kmcsmall    small kMC nanotip\n");
-            printf("  kmcbig      big kMC nanotip\n");
-            printf("  kmcregular  symmetric kMC nanotip\n");
-            printf("  mdsmall     small MD nanotip\n");
-            printf("  mdbig       big MD nanotip\n");
-            printf("  tip100      symmetric nanotip with h/r = 5 and <100> orientation\n");
-            printf("  tip110      symmetric nanotip with h/r = 5 and <110> orientation\n");
-            printf("  tip111      symmetric nanotip with h/r = 5 and <111> orientation\n");
-            printf("  rectangle   symmetric nanotip with rectangular substrate\n");
+            printf("  no-arg         configuration is obtained from in/md.in\n");
+            printf("  wobble [mode]  add random atomistic noise to [mode]\n");
+            printf("  kmcsmall       small kMC nanotip\n");
+            printf("  kmcbig         big kMC nanotip\n");
+            printf("  kmcregular     symmetric kMC nanotip\n");
+            printf("  mdsmall        small MD nanotip\n");
+            printf("  mdbig          big MD nanotip\n");
+            printf("  tip100         symmetric nanotip with h/r = 5 and <100> orientation\n");
+            printf("  tip110         symmetric nanotip with h/r = 5 and <110> orientation\n");
+            printf("  tip111         symmetric nanotip with h/r = 5 and <111> orientation\n");
+            printf("  rectangle      symmetric nanotip with rectangular substrate\n");
             printf("  heating_big    PIC, current & heat solver enabled in big symmetric MD nanotip\n");
             printf("  heating_small  field, current & heat solver enabled in small MD nanotip\n");
-            printf("  stretch     stretch the substrate of small MD nanotip\n");
-            printf("  extend      extend the system below the round MD apex\n");
-            printf("  tablet      extend the system below the tablet shaped MD apex\n");
-            printf("  cluster     MD nanotip with clusters\n");
-            printf("  molten      nanotip with molten apex on top of thin rod\n");
-            printf("  moltenbig   symmetric MD nanotip with molten apex\n");
-            printf("  generate    generate and use perfectly symmetric nanotip without crystallographic properties\n");
-            printf("  read_mesh   read mesh from file\n");
-            printf("  wobble      read small MD nanotip and add random noise to emulate real MD simulation\n");
+            printf("  stretch        stretch the substrate of small MD nanotip\n");
+            printf("  extend         extend the system below the round MD apex\n");
+            printf("  tablet         extend the system below the tablet shaped MD apex\n");
+            printf("  cluster        MD nanotip with clusters\n");
+            printf("  molten         symmetric MD nanotip with molten apex\n");
+            printf("  moltenrdf      RDF coordinated symmetric MD nanotip with molten apex\n");
+            printf("  generate       generate and use perfectly symmetric nanotip without crystallographic properties\n");
+            printf("  read_mesh      read mesh from file\n");
 
             file.close();
             exit(0);
@@ -410,7 +413,10 @@ int main(int argc, char **argv) {
         file.close();
     }
 
-    cout << "\n> running FEMOCS test program in a mode:  " << mode << endl;
+    if (add_rnd_noise)
+        cout << "\n> running FEMOCS test program in a mode:  wobble " << mode <<endl;
+    else
+        cout << "\n> running FEMOCS test program in a mode:  " << mode << endl;
 
     femocs::Femocs femocs(filename);
     success = system("rm -rf md.in.tmp");
@@ -421,6 +427,9 @@ int main(int argc, char **argv) {
 
     // determine number of iterations
     int n_iterations = 1;
+    if (add_rnd_noise && argc >= 4) n_iterations = atoi(argv[3]);
+    else if (argc >= 3) n_iterations = atoi(argv[2]);
+
     int n_atoms = 0;
     success = 0;
 
@@ -443,7 +452,7 @@ int main(int argc, char **argv) {
     for (int i = 1; i <= n_iterations; ++i) {
         if (n_iterations > 1) cout << "\n> iteration " << i << endl;
 
-        success = femocs.import_atoms(infile, mode=="wobble");
+        success = femocs.import_atoms(infile, add_rnd_noise);
         success += femocs.run();
 //        success += femocs.export_elfield(0, Ex, Ey, Ez, En);
 //        success += femocs.export_temperature(n_atoms, T);

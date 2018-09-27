@@ -143,7 +143,6 @@ private:
      *  Author: Guang Shi, Mihkel Veske
     */
     void calc_rdf(const int n_bins, const double r_cut);
-    void calc_rdf_peaks(vector<double>& peaks, const vector<double>& rdf, const double bin_width);
 
     /** Calculate the root mean square average distance the atoms have moved
      * between previous and current run */

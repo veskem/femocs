@@ -258,54 +258,38 @@ void AtomReader::calc_rdf(const int n_bins, const double r_cut) {
 
     const int n_atoms = size();
     const double bin_width = r_cut / n_bins;
-    // Only valid for single-atom isotropic system
+    // factor to normalize RDF with respect to ideal gas
     const double norm_factor = 4.0/3.0 * M_PI * n_atoms * n_atoms / (sizes.xbox * sizes.ybox * sizes.zbox);
 
     // calculate the rdf histogram
     vector<double> rdf(n_bins);
-    for (int i = 0; i < n_atoms; ++i) {
-        Point3 point = get_point(i);
-        for (int nbor : nborlist[i]) {
-            const double distance2 = point.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox);
-            rdf[size_t(sqrt(distance2) / bin_width)]++;
+    for (int i = 0; i < n_atoms; ++i)
+        if (get_marker(i) != TYPES.FIXED) {
+            Point3 point = get_point(i);
+            for (int nbor : nborlist[i]) {
+                const double distance2 = point.periodic_distance2(get_point(nbor), sizes.xbox, sizes.ybox);
+                rdf[size_t(sqrt(distance2) / bin_width)]++;
+            }
+        }
+
+    // Normalise rdf histogram by with respect to ideal gas
+    // Also find the location of first neighbouring cell
+    // that is located on the first peak of rdf
+    double rdf_max = -1.0;
+    int sigma_indx = 0;
+    for (int i = 0; i < n_bins; ++i) {
+        double r1 = bin_width * i;
+        double r2 = r1 + bin_width;
+        rdf[i] /= norm_factor * (r2*r2*r2 - r1*r1*r1);
+        if (rdf_max < rdf[i]) {
+            rdf_max = rdf[i];
+            sigma_indx = i;
         }
     }
 
-    // Normalise rdf histogram by the volume and # atoms
-    // Normalisation is done in a ways OVITO does
-    double rdf_max = -1.0;
-    for (int i = 0; i < n_bins; ++i) {
-        double r = bin_width * i;
-        double r2 = r + bin_width;
-        rdf[i] /= norm_factor * (r2*r2*r2 - r*r*r);
-        rdf_max = max(rdf_max, rdf[i]);
-    }
-
-    // Normalise rdf histogram by the maximum peak and remove noise
-    for (double& r : rdf) {
-        r /= rdf_max;
-        if (r < 0.05) r = 0;
-    }
-
-    vector<double> peaks;
-    calc_rdf_peaks(peaks, rdf, bin_width);
-    require(peaks.size() >= 5, "Not enough peaks in RDF: " + to_string(peaks.size()));
-
-    data.latconst = peaks[1];
-    data.coord_cutoff = peaks[4];
-    data.nnn = 48;
-}
-
-void AtomReader::calc_rdf_peaks(vector<double>& peaks, const vector<double>& rdf, const double bin_width) {
-    const int grad_length = rdf.size() - 1;
-    vector<double> gradients(grad_length);
-    for (int i = 0; i < grad_length; ++i)
-        gradients[i] = rdf[i+1] - rdf[i];
-
-    peaks.clear();
-    for (int i = 0; i < grad_length - 1; ++i)
-        if (gradients[i] * gradients[i+1] < 0 && gradients[i] > gradients[i+1])
-            peaks.push_back((i+1.5) * bin_width);
+    double sigma = sigma_indx * bin_width;
+    data.latconst = sqrt(2) * sigma;
+    data.coord_cutoff = sqrt(5) * sigma;
 }
 
 void AtomReader::extract_types() {
