@@ -602,6 +602,7 @@ void EmissionReader::initialize(const TetgenMesh* m, bool reinit) {
     current_densities.resize(n_nodes);
     nottingham.resize(n_nodes);
     currents.resize(n_nodes);
+    thetas_SC.resize(n_nodes);
 
     //deallocate and allocate lines
     rline.resize(n_lines);
@@ -671,33 +672,46 @@ void EmissionReader::emission_line(const Point3& point, const Vec3& direction, c
     }
 }
 
-void EmissionReader::calc_representative() {
+void EmissionReader::calculate_globals() {
+    global_data.Jmax = 0;
     global_data.I_tot = 0;
     global_data.I_eff = 0;
-
-    double Fsum = 0.;
+    global_data.Fmax = 0;
 
     if (is_effective.size() != current_densities.size()){
         is_effective.resize(current_densities.size());
         for (int i = 0; i < is_effective.size(); ++i) is_effective[i] = true;
     }
 
+    double Fsum = 0.;
     for (unsigned int i = 0; i < currents.size(); ++i){ // go through face centroids
         int tri = mesh->quads.to_tri(abs(fields->get_marker(i)));
         // quadrangle area is 1/3 of corresponding triangle area
         double face_area = mesh->tris.get_area(tri) / 3.;
+        double Floc = fields->get_elfield_norm(i) * thetas_SC[i] * global_data.multiplier;
+
         currents[i] = face_area * current_densities[i];
         global_data.I_tot += currents[i];
+        global_data.Fmax = max(global_data.Fmax, Floc);
+        global_data.Jmax = max(global_data.Jmax, current_densities[i]); // output data
 
         if (is_effective[i]){ //if point eligible
             global_data.area += face_area; // increase total area
             global_data.I_eff += currents[i]; // increase total current
-            Fsum += fields->get_elfield_norm(i) * face_area;
+            Fsum += Floc * face_area;
         }
     }
 
     global_data.Jrep = global_data.I_eff / global_data.area;
     global_data.Frep = Fsum / global_data.area;
+
+    stats.N_calls++;
+    stats.I_tot.push_back(global_data.I_tot);
+    stats.Jrep.push_back(global_data.Jrep);
+    stats.Jmax.push_back(global_data.Jmax);
+    stats.Fmax.push_back(global_data.Fmax);
+    stats.Frep.push_back(global_data.Frep);
+
 }
 
 void EmissionReader::calc_effective_region(double threshold, string mode) {
@@ -712,9 +726,16 @@ void EmissionReader::calc_effective_region(double threshold, string mode) {
     }
 }
 
-void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold, double Vappl) {
+void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC) {
+
+    double Veff;
+    if (Veff_SC > 0)
+        Veff = Veff_SC;
+    else
+        Veff = conf.Vappl_SC;
+
     struct emission gt;
-    gt.W = workfunction;    // set workfuntion, must be set in conf. script
+    gt.W = conf.work_function;    // set workfuntion, must be set in conf. script
     gt.R = 1000.0;   // radius of curvature (overrided by femocs potential distribution)
     gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
     double F, J;    // Local field and current density in femocs units (Angstrom)
@@ -728,10 +749,10 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold, 
         gt.Temp = heat->get_temperature(i);
         set_marker(i, 0); // set marker for output emission xyz file. Means No full calculation
 
-        if (F > 0.6 * global_data.Fmax && !blunt){ // Full calculation with line only for high field points
+        if (F > 0.6 * global_data.Fmax && !conf.blunt){ // Full calculation with line only for high field points
             Vec3 normal = fields->get_elfield(i);
             normal *= (-1.0 / elfield_norm);
-            emission_line(get_point(i), normal, 1.6 * workfunction / F); //get emission line data
+            emission_line(get_point(i), normal, 1.6 * conf.work_function / F); //get emission line data
 
             gt.Nr = n_lines;
             gt.xr = &rline[0];
@@ -741,21 +762,20 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold, 
         }
 
         gt.approx = 0; // simple GTF approximation
-        if (Vappl <= 0)
+        if (Veff <= 0)
             cur_dens_c(&gt); // calculate emission
-        else{
-            cur_dens_SC(&gt, Vappl);
-        }
+        else
+            cur_dens_SC(&gt, Veff);
 
         J = gt.Jem * nm2_per_angstrom2; // current density in femocs units
 
-        if ((J > 0.1 * global_data.Jmax || gt.ierr) && !cold){ // If J is worth it, calculate with full energy integration
+        if ((J > 0.1 * global_data.Jmax || gt.ierr) && !conf.cold){ // If J is worth it, calculate with full energy integration
             gt.approx = 1;
-            if (Vappl <= 0)
+            if (Veff <= 0)
                 cur_dens_c(&gt); // calculate emission
             else{
-                gt.voltage = Vappl;
-                cur_dens_SC(&gt, Vappl);
+                gt.voltage = Veff;
+                cur_dens_SC(&gt, Veff);
             }
             if (gt.ierr != 0 )
                 write_verbose_msg("GETELEC 2nd call returned with error, ierr = " + d2s(gt.ierr));
@@ -763,61 +783,13 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold, 
             set_marker(i, 2);
         }
 
-
-
-        global_data.Jmax = max(global_data.Jmax, J); // output data
         current_densities[i] = J;
         nottingham[i] = nm2_per_angstrom2 * gt.heat;
+        thetas_SC[i] = gt.theta;
     }
-}
 
-void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC) {
-    global_data.Fmax = fields->calc_max_field();
-    stats.N_calls++;
+    calculate_globals();
 
-    double theta_new;
-    double error;
-    double Fmax_0 = global_data.Fmax;
-    double Veff;
-
-    if (Veff_SC > 0)
-        Veff = Veff_SC;
-    else
-        Veff = conf.Vappl_SC;
-
-    for (int i = 0; i < 1000; ++i){ // SC calculation loop
-        global_data.Jmax = 0.;
-        global_data.Fmax = global_data.multiplier * Fmax_0;
-
-        emission_cycle(conf.work_function, conf.blunt, conf.cold, Veff_SC);
-        calc_representative();
-
-        if (Veff <= 0 || conf.SC_mode == "local")
-            break; // if Vappl<=0, SC is ignored
-
-
-        // calculate SC multiplier (function coming from getelec)
-        theta_new = theta_SC(global_data.Jmax / nm2_per_angstrom2,
-                Veff, angstrom_per_nm * global_data.Fmax);
-
-        error = global_data.theta - theta_new;
-        if (MODES.VERBOSE){
-            printf("SC cycle #%d, mult=%f, theta=%f, err=%f, Jmax=%e, F=%e, Itot=%e", i,
-                    global_data.theta, theta_new,  error,  global_data.Jmax, global_data.Fmax,
-                    global_data.I_tot);
-            cout << endl;
-        }
-
-        global_data.theta = .5 * (theta_new + global_data.theta);
-        global_data.multiplier = global_data.theta * global_data.sfactor;
-        if (abs(error) < conf.SC_error)
-            break;
-    }
-    stats.I_tot.push_back(global_data.I_tot);
-    stats.Jrep.push_back(global_data.Jrep);
-    stats.Jmax.push_back(global_data.Jmax);
-    stats.Fmax.push_back(global_data.Fmax);
-    stats.Frep.push_back(global_data.Frep);
     write("out/emission.dat");
 }
 

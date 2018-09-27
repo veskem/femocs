@@ -339,9 +339,9 @@ private:
      */
     void emission_line(const Point3& point, const Vec3& direction, const double rmax);
 
-    /** Calculates representative quantities Jrep and Frep for space charge calculations
+    /** Calculates all the global values
      */
-    void calc_representative();
+    void calculate_globals();
 
     /**
      * Calculates the effective emission area (assigns flag to each surface face
@@ -349,13 +349,6 @@ private:
      * @param mode "field" or "current", whether the criterion is on the field or the current
      */
     void calc_effective_region(double threshold, string mode);
-
-    /**
-     * Calculates electron emission distribution for a given configuration (
-     * @param workfunction  Input work function.
-     */
-    void emission_cycle(double workfunction, bool blunt  = false,
-            bool cold = false, double Vappl = 0);
 
     /** Compose entry to xyz or movie file */
     string get_data_string(const int i) const;
@@ -375,6 +368,7 @@ private:
     vector<bool> is_effective;  ///< effective emission area
     vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
     vector<double> Vline;   ///< Potential on the straight line (complements rline)
+    vector<double> thetas_SC; ///< local field reduction factor due to SC
 
     friend class Pic<3>;   // for convenience, allow Pic-class to access private data
 };
