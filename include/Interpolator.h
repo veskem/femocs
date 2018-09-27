@@ -53,7 +53,7 @@ public:
     void initialize(const TetgenMesh* mesh, DealSolver<3>& solver, const double empty_value=0);
 
     /** Extract the current density and transient temperature values from FEM solution */
-    void extract_solution(CurrentHeatSolver<3>& fem);
+    void extract_solution(CurrentHeatSolver<3>& fem, bool temp_grad = false);
     
     /** Extract electric potential and field values from FEM solution */
     void extract_solution(PoissonSolver<3>& fem, const bool smoothen);

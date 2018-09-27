@@ -9,6 +9,7 @@
 #include "Globals.h"
 #include "ProjectRunaway.h"
 #include "ProjectHeat.h"
+#include "ProjectSpaceCharge.h"
 
 #include <omp.h>
 
@@ -45,6 +46,8 @@ Femocs::Femocs(const string &conf_file) : t0(0) {
         project = new ProjectRunaway(reader, conf);
     else if(conf.behaviour.project == "heat")
         project = new ProjectHeat(reader, conf);
+    else if(conf.behaviour.project == "space_charge")
+        project = new ProjectSpaceCharge(reader, conf);
     else {
         require(false, "Unimplemented project: " + conf.behaviour.project);
     }

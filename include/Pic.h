@@ -9,7 +9,7 @@
 #define PIC_H_
 
 #include "Interpolator.h"
-#include "SolutionReader.h"
+#include "EmissionReader.h"
 #include "Config.h"
 #include "TetgenMesh.h"
 #include "TetgenCells.h"
@@ -66,6 +66,11 @@ public:
         inject_stats.removed = 0;
     }
 
+    void reinit(){
+        stats_reinit();
+        electrons.clear();
+    }
+
     int get_injected(){ return inject_stats.injected; }
 
     int get_removed(){ return inject_stats.removed; }
@@ -113,7 +118,7 @@ private:
     void compute_field(bool first_time = false, bool write_time = false);
 
     /** Inject electron super particles at the surface faces, depending on the current and the timestep */
-    void inject_electrons(vector<Point3> &pos, vector<int> &cells, const TetgenMesh &mesh);
+    int inject_electrons(vector<Point3> &pos, vector<int> &cells, const TetgenMesh &mesh);
 
     /** Generate point with an uniform distribution inside a quadrangle */
     Point3 get_rnd_point(const int quad, const TetgenMesh &mesh);

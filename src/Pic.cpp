@@ -27,7 +27,8 @@ template<int dim>
 int Pic<dim>::inject_electrons(const bool fractional_push) {
     vector<Point3> positions;
     vector<int> cells;
-    inject_electrons(positions, cells, *emission->mesh);
+    if (inject_electrons(positions, cells, *emission->mesh))
+        return -1;
 
     Vec3 velocity(0);
 
@@ -53,7 +54,7 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
 }
 
 template<int dim>
-void Pic<dim>::inject_electrons(vector<Point3> &positions, vector<int> &cells,
+int Pic<dim>::inject_electrons(vector<Point3> &positions, vector<int> &cells,
         const TetgenMesh &mesh) {
 
     const double shift_factor = mesh.tris.stat.edgemin * 1e-6;
@@ -81,6 +82,10 @@ void Pic<dim>::inject_electrons(vector<Point3> &positions, vector<int> &cells,
         hex = interpolator->linhex.femocs2deal(hex);
         Vec3 shift = mesh.tris.get_norm(tri) * shift_factor;
 
+        check_return(n_electrons > 1000,
+                "WARNING: too many injected electrons in 1 face (" + to_string(n_electrons) +
+                "). Check the SP weight");
+
         // generate desired amount of electrons
         // that are uniformly distributed on a given quadrangle
         for (int j = 0; j < n_electrons; ++j) {
@@ -91,6 +96,7 @@ void Pic<dim>::inject_electrons(vector<Point3> &positions, vector<int> &cells,
             cells.push_back(hex);
         }
     }
+    return 0;
 }
 
 template<int dim>

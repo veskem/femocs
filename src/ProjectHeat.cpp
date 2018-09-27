@@ -27,7 +27,7 @@ int ProjectHeat::run(int timestep, double time) {
 
     //***** Run FEM solvers *****
 
-    for(auto factor : conf.field.apply_factors){
+    for(auto factor : conf.SC.apply_factors){
         conf.field.E0 *= factor;
         conf.field.V0 *= factor;
 
@@ -87,7 +87,7 @@ int ProjectHeat::solve_heat(double T_ambient, double delta_time, bool full_run, 
         if (full_run) surface_fields.interpolate(ch_solver);
         surface_temperatures.interpolate(ch_solver);
         emission.initialize(mesh, full_run);
-        emission.calc_emission(conf.emission, conf.field.V0);
+        emission.calc_emission(conf.emission);
         end_msg(t0);
     }
 
@@ -129,21 +129,21 @@ int ProjectHeat::converge_pic(double max_time) {
         time_window = max_time / i_max;
     }
 
-    double I_mean_prev = emission.global_data.I_mean;
+    double I_mean_prev = emission.stats.Itot_mean;
 
     start_msg(t0, "=== Converging PIC with time window " + d2s(time_window, 2) + " fs\n");
     for (int i = 0; i < i_max; ++i) {
         solve_pic(time_window, i==0);
         emission.calc_global_stats();
-        double err = (emission.global_data.I_mean - I_mean_prev) / emission.global_data.I_mean;
+        double err = (emission.stats.Itot_mean - I_mean_prev) / emission.stats.Itot_mean;
         if (MODES.VERBOSE){
-            printf("  i=%d, I_mean= %e A, I_std=%.2f, error=%.2f\n", i, emission.global_data.I_mean,
-                    100. * emission.global_data.I_std / emission.global_data.I_mean, 100 * err);
+            printf("  i=%d, I_mean= %e A, I_std=%.2f, error=%.2f\n", i, emission.stats.Itot_mean,
+                    100. * emission.stats.Itot_std / emission.stats.Itot_mean, 100 * err);
         }
-        I_mean_prev = emission.global_data.I_mean;
+        I_mean_prev = emission.stats.Itot_mean;
 
-        if (fabs(err) < 0.05 && fabs(err) < conf.pic.convergence * emission.global_data.I_std /
-                emission.global_data.I_mean)
+        if (fabs(err) < 0.05 && fabs(err) < conf.SC.convergence * emission.stats.Itot_std /
+                emission.stats.Itot_mean)
             return 0;
     }
     return 0;

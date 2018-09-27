@@ -86,6 +86,7 @@ Config::Config() {
     emission.omega_SC = -1;           // SC is ignored in Emission by default
     emission.SC_error = 1.e-3;        // Convergence criterion for SC iteration
     emission.Vappl_SC = 0.;           // Vappl used for SC calculations
+    emission.SC_mode = "local";       // local current density with SC
 
     force.mode = "none";              // forces to be calculated; lorentz, all, none
 
@@ -105,7 +106,9 @@ Config::Config() {
     pic.dt_max = 1.0;
     pic.Wsp_el =  .01;
     pic.fractional_push = true;
-    pic.convergence = .1;
+    pic.coll_coulomb_ee = false;
+
+    SC.convergence = .1;
 }
 
 // Remove the noise from the beginning of the string
@@ -137,6 +140,7 @@ void Config::read_all(const string& file_name) {
     read_command("maxerr_SC", emission.SC_error);
     read_command("emitter_cold", emission.cold);
     read_command("Vappl_SC", emission.Vappl_SC);
+    read_command("SC_mode", emission.SC_mode);
 
     read_command("t_ambient", heating.t_ambient);
     read_command("heating_mode", heating.mode);
@@ -206,8 +210,9 @@ void Config::read_all(const string& file_name) {
     read_command("electronWsp", pic.Wsp_el);
     read_command("pic_fractional_push", pic.fractional_push);
     read_command("pic_collide_coulomb_ee", pic.coll_coulomb_ee);
-    read_command("pic_converge_criterion", pic.convergence);
     
+    read_command("SC_converge_criterion", SC.convergence);
+
     // Read commands with potentially multiple arguments like...
     vector<double> args;
     int n_read_args;
@@ -240,12 +245,19 @@ void Config::read_all(const string& file_name) {
     cfactor.r0_cylinder = static_cast<int>(args[1]);
     cfactor.r0_sphere = static_cast<int>(args[2]);
 
-    field.apply_factors.resize(16);
-    n_read_args = read_command("apply_factors", field.apply_factors);
+    SC.apply_factors.resize(128);
+    n_read_args = read_command("apply_factors", SC.apply_factors);
     if (n_read_args > 0)
-        field.apply_factors.resize(n_read_args);
+        SC.apply_factors.resize(n_read_args);
     else
-        field.apply_factors = {1.};
+        SC.apply_factors = {1.};
+
+    SC.I_pic.resize(128);
+    n_read_args = read_command("currents_pic", SC.I_pic);
+    SC.I_pic.resize(n_read_args);
+    require(!n_read_args ||n_read_args == field.apply_factors.size(),
+            "current_pic & apply_factors sizes don't match");
+
 }
 
 // Read the commands and their arguments from the file and store them into the buffer

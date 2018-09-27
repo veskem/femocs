@@ -136,6 +136,8 @@ public:
      */
     vector<Tensor<1,dim>> get_current(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
 
+    vector<Tensor<1, dim>> get_temp_grad(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
+
     /** Set the pointers for obtaining external data */
     void set_dependencies(PhysicalQuantities *pq_, const Config::Heating *conf_);
 
