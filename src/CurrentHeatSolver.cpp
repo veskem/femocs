@@ -158,10 +158,10 @@ void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
 
     // ---------------------------------------------------------------------------------------------
     // The other solution values in the cell quadrature points
-    vector<Tensor<1, dim>> potential_gradients(n_q_points);
-    vector<Tensor<1, dim>> prev_sol_potential_gradients(n_q_points);
-    vector<double> prev_sol_temperature_values(n_q_points);
-    vector<Tensor<1, dim>> prev_sol_temperature_gradients(n_q_points);
+    vector<Tensor<1, dim>> potential_grads(n_q_points);
+    vector<Tensor<1, dim>> prev_potential_grads(n_q_points);
+    vector<double> prev_temperatures(n_q_points);
+    vector<Tensor<1, dim>> prev_temperature_grads(n_q_points);
     // ---------------------------------------------------------------------------------------------
 
     typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
@@ -173,39 +173,40 @@ void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
         cell_matrix = 0;
         cell_rhs = 0;
 
-        fe_values.get_function_values(this->solution_save, prev_sol_temperature_values);
-        fe_values.get_function_gradients(this->solution_save, prev_sol_temperature_gradients);
+        fe_values.get_function_values(this->solution_save, prev_temperatures);
+        fe_values.get_function_gradients(this->solution_save, prev_temperature_grads);
 
         fe_values_current.reinit(current_cell);
-        fe_values_current.get_function_gradients(current_solver->solution, potential_gradients);
-        fe_values_current.get_function_gradients(current_solver->solution_save, prev_sol_potential_gradients);
+        fe_values_current.get_function_gradients(current_solver->solution, potential_grads);
+        fe_values_current.get_function_gradients(current_solver->solution_save, prev_potential_grads);
 
         // ----------------------------------------------------------------------------------------
         // Local matrix assembly
         // ----------------------------------------------------------------------------------------
         for (unsigned int q = 0; q < n_q_points; ++q) {
 
-            double prev_temperature = prev_sol_temperature_values[q];
-            double kappa = this->pq->kappa(prev_temperature);
-            double sigma = this->pq->sigma(prev_temperature);
+            double temperature = prev_temperatures[q];
+            double kappa = this->pq->kappa(temperature);
+            double sigma = this->pq->sigma(temperature);
 
-            Tensor<1, dim> prev_temperature_grad = prev_sol_temperature_gradients[q];
+            Tensor<1, dim> temperature_grad = prev_temperature_grads[q];
 
-            double pot_grad_squared = potential_gradients[q].norm_square();
-            double prev_pot_grad_squared = prev_sol_potential_gradients[q].norm_square();
+            double pot_grad_squared = potential_grads[q].norm_square();
+            double prev_pot_grad_squared = prev_potential_grads[q].norm_square();
 
             for (unsigned int i = 0; i < dofs_per_cell; ++i) {
                 for (unsigned int j = 0; j < dofs_per_cell; ++j) {
                     cell_matrix(i, j) += fe_values.JxW(q) * (
-                            2*gamma*fe_values.shape_value(i, q) * fe_values.shape_value(j, q) // Mass matrix
-                            + kappa*fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q) );
+                            gamma*fe_values.shape_value(i, q) * fe_values.shape_value(j, q) // Mass matrix
+                            + 0.5*kappa*fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q) );
                 }
                 cell_rhs(i) += fe_values.JxW(q) * (
-                        2*gamma*fe_values.shape_value(i, q)*prev_temperature
-                        - kappa*fe_values.shape_grad(i, q)*prev_temperature_grad
-                        + fe_values.shape_value(i, q)*sigma*(pot_grad_squared+prev_pot_grad_squared) );
+                        gamma*fe_values.shape_value(i, q)*temperature
+                        - 0.5*kappa*fe_values.shape_grad(i, q)*temperature_grad  // TODO check this
+                        + 0.5*sigma*fe_values.shape_value(i, q)*(pot_grad_squared+prev_pot_grad_squared) );
             }
         }
+
         // ----------------------------------------------------------------------------------------
         // Local right-hand side assembly
         // ----------------------------------------------------------------------------------------
@@ -217,8 +218,8 @@ void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
 
                 for (unsigned int q = 0; q < n_face_q_points; ++q) {
                     for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                        cell_rhs(i) += (fe_face_values.shape_value(i, q)
-                                * 2.0 * nottingham_heat * fe_face_values.JxW(q));
+                        cell_rhs(i) += fe_face_values.shape_value(i, q)
+                                * nottingham_heat * fe_face_values.JxW(q);
                     }
                 }
             }
