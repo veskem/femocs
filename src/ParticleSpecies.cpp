@@ -9,9 +9,9 @@
 
 namespace femocs {
 
-
-ParticleSpecies::ParticleSpecies(double _q_over_m_factor, double _charge, double _Wsp) :
-                q_over_m(_q_over_m_factor), q_over_eps0(_charge), Wsp(_Wsp) {}
+ParticleSpecies::ParticleSpecies(double _q_over_m, double _q_over_eps0, double _Wsp) :
+        q_over_m(_q_over_m), q_over_eps0(_q_over_eps0), Wsp(_Wsp)
+{}
 
 int ParticleSpecies::clear_lost() {
     size_t npart = parts.size();
@@ -28,26 +28,6 @@ int ParticleSpecies::clear_lost() {
     // Shrink the array
     if (nlost > 0) parts.resize(npart-nlost);
     return nlost;
-}
-
-void ParticleSpecies::sort(){
-    std::sort(parts.begin(), parts.end());
-    //Update the array tracking how many particles per cell
-    ordcount.clear();
-    if (parts.size() > 0) {
-        int cell0 = parts[0].cell;
-        ordcount.push_back(0);
-        size_t ordCounter = 0;
-        for (auto p : parts) {
-            if (p.cell == cell0) {
-                ordcount[ordCounter] += 1;
-            }
-            else {
-                ordcount.push_back(1);
-                cell0 = p.cell;
-            }
-        }
-    }
 }
 
 } // namespace femocs

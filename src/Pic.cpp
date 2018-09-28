@@ -142,7 +142,6 @@ int Pic<dim>::update_positions() {
         update_position(i);
 
     int n_lost_particles = electrons.clear_lost();
-    electrons.sort();
 
     inject_stats.removed += n_lost_particles;
     return n_lost_particles;
@@ -150,10 +149,10 @@ int Pic<dim>::update_positions() {
 
 template<int dim>
 void Pic<dim>::update_position(const int particle_index) {
-    SuperParticle &particle = electrons.parts[particle_index];
+    SuperParticle &electron = electrons[particle_index];
 
     //update position
-    particle.pos += particle.vel * dt;
+    electron.pos += electron.vel * dt;
 
     //apply periodic boundaries
     // No needed as particles outside the box are deleted anyways
@@ -162,14 +161,14 @@ void Pic<dim>::update_position(const int particle_index) {
 
     // Update the cell ID; if any particles have left the domain their ID is set to -1
     // and they will be removed once we call clear_lost
-    const bool b1 = particle.pos.x > box.xmin && particle.pos.x < box.xmax;
-    const bool b2 = particle.pos.y > box.ymin && particle.pos.y < box.ymax;
-    const bool b3 = particle.pos.z < box.zmax;
+    const bool b1 = electron.pos.x > box.xmin && electron.pos.x < box.xmax;
+    const bool b2 = electron.pos.y > box.ymin && electron.pos.y < box.ymax;
+    const bool b3 = electron.pos.z < box.zmax;
 
     if (b1 && b2 && b3)
-        particle.cell = update_point_cell(particle);
+        electron.cell = update_point_cell(electron);
     else
-        particle.cell = -1;
+        electron.cell = -1;
 }
 
 template<int dim>
@@ -182,13 +181,15 @@ int Pic<dim>::update_point_cell(const SuperParticle& particle) const {
 
 template<int dim>
 void Pic<dim>::update_velocities(){
-    for (auto &particle : electrons.parts) {
+    for  (int i = 0; i < electrons.size(); ++i) {
+        SuperParticle &electron = electrons[i];
+
         // find electric field
-        int cell = interpolator->linhex.deal2femocs(particle.cell);
-        Vec3 elfield = interpolator->linhex.interp_gradient(particle.pos, cell);
+        int cell = interpolator->linhex.deal2femocs(electron.cell);
+        Vec3 elfield = interpolator->linhex.interp_gradient(electron.pos, cell);
 
         // update velocities (corresponds to t + .5dt)
-        particle.vel += elfield * (dt * electrons.q_over_m);
+        electron.vel += elfield * (dt * electrons.q_over_m);
     }
 }
 
@@ -239,7 +240,7 @@ void Pic<dim>::collide_particles() {
 template<int dim>
 void Pic<dim>::collide_pair(int p1, int p2, double variance_factor) {
     // Relative velocity
-    Vec3 v_rel = electrons.parts[p1].vel - electrons.parts[p2].vel;
+    Vec3 v_rel = electrons[p1].vel - electrons[p2].vel;
     double v_rel_norm  = v_rel.norm();
 
     // If u->0, the relative change might be big,
@@ -286,19 +287,19 @@ void Pic<dim>::collide_pair(int p1, int p2, double variance_factor) {
     v_delta *= 0.5;
 
     // Update the particle velocities (particle masses are identical)
-    electrons.parts[p1].vel += v_delta;
-    electrons.parts[p2].vel -= v_delta;
+    electrons[p1].vel += v_delta;
+    electrons[p2].vel -= v_delta;
 }
 
 template<int dim>
 void Pic<dim>::group_and_shuffle_particles(vector<vector<size_t>> &parts_in_cell) {
     const int n_cells = poisson_solver->get_n_cells();
-    const int n_particles = electrons.parts.size();
+    const int n_particles = electrons.size();
 
     // Group particles
     parts_in_cell = vector<vector<size_t>>(n_cells);
     for (size_t p = 0; p < n_particles; ++p) {
-        int cell = electrons.parts[p].cell;
+        int cell = electrons[p].cell;
         require(cell < n_cells, "Invalid cell " + d2s(cell) + " associated with superparticle " + d2s(p));
         if (cell >= 0) parts_in_cell[cell].push_back(p);
     }
@@ -316,125 +317,6 @@ void Pic<dim>::group_and_shuffle_particles(vector<vector<size_t>> &parts_in_cell
             }
         }
     }
-}
-
-template<int dim>
-void Pic<dim>::collide_particles_old() {
-    if (!coll_coulomb_ee) return;
-
-    //    static const double Amplcoulomb =  1.;  // Amplification of coulomb collisions, only for testing purposes
-    //    static const double LanLog = 13.;       // Coulomb Log
-    //    Constant factor in coulomb collisions
-    //    double Acoll = Amplcoulomb * ( !kind ? 1.0 : dt_ion*dt_ion*dt_ion ) * LanLog * SQU(SQU(Omega_pe)) * ncoll /
-    //      ( TWOPI*PI * SQU(SQU(dz))*SQU(dz) * SQU(pa->mass) * SQU(Ndb) * N_sp );
-
-    vector<size_t> inds2coll; //Not nice for parallelization (neither over spieces- or cell)
-    double Acoll = 1.0; //TODO !!!!!
-
-    size_t Next = 0; // Index of the first particle in the current cell
-    // (the way this is done today messes up paralellization)
-    for (auto ord : electrons.ordcount) {
-        //Number of particles left to collide in the current cell
-        size_t N2coll = ord;
-        //Resize the indices
-        inds2coll.resize(N2coll);
-
-        //Constant factor in columb collisions for this cell
-        double Acoll_cell = Acoll * ord / poisson_solver->get_cell_vol(electrons.parts[Next].cell);
-
-        if ( N2coll>1 ) {
-            //Pick two random particle indices (j,k) from the particles that have not yet collide
-            for (size_t loopind  = 0; loopind < N2coll; loopind++ ) {
-                inds2coll[loopind]=loopind;
-            }
-            size_t j(0), k(0);
-            while ( N2coll>0 ) {
-                if ( N2coll>1 ) {
-                    size_t jind = (size_t)(N2coll * uniform(mersenne));
-                    if (jind == N2coll) jind--;
-                    j = inds2coll[jind];
-                    for (size_t loopind = jind + 1; loopind < N2coll; loopind++) {
-                        inds2coll[loopind-1] = inds2coll[loopind];
-                    }
-                    N2coll--;
-
-                    jind = (size_t)(N2coll * uniform(mersenne));
-                    if (jind == N2coll) jind--;
-                    k = inds2coll[jind];
-                    for (size_t loopind = jind + 1; loopind < N2coll; loopind++) {
-                        inds2coll[loopind-1] = inds2coll[loopind];
-                    }
-                    N2coll--;
-                }
-                else {
-                    //Last particle in a cell with odd number of particles:
-                    // collide it with "j" from last time
-                    k = inds2coll[N2coll-1];
-                    N2coll--;
-                }
-
-                // Collide the pair as described in:
-                //   K. Matyash,
-                //   Kinetic Modeling of Multi-Component Edge Plasmas,
-                //   PhD thesis, Ernst-Moritz-Arndt-Universität Greifswald, 2003
-                //   http://home.mpcdf.mpg.de/~knm/thesis/2.pdf
-                // and
-                //   Takizuka and H. Abe,
-                //   A binary collision model for plasma simulation with a particle code,
-                //   Journal of Computational Physics 25 (1977) 205
-
-                // relative velocity
-                Vec3 v_rel = electrons.parts[j+Next].vel - electrons.parts[k+Next].vel;
-                // W = ||v_rel||
-                double W  = v_rel.norm();
-                if (W < 1.e-10) {
-                    //if u->0, the relative change might be big,
-                    // but it's a big change on top of nothing => SKIP
-                    continue;
-                }
-
-                //MC to find the scattering angle, through transformation of delta
-                // which is is distributed with P(delta) = N(0, <delta^2>)
-                double deltaVar2 = Acoll_cell/(W*W*W); // Variance <delta^2>
-                //double delta = GausRandom(0,sqrt(deltaVar2)); // TODO !!!!!!
-                double delta = (uniform(mersenne) - 0.5) * deltaVar2;  // TODO !!!!!! Temporary hack until we have GausRandom
-                double sinTheta = 2 * delta / (1+delta*delta);
-                double oneMinusCosTheta = sinTheta*delta;
-                //Scattering azimuth angle
-                double Phi = twopi * uniform(mersenne);
-                double cosPhi = cos(Phi);
-                double sinPhi = sin(Phi);
-
-                //v_rel projected into XY plane (and inverse)
-                Vec3 v_rel_DELTA;
-                double v_rel_XY  = sqrt(v_rel.x * v_rel.x + v_rel.y * v_rel.y);
-                if (v_rel_XY > 1e-10) {
-                    //Normal case, need rotation of coordinate system etc.
-                    v_rel_DELTA.x =   (v_rel.x/v_rel_XY)*v_rel.z * sinTheta*cosPhi
-                            - (v_rel.y/v_rel_XY)*W * sinTheta*sinPhi
-                            - v_rel.x * oneMinusCosTheta;
-                    v_rel_DELTA.y =   (v_rel.y/v_rel_XY)*v_rel.z * sinTheta*cosPhi
-                            + (v_rel.x/v_rel_XY)*W * sinTheta*sinPhi
-                            -  v_rel.y * oneMinusCosTheta;
-                    v_rel_DELTA.z = - v_rel_XY*sinTheta*cosPhi
-                            - v_rel.z*oneMinusCosTheta;
-                }
-                else {
-                    //v_rel in t-direction only
-                    // => coordinate systems are identical
-                    // => simpler equations
-                    v_rel_DELTA.x = W*sinTheta*cosPhi;
-                    v_rel_DELTA.y = W*sinTheta*sinPhi;
-                    v_rel_DELTA.z = -W*oneMinusCosTheta;
-                }
-
-                //Update the particle velocities (identical particle masses)
-                electrons.parts[j + Next].vel += v_rel_DELTA/2.;
-                electrons.parts[k + Next].vel -= v_rel_DELTA/2.;
-            }//END do-loop over particles
-        }//END if (N2coll > 1)
-        Next += ord;
-    }//END loop over cells
 }
 
 template<int dim>
@@ -463,7 +345,7 @@ void Pic<dim>::write(const string &filename) const {
         out << "-1 0.0 0.0 0.0 0.0 0.0 0.0 0" << endl;
     } else {
         for (int i = 0; i < electrons.size();  ++i)
-            out << i << " " << electrons.parts[i] << endl;
+            out << i << " " << electrons[i] << endl;
     }
 
     out.close();

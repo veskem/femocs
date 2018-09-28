@@ -38,7 +38,6 @@ public:
 
     /** e-e or i-i Coulomb collision routine (for the same type of particles) */
     void collide_particles();
-    void collide_particles_old();
 
     /** Update the positions of the particles and the cell they belong. */
     int update_positions();
