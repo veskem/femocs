@@ -180,7 +180,7 @@ public:
         double Wsp_el;        ///< Superparticle weight for electrons
         bool fractional_push; ///< Do fractional timestep push when injecting electrons?
         bool coll_coulomb_ee; ///< Do 2e->2e Coulomb collisions?
-        double lanlog;        ///< Landau logarithm
+        double landau_log;        ///< Landau logarithm
     } pic;
     
     /** Parameters related to SpaceCharge project */

@@ -61,6 +61,9 @@ public:
     /** Return the volume/area of i-th cell */
     double get_cell_vol(const int i) const;
 
+    /** Return number of active cells */
+    int get_n_cells() const { return triangulation.n_active_cells(); }
+
     /** Export the centroids of surface faces */
     void get_surface_nodes(vector<Point<dim>>& nodes) const;
 

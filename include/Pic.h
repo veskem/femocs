@@ -56,7 +56,7 @@ public:
         electrons.set_Wsp(Wel);
         box = _box;
         coll_coulomb_ee = conf.coll_coulomb_ee;
-        lanlog = conf.lanlog;
+        landau_log = conf.landau_log;
     }
 
     /** Return pointer to charged super-particles */
@@ -89,13 +89,12 @@ private:
     static constexpr double e_over_eps0 = 180.9512268; ///< electron charge / vacuum permittivity [V*Angstrom]
     static constexpr double electrons_per_fs = 6.2415e3; ///< definition of 1 ampere
     static constexpr double twopi = 6.2831853071795864;  ///< 2 * pi
-    static constexpr double eps0 = 0.0055263494; ///< vacuum permittivity [e/V*A]
 
     //Parameters
     double Wel = .01;   ///< Super particle weighting [particles/superparticle]
     double dt = 1.;     ///< timestep [fs]
     bool coll_coulomb_ee = false;   ///< Switch 2e->2e Coulomb collisions on/off
-    double lanlog = 0;  ///< Landau logarithm
+    double landau_log = 0;  ///< Landau logarithm
 
     PoissonSolver<dim> *poisson_solver;        ///< object to solve Poisson equation in the vacuum mesh
     const CurrentHeatSolver<dim> *ch_solver;  ///< transient currents and heating solver
@@ -132,7 +131,11 @@ private:
      * Both input and output hex indices are Deal.II ones. */
     int update_point_cell(const SuperParticle& particle) const;
 
+    /** Group SP-s by the common cells and shuffle their ordering before performing Coulomb collision */
     void group_and_shuffle_particles(vector<vector<size_t>> &particles_in_cell);
+
+    /** Perform binary collision between two charged particles of the same kind */
+    void collide_pair(int p1, int p2, double variance);
 };
 
 } // namespace femocs

@@ -107,7 +107,7 @@ Config::Config() {
     pic.Wsp_el =  .01;
     pic.fractional_push = true;
     pic.coll_coulomb_ee = false;
-    pic.lanlog = 13.0;
+    pic.landau_log = 13.0;
 
     SC.convergence = .1;
 }
@@ -211,7 +211,7 @@ void Config::read_all(const string& file_name) {
     read_command("electronWsp", pic.Wsp_el);
     read_command("pic_fractional_push", pic.fractional_push);
     read_command("pic_collide_coulomb_ee", pic.coll_coulomb_ee);
-    read_command("pic_lanlog", pic.lanlog);
+    read_command("pic_landau_log", pic.landau_log);
     
     read_command("SC_converge_criterion", SC.convergence);
 
