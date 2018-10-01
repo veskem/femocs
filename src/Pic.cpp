@@ -19,7 +19,7 @@ Pic<dim>::Pic(PoissonSolver<dim> *poisson, const CurrentHeatSolver<3> *ch_solver
         const EmissionReader *er, const unsigned int seed) :
         poisson_solver(poisson), ch_solver(ch_solver), emission(er),
         interpolator(er->interpolator),
-        electrons(-e_over_me, -e_over_eps0, Wel),
+        electrons(-e_over_me, -e_over_eps0, 0),
         mersenne{seed}
 {}
 
@@ -38,10 +38,10 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
 
         // Random fractional timestep push -- from a random point [t_(k-1),t_k] to t_k, t_(k + 1/2), using field at t_k.
         if (fractional_push) {
-            velocity = elfield * (electrons.q_over_m * dt * (uniform(mersenne) + 0.5));
-            positions[i] += velocity * (dt * uniform(mersenne));
+            velocity = elfield * (electrons.q_over_m * conf.dt * (uniform(mersenne) + 0.5));
+            positions[i] += velocity * (conf.dt * uniform(mersenne));
         } else {
-            velocity = elfield * (electrons.q_over_m * dt * 0.5);
+            velocity = elfield * (electrons.q_over_m * conf.dt * 0.5);
         }
 
         // Save to particle arrays
@@ -61,8 +61,8 @@ void Pic<dim>::inject_electrons(vector<Point3> &positions, vector<int> &cells, c
     // loop through quadrangle centroids
     for (int i = 0; i < n_points; ++i) {
         double current = emission->currents[i] * electrons_per_fs;
-        double charge = current * dt; //in e
-        double n_sps = charge / Wel;
+        double charge = current * conf.dt; //in e
+        double n_sps = charge / electrons.get_Wsp();
 
         int intpart = (int) floor(n_sps);
         double frpart = n_sps - intpart;
@@ -152,20 +152,30 @@ void Pic<dim>::update_position(const int particle_index) {
     SuperParticle &electron = electrons[particle_index];
 
     //update position
-    electron.pos += electron.vel * dt;
+    electron.pos += electron.vel * conf.dt;
 
-    //apply periodic boundaries
-    // No needed as particles outside the box are deleted anyways
-    //    particle.pos.x = periodic_image(particle.pos.x, box.xmax, box.xmin);
-    //    particle.pos.y = periodic_image(particle.pos.y, box.ymax, box.ymin);
+    bool b1 = true;
+    bool b2 = true;
+    bool b3 = electron.pos.z < conf.box.zmax;
+
+    if (conf.periodic) {
+        // apply periodic boundaries
+        electron.pos.x = periodic_image(electron.pos.x, conf.box.xmax, conf.box.xmin);
+        electron.pos.y = periodic_image(electron.pos.y, conf.box.ymax, conf.box.ymin);
+    } else {
+        // check the boundaries in x,y-direction
+        b1 = electron.pos.x > conf.box.xmin && electron.pos.x < conf.box.xmax;
+        b2 = electron.pos.y > conf.box.ymin && electron.pos.y < conf.box.ymax;
+        if (!b1 || !b2) {
+            write_silent_msg("Electron " + d2s(particle_index) + " crossed "
+                    "simubox x or y boundary and will be deleted. "
+                    "Consider increasing simubox width of making PIC periodic.");
+        }
+    }
 
     // Update the cell ID; if any particles have left the domain their ID is set to -1
     // and they will be removed once we call clear_lost
-    const bool b1 = electron.pos.x > box.xmin && electron.pos.x < box.xmax;
-    const bool b2 = electron.pos.y > box.ymin && electron.pos.y < box.ymax;
-    const bool b3 = electron.pos.z < box.zmax;
-
-    if (b1 && b2 && b3)
+    if (b3 && b2 && b1)
         electron.cell = update_point_cell(electron);
     else
         electron.cell = -1;
@@ -189,7 +199,7 @@ void Pic<dim>::update_velocities(){
         Vec3 elfield = interpolator->linhex.interp_gradient(electron.pos, cell);
 
         // update velocities (corresponds to t + .5dt)
-        electron.vel += elfield * (dt * electrons.q_over_m);
+        electron.vel += elfield * (conf.dt * electrons.q_over_m);
     }
 }
 
@@ -199,10 +209,10 @@ void Pic<dim>::update_velocities(){
  * Journal of Computational Physics 25 (1977) 205 */
 template<int dim>
 void Pic<dim>::collide_particles() {
-    if (!coll_coulomb_ee) return;
+    if (!conf.collide_ee) return;
 
-    double variance_factor = e_over_me * e_over_eps0 * Wel;
-    variance_factor *= variance_factor * dt * landau_log / twopi;
+    double variance_factor = e_over_me * e_over_eps0 * electrons.get_Wsp();
+    variance_factor *= variance_factor * conf.dt * conf.landau_log / twopi;
 
     vector<vector<size_t>> particles_in_cell;
     group_and_shuffle_particles(particles_in_cell);
@@ -260,10 +270,10 @@ void Pic<dim>::collide_pair(int p1, int p2, double variance_factor) {
     double cos_theta_minus_one = -delta * sin_theta;
     double sin_phi = sin(phi);
     double cos_phi = cos(phi);
-    double v_cross  = sqrt(v_rel.x * v_rel.x + v_rel.y * v_rel.y);
+    double v_perp  = sqrt(v_rel.x * v_rel.x + v_rel.y * v_rel.y);
 
     Vec3 v_delta;
-    if (v_cross > 1e-10) {
+    if (v_perp > 1e-10) {
         /* Here we prefer to use the matrix in a form given by
          * Tskhakaya et al
          * The Particle‐In‐Cell Method
@@ -272,9 +282,9 @@ void Pic<dim>::collide_pair(int p1, int p2, double variance_factor) {
          * It is computationally equivalent to the one by Takizuka and Abe,
          * but reveals better the symmetry.
          */
-        double a = v_rel_norm * sin_theta * sin_phi / v_cross;
-        double bx = v_rel.x * sin_theta * cos_phi / v_cross;
-        double by = v_rel.y * sin_theta * cos_phi / v_cross;
+        double a = v_rel_norm * sin_theta * sin_phi / v_perp;
+        double bx = v_rel.x * sin_theta * cos_phi / v_perp;
+        double by = v_rel.y * sin_theta * cos_phi / v_perp;
 
         v_delta.x = v_rel.dotProduct( Vec3(cos_theta_minus_one, a, bx) );
         v_delta.y = v_rel.dotProduct( Vec3(-a, cos_theta_minus_one, by) );

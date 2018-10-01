@@ -399,8 +399,6 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit, bool force_write
 //    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
 //            "Field enhancement is out of limits!");
     return 0;
-
-    // TODO Save ions and neutrals that are inbound on the MD domain somewhere where the MD can find them
 }
 
 int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {

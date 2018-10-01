@@ -171,16 +171,17 @@ public:
 
     /** Particle In Cell module configuration */
     struct PIC {
-        string mode;      ///< Pic mode (transient, converge or none)
+        string mode;           ///< Pic mode (transient, converge or none)
 
         /** Maximum PIC timestep [fs].
          * The actual PIC timestep will be smaller
          * such that it is an integer fraction of the MD timestep. */
         double dt_max;
-        double Wsp_el;        ///< Superparticle weight for electrons
-        bool fractional_push; ///< Do fractional timestep push when injecting electrons?
-        bool coll_coulomb_ee; ///< Do 2e->2e Coulomb collisions?
-        double landau_log;        ///< Landau logarithm
+        double weight_el;      ///< Electron superparticle weight
+        bool fractional_push;  ///< Do fractional timestep push when injecting electrons?
+        bool collide_ee;       ///< Do 2e->2e Coulomb collisions?
+        bool periodic;         ///< SP-s will be mapped back to simubox in x,y-direction?
+        double landau_log;     ///< Landau logarithm
     } pic;
     
     /** Parameters related to SpaceCharge project */

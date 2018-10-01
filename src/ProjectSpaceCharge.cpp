@@ -91,18 +91,18 @@ int ProjectSpaceCharge::prepare(int i){
         double inj_per_step = ramp_field(init_factor, target_factor);
         if (inj_per_step > 1.e100){
             pic_solver.reinit();
-            conf.pic.Wsp_el *= 10;
+            conf.pic.weight_el *= 10;
             write_verbose_msg("Trying with higher Wsp");
         } else if (inj_per_step < 1){
             pic_solver.reinit();
-            conf.pic.Wsp_el /= 10;
+            conf.pic.weight_el /= 10;
             write_verbose_msg("Trying with lower Wsp");
         } else if (inj_per_step < 200 || inj_per_step > 2000){
             pic_solver.reinit();
-            conf.pic.Wsp_el *= inj_per_step /  600;
+            conf.pic.weight_el *= inj_per_step /  600;
             init_factor = target_factor / 10; //reinitializing pic
             write_verbose_msg("Resetting the particle weight to Wsp = "
-                    + to_string(conf.pic.Wsp_el));
+                    + to_string(conf.pic.weight_el));
         } else
             break;
     }

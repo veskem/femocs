@@ -49,36 +49,39 @@ public:
     void write(const string &filename) const;
     
     /** Store various data */
-    void set_params(const Config::PIC &conf, const double _dt, const TetgenNodes::Stat _box) {
-        dt = _dt;
-        Wel = conf.Wsp_el;
-        electrons.set_Wsp(Wel);
-        box = _box;
-        coll_coulomb_ee = conf.coll_coulomb_ee;
-        landau_log = conf.landau_log;
+    void set_params(const Config::PIC &config, const double dt, const TetgenNodes::Stat box) {
+        electrons.set_Wsp(config.weight_el);
+        conf.dt = dt;
+        conf.box = box;
+        conf.collide_ee = config.collide_ee;
+        conf.periodic = config.periodic;
+        conf.landau_log = config.landau_log;
     }
 
     /** Return pointer to charged super-particles */
     ParticleSpecies* get_particles() { return &electrons; }
 
+    /** Return number of stored electron super particles */
     int get_n_electrons() const { return electrons.size(); }
 
-    void stats_reinit(){
+    void stats_reinit() {
         inject_stats.injected = 0;
         inject_stats.removed = 0;
     }
 
-    void reinit(){
+    void reinit() {
         stats_reinit();
         electrons.clear();
     }
 
-    int get_injected(){ return inject_stats.injected; }
+    /** Return # electron super particles that were injected during last push */
+    int get_injected() const { return inject_stats.injected; }
 
-    int get_removed(){ return inject_stats.removed; }
+    /** Return # electron super particles that were deleted during last clean */
+    int get_removed() const { return inject_stats.removed; }
 
-    /**  Check if the number of injected particles is roughly equal to the number of removed*/
-    bool is_stable(){
+    /**  Check if the # injected particles is roughly equal to the # removed */
+    bool is_stable() const {
         return abs(inject_stats.injected - inject_stats.removed) / inject_stats.injected < 0.1 ;
     }
 
@@ -89,19 +92,20 @@ private:
     static constexpr double electrons_per_fs = 6.2415e3; ///< definition of 1 ampere
     static constexpr double twopi = 6.2831853071795864;  ///< 2 * pi
 
-    //Parameters
-    double Wel = .01;   ///< Super particle weighting [particles/superparticle]
-    double dt = 1.;     ///< timestep [fs]
-    bool coll_coulomb_ee = false;   ///< Switch 2e->2e Coulomb collisions on/off
-    double landau_log = 0;  ///< Landau logarithm
+    struct Conf {
+        TetgenNodes::Stat box;    ///< simubox size data
+        double dt = 0;            ///< timestep [fs]
+        bool collide_ee = false;  ///< switch 2e->2e Coulomb collisions on/off?
+        bool periodic = false;    ///< map SP-s back to simubox in x,y-direction?
+        double landau_log = 0;    ///< Landau logarithm
+    } conf;
 
-    PoissonSolver<dim> *poisson_solver;        ///< object to solve Poisson equation in the vacuum mesh
+    PoissonSolver<dim> *poisson_solver;       ///< object to solve Poisson equation in the vacuum mesh
     const CurrentHeatSolver<dim> *ch_solver;  ///< transient currents and heating solver
-    const EmissionReader *emission;         ///< object to obtain the field emission data
-    const Interpolator *interpolator;       ///< data & operation for interpolating in vacuum
-    TetgenNodes::Stat box;                  ///< simubox size data
+    const EmissionReader *emission;           ///< object to obtain the field emission data
+    const Interpolator *interpolator;         ///< data & operation for interpolating in vacuum
 
-    ParticleSpecies electrons;   ///< super particles carring charge density in space
+    ParticleSpecies electrons;    ///< Electron super particles carrying charge density in space
 
     struct InjectStats {
         int injected = 0;

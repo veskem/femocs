@@ -23,6 +23,7 @@ void print_progress(const string& message, const bool contition) {
 }
 
 void write_defaults(ofstream &file) {
+    file << "project = runaway"          << endl;
     file << "mesh_quality = 1.8"         << endl;
     file << "heating_mode = none"        << endl;
     file << "write_log = false"           << endl;
@@ -69,7 +70,7 @@ void write_heating_small(ofstream &file) {
     file << "box_height = 3.5"           << endl;
 
     file << "elfield = -0.3"             << endl;
-    file << "heating_mode = transient"    << endl;
+    file << "heating_mode = transient"   << endl;
     file << "field_solver = laplace"     << endl;
 }
 
@@ -78,9 +79,11 @@ void write_heating_big(ofstream &file) {
     file << "coarse_factor = 0.4 8 3"  << endl;
     file << "radius = 45.0"            << endl;
 
-    file << "elfield = -0.2"             << endl;
-    file << "heating_mode = transient"    << endl;
-    file << "field_solver = poisson"     << endl;
+    file << "elfield = -0.2"           << endl;
+    file << "heating_mode = transient" << endl;
+    file << "field_solver = poisson"   << endl;
+    file << "pic_mode = transient"     << endl;
+    file << "pic_collide_ee = true"    << endl;
 }
 
 void write_mdbig(ofstream &file) {

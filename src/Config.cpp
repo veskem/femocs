@@ -104,9 +104,10 @@ Config::Config() {
                                       // d_min ~ pow(|r1-r2|, exponential)
     pic.mode = "none";
     pic.dt_max = 1.0;
-    pic.Wsp_el =  .01;
+    pic.weight_el =  .01;
     pic.fractional_push = true;
-    pic.coll_coulomb_ee = false;
+    pic.collide_ee = true;
+    pic.periodic = false;
     pic.landau_log = 13.0;
 
     SC.convergence = .1;
@@ -133,6 +134,7 @@ void Config::read_all(const string& file_name) {
     check_obsolete("surface_cleaner", "clean_surface");
     check_obsolete("run_pic", "pic_mode");
     check_obsolete("use_histclean");
+    check_obsolete("electronWsp", "electron_weight");
 
     // Modify the parameters that are specified in input script
     read_command("work_function", emission.work_function);
@@ -208,9 +210,10 @@ void Config::read_all(const string& file_name) {
 
     read_command("pic_mode", pic.mode);
     read_command("pic_dtmax", pic.dt_max);
-    read_command("electronWsp", pic.Wsp_el);
+    read_command("electron_weight", pic.weight_el);
     read_command("pic_fractional_push", pic.fractional_push);
-    read_command("pic_collide_coulomb_ee", pic.coll_coulomb_ee);
+    read_command("pic_collide_ee", pic.collide_ee);
+    read_command("pic_periodic", pic.periodic);
     read_command("pic_landau_log", pic.landau_log);
     
     read_command("SC_converge_criterion", SC.convergence);
