@@ -132,12 +132,17 @@ void Config::read_all(const string& file_name) {
     read_command("emitter_cold", emission.cold);
     read_command("Vappl_SC", emission.Vappl_SC);
 
-    read_command("t_ambient", heating.t_ambient);
     read_command("heating_mode", heating.mode);
-    read_command("lorentz", heating.lorentz);
     read_command("rhofile", heating.rhofile);
+    read_command("lorentz", heating.lorentz);
+    read_command("t_ambient", heating.t_ambient);
+    read_command("heat_ncg", heating.n_cg);
+    read_command("heat_cgtol", heating.cg_tolerance);
+    read_command("heat_ssor", heating.ssor_param);
     read_command("heat_dtinit", heating.delta_time);
     read_command("heat_dtmax", heating.dt_max);
+    read_command("vscale_tau", heating.tau);
+    read_command("heat_assemble", heating.assemble_method);
 
     read_command("smooth_steps", smoothing.n_steps);
     read_command("smooth_lambda", smoothing.lambda_mesh);

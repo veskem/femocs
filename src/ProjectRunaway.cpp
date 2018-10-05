@@ -131,6 +131,7 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
         start_msg(t0, "=== Extending surface...");
         dense_surf.extend(extended_surf, conf);
         end_msg(t0);
+        extended_surf.write("out/surface_extension.xyz");
     }
 
     start_msg(t0, "=== Coarsening surface...");
