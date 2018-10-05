@@ -115,7 +115,8 @@ protected:
     /** Store the imported atom coordinates and set the flag that enables exporters */
     int finalize(double tstart, double time);
 
-    int process_failed(const string &msg) { write_verbose_msg(msg); force_output(); return 1; }
+    /** Handle failed subprocess */
+    int process_failed(const string &msg);
 
 private:
     /** Check if enough time has passed since the last file write_results */

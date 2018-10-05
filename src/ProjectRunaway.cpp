@@ -47,10 +47,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 
 int ProjectRunaway::reinit(int tstep, double time) {
     static bool skip_meshing = true;  // remember the value of skip_meshing
-    if (tstep >= 0) timestep = tstep;
-    else ++timestep;
-
-    if (time >= 0) GLOBALS.TIME = time;
+    ++timestep;
 
     if (!skip_meshing && MODES.WRITEFILE)
         MODES.WRITEFILE = false;
@@ -71,17 +68,18 @@ int ProjectRunaway::reinit(int tstep, double time) {
 }
 
 int ProjectRunaway::finalize(double tstart, double time) {
-    reader.save_current_run_points(conf.tolerance.distance);
-
-    // In case no transient simulations (time has stayed the same) advance the time
-    if (time < 0 && (conf.field.solver == "laplace"))
-        GLOBALS.TIME += conf.behaviour.timestep_fs;
-
+    GLOBALS.TIME += conf.behaviour.timestep_fs;
     last_full_timestep = timestep;
-    require(GLOBALS.TIME > 0, "Global time has not increased!");
-
+    reader.save_current_run_points(conf.tolerance.distance);
     write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
     return 0;
+}
+
+int ProjectRunaway::process_failed(const string &msg) {
+    write_verbose_msg(msg);
+    force_output();
+    GLOBALS.TIME += conf.behaviour.timestep_fs;
+    return 1;
 }
 
 int ProjectRunaway::run(const int timestep, const double time) {
@@ -117,8 +115,7 @@ int ProjectRunaway::run(const int timestep, const double time) {
     if (prepare_export())
         return process_failed("Interpolating solution on atoms failed!");
 
-    finalize(tstart, time);
-    return 0;
+    return finalize(tstart, time);
 }
 
 int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
@@ -330,8 +327,7 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
 }
 
 int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {
-    if (full_run)
-        ch_solver.setup(T_ambient);
+    if (full_run) ch_solver.setup(T_ambient);
 
     start_msg(t0, "=== Calculating electron emission...");
     if (full_run) surface_fields.interpolate(ch_solver);
