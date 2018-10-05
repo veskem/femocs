@@ -59,7 +59,7 @@ int SolutionReader::update_interpolation(const int i, int cell) {
     return cell;
 }
 
-void SolutionReader::calc_interpolation() {
+void SolutionReader::calc_full_interpolation() {
     require(interpolator, "NULL interpolator cannot be used!");
     const int n_atoms = size();
 
@@ -81,7 +81,7 @@ void SolutionReader::calc_interpolation() {
     }
 }
 
-void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
+void SolutionReader::calc_interpolation() {
     require(interpolator, "NULL interpolator cannot be used!");
 
     const int n_atoms = size();
@@ -90,7 +90,7 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
     // are the atoms already mapped against the triangles?
     if (cells_not_known) {
         // ...nop, do the mapping, interpolate and output mapping
-        calc_interpolation();
+        calc_full_interpolation();
         atom2cell = vector<int>(n_atoms);
         for (int i = 0; i < n_atoms; ++i)
             atom2cell[i] = abs(get_marker(i));
@@ -300,7 +300,7 @@ void SolutionReader::interpolate(const int n_points, const double* x, const doub
     calc_interpolation();
 }
 
-void SolutionReader::interpolate(const Medium &medium) {
+void SolutionReader::interpolate(const Medium &medium, bool full_run) {
     const int n_atoms = medium.size();
     reserve(n_atoms);
 
@@ -309,6 +309,7 @@ void SolutionReader::interpolate(const Medium &medium) {
         append( Atom(i, medium.get_point(i), 0) );
 
     // interpolate solution
+    if (full_run) atom2cell.clear();
     calc_interpolation();
 
     // restore original atom id-s
@@ -316,7 +317,7 @@ void SolutionReader::interpolate(const Medium &medium) {
         atoms[i].id = medium.get_id(i);
 }
 
-void SolutionReader::interpolate(const AtomReader &reader) {
+void SolutionReader::interpolate(const AtomReader &reader, bool full_run) {
     require(!sort_atoms, "Atom sorting not allowed here!");
     const int n_atoms = reader.size();
     reserve(n_atoms);
@@ -327,6 +328,7 @@ void SolutionReader::interpolate(const AtomReader &reader) {
             append(atom);
 
     // interpolate solution
+    if (full_run) atom2cell.clear();
     calc_interpolation();
 }
 
@@ -847,7 +849,6 @@ ChargeReader::ChargeReader(Interpolator* i) :
 void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
     const double sign = fabs(E0) / E0;
     const int n_faces = mesh.tris.size();
-    const int n_quads_per_triangle = 3;
 
     // Store the centroids of the triangles
     reserve(n_faces);
@@ -857,7 +858,7 @@ void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
     // create triangle index to its centroid index mapping
     vector<int> tri2centroid(n_faces);
     for (int face = 0; face < n_faces; ++face) {
-        for (int node : mesh.quads[n_quads_per_triangle * face])
+        for (int node : mesh.quads[n_quads_per_tri * face])
             if (mesh.nodes.get_marker(node) == TYPES.FACECENTROID) {
                 tri2centroid[face] = node;
                 break;
@@ -1088,21 +1089,16 @@ void ForceReader::calc_charge_and_lorentz(const VoronoiMesh& mesh, const FieldRe
         }
 }
 
-void ForceReader::calc_lorentz(const FieldReader &fields) {
+void ForceReader::recalc_lorentz(const FieldReader &fields) {
+    // the assumption is that the amount and IDs of field points
+    // from previous full timestep have not changed
     const int n_atoms = fields.size();
+    require(n_atoms == size(), "Invalid input fields!");
 
-    // Copy the atom data
-    reserve(n_atoms);
-    atoms = fields.atoms;
-
-    // Calculate the charges by ensuring the that the total sum of it remains conserved
-    vector<double> charges;
-    interpolator->lintri.interp_conserved(charges, atoms);
-
-    // calculate forces and store them
     for (int i = 0; i < n_atoms; ++i) {
-        Vec3 force = fields.get_elfield(i) * (charges[i] * force_factor);   // [e*V/A]
-        interpolation.push_back(Solution(force, 0, charges[i]));
+        double charge = get_charge(i);
+        Vec3 force = fields.get_elfield(i) * (charge * force_factor);
+        interpolation[i] = Solution(force, 0, charge);
     }
 }
 

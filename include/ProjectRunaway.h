@@ -109,6 +109,9 @@ protected:
     /** Solve transient heat and continuity equations */
     int solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg);
 
+    /** Using the electric field, calculate atomistic charge together with Lorenz and/or Coulomb force */
+    int solve_force();
+
     /** Calculate data of interest on the locations of imported atoms */
     int prepare_export();
 

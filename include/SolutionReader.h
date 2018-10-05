@@ -29,11 +29,8 @@ public:
     SolutionReader();
     SolutionReader(Interpolator* i, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
-    /** Interpolate solution on the system atoms */
-    void calc_interpolation();
-
     /** Interpolate solution using already available data about which atom is connected with which cell */
-    void calc_interpolation(vector<int>& atom2face);
+    void calc_interpolation();
 
     /** Reserve memory for data */
     void reserve(const int n_nodes);
@@ -81,10 +78,10 @@ public:
     void interpolate(const int n_points, const double* x, const double* y, const double* z);
 
     /** Interpolate solution on all Medium atoms */
-    void interpolate(const Medium &medium);
+    void interpolate(const Medium &medium, bool full_run);
 
     /** Interpolate solution on non-fixed AtomReader atoms */
-    void interpolate(const AtomReader &reader);
+    void interpolate(const AtomReader &reader, bool full_run);
 
     /** Determine whether given data is included in SolutionReader */
     int contains(const string& data_label) const;
@@ -117,6 +114,7 @@ protected:
 
     Interpolator* interpolator;    ///< pointer to interpolator
     vector<Solution> interpolation;       ///< interpolated data
+    vector<int> atom2cell;         ///< map storing which cell is connected with which atom
 
     /** Initialise statistics about coordinates and solution */
     void init_statistics();
@@ -127,6 +125,9 @@ protected:
 
     /** Get information about data vectors for .vtk file. */
     void get_point_data(ofstream& out) const;
+
+    /** Interpolate solution on the system atoms */
+    void calc_full_interpolation();
 
     /** Find the cell that surrounds i-th atom and interpolate the solution for it.
      * @param cell   initial guess for the cell that might surround the point
@@ -390,8 +391,8 @@ public:
     int calc_voronois(VoronoiMesh& mesh, const vector<int>& atom2face,
             const double radius, const double latconst, const string& mesh_quality);
 
-    /** Calculate Lorentz forces from atomistic electric fields and face charges */
-    void calc_lorentz(const FieldReader &fields);
+    /** Calculate Lorentz forces from known electric fields and charges */
+    void recalc_lorentz(const FieldReader &fields);
 
     /** Calculate atomistic charges and Lorentz forces by using the Voronoi cells */
     void calc_charge_and_lorentz(const VoronoiMesh& mesh, const FieldReader& fields);

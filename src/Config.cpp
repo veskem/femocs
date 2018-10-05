@@ -139,7 +139,7 @@ void Config::read_all(const string& file_name) {
     read_command("heat_ncg", heating.n_cg);
     read_command("heat_cgtol", heating.cg_tolerance);
     read_command("heat_ssor", heating.ssor_param);
-    read_command("heat_dtinit", heating.delta_time);
+    read_command("heat_dt", heating.delta_time);
     read_command("heat_dtmax", heating.dt_max);
     read_command("vscale_tau", heating.tau);
     read_command("heat_assemble", heating.assemble_method);

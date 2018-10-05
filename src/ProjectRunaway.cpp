@@ -219,7 +219,7 @@ int ProjectRunaway::prepare_export() {
 
     start_msg(t0, "=== Interpolating E and phi...");
     fields.set_preferences(true, 2, 1);
-    fields.interpolate(dense_surf);
+    fields.interpolate(dense_surf, mesh_changed);
     end_msg(t0);
 
     fields.write("out/fields.movie");
@@ -228,59 +228,31 @@ int ProjectRunaway::prepare_export() {
     if (conf.heating.mode != "none") {
         start_msg(t0, "=== Interpolating J & T...");
         temperatures.set_preferences(false, 3, conf.behaviour.interpolation_rank);
-        temperatures.interpolate(reader);
-        temperatures.precalc_berendsen_long();
+        temperatures.interpolate(reader, mesh_changed);
+        if (mesh_changed) temperatures.precalc_berendsen_long();
         end_msg(t0);
 
         // TODO implement reasonable temperature limit check
         temperatures.write("out/temperatures.movie");
     }
 
+    int retval = 0;
     if (conf.force.mode != "none") {
-        // analytical total charge without epsilon0 (will be added in ChargeReader)
-        const double tot_charge = conf.field.E0 * mesh->nodes.stat.xbox * mesh->nodes.stat.ybox;
+        if (mesh_changed)
+            retval = solve_force();
+        else {
+            start_msg(t0, "=== Recalculating forces...");
+            forces.recalc_lorentz(fields);
+            if (conf.force.mode == "all")
+                forces.calc_coulomb(conf.geometry.charge_cutoff);
 
-        ChargeReader face_charges(&vacuum_interpolator); // charges on surface triangles
-        face_charges.set_check_params(tot_charge, conf.tolerance.charge_min, conf.tolerance.charge_max);
-
-        start_msg(t0, "=== Calculating face charges...");
-        face_charges.calc_charges(*mesh, conf.field.E0);
-        end_msg(t0);
-
-        face_charges.write("out/face_charges.xyz");
-        check_return(face_charges.check_limits(), "Face charges are not conserved!");
-
-        start_msg(t0, "=== Distributing face charges...");
-        // Remove the atoms and their solutions outside the box
-        face_charges.clean(dense_surf.sizes, conf.geometry.latconst);
-        forces.distribute_charges(fields, face_charges, conf.smoothing.beta_charge);
-        end_msg(t0);
-
-        start_msg(t0, "=== Generating Voronoi cells...");
-        VoronoiMesh voro_mesh;
-        int err_code = forces.calc_voronois(voro_mesh, atom2face, conf.geometry.radius, conf.geometry.latconst, "10.0");
-        end_msg(t0);
-
-        check_return(err_code, "Generation of Voronoi cells failed with error code " + d2s(err_code));
-        voro_mesh.nodes.write("out/voro_nodes.vtk");
-        voro_mesh.voros.write("out/voro_cells.vtk");
-        voro_mesh.vfaces.write("out/voro_faces.vtk");
-
-        if (conf.force.mode == "lorentz") {
-            start_msg(t0, "=== Calculating Lorentz force...");
-            forces.calc_charge_and_lorentz(voro_mesh, fields);
-        } else {
-            start_msg(t0, "=== Calculating Lorentz & Coulomb force...");
-            forces.calc_charge_and_lorentz(voro_mesh, fields);
-            forces.calc_coulomb(conf.geometry.charge_cutoff);
+            end_msg(t0);
         }
-        end_msg(t0);
 
         forces.write("out/forces.movie");
-        check_return(face_charges.check_limits(forces.get_interpolations()), "Voronoi charges are not conserved!");
     }
 
-    return 0;
+    return retval;
 }
 
 int ProjectRunaway::run_field_solver() {
@@ -292,9 +264,55 @@ int ProjectRunaway::run_field_solver() {
 
 int ProjectRunaway::run_heat_solver() {
     int ccg, hcg;
-
-    if (conf.heating.mode == "transient")
+    bool b1 = GLOBALS.TIME - last_heat_time >= conf.heating.delta_time;
+    if (conf.heating.mode == "transient" && (mesh_changed || b1))
         return solve_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, mesh_changed, ccg, hcg);
+
+    return 0;
+}
+
+int ProjectRunaway::solve_force() {
+    // analytical total charge without epsilon0 (will be added in ChargeReader)
+    const double tot_charge = conf.field.E0 * mesh->nodes.stat.xbox * mesh->nodes.stat.ybox;
+
+    ChargeReader face_charges(&vacuum_interpolator); // charges on surface triangles
+    face_charges.set_check_params(tot_charge, conf.tolerance.charge_min, conf.tolerance.charge_max);
+
+    start_msg(t0, "=== Calculating face charges...");
+    face_charges.calc_charges(*mesh, conf.field.E0);
+    end_msg(t0);
+
+    face_charges.write("out/face_charges.xyz");
+    check_return(face_charges.check_limits(), "Face charges are not conserved!");
+
+    start_msg(t0, "=== Distributing face charges...");
+    // Remove the atoms and their solutions outside the box
+    face_charges.clean(dense_surf.sizes, conf.geometry.latconst);
+    forces.distribute_charges(fields, face_charges, conf.smoothing.beta_charge);
+    end_msg(t0);
+
+    start_msg(t0, "=== Generating Voronoi cells...");
+    VoronoiMesh voro_mesh;
+    int err_code = forces.calc_voronois(voro_mesh, atom2face, conf.geometry.radius, conf.geometry.latconst, "10.0");
+    end_msg(t0);
+
+    check_return(err_code, "Generation of Voronoi cells failed with error code " + d2s(err_code));
+    voro_mesh.nodes.write("out/voro_nodes.vtk");
+    voro_mesh.voros.write("out/voro_cells.vtk");
+    voro_mesh.vfaces.write("out/voro_faces.vtk");
+
+    if (conf.force.mode == "lorentz") {
+        start_msg(t0, "=== Calculating Lorentz force...");
+        forces.calc_charge_and_lorentz(voro_mesh, fields);
+    } else {
+        start_msg(t0, "=== Calculating Lorentz & Coulomb force...");
+        forces.calc_charge_and_lorentz(voro_mesh, fields);
+        forces.calc_coulomb(conf.geometry.charge_cutoff);
+    }
+    end_msg(t0);
+
+    forces.write("out/forces.movie");
+    check_return(face_charges.check_limits(forces.get_interpolations()), "Voronoi charges are not conserved!");
 
     return 0;
 }
