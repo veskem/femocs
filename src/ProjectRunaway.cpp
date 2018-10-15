@@ -192,8 +192,7 @@ int ProjectRunaway::prepare_solvers() {
     check_return(fail, "Importing vacuum mesh to Deal.II failed!");
     end_msg(t0);
 
-    vacuum_interpolator.initialize(mesh, poisson_solver);
-    vacuum_interpolator.lintet.narrow_search_to(TYPES.VACUUM);
+    vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
 
     if (conf.field.solver == "poisson" || conf.heating.mode != "none") {
         start_msg(t0, "=== Importing bulk mesh to Deal.II...");
@@ -201,8 +200,7 @@ int ProjectRunaway::prepare_solvers() {
         check_return(fail, "Importing bulk mesh to Deal.II failed!");
         end_msg(t0);
 
-        bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient);
-        bulk_interpolator.lintet.narrow_search_to(TYPES.BULK);
+        bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
 
         surface_fields.set_preferences(false, 2, 3);
         surface_temperatures.set_preferences(false, 2, 3);

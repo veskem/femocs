@@ -140,7 +140,9 @@ int Interpolator::update_point_cell(const SuperParticle& particle) const {
     return linhex.femocs2deal(femocs_cell);
 }
 
-void Interpolator::initialize(const TetgenMesh* m, DealSolver<3>& solver, const double empty_val) {
+void Interpolator::initialize(const TetgenMesh* m, DealSolver<3>& solver,
+		const double empty_val, const int search_region)
+{
     // === update mesh
     mesh = m;
     nodes.set_mesh(mesh);
@@ -160,7 +162,9 @@ void Interpolator::initialize(const TetgenMesh* m, DealSolver<3>& solver, const 
     linquad.precompute();
     linhex.precompute();
 
+    lintet.narrow_search_to(search_region);
     empty_value = empty_val;
+
 
     const int n_nodes = nodes.size();
     const int n_hexs = mesh->hexs.size();
