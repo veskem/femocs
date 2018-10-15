@@ -111,10 +111,10 @@ protected:
     bool sort_atoms;              ///< sort atoms along Hilbert curve to make interpolation faster
     int dim;                      ///< location of interpolation; 2-surface, 3-space
     int rank;                     ///< interpolation rank; 1-linear, 2-quadratic
+    bool atoms_mapped_to_cells;   ///< flag indicating whether fast interpolation can be performed or not
 
     Interpolator* interpolator;    ///< pointer to interpolator
     vector<Solution> interpolation;       ///< interpolated data
-    vector<int> atom2cell;         ///< map storing which cell is connected with which atom
 
     /** Initialise statistics about coordinates and solution */
     void init_statistics();
