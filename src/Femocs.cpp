@@ -30,6 +30,10 @@ Femocs::Femocs(const string &conf_file) : t0(0) {
     else if (conf.behaviour.verbosity == "silent")  { MODES.MUTE = false; MODES.VERBOSE = false; }
     else if (conf.behaviour.verbosity == "verbose") { MODES.MUTE = false; MODES.VERBOSE = true;  }
 
+    // Pick correct flags for writing log file
+    MODES.WRITELOG = conf.behaviour.n_write_log != 0;
+    MODES.SHORTLOG = conf.behaviour.n_write_log < 0;
+
     // Clear the results from previous run
     if (first_call && conf.run.output_cleaner) fail = system("rm -rf out");
     fail = system("mkdir -p out");
@@ -57,10 +61,10 @@ int Femocs::run(const int timestep, const double time) {
 }
 
 void Femocs::perform_full_analysis(const int* nborlist) {
-    string debug_msg = "=== Performing coordination";
+    string debug_msg = "Performing coordination";
     if (conf.run.rdf) debug_msg += ", rdf";
     if (conf.run.cluster_anal) debug_msg += ", cluster";
-    start_msg(t0, debug_msg + " analysis...");
+    start_msg(t0, debug_msg + " analysis");
 
     if (conf.run.rdf)
         reader.calc_rdf_coordinations(nborlist);
@@ -73,13 +77,13 @@ void Femocs::perform_full_analysis(const int* nborlist) {
     end_msg(t0);
     write_verbose_msg(d2s(reader));
 
-    start_msg(t0, "=== Extracting atom types...");
+    start_msg(t0, "Extracting atom types");
     reader.extract_types();
     end_msg(t0);
 }
 
 void Femocs::perform_pseudo_analysis() {
-    start_msg(t0, "=== Calculating coords from atom types...");
+    start_msg(t0, "Calculating coords from atom types");
     reader.calc_pseudo_coordinations();
     end_msg(t0);
 }
@@ -93,10 +97,10 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
 
     bool system_changed = true;
     if (fname == "generate") {
-        start_msg(t0, "=== Generating nanotip...");
+        start_msg(t0, "Generating nanotip");
         reader.generate_nanotip(conf.geometry.height, conf.geometry.radius, conf.geometry.latconst);
     } else {
-        start_msg(t0, "=== Importing atoms...");
+        start_msg(t0, "Importing atoms");
         system_changed = reader.import_file(fname, add_noise);
     }
     end_msg(t0);
@@ -117,7 +121,7 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
 int Femocs::import_atoms(const int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
     clear_log();
 
-    start_msg(t0, "=== Importing atoms...");
+    start_msg(t0, "Importing atoms");
     bool system_changed = reader.import_parcas(n_atoms, coordinates, box);
     end_msg(t0);
     write_verbose_msg( "#input atoms: " + d2s(reader.size()) );
@@ -135,7 +139,7 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
     clear_log();
     conf.run.surface_cleaner = false; // disable the surface cleaner for atoms with known types
 
-    start_msg(t0, "=== Importing atoms...");
+    start_msg(t0, "Importing atoms");
     bool system_changed = reader.import_atoms(n_atoms, x, y, z, types);
     end_msg(t0);
     write_verbose_msg( "#input atoms: " + d2s(reader.size()) );

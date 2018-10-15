@@ -52,16 +52,16 @@ double periodic_image(double p, double max, double min){
 
 // Write debug message to console and log file and start timer
 void start_msg(double& t0, const string& message) {
-    if (MODES.WRITELOG) write_log(message);
+    write_log(message);
     if (MODES.VERBOSE) {
-        const int row_len = 45;
+        const int row_len = 42;
         const size_t msg_len = message.size();
 
         int whitespace_len = 0;
         if (row_len > msg_len && message[msg_len-1] != '\n')
             whitespace_len = row_len - msg_len;
 
-        cout << endl << message << string(whitespace_len, ' ');
+        cout << "\n=== " << message << "..." << string(whitespace_len, ' ');
         cout.flush();
 
         t0 = omp_get_wtime();
@@ -75,25 +75,27 @@ void end_msg(const double t0) {
 
 // Write message to log file and console
 void write_silent_msg(const string& message) {
-    if (MODES.WRITELOG) write_log(message);
+    write_log("\n" + message + "\n");
     if (!MODES.MUTE) cout << "\nFEMOCS: " << message << endl;
 }
 
 // Write message to log file and console
 void write_verbose_msg(const string& message) {
-    if (MODES.WRITELOG) write_log("  " + message);
+    write_log("  " + message);
     if (MODES.VERBOSE) cout << "  " << message << endl;
 }
 
 // Append line to log file
 void write_log(const string& message) {
-    ofstream logfile(FEMOCSLOGPATH, ios_base::app);
-    if (logfile) logfile << message << endl;
+    if (MODES.WRITELOG) {
+        ofstream logfile(FEMOCSLOGPATH, ios_base::app);
+        if (logfile) logfile << message << endl;
+    }
 }
 
 // Delete contents of log file
 void clear_log() {
-    if (MODES.WRITELOG) {
+    if (MODES.WRITELOG && MODES.SHORTLOG) {
         const string cmd = "rm -f " + FEMOCSLOGPATH;
         if ( system(cmd.c_str()) ) return;
     }

@@ -22,6 +22,7 @@ Config::Config() {
 
     behaviour.verbosity = "verbose";  // mute, silent, verbose
     behaviour.project = "runaway";    // project to be run; runaway, ...
+    behaviour.n_write_log = -1;
     behaviour.n_writefile = 1;        // number of time steps between writing the output files
     behaviour.interpolation_rank = 1; // rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
     behaviour.write_period = 1.e5;    // write files every write_period of time
@@ -122,6 +123,7 @@ void Config::read_all(const string& file_name) {
     check_obsolete("surface_thichness", "surface_thickness");
     check_obsolete("smooth_factor", "surface_smooth_factor");
     check_obsolete("surface_cleaner", "clean_surface");
+    check_obsolete("write_log", "n_write_log");
     check_obsolete("use_histclean");
 
     // Modify the parameters that are specified in input script
@@ -186,8 +188,8 @@ void Config::read_all(const string& file_name) {
     read_command("clean_surface", run.surface_cleaner);
     read_command("smoothen_field", run.field_smoother);
     read_command("femocs_periodic", MODES.PERIODIC);
-    read_command("write_log", MODES.WRITELOG);
 
+    read_command("n_write_log", behaviour.n_write_log);
     read_command("femocs_verbose_mode", behaviour.verbosity);
     read_command("project", behaviour.project);
     read_command("n_writefile", behaviour.n_writefile);

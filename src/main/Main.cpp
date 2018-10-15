@@ -25,11 +25,11 @@ void print_progress(const string& message, const bool contition) {
 void write_defaults(ofstream &file) {
     file << "mesh_quality = 1.8"         << endl;
     file << "heating_mode = none"        << endl;
-    file << "write_log = false"           << endl;
     file << "clear_output = true"        << endl;
     file << "surface_smooth_factor= 0.1" << endl;
     file << "charge_smooth_factor = 1.0" << endl;
     file << "distance_tol = 0.0"         << endl;
+    file << "n_write_log = -1"           << endl;
     file << "n_writefile = 1"            << endl;
     file << "use_rdf = false"            << endl;
     file << "clean_surface = true"       << endl;

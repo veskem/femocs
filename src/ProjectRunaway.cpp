@@ -41,7 +41,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
     temperatures.set_params(config);
 
     // Initialise heating module
-    start_msg(t0, "=== Reading physical quantities...");
+    start_msg(t0, "Reading physical quantities");
     phys_quantities.initialize_with_hc_data();
     end_msg(t0);
 }
@@ -68,6 +68,8 @@ int ProjectRunaway::reinit(int tstep, double time) {
 
 int ProjectRunaway::finalize(double tstart, double time) {
     GLOBALS.TIME += conf.behaviour.timestep_fs;
+    if (conf.behaviour.n_write_log > 0)
+        MODES.WRITELOG = (timestep+1)%conf.behaviour.n_write_log == 0;
     if (MODES.WRITEFILE) {
         write_flag1 = false;
         write_flag2 = false;
@@ -81,6 +83,8 @@ int ProjectRunaway::process_failed(const string &msg) {
     write_verbose_msg(msg);
     force_output();
     GLOBALS.TIME += conf.behaviour.timestep_fs;
+    if (conf.behaviour.n_write_log > 0)
+        MODES.WRITELOG = (timestep+1)%conf.behaviour.n_write_log == 0;
     return 1;
 }
 
@@ -99,7 +103,7 @@ int ProjectRunaway::run(const int timestep, const double time) {
     else if (generate_mesh())
         return process_failed("Mesh generation failed!");
 
-    check_return(GLOBALS.TIME == 0 && !mesh_changed, "First meshing failed! Terminating...");
+    check_return(GLOBALS.TIME == 0 && !mesh_changed, "First meshing failed!");
 
     if (mesh_changed && prepare_solvers())
         return process_failed("Preparation of FEM solvers failed!");
@@ -121,19 +125,19 @@ int ProjectRunaway::run(const int timestep, const double time) {
 }
 
 int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
-    start_msg(t0, "=== Extracting surface...");
+    start_msg(t0, "Extracting surface");
     reader.extract(dense_surf, TYPES.SURFACE);
     end_msg(t0);
     dense_surf.write("out/surface_dense.xyz");
 
     if (GLOBALS.TIME == 0) {
-        start_msg(t0, "=== Extending surface...");
+        start_msg(t0, "Extending surface");
         dense_surf.extend(extended_surf, conf);
         end_msg(t0);
         extended_surf.write("out/surface_extension.xyz");
     }
 
-    start_msg(t0, "=== Coarsening surface...");
+    start_msg(t0, "Coarsening surface");
     dense_surf.generate_boundary_nodes(bulk, coarse_surf, vacuum, extended_surf, conf, GLOBALS.TIME==0);
     end_msg(t0);
 
@@ -149,21 +153,21 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
 
 int ProjectRunaway::generate_mesh() {
     if (conf.path.mesh_file != "") {
-        start_msg(t0, "=== Reading mesh from file...");
+        start_msg(t0, "Reading mesh from file");
         fail = new_mesh->read(conf.path.mesh_file, "rQnn");
     } else {
         Surface bulk, coarse_surf, vacuum;
         fail = generate_boundary_nodes(bulk, coarse_surf, vacuum);
         check_return(fail, "Generation of mesh generator nodes failed!");
 
-        start_msg(t0, "=== Generating vacuum & bulk mesh...");
+        start_msg(t0, "Generating vacuum & bulk mesh");
         fail = new_mesh->generate(bulk, coarse_surf, vacuum, conf);
     }
     end_msg(t0);
     check_return(fail, "Mesh generation failed!");
 
     if (conf.run.surface_cleaner && dense_surf.size() > 0) {
-        start_msg(t0, "=== Cleaning surface atoms...");
+        start_msg(t0, "Cleaning surface atoms");
         dense_surf.clean_by_triangles(atom2face, vacuum_interpolator, new_mesh, conf.geometry.latconst);
         end_msg(t0);
     }
@@ -189,7 +193,7 @@ int ProjectRunaway::generate_mesh() {
 }
 
 int ProjectRunaway::prepare_solvers() {
-    start_msg(t0, "=== Importing vacuum mesh to Deal.II...");
+    start_msg(t0, "Importing vacuum mesh to Deal.II");
     fail = !poisson_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_vacuum());
     check_return(fail, "Importing vacuum mesh to Deal.II failed!");
     end_msg(t0);
@@ -197,7 +201,7 @@ int ProjectRunaway::prepare_solvers() {
     vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
 
     if (conf.field.solver == "poisson" || conf.heating.mode != "none") {
-        start_msg(t0, "=== Importing bulk mesh to Deal.II...");
+        start_msg(t0, "Importing bulk mesh to Deal.II");
         fail = !ch_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_bulk());
         check_return(fail, "Importing bulk mesh to Deal.II failed!");
         end_msg(t0);
@@ -217,7 +221,7 @@ int ProjectRunaway::prepare_export() {
         return 0;
     }
 
-    start_msg(t0, "=== Interpolating E and phi...");
+    start_msg(t0, "Interpolating E and phi");
     fields.set_preferences(true, 2, 1);
     fields.interpolate(dense_surf, mesh_changed);
     end_msg(t0);
@@ -226,7 +230,7 @@ int ProjectRunaway::prepare_export() {
     check_return(fields.check_limits(), "Field enhancement is out of limits!");
 
     if (conf.heating.mode != "none") {
-        start_msg(t0, "=== Interpolating J & T...");
+        start_msg(t0, "Interpolating J & T");
         temperatures.set_preferences(false, 3, conf.behaviour.interpolation_rank);
         temperatures.interpolate(reader, mesh_changed);
         if (mesh_changed) temperatures.precalc_berendsen_long();
@@ -241,7 +245,7 @@ int ProjectRunaway::prepare_export() {
         if (mesh_changed)
             retval = solve_force();
         else {
-            start_msg(t0, "=== Recalculating forces...");
+            start_msg(t0, "Recalculating forces");
             forces.recalc_lorentz(fields);
             if (conf.force.mode == "all")
                 forces.calc_coulomb(conf.geometry.charge_cutoff);
@@ -278,20 +282,20 @@ int ProjectRunaway::solve_force() {
     ChargeReader face_charges(&vacuum_interpolator); // charges on surface triangles
     face_charges.set_check_params(tot_charge, conf.tolerance.charge_min, conf.tolerance.charge_max);
 
-    start_msg(t0, "=== Calculating face charges...");
+    start_msg(t0, "Calculating face charges");
     face_charges.calc_charges(*mesh, conf.field.E0);
     end_msg(t0);
 
     face_charges.write("out/face_charges.xyz");
     check_return(face_charges.check_limits(), "Face charges are not conserved!");
 
-    start_msg(t0, "=== Distributing face charges...");
+    start_msg(t0, "Distributing face charges");
     // Remove the atoms and their solutions outside the box
     face_charges.clean(dense_surf.sizes, conf.geometry.latconst);
     forces.distribute_charges(fields, face_charges, conf.smoothing.beta_charge);
     end_msg(t0);
 
-    start_msg(t0, "=== Generating Voronoi cells...");
+    start_msg(t0, "Generating Voronoi cells");
     VoronoiMesh voro_mesh;
     int err_code = forces.calc_voronois(voro_mesh, atom2face, conf.geometry.radius, conf.geometry.latconst, "10.0");
     end_msg(t0);
@@ -302,10 +306,10 @@ int ProjectRunaway::solve_force() {
     voro_mesh.vfaces.write("out/voro_faces.vtk");
 
     if (conf.force.mode == "lorentz") {
-        start_msg(t0, "=== Calculating Lorentz force...");
+        start_msg(t0, "Calculating Lorentz force");
         forces.calc_charge_and_lorentz(voro_mesh, fields);
     } else {
-        start_msg(t0, "=== Calculating Lorentz & Coulomb force...");
+        start_msg(t0, "Calculating Lorentz & Coulomb force");
         forces.calc_charge_and_lorentz(voro_mesh, fields);
         forces.calc_coulomb(conf.geometry.charge_cutoff);
     }
@@ -321,18 +325,18 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
     fields.set_check_params(conf, conf.geometry.radius, mesh->tris.stat.zbox, mesh->nodes.stat.zbox);
 
-    start_msg(t0, "=== Initializing Laplace solver...");
+    start_msg(t0, "Initializing Laplace solver");
     poisson_solver.setup(-E0, V0);
     poisson_solver.assemble_laplace(true);
     end_msg(t0);
 
     write_verbose_msg(poisson_solver.to_str());
 
-    start_msg(t0, "=== Running Laplace solver...");
+    start_msg(t0, "Running Laplace solver");
     poisson_solver.solve();
     end_msg(t0);
 
-    start_msg(t0, "=== Extracting E and phi...");
+    start_msg(t0, "Extracting E and phi");
     vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
     end_msg(t0);
 
@@ -347,7 +351,7 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
 int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {
     if (full_run) ch_solver.setup(T_ambient);
 
-    start_msg(t0, "=== Calculating electron emission...");
+    start_msg(t0, "Calculating electron emission");
     if (full_run) surface_fields.interpolate(ch_solver);
     surface_temperatures.interpolate(ch_solver);
     emission.initialize(mesh, full_run);
@@ -360,19 +364,19 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
 
     emission.export_emission(ch_solver);
 
-    start_msg(t0, "=== Calculating current density...");
+    start_msg(t0, "Calculating current density");
     ch_solver.current.assemble();
     ccg = ch_solver.current.solve();
     end_msg(t0);
     write_verbose_msg("#CG steps: " + d2s(ccg));
 
-    start_msg(t0, "=== Calculating temperature distribution...");
+    start_msg(t0, "Calculating temperature distribution");
     ch_solver.heat.assemble(delta_time * 1.e-15); // caution!! ch_solver internal time in sec
     hcg = ch_solver.heat.solve();
     end_msg(t0);
     write_verbose_msg("#CG steps: " + d2s(hcg));
 
-    start_msg(t0, "=== Extracting J & T...");
+    start_msg(t0, "Extracting J & T");
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
