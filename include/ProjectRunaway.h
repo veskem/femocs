@@ -64,11 +64,12 @@ protected:
     bool fail;                  ///< If some process failed
     double t0;                  ///< CPU timer
     int timestep;               ///< counter to measure how many times Femocs has been called
-    bool mesh_changed = false;          ///< True if new mesh has been created
+    bool mesh_changed;          ///< True if new mesh has been created
+    bool write_flag1;           ///< timestep / n_writefile == 0 event has occured
+    bool write_flag2;           ///< rms > distance_tol event has occured
 
     string timestep_string;     ///< time step written to file name
 
-    int last_full_timestep;     ///< last time step Femocs did    full calculation
     double last_heat_time;      ///< Last time heat was updated
     double last_write_time;     ///< Keeps the time that last file output was done
 

@@ -18,8 +18,9 @@ namespace femocs {
 
 ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         GeneralProject(reader, config),
-        fail(false), t0(0), timestep(-1), last_full_timestep(0),
-        last_heat_time(0), last_write_time(0),
+        fail(false), t0(0), timestep(-1),
+		mesh_changed(false), write_flag1(false), write_flag2(false),
+		last_heat_time(0), last_write_time(0),
 
         vacuum_interpolator("elfield", "potential"),
         bulk_interpolator("rho", "temperature"),
@@ -46,14 +47,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 }
 
 int ProjectRunaway::reinit(int tstep, double time) {
-    static bool skip_meshing = true;  // remember the value of skip_meshing
     ++timestep;
-
-    if (!skip_meshing && MODES.WRITEFILE)
-        MODES.WRITEFILE = false;
-
-    if ((conf.behaviour.n_writefile > 0) && (timestep % conf.behaviour.n_writefile == 0))
-        MODES.WRITEFILE = true;
 
     atom2face.clear();
 
@@ -61,7 +55,12 @@ int ProjectRunaway::reinit(int tstep, double time) {
     timestep_string = "_" + string( max(0.0, 6.0 - timestep_string.length()), '0' ) + timestep_string;
 
     mesh_changed = false;
-    skip_meshing = reader.get_rmsd() < conf.tolerance.distance;
+    bool skip_meshing = reader.get_rmsd() < conf.tolerance.distance;
+
+    write_flag1 = conf.behaviour.n_writefile > 0 && timestep % conf.behaviour.n_writefile == 0;
+    write_flag2 = !skip_meshing;
+
+    MODES.WRITEFILE = write_flag1 && write_flag2;
 
     write_silent_msg("Running at timestep=" + d2s(timestep) + ", time=" + d2s(GLOBALS.TIME, 2) + " fs");
     return skip_meshing;
@@ -69,7 +68,10 @@ int ProjectRunaway::reinit(int tstep, double time) {
 
 int ProjectRunaway::finalize(double tstart, double time) {
     GLOBALS.TIME += conf.behaviour.timestep_fs;
-    last_full_timestep = timestep;
+    if (MODES.WRITEFILE) {
+        write_flag1 = false;
+        write_flag2 = false;
+    }
     reader.save_current_run_points(conf.tolerance.distance);
     write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
     return 0;
