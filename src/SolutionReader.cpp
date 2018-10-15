@@ -79,6 +79,8 @@ void SolutionReader::calc_full_interpolation() {
         sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
         sort( atoms.begin(), atoms.end(), Atom::sort_id() );
     }
+
+    atoms_mapped_to_cells = true;
 }
 
 void SolutionReader::calc_interpolation() {
@@ -90,7 +92,6 @@ void SolutionReader::calc_interpolation() {
     if (!atoms_mapped_to_cells) {
         // ...nop, do the mapping, interpolate and output mapping
         calc_full_interpolation();
-        atoms_mapped_to_cells = true;
         return;
     }
 
@@ -298,7 +299,7 @@ void SolutionReader::interpolate(const int n_points, const double* x, const doub
     calc_interpolation();
 }
 
-void SolutionReader::interpolate(const Medium &medium, bool full_run) {
+void SolutionReader::interpolate(const Medium &medium) {
     const int n_atoms = medium.size();
     reserve(n_atoms);
 
@@ -314,7 +315,7 @@ void SolutionReader::interpolate(const Medium &medium, bool full_run) {
         atoms[i].id = medium.get_id(i);
 }
 
-void SolutionReader::interpolate(const AtomReader &reader, bool full_run) {
+void SolutionReader::interpolate(const AtomReader &reader) {
     require(!sort_atoms, "Atom sorting not allowed here!");
     const int n_atoms = reader.size();
     reserve(n_atoms);

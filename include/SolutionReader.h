@@ -32,6 +32,9 @@ public:
     /** Interpolate solution using already available data about which atom is connected with which cell */
     void calc_interpolation();
 
+    /** Map atoms to cells and interpolate solution on the system atoms */
+    void calc_full_interpolation();
+
     /** Reserve memory for data */
     void reserve(const int n_nodes);
 
@@ -78,10 +81,10 @@ public:
     void interpolate(const int n_points, const double* x, const double* y, const double* z);
 
     /** Interpolate solution on all Medium atoms */
-    void interpolate(const Medium &medium, bool full_run);
+    void interpolate(const Medium &medium);
 
     /** Interpolate solution on non-fixed AtomReader atoms */
-    void interpolate(const AtomReader &reader, bool full_run);
+    void interpolate(const AtomReader &reader);
 
     /** Determine whether given data is included in SolutionReader */
     int contains(const string& data_label) const;
@@ -125,9 +128,6 @@ protected:
 
     /** Get information about data vectors for .vtk file. */
     void get_point_data(ofstream& out) const;
-
-    /** Interpolate solution on the system atoms */
-    void calc_full_interpolation();
 
     /** Find the cell that surrounds i-th atom and interpolate the solution for it.
      * @param cell   initial guess for the cell that might surround the point

@@ -67,14 +67,28 @@ int ProjectRunaway::reinit(int tstep, double time) {
 }
 
 int ProjectRunaway::finalize(double tstart, double time) {
-    GLOBALS.TIME += conf.behaviour.timestep_fs;
+    // determine whether log file will be written on next timestep
     if (conf.behaviour.n_write_log > 0)
         MODES.WRITELOG = (timestep+1)%conf.behaviour.n_write_log == 0;
+
+    // reset file output flags
     if (MODES.WRITEFILE) {
         write_flag1 = false;
         write_flag2 = false;
     }
+
+    // mesh pointers are updated here to make sure that mesh is completely used
+    // and tied into interpolators
+    static bool odd_run = true;
+    if (mesh_changed) {
+        if (odd_run) new_mesh = &mesh2;
+        else new_mesh = &mesh1;
+        odd_run = !odd_run;
+    }
+
+    GLOBALS.TIME += conf.behaviour.timestep_fs;
     reader.save_current_run_points(conf.tolerance.distance);
+
     write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
     return 0;
 }
@@ -183,11 +197,6 @@ int ProjectRunaway::generate_mesh() {
     mesh = new_mesh;
     mesh_changed = true;
 
-    static bool odd_run = true;
-    if (odd_run) new_mesh = &mesh2;
-    else new_mesh = &mesh1;
-    odd_run = !odd_run;
-
     write_verbose_msg(mesh->to_str());
     return 0;
 }
@@ -198,18 +207,19 @@ int ProjectRunaway::prepare_solvers() {
     check_return(fail, "Importing vacuum mesh to Deal.II failed!");
     end_msg(t0);
 
-    vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
-
     if (conf.field.solver == "poisson" || conf.heating.mode != "none") {
         start_msg(t0, "Importing bulk mesh to Deal.II");
         fail = !ch_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_bulk());
         check_return(fail, "Importing bulk mesh to Deal.II failed!");
         end_msg(t0);
 
-        bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
-
-        surface_fields.set_preferences(false, 2, 3);
-        surface_temperatures.set_preferences(false, 2, 3);
+        // in case of first run, give initial values to the temperature
+        // interpolator and set interpolation preferences
+        if (bulk_interpolator.nodes.size() == 0) {
+            bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
+            surface_fields.set_preferences(false, 2, 3);
+            surface_temperatures.set_preferences(false, 2, 3);
+        }
     }
 
     return 0;
@@ -222,8 +232,11 @@ int ProjectRunaway::prepare_export() {
     }
 
     start_msg(t0, "Interpolating E and phi");
-    fields.set_preferences(true, 2, 1);
-    fields.interpolate(dense_surf, mesh_changed);
+    if (mesh_changed) {
+        fields.set_preferences(true, 2, 1);
+        fields.interpolate(dense_surf);
+    }
+    else fields.calc_interpolation();
     end_msg(t0);
 
     fields.write("out/fields.movie");
@@ -231,9 +244,12 @@ int ProjectRunaway::prepare_export() {
 
     if (conf.heating.mode != "none") {
         start_msg(t0, "Interpolating J & T");
-        temperatures.set_preferences(false, 3, conf.behaviour.interpolation_rank);
-        temperatures.interpolate(reader, mesh_changed);
-        if (mesh_changed) temperatures.precalc_berendsen_long();
+        if (mesh_changed) {
+            temperatures.set_preferences(false, 3, conf.behaviour.interpolation_rank);
+            temperatures.interpolate(reader);
+            temperatures.precalc_berendsen_long();
+        }
+        else temperatures.calc_interpolation();
         end_msg(t0);
 
         // TODO implement reasonable temperature limit check
@@ -337,6 +353,7 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
     end_msg(t0);
 
     start_msg(t0, "Extracting E and phi");
+    vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
     vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
     end_msg(t0);
 
@@ -351,18 +368,30 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
 int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {
     if (full_run) ch_solver.setup(T_ambient);
 
-    start_msg(t0, "Calculating electron emission");
-    if (full_run) surface_fields.interpolate(ch_solver);
-    surface_temperatures.interpolate(ch_solver);
-    emission.initialize(mesh, full_run);
-    emission.calc_emission(conf.emission, conf.field.V0);
+    static bool make_intermediate_step = false;
+    start_msg(t0, "Transferring field & temperature");
+    if (full_run) {
+        surface_fields.interpolate(ch_solver);
+        surface_temperatures.interpolate(ch_solver);
+        bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK); // must be after interpolation as it clears previous data
+        make_intermediate_step = true;
+    } else if (make_intermediate_step) {
+        surface_temperatures.calc_full_interpolation();
+        make_intermediate_step = false;
+    } else
+        surface_temperatures.calc_interpolation();
     end_msg(t0);
 
-    emission.write("out/emission.movie");
     surface_fields.write("out/surface_fields.movie");
     surface_temperatures.write("out/surface_temperatures.movie");
 
+    start_msg(t0, "Calculating electron emission");
+    emission.initialize(mesh, full_run);
+    emission.calc_emission(conf.emission, conf.field.V0);
     emission.export_emission(ch_solver);
+    end_msg(t0);
+
+    emission.write("out/emission.movie");
 
     start_msg(t0, "Calculating current density");
     ch_solver.current.assemble();
