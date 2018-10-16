@@ -80,7 +80,7 @@ void SolutionReader::calc_full_interpolation() {
         sort( atoms.begin(), atoms.end(), Atom::sort_id() );
     }
 
-    atoms_mapped_to_cells = true;
+//    atoms_mapped_to_cells = true;
 }
 
 void SolutionReader::calc_interpolation() {

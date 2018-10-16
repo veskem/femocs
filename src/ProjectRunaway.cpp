@@ -95,7 +95,7 @@ int ProjectRunaway::finalize(double tstart, double time) {
 
 int ProjectRunaway::process_failed(const string &msg) {
     write_verbose_msg(msg);
-    force_output();
+//    force_output();
     GLOBALS.TIME += conf.behaviour.timestep_fs;
     if (conf.behaviour.n_write_log > 0)
         MODES.WRITELOG = (timestep+1)%conf.behaviour.n_write_log == 0;
@@ -253,7 +253,7 @@ int ProjectRunaway::prepare_export() {
         end_msg(t0);
 
         // TODO implement reasonable temperature limit check
-        temperatures.write("out/temperatures.movie");
+        temperatures.write("out/temperatures.xyz");
     }
 
     int retval = 0;
@@ -409,7 +409,7 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
-    bulk_interpolator.nodes.write("out/result_J_T.movie");
+    bulk_interpolator.nodes.write("out/result_J_T.xyz");
     bulk_interpolator.lintet.write("out/result_J_T.vtk");
 
     last_heat_time = GLOBALS.TIME;
