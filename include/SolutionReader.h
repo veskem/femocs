@@ -318,6 +318,9 @@ private:
     /** Compose entry to dat file */
     string get_global_data(const bool first_line) const;
 
+    /** Compose console output of occured errors */
+    string get_error_codes(vector<int> &errors) const;
+
     static constexpr double angstrom_per_nm = 10.0;
     static constexpr double nm2_per_angstrom2 = 0.01;
     static constexpr int n_lines = 32; ///< Number of points in the line for GETELEC
@@ -388,8 +391,7 @@ public:
     void distribute_charges(const FieldReader &fields, const ChargeReader& faces, const double smooth_factor);
 
     /** Build Voronoi cells around the atoms in the region of interest */
-    int calc_voronois(VoronoiMesh& mesh, const vector<int>& atom2face,
-            const double radius, const double latconst, const string& mesh_quality);
+    int calc_voronois(VoronoiMesh& mesh, const Config::Geometry& conf, const string& mesh_quality);
 
     /** Calculate Lorentz forces from known electric fields and charges */
     void recalc_lorentz(const FieldReader &fields);

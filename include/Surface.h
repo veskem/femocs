@@ -44,7 +44,7 @@ public:
     void update_positions(const Medium& medium);
 
     /** Remove the atoms that are too far from surface faces */
-    void clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const TetgenMesh* mesh, const double r_cut);
+    void clean_by_triangles(Interpolator& interpolator, const TetgenMesh* mesh, const double r_cut);
 
 private:
     Coarseners coarseners;  ///< atomistic coarsening data & routines

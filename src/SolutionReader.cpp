@@ -694,6 +694,7 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
     gt.R = 1000.0;   // radius of curvature (overrided by femocs potential distribution)
     gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
     double F, J;    // Local field and current density in femocs units (Angstrom)
+    vector<int> errors;  // list of errors that occured during the run
 
     for (int i = 0; i < fields->size(); ++i) { // go through all face centroids
         double elfield_norm = fields->get_elfield_norm(i);
@@ -727,8 +728,7 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
         if ((J > 0.1 * global_data.Jmax || gt.ierr) && !cold){ // If J is worth it, calculate with full energy integration
             gt.approx = 1;
             cur_dens_c(&gt);
-            if (gt.ierr != 0 )
-                write_verbose_msg("GETELEC 2nd call returned with error, ierr = " + d2s(gt.ierr));
+            if (gt.ierr != 0 ) errors.push_back(gt.ierr);
             J = gt.Jem * nm2_per_angstrom2;
             set_marker(i, 2);
         }
@@ -737,6 +737,29 @@ void EmissionReader::emission_cycle(double workfunction, bool blunt, bool cold) 
         current_densities[i] = J;
         nottingham[i] = nm2_per_angstrom2 * gt.heat;
     }
+
+    if (errors.size() > 0)
+        write_verbose_msg("Errors of GETELEC 2nd call: " + get_error_codes(errors));
+}
+
+string EmissionReader::get_error_codes(vector<int> &errors) const {
+    std::sort(errors.begin(), errors.end());
+
+    string retval;
+    int error_cntr = 0;
+    int prev_error = errors[0];
+    for (int e : errors) {
+        if (e == prev_error)
+            error_cntr++;
+        else {
+            retval += d2s(error_cntr) + "x of " + d2s(prev_error) + ", ";
+            prev_error = e;
+            error_cntr = 1;
+        }
+    }
+
+    retval += d2s(error_cntr) + "x of " + d2s(prev_error);
+    return retval;
 }
 
 void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
@@ -956,10 +979,10 @@ int ForceReader::get_nanotip(Medium& nanotip, const double radius) {
     nanotip.reserve(n_nanotip_atoms);
     for (int i = 0; i < n_atoms; ++i)
         if (atom_in_nanotip[i]) {
-            nanotip.append(Atom(i, get_point(i), TYPES.SURFACE));
+            nanotip.append(Atom(TYPES.SURFACE, get_point(i), get_marker(i)));
             set_marker(i, 1);
-        } else
-            set_marker(i, 0);
+        }
+        else set_marker(i, 0);
 
     nanotip.calc_statistics();
     return n_nanotip_atoms;
@@ -1005,41 +1028,36 @@ void ForceReader::clean_voro_faces(VoronoiMesh& mesh) {
 
 }
 
-int ForceReader::calc_voronois(VoronoiMesh& mesh, const vector<int>& atom2face,
-        const double radius, const double latconst, const string& mesh_quality)
+int ForceReader::calc_voronois(VoronoiMesh& mesh,
+        const Config::Geometry& conf, const string& mesh_quality)
 {
     require(interpolator, "NULL interpolator cannot be used!");
     const int n_atoms = size();
-    const bool faces_known = n_atoms == (int)atom2face.size();
     // TODO put those values to Config, because they affect heavily how the voronoi charges will look like
-    const double max_distance_from_surface = 0.5 * latconst;
-    const double shift_distance = 1.0 * latconst;
+    const double max_distance_from_surface = 0.5 * conf.latconst;
+    const double shift_distance = 1.0 * conf.latconst;
 
     Medium nanotip;
-    const int n_nanotip_atoms = get_nanotip(nanotip, radius);
+    const int n_nanotip_atoms = get_nanotip(nanotip, conf.radius);
 
-    // calculate support points for the nanotip
-    // by moving the nanotip points in direction of its corresponding triangle norm by r_cut
+    // calculate support points for the nanotip by moving the nanotip points
+    // in direction of its corresponding triangle norm by shift_distance
     Medium support(n_nanotip_atoms);
-    int face = 0;
-    for (int i = 0; i < n_atoms; ++i)
-        if (get_marker(i)) {
-            Point3 point = get_point(i);
-            if (faces_known) face = atom2face[i];
-            else face = abs( interpolator->lintri.locate_cell(point, face) );
+    for (int i = 0; i < n_nanotip_atoms; ++i) {
+        Point3 point = nanotip.get_point(i);
+        int face = abs( nanotip.get_marker(i) );
 
-            if (interpolator->lintri.fast_distance(point, face) < max_distance_from_surface) {
-                point += interpolator->lintri.get_norm(face) * shift_distance;
-                support.append(Atom(i, point, TYPES.VACANCY));
-            }
+        if (interpolator->lintri.fast_distance(point, face) < max_distance_from_surface) {
+            point += interpolator->lintri.get_norm(face) * shift_distance;
+            support.append(Atom(TYPES.VACANCY, point, face));
         }
+    }
 
     nanotip += support;
-    nanotip.calc_statistics();
 
     // Generate Voronoi cells around the nanotip
     // r - reconstruct, v - output Voronoi cells, Q - quiet, q - mesh quality
-    int err_code = mesh.generate(nanotip, latconst, "rQq" + mesh_quality, "vQ");
+    int err_code = mesh.generate(nanotip, conf.latconst, "rQq" + mesh_quality, "vQ");
     if (err_code) return err_code;
 
     // Clean the mesh from faces and cells that have node in the infinity

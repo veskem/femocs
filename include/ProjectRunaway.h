@@ -65,16 +65,12 @@ protected:
     double t0;                  ///< CPU timer
     int timestep;               ///< counter to measure how many times Femocs has been called
     bool mesh_changed;          ///< True if new mesh has been created
-    bool write_flag1;           ///< timestep / n_writefile == 0 event has occured
-    bool write_flag2;           ///< rms > distance_tol event has occured
+    unsigned int write_flags;   ///< Flags to determine whether file output should be enabled or not
 
     string timestep_string;     ///< time step written to file name
 
     double last_heat_time;      ///< Last time heat was updated
     double last_write_time;     ///< Keeps the time that last file output was done
-
-    // as surface atom->triangle mapping is quite heavy but useful in many places, it's good to prevent doing it many times
-    vector<int> atom2face;  ///< surface atom to triangle index map
 
     Interpolator vacuum_interpolator;  ///< data & operations for interpolating field & potential in vacuum
     Interpolator bulk_interpolator;    ///< data & operations for interpolating current density & temperature in bulk
@@ -121,6 +117,9 @@ protected:
 
     /** Handle failed subprocess */
     int process_failed(const string &msg);
+
+    /** Specify mesh address where new mesh will be generated on next run */
+    void update_mesh_pointers();
 
 private:
     /** Check if enough time has passed since the last file write_results */

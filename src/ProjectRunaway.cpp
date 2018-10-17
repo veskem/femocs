@@ -19,7 +19,7 @@ namespace femocs {
 ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         GeneralProject(reader, config),
         fail(false), t0(0), timestep(-1),
-		mesh_changed(false), write_flag1(false), write_flag2(false),
+		mesh_changed(false), write_flags(0),
 		last_heat_time(0), last_write_time(0),
 
         vacuum_interpolator("elfield", "potential"),
@@ -49,47 +49,34 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 int ProjectRunaway::reinit(int tstep, double time) {
     ++timestep;
 
-    atom2face.clear();
-
     timestep_string = d2s(timestep);
     timestep_string = "_" + string( max(0.0, 6.0 - timestep_string.length()), '0' ) + timestep_string;
 
     mesh_changed = false;
     bool skip_meshing = reader.get_rmsd() < conf.tolerance.distance;
 
-    write_flag1 = conf.behaviour.n_writefile > 0 && timestep % conf.behaviour.n_writefile == 0;
-    write_flag2 = !skip_meshing;
+    write_flags |= conf.behaviour.n_writefile > 0 && timestep % conf.behaviour.n_writefile == 0;
+    write_flags |= (!skip_meshing) << 1;
 
-    MODES.WRITEFILE = write_flag1 && write_flag2;
+    MODES.WRITEFILE = write_flags == 3;
 
     write_silent_msg("Running at timestep=" + d2s(timestep) + ", time=" + d2s(GLOBALS.TIME, 2) + " fs");
     return skip_meshing;
 }
 
 int ProjectRunaway::finalize(double tstart, double time) {
+    GLOBALS.TIME += conf.behaviour.timestep_fs;
+    reader.save_current_run_points(conf.tolerance.distance);
+
+    write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
+
     // determine whether log file will be written on next timestep
     if (conf.behaviour.n_write_log > 0)
         MODES.WRITELOG = (timestep+1)%conf.behaviour.n_write_log == 0;
 
     // reset file output flags
-    if (MODES.WRITEFILE) {
-        write_flag1 = false;
-        write_flag2 = false;
-    }
+    if (MODES.WRITEFILE) write_flags = 0;
 
-    // mesh pointers are updated here to make sure that mesh is completely used
-    // and tied into interpolators
-    static bool odd_run = true;
-    if (mesh_changed) {
-        if (odd_run) new_mesh = &mesh2;
-        else new_mesh = &mesh1;
-        odd_run = !odd_run;
-    }
-
-    GLOBALS.TIME += conf.behaviour.timestep_fs;
-    reader.save_current_run_points(conf.tolerance.distance);
-
-    write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
     return 0;
 }
 
@@ -117,8 +104,6 @@ int ProjectRunaway::run(const int timestep, const double time) {
     else if (generate_mesh())
         return process_failed("Mesh generation failed!");
 
-    check_return(GLOBALS.TIME == 0 && !mesh_changed, "First meshing failed!");
-
     if (mesh_changed && prepare_solvers())
         return process_failed("Preparation of FEM solvers failed!");
 
@@ -130,12 +115,25 @@ int ProjectRunaway::run(const int timestep, const double time) {
     if (run_heat_solver())
         return process_failed("Running heat solver in a " + conf.heating.mode + " mode failed!");
 
+
     //***** Prepare for data export and next run *****
+
+    // Must be here to ensure old mesh is not deleted too early nor too late
+    update_mesh_pointers();
 
     if (prepare_export())
         return process_failed("Interpolating solution on atoms failed!");
 
     return finalize(tstart, time);
+}
+
+void ProjectRunaway::update_mesh_pointers() {
+    static bool odd_run = true;
+    if (mesh_changed) {
+        if (odd_run) new_mesh = &mesh2;
+        else new_mesh = &mesh1;
+        odd_run = !odd_run;
+    }
 }
 
 int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
@@ -178,11 +176,11 @@ int ProjectRunaway::generate_mesh() {
         fail = new_mesh->generate(bulk, coarse_surf, vacuum, conf);
     }
     end_msg(t0);
-    check_return(fail, "Mesh generation failed!");
+    if (fail) return 1;
 
     if (conf.run.surface_cleaner && dense_surf.size() > 0) {
         start_msg(t0, "Cleaning surface atoms");
-        dense_surf.clean_by_triangles(atom2face, vacuum_interpolator, new_mesh, conf.geometry.latconst);
+        dense_surf.clean_by_triangles(vacuum_interpolator, new_mesh, conf.geometry.latconst);
         end_msg(t0);
     }
 
@@ -252,8 +250,8 @@ int ProjectRunaway::prepare_export() {
         else temperatures.calc_interpolation();
         end_msg(t0);
 
-        // TODO implement reasonable temperature limit check
         temperatures.write("out/temperatures.xyz");
+        // TODO implement reasonable temperature limit check
     }
 
     int retval = 0;
@@ -313,7 +311,7 @@ int ProjectRunaway::solve_force() {
 
     start_msg(t0, "Generating Voronoi cells");
     VoronoiMesh voro_mesh;
-    int err_code = forces.calc_voronois(voro_mesh, atom2face, conf.geometry.radius, conf.geometry.latconst, "10.0");
+    int err_code = forces.calc_voronois(voro_mesh, conf.geometry, "10.0");
     end_msg(t0);
 
     check_return(err_code, "Generation of Voronoi cells failed with error code " + d2s(err_code));
@@ -413,6 +411,7 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     bulk_interpolator.lintet.write("out/result_J_T.vtk");
 
     last_heat_time = GLOBALS.TIME;
+    // TODO implement reasonable temperature limit check
     return 0;
 }
 
@@ -441,9 +440,12 @@ int ProjectRunaway::force_output() {
 
     MODES.WRITEFILE = true;
 
-    reader.write("out/reader.ckx");
-    mesh->hexs.write("out/hexmesh_err.vtk");
-    mesh->quads.write("out/quadmesh_err.vtk");
+    reader.write("out/reader_err.ckx");
+
+    if (mesh && mesh->nodes.size() > 0) {
+        mesh->hexs.write("out/hexmesh_err.vtk");
+        mesh->quads.write("out/quadmesh_err.vtk");
+    }
 
     if (conf.field.solver != "none" && vacuum_interpolator.nodes.size() > 0) {
         vacuum_interpolator.nodes.write("out/result_E_phi_err.xyz");

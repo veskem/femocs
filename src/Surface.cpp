@@ -245,11 +245,10 @@ void Surface::fast_coarsen(Surface &surface, const Medium::Sizes &s) {
     surface.calc_statistics();
 }
 
-void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const TetgenMesh* mesh, const double r_cut) {
+void Surface::clean_by_triangles(Interpolator& interpolator, const TetgenMesh* mesh, const double r_cut) {
     if (r_cut <= 0) return;
 
     const int n_atoms = size();
-    surf2face.resize(n_atoms);
 
     interpolator.lintri.set_mesh(mesh);
     interpolator.lintri.precompute();
@@ -260,12 +259,10 @@ void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpola
         face = abs(interpolator.lintri.locate_cell(atom.point, face));
         if (interpolator.lintri.fast_distance(atom.point, face) < r_cut) {
             atom.marker = face;
-            atoms[j] = atom;
-            surf2face[j++] = face;
+            atoms[j++] = atom;
         }
     }
 
-    surf2face.resize(j);
     atoms.resize(j);
     calc_statistics();
 }
