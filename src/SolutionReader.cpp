@@ -35,30 +35,30 @@ SolutionReader::SolutionReader(Interpolator* i, const string& vec_lab, const str
 
 // that function can't be directly moved into calc_interpolation, as OpenMP can't handle reference to cell
 int SolutionReader::update_interpolation(const int i, int cell) {
-    Point3 point = get_point(i);
+    Atom &atom = atoms[i];
 
     // Depending on interpolation dimension and rank, pick corresponding functions
     if (dim == 2) {
         if (rank == 1)
-            interpolation[i] = interpolator->lintri.locate_interpolate(point, cell);
+            interpolation[i] = interpolator->lintri.locate_interpolate(atom.point, cell);
         else if (rank == 2)
-            interpolation[i] = interpolator->quadtri.locate_interpolate(point, cell);
+            interpolation[i] = interpolator->quadtri.locate_interpolate(atom.point, cell);
         else if (rank == 3)
-            interpolation[i] = interpolator->linquad.locate_interpolate(point, cell);
+            interpolation[i] = interpolator->linquad.locate_interpolate(atom.point, cell);
     } else {
         if (rank == 1)
-            interpolation[i] = interpolator->lintet.locate_interpolate(point, cell);
+            interpolation[i] = interpolator->lintet.locate_interpolate(atom.point, cell);
         else if (rank == 2)
-            interpolation[i] = interpolator->quadtet.locate_interpolate(point, cell);
+            interpolation[i] = interpolator->quadtet.locate_interpolate(atom.point, cell);
         else if (rank == 3)
-            interpolation[i] = interpolator->linhex.locate_interpolate(point, cell);
+            interpolation[i] = interpolator->linhex.locate_interpolate(atom.point, cell);
     }
 
-    set_marker(i, cell);
+    atom.marker = cell;
     return cell;
 }
 
-void SolutionReader::calc_interpolation() {
+void SolutionReader::calc_full_interpolation() {
     require(interpolator, "NULL interpolator cannot be used!");
     const int n_atoms = size();
 
@@ -78,21 +78,19 @@ void SolutionReader::calc_interpolation() {
         sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
         sort( atoms.begin(), atoms.end(), Atom::sort_id() );
     }
+
+    atoms_mapped_to_cells = true;
 }
 
-void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
+void SolutionReader::calc_interpolation() {
     require(interpolator, "NULL interpolator cannot be used!");
 
     const int n_atoms = size();
-    const bool cells_not_known = (int)atom2cell.size() != n_atoms;
 
     // are the atoms already mapped against the triangles?
-    if (cells_not_known) {
+    if (!atoms_mapped_to_cells) {
         // ...nop, do the mapping, interpolate and output mapping
-        calc_interpolation();
-        atom2cell = vector<int>(n_atoms);
-        for (int i = 0; i < n_atoms; ++i)
-            atom2cell[i] = abs(get_marker(i));
+        calc_full_interpolation();
         return;
     }
 
@@ -102,24 +100,24 @@ void SolutionReader::calc_interpolation(vector<int>& atom2cell) {
 #pragma omp parallel for private(cell)
     for (int i = 0; i < n_atoms; ++i) {
         // locate the face
-        cell = atom2cell[i];
-        set_marker(i, cell);
+        Atom &atom = atoms[i];
+        cell = abs(atom.marker);
 
         // calculate the interpolation
         if (dim == 2) {
             if (rank == 1)
-                interpolation[i] = interpolator->lintri.interp_solution(get_point(i), cell);
+                interpolation[i] = interpolator->lintri.interp_solution(atom.point, cell);
             else if (rank == 2)
-                interpolation[i] = interpolator->quadtri.interp_solution(get_point(i), cell);
+                interpolation[i] = interpolator->quadtri.interp_solution(atom.point, cell);
             else if (rank == 3)
-                interpolation[i] = interpolator->linquad.interp_solution(get_point(i), cell);
+                interpolation[i] = interpolator->linquad.interp_solution(atom.point, cell);
         } else {
             if (rank == 1)
-                interpolation[i] = interpolator->lintet.interp_solution(get_point(i), cell);
+                interpolation[i] = interpolator->lintet.interp_solution(atom.point, cell);
             else if (rank == 2)
-                interpolation[i] = interpolator->quadtet.interp_solution(get_point(i), cell);
+                interpolation[i] = interpolator->quadtet.interp_solution(atom.point, cell);
             else if (rank == 3)
-                interpolation[i] = interpolator->linhex.interp_solution(get_point(i), cell);
+                interpolation[i] = interpolator->linhex.interp_solution(atom.point, cell);
         }
     }
 }
@@ -130,10 +128,13 @@ void SolutionReader::reserve(const int n_nodes) {
     atoms.clear();
     atoms.reserve(n_nodes);
     interpolation.resize(n_nodes);
+    atoms_mapped_to_cells = false;
 }
 
 string SolutionReader::get_data_string(const int i) const{
-    if (i < 0) return "SolutionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
+    if (i < 0) return "Time=" + d2s(GLOBALS.TIME,2)
+            + "; SolutionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:"
+            + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
 
     ostringstream strs; strs << fixed;
     strs << atoms[i] << " " << interpolation[i];
@@ -577,8 +578,6 @@ void HeatReader::calc_SI_velocities(vector<Vec3>& velocities,
     }
 }
 
-
-
 /* ==========================================
  * ============== CHARGE READER =============
  * ========================================== */
@@ -589,7 +588,6 @@ ChargeReader::ChargeReader(Interpolator* i) :
 void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
     const double sign = fabs(E0) / E0;
     const int n_faces = mesh.tris.size();
-    const int n_quads_per_triangle = 3;
 
     // Store the centroids of the triangles
     reserve(n_faces);
@@ -599,7 +597,7 @@ void ChargeReader::calc_charges(const TetgenMesh& mesh, const double E0) {
     // create triangle index to its centroid index mapping
     vector<int> tri2centroid(n_faces);
     for (int face = 0; face < n_faces; ++face) {
-        for (int node : mesh.quads[n_quads_per_triangle * face])
+        for (int node : mesh.quads[n_quads_per_tri * face])
             if (mesh.nodes.get_marker(node) == TYPES.FACECENTROID) {
                 tri2centroid[face] = node;
                 break;
@@ -700,10 +698,10 @@ int ForceReader::get_nanotip(Medium& nanotip, const double radius) {
     nanotip.reserve(n_nanotip_atoms);
     for (int i = 0; i < n_atoms; ++i)
         if (atom_in_nanotip[i]) {
-            nanotip.append(Atom(i, get_point(i), TYPES.SURFACE));
+            nanotip.append(Atom(TYPES.SURFACE, get_point(i), get_marker(i)));
             set_marker(i, 1);
-        } else
-            set_marker(i, 0);
+        }
+        else set_marker(i, 0);
 
     nanotip.calc_statistics();
     return n_nanotip_atoms;
@@ -749,41 +747,36 @@ void ForceReader::clean_voro_faces(VoronoiMesh& mesh) {
 
 }
 
-int ForceReader::calc_voronois(VoronoiMesh& mesh, const vector<int>& atom2face,
-        const double radius, const double latconst, const string& mesh_quality)
+int ForceReader::calc_voronois(VoronoiMesh& mesh,
+        const Config::Geometry& conf, const string& mesh_quality)
 {
     require(interpolator, "NULL interpolator cannot be used!");
     const int n_atoms = size();
-    const bool faces_known = n_atoms == (int)atom2face.size();
     // TODO put those values to Config, because they affect heavily how the voronoi charges will look like
-    const double max_distance_from_surface = 0.5 * latconst;
-    const double shift_distance = 1.0 * latconst;
+    const double max_distance_from_surface = 0.5 * conf.latconst;
+    const double shift_distance = 1.0 * conf.latconst;
 
     Medium nanotip;
-    const int n_nanotip_atoms = get_nanotip(nanotip, radius);
+    const int n_nanotip_atoms = get_nanotip(nanotip, conf.radius);
 
-    // calculate support points for the nanotip
-    // by moving the nanotip points in direction of its corresponding triangle norm by r_cut
+    // calculate support points for the nanotip by moving the nanotip points
+    // in direction of its corresponding triangle norm by shift_distance
     Medium support(n_nanotip_atoms);
-    int face = 0;
-    for (int i = 0; i < n_atoms; ++i)
-        if (get_marker(i)) {
-            Point3 point = get_point(i);
-            if (faces_known) face = atom2face[i];
-            else face = abs( interpolator->lintri.locate_cell(point, face) );
+    for (int i = 0; i < n_nanotip_atoms; ++i) {
+        Point3 point = nanotip.get_point(i);
+        int face = abs( nanotip.get_marker(i) );
 
-            if (interpolator->lintri.fast_distance(point, face) < max_distance_from_surface) {
-                point += interpolator->lintri.get_norm(face) * shift_distance;
-                support.append(Atom(i, point, TYPES.VACANCY));
-            }
+        if (interpolator->lintri.fast_distance(point, face) < max_distance_from_surface) {
+            point += interpolator->lintri.get_norm(face) * shift_distance;
+            support.append(Atom(TYPES.VACANCY, point, face));
         }
+    }
 
     nanotip += support;
-    nanotip.calc_statistics();
 
     // Generate Voronoi cells around the nanotip
     // r - reconstruct, v - output Voronoi cells, Q - quiet, q - mesh quality
-    int err_code = mesh.generate(nanotip, latconst, "rQq" + mesh_quality, "vQ");
+    int err_code = mesh.generate(nanotip, conf.latconst, "rQq" + mesh_quality, "vQ");
     if (err_code) return err_code;
 
     // Clean the mesh from faces and cells that have node in the infinity
@@ -830,21 +823,16 @@ void ForceReader::calc_charge_and_lorentz(const VoronoiMesh& mesh, const FieldRe
         }
 }
 
-void ForceReader::calc_lorentz(const FieldReader &fields) {
+void ForceReader::recalc_lorentz(const FieldReader &fields) {
+    // the assumption is that the amount and IDs of field points
+    // from previous full timestep have not changed
     const int n_atoms = fields.size();
+    require(n_atoms == size(), "Invalid input fields!");
 
-    // Copy the atom data
-    reserve(n_atoms);
-    atoms = fields.atoms;
-
-    // Calculate the charges by ensuring the that the total sum of it remains conserved
-    vector<double> charges;
-    interpolator->lintri.interp_conserved(charges, atoms);
-
-    // calculate forces and store them
     for (int i = 0; i < n_atoms; ++i) {
-        Vec3 force = fields.get_elfield(i) * (charges[i] * force_factor);   // [e*V/A]
-        interpolation.push_back(Solution(force, 0, charges[i]));
+        double charge = get_charge(i);
+        Vec3 force = fields.get_elfield(i) * (charge * force_factor);
+        interpolation[i] = Solution(force, 0, charge);
     }
 }
 

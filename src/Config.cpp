@@ -22,6 +22,7 @@ Config::Config() {
 
     behaviour.verbosity = "verbose";  // mute, silent, verbose
     behaviour.project = "runaway";    // project to be run; runaway, ...
+    behaviour.n_write_log = -1;
     behaviour.n_writefile = 1;        // number of time steps between writing the output files
     behaviour.interpolation_rank = 1; // rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
     behaviour.write_period = 1.e5;    // write files every write_period of time
@@ -132,6 +133,7 @@ void Config::read_all(const string& file_name) {
     check_obsolete("surface_thichness", "surface_thickness");
     check_obsolete("smooth_factor", "surface_smooth_factor");
     check_obsolete("surface_cleaner", "clean_surface");
+    check_obsolete("write_log", "n_write_log");
     check_obsolete("run_pic", "pic_mode");
     check_obsolete("use_histclean");
     check_obsolete("electronWsp", "electron_weight");
@@ -145,12 +147,17 @@ void Config::read_all(const string& file_name) {
     read_command("Vappl_SC", emission.Vappl_SC);
     read_command("SC_mode", emission.SC_mode);
 
-    read_command("t_ambient", heating.t_ambient);
     read_command("heating_mode", heating.mode);
-    read_command("lorentz", heating.lorentz);
     read_command("rhofile", heating.rhofile);
-    read_command("heat_dtinit", heating.delta_time);
+    read_command("lorentz", heating.lorentz);
+    read_command("t_ambient", heating.t_ambient);
+    read_command("heat_ncg", heating.n_cg);
+    read_command("heat_cgtol", heating.cg_tolerance);
+    read_command("heat_ssor", heating.ssor_param);
+    read_command("heat_dt", heating.delta_time);
     read_command("heat_dtmax", heating.dt_max);
+    read_command("vscale_tau", heating.tau);
+    read_command("heat_assemble", heating.assemble_method);
 
     read_command("smooth_steps", smoothing.n_steps);
     read_command("smooth_lambda", smoothing.lambda_mesh);
@@ -194,8 +201,8 @@ void Config::read_all(const string& file_name) {
     read_command("clean_surface", run.surface_cleaner);
     read_command("smoothen_field", run.field_smoother);
     read_command("femocs_periodic", MODES.PERIODIC);
-    read_command("write_log", MODES.WRITELOG);
 
+    read_command("n_write_log", behaviour.n_write_log);
     read_command("femocs_verbose_mode", behaviour.verbosity);
     read_command("project", behaviour.project);
     read_command("n_writefile", behaviour.n_writefile);

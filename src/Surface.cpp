@@ -56,24 +56,12 @@ Surface::Surface(const Medium::Sizes& s, const double z, const double dist) {
     }
 }
 
-void Surface::extend(Surface& extension, const string &file_name) {
-    AtomReader reader;
-    reader.import_file(file_name);
+void Surface::extend(Surface& extension, const double latconst,
+    const double box_width, const double z, const Sizes& sizes)
+{
+    require(coarseners.get_r0_inf(sizes) > 0, "Invalid coarsener detected.");
 
-    extension.reserve(reader.size());
-    extension += reader;
-    extension.calc_statistics();
-    extension.sizes.zmean = extension.sizes.zmin;
-
-    coarsen(extension);
-}
-
-void Surface::extend(Surface& extension, const double latconst, const double box_width) {
-    calc_statistics();
-
-    if(coarseners.get_r0_inf(sizes) <=0 ) return;
     const double desired_box_width = box_width * sizes.zbox;
-    const double z = coarseners.centre.z;
 
     // if the input surface isn't sufficiently wide, add atoms to it
     if (desired_box_width > sizes.xbox && desired_box_width > sizes.ybox) {
@@ -257,11 +245,10 @@ void Surface::fast_coarsen(Surface &surface, const Medium::Sizes &s) {
     surface.calc_statistics();
 }
 
-void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const TetgenMesh* mesh, const double r_cut) {
+void Surface::clean_by_triangles(Interpolator& interpolator, const TetgenMesh* mesh, const double r_cut) {
     if (r_cut <= 0) return;
 
     const int n_atoms = size();
-    surf2face.resize(n_atoms);
 
     interpolator.lintri.set_mesh(mesh);
     interpolator.lintri.precompute();
@@ -272,12 +259,10 @@ void Surface::clean_by_triangles(vector<int>& surf2face, Interpolator& interpola
         face = abs(interpolator.lintri.locate_cell(atom.point, face));
         if (interpolator.lintri.fast_distance(atom.point, face) < r_cut) {
             atom.marker = face;
-            atoms[j] = atom;
-            surf2face[j++] = face;
+            atoms[j++] = atom;
         }
     }
 
-    surf2face.resize(j);
     atoms.resize(j);
     calc_statistics();
 }
@@ -365,12 +350,29 @@ void Surface::smoothen(const double smooth_factor, const double r_cut) {
 
 void Surface::extend(Surface& extended_surf, const Config& conf) {
     coarseners.generate(*this, conf.geometry.radius, conf.cfactor, conf.geometry.latconst);
-    if (conf.path.extended_atoms == "")
+
+    if (conf.path.extended_atoms == "") {
         // Extend surface by generating additional nodes
-        extend(extended_surf, conf.geometry.latconst, conf.geometry.box_width);
-    else
-        // Extend surface by reading the data from file
-        extend(extended_surf, conf.path.extended_atoms);
+        calc_statistics();
+        extend(extended_surf, conf.geometry.latconst, conf.geometry.box_width,
+            coarseners.centre.z, sizes);
+    }
+
+    else {
+        // Extend surface by first reading the data from file...
+        AtomReader reader;
+        reader.import_file(conf.path.extended_atoms);
+        extended_surf += reader;
+        extended_surf.sort_atoms(3, "down");
+
+        // ... and then by adding points on horizontal plane, if necessary
+        Surface temp_surf;
+        extend(temp_surf, conf.geometry.latconst, conf.geometry.box_width,
+            extended_surf.sizes.zmin, reader.sizes);
+        extended_surf += temp_surf;
+        clean(extended_surf);
+        extended_surf.sizes.zmean = extended_surf.sizes.zmin;
+    }
 }
 
 int Surface::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum,

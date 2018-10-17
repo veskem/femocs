@@ -43,8 +43,8 @@ extended_atoms = in/extension.xyz   # file with atoms of extended surface
 mesh_file = in/sample_mesh.msh  # file containing triangular and tetrahedral mesh data
 femocs_periodic = false         # imported atoms have periodic boundaries in x- & y-direction; must be false in systems without slab
 n_writefile = 1                 # minimum number of time steps between writing file; 0 turns writing off
+n_write_log = -1                # #timesteps between writing log file; <0: only last timestep, 0: no write, >0: only every n-th
 femocs_verbose_mode = verbose   # control verbosity in console; mute, silent or verbose
-write_log = true                # enable writing log file
 clear_output = true             # clear output folder before the run
 
 # Mesh and solution smoothing

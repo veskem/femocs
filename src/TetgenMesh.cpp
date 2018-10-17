@@ -198,7 +198,7 @@ int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& v
 
     // Generate surface faces
     err_code = generate_surface("rQB", "rQnn");
-    check_return(err_code, "Generation of surface faces failed with error code " + d2s(err_code));
+    check_return(err_code, "Triangulation failed with error code " + d2s(err_code));
 
     // Smoothen surface faces
     if (conf.smoothing.algorithm != "none" && conf.smoothing.n_steps > 0)

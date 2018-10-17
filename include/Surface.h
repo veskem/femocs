@@ -44,7 +44,7 @@ public:
     void update_positions(const Medium& medium);
 
     /** Remove the atoms that are too far from surface faces */
-    void clean_by_triangles(vector<int>& surf2face, Interpolator& interpolator, const TetgenMesh* mesh, const double r_cut);
+    void clean_by_triangles(Interpolator& interpolator, const TetgenMesh* mesh, const double r_cut);
 
 private:
     Coarseners coarseners;  ///< atomistic coarsening data & routines
@@ -56,10 +56,7 @@ private:
     void get_nanotip(Surface& nanotip, const double radius);
 
     /** Extend the flat area by generating additional atoms */
-    void extend(Surface &extension, const double latconst, const double box_width);
-
-    /** Extend the flat area by reading additional atoms */
-    void extend(Surface& extension, const string &file_name);
+    void extend(Surface &extension, const double latconst, const double box_width, const double z, const Sizes& sizes);
 
     /** Coarsen the atoms by generating additional boundary nodes and then running cleaner */
     void coarsen(Surface& surface);

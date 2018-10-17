@@ -29,11 +29,11 @@ public:
     SolutionReader();
     SolutionReader(Interpolator* i, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
-    /** Interpolate solution on the system atoms */
+    /** Interpolate solution using already available data about which atom is connected with which cell */
     void calc_interpolation();
 
-    /** Interpolate solution using already available data about which atom is connected with which cell */
-    void calc_interpolation(vector<int>& atom2face);
+    /** Map atoms to cells and interpolate solution on the system atoms */
+    void calc_full_interpolation();
 
     /** Reserve memory for data */
     void reserve(const int n_nodes);
@@ -114,6 +114,7 @@ protected:
     bool sort_atoms;              ///< sort atoms along Hilbert curve to make interpolation faster
     int dim;                      ///< location of interpolation; 2-surface, 3-space
     int rank;                     ///< interpolation rank; 1-linear, 2-quadratic
+    bool atoms_mapped_to_cells;   ///< flag indicating whether fast interpolation can be performed or not
 
     Interpolator* interpolator;    ///< pointer to interpolator
     vector<Solution> interpolation;       ///< interpolated data
@@ -298,11 +299,10 @@ public:
     void distribute_charges(const FieldReader &fields, const ChargeReader& faces, const double smooth_factor);
 
     /** Build Voronoi cells around the atoms in the region of interest */
-    int calc_voronois(VoronoiMesh& mesh, const vector<int>& atom2face,
-            const double radius, const double latconst, const string& mesh_quality);
+    int calc_voronois(VoronoiMesh& mesh, const Config::Geometry& conf, const string& mesh_quality);
 
-    /** Calculate Lorentz forces from atomistic electric fields and face charges */
-    void calc_lorentz(const FieldReader &fields);
+    /** Calculate Lorentz forces from known electric fields and charges */
+    void recalc_lorentz(const FieldReader &fields);
 
     /** Calculate atomistic charges and Lorentz forces by using the Voronoi cells */
     void calc_charge_and_lorentz(const VoronoiMesh& mesh, const FieldReader& fields);

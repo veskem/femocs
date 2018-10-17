@@ -138,7 +138,8 @@ struct Modes {
     bool VERBOSE = true;     ///< If VERBOSE all the information about the code execution progress is printed to console.
     bool WRITEFILE = true;   ///< If WRITEFILE then file writers operate normally, otherwise they return immediately.
     bool WRITELOG = true;    ///< If WRITELOG then writing log file is enabled
-    bool PERIODIC = true;    ///< Imported atoms have periodic boundaries in x- & y-direction
+    bool SHORTLOG = true;    ///< If SHORTLOG then only the last timestep is stored in log file
+    bool PERIODIC = true;    ///< If PERIODIC then imported atoms have periodic boundaries in x- & y-direction
 };
 
 struct Globals {
