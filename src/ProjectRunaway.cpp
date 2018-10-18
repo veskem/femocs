@@ -18,9 +18,9 @@ namespace femocs {
 
 ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         GeneralProject(reader, config),
-        fail(false), t0(0), timestep(-1),
-		mesh_changed(false), write_flags(0),
+        fail(false), t0(0), timestep(0), mesh_changed(false),
 		last_heat_time(0), last_write_time(0),
+		last_write_ts(0), last_mesh_write_ts(0),
 
         vacuum_interpolator("elfield", "potential"),
         bulk_interpolator("rho", "temperature"),
@@ -55,10 +55,11 @@ int ProjectRunaway::reinit(int tstep, double time) {
     mesh_changed = false;
     bool skip_meshing = reader.get_rmsd() < conf.tolerance.distance;
 
-    write_flags |= conf.behaviour.n_writefile > 0 && timestep % conf.behaviour.n_writefile == 0;
-    write_flags |= (!skip_meshing) << 1;
-
-    MODES.WRITEFILE = write_flags == 3;
+    MODES.WRITEFILE = conf.behaviour.n_writefile > 0 && (
+            last_write_ts == 0 ||
+            last_mesh_write_ts == 0 ||
+            (timestep - last_write_ts) >= conf.behaviour.n_writefile
+            );
 
     write_silent_msg("Running at timestep=" + d2s(timestep) + ", time=" + d2s(GLOBALS.TIME, 2) + " fs");
     return skip_meshing;
@@ -74,8 +75,11 @@ int ProjectRunaway::finalize(double tstart, double time) {
     if (conf.behaviour.n_write_log > 0)
         MODES.WRITELOG = (timestep+1)%conf.behaviour.n_write_log == 0;
 
-    // reset file output flags
-    if (MODES.WRITEFILE) write_flags = 0;
+    // update file output counters
+    if (MODES.WRITEFILE) {
+        last_write_ts = timestep;
+        if (mesh_changed) last_mesh_write_ts = timestep;
+    }
 
     return 0;
 }
@@ -184,6 +188,8 @@ int ProjectRunaway::generate_mesh() {
         end_msg(t0);
     }
 
+    MODES.WRITEFILE |= conf.behaviour.n_writefile > 0 && (timestep - last_mesh_write_ts) >= conf.behaviour.n_writefile;
+
     new_mesh->nodes.write("out/hexmesh_nodes.vtk");
     new_mesh->tris.write("out/trimesh.vtk");
     new_mesh->quads.write("out/quadmesh.vtk");
@@ -229,7 +235,7 @@ int ProjectRunaway::prepare_export() {
         return 0;
     }
 
-    start_msg(t0, "Interpolating E and phi");
+    start_msg(t0, "Interpolating E & phi");
     if (mesh_changed) {
         fields.set_preferences(true, 2, 1);
         fields.interpolate(dense_surf);
