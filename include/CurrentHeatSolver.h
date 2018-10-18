@@ -32,7 +32,7 @@ public:
     virtual ~EmissionSolver() {}
 
     /** Solve the matrix equation using conjugate gradient method */
-    unsigned int solve() { return this->solve_cg(conf->n_cg, conf->cg_tolerance, conf->ssor_param); }
+    int solve() { return this->solve_cg(conf->n_cg, conf->cg_tolerance, conf->ssor_param); }
 
     /** Set the boundary condition values on copper-vacuum boundary.
      * The values must be on the centroids of the vacuum-material boundary faces

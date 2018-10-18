@@ -14,102 +14,95 @@
 using namespace std;
 namespace femocs {
 
-// Config constructor initializes configuration parameters
 Config::Config() {
-    path.extended_atoms = "";         // file with the atoms forming the extended surface
-    path.infile = "";                 // file with the nanostructure atoms
-    path.mesh_file = "";              // file containing triangular and tetrahedral mesh data
+    path.extended_atoms = "";
+    path.infile = "";
+    path.mesh_file = "";
 
-    behaviour.verbosity = "verbose";  // mute, silent, verbose
-    behaviour.project = "runaway";    // project to be run; runaway, ...
+    behaviour.verbosity = "verbose";
+    behaviour.project = "runaway";
     behaviour.n_write_log = -1;
-    behaviour.n_writefile = 1;        // number of time steps between writing the output files
-    behaviour.interpolation_rank = 1; // rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
-    behaviour.write_period = 1.e5;    // write files every write_period of time
-    behaviour.timestep_fs = 4.05;     // Total time of a FEMOCS run [fs]
-    behaviour.mass = 63.5460;         // Atom mass [amu]
-    behaviour.rnd_seed = 12345;       // Seed for random number generator
-    behaviour.n_omp_threads = 1;      // Number of opened OpenMP threads
+    behaviour.n_writefile = 1;
+    behaviour.interpolation_rank = 1;
+    behaviour.write_period = 1.e5;
+    behaviour.timestep_fs = 4.05;
+    behaviour.mass = 63.5460;
+    behaviour.rnd_seed = 12345;
+    behaviour.n_omp_threads = 1;
 
-    run.cluster_anal = true;          // enable cluster analysis
-    run.apex_refiner = false;         // refine nanotip apex
-    run.rdf = false;                  // use radial distribution function to recalculate lattice constant and coordination analysis parameters
-    run.output_cleaner = true;        // clear output folder
-    run.surface_cleaner = true;       // clean surface by measuring the atom distance from the triangular surface
-    run.field_smoother = true;        // replace nodal field with the average of its neighbouring nodal fields
+    run.cluster_anal = true;
+    run.apex_refiner = false;
+    run.rdf = false;
+    run.output_cleaner = true;
+    run.surface_cleaner = true;
+    run.field_smoother = true;
 
-    geometry.mesh_quality = "2.0";    // minimum tetrahedron quality Tetgen is allowed to make
-    geometry.element_volume = "";     // maximum tetrahedron volume Tetgen is allowed to make
-    geometry.nnn = 12;                // number of nearest neighbours in bulk
-    geometry.latconst = 3.61;         // lattice constant
-    geometry.coordination_cutoff = 3.1; // coordination analysis cut-off radius
-    geometry.cluster_cutoff = 0;      // cluster analysis cut-off radius
-    geometry.charge_cutoff = 30;      // Coulomb force cut-off radius
-    geometry.surface_thickness = 3.1; // maximum distance the surface atom is allowed to be from surface mesh
-    geometry.box_width = 10;          // minimal simulation box width in units of tip height
-    geometry.box_height = 6;          // simulation box height in units of tip height
-    geometry.bulk_height = 20;        // bulk substrate height [lattice constant]
-    geometry.radius = 0.0;            // inner radius of coarsening cylinder
-    geometry.height = 0.0;            // height of generated artificial nanotip in the units of radius
+    geometry.mesh_quality = "2.0";
+    geometry.element_volume = "";
+    geometry.nnn = 12;
+    geometry.latconst = 3.61;
+    geometry.coordination_cutoff = 3.1;
+    geometry.cluster_cutoff = 0;
+    geometry.charge_cutoff = 30;
+    geometry.surface_thickness = 3.1;
+    geometry.box_width = 10;
+    geometry.box_height = 6;
+    geometry.bulk_height = 20;
+    geometry.radius = 0.0;
+    geometry.height = 0.0;
 
-    tolerance.charge_min = 0.8;       // min ratio face charges are allowed to deviate from the total charge
-    tolerance.charge_max = 1.2;       // max ratio face charges are allowed to deviate from the total charge
-    tolerance.field_min = 0.1;        // min ratio numerical field can deviate from analytical one
-    tolerance.field_max = 5.0;        // max ratio numerical field can deviate from analytical one
-    tolerance.distance = 0.0;         // rms distance tolerance for atom movement between two time steps
+    tolerance.charge_min = 0.8;
+    tolerance.charge_max = 1.2;
+    tolerance.field_min = 0.1;
+    tolerance.field_max = 5.0;
+    tolerance.distance = 0.0;
 
-    field.E0 = 0.0;                   // long range electric field
-    field.ssor_param = 1.2;           // parameter for SSOR preconditioner
-    field.phi_error = 1e-9;           // maximum allowed electric potential error
-    field.n_phi = 10000;              // maximum number of Conjugate Gradient iterations in phi calculation
-    field.V0 = 0.0;                   // anode voltage
-    field.anode_BC = "neumann";        // anode Neumann boundary
-    field.solver = "laplace";         // type of field equation to be solved; laplace or poisson
-    field.element_degree = 1;         // FEM element shape function degree
+    field.E0 = 0.0;
+    field.ssor_param = 1.2;
+    field.cg_tolerance = 1e-9;
+    field.n_cg = 10000;
+    field.V0 = 0.0;
+    field.anode_BC = "neumann";
+    field.solver = "laplace";
 
-    heating.mode = "none";            // method to calculate current density and temperature; none, stationary or transient
-    heating.rhofile = "in/rho_table.dat"; // rho table file
-    heating.lorentz = 2.44e-8;        // Lorentz number
-    heating.t_ambient = 300.0;        // ambient temperature
-    heating.t_error = 10.0;           // max allowed temperature error in Newton iterations
-    heating.n_newton = 10;            // max number of Newton iterations
-    heating.n_cg = 2000;              // max number of Conjugate-Gradient iterations
-    heating.cg_tolerance = 1e-9;      // solution accuracy in Conjugate-Gradient solver
-    heating.ssor_param = 1.2;         // parameter for SSOR pre-conditioner in DealII; 1.2 is known to work well with Laplace
-    heating.delta_time = 1.e3;        // timestep of time domain integration [fs]
-    heating.dt_max = 1.e5;            // max allowed timestep
-    heating.tau = 100.0;              // time constant in Berendsen thermostat
-    heating.assemble_method = "euler"; // method to assemble system matrix for solving heat equation
+    heating.mode = "none";
+    heating.rhofile = "in/rho_table.dat";
+    heating.lorentz = 2.44e-8;
+    heating.t_ambient = 300.0;
+    heating.n_cg = 2000;
+    heating.cg_tolerance = 1e-9;
+    heating.ssor_param = 1.2;         // 1.2 is known to work well with Laplace
+    heating.delta_time = 1.e3;
+    heating.dt_max = 1.e5;
+    heating.tau = 100.0;
+    heating.assemble_method = "euler";
 
-    emission.blunt = true;            // by default emitter is blunt (simple SN barrier used for emission)
+    emission.blunt = true;
     emission.cold = false;
-    emission.work_function = 4.5;     // work function [eV]
-    emission.omega_SC = -1;           // SC is ignored in Emission by default
-    emission.SC_error = 1.e-3;        // Convergence criterion for SC iteration
-    emission.Vappl_SC = 0.;           // Vappl used for SC calculations
+    emission.work_function = 4.5;
+    emission.omega_SC = -1;
+    emission.SC_error = 1.e-3;
+    emission.Vappl_SC = 0.;
 
-    force.mode = "none";              // forces to be calculated; lorentz, all, none
+    force.mode = "none";
 
-    smoothing.algorithm = "laplace";  // surface mesh smoother algorithm; none, laplace or fujiwara
-    smoothing.n_steps = 0;            // number of surface mesh smoothing iterations
-    smoothing.lambda_mesh = 0.6307;   // lambda parameter in surface mesh smoother
-    smoothing.mu_mesh = -0.6732;      // mu parameter in surface mesh smoother
-    smoothing.beta_atoms = 0.0;       // surface smoothing factor; bigger number gives smoother surface
-    smoothing.beta_charge = 1.0;      // charge smoothing factor; bigger number gives smoother charges
+    smoothing.algorithm = "laplace";
+    smoothing.n_steps = 0;
+    smoothing.lambda_mesh = 0.6307;
+    smoothing.mu_mesh = -0.6732;
+    smoothing.beta_atoms = 0.0;
+    smoothing.beta_charge = 1.0;
 
-    cfactor.amplitude = 0.4;          // coarsening factor outside the warm region
-    cfactor.r0_cylinder = 0;          // minimum distance between atoms in nanotip outside the apex
-    cfactor.r0_sphere = 0;            // minimum distance between atoms in nanotip apex
-    cfactor.exponential = 0.5;        // coarsening rate; min distance between coarsened atoms outside the warm region is
-                                      // d_min ~ pow(|r1-r2|, exponential)
+    cfactor.amplitude = 0.4;
+    cfactor.r0_cylinder = 0;
+    cfactor.r0_sphere = 0;
+    cfactor.exponential = 0.5;
 }
 
-// Remove the noise from the beginning of the string
 void Config::trim(string& str) {
     str.erase(0, str.find_first_of(comment_symbols + data_symbols));
 }
 
-// Read the configuration parameters from input script
 void Config::read_all(const string& file_name) {
     if(file_name == "") return;
 
@@ -146,22 +139,22 @@ void Config::read_all(const string& file_name) {
     read_command("vscale_tau", heating.tau);
     read_command("heat_assemble", heating.assemble_method);
 
+    read_command("field_ssor", field.ssor_param);
+    read_command("field_cgtol", field.cg_tolerance);
+    read_command("field_ncg", field.n_cg);
+    read_command("elfield", field.E0);
+    read_command("Vappl", field.V0);
+    read_command("anode_BC", field.anode_BC);
+    read_command("field_solver", field.solver);
+
+    read_command("force_mode", force.mode);
+
     read_command("smooth_steps", smoothing.n_steps);
     read_command("smooth_lambda", smoothing.lambda_mesh);
     read_command("smooth_mu", smoothing.mu_mesh);
     read_command("smooth_algorithm", smoothing.algorithm);
     read_command("surface_smooth_factor", smoothing.beta_atoms);
     read_command("charge_smooth_factor", smoothing.beta_charge);
-
-    read_command("phi_error", field.phi_error);
-    read_command("n_phi", field.n_phi);
-    read_command("elfield", field.E0);
-    read_command("Vappl", field.V0);
-    read_command("anode_BC", field.anode_BC);
-    read_command("field_solver", field.solver);
-    read_command("element_degree", field.element_degree);
-
-    read_command("force_mode", force.mode);
 
     read_command("latconst", geometry.latconst);
     read_command("coord_cutoff", geometry.coordination_cutoff);
@@ -242,7 +235,6 @@ void Config::read_all(const string& file_name) {
         field.apply_factors = {1.};
 }
 
-// Read the commands and their arguments from the file and store them into the buffer
 void Config::parse_file(const string& file_name) {
     ifstream file(file_name);
     require(file, "File not found: " + file_name);
@@ -278,7 +270,6 @@ void Config::parse_file(const string& file_name) {
     }
 }
 
-// Check for the obsolete commands from the buffered commands
 void Config::check_obsolete(const string& command) {
     for (const vector<string>& cmd : data)
         if (cmd[0] == command) {
@@ -287,7 +278,6 @@ void Config::check_obsolete(const string& command) {
         }
 }
 
-// Check for the obsolete commands that are similar to valid ones
 void Config::check_obsolete(const string& command, const string& substitute) {
     for (const vector<string>& cmd : data)
         if (cmd[0] == command) {
@@ -297,7 +287,6 @@ void Config::check_obsolete(const string& command, const string& substitute) {
         }
 }
 
-// Look up the parameter with string argument
 int Config::read_command(string param, string& arg) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
@@ -309,7 +298,6 @@ int Config::read_command(string param, string& arg) {
     return 1;
 }
 
-// Look up the parameter with boolean argument
 int Config::read_command(string param, bool& arg) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
@@ -328,7 +316,6 @@ int Config::read_command(string param, bool& arg) {
     return 1;
 }
 
-// Look up the parameter with unsigned integer argument
 int Config::read_command(string param, unsigned int& arg) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
@@ -342,7 +329,6 @@ int Config::read_command(string param, unsigned int& arg) {
     return 1;
 }
 
-// Look up the parameter with integer argument
 int Config::read_command(string param, int& arg) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
@@ -356,7 +342,6 @@ int Config::read_command(string param, int& arg) {
     return 1;
 }
 
-// Look up the parameter with double argument
 int Config::read_command(string param, double& arg) {
     // force the parameter to lower case
     std::transform(param.begin(), param.end(), param.begin(), ::tolower);
@@ -385,7 +370,6 @@ int Config::read_command(string param, vector<double>& args) {
     return n_read_args;
 }
 
-// Print the stored commands and parameters
 void Config::print_data() {
     if (!MODES.VERBOSE) return;
     const int cmd_len = 20;

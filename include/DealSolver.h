@@ -134,7 +134,7 @@ protected:
      * @param tolerance   tolerance of the solution
      * @param ssor_param  parameter to SSOR preconditioner. Its fine tuning optimises calculation time
      */
-    unsigned int solve_cg(const int n_steps, const double tolerance, const double ssor_param);
+    int solve_cg(const int n_steps, const double tolerance, const double ssor_param);
 
     /** Set up dynamic sparsity pattern for calculations */
     void setup_system();

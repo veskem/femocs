@@ -63,7 +63,7 @@ public:
     vector<double> get_charge_dens(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
 
     /** Run Conjugate-Gradient solver to solve matrix equation */
-    unsigned int solve() { return this->solve_cg(conf->n_phi, conf->phi_error, conf->ssor_param); }
+    int solve() { return this->solve_cg(conf->n_cg, conf->cg_tolerance, conf->ssor_param); }
 
     /** Setup system for solving Poisson equation */
     void setup(const double field, const double potential);

@@ -347,8 +347,10 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
     write_verbose_msg(poisson_solver.to_str());
 
     start_msg(t0, "Running Laplace solver");
-    poisson_solver.solve();
+    int ncg = poisson_solver.solve();
     end_msg(t0);
+    check_return(ncg < 0, "Field solver did not complete normally,"
+            " #CG=" + d2s(abs(ncg)) + "/" + d2s(conf.field.n_cg));
 
     start_msg(t0, "Extracting E and phi");
     vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
@@ -395,12 +397,16 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     ch_solver.current.assemble();
     ccg = ch_solver.current.solve();
     end_msg(t0);
+    check_return(ccg < 0, "Current solver did not complete normally,"
+            " #CG=" + d2s(abs(ccg)) + "/" + d2s(conf.heating.n_cg));
     write_verbose_msg("#CG steps: " + d2s(ccg));
 
     start_msg(t0, "Calculating temperature distribution");
     ch_solver.heat.assemble(delta_time * 1.e-15); // caution!! ch_solver internal time in sec
     hcg = ch_solver.heat.solve();
     end_msg(t0);
+    check_return(hcg < 0, "Heat solver did not complete normally,"
+            " #CG=" + d2s(abs(hcg)) + "/" + d2s(conf.heating.n_cg));
     write_verbose_msg("#CG steps: " + d2s(hcg));
 
     start_msg(t0, "Extracting J & T");

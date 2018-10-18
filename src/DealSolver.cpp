@@ -337,19 +337,22 @@ void DealSolver<dim>::apply_dirichlet() {
 }
 
 template<int dim>
-unsigned int DealSolver<dim>::solve_cg(int max_iter, double tol, double ssor_param) {
+int DealSolver<dim>::solve_cg(int max_iter, double tol, double ssor_param) {
     SolverControl solver_control(max_iter, tol);
     SolverCG<> solver(solver_control);
+    try {
+        if (ssor_param > 0.0) {
+            PreconditionSSOR<> preconditioner;
+            preconditioner.initialize(system_matrix, ssor_param);
+            solver.solve(system_matrix, solution, system_rhs, preconditioner);
+        } else
+            solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
 
-    if (ssor_param > 0.0) {
-        PreconditionSSOR<> preconditioner;
-        preconditioner.initialize(system_matrix, ssor_param);
-        solver.solve(system_matrix, solution, system_rhs, preconditioner);
-    } else
-        solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
-
-    solution_save = solution;
-    return solver_control.last_step();
+        solution_save = solution;
+        return solver_control.last_step();
+    } catch (exception &exc) {
+        return -1 * solver_control.last_step();
+    }
 }
 
 template<int dim>
