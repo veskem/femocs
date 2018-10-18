@@ -36,7 +36,7 @@ void Medium::calc_linked_list(const double r_cut) {
     for (int j = 0; j < 3; ++j) {
         nborbox_size[j] = ceil(1e-15 + 1.0 * simubox_size[j] / r_cut);
         require(nborbox_size[j] > 0,
-                "Invalid " + to_string(j) + "th nborbox size: " + to_string(nborbox_size[j]));
+                "Invalid " + d2s(j) + "th nborbox size: " + d2s(nborbox_size[j]));
     }
 
     head = vector<int>(nborbox_size[0]*nborbox_size[1]*nborbox_size[2], -1);
@@ -53,11 +53,11 @@ void Medium::calc_linked_list(const double r_cut) {
         for (int j = 0; j < 3; ++j) {
             point_index[j] = int( (dx[j] / simubox_size[j]) * nborbox_size[j] );
             require(point_index[j] >= 0 && point_index[j] < nborbox_size[j],
-                    "Invalid " + to_string(j) + "th point nbor index: " + to_string(point_index[j]));
+                    "Invalid " + d2s(j) + "th point nbor index: " + d2s(point_index[j]));
         }
 
         int i_cell = (point_index[2] * nborbox_size[1] + point_index[1]) * nborbox_size[0] + point_index[0];
-        require(i_cell >= 0 && i_cell < (int)head.size(), "Invalid neighbouring cell index: " + to_string(i_cell));
+        require(i_cell >= 0 && i_cell < (int)head.size(), "Invalid neighbouring cell index: " + d2s(i_cell));
 
         nborbox_indices.push_back(point_index);
         list[i] = head[i_cell];
@@ -67,7 +67,7 @@ void Medium::calc_linked_list(const double r_cut) {
 }
 
 void Medium::calc_verlet_nborlist(vector<vector<int>>& nborlist, const double r_cut, const bool periodic) {
-    require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
+    require(r_cut > 0, "Invalid cut-off radius: " + d2s(r_cut));
     calc_linked_list(r_cut);
 
     const int n_atoms = size();
@@ -101,7 +101,7 @@ void Medium::loop_nbor_boxes(vector<vector<int>>& nborlist, const double r_cut2,
 
                 // transform volumetric neighbour box index to linear one
                 int nbor_box = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
-                require(nbor_box >= 0 && nbor_box < (int)head.size(), "Invalid neighbouring cell index: " + to_string(nbor_box));
+                require(nbor_box >= 0 && nbor_box < (int)head.size(), "Invalid neighbouring cell index: " + d2s(nbor_box));
 
                 // get the index of first atom in given neighbouring cell and loop through all the neighbours
                 int nbor = head[nbor_box];
@@ -134,7 +134,7 @@ void Medium::loop_periodic_nbor_boxes(vector<vector<int>>& nborlist, const doubl
 
                  // transform volumetric neighbour box index to linear one
                 int nbor_box = (iz * nborbox_size[1] + iy) * nborbox_size[0] + ix;
-                require(nbor_box >= 0 && nbor_box < (int)head.size(), "Invalid neighbouring cell index: " + to_string(nbor_box));
+                require(nbor_box >= 0 && nbor_box < (int)head.size(), "Invalid neighbouring cell index: " + d2s(nbor_box));
 
                 // get the index of first atom in given neighbouring cell and loop through all the neighbours
                 int nbor = head[nbor_box];
@@ -156,9 +156,8 @@ int Medium::periodic_image(int image, int box_size) const {
     return image;
 }
 
-// Sort the atoms by their cartesian or radial coordinate
 void Medium::sort_atoms(const int coord, const string& direction) {
-    require(coord >= 0 && coord <= 3, "Invalid coordinate: " + to_string(coord));
+    require(coord >= 0 && coord <= 3, "Invalid coordinate: " + d2s(coord));
 
     if (size() < 2) return;
 
@@ -178,9 +177,8 @@ void Medium::sort_atoms(const int coord, const string& direction) {
         sort(atoms.begin(), atoms.end(), Atom::sort_down(coord));
 }
 
-// Sort the atoms first by 1st and then by 2nd cartesian coordinate
 void Medium::sort_atoms(const int x1, const int x2, const string& direction) {
-    require(x1 >= 0 && x1 <= 2 && x2 >= 0 && x2 <= 2, "Invalid coordinates: " + to_string(x1) + ", " + to_string(x2));
+    require(x1 >= 0 && x1 <= 2 && x2 >= 0 && x2 <= 2, "Invalid coordinates: " + d2s(x1) + ", " + d2s(x2));
 
     if (direction == "up" || direction == "asc")
         sort( atoms.begin(), atoms.end(), Atom::sort_up2(x1, x2) );
@@ -188,46 +186,39 @@ void Medium::sort_atoms(const int x1, const int x2, const string& direction) {
         sort( atoms.begin(), atoms.end(), Atom::sort_down2(x1, x2) );
 }
 
-// Perform spatial sorting by ordering atoms along Hilbert curve
 void Medium::sort_spatial() {
 #if USE_CGAL
     CGAL::hilbert_sort( atoms.begin(), atoms.end(), Atom::sort_spatial(), CGAL::Hilbert_sort_middle_policy() );
 #endif
 }
 
-// Reserve memory for data vectors
 void Medium::reserve(const int n_atoms) {
-    require(n_atoms >= 0, "Invalid number of atoms: " + to_string(n_atoms));
+    require(n_atoms >= 0, "Invalid number of atoms: " + d2s(n_atoms));
     atoms.clear();
     atoms.reserve(n_atoms);
 }
 
-// Reserve memory for data vectors
 void Medium::resize(const int n_atoms) {
-    require(n_atoms >= 0, "Invalid number of atoms: " + to_string(n_atoms));
+    require(n_atoms >= 0, "Invalid number of atoms: " + d2s(n_atoms));
     atoms.reserve(n_atoms);
 }
 
-// Define the addition of two Mediums
 Medium& Medium::operator +=(const Medium &m) {
     atoms.insert(atoms.end(), m.atoms.begin(), m.atoms.end());
     calc_statistics();
     return *this;
 }
 
-// Add atom to atoms vector
 void Medium::append(const Atom& atom) {
     expect((unsigned)size() < atoms.capacity(), "Allocated vector size exceeded!");
     atoms.push_back(atom);
 }
 
-// Add atom with defalt id and marker to atoms vector
 void Medium::append(const Point3& point) {
     expect((unsigned)size() < atoms.capacity(), "Allocated vector sizes exceeded!");
     atoms.push_back(Atom(-1, point, 0));
 }
 
-// Initialize statistics about Medium
 void Medium::init_statistics() {
     sizes.xmin = sizes.ymin = sizes.zmin = DBL_MAX;
     sizes.xmax = sizes.ymax = sizes.zmax =-DBL_MAX;
@@ -239,7 +230,6 @@ void Medium::init_statistics() {
     sizes.zmaxbox =-DBL_MAX;
 }
 
-// Calculate the statistics about Medium
 void Medium::calc_statistics() {
     int n_atoms = size();
     init_statistics();
@@ -281,79 +271,65 @@ void Medium::calc_statistics() {
     sizes.zmid = (sizes.zmax + sizes.zmin) / 2;
 }
 
-// Get number of atoms in Medium
 int Medium::size() const {
     return atoms.size();
 }
 
-// Get 2-dimensional coordinates of i-th atom
 Point2 Medium::get_point2(const int i) const {
-    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + d2s(i));
     return Point2(atoms[i].point.x, atoms[i].point.y);
 }
 
-// Get 3-dimensional coordinates of i-th atom
 Point3 Medium::get_point(const int i) const {
-    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i) + "/" + to_string(size()));
+    require(i >= 0 && i < size(), "Index out of bounds: " + d2s(i) + "/" + d2s(size()));
     return atoms[i].point;
 }
 
-// Get atom ID
 int Medium::get_id(const int i) const {
-    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + d2s(i));
     return atoms[i].id;
 }
 
-// Get atom marker
 int Medium::get_marker(const int i) const {
-    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + d2s(i));
     return atoms[i].marker;
 }
 
-// Get i-th Atom
 Atom Medium::get_atom(const int i) const {
-    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + d2s(i));
     return atoms[i];
 }
 
-// Set entry to id-s vector
 void Medium::set_id(const int i, const int id) {
-    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + d2s(i));
     atoms[i].id = id;
 }
 
-// Set entry to point-s vector
 void Medium::set_point(const int i, const Point3& p) {
-    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + d2s(i));
     atoms[i].point = p;
 }
 
-// Set entry to x coordinate vector
 void Medium::set_x(const int i, const double x) {
-    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + d2s(i));
     atoms[i].point.x = x;
 }
 
-// Set entry to y coordinate vector
 void Medium::set_y(const int i, const double y) {
-    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + d2s(i));
     atoms[i].point.y = y;
 }
 
-// Set entry to z coordinate vector
 void Medium::set_z(const int i, const double z) {
-    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + d2s(i));
     atoms[i].point.z = z;
 }
 
-// Set atom marker
 void Medium::set_marker(const int i, const int m) {
-    require(i >= 0 && i < size(), "Index out of bounds: " + to_string(i));
+    require(i >= 0 && i < size(), "Index out of bounds: " + d2s(i));
     atoms[i].marker = m;
 }
 
-// Pick the suitable write function based on the file type
-// Function is active only when file write is enabled
 void Medium::write(const string &file_name) const {
     if (!MODES.WRITEFILE) return;
     
@@ -385,24 +361,21 @@ void Medium::write(const string &file_name) const {
     outfile.close();
 }
 
-// Compile data string from the data vectors
 string Medium::get_data_string(const int i) const {
     if(i < 0)
-        return "time = " + to_string(GLOBALS.TIME) +
-            "Medium properties=id:I:1:pos:R:3:marker:I:1";
+        return "Time=" + d2s(GLOBALS.TIME)
+            + "; Medium properties=id:I:1:pos:R:3:marker:I:1";
 
     ostringstream strs; strs << fixed;
     strs << atoms[i];
     return strs.str();
 }
 
-// Compile entry to the dat-file
 string Medium::get_global_data(const bool first_line) const {
     if (first_line) return "time";
     return d2s(GLOBALS.TIME);
 }
 
-// Output atom data in .xyz format
 void Medium::write_xyz(ofstream& out, const int n_atoms) const {
     out << n_atoms << "\n";
     out << get_data_string(-1) << endl;
@@ -411,7 +384,6 @@ void Medium::write_xyz(ofstream& out, const int n_atoms) const {
         out << get_data_string(i) << endl;
 }
 
-// Output atom data in .vtk format
 void Medium::write_vtk(ofstream& out, const int n_atoms) const {
     out << "# vtk DataFile Version 3.0\n";
     out << "# Medium data\n";
@@ -426,7 +398,6 @@ void Medium::write_vtk(ofstream& out, const int n_atoms) const {
     get_cell_data(out);
 }
 
-// Output atom data in .ckx format
 void Medium::write_ckx(ofstream &out, const int n_atoms) const {
     out << n_atoms << "\n";
     out << "Medium properties=type:I:1:pos:R:3" << endl;
@@ -434,12 +405,10 @@ void Medium::write_ckx(ofstream &out, const int n_atoms) const {
         out << atoms[i].marker << " " << atoms[i].point << endl;
 }
 
-// Output single line of data
 void Medium::write_dat(ofstream &out) const {
     out << get_global_data(out.tellp() == 0) << endl;
 }
 
-// Get scalar and vector data associated with vtk cells
 void Medium::get_cell_data(ofstream& out) const {
     const int celltype = 1;     // type of the cell in vtk format; 1-vertex, 10-tetrahedron
     const int dim = 1;          // number of vertices in the cell
@@ -469,11 +438,21 @@ void Medium::get_cell_data(ofstream& out) const {
         out << atoms[i].marker << "\n";
 }
 
-// Copy statistics from another Medium
 void Medium::copy_statistics(const Medium& m) {
     require(this->sizes.size() == m.sizes.size() , "Incompatible statistics!");
     for (int i = 0; i < m.sizes.size(); ++i)
         (&this->sizes.xmin)[i] = (&m.sizes.xmin)[i];
+}
+
+void Medium::update_positions(const Medium& medium) {
+
+    if (size() == medium.size()) {
+        for (int i = 0; i < size(); ++i)
+            set_point(i, medium.get_point(i));
+    } else {
+        for (int i = 0; i < size(); ++i)
+            set_point(i, medium.get_point(get_id(i)));
+    }
 }
 
 } /* namespace femocs */

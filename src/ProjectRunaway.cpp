@@ -239,8 +239,10 @@ int ProjectRunaway::prepare_export() {
     if (mesh_changed) {
         fields.set_preferences(true, 2, 1);
         fields.interpolate(dense_surf);
+    } else {
+        fields.update_positions(dense_surf);
+        fields.calc_interpolation();
     }
-    else fields.calc_interpolation();
     end_msg(t0);
 
     fields.write("out/fields.movie");
@@ -252,8 +254,10 @@ int ProjectRunaway::prepare_export() {
             temperatures.set_preferences(false, 3, conf.behaviour.interpolation_rank);
             temperatures.interpolate(reader);
             temperatures.precalc_berendsen_long();
+        } else {
+            temperatures.update_positions(reader);
+            temperatures.calc_interpolation();
         }
-        else temperatures.calc_interpolation();
         end_msg(t0);
 
         temperatures.write("out/temperatures.xyz");
