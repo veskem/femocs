@@ -72,8 +72,8 @@ Config::Config() {
     heating.n_cg = 2000;
     heating.cg_tolerance = 1e-9;
     heating.ssor_param = 1.2;         // 1.2 is known to work well with Laplace
-    heating.delta_time = 1.e3;
-    heating.dt_max = 1.e5;
+    heating.delta_time = 10.0;
+    heating.dt_max = 1.0e5;
     heating.tau = 100.0;
     heating.assemble_method = "euler";
 
