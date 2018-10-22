@@ -133,8 +133,8 @@ void SolutionReader::reserve(const int n_nodes) {
 }
 
 string SolutionReader::get_data_string(const int i) const{
-    if (i < 0) return "Time=" + d2s(GLOBALS.TIME,2)
-            + "; SolutionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:"
+    if (i < 0) return "Time=" + d2s(GLOBALS.TIME) + ", Timestep=" + d2s(GLOBALS.TIMESTEP) +
+            + ", SolutionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:"
             + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
 
     ostringstream strs; strs << fixed;
@@ -810,7 +810,7 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Vappl) {
 
 string EmissionReader::get_data_string(const int i) const {
     if (i < 0) {
-        return "time = " + d2s(GLOBALS.TIME) +
+        return "Time=" + d2s(GLOBALS.TIME) + ", Timestep=" + d2s(GLOBALS.TIMESTEP) +
                 ", EmissionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" +
                 vec_norm_label + ":R:1:" + scalar_label + ":R:1";
     }

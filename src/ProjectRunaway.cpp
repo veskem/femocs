@@ -18,7 +18,7 @@ namespace femocs {
 
 ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         GeneralProject(reader, config),
-        fail(false), t0(0), timestep(0), mesh_changed(false),
+        fail(false), t0(0), mesh_changed(false),
 		last_heat_time(0), last_write_time(0),
 		last_write_ts(0), last_mesh_write_ts(0),
 
@@ -47,9 +47,9 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 }
 
 int ProjectRunaway::reinit(int tstep, double time) {
-    ++timestep;
+    GLOBALS.TIMESTEP++;
 
-    timestep_string = d2s(timestep);
+    timestep_string = d2s(GLOBALS.TIMESTEP);
     timestep_string = "_" + string( max(0.0, 6.0 - timestep_string.length()), '0' ) + timestep_string;
 
     mesh_changed = false;
@@ -58,10 +58,10 @@ int ProjectRunaway::reinit(int tstep, double time) {
     MODES.WRITEFILE = conf.behaviour.n_writefile > 0 && (
             last_write_ts == 0 ||
             last_mesh_write_ts == 0 ||
-            (timestep - last_write_ts) >= conf.behaviour.n_writefile
+            (GLOBALS.TIMESTEP - last_write_ts) >= conf.behaviour.n_writefile
             );
 
-    write_silent_msg("Running at timestep=" + d2s(timestep) + ", time=" + d2s(GLOBALS.TIME, 2) + " fs");
+    write_silent_msg("Running at timestep=" + d2s(GLOBALS.TIMESTEP) + ", time=" + d2s(GLOBALS.TIME, 2) + " fs");
     return skip_meshing;
 }
 
@@ -73,12 +73,12 @@ int ProjectRunaway::finalize(double tstart, double time) {
 
     // determine whether log file will be written on next timestep
     if (conf.behaviour.n_write_log > 0)
-        MODES.WRITELOG = (timestep+1)%conf.behaviour.n_write_log == 0;
+        MODES.WRITELOG = (GLOBALS.TIMESTEP+1)%conf.behaviour.n_write_log == 0;
 
     // update file output counters
     if (MODES.WRITEFILE) {
-        last_write_ts = timestep;
-        if (mesh_changed) last_mesh_write_ts = timestep;
+        last_write_ts = GLOBALS.TIMESTEP;
+        if (mesh_changed) last_mesh_write_ts = GLOBALS.TIMESTEP;
     }
 
     return 0;
@@ -89,7 +89,7 @@ int ProjectRunaway::process_failed(const string &msg) {
 //    force_output();
     GLOBALS.TIME += conf.behaviour.timestep_fs;
     if (conf.behaviour.n_write_log > 0)
-        MODES.WRITELOG = (timestep+1)%conf.behaviour.n_write_log == 0;
+        MODES.WRITELOG = (GLOBALS.TIMESTEP+1)%conf.behaviour.n_write_log == 0;
     return 1;
 }
 
@@ -188,7 +188,8 @@ int ProjectRunaway::generate_mesh() {
         end_msg(t0);
     }
 
-    MODES.WRITEFILE |= conf.behaviour.n_writefile > 0 && (timestep - last_mesh_write_ts) >= conf.behaviour.n_writefile;
+    MODES.WRITEFILE |= conf.behaviour.n_writefile > 0 &&
+            (GLOBALS.TIMESTEP - last_mesh_write_ts) >= conf.behaviour.n_writefile;
 
     new_mesh->nodes.write("out/hexmesh_nodes.vtk");
     new_mesh->tris.write("out/trimesh.vtk");
@@ -423,7 +424,7 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
-    bulk_interpolator.nodes.write("out/result_J_T.xyz");
+    bulk_interpolator.nodes.write("out/result_J_T.movie");
     bulk_interpolator.lintet.write("out/result_J_T.vtk");
 
     last_heat_time = GLOBALS.TIME;

@@ -363,8 +363,8 @@ void Medium::write(const string &file_name) const {
 
 string Medium::get_data_string(const int i) const {
     if(i < 0)
-        return "Time=" + d2s(GLOBALS.TIME)
-            + "; Medium properties=id:I:1:pos:R:3:marker:I:1";
+        return "Time=" + d2s(GLOBALS.TIME) + ", Timestep=" + d2s(GLOBALS.TIMESTEP) +
+            + ", Medium properties=id:I:1:pos:R:3:marker:I:1";
 
     ostringstream strs; strs << fixed;
     strs << atoms[i];
@@ -372,8 +372,8 @@ string Medium::get_data_string(const int i) const {
 }
 
 string Medium::get_global_data(const bool first_line) const {
-    if (first_line) return "time";
-    return d2s(GLOBALS.TIME);
+    if (first_line) return "time timestep";
+    return d2s(GLOBALS.TIME) + " " + d2s(GLOBALS.TIMESTEP);
 }
 
 void Medium::write_xyz(ofstream& out, const int n_atoms) const {
