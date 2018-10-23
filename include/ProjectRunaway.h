@@ -83,6 +83,7 @@ protected:
 
     FieldReader surface_fields;       ///< fields on surface hex face centroids
     HeatReader  surface_temperatures; ///< temperatures & current densities on surface hex face centroids
+    HeatReader  heat_transfer;        ///< temperatures on new mesh dofs interpolated on old solution space
 
     PhysicalQuantities phys_quantities; ///< quantities used in heat calculations
     PoissonSolver<3> poisson_solver;    ///< Poisson equation solver

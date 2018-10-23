@@ -67,26 +67,13 @@ public:
 
 template<int dim>
 EmissionSolver<dim>::EmissionSolver() :
-        DealSolver<dim>(), pq(NULL), conf(NULL)
+        DealSolver<dim>(), pq(NULL), conf(NULL), prev_ch_values(NULL), bc_values(NULL)
         {}
 
 template<int dim>
 EmissionSolver<dim>::EmissionSolver(Triangulation<dim> *tria) :
-        DealSolver<dim>(tria), pq(NULL), conf(NULL)
+        DealSolver<dim>(tria), pq(NULL), conf(NULL), prev_ch_values(NULL), bc_values(NULL)
         {}
-
-template<int dim>
-void EmissionSolver<dim>::set_bc(const vector<double> &emission) {
-    require(emission.size() > 0, "Boundary condition vector should not be empty!");
-    bc_values = emission;
-    return;
-}
-
-template<int dim>
-void EmissionSolver<dim>::set_dependencies(PhysicalQuantities *pq_, const Config::Heating *conf_) {
-    pq = pq_;
-    conf = conf_;
-}
 
 /* ==================================================================
  *  ========================== HeatSolver ==========================
@@ -213,7 +200,7 @@ void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
         for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
             if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
                 fe_face_values.reinit(cell, f);
-                double nottingham_heat = this->bc_values[face_index++];
+                double nottingham_heat = this->get_face_bc(face_index++);
 
                 for (unsigned int q = 0; q < n_face_q_points; ++q) {
                     for (unsigned int i = 0; i < dofs_per_cell; ++i) {
@@ -312,12 +299,6 @@ void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
     }
 }
 
-template<int dim>
-double HeatSolver<dim>::get_face_bc(const unsigned int face) const {
-    require(face < this->bc_values.size(), "Invalid index: " + d2s(face));
-    return this->bc_values[face];
-}
-
 /* ==================================================================
  *  ========================= CurrentSolver ========================
  * ================================================================== */
@@ -409,12 +390,6 @@ void CurrentSolver<dim>::assemble_lhs() {
                 this->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
         }
     }
-}
-
-template<int dim>
-double CurrentSolver<dim>::get_face_bc(const unsigned int face) const {
-    require(face < this->bc_values.size(), "Invalid index: " + d2s(face));
-    return this->bc_values[face];
 }
 
 /* ==================================================================

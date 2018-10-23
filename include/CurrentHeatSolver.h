@@ -34,20 +34,34 @@ public:
     /** Solve the matrix equation using conjugate gradient method */
     int solve() { return this->solve_cg(conf->n_cg, conf->cg_tolerance, conf->ssor_param); }
 
-    /** Set the boundary condition values on copper-vacuum boundary.
-     * The values must be on the centroids of the vacuum-material boundary faces
+    /** Set the boundary condition values on dofs and on centroids of surface faces.
+     * The values of prev_ch_values must be the same as for dofs.
+     * The values of bc_values must be on the centroids of the vacuum-material boundary faces
      * in the order specified in the get_surface_nodes() method.
      */
-    void set_bc(const vector<double> &emission);
+    void set_bcs(vector<double>* prev_ch_values, vector<double>* bc_values) {
+        this->prev_ch_values = prev_ch_values;
+        this->bc_values = bc_values;
+    }
 
     /** Set the pointers for obtaining external data */
-    void set_dependencies(PhysicalQuantities *pq_, const Config::Heating *conf_);
+    void set_dependencies(PhysicalQuantities *pq, const Config::Heating *conf) {
+        this->pq = pq;
+        this->conf = conf;
+    }
+
+    /** Return the boundary condition value at the centroid of face */
+    double get_face_bc(const unsigned int face) const {
+        require(face < bc_values->size(), "Invalid index: " + d2s(face));
+        return (*bc_values)[face];
+    }
 
 protected:
-    PhysicalQuantities *pq;                ///< object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
-    const Config::Heating *conf;   ///< solver parameters
+    PhysicalQuantities *pq;         ///< object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
+    const Config::Heating *conf;    ///< solver parameters
 
-    vector<double> bc_values; ///< current or heat values on the centroids of surface faces
+    vector<double>* prev_ch_values; ///< previous current/heat values for heat/current solver
+    vector<double>* bc_values;      ///< current/heat values on the centroids of surface faces for current/heat solver
     
     friend class CurrentHeatSolver<dim> ;
 };
@@ -70,9 +84,6 @@ private:
     // TODO figure out what is written
     void write_vtk(ofstream& out) const;
 
-    /** Return the boundary condition value at the centroid of face */
-    double get_face_bc(const unsigned int face) const;
-
     /** Assemble left-hand-side of matrix equation */
     void assemble_lhs();
 
@@ -90,7 +101,7 @@ public:
     void assemble(const double delta_time);
 
 private:
-    static constexpr double cu_rho_cp = 3.4496e-24;      ///< volumetric heat capacity of copper J/(K*ang^3)
+    static constexpr double cu_rho_cp = 3.4496e-24;      ///< volumetric heat capacity of copper [J/(K*Ang^3)]
     const CurrentSolver<dim>* current_solver;
 
     /** @brief assemble the matrix equation for temperature calculation using Crank-Nicolson time integration method
@@ -107,9 +118,6 @@ private:
 
     /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] in vtk format */
     void write_vtk(ofstream& out) const;
-
-    /** Return the boundary condition value at the centroid of face */
-    double get_face_bc(const unsigned int face) const;
 
     friend class CurrentHeatSolver<dim> ;
 };

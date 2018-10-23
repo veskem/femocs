@@ -31,6 +31,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 
         surface_fields(&vacuum_interpolator),
         surface_temperatures(&bulk_interpolator),
+        heat_transfer(&bulk_interpolator),
 
         phys_quantities(config.heating),
         poisson_solver(&config.field, &vacuum_interpolator.linhex),
@@ -39,6 +40,8 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         emission(&surface_fields, &surface_temperatures, &poisson_solver, &vacuum_interpolator)
 {
     temperatures.set_params(config);
+    ch_solver.current.set_bcs(heat_transfer.get_temperatures(), emission.get_current_densities());
+    ch_solver.heat.set_bcs(heat_transfer.get_rho_norms(), emission.get_nottingham());
 
     // Initialise heating module
     start_msg(t0, "Reading physical quantities");
@@ -224,6 +227,7 @@ int ProjectRunaway::prepare_solvers() {
             bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
             surface_fields.set_preferences(false, 2, 3);
             surface_temperatures.set_preferences(false, 2, 3);
+            heat_transfer.set_preferences(false, 3, 1);
         }
     }
 
@@ -377,7 +381,13 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
 }
 
 int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {
-    if (full_run) ch_solver.setup(T_ambient);
+    if (full_run) {
+        start_msg(t0, "Setup current & heat solvers");
+        ch_solver.setup(conf.heating.t_ambient);
+        heat_transfer.interpolate_dofs(ch_solver);
+        end_msg(t0);
+        heat_transfer.write("out/heat_transfer.movie");
+    }
 
     static bool make_intermediate_step = false;
     start_msg(t0, "Transferring field & temperature");
@@ -399,7 +409,6 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     start_msg(t0, "Calculating electron emission");
     emission.initialize(mesh, full_run);
     emission.calc_emission(conf.emission, conf.field.V0);
-    emission.export_emission(ch_solver);
     end_msg(t0);
 
     emission.write("out/emission.movie");

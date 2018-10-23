@@ -71,9 +71,6 @@ public:
     /** Calculate statistics about coordinates and solution */
     void calc_statistics();
 
-    /** Store the surface mesh centroids of the FEM solver */
-    void store_points(const DealSolver<3>& solver);
-
     /** Interpolate solution on the surface mesh centroids of the FEM solver */
     void interpolate(const DealSolver<3>& solver);
 
@@ -191,7 +188,8 @@ public:
 
     HeatReader(Interpolator* i);
 
-    void locate_atoms(const Medium &medium);
+    /** Interpolate and export solution on the mesh DOFs of the FEM solver */
+    void interpolate_dofs(CurrentHeatSolver<3>& solver);
 
     /** Compute data that Berendsen thermostat requires for re-using old solution */
     void precalc_berendsen_long();
@@ -227,12 +225,18 @@ public:
         return interpolation[i].scalar;
     }
 
+    vector<double>* get_temperatures() { return &temperatures; }
+
+    vector<double>* get_rho_norms() { return &current_densities; }
+
 private:
     static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant [eV/K]
     static constexpr double heat_factor = 1.0 / (2*1.5*kB);  ///< Factor to transfer 2*kinetic energy to temperature
 
     vector<vector<int>> tet2atoms;
     vector<double> fem_temp;
+    vector<double> temperatures;
+    vector<double> current_densities;
 
     struct Data {
         double tau;          ///< Time constant in Berendsen scaling [fs]
@@ -245,6 +249,9 @@ private:
 
     /** Calculate scaling factor for Berendsen thermostat */
     double calc_lambda(const double T_start, const double T_end) const;
+
+    /** Transfer solution from vector of Solution to separate vectors with Solution components */
+    void transfer_solution();
 };
 
 // forward declaration of Pic for declaring it as a friend
@@ -265,7 +272,13 @@ public:
      */
     void calc_emission(const Config::Emission &conf, double Vappl = -1);
 
-    void export_emission(CurrentHeatSolver<3>& ch_solver);
+    vector<double>* get_current_densities() {
+        return &current_densities;
+    }
+
+    vector<double>* get_nottingham() {
+        return &nottingham;
+    }
 
     /**
      * Calculates the mean and the standard deviation of the total current for the last N_calls

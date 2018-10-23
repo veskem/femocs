@@ -14,6 +14,7 @@
 
 #include <fstream>
 #include "Globals.h"
+#include "Medium.h"
 
 using namespace dealii;
 using namespace std;
@@ -61,11 +62,17 @@ public:
     /** Return the volume/area of i-th cell */
     double get_cell_vol(const int i) const;
 
-    /** Export the centroids of surface faces */
-    void get_surface_nodes(vector<Point<dim>>& nodes) const;
+    /** Export mesh vertices into Medium */
+    void export_dofs(femocs::Medium& medium) const;
+
+    /** Export the centroids of surface faces in the order required by assemble_rhs */
+    void export_surface_centroids(femocs::Medium& medium) const;
 
     /** Extract the solution on all mesh nodes */
     void get_nodal_solution(vector<double>& solution) const;
+
+    /** Modify DOF solution with nodal solution */
+    void set_nodal_solution(const vector<double>* new_solution);
 
     /** Calculate mapping between vertex and dof indices */
     void calc_vertex2dof();
@@ -87,10 +94,10 @@ public:
 
     /** Print the statistics about the mesh and # degrees of freedom */
     friend ostream& operator <<(ostream &os, const DealSolver<dim>& d) {
-        os << "#elems=" << d.triangulation.n_active_cells()
-                << ", #faces=" << d.triangulation.n_active_faces()
-                << ", #edges=" << d.triangulation.n_active_lines()
-                << ", #nodes=" << d.triangulation.n_used_vertices()
+        os << "#elems=" << d.tria->n_active_cells()
+                << ", #faces=" << d.tria->n_active_faces()
+                << ", #edges=" << d.tria->n_active_lines()
+                << ", #nodes=" << d.tria->n_used_vertices()
                 << ", #dofs=" << d.dof_handler.n_dofs();
         return os;
     }
@@ -104,7 +111,8 @@ protected:
 
     double dirichlet_bc_value;
 
-    Triangulation<dim> triangulation;
+    Triangulation<dim> triangulation;        ///< local triangulation
+    Triangulation<dim>* tria;                ///< pointer to external triangulation
     FE_Q<dim> fe;
     DoFHandler<dim> dof_handler;
 
