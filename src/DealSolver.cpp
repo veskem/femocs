@@ -259,7 +259,49 @@ void DealSolver<dim>::set_nodal_solution(const vector<double>* new_solution) {
     // Initialize the solution with non-constant values
     for (size_t i = 0; i < n_verts; i++) {
         this->solution[i] = (*new_solution)[i];
-        this->solution_save[i] = (*new_solution)[i];
+    }
+}
+
+template<int dim>
+void DealSolver<dim>::solution_at(vector<double> &sols,
+        const vector<int> &cells, const vector<int> &verts) const
+{
+    const int n_nodes = cells.size();
+    require(n_nodes == verts.size(), "Invalid vectors sizes for cells and vertices: "
+            + d2s(n_nodes) + ", " + d2s(verts.size()));
+
+    sols.resize(n_nodes);
+
+    for (unsigned i = 0; i < n_nodes; i++) {
+        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+        // NB: only works without refinement !!!
+        typename DoFHandler<dim>::active_cell_iterator dof_cell(tria, 0, cells[i], &dof_handler);
+        sols[i] = solution[dof_cell->vertex_dof_index(verts[i], 0)];
+    }
+}
+
+template<int dim>
+void DealSolver<dim>::solution_grad_at(vector<Tensor<1, dim>> &grads,
+        const vector<int> &cells, const vector<int> &verts) const
+{
+    const int n_nodes = cells.size();
+    require(n_nodes == verts.size(), "Invalid vectors sizes for cells and vertices: "
+            + d2s(n_nodes) + ", " + d2s(verts.size()));
+
+    QGauss<dim> quadrature_formula(this->quadrature_degree);
+    FEValues<dim> fe_values(this->fe, quadrature_formula, update_gradients);
+
+    vector<Tensor<1, dim>> solution_gradients(quadrature_formula.size());
+    grads.resize(n_nodes);
+
+    for (unsigned i = 0; i < n_nodes; i++) {
+        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+        // NB: only works without refinement !!!
+        typename DoFHandler<dim>::active_cell_iterator dof_cell(tria, 0, cells[i], &dof_handler);
+
+        fe_values.reinit(dof_cell);
+        fe_values.get_function_gradients(this->solution, solution_gradients);
+        grads[i] = -1.0 * solution_gradients.at(verts[i]);
     }
 }
 
@@ -289,7 +331,7 @@ void DealSolver<dim>::calc_vertex2dof() {
 }
 
 template<int dim>
-void DealSolver<dim>::setup_system() {
+void DealSolver<dim>::setup_system(bool full_setup) {
     require(this->dof_handler.get_triangulation().n_used_vertices() > 0,
             "Can't setup system with no mesh!");
 
@@ -307,12 +349,11 @@ void DealSolver<dim>::setup_system() {
     this->system_matrix.reinit(this->sparsity_pattern);
     this->system_matrix_save.reinit(this->sparsity_pattern);
     this->solution.reinit(n_dofs);
-    this->solution_save.reinit(n_dofs);
 
-    // Initialize the solution with constant values
-    for (size_t i = 0; i < n_dofs; i++) {
-        this->solution[i] = this->dirichlet_bc_value;
-        this->solution_save[i] = this->dirichlet_bc_value;
+    if (full_setup) {
+        // Initialize the solution with constant values
+        for (size_t i = 0; i < n_dofs; i++)
+            this->solution[i] = this->dirichlet_bc_value;
     }
 }
 
@@ -381,7 +422,6 @@ int DealSolver<dim>::solve_cg(int max_iter, double tol, double ssor_param) {
         } else
             solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
 
-        solution_save = solution;
         return solver_control.last_step();
     } catch (exception &exc) {
         return -1 * solver_control.last_step();

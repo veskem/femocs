@@ -200,23 +200,41 @@ void Interpolator::initialize(const TetgenMesh* m, DealSolver<3>& solver,
 }
 
 void Interpolator::extract_charge_density(PoissonSolver<3>& fem) {
-
     // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> cell_indxs, vert_indxs;
-    get_maps(cell_indxs, vert_indxs, fem.get_triangulation(), fem.get_dof_handler());
+    vector<int> cells, verts;
+    get_maps(cells, verts, fem.get_triangulation(), fem.get_dof_handler());
+
+    vector<double> charge_dens;
+    vector<dealii::Tensor<1,3>> fields;
+    fem.solution_grad_at(fields, cells, verts);
+    fem.charge_dens_at(charge_dens, cells, verts);
 
     // Read and store the electric field and potential from FEM solver
-    store_solution(fem.get_efield(cell_indxs, vert_indxs), fem.get_charge_dens(cell_indxs, vert_indxs));
+    store_solution(fields, charge_dens);
 }
 
 void Interpolator::extract_solution(CurrentHeatSolver<3>& fem) {
 
     // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> cell_indxs, vert_indxs;
-    get_maps(cell_indxs, vert_indxs, fem.get_triangulation(), fem.current.get_dof_handler());
+    vector<int> cells, verts;
+    get_maps(cells, verts, fem.get_triangulation(), fem.current.get_dof_handler());
 
     // Read and store current densities and temperatures from FEM solver
-    store_solution(fem.get_current(cell_indxs, vert_indxs), fem.get_temperature(cell_indxs, vert_indxs));
+    vector<double> potentials, temperatures;
+    vector<dealii::Tensor<1,3>> rhos;
+    fem.temp_phi_rho_at(temperatures, potentials, rhos, cells, verts);
+
+    unsigned int j = 0;
+    for (unsigned int i = 0; i < femocs2deal.size(); ++i) {
+        // If there is a common node between Femocs and deal.II meshes, store actual solution
+        if (femocs2deal[i] >= 0) {
+            require(j < potentials.size(), "Invalid index: " + d2s(j));
+            dealii::Tensor<1, 3> rho = rhos[j]; // that step needed to avoid complaints from Valgrind
+            nodes.set_solution(i, Solution(Vec3(rho[0], rho[1], rho[2]), potentials[j], temperatures[j++]) );
+        }
+        else
+            nodes.set_solution(i, Solution(Vec3(0), 0, empty_value));
+    }
 }
 
 void Interpolator::extract_solution_v2(PoissonSolver<3>& fem, const bool smoothen) {
@@ -225,7 +243,10 @@ void Interpolator::extract_solution_v2(PoissonSolver<3>& fem, const bool smoothe
     get_maps(cell_indxs, vert_indxs, fem.get_triangulation(), fem.get_dof_handler());
 
     // Read and store current densities and temperatures from FEM solver
-    store_solution(fem.get_efield(cell_indxs, vert_indxs), fem.get_potential(cell_indxs, vert_indxs));
+    vector<double> potentials;
+    vector<dealii::Tensor<1,3>> fields;
+    fem.potential_efield_at(potentials, fields, cell_indxs, vert_indxs);
+    store_solution(fields, potentials);
 
     // Remove the spikes from the solution
     if (smoothen) average_nodal_fields(true);

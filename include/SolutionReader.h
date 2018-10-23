@@ -214,7 +214,7 @@ public:
     }
 
     /** Return magnitude of current density in i-th interpolation point */
-    double get_rho_norm(const int i) const {
+    double get_potential(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         return interpolation[i].norm;
     }
@@ -227,7 +227,7 @@ public:
 
     vector<double>* get_temperatures() { return &temperatures; }
 
-    vector<double>* get_rho_norms() { return &current_densities; }
+    vector<double>* get_potentials() { return &potentials; }
 
 private:
     static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant [eV/K]
@@ -236,7 +236,7 @@ private:
     vector<vector<int>> tet2atoms;
     vector<double> fem_temp;
     vector<double> temperatures;
-    vector<double> current_densities;
+    vector<double> potentials;
 
     struct Data {
         double tau;          ///< Time constant in Berendsen scaling [fs]

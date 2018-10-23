@@ -45,6 +45,22 @@ public:
     /** Provide access to solution vector */
     Vector<double>* get_solution() { return &solution; };
 
+    /**
+     * Obtain solution values in selected nodes.
+     * @param sol          output solution values
+     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
+     * @param vert_indexes the vertex indexes of the nodes inside the cell
+     */
+    void solution_at(vector<double> &sol, const vector<int> &cells, const vector<int> &verts) const;
+
+    /**
+     * Obtain MINUS gradient of solution values in selected nodes.
+     * @param grads        output solution gradient values
+     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
+     * @param vert_indexes the vertex indexes of the nodes inside the cell
+     */
+    void solution_grad_at(vector<Tensor<1, dim>> &grads, const vector<int> &cells, const vector<int> &verts) const;
+
     /** Get the solution value at the specified point. NB: Slow! */
     double probe_solution(const Point<dim> &p) const;
 
@@ -123,7 +139,6 @@ protected:
     Vector<double> system_rhs_save;          ///< saved right-hand-side of the matrix equation
 
     Vector<double> solution;                 ///< resulting solution in the mesh nodes
-    Vector<double> solution_save;            ///< saved solutions in the mesh nodes
     Vector<double> dof_volume;               ///< integral of the shape functions
 
     vector<unsigned> vertex2dof;             ///< map of Deal.II vertex indices to dof indices
@@ -145,7 +160,7 @@ protected:
     int solve_cg(const int n_steps, const double tolerance, const double ssor_param);
 
     /** Set up dynamic sparsity pattern for calculations */
-    void setup_system();
+    void setup_system(bool full_setup=true);
 
     /** Modify the right-hand-side vector of the matrix equation */
     void assemble_rhs(const BoundaryId bid);

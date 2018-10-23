@@ -39,7 +39,8 @@ public:
      * The values of bc_values must be on the centroids of the vacuum-material boundary faces
      * in the order specified in the get_surface_nodes() method.
      */
-    void set_bcs(vector<double>* prev_ch_values, vector<double>* bc_values) {
+    void set_bcs(Vector<double>* ch_values, vector<double>* prev_ch_values, vector<double>* bc_values) {
+        this->ch_values = ch_values;
         this->prev_ch_values = prev_ch_values;
         this->bc_values = bc_values;
     }
@@ -60,6 +61,7 @@ protected:
     PhysicalQuantities *pq;         ///< object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
     const Config::Heating *conf;    ///< solver parameters
 
+    Vector<double>* ch_values;      ///< last current/heat values for heat/current solver
     vector<double>* prev_ch_values; ///< previous current/heat values for heat/current solver
     vector<double>* bc_values;      ///< current/heat values on the centroids of surface faces for current/heat solver
     
@@ -128,21 +130,9 @@ public:
     CurrentHeatSolver();
     CurrentHeatSolver(PhysicalQuantities *pq_, const Config::Heating *conf_);
 
-    /**
-     * Method to obtain the temperature values in selected nodes.
-     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
-     * @param vert_indexes the vertex indexes of the nodes inside the cell
-     * @return temperature  ///< default temperature applied on bottom of the materiale values in the specified nodes
-     */
-    vector<double> get_temperature(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
-
-    /**
-     * Method to obtain the current density values in selected nodes.
-     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
-     * @param vert_indexes the vertex indexes of the nodes inside the cell
-     * @return current density vectors in the specified nodes
-     */
-    vector<Tensor<1,dim>> get_current(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
+    /** Obtain the temperature, potential and current density values in selected nodes. */
+    void temp_phi_rho_at(vector<double> &temp, vector<double> &phi, vector<Tensor<1,dim>> &rho,
+            const vector<int> &cells, const vector<int> &verts) const;
 
     /** Set the pointers for obtaining external data */
     void set_dependencies(PhysicalQuantities *pq_, const Config::Heating *conf_);

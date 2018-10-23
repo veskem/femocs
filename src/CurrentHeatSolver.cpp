@@ -67,12 +67,12 @@ public:
 
 template<int dim>
 EmissionSolver<dim>::EmissionSolver() :
-        DealSolver<dim>(), pq(NULL), conf(NULL), prev_ch_values(NULL), bc_values(NULL)
+        DealSolver<dim>(), pq(NULL), conf(NULL), ch_values(NULL), prev_ch_values(NULL), bc_values(NULL)
         {}
 
 template<int dim>
 EmissionSolver<dim>::EmissionSolver(Triangulation<dim> *tria) :
-        DealSolver<dim>(tria), pq(NULL), conf(NULL), prev_ch_values(NULL), bc_values(NULL)
+        DealSolver<dim>(tria), pq(NULL), conf(NULL), ch_values(NULL), prev_ch_values(NULL), bc_values(NULL)
         {}
 
 /* ==================================================================
@@ -116,6 +116,7 @@ template<int dim>
 void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
     require(false, "Implementation of Crank-Nicolson assembly not verified!");
 
+    /*
     require(current_solver, "NULL current solver can't be used!");
 
     const double gamma = cu_rho_cp / delta_time;
@@ -219,6 +220,7 @@ void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
             this->system_rhs(local_dof_indices[i]) += cell_rhs(i);
         }
     }
+    //*/
 }
 
 template<int dim>
@@ -255,7 +257,8 @@ void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
 
     for (; cell != this->dof_handler.end(); ++cell, ++current_cell) {
         fe_values.reinit(cell);
-        fe_values.get_function_values(this->solution_save, prev_temperatures);
+        fe_values.get_function_values(this->solution, prev_temperatures);
+        fe_values.get_function_gradients(*this->ch_values, potential_gradients);
 
         // Local matrix assembly
         cell_matrix = 0;
@@ -271,9 +274,6 @@ void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
                 }
             }
         }
-
-        fe_values_current.reinit(current_cell);
-        fe_values_current.get_function_gradients(current_solver->solution, potential_gradients);
 
         // Local right-hand-side vector assembly
         cell_rhs = 0;
@@ -419,7 +419,7 @@ template<int dim>
 void CurrentHeatSolver<dim>::setup(const double temperature) {
     heat.dirichlet_bc_value = temperature;
     current.setup_system();
-    heat.setup_system();
+    heat.setup_system(false);
 }
 
 template<int dim>
@@ -431,52 +431,17 @@ void CurrentHeatSolver<dim>::set_dependencies(PhysicalQuantities *pq_, const Con
 }
 
 template<int dim>
-vector<double> CurrentHeatSolver<dim>::get_temperature(const vector<int> &cell_indexes,
-        const vector<int> &vert_indexes)
+void CurrentHeatSolver<dim>::temp_phi_rho_at(vector<double> &temp,
+        vector<double> &phi, vector<Tensor<1,dim>> &rho,
+        const vector<int> &cells, const vector<int> &verts) const
 {
-    // Initialize vector with a value that is immediately visible if it's not changed to proper one
-    vector<double> temperatures(cell_indexes.size(), 1e15);
+    heat.solution_at(temp, cells, verts);        // extract temperatures
+    current.solution_at(phi, cells, verts);      // extract potentials
+    current.solution_grad_at(rho, cells, verts); // extract fields
 
-    for (unsigned i = 0; i < cell_indexes.size(); i++) {
-        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
-        // NB: only works without refinement !!!
-        typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation, 0,
-                cell_indexes[i], &heat.dof_handler);
-
-        double temperature = heat.solution[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
-        temperatures[i] = temperature;
-    }
-    return temperatures;
-}
-
-template<int dim>
-vector<Tensor<1, dim>> CurrentHeatSolver<dim>::get_current(const vector<int> &cell_indexes,
-        const vector<int> &vert_indexes)
-{
-    QGauss<dim> quadrature_formula(this->quadrature_degree);
-    FEValues<dim> fe_values(current.fe, quadrature_formula, update_gradients);
-
-    vector<Tensor<1, dim> > potential_gradients(quadrature_formula.size());
-    const FEValuesExtractors::Scalar potential(0);
-
-    vector<Tensor<1, dim> > currents(cell_indexes.size());
-
-    for (unsigned i = 0; i < cell_indexes.size(); i++) {
-        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
-        // NB: only works without refinement !!!
-        typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation, 0,
-                cell_indexes[i], &current.dof_handler);
-
-        fe_values.reinit(dof_cell);
-        fe_values.get_function_gradients(current.solution, potential_gradients);
-
-        double temperature = heat.solution[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
-        Tensor<1, dim> field = -1.0 * potential_gradients.at(vert_indexes[i]);
-        Tensor<1, dim> current = pq->sigma(temperature) * field;
-
-        currents[i] = current;
-    }
-    return currents;
+    // transfer fields to current densites
+    for (int i = 0; i < temp.size(); ++i)
+        rho[i] = pq->sigma(temp[i]) * rho[i];
 }
 
 template<int dim>

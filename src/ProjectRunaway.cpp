@@ -40,8 +40,8 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         emission(&surface_fields, &surface_temperatures, &poisson_solver, &vacuum_interpolator)
 {
     temperatures.set_params(config);
-    ch_solver.current.set_bcs(heat_transfer.get_temperatures(), emission.get_current_densities());
-    ch_solver.heat.set_bcs(heat_transfer.get_rho_norms(), emission.get_nottingham());
+    ch_solver.current.set_bcs(ch_solver.heat.get_solution(), heat_transfer.get_temperatures(), emission.get_current_densities());
+    ch_solver.heat.set_bcs(ch_solver.current.get_solution(), heat_transfer.get_potentials(), emission.get_nottingham());
 
     // Initialise heating module
     start_msg(t0, "Reading physical quantities");

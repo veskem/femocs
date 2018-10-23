@@ -421,7 +421,7 @@ void FieldReader::set_check_params(const Config& conf, double radius,
  * ========================================== */
 
 HeatReader::HeatReader(Interpolator* i) :
-        SolutionReader(i, LABELS.rho, LABELS.rho_norm, LABELS.temperature)
+        SolutionReader(i, LABELS.rho, LABELS.potential, LABELS.temperature)
 {}
 
 void HeatReader::interpolate_dofs(CurrentHeatSolver<3>& solver) {
@@ -554,12 +554,12 @@ void HeatReader::calc_SI_velocities(vector<Vec3>& velocities,
 void HeatReader::transfer_solution() {
     const int n_points = size();
     temperatures.resize(n_points);
-    current_densities.resize(n_points);
+    potentials.resize(n_points);
 
     for (int i = 0; i < n_points; ++i) {
         Solution& sol = interpolation[i];
         temperatures[i] = sol.scalar;
-        current_densities[i] = sol.norm;
+        potentials[i] = sol.norm;
     }
 }
 
