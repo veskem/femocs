@@ -67,12 +67,12 @@ public:
 
 template<int dim>
 EmissionSolver<dim>::EmissionSolver() :
-        DealSolver<dim>(), pq(NULL), conf(NULL), ch_values(NULL), prev_ch_values(NULL), bc_values(NULL)
+        DealSolver<dim>(), pq(NULL), conf(NULL), bc_values(NULL)
         {}
 
 template<int dim>
 EmissionSolver<dim>::EmissionSolver(Triangulation<dim> *tria) :
-        DealSolver<dim>(tria), pq(NULL), conf(NULL), ch_values(NULL), prev_ch_values(NULL), bc_values(NULL)
+        DealSolver<dim>(tria), pq(NULL), conf(NULL), bc_values(NULL)
         {}
 
 /* ==================================================================
@@ -237,9 +237,6 @@ void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
     FEValues<dim> fe_values(this->fe, quadrature_formula,
             update_values | update_gradients | update_quadrature_points | update_JxW_values);
 
-    // Finite element values for accessing current calculation
-    FEValues<dim> fe_values_current(current_solver->fe, quadrature_formula, update_gradients);
-
     const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
     const unsigned int n_q_points = quadrature_formula.size();
 
@@ -253,12 +250,11 @@ void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
     vector<double> prev_temperatures(n_q_points);
 
     typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
-    typename DoFHandler<dim>::active_cell_iterator current_cell = current_solver->dof_handler.begin_active();
 
-    for (; cell != this->dof_handler.end(); ++cell, ++current_cell) {
+    for (; cell != this->dof_handler.end(); ++cell) {
         fe_values.reinit(cell);
         fe_values.get_function_values(this->solution, prev_temperatures);
-        fe_values.get_function_gradients(*this->ch_values, potential_gradients);
+        fe_values.get_function_gradients(current_solver->solution, potential_gradients);
 
         // Local matrix assembly
         cell_matrix = 0;
@@ -358,18 +354,15 @@ void CurrentSolver<dim>::assemble_lhs() {
     vector<double> prev_temperatures(n_q_points);
 
     typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
-    typename DoFHandler<dim>::active_cell_iterator heat_cell = heat_solver->dof_handler.begin_active();
 
-    for (; cell != this->dof_handler.end(); ++cell, ++heat_cell) {
+    for (; cell != this->dof_handler.end(); ++cell) {
         fe_values.reinit(cell);
-        cell_matrix = 0;
-
-        fe_values_heat.reinit(heat_cell);
-        fe_values_heat.get_function_values(heat_solver->solution, prev_temperatures);
+        fe_values.get_function_values(heat_solver->solution, prev_temperatures);
 
         // ----------------------------------------------------------------------------------------
         // Local matrix assembly
         // ----------------------------------------------------------------------------------------
+        cell_matrix = 0;
         for (unsigned int q = 0; q < n_q_points; ++q) {
             double temperature = prev_temperatures[q];
             double sigma = this->pq->sigma(temperature);

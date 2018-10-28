@@ -34,21 +34,18 @@ public:
     /** Solve the matrix equation using conjugate gradient method */
     int solve() { return this->solve_cg(conf->n_cg, conf->cg_tolerance, conf->ssor_param); }
 
-    /** Set the boundary condition values on dofs and on centroids of surface faces.
-     * The values of prev_ch_values must be the same as for dofs.
-     * The values of bc_values must be on the centroids of the vacuum-material boundary faces
-     * in the order specified in the get_surface_nodes() method.
-     */
-    void set_bcs(Vector<double>* ch_values, vector<double>* prev_ch_values, vector<double>* bc_values) {
-        this->ch_values = ch_values;
-        this->prev_ch_values = prev_ch_values;
-        this->bc_values = bc_values;
-    }
-
     /** Set the pointers for obtaining external data */
     void set_dependencies(PhysicalQuantities *pq, const Config::Heating *conf) {
         this->pq = pq;
         this->conf = conf;
+    }
+
+    /** Set the boundary condition values on centroids of surface faces.
+     * The values of bc_values must be on the centroids of the vacuum-material boundary faces
+     * in the order specified in the get_surface_nodes() method.
+     */
+    void set_bcs(vector<double>* bc_values) {
+        this->bc_values = bc_values;
     }
 
     /** Return the boundary condition value at the centroid of face */
@@ -61,8 +58,6 @@ protected:
     PhysicalQuantities *pq;         ///< object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
     const Config::Heating *conf;    ///< solver parameters
 
-    Vector<double>* ch_values;      ///< last current/heat values for heat/current solver
-    vector<double>* prev_ch_values; ///< previous current/heat values for heat/current solver
     vector<double>* bc_values;      ///< current/heat values on the centroids of surface faces for current/heat solver
     
     friend class CurrentHeatSolver<dim> ;
@@ -79,7 +74,7 @@ public:
      * according to the continuity equation weak formulation and to the boundary conditions.
      */
     void assemble();
-    
+
 private:
     const HeatSolver<dim>* heat_solver;
     
