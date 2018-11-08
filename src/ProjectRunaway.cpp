@@ -297,9 +297,11 @@ int ProjectRunaway::run_field_solver() {
 
 int ProjectRunaway::run_heat_solver() {
     int ccg, hcg;
-    bool b1 = GLOBALS.TIME - last_heat_time >= conf.heating.delta_time;
+
+    double delta_time = GLOBALS.TIME - last_heat_time;
+    bool b1 = delta_time >= conf.heating.delta_time;
     if (conf.heating.mode == "transient" && (mesh_changed || b1))
-        return solve_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, mesh_changed, ccg, hcg);
+        return solve_heat(conf.heating.t_ambient, max(delta_time, conf.behaviour.timestep_fs), mesh_changed, ccg, hcg);
 
     return 0;
 }
