@@ -341,9 +341,6 @@ void CurrentSolver<dim>::assemble_lhs() {
     FEValues<dim> fe_values(this->fe, quadrature_formula,
             update_gradients | update_quadrature_points | update_JxW_values);
 
-    // Temperature finite element values (only for accessing previous iteration solution)
-    FEValues<dim> fe_values_heat(heat_solver->fe, quadrature_formula, update_values);
-
     const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
     const unsigned int n_q_points = quadrature_formula.size();
 
@@ -432,7 +429,7 @@ void CurrentHeatSolver<dim>::temp_phi_rho_at(vector<double> &temp,
     current.solution_at(phi, cells, verts);      // extract potentials
     current.solution_grad_at(rho, cells, verts); // extract fields
 
-    // transfer fields to current densites
+    // transfer fields to current densities
     for (int i = 0; i < temp.size(); ++i)
         rho[i] = pq->sigma(temp[i]) * rho[i];
 }

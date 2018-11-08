@@ -46,7 +46,7 @@ namespace femocs {
  */
 class Interpolator {
 public:
-    Interpolator(const string& norm_label, const string& scalar_label);
+    Interpolator(const string& vec_label, const string& norm_label, const string& scalar_label);
     ~Interpolator() {};
 
     /** Initialise interpolator and store solution with default value */

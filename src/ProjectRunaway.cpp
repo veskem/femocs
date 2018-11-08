@@ -22,8 +22,8 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 		last_heat_time(0), last_write_time(0),
 		last_write_ts(0), last_mesh_write_ts(0),
 
-        vacuum_interpolator("elfield", "potential"),
-        bulk_interpolator("rho", "temperature"),
+        vacuum_interpolator("elfield", "elfield_norm", "potential"),
+        bulk_interpolator("rho", "potential", "temperature"),
 
         fields(&vacuum_interpolator),
         temperatures(&bulk_interpolator),

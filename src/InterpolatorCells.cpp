@@ -15,10 +15,16 @@ namespace femocs {
  * ================================================================== */
 
 InterpolatorNodes::InterpolatorNodes() :
-        mesh(NULL), norm_label("vector_norm"), scalar_label("scalar") { reserve(0); }
+        mesh(NULL), vec_label("vector"), norm_label("vector_norm"), scalar_label("scalar")
+{
+    reserve(0);
+}
 
-InterpolatorNodes::InterpolatorNodes(const string &nl, const string &sl) :
-        mesh(NULL), norm_label(nl), scalar_label(sl) { reserve(0); }
+InterpolatorNodes::InterpolatorNodes(const string &vl, const string &nl, const string &sl) :
+        mesh(NULL), vec_label(vl), norm_label(nl), scalar_label(sl)
+{
+    reserve(0);
+}
 
 void InterpolatorNodes::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + d2s(N));
@@ -127,7 +133,7 @@ void InterpolatorNodes::write_point_data(ofstream& out) const {
     for (int i = 0; i < n_nodes; ++i)
         out << solutions[i].scalar << "\n";
 
-    out << "VECTORS " << norm_label << "_vec double\n";
+    out << "VECTORS " << vec_label << " double\n";
     for (int i = 0; i < n_nodes; ++i)
         out << solutions[i].vector << "\n";
 }

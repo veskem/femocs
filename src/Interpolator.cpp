@@ -17,8 +17,8 @@ namespace femocs {
  *  ======================== Interpolator ==========================
  * ================================================================== */
 
-Interpolator::Interpolator(const string& nl, const string& sl) : 
-    nodes(nl, sl),
+Interpolator::Interpolator(const string& vl, const string& nl, const string& sl) :
+    nodes(vl, nl, sl),
     lintet(&nodes), lintri(&nodes, &lintet),
     quadtet(&nodes, &lintet), quadtri(&nodes, &lintri, &quadtet),
     linhex(&nodes, &lintet), linquad(&nodes, &lintri, &linhex),
@@ -230,7 +230,8 @@ void Interpolator::extract_solution(CurrentHeatSolver<3>& fem) {
         if (femocs2deal[i] >= 0) {
             require(j < potentials.size(), "Invalid index: " + d2s(j));
             dealii::Tensor<1, 3> rho = rhos[j]; // that step needed to avoid complaints from Valgrind
-            nodes.set_solution(i, Solution(Vec3(rho[0], rho[1], rho[2]), potentials[j], temperatures[j++]) );
+            nodes.set_solution(i, Solution( Vec3(rho[0], rho[1], rho[2]), potentials[j], temperatures[j] ));
+            j++;
         }
         else
             nodes.set_solution(i, Solution(Vec3(0), 0, empty_value));
