@@ -98,8 +98,34 @@ public:
     void assemble(const double delta_time);
 
 private:
-    static constexpr double cu_rho_cp = 3.4496e-24;      ///< volumetric heat capacity of copper [J/(K*Ang^3)]
+    // TODO shouldn't it be temperature dependent?
+    static constexpr double cu_rho_cp = 3.4496e-24;  ///< volumetric heat capacity of copper [J/(K*Ang^3)]
     const CurrentSolver<dim>* current_solver;
+    double one_over_delta_time;                      ///< inverse of heat solver time step
+
+    //* Data for parallel local matrix & rhs assembly */
+    struct ScratchData {
+      FEValues<dim> fe_values;
+      ScratchData(const FiniteElement<dim> &fe, const Quadrature<dim> &quadrature);
+      ScratchData(const ScratchData &scratch_data);
+    };
+
+    //* Data for coping local matrix & rhs into global one during parallel assembly */
+    struct CopyData {
+      FullMatrix<double> cell_matrix;
+      Vector<double> cell_rhs;
+      vector<unsigned int> dof_indices;
+      unsigned int n_dofs, n_q_points;
+
+      CopyData(const unsigned dofs_per_cell, const unsigned n_q_points);
+    };
+
+    //* Data holding copy of global matrix & rhs for parallel assembly */
+    struct LinearSystem {
+        Vector<double>* global_rhs;
+        SparseMatrix<double>* global_matrix;
+        LinearSystem(Vector<double>* rhs, SparseMatrix<double>* matrix);
+    };
 
     /** @brief assemble the matrix equation for temperature calculation using Crank-Nicolson time integration method
      * Calculate sparse matrix elements and right-hand-side vector
@@ -112,6 +138,14 @@ private:
      * according to the time dependent heat equation weak formulation and to the boundary conditions.
      */
     void assemble_euler_implicit(const double delta_time);
+
+    void assemble_parallel(const double delta_time);
+
+    void assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
+            ScratchData &scratch_data, CopyData &copy_data) const;
+
+    // Only one instance of this function should be running at a time!
+    void copy_global_cell(const CopyData &copy_data, LinearSystem &system) const;
 
     /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] in vtk format */
     void write_vtk(ofstream& out) const;
