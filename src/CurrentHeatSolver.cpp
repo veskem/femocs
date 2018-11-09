@@ -76,21 +76,24 @@ EmissionSolver<dim>::EmissionSolver(Triangulation<dim> *tria) :
         DealSolver<dim>(tria), pq(NULL), conf(NULL), bc_values(NULL)
         {}
 
-
 template<int dim>
-HeatSolver<dim>::ScratchData::ScratchData (const FiniteElement<dim>  &fe, const Quadrature<dim> &quadrature) :
-    fe_values(fe, quadrature, update_values | update_gradients | update_quadrature_points | update_JxW_values)
+EmissionSolver<dim>::LinearSystem::LinearSystem(Vector<double>* rhs, SparseMatrix<double>* matrix) :
+    global_rhs(rhs), global_matrix(matrix)
 {}
 
 template<int dim>
-HeatSolver<dim>::ScratchData::ScratchData (const ScratchData &scratch_data):
-    fe_values(scratch_data.fe_values.get_fe(),
-            scratch_data.fe_values.get_quadrature(),
-            update_values | update_gradients | update_quadrature_points | update_JxW_values)
+EmissionSolver<dim>::ScratchData::ScratchData (const FiniteElement<dim>  &fe,
+        const Quadrature<dim> &quadrature, const UpdateFlags ul) :
+    fe_values(fe, quadrature, ul)
 {}
 
 template<int dim>
-HeatSolver<dim>::CopyData::CopyData(const unsigned dofs_per_cell, const unsigned n_qp):
+EmissionSolver<dim>::ScratchData::ScratchData (const ScratchData &sd):
+    fe_values(sd.fe_values.get_fe(), sd.fe_values.get_quadrature(), sd.fe_values.get_update_flags())
+{}
+
+template<int dim>
+EmissionSolver<dim>::CopyData::CopyData(const unsigned dofs_per_cell, const unsigned n_qp):
     cell_matrix(dofs_per_cell, dofs_per_cell),
     cell_rhs(dofs_per_cell),
     dof_indices(dofs_per_cell),
@@ -98,9 +101,13 @@ HeatSolver<dim>::CopyData::CopyData(const unsigned dofs_per_cell, const unsigned
 {}
 
 template<int dim>
-HeatSolver<dim>::LinearSystem::LinearSystem(Vector<double>* rhs, SparseMatrix<double>* matrix) {
-    global_matrix = matrix;
-    global_rhs = rhs;
+void EmissionSolver<dim>::copy_global_cell(const CopyData &copy_data, LinearSystem &system) const {
+    system.global_rhs->add(copy_data.dof_indices, copy_data.cell_rhs);
+
+    for (unsigned int i = 0; i < copy_data.n_dofs; ++i) {
+        for (unsigned int j = 0; j < copy_data.n_dofs; ++j)
+            system.global_matrix->add(copy_data.dof_indices[i], copy_data.dof_indices[j], copy_data.cell_matrix(i, j));
+    }
 }
 
 /* ==================================================================
@@ -355,7 +362,7 @@ void HeatSolver<dim>::assemble_parallel(const double delta_time) {
                     this,
                     std_cxx11::_1,
                     std_cxx11::ref(system)),
-            ScratchData(this->fe, quadrature_formula),
+            ScratchData(this->fe, quadrature_formula, update_values | update_gradients | update_quadrature_points | update_JxW_values),
             CopyData(n_dofs, n_q_points)
     );
 }
@@ -409,16 +416,6 @@ void HeatSolver<dim>::assemble_local_cell(const typename DoFHandler<dim>::active
     cell->get_dof_indices(copy_data.dof_indices);
 }
 
-template<int dim>
-void HeatSolver<dim>::copy_global_cell(const CopyData &copy_data, LinearSystem &system) const {
-    system.global_rhs->add(copy_data.dof_indices, copy_data.cell_rhs);
-
-    for (unsigned int i = 0; i < copy_data.n_dofs; ++i) {
-        for (unsigned int j = 0; j < copy_data.n_dofs; ++j)
-            system.global_matrix->add(copy_data.dof_indices[i], copy_data.dof_indices[j], copy_data.cell_matrix(i, j));
-    }
-}
-
 /* ==================================================================
  *  ========================= CurrentSolver ========================
  * ================================================================== */
@@ -446,14 +443,17 @@ void CurrentSolver<dim>::write_vtk(ofstream& out) const {
 
 template<int dim>
 void CurrentSolver<dim>::assemble() {
-    assemble_lhs();
+    if (this->conf->assemble_method == "parallel")
+        assemble_parallel();
+    else
+        assemble_serial();
     this->assemble_rhs(BoundaryId::copper_surface);
     this->append_dirichlet(BoundaryId::copper_bottom, this->dirichlet_bc_value);
     this->apply_dirichlet();
 }
 
 template<int dim>
-void CurrentSolver<dim>::assemble_lhs() {
+void CurrentSolver<dim>::assemble_serial() {
     require(heat_solver, "NULL heat solver can't be used!");
 
     this->system_matrix = 0;
@@ -504,6 +504,68 @@ void CurrentSolver<dim>::assemble_lhs() {
                 this->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
         }
     }
+}
+
+template<int dim>
+void CurrentSolver<dim>::assemble_parallel() {
+    require(current_solver, "NULL current solver can't be used!");
+
+    this->system_matrix = 0;
+    this->system_rhs = 0;
+
+    LinearSystem system(&this->system_rhs, &this->system_matrix);
+    QGauss<dim> quadrature_formula(this->quadrature_degree);
+
+    const unsigned int n_dofs = this->fe.dofs_per_cell;
+    const unsigned int n_q_points = quadrature_formula.size();
+
+    WorkStream::run(this->dof_handler.begin_active(),this->dof_handler.end(),
+            std_cxx11::bind(&CurrentSolver<dim>::assemble_local_cell,
+                    this,
+                    std_cxx11::_1,
+                    std_cxx11::_2,
+                    std_cxx11::_3),
+            std_cxx11::bind(&CurrentSolver<dim>::copy_global_cell,
+                    this,
+                    std_cxx11::_1,
+                    std_cxx11::ref(system)),
+            ScratchData(this->fe, quadrature_formula, update_gradients | update_quadrature_points | update_JxW_values),
+            CopyData(n_dofs, n_q_points)
+    );
+}
+
+template<int dim>
+void CurrentSolver<dim>::assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
+        ScratchData &scratch_data, CopyData &copy_data) const
+{
+    const unsigned int n_dofs = copy_data.n_dofs;
+    const unsigned int n_q_points = copy_data.n_q_points;
+
+    // The previous temperature values in the cell quadrature points
+    vector<double> prev_temperatures(n_q_points);
+
+    scratch_data.fe_values.reinit(cell);
+    scratch_data.fe_values.get_function_values(heat_solver->solution, prev_temperatures);
+
+    // Local matrix assembly
+    copy_data.cell_matrix = 0;
+    for (unsigned int q = 0; q < n_q_points; ++q) {
+        double temperature = prev_temperatures[q];
+        double sigma = this->pq->sigma(temperature);
+
+        for (unsigned int i = 0; i < n_dofs; ++i) {
+            for (unsigned int j = 0; j < n_dofs; ++j) {
+                copy_data.cell_matrix(i, j) += sigma * scratch_data.fe_values.JxW(q) *
+                scratch_data.fe_values.shape_grad(i, q) * scratch_data.fe_values.shape_grad(j, q);
+            }
+        }
+    }
+
+    // Nothing to add to local right-hand-side vector assembly
+//    copy_data.cell_rhs = 0;
+
+    // Obtain dof indices for updating global matrix and right-hand-side vector
+    cell->get_dof_indices(copy_data.dof_indices);
 }
 
 /* ==================================================================

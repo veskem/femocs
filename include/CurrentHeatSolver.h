@@ -60,6 +60,33 @@ protected:
 
     vector<double>* bc_values;      ///< current/heat values on the centroids of surface faces for current/heat solver
     
+    /** Data holding copy of global matrix & rhs for parallel assembly */
+    struct LinearSystem {
+        Vector<double>* global_rhs;
+        SparseMatrix<double>* global_matrix;
+        LinearSystem(Vector<double>* rhs, SparseMatrix<double>* matrix);
+    };
+
+    /** Data for parallel local matrix & rhs assembly */
+    struct ScratchData {
+      FEValues<dim> fe_values;
+      ScratchData(const FiniteElement<dim> &fe, const Quadrature<dim> &quadrature, const UpdateFlags flags);
+      ScratchData(const ScratchData &scratch_data);
+    };
+
+    /** Data for coping local matrix & rhs into global one during parallel assembly */
+    struct CopyData {
+      FullMatrix<double> cell_matrix;
+      Vector<double> cell_rhs;
+      vector<unsigned int> dof_indices;
+      unsigned int n_dofs, n_q_points;
+      CopyData(const unsigned dofs_per_cell, const unsigned n_q_points);
+    };
+
+    /** Copy the matrix & rhs vector contribution of a cell into global matrix & rhs vector */
+    // Only one instance of this function should be running at a time!
+    void copy_global_cell(const CopyData &copy_data, LinearSystem &system) const;
+
     friend class CurrentHeatSolver<dim> ;
 };
 
@@ -78,11 +105,22 @@ public:
 private:
     const HeatSolver<dim>* heat_solver;
     
+    typedef typename EmissionSolver<dim>::LinearSystem LinearSystem;
+    typedef typename EmissionSolver<dim>::ScratchData ScratchData;
+    typedef typename EmissionSolver<dim>::CopyData CopyData;
+
     // TODO figure out what is written
     void write_vtk(ofstream& out) const;
 
-    /** Assemble left-hand-side of matrix equation */
-    void assemble_lhs();
+    /** Assemble left-hand-side of matrix equation in a serial manner*/
+    void assemble_serial();
+
+    /** Assemble left-hand-side of matrix equation in a parallel manner */
+    void assemble_parallel();
+
+    /** Calculate the contribution of one cell into global matrix and rhs vector */
+    void assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
+            ScratchData &scratch_data, CopyData &copy_data) const;
 
     friend class CurrentHeatSolver<dim> ;
 };
@@ -103,29 +141,9 @@ private:
     const CurrentSolver<dim>* current_solver;
     double one_over_delta_time;                      ///< inverse of heat solver time step
 
-    //* Data for parallel local matrix & rhs assembly */
-    struct ScratchData {
-      FEValues<dim> fe_values;
-      ScratchData(const FiniteElement<dim> &fe, const Quadrature<dim> &quadrature);
-      ScratchData(const ScratchData &scratch_data);
-    };
-
-    //* Data for coping local matrix & rhs into global one during parallel assembly */
-    struct CopyData {
-      FullMatrix<double> cell_matrix;
-      Vector<double> cell_rhs;
-      vector<unsigned int> dof_indices;
-      unsigned int n_dofs, n_q_points;
-
-      CopyData(const unsigned dofs_per_cell, const unsigned n_q_points);
-    };
-
-    //* Data holding copy of global matrix & rhs for parallel assembly */
-    struct LinearSystem {
-        Vector<double>* global_rhs;
-        SparseMatrix<double>* global_matrix;
-        LinearSystem(Vector<double>* rhs, SparseMatrix<double>* matrix);
-    };
+    typedef typename EmissionSolver<dim>::LinearSystem LinearSystem;
+    typedef typename EmissionSolver<dim>::ScratchData ScratchData;
+    typedef typename EmissionSolver<dim>::CopyData CopyData;
 
     /** @brief assemble the matrix equation for temperature calculation using Crank-Nicolson time integration method
      * Calculate sparse matrix elements and right-hand-side vector
@@ -139,13 +157,12 @@ private:
      */
     void assemble_euler_implicit(const double delta_time);
 
+    /** Run Euler implicit matrix &  rhs vector assembler in a parallel manner */
     void assemble_parallel(const double delta_time);
 
+    /** Calculate the contribution of one cell into global matrix and rhs vector */
     void assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
             ScratchData &scratch_data, CopyData &copy_data) const;
-
-    // Only one instance of this function should be running at a time!
-    void copy_global_cell(const CopyData &copy_data, LinearSystem &system) const;
 
     /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] in vtk format */
     void write_vtk(ofstream& out) const;
