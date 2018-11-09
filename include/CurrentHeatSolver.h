@@ -32,23 +32,61 @@ public:
     virtual ~EmissionSolver() {}
 
     /** Solve the matrix equation using conjugate gradient method */
-    unsigned int solve() { return this->solve_cg(conf->n_cg, conf->cg_tolerance, conf->ssor_param); }
-
-    /** Set the boundary condition values on copper-vacuum boundary.
-     * The values must be on the centroids of the vacuum-material boundary faces
-     * in the order specified in the get_surface_nodes() method.
-     */
-    void set_bc(const vector<double> &emission);
+    int solve() { return this->solve_cg(conf->n_cg, conf->cg_tolerance, conf->ssor_param); }
 
     /** Set the pointers for obtaining external data */
-    void set_dependencies(PhysicalQuantities *pq_, const Config::Heating *conf_);
+    void set_dependencies(PhysicalQuantities *pq, const Config::Heating *conf) {
+        this->pq = pq;
+        this->conf = conf;
+    }
+
+    /** Set the boundary condition values on centroids of surface faces.
+     * The values of bc_values must be on the centroids of the vacuum-material boundary faces
+     * in the order specified in the get_surface_nodes() method.
+     */
+    void set_bcs(vector<double>* bc_values) {
+        this->bc_values = bc_values;
+    }
+
+    /** Return the boundary condition value at the centroid of face */
+    double get_face_bc(const unsigned int face) const {
+        require(face < bc_values->size(), "Invalid index: " + d2s(face));
+        return (*bc_values)[face];
+    }
 
 protected:
-    PhysicalQuantities *pq;                ///< object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
-    const Config::Heating *conf;   ///< solver parameters
+    PhysicalQuantities *pq;         ///< object to evaluate tabulated physical quantities (sigma, kappa, gtf emission)
+    const Config::Heating *conf;    ///< solver parameters
 
-    vector<double> bc_values; ///< current or heat values on the centroids of surface faces
+    vector<double>* bc_values;      ///< current/heat values on the centroids of surface faces for current/heat solver
     
+    /** Data holding copy of global matrix & rhs for parallel assembly */
+    struct LinearSystem {
+        Vector<double>* global_rhs;
+        SparseMatrix<double>* global_matrix;
+        LinearSystem(Vector<double>* rhs, SparseMatrix<double>* matrix);
+    };
+
+    /** Data for parallel local matrix & rhs assembly */
+    struct ScratchData {
+      FEValues<dim> fe_values;
+      ScratchData(const FiniteElement<dim> &fe, const Quadrature<dim> &quadrature, const UpdateFlags flags);
+      ScratchData(const ScratchData &scratch_data);
+    };
+
+    /** Data for coping local matrix & rhs into global one during parallel assembly */
+    struct CopyData {
+      FullMatrix<double> cell_matrix;
+      Vector<double> cell_rhs;
+      vector<unsigned int> dof_indices;
+      unsigned int n_dofs, n_q_points;
+      CopyData(const unsigned dofs_per_cell, const unsigned n_q_points);
+    };
+
+    /** Copy the matrix & rhs vector contribution of a cell into global matrix & rhs vector */
+    // Only one instance of this function should be running at a time!
+    void copy_global_cell(const CopyData &copy_data, LinearSystem &system) const;
+
     friend class CurrentHeatSolver<dim> ;
 };
 
@@ -63,18 +101,26 @@ public:
      * according to the continuity equation weak formulation and to the boundary conditions.
      */
     void assemble();
-    
+
 private:
     const HeatSolver<dim>* heat_solver;
     
+    typedef typename EmissionSolver<dim>::LinearSystem LinearSystem;
+    typedef typename EmissionSolver<dim>::ScratchData ScratchData;
+    typedef typename EmissionSolver<dim>::CopyData CopyData;
+
     // TODO figure out what is written
     void write_vtk(ofstream& out) const;
 
-    /** Return the boundary condition value at the centroid of face */
-    double get_face_bc(const unsigned int face) const;
+    /** Assemble left-hand-side of matrix equation in a serial manner*/
+    void assemble_serial();
 
-    /** Assemble left-hand-side of matrix equation */
-    void assemble_lhs();
+    /** Assemble left-hand-side of matrix equation in a parallel manner */
+    void assemble_parallel();
+
+    /** Calculate the contribution of one cell into global matrix and rhs vector */
+    void assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
+            ScratchData &scratch_data, CopyData &copy_data) const;
 
     friend class CurrentHeatSolver<dim> ;
 };
@@ -90,8 +136,14 @@ public:
     void assemble(const double delta_time);
 
 private:
-    static constexpr double cu_rho_cp = 3.4496e-24;      ///< volumetric heat capacity of copper J/(K*ang^3)
+    // TODO shouldn't it be temperature dependent?
+    static constexpr double cu_rho_cp = 3.4496e-24;  ///< volumetric heat capacity of copper [J/(K*Ang^3)]
     const CurrentSolver<dim>* current_solver;
+    double one_over_delta_time;                      ///< inverse of heat solver time step
+
+    typedef typename EmissionSolver<dim>::LinearSystem LinearSystem;
+    typedef typename EmissionSolver<dim>::ScratchData ScratchData;
+    typedef typename EmissionSolver<dim>::CopyData CopyData;
 
     /** @brief assemble the matrix equation for temperature calculation using Crank-Nicolson time integration method
      * Calculate sparse matrix elements and right-hand-side vector
@@ -105,11 +157,15 @@ private:
      */
     void assemble_euler_implicit(const double delta_time);
 
+    /** Run Euler implicit matrix &  rhs vector assembler in a parallel manner */
+    void assemble_parallel(const double delta_time);
+
+    /** Calculate the contribution of one cell into global matrix and rhs vector */
+    void assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
+            ScratchData &scratch_data, CopyData &copy_data) const;
+
     /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] in vtk format */
     void write_vtk(ofstream& out) const;
-
-    /** Return the boundary condition value at the centroid of face */
-    double get_face_bc(const unsigned int face) const;
 
     friend class CurrentHeatSolver<dim> ;
 };
@@ -120,21 +176,9 @@ public:
     CurrentHeatSolver();
     CurrentHeatSolver(PhysicalQuantities *pq_, const Config::Heating *conf_);
 
-    /**
-     * Method to obtain the temperature values in selected nodes.
-     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
-     * @param vert_indexes the vertex indexes of the nodes inside the cell
-     * @return temperature  ///< default temperature applied on bottom of the materiale values in the specified nodes
-     */
-    vector<double> get_temperature(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
-
-    /**
-     * Method to obtain the current density values in selected nodes.
-     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
-     * @param vert_indexes the vertex indexes of the nodes inside the cell
-     * @return current density vectors in the specified nodes
-     */
-    vector<Tensor<1,dim>> get_current(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
+    /** Obtain the temperature, potential and current density values in selected nodes. */
+    void temp_phi_rho_at(vector<double> &temp, vector<double> &phi, vector<Tensor<1,dim>> &rho,
+            const vector<int> &cells, const vector<int> &verts) const;
 
     vector<Tensor<1, dim>> get_temp_grad(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
 

@@ -71,9 +71,6 @@ public:
     /** Calculate statistics about coordinates and solution */
     void calc_statistics();
 
-    /** Store the surface mesh centroids of the FEM solver */
-    void store_points(const DealSolver<3>& solver);
-
     /** Interpolate solution on the surface mesh centroids of the FEM solver */
     void interpolate(const DealSolver<3>& solver);
 
@@ -191,7 +188,8 @@ public:
 
     HeatReader(Interpolator* i);
 
-    void locate_atoms(const Medium &medium);
+    /** Interpolate and export solution on the mesh DOFs of the FEM solver */
+    void interpolate_dofs(CurrentHeatSolver<3>& solver);
 
     /** Compute data that Berendsen thermostat requires for re-using old solution */
     void precalc_berendsen_long();
@@ -216,7 +214,7 @@ public:
     }
 
     /** Return magnitude of current density in i-th interpolation point */
-    double get_rho_norm(const int i) const {
+    double get_potential(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
         return interpolation[i].norm;
     }
@@ -227,12 +225,18 @@ public:
         return interpolation[i].scalar;
     }
 
+    vector<double>* get_temperatures() { return &temperatures; }
+
+    vector<double>* get_potentials() { return &potentials; }
+
 private:
     static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant [eV/K]
     static constexpr double heat_factor = 1.0 / (2*1.5*kB);  ///< Factor to transfer 2*kinetic energy to temperature
 
     vector<vector<int>> tet2atoms;
     vector<double> fem_temp;
+    vector<double> temperatures;
+    vector<double> potentials;
 
     struct Data {
         double tau;          ///< Time constant in Berendsen scaling [fs]
@@ -245,6 +249,9 @@ private:
 
     /** Calculate scaling factor for Berendsen thermostat */
     double calc_lambda(const double T_start, const double T_end) const;
+
+    /** Transfer solution from vector of Solution to separate vectors with Solution components */
+    void transfer_solution();
 };
 
 /** Class to calculate charges from electric field */

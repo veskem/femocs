@@ -46,14 +46,14 @@ namespace femocs {
  */
 class Interpolator {
 public:
-    Interpolator(const string& norm_label, const string& scalar_label);
+    Interpolator(const string& vec_label, const string& norm_label, const string& scalar_label);
     ~Interpolator() {};
 
     /** Initialise interpolator and store solution with default value */
     void initialize(const TetgenMesh* mesh, DealSolver<3>& solver, const double empty_value, const int search_region);
 
     /** Extract the current density and transient temperature values from FEM solution */
-    void extract_solution(CurrentHeatSolver<3>& fem, bool temp_grad = false);
+    void extract_solution(CurrentHeatSolver<3>& fem);
     
     /** Extract electric potential and field values from FEM solution */
     void extract_solution(PoissonSolver<3>& fem, const bool smoothen);

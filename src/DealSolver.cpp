@@ -31,11 +31,11 @@ namespace femocs {
 
 template<int dim>
 DealSolver<dim>::DealSolver() :
-        dirichlet_bc_value(0), fe(shape_degree), dof_handler(triangulation) {}
+        dirichlet_bc_value(0), tria(&triangulation), fe(shape_degree), dof_handler(triangulation) {}
 
 template<int dim>
-DealSolver<dim>::DealSolver(Triangulation<dim> *tria) :
-        dirichlet_bc_value(0), fe(shape_degree), dof_handler(*tria) {}
+DealSolver<dim>::DealSolver(Triangulation<dim> *tr) :
+        dirichlet_bc_value(0), tria(tr), fe(shape_degree), dof_handler(*tr) {}
 
 template<int dim>
 vector<double> DealSolver<dim>::shape_funs(const Point<dim> &p, int cell_index) const {
@@ -207,32 +207,110 @@ void DealSolver<dim>::write_msh(ofstream& out) const {
 }
 
 template<int dim>
-void DealSolver<dim>::get_surface_nodes(vector<Point<dim>>& nodes) const {
+void DealSolver<dim>::export_surface_centroids(femocs::Medium& medium) const {
     const int n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
-    nodes.clear();
-
-    // Loop over copper interface cells
     typename DoFHandler<dim>::active_cell_iterator cell;
+
+    unsigned int n_nodes = 0;
     for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell)
         for (int f = 0; f < n_faces_per_cell; ++f)
             if (cell->face(f)->boundary_id() == BoundaryId::copper_surface)
-                nodes.push_back(cell->face(f)->center());
+                n_nodes++;
+
+    medium.reserve(n_nodes);
+
+    for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell)
+        for (int f = 0; f < n_faces_per_cell; ++f)
+            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface)
+                medium.append( femocs::Point3(cell->face(f)->center()) );
 }
 
 template<int dim>
-void DealSolver<dim>::get_nodal_solution(vector<double>& solutions) const {
-    const unsigned int n_nodes = this->triangulation.n_used_vertices();
+void DealSolver<dim>::export_dofs(Medium& medium) const {
+    const unsigned int n_dofs = dof_handler.n_dofs();
+    vector<Point<dim>> support_points(n_dofs);
+
+    DoFTools::map_dofs_to_support_points<dim>(StaticMappingQ1<dim>::mapping,
+            dof_handler, support_points);
+
+    medium.reserve(n_dofs);
+    for (int i = 0; i < n_dofs; ++i)
+        medium.append( Point3(support_points[i]) );
+}
+
+template<int dim>
+void DealSolver<dim>::get_nodal_solution(vector<double>& solution) const {
+    const unsigned int n_nodes = this->tria->n_used_vertices();
     require(vertex2dof.size() == n_nodes, "Before extracting solution, vertex2dof mapping must be calculated!");
 
-    solutions.resize(n_nodes);
+    solution.resize(n_nodes);
     for (unsigned int i = 0; i < n_nodes; ++i)
-        solutions[i] = this->solution[vertex2dof[i]];
+        solution[i] = this->solution[vertex2dof[i]];
+}
+
+template<int dim>
+void DealSolver<dim>::set_nodal_solution(const vector<double>* new_solution) {
+    const unsigned int n_verts = this->dof_handler.get_triangulation().n_used_vertices();
+
+    require(new_solution && n_verts == new_solution->size(),
+            "Mismatch between #nodes and Dirichlet BC vector size: "
+            + d2s(n_verts) + " vs " + d2s(new_solution->size()));
+
+    // Initialize the solution with non-constant values
+    for (size_t i = 0; i < n_verts; i++) {
+        this->solution[i] = (*new_solution)[i];
+    }
+}
+
+template<int dim>
+void DealSolver<dim>::solution_at(vector<double> &sols,
+        const vector<int> &cells, const vector<int> &verts) const
+{
+    const int n_nodes = cells.size();
+    require(n_nodes == verts.size(), "Invalid vectors sizes for cells and vertices: "
+            + d2s(n_nodes) + ", " + d2s(verts.size()));
+
+    sols.resize(n_nodes);
+
+    for (unsigned i = 0; i < n_nodes; i++) {
+        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+        // NB: only works without refinement !!!
+        typename DoFHandler<dim>::active_cell_iterator dof_cell(tria, 0, cells[i], &dof_handler);
+        sols[i] = solution[dof_cell->vertex_dof_index(verts[i], 0)];
+    }
+}
+
+template<int dim>
+void DealSolver<dim>::solution_grad_at(vector<Tensor<1, dim>> &grads,
+        const vector<int> &cells, const vector<int> &verts) const
+{
+    const int n_nodes = cells.size();
+    require(n_nodes == verts.size(), "Invalid vectors sizes for cells and vertices: "
+            + d2s(n_nodes) + ", " + d2s(verts.size()));
+
+    QGauss<dim> quadrature_formula(this->quadrature_degree);
+    FEValues<dim> fe_values(this->fe, quadrature_formula, update_gradients);
+
+    vector<Tensor<1, dim>> solution_gradients(quadrature_formula.size());
+    grads.resize(n_nodes);
+
+    for (unsigned i = 0; i < n_nodes; i++) {
+        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+        // NB: only works without refinement !!!
+        typename DoFHandler<dim>::active_cell_iterator dof_cell(tria, 0, cells[i], &dof_handler);
+
+        fe_values.reinit(dof_cell);
+        fe_values.get_function_gradients(this->solution, solution_gradients);
+        grads[i] = -1.0 * solution_gradients.at(verts[i]);
+    }
 }
 
 template<int dim>
 void DealSolver<dim>::calc_vertex2dof() {
     static constexpr int n_verts_per_elem = GeometryInfo<dim>::vertices_per_cell;
-    const unsigned int n_verts = this->triangulation.n_used_vertices();
+    require(tria, "Pointer to triangulation missing!");
+    const unsigned int n_verts = this->tria->n_used_vertices();
+    require(n_verts > 0, "Can't generate map for empty triangulation!");
 
     // create mapping from mesh vertex to cell index & cell node
     vector<unsigned> vertex2hex(n_verts), vertex2node(n_verts);
@@ -246,40 +324,36 @@ void DealSolver<dim>::calc_vertex2dof() {
 
     // create mapping from vertex index to dof index
     this->vertex2dof.resize(n_verts);
-
     for (unsigned i = 0; i < n_verts; ++i) {
-        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
-        // NB: only works without refinement !!!
-        typename DoFHandler<dim>::active_cell_iterator cell(&this->triangulation,
-                0, vertex2hex[i], &this->dof_handler);
-
+        typename DoFHandler<dim>::active_cell_iterator cell(tria, 0, vertex2hex[i], &this->dof_handler);
         this->vertex2dof[i] = cell->vertex_dof_index(vertex2node[i], 0);
     }
 }
 
 template<int dim>
-void DealSolver<dim>::setup_system() {
+void DealSolver<dim>::setup_system(bool full_setup) {
     require(this->dof_handler.get_triangulation().n_used_vertices() > 0,
             "Can't setup system with no mesh!");
 
     this->dof_handler.distribute_dofs(this->fe);
     this->boundary_values.clear();
 
-    DynamicSparsityPattern dsp(this->dof_handler.n_dofs());
+    const unsigned int n_dofs = this->dof_handler.n_dofs();
+
+    DynamicSparsityPattern dsp(n_dofs);
     DoFTools::make_sparsity_pattern(this->dof_handler, dsp);
     this->sparsity_pattern.copy_from(dsp);
 
-    this->system_rhs.reinit(this->dof_handler.n_dofs());
-    this->system_rhs_save.reinit(this->dof_handler.n_dofs());
+    this->system_rhs.reinit(n_dofs);
+    this->system_rhs_save.reinit(n_dofs);
     this->system_matrix.reinit(this->sparsity_pattern);
     this->system_matrix_save.reinit(this->sparsity_pattern);
-    this->solution.reinit(this->dof_handler.n_dofs());
-    this->solution_save.reinit(this->dof_handler.n_dofs());
+    this->solution.reinit(n_dofs);
 
-    // Initialize the solution
-    for (size_t i = 0; i < this->solution.size(); i++) {
-        this->solution[i] = this->dirichlet_bc_value;
-        this->solution_save[i] = this->dirichlet_bc_value;
+    if (full_setup) {
+        // Initialize the solution with constant values
+        for (size_t i = 0; i < n_dofs; i++)
+            this->solution[i] = this->dirichlet_bc_value;
     }
 }
 
@@ -337,19 +411,21 @@ void DealSolver<dim>::apply_dirichlet() {
 }
 
 template<int dim>
-unsigned int DealSolver<dim>::solve_cg(int max_iter, double tol, double ssor_param) {
+int DealSolver<dim>::solve_cg(int max_iter, double tol, double ssor_param) {
     SolverControl solver_control(max_iter, tol);
     SolverCG<> solver(solver_control);
+    try {
+        if (ssor_param > 0.0) {
+            PreconditionSSOR<> preconditioner;
+            preconditioner.initialize(system_matrix, ssor_param);
+            solver.solve(system_matrix, solution, system_rhs, preconditioner);
+        } else
+            solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
 
-    if (ssor_param > 0.0) {
-        PreconditionSSOR<> preconditioner;
-        preconditioner.initialize(system_matrix, ssor_param);
-        solver.solve(system_matrix, solution, system_rhs, preconditioner);
-    } else
-        solver.solve(system_matrix, solution, system_rhs, PreconditionIdentity());
-
-    solution_save = solution;
-    return solver_control.last_step();
+        return solver_control.last_step();
+    } catch (exception &exc) {
+        return -1 * solver_control.last_step();
+    }
 }
 
 template<int dim>
@@ -436,7 +512,6 @@ void DealSolver<dim>::calc_dof_volumes() {
     }
 }
 
-template class DealSolver<2>;
 template class DealSolver<3>;
 
 } /* namespace femocs */

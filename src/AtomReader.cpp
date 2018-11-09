@@ -82,7 +82,9 @@ bool AtomReader::calc_rms_distance() {
     
     double sum = 0;
     for (size_t i = 0; i < n_atoms; ++i) {
-        if (previous_types[i] != TYPES.CLUSTER && previous_types[i] != TYPES.EVAPORATED)
+        if (previous_types[i] != TYPES.CLUSTER &&
+                previous_types[i] != TYPES.EVAPORATED &&
+                previous_types[i] != TYPES.FIXED)
             sum += get_point(i).distance2(previous_points[i]);
     }
 

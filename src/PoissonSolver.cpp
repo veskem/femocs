@@ -137,70 +137,34 @@ Tensor<1, dim, double> PoissonSolver<dim>::probe_efield(const Point<dim> &p, con
 }
 
 template<int dim>
-vector<double> PoissonSolver<dim>::get_potential(const vector<int> &cell_indexes,
-        const vector<int> &vert_indexes) {
-
-    // Initialise potentials with a value that is immediately visible if it's not changed to proper one
-    vector<double> potentials(cell_indexes.size(), 1e15);
-
-    for (unsigned i = 0; i < cell_indexes.size(); i++) {
-        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
-        // NB: only works without refinement !!!
-        typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation,
-                0, cell_indexes[i], &this->dof_handler);
-
-        double potential = this->solution[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
-        potentials[i] = potential;
-    }
-    return potentials;
+void PoissonSolver<dim>::potential_efield_at(vector<double> &potentials, vector<Tensor<1, dim>> &fields,
+        const vector<int> &cells, const vector<int> &verts) const
+{
+    this->solution_at(potentials, cells, verts);
+    this->solution_grad_at(fields, cells, verts);
 }
 
 template<int dim>
-vector<Tensor<1, dim> > PoissonSolver<dim>::get_efield(const vector<int> &cell_indexes,
-        const vector<int> &vert_indexes) const {
+void PoissonSolver<dim>::charge_dens_at(vector<double> &charge_dens,
+        const vector<int> &cells, const vector<int> &verts)
+{
+    const int n_nodes = cells.size();
+    require(n_nodes == verts.size(), "Invalid vectors sizes for cells and vertices: "
+            + d2s(n_nodes) + ", " + d2s(verts.size()));
 
-    QGauss<dim> quadrature_formula(this->quadrature_degree);
-    FEValues<dim> fe_values(this->fe, quadrature_formula, update_gradients);
-
-    vector<Tensor<1, dim>> solution_gradients(quadrature_formula.size());
-    vector<Tensor<1, dim>> fields(cell_indexes.size());
-
-    for (unsigned i = 0; i < cell_indexes.size(); i++) {
-        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
-        // NB: only works without refinement !!!
-        typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation,
-                0, cell_indexes[i], &this->dof_handler);
-
-        fe_values.reinit(dof_cell);
-        fe_values.get_function_gradients(this->solution, solution_gradients);
-        Tensor<1, dim> field = -1.0 * solution_gradients.at(vert_indexes[i]);
-
-        fields[i] = field;
-    }
-    return fields;
-}
-
-template<int dim>
-vector<double> PoissonSolver<dim>::get_charge_dens(const vector<int> &cell_indexes,
-        const vector<int> &vert_indexes) {
-
+    charge_dens.resize(n_nodes);
     this->calc_dof_volumes();
 
-    // Initialise potentials with a value that is immediately visible if it's not changed to proper one
-    vector<double> charge_dens(cell_indexes.size(), 1e15);
-
-    for (unsigned i = 0; i < cell_indexes.size(); i++) {
+    for (unsigned i = 0; i < n_nodes; i++) {
         // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
         // NB: only works without refinement !!!
         typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation,
-                0, cell_indexes[i], &this->dof_handler);
+                0, cells[i], &this->dof_handler);
 
-        double rhs = this->system_rhs_save[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
-        double vol = this->dof_volume[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
+        double rhs = this->system_rhs_save[dof_cell->vertex_dof_index(verts[i], 0)];
+        double vol = this->dof_volume[dof_cell->vertex_dof_index(verts[i], 0)];
         charge_dens[i] = rhs / vol;
     }
-
-    return charge_dens;
 }
 
 template<int dim>

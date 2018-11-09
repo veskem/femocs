@@ -46,7 +46,7 @@ public:
     /** Add atom with default id and coordination to the system */
     void append(const Point3& point);
 
-    /** Write atoms to file */
+    /** Write atoms to file. Function is active only when file write is enabled */
     void write(const string &file_name) const;
     
     /** Calculate statistics about the coordinates in Medium */
@@ -54,6 +54,9 @@ public:
 
     /** Copy statistics from another Medium */
     void copy_statistics(const Medium& m);
+
+    /** Make the atoms coordinates to correspond to another Medium */
+    void update_positions(const Medium& medium);
 
     /** Set the id of i-th atom */
     void set_id(const int i, const int id);

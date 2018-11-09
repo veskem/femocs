@@ -91,7 +91,8 @@ int ProjectHeat::solve_heat(double T_ambient, double delta_time, bool full_run, 
         end_msg(t0);
     }
 
-    emission.export_emission(ch_solver);
+    // TODO UPDATE THIS!!!
+//    emission.export_emission(ch_solver);
 
     start_msg(t0, "=== Calculating current density...");
     ch_solver.current.assemble();

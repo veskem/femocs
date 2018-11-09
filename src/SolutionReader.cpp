@@ -132,8 +132,8 @@ void SolutionReader::reserve(const int n_nodes) {
 }
 
 string SolutionReader::get_data_string(const int i) const{
-    if (i < 0) return "Time=" + d2s(GLOBALS.TIME,2)
-            + "; SolutionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:"
+    if (i < 0) return "Time=" + d2s(GLOBALS.TIME) + ", Timestep=" + d2s(GLOBALS.TIMESTEP) +
+            + ", SolutionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:"
             + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
 
     ostringstream strs; strs << fixed;
@@ -271,22 +271,8 @@ int SolutionReader::interpolate_results(const int n_points, const string &data_t
     return sr.export_results(n_points, data_type, data);
 }
 
-void SolutionReader::store_points(const DealSolver<3>& solver) {
-    // import the quadrangle centroids
-    vector<dealii::Point<3>> nodes;
-    solver.get_surface_nodes(nodes);
-
-    const int n_atoms = nodes.size();
-
-    // store the centroid coordinates
-    reserve(n_atoms);
-    int i = 0;
-    for (dealii::Point<3>& node : nodes)
-        append( Atom(i++, Point3(node[0], node[1], node[2]), 0) );
-}
-
 void SolutionReader::interpolate(const DealSolver<3>& solver) {
-    store_points(solver);
+    solver.export_surface_centroids(*this);
     calc_interpolation();
 }
 
@@ -434,28 +420,14 @@ void FieldReader::set_check_params(const Config& conf, double radius,
  * ========================================== */
 
 HeatReader::HeatReader(Interpolator* i) :
-        SolutionReader(i, LABELS.rho, LABELS.rho_norm, LABELS.temperature)
+        SolutionReader(i, LABELS.rho, LABELS.potential, LABELS.temperature)
 {}
-/*
- * Issues:
- *   temperature modified also for fixed atoms
- *   md timestep not exactly the same as in PARCAS (exact is 4.0577307217372054)
- */
-void HeatReader::locate_atoms(const Medium &medium) {
-    const int n_atoms = medium.size();
 
-    // store the atom coordinates
-    reserve(n_atoms);
-    atoms = medium.atoms;
-    sizes = medium.sizes;
-
-    // determine the tetrahedron that surrounds the point
-    // and assign its mean temperature to the atom
-    int cell = 0;
-    for (int i = 0; i < n_atoms; ++i) {
-        cell = interpolator->lintet.locate_cell(get_point(i), cell);
-        set_marker(i, cell);
-    }
+void HeatReader::interpolate_dofs(CurrentHeatSolver<3>& solver) {
+    solver.heat.export_dofs(*this);
+    calc_interpolation();
+    transfer_solution();
+    solver.heat.set_nodal_solution(get_temperatures());
 }
 
 int HeatReader::scale_berendsen_short(double* x1, const int n_atoms, const Vec3& parcas2si) {
@@ -575,6 +547,18 @@ void HeatReader::calc_SI_velocities(vector<Vec3>& velocities,
     for (int i = 0; i < n_atoms; ++i) {
         int I = 3*i;
         velocities.push_back(Vec3(x1[I], x1[I+1], x1[I+2]) * velocity_factor);
+    }
+}
+
+void HeatReader::transfer_solution() {
+    const int n_points = size();
+    temperatures.resize(n_points);
+    potentials.resize(n_points);
+
+    for (int i = 0; i < n_points; ++i) {
+        Solution& sol = interpolation[i];
+        temperatures[i] = sol.scalar;
+        potentials[i] = sol.norm;
     }
 }
 

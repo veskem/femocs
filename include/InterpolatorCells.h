@@ -22,7 +22,7 @@ namespace femocs {
 class InterpolatorNodes {
 public:
     InterpolatorNodes();
-    InterpolatorNodes(const string &norm_label, const string &scalar_label);
+    InterpolatorNodes(const string &vec_label, const string &norm_label, const string &scalar_label);
     ~InterpolatorNodes() {};
 
     /** Return number of available nodes */
@@ -111,6 +111,7 @@ public:
 
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
+    const string vec_label;         ///< description label attached to solution.vec -values
     const string norm_label;        ///< description label attached to solution.norm -values
     const string scalar_label;      ///< description label attached to solution.scalar -values
 

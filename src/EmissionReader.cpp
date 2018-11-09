@@ -326,11 +326,4 @@ void EmissionReader::calc_global_stats(){
     stats.Frep.resize(0);
 }
 
-
-
-void EmissionReader::export_emission(CurrentHeatSolver<3>& ch_solver) {
-    ch_solver.current.set_bc(current_densities);
-    ch_solver.heat.set_bc(nottingham);
-}
-
 }

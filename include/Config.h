@@ -18,7 +18,7 @@ namespace femocs {
 class Config {
 public:
 
-    /** Config constructor initializes configuration parameters */
+    /** Constructor initializes configuration parameters */
     Config();
 
     /** Read the configuration parameters from input script */
@@ -55,7 +55,7 @@ public:
     /** User specific preferences */
     struct Behaviour {
         string verbosity;           ///< Verbose mode: mute, silent, verbose
-        string project;             ///< Type of project to be called
+        string project;             ///< Type of project to be called; runaway, ...
         int n_write_log;            ///< #timesteps between writing log file; <0: only last timestep, 0: no write, >0: only every n-th
         int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
         int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
@@ -110,14 +110,14 @@ public:
 
     /** Parameters for solving field equation */
     struct Field {
-        double E0;              ///< Value of long range electric field (Active in case of Neumann anodeBC
-        double ssor_param;      ///< Parameter for SSOR preconditioner in DealII
-        double phi_error;       ///< Maximum allowed electric potential error
-        int n_phi;              ///< Maximum number of Conjugate Gradient iterations in phi calculation
-        double V0;              ///< Applied voltage at the anode (active in case of SC emission and Dirichlet anodeBC
-        string anode_BC;         ///< Type of anode boundary condition (Dirichlet or Neumann)
-        string solver;          ///< Type of field equation to be solved; laplace or poisson
-        int element_degree;     ///< Degree of Finite elements (1: linear, 2: quadratic, 3: cubic ...
+        double E0;             ///< Value of long range electric field (Active in case of Neumann anodeBC
+        double ssor_param;     ///< Parameter for SSOR preconditioner in DealII
+        double cg_tolerance;   ///< Maximum allowed electric potential error
+        int n_cg;              ///< Maximum number of Conjugate Gradient iterations in phi calculation
+        double V0;             ///< Applied voltage at the anode (active in case of SC emission and Dirichlet anodeBC
+        string anode_BC;       ///< Type of anode boundary condition (Dirichlet or Neumann)
+        string solver;         ///< Type of field equation to be solved; laplace or poisson
+        vector<double> apply_factors; ///< run for multiple applied E0 (or V0) multiplied by the factors
     } field;
 
     /** Heating module configuration parameters */
@@ -126,8 +126,6 @@ public:
         string rhofile;             ///< Path to the file with resistivity table
         double lorentz;             ///< Lorentz number (Wiedemenn-Franz law)
         double t_ambient;           ///< Ambient temperature in heat calculations
-        double t_error;             ///< Maximum allowed temperature error in Newton iterations
-        int n_newton;               ///< Maximum number of Newton iterations
         int n_cg;                   ///< Max # Conjugate-Gradient iterations
         double cg_tolerance;        ///< Solution accuracy in Conjugate-Gradient solver
         double ssor_param;          ///< Parameter for SSOR preconditioner in DealII. Its fine tuning optimises calculation time.
@@ -164,10 +162,10 @@ public:
 
     /** Factors that are proportional to the extent of surface coarsening; 0 turns corresponding coarsening component off */
     struct CoarseFactor {
-        double amplitude;
-        int r0_cylinder;
-        int r0_sphere;
-        double exponential;
+        double amplitude;   ///< coarsening factor outside the warm region
+        int r0_cylinder;    ///< minimum distance between atoms in nanotip outside the apex
+        int r0_sphere;      ///< minimum distance between atoms in nanotip apex
+        double exponential; ///< coarsening rate; min distance between coarsened atoms outside the warm region is d_min ~ pow(|r1-r2|, exponential)
     } cfactor;
 
     /** Particle In Cell module configuration */

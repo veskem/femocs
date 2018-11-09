@@ -64,14 +64,13 @@ public:
 protected:
     bool fail;                  ///< If some process failed
     double t0;                  ///< CPU timer
-    int timestep;               ///< counter to measure how many times Femocs has been called
     bool mesh_changed;          ///< True if new mesh has been created
-    unsigned int write_flags;   ///< Flags to determine whether file output should be enabled or not
 
     string timestep_string;     ///< time step written to file name
-
     double last_heat_time;      ///< Last time heat was updated
     double last_write_time;     ///< Keeps the time that last file output was done
+    int last_write_ts;          ///< Last timestep with full file write
+    int last_mesh_write_ts;     ///< Last timestep with mesh file write
 
     Interpolator vacuum_interpolator;  ///< data & operations for interpolating field & potential in vacuum
     Interpolator bulk_interpolator;    ///< data & operations for interpolating current density & temperature in bulk
@@ -85,6 +84,7 @@ protected:
 
     FieldReader surface_fields;       ///< fields on surface hex face centroids
     HeatReader  surface_temperatures; ///< temperatures & current densities on surface hex face centroids
+    HeatReader  heat_transfer;        ///< temperatures on new mesh dofs interpolated on old solution space
 
     PhysicalQuantities phys_quantities; ///< quantities used in heat calculations
     PoissonSolver<3> poisson_solver;    ///< Poisson equation solver

@@ -33,8 +33,6 @@ public:
     void calc_emission(const Config::Emission &conf, double Veff_SC = -1,
             bool update_eff_region = false);
 
-    void export_emission(CurrentHeatSolver<3>& ch_solver);
-
     /**
      * Calculates the mean and the standard deviation of the total current for the last N_calls
      * @param std the returned standard deviation
@@ -48,6 +46,14 @@ public:
     void set_sfactor(double factor){
         global_data.multiplier *= factor / global_data.sfactor;
         global_data.sfactor = factor;
+    }
+
+    vector<double>* get_current_densities() {
+        return &current_densities;
+    }
+
+    vector<double>* get_nottingham() {
+        return &nottingham;
     }
 
     /**

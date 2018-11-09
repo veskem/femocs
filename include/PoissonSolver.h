@@ -47,27 +47,15 @@ public:
     /** Probes the field at point p that belongs in cell with cell_index. Fast, when cell_index is correct */
     Tensor<1, dim, double> probe_efield(const Point<dim> &p, const int cell_index) const;
 
-    /**
-     * method to obtain the electric potential values in selected nodes
-     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
-     * @param vert_indexes the vertex indexes of the nodes inside the cell
-     * @return potential values in the specified nodes
-     */
-    vector<double> get_potential(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
-
-    /**
-     * method to obtain the electric field values in selected nodes
-     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
-     * @param vert_indexes the vertex indexes of the nodes inside the cell
-     * @return electric field vectors in the specified nodes
-     */
-    vector<Tensor<1, dim>> get_efield(const vector<int> &cell_indexes, const vector<int> &vert_indexes) const;
+    /** Obtain potential and electric field values in selected nodes */
+    void potential_efield_at(vector<double> &potentials, vector<Tensor<1, dim>> &fields,
+            const vector<int> &cells, const vector<int> &verts) const;
 
     /** Calculate charge densities at given nodes in given cells */
-    vector<double> get_charge_dens(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
+    void charge_dens_at(vector<double> &charge_dens, const vector<int> &cells, const vector<int> &verts);
 
     /** Run Conjugate-Gradient solver to solve matrix equation */
-    unsigned int solve() { return this->solve_cg(conf->n_phi, conf->phi_error, conf->ssor_param); }
+    int solve() { return this->solve_cg(conf->n_cg, conf->cg_tolerance, conf->ssor_param); }
 
     /** Setup system for solving Poisson equation */
     void setup(const double field, const double potential);

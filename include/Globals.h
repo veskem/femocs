@@ -144,6 +144,7 @@ struct Modes {
 
 struct Globals {
     double TIME = 0;         ///< Simulation time in fs
+    int TIMESTEP = 0;        ///< Simulation time step
 };
 
 // Small hack to define structs only once

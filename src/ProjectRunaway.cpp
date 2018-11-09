@@ -18,12 +18,12 @@ namespace femocs {
 
 ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         GeneralProject(reader, config),
-        fail(false), t0(0), timestep(-1),
-		mesh_changed(false), write_flags(0),
+        fail(false), t0(0), mesh_changed(false),
 		last_heat_time(0), last_write_time(0),
+		last_write_ts(0), last_mesh_write_ts(0),
 
-        vacuum_interpolator("elfield", "potential"),
-        bulk_interpolator("rho", "temperature"),
+        vacuum_interpolator("elfield", "elfield_norm", "potential"),
+        bulk_interpolator("rho", "potential", "temperature"),
 
         fields(&vacuum_interpolator),
         temperatures(&bulk_interpolator),
@@ -31,6 +31,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 
         surface_fields(&vacuum_interpolator),
         surface_temperatures(&bulk_interpolator),
+        heat_transfer(&bulk_interpolator),
 
         phys_quantities(config.heating),
         poisson_solver(NULL, &config.field, &vacuum_interpolator.linhex),
@@ -41,6 +42,8 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 {
     poisson_solver.set_particles(pic_solver.get_particles());
     temperatures.set_params(config);
+    ch_solver.current.set_bcs(emission.get_current_densities());
+    ch_solver.heat.set_bcs(emission.get_nottingham());
 
     // Initialise heating module
     start_msg(t0, "Reading physical quantities");
@@ -49,20 +52,21 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 }
 
 int ProjectRunaway::reinit(int tstep, double time) {
-    ++timestep;
+    GLOBALS.TIMESTEP++;
 
-    timestep_string = d2s(timestep);
+    timestep_string = d2s(GLOBALS.TIMESTEP);
     timestep_string = "_" + string( max(0.0, 6.0 - timestep_string.length()), '0' ) + timestep_string;
 
     mesh_changed = false;
     bool skip_meshing = reader.get_rmsd() < conf.tolerance.distance;
 
-    write_flags |= conf.behaviour.n_writefile > 0 && timestep % conf.behaviour.n_writefile == 0;
-    write_flags |= (!skip_meshing) << 1;
+    MODES.WRITEFILE = conf.behaviour.n_writefile > 0 && (
+            last_write_ts == 0 ||
+            last_mesh_write_ts == 0 ||
+            (GLOBALS.TIMESTEP - last_write_ts) >= conf.behaviour.n_writefile
+            );
 
-    MODES.WRITEFILE = write_flags == 3;
-
-    write_silent_msg("Running at timestep=" + d2s(timestep) + ", time=" + d2s(GLOBALS.TIME, 2) + " fs");
+    write_silent_msg("Running at timestep=" + d2s(GLOBALS.TIMESTEP) + ", time=" + d2s(GLOBALS.TIME, 2) + " fs");
     return skip_meshing;
 }
 
@@ -75,10 +79,13 @@ int ProjectRunaway::finalize(double tstart, double time) {
 
     // determine whether log file will be written on next timestep
     if (conf.behaviour.n_write_log > 0)
-        MODES.WRITELOG = (timestep+1)%conf.behaviour.n_write_log == 0;
+        MODES.WRITELOG = (GLOBALS.TIMESTEP+1)%conf.behaviour.n_write_log == 0;
 
-    // reset file output flags
-    if (MODES.WRITEFILE) write_flags = 0;
+    // update file output counters
+    if (MODES.WRITEFILE) {
+        last_write_ts = GLOBALS.TIMESTEP;
+        if (mesh_changed) last_mesh_write_ts = GLOBALS.TIMESTEP;
+    }
 
     return 0;
 }
@@ -88,7 +95,7 @@ int ProjectRunaway::process_failed(const string &msg) {
 //    force_output();
     GLOBALS.TIME += conf.behaviour.timestep_fs;
     if (conf.behaviour.n_write_log > 0)
-        MODES.WRITELOG = (timestep+1)%conf.behaviour.n_write_log == 0;
+        MODES.WRITELOG = (GLOBALS.TIMESTEP+1)%conf.behaviour.n_write_log == 0;
     return 1;
 }
 
@@ -186,6 +193,9 @@ int ProjectRunaway::generate_mesh() {
         end_msg(t0);
     }
 
+    MODES.WRITEFILE |= conf.behaviour.n_writefile > 0 &&
+            (GLOBALS.TIMESTEP - last_mesh_write_ts) >= conf.behaviour.n_writefile;
+
     new_mesh->nodes.write("out/hexmesh_nodes.vtk");
     new_mesh->tris.write("out/trimesh.vtk");
     new_mesh->quads.write("out/quadmesh.vtk");
@@ -219,6 +229,7 @@ int ProjectRunaway::prepare_solvers() {
             bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
             surface_fields.set_preferences(false, 2, 3);
             surface_temperatures.set_preferences(false, 2, 3);
+            heat_transfer.set_preferences(false, 3, 1);
         }
     }
 
@@ -231,12 +242,14 @@ int ProjectRunaway::prepare_export() {
         return 0;
     }
 
-    start_msg(t0, "Interpolating E and phi");
+    start_msg(t0, "Interpolating E & phi");
     if (mesh_changed) {
         fields.set_preferences(true, 2, 1);
         fields.interpolate(dense_surf);
+    } else {
+        fields.update_positions(dense_surf);
+        fields.calc_interpolation();
     }
-    else fields.calc_interpolation();
     end_msg(t0);
 
     fields.write("out/fields.movie");
@@ -248,8 +261,10 @@ int ProjectRunaway::prepare_export() {
             temperatures.set_preferences(false, 3, conf.behaviour.interpolation_rank);
             temperatures.interpolate(reader);
             temperatures.precalc_berendsen_long();
+        } else {
+            temperatures.update_positions(reader);
+            temperatures.calc_interpolation();
         }
-        else temperatures.calc_interpolation();
         end_msg(t0);
 
         temperatures.write("out/temperatures.xyz");
@@ -287,9 +302,11 @@ int ProjectRunaway::run_field_solver() {
 
 int ProjectRunaway::run_heat_solver() {
     int ccg, hcg;
-    bool b1 = GLOBALS.TIME - last_heat_time >= conf.heating.delta_time;
+
+    double delta_time = GLOBALS.TIME - last_heat_time;
+    bool b1 = delta_time >= conf.heating.delta_time;
     if (conf.heating.mode == "transient" && (mesh_changed || b1))
-        return solve_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, mesh_changed, ccg, hcg);
+        return solve_heat(conf.heating.t_ambient, max(delta_time, conf.behaviour.timestep_fs), mesh_changed, ccg, hcg);
 
     return 0;
 }
@@ -352,8 +369,10 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
     write_verbose_msg(poisson_solver.to_str());
 
     start_msg(t0, "Running Laplace solver");
-    poisson_solver.solve();
+    int ncg = poisson_solver.solve();
     end_msg(t0);
+    check_return(ncg < 0, "Field solver did not complete normally,"
+            " #CG=" + d2s(abs(ncg)) + "/" + d2s(conf.field.n_cg));
 
     start_msg(t0, "Extracting E and phi");
     vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
@@ -384,7 +403,6 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit, bool force_write
 
     pic_solver.set_params(conf.pic, dt_pic, mesh->nodes.stat);
     surface_temperatures.interpolate(ch_solver);
-    surface_fields.store_points(ch_solver);
     emission.initialize(mesh);
 
     start_msg(t0, "=== Running PIC for delta time " + d2s(advance_time, 2) + " fs\n");
@@ -434,54 +452,61 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit, bool force_write
 }
 
 int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {
-    if (full_run) ch_solver.setup(T_ambient);
-
-    // Calculate field emission in case not ready from pic
-    if (conf.pic.mode == "none" || conf.field.solver == "laplace") {
-		static bool make_intermediate_step = false;
-		start_msg(t0, "Transferring field & temperature");
-		if (full_run) {
-		    surface_fields.interpolate(ch_solver);
-		    surface_temperatures.interpolate(ch_solver);
-		    bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK); // must be after interpolation as it clears previous data
-		    make_intermediate_step = true;
-		} else if (make_intermediate_step) {
-		    surface_temperatures.calc_full_interpolation();
-		    make_intermediate_step = false;
-		} else
-		    surface_temperatures.calc_interpolation();
-		end_msg(t0);
-
-		surface_fields.write("out/surface_fields.movie");
-		surface_temperatures.write("out/surface_temperatures.movie");
-
-		start_msg(t0, "Calculating electron emission");
-		emission.initialize(mesh, full_run);
-		emission.calc_emission(conf.emission, conf.field.V0);
-		end_msg(t0);
-
-		emission.write("out/emission.movie");
+    if (full_run) {
+        start_msg(t0, "Setup current & heat solvers");
+        ch_solver.setup(conf.heating.t_ambient);
+        heat_transfer.interpolate_dofs(ch_solver);
+        end_msg(t0);
     }
 
-    emission.export_emission(ch_solver);
+// Calculate field emission in case not ready from pic
+    if (conf.pic.mode == "none" || conf.field.solver == "laplace") {
+        static bool make_intermediate_step = false;
+        start_msg(t0, "Transferring field & temperature");
+        if (full_run) {
+            surface_fields.interpolate(ch_solver);
+            surface_temperatures.interpolate(ch_solver);
+            bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK); // must be after interpolation as it clears previous data
+            make_intermediate_step = true;
+        } else if (make_intermediate_step) {
+            surface_temperatures.calc_full_interpolation();
+            make_intermediate_step = false;
+        } else
+            surface_temperatures.calc_interpolation();
+        end_msg(t0);
+
+        surface_fields.write("out/surface_fields.movie");
+        surface_temperatures.write("out/surface_temperatures.movie");
+
+        start_msg(t0, "Calculating electron emission");
+        emission.initialize(mesh, full_run);
+        emission.calc_emission(conf.emission, conf.field.V0);
+        end_msg(t0);
+
+        emission.write("out/emission.movie");
+    }
 
     start_msg(t0, "Calculating current density");
     ch_solver.current.assemble();
     ccg = ch_solver.current.solve();
     end_msg(t0);
+    check_return(ccg < 0, "Current solver did not complete normally,"
+            " #CG=" + d2s(abs(ccg)) + "/" + d2s(conf.heating.n_cg));
     write_verbose_msg("#CG steps: " + d2s(ccg));
 
     start_msg(t0, "Calculating temperature distribution");
     ch_solver.heat.assemble(delta_time * 1.e-15); // caution!! ch_solver internal time in sec
     hcg = ch_solver.heat.solve();
     end_msg(t0);
+    check_return(hcg < 0, "Heat solver did not complete normally,"
+            " #CG=" + d2s(abs(hcg)) + "/" + d2s(conf.heating.n_cg));
     write_verbose_msg("#CG steps: " + d2s(hcg));
 
     start_msg(t0, "Extracting J & T");
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
-    bulk_interpolator.nodes.write("out/result_J_T.xyz");
+    bulk_interpolator.nodes.write("out/result_J_T.movie");
     bulk_interpolator.lintet.write("out/result_J_T.vtk");
 
     last_heat_time = GLOBALS.TIME;
