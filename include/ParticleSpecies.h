@@ -31,7 +31,7 @@ public:
 
     double get_Wsp() const { return Wsp; }
     void set_Wsp(double Wsp) {
-        require(Wsp >= 0, "Invalid SP weight: " + d2s(Wsp))
+        require(Wsp >= 0, "Invalid SP weight: " + d2s(Wsp));
         this->Wsp = Wsp;
     }
 

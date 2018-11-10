@@ -114,9 +114,11 @@ private:
      */
     void emission_line(const Point3& point, const Vec3& direction, const double rmax);
 
-    /** Calculates all the global values
-     */
+    /** Calculates all the global values */
     void calculate_globals();
+
+    /** Compose console output of occured errors */
+    string get_error_codes(vector<int> &errors) const;
 
     /**
      * Calculates the effective emission area (assigns flag to each surface face

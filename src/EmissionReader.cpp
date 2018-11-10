@@ -109,9 +109,9 @@ void EmissionReader::calculate_globals() {
     global_data.area = 0;
 
     if (is_effective.size() != current_densities.size()){
-        write_verbose_msg("WARNING: is_effected not set. Defining it as the whole surface!!");
+        write_verbose_msg("WARNING: is_effected not set. Defining it as the whole surface.");
         is_effective.resize(current_densities.size());
-        for (int i = 0; i < is_effective.size(); ++i) is_effective[i] = true;
+        std::fill (is_effective.begin(), is_effective.end(), true);
     }
 
     double Fsum = 0.;
@@ -174,6 +174,7 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC,
     gt.R = 1000.0;   // radius of curvature (overrided by femocs potential distribution)
     gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
     double F, J;    // Local field and current density in femocs units (Angstrom)
+    vector<int> errors;  // list of errors that occured during the run
 
     for (int i = 0; i < fields->size(); ++i) { // go through all face centroids
         double elfield_norm = fields->get_elfield_norm(i);
@@ -212,8 +213,7 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC,
                 gt.voltage = Veff;
                 cur_dens_SC(&gt, Veff);
             }
-            if (gt.ierr != 0 )
-                write_verbose_msg("GETELEC 2nd call returned with error, ierr = " + d2s(gt.ierr));
+            if (gt.ierr != 0 ) errors.push_back(gt.ierr);
             J = gt.Jem * nm2_per_angstrom2;
             set_marker(i, 2);
         }
@@ -231,7 +231,8 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC,
 
     calculate_globals();
 
-    write("out/emission.dat");
+    if (errors.size() > 0)
+        write_verbose_msg("Errors of GETELEC 2nd call: " + get_error_codes(errors));
 }
 
 string EmissionReader::get_data_string(const int i) const {
@@ -324,6 +325,26 @@ void EmissionReader::calc_global_stats(){
     stats.Jrep.resize(0);
     stats.Fmax.resize(0);
     stats.Frep.resize(0);
+}
+
+string EmissionReader::get_error_codes(vector<int> &errors) const {
+    std::sort(errors.begin(), errors.end());
+
+    string retval;
+    int error_cntr = 0;
+    int prev_error = errors[0];
+    for (int e : errors) {
+        if (e == prev_error)
+            error_cntr++;
+        else {
+            retval += d2s(error_cntr) + "x of " + d2s(prev_error) + ", ";
+            prev_error = e;
+            error_cntr = 1;
+        }
+    }
+
+    retval += d2s(error_cntr) + "x of " + d2s(prev_error);
+    return retval;
 }
 
 }
