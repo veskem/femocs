@@ -9,8 +9,8 @@
 
 namespace femocs {
 
-ProjectHeat::ProjectHeat(AtomReader &reader, Config &conf) : ProjectRunaway(reader, conf) {
-}
+ProjectHeat::ProjectHeat(AtomReader &reader, Config &conf) : ProjectRunaway(reader, conf)
+{}
 
 int ProjectHeat::run(int timestep, double time) {
     double tstart = omp_get_wtime();
@@ -32,7 +32,7 @@ int ProjectHeat::run(int timestep, double time) {
         conf.field.V0 *= factor;
 
         if (run_field_solver())
-            return process_failed("Running field solver in a " + conf.field.solver + " mode failed!");
+            return process_failed("Running field solver in a " + conf.field.mode + " mode failed!");
 
         if (run_heat_solver())
             return process_failed("Running heat solver in a " + conf.heating.mode + " mode failed!");
@@ -50,16 +50,11 @@ int ProjectHeat::run(int timestep, double time) {
 }
 
 int ProjectHeat::run_field_solver() {
-    if (conf.field.solver == "poisson") {
-        if (conf.pic.mode == "transient")
-            return solve_pic(conf.behaviour.timestep_fs, mesh_changed);
-        else if (conf.pic.mode == "converge")
-            return converge_pic(1.e4);
-        else
-            check_return(false, "Invalid PIC mode: " + conf.pic.mode);
-    }
-
-    if (mesh_changed && (conf.field.solver == "laplace" || conf.pic.mode == "none"))
+    if (conf.field.mode == "transient")
+        return solve_pic(conf.behaviour.timestep_fs, mesh_changed);
+    else if (conf.field.mode == "converge")
+        return converge_pic(1.e4);
+    else if (mesh_changed)
         return solve_laplace(conf.field.E0, conf.field.V0);
 
     return 0;
@@ -82,7 +77,7 @@ int ProjectHeat::solve_heat(double T_ambient, double delta_time, bool full_run, 
         ch_solver.setup(T_ambient);
 
     // Calculate field emission in case not ready from pic
-    if (conf.pic.mode == "none" || conf.field.solver == "laplace") {
+    if (conf.field.mode == "laplace") {
         start_msg(t0, "=== Calculating electron emission...");
         if (full_run) surface_fields.interpolate(ch_solver);
         surface_temperatures.interpolate(ch_solver);
@@ -110,7 +105,7 @@ int ProjectHeat::solve_heat(double T_ambient, double delta_time, bool full_run, 
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
-    if(conf.pic.mode != "transient")
+    if(conf.field.mode != "transient")
         GLOBALS.TIME += delta_time;
 
     write_results();
@@ -168,7 +163,7 @@ int ProjectHeat::converge_heat(double T_ambient) {
         if (error) return error;
 
         // modify the advance time depending on how slowly the solution is changing
-        if (conf.pic.mode == "none" || conf.pic.mode == "converge")
+        if (conf.field.mode == "laplace" || conf.field.mode == "converge")
             GLOBALS.TIME += delta_time;
 
         if (hcg < (ccg - 10) && delta_time <= conf.heating.dt_max / 1.25) // heat changed too little?
@@ -186,9 +181,9 @@ int ProjectHeat::converge_heat(double T_ambient) {
         if (max(hcg, ccg) < 10) break;
 
         // update field - advance PIC for delta time
-        if (conf.pic.mode == "transient")
+        if (conf.field.mode == "transient")
             error = solve_pic(delta_time, false);
-        else if (conf.pic.mode == "converge")
+        else if (conf.field.mode == "converge")
             error = converge_pic(delta_time);
         if (error) return error;
 

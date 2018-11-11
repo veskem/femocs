@@ -71,7 +71,7 @@ int ProjectRunaway::reinit(int tstep, double time) {
 }
 
 int ProjectRunaway::finalize(double tstart, double time) {
-    if (conf.pic.mode == "none" || conf.field.solver == "laplace")
+    if (conf.field.mode == "laplace")
         GLOBALS.TIME += conf.behaviour.timestep_fs;
     reader.save_current_run_points(conf.tolerance.distance);
 
@@ -120,7 +120,7 @@ int ProjectRunaway::run(const int timestep, const double time) {
     //***** Run FEM solvers *****
 
     if (run_field_solver())
-        return process_failed("Running field solver in a " + conf.field.solver + " mode failed!");
+        return process_failed("Running field solver in a " + conf.field.mode + " mode failed!");
 
     if (run_heat_solver())
         return process_failed("Running heat solver in a " + conf.heating.mode + " mode failed!");
@@ -217,7 +217,7 @@ int ProjectRunaway::prepare_solvers() {
     check_return(fail, "Importing vacuum mesh to Deal.II failed!");
     end_msg(t0);
 
-    if (conf.field.solver == "poisson" || conf.heating.mode != "none") {
+    if (conf.field.mode != "laplace" || conf.heating.mode != "none") {
         start_msg(t0, "Importing bulk mesh to Deal.II");
         fail = !ch_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_bulk());
         check_return(fail, "Importing bulk mesh to Deal.II failed!");
@@ -291,10 +291,10 @@ int ProjectRunaway::prepare_export() {
 }
 
 int ProjectRunaway::run_field_solver() {
-    if (conf.field.solver == "poisson")
+    if (conf.field.mode != "laplace")
         return solve_pic(conf.behaviour.timestep_fs, mesh_changed);
 
-    if (mesh_changed && (conf.field.solver == "laplace" || conf.pic.mode == "none"))
+    else if (mesh_changed)
         return solve_laplace(conf.field.E0, conf.field.V0);
 
     return 0;
@@ -460,7 +460,7 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     }
 
 // Calculate field emission in case not ready from pic
-    if (conf.pic.mode == "none" || conf.field.solver == "laplace") {
+    if (conf.field.mode == "laplace") {
         static bool make_intermediate_step = false;
         start_msg(t0, "Transferring field & temperature");
         if (full_run) {
@@ -522,7 +522,7 @@ int ProjectRunaway::write_results(bool force_write){
     vacuum_interpolator.nodes.write("out/result_E_phi.movie");
     vacuum_interpolator.linhex.write("out/result_E_phi.vtk");
 
-    if (conf.pic.mode != "none"){
+    if (conf.field.mode != "laplace"){
         emission.write("out/emission.movie");
         pic_solver.write("out/electrons.movie");
         surface_fields.write("out/surface_fields.movie");
@@ -530,7 +530,7 @@ int ProjectRunaway::write_results(bool force_write){
         vacuum_interpolator.nodes.write("out/result_E_charge.movie");
     }
 
-    if (conf.pic.mode == "none" && emission.atoms.size() > 0)
+    if (emission.atoms.size() > 0)
         emission.write("out/surface_emission.movie");
 
     if (conf.heating.mode != "none"){
@@ -554,7 +554,7 @@ int ProjectRunaway::force_output() {
         mesh->quads.write("out/quadmesh_err.vtk");
     }
 
-    if (conf.field.solver != "none" && vacuum_interpolator.nodes.size() > 0) {
+    if (vacuum_interpolator.nodes.size() > 0) {
         vacuum_interpolator.nodes.write("out/result_E_phi_err.xyz");
         vacuum_interpolator.lintet.write("out/result_E_phi_err.vtk");
     }

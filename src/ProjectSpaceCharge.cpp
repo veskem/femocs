@@ -44,7 +44,7 @@ int ProjectSpaceCharge::run(int timestep, double time) {
             last_write_time = 0.;
 
             if (converge_pic())
-                return process_failed("Running field solver in a " + conf.field.solver + " mode failed!");
+                return process_failed("Running field solver in a " + conf.field.mode + " mode failed!");
             write_emission_stats("out/emission_stats_pic.dat", i == 0, factor);
 
             I_pic.push_back(emission.stats.Itot_mean);
@@ -165,7 +165,7 @@ int ProjectSpaceCharge::converge_pic() {
         double err = (emission.stats.Itot_mean - I_mean_prev) / emission.stats.Itot_mean;
 
         if (MODES.VERBOSE){
-            printf("  i=%d, I_mean= %e A, I_std=%.2f%, error=%.2f%, inj=%d, del=%d",
+            printf("  i=%d, I_mean= %e A, I_std=%.2f, error=%.2f, inj=%d, del=%d",
                     i, emission.stats.Itot_mean,
                     100. * emission.stats.Itot_std / emission.stats.Itot_mean,
                     100 * err, pic_solver.get_injected(), pic_solver.get_removed());

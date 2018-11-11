@@ -24,7 +24,7 @@ Config::Config() {
     behaviour.n_write_log = -1;
     behaviour.n_writefile = 1;
     behaviour.interpolation_rank = 1;
-    behaviour.write_period = 1.e5;
+    behaviour.write_period = 4.05;
     behaviour.timestep_fs = 4.05;
     behaviour.mass = 63.5460;
     behaviour.rnd_seed = 12345;
@@ -63,7 +63,7 @@ Config::Config() {
     field.n_cg = 10000;
     field.V0 = 0.0;
     field.anode_BC = "neumann";
-    field.solver = "laplace";
+    field.mode = "laplace";
 
     heating.mode = "none";
     heating.rhofile = "in/rho_table.dat";
@@ -98,7 +98,6 @@ Config::Config() {
     cfactor.r0_sphere = 0;
     cfactor.exponential = 0.5;
 
-    pic.mode = "none";
     pic.dt_max = 1.0;
     pic.weight_el =  .01;
     pic.fractional_push = true;
@@ -122,7 +121,7 @@ void Config::read_all(const string& file_name) {
     // Check for the obsolete commands
     check_obsolete("postprocess_marking");
     check_obsolete("force_factor");
-    check_obsolete("heating", "heating_mode");
+    check_obsolete("heating", "heat_mode");
     check_obsolete("surface_thichness", "surface_thickness");
     check_obsolete("smooth_factor", "surface_smooth_factor");
     check_obsolete("surface_cleaner", "clean_surface");
@@ -130,6 +129,9 @@ void Config::read_all(const string& file_name) {
     check_obsolete("run_pic", "pic_mode");
     check_obsolete("use_histclean");
     check_obsolete("electronWsp", "electron_weight");
+    check_obsolete("field_solver", "field_mode");
+    check_obsolete("pic_mode", "field_mode");
+    check_obsolete("heating_mode", "heat_mode");
 
     // Modify the parameters that are specified in input script
     read_command("work_function", emission.work_function);
@@ -140,7 +142,7 @@ void Config::read_all(const string& file_name) {
     read_command("Vappl_SC", emission.Vappl_SC);
     read_command("SC_mode", emission.SC_mode);
 
-    read_command("heating_mode", heating.mode);
+    read_command("heat_mode", heating.mode);
     read_command("rhofile", heating.rhofile);
     read_command("lorentz", heating.lorentz);
     read_command("t_ambient", heating.t_ambient);
@@ -152,13 +154,13 @@ void Config::read_all(const string& file_name) {
     read_command("vscale_tau", heating.tau);
     read_command("heat_assemble", heating.assemble_method);
 
+    read_command("field_mode", field.mode);
     read_command("field_ssor", field.ssor_param);
     read_command("field_cgtol", field.cg_tolerance);
     read_command("field_ncg", field.n_cg);
     read_command("elfield", field.E0);
     read_command("Vappl", field.V0);
     read_command("anode_BC", field.anode_BC);
-    read_command("field_solver", field.solver);
 
     read_command("force_mode", force.mode);
 
@@ -168,11 +170,6 @@ void Config::read_all(const string& file_name) {
     read_command("smooth_algorithm", smoothing.algorithm);
     read_command("surface_smooth_factor", smoothing.beta_atoms);
     read_command("charge_smooth_factor", smoothing.beta_charge);
-
-    read_command("elfield", field.E0);
-    read_command("Vappl", field.V0);
-    read_command("anode_BC", field.anode_BC);
-    read_command("field_solver", field.solver);
 
     read_command("force_mode", force.mode);
 
@@ -215,7 +212,6 @@ void Config::read_all(const string& file_name) {
 
     read_command("distance_tol", tolerance.distance);
 
-    read_command("pic_mode", pic.mode);
     read_command("pic_dtmax", pic.dt_max);
     read_command("electron_weight", pic.weight_el);
     read_command("pic_fractional_push", pic.fractional_push);
@@ -310,7 +306,7 @@ void Config::parse_file(const string& file_name) {
 void Config::check_obsolete(const string& command) {
     for (const vector<string>& cmd : data)
         if (cmd[0] == command) {
-            write_verbose_msg("Command '" + command + "' is obsolete! You can safely remove it!");
+            write_silent_msg("Command '" + command + "' is obsolete! You can safely remove it!");
             return;
         }
 }
@@ -318,7 +314,7 @@ void Config::check_obsolete(const string& command) {
 void Config::check_obsolete(const string& command, const string& substitute) {
     for (const vector<string>& cmd : data)
         if (cmd[0] == command) {
-            write_verbose_msg("Command '" + command + "' is obsolete!"
+            write_silent_msg("Command '" + command + "' is obsolete!"
                     " It is similar yet different to the command '" + substitute + "'!");
             return;
         }

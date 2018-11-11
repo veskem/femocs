@@ -59,7 +59,7 @@ public:
         int n_write_log;            ///< #timesteps between writing log file; <0: only last timestep, 0: no write, >0: only every n-th
         int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
         int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
-        double write_period;        ///< Write files every write_period (in fs)
+        double write_period;        ///< Write files every write_period [fs]
         double timestep_fs;         ///< Total time evolution within a FEMOCS run call [fs]
         double mass;                ///< Atom mass [amu]
         unsigned int rnd_seed;      ///< Seed for random number generator
@@ -116,7 +116,7 @@ public:
         int n_cg;              ///< Maximum number of Conjugate Gradient iterations in phi calculation
         double V0;             ///< Applied voltage at the anode (active in case of SC emission and Dirichlet anodeBC
         string anode_BC;       ///< Type of anode boundary condition (Dirichlet or Neumann)
-        string solver;         ///< Type of field equation to be solved; laplace or poisson
+        string mode;           ///< Mode to run field solver; laplace, transient or converge; transient or converge activate PIC solver
         vector<double> apply_factors; ///< run for multiple applied E0 (or V0) multiplied by the factors
     } field;
 
@@ -170,11 +170,8 @@ public:
 
     /** Particle In Cell module configuration */
     struct PIC {
-        string mode;           ///< Pic mode (transient, converge or none)
-
-        /** Maximum PIC timestep [fs].
-         * The actual PIC timestep will be smaller
-         * such that it is an integer fraction of the MD timestep. */
+        /** Maximum PIC timestep [fs]. The actual PIC timestep will be smaller,
+         * so that it is an integer fraction of the MD timestep. */
         double dt_max;
         double weight_el;      ///< Electron superparticle weight
         bool fractional_push;  ///< Do fractional timestep push when injecting electrons?
