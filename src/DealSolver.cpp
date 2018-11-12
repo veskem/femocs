@@ -347,7 +347,6 @@ void DealSolver<dim>::setup_system(bool full_setup) {
     this->system_rhs.reinit(n_dofs);
     this->system_rhs_save.reinit(n_dofs);
     this->system_matrix.reinit(this->sparsity_pattern);
-    this->system_matrix_save.reinit(this->sparsity_pattern);
     this->solution.reinit(n_dofs);
 
     if (full_setup) {

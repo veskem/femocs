@@ -137,7 +137,6 @@ protected:
 
     SparsityPattern sparsity_pattern;        ///< structure for sparse matrix representation
     SparseMatrix<double> system_matrix;      ///< system matrix of matrix equation
-    SparseMatrix<double> system_matrix_save; ///< system matrix of matrix equation (save before Dirichlet BCs remove dofs)
     Vector<double> system_rhs;               ///< right-hand-side of the matrix equation
     Vector<double> system_rhs_save;          ///< saved right-hand-side of the matrix equation
 
@@ -174,16 +173,6 @@ protected:
     /** Apply all dirichlet boundary conditions to the system.
      * This should be the last function call to setup the equations, before calling solve(). */
     void apply_dirichlet();
-
-    /** saves the system matrix (useful before BCs have been applied) */
-    void save_system() {
-        system_matrix_save.copy_from(system_matrix);
-    }
-
-    /** Restores the system matrix to the saved one */
-    void restore_system() {
-        system_matrix.copy_from(system_matrix_save);
-    }
 
     void calc_dof_volumes();
 

@@ -190,8 +190,7 @@ void PoissonSolver<dim>::assemble_laplace(const bool first_time) {
             assemble_lhs();
             this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
             this->calc_vertex2dof();
-        } else
-            this->restore_system();
+        }
         this->assemble_rhs(BoundaryId::vacuum_top);
 
     } else {
@@ -200,8 +199,7 @@ void PoissonSolver<dim>::assemble_laplace(const bool first_time) {
             this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
             this->append_dirichlet(BoundaryId::vacuum_top, applied_potential);
             this->calc_vertex2dof();
-        } else
-            this->restore_system();
+        }
     }
 
     this->apply_dirichlet();
@@ -220,8 +218,7 @@ void PoissonSolver<dim>::assemble_poisson(const bool first_time, const bool writ
             assemble_lhs();
             this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
             this->calc_vertex2dof();
-        } else
-            this->restore_system();
+        }
         this->assemble_rhs(BoundaryId::vacuum_top);
 
     } else {
@@ -230,15 +227,13 @@ void PoissonSolver<dim>::assemble_poisson(const bool first_time, const bool writ
             this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
             this->append_dirichlet(BoundaryId::vacuum_top, applied_potential);
             this->calc_vertex2dof();
-        } else
-            this->restore_system();
+        }
     }
 
     assemble_space_charge();
 
     // save the system right-hand-side to make it possible to write space charge into file
-    if (write_time)
-        this->system_rhs_save = this->system_rhs;
+    if (write_time) this->system_rhs_save = this->system_rhs;
 
     this->apply_dirichlet();
 }
@@ -279,8 +274,6 @@ void PoissonSolver<dim>::assemble_lhs() {
                 this->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
         }
     }
-    
-    this->save_system();
 }
 
 // In general case, use only Deal.II built-in tools
