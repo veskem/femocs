@@ -509,7 +509,7 @@ void CurrentSolver<dim>::assemble_serial() {
 
 template<int dim>
 void CurrentSolver<dim>::assemble_parallel() {
-    require(current_solver, "NULL current solver can't be used!");
+    require(heat_solver, "NULL heat solver can't be used!");
 
     this->system_matrix = 0;
     this->system_rhs = 0;

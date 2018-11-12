@@ -168,8 +168,8 @@ void Pic<dim>::update_position(const int particle_index) {
         b2 = electron.pos.y > conf.box.ymin && electron.pos.y < conf.box.ymax;
         if (!b1 || !b2) {
             write_silent_msg("Electron " + d2s(particle_index) + " crossed "
-                    "simubox x or y boundary and will be deleted. "
-                    "Consider increasing simubox width of making PIC periodic.");
+                    "simubox x or y boundary and will be deleted.\n  "
+                    "Consider increasing simubox width or making PIC periodic.");
         }
     }
 
@@ -183,7 +183,11 @@ void Pic<dim>::update_position(const int particle_index) {
 
 template<int dim>
 int Pic<dim>::update_point_cell(const SuperParticle& particle) const {
-    int femocs_cell = interpolator->linhex.deal2femocs(particle.cell);
+    // in case mesh has changed, the particle.cell has quite random value w.r the new mesh.
+    // However the cell nr from previous mesh is little bit better guess than just 0,
+    // as there is a hope, that new mesh was generated similarly to the old one
+    // and therefore also the cell indices in old and new mesh are similar although different.
+    int femocs_cell = max(0, interpolator->linhex.deal2femocs(particle.cell));
     femocs_cell = interpolator->linhex.locate_cell(particle.pos, femocs_cell);
     if (femocs_cell < 0) return -1;
     return interpolator->linhex.femocs2deal(femocs_cell);

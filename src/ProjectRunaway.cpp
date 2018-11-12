@@ -231,6 +231,12 @@ int ProjectRunaway::prepare_solvers() {
             surface_temperatures.set_preferences(false, 2, 3);
             heat_transfer.set_preferences(false, 3, 1);
         }
+
+        // setup ch_solver here as pic_solver might intialize bulk_interpolator
+        start_msg(t0, "Setup current & heat solvers");
+        ch_solver.setup(conf.heating.t_ambient);
+        heat_transfer.interpolate_dofs(ch_solver);  // Transfer previous temperatures to new mesh
+        end_msg(t0);
     }
 
     return 0;
@@ -291,6 +297,10 @@ int ProjectRunaway::prepare_export() {
 }
 
 int ProjectRunaway::run_field_solver() {
+    // Store parameters for comparing the results with analytical hemi-ellipsoid results
+    if (mesh_changed)
+        fields.set_check_params(conf, conf.geometry.radius, mesh->tris.stat.zbox, mesh->nodes.stat.zbox);
+
     if (conf.field.mode != "laplace")
         return solve_pic(conf.behaviour.timestep_fs, mesh_changed);
 
@@ -358,9 +368,6 @@ int ProjectRunaway::solve_force() {
 }
 
 int ProjectRunaway::solve_laplace(double E0, double V0) {
-    // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    fields.set_check_params(conf, conf.geometry.radius, mesh->tris.stat.zbox, mesh->nodes.stat.zbox);
-
     start_msg(t0, "Initializing Laplace solver");
     poisson_solver.setup(-E0, V0);
     poisson_solver.assemble_laplace(true);
@@ -374,7 +381,7 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
     check_return(ncg < 0, "Field solver did not complete normally,"
             " #CG=" + d2s(abs(ncg)) + "/" + d2s(conf.field.n_cg));
 
-    start_msg(t0, "Extracting E and phi");
+    start_msg(t0, "Extracting E & phi");
     vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
     vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
     end_msg(t0);
@@ -388,103 +395,117 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
 }
 
 int ProjectRunaway::solve_pic(double advance_time, bool reinit, bool force_write) {
-    // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    fields.set_check_params(conf, conf.geometry.radius, mesh->tris.stat.zbox, mesh->nodes.stat.zbox);
-
-    int n_pic_steps = ceil(advance_time / conf.pic.dt_max); // dt_main = delta_t_MD converted to [fs]
+    int n_pic_steps = ceil(advance_time / conf.pic.dt_max);
     double dt_pic = advance_time / n_pic_steps;
+    pic_solver.set_params(conf.pic, dt_pic, mesh->nodes.stat);
 
     if (reinit) {
-        start_msg(t0, "=== Initializing Poisson solver...");
+        start_msg(t0, "Initializing Poisson solver");
         poisson_solver.setup(-conf.field.E0, conf.field.V0);
         end_msg(t0);
         write_verbose_msg(poisson_solver.to_str());
     }
 
-    pic_solver.set_params(conf.pic, dt_pic, mesh->nodes.stat);
-    surface_temperatures.interpolate(ch_solver);
-    emission.initialize(mesh);
+    initalize_pic_emission(reinit);
 
-    start_msg(t0, "=== Running PIC for delta time " + d2s(advance_time, 2) + " fs\n");
+    start_msg(t0, "=== Running PIC for delta time = "
+            + d2s(n_pic_steps) + "*" + d2s(dt_pic)+" = " + d2s(advance_time, 2) + " fs\n");
+    int n_lost, n_cg, n_injected;
     for (int i = 0; i < n_pic_steps; ++i) {
-        // advance super particles
-        int n_lost = pic_solver.update_positions();
-
-        // assemble and solve Poisson equation
         bool force_write_now = force_write && i == (n_pic_steps - 1);
-        poisson_solver.assemble_poisson(i == 0, force_write_now || write_time());
-        int n_cg_steps = poisson_solver.solve();
+        make_pic_step(n_lost, n_cg, n_injected, i==0, force_write_now || write_time());
 
-        // must be after solving Poisson and before updating velocities
-        vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
-
-        // update velocities of super particles and collide them
-        pic_solver.update_velocities();
-        pic_solver.collide_particles();
-        // update field on the surface
-        surface_fields.calc_interpolation();
-
-        // calculate field emission and inject electrons
-        emission.calc_emission(conf.emission);
-        int n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
-
-        if (n_injected > 50000 || n_injected < 0){
-            write_verbose_msg("WARNING: too many injected SPs. Check the SP weight");
+        if (n_injected > 50000) {
+            write_verbose_msg("WARNING: too many injected SP-s, " + d2s(n_injected) + ". Check the SP weight.");
             return 1;
         }
 
         if (MODES.VERBOSE) {
-            printf("  t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d",
-                    GLOBALS.TIME, n_cg_steps, emission.global_data.Fmax, emission.global_data.I_tot,
+            printf("  t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
+                    GLOBALS.TIME, n_cg, emission.global_data.Fmax, emission.global_data.I_tot,
                     n_injected, n_lost, pic_solver.get_n_electrons());
-            cout << endl;
         }
 
-        write_results(force_write_now);
-
         GLOBALS.TIME += dt_pic;
-
     }
+    end_msg(t0);
 
 //    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
 //            "Field enhancement is out of limits!");
     return 0;
 }
 
-int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {
+void ProjectRunaway::initalize_pic_emission(bool full_run) {
+    static bool make_intermediate_step = false;
+
+    start_msg(t0, "Calculating surface temperature");
     if (full_run) {
-        start_msg(t0, "Setup current & heat solvers");
-        ch_solver.setup(conf.heating.t_ambient);
-        heat_transfer.interpolate_dofs(ch_solver);
-        end_msg(t0);
-    }
+        ch_solver.export_surface_centroids(surface_fields);
+        surface_temperatures.interpolate(ch_solver);
 
-// Calculate field emission in case not ready from pic
-    if (conf.field.mode == "laplace") {
-        static bool make_intermediate_step = false;
-        start_msg(t0, "Transferring field & temperature");
-        if (full_run) {
-            surface_fields.interpolate(ch_solver);
-            surface_temperatures.interpolate(ch_solver);
-            bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK); // must be after interpolation as it clears previous data
-            make_intermediate_step = true;
-        } else if (make_intermediate_step) {
-            surface_temperatures.calc_full_interpolation();
-            make_intermediate_step = false;
-        } else
-            surface_temperatures.calc_interpolation();
-        end_msg(t0);
+        vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
+        bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
+        emission.initialize(mesh);
 
-        surface_fields.write("out/surface_fields.movie");
-        surface_temperatures.write("out/surface_temperatures.movie");
+        make_intermediate_step = true;
+    } else if (make_intermediate_step) {
+        surface_temperatures.calc_full_interpolation();
+        make_intermediate_step = false;
+    } else
+        surface_temperatures.calc_interpolation();
+    end_msg(t0);
+}
 
-        start_msg(t0, "Calculating electron emission");
-        emission.initialize(mesh, full_run);
-        emission.calc_emission(conf.emission, conf.field.V0);
-        end_msg(t0);
+void ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected,
+        bool full_run, bool write_files)
+{
+    // advance super particles
+    n_lost = pic_solver.update_positions();
 
-        emission.write("out/emission.movie");
-    }
+    // assemble and solve Poisson equation
+    poisson_solver.assemble_poisson(full_run, write_files);
+    n_cg = poisson_solver.solve();
+
+    // must be after solving Poisson and before updating velocities
+    vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
+
+    // update velocities of super particles and collide them
+    pic_solver.update_velocities();
+    pic_solver.collide_particles();
+
+    // update field on the surface
+    surface_fields.calc_interpolation();
+
+    // calculate field emission and inject electrons
+    emission.calc_emission(conf.emission);
+    n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
+
+    if (write_files) write_pic_results();
+}
+
+void ProjectRunaway::write_pic_results() {
+    bool mode_save = MODES.WRITEFILE;
+    MODES.WRITEFILE = true;
+
+    emission.write("out/emission.dat");
+    emission.write("out/emission.movie");
+    pic_solver.write("out/electrons.movie");
+    surface_fields.write("out/surface_fields.movie");
+    surface_temperatures.write("out/surface_temperatures.movie");
+
+//    Interpolator charge_density("elfield", "elfield_norm", "charge_density");
+//    charge_density.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
+//    charge_density.extract_charge_density(poisson_solver);
+//    charge_density.nodes.write("out/result_E_charge.movie");
+
+    MODES.WRITEFILE = mode_save;
+    last_write_time = GLOBALS.TIME;
+}
+
+int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {
+    // Calculate field emission in case not ready from pic
+    if (conf.field.mode == "laplace")
+        calc_heat_emission(full_run);
 
     start_msg(t0, "Calculating current density");
     ch_solver.current.assemble();
@@ -512,6 +533,32 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     last_heat_time = GLOBALS.TIME;
     // TODO implement reasonable temperature limit check
     return 0;
+}
+
+void ProjectRunaway::calc_heat_emission(bool full_run) {
+    static bool make_intermediate_step = false;
+    start_msg(t0, "Calculating surface field & temperature");
+    if (full_run) {
+        surface_fields.interpolate(ch_solver);
+        surface_temperatures.interpolate(ch_solver);
+        bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK); // must be after interpolation as it clears previous data
+        make_intermediate_step = true;
+    } else if (make_intermediate_step) {
+        surface_temperatures.calc_full_interpolation();
+        make_intermediate_step = false;
+    } else
+        surface_temperatures.calc_interpolation();
+    end_msg(t0);
+
+    surface_fields.write("out/surface_fields.movie");
+    surface_temperatures.write("out/surface_temperatures.movie");
+
+    start_msg(t0, "Calculating electron emission");
+    emission.initialize(mesh, full_run);
+    emission.calc_emission(conf.emission, conf.field.V0);
+    end_msg(t0);
+
+    emission.write("out/emission.movie");
 }
 
 int ProjectRunaway::write_results(bool force_write){

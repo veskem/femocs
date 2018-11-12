@@ -26,6 +26,8 @@ Interpolator::Interpolator(const string& vl, const string& nl, const string& sl)
     {}
 
 bool Interpolator::average_nodal_fields(const bool vacuum) {
+    require(mesh, "NULL mesh can't be used!");
+
     vector<vector<unsigned int>> nborlist;
     mesh->calc_pseudo_3D_vorocells(nborlist, vacuum);
 
@@ -57,6 +59,8 @@ void Interpolator::get_maps(vector<int>& cell_indxs, vector<int>& vert_indxs,
         dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh)
 {
     require(tria->n_vertices() > 0, "Invalid triangulation size!");
+    require(mesh, "NULL mesh can't be used!");
+
     const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
     const int n_femocs_nodes = mesh->nodes.size();
     expect(n_femocs_nodes > 0, "Interpolator expects non-empty mesh!");

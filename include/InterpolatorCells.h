@@ -404,14 +404,16 @@ public:
     /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
      * -1 means there's no correspondence between two meshes */
     int femocs2deal(const int i) const {
-        require(i >= 0 && i < (int)map_femocs2deal.size(), "Invalid index: " + d2s(i));
+        require(i >= 0 && i < (int)map_femocs2deal.size(), "Invalid index: " + d2s(i) + ", size=" + d2s(map_femocs2deal.size()));
         return map_femocs2deal[i];
     }
 
     /** Return the index of hexahedron in femocs that corresponds to i-th hexahedron in Deal.II */
     int deal2femocs(const int i) const {
-        require(i >= 0 && i < (int)map_deal2femocs.size(), "Invalid index: " + d2s(i) + ", size = " + d2s(map_deal2femocs.size()));
-        return map_deal2femocs[i];
+        require(i >= 0, "Invalid index: " + d2s(i));
+        if (i < int(map_deal2femocs.size()))
+            return map_deal2femocs[i];
+        return -2;
     }
 
     /** Return i-th hexahedron */

@@ -102,6 +102,8 @@ protected:
     /** Write output data to files */
     int write_results(bool force_write = false);
 
+    void write_pic_results();
+
     /** Solve Laplace equation on vacuum mesh */
     int solve_laplace(double E0, double V0);
 
@@ -113,6 +115,12 @@ protected:
 
     /** Using the electric field, calculate atomistic charge together with Lorenz and/or Coulomb force */
     int solve_force();
+
+    void calc_heat_emission(bool full_run);
+
+    void make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool full_run, bool prepare_write);
+
+    void initalize_pic_emission(bool full_run);
 
     /** Calculate data of interest on the locations of imported atoms */
     int prepare_export();

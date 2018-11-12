@@ -61,7 +61,10 @@ void start_msg(double& t0, const string& message) {
         if (row_len > msg_len && message[msg_len-1] != '\n')
             whitespace_len = row_len - msg_len;
 
-        cout << "\n=== " << message << "..." << string(whitespace_len, ' ');
+        if (message[0] == '=')
+            cout << "\n" << message;
+        else
+            cout << "\n=== " << message << "..." << string(whitespace_len, ' ');
         cout.flush();
 
         t0 = omp_get_wtime();

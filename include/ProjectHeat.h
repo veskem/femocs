@@ -31,8 +31,6 @@ public:
     int run(int timestep, double time);
 
 private:
-    /** Solve transient heat and continuity equations */
-    int solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg);
 
     /** Pick a field solver and calculcate field distribution */
     int run_field_solver();
