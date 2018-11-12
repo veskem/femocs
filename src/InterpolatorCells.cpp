@@ -264,17 +264,18 @@ void InterpolatorCells<dim>::write_cell_data(ofstream& out) const {
 template<int dim>
 int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_guess) const {
     const int n_cells = neighbours.size();
-    require(cell_guess >= 0 && cell_guess < n_cells,
-            "Index out of bounds: " + d2s(cell_guess));
+    require(cell_guess < n_cells, "Index out of bounds: " + d2s(cell_guess));
 
-    // === Check the guessed cell
-    if (point_in_cell(point, cell_guess))
-        return cell_guess;
+    if (cell_guess >= 0) {
+        // === Check the guessed cell
+        if (point_in_cell(point, cell_guess))
+            return cell_guess;
 
-    // === Check if point is surrounded by one of the neighbouring cells
-    for (int cell : neighbours[cell_guess]) {
-        if (point_in_cell(point, cell))
-            return cell;
+        // === Check if point is surrounded by one of the neighbouring cells
+        for (int cell : neighbours[cell_guess]) {
+            if (point_in_cell(point, cell))
+                return cell;
+        }
     }
 
     // === In case of no success, loop through all the cells

@@ -65,7 +65,7 @@ void SolutionReader::calc_full_interpolation() {
     // Sort atoms into sequential order to speed up interpolation
     if (sort_atoms) sort_spatial();
 
-    int cell = 0;
+    int cell = -1;
 
 #pragma omp parallel for private(cell)
     for (int i = 0; i < n_atoms; ++i)

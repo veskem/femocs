@@ -187,7 +187,7 @@ int Pic<dim>::update_point_cell(const SuperParticle& particle) const {
     // However the cell nr from previous mesh is little bit better guess than just 0,
     // as there is a hope, that new mesh was generated similarly to the old one
     // and therefore also the cell indices in old and new mesh are similar although different.
-    int femocs_cell = max(0, interpolator->linhex.deal2femocs(particle.cell));
+    int femocs_cell = interpolator->linhex.deal2femocs(particle.cell);
     femocs_cell = interpolator->linhex.locate_cell(particle.pos, femocs_cell);
     if (femocs_cell < 0) return -1;
     return interpolator->linhex.femocs2deal(femocs_cell);
