@@ -394,26 +394,25 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
     return 0;
 }
 
-int ProjectRunaway::solve_pic(double advance_time, bool reinit, bool force_write) {
+int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
     int n_pic_steps = ceil(advance_time / conf.pic.dt_max);
     double dt_pic = advance_time / n_pic_steps;
     pic_solver.set_params(conf.pic, dt_pic, mesh->nodes.stat);
 
-    if (reinit) {
+    if (full_run) {
         start_msg(t0, "Initializing Poisson solver");
         poisson_solver.setup(-conf.field.E0, conf.field.V0);
         end_msg(t0);
         write_verbose_msg(poisson_solver.to_str());
     }
 
-    initalize_pic_emission(reinit);
+    initalize_pic_emission(full_run);
 
     start_msg(t0, "=== Running PIC for delta time = "
             + d2s(n_pic_steps) + "*" + d2s(dt_pic)+" = " + d2s(advance_time, 2) + " fs\n");
     int n_lost, n_cg, n_injected;
     for (int i = 0; i < n_pic_steps; ++i) {
-        bool force_write_now = force_write && i == (n_pic_steps - 1);
-        make_pic_step(n_lost, n_cg, n_injected, i==0, force_write_now || write_time());
+        make_pic_step(n_lost, n_cg, n_injected, full_run && i==0, write_time());
 
         if (n_injected > 50000) {
             write_verbose_msg("WARNING: too many injected SP-s, " + d2s(n_injected) + ". Check the SP weight.");
@@ -429,6 +428,9 @@ int ProjectRunaway::solve_pic(double advance_time, bool reinit, bool force_write
         GLOBALS.TIME += dt_pic;
     }
     end_msg(t0);
+
+    vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
+    vacuum_interpolator.lintet.write("out/result_E_phi.vtk");
 
 //    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
 //            "Field enhancement is out of limits!");

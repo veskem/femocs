@@ -127,7 +127,7 @@ double ProjectSpaceCharge::ramp_field(double start_factor, double target_factor)
         conf.field.E0 = Ebase * factor;
         conf.field.V0 = Vbase * factor;
         pic_solver.stats_reinit(); //reinit stats to get the last cycle injections
-        if (solve_pic(time_window, true, false))
+        if (solve_pic(time_window, true))
             return 1.e200;
     }
 
@@ -160,7 +160,7 @@ int ProjectSpaceCharge::converge_pic() {
 
     for (int i = 0; i < i_max; ++i) {
         pic_solver.stats_reinit();
-        solve_pic(time_window, i == 0, true);
+        solve_pic(time_window, i == 0);
         emission.calc_global_stats();
         double err = (emission.stats.Itot_mean - I_mean_prev) / emission.stats.Itot_mean;
 
