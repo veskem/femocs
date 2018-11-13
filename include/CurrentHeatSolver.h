@@ -60,33 +60,6 @@ protected:
 
     vector<double>* bc_values;      ///< current/heat values on the centroids of surface faces for current/heat solver
     
-    /** Data holding copy of global matrix & rhs for parallel assembly */
-    struct LinearSystem {
-        Vector<double>* global_rhs;
-        SparseMatrix<double>* global_matrix;
-        LinearSystem(Vector<double>* rhs, SparseMatrix<double>* matrix);
-    };
-
-    /** Data for parallel local matrix & rhs assembly */
-    struct ScratchData {
-      FEValues<dim> fe_values;
-      ScratchData(const FiniteElement<dim> &fe, const Quadrature<dim> &quadrature, const UpdateFlags flags);
-      ScratchData(const ScratchData &scratch_data);
-    };
-
-    /** Data for coping local matrix & rhs into global one during parallel assembly */
-    struct CopyData {
-      FullMatrix<double> cell_matrix;
-      Vector<double> cell_rhs;
-      vector<unsigned int> dof_indices;
-      unsigned int n_dofs, n_q_points;
-      CopyData(const unsigned dofs_per_cell, const unsigned n_q_points);
-    };
-
-    /** Copy the matrix & rhs vector contribution of a cell into global matrix & rhs vector */
-    // Only one instance of this function should be running at a time!
-    void copy_global_cell(const CopyData &copy_data, LinearSystem &system) const;
-
     friend class CurrentHeatSolver<dim> ;
 };
 
@@ -105,9 +78,9 @@ public:
 private:
     const HeatSolver<dim>* heat_solver;
     
-    typedef typename EmissionSolver<dim>::LinearSystem LinearSystem;
-    typedef typename EmissionSolver<dim>::ScratchData ScratchData;
-    typedef typename EmissionSolver<dim>::CopyData CopyData;
+    typedef typename DealSolver<dim>::LinearSystem LinearSystem;
+    typedef typename DealSolver<dim>::ScratchData ScratchData;
+    typedef typename DealSolver<dim>::CopyData CopyData;
 
     // TODO figure out what is written
     void write_vtk(ofstream& out) const;
@@ -141,9 +114,9 @@ private:
     const CurrentSolver<dim>* current_solver;
     double one_over_delta_time;                      ///< inverse of heat solver time step
 
-    typedef typename EmissionSolver<dim>::LinearSystem LinearSystem;
-    typedef typename EmissionSolver<dim>::ScratchData ScratchData;
-    typedef typename EmissionSolver<dim>::CopyData CopyData;
+    typedef typename DealSolver<dim>::LinearSystem LinearSystem;
+    typedef typename DealSolver<dim>::ScratchData ScratchData;
+    typedef typename DealSolver<dim>::CopyData CopyData;
 
     /** @brief assemble the matrix equation for temperature calculation using Crank-Nicolson time integration method
      * Calculate sparse matrix elements and right-hand-side vector

@@ -77,6 +77,10 @@ private:
     double applied_field;     ///< applied electric field on top of simubox
     double applied_potential; ///< applied potential on top of simubox
 
+    typedef typename DealSolver<dim>::LinearSystem LinearSystem;
+    typedef typename DealSolver<dim>::ScratchData ScratchData;
+    typedef typename DealSolver<dim>::CopyData CopyData;
+
     double probe_potential(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
     
     double probe_efield_norm(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
@@ -97,7 +101,14 @@ private:
      * according to the Laplace equation weak formulation
      * This should be the first function call to setup the equations (after setup_system() ).
      */
-    void assemble_lhs();
+    void assemble_serial();
+
+    /** Assemble left-hand-side of matrix equation in a parallel manner */
+    void assemble_parallel();
+
+    /** Calculate the contribution of one cell into global matrix and rhs vector */
+    void assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
+            ScratchData &scratch_data, CopyData &copy_data) const;
 
     /** Add to the right-hand-side vector for point charges, as used in PIC. */
     void assemble_space_charge();

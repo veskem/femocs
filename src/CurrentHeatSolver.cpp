@@ -76,40 +76,6 @@ EmissionSolver<dim>::EmissionSolver(Triangulation<dim> *tria) :
         DealSolver<dim>(tria), pq(NULL), conf(NULL), bc_values(NULL)
         {}
 
-template<int dim>
-EmissionSolver<dim>::LinearSystem::LinearSystem(Vector<double>* rhs, SparseMatrix<double>* matrix) :
-    global_rhs(rhs), global_matrix(matrix)
-{}
-
-template<int dim>
-EmissionSolver<dim>::ScratchData::ScratchData (const FiniteElement<dim>  &fe,
-        const Quadrature<dim> &quadrature, const UpdateFlags ul) :
-    fe_values(fe, quadrature, ul)
-{}
-
-template<int dim>
-EmissionSolver<dim>::ScratchData::ScratchData (const ScratchData &sd):
-    fe_values(sd.fe_values.get_fe(), sd.fe_values.get_quadrature(), sd.fe_values.get_update_flags())
-{}
-
-template<int dim>
-EmissionSolver<dim>::CopyData::CopyData(const unsigned dofs_per_cell, const unsigned n_qp):
-    cell_matrix(dofs_per_cell, dofs_per_cell),
-    cell_rhs(dofs_per_cell),
-    dof_indices(dofs_per_cell),
-    n_dofs(dofs_per_cell), n_q_points(n_qp)
-{}
-
-template<int dim>
-void EmissionSolver<dim>::copy_global_cell(const CopyData &copy_data, LinearSystem &system) const {
-    system.global_rhs->add(copy_data.dof_indices, copy_data.cell_rhs);
-
-    for (unsigned int i = 0; i < copy_data.n_dofs; ++i) {
-        for (unsigned int j = 0; j < copy_data.n_dofs; ++j)
-            system.global_matrix->add(copy_data.dof_indices[i], copy_data.dof_indices[j], copy_data.cell_matrix(i, j));
-    }
-}
-
 /* ==================================================================
  *  ========================== HeatSolver ==========================
  * ================================================================== */

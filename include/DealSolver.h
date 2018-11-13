@@ -148,6 +148,33 @@ protected:
     /** Variables used during the assembly of matrix equation */
     map<types::global_dof_index, double> boundary_values;
 
+    /** Data holding copy of global matrix & rhs for parallel assembly */
+    struct LinearSystem {
+        Vector<double>* global_rhs;
+        SparseMatrix<double>* global_matrix;
+        LinearSystem(Vector<double>* rhs, SparseMatrix<double>* matrix);
+    };
+
+    /** Data for parallel local matrix & rhs assembly */
+    struct ScratchData {
+      FEValues<dim> fe_values;
+      ScratchData(const FiniteElement<dim> &fe, const Quadrature<dim> &quadrature, const UpdateFlags flags);
+      ScratchData(const ScratchData &scratch_data);
+    };
+
+    /** Data for coping local matrix & rhs into global one during parallel assembly */
+    struct CopyData {
+      FullMatrix<double> cell_matrix;
+      Vector<double> cell_rhs;
+      vector<unsigned int> dof_indices;
+      unsigned int n_dofs, n_q_points;
+      CopyData(const unsigned dofs_per_cell, const unsigned n_q_points);
+    };
+
+    /** Copy the matrix & rhs vector contribution of a cell into global matrix & rhs vector */
+    // Only one instance of this function should be running at a time!
+    void copy_global_cell(const CopyData &copy_data, LinearSystem &system) const;
+
     /** Helper function for the public shape_funs */
     vector<double> shape_funs(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
 

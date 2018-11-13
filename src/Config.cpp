@@ -64,6 +64,7 @@ Config::Config() {
     field.V0 = 0.0;
     field.anode_BC = "neumann";
     field.mode = "laplace";
+    field.assemble_method = "parallel";
 
     heating.mode = "none";
     heating.rhofile = "in/rho_table.dat";
@@ -161,6 +162,7 @@ void Config::read_all(const string& file_name) {
     read_command("elfield", field.E0);
     read_command("Vappl", field.V0);
     read_command("anode_BC", field.anode_BC);
+    read_command("field_assemble", field.assemble_method);
 
     read_command("force_mode", force.mode);
 

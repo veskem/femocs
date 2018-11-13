@@ -2,6 +2,7 @@
 
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/numerics/data_out.h>
+#include <deal.II/base/work_stream.h>
 
 #include "PoissonSolver.h"
 #include "Globals.h"
@@ -187,7 +188,10 @@ void PoissonSolver<dim>::assemble_laplace(const bool first_time) {
 
     if (conf->anode_BC == "neumann") {
         if (first_time) {
-            assemble_lhs();
+            if (conf->assemble_method == "parallel")
+                assemble_parallel();
+            else
+                assemble_serial();
             this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
             this->calc_vertex2dof();
         }
@@ -195,7 +199,10 @@ void PoissonSolver<dim>::assemble_laplace(const bool first_time) {
 
     } else {
         if (first_time) {
-            assemble_lhs();
+            if (conf->assemble_method == "parallel")
+                assemble_parallel();
+            else
+                assemble_serial();
             this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
             this->append_dirichlet(BoundaryId::vacuum_top, applied_potential);
             this->calc_vertex2dof();
@@ -215,7 +222,10 @@ void PoissonSolver<dim>::assemble_poisson(const bool first_time, const bool writ
 
     if (conf->anode_BC == "neumann") {
         if (first_time) {
-            assemble_lhs();
+            if (conf->assemble_method == "parallel")
+                assemble_parallel();
+            else
+                assemble_serial();
             this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
             this->calc_vertex2dof();
         }
@@ -223,7 +233,10 @@ void PoissonSolver<dim>::assemble_poisson(const bool first_time, const bool writ
 
     } else {
         if (first_time) {
-            assemble_lhs();
+            if (conf->assemble_method == "parallel")
+                assemble_parallel();
+            else
+                assemble_serial();
             this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
             this->append_dirichlet(BoundaryId::vacuum_top, applied_potential);
             this->calc_vertex2dof();
@@ -239,7 +252,7 @@ void PoissonSolver<dim>::assemble_poisson(const bool first_time, const bool writ
 }
 
 template<int dim>
-void PoissonSolver<dim>::assemble_lhs() {
+void PoissonSolver<dim>::assemble_serial() {
     this->system_matrix = 0;
 
     QGauss<dim> quadrature_formula(this->quadrature_degree);
@@ -274,6 +287,58 @@ void PoissonSolver<dim>::assemble_lhs() {
                 this->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
         }
     }
+}
+
+template<int dim>
+void PoissonSolver<dim>::assemble_parallel() {
+    this->system_matrix = 0;
+
+    LinearSystem system(&this->system_rhs, &this->system_matrix);
+    QGauss<dim> quadrature_formula(this->quadrature_degree);
+
+    const unsigned int n_dofs = this->fe.dofs_per_cell;
+    const unsigned int n_q_points = quadrature_formula.size();
+
+    WorkStream::run(this->dof_handler.begin_active(),this->dof_handler.end(),
+            std_cxx11::bind(&PoissonSolver<dim>::assemble_local_cell,
+                    this,
+                    std_cxx11::_1,
+                    std_cxx11::_2,
+                    std_cxx11::_3),
+            std_cxx11::bind(&PoissonSolver<dim>::copy_global_cell,
+                    this,
+                    std_cxx11::_1,
+                    std_cxx11::ref(system)),
+            ScratchData(this->fe, quadrature_formula, update_gradients | update_quadrature_points | update_JxW_values),
+            CopyData(n_dofs, n_q_points)
+    );
+}
+
+template<int dim>
+void PoissonSolver<dim>::assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
+        ScratchData &scratch_data, CopyData &copy_data) const
+{
+    const unsigned int n_dofs = copy_data.n_dofs;
+    const unsigned int n_q_points = copy_data.n_q_points;
+
+    scratch_data.fe_values.reinit(cell);
+
+    // Local matrix assembly
+    copy_data.cell_matrix = 0;
+    for (unsigned int q = 0; q < n_q_points; ++q) {
+        for (unsigned int i = 0; i < n_dofs; ++i) {
+            for (unsigned int j = 0; j < n_dofs; ++j) {
+                copy_data.cell_matrix(i, j) += scratch_data.fe_values.JxW(q) *
+                scratch_data.fe_values.shape_grad(i, q) * scratch_data.fe_values.shape_grad(j, q);
+            }
+        }
+    }
+
+    // Nothing to add to local right-hand-side vector assembly
+//    copy_data.cell_rhs = 0;
+
+    // Obtain dof indices for updating global matrix and right-hand-side vector
+    cell->get_dof_indices(copy_data.dof_indices);
 }
 
 // In general case, use only Deal.II built-in tools
