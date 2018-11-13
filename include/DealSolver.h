@@ -157,18 +157,18 @@ protected:
 
     /** Data for parallel local matrix & rhs assembly */
     struct ScratchData {
-      FEValues<dim> fe_values;
-      ScratchData(const FiniteElement<dim> &fe, const Quadrature<dim> &quadrature, const UpdateFlags flags);
-      ScratchData(const ScratchData &scratch_data);
+        FEValues<dim> fe_values;
+        ScratchData(const FiniteElement<dim> &fe, const Quadrature<dim> &quadrature, const UpdateFlags flags);
+        ScratchData(const ScratchData &scratch_data);
     };
 
     /** Data for coping local matrix & rhs into global one during parallel assembly */
     struct CopyData {
-      FullMatrix<double> cell_matrix;
-      Vector<double> cell_rhs;
-      vector<unsigned int> dof_indices;
-      unsigned int n_dofs, n_q_points;
-      CopyData(const unsigned dofs_per_cell, const unsigned n_q_points);
+        FullMatrix<double> cell_matrix;
+        Vector<double> cell_rhs;
+        vector<unsigned int> dof_indices;
+        unsigned int n_dofs, n_q_points;
+        CopyData(const unsigned dofs_per_cell, const unsigned n_q_points);
     };
 
     /** Copy the matrix & rhs vector contribution of a cell into global matrix & rhs vector */

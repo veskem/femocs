@@ -181,7 +181,7 @@ void PoissonSolver<dim>::setup(const double field, const double potential) {
 }
 
 template<int dim>
-void PoissonSolver<dim>::assemble(const bool first_time, const bool write_time) {
+void PoissonSolver<dim>::assemble(const bool full_run, const bool write_time) {
     require(conf, "NULL conf can't be used!");
     require(conf->anode_BC == "neumann" || conf->anode_BC == "dirichlet",
             "Unimplemented anode BC: " + conf->anode_BC);
@@ -189,7 +189,7 @@ void PoissonSolver<dim>::assemble(const bool first_time, const bool write_time) 
     this->system_rhs = 0;
 
     if (conf->anode_BC == "neumann") {
-        if (first_time) {
+        if (full_run) {
             if (conf->assemble_method == "parallel")
                 assemble_parallel();
             else
@@ -198,9 +198,8 @@ void PoissonSolver<dim>::assemble(const bool first_time, const bool write_time) 
             this->calc_vertex2dof();
         }
         this->assemble_rhs(BoundaryId::vacuum_top);
-
     } else {
-        if (first_time) {
+        if (full_run) {
             if (conf->assemble_method == "parallel")
                 assemble_parallel();
             else
@@ -212,11 +211,9 @@ void PoissonSolver<dim>::assemble(const bool first_time, const bool write_time) 
     }
 
     if (conf->mode != "laplace") assemble_space_charge();
-
     // save the system right-hand-side to make it possible to write space charge into file
     if (write_time) this->system_rhs_save = this->system_rhs;
-
-    this->apply_dirichlet();
+    if (full_run) this->apply_dirichlet();
 }
 
 template<int dim>
