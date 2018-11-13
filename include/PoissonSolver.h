@@ -60,14 +60,10 @@ public:
     /** Setup system for solving Poisson equation */
     void setup(const double field, const double potential);
 
-    /** Assemble the matrix equation to solve Laplace equation
-     * by appling Neumann BC (constant field) on top of simubox */
-    void assemble_laplace(const bool first_time);
-
-    /** Assemble the matrix equation to solve Poisson equation
+    /** Assemble the matrix equation to solve Laplace or Poisson equation
      * by appling Neumann BC (constant field) or Dirichlet BC (constant potential) on top of simubox
      * as specified in config file. */
-    void assemble_poisson(const bool first_time, const bool write_time);
+    void assemble(const bool first_time, const bool write_time);
 
 private:
     const ParticleSpecies* particles;

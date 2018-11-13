@@ -370,7 +370,7 @@ int ProjectRunaway::solve_force() {
 int ProjectRunaway::solve_laplace(double E0, double V0) {
     start_msg(t0, "Initializing Laplace solver");
     poisson_solver.setup(-E0, V0);
-    poisson_solver.assemble_laplace(true);
+    poisson_solver.assemble(true, false);
     end_msg(t0);
 
     write_verbose_msg(poisson_solver.to_str());
@@ -465,7 +465,7 @@ void ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected,
     n_lost = pic_solver.update_positions();
 
     // assemble and solve Poisson equation
-    poisson_solver.assemble_poisson(full_run, write_files);
+    poisson_solver.assemble(full_run, write_files);
     n_cg = poisson_solver.solve();
 
     // must be after solving Poisson and before updating velocities
