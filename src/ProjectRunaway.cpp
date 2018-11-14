@@ -57,8 +57,8 @@ int ProjectRunaway::reinit(int tstep, double time) {
     timestep_string = d2s(GLOBALS.TIMESTEP);
     timestep_string = "_" + string( max(0.0, 6.0 - timestep_string.length()), '0' ) + timestep_string;
 
-    mesh_changed = false;
-    bool skip_meshing = reader.get_rmsd() < conf.tolerance.distance;
+    if (conf.behaviour.n_read_conf > 0 && GLOBALS.TIMESTEP % conf.behaviour.n_read_conf == 0)
+        conf.read_all();
 
     MODES.WRITEFILE = conf.behaviour.n_writefile > 0 && (
             last_write_ts == 0 ||
@@ -66,14 +66,18 @@ int ProjectRunaway::reinit(int tstep, double time) {
             (GLOBALS.TIMESTEP - last_write_ts) >= conf.behaviour.n_writefile
             );
 
-    write_silent_msg("Running at timestep=" + d2s(GLOBALS.TIMESTEP) + ", time=" + d2s(GLOBALS.TIME, 2) + " fs");
-    return skip_meshing;
+    mesh_changed = false;
+    double rmsd = reader.get_rmsd();
+    write_silent_msg("Running at timestep=" + d2s(GLOBALS.TIMESTEP)
+            + ", time=" + d2s(GLOBALS.TIME, 2) + " fs, rmsd=" + d2s(rmsd));
+
+    return rmsd < conf.geometry.distance_tol;
 }
 
 int ProjectRunaway::finalize(double tstart, double time) {
     if (conf.field.mode == "laplace")
         GLOBALS.TIME += conf.behaviour.timestep_fs;
-    reader.save_current_run_points(conf.tolerance.distance);
+    reader.save_current_run_points();
 
     write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
 
@@ -105,9 +109,7 @@ int ProjectRunaway::run(const int timestep, const double time) {
     //***** Build or import mesh *****
 
     if (reinit(timestep, time)) {
-        write_verbose_msg("Atoms haven't moved significantly, "
-                + d2s(reader.get_rmsd(), 3) + " < " + d2s(conf.tolerance.distance, 3)
-                + "! Previous mesh will be used!");
+        write_verbose_msg("Atoms haven't moved significantly. Previous mesh will be used.");
         dense_surf.update_positions(reader);
     }
 
@@ -250,7 +252,7 @@ int ProjectRunaway::prepare_export() {
 
     start_msg(t0, "Interpolating E & phi");
     if (mesh_changed) {
-        fields.set_preferences(true, 2, 1);
+        fields.set_preferences(false, 2, conf.behaviour.interpolation_rank);
         fields.interpolate(dense_surf);
     } else {
         fields.update_positions(dense_surf);
@@ -409,7 +411,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
     initalize_pic_emission(full_run);
 
     start_msg(t0, "=== Running PIC for delta time = "
-            + d2s(n_pic_steps) + "*" + d2s(dt_pic)+" = " + d2s(advance_time, 2) + " fs\n");
+            + d2s(n_pic_steps) + "*" + d2s(dt_pic, 2)+" = " + d2s(advance_time, 2) + " fs\n");
     int n_lost, n_cg, n_injected;
     for (int i = 0; i < n_pic_steps; ++i) {
         make_pic_step(n_lost, n_cg, n_injected, full_run && i==0, write_time());

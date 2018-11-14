@@ -16,13 +16,12 @@
 using namespace std;
 namespace femocs {
 
-Femocs::Femocs(const string &conf_file) : t0(0) {
+Femocs::Femocs(const string &conf_file) : t0(0), reader(&conf.geometry) {
     static bool first_call = true;
     bool fail;
 
     // Read configuration parameters from configuration file
     conf.read_all(conf_file);
-    reader.store_data(conf);
 
     // Initialise file writing
     MODES.WRITEFILE = conf.behaviour.n_writefile > 0;

@@ -16,19 +16,14 @@
 using namespace std;
 namespace femocs {
 
-AtomReader::AtomReader() : Medium() {}
+AtomReader::AtomReader() : Medium(), conf(NULL) {}
 
-void AtomReader::store_data(const Config& conf) {
-    data.distance_tol = conf.tolerance.distance;
-    data.rms_distance = 0;
-    data.cluster_cutoff = conf.geometry.cluster_cutoff;
-    data.coord_cutoff = conf.geometry.coordination_cutoff;
-    data.latconst = conf.geometry.latconst;
-    data.nnn = conf.geometry.nnn;
-}
+AtomReader::AtomReader(const Config::Geometry *c) : Medium(), conf(c)
+{}
 
 void AtomReader::reserve(const int n_atoms) {
     require(n_atoms >= 0, "Invalid # atoms: " + to_string(n_atoms));
+    require(conf, "NULL conf can't be used!");
     atoms.clear();
 
     atoms.reserve(n_atoms);
@@ -74,7 +69,7 @@ void AtomReader::extract(Surface& surface, const int type, const bool invert) {
 
 bool AtomReader::calc_rms_distance() {
     data.rms_distance = DBL_MAX;
-    if (data.distance_tol <= 0) return DBL_MAX;
+    if (conf->distance_tol <= 0) return DBL_MAX;
 
     const size_t n_atoms = size();
     if (n_atoms != previous_points.size())
@@ -89,11 +84,11 @@ bool AtomReader::calc_rms_distance() {
     }
 
     data.rms_distance = sqrt(sum / n_atoms);
-    return data.rms_distance >= data.distance_tol;
+    return data.rms_distance >= conf->distance_tol;
 }
 
-void AtomReader::save_current_run_points(const double eps) {
-    if (eps <= 0) return;
+void AtomReader::save_current_run_points() {
+    if (conf->distance_tol <= 0) return;
     const int n_atoms = size();
 
     if (n_atoms != (int)previous_points.size()) {
@@ -109,7 +104,7 @@ void AtomReader::save_current_run_points(const double eps) {
 
 void AtomReader::calc_nborlist(const double r_cut, const int* parcas_nborlist) {
     require(r_cut > 0, "Invalid cut-off radius: " + to_string(r_cut));
-    require(data.nnn > 0, "Invalid # nearest neighbours: " + to_string(data.nnn));
+    require(conf->nnn > 0, "Invalid # nearest neighbours: " + to_string(conf->nnn));
 
     const int n_atoms = size();
     const double r_cut2 = r_cut * r_cut;
@@ -117,7 +112,7 @@ void AtomReader::calc_nborlist(const double r_cut, const int* parcas_nborlist) {
     // Initialise list of closest neighbours
     nborlist = vector<vector<int>>(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
-        nborlist[i].reserve(data.nnn);
+        nborlist[i].reserve(conf->nnn);
 
     // Loop through all the atoms
     int nbor_indx = 0;
@@ -161,6 +156,11 @@ void AtomReader::recalc_nborlist(const double r_cut) {
 }
 
 void AtomReader::calc_rdf_coordinations(const int* parcas_nborlist) {
+    if (data.latconst <= 0) {
+        data.coord_cutoff = conf->coordination_cutoff;
+        data.latconst = conf->latconst;
+    }
+
     const double rdf_cutoff = 2.0 * data.latconst;
 
     if (parcas_nborlist)
@@ -178,23 +178,23 @@ void AtomReader::calc_rdf_coordinations(const int* parcas_nborlist) {
 
 void AtomReader::calc_coordinations(const int* parcas_nborlist) {
     if (parcas_nborlist)
-        calc_nborlist(data.coord_cutoff, parcas_nborlist);
+        calc_nborlist(conf->coordination_cutoff, parcas_nborlist);
     else
-        calc_verlet_nborlist(nborlist, data.coord_cutoff, true);
+        calc_verlet_nborlist(nborlist, conf->coordination_cutoff, true);
 
     for (int i = 0; i < size(); ++i)
         coordination[i] = nborlist[i].size();
 }
 
 void AtomReader::calc_pseudo_coordinations() {
-    require(data.nnn > 0, "Invalid number of nearest neighbors!");
+    require(conf->nnn > 0, "Invalid # nearest neighbours: " + to_string(conf->nnn));
     const int n_atoms = size();
 
     for (int i = 0; i < n_atoms; ++i) {
         if (atoms[i].marker == TYPES.BULK)
-            coordination[i] = data.nnn;
+            coordination[i] = conf->nnn;
         else if (atoms[i].marker == TYPES.SURFACE)
-            coordination[i] = data.nnn / 2;
+            coordination[i] = conf->nnn / 2;
         else if (atoms[i].marker == TYPES.VACANCY)
             coordination[i] = -1;
         else
@@ -204,13 +204,13 @@ void AtomReader::calc_pseudo_coordinations() {
 
 void AtomReader::calc_clusters(const int* parcas_nborlist) {
     // if needed, update neighbor list
-    if (data.cluster_cutoff > 0 && data.cluster_cutoff != data.coord_cutoff) {
-        if (data.cluster_cutoff < data.coord_cutoff)
-            recalc_nborlist(data.cluster_cutoff);
+    if (conf->cluster_cutoff > 0 && conf->cluster_cutoff != data.coord_cutoff) {
+        if (conf->cluster_cutoff < data.coord_cutoff)
+            recalc_nborlist(conf->cluster_cutoff);
         else if (parcas_nborlist)
-            calc_nborlist(data.cluster_cutoff, parcas_nborlist);
+            calc_nborlist(conf->cluster_cutoff, parcas_nborlist);
         else
-            calc_verlet_nborlist(nborlist, data.cluster_cutoff, true);
+            calc_verlet_nborlist(nborlist, conf->cluster_cutoff, true);
     }
 
     const unsigned int n_atoms = size();
@@ -303,9 +303,9 @@ void AtomReader::extract_types() {
             atoms[i].marker = TYPES.CLUSTER;
         else if (cluster[i] < 0)
             atoms[i].marker = TYPES.EVAPORATED;
-        else if (get_point(i).z < (sizes.zmin + 0.49*data.latconst))
+        else if (get_point(i).z < (sizes.zmin + 0.49*conf->latconst))
             atoms[i].marker = TYPES.FIXED;
-        else if (coordination[i] < data.nnn)
+        else if (coordination[i] < conf->nnn)
             atoms[i].marker = TYPES.SURFACE;
         else
             atoms[i].marker = TYPES.BULK;

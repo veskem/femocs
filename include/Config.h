@@ -22,7 +22,10 @@ public:
     Config();
 
     /** Read the configuration parameters from input script */
-    void read_all(const string& file_name);
+    void read_all(const string& file_name, bool full_run=true);
+
+    /** Using the stored path, read the configuration parameters from input script */
+    void read_all();
 
     /** Look up the configuration parameter with string argument */
     int read_command(string param, string& arg);
@@ -59,6 +62,7 @@ public:
         int n_write_log;            ///< #timesteps between writing log file; <0: only last timestep, 0: no write, >0: only every n-th
         int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
         int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
+        int n_read_conf;            ///< # time steps between re-reading configuration values from file; 0 turns re-reading off
         double write_period;        ///< Write files every write_period [fs]
         double timestep_fs;         ///< Total time evolution within a FEMOCS run call [fs]
         double mass;                ///< Atom mass [amu]
@@ -89,10 +93,12 @@ public:
         double box_width;           ///< Minimal simulation box width [tip height]
         double box_height;          ///< Simulation box height [tip height]
         double bulk_height;         ///< Bulk substrate height [lattice constant]
-
-        /// Radius of cylinder where surface atoms are not coarsened; 0 enables coarsening of all atoms
-        double radius;
+        double radius;              ///< Radius of cylinder where surface atoms are not coarsened; 0 enables coarsening of all atoms
         double height;              ///< height of generated artificial nanotip in the units of radius
+        /** Minimum rms distance between atoms from current and previous run so that their
+         * movement is considered to be sufficiently big to recalculate electric field;
+         * 0 turns the check off */
+        double distance_tol;
     } geometry;
 
     /** All kind of tolerances */
@@ -101,11 +107,6 @@ public:
         double charge_max; ///< Max ratio face charges are allowed to deviate from the total charge
         double field_min;  ///< Min ratio numerical field can deviate from analytical one
         double field_max;  ///< Max ratio numerical field can deviate from analytical one
-
-        /** Minimum rms distance between atoms from current and previous run so that their
-         * movement is considered to be sufficiently big to recalculate electric field;
-         * 0 turns the check off */
-        double distance;
     } tolerance;
 
     /** Parameters for solving field equation */
@@ -189,7 +190,8 @@ public:
     } SC;
 
 private:
-    vector<vector<string>> data;          ///< commands and their arguments found from the input script
+    vector<vector<string>> data; ///< commands and their arguments found from the input script
+    string file_name;            ///< path to configuration file
 
     const string comment_symbols = "!#%";
     const string data_symbols = "+-/*_.0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ()";

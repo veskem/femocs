@@ -24,6 +24,7 @@ Config::Config() {
     behaviour.n_write_log = -1;
     behaviour.n_writefile = 1;
     behaviour.interpolation_rank = 1;
+    behaviour.n_read_conf = 0;
     behaviour.write_period = 4.05;
     behaviour.timestep_fs = 4.05;
     behaviour.mass = 63.5460;
@@ -50,12 +51,12 @@ Config::Config() {
     geometry.bulk_height = 20;
     geometry.radius = 0.0;
     geometry.height = 0.0;
+    geometry.distance_tol = 0.0;
 
     tolerance.charge_min = 0.8;
     tolerance.charge_max = 1.2;
     tolerance.field_min = 0.1;
     tolerance.field_max = 5.0;
-    tolerance.distance = 0.0;
 
     field.E0 = 0.0;
     field.ssor_param = 1.2;
@@ -112,30 +113,37 @@ void Config::trim(string& str) {
     str.erase(0, str.find_first_of(comment_symbols + data_symbols));
 }
 
-void Config::read_all(const string& file_name) {
-    if(file_name == "") return;
+void Config::read_all() {
+    read_all(file_name, false);
+}
+
+void Config::read_all(const string& fname, bool full_run) {
+    if (fname == "") return;
+    file_name = fname;
 
     // Store the commands and their arguments
-    parse_file(file_name);
+    parse_file(fname);
 
-    // Check for the obsolete commands
-    check_obsolete("postprocess_marking");
-    check_obsolete("force_factor");
-    check_obsolete("use_histclean");
-    check_obsolete("maxerr_SC");
-    check_obsolete("SC_mode");
+    if (full_run) {
+        // Check for the obsolete commands
+        check_obsolete("postprocess_marking");
+        check_obsolete("force_factor");
+        check_obsolete("use_histclean");
+        check_obsolete("maxerr_SC");
+        check_obsolete("SC_mode");
 
-    // Check for the changed commands
-    check_changed("heating", "heat_mode");
-    check_changed("surface_thichness", "surface_thickness");
-    check_changed("smooth_factor", "surface_smooth_factor");
-    check_changed("surface_cleaner", "clean_surface");
-    check_changed("write_log", "n_write_log");
-    check_changed("run_pic", "pic_mode");
-    check_changed("electronWsp", "electron_weight");
-    check_changed("field_solver", "field_mode");
-    check_changed("pic_mode", "field_mode");
-    check_changed("heating_mode", "heat_mode");
+        // Check for the changed commands
+        check_changed("heating", "heat_mode");
+        check_changed("surface_thichness", "surface_thickness");
+        check_changed("smooth_factor", "surface_smooth_factor");
+        check_changed("surface_cleaner", "clean_surface");
+        check_changed("write_log", "n_write_log");
+        check_changed("run_pic", "pic_mode");
+        check_changed("electronWsp", "electron_weight");
+        check_changed("field_solver", "field_mode");
+        check_changed("pic_mode", "field_mode");
+        check_changed("heating_mode", "heat_mode");
+    }
 
     // Modify the parameters that are specified in input script
     read_command("work_function", emission.work_function);
@@ -176,6 +184,7 @@ void Config::read_all(const string& file_name) {
 
     read_command("force_mode", force.mode);
 
+    read_command("distance_tol", geometry.distance_tol);
     read_command("latconst", geometry.latconst);
     read_command("coord_cutoff", geometry.coordination_cutoff);
     read_command("cluster_cutoff", geometry.cluster_cutoff);
@@ -202,6 +211,7 @@ void Config::read_all(const string& file_name) {
     read_command("smoothen_field", run.field_smoother);
     read_command("femocs_periodic", MODES.PERIODIC);
 
+    read_command("n_read_conf", behaviour.n_read_conf);
     read_command("n_write_log", behaviour.n_write_log);
     read_command("femocs_verbose_mode", behaviour.verbosity);
     read_command("project", behaviour.project);
@@ -212,8 +222,6 @@ void Config::read_all(const string& file_name) {
     read_command("mass(1)", behaviour.mass);
     read_command("seed", behaviour.rnd_seed);
     read_command("n_omp", behaviour.n_omp_threads);
-
-    read_command("distance_tol", tolerance.distance);
 
     read_command("pic_dtmax", pic.dt_max);
     read_command("electron_weight", pic.weight_el);
