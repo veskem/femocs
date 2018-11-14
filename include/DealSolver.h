@@ -189,7 +189,7 @@ protected:
     int solve_cg(const int n_steps, const double tolerance, const double ssor_param);
 
     /** Set up dynamic sparsity pattern for calculations */
-    void setup_system(bool full_setup=true);
+    void setup_system();
 
     /** Modify the right-hand-side vector of the matrix equation */
     void assemble_rhs(const BoundaryId bid);

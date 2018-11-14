@@ -68,8 +68,11 @@ int ProjectRunaway::reinit(int tstep, double time) {
 
     mesh_changed = false;
     double rmsd = reader.get_rmsd();
+
+    string rmsd_string = "inf";
+    if (rmsd < 1e100) rmsd_string = d2s(rmsd);
     write_silent_msg("Running at timestep=" + d2s(GLOBALS.TIMESTEP)
-            + ", time=" + d2s(GLOBALS.TIME, 2) + " fs, rmsd=" + d2s(rmsd));
+            + ", time=" + d2s(GLOBALS.TIME, 2) + " fs, rmsd=" + rmsd_string);
 
     return rmsd < conf.geometry.distance_tol;
 }
@@ -225,6 +228,11 @@ int ProjectRunaway::prepare_solvers() {
         check_return(fail, "Importing bulk mesh to Deal.II failed!");
         end_msg(t0);
 
+        // setup ch_solver here as pic_solver might intialize bulk_interpolator
+        start_msg(t0, "Setup current & heat solvers");
+        ch_solver.setup(conf.heating.t_ambient);
+        end_msg(t0);
+
         // in case of first run, give initial values to the temperature
         // interpolator and set interpolation preferences
         if (bulk_interpolator.nodes.size() == 0) {
@@ -232,13 +240,11 @@ int ProjectRunaway::prepare_solvers() {
             surface_fields.set_preferences(false, 2, 3);
             surface_temperatures.set_preferences(false, 2, 3);
             heat_transfer.set_preferences(false, 3, 1);
+        } else {
+            start_msg(t0, "Transferring old temperatures to new mesh");
+            heat_transfer.interpolate_dofs(ch_solver);  // Transfer previous temperatures to new mesh
+            end_msg(t0);
         }
-
-        // setup ch_solver here as pic_solver might intialize bulk_interpolator
-        start_msg(t0, "Setup current & heat solvers");
-        ch_solver.setup(conf.heating.t_ambient);
-        heat_transfer.interpolate_dofs(ch_solver);  // Transfer previous temperatures to new mesh
-        end_msg(t0);
     }
 
     return 0;

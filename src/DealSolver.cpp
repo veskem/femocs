@@ -365,7 +365,7 @@ void DealSolver<dim>::calc_vertex2dof() {
 }
 
 template<int dim>
-void DealSolver<dim>::setup_system(bool full_setup) {
+void DealSolver<dim>::setup_system() {
     require(this->dof_handler.get_triangulation().n_used_vertices() > 0,
             "Can't setup system with no mesh!");
 
@@ -382,12 +382,7 @@ void DealSolver<dim>::setup_system(bool full_setup) {
     this->system_rhs_save.reinit(n_dofs);
     this->system_matrix.reinit(this->sparsity_pattern);
     this->solution.reinit(n_dofs);
-
-    if (full_setup) {
-        // Initialize the solution with constant values
-        for (size_t i = 0; i < n_dofs; i++)
-            this->solution[i] = this->dirichlet_bc_value;
-    }
+    this->solution = this->dirichlet_bc_value;
 }
 
 template<int dim>

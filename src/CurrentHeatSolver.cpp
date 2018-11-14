@@ -562,7 +562,7 @@ template<int dim>
 void CurrentHeatSolver<dim>::setup(const double temperature) {
     heat.dirichlet_bc_value = temperature;
     current.setup_system();
-    heat.setup_system(false);
+    heat.setup_system();
 }
 
 template<int dim>
