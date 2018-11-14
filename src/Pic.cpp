@@ -15,10 +15,9 @@ using namespace std;
 namespace femocs {
 
 template<int dim>
-Pic<dim>::Pic(PoissonSolver<dim> *poisson, const CurrentHeatSolver<3> *ch_solver,
-        const EmissionReader *er, const unsigned int seed) :
-        poisson_solver(poisson), ch_solver(ch_solver), emission(er),
-        interpolator(er->interpolator),
+Pic<dim>::Pic(const PoissonSolver<dim> *poisson, const EmissionReader *er,
+        const Interpolator *i, const unsigned int seed) :
+        poisson_solver(poisson), emission(er), interpolator(i),
         electrons(-e_over_me, -e_over_eps0, 0),
         mersenne{seed}
 {}

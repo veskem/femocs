@@ -18,11 +18,10 @@ namespace femocs {
 template<int dim> class Pic;
 
 /** Class to calculate field emission effects with GETELEC */
-class EmissionReader: public SolutionReader {
+class EmissionReader: public Medium {
 public:
 
-    EmissionReader(const FieldReader *fields, const HeatReader *heat,
-            const PoissonSolver<3> *poisson, Interpolator* i);
+    EmissionReader(const FieldReader *fields, const HeatReader *heat, Interpolator* i);
 
     /** Calculates the emission currents and Nottingham heat distributions, including a rough
      * estimation of the space charge effects.
@@ -130,6 +129,7 @@ private:
     /** Compose entry to xyz or movie file */
     string get_data_string(const int i) const;
 
+    static constexpr double nm_per_angstrom = 0.1;
     static constexpr double angstrom_per_nm = 10.0;
     static constexpr double nm2_per_angstrom2 = 0.01;
     static constexpr int n_lines = 32; ///< Number of points in the line for GETELEC
@@ -137,15 +137,16 @@ private:
     const FieldReader *fields;      ///< field on centroids of hex interface faces.
     const HeatReader *heat;         ///< temperature on centroids of hexahedral faces.
     const TetgenMesh *mesh;         ///< data & operations about the mesh.
-    const PoissonSolver<3> *poisson; ///< Poisson solver information (field, potential etc)
 
-    vector<double> current_densities;    ///< Vector containing the emitted current density on the interface faces [in Amps/A^2].
-    vector<double> nottingham; ///< Same as current_densities for nottingham heat deposition [in W/A^2]
-    vector<double> currents;    ///< Current flux for every face (current_densities * face_areas) [in Amps]
+    FieldReader phis_on_line;   ///< interpolated potential values on line
+
+    vector<double> current_densities;    ///< emitted current densities on the interface faces [Amps/A^2]
+    vector<double> nottingham;  ///< nottingham heat deposition on the interface faces [W/A^2]
+    vector<double> currents;    ///< Current flux for every face (current_densities * face_areas) [Amps]
     vector<bool> is_effective;  ///< effective emission area
-    vector<double> rline;   ///< Line distance from the face centroid (passed into GETELEC)
-    vector<double> Vline;   ///< Potential on the straight line (complements rline)
-    vector<double> thetas_SC; ///< local field reduction factor due to SC
+    vector<double> rline;       ///< Line distance from the face centroid (passed into GETELEC)
+    vector<double> Vline;       ///< Potential on the straight line (complements rline)
+    vector<double> thetas_SC;   ///< local field reduction factor due to SC
 
     friend class Pic<3>;   // for convenience, allow Pic-class to access private data
 };

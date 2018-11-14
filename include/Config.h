@@ -136,14 +136,13 @@ public:
         string assemble_method;     ///< Method to assemble system matrix for solving heat equation; euler or crank_nicolson
     } heating;
 
+    /** Field emission module parameters */
     struct Emission {
         double work_function;       ///< Work function [eV]
         bool blunt;                 ///< Force blunt emitter approximation (good for big systems)
         bool cold;                  ///< force cold field emission approximation (good for low temperatures)
         double omega_SC;            ///< Voltage correction factor for SC calculation (negative for ignoring SC)
-        double SC_error;            ///< convergence criterion for SC error
         double Vappl_SC;            ///< Applied voltage used for SC calculations (overrides Vappl * omega_SC)
-        string SC_mode;             ///< Mode by which the SC is taken into account. global or local
     } emission;
 
     /** Parameters related to atomic force calculations */
@@ -199,7 +198,7 @@ private:
     void check_obsolete(const string& file_name);
 
     /** Check for the obsolete commands that are similar to valid ones */
-    void check_obsolete(const string& command, const string& substitute);
+    void check_changed(const string& command, const string& substitute);
 
     /** Read the commands and their arguments from the file and store them into the buffer */
     void parse_file(const string& file_name);

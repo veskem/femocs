@@ -37,8 +37,8 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         poisson_solver(NULL, &config.field, &vacuum_interpolator.linhex),
         ch_solver(&phys_quantities, &config.heating),
 
-        emission(&surface_fields, &surface_temperatures, &poisson_solver, &vacuum_interpolator),
-        pic_solver(&poisson_solver, &ch_solver, &emission, conf.behaviour.rnd_seed)
+        emission(&surface_fields, &surface_temperatures, &vacuum_interpolator),
+        pic_solver(&poisson_solver, &emission, &vacuum_interpolator, conf.behaviour.rnd_seed)
 {
     poisson_solver.set_particles(pic_solver.get_particles());
     temperatures.set_params(config);
@@ -479,7 +479,7 @@ void ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected,
     surface_fields.calc_interpolation();
 
     // calculate field emission and inject electrons
-    emission.calc_emission(conf.emission);
+    emission.calc_emission(conf.emission, conf.field.V0);
     n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
 
     if (write_files) write_pic_results();

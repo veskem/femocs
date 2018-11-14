@@ -82,7 +82,6 @@ Config::Config() {
     emission.cold = false;
     emission.work_function = 4.5;
     emission.omega_SC = -1;
-    emission.SC_error = 1.e-3;
     emission.Vappl_SC = 0.;
 
     force.mode = "none";
@@ -122,26 +121,28 @@ void Config::read_all(const string& file_name) {
     // Check for the obsolete commands
     check_obsolete("postprocess_marking");
     check_obsolete("force_factor");
-    check_obsolete("heating", "heat_mode");
-    check_obsolete("surface_thichness", "surface_thickness");
-    check_obsolete("smooth_factor", "surface_smooth_factor");
-    check_obsolete("surface_cleaner", "clean_surface");
-    check_obsolete("write_log", "n_write_log");
-    check_obsolete("run_pic", "pic_mode");
     check_obsolete("use_histclean");
-    check_obsolete("electronWsp", "electron_weight");
-    check_obsolete("field_solver", "field_mode");
-    check_obsolete("pic_mode", "field_mode");
-    check_obsolete("heating_mode", "heat_mode");
+    check_obsolete("maxerr_SC");
+    check_obsolete("SC_mode");
+
+    // Check for the changed commands
+    check_changed("heating", "heat_mode");
+    check_changed("surface_thichness", "surface_thickness");
+    check_changed("smooth_factor", "surface_smooth_factor");
+    check_changed("surface_cleaner", "clean_surface");
+    check_changed("write_log", "n_write_log");
+    check_changed("run_pic", "pic_mode");
+    check_changed("electronWsp", "electron_weight");
+    check_changed("field_solver", "field_mode");
+    check_changed("pic_mode", "field_mode");
+    check_changed("heating_mode", "heat_mode");
 
     // Modify the parameters that are specified in input script
     read_command("work_function", emission.work_function);
     read_command("emitter_blunt", emission.blunt);
     read_command("omega_SC", emission.omega_SC);
-    read_command("maxerr_SC", emission.SC_error);
     read_command("emitter_cold", emission.cold);
     read_command("Vappl_SC", emission.Vappl_SC);
-    read_command("SC_mode", emission.SC_mode);
 
     read_command("heat_mode", heating.mode);
     read_command("rhofile", heating.rhofile);
@@ -313,10 +314,10 @@ void Config::check_obsolete(const string& command) {
         }
 }
 
-void Config::check_obsolete(const string& command, const string& substitute) {
+void Config::check_changed(const string& command, const string& substitute) {
     for (const vector<string>& cmd : data)
         if (cmd[0] == command) {
-            write_silent_msg("Command '" + command + "' is obsolete!"
+            write_silent_msg("Command '" + command + "' has changed!"
                     " It is similar yet different to the command '" + substitute + "'!");
             return;
         }

@@ -15,11 +15,12 @@
 using namespace std;
 namespace femocs {
 
-EmissionReader::EmissionReader(const FieldReader *fr, const HeatReader *hr,
-        const PoissonSolver<3> *p, Interpolator* i) :
-        SolutionReader(i, LABELS.elfield, LABELS.rho_norm, LABELS.heat),
-        fields(fr), heat(hr), mesh(NULL), poisson(p)
-{}
+EmissionReader::EmissionReader(const FieldReader *fr, const HeatReader *hr, Interpolator* i) :
+        fields(fr), heat(hr), mesh(NULL), phis_on_line(i)
+{
+    const int interpolation_rank = 3;
+    phis_on_line.set_preferences(false, 3, interpolation_rank);
+}
 
 void EmissionReader::initialize(const TetgenMesh* m, bool reinit) {
     mesh = m;
@@ -54,22 +55,19 @@ void EmissionReader::initialize(const TetgenMesh* m, bool reinit) {
 }
 
 void EmissionReader::emission_line(const Point3& point, const Vec3& direction, const double rmax) {
-    const int interpolation_rank = 3;
-    const double nm_per_angstrom = 0.1;
     const double rmin = 1.e-5 * rmax;
 
-    FieldReader fr(interpolator);
-    fr.set_preferences(false, 3, interpolation_rank);
-    fr.reserve(n_lines);
-
+    // calculate potentials on line starting from face centroid
+    // and moving in direction of its norm
+    phis_on_line.reserve(n_lines);
     for (int i = 0; i < n_lines; i++){
         rline[i] = rmin + ((rmax - rmin) * i) / (n_lines - 1);
-        fr.append(point + direction * rline[i]);
+        phis_on_line.append(point + direction * rline[i]);
     }
-    fr.calc_interpolation();
+    phis_on_line.calc_interpolation();
 
     for (int i = 0; i < n_lines; i++){
-        Vline[i] = global_data.multiplier * fr.get_potential(i);
+        Vline[i] = global_data.multiplier * phis_on_line.get_potential(i);
         rline[i] *= nm_per_angstrom;
     }
 
@@ -239,7 +237,7 @@ string EmissionReader::get_data_string(const int i) const {
     if (i < 0)
         return "time = " + to_string(GLOBALS.TIME) +
                 ", EmissionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" +
-                vec_norm_label + ":R:1:" + scalar_label + ":R:1";
+                "ln(rho_norm):R:1:nottingham_heat:R:1";
 
     ostringstream strs; strs << setprecision(6);
     strs << atoms[i] << ' ' << fields->get_elfield(i)

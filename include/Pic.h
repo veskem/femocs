@@ -29,8 +29,8 @@ namespace femocs {
 template<int dim>
 class Pic {
 public:
-    Pic(PoissonSolver<dim> *poisson_solver, const CurrentHeatSolver<3> *ch_solver,
-            const EmissionReader *emission, const unsigned int seed);
+    Pic(const PoissonSolver<dim> *poisson_solver, const EmissionReader *emission,
+            const Interpolator *interpolator, const unsigned int seed);
     ~Pic() {};
 
     /** Inject electrons according to the field emission surface distribution */
@@ -100,8 +100,7 @@ private:
         double landau_log = 0;    ///< Landau logarithm
     } conf;
 
-    PoissonSolver<dim> *poisson_solver;       ///< object to solve Poisson equation in the vacuum mesh
-    const CurrentHeatSolver<dim> *ch_solver;  ///< transient currents and heating solver
+    const PoissonSolver<dim> *poisson_solver; ///< object to solve Poisson equation in the vacuum mesh
     const EmissionReader *emission;           ///< object to obtain the field emission data
     const Interpolator *interpolator;         ///< data & operation for interpolating in vacuum
 
