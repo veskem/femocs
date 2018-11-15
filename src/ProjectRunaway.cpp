@@ -52,6 +52,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 }
 
 int ProjectRunaway::reinit(int tstep, double time) {
+    require(conf.behaviour.timestep_step > 0, "Invalid step of time step: " + d2s(conf.behaviour.timestep_step));
     GLOBALS.TIMESTEP++;
 
     timestep_string = d2s(GLOBALS.TIMESTEP);
@@ -74,7 +75,8 @@ int ProjectRunaway::reinit(int tstep, double time) {
     write_silent_msg("Running at timestep=" + d2s(GLOBALS.TIMESTEP)
             + ", time=" + d2s(GLOBALS.TIME, 2) + " fs, rmsd=" + rmsd_string);
 
-    return rmsd < conf.geometry.distance_tol;
+    return rmsd < conf.geometry.distance_tol &&
+            ((GLOBALS.TIMESTEP-1) % conf.behaviour.timestep_step == 0);
 }
 
 int ProjectRunaway::finalize(double tstart, double time) {
