@@ -177,6 +177,9 @@ void AtomReader::calc_rdf_coordinations(const int* parcas_nborlist) {
 }
 
 void AtomReader::calc_coordinations(const int* parcas_nborlist) {
+    data.coord_cutoff = conf->coordination_cutoff;
+    data.latconst = conf->latconst;
+
     if (parcas_nborlist)
         calc_nborlist(conf->coordination_cutoff, parcas_nborlist);
     else

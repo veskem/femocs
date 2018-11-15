@@ -430,11 +430,18 @@ void HeatReader::interpolate_dofs(CurrentHeatSolver<3>& solver) {
     solver.heat.set_nodal_solution(get_temperatures());
 }
 
-int HeatReader::scale_berendsen_short(double* x1, const int n_atoms, const Vec3& parcas2si) {
+int HeatReader::scale_berendsen_short(double* x1, const int n_atoms,
+        const Vec3& parcas2si, const Config& conf)
+{
     check_return(size() == 0, "No " + LABELS.parcas_velocity + " to export!");
 
+    // timestep in PARCAS units
+    // needed to transfer velocity from PARCAS units to fm / fs
+    const double delta_t = conf.behaviour.timestep_fs / (10.1805*sqrt(conf.behaviour.mass));
+    timestep_over_tau = conf.behaviour.timestep_fs / conf.heating.tau;
+
     vector<Vec3> velocities;
-    calc_SI_velocities(velocities, n_atoms, parcas2si, x1);
+    calc_SI_velocities(velocities, n_atoms, parcas2si / delta_t, x1);
 
     // scale velocities from MD temperature to calculated one
     for (int i = 0; i < size(); ++i) {
@@ -449,8 +456,8 @@ int HeatReader::scale_berendsen_short(double* x1, const int n_atoms, const Vec3&
         for (int j = 0; j < 3; ++j)
             x1[I+j] *= lambda;
 
-        // store scaled velocity without affecting current density norm and temperature
-//        interpolation[i].vector = velocities[id] * lambda;
+        // store scaled temperature
+        interpolation[i].scalar = md_temperature * lambda;
     }
 
 //    write("out/berendsen.movie");
@@ -478,8 +485,15 @@ void HeatReader::precalc_berendsen_long() {
     }
 }
 
-int HeatReader::scale_berendsen_long(double* x1, const int n_atoms, const Vec3& parcas2si) {
+int HeatReader::scale_berendsen_long(double* x1, const int n_atoms,
+        const Vec3& parcas2si, const Config& conf)
+{
     check_return(size() == 0, "No " + LABELS.parcas_velocity + " to export!");
+
+    // timestep in PARCAS units
+    // needed to transfer velocity from PARCAS units to fm / fs
+    const double delta_t = conf.behaviour.timestep_fs / (10.1805*sqrt(conf.behaviour.mass));
+    timestep_over_tau = conf.behaviour.timestep_fs / conf.heating.tau;
 
     const unsigned int n_tets = tet2atoms.size();
     require(n_tets > 0, "Data is missing for long Berendsen thermostat!");
@@ -488,7 +502,7 @@ int HeatReader::scale_berendsen_long(double* x1, const int n_atoms, const Vec3& 
 
     // convert velocities from Parcas to SI units
     vector<Vec3> velocities;
-    calc_SI_velocities(velocities, n_atoms, parcas2si, x1);
+    calc_SI_velocities(velocities, n_atoms, parcas2si / delta_t, x1);
 
     for (unsigned int tet = 0; tet < n_tets; ++tet) {
         int n_atoms_in_tet = tet2atoms[tet].size();
@@ -515,38 +529,30 @@ int HeatReader::scale_berendsen_long(double* x1, const int n_atoms, const Vec3& 
                 for (int j = 0; j < 3; ++j)
                     x1[I+j] *= lambda;
 
-                // store scaled velocity and temperature without affecting current density norm
-//                interpolation[atom].vector = velocities[id] * lambda;
-//                interpolation[atom].scalar = fem_temp[tet];
+                // store scaled temperature
+                interpolation[atom].scalar = velocities[id].norm2() * heat_factor * lambda;
             }
         }
     }
 
-//    write("out/berendsen.movie");
+    write("out/berendsen.movie");
 
     return 0;
 }
 
-double HeatReader::calc_lambda(const double T_start, const double T_end) const {
-    const double scale_factor = data.md_timestep / data.tau;
-    return sqrt( 1.0 + scale_factor * (T_end / T_start - 1.0) );
+inline double HeatReader::calc_lambda(const double T_start, const double T_end) const {
+    return sqrt( 1.0 + timestep_over_tau * (T_end / T_start - 1.0) );
 }
 
 void HeatReader::calc_SI_velocities(vector<Vec3>& velocities,
         const int n_atoms, const Vec3& parcas2si, double* x1) {
-
-    // timestep in PARCAS units
-    const double delta_t = data.md_timestep/data.time_unit;
-
-    // factor to transfer velocity from PARCAS units to fm / fs
-    const Vec3 velocity_factor = parcas2si / delta_t;
 
     // perform conversion
     velocities.clear();
     velocities.reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i) {
         int I = 3*i;
-        velocities.push_back(Vec3(x1[I], x1[I+1], x1[I+2]) * velocity_factor);
+        velocities.push_back(Vec3(x1[I], x1[I+1], x1[I+2]) * parcas2si);
     }
 }
 

@@ -69,8 +69,8 @@ protected:
     string timestep_string;     ///< time step written to file name
     double last_heat_time;      ///< Last time heat was updated
     double last_write_time;     ///< Keeps the time that last file output was done
-    int last_write_ts;          ///< Last timestep with full file write
-    int last_mesh_write_ts;     ///< Last timestep with mesh file write
+    int last_completed_timestep;///< Last time step that ended with finalize
+    int last_full_timestep;     ///< Last completed timestep with mesh rebuild
 
     Interpolator vacuum_interpolator;  ///< data & operations for interpolating field & potential in vacuum
     Interpolator bulk_interpolator;    ///< data & operations for interpolating current density & temperature in bulk

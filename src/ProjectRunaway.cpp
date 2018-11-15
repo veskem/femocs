@@ -20,7 +20,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         GeneralProject(reader, config),
         fail(false), t0(0), mesh_changed(false),
 		last_heat_time(0), last_write_time(0),
-		last_write_ts(0), last_mesh_write_ts(0),
+		last_completed_timestep(0), last_full_timestep(0),
 
         vacuum_interpolator("elfield", "elfield_norm", "potential"),
         bulk_interpolator("rho", "potential", "temperature"),
@@ -41,7 +41,6 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         pic_solver(&poisson_solver, &emission, &vacuum_interpolator, conf.behaviour.rnd_seed)
 {
     poisson_solver.set_particles(pic_solver.get_particles());
-    temperatures.set_params(config);
     ch_solver.current.set_bcs(emission.get_current_densities());
     ch_solver.heat.set_bcs(emission.get_nottingham());
 
@@ -62,9 +61,9 @@ int ProjectRunaway::reinit(int tstep, double time) {
         conf.read_all();
 
     MODES.WRITEFILE = conf.behaviour.n_writefile > 0 && (
-            last_write_ts == 0 ||
-            last_mesh_write_ts == 0 ||
-            (GLOBALS.TIMESTEP - last_write_ts) >= conf.behaviour.n_writefile
+            last_completed_timestep == 0 ||
+            last_full_timestep == 0 ||
+            (GLOBALS.TIMESTEP - last_completed_timestep) >= conf.behaviour.n_writefile
             );
 
     mesh_changed = false;
@@ -75,14 +74,14 @@ int ProjectRunaway::reinit(int tstep, double time) {
     write_silent_msg("Running at timestep=" + d2s(GLOBALS.TIMESTEP)
             + ", time=" + d2s(GLOBALS.TIME, 2) + " fs, rmsd=" + rmsd_string);
 
-    return rmsd < conf.geometry.distance_tol &&
-            ((GLOBALS.TIMESTEP-1) % conf.behaviour.timestep_step == 0);
+    return (rmsd < conf.geometry.distance_tol) ||
+            ((GLOBALS.TIMESTEP-1) % conf.behaviour.timestep_step != 0);
 }
 
 int ProjectRunaway::finalize(double tstart, double time) {
     if (conf.field.mode == "laplace")
         GLOBALS.TIME += conf.behaviour.timestep_fs;
-    reader.save_current_run_points();
+    if (mesh_changed) reader.save_current_run_points();
 
     write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
 
@@ -92,8 +91,8 @@ int ProjectRunaway::finalize(double tstart, double time) {
 
     // update file output counters
     if (MODES.WRITEFILE) {
-        last_write_ts = GLOBALS.TIMESTEP;
-        if (mesh_changed) last_mesh_write_ts = GLOBALS.TIMESTEP;
+        last_completed_timestep = GLOBALS.TIMESTEP;
+        if (mesh_changed) last_full_timestep = GLOBALS.TIMESTEP;
     }
 
     return 0;
@@ -201,7 +200,7 @@ int ProjectRunaway::generate_mesh() {
     }
 
     MODES.WRITEFILE |= conf.behaviour.n_writefile > 0 &&
-            (GLOBALS.TIMESTEP - last_mesh_write_ts) >= conf.behaviour.n_writefile;
+            (GLOBALS.TIMESTEP - last_full_timestep) >= conf.behaviour.n_writefile;
 
     new_mesh->nodes.write("out/hexmesh_nodes.vtk");
     new_mesh->tris.write("out/trimesh.vtk");
@@ -279,7 +278,6 @@ int ProjectRunaway::prepare_export() {
             temperatures.precalc_berendsen_long();
         } else {
             temperatures.update_positions(reader);
-            temperatures.calc_interpolation();
         }
         end_msg(t0);
 
@@ -293,6 +291,7 @@ int ProjectRunaway::prepare_export() {
             retval = solve_force();
         else {
             start_msg(t0, "Recalculating forces");
+            forces.update_positions(dense_surf);
             forces.recalc_lorentz(fields);
             if (conf.force.mode == "all")
                 forces.calc_coulomb(conf.geometry.charge_cutoff);
@@ -642,7 +641,7 @@ int ProjectRunaway::export_data(double* data, const int n_points, const string &
         return forces.export_parcas(n_points, data_type, reader.get_si2parcas_box(), data);
 
     if (data_type == LABELS.parcas_velocity)
-        return temperatures.scale_berendsen_long(data, n_points, reader.get_parcas2si_box());
+        return temperatures.scale_berendsen_long(data, n_points, reader.get_parcas2si_box(), conf);
 
     if (data_type == LABELS.atom_type) {
         require(n_points <= reader.size(), "Invalid data query size: " + d2s(n_points));

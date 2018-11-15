@@ -195,17 +195,10 @@ public:
     void precalc_berendsen_long();
 
     /** Apply Berendsen thermostat for individual atoms */
-    int scale_berendsen_short(double* x1, const int n_atoms, const Vec3& parcas2si);
+    int scale_berendsen_short(double* x1, const int n_atoms, const Vec3& parcas2si, const Config& conf);
 
     /** Apply Berendsen thermostat for atoms within a tetrahedron */
-    int scale_berendsen_long(double* x1, const int n_atoms, const Vec3& parcas2si);
-
-    /** Store velocity scaling constants */
-    void set_params(const Config& conf) {
-        data.tau = conf.heating.tau;
-        data.md_timestep = conf.behaviour.timestep_fs;
-        data.time_unit = 10.1805*sqrt(conf.behaviour.mass);
-    }
+    int scale_berendsen_long(double* x1, const int n_atoms, const Vec3& parcas2si, const Config& conf);
 
     /** Return current density in i-th interpolation point */
     Vec3 get_rho(const int i) const {
@@ -233,22 +226,18 @@ private:
     static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant [eV/K]
     static constexpr double heat_factor = 1.0 / (2*1.5*kB);  ///< Factor to transfer 2*kinetic energy to temperature
 
+    double timestep_over_tau=0;     ///< MD time step / berendsen tau [fs/fs]
+
     vector<vector<int>> tet2atoms;
     vector<double> fem_temp;
     vector<double> temperatures;
     vector<double> potentials;
 
-    struct Data {
-        double tau;          ///< Time constant in Berendsen scaling [fs]
-        double md_timestep;  ///< MD time step [fs]
-        double time_unit;    ///< the conversion factor of Parcas internal units to fs.
-    } data;
-
     /** Transfer velocities from Parcas units to fm / fs */
     void calc_SI_velocities(vector<Vec3>& velocities, const int n_atoms, const Vec3& parcas2si, double* x1);
 
     /** Calculate scaling factor for Berendsen thermostat */
-    double calc_lambda(const double T_start, const double T_end) const;
+    inline double calc_lambda(const double T_start, const double T_end) const;
 
     /** Transfer solution from vector of Solution to separate vectors with Solution components */
     void transfer_solution();
