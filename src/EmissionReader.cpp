@@ -107,7 +107,6 @@ void EmissionReader::calculate_globals() {
     global_data.area = 0;
 
     if (is_effective.size() != current_densities.size()){
-        write_verbose_msg("WARNING: is_effected not set. Defining it as the whole surface.");
         is_effective.resize(current_densities.size());
         std::fill (is_effective.begin(), is_effective.end(), true);
     }
@@ -235,7 +234,7 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC,
 
 string EmissionReader::get_data_string(const int i) const {
     if (i < 0)
-        return "time = " + to_string(GLOBALS.TIME) +
+        return "Time=" + d2s(GLOBALS.TIME) + ", Timestep=" + d2s(GLOBALS.TIMESTEP) +
                 ", EmissionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" +
                 "ln(rho_norm):R:1:nottingham_heat:R:1";
 
