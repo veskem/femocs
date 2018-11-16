@@ -180,6 +180,7 @@ public:
         bool collide_ee;       ///< Do 2e->2e Coulomb collisions?
         bool periodic;         ///< SP-s will be mapped back to simubox in x,y-direction?
         double landau_log;     ///< Landau logarithm
+        unsigned int max_injected; ///< Max nr of super particles injected during one step
     } pic;
     
     /** Parameters related to SpaceCharge project */

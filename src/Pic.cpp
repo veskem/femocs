@@ -16,8 +16,8 @@ namespace femocs {
 
 template<int dim>
 Pic<dim>::Pic(const PoissonSolver<dim> *poisson, const EmissionReader *er,
-        const Interpolator *i, const unsigned int seed) :
-        poisson_solver(poisson), emission(er), interpolator(i),
+        const Interpolator *i, const Config::PIC *config, const unsigned int seed) :
+        poisson_solver(poisson), emission(er), interpolator(i), conf(config),
         electrons(-e_over_me, -e_over_eps0, 0),
         mersenne{seed}
 {}
@@ -28,6 +28,9 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
     vector<int> cells;
     inject_electrons(positions, cells, *emission->mesh);
 
+    if (positions.size() > conf->max_injected)
+        return -1 * positions.size();
+
     Vec3 velocity(0);
 
     for (unsigned int i = 0; i < positions.size(); ++i) {
@@ -37,17 +40,17 @@ int Pic<dim>::inject_electrons(const bool fractional_push) {
 
         // Random fractional timestep push -- from a random point [t_(k-1),t_k] to t_k, t_(k + 1/2), using field at t_k.
         if (fractional_push) {
-            velocity = elfield * (electrons.q_over_m * conf.dt * (uniform(mersenne) + 0.5));
-            positions[i] += velocity * (conf.dt * uniform(mersenne));
+            velocity = elfield * (electrons.q_over_m * data.dt * (uniform(mersenne) + 0.5));
+            positions[i] += velocity * (data.dt * uniform(mersenne));
         } else {
-            velocity = elfield * (electrons.q_over_m * conf.dt * 0.5);
+            velocity = elfield * (electrons.q_over_m * data.dt * 0.5);
         }
 
         // Save to particle arrays
         electrons.inject_particle(positions[i], velocity, cells[i]);
     }
 
-    inject_stats.injected += positions.size();
+    data.injected += positions.size();
     return positions.size();
 }
 
@@ -60,7 +63,7 @@ void Pic<dim>::inject_electrons(vector<Point3> &positions, vector<int> &cells, c
     // loop through quadrangle centroids
     for (int i = 0; i < n_points; ++i) {
         double current = emission->currents[i] * electrons_per_fs;
-        double charge = current * conf.dt; //in e
+        double charge = current * data.dt; //in e
         double n_sps = charge / electrons.get_Wsp();
 
         int intpart = (int) floor(n_sps);
@@ -142,7 +145,7 @@ int Pic<dim>::update_positions() {
 
     int n_lost_particles = electrons.clear_lost();
 
-    inject_stats.removed += n_lost_particles;
+    data.removed += n_lost_particles;
     return n_lost_particles;
 }
 
@@ -151,20 +154,20 @@ void Pic<dim>::update_position(const int particle_index) {
     SuperParticle &electron = electrons[particle_index];
 
     //update position
-    electron.pos += electron.vel * conf.dt;
+    electron.pos += electron.vel * data.dt;
 
     bool b1 = true;
     bool b2 = true;
-    bool b3 = electron.pos.z < conf.box.zmax;
+    bool b3 = electron.pos.z < data.box.zmax;
 
-    if (conf.periodic) {
+    if (conf->periodic) {
         // apply periodic boundaries
-        electron.pos.x = periodic_image(electron.pos.x, conf.box.xmax, conf.box.xmin);
-        electron.pos.y = periodic_image(electron.pos.y, conf.box.ymax, conf.box.ymin);
+        electron.pos.x = periodic_image(electron.pos.x, data.box.xmax, data.box.xmin);
+        electron.pos.y = periodic_image(electron.pos.y, data.box.ymax, data.box.ymin);
     } else {
         // check the boundaries in x,y-direction
-        b1 = electron.pos.x > conf.box.xmin && electron.pos.x < conf.box.xmax;
-        b2 = electron.pos.y > conf.box.ymin && electron.pos.y < conf.box.ymax;
+        b1 = electron.pos.x > data.box.xmin && electron.pos.x < data.box.xmax;
+        b2 = electron.pos.y > data.box.ymin && electron.pos.y < data.box.ymax;
         if (!b1 || !b2) {
             write_silent_msg("Electron " + d2s(particle_index) + " crossed "
                     "simubox x or y boundary and will be deleted.\n  "
@@ -202,7 +205,7 @@ void Pic<dim>::update_velocities(){
         Vec3 elfield = interpolator->linhex.interp_gradient(electron.pos, cell);
 
         // update velocities (corresponds to t + .5dt)
-        electron.vel += elfield * (conf.dt * electrons.q_over_m);
+        electron.vel += elfield * (data.dt * electrons.q_over_m);
     }
 }
 
@@ -212,10 +215,10 @@ void Pic<dim>::update_velocities(){
  * Journal of Computational Physics 25 (1977) 205 */
 template<int dim>
 void Pic<dim>::collide_particles() {
-    if (!conf.collide_ee) return;
+    if (!conf->collide_ee) return;
 
     double variance_factor = e_over_me * e_over_eps0 * electrons.get_Wsp();
-    variance_factor *= variance_factor * conf.dt * conf.landau_log / twopi;
+    variance_factor *= variance_factor * data.dt * conf->landau_log / twopi;
 
     vector<vector<size_t>> particles_in_cell;
     group_and_shuffle_particles(particles_in_cell);

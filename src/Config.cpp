@@ -106,6 +106,7 @@ Config::Config() {
     pic.collide_ee = true;
     pic.periodic = false;
     pic.landau_log = 13.0;
+    pic.max_injected = 50000;
 
     SC.convergence = .1;
 }
@@ -231,6 +232,7 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("pic_collide_ee", pic.collide_ee);
     read_command("pic_periodic", pic.periodic);
     read_command("pic_landau_log", pic.landau_log);
+    read_command("max_injected", pic.max_injected);
     
     read_command("SC_converge_criterion", SC.convergence);
 

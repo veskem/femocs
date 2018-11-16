@@ -38,7 +38,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         ch_solver(&phys_quantities, &config.heating),
 
         emission(&surface_fields, &surface_temperatures, &vacuum_interpolator),
-        pic_solver(&poisson_solver, &emission, &vacuum_interpolator, conf.behaviour.rnd_seed)
+        pic_solver(&poisson_solver, &emission, &vacuum_interpolator, &conf.pic, conf.behaviour.rnd_seed)
 {
     poisson_solver.set_particles(pic_solver.get_particles());
     ch_solver.current.set_bcs(emission.get_current_densities());
@@ -406,7 +406,7 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
 int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
     int n_pic_steps = ceil(advance_time / conf.pic.dt_max);
     double dt_pic = advance_time / n_pic_steps;
-    pic_solver.set_params(conf.pic, dt_pic, mesh->nodes.stat);
+    pic_solver.set_params(dt_pic, mesh->nodes.stat);
 
     if (full_run) {
         start_msg(t0, "Initializing Poisson solver");
@@ -419,14 +419,9 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
 
     start_msg(t0, "=== Running PIC for delta time = "
             + d2s(n_pic_steps) + "*" + d2s(dt_pic, 2)+" = " + d2s(advance_time, 2) + " fs\n");
-    int n_lost, n_cg, n_injected;
+    int n_lost, n_cg, n_injected, error;
     for (int i = 0; i < n_pic_steps; ++i) {
-        make_pic_step(n_lost, n_cg, n_injected, full_run && i==0, write_time());
-
-        if (n_injected > 50000) {
-            write_verbose_msg("WARNING: too many injected SP-s, " + d2s(n_injected) + ". Check the SP weight.");
-            return 1;
-        }
+        error = make_pic_step(n_lost, n_cg, n_injected, full_run && i==0, write_time());
 
         if (MODES.VERBOSE) {
             printf("  t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
@@ -435,6 +430,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
         }
 
         GLOBALS.TIME += dt_pic;
+        check_return(error, "Too many injected SP-s, " + d2s(n_injected) + ". Check the SP weight!")
     }
     end_msg(t0);
 
@@ -467,7 +463,7 @@ void ProjectRunaway::initalize_pic_emission(bool full_run) {
     end_msg(t0);
 }
 
-void ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected,
+int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected,
         bool full_run, bool write_files)
 {
     // advance super particles
@@ -492,6 +488,12 @@ void ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected,
     n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
 
     if (write_files) write_pic_results();
+
+    if (n_injected < 0) {
+        n_injected *= -1;
+        return 1;
+    }
+    return 0;
 }
 
 void ProjectRunaway::write_pic_results() {

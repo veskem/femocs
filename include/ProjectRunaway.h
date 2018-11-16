@@ -118,7 +118,7 @@ protected:
 
     void calc_heat_emission(bool full_run);
 
-    void make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool full_run, bool prepare_write);
+    int make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool full_run, bool prepare_write);
 
     void initalize_pic_emission(bool full_run);
 
