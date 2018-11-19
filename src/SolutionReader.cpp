@@ -361,7 +361,7 @@ double FieldReader::get_analyt_enhancement() const {
     }
 }
 
-bool FieldReader::check_limits(const vector<Solution>* solutions) const {
+bool FieldReader::check_limits(const vector<Solution>* solutions, bool verbose) const {
     if (limit_min == limit_max)
         return false;
 
@@ -370,14 +370,15 @@ bool FieldReader::check_limits(const vector<Solution>* solutions) const {
     const double gamma2 = get_analyt_enhancement();
     const double beta = fabs(gamma1 / gamma2);
 
-    stringstream stream;
-    stream << fixed << setprecision(3);
-    stream << "field enhancements:  (F)emocs:" << gamma1
-            << "  (A)nalyt:" << gamma2
-            << "  F-A:" << gamma1 - gamma2
-            << "  F/A:" << gamma1 / gamma2;
-
-    write_verbose_msg(stream.str());
+    if (verbose || (beta < limit_min || beta > limit_max)) {
+        stringstream stream;
+        stream << fixed << setprecision(3);
+        stream << "field enhancements:  (F)emocs:" << gamma1
+                << "  (A)nalyt:" << gamma2
+                << "  F-A:" << gamma1 - gamma2
+                << "  F/A:" << gamma1 / gamma2;
+        write_verbose_msg(stream.str());
+    }
     return beta < limit_min || beta > limit_max;
 }
 

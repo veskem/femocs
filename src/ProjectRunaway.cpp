@@ -423,22 +423,20 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
     for (int i = 0; i < n_pic_steps; ++i) {
         error = make_pic_step(n_lost, n_cg, n_injected, full_run && i==0, write_time());
 
-        if (MODES.VERBOSE) {
+        if (MODES.VERBOSE && !error) {
             printf("  t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
                     GLOBALS.TIME, n_cg, emission.global_data.Fmax, emission.global_data.I_tot,
                     n_injected, n_lost, pic_solver.get_n_electrons());
         }
 
         GLOBALS.TIME += dt_pic;
-        check_return(error, "Too many injected SP-s, " + d2s(n_injected) + ". Check the SP weight!")
+        if (error) return 1;
     }
     end_msg(t0);
 
     vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
     vacuum_interpolator.lintet.write("out/result_E_phi.vtk");
 
-//    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
-//            "Field enhancement is out of limits!");
     return 0;
 }
 
@@ -475,6 +473,8 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected,
 
     // must be after solving Poisson and before updating velocities
     vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
+    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions(), false),
+            "Field enhancement is out of limits!");
 
     // update velocities of super particles and collide them
     pic_solver.update_velocities();
@@ -485,14 +485,10 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected,
 
     // calculate field emission and inject electrons
     emission.calc_emission(conf.emission, conf.field.V0);
-    n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
+    n_injected = abs(pic_solver.inject_electrons(conf.pic.fractional_push));
+    check_return(n_injected > conf.pic.max_injected, "Too many injected SP-s, " + d2s(n_injected) + ". Check the SP weight!")
 
     if (write_files) write_pic_results();
-
-    if (n_injected < 0) {
-        n_injected *= -1;
-        return 1;
-    }
     return 0;
 }
 

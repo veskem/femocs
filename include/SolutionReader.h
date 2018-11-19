@@ -140,7 +140,7 @@ public:
 
     /** Compare the analytical and calculated field enhancement.
      * The check is disabled if lower and upper limits are the same. */
-    bool check_limits(const vector<Solution>* solutions=NULL) const;
+    bool check_limits(const vector<Solution>* solutions=NULL, bool verbose=true) const;
 
     /** Find the maximum field norm from the solution vector */
     double calc_max_field(const vector<Solution>* solutions=NULL) const;
