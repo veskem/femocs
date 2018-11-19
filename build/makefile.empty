@@ -8,9 +8,11 @@ FEMOCS_DOPT=
 
 ## paths to headers
 FEMOCS_HEADPATH=
+FEMOCS_EXT_HEAD=
 
 ## paths to libraries
 FEMOCS_LIBPATH=
+FEMOCS_EXT_LIB=
 
 ## release mode libraries
 FEMOCS_LIB=

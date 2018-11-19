@@ -3,57 +3,6 @@
 
 source ./build/makefile.defs
 
-## Optimization and warnings
-OPT="-O3 -w"
-OPT_DBG="-g -Og -Wall -Wpedantic -Wno-unused-local-typedefs"
-
-## Paths to headers
-HEADPATH_ALL="-Iinclude -Ilib -Idealii/include -IGETELEC/modules -std=c++11"
-HEADPATH_UBUNTU=""
-HEADPATH_TAITO="-I/appl/opt/cluster_studio_xe2018/parallel_studio_xe_2018.1.038/compilers_and_libraries_2018/linux/tbb/include"
-HEADPATH_ALCYONE="-I/share/intel/composer_xe_2013.1.117/tbb/include"
-HEADPATH_CGAL="-DUSE_CGAL=true -Icgal/include"
-
-## Paths to incorporated libraries
-LIBPATH_ALL="-Llib -LGETELEC/lib -Ldealii/lib"
-LIBPATH_CGAL="-Lcgal/lib/x86_64-linux-gnu -Lcgal/lib64"
-
-## Incorporated libraries
-LIB_ALL="-ltet -ldeal_II -lgetelec -lslatec -fopenmp"
-LIB_UBUNTU="-ltbb -llapack -lz -lm -lstdc++ -lgfortran"
-LIB_TAITO="-lz -lm -lstdc++ -lgfortran"
-LIB_ALCYONE="-llapack -lz -lm -lstdc++ -lgfortran"
-LIB_CGAL="-lCGAL"
-
-## Name of Femocs library
-LIB_FEMOCS="-lfemocs"
-
-## Flags for Tetgen
-TETGEN_FLAGS="-DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX\
- -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=../../lib"
-
-## Flags for Deal.II
-DEALII_FLAGS="-DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX\
- -DDEAL_II_WITH_NETCDF=OFF -DDEAL_II_STATIC_EXECUTABLE=ON\
- -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../.."
-
-DEALII_FLAGS_TAITO="-DDEAL_II_WITH_THREADS=OFF"
-
-## Flags for CGAL
-CGAL_FLAGS="-DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX\
- -DBUILD_SHARED_LIBS=FALSE -DCMAKE_INSTALL_PREFIX=../.."
-
-CGAL_FLAGS_TAITO="\
- -DBoost_NO_BOOST_CMAKE=TRUE\
- -DBOOST_ROOT=/appl/opt/boost/gcc-5.3.0/intelmpi-5.1.3/boost-1.63\
- -DGMP_LIBRARIES_DIR=/appl/opt/gmp/6.0.0a/lib\
- -DGMP_INCLUDE_DIR=/appl/opt/gmp/6.0.0a/include\
- -DMPFR_LIBRARIES_DIR=/appl/opt/mpfr/3.1.4/lib\
- -DMPFR_INCLUDE_DIR=/appl/opt/mpfr/3.1.4/include\
- -DGMP_LIBRARIES=/appl/opt/gmp/6.0.0a/lib/libgmp.so.10.2.0\
- -DMPFR_LIBRARIES=/appl/opt/mpfr/3.1.4/lib/libmpfr.so.4.1.4"
-
-
 mode=$1
 
 write_initial_flags () {
@@ -114,13 +63,11 @@ if (test $mode = ubuntu) then
 fi
 
 if (test $mode = taito) then
-    echo "Loading Taito modules"
-    module load gcc/5.3.0 intelmpi/5.1.3
-
     echo -e "\nWriting Taito flags"
     write_initial_flags
 
-    sed -i "/^FEMOCS_HEADPATH=/ s|=|=$HEADPATH_TAITO |" share/makefile.femocs
+    sed -i "/^FEMOCS_EXT_HEAD=/ s|=|=$HEADPATH_TAITO |" share/makefile.femocs
+    sed -i "/^FEMOCS_EXT_LIB=/ s|=|=$LIBPATH_TAITO |" share/makefile.femocs
     sed -i "/^FEMOCS_LIB=/ s|$|$LIB_TAITO |" share/makefile.femocs
     sed -i "/^FEMOCS_DLIB=/ s|$|$LIB_TAITO |" share/makefile.femocs
 
@@ -136,13 +83,11 @@ if (test $mode = taito) then
 fi
 
 if (test $mode = alcyone) then
-    echo "Loading Alcyone modules"
-    module load PrgEnv-gnu gcc/5.1.0
-
     echo -e "\nWriting Alcyone flags"
     write_initial_flags
 
-    sed -i "/^FEMOCS_HEADPATH=/ s|=|=$HEADPATH_ALCYONE |" share/makefile.femocs
+    sed -i "/^FEMOCS_EXT_HEAD=/ s|=|=$HEADPATH_ALCYONE |" share/makefile.femocs
+    sed -i "/^FEMOCS_EXT_LIB=/ s|=|=$LIBPATH_ALCYONE |" share/makefile.femocs
     sed -i "/^FEMOCS_LIB=/ s|$|$LIB_ALCYONE |" share/makefile.femocs
     sed -i "/^FEMOCS_DLIB=/ s|$|$LIB_ALCYONE |" share/makefile.femocs
 
@@ -188,3 +133,4 @@ if (test $mode = no-cgal) then
     print_all
     grep "LIBCGAL=" share/makefile.femocs
 fi
+

@@ -3,12 +3,15 @@
 #                             Mihkel Veske 2016
 #
 #############################################################################
-# Before running make taito, run
-#   module load gcc/5.3.0 intelmpi/5.1.3
-# Before running make alcyone, run
-#   module load PrgEnv-gnu gcc/5.1.0
+# Before running make install-taito or running Femocs in Taito, run
+#   source ./build/load_modules.sh taito
+#
+# Before running make install-alcyone or running Femocs in Alcyone, run
+#   source ./build/load_modules.sh alcyone
+#############################################################################
 
 include build/makefile.defs
+
 
 all: lib
 
