@@ -54,6 +54,9 @@ Femocs::Femocs(const string &conf_file) : t0(0), reader(&conf.geometry) {
     else {
         require(false, "Unimplemented project: " + conf.behaviour.project);
     }
+
+    if (conf.path.restart_file != "")
+        project->restart(conf.path.restart_file);
 }
 
 Femocs::~Femocs() {

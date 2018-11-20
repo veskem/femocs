@@ -680,4 +680,8 @@ int ProjectRunaway::interpolate(double* data, int* flag,
     return 1;
 }
 
+int ProjectRunaway::restart(const string &path_to_file) {
+    return 0;
+}
+
 } /* namespace femocs */

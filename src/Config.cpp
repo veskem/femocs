@@ -18,6 +18,7 @@ Config::Config() {
     path.extended_atoms = "";
     path.infile = "";
     path.mesh_file = "";
+    path.restart_file = "";
 
     behaviour.verbosity = "verbose";
     behaviour.project = "runaway";
@@ -204,6 +205,7 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("extended_atoms", path.extended_atoms);
     read_command("infile", path.infile);
     read_command("mesh_file", path.mesh_file);
+    read_command("restart_file", path.restart_file);
 
     read_command("cluster_anal", run.cluster_anal);
     read_command("refine_apex", run.apex_refiner);

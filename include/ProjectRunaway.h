@@ -61,6 +61,9 @@ public:
             const int n_points, const string &data_type, const bool near_surface,
             const double* x, const double* y, const double* z);
 
+    /** Read and generate simulation data to continue running interrupted simulation */
+    int restart(const string &path_to_file);
+
 protected:
     bool fail;                  ///< If some process failed
     double t0;                  ///< CPU timer

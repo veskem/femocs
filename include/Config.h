@@ -53,6 +53,7 @@ public:
         string extended_atoms;      ///< Path to the file with atoms forming the extended surface
         string infile;              ///< Path to the file with atom coordinates and types
         string mesh_file;           ///< Path to the triangular and tetrahedral mesh data
+        string restart_file;        ///< Path to the restart file
     } path;
 
     /** User specific preferences */
