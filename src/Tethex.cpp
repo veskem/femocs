@@ -525,12 +525,11 @@ void Mesh::read(const std::string &file, const int flags) {
 void Mesh::read_ascii(ifstream &in, int flags) {
     std::string str;
 
-    bool read_edges = flags & (1 << 0);
-    bool read_all_faces = flags & (1 << 1);
-
-    // we make a map between serial number of the vertex and its number in the file.
-    // it will help us when we create mesh elements
+    // we make a map between serial number of the vertex and its number in the file
+    // because vertices may not be numerated sequentially (or not from 0)
     std::map<int, int> vertices_map;
+    std::vector<int> nodes;
+    std::vector<int> data;
 
     // read lines of mesh file.
     // if we face specific keyword, we'll treat the section.
@@ -546,109 +545,40 @@ void Mesh::read_ascii(ifstream &in, int flags) {
         }
 
         // read the mesh vertices
-        else if (str == "$Nodes") {
-            int n_vertices; // the number of all mesh vertices (that are saved in the file)
-            in >> n_vertices; // read that number
-            vertices.resize(n_vertices); // allocate the memory for mesh vertices
-            points.resize(n_vertices);
-            getline(in, str); // read some empty string
-
-            int number; // the number of the vertex
-            // Cartesian coordinates of the vertex (Gmsh produces 3D mesh regardless
-            // its real dimension)
-            double coord[Point::n_coord];
-
-            // read vertices
-            for (int ver = 0; ver < n_vertices; ++ver) {
-                in >> number;
-                for (int i = 0; i < Point::n_coord; ++i)
-                    in >> coord[i];
-                vertices[ver] = Point(coord); // save the vertex
-                vertices_map[number] = ver; // add the number of vertex to the map
-                points[ver] = new PhysPoint(ver, 0);
-            }
-
-            expect(n_vertices == (int)vertices_map.size(),
-                    "Vertices numbers are not unique: n_vertices = " + d2s(n_vertices) + " vertices_map.size() = " + d2s(vertices_map.size()));
-
-        } // read the vertices
+        else if (str == "$Nodes")
+            read_vertices(in, vertices_map, false);
 
         // read the mesh elements
         else if (str == "$Elements") {
-            int n_elements; // the number of mesh elements
-            in >> n_elements; // read that number
-            getline(in, str); // empty string
-
-            int number; // the number of the element [1, nElements]
-            int el_type; // the type of the element (1 - line, 2 - triangle, etc)
-            int n_tags; // the number of tags describing the element
-            int phys_domain; // the physical domain where the element takes place
-
-            // the map between the type of the element,
-            // and the number of nodes that describe it
-            std::map<int, int> type_nodes;
-            type_nodes[1] = 2; // 2-nodes line
-            type_nodes[2] = 3; // 3-nodes triangle
-            type_nodes[3] = 4; // 4-nodes quadrangle
-            type_nodes[4] = 4; // 4-nodes tetrahedron
-            type_nodes[5] = 8; // 8-nodes hexahedron
-//            type_nodes[15] = 1; // 1-node point
+            int n_elements = read_scalar(in); // the number of all mesh elements
+            int serial_nr;   // the number of the element [1, nElements]
+            int el_type;     // the type of the element (1 - line, 2 - triangle, etc)
+            int n_tags;      // the number of tags describing the element
 
             for (int el = 0; el < n_elements; ++el) {
-                in >> number >> el_type >> n_tags;
-                std::vector<int> data(n_tags); // allocate the memory for some data
-                for (int i = 0; i < n_tags; ++i) // read this information
+                // read meta data of element
+                in >> serial_nr >> el_type >> n_tags;
+                require(n_tags >= 1, "Physical domain of element nr " + d2s(serial_nr) + " with type " + d2s(el_type) + " missing!");
+                data.resize(n_tags);
+                for (int i = 0; i < n_tags; ++i)
                     in >> data[i];
-                phys_domain = (n_tags > 0) ? data[0] : 0; // physical domain - the most important value
-                data.clear(); // other data isn't interesting for us
 
-                // how many vertices (nodes) describe the element
-                std::map<int, int>::const_iterator el_type_iter = type_nodes.find(el_type);
-
-                require(el_type_iter != type_nodes.end(),
-                        "Unknown type of the Gmsh's element: " + d2s(el_type));
-
-                const int n_elem_nodes = el_type_iter->second; // the number of nodes
-                std::vector<int> nodes(n_elem_nodes); // allocate memory for nodes
+                // read element node indices
+                const int n_elem_nodes = type2nnodes(el_type);
+                nodes.resize(n_elem_nodes);
                 for (int i = 0; i < n_elem_nodes; ++i) {
-                    in >> nodes[i]; // read the numbers of nodes
-                    // vertices can be numerated not sequentially (or not from 0)
+                    in >> nodes[i];
                     nodes[i] = vertices_map.find(nodes[i])->second;
                 }
 
-                switch (el_type) {
-                // prevent reading from vertex markers from file, as they might not be present there
-//                case 15: // 1-node point
-//                    points.push_back(new PhysPoint(nodes, phys_domain));
-//                    break;
-                case 1: // 2-nodes line
-                    if (read_edges)
-                        lines.push_back(new Line(nodes, phys_domain));
-                    break;
-                case 2: // 3-nodes triangle
-                    if (read_all_faces || phys_domain == femocs::TYPES.SURFACE)
-                        triangles.push_back(new Triangle(nodes, phys_domain));
-                    break;
-                case 3: // 4-nodes quadrangle
-                    quadrangles.push_back(new Quadrangle(nodes, phys_domain));
-                    break;
-                case 4: // 4-nodes tetrahedron
-                    tetrahedra.push_back(new Tetrahedron(nodes, phys_domain));
-                    break;
-                case 5: // 8-nodes hexahedron
-                    hexahedra.push_back(new Hexahedron(nodes, phys_domain));
-                    break;
-                default:
-                    break;
-                }
-
-                nodes.clear();
+                // store element and its physical domain
+                store_element(el_type, nodes, data[0], flags);
             }
 
             // check some expectations
-            expect(number == n_elements,
+            expect(serial_nr == n_elements,
                     "Mismatch between # last read Gmsh's element and # all elements in the mesh: "
-                    + d2s(number) + " vs " + d2s(n_elements));
+                    + d2s(serial_nr) + " vs " + d2s(n_elements));
 
         } // read the elements
     }
@@ -656,16 +586,14 @@ void Mesh::read_ascii(ifstream &in, int flags) {
 
 void Mesh::read_bin(ifstream &in, const int flags) {
     std::string str;
-    bool read_edges = flags & (1 << 0);
-    bool read_all_faces = flags & (1 << 1);
 
     // there is additional 1 (the number - one) in binary format for security
     int one;
     in.read(reinterpret_cast<char*>(&one), sizeof(int));
     require(one == 1, "The binary one (" + d2s(one) + ") doesn't equal to 1!");
 
-    // we make a map between serial number of the vertex and its number in the file.
-    // it will help us when we create mesh elements
+    // we make a map between serial number of the vertex and its number in the file
+    // because vertices may not be numerated sequentially (or not from 0)
     map<int, int> vertices_map;
 
     // read lines of mesh file.
@@ -673,43 +601,13 @@ void Mesh::read_bin(ifstream &in, const int flags) {
     while (in >> str) {
 
         // read the mesh vertices
-        if (str == "$Nodes") {
-            int n_vertices; // the number of all mesh vertices (that are saved in the file)
-            in >> n_vertices; // read that number
-            getline(in, str); // read line feed
-
-            femocs::write_verbose_msg("Reading " + d2s(n_vertices) + " vertices");
-
-            vertices.resize(n_vertices); // allocate the memory for mesh vertices
-            points.resize(n_vertices);
-
-            int number;
-            double coord[Point::n_coord];
-
-            // read vertices
-            for (int ver = 0; ver < n_vertices; ++ver) {
-                in.read(reinterpret_cast<char*>(&number), sizeof(int));
-                in.read(reinterpret_cast<char*>(coord), Point::n_coord * sizeof(double));
-                vertices[ver] = Point(coord); // save the vertex
-                points[ver] = new PhysPoint(ver, 0);
-
-                expect(number == ver, "Mismatch between number and ver: " + d2s(number) + " vs " + d2s(ver));
-                vertices_map[number] = ver; // add the number of vertex to the map
-            }
-
-            expect(n_vertices == (int)vertices_map.size(),
-                    "Vertices numbers are not unique: n_vertices = " + d2s(n_vertices) + " vertices_map.size() = " + d2s(vertices_map.size()));
-        } // read the vertices
+        if (str == "$Nodes")
+            read_vertices(in, vertices_map, true);
 
         // read the mesh elements
         else if (str == "$Elements") {
-            // read the total number of mesh elements
-            int sum_n_elements;
-            in >> sum_n_elements;
-            getline(in, str); // read line feed
-
+            int sum_n_elements = read_scalar(in); // total number of mesh elements
             int header[3];  // the header of the element
-            int phys_domain;// physical domain of element
             int serial_nr;  // serial nr of element
             int n_read_elements = 0; // number of read elements
 
@@ -717,49 +615,27 @@ void Mesh::read_bin(ifstream &in, const int flags) {
                 // read the header
                 in.read(reinterpret_cast<char*>(header), sizeof(header));
                 int el_type = header[0];
-                int n_elements  = header[1];
-                int n_tags  = header[2];
+                int n_elements = header[1];
+                int n_tags = header[2];
 
-                require(n_tags >= 1,
-                        "Physical domain of elements of type " + d2s(el_type) +
-                        " missing, as # element tags is too small: " + d2s(n_tags));
-
-                femocs::write_verbose_msg("Reading " + d2s(n_elements) + " elements of type " + d2s(el_type));
+                require(n_tags >= 1, "Physical domain of elements of type " + d2s(el_type) + " missing!");
                 n_read_elements += n_elements;
 
-                int n_elem_nodes = 0;
-                if (el_type == femocs::Gmsh::line)
-                    n_elem_nodes = femocs::n_nodes_per_edge;
-                else if (el_type == femocs::Gmsh::triangle)
-                    n_elem_nodes = femocs::n_nodes_per_tri;
-                else if (el_type == femocs::Gmsh::tetrahedron)
-                    n_elem_nodes = femocs::n_nodes_per_tet;
-
+                int n_elem_nodes = type2nnodes(el_type);
                 int n_data = 1 + n_tags + n_elem_nodes; // how much data we need to read
                 int data[n_data];
                 vector<int> nodes(n_elem_nodes);
 
-                // read the elements of given type
+                // read all the elements of given type
                 for (int el = 0; el < n_elements; ++el) {
-                    in.read(reinterpret_cast<char*>(data), sizeof(data)); // read the data
+                    // read the element and its physical domain
+                    in.read(reinterpret_cast<char*>(data), sizeof(data));
                     serial_nr = data[0];
-                    phys_domain = data[1];
                     for (int i = 0; i < n_elem_nodes; ++i)
-                        nodes[i] = vertices_map[data[n_tags + 1 + i]]; // nodes can be numerated not sequentially
+                        nodes[i] = vertices_map[data[n_tags + 1 + i]];
 
-                    switch (el_type) {
-                    case femocs::Gmsh::line:  // 2-node line
-                        lines.push_back(new Line(nodes, phys_domain));
-                        break;
-                    case femocs::Gmsh::triangle: // 3-node triangle
-                        triangles.push_back(new Triangle(nodes, phys_domain));
-                        break;
-                    case femocs::Gmsh::tetrahedron: // 4-node tetrahedron
-                        tetrahedra.push_back(new Tetrahedron(nodes, phys_domain));
-                          break;
-                    default: // other elements are not interesting for us
-                        break;
-                    }
+                    // store it
+                    store_element(el_type, nodes, data[1], flags);
                 }
             }
 
@@ -773,6 +649,86 @@ void Mesh::read_bin(ifstream &in, const int flags) {
                     + d2s(serial_nr) + " vs " + d2s(sum_n_elements));
 
         } // read the elements
+    }
+}
+
+void Mesh::read_vertices(ifstream &in, map<int, int> &vertices_map, bool binary) {
+    int n_vertices = read_scalar(in);
+    vertices.resize(n_vertices); // allocate the memory for mesh vertices
+    points.resize(n_vertices);
+
+    int number;
+    double coord[3]; // Gmsh produces 3D mesh regardless its real dimension
+
+    // read vertices
+    if (binary) {
+        for (int ver = 0; ver < n_vertices; ++ver) {
+            in.read(reinterpret_cast<char*>(&number), sizeof(int));
+            in.read(reinterpret_cast<char*>(coord), sizeof(coord));
+            vertices_map[number] = ver;   // add the number of vertex to the map
+            vertices[ver] = Point(coord); // save the vertex
+            points[ver] = new PhysPoint(ver, 0);
+        }
+    } else {
+        for (int ver = 0; ver < n_vertices; ++ver) {
+            in >> number >> coord[0] >> coord[1] >> coord[2];
+            vertices_map[number] = ver;   // add the number of vertex to the map
+            vertices[ver] = Point(coord); // save the vertex
+            points[ver] = new PhysPoint(ver, 0);
+        }
+    }
+
+    expect(n_vertices == (int)vertices_map.size(),
+            "Vertices numbers are not unique: n_vertices = " + d2s(n_vertices) + " vertices_map.size() = " + d2s(vertices_map.size()));
+}
+
+int Mesh::read_scalar(ifstream &in) const {
+    std::string str;
+    int scalar;
+    in >> scalar;
+    getline(in, str); // read line feed
+
+    return scalar;
+}
+
+int Mesh::type2nnodes(const int el_type) const {
+    if (el_type == femocs::Gmsh::line)
+        return femocs::n_nodes_per_edge;
+    else if (el_type == femocs::Gmsh::triangle)
+        return femocs::n_nodes_per_tri;
+    else if (el_type == femocs::Gmsh::tetrahedron)
+        return femocs::n_nodes_per_tet;
+    else if (el_type == femocs::Gmsh::quadrangle)
+        return femocs::n_nodes_per_quad;
+    else if (el_type == femocs::Gmsh::hexahedron)
+        return femocs::n_nodes_per_hex;
+    return 0;
+}
+
+inline void Mesh::store_element(int el_type, vector<int> &nodes, int phys_domain, int flags) {
+    const bool read_edges = flags & (1 << 0);
+    const bool read_all_faces = flags & (1 << 1);
+
+    switch (el_type) {
+    case femocs::Gmsh::line:
+        if (read_edges)
+            lines.push_back(new Line(nodes, phys_domain));
+        return;
+    case femocs::Gmsh::triangle:
+        if (read_all_faces || phys_domain == femocs::TYPES.SURFACE)
+            triangles.push_back(new Triangle(nodes, phys_domain));
+        return;
+    case femocs::Gmsh::quadrangle:
+        quadrangles.push_back(new Quadrangle(nodes, phys_domain));
+        return;
+    case femocs::Gmsh::tetrahedron:
+        tetrahedra.push_back(new Tetrahedron(nodes, phys_domain));
+        return;
+    case femocs::Gmsh::hexahedron:
+        hexahedra.push_back(new Hexahedron(nodes, phys_domain));
+        return;
+    default:
+        return;
     }
 }
 

@@ -720,14 +720,14 @@ public:
      */
     void read(const std::string &file, const int flags);
 
-    /**
-     * Import tetrahedral mesh from Femocs
-     * @param mesh   Femocs mixed tetrahedral-hexahedral mesh
-     */
+    /** Import tetrahedra and triangles from Femocs */
     void read_femocs(femocs::TetgenMesh* mesh);
+
+    /** Export nodes, quadrangles and hexahedra to Femocs */
     void export_femocs(femocs::TetgenMesh* mesh);
+
+    /** Export nodes, triangles, tetrahedra, quadrangles and hexahedra to Femocs */
     void export_all_mesh(femocs::TetgenMesh* mesh, bool transfer);
-    vector<int> n_cell_nodes;
 
     /**
      * Conversion from simplices to bricks.
@@ -899,6 +899,9 @@ private:
      */
     std::vector<MeshElement*> quadrangles;
 
+    /** Amount of different kinds of nodes */
+    std::vector<int> n_cell_nodes;
+
     typedef std::vector<std::map<int, int> > VectorMap;
 
     /**
@@ -1044,6 +1047,17 @@ private:
      */
     void read_ascii(ifstream &in, const int flags);
 
+    /* Return the number of nodes of element with given Gmsh type */
+    int type2nnodes(const int el_type) const;
+
+    /** Read vertices from Gmsh file that is either in binary or ascii format */
+    void read_vertices(ifstream &in, map<int, int> &vertices_map, bool binary);
+
+    /** Read one integer from file */
+    int read_scalar(ifstream &in) const;
+
+    /** Store element (triangle, tetrahedron, etc) toghether with its physical domain into corresponding data array */
+    inline void store_element(int el_type, vector<int> &nodes, int phys_domain, int flags);
 };
 
 //-------------------------------------------------------
