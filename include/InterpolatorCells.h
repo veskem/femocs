@@ -31,8 +31,11 @@ public:
     /** Pre-compute data about vertices to make interpolation faster */
     void precompute();
 
-    /** Output interpolation data in .xyz format */
-    void write(const string &file_name) const;
+    /** Read interpolation data from file */
+    void read(const string &file_name, const int flags);
+
+    /** Output interpolation data in a format specified by the file extension */
+    void write(const string &file_name, const int flags=0) const;
 
     /** Output interpolation data to be appended to .vtk file */
     void write_point_data(ofstream& out) const;
@@ -126,6 +129,9 @@ private:
 
     /** Output interpolation data in .vtk format */
     void write_vtk(ofstream& out) const;
+
+    /** Output interpolation data in binary Gmsh format */
+    void write_bin(ofstream& out, const int flags) const;
 
     /** Return the cell type in vtk format */
     int get_cell_type() const { return TYPES.VTK.VERTEX; };

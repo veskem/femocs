@@ -44,15 +44,61 @@ void InterpolatorNodes::precompute() {
     }
 }
 
-void InterpolatorNodes::write(const string &file_name) const {
+void InterpolatorNodes::read(const string &file_name, const int flags) {
+    string ftype = get_file_type(file_name);
+    require(ftype == "bin", "Unimplemented file type: " + ftype);
+
+    ifstream in(file_name.c_str());
+    require(in.is_open(), "Can't open a file " + file_name);
+
+    expect(flags, "No data will be read!");
+    bool import_vec = flags & (1 << 2);
+    bool import_norm = flags & (1 << 1);
+    bool import_scalar = flags & (1 << 0);
+
+    string label = "$";
+    if (import_vec) label += vec_label;
+    if (import_norm) label += norm_label;
+    if (import_scalar) label += scalar_label;
+
+    string str;
+    while (in >> str) {
+        if (str == label) {
+            int n_nodes;
+            in >> n_nodes;
+            getline(in, str);
+
+            reserve(n_nodes);
+
+            for (int ver = 0; ver < n_nodes; ++ver) {
+                Solution s(0);
+                if (import_vec)
+                    in.read(reinterpret_cast<char*>(&s.vector), sizeof(Vec3));
+                if (import_norm)
+                    in.read(reinterpret_cast<char*>(&s.norm), sizeof(double));
+                if (import_scalar)
+                    in.read(reinterpret_cast<char*>(&s.scalar), sizeof(double));
+                append_solution(s);
+            }
+        } else if (str == "$TimestepTime") {
+            in >> GLOBALS.TIMESTEP >> GLOBALS.TIME;
+        }
+    }
+
+    in.close();
+}
+
+void InterpolatorNodes::write(const string &file_name, const int flags) const {
     if (!MODES.WRITEFILE) return;
 
-    ofstream outfile;
-    outfile.setf(std::ios::scientific);
-    outfile.precision(6);
-
     string ftype = get_file_type(file_name);
-    if (ftype == "movie") outfile.open(file_name, ios_base::app);
+    ofstream outfile;
+    if (ftype != "bin") {
+        outfile.setf(std::ios::scientific);
+        outfile.precision(6);
+    }
+
+    if (ftype == "movie" || ftype == "bin") outfile.open(file_name, ios_base::app);
     else outfile.open(file_name);
     require(outfile.is_open(), "Can't open a file " + file_name);
 
@@ -60,6 +106,8 @@ void InterpolatorNodes::write(const string &file_name) const {
         write_xyz(outfile);
     else if (ftype == "vtk")
         write_vtk(outfile);
+    else if (ftype == "bin")
+        write_bin(outfile, flags);
     else
         require(false, "Unsupported file type: " + ftype);
 
@@ -76,6 +124,43 @@ void InterpolatorNodes::write_xyz(ofstream& out) const {
 
     for (int i = 0; i < n_nodes; ++i)
         out << i << " " << get_vertex(i) << " " << markers[i] << " " << solutions[i] << endl;
+}
+
+void InterpolatorNodes::write_bin(ofstream& out, const int flags) const {
+    const int n_nodes = size();
+    expect(n_nodes, "Zero nodes detected!");
+    expect(flags, "No data to be written!");
+
+    bool export_vec = flags & (1 << 2);
+    bool export_norm = flags & (1 << 1);
+    bool export_scalar = flags & (1 << 0);
+
+    string label = "";
+    if (export_vec) label += vec_label;
+    if (export_norm) label += norm_label;
+    if (export_scalar) label += scalar_label;
+
+    // start data header
+    out << "$" << label << "\n" << n_nodes << "\n";
+
+    // write data
+    for (int i = 0; i < n_nodes; ++i) {
+        Solution s = solutions[i];
+        if (export_vec)
+            out.write ((char*)&s.vector, sizeof(Vec3));
+        if (export_norm)
+            out.write ((char*)&s.norm, sizeof (double));
+        if (export_scalar)
+            out.write ((char*)&s.scalar, sizeof (double));
+    }
+
+    // close data header
+    out << "\n$End"<< label;
+
+    // write simulation time step and time
+    out << "\n$TimestepTime\n"
+            << GLOBALS.TIMESTEP << " " << GLOBALS.TIME
+            << "\n$EndTimestepTime\n";
 }
 
 void InterpolatorNodes::write_vtk(ofstream& out) const {
