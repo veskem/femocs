@@ -84,9 +84,11 @@ private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
 
-    int read_bin(const string &file);
+    void write_bin(const string &file_name);
 
-    int write_bin(const string &file);
+    void write_msh(const string &file_name);
+
+    int write_vtk(const string& file_name);
 
     /** Function to generate mesh from surface, bulk and vacuum atoms */
     int generate_union(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd);

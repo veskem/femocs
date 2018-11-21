@@ -716,8 +716,9 @@ public:
     /**
      * Read the mesh from file
      * @param file - the name of the mesh file
+     * @flags - bit0-read edges, bit1-read all triangles
      */
-    void read(const std::string &file, bool read_edges, bool read_all_faces);
+    void read(const std::string &file, const int flags);
 
     /**
      * Import tetrahedral mesh from Femocs
@@ -1028,6 +1029,20 @@ private:
      * but in case of hexahedra.
      */
     void convert_hexahedra();
+
+    /**
+     * Read the mesh from file with binary GMesh formatting
+     * @in - stream with the opened file
+     * @flags - bit0-read edges, bit1-read all triangles
+     */
+    void read_bin(ifstream &in, const int flags);
+
+    /**
+     * Read the mesh from file with ASCII GMesh formatting
+     * @in - stream with the opened file
+     * @flags - bit0-read edges, bit1-read all triangles
+     */
+    void read_ascii(ifstream &in, const int flags);
 
 };
 

@@ -21,8 +21,8 @@ enum BoundaryId {
     copper_sides = 5
 };
 
-enum MeshData {
-    n_coordinates = 3,     ///< # coordinates
+enum {
+    n_coordinates = 3,    ///< # coordinates
     n_nodes_per_edge = 2, ///< # nodes on an edge
     n_nodes_per_tri = 3,  ///< # nodes on a triangle
     n_nodes_per_quad = 4, ///< # nodes on a quadrangle
@@ -37,7 +37,7 @@ enum MeshData {
     n_hexs_per_quad = 2,  ///< # hexahedra connected to a quadrangle
     n_hexs_per_tet = 4,   ///< # hexahedra connected to a tetrahedron
     n_quads_per_tri = 3,  ///< # quadrangles connected to a triangle
-    n_quads_per_hex = 6  ///< # quadrangles connected to a hexahedron
+    n_quads_per_hex = 6   ///< # quadrangles connected to a hexahedron
 };
 
 /** Types of regions used in the simulation */
@@ -104,6 +104,23 @@ struct Types {
         // Polyhedron cell (consisting of polygonal faces)
         static constexpr int POLYHEDRON = 42;
     } VTK;
+};
+
+/// Gmesh cell types
+enum Gmsh {
+    vertex                  = 15, ///< 1-node point
+    line                    = 1,  ///< 2-node line
+    triangle                = 2,  ///< 3-node triangle
+    quadrangle              = 3,  ///< 4-node quadrangle
+    tetrahedron             = 4,  ///< 4-node tetrahedron
+    hexahedron              = 5,  ///< 8-node hexahedron
+    quadratic_edge          = 8,  ///< 3-node second order line
+    quadratic_triangle      = 9,  ///< 6-node second order triangle
+    quadratic_quadrangle    = 16, ///< 8-node second order quadrangle
+    quadratic_tetrahedron   = 11, ///< 10-node second order tetrahedron
+    quadratic_hexahedron    = 17, ///< 20-node second order hexahedron
+    biquadratic_quadrangle  = 10, ///< 9-node second order quadrangle
+    triquadratic_hexahedron = 12  ///< 27-node second order hexahedron
 };
 
 /** Labels of the calculated/exported/interpolated data. */

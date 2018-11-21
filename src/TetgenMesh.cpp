@@ -213,15 +213,13 @@ int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& v
 }
 
 int TetgenMesh::read(const string &file_name, const string &cmd) {
-    string extension = get_file_type(file_name);
-    require(extension == "msh", "Unimplemented file type: " + extension);
 
     // delete available mesh data
     clear();
 
     tethex::Mesh hexmesh;
     // read tetrahedral mesh from file
-    hexmesh.read(file_name, false, false);
+    hexmesh.read(file_name, 0);
     // generate hexahedra and quadrangles
     hexmesh.convert();
     // export mesh to Femocs
@@ -534,9 +532,23 @@ int TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const stri
 }
 
 bool TetgenMesh::write(const string& file_name) {
-    string file_type = get_file_type(file_name);
-    require(file_type == file_name, "Only file names without extension are supported: " + file_type);
+    if (!MODES.WRITEFILE) return 0;
 
+    string file_type = get_file_type(file_name);
+    if (file_type == "bin")
+        write_bin(file_name);
+    else if (file_type == "msh")
+        write_msh(file_name);
+    else if (file_type == file_name)
+        return write_vtk(file_name);
+    else {
+        require(false, "Invalid file type: " + file_type + ".\nFor writing vtk, provide file name without extension!");
+    }
+
+    return 0;
+}
+
+int TetgenMesh::write_vtk(const string& file_name) {
     // k - write vtk, Q - quiet, I - suppresses iteration numbers,
     // F - suppress output of .face and .edge, E - suppress output of .ele
     const string cmd = "kIFEQ";
@@ -553,229 +565,105 @@ bool TetgenMesh::write(const string& file_name) {
     return 0;
 }
 
-int TetgenMesh::read_bin(const string &file) {
-    ifstream in(file.c_str());
-    require(in, "File " + file + " cannot be opened!");
-
-    string str;
-    in >> str; // the first string of Gmsh file is "$MeshFormat"
-    expect(str == "$MeshFormat",
-            "The first string of the Gmsh file " + file + " doesn't equal to \"$MeshFormat\". The actual string is \"" + str + "\"");
-
-    // read the information about the mesh
-    double version;
-    int binary, dsize;
-    in >> version >> binary >> dsize;
-    require(version >= 2.2,
-            "The version of Gmsh's mesh is too old (" + d2s(version) + "). The library was tested for versions 2.2+.");
-    require(dsize == sizeof(double),
-            "The size of Gmsh's double (" + d2s(dsize) + ") doesn't equal to size of double type (" + d2s(sizeof(double)) + ")");
-    require(binary, "Requiring binary mesh file!");
-
-    getline(in, str); // read some empty string
-
-    // there is additional 1 (the number - one) in binary format
-    int one;
-    in.read(reinterpret_cast<char*>(&one), sizeof(int));
-    require(one == 1, "The binary one (" + d2s(one) + ") doesn't equal to 1!");
-
-    // we make a map between serial number of the vertex and its number in the file.
-    // it will help us when we create mesh elements
-    map<int, int> vertices_map;
-
-    // read lines of mesh file.
-    // if we face specific keyword, we'll treat the section.
-    while (in >> str) {
-        // read the mesh vertices
-        if (str == "$Nodes") {
-            int n_vertices; // the number of all mesh vertices (that are saved in the file)
-            in >> n_vertices; // read that number
-
-            nodes.init(n_vertices);
-
-            getline(in, str); // read some empty string
-
-            int number; // the number of the vertex
-            Point3 point;
-
-            // read vertices
-            for (int ver = 0; ver < n_vertices; ++ver) {
-                in.read(reinterpret_cast<char*>(&number), sizeof(int));
-                in.read(reinterpret_cast<char*>(&point), sizeof(Point3));
-
-                nodes.append(point);
-                vertices_map[number] = ver; // add the number of vertex to the map
-            }
-
-            expect(n_vertices == (int)vertices_map.size(),
-                    "Vertices numbers are not unique: n_vertices = " + d2s(n_vertices) + " vertices_map.size() = " + d2s(vertices_map.size()));
-
-        } // read the vertices
-
-        // read the mesh elements
-        else if (str == "$Elements") {
-            int sum_n_elements; // the number of mesh elements
-            in >> sum_n_elements; // read that number
-            getline(in, str); // empty string
-
-            int el_type; // the type of the element (1 - line, 2 - triangle, etc)
-            int n_tags; // the number of tags describing the element
-            int n_elem_part = 0; // some part of the elements
-            int header[3]; // the header of the element
-            int n_elements; // amount of mesh elements of the same type
-            int n_data;     // amount of data per single element
-            vector<int> el_data;
-
-            while (n_elem_part < sum_n_elements) {
-                in.read(reinterpret_cast<char*>(header), 3 * sizeof(int)); // read the header
-                el_type = header[0];
-                n_elements  = header[1];
-                n_tags  = header[2];
-
-                require(n_tags >= 1, "Invalid # element tags: " + d2s(n_tags));
-
-                n_elem_part += n_elements;
-                switch (el_type) {
-
-                case 1: // 2-node line
-                    n_data = 1 + n_tags + n_nodes_per_edge;
-                    el_data = vector<int>(n_data);
-                    int edge_nodes[n_nodes_per_edge];
-
-                    edges.init(n_elements);
-                    edges.init_markers(n_elements);
-
-                    for (int el = 0; el < n_elements; ++el) {
-                        in.read(reinterpret_cast<char*>(&el_data), n_data * sizeof(int)); // read the data
-                        for (int i = 0; i < n_nodes_per_edge; ++i)
-                            edge_nodes[i] = vertices_map[el_data[n_tags + 1 + i]]; // nodes can be numerated not sequentially
-
-                        edges.append(SimpleEdge(edge_nodes[0], edge_nodes[1])); // store element
-                        edges.append_marker(el_data[1]);  // store physical domain
-                    }
-                    break;
-
-                case 2: // 3-node triangle
-                    n_data = 1 + n_tags + n_nodes_per_tri;
-                    el_data = vector<int>(n_data);
-                    int tri_nodes[n_nodes_per_tri];
-
-                    tris.init(n_elements);
-                    tris.init_markers(n_elements);
-
-                    for (int el = 0; el < n_elements; ++el) {
-                        in.read(reinterpret_cast<char*>(&el_data), n_data * sizeof(int)); // read the data
-                        for (int i = 0; i < n_nodes_per_tri; ++i)
-                            tri_nodes[i] = vertices_map[el_data[n_tags + 1 + i]]; // nodes can be numerated not sequentially
-
-                        tris.append(SimpleFace(tri_nodes[0], tri_nodes[1], tri_nodes[2])); // store element
-                        tris.append_marker(el_data[1]);  // store physical domain
-                    }
-                    break;
-
-                case 4: // 4-node tetrahedron
-                    n_data = 1 + n_tags + n_nodes_per_tet;
-                    el_data = vector<int>(n_data);
-                    int tet_nodes[n_nodes_per_tet];
-
-                    tets.init(n_elements);
-                    tets.init_markers(n_elements);
-
-                    for (int el = 0; el < n_elements; ++el) {
-                        in.read(reinterpret_cast<char*>(&el_data), n_data * sizeof(int)); // read the data
-                        for (int i = 0; i < n_nodes_per_tet; ++i)
-                            tet_nodes[i] = vertices_map[el_data[n_tags + 1 + i]]; // nodes can be numerated not sequentially
-
-                        tets.append(SimpleElement(tet_nodes[0], tet_nodes[1], tet_nodes[2], tet_nodes[3])); // store element
-                        tets.append_marker(el_data[1]);  // store physical domain
-                    }
-                    break;
-
-                default: // other elements are not interesting for us
-                    break;
-                }
-            }
-
-            // check some expectations
-            require(n_elem_part == sum_n_elements,
-                    "Mismatch between # found elements vs # declared elements: " + d2s(n_elem_part) + " vs " + d2s(sum_n_elements));
-
-        } // read the elements
-    }
-
-    in.close(); // close the file
-    return 0;
-}
-
-int TetgenMesh::write_bin(const string &file) {
+void TetgenMesh::write_bin(const string &file) {
     ofstream out(file.c_str());
     require(out, "File " + file + " cannot be opened for writing!");
 
-    const int n_nodes = nodes.size();
-    out << "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n";
-    out << "$Nodes\n" << n_nodes << "\n";
+    const int n_nodes = nodes.stat.n_tetnode;
+    const int n_tris = tris.size();
+    const int n_tets = tets.size();
 
-//    out.close();
-//    out.open(file.c_str(), ios::app | ios::binary);
+    // write Gmsh binary file header
+    out << "$MeshFormat\n2.2 1 8\n";
+    int one = 1;
+    out.write((char*)&one, sizeof (int));
+    out << "\n$EndMeshFormat\n$Nodes\n" << n_nodes << "\n";
 
     // write node coordinates
-    for (int i = 1; i <= n_nodes; ++i) {
-        Point3 node = nodes[i-1];
+    for (int i = 0; i < n_nodes; ++i) {
+        Point3 node = nodes[i];
         out.write ((char*)&i, sizeof (int));
         out.write ((char*)&node, sizeof (Point3));
     }
 
-//    out.close();
-//    out.open(file.c_str(), ios::app);
+    out << "$\nEndNodes\n$Elements\n" << (n_tris + n_tets) << "\n";
 
-    const int n_tris = tris.size();
-    const int n_tets = tets.size();
-    out << "$EndNodes\n$Elements\n" << (n_tris + n_tets) << "\n";
-
-//    out.close();
-//    out.open(file.c_str(), ios::app | ios::binary);
-
-    int marker;
-    vector<int> header;
+    int header[3];
+    int buffer[2] = {1, 0};
 
     // write header for triangles
-    header = {2, n_tris, 1};
-    out.write ((char*)&header, 3*sizeof(int));
+    header[0]=Gmsh::triangle; header[1]=n_tris; header[2]=1;
+    out.write ((char*)&header, sizeof (header));
 
     // write triangles
-    for (int i = 1; i <= n_tris; ++i) {
-        SimpleFace tri = tris[i-1];
-        marker = tris.get_marker(i-1);
-
-        out.write ((char*)&i, sizeof (int));
-        out.write ((char*)&marker, sizeof (int));
+    for (int i = 0; i < n_tris; ++i, ++buffer[0]) {
+        SimpleFace tri = tris[i];
+        buffer[1] = tris.get_marker(i);
+        out.write ((char*)&buffer, sizeof (buffer));
         out.write ((char*)&tri, sizeof (SimpleFace));
     }
 
     // write header for tetrahedra
-    header = {4, n_tets, 1};
-    out.write ((char*)&header, 3*sizeof(int));
+    header[0]=Gmsh::tetrahedron; header[1]=n_tets; header[2]=1;
+    out.write ((char*)&header, sizeof (header));
 
     // write tetrahedra
-    for (int i = 1; i <= n_tets; ++i) {
-        SimpleElement tet = tets[i-1];
-        marker = tets.get_marker(i-1);
-
-        out.write ((char*)&i, sizeof (int));
-        out.write ((char*)&marker, sizeof (int));
+    for (int i = 0; i < n_tets; ++i, ++buffer[0]) {
+        SimpleElement tet = tets[i];
+        buffer[1] = tets.get_marker(i);
+        out.write ((char*)&buffer, sizeof (buffer));
         out.write ((char*)&tet, sizeof (SimpleElement));
     }
 
-//    out.close();
-//    out.open(file.c_str(), ios::app);
+    out << "\n$EndElements\n";
+    out.close();
+}
+
+void TetgenMesh::write_msh(const string &file_name) {
+    std::ofstream out(file_name.c_str());
+    require(out, "File " + file_name + " cannot be opened for writing!");
+
+    out.setf(std::ios::scientific);
+    out.precision(16);
+
+    out << "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n";
+
+    const int n_nodes = nodes.stat.n_tetnode;
+    const int n_tris = tris.size();
+    const int n_tets = tets.size();
+
+    out << "$Nodes\n" << n_nodes << "\n";
+
+    for (size_t ver = 0; ver < n_nodes; ++ver)
+        out << ver << " " << nodes[ver] << "\n";
+
+    out << "$EndNodes\n$Elements\n" << (n_tris + n_tets) << "\n";
+
+    int serial_nr = 1;
+
+    // write triangles
+    for (size_t i = 0; i < n_tris; ++i, ++serial_nr) {
+        out << serial_nr << " "        // serial number of element
+        << Gmsh::triangle << " 1 "     // Gmsh type of element & number of tags
+        << tris.get_marker(i) << " "   // physical domain
+        << tris[i] << "\n";
+    }
+
+    // write tetrahedra
+    for (size_t i = 0; i < n_tets; ++i, ++serial_nr) {
+        out << serial_nr << " "        // serial number of element
+        << Gmsh::tetrahedron << " 1 "  // Gmsh type of element & number of tags
+        << tets.get_marker(i) << " "   // physical domain
+        << tets[i] << "\n";
+    }
 
     out << "$EndElements\n";
     out.close();
-
-    return 0;
 }
 
 void TetgenMesh::write_separate(const string& file_name, const int type) {
+    if (!MODES.WRITEFILE) return;
+
     vector<bool> hex_mask;
     if (type == TYPES.VACUUM)
         hex_mask = vector_greater(hexs.get_markers(), 0);

@@ -415,7 +415,8 @@ void TetgenFaces::calc_appendices() {
         centroids.push_back((v0 + v1 + v2) / 3.0);
     }
 
-   calc_statistics();
+    init_markers(n_faces, TYPES.SURFACE);
+    calc_statistics();
 }
 
 // Return the pre-calculated centroid of i-th triangle
