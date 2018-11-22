@@ -322,7 +322,7 @@ void PoissonSolver<dim>::assemble_space_charge() {
     vector<types::global_dof_index> local_dof_indices(this->fe.dofs_per_cell);
 
     // loop over particles
-    for (SuperParticle particle : *particles) {
+    for (SuperParticle const &particle : *particles) {
         Point<dim> p_deal = Point<dim>(particle.pos.x, particle.pos.y, particle.pos.z);
         //get particle's active cell iterator
         typename DoFHandler<dim>::active_cell_iterator cell(&this->triangulation, 0, particle.cell, &this->dof_handler);
@@ -347,7 +347,7 @@ void PoissonSolver<3>::assemble_space_charge_fast() {
     vector<types::global_dof_index> local_dof_indices(n_dofs);
 
     // loop over particles
-    for (SuperParticle particle : *particles) {
+    for (SuperParticle const &particle : *particles) {
         // get the node indices of the particle's cell
         typename DoFHandler<3>::active_cell_iterator cell(&this->triangulation, 0, particle.cell, &this->dof_handler);
         cell->get_dof_indices(local_dof_indices);

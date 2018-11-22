@@ -45,7 +45,10 @@ public:
     /** Update the velocities on the particles using the fields calculated at the given positions */
     void update_velocities();
 
-    /** Write the particle data in the current state in movie file */
+    /** Read particle data from file */
+    void read(const string &filename);
+
+    /** Write the particle data into file */
     void write(const string &filename) const;
     
     /** Store various data */
@@ -130,6 +133,12 @@ private:
 
     /** Perform binary collision between two charged particles of the same kind */
     void collide_pair(int p1, int p2, double variance);
+
+    /** Write the particle data into xyz file */
+    void write_xyz(ofstream &out) const;
+
+    /** Write the particle data into restart file */
+    void write_bin(ofstream &out) const;
 };
 
 } // namespace femocs

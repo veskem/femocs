@@ -197,8 +197,7 @@ int Pic<dim>::update_point_cell(const SuperParticle& particle) const {
 
 template<int dim>
 void Pic<dim>::update_velocities(){
-    for  (int i = 0; i < electrons.size(); ++i) {
-        SuperParticle &electron = electrons[i];
+    for (SuperParticle &electron : electrons) {
 
         // find electric field
         int cell = interpolator->linhex.deal2femocs(electron.cell);
@@ -336,22 +335,59 @@ void Pic<dim>::group_and_shuffle_particles(vector<vector<size_t>> &parts_in_cell
 }
 
 template<int dim>
+void Pic<dim>::read(const string &filename) {
+    string ftype = get_file_type(filename);
+    require(ftype == "bin", "Unimplemented file type: " + ftype);
+
+    ifstream in(filename);
+    require(in.is_open(), "Can't open a file " + file_name);
+
+    string str;
+    while (in >> str) {
+        if (str == "$Electrons") {
+            int n_electrons;
+            in >> n_electrons >> GLOBALS.TIME >> GLOBALS.TIMESTEP;
+            getline(in, str);
+
+            electrons.reserve(n_electrons);
+
+            SuperParticle electron;
+            for (int i = 0; i < n_electrons; ++i) {
+                in.read(reinterpret_cast<char*>(&electron), sizeof(SuperParticle));
+                electrons.inject_particle(electron);
+            }
+        }
+    }
+
+    in.close();
+}
+
+template<int dim>
 void Pic<dim>::write(const string &filename) const {
     if (!MODES.WRITEFILE) return;
 
     string ftype = get_file_type(filename);
-    require(ftype == "xyz" || ftype == "movie", "Invalid file type: " + ftype);
-
     ofstream out;
-    out.setf(std::ios::scientific);
-    out.precision(6);
-
-    if (ftype == "movie") out.open(filename, ios_base::app);
+    if (ftype == "movie" || ftype == "bin")
+        out.open(filename, ios_base::app);
     else out.open(filename);
     require(out.is_open(), "Can't open a file " + filename);
 
+    if (ftype == "xyz" || ftype == "movie")
+        write_xyz(out);
+    else if (ftype == "bin")
+        write_bin(out);
+    else
+        require(false, "Invalid file type: " + ftype);
+
+    out.close();
+}
+
+template<int dim>
+void Pic<dim>::write_xyz(ofstream &out) const {
     out << max(1, electrons.size()) << endl;
-    out << "time= " << GLOBALS.TIME << ", Pic properties=id:I:1:pos:R:3:Velocity:R:3:cell:I:1" << endl;
+    out << "Time=" << GLOBALS.TIME << ", Timestep=" << GLOBALS.TIMESTEP
+            << ", Pic properties=id:I:1:pos:R:3:Velocity:R:3:cell:I:1" << endl;
 
     out.setf(ios::scientific);
     out.precision(6);
@@ -363,8 +399,23 @@ void Pic<dim>::write(const string &filename) const {
         for (int i = 0; i < electrons.size();  ++i)
             out << i << " " << electrons[i] << endl;
     }
+}
 
-    out.close();
+template<int dim>
+void Pic<dim>::write_bin(ofstream &out) const {
+    const int n_data = electrons.size();
+
+    // write data header
+    out << "$Electrons\n"
+            << n_data << " " << GLOBALS.TIME << " " << GLOBALS.TIMESTEP << "\n";
+
+    // write data
+    for (SuperParticle const &sp : electrons) {
+        out.write ((char*)&sp, sizeof (SuperParticle));
+    }
+
+    // close data header
+    out << "\n$EndElectrons\n";
 }
 
 //Tell the compiler which types to actually compile, so that they are available for the linker

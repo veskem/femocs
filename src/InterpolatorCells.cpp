@@ -65,13 +65,13 @@ void InterpolatorNodes::read(const string &file_name, const int flags) {
     while (in >> str) {
         if (str == label) {
             int n_nodes;
-            in >> n_nodes;
+            in >> n_nodes >> GLOBALS.TIME >> GLOBALS.TIMESTEP;
             getline(in, str);
 
             reserve(n_nodes);
 
+            Solution s(0);
             for (int ver = 0; ver < n_nodes; ++ver) {
-                Solution s(0);
                 if (import_vec)
                     in.read(reinterpret_cast<char*>(&s.vector), sizeof(Vec3));
                 if (import_norm)
@@ -80,8 +80,6 @@ void InterpolatorNodes::read(const string &file_name, const int flags) {
                     in.read(reinterpret_cast<char*>(&s.scalar), sizeof(double));
                 append_solution(s);
             }
-        } else if (str == "$TimestepTime") {
-            in >> GLOBALS.TIMESTEP >> GLOBALS.TIME;
         }
     }
 
@@ -90,6 +88,7 @@ void InterpolatorNodes::read(const string &file_name, const int flags) {
 
 void InterpolatorNodes::write(const string &file_name, const int flags) const {
     if (!MODES.WRITEFILE) return;
+    expect(size(), "Zero nodes detected!");
 
     string ftype = get_file_type(file_name);
     ofstream outfile;
@@ -116,7 +115,6 @@ void InterpolatorNodes::write(const string &file_name, const int flags) const {
 
 void InterpolatorNodes::write_xyz(ofstream& out) const {
     const int n_nodes = size();
-    expect(n_nodes, "Zero nodes detected!");
 
     out << n_nodes << endl;
     out << "time= " << GLOBALS.TIME << " Interpolator properties=id:I:1:pos:R:3:marker:I:1:" <<
@@ -128,7 +126,6 @@ void InterpolatorNodes::write_xyz(ofstream& out) const {
 
 void InterpolatorNodes::write_bin(ofstream& out, const int flags) const {
     const int n_nodes = size();
-    expect(n_nodes, "Zero nodes detected!");
     expect(flags, "No data to be written!");
 
     bool export_vec = flags & (1 << 2);
@@ -141,11 +138,11 @@ void InterpolatorNodes::write_bin(ofstream& out, const int flags) const {
     if (export_scalar) label += scalar_label;
 
     // start data header
-    out << "$" << label << "\n" << n_nodes << "\n";
+    out << "$" << label << "\n"
+            << n_nodes << " " << GLOBALS.TIME << " " << GLOBALS.TIMESTEP << "\n";
 
     // write data
-    for (int i = 0; i < n_nodes; ++i) {
-        Solution s = solutions[i];
+    for (Solution const &s : solutions) {
         if (export_vec)
             out.write ((char*)&s.vector, sizeof(Vec3));
         if (export_norm)
@@ -155,12 +152,7 @@ void InterpolatorNodes::write_bin(ofstream& out, const int flags) const {
     }
 
     // close data header
-    out << "\n$End"<< label;
-
-    // write simulation time step and time
-    out << "\n$TimestepTime\n"
-            << GLOBALS.TIMESTEP << " " << GLOBALS.TIME
-            << "\n$EndTimestepTime\n";
+    out << "\n$End"<< label << "\n";
 }
 
 void InterpolatorNodes::write_vtk(ofstream& out) const {
@@ -168,8 +160,6 @@ void InterpolatorNodes::write_vtk(ofstream& out) const {
     const int n_cells = size();
     const int dim = 1;
     const int celltype = get_cell_type();
-
-    expect(n_nodes, "Zero nodes detected!");
 
     out << "# vtk DataFile Version 3.0\n";
     out << "# InterpolatorNodes data\n";

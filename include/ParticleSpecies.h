@@ -19,8 +19,16 @@ public:
     ParticleSpecies(double q_over_m, double q_over_eps0, double Wsp);
     ~ParticleSpecies() {};
 
+    void reserve(const int n_particles) {
+        parts.reserve(n_particles);
+    }
+
     void inject_particle(const Point3 &pos, const Vec3 &vel, const int cell) {
         parts.push_back(SuperParticle(pos, vel, cell));
+    }
+
+    void inject_particle(const SuperParticle &sp) {
+        parts.push_back(sp);
     }
 
     void clear() { parts.clear(); }
@@ -30,8 +38,9 @@ public:
     int size() const { return parts.size(); }
 
     double get_Wsp() const { return Wsp; }
+
     void set_Wsp(double Wsp) {
-        require(Wsp >= 0, "Invalid SP weight: " + d2s(Wsp));
+        require(Wsp > 0, "Invalid SP weight: " + d2s(Wsp));
         this->Wsp = Wsp;
     }
 
@@ -46,9 +55,12 @@ public:
     }
 
     /** Iterator to access the particles */
-    typedef Iterator<ParticleSpecies, SuperParticle> iterator;
-    iterator begin() const { return iterator(this, 0); }
-    iterator end() const { return iterator(this, size()); }
+    typedef vector<SuperParticle>::iterator iterator;
+    typedef vector<SuperParticle>::const_iterator const_iterator;
+    iterator begin() { return parts.begin(); }
+    iterator end() { return parts.end(); }
+    const_iterator begin() const { return parts.begin(); }
+    const_iterator end() const { return parts.end(); }
 
     const double q_over_m;      ///< SP charge / its mass [A^2 / (V fs^2)]
     const double q_over_eps0;   ///< (whole) particle charge / eps0 [e/VÅ]
