@@ -154,6 +154,9 @@ private:
 
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
+
+    /** Write restart file so that simulation could be started at t>0 time */
+    int write_restart(const string &path_to_file);
 };
 
 } /* namespace femocs */

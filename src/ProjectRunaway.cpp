@@ -22,8 +22,8 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 		last_heat_time(0), last_write_time(0),
 		last_completed_timestep(0), last_full_timestep(0),
 
-        vacuum_interpolator("elfield", "elfield_norm", "potential"),
-        bulk_interpolator("rho", "potential", "temperature"),
+        vacuum_interpolator("Elfield", "ElfieldNorm", "Potential"),
+        bulk_interpolator("Rho", "Potential", "Temperature"),
 
         fields(&vacuum_interpolator),
         temperatures(&bulk_interpolator),
@@ -95,6 +95,9 @@ int ProjectRunaway::finalize(double tstart, double time) {
         if (mesh_changed) last_full_timestep = GLOBALS.TIMESTEP;
     }
 
+    if (GLOBALS.TIMESTEP % 4 == 0)
+        write_restart("in/restart.bin");
+
     return 0;
 }
 
@@ -152,12 +155,14 @@ void ProjectRunaway::update_mesh_pointers() {
 }
 
 int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
+    static bool first_time = true;
+
     start_msg(t0, "Extracting surface");
     reader.extract(dense_surf, TYPES.SURFACE);
     end_msg(t0);
     dense_surf.write("out/surface_dense.xyz");
 
-    if (GLOBALS.TIME == 0) {
+    if (first_time) {
         start_msg(t0, "Extending surface");
         dense_surf.extend(extended_surf, conf);
         end_msg(t0);
@@ -165,7 +170,7 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
     }
 
     start_msg(t0, "Coarsening surface");
-    dense_surf.generate_boundary_nodes(bulk, coarse_surf, vacuum, extended_surf, conf, GLOBALS.TIME==0);
+    dense_surf.generate_boundary_nodes(bulk, coarse_surf, vacuum, extended_surf, conf, first_time);
     end_msg(t0);
 
     if (MODES.VERBOSE)
@@ -175,6 +180,7 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
     bulk.write("out/bulk.xyz");
     vacuum.write("out/vacuum.xyz");
 
+    first_time = false;
     return 0;
 }
 
@@ -234,16 +240,17 @@ int ProjectRunaway::prepare_solvers() {
         ch_solver.setup(conf.heating.t_ambient);
         end_msg(t0);
 
-        // in case of first run, give initial values to the temperature
-        // interpolator and set interpolation preferences
+        surface_fields.set_preferences(false, 2, 3);
+        surface_temperatures.set_preferences(false, 2, 3);
+        heat_transfer.set_preferences(false, 3, 1);
+
+        // in case of first run, give initial values to the temperature interpolator,
+        // otherwise transfer existing temperatures to new mesh
         if (bulk_interpolator.nodes.size() == 0) {
             bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
-            surface_fields.set_preferences(false, 2, 3);
-            surface_temperatures.set_preferences(false, 2, 3);
-            heat_transfer.set_preferences(false, 3, 1);
         } else {
             start_msg(t0, "Transferring old temperatures to new mesh");
-            heat_transfer.interpolate_dofs(ch_solver);  // Transfer previous temperatures to new mesh
+            heat_transfer.interpolate_dofs(ch_solver);
             end_msg(t0);
         }
     }
@@ -681,6 +688,37 @@ int ProjectRunaway::interpolate(double* data, int* flag,
 }
 
 int ProjectRunaway::restart(const string &path_to_file) {
+    start_msg(t0, "Reading restart file from " + path_to_file);
+    fail = new_mesh->read(path_to_file, "rQnn");
+    bulk_interpolator.initialize(new_mesh, TYPES.BULK);
+    bulk_interpolator.nodes.read(path_to_file, 1);
+    pic_solver.read(path_to_file);
+    end_msg(t0);
+
+    write_verbose_msg(new_mesh->to_str());
+
+    require(new_mesh->nodes.size() == bulk_interpolator.nodes.size(),
+            "Mismatch between mesh and interpolator sizes: "
+            + d2s(new_mesh->nodes.size()) + " vs " + bulk_interpolator.nodes.size());
+
+    mesh = new_mesh;
+    mesh_changed = true;
+    update_mesh_pointers();
+
+    return 0;
+}
+
+int ProjectRunaway::write_restart(const string &path_to_file) {
+    bool writefile_save = MODES.WRITEFILE;
+    MODES.WRITEFILE = true;
+
+    start_msg(t0, "Writing restart file to " + path_to_file);
+    mesh->write(path_to_file);
+    bulk_interpolator.nodes.write(path_to_file, 1);
+    pic_solver.write(path_to_file);
+    end_msg(t0);
+
+    MODES.WRITEFILE = writefile_save;
     return 0;
 }
 

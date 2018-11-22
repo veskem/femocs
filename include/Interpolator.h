@@ -50,6 +50,7 @@ public:
     ~Interpolator() {};
 
     /** Initialise interpolator and store solution with default value */
+    void initialize(const TetgenMesh* mesh, const int search_region);
     void initialize(const TetgenMesh* mesh, DealSolver<3>& solver, const double empty_value, const int search_region);
 
     /** Extract the current density and transient temperature values from FEM solution */
