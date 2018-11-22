@@ -28,7 +28,7 @@ template<int dim>
 class EmissionSolver : public DealSolver<dim> {
 public:
     EmissionSolver();
-    EmissionSolver(Triangulation<dim> *tria);
+    EmissionSolver(Triangulation<dim> *tria, vector<double>* bc_values);
     virtual ~EmissionSolver() {}
 
     /** Solve the matrix equation using conjugate gradient method */
@@ -67,7 +67,7 @@ template<int dim>
 class CurrentSolver : public EmissionSolver<dim> {
 public:
     CurrentSolver();
-    CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim> *hs);
+    CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim> *hs, vector<double>* bc_values);
 
     /** @brief assemble the matrix equation for current density calculation.
      * Calculate sparse matrix elements and right-hand-side vector
@@ -102,7 +102,7 @@ template<int dim>
 class HeatSolver : public EmissionSolver<dim> {
 public:
     HeatSolver();
-    HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *cs);
+    HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *cs, vector<double>* bc_values);
 
     /** Assemble the matrix equation for temperature calculation
      * using Crank-Nicolson or implicit Euler time integration method. */
@@ -143,11 +143,14 @@ private:
     friend class CurrentHeatSolver<dim> ;
 };
 
+// Forward declaration to avoid including header
+class EmissionReader;
+
 template<int dim>
 class CurrentHeatSolver : public DealSolver<dim> {
 public:
     CurrentHeatSolver();
-    CurrentHeatSolver(PhysicalQuantities *pq_, const Config::Heating *conf_);
+    CurrentHeatSolver(PhysicalQuantities *pq_, const Config::Heating *conf_, EmissionReader *emission);
 
     /** Obtain the temperature, potential and current density values in selected nodes. */
     void temp_phi_rho_at(vector<double> &temp, vector<double> &phi, vector<Tensor<1,dim>> &rho,

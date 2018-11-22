@@ -35,14 +35,12 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 
         phys_quantities(config.heating),
         poisson_solver(NULL, &config.field, &vacuum_interpolator.linhex),
-        ch_solver(&phys_quantities, &config.heating),
 
         emission(&surface_fields, &surface_temperatures, &vacuum_interpolator),
+        ch_solver(&phys_quantities, &config.heating, &emission),
         pic_solver(&poisson_solver, &emission, &vacuum_interpolator, &conf.pic, conf.behaviour.rnd_seed)
 {
     poisson_solver.set_particles(pic_solver.get_particles());
-    ch_solver.current.set_bcs(emission.get_current_densities());
-    ch_solver.heat.set_bcs(emission.get_nottingham());
 
     // Initialise heating module
     start_msg(t0, "Reading physical quantities");

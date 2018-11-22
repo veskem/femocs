@@ -9,6 +9,7 @@
 #include <deal.II/base/work_stream.h>
 
 #include "CurrentHeatSolver.h"
+#include "EmissionReader.h"
 
 
 namespace femocs {
@@ -72,8 +73,8 @@ EmissionSolver<dim>::EmissionSolver() :
         {}
 
 template<int dim>
-EmissionSolver<dim>::EmissionSolver(Triangulation<dim> *tria) :
-        DealSolver<dim>(tria), pq(NULL), conf(NULL), bc_values(NULL)
+EmissionSolver<dim>::EmissionSolver(Triangulation<dim> *tria, vector<double>* bcs) :
+        DealSolver<dim>(tria), pq(NULL), conf(NULL), bc_values(bcs)
         {}
 
 /* ==================================================================
@@ -85,8 +86,8 @@ HeatSolver<dim>::HeatSolver() :
         EmissionSolver<dim>(), current_solver(NULL), one_over_delta_time(0) {}
 
 template<int dim>
-HeatSolver<dim>::HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *cs) :
-        EmissionSolver<dim>(tria), current_solver(cs), one_over_delta_time(0) {}
+HeatSolver<dim>::HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *cs, vector<double>* bcs) :
+        EmissionSolver<dim>(tria, bcs), current_solver(cs), one_over_delta_time(0) {}
 
 template<int dim>
 void HeatSolver<dim>::write_vtk(ofstream& out) const {
@@ -392,8 +393,8 @@ CurrentSolver<dim>::CurrentSolver() :
         EmissionSolver<dim>(), heat_solver(NULL) {}
 
 template<int dim>
-CurrentSolver<dim>::CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim> *hs) :
-        EmissionSolver<dim>(tria), heat_solver(hs) {}
+CurrentSolver<dim>::CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim> *hs, vector<double> *bcs) :
+        EmissionSolver<dim>(tria, bcs), heat_solver(hs) {}
 
 template<int dim>
 void CurrentSolver<dim>::write_vtk(ofstream& out) const {
@@ -542,16 +543,16 @@ void CurrentSolver<dim>::assemble_local_cell(const typename DoFHandler<dim>::act
 template<int dim>
 CurrentHeatSolver<dim>::CurrentHeatSolver() :
         DealSolver<dim>(),
-        heat(&this->triangulation, &current),
-        current(&this->triangulation, &heat),
+        heat(&this->triangulation, &current, NULL),
+        current(&this->triangulation, &heat, NULL),
         pq(NULL), conf(NULL)
 {}
 
 template<int dim>
-CurrentHeatSolver<dim>::CurrentHeatSolver(PhysicalQuantities *pq_, const Config::Heating *conf_) :
+CurrentHeatSolver<dim>::CurrentHeatSolver(PhysicalQuantities *pq_, const Config::Heating *conf_, EmissionReader *emission) :
         DealSolver<dim>(),
-        heat(&this->triangulation, &current),
-        current(&this->triangulation, &heat),
+        heat(&this->triangulation, &current, emission->get_nottingham()),
+        current(&this->triangulation, &heat, emission->get_current_densities()),
         pq(pq_), conf(conf_)
 {
     heat.set_dependencies(pq_, conf_);
