@@ -69,7 +69,6 @@ void AtomReader::extract(Surface& surface, const int type, const bool invert) {
 
 bool AtomReader::calc_rms_distance() {
     data.rms_distance = DBL_MAX;
-    if (conf->distance_tol <= 0) return DBL_MAX;
 
     const size_t n_atoms = size();
     if (n_atoms != previous_points.size())
@@ -88,7 +87,6 @@ bool AtomReader::calc_rms_distance() {
 }
 
 void AtomReader::save_current_run_points() {
-    if (conf->distance_tol <= 0) return;
     const int n_atoms = size();
 
     if (n_atoms != (int)previous_points.size()) {

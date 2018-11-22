@@ -810,7 +810,7 @@ void ForceReader::calc_charge_and_lorentz(const VoronoiMesh& mesh, const FieldRe
                 }
             }
             charge *= eps0;
-            interpolation[i] = Solution(field * charge, 0, charge);
+            interpolation[i] = Solution(field * (charge * force_factor), 0, charge);
         }
 }
 

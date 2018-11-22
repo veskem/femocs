@@ -18,7 +18,7 @@ namespace femocs {
 
 ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         GeneralProject(reader, config),
-        fail(false), t0(0), mesh_changed(false),
+        fail(false), t0(0), mesh_changed(false), first_run(true),
 		last_heat_time(0), last_write_time(0),
 		last_completed_timestep(0), last_full_timestep(0),
 
@@ -49,7 +49,8 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 }
 
 int ProjectRunaway::reinit(int tstep, double time) {
-    require(conf.behaviour.timestep_step > 0, "Invalid step of time step: " + d2s(conf.behaviour.timestep_step));
+    require(conf.behaviour.timestep_step > 0, "Invalid step of time step: "
+            + d2s(conf.behaviour.timestep_step));
     GLOBALS.TIMESTEP++;
 
     timestep_string = d2s(GLOBALS.TIMESTEP);
@@ -72,8 +73,9 @@ int ProjectRunaway::reinit(int tstep, double time) {
     write_silent_msg("Running at timestep=" + d2s(GLOBALS.TIMESTEP)
             + ", time=" + d2s(GLOBALS.TIME, 2) + " fs, rmsd=" + rmsd_string);
 
-    return (rmsd < conf.geometry.distance_tol) ||
-            ((GLOBALS.TIMESTEP-1) % conf.behaviour.timestep_step != 0);
+    if (!first_run && GLOBALS.TIMESTEP % conf.behaviour.timestep_step != 0)
+        return 1;
+    return rmsd < conf.geometry.distance_tol;
 }
 
 int ProjectRunaway::finalize(double tstart, double time) {
@@ -97,6 +99,7 @@ int ProjectRunaway::finalize(double tstart, double time) {
             (GLOBALS.TIMESTEP % conf.behaviour.n_write_restart) == 0)
         write_restart("in/femocs.restart");
 
+    first_run = false;
     return 0;
 }
 
@@ -154,14 +157,12 @@ void ProjectRunaway::update_mesh_pointers() {
 }
 
 int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
-    static bool first_time = true;
-
     start_msg(t0, "Extracting surface");
     reader.extract(dense_surf, TYPES.SURFACE);
     end_msg(t0);
     dense_surf.write("out/surface_dense.xyz");
 
-    if (first_time) {
+    if (first_run) {
         start_msg(t0, "Extending surface");
         dense_surf.extend(extended_surf, conf);
         end_msg(t0);
@@ -169,7 +170,7 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
     }
 
     start_msg(t0, "Coarsening surface");
-    dense_surf.generate_boundary_nodes(bulk, coarse_surf, vacuum, extended_surf, conf, first_time);
+    dense_surf.generate_boundary_nodes(bulk, coarse_surf, vacuum, extended_surf, conf, first_run);
     end_msg(t0);
 
     if (MODES.VERBOSE)
@@ -179,7 +180,6 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
     bulk.write("out/bulk.xyz");
     vacuum.write("out/vacuum.xyz");
 
-    first_time = false;
     return 0;
 }
 
@@ -711,11 +711,9 @@ int ProjectRunaway::write_restart(const string &path_to_file) {
     bool writefile_save = MODES.WRITEFILE;
     MODES.WRITEFILE = true;
 
-    start_msg(t0, "Writing restart file to " + path_to_file);
     mesh->write(path_to_file);
     bulk_interpolator.nodes.write(path_to_file, 1);
     pic_solver.write(path_to_file);
-    end_msg(t0);
 
     MODES.WRITEFILE = writefile_save;
     return 0;
