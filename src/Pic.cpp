@@ -337,10 +337,10 @@ void Pic<dim>::group_and_shuffle_particles(vector<vector<size_t>> &parts_in_cell
 template<int dim>
 void Pic<dim>::read(const string &filename) {
     string ftype = get_file_type(filename);
-    require(ftype == "bin", "Unimplemented file type: " + ftype);
+    require(ftype == "restart", "Unimplemented file type: " + ftype);
 
     ifstream in(filename);
-    require(in.is_open(), "Can't open a file " + file_name);
+    require(in.is_open(), "Can't open a file " + filename);
 
     string str;
     while (in >> str) {
@@ -368,15 +368,15 @@ void Pic<dim>::write(const string &filename) const {
 
     string ftype = get_file_type(filename);
     ofstream out;
-    if (ftype == "movie" || ftype == "bin")
+    if (ftype == "movie" || ftype == "restart")
         out.open(filename, ios_base::app);
     else out.open(filename);
     require(out.is_open(), "Can't open a file " + filename);
 
     if (ftype == "xyz" || ftype == "movie")
         write_xyz(out);
-    else if (ftype == "bin")
-        write_bin(out);
+    else if (ftype == "restart")
+        write_restart(out);
     else
         require(false, "Invalid file type: " + ftype);
 
@@ -402,7 +402,7 @@ void Pic<dim>::write_xyz(ofstream &out) const {
 }
 
 template<int dim>
-void Pic<dim>::write_bin(ofstream &out) const {
+void Pic<dim>::write_restart(ofstream &out) const {
     const int n_data = electrons.size();
 
     // write data header

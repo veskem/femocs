@@ -46,9 +46,9 @@ void InterpolatorNodes::precompute() {
 
 void InterpolatorNodes::read(const string &file_name, const int flags) {
     string ftype = get_file_type(file_name);
-    require(ftype == "bin", "Unimplemented file type: " + ftype);
+    require(ftype == "restart", "Unimplemented file type: " + ftype);
 
-    ifstream in(file_name.c_str());
+    ifstream in(file_name);
     require(in.is_open(), "Can't open a file " + file_name);
 
     expect(flags, "No data will be read!");
@@ -92,12 +92,13 @@ void InterpolatorNodes::write(const string &file_name, const int flags) const {
 
     string ftype = get_file_type(file_name);
     ofstream outfile;
-    if (ftype != "bin") {
+    if (ftype != "restart") {
         outfile.setf(std::ios::scientific);
         outfile.precision(6);
     }
 
-    if (ftype == "movie" || ftype == "bin") outfile.open(file_name, ios_base::app);
+    if (ftype == "movie" || ftype == "restart")
+        outfile.open(file_name, ios_base::app);
     else outfile.open(file_name);
     require(outfile.is_open(), "Can't open a file " + file_name);
 
@@ -105,8 +106,8 @@ void InterpolatorNodes::write(const string &file_name, const int flags) const {
         write_xyz(outfile);
     else if (ftype == "vtk")
         write_vtk(outfile);
-    else if (ftype == "bin")
-        write_bin(outfile, flags);
+    else if (ftype == "restart")
+        write_restart(outfile, flags);
     else
         require(false, "Unsupported file type: " + ftype);
 
@@ -124,7 +125,7 @@ void InterpolatorNodes::write_xyz(ofstream& out) const {
         out << i << " " << get_vertex(i) << " " << markers[i] << " " << solutions[i] << endl;
 }
 
-void InterpolatorNodes::write_bin(ofstream& out, const int flags) const {
+void InterpolatorNodes::write_restart(ofstream& out, const int flags) const {
     const int n_nodes = size();
     expect(flags, "No data to be written!");
 

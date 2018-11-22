@@ -477,9 +477,10 @@ void Mesh::clean() {
 
 void Mesh::read(const std::string &file, const int flags) {
     std::string file_type = femocs::get_file_type(file);
-    require(file_type == "msh" || file_type == "bin", "Unimplemented mesh file: " + file_type);
+    require(file_type == "msh" || file_type == "bin" || file_type == "restart",
+            "Unimplemented mesh file: " + file_type);
 
-    std::ifstream in(file.c_str());
+    std::ifstream in(file);
     require(in, "File " + file + " cannot be opened!");
 
     clean(); // free the memory for mesh elements
@@ -487,7 +488,7 @@ void Mesh::read(const std::string &file, const int flags) {
     std::string str;
     in >> str; // the first string of Gmsh file is "$MeshFormat"
     require(str == "$MeshFormat",
-            "The first string of the Gmsh file " + file + " doesn't equal to \"$MeshFormat\". The actual string is \"" + str + "\"");
+            "The first string of the file " + file + " doesn't equal to \"$MeshFormat\". The actual string is \"" + str + "\"");
 
     // read the information about the mesh
     double version;

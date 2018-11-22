@@ -22,6 +22,7 @@ Config::Config() {
 
     behaviour.verbosity = "verbose";
     behaviour.project = "runaway";
+    behaviour.n_write_restart = 0;
     behaviour.n_write_log = -1;
     behaviour.n_writefile = 1;
     behaviour.interpolation_rank = 1;
@@ -216,6 +217,7 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("femocs_periodic", MODES.PERIODIC);
 
     read_command("n_read_conf", behaviour.n_read_conf);
+    read_command("n_write_restart", behaviour.n_write_restart);
     read_command("n_write_log", behaviour.n_write_log);
     read_command("femocs_verbose_mode", behaviour.verbosity);
     read_command("project", behaviour.project);

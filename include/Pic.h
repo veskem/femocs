@@ -138,7 +138,7 @@ private:
     void write_xyz(ofstream &out) const;
 
     /** Write the particle data into restart file */
-    void write_bin(ofstream &out) const;
+    void write_restart(ofstream &out) const;
 };
 
 } // namespace femocs

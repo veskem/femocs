@@ -535,7 +535,7 @@ bool TetgenMesh::write(const string& file_name) {
     if (!MODES.WRITEFILE) return 0;
 
     string file_type = get_file_type(file_name);
-    if (file_type == "bin")
+    if (file_type == "restart" || file_type == "bin")
         write_bin(file_name);
     else if (file_type == "msh")
         write_msh(file_name);

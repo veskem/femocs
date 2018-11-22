@@ -131,7 +131,7 @@ private:
     void write_vtk(ofstream& out) const;
 
     /** Output interpolation data in binary Gmsh format */
-    void write_bin(ofstream& out, const int flags) const;
+    void write_restart(ofstream& out, const int flags) const;
 
     /** Return the cell type in vtk format */
     int get_cell_type() const { return TYPES.VTK.VERTEX; };

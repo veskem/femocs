@@ -95,8 +95,9 @@ int ProjectRunaway::finalize(double tstart, double time) {
         if (mesh_changed) last_full_timestep = GLOBALS.TIMESTEP;
     }
 
-    if (GLOBALS.TIMESTEP % 4 == 0)
-        write_restart("in/restart.bin");
+    if (conf.behaviour.n_write_restart > 0 &&
+            (GLOBALS.TIMESTEP % conf.behaviour.n_write_restart) == 0)
+        write_restart("in/femocs.restart");
 
     return 0;
 }
@@ -698,8 +699,8 @@ int ProjectRunaway::restart(const string &path_to_file) {
     write_verbose_msg(new_mesh->to_str());
 
     require(new_mesh->nodes.size() == bulk_interpolator.nodes.size(),
-            "Mismatch between mesh and interpolator sizes: "
-            + d2s(new_mesh->nodes.size()) + " vs " + bulk_interpolator.nodes.size());
+            "Mismatch between mesh and interpolator sizes: " +
+            d2s(new_mesh->nodes.size()) + " vs " + d2s(bulk_interpolator.nodes.size()));
 
     mesh = new_mesh;
     mesh_changed = true;
