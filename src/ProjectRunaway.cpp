@@ -19,7 +19,9 @@ namespace femocs {
 ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         GeneralProject(reader, config),
         fail(false), t0(0), mesh_changed(false), first_run(true),
-		last_heat_time(0), last_write_time(0),
+		last_heat_time(-conf.behaviour.timestep_fs),
+		last_pic_time(-conf.behaviour.timestep_fs),
+        last_write_time(0),
 		last_completed_timestep(0), last_full_timestep(0),
 
         vacuum_interpolator("Elfield", "ElfieldNorm", "Potential"),
@@ -239,8 +241,8 @@ int ProjectRunaway::prepare_solvers() {
         ch_solver.setup(conf.heating.t_ambient);
         end_msg(t0);
 
-        surface_fields.set_preferences(false, 2, 3);
-        surface_temperatures.set_preferences(false, 2, 3);
+        surface_fields.set_preferences(false, 2, 1);
+        surface_temperatures.set_preferences(false, 2, 1);
         heat_transfer.set_preferences(false, 3, 1);
 
         // in case of first run, give initial values to the temperature interpolator,
@@ -317,7 +319,7 @@ int ProjectRunaway::run_field_solver() {
         fields.set_check_params(conf, conf.geometry.radius, mesh->tris.stat.zbox, mesh->nodes.stat.zbox);
 
     if (conf.field.mode != "laplace")
-        return solve_pic(conf.behaviour.timestep_fs, mesh_changed);
+        return solve_pic(GLOBALS.TIME - last_pic_time, mesh_changed);
 
     else if (mesh_changed)
         return solve_laplace(conf.field.E0, conf.field.V0);
@@ -331,7 +333,7 @@ int ProjectRunaway::run_heat_solver() {
     double delta_time = GLOBALS.TIME - last_heat_time;
     bool b1 = delta_time >= conf.heating.delta_time;
     if (conf.heating.mode == "transient" && (mesh_changed || b1))
-        return solve_heat(conf.heating.t_ambient, max(delta_time, conf.behaviour.timestep_fs), mesh_changed, ccg, hcg);
+        return solve_heat(conf.heating.t_ambient, delta_time, mesh_changed, ccg, hcg);
 
     return 0;
 }
@@ -413,6 +415,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
     int n_pic_steps = ceil(advance_time / conf.pic.dt_max);
     double dt_pic = advance_time / n_pic_steps;
     pic_solver.set_params(dt_pic, mesh->nodes.stat);
+    last_pic_time = GLOBALS.TIME;
 
     if (full_run) {
         start_msg(t0, "Initializing Poisson solver");
@@ -424,23 +427,26 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
     initalize_pic_emission(full_run);
 
     start_msg(t0, "=== Running PIC for delta time = "
-            + d2s(n_pic_steps) + "*" + d2s(dt_pic, 2)+" = " + d2s(advance_time, 2) + " fs\n");
+            + d2s(n_pic_steps) + "*" + d2s(dt_pic)+" = " + d2s(advance_time) + " fs\n");
     int n_lost, n_cg, n_injected, error;
     for (int i = 0; i < n_pic_steps; ++i) {
         error = make_pic_step(n_lost, n_cg, n_injected, full_run && i==0, write_time());
+        if (error) {
+            GLOBALS.TIME += (n_pic_steps - i) * dt_pic;
+            return 1;
+        }
 
-        if (MODES.VERBOSE && !error) {
-            printf("  t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
-                    GLOBALS.TIME, n_cg, emission.global_data.Fmax, emission.global_data.I_tot,
+        if (MODES.VERBOSE) {
+            printf("  #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
+                    n_cg, emission.global_data.Fmax, emission.global_data.I_tot,
                     n_injected, n_lost, pic_solver.get_n_electrons());
         }
 
         GLOBALS.TIME += dt_pic;
-        if (error) return 1;
     }
     end_msg(t0);
 
-    vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
+    vacuum_interpolator.nodes.write("out/result_E_phi.movie");
     vacuum_interpolator.lintet.write("out/result_E_phi.vtk");
 
     return 0;
@@ -479,7 +485,7 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected,
 
     // must be after solving Poisson and before updating velocities
     vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
-    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions(), false),
+    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
             "Field enhancement is out of limits!");
 
     // update velocities of super particles and collide them
@@ -692,6 +698,9 @@ int ProjectRunaway::restart(const string &path_to_file) {
     bulk_interpolator.initialize(new_mesh, TYPES.BULK);
     bulk_interpolator.nodes.read(path_to_file, 1);
     pic_solver.read(path_to_file);
+
+    last_pic_time = GLOBALS.TIME - conf.behaviour.timestep_fs;
+    last_heat_time = GLOBALS.TIME - conf.behaviour.timestep_fs;
     end_msg(t0);
 
     write_verbose_msg(new_mesh->to_str());

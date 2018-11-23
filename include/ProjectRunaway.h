@@ -72,6 +72,7 @@ protected:
 
     string timestep_string;     ///< time step written to file name
     double last_heat_time;      ///< Last time heat was updated
+    double last_pic_time;       ///< Last time PIC solver was called
     double last_write_time;     ///< Keeps the time that last file output was done
     int last_completed_timestep;///< Last time step that ended with finalize
     int last_full_timestep;     ///< Last completed timestep with mesh rebuild
