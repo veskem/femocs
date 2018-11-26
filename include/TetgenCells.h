@@ -8,13 +8,13 @@
 #ifndef TETGENCELLS_H_
 #define TETGENCELLS_H_
 
+#include "FileWriter.h"
 #include "Macros.h"
 #include "Primitives.h"
 #include "Tetgen.h"
 #include "Medium.h"
 
 #include <fstream>
-#include "Globals.h"
 
 using namespace std;
 namespace femocs {
@@ -22,18 +22,19 @@ namespace femocs {
 /** Template class for holding finite element cells;
  * dim specifies the dimensionality of the cell - 1-node, 2-line, 3-triangle etc. */
 template<int dim>
-class TetgenCells {
+class TetgenCells : public FileWriter {
 public:
 
     /** Default constructor that creates empty instance */
-    TetgenCells() : n_cells_r(NULL), n_cells_w(NULL), reads(NULL), writes(NULL), i_cells(0) {}
+    TetgenCells() : FileWriter(),
+    n_cells_r(NULL), n_cells_w(NULL), reads(NULL), writes(NULL), i_cells(0) {}
 
     /** Constructor for the case when read and write data go into same place */
-    TetgenCells(tetgenio* data, int* n_cells) :
+    TetgenCells(tetgenio* data, int* n_cells) : FileWriter(),
         n_cells_r(n_cells), n_cells_w(n_cells), reads(data), writes(data), i_cells(0) {}
 
     /** Constructor for the case when read and write data go into different places */
-    TetgenCells(tetgenio* reads, tetgenio* writes, int* n_cells_r, int* n_cells_w) :
+    TetgenCells(tetgenio* reads, tetgenio* writes, int* n_cells_r, int* n_cells_w) : FileWriter(),
         n_cells_r(n_cells_r), n_cells_w(n_cells_w), reads(reads), writes(writes), i_cells(0) {}
 
     /** SimpleCells destructor */
@@ -170,16 +171,6 @@ public:
                 }
     }
 
-    /** Function to write cell data to file */
-    void write(const string &file_name) const {
-        if (!MODES.WRITEFILE) return;
-
-        string file_type = get_file_type(file_name);
-        require(file_type == "vtk", "Unknown file type: " + file_type);
-
-        write_vtk(file_name);
-    }
-
     /** Accessor for accessing i-th cell */
     SimpleCell<dim> operator [](const size_t i) const { return get_cell(i); }
 
@@ -225,24 +216,11 @@ protected:
         return Vec3(reads->pointlist[n+0], reads->pointlist[n+1], reads->pointlist[n+2]);
     }
 
-    /** Output mesh in .vtk format */
-    void write_vtk(const string &file_name) const {
-        const size_t n_markers = get_n_markers();
+    /** Output mesh nodes and cells in .vtk format */
+    void write_vtk_points_and_cells(ofstream &out) const {
         const size_t n_nodes = get_n_nodes();
         const size_t n_cells = size();
         const size_t celltype = get_cell_type();
-
-        expect(n_nodes > 0, "Zero nodes detected!");
-
-        std::ofstream out(file_name.c_str());
-        require(out, "Can't open a file " + file_name);
-
-        out << fixed;
-
-        out << "# vtk DataFile Version 3.0\n";
-        out << "# TetgenCells data\n";
-        out << "ASCII\n";
-        out << "DATASET UNSTRUCTURED_GRID\n\n";
 
         // Output the nodes
         out << "POINTS " << n_nodes << " double\n";
@@ -258,21 +236,53 @@ protected:
         out << "\nCELL_TYPES " << n_cells << "\n";
         for (size_t cl = 0; cl < n_cells; ++cl)
             out << celltype << "\n";
+    }
 
-        // Output cell id-s
-        if (celltype == 1) out << "\nPOINT_DATA " << n_cells << "\n";
-        else out << "\nCELL_DATA " << n_cells << "\n";
+    /** Output mesh node data in .vtk format */
+    void write_vtk_point_data(ofstream &out) const {
+        if (get_cell_type() != TYPES.VTK.VERTEX) return;
 
+        const size_t n_markers = get_n_markers();
+        const size_t n_cells = size();
+
+        // Output point id-s
+        out << "\nPOINT_DATA " << n_cells << "\n";
         out << "SCALARS ID int\nLOOKUP_TABLE default\n";
         for (size_t cl = 0; cl < n_cells; ++cl)
             out << cl << "\n";
 
-        // Output cell markers
+        // Output point markers
         if ((n_markers > 0) && (n_markers == n_cells)) {
             out << "SCALARS marker int\nLOOKUP_TABLE default\n";
             for (size_t cl = 0; cl < n_cells; ++cl)
                 out << get_marker(cl) << "\n";
         }
+    }
+
+    /** Output mesh cell data in .vtk format */
+     void write_vtk_cell_data(ofstream &out) const {
+         if (get_cell_type() == TYPES.VTK.VERTEX) return;
+
+         const size_t n_markers = get_n_markers();
+         const size_t n_cells = size();
+
+         // Output cell id-s
+         out << "\nCELL_DATA " << n_cells << "\n";
+         out << "SCALARS ID int\nLOOKUP_TABLE default\n";
+         for (size_t cl = 0; cl < n_cells; ++cl)
+             out << cl << "\n";
+
+         // Output cell markers
+         if ((n_markers > 0) && (n_markers == n_cells)) {
+             out << "SCALARS marker int\nLOOKUP_TABLE default\n";
+             for (size_t cl = 0; cl < n_cells; ++cl)
+                 out << get_marker(cl) << "\n";
+         }
+     }
+
+     /** Specify implemented output file formats */
+    bool valid_extension(const string &ext) const {
+        return ext == "vtk";
     }
 };
 
@@ -307,13 +317,11 @@ public:
     /** Copy the nodes from write buffer to read buffer */
     void transfer(const bool write2read=true);
 
+    /** Copy the nodes from another mesh */
     void copy(const TetgenNodes& nodes, const vector<bool>& mask={});
 
     /** Return the coordinates of i-th node as a 3D vector */
     Vec3 get_vec(const int i) const;
-
-    /** Write node data to file */
-    void write(const string &file_name) const;
 
     /** Save the locations of the initially added nodes */
     void save_indices(const int n_surf, const int n_bulk, const int n_vacuum);
@@ -324,6 +332,7 @@ public:
     /** Calculate statistics about nodes */
     void calc_statistics();
 
+    /** Transform nodes into Deal.II format */
     vector<dealii::Point<3>> export_dealii() const;
 
     /** Struct holding the indexes about nodes with known locations.
@@ -376,10 +385,13 @@ private:
     void copy_statistics(const TetgenNodes& nodes);
 
     /** Write node data to .xyz file */
-    void write_xyz(const string &file_name) const;
+    void write_xyz(ofstream &out) const;
 
     /** Initialize statistics about nodes */
     void init_statistics();
+
+    /** Specify implemented output file formats */
+    bool valid_extension(const string &ext) const;
 };
 
 /** Class for holding Tetgen line edges */

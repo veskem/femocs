@@ -18,6 +18,16 @@ TetgenMesh::TetgenMesh() {
     tetIOout.initialize();
 }
 
+void TetgenMesh::set_write_period(const double dt) {
+    FileWriter::set_write_period(dt);
+    nodes.set_write_period(dt);
+    edges.set_write_period(dt);
+    tris.set_write_period(dt);
+    tets.set_write_period(dt);
+    quads.set_write_period(dt);
+    hexs.set_write_period(dt);
+}
+
 // Code is inspired from the work of Shawn Halayka
 // TODO if found, add the link to Shawn's version
 void TetgenMesh::smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm) {
@@ -531,44 +541,25 @@ int TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const stri
     return vacuum.recalc(cmd) + bulk.recalc(cmd);
 }
 
-bool TetgenMesh::write(const string& file_name) {
-    if (!MODES.WRITEFILE) return 0;
-
-    string file_type = get_file_type(file_name);
-    if (file_type == "restart" || file_type == "bin")
-        write_bin(file_name);
-    else if (file_type == "msh")
-        write_msh(file_name);
-    else if (file_type == file_name)
-        return write_vtk(file_name);
-    else {
-        require(false, "Invalid file type: " + file_type + ".\nFor writing vtk, provide file name without extension!");
-    }
-
-    return 0;
-}
-
-int TetgenMesh::write_vtk(const string& file_name) {
+void TetgenMesh::write_vtk(ofstream& out) {
     // k - write vtk, Q - quiet, I - suppresses iteration numbers,
     // F - suppress output of .face and .edge, E - suppress output of .ele
     const string cmd = "kIFEQ";
+    const string path = "out/tetgenmesh";
     tetgenbehavior tetgenbeh;
 
     try {
         tetgenbeh.parse_commandline(const_cast<char*>(cmd.c_str()));
-        for (unsigned i = 0; i < file_name.size(); ++i)
-            tetgenbeh.outfilename[i] = file_name[i];
+        for (unsigned i = 0; i < path.size(); ++i)
+            tetgenbeh.outfilename[i] = path[i];
 
         tetrahedralize(&tetgenbeh, &tetIOout, NULL);
-    } catch (int e) { return 1; }
-
-    return 0;
+    } catch (int e) {
+        write_verbose_msg("TetgenMesh::write_vtk ended with error " + d2s(e));
+    }
 }
 
-void TetgenMesh::write_bin(const string &file) {
-    ofstream out(file.c_str());
-    require(out, "File " + file + " cannot be opened for writing!");
-
+void TetgenMesh::write_bin(ofstream &out) const {
     const int n_nodes = nodes.stat.n_tetnode;
     const int n_tris = tris.size();
     const int n_tets = tets.size();
@@ -619,19 +610,15 @@ void TetgenMesh::write_bin(const string &file) {
     out.close();
 }
 
-void TetgenMesh::write_msh(const string &file_name) {
-    std::ofstream out(file_name.c_str());
-    require(out, "File " + file_name + " cannot be opened for writing!");
-
-    out.setf(std::ios::scientific);
-    out.precision(16);
-
-    out << "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n";
+void TetgenMesh::write_msh(ofstream &out) const {
+    // write Gmsh header
+    FileWriter::write_msh(out);
 
     const int n_nodes = nodes.stat.n_tetnode;
     const int n_tris = tris.size();
     const int n_tets = tets.size();
 
+    // write nodes
     out << "$Nodes\n" << n_nodes << "\n";
 
     for (size_t ver = 0; ver < n_nodes; ++ver)
@@ -658,11 +645,10 @@ void TetgenMesh::write_msh(const string &file_name) {
     }
 
     out << "$EndElements\n";
-    out.close();
 }
 
 void TetgenMesh::write_separate(const string& file_name, const int type) {
-    if (!MODES.WRITEFILE) return;
+    if (not_write_time()) return;
 
     vector<bool> hex_mask;
     if (type == TYPES.VACUUM)

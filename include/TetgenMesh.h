@@ -8,6 +8,7 @@
 #ifndef TETGENMESH_H_
 #define TETGENMESH_H_
 
+#include "FileWriter.h"
 #include "Macros.h"
 #include "Primitives.h"
 #include "Tetgen.h"
@@ -26,10 +27,12 @@ namespace femocs {
  * end of input point list while not modifying the ordering of input points.
  * This helps to distinguish surface nodes from the generated nodes in bulk and vacuum.
  */
-class TetgenMesh {
+class TetgenMesh : public FileWriter {
 public:
     TetgenMesh();
     ~TetgenMesh() {}
+
+    void set_write_period(const double delta_time);
 
     /** Read mesh from file and generate mappings between cells */
     int read(const string &file, const string &cmd);
@@ -52,9 +55,6 @@ public:
 
     /** Map the quadrangle to the hexahedron by specifying the region (vacuum or bulk) */
     int quad2hex(const int quad, const int region) const;
-
-    /** Use Tetgen built-in functions to write mesh elements data into vtk file */
-    bool write(const string& file_name);
 
     /** Write bulk or vacuum mesh */
     void write_separate(const string& file_name, const int type);
@@ -84,11 +84,11 @@ private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
 
-    void write_bin(const string &file_name);
+    void write_bin(ofstream &out) const;
 
-    void write_msh(const string &file_name);
+    void write_msh(ofstream &out) const;
 
-    int write_vtk(const string& file_name);
+    void write_vtk(ofstream &out);
 
     /** Function to generate mesh from surface, bulk and vacuum atoms */
     int generate_union(const Medium& bulk, const Medium& surf, const Medium& vacuum, const string& cmd);
@@ -179,6 +179,11 @@ private:
 
     /** Mark mesh nodes and elements by their location relative to the surface atoms */
     bool mark_mesh();
+
+    /** Specify implemented output file formats */
+    bool valid_extension(const string &ext) const {
+        return ext == "restart" || ext == "bin" || ext == "msh";
+    }
 };
 
 } /* namespace femocs */

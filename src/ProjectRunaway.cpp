@@ -44,6 +44,9 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 {
     poisson_solver.set_particles(pic_solver.get_particles());
 
+    mesh1.set_write_period(conf.behaviour.write_period);
+    mesh2.set_write_period(conf.behaviour.write_period);
+
     // Initialise heating module
     start_msg(t0, "Reading physical quantities");
     phys_quantities.initialize_with_hc_data();
