@@ -87,10 +87,6 @@ int ProjectRunaway::finalize(double tstart, double time) {
 
     write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
 
-    // determine whether log file will be written on next timestep
-    if (conf.behaviour.n_write_log > 0)
-        MODES.WRITELOG = (GLOBALS.TIMESTEP+1)%conf.behaviour.n_write_log == 0;
-
     // update file output counters
     if (MODES.WRITEFILE) {
         last_completed_timestep = GLOBALS.TIMESTEP;
@@ -582,59 +578,6 @@ void ProjectRunaway::calc_heat_emission(bool full_run) {
     end_msg(t0);
 
     emission.write("out/emission.movie");
-}
-
-int ProjectRunaway::write_results(bool force_write){
-
-    if (!write_time() && !force_write) return 1;
-
-    vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
-    vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-    vacuum_interpolator.linhex.write("out/result_E_phi.vtk");
-
-    if (conf.field.mode != "laplace"){
-        emission.write("out/emission.movie");
-        pic_solver.write("out/electrons.movie");
-        surface_fields.write("out/surface_fields.movie");
-        vacuum_interpolator.extract_charge_density(poisson_solver);
-        vacuum_interpolator.nodes.write("out/result_E_charge.movie");
-    }
-
-    if (emission.atoms.size() > 0)
-        emission.write("out/surface_emission.movie");
-
-    if (conf.heating.mode != "none"){
-        bulk_interpolator.nodes.write("out/result_J_T.movie");
-        bulk_interpolator.lintet.write("out/result_J_T.vtk");
-    }
-
-    last_write_time = GLOBALS.TIME;
-    return 0;
-}
-
-int ProjectRunaway::force_output() {
-    if (conf.behaviour.n_writefile <= 0) return 1;
-
-    MODES.WRITEFILE = true;
-
-    reader.write("out/reader_err.ckx");
-
-    if (mesh && mesh->nodes.size() > 0) {
-        mesh->hexs.write("out/hexmesh_err.vtk");
-        mesh->quads.write("out/quadmesh_err.vtk");
-    }
-
-    if (vacuum_interpolator.nodes.size() > 0) {
-        vacuum_interpolator.nodes.write("out/result_E_phi_err.xyz");
-        vacuum_interpolator.lintet.write("out/result_E_phi_err.vtk");
-    }
-
-    if (conf.heating.mode != "none" && bulk_interpolator.nodes.size() > 0) {
-        bulk_interpolator.nodes.write("out/result_J_T_err.xyz");
-        bulk_interpolator.lintet.write("out/result_J_T_err.vtk");
-    }
-
-    return 0;
 }
 
 int ProjectRunaway::export_data(double* data, const int n_points, const string &data_type) {

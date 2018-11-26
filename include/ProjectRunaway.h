@@ -39,9 +39,6 @@ public:
      */
     int run(const int timestep=-1, const double time=-1);
 
-    /** Force the data to the files for debugging purposes */
-    int force_output();
-
     /** Export the solution on the imported atomistic points.
      * @param n_points   # of first imported atoms where data exported; 0 disables the export
      * @param data_type  label of the data to be exported. See Labels class for a list of possible cmd-s
@@ -104,9 +101,6 @@ protected:
     /** Import mesh to FEM solvers and initialize interpolators */
     int prepare_solvers();
 
-    /** Write output data to files */
-    int write_results(bool force_write = false);
-
     void write_pic_results();
 
     /** Solve Laplace equation on vacuum mesh */
@@ -139,12 +133,12 @@ protected:
     /** Specify mesh address where new mesh will be generated on next run */
     void update_mesh_pointers();
 
-private:
     /** Check if enough time has passed since the last file write_results */
     bool write_time() const {
         return GLOBALS.TIME >= (last_write_time + conf.behaviour.write_period);
     }
 
+private:
     /** Determine whether atoms have moved significantly and whether to enable file writing */
     int reinit(int timestep, double time);
 

@@ -47,6 +47,9 @@ private:
 
     /** Using constant mesh, solve transient heat and continuity equation until convergence is reached */
     int converge_heat(double T_ambient);
+
+    /** Write output data to files */
+    int write_results(bool force_write);
 };
 
 } /* namespace femocs */

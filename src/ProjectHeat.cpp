@@ -154,4 +154,32 @@ int ProjectHeat::converge_heat(double T_ambient) {
     return 0;
 }
 
+int ProjectHeat::write_results(bool force_write){
+
+    if (!write_time() && !force_write) return 1;
+
+    vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
+    vacuum_interpolator.nodes.write("out/result_E_phi.movie");
+    vacuum_interpolator.linhex.write("out/result_E_phi.vtk");
+
+    if (conf.field.mode != "laplace"){
+        emission.write("out/emission.movie");
+        pic_solver.write("out/electrons.movie");
+        surface_fields.write("out/surface_fields.movie");
+        vacuum_interpolator.extract_charge_density(poisson_solver);
+        vacuum_interpolator.nodes.write("out/result_E_charge.movie");
+    }
+
+    if (emission.atoms.size() > 0)
+        emission.write("out/surface_emission.movie");
+
+    if (conf.heating.mode != "none"){
+        bulk_interpolator.nodes.write("out/result_J_T.movie");
+        bulk_interpolator.lintet.write("out/result_J_T.vtk");
+    }
+
+    last_write_time = GLOBALS.TIME;
+    return 0;
+}
+
 } /* namespace femocs */
