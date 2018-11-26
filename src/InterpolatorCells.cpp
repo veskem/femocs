@@ -729,7 +729,9 @@ array<Vec3,4> LinearTetrahedra::shape_fun_grads(const Vec3& point, const int tet
 
 void LinearTetrahedra::narrow_search_to(const int region) {
     const int n_cells = size();
-    require(n_cells == tets->size(), "LinearTetrahedra must be intialized before narrowing search!");
+    require(mesh->tets.size() == n_cells,
+            "Mismatch between tetrahedral mesh and interpolator sizes (" + d2s(mesh->tets.size()) + " vs " + d2s(n_cells)
+            + ")\nindicates, that LinearTetrahedra are not properly pre-computed!");
 
     const int surf_end = mesh->nodes.indxs.surf_end;
 
@@ -768,9 +770,11 @@ void QuadraticTetrahedra::reserve(const int N) {
 
 void QuadraticTetrahedra::precompute() {
     require(mesh && tets && lintet, "NULL pointers can't be used!");
+    require(tets->size() == lintet->size(),
+            "Mismatch between tetrahedral mesh and interpolator sizes (" + d2s(tets->size()) + " vs " + d2s(lintet->size())
+            + ")\nindicates, that LinearTetrahedra are not properly pre-computed!");
 
     const int n_elems = tets->size();
-    require(n_elems == lintet->size(), "QuadraticTetrahedra requires LinearTetrahedra to be pre-computed!");
     reserve(n_elems);
 
     // Store the constant for smoothing
@@ -1202,7 +1206,9 @@ void LinearHexahedra::reserve(const int N) {
 
 void LinearHexahedra::precompute() {
     require(mesh && hexs && lintet, "NULL pointers can't be used!");
-    require(mesh->tets.size() == lintet->size(), "LinearHexahedra requires LinearTetrahedra to be pre-computed!");
+    require(mesh->tets.size() == lintet->size(),
+            "Mismatch between tetrahedral mesh and interpolator sizes (" + d2s(mesh->tets.size()) + " vs " + d2s(lintet->size())
+            + ")\nindicates, that LinearTetrahedra are not properly pre-computed!");
 
     const int n_elems = hexs->size();
     const int n_nodes = mesh->nodes.size();
@@ -1647,7 +1653,9 @@ array<double,3> LinearTriangles::shape_functions(const Vec3& point, const int fa
 }
 
 Solution LinearTriangles::interp_solution(const Point3 &point, const int t) const {
-    require(mesh->tets.size() == lintet->size(), "LinearTriangles requires LinearTetrahedra to be pre-computed!");
+    require(mesh->tets.size() == lintet->size(),
+            "Mismatch between tetrahedral mesh and interpolator sizes (" + d2s(mesh->tets.size()) + " vs " + d2s(lintet->size())
+            + ")\nindicates, that LinearTetrahedra are not properly pre-computed!");
 
     int tri = abs(t);
     array<int, 2> tets = tris->to_tets(tri);
@@ -1817,7 +1825,9 @@ array<double,6> QuadraticTriangles::shape_functions(const Vec3& point, const int
 }
 
 Solution QuadraticTriangles::interp_solution(const Point3 &point, const int t) const {
-    require(tris->size() == lintri->size(), "QuadraticTriangles requires LinearTriangles to be pre-computed!");
+    require(tris->size() == lintri->size(),
+            "Mismatch between triangular mesh and interpolator sizes (" + d2s(tris->size()) + " vs " + d2s(lintri->size())
+            + ")\nindicates, that LinearTriangles are not properly pre-computed!");
 
     int tri = abs(t);
     array<int, 2> tets = tris->to_tets(tri);
@@ -1880,7 +1890,10 @@ void LinearQuadrangles::reserve(const int N) {
 
 void LinearQuadrangles::precompute() {
     require(mesh && quads && lintri && linhex, "NULL pointers can't be used!");
-    require(mesh->tris.size() == lintri->size(), "LinearQuadrangles requires LinearTriangles to be pre-computed!");
+    require(mesh->tris.size() == lintri->size(),
+            "Mismatch between triangular mesh and interpolator sizes (" + d2s(mesh->tris.size()) + " vs " + d2s(lintri->size())
+            + ")\nindicates, that LinearTriangles are not properly pre-computed!");
+
 
     const int n_faces = quads->size();
     expect(n_faces > 0, "Interpolator expects non-empty mesh!");

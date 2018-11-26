@@ -67,7 +67,6 @@ int ProjectRunaway::reinit(int tstep, double time) {
             (GLOBALS.TIMESTEP - last_completed_timestep) >= conf.behaviour.n_writefile
             );
 
-    mesh_changed = false;
     double rmsd = reader.get_rmsd();
 
     string rmsd_string = "inf";
@@ -81,9 +80,10 @@ int ProjectRunaway::reinit(int tstep, double time) {
 }
 
 int ProjectRunaway::finalize(double tstart, double time) {
-    if (conf.field.mode == "laplace")
-        GLOBALS.TIME += conf.behaviour.timestep_fs;
     if (mesh_changed) reader.save_current_run_points();
+
+    double delta_time = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs - GLOBALS.TIME;
+    GLOBALS.TIME += max(0.0, delta_time);
 
     write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
 
@@ -107,8 +107,8 @@ int ProjectRunaway::finalize(double tstart, double time) {
 
 int ProjectRunaway::process_failed(const string &msg) {
     write_verbose_msg(msg);
-//    force_output();
-    GLOBALS.TIME += conf.behaviour.timestep_fs;
+    double delta_time = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs - GLOBALS.TIME;
+    GLOBALS.TIME += max(0.0, delta_time);
     if (conf.behaviour.n_write_log > 0)
         MODES.WRITELOG = (GLOBALS.TIMESTEP+1)%conf.behaviour.n_write_log == 0;
     return 1;
@@ -145,6 +145,8 @@ int ProjectRunaway::run(const int timestep, const double time) {
 
     if (prepare_export())
         return process_failed("Interpolating solution on atoms failed!");
+    else
+        mesh_changed = false;
 
     return finalize(tstart, time);
 }
