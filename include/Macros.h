@@ -25,9 +25,11 @@ namespace femocs {
 
 /** Template to convert any (numerical) data to string */
 template<typename T>
-inline string d2s(T data, int prec=-1) {
+inline string d2s(T data, int prec=-1, char mode=' ') {
     ostringstream o;
-    if (prec >= 0) { o << fixed; o.precision(prec); }
+    if (prec >= 0) o.precision(prec);
+    if (mode == 's') o.setf(std::ios::scientific);
+    if (mode == 'f') o.setf(std::ios::fixed);
     if (!(o << data)) throw runtime_error("Bad conversion of data to string!");
     return o.str();
 }

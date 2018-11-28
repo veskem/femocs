@@ -2,13 +2,8 @@
  * EmissionReader.cpp
  *
  *  Created on: 27.9.2018
- *      Author: kyritsak
+ *      Author: kyritsak, Veske
  */
-
-
-/* ==========================================
- * ============= EMISSION READER ============
- * ========================================== */
 
 #include "EmissionReader.h"
 
@@ -28,13 +23,12 @@ void EmissionReader::initialize(const TetgenMesh* m, bool reinit) {
     int n_nodes = fields->size();
     require(n_nodes > 0, "EmissionReader can't use empty fields!");
 
-    atoms = fields->atoms;
-
     // deallocate and allocate currents data
     current_densities.resize(n_nodes);
     nottingham.resize(n_nodes);
     currents.resize(n_nodes);
     thetas_SC.resize(n_nodes);
+    markers.resize(n_nodes);
 
     //deallocate and allocate lines
     rline.resize(n_lines);
@@ -180,18 +174,18 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC,
         gt.mode = 0;
         gt.F = angstrom_per_nm * F;
         gt.Temp = heat->get_temperature(i);
-        set_marker(i, 0); // set marker for output emission xyz file. Means No full calculation
+        markers[i] =  0; // marker==0: no full calculation
 
         if (F > 0.6 * global_data.Fmax && !conf.blunt){ // Full calculation with line only for high field points
             Vec3 normal = fields->get_elfield(i);
             normal *= (-1.0 / elfield_norm);
-            emission_line(get_point(i), normal, 1.6 * conf.work_function / F); //get emission line data
+            emission_line(fields->get_point(i), normal, 1.6 * conf.work_function / F); //get emission line data
 
             gt.Nr = n_lines;
             gt.xr = &rline[0];
             gt.Vr = &Vline[0];
-            gt.mode = -21; // set mode to potential input data
-            set_marker(i, 1); //marker = 1, emission calculated with line
+            gt.mode = -21;  // set mode to potential input data
+            markers[i] = 1; //marker==1: emission calculated with line
         }
 
         gt.approx = 0; // simple GTF approximation
@@ -212,7 +206,7 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC,
             }
             if (gt.ierr != 0 ) errors.push_back(gt.ierr);
             J = gt.Jem * nm2_per_angstrom2;
-            set_marker(i, 2);
+            markers[i] = 2;
         }
 
         current_densities[i] = J;
@@ -232,57 +226,63 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC,
         write_verbose_msg("Errors of GETELEC 2nd call: " + get_error_codes(errors));
 }
 
-string EmissionReader::get_data_string(const int i) const {
-    if (i < 0)
-        return "Time=" + d2s(GLOBALS.TIME) + ", Timestep=" + d2s(GLOBALS.TIMESTEP) +
-                ", EmissionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:" +
-                "ln(rho_norm):R:1:nottingham_heat:R:1";
+void EmissionReader::write_xyz(ofstream &out) const {
+    // start xyz header
+    FileWriter::write_xyz(out);
 
-    ostringstream strs; strs << setprecision(6);
-    strs << atoms[i] << ' ' << fields->get_elfield(i)
-             << ' ' << log(current_densities[i]) << ' ' << nottingham[i];
+    // write Ovito header
+    out << "properties=id:I:1:pos:R:3:marker:I:1:force:R:3:"
+         << "ln(rho_norm):R:1:nottingham_heat:R:1\n";
 
-    return strs.str();
+    // write data
+    const int n_atoms = fields->size();
+    for (int i = 0; i < n_atoms; ++i)
+        out << i << ' ' << fields->get_point(i) << ' ' << markers[i] << ' ' << fields->get_elfield(i)
+            << ' ' << log(current_densities[i]) << ' ' << nottingham[i] << "\n";
 }
 
-string EmissionReader::get_global_data(const bool first_line) const {
-    ostringstream strs;
+void EmissionReader::write_global_data(ofstream &out, const bool first_line) const {
+    // specify data header
+    if (first_line) out << "time      Itot        Imean        I_fwhm        Area        Jrep"
+                        << "         Frep         Jmax        Fmax         multiplier\n";
 
-    //specify data header
-    if (first_line) strs << "time      Itot        Imean        I_fwhm        Area        Jrep"
-            "         Frep         Jmax        Fmax         multiplier" << endl;
+    else {
+        double I_mean = 0.;
+        for (auto x : stats.I_tot)
+            I_mean += x;
 
-    double I_mean = 0.;
-    for (auto x : stats.I_tot)
-        I_mean += x;
-
-    strs << fixed << setprecision(2) << GLOBALS.TIME;
-    strs << scientific << setprecision(6) << " " << global_data.I_tot << " "
-            << I_mean / stats.N_calls << " " << global_data.I_eff << " "
-            << global_data.area << " " << global_data.Jrep << " "
-            << global_data.Frep << " " << global_data.Jmax << " "
-            << global_data.Fmax << " " << global_data.multiplier;
-
-    return strs.str();
+        // specify data
+        out << fixed << setprecision(2) << GLOBALS.TIME;
+        out << scientific << setprecision(6)
+                << " " << global_data.I_tot << " " << I_mean / stats.N_calls
+                << " " << global_data.I_eff << " " << global_data.area
+                << " " << global_data.Jrep << " " << global_data.Frep
+                << " " << global_data.Jmax << " " << global_data.Fmax
+                << " " << global_data.multiplier << "\n";
+    }
 }
 
-string EmissionReader::get_stats(const bool first_line) const {
-    ostringstream strs;
-
-    //specify data header
+void EmissionReader::write_stats(ofstream &out, const bool first_line) const {
+    // specify data header
     if (first_line)
-        strs << "   Itot_mean     Itot_std     Jrep_mean    Jrep_std" <<
-                "    Jmax_mean    Jmax_std     Frep_mean    Frep_std" <<
-                "    Fmax_mean    Fmax_std";
-    else
-        strs << scientific << setprecision(6) << " "
-                << stats.Itot_mean << " " << stats.Itot_std << " "
-                << stats.Jrep_mean << " " << stats.Jrep_std << " "
-                << stats.Jmax_mean << " " << stats.Jmax_std << " "
-                << stats.Frep_mean << " " << stats.Frep_std << " "
-                << stats.Fmax_mean << " " << stats.Fmax_std;
+        out << "   Itot_mean     Itot_std     Jrep_mean    Jrep_std"
+            << "    Jmax_mean    Jmax_std     Frep_mean    Frep_std"
+            << "    Fmax_mean    Fmax_std\n";
 
-    return strs.str();
+    else {
+        // specify data
+        out << " " << stats.Itot_mean << " " << stats.Itot_std
+            << " " << stats.Jrep_mean << " " << stats.Jrep_std
+            << " " << stats.Jmax_mean << " " << stats.Jmax_std
+            << " " << stats.Frep_mean << " " << stats.Frep_std
+            << " " << stats.Fmax_mean << " " << stats.Fmax_std
+            << "\n";
+    }
+}
+
+void EmissionReader::write_dat(ofstream &out) const {
+    write_global_data(out, first_line(out));
+    write_global_data(out, false);
 }
 
 void EmissionReader::calc_global_stats(){

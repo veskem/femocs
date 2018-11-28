@@ -119,12 +119,11 @@ protected:
     /** Initialise statistics about coordinates and solution */
     void init_statistics();
 
-    /** Get i-th entry from all data vectors for .xyz file;
-     * i < 0 gives the header of data vectors */
-    string get_data_string(const int i) const;
+    /** Output atom data in .xyz format */
+    void write_xyz(ofstream &outfile) const;
 
-    /** Get information about data vectors for .vtk file. */
-    void get_point_data(ofstream& out) const;
+    /** Output information about data vectors into .vtk file. */
+    void write_vtk_point_data(ofstream& out) const;
 
     /** Find the cell that surrounds i-th atom and interpolate the solution for it.
      * @param cell   initial guess for the cell that might surround the point
@@ -356,23 +355,6 @@ private:
     int get_nanotip(Medium& nanotip, const double radius);
 };
 
-
-/**
- * Class for performing tests with shape functions
- */
-class InterpolatorTester : public SolutionReader {
-public:
-    InterpolatorTester(Interpolator* i);
-
-    void compare_shape_funs(PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
-    void compare_interpolators(PoissonSolver<3> &poisson, const Medium::Sizes &sizes);
-    void test_corners(const TetgenMesh& mesh) const;
-    void compare_space(const Medium::Sizes &sizes);
-    void compare_surface(const Medium &medium);
-    void perform_comparison(const string &file_name);
-
-private:
-};
 } // namespace femocs
 
 #endif /* SOLUTIONREADER_H_ */

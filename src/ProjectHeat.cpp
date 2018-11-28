@@ -170,7 +170,7 @@ int ProjectHeat::write_results(bool force_write){
         vacuum_interpolator.nodes.write("out/result_E_charge.movie");
     }
 
-    if (emission.atoms.size() > 0)
+    if (emission.size() > 0)
         emission.write("out/surface_emission.movie");
 
     if (conf.heating.mode != "none"){

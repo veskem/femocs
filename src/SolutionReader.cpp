@@ -8,6 +8,7 @@
 #include "SolutionReader.h"
 #include "Macros.h"
 #include "Config.h"
+#include "FileWriter.h"
 
 #include <float.h>
 #include <stdio.h>
@@ -131,28 +132,25 @@ void SolutionReader::reserve(const int n_nodes) {
     atoms_mapped_to_cells = false;
 }
 
-string SolutionReader::get_data_string(const int i) const{
-    if (i < 0) return "Time=" + d2s(GLOBALS.TIME) + ", Timestep=" + d2s(GLOBALS.TIMESTEP) +
-            + ", SolutionReader properties=id:I:1:pos:R:3:marker:I:1:force:R:3:"
-            + vec_norm_label + ":R:1:" + scalar_label + ":R:1";
+void SolutionReader::write_xyz(ofstream &out) const {
+    // write the start of xyz header
+    FileWriter::write_xyz(out);
 
-    ostringstream strs; strs << fixed;
-    strs << atoms[i] << " " << interpolation[i];
-    return strs.str();
+    // write Ovito header
+    out << "properties=id:I:1:pos:R:3:marker:I:1:force:R:3:"
+            + vec_norm_label + ":R:1:" + scalar_label + ":R:1\n";
+
+    // write data
+    const int n_atoms = size();
+    for (int i = 0; i < n_atoms; ++i)
+        out << atoms[i] << " " << interpolation[i] << "\n";
 }
 
-void SolutionReader::get_point_data(ofstream& out) const {
+void SolutionReader::write_vtk_point_data(ofstream& out) const {
+    // write point data header, ID-s and markers
+    Medium::write_vtk_point_data(out);
+
     const int n_atoms = size();
-
-    // write IDs of atoms
-    out << "SCALARS id int\nLOOKUP_TABLE default\n";
-    for (int i = 0; i < n_atoms; ++i)
-        out << atoms[i].id << "\n";
-
-    // write atom markers
-    out << "SCALARS marker int\nLOOKUP_TABLE default\n";
-    for (int i = 0; i < n_atoms; ++i)
-        out << atoms[i].marker << "\n";
 
     // output scalar (electric potential, temperature etc)
     out << "SCALARS " << scalar_label << " double\nLOOKUP_TABLE default\n";
@@ -308,9 +306,9 @@ void SolutionReader::interpolate(const AtomReader &reader) {
     reserve(n_atoms);
 
     // store atom coordinates
-    for (Atom atom : reader.atoms)
-        if (atom.marker != TYPES.FIXED)
-            append(atom);
+    for (int i = 0; i < n_atoms; ++i)
+        if (reader.get_marker(i) != TYPES.FIXED)
+            append(reader.get_atom(i));
 
     // interpolate solution
     calc_interpolation();
@@ -890,7 +888,8 @@ void ForceReader::distribute_charges(const FieldReader &fields, const ChargeRead
 
     // Copy the atom data
     reserve(n_atoms);
-    atoms = fields.atoms;
+    for (int i = 0; i < n_atoms; ++i)
+        append(fields.get_atom(i));
 
     calc_statistics();
 
@@ -1021,256 +1020,6 @@ int ForceReader::export_parcas(const int n_points, const string &data_type, cons
         require(false, "Unimplemented type of export data: " + data_type);
 
     return 0;
-}
-
-/* ==========================================
- * ========== Interpolator Tester ==========
- * ========================================== */
-
-InterpolatorTester::InterpolatorTester(Interpolator* i) :
-        SolutionReader(i, "First", "Second", "Third") {}
-
-void InterpolatorTester::compare_shape_funs(PoissonSolver<3> &poisson, const Medium::Sizes &sizes) {
-    const double x = sizes.xmid;
-    const double y = sizes.ymid;
-    const double zmin = 1.0 + sizes.zmax;
-    const double step = 0.1;
-    const int n_points = 100;
-
-    reserve(n_points);
-    for (int i = 0; i < n_points; ++i)
-        append(Point3(x + 0.1*i*step, y + 0.1*i*step, zmin + i * step));
-
-    array<double,8> sf2;
-    array<Vec3,8> sfg2;
-
-//    cout << fixed << setprecision(4);
-
-    int cell_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        Point3 p = get_point(i);
-        dealii::Point<3> deal_point(p.x, p.y, p.z);
-
-        cell_index = interpolator->linhex.locate_cell(p, cell_index);
-        int cell_index_in_deal = interpolator->linhex.femocs2deal(cell_index);
-
-        vector<Tensor<1, 3, double>> sfg = poisson.shape_fun_grads(deal_point, cell_index_in_deal);
-        vector<double> sf1 = poisson.shape_funs(deal_point, cell_index_in_deal);
-
-        sfg2 = interpolator->linhex.shape_fun_grads_dealii(p, cell_index);
-        sf2 = interpolator->linhex.shape_funs_dealii(p, cell_index);
-
-        cout << "\n  i = " << i << endl;
-        for (int i = 0; i < 8; ++i) {
-            Vec3 sfg1(sfg[i]);
-            cout << sf1[i] - sf2[i] << " | " << sfg1 - sfg2[i] << endl;
-        }
-    }
-}
-
-void InterpolatorTester::compare_interpolators(PoissonSolver<3> &poisson, const Medium::Sizes &sizes) {
-    const double x = sizes.xmid;
-    const double y = sizes.ymid;
-    const double zmin = 1.0 + sizes.zmax;
-    const double step = 0.001;
-    const int n_points = 10000;
-
-    reserve(n_points);
-    for (int i = 0; i < n_points; ++i)
-        append(Point3(x + 0.1*i*step, y + 0.1*i*step, zmin + i * step));
-
-    int cell_index;
-    double t0;
-
-    start_msg(t0, "poisson");
-    cell_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        Point3 p = get_point(i);
-        dealii::Point<3> deal_point(p.x, p.y, p.z);
-
-        cell_index = interpolator->linhex.locate_cell(p, cell_index);
-        int cell_index_in_deal = interpolator->linhex.femocs2deal(cell_index);
-        if (cell_index_in_deal < 0)
-            interpolation[i] = Solution(0);
-        else {
-            double val1 = poisson.probe_efield_norm(deal_point,cell_index_in_deal);
-            double val2 = poisson.probe_potential(deal_point, cell_index_in_deal);
-            interpolation[i] = Solution(Vec3(0), val1, val2);
-        }
-    }
-    end_msg(t0);
-
-    write("out/potential1.xyz");
-
-    start_msg(t0, "linhexs");
-    cell_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        Point3 p = get_point(i);
-        cell_index = interpolator->linhex.locate_cell(p, cell_index);
-        interpolation[i] = interpolator->linhex.interp_solution_v2(p, cell_index);
-    }
-    end_msg(t0);
-    write("out/potential2.xyz");
-
-    start_msg(t0, "lintets");
-    cell_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        Point3 p = get_point(i);
-        cell_index = interpolator->lintet.locate_cell(p, cell_index);
-        interpolation[i] = interpolator->lintet.interp_solution_v2(p, cell_index);
-    }
-    end_msg(t0);
-    write("out/potential3.xyz");
-
-    start_msg(t0, "quadtets");
-    cell_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        Point3 p = get_point(i);
-        cell_index = interpolator->quadtet.locate_cell(p, cell_index);
-        interpolation[i] = interpolator->quadtet.interp_solution_v2(p, cell_index);
-    }
-    end_msg(t0);
-    write("out/potential4.xyz");
-}
-
-void InterpolatorTester::compare_space(const Medium::Sizes &sizes) {
-    const double x = sizes.xmid;
-    const double y = sizes.ymid;
-    const double zmin = 1.0 + sizes.zmax;
-    const double step = 0.001;
-    const int n_points = 10000;
-
-    reserve(n_points);
-    for (int i = 0; i < n_points; ++i)
-        append(Point3(x + 0.1*i*step, y + 0.1*i*step, zmin + i * step));
-
-    cout << "Interpolating in space\n";
-    perform_comparison("space");
-}
-
-void InterpolatorTester::compare_surface(const Medium &medium) {
-    reserve(medium.size());
-    atoms = medium.atoms;
-    cout << "Interpolating on surface\n";
-    perform_comparison("surface");
-}
-
-void InterpolatorTester::perform_comparison(const string &fname) {
-    const int n_points = size();
-    double t0;
-    int cell_index;
-
-    start_msg(t0, "lintri");
-    cell_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        interpolation[i] = interpolator->lintri.locate_interpolate(get_point(i), cell_index);
-        set_marker(i, cell_index);
-    }
-    end_msg(t0);
-    write("out/" + fname + "_1.xyz");
-
-    start_msg(t0, "lintet");
-    cell_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        interpolation[i] = interpolator->lintet.locate_interpolate_v2(get_point(i), cell_index);
-        set_marker(i, cell_index);
-    }
-    end_msg(t0);
-    write("out/" + fname + "_2.xyz");
-
-    start_msg(t0, "quadtri");
-    cell_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        interpolation[i] = interpolator->quadtri.locate_interpolate(get_point(i), cell_index);
-        set_marker(i, cell_index);
-    }
-    end_msg(t0);
-    write("out/" + fname + "_3.xyz");
-
-    start_msg(t0, "quadtet");
-    cell_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        interpolation[i] = interpolator->quadtet.locate_interpolate_v2(get_point(i), cell_index);
-        set_marker(i, cell_index);
-    }
-    end_msg(t0);
-    write("out/" + fname + "_4.xyz");
-
-    start_msg(t0, "linquad");
-    cell_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        interpolation[i] = interpolator->linquad.locate_interpolate(get_point(i), cell_index);
-        set_marker(i, cell_index);
-    }
-    end_msg(t0);
-    write("out/" + fname + "_5.xyz");
-
-    start_msg(t0, "linhex");
-    cell_index = 0;
-    for (int i = 0; i < n_points; ++i) {
-        interpolation[i] = interpolator->linhex.locate_interpolate_v2(get_point(i), cell_index);
-        set_marker(i, cell_index);
-    }
-    end_msg(t0);
-    write("out/" + fname + "_6.xyz");
-}
-
-void InterpolatorTester::test_corners(const TetgenMesh& mesh) const {
-    int cell_index;
-    array<double,4> bcc;
-
-    int cntr = 0;
-    for (int i = 0; i < mesh.tets.size(); ++i)
-        if (mesh.tets.get_marker(i) == TYPES.VACUUM && cntr++ >= 0) {
-            cell_index = i;
-            break;
-        }
-
-    SimpleElement stet = mesh.tets[cell_index];
-
-    Point3 n1 = mesh.nodes[stet[0]];
-    Point3 n2 = mesh.nodes[stet[1]];
-    Point3 n3 = mesh.nodes[stet[2]];
-    Point3 n4 = mesh.nodes[stet[3]];
-
-    vector<Point3> points;
-
-    points.push_back(n1);
-    points.push_back(n2);
-    points.push_back(n3);
-    points.push_back(n4);
-    points.push_back((n1 + n2) / 2.0);
-    points.push_back((n1 + n3) / 2.0);
-    points.push_back((n1 + n4) / 2.0);
-    points.push_back((n2 + n3) / 2.0);
-    points.push_back((n2 + n4) / 2.0);
-    points.push_back((n3 + n4) / 2.0);
-    points.push_back((n1 + n2 + n3) / 3.0);
-    points.push_back((n1 + n2 + n4) / 3.0);
-    points.push_back((n1 + n3 + n4) / 3.0);
-    points.push_back((n2 + n3 + n4) / 3.0);
-    points.push_back((n1 + n2 + n3 + n4) / 4.0);
-
-    vector<string> labels = {"n1","n2","n3","n4","c12","c13","c14","c23","c24","c34","c123","c124","c134","c234","c1234"};
-    require(labels.size() == points.size(), "Incompatible vectors!");
-
-    cout << "results for tet=" << cell_index << ", 4tet=" << 4*cell_index << endl;
-
-    for (unsigned int i = 0; i < 4; ++i) {
-        cell_index = interpolator->linhex.locate_cell(points[i], 0);
-        bcc = interpolator->lintet.shape_functions(points[i], 0);
-        cout << endl << labels[i] << ":\t" << cell_index << "\t";
-        for (double b : bcc)
-            cout << ", " << b;
-    }
-
-    for (unsigned int i = 4; i < labels.size(); ++i) {
-        cell_index = interpolator->linhex.locate_cell(points[i], 0);
-        bcc = interpolator->lintet.shape_functions(points[i], abs(int(cell_index/4)));
-        cout << endl << labels[i] << ":\t" << cell_index << "\t";
-        for (double b : bcc)
-            cout << ", " << b;
-    }
 }
 
 } // namespace femocs

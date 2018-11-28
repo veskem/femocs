@@ -120,6 +120,12 @@ private:
     void import_xyz(const string& file_name);
     void import_ckx(const string& file_name);
 
+    /** Output atom data in .ckx format that shows atom coordinates and their types (fixed, surface, bulk etc.) */
+    void write_ckx(ofstream &outfile) const;
+
+    /** Specify file types that can be written */
+    bool valid_extension(const string &extension) const;
+
     /** Reserve memory for data vectors */
     void reserve(const int n_atoms);
 

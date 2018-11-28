@@ -34,6 +34,7 @@ public:
 
 protected:
     bool not_write_time() const;
+    bool first_line(ofstream &out) const;
 
     /** Check if given file type is implemented for given class */
     virtual bool valid_extension(const string &extension) const = 0;

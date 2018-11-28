@@ -45,6 +45,11 @@ int ProjectSpaceCharge::run(int timestep, double time) {
 
             if (converge_pic())
                 return process_failed("Running field solver in a " + conf.field.mode + " mode failed!");
+
+            /* TODO
+             * What about replacing write_emission_stats with
+             *   write_verbose_msg("fact=" + d2s(factor) + ", " + d2s(emission.stats));
+             * */
             write_emission_stats("out/emission_stats_pic.dat", i == 0, factor);
 
             I_pic.push_back(emission.stats.Itot_mean);
@@ -358,10 +363,13 @@ void ProjectSpaceCharge::write_emission_stats(string filename, bool first_time, 
     out.setf(std::ios::scientific);
     out.precision(6);
 
-    if (first_time)
-        out << "factor      " << emission.get_stats(true) << endl;
+    if (first_time) {
+        out << "factor      ";
+        emission.write_stats(out, true);
+    }
 
-    out << factor << emission.get_stats(false) <<  endl;
+    out << factor << " ";
+    emission.write_stats(out, false);
     out.close();
 }
 
@@ -371,10 +379,12 @@ void ProjectSpaceCharge::write_emission_data(string filename, bool first_time){
     out.setf(std::ios::scientific);
     out.precision(6);
 
-    if (first_time)
-        out << "Fmax_base = " << Fmax_base << endl << emission.get_global_data(true) << endl;
+    if (first_time) {
+        out << "Fmax_base = " << Fmax_base << "\n";
+        emission.write_global_data(out, true);
+    }
 
-    out << emission.get_global_data(false) << endl;
+    emission.write_global_data(out, false);
     out.close();
 }
 

@@ -31,6 +31,10 @@ bool FileWriter::not_write_time() const {
     return delta_time < 0 || (GLOBALS.TIME - last_write_time) < delta_time;
 }
 
+bool FileWriter::first_line(ofstream &out) const {
+    return out.tellp() == 0;
+}
+
 void FileWriter::write(const string &file_name, bool force) {
     if (!force && not_write_time())
         return;
@@ -105,13 +109,12 @@ void FileWriter::write_ckx(ofstream &out) const {
 }
 
 void FileWriter::write_dat(ofstream &out) const {
-    // In case of empty file, write data header
-    if (out.tellp() == 0)
+    // In case of empty file, write first data header
+    if (first_line(out))
         out << "Time Timestep";
 
-    // otherwise append data
-    else
-        out << d2s(GLOBALS.TIME) + " " + d2s(GLOBALS.TIMESTEP);
+    // append data
+    out << d2s(GLOBALS.TIME) + ' ' + d2s(GLOBALS.TIMESTEP);
 }
 
 void FileWriter::write_vtk(ofstream &out) const {

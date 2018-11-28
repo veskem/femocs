@@ -499,4 +499,24 @@ void AtomReader::import_ckx(const string &file_name) {
     }
 }
 
+// =================================
+// *** WRITERS: ***************
+
+bool AtomReader::valid_extension(const string &ext) const {
+    return Medium::valid_extension(ext) || ext == "ckx";
+}
+
+void AtomReader::write_ckx(ofstream &out) const {
+    // write the start of xyz header
+    FileWriter::write_xyz(out);
+
+    // write Ovito header
+    out << "Medium properties=type:I:1:pos:R:3" << endl;
+
+    // write data
+    const int n_atoms = size();
+    for (int i = 0; i < n_atoms; ++i)
+        out << atoms[i].marker << " " << atoms[i].point << endl;
+}
+
 } /* namespace femocs */
