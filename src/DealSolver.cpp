@@ -197,30 +197,8 @@ bool DealSolver<dim>::import_mesh(vector<Point<dim>> vertices, vector<CellData<d
 }
 
 template<int dim>
-void DealSolver<dim>::write(const string &file_name) const {
-    if (!MODES.WRITEFILE) return;
-
-    const string ftype = get_file_type(file_name);
-    ofstream outfile;
-    outfile.open(file_name);
-    require(outfile.is_open(), "Can't open a file " + file_name);
-
-    if (ftype == "vtk") {
-        const int n_nodes = solution.size();
-        require(n_nodes > 0, "Can't write empty solution!");
-        write_vtk(outfile);
-    }
-
-    else if (ftype == "msh") {
-        const int n_dofs = dof_handler.n_dofs();
-        require(n_dofs > 0, "Can't write empty mesh!");
-        write_msh(outfile);
-    }
-
-    else
-        require(false, "Unsupported file type: " + ftype);
-
-    outfile.close();
+bool DealSolver<dim>::valid_extension(const string &ext) const {
+    return ext == "vtk" || ext == "msh";
 }
 
 template<int dim>

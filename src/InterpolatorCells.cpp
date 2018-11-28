@@ -86,86 +86,29 @@ void InterpolatorNodes::read(const string &file_name, const int flags) {
     in.close();
 }
 
-void InterpolatorNodes::write(const string &file_name, const int flags) const {
-    if (!MODES.WRITEFILE) return;
-    expect(size(), "Zero nodes detected!");
-
-    string ftype = get_file_type(file_name);
-    ofstream outfile;
-    if (ftype != "restart") {
-        outfile.setf(std::ios::scientific);
-        outfile.precision(6);
-    }
-
-    if (ftype == "movie" || ftype == "restart")
-        outfile.open(file_name, ios_base::app);
-    else outfile.open(file_name);
-    require(outfile.is_open(), "Can't open a file " + file_name);
-
-    if (ftype == "xyz" || ftype == "movie")
-        write_xyz(outfile);
-    else if (ftype == "vtk")
-        write_vtk(outfile);
-    else if (ftype == "restart")
-        write_restart(outfile, flags);
-    else
-        require(false, "Unsupported file type: " + ftype);
-
-    outfile.close();
-}
-
 void InterpolatorNodes::write_xyz(ofstream& out) const {
-    const int n_nodes = size();
+    // write the beginning of xyz header
+    FileWriter::write_xyz(out);
 
-    out << n_nodes << endl;
-    out << "time= " << GLOBALS.TIME << " Interpolator properties=id:I:1:pos:R:3:marker:I:1:" <<
+    // write the header for Ovito
+    out << "properties=id:I:1:pos:R:3:marker:I:1:" <<
             "force:R:3:" << norm_label << ":R:1:" << scalar_label << ":R:1" << endl;
 
+    // write data
+    const int n_nodes = size();
     for (int i = 0; i < n_nodes; ++i)
         out << i << " " << get_vertex(i) << " " << markers[i] << " " << solutions[i] << endl;
 }
 
-void InterpolatorNodes::write_restart(ofstream& out, const int flags) const {
-    const int n_nodes = size();
-    expect(flags, "No data to be written!");
-
-    bool export_vec = flags & (1 << 2);
-    bool export_norm = flags & (1 << 1);
-    bool export_scalar = flags & (1 << 0);
-
-    string label = "";
-    if (export_vec) label += vec_label;
-    if (export_norm) label += norm_label;
-    if (export_scalar) label += scalar_label;
-
-    // start data header
-    out << "$" << label << "\n"
-            << n_nodes << " " << GLOBALS.TIME << " " << GLOBALS.TIMESTEP << "\n";
-
-    // write data
-    for (Solution const &s : solutions) {
-        if (export_vec)
-            out.write ((char*)&s.vector, sizeof(Vec3));
-        if (export_norm)
-            out.write ((char*)&s.norm, sizeof (double));
-        if (export_scalar)
+void InterpolatorNodes::write_bin(ofstream &out) const {
+    for (Solution const &s : solutions)
             out.write ((char*)&s.scalar, sizeof (double));
-    }
-
-    // close data header
-    out << "\n$End"<< label << "\n";
 }
 
-void InterpolatorNodes::write_vtk(ofstream& out) const {
+void InterpolatorNodes::write_vtk_points_and_cells(ofstream& out) const {
     const int n_nodes = size();
     const int n_cells = size();
     const int dim = 1;
-    const int celltype = get_cell_type();
-
-    out << "# vtk DataFile Version 3.0\n";
-    out << "# InterpolatorNodes data\n";
-    out << "ASCII\n";
-    out << "DATASET UNSTRUCTURED_GRID\n\n";
 
     // Output the point coordinates
     out << "POINTS " << n_nodes << " double\n";
@@ -173,21 +116,19 @@ void InterpolatorNodes::write_vtk(ofstream& out) const {
         out << get_vertex(i) << "\n";
 
     // Output # vertices and vertex indices
-    out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
+    out << "CELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
         out << dim << " " << i << "\n";
 
     // Output cell types
-    out << "\nCELL_TYPES " << n_cells << "\n";
+    out << "CELL_TYPES " << n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
-        out << celltype << "\n";
-
-    write_point_data(out);
+        out << TYPES.VTK.VERTEX << "\n";
 }
 
-void InterpolatorNodes::write_point_data(ofstream& out) const {
+void InterpolatorNodes::write_vtk_point_data(ofstream& out) const {
     const int n_nodes = size();
-    out << "\nPOINT_DATA " << n_nodes << "\n";
+    out << "POINT_DATA " << n_nodes << "\n";
 
     // write node IDs
     out << "SCALARS node-ID int\nLOOKUP_TABLE default\n";
@@ -209,6 +150,7 @@ void InterpolatorNodes::write_point_data(ofstream& out) const {
     for (int i = 0; i < n_nodes; ++i)
         out << solutions[i].scalar << "\n";
 
+    // write vector data
     out << "VECTORS " << vec_label << " double\n";
     for (int i = 0; i < n_nodes; ++i)
         out << solutions[i].vector << "\n";
@@ -267,37 +209,10 @@ void InterpolatorCells<dim>::reserve(const int N) {
 }
 
 template<int dim>
-void InterpolatorCells<dim>::write(const string &file_name) const {
-    if (!MODES.WRITEFILE) return;
-
-    ofstream outfile;
-    outfile.setf(std::ios::scientific);
-    outfile.precision(6);
-
-    string ftype = get_file_type(file_name);
-    outfile.open(file_name);
-    require(outfile.is_open(), "Can't open a file " + file_name);
-
-    if (ftype == "vtk")
-        write_vtk(outfile);
-    else
-        require(false, "Unsupported file type: " + ftype);
-
-    outfile.close();
-}
-
-template<int dim>
-void InterpolatorCells<dim>::write_vtk(ofstream& out) const {
-    const int n_nodes = nodes->size(); // nodes->stat.n_tetnode;
-    expect(n_nodes, "Zero nodes detected!");
-
+void InterpolatorCells<dim>::write_vtk_points_and_cells(ofstream& out) const {
+    const int n_nodes = nodes->size();
     const int celltype = get_cell_type();
     const int n_cells = size();
-
-    out << "# vtk DataFile Version 3.0\n";
-    out << "# InterpolatorCells data\n";
-    out << "ASCII\n";
-    out << "DATASET UNSTRUCTURED_GRID\n\n";
 
     // Output the point coordinates
     out << "POINTS " << n_nodes << " double\n";
@@ -313,18 +228,17 @@ void InterpolatorCells<dim>::write_vtk(ofstream& out) const {
     out << "\nCELL_TYPES " << n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
         out << celltype << "\n";
-
-    // Associate solution with the nodes
-    nodes->write_point_data(out);
-
-    // Write data associated with the cells
-    write_cell_data(out);
 }
 
 template<int dim>
-void InterpolatorCells<dim>::write_cell_data(ofstream& out) const {
+void InterpolatorCells<dim>::write_vtk_point_data(ofstream &out) const {
+    nodes->write_vtk_point_data(out);
+}
+
+template<int dim>
+void InterpolatorCells<dim>::write_vtk_cell_data(ofstream& out) const {
     const int n_cells = size();
-    out << "\nCELL_DATA " << n_cells << "\n";
+    out << "CELL_DATA " << n_cells << "\n";
 
     // write cell IDs
     out << "SCALARS cell-ID int\nLOOKUP_TABLE default\n";
@@ -1756,8 +1670,8 @@ double LinearTriangles::distance(const Vec3& point, const int face) const {
     return edge2[face].dotProduct(qvec);
 }
 
-void LinearTriangles::write_cell_data(ofstream& out) const {
-    InterpolatorCells<3>::write_cell_data(out);
+void LinearTriangles::write_vtk_cell_data(ofstream& out) const {
+    InterpolatorCells<3>::write_vtk_cell_data(out);
 
     // write face norms
     out << "VECTORS norm double\n";

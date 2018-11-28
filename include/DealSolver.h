@@ -15,6 +15,7 @@
 #include <fstream>
 #include "Globals.h"
 #include "Medium.h"
+#include "FileWriter.h"
 
 using namespace dealii;
 using namespace std;
@@ -29,7 +30,7 @@ template<int dim> class HeatSolver;
 /** @brief General class to implement FEM solver in Deal.II
  */
 template<int dim>
-class DealSolver {
+class DealSolver : public FileWriter {
 public:
 
     DealSolver();
@@ -107,9 +108,6 @@ public:
      * @return true if success, otherwise false
      */
     bool import_mesh(vector<Point<dim>> vertices, vector<CellData<dim>> cells);
-
-    /** Write data to file; data type and format is determined with the file extention */
-    void write(const string &filename) const;
 
     /** Print the statistics about the mesh and # degrees of freedom */
     friend ostream& operator <<(ostream &os, const DealSolver<dim>& d) {
@@ -202,6 +200,9 @@ protected:
     void apply_dirichlet();
 
     void calc_dof_volumes();
+
+    /** Specify file types that can be written */
+    bool valid_extension(const string &extension) const;
 
     /** Write the mesh to msh file that can in turn be imported to Deal.II */
     void write_msh(ofstream& out) const;

@@ -669,7 +669,7 @@ int ProjectRunaway::write_restart(const string &path_to_file) {
     MODES.WRITEFILE = true;
 
     mesh->write(path_to_file);
-    bulk_interpolator.nodes.write(path_to_file, 1);
+    bulk_interpolator.nodes.write(path_to_file);
     pic_solver.write(path_to_file);
 
     MODES.WRITEFILE = writefile_save;

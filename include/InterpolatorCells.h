@@ -12,6 +12,7 @@
 #include "Primitives.h"
 #include "TetgenMesh.h"
 #include "TetgenCells.h"
+#include "FileWriter.h"
 
 using namespace std;
 namespace femocs {
@@ -19,7 +20,7 @@ namespace femocs {
 /**
  * Data & operations for obtaining and holding nodal interpolation data
  */
-class InterpolatorNodes {
+class InterpolatorNodes : public FileWriter {
 public:
     InterpolatorNodes();
     InterpolatorNodes(const string &vec_label, const string &norm_label, const string &scalar_label);
@@ -34,11 +35,8 @@ public:
     /** Read interpolation data from file */
     void read(const string &file_name, const int flags);
 
-    /** Output interpolation data in a format specified by the file extension */
-    void write(const string &file_name, const int flags=0) const;
-
     /** Output interpolation data to be appended to .vtk file */
-    void write_point_data(ofstream& out) const;
+    void write_vtk_point_data(ofstream& out) const;
 
     /** Print statistics about solution on node points */
     void print_statistics() const;
@@ -124,24 +122,29 @@ private:
     /** Reserve memory for interpolation data */
     void reserve(const int N);
 
+    /** Specify implemented output file formats */
+    bool valid_extension(const string &ext) const {
+        return ext == "xyz" || ext == "movie" || ext == "vtk" || ext == "restart";
+    }
+
     /** Output interpolation data in .xyz format */
     void write_xyz(ofstream& out) const;
 
-    /** Output interpolation data in .vtk format */
-    void write_vtk(ofstream& out) const;
+    /** Write binary data for restart file */
+    void write_bin(ofstream &out) const;
 
-    /** Output interpolation data in binary Gmsh format */
-    void write_restart(ofstream& out, const int flags) const;
+    /** Output mesh nodes in .vtk format */
+    void write_vtk_points_and_cells(ofstream& out) const;
 
-    /** Return the cell type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.VERTEX; };
+    /** Output label for restart data */
+    string get_restart_label() const { return scalar_label; }
 };
 
 /**
  * Template class for interpolators of different kind
  */
 template<int dim>
-class InterpolatorCells {
+class InterpolatorCells : public FileWriter {
 public:
     InterpolatorCells() : mesh(NULL), nodes(NULL) { reserve(0); }
 
@@ -152,10 +155,6 @@ public:
 
     /** Return number of available cells */
     int size() const { return markers.size(); }
-
-    /** Pick the suitable write function based on the file type.
-     * Function is active only when file write is enabled */
-    void write(const string &file_name) const;
 
     /** Pre-compute data about cells to make interpolation faster */
     virtual void precompute() {};
@@ -243,11 +242,19 @@ protected:
     /** Return the cell type in vtk format */
     virtual int get_cell_type() const { return 0; };
 
-    /** Output interpolation data in .vtk format */
-    void write_vtk(ofstream& out) const;
+    /** Output mesh nodes and cells in .vtk format */
+    void write_vtk_points_and_cells(ofstream &out) const;
 
-    /** Output interpolation data to be appended to .vtk file */
-    virtual void write_cell_data(ofstream& out) const;
+    /** Output mesh node data in .vtk format */
+    void write_vtk_point_data(ofstream &out) const;
+
+    /** Output interpolation data in .vtk file */
+    virtual void write_vtk_cell_data(ofstream& out) const;
+
+    /** Specify implemented output file formats */
+    bool valid_extension(const string &ext) const {
+        return ext == "vtk";
+    }
 
     /** Find the common entry between two vectors */
     inline int common_entry(vector<unsigned>& vec1, vector<unsigned>& vec2) const;
@@ -540,7 +547,7 @@ private:
     double distance(const Vec3& point, const int i) const;
 
     /** Append triangle specific data to vtk file */
-    void write_cell_data(ofstream& out) const;
+    void write_vtk_cell_data(ofstream& out) const;
 };
 
 /**

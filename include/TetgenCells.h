@@ -26,15 +26,15 @@ class TetgenCells : public FileWriter {
 public:
 
     /** Default constructor that creates empty instance */
-    TetgenCells() : FileWriter(),
+    TetgenCells() :
     n_cells_r(NULL), n_cells_w(NULL), reads(NULL), writes(NULL), i_cells(0) {}
 
     /** Constructor for the case when read and write data go into same place */
-    TetgenCells(tetgenio* data, int* n_cells) : FileWriter(),
+    TetgenCells(tetgenio* data, int* n_cells) :
         n_cells_r(n_cells), n_cells_w(n_cells), reads(data), writes(data), i_cells(0) {}
 
     /** Constructor for the case when read and write data go into different places */
-    TetgenCells(tetgenio* reads, tetgenio* writes, int* n_cells_r, int* n_cells_w) : FileWriter(),
+    TetgenCells(tetgenio* reads, tetgenio* writes, int* n_cells_r, int* n_cells_w) :
         n_cells_r(n_cells_r), n_cells_w(n_cells_w), reads(reads), writes(writes), i_cells(0) {}
 
     /** SimpleCells destructor */
@@ -228,30 +228,27 @@ protected:
             out << get_node(node) << "\n";
 
         // Output the cells (tetrahedra, triangles, edges or vertices)
-        out << "\nCELLS " << n_cells << " " << n_cells * (dim + 1) << "\n";
+        out << "CELLS " << n_cells << " " << n_cells * (dim + 1) << "\n";
         for (size_t cl = 0; cl < n_cells; ++cl)
             out << dim << " " << get_cell(cl) << "\n";
 
         // Output cell types
-        out << "\nCELL_TYPES " << n_cells << "\n";
+        out << "CELL_TYPES " << n_cells << "\n";
         for (size_t cl = 0; cl < n_cells; ++cl)
             out << celltype << "\n";
     }
 
-    /** Output mesh node data in .vtk format */
-    void write_vtk_point_data(ofstream &out) const {
-        if (get_cell_type() != TYPES.VTK.VERTEX) return;
-
+    /** Output mesh data in .vtk format */
+    void write_vtk_data(ofstream &out) const {
         const size_t n_markers = get_n_markers();
         const size_t n_cells = size();
 
-        // Output point id-s
-        out << "\nPOINT_DATA " << n_cells << "\n";
+        // Output cell id-s
         out << "SCALARS ID int\nLOOKUP_TABLE default\n";
         for (size_t cl = 0; cl < n_cells; ++cl)
             out << cl << "\n";
 
-        // Output point markers
+        // Output cell markers
         if ((n_markers > 0) && (n_markers == n_cells)) {
             out << "SCALARS marker int\nLOOKUP_TABLE default\n";
             for (size_t cl = 0; cl < n_cells; ++cl)
@@ -259,28 +256,21 @@ protected:
         }
     }
 
+    /** Output mesh node data in .vtk format */
+    void write_vtk_point_data(ofstream &out) const {
+        if (get_cell_type() != TYPES.VTK.VERTEX) return;
+        out << "POINT_DATA " << size() << "\n";
+        write_vtk_data(out);
+    }
+
     /** Output mesh cell data in .vtk format */
-     void write_vtk_cell_data(ofstream &out) const {
-         if (get_cell_type() == TYPES.VTK.VERTEX) return;
+    void write_vtk_cell_data(ofstream &out) const {
+        if (get_cell_type() == TYPES.VTK.VERTEX) return;
+        out << "CELL_DATA " << size() << "\n";
+        write_vtk_data(out);
+    }
 
-         const size_t n_markers = get_n_markers();
-         const size_t n_cells = size();
-
-         // Output cell id-s
-         out << "\nCELL_DATA " << n_cells << "\n";
-         out << "SCALARS ID int\nLOOKUP_TABLE default\n";
-         for (size_t cl = 0; cl < n_cells; ++cl)
-             out << cl << "\n";
-
-         // Output cell markers
-         if ((n_markers > 0) && (n_markers == n_cells)) {
-             out << "SCALARS marker int\nLOOKUP_TABLE default\n";
-             for (size_t cl = 0; cl < n_cells; ++cl)
-                 out << get_marker(cl) << "\n";
-         }
-     }
-
-     /** Specify implemented output file formats */
+    /** Specify implemented output file formats */
     bool valid_extension(const string &ext) const {
         return ext == "vtk";
     }
