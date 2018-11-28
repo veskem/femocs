@@ -41,12 +41,7 @@ void FileWriter::write(const string &file_name, bool force) {
         return;
     }
 
-    ofstream outfile(file_name);
-    if (ftype != "bin" && ftype != "restart") {
-        outfile.setf(std::ios::scientific);
-        outfile.precision(12);
-    }
-
+    ofstream outfile;
     if (ftype == "movie" || ftype == "restart" || ftype == "dat")
         outfile.open(file_name, ios_base::app);
     else
@@ -76,7 +71,11 @@ void FileWriter::write(const string &file_name, bool force) {
 void FileWriter::write_xyz(ofstream &out) const {
     int n_data = size();
     expect(n_data > 0, "Zero data detected!");
-    out << n_data << "\n" << "Time=" << GLOBALS.TIME << ", Timestep=" << GLOBALS.TIMESTEP << ", ";
+    out << n_data << "\n"
+            << "Time=" << GLOBALS.TIME << ", Timestep=" << GLOBALS.TIMESTEP << ", " << class_name() << " ";
+
+    out.setf(std::ios::scientific);
+    out.precision(12);
 }
 
 string FileWriter::get_restart_label() const {
@@ -87,6 +86,7 @@ void FileWriter::write_restart(ofstream &out) const {
     const string label = get_restart_label();
     if (label != "") {
         const int n_data = size();
+        expect(n_data > 0, "Zero data detected!");
         out << "$" << label << "\n"
                 << n_data << " " << GLOBALS.TIME << " " << GLOBALS.TIMESTEP << "\n";
     }
@@ -115,10 +115,13 @@ void FileWriter::write_dat(ofstream &out) const {
 }
 
 void FileWriter::write_vtk(ofstream &out) const {
+    expect(size() > 0, "Zero data detected!");
+    out.setf(std::ios::scientific);
+    out.precision(12);
+
     out << "# vtk DataFile Version 3.0\n";
-    out << "# FileWriter data\n";
-    out << "ASCII\n";
-    out << "DATASET POLYDATA\n";
+    out << "# " + class_name() + "\n";
+    out << "ASCII\nDATASET UNSTRUCTURED_GRID\n";
 
     write_vtk_points_and_cells(out);
     write_vtk_point_data(out);

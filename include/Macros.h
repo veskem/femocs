@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <typeinfo>
 
 using namespace std;
 namespace femocs {
@@ -93,6 +94,10 @@ bool on_boundary(const double val, const double boundary, const double eps);
 
 /** Extract file type from file name */
 string get_file_type(const string& file_name);
+
+/** Obtain underlying class name */
+#define class_name() return_class_name(typeid(*this).name())
+string return_class_name(const string& typeid_name);
 
 /** Write message to log file and if in silent or verbose mode, also to console */
 void write_silent_msg(const string& message);

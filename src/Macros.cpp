@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <fstream>
 #include <numeric>
-
 #include "Macros.h"
 #include "Globals.h"
 
@@ -185,6 +184,12 @@ string get_file_type(const string& file_name) {
     const int start = file_name.find_last_of('.') + 1;
     const int end = file_name.size();
     return file_name.substr(start, end);
+}
+
+string return_class_name(const string& typeid_name) {
+    size_t start = typeid_name.find_last_of("1234567890") + 1;
+    size_t end = typeid_name.size() - start - 1;
+    return typeid_name.substr(start, end);
 }
 
 } /* namespace femocs */

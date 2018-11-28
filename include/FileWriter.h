@@ -25,9 +25,6 @@ public:
      * @param force  omit the control for last write time */
     void write(const string &file, bool force=false);
 
-    /** Check if given file type is implemented for given class */
-    virtual bool valid_extension(const string &extension) const = 0;
-
     /** Size of the data vector */
     virtual int size() const { return 0; }
 
@@ -37,6 +34,9 @@ public:
 
 protected:
     bool not_write_time() const;
+
+    /** Check if given file type is implemented for given class */
+    virtual bool valid_extension(const string &extension) const = 0;
 
     // General routines for writing file with given extension
     virtual void write_xyz(ofstream &out) const;
