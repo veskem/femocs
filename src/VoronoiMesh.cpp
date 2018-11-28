@@ -15,7 +15,6 @@ namespace femocs {
  *  ============================= Voronoi =============================
  * ===================================================================== */
 
-// Get the area of the face
 double VoronoiFace::area() {
     const int n_nodes = size();
     calc_verts();
@@ -30,7 +29,6 @@ double VoronoiFace::area() {
     return total.norm() * 0.5;
 }
 
-// Get the centroid coordinates of the face
 Point3 VoronoiFace::centroid() {
     calc_verts();
     Vec3 centroid(0.0);
@@ -42,7 +40,6 @@ Point3 VoronoiFace::centroid() {
     return Point3(centroid.x, centroid.y, centroid.z);
 }
 
-// Return the neighbouring cell for the caller cell
 int VoronoiFace::nborcell(const int caller_id) const {
     const int c1 = data->vfacetlist[id].c1;
     if (c1 == caller_id)
@@ -50,14 +47,12 @@ int VoronoiFace::nborcell(const int caller_id) const {
     return c1;
 }
 
-// Calculate the unique node that is associated with the edge
 void VoronoiFace::get_node(const int edge, int& node) const {
     const int v1 = data->vedgelist[edge].v1;
     if (node != v1) node = v1;
     else node = data->vedgelist[edge].v2;
 }
 
-// Transform the node data from tetgenio into easily accessible form
 void VoronoiFace::calc_verts() {
     if (verts.size() > 0) return;
     verts.reserve(size());
@@ -70,7 +65,6 @@ void VoronoiFace::calc_verts() {
     }
 }
 
-// Get the norm vector of the face
 Vec3 VoronoiFace::norm(const int cell) const {
     const int C1 = 3 * cell;
     const int C2 = 3 * nborcell(cell);
@@ -101,18 +95,18 @@ void VoronoiCells::write_cells(ofstream& out) const {
         }
 
     // Write the Voronoi cells as polygons
-    out << "\nCELLS " << n_faces << " " << n_faces + n_verts << "\n";
+    out << "CELLS " << n_faces << " " << n_faces + n_verts << "\n";
     for (VoronoiCell cell : *this)
         for (VoronoiFace face : cell)
             out << face.size() << " " << face << endl;
 
     // Output cell types
-    out << "\nCELL_TYPES " << n_faces << "\n";
+    out << "CELL_TYPES " << n_faces << "\n";
     for (size_t i = 0; i < n_faces; ++i)
         out << TYPES.VTK.POLYGON << "\n";
 
     // Output scalar data associated with Voronoi cells
-    out << "\nCELL_DATA " << n_faces << "\n";
+    out << "CELL_DATA " << n_faces << "\n";
 
     // Write the markers of cells
     out << "SCALARS marker int\nLOOKUP_TABLE default\n";
@@ -127,7 +121,6 @@ void VoronoiCells::write_cells(ofstream& out) const {
             out << cell.id << "\n";
 }
 
-// Calculate the face neighbours - faces, that share the same edge
 void VoronoiFaces::calc_neighbours() {
     const int n_faces = size();
     const int n_edges = tetio->numberofvedges;
@@ -178,18 +171,18 @@ void VoronoiFaces::write_cells(ofstream& out) const {
     }
 
     // Write the Voronoi faces as polygons
-    out << "\nCELLS " << n_faces << " " << n_faces + n_verts << "\n";
+    out << "CELLS " << n_faces << " " << n_faces + n_verts << "\n";
     for (VoronoiFace face : *this)
         if (face.size() > 0)
             out << face.size() << " " << face << endl;
 
     // Output cell types
-    out << "\nCELL_TYPES " << n_faces << "\n";
+    out << "CELL_TYPES " << n_faces << "\n";
     for (size_t i = 0; i < n_faces; ++i)
         out << TYPES.VTK.POLYGON << "\n";
 
     // Output scalar data associated with Voronoi faces
-    out << "\nCELL_DATA " << n_faces << "\n";
+    out << "CELL_DATA " << n_faces << "\n";
 
     // write markers of faces
     out << "SCALARS marker int\nLOOKUP_TABLE default\n";
@@ -214,13 +207,11 @@ void VoronoiFaces::write_cells(ofstream& out) const {
  *  ======================= VoronoiMesh ===========================
  * ================================================================== */
 
-// Initialize Tetgen data
 VoronoiMesh::VoronoiMesh() {
     tetIOin.initialize();
     tetIOout.initialize();
 }
 
-// Find the Voronoi cell that for sure belongs to the surface
 int VoronoiMesh::get_seedcell() {
     double zmax = -1e100;
     int seed = -1;
@@ -236,7 +227,6 @@ int VoronoiMesh::get_seedcell() {
     return seed;
 }
 
-// Mark the cell and faces that are certainly on the surface
 int VoronoiMesh::mark_seed() {
     const int cell_max = nodes.indxs.surf_end;
     int seedface = -1, seedcell = get_seedcell();
@@ -263,52 +253,6 @@ int VoronoiMesh::mark_seed() {
         }
     require(seedface >= 0, "Finding seed Voronoi facet failed!");
     return seedface;
-}
-
-// Mark Voronoi faces that are on the vacuum-material boundary
-void VoronoiMesh::mark_faces(const double zmin, const int seed) {
-    const int cell_max = nodes.indxs.surf_end;
-    vfaces.calc_neighbours();
-
-    // Mark the faces that are associated only with potential surface cells
-    // and therefore cannot be on the surface
-    for (VoronoiCell cell : voros)
-        for (VoronoiFace face : cell) {
-            if ( (cell.id <= cell_max && face.nborcell(cell.id) <= cell_max)
-                    || (cell.id > cell_max && face.nborcell(cell.id) > cell_max) )
-                vfaces.set_marker(face.id, TYPES.PERIMETER);
-        }
-
-    // Mark the faces that have the node outside the boundaries of surface atoms
-    for (VoronoiFace face : vfaces) {
-        face.calc_verts();
-        for (Vec3 vert : face.verts) {
-            bool b1 = false; //vert.x < sizes.xmin || vert.x > sizes.xmax;
-            bool b2 = false; //vert.y < sizes.ymin || vert.y > sizes.ymax;
-            bool b3 = vert.z < zmin;
-            if (b1 || b2 || b3) {
-                vfaces.set_marker(face.id, TYPES.ZMIN);
-                break;
-            }
-        }
-    }
-
-    vfaces.set_marker(seed, TYPES.ZMAX);
-
-    // Mark the faces around the seed face
-    vector<int> neighbours = vfaces.get_neighbours(seed);
-    for (size_t i = 0; i < neighbours.size(); ++i) {
-        int face = neighbours[i];
-        if (vfaces.get_marker(face) == TYPES.NONE) {
-
-            // Mark the face as surface
-            vfaces.set_marker(face, TYPES.SURFACE);
-
-            // Expand the list of possible surface faces
-            vector<int> nbors = vfaces.get_neighbours(face);
-            neighbours.insert(neighbours.end(), nbors.begin(), nbors.end());
-        }
-    }
 }
 
 void VoronoiMesh::calc_ranks(vector<int>& ranks, const int seedface) {
@@ -355,8 +299,7 @@ void VoronoiMesh::calc_ranks(vector<int>& ranks, const int seedface) {
     }
 }
 
-// Mark Voronoi faces that are on the vacuum-material boundary
-void VoronoiMesh::mark_faces_vol2(const double zmin, const int seed) {
+void VoronoiMesh::mark_faces(const double zmin, const int seed) {
     const int cell_max = nodes.indxs.surf_end;
 //    const int min_rank = 40;
 
@@ -407,7 +350,6 @@ void VoronoiMesh::mark_faces_vol2(const double zmin, const int seed) {
     }
 }
 
-// Mark Voronoi cells and nodes that are on the surface of material
 void VoronoiMesh::mark_cells_and_nodes() {
     const int cell_max = nodes.indxs.surf_end;
     const int n_nodes = nodes.size();
@@ -434,7 +376,6 @@ void VoronoiMesh::mark_cells_and_nodes() {
         nodes.append_marker(voros.get_marker(i));
 }
 
-// Calculate minimum z-coordinate of medium and mark mesh
 void VoronoiMesh::mark_mesh(const Medium& medium, const double latconst) {
     const int n_atoms = medium.size();
     require(n_atoms > 0, "Can't mark Voronoi mesh if no surface atoms are present!");
@@ -457,20 +398,17 @@ void VoronoiMesh::mark_mesh(const Medium& medium, const double latconst) {
     mark_mesh(zmin);
 }
 
-// Mark the Voronoi cells, faces and nodes by their relative location against top and bottom surfaces
 void VoronoiMesh::mark_mesh(const double zmin) {
     // Mark the cell and faces that are certainly on the surface
     int seedface = mark_seed();
 
     // Mark the rest of surface faces
-//    mark_faces(zmin, seedface);
-    mark_faces_vol2(zmin, seedface);
+    mark_faces(zmin, seedface);
 
     // Using the marked faces, marks also the cells and nodes
     mark_cells_and_nodes();
 }
 
-// Extract the atoms and their areas whose Voronoi cells are exposed to vacuum
 void VoronoiMesh::extract_surface(Medium& surface, vector<Vec3>& areas, const Medium& nanotip) {
     vector<bool> on_surface = vector_equal(voros.get_markers(), TYPES.SURFACE);
     const int n_substrate = surface.size();
@@ -502,7 +440,6 @@ void VoronoiMesh::extract_surface(Medium& surface, vector<Vec3>& areas, const Me
         }
 }
 
-// Function to perform tetgen calculation on input and write_tetgen data
 int VoronoiMesh::recalc(const string& cmd1, const string& cmd2, const string& cmd3) {
     try {
         tetgenio tetIOtemp1, tetIOtemp2;
@@ -516,7 +453,6 @@ int VoronoiMesh::recalc(const string& cmd1, const string& cmd2, const string& cm
     return 0;
 }
 
-// Function to perform tetgen calculation on input and write_tetgen data
 int VoronoiMesh::recalc(const string& cmd1, const string& cmd2) {
     try {
         tetgenio tetIOtemp1, tetIOtemp2;
@@ -539,82 +475,6 @@ int VoronoiMesh::recalc(const string& cmd1) {
     catch (int e) { return e; }
     return 0;
 }
-
-// Generate Voronoi cells around surface atoms
-int VoronoiMesh::generate_modi(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2) {
-    const double l = 1.0*latconst;
-
-    Medium bulk(4), vacuum(4);
-    bulk.append( Point3(surf.sizes.xmin-l, surf.sizes.ymin-l, surf.sizes.zmin-l) );
-    bulk.append( Point3(surf.sizes.xmax+l, surf.sizes.ymin-l, surf.sizes.zmin-l) );
-    bulk.append( Point3(surf.sizes.xmin-l, surf.sizes.ymax+l, surf.sizes.zmin-l) );
-    bulk.append( Point3(surf.sizes.xmax+l, surf.sizes.ymax+l, surf.sizes.zmin-l) );
-
-    vacuum.append( Point3(surf.sizes.xmin-l, surf.sizes.ymin-l, surf.sizes.zmax+l) );
-    vacuum.append( Point3(surf.sizes.xmax+l, surf.sizes.ymin-l, surf.sizes.zmax+l) );
-    vacuum.append( Point3(surf.sizes.xmin-l, surf.sizes.ymax+l, surf.sizes.zmax+l) );
-    vacuum.append( Point3(surf.sizes.xmax+l, surf.sizes.ymax+l, surf.sizes.zmax+l) );
-
-    const int n_bulk = bulk.size();
-    const int n_surf = surf.size();
-    const int n_vacuum = vacuum.size();
-    nodes.init(n_bulk + n_surf + n_vacuum);
-
-    // Add surface atoms first,...
-    for (int i = 0; i < n_surf; ++i)
-        nodes.append(surf.get_point(i));
-
-    // ... bulk atoms second,...
-    for (int i = 0; i < n_bulk; ++i)
-        nodes.append(bulk.get_point(i));
-
-    // ... and vacuum atoms last
-    for (int i = 0; i < n_vacuum; ++i)
-        nodes.append(vacuum.get_point(i));
-
-    // Memorize the positions of different types of nodes to speed up later calculations
-    nodes.save_indices(n_surf, n_bulk, n_vacuum);
-
-    const int err_code = recalc("Q", cmd1);
-    if (err_code) return err_code;
-
-    elems.write("out/voro_tets1.vtk");
-
-    vector<bool> is_surf; is_surf.reserve(elems.size());
-
-    const int node_max = nodes.indxs.surf_end;
-    for (SimpleElement elem : elems) {
-        int ns = 0;
-        int nv = 0;
-
-        for (int e : elem) {
-            if (e > node_max)
-                nv++;
-            else
-                ns++;
-        }
-
-        is_surf.push_back(nv<=2 && ns>=2);
-    }
-
-
-    nodes.init(nodes.size() + vector_sum(is_surf));
-    elems.init(elems.size());
-
-    for (SimpleElement elem : elems)
-        elems.append(elem);
-
-    for (Point3 node : nodes)
-        nodes.append(node);
-
-    for (int i = 0; i < elems.size(); ++i)
-        if (is_surf[i])
-            nodes.append(elems.get_centroid(i));
-
-    return recalc("rQ", cmd2);
-//    return recalc("Q", cmd1, cmd2);
-}
-
 
 int VoronoiMesh::generate(const Medium& surf, const double latconst, const string& cmd1, const string& cmd2) {
     require(surf.size() > 0, "Invalid # generator points: " + d2s(surf.size()));
@@ -654,7 +514,6 @@ int VoronoiMesh::generate(const Medium& surf, const double latconst, const strin
     return recalc("Q", cmd1, cmd2);
 }
 
-// Mark the cells and faces with nodes in the infinity
 void VoronoiMesh::clean() {
     // Check for the infinite nodes on voro faces
     for (int f = 0; f < tetIOout.numberofvfacets; ++f) {
