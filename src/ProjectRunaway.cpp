@@ -51,10 +51,9 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 int ProjectRunaway::reinit(int tstep, double time) {
     require(conf.behaviour.timestep_step > 0, "Invalid step of time step: "
             + d2s(conf.behaviour.timestep_step));
-    GLOBALS.TIMESTEP++;
 
-    if (conf.behaviour.n_read_conf > 0 && GLOBALS.TIMESTEP % conf.behaviour.n_read_conf == 0)
-        conf.read_all();
+    GLOBALS.TIMESTEP++;
+    conf.read_all();
 
     double rmsd = reader.get_rmsd();
     string rmsd_string = "inf";

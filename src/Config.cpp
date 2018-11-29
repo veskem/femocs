@@ -116,7 +116,8 @@ void Config::trim(string& str) {
 }
 
 void Config::read_all() {
-    read_all(file_name, false);
+    if (behaviour.n_read_conf > 0 && GLOBALS.TIMESTEP % behaviour.n_read_conf == 0)
+        read_all(file_name, false);
 }
 
 void Config::read_all(const string& fname, bool full_run) {
