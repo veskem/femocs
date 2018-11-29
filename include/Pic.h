@@ -17,6 +17,7 @@
 #include "PoissonSolver.h"
 #include "CurrentHeatSolver.h"
 #include "ParticleSpecies.h"
+#include "FileWriter.h"
 
 #include <random>
 
@@ -27,7 +28,7 @@ namespace femocs {
  * https://cds.cern.ch/record/2226840
  */
 template<int dim>
-class Pic {
+class Pic: public FileWriter {
 public:
     Pic(const PoissonSolver<dim> *poisson_solver, const EmissionReader *emission,
             const Interpolator *interpolator, const Config::PIC *conf, const unsigned int seed);
@@ -47,9 +48,6 @@ public:
 
     /** Read particle data from file */
     void read(const string &filename);
-
-    /** Write the particle data into file */
-    void write(const string &filename) const;
     
     /** Store various data */
     void set_params(const double dt, const TetgenNodes::Stat box) {
@@ -63,6 +61,9 @@ public:
 
     /** Return number of stored electron super particles */
     int get_n_electrons() const { return electrons.size(); }
+
+    /** Return entry for xyz file */
+    int size() const { return max(1, electrons.size()); }
 
     void stats_reinit() {
         data.injected = 0;
@@ -86,7 +87,6 @@ public:
     }
 
 private:
-
     static constexpr double e_over_me = 17.58820024182468;///< charge / mass of electrons for multiplying the velocity update
     static constexpr double e_over_eps0 = 180.9512268;    ///< electron charge / vacuum permittivity [V*Angstrom]
     static constexpr double electrons_per_fs = 6.2415e3;  ///< definition of 1 ampere
@@ -134,11 +134,17 @@ private:
     /** Perform binary collision between two charged particles of the same kind */
     void collide_pair(int p1, int p2, double variance);
 
+    /** Specify file types that can be written */
+    bool valid_extension(const string &extension) const;
+
+    /** Label for restart data */
+    string get_restart_label() const { return "Electrons"; }
+
     /** Write the particle data into xyz file */
     void write_xyz(ofstream &out) const;
 
     /** Write the particle data into restart file */
-    void write_restart(ofstream &out) const;
+    void write_bin(ofstream &out) const;
 };
 
 } // namespace femocs

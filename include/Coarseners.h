@@ -11,6 +11,7 @@
 #include "Primitives.h"
 #include "Medium.h"
 #include "Config.h"
+#include "FileWriter.h"
 #include <memory>
 
 using namespace std;
@@ -33,6 +34,7 @@ public:
             cutoff2 = get_inf_cutoff();
     }
 
+    /** Determine if two points are within their cut-off radius */
     bool nearby(const Point3 &p1, const Point3 &p2) const {
         return p1.distance2(p2) <= cutoff2;
     }
@@ -219,7 +221,7 @@ private:
 
 
 /** Class for binding together coarseners */
-class Coarseners {
+class Coarseners: public FileWriter {
 public:
     /** Coarseners constructor */
     Coarseners() : radius(0), amplitude(0), r0_cylinder(0) {}
@@ -253,9 +255,6 @@ public:
         return near;
     }
 
-    /** Write the contours of coarseners to file in .vtk format */
-    void write(const string &file_name);
-
     /** Generate coarseners for one nanotip system */
     void generate(const Medium &medium, const double radius, const Config::CoarseFactor &cf, const double latconst);
 
@@ -276,6 +275,12 @@ private:
 
     /** Get the average z-coordinate of substrate atoms */
     double get_z_mean(const Medium& medium);
+
+    /** Write the contours of coarseners to file in .vtk format */
+    void write_vtk(ofstream &out) const;
+
+    /** Specify file types that can be written */
+    bool valid_extension(const string &extension) const;
 };
 
 } // namespace femocs

@@ -363,59 +363,32 @@ void Pic<dim>::read(const string &filename) {
 }
 
 template<int dim>
-void Pic<dim>::write(const string &filename) const {
-    if (!MODES.WRITEFILE) return;
-
-    string ftype = get_file_type(filename);
-    ofstream out;
-    if (ftype == "movie" || ftype == "restart")
-        out.open(filename, ios_base::app);
-    else out.open(filename);
-    require(out.is_open(), "Can't open a file " + filename);
-
-    if (ftype == "xyz" || ftype == "movie")
-        write_xyz(out);
-    else if (ftype == "restart")
-        write_restart(out);
-    else
-        require(false, "Invalid file type: " + ftype);
-
-    out.close();
+bool Pic<dim>::valid_extension(const string &ext) const {
+    return ext == "xyz" || ext == "movie" || ext == "restart";
 }
 
 template<int dim>
 void Pic<dim>::write_xyz(ofstream &out) const {
-    out << max(1, electrons.size()) << endl;
-    out << "Time=" << GLOBALS.TIME << ", Timestep=" << GLOBALS.TIMESTEP
-            << ", Pic properties=id:I:1:pos:R:3:Velocity:R:3:cell:I:1" << endl;
+    // start xyz header
+    FileWriter::write_xyz(out);
 
-    out.setf(ios::scientific);
-    out.precision(6);
+    // write Ovito header
+    out << "properties=id:I:1:pos:R:3:Velocity:R:3:cell:I:1\n";
 
     // Ovito can't handle 0 particles, so in case of empty system write dummy particle
-    if (electrons.size() == 0) {
-        out << "-1 0.0 0.0 0.0 0.0 0.0 0.0 0" << endl;
+    const int n_electrons = electrons.size();
+    if (n_electrons == 0) {
+        out << "-1 0.0 0.0 0.0 0.0 0.0 0.0 0\n";
     } else {
-        for (int i = 0; i < electrons.size();  ++i)
-            out << i << " " << electrons[i] << endl;
+        for (int i = 0; i < n_electrons;  ++i)
+            out << i << " " << electrons[i] << "\n";
     }
 }
 
 template<int dim>
-void Pic<dim>::write_restart(ofstream &out) const {
-    const int n_data = electrons.size();
-
-    // write data header
-    out << "$Electrons\n"
-            << n_data << " " << GLOBALS.TIME << " " << GLOBALS.TIMESTEP << "\n";
-
-    // write data
-    for (SuperParticle const &sp : electrons) {
+void Pic<dim>::write_bin(ofstream &out) const {
+    for (SuperParticle const &sp : electrons)
         out.write ((char*)&sp, sizeof (SuperParticle));
-    }
-
-    // close data header
-    out << "\n$EndElectrons\n";
 }
 
 //Tell the compiler which types to actually compile, so that they are available for the linker

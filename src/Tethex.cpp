@@ -1341,14 +1341,14 @@ void Mesh::face_numeration(std::vector<MeshElement*> &cells,
     } // cells
 } // face numeration
 
-void Mesh::write(const std::string &file) {
-    std::ofstream out(file.c_str());
-    require(out, "File " + file + " cannot be opened for writing!");
+bool Mesh::valid_extension(const string &ext) const {
+    return ext == "msh";
+}
 
-    out.setf(std::ios::scientific);
-    out.precision(16);
+void Mesh::write_msh(ofstream &out) const {
+    // write Gmsh header
+    femocs::FileWriter::write_msh(out);
 
-    out << "$MeshFormat\n2.2 0 8\n$EndMeshFormat\n";
     if (!physical_names.empty()) {
         out << "$PhysicalNames\n";
         out << physical_names.size() << "\n";

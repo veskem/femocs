@@ -19,6 +19,7 @@
 #define TETHEX_H_
 
 #include "TetgenMesh.h"
+#include "FileWriter.h"
 #include <map>
 #include <iostream>
 
@@ -701,7 +702,7 @@ private:
 /**
  * Main class that stores all data during program execution.
  */
-class Mesh {
+class Mesh: public femocs::FileWriter {
 public:
     /**
      * Constructor - nothing special
@@ -735,12 +736,6 @@ public:
      * in 3D - conversion from tetrahedra to hexahedra.
      */
     void convert();
-
-    /**
-     * Write the resulting brick mesh into the file
-     * @param file - the name of mesh file where we write the results of conversion
-     */
-    void write(const std::string &file);
 
     /**
      * Get the number of vertices
@@ -1046,6 +1041,15 @@ private:
      * @flags - bit0-read edges, bit1-read all triangles
      */
     void read_ascii(ifstream &in, const int flags);
+
+    /** Specify file types that can be written */
+    bool valid_extension(const string &extension) const;
+
+    /**
+     * Write the resulting brick mesh into the file
+     * @out - stream with the opened file
+     */
+    void write_msh(ofstream &out) const;
 
     /* Return the number of nodes of element with given Gmsh type */
     int type2nnodes(const int el_type) const;
