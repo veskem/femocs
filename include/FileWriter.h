@@ -13,27 +13,34 @@
 using namespace std;
 namespace femocs {
 
+/** Some flags to control the file output */
+enum FileIO {
+    force     = 1 << 0,  ///< omit the control for last write time
+    no_update = 1 << 1,  ///< prevent update last_write_time variable after successful write
+    append    = 1 << 2   ///< force appending to already excisting file
+};
+
 /** General class for holding common routines for writing files */
 class FileWriter {
 public:
     FileWriter();
-    FileWriter(const double delta_time);
     virtual ~FileWriter() {}
 
     /** By reading the file extension, pick the routine to write the data into file.
      * @param file   path to output file
-     * @param force  omit the control for last write time */
-    void write(const string &file, bool force=false);
+     * @param force  omit the control for last write time
+     * @param update update last write time variable after successful write
+     * @param append force appending to already excisting file
+     */
+    void write(const string &file, unsigned int flags=0);
 
     /** Size of the data vector */
     virtual int size() const { return 0; }
 
-    /** Specify the min time in fs between consequent file writes.
-     * 0 enables writing without time restriction, < 0 turns writing off. */
-    void set_write_period(const double delta_time);
+    /** Determine if enough time has passed since the last file write */
+    bool write_time() const;
 
 protected:
-    bool not_write_time() const;
     bool first_line(ofstream &out) const;
 
     /** Check if given file type is implemented for given class */
@@ -57,10 +64,8 @@ protected:
     virtual void write_vtk_cell_data(ofstream &out) const {}
 
 private:
-    double delta_time;       ///< Min time between consequent file writes [fs]
     double last_write_time;  ///< Last time file was written [fs]
 };
-
 
 } // namespace femocs
 

@@ -188,7 +188,7 @@ void TetgenNodes::write_xyz(ofstream &out) const {
     const int n_markers = get_n_markers();
 
     FileWriter::write_xyz(out); // write start of the header
-    out << "TetgenNodes properties=id:R:1:pos:R:3:marker:R:1\n";
+    out << "properties=id:R:1:pos:R:3:marker:R:1\n";
 
     if (n_nodes == n_markers)
         for (int i = 0; i < n_nodes; ++i)
@@ -199,7 +199,7 @@ void TetgenNodes::write_xyz(ofstream &out) const {
 }
 
 bool TetgenNodes::valid_extension(const string &ext) const {
-    return ext == "xyz" || ext == "vtk";
+    return ext == "xyz" || ext == "movie" || ext == "vtk";
 }
 
 /* =====================================================================

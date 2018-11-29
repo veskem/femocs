@@ -154,31 +154,29 @@ int ProjectHeat::converge_heat(double T_ambient) {
     return 0;
 }
 
-int ProjectHeat::write_results(bool force_write){
-
-    if (!write_time() && !force_write) return 1;
+int ProjectHeat::write_results(bool force) {
+    if (!vacuum_interpolator.nodes.write_time() && !force) return 1;
 
     vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
-    vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-    vacuum_interpolator.linhex.write("out/result_E_phi.vtk");
+    vacuum_interpolator.nodes.write("out/result_E_phi.movie", force);
+    vacuum_interpolator.linhex.write("out/result_E_phi.vtk", force);
 
     if (conf.field.mode != "laplace"){
-        emission.write("out/emission.movie");
-        pic_solver.write("out/electrons.movie");
-        surface_fields.write("out/surface_fields.movie");
+        emission.write("out/emission.movie", force);
+        pic_solver.write("out/electrons.movie", force);
+        surface_fields.write("out/surface_fields.movie", force);
         vacuum_interpolator.extract_charge_density(poisson_solver);
-        vacuum_interpolator.nodes.write("out/result_E_charge.movie");
+        vacuum_interpolator.nodes.write("out/result_E_charge.movie", force);
     }
 
     if (emission.size() > 0)
-        emission.write("out/surface_emission.movie");
+        emission.write("out/surface_emission.movie", force);
 
     if (conf.heating.mode != "none"){
-        bulk_interpolator.nodes.write("out/result_J_T.movie");
-        bulk_interpolator.lintet.write("out/result_J_T.vtk");
+        bulk_interpolator.nodes.write("out/result_J_T.movie", force);
+        bulk_interpolator.lintet.write("out/result_J_T.vtk", force);
     }
 
-    last_write_time = GLOBALS.TIME;
     return 0;
 }
 

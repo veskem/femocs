@@ -28,13 +28,11 @@ vector<bool> __vector_compare(const vector<T> *v, const T entry) {
     return mask;
 }
 
-// Function to handle failed requirement
 void requirement_fails(const char *file, int line, string message) {
     string exc = "\nFEMOCS ERROR:\nfile = " + string(file) + "\nline = " + d2s(line) + "\n" + message;
     throw runtime_error(exc + "\n");
 }
 
-// Function to handle failed expectation
 void expectation_fails(const char *file, int line, string message) {
     string exc = "\nFEMOCS WARNING:\nfile = " + string(file) + "\nline = " + d2s(line) + "\n" + message;
     cout << exc << endl;
@@ -49,7 +47,6 @@ double periodic_image(double p, double max, double min){
     return p;
 }
 
-// Write debug message to console and log file and start timer
 void start_msg(double& t0, const string& message) {
     write_log(message);
     if (MODES.VERBOSE) {
@@ -70,24 +67,20 @@ void start_msg(double& t0, const string& message) {
     }
 }
 
-// Print code execution time to console
 void end_msg(const double t0) {
     if (MODES.VERBOSE) printf("time: %.3f\n", omp_get_wtime() - t0);
 }
 
-// Write message to log file and console
 void write_silent_msg(const string& message) {
     write_log("\n" + message + "\n");
     if (!MODES.MUTE) cout << "\nFEMOCS: " << message << endl;
 }
 
-// Write message to log file and console
 void write_verbose_msg(const string& message) {
     write_log("  " + message);
     if (MODES.VERBOSE) cout << "  " << message << endl;
 }
 
-// Append line to log file
 void write_log(const string& message) {
     if (MODES.WRITELOG) {
         ofstream logfile(FEMOCSLOGPATH, ios_base::app);
@@ -95,7 +88,6 @@ void write_log(const string& message) {
     }
 }
 
-// Delete contents of log file
 void clear_log() {
     if (MODES.WRITELOG && MODES.SHORTLOG) {
         const string cmd = "rm -f " + FEMOCSLOGPATH;
@@ -103,17 +95,14 @@ void clear_log() {
     }
 }
 
-// Return mask of indices that are not equal to the scalar
 vector<bool> vector_not(const vector<int> *v, const int s) {
     return __vector_compare<int, std::not_equal_to<int>>(v, s);
 }
 
-// Return mask of indices that are equal to the scalar
 vector<bool> vector_equal(const vector<int> *v, const int s) {
     return __vector_compare<int, std::equal_to<int>>(v, s);
 }
 
-// Return mask of indices that are greater than the scalar
 vector<bool> vector_greater(const vector<double> *v, const double s) {
     return __vector_compare<double, std::greater<double>>(v, s);
 }
@@ -122,7 +111,6 @@ vector<bool> vector_greater(const vector<int> *v, const int s) {
     return __vector_compare<int, std::greater<int>>(v, s);
 }
 
-// Return mask of indices that are greater or equal than the entry
 vector<bool> vector_greater_equal(const vector<double> *v, const double s) {
     return __vector_compare<double, std::greater_equal<double>>(v, s);
 }
@@ -131,7 +119,6 @@ vector<bool> vector_greater_equal(const vector<int> *v, const int s) {
     return __vector_compare<int, std::greater_equal<int>>(v, s);
 }
 
-// Return mask of indices that are less than the scalar
 vector<bool> vector_less(const vector<double> *v, const double s) {
     return __vector_compare<double, std::less<double>>(v, s);
 }
@@ -140,7 +127,6 @@ vector<bool> vector_less(const vector<int> *v, const int s) {
     return __vector_compare<int, std::less<int>>(v, s);
 }
 
-// Return mask of indices that are less or equal than the scalar
 vector<bool> vector_less_equal(const vector<double> *v, const double s) {
     return __vector_compare<double, std::less_equal<double>>(v, s);
 }
@@ -149,7 +135,6 @@ vector<bool> vector_less_equal(const vector<int> *v, const int s) {
     return __vector_compare<int, std::less_equal<int>>(v, s);
 }
 
-// Return sorting indexes for vector
 vector<int> get_sort_indices(const vector<int> &v, const string& direction) {
     // initialize original index locations
     vector<int> idx(v.size());
@@ -164,26 +149,28 @@ vector<int> get_sort_indices(const vector<int> &v, const string& direction) {
     return idx;
 }
 
-// Sum of the elements in vector
-int vector_sum(const vector<bool> &v) { return accumulate(v.begin(), v.end(), 0); }
-int vector_sum(const vector<int> &v) { return accumulate(v.begin(), v.end(), 0); }
-double vector_sum(const vector<double> &v) { return accumulate(v.begin(), v.end(), 0.0); }
+int vector_sum(const vector<bool> &v) {
+    return accumulate(v.begin(), v.end(), 0);
+}
 
-// Determine whether the value is close to one of the boundary values or not
+int vector_sum(const vector<int> &v) {
+    return accumulate(v.begin(), v.end(), 0);
+}
+
+double vector_sum(const vector<double> &v) {
+    return accumulate(v.begin(), v.end(), 0.0);
+}
+
 bool on_boundary(const double val, const double boundary1, const double boundary2, const double eps) {
     return (fabs(val - boundary1) <= eps) || (fabs(val - boundary2) <= eps);
 }
 
-// Determine whether the value is close to the boundary value or not
 bool on_boundary(const double val, const double boundary, const double eps) {
     return fabs(val - boundary) <= eps;
 }
 
-// Extract file type from file name
 string get_file_type(const string& file_name) {
-    const int start = file_name.find_last_of('.') + 1;
-    const int end = file_name.size();
-    return file_name.substr(start, end);
+    return file_name.substr(file_name.find_last_of('.') + 1);
 }
 
 string return_class_name(const string& typeid_name) {

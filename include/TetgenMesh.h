@@ -27,12 +27,10 @@ namespace femocs {
  * end of input point list while not modifying the ordering of input points.
  * This helps to distinguish surface nodes from the generated nodes in bulk and vacuum.
  */
-class TetgenMesh : public FileWriter {
+class TetgenMesh: public FileWriter {
 public:
     TetgenMesh();
     ~TetgenMesh() {}
-
-    void set_write_period(const double delta_time);
 
     /** Read mesh from file and generate mappings between cells */
     int read(const string &file, const string &cmd);

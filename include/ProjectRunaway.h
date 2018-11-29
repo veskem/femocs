@@ -70,9 +70,6 @@ protected:
     string timestep_string;     ///< time step written to file name
     double last_heat_time;      ///< Last time heat was updated
     double last_pic_time;       ///< Last time PIC solver was called
-    double last_write_time;     ///< Keeps the time that last file output was done
-    int last_completed_timestep;///< Last time step that ended with finalize
-    int last_full_timestep;     ///< Last completed timestep with mesh rebuild
 
     Interpolator vacuum_interpolator;  ///< data & operations for interpolating field & potential in vacuum
     Interpolator bulk_interpolator;    ///< data & operations for interpolating current density & temperature in bulk
@@ -101,8 +98,6 @@ protected:
     /** Import mesh to FEM solvers and initialize interpolators */
     int prepare_solvers();
 
-    void write_pic_results();
-
     /** Solve Laplace equation on vacuum mesh */
     int solve_laplace(double E0, double V0);
 
@@ -117,7 +112,7 @@ protected:
 
     void calc_heat_emission(bool full_run);
 
-    int make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool full_run, bool prepare_write);
+    int make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool full_run);
 
     void initalize_pic_emission(bool full_run);
 
@@ -133,11 +128,6 @@ protected:
     /** Specify mesh address where new mesh will be generated on next run */
     void update_mesh_pointers();
 
-    /** Check if enough time has passed since the last file write_results */
-    bool write_time() const {
-        return GLOBALS.TIME >= (last_write_time + conf.behaviour.write_period);
-    }
-
 private:
     /** Determine whether atoms have moved significantly and whether to enable file writing */
     int reinit(int timestep, double time);
@@ -152,7 +142,10 @@ private:
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
 
     /** Write restart file so that simulation could be started at t>0 time */
-    int write_restart(const string &path_to_file);
+    void write_restart(const string &path_to_file);
+
+    /** Write the output of PIC step */
+    void write_pic_results();
 };
 
 } /* namespace femocs */

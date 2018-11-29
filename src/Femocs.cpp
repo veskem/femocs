@@ -23,9 +23,6 @@ Femocs::Femocs(const string &conf_file) : t0(0), reader(&conf.geometry) {
     // Read configuration parameters from configuration file
     conf.read_all(conf_file);
 
-    // Initialise file writing
-    MODES.WRITEFILE = conf.behaviour.n_writefile > 0;
-
     // Pick the correct verbosity mode flags
     if      (conf.behaviour.verbosity == "mute")    { MODES.MUTE = true;  MODES.VERBOSE = false; }
     else if (conf.behaviour.verbosity == "silent")  { MODES.MUTE = false; MODES.VERBOSE = false; }

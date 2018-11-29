@@ -62,10 +62,8 @@ public:
         string project;             ///< Type of project to be called; runaway, ...
         int n_write_restart;        ///< # time steps between writing restart file; 0 disables write
         int n_write_log;            ///< # time steps between writing log file; <0: only last time step, 0: no write, >0: only every n-th
-        int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
-        int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
         int n_read_conf;            ///< # time steps between re-reading configuration values from file; 0 turns re-reading off
-        double write_period;        ///< Write files every write_period [fs]
+        int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
         double timestep_fs;         ///< Total time evolution within a FEMOCS run call [fs]
         double mass;                ///< Atom mass [amu]
         unsigned int rnd_seed;      ///< Seed for random number generator

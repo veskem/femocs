@@ -41,7 +41,6 @@ int ProjectSpaceCharge::run(int timestep, double time) {
             double factor = conf.SC.apply_factors[i];
             prepare(i);
             GLOBALS.TIME = 0;
-            last_write_time = 0.;
 
             if (converge_pic())
                 return process_failed("Running field solver in a " + conf.field.mode + " mode failed!");

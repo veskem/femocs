@@ -22,7 +22,7 @@ namespace femocs {
 /** Template class for holding finite element cells;
  * dim specifies the dimensionality of the cell - 1-node, 2-line, 3-triangle etc. */
 template<int dim>
-class TetgenCells : public FileWriter {
+class TetgenCells: public FileWriter {
 public:
 
     /** Default constructor that creates empty instance */

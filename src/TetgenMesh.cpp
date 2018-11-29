@@ -18,16 +18,6 @@ TetgenMesh::TetgenMesh() {
     tetIOout.initialize();
 }
 
-void TetgenMesh::set_write_period(const double dt) {
-    FileWriter::set_write_period(dt);
-    nodes.set_write_period(dt);
-    edges.set_write_period(dt);
-    tris.set_write_period(dt);
-    tets.set_write_period(dt);
-    quads.set_write_period(dt);
-    hexs.set_write_period(dt);
-}
-
 // Code is inspired from the work of Shawn Halayka
 // TODO if found, add the link to Shawn's version
 void TetgenMesh::smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm) {
@@ -648,7 +638,7 @@ void TetgenMesh::write_msh(ofstream &out) const {
 }
 
 void TetgenMesh::write_separate(const string& file_name, const int type) {
-    if (not_write_time()) return;
+    if (!write_time()) return;
 
     vector<bool> hex_mask;
     if (type == TYPES.VACUUM)

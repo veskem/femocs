@@ -21,8 +21,6 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         fail(false), t0(0), mesh_changed(false), first_run(true),
 		last_heat_time(-conf.behaviour.timestep_fs),
 		last_pic_time(-conf.behaviour.timestep_fs),
-        last_write_time(0),
-		last_completed_timestep(0), last_full_timestep(0),
 
         vacuum_interpolator("Elfield", "ElfieldNorm", "Potential"),
         bulk_interpolator("Rho", "Potential", "Temperature"),
@@ -44,9 +42,6 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 {
     poisson_solver.set_particles(pic_solver.get_particles());
 
-    mesh1.set_write_period(conf.behaviour.write_period);
-    mesh2.set_write_period(conf.behaviour.write_period);
-
     // Initialise heating module
     start_msg(t0, "Reading physical quantities");
     phys_quantities.initialize_with_hc_data();
@@ -64,16 +59,10 @@ int ProjectRunaway::reinit(int tstep, double time) {
     if (conf.behaviour.n_read_conf > 0 && GLOBALS.TIMESTEP % conf.behaviour.n_read_conf == 0)
         conf.read_all();
 
-    MODES.WRITEFILE = conf.behaviour.n_writefile > 0 && (
-            last_completed_timestep == 0 ||
-            last_full_timestep == 0 ||
-            (GLOBALS.TIMESTEP - last_completed_timestep) >= conf.behaviour.n_writefile
-            );
-
     double rmsd = reader.get_rmsd();
-
     string rmsd_string = "inf";
     if (rmsd < 1e100) rmsd_string = d2s(rmsd);
+
     write_silent_msg("Running at timestep=" + d2s(GLOBALS.TIMESTEP)
             + ", time=" + d2s(GLOBALS.TIME, 2) + " fs, rmsd=" + rmsd_string);
 
@@ -88,18 +77,10 @@ int ProjectRunaway::finalize(double tstart, double time) {
     double delta_time = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs - GLOBALS.TIME;
     GLOBALS.TIME += max(0.0, delta_time);
 
+    write_restart("in/femocs.restart");
     write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
 
-    // update file output counters
-    if (MODES.WRITEFILE) {
-        last_completed_timestep = GLOBALS.TIMESTEP;
-        if (mesh_changed) last_full_timestep = GLOBALS.TIMESTEP;
-    }
-
-    if (conf.behaviour.n_write_restart > 0 &&
-            (GLOBALS.TIMESTEP % conf.behaviour.n_write_restart) == 0)
-        write_restart("in/femocs.restart");
-
+    mesh_changed = false;
     first_run = false;
     return 0;
 }
@@ -144,8 +125,6 @@ int ProjectRunaway::run(const int timestep, const double time) {
 
     if (prepare_export())
         return process_failed("Interpolating solution on atoms failed!");
-    else
-        mesh_changed = false;
 
     return finalize(tstart, time);
 }
@@ -207,10 +186,7 @@ int ProjectRunaway::generate_mesh() {
         end_msg(t0);
     }
 
-    MODES.WRITEFILE |= conf.behaviour.n_writefile > 0 &&
-            (GLOBALS.TIMESTEP - last_full_timestep) >= conf.behaviour.n_writefile;
-
-    new_mesh->nodes.write("out/hexmesh_nodes.vtk");
+    new_mesh->nodes.write("out/hexmesh_nodes.xyz");
     new_mesh->tris.write("out/trimesh.vtk");
     new_mesh->quads.write("out/quadmesh.vtk");
     new_mesh->tets.write("out/tetmesh.vtk");
@@ -388,7 +364,7 @@ int ProjectRunaway::solve_force() {
 int ProjectRunaway::solve_laplace(double E0, double V0) {
     start_msg(t0, "Initializing Laplace solver");
     poisson_solver.setup(-E0, V0);
-    poisson_solver.assemble(true, false);
+    poisson_solver.assemble(true);
     end_msg(t0);
 
     write_verbose_msg(poisson_solver.to_str());
@@ -431,7 +407,8 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
             + d2s(n_pic_steps) + "*" + d2s(dt_pic)+" = " + d2s(advance_time) + " fs\n");
     int n_lost, n_cg, n_injected, error;
     for (int i = 0; i < n_pic_steps; ++i) {
-        error = make_pic_step(n_lost, n_cg, n_injected, full_run && i==0, write_time());
+        error = make_pic_step(n_lost, n_cg, n_injected, full_run && i==0);
+
         if (error) {
             GLOBALS.TIME += (n_pic_steps - i) * dt_pic;
             return 1;
@@ -474,14 +451,12 @@ void ProjectRunaway::initalize_pic_emission(bool full_run) {
     end_msg(t0);
 }
 
-int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected,
-        bool full_run, bool write_files)
-{
+int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool full_run) {
     // advance super particles
     n_lost = pic_solver.update_positions();
 
     // assemble and solve Poisson equation
-    poisson_solver.assemble(full_run, write_files);
+    poisson_solver.assemble(full_run);
     n_cg = poisson_solver.solve();
 
     // must be after solving Poisson and before updating velocities
@@ -501,15 +476,12 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected,
     n_injected = abs(pic_solver.inject_electrons(conf.pic.fractional_push));
     check_return(n_injected > conf.pic.max_injected, "Too many injected SP-s, " + d2s(n_injected) + ". Check the SP weight!")
 
-    if (write_files) write_pic_results();
+    write_pic_results();
     return 0;
 }
 
 void ProjectRunaway::write_pic_results() {
-    bool mode_save = MODES.WRITEFILE;
-    MODES.WRITEFILE = true;
-
-    emission.write("out/emission.dat");
+    emission.write("out/emission.dat", FileIO::no_update);
     emission.write("out/emission.movie");
     pic_solver.write("out/electrons.movie");
     surface_fields.write("out/surface_fields.movie");
@@ -519,9 +491,6 @@ void ProjectRunaway::write_pic_results() {
 //    charge_density.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
 //    charge_density.extract_charge_density(poisson_solver);
 //    charge_density.nodes.write("out/result_E_charge.movie");
-
-    MODES.WRITEFILE = mode_save;
-    last_write_time = GLOBALS.TIME;
 }
 
 int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {
@@ -664,16 +633,15 @@ int ProjectRunaway::restart(const string &path_to_file) {
     return 0;
 }
 
-int ProjectRunaway::write_restart(const string &path_to_file) {
-    bool writefile_save = MODES.WRITEFILE;
-    MODES.WRITEFILE = true;
+void ProjectRunaway::write_restart(const string &path_to_file) {
+    if (conf.behaviour.n_write_restart <= 0 ||
+             (GLOBALS.TIMESTEP % conf.behaviour.n_write_restart) != 0)
+        return;
 
-    mesh->write(path_to_file);
-    bulk_interpolator.nodes.write(path_to_file);
-    pic_solver.write(path_to_file);
-
-    MODES.WRITEFILE = writefile_save;
-    return 0;
+    unsigned int flags = FileIO::force | FileIO::no_update | FileIO::append;
+    mesh->write(path_to_file, FileIO::force | FileIO::no_update);
+    bulk_interpolator.nodes.write(path_to_file, flags);
+    pic_solver.write(path_to_file, flags);
 }
 
 } /* namespace femocs */

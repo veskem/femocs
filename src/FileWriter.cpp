@@ -14,30 +14,24 @@
 using namespace std;
 namespace femocs {
 
-FileWriter::FileWriter() :
-        delta_time(0), last_write_time(0)
-{}
+FileWriter::FileWriter() : last_write_time(-MODES.WRITE_PERIOD) {}
 
-FileWriter::FileWriter(const double dt) :
-        delta_time(dt), last_write_time(-dt)
-{}
-
-void FileWriter::set_write_period(const double dt) {
-    require(dt >= 0, "Invalid write period: " + d2s(dt));
-    delta_time = dt;
-}
-
-bool FileWriter::not_write_time() const {
-    return delta_time < 0 || (GLOBALS.TIME - last_write_time) < delta_time;
+bool FileWriter::write_time() const {
+    constexpr double epsilon = 1e-10;
+    return MODES.WRITE_PERIOD >= 0 && (GLOBALS.TIME - last_write_time + epsilon) >= MODES.WRITE_PERIOD;
 }
 
 bool FileWriter::first_line(ofstream &out) const {
     return out.tellp() == 0;
 }
 
-void FileWriter::write(const string &file_name, bool force) {
-    if (!force && not_write_time())
+void FileWriter::write(const string &file_name, unsigned int flags) {
+    bool force = flags & FileIO::force;
+    if (!force && !write_time())
         return;
+
+    bool update = ! (flags & FileIO::no_update);
+    bool append = flags & FileIO::append;
 
     string ftype = get_file_type(file_name);
     if (!valid_extension(ftype)) {
@@ -46,7 +40,7 @@ void FileWriter::write(const string &file_name, bool force) {
     }
 
     ofstream outfile;
-    if (ftype == "movie" || ftype == "restart" || ftype == "dat")
+    if (ftype == "movie" || ftype == "dat" || append)
         outfile.open(file_name, ios_base::app);
     else
         outfile.open(file_name);
@@ -69,7 +63,7 @@ void FileWriter::write(const string &file_name, bool force) {
         write_ckx(outfile);
 
     outfile.close();
-    last_write_time = GLOBALS.TIME;
+    if (update) last_write_time = GLOBALS.TIME;
 }
 
 void FileWriter::write_xyz(ofstream &out) const {

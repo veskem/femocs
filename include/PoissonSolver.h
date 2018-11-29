@@ -63,7 +63,7 @@ public:
     /** Assemble the matrix equation to solve Laplace or Poisson equation
      * by appling Neumann BC (constant field) or Dirichlet BC (constant potential) on top of simubox
      * as specified in config file. */
-    void assemble(const bool first_time, const bool write_time);
+    void assemble(const bool first_time);
 
 private:
     const ParticleSpecies* particles;

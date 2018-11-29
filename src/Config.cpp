@@ -23,11 +23,9 @@ Config::Config() {
     behaviour.verbosity = "verbose";
     behaviour.project = "runaway";
     behaviour.n_write_restart = 0;
-    behaviour.n_write_log = -1;
-    behaviour.n_writefile = 1;
-    behaviour.interpolation_rank = 1;
+    behaviour.n_write_log = 0;
     behaviour.n_read_conf = 0;
-    behaviour.write_period = 4.05;
+    behaviour.interpolation_rank = 1;
     behaviour.timestep_fs = 4.05;
     behaviour.mass = 63.5460;
     behaviour.rnd_seed = 12345;
@@ -147,6 +145,7 @@ void Config::read_all(const string& fname, bool full_run) {
         check_changed("field_solver", "field_mode");
         check_changed("pic_mode", "field_mode");
         check_changed("heating_mode", "heat_mode");
+        check_changed("n_writefile", "write_period");
     }
 
     // Modify the parameters that are specified in input script
@@ -221,9 +220,8 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("n_write_log", behaviour.n_write_log);
     read_command("femocs_verbose_mode", behaviour.verbosity);
     read_command("project", behaviour.project);
-    read_command("n_writefile", behaviour.n_writefile);
     read_command("interpolation_rank", behaviour.interpolation_rank);
-    read_command("write_period", behaviour.write_period);
+    read_command("write_period", MODES.WRITE_PERIOD);
     read_command("md_timestep", behaviour.timestep_fs);
     read_command("mass(1)", behaviour.mass);
     read_command("seed", behaviour.rnd_seed);
