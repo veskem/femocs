@@ -693,15 +693,15 @@ int Mesh::read_scalar(ifstream &in) const {
 }
 
 int Mesh::type2nnodes(const int el_type) const {
-    if (el_type == femocs::Gmsh::line)
+    if (el_type == femocs::GmshType::line)
         return femocs::n_nodes_per_edge;
-    else if (el_type == femocs::Gmsh::triangle)
+    else if (el_type == femocs::GmshType::triangle)
         return femocs::n_nodes_per_tri;
-    else if (el_type == femocs::Gmsh::tetrahedron)
+    else if (el_type == femocs::GmshType::tetrahedron)
         return femocs::n_nodes_per_tet;
-    else if (el_type == femocs::Gmsh::quadrangle)
+    else if (el_type == femocs::GmshType::quadrangle)
         return femocs::n_nodes_per_quad;
-    else if (el_type == femocs::Gmsh::hexahedron)
+    else if (el_type == femocs::GmshType::hexahedron)
         return femocs::n_nodes_per_hex;
     return 0;
 }
@@ -711,21 +711,21 @@ inline void Mesh::store_element(int el_type, vector<int> &nodes, int phys_domain
     const bool read_all_faces = flags & (1 << 1);
 
     switch (el_type) {
-    case femocs::Gmsh::line:
+    case femocs::GmshType::line:
         if (read_edges)
             lines.push_back(new Line(nodes, phys_domain));
         return;
-    case femocs::Gmsh::triangle:
+    case femocs::GmshType::triangle:
         if (read_all_faces || phys_domain == femocs::TYPES.SURFACE)
             triangles.push_back(new Triangle(nodes, phys_domain));
         return;
-    case femocs::Gmsh::quadrangle:
+    case femocs::GmshType::quadrangle:
         quadrangles.push_back(new Quadrangle(nodes, phys_domain));
         return;
-    case femocs::Gmsh::tetrahedron:
+    case femocs::GmshType::tetrahedron:
         tetrahedra.push_back(new Tetrahedron(nodes, phys_domain));
         return;
-    case femocs::Gmsh::hexahedron:
+    case femocs::GmshType::hexahedron:
         hexahedra.push_back(new Hexahedron(nodes, phys_domain));
         return;
     default:

@@ -64,50 +64,55 @@ struct Types {
     const int EDGECENTROID = 2; ///< node on the centroid of line
     const int FACECENTROID = 3; ///< node on the centroid of triangular face
     const int TETCENTROID = 4;  ///< node on the centroid of tetrahedron
-
-    /// Vtk cell types
-    static struct Vtk_Types {
-        // Linear cells
-        static constexpr int EMPTY_CELL       = 0;
-        static constexpr int VERTEX           = 1;
-        static constexpr int POLY_VERTEX      = 2;
-        static constexpr int LINE             = 3;
-        static constexpr int POLY_LINE        = 4;
-        static constexpr int TRIANGLE         = 5;
-        static constexpr int TRIANGLE_STRIP   = 6;
-        static constexpr int POLYGON          = 7;
-        static constexpr int PIXEL            = 8;
-        static constexpr int QUADRANGLE       = 9;
-        static constexpr int TETRAHEDRON      = 10;
-        static constexpr int VOXEL            = 11;
-        static constexpr int HEXAHEDRON       = 12;
-        static constexpr int WEDGE            = 13;
-        static constexpr int PYRAMID          = 14;
-        static constexpr int PENTAGONAL_PRISM = 15;
-        static constexpr int HEXAGONAL_PRISM  = 16;
-        // Quadratic, isoparametric cells
-        static constexpr int QUADRATIC_EDGE                   = 21;
-        static constexpr int QUADRATIC_TRIANGLE               = 22;
-        static constexpr int QUADRATIC_QUADRANGLE             = 23;
-        static constexpr int QUADRATIC_POLYGON                = 36;
-        static constexpr int QUADRATIC_TETRAHEDRON            = 24;
-        static constexpr int QUADRATIC_HEXAHEDRON             = 25;
-        static constexpr int QUADRATIC_WEDGE                  = 26;
-        static constexpr int QUADRATIC_PYRAMID                = 27;
-        static constexpr int BIQUADRATIC_QUADRANGLE           = 28;
-        static constexpr int TRIQUADRATIC_HEXAHEDRON          = 29;
-        static constexpr int QUADRATIC_LINEAR_QUADRANGLE      = 30;
-        static constexpr int QUADRATIC_LINEAR_WEDGE           = 31;
-        static constexpr int BIQUADRATIC_QUADRATIC_WEDGE      = 32;
-        static constexpr int BIQUADRATIC_QUADRATIC_HEXAHEDRON = 33;
-        static constexpr int BIQUADRATIC_TRIANGLE             = 34;
-        // Polyhedron cell (consisting of polygonal faces)
-        static constexpr int POLYHEDRON = 42;
-    } VTK;
 };
 
+/// Vtk cell types
+namespace VtkType {
+enum {
+    // Linear cells
+    empty_cell       = 0,
+    vertex           = 1,
+    poly_vertex      = 2,
+    line             = 3,
+    poly_line        = 4,
+    triangle         = 5,
+    triangle_strip   = 6,
+    polygon          = 7,
+    pixel            = 8,
+    quadrangle       = 9,
+    tetrahedron      = 10,
+    voxel            = 11,
+    hexahedron       = 12,
+    wedge            = 13,
+    pyramid          = 14,
+    pentagonal_prism = 15,
+    hexagonal_prism  = 16,
+
+    // Quadratic, isoparametric cells
+    quadratic_edge                   = 21,
+    quadratic_triangle               = 22,
+    quadratic_quadrangle             = 23,
+    quadratic_polygon                = 36,
+    quadratic_tetrahedron            = 24,
+    quadratic_hexahedron             = 25,
+    quadratic_wedge                  = 26,
+    quadratic_pyramid                = 27,
+    biquadratic_quadrangle           = 28,
+    triquadratic_hexahedron          = 29,
+    quadratic_linear_quadrangle      = 30,
+    quadratic_linear_wedge           = 31,
+    biquadratic_quadratic_wedge      = 32,
+    biquadratic_quadratic_hexahedron = 33,
+    biquadratic_triangle             = 34,
+
+    // Polyhedron cell (consisting of polygonal faces)
+    polyhedron = 42
+};
+}
+
 /// Gmesh cell types
-enum Gmsh {
+namespace GmshType {
+enum {
     vertex                  = 15, ///< 1-node point
     line                    = 1,  ///< 2-node line
     triangle                = 2,  ///< 3-node triangle
@@ -122,6 +127,7 @@ enum Gmsh {
     biquadratic_quadrangle  = 10, ///< 9-node second order quadrangle
     triquadratic_hexahedron = 12  ///< 27-node second order hexahedron
 };
+}
 
 /** Labels of the calculated/exported/interpolated data. */
 struct Labels {

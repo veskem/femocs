@@ -319,7 +319,7 @@ private:
     void reserve(const int N);
 
     /** Return the tetrahedron type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.TETRAHEDRON; }
+    int get_cell_type() const { return VtkType::tetrahedron; }
 };
 
 /**
@@ -372,7 +372,7 @@ private:
     void reserve(const int N);
 
     /** Return the 10-noded tetrahedron type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.QUADRATIC_TETRAHEDRON; };
+    int get_cell_type() const { return VtkType::quadratic_tetrahedron; };
 
     /** Calculate the vertex indices of 10-noded tetrahedron */
     SimpleCell<10> calc_cell(const int i) const;
@@ -461,7 +461,7 @@ private:
     void reserve(const int N);
 
     /** Return linear hexahedron type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; };
+    int get_cell_type() const { return VtkType::hexahedron; };
 
     /** Map the point from Cartesian xyz-coordinates to natural uvw-coordinates.
      * In natural coordinate system, each coordinate is within limits [-1, 1]. */
@@ -538,7 +538,7 @@ private:
     void reserve(const int N);
 
     /** Return the triangle type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.TRIANGLE; };
+    int get_cell_type() const { return VtkType::triangle; };
 
     /** Return the distance between a point and i-th triangle in the direction of its norm.
      * If the projection of the point is outside the triangle, the 1e100 distance will be returned.
@@ -598,7 +598,7 @@ private:
     void reserve(const int N);
 
     /** Return the 6-noded triangle type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.QUADRATIC_TRIANGLE; };
+    int get_cell_type() const { return VtkType::quadratic_triangle; };
 
     /** Calculate the vertex indices of 6-noded triangle */
     SimpleCell<6> calc_cell(const int i) const;
@@ -645,7 +645,7 @@ private:
     void reserve(const int N);
 
     /** Return the quadrangle type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.QUADRANGLE; };
+    int get_cell_type() const { return VtkType::quadrangle; };
 };
 
 } /* namespace femocs */

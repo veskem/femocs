@@ -258,14 +258,14 @@ protected:
 
     /** Output mesh node data in .vtk format */
     void write_vtk_point_data(ofstream &out) const {
-        if (get_cell_type() != TYPES.VTK.VERTEX) return;
+        if (get_cell_type() != VtkType::vertex) return;
         out << "POINT_DATA " << size() << "\n";
         write_vtk_data(out);
     }
 
     /** Output mesh cell data in .vtk format */
     void write_vtk_cell_data(ofstream &out) const {
-        if (get_cell_type() == TYPES.VTK.VERTEX) return;
+        if (get_cell_type() == VtkType::vertex) return;
         out << "CELL_DATA " << size() << "\n";
         write_vtk_data(out);
     }
@@ -367,7 +367,7 @@ public:
 
 private:
     /** Return the vertex type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.VERTEX; }
+    int get_cell_type() const { return VtkType::vertex; }
 
     /** Return index of i-th node */
     SimpleCell<1> get_cell(const int i) const;
@@ -417,7 +417,7 @@ public:
 
 private:
     /** Return the line type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.LINE; }
+    int get_cell_type() const { return VtkType::line; }
 
     /** Return i-th edge */
     SimpleCell<2> get_cell(const int i) const;
@@ -497,7 +497,7 @@ private:
     vector<Point3> centroids; ///< pre-calculated centroids of triangles
 
     /** Return the triangle type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.TRIANGLE; }
+    int get_cell_type() const { return VtkType::triangle; }
 
     /** Return i-th face */
     SimpleCell<3> get_cell(const int i) const;
@@ -557,7 +557,7 @@ private:
     vector<vector<int>> map2tris; ///< data for mapping tetrahedron to the triangles
 
     /** Return the tetrahedron type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.TETRAHEDRON; }
+    int get_cell_type() const { return VtkType::tetrahedron; }
 
     /** Return i-th element */
     SimpleCell<4> get_cell(const int i) const;
@@ -606,7 +606,7 @@ protected:
     vector<array<int,2>> map2hexs;
 
     /** Return the quadrangle type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.QUADRANGLE; }
+    int get_cell_type() const { return VtkType::quadrangle; }
 
     /** Return i-th quadrangle */
     SimpleCell<4> get_cell(const int i) const;
@@ -657,7 +657,7 @@ protected:
     vector<vector<int>> map2quads;
 
     /** Return the hexahedron type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; }
+    int get_cell_type() const { return VtkType::hexahedron; }
 
     /** Return i-th hexahedron */
     SimpleCell<8> get_cell(const int i) const;

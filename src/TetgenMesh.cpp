@@ -573,7 +573,7 @@ void TetgenMesh::write_bin(ofstream &out) const {
     int buffer[2] = {1, 0};
 
     // write header for triangles
-    header[0]=Gmsh::triangle; header[1]=n_tris; header[2]=1;
+    header[0]=GmshType::triangle; header[1]=n_tris; header[2]=1;
     out.write ((char*)&header, sizeof (header));
 
     // write triangles
@@ -585,7 +585,7 @@ void TetgenMesh::write_bin(ofstream &out) const {
     }
 
     // write header for tetrahedra
-    header[0]=Gmsh::tetrahedron; header[1]=n_tets; header[2]=1;
+    header[0]=GmshType::tetrahedron; header[1]=n_tets; header[2]=1;
     out.write ((char*)&header, sizeof (header));
 
     // write tetrahedra
@@ -621,7 +621,7 @@ void TetgenMesh::write_msh(ofstream &out) const {
     // write triangles
     for (size_t i = 0; i < n_tris; ++i, ++serial_nr) {
         out << serial_nr << " "        // serial number of element
-        << Gmsh::triangle << " 1 "     // Gmsh type of element & number of tags
+        << GmshType::triangle << " 1 "     // Gmsh type of element & number of tags
         << tris.get_marker(i) << " "   // physical domain
         << tris[i] << "\n";
     }
@@ -629,7 +629,7 @@ void TetgenMesh::write_msh(ofstream &out) const {
     // write tetrahedra
     for (size_t i = 0; i < n_tets; ++i, ++serial_nr) {
         out << serial_nr << " "        // serial number of element
-        << Gmsh::tetrahedron << " 1 "  // Gmsh type of element & number of tags
+        << GmshType::tetrahedron << " 1 "  // Gmsh type of element & number of tags
         << tets.get_marker(i) << " "   // physical domain
         << tets[i] << "\n";
     }

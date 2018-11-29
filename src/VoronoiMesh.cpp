@@ -103,7 +103,7 @@ void VoronoiCells::write_cells(ofstream& out) const {
     // Output cell types
     out << "CELL_TYPES " << n_faces << "\n";
     for (size_t i = 0; i < n_faces; ++i)
-        out << TYPES.VTK.POLYGON << "\n";
+        out << VtkType::polygon << "\n";
 
     // Output scalar data associated with Voronoi cells
     out << "CELL_DATA " << n_faces << "\n";
@@ -179,7 +179,7 @@ void VoronoiFaces::write_cells(ofstream& out) const {
     // Output cell types
     out << "CELL_TYPES " << n_faces << "\n";
     for (size_t i = 0; i < n_faces; ++i)
-        out << TYPES.VTK.POLYGON << "\n";
+        out << VtkType::polygon << "\n";
 
     // Output scalar data associated with Voronoi faces
     out << "CELL_DATA " << n_faces << "\n";

@@ -361,7 +361,7 @@ void Medium::write_vtk_points_and_cells(ofstream& out) const {
     // Output cell types
     out << "CELL_TYPES " << n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
-        out << TYPES.VTK.VERTEX << "\n";
+        out << VtkType::vertex << "\n";
 }
 
 void Medium::write_vtk_point_data(ofstream& out) const {
