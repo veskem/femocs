@@ -502,10 +502,6 @@ void AtomReader::import_ckx(const string &file_name) {
 // =================================
 // *** WRITERS: ***************
 
-bool AtomReader::valid_extension(const string &ext) const {
-    return Medium::valid_extension(ext) || ext == "ckx";
-}
-
 void AtomReader::write_ckx(ofstream &out) const {
     // write the start of xyz header
     FileWriter::write_xyz(out);

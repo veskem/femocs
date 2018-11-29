@@ -66,8 +66,6 @@ protected:
     double t0;                  ///< CPU timer
     bool mesh_changed;          ///< True if new mesh has been created
     bool first_run;             ///< True only as long as there is no full run
-
-    string timestep_string;     ///< time step written to file name
     double last_heat_time;      ///< Last time heat was updated
     double last_pic_time;       ///< Last time PIC solver was called
 

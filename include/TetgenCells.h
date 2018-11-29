@@ -272,7 +272,7 @@ protected:
 
     /** Specify implemented output file formats */
     bool valid_extension(const string &ext) const {
-        return ext == "vtk";
+        return ext == "vtk" || ext == "vtks";
     }
 };
 
@@ -381,7 +381,9 @@ private:
     void init_statistics();
 
     /** Specify implemented output file formats */
-    bool valid_extension(const string &ext) const;
+    bool valid_extension(const string &ext) const {
+        return ext == "xyz" || ext == "movie" || ext == "vtk" || ext == "vtks";
+    }
 };
 
 /** Class for holding Tetgen line edges */

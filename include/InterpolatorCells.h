@@ -20,7 +20,7 @@ namespace femocs {
 /**
  * Data & operations for obtaining and holding nodal interpolation data
  */
-class InterpolatorNodes : public FileWriter {
+class InterpolatorNodes: public FileWriter {
 public:
     InterpolatorNodes();
     InterpolatorNodes(const string &vec_label, const string &norm_label, const string &scalar_label);
@@ -124,7 +124,7 @@ private:
 
     /** Specify implemented output file formats */
     bool valid_extension(const string &ext) const {
-        return ext == "xyz" || ext == "movie" || ext == "vtk" || ext == "restart";
+        return ext == "xyz" || ext == "movie" || ext == "vtk" || ext == "vtks" || ext == "restart";
     }
 
     /** Output interpolation data in .xyz format */
@@ -144,7 +144,7 @@ private:
  * Template class for interpolators of different kind
  */
 template<int dim>
-class InterpolatorCells : public FileWriter {
+class InterpolatorCells: public FileWriter {
 public:
     InterpolatorCells() : mesh(NULL), nodes(NULL) { reserve(0); }
 
@@ -253,7 +253,7 @@ protected:
 
     /** Specify implemented output file formats */
     bool valid_extension(const string &ext) const {
-        return ext == "vtk";
+        return ext == "vtk" || ext == "vtks";
     }
 
     /** Find the common entry between two vectors */

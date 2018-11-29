@@ -1043,7 +1043,9 @@ private:
     void read_ascii(ifstream &in, const int flags);
 
     /** Specify file types that can be written */
-    bool valid_extension(const string &extension) const;
+    bool valid_extension(const string &ext) const {
+        return ext == "msh";
+    }
 
     /**
      * Write the resulting brick mesh into the file

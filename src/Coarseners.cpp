@@ -281,10 +281,6 @@ bool Coarseners::inside_interesting_region(const Point3& p) const {
     return inside_tip && inside_cone;
 }
 
-bool Coarseners::valid_extension(const string &ext) const {
-    return ext == "vtk";
-}
-
 void Coarseners::write_vtk(ofstream &out) const {
     out << "# vtk DataFile Version 3.0\n";
     out << "# " + class_name() + "\n";

@@ -1341,10 +1341,6 @@ void Mesh::face_numeration(std::vector<MeshElement*> &cells,
     } // cells
 } // face numeration
 
-bool Mesh::valid_extension(const string &ext) const {
-    return ext == "msh";
-}
-
 void Mesh::write_msh(ofstream &out) const {
     // write Gmsh header
     femocs::FileWriter::write_msh(out);

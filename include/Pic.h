@@ -135,7 +135,9 @@ private:
     void collide_pair(int p1, int p2, double variance);
 
     /** Specify file types that can be written */
-    bool valid_extension(const string &extension) const;
+    bool valid_extension(const string &ext) const {
+        return ext == "xyz" || ext == "movie" || ext == "restart";
+    }
 
     /** Label for restart data */
     string get_restart_label() const { return "Electrons"; }

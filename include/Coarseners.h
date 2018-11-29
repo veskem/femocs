@@ -280,7 +280,9 @@ private:
     void write_vtk(ofstream &out) const;
 
     /** Specify file types that can be written */
-    bool valid_extension(const string &extension) const;
+    bool valid_extension(const string &ext) const {
+        return ext == "vtk" ||  ext == "vtks";
+    }
 };
 
 } // namespace femocs

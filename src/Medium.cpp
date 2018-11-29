@@ -330,10 +330,6 @@ void Medium::set_marker(const int i, const int m) {
     atoms[i].marker = m;
 }
 
-bool Medium::valid_extension(const string &ext) const {
-    return ext == "xyz" || ext == "movie" || ext == "vtk";
-}
-
 void Medium::write_xyz(ofstream& out) const {
     // write the start of xyz header
     FileWriter::write_xyz(out);

@@ -30,7 +30,7 @@ template<int dim> class HeatSolver;
 /** @brief General class to implement FEM solver in Deal.II
  */
 template<int dim>
-class DealSolver : public FileWriter {
+class DealSolver: public FileWriter {
 public:
 
     DealSolver();
@@ -202,7 +202,9 @@ protected:
     void calc_dof_volumes();
 
     /** Specify file types that can be written */
-    bool valid_extension(const string &extension) const;
+    bool valid_extension(const string &ext) const {
+        return ext == "vtk" || ext == "vtks" || ext == "msh";
+    }
 
     /** Write the mesh to msh file that can in turn be imported to Deal.II */
     void write_msh(ofstream& out) const;

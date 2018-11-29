@@ -197,11 +197,6 @@ bool DealSolver<dim>::import_mesh(vector<Point<dim>> vertices, vector<CellData<d
 }
 
 template<int dim>
-bool DealSolver<dim>::valid_extension(const string &ext) const {
-    return ext == "vtk" || ext == "msh";
-}
-
-template<int dim>
 void DealSolver<dim>::write_vtk(ofstream& out) const {
     DataOut<dim> data_out;
     data_out.attach_dof_handler(dof_handler);

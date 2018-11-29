@@ -198,10 +198,6 @@ void TetgenNodes::write_xyz(ofstream &out) const {
             out << i << " " << get_node(i) << " " << "-1" << endl;
 }
 
-bool TetgenNodes::valid_extension(const string &ext) const {
-    return ext == "xyz" || ext == "movie" || ext == "vtk";
-}
-
 /* =====================================================================
  *  =========================== TetgenEdges ===========================
  * ===================================================================== */

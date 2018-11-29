@@ -363,11 +363,6 @@ void Pic<dim>::read(const string &filename) {
 }
 
 template<int dim>
-bool Pic<dim>::valid_extension(const string &ext) const {
-    return ext == "xyz" || ext == "movie" || ext == "restart";
-}
-
-template<int dim>
 void Pic<dim>::write_xyz(ofstream &out) const {
     // start xyz header
     FileWriter::write_xyz(out);

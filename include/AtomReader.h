@@ -124,7 +124,9 @@ private:
     void write_ckx(ofstream &outfile) const;
 
     /** Specify file types that can be written */
-    bool valid_extension(const string &extension) const;
+    bool valid_extension(const string &ext) const {
+        return Medium::valid_extension(ext) || ext == "ckx";
+    }
 
     /** Reserve memory for data vectors */
     void reserve(const int n_atoms);

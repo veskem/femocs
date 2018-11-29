@@ -53,9 +53,6 @@ int ProjectRunaway::reinit(int tstep, double time) {
             + d2s(conf.behaviour.timestep_step));
     GLOBALS.TIMESTEP++;
 
-    timestep_string = d2s(GLOBALS.TIMESTEP);
-    timestep_string = "_" + string( max(0.0, 6.0 - timestep_string.length()), '0' ) + timestep_string;
-
     if (conf.behaviour.n_read_conf > 0 && GLOBALS.TIMESTEP % conf.behaviour.n_read_conf == 0)
         conf.read_all();
 
@@ -191,7 +188,7 @@ int ProjectRunaway::generate_mesh() {
     new_mesh->quads.write("out/quadmesh.vtk");
     new_mesh->tets.write("out/tetmesh.vtk");
     new_mesh->hexs.write("out/hexmesh.vtk");
-    new_mesh->write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
+    new_mesh->write_separate("out/hexmesh_bulk.vtks", TYPES.BULK);
 
     // update mesh pointers
     mesh = new_mesh;

@@ -119,7 +119,7 @@ private:
 
 /** Virtual class for holding data that is common to Voronoi cells and Voronoi faces */
 template<typename T>
-class Voronois : public FileWriter {
+class Voronois: public FileWriter {
 public:
     Voronois() : tetio(NULL), _n_cells(NULL) {}
     Voronois(tetgenio* data, int* n_cells) : tetio(data), _n_cells(n_cells) {}
@@ -181,7 +181,7 @@ protected:
 
     /** Specify file types that can be written */
     bool valid_extension(const string &ext) const {
-        return ext == "vtk";
+        return ext == "vtk" || ext == "vtks";
     }
 
     /** Write the header and point data of Voronois in .vtk format */

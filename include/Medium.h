@@ -15,7 +15,7 @@
 using namespace std;
 namespace femocs {
 
-class Medium : public FileWriter {
+class Medium: public FileWriter {
 public:
     /** Medium constructor */
     Medium();
@@ -129,7 +129,9 @@ protected:
     void init_statistics();
 
     /** Specify file types that can be written */
-    bool valid_extension(const string &extension) const;
+    bool valid_extension(const string &ext) const {
+        return ext == "xyz" || ext == "movie" || ext == "vtk" || ext == "vtks";
+    }
 
     /** Output data associated with atoms in .vtk format */
     virtual void write_vtk_point_data(ofstream& out) const;
