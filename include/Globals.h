@@ -13,60 +13,61 @@
 using namespace std;
 namespace femocs {
 
-enum BoundaryId {
-    copper_surface = 1,
-    vacuum_top = 2,
-    copper_bottom = 3,
-    vacuum_sides = 4,
-    copper_sides = 5
-};
-
 enum {
-    n_coordinates = 3,    ///< # coordinates
-    n_nodes_per_edge = 2, ///< # nodes on an edge
-    n_nodes_per_tri = 3,  ///< # nodes on a triangle
-    n_nodes_per_quad = 4, ///< # nodes on a quadrangle
-    n_nodes_per_tet = 4,  ///< # nodes on a tetrahedron
-    n_nodes_per_hex = 8,  ///< # nodes on a hexahedron
-    n_edges_per_tri = 3,  ///< # edges on a triangle
-    n_edges_per_quad = 4, ///< # edges on a quadrangle
-    n_edges_per_tet = 6,  ///< # edges on a tetrahedron
-    n_edges_per_hex = 12, ///< # edges on a hexahedron
-    n_tris_per_tet = 4,   ///< # triangles on a tetrahedron
-    n_tets_per_tri = 2,   ///< # tetrahedra connected to a triangle
-    n_hexs_per_quad = 2,  ///< # hexahedra connected to a quadrangle
-    n_hexs_per_tet = 4,   ///< # hexahedra connected to a tetrahedron
-    n_quads_per_tri = 3,  ///< # quadrangles connected to a triangle
-    n_quads_per_hex = 6   ///< # quadrangles connected to a hexahedron
+    n_coordinates    = 3,  ///< # coordinates
+    n_nodes_per_edge = 2,  ///< # nodes on an edge
+    n_nodes_per_tri  = 3,  ///< # nodes on a triangle
+    n_nodes_per_quad = 4,  ///< # nodes on a quadrangle
+    n_nodes_per_tet  = 4,  ///< # nodes on a tetrahedron
+    n_nodes_per_hex  = 8,  ///< # nodes on a hexahedron
+    n_edges_per_tri  = 3,  ///< # edges on a triangle
+    n_edges_per_quad = 4,  ///< # edges on a quadrangle
+    n_edges_per_tet  = 6,  ///< # edges on a tetrahedron
+    n_edges_per_hex  = 12, ///< # edges on a hexahedron
+    n_tris_per_tet   = 4,  ///< # triangles on a tetrahedron
+    n_tets_per_tri   = 2,  ///< # tetrahedra connected to a triangle
+    n_hexs_per_quad  = 2,  ///< # hexahedra connected to a quadrangle
+    n_hexs_per_tet   = 4,  ///< # hexahedra connected to a tetrahedron
+    n_quads_per_tri  = 3,  ///< # quadrangles connected to a triangle
+    n_quads_per_hex  = 6   ///< # quadrangles connected to a hexahedron
 };
 
 /** Types of regions used in the simulation */
 struct Types {
-    const int NONE = 0;      ///< type of atom with unknown position
-    const int BULK = 1;      ///< type of bulk material
-    const int SURFACE = 2;   ///< type of open material surface
-    const int VACUUM = 3;    ///< type of vacuum
-    const int VACANCY = 3;   ///< type of vacancies
-    const int PERIMETER = 4; ///< type of the rim/outer edge of surface
-    const int TOP = 5;   ///< type of vacancies
-    const int BOTTOM = 6; ///< type of the rim/outer edge of surface
-    const int FIXED = -1;    ///< type of fixed atoms
-    const int CLUSTER = -2;  ///< type of a cluster
-    const int EVAPORATED= -3;///< type of a evaporated atom
-    const int XMIN = 5;      ///< type of atom on negative x-face of simulation cell
-    const int YMIN = 6;      ///< type of atom on negative y-face of simulation cell
-    const int ZMIN = 7;      ///< type of atom on negative z-face of simulation cell
-    const int XMAX = 10;     ///< type of atom on positive x-face of simulation cell
-    const int YMAX = 9;      ///< type of atom on positive y-face of simulation cell
-    const int ZMAX = 8;      ///< type of atom on positive z-face of simulation cell
+    const int NONE      = 0;  ///< type of atom with unknown position
+    const int BULK      = 1;  ///< type of bulk material
+    const int SURFACE   = 2;  ///< type of open material surface
+    const int VACUUM    = 3;  ///< type of vacuum
+    const int VACANCY   = 3;  ///< type of vacancies
+    const int PERIMETER = 4;  ///< type of the rim/outer edge of surface
+    const int FIXED     =-1;  ///< type of fixed atoms
+    const int CLUSTER   =-2;  ///< type of a cluster
+    const int EVAPORATED=-3;  ///< type of a evaporated atom
+    const int XMIN      = 5;  ///< type of atom on negative x-face of simulation cell
+    const int YMIN      = 6;  ///< type of atom on negative y-face of simulation cell
+    const int ZMIN      = 7;  ///< type of atom on negative z-face of simulation cell
+    const int XMAX      = 10; ///< type of atom on positive x-face of simulation cell
+    const int YMAX      = 9;  ///< type of atom on positive y-face of simulation cell
+    const int ZMAX      = 8;  ///< type of atom on positive z-face of simulation cell
 
-    const int TETNODE = 1;      ///< node on the vertex of tetrahedron
+    const int TETNODE      = 1; ///< node on the vertex of tetrahedron
     const int EDGECENTROID = 2; ///< node on the centroid of line
     const int FACECENTROID = 3; ///< node on the centroid of triangular face
-    const int TETCENTROID = 4;  ///< node on the centroid of tetrahedron
+    const int TETCENTROID  = 4; ///< node on the centroid of tetrahedron
 };
 
-/// Vtk cell types
+/** IDs of mesh boundaries */
+namespace BoundaryID {
+enum {
+    copper_surface = 2,
+    vacuum_top     = 8,
+    copper_bottom  = 7,
+    vacuum_sides   = 4,
+    copper_sides   = 4
+};
+}
+
+/** Vtk cell types */
 namespace VtkType {
 enum {
     // Linear cells
@@ -110,7 +111,7 @@ enum {
 };
 }
 
-/// Gmesh cell types
+/** Gmesh cell types */
 namespace GmshType {
 enum {
     vertex                  = 15, ///< 1-node point

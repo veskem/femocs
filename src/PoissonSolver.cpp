@@ -50,8 +50,8 @@ PoissonSolver<dim>::PoissonSolver(const ParticleSpecies* particles_,
 
 template<int dim>
 void PoissonSolver<dim>::mark_mesh() {
-    this->mark_boundary(BoundaryId::vacuum_top, BoundaryId::copper_surface,
-            BoundaryId::vacuum_sides, BoundaryId::copper_surface);
+    this->mark_boundary(BoundaryID::vacuum_top, BoundaryID::copper_surface,
+            BoundaryID::vacuum_sides, BoundaryID::copper_surface);
 }
 
 template<int dim>
@@ -194,18 +194,18 @@ void PoissonSolver<dim>::assemble(const bool full_run) {
                 assemble_parallel();
             else
                 assemble_serial();
-            this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
+            this->append_dirichlet(BoundaryID::copper_surface, this->dirichlet_bc_value);
             this->calc_vertex2dof();
         }
-        this->assemble_rhs(BoundaryId::vacuum_top);
+        this->assemble_rhs(BoundaryID::vacuum_top);
     } else {
         if (full_run) {
             if (conf->assemble_method == "parallel")
                 assemble_parallel();
             else
                 assemble_serial();
-            this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
-            this->append_dirichlet(BoundaryId::vacuum_top, applied_potential);
+            this->append_dirichlet(BoundaryID::copper_surface, this->dirichlet_bc_value);
+            this->append_dirichlet(BoundaryID::vacuum_top, applied_potential);
             this->calc_vertex2dof();
         }
     }

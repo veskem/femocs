@@ -106,10 +106,10 @@ template<int dim>
 void HeatSolver<dim>::assemble(const double delta_time) {
     if (this->conf->assemble_method == "euler") {
         assemble_euler_implicit(delta_time);
-        this->assemble_rhs(BoundaryId::copper_surface);
+        this->assemble_rhs(BoundaryID::copper_surface);
     } else if (this->conf->assemble_method == "parallel") {
         assemble_parallel(delta_time);
-        this->assemble_rhs(BoundaryId::copper_surface);
+        this->assemble_rhs(BoundaryID::copper_surface);
     } else if (this->conf->assemble_method == "crank-nicolson") {
         assemble_crank_nicolson(delta_time);
     } else {
@@ -117,7 +117,7 @@ void HeatSolver<dim>::assemble(const double delta_time) {
     }
 
 
-    this->append_dirichlet(BoundaryId::copper_bottom, this->dirichlet_bc_value);
+    this->append_dirichlet(BoundaryID::copper_bottom, this->dirichlet_bc_value);
     this->apply_dirichlet();
 }
 
@@ -209,7 +209,7 @@ void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
         // ----------------------------------------------------------------------------------------
         // Nottingham BC at the copper surface
         for (unsigned int f = 0; f < GeometryInfo<dim>::faces_per_cell; ++f) {
-            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface) {
+            if (cell->face(f)->boundary_id() == BoundaryID::copper_surface) {
                 fe_face_values.reinit(cell, f);
                 double nottingham_heat = this->get_face_bc(face_index++);
 
@@ -415,8 +415,8 @@ void CurrentSolver<dim>::assemble() {
         assemble_parallel();
     else
         assemble_serial();
-    this->assemble_rhs(BoundaryId::copper_surface);
-    this->append_dirichlet(BoundaryId::copper_bottom, this->dirichlet_bc_value);
+    this->assemble_rhs(BoundaryID::copper_surface);
+    this->append_dirichlet(BoundaryID::copper_bottom, this->dirichlet_bc_value);
     this->apply_dirichlet();
 }
 
@@ -615,8 +615,8 @@ vector<Tensor<1, dim>> CurrentHeatSolver<dim>::get_temp_grad(const vector<int> &
 
 template<int dim>
 void CurrentHeatSolver<dim>::mark_mesh() {
-    this->mark_boundary(BoundaryId::copper_surface, BoundaryId::copper_bottom,
-            BoundaryId::copper_sides, BoundaryId::copper_surface);
+    this->mark_boundary(BoundaryID::copper_surface, BoundaryID::copper_bottom,
+            BoundaryID::copper_sides, BoundaryID::copper_surface);
 }
 
 /* ==================================================================

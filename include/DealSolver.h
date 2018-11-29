@@ -190,15 +190,16 @@ protected:
     void setup_system();
 
     /** Modify the right-hand-side vector of the matrix equation */
-    void assemble_rhs(const BoundaryId bid);
+    void assemble_rhs(const int bid);
 
     /** Give the value to all DOFs with given boundary ID */
-    void append_dirichlet(const BoundaryId bid, const double value);
+    void append_dirichlet(const int bid, const double value);
 
     /** Apply all dirichlet boundary conditions to the system.
      * This should be the last function call to setup the equations, before calling solve(). */
     void apply_dirichlet();
 
+    /** Calculate the volumes (dim=3) or areas (dim=2) of dofs used during integration */
     void calc_dof_volumes();
 
     /** Specify file types that can be written */
@@ -225,7 +226,7 @@ protected:
      * @param sides   id for lateral faces|edges
      * @param other   id for vacuum-copper surface faces|edges
      */
-    void mark_boundary(char top, char bottom, char sides, char other);
+    void mark_boundary(int top, int bottom, int sides, int other);
 
     friend class PoissonSolver<dim>;
     friend class CurrentHeatSolver<dim>;

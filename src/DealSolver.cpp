@@ -221,14 +221,14 @@ void DealSolver<dim>::export_surface_centroids(femocs::Medium& medium) const {
     unsigned int n_nodes = 0;
     for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell)
         for (int f = 0; f < n_faces_per_cell; ++f)
-            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface)
+            if (cell->face(f)->boundary_id() == BoundaryID::copper_surface)
                 n_nodes++;
 
     medium.reserve(n_nodes);
 
     for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell)
         for (int f = 0; f < n_faces_per_cell; ++f)
-            if (cell->face(f)->boundary_id() == BoundaryId::copper_surface)
+            if (cell->face(f)->boundary_id() == BoundaryID::copper_surface)
                 medium.append( femocs::Point3(cell->face(f)->center()) );
 }
 
@@ -359,7 +359,7 @@ void DealSolver<dim>::setup_system() {
 }
 
 template<int dim>
-void DealSolver<dim>::assemble_rhs(const BoundaryId bid) {
+void DealSolver<dim>::assemble_rhs(const int bid) {
 
     QGauss<dim-1> face_quadrature_formula(this->quadrature_degree);
     FEFaceValues<dim> fe_face_values(this->fe, face_quadrature_formula,
@@ -402,7 +402,7 @@ void DealSolver<dim>::assemble_rhs(const BoundaryId bid) {
 }
 
 template<int dim>
-void DealSolver<dim>::append_dirichlet(const BoundaryId bid, const double value) {
+void DealSolver<dim>::append_dirichlet(const int bid, const double value) {
     VectorTools::interpolate_boundary_values(this->dof_handler, bid, ConstantFunction<dim>(value), boundary_values);
 }
 
@@ -430,7 +430,7 @@ int DealSolver<dim>::solve_cg(int max_iter, double tol, double ssor_param) {
 }
 
 template<int dim>
-void DealSolver<dim>::mark_boundary(char top, char bottom, char sides, char other) {
+void DealSolver<dim>::mark_boundary(int top, int bottom, int sides, int other) {
     static constexpr double eps = 1e-6;
     double xmax = -1e16, ymax = -1e16, zmax = -1e16;
     double xmin = 1e16, ymin = 1e16, zmin = 1e16;
