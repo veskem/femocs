@@ -320,7 +320,7 @@ void SolutionReader::interpolate(const AtomReader &reader) {
 
 FieldReader::FieldReader(Interpolator* i) :
         SolutionReader(i, LABELS.elfield, LABELS.elfield_norm, LABELS.potential),
-        E0(0), radius1(0), radius2(0) {}
+        E0(0), radius1(0), radius2(0), beta(0) {}
 
 double FieldReader::get_analyt_potential(const int i, const Point3& origin) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
@@ -359,25 +359,25 @@ double FieldReader::get_analyt_enhancement() const {
     }
 }
 
-bool FieldReader::check_limits(const vector<Solution>* solutions, bool verbose) const {
+bool FieldReader::check_limits(const vector<Solution>* solutions, bool verbose) {
     if (limit_min == limit_max)
         return false;
 
     double Emax = calc_max_field(solutions);
     const double gamma1 = fabs(Emax / E0);
     const double gamma2 = get_analyt_enhancement();
-    const double beta = fabs(gamma1 / gamma2);
+    beta = fabs(gamma1 / gamma2);
 
-    if (verbose || (beta < limit_min || beta > limit_max)) {
+    bool out_of_limits = beta < limit_min || beta > limit_max;
+    if (verbose || out_of_limits) {
         stringstream stream;
         stream << fixed << setprecision(3);
-        stream << "field enhancements:  (F)emocs:" << gamma1
+        stream << "field enhancements:  (M)easured:" << gamma1
                 << "  (A)nalyt:" << gamma2
-                << "  F-A:" << gamma1 - gamma2
-                << "  F/A:" << gamma1 / gamma2;
+                << "  M/A:" << gamma1 / gamma2;
         write_verbose_msg(stream.str());
     }
-    return beta < limit_min || beta > limit_max;
+    return out_of_limits;
 }
 
 double FieldReader::calc_max_field(const vector<Solution>* solutions) const {

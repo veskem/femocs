@@ -214,8 +214,8 @@ int ProjectRunaway::prepare_solvers() {
         ch_solver.setup(conf.heating.t_ambient);
         end_msg(t0);
 
-        surface_fields.set_preferences(false, 2, 1);
-        surface_temperatures.set_preferences(false, 2, 1);
+        surface_fields.set_preferences(false, 2, 3);
+        surface_temperatures.set_preferences(false, 2, 3);
         heat_transfer.set_preferences(false, 3, 1);
 
         // in case of first run, give initial values to the temperature interpolator,
@@ -411,8 +411,8 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
         }
 
         if (MODES.VERBOSE) {
-            printf("  #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, #el inj|del|tot=%d|%d|%d\n",
-                    n_cg, emission.global_data.Fmax, emission.global_data.I_tot,
+            printf("  #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, M/A=%.3f, #el_inj|del|tot=%d|%d|%d\n",
+                    n_cg, emission.global_data.Fmax, emission.global_data.I_tot, fields.get_beta(),
                     n_injected, n_lost, pic_solver.get_n_electrons());
         }
 
@@ -457,7 +457,7 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
 
     // must be after solving Poisson and before updating velocities
     vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
-    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
+    check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions(), false),
             "Field enhancement is out of limits!");
 
     // update velocities of super particles and collide them
@@ -470,7 +470,8 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
     // calculate field emission and inject electrons
     emission.calc_emission(conf.emission, conf.field.V0);
     n_injected = abs(pic_solver.inject_electrons(conf.pic.fractional_push));
-    check_return(n_injected > conf.pic.max_injected, "Too many injected SP-s, " + d2s(n_injected) + ". Check the SP weight!")
+    check_return(n_injected > conf.pic.max_injected,
+            "Too many injected SP-s, " + d2s(n_injected) + ". Check the SP weight!")
 
     write_pic_results();
     return 0;

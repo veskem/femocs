@@ -46,20 +46,20 @@ public:
 
     /** Get i-th Solution */
     Solution get_interpolation(const int i) const {
-        require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + to_string(i));
+        require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + d2s(i));
         return interpolation[i];
     }
 
     /** Set i-th Solution */
     void set_interpolation(const int i, const Solution& s) {
-        require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + to_string(i));
+        require(i >= 0 && i < static_cast<int>(interpolation.size()), "Index out of bounds: " + d2s(i));
         interpolation[i] = s;
     }
 
     /** Set interpolation preferences */
     void set_preferences(const bool _srt, const int _dim, const int _rank) {
-        require((_dim == 2 || _dim == 3), "Invalid interpolation dimension: " + to_string(_dim));
-        require((_rank == 1 || _rank == 2 || _rank == 3), "Invalid interpolation rank: " + to_string(_rank));
+        require((_dim == 2 || _dim == 3), "Invalid interpolation dimension: " + d2s(_dim));
+        require((_rank == 1 || _rank == 2 || _rank == 3), "Invalid interpolation rank: " + d2s(_rank));
         sort_atoms = _srt;
         dim = _dim;
         rank = _rank;
@@ -139,7 +139,7 @@ public:
 
     /** Compare the analytical and calculated field enhancement.
      * The check is disabled if lower and upper limits are the same. */
-    bool check_limits(const vector<Solution>* solutions=NULL, bool verbose=true) const;
+    bool check_limits(const vector<Solution>* solutions=NULL, bool verbose=true);
 
     /** Find the maximum field norm from the solution vector */
     double calc_max_field(const vector<Solution>* solutions=NULL) const;
@@ -149,27 +149,31 @@ public:
 
     /** Return electric field in i-th interpolation point */
     Vec3 get_elfield(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return interpolation[i].vector;
     }
 
     /** Return electric field norm in i-th interpolation point */
     double get_elfield_norm(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return interpolation[i].norm;
     }
 
     /** Return electric potential in i-th interpolation point */
     double get_potential(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return interpolation[i].scalar;
     }
+
+    /** Return measured-"analytical" field enhancement ratio that was calculated in check_limits */
+    double get_beta() const { return beta; }
 
 private:
     /** Data needed for comparing numerical solution with analytical one */
     double E0;         ///< Long-range electric field strength
     double radius1;    ///< Minor semi-axis of ellipse
     double radius2;    ///< Major semi-axis of ellipse
+    double beta;       ///< Measured / "analytical" field enhancement
 
     /** Return analytical electric field value for i-th point near the hemisphere */
     Vec3 get_analyt_field(const int i, const Point3& origin) const;
@@ -201,19 +205,19 @@ public:
 
     /** Return current density in i-th interpolation point */
     Vec3 get_rho(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return interpolation[i].vector;
     }
 
     /** Return magnitude of current density in i-th interpolation point */
     double get_potential(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return interpolation[i].norm;
     }
 
     /** Return temperature in i-th interpolation point */
     double get_temperature(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return interpolation[i].scalar;
     }
 
@@ -263,19 +267,19 @@ public:
 
     /** Get electric field on the centroid of i-th triangle */
     Vec3 get_elfield(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return interpolation[i].vector;
     }
 
     /** Get area of i-th triangle */
     double get_area(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return interpolation[i].norm;
     }
 
     /** Get charge of i-th triangle */
     double get_charge(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return interpolation[i].scalar;
     }
 
@@ -323,19 +327,19 @@ public:
 
     /** Return the force that is applied to i-th atom */
     Vec3 get_force(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return interpolation[i].vector;
     }
 
     /** Return pair potential of i-th atom */
     double get_pairpot(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return interpolation[i].norm;
     }
 
     /** Return the charge of i-th atom */
     double get_charge(const int i) const {
-        require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
+        require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return interpolation[i].scalar;
     }
 
