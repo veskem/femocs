@@ -118,7 +118,7 @@ protected:
     int prepare_export();
 
     /** Store the imported atom coordinates and set the flag that enables exporters */
-    int finalize(double tstart, double time);
+    int finalize(double tstart);
 
     /** Handle failed subprocess */
     int process_failed(const string &msg);
@@ -128,7 +128,7 @@ protected:
 
 private:
     /** Determine whether atoms have moved significantly and whether to enable file writing */
-    int reinit(int timestep, double time);
+    int reinit();
 
     /** Pick a field solver and calculcate field distribution */
     int run_field_solver();

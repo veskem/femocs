@@ -220,12 +220,12 @@ void InterpolatorCells<dim>::write_vtk_points_and_cells(ofstream& out) const {
         out << nodes->get_vertex(i) << "\n";
 
     // Output # vertices and vertex indices
-    out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
+    out << "CELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
         out << dim << " " << get_cell(i) << "\n";
 
     // Output cell types
-    out << "\nCELL_TYPES " << n_cells << "\n";
+    out << "CELL_TYPES " << n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
         out << celltype << "\n";
 }

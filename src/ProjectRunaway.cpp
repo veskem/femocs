@@ -48,10 +48,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
     end_msg(t0);
 }
 
-int ProjectRunaway::reinit(int tstep, double time) {
-    require(conf.behaviour.timestep_step > 0, "Invalid step of time step: "
-            + d2s(conf.behaviour.timestep_step));
-
+int ProjectRunaway::reinit() {
     GLOBALS.TIMESTEP++;
     conf.read_all();
 
@@ -62,12 +59,10 @@ int ProjectRunaway::reinit(int tstep, double time) {
     write_silent_msg("Running at timestep=" + d2s(GLOBALS.TIMESTEP)
             + ", time=" + d2s(GLOBALS.TIME, 2) + " fs, rmsd=" + rmsd_string);
 
-    if (!first_run && GLOBALS.TIMESTEP % conf.behaviour.timestep_step != 0)
-        return 1;
     return rmsd < conf.geometry.distance_tol;
 }
 
-int ProjectRunaway::finalize(double tstart, double time) {
+int ProjectRunaway::finalize(double tstart) {
     if (mesh_changed) reader.save_current_run_points();
 
     double delta_time = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs - GLOBALS.TIME;
@@ -95,7 +90,7 @@ int ProjectRunaway::run(const int timestep, const double time) {
 
     //***** Build or import mesh *****
 
-    if (reinit(timestep, time)) {
+    if (reinit()) {
         write_verbose_msg("Atoms haven't moved significantly. Previous mesh will be used.");
         dense_surf.update_positions(reader);
     }
@@ -122,7 +117,7 @@ int ProjectRunaway::run(const int timestep, const double time) {
     if (prepare_export())
         return process_failed("Interpolating solution on atoms failed!");
 
-    return finalize(tstart, time);
+    return finalize(tstart);
 }
 
 void ProjectRunaway::update_mesh_pointers() {
