@@ -1,6 +1,7 @@
 #!/bin/bash
 
-source ./build/makefile.defs
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+source $DIR/makefile.defs
 
 mode=$1
 
