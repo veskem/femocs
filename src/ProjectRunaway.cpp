@@ -42,7 +42,10 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 {
     poisson_solver.set_particles(pic_solver.get_particles());
 
-    // Initialise heating module
+    surface_fields.set_preferences(false, 2, 3);
+    surface_temperatures.set_preferences(false, 2, 3);
+    heat_transfer.set_preferences(false, 3, 1);
+
     start_msg(t0, "Reading physical quantities");
     phys_quantities.initialize_with_hc_data();
     end_msg(t0);
@@ -106,6 +109,10 @@ int ProjectRunaway::run(const int timestep, const double time) {
 
     if (run_heat_solver())
         return process_failed("Running heat solver in a " + conf.heating.mode + " mode failed!");
+
+    // it is crucial that the update of new_mesh pointer AND mesh of bulk_interpolator
+    // happens within time interval where no error can occur
+    update_mesh_pointers();
 
     //***** Prepare for data export and next run *****
 
@@ -205,17 +212,14 @@ void ProjectRunaway::update_mesh_pointers() {
 
 void ProjectRunaway::calc_surf_temperatures() {
     static bool make_intermediate_step = false;
-    start_msg(t0, "Calculating surface temperatures");
     if (mesh_changed) {
         surface_temperatures.interpolate(ch_solver);
-        bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
         make_intermediate_step = true;
     } else if (make_intermediate_step) {
         surface_temperatures.calc_full_interpolation();
         make_intermediate_step = false;
     } else
         surface_temperatures.calc_interpolation();
-    end_msg(t0);
 }
 
 int ProjectRunaway::prepare_solvers() {
@@ -225,27 +229,17 @@ int ProjectRunaway::prepare_solvers() {
         if (error) return 1;
     }
 
-    // it is crucial that all the mesh pointers are updated within
-    // time interval where no error can occur
-    update_mesh_pointers();
-
-    if (mesh_changed)
-        vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
-
     // halt in case of NO field emission
     if (conf.field.mode == "laplace" && conf.heating.mode == "none")
         return 0;
 
+    // initialize the calculation of field emission
     if (mesh_changed) {
         // setup ch_solver here as it must be done before transferring previous heat values into new mesh,
         // which in turn must be done before re-initializing bulk_interpolator
         start_msg(t0, "Setup current & heat solvers");
         ch_solver.setup(conf.heating.t_ambient);
         end_msg(t0);
-
-        surface_fields.set_preferences(false, 2, 3);
-        surface_temperatures.set_preferences(false, 2, 3);
-        heat_transfer.set_preferences(false, 3, 1);
 
         ch_solver.export_surface_centroids(surface_fields);
         emission.initialize(mesh);
@@ -261,8 +255,9 @@ int ProjectRunaway::prepare_solvers() {
         }
     }
 
+    start_msg(t0, "Calculating surface temperatures");
     calc_surf_temperatures();
-    surface_temperatures.write("out/surface_temperatures.movie");
+    end_msg(t0);
 
     return 0;
 }
@@ -429,6 +424,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
     if (full_run) {
         start_msg(t0, "Initializing Poisson solver");
         poisson_solver.setup(-conf.field.E0, conf.field.V0);
+        vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
         end_msg(t0);
         write_verbose_msg(poisson_solver.to_str());
     }
@@ -457,7 +453,6 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
 
     return 0;
 }
-
 
 int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool full_run) {
     // advance super particles
@@ -489,11 +484,15 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
     emission.write("out/emission.movie");
     pic_solver.write("out/electrons.movie");
     surface_fields.write("out/surface_fields.movie");
+    surface_temperatures.write("out/surface_temperatures.movie");
 
-//    Interpolator charge_density("elfield", "elfield_norm", "charge_density");
-//    charge_density.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
-//    charge_density.extract_charge_density(poisson_solver);
-//    charge_density.nodes.write("out/result_E_charge.movie");
+    // NB! If charge_density really needed, move it into header
+//    Interpolator charge_density("Elfield", "ElfieldNorm", "ChargeDensity");
+//    if (charge_density.nodes.write_time()) {
+//        charge_density.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
+//        charge_density.extract_charge_density(poisson_solver);
+//        charge_density.nodes.write("out/result_E_charge.movie");
+//    }
 
     return 0;
 }
@@ -520,6 +519,7 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     write_verbose_msg("#CG steps: " + d2s(hcg));
 
     start_msg(t0, "Extracting J & T");
+    bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
