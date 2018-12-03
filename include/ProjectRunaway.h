@@ -93,8 +93,12 @@ protected:
     /** Generate bulk and vacuum meshes using the imported atomistic data */
     int generate_mesh();
 
-    /** Import mesh to FEM solvers and initialize interpolators */
+    /** Pass mesh to all the objects that need it
+     * and transfer temperature from previous iteration to the new mesh */
     int prepare_solvers();
+
+    /** Calculate data of interest on the locations of imported atoms */
+    int prepare_export();
 
     /** Solve Laplace equation on vacuum mesh */
     int solve_laplace(double E0, double V0);
@@ -108,27 +112,27 @@ protected:
     /** Using the electric field, calculate atomistic charge together with Lorenz and/or Coulomb force */
     int solve_force();
 
-    void calc_heat_emission(bool full_run);
-
-    int make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool full_run);
-
-    void initalize_pic_emission(bool full_run);
-
-    /** Calculate data of interest on the locations of imported atoms */
-    int prepare_export();
-
     /** Store the imported atom coordinates and set the flag that enables exporters */
     int finalize(double tstart);
 
     /** Handle failed subprocess */
     int process_failed(const string &msg);
 
-    /** Specify mesh address where new mesh will be generated on next run */
-    void update_mesh_pointers();
-
 private:
     /** Determine whether atoms have moved significantly and whether to enable file writing */
     int reinit();
+
+    /** Generate boundary nodes for mesh */
+    int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
+
+    /** Transfer mesh from Tetgen into Deal.II */
+    int import_mesh();
+
+    /** Interpolate temperature on the centroids of surface quadrangles */
+    void calc_surf_temperatures();
+
+    /** Specify mesh address where new mesh will be generated on next run */
+    void update_mesh_pointers();
 
     /** Pick a field solver and calculcate field distribution */
     int run_field_solver();
@@ -136,14 +140,14 @@ private:
     /** Pick a heat solver and calculcate temperature & current density distribution */
     int run_heat_solver();
 
-    /** Generate boundary nodes for mesh */
-    int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
+    /** Perform one iteration of PIC calculation */
+    int make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool full_run);
+
+    /** Perform one iteration of field emission calculation */
+    void calc_heat_emission(bool full_run);
 
     /** Write restart file so that simulation could be started at t>0 time */
     void write_restart(const string &path_to_file);
-
-    /** Write the output of PIC step */
-    void write_pic_results();
 };
 
 } /* namespace femocs */

@@ -98,7 +98,7 @@ int ProjectRunaway::run(const int timestep, const double time) {
     else if (generate_mesh())
         return process_failed("Mesh generation failed!");
 
-    if (mesh_changed && prepare_solvers())
+    if (prepare_solvers())
         return process_failed("Preparation of FEM solvers failed!");
 
     //***** Run FEM solvers *****
@@ -111,22 +111,10 @@ int ProjectRunaway::run(const int timestep, const double time) {
 
     //***** Prepare for data export and next run *****
 
-    // Must be here to ensure old mesh is not deleted too early nor too late
-    update_mesh_pointers();
-
     if (prepare_export())
         return process_failed("Interpolating solution on atoms failed!");
 
     return finalize(tstart);
-}
-
-void ProjectRunaway::update_mesh_pointers() {
-    static bool odd_run = true;
-    if (mesh_changed) {
-        if (odd_run) new_mesh = &mesh2;
-        else new_mesh = &mesh1;
-        odd_run = !odd_run;
-    }
 }
 
 int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
@@ -192,7 +180,7 @@ int ProjectRunaway::generate_mesh() {
     return 0;
 }
 
-int ProjectRunaway::prepare_solvers() {
+int ProjectRunaway::import_mesh() {
     start_msg(t0, "Importing vacuum mesh to Deal.II");
     fail = !poisson_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_vacuum());
     check_return(fail, "Importing vacuum mesh to Deal.II failed!");
@@ -203,8 +191,56 @@ int ProjectRunaway::prepare_solvers() {
         fail = !ch_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_bulk());
         check_return(fail, "Importing bulk mesh to Deal.II failed!");
         end_msg(t0);
+    }
 
-        // setup ch_solver here as pic_solver might intialize bulk_interpolator
+    return 0;
+}
+
+void ProjectRunaway::update_mesh_pointers() {
+    static bool odd_run = true;
+    if (mesh_changed) {
+        if (odd_run) new_mesh = &mesh2;
+        else new_mesh = &mesh1;
+        odd_run = !odd_run;
+    }
+}
+
+void ProjectRunaway::calc_surf_temperatures() {
+    static bool make_intermediate_step = false;
+    start_msg(t0, "Calculating surface temperatures");
+    if (mesh_changed) {
+        surface_temperatures.interpolate(ch_solver);
+        bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
+        make_intermediate_step = true;
+    } else if (make_intermediate_step) {
+        surface_temperatures.calc_full_interpolation();
+        make_intermediate_step = false;
+    } else
+        surface_temperatures.calc_interpolation();
+    end_msg(t0);
+}
+
+int ProjectRunaway::prepare_solvers() {
+    // import Tetgen mesh to Deal.II
+    if (mesh_changed) {
+        int error = import_mesh();
+        if (error) return 1;
+    }
+
+    // it is crucial that all the mesh pointers are updated within
+    // time interval where no error can occur
+    update_mesh_pointers();
+
+    if (mesh_changed)
+        vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
+
+    // halt in case of NO field emission
+    if (conf.field.mode == "laplace" && conf.heating.mode == "none")
+        return 0;
+
+    if (mesh_changed) {
+        // setup ch_solver here as it must be done before transferring previous heat values into new mesh,
+        // which in turn must be done before re-initializing bulk_interpolator
         start_msg(t0, "Setup current & heat solvers");
         ch_solver.setup(conf.heating.t_ambient);
         end_msg(t0);
@@ -212,6 +248,9 @@ int ProjectRunaway::prepare_solvers() {
         surface_fields.set_preferences(false, 2, 3);
         surface_temperatures.set_preferences(false, 2, 3);
         heat_transfer.set_preferences(false, 3, 1);
+
+        ch_solver.export_surface_centroids(surface_fields);
+        emission.initialize(mesh);
 
         // in case of first run, give initial values to the temperature interpolator,
         // otherwise transfer existing temperatures to new mesh
@@ -223,6 +262,9 @@ int ProjectRunaway::prepare_solvers() {
             end_msg(t0);
         }
     }
+
+    calc_surf_temperatures();
+    surface_temperatures.write("out/surface_temperatures.movie");
 
     return 0;
 }
@@ -392,18 +434,13 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
         write_verbose_msg(poisson_solver.to_str());
     }
 
-    initalize_pic_emission(full_run);
-
+    int n_lost, n_cg, n_injected, error;
     start_msg(t0, "=== Running PIC for delta time = "
             + d2s(n_pic_steps) + "*" + d2s(dt_pic)+" = " + d2s(advance_time) + " fs\n");
-    int n_lost, n_cg, n_injected, error;
+
     for (int i = 0; i < n_pic_steps; ++i) {
         error = make_pic_step(n_lost, n_cg, n_injected, full_run && i==0);
-
-        if (error) {
-            GLOBALS.TIME += (n_pic_steps - i) * dt_pic;
-            return 1;
-        }
+        if (error) return 1;
 
         if (MODES.VERBOSE) {
             printf("  #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, M/A=%.3f, #el_inj|del|tot=%d|%d|%d\n",
@@ -421,26 +458,6 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
     return 0;
 }
 
-void ProjectRunaway::initalize_pic_emission(bool full_run) {
-    static bool make_intermediate_step = false;
-
-    start_msg(t0, "Calculating surface temperature");
-    if (full_run) {
-        ch_solver.export_surface_centroids(surface_fields);
-        surface_temperatures.interpolate(ch_solver);
-
-        vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
-        bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
-        emission.initialize(mesh);
-
-        make_intermediate_step = true;
-    } else if (make_intermediate_step) {
-        surface_temperatures.calc_full_interpolation();
-        make_intermediate_step = false;
-    } else
-        surface_temperatures.calc_interpolation();
-    end_msg(t0);
-}
 
 int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool full_run) {
     // advance super particles
@@ -468,25 +485,21 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
     check_return(n_injected > conf.pic.max_injected,
             "Too many injected SP-s, " + d2s(n_injected) + ". Check the SP weight!")
 
-    write_pic_results();
-    return 0;
-}
-
-void ProjectRunaway::write_pic_results() {
     emission.write("out/emission.dat", FileIO::no_update);
     emission.write("out/emission.movie");
     pic_solver.write("out/electrons.movie");
     surface_fields.write("out/surface_fields.movie");
-    surface_temperatures.write("out/surface_temperatures.movie");
 
 //    Interpolator charge_density("elfield", "elfield_norm", "charge_density");
 //    charge_density.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
 //    charge_density.extract_charge_density(poisson_solver);
 //    charge_density.nodes.write("out/result_E_charge.movie");
+
+    return 0;
 }
 
 int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {
-    // Calculate field emission in case not ready from pic
+    // Calculate field emission in case not ready from PIC
     if (conf.field.mode == "laplace")
         calc_heat_emission(full_run);
 
@@ -519,28 +532,16 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
 }
 
 void ProjectRunaway::calc_heat_emission(bool full_run) {
-    static bool make_intermediate_step = false;
-    start_msg(t0, "Calculating surface field & temperature");
     if (full_run) {
-        surface_fields.interpolate(ch_solver);
-        surface_temperatures.interpolate(ch_solver);
-        bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK); // must be after interpolation as it clears previous data
-        make_intermediate_step = true;
-    } else if (make_intermediate_step) {
-        surface_temperatures.calc_full_interpolation();
-        make_intermediate_step = false;
-    } else
-        surface_temperatures.calc_interpolation();
-    end_msg(t0);
-
-    surface_fields.write("out/surface_fields.movie");
-    surface_temperatures.write("out/surface_temperatures.movie");
+        start_msg(t0, "Calculating surface fields");
+        surface_fields.calc_interpolation();
+        end_msg(t0);
+        surface_fields.write("out/surface_fields.movie");
+    }
 
     start_msg(t0, "Calculating electron emission");
-    emission.initialize(mesh, full_run);
     emission.calc_emission(conf.emission, conf.field.V0);
     end_msg(t0);
-
     emission.write("out/emission.movie");
 }
 
