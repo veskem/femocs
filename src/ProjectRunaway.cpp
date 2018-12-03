@@ -64,9 +64,7 @@ int ProjectRunaway::reinit() {
 
 int ProjectRunaway::finalize(double tstart) {
     if (mesh_changed) reader.save_current_run_points();
-
-    double delta_time = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs - GLOBALS.TIME;
-    GLOBALS.TIME += max(0.0, delta_time);
+    GLOBALS.TIME = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs;
 
     write_restart("in/femocs.restart");
     write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
@@ -78,8 +76,8 @@ int ProjectRunaway::finalize(double tstart) {
 
 int ProjectRunaway::process_failed(const string &msg) {
     write_verbose_msg(msg);
-    double delta_time = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs - GLOBALS.TIME;
-    GLOBALS.TIME += max(0.0, delta_time);
+    GLOBALS.TIME = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs;
+
     if (conf.behaviour.n_write_log > 0)
         MODES.WRITELOG = (GLOBALS.TIMESTEP+1)%conf.behaviour.n_write_log == 0;
     return 1;
@@ -425,7 +423,8 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
     int n_pic_steps = ceil(advance_time / conf.pic.dt_max);
     double dt_pic = advance_time / n_pic_steps;
     pic_solver.set_params(dt_pic, mesh->nodes.stat);
-    last_pic_time = GLOBALS.TIME;
+    GLOBALS.TIME = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs - advance_time;
+    last_pic_time = GLOBALS.TIME - conf.behaviour.timestep_fs;
 
     if (full_run) {
         start_msg(t0, "Initializing Poisson solver");
@@ -449,6 +448,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
         }
 
         GLOBALS.TIME += dt_pic;
+        last_pic_time += dt_pic;
     }
     end_msg(t0);
 
