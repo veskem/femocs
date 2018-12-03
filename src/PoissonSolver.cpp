@@ -186,24 +186,19 @@ void PoissonSolver<dim>::assemble(const bool full_run) {
     require(conf->anode_BC == "neumann" || conf->anode_BC == "dirichlet",
             "Unimplemented anode BC: " + conf->anode_BC);
 
+    if (full_run) this->system_matrix = 0;
     this->system_rhs = 0;
 
     if (conf->anode_BC == "neumann") {
         if (full_run) {
-            if (conf->assemble_method == "parallel")
-                assemble_parallel();
-            else
-                assemble_serial();
+            assemble_parallel();
             this->append_dirichlet(BoundaryID::copper_surface, this->dirichlet_bc_value);
             this->calc_vertex2dof();
         }
         this->assemble_rhs(BoundaryID::vacuum_top);
     } else {
         if (full_run) {
-            if (conf->assemble_method == "parallel")
-                assemble_parallel();
-            else
-                assemble_serial();
+            assemble_parallel();
             this->append_dirichlet(BoundaryID::copper_surface, this->dirichlet_bc_value);
             this->append_dirichlet(BoundaryID::vacuum_top, applied_potential);
             this->calc_vertex2dof();
@@ -217,47 +212,7 @@ void PoissonSolver<dim>::assemble(const bool full_run) {
 }
 
 template<int dim>
-void PoissonSolver<dim>::assemble_serial() {
-    this->system_matrix = 0;
-
-    QGauss<dim> quadrature_formula(this->quadrature_degree);
-    FEValues<dim> fe_values(this->fe, quadrature_formula,
-            update_gradients | update_quadrature_points | update_JxW_values);
-
-    const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
-    const unsigned int n_q_points = quadrature_formula.size();
-
-    FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
-    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-
-    // Iterate over all cells (quadrangles in 2D, hexahedra in 3D) of the mesh
-    typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
-    for (; cell != this->dof_handler.end(); ++cell) {
-        fe_values.reinit(cell);
-
-        // Assemble system matrix elements corresponding the current cell
-        cell_matrix = 0;
-        for (unsigned int q = 0; q < n_q_points; ++q) {
-            for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                for (unsigned int j = 0; j < dofs_per_cell; ++j)
-                    cell_matrix(i, j) += fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
-                            * fe_values.JxW(q);
-            }
-        }
-
-        // Add the current cell matrix and rhs entries to the system sparse matrix
-        cell->get_dof_indices(local_dof_indices);
-        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-            for (unsigned int j = 0; j < dofs_per_cell; ++j)
-                this->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
-        }
-    }
-}
-
-template<int dim>
 void PoissonSolver<dim>::assemble_parallel() {
-    this->system_matrix = 0;
-
     LinearSystem system(&this->system_rhs, &this->system_matrix);
     QGauss<dim> quadrature_formula(this->quadrature_degree);
 

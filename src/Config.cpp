@@ -66,7 +66,6 @@ Config::Config() {
     field.V0 = 0.0;
     field.anode_BC = "neumann";
     field.mode = "laplace";
-    field.assemble_method = "parallel";
 
     heating.mode = "none";
     heating.rhofile = "in/rho_table.dat";
@@ -78,7 +77,6 @@ Config::Config() {
     heating.delta_time = 10.0;
     heating.dt_max = 1.0e5;
     heating.tau = 100.0;
-    heating.assemble_method = "euler";
 
     emission.blunt = true;
     emission.cold = false;
@@ -134,6 +132,8 @@ void Config::read_all(const string& fname, bool full_run) {
         check_obsolete("use_histclean");
         check_obsolete("maxerr_SC");
         check_obsolete("SC_mode");
+        check_obsolete("heat_assemble");
+        check_obsolete("field_assemble");
 
         // Check for the changed commands
         check_changed("heating", "heat_mode");
@@ -166,7 +166,7 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("heat_dt", heating.delta_time);
     read_command("heat_dtmax", heating.dt_max);
     read_command("vscale_tau", heating.tau);
-    read_command("heat_assemble", heating.assemble_method);
+
 
     read_command("field_mode", field.mode);
     read_command("field_ssor", field.ssor_param);
@@ -175,7 +175,6 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("elfield", field.E0);
     read_command("Vappl", field.V0);
     read_command("anode_BC", field.anode_BC);
-    read_command("field_assemble", field.assemble_method);
 
     read_command("force_mode", force.mode);
 

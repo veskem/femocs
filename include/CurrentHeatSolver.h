@@ -85,12 +85,6 @@ private:
     // TODO figure out what is written
     void write_vtk(ofstream& out) const;
 
-    /** Assemble left-hand-side of matrix equation in a serial manner*/
-    void assemble_serial();
-
-    /** Assemble left-hand-side of matrix equation in a parallel manner */
-    void assemble_parallel();
-
     /** Calculate the contribution of one cell into global matrix and rhs vector */
     void assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
             ScratchData &scratch_data, CopyData &copy_data) const;
@@ -129,9 +123,6 @@ private:
      * according to the time dependent heat equation weak formulation and to the boundary conditions.
      */
     void assemble_euler_implicit(const double delta_time);
-
-    /** Run Euler implicit matrix &  rhs vector assembler in a parallel manner */
-    void assemble_parallel(const double delta_time);
 
     /** Calculate the contribution of one cell into global matrix and rhs vector */
     void assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,

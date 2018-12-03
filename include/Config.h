@@ -119,7 +119,6 @@ public:
         double V0;             ///< Applied voltage at the anode (active in case of SC emission and Dirichlet anodeBC
         string anode_BC;       ///< Type of anode boundary condition (Dirichlet or Neumann)
         string mode;           ///< Mode to run field solver; laplace, transient or converge; transient or converge activate PIC solver
-        string assemble_method;///< Method to assemble system matrix; serial or parallel
         vector<double> apply_factors; ///< run for multiple applied E0 (or V0) multiplied by the factors
     } field;
 
@@ -135,7 +134,6 @@ public:
         double delta_time;          ///< Timestep of time domain integration [sec]
         double dt_max;              ///< Maximum allowed timestep for heat convergence run
         double tau;                 ///< Time constant in Berendsen thermostat
-        string assemble_method;     ///< Method to assemble system matrix for solving heat equation; euler or crank_nicolson
     } heating;
 
     /** Field emission module parameters */

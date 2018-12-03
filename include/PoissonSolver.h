@@ -61,8 +61,7 @@ public:
     void setup(const double field, const double potential);
 
     /** Assemble the matrix equation to solve Laplace or Poisson equation
-     * by appling Neumann BC (constant field) or Dirichlet BC (constant potential) on top of simubox
-     * as specified in config file. */
+     * by appling Neumann BC (constant field) or Dirichlet BC (constant potential) on top of simubox */
     void assemble(const bool first_time);
 
 private:
@@ -90,14 +89,7 @@ private:
     void mark_mesh();
 
     /** Return the boundary condition value at the centroid of face */
-    double get_face_bc(const unsigned int face) const;
-
-    /** @brief Reset the system and assemble the LHS matrix
-     * Calculate sparse matrix elements
-     * according to the Laplace equation weak formulation
-     * This should be the first function call to setup the equations (after setup_system() ).
-     */
-    void assemble_serial();
+    double get_face_bc(const unsigned int face) const;;
 
     /** Assemble left-hand-side of matrix equation in a parallel manner */
     void assemble_parallel();

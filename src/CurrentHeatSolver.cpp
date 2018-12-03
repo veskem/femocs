@@ -104,19 +104,34 @@ void HeatSolver<dim>::write_vtk(ofstream& out) const {
 
 template<int dim>
 void HeatSolver<dim>::assemble(const double delta_time) {
-    if (this->conf->assemble_method == "euler") {
-        assemble_euler_implicit(delta_time);
-        this->assemble_rhs(BoundaryID::copper_surface);
-    } else if (this->conf->assemble_method == "parallel") {
-        assemble_parallel(delta_time);
-        this->assemble_rhs(BoundaryID::copper_surface);
-    } else if (this->conf->assemble_method == "crank-nicolson") {
-        assemble_crank_nicolson(delta_time);
-    } else {
-        require(false, "Invalid heat equation assembly method: " + this->conf->assemble_method);
-    }
+    require(current_solver, "NULL current solver can't be used!");
+    require(delta_time > 0, "Invalid delta time: " + d2s(delta_time));
 
+    this->one_over_delta_time = 1.0 / delta_time;
+    this->system_matrix = 0;
+    this->system_rhs = 0;
 
+    LinearSystem system(&this->system_rhs, &this->system_matrix);
+    QGauss<dim> quadrature_formula(this->quadrature_degree);
+
+    const unsigned int n_dofs = this->fe.dofs_per_cell;
+    const unsigned int n_q_points = quadrature_formula.size();
+
+    WorkStream::run(this->dof_handler.begin_active(),this->dof_handler.end(),
+            std_cxx11::bind(&HeatSolver<dim>::assemble_local_cell,
+                    this,
+                    std_cxx11::_1,
+                    std_cxx11::_2,
+                    std_cxx11::_3),
+            std_cxx11::bind(&HeatSolver<dim>::copy_global_cell,
+                    this,
+                    std_cxx11::_1,
+                    std_cxx11::ref(system)),
+            ScratchData(this->fe, quadrature_formula, update_values | update_gradients | update_quadrature_points | update_JxW_values),
+            CopyData(n_dofs, n_q_points)
+    );
+
+    this->assemble_rhs(BoundaryID::copper_surface);
     this->append_dirichlet(BoundaryID::copper_bottom, this->dirichlet_bc_value);
     this->apply_dirichlet();
 }
@@ -306,36 +321,6 @@ void HeatSolver<dim>::assemble_euler_implicit(const double delta_time) {
 }
 
 template<int dim>
-void HeatSolver<dim>::assemble_parallel(const double delta_time) {
-    require(current_solver, "NULL current solver can't be used!");
-    require(delta_time > 0, "Invalid delta time: " + d2s(delta_time));
-
-    this->one_over_delta_time = 1.0 / delta_time;
-    this->system_matrix = 0;
-    this->system_rhs = 0;
-
-    LinearSystem system(&this->system_rhs, &this->system_matrix);
-    QGauss<dim> quadrature_formula(this->quadrature_degree);
-
-    const unsigned int n_dofs = this->fe.dofs_per_cell;
-    const unsigned int n_q_points = quadrature_formula.size();
-
-    WorkStream::run(this->dof_handler.begin_active(),this->dof_handler.end(),
-            std_cxx11::bind(&HeatSolver<dim>::assemble_local_cell,
-                    this,
-                    std_cxx11::_1,
-                    std_cxx11::_2,
-                    std_cxx11::_3),
-            std_cxx11::bind(&HeatSolver<dim>::copy_global_cell,
-                    this,
-                    std_cxx11::_1,
-                    std_cxx11::ref(system)),
-            ScratchData(this->fe, quadrature_formula, update_values | update_gradients | update_quadrature_points | update_JxW_values),
-            CopyData(n_dofs, n_q_points)
-    );
-}
-
-template<int dim>
 void HeatSolver<dim>::assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
         ScratchData &scratch_data, CopyData &copy_data) const
 {
@@ -411,71 +396,6 @@ void CurrentSolver<dim>::write_vtk(ofstream& out) const {
 
 template<int dim>
 void CurrentSolver<dim>::assemble() {
-    if (this->conf->assemble_method == "parallel")
-        assemble_parallel();
-    else
-        assemble_serial();
-    this->assemble_rhs(BoundaryID::copper_surface);
-    this->append_dirichlet(BoundaryID::copper_bottom, this->dirichlet_bc_value);
-    this->apply_dirichlet();
-}
-
-template<int dim>
-void CurrentSolver<dim>::assemble_serial() {
-    require(heat_solver, "NULL heat solver can't be used!");
-
-    this->system_matrix = 0;
-    this->system_rhs = 0;
-
-    QGauss<dim> quadrature_formula(this->quadrature_degree);
-
-    // Current finite element values
-    FEValues<dim> fe_values(this->fe, quadrature_formula,
-            update_gradients | update_quadrature_points | update_JxW_values);
-
-    const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
-    const unsigned int n_q_points = quadrature_formula.size();
-
-    FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
-    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
-
-    // The previous temperature values in the cell quadrature points
-    vector<double> prev_temperatures(n_q_points);
-
-    typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
-
-    for (; cell != this->dof_handler.end(); ++cell) {
-        fe_values.reinit(cell);
-        fe_values.get_function_values(heat_solver->solution, prev_temperatures);
-
-        // ----------------------------------------------------------------------------------------
-        // Local matrix assembly
-        // ----------------------------------------------------------------------------------------
-        cell_matrix = 0;
-        for (unsigned int q = 0; q < n_q_points; ++q) {
-            double temperature = prev_temperatures[q];
-            double sigma = this->pq->sigma(temperature);
-
-            for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                for (unsigned int j = 0; j < dofs_per_cell; ++j)
-                    cell_matrix(i, j) += fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
-                            * sigma * fe_values.JxW(q);
-            }
-        }
-        
-        // ----------------------------------------------------------------------------------------
-        // Global matrix update
-        // ----------------------------------------------------------------------------------------
-        cell->get_dof_indices(local_dof_indices);
-        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-            for (unsigned int j = 0; j < dofs_per_cell; ++j)
-                this->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
-        }
-    }
-}
-
-template<int dim>
-void CurrentSolver<dim>::assemble_parallel() {
     require(heat_solver, "NULL heat solver can't be used!");
 
     this->system_matrix = 0;
@@ -500,6 +420,10 @@ void CurrentSolver<dim>::assemble_parallel() {
             ScratchData(this->fe, quadrature_formula, update_gradients | update_quadrature_points | update_JxW_values),
             CopyData(n_dofs, n_q_points)
     );
+
+    this->assemble_rhs(BoundaryID::copper_surface);
+    this->append_dirichlet(BoundaryID::copper_bottom, this->dirichlet_bc_value);
+    this->apply_dirichlet();
 }
 
 template<int dim>
