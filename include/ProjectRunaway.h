@@ -68,6 +68,7 @@ protected:
     bool first_run;             ///< True only as long as there is no full run
     double last_heat_time;      ///< Last time heat was updated
     double last_pic_time;       ///< Last time PIC solver was called
+    int last_restart_ts;        ///< Last time step reset file was written
 
     Interpolator vacuum_interpolator;  ///< data & operations for interpolating field & potential in vacuum
     Interpolator bulk_interpolator;    ///< data & operations for interpolating current density & temperature in bulk

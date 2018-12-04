@@ -21,6 +21,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         fail(false), t0(0), mesh_changed(false), first_run(true),
 		last_heat_time(-conf.behaviour.timestep_fs),
 		last_pic_time(-conf.behaviour.timestep_fs),
+		last_restart_ts(0),
 
         vacuum_interpolator("Elfield", "ElfieldNorm", "Potential"),
         bulk_interpolator("Rho", "Potential", "Temperature"),
@@ -80,6 +81,7 @@ int ProjectRunaway::finalize(double tstart) {
 int ProjectRunaway::process_failed(const string &msg) {
     write_verbose_msg(msg);
     GLOBALS.TIME = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs;
+    require(!first_run, "First full run failed!");
 
     if (conf.behaviour.n_write_log > 0)
         MODES.WRITELOG = (GLOBALS.TIMESTEP+1)%conf.behaviour.n_write_log == 0;
@@ -291,8 +293,7 @@ int ProjectRunaway::prepare_export() {
             temperatures.update_positions(reader);
         }
         end_msg(t0);
-
-        temperatures.write("out/temperatures.xyz");
+        // writing temperatures will be done during Berendsen scaling
         // TODO implement reasonable temperature limit check
     }
 
@@ -628,13 +629,15 @@ int ProjectRunaway::restart(const string &path_to_file) {
 
 void ProjectRunaway::write_restart(const string &path_to_file) {
     if (conf.behaviour.n_write_restart <= 0 ||
-             (GLOBALS.TIMESTEP % conf.behaviour.n_write_restart) != 0)
+             (GLOBALS.TIMESTEP - last_restart_ts) < conf.behaviour.n_write_restart)
         return;
 
     unsigned int flags = FileIO::force | FileIO::no_update | FileIO::append;
     mesh->write(path_to_file, FileIO::force | FileIO::no_update);
     bulk_interpolator.nodes.write(path_to_file, flags);
     pic_solver.write(path_to_file, flags);
+
+    last_restart_ts = GLOBALS.TIMESTEP;
 }
 
 } /* namespace femocs */

@@ -489,9 +489,10 @@ int HeatReader::scale_berendsen_long(double* x1, const int n_atoms,
 {
     check_return(size() == 0, "No " + LABELS.parcas_velocity + " to export!");
 
-    // timestep in PARCAS units
-    // needed to transfer velocity from PARCAS units to fm / fs
+    // PARCAS internal time step in fs
+    // needed to transfer velocity from PARCAS units to Angstrom / fs
     const double delta_t = conf.behaviour.timestep_fs / (10.1805*sqrt(conf.behaviour.mass));
+    // MD time step over Berendsen tau
     timestep_over_tau = conf.behaviour.timestep_fs / conf.heating.tau;
 
     const unsigned int n_tets = tet2atoms.size();
@@ -529,7 +530,7 @@ int HeatReader::scale_berendsen_long(double* x1, const int n_atoms,
                     x1[I+j] *= lambda;
 
                 // store scaled temperature
-                interpolation[atom].scalar = velocities[id].norm2() * heat_factor * lambda;
+                interpolation[atom].scalar = velocities[id].norm2() * (heat_factor * lambda);
             }
         }
     }

@@ -141,7 +141,7 @@ void Config::read_all(const string& fname, bool full_run) {
         check_changed("smooth_factor", "surface_smooth_factor");
         check_changed("surface_cleaner", "clean_surface");
         check_changed("write_log", "n_write_log");
-        check_changed("run_pic", "pic_mode");
+        check_changed("run_pic", "field_mode");
         check_changed("electronWsp", "electron_weight");
         check_changed("field_solver", "field_mode");
         check_changed("pic_mode", "field_mode");
