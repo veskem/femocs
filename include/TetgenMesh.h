@@ -152,7 +152,13 @@ private:
     void calc_quad2hex2quad_mapping();
 
     /** Calculate the mapping between tetrahedron and triangle indices */
-    int calc_tet2tri_mapping(const string &cmd, int n_surf_faces);
+    int calc_tri2tet2tri_mapping(const string &cmd, int n_surf_faces);
+
+    /** Read and calculate the mapping between tetrahedron and triangle indices */
+    void read_tri2tet2tri_mapping(const string &filename);
+
+    /** Calculate the mapping from tetrahedra to triangles */
+    void calc_tet2tri_mapping();
 
     /** Mark the tetrahedra by the location of nodes */
     void mark_tets();

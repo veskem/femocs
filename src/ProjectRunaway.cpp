@@ -605,7 +605,7 @@ int ProjectRunaway::interpolate(double* data, int* flag,
 
 int ProjectRunaway::restart(const string &path_to_file) {
     start_msg(t0, "Reading restart file from " + path_to_file);
-    fail = new_mesh->read(path_to_file, "rQnn");
+    fail = new_mesh->read(path_to_file, "");
     bulk_interpolator.initialize(new_mesh, TYPES.BULK);
     bulk_interpolator.nodes.read(path_to_file, 1);
     pic_solver.read(path_to_file);

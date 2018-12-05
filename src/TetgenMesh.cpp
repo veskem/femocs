@@ -225,9 +225,15 @@ int TetgenMesh::read(const string &file_name, const string &cmd) {
     // export mesh to Femocs
     hexmesh.export_all_mesh(this, true);
 
-    // calculate mapping between triangles and tetrahedra
-    int err_code = calc_tet2tri_mapping(cmd, tris.get_n_markers());
-    check_return(err_code, "Generation of tri2tet mapping failed with error code " + d2s(err_code));
+    if (cmd == "") {
+        // read mapping between triangles and tetrahedra
+        // and neighbor list of tetrahedra
+        read_tri2tet2tri_mapping(file_name);
+    } else {
+        // calculate mapping between triangles and tetrahedra
+        int err_code = calc_tri2tet2tri_mapping(cmd, tris.get_n_markers());
+        check_return(err_code, "Generation of tri2tet mapping failed with error code " + d2s(err_code));
+    }
 
     // calculate mapping between quadrangles and hexahedra
     group_hexahedra();
@@ -351,7 +357,7 @@ int TetgenMesh::generate_surface(const string& cmd1, const string& cmd2) {
     nodes.transfer(false);
     tets.transfer(false);
 
-    return calc_tet2tri_mapping(cmd2, n_surf_faces);
+    return calc_tri2tet2tri_mapping(cmd2, n_surf_faces);
 }
 
 void TetgenMesh::generate_manual_surface() {
@@ -432,7 +438,55 @@ int TetgenMesh::quad2hex(const int quad, const int region) const {
     return -1;
 }
 
-int TetgenMesh::calc_tet2tri_mapping(const string &cmd, int n_surf_faces) {
+void TetgenMesh::calc_tet2tri_mapping() {
+    vector<vector<int>> tet2tri_map(tets.size());
+    for (int i = 0; i < tris.size(); ++i) {
+        for (int tet : tris.to_tets(i))
+            if (tet >= 0)
+                tet2tri_map[tet].push_back(i);
+    }
+    tets.store_map(tet2tri_map);
+}
+
+void TetgenMesh::read_tri2tet2tri_mapping(const string &filename) {
+    string ftype = get_file_type(filename);
+    require(ftype == "restart", "Unimplemented import file type: " + ftype);
+    ifstream in(filename);
+    require(in, "File " + filename + " cannot be opened!");
+
+    string str;
+    int n_cells;
+    while (in >> str) {
+        if (str == "$Tri2Tet") {
+            in >> n_cells >> GLOBALS.TIME >> GLOBALS.TIMESTEP;
+            getline(in, str);
+
+            require(n_cells == tris.size(),
+                    "Mismatch between # read & stored triangles: " + d2s(n_cells) + " vs " + d2s(tris.size()));
+
+            tetIOout.face2tetlist = new int[n_tets_per_tri * n_cells];
+            in.read(reinterpret_cast<char*>(tetIOout.face2tetlist), n_tets_per_tri*n_cells*sizeof(int));
+        }
+
+        else if (str == "$TetNbors") {
+            in >> n_cells >> GLOBALS.TIME >> GLOBALS.TIMESTEP;
+            getline(in, str);
+
+            require(n_cells == tets.size(),
+                    "Mismatch between # read & stored tetrahedra: " + d2s(n_cells) + " vs " + d2s(tets.size()));
+
+            tetIOout.neighborlist = new int[n_tris_per_tet * n_cells];
+            in.read(reinterpret_cast<char*>(tetIOout.neighborlist), n_tris_per_tet*n_cells*sizeof(int));
+        }
+    }
+
+    in.close();
+
+    // calculate mapping from tetrahedra to triangles
+    calc_tet2tri_mapping();
+}
+
+int TetgenMesh::calc_tri2tet2tri_mapping(const string &cmd, int n_surf_faces) {
     tetIOout.deinitialize();
     tetIOout.initialize();
 
@@ -449,13 +503,8 @@ int TetgenMesh::calc_tet2tri_mapping(const string &cmd, int n_surf_faces) {
         tris.append(tris[i]);
     tris.transfer();
 
-    vector<vector<int>> tet2tri_map(tets.size());
-    for (int i = 0; i < n_surf_faces; ++i) {
-        for (int tet : tris.to_tets(i))
-            if (tet >= 0)
-                tet2tri_map[tet].push_back(i);
-    }
-    tets.store_map(tet2tri_map);
+    // calculate mapping from tetrahedra to triangles
+    calc_tet2tri_mapping();
 
     return 0;
 }
@@ -597,6 +646,13 @@ void TetgenMesh::write_bin(ofstream &out) const {
     }
 
     out << "\n$EndElements\n";
+
+    out << "$Tri2Tet\n" << n_tris << " " << GLOBALS.TIME << " " << GLOBALS.TIMESTEP << "\n";
+    out.write ((char*)tetIOout.face2tetlist, n_tets_per_tri*n_tris*sizeof(int));
+    out << "\n$EndTri2Tet\n$TetNbors\n"  << n_tets << " " << GLOBALS.TIME << " " << GLOBALS.TIMESTEP << "\n";
+    out.write ((char*)tetIOout.neighborlist, n_tris_per_tet*n_tets*sizeof(int));
+    out << "\n$EndTetNbors\n";
+
     out.close();
 }
 
