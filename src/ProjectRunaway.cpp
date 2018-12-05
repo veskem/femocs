@@ -172,7 +172,7 @@ int ProjectRunaway::generate_mesh() {
         end_msg(t0);
     }
 
-    new_mesh->nodes.write("out/hexmesh_nodes.xyz");
+    new_mesh->nodes.write("out/hexmesh_nodes.vtk");
     new_mesh->tris.write("out/trimesh.vtk");
     new_mesh->quads.write("out/quadmesh.vtk");
     new_mesh->tets.write("out/tetmesh.vtk");
@@ -449,7 +449,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
     }
     end_msg(t0);
 
-    vacuum_interpolator.nodes.write("out/result_E_phi.movie");
+    vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
     vacuum_interpolator.lintet.write("out/result_E_phi.vtk");
 
     return 0;
@@ -524,7 +524,7 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
-    bulk_interpolator.nodes.write("out/result_J_T.movie");
+    bulk_interpolator.nodes.write("out/result_J_T.xyz");
     bulk_interpolator.lintet.write("out/result_J_T.vtk");
 
     last_heat_time = GLOBALS.TIME;
@@ -612,6 +612,7 @@ int ProjectRunaway::restart(const string &path_to_file) {
 
     last_pic_time = GLOBALS.TIME - conf.behaviour.timestep_fs;
     last_heat_time = GLOBALS.TIME - conf.behaviour.timestep_fs;
+    last_restart_ts = GLOBALS.TIMESTEP;
     end_msg(t0);
 
     write_verbose_msg(new_mesh->to_str());

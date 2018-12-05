@@ -40,6 +40,9 @@ public:
     /** Determine if enough time has passed since the last file write */
     bool write_time() const;
 
+    /** Store current time */
+    void set_write_time();
+
 protected:
     bool first_line(ofstream &out) const;
 

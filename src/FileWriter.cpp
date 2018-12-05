@@ -16,6 +16,10 @@ namespace femocs {
 
 FileWriter::FileWriter() : last_write_time(-MODES.WRITE_PERIOD) {}
 
+void FileWriter::set_write_time() {
+    last_write_time = GLOBALS.TIME;
+}
+
 bool FileWriter::write_time() const {
     constexpr double epsilon = 1e-10;
     return MODES.WRITE_PERIOD >= 0 && (GLOBALS.TIME - last_write_time + epsilon) >= MODES.WRITE_PERIOD;

@@ -710,6 +710,7 @@ void TetgenMesh::write_separate(const string& file_name, const int type) {
     tempmesh.hexs.copy_markers(this->hexs, hex_mask);
 
     tempmesh.hexs.write(file_name);
+    set_write_time();
 }
 
 void TetgenMesh::calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells, const bool vacuum) const {
