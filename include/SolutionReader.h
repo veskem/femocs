@@ -195,13 +195,10 @@ public:
     void interpolate_dofs(CurrentHeatSolver<3>& solver);
 
     /** Compute data that Berendsen thermostat requires for re-using old solution */
-    void precalc_berendsen_long();
-
-    /** Apply Berendsen thermostat for individual atoms */
-    int scale_berendsen_short(double* x1, const int n_atoms, const Vec3& parcas2si, const Config& conf);
+    void precalc_berendsen();
 
     /** Apply Berendsen thermostat for atoms within a tetrahedron */
-    int scale_berendsen_long(double* x1, const int n_atoms, const Vec3& parcas2si, const Config& conf);
+    int scale_berendsen(double* x1, const int n_atoms, const Vec3& parcas2si, const Config& conf);
 
     /** Return current density in i-th interpolation point */
     Vec3 get_rho(const int i) const {
@@ -241,9 +238,6 @@ private:
 
     /** Calculate scaling factor for Berendsen thermostat */
     inline double calc_lambda(const double T_start, const double T_end) const;
-
-    /** Transfer solution from vector of Solution to separate vectors with Solution components */
-    void transfer_solution();
 };
 
 /** Class to calculate charges from electric field */

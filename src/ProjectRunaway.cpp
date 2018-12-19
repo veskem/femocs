@@ -288,7 +288,7 @@ int ProjectRunaway::prepare_export() {
         if (mesh_changed) {
             temperatures.set_preferences(false, 3, conf.behaviour.interpolation_rank);
             temperatures.interpolate(reader);
-            temperatures.precalc_berendsen_long();
+            temperatures.precalc_berendsen();
         } else {
             temperatures.update_positions(reader);
         }
@@ -562,7 +562,7 @@ int ProjectRunaway::export_data(double* data, const int n_points, const string &
         return forces.export_parcas(n_points, data_type, reader.get_si2parcas_box(), data);
 
     if (data_type == LABELS.parcas_velocity)
-        return temperatures.scale_berendsen_long(data, n_points, reader.get_parcas2si_box(), conf);
+        return temperatures.scale_berendsen(data, n_points, reader.get_parcas2si_box(), conf);
 
     if (data_type == LABELS.atom_type) {
         require(n_points <= reader.size(), "Invalid data query size: " + d2s(n_points));

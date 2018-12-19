@@ -425,46 +425,21 @@ HeatReader::HeatReader(Interpolator* i) :
 void HeatReader::interpolate_dofs(CurrentHeatSolver<3>& solver) {
     solver.heat.export_dofs(*this);
     calc_interpolation();
-    transfer_solution();
+
+    // transfer temperatures and potentials into separate vectors
+    const int n_points = size();
+    temperatures.resize(n_points);
+    potentials.resize(n_points);
+    for (int i = 0; i < n_points; ++i) {
+        Solution& sol = interpolation[i];
+        temperatures[i] = sol.scalar;
+        potentials[i] = sol.norm;
+    }
+
     solver.heat.set_nodal_solution(get_temperatures());
 }
 
-int HeatReader::scale_berendsen_short(double* x1, const int n_atoms,
-        const Vec3& parcas2si, const Config& conf)
-{
-    check_return(size() == 0, "No " + LABELS.parcas_velocity + " to export!");
-
-    // timestep in PARCAS units
-    // needed to transfer velocity from PARCAS units to fm / fs
-    const double delta_t = conf.behaviour.timestep_fs / (10.1805*sqrt(conf.behaviour.mass));
-    timestep_over_tau = conf.behaviour.timestep_fs / conf.heating.tau;
-
-    vector<Vec3> velocities;
-    calc_SI_velocities(velocities, n_atoms, parcas2si / delta_t, x1);
-
-    // scale velocities from MD temperature to calculated one
-    for (int i = 0; i < size(); ++i) {
-        int id = get_id(i);
-        if (id < 0 || id >= n_atoms) continue;
-
-        double md_temperature = velocities[id].norm2() * heat_factor;
-        double lambda = calc_lambda(md_temperature, get_temperature(i));
-
-        // export scaled velocity
-        int I = 3 * id;
-        for (int j = 0; j < 3; ++j)
-            x1[I+j] *= lambda;
-
-        // store scaled temperature
-        interpolation[i].scalar = md_temperature * lambda;
-    }
-
-//    write("out/berendsen.movie");
-
-    return 0;
-}
-
-void HeatReader::precalc_berendsen_long() {
+void HeatReader::precalc_berendsen() {
     const int n_tets = interpolator->lintet.size();
 
     // calculate mapping between atoms and tets that surround them
@@ -484,7 +459,7 @@ void HeatReader::precalc_berendsen_long() {
     }
 }
 
-int HeatReader::scale_berendsen_long(double* x1, const int n_atoms,
+int HeatReader::scale_berendsen(double* x1, const int n_atoms,
         const Vec3& parcas2si, const Config& conf)
 {
     check_return(size() == 0, "No " + LABELS.parcas_velocity + " to export!");
@@ -553,18 +528,6 @@ void HeatReader::calc_SI_velocities(vector<Vec3>& velocities,
     for (int i = 0; i < n_atoms; ++i) {
         int I = 3*i;
         velocities.push_back(Vec3(x1[I], x1[I+1], x1[I+2]) * parcas2si);
-    }
-}
-
-void HeatReader::transfer_solution() {
-    const int n_points = size();
-    temperatures.resize(n_points);
-    potentials.resize(n_points);
-
-    for (int i = 0; i < n_points; ++i) {
-        Solution& sol = interpolation[i];
-        temperatures[i] = sol.scalar;
-        potentials[i] = sol.norm;
     }
 }
 
