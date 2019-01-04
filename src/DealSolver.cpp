@@ -234,15 +234,20 @@ void DealSolver<dim>::export_surface_centroids(femocs::Medium& medium) const {
 
 template<int dim>
 void DealSolver<dim>::export_dofs(Medium& medium) const {
-    const unsigned int n_dofs = dof_handler.n_dofs();
-    vector<Point<dim>> support_points(n_dofs);
+    vector<Point<dim>> support_points;
+    export_dofs(support_points);
 
-    DoFTools::map_dofs_to_support_points<dim>(StaticMappingQ1<dim>::mapping,
-            dof_handler, support_points);
-
+    const unsigned int n_dofs = support_points.size();
     medium.reserve(n_dofs);
     for (int i = 0; i < n_dofs; ++i)
         medium.append( Point3(support_points[i]) );
+}
+
+template<int dim>
+void DealSolver<dim>::export_dofs(vector<Point<dim>>& points) const {
+    points.resize(size());
+    DoFTools::map_dofs_to_support_points<dim>(StaticMappingQ1<dim>::mapping,
+            dof_handler, points);
 }
 
 template<int dim>

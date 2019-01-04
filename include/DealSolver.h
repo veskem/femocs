@@ -85,6 +85,9 @@ public:
     /** Export mesh vertices into Medium */
     void export_dofs(femocs::Medium& medium) const;
 
+    /** Export mesh vertices into vector */
+    void export_dofs(vector<Point<dim>>& points) const;
+
     /** Export the centroids of surface faces in the order required by assemble_rhs */
     void export_surface_centroids(femocs::Medium& medium) const;
 
@@ -96,6 +99,8 @@ public:
 
     /** Calculate mapping between vertex and dof indices */
     void calc_vertex2dof();
+
+    int size() const { return this->dof_handler.n_dofs(); }
 
     /**
      * Import mesh from file and set the boundary indicators corresponding to copper

@@ -60,6 +60,10 @@ protected:
 
     vector<double>* bc_values;      ///< current/heat values on the centroids of surface faces for current/heat solver
     
+    bool valid_extension(const string &ext) const {
+        return DealSolver<dim>::valid_extension(ext) || ext == "xyz" || ext == "movie";
+    }
+
     friend class CurrentHeatSolver<dim> ;
 };
 
@@ -130,6 +134,8 @@ private:
 
     /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] in vtk format */
     void write_vtk(ofstream& out) const;
+
+    void write_xyz(ofstream& out) const;
 
     friend class CurrentHeatSolver<dim> ;
 };
