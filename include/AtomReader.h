@@ -89,10 +89,10 @@ public:
 
     /** Obtain the printable statistics */
     friend ostream& operator <<(ostream &os, const AtomReader& ar) {
-        os << fixed << setprecision(3)
-                << "latconst=" << ar.data.latconst
+        os << "time=" << GLOBALS.TIME << fixed << setprecision(3)
+                << ", latconst=" << ar.data.latconst
                 << ", coord_cutoff=" << ar.data.coord_cutoff
-                << ", #evap|clust atoms=" << ar.data.n_evaporated << "|" << ar.data.n_detached;
+                << ", #evap=" << ar.data.n_evaporated << ", #clust=" << ar.data.n_detached;
         return os;
     }
 

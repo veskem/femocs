@@ -82,7 +82,7 @@ void FileWriter::write_xyz(ofstream &out) const {
             << "Time=" << GLOBALS.TIME << ", Timestep=" << GLOBALS.TIMESTEP << ", " << class_name() << " ";
 
     out.setf(std::ios::scientific);
-    out.precision(12);
+    out.precision(6);
 }
 
 string FileWriter::get_restart_label() const {

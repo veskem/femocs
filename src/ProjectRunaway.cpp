@@ -172,12 +172,14 @@ int ProjectRunaway::generate_mesh() {
         end_msg(t0);
     }
 
-    new_mesh->nodes.write("out/hexmesh_nodes.vtk");
-    new_mesh->tris.write("out/trimesh.vtk");
-    new_mesh->quads.write("out/quadmesh.vtk");
-    new_mesh->tets.write("out/tetmesh.vtk");
-    new_mesh->hexs.write("out/hexmesh.vtk");
-    new_mesh->write_separate("out/hexmesh_bulk.vtks", TYPES.BULK);
+    if (fields.write_time()) {
+        new_mesh->nodes.write("out/hexmesh_nodes.vtk");
+        new_mesh->tris.write("out/trimesh.vtk");
+        new_mesh->quads.write("out/quadmesh.vtk");
+        new_mesh->tets.write("out/tetmesh.vtk");
+        new_mesh->hexs.write("out/hexmesh.vtk");
+        new_mesh->write_separate("out/hexmesh_bulk.vtks", TYPES.BULK);
+    }
 
     // update mesh pointers
     mesh = new_mesh;
