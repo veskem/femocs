@@ -103,24 +103,6 @@ void HeatSolver<dim>::write_vtk(ofstream& out) const {
 }
 
 template<int dim>
-void HeatSolver<dim>::write_xyz(ofstream& out) const {
-    // write the start of xyz header
-    FileWriter::write_xyz(out);
-
-    // write Ovito header
-    out << "properties=id:I:1:pos:R:3:nottingham_heat:R:1:joule_heat:R:1:temperature:R:1\n";
-
-    vector<Point<dim>> support_points;
-    this->export_dofs(support_points);
-
-    // write data
-    const int n_dofs = support_points.size();
-    for (int i = 0; i < n_dofs; ++i)
-        out << i << " " << Point3(support_points[i]) << " " << this->system_rhs_save(i) - this->system_rhs(i)
-        << " " << this->system_rhs_save(i) << " " << this->solution(i) << "\n";
-}
-
-template<int dim>
 void HeatSolver<dim>::assemble(const double delta_time) {
     require(current_solver, "NULL current solver can't be used!");
     require(delta_time > 0, "Invalid delta time: " + d2s(delta_time));
@@ -149,9 +131,9 @@ void HeatSolver<dim>::assemble(const double delta_time) {
             CopyData(n_dofs, n_q_points)
     );
 
-    if (this->write_time())
-        this->system_rhs_save = this->system_rhs;
+    if (this->write_time()) this->joule_heat = this->system_rhs;
     this->assemble_rhs(BoundaryID::copper_surface);
+    if (this->write_time()) this->system_rhs_save = this->system_rhs;
     this->append_dirichlet(BoundaryID::copper_bottom, this->dirichlet_bc_value);
     this->apply_dirichlet();
 }
@@ -561,6 +543,27 @@ template<int dim>
 void CurrentHeatSolver<dim>::mark_mesh() {
     this->mark_boundary(BoundaryID::copper_surface, BoundaryID::copper_bottom,
             BoundaryID::copper_sides, BoundaryID::copper_surface);
+}
+
+template<int dim>
+void CurrentHeatSolver<dim>::write_xyz(ofstream& out) const {
+    // write the start of xyz header
+    FileWriter::write_xyz(out);
+
+    // write Ovito header
+    out << "properties=id:I:1:pos:R:3:total_heat:R:1:joule_heat:R:1:nottingham_heat:R:1:temperature:R:1:potential:R:1\n";
+
+    vector<Point<dim>> support_points;
+    this->export_dofs(support_points);
+
+    // write data
+    // TODO figure out how to write current density
+    const int n_dofs = support_points.size();
+    for (int i = 0; i < n_dofs; ++i) {
+        out << i << " " << Point3(support_points[i]) << " " << heat.system_rhs_save(i) << " " << heat.joule_heat(i)
+                << " " << heat.system_rhs_save(i) - heat.joule_heat(i) << " " << heat.solution(i) << " " << current.solution(i) << "\n";
+    }
+
 }
 
 /* ==================================================================

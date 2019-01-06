@@ -59,10 +59,6 @@ protected:
     const Config::Heating *conf;    ///< solver parameters
 
     vector<double>* bc_values;      ///< current/heat values on the centroids of surface faces for current/heat solver
-    
-    bool valid_extension(const string &ext) const {
-        return DealSolver<dim>::valid_extension(ext) || ext == "xyz" || ext == "movie";
-    }
 
     friend class CurrentHeatSolver<dim> ;
 };
@@ -109,8 +105,9 @@ public:
 private:
     // TODO shouldn't it be temperature dependent?
     static constexpr double cu_rho_cp = 3.4496e-24;  ///< volumetric heat capacity of copper [J/(K*Ang^3)]
+    double one_over_delta_time;      ///< inverse of heat solver time step [1/sec]
+    Vector<double> joule_heat;       ///< integral Joule heat at dofs [Watt]
     const CurrentSolver<dim>* current_solver;
-    double one_over_delta_time;                      ///< inverse of heat solver time step
 
     typedef typename DealSolver<dim>::LinearSystem LinearSystem;
     typedef typename DealSolver<dim>::ScratchData ScratchData;
@@ -134,8 +131,6 @@ private:
 
     /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] in vtk format */
     void write_vtk(ofstream& out) const;
-
-    void write_xyz(ofstream& out) const;
 
     friend class CurrentHeatSolver<dim> ;
 };
@@ -166,6 +161,14 @@ public:
 private:
     PhysicalQuantities *pq;
     const Config::Heating *conf;
+
+    /** Specify allowed types of writable files */
+    bool valid_extension(const string &ext) const {
+        return ext == "xyz" || ext == "movie";
+    }
+
+    /** Write nodal data as xyz file */
+    void write_xyz(ofstream& out) const;
 
     /** Mark different regions of the mesh */
     void mark_mesh();

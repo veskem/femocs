@@ -517,10 +517,9 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     end_msg(t0);
     check_return(hcg < 0, "Heat solver did not complete normally,"
             " #CG=" + d2s(abs(hcg)) + "/" + d2s(conf.heating.n_cg));
-    write_verbose_msg("#CG steps: " + d2s(hcg));
 
-    ch_solver.current.write("out/current_solver.movie");
-    ch_solver.heat.write("out/heat_solver.movie");
+    ch_solver.write("out/ch_solver.movie");
+    write_verbose_msg("#CG steps: " + d2s(hcg));
 
     start_msg(t0, "Extracting J & T");
     bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
