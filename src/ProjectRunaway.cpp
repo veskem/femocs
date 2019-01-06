@@ -244,6 +244,7 @@ int ProjectRunaway::prepare_solvers() {
         start_msg(t0, "Setup current & heat solvers");
         ch_solver.setup(conf.heating.t_ambient);
         end_msg(t0);
+        write_verbose_msg(ch_solver.heat.to_str());
 
         ch_solver.export_surface_centroids(surface_fields);
         emission.initialize(mesh);

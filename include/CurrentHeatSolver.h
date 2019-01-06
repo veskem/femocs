@@ -162,6 +162,8 @@ private:
     PhysicalQuantities *pq;
     const Config::Heating *conf;
 
+    int size() const { return heat.size(); }
+
     /** Specify allowed types of writable files */
     bool valid_extension(const string &ext) const {
         return ext == "xyz" || ext == "movie";

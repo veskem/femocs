@@ -92,7 +92,7 @@ void InterpolatorNodes::write_xyz(ofstream& out) const {
 
     // write the header for Ovito
     out << "properties=id:I:1:pos:R:3:marker:I:1:" <<
-            "force:R:3:" << norm_label << ":R:1:" << scalar_label << ":R:1" << endl;
+            "force:R:3:" << vec_label << ":R:1:" << norm_label << ":R:1:" << scalar_label << ":R:1" << endl;
 
     // write data
     const int n_nodes = size();

@@ -104,7 +104,7 @@ public:
 
 protected:
     const string vec_label;       ///< label for vector data
-    const string vec_norm_label;  ///< label for data associated with vector length
+    const string norm_label;  ///< label for data associated with vector length
     const string scalar_label;    ///< label for scalar data
     double limit_min;             ///< minimum value of accepted comparison value
     double limit_max;             ///< maximum value of accepted comparison value

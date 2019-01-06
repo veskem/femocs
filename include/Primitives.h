@@ -518,7 +518,7 @@ public:
 
     /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &ss, const Solution &sol) {
-        return ss << sol.vector << ' ' << sol.norm << ' ' << sol.scalar;
+        return ss << sol.vector << ' ' << sol.vector.norm() << ' ' << sol.norm << ' ' << sol.scalar;
     }
 
     /** Functors used to sort vector of Solution into same order as vector of Atom */

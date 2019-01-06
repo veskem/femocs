@@ -252,7 +252,7 @@ void DealSolver<dim>::export_dofs(vector<Point<dim>>& points) const {
 
 template<int dim>
 void DealSolver<dim>::get_nodal_solution(vector<double>& solution) const {
-    const unsigned int n_nodes = this->tria->n_used_vertices();
+    const unsigned int n_nodes = tria->n_used_vertices();
     require(vertex2dof.size() == n_nodes, "Before extracting solution, vertex2dof mapping must be calculated!");
 
     solution.resize(n_nodes);
@@ -262,7 +262,7 @@ void DealSolver<dim>::get_nodal_solution(vector<double>& solution) const {
 
 template<int dim>
 void DealSolver<dim>::set_nodal_solution(const vector<double>* new_solution) {
-    const unsigned int n_verts = this->dof_handler.get_triangulation().n_used_vertices();
+    const unsigned int n_verts = tria->n_used_vertices();
 
     require(new_solution && n_verts == new_solution->size(),
             "Mismatch between #nodes and Dirichlet BC vector size: "
@@ -321,7 +321,7 @@ template<int dim>
 void DealSolver<dim>::calc_vertex2dof() {
     static constexpr int n_verts_per_elem = GeometryInfo<dim>::vertices_per_cell;
     require(tria, "Pointer to triangulation missing!");
-    const unsigned int n_verts = this->tria->n_used_vertices();
+    const unsigned int n_verts = tria->n_used_vertices();
     require(n_verts > 0, "Can't generate map for empty triangulation!");
 
     // create mapping from mesh vertex to cell index & cell node
@@ -344,21 +344,19 @@ void DealSolver<dim>::calc_vertex2dof() {
 
 template<int dim>
 void DealSolver<dim>::setup_system() {
-    require(this->dof_handler.get_triangulation().n_used_vertices() > 0,
-            "Can't setup system with no mesh!");
+    require(tria->n_used_vertices() > 0, "Can't setup system with no mesh!");
 
     this->dof_handler.distribute_dofs(this->fe);
     this->boundary_values.clear();
 
-    const unsigned int n_dofs = this->dof_handler.n_dofs();
+    const unsigned int n_dofs = size();
 
     DynamicSparsityPattern dsp(n_dofs);
     DoFTools::make_sparsity_pattern(this->dof_handler, dsp);
     this->sparsity_pattern.copy_from(dsp);
 
-    this->system_rhs.reinit(n_dofs);
-    this->system_rhs_save.reinit(n_dofs);
     this->system_matrix.reinit(this->sparsity_pattern);
+    this->system_rhs.reinit(n_dofs);
     this->solution.reinit(n_dofs);
     this->solution = this->dirichlet_bc_value;
 }
@@ -500,7 +498,9 @@ void DealSolver<dim>::calc_dof_volumes() {
     QGauss<dim> quadrature_formula(quadrature_degree);
     FEValues<dim> fe_values(fe, quadrature_formula, update_quadrature_points | update_JxW_values);
 
-    dof_volume.reinit(dof_handler.n_dofs()); // reset volumes
+    // reset volumes
+    dof_volume.reinit(size());
+    dof_volume = 0;
     vector<types::global_dof_index> local_dof_indices(fe.dofs_per_cell);
 
     typename DoFHandler<dim>::active_cell_iterator cell;

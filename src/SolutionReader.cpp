@@ -21,14 +21,14 @@ namespace femocs {
  * ========================================== */
 
 SolutionReader::SolutionReader() :
-        vec_label("vec"), vec_norm_label("vec_norm"), scalar_label("scalar"),
+        vec_label("vec"), norm_label("vec_norm"), scalar_label("scalar"),
         limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), interpolator(NULL)
 {
     reserve(0);
 }
 
 SolutionReader::SolutionReader(Interpolator* i, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
-        vec_label(vec_lab), vec_norm_label(vec_norm_lab), scalar_label(scal_lab),
+        vec_label(vec_lab), norm_label(vec_norm_lab), scalar_label(scal_lab),
         limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), interpolator(i)
 {
     reserve(0);
@@ -138,7 +138,7 @@ void SolutionReader::write_xyz(ofstream &out) const {
 
     // write Ovito header
     out << "properties=id:I:1:pos:R:3:marker:I:1:force:R:3:"
-            + vec_norm_label + ":R:1:" + scalar_label + ":R:1\n";
+            + vec_label + ":R:1:" + norm_label + ":R:1:" + scalar_label + ":R:1\n";
 
     // write data
     const int n_atoms = size();
@@ -158,7 +158,7 @@ void SolutionReader::write_vtk_point_data(ofstream& out) const {
         out << interpolation[i].scalar << "\n";
 
     // output vector magnitude explicitly to make it possible to apply filters in ParaView
-    out << "SCALARS " << vec_norm_label << " double\nLOOKUP_TABLE default\n";
+    out << "SCALARS " << norm_label << " double\nLOOKUP_TABLE default\n";
     for (int i = 0; i < n_atoms; ++i)
         out << interpolation[i].norm << "\n";
 
@@ -217,7 +217,7 @@ void SolutionReader::print_statistics() {
 
 int SolutionReader::contains(const string& data_label) const {
     if (data_label == vec_label) return 1;
-    if (data_label == vec_norm_label) return 2;
+    if (data_label == norm_label) return 2;
     if (data_label == scalar_label) return 3;
 
     return 0;
@@ -256,7 +256,7 @@ int SolutionReader::interpolate_results(const int n_points, const string &data_t
     check_return(size() == 0, "No " + data_type + " to interpolate!");
 
     // transfer coordinates
-    SolutionReader sr(interpolator, vec_label, vec_norm_label, scalar_label);
+    SolutionReader sr(interpolator, vec_label, norm_label, scalar_label);
     sr.set_preferences(sort_atoms, dim, rank);
     sr.reserve(n_points);
     for (int i = 0; i < n_points; ++i)

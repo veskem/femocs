@@ -554,7 +554,7 @@ void CurrentHeatSolver<dim>::write_xyz(ofstream& out) const {
     out << "properties=id:I:1:pos:R:3:total_heat:R:1:joule_heat:R:1:nottingham_heat:R:1:temperature:R:1:potential:R:1\n";
 
     vector<Point<dim>> support_points;
-    this->export_dofs(support_points);
+    heat.export_dofs(support_points);
 
     // write data
     // TODO figure out how to write current density

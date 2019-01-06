@@ -100,7 +100,8 @@ public:
     /** Calculate mapping between vertex and dof indices */
     void calc_vertex2dof();
 
-    int size() const { return this->dof_handler.n_dofs(); }
+    /** Return # degrees of freedom of system */
+    int size() const { return dof_handler.n_dofs(); }
 
     /**
      * Import mesh from file and set the boundary indicators corresponding to copper

@@ -60,7 +60,7 @@ void start_msg(double& t0, const string& message) {
         if (message[0] == '=')
             cout << "\n" << message;
         else
-            cout << "\n=== " << message << "..." << string(whitespace_len, ' ');
+            cout << "\n=== " << message << "... " << string(whitespace_len, ' ');
         cout.flush();
 
         t0 = omp_get_wtime();
