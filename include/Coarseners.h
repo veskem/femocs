@@ -261,6 +261,9 @@ public:
     /** Get the distance between atoms on the edge of simulation cell */
     double get_r0_inf(const Medium::Sizes &s);
 
+    /** Radius of coarsening cylinder */
+    double get_radius() const { return radius; }
+
     bool inside_interesting_region(const Point3& p) const;
 
     Point3 centre;

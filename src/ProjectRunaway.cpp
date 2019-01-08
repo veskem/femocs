@@ -442,7 +442,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
         if (error) return 1;
 
         if (MODES.VERBOSE) {
-            printf("  #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, M/A=%.3f, #el_inj|del|tot=%d|%d|%d\n",
+            printf("  #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, M/A=%.3f, #inj|del|tot=%d|%d|%d\n",
                     n_cg, emission.global_data.Fmax, emission.global_data.I_tot, fields.get_beta(),
                     n_injected, n_lost, pic_solver.get_n_electrons());
         }
