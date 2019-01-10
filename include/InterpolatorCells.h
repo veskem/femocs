@@ -389,7 +389,7 @@ public:
     ~LinearHexahedra() {};
 
     /** Pre-compute data about tetrahedra to make interpolation faster */
-    void precompute();
+    void precompute(int search_region);
 
     /** Check whether the point is inside the cell */
     bool point_in_cell(const Vec3 &point, const int cell) const;

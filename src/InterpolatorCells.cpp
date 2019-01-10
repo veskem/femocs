@@ -1118,7 +1118,7 @@ void LinearHexahedra::reserve(const int N) {
     f7s.clear(); f7s.reserve(N);
 }
 
-void LinearHexahedra::precompute() {
+void LinearHexahedra::precompute(int search_region) {
     require(mesh && hexs && lintet, "NULL pointers can't be used!");
     require(mesh->tets.size() == lintet->size(),
             "Mismatch between tetrahedral mesh and interpolator sizes (" + d2s(mesh->tets.size()) + " vs " + d2s(lintet->size())
@@ -1160,9 +1160,17 @@ void LinearHexahedra::precompute() {
     // store the mapping between femocs and deal.ii hexahedra
     int deal_hex_index = 0;
     map_femocs2deal = vector<int>(n_elems, -1);
-    for (int i = 0; i < n_elems; ++i) {
-        if (hexs->get_marker(i) > 0)
-            map_femocs2deal[i] = deal_hex_index++;
+
+    if (search_region == TYPES.VACUUM) {
+        for (int i = 0; i < n_elems; ++i) {
+            if (hexs->get_marker(i) > 0)
+                map_femocs2deal[i] = deal_hex_index++;
+        }
+    } else {
+        for (int i = 0; i < n_elems; ++i) {
+            if (hexs->get_marker(i) < 0)
+                map_femocs2deal[i] = deal_hex_index++;
+        }
     }
 
     map_deal2femocs = vector<int>(deal_hex_index);

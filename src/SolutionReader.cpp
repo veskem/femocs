@@ -55,7 +55,7 @@ int SolutionReader::update_interpolation(const int i, int cell) {
             interpolation[i] = interpolator->linhex.locate_interpolate(atom.point, cell);
     }
 
-    atom.marker = cell;
+    if (!sort_atoms) atom.marker = cell;
     return cell;
 }
 
@@ -76,8 +76,8 @@ void SolutionReader::calc_full_interpolation() {
     if (sort_atoms) {
         for (int i = 0; i < n_atoms; ++i)
             interpolation[i].id = atoms[i].id;
-        sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
-        sort( atoms.begin(), atoms.end(), Atom::sort_id() );
+        std::sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
+        std::sort( atoms.begin(), atoms.end(), Atom::sort_id() );
     }
 
     atoms_mapped_to_cells = true;
@@ -422,21 +422,111 @@ HeatReader::HeatReader(Interpolator* i) :
         SolutionReader(i, LABELS.rho, LABELS.potential, LABELS.temperature)
 {}
 
-void HeatReader::interpolate_dofs(CurrentHeatSolver<3>& solver) {
+void HeatReader::sort_spatial() {
+    std::sort( atoms.begin(), atoms.end(), Atom::sort_marker_up() );
+}
+
+void HeatReader::sort_spatial(const TetgenMesh* mesh) {
+    const int n_nodes = mesh->nodes.size();
+    const int n_tets = mesh->tets.size();
+
+    // determine tetrahedra that are connected to node
+    vector<vector<int>> node2tets(n_nodes);
+    for (int tet = 0; tet < n_tets; ++tet) {
+        for (int node : mesh->tets[tet])
+            node2tets[node].push_back(tet);
+    }
+
+    // determine tetrahedra that are missing from Deal.II mesh
+    vector<bool> tet_missing = vector_equal(mesh->tets.get_markers(), TYPES.VACUUM);
+
+    // sort Femocs mesh nodes that are also present in Deal.II
+    vector<int> indices(n_nodes, -1);
+    int cntr = 0;
+
+    for (int i = 0; i < n_nodes; ++i) {
+        for (int tet : node2tets[i]) {
+            if (tet_missing[tet]) continue;
+
+            // enumerate nodes of tetrahedron
+            for (int node : mesh->tets[tet]) {
+                if (indices[node] < 0)
+                    indices[node] = cntr++;
+            }
+
+            // enumerate remaining nodes of hexahedra
+            // that are located inside the tetrahedron
+            for (int hex : mesh->tets.to_hexs(tet)) {
+                for (int node : mesh->hexs[hex])
+                    if (indices[node] < 0)
+                        indices[node] = cntr++;
+            }
+        }
+    }
+
+//    // mark all the nodes that are present in bulk mesh
+//    const int n_hexs = mesh->hexs.size();
+//    for (int hex = 0; hex < n_hexs; ++hex) {
+//        // skip vacuum hexahedra
+//        if (mesh->hexs.get_marker(hex) > 0) continue;
+//
+//        for (int node : mesh->hexs[hex])
+//            indices[node] = -2;
+//    }
+//
+//    // calc neighbor list for nodes
+//    // two nodes are considered neighbors if they share a hexahedron
+//    vector<vector<unsigned>> nborlist;
+//    mesh->hexs.calc_nborlist(nborlist);
+//
+//    vector<unsigned> neighbours = nborlist[mesh->nodes.indxs.bulk_start];
+//    for (size_t i = 0; i < neighbours.size(); ++i) {
+//        int node = neighbours[i];
+//        if (indices[node] == -2) {
+//            indices[node] = cntr++;
+//            neighbours.insert(neighbours.end(), nborlist[node].begin(), nborlist[node].end());
+//        }
+//    }
+
+    // must be below 1 to ensure nodes are shrinked into the mesh
+    // if > 1, nodes are expanded and therefore some nodes will move outside the mesh making interpolating slower
+    const double shrink_factor = 0.99;
+    int n_dealii_nodes = size();
+    vector<int> deal2femocs(n_dealii_nodes, -1);
+
+    cntr = 0;
+    for (int i = 0; i < n_nodes; ++i) {
+        if (indices[i] >= 0)
+            deal2femocs[cntr++] = i;
+    }
+
+    for (int i = 0; i < n_dealii_nodes; ++i) {
+        int dealii_vertex = get_marker(i);
+        require(dealii_vertex < n_dealii_nodes, "Index of Deal.II vertex exceeds # of vertices: "
+                + d2s(dealii_vertex) + " >= " + d2s(n_dealii_nodes));
+        int femocs_vertex = deal2femocs[dealii_vertex];
+
+        // store sort index
+        atoms[i].marker = indices[femocs_vertex];
+        // move dof little bit to guarantee that it doesn't overlap with previous mesh node
+        atoms[i].point *= shrink_factor;
+    }
+}
+
+void HeatReader::interpolate_dofs(CurrentHeatSolver<3>& solver, const TetgenMesh* mesh) {
     solver.heat.export_dofs(*this);
+    if (sort_atoms) sort_spatial(mesh);
     calc_interpolation();
 
     // transfer temperatures and potentials into separate vectors
     const int n_points = size();
     temperatures.resize(n_points);
-    potentials.resize(n_points);
     for (int i = 0; i < n_points; ++i) {
         Solution& sol = interpolation[i];
         temperatures[i] = sol.scalar;
-        potentials[i] = sol.norm;
     }
 
-    solver.heat.set_nodal_solution(get_temperatures());
+    solver.heat.set_nodal_solution(&temperatures);
 }
 
 void HeatReader::precalc_berendsen() {

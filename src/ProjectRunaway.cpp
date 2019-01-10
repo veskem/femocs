@@ -45,7 +45,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 
     surface_fields.set_preferences(false, 2, 3);
     surface_temperatures.set_preferences(false, 2, 3);
-    heat_transfer.set_preferences(false, 3, 1);
+    heat_transfer.set_preferences(true, 3, 1);
 
     start_msg(t0, "Reading physical quantities");
     phys_quantities.initialize_with_hc_data();
@@ -255,8 +255,9 @@ int ProjectRunaway::prepare_solvers() {
             bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
         } else {
             start_msg(t0, "Transferring old temperatures to new mesh");
-            heat_transfer.interpolate_dofs(ch_solver);
+            heat_transfer.interpolate_dofs(ch_solver, mesh);
             end_msg(t0);
+            heat_transfer.write("out/heat_transfer.xyz");
         }
     }
 

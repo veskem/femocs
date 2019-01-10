@@ -850,9 +850,9 @@ bool TetgenMesh::rank_and_mark_nodes() {
 
     // Nodes inside the thin nanotip may not have nearest neighbour connection
     // with the rest of the bulk. Therefore mark them separately
-    for (int &marker : *nodes.get_markers())
-        if (marker == TYPES.NONE)
-            marker = TYPES.BULK;
+    for (node = 0; node < n_nodes; ++node)
+        if (nodes.get_marker(node) == TYPES.NONE)
+            nodes.set_marker(node, TYPES.BULK);
 
     return 0;
 }

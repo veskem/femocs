@@ -155,7 +155,7 @@ void Interpolator::initialize(const TetgenMesh* m, const int search_region) {
     lintet.precompute();
     quadtet.precompute();
     linquad.precompute();
-    linhex.precompute();
+    linhex.precompute(search_region);
 
     lintet.narrow_search_to(search_region);
 }
@@ -238,7 +238,7 @@ void Interpolator::extract_solution(CurrentHeatSolver<3>& fem) {
     }
 }
 
-void Interpolator::extract_solution_v2(PoissonSolver<3>& fem, const bool smoothen) {
+void Interpolator::extract_solution_old(PoissonSolver<3>& fem, const bool smoothen) {
     // To make solution extraction faster, generate mapping between desired and available data sequences
     vector<int> cell_indxs, vert_indxs;
     get_maps(cell_indxs, vert_indxs, fem.get_triangulation(), fem.get_dof_handler());

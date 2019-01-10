@@ -192,7 +192,7 @@ public:
     HeatReader(Interpolator* i);
 
     /** Interpolate and export solution on the mesh DOFs of the FEM solver */
-    void interpolate_dofs(CurrentHeatSolver<3>& solver);
+    void interpolate_dofs(CurrentHeatSolver<3>& solver, const TetgenMesh* mesh);
 
     /** Compute data that Berendsen thermostat requires for re-using old solution */
     void precalc_berendsen();
@@ -218,10 +218,6 @@ public:
         return interpolation[i].scalar;
     }
 
-    vector<double>* get_temperatures() { return &temperatures; }
-
-    vector<double>* get_potentials() { return &potentials; }
-
 private:
     static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant [eV/K]
     static constexpr double heat_factor = 1.0 / (2*1.5*kB);  ///< Factor to transfer 2*kinetic energy to temperature
@@ -231,13 +227,16 @@ private:
     vector<vector<int>> tet2atoms;
     vector<double> fem_temp;
     vector<double> temperatures;
-    vector<double> potentials;
 
     /** Transfer velocities from Parcas units to fm / fs */
     void calc_SI_velocities(vector<Vec3>& velocities, const int n_atoms, const Vec3& parcas2si, double* x1);
 
     /** Calculate scaling factor for Berendsen thermostat */
     inline double calc_lambda(const double T_start, const double T_end) const;
+
+    /** Function to increase spatial ordering of mesh nodes */
+    void sort_spatial();
+    void sort_spatial(const TetgenMesh* mesh);
 };
 
 /** Class to calculate charges from electric field */

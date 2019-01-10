@@ -58,7 +58,7 @@ public:
     
     /** Extract electric potential and field values from FEM solution */
     void extract_solution(PoissonSolver<3>& fem, const bool smoothen);
-    void extract_solution_v2(PoissonSolver<3>& fem, const bool smoothen);
+    void extract_solution_old(PoissonSolver<3>& fem, const bool smoothen);
 
     /** Extract charge density from FEM solution */
     void extract_charge_density(PoissonSolver<3>& fem);

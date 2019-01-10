@@ -233,14 +233,18 @@ void DealSolver<dim>::export_surface_centroids(femocs::Medium& medium) const {
 }
 
 template<int dim>
-void DealSolver<dim>::export_dofs(Medium& medium) const {
+void DealSolver<dim>::export_dofs(Medium& medium) {
     vector<Point<dim>> support_points;
     export_dofs(support_points);
 
     const unsigned int n_dofs = support_points.size();
+    this->calc_vertex2dof();
+    require(dof2vertex.size() == n_dofs, "Mismatch between size of dof2vertex map and #dofs: "
+            + d2s(dof2vertex.size()) + " vs " + d2s(n_dofs));
+
     medium.reserve(n_dofs);
     for (int i = 0; i < n_dofs; ++i)
-        medium.append( Point3(support_points[i]) );
+        medium.append( Atom(i, support_points[i], dof2vertex[i]) );
 }
 
 template<int dim>
@@ -322,7 +326,9 @@ void DealSolver<dim>::calc_vertex2dof() {
     static constexpr int n_verts_per_elem = GeometryInfo<dim>::vertices_per_cell;
     require(tria, "Pointer to triangulation missing!");
     const unsigned int n_verts = tria->n_used_vertices();
-    require(n_verts > 0, "Can't generate map for empty triangulation!");
+    require(n_verts > 0, "Can't generate map with empty triangulation!");
+    const unsigned int n_dofs = size();
+    require(n_dofs > 0, "Can't generate map with empty dof handler!");
 
     // create mapping from mesh vertex to cell index & cell node
     vector<unsigned> vertex2hex(n_verts), vertex2node(n_verts);
@@ -336,9 +342,12 @@ void DealSolver<dim>::calc_vertex2dof() {
 
     // create mapping from vertex index to dof index
     this->vertex2dof.resize(n_verts);
+    this->dof2vertex.resize(n_dofs);
     for (unsigned i = 0; i < n_verts; ++i) {
         typename DoFHandler<dim>::active_cell_iterator cell(tria, 0, vertex2hex[i], &this->dof_handler);
-        this->vertex2dof[i] = cell->vertex_dof_index(vertex2node[i], 0);
+        unsigned int dof = cell->vertex_dof_index(vertex2node[i], 0);
+        this->vertex2dof[i] = dof;
+        this->dof2vertex[dof] = i;
     }
 }
 

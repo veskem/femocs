@@ -151,7 +151,7 @@ public:
     }
 
     /** Return pointer to markers */
-    vector<int>* get_markers() { return &markers; }
+    const vector<int>* get_markers() const { return &markers; }
 
     /** Assign m-th marker */
     void set_marker(const int node, const int m) {
