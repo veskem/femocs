@@ -429,6 +429,7 @@ void HeatReader::sort_spatial() {
 void HeatReader::sort_spatial(const TetgenMesh* mesh) {
     const int n_nodes = mesh->nodes.size();
     const int n_tets = mesh->tets.size();
+    const int n_dealii_nodes = size();
 
     // determine tetrahedra that are connected to node
     vector<vector<int>> node2tets(n_nodes);
@@ -437,16 +438,14 @@ void HeatReader::sort_spatial(const TetgenMesh* mesh) {
             node2tets[node].push_back(tet);
     }
 
-    // determine tetrahedra that are missing from Deal.II mesh
-    vector<bool> tet_missing = vector_equal(mesh->tets.get_markers(), TYPES.VACUUM);
-
-    // sort Femocs mesh nodes that are also present in Deal.II
+    // obtain sort indices for Femocs mesh nodes that are also present in Deal.II
     vector<int> indices(n_nodes, -1);
     int cntr = 0;
 
-    for (int i = 0; i < n_nodes; ++i) {
+    for (int i = 0; i < n_nodes; ++i)
         for (int tet : node2tets[i]) {
-            if (tet_missing[tet]) continue;
+            // skip tetrahedra that are located in  vacuum
+            if (mesh->tets.get_marker(tet) == TYPES.VACUUM) continue;
 
             // enumerate nodes of tetrahedron
             for (int node : mesh->tets[tet]) {
@@ -462,69 +461,34 @@ void HeatReader::sort_spatial(const TetgenMesh* mesh) {
                         indices[node] = cntr++;
             }
         }
-    }
-
-//    // mark all the nodes that are present in bulk mesh
-//    const int n_hexs = mesh->hexs.size();
-//    for (int hex = 0; hex < n_hexs; ++hex) {
-//        // skip vacuum hexahedra
-//        if (mesh->hexs.get_marker(hex) > 0) continue;
-//
-//        for (int node : mesh->hexs[hex])
-//            indices[node] = -2;
-//    }
-//
-//    // calc neighbor list for nodes
-//    // two nodes are considered neighbors if they share a hexahedron
-//    vector<vector<unsigned>> nborlist;
-//    mesh->hexs.calc_nborlist(nborlist);
-//
-//    vector<unsigned> neighbours = nborlist[mesh->nodes.indxs.bulk_start];
-//    for (size_t i = 0; i < neighbours.size(); ++i) {
-//        int node = neighbours[i];
-//        if (indices[node] == -2) {
-//            indices[node] = cntr++;
-//            neighbours.insert(neighbours.end(), nborlist[node].begin(), nborlist[node].end());
-//        }
-//    }
 
     // must be below 1 to ensure nodes are shrinked into the mesh
     // if > 1, nodes are expanded and therefore some nodes will move outside the mesh making interpolating slower
     const double shrink_factor = 0.99;
-    int n_dealii_nodes = size();
-    vector<int> deal2femocs(n_dealii_nodes, -1);
 
     cntr = 0;
-    for (int i = 0; i < n_nodes; ++i) {
-        if (indices[i] >= 0)
-            deal2femocs[cntr++] = i;
-    }
-
-    for (int i = 0; i < n_dealii_nodes; ++i) {
-        int dealii_vertex = get_marker(i);
-        require(dealii_vertex < n_dealii_nodes, "Index of Deal.II vertex exceeds # of vertices: "
-                + d2s(dealii_vertex) + " >= " + d2s(n_dealii_nodes));
-        int femocs_vertex = deal2femocs[dealii_vertex];
-
-        // store sort index
-        atoms[i].marker = indices[femocs_vertex];
-        // move dof little bit to guarantee that it doesn't overlap with previous mesh node
-        atoms[i].point *= shrink_factor;
-    }
+    for (int i : indices)
+        if (i >= 0) {
+            require(cntr < n_dealii_nodes, "Index of Deal.II vertex exceeds # of vertices: "
+                    + d2s(cntr) + " >= " + d2s(n_dealii_nodes));
+            // store sort index
+            atoms[cntr].marker = i;
+            // move point little bit to ensure it doesn't overlap with previous mesh node
+            atoms[cntr].point *= shrink_factor;
+            cntr++;
+        }
 }
 
 void HeatReader::interpolate_dofs(CurrentHeatSolver<3>& solver, const TetgenMesh* mesh) {
-    solver.heat.export_dofs(*this);
+    solver.heat.export_vertices(*this);
     if (sort_atoms) sort_spatial(mesh);
     calc_interpolation();
 
     // transfer temperatures and potentials into separate vectors
     const int n_points = size();
     temperatures.resize(n_points);
-    for (int i = 0; i < n_points; ++i) {
-        Solution& sol = interpolation[i];
-        temperatures[i] = sol.scalar;
-    }
+    for (int i = 0; i < n_points; ++i)
+        temperatures[i] = interpolation[i].scalar;
 
     solver.heat.set_nodal_solution(&temperatures);
 }

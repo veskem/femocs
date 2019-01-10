@@ -193,7 +193,6 @@ void PoissonSolver<dim>::assemble(const bool full_run) {
         if (full_run) {
             assemble_parallel();
             this->append_dirichlet(BoundaryID::copper_surface, this->dirichlet_bc_value);
-            this->calc_vertex2dof();
         }
         this->assemble_rhs(BoundaryID::vacuum_top);
     } else {
@@ -201,7 +200,6 @@ void PoissonSolver<dim>::assemble(const bool full_run) {
             assemble_parallel();
             this->append_dirichlet(BoundaryID::copper_surface, this->dirichlet_bc_value);
             this->append_dirichlet(BoundaryID::vacuum_top, applied_potential);
-            this->calc_vertex2dof();
         }
     }
 

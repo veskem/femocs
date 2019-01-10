@@ -233,18 +233,19 @@ void DealSolver<dim>::export_surface_centroids(femocs::Medium& medium) const {
 }
 
 template<int dim>
-void DealSolver<dim>::export_dofs(Medium& medium) {
+void DealSolver<dim>::export_vertices(Medium& medium) {
     vector<Point<dim>> support_points;
     export_dofs(support_points);
 
-    const unsigned int n_dofs = support_points.size();
+    const unsigned int n_verts = tria->n_used_vertices();
     this->calc_vertex2dof();
-    require(dof2vertex.size() == n_dofs, "Mismatch between size of dof2vertex map and #dofs: "
-            + d2s(dof2vertex.size()) + " vs " + d2s(n_dofs));
 
-    medium.reserve(n_dofs);
-    for (int i = 0; i < n_dofs; ++i)
-        medium.append( Atom(i, support_points[i], dof2vertex[i]) );
+    require(vertex2dof.size() == n_verts, "Mismatch between vertex2dof size and #vertices: "
+            + d2s(vertex2dof.size()) + " vs " + d2s(n_verts));
+
+    medium.reserve(n_verts);
+    for (int i = 0; i < n_verts; ++i)
+        medium.append( Atom(i, support_points[vertex2dof[i]], 0) );
 }
 
 template<int dim>
@@ -255,26 +256,29 @@ void DealSolver<dim>::export_dofs(vector<Point<dim>>& points) const {
 }
 
 template<int dim>
-void DealSolver<dim>::get_nodal_solution(vector<double>& solution) const {
-    const unsigned int n_nodes = tria->n_used_vertices();
-    require(vertex2dof.size() == n_nodes, "Before extracting solution, vertex2dof mapping must be calculated!");
+void DealSolver<dim>::get_nodal_solution(vector<double>& solution) {
+    const unsigned int n_verts = tria->n_used_vertices();
+    this->calc_vertex2dof();
 
-    solution.resize(n_nodes);
-    for (unsigned int i = 0; i < n_nodes; ++i)
+    require(vertex2dof.size() == n_verts, "Mismatch between vertex2dof size and #vertices: "
+            + d2s(vertex2dof.size()) + " vs " + d2s(n_verts));
+
+    solution.resize(n_verts);
+    for (unsigned int i = 0; i < n_verts; ++i)
         solution[i] = this->solution[vertex2dof[i]];
 }
 
 template<int dim>
 void DealSolver<dim>::set_nodal_solution(const vector<double>* new_solution) {
-    const unsigned int n_verts = tria->n_used_vertices();
+    const unsigned int n_verts = vertex2dof.size();
 
-    require(new_solution && n_verts == new_solution->size(),
-            "Mismatch between #nodes and Dirichlet BC vector size: "
+    require(new_solution, "Can't use NULL solution vector!");
+    require(n_verts == new_solution->size(), "Mismatch between #vertices and solution vector size: "
             + d2s(n_verts) + " vs " + d2s(new_solution->size()));
 
     // Initialize the solution with non-constant values
     for (size_t i = 0; i < n_verts; i++) {
-        this->solution[i] = (*new_solution)[i];
+        this->solution[vertex2dof[i]] = (*new_solution)[i];
     }
 }
 
@@ -327,8 +331,6 @@ void DealSolver<dim>::calc_vertex2dof() {
     require(tria, "Pointer to triangulation missing!");
     const unsigned int n_verts = tria->n_used_vertices();
     require(n_verts > 0, "Can't generate map with empty triangulation!");
-    const unsigned int n_dofs = size();
-    require(n_dofs > 0, "Can't generate map with empty dof handler!");
 
     // create mapping from mesh vertex to cell index & cell node
     vector<unsigned> vertex2hex(n_verts), vertex2node(n_verts);
@@ -342,12 +344,9 @@ void DealSolver<dim>::calc_vertex2dof() {
 
     // create mapping from vertex index to dof index
     this->vertex2dof.resize(n_verts);
-    this->dof2vertex.resize(n_dofs);
     for (unsigned i = 0; i < n_verts; ++i) {
         typename DoFHandler<dim>::active_cell_iterator cell(tria, 0, vertex2hex[i], &this->dof_handler);
-        unsigned int dof = cell->vertex_dof_index(vertex2node[i], 0);
-        this->vertex2dof[i] = dof;
-        this->dof2vertex[dof] = i;
+        this->vertex2dof[i] = cell->vertex_dof_index(vertex2node[i], 0);
     }
 }
 

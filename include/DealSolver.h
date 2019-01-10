@@ -83,16 +83,16 @@ public:
     int get_n_cells() const { return triangulation.n_active_cells(); }
 
     /** Export mesh vertices into Medium */
-    void export_dofs(femocs::Medium& medium);
+    void export_vertices(femocs::Medium& medium);
 
-    /** Export mesh vertices into vector */
+    /** Export mesh dofs into vector */
     void export_dofs(vector<Point<dim>>& points) const;
 
     /** Export the centroids of surface faces in the order required by assemble_rhs */
     void export_surface_centroids(femocs::Medium& medium) const;
 
     /** Extract the solution on all mesh nodes */
-    void get_nodal_solution(vector<double>& solution) const;
+    void get_nodal_solution(vector<double>& solution);
 
     /** Modify DOF solution with nodal solution */
     void set_nodal_solution(const vector<double>* new_solution);
@@ -146,9 +146,7 @@ protected:
 
     Vector<double> solution;                 ///< resulting solution in the mesh nodes
     Vector<double> dof_volume;               ///< integral of the shape functions
-
     vector<unsigned> vertex2dof;             ///< map of Deal.II vertex indices to dof indices
-    vector<unsigned> dof2vertex;             ///< map of Deal.II dof indices to vertex indices
 
     /** Variables used during the assembly of matrix equation */
     map<types::global_dof_index, double> boundary_values;
