@@ -47,12 +47,8 @@ public:
     /** Probes the field at point p that belongs in cell with cell_index. Fast, when cell_index is correct */
     Tensor<1, dim, double> probe_efield(const Point<dim> &p, const int cell_index) const;
 
-    /** Obtain potential and electric field values in selected nodes */
-    void potential_efield_at(vector<double> &potentials, vector<Tensor<1, dim>> &fields,
-            const vector<int> &cells, const vector<int> &verts) const;
-
-    /** Calculate charge densities at given nodes in given cells */
-    void charge_dens_at(vector<double> &charge_dens, const vector<int> &cells, const vector<int> &verts);
+    /** Calculate charge densities at mesh vertices */
+    void export_charge_dens(vector<double> &charge_dens);
 
     /** Run Conjugate-Gradient solver to solve matrix equation */
     int solve() { return this->solve_cg(conf->n_cg, conf->cg_tolerance, conf->ssor_param); }

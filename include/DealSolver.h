@@ -46,21 +46,11 @@ public:
     /** Provide access to solution vector */
     Vector<double>* get_solution() { return &solution; };
 
-    /**
-     * Obtain solution values in selected nodes.
-     * @param sol          output solution values
-     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
-     * @param vert_indexes the vertex indexes of the nodes inside the cell
-     */
-    void solution_at(vector<double> &sol, const vector<int> &cells, const vector<int> &verts) const;
+    /** Obtain solution values on mesh vertices */
+    void export_solution(vector<double> &solution) const;
 
-    /**
-     * Obtain MINUS gradient of solution values in selected nodes.
-     * @param grads        output solution gradient values
-     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
-     * @param vert_indexes the vertex indexes of the nodes inside the cell
-     */
-    void solution_grad_at(vector<Tensor<1, dim>> &grads, const vector<int> &cells, const vector<int> &verts) const;
+    /** Obtain MINUS gradient of solution values on mesh vertices */
+    void export_solution_grad(vector<Tensor<1, dim>> &grads) const;
 
     /** Get the solution value at the specified point. NB: Slow! */
     double probe_solution(const Point<dim> &p) const;
@@ -83,19 +73,16 @@ public:
     int get_n_cells() const { return triangulation.n_active_cells(); }
 
     /** Export mesh vertices into Medium */
-    void export_vertices(femocs::Medium& medium);
+    void export_vertices(Medium& medium);
 
     /** Export mesh dofs into vector */
     void export_dofs(vector<Point<dim>>& points) const;
 
     /** Export the centroids of surface faces in the order required by assemble_rhs */
-    void export_surface_centroids(femocs::Medium& medium) const;
-
-    /** Extract the solution on all mesh nodes */
-    void get_nodal_solution(vector<double>& solution);
+    void export_surface_centroids(Medium& medium) const;
 
     /** Modify DOF solution with nodal solution */
-    void set_nodal_solution(const vector<double>* new_solution);
+    void import_solution(const vector<double>* new_solution);
 
     /** Calculate mapping between vertex and dof indices */
     void calc_vertex2dof();
@@ -143,10 +130,12 @@ protected:
     SparseMatrix<double> system_matrix;      ///< system matrix of matrix equation
     Vector<double> system_rhs;               ///< right-hand-side of the matrix equation
     Vector<double> system_rhs_save;          ///< saved right-hand-side of the matrix equation
-
     Vector<double> solution;                 ///< resulting solution in the mesh nodes
-    Vector<double> dof_volume;               ///< integral of the shape functions
-    vector<unsigned> vertex2dof;             ///< map of Deal.II vertex indices to dof indices
+
+    vector<double> dof_volume;               ///< integral of the shape functions
+    vector<unsigned> vertex2dof;             ///< map of vertex to dof indices
+    vector<unsigned> vertex2cell;            ///< map of vertex to cell indices
+    vector<unsigned> vertex2node;            ///< map of vertex to cell node indices
 
     /** Variables used during the assembly of matrix equation */
     map<types::global_dof_index, double> boundary_values;

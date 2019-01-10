@@ -76,30 +76,6 @@ void Interpolator::initialize(const TetgenMesh* m, double empty_val, int search_
     }
 }
 
-void Interpolator::get_maps(vector<int>& cell_indxs, vector<int>& vert_indxs,
-        dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh)
-{
-    require(tria->n_vertices() > 0, "Invalid triangulation size!");
-    require(mesh, "NULL mesh can't be used!");
-
-    const int n_verts_per_elem = dealii::GeometryInfo<3>::vertices_per_cell;
-    const int n_dealii_nodes = tria->n_used_vertices();
-    expect(n_dealii_nodes > 0, "Interpolator expects non-empty mesh!");
-
-    // Generate lists of hexahedra and hexahedra nodes where the tetrahedra nodes are located
-    cell_indxs.resize(n_dealii_nodes);
-    vert_indxs.resize(n_dealii_nodes);
-
-    // Loop through the hexahedral mesh elements
-    typename dealii::DoFHandler<3>::active_cell_iterator cell;
-    for (cell = dofh->begin_active(); cell != dofh->end(); ++cell)
-        // Loop through all the vertices in the element
-        for (int i = 0; i < n_verts_per_elem; ++i) {
-            cell_indxs[cell->vertex_index(i)] = cell->active_cell_index();
-            vert_indxs[cell->vertex_index(i)] = i;
-        }
-}
-
 void Interpolator::store_solution(const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data) {
     require(vec_data.size() == scal_data.size(), "Mismatch of vector sizes: "
             + d2s(vec_data.size()) + " vs " + d2s(scal_data.size()));
@@ -122,7 +98,7 @@ void Interpolator::store_solution(const vector<dealii::Tensor<1, 3>> vec_data, c
 
 void Interpolator::store_solution(DealSolver<3>& solver) {
     vector<double> scalars;
-    solver.get_nodal_solution(scalars);
+    solver.export_solution(scalars);
 
     const int n_femocs_nodes = nodes.size();
     const int n_dealii_nodes = scalars.size();
@@ -183,6 +159,7 @@ bool Interpolator::average_nodal_fields(const bool vacuum) {
 }
 
 void Interpolator::extract_solution(PoissonSolver<3>& fem, const bool smoothen) {
+    // Read and store electric potentials from FEM solver
     store_solution(fem);
 
     // calculate field in the location of mesh nodes by calculating minus gradient of potential
@@ -192,18 +169,18 @@ void Interpolator::extract_solution(PoissonSolver<3>& fem, const bool smoothen) 
             store_elfield(node);
     }
 
+    // Remove the spikes from the solution
     if (smoothen) average_nodal_fields(true);
 }
 
 void Interpolator::extract_solution_old(PoissonSolver<3>& fem, const bool smoothen) {
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> cell_indxs, vert_indxs;
-    get_maps(cell_indxs, vert_indxs, fem.get_triangulation(), fem.get_dof_handler());
-
-    // Read and store current densities and temperatures from FEM solver
+    // Read electric potentials and fields from FEM solver
     vector<double> potentials;
     vector<dealii::Tensor<1,3>> fields;
-    fem.potential_efield_at(potentials, fields, cell_indxs, vert_indxs);
+    fem.export_solution(potentials);
+    fem.export_solution_grad(fields);
+
+    // Store them
     store_solution(fields, potentials);
 
     // Remove the spikes from the solution
@@ -211,31 +188,22 @@ void Interpolator::extract_solution_old(PoissonSolver<3>& fem, const bool smooth
 }
 
 void Interpolator::extract_charge_density(PoissonSolver<3>& fem) {
-
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> cells, verts;
-    get_maps(cells, verts, fem.get_triangulation(), fem.get_dof_handler());
-
     vector<double> charge_dens;
     vector<dealii::Tensor<1,3>> fields;
-    fem.solution_grad_at(fields, cells, verts);
-    fem.charge_dens_at(charge_dens, cells, verts);
+    fem.export_solution_grad(fields);
+    fem.export_charge_dens(charge_dens);
 
-    // Read and store the electric field and potential from FEM solver
     store_solution(fields, charge_dens);
 }
 
 void Interpolator::extract_solution(CurrentHeatSolver<3>& fem) {
-
-    // To make solution extraction faster, generate mapping between desired and available data sequences
-    vector<int> cells, verts;
-    get_maps(cells, verts, fem.get_triangulation(), fem.current.get_dof_handler());
-
-    // Read and store current densities and temperatures from FEM solver
+    // Read current densities and temperatures from FEM solver
     vector<double> potentials, temperatures;
     vector<dealii::Tensor<1,3>> rhos;
-    fem.temp_phi_rho_at(temperatures, potentials, rhos, cells, verts);
+    fem.current.export_solution(potentials);
+    fem.export_temp_rho(temperatures, rhos);
 
+    // Store them
     const int n_femocs_nodes = nodes.size();
     const int n_dealii_nodes = potentials.size();
 

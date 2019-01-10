@@ -136,6 +136,7 @@ void HeatSolver<dim>::assemble(const double delta_time) {
     if (this->write_time()) this->system_rhs_save = this->system_rhs;
     this->append_dirichlet(BoundaryID::copper_bottom, this->dirichlet_bc_value);
     this->apply_dirichlet();
+    this->calc_vertex2dof();
 }
 
 template<int dim>
@@ -426,6 +427,7 @@ void CurrentSolver<dim>::assemble() {
     this->assemble_rhs(BoundaryID::copper_surface);
     this->append_dirichlet(BoundaryID::copper_bottom, this->dirichlet_bc_value);
     this->apply_dirichlet();
+    this->calc_vertex2dof();
 }
 
 template<int dim>
@@ -501,42 +503,13 @@ void CurrentHeatSolver<dim>::set_dependencies(PhysicalQuantities *pq_, const Con
 }
 
 template<int dim>
-void CurrentHeatSolver<dim>::temp_phi_rho_at(vector<double> &temp,
-        vector<double> &phi, vector<Tensor<1,dim>> &rho,
-        const vector<int> &cells, const vector<int> &verts) const
-{
-    heat.solution_at(temp, cells, verts);        // extract temperatures
-    current.solution_at(phi, cells, verts);      // extract potentials
-    current.solution_grad_at(rho, cells, verts); // extract fields
+void CurrentHeatSolver<dim>::export_temp_rho(vector<double> &temp, vector<Tensor<1,dim>> &rho) const {
+    heat.export_solution(temp);        // extract temperatures
+    current.export_solution_grad(rho); // extract fields
 
     // transfer fields to current densities
     for (int i = 0; i < temp.size(); ++i)
         rho[i] = pq->sigma(temp[i]) * rho[i];
-}
-
-template<int dim>
-vector<Tensor<1, dim>> CurrentHeatSolver<dim>::get_temp_grad(const vector<int> &cell_indexes,
-        const vector<int> &vert_indexes)
-{
-    QGauss<dim> quadrature_formula(this->quadrature_degree);
-    FEValues<dim> fe_values(heat.fe, quadrature_formula, update_gradients);
-
-    vector<Tensor<1, dim> > grads(cell_indexes.size());
-
-    vector<Tensor<1, dim> > temperature_gradients(quadrature_formula.size());
-
-    for (unsigned i = 0; i < cell_indexes.size(); i++) {
-        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
-        // NB: only works without refinement !!!
-        typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation, 0,
-                cell_indexes[i], &heat.dof_handler);
-
-        fe_values.reinit(dof_cell);
-        fe_values.get_function_gradients(heat.solution, temperature_gradients);
-        grads[i] = temperature_gradients.at(vert_indexes[i]);
-
-    }
-    return grads;
 }
 
 template<int dim>

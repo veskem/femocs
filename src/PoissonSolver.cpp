@@ -138,33 +138,17 @@ Tensor<1, dim, double> PoissonSolver<dim>::probe_efield(const Point<dim> &p, con
 }
 
 template<int dim>
-void PoissonSolver<dim>::potential_efield_at(vector<double> &potentials, vector<Tensor<1, dim>> &fields,
-        const vector<int> &cells, const vector<int> &verts) const
-{
-    this->solution_at(potentials, cells, verts);
-    this->solution_grad_at(fields, cells, verts);
-}
+void PoissonSolver<dim>::export_charge_dens(vector<double> &charge_dens) {
+    const int n_verts = this->tria->n_used_vertices();
+    require(n_verts == this->vertex2dof.size(), "Mismatch between #vertices and vertex2dof size: "
+            + d2s(n_verts) + " vs " + d2s(this->vertex2dof.size()));
 
-template<int dim>
-void PoissonSolver<dim>::charge_dens_at(vector<double> &charge_dens,
-        const vector<int> &cells, const vector<int> &verts)
-{
-    const int n_nodes = cells.size();
-    require(n_nodes == verts.size(), "Invalid vectors sizes for cells and vertices: "
-            + d2s(n_nodes) + ", " + d2s(verts.size()));
-
-    charge_dens.resize(n_nodes);
+    charge_dens.resize(n_verts);
     this->calc_dof_volumes();
 
-    for (unsigned i = 0; i < n_nodes; i++) {
-        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
-        // NB: only works without refinement !!!
-        typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation,
-                0, cells[i], &this->dof_handler);
-
-        double rhs = this->system_rhs_save[dof_cell->vertex_dof_index(verts[i], 0)];
-        double vol = this->dof_volume[dof_cell->vertex_dof_index(verts[i], 0)];
-        charge_dens[i] = rhs / vol;
+    for (unsigned i = 0; i < n_verts; i++) {
+        int dof = this->vertex2dof[i];
+        charge_dens[i] = this->system_rhs_save[dof] / this->dof_volume[dof];
     }
 }
 
@@ -207,6 +191,7 @@ void PoissonSolver<dim>::assemble(const bool full_run) {
     // save the system right-hand-side to make it possible to write space charge into file
     if (this->write_time()) this->system_rhs_save = this->system_rhs;
     if (full_run) this->apply_dirichlet();
+    this->calc_vertex2dof();
 }
 
 template<int dim>

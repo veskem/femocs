@@ -75,12 +75,6 @@ private:
     int empty_value;                ///< Solution value for nodes outside the Deal.II mesh
     vector<vector<pair<int,int>>> node2cells;  ///< list of hexahedra that are associated with given node
 
-    /** Calculate the mapping between Femocs & deal.II mesh nodes,
-     *  nodes & hexahedral elements and nodes & element's vertices.
-     *  -1 indicates that mapping for corresponding object was not found */
-    void get_maps(vector<int>& cell_indxs, vector<int>& vert_indxs,
-            dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh);
-
     /** Transfer solution from FEM solver to Interpolator */
     void store_solution(const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data);
     void store_solution(DealSolver<3>& solver);

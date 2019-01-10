@@ -144,11 +144,8 @@ public:
     CurrentHeatSolver();
     CurrentHeatSolver(PhysicalQuantities *pq_, const Config::Heating *conf_, EmissionReader *emission);
 
-    /** Obtain the temperature, potential and current density values in selected nodes. */
-    void temp_phi_rho_at(vector<double> &temp, vector<double> &phi, vector<Tensor<1,dim>> &rho,
-            const vector<int> &cells, const vector<int> &verts) const;
-
-    vector<Tensor<1, dim>> get_temp_grad(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
+    /** Obtain the temperature and current density values on mesh vertices */
+    void export_temp_rho(vector<double> &temp, vector<Tensor<1,dim>> &rho) const;
 
     /** Set the pointers for obtaining external data */
     void set_dependencies(PhysicalQuantities *pq_, const Config::Heating *conf_);

@@ -490,7 +490,7 @@ void HeatReader::interpolate_dofs(CurrentHeatSolver<3>& solver, const TetgenMesh
     for (int i = 0; i < n_points; ++i)
         temperatures[i] = interpolation[i].scalar;
 
-    solver.heat.set_nodal_solution(&temperatures);
+    solver.heat.import_solution(&temperatures);
 }
 
 void HeatReader::precalc_berendsen() {

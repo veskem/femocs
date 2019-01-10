@@ -214,7 +214,7 @@ void DealSolver<dim>::write_msh(ofstream& out) const {
 }
 
 template<int dim>
-void DealSolver<dim>::export_surface_centroids(femocs::Medium& medium) const {
+void DealSolver<dim>::export_surface_centroids(Medium& medium) const {
     const int n_faces_per_cell = GeometryInfo<dim>::faces_per_cell;
     typename DoFHandler<dim>::active_cell_iterator cell;
 
@@ -238,10 +238,9 @@ void DealSolver<dim>::export_vertices(Medium& medium) {
     export_dofs(support_points);
 
     const unsigned int n_verts = tria->n_used_vertices();
-    this->calc_vertex2dof();
-
-    require(vertex2dof.size() == n_verts, "Mismatch between vertex2dof size and #vertices: "
-            + d2s(vertex2dof.size()) + " vs " + d2s(n_verts));
+    calc_vertex2dof();
+    require(n_verts == vertex2dof.size(), "Mismatch between #vertices and vertex2dof size: "
+            + d2s(n_verts) + " vs " + d2s(vertex2dof.size()));
 
     medium.reserve(n_verts);
     for (int i = 0; i < n_verts; ++i)
@@ -256,20 +255,41 @@ void DealSolver<dim>::export_dofs(vector<Point<dim>>& points) const {
 }
 
 template<int dim>
-void DealSolver<dim>::get_nodal_solution(vector<double>& solution) {
-    const unsigned int n_verts = tria->n_used_vertices();
-    this->calc_vertex2dof();
+void DealSolver<dim>::export_solution(vector<double> &sol) const {
+    const int n_verts = tria->n_used_vertices();
+    require(n_verts == vertex2dof.size(), "Mismatch between #vertices and vertex2dof size: "
+            + d2s(n_verts) + " vs " + d2s(vertex2dof.size()));
 
-    require(vertex2dof.size() == n_verts, "Mismatch between vertex2dof size and #vertices: "
-            + d2s(vertex2dof.size()) + " vs " + d2s(n_verts));
-
-    solution.resize(n_verts);
-    for (unsigned int i = 0; i < n_verts; ++i)
-        solution[i] = this->solution[vertex2dof[i]];
+    sol.resize(n_verts);
+    for (unsigned i = 0; i < n_verts; i++)
+        sol[i] = solution[vertex2dof[i]];
 }
 
 template<int dim>
-void DealSolver<dim>::set_nodal_solution(const vector<double>* new_solution) {
+void DealSolver<dim>::export_solution_grad(vector<Tensor<1, dim>> &grads) const {
+    const int n_verts = tria->n_used_vertices();
+    require(n_verts == vertex2cell.size(), "Mismatch between #vertices and vertex2cell size: "
+            + d2s(n_verts) + " vs " + d2s(vertex2cell.size()));
+
+    QGauss<dim> quadrature_formula(this->quadrature_degree);
+    FEValues<dim> fe_values(this->fe, quadrature_formula, update_gradients);
+
+    vector<Tensor<1, dim>> solution_gradients(quadrature_formula.size());
+    grads.resize(n_verts);
+
+    for (unsigned i = 0; i < n_verts; i++) {
+        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
+        // NB: only works without refinement !!!
+        typename DoFHandler<dim>::active_cell_iterator dof_cell(tria, 0, vertex2cell[i], &dof_handler);
+
+        fe_values.reinit(dof_cell);
+        fe_values.get_function_gradients(this->solution, solution_gradients);
+        grads[i] = -1.0 * solution_gradients.at(vertex2node[i]);
+    }
+}
+
+template<int dim>
+void DealSolver<dim>::import_solution(const vector<double>* new_solution) {
     const unsigned int n_verts = vertex2dof.size();
 
     require(new_solution, "Can't use NULL solution vector!");
@@ -283,49 +303,6 @@ void DealSolver<dim>::set_nodal_solution(const vector<double>* new_solution) {
 }
 
 template<int dim>
-void DealSolver<dim>::solution_at(vector<double> &sols,
-        const vector<int> &cells, const vector<int> &verts) const
-{
-    const int n_nodes = cells.size();
-    require(n_nodes == verts.size(), "Invalid vectors sizes for cells and vertices: "
-            + d2s(n_nodes) + ", " + d2s(verts.size()));
-
-    sols.resize(n_nodes);
-
-    for (unsigned i = 0; i < n_nodes; i++) {
-        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
-        // NB: only works without refinement !!!
-        typename DoFHandler<dim>::active_cell_iterator dof_cell(tria, 0, cells[i], &dof_handler);
-        sols[i] = solution[dof_cell->vertex_dof_index(verts[i], 0)];
-    }
-}
-
-template<int dim>
-void DealSolver<dim>::solution_grad_at(vector<Tensor<1, dim>> &grads,
-        const vector<int> &cells, const vector<int> &verts) const
-{
-    const int n_nodes = cells.size();
-    require(n_nodes == verts.size(), "Invalid vectors sizes for cells and vertices: "
-            + d2s(n_nodes) + ", " + d2s(verts.size()));
-
-    QGauss<dim> quadrature_formula(this->quadrature_degree);
-    FEValues<dim> fe_values(this->fe, quadrature_formula, update_gradients);
-
-    vector<Tensor<1, dim>> solution_gradients(quadrature_formula.size());
-    grads.resize(n_nodes);
-
-    for (unsigned i = 0; i < n_nodes; i++) {
-        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
-        // NB: only works without refinement !!!
-        typename DoFHandler<dim>::active_cell_iterator dof_cell(tria, 0, cells[i], &dof_handler);
-
-        fe_values.reinit(dof_cell);
-        fe_values.get_function_gradients(this->solution, solution_gradients);
-        grads[i] = -1.0 * solution_gradients.at(verts[i]);
-    }
-}
-
-template<int dim>
 void DealSolver<dim>::calc_vertex2dof() {
     static constexpr int n_verts_per_elem = GeometryInfo<dim>::vertices_per_cell;
     require(tria, "Pointer to triangulation missing!");
@@ -333,20 +310,46 @@ void DealSolver<dim>::calc_vertex2dof() {
     require(n_verts > 0, "Can't generate map with empty triangulation!");
 
     // create mapping from mesh vertex to cell index & cell node
-    vector<unsigned> vertex2hex(n_verts), vertex2node(n_verts);
+    vertex2cell.resize(n_verts);
+    vertex2node.resize(n_verts);
 
     typename DoFHandler<dim>::active_cell_iterator cell;
     for (cell = this->dof_handler.begin_active(); cell != this->dof_handler.end(); ++cell)
         for (int i = 0; i < n_verts_per_elem; ++i) {
-            vertex2hex[cell->vertex_index(i)] = cell->active_cell_index();
+            vertex2cell[cell->vertex_index(i)] = cell->active_cell_index();
             vertex2node[cell->vertex_index(i)] = i;
         }
 
     // create mapping from vertex index to dof index
-    this->vertex2dof.resize(n_verts);
+    vertex2dof.resize(n_verts);
     for (unsigned i = 0; i < n_verts; ++i) {
-        typename DoFHandler<dim>::active_cell_iterator cell(tria, 0, vertex2hex[i], &this->dof_handler);
-        this->vertex2dof[i] = cell->vertex_dof_index(vertex2node[i], 0);
+        typename DoFHandler<dim>::active_cell_iterator cell(tria, 0, vertex2cell[i], &this->dof_handler);
+        vertex2dof[i] = cell->vertex_dof_index(vertex2node[i], 0);
+    }
+}
+
+template<int dim>
+void DealSolver<dim>::calc_dof_volumes() {
+    QGauss<dim> quadrature_formula(quadrature_degree);
+    FEValues<dim> fe_values(fe, quadrature_formula, update_quadrature_points | update_JxW_values);
+    vector<types::global_dof_index> local_dof_indices(fe.dofs_per_cell);
+
+    // reset volumes
+    dof_volume.resize(size());
+    std::fill(dof_volume.begin(), dof_volume.end(), 0);
+
+    // Iterate over all cells
+    typename DoFHandler<dim>::active_cell_iterator cell;
+    for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell) {
+        fe_values.reinit(cell);
+        cell->get_dof_indices(local_dof_indices);
+
+        // Iterate through quadrature points to integrate
+        for (unsigned q = 0; q < quadrature_formula.size(); ++q) {
+            //iterate through local dofs
+            for (unsigned int i = 0; i < fe.dofs_per_cell; ++i)
+                dof_volume[local_dof_indices[i]] +=  fe_values.JxW(q);
+        }
     }
 }
 
@@ -496,32 +499,6 @@ void DealSolver<dim>::mark_boundary(int top, int bottom, int sides, int other) {
                 else
                     face->set_all_boundary_ids(other);
             }
-        }
-    }
-}
-
-template<int dim>
-void DealSolver<dim>::calc_dof_volumes() {
-
-    QGauss<dim> quadrature_formula(quadrature_degree);
-    FEValues<dim> fe_values(fe, quadrature_formula, update_quadrature_points | update_JxW_values);
-
-    // reset volumes
-    dof_volume.reinit(size());
-    dof_volume = 0;
-    vector<types::global_dof_index> local_dof_indices(fe.dofs_per_cell);
-
-    typename DoFHandler<dim>::active_cell_iterator cell;
-    // Iterate over all cells
-    for (cell = dof_handler.begin_active(); cell != dof_handler.end(); ++cell) {
-        fe_values.reinit(cell);
-        cell->get_dof_indices(local_dof_indices);
-
-        // Iterate through quadrature points to integrate
-        for (unsigned q = 0; q < quadrature_formula.size(); ++q) {
-            //iterate through local dofs
-            for (unsigned int i = 0; i < fe.dofs_per_cell; ++i)
-                dof_volume[local_dof_indices[i]] +=  fe_values.JxW(q);
         }
     }
 }
