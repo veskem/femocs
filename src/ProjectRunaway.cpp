@@ -252,7 +252,7 @@ int ProjectRunaway::prepare_solvers() {
         // in case of first run, give initial values to the temperature interpolator,
         // otherwise transfer existing temperatures to new mesh
         if (bulk_interpolator.nodes.size() == 0) {
-            bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
+            bulk_interpolator.initialize(mesh, conf.heating.t_ambient, TYPES.BULK);
         } else {
             start_msg(t0, "Transferring old temperatures to new mesh");
             heat_transfer.interpolate_dofs(ch_solver, mesh);
@@ -407,7 +407,7 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
             " #CG=" + d2s(abs(ncg)) + "/" + d2s(conf.field.n_cg));
 
     start_msg(t0, "Extracting E & phi");
-    vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
+    vacuum_interpolator.initialize(mesh, 0, TYPES.VACUUM);
     vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
     end_msg(t0);
 
@@ -429,7 +429,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
     if (full_run) {
         start_msg(t0, "Initializing Poisson solver");
         poisson_solver.setup(-conf.field.E0, conf.field.V0);
-        vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
+        vacuum_interpolator.initialize(mesh, 0, TYPES.VACUUM);
         end_msg(t0);
         write_verbose_msg(poisson_solver.to_str());
     }
@@ -526,7 +526,7 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     write_verbose_msg("#CG steps: " + d2s(hcg));
 
     start_msg(t0, "Extracting J & T");
-    bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
+    bulk_interpolator.initialize(mesh, conf.heating.t_ambient, TYPES.BULK);
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
@@ -612,7 +612,7 @@ int ProjectRunaway::interpolate(double* data, int* flag,
 int ProjectRunaway::restart(const string &path_to_file) {
     start_msg(t0, "Reading restart file from " + path_to_file);
     fail = new_mesh->read(path_to_file, "");
-    bulk_interpolator.initialize(new_mesh, TYPES.BULK);
+    bulk_interpolator.initialize(new_mesh, conf.heating.t_ambient, TYPES.BULK);
     bulk_interpolator.nodes.read(path_to_file, 1);
     pic_solver.read(path_to_file);
 

@@ -30,7 +30,7 @@ public:
     int size() const { return markers.size(); }
 
     /** Pre-compute data about vertices to make interpolation faster */
-    void precompute();
+    void precompute(int search_region);
 
     /** Read interpolation data from file */
     void read(const string &file_name, const int flags);
@@ -110,6 +110,13 @@ public:
     /** Return the max value of solution.norm data */
     double max_norm() const;
 
+    /** Return the index of node in Deal.II that corresponds to i-th node in Femocs;
+     * -1 means there's no correspondence between two meshes */
+    int femocs2deal(const int i) const {
+        require(i >= 0 && i < (int)map_femocs2deal.size(), "Invalid index: " + d2s(i) + ", size=" + d2s(map_femocs2deal.size()));
+        return map_femocs2deal[i];
+    }
+
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
     const string vec_label;         ///< description label attached to solution.vec -values
@@ -118,6 +125,7 @@ private:
 
     vector<Solution> solutions;     ///< interpolation data
     vector<int> markers;            ///< markers for nodes
+    vector<int> map_femocs2deal;    ///< mapping between Femocs and Deal.II nodes
 
     /** Reserve memory for interpolation data */
     void reserve(const int N);
@@ -414,14 +422,14 @@ public:
      * and sort the result according to Deal.II ordering */
     array<Vec3,8> shape_fun_grads_dealii(const Vec3& point, const int hex) const;
 
-    /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
+    /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron in Femocs;
      * -1 means there's no correspondence between two meshes */
     int femocs2deal(const int i) const {
         require(i >= 0 && i < (int)map_femocs2deal.size(), "Invalid index: " + d2s(i) + ", size=" + d2s(map_femocs2deal.size()));
         return map_femocs2deal[i];
     }
 
-    /** Return the index of hexahedron in femocs that corresponds to i-th hexahedron in Deal.II */
+    /** Return the index of hexahedron in Femocs that corresponds to i-th hexahedron in Deal.II */
     int deal2femocs(const int i) const {
         require(i >= 0, "Invalid index: " + d2s(i));
         if (i < int(map_deal2femocs.size()))

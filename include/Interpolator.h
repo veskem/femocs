@@ -50,8 +50,7 @@ public:
     ~Interpolator() {};
 
     /** Initialise interpolator and store solution with default value */
-    void initialize(const TetgenMesh* mesh, const int search_region);
-    void initialize(const TetgenMesh* mesh, DealSolver<3>& solver, const double empty_value, const int search_region);
+    void initialize(const TetgenMesh* mesh, double empty_value, int search_region);
 
     /** Extract the current density and transient temperature values from FEM solution */
     void extract_solution(CurrentHeatSolver<3>& fem);
@@ -75,7 +74,6 @@ private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
     int empty_value;                ///< Solution value for nodes outside the Deal.II mesh
     vector<vector<pair<int,int>>> node2cells;  ///< list of hexahedra that are associated with given node
-    vector<int> femocs2deal;
 
     /** Calculate the mapping between Femocs & deal.II mesh nodes,
      *  nodes & hexahedral elements and nodes & element's vertices.

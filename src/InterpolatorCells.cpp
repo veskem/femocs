@@ -29,12 +29,13 @@ InterpolatorNodes::InterpolatorNodes(const string &vl, const string &nl, const s
 void InterpolatorNodes::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + d2s(N));
 
+    map_femocs2deal = vector<int>(N, -1);
     markers = vector<int>(N);
     solutions.clear();
     solutions.reserve(N);
 }
 
-void InterpolatorNodes::precompute() {
+void InterpolatorNodes::precompute(int search_region) {
     const int n_nodes = mesh->nodes.size();
     reserve(n_nodes);
 
@@ -42,6 +43,26 @@ void InterpolatorNodes::precompute() {
         // Store node markers
         markers[i] = mesh->nodes.get_marker(i);
     }
+
+    // Mark nodes that are present both in Femocs and Deal.II meshes
+    const int n_hexs = mesh->hexs.size();
+
+    if (search_region == TYPES.VACUUM) {
+        for (int hex = 0; hex < n_hexs; ++hex)
+            if (mesh->hexs.get_marker(hex) > 0)
+                for (int node : mesh->hexs[hex])
+                    map_femocs2deal[node] = -2;
+    } else {
+        for (int hex = 0; hex < n_hexs; ++hex)
+            if (mesh->hexs.get_marker(hex) < 0)
+                for (int node : mesh->hexs[hex])
+                    map_femocs2deal[node] = -2;
+    }
+
+    // Store mapping between Femocs and Deal.II mesh nodes
+    int vertex = 0;
+    for (int &i : map_femocs2deal)
+        if (i == -2) i = vertex++;
 }
 
 void InterpolatorNodes::read(const string &file_name, const int flags) {
@@ -1107,6 +1128,7 @@ void LinearHexahedra::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + d2s(N));
 
     markers = vector<int>(N);
+    map_femocs2deal = vector<int>(N, -1);
 
     f0s.clear(); f0s.reserve(N);
     f1s.clear(); f1s.reserve(N);
@@ -1159,8 +1181,6 @@ void LinearHexahedra::precompute(int search_region) {
 
     // store the mapping between femocs and deal.ii hexahedra
     int deal_hex_index = 0;
-    map_femocs2deal = vector<int>(n_elems, -1);
-
     if (search_region == TYPES.VACUUM) {
         for (int i = 0; i < n_elems; ++i) {
             if (hexs->get_marker(i) > 0)
