@@ -23,8 +23,8 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 		last_pic_time(-conf.behaviour.timestep_fs),
 		last_restart_ts(0),
 
-        vacuum_interpolator("Elfield", "ElfieldNorm", "Potential"),
-        bulk_interpolator("Rho", "Potential", "Temperature"),
+        vacuum_interpolator(LABELS.elfield, LABELS.charge_density, LABELS.potential),
+        bulk_interpolator(LABELS.rho, LABELS.potential, LABELS.temperature),
 
         fields(&vacuum_interpolator),
         temperatures(&bulk_interpolator),

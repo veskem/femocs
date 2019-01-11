@@ -524,19 +524,31 @@ void CurrentHeatSolver<dim>::write_xyz(ofstream& out) const {
     FileWriter::write_xyz(out);
 
     // write Ovito header
-    out << "properties=id:I:1:pos:R:3:total_heat:R:1:joule_heat:R:1:nottingham_heat:R:1:temperature:R:1:potential:R:1\n";
+    out << "properties=id:I:1:pos:R:3:total_heat:R:1:joule_heat:R:1:nottingham_heat:R:1:temperature:R:1:potential:R:1:rho:R:1\n";
 
+    // extract coordinates of dofs
     vector<Point<dim>> support_points;
     heat.export_dofs(support_points);
 
-    // write data
-    // TODO figure out how to write current density
+    // extract temperatures and current densities
+    vector<double> temp;
+    vector<Tensor<1,dim>> rho;
+    export_temp_rho(temp, rho);
+
     const int n_dofs = support_points.size();
+    const int n_verts = heat.tria->n_used_vertices();
+
+    // generate dof index -> vertex index mapping
+    vector<int> dof2vertex(n_dofs);
+    for (int i = 0; i < n_verts; ++i)
+        dof2vertex[heat.vertex2dof[i]] = i;
+
+    // write data
     for (int i = 0; i < n_dofs; ++i) {
         out << i << " " << Point3(support_points[i]) << " " << heat.system_rhs_save(i) << " " << heat.joule_heat(i)
-                << " " << heat.system_rhs_save(i) - heat.joule_heat(i) << " " << heat.solution(i) << " " << current.solution(i) << "\n";
+                << " " << heat.system_rhs_save(i) - heat.joule_heat(i) << " " << heat.solution(i)
+                << " " << current.solution(i) << " " << rho[dof2vertex[i]].norm() << "\n";
     }
-
 }
 
 /* ==================================================================

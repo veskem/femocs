@@ -30,7 +30,7 @@ public:
     SolutionReader(Interpolator* i, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
 
     /** Interpolate solution using already available data about which atom is connected with which cell */
-    void calc_interpolation();
+    virtual void calc_interpolation();
 
     /** Map atoms to cells and interpolate solution on the system atoms */
     void calc_full_interpolation();
@@ -141,11 +141,11 @@ public:
      * The check is disabled if lower and upper limits are the same. */
     bool check_limits(const vector<Solution>* solutions=NULL, bool verbose=true);
 
-    /** Find the maximum field norm from the solution vector */
-    double calc_max_field(const vector<Solution>* solutions=NULL) const;
-
     /** Set parameters to calculate analytical solution */
     void set_check_params(const Config& conf, double radius, double tip_height, double box_height);
+
+    /** In addition to regular interpolation, pre-calculate also field norms */
+    void calc_interpolation();
 
     /** Return electric field in i-th interpolation point */
     Vec3 get_elfield(const int i) const {
@@ -155,6 +155,12 @@ public:
 
     /** Return electric field norm in i-th interpolation point */
     double get_elfield_norm(const int i) const {
+        require(i >= 0 && i < field_norm.size(), "Invalid index: " + d2s(i));
+        return field_norm[i];
+    }
+
+    /** Return charge density in i-th interpolation point */
+    double get_charge_dens(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         return interpolation[i].norm;
     }
@@ -165,15 +171,21 @@ public:
         return interpolation[i].scalar;
     }
 
+    /** Find the maximum field norm either from the provided of internal solution vector */
+    double max_field(const vector<Solution>* solutions=NULL) const;
+
     /** Return measured-"analytical" field enhancement ratio that was calculated in check_limits */
     double get_beta() const { return beta; }
 
 private:
+    vector<double> field_norm;  ///< pre-computed electric field norms
+
     /** Data needed for comparing numerical solution with analytical one */
     double E0;         ///< Long-range electric field strength
     double radius1;    ///< Minor semi-axis of ellipse
     double radius2;    ///< Major semi-axis of ellipse
     double beta;       ///< Measured / "analytical" field enhancement
+    double E_max;      ///< Maximum electric field norm value
 
     /** Return analytical electric field value for i-th point near the hemisphere */
     Vec3 get_analyt_field(const int i, const Point3& origin) const;

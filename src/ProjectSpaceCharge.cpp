@@ -146,7 +146,7 @@ void ProjectSpaceCharge::prepare_emission() {
 
     emission.calc_emission(conf.emission, -1, true);
 
-    Fmax_base = surface_fields.calc_max_field();
+    Fmax_base = surface_fields.max_field();
 }
 
 
@@ -331,14 +331,10 @@ void ProjectSpaceCharge::export_on_line(){
     fr.calc_interpolation();
 
     fr.calc_interpolation();
-    for (int i = 0; i < N_points; i++)
+    for (int i = 0; i < N_points; i++) {
         V_line[i] = fr.get_potential(i);
-
-    vacuum_interpolator.extract_charge_density(poisson_solver);
-    fr.calc_interpolation();
-
-    for (int i = 0; i < N_points; i++)
-        rho_line[i] = fr.get_potential(i);
+        rho_line[i] = fr.get_charge_dens(i);
+    }
 }
 
 

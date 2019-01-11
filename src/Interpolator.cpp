@@ -76,39 +76,50 @@ void Interpolator::initialize(const TetgenMesh* m, double empty_val, int search_
     }
 }
 
-void Interpolator::store_solution(const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data) {
-    require(vec_data.size() == scal_data.size(), "Mismatch of vector sizes: "
-            + d2s(vec_data.size()) + " vs " + d2s(scal_data.size()));
+void Interpolator::store_solution(const vector<dealii::Tensor<1, 3>> &vecs,
+        const vector<double> &norms, const vector<double> &scals, const Solution &empty)
+{
+    const int n_nodes = nodes.size();
+    const int n_dofs = vecs.size();
 
-    const int n_femocs_nodes = nodes.size();
-    const int n_dealii_nodes = vec_data.size();
+    require( norms.size() == n_dofs && scals.size() == n_dofs,
+            "Mismatch of vector sizes: " + d2s(vecs.size()) +
+            ", " + d2s(norms.size()) + ", " + d2s(scals.size()) );
 
     unsigned int j = 0;
-    for (unsigned int i = 0; i < n_femocs_nodes; ++i) {
+    for (unsigned int i = 0; i < n_nodes; ++i) {
         // If there is a common node between Femocs and deal.II meshes, store actual solution
         if (nodes.femocs2deal(i) >= 0) {
-            require(j < n_dealii_nodes, "Invalid index: " + d2s(j) + ">=" + d2s(n_dealii_nodes));
-            dealii::Tensor<1, 3> vec = vec_data[j]; // that step needed to avoid complaints from Valgrind
-            nodes.set_solution(i, Solution(Vec3(vec[0], vec[1], vec[2]), scal_data[j++]) );
+            require(j < n_dofs, "Invalid index: " + d2s(j) + ">=" + d2s(n_dofs));
+            const dealii::Tensor<1, 3> &vec = vecs[j]; // that step needed to avoid complaints from Valgrind
+            nodes.set_solution( i, Solution(vec, norms[j], scals[j]) );
+            j++;
         }
         else
-            nodes.set_solution(i, Solution(empty_value));
+            nodes.set_solution(i, empty);
     }
 }
 
-void Interpolator::store_solution(DealSolver<3>& solver) {
-    vector<double> scalars;
-    solver.export_solution(scalars);
+void Interpolator::store_solution(const vector<double> &norms,
+        const vector<double> &scals, const Solution &empty)
+{
+    const int n_nodes = nodes.size();
+    const int n_dofs = scals.size();
 
-    const int n_femocs_nodes = nodes.size();
-    const int n_dealii_nodes = scalars.size();
+    require( norms.size() == n_dofs, "Mismatch of vector sizes: "
+            + d2s(vecs.size()) + ", " + d2s(norms.size()) );
 
     unsigned int j = 0;
-    for (int i = 0; i < n_femocs_nodes; ++i)
+    for (unsigned int i = 0; i < n_nodes; ++i) {
+        // If there is a common node between Femocs and deal.II meshes, store actual solution
         if (nodes.femocs2deal(i) >= 0) {
-            require(j < n_dealii_nodes, "Invalid index: " + d2s(j) + ">=" + d2s(n_dealii_nodes));
-            nodes.set_scalar(i, scalars[j++]);
+            require(j < n_dofs, "Invalid index: " + d2s(j) + ">=" + d2s(n_dofs));
+            nodes.set_solution( i, Solution(Vec3(0), norms[j], scals[j]) );
+            j++;
         }
+        else
+            nodes.set_solution(i, empty);
+    }
 }
 
 void Interpolator::store_elfield(const int node) {
@@ -151,7 +162,7 @@ bool Interpolator::average_nodal_fields(const bool vacuum) {
 
         if (w_sum > 0) {
             vec *= (1.0 / w_sum);
-            nodes.set_solution(i, Solution(vec, nodes.get_scalar(i)));
+            nodes.set_vector(i, vec);
         }
     }
 
@@ -159,8 +170,13 @@ bool Interpolator::average_nodal_fields(const bool vacuum) {
 }
 
 void Interpolator::extract_solution(PoissonSolver<3>& fem, const bool smoothen) {
-    // Read and store electric potentials from FEM solver
-    store_solution(fem);
+    // Read data from FEM solver
+    vector<double> potential, charge_dens;
+    fem.export_solution(potential);
+    fem.export_charge_dens(charge_dens);
+
+    // Store the data
+    store_solution(charge_dens, potential, Solution(empty_value));
 
     // calculate field in the location of mesh nodes by calculating minus gradient of potential
 #pragma omp parallel for
@@ -174,50 +190,29 @@ void Interpolator::extract_solution(PoissonSolver<3>& fem, const bool smoothen) 
 }
 
 void Interpolator::extract_solution_old(PoissonSolver<3>& fem, const bool smoothen) {
-    // Read electric potentials and fields from FEM solver
-    vector<double> potentials;
+    // Read data from FEM solver
+    vector<double> potentials, charge_dens;
     vector<dealii::Tensor<1,3>> fields;
     fem.export_solution(potentials);
+    fem.export_charge_dens(charge_dens);
     fem.export_solution_grad(fields);
 
-    // Store them
-    store_solution(fields, potentials);
+    // Store the data
+    store_solution(fields, charge_dens, potentials, Solution(empty_value));
 
     // Remove the spikes from the solution
     if (smoothen) average_nodal_fields(true);
 }
 
-void Interpolator::extract_charge_density(PoissonSolver<3>& fem) {
-    vector<double> charge_dens;
-    vector<dealii::Tensor<1,3>> fields;
-    fem.export_solution_grad(fields);
-    fem.export_charge_dens(charge_dens);
-
-    store_solution(fields, charge_dens);
-}
-
 void Interpolator::extract_solution(CurrentHeatSolver<3>& fem) {
-    // Read current densities and temperatures from FEM solver
+    // Read data from FEM solver
     vector<double> potentials, temperatures;
     vector<dealii::Tensor<1,3>> rhos;
     fem.current.export_solution(potentials);
     fem.export_temp_rho(temperatures, rhos);
 
-    // Store them
-    const int n_femocs_nodes = nodes.size();
-    const int n_dealii_nodes = potentials.size();
-
-    unsigned int j = 0;
-    for (unsigned int i = 0; i < n_femocs_nodes; ++i) {
-        if (nodes.femocs2deal(i) >= 0) {
-            require(j < n_dealii_nodes, "Invalid index: " + d2s(j) + ">=" + d2s(n_dealii_nodes));
-            dealii::Tensor<1, 3> rho = rhos[j]; // that step needed to avoid complaints from Valgrind
-            nodes.set_solution(i, Solution( Vec3(rho[0], rho[1], rho[2]), potentials[j], temperatures[j] ));
-            j++;
-        }
-        else
-            nodes.set_solution(i, Solution(Vec3(0), 0, empty_value));
-    }
+    // Store the data
+    store_solution(rhos, potentials, temperatures, Solution(Vec3(0), 0, empty_value));
 }
 
 } // namespace femocs

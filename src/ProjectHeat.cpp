@@ -165,8 +165,6 @@ int ProjectHeat::write_results(bool force) {
         emission.write("out/emission.movie", force);
         pic_solver.write("out/electrons.movie", force);
         surface_fields.write("out/surface_fields.movie", force);
-        vacuum_interpolator.extract_charge_density(poisson_solver);
-        vacuum_interpolator.nodes.write("out/result_E_charge.movie", force);
     }
 
     if (emission.size() > 0)

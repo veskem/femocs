@@ -319,8 +319,20 @@ void SolutionReader::interpolate(const AtomReader &reader) {
  * ========================================== */
 
 FieldReader::FieldReader(Interpolator* i) :
-        SolutionReader(i, LABELS.elfield, LABELS.elfield_norm, LABELS.potential),
-        E0(0), radius1(0), radius2(0), beta(0) {}
+        SolutionReader(i, LABELS.elfield, LABELS.charge_density, LABELS.potential),
+        E0(0), radius1(0), radius2(0), beta(0), E_max(0) {}
+
+void FieldReader::calc_interpolation() {
+    SolutionReader::calc_interpolation();
+
+    const int n_data = size();
+    E_max = -1e100;
+    field_norm.resize(n_data);
+    for (int i = 0; i < n_data; ++i) {
+        field_norm[i] = interpolation[i].vector.norm();
+        E_max = max(E_max, field_norm[i]);
+    }
+}
 
 double FieldReader::get_analyt_potential(const int i, const Point3& origin) const {
     require(i >= 0 && i < size(), "Invalid index: " + to_string(i));
@@ -363,7 +375,7 @@ bool FieldReader::check_limits(const vector<Solution>* solutions, bool verbose) 
     if (limit_min == limit_max)
         return false;
 
-    double Emax = calc_max_field(solutions);
+    double Emax = max_field(solutions);
     const double gamma1 = fabs(Emax / E0);
     const double gamma2 = get_analyt_enhancement();
     beta = fabs(gamma1 / gamma2);
@@ -380,14 +392,12 @@ bool FieldReader::check_limits(const vector<Solution>* solutions, bool verbose) 
     return out_of_limits;
 }
 
-double FieldReader::calc_max_field(const vector<Solution>* solutions) const {
-    double E_max = -1e100;
+double FieldReader::max_field(const vector<Solution>* solutions) const {
     if (solutions) {
-        for (Solution s : *solutions)
-            E_max = max(E_max, s.norm);
-    } else {
-        for (Solution s : interpolation)
-            E_max = max(E_max, s.norm);
+        double Emax = -1e100;
+        for (const Solution &s : *solutions)
+            Emax = max(Emax, s.vector.norm2());
+        return sqrt(Emax);
     }
     return E_max;
 }
@@ -947,7 +957,7 @@ void ForceReader::distribute_charges(const FieldReader &fields, const ChargeRead
 
     for (int atom = 0; atom < n_atoms; ++atom) {
         Vec3 force = fields.get_elfield(atom) * (charges[atom] * force_factor);   // [e*V/A]
-        interpolation[atom] = Solution(force, charges[atom]);
+        interpolation[atom] = Solution(force, 0, charges[atom]);
     }
 }
 

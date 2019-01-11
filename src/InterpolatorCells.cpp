@@ -208,13 +208,6 @@ void InterpolatorNodes::print_statistics() const {
     write_verbose_msg(stream.str());
 }
 
-double InterpolatorNodes::max_norm() const {
-    double max_norm = -DBL_MAX;
-    for (Solution s : solutions)
-        max_norm = max(max_norm, s.norm);
-    return max_norm;
-}
-
 /* ==================================================================
  *  ====================== InterpolatorCells =======================
  * ================================================================== */
@@ -318,22 +311,23 @@ Solution InterpolatorCells<dim>::interp_solution(const Point3 &point, const int 
     const int cell = abs(c);
     require(cell < size(), "Index out of bounds: " + d2s(cell));
 
-    // calculate interpolation weights (shape function of dummy nodal distance based weights)
+    // calculate shape functions
     array<double,dim> weights = shape_functions(Vec3(point), cell);
-
     SimpleCell<dim> scell = get_cell(cell);
 
-    // Interpolate vector data
+    // using them as weights, interpolate vector & scalar data
     Vec3 vector_i(0.0);
-    for (int i = 0; i < dim; ++i)
-        vector_i += nodes->get_vector(scell[i]) * weights[i];
-
-    // Interpolate scalar data
+    double vector_norm_i(0.0);
     double scalar_i(0.0);
-    for (int i = 0; i < dim; ++i)
-        scalar_i += nodes->get_scalar(scell[i]) * weights[i];
 
-    return Solution(vector_i, scalar_i);
+    for (int i = 0; i < dim; ++i) {
+        const Solution& s = (*solutions)[scell[i]];
+        vector_i += s.vector * weights[i];
+        vector_norm_i += s.norm * weights[i];
+        scalar_i += s.scalar * weights[i];
+    }
+
+    return Solution(vector_i, vector_norm_i, scalar_i);
 }
 
 template<int dim>
@@ -344,19 +338,21 @@ Solution InterpolatorCells<dim>::interp_solution_v2(const Point3 &point, const i
     // calculate shape functions and their gradients
     array<double,dim> sf = shape_functions(point, cell);
     array<Vec3,dim> sfg = shape_fun_grads(point, cell);
+    SimpleCell<dim> scell = get_cell(cell);
 
     // using them as weights, interpolate scalar data and its gradient
-    SimpleCell<dim> scell = get_cell(cell);
     Vec3 vector_i(0.0);
+    double vector_norm_i(0.0);
     double scalar_i(0.0);
 
     for (int i = 0; i < dim; ++i) {
-        double scalar = nodes->get_scalar(scell[i]);
-        vector_i -= sfg[i] * scalar;
-        scalar_i += sf[i] * scalar;
+        const Solution& s = (*solutions)[scell[i]];
+        vector_i -= sfg[i] * s.scalar;
+        scalar_i += sf[i] * s.scalar;
+        vector_norm_i += sf[i] * s.norm;
     }
 
-    return Solution(vector_i, scalar_i);
+    return Solution(vector_i, vector_norm_i, scalar_i);
 }
 
 template<int dim>

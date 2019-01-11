@@ -59,9 +59,6 @@ public:
     void extract_solution(PoissonSolver<3>& fem, const bool smoothen);
     void extract_solution_old(PoissonSolver<3>& fem, const bool smoothen);
 
-    /** Extract charge density from FEM solution */
-    void extract_charge_density(PoissonSolver<3>& fem);
-
     InterpolatorNodes nodes;     ///< vertices and solutions on them
     LinearTetrahedra lintet;     ///< data & operations for linear tetrahedral interpolation
     LinearTriangles lintri;      ///< data & operations for linear triangular interpolation
@@ -75,9 +72,12 @@ private:
     int empty_value;                ///< Solution value for nodes outside the Deal.II mesh
     vector<vector<pair<int,int>>> node2cells;  ///< list of hexahedra that are associated with given node
 
-    /** Transfer solution from FEM solver to Interpolator */
-    void store_solution(const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data);
-    void store_solution(DealSolver<3>& solver);
+    /** Transfer full solution from FEM solver to Interpolator */
+    void store_solution(const vector<dealii::Tensor<1, 3>> &vecs,
+            const vector<double> &norms, const vector<double> &scals, const Solution &empty);
+
+    /** Transfer scalar solution from FEM solver to Interpolator */
+    void store_solution(const vector<double> &norms, const vector<double> &scals, const Solution &empty);
 
     /** Calculate electric field in the location of mesh node */
     void store_elfield(const int node);

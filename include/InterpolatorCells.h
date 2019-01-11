@@ -48,7 +48,7 @@ public:
     }
 
     /** Return the pointer to the solution vector */
-    vector<Solution>* get_solutions() { return &solutions; }
+    const vector<Solution>* get_solutions() const { return &solutions; }
 
     /** Return full solution on i-th node */
     Solution get_solution(const int i) const {
@@ -87,7 +87,6 @@ public:
     void set_vector(const int i, const Vec3& v) {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         solutions[i].vector = v;
-        solutions[i].norm = v.norm();
     }
 
     /** Modify scalar component of solution on the i-th node */
@@ -106,9 +105,6 @@ public:
     void set_mesh(const TetgenMesh* m) {
         mesh = m;
     }
-
-    /** Return the max value of solution.norm data */
-    double max_norm() const;
 
     /** Return the index of node in Deal.II that corresponds to i-th node in Femocs;
      * -1 means there's no correspondence between two meshes */
@@ -154,10 +150,10 @@ private:
 template<int dim>
 class InterpolatorCells: public FileWriter {
 public:
-    InterpolatorCells() : mesh(NULL), nodes(NULL) { reserve(0); }
+    InterpolatorCells() : mesh(NULL), nodes(NULL), solutions(NULL) { reserve(0); }
 
     InterpolatorCells(const InterpolatorNodes* n) :
-        mesh(NULL), nodes(n) { reserve(0); }
+        mesh(NULL), nodes(n), solutions(n->get_solutions()) { reserve(0); }
 
     virtual ~InterpolatorCells() {};
 
@@ -238,7 +234,8 @@ protected:
     static constexpr double zero = 1e-15; ///< tolerance of calculations
 
     const TetgenMesh* mesh;           ///< Full mesh data with nodes, faces, elements etc
-    const InterpolatorNodes* nodes;   ///< Pointer to nodes and solutions
+    const InterpolatorNodes* nodes;   ///< direct pointer to nodes
+    const vector<Solution>* solutions;///< direct pointer to solutions
 
     vector<int> markers;            ///< markers for cells
     vector<Point3> centroids;       ///< cell centroid coordinates

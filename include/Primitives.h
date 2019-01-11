@@ -227,14 +227,12 @@ public:
 };
 
 /** Basic operations with 3-dimensional point */
-// TODO: For some reason not working properly
 class Point3 : public Vector3Data {
 public:
     /** Constructors of Point3 class */
     Point3() : Vector3Data() {}
     Point3(const double xx) : Vector3Data(xx) {}
     Point3(const double xx, const double yy, const double zz) : Vector3Data(xx, yy, zz) {}
-    Point3(const double xx, const double yy) : Vector3Data(xx, yy, 0) {}
     Point3(const Vector3Data &v) : Vector3Data(v) {}
     Point3(const dealii::Point<3> &p) : Vector3Data(p[0], p[1], p[2]) {}
 
@@ -512,8 +510,6 @@ public:
     /** Constructors of Solution */
     Solution() : id(0), vector(Vec3(0)), norm(0), scalar(0) {}
     Solution(const double d) : id(0), vector(Vec3(d)), norm(d), scalar(d) {}
-    Solution(const Vec3& v) : id(0), vector(v), norm(v.norm()), scalar(0) {}
-    Solution(const Vec3& v, const double s) : id(0), vector(v), norm(v.norm()), scalar(s) {}
     Solution(const Vec3& v, const double n, const double s) : id(0), vector(v), norm(n), scalar(s) {}
 
     /** Define the behaviour of string stream */
