@@ -365,7 +365,6 @@ void Surface::extend(Surface& extended_surf, const Config& conf) {
         AtomReader reader(&conf.geometry);
         reader.import_file(conf.path.extended_atoms);
         extended_surf += reader;
-        extended_surf.sort_atoms(3, "down");
 
         // ... and then by adding points on horizontal plane, if necessary
         Surface temp_surf;

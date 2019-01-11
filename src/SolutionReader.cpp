@@ -64,7 +64,9 @@ void SolutionReader::calc_full_interpolation() {
     const int n_atoms = size();
 
     // Sort atoms into sequential order to speed up interpolation
-    if (sort_atoms) sort_spatial();
+    if (sort_atoms) {
+        sort_spatial();
+    }
 
     int cell = -1;
 
@@ -73,7 +75,9 @@ void SolutionReader::calc_full_interpolation() {
         cell = update_interpolation(i, cell);
 
     // Sort atoms back to their initial order
-    if (sort_atoms) restore_sorting();
+    if (sort_atoms) {
+        restore_sorting();
+    }
 
     atoms_mapped_to_cells = true;
 }
