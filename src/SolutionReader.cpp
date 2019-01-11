@@ -73,12 +73,7 @@ void SolutionReader::calc_full_interpolation() {
         cell = update_interpolation(i, cell);
 
     // Sort atoms back to their initial order
-    if (sort_atoms) {
-        for (int i = 0; i < n_atoms; ++i)
-            interpolation[i].id = atoms[i].id;
-        std::sort( interpolation.begin(), interpolation.end(), Solution::sort_up() );
-        std::sort( atoms.begin(), atoms.end(), Atom::sort_id() );
-    }
+    if (sort_atoms) restore_sorting();
 
     atoms_mapped_to_cells = true;
 }
@@ -312,6 +307,33 @@ void SolutionReader::interpolate(const AtomReader &reader) {
 
     // interpolate solution
     calc_interpolation();
+}
+
+void SolutionReader::restore_sorting() {
+    const size_t n_atoms = size();
+
+    // obtain sort indices
+    vector<size_t> indices(n_atoms);
+    std::iota(indices.begin(), indices.end(), 0);
+    std::sort(indices.begin(), indices.end(),
+         [&](size_t i, size_t j){ return atoms[i].id < atoms[j].id; });
+
+    // sort atoms and interpolation vectors according to sort indices
+    vector<bool> done(n_atoms);
+    for (size_t i = 0; i < n_atoms; ++i) {
+        if (done[i]) continue;
+        done[i] = true;
+
+        size_t prev_j = i;
+        size_t j = indices[i];
+        while (i != j) {
+            std::swap(atoms[prev_j], atoms[j]);
+            std::swap(interpolation[prev_j], interpolation[j]);
+            done[j] = true;
+            prev_j = j;
+            j = indices[j];
+        }
+    }
 }
 
 /* ==========================================

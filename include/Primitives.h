@@ -506,26 +506,15 @@ public:
 /** Class to hold solution data and its operations */
 class Solution {
 public:
-
-    /** Constructors of Solution */
-    Solution() : id(0), vector(Vec3(0)), norm(0), scalar(0) {}
-    Solution(const double d) : id(0), vector(Vec3(d)), norm(d), scalar(d) {}
-    Solution(const Vec3& v, const double n, const double s) : id(0), vector(v), norm(n), scalar(s) {}
+    Solution() : vector(Vec3(0)), norm(0), scalar(0) {}
+    Solution(const double d) : vector(Vec3(d)), norm(d), scalar(d) {}
+    Solution(const Vec3& v, const double n, const double s) : vector(v), norm(n), scalar(s) {}
 
     /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &ss, const Solution &sol) {
         return ss << sol.vector << ' ' << sol.vector.norm() << ' ' << sol.norm << ' ' << sol.scalar;
     }
 
-    /** Functors used to sort vector of Solution into same order as vector of Atom */
-    struct sort_up {
-        inline bool operator() (const Solution& lh, const Solution& rh) { return lh.id < rh.id; }
-    };
-    struct sort_down {
-        inline bool operator() (const Solution& lh, const Solution& rh) { return lh.id > rh.id; }
-    };
-
-    int id;
     Vec3 vector;
     double norm;
     double scalar;

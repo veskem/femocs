@@ -129,6 +129,9 @@ protected:
      * @param cell   initial guess for the cell that might surround the point
      * @return cell index that was found to surround the point */
     int update_interpolation(const int i, int cell);
+
+    /** Sort atoms and interpolation by the atom ID */
+    void restore_sorting();
 };
 
 /** Class to extract solution from DealII calculations */
