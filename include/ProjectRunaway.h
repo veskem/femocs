@@ -148,7 +148,7 @@ private:
     void calc_heat_emission(bool full_run);
 
     /** Write restart file so that simulation could be started at t>0 time */
-    void write_restart(const string &path_to_file);
+    void write_restart();
 };
 
 } /* namespace femocs */

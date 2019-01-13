@@ -70,7 +70,7 @@ int ProjectRunaway::finalize(double tstart) {
     if (mesh_changed) reader.save_current_run_points();
     GLOBALS.TIME = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs;
 
-    write_restart("in/femocs.restart");
+    write_restart();
     write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
 
     mesh_changed = false;
@@ -172,13 +172,14 @@ int ProjectRunaway::generate_mesh() {
         end_msg(t0);
     }
 
-    if (fields.write_time()) {
+    if (mesh1.write_time() || mesh2.write_time()) {
         new_mesh->nodes.write("out/hexmesh_nodes.vtk");
         new_mesh->tris.write("out/trimesh.vtk");
         new_mesh->quads.write("out/quadmesh.vtk");
         new_mesh->tets.write("out/tetmesh.vtk");
         new_mesh->hexs.write("out/hexmesh.vtk");
         new_mesh->write_separate("out/hexmesh_bulk.vtks", TYPES.BULK);
+        mesh1.set_write_time(); mesh2.set_write_time();
     }
 
     // update mesh pointers
@@ -634,15 +635,30 @@ int ProjectRunaway::restart(const string &path_to_file) {
     return 0;
 }
 
-void ProjectRunaway::write_restart(const string &path_to_file) {
+void ProjectRunaway::write_restart() {
     if (conf.behaviour.n_write_restart <= 0 ||
              (GLOBALS.TIMESTEP - last_restart_ts) < conf.behaviour.n_write_restart)
         return;
 
+    // every 10th restart file is also stored separately
+    static int long_cntr = 1;
+
+    // make restart file to in folder to reduce the risk
+    // of accidentally deleting it while restarting system
+    string path = "in/femocs.restart";
     unsigned int flags = FileIO::force | FileIO::no_update | FileIO::append;
-    mesh->write(path_to_file, FileIO::force | FileIO::no_update);
-    bulk_interpolator.nodes.write(path_to_file, flags);
-    pic_solver.write(path_to_file, flags);
+
+    mesh->write(path, FileIO::force | FileIO::no_update);
+    bulk_interpolator.nodes.write(path, flags);
+    pic_solver.write(path, flags);
+
+    // copy last restart file to in folder to reduce the risk
+    // of accidentally deleting it while restarting system
+    if (long_cntr++ % conf.behaviour.restart_multiplier == 0) {
+        long_cntr = 1;
+        string cmd = "cp " + path + " out/femocs_" + d2s(GLOBALS.TIMESTEP) +  ".restart";
+        fail = system(cmd.c_str());
+    }
 
     last_restart_ts = GLOBALS.TIMESTEP;
 }

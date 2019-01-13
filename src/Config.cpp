@@ -23,6 +23,7 @@ Config::Config() {
     behaviour.verbosity = "verbose";
     behaviour.project = "runaway";
     behaviour.n_write_restart = 0;
+    behaviour.restart_multiplier = 10;
     behaviour.n_write_log = 0;
     behaviour.n_read_conf = 0;
     behaviour.interpolation_rank = 1;
@@ -217,6 +218,7 @@ void Config::read_all(const string& fname, bool full_run) {
 
     read_command("n_read_conf", behaviour.n_read_conf);
     read_command("n_write_restart", behaviour.n_write_restart);
+    read_command("restart_multiplier", behaviour.restart_multiplier);
     read_command("n_write_log", behaviour.n_write_log);
     read_command("femocs_verbose_mode", behaviour.verbosity);
     read_command("project", behaviour.project);
