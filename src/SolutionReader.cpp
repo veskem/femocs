@@ -987,51 +987,6 @@ void ForceReader::distribute_charges(const FieldReader &fields, const ChargeRead
     }
 }
 
-int ForceReader::export_charge_and_force(const int n_atoms, double* xq) const {
-    if (n_atoms < 0) return 0;
-    check_return(size() == 0, "No charge & force to export!");
-
-    // Initially pass the zero force and charge for all the atoms
-    for (int i = 0; i < 4*n_atoms; ++i)
-        xq[i] = 0;
-
-    // Pass the the calculated electric field for stored atoms
-    for (int i = 0; i < size(); ++i) {
-        int identifier = get_id(i);
-        if (identifier < 0 || identifier >= n_atoms) continue;
-
-        identifier *= 4;
-        xq[identifier++] = interpolation[i].scalar;
-        for (double x : interpolation[i].vector)
-            xq[identifier++] = x;
-    }
-
-    return 0;
-}
-
-int ForceReader::export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const {
-    if (n_atoms < 0) return 0;
-    check_return(size() == 0, "No force & pair potential to export!");
-
-    Vec3 box(sizes.xbox, sizes.ybox, sizes.zbox);
-
-    for (int i = 0; i < size(); ++i) {
-        int id = get_id(i);
-        if (id < 0 || id >= n_atoms) continue;
-
-        double V = interpolation[i].norm;
-        Epair[id] += V;
-        Vpair[0] += V;
-
-        id *= 3;
-        Vec3 force = interpolation[i].vector;
-        for (int j = 0; j < 3; ++j)
-            xnp[id+j] += force[j] / box[j];
-    }
-
-    return 0;
-}
-
 int ForceReader::export_parcas(const int n_points, const string &data_type, const Vec3& si2parcas,
         double* data) const
 {

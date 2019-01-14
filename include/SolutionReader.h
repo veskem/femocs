@@ -317,20 +317,7 @@ public:
     /** Using the previously found surface charge, calculate Coulomb forces between atoms */
     void calc_coulomb(const double r_cut);
 
-    /** Export the induced charge and force on imported atoms
-     * @param n_atoms  number of first atoms the data will be exported
-     * @param xq       charge and force in PARCAS format (xq[0] = q1, xq[1] = Fx1, xq[2] = Fy1, xq[3] = Fz1, xq[4] = q2, xq[5] = Fx2 etc)
-     */
-    int export_charge_and_force(const int n_atoms, double* xq) const;
-
-    /** Export Laplace + Coulomb force and pair potential on imported atoms
-     * @param n_atoms  number of first atoms the data will be exported
-     * @param xnp      forces in PARCAS format & units (xnp[0] = Fx1, xnp[1] = Fy1, xnp[2] = Fz1, xnp[3] = Fx2 etc)
-     * @param Epair    potential energy per atom
-     * @param Vpair    total potential energy of atoms. Pot. due to Coloumb forces are added here. NOTE: Lorentz is missing!
-     */
-    int export_force_and_pairpot(const int n_atoms, double* xnp, double* Epair, double* Vpair) const;
-
+    /** Export Parcas-specific data */
     int export_parcas(const int n_points, const string &data_type, const Vec3& si2parcas, double* data) const;
 
     /** Return the force that is applied to i-th atom */
