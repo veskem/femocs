@@ -48,7 +48,7 @@ public:
     Tensor<1, dim, double> probe_efield(const Point<dim> &p, const int cell_index) const;
 
     /** Calculate charge densities at mesh vertices */
-    void export_charge_dens(vector<double> &charge_dens);
+    void export_charge_dens(vector<double> &charge_dens) const;
 
     /** Run Conjugate-Gradient solver to solve matrix equation */
     int solve() { return this->solve_cg(conf->n_cg, conf->cg_tolerance, conf->ssor_param); }
@@ -67,6 +67,7 @@ private:
 
     double applied_field;     ///< applied electric field on top of simubox
     double applied_potential; ///< applied potential on top of simubox
+    Vector<double> charge_density;   ///< charge density at dofs [e/Angstrom^3]
 
     typedef typename DealSolver<dim>::LinearSystem LinearSystem;
     typedef typename DealSolver<dim>::ScratchData ScratchData;

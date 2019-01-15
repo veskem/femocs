@@ -12,6 +12,7 @@
 
 #include <float.h>
 #include <stdio.h>
+#include <numeric>
 
 using namespace std;
 namespace femocs {

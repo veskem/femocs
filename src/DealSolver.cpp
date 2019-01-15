@@ -370,6 +370,8 @@ void DealSolver<dim>::setup_system() {
     this->system_rhs.reinit(n_dofs);
     this->solution.reinit(n_dofs);
     this->solution = this->dirichlet_bc_value;
+
+    this->calc_vertex2dof();
 }
 
 template<int dim>

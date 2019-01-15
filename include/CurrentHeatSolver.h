@@ -107,6 +107,7 @@ private:
     static constexpr double cu_rho_cp = 3.4496e-24;  ///< volumetric heat capacity of copper [J/(K*Ang^3)]
     double one_over_delta_time;      ///< inverse of heat solver time step [1/sec]
     Vector<double> joule_heat;       ///< integral Joule heat at dofs [Watt]
+    Vector<double> total_heat;       ///< integral Joule+Nottingham heat at dofs [Watt]
     const CurrentSolver<dim>* current_solver;
 
     typedef typename DealSolver<dim>::LinearSystem LinearSystem;

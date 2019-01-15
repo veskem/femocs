@@ -138,18 +138,14 @@ Tensor<1, dim, double> PoissonSolver<dim>::probe_efield(const Point<dim> &p, con
 }
 
 template<int dim>
-void PoissonSolver<dim>::export_charge_dens(vector<double> &charge_dens) {
+void PoissonSolver<dim>::export_charge_dens(vector<double> &charge_dens) const {
     const int n_verts = this->tria->n_used_vertices();
     require(n_verts == this->vertex2dof.size(), "Mismatch between #vertices and vertex2dof size: "
             + d2s(n_verts) + " vs " + d2s(this->vertex2dof.size()));
 
     charge_dens.resize(n_verts);
-    this->calc_dof_volumes();
-
-    for (unsigned i = 0; i < n_verts; i++) {
-        int dof = this->vertex2dof[i];
-        charge_dens[i] = this->system_rhs_save[dof] / this->dof_volume[dof];
-    }
+    for (unsigned i = 0; i < n_verts; i++)
+        charge_dens[i] = charge_density[this->vertex2dof[i]];
 }
 
 template<int dim>
@@ -188,10 +184,18 @@ void PoissonSolver<dim>::assemble(const bool full_run) {
     }
 
     if (conf->mode != "laplace") assemble_space_charge();
-    // save the system right-hand-side to make it possible to write space charge into file
-    if (this->write_time()) this->system_rhs_save = this->system_rhs;
+    // save charge density for writing it to file
+    // must be before applying Diriclet BCs
+    if (this->write_time()) {
+        int n_verts = this->tria->n_used_vertices();
+        this->charge_density = this->system_rhs;
+        this->calc_dof_volumes();
+        for (unsigned i = 0; i < n_verts; i++) {
+            int dof = this->vertex2dof[i];
+            this->charge_density[dof] /= this->dof_volume[dof];
+        }
+    }
     if (full_run) this->apply_dirichlet();
-    this->calc_vertex2dof();
 }
 
 template<int dim>

@@ -131,12 +131,14 @@ void HeatSolver<dim>::assemble(const double delta_time) {
             CopyData(n_dofs, n_q_points)
     );
 
-    if (this->write_time()) this->joule_heat = this->system_rhs;
+    if (this->write_time()) {
+        this->joule_heat = this->system_rhs;
+        this->calc_dof_volumes();
+    }
     this->assemble_rhs(BoundaryID::copper_surface);
-    if (this->write_time()) this->system_rhs_save = this->system_rhs;
+    if (this->write_time()) this->total_heat = this->system_rhs;
     this->append_dirichlet(BoundaryID::copper_bottom, this->dirichlet_bc_value);
     this->apply_dirichlet();
-    this->calc_vertex2dof();
 }
 
 template<int dim>
@@ -427,7 +429,6 @@ void CurrentSolver<dim>::assemble() {
     this->assemble_rhs(BoundaryID::copper_surface);
     this->append_dirichlet(BoundaryID::copper_bottom, this->dirichlet_bc_value);
     this->apply_dirichlet();
-    this->calc_vertex2dof();
 }
 
 template<int dim>
@@ -524,7 +525,8 @@ void CurrentHeatSolver<dim>::write_xyz(ofstream& out) const {
     FileWriter::write_xyz(out);
 
     // write Ovito header
-    out << "properties=id:I:1:pos:R:3:total_heat:R:1:joule_heat:R:1:nottingham_heat:R:1:temperature:R:1:potential:R:1:rho:R:1\n";
+    out << "properties=id:I:1:pos:R:3:force:R:3:total_heat:R:1:nottingham_heat:R:1"
+            ":joule_heat:R:1:volume:R:1:temperature:R:1:potential:R:1:rho:R:1\n";
 
     // extract coordinates of dofs
     vector<Point<dim>> support_points;
@@ -545,8 +547,9 @@ void CurrentHeatSolver<dim>::write_xyz(ofstream& out) const {
 
     // write data
     for (int i = 0; i < n_dofs; ++i) {
-        out << i << " " << Point3(support_points[i]) << " " << heat.system_rhs_save(i) << " " << heat.joule_heat(i)
-                << " " << heat.system_rhs_save(i) - heat.joule_heat(i) << " " << heat.solution(i)
+        out << dof2vertex[i] << " " << Point3(support_points[i]) << " " << Vec3(rho[dof2vertex[i]])
+                << " " << heat.total_heat(i) << " " << heat.total_heat(i) - heat.joule_heat(i)
+                << " " << heat.joule_heat(i) << " " << heat.dof_volume[i] << " " << heat.solution(i)
                 << " " << current.solution(i) << " " << rho[dof2vertex[i]].norm() << "\n";
     }
 }

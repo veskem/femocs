@@ -84,9 +84,6 @@ public:
     /** Modify DOF solution with nodal solution */
     void import_solution(const vector<double>* new_solution);
 
-    /** Calculate mapping between vertex and dof indices */
-    void calc_vertex2dof();
-
     /** Return # degrees of freedom of system */
     int size() const { return dof_handler.n_dofs(); }
 
@@ -129,7 +126,6 @@ protected:
     SparsityPattern sparsity_pattern;        ///< structure for sparse matrix representation
     SparseMatrix<double> system_matrix;      ///< system matrix of matrix equation
     Vector<double> system_rhs;               ///< right-hand-side of the matrix equation
-    Vector<double> system_rhs_save;          ///< saved right-hand-side of the matrix equation
     Vector<double> solution;                 ///< resulting solution in the mesh nodes
 
     vector<double> dof_volume;               ///< integral of the shape functions
@@ -195,6 +191,9 @@ protected:
 
     /** Calculate the volumes (dim=3) or areas (dim=2) of dofs used during integration */
     void calc_dof_volumes();
+
+    /** Calculate mapping between vertex and dof indices */
+    void calc_vertex2dof();
 
     /** Specify file types that can be written */
     bool valid_extension(const string &ext) const {
