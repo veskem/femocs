@@ -306,9 +306,11 @@ void SolutionReader::interpolate(const AtomReader &reader) {
     reserve(n_atoms);
 
     // store atom coordinates
-    for (int i = 0; i < n_atoms; ++i)
-        if (reader.get_marker(i) != TYPES.FIXED)
-            append(reader.get_atom(i));
+    for (int i = 0; i < n_atoms; ++i) {
+        Atom atom = reader.get_atom(i);
+        if (atom.marker == TYPES.SURFACE || atom.marker == TYPES.BULK)
+            append(atom);
+    }
 
     // interpolate solution
     calc_interpolation();
