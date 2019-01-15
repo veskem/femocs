@@ -33,8 +33,8 @@ Femocs::Femocs(const string &conf_file) : t0(0), reader(&conf.geometry) {
     MODES.SHORTLOG = conf.behaviour.n_write_log < 0;
 
     // Clear the results from previous run
-    if (first_call && conf.run.output_cleaner) fail = system("rm -rf out");
-    fail = system("mkdir -p out");
+    if (first_call && conf.run.output_cleaner) fail = execute("rm -rf out");
+    fail = execute("mkdir -p out");
     first_call = false;
 
     write_verbose_msg("======= Femocs started! =======");

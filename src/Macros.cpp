@@ -71,6 +71,10 @@ void end_msg(const double t0) {
     if (MODES.VERBOSE) printf("time: %.3f\n", omp_get_wtime() - t0);
 }
 
+int execute(const string& cmd) {
+    return system(cmd.c_str());
+}
+
 void write_silent_msg(const string& message) {
     write_log("\n" + message + "\n");
     if (!MODES.MUTE) cout << "\nFEMOCS: " << message << endl;

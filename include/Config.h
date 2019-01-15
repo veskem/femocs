@@ -60,7 +60,7 @@ public:
     struct Behaviour {
         string verbosity;           ///< Verbose mode: mute, silent, verbose
         string project;             ///< Type of project to be called; runaway, ...
-        int n_write_restart;        ///< # time steps between writing restart file; 0 disables write
+        int n_restart;              ///< # time steps between writing restart file; 0 disables write
         int restart_multiplier;     ///< After n_write_restart * restart_multiplier time steps, restart file will be copied to separate file
         int n_write_log;            ///< # time steps between writing log file; <0: only last time step, 0: no write, >0: only every n-th
         int n_read_conf;            ///< # time steps between re-reading configuration values from file; 0 turns re-reading off

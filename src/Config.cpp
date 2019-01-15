@@ -22,7 +22,7 @@ Config::Config() {
 
     behaviour.verbosity = "verbose";
     behaviour.project = "runaway";
-    behaviour.n_write_restart = 0;
+    behaviour.n_restart = 0;
     behaviour.restart_multiplier = 10;
     behaviour.n_write_log = 0;
     behaviour.n_read_conf = 0;
@@ -149,6 +149,7 @@ void Config::read_all(const string& fname, bool full_run) {
         check_changed("n_writefile", "write_period");
         check_changed("Vappl_SC", "sc_omega & Vappl");
         check_changed("omega_SC", "sc_omega");
+        check_changed("n_write_restart", "nrestart");
     }
 
     // Modify the parameters that are specified in input script
@@ -216,7 +217,7 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("femocs_periodic", MODES.PERIODIC);
 
     read_command("n_read_conf", behaviour.n_read_conf);
-    read_command("n_write_restart", behaviour.n_write_restart);
+    read_command("nrestart", behaviour.n_restart); // the same command as for Parcas
     read_command("restart_multiplier", behaviour.restart_multiplier);
     read_command("n_write_log", behaviour.n_write_log);
     read_command("femocs_verbose_mode", behaviour.verbosity);

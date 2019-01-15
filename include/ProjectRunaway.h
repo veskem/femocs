@@ -11,6 +11,7 @@
 #include "GeneralProject.h"
 #include "Surface.h"
 #include "SolutionReader.h"
+#include "EmissionReader.h"
 #include "Interpolator.h"
 #include "PhysicalQuantities.h"
 #include "PoissonSolver.h"
@@ -69,6 +70,7 @@ protected:
     double last_heat_time;      ///< Last time heat was updated
     double last_pic_time;       ///< Last time PIC solver was called
     int last_restart_ts;        ///< Last time step reset file was written
+    int restart_cntr;           ///< How many restart files have been written
 
     Interpolator vacuum_interpolator;  ///< data & operations for interpolating field & potential in vacuum
     Interpolator bulk_interpolator;    ///< data & operations for interpolating current density & temperature in bulk
@@ -149,6 +151,9 @@ private:
 
     /** Write restart file so that simulation could be started at t>0 time */
     void write_restart();
+
+    /** Handle Parcas restart file */
+    void copy_mdlat();
 };
 
 } /* namespace femocs */
