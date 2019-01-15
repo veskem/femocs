@@ -8,13 +8,13 @@
 #ifndef TETGENCELLS_H_
 #define TETGENCELLS_H_
 
+#include "FileWriter.h"
 #include "Macros.h"
 #include "Primitives.h"
 #include "Tetgen.h"
 #include "Medium.h"
 
 #include <fstream>
-#include "Globals.h"
 
 using namespace std;
 namespace femocs {
@@ -22,11 +22,12 @@ namespace femocs {
 /** Template class for holding finite element cells;
  * dim specifies the dimensionality of the cell - 1-node, 2-line, 3-triangle etc. */
 template<int dim>
-class TetgenCells {
+class TetgenCells: public FileWriter {
 public:
 
     /** Default constructor that creates empty instance */
-    TetgenCells() : n_cells_r(NULL), n_cells_w(NULL), reads(NULL), writes(NULL), i_cells(0) {}
+    TetgenCells() :
+    n_cells_r(NULL), n_cells_w(NULL), reads(NULL), writes(NULL), i_cells(0) {}
 
     /** Constructor for the case when read and write data go into same place */
     TetgenCells(tetgenio* data, int* n_cells) :
@@ -150,7 +151,7 @@ public:
     }
 
     /** Return pointer to markers */
-    vector<int>* get_markers() { return &markers; }
+    const vector<int>* get_markers() const { return &markers; }
 
     /** Assign m-th marker */
     void set_marker(const int node, const int m) {
@@ -168,16 +169,6 @@ public:
                     if (n1 == n2) continue;
                     nborlist[n1].push_back(n2);
                 }
-    }
-
-    /** Function to write cell data to file */
-    void write(const string &file_name) const {
-        if (!MODES.WRITEFILE) return;
-
-        string file_type = get_file_type(file_name);
-        require(file_type == "vtk", "Unknown file type: " + file_type);
-
-        write_vtk(file_name);
     }
 
     /** Accessor for accessing i-th cell */
@@ -225,24 +216,11 @@ protected:
         return Vec3(reads->pointlist[n+0], reads->pointlist[n+1], reads->pointlist[n+2]);
     }
 
-    /** Output mesh in .vtk format */
-    void write_vtk(const string &file_name) const {
-        const size_t n_markers = get_n_markers();
+    /** Output mesh nodes and cells in .vtk format */
+    void write_vtk_points_and_cells(ofstream &out) const {
         const size_t n_nodes = get_n_nodes();
         const size_t n_cells = size();
         const size_t celltype = get_cell_type();
-
-        expect(n_nodes > 0, "Zero nodes detected!");
-
-        std::ofstream out(file_name.c_str());
-        require(out, "Can't open a file " + file_name);
-
-        out << fixed;
-
-        out << "# vtk DataFile Version 3.0\n";
-        out << "# TetgenCells data\n";
-        out << "ASCII\n";
-        out << "DATASET UNSTRUCTURED_GRID\n\n";
 
         // Output the nodes
         out << "POINTS " << n_nodes << " double\n";
@@ -250,19 +228,22 @@ protected:
             out << get_node(node) << "\n";
 
         // Output the cells (tetrahedra, triangles, edges or vertices)
-        out << "\nCELLS " << n_cells << " " << n_cells * (dim + 1) << "\n";
+        out << "CELLS " << n_cells << " " << n_cells * (dim + 1) << "\n";
         for (size_t cl = 0; cl < n_cells; ++cl)
             out << dim << " " << get_cell(cl) << "\n";
 
         // Output cell types
-        out << "\nCELL_TYPES " << n_cells << "\n";
+        out << "CELL_TYPES " << n_cells << "\n";
         for (size_t cl = 0; cl < n_cells; ++cl)
             out << celltype << "\n";
+    }
+
+    /** Output mesh data in .vtk format */
+    void write_vtk_data(ofstream &out) const {
+        const size_t n_markers = get_n_markers();
+        const size_t n_cells = size();
 
         // Output cell id-s
-        if (celltype == 1) out << "\nPOINT_DATA " << n_cells << "\n";
-        else out << "\nCELL_DATA " << n_cells << "\n";
-
         out << "SCALARS ID int\nLOOKUP_TABLE default\n";
         for (size_t cl = 0; cl < n_cells; ++cl)
             out << cl << "\n";
@@ -273,6 +254,25 @@ protected:
             for (size_t cl = 0; cl < n_cells; ++cl)
                 out << get_marker(cl) << "\n";
         }
+    }
+
+    /** Output mesh node data in .vtk format */
+    void write_vtk_point_data(ofstream &out) const {
+        if (get_cell_type() != VtkType::vertex) return;
+        out << "POINT_DATA " << size() << "\n";
+        write_vtk_data(out);
+    }
+
+    /** Output mesh cell data in .vtk format */
+    void write_vtk_cell_data(ofstream &out) const {
+        if (get_cell_type() == VtkType::vertex) return;
+        out << "CELL_DATA " << size() << "\n";
+        write_vtk_data(out);
+    }
+
+    /** Specify implemented output file formats */
+    bool valid_extension(const string &ext) const {
+        return ext == "vtk" || ext == "vtks";
     }
 };
 
@@ -307,13 +307,11 @@ public:
     /** Copy the nodes from write buffer to read buffer */
     void transfer(const bool write2read=true);
 
+    /** Copy the nodes from another mesh */
     void copy(const TetgenNodes& nodes, const vector<bool>& mask={});
 
     /** Return the coordinates of i-th node as a 3D vector */
     Vec3 get_vec(const int i) const;
-
-    /** Write node data to file */
-    void write(const string &file_name) const;
 
     /** Save the locations of the initially added nodes */
     void save_indices(const int n_surf, const int n_bulk, const int n_vacuum);
@@ -324,6 +322,7 @@ public:
     /** Calculate statistics about nodes */
     void calc_statistics();
 
+    /** Transform nodes into Deal.II format */
     vector<dealii::Point<3>> export_dealii() const;
 
     /** Struct holding the indexes about nodes with known locations.
@@ -368,7 +367,7 @@ public:
 
 private:
     /** Return the vertex type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.VERTEX; }
+    int get_cell_type() const { return VtkType::vertex; }
 
     /** Return index of i-th node */
     SimpleCell<1> get_cell(const int i) const;
@@ -376,10 +375,15 @@ private:
     void copy_statistics(const TetgenNodes& nodes);
 
     /** Write node data to .xyz file */
-    void write_xyz(const string &file_name) const;
+    void write_xyz(ofstream &out) const;
 
     /** Initialize statistics about nodes */
     void init_statistics();
+
+    /** Specify implemented output file formats */
+    bool valid_extension(const string &ext) const {
+        return ext == "xyz" || ext == "movie" || ext == "vtk" || ext == "vtks";
+    }
 };
 
 /** Class for holding Tetgen line edges */
@@ -413,7 +417,7 @@ public:
 
 private:
     /** Return the line type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.LINE; }
+    int get_cell_type() const { return VtkType::line; }
 
     /** Return i-th edge */
     SimpleCell<2> get_cell(const int i) const;
@@ -493,7 +497,7 @@ private:
     vector<Point3> centroids; ///< pre-calculated centroids of triangles
 
     /** Return the triangle type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.TRIANGLE; }
+    int get_cell_type() const { return VtkType::triangle; }
 
     /** Return i-th face */
     SimpleCell<3> get_cell(const int i) const;
@@ -553,7 +557,7 @@ private:
     vector<vector<int>> map2tris; ///< data for mapping tetrahedron to the triangles
 
     /** Return the tetrahedron type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.TETRAHEDRON; }
+    int get_cell_type() const { return VtkType::tetrahedron; }
 
     /** Return i-th element */
     SimpleCell<4> get_cell(const int i) const;
@@ -602,7 +606,7 @@ protected:
     vector<array<int,2>> map2hexs;
 
     /** Return the quadrangle type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.QUADRANGLE; }
+    int get_cell_type() const { return VtkType::quadrangle; }
 
     /** Return i-th quadrangle */
     SimpleCell<4> get_cell(const int i) const;
@@ -653,7 +657,7 @@ protected:
     vector<vector<int>> map2quads;
 
     /** Return the hexahedron type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; }
+    int get_cell_type() const { return VtkType::hexahedron; }
 
     /** Return i-th hexahedron */
     SimpleCell<8> get_cell(const int i) const;

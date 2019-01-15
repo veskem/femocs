@@ -22,7 +22,10 @@ public:
     Config();
 
     /** Read the configuration parameters from input script */
-    void read_all(const string& file_name);
+    void read_all(const string& file_name, bool full_run=true);
+
+    /** Using the stored path, read the configuration parameters from input script */
+    void read_all();
 
     /** Look up the configuration parameter with string argument */
     int read_command(string param, string& arg);
@@ -50,20 +53,23 @@ public:
         string extended_atoms;      ///< Path to the file with atoms forming the extended surface
         string infile;              ///< Path to the file with atom coordinates and types
         string mesh_file;           ///< Path to the triangular and tetrahedral mesh data
+        string restart_file;        ///< Path to the restart file
     } path;
 
     /** User specific preferences */
     struct Behaviour {
         string verbosity;           ///< Verbose mode: mute, silent, verbose
         string project;             ///< Type of project to be called; runaway, ...
-        int n_write_log;            ///< #timesteps between writing log file; <0: only last timestep, 0: no write, >0: only every n-th
-        int n_writefile;            ///< Number of time steps between writing output files; 0 turns writing off
+        int n_restart;              ///< # time steps between writing restart file; 0 disables write
+        int restart_multiplier;     ///< After n_write_restart * restart_multiplier time steps, restart file will be copied to separate file
+        int n_write_log;            ///< # time steps between writing log file; <0: only last time step, 0: no write, >0: only every n-th
+        int n_read_conf;            ///< # time steps between re-reading configuration values from file; 0 turns re-reading off
         int interpolation_rank;     ///< Rank of the solution interpolation; 1-linear tetrahedral, 2-quadratic tetrahedral, 3-linear hexahedral
-        double write_period;        ///< Write files every write_period (in fs)
         double timestep_fs;         ///< Total time evolution within a FEMOCS run call [fs]
         double mass;                ///< Atom mass [amu]
         unsigned int rnd_seed;      ///< Seed for random number generator
         unsigned int n_omp_threads; ///< Number of opened OpenMP threads
+        unsigned int timestep_step; ///< Every n_timestep-th timestep is not skipped
     } behaviour;
 
     /** Enable or disable various support features */
@@ -89,10 +95,12 @@ public:
         double box_width;           ///< Minimal simulation box width [tip height]
         double box_height;          ///< Simulation box height [tip height]
         double bulk_height;         ///< Bulk substrate height [lattice constant]
-
-        /// Radius of cylinder where surface atoms are not coarsened; 0 enables coarsening of all atoms
-        double radius;
+        double radius;              ///< Radius of cylinder where surface atoms are not coarsened; 0 enables coarsening of all atoms
         double height;              ///< height of generated artificial nanotip in the units of radius
+        /** Minimum rms distance between atoms from current and previous run so that their
+         * movement is considered to be sufficiently big to recalculate electric field;
+         * 0 turns the check off */
+        double distance_tol;
     } geometry;
 
     /** All kind of tolerances */
@@ -101,11 +109,6 @@ public:
         double charge_max; ///< Max ratio face charges are allowed to deviate from the total charge
         double field_min;  ///< Min ratio numerical field can deviate from analytical one
         double field_max;  ///< Max ratio numerical field can deviate from analytical one
-
-        /** Minimum rms distance between atoms from current and previous run so that their
-         * movement is considered to be sufficiently big to recalculate electric field;
-         * 0 turns the check off */
-        double distance;
     } tolerance;
 
     /** Parameters for solving field equation */
@@ -116,8 +119,7 @@ public:
         int n_cg;              ///< Maximum number of Conjugate Gradient iterations in phi calculation
         double V0;             ///< Applied voltage at the anode (active in case of SC emission and Dirichlet anodeBC
         string anode_BC;       ///< Type of anode boundary condition (Dirichlet or Neumann)
-        string solver;         ///< Type of field equation to be solved; laplace or poisson
-        vector<double> apply_factors; ///< run for multiple applied E0 (or V0) multiplied by the factors
+        string mode;           ///< Mode to run field solver; laplace
     } field;
 
     /** Heating module configuration parameters */
@@ -129,19 +131,17 @@ public:
         int n_cg;                   ///< Max # Conjugate-Gradient iterations
         double cg_tolerance;        ///< Solution accuracy in Conjugate-Gradient solver
         double ssor_param;          ///< Parameter for SSOR preconditioner in DealII. Its fine tuning optimises calculation time.
-        double delta_time;          ///< Timestep of time domain integration [fs]
+        double delta_time;          ///< Timestep of time domain integration [sec]
         double dt_max;              ///< Maximum allowed timestep for heat convergence run
         double tau;                 ///< Time constant in Berendsen thermostat
-        string assemble_method;     ///< Method to assemble system matrix for solving heat equation; euler or crank_nicolson
     } heating;
 
+    /** Field emission module parameters */
     struct Emission {
-        double work_function;       ///< Work function [eV]
-        bool blunt;                 ///< Force blunt emitter approximation (good for big systems)
-        bool cold;                  ///< force cold field emission approximation (good for low temperatures)
-        double omega_SC;            ///< Voltage correction factor for SC calculation (negative for ignoring SC)
-        double SC_error;            ///< convergence criterion for SC error
-        double Vappl_SC;            ///< Applied voltage used for SC calculations (overrides Vappl * omega_SC)
+        double work_function; ///< Work function [eV]
+        bool blunt;           ///< Force blunt emitter approximation (good for big systems)
+        bool cold;            ///< force cold field emission approximation (good for low temperatures)
+        double omega;         ///< Voltage correction factor for SC-limited emission calculation; <= 0 ignores SC
     } emission;
 
     /** Parameters related to atomic force calculations */
@@ -168,7 +168,8 @@ public:
     } cfactor;
 
 private:
-    vector<vector<string>> data;          ///< commands and their arguments found from the input script
+    vector<vector<string>> data; ///< commands and their arguments found from the input script
+    string file_name;            ///< path to configuration file
 
     const string comment_symbols = "!#%";
     const string data_symbols = "+-/*_.0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ()";
@@ -177,7 +178,7 @@ private:
     void check_obsolete(const string& file_name);
 
     /** Check for the obsolete commands that are similar to valid ones */
-    void check_obsolete(const string& command, const string& substitute);
+    void check_changed(const string& command, const string& substitute);
 
     /** Read the commands and their arguments from the file and store them into the buffer */
     void parse_file(const string& file_name);

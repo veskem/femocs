@@ -14,16 +14,12 @@
 using namespace std;
 namespace femocs {
 
-Femocs::Femocs(const string &conf_file) : t0(0) {
+Femocs::Femocs(const string &conf_file) : t0(0), reader(&conf.geometry) {
     static bool first_call = true;
     bool fail;
 
     // Read configuration parameters from configuration file
     conf.read_all(conf_file);
-    reader.store_data(conf);
-
-    // Initialise file writing
-    MODES.WRITEFILE = conf.behaviour.n_writefile > 0;
 
     // Pick the correct verbosity mode flags
     if      (conf.behaviour.verbosity == "mute")    { MODES.MUTE = true;  MODES.VERBOSE = false; }
@@ -35,8 +31,8 @@ Femocs::Femocs(const string &conf_file) : t0(0) {
     MODES.SHORTLOG = conf.behaviour.n_write_log < 0;
 
     // Clear the results from previous run
-    if (first_call && conf.run.output_cleaner) fail = system("rm -rf out");
-    fail = system("mkdir -p out");
+    if (first_call && conf.run.output_cleaner) fail = execute("rm -rf out");
+    fail = execute("mkdir -p out");
     first_call = false;
 
     write_verbose_msg("======= Femocs started! =======");
@@ -49,6 +45,9 @@ Femocs::Femocs(const string &conf_file) : t0(0) {
     else {
         require(false, "Unimplemented project: " + conf.behaviour.project);
     }
+
+    if (conf.path.restart_file != "")
+        project->restart(conf.path.restart_file);
 }
 
 Femocs::~Femocs() {

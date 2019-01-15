@@ -15,6 +15,7 @@
 #include <fstream>
 #include "Globals.h"
 #include "Medium.h"
+#include "FileWriter.h"
 
 using namespace dealii;
 using namespace std;
@@ -29,7 +30,7 @@ template<int dim> class HeatSolver;
 /** @brief General class to implement FEM solver in Deal.II
  */
 template<int dim>
-class DealSolver {
+class DealSolver: public FileWriter {
 public:
 
     DealSolver();
@@ -45,21 +46,11 @@ public:
     /** Provide access to solution vector */
     Vector<double>* get_solution() { return &solution; };
 
-    /**
-     * Obtain solution values in selected nodes.
-     * @param sol          output solution values
-     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
-     * @param vert_indexes the vertex indexes of the nodes inside the cell
-     */
-    void solution_at(vector<double> &sol, const vector<int> &cells, const vector<int> &verts) const;
+    /** Obtain solution values on mesh vertices */
+    void export_solution(vector<double> &solution) const;
 
-    /**
-     * Obtain MINUS gradient of solution values in selected nodes.
-     * @param grads        output solution gradient values
-     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
-     * @param vert_indexes the vertex indexes of the nodes inside the cell
-     */
-    void solution_grad_at(vector<Tensor<1, dim>> &grads, const vector<int> &cells, const vector<int> &verts) const;
+    /** Obtain MINUS gradient of solution values on mesh vertices */
+    void export_solution_grad(vector<Tensor<1, dim>> &grads) const;
 
     /** Get the solution value at the specified point. NB: Slow! */
     double probe_solution(const Point<dim> &p) const;
@@ -78,20 +69,23 @@ public:
     /** Return the volume/area of i-th cell */
     double get_cell_vol(const int i) const;
 
+    /** Return number of active cells */
+    int get_n_cells() const { return triangulation.n_active_cells(); }
+
     /** Export mesh vertices into Medium */
-    void export_dofs(femocs::Medium& medium) const;
+    void export_vertices(Medium& medium);
+
+    /** Export mesh dofs into vector */
+    void export_dofs(vector<Point<dim>>& points) const;
 
     /** Export the centroids of surface faces in the order required by assemble_rhs */
-    void export_surface_centroids(femocs::Medium& medium) const;
-
-    /** Extract the solution on all mesh nodes */
-    void get_nodal_solution(vector<double>& solution) const;
+    void export_surface_centroids(Medium& medium) const;
 
     /** Modify DOF solution with nodal solution */
-    void set_nodal_solution(const vector<double>* new_solution);
+    void import_solution(const vector<double>* new_solution);
 
-    /** Calculate mapping between vertex and dof indices */
-    void calc_vertex2dof();
+    /** Return # degrees of freedom of system */
+    int size() const { return dof_handler.n_dofs(); }
 
     /**
      * Import mesh from file and set the boundary indicators corresponding to copper
@@ -104,9 +98,6 @@ public:
      * @return true if success, otherwise false
      */
     bool import_mesh(vector<Point<dim>> vertices, vector<CellData<dim>> cells);
-
-    /** Write data to file; data type and format is determined with the file extention */
-    void write(const string &filename) const;
 
     /** Print the statistics about the mesh and # degrees of freedom */
     friend ostream& operator <<(ostream &os, const DealSolver<dim>& d) {
@@ -134,17 +125,43 @@ protected:
 
     SparsityPattern sparsity_pattern;        ///< structure for sparse matrix representation
     SparseMatrix<double> system_matrix;      ///< system matrix of matrix equation
-    SparseMatrix<double> system_matrix_save; ///< system matrix of matrix equation (save before Dirichlet BCs remove dofs)
     Vector<double> system_rhs;               ///< right-hand-side of the matrix equation
-    Vector<double> system_rhs_save;          ///< saved right-hand-side of the matrix equation
-
     Vector<double> solution;                 ///< resulting solution in the mesh nodes
-    Vector<double> dof_volume;               ///< integral of the shape functions
 
-    vector<unsigned> vertex2dof;             ///< map of Deal.II vertex indices to dof indices
+    vector<double> dof_volume;               ///< integral of the shape functions
+    vector<unsigned> vertex2dof;             ///< map of vertex to dof indices
+    vector<unsigned> vertex2cell;            ///< map of vertex to cell indices
+    vector<unsigned> vertex2node;            ///< map of vertex to cell node indices
 
     /** Variables used during the assembly of matrix equation */
     map<types::global_dof_index, double> boundary_values;
+
+    /** Data holding copy of global matrix & rhs for parallel assembly */
+    struct LinearSystem {
+        Vector<double>* global_rhs;
+        SparseMatrix<double>* global_matrix;
+        LinearSystem(Vector<double>* rhs, SparseMatrix<double>* matrix);
+    };
+
+    /** Data for parallel local matrix & rhs assembly */
+    struct ScratchData {
+        FEValues<dim> fe_values;
+        ScratchData(const FiniteElement<dim> &fe, const Quadrature<dim> &quadrature, const UpdateFlags flags);
+        ScratchData(const ScratchData &scratch_data);
+    };
+
+    /** Data for coping local matrix & rhs into global one during parallel assembly */
+    struct CopyData {
+        FullMatrix<double> cell_matrix;
+        Vector<double> cell_rhs;
+        vector<unsigned int> dof_indices;
+        unsigned int n_dofs, n_q_points;
+        CopyData(const unsigned dofs_per_cell, const unsigned n_q_points);
+    };
+
+    /** Copy the matrix & rhs vector contribution of a cell into global matrix & rhs vector */
+    // Only one instance of this function should be running at a time!
+    void copy_global_cell(const CopyData &copy_data, LinearSystem &system) const;
 
     /** Helper function for the public shape_funs */
     vector<double> shape_funs(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
@@ -160,29 +177,28 @@ protected:
     int solve_cg(const int n_steps, const double tolerance, const double ssor_param);
 
     /** Set up dynamic sparsity pattern for calculations */
-    void setup_system(bool full_setup=true);
+    void setup_system();
 
     /** Modify the right-hand-side vector of the matrix equation */
-    void assemble_rhs(const BoundaryId bid);
+    void assemble_rhs(const int bid);
 
     /** Give the value to all DOFs with given boundary ID */
-    void append_dirichlet(const BoundaryId bid, const double value);
+    void append_dirichlet(const int bid, const double value);
 
     /** Apply all dirichlet boundary conditions to the system.
      * This should be the last function call to setup the equations, before calling solve(). */
     void apply_dirichlet();
 
-    /** saves the system matrix (useful before BCs have been applied) */
-    void save_system() {
-        system_matrix_save.copy_from(system_matrix);
-    }
-
-    /** Restores the system matrix to the saved one */
-    void restore_system() {
-        system_matrix.copy_from(system_matrix_save);
-    }
-
+    /** Calculate the volumes (dim=3) or areas (dim=2) of dofs used during integration */
     void calc_dof_volumes();
+
+    /** Calculate mapping between vertex and dof indices */
+    void calc_vertex2dof();
+
+    /** Specify file types that can be written */
+    bool valid_extension(const string &ext) const {
+        return ext == "vtk" || ext == "vtks" || ext == "msh";
+    }
 
     /** Write the mesh to msh file that can in turn be imported to Deal.II */
     void write_msh(ofstream& out) const;
@@ -203,7 +219,7 @@ protected:
      * @param sides   id for lateral faces|edges
      * @param other   id for vacuum-copper surface faces|edges
      */
-    void mark_boundary(char top, char bottom, char sides, char other);
+    void mark_boundary(int top, int bottom, int sides, int other);
 
     friend class PoissonSolver<dim>;
     friend class CurrentHeatSolver<dim>;

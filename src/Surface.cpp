@@ -56,8 +56,8 @@ Surface::Surface(const Medium::Sizes& s, const double z, const double dist) {
     }
 }
 
-void Surface::extend(Surface& extension, const double latconst,
-    const double box_width, const double z, const Sizes& sizes)
+void Surface::extend(Surface& extension, double latconst,
+    double box_width, double z, const Sizes& sizes, bool circular)
 {
     require(coarseners.get_r0_inf(sizes) > 0, "Invalid coarsener detected.");
 
@@ -70,8 +70,10 @@ void Surface::extend(Surface& extension, const double latconst,
         n_generated -= (sizes.xbox / latconst - 1) * (sizes.ybox / latconst - 1);
         extension.reserve(max(0, n_generated));
 
-        const double r_min = min(sizes.xbox, sizes.ybox) / 2.0;
         const double r_max = sqrt(2) * desired_box_width / 2.0;
+        double r_min;
+        if (circular) r_min = coarseners.get_radius();
+        else r_min = min(sizes.xbox, sizes.ybox) / 2.0;
 
         double dR = coarseners.get_cutoff(Point3(sizes.xmid - r_min, sizes.ymid - r_min, z));
         int i;
@@ -355,20 +357,19 @@ void Surface::extend(Surface& extended_surf, const Config& conf) {
         // Extend surface by generating additional nodes
         calc_statistics();
         extend(extended_surf, conf.geometry.latconst, conf.geometry.box_width,
-            coarseners.centre.z, sizes);
+            coarseners.centre.z, sizes, false);
     }
 
     else {
         // Extend surface by first reading the data from file...
-        AtomReader reader;
+        AtomReader reader(&conf.geometry);
         reader.import_file(conf.path.extended_atoms);
         extended_surf += reader;
-        extended_surf.sort_atoms(3, "down");
 
         // ... and then by adding points on horizontal plane, if necessary
         Surface temp_surf;
         extend(temp_surf, conf.geometry.latconst, conf.geometry.box_width,
-            extended_surf.sizes.zmin, reader.sizes);
+            extended_surf.sizes.zmin, reader.sizes, true);
         extended_surf += temp_surf;
         clean(extended_surf);
         extended_surf.sizes.zmean = extended_surf.sizes.zmin;
@@ -385,7 +386,7 @@ int Surface::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surfac
     sort_atoms(3, "down");
 
     // Coarsen & smoothen surface
-    coarse_surf = extended_surf;
+    coarse_surf.atoms = extended_surf.atoms;
 //    coarse_surf += *this;
     add_cleaned_roi_to(coarse_surf);
     clean(coarse_surf);

@@ -28,7 +28,7 @@ template<int dim>
 class EmissionSolver : public DealSolver<dim> {
 public:
     EmissionSolver();
-    EmissionSolver(Triangulation<dim> *tria);
+    EmissionSolver(Triangulation<dim> *tria, vector<double>* bc_values);
     virtual ~EmissionSolver() {}
 
     /** Solve the matrix equation using conjugate gradient method */
@@ -59,7 +59,7 @@ protected:
     const Config::Heating *conf;    ///< solver parameters
 
     vector<double>* bc_values;      ///< current/heat values on the centroids of surface faces for current/heat solver
-    
+
     friend class CurrentHeatSolver<dim> ;
 };
 
@@ -67,7 +67,7 @@ template<int dim>
 class CurrentSolver : public EmissionSolver<dim> {
 public:
     CurrentSolver();
-    CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim> *hs);
+    CurrentSolver(Triangulation<dim> *tria, const HeatSolver<dim> *hs, vector<double>* bc_values);
 
     /** @brief assemble the matrix equation for current density calculation.
      * Calculate sparse matrix elements and right-hand-side vector
@@ -78,11 +78,16 @@ public:
 private:
     const HeatSolver<dim>* heat_solver;
     
+    typedef typename DealSolver<dim>::LinearSystem LinearSystem;
+    typedef typename DealSolver<dim>::ScratchData ScratchData;
+    typedef typename DealSolver<dim>::CopyData CopyData;
+
     // TODO figure out what is written
     void write_vtk(ofstream& out) const;
 
-    /** Assemble left-hand-side of matrix equation */
-    void assemble_lhs();
+    /** Calculate the contribution of one cell into global matrix and rhs vector */
+    void assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
+            ScratchData &scratch_data, CopyData &copy_data) const;
 
     friend class CurrentHeatSolver<dim> ;
 };
@@ -91,15 +96,23 @@ template<int dim>
 class HeatSolver : public EmissionSolver<dim> {
 public:
     HeatSolver();
-    HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *cs);
+    HeatSolver(Triangulation<dim> *tria, const CurrentSolver<dim> *cs, vector<double>* bc_values);
 
     /** Assemble the matrix equation for temperature calculation
      * using Crank-Nicolson or implicit Euler time integration method. */
     void assemble(const double delta_time);
 
 private:
-    static constexpr double cu_rho_cp = 3.4496e-24;      ///< volumetric heat capacity of copper [J/(K*Ang^3)]
+    // TODO shouldn't it be temperature dependent?
+    static constexpr double cu_rho_cp = 3.4496e-24;  ///< volumetric heat capacity of copper [J/(K*Ang^3)]
+    double one_over_delta_time;      ///< inverse of heat solver time step [1/sec]
+    Vector<double> joule_heat;       ///< integral Joule heat at dofs [Watt]
+    Vector<double> total_heat;       ///< integral Joule+Nottingham heat at dofs [Watt]
     const CurrentSolver<dim>* current_solver;
+
+    typedef typename DealSolver<dim>::LinearSystem LinearSystem;
+    typedef typename DealSolver<dim>::ScratchData ScratchData;
+    typedef typename DealSolver<dim>::CopyData CopyData;
 
     /** @brief assemble the matrix equation for temperature calculation using Crank-Nicolson time integration method
      * Calculate sparse matrix elements and right-hand-side vector
@@ -113,21 +126,27 @@ private:
      */
     void assemble_euler_implicit(const double delta_time);
 
+    /** Calculate the contribution of one cell into global matrix and rhs vector */
+    void assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
+            ScratchData &scratch_data, CopyData &copy_data) const;
+
     /** Output the temperature [K] and electrical conductivity [1/(Ohm*nm)] in vtk format */
     void write_vtk(ofstream& out) const;
 
     friend class CurrentHeatSolver<dim> ;
 };
 
+// Forward declaration to avoid including header
+class EmissionReader;
+
 template<int dim>
 class CurrentHeatSolver : public DealSolver<dim> {
 public:
     CurrentHeatSolver();
-    CurrentHeatSolver(PhysicalQuantities *pq_, const Config::Heating *conf_);
+    CurrentHeatSolver(PhysicalQuantities *pq_, const Config::Heating *conf_, EmissionReader *emission);
 
-    /** Obtain the temperature, potential and current density values in selected nodes. */
-    void temp_phi_rho_at(vector<double> &temp, vector<double> &phi, vector<Tensor<1,dim>> &rho,
-            const vector<int> &cells, const vector<int> &verts) const;
+    /** Obtain the temperature and current density values on mesh vertices */
+    void export_temp_rho(vector<double> &temp, vector<Tensor<1,dim>> &rho) const;
 
     /** Set the pointers for obtaining external data */
     void set_dependencies(PhysicalQuantities *pq_, const Config::Heating *conf_);
@@ -140,6 +159,16 @@ public:
 private:
     PhysicalQuantities *pq;
     const Config::Heating *conf;
+
+    int size() const { return heat.size(); }
+
+    /** Specify allowed types of writable files */
+    bool valid_extension(const string &ext) const {
+        return ext == "xyz" || ext == "movie";
+    }
+
+    /** Write nodal data as xyz file */
+    void write_xyz(ofstream& out) const;
 
     /** Mark different regions of the mesh */
     void mark_mesh();

@@ -13,7 +13,7 @@ void PhysicalQuantities::initialize_with_hc_data() {
 
     std::ifstream resfile(config.rhofile);
     if (resfile.is_open()) {
-        write_verbose_msg("Reading rho table from " + config.rhofile);
+        write_verbose_msg("\nReading resistivity data from " + config.rhofile);
         int Nline;
         resfile >> Nline;
         resistivity_data = std::vector<std::pair<double, double>> (Nline);
@@ -22,7 +22,7 @@ void PhysicalQuantities::initialize_with_hc_data() {
             resfile >> resistivity_data[i].second;
         }
     } else {
-        write_silent_msg("Resistivity file " + config.rhofile + " not found! Using the values for infinite sized Cu.");
+        write_silent_msg("Resistivity file " + config.rhofile + " not found! Using resistivities of bulk Cu.");
         resistivity_data = hc_resistivity_data;
     }
 

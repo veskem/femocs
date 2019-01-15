@@ -227,14 +227,12 @@ public:
 };
 
 /** Basic operations with 3-dimensional point */
-// TODO: For some reason not working properly
 class Point3 : public Vector3Data {
 public:
     /** Constructors of Point3 class */
     Point3() : Vector3Data() {}
     Point3(const double xx) : Vector3Data(xx) {}
     Point3(const double xx, const double yy, const double zz) : Vector3Data(xx, yy, zz) {}
-    Point3(const double xx, const double yy) : Vector3Data(xx, yy, 0) {}
     Point3(const Vector3Data &v) : Vector3Data(v) {}
     Point3(const dealii::Point<3> &p) : Vector3Data(p[0], p[1], p[2]) {}
 
@@ -508,50 +506,18 @@ public:
 /** Class to hold solution data and its operations */
 class Solution {
 public:
-
-    /** Constructors of Solution */
-    Solution() : id(0), vector(Vec3(0)), norm(0), scalar(0) {}
-    Solution(const double d) : id(0), vector(Vec3(d)), norm(d), scalar(d) {}
-    Solution(const Vec3& v) : id(0), vector(v), norm(v.norm()), scalar(0) {}
-    Solution(const Vec3& v, const double s) : id(0), vector(v), norm(v.norm()), scalar(s) {}
-    Solution(const Vec3& v, const double n, const double s) : id(0), vector(v), norm(n), scalar(s) {}
+    Solution() : vector(Vec3(0)), norm(0), scalar(0) {}
+    Solution(const double d) : vector(Vec3(d)), norm(d), scalar(d) {}
+    Solution(const Vec3& v, const double n, const double s) : vector(v), norm(n), scalar(s) {}
 
     /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &ss, const Solution &sol) {
-        return ss << sol.vector << ' ' << sol.norm << ' ' << sol.scalar;
+        return ss << sol.vector << ' ' << sol.vector.norm() << ' ' << sol.norm << ' ' << sol.scalar;
     }
 
-    /** Functors used to sort vector of Solution into same order as vector of Atom */
-    struct sort_up {
-        inline bool operator() (const Solution& lh, const Solution& rh) { return lh.id < rh.id; }
-    };
-    struct sort_down {
-        inline bool operator() (const Solution& lh, const Solution& rh) { return lh.id > rh.id; }
-    };
-
-    int id;
     Vec3 vector;
     double norm;
     double scalar;
-};
-
-/** Super particles for PIC calculations */
-class SuperParticle {
-public:
-    SuperParticle() : pos(Point3(0)), vel(Vec3(0)), cell(0) {}
-    SuperParticle(const Point3 &p, const Vec3 &v, const int c) : pos(p), vel(v), cell(c) {}
-
-    Point3 pos;    ///< particle position [Å]
-    Vec3 vel;      ///< particle velocity [Å/fs]
-    int cell;      ///< mesh hexahedron ID, -1 if outside the domain
-
-    /** Define sorting order */
-    bool operator < (const SuperParticle &p) { return (cell < p.cell); }
-
-    /** Define the behaviour of string stream */
-    friend std::ostream& operator <<(std::ostream &s, const SuperParticle &p) {
-        return s << p.pos << ' ' << p.vel << ' ' << p.cell;
-    }
 };
 
 /** Template class for finite element cell */

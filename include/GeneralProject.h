@@ -38,6 +38,9 @@ public:
             const int n_points, const string& data_type, const bool near_surface,
             const double* x, const double* y, const double* z) = 0;
 
+    /** Read and generate simulation data to continue running interrupted simulation */
+    virtual int restart(const string& path_to_file) = 0;
+
 protected:
     // references instead of pointers to make their access more convenient
     AtomReader &reader;    ///< All the imported atoms

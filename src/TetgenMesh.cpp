@@ -213,23 +213,27 @@ int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& v
 }
 
 int TetgenMesh::read(const string &file_name, const string &cmd) {
-    string extension = get_file_type(file_name);
-    require(extension == "msh", "Unimplemented file type: " + extension);
 
     // delete available mesh data
     clear();
 
     tethex::Mesh hexmesh;
     // read tetrahedral mesh from file
-    hexmesh.read(file_name, false, false);
+    hexmesh.read(file_name, 0);
     // generate hexahedra and quadrangles
     hexmesh.convert();
     // export mesh to Femocs
     hexmesh.export_all_mesh(this, true);
 
-    // calculate mapping between triangles and tetrahedra
-    int err_code = calc_tet2tri_mapping(cmd, tris.get_n_markers());
-    check_return(err_code, "Generation of tri2tet mapping failed with error code " + d2s(err_code));
+    if (cmd == "") {
+        // read mapping between triangles and tetrahedra
+        // and neighbor list of tetrahedra
+        read_tri2tet2tri_mapping(file_name);
+    } else {
+        // calculate mapping between triangles and tetrahedra
+        int err_code = calc_tri2tet2tri_mapping(cmd, tris.get_n_markers());
+        check_return(err_code, "Generation of tri2tet mapping failed with error code " + d2s(err_code));
+    }
 
     // calculate mapping between quadrangles and hexahedra
     group_hexahedra();
@@ -353,7 +357,7 @@ int TetgenMesh::generate_surface(const string& cmd1, const string& cmd2) {
     nodes.transfer(false);
     tets.transfer(false);
 
-    return calc_tet2tri_mapping(cmd2, n_surf_faces);
+    return calc_tri2tet2tri_mapping(cmd2, n_surf_faces);
 }
 
 void TetgenMesh::generate_manual_surface() {
@@ -434,7 +438,55 @@ int TetgenMesh::quad2hex(const int quad, const int region) const {
     return -1;
 }
 
-int TetgenMesh::calc_tet2tri_mapping(const string &cmd, int n_surf_faces) {
+void TetgenMesh::calc_tet2tri_mapping() {
+    vector<vector<int>> tet2tri_map(tets.size());
+    for (int i = 0; i < tris.size(); ++i) {
+        for (int tet : tris.to_tets(i))
+            if (tet >= 0)
+                tet2tri_map[tet].push_back(i);
+    }
+    tets.store_map(tet2tri_map);
+}
+
+void TetgenMesh::read_tri2tet2tri_mapping(const string &filename) {
+    string ftype = get_file_type(filename);
+    require(ftype == "restart", "Unimplemented import file type: " + ftype);
+    ifstream in(filename);
+    require(in, "File " + filename + " cannot be opened!");
+
+    string str;
+    int n_cells;
+    while (in >> str) {
+        if (str == "$Tri2Tet") {
+            in >> n_cells >> GLOBALS.TIME >> GLOBALS.TIMESTEP;
+            getline(in, str);
+
+            require(n_cells == tris.size(),
+                    "Mismatch between # read & stored triangles: " + d2s(n_cells) + " vs " + d2s(tris.size()));
+
+            tetIOout.face2tetlist = new int[n_tets_per_tri * n_cells];
+            in.read(reinterpret_cast<char*>(tetIOout.face2tetlist), n_tets_per_tri*n_cells*sizeof(int));
+        }
+
+        else if (str == "$TetNbors") {
+            in >> n_cells >> GLOBALS.TIME >> GLOBALS.TIMESTEP;
+            getline(in, str);
+
+            require(n_cells == tets.size(),
+                    "Mismatch between # read & stored tetrahedra: " + d2s(n_cells) + " vs " + d2s(tets.size()));
+
+            tetIOout.neighborlist = new int[n_tris_per_tet * n_cells];
+            in.read(reinterpret_cast<char*>(tetIOout.neighborlist), n_tris_per_tet*n_cells*sizeof(int));
+        }
+    }
+
+    in.close();
+
+    // calculate mapping from tetrahedra to triangles
+    calc_tet2tri_mapping();
+}
+
+int TetgenMesh::calc_tri2tet2tri_mapping(const string &cmd, int n_surf_faces) {
     tetIOout.deinitialize();
     tetIOout.initialize();
 
@@ -451,13 +503,8 @@ int TetgenMesh::calc_tet2tri_mapping(const string &cmd, int n_surf_faces) {
         tris.append(tris[i]);
     tris.transfer();
 
-    vector<vector<int>> tet2tri_map(tets.size());
-    for (int i = 0; i < n_surf_faces; ++i) {
-        for (int tet : tris.to_tets(i))
-            if (tet >= 0)
-                tet2tri_map[tet].push_back(i);
-    }
-    tets.store_map(tet2tri_map);
+    // calculate mapping from tetrahedra to triangles
+    calc_tet2tri_mapping();
 
     return 0;
 }
@@ -533,27 +580,122 @@ int TetgenMesh::separate_meshes(TetgenMesh &bulk, TetgenMesh &vacuum, const stri
     return vacuum.recalc(cmd) + bulk.recalc(cmd);
 }
 
-bool TetgenMesh::write(const string& file_name) {
-    string file_type = get_file_type(file_name);
-    require(file_type == file_name, "Only file names without extension are supported: " + file_type);
-
+void TetgenMesh::write_vtk(ofstream& out) {
     // k - write vtk, Q - quiet, I - suppresses iteration numbers,
     // F - suppress output of .face and .edge, E - suppress output of .ele
     const string cmd = "kIFEQ";
+    const string path = "out/tetgenmesh";
     tetgenbehavior tetgenbeh;
 
     try {
         tetgenbeh.parse_commandline(const_cast<char*>(cmd.c_str()));
-        for (unsigned i = 0; i < file_name.size(); ++i)
-            tetgenbeh.outfilename[i] = file_name[i];
+        for (unsigned i = 0; i < path.size(); ++i)
+            tetgenbeh.outfilename[i] = path[i];
 
         tetrahedralize(&tetgenbeh, &tetIOout, NULL);
-    } catch (int e) { return 1; }
+    } catch (int e) {
+        write_verbose_msg("TetgenMesh::write_vtk ended with error " + d2s(e));
+    }
+}
 
-    return 0;
+void TetgenMesh::write_bin(ofstream &out) const {
+    const int n_nodes = nodes.stat.n_tetnode;
+    const int n_tris = tris.size();
+    const int n_tets = tets.size();
+
+    // write Gmsh binary file header
+    out << "$MeshFormat\n2.2 1 8\n";
+    int one = 1;
+    out.write((char*)&one, sizeof (int));
+    out << "\n$EndMeshFormat\n$Nodes\n" << n_nodes << "\n";
+
+    // write node coordinates
+    for (int i = 0; i < n_nodes; ++i) {
+        Point3 node = nodes[i];
+        out.write ((char*)&i, sizeof (int));
+        out.write ((char*)&node, sizeof (Point3));
+    }
+
+    out << "$\nEndNodes\n$Elements\n" << (n_tris + n_tets) << "\n";
+
+    int header[3];
+    int buffer[2] = {1, 0};
+
+    // write header for triangles
+    header[0]=GmshType::triangle; header[1]=n_tris; header[2]=1;
+    out.write ((char*)&header, sizeof (header));
+
+    // write triangles
+    for (int i = 0; i < n_tris; ++i, ++buffer[0]) {
+        SimpleFace tri = tris[i];
+        buffer[1] = tris.get_marker(i);
+        out.write ((char*)&buffer, sizeof (buffer));
+        out.write ((char*)&tri, sizeof (SimpleFace));
+    }
+
+    // write header for tetrahedra
+    header[0]=GmshType::tetrahedron; header[1]=n_tets; header[2]=1;
+    out.write ((char*)&header, sizeof (header));
+
+    // write tetrahedra
+    for (int i = 0; i < n_tets; ++i, ++buffer[0]) {
+        SimpleElement tet = tets[i];
+        buffer[1] = tets.get_marker(i);
+        out.write ((char*)&buffer, sizeof (buffer));
+        out.write ((char*)&tet, sizeof (SimpleElement));
+    }
+
+    out << "\n$EndElements\n";
+
+    out << "$Tri2Tet\n" << n_tris << " " << GLOBALS.TIME << " " << GLOBALS.TIMESTEP << "\n";
+    out.write ((char*)tetIOout.face2tetlist, n_tets_per_tri*n_tris*sizeof(int));
+    out << "\n$EndTri2Tet\n$TetNbors\n"  << n_tets << " " << GLOBALS.TIME << " " << GLOBALS.TIMESTEP << "\n";
+    out.write ((char*)tetIOout.neighborlist, n_tris_per_tet*n_tets*sizeof(int));
+    out << "\n$EndTetNbors\n";
+
+    out.close();
+}
+
+void TetgenMesh::write_msh(ofstream &out) const {
+    // write Gmsh header
+    FileWriter::write_msh(out);
+
+    const int n_nodes = nodes.stat.n_tetnode;
+    const int n_tris = tris.size();
+    const int n_tets = tets.size();
+
+    // write nodes
+    out << "$Nodes\n" << n_nodes << "\n";
+
+    for (size_t ver = 0; ver < n_nodes; ++ver)
+        out << ver << " " << nodes[ver] << "\n";
+
+    out << "$EndNodes\n$Elements\n" << (n_tris + n_tets) << "\n";
+
+    int serial_nr = 1;
+
+    // write triangles
+    for (size_t i = 0; i < n_tris; ++i, ++serial_nr) {
+        out << serial_nr << " "        // serial number of element
+        << GmshType::triangle << " 1 "     // Gmsh type of element & number of tags
+        << tris.get_marker(i) << " "   // physical domain
+        << tris[i] << "\n";
+    }
+
+    // write tetrahedra
+    for (size_t i = 0; i < n_tets; ++i, ++serial_nr) {
+        out << serial_nr << " "        // serial number of element
+        << GmshType::tetrahedron << " 1 "  // Gmsh type of element & number of tags
+        << tets.get_marker(i) << " "   // physical domain
+        << tets[i] << "\n";
+    }
+
+    out << "$EndElements\n";
 }
 
 void TetgenMesh::write_separate(const string& file_name, const int type) {
+    if (!write_time()) return;
+
     vector<bool> hex_mask;
     if (type == TYPES.VACUUM)
         hex_mask = vector_greater(hexs.get_markers(), 0);
@@ -568,6 +710,7 @@ void TetgenMesh::write_separate(const string& file_name, const int type) {
     tempmesh.hexs.copy_markers(this->hexs, hex_mask);
 
     tempmesh.hexs.write(file_name);
+    set_write_time();
 }
 
 void TetgenMesh::calc_pseudo_3D_vorocells(vector<vector<unsigned>>& cells, const bool vacuum) const {
@@ -707,9 +850,9 @@ bool TetgenMesh::rank_and_mark_nodes() {
 
     // Nodes inside the thin nanotip may not have nearest neighbour connection
     // with the rest of the bulk. Therefore mark them separately
-    for (int &marker : *nodes.get_markers())
-        if (marker == TYPES.NONE)
-            marker = TYPES.BULK;
+    for (node = 0; node < n_nodes; ++node)
+        if (nodes.get_marker(node) == TYPES.NONE)
+            nodes.set_marker(node, TYPES.BULK);
 
     return 0;
 }

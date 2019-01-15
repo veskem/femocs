@@ -29,12 +29,13 @@ InterpolatorNodes::InterpolatorNodes(const string &vl, const string &nl, const s
 void InterpolatorNodes::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + d2s(N));
 
+    map_femocs2deal = vector<int>(N, -1);
     markers = vector<int>(N);
     solutions.clear();
     solutions.reserve(N);
 }
 
-void InterpolatorNodes::precompute() {
+void InterpolatorNodes::precompute(int search_region) {
     const int n_nodes = mesh->nodes.size();
     reserve(n_nodes);
 
@@ -42,54 +43,93 @@ void InterpolatorNodes::precompute() {
         // Store node markers
         markers[i] = mesh->nodes.get_marker(i);
     }
+
+    // Mark nodes that are present both in Femocs and Deal.II meshes
+    const int n_hexs = mesh->hexs.size();
+
+    if (search_region == TYPES.VACUUM) {
+        for (int hex = 0; hex < n_hexs; ++hex)
+            if (mesh->hexs.get_marker(hex) > 0)
+                for (int node : mesh->hexs[hex])
+                    map_femocs2deal[node] = -2;
+    } else {
+        for (int hex = 0; hex < n_hexs; ++hex)
+            if (mesh->hexs.get_marker(hex) < 0)
+                for (int node : mesh->hexs[hex])
+                    map_femocs2deal[node] = -2;
+    }
+
+    // Store mapping between Femocs and Deal.II mesh nodes
+    int vertex = 0;
+    for (int &i : map_femocs2deal)
+        if (i == -2) i = vertex++;
 }
 
-void InterpolatorNodes::write(const string &file_name) const {
-    if (!MODES.WRITEFILE) return;
-
-    ofstream outfile;
-    outfile.setf(std::ios::scientific);
-    outfile.precision(6);
-
+void InterpolatorNodes::read(const string &file_name, const int flags) {
     string ftype = get_file_type(file_name);
-    if (ftype == "movie") outfile.open(file_name, ios_base::app);
-    else outfile.open(file_name);
-    require(outfile.is_open(), "Can't open a file " + file_name);
+    require(ftype == "restart", "Unimplemented file type: " + ftype);
 
-    if (ftype == "xyz" || ftype == "movie")
-        write_xyz(outfile);
-    else if (ftype == "vtk")
-        write_vtk(outfile);
-    else
-        require(false, "Unsupported file type: " + ftype);
+    ifstream in(file_name);
+    require(in.is_open(), "Can't open a file " + file_name);
 
-    outfile.close();
+    expect(flags, "No data will be read!");
+    bool import_vec = flags & (1 << 2);
+    bool import_norm = flags & (1 << 1);
+    bool import_scalar = flags & (1 << 0);
+
+    string label = "$";
+    if (import_vec) label += vec_label;
+    if (import_norm) label += norm_label;
+    if (import_scalar) label += scalar_label;
+
+    string str;
+    while (in >> str) {
+        if (str == label) {
+            int n_nodes;
+            in >> n_nodes >> GLOBALS.TIME >> GLOBALS.TIMESTEP;
+            getline(in, str);
+
+            reserve(n_nodes);
+
+            Solution s(0);
+            for (int ver = 0; ver < n_nodes; ++ver) {
+                if (import_vec)
+                    in.read(reinterpret_cast<char*>(&s.vector), sizeof(Vec3));
+                if (import_norm)
+                    in.read(reinterpret_cast<char*>(&s.norm), sizeof(double));
+                if (import_scalar)
+                    in.read(reinterpret_cast<char*>(&s.scalar), sizeof(double));
+                append_solution(s);
+            }
+        }
+    }
+
+    in.close();
 }
 
 void InterpolatorNodes::write_xyz(ofstream& out) const {
+    // write the beginning of xyz header
+    FileWriter::write_xyz(out);
+
+    // write the header for Ovito
+    out << "properties=id:I:1:pos:R:3:marker:I:1:" <<
+            "force:R:3:" << vec_label << ":R:1:" << norm_label << ":R:1:" << scalar_label << ":R:1" << endl;
+
+    // write data
     const int n_nodes = size();
-    expect(n_nodes, "Zero nodes detected!");
-
-    out << n_nodes << endl;
-    out << "time= " << GLOBALS.TIME << " Interpolator properties=id:I:1:pos:R:3:marker:I:1:" <<
-            "force:R:3:" << norm_label << ":R:1:" << scalar_label << ":R:1" << endl;
-
     for (int i = 0; i < n_nodes; ++i)
         out << i << " " << get_vertex(i) << " " << markers[i] << " " << solutions[i] << endl;
 }
 
-void InterpolatorNodes::write_vtk(ofstream& out) const {
+void InterpolatorNodes::write_bin(ofstream &out) const {
+    for (Solution const &s : solutions)
+            out.write ((char*)&s.scalar, sizeof (double));
+}
+
+void InterpolatorNodes::write_vtk_points_and_cells(ofstream& out) const {
     const int n_nodes = size();
     const int n_cells = size();
     const int dim = 1;
-    const int celltype = get_cell_type();
-
-    expect(n_nodes, "Zero nodes detected!");
-
-    out << "# vtk DataFile Version 3.0\n";
-    out << "# InterpolatorNodes data\n";
-    out << "ASCII\n";
-    out << "DATASET UNSTRUCTURED_GRID\n\n";
 
     // Output the point coordinates
     out << "POINTS " << n_nodes << " double\n";
@@ -97,21 +137,19 @@ void InterpolatorNodes::write_vtk(ofstream& out) const {
         out << get_vertex(i) << "\n";
 
     // Output # vertices and vertex indices
-    out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
+    out << "CELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
         out << dim << " " << i << "\n";
 
     // Output cell types
-    out << "\nCELL_TYPES " << n_cells << "\n";
+    out << "CELL_TYPES " << n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
-        out << celltype << "\n";
-
-    write_point_data(out);
+        out << VtkType::vertex << "\n";
 }
 
-void InterpolatorNodes::write_point_data(ofstream& out) const {
+void InterpolatorNodes::write_vtk_point_data(ofstream& out) const {
     const int n_nodes = size();
-    out << "\nPOINT_DATA " << n_nodes << "\n";
+    out << "POINT_DATA " << n_nodes << "\n";
 
     // write node IDs
     out << "SCALARS node-ID int\nLOOKUP_TABLE default\n";
@@ -133,6 +171,7 @@ void InterpolatorNodes::write_point_data(ofstream& out) const {
     for (int i = 0; i < n_nodes; ++i)
         out << solutions[i].scalar << "\n";
 
+    // write vector data
     out << "VECTORS " << vec_label << " double\n";
     for (int i = 0; i < n_nodes; ++i)
         out << solutions[i].vector << "\n";
@@ -169,13 +208,6 @@ void InterpolatorNodes::print_statistics() const {
     write_verbose_msg(stream.str());
 }
 
-double InterpolatorNodes::max_norm() const {
-    double max_norm = -DBL_MAX;
-    for (Solution s : solutions)
-        max_norm = max(max_norm, s.norm);
-    return max_norm;
-}
-
 /* ==================================================================
  *  ====================== InterpolatorCells =======================
  * ================================================================== */
@@ -191,37 +223,10 @@ void InterpolatorCells<dim>::reserve(const int N) {
 }
 
 template<int dim>
-void InterpolatorCells<dim>::write(const string &file_name) const {
-    if (!MODES.WRITEFILE) return;
-
-    ofstream outfile;
-    outfile.setf(std::ios::scientific);
-    outfile.precision(6);
-
-    string ftype = get_file_type(file_name);
-    outfile.open(file_name);
-    require(outfile.is_open(), "Can't open a file " + file_name);
-
-    if (ftype == "vtk")
-        write_vtk(outfile);
-    else
-        require(false, "Unsupported file type: " + ftype);
-
-    outfile.close();
-}
-
-template<int dim>
-void InterpolatorCells<dim>::write_vtk(ofstream& out) const {
-    const int n_nodes = nodes->size(); // nodes->stat.n_tetnode;
-    expect(n_nodes, "Zero nodes detected!");
-
+void InterpolatorCells<dim>::write_vtk_points_and_cells(ofstream& out) const {
+    const int n_nodes = nodes->size();
     const int celltype = get_cell_type();
     const int n_cells = size();
-
-    out << "# vtk DataFile Version 3.0\n";
-    out << "# InterpolatorCells data\n";
-    out << "ASCII\n";
-    out << "DATASET UNSTRUCTURED_GRID\n\n";
 
     // Output the point coordinates
     out << "POINTS " << n_nodes << " double\n";
@@ -229,26 +234,25 @@ void InterpolatorCells<dim>::write_vtk(ofstream& out) const {
         out << nodes->get_vertex(i) << "\n";
 
     // Output # vertices and vertex indices
-    out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
+    out << "CELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
         out << dim << " " << get_cell(i) << "\n";
 
     // Output cell types
-    out << "\nCELL_TYPES " << n_cells << "\n";
+    out << "CELL_TYPES " << n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
         out << celltype << "\n";
-
-    // Associate solution with the nodes
-    nodes->write_point_data(out);
-
-    // Write data associated with the cells
-    write_cell_data(out);
 }
 
 template<int dim>
-void InterpolatorCells<dim>::write_cell_data(ofstream& out) const {
+void InterpolatorCells<dim>::write_vtk_point_data(ofstream &out) const {
+    nodes->write_vtk_point_data(out);
+}
+
+template<int dim>
+void InterpolatorCells<dim>::write_vtk_cell_data(ofstream& out) const {
     const int n_cells = size();
-    out << "\nCELL_DATA " << n_cells << "\n";
+    out << "CELL_DATA " << n_cells << "\n";
 
     // write cell IDs
     out << "SCALARS cell-ID int\nLOOKUP_TABLE default\n";
@@ -264,17 +268,18 @@ void InterpolatorCells<dim>::write_cell_data(ofstream& out) const {
 template<int dim>
 int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_guess) const {
     const int n_cells = neighbours.size();
-    require(cell_guess >= 0 && cell_guess < n_cells,
-            "Index out of bounds: " + d2s(cell_guess));
+    require(cell_guess < n_cells, "Index out of bounds: " + d2s(cell_guess));
 
-    // === Check the guessed cell
-    if (point_in_cell(point, cell_guess))
-        return cell_guess;
+    if (cell_guess >= 0) {
+        // === Check the guessed cell
+        if (point_in_cell(point, cell_guess))
+            return cell_guess;
 
-    // === Check if point is surrounded by one of the neighbouring cells
-    for (int cell : neighbours[cell_guess]) {
-        if (point_in_cell(point, cell))
-            return cell;
+        // === Check if point is surrounded by one of the neighbouring cells
+        for (int cell : neighbours[cell_guess]) {
+            if (point_in_cell(point, cell))
+                return cell;
+        }
     }
 
     // === In case of no success, loop through all the cells
@@ -306,22 +311,23 @@ Solution InterpolatorCells<dim>::interp_solution(const Point3 &point, const int 
     const int cell = abs(c);
     require(cell < size(), "Index out of bounds: " + d2s(cell));
 
-    // calculate interpolation weights (shape function of dummy nodal distance based weights)
+    // calculate shape functions
     array<double,dim> weights = shape_functions(Vec3(point), cell);
-
     SimpleCell<dim> scell = get_cell(cell);
 
-    // Interpolate vector data
+    // using them as weights, interpolate vector & scalar data
     Vec3 vector_i(0.0);
-    for (int i = 0; i < dim; ++i)
-        vector_i += nodes->get_vector(scell[i]) * weights[i];
-
-    // Interpolate scalar data
+    double vector_norm_i(0.0);
     double scalar_i(0.0);
-    for (int i = 0; i < dim; ++i)
-        scalar_i += nodes->get_scalar(scell[i]) * weights[i];
 
-    return Solution(vector_i, scalar_i);
+    for (int i = 0; i < dim; ++i) {
+        const Solution& s = (*solutions)[scell[i]];
+        vector_i += s.vector * weights[i];
+        vector_norm_i += s.norm * weights[i];
+        scalar_i += s.scalar * weights[i];
+    }
+
+    return Solution(vector_i, vector_norm_i, scalar_i);
 }
 
 template<int dim>
@@ -332,19 +338,21 @@ Solution InterpolatorCells<dim>::interp_solution_v2(const Point3 &point, const i
     // calculate shape functions and their gradients
     array<double,dim> sf = shape_functions(point, cell);
     array<Vec3,dim> sfg = shape_fun_grads(point, cell);
+    SimpleCell<dim> scell = get_cell(cell);
 
     // using them as weights, interpolate scalar data and its gradient
-    SimpleCell<dim> scell = get_cell(cell);
     Vec3 vector_i(0.0);
+    double vector_norm_i(0.0);
     double scalar_i(0.0);
 
     for (int i = 0; i < dim; ++i) {
-        double scalar = nodes->get_scalar(scell[i]);
-        vector_i -= sfg[i] * scalar;
-        scalar_i += sf[i] * scalar;
+        const Solution& s = (*solutions)[scell[i]];
+        vector_i -= sfg[i] * s.scalar;
+        scalar_i += sf[i] * s.scalar;
+        vector_norm_i += sf[i] * s.norm;
     }
 
-    return Solution(vector_i, scalar_i);
+    return Solution(vector_i, vector_norm_i, scalar_i);
 }
 
 template<int dim>
@@ -652,7 +660,9 @@ array<Vec3,4> LinearTetrahedra::shape_fun_grads(const Vec3& point, const int tet
 
 void LinearTetrahedra::narrow_search_to(const int region) {
     const int n_cells = size();
-    require(n_cells == tets->size(), "LinearTetrahedra must be intialized before narrowing search!");
+    require(mesh->tets.size() == n_cells,
+            "Mismatch between tetrahedral mesh and interpolator sizes (" + d2s(mesh->tets.size()) + " vs " + d2s(n_cells)
+            + ")\nindicates, that LinearTetrahedra are not properly pre-computed!");
 
     const int surf_end = mesh->nodes.indxs.surf_end;
 
@@ -691,9 +701,11 @@ void QuadraticTetrahedra::reserve(const int N) {
 
 void QuadraticTetrahedra::precompute() {
     require(mesh && tets && lintet, "NULL pointers can't be used!");
+    require(tets->size() == lintet->size(),
+            "Mismatch between tetrahedral mesh and interpolator sizes (" + d2s(tets->size()) + " vs " + d2s(lintet->size())
+            + ")\nindicates, that LinearTetrahedra are not properly pre-computed!");
 
     const int n_elems = tets->size();
-    require(n_elems == lintet->size(), "QuadraticTetrahedra requires LinearTetrahedra to be pre-computed!");
     reserve(n_elems);
 
     // Store the constant for smoothing
@@ -1112,6 +1124,7 @@ void LinearHexahedra::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + d2s(N));
 
     markers = vector<int>(N);
+    map_femocs2deal = vector<int>(N, -1);
 
     f0s.clear(); f0s.reserve(N);
     f1s.clear(); f1s.reserve(N);
@@ -1123,9 +1136,11 @@ void LinearHexahedra::reserve(const int N) {
     f7s.clear(); f7s.reserve(N);
 }
 
-void LinearHexahedra::precompute() {
+void LinearHexahedra::precompute(int search_region) {
     require(mesh && hexs && lintet, "NULL pointers can't be used!");
-    require(mesh->tets.size() == lintet->size(), "LinearHexahedra requires LinearTetrahedra to be pre-computed!");
+    require(mesh->tets.size() == lintet->size(),
+            "Mismatch between tetrahedral mesh and interpolator sizes (" + d2s(mesh->tets.size()) + " vs " + d2s(lintet->size())
+            + ")\nindicates, that LinearTetrahedra are not properly pre-computed!");
 
     const int n_elems = hexs->size();
     const int n_nodes = mesh->nodes.size();
@@ -1162,10 +1177,16 @@ void LinearHexahedra::precompute() {
 
     // store the mapping between femocs and deal.ii hexahedra
     int deal_hex_index = 0;
-    map_femocs2deal = vector<int>(n_elems, -1);
-    for (int i = 0; i < n_elems; ++i) {
-        if (hexs->get_marker(i) > 0)
-            map_femocs2deal[i] = deal_hex_index++;
+    if (search_region == TYPES.VACUUM) {
+        for (int i = 0; i < n_elems; ++i) {
+            if (hexs->get_marker(i) > 0)
+                map_femocs2deal[i] = deal_hex_index++;
+        }
+    } else {
+        for (int i = 0; i < n_elems; ++i) {
+            if (hexs->get_marker(i) < 0)
+                map_femocs2deal[i] = deal_hex_index++;
+        }
     }
 
     map_deal2femocs = vector<int>(deal_hex_index);
@@ -1570,7 +1591,9 @@ array<double,3> LinearTriangles::shape_functions(const Vec3& point, const int fa
 }
 
 Solution LinearTriangles::interp_solution(const Point3 &point, const int t) const {
-    require(mesh->tets.size() == lintet->size(), "LinearTriangles requires LinearTetrahedra to be pre-computed!");
+    require(mesh->tets.size() == lintet->size(),
+            "Mismatch between tetrahedral mesh and interpolator sizes (" + d2s(mesh->tets.size()) + " vs " + d2s(lintet->size())
+            + ")\nindicates, that LinearTetrahedra are not properly pre-computed!");
 
     int tri = abs(t);
     array<int, 2> tets = tris->to_tets(tri);
@@ -1671,8 +1694,8 @@ double LinearTriangles::distance(const Vec3& point, const int face) const {
     return edge2[face].dotProduct(qvec);
 }
 
-void LinearTriangles::write_cell_data(ofstream& out) const {
-    InterpolatorCells<3>::write_cell_data(out);
+void LinearTriangles::write_vtk_cell_data(ofstream& out) const {
+    InterpolatorCells<3>::write_vtk_cell_data(out);
 
     // write face norms
     out << "VECTORS norm double\n";
@@ -1740,7 +1763,9 @@ array<double,6> QuadraticTriangles::shape_functions(const Vec3& point, const int
 }
 
 Solution QuadraticTriangles::interp_solution(const Point3 &point, const int t) const {
-    require(tris->size() == lintri->size(), "QuadraticTriangles requires LinearTriangles to be pre-computed!");
+    require(tris->size() == lintri->size(),
+            "Mismatch between triangular mesh and interpolator sizes (" + d2s(tris->size()) + " vs " + d2s(lintri->size())
+            + ")\nindicates, that LinearTriangles are not properly pre-computed!");
 
     int tri = abs(t);
     array<int, 2> tets = tris->to_tets(tri);
@@ -1803,7 +1828,10 @@ void LinearQuadrangles::reserve(const int N) {
 
 void LinearQuadrangles::precompute() {
     require(mesh && quads && lintri && linhex, "NULL pointers can't be used!");
-    require(mesh->tris.size() == lintri->size(), "LinearQuadrangles requires LinearTriangles to be pre-computed!");
+    require(mesh->tris.size() == lintri->size(),
+            "Mismatch between triangular mesh and interpolator sizes (" + d2s(mesh->tris.size()) + " vs " + d2s(lintri->size())
+            + ")\nindicates, that LinearTriangles are not properly pre-computed!");
+
 
     const int n_faces = quads->size();
     expect(n_faces > 0, "Interpolator expects non-empty mesh!");

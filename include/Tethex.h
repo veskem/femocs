@@ -19,6 +19,7 @@
 #define TETHEX_H_
 
 #include "TetgenMesh.h"
+#include "FileWriter.h"
 #include <map>
 #include <iostream>
 
@@ -701,7 +702,7 @@ private:
 /**
  * Main class that stores all data during program execution.
  */
-class Mesh {
+class Mesh: public femocs::FileWriter {
 public:
     /**
      * Constructor - nothing special
@@ -716,17 +717,18 @@ public:
     /**
      * Read the mesh from file
      * @param file - the name of the mesh file
+     * @flags - bit0-read edges, bit1-read all triangles
      */
-    void read(const std::string &file, bool read_edges, bool read_all_faces);
+    void read(const std::string &file, const int flags);
 
-    /**
-     * Import tetrahedral mesh from Femocs
-     * @param mesh   Femocs mixed tetrahedral-hexahedral mesh
-     */
+    /** Import tetrahedra and triangles from Femocs */
     void read_femocs(femocs::TetgenMesh* mesh);
+
+    /** Export nodes, quadrangles and hexahedra to Femocs */
     void export_femocs(femocs::TetgenMesh* mesh);
+
+    /** Export nodes, triangles, tetrahedra, quadrangles and hexahedra to Femocs */
     void export_all_mesh(femocs::TetgenMesh* mesh, bool transfer);
-    vector<int> n_cell_nodes;
 
     /**
      * Conversion from simplices to bricks.
@@ -734,12 +736,6 @@ public:
      * in 3D - conversion from tetrahedra to hexahedra.
      */
     void convert();
-
-    /**
-     * Write the resulting brick mesh into the file
-     * @param file - the name of mesh file where we write the results of conversion
-     */
-    void write(const std::string &file);
 
     /**
      * Get the number of vertices
@@ -898,6 +894,9 @@ private:
      */
     std::vector<MeshElement*> quadrangles;
 
+    /** Amount of different kinds of nodes */
+    std::vector<int> n_cell_nodes;
+
     typedef std::vector<std::map<int, int> > VectorMap;
 
     /**
@@ -1029,6 +1028,42 @@ private:
      */
     void convert_hexahedra();
 
+    /**
+     * Read the mesh from file with binary GMesh formatting
+     * @in - stream with the opened file
+     * @flags - bit0-read edges, bit1-read all triangles
+     */
+    void read_bin(ifstream &in, const int flags);
+
+    /**
+     * Read the mesh from file with ASCII GMesh formatting
+     * @in - stream with the opened file
+     * @flags - bit0-read edges, bit1-read all triangles
+     */
+    void read_ascii(ifstream &in, const int flags);
+
+    /** Specify file types that can be written */
+    bool valid_extension(const string &ext) const {
+        return ext == "msh";
+    }
+
+    /**
+     * Write the resulting brick mesh into the file
+     * @out - stream with the opened file
+     */
+    void write_msh(ofstream &out) const;
+
+    /* Return the number of nodes of element with given Gmsh type */
+    int type2nnodes(const int el_type) const;
+
+    /** Read vertices from Gmsh file that is either in binary or ascii format */
+    void read_vertices(ifstream &in, map<int, int> &vertices_map, bool binary);
+
+    /** Read one integer from file */
+    int read_scalar(ifstream &in) const;
+
+    /** Store element (triangle, tetrahedron, etc) toghether with its physical domain into corresponding data array */
+    inline void store_element(int el_type, vector<int> &nodes, int phys_domain, int flags);
 };
 
 //-------------------------------------------------------
