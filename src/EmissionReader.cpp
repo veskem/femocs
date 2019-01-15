@@ -148,14 +148,8 @@ void EmissionReader::calc_effective_region(double threshold, string mode) {
     }
 }
 
-void EmissionReader::calc_emission(const Config::Emission &conf, double Veff_SC,
+void EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
         bool update_eff_region) {
-
-    double Veff;
-    if (Veff_SC > 0)
-        Veff = Veff_SC;
-    else
-        Veff = conf.Vappl_SC;
 
     global_data.Fmax = 0;
     global_data.Jmax = 0;

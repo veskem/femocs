@@ -120,7 +120,6 @@ public:
         double V0;             ///< Applied voltage at the anode (active in case of SC emission and Dirichlet anodeBC
         string anode_BC;       ///< Type of anode boundary condition (Dirichlet or Neumann)
         string mode;           ///< Mode to run field solver; laplace, transient or converge; transient or converge activate PIC solver
-        vector<double> apply_factors; ///< run for multiple applied E0 (or V0) multiplied by the factors
     } field;
 
     /** Heating module configuration parameters */
@@ -139,11 +138,10 @@ public:
 
     /** Field emission module parameters */
     struct Emission {
-        double work_function;       ///< Work function [eV]
-        bool blunt;                 ///< Force blunt emitter approximation (good for big systems)
-        bool cold;                  ///< force cold field emission approximation (good for low temperatures)
-        double omega_SC;            ///< Voltage correction factor for SC calculation (negative for ignoring SC)
-        double Vappl_SC;            ///< Applied voltage used for SC calculations (overrides Vappl * omega_SC)
+        double work_function; ///< Work function [eV]
+        bool blunt;           ///< Force blunt emitter approximation (good for big systems)
+        bool cold;            ///< force cold field emission approximation (good for low temperatures)
+        double omega;         ///< Voltage correction factor for SC-limited emission calculation; <= 0 ignores SC
     } emission;
 
     /** Parameters related to atomic force calculations */
@@ -184,11 +182,12 @@ public:
     
     /** Parameters related to SpaceCharge project */
     struct SpaceCharge {
+        /** Relative error in current for convergence criterion.
+         * It is compared with the corresponding std in the pic convergence step. */
+        double convergence;
         vector<double> apply_factors; ///< run for multiple applied E0 (or V0) multiplied by the factors
-        double convergence;     ///< Relative error in current for convergence criterion.
-                                ///< It is compared with the corresponding std in the pic convergence step.
         vector<double> I_pic;   ///< Current target for finding Applied SC voltage (for SC calculations)
-    } SC;
+    } scharge;
 
 private:
     vector<vector<string>> data; ///< commands and their arguments found from the input script

@@ -79,11 +79,10 @@ Config::Config() {
     heating.dt_max = 1.0e5;
     heating.tau = 100.0;
 
+    emission.work_function = 4.5;
     emission.blunt = true;
     emission.cold = false;
-    emission.work_function = 4.5;
-    emission.omega_SC = -1;
-    emission.Vappl_SC = 0.;
+    emission.omega = 0.0;
 
     force.mode = "none";
 
@@ -107,7 +106,7 @@ Config::Config() {
     pic.landau_log = 13.0;
     pic.max_injected = 50000;
 
-    SC.convergence = .1;
+    scharge.convergence = .1;
 }
 
 void Config::trim(string& str) {
@@ -148,14 +147,15 @@ void Config::read_all(const string& fname, bool full_run) {
         check_changed("pic_mode", "field_mode");
         check_changed("heating_mode", "heat_mode");
         check_changed("n_writefile", "write_period");
+        check_changed("Vappl_SC", "sc_omega & Vappl");
+        check_changed("omega_SC", "sc_omega");
     }
 
     // Modify the parameters that are specified in input script
     read_command("work_function", emission.work_function);
     read_command("emitter_blunt", emission.blunt);
-    read_command("omega_SC", emission.omega_SC);
+    read_command("sc_omega", emission.omega);
     read_command("emitter_cold", emission.cold);
-    read_command("Vappl_SC", emission.Vappl_SC);
 
     read_command("heat_mode", heating.mode);
     read_command("rhofile", heating.rhofile);
@@ -168,14 +168,13 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("heat_dtmax", heating.dt_max);
     read_command("vscale_tau", heating.tau);
 
-
     read_command("field_mode", field.mode);
     read_command("field_ssor", field.ssor_param);
     read_command("field_cgtol", field.cg_tolerance);
     read_command("field_ncg", field.n_cg);
     read_command("elfield", field.E0);
     read_command("Vappl", field.V0);
-    read_command("anode_BC", field.anode_BC);
+    read_command("anode_bc", field.anode_BC);
 
     read_command("force_mode", force.mode);
 
@@ -238,7 +237,7 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("pic_landau_log", pic.landau_log);
     read_command("max_injected", pic.max_injected);
     
-    read_command("SC_converge_criterion", SC.convergence);
+    read_command("SC_converge_criterion", scharge.convergence);
 
     // Read commands with potentially multiple arguments like...
     vector<double> args;
@@ -272,16 +271,16 @@ void Config::read_all(const string& fname, bool full_run) {
     cfactor.r0_cylinder = static_cast<int>(args[1]);
     cfactor.r0_sphere = static_cast<int>(args[2]);
 
-    SC.apply_factors.resize(128);
-    n_read_args = read_command("apply_factors", SC.apply_factors);
+    scharge.apply_factors.resize(128);
+    n_read_args = read_command("apply_factors", scharge.apply_factors);
     if (n_read_args > 0)
-        SC.apply_factors.resize(n_read_args);
+        scharge.apply_factors.resize(n_read_args);
     else
-        SC.apply_factors = {1.};
+        scharge.apply_factors = {1.};
 
-    SC.I_pic.resize(128);
-    n_read_args = read_command("currents_pic", SC.I_pic);
-    SC.I_pic.resize(n_read_args);
+    scharge.I_pic.resize(128);
+    n_read_args = read_command("currents_pic", scharge.I_pic);
+    scharge.I_pic.resize(n_read_args);
     require(!n_read_args ||n_read_args == field.apply_factors.size(),
             "current_pic & apply_factors sizes don't match");
 

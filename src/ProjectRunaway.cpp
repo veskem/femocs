@@ -492,14 +492,6 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
     surface_fields.write("out/surface_fields.movie");
     surface_temperatures.write("out/surface_temperatures.movie");
 
-    // NB! If charge_density really needed, move it into header
-//    Interpolator charge_density("Elfield", "ElfieldNorm", "ChargeDensity");
-//    if (charge_density.nodes.write_time()) {
-//        charge_density.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
-//        charge_density.extract_charge_density(poisson_solver);
-//        charge_density.nodes.write("out/result_E_charge.movie");
-//    }
-
     return 0;
 }
 
@@ -548,7 +540,7 @@ void ProjectRunaway::calc_heat_emission(bool full_run) {
     }
 
     start_msg(t0, "Calculating electron emission");
-    emission.calc_emission(conf.emission, conf.field.V0);
+    emission.calc_emission(conf.emission, conf.emission.omega * conf.field.V0);
     end_msg(t0);
     emission.write("out/emission.movie");
 }

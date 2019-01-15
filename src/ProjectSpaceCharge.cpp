@@ -28,17 +28,17 @@ int ProjectSpaceCharge::run(int timestep, double time) {
 
     prepare_emission();
 
-    if (conf.SC.I_pic.size()){
+    if (conf.scharge.I_pic.size()){
         cout << "Reading I_pic from file. Ipic = " << endl;
-        for(int i = 0; i < conf.SC.I_pic.size(); ++i){
-            I_pic.push_back(conf.SC.I_pic[i]);
+        for(int i = 0; i < conf.scharge.I_pic.size(); ++i){
+            I_pic.push_back(conf.scharge.I_pic[i]);
             cout << I_pic[i] << endl;
         }
 
     } else{
 
-        for(int i = 0; i < conf.SC.apply_factors.size(); ++i){
-            double factor = conf.SC.apply_factors[i];
+        for(int i = 0; i < conf.scharge.apply_factors.size(); ++i){
+            double factor = conf.scharge.apply_factors[i];
             prepare(i);
             GLOBALS.TIME = 0;
 
@@ -80,11 +80,11 @@ int ProjectSpaceCharge::prepare(int i){
 
     start_msg(t0, "=== Preparing next applied field... \n");
 
-    target_factor = conf.SC.apply_factors[i];
+    target_factor = conf.scharge.apply_factors[i];
     if (i == 0)
         init_factor = target_factor / 10;
     else
-        init_factor = conf.SC.apply_factors[i-1];
+        init_factor = conf.scharge.apply_factors[i-1];
 
     if ((i == 0) || pic_solver.get_n_electrons() > max_electrons){
         pic_solver.reinit();
@@ -144,20 +144,15 @@ void ProjectSpaceCharge::prepare_emission() {
     surface_temperatures.interpolate(ch_solver);
     emission.initialize(mesh, true);
 
-    emission.calc_emission(conf.emission, -1, true);
+    emission.calc_emission(conf.emission, 0, true);
 
     Fmax_base = surface_fields.max_field();
 }
 
-
 int ProjectSpaceCharge::converge_pic() {
-
     int window_steps = 25;
-
     double time_window = window_steps * conf.pic.dt_max; //time window to check convergence
-
     int i_max = 32; //maximum window iterations to achieve convergence
-
     double I_mean_prev = emission.stats.Itot_mean;
 
     write_verbose_msg("Converging PIC...");
@@ -169,19 +164,17 @@ int ProjectSpaceCharge::converge_pic() {
         double err = (emission.stats.Itot_mean - I_mean_prev) / emission.stats.Itot_mean;
 
         if (MODES.VERBOSE){
-            printf("  i=%d, I_mean= %e A, I_std=%.2f, error=%.2f, inj=%d, del=%d",
+            printf("  i=%d, I_mean= %e A, I_std=%.2f, error=%.2f, inj=%d, del=%d\n",
                     i, emission.stats.Itot_mean,
                     100. * emission.stats.Itot_std / emission.stats.Itot_mean,
                     100 * err, pic_solver.get_injected(), pic_solver.get_removed());
-            cout << endl;
         }
 
         I_mean_prev = emission.stats.Itot_mean;
 
-        bool converged = fabs(err) < 5.e-3 || (fabs(err) < conf.SC.convergence * emission.stats.Itot_std /
+        bool converged = fabs(err) < 5.e-3 || (fabs(err) < conf.scharge.convergence * emission.stats.Itot_std /
                 emission.stats.Itot_mean && fabs(err) < 0.05);
         //&& pic_solver.is_stable() ;
-
         if (converged)
             return 0;
     }
@@ -192,9 +185,9 @@ void ProjectSpaceCharge::get_currents(double Vappl){
 
     double Veff;
     for(int i = 0; i < I_pic.size(); ++i){
-        emission.set_sfactor(conf.SC.apply_factors[i]);
-        if (conf.emission.omega_SC > 0)
-            Veff = Vappl * conf.SC.apply_factors[i];
+        emission.set_sfactor(conf.scharge.apply_factors[i]);
+        if (conf.emission.omega > 0)
+            Veff = Vappl * conf.scharge.apply_factors[i];
         else
             Veff = Vappl;
         emission.calc_emission(conf.emission, Veff);
@@ -269,7 +262,7 @@ void ProjectSpaceCharge::write_output(double Veff){
     out.setf(std::ios::scientific);
     out.precision(6);
 
-    if (conf.emission.omega_SC > 0)
+    if (conf.emission.omega > 0)
         out << "omega_SC = " << Veff / conf.field.V0 << endl;
     else
         out << "effective Voltage = " << Veff << endl;
@@ -277,8 +270,8 @@ void ProjectSpaceCharge::write_output(double Veff){
     out << "   F_max_L      Voltage       I_sc        I_pic" << endl;
 
     for (int i = 0; i < I_sc.size(); ++i)
-        out << conf.SC.apply_factors[i] * Fmax_base << " " <<
-                conf.SC.apply_factors[i] * conf.field.V0 << " "
+        out << conf.scharge.apply_factors[i] * Fmax_base << " " <<
+                conf.scharge.apply_factors[i] * conf.field.V0 << " "
                 << I_sc[i] << " " << I_pic[i] << endl;
 
     out.close();
@@ -288,14 +281,14 @@ void ProjectSpaceCharge::write_output(double Veff){
 void ProjectSpaceCharge::full_emission_curve(double Vappl){
 
     int Npoints = 128;
-    double fmax = *max_element(conf.SC.apply_factors.begin(), conf.SC.apply_factors.end());
-    double fmin = *min_element(conf.SC.apply_factors.begin(), conf.SC.apply_factors.end());
+    double fmax = *max_element(conf.scharge.apply_factors.begin(), conf.scharge.apply_factors.end());
+    double fmin = *min_element(conf.scharge.apply_factors.begin(), conf.scharge.apply_factors.end());
     double factor, Veff;
 
     for(int i = 0; i < Npoints; ++i){
         factor = fmin + i * (fmax - fmin) / (Npoints - 1);
 
-        if (conf.emission.omega_SC > 0)
+        if (conf.emission.omega > 0)
             Veff = Vappl * factor;
         else
             Veff = Vappl;
@@ -336,7 +329,6 @@ void ProjectSpaceCharge::export_on_line(){
         rho_line[i] = fr.get_charge_dens(i);
     }
 }
-
 
 void ProjectSpaceCharge::write_line(string filename){
     ofstream out;
@@ -383,8 +375,6 @@ void ProjectSpaceCharge::write_emission_data(string filename, bool first_time){
     out.close();
 }
 
-
-
 void ProjectSpaceCharge::find_apex(){
     int i_max;
     double zmax = -1.e-100;
@@ -406,6 +396,5 @@ void ProjectSpaceCharge::find_apex(){
     anode = Point3(vacuum_interpolator.nodes.get_vertex(i_max));
     apex_found = true;
 }
-
 
 } /* namespace femocs */

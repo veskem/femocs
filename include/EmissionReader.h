@@ -23,21 +23,16 @@ public:
 
     EmissionReader(const FieldReader *fields, const HeatReader *heat, Interpolator* i);
 
-    /** Calculates the emission currents and Nottingham heat distributions, including a rough
-     * estimation of the space charge effects.
-     * @param ch_solver heat solver object where J and Nottingham BCs will be written
-     * @param conf Emission configuration parameters struct
-     * @param Veff_SC (effective applied voltage for space charge calculations)
+    /** Calculates the emission currents and Nottingham heat distributions,
+     * including a rough estimation of the space charge effects.
+     * @param conf Emission configuration parameters
+     * @param Veff effective applied voltage for space charge calculations
      */
-    void calc_emission(const Config::Emission &conf, double Veff_SC = -1,
+    void calc_emission(const Config::Emission &conf, double Veff,
             bool update_eff_region = false);
 
-    /**
-     * Calculates the mean and the standard deviation of the total current for the last N_calls
-     * @param std the returned standard deviation
-     * @return
-     */
-    void calc_global_stats(void);
+    /** Calculates the mean and the standard deviation of the total current for the last N_calls */
+    void calc_global_stats();
 
     /** Initialises class data */
     void initialize(const TetgenMesh* m, bool reinit = true);
@@ -45,7 +40,7 @@ public:
     /** Return the length of data vectors */
     int size() const { return markers.size(); }
 
-    void set_sfactor(double factor){
+    void set_sfactor(double factor) {
         global_data.multiplier *= factor / global_data.sfactor;
         global_data.sfactor = factor;
     }
