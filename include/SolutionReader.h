@@ -317,6 +317,9 @@ public:
     /** Using the previously found surface charge, calculate Coulomb forces between atoms */
     void calc_coulomb(const double r_cut);
 
+    /** Calculate Coulomb forces from known charges and atom neighbouring */
+    void recalc_coulomb();
+
     /** Export Parcas-specific data */
     int export_parcas(const int n_points, const string &data_type, const Vec3& si2parcas, double* data) const;
 
@@ -346,6 +349,8 @@ private:
     /** Screening factor for Coulomb force.
      * For details see Djurabekova et al, 2011, Physical Review E, 83(2), p.026704 */
     static constexpr double q_screen = 0.6809;
+
+    vector<int> nborlist;   ///< diagonal neighbour list to speed up Coulomb recalculation
 
     /** Remove cells with too big faces*/
     void clean_voro_faces(VoronoiMesh& mesh);

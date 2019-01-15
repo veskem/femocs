@@ -893,10 +893,17 @@ void ForceReader::calc_coulomb(const double r_cut) {
     require((int)head.size() == nborbox_size[0]*nborbox_size[1]*nborbox_size[2],
             "Invalid linked list header size: " + d2s(head.size()));
 
+    // build diagonal neighbour list to speed up recalculation
+    vector<int> nbors;
+    nborlist.clear();
+    nborlist.reserve(10*n_atoms);
+
     // loop through the atoms
     for (int i = 0; i < n_atoms; ++i) {
         array<int,3> i_atom = nborbox_indices[i];
         Point3 point = atoms[i].point;
+        double charge = get_charge(i);
+        nbors.clear();
 
         // loop through the boxes where the neighbours are located; there are up to 3^3=27 boxes
         // no periodicity needed, as the charge on simubox boundary is very small
@@ -920,9 +927,10 @@ void ForceReader::calc_coulomb(const double r_cut) {
                             Vec3 displacement = point - get_point(j);
                             const double r_squared = displacement.norm2();
                             if (r_squared <= r_cut2) {
+                                nbors.push_back(j);
                                 double r = sqrt(r_squared);
                                 double V = exp(-q_screen * r) * couloumb_constant *
-                                        get_charge(i) * get_charge(j) / r;
+                                        charge * get_charge(j) / r;
 
                                 Vec3 force = displacement * (V / r_squared);
                                 interpolation[i].vector += force;
@@ -935,6 +943,36 @@ void ForceReader::calc_coulomb(const double r_cut) {
                     }
                 }
             }
+        }
+        nborlist.push_back(nbors.size());
+        nborlist.insert(nborlist.end(), nbors.begin(), nbors.end());
+    }
+}
+
+void ForceReader::recalc_coulomb() {
+    const int n_atoms = size();
+    require(nborlist.size() > n_atoms, "Missing neightbour list!");
+
+    int index = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        Point3 point = atoms[i].point;
+        double charge = get_charge(i);
+        int n_nbors = nborlist[index++];
+
+        for (int nbor = 0; nbor < n_nbors; ++nbor) {
+            int j = nborlist[index++];
+
+            Vec3 displacement = point - get_point(j);
+            double r_squared = displacement.norm2();
+            double r = sqrt(r_squared);
+            double V = exp(-q_screen * r) * couloumb_constant *
+                    charge * get_charge(j) / r;
+
+            Vec3 force = displacement * (V / r_squared);
+            interpolation[i].vector += force;
+            interpolation[j].vector -= force;
+            interpolation[i].norm += 0.5 * V;
+            interpolation[j].norm += 0.5 * V;
         }
     }
 }

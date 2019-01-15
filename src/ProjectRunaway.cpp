@@ -315,7 +315,7 @@ int ProjectRunaway::prepare_export() {
             forces.update_positions(dense_surf);
             forces.recalc_lorentz(fields);
             if (conf.force.mode == "all")
-                forces.calc_coulomb(conf.geometry.charge_cutoff);
+                forces.recalc_coulomb();
 
             end_msg(t0);
         }
