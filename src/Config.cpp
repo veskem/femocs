@@ -18,17 +18,20 @@ Config::Config() {
     path.extended_atoms = "";
     path.infile = "";
     path.mesh_file = "";
+    path.restart_file = "";
 
     behaviour.verbosity = "verbose";
     behaviour.project = "runaway";
-    behaviour.n_write_log = -1;
-    behaviour.n_writefile = 1;
+    behaviour.n_restart = 0;
+    behaviour.restart_multiplier = 10;
+    behaviour.n_write_log = 0;
+    behaviour.n_read_conf = 0;
     behaviour.interpolation_rank = 1;
-    behaviour.write_period = 1.e5;
     behaviour.timestep_fs = 4.05;
     behaviour.mass = 63.5460;
     behaviour.rnd_seed = 12345;
     behaviour.n_omp_threads = 1;
+    behaviour.timestep_step = 1;
 
     run.cluster_anal = true;
     run.apex_refiner = false;
@@ -50,12 +53,12 @@ Config::Config() {
     geometry.bulk_height = 20;
     geometry.radius = 0.0;
     geometry.height = 0.0;
+    geometry.distance_tol = 0.0;
 
     tolerance.charge_min = 0.8;
     tolerance.charge_max = 1.2;
     tolerance.field_min = 0.1;
     tolerance.field_max = 5.0;
-    tolerance.distance = 0.0;
 
     field.E0 = 0.0;
     field.ssor_param = 1.2;
@@ -63,7 +66,7 @@ Config::Config() {
     field.n_cg = 10000;
     field.V0 = 0.0;
     field.anode_BC = "neumann";
-    field.solver = "laplace";
+    field.mode = "laplace";
 
     heating.mode = "none";
     heating.rhofile = "in/rho_table.dat";
@@ -75,14 +78,11 @@ Config::Config() {
     heating.delta_time = 10.0;
     heating.dt_max = 1.0e5;
     heating.tau = 100.0;
-    heating.assemble_method = "euler";
 
+    emission.work_function = 4.5;
     emission.blunt = true;
     emission.cold = false;
-    emission.work_function = 4.5;
-    emission.omega_SC = -1;
-    emission.SC_error = 1.e-3;
-    emission.Vappl_SC = 0.;
+    emission.omega = 0.0;
 
     force.mode = "none";
 
@@ -103,31 +103,52 @@ void Config::trim(string& str) {
     str.erase(0, str.find_first_of(comment_symbols + data_symbols));
 }
 
-void Config::read_all(const string& file_name) {
-    if(file_name == "") return;
+void Config::read_all() {
+    if (behaviour.n_read_conf > 0 && GLOBALS.TIMESTEP % behaviour.n_read_conf == 0)
+        read_all(file_name, false);
+}
+
+void Config::read_all(const string& fname, bool full_run) {
+    if (fname == "") return;
+    file_name = fname;
 
     // Store the commands and their arguments
-    parse_file(file_name);
+    parse_file(fname);
 
-    // Check for the obsolete commands
-    check_obsolete("postprocess_marking");
-    check_obsolete("force_factor");
-    check_obsolete("heating", "heating_mode");
-    check_obsolete("surface_thichness", "surface_thickness");
-    check_obsolete("smooth_factor", "surface_smooth_factor");
-    check_obsolete("surface_cleaner", "clean_surface");
-    check_obsolete("write_log", "n_write_log");
-    check_obsolete("use_histclean");
+    if (full_run) {
+        // Check for the obsolete commands
+        check_obsolete("postprocess_marking");
+        check_obsolete("force_factor");
+        check_obsolete("use_histclean");
+        check_obsolete("maxerr_SC");
+        check_obsolete("SC_mode");
+        check_obsolete("heat_assemble");
+        check_obsolete("field_assemble");
+
+        // Check for the changed commands
+        check_changed("heating", "heat_mode");
+        check_changed("surface_thichness", "surface_thickness");
+        check_changed("smooth_factor", "surface_smooth_factor");
+        check_changed("surface_cleaner", "clean_surface");
+        check_changed("write_log", "n_write_log");
+        check_changed("run_pic", "field_mode");
+        check_changed("electronWsp", "electron_weight");
+        check_changed("field_solver", "field_mode");
+        check_changed("pic_mode", "field_mode");
+        check_changed("heating_mode", "heat_mode");
+        check_changed("n_writefile", "write_period");
+        check_changed("Vappl_SC", "sc_omega & Vappl");
+        check_changed("omega_SC", "sc_omega");
+        check_changed("n_write_restart", "nrestart");
+    }
 
     // Modify the parameters that are specified in input script
     read_command("work_function", emission.work_function);
     read_command("emitter_blunt", emission.blunt);
-    read_command("omega_SC", emission.omega_SC);
-    read_command("maxerr_SC", emission.SC_error);
+    read_command("sc_omega", emission.omega);
     read_command("emitter_cold", emission.cold);
-    read_command("Vappl_SC", emission.Vappl_SC);
 
-    read_command("heating_mode", heating.mode);
+    read_command("heat_mode", heating.mode);
     read_command("rhofile", heating.rhofile);
     read_command("lorentz", heating.lorentz);
     read_command("t_ambient", heating.t_ambient);
@@ -137,15 +158,14 @@ void Config::read_all(const string& file_name) {
     read_command("heat_dt", heating.delta_time);
     read_command("heat_dtmax", heating.dt_max);
     read_command("vscale_tau", heating.tau);
-    read_command("heat_assemble", heating.assemble_method);
 
+    read_command("field_mode", field.mode);
     read_command("field_ssor", field.ssor_param);
     read_command("field_cgtol", field.cg_tolerance);
     read_command("field_ncg", field.n_cg);
     read_command("elfield", field.E0);
     read_command("Vappl", field.V0);
-    read_command("anode_BC", field.anode_BC);
-    read_command("field_solver", field.solver);
+    read_command("anode_bc", field.anode_BC);
 
     read_command("force_mode", force.mode);
 
@@ -156,6 +176,9 @@ void Config::read_all(const string& file_name) {
     read_command("surface_smooth_factor", smoothing.beta_atoms);
     read_command("charge_smooth_factor", smoothing.beta_charge);
 
+    read_command("force_mode", force.mode);
+
+    read_command("distance_tol", geometry.distance_tol);
     read_command("latconst", geometry.latconst);
     read_command("coord_cutoff", geometry.coordination_cutoff);
     read_command("cluster_cutoff", geometry.cluster_cutoff);
@@ -173,6 +196,7 @@ void Config::read_all(const string& file_name) {
     read_command("extended_atoms", path.extended_atoms);
     read_command("infile", path.infile);
     read_command("mesh_file", path.mesh_file);
+    read_command("restart_file", path.restart_file);
 
     read_command("cluster_anal", run.cluster_anal);
     read_command("refine_apex", run.apex_refiner);
@@ -182,18 +206,19 @@ void Config::read_all(const string& file_name) {
     read_command("smoothen_field", run.field_smoother);
     read_command("femocs_periodic", MODES.PERIODIC);
 
+    read_command("n_read_conf", behaviour.n_read_conf);
+    read_command("nrestart", behaviour.n_restart); // the same command as for Parcas
+    read_command("restart_multiplier", behaviour.restart_multiplier);
     read_command("n_write_log", behaviour.n_write_log);
     read_command("femocs_verbose_mode", behaviour.verbosity);
     read_command("project", behaviour.project);
-    read_command("n_writefile", behaviour.n_writefile);
     read_command("interpolation_rank", behaviour.interpolation_rank);
-    read_command("write_period", behaviour.write_period);
-    read_command("femocs_run_time", behaviour.timestep_fs);
+    read_command("write_period", MODES.WRITE_PERIOD);
+    read_command("md_timestep", behaviour.timestep_fs);
     read_command("mass(1)", behaviour.mass);
     read_command("seed", behaviour.rnd_seed);
     read_command("n_omp", behaviour.n_omp_threads);
-
-    read_command("distance_tol", tolerance.distance);
+    read_command("timestep_step", behaviour.timestep_step);
 
     // Read commands with potentially multiple arguments like...
     vector<double> args;
@@ -226,13 +251,6 @@ void Config::read_all(const string& file_name) {
     cfactor.amplitude = args[0];
     cfactor.r0_cylinder = static_cast<int>(args[1]);
     cfactor.r0_sphere = static_cast<int>(args[2]);
-
-    field.apply_factors.resize(16);
-    n_read_args = read_command("apply_factors", field.apply_factors);
-    if (n_read_args > 0)
-        field.apply_factors.resize(n_read_args);
-    else
-        field.apply_factors = {1.};
 }
 
 void Config::parse_file(const string& file_name) {
@@ -273,15 +291,15 @@ void Config::parse_file(const string& file_name) {
 void Config::check_obsolete(const string& command) {
     for (const vector<string>& cmd : data)
         if (cmd[0] == command) {
-            write_verbose_msg("Command '" + command + "' is obsolete! You can safely remove it!");
+            write_silent_msg("Command '" + command + "' is obsolete! You can safely remove it!");
             return;
         }
 }
 
-void Config::check_obsolete(const string& command, const string& substitute) {
+void Config::check_changed(const string& command, const string& substitute) {
     for (const vector<string>& cmd : data)
         if (cmd[0] == command) {
-            write_verbose_msg("Command '" + command + "' is obsolete!"
+            write_silent_msg("Command '" + command + "' has changed!"
                     " It is similar yet different to the command '" + substitute + "'!");
             return;
         }

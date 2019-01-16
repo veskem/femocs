@@ -330,102 +330,43 @@ void Medium::set_marker(const int i, const int m) {
     atoms[i].marker = m;
 }
 
-void Medium::write(const string &file_name) const {
-    if (!MODES.WRITEFILE) return;
-    
-    int n_atoms = size();
-    expect(n_atoms > 0, "Zero atoms detected!");
-    string ftype = get_file_type(file_name);
-    
-    ofstream outfile;
-//    outfile << fixed;
+void Medium::write_xyz(ofstream& out) const {
+    // write the start of xyz header
+    FileWriter::write_xyz(out);
 
-    outfile.setf(std::ios::scientific);
-    outfile.precision(6);
+    // write Ovito header
+    out << "properties=id:I:1:pos:R:3:marker:I:1\n";
 
-    if (ftype == "movie" || ftype == "dat") outfile.open(file_name, ios_base::app);
-    else outfile.open(file_name);
-    require(outfile.is_open(), "Can't open a file " + file_name);
-    
-    if (ftype == "xyz" || ftype == "movie")
-        write_xyz(outfile, n_atoms);
-    else if (ftype == "vtk")
-        write_vtk(outfile, n_atoms);
-    else if (ftype == "ckx")
-        write_ckx(outfile, n_atoms);
-    else if (ftype == "dat")
-        write_dat(outfile);
-    else    
-        require(false, "Unsupported file type: " + ftype);
-
-    outfile.close();
-}
-
-string Medium::get_data_string(const int i) const {
-    if(i < 0)
-        return "Time=" + d2s(GLOBALS.TIME)
-            + "; Medium properties=id:I:1:pos:R:3:marker:I:1";
-
-    ostringstream strs; strs << fixed;
-    strs << atoms[i];
-    return strs.str();
-}
-
-string Medium::get_global_data(const bool first_line) const {
-    if (first_line) return "time";
-    return d2s(GLOBALS.TIME);
-}
-
-void Medium::write_xyz(ofstream& out, const int n_atoms) const {
-    out << n_atoms << "\n";
-    out << get_data_string(-1) << endl;
-
+    // write data
+    const int n_atoms = size();
     for (int i = 0; i < n_atoms; ++i)
-        out << get_data_string(i) << endl;
+        out << atoms[i] << endl;
 }
 
-void Medium::write_vtk(ofstream& out, const int n_atoms) const {
-    out << "# vtk DataFile Version 3.0\n";
-    out << "# Medium data\n";
-    out << "ASCII\n";
-    out << "DATASET UNSTRUCTURED_GRID\n\n";
+void Medium::write_vtk_points_and_cells(ofstream& out) const {
+    const int n_atoms = size();
+    const int n_cells = size();
+    const int dim = 1;          // number of vertices in the cell
 
     // Output the point coordinates
     out << "POINTS " << n_atoms << " double\n";
     for (int i = 0; i < n_atoms; ++i)
         out << get_point(i) << "\n";
 
-    get_cell_data(out);
-}
-
-void Medium::write_ckx(ofstream &out, const int n_atoms) const {
-    out << n_atoms << "\n";
-    out << "Medium properties=type:I:1:pos:R:3" << endl;
-    for (int i = 0; i < n_atoms; ++i)
-        out << atoms[i].marker << " " << atoms[i].point << endl;
-}
-
-void Medium::write_dat(ofstream &out) const {
-    out << get_global_data(out.tellp() == 0) << endl;
-}
-
-void Medium::get_cell_data(ofstream& out) const {
-    const int celltype = 1;     // type of the cell in vtk format; 1-vertex, 10-tetrahedron
-    const int dim = 1;          // number of vertices in the cell
-    const int n_cells = size();
-    const int n_atoms = size();
-
     // Output the vertices
-    out << "\nCELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
+    out << "CELLS " << n_cells << " " << (1+dim) * n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
         out << dim << " " << i << "\n";
 
     // Output cell types
-    out << "\nCELL_TYPES " << n_cells << "\n";
+    out << "CELL_TYPES " << n_cells << "\n";
     for (int i = 0; i < n_cells; ++i)
-        out << celltype << "\n";
+        out << VtkType::vertex << "\n";
+}
 
-    out << "\nPOINT_DATA " << n_atoms << "\n";
+void Medium::write_vtk_point_data(ofstream& out) const {
+    const int n_atoms = size();
+    out << "POINT_DATA " << n_atoms << "\n";
 
     // write IDs of atoms
     out << "SCALARS ID int\nLOOKUP_TABLE default\n";

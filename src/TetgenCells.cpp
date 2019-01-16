@@ -15,7 +15,6 @@ namespace femocs {
  *  =========================== TetgenNodes ===========================
  * ===================================================================== */
 
-// Copy the nodes from write to read buffer
 void TetgenNodes::transfer(const bool write2read) {
     if (reads == writes) return;
     TetgenCells::transfer(write2read);
@@ -40,7 +39,6 @@ void TetgenNodes::transfer(const bool write2read) {
     }
 }
 
-// Initialize node appending
 void TetgenNodes::init(const int N) {
     TetgenCells::init(N);
     init_statistics();
@@ -49,7 +47,6 @@ void TetgenNodes::init(const int N) {
     writes->pointlist = new REAL[n_coordinates * N];
 }
 
-// Append node to mesh
 void TetgenNodes::append(const Point3 &point) {
     require(i_cells < *n_cells_w, "Allocated size of nodes exceeded!");
     int i = n_coordinates * i_cells;
@@ -58,20 +55,17 @@ void TetgenNodes::append(const Point3 &point) {
     i_cells++;
 }
 
-// Get i-th node from the mesh
 SimpleCell<1> TetgenNodes::get_cell(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     return SimpleNode(i);
 }
 
-// Return the coordinates of i-th node as a 3D vector
 Vec3 TetgenNodes::get_vec(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     const int n = n_coordinates * i;
     return Vec3(reads->pointlist[n+0], reads->pointlist[n+1], reads->pointlist[n+2]);
 }
 
-// Modify the coordinates of i-th node
 void TetgenNodes::set_node(const int i, const Point3 &point) {
     require(i >= 0 && i < get_n_nodes(), "Index out of bounds: " + d2s(i));
     int I = n_coordinates * i;
@@ -95,7 +89,6 @@ void TetgenNodes::save_indices(const int n_surf, const int n_bulk, const int n_v
     indxs.tetgen_end = -1;
 }
 
-// Store the locations of different kinds of nodes that were produced while splitting tetrahedra into hexahedra
 void TetgenNodes::save_hex_indices(const vector<int>& n_nodes) {
     require(n_nodes.size() == 4, "Invalid size of indices: " + d2s(n_nodes.size()));
 
@@ -153,7 +146,6 @@ void TetgenNodes::calc_statistics() {
         }
 }
 
-// Copy the nodes from another mesh
 void TetgenNodes::copy(const TetgenNodes& nodes, const vector<bool>& mask) {
     const size_t n_nodes = nodes.size();
     copy_statistics(nodes);
@@ -184,7 +176,6 @@ void TetgenNodes::copy_statistics(const TetgenNodes& n) {
     stat.n_midtet  = n.stat.n_midtet;
 }
 
-// Transform nodes into Deal.II format
 vector<dealii::Point<3>> TetgenNodes::export_dealii() const {
     vector<dealii::Point<3>> nodes; nodes.reserve(get_n_nodes());
     for (Point3 p : *this)
@@ -192,41 +183,19 @@ vector<dealii::Point<3>> TetgenNodes::export_dealii() const {
     return nodes;
 }
 
-// Write node data to file
-void TetgenNodes::write(const string &file_name) const {
-    if (!MODES.WRITEFILE) return;
-
-    string file_type = get_file_type(file_name);
-    if (file_type == "xyz")
-        write_xyz(file_name);
-    else if (file_type == "vtk")
-        write_vtk(file_name);
-    else
-        require(false, "Unknown file type: " + file_type);
-}
-
-// Write node data to .xyz file
-void TetgenNodes::write_xyz(const string &file_name) const {
+void TetgenNodes::write_xyz(ofstream &out) const {
     const int n_nodes = size();
     const int n_markers = get_n_markers();
 
-    expect(n_nodes > 0, "Zero nodes detected!");
-
-    ofstream out_file(file_name);
-    require(out_file.is_open(), "Can't open a file " + file_name);
-
-    out_file << fixed;
-    out_file << n_nodes << "\n";
-    out_file << "Mesh nodes properties=id:R:1:pos:R:3:marker:R:1\n";
+    FileWriter::write_xyz(out); // write start of the header
+    out << "properties=id:R:1:pos:R:3:marker:R:1\n";
 
     if (n_nodes == n_markers)
         for (int i = 0; i < n_nodes; ++i)
-            out_file << i << " " << get_node(i) << " " << get_marker(i) << endl;
+            out << i << " " << get_node(i) << " " << get_marker(i) << endl;
     else
         for (int i = 0; i < n_nodes; ++i)
-            out_file << i << " " << get_node(i) << " " << "-1" << endl;
-
-    out_file.close();
+            out << i << " " << get_node(i) << " " << "-1" << endl;
 }
 
 /* =====================================================================
@@ -251,7 +220,6 @@ void TetgenEdges::transfer(const bool write2read) {
     }
 }
 
-// Initialize edge appending
 void TetgenEdges::init(const int N) {
     TetgenCells::init(N);
     if (writes->edgelist != (int *) NULL)
@@ -259,7 +227,6 @@ void TetgenEdges::init(const int N) {
     writes->edgelist = new int[DIM * N];
 }
 
-// Append edge to mesh
 void TetgenEdges::append(const SimpleCell<2> &cell) {
     require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
     int i = DIM * i_cells;
@@ -268,7 +235,6 @@ void TetgenEdges::append(const SimpleCell<2> &cell) {
     i_cells++;
 }
 
-// Get i-th edge from the mesh
 SimpleCell<2> TetgenEdges::get_cell(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     const int I = DIM * i;
@@ -345,7 +311,6 @@ void TetgenFaces::transfer(const bool write2read) {
     }
 }
 
-// Initialize face appending
 void TetgenFaces::init(const int N) {
     TetgenCells::init(N);
     if (writes->trifacelist != (int *) NULL)
@@ -353,7 +318,6 @@ void TetgenFaces::init(const int N) {
     writes->trifacelist = new int[DIM * N];
 }
 
-// Append face to mesh
 void TetgenFaces::append(const SimpleCell<3> &cell) {
     require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
     int i = DIM * i_cells;
@@ -362,7 +326,6 @@ void TetgenFaces::append(const SimpleCell<3> &cell) {
     i_cells++;
 }
 
-// Get i-th face from the mesh
 SimpleCell<3> TetgenFaces::get_cell(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     const int I = DIM * i;
@@ -394,7 +357,6 @@ int TetgenFaces::copy_surface(const TetgenFaces& faces, const TetgenNodes::Stat&
     return n_surface_faces;
 }
 
-// Calculate the norms and areas for all the triangles
 void TetgenFaces::calc_appendices() {
     const int n_faces = size();
     areas.clear(); areas.reserve(n_faces);
@@ -415,22 +377,20 @@ void TetgenFaces::calc_appendices() {
         centroids.push_back((v0 + v1 + v2) / 3.0);
     }
 
-   calc_statistics();
+    init_markers(n_faces, TYPES.SURFACE);
+    calc_statistics();
 }
 
-// Return the pre-calculated centroid of i-th triangle
 Point3 TetgenFaces::get_centroid(const int i) const {
     require(i >= 0 && i < static_cast<int>(centroids.size()), "Invalid index: " + d2s(i));
     return centroids[i];
 }
 
-// Return the normal of i-th triangle
 Vec3 TetgenFaces::get_norm(const int i) const {
     require(i >= 0 && i < static_cast<int>(norms.size()), "Invalid index: " + d2s(i));
     return norms[i];
 }
 
-// Return the area of i-th triangle
 double TetgenFaces::get_area(const int i) const {
     require(i >= 0 && i < static_cast<int>(areas.size()), "Invalid index: " + d2s(i));
     return areas[i];
@@ -540,7 +500,6 @@ void TetgenElements::transfer(const bool write2read) {
     }
 }
 
-// Initialize element appending
 void TetgenElements::init(const int N) {
     TetgenCells::init(N);
     init_statistics();
@@ -549,7 +508,6 @@ void TetgenElements::init(const int N) {
     writes->tetrahedronlist = new int[DIM * N];
 }
 
-// Append element to mesh
 void TetgenElements::append(const SimpleCell<4> &cell) {
     require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
     int i = DIM * i_cells;
@@ -558,7 +516,6 @@ void TetgenElements::append(const SimpleCell<4> &cell) {
     i_cells++;
 }
 
-// Get i-th element from the mesh
 SimpleCell<4> TetgenElements::get_cell(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     const int I = DIM * i;
@@ -566,7 +523,6 @@ SimpleCell<4> TetgenElements::get_cell(const int i) const {
             reads->tetrahedronlist[I+2], reads->tetrahedronlist[I+3]);
 }
 
-// Get indices of neighbouring elements of i-th element
 vector<int> TetgenElements::get_neighbours(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     require(reads->neighborlist, "Query from empty neighbour list!");
@@ -580,21 +536,18 @@ vector<int> TetgenElements::get_neighbours(const int i) const {
  *  ========================== Quadrangles ===========================
  * ===================================================================== */
 
-// Initialize hexahedron appending
 void Quadrangles::init(const int N) {
     TetgenCells::init(N);
     quads.clear();
     quads.reserve(N);
 }
 
-// Append hexahedron to mesh
 void Quadrangles::append(const SimpleCell<4> &cell) {
     expect(quads.size() < quads.capacity(), "Allocated size of cells exceeded!");
     quads.push_back(cell);
     i_cells++;
 }
 
-// Get i-th element from the mesh
 SimpleCell<4> Quadrangles::get_cell(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     return quads[i];
@@ -604,27 +557,23 @@ SimpleCell<4> Quadrangles::get_cell(const int i) const {
  *  ============================ Hexahedra ============================
  * ===================================================================== */
 
-// Initialize hexahedron appending
 void Hexahedra::init(const int N) {
     TetgenCells::init(N);
     hexs.clear();
     hexs.reserve(N);
 }
 
-// Append hexahedron to mesh
 void Hexahedra::append(const SimpleCell<8> &cell) {
     expect(hexs.size() < hexs.capacity(), "Allocated size of cells exceeded!");
     hexs.push_back(cell);
     i_cells++;
 }
 
-// Get i-th element from the mesh
 SimpleCell<8> Hexahedra::get_cell(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
     return hexs[i];
 }
 
-// Export vacuum hexahedra in Deal.II format
 vector<dealii::CellData<3>> Hexahedra::export_vacuum() const {
     const int n_elems = vector_sum(vector_greater(&markers, 0));
     std::vector<dealii::CellData<3>> elems; elems.reserve(n_elems);
@@ -640,7 +589,6 @@ vector<dealii::CellData<3>> Hexahedra::export_vacuum() const {
     return elems;
 }
 
-// Export bulk hexahedra in Deal.II format
 vector<dealii::CellData<3>> Hexahedra::export_bulk() const {
     const int n_elems = vector_sum(vector_less(&markers, 0));
     std::vector<dealii::CellData<3>> elems; elems.reserve(n_elems);

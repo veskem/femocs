@@ -46,25 +46,18 @@ namespace femocs {
  */
 class Interpolator {
 public:
-    Interpolator(const string& norm_label, const string& scalar_label);
+    Interpolator(const string& vec_label, const string& norm_label, const string& scalar_label);
     ~Interpolator() {};
 
     /** Initialise interpolator and store solution with default value */
-    void initialize(const TetgenMesh* mesh, DealSolver<3>& solver, const double empty_value, const int search_region);
+    void initialize(const TetgenMesh* mesh, double empty_value, int search_region);
 
     /** Extract the current density and transient temperature values from FEM solution */
     void extract_solution(CurrentHeatSolver<3>& fem);
     
     /** Extract electric potential and field values from FEM solution */
     void extract_solution(PoissonSolver<3>& fem, const bool smoothen);
-    void extract_solution_v2(PoissonSolver<3>& fem, const bool smoothen);
-
-    /** Extract charge density from FEM solution */
-    void extract_charge_density(PoissonSolver<3>& fem);
-
-    /** Find the hexahedron where the point is located.
-     * Both input and output hex indices are Deal.II ones. */
-    int update_point_cell(const SuperParticle& particle) const;
+    void extract_solution_old(PoissonSolver<3>& fem, const bool smoothen);
 
     InterpolatorNodes nodes;     ///< vertices and solutions on them
     LinearTetrahedra lintet;     ///< data & operations for linear tetrahedral interpolation
@@ -78,17 +71,13 @@ private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
     int empty_value;                ///< Solution value for nodes outside the Deal.II mesh
     vector<vector<pair<int,int>>> node2cells;  ///< list of hexahedra that are associated with given node
-    vector<int> femocs2deal;
 
-    /** Calculate the mapping between Femocs & deal.II mesh nodes,
-     *  nodes & hexahedral elements and nodes & element's vertices.
-     *  -1 indicates that mapping for corresponding object was not found */
-    void get_maps(vector<int>& cell_indxs, vector<int>& vert_indxs,
-            dealii::Triangulation<3>* tria, dealii::DoFHandler<3>* dofh);
+    /** Transfer full solution from FEM solver to Interpolator */
+    void store_solution(const vector<dealii::Tensor<1, 3>> &vecs,
+            const vector<double> &norms, const vector<double> &scals, const Solution &empty);
 
-    /** Transfer solution from FEM solver to Interpolator */
-    void store_solution(const vector<dealii::Tensor<1, 3>> vec_data, const vector<double> scal_data);
-    void store_solution(DealSolver<3>& solver);
+    /** Transfer scalar solution from FEM solver to Interpolator */
+    void store_solution(const vector<double> &norms, const vector<double> &scals, const Solution &empty);
 
     /** Calculate electric field in the location of mesh node */
     void store_elfield(const int node);

@@ -13,98 +13,122 @@
 using namespace std;
 namespace femocs {
 
-enum BoundaryId {
-    copper_surface = 1,
-    vacuum_top = 2,
-    copper_bottom = 3,
-    vacuum_sides = 4,
-    copper_sides = 5
-};
-
-enum MeshData {
-    n_coordinates = 3,     ///< # coordinates
-    n_nodes_per_edge = 2, ///< # nodes on an edge
-    n_nodes_per_tri = 3,  ///< # nodes on a triangle
-    n_nodes_per_quad = 4, ///< # nodes on a quadrangle
-    n_nodes_per_tet = 4,  ///< # nodes on a tetrahedron
-    n_nodes_per_hex = 8,  ///< # nodes on a hexahedron
-    n_edges_per_tri = 3,  ///< # edges on a triangle
-    n_edges_per_quad = 4, ///< # edges on a quadrangle
-    n_edges_per_tet = 6,  ///< # edges on a tetrahedron
-    n_edges_per_hex = 12, ///< # edges on a hexahedron
-    n_tris_per_tet = 4,   ///< # triangles on a tetrahedron
-    n_tets_per_tri = 2,   ///< # tetrahedra connected to a triangle
-    n_hexs_per_quad = 2,  ///< # hexahedra connected to a quadrangle
-    n_hexs_per_tet = 4,   ///< # hexahedra connected to a tetrahedron
-    n_quads_per_tri = 3,  ///< # quadrangles connected to a triangle
-    n_quads_per_hex = 6  ///< # quadrangles connected to a hexahedron
+enum {
+    n_coordinates    = 3,  ///< # coordinates
+    n_nodes_per_edge = 2,  ///< # nodes on an edge
+    n_nodes_per_tri  = 3,  ///< # nodes on a triangle
+    n_nodes_per_quad = 4,  ///< # nodes on a quadrangle
+    n_nodes_per_tet  = 4,  ///< # nodes on a tetrahedron
+    n_nodes_per_hex  = 8,  ///< # nodes on a hexahedron
+    n_edges_per_tri  = 3,  ///< # edges on a triangle
+    n_edges_per_quad = 4,  ///< # edges on a quadrangle
+    n_edges_per_tet  = 6,  ///< # edges on a tetrahedron
+    n_edges_per_hex  = 12, ///< # edges on a hexahedron
+    n_tris_per_tet   = 4,  ///< # triangles on a tetrahedron
+    n_tets_per_tri   = 2,  ///< # tetrahedra connected to a triangle
+    n_hexs_per_quad  = 2,  ///< # hexahedra connected to a quadrangle
+    n_hexs_per_tet   = 4,  ///< # hexahedra connected to a tetrahedron
+    n_quads_per_tri  = 3,  ///< # quadrangles connected to a triangle
+    n_quads_per_hex  = 6   ///< # quadrangles connected to a hexahedron
 };
 
 /** Types of regions used in the simulation */
 struct Types {
-    const int NONE = 0;      ///< type of atom with unknown position
-    const int BULK = 1;      ///< type of bulk material
-    const int SURFACE = 2;   ///< type of open material surface
-    const int VACUUM = 3;    ///< type of vacuum
-    const int VACANCY = 3;   ///< type of vacancies
-    const int PERIMETER = 4; ///< type of the rim/outer edge of surface
-    const int TOP = 5;   ///< type of vacancies
-    const int BOTTOM = 6; ///< type of the rim/outer edge of surface
-    const int FIXED = -1;    ///< type of fixed atoms
-    const int CLUSTER = -2;  ///< type of a cluster
-    const int EVAPORATED= -3;///< type of a evaporated atom
-    const int XMIN = 5;      ///< type of atom on negative x-face of simulation cell
-    const int YMIN = 6;      ///< type of atom on negative y-face of simulation cell
-    const int ZMIN = 7;      ///< type of atom on negative z-face of simulation cell
-    const int XMAX = 10;     ///< type of atom on positive x-face of simulation cell
-    const int YMAX = 9;      ///< type of atom on positive y-face of simulation cell
-    const int ZMAX = 8;      ///< type of atom on positive z-face of simulation cell
+    const int NONE      = 0;  ///< type of atom with unknown position
+    const int BULK      = 1;  ///< type of bulk material
+    const int SURFACE   = 2;  ///< type of open material surface
+    const int VACUUM    = 3;  ///< type of vacuum
+    const int VACANCY   = 3;  ///< type of vacancies
+    const int PERIMETER = 4;  ///< type of the rim/outer edge of surface
+    const int FIXED     =-1;  ///< type of fixed atoms
+    const int CLUSTER   =-2;  ///< type of a cluster
+    const int EVAPORATED=-3;  ///< type of a evaporated atom
+    const int XMIN      = 5;  ///< type of atom on negative x-face of simulation cell
+    const int YMIN      = 6;  ///< type of atom on negative y-face of simulation cell
+    const int ZMIN      = 7;  ///< type of atom on negative z-face of simulation cell
+    const int XMAX      = 10; ///< type of atom on positive x-face of simulation cell
+    const int YMAX      = 9;  ///< type of atom on positive y-face of simulation cell
+    const int ZMAX      = 8;  ///< type of atom on positive z-face of simulation cell
 
-    const int TETNODE = 1;      ///< node on the vertex of tetrahedron
+    const int TETNODE      = 1; ///< node on the vertex of tetrahedron
     const int EDGECENTROID = 2; ///< node on the centroid of line
     const int FACECENTROID = 3; ///< node on the centroid of triangular face
-    const int TETCENTROID = 4;  ///< node on the centroid of tetrahedron
-
-    /// Vtk cell types
-    static struct Vtk_Types {
-        // Linear cells
-        static constexpr int EMPTY_CELL       = 0;
-        static constexpr int VERTEX           = 1;
-        static constexpr int POLY_VERTEX      = 2;
-        static constexpr int LINE             = 3;
-        static constexpr int POLY_LINE        = 4;
-        static constexpr int TRIANGLE         = 5;
-        static constexpr int TRIANGLE_STRIP   = 6;
-        static constexpr int POLYGON          = 7;
-        static constexpr int PIXEL            = 8;
-        static constexpr int QUADRANGLE       = 9;
-        static constexpr int TETRAHEDRON      = 10;
-        static constexpr int VOXEL            = 11;
-        static constexpr int HEXAHEDRON       = 12;
-        static constexpr int WEDGE            = 13;
-        static constexpr int PYRAMID          = 14;
-        static constexpr int PENTAGONAL_PRISM = 15;
-        static constexpr int HEXAGONAL_PRISM  = 16;
-        // Quadratic, isoparametric cells
-        static constexpr int QUADRATIC_EDGE                   = 21;
-        static constexpr int QUADRATIC_TRIANGLE               = 22;
-        static constexpr int QUADRATIC_QUADRANGLE             = 23;
-        static constexpr int QUADRATIC_POLYGON                = 36;
-        static constexpr int QUADRATIC_TETRAHEDRON            = 24;
-        static constexpr int QUADRATIC_HEXAHEDRON             = 25;
-        static constexpr int QUADRATIC_WEDGE                  = 26;
-        static constexpr int QUADRATIC_PYRAMID                = 27;
-        static constexpr int BIQUADRATIC_QUADRANGLE           = 28;
-        static constexpr int TRIQUADRATIC_HEXAHEDRON          = 29;
-        static constexpr int QUADRATIC_LINEAR_QUADRANGLE      = 30;
-        static constexpr int QUADRATIC_LINEAR_WEDGE           = 31;
-        static constexpr int BIQUADRATIC_QUADRATIC_WEDGE      = 32;
-        static constexpr int BIQUADRATIC_QUADRATIC_HEXAHEDRON = 33;
-        static constexpr int BIQUADRATIC_TRIANGLE             = 34;
-        // Polyhedron cell (consisting of polygonal faces)
-        static constexpr int POLYHEDRON = 42;
-    } VTK;
+    const int TETCENTROID  = 4; ///< node on the centroid of tetrahedron
 };
+
+/** IDs of mesh boundaries */
+namespace BoundaryID {
+enum {
+    copper_surface = 2,
+    vacuum_top     = 8,
+    copper_bottom  = 7,
+    vacuum_sides   = 4,
+    copper_sides   = 4
+};
+}
+
+/** Vtk cell types */
+namespace VtkType {
+enum {
+    // Linear cells
+    empty_cell       = 0,
+    vertex           = 1,
+    poly_vertex      = 2,
+    line             = 3,
+    poly_line        = 4,
+    triangle         = 5,
+    triangle_strip   = 6,
+    polygon          = 7,
+    pixel            = 8,
+    quadrangle       = 9,
+    tetrahedron      = 10,
+    voxel            = 11,
+    hexahedron       = 12,
+    wedge            = 13,
+    pyramid          = 14,
+    pentagonal_prism = 15,
+    hexagonal_prism  = 16,
+
+    // Quadratic, isoparametric cells
+    quadratic_edge                   = 21,
+    quadratic_triangle               = 22,
+    quadratic_quadrangle             = 23,
+    quadratic_polygon                = 36,
+    quadratic_tetrahedron            = 24,
+    quadratic_hexahedron             = 25,
+    quadratic_wedge                  = 26,
+    quadratic_pyramid                = 27,
+    biquadratic_quadrangle           = 28,
+    triquadratic_hexahedron          = 29,
+    quadratic_linear_quadrangle      = 30,
+    quadratic_linear_wedge           = 31,
+    biquadratic_quadratic_wedge      = 32,
+    biquadratic_quadratic_hexahedron = 33,
+    biquadratic_triangle             = 34,
+
+    // Polyhedron cell (consisting of polygonal faces)
+    polyhedron = 42
+};
+}
+
+/** Gmesh cell types */
+namespace GmshType {
+enum {
+    vertex                  = 15, ///< 1-node point
+    line                    = 1,  ///< 2-node line
+    triangle                = 2,  ///< 3-node triangle
+    quadrangle              = 3,  ///< 4-node quadrangle
+    tetrahedron             = 4,  ///< 4-node tetrahedron
+    hexahedron              = 5,  ///< 8-node hexahedron
+    quadratic_edge          = 8,  ///< 3-node second order line
+    quadratic_triangle      = 9,  ///< 6-node second order triangle
+    quadratic_quadrangle    = 16, ///< 8-node second order quadrangle
+    quadratic_tetrahedron   = 11, ///< 10-node second order tetrahedron
+    quadratic_hexahedron    = 17, ///< 20-node second order hexahedron
+    biquadratic_quadrangle  = 10, ///< 9-node second order quadrangle
+    triquadratic_hexahedron = 12  ///< 27-node second order hexahedron
+};
+}
 
 /** Labels of the calculated/exported/interpolated data. */
 struct Labels {
@@ -121,9 +145,10 @@ struct Labels {
     const string pair_potential_sum = "pair_potential_sum";
     const string parcas_force = "parcas_force";
     const string charge_force = "charge_force";
-    const string force = "force";
+    const string force = "elforce";
     const string force_norm = "force_norm";
     const string charge = "charge";
+    const string charge_density = "charge_density";
     const string parcas_velocity = "parcas_velocity";
     const string velocity = "velocity";
     const string velocity_norm = "velocity_norm";
@@ -136,14 +161,15 @@ struct Labels {
 struct Modes {
     bool MUTE = false;       ///< If QUIET no information about the code execution progress is printed to console.
     bool VERBOSE = true;     ///< If VERBOSE all the information about the code execution progress is printed to console.
-    bool WRITEFILE = true;   ///< If WRITEFILE then file writers operate normally, otherwise they return immediately.
     bool WRITELOG = true;    ///< If WRITELOG then writing log file is enabled
     bool SHORTLOG = true;    ///< If SHORTLOG then only the last timestep is stored in log file
     bool PERIODIC = true;    ///< If PERIODIC then imported atoms have periodic boundaries in x- & y-direction
+    double WRITE_PERIOD = 0; ///< Min time in fs between two consequent writes to the same file; 0 enables writing at every call and <0 turns writing off
 };
 
 struct Globals {
     double TIME = 0;         ///< Simulation time in fs
+    int TIMESTEP = 0;        ///< Simulation time step
 };
 
 // Small hack to define structs only once

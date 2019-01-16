@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <typeinfo>
 
 using namespace std;
 namespace femocs {
@@ -24,9 +25,13 @@ namespace femocs {
 
 /** Template to convert any (numerical) data to string */
 template<typename T>
-inline string d2s(T data, int prec=-1) {
+inline string d2s(T data, int prec=-1, char mode=' ') {
     ostringstream o;
-    if (prec >= 0) { o << fixed; o.precision(prec); }
+    if (prec >= 0) {
+        o.precision(prec);
+        if (mode == 's') o.setf(std::ios::scientific);
+        else o.setf(std::ios::fixed);
+    }
     if (!(o << data)) throw runtime_error("Bad conversion of data to string!");
     return o.str();
 }
@@ -94,6 +99,10 @@ bool on_boundary(const double val, const double boundary, const double eps);
 /** Extract file type from file name */
 string get_file_type(const string& file_name);
 
+/** Obtain underlying class name */
+#define class_name() return_class_name(typeid(*this).name())
+string return_class_name(const string& typeid_name);
+
 /** Write message to log file and if in silent or verbose mode, also to console */
 void write_silent_msg(const string& message);
 
@@ -114,6 +123,9 @@ void start_msg(double& t0, const string& message);
 
 /** Print the execution time of the code */
 void end_msg(const double t0);
+
+/** Execute (Linux) terminal command */
+int execute(const string& cmd);
 
 /** Determine whether given string contains a digit */
 inline bool contains_digit(const string& s) {

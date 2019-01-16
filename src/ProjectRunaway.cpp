@@ -18,12 +18,12 @@ namespace femocs {
 
 ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         GeneralProject(reader, config),
-        fail(false), t0(0), timestep(0), mesh_changed(false),
-		last_heat_time(0), last_write_time(0),
-		last_write_ts(0), last_mesh_write_ts(0),
+        fail(false), t0(0), mesh_changed(false), first_run(true),
+		last_heat_time(-conf.behaviour.timestep_fs),
+		last_restart_ts(0), restart_cntr(1),
 
-        vacuum_interpolator("elfield", "potential"),
-        bulk_interpolator("rho", "temperature"),
+        vacuum_interpolator(LABELS.elfield, LABELS.charge_density, LABELS.potential),
+        bulk_interpolator(LABELS.rho, LABELS.potential, LABELS.temperature),
 
         fields(&vacuum_interpolator),
         temperatures(&bulk_interpolator),
@@ -31,65 +31,60 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 
         surface_fields(&vacuum_interpolator),
         surface_temperatures(&bulk_interpolator),
+        heat_transfer(&bulk_interpolator),
 
         phys_quantities(config.heating),
         poisson_solver(&config.field, &vacuum_interpolator.linhex),
-        ch_solver(&phys_quantities, &config.heating),
 
-        emission(&surface_fields, &surface_temperatures, &poisson_solver, &vacuum_interpolator)
+        emission(&surface_fields, &surface_temperatures, &vacuum_interpolator),
+        ch_solver(&phys_quantities, &config.heating, &emission)
 {
-    temperatures.set_params(config);
+    surface_fields.set_preferences(false, 2, 3);
+    surface_temperatures.set_preferences(false, 2, 3);
+    heat_transfer.set_preferences(true, 3, 1);
 
-    // Initialise heating module
     start_msg(t0, "Reading physical quantities");
     phys_quantities.initialize_with_hc_data();
     end_msg(t0);
 }
 
-int ProjectRunaway::reinit(int tstep, double time) {
-    ++timestep;
+int ProjectRunaway::reinit() {
+    // must be before the increment of timestep,
+    // as mdlat.out is written in Parcas AFTER calling Femocs
+    copy_mdlat();
 
-    timestep_string = d2s(timestep);
-    timestep_string = "_" + string( max(0.0, 6.0 - timestep_string.length()), '0' ) + timestep_string;
+    GLOBALS.TIMESTEP++;
+    conf.read_all();
 
-    mesh_changed = false;
-    bool skip_meshing = reader.get_rmsd() < conf.tolerance.distance;
+    double rmsd = reader.get_rmsd();
+    string rmsd_string = "inf";
+    if (rmsd < 1e100) rmsd_string = d2s(rmsd);
 
-    MODES.WRITEFILE = conf.behaviour.n_writefile > 0 && (
-            last_write_ts == 0 ||
-            last_mesh_write_ts == 0 ||
-            (timestep - last_write_ts) >= conf.behaviour.n_writefile
-            );
+    write_silent_msg("Running at timestep=" + d2s(GLOBALS.TIMESTEP)
+            + ", time=" + d2s(GLOBALS.TIME, 2) + " fs, rmsd=" + rmsd_string);
 
-    write_silent_msg("Running at timestep=" + d2s(timestep) + ", time=" + d2s(GLOBALS.TIME, 2) + " fs");
-    return skip_meshing;
+    return rmsd < conf.geometry.distance_tol;
 }
 
-int ProjectRunaway::finalize(double tstart, double time) {
-    GLOBALS.TIME += conf.behaviour.timestep_fs;
-    reader.save_current_run_points(conf.tolerance.distance);
+int ProjectRunaway::finalize(double tstart) {
+    if (mesh_changed) reader.save_current_run_points();
+    GLOBALS.TIME = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs;
 
+    write_restart();
     write_silent_msg("Total execution time " + d2s(omp_get_wtime()-tstart, 3));
 
-    // determine whether log file will be written on next timestep
-    if (conf.behaviour.n_write_log > 0)
-        MODES.WRITELOG = (timestep+1)%conf.behaviour.n_write_log == 0;
-
-    // update file output counters
-    if (MODES.WRITEFILE) {
-        last_write_ts = timestep;
-        if (mesh_changed) last_mesh_write_ts = timestep;
-    }
-
+    mesh_changed = false;
+    first_run = false;
     return 0;
 }
 
 int ProjectRunaway::process_failed(const string &msg) {
     write_verbose_msg(msg);
-//    force_output();
-    GLOBALS.TIME += conf.behaviour.timestep_fs;
+    GLOBALS.TIME = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs;
+    require(!first_run, "First full run failed!");
+
     if (conf.behaviour.n_write_log > 0)
-        MODES.WRITELOG = (timestep+1)%conf.behaviour.n_write_log == 0;
+        MODES.WRITELOG = (GLOBALS.TIMESTEP+1)%conf.behaviour.n_write_log == 0;
     return 1;
 }
 
@@ -98,46 +93,35 @@ int ProjectRunaway::run(const int timestep, const double time) {
 
     //***** Build or import mesh *****
 
-    if (reinit(timestep, time)) {
-        write_verbose_msg("Atoms haven't moved significantly, "
-                + d2s(reader.get_rmsd(), 3) + " < " + d2s(conf.tolerance.distance, 3)
-                + "! Previous mesh will be used!");
+    if (reinit()) {
+        write_verbose_msg("Atoms haven't moved significantly. Previous mesh will be used.");
         dense_surf.update_positions(reader);
     }
 
     else if (generate_mesh())
         return process_failed("Mesh generation failed!");
 
-    if (mesh_changed && prepare_solvers())
+    if (prepare_solvers())
         return process_failed("Preparation of FEM solvers failed!");
 
     //***** Run FEM solvers *****
 
     if (run_field_solver())
-        return process_failed("Running field solver in a " + conf.field.solver + " mode failed!");
+        return process_failed("Running field solver in a " + conf.field.mode + " mode failed!");
 
     if (run_heat_solver())
         return process_failed("Running heat solver in a " + conf.heating.mode + " mode failed!");
 
+    // it is crucial that the update of new_mesh pointer AND mesh of bulk_interpolator
+    // happens within time interval where no error can occur
+    update_mesh_pointers();
 
     //***** Prepare for data export and next run *****
-
-    // Must be here to ensure old mesh is not deleted too early nor too late
-    update_mesh_pointers();
 
     if (prepare_export())
         return process_failed("Interpolating solution on atoms failed!");
 
-    return finalize(tstart, time);
-}
-
-void ProjectRunaway::update_mesh_pointers() {
-    static bool odd_run = true;
-    if (mesh_changed) {
-        if (odd_run) new_mesh = &mesh2;
-        else new_mesh = &mesh1;
-        odd_run = !odd_run;
-    }
+    return finalize(tstart);
 }
 
 int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
@@ -146,7 +130,7 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
     end_msg(t0);
     dense_surf.write("out/surface_dense.xyz");
 
-    if (GLOBALS.TIME == 0) {
+    if (first_run) {
         start_msg(t0, "Extending surface");
         dense_surf.extend(extended_surf, conf);
         end_msg(t0);
@@ -154,7 +138,7 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
     }
 
     start_msg(t0, "Coarsening surface");
-    dense_surf.generate_boundary_nodes(bulk, coarse_surf, vacuum, extended_surf, conf, GLOBALS.TIME==0);
+    dense_surf.generate_boundary_nodes(bulk, coarse_surf, vacuum, extended_surf, conf, first_run);
     end_msg(t0);
 
     if (MODES.VERBOSE)
@@ -188,14 +172,15 @@ int ProjectRunaway::generate_mesh() {
         end_msg(t0);
     }
 
-    MODES.WRITEFILE |= conf.behaviour.n_writefile > 0 && (timestep - last_mesh_write_ts) >= conf.behaviour.n_writefile;
-
-    new_mesh->nodes.write("out/hexmesh_nodes.vtk");
-    new_mesh->tris.write("out/trimesh.vtk");
-    new_mesh->quads.write("out/quadmesh.vtk");
-    new_mesh->tets.write("out/tetmesh.vtk");
-    new_mesh->hexs.write("out/hexmesh.vtk");
-    new_mesh->write_separate("out/hexmesh_bulk" + timestep_string + ".vtk", TYPES.BULK);
+    if (mesh1.write_time() || mesh2.write_time()) {
+        new_mesh->nodes.write("out/hexmesh_nodes.vtk");
+        new_mesh->tris.write("out/trimesh.vtk");
+        new_mesh->quads.write("out/quadmesh.vtk");
+        new_mesh->tets.write("out/tetmesh.vtk");
+        new_mesh->hexs.write("out/hexmesh.vtk");
+        new_mesh->write_separate("out/hexmesh_bulk.vtks", TYPES.BULK);
+        mesh1.set_write_time(); mesh2.set_write_time();
+    }
 
     // update mesh pointers
     mesh = new_mesh;
@@ -205,26 +190,81 @@ int ProjectRunaway::generate_mesh() {
     return 0;
 }
 
-int ProjectRunaway::prepare_solvers() {
+int ProjectRunaway::import_mesh() {
     start_msg(t0, "Importing vacuum mesh to Deal.II");
     fail = !poisson_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_vacuum());
     check_return(fail, "Importing vacuum mesh to Deal.II failed!");
     end_msg(t0);
 
-    if (conf.field.solver == "poisson" || conf.heating.mode != "none") {
+    if (conf.field.mode != "laplace" || conf.heating.mode != "none") {
         start_msg(t0, "Importing bulk mesh to Deal.II");
         fail = !ch_solver.import_mesh(mesh->nodes.export_dealii(), mesh->hexs.export_bulk());
         check_return(fail, "Importing bulk mesh to Deal.II failed!");
         end_msg(t0);
+    }
 
-        // in case of first run, give initial values to the temperature
-        // interpolator and set interpolation preferences
+    return 0;
+}
+
+void ProjectRunaway::update_mesh_pointers() {
+    static bool odd_run = true;
+    if (mesh_changed) {
+        if (odd_run) new_mesh = &mesh2;
+        else new_mesh = &mesh1;
+        odd_run = !odd_run;
+    }
+}
+
+void ProjectRunaway::calc_surf_temperatures() {
+    static bool make_intermediate_step = false;
+    if (mesh_changed) {
+        surface_temperatures.interpolate(ch_solver);
+        make_intermediate_step = true;
+    } else if (make_intermediate_step) {
+        surface_temperatures.calc_full_interpolation();
+        make_intermediate_step = false;
+    } else
+        surface_temperatures.calc_interpolation();
+}
+
+int ProjectRunaway::prepare_solvers() {
+    // import Tetgen mesh to Deal.II
+    if (mesh_changed) {
+        int error = import_mesh();
+        if (error) return 1;
+    }
+
+    // halt in case of NO field emission
+    if (conf.field.mode == "laplace" && conf.heating.mode == "none")
+        return 0;
+
+    // initialize the calculation of field emission
+    if (mesh_changed) {
+        // setup ch_solver here as it must be done before transferring previous heat values into new mesh,
+        // which in turn must be done before re-initializing bulk_interpolator
+        start_msg(t0, "Setup current & heat solvers");
+        ch_solver.setup(conf.heating.t_ambient);
+        end_msg(t0);
+        write_verbose_msg(ch_solver.heat.to_str());
+
+        ch_solver.export_surface_centroids(surface_fields);
+        emission.initialize(mesh);
+
+        // in case of first run, give initial values to the temperature interpolator,
+        // otherwise transfer existing temperatures to new mesh
         if (bulk_interpolator.nodes.size() == 0) {
-            bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK);
-            surface_fields.set_preferences(false, 2, 3);
-            surface_temperatures.set_preferences(false, 2, 3);
+            bulk_interpolator.initialize(mesh, conf.heating.t_ambient, TYPES.BULK);
+        } else {
+            start_msg(t0, "Transferring old temperatures to new mesh");
+            heat_transfer.interpolate_dofs(ch_solver, mesh);
+            end_msg(t0);
+            heat_transfer.write("out/heat_transfer.xyz");
         }
     }
+
+    start_msg(t0, "Calculating surface temperatures");
+    calc_surf_temperatures();
+    end_msg(t0);
 
     return 0;
 }
@@ -237,7 +277,7 @@ int ProjectRunaway::prepare_export() {
 
     start_msg(t0, "Interpolating E & phi");
     if (mesh_changed) {
-        fields.set_preferences(true, 2, 1);
+        fields.set_preferences(false, 2, conf.behaviour.interpolation_rank);
         fields.interpolate(dense_surf);
     } else {
         fields.update_positions(dense_surf);
@@ -253,14 +293,12 @@ int ProjectRunaway::prepare_export() {
         if (mesh_changed) {
             temperatures.set_preferences(false, 3, conf.behaviour.interpolation_rank);
             temperatures.interpolate(reader);
-            temperatures.precalc_berendsen_long();
+            temperatures.precalc_berendsen();
         } else {
             temperatures.update_positions(reader);
-            temperatures.calc_interpolation();
         }
         end_msg(t0);
-
-        temperatures.write("out/temperatures.xyz");
+        // writing temperatures will be done during Berendsen scaling
         // TODO implement reasonable temperature limit check
     }
 
@@ -270,6 +308,7 @@ int ProjectRunaway::prepare_export() {
             retval = solve_force();
         else {
             start_msg(t0, "Recalculating forces");
+            forces.update_positions(dense_surf);
             forces.recalc_lorentz(fields);
             if (conf.force.mode == "all")
                 forces.calc_coulomb(conf.geometry.charge_cutoff);
@@ -284,7 +323,11 @@ int ProjectRunaway::prepare_export() {
 }
 
 int ProjectRunaway::run_field_solver() {
-    if (mesh_changed && conf.field.solver == "laplace")
+    // Store parameters for comparing the results with analytical hemi-ellipsoid results
+    if (mesh_changed)
+        fields.set_check_params(conf, conf.geometry.radius, mesh->tris.stat.zbox, mesh->nodes.stat.zbox);
+
+    if (mesh_changed)
         return solve_laplace(conf.field.E0, conf.field.V0);
 
     return 0;
@@ -292,9 +335,11 @@ int ProjectRunaway::run_field_solver() {
 
 int ProjectRunaway::run_heat_solver() {
     int ccg, hcg;
-    bool b1 = GLOBALS.TIME - last_heat_time >= conf.heating.delta_time;
+
+    double delta_time = GLOBALS.TIME - last_heat_time;
+    bool b1 = delta_time >= conf.heating.delta_time;
     if (conf.heating.mode == "transient" && (mesh_changed || b1))
-        return solve_heat(conf.heating.t_ambient, GLOBALS.TIME - last_heat_time, mesh_changed, ccg, hcg);
+        return solve_heat(conf.heating.t_ambient, delta_time, mesh_changed, ccg, hcg);
 
     return 0;
 }
@@ -346,12 +391,9 @@ int ProjectRunaway::solve_force() {
 }
 
 int ProjectRunaway::solve_laplace(double E0, double V0) {
-    // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    fields.set_check_params(conf, conf.geometry.radius, mesh->tris.stat.zbox, mesh->nodes.stat.zbox);
-
     start_msg(t0, "Initializing Laplace solver");
     poisson_solver.setup(-E0, V0);
-    poisson_solver.assemble_laplace(true);
+    poisson_solver.assemble(true);
     end_msg(t0);
 
     write_verbose_msg(poisson_solver.to_str());
@@ -362,8 +404,8 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
     check_return(ncg < 0, "Field solver did not complete normally,"
             " #CG=" + d2s(abs(ncg)) + "/" + d2s(conf.field.n_cg));
 
-    start_msg(t0, "Extracting E and phi");
-    vacuum_interpolator.initialize(mesh, poisson_solver, 0, TYPES.VACUUM);
+    start_msg(t0, "Extracting E & phi");
+    vacuum_interpolator.initialize(mesh, 0, TYPES.VACUUM);
     vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
     end_msg(t0);
 
@@ -376,32 +418,7 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
 }
 
 int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {
-    if (full_run) ch_solver.setup(T_ambient);
-
-    static bool make_intermediate_step = false;
-    start_msg(t0, "Transferring field & temperature");
-    if (full_run) {
-        surface_fields.interpolate(ch_solver);
-        surface_temperatures.interpolate(ch_solver);
-        bulk_interpolator.initialize(mesh, ch_solver, conf.heating.t_ambient, TYPES.BULK); // must be after interpolation as it clears previous data
-        make_intermediate_step = true;
-    } else if (make_intermediate_step) {
-        surface_temperatures.calc_full_interpolation();
-        make_intermediate_step = false;
-    } else
-        surface_temperatures.calc_interpolation();
-    end_msg(t0);
-
-    surface_fields.write("out/surface_fields.movie");
-    surface_temperatures.write("out/surface_temperatures.movie");
-
-    start_msg(t0, "Calculating electron emission");
-    emission.initialize(mesh, full_run);
-    emission.calc_emission(conf.emission, conf.field.V0);
-    emission.export_emission(ch_solver);
-    end_msg(t0);
-
-    emission.write("out/emission.movie");
+    calc_heat_emission(full_run);
 
     start_msg(t0, "Calculating current density");
     ch_solver.current.assemble();
@@ -417,9 +434,12 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     end_msg(t0);
     check_return(hcg < 0, "Heat solver did not complete normally,"
             " #CG=" + d2s(abs(hcg)) + "/" + d2s(conf.heating.n_cg));
+
+    ch_solver.write("out/ch_solver.movie");
     write_verbose_msg("#CG steps: " + d2s(hcg));
 
     start_msg(t0, "Extracting J & T");
+    bulk_interpolator.initialize(mesh, conf.heating.t_ambient, TYPES.BULK);
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
@@ -431,49 +451,18 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     return 0;
 }
 
-int ProjectRunaway::write_results(bool force_write){
-
-    if (!write_time() && !force_write) return 1;
-
-    vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
-    vacuum_interpolator.nodes.write("out/result_E_phi.movie");
-    vacuum_interpolator.linhex.write("out/result_E_phi.vtk");
-
-    if (emission.atoms.size() > 0)
-        emission.write("out/surface_emission.movie");
-
-    if (conf.heating.mode != "none"){
-        bulk_interpolator.nodes.write("out/result_J_T.movie");
-        bulk_interpolator.lintet.write("out/result_J_T.vtk");
+void ProjectRunaway::calc_heat_emission(bool full_run) {
+    if (full_run) {
+        start_msg(t0, "Calculating surface fields");
+        surface_fields.calc_interpolation();
+        end_msg(t0);
+        surface_fields.write("out/surface_fields.movie");
     }
 
-    last_write_time = GLOBALS.TIME;
-    return 0;
-}
-
-int ProjectRunaway::force_output() {
-    if (conf.behaviour.n_writefile <= 0) return 1;
-
-    MODES.WRITEFILE = true;
-
-    reader.write("out/reader_err.ckx");
-
-    if (mesh && mesh->nodes.size() > 0) {
-        mesh->hexs.write("out/hexmesh_err.vtk");
-        mesh->quads.write("out/quadmesh_err.vtk");
-    }
-
-    if (conf.field.solver != "none" && vacuum_interpolator.nodes.size() > 0) {
-        vacuum_interpolator.nodes.write("out/result_E_phi_err.xyz");
-        vacuum_interpolator.lintet.write("out/result_E_phi_err.vtk");
-    }
-
-    if (conf.heating.mode != "none" && bulk_interpolator.nodes.size() > 0) {
-        bulk_interpolator.nodes.write("out/result_J_T_err.xyz");
-        bulk_interpolator.lintet.write("out/result_J_T_err.vtk");
-    }
-
-    return 0;
+    start_msg(t0, "Calculating electron emission");
+    emission.calc_emission(conf.emission, conf.emission.omega * conf.field.V0);
+    end_msg(t0);
+    emission.write("out/emission.movie");
 }
 
 int ProjectRunaway::export_data(double* data, const int n_points, const string &data_type) {
@@ -492,7 +481,7 @@ int ProjectRunaway::export_data(double* data, const int n_points, const string &
         return forces.export_parcas(n_points, data_type, reader.get_si2parcas_box(), data);
 
     if (data_type == LABELS.parcas_velocity)
-        return temperatures.scale_berendsen_long(data, n_points, reader.get_parcas2si_box());
+        return temperatures.scale_berendsen(data, n_points, reader.get_parcas2si_box(), conf);
 
     if (data_type == LABELS.atom_type) {
         require(n_points <= reader.size(), "Invalid data query size: " + d2s(n_points));
@@ -531,6 +520,77 @@ int ProjectRunaway::interpolate(double* data, int* flag,
 
     require(false, "Unimplemented type of interpolation data: " + data_type);
     return 1;
+}
+
+int ProjectRunaway::restart(const string &path_to_file) {
+    start_msg(t0, "Reading restart file from " + path_to_file);
+    fail = new_mesh->read(path_to_file, "");
+    bulk_interpolator.initialize(new_mesh, conf.heating.t_ambient, TYPES.BULK);
+    bulk_interpolator.nodes.read(path_to_file, 1);
+
+    last_heat_time = GLOBALS.TIME - conf.behaviour.timestep_fs;
+    last_restart_ts = GLOBALS.TIMESTEP;
+    end_msg(t0);
+
+    write_verbose_msg(new_mesh->to_str());
+
+    require(new_mesh->nodes.size() == bulk_interpolator.nodes.size(),
+            "Mismatch between mesh and interpolator sizes: " +
+            d2s(new_mesh->nodes.size()) + " vs " + d2s(bulk_interpolator.nodes.size()));
+
+    mesh = new_mesh;
+    mesh_changed = true;
+    update_mesh_pointers();
+
+    return 0;
+}
+
+void ProjectRunaway::write_restart() {
+    if (conf.behaviour.n_restart <= 0 ||
+             (GLOBALS.TIMESTEP - last_restart_ts) < conf.behaviour.n_restart)
+        return;
+
+    // make restart file to in-folder to reduce the risk
+    // of accidentally deleting it while restarting system
+    string path = "in/femocs.restart";
+    unsigned int flags = FileIO::force | FileIO::no_update | FileIO::append;
+
+    mesh->write(path, FileIO::force | FileIO::no_update);
+    bulk_interpolator.nodes.write(path, flags);
+
+    // after longer periods make copies of last restart files
+    // to have an access to intermediate steps
+    if (conf.behaviour.restart_multiplier > 0 &&
+            (restart_cntr % conf.behaviour.restart_multiplier) == 0)
+    {
+        fail = execute("cp " + path + " out/femocs_" + d2s(GLOBALS.TIMESTEP) +  ".restart");
+    }
+}
+
+void ProjectRunaway::copy_mdlat() {
+    if (conf.behaviour.n_restart <= 0 ||
+             (GLOBALS.TIMESTEP - last_restart_ts) < conf.behaviour.n_restart)
+        return;
+
+    // if mdlat-file exists, copy this to in-folder to reduce the risk
+    // of accidentally deleting it while restarting system
+    string mdlat_path = "out/mdlat.out";
+    bool mdlat_exists = (bool)ifstream(mdlat_path);
+    if (mdlat_exists)
+        fail = execute("cp " + mdlat_path + " in/mdlat.in");
+
+    // after longer periods make copies of last restart files
+    // to have an access to intermediate steps
+    if (conf.behaviour.restart_multiplier > 0 &&
+            (restart_cntr++ % conf.behaviour.restart_multiplier) == 0)
+    {
+        restart_cntr = 1;
+        if (mdlat_exists)
+            fail = execute("mv " + mdlat_path + " out/mdlat_" + d2s(GLOBALS.TIMESTEP) + ".out");
+    }
+
+    last_restart_ts = GLOBALS.TIMESTEP;
+    // make sure last_restart_ts and restart_cntr are updated by this point
 }
 
 } /* namespace femocs */

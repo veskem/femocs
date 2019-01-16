@@ -15,7 +15,6 @@
 using namespace std;
 namespace femocs {
 
-// Coarsener constructors
 Coarsener::Coarsener() :
         origin3d(Point3(0)), exponential(0.5), cutoff2(0), radius(0), radius2(0), r0_min(0), r0_max(0), A(0) {}
 
@@ -24,12 +23,10 @@ Coarsener::Coarsener(const Point3 &origin, const double exp, const double radius
         origin3d(origin), exponential(exp), cutoff2(0), radius(radius), radius2(radius*radius),
         r0_min(r0_min), r0_max(r0_max), A(A) {}
 
-// ConstCoarsener for coarsening area uniformly
 ConstCoarsener::ConstCoarsener() : Coarsener() {}
 
 ConstCoarsener::ConstCoarsener(const double r0_min) : Coarsener(Point3(), 0, 0, 0, r0_min) {}
 
-// FlatlandCoarsener for coarsening area outside one infinite cylinder
 FlatlandCoarsener::FlatlandCoarsener() : Coarsener(), origin2d(0.0) {}
 
 FlatlandCoarsener::FlatlandCoarsener(const Point3 &origin, const double exp, const double radius,
@@ -37,21 +34,18 @@ FlatlandCoarsener::FlatlandCoarsener(const Point3 &origin, const double exp, con
         Coarsener(origin, exp, radius, A, r0_min, r0_max),
         origin2d(origin.x, origin.y) {}
 
-// CylinderCoarsener for coarsening area inside one infinite cylinder
 CylinderCoarsener::CylinderCoarsener() : Coarsener(), origin2d(0.0) {}
 
 CylinderCoarsener::CylinderCoarsener(const Point2 &base, const double exp, const double radius,
         const double r0_cylinder) :
         Coarsener(Point3(), exp, radius, 0, r0_cylinder), origin2d(base.x, base.y) {}
 
-// NanotipCoarsener for coarsening area inside one infinite vertical nanotip
 NanotipCoarsener::NanotipCoarsener() : Coarsener(), origin2d(0.0) {}
 
 NanotipCoarsener::NanotipCoarsener(const Point3 &apex, const double exp, const double radius,
         const double A, const double r0_apex, const double r0_cylinder) :
         Coarsener(apex, exp, radius, A, r0_apex, r0_cylinder), origin2d(apex.x, apex.y) {}
 
-// TiltedNanotipCoarsener for coarsening area inside one infinite tilted nanotip
 TiltedNanotipCoarsener::TiltedNanotipCoarsener() : NanotipCoarsener(), bottom(Vec3()), axis(Vec3()), height2(0) {}
 
 TiltedNanotipCoarsener::TiltedNanotipCoarsener(const Point3 &apex, const Point3 &base, const double exp,
@@ -180,7 +174,6 @@ vector<Point3> NanotipCoarsener::get_points(const double zmin) {
     return points;
 }
 
-// Generate coarseners for one nanotip system
 void Coarseners::generate(const Medium &medium, const double radius,
     const Config::CoarseFactor &cf, const double latconst)
 {
@@ -207,7 +200,6 @@ void Coarseners::generate(const Medium &medium, const double radius,
     attach_coarsener( make_shared<FlatlandCoarsener>(centre, cf.exponential, radius, amplitude, r0_flat) );
 }
 
-// Return the average z-coordinate of substrate atoms
 double Coarseners::get_z_mean(const Medium& medium) {
     const int n_atoms = medium.size();
     const int n_bins = 100;
@@ -241,7 +233,6 @@ double Coarseners::get_z_mean(const Medium& medium) {
     return zmean / n_average;
 }
 
-// Get histogram for atom z-coordinates
 void Coarseners::get_histogram(vector<int> &bins, vector<double> &bounds, const Medium& medium) {
     const int n_atoms = medium.size();
     const int n_bins = bins.size();
@@ -274,7 +265,6 @@ void Coarseners::get_histogram(vector<int> &bins, vector<double> &bounds, const 
     }
 }
 
-// Get the distance between atoms on the edge of simulation cell
 double Coarseners::get_r0_inf(const Medium::Sizes &s) {
     const double max_distance = centre.distance(Point3(s.xmin, s.ymin, s.zmin));
     if ((max_distance - radius) > 0)
@@ -283,7 +273,6 @@ double Coarseners::get_r0_inf(const Medium::Sizes &s) {
         return r0_cylinder;
 }
 
-// Determine whether the point of interest is inside the interesting region
 bool Coarseners::inside_interesting_region(const Point3& p) const {
     const double min_angle = M_PI / 6.0;
     Vec3 diff(p - centre);
@@ -292,20 +281,9 @@ bool Coarseners::inside_interesting_region(const Point3& p) const {
     return inside_tip && inside_cone;
 }
 
-// Write the contours of coarseners to file in .vtk format
-void Coarseners::write(const string &file_name) {
-    if (!MODES.WRITEFILE) return;
-
-    string file_type = get_file_type(file_name);
-    require(file_type == "vtk", "Unimplemented file type: " + file_type);
-
-    std::ofstream out(file_name.c_str());
-    require(out, "File " + file_name + " cannot be opened for writing!");
-
-    out.precision(8);
-
+void Coarseners::write_vtk(ofstream &out) const {
     out << "# vtk DataFile Version 3.0\n";
-    out << "# Coarsener data\n";
+    out << "# " + class_name() + "\n";
     out << "ASCII\n";
     out << "DATASET POLYDATA\n";
 
@@ -314,7 +292,7 @@ void Coarseners::write(const string &file_name) {
     for (auto &c : coarseners)
         n_points += c->get_n_points();
 
-    out << "\nPOINTS " << n_points << " float\n";
+    out << "POINTS " << n_points << " float\n";
 
     // Write points to file
     for (auto &c : coarseners)
@@ -329,16 +307,19 @@ void Coarseners::write(const string &file_name) {
         n_total += c->get_n_polygons() + c->get_n_points();
     }
 
-    out << "\nPOLYGONS " << n_polygons << " " << n_total << "\n";
+    out << "POLYGONS " << n_polygons << " " << n_total << "\n";
 
     // Write polygons to file
     int offset = 0;
     for (auto &c : coarseners) {
         for (vector<int> polygon : c->get_polygons()) {
-            out << polygon.size() << " ";  // number of nodes
-            for (int node : polygon)
-                out << (node + offset) << " ";        // index of node
-            out << "\n";
+            int n_nodes = polygon.size(); // number of nodes in polygon
+            if (n_nodes > 0) {
+                out << n_nodes;
+                for (int node : polygon)
+                    out << " " << (node + offset);   // index of node
+                out << "\n";
+            }
         }
         offset += c->get_n_points();
     }

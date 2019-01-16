@@ -11,6 +11,7 @@
 #include "GeneralProject.h"
 #include "Surface.h"
 #include "SolutionReader.h"
+#include "EmissionReader.h"
 #include "Interpolator.h"
 #include "PhysicalQuantities.h"
 #include "PoissonSolver.h"
@@ -38,9 +39,6 @@ public:
      */
     int run(const int timestep=-1, const double time=-1);
 
-    /** Force the data to the files for debugging purposes */
-    int force_output();
-
     /** Export the solution on the imported atomistic points.
      * @param n_points   # of first imported atoms where data exported; 0 disables the export
      * @param data_type  label of the data to be exported. See Labels class for a list of possible cmd-s
@@ -60,18 +58,17 @@ public:
             const int n_points, const string &data_type, const bool near_surface,
             const double* x, const double* y, const double* z);
 
+    /** Read and generate simulation data to continue running interrupted simulation */
+    int restart(const string &path_to_file);
+
 protected:
     bool fail;                  ///< If some process failed
     double t0;                  ///< CPU timer
-    int timestep;               ///< counter to measure how many times Femocs has been called
     bool mesh_changed;          ///< True if new mesh has been created
-
-    string timestep_string;     ///< time step written to file name
-
+    bool first_run;             ///< True only as long as there is no full run
     double last_heat_time;      ///< Last time heat was updated
-    double last_write_time;     ///< Keeps the time that last file output was done
-    int last_write_ts;          ///< Last timestep with full file write
-    int last_mesh_write_ts;     ///< Last timestep with mesh file write
+    int last_restart_ts;        ///< Last time step reset file was written
+    int restart_cntr;           ///< How many restart files have been written
 
     Interpolator vacuum_interpolator;  ///< data & operations for interpolating field & potential in vacuum
     Interpolator bulk_interpolator;    ///< data & operations for interpolating current density & temperature in bulk
@@ -85,6 +82,7 @@ protected:
 
     FieldReader surface_fields;       ///< fields on surface hex face centroids
     HeatReader  surface_temperatures; ///< temperatures & current densities on surface hex face centroids
+    HeatReader  heat_transfer;        ///< temperatures on new mesh dofs interpolated on old solution space
 
     PhysicalQuantities phys_quantities; ///< quantities used in heat calculations
     PoissonSolver<3> poisson_solver;    ///< Poisson equation solver
@@ -95,11 +93,12 @@ protected:
     /** Generate bulk and vacuum meshes using the imported atomistic data */
     int generate_mesh();
 
-    /** Import mesh to FEM solvers and initialize interpolators */
+    /** Pass mesh to all the objects that need it
+     * and transfer temperature from previous iteration to the new mesh */
     int prepare_solvers();
 
-    /** Write output data to files */
-    int write_results(bool force_write = false);
+    /** Calculate data of interest on the locations of imported atoms */
+    int prepare_export();
 
     /** Solve Laplace equation on vacuum mesh */
     int solve_laplace(double E0, double V0);
@@ -110,26 +109,27 @@ protected:
     /** Using the electric field, calculate atomistic charge together with Lorenz and/or Coulomb force */
     int solve_force();
 
-    /** Calculate data of interest on the locations of imported atoms */
-    int prepare_export();
-
     /** Store the imported atom coordinates and set the flag that enables exporters */
-    int finalize(double tstart, double time);
+    int finalize(double tstart);
 
     /** Handle failed subprocess */
     int process_failed(const string &msg);
 
+private:
+    /** Determine whether atoms have moved significantly and whether to enable file writing */
+    int reinit();
+
+    /** Generate boundary nodes for mesh */
+    int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
+
+    /** Transfer mesh from Tetgen into Deal.II */
+    int import_mesh();
+
+    /** Interpolate temperature on the centroids of surface quadrangles */
+    void calc_surf_temperatures();
+
     /** Specify mesh address where new mesh will be generated on next run */
     void update_mesh_pointers();
-
-private:
-    /** Check if enough time has passed since the last file write_results */
-    bool write_time() const {
-        return GLOBALS.TIME >= (last_write_time + conf.behaviour.write_period);
-    }
-
-    /** Determine whether atoms have moved significantly and whether to enable file writing */
-    int reinit(int timestep, double time);
 
     /** Pick a field solver and calculcate field distribution */
     int run_field_solver();
@@ -137,8 +137,14 @@ private:
     /** Pick a heat solver and calculcate temperature & current density distribution */
     int run_heat_solver();
 
-    /** Generate boundary nodes for mesh */
-    int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
+    /** Perform one iteration of field emission calculation */
+    void calc_heat_emission(bool full_run);
+
+    /** Write restart file so that simulation could be started at t>0 time */
+    void write_restart();
+
+    /** Handle Parcas restart file */
+    void copy_mdlat();
 };
 
 } /* namespace femocs */

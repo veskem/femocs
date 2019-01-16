@@ -2,6 +2,7 @@
 
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/numerics/data_out.h>
+#include <deal.II/base/work_stream.h>
 
 #include "PoissonSolver.h"
 #include "Globals.h"
@@ -48,8 +49,8 @@ PoissonSolver<dim>::PoissonSolver(const Config::Field* conf_, const LinearHexahe
 
 template<int dim>
 void PoissonSolver<dim>::mark_mesh() {
-    this->mark_boundary(BoundaryId::vacuum_top, BoundaryId::copper_surface,
-            BoundaryId::vacuum_sides, BoundaryId::copper_surface);
+    this->mark_boundary(BoundaryID::vacuum_top, BoundaryID::copper_surface,
+            BoundaryID::vacuum_sides, BoundaryID::copper_surface);
 }
 
 template<int dim>
@@ -136,70 +137,14 @@ Tensor<1, dim, double> PoissonSolver<dim>::probe_efield(const Point<dim> &p, con
 }
 
 template<int dim>
-vector<double> PoissonSolver<dim>::get_potential(const vector<int> &cell_indexes,
-        const vector<int> &vert_indexes) {
+void PoissonSolver<dim>::export_charge_dens(vector<double> &charge_dens) const {
+    const int n_verts = this->tria->n_used_vertices();
+    require(n_verts == this->vertex2dof.size(), "Mismatch between #vertices and vertex2dof size: "
+            + d2s(n_verts) + " vs " + d2s(this->vertex2dof.size()));
 
-    // Initialise potentials with a value that is immediately visible if it's not changed to proper one
-    vector<double> potentials(cell_indexes.size(), 1e15);
-
-    for (unsigned i = 0; i < cell_indexes.size(); i++) {
-        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
-        // NB: only works without refinement !!!
-        typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation,
-                0, cell_indexes[i], &this->dof_handler);
-
-        double potential = this->solution[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
-        potentials[i] = potential;
-    }
-    return potentials;
-}
-
-template<int dim>
-vector<Tensor<1, dim> > PoissonSolver<dim>::get_efield(const vector<int> &cell_indexes,
-        const vector<int> &vert_indexes) const {
-
-    QGauss<dim> quadrature_formula(this->quadrature_degree);
-    FEValues<dim> fe_values(this->fe, quadrature_formula, update_gradients);
-
-    vector<Tensor<1, dim>> solution_gradients(quadrature_formula.size());
-    vector<Tensor<1, dim>> fields(cell_indexes.size());
-
-    for (unsigned i = 0; i < cell_indexes.size(); i++) {
-        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
-        // NB: only works without refinement !!!
-        typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation,
-                0, cell_indexes[i], &this->dof_handler);
-
-        fe_values.reinit(dof_cell);
-        fe_values.get_function_gradients(this->solution, solution_gradients);
-        Tensor<1, dim> field = -1.0 * solution_gradients.at(vert_indexes[i]);
-
-        fields[i] = field;
-    }
-    return fields;
-}
-
-template<int dim>
-vector<double> PoissonSolver<dim>::get_charge_dens(const vector<int> &cell_indexes,
-        const vector<int> &vert_indexes) {
-
-    this->calc_dof_volumes();
-
-    // Initialise potentials with a value that is immediately visible if it's not changed to proper one
-    vector<double> charge_dens(cell_indexes.size(), 1e15);
-
-    for (unsigned i = 0; i < cell_indexes.size(); i++) {
-        // Using DoFAccessor (groups.google.com/forum/?hl=en-GB#!topic/dealii/azGWeZrIgR0)
-        // NB: only works without refinement !!!
-        typename DoFHandler<dim>::active_cell_iterator dof_cell(&this->triangulation,
-                0, cell_indexes[i], &this->dof_handler);
-
-        double rhs = this->system_rhs_save[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
-        double vol = this->dof_volume[dof_cell->vertex_dof_index(vert_indexes[i], 0)];
-        charge_dens[i] = rhs / vol;
-    }
-
-    return charge_dens;
+    charge_dens.resize(n_verts);
+    for (unsigned i = 0; i < n_verts; i++)
+        charge_dens[i] = charge_density[this->vertex2dof[i]];
 }
 
 template<int dim>
@@ -215,71 +160,90 @@ void PoissonSolver<dim>::setup(const double field, const double potential) {
 }
 
 template<int dim>
-void PoissonSolver<dim>::assemble_laplace(const bool first_time) {
+void PoissonSolver<dim>::assemble(const bool full_run) {
     require(conf, "NULL conf can't be used!");
+    require(conf->anode_BC == "neumann" || conf->anode_BC == "dirichlet",
+            "Unimplemented anode BC: " + conf->anode_BC);
 
+    if (full_run) this->system_matrix = 0;
     this->system_rhs = 0;
 
     if (conf->anode_BC == "neumann") {
-        if (first_time) {
-            assemble_lhs();
-            this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
-            this->calc_vertex2dof();
-        } else
-            this->restore_system();
-        this->assemble_rhs(BoundaryId::vacuum_top);
-
+        if (full_run) {
+            assemble_parallel();
+            this->append_dirichlet(BoundaryID::copper_surface, this->dirichlet_bc_value);
+        }
+        this->assemble_rhs(BoundaryID::vacuum_top);
     } else {
-        if (first_time) {
-            assemble_lhs();
-            this->append_dirichlet(BoundaryId::copper_surface, this->dirichlet_bc_value);
-            this->append_dirichlet(BoundaryId::vacuum_top, applied_potential);
-            this->calc_vertex2dof();
-        } else
-            this->restore_system();
+        if (full_run) {
+            assemble_parallel();
+            this->append_dirichlet(BoundaryID::copper_surface, this->dirichlet_bc_value);
+            this->append_dirichlet(BoundaryID::vacuum_top, applied_potential);
+        }
     }
 
-    this->apply_dirichlet();
+    // save charge density for writing it to file
+    // must be before applying Diriclet BCs
+    if (this->write_time()) {
+        int n_verts = this->tria->n_used_vertices();
+        this->charge_density = this->system_rhs;
+        this->calc_dof_volumes();
+        for (unsigned i = 0; i < n_verts; i++) {
+            int dof = this->vertex2dof[i];
+            this->charge_density[dof] /= this->dof_volume[dof];
+        }
+    }
+    if (full_run) this->apply_dirichlet();
 }
 
 template<int dim>
-void PoissonSolver<dim>::assemble_lhs() {
-    this->system_matrix = 0;
-
+void PoissonSolver<dim>::assemble_parallel() {
+    LinearSystem system(&this->system_rhs, &this->system_matrix);
     QGauss<dim> quadrature_formula(this->quadrature_degree);
-    FEValues<dim> fe_values(this->fe, quadrature_formula,
-            update_gradients | update_quadrature_points | update_JxW_values);
 
-    const unsigned int dofs_per_cell = this->fe.dofs_per_cell;
+    const unsigned int n_dofs = this->fe.dofs_per_cell;
     const unsigned int n_q_points = quadrature_formula.size();
 
-    FullMatrix<double> cell_matrix(dofs_per_cell, dofs_per_cell);
-    vector<types::global_dof_index> local_dof_indices(dofs_per_cell);
+    WorkStream::run(this->dof_handler.begin_active(),this->dof_handler.end(),
+            std_cxx11::bind(&PoissonSolver<dim>::assemble_local_cell,
+                    this,
+                    std_cxx11::_1,
+                    std_cxx11::_2,
+                    std_cxx11::_3),
+            std_cxx11::bind(&PoissonSolver<dim>::copy_global_cell,
+                    this,
+                    std_cxx11::_1,
+                    std_cxx11::ref(system)),
+            ScratchData(this->fe, quadrature_formula, update_gradients | update_quadrature_points | update_JxW_values),
+            CopyData(n_dofs, n_q_points)
+    );
+}
 
-    // Iterate over all cells (quadrangles in 2D, hexahedra in 3D) of the mesh
-    typename DoFHandler<dim>::active_cell_iterator cell = this->dof_handler.begin_active();
-    for (; cell != this->dof_handler.end(); ++cell) {
-        fe_values.reinit(cell);
+template<int dim>
+void PoissonSolver<dim>::assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
+        ScratchData &scratch_data, CopyData &copy_data) const
+{
+    const unsigned int n_dofs = copy_data.n_dofs;
+    const unsigned int n_q_points = copy_data.n_q_points;
 
-        // Assemble system matrix elements corresponding the current cell
-        cell_matrix = 0;
-        for (unsigned int q = 0; q < n_q_points; ++q) {
-            for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-                for (unsigned int j = 0; j < dofs_per_cell; ++j)
-                    cell_matrix(i, j) += fe_values.shape_grad(i, q) * fe_values.shape_grad(j, q)
-                            * fe_values.JxW(q);
+    scratch_data.fe_values.reinit(cell);
+
+    // Local matrix assembly
+    copy_data.cell_matrix = 0;
+    for (unsigned int q = 0; q < n_q_points; ++q) {
+        for (unsigned int i = 0; i < n_dofs; ++i) {
+            for (unsigned int j = 0; j < n_dofs; ++j) {
+                copy_data.cell_matrix(i, j) += scratch_data.fe_values.JxW(q) *
+                scratch_data.fe_values.shape_grad(i, q) * scratch_data.fe_values.shape_grad(j, q);
             }
         }
-
-        // Add the current cell matrix and rhs entries to the system sparse matrix
-        cell->get_dof_indices(local_dof_indices);
-        for (unsigned int i = 0; i < dofs_per_cell; ++i) {
-            for (unsigned int j = 0; j < dofs_per_cell; ++j)
-                this->system_matrix.add(local_dof_indices[i], local_dof_indices[j], cell_matrix(i, j));
-        }
     }
-    
-    this->save_system();
+
+    // Nothing to add to local right-hand-side vector assembly
+//    copy_data.cell_rhs = 0;
+
+    // Obtain dof indices for updating global matrix and right-hand-side vector
+    cell->get_dof_indices(copy_data.dof_indices);
 }
 
 template<int dim>

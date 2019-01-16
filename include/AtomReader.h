@@ -19,8 +19,8 @@ namespace femocs {
 /** Class to import atoms from atomistic simulation and to divide them into different categories */
 class AtomReader: public Medium {
 public:
-    /** Constructor for AtomReader */
     AtomReader();
+    AtomReader(const Config::Geometry *conf);
 
     /** Extract atom with desired types and clean it from lonely atoms;
      * atom is considered lonely if its coordination is lower than threshold.
@@ -72,10 +72,7 @@ public:
     void extract_types();
 
     /** Store the atom coordinates from current run */
-    void save_current_run_points(const double eps);
-
-    /** Store commonly used data */
-    void store_data(const Config& conf);
+    void save_current_run_points();
 
     /** Obtain rms-distance the atoms have moved since the last full iteration.
      * BIG values (>10^308) indicate that current and previous iterations are not comparable. */
@@ -92,12 +89,10 @@ public:
 
     /** Obtain the printable statistics */
     friend ostream& operator <<(ostream &os, const AtomReader& ar) {
-        os << fixed << setprecision(3)
-                << "nnn=" << ar.data.nnn
+        os << "time=" << GLOBALS.TIME << fixed << setprecision(3)
                 << ", latconst=" << ar.data.latconst
                 << ", coord_cutoff=" << ar.data.coord_cutoff
-                << ", cluster_cutoff=" << ar.data.cluster_cutoff
-                << ", #evap|clust atoms=" << ar.data.n_evaporated << "|" << ar.data.n_detached;
+                << ", #evap=" << ar.data.n_evaporated << ", #clust=" << ar.data.n_detached;
         return os;
     }
 
@@ -109,13 +104,12 @@ private:
     vector<vector<int>> nborlist;   ///< list of closest neighbours
     Vec3 simubox;                   ///< MD simulation box dimensions; needed to convert SI units to Parcas one
 
+    const Config::Geometry *conf;      ///< data from configuration file
+
     struct Data {
-        double distance_tol=0;        ///< min rms distance atoms must move to consider their movement significantly big
         double rms_distance=0;        ///< rms distance between atoms from previous and current run
-        double cluster_cutoff=0;      ///< cluster analysis cut-off radius
-        double coord_cutoff=0;        ///< coordination analysis cut-off radius
-        double latconst=0;            ///< lattice constant
-        int nnn=0;                    ///< effective number of nearest neighbours
+        double coord_cutoff=0;        ///< RDF-modified coordination analysis cut-off radius
+        double latconst=0;            ///< RDF-modified lattice constant
         unsigned int n_detached=0;    ///< number of atoms that are detached from the big structure
         unsigned int n_evaporated=0;  ///< number of atoms that are evaporated from the big structure
     } data;
@@ -125,6 +119,14 @@ private:
      */
     void import_xyz(const string& file_name);
     void import_ckx(const string& file_name);
+
+    /** Output atom data in .ckx format that shows atom coordinates and their types (fixed, surface, bulk etc.) */
+    void write_ckx(ofstream &outfile) const;
+
+    /** Specify file types that can be written */
+    bool valid_extension(const string &ext) const {
+        return Medium::valid_extension(ext) || ext == "ckx";
+    }
 
     /** Reserve memory for data vectors */
     void reserve(const int n_atoms);
@@ -143,7 +145,6 @@ private:
      *  Author: Guang Shi, Mihkel Veske
     */
     void calc_rdf(const int n_bins, const double r_cut);
-    void calc_rdf_peaks(vector<double>& peaks, const vector<double>& rdf, const double bin_width);
 
     /** Calculate the root mean square average distance the atoms have moved
      * between previous and current run */

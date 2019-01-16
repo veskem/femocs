@@ -12,6 +12,7 @@
 #include "Primitives.h"
 #include "TetgenMesh.h"
 #include "TetgenCells.h"
+#include "FileWriter.h"
 
 using namespace std;
 namespace femocs {
@@ -19,23 +20,23 @@ namespace femocs {
 /**
  * Data & operations for obtaining and holding nodal interpolation data
  */
-class InterpolatorNodes {
+class InterpolatorNodes: public FileWriter {
 public:
     InterpolatorNodes();
-    InterpolatorNodes(const string &norm_label, const string &scalar_label);
+    InterpolatorNodes(const string &vec_label, const string &norm_label, const string &scalar_label);
     ~InterpolatorNodes() {};
 
     /** Return number of available nodes */
     int size() const { return markers.size(); }
 
     /** Pre-compute data about vertices to make interpolation faster */
-    void precompute();
+    void precompute(int search_region);
 
-    /** Output interpolation data in .xyz format */
-    void write(const string &file_name) const;
+    /** Read interpolation data from file */
+    void read(const string &file_name, const int flags);
 
     /** Output interpolation data to be appended to .vtk file */
-    void write_point_data(ofstream& out) const;
+    void write_vtk_point_data(ofstream& out) const;
 
     /** Print statistics about solution on node points */
     void print_statistics() const;
@@ -47,7 +48,7 @@ public:
     }
 
     /** Return the pointer to the solution vector */
-    vector<Solution>* get_solutions() { return &solutions; }
+    const vector<Solution>* get_solutions() const { return &solutions; }
 
     /** Return full solution on i-th node */
     Solution get_solution(const int i) const {
@@ -86,7 +87,6 @@ public:
     void set_vector(const int i, const Vec3& v) {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
         solutions[i].vector = v;
-        solutions[i].norm = v.norm();
     }
 
     /** Modify scalar component of solution on the i-th node */
@@ -106,49 +106,59 @@ public:
         mesh = m;
     }
 
-    /** Return the max value of solution.norm data */
-    double max_norm() const;
+    /** Return the index of node in Deal.II that corresponds to i-th node in Femocs;
+     * -1 means there's no correspondence between two meshes */
+    int femocs2deal(const int i) const {
+        require(i >= 0 && i < (int)map_femocs2deal.size(), "Invalid index: " + d2s(i) + ", size=" + d2s(map_femocs2deal.size()));
+        return map_femocs2deal[i];
+    }
 
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
+    const string vec_label;         ///< description label attached to solution.vec -values
     const string norm_label;        ///< description label attached to solution.norm -values
     const string scalar_label;      ///< description label attached to solution.scalar -values
 
     vector<Solution> solutions;     ///< interpolation data
     vector<int> markers;            ///< markers for nodes
+    vector<int> map_femocs2deal;    ///< mapping between Femocs and Deal.II nodes
 
     /** Reserve memory for interpolation data */
     void reserve(const int N);
 
+    /** Specify implemented output file formats */
+    bool valid_extension(const string &ext) const {
+        return ext == "xyz" || ext == "movie" || ext == "vtk" || ext == "vtks" || ext == "restart";
+    }
+
     /** Output interpolation data in .xyz format */
     void write_xyz(ofstream& out) const;
 
-    /** Output interpolation data in .vtk format */
-    void write_vtk(ofstream& out) const;
+    /** Write binary data for restart file */
+    void write_bin(ofstream &out) const;
 
-    /** Return the cell type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.VERTEX; };
+    /** Output mesh nodes in .vtk format */
+    void write_vtk_points_and_cells(ofstream& out) const;
+
+    /** Output label for restart data */
+    string get_restart_label() const { return scalar_label; }
 };
 
 /**
  * Template class for interpolators of different kind
  */
 template<int dim>
-class InterpolatorCells {
+class InterpolatorCells: public FileWriter {
 public:
-    InterpolatorCells() : mesh(NULL), nodes(NULL) { reserve(0); }
+    InterpolatorCells() : mesh(NULL), nodes(NULL), solutions(NULL) { reserve(0); }
 
     InterpolatorCells(const InterpolatorNodes* n) :
-        mesh(NULL), nodes(n) { reserve(0); }
+        mesh(NULL), nodes(n), solutions(n->get_solutions()) { reserve(0); }
 
     virtual ~InterpolatorCells() {};
 
     /** Return number of available cells */
     int size() const { return markers.size(); }
-
-    /** Pick the suitable write function based on the file type.
-     * Function is active only when file write is enabled */
-    void write(const string &file_name) const;
 
     /** Pre-compute data about cells to make interpolation faster */
     virtual void precompute() {};
@@ -224,7 +234,8 @@ protected:
     static constexpr double zero = 1e-15; ///< tolerance of calculations
 
     const TetgenMesh* mesh;           ///< Full mesh data with nodes, faces, elements etc
-    const InterpolatorNodes* nodes;   ///< Pointer to nodes and solutions
+    const InterpolatorNodes* nodes;   ///< direct pointer to nodes
+    const vector<Solution>* solutions;///< direct pointer to solutions
 
     vector<int> markers;            ///< markers for cells
     vector<Point3> centroids;       ///< cell centroid coordinates
@@ -236,11 +247,19 @@ protected:
     /** Return the cell type in vtk format */
     virtual int get_cell_type() const { return 0; };
 
-    /** Output interpolation data in .vtk format */
-    void write_vtk(ofstream& out) const;
+    /** Output mesh nodes and cells in .vtk format */
+    void write_vtk_points_and_cells(ofstream &out) const;
 
-    /** Output interpolation data to be appended to .vtk file */
-    virtual void write_cell_data(ofstream& out) const;
+    /** Output mesh node data in .vtk format */
+    void write_vtk_point_data(ofstream &out) const;
+
+    /** Output interpolation data in .vtk file */
+    virtual void write_vtk_cell_data(ofstream& out) const;
+
+    /** Specify implemented output file formats */
+    bool valid_extension(const string &ext) const {
+        return ext == "vtk" || ext == "vtks";
+    }
 
     /** Find the common entry between two vectors */
     inline int common_entry(vector<unsigned>& vec1, vector<unsigned>& vec2) const;
@@ -305,7 +324,7 @@ private:
     void reserve(const int N);
 
     /** Return the tetrahedron type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.TETRAHEDRON; }
+    int get_cell_type() const { return VtkType::tetrahedron; }
 };
 
 /**
@@ -358,7 +377,7 @@ private:
     void reserve(const int N);
 
     /** Return the 10-noded tetrahedron type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.QUADRATIC_TETRAHEDRON; };
+    int get_cell_type() const { return VtkType::quadratic_tetrahedron; };
 
     /** Calculate the vertex indices of 10-noded tetrahedron */
     SimpleCell<10> calc_cell(const int i) const;
@@ -375,7 +394,7 @@ public:
     ~LinearHexahedra() {};
 
     /** Pre-compute data about tetrahedra to make interpolation faster */
-    void precompute();
+    void precompute(int search_region);
 
     /** Check whether the point is inside the cell */
     bool point_in_cell(const Vec3 &point, const int cell) const;
@@ -400,17 +419,19 @@ public:
      * and sort the result according to Deal.II ordering */
     array<Vec3,8> shape_fun_grads_dealii(const Vec3& point, const int hex) const;
 
-    /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron;
+    /** Return the index of hexahedron in Deal.II that corresponds to i-th hexahedron in Femocs;
      * -1 means there's no correspondence between two meshes */
     int femocs2deal(const int i) const {
-        require(i >= 0 && i < (int)map_femocs2deal.size(), "Invalid index: " + d2s(i));
+        require(i >= 0 && i < (int)map_femocs2deal.size(), "Invalid index: " + d2s(i) + ", size=" + d2s(map_femocs2deal.size()));
         return map_femocs2deal[i];
     }
 
-    /** Return the index of hexahedron in femocs that corresponds to i-th hexahedron in Deal.II */
+    /** Return the index of hexahedron in Femocs that corresponds to i-th hexahedron in Deal.II */
     int deal2femocs(const int i) const {
-        require(i >= 0 && i < (int)map_deal2femocs.size(), "Invalid index: " + d2s(i) + ", size = " + d2s(map_deal2femocs.size()));
-        return map_deal2femocs[i];
+        require(i >= 0, "Invalid index: " + d2s(i));
+        if (i < int(map_deal2femocs.size()))
+            return map_deal2femocs[i];
+        return -2;
     }
 
     /** Return i-th hexahedron */
@@ -445,7 +466,7 @@ private:
     void reserve(const int N);
 
     /** Return linear hexahedron type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.HEXAHEDRON; };
+    int get_cell_type() const { return VtkType::hexahedron; };
 
     /** Map the point from Cartesian xyz-coordinates to natural uvw-coordinates.
      * In natural coordinate system, each coordinate is within limits [-1, 1]. */
@@ -522,7 +543,7 @@ private:
     void reserve(const int N);
 
     /** Return the triangle type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.TRIANGLE; };
+    int get_cell_type() const { return VtkType::triangle; };
 
     /** Return the distance between a point and i-th triangle in the direction of its norm.
      * If the projection of the point is outside the triangle, the 1e100 distance will be returned.
@@ -531,7 +552,7 @@ private:
     double distance(const Vec3& point, const int i) const;
 
     /** Append triangle specific data to vtk file */
-    void write_cell_data(ofstream& out) const;
+    void write_vtk_cell_data(ofstream& out) const;
 };
 
 /**
@@ -582,7 +603,7 @@ private:
     void reserve(const int N);
 
     /** Return the 6-noded triangle type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.QUADRATIC_TRIANGLE; };
+    int get_cell_type() const { return VtkType::quadratic_triangle; };
 
     /** Calculate the vertex indices of 6-noded triangle */
     SimpleCell<6> calc_cell(const int i) const;
@@ -629,7 +650,7 @@ private:
     void reserve(const int N);
 
     /** Return the quadrangle type in vtk format */
-    int get_cell_type() const { return TYPES.VTK.QUADRANGLE; };
+    int get_cell_type() const { return VtkType::quadrangle; };
 };
 
 } /* namespace femocs */

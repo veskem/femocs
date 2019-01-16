@@ -43,24 +43,8 @@ public:
     /** Probes the field at point p that belongs in cell with cell_index. Fast, when cell_index is correct */
     Tensor<1, dim, double> probe_efield(const Point<dim> &p, const int cell_index) const;
 
-    /**
-     * method to obtain the electric potential values in selected nodes
-     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
-     * @param vert_indexes the vertex indexes of the nodes inside the cell
-     * @return potential values in the specified nodes
-     */
-    vector<double> get_potential(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
-
-    /**
-     * method to obtain the electric field values in selected nodes
-     * @param cell_indexes global cell indexes, where the corresponding nodes are situated
-     * @param vert_indexes the vertex indexes of the nodes inside the cell
-     * @return electric field vectors in the specified nodes
-     */
-    vector<Tensor<1, dim>> get_efield(const vector<int> &cell_indexes, const vector<int> &vert_indexes) const;
-
-    /** Calculate charge densities at given nodes in given cells */
-    vector<double> get_charge_dens(const vector<int> &cell_indexes, const vector<int> &vert_indexes);
+    /** Calculate charge densities at mesh vertices */
+    void export_charge_dens(vector<double> &charge_dens) const;
 
     /** Run Conjugate-Gradient solver to solve matrix equation */
     int solve() { return this->solve_cg(conf->n_cg, conf->cg_tolerance, conf->ssor_param); }
@@ -68,9 +52,9 @@ public:
     /** Setup system for solving Poisson equation */
     void setup(const double field, const double potential);
 
-    /** Assemble the matrix equation to solve Laplace equation
-     * by appling Neumann BC (constant field) on top of simubox */
-    void assemble_laplace(const bool first_time);
+    /** Assemble the matrix equation to solve Laplace or Poisson equation
+     * by appling Neumann BC (constant field) or Dirichlet BC (constant potential) on top of simubox */
+    void assemble(const bool first_time);
 
 private:
     const Config::Field* conf;   ///< solver parameters
@@ -78,6 +62,11 @@ private:
 
     double applied_field;     ///< applied electric field on top of simubox
     double applied_potential; ///< applied potential on top of simubox
+    Vector<double> charge_density;   ///< charge density at dofs [e/Angstrom^3]
+
+    typedef typename DealSolver<dim>::LinearSystem LinearSystem;
+    typedef typename DealSolver<dim>::ScratchData ScratchData;
+    typedef typename DealSolver<dim>::CopyData CopyData;
 
     double probe_potential(const Point<dim> &p, const int cell_index, Mapping<dim,dim>& mapping) const;
     
@@ -92,14 +81,14 @@ private:
     void mark_mesh();
 
     /** Return the boundary condition value at the centroid of face */
-    double get_face_bc(const unsigned int face) const;
+    double get_face_bc(const unsigned int face) const;;
 
-    /** @brief Reset the system and assemble the LHS matrix
-     * Calculate sparse matrix elements
-     * according to the Laplace equation weak formulation
-     * This should be the first function call to setup the equations (after setup_system() ).
-     */
-    void assemble_lhs();
+    /** Assemble left-hand-side of matrix equation in a parallel manner */
+    void assemble_parallel();
+
+    /** Calculate the contribution of one cell into global matrix and rhs vector */
+    void assemble_local_cell(const typename DoFHandler<dim>::active_cell_iterator &cell,
+            ScratchData &scratch_data, CopyData &copy_data) const;
 };
 
 } // namespace femocs
