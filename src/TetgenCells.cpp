@@ -397,8 +397,8 @@ double TetgenFaces::get_area(const int i) const {
 }
     
 void TetgenFaces::init_statistics() {
-    stat.edgemin =  DBL_MAX;
-    stat.edgemax = -DBL_MAX;
+    stat.edgemin = DBL_MAX;
+    stat.edgemax = 0;
     stat.xmin = stat.ymin = stat.zmin = DBL_MAX;
     stat.xmax = stat.ymax = stat.zmax =-DBL_MAX;
     stat.xbox = stat.ybox = stat.zbox = 0;

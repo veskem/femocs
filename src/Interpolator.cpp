@@ -107,7 +107,7 @@ void Interpolator::store_solution(const vector<double> &norms,
     const int n_dofs = scals.size();
 
     require( norms.size() == n_dofs, "Mismatch of vector sizes: "
-            + d2s(vecs.size()) + ", " + d2s(norms.size()) );
+            + d2s(scals.size()) + ", " + d2s(norms.size()) );
 
     unsigned int j = 0;
     for (unsigned int i = 0; i < n_nodes; ++i) {

@@ -282,9 +282,6 @@ void Config::read_all(const string& fname, bool full_run) {
     scharge.I_pic.resize(128);
     n_read_args = read_command("currents_pic", scharge.I_pic);
     scharge.I_pic.resize(n_read_args);
-    require(!n_read_args ||n_read_args == field.apply_factors.size(),
-            "current_pic & apply_factors sizes don't match");
-
 }
 
 void Config::parse_file(const string& file_name) {

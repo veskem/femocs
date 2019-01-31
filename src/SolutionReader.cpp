@@ -559,8 +559,11 @@ int HeatReader::scale_berendsen(double* x1, const int n_atoms,
 
     // PARCAS internal time step in fs
     // needed to transfer velocity from PARCAS units to Angstrom / fs
+    require(conf.behaviour.mass > 0, "Invalid atom mass: " + d2s(conf.behaviour.mass));
+    require(conf.behaviour.timestep_fs > 0, "Invalid time step: " + d2s(conf.behaviour.timestep_fs));
     const double delta_t = conf.behaviour.timestep_fs / (10.1805*sqrt(conf.behaviour.mass));
     // MD time step over Berendsen tau
+    require(conf.heating.tau > 0, "Invalid heat time constant: " + d2s(conf.heating.tau));
     timestep_over_tau = conf.behaviour.timestep_fs / conf.heating.tau;
 
     const unsigned int n_tets = tet2atoms.size();
@@ -584,6 +587,7 @@ int HeatReader::scale_berendsen(double* x1, const int n_atoms,
                 md_temp += velocities[id].norm2();
             }
             md_temp *= heat_factor / n_atoms_in_tet;
+            if (md_temp < 1e-100) continue;
 
             // calculate scaling factor
             double lambda = calc_lambda(md_temp, fem_temp[tet]);
