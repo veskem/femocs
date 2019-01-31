@@ -118,6 +118,17 @@ module libfemocs
             real(c_double) :: data(*)
         end subroutine
 
+        subroutine femocs_export_int_c(femocs,retval,data,n_points,data_type) &
+                                                 bind(C, name="femocs_export_int")
+            use iso_c_binding
+            implicit none
+            type(c_ptr), intent(in), value :: femocs
+            integer(c_int) :: retval
+            integer(c_int), value :: n_points
+            character(len=1, kind=C_CHAR), intent(in) :: data_type(*)
+            integer(c_int) :: data(*)
+        end subroutine
+
         subroutine femocs_interpolate_c(femocs,retval,data,flag,n_points,data_type,near_surface,x,y,z) &
                                                     bind(C, name="femocs_interpolate")
             use iso_c_binding
@@ -179,6 +190,7 @@ module libfemocs
         procedure :: interpolate_surface_elfield => femocs_interpolate_surface_elfield
         procedure :: interpolate_phi => femocs_interpolate_phi
         procedure :: export_data => femocs_export_data
+        procedure :: export_int => femocs_export_int
         procedure :: interpolate => femocs_interpolate
         procedure :: parse_int => femocs_parse_int
         procedure :: parse_double => femocs_parse_double
@@ -328,6 +340,26 @@ module libfemocs
         c_str(N + 1) = C_NULL_CHAR
 
         call femocs_export_data_c(this%ptr, retval, data, n_points, c_str)
+    end subroutine
+
+    subroutine femocs_export_int(this, retval, data, n_points, data_type)
+        implicit none
+        class(femocs), intent(in) :: this
+        integer(c_int) :: retval
+        integer(c_int) :: n_points
+        character(len=*), intent(in) :: data_type
+        integer(c_int) :: data(*)
+        character(len=1, kind=C_CHAR) :: c_str(len_trim(data_type) + 1)
+        integer :: N, i
+
+        ! Convert Fortran string to C string
+        N = len_trim(data_type)
+        do i = 1, N
+            c_str(i) = data_type(i:i)
+        end do
+        c_str(N + 1) = C_NULL_CHAR
+
+        call femocs_export_int_c(this%ptr, retval, data, n_points, c_str)
     end subroutine
 
     subroutine femocs_interpolate(this,retval,data,flag,n_points,data_type,near_surface,x,y,z)

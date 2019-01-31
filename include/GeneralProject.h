@@ -33,6 +33,9 @@ public:
     /** Export the solution data in the location of imported atoms */
     virtual int export_data(double* data, const int n_points, const string& data_type) = 0;
 
+    /** Export the integer data in the location of imported atoms */
+    virtual int export_data(int* data, const int n_points, const string& data_type) = 0;
+
     /** Interpolate the solution data in the location of specified points */
     virtual int interpolate(double* data, int* flag,
             const int n_points, const string& data_type, const bool near_surface,

@@ -202,6 +202,10 @@ int Femocs::export_data(double* data, const int n_points, const string& data_typ
     return project->export_data(data, n_points, data_type);
 }
 
+int Femocs::export_data(int* data, const int n_points, const string& data_type) {
+    return project->export_data(data, n_points, data_type);
+}
+
 int Femocs::interpolate(double* data, int* flag,
         const int n_points, const string &data_type, const bool near_surface,
         const double* x, const double* y, const double* z)

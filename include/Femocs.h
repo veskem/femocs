@@ -111,6 +111,13 @@ public:
      */
     int export_data(double* data, const int n_points, const string& data_type);
 
+    /** Export integer data in the location of imported atoms
+     * @param data       array where solution data is written
+     * @param n_points   number of first imported points where solution is exported; <= 0 turns export off
+     * @param data_type  label of data to be exported
+     */
+    int export_data(int* data, const int n_points, const string& data_type);
+
     /** Interpolate the solution data in the location of specified points
      * @param data          array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
      * @param flag          indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh

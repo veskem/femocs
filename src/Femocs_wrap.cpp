@@ -59,6 +59,12 @@ void femocs_export_data(FEMOCS* femocs, int* retval, double* data,
     retval[0] = femocs->export_data(data, n_points, data_type);
 }
 
+void femocs_export_int(FEMOCS* femocs, int* retval, int* data,
+        int n_points, const char* data_type)
+{
+    retval[0] = femocs->export_data(data, n_points, data_type);
+}
+
 void femocs_interpolate(FEMOCS* femocs, int* retval, double* data, int* flag,
         int n_points, const char* data_type, int near_surface,
         const double* x, const double* y, const double* z)
