@@ -569,8 +569,11 @@ int ProjectRunaway::export_data(double* data, const int n_points, const string &
 
     if (data_type == LABELS.atom_type) {
         require(n_points <= reader.size(), "Invalid data query size: " + d2s(n_points));
-        for (int i = 0; i < n_points; ++i)
-            data[i] = reader.get_marker(i);
+        for (int i = 0; i < n_points; ++i) {
+            int marker = reader.get_marker(i);
+            if (marker == TYPES.EVAPORATED || marker == TYPES.CLUSTER)
+                data[i] = TYPES.NONE;
+        }
         return reader.get_n_detached();
     }
 
