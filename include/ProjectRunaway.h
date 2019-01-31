@@ -42,14 +42,14 @@ public:
 
     /** Export the solution on the imported atomistic points.
      * @param n_points   # of first imported atoms where data exported; 0 disables the export
-     * @param data_type  label of the data to be exported. See Labels class for a list of possible cmd-s
+     * @param data_type  label of the data to be exported. Lower-case label invokes data appending, while upper-case letters clear the previous data.
      * @param data       array where results are written. Vector data is exported coordinate-wise, i.e in a form x1,y1,z1,x2,y2,...
      */
     int export_data(double* data, const int n_points, const string &data_type);
 
     /** Export the integer data on the imported atomistic points.
      * @param n_points   # of first imported atoms where data exported; 0 disables the export
-     * @param data_type  label of the data to be exported. See Labels class for a list of possible cmd-s
+     * @param data_type  label of the data to be exported. Lower-case label invokes data appending, while upper-case letters clear the previous data.
      * @param data       array where results are written.
      */
     int export_data(int* data, const int n_points, const string& data_type);

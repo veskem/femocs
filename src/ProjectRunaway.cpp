@@ -561,7 +561,7 @@ int ProjectRunaway::export_data(double* data, const int n_points, const string &
     if (forces.contains(data_type))
         return forces.export_results(n_points, data_type, data);
 
-    if (data_type == LABELS.pair_potential_sum || data_type == LABELS.parcas_force || data_type == LABELS.charge_force)
+    if (data_type == LABELS.parcas_force || data_type == LABELS.charge_force)
         return forces.export_parcas(n_points, data_type, reader.get_si2parcas_box(), data);
 
     if (data_type == LABELS.parcas_velocity)
@@ -572,7 +572,14 @@ int ProjectRunaway::export_data(double* data, const int n_points, const string &
 }
 
 int ProjectRunaway::export_data(int* data, const int n_points, const string& data_type) {
-    if (data_type == LABELS.atom_type) {
+    string lowered_type = data_type;
+    std::transform(lowered_type.begin(), lowered_type.end(), lowered_type.begin(), ::tolower);
+
+    if (data_type != LABELS.atom_type && lowered_type == LABELS.atom_type)
+        for (int i = 0; i < n_points; ++i)
+            data[i] = 0;
+
+    if (lowered_type == LABELS.atom_type) {
         require(n_points <= reader.size(), "Invalid data query size: " + d2s(n_points));
         for (int i = 0; i < n_points; ++i) {
             int marker = reader.get_marker(i);

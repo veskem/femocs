@@ -132,6 +132,18 @@ protected:
 
     /** Sort atoms and interpolation by the atom ID */
     void restore_sorting();
+
+    /** Export vector component of solution */
+    void export_vec(const int n_points, double* data, bool append) const;
+
+    /** Export norm component of solution */
+    void export_norm(const int n_points, double* data, bool append) const;
+
+    /** Export scalar component of solution */
+    void export_scalar(const int n_points, double* data, bool append) const;
+
+    /** Clear data vector */
+    void clear_data(const int n_data, double* data) const;
 };
 
 /** Class to extract solution from DealII calculations */

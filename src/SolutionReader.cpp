@@ -220,6 +220,14 @@ int SolutionReader::contains(const string& data_label) const {
     if (data_label == norm_label) return 2;
     if (data_label == scalar_label) return 3;
 
+    // check if label was provided with upper case letter
+    string label2 = data_label;
+    std::transform(label2.begin(), label2.end(), label2.begin(), ::tolower);
+
+    if (label2 == vec_label) return -1;
+    if (label2 == norm_label) return -2;
+    if (label2 == scalar_label) return -3;
+
     return 0;
 }
 
@@ -227,28 +235,81 @@ int SolutionReader::export_results(const int n_points, const string &data_type, 
     check_return(size() == 0, "No " + data_type + " to export!");
 
     int dtype = contains(data_type);
-    require(dtype > 0 && dtype <= 3, "SolutionReader does not contain " + data_type);
-
-    // Pass the desired solution
-    for (int i = 0; i < size(); ++i) {
-        int id = get_id(i);
-        if (id < 0 || id >= n_points) continue;
-
-        switch(dtype) {
-            case 1:
-                id *= 3;
-                for (double v : interpolation[i].vector)
-                    data[id++] = v;
-                continue;
-            case 2:
-                data[id] = interpolation[i].norm;
-                continue;
-            default:
-                data[id] = interpolation[i].scalar;
-        }
+    switch(dtype) {
+    case 1:
+        export_vec(n_points, data, true);
+        break;
+    case 2:
+        export_norm(n_points, data, true);
+        break;
+    case 3:
+        export_scalar(n_points, data, true);
+        break;
+    case -1:
+        export_vec(n_points, data, false);
+        break;
+    case -2:
+        export_norm(n_points, data, false);
+        break;
+    case -3:
+        export_scalar(n_points, data, false);
+        break;
+    default:
+        require(false, class_name() + " does not contain " + data_type);
     }
 
     return 0;
+}
+
+void SolutionReader::export_vec(const int n_points, double* data, bool append) const {
+    if (!append)
+        clear_data(3*n_points, data);
+
+    for (int i = 0; i < size(); ++i) {
+        int id = get_id(i);
+        if (id < 0 || id >= n_points) continue;
+        id *= 3;
+        if (append) {
+            for (double v : interpolation[i].vector)
+                data[id++] += v;
+        } else {
+            for (double v : interpolation[i].vector)
+                data[id++] = v;
+        }
+    }
+}
+
+void SolutionReader::export_norm(const int n_points, double* data, bool append) const {
+    if (!append)
+        clear_data(n_points, data);
+
+    for (int i = 0; i < size(); ++i) {
+        int id = get_id(i);
+        if (id < 0 || id >= n_points) continue;
+        if (append)
+            data[id] += interpolation[i].norm;
+        else
+            data[id] = interpolation[i].norm;
+    }
+}
+
+void SolutionReader::export_scalar(const int n_points, double* data, bool append) const {
+    if (!append)
+        clear_data(n_points, data);
+
+    for (int i = 0; i < size(); ++i) {
+        int id = get_id(i);
+        if (id < 0 || id >= n_points) continue;
+        if (append)
+            data[id] += interpolation[i].scalar;
+        else
+            data[id] = interpolation[i].scalar;
+    }
+}
+
+void SolutionReader::clear_data(const int n_data, double* data) const {
+    for (int i = 0; i < n_data; ++i)
+        data[i] = 0;
 }
 
 int SolutionReader::interpolate_results(const int n_points, const string &data_type, const double* x,
@@ -1032,21 +1093,18 @@ void ForceReader::distribute_charges(const FieldReader &fields, const ChargeRead
     }
 }
 
-int ForceReader::export_parcas(const int n_points, const string &data_type, const Vec3& si2parcas,
-        double* data) const
+int ForceReader::export_parcas(const int n_points, const string &data_type,
+        const Vec3& si2parcas, double* data) const
 {
-    check_return(size() == 0, "No " + data_type + " to export!");
+    const int n_atoms = size();
+    check_return(n_atoms == 0, "No " + data_type + " to export!");
 
-    // export total pair-potential ?
-    if (data_type == LABELS.pair_potential_sum) {
-        data[0] = 0;
-        for (int i = 0; i < size(); ++i)
-            data[0] += get_pairpot(i);
-    }
+    string lowered_type = data_type;
+    std::transform(lowered_type.begin(), lowered_type.end(), lowered_type.begin(), ::tolower);
 
-    // export force perturbation in reduced units (used in Parcas)
-    else if (data_type == LABELS.parcas_force) {
-        for (int i = 0; i < size(); ++i) {
+    // export force perturbation in reduced units
+    if (data_type == LABELS.parcas_force) {
+        for (int i = 0; i < n_atoms; ++i) {
             int id = get_id(i);
             if (id < 0 || id >= n_points) continue;
 
@@ -1057,9 +1115,28 @@ int ForceReader::export_parcas(const int n_points, const string &data_type, cons
         }
     }
 
+    // export force in reduced units
+    else if (lowered_type == LABELS.parcas_force) {
+        clear_data(3*n_points, data);
+
+        for (int i = 0; i < n_atoms; ++i) {
+            int id = get_id(i);
+            if (id < 0 || id >= n_points) continue;
+
+            Vec3 reduced_force = get_force(i) * si2parcas;
+            id *= 3;
+            for (double f : reduced_force)
+                data[id++] = f;
+        }
+    }
+
     // export charge and force in SI units ?
-    else if (data_type == LABELS.charge_force) {
-        for (int i = 0; i < size(); ++i) {
+    // option to append not implemented to avoid necessity
+    // to change parameters on Parcas side
+    else if (lowered_type == LABELS.charge_force) {
+        clear_data(4*n_points, data);
+
+        for (int i = 0; i < n_atoms; ++i) {
             int id = get_id(i);
             if (id < 0 || id >= n_points) continue;
 
@@ -1070,9 +1147,7 @@ int ForceReader::export_parcas(const int n_points, const string &data_type, cons
         }
     }
 
-    else
-        require(false, "Unimplemented type of export data: " + data_type);
-
+    require(false, "Unimplemented type of export data: " + data_type);
     return 0;
 }
 
