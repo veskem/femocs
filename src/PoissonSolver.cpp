@@ -207,15 +207,15 @@ void PoissonSolver<dim>::assemble_parallel() {
     const unsigned int n_q_points = quadrature_formula.size();
 
     WorkStream::run(this->dof_handler.begin_active(),this->dof_handler.end(),
-            std_cxx11::bind(&PoissonSolver<dim>::assemble_local_cell,
+            std::bind(&PoissonSolver<dim>::assemble_local_cell,
                     this,
-                    std_cxx11::_1,
-                    std_cxx11::_2,
-                    std_cxx11::_3),
-            std_cxx11::bind(&PoissonSolver<dim>::copy_global_cell,
+                    std::placeholders::_1,
+                    std::placeholders::_2,
+                    std::placeholders::_3),
+            std::bind(&PoissonSolver<dim>::copy_global_cell,
                     this,
-                    std_cxx11::_1,
-                    std_cxx11::ref(system)),
+                    std::placeholders::_1,
+                    std::ref(system)),
             ScratchData(this->fe, quadrature_formula, update_gradients | update_quadrature_points | update_JxW_values),
             CopyData(n_dofs, n_q_points)
     );
