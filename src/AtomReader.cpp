@@ -399,12 +399,20 @@ void AtomReader::generate_nanotip(double h, double radius, double latconst) {
 
 bool AtomReader::import_atoms(const int n_atoms, const double* x, const double* y, const double* z, const int* types) {
     require(n_atoms > 0, "Zero input atoms detected!");
-    reserve(n_atoms);
+
+    atoms.clear();
+    atoms.reserve(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
         append( Atom(i, Point3(x[i], y[i], z[i]), types[i]) );
 
     calc_statistics();
-    return calc_rms_distance();
+
+    if (calc_rms_distance()) {
+        cluster = vector<int>(n_atoms, 0);
+        coordination = vector<int>(n_atoms, 0);
+        return true;
+    }
+    return false;
 }
 
 bool AtomReader::import_parcas(const int n_atoms, const double* xyz, const double* box) {
@@ -413,12 +421,19 @@ bool AtomReader::import_parcas(const int n_atoms, const double* xyz, const doubl
     simubox = Vec3(box[0], box[1], box[2]);
     require(simubox.x > 0 && simubox.y > 0 && simubox.z > 0, "Invalid simubox dimensions: " + d2s(simubox));
 
-    reserve(n_atoms);
+    atoms.clear();
+    atoms.reserve(n_atoms);
     for (int i = 0; i < 3*n_atoms; i+=3)
         append( Atom(i/3, Point3(xyz[i+0]*box[0], xyz[i+1]*box[1], xyz[i+2]*box[2]), TYPES.BULK) );
 
     calc_statistics();
-    return calc_rms_distance();
+
+    if (calc_rms_distance()) {
+        cluster = vector<int>(n_atoms, 0);
+        coordination = vector<int>(n_atoms, 0);
+        return true;
+    }
+    return false;
 }
 
 bool AtomReader::import_file(const string &file_name, const bool add_noise) {
