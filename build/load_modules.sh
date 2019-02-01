@@ -5,9 +5,14 @@ source $DIR/makefile.defs
 
 mode=$1
 
+if (test $mode = ubuntu) then
+    LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DIR/../dealii/lib
+    export LD_LIBRARY_PATH
+fi
+
 if (test $mode = taito) then
     echo "Loading Taito modules"
-    
+
     source $MODULESHOME/init/bash
     module load gcc/5.3.0 intelmpi/5.1.3
 

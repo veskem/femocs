@@ -15,13 +15,11 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 # check for versions and availability of various modules
 #############################################################################
 # c/c++ compiler
-IF (NOT CMAKE_COMPILER_IS_GNUCC OR
-    (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.9) OR 
-    (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 5.9))
+IF (NOT CMAKE_COMPILER_IS_GNUCC)
   MESSAGE(FATAL_ERROR
-          "You are using unsupported compiler with version ${CMAKE_CXX_COMPILER_VERSION}\n"
-          "Please install gcc-5 by running\n"
-          "sudo apt install gcc-5")
+          "You are using unsupported c/c++ compiler ${CMAKE_CXX_COMPILER}\n"
+          "Please install gcc & g++ by running\n"
+          "sudo apt install gcc g++")
 ENDIF()
 
 # fortran compiler

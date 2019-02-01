@@ -13,9 +13,10 @@ lib/libtet.a:
 	rm -rf tetgen/.build
 
 dealii/lib/libdeal_II.a: dealii/dealii-${DEALII_VER}.tar.gz
-	cd dealii; tar -xvf dealii-${DEALII_VER}.tar.gz; mkdir -p dealii-${DEALII_VER}/.build
-	cd dealii/dealii-*/.build; cmake ${DEALII_FLAGS} ..; make -j${NPROCS} install
-	cd dealii; cp -r dealii-${DEALII_VER}/source .; rm -rf examples dealii-${DEALII_VER};
+	cd dealii; tar -xvf dealii-${DEALII_VER}.tar.gz
+	mkdir -p dealii/dealii-${DEALII_VER}/.build
+	cd dealii/dealii-${DEALII_VER}/.build; cmake ${DEALII_FLAGS} ..; make -j${NPROCS} install
+	cd dealii; cp -r dealii-${DEALII_VER}/source .; rm -rf dealii-${DEALII_VER};
 
 dealii/dealii-${DEALII_VER}.tar.gz:
 	mkdir -p dealii; cd dealii; wget https://github.com/dealii/dealii/releases/download/v${DEALII_VER}/dealii-${DEALII_VER}.tar.gz
@@ -31,4 +32,6 @@ clean:
 	rm -rf lib/libtet.a dealii/lib/*
 
 clean-all:
+	mv dealii/dealii-${DEALII_VER}.tar.gz ..
 	rm -rf lib/libtet.a tetgen/.build dealii/* GETELEC
+	mv dealii-${DEALII_VER}.tar.gz dealii/
