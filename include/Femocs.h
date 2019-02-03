@@ -36,13 +36,13 @@ public:
 
     /** Function to import atoms from PARCAS
      * @param n_atoms       number of imported atoms
-     * @param coordinates   normalised coordinates of atoms in PARCAS format
+     * @param data          normalized atom coordinates or velocities in PARCAS format
      * @param box           size on simulation box in Angstroms
      * @param nborlist      neighbour list for atoms
      * @return              0 - import succeeded and current run differs from previous one, whole field calculation will be performed;
      *                      1 - import failed or current run is similar to the previous one, field calculation will be skipped
      */
-    int import_atoms(const int n_atoms, const double* coordinates, const double* box, const int* nborlist);
+    int import_parcas(const int n_atoms, const double* data, const double* box, const int* nborlist);
 
     /** Function to import coordinates and types of atoms
      * @param n_atoms   number of imported atoms

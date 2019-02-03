@@ -345,38 +345,6 @@ void SolutionReader::interpolate(const int n_points, const double* x, const doub
     calc_interpolation();
 }
 
-void SolutionReader::interpolate(const Medium &medium) {
-    const int n_atoms = medium.size();
-    reserve(n_atoms);
-
-    // store atom coordinates
-    for (int i = 0; i < n_atoms; ++i)
-        append( Atom(i, medium.get_point(i), 0) );
-
-    // interpolate solution
-    calc_interpolation();
-
-    // restore original atom id-s
-    for (int i = 0; i < n_atoms; ++i)
-        atoms[i].id = medium.get_id(i);
-}
-
-void SolutionReader::interpolate(const AtomReader &reader) {
-    require(!sort_atoms, "Atom sorting not allowed here!");
-    const int n_atoms = reader.size();
-    reserve(n_atoms);
-
-    // store atom coordinates
-    for (int i = 0; i < n_atoms; ++i) {
-        Atom atom = reader.get_atom(i);
-        if (atom.marker == TYPES.SURFACE || atom.marker == TYPES.BULK)
-            append(atom);
-    }
-
-    // interpolate solution
-    calc_interpolation();
-}
-
 void SolutionReader::restore_sorting() {
     const size_t n_atoms = size();
 
@@ -411,6 +379,22 @@ void SolutionReader::restore_sorting() {
 FieldReader::FieldReader(Interpolator* i) :
         SolutionReader(i, LABELS.elfield, LABELS.charge_density, LABELS.potential),
         E0(0), radius1(0), radius2(0), beta(0), E_max(0) {}
+
+void FieldReader::interpolate(const Surface &surface) {
+    const int n_atoms = surface.size();
+    reserve(n_atoms);
+
+    // store atom coordinates
+    for (int i = 0; i < n_atoms; ++i)
+        append( Atom(i, surface.get_point(i), 0) );
+
+    // interpolate solution
+    calc_interpolation();
+
+    // restore original atom id-s
+    for (int i = 0; i < n_atoms; ++i)
+        atoms[i].id = surface.get_id(i);
+}
 
 void FieldReader::calc_interpolation() {
     SolutionReader::calc_interpolation();
@@ -579,6 +563,22 @@ void HeatReader::sort_spatial(const TetgenMesh* mesh) {
         }
 }
 
+void HeatReader::interpolate(const AtomReader &reader) {
+    require(!sort_atoms, "Atom sorting not allowed here!");
+    const int n_atoms = reader.size();
+    reserve(n_atoms);
+
+    // store atom coordinates
+    for (int i = 0; i < n_atoms; ++i) {
+        Atom atom = reader.get_atom(i);
+        if (atom.marker == TYPES.SURFACE || atom.marker == TYPES.BULK)
+            append(atom);
+    }
+
+    // interpolate solution
+    calc_interpolation();
+}
+
 void HeatReader::interpolate_dofs(CurrentHeatSolver<3>& solver, const TetgenMesh* mesh) {
     solver.heat.export_vertices(*this);
     if (sort_atoms) sort_spatial(mesh);
@@ -614,27 +614,20 @@ void HeatReader::precalc_berendsen() {
 }
 
 int HeatReader::scale_berendsen(double* x1, const int n_atoms,
-        const Vec3& parcas2si, const Config& conf)
+        const vector<Vec3>& velocities, const Config& conf)
 {
     check_return(size() == 0, "No " + LABELS.parcas_velocity + " to export!");
 
-    // PARCAS internal time step in fs
-    // needed to transfer velocity from PARCAS units to Angstrom / fs
-    require(conf.behaviour.mass > 0, "Invalid atom mass: " + d2s(conf.behaviour.mass));
-    require(conf.behaviour.timestep_fs > 0, "Invalid time step: " + d2s(conf.behaviour.timestep_fs));
-    const double delta_t = conf.behaviour.timestep_fs / (10.1805*sqrt(conf.behaviour.mass));
     // MD time step over Berendsen tau
     require(conf.heating.tau > 0, "Invalid heat time constant: " + d2s(conf.heating.tau));
     timestep_over_tau = conf.behaviour.timestep_fs / conf.heating.tau;
+
+    const double heat_factor = this->heat_factor * conf.behaviour.mass;
 
     const unsigned int n_tets = tet2atoms.size();
     require(n_tets > 0, "Data is missing for long Berendsen thermostat!");
     require(fem_temp.size() == n_tets, "Mismatch between vector sizes: "
             + d2s(n_tets) + ", " + d2s(fem_temp.size()));
-
-    // convert velocities from Parcas to SI units
-    vector<Vec3> velocities;
-    calc_SI_velocities(velocities, n_atoms, parcas2si / delta_t, x1);
 
     for (unsigned int tet = 0; tet < n_tets; ++tet) {
         int n_atoms_in_tet = tet2atoms[tet].size();
@@ -675,18 +668,6 @@ int HeatReader::scale_berendsen(double* x1, const int n_atoms,
 
 inline double HeatReader::calc_lambda(const double T_start, const double T_end) const {
     return sqrt( 1.0 + timestep_over_tau * (T_end / T_start - 1.0) );
-}
-
-void HeatReader::calc_SI_velocities(vector<Vec3>& velocities,
-        const int n_atoms, const Vec3& parcas2si, double* x1) {
-
-    // perform conversion
-    velocities.clear();
-    velocities.reserve(n_atoms);
-    for (int i = 0; i < n_atoms; ++i) {
-        int I = 3*i;
-        velocities.push_back(Vec3(x1[I], x1[I+1], x1[I+2]) * parcas2si);
-    }
 }
 
 /* ==========================================

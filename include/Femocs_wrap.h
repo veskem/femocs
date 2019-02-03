@@ -19,7 +19,7 @@ void femocs_run(FEMOCS* femocs, int* retval, int timestep, double time);
 void femocs_import_file(FEMOCS* femocs, int* retval, const char* file_name);
 
 void femocs_import_parcas(FEMOCS* femocs, int* retval, int n_atoms,
-        const double* coordinates, const double* box, const int* nborlist);
+        const double* data, const double* box, const int* nborlist);
 
 void femocs_import_atoms(FEMOCS* femocs, int* retval, int n_atoms,
         const double* x, const double* y, const double* z, const int* types);

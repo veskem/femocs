@@ -39,12 +39,18 @@ public:
      */
     bool import_file(const string &file_name, const bool add_noise=false);
 
-    /** Import atoms coordinates from PARCAS and check their rmsd
+    /** Import atom coordinates from PARCAS and check their rmsd
      * @param n_atoms     number of imported atoms
-     * @param coordinates vector of atomistic coordinates in PARCAS units; x0=c[0], y0=c[1], z[0]=c[2], x1=c[3], etc
+     * @param x0          vector of atomistic coordinates in PARCAS units; x0=c[0], y0=c[1], z0=c[2], x1=c[3], etc
      * @param box         vector of MD simulation box sizes in Angstroms; box[0]->x_box, box[1]->y_box, box[2]->z_box
      */
-    bool import_parcas(const int n_atoms, const double* coordinates, const double* box);
+    bool import_parcas(const int n_atoms, const double* x0, const double* box);
+
+    /** Import atom velocities from PARCAS and transform the from PARCAS units to fm/fs.
+     * @param n_atoms  number of imported atoms
+     * @param x1       vector of atomistic velocities in PARCAS units
+     */
+    bool import_parcas(const int n_atoms, const double* x1, const Config &conf);
 
     /** Import atom coordinates and types and check their rmsd */
     bool import_atoms(const int n_atoms, const double* x, const double* y, const double* z, const int* types);
@@ -87,6 +93,9 @@ public:
     /** Return factors to covert Parcas units to SI ones */
     Vec3 get_parcas2si_box() const;
 
+    /** Return pointer to atomistic velocities */
+    const vector<Vec3>* get_velocities() const { return &velocities; }
+
     /** Obtain the printable statistics */
     friend ostream& operator <<(ostream &os, const AtomReader& ar) {
         os << "time=" << GLOBALS.TIME << fixed << setprecision(3)
@@ -97,6 +106,7 @@ public:
     }
 
 private:
+    vector<Vec3> velocities;        ///< atomistic velocities [A/fs]
     vector<int> cluster;            ///< id of cluster the atom is located
     vector<int> coordination;       ///< coordinations of atoms
     vector<int> previous_types;     ///< atom types from previous run
@@ -104,7 +114,7 @@ private:
     vector<vector<int>> nborlist;   ///< list of closest neighbours
     Vec3 simubox;                   ///< MD simulation box dimensions; needed to convert SI units to Parcas one
 
-    const Config::Geometry *conf;      ///< data from configuration file
+    const Config::Geometry *conf;   ///< data from configuration file
 
     struct Data {
         double rms_distance=0;        ///< rms distance between atoms from previous and current run
@@ -123,9 +133,12 @@ private:
     /** Output atom data in .ckx format that shows atom coordinates and their types (fixed, surface, bulk etc.) */
     void write_ckx(ofstream &outfile) const;
 
+    /** Write restart file for PARCAS */
+    void write_restart(ofstream &out) const;
+
     /** Specify file types that can be written */
     bool valid_extension(const string &ext) const {
-        return Medium::valid_extension(ext) || ext == "ckx";
+        return Medium::valid_extension(ext) || ext == "ckx" || ext == "restart";
     }
 
     /** Reserve memory for data vectors */

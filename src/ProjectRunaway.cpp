@@ -565,7 +565,7 @@ int ProjectRunaway::export_data(double* data, const int n_points, const string &
         return forces.export_parcas(n_points, data_type, reader.get_si2parcas_box(), data);
 
     if (data_type == LABELS.parcas_velocity)
-        return temperatures.scale_berendsen(data, n_points, reader.get_parcas2si_box(), conf);
+        return temperatures.scale_berendsen(data, n_points, *reader.get_velocities(), conf);
 
     require(false, "Unimplemented type of export data: " + data_type);
     return 1;
@@ -653,19 +653,22 @@ void ProjectRunaway::write_restart() {
 
     // make restart file to in-folder to reduce the risk
     // of accidentally deleting it while restarting system
-    string path = "in/femocs.restart";
-    unsigned int flags = FileIO::force | FileIO::no_update | FileIO::append;
+    string fem_path = "in/femocs.restart";
+    string parcas_path = "in/parcas.restart";
+    unsigned int flags = FileIO::force | FileIO::no_update;
 
-    mesh->write(path, FileIO::force | FileIO::no_update);
-    bulk_interpolator.nodes.write(path, flags);
-    pic_solver.write(path, flags);
+    mesh->write(fem_path, flags);
+    bulk_interpolator.nodes.write(fem_path, flags | FileIO::append);
+    pic_solver.write(fem_path, flags | FileIO::append);
+    reader.write(parcas_path, flags);
 
     // after longer periods make copies of last restart files
     // to have an access to intermediate steps
     if (conf.behaviour.restart_multiplier > 0 &&
             (restart_cntr % conf.behaviour.restart_multiplier) == 0)
     {
-        fail = execute("cp " + path + " out/femocs_" + d2s(GLOBALS.TIMESTEP) +  ".restart");
+        fail = execute("cp " + fem_path + " out/femocs_" + d2s(GLOBALS.TIMESTEP) +  ".restart");
+        fail = execute("cp " + parcas_path + " out/parcas_" + d2s(GLOBALS.TIMESTEP) +  ".restart");
     }
 }
 

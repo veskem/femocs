@@ -9,7 +9,7 @@
 #define SOLUTIONREADER_H_
 
 #include "Primitives.h"
-#include "Medium.h"
+#include "Surface.h"
 #include "AtomReader.h"
 #include "TetgenCells.h"
 #include "TetgenMesh.h"
@@ -76,12 +76,6 @@ public:
 
     /** Interpolate solution on a set of given points */
     void interpolate(const int n_points, const double* x, const double* y, const double* z);
-
-    /** Interpolate solution on all Medium atoms */
-    void interpolate(const Medium &medium);
-
-    /** Interpolate solution on non-fixed AtomReader atoms */
-    void interpolate(const AtomReader &reader);
 
     /** Determine whether given data is included in SolutionReader */
     int contains(const string& data_label) const;
@@ -152,6 +146,10 @@ public:
 
     FieldReader(Interpolator* i);
 
+    /** Interpolate solution on all Medium atoms */
+    using SolutionReader::interpolate;
+    void interpolate(const Surface &surface);
+
     /** Compare the analytical and calculated field enhancement.
      * The check is disabled if lower and upper limits are the same. */
     bool check_limits(const vector<Solution>* solutions=NULL, bool verbose=true);
@@ -218,14 +216,18 @@ public:
 
     HeatReader(Interpolator* i);
 
+    /** Interpolate solution on non-fixed AtomReader atoms */
+    using SolutionReader::interpolate;
+    void interpolate(const AtomReader &reader);
+
     /** Interpolate and export solution on the mesh DOFs of the FEM solver */
     void interpolate_dofs(CurrentHeatSolver<3>& solver, const TetgenMesh* mesh);
 
     /** Compute data that Berendsen thermostat requires for re-using old solution */
     void precalc_berendsen();
 
-    /** Apply Berendsen thermostat for atoms within a tetrahedron */
-    int scale_berendsen(double* x1, const int n_atoms, const Vec3& parcas2si, const Config& conf);
+    /** Apply Berendsen thermostat for atomistic velocities */
+    int scale_berendsen(double* x1, const int n_atoms, const vector<Vec3>& velocities, const Config& conf);
 
     /** Return current density in i-th interpolation point */
     Vec3 get_rho(const int i) const {
@@ -246,17 +248,15 @@ public:
     }
 
 private:
-    static constexpr double kB = 8.6173324e-5; ///< Boltzmann constant [eV/K]
-    static constexpr double heat_factor = 1.0 / (2*1.5*kB);  ///< Factor to transfer 2*kinetic energy to temperature
+    static constexpr double kB = 8.6173303e-5; ///< Boltzmann constant [eV/K]
+    static constexpr double amu = 103.642696;  ///< 1 amu in eV*(fs/A)^2
+    static constexpr double heat_factor = amu / (2*1.5*kB);  ///< Factor to transfer 2*kinetic energy to temperature
 
     double timestep_over_tau=0;     ///< MD time step / berendsen tau [fs/fs]
 
     vector<vector<int>> tet2atoms;
     vector<double> fem_temp;
     vector<double> temperatures;
-
-    /** Transfer velocities from Parcas units to fm / fs */
-    void calc_SI_velocities(vector<Vec3>& velocities, const int n_atoms, const Vec3& parcas2si, double* x1);
 
     /** Calculate scaling factor for Berendsen thermostat */
     inline double calc_lambda(const double T_start, const double T_end) const;

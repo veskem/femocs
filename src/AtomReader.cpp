@@ -436,6 +436,20 @@ bool AtomReader::import_parcas(const int n_atoms, const double* xyz, const doubl
     return false;
 }
 
+bool AtomReader::import_parcas(const int n_atoms, const double* x1, const Config &conf) {
+    require(n_atoms > 0, "Zero input atoms detected!");
+
+    Vec3 parcas2si = simubox / conf.behaviour.timestep_fs;
+
+    velocities.resize(n_atoms);
+    for (int i = 0; i < n_atoms; ++i) {
+        int I = 3*i;
+        velocities[i] = Vec3(x1[I], x1[I+1], x1[I+2]) * parcas2si;
+    }
+
+    return false;
+}
+
 bool AtomReader::import_file(const string &file_name, const bool add_noise) {
     string file_type = get_file_type(file_name);
 
@@ -528,6 +542,30 @@ void AtomReader::write_ckx(ofstream &out) const {
     const int n_atoms = size();
     for (int i = 0; i < n_atoms; ++i)
         out << atoms[i].marker << " " << atoms[i].point << endl;
+}
+
+void AtomReader::write_restart(ofstream &out) const {
+    const int n_atoms = size();
+    if (velocities.size() != n_atoms) return;
+
+    // start xyz header
+    FileWriter::write_xyz(out);
+
+    // write Ovito header
+    out << "properties=species:S:1:pos:R:3:type:I:1:id:I:1:velocity:R:3" << endl;
+
+    // TODO obtain labels from conf
+
+    // write data
+    for (int i = 0; i < n_atoms; ++i) {
+        int marker = get_marker(i);
+        if (marker == TYPES.EVAPORATED || marker == TYPES.CLUSTER)
+            out << "Ev " << atoms[i].point << " 0 " << i+1 << " " << velocities[i] << "\n";
+        else if (marker == TYPES.FIXED)
+            out << "Cu " << atoms[i].point << " -1 " << i+1 << " " << velocities[i] << "\n";
+        else
+            out << "Cu " << atoms[i].point << " 1 " << i+1 << " " << velocities[i] << "\n";
+    }
 }
 
 } /* namespace femocs */

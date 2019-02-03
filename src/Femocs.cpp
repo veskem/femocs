@@ -123,11 +123,18 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
     return 0;
 }
 
-int Femocs::import_atoms(const int n_atoms, const double* coordinates, const double* box, const int* nborlist) {
+int Femocs::import_parcas(const int n_atoms, const double* data, const double* box, const int* nborlist) {
     clear_log();
 
+    if (n_atoms < 0) {
+        start_msg(t0, "Importing velocities");
+        bool system_changed = reader.import_parcas(abs(n_atoms), data, conf);
+        end_msg(t0);
+        return 0;
+    }
+
     start_msg(t0, "Importing atoms");
-    bool system_changed = reader.import_parcas(n_atoms, coordinates, box);
+    bool system_changed = reader.import_parcas(n_atoms, data, box);
     end_msg(t0);
     write_verbose_msg( "#input atoms: " + d2s(reader.size()) );
 
