@@ -563,7 +563,7 @@ int ProjectRunaway::export_data(double* data, const int n_points, const string &
     if (data_type == LABELS.parcas_velocity)
         return temperatures.scale_berendsen(data, n_points, *reader.get_velocities(), conf);
 
-    require(false, "Unimplemented type of export data: " + data_type);
+    write_silent_msg("Unimplemented type of export data: " + data_type);
     return 1;
 }
 
@@ -585,7 +585,7 @@ int ProjectRunaway::export_data(int* data, const int n_points, const string& dat
         return reader.get_n_detached();
     }
 
-    require(false, "Unimplemented type of export data: " + data_type);
+    write_silent_msg("Unimplemented type of export data: " + data_type);
     return 1;
 }
 
