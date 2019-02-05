@@ -21,7 +21,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         fail(false), t0(0), mesh_changed(false), first_run(true),
 		last_heat_time(-conf.behaviour.timestep_fs),
 		last_pic_time(-conf.behaviour.timestep_fs),
-		last_restart_ts(0), restart_cntr(1),
+		last_restart_ts(0),
 
         vacuum_interpolator(LABELS.elfield, LABELS.charge_density, LABELS.potential),
         bulk_interpolator(LABELS.rho, LABELS.potential, LABELS.temperature),
@@ -53,10 +53,6 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
 }
 
 int ProjectRunaway::reinit() {
-    // must be before the increment of timestep,
-    // as mdlat.out is written in Parcas AFTER calling Femocs
-    copy_mdlat();
-
     GLOBALS.TIMESTEP++;
     conf.read_all();
 
@@ -651,6 +647,9 @@ void ProjectRunaway::write_restart() {
              (GLOBALS.TIMESTEP - last_restart_ts) < conf.behaviour.n_restart)
         return;
 
+    // how many restart files have been written
+    static int restart_cntr = 1;
+
     // make restart file to in-folder to reduce the risk
     // of accidentally deleting it while restarting system
     string fem_path = "in/femocs.restart";
@@ -665,37 +664,13 @@ void ProjectRunaway::write_restart() {
     // after longer periods make copies of last restart files
     // to have an access to intermediate steps
     if (conf.behaviour.restart_multiplier > 0 &&
-            (restart_cntr % conf.behaviour.restart_multiplier) == 0)
+            (restart_cntr++ % conf.behaviour.restart_multiplier) == 0)
     {
         fail = execute("cp " + fem_path + " out/femocs_" + d2s(GLOBALS.TIMESTEP) +  ".restart");
         fail = execute("cp " + parcas_path + " out/parcas_" + d2s(GLOBALS.TIMESTEP) +  ".restart");
     }
-}
-
-void ProjectRunaway::copy_mdlat() {
-    if (conf.behaviour.n_restart <= 0 ||
-             (GLOBALS.TIMESTEP - last_restart_ts) < conf.behaviour.n_restart)
-        return;
-
-    // if mdlat-file exists, copy this to in-folder to reduce the risk
-    // of accidentally deleting it while restarting system
-    string mdlat_path = "out/mdlat.out";
-    bool mdlat_exists = (bool)ifstream(mdlat_path);
-    if (mdlat_exists)
-        fail = execute("cp " + mdlat_path + " in/mdlat.in");
-
-    // after longer periods make copies of last restart files
-    // to have an access to intermediate steps
-    if (conf.behaviour.restart_multiplier > 0 &&
-            (restart_cntr++ % conf.behaviour.restart_multiplier) == 0)
-    {
-        restart_cntr = 1;
-        if (mdlat_exists)
-            fail = execute("mv " + mdlat_path + " out/mdlat_" + d2s(GLOBALS.TIMESTEP) + ".out");
-    }
 
     last_restart_ts = GLOBALS.TIMESTEP;
-    // make sure last_restart_ts and restart_cntr are updated by this point
 }
 
 } /* namespace femocs */
