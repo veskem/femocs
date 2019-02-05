@@ -31,7 +31,6 @@ Config::Config() {
     behaviour.mass = 63.5460;
     behaviour.rnd_seed = 12345;
     behaviour.n_omp_threads = 1;
-    behaviour.timestep_step = 1;
 
     run.cluster_anal = true;
     run.apex_refiner = false;
@@ -134,6 +133,7 @@ void Config::read_all(const string& fname, bool full_run) {
         check_obsolete("SC_mode");
         check_obsolete("heat_assemble");
         check_obsolete("field_assemble");
+        check_obsolete("timestep_step");
 
         // Check for the changed commands
         check_changed("heating", "heat_mode");
@@ -228,7 +228,6 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("mass(1)", behaviour.mass);
     read_command("seed", behaviour.rnd_seed);
     read_command("n_omp", behaviour.n_omp_threads);
-    read_command("timestep_step", behaviour.timestep_step);
 
     read_command("pic_dtmax", pic.dt_max);
     read_command("electron_weight", pic.weight_el);

@@ -69,7 +69,6 @@ public:
         double mass;                ///< Atom mass [amu]
         unsigned int rnd_seed;      ///< Seed for random number generator
         unsigned int n_omp_threads; ///< Number of opened OpenMP threads
-        unsigned int timestep_step; ///< Every n_timestep-th timestep is not skipped
     } behaviour;
 
     /** Enable or disable various support features */
