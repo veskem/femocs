@@ -27,7 +27,7 @@ Config::Config() {
     behaviour.n_write_log = 0;
     behaviour.n_read_conf = 0;
     behaviour.interpolation_rank = 1;
-    behaviour.timestep_fs = 4.05;
+    behaviour.timestep_fs = 4.05773;
     behaviour.mass = 63.5460;
     behaviour.rnd_seed = 12345;
     behaviour.n_omp_threads = 1;
