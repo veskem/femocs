@@ -618,14 +618,12 @@ int HeatReader::scale_berendsen(double* x1, const int n_atoms,
 {
     check_return(size() == 0, "No " + LABELS.parcas_velocity + " to export!");
 
-    // MD time step over Berendsen tau
     require(conf.heating.tau > 0, "Invalid heat time constant: " + d2s(conf.heating.tau));
-    timestep_over_tau = conf.behaviour.timestep_fs / conf.heating.tau;
-
+    const double timestep_over_tau = conf.behaviour.timestep_fs / conf.heating.tau;
     const double heat_factor = this->heat_factor * conf.behaviour.mass;
 
     const unsigned int n_tets = tet2atoms.size();
-    require(n_tets > 0, "Data is missing for long Berendsen thermostat!");
+    require(n_tets > 0, "Data is missing for Berendsen thermostat!");
     require(fem_temp.size() == n_tets, "Mismatch between vector sizes: "
             + d2s(n_tets) + ", " + d2s(fem_temp.size()));
 
@@ -644,7 +642,7 @@ int HeatReader::scale_berendsen(double* x1, const int n_atoms,
             if (md_temp < 1e-100) continue;
 
             // calculate scaling factor
-            double lambda = calc_lambda(md_temp, fem_temp[tet]);
+            double lambda = sqrt(1.0 + timestep_over_tau * (fem_temp[tet] / md_temp - 1.0));
 
             // scale the velocities towards tetrahedron temperature
             for (int atom : tet2atoms[tet]) {
@@ -662,12 +660,7 @@ int HeatReader::scale_berendsen(double* x1, const int n_atoms,
     }
 
     write("out/berendsen.movie");
-
     return 0;
-}
-
-inline double HeatReader::calc_lambda(const double T_start, const double T_end) const {
-    return sqrt( 1.0 + timestep_over_tau * (T_end / T_start - 1.0) );
 }
 
 /* ==========================================

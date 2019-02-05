@@ -252,14 +252,9 @@ private:
     static constexpr double amu = 103.642696;  ///< 1 amu in eV*(fs/A)^2
     static constexpr double heat_factor = amu / (2*1.5*kB);  ///< Factor to transfer 2*kinetic energy to temperature
 
-    double timestep_over_tau=0;     ///< MD time step / berendsen tau [fs/fs]
-
     vector<vector<int>> tet2atoms;
     vector<double> fem_temp;
     vector<double> temperatures;
-
-    /** Calculate scaling factor for Berendsen thermostat */
-    inline double calc_lambda(const double T_start, const double T_end) const;
 
     /** Function to increase spatial ordering of mesh nodes */
     void sort_spatial();
