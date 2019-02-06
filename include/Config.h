@@ -95,6 +95,7 @@ public:
         double box_height;          ///< Simulation box height [tip height]
         double bulk_height;         ///< Bulk substrate height [lattice constant]
         double radius;              ///< Radius of cylinder where surface atoms are not coarsened; 0 enables coarsening of all atoms
+        double theta;               ///< Apex angle of coarsening cone [degree]
         double height;              ///< height of generated artificial nanotip in the units of radius
         /** Minimum rms distance between atoms from current and previous run so that their
          * movement is considered to be sufficiently big to recalculate electric field;

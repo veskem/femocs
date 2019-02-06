@@ -41,6 +41,7 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
         ch_solver(&phys_quantities, &config.heating, &emission),
         pic_solver(&poisson_solver, &emission, &vacuum_interpolator, &conf.pic, conf.behaviour.rnd_seed)
 {
+    dense_surf.set_coarsener(&coarseners);
     poisson_solver.set_particles(pic_solver.get_particles());
 
     surface_fields.set_preferences(false, 2, 3);
@@ -125,10 +126,12 @@ int ProjectRunaway::run(const int timestep, const double time) {
 }
 
 int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum) {
-    start_msg(t0, "Extracting surface");
+    start_msg(t0, "Extracting surface & coarseners");
     reader.extract(dense_surf, TYPES.SURFACE);
+    coarseners.generate(dense_surf, conf.geometry, conf.cfactor);
     end_msg(t0);
     dense_surf.write("out/surface_dense.xyz");
+    coarseners.write("out/coarseners.vtk");
 
     if (first_run) {
         start_msg(t0, "Extending surface");
@@ -138,11 +141,13 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
     }
 
     start_msg(t0, "Coarsening surface");
-    dense_surf.generate_boundary_nodes(bulk, coarse_surf, vacuum, extended_surf, conf, first_run);
+    dense_surf.generate_boundary_nodes(bulk, coarse_surf, vacuum, extended_surf, conf);
     end_msg(t0);
 
-    if (MODES.VERBOSE)
-        printf("  #extended=%d, #coarse=%d, #dense=%d\n", extended_surf.size(), coarse_surf.size(), dense_surf.size());
+    if (MODES.VERBOSE) {
+        printf("  #extended=%d, #coarse=%d, #dense=%d\n",
+                extended_surf.size(), coarse_surf.size(), dense_surf.size());
+    }
 
     coarse_surf.write("out/surface_coarse.xyz");
     bulk.write("out/bulk.xyz");

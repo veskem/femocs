@@ -277,7 +277,7 @@ public:
     }
 
     /** Generate coarseners for one nanotip system */
-    void generate(const Medium &medium, const double radius, const Config::CoarseFactor &cf, const double latconst);
+    void generate(const Medium &medium, const Config::Geometry &conf, const Config::CoarseFactor &cf);
 
     /** Get the distance between atoms on the edge of simulation cell */
     double get_r0_inf(const Medium::Sizes &s);

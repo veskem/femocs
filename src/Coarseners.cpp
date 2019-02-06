@@ -230,13 +230,11 @@ vector<Point3> ConeCoarsener::get_points(const double zmin) {
     return points;
 }
 
-void Coarseners::generate(const Medium &medium, const double radius,
-    const Config::CoarseFactor &cf, const double latconst)
+void Coarseners::generate(const Medium &medium, const Config::Geometry &conf,
+    const Config::CoarseFactor &cf)
 {
-    double theta = 0; //4.4;
-    require(theta > -60.0 && theta < 60, "Too steep coarsening cone angle: " + d2s(theta));
-
-    tan_theta = tan(theta * M_PI / 180.0);
+    require(conf.theta > -60.0 && conf.theta < 60, "Too steep coarsening cone angle: " + d2s(conf.theta));
+    tan_theta = tan(conf.theta * M_PI / 180.0);
 
     const int n_atoms = medium.size();
     require(n_atoms > 0, "Not enough points to generate coarseners.");
@@ -247,9 +245,9 @@ void Coarseners::generate(const Medium &medium, const double radius,
     const double z_bot = get_z_mean(medium);
 
     // move spherical coarsener somewhat off from zmax to grasp more apex atoms
-    double shift_max = 0.5 * radius;
+    double shift_max = 0.5 * conf.radius;
     double theta_max = 180.0 * atan(shift_max/(medium.sizes.zmax-z_bot)) / M_PI;
-    double scale = 1.0 - theta / theta_max;
+    double scale = 1.0 - conf.theta / theta_max;
     scale = min(1.0, max(-1.0, scale)); // force between [-1, 1]
 
     const double z_top = max(z_bot, medium.sizes.zmax - shift_max*scale);
@@ -257,15 +255,17 @@ void Coarseners::generate(const Medium &medium, const double radius,
     centre = Point3(medium.sizes.xmid, medium.sizes.ymid, z_bot);
     Point3 apex(medium.sizes.xmid, medium.sizes.ymid, z_top);
 
-    this->radius = radius;
-    amplitude = cf.amplitude * latconst;
-    r0_cylinder = cf.r0_cylinder * 0.25 * latconst;
-    const double r0_sphere = cf.r0_sphere * 0.25 * latconst;
+    radius = conf.radius;
+    amplitude = cf.amplitude * conf.latconst;
+    r0_cylinder = cf.r0_cylinder * 0.25 * conf.latconst;
+    const double r0_sphere = cf.r0_sphere * 0.25 * conf.latconst;
     const double r0_flat = min(amplitude*1e20, r0_cylinder);
 
     coarseners.clear();
-    attach_coarsener( make_shared<ConeCoarsener>(apex, centre, theta, cf.exponential, radius, amplitude, r0_sphere, r0_cylinder) );
-    attach_coarsener( make_shared<FlatlandCoarsener>(centre, cf.exponential, radius, amplitude, r0_flat) );
+    attach_coarsener( make_shared<ConeCoarsener>(apex, centre, conf.theta,
+            cf.exponential, radius, amplitude, r0_sphere, r0_cylinder) );
+    attach_coarsener( make_shared<FlatlandCoarsener>(centre,
+            cf.exponential, radius, amplitude, r0_flat) );
 }
 
 double Coarseners::get_z_mean(const Medium& medium) {

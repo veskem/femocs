@@ -78,6 +78,8 @@ protected:
     double last_pic_time;       ///< Last time PIC solver was called
     int last_restart_ts;        ///< Last time step reset file was written
 
+    Coarseners coarseners;      ///< atomistic coarsening data & routines
+
     Interpolator vacuum_interpolator;  ///< data & operations for interpolating field & potential in vacuum
     Interpolator bulk_interpolator;    ///< data & operations for interpolating current density & temperature in bulk
 

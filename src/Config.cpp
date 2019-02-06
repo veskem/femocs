@@ -51,6 +51,7 @@ Config::Config() {
     geometry.box_height = 6;
     geometry.bulk_height = 20;
     geometry.radius = 0.0;
+    geometry.theta = 0.0;
     geometry.height = 0.0;
     geometry.distance_tol = 0.0;
 
@@ -198,6 +199,7 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("mesh_quality", geometry.mesh_quality);
     read_command("element_volume", geometry.element_volume);
     read_command("radius", geometry.radius);
+    read_command("coarse_theta", geometry.theta);
     read_command("tip_height", geometry.height);
     read_command("box_width", geometry.box_width);
     read_command("box_height", geometry.box_height);

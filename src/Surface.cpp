@@ -12,14 +12,13 @@
 using namespace std;
 namespace femocs {
 
-Surface::Surface() : Medium() {}
+Surface::Surface() : Medium(), coarseners(NULL) {}
 
-Surface::Surface(const int n_atoms) : Medium(n_atoms) {}
+Surface::Surface(const int n_atoms) : Medium(n_atoms), coarseners(NULL) {}
 
-Surface::Surface(const Medium::Sizes& s, const double z) {
-    // Reserve memory for atoms
-    reserve(4);
-
+Surface::Surface(const Medium::Sizes& s, const double z) :
+        Medium(4), coarseners(NULL)
+{
     // Add 4 atoms to the corners of simulation cell
     // The insertion order determines the orientation of big surface triangles
     append( Point3(s.xmin, s.ymin, z) );
@@ -30,7 +29,9 @@ Surface::Surface(const Medium::Sizes& s, const double z) {
     calc_statistics();
 }
 
-Surface::Surface(const Medium::Sizes& s, const double z, const double dist) {
+Surface::Surface(const Medium::Sizes& s, const double z, const double dist) :
+        coarseners(NULL)
+{
     require(dist > 0, "Invalid distance between atoms: " + d2s(dist));
 
     const int n_atoms_per_side_x = s.xbox / dist + 1;
@@ -59,6 +60,7 @@ Surface::Surface(const Medium::Sizes& s, const double z, const double dist) {
 void Surface::extend(Surface& extension, double latconst,
     double box_width, double z, const Sizes& sizes, bool circular)
 {
+    require(coarseners, "Coarsener not specified!");
     require(coarseners.get_r0_inf(sizes) > 0, "Invalid coarsener detected.");
 
     const double desired_box_width = box_width * sizes.zbox;
@@ -72,10 +74,10 @@ void Surface::extend(Surface& extension, double latconst,
 
         const double r_max = sqrt(2) * desired_box_width / 2.0;
         double r_min;
-        if (circular) r_min = coarseners.get_radius();
+        if (circular) r_min = coarseners->get_radius();
         else r_min = min(sizes.xbox, sizes.ybox) / 2.0;
 
-        double dR = coarseners.get_cutoff(Point3(sizes.xmid - r_min, sizes.ymid - r_min, z));
+        double dR = coarseners->get_cutoff(Point3(sizes.xmid - r_min, sizes.ymid - r_min, z));
         int i;
 
         // add points along a rectangular spiral
@@ -95,13 +97,13 @@ void Surface::extend(Surface& extension, double latconst,
             for (i = 0; i < n_points; ++i, x -= dR)
                 extension.append(Point3(x, y, z));
 
-            dR = coarseners.get_cutoff(Point3(x - dR, y - dR, z));
+            dR = coarseners->get_cutoff(Point3(x - dR, y - dR, z));
         }
     }
 
     // if the input already is sufficiently wide, add just the boundary nodes
     else {
-        Surface middle(sizes, z, coarseners.get_r0_inf(sizes));
+        Surface middle(sizes, z, coarseners->get_r0_inf(sizes));
         extension = Surface(sizes, z);
         extension += middle;
     }
@@ -110,9 +112,10 @@ void Surface::extend(Surface& extension, double latconst,
 }
 
 void Surface::coarsen(Surface& surface) {
+    require(coarseners, "Coarsener not specified!");
     sort_atoms(3, "down");
 
-    Surface middle(sizes, sizes.zmean, coarseners.get_r0_inf(sizes));
+    Surface middle(sizes, sizes.zmean, coarseners->get_r0_inf(sizes));
     Surface union_surf(sizes, sizes.zmean);
     union_surf += middle;
     union_surf += surface;
@@ -121,6 +124,7 @@ void Surface::coarsen(Surface& surface) {
 }
 
 void Surface::clean(Surface& surface) {
+    require(coarseners, "Coarsener not specified!");
     const int n_atoms = surface.size();
     vector<bool> do_delete(n_atoms, false);
 
@@ -130,12 +134,12 @@ void Surface::clean(Surface& surface) {
         if (do_delete[i]) continue;
 
         Point3 point1 = surface.get_point(i);
-        coarseners.pick_cutoff(point1);
+        coarseners->pick_cutoff(point1);
 
         for (int j = i+1; j < n_atoms; ++j) {
             // Skip already deleted atoms
             if (do_delete[j]) continue;
-            do_delete[j] = coarseners.nearby(point1, surface.get_point(j));
+            do_delete[j] = coarseners->nearby(point1, surface.get_point(j));
         }
     }
 
@@ -150,12 +154,13 @@ void Surface::clean(Surface& surface) {
 }
 
 void Surface::add_cleaned_roi_to(Surface& surface) {
+    require(coarseners, "Coarsener not specified!");
     const int n_atoms = size();
     vector<int> do_delete(n_atoms, 0);
 
     // mark atoms outside the nanotip
     for (int i = 0; i < n_atoms; ++i)
-        do_delete[i] = -1 * !coarseners.inside_roi(get_point(i));
+        do_delete[i] = -1 * !coarseners->inside_roi(get_point(i));
 
     // Loop through all the nanotip atoms
     for (int i = 0; i < n_atoms; ++i) {
@@ -163,12 +168,12 @@ void Surface::add_cleaned_roi_to(Surface& surface) {
         if (do_delete[i] != 0) continue;
 
         Point3 point1 = get_point(i);
-        coarseners.pick_cutoff(point1);
+        coarseners->pick_cutoff(point1);
 
         for (int j = i+1; j < n_atoms; ++j) {
             // skip already marked atoms
             if (do_delete[j] == 0)
-                do_delete[j] = coarseners.nearby(point1, get_point(j));
+                do_delete[j] = coarseners->nearby(point1, get_point(j));
         }
     }
 
@@ -190,7 +195,8 @@ void Surface::add_cleaned_roi_to(Surface& surface) {
 /* TODO: Leaves bigger holes into system than brute force method,
  * because the atoms in linked list are not radially ordered. Do something about it! */
 void Surface::fast_coarsen(Surface &surface, const Medium::Sizes &s) {
-    calc_linked_list(coarseners.get_r0_inf(s));
+    require(coarseners, "Coarsener not specified!");
+    calc_linked_list(coarseners->get_r0_inf(s));
 
     const int n_atoms = size();
     require((int)list.size() == n_atoms, "Invalid linked list size: " + d2s(list.size()));
@@ -207,7 +213,7 @@ void Surface::fast_coarsen(Surface &surface, const Medium::Sizes &s) {
         array<int,3>& i_atom = nborbox_indices[i];
 
         Point3 point1 = atoms[i].point;
-        coarseners.pick_cutoff(point1);
+        coarseners->pick_cutoff(point1);
 
         // loop through the boxes where the neighbours are located; there are up to 3^3=27 boxes
         for (int iz = i_atom[2]-1; iz <= i_atom[2]+1; ++iz) {
@@ -231,7 +237,7 @@ void Surface::fast_coarsen(Surface &surface, const Medium::Sizes &s) {
                         require(j < n_atoms, "Invalid index in linked list: " + d2s(j));
                         // skip the same atoms and the atoms that are already deleted
                         if (!do_delete[j] && i != j)
-                            do_delete[j] = coarseners.nearby(point1, get_point(j));
+                            do_delete[j] = coarseners->nearby(point1, get_point(j));
                         j = list[j];
                     }
                 }
@@ -351,13 +357,13 @@ void Surface::smoothen(const double smooth_factor, const double r_cut) {
 }
 
 void Surface::extend(Surface& extended_surf, const Config& conf) {
-    coarseners.generate(*this, conf.geometry.radius, conf.cfactor, conf.geometry.latconst);
+    require(coarseners, "Coarsener not specified!");
 
     if (conf.path.extended_atoms == "") {
         // Extend surface by generating additional nodes
         calc_statistics();
         extend(extended_surf, conf.geometry.latconst, conf.geometry.box_width,
-            coarseners.centre.z, sizes, false);
+            coarseners->centre.z, sizes, false);
     }
 
     else {
@@ -377,12 +383,9 @@ void Surface::extend(Surface& extended_surf, const Config& conf) {
 }
 
 int Surface::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum,
-        const Surface& extended_surf, const Config& conf, const bool first_time)
+        const Surface& extended_surf, const Config& conf)
 {
-    if (!first_time)
-        coarseners.generate(*this, conf.geometry.radius, conf.cfactor, conf.geometry.latconst);
-
-    // sort atoms radially to increase the symmetry or the resulting surface
+    // sort atoms radially to increase the symmetry of the resulting surface
     sort_atoms(3, "down");
 
     // Coarsen & smoothen surface

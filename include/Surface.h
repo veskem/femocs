@@ -38,13 +38,16 @@ public:
 
     /** Generate nodal data that can be used as mesh generators */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum,
-            const Surface& extended_surf, const Config& conf, const bool first_time);
+            const Surface& extended_surf, const Config& conf);
 
     /** Remove the atoms that are too far from surface faces */
     void clean_by_triangles(Interpolator& interpolator, const TetgenMesh* mesh, const double r_cut);
 
+    /** Store data for coarsenening atoms */
+    void set_coarsener(Coarseners *c) { coarseners = c; }
+
 private:
-    Coarseners coarseners;  ///< atomistic coarsening data & routines
+    Coarseners *coarseners;  ///< atomistic coarsening data & routines
 
     /** Function used to smoothen the atoms */
     inline double smooth_function(const double distance, const double smooth_factor) const;
