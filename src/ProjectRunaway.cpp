@@ -143,15 +143,12 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
     start_msg(t0, "Coarsening surface");
     dense_surf.generate_boundary_nodes(bulk, coarse_surf, vacuum, extended_surf, conf);
     end_msg(t0);
+    coarse_surf.write("out/surface_coarse.xyz");
 
     if (MODES.VERBOSE) {
         printf("  #extended=%d, #coarse=%d, #dense=%d\n",
                 extended_surf.size(), coarse_surf.size(), dense_surf.size());
     }
-
-    coarse_surf.write("out/surface_coarse.xyz");
-    bulk.write("out/bulk.xyz");
-    vacuum.write("out/vacuum.xyz");
 
     return 0;
 }
