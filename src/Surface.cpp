@@ -60,8 +60,8 @@ Surface::Surface(const Medium::Sizes& s, const double z, const double dist) :
 void Surface::extend(Surface& extension, double latconst,
     double box_width, double z, const Sizes& sizes, bool circular)
 {
-    require(coarseners, "Coarsener not specified!");
-    require(coarseners.get_r0_inf(sizes) > 0, "Invalid coarsener detected.");
+    require(coarseners, "Coarseners not provided!");
+    require(coarseners->get_r0_inf(sizes) > 0, "Invalid coarsener detected.");
 
     const double desired_box_width = box_width * sizes.zbox;
 
@@ -112,7 +112,7 @@ void Surface::extend(Surface& extension, double latconst,
 }
 
 void Surface::coarsen(Surface& surface) {
-    require(coarseners, "Coarsener not specified!");
+    require(coarseners, "Coarseners not provided!");
     sort_atoms(3, "down");
 
     Surface middle(sizes, sizes.zmean, coarseners->get_r0_inf(sizes));
@@ -124,7 +124,7 @@ void Surface::coarsen(Surface& surface) {
 }
 
 void Surface::clean(Surface& surface) {
-    require(coarseners, "Coarsener not specified!");
+    require(coarseners, "Coarseners not provided!");
     const int n_atoms = surface.size();
     vector<bool> do_delete(n_atoms, false);
 
@@ -154,7 +154,7 @@ void Surface::clean(Surface& surface) {
 }
 
 void Surface::add_cleaned_roi_to(Surface& surface) {
-    require(coarseners, "Coarsener not specified!");
+    require(coarseners, "Coarseners not provided!");
     const int n_atoms = size();
     vector<int> do_delete(n_atoms, 0);
 
@@ -195,7 +195,7 @@ void Surface::add_cleaned_roi_to(Surface& surface) {
 /* TODO: Leaves bigger holes into system than brute force method,
  * because the atoms in linked list are not radially ordered. Do something about it! */
 void Surface::fast_coarsen(Surface &surface, const Medium::Sizes &s) {
-    require(coarseners, "Coarsener not specified!");
+    require(coarseners, "Coarseners not provided!");
     calc_linked_list(coarseners->get_r0_inf(s));
 
     const int n_atoms = size();
@@ -275,16 +275,13 @@ void Surface::clean_by_triangles(Interpolator& interpolator, const TetgenMesh* m
     calc_statistics();
 }
 
-void Surface::get_nanotip(Surface& nanotip, const double radius) {
+void Surface::get_nanotip(Surface& nanotip, const Coarseners& coarseners) {
     const int n_atoms = size();
-    const double radius2 = radius * radius;
 
     // Make map for atoms in nanotip
-    vector<bool> is_nanotip; is_nanotip.reserve(n_atoms);
-    Point2 centre(sizes.xmid, sizes.ymid);
-
+    vector<bool> is_nanotip(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
-       is_nanotip.push_back( centre.distance2(get_point2(i)) <= radius2 );
+       is_nanotip[i] = coarseners.inside_roi(get_point(i));
 
     // Reserve memory for nanotip and substrate
     nanotip.reserve(vector_sum(is_nanotip));
@@ -302,20 +299,21 @@ void Surface::get_nanotip(Surface& nanotip, const double radius) {
     nanotip.calc_statistics();
 }
 
-void Surface::smoothen(const double radius, const double smooth_factor, const double r_cut) {
+void Surface::smoothen_roi(double smooth_factor, double r_cut) {
     if (smooth_factor <= 0) return;
+    require(coarseners, "Coarseners not provided!");
 
     // Calculate the horizontal span of the surface
     calc_statistics();
 
     Surface nanotip;
-    get_nanotip(nanotip, radius);
+    get_nanotip(nanotip, *coarseners);
     nanotip.smoothen(smooth_factor, r_cut);
 
     *this += nanotip;
 }
 
-void Surface::smoothen(const double smooth_factor, const double r_cut) {
+void Surface::smoothen(double smooth_factor, double r_cut) {
     if (smooth_factor <= 0) return;
 
     const double r_cut2 = r_cut * r_cut;
@@ -357,7 +355,7 @@ void Surface::smoothen(const double smooth_factor, const double r_cut) {
 }
 
 void Surface::extend(Surface& extended_surf, const Config& conf) {
-    require(coarseners, "Coarsener not specified!");
+    require(coarseners, "Coarseners not provided!");
 
     if (conf.path.extended_atoms == "") {
         // Extend surface by generating additional nodes
@@ -389,11 +387,12 @@ int Surface::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surfac
     sort_atoms(3, "down");
 
     // Coarsen & smoothen surface
+    coarse_surf.set_coarsener(coarseners);
     coarse_surf.atoms = extended_surf.atoms;
 //    coarse_surf += *this;
     add_cleaned_roi_to(coarse_surf);
     clean(coarse_surf);
-    coarse_surf.smoothen(conf.geometry.radius, conf.smoothing.beta_atoms, 3.0*conf.geometry.coordination_cutoff);
+    coarse_surf.smoothen_roi(conf.smoothing.beta_atoms, 3.0*conf.geometry.coordination_cutoff);
 
     // Generate bulk & vacuum corners
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface

@@ -313,7 +313,7 @@ public:
     void distribute_charges(const FieldReader &fields, const ChargeReader& faces, const double smooth_factor);
 
     /** Build Voronoi cells around the atoms in the region of interest */
-    int calc_voronois(VoronoiMesh& mesh, const Config::Geometry& conf, const string& mesh_quality);
+    int calc_voronois(VoronoiMesh& mesh, const Coarseners& coarseners, const Config::Geometry& conf, const string& mesh_quality);
 
     /** Calculate Lorentz forces from known electric fields and charges */
     void recalc_lorentz(const FieldReader &fields);
@@ -362,8 +362,8 @@ private:
     /** Remove cells with too big faces*/
     void clean_voro_faces(VoronoiMesh& mesh);
 
-    /** Separate cylindrical region from substrate region */
-    int get_nanotip(Medium& nanotip, const double radius);
+    /** Separate region-of-interest from substrate region */
+    int get_nanotip(Medium& nanotip, const Coarseners& coarseners);
 };
 
 } // namespace femocs

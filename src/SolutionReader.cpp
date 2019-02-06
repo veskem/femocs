@@ -766,16 +766,13 @@ void ChargeReader::set_check_params(const double Q_tot, const double limit_min, 
 ForceReader::ForceReader(Interpolator* i) :
         SolutionReader(i, LABELS.force, LABELS.pair_potential, LABELS.charge) {}
 
-int ForceReader::get_nanotip(Medium& nanotip, const double radius) {
+int ForceReader::get_nanotip(Medium& nanotip, const Coarseners& coarseners) {
     const int n_atoms = size();
-    const double radius2 = radius * radius;
-    Medium::calc_statistics();
 
     // Make map for atoms in nanotip
-    Point2 centre(sizes.xmid, sizes.ymid);
     vector<bool> atom_in_nanotip(n_atoms);
     for (int i = 0; i < n_atoms; ++i)
-        atom_in_nanotip[i] = centre.distance2(get_point2(i)) <= radius2;
+        atom_in_nanotip[i] = coarseners.inside_roi(get_point(i));
 
     const int n_nanotip_atoms = vector_sum(atom_in_nanotip);
 
@@ -832,17 +829,17 @@ void ForceReader::clean_voro_faces(VoronoiMesh& mesh) {
 
 }
 
-int ForceReader::calc_voronois(VoronoiMesh& mesh,
+int ForceReader::calc_voronois(VoronoiMesh& mesh, const Coarseners& coarseners,
         const Config::Geometry& conf, const string& mesh_quality)
 {
     require(interpolator, "NULL interpolator cannot be used!");
     const int n_atoms = size();
-    // TODO put those values to Config, because they affect heavily how the voronoi charges will look like
+    // those values affect heavily how Voronoi charges will look like
     const double max_distance_from_surface = 0.5 * conf.latconst;
     const double shift_distance = 1.0 * conf.latconst;
 
     Medium nanotip;
-    const int n_nanotip_atoms = get_nanotip(nanotip, conf.radius);
+    const int n_nanotip_atoms = get_nanotip(nanotip, coarseners);
 
     // calculate support points for the nanotip by moving the nanotip points
     // in direction of its corresponding triangle norm by shift_distance

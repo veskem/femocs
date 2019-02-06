@@ -285,6 +285,7 @@ public:
     /** Radius of coarsening cylinder */
     double get_radius() const { return radius; }
 
+    /** Return whether point is inside region-of-interest (nanotip or similar) */
     bool inside_roi(const Point3& p) const;
 
     Point3 centre;

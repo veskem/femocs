@@ -374,7 +374,7 @@ int ProjectRunaway::solve_force() {
 
     start_msg(t0, "Generating Voronoi cells");
     VoronoiMesh voro_mesh;
-    int err_code = forces.calc_voronois(voro_mesh, conf.geometry, "10.0");
+    int err_code = forces.calc_voronois(voro_mesh, coarseners, conf.geometry, "10.0");
     end_msg(t0);
 
     check_return(err_code, "Generation of Voronoi cells failed with error code " + d2s(err_code));

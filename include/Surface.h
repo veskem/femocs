@@ -53,7 +53,7 @@ private:
     inline double smooth_function(const double distance, const double smooth_factor) const;
 
     /** Separate cylindrical region from substrate region */
-    void get_nanotip(Surface& nanotip, const double radius);
+    void get_nanotip(Surface& nanotip, const Coarseners& coarseners);
 
     /** Extend the flat area by generating additional atoms */
     void extend(Surface &extension, double latconst, double box_width, double z, const Sizes& sizes, bool circular);
@@ -72,10 +72,10 @@ private:
     void add_cleaned_roi_to(Surface& surface);
 
     /** Smoothen the atoms inside the cylinder */
-    void smoothen(const double radius, const double smooth_factor, const double r_cut);
+    void smoothen_roi(double smooth_factor, double r_cut);
 
     /** Smoothen all the atoms in the system */
-    void smoothen(const double smooth_factor, const double r_cut);
+    void smoothen(double smooth_factor, double r_cut);
 };
 
 } /* namespace femocs */
