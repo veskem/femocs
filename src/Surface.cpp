@@ -155,7 +155,7 @@ void Surface::add_cleaned_roi_to(Surface& surface) {
 
     // mark atoms outside the nanotip
     for (int i = 0; i < n_atoms; ++i)
-        do_delete[i] = -1 * !coarseners.inside_interesting_region(get_point(i));
+        do_delete[i] = -1 * !coarseners.inside_roi(get_point(i));
 
     // Loop through all the nanotip atoms
     for (int i = 0; i < n_atoms; ++i) {

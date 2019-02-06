@@ -40,11 +40,11 @@ CylinderCoarsener::CylinderCoarsener(const Point2 &base, const double exp, const
         const double r0_cylinder) :
         Coarsener(Point3(), exp, radius, 0, r0_cylinder), origin2d(base.x, base.y) {}
 
-NanotipCoarsener::NanotipCoarsener() : Coarsener(), origin2d(0.0) {}
+NanotipCoarsener::NanotipCoarsener() : Coarsener(), bottom(0.0) {}
 
 NanotipCoarsener::NanotipCoarsener(const Point3 &apex, const double exp, const double radius,
         const double A, const double r0_apex, const double r0_cylinder) :
-        Coarsener(apex, exp, radius, A, r0_apex, r0_cylinder), origin2d(apex.x, apex.y) {}
+        Coarsener(apex, exp, radius, A, r0_apex, r0_cylinder), bottom(apex.x, apex.y) {}
 
 TiltedNanotipCoarsener::TiltedNanotipCoarsener() : NanotipCoarsener(), bottom(Vec3()), axis(Vec3()), height2(0) {}
 
@@ -55,6 +55,18 @@ TiltedNanotipCoarsener::TiltedNanotipCoarsener(const Point3 &apex, const Point3 
     Vec3 top(apex.x, apex.y, apex.z);
     axis = top - bottom;
     height2 = axis.norm2();
+}
+
+ConeCoarsener::ConeCoarsener() : NanotipCoarsener(), tan_theta(0), z_bottom(0), r_bottom(0)
+{}
+
+ConeCoarsener::ConeCoarsener(const Point3 &apex, const Point3 &base, double theta,
+        double exp, double radius, double A, double r0_apex, double r0_cone) :
+            NanotipCoarsener(apex, exp, radius, A, r0_apex, r0_cone),
+            tan_theta(tan(M_PI*theta/180.0)), z_bottom(base.z), r_bottom(radius)
+{
+    // calculate the radius of apex
+    this->radius = radius + (apex.z-base.z) * tan_theta;
 }
 
 vector<vector<int>> CylinderCoarsener::get_polygons() {
@@ -174,9 +186,58 @@ vector<Point3> NanotipCoarsener::get_points(const double zmin) {
     return points;
 }
 
+vector<Point3> ConeCoarsener::get_points(const double zmin) {
+    const double circle_res = 2 * M_PI / n_nodes_per_circle;
+    const double line_res = 2 * M_PI / 4;
+    const double zbottom = z_bottom - origin3d.z;
+
+    // Reserve memory for points
+    vector<Point3> points;
+    points.reserve(get_n_points());
+
+    // Make points for apex circle
+    for (double a = 0; a < 2*M_PI; a += circle_res)
+        points.push_back(Point3(radius*cos(a), radius*sin(a), 0));
+
+    // Make points for bottom circle
+    for (double a = 0; a < 2*M_PI; a += circle_res)
+        points.push_back(Point3(r_bottom*cos(a), r_bottom*sin(a), zbottom));
+
+    // Make points for circle in y-z plane
+    for (double a = 0; a < 2*M_PI; a += circle_res)
+        points.push_back(Point3(0, radius*cos(a), radius*sin(a)));
+
+    // Make points for circle in x-z plane
+    for (double a = 0; a < 2*M_PI; a += circle_res)
+        points.push_back(Point3(radius*cos(a), 0, radius*sin(a)));
+
+    // Make points for vertical lines
+    for (double a = 0; a < 2*M_PI; a += line_res) {
+        points.push_back( Point3(radius*cos(a), radius*sin(a), 0) );
+        points.push_back( Point3(r_bottom*cos(a), r_bottom*sin(a), zbottom) );
+    }
+
+    // Make points for horizontal lines
+    points.push_back( Point3(radius, 0, 0) );
+    points.push_back( Point3(-radius,0, 0) );
+    points.push_back( Point3(0, radius, 0) );
+    points.push_back( Point3(0,-radius, 0) );
+
+    // Shift points according to the origin
+    for (unsigned i = 0; i < points.size(); ++i)
+        points[i] += origin3d;
+
+    return points;
+}
+
 void Coarseners::generate(const Medium &medium, const double radius,
     const Config::CoarseFactor &cf, const double latconst)
 {
+    double theta = 0; //4.4;
+    require(theta > -60.0 && theta < 60, "Too steep coarsening cone angle: " + d2s(theta));
+
+    tan_theta = tan(theta * M_PI / 180.0);
+
     const int n_atoms = medium.size();
     require(n_atoms > 0, "Not enough points to generate coarseners.");
     require(cf.r0_cylinder >= 0 && cf.r0_sphere >= 0, "Coarsening factors must be non-negative!");
@@ -184,19 +245,26 @@ void Coarseners::generate(const Medium &medium, const double radius,
     require(cf.exponential > 0, "Coarsening rate must be positive!");
 
     const double z_bot = get_z_mean(medium);
-    const double z_top = max(z_bot, medium.sizes.zmax - 0.5*radius);
+
+    // move spherical coarsener somewhat off from zmax to grasp more apex atoms
+    double shift_max = 0.5 * radius;
+    double theta_max = 180.0 * atan(shift_max/(medium.sizes.zmax-z_bot)) / M_PI;
+    double scale = 1.0 - theta / theta_max;
+    scale = min(1.0, max(-1.0, scale)); // force between [-1, 1]
+
+    const double z_top = max(z_bot, medium.sizes.zmax - shift_max*scale);
 
     centre = Point3(medium.sizes.xmid, medium.sizes.ymid, z_bot);
     Point3 apex(medium.sizes.xmid, medium.sizes.ymid, z_top);
 
-    this->radius = radius;                 // store the coarsener radius
+    this->radius = radius;
     amplitude = cf.amplitude * latconst;
     r0_cylinder = cf.r0_cylinder * 0.25 * latconst;
     const double r0_sphere = cf.r0_sphere * 0.25 * latconst;
     const double r0_flat = min(amplitude*1e20, r0_cylinder);
 
     coarseners.clear();
-    attach_coarsener( make_shared<NanotipCoarsener>(apex, cf.exponential, radius, amplitude, r0_sphere, r0_cylinder) );
+    attach_coarsener( make_shared<ConeCoarsener>(apex, centre, theta, cf.exponential, radius, amplitude, r0_sphere, r0_cylinder) );
     attach_coarsener( make_shared<FlatlandCoarsener>(centre, cf.exponential, radius, amplitude, r0_flat) );
 }
 
@@ -273,12 +341,17 @@ double Coarseners::get_r0_inf(const Medium::Sizes &s) {
         return r0_cylinder;
 }
 
-bool Coarseners::inside_interesting_region(const Point3& p) const {
-    const double min_angle = M_PI / 6.0;
+bool Coarseners::inside_roi(const Point3& p) const {
+    constexpr double min_angle = M_PI / 6.0;
+
     Vec3 diff(p - centre);
-    bool inside_tip = diff.x * diff.x + diff.y * diff.y <= radius * radius;
+    double r = radius + diff.z * tan_theta;
+    bool outside_tip = diff.x * diff.x + diff.y * diff.y > r * r;
+    if (outside_tip) return false;
+
+    // additional check to get rid of atoms on the perimeter of nanotip-substrate junction
     bool inside_cone = asin(diff.z / diff.norm()) >= min_angle;
-    return inside_tip && inside_cone;
+    return inside_cone;
 }
 
 void Coarseners::write_vtk(ofstream &out) const {

@@ -173,21 +173,42 @@ public:
             cutoff2 = get_inf_cutoff();
     }
 
-    vector<Point3> get_points(const double zmin);
+    virtual vector<Point3> get_points(const double zmin);
     vector<vector<int>> get_polygons();
     int get_n_points() const { return n_lines * n_nodes_per_line + n_circles * n_nodes_per_circle; }
     int get_n_polygons() const { return n_lines + n_circles; };
 
 protected:
     /** Point in infinitely high vertical cylinder? */
+    virtual inline bool in_region(const Point3 &point) const {
+        return point.distance2(bottom) <= radius2;
+    }
+
+    const int n_circles = 4;
+    const int n_lines = 6;
+    Point2 bottom;
+};
+
+/** Class to coarsen surface inside one vertical cone with a sphere on top */
+class ConeCoarsener: public NanotipCoarsener {
+public:
+    ConeCoarsener();
+    ConeCoarsener(const Point3 &apex, const Point3 &base, double theta,
+            double exponential, double radius, double A, double r0_apex, double r0_cone);
+
+    vector<Point3> get_points(const double zmin);
+
+protected:
+    /** Point in infinitely high vertical cone? */
     inline bool in_region(const Point3 &point) const {
-        return point.distance2(origin2d) <= radius2;
+        double r = max(0.0, r_bottom + (point.z - z_bottom) * tan_theta);
+        return point.distance2(bottom) <= r*r;
     }
 
 private:
-    const int n_circles = 4;
-    const int n_lines = 6;
-    Point2 origin2d;
+    double tan_theta;  ///< tangent of cone apex angle
+    double z_bottom;   ///< z-coordinate of nanotip-substrate junction
+    double r_bottom;
 };
 
 /** Class to coarsen surface inside one infinite tilted nanotip */
@@ -224,7 +245,7 @@ private:
 class Coarseners: public FileWriter {
 public:
     /** Coarseners constructor */
-    Coarseners() : radius(0), amplitude(0), r0_cylinder(0) {}
+    Coarseners() : tan_theta(0), radius(0), amplitude(0), r0_cylinder(0) {}
 
     /** Append coarsener to the array of all the coarseners */
     void attach_coarsener(shared_ptr<Coarsener> c) {
@@ -264,10 +285,11 @@ public:
     /** Radius of coarsening cylinder */
     double get_radius() const { return radius; }
 
-    bool inside_interesting_region(const Point3& p) const;
+    bool inside_roi(const Point3& p) const;
 
     Point3 centre;
 private:
+    double tan_theta;
     double radius;
     double amplitude;
     double r0_cylinder;
