@@ -120,9 +120,11 @@ public:
 private:
     Point2 origin2d;
 
-    /** Point outside infinitely high vertical cylinder? */
+    /** Point outside cone with big apex angle? */
     inline bool in_region(const Point3 &point) const {
-        return point.distance2(origin2d) > radius2;
+        constexpr double min_angle = M_PI / 6.0;
+        Vec3 diff(point - origin3d);
+        return asin(diff.z / diff.norm()) < min_angle;
     }
 };
 

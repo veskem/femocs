@@ -369,6 +369,7 @@ void Surface::extend(Surface& extended_surf, const Config& conf) {
         AtomReader reader(&conf.geometry);
         reader.import_file(conf.path.extended_atoms);
         extended_surf += reader;
+        extended_surf.sort_atoms(3, "up");
 
         // ... and then by adding points on horizontal plane, if necessary
         Surface temp_surf;
@@ -384,7 +385,7 @@ int Surface::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surfac
         const Surface& extended_surf, const Config& conf)
 {
     // sort atoms radially to increase the symmetry of the resulting surface
-    sort_atoms(3, "down");
+    sort_atoms(3, "up");
 
     // Coarsen & smoothen surface
     coarse_surf.set_coarsener(coarseners);

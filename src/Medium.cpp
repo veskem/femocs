@@ -164,7 +164,7 @@ void Medium::sort_atoms(const int coord, const string& direction) {
     if (coord == 3) {
         Point2 origin(sizes.xmid, sizes.ymid);
         for (int i = 0; i < size(); ++i)
-            set_marker(i, 10000 * origin.distance2(get_point2(i)));
+            set_marker(i, (int) 1e4 * origin.distance(get_point2(i)));
         if (direction == "up" || direction == "asc")
             sort(atoms.begin(), atoms.end(), Atom::sort_marker_up());
         else
