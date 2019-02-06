@@ -248,7 +248,7 @@ void Coarseners::generate(const Medium &medium, const Config::Geometry &conf,
     double shift_max = 0.5 * conf.radius;
     double theta_max = 180.0 * atan(shift_max/(medium.sizes.zmax-z_bot)) / M_PI;
     double scale = 1.0 - conf.theta / theta_max;
-    scale = min(1.0, max(-1.0, scale)); // force between [-1, 1]
+    scale = min(1.0, max(0.0, scale)); // force between [0, 1]
 
     const double z_top = max(z_bot, medium.sizes.zmax - shift_max*scale);
 
