@@ -361,7 +361,7 @@ void Surface::extend(Surface& extended_surf, const Config& conf) {
         // Extend surface by generating additional nodes
         calc_statistics();
         extend(extended_surf, conf.geometry.latconst, conf.geometry.box_width,
-            coarseners->centre.z, sizes, false);
+            coarseners->get_z_mean(), sizes, false);
     }
 
     else {

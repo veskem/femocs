@@ -21,23 +21,19 @@ namespace femocs {
 class Coarsener {
 public:
     Coarsener();
-    Coarsener(const Point3 &origin, const double exp, const double radius,
-            const double A, const double r0_min=0, const double r0_max=1e20);
+    Coarsener(const Point3 &origin, double exp, double radius,
+            double A, double r0_min, double r0_max);
 
     virtual ~Coarsener() {};
 
-    /** Points INSIDE the region will be coarsened */
-    virtual void pick_cutoff(const Point3 &point) {
-        if (in_region(point))
-            cutoff2 = get_const_cutoff();
-        else
-            cutoff2 = get_inf_cutoff();
-    }
+    /** Choose clearance distance for atoms inside the region */
+    virtual void pick_cutoff(const Point3 &point);
 
     /** Determine if two points are within their cut-off radius */
-    bool nearby(const Point3 &p1, const Point3 &p2) const {
-        return p1.distance2(p2) <= cutoff2;
-    }
+    bool nearby(const Point3 &p1, const Point3 &p2) const;
+
+    /** Return active cut-off radius */
+    double get_cutoff2(const Point3& p) const { return cutoff2; }
 
     /** Number of points written to the vtk file */
     virtual int get_n_points() const { return 0; }
@@ -47,18 +43,19 @@ public:
 
     /** Get the points for writing to vtk file
      * @param zmin minimum z coordinate*/
-    virtual vector<Point3> get_points(const double) { return vector<Point3>{}; }
+    virtual vector<Point3> get_points() const {
+        return vector<Point3>{};
+    }
 
     /** Get nodes of polygons for writing to vtk file */
-    virtual vector<vector<int>> get_polygons() { return vector<vector<int>>{vector<int>{}}; }
-
-    /** Return active cut-off radius */
-    double get_cutoff2(const Point3& p) {
-        pick_cutoff(p);
-        return cutoff2;
+    virtual vector<vector<int>> get_polygons() const {
+        return vector<vector<int>>{vector<int>{}};
     }
 
 protected:
+    static constexpr int n_nodes_per_circle = 50; ///< number of nodes in vtk circle-polygon
+    static constexpr int n_nodes_per_line = 2;    ///< number of nodes in vtk line-polygon
+
     Point3 origin3d;  ///< centre of the coarsener
     double exponential; ///< exponential factor that determines coarsening rate outside the region of interest
     double cutoff2;   ///< squared cut off radius
@@ -68,26 +65,17 @@ protected:
     double r0_max;    ///< cut off radius for the points far away from of the system
     double A;         ///< coarsening factor
 
-    const int n_nodes_per_circle = 50; ///< number of nodes in vtk circle-polygon
-    const int n_nodes_per_line = 2;    ///< number of nodes in vtk line-polygon
-    const int n_circles = 0;           ///< number of circles written to vtk file
-    const int n_lines = 0;             ///< number of lines written to vtk file
+    /** Point in region? */
+    virtual bool in_region(const Point3 &) const { return false; }
 
     /** Get constant squared cut off radius */
-    double get_const_cutoff() const { return r0_min * r0_min; }
+    double get_const_cutoff() const;
 
     /** Get cut off radius that increases with distance from origin */
-    double get_increasing_cutoff(const Point3 &point) const {
-        double cutoff = max(0.0, origin3d.distance(point) - radius);
-        cutoff = min( r0_max, A * pow(cutoff, exponential) + r0_min );
-        return cutoff * cutoff;
-    }
+    double get_increasing_cutoff(const Point3 &point) const;
 
     /** Get cut off radius that is smaller than any possible distance between atoms */
     double get_inf_cutoff() const { return -1e100; }
-
-    /** Point in region? */
-    virtual inline bool in_region(const Point3 &) const { return false; }
 };
 
 
@@ -95,214 +83,110 @@ protected:
 class ConstCoarsener: public Coarsener {
 public:
     ConstCoarsener();
-    ConstCoarsener(const double r0_min);
+    ConstCoarsener(double r0_min);
 
 private:
     /** Point in anywhere? */
-    inline bool in_region(const Point3 &) const { return true; }
+    bool in_region(const Point3 &) const { return true; }
 };
 
-/** Class to coarsen surface outside one infinite vertical cylinder */
+/** Class to coarsen the surface atoms outside the nanotip */
 class FlatlandCoarsener: public Coarsener {
 public:
     FlatlandCoarsener();
-    FlatlandCoarsener(const Point3 &origin, const double exponential, const double radius,
-            const double A, const double r0_min=0, const double r0_max=1e20);
+    FlatlandCoarsener(const Point3 &origin, double exponential, double radius,
+            double A, double r0_min=0, double r0_max=1e20);
 
-    /** Points OUTSIDE the region will be coarsened */
-    void pick_cutoff(const Point3 &point) {
-        if (in_region(point))
-            cutoff2 = get_increasing_cutoff(point);
-        else
-            cutoff2 = get_inf_cutoff();
-    }
+    /** Choose clearance distance for atoms on the flat surface */
+    void pick_cutoff(const Point3 &point);
 
 private:
-    Point2 origin2d;
-
-    /** Point outside cone with big apex angle? */
-    inline bool in_region(const Point3 &point) const {
-        constexpr double min_angle = M_PI / 6.0;
-        Vec3 diff(point - origin3d);
-        return asin(diff.z / diff.norm()) < min_angle;
-    }
+    /** Point outside a cone with big apex angle? */
+    bool in_region(const Point3 &point) const;
 };
 
-/** Class to coarsen surface inside one infinite vertical cylinder */
-class CylinderCoarsener: public Coarsener {
-public:
-    CylinderCoarsener();
-    CylinderCoarsener(const Point2 &base, const double exponential, const double radius,
-            const double r0_cylinder=0);
-
-    /** Points INSIDE the nanotip will be coarsened */
-    void pick_cutoff(const Point3 &point) {
-        if (in_region(point))
-            cutoff2 = get_const_cutoff();
-        else
-            cutoff2 = get_inf_cutoff();
-    }
-
-    vector<Point3> get_points(const double zmin);
-    vector<vector<int>> get_polygons();
-    int get_n_points() const { return n_lines * n_nodes_per_line + n_circles * n_nodes_per_circle; }
-    int get_n_polygons() const { return n_lines + n_circles; };
-
-protected:
-    /** Point in infinitely high vertical cylinder? */
-    inline bool in_region(const Point3 &point) const {
-        return point.distance2(origin2d) <= radius2;
-    }
-
-private:
-    const int n_circles = 1;
-    const int n_lines = 4;
-    Point2 origin2d;
-};
-
-/** Class to coarsen surface inside one infinite vertical nanotip */
+/** Class to coarsen the surface atoms inside one vertical nanotip
+ * with conical walls and sphere on top */
 class NanotipCoarsener: public Coarsener {
 public:
     NanotipCoarsener();
-    NanotipCoarsener(const Point3 &apex, const double exponential, const double radius,
-            const double A, const double r0_apex, const double r0_cylinder);
-
-    /** Points INSIDE the nanotip will be coarsened */
-    void pick_cutoff(const Point3 &point) {
-        if (in_region(point))
-            cutoff2 = get_increasing_cutoff(point);
-        else
-            cutoff2 = get_inf_cutoff();
-    }
-
-    virtual vector<Point3> get_points(const double zmin);
-    vector<vector<int>> get_polygons();
-    int get_n_points() const { return n_lines * n_nodes_per_line + n_circles * n_nodes_per_circle; }
-    int get_n_polygons() const { return n_lines + n_circles; };
-
-protected:
-    /** Point in infinitely high vertical cylinder? */
-    virtual inline bool in_region(const Point3 &point) const {
-        return point.distance2(bottom) <= radius2;
-    }
-
-    const int n_circles = 4;
-    const int n_lines = 6;
-    Point2 bottom;
-};
-
-/** Class to coarsen surface inside one vertical cone with a sphere on top */
-class ConeCoarsener: public NanotipCoarsener {
-public:
-    ConeCoarsener();
-    ConeCoarsener(const Point3 &apex, const Point3 &base, double theta,
+    NanotipCoarsener(const Point3 &apex, const Point3 &base, double theta,
             double exponential, double radius, double A, double r0_apex, double r0_cone);
 
-    vector<Point3> get_points(const double zmin);
+    /** Choose clearance distance for atoms inside the nanotip */
+    void pick_cutoff(const Point3 &point);
+
+    /** Generate points for vtk file */
+    vector<Point3> get_points() const;
+
+    /** Generate polygons for vtk file */
+    vector<vector<int>> get_polygons() const;
+
+    /** Nr of points added to vtk file */
+    int get_n_points() const {
+        return n_lines * n_nodes_per_line + n_circles * n_nodes_per_circle;
+    }
+
+    /** Nr of polygons added to vtk file */
+    int get_n_polygons() const {
+        return n_lines + n_circles;
+    }
 
 protected:
-    /** Point in infinitely high vertical cone? */
-    inline bool in_region(const Point3 &point) const {
-        double r = max(0.0, r_bottom + (point.z - z_bottom) * tan_theta);
-        return point.distance2(bottom) <= r*r;
-    }
-
-private:
+    static constexpr int n_circles = 4; ///< nr on circles in vtk file
+    static constexpr int n_lines = 6;   ///< nr of lines in vtk file
+    Point2 bottom;     ///< centre of a cone
     double tan_theta;  ///< tangent of cone apex angle
     double z_bottom;   ///< z-coordinate of nanotip-substrate junction
-    double r_bottom;
+    double r_bottom;   ///< radius of cone on nanotip-substrate junction
+
+    /** Point inside the nanotip? */
+    inline bool in_region(const Point3 &point) const;
 };
-
-/** Class to coarsen surface inside one infinite tilted nanotip */
-class TiltedNanotipCoarsener: public NanotipCoarsener {
-public:
-    TiltedNanotipCoarsener();
-    TiltedNanotipCoarsener(const Point3 &apex, const Point3 &base, const double exponential,
-            const double radius, const double A, const double r0_apex, const double r0_cylinder);
-
-private:
-    const int n_circles = 4;
-    const int n_lines = 6;
-    Vec3 bottom, axis;
-    double height2;
-
-    /** Point in infinite tilted cylinder? */
-    inline bool in_region(const Point3 &point) const {
-        Vec3 testpoint(point.x, point.y, point.z);  // convert point to vector
-        Vec3 bot2point = testpoint - bottom;        // vector from centre of bottom face to test point
-
-        double dot = axis.dotProduct(bot2point);
-
-        // point between the ends of cylinder?
-        //        if( dot < 0.0 || dot > height2 )
-        //            return false;
-
-        // check the squared distance to the cylinder axis
-        return (bot2point.norm2() - dot*dot / height2) <= radius2;
-    }
-};
-
 
 /** Class for binding together coarseners */
 class Coarseners: public FileWriter {
 public:
     /** Coarseners constructor */
-    Coarseners() : tan_theta(0), radius(0), amplitude(0), r0_cylinder(0) {}
-
-    /** Append coarsener to the array of all the coarseners */
-    void attach_coarsener(shared_ptr<Coarsener> c) {
-        coarseners.push_back(c);
-    }
-
-    /** Pick cut off radiuses for coarseners */
-    void pick_cutoff(const Point3 &point) {
-        for (auto &c : coarseners)
-            c->pick_cutoff(point);
-    }
-
-    /** Calculate the cut off radius for given point */
-    double get_cutoff(const Point3 &point) {
-        for (auto &c : coarseners) {
-            double cutoff = c->get_cutoff2(point);
-            if (cutoff >= 0) return sqrt(cutoff);
-        }
-        return -1;
-    }
-
-    /** Specify the collective action of coarseners */
-    bool nearby(const Point3 &p1, const Point3 &p2) {
-        bool near = false;
-        for (auto &c : coarseners)
-            near |= c->nearby(p1, p2);
-
-        return near;
-    }
+    Coarseners() : tan_theta(0), radius(0), amplitude(0), r0_wall(0) {}
 
     /** Generate coarseners for one nanotip system */
     void generate(const Medium &medium, const Config::Geometry &conf, const Config::CoarseFactor &cf);
 
-    /** Get the distance between atoms on the edge of simulation cell */
-    double get_r0_inf(const Medium::Sizes &s);
+    /** Pick cut-off radiuses for coarseners */
+    void pick_cutoff(const Point3 &point);
 
-    /** Radius of coarsening cylinder */
-    double get_radius() const { return radius; }
+    /** Specify the collective action of coarseners */
+    bool nearby(const Point3 &p1, const Point3 &p2) const;
 
     /** Return whether point is inside region-of-interest (nanotip or similar) */
     bool inside_roi(const Point3& p) const;
 
-    Point3 centre;
-private:
-    double tan_theta;
-    double radius;
-    double amplitude;
-    double r0_cylinder;
-    vector<shared_ptr<Coarsener>> coarseners;
+    /** Calculate the cut-off radius for given point */
+    double get_cutoff(const Point3 &point);
 
-    /** Get histogram for atom z-coordinates */
-    void get_histogram(vector<int> &bins, vector<double> &bounds, const Medium& medium);
+    /** Get the distance between atoms on the edge of simulation cell */
+    double get_r0_inf(const Medium::Sizes &s) const;
+
+    /** Radius of coarsening cylinder */
+    double get_radius() const { return radius; }
+
+    /** Average z-coordinate of flat region */
+    double get_z_mean() const { return centre.z; }
+
+private:
+    Point3 centre;   ///< coordinates of nanotip-substrate junction
+    double tan_theta; ///< tangent of apex angle of coarsening cone
+    double radius;    ///< radius of nanotip-substrate junction
+    double amplitude; ///< coarsening amplitude aka factor
+    double r0_wall;   ///< min distance between atoms on nanotip wall
+    vector<shared_ptr<Coarsener>> coarseners;  ///< coarseners of various regions
+
+    /** Calculate histogram for atom z-coordinates */
+    void calc_histogram(vector<int> &bins, vector<double> &bounds, const Medium& medium) const;
 
     /** Get the average z-coordinate of substrate atoms */
-    double get_z_mean(const Medium& medium);
+    double calc_z_mean(const Medium& medium) const;
 
     /** Write the contours of coarseners to file in .vtk format */
     void write_vtk(ofstream &out) const;

@@ -15,104 +15,107 @@
 using namespace std;
 namespace femocs {
 
-Coarsener::Coarsener() :
-        origin3d(Point3(0)), exponential(0.5), cutoff2(0), radius(0), radius2(0), r0_min(0), r0_max(0), A(0) {}
+/* ==============================================
+ *                    Coarsener
+ * ============================================== */
 
-Coarsener::Coarsener(const Point3 &origin, const double exp, const double radius,
-        const double A, const double r0_min, const double r0_max) :
-        origin3d(origin), exponential(exp), cutoff2(0), radius(radius), radius2(radius*radius),
-        r0_min(r0_min), r0_max(r0_max), A(A) {}
+Coarsener::Coarsener() :
+        origin3d(Point3(0)), exponential(0.5), cutoff2(0), radius(0),
+        radius2(0), r0_min(0), r0_max(0), A(0)
+{}
+
+Coarsener::Coarsener(const Point3 &origin, double exp, double radius,
+        double A, double r0_min, double r0_max) :
+        origin3d(origin), exponential(exp), cutoff2(0), radius(radius),
+        radius2(radius*radius), r0_min(r0_min), r0_max(r0_max), A(A)
+{}
+
+void Coarsener::pick_cutoff(const Point3 &point) {
+    if (in_region(point))
+        cutoff2 = get_const_cutoff();
+    else
+        cutoff2 = get_inf_cutoff();
+}
+
+bool Coarsener::nearby(const Point3 &p1, const Point3 &p2) const {
+    return p1.distance2(p2) <= cutoff2;
+}
+
+double Coarsener::get_const_cutoff() const {
+    return r0_min * r0_min;
+}
+
+double Coarsener::get_increasing_cutoff(const Point3 &point) const {
+    double cutoff = max(0.0, origin3d.distance(point) - radius);
+    cutoff = min( r0_max, A * pow(cutoff, exponential) + r0_min );
+    return cutoff * cutoff;
+}
+
+/* ==============================================
+ *                 ConstCoarsener
+ * ============================================== */
 
 ConstCoarsener::ConstCoarsener() : Coarsener() {}
 
-ConstCoarsener::ConstCoarsener(const double r0_min) : Coarsener(Point3(), 0, 0, 0, r0_min) {}
-
-FlatlandCoarsener::FlatlandCoarsener() : Coarsener(), origin2d(0.0) {}
-
-FlatlandCoarsener::FlatlandCoarsener(const Point3 &origin, const double exp, const double radius,
-        const double A, const double r0_min, const double r0_max) :
-        Coarsener(origin, exp, radius, A, r0_min, r0_max),
-        origin2d(origin.x, origin.y) {}
-
-CylinderCoarsener::CylinderCoarsener() : Coarsener(), origin2d(0.0) {}
-
-CylinderCoarsener::CylinderCoarsener(const Point2 &base, const double exp, const double radius,
-        const double r0_cylinder) :
-        Coarsener(Point3(), exp, radius, 0, r0_cylinder), origin2d(base.x, base.y) {}
-
-NanotipCoarsener::NanotipCoarsener() : Coarsener(), bottom(0.0) {}
-
-NanotipCoarsener::NanotipCoarsener(const Point3 &apex, const double exp, const double radius,
-        const double A, const double r0_apex, const double r0_cylinder) :
-        Coarsener(apex, exp, radius, A, r0_apex, r0_cylinder), bottom(apex.x, apex.y) {}
-
-TiltedNanotipCoarsener::TiltedNanotipCoarsener() : NanotipCoarsener(), bottom(Vec3()), axis(Vec3()), height2(0) {}
-
-TiltedNanotipCoarsener::TiltedNanotipCoarsener(const Point3 &apex, const Point3 &base, const double exp,
-        const double radius, const double A, const double r0_apex, const double r0_cylinder) :
-        NanotipCoarsener(apex, exp, radius, A, r0_apex, r0_cylinder), bottom(Vec3(base.x, base.y, base.z)) {
-
-    Vec3 top(apex.x, apex.y, apex.z);
-    axis = top - bottom;
-    height2 = axis.norm2();
-}
-
-ConeCoarsener::ConeCoarsener() : NanotipCoarsener(), tan_theta(0), z_bottom(0), r_bottom(0)
+ConstCoarsener::ConstCoarsener(const double r0_min) :
+        Coarsener(Point3(), 0, 0, 0, r0_min, 1e20)
 {}
 
-ConeCoarsener::ConeCoarsener(const Point3 &apex, const Point3 &base, double theta,
+/* ==============================================
+ *                FlatlandCoarsener
+ * ============================================== */
+
+FlatlandCoarsener::FlatlandCoarsener() : Coarsener() {}
+
+FlatlandCoarsener::FlatlandCoarsener(const Point3 &origin, double exp,
+        double radius, double A, double r0_min, double r0_max) :
+        Coarsener(origin, exp, radius, A, r0_min, r0_max)
+{}
+
+void FlatlandCoarsener::pick_cutoff(const Point3 &point) {
+    if (in_region(point))
+        cutoff2 = get_increasing_cutoff(point);
+    else
+        cutoff2 = get_inf_cutoff();
+}
+
+bool FlatlandCoarsener::in_region(const Point3 &point) const {
+    constexpr double min_angle = M_PI / 6.0;
+    Vec3 diff(point - origin3d);
+    return asin(diff.z / diff.norm()) < min_angle;
+}
+
+/* ==============================================
+ *                 NanotipCoarsener
+ * ============================================== */
+
+NanotipCoarsener::NanotipCoarsener() : Coarsener(),
+        bottom(0.0), tan_theta(0), z_bottom(0), r_bottom(0)
+{}
+
+NanotipCoarsener::NanotipCoarsener(const Point3 &apex, const Point3 &base, double theta,
         double exp, double radius, double A, double r0_apex, double r0_cone) :
-            NanotipCoarsener(apex, exp, radius, A, r0_apex, r0_cone),
-            tan_theta(tan(M_PI*theta/180.0)), z_bottom(base.z), r_bottom(radius)
+                Coarsener(apex, exp, radius, A, r0_apex, r0_cone),
+                bottom(base.x, base.y), tan_theta(tan(M_PI*theta/180.0)),
+                z_bottom(base.z), r_bottom(radius)
 {
     // calculate the radius of apex
     this->radius = radius + (apex.z-base.z) * tan_theta;
 }
 
-vector<vector<int>> CylinderCoarsener::get_polygons() {
-    // Reserve memory for nodes
-    vector<vector<int>> polys;
-    polys.resize(get_n_polygons());
-
-    // Make nodes for circle
-    polys[0].resize(n_nodes_per_circle);
-    std::iota (begin(polys[0]), end(polys[0]), 0);
-
-    // Make nodes for lines
-    for (int i = 0; i < n_lines; ++i) {
-        int node = 2 * i + n_circles * n_nodes_per_circle;
-        polys[n_circles+i] = vector<int>{node, node+1};
-    }
-
-    return polys;
+void NanotipCoarsener::pick_cutoff(const Point3 &point) {
+    if (in_region(point))
+        cutoff2 = get_increasing_cutoff(point);
+    else
+        cutoff2 = get_inf_cutoff();
 }
 
-vector<Point3> CylinderCoarsener::get_points(const double zmin) {
-    const double point_res = 2 * M_PI / n_nodes_per_circle;
-    const double line_res = 2 * M_PI / n_lines;
-
-    // Reserve memory for points
-    vector<Point3> points;
-    points.reserve(get_n_points());
-
-    // Make points for circle
-    for (double a = 0; a < 2*M_PI; a += point_res)
-        points.push_back( Point3(radius*cos(a), radius*sin(a), zmin) );
-
-    // Make points for lines
-    for (double a = 0; a < 2*M_PI; a += line_res) {
-        points.push_back( Point3(radius*cos(a), radius*sin(a), 1.1*zmin) );
-        points.push_back( Point3(radius*cos(a), radius*sin(a), 0.9*zmin) );
-    }
-
-    // Shift points to the origin in x-y plane
-    for (unsigned i = 0; i < points.size(); ++i)
-        points[i] += origin2d;
-
-    return points;
+bool NanotipCoarsener::in_region(const Point3 &point) const {
+    double r = max(0.0, r_bottom + (point.z - z_bottom) * tan_theta);
+    return point.distance2(bottom) <= r*r;
 }
 
-vector<vector<int>> NanotipCoarsener::get_polygons() {
+vector<vector<int>> NanotipCoarsener::get_polygons() const {
     // Reserve memory for nodes
     vector<vector<int>> polys;
     polys.resize(get_n_polygons());
@@ -142,51 +145,7 @@ vector<vector<int>> NanotipCoarsener::get_polygons() {
     return polys;
 }
 
-vector<Point3> NanotipCoarsener::get_points(const double zmin) {
-    const double circle_res = 2 * M_PI / n_nodes_per_circle;
-    const double line_res = 2 * M_PI / 4;
-    const double zbottom = zmin - origin3d.z;
-
-    // Reserve memory for points
-    vector<Point3> points;
-    points.reserve(get_n_points());
-
-    // Make points for apex circle
-    for (double a = 0; a < 2*M_PI; a += circle_res)
-        points.push_back(Point3(radius*cos(a), radius*sin(a), 0));
-
-    // Make points for bottom circle
-    for (double a = 0; a < 2*M_PI; a += circle_res)
-        points.push_back(Point3(radius*cos(a), radius*sin(a), zbottom));
-
-    // Make points for circle in y-z plane
-    for (double a = 0; a < 2*M_PI; a += circle_res)
-        points.push_back(Point3(0, radius*cos(a), radius*sin(a)));
-
-    // Make points for circle in x-z plane
-    for (double a = 0; a < 2*M_PI; a += circle_res)
-        points.push_back(Point3(radius*cos(a), 0, radius*sin(a)));
-
-    // Make points for vertical lines
-    for (double a = 0; a < 2*M_PI; a += line_res) {
-        points.push_back( Point3(radius*cos(a), radius*sin(a), 0) );
-        points.push_back( Point3(radius*cos(a), radius*sin(a), zbottom) );
-    }
-
-    // Make points for horizontal lines
-    points.push_back( Point3(radius, 0, 0) );
-    points.push_back( Point3(-radius,0, 0) );
-    points.push_back( Point3(0, radius, 0) );
-    points.push_back( Point3(0,-radius, 0) );
-
-    // Shift points according to the origin
-    for (unsigned i = 0; i < points.size(); ++i)
-        points[i] += origin3d;
-
-    return points;
-}
-
-vector<Point3> ConeCoarsener::get_points(const double zmin) {
+vector<Point3> NanotipCoarsener::get_points() const {
     const double circle_res = 2 * M_PI / n_nodes_per_circle;
     const double line_res = 2 * M_PI / 4;
     const double zbottom = z_bottom - origin3d.z;
@@ -230,19 +189,22 @@ vector<Point3> ConeCoarsener::get_points(const double zmin) {
     return points;
 }
 
+/* ==============================================
+ *                  Coarseners
+ * ============================================== */
+
 void Coarseners::generate(const Medium &medium, const Config::Geometry &conf,
     const Config::CoarseFactor &cf)
 {
     require(conf.theta > -60.0 && conf.theta < 60, "Too steep coarsening cone angle: " + d2s(conf.theta));
     tan_theta = tan(conf.theta * M_PI / 180.0);
 
-    const int n_atoms = medium.size();
-    require(n_atoms > 0, "Not enough points to generate coarseners.");
-    require(cf.r0_cylinder >= 0 && cf.r0_sphere >= 0, "Coarsening factors must be non-negative!");
-    require(cf.r0_cylinder >= cf.r0_sphere, "Coarsening factor in cylinder wall must be >= coarsening factor in apex!");
+    require(medium.size() > 0, "Not enough points to generate coarseners.");
+    require(cf.r0_wall >= 0 && cf.r0_sphere >= 0, "Coarsening factors must be non-negative!");
+    require(cf.r0_wall >= cf.r0_sphere, "Coarsening factor in cylinder wall must be >= coarsening factor in apex!");
     require(cf.exponential > 0, "Coarsening rate must be positive!");
 
-    const double z_bot = get_z_mean(medium);
+    const double z_bot = calc_z_mean(medium);
 
     // move spherical coarsener somewhat off from zmax to grasp more apex atoms
     double shift_max = 0.5 * conf.radius;
@@ -257,25 +219,70 @@ void Coarseners::generate(const Medium &medium, const Config::Geometry &conf,
 
     radius = conf.radius;
     amplitude = cf.amplitude * conf.latconst;
-    r0_cylinder = cf.r0_cylinder * 0.25 * conf.latconst;
+    r0_wall = cf.r0_cylinder * 0.25 * conf.latconst;
     const double r0_sphere = cf.r0_sphere * 0.25 * conf.latconst;
-    const double r0_flat = min(amplitude*1e20, r0_cylinder);
+    const double r0_flat = min(amplitude*1e20, r0_wall);
 
     coarseners.clear();
-    attach_coarsener( make_shared<ConeCoarsener>(apex, centre, conf.theta,
-            cf.exponential, radius, amplitude, r0_sphere, r0_cylinder) );
-    attach_coarsener( make_shared<FlatlandCoarsener>(centre,
+    coarseners.push_back( make_shared<NanotipCoarsener>(apex, centre, conf.theta,
+            cf.exponential, radius, amplitude, r0_sphere, r0_wall) );
+    coarseners.push_back( make_shared<FlatlandCoarsener>(centre,
             cf.exponential, radius, amplitude, r0_flat) );
 }
 
-double Coarseners::get_z_mean(const Medium& medium) {
+void Coarseners::pick_cutoff(const Point3 &point) {
+    for (auto &c : coarseners)
+        c->pick_cutoff(point);
+}
+
+bool Coarseners::nearby(const Point3 &p1, const Point3 &p2) const {
+    for (auto &c : coarseners)
+        if (c->nearby(p1, p2))
+            return true;
+
+    return false;
+}
+
+bool Coarseners::inside_roi(const Point3& p) const {
+    constexpr double min_angle = M_PI / 6.0;
+    Vec3 diff(p - centre);
+
+    // check if point is inside a conical nanotip
+    double r = radius + diff.z * tan_theta;
+    bool outside_tip = diff.x * diff.x + diff.y * diff.y > r * r;
+    if (outside_tip) return false;
+
+    // additional check to get rid of atoms on the perimeter of nanotip-substrate junction
+    bool inside_cone = asin(diff.z / diff.norm()) >= min_angle;
+    return inside_cone;
+}
+
+double Coarseners::get_cutoff(const Point3 &point) {
+    for (auto &c : coarseners) {
+        c->pick_cutoff(point);
+        double cutoff = c->get_cutoff2(point);
+        if (cutoff >= 0)
+            return sqrt(cutoff);
+    }
+    return -1;
+}
+
+double Coarseners::get_r0_inf(const Medium::Sizes &s) const {
+    const double max_distance = centre.distance(Point3(s.xmin, s.ymin, s.zmin));
+    if ((max_distance - radius) > 0)
+        return 1.1 * amplitude * sqrt(max_distance - radius) + r0_wall;
+    else
+        return r0_wall;
+}
+
+double Coarseners::calc_z_mean(const Medium& medium) const {
     const int n_atoms = medium.size();
     const int n_bins = 100;
 
     // make the histogram for all the surface atoms
     vector<int> bins(n_bins, 0);
     vector<double> bounds(n_bins+1);
-    get_histogram(bins, bounds, medium);
+    calc_histogram(bins, bounds, medium);
 
     // locate the bin with maximum amount of entries
     int max_bin = distance( bins.begin(), max_element(bins.begin(), bins.end()) );
@@ -301,7 +308,9 @@ double Coarseners::get_z_mean(const Medium& medium) {
     return zmean / n_average;
 }
 
-void Coarseners::get_histogram(vector<int> &bins, vector<double> &bounds, const Medium& medium) {
+void Coarseners::calc_histogram(vector<int> &bins, vector<double> &bounds,
+        const Medium& medium) const
+{
     const int n_atoms = medium.size();
     const int n_bins = bins.size();
     const int n_bounds = bounds.size();
@@ -333,27 +342,6 @@ void Coarseners::get_histogram(vector<int> &bins, vector<double> &bounds, const 
     }
 }
 
-double Coarseners::get_r0_inf(const Medium::Sizes &s) {
-    const double max_distance = centre.distance(Point3(s.xmin, s.ymin, s.zmin));
-    if ((max_distance - radius) > 0)
-        return 1.1 * amplitude * sqrt(max_distance - radius) + r0_cylinder;
-    else
-        return r0_cylinder;
-}
-
-bool Coarseners::inside_roi(const Point3& p) const {
-    constexpr double min_angle = M_PI / 6.0;
-
-    Vec3 diff(p - centre);
-    double r = radius + diff.z * tan_theta;
-    bool outside_tip = diff.x * diff.x + diff.y * diff.y > r * r;
-    if (outside_tip) return false;
-
-    // additional check to get rid of atoms on the perimeter of nanotip-substrate junction
-    bool inside_cone = asin(diff.z / diff.norm()) >= min_angle;
-    return inside_cone;
-}
-
 void Coarseners::write_vtk(ofstream &out) const {
     out << "# vtk DataFile Version 3.0\n";
     out << "# " + class_name() + "\n";
@@ -369,7 +357,7 @@ void Coarseners::write_vtk(ofstream &out) const {
 
     // Write points to file
     for (auto &c : coarseners)
-        for (Point3 p : c->get_points(centre.z))
+        for (Point3 p : c->get_points())
             out << p << "\n";
 
     // Calculate total number of polygons and nodes
