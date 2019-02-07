@@ -196,16 +196,15 @@ vector<Point3> NanotipCoarsener::get_points() const {
 void Coarseners::generate(const Medium &medium, const Config::Geometry &conf,
     const Config::CoarseFactor &cf)
 {
+    require(medium.size() > 0, "Not enough points to generate coarseners!");
     require(conf.theta > -60.0 && conf.theta < 60, "Too steep coarsening cone angle: " + d2s(conf.theta));
-    tan_theta = tan(conf.theta * M_PI / 180.0);
-
-    require(medium.size() > 0, "Not enough points to generate coarseners.");
-    require(cf.r0_wall >= 0 && cf.r0_sphere >= 0, "Coarsening factors must be non-negative!");
-    require(cf.r0_wall >= cf.r0_sphere, "Coarsening factor in cylinder wall must be >= coarsening factor in apex!");
+    require(cf.r0_cylinder >= 0 && cf.r0_sphere >= 0, "Coarsening factors must be non-negative!");
+    require(cf.r0_cylinder >= cf.r0_sphere, "Coarsening factor in cylinder wall must be >= coarsening factor in apex!");
     require(cf.exponential > 0, "Coarsening rate must be positive!");
 
     const double z_bot = calc_z_mean(medium);
 
+    // in case of a cone with small angle,
     // move spherical coarsener somewhat off from zmax to grasp more apex atoms
     double shift_max = 0.5 * conf.radius;
     double theta_max = 180.0 * atan(shift_max/(medium.sizes.zmax-z_bot)) / M_PI;
@@ -214,7 +213,7 @@ void Coarseners::generate(const Medium &medium, const Config::Geometry &conf,
 
     const double z_top = max(z_bot, medium.sizes.zmax - shift_max*scale);
 
-    centre = Point3(medium.sizes.xmid, medium.sizes.ymid, z_bot);
+    center = Point3(medium.sizes.xmid, medium.sizes.ymid, z_bot);
     Point3 apex(medium.sizes.xmid, medium.sizes.ymid, z_top);
 
     radius = conf.radius;
@@ -224,9 +223,9 @@ void Coarseners::generate(const Medium &medium, const Config::Geometry &conf,
     const double r0_flat = min(amplitude*1e20, r0_wall);
 
     coarseners.clear();
-    coarseners.push_back( make_shared<NanotipCoarsener>(apex, centre, conf.theta,
+    coarseners.push_back( make_shared<NanotipCoarsener>(apex, center, conf.theta,
             cf.exponential, radius, amplitude, r0_sphere, r0_wall) );
-    coarseners.push_back( make_shared<FlatlandCoarsener>(centre,
+    coarseners.push_back( make_shared<FlatlandCoarsener>(center,
             cf.exponential, radius, amplitude, r0_flat) );
 }
 
@@ -244,17 +243,13 @@ bool Coarseners::nearby(const Point3 &p1, const Point3 &p2) const {
 }
 
 bool Coarseners::inside_roi(const Point3& p) const {
-    constexpr double min_angle = M_PI / 6.0;
-    Vec3 diff(p - centre);
+    // done in that ways to handle properly perimeter of nanotip-substrate junction
+    // that is inside a cone, but it's better if it's excluded
+    for (auto &c : coarseners)
+        if (c->outside_roi(p))
+            return false;
 
-    // check if point is inside a conical nanotip
-    double r = radius + diff.z * tan_theta;
-    bool outside_tip = diff.x * diff.x + diff.y * diff.y > r * r;
-    if (outside_tip) return false;
-
-    // additional check to get rid of atoms on the perimeter of nanotip-substrate junction
-    bool inside_cone = asin(diff.z / diff.norm()) >= min_angle;
-    return inside_cone;
+    return true;
 }
 
 double Coarseners::get_cutoff(const Point3 &point) {
@@ -268,7 +263,7 @@ double Coarseners::get_cutoff(const Point3 &point) {
 }
 
 double Coarseners::get_r0_inf(const Medium::Sizes &s) const {
-    const double max_distance = centre.distance(Point3(s.xmin, s.ymin, s.zmin));
+    const double max_distance = center.distance(Point3(s.xmin, s.ymin, s.zmin));
     if ((max_distance - radius) > 0)
         return 1.1 * amplitude * sqrt(max_distance - radius) + r0_wall;
     else
@@ -357,7 +352,7 @@ void Coarseners::write_vtk(ofstream &out) const {
 
     // Write points to file
     for (auto &c : coarseners)
-        for (Point3 p : c->get_points())
+        for (Point3 &p : c->get_points())
             out << p << "\n";
 
     // Calculate total number of polygons and nodes
@@ -373,8 +368,8 @@ void Coarseners::write_vtk(ofstream &out) const {
     // Write polygons to file
     int offset = 0;
     for (auto &c : coarseners) {
-        for (vector<int> polygon : c->get_polygons()) {
-            int n_nodes = polygon.size(); // number of nodes in polygon
+        for (vector<int> &polygon : c->get_polygons()) {
+            int n_nodes = polygon.size();
             if (n_nodes > 0) {
                 out << n_nodes;
                 for (int node : polygon)

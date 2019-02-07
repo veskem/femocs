@@ -32,6 +32,11 @@ public:
     /** Determine if two points are within their cut-off radius */
     bool nearby(const Point3 &p1, const Point3 &p2) const;
 
+    /** Determine if a point is inside region-of-interest */
+    virtual bool outside_roi(const Point3 &point) const {
+        return in_region(point);
+    }
+
     /** Return active cut-off radius */
     double get_cutoff2(const Point3& p) const { return cutoff2; }
 
@@ -116,6 +121,11 @@ public:
     /** Choose clearance distance for atoms inside the nanotip */
     void pick_cutoff(const Point3 &point);
 
+    /** Determine if a point is inside region-of-interest */
+    bool outside_roi(const Point3 &point) const {
+        return !in_region(point);
+    }
+
     /** Generate points for vtk file */
     vector<Point3> get_points() const;
 
@@ -133,22 +143,21 @@ public:
     }
 
 protected:
-    static constexpr int n_circles = 4; ///< nr on circles in vtk file
+    static constexpr int n_circles = 4; ///< nr of circles in vtk file
     static constexpr int n_lines = 6;   ///< nr of lines in vtk file
-    Point2 bottom;     ///< centre of a cone
+    Point2 bottom;     ///< center coordinates of a cone
     double tan_theta;  ///< tangent of cone apex angle
     double z_bottom;   ///< z-coordinate of nanotip-substrate junction
     double r_bottom;   ///< radius of cone on nanotip-substrate junction
 
     /** Point inside the nanotip? */
-    inline bool in_region(const Point3 &point) const;
+    bool in_region(const Point3 &point) const;
 };
 
 /** Class for binding together coarseners */
 class Coarseners: public FileWriter {
 public:
-    /** Coarseners constructor */
-    Coarseners() : tan_theta(0), radius(0), amplitude(0), r0_wall(0) {}
+    Coarseners() : radius(0), amplitude(0), r0_wall(0) {}
 
     /** Generate coarseners for one nanotip system */
     void generate(const Medium &medium, const Config::Geometry &conf, const Config::CoarseFactor &cf);
@@ -172,11 +181,10 @@ public:
     double get_radius() const { return radius; }
 
     /** Average z-coordinate of flat region */
-    double get_z_mean() const { return centre.z; }
+    double get_z_mean() const { return center.z; }
 
 private:
-    Point3 centre;   ///< coordinates of nanotip-substrate junction
-    double tan_theta; ///< tangent of apex angle of coarsening cone
+    Point3 center;    ///< coordinates of nanotip-substrate junction
     double radius;    ///< radius of nanotip-substrate junction
     double amplitude; ///< coarsening amplitude aka factor
     double r0_wall;   ///< min distance between atoms on nanotip wall
