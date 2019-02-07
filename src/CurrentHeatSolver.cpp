@@ -145,6 +145,14 @@ template<int dim>
 void HeatSolver<dim>::assemble_crank_nicolson(const double delta_time) {
     require(false, "Implementation of Crank-Nicolson assembly not verified!");
 
+    /* TODO:
+     * change temperature_grad to temperature
+     * add prev_nottingham values
+     * interpolate prev_potential and prev_nottingham for current mesh
+     *   prev_potential could be read from heat_transfer
+     *   for nottingham something else should be done...
+     */
+
     /*
     require(current_solver, "NULL current solver can't be used!");
 
