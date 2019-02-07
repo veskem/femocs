@@ -40,17 +40,12 @@ public:
     bool import_file(const string &file_name, const bool add_noise=false);
 
     /** Import atom coordinates from PARCAS and check their rmsd
-     * @param n_atoms     number of imported atoms
-     * @param x0          vector of atomistic coordinates in PARCAS units; x0=c[0], y0=c[1], z0=c[2], x1=c[3], etc
-     * @param box         vector of MD simulation box sizes in Angstroms; box[0]->x_box, box[1]->y_box, box[2]->z_box
+     * @param n_atoms   number of imported atoms
+     * @param x0        atomistic coordinates in PARCAS units
+     * @param x1        atomistic velocities in PARCAS units
+     * @param box       MD simulation box sizes in Angstroms
      */
-    bool import_parcas(const int n_atoms, const double* x0, const double* box);
-
-    /** Import atom velocities from PARCAS and transform the from PARCAS units to fm/fs.
-     * @param n_atoms  number of imported atoms
-     * @param x1       vector of atomistic velocities in PARCAS units
-     */
-    bool import_parcas(const int n_atoms, const double* x1, const Config &conf);
+    bool import_parcas(int n_atoms, const double* xyz, const double* vel, const double* box, const Config& conf);
 
     /** Import atom coordinates and types and check their rmsd */
     bool import_atoms(const int n_atoms, const double* x, const double* y, const double* z, const int* types);

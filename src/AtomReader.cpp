@@ -415,16 +415,22 @@ bool AtomReader::import_atoms(const int n_atoms, const double* x, const double* 
     return false;
 }
 
-bool AtomReader::import_parcas(const int n_atoms, const double* xyz, const double* box) {
+bool AtomReader::import_parcas(int n_atoms, const double* xyz,
+        const double* vel, const double* box, const Config& conf)
+{
     require(n_atoms > 0, "Zero input atoms detected!");
-
     simubox = Vec3(box[0], box[1], box[2]);
     require(simubox.x > 0 && simubox.y > 0 && simubox.z > 0, "Invalid simubox dimensions: " + d2s(simubox));
+    require(conf.behaviour.timestep_fs > 0, "Invalid MD time step: " + d2s(conf.behaviour.timestep_fs));
+    Vec3 parcas2si = simubox / conf.behaviour.timestep_fs;
 
-    atoms.clear();
-    atoms.reserve(n_atoms);
-    for (int i = 0; i < 3*n_atoms; i+=3)
-        append( Atom(i/3, Point3(xyz[i+0]*box[0], xyz[i+1]*box[1], xyz[i+2]*box[2]), TYPES.BULK) );
+    atoms.resize(n_atoms);
+    velocities.resize(n_atoms);
+    for (int i = 0; i < n_atoms; ++i) {
+        int I = 3*i;
+        atoms[i] = Atom(i, Point3(xyz[I], xyz[I+1], xyz[I+2]) * simubox, TYPES.BULK);
+        velocities[i] = Vec3(vel[I], vel[I+1], vel[I+2]) * parcas2si;
+    }
 
     calc_statistics();
 
@@ -433,20 +439,6 @@ bool AtomReader::import_parcas(const int n_atoms, const double* xyz, const doubl
         coordination = vector<int>(n_atoms, 0);
         return true;
     }
-    return false;
-}
-
-bool AtomReader::import_parcas(const int n_atoms, const double* x1, const Config &conf) {
-    require(n_atoms > 0, "Zero input atoms detected!");
-
-    Vec3 parcas2si = simubox / conf.behaviour.timestep_fs;
-
-    velocities.resize(n_atoms);
-    for (int i = 0; i < n_atoms; ++i) {
-        int I = 3*i;
-        velocities[i] = Vec3(x1[I], x1[I+1], x1[I+2]) * parcas2si;
-    }
-
     return false;
 }
 

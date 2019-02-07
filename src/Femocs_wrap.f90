@@ -40,13 +40,14 @@ module libfemocs
             integer(c_int) :: types(*)
         end subroutine
 
-        subroutine femocs_import_parcas_c(femocs, retval, n_atoms, coordinates, box, nborlist) bind(C, name="femocs_import_parcas")
+        subroutine femocs_import_parcas_c(femocs,retval,n_atoms,xyz,vel,box,nborlist) bind(C, name="femocs_import_parcas")
             use iso_c_binding
             implicit none
             type(c_ptr), intent(in), value :: femocs
             integer(c_int) :: retval            
             integer(c_int), value :: n_atoms
-            real(c_double) :: coordinates(*)
+            real(c_double) :: xyz(*)
+            real(c_double) :: vel(*)
             real(c_double) :: box(*)
             integer(c_int) :: nborlist(*)
         end subroutine
@@ -248,15 +249,16 @@ module libfemocs
         call femocs_import_atoms_c(this%ptr, retval, n_atoms, x, y, z, types)
     end subroutine
     
-    subroutine femocs_import_parcas(this, retval, n_atoms, coordinates, box, nborlist)
+    subroutine femocs_import_parcas(this, retval, n_atoms, xyz, vel, box, nborlist)
         implicit none
         class(femocs), intent(in) :: this
         integer(c_int) :: retval        
         integer(c_int) :: n_atoms
-        real(c_double) :: coordinates(*)
+        real(c_double) :: xyz(*)
+        real(c_double) :: vel(*)
         real(c_double) :: box(*)
         integer(c_int) :: nborlist(*)
-        call femocs_import_parcas_c(this%ptr, retval, n_atoms, coordinates, box, nborlist)
+        call femocs_import_parcas_c(this%ptr, retval, n_atoms, xyz, vel, box, nborlist)
     end subroutine    
 
     subroutine femocs_import_file(this, retval, file_name)

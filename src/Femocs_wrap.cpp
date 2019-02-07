@@ -22,9 +22,9 @@ void femocs_import_file(FEMOCS* femocs, int* retval, const char* file_name) {
 }
 
 void femocs_import_parcas(FEMOCS* femocs, int* retval, int n_atoms,
-        const double* data, const double* box, const int* nborlist)
+        const double* x0, const double* x1, const double* box, const int* nborlist)
 {
-    retval[0] = femocs->import_parcas(n_atoms, data, box, nborlist);
+    retval[0] = femocs->import_parcas(n_atoms, x0, x1, box, nborlist);
 }
 
 void femocs_import_atoms(FEMOCS* femocs, int* retval, int n_atoms,
