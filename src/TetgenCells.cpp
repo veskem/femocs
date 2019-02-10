@@ -448,8 +448,9 @@ void TetgenFaces::calc_statistics() {
  * ===================================================================== */
 
 void TetgenElements::init_statistics() {
-    stat.edgemin =  DBL_MAX;
-    stat.edgemax = -DBL_MAX;
+    stat.qmin = stat.edgemin = DBL_MAX;
+    stat.qmax = stat.edgemax = -DBL_MAX;
+    stat.qmean = 0;
 }
 
 void TetgenElements::calc_statistics() {
@@ -475,6 +476,16 @@ void TetgenElements::calc_statistics() {
         stat.edgemin = min(stat.edgemin, min(e1, min(e2, min(e3, min(e4, min(e5, e6))))));
         stat.edgemax = max(stat.edgemax, max(e1, max(e2, max(e3, max(e4, max(e5, e6))))));
     }
+
+    const int n_elems = size();
+
+    for (int i = 0; i < n_elems; ++i) {
+        double q = get_quality(i);
+        stat.qmin = min(stat.qmin, q);
+        stat.qmax = max(stat.qmax, q);
+        stat.qmean += q;
+    }
+    stat.qmean /= (1.0*n_elems);
 
     // squared length -> length
     stat.edgemin = sqrt(stat.edgemin);
@@ -514,6 +525,47 @@ void TetgenElements::append(const SimpleCell<4> &cell) {
     for (unsigned int node : cell)
         writes->tetrahedronlist[i++] = node;
     i_cells++;
+}
+
+double TetgenElements::get_volume(const int i) const {
+    SimpleElement elem = get_cell(i);
+
+    // read nodes
+    Vec3 n0 = get_vec(elem[0]);
+    Vec3 e1 = get_vec(elem[1]);
+    Vec3 e2 = get_vec(elem[2]);
+    Vec3 e3 = get_vec(elem[3]);
+
+    // calculate edges
+    e1 -= n0;
+    e2 -= n0;
+    e3 -= n0;
+
+    return abs( e1.dotProduct(e2.crossProduct(e3))/6.0 );
+}
+
+double TetgenElements::get_quality(const int i) const {
+    SimpleElement elem = get_cell(i);
+
+    // read nodes
+    Vec3 n0 = get_vec(elem[0]);
+    Vec3 e1 = get_vec(elem[1]);
+    Vec3 e2 = get_vec(elem[2]);
+    Vec3 e3 = get_vec(elem[3]);
+
+    // calculate edges
+    Vec3 e4 = e1 - e2;
+    Vec3 e5 = e1 - e3;
+    Vec3 e6 = e2 - e3;
+    e1 -= n0;
+    e2 -= n0;
+    e3 -= n0;
+
+    // calculate quality
+    // no need to divide by 6 top & bot, as they cancel out
+    const double top = abs(e1.dotProduct(e2.crossProduct(e3)));
+    const double bot = sqrt(e1.norm2()+e2.norm2()+e3.norm2()+e4.norm2()+e5.norm2()+e6.norm2());
+    return top / bot;
 }
 
 SimpleCell<4> TetgenElements::get_cell(const int i) const {

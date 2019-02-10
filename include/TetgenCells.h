@@ -547,10 +547,26 @@ public:
         map2tris = map;
     }
 
+    /** Measure the volume of i-th tetrahedron */
+    double get_volume(const int i) const;
+
+    /** Measure the quality of i-th tetrahedron.
+     * Quality is defined as a ratio of volume and rms of edge lengths. */
+    double get_quality(const int i) const;
+
     /** Struct holding statistics about tetrahedra */
     struct Stat {
-        double edgemin;    //!< Minimum edge length
-        double edgemax;    //!< Maximum edge length
+        double edgemin;    ///< min edge length
+        double edgemax;    ///< max edge length
+        double qmin;       ///< min quality
+        double qmax;       ///< max quality
+        double qmean;      ///< mean quality
+
+        friend std::ostream& operator <<(std::ostream &os, const TetgenElements::Stat &s) {
+            os << "edge=" << s.edgemin << "," << s.edgemax
+                    << ", quality=" << s.qmin << "," << s.qmean << "," << s.qmax;
+            return os;
+        }
     } stat;
 
 private:

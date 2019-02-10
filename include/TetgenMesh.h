@@ -122,10 +122,14 @@ private:
     void smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm);
 
     /** Smoothen the surface mesh using Taubin lambda|mu algorithm with inverse neighbour count weighting */
-    void laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist);
+    void laplace_smooth(vector<Point3> &displacements, const double scale, const vector<vector<unsigned>>& nborlist);
 
     /** Smoothen the surface mesh using Taubin lambda|mu algorithm with Fujiwara weighting */
     void fujiwara_smooth(const double scale, const vector<vector<unsigned>>& nborlist);
+
+    /** Handle the loss of mesh quality due to its smoothing */
+    void restore_quality(vector<bool> &tet_map, vector<vector<unsigned>> &nborlist,
+            vector<Point3>& disp1, vector<Point3>&disp2, double lambda, double mu);
 
     /** Locate the tetrahedron by the location of its nodes */
     int locate_element(SimpleElement& elem);

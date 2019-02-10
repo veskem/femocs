@@ -19,7 +19,7 @@ TetgenMesh::TetgenMesh() {
 }
 
 // Code is inspired from the work of Shawn Halayka
-// TODO if found, add the link to Shawn's version
+// https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/qjs-isosurface/mesh_tools_v1.0.zip
 void TetgenMesh::smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm) {
     if (algorithm == "none") return;
 
@@ -29,20 +29,38 @@ void TetgenMesh::smoothen(const int n_steps, const double lambda, const double m
 
     // remove the nodes that are on the boundary of simubox
     const double eps = 0.01 * tets.stat.edgemin;
+    const int n_nodes = nodes.size();
+
     nodes.calc_statistics();
-    for (int i = 0; i < nodes.size(); ++i) {
+    for (int i = 0; i < n_nodes; ++i) {
         Point3 p = nodes[i];
         if (on_boundary(p.x, nodes.stat.xmin, nodes.stat.xmax, eps) ||
                 on_boundary(p.y, nodes.stat.ymin, nodes.stat.ymax, eps) ||
                 on_boundary(p.z, nodes.stat.zmin, nodes.stat.zmax, eps))
-            nborlist[i] = vector<unsigned>();
+            nborlist[i].clear();
     }
+
+    // make map of tetrahedra that are connected to surface nodes
+    const int n_tets = tets.size();
+    vector<bool> tet_map(n_tets);
+    for (int tet = 0; tet < n_tets; ++tet)
+        for (int node : tets[tet]) {
+          if (nborlist[node].size() > 0) {
+              tet_map[tet] = true;
+              break;
+          }
+      }
+
+    // declare displacements here to be able to use them for resetting node locations
+    vector<Point3> displ1(n_nodes);
+    vector<Point3> displ2(n_nodes);
 
     // run the Taubin smoothing
     if (algorithm == "laplace") {
         for (int s = 0; s < n_steps; ++s) {
-            laplace_smooth(lambda, nborlist);
-            laplace_smooth(mu, nborlist);
+            laplace_smooth(displ1, lambda, nborlist);
+            laplace_smooth(displ2, mu, nborlist);
+            restore_quality(tet_map, nborlist, displ1, displ2, lambda, mu);
         }
     }
 
@@ -50,30 +68,72 @@ void TetgenMesh::smoothen(const int n_steps, const double lambda, const double m
         for (int s = 0; s < n_steps; ++s) {
             fujiwara_smooth(lambda, nborlist);
             fujiwara_smooth(mu, nborlist);
+            restore_quality(tet_map, nborlist, displ1, displ2, lambda, mu);
         }
     }
 }
 
-void TetgenMesh::laplace_smooth(const double scale, const vector<vector<unsigned>>& nborlist) {
+void TetgenMesh::restore_quality(vector<bool> &tet_map, vector<vector<unsigned>> &nborlist,
+        vector<Point3>& disp1, vector<Point3>&disp2, double lambda, double mu)
+{
+    double quality = 0.0; //1.0;
+    if (quality <= 0) return;
+
+    const int n_tets = tets.size();
+    int n_changed = 0;
+    bool tets_changed = true;
+    int cntr;
+
+    // make up to 10 iterations of reverting the mesh quality
+    for (cntr = 0; cntr < 10 && tets_changed; ++cntr) {
+        tets_changed = false;
+        for (int tet = 0; tet < n_tets; ++tet)
+            if (tet_map[tet] && tets.get_quality(tet) < quality) {
+                tets_changed = true;
+                tet_map[tet] = false;
+
+                for (int node : tets[tet])
+                    if (nborlist[node].size() > 0) {
+                        n_changed++;
+                        Point3 tot_disp = disp1[node] * lambda;
+                        tot_disp += disp2[node] * mu;
+                        nodes.set_node(node, nodes[node] - tot_disp);
+                        nborlist[node].clear();
+                    }
+            }
+    }
+
+    tets.calc_statistics();
+    write_verbose_msg("#cycles=" +d2s(cntr)+ ", #changes=" + d2s(n_changed)
+            + ", qmin=" + d2s(tets.stat.qmin));
+}
+
+void TetgenMesh::laplace_smooth(vector<Point3> &displacements,
+        const double scale, const vector<vector<unsigned>>& nborlist)
+{
     size_t n_nodes = nodes.size();
-    vector<Point3> displacements(n_nodes);
+    require(displacements.size() == n_nodes, "Mismatch between #nodes & displacements size: " +
+            d2s(n_nodes) + " vs " + d2s(displacements.size()));
 
     // Get per-vertex displacement
-    for(size_t i = 0; i < n_nodes; ++i) {
+    for (size_t i = 0; i < n_nodes; ++i) {
         // Skip vertices that are not on the surface
         if (nborlist[i].size() == 0)
             continue;
 
         const double weight = 1.0 / nborlist[i].size();
+        displacements[i] = Point3(0);
 
         // Sum the displacements
-        for(size_t nbor : nborlist[i])
+        for (size_t nbor : nborlist[i])
             displacements[i] += (nodes[nbor] - nodes[i]) * weight;
     }
 
     // Apply per-vertex displacement
-    for (size_t i = 0; i < n_nodes; ++i)
-        nodes.set_node(i, nodes[i] + displacements[i]*scale);
+    for (size_t i = 0; i < n_nodes; ++i) {
+        if (nborlist[i].size() > 0)
+            nodes.set_node(i, nodes[i] + displacements[i]*scale);
+    }
 }
 
 void TetgenMesh::fujiwara_smooth(const double scale, const vector<vector<unsigned>>& nborlist) {
@@ -353,7 +413,7 @@ int TetgenMesh::generate_surface(const string& cmd1, const string& cmd2) {
     vacuum.tris.calc_appendices();
     const int n_surf_faces = tris.copy_surface(vacuum.tris, nodes.stat);
 
-    // transfer elements and nodes to input
+    // transfer nodes & elements to input
     nodes.transfer(false);
     tets.transfer(false);
 
