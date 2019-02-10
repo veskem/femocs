@@ -393,7 +393,7 @@ int Surface::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surfac
 //    coarse_surf += *this;
     add_cleaned_roi_to(coarse_surf);
     clean(coarse_surf);
-    coarse_surf.smoothen_roi(conf.smoothing.beta_atoms, 3.0*conf.geometry.coordination_cutoff);
+    coarse_surf.smoothen_roi(conf.geometry.beta_atoms, 3.0*conf.geometry.coordination_cutoff);
 
     // Generate bulk & vacuum corners
     coarse_surf.calc_statistics();  // calculate zmin and zmax for surface

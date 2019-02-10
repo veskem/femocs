@@ -10,9 +10,10 @@
 namespace femocs {
 
 GeneralProject::GeneralProject() :
-        reader(dummy_reader), conf(dummy_config), new_mesh(&mesh1), mesh(NULL) {}
+        reader(dummy_reader), conf(dummy_config),
+        mesh1(&conf.mesh), mesh2(&conf.mesh), new_mesh(&mesh1), mesh(NULL) {}
 
 GeneralProject::GeneralProject(AtomReader &r, Config& c) :
-        reader(r), conf(c), new_mesh(&mesh1), mesh(NULL) {}
+        reader(r), conf(c), mesh1(&c.mesh), mesh2(&c.mesh), new_mesh(&mesh1), mesh(NULL) {}
 
 } /* namespace femocs */

@@ -83,8 +83,6 @@ public:
 
     /** Sizes related to mesh, atoms and simubox */
     struct Geometry {
-        string mesh_quality;        ///< Minimum quality (maximum radius-edge ratio) of tetrahedra
-        string element_volume;      ///< Maximum volume of tetrahedra
         int nnn;                    ///< Number of nearest neighbours for given crystal structure
         double latconst;            ///< Lattice constant
         double coordination_cutoff; ///< Cut-off distance for coordination analysis [same unit as latconst]
@@ -101,6 +99,7 @@ public:
          * movement is considered to be sufficiently big to recalculate electric field;
          * 0 turns the check off */
         double distance_tol;
+        double beta_atoms;          ///< Extent of surface smoothing; 0 turns smoothing off
     } geometry;
 
     /** All kind of tolerances */
@@ -146,18 +145,20 @@ public:
 
     /** Parameters related to atomic force calculations */
     struct Force {
-        string mode;                ///< Forces to be calculated; lorentz, all, none
+        string mode;         ///< forces to be calculated; lorentz, all, none
+        double beta;         ///< extent of charge smoothing; 0 turns smoothing off
     } force;
 
-    /** Smooth factors for surface faces, surface atoms and charges */
-    struct Smoothing {
+    /** Mesh geometry data */
+    struct Mesh {
+        string quality;      ///< minimum quality (maximum radius-edge ratio) of tetrahedra
+        string volume;       ///< maximum volume of tetrahedra
         string algorithm;    ///< surface mesh smoother algorithm; none, laplace or fujiwara
-        int n_steps;         ///< number of surface mesh smoothing iterations
-        double lambda_mesh;  ///< lambda parameter in surface mesh smoother
-        double mu_mesh;      ///< mu parameter in surface mesh smoother
-        double beta_atoms;   ///< extent of surface smoothing; 0 turns smoothing off
-        double beta_charge;  ///< extent of charge smoothing; 0 turns smoothing off
-    } smoothing;
+        int n_steps;         ///< number of surface mesh mesh iterations
+        double lambda;       ///< lambda parameter in surface mesh smoother
+        double mu;           ///< mu parameter in surface mesh smoother
+        double coplanarity;  ///< minimum allowed tetrahedron coplanarity after mesh smoothing
+    } mesh;
 
     /** Factors that are proportional to the extent of surface coarsening; 0 turns corresponding coarsening component off */
     struct CoarseFactor {

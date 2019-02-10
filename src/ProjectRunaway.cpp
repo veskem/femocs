@@ -163,7 +163,7 @@ int ProjectRunaway::generate_mesh() {
         check_return(fail, "Generation of mesh generator nodes failed!");
 
         start_msg(t0, "Generating vacuum & bulk mesh");
-        fail = new_mesh->generate(bulk, coarse_surf, vacuum, conf);
+        fail = new_mesh->generate(bulk, coarse_surf, vacuum);
     }
     end_msg(t0);
     if (fail) return 1;
@@ -366,7 +366,7 @@ int ProjectRunaway::solve_force() {
     start_msg(t0, "Distributing face charges");
     // Remove the atoms and their solutions outside the box
     face_charges.clean(dense_surf.sizes, conf.geometry.latconst);
-    forces.distribute_charges(fields, face_charges, conf.smoothing.beta_charge);
+    forces.distribute_charges(fields, face_charges, conf.force.beta);
     end_msg(t0);
 
     start_msg(t0, "Generating Voronoi cells");

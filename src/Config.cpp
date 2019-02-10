@@ -39,8 +39,6 @@ Config::Config() {
     run.surface_cleaner = true;
     run.field_smoother = true;
 
-    geometry.mesh_quality = "2.0";
-    geometry.element_volume = "";
     geometry.nnn = 12;
     geometry.latconst = 3.61;
     geometry.coordination_cutoff = 3.1;
@@ -54,6 +52,7 @@ Config::Config() {
     geometry.theta = 0.0;
     geometry.height = 0.0;
     geometry.distance_tol = 0.0;
+    geometry.beta_atoms = 0.0;
 
     tolerance.charge_min = 0.8;
     tolerance.charge_max = 1.2;
@@ -85,13 +84,15 @@ Config::Config() {
     emission.omega = 0.0;
 
     force.mode = "none";
+    force.beta = 1.0;
 
-    smoothing.algorithm = "laplace";
-    smoothing.n_steps = 0;
-    smoothing.lambda_mesh = 0.6307;
-    smoothing.mu_mesh = -0.6732;
-    smoothing.beta_atoms = 0.0;
-    smoothing.beta_charge = 1.0;
+    mesh.quality = "2.0";
+    mesh.volume = "";
+    mesh.algorithm = "laplace";
+    mesh.n_steps = 0;
+    mesh.lambda = 0.6307;
+    mesh.mu = -0.6732;
+    mesh.coplanarity = 1.0;
 
     cfactor.amplitude = 0.4;
     cfactor.r0_cylinder = 0;
@@ -178,17 +179,18 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("Vappl", field.V0);
     read_command("anode_bc", field.anode_BC);
 
+    read_command("mesh_quality", mesh.quality);
+    read_command("element_volume", mesh.volume);
+    read_command("smooth_steps", mesh.n_steps);
+    read_command("smooth_lambda", mesh.lambda);
+    read_command("smooth_mu", mesh.mu);
+    read_command("smooth_algorithm", mesh.algorithm);
+    read_command("coplanarity", mesh.coplanarity);
+
     read_command("force_mode", force.mode);
+    read_command("charge_smooth_factor", force.beta);
 
-    read_command("smooth_steps", smoothing.n_steps);
-    read_command("smooth_lambda", smoothing.lambda_mesh);
-    read_command("smooth_mu", smoothing.mu_mesh);
-    read_command("smooth_algorithm", smoothing.algorithm);
-    read_command("surface_smooth_factor", smoothing.beta_atoms);
-    read_command("charge_smooth_factor", smoothing.beta_charge);
-
-    read_command("force_mode", force.mode);
-
+    read_command("surface_smooth_factor", geometry.beta_atoms);
     read_command("distance_tol", geometry.distance_tol);
     read_command("latconst", geometry.latconst);
     read_command("coord_cutoff", geometry.coordination_cutoff);
@@ -196,8 +198,6 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("charge_cutoff", geometry.charge_cutoff);
     read_command("surface_thickness", geometry.surface_thickness);
     read_command("nnn", geometry.nnn);
-    read_command("mesh_quality", geometry.mesh_quality);
-    read_command("element_volume", geometry.element_volume);
     read_command("radius", geometry.radius);
     read_command("coarse_theta", geometry.theta);
     read_command("tip_height", geometry.height);

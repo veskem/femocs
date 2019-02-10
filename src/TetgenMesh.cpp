@@ -13,15 +13,15 @@ using namespace std;
 namespace femocs {
 
 // Initialize Tetgen data
-TetgenMesh::TetgenMesh() {
+TetgenMesh::TetgenMesh(const Config::Mesh* c) : conf(c) {
     tetIOin.initialize();
     tetIOout.initialize();
 }
 
 // Code is inspired from the work of Shawn Halayka
 // https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/qjs-isosurface/mesh_tools_v1.0.zip
-void TetgenMesh::smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm) {
-    if (algorithm == "none") return;
+void TetgenMesh::smoothen() {
+    require(conf, "Configuration data missing!");
 
     // determine the neighbouring between nodes connected to the faces
     vector<vector<unsigned>> nborlist;
@@ -56,56 +56,50 @@ void TetgenMesh::smoothen(const int n_steps, const double lambda, const double m
     vector<Point3> displ2(n_nodes);
 
     // run the Taubin smoothing
-    if (algorithm == "laplace") {
-        for (int s = 0; s < n_steps; ++s) {
-            laplace_smooth(displ1, lambda, nborlist);
-            laplace_smooth(displ2, mu, nborlist);
-            restore_quality(tet_map, nborlist, displ1, displ2, lambda, mu);
+    if (conf->algorithm == "laplace") {
+        for (int s = 0; s < conf->n_steps; ++s) {
+            laplace_smooth(displ1, conf->lambda, nborlist);
+            laplace_smooth(displ2, conf->mu, nborlist);
+            restore_quality(tet_map, nborlist, displ1, displ2);
         }
     }
 
-    else if (algorithm == "fujiwara") {
-        for (int s = 0; s < n_steps; ++s) {
-            fujiwara_smooth(lambda, nborlist);
-            fujiwara_smooth(mu, nborlist);
-            restore_quality(tet_map, nborlist, displ1, displ2, lambda, mu);
+    else if (conf->algorithm == "fujiwara") {
+        for (int s = 0; s < conf->n_steps; ++s) {
+            fujiwara_smooth(displ1, conf->lambda, nborlist);
+            fujiwara_smooth(displ2, conf->mu, nborlist);
+            restore_quality(tet_map, nborlist, displ1, displ2);
         }
     }
 }
 
 void TetgenMesh::restore_quality(vector<bool> &tet_map, vector<vector<unsigned>> &nborlist,
-        vector<Point3>& disp1, vector<Point3>&disp2, double lambda, double mu)
+        const vector<Point3>& displ1, const vector<Point3>&displ2)
 {
-    double quality = 0.0; //1.0;
-    if (quality <= 0) return;
+    if (conf->coplanarity <= 0) return;
 
     const int n_tets = tets.size();
-    int n_changed = 0;
     bool tets_changed = true;
-    int cntr;
 
     // make up to 10 iterations of reverting the mesh quality
-    for (cntr = 0; cntr < 10 && tets_changed; ++cntr) {
+    for (int cntr = 0; cntr < 10 && tets_changed; ++cntr) {
         tets_changed = false;
         for (int tet = 0; tet < n_tets; ++tet)
-            if (tet_map[tet] && tets.get_quality(tet) < quality) {
+            if (tet_map[tet] && tets.get_quality(tet) < conf->coplanarity) {
                 tets_changed = true;
                 tet_map[tet] = false;
 
                 for (int node : tets[tet])
                     if (nborlist[node].size() > 0) {
-                        n_changed++;
-                        Point3 tot_disp = disp1[node] * lambda;
-                        tot_disp += disp2[node] * mu;
-                        nodes.set_node(node, nodes[node] - tot_disp);
                         nborlist[node].clear();
+                        // compose data to undo previous shifting
+                        Point3 tot_disp = displ1[node] * conf->lambda;
+                        tot_disp += displ2[node] * conf->mu;
+                        // undo the shifting
+                        nodes.set_node(node, nodes[node] - tot_disp);
                     }
             }
     }
-
-    tets.calc_statistics();
-    write_verbose_msg("#cycles=" +d2s(cntr)+ ", #changes=" + d2s(n_changed)
-            + ", qmin=" + d2s(tets.stat.qmin));
 }
 
 void TetgenMesh::laplace_smooth(vector<Point3> &displacements,
@@ -136,9 +130,11 @@ void TetgenMesh::laplace_smooth(vector<Point3> &displacements,
     }
 }
 
-void TetgenMesh::fujiwara_smooth(const double scale, const vector<vector<unsigned>>& nborlist) {
-    vector<Point3> displacements(nodes.size());
+void TetgenMesh::fujiwara_smooth(vector<Point3> &displacements,
+        const double scale, const vector<vector<unsigned>>& nborlist) {
     const unsigned int n_nodes = nodes.size();
+    require(displacements.size() == n_nodes, "Mismatch between #nodes & displacements size: " +
+            d2s(n_nodes) + " vs " + d2s(displacements.size()));
 
     // Get per-vertex displacement.
     for (size_t i = 0; i < n_nodes; ++i) {
@@ -168,15 +164,18 @@ void TetgenMesh::fujiwara_smooth(const double scale, const vector<vector<unsigne
             weights[j] *= s;
 
         // Sum the displacements.
-        for(size_t j = 0; j < nborlist[i].size(); j++) {
+        displacements[i] = Point3(0);
+        for (size_t j = 0; j < nborlist[i].size(); j++) {
             size_t nbor = nborlist[i][j];
             displacements[i] += (nodes[nbor] - node) * weights[j];
         }
     }
 
     // Apply per-vertex displacement.
-    for (size_t i = 0; i < n_nodes; i++)
-        nodes.set_node(i, nodes[i] + displacements[i]*scale);
+    for (size_t i = 0; i < n_nodes; i++) {
+        if (nborlist[i].size() > 0)
+            nodes.set_node(i, nodes[i] + displacements[i]*scale);
+    }
 }
 
 int TetgenMesh::generate_simple() {
@@ -234,7 +233,8 @@ int TetgenMesh::generate_union(const Medium& bulk, const Medium& surf, const Med
     return recalc("Q", cmd);
 }
 
-int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const Config& conf) {
+int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& vacuum) {
+    require(conf, "Configuration data missing!");
     require(bulk.size() > 0,   "Empty mesh generators in bulk detected!");
     require(surf.size() > 0,   "Empty mesh generators on surface detected!");
     require(vacuum.size() > 0, "Empty mesh generators in vacuum detected!");
@@ -245,8 +245,8 @@ int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& v
     // r - reconstruct, n(n) - output tet neighbour list (and tri-tet connection),
     // Q - quiet, q - mesh quality, a - element volume, E - suppress output of elements
     // F - suppress output of faces and edges, B - suppress output of boundary info
-    string command = "rQFBq" + conf.geometry.mesh_quality;
-    if (conf.geometry.element_volume != "") command += "a" + conf.geometry.element_volume;
+    string command = "rQFBq" + conf->quality;
+    if (conf->volume != "") command += "a" + conf->volume;
 
     // Make union mesh where both vacuum and material domain are present
     int err_code = generate_union(bulk, surf, vacuum, command);
@@ -261,8 +261,8 @@ int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& v
     check_return(err_code, "Triangulation failed with error code " + d2s(err_code));
 
     // Smoothen surface faces
-    if (conf.smoothing.algorithm != "none" && conf.smoothing.n_steps > 0)
-        smoothen(conf.smoothing.n_steps, conf.smoothing.lambda_mesh, conf.smoothing.mu_mesh, conf.smoothing.algorithm);
+    if (conf->algorithm != "none" && conf->n_steps > 0)
+        smoothen();
 
     // has to be separate to ensure that data is for sure calculated
     tris.calc_appendices();
@@ -273,7 +273,6 @@ int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& v
 }
 
 int TetgenMesh::read(const string &file_name, const string &cmd) {
-
     // delete available mesh data
     clear();
 
@@ -398,7 +397,7 @@ bool TetgenMesh::generate_hexahedra() {
 }
 
 int TetgenMesh::generate_surface(const string& cmd1, const string& cmd2) {
-    TetgenMesh vacuum;
+    TetgenMesh vacuum(conf);
     vector<bool> tet_mask = vector_equal(tets.get_markers(), TYPES.VACUUM);
 
     // Transfer vacuum nodes and tetrahedra
@@ -762,7 +761,7 @@ void TetgenMesh::write_separate(const string& file_name, const int type) {
     else
         hex_mask = vector_less(hexs.get_markers(), 0);
 
-    TetgenMesh tempmesh;
+    TetgenMesh tempmesh(conf);
     tempmesh.nodes.copy(this->nodes);
     tempmesh.nodes.copy_markers(this->nodes);
     tempmesh.nodes.transfer();

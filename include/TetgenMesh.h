@@ -29,14 +29,14 @@ namespace femocs {
  */
 class TetgenMesh: public FileWriter {
 public:
-    TetgenMesh();
+    TetgenMesh(const Config::Mesh* conf);
     ~TetgenMesh() {}
 
     /** Read mesh from file and generate mappings between cells */
     int read(const string &file, const string &cmd);
 
     /** Generate union mesh between generator points */
-    int generate(const Medium& bulk, const Medium& surf, const Medium& vacuum, const Config& conf);
+    int generate(const Medium& bulk, const Medium& surf, const Medium& vacuum);
 
     /** Generate simple mesh that consists of one element */
     int generate_simple();
@@ -81,6 +81,7 @@ public:
 private:
     tetgenio tetIOin;   ///< Writable mesh data in Tetgen format
     tetgenio tetIOout;  ///< Readable mesh data in Tetgen format
+    const Config::Mesh* conf;  ///< configuration data about mesh
 
     void write_bin(ofstream &out) const;
 
@@ -119,17 +120,17 @@ private:
     int recalc(const string& cmd1, const string& cmd2);
 
     /** Smoothen the triangles using different versions of Taubin smoothing algorithm */
-    void smoothen(const int n_steps, const double lambda, const double mu, const string& algorithm);
+    void smoothen();
 
     /** Smoothen the surface mesh using Taubin lambda|mu algorithm with inverse neighbour count weighting */
     void laplace_smooth(vector<Point3> &displacements, const double scale, const vector<vector<unsigned>>& nborlist);
 
     /** Smoothen the surface mesh using Taubin lambda|mu algorithm with Fujiwara weighting */
-    void fujiwara_smooth(const double scale, const vector<vector<unsigned>>& nborlist);
+    void fujiwara_smooth(vector<Point3> &displacements, const double scale, const vector<vector<unsigned>>& nborlist);
 
     /** Handle the loss of mesh quality due to its smoothing */
     void restore_quality(vector<bool> &tet_map, vector<vector<unsigned>> &nborlist,
-            vector<Point3>& disp1, vector<Point3>&disp2, double lambda, double mu);
+            const vector<Point3>& displacement1, const vector<Point3>&displacement2);
 
     /** Locate the tetrahedron by the location of its nodes */
     int locate_element(SimpleElement& elem);
