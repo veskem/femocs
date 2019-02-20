@@ -84,6 +84,24 @@ int ProjectRunaway::process_failed(const string &msg) {
     GLOBALS.TIME = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs;
     require(!first_run, "First full run failed!");
 
+    unsigned flags = FileIO::force | FileIO::no_update;
+    if (emission.size() > 0)
+        emission.write("out/emission_err.xyz", flags);
+    if (surface_fields.size() > 0)
+        surface_fields.write("out/surface_fields_err.xyz", flags);
+    if (surface_temperatures.size() > 0)
+        surface_temperatures.write("out/surface_temperatures_err.xyz", flags);
+    if (pic_solver.size() > 1)  // must be > 1
+        pic_solver.write("out/electrons_err.xyz", flags);
+    if (ch_solver.size() > 0)
+        ch_solver.write("out/ch_solver_err.xyz", flags);
+    if (vacuum_interpolator.nodes.size() > 0)
+        vacuum_interpolator.nodes.write("out/result_E_phi_err.xyz", flags);
+    if (bulk_interpolator.nodes.size() > 0)
+        bulk_interpolator.nodes.write("out/result_J_T_err.xyz", flags);
+    if (mesh->hexs.size() > 0)
+        mesh->hexs.write("out/hexmesh_err.vtk", flags);
+
     if (conf.behaviour.n_write_log > 0)
         MODES.WRITELOG = (GLOBALS.TIMESTEP+1)%conf.behaviour.n_write_log == 0;
     return 1;

@@ -103,6 +103,16 @@ void HeatSolver<dim>::write_vtk(ofstream& out) const {
 }
 
 template<int dim>
+void HeatSolver<dim>::setup_system() {
+    DealSolver<dim>::setup_system();
+
+    const unsigned int n_dofs = this->size();
+    joule_heat.reinit(n_dofs);
+    total_heat.reinit(n_dofs);
+    this->dof_volume.resize(n_dofs);
+}
+
+template<int dim>
 void HeatSolver<dim>::assemble(const double delta_time) {
     require(current_solver, "NULL current solver can't be used!");
     require(delta_time > 0, "Invalid delta time: " + d2s(delta_time));
