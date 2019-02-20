@@ -141,6 +141,7 @@ public:
         bool blunt;           ///< Force blunt emitter approximation (good for big systems)
         bool cold;            ///< force cold field emission approximation (good for low temperatures)
         double omega;         ///< Voltage correction factor for SC-limited emission calculation; <= 0 ignores SC
+        double J_max;         ///< maximum current density from single face
     } emission;
 
     /** Parameters related to atomic force calculations */

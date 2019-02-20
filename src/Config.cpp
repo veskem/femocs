@@ -82,6 +82,7 @@ Config::Config() {
     emission.blunt = true;
     emission.cold = false;
     emission.omega = 0.0;
+    emission.J_max = 1e-4;
 
     force.mode = "none";
     force.beta = 1.0;
@@ -159,6 +160,7 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("emitter_blunt", emission.blunt);
     read_command("sc_omega", emission.omega);
     read_command("emitter_cold", emission.cold);
+    read_command("emission_jmax", emission.J_max);
 
     read_command("heat_mode", heating.mode);
     read_command("rhofile", heating.rhofile);

@@ -148,38 +148,44 @@ void EmissionReader::calc_effective_region(double threshold, string mode) {
     }
 }
 
-void EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
-        bool update_eff_region) {
+int EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
+        bool update_eff_region)
+{
+    constexpr int J_max_error = -10;  // error code of current density is outside the limits
+    constexpr int fitting_error = -2; // error code of model fitting failed
+    const int n_faces = fields->size();
+
+    struct emission gt;
+    gt.W = conf.work_function;    // set workfuntion, must be set in conf. script
+    gt.R = 1000.0;       // radius of curvature (overrided by femocs potential distribution)
+    gt.gamma = 10;       // enhancement factor (overrided by femocs potential distribution)
+    double F, J;         // Local field and current density in femocs units
+    bool fitting_failed = false;  // flag of non-fatal error
 
     global_data.Fmax = 0;
     global_data.Jmax = 0;
 
-    struct emission gt;
-    gt.W = conf.work_function;    // set workfuntion, must be set in conf. script
-    gt.R = 1000.0;   // radius of curvature (overrided by femocs potential distribution)
-    gt.gamma = 10;  // enhancement factor (overrided by femocs potential distribution)
-    double F, J;    // Local field and current density in femocs units (Angstrom)
-    vector<int> errors;  // list of errors that occured during the run
+    for (int i = 0; i < n_faces; ++i) {
+        Vec3 normal = mesh->tris.get_norm(mesh->quads.to_tri(i));
+        double elfield = fields->get_elfield_norm(i);
+//        double elfield = -1.0 * normal.dotProduct(fields->get_elfield(i));
 
-    for (int i = 0; i < fields->size(); ++i) { // go through all face centroids
-        double elfield_norm = fields->get_elfield_norm(i);
-
-        F = global_data.multiplier * elfield_norm;
+        F = global_data.multiplier * elfield;
         gt.mode = 0;
         gt.F = angstrom_per_nm * F;
         gt.Temp = heat->get_temperature(i);
         markers[i] =  0; // marker==0: no full calculation
 
-        if (F > 0.6 * global_data.Fmax && !conf.blunt){ // Full calculation with line only for high field points
-            Vec3 normal = fields->get_elfield(i);
-            normal *= (-1.0 / elfield_norm);
-            emission_line(fields->get_point(i), normal, 1.6 * conf.work_function / F); //get emission line data
+        // Full calculation with line only for high field points
+        if (F > 0.6 * global_data.Fmax && !conf.blunt) {
+            // get emission line data
+            emission_line(fields->get_point(i), normal, 1.6 * conf.work_function / F);
 
             gt.Nr = n_lines;
             gt.xr = &rline[0];
             gt.Vr = &Vline[0];
             gt.mode = -21;  // set mode to potential input data
-            markers[i] = 1; //marker==1: emission calculated with line
+            markers[i] = 1; // marker==1: emission calculated with line
         }
 
         gt.approx = 0; // simple GTF approximation
@@ -189,8 +195,11 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
             cur_dens_SC(&gt, Veff);
 
         J = gt.Jem * nm2_per_angstrom2; // current density in femocs units
+        if (J > conf.J_max)
+            return J_max_error;
 
-        if ((J > 0.1 * global_data.Jmax || gt.ierr) && !conf.cold){ // If J is worth it, calculate with full energy integration
+        // If J is worth it, calculate with full energy integration
+        if ((J > 0.1 * global_data.Jmax || gt.ierr) && !conf.cold) {
             gt.approx = 1;
             if (Veff <= 0)
                 cur_dens_c(&gt); // calculate emission
@@ -198,7 +207,14 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
                 gt.voltage = Veff;
                 cur_dens_SC(&gt, Veff);
             }
-            if (gt.ierr != 0 ) errors.push_back(gt.ierr);
+
+            if (gt.ierr != 0) {
+                if (gt.ierr == fitting_error)
+                    fitting_failed = true;
+                else
+                    return gt.ierr;
+            }
+
             J = gt.Jem * nm2_per_angstrom2;
             markers[i] = 2;
         }
@@ -216,8 +232,9 @@ void EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
 
     calculate_globals();
 
-    if (errors.size() > 0)
-        write_verbose_msg("Errors of GETELEC 2nd call: " + get_error_codes(errors));
+    if (fitting_failed)
+        write_verbose_msg("Model fitting failed. Applied rough FN approximation.");
+    return 0;
 }
 
 void EmissionReader::write_xyz(ofstream &out) const {

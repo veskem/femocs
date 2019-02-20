@@ -28,7 +28,7 @@ public:
      * @param conf Emission configuration parameters
      * @param Veff effective applied voltage for space charge calculations
      */
-    void calc_emission(const Config::Emission &conf, double Veff,
+    int calc_emission(const Config::Emission &conf, double Veff,
             bool update_eff_region = false);
 
     /** Calculates the mean and the standard deviation of the total current for the last N_calls */
