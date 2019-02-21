@@ -250,8 +250,8 @@ void ProjectRunaway::calc_surf_temperatures() {
 int ProjectRunaway::prepare_solvers() {
     // import Tetgen mesh to Deal.II
     if (mesh_changed) {
-        int error = import_mesh();
-        if (error) return 1;
+        fail = import_mesh();
+        if (fail) return 1;
     }
 
     // halt in case of NO field emission
@@ -319,7 +319,6 @@ int ProjectRunaway::prepare_export() {
         }
         end_msg(t0);
         // writing temperatures will be done during Berendsen scaling
-        // TODO implement reasonable temperature limit check
     }
 
     int retval = 0;
@@ -344,8 +343,7 @@ int ProjectRunaway::prepare_export() {
 
 int ProjectRunaway::run_field_solver() {
     // Store parameters for comparing the results with analytical hemi-ellipsoid results
-    if (mesh_changed)
-        fields.set_check_params(conf, conf.geometry.radius, mesh->tris.stat.zbox, mesh->nodes.stat.zbox);
+    fields.set_check_params(conf, conf.geometry.radius, mesh->tris.stat.zbox, mesh->nodes.stat.zbox);
 
     if (conf.field.mode != "laplace")
         return solve_pic(GLOBALS.TIME - last_pic_time, mesh_changed);
@@ -408,7 +406,8 @@ int ProjectRunaway::solve_force() {
     end_msg(t0);
 
     forces.write("out/forces.movie");
-    check_return(face_charges.check_limits(forces.get_interpolations()), "Voronoi charges are not conserved!");
+    check_return(face_charges.check_limits(forces.get_interpolations()),
+            "Voronoi charges are not conserved!");
 
     return 0;
 }
@@ -541,15 +540,18 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     write_verbose_msg("#CG steps: " + d2s(hcg));
 
     start_msg(t0, "Extracting J & T");
+    double T_low = conf.heating.T_min;
+    double T_high = conf.heating.T_max;
     bulk_interpolator.initialize(mesh, conf.heating.t_ambient, TYPES.BULK);
-    bulk_interpolator.extract_solution(ch_solver);
+    fail = bulk_interpolator.extract_solution(ch_solver, T_low, T_high);
     end_msg(t0);
+    write_verbose_msg("Tmin=" + d2s(T_low) + " K, Tmax=" + d2s(T_high) + " K");
+    check_return(fail, "Temperature is out of limits!");
 
     bulk_interpolator.nodes.write("out/result_J_T.xyz");
     bulk_interpolator.lintet.write("out/result_J_T.vtk");
 
     last_heat_time = GLOBALS.TIME;
-    // TODO implement reasonable temperature limit check
     return 0;
 }
 

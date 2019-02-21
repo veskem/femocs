@@ -204,15 +204,28 @@ void Interpolator::extract_solution_old(PoissonSolver<3>& fem, const bool smooth
     if (smoothen) average_nodal_fields(true);
 }
 
-void Interpolator::extract_solution(CurrentHeatSolver<3>& fem) {
+bool Interpolator::extract_solution(CurrentHeatSolver<3>& fem, double &Tmin, double &Tmax) {
     // Read data from FEM solver
     vector<double> potentials, temperatures;
     vector<dealii::Tensor<1,3>> rhos;
     fem.current.export_solution(potentials);
     fem.export_temp_rho(temperatures, rhos);
 
+    // check for temperature limits
+    double T_low = Tmin, T_high = Tmax;
+    Tmin = 1e100;
+    Tmax = -1e100;
+    for (double T : temperatures) {
+        Tmin = min(Tmin, T);
+        Tmax = max(Tmax, T);
+    }
+
+    if (Tmin < T_low || Tmax > T_high)
+        return true;
+
     // Store the data
     store_solution(rhos, potentials, temperatures, Solution(Vec3(0), 0, empty_value));
+    return false;
 }
 
 } // namespace femocs

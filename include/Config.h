@@ -133,6 +133,8 @@ public:
         double delta_time;          ///< Timestep of time domain integration [sec]
         double dt_max;              ///< Maximum allowed timestep for heat convergence run
         double tau;                 ///< Time constant in Berendsen thermostat
+        double T_min;               ///< Minimum allowed temperature [K]
+        double T_max;               ///< Maximum allowed temperature [K]
     } heating;
 
     /** Field emission module parameters */
@@ -141,7 +143,8 @@ public:
         bool blunt;           ///< Force blunt emitter approximation (good for big systems)
         bool cold;            ///< force cold field emission approximation (good for low temperatures)
         double omega;         ///< Voltage correction factor for SC-limited emission calculation; <= 0 ignores SC
-        double J_max;         ///< maximum current density from single face
+        double J_min;         ///< Minimum current density from single face [amps/Angstrom^2]
+        double J_max;         ///< Maximum current density from single face [amps/Angstrom^2]
     } emission;
 
     /** Parameters related to atomic force calculations */

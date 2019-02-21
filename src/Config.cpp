@@ -77,11 +77,14 @@ Config::Config() {
     heating.delta_time = 10.0;
     heating.dt_max = 1.0e5;
     heating.tau = 100.0;
+    heating.T_min = 0.0;
+    heating.T_max = 1e5;
 
     emission.work_function = 4.5;
     emission.blunt = true;
     emission.cold = false;
     emission.omega = 0.0;
+    emission.J_min = 0.0;
     emission.J_max = 1e-4;
 
     force.mode = "none";
@@ -160,7 +163,6 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("emitter_blunt", emission.blunt);
     read_command("sc_omega", emission.omega);
     read_command("emitter_cold", emission.cold);
-    read_command("emission_jmax", emission.J_max);
 
     read_command("heat_mode", heating.mode);
     read_command("rhofile", heating.rhofile);
@@ -246,6 +248,17 @@ void Config::read_all(const string& fname, bool full_run) {
     // Read commands with potentially multiple arguments like...
     vector<double> args;
     int n_read_args;
+
+    // ...temperature and current density limits
+    args = {heating.T_min, heating.T_max};
+    n_read_args = read_command("heat_limit", args);
+    heating.T_min = args[0];
+    heating.T_max = args[1];
+
+    args = {emission.J_min, emission.J_max};
+    n_read_args = read_command("current_limit", args);
+    emission.J_min = args[0];
+    emission.J_max = args[1];
 
     // ...charge and field tolerances
     args = {0, 0};
