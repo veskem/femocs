@@ -155,7 +155,7 @@ private:
     int make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool full_run);
 
     /** Perform one iteration of field emission calculation */
-    void calc_heat_emission(bool full_run);
+    int calc_heat_emission(bool full_run);
 
     /** Write restart file so that simulation could be started at t>0 time */
     void write_restart();

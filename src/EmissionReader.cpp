@@ -151,7 +151,7 @@ void EmissionReader::calc_effective_region(double threshold, string mode) {
 int EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
         bool update_eff_region)
 {
-    constexpr int J_max_error = -10;  // error code of current density is outside the limits
+    constexpr int J_error = -10;      // error code of current density is outside the limits
     constexpr int sign_error = -11;   // error code of field in wrong direction
     constexpr int fitting_error = -2; // error code of model fitting failed
     const int n_faces = fields->size();
@@ -202,8 +202,6 @@ int EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
             cur_dens_SC(&gt, Veff);
 
         J = gt.Jem * nm2_per_angstrom2; // current density in femocs units
-        if (J > conf.J_max)
-            return J_max_error;
 
         // If J is worth it, calculate with full energy integration
         if ((J > 0.1 * global_data.Jmax || gt.ierr) && !conf.cold) {
@@ -225,6 +223,9 @@ int EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
             J = gt.Jem * nm2_per_angstrom2;
             markers[i] = 2;
         }
+
+        if (J > conf.J_max || J < conf.J_min)
+            return J_error;
 
         current_densities[i] = J;
         nottingham[i] = nm2_per_angstrom2 * gt.heat;

@@ -519,7 +519,8 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
 int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_run, int& ccg, int& hcg) {
     // Calculate field emission in case not ready from PIC
     if (conf.field.mode == "laplace")
-        calc_heat_emission(full_run);
+        if (calc_heat_emission(full_run))
+            return 1;
 
     start_msg(t0, "Calculating current density");
     ch_solver.current.assemble();
@@ -555,7 +556,7 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     return 0;
 }
 
-void ProjectRunaway::calc_heat_emission(bool full_run) {
+int ProjectRunaway::calc_heat_emission(bool full_run) {
     if (full_run) {
         start_msg(t0, "Calculating surface fields");
         surface_fields.calc_interpolation();
@@ -564,9 +565,12 @@ void ProjectRunaway::calc_heat_emission(bool full_run) {
     }
 
     start_msg(t0, "Calculating electron emission");
-    emission.calc_emission(conf.emission, conf.emission.omega * conf.field.V0);
+    int error_code = emission.calc_emission(conf.emission, conf.emission.omega * conf.field.V0);
     end_msg(t0);
+    check_return(error_code, "Emission calculation failed with error code " + d2s(error_code));
     emission.write("out/emission.movie");
+
+    return 0;
 }
 
 int ProjectRunaway::export_data(double* data, const int n_points, const string &data_type) {
