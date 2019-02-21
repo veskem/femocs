@@ -152,6 +152,7 @@ int EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
         bool update_eff_region)
 {
     constexpr int J_max_error = -10;  // error code of current density is outside the limits
+    constexpr int sign_error = -11;   // error code of field in wrong direction
     constexpr int fitting_error = -2; // error code of model fitting failed
     const int n_faces = fields->size();
 
@@ -166,15 +167,21 @@ int EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
     global_data.Jmax = 0;
 
     for (int i = 0; i < n_faces; ++i) {
-        Vec3 normal = mesh->tris.get_norm(mesh->quads.to_tri(i));
+        int quad = abs(fields->get_marker(i));
+        int tri = mesh->quads.to_tri(quad);
+        Vec3 normal = mesh->tris.get_norm(tri);
         double elfield = fields->get_elfield_norm(i);
-//        double elfield = -1.0 * normal.dotProduct(fields->get_elfield(i));
+
+        // avoid using dot product as field norm, as field and normal are not precisely perpendicular
+        // check, however, that the field and normal are in opposite direction
+        if (normal.dotProduct(fields->get_elfield(i)) > 0)
+            return sign_error;
 
         F = global_data.multiplier * elfield;
         gt.mode = 0;
         gt.F = angstrom_per_nm * F;
         gt.Temp = heat->get_temperature(i);
-        markers[i] =  0; // marker==0: no full calculation
+        markers[i] = 0; // marker==0: no full calculation
 
         // Full calculation with line only for high field points
         if (F > 0.6 * global_data.Fmax && !conf.blunt) {
