@@ -437,8 +437,14 @@ public:
     /** Initialize face appending */
     void init(const int N);
 
+    /** Initialize triangles and their mapping */
+    void init_with_map(const int N);
+
     /** Append face to mesh */
     void append(const SimpleCell<3> &cell);
+
+    /** Append face together with its map to tetrahedra to mesh */
+    void append(const SimpleCell<3> &cell, int tet1, int tet2);
 
     /** Copy the nodes from one buffer to another */
     void transfer(const bool write2read=true);

@@ -102,6 +102,7 @@ private:
 
     /** Using the separated tetrahedra generate the triangular surface on the vacuum-material boundary */
     int generate_surface(const string& cmd1, const string& cmd2);
+    int generate_surface_v2(const string& cmd1);
 
     /** Generate surface faces from elements and known location of surface nodes.
      * Overlapping faces are not cleaned. */

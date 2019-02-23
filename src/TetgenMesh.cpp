@@ -245,7 +245,7 @@ int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& v
     // r - reconstruct, n(n) - output tet neighbour list (and tri-tet connection),
     // Q - quiet, q - mesh quality, a - element volume, E - suppress output of elements
     // F - suppress output of faces and edges, B - suppress output of boundary info
-    string command = "rQFBq" + conf->quality;
+    string command = "rQFBnq" + conf->quality;
     if (conf->volume != "") command += "a" + conf->volume;
 
     // Make union mesh where both vacuum and material domain are present
@@ -258,6 +258,7 @@ int TetgenMesh::generate(const Medium& bulk, const Medium& surf, const Medium& v
 
     // Generate surface faces
     err_code = generate_surface("rQB", "rQnn");
+//    err_code = generate_surface_v2("");
     check_return(err_code, "Triangulation failed with error code " + d2s(err_code));
 
     // Smoothen surface faces
@@ -417,6 +418,49 @@ int TetgenMesh::generate_surface(const string& cmd1, const string& cmd2) {
     tets.transfer(false);
 
     return calc_tri2tet2tri_mapping(cmd2, n_surf_faces);
+}
+
+int TetgenMesh::generate_surface_v2(const string& cmd1) {
+    const int n_tets = tets.size();
+
+    vector<int> tet_mask(n_tets, -1);
+    vector<int> ordering(n_tets, -1);
+
+    // find vacuum tetrahedra and their neighbours that are on the surface
+    // and store which face is facing the surface
+    int n_tris = 0;
+    for (int tet = 0; tet < n_tets; ++tet)
+        if (tets.get_marker(tet) == TYPES.VACUUM) {
+            int i = 0;
+            for (int nbor : tets.get_neighbours(tet)) {
+                if (nbor >= 0 && tets.get_marker(nbor) != TYPES.VACUUM) {
+                    tet_mask[tet] = nbor;
+                    ordering[tet] = i;
+                    n_tris++;
+                    break;
+                }
+                i++;
+            }
+        }
+
+    // calc & store the faces and tri2tet & tet2tri mapping
+    tris.init_with_map(n_tris);
+    vector<vector<int>> tet2tri(n_tets);
+
+    int tri = 0;
+    for (int tet = 0; tet < n_tets; ++tet) {
+        int nbor = tet_mask[tet];
+        if (nbor >= 0) {
+            SimpleElement elem = tets[tet];
+            tris.append(elem.face(ordering[tet]), tet, nbor);
+            tet2tri[tet].push_back(tri);
+            tet2tri[nbor].push_back(tri);
+            tri++;
+        }
+    }
+
+    tets.store_map(tet2tri);
+    return 0;
 }
 
 void TetgenMesh::generate_manual_surface() {

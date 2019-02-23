@@ -726,10 +726,10 @@ public:
     /** Get i-th face of the element */
     SimpleFace face(const int i) const {
         require(i >= 0 && i <= 3, "Invalid index: " + to_string(i));
-        if (i == 0) return SimpleFace(node[0], node[1], node[2]);
-        if (i == 1) return SimpleFace(node[0], node[1], node[3]);
-        if (i == 2) return SimpleFace(node[0], node[2], node[3]);
-        else        return SimpleFace(node[1], node[2], node[3]);
+        if (i == 0) return SimpleFace(node[1], node[2], node[3]);
+        if (i == 1) return SimpleFace(node[0], node[2], node[3]);
+        if (i == 2) return SimpleFace(node[0], node[1], node[3]);
+        else        return SimpleFace(node[0], node[1], node[2]);
     }
 
     /** Check whether two tetrahedra share a triangle */

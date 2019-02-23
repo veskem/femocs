@@ -318,11 +318,38 @@ void TetgenFaces::init(const int N) {
     writes->trifacelist = new int[DIM * N];
 }
 
+void TetgenFaces::init_with_map(const int N) {
+    require(N >= 0, "Invalid number of cells: " + d2s(N));
+    i_cells = 0;
+    *n_cells_r = N;
+
+    if (reads->trifacelist != (int *) NULL)
+        delete[] reads->trifacelist;
+    reads->trifacelist = new int[DIM * N];
+
+    if (reads->face2tetlist != (int *) NULL)
+        delete[] reads->face2tetlist;
+    reads->face2tetlist = new int[n_tets_per_tri * N];
+}
+
 void TetgenFaces::append(const SimpleCell<3> &cell) {
     require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
     int i = DIM * i_cells;
     for (unsigned int node : cell)
         writes->trifacelist[i++] = node;
+    i_cells++;
+}
+
+void TetgenFaces::append(const SimpleCell<3> &cell, int tet1, int tet2) {
+    require(i_cells < *n_cells_r, "Allocated size of cells exceeded!");
+    int i = DIM * i_cells;
+    for (unsigned int node : cell)
+        reads->trifacelist[i++] = node;
+
+    i = n_tets_per_tri * i_cells;
+    reads->face2tetlist[i++] = tet1;
+    reads->face2tetlist[i] = tet2;
+
     i_cells++;
 }
 
