@@ -44,9 +44,9 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
     dense_surf.set_coarsener(&coarseners);
     poisson_solver.set_particles(pic_solver.get_particles());
 
-    surface_fields.set_preferences(false, 2, 3);
-    surface_temperatures.set_preferences(false, 2, 3);
-    heat_transfer.set_preferences(true, 3, 1);
+    surface_fields.set_preferences(false, 2, 3, true);
+    surface_temperatures.set_preferences(false, 2, 3, true);
+    heat_transfer.set_preferences(true, 3, 1, false);
 
     start_msg(t0, "Reading physical quantities");
     phys_quantities.initialize_with_hc_data();

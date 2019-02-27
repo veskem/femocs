@@ -23,20 +23,22 @@ namespace femocs {
 
 SolutionReader::SolutionReader() :
         vec_label("vec"), norm_label("vec_norm"), scalar_label("scalar"),
-        limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), interpolator(NULL)
+        limit_min(0), limit_max(0), sort_atoms(false), interp_centroids(false),
+        dim(0), rank(0), interpolator(NULL)
 {
     reserve(0);
 }
 
 SolutionReader::SolutionReader(Interpolator* i, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab) :
         vec_label(vec_lab), norm_label(vec_norm_lab), scalar_label(scal_lab),
-        limit_min(0), limit_max(0), sort_atoms(false), dim(0), rank(0), interpolator(i)
+        limit_min(0), limit_max(0), sort_atoms(false), interp_centroids(false),
+        dim(0), rank(0), interpolator(i)
 {
     reserve(0);
 }
 
 // that function can't be directly moved into calc_interpolation, as OpenMP can't handle reference to cell
-int SolutionReader::update_interpolation(const int i, int cell) {
+int SolutionReader::locate_interpolate(const int i, int cell) {
     Atom &atom = atoms[i];
 
     // Depending on interpolation dimension and rank, pick corresponding functions
@@ -60,6 +62,75 @@ int SolutionReader::update_interpolation(const int i, int cell) {
     return cell;
 }
 
+int SolutionReader::locate_interp_centroid(const int i, int cell) {
+    Atom &atom = atoms[i];
+
+    // Depending on interpolation dimension and rank, pick corresponding functions
+    if (dim == 2) {
+        if (rank == 1)
+            interpolation[i] = interpolator->lintri.locate_interp_centroid(atom.point, cell);
+        else if (rank == 2)
+            interpolation[i] = interpolator->quadtri.locate_interp_centroid(atom.point, cell);
+        else if (rank == 3)
+            interpolation[i] = interpolator->linquad.locate_interp_centroid(atom.point, cell);
+    } else {
+        if (rank == 1)
+            interpolation[i] = interpolator->lintet.locate_interp_centroid(atom.point, cell);
+        else if (rank == 2)
+            interpolation[i] = interpolator->quadtet.locate_interp_centroid(atom.point, cell);
+        else if (rank == 3)
+            interpolation[i] = interpolator->linhex.locate_interp_centroid(atom.point, cell);
+    }
+
+    if (!sort_atoms) atom.marker = cell;
+    return cell;
+}
+
+void SolutionReader::interp_solution(const int i) {
+    // read the cell
+    Atom &atom = atoms[i];
+    int cell = abs(atom.marker);
+
+    // calculate the interpolation
+     if (dim == 2) {
+         if (rank == 1)
+             interpolation[i] = interpolator->lintri.interp_solution(atom.point, cell);
+         else if (rank == 2)
+             interpolation[i] = interpolator->quadtri.interp_solution(atom.point, cell);
+         else if (rank == 3)
+             interpolation[i] = interpolator->linquad.interp_solution(atom.point, cell);
+     } else {
+         if (rank == 1)
+             interpolation[i] = interpolator->lintet.interp_solution(atom.point, cell);
+         else if (rank == 2)
+             interpolation[i] = interpolator->quadtet.interp_solution(atom.point, cell);
+         else if (rank == 3)
+             interpolation[i] = interpolator->linhex.interp_solution(atom.point, cell);
+     }
+}
+
+void SolutionReader::interp_centroid(const int i) {
+    // read the cell
+    int cell = get_marker(i);
+
+    // calculate the interpolation
+    if (dim == 2) {
+        if (rank == 1)
+            interpolation[i] = interpolator->lintri.interp_centroid(cell);
+        else if (rank == 2)
+            interpolation[i] = interpolator->quadtri.interp_centroid(cell);
+        else if (rank == 3)
+            interpolation[i] = interpolator->linquad.interp_centroid(cell);
+    } else {
+        if (rank == 1)
+            interpolation[i] = interpolator->lintet.interp_centroid(cell);
+        else if (rank == 2)
+            interpolation[i] = interpolator->quadtet.interp_centroid(cell);
+        else if (rank == 3)
+            interpolation[i] = interpolator->linhex.interp_centroid(cell);
+    }
+}
+
 void SolutionReader::calc_full_interpolation() {
     require(interpolator, "NULL interpolator cannot be used!");
     const int n_atoms = size();
@@ -71,9 +142,17 @@ void SolutionReader::calc_full_interpolation() {
 
     int cell = -1;
 
-#pragma omp parallel for private(cell)
-    for (int i = 0; i < n_atoms; ++i)
-        cell = update_interpolation(i, cell);
+    if (interp_centroids) {
+        #pragma omp parallel for private(cell)
+        for (int i = 0; i < n_atoms; ++i)
+            cell = locate_interp_centroid(i, cell);
+    }
+
+    else {
+        #pragma omp parallel for private(cell)
+        for (int i = 0; i < n_atoms; ++i)
+            cell = locate_interpolate(i, cell);
+    }
 
     // Sort atoms back to their initial order
     if (sort_atoms) {
@@ -85,41 +164,26 @@ void SolutionReader::calc_full_interpolation() {
 
 void SolutionReader::calc_interpolation() {
     require(interpolator, "NULL interpolator cannot be used!");
-
     const int n_atoms = size();
 
-    // are the atoms already mapped against the triangles?
+    // are the atoms already mapped against the cells?
     if (!atoms_mapped_to_cells) {
-        // ...nop, do the mapping, interpolate and output mapping
+        // ...nop, do the mapping and interpolate
         calc_full_interpolation();
         return;
     }
 
-    // ...yes, no need to calculate them again, just interpolate
-    int cell;
+    // ...yes, no need to calculate the mapping again, just interpolate
+    if (interp_centroids) {
+        #pragma omp parallel for
+        for (int i = 0; i < n_atoms; ++i)
+            interp_centroid(i);
+    }
 
-#pragma omp parallel for private(cell)
-    for (int i = 0; i < n_atoms; ++i) {
-        // locate the face
-        Atom &atom = atoms[i];
-        cell = abs(atom.marker);
-
-        // calculate the interpolation
-        if (dim == 2) {
-            if (rank == 1)
-                interpolation[i] = interpolator->lintri.interp_solution(atom.point, cell);
-            else if (rank == 2)
-                interpolation[i] = interpolator->quadtri.interp_solution(atom.point, cell);
-            else if (rank == 3)
-                interpolation[i] = interpolator->linquad.interp_solution(atom.point, cell);
-        } else {
-            if (rank == 1)
-                interpolation[i] = interpolator->lintet.interp_solution(atom.point, cell);
-            else if (rank == 2)
-                interpolation[i] = interpolator->quadtet.interp_solution(atom.point, cell);
-            else if (rank == 3)
-                interpolation[i] = interpolator->linhex.interp_solution(atom.point, cell);
-        }
+    else {
+        #pragma omp parallel for
+        for (int i = 0; i < n_atoms; ++i)
+            interp_solution(i);
     }
 }
 

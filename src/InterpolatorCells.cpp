@@ -307,6 +307,55 @@ int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_gues
 }
 
 template<int dim>
+int InterpolatorCells<dim>::locate_centroid(const Point3 &point, const int cell_guess) const {
+    const int n_cells = centroids.size();
+    require(cell_guess >= 0 && cell_guess < n_cells, "Index out of bounds: " + d2s(cell_guess));
+
+    // Check the guessed centroid
+    if (is_centroid(point, cell_guess))
+        return cell_guess;
+
+    // In case of no success, loop through all the centroids
+    for (int cell = 0; cell < n_cells; ++cell) {
+        // If correct cell is found, we're done
+        if (is_centroid(point, cell))
+            return cell;
+
+    }
+
+    // No centroid found, return error
+    return -1;
+}
+
+template<int dim>
+bool InterpolatorCells<dim>::is_centroid(const Point3 &point, const int cell) const {
+    return point.distance2(centroids[cell]) < zero;
+}
+
+template<int dim>
+Solution InterpolatorCells<dim>::interp_centroid(const int cell) const {
+    require(cell >= 0 && cell < size(), "Index out of bounds: " + d2s(cell));
+    constexpr double weight = 1.0 / dim;
+
+    // calculate shape functions
+    SimpleCell<dim> scell = get_cell(cell);
+
+    // using them as weights, interpolate vector & scalar data
+    Vec3 vector_i(0.0);
+    double vector_norm_i(0.0);
+    double scalar_i(0.0);
+
+    for (int i = 0; i < dim; ++i) {
+        const Solution& s = (*solutions)[scell[i]];
+        vector_i += s.vector * weight;
+        vector_norm_i += s.norm * weight;
+        scalar_i += s.scalar * weight;
+    }
+
+    return Solution(vector_i, vector_norm_i, scalar_i);
+}
+
+template<int dim>
 Solution InterpolatorCells<dim>::interp_solution(const Point3 &point, const int c) const {
     const int cell = abs(c);
     require(cell < size(), "Index out of bounds: " + d2s(cell));
@@ -399,6 +448,16 @@ template<int dim>
 Solution InterpolatorCells<dim>::locate_interpolate_v2(const Point3 &point, int& cell) const {
     cell = locate_cell(point, abs(cell));
     return interp_solution_v2(point, cell);
+}
+
+template<int dim>
+Solution InterpolatorCells<dim>::locate_interp_centroid(const Point3 &point, int& cell) const {
+    int retval = locate_centroid(point, cell);
+    if (retval >= 0) {
+        cell = retval;
+        return interp_centroid(cell);
+    }
+    return Solution(-1.0);
 }
 
 template<int dim>
@@ -727,6 +786,10 @@ bool QuadraticTetrahedra::point_in_cell(const Vec3& point, const int cell) const
 
 int QuadraticTetrahedra::locate_cell(const Point3 &point, const int cell_guess) const {
     return lintet->locate_cell(point, cell_guess);
+}
+
+int QuadraticTetrahedra::locate_centroid(const Point3 &point, const int cell_guess) const {
+    return lintet->locate_centroid(point, cell_guess);
 }
 
 array<double,10> QuadraticTetrahedra::shape_functions(const Vec3& point, const int tet) const {
@@ -1126,6 +1189,9 @@ void LinearHexahedra::reserve(const int N) {
     markers = vector<int>(N);
     map_femocs2deal = vector<int>(N, -1);
 
+    centroids.clear();
+    centroids.reserve(N);
+
     f0s.clear(); f0s.reserve(N);
     f1s.clear(); f1s.reserve(N);
     f2s.clear(); f2s.reserve(N);
@@ -1153,6 +1219,9 @@ void LinearHexahedra::precompute(int search_region) {
     for (int hex = 0; hex < n_elems; ++hex) {
         // make the markers to correspond to hexahedra
         markers[hex] = hexs->get_marker(hex);
+
+        // store centroid
+        centroids.push_back(hexs->get_centroid(hex));
 
         // pre-calculate data to make iterpolation faster
         SimpleHex shex = (*hexs)[hex];
@@ -1744,6 +1813,10 @@ int QuadraticTriangles::locate_cell(const Point3 &point, const int cell_guess) c
     return lintri->locate_cell(point, cell_guess);
 }
 
+int QuadraticTriangles::locate_centroid(const Point3 &point, const int cell_guess) const {
+    return lintri->locate_centroid(point, cell_guess);
+}
+
 array<double,6> QuadraticTriangles::shape_functions(const Vec3& point, const int face) const {
     array<double,3> bcc = lintri->shape_functions(point, face);
 
@@ -1824,6 +1897,8 @@ LinearQuadrangles::LinearQuadrangles(const InterpolatorNodes* n, const LinearTri
 void LinearQuadrangles::reserve(const int N) {
     require(N >= 0, "Invalid number of points: " + d2s(N));
     markers = vector<int>(N);
+    centroids.clear();
+    centroids.reserve(N);
 }
 
 void LinearQuadrangles::precompute() {
@@ -1832,15 +1907,16 @@ void LinearQuadrangles::precompute() {
             "Mismatch between triangular mesh and interpolator sizes (" + d2s(mesh->tris.size()) + " vs " + d2s(lintri->size())
             + ")\nindicates, that LinearTriangles are not properly pre-computed!");
 
+    const int n_quads = quads->size();
+    expect(n_quads > 0, "Interpolator expects non-empty mesh!");
+    reserve(n_quads);
 
-    const int n_faces = quads->size();
-    expect(n_faces > 0, "Interpolator expects non-empty mesh!");
-    reserve(n_faces);
-
-//    for (int i = 0; i < n_faces; ++i) {
-//        // make the markers to correspond to lintri
-//        markers[i] = lintri->get_marker(quads->to_tri(i));
-//    }
+    for (int quad = 0; quad < n_quads; ++quad) {
+        // make the markers to correspond to lintri
+//        markers[quad] = lintri->get_marker(quads->to_tri(quad));
+        // store centroid
+        centroids.push_back(quads->get_centroid(quad));
+    }
 }
 
 Solution LinearQuadrangles::interp_solution(const Point3 &point, const int q) const {

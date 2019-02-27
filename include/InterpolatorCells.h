@@ -187,6 +187,9 @@ public:
     /** Find the cell which contains the point or is the closest to it */
     virtual int locate_cell(const Point3 &point, const int cell_guess) const;
 
+    /** Find the centroid which is closest to the point */
+    virtual int locate_centroid(const Point3 &point, const int cell_guess) const;
+
     /** @brief Interpolate both vector and scalar data inside or near the cell.
      * Function assumes that cell, that surrounds the point, is previously already found with locate_cell.
      * cell>=0 initiates the usage of shape functions and cell<0 the usage of mere distance-dependent weighting.
@@ -194,6 +197,9 @@ public:
      * @param cell   index of cell around which the interpolation is performed */
     virtual Solution interp_solution(const Point3 &point, const int cell) const;
     Solution interp_solution_v2(const Point3 &point, const int cell) const;
+
+    /** Interpolate solution in the centroid of a cell */
+    Solution interp_centroid(const int cell) const;
 
     /** Interpolate minus gradient of solution for any point inside a given cell
      * @param point  point where the interpolation is performed
@@ -209,6 +215,7 @@ public:
      * Search starts from the argument cell. */
     Solution locate_interpolate(const Point3 &point, int& cell) const;
     Solution locate_interpolate_v2(const Point3 &point, int& cell) const;
+    Solution locate_interp_centroid(const Point3 &point, int& cell) const;
 
     /** Modify cell marker */
     void set_marker(const int i, const int m) {
@@ -240,6 +247,9 @@ protected:
     vector<int> markers;            ///< markers for cells
     vector<Point3> centroids;       ///< cell centroid coordinates
     vector<vector<int>> neighbours; ///< nearest neighbours of the cells
+
+    /** Determine if a point is the centroid of a cell */
+    inline bool is_centroid(const Point3 &point, const int cell) const;
 
     /** Reserve memory for interpolation data */
     virtual void reserve(const int N);
@@ -345,6 +355,9 @@ public:
 
     /** Find the tetrahedron which contains the point or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
+
+    /** Find the centroid which is closest to the point */
+    int locate_centroid(const Point3 &point, const int cell_guess) const;
 
     /** Get interpolation weights for a point inside the tetrahedron */
     array<double,10> shape_functions(const Vec3& point, const int tet) const;
@@ -573,6 +586,9 @@ public:
 
     /** Find the triangle which contains the point projection or is the closest to it */
     int locate_cell(const Point3 &point, const int cell_guess) const;
+
+    /** Find the centroid which is closest to the point */
+    int locate_centroid(const Point3 &point, const int cell_guess) const;
 
     /** Get interpolation weights for a point inside i-th triangle */
     array<double,6> shape_functions(const Vec3& point, const int i) const;

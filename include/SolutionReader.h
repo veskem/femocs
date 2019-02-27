@@ -57,10 +57,11 @@ public:
     }
 
     /** Set interpolation preferences */
-    void set_preferences(const bool _srt, const int _dim, const int _rank) {
+    void set_preferences(const bool _srt, const int _dim, const int _rank, const bool _centroid=false) {
         require((_dim == 2 || _dim == 3), "Invalid interpolation dimension: " + d2s(_dim));
         require((_rank == 1 || _rank == 2 || _rank == 3), "Invalid interpolation rank: " + d2s(_rank));
         sort_atoms = _srt;
+        interp_centroids = _centroid;
         dim = _dim;
         rank = _rank;
     }
@@ -98,11 +99,12 @@ public:
 
 protected:
     const string vec_label;       ///< label for vector data
-    const string norm_label;  ///< label for data associated with vector length
+    const string norm_label;      ///< label for data associated with vector length
     const string scalar_label;    ///< label for scalar data
     double limit_min;             ///< minimum value of accepted comparison value
     double limit_max;             ///< maximum value of accepted comparison value
     bool sort_atoms;              ///< sort atoms along Hilbert curve to make interpolation faster
+    bool interp_centroids;        ///< points are centroids of cells
     int dim;                      ///< location of interpolation; 2-surface, 3-space
     int rank;                     ///< interpolation rank; 1-linear, 2-quadratic
     bool atoms_mapped_to_cells;   ///< flag indicating whether fast interpolation can be performed or not
@@ -122,7 +124,16 @@ protected:
     /** Find the cell that surrounds i-th atom and interpolate the solution for it.
      * @param cell   initial guess for the cell that might surround the point
      * @return cell index that was found to surround the point */
-    int update_interpolation(const int i, int cell);
+    int locate_interpolate(const int i, int cell);
+
+    /** Find the centroid that is closest to the i-th point and interpolate the solution for it */
+    int locate_interp_centroid(const int i, int cell);
+
+    /** Interpolate the solution for i-th point */
+    void interp_solution(const int i);
+
+    /** Interpolate the solution for i-th centroidal point */
+    void interp_centroid(const int i);
 
     /** Sort atoms and interpolation by the atom ID */
     void restore_sorting();
