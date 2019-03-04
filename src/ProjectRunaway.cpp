@@ -45,7 +45,6 @@ ProjectRunaway::ProjectRunaway(AtomReader &reader, Config &config) :
     poisson_solver.set_particles(pic_solver.get_particles());
 
     surface_fields.set_preferences(false, 2, 3, true);
-    surface_temperatures.set_preferences(false, 2, 3, true);
     heat_transfer.set_preferences(true, 3, 1, false);
 
     start_msg(t0, "Reading physical quantities");
@@ -238,9 +237,11 @@ void ProjectRunaway::update_mesh_pointers() {
 void ProjectRunaway::calc_surf_temperatures() {
     static bool make_intermediate_step = false;
     if (mesh_changed) {
+        surface_temperatures.set_preferences(false, 2, 3, false);
         surface_temperatures.interpolate(ch_solver);
         make_intermediate_step = true;
     } else if (make_intermediate_step) {
+        surface_temperatures.set_preferences(false, 2, 3, true);
         surface_temperatures.calc_full_interpolation();
         make_intermediate_step = false;
     } else

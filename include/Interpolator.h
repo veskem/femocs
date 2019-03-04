@@ -69,7 +69,7 @@ public:
 
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
-    int empty_value;                ///< Solution value for nodes outside the Deal.II mesh
+    double empty_value;             ///< Solution value for nodes outside the Deal.II mesh
     vector<vector<pair<int,int>>> node2cells;  ///< list of hexahedra that are associated with given node
 
     /** Transfer full solution from FEM solver to Interpolator */
