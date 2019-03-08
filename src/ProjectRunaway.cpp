@@ -527,28 +527,27 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     ch_solver.current.assemble();
     ccg = ch_solver.current.solve();
     end_msg(t0);
-    check_return(ccg < 0, "Current solver did not complete normally,"
-            " #CG=" + d2s(abs(ccg)) + "/" + d2s(conf.heating.n_cg));
-    write_verbose_msg("#CG steps: " + d2s(ccg));
+    write_verbose_msg("#CG=" + d2s(abs(ccg)));
+    check_return(ccg < 0, "Current solver did not converge within nominal #CG steps!");
 
     start_msg(t0, "Calculating temperature distribution");
     ch_solver.heat.assemble(delta_time * 1.e-15); // caution!! ch_solver internal time in sec
     hcg = ch_solver.heat.solve();
     end_msg(t0);
-    check_return(hcg < 0, "Heat solver did not complete normally,"
-            " #CG=" + d2s(abs(hcg)) + "/" + d2s(conf.heating.n_cg));
 
-    ch_solver.write("out/ch_solver.movie");
-    write_verbose_msg("#CG steps: " + d2s(hcg));
-
-    start_msg(t0, "Extracting J & T");
     double T_low = conf.heating.T_min;
     double T_high = conf.heating.T_max;
-    bulk_interpolator.initialize(mesh, conf.heating.t_ambient, TYPES.BULK);
-    fail = bulk_interpolator.extract_solution(ch_solver, T_low, T_high);
-    end_msg(t0);
-    write_verbose_msg("Tmin=" + d2s(T_low) + " K, Tmax=" + d2s(T_high) + " K");
+    fail = ch_solver.heat.check_limits(T_low, T_high);
+    write_verbose_msg("#CG=" + d2s(abs(hcg)) + ", Tmin=" + d2s(T_low) + " K, Tmax=" + d2s(T_high) + " K");
+
+    check_return(hcg < 0, "Heat solver did not converge within nominal #CG steps!");
     check_return(fail, "Temperature is out of limits!");
+    ch_solver.write("out/ch_solver.movie");
+
+    start_msg(t0, "Extracting J & T");
+    bulk_interpolator.initialize(mesh, conf.heating.t_ambient, TYPES.BULK);
+    bulk_interpolator.extract_solution(ch_solver);
+    end_msg(t0);
 
     bulk_interpolator.nodes.write("out/result_J_T.xyz");
     bulk_interpolator.lintet.write("out/result_J_T.vtk");

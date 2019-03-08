@@ -392,6 +392,19 @@ void HeatSolver<dim>::assemble_local_cell(const typename DoFHandler<dim>::active
     cell->get_dof_indices(copy_data.dof_indices);
 }
 
+template<int dim>
+bool HeatSolver<dim>::check_limits(double& Tmin, double& Tmax) const {
+    double T_low = Tmin;
+    double T_high = Tmax;
+    Tmin = 1e100;
+    Tmax = -1e100;
+    for (double T : this->solution) {
+        Tmin = min(Tmin, T);
+        Tmax = max(Tmax, T);
+    }
+
+    return Tmin < T_low || Tmax > T_high;
+}
 /* ==================================================================
  *  ========================= CurrentSolver ========================
  * ================================================================== */
