@@ -66,6 +66,8 @@ Config::Config() {
     field.V0 = 0.0;
     field.anode_BC = "neumann";
     field.mode = "laplace";
+    field.V_min = -1.0;
+    field.V_max = 1e4;
 
     heating.mode = "none";
     heating.rhofile = "in/rho_table.dat";
@@ -249,7 +251,7 @@ void Config::read_all(const string& fname, bool full_run) {
     vector<double> args;
     int n_read_args;
 
-    // ...temperature and current density limits
+    // ...temperature, current density and potential limits
     args = {heating.T_min, heating.T_max};
     n_read_args = read_command("heat_limit", args);
     heating.T_min = args[0];
@@ -259,6 +261,11 @@ void Config::read_all(const string& fname, bool full_run) {
     n_read_args = read_command("current_limit", args);
     emission.J_min = args[0];
     emission.J_max = args[1];
+
+    args = {field.V_min, field.V_max};
+    n_read_args = read_command("potential_limit", args);
+    field.V_min = args[0];
+    field.V_max = args[1];
 
     // ...charge and field tolerances
     args = {0, 0};

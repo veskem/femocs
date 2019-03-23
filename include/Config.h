@@ -119,6 +119,8 @@ public:
         double V0;             ///< Applied voltage at the anode (active in case of SC emission and Dirichlet anodeBC
         string anode_BC;       ///< Type of anode boundary condition (Dirichlet or Neumann)
         string mode;           ///< Mode to run field solver; laplace, transient or converge; transient or converge activate PIC solver
+        double V_min;          ///< Minimum allowed electric potential [V]
+        double V_max;          ///< Maximum allowed electric potential [V]
     } field;
 
     /** Heating module configuration parameters */

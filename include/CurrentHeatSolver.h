@@ -105,9 +105,6 @@ public:
     /** Initialize data vectors and matrices */
     void setup_system();
 
-    /** Check whether temperature is within limits */
-    bool check_limits(double& T_low, double& T_high) const;
-
 private:
     // TODO shouldn't it be temperature dependent?
     static constexpr double cu_rho_cp = 3.4496e-24;  ///< volumetric heat capacity of copper [J/(K*Ang^3)]

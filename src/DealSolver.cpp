@@ -155,6 +155,20 @@ double DealSolver<dim>::max_solution() const {
 }
 
 template<int dim>
+bool DealSolver<dim>::check_limits(double& sol_min, double& sol_max) const {
+    double low_limit = sol_min;
+    double high_limit = sol_max;
+    sol_min = 1e100;
+    sol_max = -1e100;
+    for (double T : this->solution) {
+        sol_min = min(sol_min, T);
+        sol_max = max(sol_max, T);
+    }
+
+    return sol_min < low_limit || sol_max > high_limit;
+}
+
+template<int dim>
 double DealSolver<dim>::get_cell_vol(const int i) const {
     typename DoFHandler<dim>::active_cell_iterator cell(&triangulation, 0, i, &dof_handler);
     return cell->measure();

@@ -488,7 +488,13 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
     poisson_solver.assemble(full_run);
     n_cg = poisson_solver.solve();
 
-    // must be after solving Poisson and before updating velocities
+    // the check must be after solving Poisson eq. and before updating velocities
+    check_return(n_cg < 0, "Poisson solver did not converge within nominal #CG steps!");
+    double V_low = conf.field.V_min;
+    double V_high = conf.field.V_max;
+    fail = poisson_solver.check_limits(V_low, V_high);
+    check_return(fail, "Potential is out of limits: Vmin="+d2s(V_low)+", Vmax=" + d2s(V_high));
+
     vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
     check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions(), false),
             "Field enhancement is out of limits!");

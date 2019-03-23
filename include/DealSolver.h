@@ -58,6 +58,9 @@ public:
     /** Calculate max value from solution vector */
     double max_solution() const;
 
+    /** Check whether the solution is within limits */
+    bool check_limits(double& sol_low, double& sol_high) const;
+
     /** Values of the shape functions for a point with respect to the cell.
      *  The cell that surrounds the point has to be found before hand. */
     vector<double> shape_funs(const Point<dim> &point, int cell_index) const;

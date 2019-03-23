@@ -94,8 +94,6 @@ public:
     /** Obtain the printable statistics */
     friend ostream& operator <<(ostream &os, const AtomReader& ar) {
         os << "time=" << GLOBALS.TIME << fixed << setprecision(3)
-                << ", latconst=" << ar.data.latconst
-                << ", coord_cutoff=" << ar.data.coord_cutoff
                 << ", #evap=" << ar.data.n_evaporated << ", #clust=" << ar.data.n_detached;
         return os;
     }
