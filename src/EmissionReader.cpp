@@ -174,8 +174,8 @@ int EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
 
         // avoid using dot product as field norm, as field and normal are not precisely perpendicular
         // check, however, that the field and normal are in opposite direction
-        if (normal.dotProduct(fields->get_elfield(i)) > 0)
-            return sign_error;
+//        if (normal.dotProduct(fields->get_elfield(i)) > 0)
+//            return sign_error;
 
         F = global_data.multiplier * elfield;
         gt.mode = 0;
@@ -212,14 +212,14 @@ int EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
                 gt.voltage = Veff;
                 cur_dens_SC(&gt, Veff);
             }
-
+/*
             if (gt.ierr != 0) {
                 if (gt.ierr == fitting_error)
                     fitting_failed = true;
                 else
                     return gt.ierr;
             }
-
+//*/
             J = gt.Jem * nm2_per_angstrom2;
             markers[i] = 2;
         }
@@ -262,9 +262,9 @@ void EmissionReader::write_xyz(ofstream &out) const {
 
 void EmissionReader::write_global_data(ofstream &out, const bool first_line) const {
     // specify data header
-    if (first_line) out << "time      Itot        Imean        I_fwhm        Area        Jrep"
-                        << "         Frep         Jmax        Fmax         multiplier\n";
-
+    if (first_line)
+        out << "time      Itot        Imean        I_fwhm        Area        Jrep"
+            << "         Frep         Jmax        Fmax         multiplier\n";
     else {
         double I_mean = 0.;
         for (auto x : stats.I_tot)
@@ -300,7 +300,9 @@ void EmissionReader::write_stats(ofstream &out, const bool first_line) const {
 }
 
 void EmissionReader::write_dat(ofstream &out) const {
-    write_global_data(out, first_line(out));
+    if (first_line(out)) {
+        write_global_data(out, true);
+    }
     write_global_data(out, false);
 }
 
@@ -341,26 +343,6 @@ void EmissionReader::calc_global_stats(){
     stats.Jrep.resize(0);
     stats.Fmax.resize(0);
     stats.Frep.resize(0);
-}
-
-string EmissionReader::get_error_codes(vector<int> &errors) const {
-    std::sort(errors.begin(), errors.end());
-
-    string retval;
-    int error_cntr = 0;
-    int prev_error = errors[0];
-    for (int e : errors) {
-        if (e == prev_error)
-            error_cntr++;
-        else {
-            retval += d2s(error_cntr) + "x of " + d2s(prev_error) + ", ";
-            prev_error = e;
-            error_cntr = 1;
-        }
-    }
-
-    retval += d2s(error_cntr) + "x of " + d2s(prev_error);
-    return retval;
 }
 
 }

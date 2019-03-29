@@ -114,10 +114,10 @@ void FileWriter::write_ckx(ofstream &out) const {
 void FileWriter::write_dat(ofstream &out) const {
     // In case of empty file, write first data header
     if (first_line(out))
-        out << "Time Timestep";
+        out << "Time Timestep\n";
 
     // append data
-    out << d2s(GLOBALS.TIME) + ' ' + d2s(GLOBALS.TIMESTEP);
+    out << GLOBALS.TIME << ' ' << GLOBALS.TIMESTEP << "\n";
 }
 
 void FileWriter::write_vtk(ofstream &out) const {
