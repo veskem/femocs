@@ -113,7 +113,7 @@ Config::Config() {
     pic.landau_log = 13.0;
     pic.max_injected = 50000;
 
-    scharge.convergence = .1;
+    scharge.convergence = 1.;
 }
 
 void Config::trim(string& str) {

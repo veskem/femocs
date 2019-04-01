@@ -129,9 +129,13 @@ protected:
     /** Handle failed subprocess */
     int process_failed(const string &msg);
 
-private:
+    /** Specify mesh address where new mesh will be generated on next run */
+    void update_mesh_pointers();
+
     /** Determine whether atoms have moved significantly and whether to enable file writing */
     int reinit();
+
+private:
 
     /** Generate boundary nodes for mesh */
     int generate_boundary_nodes(Surface& bulk, Surface& coarse_surf, Surface& vacuum);
@@ -141,9 +145,6 @@ private:
 
     /** Interpolate temperature on the centroids of surface quadrangles */
     void calc_surf_temperatures();
-
-    /** Specify mesh address where new mesh will be generated on next run */
-    void update_mesh_pointers();
 
     /** Pick a field solver and calculcate field distribution */
     int run_field_solver();

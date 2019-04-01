@@ -26,6 +26,10 @@ public:
 
     int run(int timestep, double time);
 
+protected:
+    /** Run the pic Space charge until convergence is reached */
+    int converge_pic();
+
 private:
     vector<double> I_pic, I_sc;
     vector<double> z_line, V_line, rho_line;
@@ -40,9 +44,6 @@ private:
     double ramp_field(double start_factor, double target_factor);
 
     int prepare(int i);
-
-    /** Run the pic Space charge until convergence is reached */
-    int converge_pic();
 
     /** Find the omega_SC that minimizes the error of factors-currents curve */
     double find_Veff();
@@ -66,6 +67,8 @@ private:
     void write_emission_stats(string filename, bool first_time, double factor);
 
     void write_emission_data(string filename, bool first_time);
+
+
 
 };
 

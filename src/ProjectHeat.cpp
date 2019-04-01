@@ -9,15 +9,20 @@
 
 namespace femocs {
 
-ProjectHeat::ProjectHeat(AtomReader &reader, Config &conf) : ProjectRunaway(reader, conf)
-{}
+ProjectHeat::ProjectHeat(AtomReader &reader, Config &conf) : ProjectSpaceCharge(reader, conf){
+    last_heat_time = 0.0;
+}
 
 int ProjectHeat::run(int timestep, double time) {
     double tstart = omp_get_wtime();
 
     //***** Build or import mesh *****
 
-    if (generate_mesh())
+    if (reinit()) {
+        write_verbose_msg("Atoms haven't moved significantly. Previous mesh will be used.");
+        dense_surf.update_positions(reader);
+    }
+    else if (generate_mesh())
         return process_failed("Mesh generation failed!");
 
     check_return(!mesh_changed, "First meshing failed! Terminating...");
@@ -26,6 +31,8 @@ int ProjectHeat::run(int timestep, double time) {
         return process_failed("Preparation of FEM solvers failed!");
 
     //***** Run FEM solvers *****
+
+    write_verbose_msg("Running heat project!!");
 
     for(auto factor : conf.scharge.apply_factors){
         conf.field.E0 *= factor;
@@ -36,6 +43,8 @@ int ProjectHeat::run(int timestep, double time) {
 
         if (run_heat_solver())
             return process_failed("Running heat solver in a " + conf.heating.mode + " mode failed!");
+
+        update_mesh_pointers();
 
         //***** Prepare for data export and next run *****
         if (prepare_export())
@@ -53,7 +62,7 @@ int ProjectHeat::run_field_solver() {
     if (conf.field.mode == "transient")
         return solve_pic(conf.behaviour.timestep_fs, mesh_changed);
     else if (conf.field.mode == "converge")
-        return converge_pic(1.e4);
+        return converge_pic();
     else if (mesh_changed)
         return solve_laplace(conf.field.E0, conf.field.V0);
 
@@ -72,37 +81,6 @@ int ProjectHeat::run_heat_solver() {
     return 0;
 }
 
-int ProjectHeat::converge_pic(double max_time) {
-    double time_window; //time window to check convergence
-    int i_max; //window iterations
-    if (max_time < conf.pic.dt_max * 16) {
-        time_window = max_time;
-        i_max = 1;
-    } else {
-        i_max =  ceil(max_time / (16 * conf.pic.dt_max));
-        time_window = max_time / i_max;
-    }
-
-    double I_mean_prev = emission.stats.Itot_mean;
-
-    start_msg(t0, "=== Converging PIC with time window " + d2s(time_window, 2) + " fs\n");
-    for (int i = 0; i < i_max; ++i) {
-        solve_pic(time_window, i==0);
-        emission.calc_global_stats();
-        double err = (emission.stats.Itot_mean - I_mean_prev) / emission.stats.Itot_mean;
-        if (MODES.VERBOSE){
-            printf("  i=%d, I_mean= %e A, I_std=%.2f, error=%.2f\n", i, emission.stats.Itot_mean,
-                    100. * emission.stats.Itot_std / emission.stats.Itot_mean, 100 * err);
-        }
-        I_mean_prev = emission.stats.Itot_mean;
-
-        if (fabs(err) < 0.05 && fabs(err) < conf.scharge.convergence * emission.stats.Itot_std /
-                emission.stats.Itot_mean)
-            return 0;
-    }
-    return 0;
-}
-
 int ProjectHeat::converge_heat(double T_ambient) {
     const int max_steps = 1000;
     double delta_time = conf.heating.delta_time;
@@ -112,39 +90,41 @@ int ProjectHeat::converge_heat(double T_ambient) {
 
     start_msg(t0, "=== Converging heat...\n");
 
+
+
     for (step = 0; step < max_steps; ++step) {
 
-//        emission.write("emission_before.movie");
-
+        GLOBALS.TIME = last_heat_time + delta_time;
         // advance heat and current system for delta_time
         error = solve_heat(conf.heating.t_ambient, delta_time, step == 0, ccg, hcg);
         if (error) return error;
 
         // modify the advance time depending on how slowly the solution is changing
-        if (conf.field.mode == "laplace" || conf.field.mode == "converge")
-            GLOBALS.TIME += delta_time;
+//        if (conf.field.mode == "laplace" || conf.field.mode == "converge")
+//            GLOBALS.TIME = last_heat_time + delta_time;
+
+        // write debug data
+        if (global_verbosity)
+            printf( "t= %g ps, dt= %.2g ps \n",
+                    GLOBALS.TIME * 1.e-3, delta_time * 1.e-3);
+        write_results(true);
 
         if (hcg < (ccg - 10) && delta_time <= conf.heating.dt_max / 1.25) // heat changed too little?
             delta_time *= 1.25;
         else if (hcg > (ccg + 10)) // heat changed too much?
             delta_time /= 1.25;
 
-        // write debug data
-        if (global_verbosity)
-            printf( "t= %e ps, dt= %.2e ps, Tmax= %e K\n",
-                    GLOBALS.TIME * 1.e-3, delta_time * 1.e-3, ch_solver.heat.max_solution() );
-        write_results(true);
-
         // check if the result has converged
-        if (max(hcg, ccg) < 10) break;
+        if (hcg < 10) break;
 
         // update field - advance PIC for delta time
         if (conf.field.mode == "transient")
             error = solve_pic(delta_time, false);
         else if (conf.field.mode == "converge")
-            error = converge_pic(delta_time);
+            error = converge_pic();
         if (error) return error;
 
+//        last_heat_time = GLOBALS.TIME;
     }
 
     MODES.VERBOSE = global_verbosity;

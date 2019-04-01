@@ -150,22 +150,26 @@ void ProjectSpaceCharge::prepare_emission() {
 }
 
 int ProjectSpaceCharge::converge_pic() {
-    int window_steps = 25;
-    double time_window = window_steps * conf.pic.dt_max; //time window to check convergence
-    int i_max = 32; //maximum window iterations to achieve convergence
+    double window_steps = conf.behaviour.timestep_fs / conf.pic.dt_max;
+
+    if (window_steps - (int) window_steps > 1.e-20 || window_steps < 10)
+        write_verbose_msg("WARNING: md_timestep/pic_dtmax = " + to_string(window_steps));
+
+
+    int max_steps = 25; //maximum window iterations to achieve convergence
     double I_mean_prev = emission.stats.Itot_mean;
 
-    write_verbose_msg("Converging PIC...");
+    write_verbose_msg("Converging PIC.....");
 
-    for (int i = 0; i < i_max; ++i) {
+    for (GLOBALS.TIMESTEP = 1; GLOBALS.TIMESTEP <= max_steps; GLOBALS.TIMESTEP++) {
         pic_solver.stats_reinit();
-        solve_pic(time_window, i == 0);
+        solve_pic(conf.behaviour.timestep_fs, GLOBALS.TIMESTEP == 1);
         emission.calc_global_stats();
         double err = (emission.stats.Itot_mean - I_mean_prev) / emission.stats.Itot_mean;
 
         if (MODES.VERBOSE){
-            printf("  i=%d, I_mean= %e A, I_std=%.2f, error=%.2f, inj=%d, del=%d\n",
-                    i, emission.stats.Itot_mean,
+            printf("t = %.2e ps, i=%d, I_mean= %e A, I_std=%.2f \%, error=%.2f \%, inj=%d, del=%d\n",
+                    GLOBALS.TIME * 1.e-3, GLOBALS.TIMESTEP, emission.stats.Itot_mean,
                     100. * emission.stats.Itot_std / emission.stats.Itot_mean,
                     100 * err, pic_solver.get_injected(), pic_solver.get_removed());
         }

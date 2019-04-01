@@ -186,15 +186,15 @@ void PoissonSolver<dim>::assemble(const bool full_run) {
     if (conf->mode != "laplace") assemble_space_charge();
     // save charge density for writing it to file
     // must be before applying Diriclet BCs
-    if (this->write_time()) {
-        int n_verts = this->tria->n_used_vertices();
-        this->charge_density = this->system_rhs;
-        this->calc_dof_volumes();
-        for (unsigned i = 0; i < n_verts; i++) {
-            int dof = this->vertex2dof[i];
-            this->charge_density[dof] /= this->dof_volume[dof];
-        }
+//    if (this->write_time()) {
+    int n_verts = this->tria->n_used_vertices();
+    this->charge_density = this->system_rhs;
+    this->calc_dof_volumes();
+    for (unsigned i = 0; i < n_verts; i++) {
+        int dof = this->vertex2dof[i];
+        this->charge_density[dof] /= this->dof_volume[dof];
     }
+//    }
     if (full_run) this->apply_dirichlet();
 }
 

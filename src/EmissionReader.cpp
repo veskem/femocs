@@ -338,6 +338,7 @@ void EmissionReader::calc_global_stats(){
     stats.Frep_std = sqrt(stats.Frep_std / stats.N_calls);
 
     //re-initialise statistics
+    stats.N_calls = 0;
     stats.I_tot.resize(0);
     stats.Jmax.resize(0);
     stats.Jrep.resize(0);

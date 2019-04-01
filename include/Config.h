@@ -132,7 +132,7 @@ public:
         int n_cg;                   ///< Max # Conjugate-Gradient iterations
         double cg_tolerance;        ///< Solution accuracy in Conjugate-Gradient solver
         double ssor_param;          ///< Parameter for SSOR preconditioner in DealII. Its fine tuning optimises calculation time.
-        double delta_time;          ///< Timestep of time domain integration [sec]
+        double delta_time;          ///< Timestep of time domain integration [fs]
         double dt_max;              ///< Maximum allowed timestep for heat convergence run
         double tau;                 ///< Time constant in Berendsen thermostat
         double T_min;               ///< Minimum allowed temperature [K]

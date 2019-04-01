@@ -8,7 +8,7 @@
 #ifndef SRC_PROJECTHEAT_H_
 #define SRC_PROJECTHEAT_H_
 
-#include "ProjectRunaway.h"
+#include "ProjectSpaceCharge.h"
 #include "Surface.h"
 #include "Interpolator.h"
 #include "PhysicalQuantities.h"
@@ -23,7 +23,7 @@ namespace femocs {
 /*
  *
  */
-class ProjectHeat : public ProjectRunaway {
+class ProjectHeat : public ProjectSpaceCharge {
 public:
     ProjectHeat(AtomReader &reader, Config &conf);
     ~ProjectHeat(){};
@@ -37,13 +37,6 @@ private:
 
     /** Pick a heat solver and calculcate temperature & current density distribution */
     int run_heat_solver();
-
-    /**
-     * Run the pic Space charge until convergence is reached
-     * @param max_time
-     * @return
-     */
-    int converge_pic(double max_time);
 
     /** Using constant mesh, solve transient heat and continuity equation until convergence is reached */
     int converge_heat(double T_ambient);
