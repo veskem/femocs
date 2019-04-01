@@ -32,8 +32,6 @@ int ProjectHeat::run(int timestep, double time) {
 
     //***** Run FEM solvers *****
 
-    write_verbose_msg("Running heat project!!");
-
     for(auto factor : conf.scharge.apply_factors){
         conf.field.E0 *= factor;
         conf.field.V0 *= factor;
@@ -86,12 +84,6 @@ int ProjectHeat::converge_heat(double T_ambient) {
     double delta_time = conf.heating.delta_time;
     int ccg, hcg, step, error;
 
-    bool global_verbosity = MODES.VERBOSE;
-
-    start_msg(t0, "=== Converging heat...\n");
-
-
-
     for (step = 0; step < max_steps; ++step) {
 
         GLOBALS.TIME = last_heat_time + delta_time;
@@ -99,15 +91,12 @@ int ProjectHeat::converge_heat(double T_ambient) {
         error = solve_heat(conf.heating.t_ambient, delta_time, step == 0, ccg, hcg);
         if (error) return error;
 
-        // modify the advance time depending on how slowly the solution is changing
-//        if (conf.field.mode == "laplace" || conf.field.mode == "converge")
-//            GLOBALS.TIME = last_heat_time + delta_time;
-
-        // write debug data
-        if (global_verbosity)
+        if (MODES.VERBOSE)
             printf( "t= %g ps, dt= %.2g ps \n",
                     GLOBALS.TIME * 1.e-3, delta_time * 1.e-3);
-        write_results(true);
+
+        vacuum_interpolator.nodes.write("out/result_E_phi.movie", true);
+        bulk_interpolator.nodes.write("out/result_J_T.movie", true);
 
         if (hcg < (ccg - 10) && delta_time <= conf.heating.dt_max / 1.25) // heat changed too little?
             delta_time *= 1.25;
@@ -117,6 +106,8 @@ int ProjectHeat::converge_heat(double T_ambient) {
         // check if the result has converged
         if (hcg < 10) break;
 
+        calc_surf_temperatures();
+
         // update field - advance PIC for delta time
         if (conf.field.mode == "transient")
             error = solve_pic(delta_time, false);
@@ -124,37 +115,9 @@ int ProjectHeat::converge_heat(double T_ambient) {
             error = converge_pic();
         if (error) return error;
 
-//        last_heat_time = GLOBALS.TIME;
     }
-
-    MODES.VERBOSE = global_verbosity;
-    end_msg(t0);
 
     check_return(step < max_steps, "Failed to converge heat equation after " + d2s(max_steps) + " steps!");
-    return 0;
-}
-
-int ProjectHeat::write_results(bool force) {
-    if (!vacuum_interpolator.nodes.write_time() && !force) return 1;
-
-    vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
-    vacuum_interpolator.nodes.write("out/result_E_phi.movie", force);
-    vacuum_interpolator.linhex.write("out/result_E_phi.vtk", force);
-
-    if (conf.field.mode != "laplace"){
-        emission.write("out/emission.movie", force);
-        pic_solver.write("out/electrons.movie", force);
-        surface_fields.write("out/surface_fields.movie", force);
-    }
-
-    if (emission.size() > 0)
-        emission.write("out/surface_emission.movie", force);
-
-    if (conf.heating.mode != "none"){
-        bulk_interpolator.nodes.write("out/result_J_T.movie", force);
-        bulk_interpolator.lintet.write("out/result_J_T.vtk", force);
-    }
-
     return 0;
 }
 

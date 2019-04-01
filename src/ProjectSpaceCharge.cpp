@@ -158,18 +158,19 @@ int ProjectSpaceCharge::converge_pic() {
 
     int max_steps = 25; //maximum window iterations to achieve convergence
     double I_mean_prev = emission.stats.Itot_mean;
+    int pic_error;
 
-    write_verbose_msg("Converging PIC.....");
-
-    for (GLOBALS.TIMESTEP = 1; GLOBALS.TIMESTEP <= max_steps; GLOBALS.TIMESTEP++) {
+    for (int i = 1; i <= max_steps; i++) {
+        GLOBALS.TIMESTEP++;
         pic_solver.stats_reinit();
-        solve_pic(conf.behaviour.timestep_fs, GLOBALS.TIMESTEP == 1);
+        pic_error = solve_pic(conf.behaviour.timestep_fs, i == 1);
+        if (pic_error) cout << "WARNING: Solve pic returned with error";
         emission.calc_global_stats();
         double err = (emission.stats.Itot_mean - I_mean_prev) / emission.stats.Itot_mean;
 
         if (MODES.VERBOSE){
             printf("t = %.2e ps, i=%d, I_mean= %e A, I_std=%.2f \%, error=%.2f \%, inj=%d, del=%d\n",
-                    GLOBALS.TIME * 1.e-3, GLOBALS.TIMESTEP, emission.stats.Itot_mean,
+                    GLOBALS.TIME * 1.e-3, i, emission.stats.Itot_mean,
                     100. * emission.stats.Itot_std / emission.stats.Itot_mean,
                     100 * err, pic_solver.get_injected(), pic_solver.get_removed());
         }

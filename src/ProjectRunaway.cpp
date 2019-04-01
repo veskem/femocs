@@ -454,6 +454,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
         end_msg(t0);
         write_verbose_msg(poisson_solver.to_str());
     }
+    cout << fixed << setprecision(3);
 
     int n_lost, n_cg, n_injected, error;
     start_msg(t0, "=== Running PIC for delta time = "
@@ -464,9 +465,12 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
         if (error) return 1;
 
         if (MODES.VERBOSE) {
-            printf("t=%.2e fs, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, M/A=%.3f, #inj|del|tot=%d|%d|%d\n",
-                    GLOBALS.TIME, n_cg, emission.global_data.Fmax, emission.global_data.I_tot,
-                    fields.get_beta(), n_injected, n_lost, pic_solver.get_n_electrons());
+
+            cout << "t=" << GLOBALS.TIME << " fs, #CG=" << n_cg <<
+                    ", Fmax=" << emission.global_data.Fmax << " V/A, Itot=" <<
+                    emission.global_data.I_tot <<" A, M/A=" << fields.get_beta() <<
+                    ", #inj|del|tot=" << n_injected << "|" << n_lost << "|"  <<
+                    pic_solver.get_n_electrons() << endl;
         }
 
         GLOBALS.TIME += dt_pic;

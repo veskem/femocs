@@ -212,14 +212,14 @@ int EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
                 gt.voltage = Veff;
                 cur_dens_SC(&gt, Veff);
             }
-/*
-            if (gt.ierr != 0) {
-                if (gt.ierr == fitting_error)
-                    fitting_failed = true;
-                else
-                    return gt.ierr;
-            }
-//*/
+
+//            if (gt.ierr != 0) {
+//                if (gt.ierr == fitting_error)
+//                    fitting_failed = true;
+//                else
+//                    return gt.ierr;
+//            }
+
             J = gt.Jem * nm2_per_angstrom2;
             markers[i] = 2;
         }
@@ -235,7 +235,7 @@ int EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
         global_data.Jmax = max(global_data.Jmax, J); // output data
     }
 
-    if (update_eff_region)
+    if (update_eff_region || write_time())
         calc_effective_region(0.9, "field");
 
     calculate_globals();

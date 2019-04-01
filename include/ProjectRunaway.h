@@ -135,6 +135,9 @@ protected:
     /** Determine whether atoms have moved significantly and whether to enable file writing */
     int reinit();
 
+    /** Interpolate temperature on the centroids of surface quadrangles */
+    void calc_surf_temperatures();
+
 private:
 
     /** Generate boundary nodes for mesh */
@@ -143,8 +146,6 @@ private:
     /** Transfer mesh from Tetgen into Deal.II */
     int import_mesh();
 
-    /** Interpolate temperature on the centroids of surface quadrangles */
-    void calc_surf_temperatures();
 
     /** Pick a field solver and calculcate field distribution */
     int run_field_solver();
