@@ -68,6 +68,7 @@ private:
     double applied_field;     ///< applied electric field on top of simubox
     double applied_potential; ///< applied potential on top of simubox
     Vector<double> charge_density;   ///< charge density at dofs [e/Angstrom^3]
+    SparseMatrix<double> system_matrix_save;  ///< system matrix before applying Dirichlet BCs
 
     typedef typename DealSolver<dim>::LinearSystem LinearSystem;
     typedef typename DealSolver<dim>::ScratchData ScratchData;
@@ -98,6 +99,9 @@ private:
     /** Add to the right-hand-side vector for point charges, as used in PIC. */
     void assemble_space_charge();
     void assemble_space_charge_fast();
+
+    /** Restore system matrix to the shape it was before applying Dirichlet BCs */
+    void restore_system_matrix();
 };
 
 } // namespace femocs

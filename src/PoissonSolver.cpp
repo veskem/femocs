@@ -156,6 +156,7 @@ double PoissonSolver<dim>::get_face_bc(const unsigned int face) const {
 template<int dim>
 void PoissonSolver<dim>::setup(const double field, const double potential) {
     DealSolver<dim>::setup_system();
+    this->system_matrix_save.reinit(this->sparsity_pattern);
     applied_field = field;
     applied_potential = potential;
 }
@@ -170,32 +171,43 @@ void PoissonSolver<dim>::assemble(const bool full_run) {
     this->system_rhs = 0;
 
     if (conf->anode_BC == "neumann") {
-        if (full_run) {
+        if (full_run)
             assemble_parallel();
-            this->append_dirichlet(BoundaryID::copper_surface, this->dirichlet_bc_value);
-        }
+        else
+        	restore_system_matrix();
+        this->append_dirichlet(BoundaryID::copper_surface, this->dirichlet_bc_value);
         this->assemble_rhs(BoundaryID::vacuum_top);
     } else {
-        if (full_run) {
+        if (full_run)
             assemble_parallel();
-            this->append_dirichlet(BoundaryID::copper_surface, this->dirichlet_bc_value);
-            this->append_dirichlet(BoundaryID::vacuum_top, applied_potential);
-        }
+        else
+        	restore_system_matrix();
+        this->append_dirichlet(BoundaryID::copper_surface, this->dirichlet_bc_value);
+        this->append_dirichlet(BoundaryID::vacuum_top, applied_potential);
     }
 
     if (conf->mode != "laplace") assemble_space_charge();
+
     // save charge density for writing it to file
     // must be before applying Diriclet BCs
-//    if (this->write_time()) {
-    int n_verts = this->tria->n_used_vertices();
-    this->charge_density = this->system_rhs;
-    this->calc_dof_volumes();
-    for (unsigned i = 0; i < n_verts; i++) {
-        int dof = this->vertex2dof[i];
-        this->charge_density[dof] /= this->dof_volume[dof];
+    if (this->write_time()) {
+        int n_verts = this->tria->n_used_vertices();
+        this->charge_density = this->system_rhs;
+        this->calc_dof_volumes();
+        for (unsigned i = 0; i < n_verts; i++) {
+            int dof = this->vertex2dof[i];
+            this->charge_density[dof] /= this->dof_volume[dof];
+        }
+    } else {
+    	this->charge_density.reinit(this->system_rhs.size());
     }
-//    }
-    if (full_run) this->apply_dirichlet();
+
+    this->apply_dirichlet();
+}
+
+template<int dim>
+void PoissonSolver<dim>::restore_system_matrix() {
+	this->system_matrix.copy_from(this->system_matrix_save);
 }
 
 template<int dim>
@@ -219,6 +231,9 @@ void PoissonSolver<dim>::assemble_parallel() {
             ScratchData(this->fe, quadrature_formula, update_gradients | update_quadrature_points | update_JxW_values),
             CopyData(n_dofs, n_q_points)
     );
+
+    // save system matrix
+    this->system_matrix_save.copy_from(this->system_matrix);
 }
 
 template<int dim>

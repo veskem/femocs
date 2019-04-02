@@ -143,13 +143,13 @@ void SolutionReader::calc_full_interpolation() {
     int cell = -1;
 
     if (interp_centroids) {
-        #pragma omp parallel for private(cell)
+        // #pragma omp parallel for private(cell)
         for (int i = 0; i < n_atoms; ++i)
             cell = locate_interp_centroid(i, cell);
     }
 
     else {
-        #pragma omp parallel for private(cell)
+        // #pragma omp parallel for private(cell)
         for (int i = 0; i < n_atoms; ++i)
             cell = locate_interpolate(i, cell);
     }
@@ -175,13 +175,13 @@ void SolutionReader::calc_interpolation() {
 
     // ...yes, no need to calculate the mapping again, just interpolate
     if (interp_centroids) {
-        #pragma omp parallel for
+        // #pragma omp parallel for
         for (int i = 0; i < n_atoms; ++i)
             interp_centroid(i);
     }
 
     else {
-        #pragma omp parallel for
+        // #pragma omp parallel for
         for (int i = 0; i < n_atoms; ++i)
             interp_solution(i);
     }

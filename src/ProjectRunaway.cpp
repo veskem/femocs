@@ -462,6 +462,7 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
 
     for (int i = 0; i < n_pic_steps; ++i) {
         error = make_pic_step(n_lost, n_cg, n_injected, full_run && i==0);
+//        error = make_pic_step(n_lost, n_cg, n_injected, true);
         if (error) return 1;
 
         if (MODES.VERBOSE) {
@@ -509,6 +510,7 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
 
     // update field on the surface
     surface_fields.calc_interpolation();
+    surface_fields.write("out/surface_fields.movie");
 
     // calculate field emission and Nottingham heat
     int error_code = emission.calc_emission(conf.emission, conf.field.V0);
@@ -521,7 +523,7 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
     emission.write("out/emission.dat", FileIO::no_update);
     emission.write("out/emission.movie");
     pic_solver.write("out/electrons.movie");
-    surface_fields.write("out/surface_fields.movie");
+
     surface_temperatures.write("out/surface_temperatures.movie");
 
     return 0;
