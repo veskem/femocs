@@ -462,16 +462,15 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
 
     for (int i = 0; i < n_pic_steps; ++i) {
         error = make_pic_step(n_lost, n_cg, n_injected, full_run && i==0);
-//        error = make_pic_step(n_lost, n_cg, n_injected, true);
         if (error) return 1;
 
         if (MODES.VERBOSE) {
-
-            cout << "t=" << GLOBALS.TIME << " fs, #CG=" << n_cg <<
-                    ", Fmax=" << emission.global_data.Fmax << " V/A, Itot=" <<
-                    emission.global_data.I_tot <<" A, M/A=" << fields.get_beta() <<
-                    ", #inj|del|tot=" << n_injected << "|" << n_lost << "|"  <<
-                    pic_solver.get_n_electrons() << endl;
+            if (MODES.VERBOSE) {
+                printf("  t=%.2f, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, M/A=%.3f, #inj|del|tot=%d|%d|%d",
+                        GLOBALS.TIME, n_cg, emission.global_data.Fmax, emission.global_data.I_tot,
+                        fields.get_beta(), n_injected, n_lost, pic_solver.get_n_electrons());
+                cout << endl;
+            }
         }
 
         GLOBALS.TIME += dt_pic;

@@ -154,6 +154,11 @@ double PoissonSolver<dim>::get_face_bc(const unsigned int face) const {
 }
 
 template<int dim>
+void PoissonSolver<dim>::restore_system_matrix() {
+    this->system_matrix.copy_from(this->system_matrix_save);
+}
+
+template<int dim>
 void PoissonSolver<dim>::setup(const double field, const double potential) {
     DealSolver<dim>::setup_system();
     this->system_matrix_save.reinit(this->sparsity_pattern);
@@ -174,14 +179,14 @@ void PoissonSolver<dim>::assemble(const bool full_run) {
         if (full_run)
             assemble_parallel();
         else
-        	restore_system_matrix();
+            restore_system_matrix();
         this->append_dirichlet(BoundaryID::copper_surface, this->dirichlet_bc_value);
         this->assemble_rhs(BoundaryID::vacuum_top);
     } else {
         if (full_run)
             assemble_parallel();
         else
-        	restore_system_matrix();
+            restore_system_matrix();
         this->append_dirichlet(BoundaryID::copper_surface, this->dirichlet_bc_value);
         this->append_dirichlet(BoundaryID::vacuum_top, applied_potential);
     }
@@ -198,16 +203,10 @@ void PoissonSolver<dim>::assemble(const bool full_run) {
             int dof = this->vertex2dof[i];
             this->charge_density[dof] /= this->dof_volume[dof];
         }
-    } else {
-    	this->charge_density.reinit(this->system_rhs.size());
-    }
+    } else
+        this->charge_density.reinit(this->system_rhs.size());
 
     this->apply_dirichlet();
-}
-
-template<int dim>
-void PoissonSolver<dim>::restore_system_matrix() {
-	this->system_matrix.copy_from(this->system_matrix_save);
 }
 
 template<int dim>
