@@ -224,9 +224,6 @@ int EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
             markers[i] = 2;
         }
 
-        if (J > conf.J_max || J < conf.J_min)
-            return J_error;
-
         current_densities[i] = J;
         nottingham[i] = nm2_per_angstrom2 * gt.heat;
         thetas_SC[i] = gt.theta;
@@ -234,6 +231,9 @@ int EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
         global_data.Fmax = max(global_data.Fmax, F * gt.theta);
         global_data.Jmax = max(global_data.Jmax, J); // output data
     }
+
+    if (global_data.Jmax > conf.J_max)
+        return J_error;
 
     if (update_eff_region || write_time())
         calc_effective_region(0.9, "field");

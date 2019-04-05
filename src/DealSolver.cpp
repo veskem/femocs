@@ -155,17 +155,15 @@ double DealSolver<dim>::max_solution() const {
 }
 
 template<int dim>
-bool DealSolver<dim>::check_limits(double& sol_min, double& sol_max) const {
-    double low_limit = sol_min;
-    double high_limit = sol_max;
-    sol_min = 1e100;
-    sol_max = -1e100;
-    for (double T : this->solution) {
-        sol_min = min(sol_min, T);
-        sol_max = max(sol_max, T);
+bool DealSolver<dim>::check_limits(const double low_limit, const double high_limit) {
+    stat.sol_min = 1e100;
+    stat.sol_max = -1e100;
+    for (double s : this->solution) {
+        stat.sol_min = min(stat.sol_min, s);
+        stat.sol_max = max(stat.sol_max, s);
     }
 
-    return sol_min < low_limit || sol_max > high_limit;
+    return stat.sol_min < low_limit || stat.sol_max > high_limit;
 }
 
 template<int dim>

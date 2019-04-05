@@ -518,8 +518,7 @@ bool FieldReader::check_limits(const vector<Solution>* solutions, bool verbose) 
     const double gamma2 = get_analyt_enhancement();
     beta = fabs(gamma1 / gamma2);
 
-    bool out_of_limits = beta < limit_min || beta > limit_max;
-    if (verbose || out_of_limits) {
+    if (verbose) {
         stringstream stream;
         stream << fixed << setprecision(3);
         stream << "field enhancements:  (M)easured:" << gamma1
@@ -527,7 +526,7 @@ bool FieldReader::check_limits(const vector<Solution>* solutions, bool verbose) 
                 << "  M/A:" << gamma1 / gamma2;
         write_verbose_msg(stream.str());
     }
-    return out_of_limits;
+    return beta < limit_min || beta > limit_max;
 }
 
 double FieldReader::max_field(const vector<Solution>* solutions) const {

@@ -465,12 +465,11 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
         if (error) return 1;
 
         if (MODES.VERBOSE) {
-            if (MODES.VERBOSE) {
-                printf("  t=%.2f, #CG=%d, Fmax=%.3f V/A, Itot=%.3e A, M/A=%.3f, #inj|del|tot=%d|%d|%d",
-                        GLOBALS.TIME, n_cg, emission.global_data.Fmax, emission.global_data.I_tot,
-                        fields.get_beta(), n_injected, n_lost, pic_solver.get_n_electrons());
-                cout << endl;
-            }
+            printf("  t=%.2f, #CG=%d, Vmin=%.1f V, Jmax=%.0e, Fmax=%.3f V/A, Itot=%.3e A, M/A=%.3f, #inj|del|tot=%d|%d|%d",
+                    GLOBALS.TIME, n_cg, poisson_solver.stat.sol_min, emission.global_data.Jmax,
+                    emission.global_data.Fmax, emission.global_data.I_tot, fields.get_beta(),
+                    n_injected, n_lost, pic_solver.get_n_electrons());
+            cout << endl;
         }
 
         GLOBALS.TIME += dt_pic;
@@ -494,14 +493,12 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
 
     // the check must be after solving Poisson eq. and before updating velocities
     check_return(n_cg < 0, "Poisson solver did not converge within nominal #CG steps!");
-    double V_low = conf.field.V_min;
-    double V_high = conf.field.V_max;
-    fail = poisson_solver.check_limits(V_low, V_high);
-    check_return(fail, "Potential is out of limits: Vmin="+d2s(V_low)+", Vmax=" + d2s(V_high));
+    fail = poisson_solver.check_limits(conf.field.V_min, conf.field.V_max);
+    check_return(fail, "Potential is out of limits, " + d2s(poisson_solver.stat));
 
     vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
     check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions(), false),
-            "Field enhancement is out of limits!");
+            "Field enhancement is out of limits, M/A=" + d2s(fields.get_beta()));
 
     // update velocities of super particles and collide them
     pic_solver.update_velocities();
@@ -509,10 +506,11 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
 
     // update field on the surface
     surface_fields.calc_interpolation();
-    surface_fields.write("surface_fields.movie");
 
     // calculate field emission and Nottingham heat
     int error_code = emission.calc_emission(conf.emission, conf.field.V0);
+    if (error_code == -10)
+        check_return(true, "Current density is out of limits, Jmax=" + d2s(emission.global_data.Jmax));
     check_return(error_code, "Emission calculation failed with error code " + d2s(error_code));
 
     // inject new electrons
@@ -522,7 +520,7 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
     emission.write("emission.dat", FileIO::no_update);
     emission.write("emission.movie");
     pic_solver.write("electrons.movie");
-
+    surface_fields.write("surface_fields.movie");
     surface_temperatures.write("surface_temperatures.movie");
 
     return 0;
@@ -546,10 +544,9 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
     hcg = ch_solver.heat.solve();
     end_msg(t0);
 
-    double T_low = conf.heating.T_min;
-    double T_high = conf.heating.T_max;
-    fail = ch_solver.heat.check_limits(T_low, T_high);
-    write_verbose_msg("#CG=" + d2s(abs(hcg)) + ", Tmin=" + d2s(T_low) + " K, Tmax=" + d2s(T_high) + " K");
+    fail = ch_solver.heat.check_limits(conf.heating.T_min,  conf.heating.T_max);
+    write_verbose_msg("#CG=" + d2s(abs(hcg)) + ", Tmin=" + d2s(ch_solver.heat.stat.sol_min)
+            + " K, Tmax=" + d2s(ch_solver.heat.stat.sol_max) + " K");
 
     check_return(hcg < 0, "Heat solver did not converge within nominal #CG steps!");
     check_return(fail, "Temperature is out of limits!");

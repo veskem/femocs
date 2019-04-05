@@ -59,7 +59,7 @@ public:
     double max_solution() const;
 
     /** Check whether the solution is within limits */
-    bool check_limits(double& sol_low, double& sol_high) const;
+    bool check_limits(const double low_limit, const double high_limit);
 
     /** Values of the shape functions for a point with respect to the cell.
      *  The cell that surrounds the point has to be found before hand. */
@@ -114,6 +114,16 @@ public:
 
     /** Return mesh statistics as string */
     string to_str() const { ostringstream ss; ss << (*this); return ss.str(); }
+
+    struct Stat {
+        double sol_min;   ///< minimum solution value
+        double sol_max;   ///< maximum solution value
+
+        friend ostream& operator <<(ostream &os, const DealSolver<dim>::Stat &s) {
+            os << "min=" << s.sol_min << ", max=" << s.sol_max;
+            return os;
+        }
+    } stat;
 
 protected:
     static constexpr unsigned int shape_degree = 1;   ///< degree of the shape functions (linear, quadratic etc elements)
