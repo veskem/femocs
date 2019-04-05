@@ -158,6 +158,7 @@ void Config::read_all(const string& fname, bool full_run) {
         check_changed("Vappl_SC", "sc_omega & Vappl");
         check_changed("omega_SC", "sc_omega");
         check_changed("n_write_restart", "restart_period");
+        check_changed("current_limit", "rho_limit");
     }
 
     // Modify the parameters that are specified in input script
@@ -259,7 +260,7 @@ void Config::read_all(const string& fname, bool full_run) {
     heating.T_max = args[1];
 
     args = {emission.J_min, emission.J_max};
-    n_read_args = read_command("current_limit", args);
+    n_read_args = read_command("rho_limit", args);
     emission.J_min = args[0];
     emission.J_max = args[1];
 
