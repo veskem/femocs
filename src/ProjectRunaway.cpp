@@ -85,21 +85,21 @@ int ProjectRunaway::process_failed(const string &msg) {
 
     unsigned flags = FileIO::force | FileIO::no_update;
     if (emission.size() > 0)
-        emission.write("out/emission_err.xyz", flags);
+        emission.write("emission_err.xyz", flags);
     if (surface_fields.size() > 0)
-        surface_fields.write("out/surface_fields_err.xyz", flags);
+        surface_fields.write("surface_fields_err.xyz", flags);
     if (surface_temperatures.size() > 0)
-        surface_temperatures.write("out/surface_temperatures_err.xyz", flags);
+        surface_temperatures.write("surface_temperatures_err.xyz", flags);
     if (pic_solver.size() > 1)  // must be > 1
-        pic_solver.write("out/electrons_err.xyz", flags);
+        pic_solver.write("electrons_err.xyz", flags);
     if (ch_solver.size() > 0)
-        ch_solver.write("out/ch_solver_err.xyz", flags);
+        ch_solver.write("ch_solver_err.xyz", flags);
     if (vacuum_interpolator.nodes.size() > 0)
-        vacuum_interpolator.nodes.write("out/result_E_phi_err.xyz", flags);
+        vacuum_interpolator.nodes.write("result_E_phi_err.xyz", flags);
     if (bulk_interpolator.nodes.size() > 0)
-        bulk_interpolator.nodes.write("out/result_J_T_err.xyz", flags);
+        bulk_interpolator.nodes.write("result_J_T_err.xyz", flags);
     if (mesh->hexs.size() > 0)
-        mesh->hexs.write("out/hexmesh_err.vtk", flags);
+        mesh->hexs.write("hexmesh_err.vtk", flags);
 
     if (conf.behaviour.n_write_log > 0)
         MODES.WRITELOG = (GLOBALS.TIMESTEP+1)%conf.behaviour.n_write_log == 0;
@@ -147,20 +147,20 @@ int ProjectRunaway::generate_boundary_nodes(Surface& bulk, Surface& coarse_surf,
     reader.extract(dense_surf, TYPES.SURFACE);
     coarseners.generate(dense_surf, conf.geometry, conf.cfactor);
     end_msg(t0);
-    dense_surf.write("out/surface_dense.xyz");
-    coarseners.write("out/coarseners.vtk");
+    dense_surf.write("surface_dense.xyz");
+    coarseners.write("coarseners.vtk");
 
     if (first_run) {
         start_msg(t0, "Extending surface");
         dense_surf.extend(extended_surf, conf);
         end_msg(t0);
-        extended_surf.write("out/surface_extension.xyz");
+        extended_surf.write("surface_extension.xyz");
     }
 
     start_msg(t0, "Coarsening surface");
     dense_surf.generate_boundary_nodes(bulk, coarse_surf, vacuum, extended_surf, conf);
     end_msg(t0);
-    coarse_surf.write("out/surface_coarse.xyz");
+    coarse_surf.write("surface_coarse.xyz");
 
     if (MODES.VERBOSE) {
         printf("  #extended=%d, #coarse=%d, #dense=%d\n",
@@ -192,12 +192,12 @@ int ProjectRunaway::generate_mesh() {
     }
 
     if (mesh1.write_time() || mesh2.write_time()) {
-        new_mesh->nodes.write("out/hexmesh_nodes.vtk");
-        new_mesh->tris.write("out/trimesh.vtk");
-        new_mesh->quads.write("out/quadmesh.vtk");
-        new_mesh->tets.write("out/tetmesh.vtk");
-        new_mesh->hexs.write("out/hexmesh.vtk");
-        new_mesh->write_separate("out/hexmesh_bulk.vtks", TYPES.BULK);
+        new_mesh->nodes.write("hexmesh_nodes.vtk");
+        new_mesh->tris.write("trimesh.vtk");
+        new_mesh->quads.write("quadmesh.vtk");
+        new_mesh->tets.write("tetmesh.vtk");
+        new_mesh->hexs.write("hexmesh.vtk");
+        new_mesh->write_separate("hexmesh_bulk.vtks", TYPES.BULK);
         mesh1.set_write_time(); mesh2.set_write_time();
     }
 
@@ -279,7 +279,7 @@ int ProjectRunaway::prepare_solvers() {
             start_msg(t0, "Transferring old temperatures to new mesh");
             heat_transfer.interpolate_dofs(ch_solver, mesh);
             end_msg(t0);
-            heat_transfer.write("out/heat_transfer.xyz");
+            heat_transfer.write("heat_transfer.xyz");
         }
     }
 
@@ -306,7 +306,7 @@ int ProjectRunaway::prepare_export() {
     }
     end_msg(t0);
 
-    fields.write("out/fields.movie");
+    fields.write("fields.movie");
     check_return(fields.check_limits(), "Field enhancement is out of limits!");
 
     if (conf.heating.mode != "none") {
@@ -336,7 +336,7 @@ int ProjectRunaway::prepare_export() {
             end_msg(t0);
         }
 
-        forces.write("out/forces.movie");
+        forces.write("forces.movie");
     }
 
     return retval;
@@ -377,7 +377,7 @@ int ProjectRunaway::solve_force() {
     face_charges.calc_charges(*mesh, conf.field.E0);
     end_msg(t0);
 
-    face_charges.write("out/face_charges.xyz");
+    face_charges.write("face_charges.xyz");
     check_return(face_charges.check_limits(), "Face charges are not conserved!");
 
     start_msg(t0, "Distributing face charges");
@@ -392,9 +392,9 @@ int ProjectRunaway::solve_force() {
     end_msg(t0);
 
     check_return(err_code, "Generation of Voronoi cells failed with error code " + d2s(err_code));
-    voro_mesh.nodes.write("out/voro_nodes.vtk");
-    voro_mesh.voros.write("out/voro_cells.vtk");
-    voro_mesh.vfaces.write("out/voro_faces.vtk");
+    voro_mesh.nodes.write("voro_nodes.vtk");
+    voro_mesh.voros.write("voro_cells.vtk");
+    voro_mesh.vfaces.write("voro_faces.vtk");
 
     if (conf.force.mode == "lorentz") {
         start_msg(t0, "Calculating Lorentz force");
@@ -406,7 +406,7 @@ int ProjectRunaway::solve_force() {
     }
     end_msg(t0);
 
-    forces.write("out/forces.movie");
+    forces.write("forces.movie");
     check_return(face_charges.check_limits(forces.get_interpolations()),
             "Voronoi charges are not conserved!");
 
@@ -432,8 +432,8 @@ int ProjectRunaway::solve_laplace(double E0, double V0) {
     vacuum_interpolator.extract_solution(poisson_solver, conf.run.field_smoother);
     end_msg(t0);
 
-    vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
-    vacuum_interpolator.lintet.write("out/result_E_phi.vtk");
+    vacuum_interpolator.nodes.write("result_E_phi.xyz");
+    vacuum_interpolator.lintet.write("result_E_phi.vtk");
 
     check_return(fields.check_limits(vacuum_interpolator.nodes.get_solutions()),
             "Field enhancement is out of limits!");
@@ -478,8 +478,8 @@ int ProjectRunaway::solve_pic(double advance_time, bool full_run) {
     }
     end_msg(t0);
 
-    vacuum_interpolator.nodes.write("out/result_E_phi.xyz");
-    vacuum_interpolator.lintet.write("out/result_E_phi.vtk");
+    vacuum_interpolator.nodes.write("result_E_phi.xyz");
+    vacuum_interpolator.lintet.write("result_E_phi.vtk");
 
     return 0;
 }
@@ -509,7 +509,7 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
 
     // update field on the surface
     surface_fields.calc_interpolation();
-    surface_fields.write("out/surface_fields.movie");
+    surface_fields.write("surface_fields.movie");
 
     // calculate field emission and Nottingham heat
     int error_code = emission.calc_emission(conf.emission, conf.field.V0);
@@ -519,11 +519,11 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
     n_injected = pic_solver.inject_electrons(conf.pic.fractional_push);
     check_return(n_injected < 0, "Too many injected SP-s: " + d2s(abs(n_injected)));
 
-    emission.write("out/emission.dat", FileIO::no_update);
-    emission.write("out/emission.movie");
-    pic_solver.write("out/electrons.movie");
+    emission.write("emission.dat", FileIO::no_update);
+    emission.write("emission.movie");
+    pic_solver.write("electrons.movie");
 
-    surface_temperatures.write("out/surface_temperatures.movie");
+    surface_temperatures.write("surface_temperatures.movie");
 
     return 0;
 }
@@ -553,15 +553,15 @@ int ProjectRunaway::solve_heat(double T_ambient, double delta_time, bool full_ru
 
     check_return(hcg < 0, "Heat solver did not converge within nominal #CG steps!");
     check_return(fail, "Temperature is out of limits!");
-    ch_solver.write("out/ch_solver.movie");
+    ch_solver.write("ch_solver.movie");
 
     start_msg(t0, "Extracting J & T");
     bulk_interpolator.initialize(mesh, conf.heating.t_ambient, TYPES.BULK);
     bulk_interpolator.extract_solution(ch_solver);
     end_msg(t0);
 
-    bulk_interpolator.nodes.write("out/result_J_T.xyz");
-    bulk_interpolator.lintet.write("out/result_J_T.vtk");
+    bulk_interpolator.nodes.write("result_J_T.xyz");
+    bulk_interpolator.lintet.write("result_J_T.vtk");
 
     last_heat_time = GLOBALS.TIME;
     return 0;
@@ -572,14 +572,14 @@ int ProjectRunaway::calc_heat_emission(bool full_run) {
         start_msg(t0, "Calculating surface fields");
         surface_fields.calc_interpolation();
         end_msg(t0);
-        surface_fields.write("out/surface_fields.movie");
+        surface_fields.write("surface_fields.movie");
     }
 
     start_msg(t0, "Calculating electron emission");
     int error_code = emission.calc_emission(conf.emission, conf.emission.omega * conf.field.V0);
     end_msg(t0);
     check_return(error_code, "Emission calculation failed with error code " + d2s(error_code));
-    emission.write("out/emission.movie");
+    emission.write("emission.movie");
 
     return 0;
 }
@@ -691,8 +691,8 @@ void ProjectRunaway::write_restart() {
 
     // make restart file to in-folder to reduce the risk
     // of accidentally deleting it while restarting system
-    string fem_path = "in/femocs.restart";
-    string parcas_path = "in/parcas.restart";
+    string fem_path = "../in/femocs.restart";
+    string parcas_path = "../in/parcas.restart";
     unsigned int flags = FileIO::force | FileIO::no_update;
 
     mesh->write(fem_path, flags);
@@ -705,8 +705,8 @@ void ProjectRunaway::write_restart() {
     if (conf.behaviour.restart_multiplier > 0 &&
             (restart_cntr++ % conf.behaviour.restart_multiplier) == 0)
     {
-        fail = execute("cp " + fem_path + " out/femocs_" + d2s(GLOBALS.TIMESTEP) +  ".restart");
-        fail = execute("cp " + parcas_path + " out/parcas_" + d2s(GLOBALS.TIMESTEP) +  ".restart");
+        fail = execute("cp in/femocs.restart " + MODES.OUT_FOLDER + "/femocs_" + d2s(GLOBALS.TIMESTEP) +  ".restart");
+        fail = execute("cp in/parcas.restart " + MODES.OUT_FOLDER + "/parcas_" + d2s(GLOBALS.TIMESTEP) +  ".restart");
     }
 
     last_restart_ts = GLOBALS.TIMESTEP;

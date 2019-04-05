@@ -723,7 +723,7 @@ int HeatReader::scale_berendsen(double* x1, const int n_atoms,
         }
     }
 
-    write("out/berendsen.movie");
+    write("berendsen.movie");
     return 0;
 }
 

@@ -44,17 +44,18 @@ void FileWriter::write(const string &file_name, unsigned int flags) {
     }
 
     ofstream outfile;
+    string fname = MODES.OUT_FOLDER + "/" + file_name;
     if (ftype == "movie" || ftype == "dat" || append)
-        outfile.open(file_name, ios_base::app);
+        outfile.open(fname, ios_base::app);
     else if (ftype == "vtks") {
         string tstep = d2s(GLOBALS.TIMESTEP);
-        string fname = file_name.substr(0, file_name.find_last_of('.'));
+        fname = fname.substr(0, fname.find_last_of('.'));
         fname += "_" + string( max(0.0, 6.0 - tstep.length()), '0' ) + tstep + ".vtk";
         outfile.open(fname, ios_base::app);
     } else
-        outfile.open(file_name);
+        outfile.open(fname);
 
-    require(outfile.is_open(), "Can't open a file " + file_name);
+    require(outfile.is_open(), "Can't open a file " + fname);
 
     if (ftype == "xyz" || ftype == "movie")
         write_xyz(outfile);

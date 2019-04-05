@@ -119,7 +119,7 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
     else
         reader.extract_types();
 
-    reader.write("out/atomreader.ckx");
+    reader.write("atomreader.ckx");
     return 0;
 }
 
@@ -138,7 +138,7 @@ int Femocs::import_parcas(const int n_atoms, const double* x0, const double* x1,
     else
         reader.extract_types();
 
-    reader.write("out/atomreader.ckx");
+    reader.write("atomreader.ckx");
     return 0;
 }
 
@@ -154,7 +154,7 @@ int Femocs::import_atoms(const int n_atoms, const double* x, const double* y, co
     if (system_changed)
         perform_pseudo_analysis();
 
-    reader.write("out/atomreader.ckx");
+    reader.write("atomreader.ckx");
     return 0;
 }
 

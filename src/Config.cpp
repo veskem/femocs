@@ -232,6 +232,7 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("project", behaviour.project);
     read_command("interpolation_rank", behaviour.interpolation_rank);
     read_command("write_period", MODES.WRITE_PERIOD);
+    read_command("out_folder", MODES.OUT_FOLDER);
     read_command("md_timestep", behaviour.timestep_fs);
     read_command("mass(1)", behaviour.mass);
     read_command("seed", behaviour.rnd_seed);

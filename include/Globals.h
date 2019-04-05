@@ -165,6 +165,7 @@ struct Modes {
     bool SHORTLOG = true;    ///< If SHORTLOG then only the last timestep is stored in log file
     bool PERIODIC = true;    ///< If PERIODIC then imported atoms have periodic boundaries in x- & y-direction
     double WRITE_PERIOD = 0; ///< Min time in fs between two consequent writes to the same file; 0 enables writing at every call and <0 turns writing off
+    string OUT_FOLDER = "out";  ///< Path to the folder where files will be written
 };
 
 struct Globals {
