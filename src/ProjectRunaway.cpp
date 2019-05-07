@@ -83,6 +83,7 @@ int ProjectRunaway::process_failed(const string &msg) {
     GLOBALS.TIME = GLOBALS.TIMESTEP * conf.behaviour.timestep_fs;
     require(!first_run, "First full run failed!");
 
+
     unsigned flags = FileIO::force | FileIO::no_update;
     if (emission.size() > 0)
         emission.write("emission_err.xyz", flags);
@@ -94,13 +95,14 @@ int ProjectRunaway::process_failed(const string &msg) {
         pic_solver.write("electrons_err.xyz", flags);
     if (ch_solver.size() > 0)
         ch_solver.write("ch_solver_err.xyz", flags);
+    /*// Disable mesh writings, as the might cause segfault
     if (vacuum_interpolator.nodes.size() > 0)
         vacuum_interpolator.nodes.write("result_E_phi_err.xyz", flags);
     if (bulk_interpolator.nodes.size() > 0)
         bulk_interpolator.nodes.write("result_J_T_err.xyz", flags);
     if (mesh->hexs.size() > 0)
         mesh->hexs.write("hexmesh_err.vtk", flags);
-
+    //*/
     if (conf.behaviour.n_write_log > 0)
         MODES.WRITELOG = (GLOBALS.TIMESTEP+1)%conf.behaviour.n_write_log == 0;
     return 1;
