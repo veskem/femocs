@@ -679,7 +679,7 @@ void HeatReader::precalc_berendsen() {
 int HeatReader::scale_berendsen(double* x1, const int n_atoms,
         const vector<Vec3>& velocities, const Config& conf)
 {
-    check_return(size() == 0, "No " + LABELS.parcas_velocity + " to export!");
+    check_return(size() == 0, "No velocities to export!");
 
     require(conf.heating.tau > 0, "Invalid heat time constant: " + d2s(conf.heating.tau));
     const double timestep_over_tau = conf.behaviour.timestep_fs / conf.heating.tau;

@@ -598,7 +598,7 @@ int ProjectRunaway::export_data(double* data, const int n_points, const string &
     if (data_type == LABELS.parcas_force || data_type == LABELS.charge_force)
         return forces.export_parcas(n_points, data_type, reader.get_si2parcas_box(), data);
 
-    if (data_type == LABELS.parcas_velocity)
+    if (data_type == LABELS.velocity || data_type == LABELS.parcas_velocity)
         return temperatures.scale_berendsen(data, n_points, *reader.get_velocities(), conf);
 
     write_silent_msg("Unimplemented type of export data: " + data_type);

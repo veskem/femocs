@@ -22,10 +22,16 @@ public:
      * Femocs constructor reads and stores configuration parameters and initialises other data
      * @param path_to_conf      path to the file holding the configuration parameters
      */
+    Femocs();
     Femocs(const string &path_to_conf);
 
     /** Femocs destructor */
     ~Femocs();
+
+    /** Read and store configuration parameters and initialize other data
+     * @param path_to_conf      path to the file holding the configuration parameters
+     */
+    void init(const string &path_to_conf);
 
     /** Function to generate FEM mesh and to solve differential equation(s)
      * by using the parameters specified in configuration script.
@@ -44,6 +50,15 @@ public:
      *                      1 - import failed or current run is similar to the previous one, field calculation will be skipped
      */
     int import_parcas(const int n_atoms, const double* x0, const double* x1, const double* box, const int* nborlist);
+
+    /** Function to import atoms from LAMMPS
+     * @param n_atoms     number of imported atoms
+     * @param xyz         vector of atom coordinates; x0=xyz[0], y0=xyz[1], z0=xyz[2], x1=xyz[3], etc
+     * @param vel         vector of atom velocities; vx0=vel[0], vy0=vel[1], vz0=vel[2], vx1=vel[3], etc
+     * @param mask        integers showing the region ID where they belong
+     * @param groupbit    region ID of atoms to be imported
+     */
+    int import_lammps(int n_atoms, double* xyz, double* vel, int* mask, int groupbit);
 
     /** Function to import coordinates and types of atoms
      * @param n_atoms   number of imported atoms

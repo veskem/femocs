@@ -442,6 +442,40 @@ bool AtomReader::import_parcas(int n_atoms, const double* xyz,
     return false;
 }
 
+bool AtomReader::import_lammps(int n_atoms, double* xyz, double* vel, int* mask, int groupbit) {
+    require(n_atoms > 0, "Zero input atoms detected!");
+
+    // reserve memory for stored atoms
+    int n_store = 0;
+    for (int i = 0; i < n_atoms; ++i)
+        if (mask[i] & groupbit)
+            n_store++;
+    atoms.resize(n_store);
+    velocities.resize(n_store);
+
+    int cntr = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        if (mask[i] & groupbit) {
+            int I=3*i;
+            require( xyz[I]==xyz[I] && xyz[I+1]==xyz[I+1] && xyz[I+2]==xyz[I+2],
+                "Invalid coordinates of " + d2s(i) + "th point:" + d2s(Point3(xyz[I],xyz[I+1],xyz[I+2])) );
+
+            atoms[cntr] = Atom(i, Point3(xyz[I], xyz[I+1], xyz[I+2]), TYPES.BULK);
+            velocities[cntr] = Vec3(vel[I], vel[I+1], vel[I+2]);
+            cntr++;
+        }
+    }
+
+    calc_statistics();
+
+    if (calc_rms_distance()) {
+        cluster = vector<int>(n_store, 0);
+        coordination = vector<int>(n_store, 0);
+        return true;
+    }
+    return false;
+}
+
 bool AtomReader::import_file(const string &file_name, const bool add_noise) {
     string file_type = get_file_type(file_name);
 

@@ -16,7 +16,19 @@
 using namespace std;
 namespace femocs {
 
+Femocs::Femocs() : t0(0), reader(&conf.geometry), project(NULL)
+{}
+
 Femocs::Femocs(const string &conf_file) : t0(0), reader(&conf.geometry) {
+    init(conf_file);
+}
+
+Femocs::~Femocs() {
+    if (project) delete project;
+    write_verbose_msg("======= Femocs finished! =======");
+}
+
+void Femocs::init(const string &conf_file) {
     static bool first_call = true;
     bool fail;
 
@@ -42,6 +54,7 @@ Femocs::Femocs(const string &conf_file) : t0(0), reader(&conf.geometry) {
     omp_set_num_threads(conf.behaviour.n_omp_threads);
 
     // pick the project to run
+    if (project) delete project;
     if (conf.behaviour.project == "runaway")
         project = new ProjectRunaway(reader, conf);
     else if(conf.behaviour.project == "heat")
@@ -54,11 +67,6 @@ Femocs::Femocs(const string &conf_file) : t0(0), reader(&conf.geometry) {
 
     if (conf.path.restart_file != "")
         project->restart(conf.path.restart_file);
-}
-
-Femocs::~Femocs() {
-    delete project;
-    write_verbose_msg("======= Femocs finished! =======");
 }
 
 int Femocs::run(const int timestep, const double time) {
@@ -116,6 +124,23 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
         perform_full_analysis(NULL);
     else if (system_changed)
         perform_pseudo_analysis();
+    else
+        reader.extract_types();
+
+    reader.write("atomreader.ckx");
+    return 0;
+}
+
+int Femocs::import_lammps(int n_atoms, double* xyz, double* vel, int* mask, int groupbit) {
+    clear_log();
+
+    start_msg(t0, "=== Importing atoms...");
+    bool system_changed = reader.import_lammps(n_atoms, xyz, vel, mask, groupbit);
+    end_msg(t0);
+    write_verbose_msg( "#input atoms: " + d2s(reader.size()) );
+
+    if (system_changed)
+        perform_full_analysis(NULL);
     else
         reader.extract_types();
 

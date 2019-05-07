@@ -145,7 +145,7 @@ struct Labels {
     const string pair_potential_sum = "pair_potential_sum";
     const string parcas_force = "parcas_force";
     const string charge_force = "charge_force";
-    const string force = "elforce";
+    const string force = "force";
     const string force_norm = "force_norm";
     const string charge = "charge";
     const string charge_density = "charge_density";

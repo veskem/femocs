@@ -39,13 +39,22 @@ public:
      */
     bool import_file(const string &file_name, const bool add_noise=false);
 
-    /** Import atom coordinates from PARCAS and check their rmsd
+    /** Import atom coordinates and velocities from PARCAS and check their rmsd
      * @param n_atoms   number of imported atoms
      * @param x0        atomistic coordinates in PARCAS units
      * @param x1        atomistic velocities in PARCAS units
      * @param box       MD simulation box sizes in Angstroms
      */
     bool import_parcas(int n_atoms, const double* xyz, const double* vel, const double* box, const Config& conf);
+
+    /** Import atom coordinates and velocities from LAMMPS and check their rmsd
+      * @param n_atoms     number of imported atoms
+      * @param xyz         vector of atom coordinates; x0=xyz[0], y0=xyz[1], z0=xyz[2], x1=xyz[3], etc
+      * @param vel         vector of atom velocities; vx0=vel[0], vy0=vel[1], vz0=vel[2], vx1=vel[3], etc
+      * @param mask        integers showing the region ID where they belong
+      * @param groupbit    region ID of atoms to be imported
+      */
+     bool import_lammps(int n_atoms, double* xyz, double* vel, int* mask, int groupbit);
 
     /** Import atom coordinates and types and check their rmsd */
     bool import_atoms(const int n_atoms, const double* x, const double* y, const double* z, const int* types);
