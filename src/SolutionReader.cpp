@@ -295,6 +295,22 @@ int SolutionReader::contains(const string& data_label) const {
     return 0;
 }
 
+int SolutionReader::contains(const string& ref_label,
+        const string& label1, const string& label2) const
+{
+    if (label1 == ref_label) return 1;
+    if (label2 == ref_label) return 2;
+
+    // check if label was provided with upper case letter
+    string lcase_label = ref_label;
+    std::transform(lcase_label.begin(), lcase_label.end(), lcase_label.begin(), ::tolower);
+
+    if (label1 == lcase_label) return -1;
+    if (label2 == lcase_label) return -1;
+
+    return 0;
+}
+
 int SolutionReader::export_results(const int n_points, const string &data_type, double* data) const {
     check_return(size() == 0, "No " + data_type + " to export!");
 
@@ -565,7 +581,7 @@ void FieldReader::set_check_params(const Config& conf, double radius,
  * =============== HEAT READER ==============
  * ========================================== */
 
-HeatReader::HeatReader(Interpolator* i) :
+HeatReader::HeatReader(Interpolator* i) : kin_energy(0),
         SolutionReader(i, LABELS.rho, LABELS.potential, LABELS.temperature)
 {}
 
@@ -684,28 +700,33 @@ int HeatReader::scale_berendsen(double* x1, const int n_atoms,
     require(conf.heating.tau > 0, "Invalid heat time constant: " + d2s(conf.heating.tau));
     const double timestep_over_tau = conf.behaviour.timestep_fs / conf.heating.tau;
     const double heat_factor = this->heat_factor * conf.behaviour.mass;
+    const double energy_factor = 0.5 * conf.behaviour.mass * this->amu;
 
     const unsigned int n_tets = tet2atoms.size();
     require(n_tets > 0, "Data is missing for Berendsen thermostat!");
     require(fem_temp.size() == n_tets, "Mismatch between vector sizes: "
             + d2s(n_tets) + ", " + d2s(fem_temp.size()));
 
+    kin_energy = 0;
     for (unsigned int tet = 0; tet < n_tets; ++tet) {
         int n_atoms_in_tet = tet2atoms[tet].size();
         if (n_atoms_in_tet) {
 
             // calculate average temperature of atoms inside a tetrahedron
-            double md_temp = 0;
+            double v_squared = 0;
             for (int atom : tet2atoms[tet]) {
                 int id = get_id(atom);
                 if (id < 0 || id >= n_atoms) continue;
-                md_temp += velocities[id].norm2();
+                v_squared += velocities[id].norm2();
             }
-            md_temp *= heat_factor / n_atoms_in_tet;
+            double md_temp = v_squared * heat_factor / n_atoms_in_tet;
             if (md_temp < 1e-100) continue;
 
             // calculate scaling factor
             double lambda = sqrt(1.0 + timestep_over_tau * (fem_temp[tet] / md_temp - 1.0));
+
+            // store added kinetic energy
+            kin_energy += energy_factor * v_squared * (1.0-lambda*lambda);
 
             // scale the velocities towards tetrahedron temperature
             for (int atom : tet2atoms[tet]) {
@@ -723,6 +744,19 @@ int HeatReader::scale_berendsen(double* x1, const int n_atoms,
     }
 
     write("berendsen.movie");
+    return 0;
+}
+
+int HeatReader::export_kin_energy(const string &data_type, double* energy) const {
+    string lowered_type = data_type;
+    std::transform(lowered_type.begin(), lowered_type.end(), lowered_type.begin(), ::tolower);
+
+    if (lowered_type == LABELS.kin_energy) {
+        if (data_type != LABELS.kin_energy)
+            energy[0] = kin_energy;
+        else
+            energy[0] += kin_energy;
+    }
     return 0;
 }
 
@@ -1136,8 +1170,12 @@ int ForceReader::export_parcas(const int n_points, const string &data_type,
     string lowered_type = data_type;
     std::transform(lowered_type.begin(), lowered_type.end(), lowered_type.begin(), ::tolower);
 
-    // export force perturbation in reduced units
-    if (data_type == LABELS.parcas_force) {
+    // if data_type was written with at least one upper case letter, clear previous data
+    if (data_type != LABELS.parcas_force && lowered_type == LABELS.parcas_force)
+        clear_data(3*n_points, data);
+
+    // export force in reduced units
+    if (lowered_type == LABELS.parcas_force) {
         for (int i = 0; i < n_atoms; ++i) {
             int id = get_id(i);
             if (id < 0 || id >= n_points) continue;
@@ -1149,22 +1187,7 @@ int ForceReader::export_parcas(const int n_points, const string &data_type,
         }
     }
 
-    // export force in reduced units
-    else if (lowered_type == LABELS.parcas_force) {
-        clear_data(3*n_points, data);
-
-        for (int i = 0; i < n_atoms; ++i) {
-            int id = get_id(i);
-            if (id < 0 || id >= n_points) continue;
-
-            Vec3 reduced_force = get_force(i) * si2parcas;
-            id *= 3;
-            for (double f : reduced_force)
-                data[id++] = f;
-        }
-    }
-
-    // export charge and force in SI units ?
+    // export charge and force in SI units
     // option to append not implemented to avoid necessity
     // to change parameters on Parcas side
     else if (lowered_type == LABELS.charge_force) {
@@ -1182,6 +1205,27 @@ int ForceReader::export_parcas(const int n_points, const string &data_type,
     }
 
     require(false, "Unimplemented type of export data: " + data_type);
+    return 0;
+}
+
+int ForceReader::export_pot_energy(const int n_points, const string &data_type,
+        double* energy) const
+{
+    string lowered_type = data_type;
+    std::transform(lowered_type.begin(), lowered_type.end(), lowered_type.begin(), ::tolower);
+
+    if (lowered_type == LABELS.pot_energy) {
+        if (data_type != LABELS.pot_energy)
+            energy[0] = 0;
+
+        const int n_atoms = size();
+        for (int i = 0; i < n_atoms; ++i) {
+            int id = get_id(i);
+            if (id < 0 || id >= n_points) continue;
+            energy[0] += get_pairpot(i);
+        }
+    }
+
     return 0;
 }
 

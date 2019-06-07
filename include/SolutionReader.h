@@ -81,6 +81,9 @@ public:
     /** Determine whether given data is included in SolutionReader */
     int contains(const string& data_label) const;
 
+    /** Determine whether ref_label or its lower case copy matches with label1 or label2 */
+    int contains(const string& ref_label, const string& label1, const string& label2="") const;
+
     /** General function to export desired component of calculated data */
     int export_results(const int n_points, const string &data_type, double* data) const;
 
@@ -240,6 +243,9 @@ public:
     /** Apply Berendsen thermostat for atomistic velocities */
     int scale_berendsen(double* x1, const int n_atoms, const vector<Vec3>& velocities, const Config& conf);
 
+    /** Export kinetic energy that was added due to Berendsen velocity scaling */
+    int export_kin_energy(const string &data_type, double* energy) const;
+
     /** Return current density in i-th interpolation point */
     Vec3 get_rho(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
@@ -266,6 +272,7 @@ private:
     vector<vector<int>> tet2atoms;
     vector<double> fem_temp;
     vector<double> temperatures;
+    double kin_energy;              ///< Kinetic energy added due to Berendsen scaling [eV]
 
     /** Function to increase spatial ordering of mesh nodes */
     void sort_spatial();
@@ -340,6 +347,9 @@ public:
 
     /** Export Parcas-specific data */
     int export_parcas(const int n_points, const string &data_type, const Vec3& si2parcas, double* data) const;
+
+    /** Export sum of pair-potential of Coulomb interaction */
+    int export_pot_energy(const int n_points, const string &data_type, double* energy) const;
 
     /** Return the force that is applied to i-th atom */
     Vec3 get_force(const int i) const {
