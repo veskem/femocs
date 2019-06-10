@@ -408,7 +408,6 @@ int ProjectRunaway::solve_force() {
     }
     end_msg(t0);
 
-    forces.write("forces.movie");
     check_return(face_charges.check_limits(forces.get_interpolations()),
             "Voronoi charges are not conserved!");
 

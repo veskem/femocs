@@ -202,7 +202,7 @@ void SolutionReader::write_xyz(ofstream &out) const {
 
     // write Ovito header
     out << "properties=id:I:1:pos:R:3:marker:I:1:force:R:3:"
-            + vec_label + ":R:1:" + norm_label + ":R:1:" + scalar_label + ":R:1\n";
+            + vec_label + "_norm:R:1:" + norm_label + ":R:1:" + scalar_label + ":R:1\n";
 
     // write data
     const int n_atoms = size();
