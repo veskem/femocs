@@ -672,13 +672,15 @@ void HeatReader::interpolate_dofs(CurrentHeatSolver<3>& solver, const TetgenMesh
     solver.heat.import_solution(&temperatures);
 }
 
-void HeatReader::precalc_berendsen() {
+void HeatReader::precalc_berendsen(bool update_locations) {
     const int n_tets = interpolator->lintet.size();
 
     // calculate mapping between atoms and tets that surround them
-    tet2atoms = vector<vector<int>>(n_tets);
-    for (int i = 0; i < size(); ++i)
-        tet2atoms[abs(get_marker(i))].push_back(i);
+    if (update_locations) {
+        tet2atoms = vector<vector<int>>(n_tets);
+        for (int i = 0; i < size(); ++i)
+            tet2atoms[abs(get_marker(i))].push_back(i);
+    }
 
     // calculate average temperature inside tetrahedron
     fem_temp = vector<double>(n_tets);
@@ -692,10 +694,11 @@ void HeatReader::precalc_berendsen() {
     }
 }
 
-int HeatReader::scale_berendsen(double* x1, const int n_atoms,
+int HeatReader::scale_berendsen(double* x1, const int n_export_atoms,
         const vector<Vec3>& velocities, const Config& conf)
 {
-    check_return(size() == 0, "No velocities to export!");
+    const int n_atoms = size();
+    check_return(n_atoms == 0, "No velocities to export!");
 
     require(conf.heating.tau > 0, "Invalid heat time constant: " + d2s(conf.heating.tau));
     const double timestep_over_tau = conf.behaviour.timestep_fs / conf.heating.tau;
@@ -707,6 +710,9 @@ int HeatReader::scale_berendsen(double* x1, const int n_atoms,
     require(fem_temp.size() == n_tets, "Mismatch between vector sizes: "
             + d2s(n_tets) + ", " + d2s(fem_temp.size()));
 
+    temperatures.resize(n_atoms);
+    lambdas.resize(n_atoms);
+
     kin_energy = 0;
     for (unsigned int tet = 0; tet < n_tets; ++tet) {
         int n_atoms_in_tet = tet2atoms[tet].size();
@@ -716,7 +722,7 @@ int HeatReader::scale_berendsen(double* x1, const int n_atoms,
             double v_squared = 0;
             for (int atom : tet2atoms[tet]) {
                 int id = get_id(atom);
-                if (id < 0 || id >= n_atoms) continue;
+                if (id < 0 || id >= n_export_atoms) continue;
                 v_squared += velocities[id].norm2();
             }
             double md_temp = v_squared * heat_factor / n_atoms_in_tet;
@@ -731,14 +737,15 @@ int HeatReader::scale_berendsen(double* x1, const int n_atoms,
             // scale the velocities towards tetrahedron temperature
             for (int atom : tet2atoms[tet]) {
                 int id = get_id(atom);
-                if (id < 0 || id >= n_atoms) continue;
+                if (id < 0 || id >= n_export_atoms) continue;
 
                 int I = 3 * id;
                 for (int j = 0; j < 3; ++j)
                     x1[I+j] *= lambda;
 
-                // store scaled temperature
-                interpolation[atom].scalar = velocities[id].norm2() * (heat_factor * lambda);
+                // store scaled temperature and scaling factor
+                temperatures[atom] = velocities[id].norm2() * heat_factor * lambda;
+                lambdas[atom] = lambda;
             }
         }
     }
@@ -758,6 +765,26 @@ int HeatReader::export_kin_energy(const string &data_type, double* energy) const
             energy[0] += kin_energy;
     }
     return 0;
+}
+
+void HeatReader::write_xyz(ofstream &out) const {
+    const int n_atoms = size();
+
+    if (temperatures.size() != n_atoms || lambdas.size() != n_atoms) {
+        SolutionReader::write_xyz(out);
+        return;
+    }
+
+    // write the start of xyz header
+    FileWriter::write_xyz(out);
+
+    // write Ovito header
+    out << "properties=id:I:1:pos:R:3:marker:I:1"
+            << ":temperature:R:1:scaled_temperature:R:1:lambda:R:1\n";
+
+    // write data
+    for (int i = 0; i < n_atoms; ++i)
+        out << atoms[i] << " " << interpolation[i].scalar << " " << temperatures[i] << " " << lambdas[i] << "\n";
 }
 
 /* ==========================================

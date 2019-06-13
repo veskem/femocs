@@ -238,7 +238,7 @@ public:
     void interpolate_dofs(CurrentHeatSolver<3>& solver, const TetgenMesh* mesh);
 
     /** Compute data that Berendsen thermostat requires for re-using old solution */
-    void precalc_berendsen();
+    void precalc_berendsen(bool update_locations);
 
     /** Apply Berendsen thermostat for atomistic velocities */
     int scale_berendsen(double* x1, const int n_atoms, const vector<Vec3>& velocities, const Config& conf);
@@ -272,7 +272,11 @@ private:
     vector<vector<int>> tet2atoms;
     vector<double> fem_temp;
     vector<double> temperatures;
+    vector<double> lambdas;
     double kin_energy;              ///< Kinetic energy added due to Berendsen scaling [eV]
+
+    /** Output atom data in .xyz format */
+    void write_xyz(ofstream &outfile) const;
 
     /** Function to increase spatial ordering of mesh nodes */
     void sort_spatial();

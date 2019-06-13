@@ -316,9 +316,13 @@ int ProjectRunaway::prepare_export() {
         if (mesh_changed) {
             temperatures.set_preferences(false, 3, conf.behaviour.interpolation_rank);
             temperatures.interpolate(reader);
-            temperatures.precalc_berendsen();
+            temperatures.precalc_berendsen(true);
         } else {
             temperatures.update_positions(reader);
+            if (last_heat_time == GLOBALS.TIME) {
+                temperatures.calc_interpolation();
+                temperatures.precalc_berendsen(false);
+            }
         }
         end_msg(t0);
         // writing temperatures will be done during Berendsen scaling
