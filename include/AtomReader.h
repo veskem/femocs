@@ -45,7 +45,7 @@ public:
      * @param x1        atomistic velocities in PARCAS units
      * @param box       MD simulation box sizes in Angstroms
      */
-    bool import_parcas(int n_atoms, const double* xyz, const double* vel, const double* box, const Config& conf);
+    bool import_parcas(const int n_atoms, const double* xyz, const double* vel, const double* box, const Config& conf);
 
     /** Import atom coordinates and velocities from LAMMPS and check their rmsd
       * @param n_atoms     number of imported atoms
@@ -54,7 +54,7 @@ public:
       * @param mask        integers showing the region ID where they belong
       * @param groupbit    region ID of atoms to be imported
       */
-     bool import_lammps(int n_atoms, double* xyz, double* vel, int* mask, int groupbit);
+     bool import_lammps(const int n_atoms, const double* const* xyz, const double* const* vel, const int* mask, const int groupbit);
 
     /** Import atom coordinates and types and check their rmsd */
     bool import_atoms(const int n_atoms, const double* x, const double* y, const double* z, const int* types);

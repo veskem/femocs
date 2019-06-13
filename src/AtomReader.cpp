@@ -72,7 +72,7 @@ bool AtomReader::calc_rms_distance() {
 
     const size_t n_atoms = size();
     if (n_atoms != previous_points.size())
-        return DBL_MAX;
+        return true;
     
     double sum = 0;
     for (size_t i = 0; i < n_atoms; ++i) {
@@ -415,7 +415,7 @@ bool AtomReader::import_atoms(const int n_atoms, const double* x, const double* 
     return false;
 }
 
-bool AtomReader::import_parcas(int n_atoms, const double* xyz,
+bool AtomReader::import_parcas(const int n_atoms, const double* xyz,
         const double* vel, const double* box, const Config& conf)
 {
     require(n_atoms > 0, "Zero input atoms detected!");
@@ -442,7 +442,9 @@ bool AtomReader::import_parcas(int n_atoms, const double* xyz,
     return false;
 }
 
-bool AtomReader::import_lammps(int n_atoms, double* xyz, double* vel, int* mask, int groupbit) {
+bool AtomReader::import_lammps(const int n_atoms, const double* const* xyz,
+        const double* const* vel, const int* mask, const int groupbit)
+{
     require(n_atoms > 0, "Zero input atoms detected!");
 
     // reserve memory for stored atoms
@@ -453,16 +455,14 @@ bool AtomReader::import_lammps(int n_atoms, double* xyz, double* vel, int* mask,
     atoms.resize(n_store);
     velocities.resize(n_store);
 
-    int cntr = 0;
+    // TODO In case of groupbit != all, ID value might exceed n_store.
+    // Figure out how to store the atoms properly or consider ignoring groupbit.
+    n_store = 0;
     for (int i = 0; i < n_atoms; ++i) {
         if (mask[i] & groupbit) {
-            int I=3*i;
-            require( xyz[I]==xyz[I] && xyz[I+1]==xyz[I+1] && xyz[I+2]==xyz[I+2],
-                "Invalid coordinates of " + d2s(i) + "th point:" + d2s(Point3(xyz[I],xyz[I+1],xyz[I+2])) );
-
-            atoms[cntr] = Atom(i, Point3(xyz[I], xyz[I+1], xyz[I+2]), TYPES.BULK);
-            velocities[cntr] = Vec3(vel[I], vel[I+1], vel[I+2]);
-            cntr++;
+            atoms[n_store] = Atom(i, Point3(xyz[i][0], xyz[i][1], xyz[i][2]), TYPES.BULK);
+            velocities[n_store] = Vec3(vel[i][0], vel[i][1], vel[i][2]) * 1e-3;  // Lammps velocities are in Angstrom / ps
+            n_store++;
         }
     }
 

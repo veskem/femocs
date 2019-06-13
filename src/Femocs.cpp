@@ -131,10 +131,12 @@ int Femocs::import_atoms(const string& file_name, const int add_noise) {
     return 0;
 }
 
-int Femocs::import_lammps(int n_atoms, double* xyz, double* vel, int* mask, int groupbit) {
+int Femocs::import_lammps(const int n_atoms, const double* const* xyz,
+        const double* const* vel, const int* mask, const int groupbit)
+{
     clear_log();
 
-    start_msg(t0, "=== Importing atoms...");
+    start_msg(t0, "Importing atoms");
     bool system_changed = reader.import_lammps(n_atoms, xyz, vel, mask, groupbit);
     end_msg(t0);
     write_verbose_msg( "#input atoms: " + d2s(reader.size()) );

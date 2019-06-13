@@ -58,7 +58,7 @@ public:
      * @param mask        integers showing the region ID where they belong
      * @param groupbit    region ID of atoms to be imported
      */
-    int import_lammps(int n_atoms, double* xyz, double* vel, int* mask, int groupbit);
+    int import_lammps(const int n_atoms, const double* const* xyz, const double* const* vel, const int* mask, const int groupbit);
 
     /** Function to import coordinates and types of atoms
      * @param n_atoms   number of imported atoms
