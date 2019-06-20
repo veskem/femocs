@@ -700,58 +700,71 @@ int HeatReader::scale_berendsen(double* x1, const int n_export_atoms,
     const int n_atoms = size();
     check_return(n_atoms == 0, "No velocities to export!");
 
-    require(conf.heating.tau > 0, "Invalid heat time constant: " + d2s(conf.heating.tau));
-    const double timestep_over_tau = conf.behaviour.timestep_fs / conf.heating.tau;
     const double heat_factor = this->heat_factor * conf.behaviour.mass;
     const double energy_factor = 0.5 * conf.behaviour.mass * this->amu;
 
+    calc_lambdas(velocities, conf);
+
+    temperatures.resize(n_atoms);
+    kin_energy = 0;
+    for (int i = 0; i < n_atoms; ++i) {
+        double lambda = lambdas[i];
+        int id = get_id(i);
+        require(id >= 0, "Invalid ID of " + d2s(i) + "th atom: " + d2s(id));
+        if (lambda <= 0 || id >= n_export_atoms) {
+            temperatures[i] = 0;
+            continue;
+        }
+
+        int I = 3 * id;
+        for (int j = 0; j < 3; ++j)
+            x1[I++] *= lambda;
+
+        // store scaled temperature and added energy
+        double v_squared = velocities[id].norm2();
+        temperatures[i] =  v_squared * heat_factor * lambda;
+        kin_energy += v_squared * energy_factor * (1.0-lambda*lambda);
+    }
+
+    write("berendsen.movie");
+    return 0;
+}
+
+void HeatReader::calc_lambdas(const vector<Vec3>& velocities, const Config& conf) {
+    const int n_atoms = size();
     const unsigned int n_tets = tet2atoms.size();
     require(n_tets > 0, "Data is missing for Berendsen thermostat!");
     require(fem_temp.size() == n_tets, "Mismatch between vector sizes: "
-            + d2s(n_tets) + ", " + d2s(fem_temp.size()));
+            + d2s(n_tets) + " vs " + d2s(fem_temp.size()));
+    require(conf.heating.tau > 0, "Invalid Berendsen time constant: "
+            + d2s(conf.heating.tau));
+    const double timestep_over_tau = conf.behaviour.timestep_fs / conf.heating.tau;
+    const double heat_factor = this->heat_factor * conf.behaviour.mass;
 
-    temperatures.resize(n_atoms);
     lambdas.resize(n_atoms);
+    double lambda = 0;
 
-    kin_energy = 0;
     for (unsigned int tet = 0; tet < n_tets; ++tet) {
         int n_atoms_in_tet = tet2atoms[tet].size();
         if (n_atoms_in_tet) {
 
             // calculate average temperature of atoms inside a tetrahedron
-            double v_squared = 0;
-            for (int atom : tet2atoms[tet]) {
-                int id = get_id(atom);
-                if (id < 0 || id >= n_export_atoms) continue;
-                v_squared += velocities[id].norm2();
-            }
-            double md_temp = v_squared * heat_factor / n_atoms_in_tet;
-            if (md_temp < 1e-100) continue;
+            double md_temp = 0;
+            for (int atom : tet2atoms[tet])
+                md_temp += velocities[get_id(atom)].norm2();
+            md_temp *= heat_factor / n_atoms_in_tet;
 
             // calculate scaling factor
-            double lambda = sqrt(1.0 + timestep_over_tau * (fem_temp[tet] / md_temp - 1.0));
+            if (md_temp/fem_temp[tet] < 1e-10)
+                lambda = 0;
+            else
+                lambda = sqrt(1.0 + timestep_over_tau * (fem_temp[tet] / md_temp - 1.0));
 
-            // store added kinetic energy
-            kin_energy += energy_factor * v_squared * (1.0-lambda*lambda);
-
-            // scale the velocities towards tetrahedron temperature
-            for (int atom : tet2atoms[tet]) {
-                int id = get_id(atom);
-                if (id < 0 || id >= n_export_atoms) continue;
-
-                int I = 3 * id;
-                for (int j = 0; j < 3; ++j)
-                    x1[I+j] *= lambda;
-
-                // store scaled temperature and scaling factor
-                temperatures[atom] = velocities[id].norm2() * heat_factor * lambda;
+            // store scaling factor
+            for (int atom : tet2atoms[tet])
                 lambdas[atom] = lambda;
-            }
         }
     }
-
-    write("berendsen.movie");
-    return 0;
 }
 
 int HeatReader::export_kin_energy(const string &data_type, double* energy) const {

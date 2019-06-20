@@ -281,6 +281,9 @@ private:
     /** Function to increase spatial ordering of mesh nodes */
     void sort_spatial();
     void sort_spatial(const TetgenMesh* mesh);
+
+    /** Calculate temperature scaling factors for Berendsen thermostat */
+    void calc_lambdas(const vector<Vec3>& velocities, const Config& conf);
 };
 
 /** Class to calculate charges from electric field */
