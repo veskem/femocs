@@ -447,27 +447,39 @@ bool AtomReader::import_lammps(const int n_atoms, const double* const* xyz,
 {
     require(n_atoms > 0, "Zero input atoms detected!");
 
-    // reserve memory for stored atoms
+    // TODO In case of groupbit != all, ID value might exceed n_store.
+    // Figure out how to store the atoms properly or consider ignoring groupbit.
+
     int n_store = 0;
     for (int i = 0; i < n_atoms; ++i)
         if (mask[i] & groupbit)
             n_store++;
-    atoms.resize(n_store);
-    velocities.resize(n_store);
 
-    // TODO In case of groupbit != all, ID value might exceed n_store.
-    // Figure out how to store the atoms properly or consider ignoring groupbit.
+    // store velocities, in case data is provided
+    if (vel) {
+        velocities.resize(n_store);
+        n_store = 0;
+        for (int i = 0; i < n_atoms; ++i) {
+            if (mask[i] & groupbit)
+                // Lammps velocities are in Angstrom / ps
+                velocities[n_store++] = Vec3(vel[i][0], vel[i][1], vel[i][2]) * 1e-3;
+        }
+    }
+
+    if (!xyz) return false;
+
+    // store coordinates, in case data is provided
+    atoms.resize(n_store);
     n_store = 0;
     for (int i = 0; i < n_atoms; ++i) {
-        if (mask[i] & groupbit) {
-            atoms[n_store] = Atom(i, Point3(xyz[i][0], xyz[i][1], xyz[i][2]), TYPES.BULK);
-            velocities[n_store] = Vec3(vel[i][0], vel[i][1], vel[i][2]) * 1e-3;  // Lammps velocities are in Angstrom / ps
-            n_store++;
-        }
+        if (mask[i] & groupbit)
+            atoms[n_store++] = Atom(i, Point3(xyz[i][0], xyz[i][1], xyz[i][2]), TYPES.BULK);
     }
 
     calc_statistics();
 
+    // measure the RMS distance atoms have moved
+    // and take action if RMSD >= threshold
     if (calc_rms_distance()) {
         cluster = vector<int>(n_store, 0);
         coordination = vector<int>(n_store, 0);
