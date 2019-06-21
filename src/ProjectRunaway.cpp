@@ -302,7 +302,7 @@ int ProjectRunaway::prepare_export() {
     if (mesh_changed) {
         fields.set_preferences(false, 2, conf.behaviour.interpolation_rank);
         fields.interpolate(dense_surf);
-    } else {
+    } else if (conf.run.smooth_updater) {
         fields.update_positions(dense_surf);
         fields.calc_interpolation();
     }
@@ -318,7 +318,8 @@ int ProjectRunaway::prepare_export() {
             temperatures.interpolate(reader);
             temperatures.precalc_berendsen(true);
         } else {
-            temperatures.update_positions(reader);
+            if (conf.run.smooth_updater || (last_heat_time == GLOBALS.TIME))
+                temperatures.update_positions(reader);
             if (last_heat_time == GLOBALS.TIME) {
                 temperatures.calc_interpolation();
                 temperatures.precalc_berendsen(false);
@@ -332,7 +333,7 @@ int ProjectRunaway::prepare_export() {
     if (conf.force.mode != "none") {
         if (mesh_changed)
             retval = solve_force();
-        else {
+        else if (conf.run.smooth_updater) {
             start_msg(t0, "Recalculating forces");
             forces.update_positions(dense_surf);
             forces.recalc_lorentz(fields);
@@ -607,8 +608,12 @@ int ProjectRunaway::export_data(double* data, const int n_points, const string &
     if (temperatures.contains(data_type, LABELS.kin_energy))
         return temperatures.export_kin_energy(data_type, data);
 
-    if (temperatures.contains(data_type, LABELS.velocity, LABELS.parcas_velocity))
-        return temperatures.scale_berendsen(data, n_points, *reader.get_velocities(), conf);
+    if (temperatures.contains(data_type, LABELS.velocity, LABELS.parcas_velocity)) {
+        start_msg(t0, "Running Berendsen thermostat");
+        fail = temperatures.scale_berendsen(data, n_points, *reader.get_velocities(), conf);
+        end_msg(t0);
+        return fail;
+    }
 
     write_silent_msg("Unimplemented type of export data: " + data_type);
     return 1;

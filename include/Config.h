@@ -79,6 +79,7 @@ public:
         bool output_cleaner;        ///< Clear output folder before the run
         bool surface_cleaner;       ///< Clean surface by measuring the atom distance from the triangular surface
         bool field_smoother;        ///< Replace nodal field with the average of its neighbouring nodal fields
+        bool smooth_updater;        ///< Force and field will be evaluated, fully or partially, every time step
     } run;
 
     /** Sizes related to mesh, atoms and simubox */

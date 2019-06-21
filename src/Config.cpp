@@ -38,6 +38,7 @@ Config::Config() {
     run.output_cleaner = true;
     run.surface_cleaner = true;
     run.field_smoother = true;
+    run.smooth_updater = true;
 
     geometry.nnn = 12;
     geometry.latconst = 3.61;
@@ -217,6 +218,7 @@ void Config::read_all(const string& fname, bool full_run) {
     read_command("mesh_file", path.mesh_file);
     read_command("restart_file", path.restart_file);
 
+    read_command("smooth_update", run.smooth_updater);
     read_command("cluster_anal", run.cluster_anal);
     read_command("refine_apex", run.apex_refiner);
     read_command("use_rdf", run.rdf);
