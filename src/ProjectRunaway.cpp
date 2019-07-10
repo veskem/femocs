@@ -514,7 +514,7 @@ int ProjectRunaway::make_pic_step(int& n_lost, int& n_cg, int& n_injected, bool 
     surface_fields.calc_interpolation();
 
     // calculate field emission and Nottingham heat
-    int error_code = emission.calc_emission(conf.emission, conf.field.V0);
+    int error_code = emission.calc_emission(conf.emission, 0.);
     if (error_code == -10)
         check_return(true, "Current density is out of limits, Jmax=" + d2s(emission.global_data.Jmax));
     check_return(error_code, "Emission calculation failed with error code " + d2s(error_code));
