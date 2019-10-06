@@ -39,7 +39,7 @@ femocs_release:
 
 debug: femocs_dlib femocs_debug
 femocs_debug:
-	@make -s -f build/makefile.main build/femocs_debug main=${CXXMAIN} compiler=${CXX}
+	make -s -f build/makefile.main build/femocs_debug main=${CXXMAIN} compiler=${CXX}
 
 #release: femocs_release
 #femocs_release:

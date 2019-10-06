@@ -19,7 +19,7 @@ namespace femocs {
 Femocs::Femocs() : t0(0), reader(&conf.geometry), project(NULL)
 {}
 
-Femocs::Femocs(const string &conf_file) : t0(0), reader(&conf.geometry) {
+Femocs::Femocs(const string &conf_file) : t0(0), reader(&conf.geometry), project(NULL) {
     init(conf_file);
 }
 
