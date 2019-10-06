@@ -169,7 +169,7 @@ int ProjectSpaceCharge::converge_pic() {
         double err = (emission.stats.Itot_mean - I_mean_prev) / emission.stats.Itot_mean;
 
         if (MODES.VERBOSE){
-            printf("t = %.2e ps, i=%d, I_mean= %e A, I_std=%.2f \%, error=%.2f \%, inj=%d, del=%d\n",
+            printf("t=%.2e ps, i=%d, I_mean=%e, I_std=%.2f, error=%.2f, #inj=%d, #del=%d\n",
                     GLOBALS.TIME * 1.e-3, i, emission.stats.Itot_mean,
                     100. * emission.stats.Itot_std / emission.stats.Itot_mean,
                     100 * err, pic_solver.get_injected(), pic_solver.get_removed());

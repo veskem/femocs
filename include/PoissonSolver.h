@@ -87,7 +87,7 @@ private:
     void mark_mesh();
 
     /** Return the boundary condition value at the centroid of face */
-    double get_face_bc(const unsigned int face) const;;
+    double get_face_bc(const unsigned int face) const;
 
     /** Assemble left-hand-side of matrix equation in a parallel manner */
     void assemble_parallel();
