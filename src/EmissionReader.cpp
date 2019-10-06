@@ -199,7 +199,7 @@ int EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
         if (Veff <= 0)
             cur_dens_c(&gt); // calculate emission
         else
-            cur_dens_SC(&gt, Veff);
+            cur_dens_SC(&gt);
 
         J = gt.Jem * nm2_per_angstrom2; // current density in femocs units
 
@@ -210,7 +210,7 @@ int EmissionReader::calc_emission(const Config::Emission &conf, double Veff,
                 cur_dens_c(&gt); // calculate emission
             else {
                 gt.voltage = Veff;
-                cur_dens_SC(&gt, Veff);
+                cur_dens_SC(&gt);
             }
 
 //            if (gt.ierr != 0) {
@@ -346,4 +346,4 @@ void EmissionReader::calc_global_stats(){
     stats.Frep.resize(0);
 }
 
-}
+} // namespace femocs

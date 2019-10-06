@@ -156,6 +156,6 @@ private:
     friend class Pic<3>;   // for convenience, allow Pic-class to access private data
 };
 
-}
+} // namespace femocs
 
 #endif /* EMISSIONREADER_H_ */
