@@ -1,45 +1,38 @@
-elfield  = -0.35  # Max value of applied elctric field (V/Å)
-Vappl = 100
+infile = in/flat.ckx
+write_period = 0.1
+clear_output = true
+femocs_verbose_mode = verbose  # enable or disable the verbose mode
+
+latconst = 8.57
+coarse_factor = 0.1 2 0        # coarsening factor; bigger number gives coarser surface; 1st is substrate, 2nd is shank, 3rd is apex
+smooth_steps = 3               # number of surface mesh smoothing iterations
+interpolation_rank = 2
+distance_tol = 0
+#element_volume = 1000         # [Angstrom^3]
+mesh_quality = 1.8
+
+charge_smooth_factor = 1.0
+radius = 20.0
+box_height = 15
+box_width = 15
+bulk_height = 5.0
+
+clean_surface = false
+femocs_periodic = false
+
+force_mode = none
+heat_mode = transient
+field_mode = transient
+
+elfield  = -0.7  # Max value of applied elctric field (V/Angstrom)
+Vappl = 100      # Applied voltage in case of anode_BC == dirichlet
 anode_BC = dirichlet
 
-workfunc = 4.5 
-space_charge = false
-maxerr_SC = 1.e-3
-latconst = 3.5; #Characteristic length, [Å], scaling box_height etc. 
-#coarse_factor = 0.001 6 6;    # coarsening factor; bigger number gives coarser surface; first is plate, second is shank, third is apex
-coarse_factor = 0 0 0
-smooth_steps = 5             # number of surface mesh smoothing iterations
-smooth_algorithm = fujiwara  # surface mesh smoother algorithm; none, laplace, fujiwara
-heating_mode = transient
-element_degree = 2
-
-
-distance_tol = 0;
-femocs_verbose_mode = verbose;     # enable or disable the verbose mode
-#element_volume = 0 #10x10x10 Angstrom
-mesh_quality = 1.3
-n_writefile = 1
-surface_cleaner = none; #faces or voronois
-charge_smooth_factor = 1.0;
-infile = in/flat.ckx
-femocs_periodic = false
-clear_output = true
-coord_cutoff = 3.1
-#cluster_cutoff = 4.2
-radius = 10000.0  #inner radius of coarsening cylinder
-box_height = 30
-box_width = 0.
-bulk_height = 5.
+work_function = 4.5
 emitter_blunt = true
 emitter_cold = true
-
-
-# PIC parameters
----------------------
-field_solver = poisson
-pic_mode = converge
-PIC_dtmax = .01 #[fs]
-PIC_time = 10 #[fs]
-PIC_fractional_push = true
-PIC_collide_coulomb_ee = false
-electronWsp = 0.0002
+pic_periodic = true
+pic_collide_ee = true
+pic_dtmax = 0.5                 #[fs]
+md_timestep = 10                #[fs]
+electron_weight = 0.0002

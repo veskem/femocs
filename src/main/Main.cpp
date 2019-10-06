@@ -25,13 +25,13 @@ void print_progress(const string& message, const bool contition) {
 void write_defaults(ofstream &file) {
     file << "project = runaway"          << endl;
     file << "mesh_quality = 1.8"         << endl;
-    file << "heating_mode = none"        << endl;
+    file << "heat_mode = none"           << endl;
     file << "clear_output = true"        << endl;
     file << "surface_smooth_factor= 0.1" << endl;
     file << "charge_smooth_factor = 1.0" << endl;
     file << "distance_tol = 0.0"         << endl;
     file << "n_write_log = -1"           << endl;
-    file << "n_writefile = 1"            << endl;
+    file << "write_period = 4.05"        << endl;
     file << "use_rdf = false"            << endl;
     file << "clean_surface = true"       << endl;
     file << "surface_thickness = 3.1"    << endl;
@@ -41,25 +41,74 @@ void write_defaults(ofstream &file) {
     file << "femocs_verbose_mode = verbose" << endl;
     file << "smooth_steps = 3"           << endl;
     file << "smooth_algorithm = laplace" << endl;
-    file << "elfield = -0.1"             << endl;
+    file << "elfield = -0.5"             << endl;
     file << "interpolation_rank = 1"     << endl;
     file << "force_mode = all"           << endl;
     file << "coarse_rate = 0.5"          << endl;
-    file << "seed = 56789"               << endl;
+    file << "field_mode = transient"     << endl;
+    file << "seed = 12345"               << endl;
 }
 
 void write_rectangle(ofstream &file) {
     file << "infile = in/nanotip_rectangle.xyz" << endl;
-    file << "coarse_factor = 0.3 4 2"        << endl;
-    file << "radius = 14.0"                  << endl;
+    file << "coarse_factor = 0.3 4 2"    << endl;
+    file << "radius = 14.0"              << endl;
+}
+
+void write_flat(ofstream &file) {
+    file << "infile = in/flat.ckx"       << endl;
+    file << "write_period = 0.1"         << endl;
+
+//    file << "element_volume = 100"       << endl;
+//    file << "mesh_quality = 1.3"         << endl;
+    file << "latconst = 8.57"            << endl;
+    file << "interpolation_rank = 2"     << endl;
+    file << "coarse_factor = 0.1 2 0"    << endl;
+
+    file << "radius = 20.0"              << endl;
+    file << "box_height = 15"            << endl;
+    file << "box_width = 15"             << endl;
+    file << "bulk_height = 5.0"          << endl;
+
+    file << "force_mode = none"          << endl;
+    file << "heat_mode = transient"      << endl;
+    file << "clean_surface = false"      << endl;
+    file << "femocs_periodic = false"    << endl;
+
+    file << "elfield = -0.7"             << endl;
+    file << "Vappl = 100"                << endl;
+    file << "anode_BC = dirichlet"       << endl;
+
+    file << "work_function = 4.5"        << endl;
+    file << "emitter_blunt = true"       << endl;
+    file << "emitter_cold = true"        << endl;
+
+    file << "md_timestep = 10"           << endl;
+    file << "pic_dtmax = 0.5"            << endl;
+    file << "pic_periodic = true"        << endl;
+    file << "pic_collide_ee = true"      << endl;
+    file << "electron_weight = 0.0002"   << endl;
 }
 
 void write_mdsmall(ofstream &file) {
     file << "infile = in/nanotip_small.xyz" << endl;
     file << "coarse_factor = 0.3 4 2"    << endl;
     file << "radius = 16.0"              << endl;
-    file << "box_width = 4.0"            << endl;
-    file << "box_height = 3.5"           << endl;
+    file << "box_width = 5.0"            << endl;
+    file << "box_height = 5.0"           << endl;
+    file << "field_mode = laplace"       << endl;
+    file << "heat_mode = none"           << endl;
+}
+
+void write_mdbig(ofstream &file) {
+    file << "infile = in/nanotip_big.xyz"<< endl;
+    file << "coarse_factor = 0.3 4 2"    << endl;
+    file << "radius = 16.0"              << endl;
+    file << "box_width = 10.0"           << endl;
+    file << "box_height = 5.0"           << endl;
+    file << "field_mode = transient"     << endl;
+    file << "pic_dtmax = 0.51"           << endl;
+    file << "heat_mode = transient"      << endl;
 }
 
 void write_heating_small(ofstream &file) {
@@ -70,90 +119,83 @@ void write_heating_small(ofstream &file) {
     file << "box_height = 3.5"           << endl;
 
     file << "elfield = -0.3"             << endl;
-    file << "heating_mode = transient"   << endl;
-    file << "field_solver = laplace"     << endl;
+    file << "heat_mode = transient"      << endl;
+    file << "field_mode = laplace"       << endl;
 }
 
 void write_heating_big(ofstream &file) {
-    file << "infile = in/tip100.ckx"   << endl;
-    file << "coarse_factor = 0.4 8 3"  << endl;
-    file << "radius = 45.0"            << endl;
+    file << "infile = in/tip100.ckx"     << endl;
+    file << "coarse_factor = 0.4 8 3"    << endl;
+    file << "radius = 45.0"              << endl;
 
-    file << "elfield = -0.2"           << endl;
-    file << "heating_mode = transient" << endl;
-    file << "field_solver = poisson"   << endl;
-    file << "pic_mode = transient"     << endl;
-    file << "pic_collide_ee = true"    << endl;
-}
-
-void write_mdbig(ofstream &file) {
-    file << "infile = in/nanotip_big.xyz" << endl;
-    file << "coarse_factor = 0.3 4 2" << endl;
-    file << "radius = 16.0"           << endl;
+    file << "elfield = -0.2"             << endl;
+    file << "heat_mode = transient"      << endl;
+    file << "field_mode = transient"     << endl;
+    file << "pic_collide_ee = true"      << endl;
 }
 
 void write_kmcsmall(ofstream &file) {
-    file << "infile = in/mushroom1.ckx" << endl;
-    file << "coarse_factor = 0.3 6 4" << endl;
-    file << "latconst = 2.0"          << endl;
-    file << "radius = 11.0"           << endl;
-    file << "clean_surface = false"  << endl;
+    file << "infile = in/mushroom1.ckx"  << endl;
+    file << "coarse_factor = 0.3 6 4"    << endl;
+    file << "latconst = 2.0"             << endl;
+    file << "radius = 11.0"              << endl;
+    file << "clean_surface = false"      << endl;
 }
 
 void write_kmcbig(ofstream &file) {
-    file << "infile = in/mushroom2.ckx" << endl;
-    file << "coarse_factor = 0.4 6 4" << endl;
-    file << "latconst = 2.0"          << endl;
-    file << "radius = 20.0"           << endl;
-    file << "clean_surface = false"  << endl;
-    file << "mesh_quality = 1.6"      << endl;
+    file << "infile = in/mushroom2.ckx"  << endl;
+    file << "coarse_factor = 0.4 6 4"    << endl;
+    file << "latconst = 2.0"             << endl;
+    file << "radius = 20.0"              << endl;
+    file << "clean_surface = false"      << endl;
+    file << "mesh_quality = 1.6"         << endl;
 }
 
 void write_kmcregular(ofstream &file) {
-    file << "infile = in/kmc_regular.ckx" << endl;
-    file << "coarse_factor = 0.4 6 4" << endl;
-    file << "latconst = 3.6935"       << endl;
-    file << "radius = 42.0"           << endl;
-    file << "box_width = 5.0"         << endl;
-    file << "box_height = 5.0"        << endl;
-    file << "clean_surface = false"  << endl;
+    file << "infile = in/kmc_regular.ckx"<< endl;
+    file << "coarse_factor = 0.4 6 4"    << endl;
+    file << "latconst = 3.6935"          << endl;
+    file << "radius = 42.0"              << endl;
+    file << "box_width = 5.0"            << endl;
+    file << "box_height = 5.0"           << endl;
+    file << "clean_surface = false"      << endl;
 }
 
 void write_stretch(ofstream &file) {
-    file << "infile = in/nanotip_big.xyz" << endl;
-    file << "coarse_factor = 0.3 4 2" << endl;
-    file << "radius = 16.0"           << endl;
-    file << "box_width = 4.0"         << endl;
-    file << "box_height = 3.5"        << endl;
-    file << "bulk_height = 20"        << endl;
+    file << "infile = in/nanotip_big.xyz"<< endl;
+    file << "coarse_factor = 0.3 4 2"    << endl;
+    file << "radius = 16.0"              << endl;
+    file << "box_width = 4.0"            << endl;
+    file << "box_height = 3.5"           << endl;
+    file << "bulk_height = 20"           << endl;
 }
 
 void write_extend(ofstream &file) {
     file << "extended_atoms = in/extension.xyz" << endl;
-    file << "infile = in/apex.ckx"              << endl;
-    file << "coarse_factor = 0.3 6 4" << endl;
-    file << "femocs_periodic = false" << endl;
-    file << "radius = 70.0"           << endl;
+    file << "infile = in/apex.ckx"       << endl;
+    file << "coarse_factor = 0.3 6 4"    << endl;
+    file << "femocs_periodic = false"    << endl;
+    file << "radius = 70.0"              << endl;
 }
 
 void write_tablet(ofstream &file) {
     file << "extended_atoms = in/extension.xyz" << endl;
-    file << "infile = in/tablet.ckx"              << endl;
-    file << "coarse_factor = 0.3 6 4" << endl;
-    file << "femocs_periodic = false" << endl;
-    file << "radius = 70.0"           << endl;
+    file << "infile = in/tablet.ckx"     << endl;
+    file << "coarse_factor = 0.3 6 4"    << endl;
+    file << "femocs_periodic = false"    << endl;
+    file << "radius = 70.0"              << endl;
 }
 
 void write_cluster(ofstream &file) {
-    file << "infile = in/clusters.xyz" << endl;
-    file << "coarse_factor = 0.3 6 4" << endl;
-    file << "radius = 12.0"           << endl;
+    file << "infile = in/clusters.xyz"   << endl;
+    file << "coarse_factor = 0.3 6 4"    << endl;
+    file << "radius = 12.0"              << endl;
 }
 
 void write_molten(ofstream &file) {
     file << "infile = in/nanotip_molten.xyz" << endl;
-    file << "coarse_factor = 0.4 8 3"  << endl;
-    file << "radius = 45.0"            << endl;
+    file << "coarse_factor = 0.4 8 3"    << endl;
+    file << "radius = 45.0"              << endl;
 }
 
 void write_moltenrdf(ofstream &file) {
@@ -200,50 +242,45 @@ void write_generate(ofstream &file, string params="") {
     file << "coarse_rate = 0.5"        << endl;
     file << "seed = 12345"             << endl;
 
-    file << "n_writefile = 1"          << endl;
+    file << "write_period = 4.05"      << endl;
 
-//    file << "Vappl = 200"              << endl;
-//    file << "anode_BC = dirichlet"     << endl;
     file << "anode_BC = neumann"       << endl;
     file << "elfield = -0.35"          << endl;
-    file << "heating_mode = none"      << endl;
-    file << "field_solver = poisson"   << endl;
-    file << "pic_mode = transient"     << endl;
+    file << "heat_mode = none"         << endl;
+    file << "field_mode = transient"   << endl;
 
-    file << "pic_dtmax = 1.0"              << endl;
-    file << "femocs_run_time = 4"          << endl;
-    file << "pic_fractional_push = true"   << endl;
-    file << "pic_collide_coulomb_ee = false" << endl;
-    file << "electronWsp = 0.0002"         << endl;
-    file << "emitter_blunt = true"         << endl;
-    file << "emitter_cold = true"          << endl;
+    file << "pic_dtmax = 1.0"          << endl;
+    file << "md_timestep = 4"          << endl;
+    file << "pic_fractional_push = true" << endl;
+    file << "pic_collide_ee = false"   << endl;
+    file << "electron_weight = 0.0002" << endl;
+    file << "emitter_blunt = true"     << endl;
+    file << "emitter_cold = true"      << endl;
 }
 
 void write_read_mesh(ofstream &file, string params="") {
     file << params << endl;
 
-    file << "mesh_file = in/hemicone.msh"  << endl;
-    file << "radius = 10"              << endl;
-    file << "box_width = 10.0"         << endl;
-    file << "box_height = 10.0"        << endl;
-    file << "bulk_height = 10.0"       << endl;
-    file << "seed = 12345"             << endl;
-    file << "n_writefile = 1"          << endl;
+    file << "mesh_file = in/hemicone.msh"<< endl;
+    file << "radius = 10"                << endl;
+    file << "box_width = 10.0"           << endl;
+    file << "box_height = 10.0"          << endl;
+    file << "bulk_height = 10.0"         << endl;
+    file << "write_period = 4.05"        << endl;
 
-    file << "anode_BC = neumann"       << endl;
-    file << "elfield = -0.2"          << endl;
-    file << "heating_mode = none"      << endl;
-    file << "force_mode = none"        << endl;
-    file << "field_solver = poisson"   << endl;
-    file << "pic_mode = transient"     << endl;
+    file << "anode_BC = neumann"         << endl;
+    file << "elfield = -0.2"             << endl;
+    file << "heat_mode = none"           << endl;
+    file << "force_mode = none"          << endl;
+    file << "field_mode = transient"     << endl;
 
-    file << "pic_dtmax = 1.0"              << endl;
-    file << "femocs_run_time = 4"          << endl;
-    file << "pic_fractional_push = true"   << endl;
-    file << "pic_collide_coulomb_ee = false" << endl;
-    file << "electronWsp = 0.0002"         << endl;
-    file << "emitter_blunt = true"         << endl;
-    file << "emitter_cold = true"          << endl;
+    file << "pic_dtmax = 1.0"            << endl;
+    file << "md_timestep = 4"            << endl;
+    file << "pic_fractional_push = true" << endl;
+    file << "pic_collide_ee = false"     << endl;
+    file << "electron_weight = 0.0002"   << endl;
+    file << "emitter_blunt = true"       << endl;
+    file << "emitter_cold = true"        << endl;
 }
 
 void read_xyz(const string &file_name, double* x, double* y, double* z) {
@@ -358,6 +395,7 @@ int main(int argc, char **argv) {
         else if (mode == "molten")    write_molten(file);
         else if (mode == "moltenrdf") write_moltenrdf(file);
         else if (mode == "read_mesh") write_read_mesh(file);
+        else if (mode == "flat")      write_flat(file);
         else if (mode == "generate") {
             if (argc == 2)
                 write_generate(file);
@@ -407,6 +445,7 @@ int main(int argc, char **argv) {
             printf("  moltenrdf      RDF coordinated symmetric MD nanotip with molten apex\n");
             printf("  generate       generate and use perfectly symmetric nanotip without crystallographic properties\n");
             printf("  read_mesh      read mesh from file\n");
+            printf("  flat           run PIC between two plane-parallel electrodes\n");
 
             file.close();
             exit(0);
