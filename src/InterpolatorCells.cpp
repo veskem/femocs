@@ -309,10 +309,10 @@ int InterpolatorCells<dim>::locate_cell(const Point3 &point, const int cell_gues
 template<int dim>
 int InterpolatorCells<dim>::locate_centroid(const Point3 &point, const int cell_guess) const {
     const int n_cells = centroids.size();
-    require(cell_guess >= 0 && cell_guess < n_cells, "Index out of bounds: " + d2s(cell_guess));
+    require(cell_guess < n_cells, "Index out of bounds: " + d2s(cell_guess));
 
     // Check the guessed centroid
-    if (is_centroid(point, cell_guess))
+    if (cell_guess >= 0 && is_centroid(point, cell_guess))
         return cell_guess;
 
     // In case of no success, loop through all the centroids

@@ -63,7 +63,7 @@ void Surface::extend(Surface& extension, double latconst,
     require(coarseners, "Coarseners not provided!");
     require(coarseners->get_r0_inf(sizes) > 0, "Invalid coarsener detected.");
 
-    const double desired_box_width = box_width * sizes.zbox;
+    const double desired_box_width = box_width * max(latconst, sizes.zbox);
 
     // if the input surface isn't sufficiently wide, add atoms to it
     if (desired_box_width > sizes.xbox && desired_box_width > sizes.ybox) {
@@ -72,7 +72,7 @@ void Surface::extend(Surface& extension, double latconst,
         n_generated -= (sizes.xbox / latconst - 1) * (sizes.ybox / latconst - 1);
         extension.reserve(max(0, n_generated));
 
-        const double r_max = sqrt(2) * desired_box_width / 2.0;
+        const double r_max = desired_box_width / 2.0;
         double r_min;
         if (circular) r_min = coarseners->get_radius();
         else r_min = min(sizes.xbox, sizes.ybox) / 2.0;
@@ -82,7 +82,7 @@ void Surface::extend(Surface& extension, double latconst,
 
         // add points along a rectangular spiral
         for (double r = r_min; r <= r_max; r += dR) {
-            const int n_points = int(2.0 * r / dR);
+            const int n_points = int(round(2.0 * r / dR));
             dR = 2.0 * r / n_points;
 
             double x = sizes.xmid - r;
