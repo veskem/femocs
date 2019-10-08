@@ -466,7 +466,7 @@ void CurrentSolver<dim>::assemble_local_cell(const typename DoFHandler<dim>::act
     copy_data.cell_matrix = 0;
     for (unsigned int q = 0; q < n_q_points; ++q) {
         double temperature = prev_temperatures[q];
-        double sigma = this->pq->sigma(temperature);
+        double sigma = 1; //this->pq->sigma(temperature);
 
         for (unsigned int i = 0; i < n_dofs; ++i) {
             for (unsigned int j = 0; j < n_dofs; ++j) {
@@ -524,11 +524,11 @@ void CurrentHeatSolver<dim>::set_dependencies(PhysicalQuantities *pq_, const Con
 template<int dim>
 void CurrentHeatSolver<dim>::export_temp_rho(vector<double> &temp, vector<Tensor<1,dim>> &rho) const {
     heat.export_solution(temp);        // extract temperatures
-    current.export_solution_grad(rho); // extract fields
+    current.export_solution_grad(rho); // extract current densities
 
     // transfer fields to current densities
-    for (int i = 0; i < temp.size(); ++i)
-        rho[i] = pq->sigma(temp[i]) * rho[i];
+//    for (int i = 0; i < temp.size(); ++i)
+//        rho[i] = pq->sigma(temp[i]) * rho[i];
 }
 
 template<int dim>
@@ -551,9 +551,10 @@ void CurrentHeatSolver<dim>::write_xyz(ofstream& out) const {
     heat.export_dofs(support_points);
 
     // extract temperatures and current densities
-    vector<double> temp;
+//    vector<double> temp;
     vector<Tensor<1,dim>> rho;
-    export_temp_rho(temp, rho);
+    current.export_solution_grad(rho); // extract current densities
+//    export_temp_rho(temp, rho);
 
     const int n_dofs = support_points.size();
     const int n_verts = heat.tria->n_used_vertices();
@@ -568,7 +569,7 @@ void CurrentHeatSolver<dim>::write_xyz(ofstream& out) const {
         out << dof2vertex[i] << " " << Point3(support_points[i]) << " " << Vec3(rho[dof2vertex[i]])
                 << " " << heat.total_heat(i) << " " << heat.total_heat(i) - heat.joule_heat(i)
                 << " " << heat.joule_heat(i) << " " << heat.dof_volume[i] << " " << heat.solution(i)
-                << " " << current.solution(i) << " " << rho[dof2vertex[i]].norm() << "\n";
+                << " " << current.solution(i) / pq->sigma(heat.solution(i)) << " " << rho[dof2vertex[i]].norm() << "\n";
     }
 }
 
