@@ -4,7 +4,7 @@ field into Molecular Dynamics or kinetic Monte Carlo simulations. Current versio
 
 * import the atomistic data,
 * generate finite element mesh around it,
-* solve the Laplace, heat and continuity equations,
+* solve the Poisson's, heat and continuity equations,
 * convert calculated electric field and temperature into atomistic forces and velocities,
 * export results to atomistic simulation. 
 
@@ -15,10 +15,11 @@ simulations.
 
 ## Citing
 FEMOCS is an open-source and freely available code. The details about its algorithms are published in
-[Journal of Computational Physics](https://doi.org/10.1016/j.jcp.2018.04.031). When publishing results
-obtained with the help of FEMOCS, please cite
+[Journal of Computational Physics](https://doi.org/10.1016/j.jcp.2018.04.031) and
+[Physical Review E](https://doi.org/10.1103/PhysRevE.101.053307).
+When publishing results obtained with the help of FEMOCS, please cite
 
-    Veske, M. et al, 2018. Dynamic coupling of a finite element solver to large-scale atomistic simulations. Journal of Computational Physics, 367, pp.279–294.
+    Veske, M. et al, 2020. Dynamic coupling between particle-in-cell and atomistic simulations. Physical Review E, 101(5), p.053307.
 
 ## Instructions to build FEMOCS
 All the build options are displayed with
