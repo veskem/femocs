@@ -653,15 +653,16 @@ public:
     Hexahedra(tetgenio *data) : TetgenCells<8> (data, &data->numberofvcells) {}
     Hexahedra(tetgenio *read, tetgenio *write) :
         TetgenCells<8>(read, write, &read->numberofvcells, &write->numberofvcells) {}
+    ~Hexahedra();
+
+    /** Obtain pointer to the list of hexahedra */
+    const int* get() const { return hexs; }
 
     /** Initialize hexahedra appending */
     void init(const int N);
 
     /** Append hexahedron to the mesh */
     void append(const SimpleCell<8> &cell);
-
-    /** Get number of hexahedra in mesh */
-    int size() const { return hexs.size(); }
 
     /** Return the indices of quadrangles connected to i-th hexahedron */
     vector<int> to_quads(const int i) const {
@@ -687,7 +688,7 @@ public:
     }
 
 protected:
-    vector<SimpleHex> hexs;
+    int* hexs = NULL;
     vector<vector<int>> map2quads;
 
     /** Return the hexahedron type in vtk format */

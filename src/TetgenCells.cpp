@@ -636,21 +636,30 @@ SimpleCell<4> Quadrangles::get_cell(const int i) const {
  *  ============================ Hexahedra ============================
  * ===================================================================== */
 
+Hexahedra::~Hexahedra() {
+    if (hexs != (int *) NULL) delete[] hexs;
+}
+
 void Hexahedra::init(const int N) {
     TetgenCells::init(N);
-    hexs.clear();
-    hexs.reserve(N);
+    if (hexs != (int *) NULL)
+        delete[] hexs;
+    hexs = new int[DIM * N];
 }
 
 void Hexahedra::append(const SimpleCell<8> &cell) {
-    expect(hexs.size() < hexs.capacity(), "Allocated size of cells exceeded!");
-    hexs.push_back(cell);
+    require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
+    int i = DIM * i_cells;
+    for (unsigned int node : cell)
+        hexs[i++] = node;
     i_cells++;
 }
 
 SimpleCell<8> Hexahedra::get_cell(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
-    return hexs[i];
+    const int I = DIM * i;
+    return SimpleHex(hexs[I], hexs[I+1], hexs[I+2], hexs[I+3],
+            hexs[I+4], hexs[I+5], hexs[I+6], hexs[I+7]);
 }
 
 vector<dealii::CellData<3>> Hexahedra::export_vacuum() const {
