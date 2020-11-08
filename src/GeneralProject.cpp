@@ -41,6 +41,16 @@ int GeneralProject::export_data(const int** data, const string& data_type) const
         return mesh->tets.size();
     }
 
+    if (data_type == LABELS.quadrangles) {
+        *data = mesh->quads.get();
+        return mesh->quads.size();
+    }
+
+    if (data_type == LABELS.hexahedra) {
+        *data = mesh->hexs.get();
+        return mesh->hexs.size();
+    }
+
     return -1;
 }
 
