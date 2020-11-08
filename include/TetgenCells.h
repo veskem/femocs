@@ -284,6 +284,9 @@ public:
     TetgenNodes(tetgenio *read, tetgenio *write) :
         TetgenCells<1>(read, write, &read->numberofpoints, &write->numberofpoints) {}
 
+    /** Obtain pointer to the list of node coordinates */
+    const double* get() const { return reads->pointlist; }
+
     /** Modify the coordinates of i-th node */
     void set_node(const int i, const Point3 &point);
 
@@ -394,6 +397,9 @@ public:
     TetgenEdges(tetgenio *read, tetgenio *write)
         : TetgenCells<2>(read, write, &read->numberofedges, &write->numberofedges) {}
 
+    /** Obtain pointer to the list of edges */
+    const int* get() const { return reads->edgelist; }
+
     /** Initialize edge appending */
     void init(const int N);
 
@@ -433,6 +439,9 @@ public:
     TetgenFaces(tetgenio *data) : TetgenCells<3> (data, &data->numberoftrifaces) {}
     TetgenFaces(tetgenio *read, tetgenio *write)
         : TetgenCells<3>(read, write, &read->numberoftrifaces, &write->numberoftrifaces) {}
+
+    /** Obtain pointer to the list of triangles */
+    const int* get() const { return reads->trifacelist; }
 
     /** Initialize face appending */
     void init(const int N);
@@ -519,6 +528,9 @@ public:
     TetgenElements(tetgenio *data) : TetgenCells<4> (data, &data->numberoftetrahedra) {}
     TetgenElements(tetgenio *read, tetgenio *write) :
         TetgenCells<4>(read, write, &read->numberoftetrahedra, &write->numberoftetrahedra) {}
+
+    /** Obtain pointer to the list of tetrahedra */
+    const int* get() const { return reads->tetrahedronlist; }
 
     /** Get indices of neighbouring elements of i-th element */
     vector<int> get_neighbours(const int i) const;

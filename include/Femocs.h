@@ -134,6 +134,20 @@ public:
      */
     int export_data(int* data, const int n_points, const string& data_type);
 
+    /** Export pointer to double data
+     * @param data       pointer to an array where the data is present
+     * @param data_type  label of data to be exported
+     * @return           -1: error; >= 0: nr of data clusters (e.g points) in the array
+     */
+    int export_data(const double** data, const string& data_type) const;
+
+    /** Export pointer to integer data
+     * @param data       pointer to an array where the data is present
+     * @param data_type  label of data to be exported
+     * @return           -1: error; >= 0: nr of data clusters (e.g quadrangles, hexahedra etc) in the array
+     */
+    int export_data(const int** data, const string& data_type) const;
+
     /** Interpolate the solution data in the location of specified points
      * @param data          array where solution data is written; vector data is written component-wise, i.e in a from x1,y1,z1,x2,y2...
      * @param flag          indicators showing the location of point; 0 - point was inside the mesh, 1 - point was outside the mesh
