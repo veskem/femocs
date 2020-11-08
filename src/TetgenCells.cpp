@@ -615,21 +615,29 @@ vector<int> TetgenElements::get_neighbours(const int i) const {
  *  ========================== Quadrangles ===========================
  * ===================================================================== */
 
+Quadrangles::~Quadrangles() {
+    if (quads != (int *) NULL) delete[] quads;
+}
+
 void Quadrangles::init(const int N) {
     TetgenCells::init(N);
-    quads.clear();
-    quads.reserve(N);
+    if (quads != (int *) NULL)
+        delete[] quads;
+    quads = new int[DIM * N];
 }
 
 void Quadrangles::append(const SimpleCell<4> &cell) {
-    expect(quads.size() < quads.capacity(), "Allocated size of cells exceeded!");
-    quads.push_back(cell);
+    require(i_cells < *n_cells_w, "Allocated size of cells exceeded!");
+    int i = DIM * i_cells;
+    for (unsigned int node : cell)
+        quads[i++] = node;
     i_cells++;
 }
 
 SimpleCell<4> Quadrangles::get_cell(const int i) const {
     require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
-    return quads[i];
+    const int I = DIM * i;
+    return SimpleQuad(quads[I], quads[I+1], quads[I+2], quads[I+3]);
 }
 
 /* =====================================================================
