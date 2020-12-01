@@ -12,6 +12,7 @@ dealii/*
 cgal/*
 !cgal/CGAL*.zip
 lib/*.a
+lib/*.so
 lib/*.mod
 build/femocs*
 .build*
@@ -19,3 +20,5 @@ in/md.in
 out/*
 tmpfile
 share/makefile.*
+dealii
+.idea/*

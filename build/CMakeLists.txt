@@ -47,7 +47,7 @@ ENDIF()
 # Specify folders where femocs, libfemocs and its .mod-file will be written
 # Those paths are (not like others) specified in relation to the location of Makefile
 IF (TARGET_TYPE MATCHES lib)
-    SET(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ../../lib)
+    SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY ../../lib)
     SET(CMAKE_Fortran_MODULE_DIRECTORY ../../lib)
 ELSE()
     SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ..)
@@ -56,9 +56,6 @@ ENDIF()
 
 # Specify the path to deal.II files
 SET(DEAL_II_DIR ../dealii)
-
-# Specify the path to CGAL files
-SET(CGAL_DIR ../cgal)
 
 # specify paths to tetgen, getelec and slatec libraries
 SET(TET_DIR ../lib)
@@ -80,11 +77,7 @@ ENDIF()
 SET(TARGET_MAIN ../src/main/Main.cpp)
 
 # path to the directories with headers
-IF (LIBCGAL)
-    INCLUDE_DIRECTORIES(../include ../GETELEC/modules ../cgal/include)
-ELSE()
-    INCLUDE_DIRECTORIES(../include ../GETELEC/modules)
-ENDIF()
+INCLUDE_DIRECTORIES(../include ../GETELEC/modules)
 
 # ==============================================
 # =========== Locate dependencies ==============
@@ -94,20 +87,6 @@ FIND_PACKAGE(deal.II 8.4 REQUIRED HINTS ${DEAL_II_DIR})
 IF ( NOT deal.II_FOUND )
     MESSAGE(FATAL_ERROR "Deal.II not found from " ${DEAL_II_DIR})
 ENDIF()
-
-IF (LIBCGAL)
-    FIND_PACKAGE(CGAL HINTS ${CGAL_DIR})
-    IF ( CGAL_FOUND )
-        MESSAGE(STATUS "Using CGAL from " ${CGAL_DIR})
-        INCLUDE( ${CGAL_USE_FILE} )
-        SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_CGAL=true")
-    ELSE()
-        MESSAGE(FATAL_ERROR "CGAL not found from " ${CGAL_DIR}) 
-    ENDIF()
-ELSE()
-    MESSAGE(STATUS "Disabling usage of CGAL")
-ENDIF()
-
 
 # ==============================================
 # ============= Compilation flags ==============
@@ -164,7 +143,7 @@ MESSAGE(STATUS "DEAL_II_USER_DEFINITIONS_RELEASE = " ${DEAL_II_USER_DEFINITIONS_
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
 
 IF (TARGET_TYPE MATCHES lib)
-    ADD_LIBRARY (${TARGET} STATIC ${TARGET_SRC})
+    ADD_LIBRARY (${TARGET} SHARED ${TARGET_SRC})
     DEAL_II_SETUP_TARGET (${TARGET})
 ELSE()
     ADD_LIBRARY(tet ${TET_DIR})

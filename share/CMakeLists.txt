@@ -91,12 +91,5 @@ IF (${machine} MATCHES "ubuntu")
     #          "sudo ln -s /usr/lib/*/libnetcdf_c++.so.4 /usr/lib/libnetcdf_c++.so") 
     #ENDIF()
 
-    #  mpfr, required by CGAL
-    FIND_PACKAGE(MPFR)
-    IF (NOT MPFR_FOUND)
-      MESSAGE(FATAL_ERROR
-              "libmpfr not found. Please install it by running\n"
-              "sudo apt install libmpfr-dev") 
-    ENDIF()
 ENDIF()
 

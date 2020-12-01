@@ -5,14 +5,14 @@
 include build/makefile.defs
 include share/makefile.femocs
 
-all: GETELEC/Makefile GETELEC/lib/libgetelec.a lib/libtet.a dealii/lib/libdeal_II.a
+all: GETELEC/Makefile GETELEC/lib/libgetelec.a lib/libtet.a dealii/lib/libdeal_II.so
 
 lib/libtet.a:
 	cd tetgen; rm -rf .build; mkdir -p .build
 	cd tetgen/.build; cmake ${TETGEN_FLAGS} ..; make -j${NPROCS}
 	rm -rf tetgen/.build
 
-dealii/lib/libdeal_II.a: dealii/dealii-${DEALII_VER}.tar.gz
+dealii/lib/libdeal_II.so: dealii/dealii-${DEALII_VER}.tar.gz
 	cd dealii; tar -xvf dealii-${DEALII_VER}.tar.gz
 	mkdir -p dealii/dealii-${DEALII_VER}/.build
 	cd dealii/dealii-${DEALII_VER}/.build; cmake ${DEALII_FLAGS} ..; make -j${NPROCS} install
@@ -35,3 +35,4 @@ clean-all:
 	mv dealii/dealii-${DEALII_VER}.tar.gz ..
 	rm -rf lib/libtet.a tetgen/.build dealii/* GETELEC
 	mv dealii-${DEALII_VER}.tar.gz dealii/
+	rm share/makefile.femocs

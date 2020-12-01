@@ -8,6 +8,9 @@
 #
 # Before running make install-alcyone or running Femocs in Alcyone, run
 #   source ./build/load_modules.sh alcyone
+#
+# Before running make install-kale or running Femocs in Kale, run
+#   source ./build/load_modules.sh kale
 #############################################################################
 
 include build/makefile.defs
@@ -65,13 +68,9 @@ install-alcyone:
 	@chmod +x ./build/install.sh
 	@./build/install.sh alcyone
 
-install-cgal:
+install-kale:
 	@chmod +x ./build/install.sh
-	@./build/install.sh cgal
-
-install-no-cgal:
-	@chmod +x ./build/install.sh
-	@./build/install.sh no-cgal
+	@./build/install.sh kale
 
 uninstall-all:
 	@chmod +x ./build/uninstall-all.sh
@@ -97,8 +96,7 @@ help:
 	@echo '       ubuntu   build in Ubuntu desktop Femocs mandatory dependencies'
 	@echo '       taito    build in CSC Taito cluster all the external libraries that Femocs needs'
 	@echo '       alcyone  build in Alcyone cluster all the external libraries that Femocs needs'
-	@echo '       cgal     build CGAL and enable its usage in the code'
-	@echo '       no-cgal  disable CGAL usage in the code'
+	@echo '       kale     build in Kale cluster all the external libraries that Femocs needs'
 	@echo ''
 	@echo 'make uninstall-'
 	@echo '       all      remove all installation files'
