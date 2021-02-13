@@ -22,7 +22,8 @@ namespace femocs {
  * ========================================== */
 
 SolutionReader::SolutionReader() :
-        vec_label("vec"), scalar1_label("scalar1"), scalar2_label("scalar2"),
+        vec_label("vec"), vec_norm_label("vec_norm"),
+        scalar1_label("scalar1"), scalar2_label("scalar2"),
         limit_min(0), limit_max(0), sort_atoms(false), interp_centroids(false),
         dim(0), rank(0), interpolator(NULL)
 {
@@ -30,7 +31,8 @@ SolutionReader::SolutionReader() :
 }
 
 SolutionReader::SolutionReader(Interpolator* i, const string& vl, const string& s1l, const string& s2l) :
-        vec_label(vl), scalar1_label(s1l), scalar2_label(s2l),
+        vec_label(vl), vec_norm_label(vl + "_norm"),
+        scalar1_label(s1l), scalar2_label(s2l),
         limit_min(0), limit_max(0), sort_atoms(false), interp_centroids(false),
         dim(0), rank(0), interpolator(i)
 {
@@ -202,7 +204,7 @@ void SolutionReader::write_xyz(ofstream &out) const {
 
     // write Ovito header
     out << "properties=id:I:1:pos:R:3:marker:I:1:force:R:3:"
-            + vec_label + "_norm:R:1:" + scalar1_label + ":R:1:" + scalar2_label + ":R:1\n";
+            + vec_norm_label + ":R:1:" + scalar1_label + ":R:1:" + scalar2_label + ":R:1\n";
 
     // write data
     const int n_atoms = size();
@@ -225,6 +227,11 @@ void SolutionReader::write_vtk_point_data(ofstream& out) const {
     out << "SCALARS " << scalar1_label << " double\nLOOKUP_TABLE default\n";
     for (int i = 0; i < n_atoms; ++i)
         out << interpolation[i].scalar1 << "\n";
+
+    // output vector norm data to be able to apply filtering in Paraview
+    out << "SCALARS " << vec_norm_label << " double\nLOOKUP_TABLE default\n";
+    for (int i = 0; i < n_atoms; ++i)
+        out << interpolation[i].vector.norm() << "\n";
 
     // output vector data (electric field, current density etc)
     out << "VECTORS " << vec_label << " double\n";
@@ -261,16 +268,18 @@ void SolutionReader::print_statistics() {
 
 int SolutionReader::contains(const string& data_label) const {
     if (data_label == vec_label) return 1;
-    if (data_label == scalar1_label) return 2;
-    if (data_label == scalar2_label) return 3;
+    if (data_label == vec_norm_label) return 2;
+    if (data_label == scalar1_label) return 3;
+    if (data_label == scalar2_label) return 4;
 
     // check if label was provided with upper case letter
-    string label2 = data_label;
-    std::transform(label2.begin(), label2.end(), label2.begin(), ::tolower);
+    string lowered_label = data_label;
+    std::transform(lowered_label.begin(), lowered_label.end(), lowered_label.begin(), ::tolower);
 
-    if (label2 == vec_label) return -1;
-    if (label2 == scalar1_label) return -2;
-    if (label2 == scalar2_label) return -3;
+    if (lowered_label == vec_label) return -1;
+    if (lowered_label == vec_norm_label) return -2;
+    if (lowered_label == scalar1_label) return -3;
+    if (lowered_label == scalar2_label) return -4;
 
     return 0;
 }
@@ -286,7 +295,7 @@ int SolutionReader::contains(const string& ref_label,
     std::transform(lcase_label.begin(), lcase_label.end(), lcase_label.begin(), ::tolower);
 
     if (label1 == lcase_label) return -1;
-    if (label2 == lcase_label) return -1;
+    if (label2 == lcase_label) return -2;
 
     return 0;
 }
@@ -295,24 +304,19 @@ int SolutionReader::export_results(const int n_points, const string &data_type, 
     check_return(size() == 0, "No " + data_type + " to export!");
 
     int dtype = contains(data_type);
-    switch(dtype) {
+    bool append = dtype > 0;
+    switch(abs(dtype)) {
     case 1:
-        export_vec(n_points, data, true);
+        export_vec(n_points, data, append);
         break;
     case 2:
-        export_norm(n_points, data, true);
+        export_vec_norm(n_points, data, append);
         break;
     case 3:
-        export_scalar(n_points, data, true);
+        export_scalar1(n_points, data, append);
         break;
-    case -1:
-        export_vec(n_points, data, false);
-        break;
-    case -2:
-        export_norm(n_points, data, false);
-        break;
-    case -3:
-        export_scalar(n_points, data, false);
+    case 4:
+        export_scalar2(n_points, data, append);
         break;
     default:
         require(false, class_name() + " does not contain " + data_type);
@@ -321,7 +325,7 @@ int SolutionReader::export_results(const int n_points, const string &data_type, 
     return 0;
 }
 
-void SolutionReader::export_vec(const int n_points, double* data, bool append) const {
+void SolutionReader::export_vec(int n_points, double* data, bool append) const {
     if (!append)
         clear_data(3*n_points, data);
 
@@ -339,35 +343,61 @@ void SolutionReader::export_vec(const int n_points, double* data, bool append) c
     }
 }
 
-void SolutionReader::export_norm(const int n_points, double* data, bool append) const {
-    if (!append)
+void SolutionReader::export_vec_norm(int n_points, double* data, bool append) const {
+    if (append) {
+        for (int i = 0; i < size(); ++i) {
+            int id = get_id(i);
+            if (id < 0 || id >= n_points) continue;
+            data[id] += interpolation[i].vector.norm();
+        }
+    } else {
         clear_data(n_points, data);
 
-    for (int i = 0; i < size(); ++i) {
-        int id = get_id(i);
-        if (id < 0 || id >= n_points) continue;
-        if (append)
+        for (int i = 0; i < size(); ++i) {
+            int id = get_id(i);
+            if (id < 0 || id >= n_points) continue;
+            data[id] = interpolation[i].vector.norm();
+        }
+    }
+}
+
+void SolutionReader::export_scalar1(int n_points, double* data, bool append) const {
+    if (append) {
+        for (int i = 0; i < size(); ++i) {
+            int id = get_id(i);
+            if (id < 0 || id >= n_points) continue;
             data[id] += interpolation[i].scalar1;
-        else
-            data[id] = interpolation[i].scalar1;
-    }
-}
-
-void SolutionReader::export_scalar(const int n_points, double* data, bool append) const {
-    if (!append)
+        }
+    } else {
         clear_data(n_points, data);
 
-    for (int i = 0; i < size(); ++i) {
-        int id = get_id(i);
-        if (id < 0 || id >= n_points) continue;
-        if (append)
-            data[id] += interpolation[i].scalar2;
-        else
-            data[id] = interpolation[i].scalar2;
+        for (int i = 0; i < size(); ++i) {
+            int id = get_id(i);
+            if (id < 0 || id >= n_points) continue;
+            data[id] = interpolation[i].scalar1;
+        }
     }
 }
 
-void SolutionReader::clear_data(const int n_data, double* data) const {
+void SolutionReader::export_scalar2(int n_points, double* data, bool append) const {
+    if (append) {
+        for (int i = 0; i < size(); ++i) {
+            int id = get_id(i);
+            if (id < 0 || id >= n_points) continue;
+            data[id] += interpolation[i].scalar2;
+        }
+    } else {
+        clear_data(n_points, data);
+
+        for (int i = 0; i < size(); ++i) {
+            int id = get_id(i);
+            if (id < 0 || id >= n_points) continue;
+            data[id] = interpolation[i].scalar2;
+        }
+    }
+}
+
+void SolutionReader::clear_data(int n_data, double* data) const {
     for (int i = 0; i < n_data; ++i)
         data[i] = 0;
 }

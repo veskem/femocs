@@ -91,6 +91,7 @@ public:
 
 protected:
     const string vec_label;       ///< label for vector data
+    const string vec_norm_label;  ///< label for vector norm data
     const string scalar1_label;   ///< label for first scalar data
     const string scalar2_label;   ///< label for second scalar data
     double limit_min;             ///< minimum value of accepted comparison value
@@ -127,17 +128,20 @@ protected:
     /** Sort atoms and interpolation by the atom ID */
     void restore_sorting();
 
-    /** Export vector component of solution */
-    void export_vec(const int n_points, double* data, bool append) const;
+    /** Export vector component of the solution */
+    void export_vec(int n_points, double* data, bool append) const;
 
-    /** Export norm component of solution */
-    void export_norm(const int n_points, double* data, bool append) const;
+    /** Export norm of the vector component of the solution */
+    void export_vec_norm(int n_points, double* data, bool append) const;
 
-    /** Export scalar component of solution */
-    void export_scalar(const int n_points, double* data, bool append) const;
+    /** Export first scalar from the solution */
+    void export_scalar1(int n_points, double* data, bool append) const;
+
+    /** Export second scalar from the solution */
+    void export_scalar2(int n_points, double* data, bool append) const;
 
     /** Clear data vector */
-    void clear_data(const int n_data, double* data) const;
+    void clear_data(int n_data, double* data) const;
 };
 
 /** Class to extract solution from DealII calculations */
