@@ -489,6 +489,9 @@ int main(int argc, char **argv) {
     double* T  = (double*) malloc(n_atoms * sizeof(double));
     double* xq = (double*) malloc(4 * n_atoms * sizeof(double));
 
+    const double* nodes = NULL;
+    const int* cells = NULL;
+
     if (infile != "") read_atoms(infile, x, y, z);
 
     for (int i = 1; i <= n_iterations; ++i) {
@@ -496,6 +499,9 @@ int main(int argc, char **argv) {
 
         success = femocs.import_atoms(infile, add_rnd_noise);
         success += femocs.run();
+
+        success += 0 >= femocs.export_data(&nodes, "nodes");
+        success += 0 >= femocs.export_data(&cells, "triangles");
 //        success += femocs.export_elfield(0, Ex, Ey, Ez, En);
 //        success += femocs.export_temperature(n_atoms, T);
 //        success += femocs.export_charge_and_force(n_atoms, xq);

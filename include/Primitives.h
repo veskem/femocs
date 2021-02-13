@@ -506,18 +506,18 @@ public:
 /** Class to hold solution data and its operations */
 class Solution {
 public:
-    Solution() : vector(Vec3(0)), norm(0), scalar(0) {}
-    Solution(const double d) : vector(Vec3(d)), norm(d), scalar(d) {}
-    Solution(const Vec3& v, const double n, const double s) : vector(v), norm(n), scalar(s) {}
+    Solution() : vector(Vec3(0)), scalar1(0), scalar2(0) {}
+    Solution(const double d) : vector(Vec3(d)), scalar1(d), scalar2(d) {}
+    Solution(const Vec3& v, const double n, const double s) : vector(v), scalar1(n), scalar2(s) {}
 
     /** Define the behaviour of string stream */
     friend std::ostream& operator <<(std::ostream &ss, const Solution &sol) {
-        return ss << sol.vector << ' ' << sol.vector.norm() << ' ' << sol.norm << ' ' << sol.scalar;
+        return ss << sol.vector << ' ' << sol.vector.norm() << ' ' << sol.scalar1 << ' ' << sol.scalar2;
     }
 
     Vec3 vector;
-    double norm;
-    double scalar;
+    double scalar1;
+    double scalar2;
 };
 
 /** Super particles for PIC calculations */

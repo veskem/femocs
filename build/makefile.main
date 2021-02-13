@@ -7,16 +7,16 @@ include share/makefile.femocs
 
 all: build/femocs
 
-build/femocs: build/femocs.o
+build/femocs: build/femocs.o lib/libfemocs.so
 	${compiler} $< ${FEMOCS_OPT} ${FEMOCS_EXT_LIB} ${FEMOCS_LIBPATH} ${FEMOCS_LIB} -o $@
 
-build/femocs.o: lib/libfemocs.a ${main}
+build/femocs.o: ${main}
 	${compiler} -c ${main} ${FEMOCS_OPT} ${FEMOCS_EXT_HEAD} ${FEMOCS_HEADPATH} -o $@
 	
 build/femocs_debug: build/femocs_debug.o
 	${compiler} $< ${FEMOCS_DOPT} ${FEMOCS_EXT_LIB} ${FEMOCS_LIBPATH} ${FEMOCS_DLIB} -o $@
 
-build/femocs_debug.o: lib/libfemocs.a ${main}
+build/femocs_debug.o: lib/libfemocs.so ${main}
 	${compiler} -c ${main} ${FEMOCS_DOPT} ${FEMOCS_EXT_HEAD} ${FEMOCS_HEADPATH} -o $@
 
 clean:

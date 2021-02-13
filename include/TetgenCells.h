@@ -284,6 +284,9 @@ public:
     TetgenNodes(tetgenio *read, tetgenio *write) :
         TetgenCells<1>(read, write, &read->numberofpoints, &write->numberofpoints) {}
 
+    /** Obtain pointer to the list of node coordinates */
+    const double* get() const { return reads->pointlist; }
+
     /** Modify the coordinates of i-th node */
     void set_node(const int i, const Point3 &point);
 
@@ -394,6 +397,9 @@ public:
     TetgenEdges(tetgenio *read, tetgenio *write)
         : TetgenCells<2>(read, write, &read->numberofedges, &write->numberofedges) {}
 
+    /** Obtain pointer to the list of edges */
+    const int* get() const { return reads->edgelist; }
+
     /** Initialize edge appending */
     void init(const int N);
 
@@ -433,6 +439,9 @@ public:
     TetgenFaces(tetgenio *data) : TetgenCells<3> (data, &data->numberoftrifaces) {}
     TetgenFaces(tetgenio *read, tetgenio *write)
         : TetgenCells<3>(read, write, &read->numberoftrifaces, &write->numberoftrifaces) {}
+
+    /** Obtain pointer to the list of triangles */
+    const int* get() const { return reads->trifacelist; }
 
     /** Initialize face appending */
     void init(const int N);
@@ -520,6 +529,9 @@ public:
     TetgenElements(tetgenio *read, tetgenio *write) :
         TetgenCells<4>(read, write, &read->numberoftetrahedra, &write->numberoftetrahedra) {}
 
+    /** Obtain pointer to the list of tetrahedra */
+    const int* get() const { return reads->tetrahedronlist; }
+
     /** Get indices of neighbouring elements of i-th element */
     vector<int> get_neighbours(const int i) const;
 
@@ -591,19 +603,20 @@ private:
 /** Class for holding quadrangles that were generated from triangles */
 class Quadrangles: public TetgenCells<4> {
 public:
-    Quadrangles() : TetgenCells<4>() {}
-    Quadrangles(tetgenio *data) : TetgenCells<4> (data, &data->numberofvcells) {}
-    Quadrangles(tetgenio *read, tetgenio *write) :
-        TetgenCells<4>(read, write, &read->numberofvcells, &write->numberofvcells) {}
+    Quadrangles() : n_quads(0), TetgenCells<4>() {}
+    Quadrangles(tetgenio *data) : n_quads(0), TetgenCells<4> (data, &n_quads) {}
+    Quadrangles(tetgenio *read, tetgenio *write) : n_quads(0),
+        TetgenCells<4>(read, write, &n_quads, &n_quads) {}
+    ~Quadrangles();
+
+    /** Obtain pointer to the list of quadrangles */
+    const int* get() const { return quads; }
 
     /** Initialize quadrangles appending */
     void init(const int N);
 
     /** Append quadrangle to the mesh */
     void append(const SimpleCell<4> &cell);
-
-    /** Get number of quadrangles in mesh */
-    int size() const { return quads.size(); }
 
     /** Return indices of all hexahedra that are connected to i-th quadrangle;
      * -1 means there's no hexahedron */
@@ -624,7 +637,8 @@ public:
     }
 
 protected:
-    vector<SimpleQuad> quads;
+    int n_quads;        ///< nr of stored quadrangles
+    int* quads = NULL;  ///< sequential list of node indices that form quadrangles
     vector<array<int,2>> map2hexs;
 
     /** Return the quadrangle type in vtk format */
@@ -637,19 +651,20 @@ protected:
 /** Class for holding hexahedra that were generated from tetrahedra */
 class Hexahedra: public TetgenCells<8> {
 public:
-    Hexahedra() : TetgenCells<8>() {}
-    Hexahedra(tetgenio *data) : TetgenCells<8> (data, &data->numberofvcells) {}
-    Hexahedra(tetgenio *read, tetgenio *write) :
-        TetgenCells<8>(read, write, &read->numberofvcells, &write->numberofvcells) {}
+    Hexahedra() : n_hexs(0), TetgenCells<8>() {}
+    Hexahedra(tetgenio *data) : n_hexs(0), TetgenCells<8> (data, &n_hexs) {}
+    Hexahedra(tetgenio *read, tetgenio *write) : n_hexs(0),
+        TetgenCells<8>(read, write, &n_hexs, &n_hexs) {}
+    ~Hexahedra();
+
+    /** Obtain pointer to the list of hexahedra */
+    const int* get() const { return hexs; }
 
     /** Initialize hexahedra appending */
     void init(const int N);
 
     /** Append hexahedron to the mesh */
     void append(const SimpleCell<8> &cell);
-
-    /** Get number of hexahedra in mesh */
-    int size() const { return hexs.size(); }
 
     /** Return the indices of quadrangles connected to i-th hexahedron */
     vector<int> to_quads(const int i) const {
@@ -675,7 +690,8 @@ public:
     }
 
 protected:
-    vector<SimpleHex> hexs;
+    int n_hexs;         ///< nr of stored hexahedra
+    int* hexs = NULL;   ///< sequential list of node indices that form hexahedra
     vector<vector<int>> map2quads;
 
     /** Return the hexahedron type in vtk format */

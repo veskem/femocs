@@ -156,6 +156,12 @@ struct Labels {
     const string heat = "heat";
     const string area = "area";
     const string atom_type = "atom_type";
+    const string nodes = "nodes";
+    const string edges = "edges";
+    const string triangles = "triangles";
+    const string quadrangles = "quadrangles";
+    const string tetrahedra = "tetrahedra";
+    const string hexahedra = "hexahedra";
 };
 
 /** Flags to control the output behaviour of the code */

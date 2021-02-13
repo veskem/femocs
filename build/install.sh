@@ -19,11 +19,10 @@ write_initial_flags () {
     sed -i "/^FEMOCS_LIB=/ s|$|$LIB_ALL |" share/makefile.femocs
 
     sed -i "/^FEMOCS_DLIB=/ s|$|$LIB_FEMOCS |" share/makefile.femocs
-    sed -i "/^FEMOCS_DLIB=/ s|$|$LIB_ALL |" share/makefile.femocs
+    sed -i "/^FEMOCS_DLIB=/ s|$|$DLIB_ALL |" share/makefile.femocs
 
     sed -i "/^TETGEN_FLAGS=/ s|$|$TETGEN_FLAGS |" share/makefile.femocs
     sed -i "/^DEALII_FLAGS=/ s|$|$DEALII_FLAGS |" share/makefile.femocs
-    sed -i "/^CGAL_FLAGS=/ s|$|$CGAL_FLAGS |" share/makefile.femocs
 }
 
 print_all() { 
@@ -35,7 +34,6 @@ print_all() {
     grep "FEMOCS_DLIB=" share/makefile.femocs
     grep "TETGEN_FLAGS=" share/makefile.femocs
     grep "DEALII_FLAGS=" share/makefile.femocs
-    grep "CGAL_FLAGS=" share/makefile.femocs
     grep "MACHINE=" share/makefile.femocs
 }
 
@@ -71,9 +69,6 @@ if (test $mode = taito) then
     sed -i "/^FEMOCS_LIB=/ s|$|$LIB_TAITO |" share/makefile.femocs
     sed -i "/^FEMOCS_DLIB=/ s|$|$LIB_TAITO |" share/makefile.femocs
 
-    sed -i "/^DEALII_FLAGS=/ s|=|=$DEALII_FLAGS_TAITO |" share/makefile.femocs
-    sed -i "/^CGAL_FLAGS=/ s|=|=$CGAL_FLAGS_TAITO |" share/makefile.femocs
-
     sed -i "/MACHINE=/c\MACHINE=taito" share/makefile.femocs
 
     print_all
@@ -99,38 +94,19 @@ if (test $mode = alcyone) then
     make -f build/makefile.install
 fi
 
-if (test $mode = cgal) then
-    echo "Adding CGAL flags"
+if (test $mode = kale) then
+    echo -e "\nWriting Kale flags"
+    write_initial_flags
 
-    sed -i "/^FEMOCS_HEADPATH=/ s|=|=$HEADPATH_CGAL |" share/makefile.femocs
-    sed -i "/^FEMOCS_LIBPATH=/ s|$|$LIBPATH_CGAL |" share/makefile.femocs
-    sed -i "/^FEMOCS_LIB=/ s|=|=$LIB_CGAL |" share/makefile.femocs
-    sed -i "/^FEMOCS_DLIB=/ s|=|=$LIB_CGAL |" share/makefile.femocs
+    sed -i "/^FEMOCS_EXT_HEAD=/ s|=|=$HEADPATH_KALE |" share/makefile.femocs
+    sed -i "/^FEMOCS_EXT_LIB=/ s|=|=$LIBPATH_KALE |" share/makefile.femocs
+    sed -i "/^FEMOCS_LIB=/ s|$|$LIB_KALE |" share/makefile.femocs
+    sed -i "/^FEMOCS_DLIB=/ s|$|$LIB_KALE |" share/makefile.femocs
 
-    sed -i "/LIBCGAL=/c\LIBCGAL=1" share/makefile.femocs
-
-    print_all
-    grep "LIBCGAL=" share/makefile.femocs
-    
-    machine=$( grep "MACHINE=" share/makefile.femocs | sed "s|MACHINE=||" )       
-    echo -e "\nInstalling CGAL in "$machine
-    if (test $machine = taito) then
-        make -s -f build/makefile.cgal taito
-    else
-        make -f build/makefile.cgal
-    fi
-fi
-
-if (test $mode = no-cgal) then
-    echo "Removing CGAL flags"
-
-    sed -i -- "s|$HEADPATH_CGAL ||g" share/makefile.femocs
-    sed -i -- "s|$LIBPATH_CGAL ||g" share/makefile.femocs
-    sed -i -- "s|$LIB_CGAL ||g" share/makefile.femocs
-
-    sed -i "/LIBCGAL=/c\LIBCGAL=" share/makefile.femocs
+    sed -i "/MACHINE=/c\MACHINE=kale" share/makefile.femocs
 
     print_all
-    grep "LIBCGAL=" share/makefile.femocs
-fi
 
+    echo -e "\nInstalling Femocs dependencies"
+    make -f build/makefile.install
+fi
