@@ -27,7 +27,7 @@ class SolutionReader: public Medium {
 public:
     /** SolutionReader constructors */
     SolutionReader();
-    SolutionReader(Interpolator* i, const string& vec_lab, const string& vec_norm_lab, const string& scal_lab);
+    SolutionReader(Interpolator* i, const string& vec_lab, const string& scalar1_lab, const string& scalar2_lab);
 
     /** Interpolate solution using already available data about which atom is connected with which cell */
     virtual void calc_interpolation();
@@ -69,9 +69,6 @@ public:
     /** Alter the pointer to interpolator */
     void set_interpolator(Interpolator* i) { interpolator = i; }
 
-    /** Calculate statistics about coordinates and solution */
-    void calc_statistics();
-
     /** Interpolate solution on the surface mesh centroids of the FEM solver */
     void interpolate(const DealSolver<3>& solver);
 
@@ -92,18 +89,10 @@ public:
     int interpolate_results(const int n_points, const string &data_type, const double* x,
             const double* y, const double* z, double* data);
 
-    /** Statistics about solution */
-    struct Statistics {
-        double vec_norm_min;  ///< minimum value of vector norm
-        double vec_norm_max;  ///< maximum value of vector norm
-        double scal_min;      ///< minimum value of scalar
-        double scal_max;      ///< maximum value of scalar
-    } stat;
-
 protected:
     const string vec_label;       ///< label for vector data
-    const string norm_label;      ///< label for data associated with vector length
-    const string scalar_label;    ///< label for scalar data
+    const string scalar1_label;   ///< label for first scalar data
+    const string scalar2_label;   ///< label for second scalar data
     double limit_min;             ///< minimum value of accepted comparison value
     double limit_max;             ///< maximum value of accepted comparison value
     bool sort_atoms;              ///< sort atoms along Hilbert curve to make interpolation faster
@@ -114,9 +103,6 @@ protected:
 
     Interpolator* interpolator;    ///< pointer to interpolator
     vector<Solution> interpolation;       ///< interpolated data
-
-    /** Initialise statistics about coordinates and solution */
-    void init_statistics();
 
     /** Output atom data in .xyz format */
     void write_xyz(ofstream &outfile) const;
@@ -189,13 +175,13 @@ public:
     /** Return charge density in i-th interpolation point */
     double get_charge_dens(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
-        return interpolation[i].norm;
+        return interpolation[i].scalar1;
     }
 
     /** Return electric potential in i-th interpolation point */
     double get_potential(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
-        return interpolation[i].scalar;
+        return interpolation[i].scalar2;
     }
 
     /** Find the maximum field norm either from the provided of internal solution vector */
@@ -255,13 +241,13 @@ public:
     /** Return magnitude of current density in i-th interpolation point */
     double get_potential(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
-        return interpolation[i].norm;
+        return interpolation[i].scalar1;
     }
 
     /** Return temperature in i-th interpolation point */
     double get_temperature(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
-        return interpolation[i].scalar;
+        return interpolation[i].scalar2;
     }
 
 private:
@@ -314,13 +300,13 @@ public:
     /** Get area of i-th triangle */
     double get_area(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
-        return interpolation[i].norm;
+        return interpolation[i].scalar1;
     }
 
     /** Get charge of i-th triangle */
     double get_charge(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
-        return interpolation[i].scalar;
+        return interpolation[i].scalar2;
     }
 
 private:
@@ -367,13 +353,13 @@ public:
     /** Return pair potential of i-th atom */
     double get_pairpot(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
-        return interpolation[i].norm;
+        return interpolation[i].scalar1;
     }
 
     /** Return the charge of i-th atom */
     double get_charge(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
-        return interpolation[i].scalar;
+        return interpolation[i].scalar2;
     }
 
 private:

@@ -23,7 +23,7 @@ namespace femocs {
 class InterpolatorNodes: public FileWriter {
 public:
     InterpolatorNodes();
-    InterpolatorNodes(const string &vec_label, const string &norm_label, const string &scalar_label);
+    InterpolatorNodes(const string &vec_label, const string &scalar1_label, const string &scalar2_label);
     ~InterpolatorNodes() {};
 
     /** Return number of available nodes */
@@ -68,13 +68,13 @@ public:
     /** Return vector norm of solution on i-th node */
     double get_vector_norm(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
-        return solutions[i].norm;
+        return solutions[i].scalar1;
     }
 
     /** Return scalar component of solution on i-th node */
     double get_scalar(const int i) const {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
-        return solutions[i].scalar;
+        return solutions[i].scalar2;
     }
 
     /** Modify solution on the i-th node */
@@ -92,13 +92,13 @@ public:
     /** Modify scalar component of solution on the i-th node */
     void set_scalar(const int i, const double d) {
         require(i >= 0 && i < size(), "Invalid index: " + d2s(i));
-        solutions[i].scalar = d;
+        solutions[i].scalar2 = d;
     }
 
     /** Change the data labels */
     void set_labels(const string& nl, const string& sl) {
-        const_cast<string&>(norm_label) = nl;
-        const_cast<string&>(scalar_label) = sl;
+        const_cast<string&>(scalar1_label) = nl;
+        const_cast<string&>(scalar2_label) = sl;
     }
 
     /** Change pointer to mesh */
@@ -116,8 +116,8 @@ public:
 private:
     const TetgenMesh* mesh;         ///< Full mesh data with nodes, faces, elements etc
     const string vec_label;         ///< description label attached to solution.vec -values
-    const string norm_label;        ///< description label attached to solution.norm -values
-    const string scalar_label;      ///< description label attached to solution.scalar -values
+    const string scalar1_label;     ///< description label attached to solution.scalar1 -values
+    const string scalar2_label;     ///< description label attached to solution.scalar2 -values
 
     vector<Solution> solutions;     ///< interpolation data
     vector<int> markers;            ///< markers for nodes
@@ -141,7 +141,7 @@ private:
     void write_vtk_points_and_cells(ofstream& out) const;
 
     /** Output label for restart data */
-    string get_restart_label() const { return scalar_label; }
+    string get_restart_label() const { return scalar2_label; }
 };
 
 /**

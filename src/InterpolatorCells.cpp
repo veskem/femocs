@@ -15,13 +15,13 @@ namespace femocs {
  * ================================================================== */
 
 InterpolatorNodes::InterpolatorNodes() :
-        mesh(NULL), vec_label("vector"), norm_label("vector_norm"), scalar_label("scalar")
+        mesh(NULL), vec_label("vector"), scalar1_label("vector_norm"), scalar2_label("scalar")
 {
     reserve(0);
 }
 
-InterpolatorNodes::InterpolatorNodes(const string &vl, const string &nl, const string &sl) :
-        mesh(NULL), vec_label(vl), norm_label(nl), scalar_label(sl)
+InterpolatorNodes::InterpolatorNodes(const string &vl, const string &s1l, const string &s2l) :
+        mesh(NULL), vec_label(vl), scalar1_label(s1l), scalar2_label(s2l)
 {
     reserve(0);
 }
@@ -74,13 +74,13 @@ void InterpolatorNodes::read(const string &file_name, const int flags) {
 
     expect(flags, "No data will be read!");
     bool import_vec = flags & (1 << 2);
-    bool import_norm = flags & (1 << 1);
-    bool import_scalar = flags & (1 << 0);
+    bool import_scalar1 = flags & (1 << 1);
+    bool import_scalar2 = flags & (1 << 0);
 
     string label = "$";
     if (import_vec) label += vec_label;
-    if (import_norm) label += norm_label;
-    if (import_scalar) label += scalar_label;
+    if (import_scalar1) label += scalar1_label;
+    if (import_scalar2) label += scalar2_label;
 
     string str;
     while (in >> str) {
@@ -95,10 +95,10 @@ void InterpolatorNodes::read(const string &file_name, const int flags) {
             for (int ver = 0; ver < n_nodes; ++ver) {
                 if (import_vec)
                     in.read(reinterpret_cast<char*>(&s.vector), sizeof(Vec3));
-                if (import_norm)
-                    in.read(reinterpret_cast<char*>(&s.norm), sizeof(double));
-                if (import_scalar)
-                    in.read(reinterpret_cast<char*>(&s.scalar), sizeof(double));
+                if (import_scalar1)
+                    in.read(reinterpret_cast<char*>(&s.scalar1), sizeof(double));
+                if (import_scalar2)
+                    in.read(reinterpret_cast<char*>(&s.scalar2), sizeof(double));
                 append_solution(s);
             }
         }
@@ -113,7 +113,7 @@ void InterpolatorNodes::write_xyz(ofstream& out) const {
 
     // write the header for Ovito
     out << "properties=id:I:1:pos:R:3:marker:I:1:" <<
-            "force:R:3:" << vec_label << ":R:1:" << norm_label << ":R:1:" << scalar_label << ":R:1" << endl;
+            "force:R:3:" << vec_label << ":R:1:" << scalar1_label << ":R:1:" << scalar2_label << ":R:1" << endl;
 
     // write data
     const int n_nodes = size();
@@ -123,7 +123,7 @@ void InterpolatorNodes::write_xyz(ofstream& out) const {
 
 void InterpolatorNodes::write_bin(ofstream &out) const {
     for (Solution const &s : solutions)
-            out.write ((char*)&s.scalar, sizeof (double));
+            out.write ((char*)&s.scalar2, sizeof (double));
 }
 
 void InterpolatorNodes::write_vtk_points_and_cells(ofstream& out) const {
@@ -162,14 +162,14 @@ void InterpolatorNodes::write_vtk_point_data(ofstream& out) const {
         out << markers[i] << "\n";
 
     // write vector norm data
-    out << "SCALARS " + norm_label + " double\nLOOKUP_TABLE default\n";
+    out << "SCALARS " + scalar1_label + " double\nLOOKUP_TABLE default\n";
     for (int i = 0; i < n_nodes; ++i)
-        out << solutions[i].norm << "\n";
+        out << solutions[i].scalar1 << "\n";
 
     // write scalar data
-    out << "SCALARS " + scalar_label + " double\nLOOKUP_TABLE default\n";
+    out << "SCALARS " + scalar2_label + " double\nLOOKUP_TABLE default\n";
     for (int i = 0; i < n_nodes; ++i)
-        out << solutions[i].scalar << "\n";
+        out << solutions[i].scalar2 << "\n";
 
     // write vector data
     out << "VECTORS " << vec_label << " double\n";
@@ -342,17 +342,17 @@ Solution InterpolatorCells<dim>::interp_centroid(const int cell) const {
 
     // using them as weights, interpolate vector & scalar data
     Vec3 vector_i(0.0);
-    double vector_norm_i(0.0);
-    double scalar_i(0.0);
+    double scalar1_i(0.0);
+    double scalar2_i(0.0);
 
     for (int i = 0; i < dim; ++i) {
         const Solution& s = (*solutions)[scell[i]];
         vector_i += s.vector * weight;
-        vector_norm_i += s.norm * weight;
-        scalar_i += s.scalar * weight;
+        scalar1_i += s.scalar1 * weight;
+        scalar2_i += s.scalar2 * weight;
     }
 
-    return Solution(vector_i, vector_norm_i, scalar_i);
+    return Solution(vector_i, scalar1_i, scalar2_i);
 }
 
 template<int dim>
@@ -366,17 +366,17 @@ Solution InterpolatorCells<dim>::interp_solution(const Point3 &point, const int 
 
     // using them as weights, interpolate vector & scalar data
     Vec3 vector_i(0.0);
-    double vector_norm_i(0.0);
-    double scalar_i(0.0);
+    double scalar1_i(0.0);
+    double scalar2_i(0.0);
 
     for (int i = 0; i < dim; ++i) {
         const Solution& s = (*solutions)[scell[i]];
         vector_i += s.vector * weights[i];
-        vector_norm_i += s.norm * weights[i];
-        scalar_i += s.scalar * weights[i];
+        scalar1_i += s.scalar1 * weights[i];
+        scalar2_i += s.scalar2 * weights[i];
     }
 
-    return Solution(vector_i, vector_norm_i, scalar_i);
+    return Solution(vector_i, scalar1_i, scalar2_i);
 }
 
 template<int dim>
@@ -391,17 +391,17 @@ Solution InterpolatorCells<dim>::interp_solution_v2(const Point3 &point, const i
 
     // using them as weights, interpolate scalar data and its gradient
     Vec3 vector_i(0.0);
-    double vector_norm_i(0.0);
-    double scalar_i(0.0);
+    double scalar1_i(0.0);
+    double scalar2_i(0.0);
 
     for (int i = 0; i < dim; ++i) {
         const Solution& s = (*solutions)[scell[i]];
-        vector_i -= sfg[i] * s.scalar;
-        scalar_i += sf[i] * s.scalar;
-        vector_norm_i += sf[i] * s.norm;
+        vector_i -= sfg[i] * s.scalar2;
+        scalar1_i += sf[i] * s.scalar1;
+        scalar2_i += sf[i] * s.scalar2;
     }
 
-    return Solution(vector_i, vector_norm_i, scalar_i);
+    return Solution(vector_i, scalar1_i, scalar2_i);
 }
 
 template<int dim>
