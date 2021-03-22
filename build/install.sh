@@ -25,7 +25,20 @@ write_initial_flags () {
     sed -i "/^DEALII_FLAGS=/ s|$|$DEALII_FLAGS |" share/makefile.femocs
 }
 
-print_all() { 
+install_dependencies() {
+    echo -e "\nInstalling Femocs dependencies"
+    make --no-print-directory -f build/makefile.install
+
+    if [ ! -d dealii ] && [ -z ${DEAL_II_DIR} ]; then
+        echo -e "\nInstalling Deal.II"
+        make -s -f build/makefile.install dealii/lib/libdeal_II.so
+    elif [ ! -d dealii ]; then
+        echo -e "\nCreating symlink for Deal.II"
+        ln -s ${DEAL_II_DIR} dealii
+    fi
+}
+
+print_all() {
     grep "FEMOCS_OPT=" share/makefile.femocs
     grep "FEMOCS_DOPT=" share/makefile.femocs
     grep "FEMOCS_HEADPATH=" share/makefile.femocs
@@ -47,17 +60,15 @@ if (test $mode = ubuntu) then
 
     echo -e "\nWriting Ubuntu flags"
     write_initial_flags
-    
+
     sed -i "/^FEMOCS_HEADPATH=/ s|=|=$HEADPATH_UBUNTU |" share/makefile.femocs
     sed -i "/^FEMOCS_LIB=/ s|$|$LIB_UBUNTU |" share/makefile.femocs
     sed -i "/^FEMOCS_DLIB=/ s|$|$LIB_UBUNTU |" share/makefile.femocs
-    
+
     sed -i "/MACHINE=/c\MACHINE=ubuntu" share/makefile.femocs
-        
+
     print_all
-    
-    echo -e "\nInstalling Femocs dependencies"
-    make -f build/makefile.install
+    install_dependencies
 fi
 
 if (test $mode = taito) then
@@ -72,9 +83,7 @@ if (test $mode = taito) then
     sed -i "/MACHINE=/c\MACHINE=taito" share/makefile.femocs
 
     print_all
-
-    echo -e "\nInstalling Femocs dependencies"
-    make -f build/makefile.install
+    install_dependencies
 fi
 
 if (test $mode = alcyone) then
@@ -89,9 +98,7 @@ if (test $mode = alcyone) then
     sed -i "/MACHINE=/c\MACHINE=alcyone" share/makefile.femocs
 
     print_all
-
-    echo -e "\nInstalling Femocs dependencies"
-    make -f build/makefile.install
+    install_dependencies
 fi
 
 if (test $mode = kale) then
@@ -106,7 +113,5 @@ if (test $mode = kale) then
     sed -i "/MACHINE=/c\MACHINE=kale" share/makefile.femocs
 
     print_all
-
-    echo -e "\nInstalling Femocs dependencies"
-    make -f build/makefile.install
+    install_dependencies
 fi

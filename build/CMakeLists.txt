@@ -1,6 +1,6 @@
 ##############################################################################
-# CMake file for building Femocs as a static library or standalone executable
-#
+#              CMake file for building Femocs as an executable
+#                          or as a shared library
 ##############################################################################
 
 cmake_minimum_required (VERSION 2.8.8)
@@ -53,9 +53,12 @@ ELSE()
     SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ..)
 ENDIF()
 
-
 # Specify the path to deal.II files
-SET(DEAL_II_DIR ../dealii)
+IF (EXISTS $ENV{DEAL_II_DIR})
+    SET(DEAL_DIR $ENV{DEAL_II_DIR})
+ELSE()
+    SET(DEAL_DIR ../dealii)
+ENDIF()
 
 # specify paths to tetgen, getelec and slatec libraries
 SET(TET_DIR ../lib)
@@ -83,7 +86,7 @@ INCLUDE_DIRECTORIES(../include ../GETELEC/modules)
 # =========== Locate dependencies ==============
 # ==============================================
 
-FIND_PACKAGE(deal.II 8.4 REQUIRED HINTS ${DEAL_II_DIR})
+FIND_PACKAGE(deal.II 9.2 REQUIRED HINTS ${DEAL_DIR})
 IF ( NOT deal.II_FOUND )
     MESSAGE(FATAL_ERROR "Deal.II not found from " ${DEAL_II_DIR})
 ENDIF()
@@ -126,15 +129,6 @@ IF (CMAKE_BUILD_TYPE MATCHES Release)
 ELSE()
     SET(DEAL_II_CXX_FLAGS "${DEAL_II_CXX_FLAGS} -g -O0 ${WARNINGS}")
 ENDIF()
-
-# print out resulting flags
-MESSAGE(STATUS "CMAKE_CXX_FLAGS = " ${CMAKE_CXX_FLAGS})
-MESSAGE(STATUS "DEAL_II_CXX_FLAGS = " ${DEAL_II_CXX_FLAGS})
-MESSAGE(STATUS "DEAL_II_CXX_FLAGS_RELEASE = " ${DEAL_II_CXX_FLAGS_RELEASE})
-MESSAGE(STATUS "DEAL_II_LINKER_FLAGS = " ${DEAL_II_LINKER_FLAGS})
-MESSAGE(STATUS "DEAL_II_LINKER_FLAGS_RELEASE = " ${DEAL_II_LINKER_FLAGS_RELEASE})
-MESSAGE(STATUS "DEAL_II_USER_DEFINITIONS = " ${DEAL_II_USER_DEFINITIONS})
-MESSAGE(STATUS "DEAL_II_USER_DEFINITIONS_RELEASE = " ${DEAL_II_USER_DEFINITIONS_RELEASE})
 
 # ==============================================
 # =========== Start building ===========

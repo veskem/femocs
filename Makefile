@@ -44,13 +44,13 @@ debug: femocs_dlib femocs_debug
 femocs_debug:
 	make -s -f build/makefile.main build/femocs_debug main=${CXXMAIN} compiler=${CXX}
 
-#release: femocs_release
-#femocs_release:
-#	make -s -f build/makefile.exec build/femocs build_type=Release
-#
-#debug: femocs_debug
-#femocs_debug:
-#	make -s -f build/makefile.exec build/femocs build_type=Debug
+exec: femocs_exec
+femocs_exec:
+	make -s -f build/makefile.exec build/femocs build_type=Release
+
+dexec: femocs_dexec
+femocs_dexec:
+	make -s -f build/makefile.exec build/femocs build_type=Debug
 
 doc: femocs_doc
 femocs_doc:
