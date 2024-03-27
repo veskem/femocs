@@ -1,3 +1,5 @@
+*The development of FEMOCS has moved to GitLab*: https://gitlab.ut.ee/matter/femocs
+
 ## Overview
 FEMOCS - Finite Elements on Crystal Surfaces - is a C++ library for coupling the effects of high electric
 field into Molecular Dynamics or kinetic Monte Carlo simulations. Current version of FEMOCS can
